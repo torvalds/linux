@@ -2283,6 +2283,10 @@
 #define mmDCHUBBUB_VLINE_SNAPSHOT_BASE_IDX                                                             2
 #define mmDCHUBBUB_SPARE                                                                               0x0534
 #define mmDCHUBBUB_SPARE_BASE_IDX                                                                      2
+#define mmDCHUBBUB_TEST_DEBUG_INDEX                                                                    0x053a
+#define mmDCHUBBUB_TEST_DEBUG_INDEX_BASE_IDX                                                           2
+#define mmDCHUBBUB_TEST_DEBUG_DATA                                                                     0x053b
+#define mmDCHUBBUB_TEST_DEBUG_DATA_BASE_IDX                                                            2
 
 
 // addressBlock: dce_dc_dchubbub_dchubbub_dcperfmon_dc_perfmon_dispdec
@@ -10361,6 +10365,8 @@
 #define mmUNIPHYG_CHANNEL_XBAR_CNTL_BASE_IDX                                                           2
 #define mmDCIO_WRCMD_DELAY                                                                             0x287e
 #define mmDCIO_WRCMD_DELAY_BASE_IDX                                                                    2
+#define mmDC_PINSTRAPS                                                                                 0x2880
+#define mmDC_PINSTRAPS_BASE_IDX                                                                        2
 #define mmDC_DVODATA_CONFIG                                                                            0x2882
 #define mmDC_DVODATA_CONFIG_BASE_IDX                                                                   2
 #define mmLVTMA_PWRSEQ_CNTL                                                                            0x2883

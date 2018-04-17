@@ -132,10 +132,10 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	size_t packet_len;
 	int error;
 
-	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
+	if ((file->f_flags & O_NONBLOCK) && socket_client->queue_len == 0)
 		return -EAGAIN;
 
-	if ((!buf) || (count < sizeof(struct batadv_icmp_packet)))
+	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -292,7 +292,7 @@ out:
 	return len;
 }
 
-static unsigned int batadv_socket_poll(struct file *file, poll_table *wait)
+static __poll_t batadv_socket_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_socket_client *socket_client = file->private_data;
 

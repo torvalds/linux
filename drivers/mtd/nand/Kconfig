@@ -315,10 +315,26 @@ config MTD_NAND_ATMEL
 
 config MTD_NAND_PXA3xx
 	tristate "NAND support on PXA3xx and Armada 370/XP"
+	depends on !MTD_NAND_MARVELL
 	depends on PXA3xx || ARCH_MMP || PLAT_ORION || ARCH_MVEBU
 	help
+
 	  This enables the driver for the NAND flash device found on
-	  PXA3xx processors (NFCv1) and also on Armada 370/XP (NFCv2).
+	  PXA3xx processors (NFCv1) and also on 32-bit Armada
+	  platforms (XP, 370, 375, 38x, 39x) and 64-bit Armada
+	  platforms (7K, 8K) (NFCv2).
+
+config MTD_NAND_MARVELL
+	tristate "NAND controller support on Marvell boards"
+	depends on PXA3xx || ARCH_MMP || PLAT_ORION || ARCH_MVEBU || \
+		   COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables the NAND flash controller driver for Marvell boards,
+	  including:
+	  - PXA3xx processors (NFCv1)
+	  - 32-bit Armada platforms (XP, 37x, 38x, 39x) (NFCv2)
+	  - 64-bit Aramda platforms (7k, 8k) (NFCv2)
 
 config MTD_NAND_SLC_LPC32XX
 	tristate "NXP LPC32xx SLC Controller"
@@ -373,9 +389,7 @@ config MTD_NAND_GPMI_NAND
 	 Enables NAND Flash support for IMX23, IMX28 or IMX6.
 	 The GPMI controller is very powerful, with the help of BCH
 	 module, it can do the hardware ECC. The GPMI supports several
-	 NAND flashs at the same time. The GPMI may conflicts with other
-	 block, such as SD card. So pay attention to it when you enable
-	 the GPMI.
+	 NAND flashs at the same time.
 
 config MTD_NAND_BRCMNAND
 	tristate "Broadcom STB NAND controller"

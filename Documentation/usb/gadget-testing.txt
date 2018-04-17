@@ -693,7 +693,7 @@ such specification consists of a number of lines with an inverval value
 in each line. The rules stated above are best illustrated with an example:
 
 # mkdir functions/uvc.usb0/control/header/h
-# cd functions/uvc.usb0/control/header/h
+# cd functions/uvc.usb0/control/
 # ln -s header/h class/fs
 # ln -s header/h class/ss
 # mkdir -p functions/uvc.usb0/streaming/uncompressed/u/360p

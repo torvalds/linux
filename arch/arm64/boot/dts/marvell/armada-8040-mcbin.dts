@@ -57,7 +57,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
@@ -101,6 +101,8 @@
 
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
 };
 
 &ap_sdhci0 {
@@ -222,8 +224,11 @@
 
 &cpm_eth0 {
 	status = "okay";
+	/* Network PHY */
 	phy = <&phy0>;
 	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cpm_comphy4 0>;
 };
 
 &cpm_sata0 {
@@ -257,15 +262,21 @@
 
 &cps_eth0 {
 	status = "okay";
+	/* Network PHY */
 	phy = <&phy8>;
 	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cps_comphy4 0>;
 };
 
 &cps_eth1 {
 	/* CPS Lane 0 - J5 (Gigabit RJ45) */
 	status = "okay";
+	/* Network PHY */
 	phy = <&ge_phy>;
 	phy-mode = "sgmii";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cps_comphy0 1>;
 };
 
 &cps_pinctrl {

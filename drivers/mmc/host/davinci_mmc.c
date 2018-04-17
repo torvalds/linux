@@ -174,7 +174,7 @@ module_param(poll_loopcount, uint, S_IRUGO);
 MODULE_PARM_DESC(poll_loopcount,
 		 "Maximum polling loop count. Default = 32");
 
-static unsigned __initdata use_dma = 1;
+static unsigned use_dma = 1;
 module_param(use_dma, uint, 0);
 MODULE_PARM_DESC(use_dma, "Whether to use DMA or not. Default = 1");
 
@@ -496,8 +496,7 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 	return ret;
 }
 
-static void __init_or_module
-davinci_release_dma_channels(struct mmc_davinci_host *host)
+static void davinci_release_dma_channels(struct mmc_davinci_host *host)
 {
 	if (!host->use_dma)
 		return;
@@ -506,7 +505,7 @@ davinci_release_dma_channels(struct mmc_davinci_host *host)
 	dma_release_channel(host->dma_rx);
 }
 
-static int __init davinci_acquire_dma_channels(struct mmc_davinci_host *host)
+static int davinci_acquire_dma_channels(struct mmc_davinci_host *host)
 {
 	host->dma_tx = dma_request_chan(mmc_dev(host->mmc), "tx");
 	if (IS_ERR(host->dma_tx)) {
@@ -1201,7 +1200,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	return 0;
 }
 
-static int __init davinci_mmcsd_probe(struct platform_device *pdev)
+static int davinci_mmcsd_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct mmc_davinci_host *host = NULL;
@@ -1254,8 +1253,9 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 		pdev->id_entry = match->data;
 		ret = mmc_of_parse(mmc);
 		if (ret) {
-			dev_err(&pdev->dev,
-				"could not parse of data: %d\n", ret);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"could not parse of data: %d\n", ret);
 			goto parse_fail;
 		}
 	} else {
@@ -1414,11 +1414,12 @@ static struct platform_driver davinci_mmcsd_driver = {
 		.pm	= davinci_mmcsd_pm_ops,
 		.of_match_table = davinci_mmc_dt_ids,
 	},
+	.probe		= davinci_mmcsd_probe,
 	.remove		= __exit_p(davinci_mmcsd_remove),
 	.id_table	= davinci_mmc_devtype,
 };
 
-module_platform_driver_probe(davinci_mmcsd_driver, davinci_mmcsd_probe);
+module_platform_driver(davinci_mmcsd_driver);
 
 MODULE_AUTHOR("Texas Instruments India");
 MODULE_LICENSE("GPL");

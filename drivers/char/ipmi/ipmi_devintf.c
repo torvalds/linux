@@ -78,10 +78,10 @@ static void file_receive_handler(struct ipmi_recv_msg *msg,
 	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
 }
 
-static unsigned int ipmi_poll(struct file *file, poll_table *wait)
+static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 {
 	struct ipmi_file_private *priv = file->private_data;
-	unsigned int             mask = 0;
+	__poll_t             mask = 0;
 	unsigned long            flags;
 
 	poll_wait(file, &priv->wait, wait);

@@ -53,6 +53,7 @@
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/time64.h>
+#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
 #define PFX "ipmi_ssif: "
@@ -266,9 +267,6 @@ struct ssif_info {
 	int i2c_command;
 	unsigned char *i2c_data;
 	unsigned int i2c_size;
-
-	/* From the device id response. */
-	struct ipmi_device_id device_id;
 
 	struct timer_list retry_timer;
 	int retries_left;
@@ -553,9 +551,9 @@ static void start_get(struct ssif_info *ssif_info)
 	}
 }
 
-static void retry_timeout(unsigned long data)
+static void retry_timeout(struct timer_list *t)
 {
-	struct ssif_info *ssif_info = (void *) data;
+	struct ssif_info *ssif_info = from_timer(ssif_info, t, retry_timer);
 	unsigned long oflags, *flags;
 	bool waiting;
 
@@ -1176,6 +1174,61 @@ MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the default scan of 
 static DEFINE_MUTEX(ssif_infos_mutex);
 static LIST_HEAD(ssif_infos);
 
+#define IPMI_SSIF_ATTR(name) \
+static ssize_t ipmi_##name##_show(struct device *dev,			\
+				  struct device_attribute *attr,	\
+				  char *buf)				\
+{									\
+	struct ssif_info *ssif_info = dev_get_drvdata(dev);		\
+									\
+	return snprintf(buf, 10, "%u\n", ssif_get_stat(ssif_info, name));\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, ipmi_##name##_show, NULL)
+
+static ssize_t ipmi_type_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 10, "ssif\n");
+}
+static DEVICE_ATTR(type, S_IRUGO, ipmi_type_show, NULL);
+
+IPMI_SSIF_ATTR(sent_messages);
+IPMI_SSIF_ATTR(sent_messages_parts);
+IPMI_SSIF_ATTR(send_retries);
+IPMI_SSIF_ATTR(send_errors);
+IPMI_SSIF_ATTR(received_messages);
+IPMI_SSIF_ATTR(received_message_parts);
+IPMI_SSIF_ATTR(receive_retries);
+IPMI_SSIF_ATTR(receive_errors);
+IPMI_SSIF_ATTR(flag_fetches);
+IPMI_SSIF_ATTR(hosed);
+IPMI_SSIF_ATTR(events);
+IPMI_SSIF_ATTR(watchdog_pretimeouts);
+IPMI_SSIF_ATTR(alerts);
+
+static struct attribute *ipmi_ssif_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_sent_messages.attr,
+	&dev_attr_sent_messages_parts.attr,
+	&dev_attr_send_retries.attr,
+	&dev_attr_send_errors.attr,
+	&dev_attr_received_messages.attr,
+	&dev_attr_received_message_parts.attr,
+	&dev_attr_receive_retries.attr,
+	&dev_attr_receive_errors.attr,
+	&dev_attr_flag_fetches.attr,
+	&dev_attr_hosed.attr,
+	&dev_attr_events.attr,
+	&dev_attr_watchdog_pretimeouts.attr,
+	&dev_attr_alerts.attr,
+	NULL
+};
+
+static const struct attribute_group ipmi_ssif_dev_attr_group = {
+	.attrs		= ipmi_ssif_dev_attrs,
+};
+
 static int ssif_remove(struct i2c_client *client)
 {
 	struct ssif_info *ssif_info = i2c_get_clientdata(client);
@@ -1195,6 +1248,9 @@ static int ssif_remove(struct i2c_client *client)
 		return rv;
 	}
 	ssif_info->intf = NULL;
+
+	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
+	dev_set_drvdata(&ssif_info->client->dev, NULL);
 
 	/* make sure the driver is not looking for flags any more. */
 	while (ssif_info->ssif_state != SSIF_NORMAL)
@@ -1289,6 +1345,7 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return rv;
 }
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "ssif\n");
@@ -1352,6 +1409,7 @@ static const struct file_operations smi_stats_proc_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif
 
 static int strcmp_nospace(char *s1, char *s2)
 {
@@ -1425,7 +1483,7 @@ static int find_slave_address(struct i2c_client *client, int slave_addr)
 #ifdef CONFIG_IPMI_DMI_DECODE
 	if (!slave_addr)
 		slave_addr = ipmi_dmi_get_slave_addr(
-			IPMI_DMI_TYPE_SSIF,
+			SI_TYPE_INVALID,
 			i2c_adapter_id(client->adapter),
 			client->addr);
 #endif
@@ -1480,20 +1538,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	pr_info(PFX "Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
 	       ipmi_addr_src_to_str(ssif_info->addr_source),
 	       client->addr, client->adapter->name, slave_addr);
-
-	/*
-	 * Do a Get Device ID command, since it comes back with some
-	 * useful info.
-	 */
-	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
-	msg[1] = IPMI_GET_DEVICE_ID_CMD;
-	rv = do_cmd(client, 2, msg, &len, resp);
-	if (rv)
-		goto out;
-
-	rv = ipmi_demangle_device_id(resp, len, &ssif_info->device_id);
-	if (rv)
-		goto out;
 
 	ssif_info->client = client;
 	i2c_set_clientdata(client, ssif_info);
@@ -1647,8 +1691,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	spin_lock_init(&ssif_info->lock);
 	ssif_info->ssif_state = SSIF_NORMAL;
-	setup_timer(&ssif_info->retry_timer, retry_timeout,
-		    (unsigned long)ssif_info);
+	timer_setup(&ssif_info->retry_timer, retry_timeout, 0);
 
 	for (i = 0; i < SSIF_NUM_STATS; i++)
 		atomic_set(&ssif_info->stats[i], 0);
@@ -1682,16 +1725,26 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
+	dev_set_drvdata(&ssif_info->client->dev, ssif_info);
+	rv = device_add_group(&ssif_info->client->dev,
+			      &ipmi_ssif_dev_attr_group);
+	if (rv) {
+		dev_err(&ssif_info->client->dev,
+			"Unable to add device attributes: error %d\n",
+			rv);
+		goto out;
+	}
+
 	rv = ipmi_register_smi(&ssif_info->handlers,
 			       ssif_info,
-			       &ssif_info->device_id,
 			       &ssif_info->client->dev,
 			       slave_addr);
 	 if (rv) {
 		pr_err(PFX "Unable to register device: error %d\n", rv);
-		goto out;
+		goto out_remove_attr;
 	}
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "type",
 				     &smi_type_proc_ops,
 				     ssif_info);
@@ -1707,6 +1760,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		pr_err(PFX "Unable to create proc entry: %d\n", rv);
 		goto out_err_unreg;
 	}
+#endif
 
  out:
 	if (rv) {
@@ -1725,8 +1779,14 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	kfree(resp);
 	return rv;
 
- out_err_unreg:
+#ifdef CONFIG_IPMI_PROC_INTERFACE
+out_err_unreg:
 	ipmi_unregister_smi(ssif_info->intf);
+#endif
+
+out_remove_attr:
+	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
+	dev_set_drvdata(&ssif_info->client->dev, NULL);
 	goto out;
 }
 
@@ -1953,18 +2013,11 @@ static void spmi_find_bmc(void) { }
 #ifdef CONFIG_DMI
 static int dmi_ipmi_probe(struct platform_device *pdev)
 {
-	u8 type, slave_addr = 0;
+	u8 slave_addr = 0;
 	u16 i2c_addr;
 	int rv;
 
 	if (!ssif_trydmi)
-		return -ENODEV;
-
-	rv = device_property_read_u8(&pdev->dev, "ipmi-type", &type);
-	if (rv)
-		return -ENODEV;
-
-	if (type != IPMI_DMI_TYPE_SSIF)
 		return -ENODEV;
 
 	rv = device_property_read_u16(&pdev->dev, "i2c-addr", &i2c_addr);
@@ -2018,8 +2071,7 @@ static int ssif_platform_remove(struct platform_device *dev)
 		return 0;
 
 	mutex_lock(&ssif_infos_mutex);
-	if (addr_info->client)
-		i2c_unregister_device(addr_info->client);
+	i2c_unregister_device(addr_info->client);
 
 	list_del(&addr_info->link);
 	kfree(addr_info);

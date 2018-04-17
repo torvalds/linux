@@ -12,7 +12,7 @@ Optional properties:
 
 Example:
 
-uart@0x4000c400 {
+uart@4000c400 {
 	compatible = "energymicro,efm32-uart";
 	reg = <0x4000c400 0x400>;
 	interrupts = <15>;

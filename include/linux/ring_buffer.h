@@ -2,7 +2,6 @@
 #ifndef _LINUX_RING_BUFFER_H
 #define _LINUX_RING_BUFFER_H
 
-#include <linux/kmemcheck.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -14,9 +13,7 @@ struct ring_buffer_iter;
  * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
-	kmemcheck_bitfield_begin(bitfield);
 	u32		type_len:5, time_delta:27;
-	kmemcheck_bitfield_end(bitfield);
 
 	u32		array[];
 };
@@ -99,7 +96,7 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 })
 
 int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full);
-int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
+__poll_t ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 			  struct file *filp, poll_table *poll_table);
 
 

@@ -20,14 +20,31 @@
 
 #include "msm_drv.h"
 
-struct msm_ringbuffer {
-	struct msm_gpu *gpu;
-	int size;
-	struct drm_gem_object *bo;
-	uint32_t *start, *end, *cur;
+#define rbmemptr(ring, member)  \
+	((ring)->memptrs_iova + offsetof(struct msm_rbmemptrs, member))
+
+struct msm_rbmemptrs {
+	volatile uint32_t rptr;
+	volatile uint32_t fence;
 };
 
-struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int size);
+struct msm_ringbuffer {
+	struct msm_gpu *gpu;
+	int id;
+	struct drm_gem_object *bo;
+	uint32_t *start, *end, *cur, *next;
+	struct list_head submits;
+	uint64_t iova;
+	uint32_t seqno;
+	uint32_t hangcheck_fence;
+	struct msm_rbmemptrs *memptrs;
+	uint64_t memptrs_iova;
+	struct msm_fence_context *fctx;
+	spinlock_t lock;
+};
+
+struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
+		void *memptrs, uint64_t memptrs_iova);
 void msm_ringbuffer_destroy(struct msm_ringbuffer *ring);
 
 /* ringbuffer helpers (the parts that are same for a3xx/a2xx/z180..) */
@@ -35,9 +52,13 @@ void msm_ringbuffer_destroy(struct msm_ringbuffer *ring);
 static inline void
 OUT_RING(struct msm_ringbuffer *ring, uint32_t data)
 {
-	if (ring->cur == ring->end)
-		ring->cur = ring->start;
-	*(ring->cur++) = data;
+	/*
+	 * ring->next points to the current command being written - it won't be
+	 * committed as ring->cur until the flush
+	 */
+	if (ring->next == ring->end)
+		ring->next = ring->start;
+	*(ring->next++) = data;
 }
 
 #endif /* __MSM_RINGBUFFER_H__ */

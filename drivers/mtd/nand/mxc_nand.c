@@ -415,7 +415,7 @@ static void send_cmd_v3(struct mxc_nand_host *host, uint16_t cmd, int useirq)
  * waits for completion. */
 static void send_cmd_v1_v2(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 {
-	pr_debug("send_cmd(host, 0x%x, %d)\n", cmd, useirq);
+	dev_dbg(host->dev, "send_cmd(host, 0x%x, %d)\n", cmd, useirq);
 
 	writew(cmd, NFC_V1_V2_FLASH_CMD);
 	writew(NFC_CMD, NFC_V1_V2_CONFIG2);
@@ -431,7 +431,7 @@ static void send_cmd_v1_v2(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 			udelay(1);
 		}
 		if (max_retries < 0)
-			pr_debug("%s: RESET failed\n", __func__);
+			dev_dbg(host->dev, "%s: RESET failed\n", __func__);
 	} else {
 		/* Wait for operation to complete */
 		wait_op_done(host, useirq);
@@ -454,7 +454,7 @@ static void send_addr_v3(struct mxc_nand_host *host, uint16_t addr, int islast)
  * a NAND command. */
 static void send_addr_v1_v2(struct mxc_nand_host *host, uint16_t addr, int islast)
 {
-	pr_debug("send_addr(host, 0x%x %d)\n", addr, islast);
+	dev_dbg(host->dev, "send_addr(host, 0x%x %d)\n", addr, islast);
 
 	writew(addr, NFC_V1_V2_FLASH_ADDR);
 	writew(NFC_ADDR, NFC_V1_V2_CONFIG2);
@@ -607,7 +607,7 @@ static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 	uint16_t ecc_status = get_ecc_status_v1(host);
 
 	if (((ecc_status & 0x3) == 2) || ((ecc_status >> 2) == 2)) {
-		pr_debug("MXC_NAND: HWECC uncorrectable 2-bit ECC error\n");
+		dev_dbg(host->dev, "HWECC uncorrectable 2-bit ECC error\n");
 		return -EBADMSG;
 	}
 
@@ -634,7 +634,7 @@ static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
 	do {
 		err = ecc_stat & ecc_bit_mask;
 		if (err > err_limit) {
-			printk(KERN_WARNING "UnCorrectable RS-ECC Error\n");
+			dev_dbg(host->dev, "UnCorrectable RS-ECC Error\n");
 			return -EBADMSG;
 		} else {
 			ret += err;
@@ -642,7 +642,7 @@ static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
 		ecc_stat >>= 4;
 	} while (--no_subpages);
 
-	pr_debug("%d Symbol Correctable RS-ECC Error\n", ret);
+	dev_dbg(host->dev, "%d Symbol Correctable RS-ECC Error\n", ret);
 
 	return ret;
 }
@@ -673,7 +673,7 @@ static u_char mxc_nand_read_byte(struct mtd_info *mtd)
 		host->buf_start++;
 	}
 
-	pr_debug("%s: ret=0x%hhx (start=%u)\n", __func__, ret, host->buf_start);
+	dev_dbg(host->dev, "%s: ret=0x%hhx (start=%u)\n", __func__, ret, host->buf_start);
 	return ret;
 }
 
@@ -859,8 +859,7 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 				host->devtype_data->send_addr(host,
 						(page_addr >> 8) & 0xff, true);
 		} else {
-			/* One more address cycle for higher density devices */
-			if (mtd->size >= 0x4000000) {
+			if (nand_chip->options & NAND_ROW_ADDR_3) {
 				/* paddr_8 - paddr_15 */
 				host->devtype_data->send_addr(host,
 						(page_addr >> 8) & 0xff,
@@ -1212,7 +1211,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 
-	pr_debug("mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",
+	dev_dbg(host->dev, "mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",
 	      command, column, page_addr);
 
 	/* Reset command state information */

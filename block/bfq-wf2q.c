@@ -835,6 +835,13 @@ void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 	struct bfq_entity *entity = &bfqq->entity;
 	struct bfq_service_tree *st;
 
+	if (!bfqq->service_from_backlogged)
+		bfqq->first_IO_time = jiffies;
+
+	if (bfqq->wr_coeff > 1)
+		bfqq->service_from_wr += served;
+
+	bfqq->service_from_backlogged += served;
 	for_each_entity(entity) {
 		st = bfq_entity_service_tree(entity);
 
@@ -843,7 +850,6 @@ void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 		st->vtime += bfq_delta(served, st->wsum);
 		bfq_forget_idle(st);
 	}
-	bfqg_stats_set_start_empty_time(bfqq_group(bfqq));
 	bfq_log_bfqq(bfqq->bfqd, bfqq, "bfqq_served %d secs", served);
 }
 

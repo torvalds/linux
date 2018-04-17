@@ -29,9 +29,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include "cros_ec_dev.h"
-#include "cros_ec_debugfs.h"
-
 #define LOG_SHIFT		14
 #define LOG_SIZE		(1 << LOG_SHIFT)
 #define LOG_POLL_SEC		10
@@ -191,11 +188,11 @@ error:
 	return ret;
 }
 
-static unsigned int cros_ec_console_log_poll(struct file *file,
+static __poll_t cros_ec_console_log_poll(struct file *file,
 					     poll_table *wait)
 {
 	struct cros_ec_debugfs *debug_info = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &debug_info->log_wq, wait);
 
@@ -390,6 +387,7 @@ remove_debugfs:
 	debugfs_remove_recursive(debug_info->dir);
 	return ret;
 }
+EXPORT_SYMBOL(cros_ec_debugfs_init);
 
 void cros_ec_debugfs_remove(struct cros_ec_dev *ec)
 {
@@ -399,3 +397,4 @@ void cros_ec_debugfs_remove(struct cros_ec_dev *ec)
 	debugfs_remove_recursive(ec->debug_info->dir);
 	cros_ec_cleanup_console_log(ec->debug_info);
 }
+EXPORT_SYMBOL(cros_ec_debugfs_remove);

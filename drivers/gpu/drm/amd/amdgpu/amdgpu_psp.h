@@ -66,6 +66,8 @@ struct psp_context
 			    struct psp_gfx_cmd_resp *cmd);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
 	int (*ring_create)(struct psp_context *psp, enum psp_ring_type ring_type);
+	int (*ring_stop)(struct psp_context *psp,
+			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
 	int (*cmd_submit)(struct psp_context *psp, struct amdgpu_firmware_info *ucode,
@@ -74,6 +76,7 @@ struct psp_context
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
+	int (*mode1_reset)(struct psp_context *psp);
 
 	/* fence buffer */
 	struct amdgpu_bo 		*fw_pri_bo;
@@ -123,6 +126,7 @@ struct amdgpu_psp_funcs {
 #define psp_prep_cmd_buf(ucode, type) (psp)->prep_cmd_buf((ucode), (type))
 #define psp_ring_init(psp, type) (psp)->ring_init((psp), (type))
 #define psp_ring_create(psp, type) (psp)->ring_create((psp), (type))
+#define psp_ring_stop(psp, type) (psp)->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->ring_destroy((psp), (type)))
 #define psp_cmd_submit(psp, ucode, cmd_mc, fence_mc, index) \
 		(psp)->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))
@@ -136,6 +140,8 @@ struct amdgpu_psp_funcs {
 		((psp)->bootloader_load_sos ? (psp)->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
 		((psp)->smu_reload_quirk ? (psp)->smu_reload_quirk((psp)) : false)
+#define psp_mode1_reset(psp) \
+		((psp)->mode1_reset ? (psp)->mode1_reset((psp)) : false)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 

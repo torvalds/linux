@@ -26,7 +26,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 i="$1"
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 
 if test "`grep -c 'rcu_exp_grace_period.*start' < $i/console.log`" -lt 100
 then

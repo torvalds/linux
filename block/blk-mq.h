@@ -27,6 +27,20 @@ struct blk_mq_ctx {
 	struct kobject		kobj;
 } ____cacheline_aligned_in_smp;
 
+/*
+ * Bits for request->gstate.  The lower two bits carry MQ_RQ_* state value
+ * and the upper bits the generation number.
+ */
+enum mq_rq_state {
+	MQ_RQ_IDLE		= 0,
+	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
+
+	MQ_RQ_STATE_BITS	= 2,
+	MQ_RQ_STATE_MASK	= (1 << MQ_RQ_STATE_BITS) - 1,
+	MQ_RQ_GEN_INC		= 1 << MQ_RQ_STATE_BITS,
+};
+
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
@@ -60,6 +74,9 @@ void blk_mq_request_bypass_insert(struct request *rq, bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
 
+/* Used by blk_insert_cloned_request() to issue request directly */
+blk_status_t blk_mq_request_issue_directly(struct request *rq);
+
 /*
  * CPU -> queue mappings
  */
@@ -81,9 +98,40 @@ extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 
-extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
-
 void blk_mq_release(struct request_queue *q);
+
+/**
+ * blk_mq_rq_state() - read the current MQ_RQ_* state of a request
+ * @rq: target request.
+ */
+static inline int blk_mq_rq_state(struct request *rq)
+{
+	return READ_ONCE(rq->gstate) & MQ_RQ_STATE_MASK;
+}
+
+/**
+ * blk_mq_rq_update_state() - set the current MQ_RQ_* state of a request
+ * @rq: target request.
+ * @state: new state to set.
+ *
+ * Set @rq's state to @state.  The caller is responsible for ensuring that
+ * there are no other updaters.  A request can transition into IN_FLIGHT
+ * only from IDLE and doing so increments the generation number.
+ */
+static inline void blk_mq_rq_update_state(struct request *rq,
+					  enum mq_rq_state state)
+{
+	u64 old_val = READ_ONCE(rq->gstate);
+	u64 new_val = (old_val & ~MQ_RQ_STATE_MASK) | state;
+
+	if (state == MQ_RQ_IN_FLIGHT) {
+		WARN_ON_ONCE((old_val & MQ_RQ_STATE_MASK) != MQ_RQ_IDLE);
+		new_val += MQ_RQ_GEN_INC;
+	}
+
+	/* avoid exposing interim values */
+	WRITE_ONCE(rq->gstate, new_val);
+}
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 					   unsigned int cpu)

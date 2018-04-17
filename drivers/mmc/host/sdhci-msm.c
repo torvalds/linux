@@ -29,6 +29,9 @@
 #define CORE_VERSION_MAJOR_MASK		(0xf << CORE_VERSION_MAJOR_SHIFT)
 #define CORE_VERSION_MINOR_MASK		0xff
 
+#define CORE_MCI_GENERICS		0x70
+#define SWITCHABLE_SIGNALING_VOLTAGE	BIT(29)
+
 #define CORE_HC_MODE		0x78
 #define HC_MODE_EN		0x1
 #define CORE_POWER		0x0
@@ -1028,10 +1031,21 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 	bool done = false;
+	u32 val;
 
 	pr_debug("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
 			mmc_hostname(host->mmc), __func__, req_type,
 			msm_host->curr_pwr_state, msm_host->curr_io_level);
+
+	/*
+	 * The power interrupt will not be generated for signal voltage
+	 * switches if SWITCHABLE_SIGNALING_VOLTAGE in MCI_GENERICS is not set.
+	 */
+	val = readl(msm_host->core_mem + CORE_MCI_GENERICS);
+	if ((req_type & REQ_IO_HIGH || req_type & REQ_IO_LOW) &&
+	    !(val & SWITCHABLE_SIGNALING_VOLTAGE)) {
+		return;
+	}
 
 	/*
 	 * The IRQ for request type IO High/LOW will be generated when -

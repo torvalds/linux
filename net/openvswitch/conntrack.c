@@ -752,6 +752,7 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 			}
 		}
 		/* Non-ICMP, fall thru to initialize if needed. */
+		/* fall through */
 	case IP_CT_NEW:
 		/* Seen it before?  This can happen for loopback, retrans,
 		 * or local packets.
@@ -1127,6 +1128,17 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 	if (err)
 		kfree_skb(skb);
 	return err;
+}
+
+int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	if (skb_nfct(skb)) {
+		nf_conntrack_put(skb_nfct(skb));
+		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
+		ovs_ct_fill_key(skb, key);
+	}
+
+	return 0;
 }
 
 static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,

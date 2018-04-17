@@ -153,7 +153,7 @@ int spk_synth_is_alive_restart(struct spk_synth *synth)
 }
 EXPORT_SYMBOL_GPL(spk_synth_is_alive_restart);
 
-static void thread_wake_up(u_long data)
+static void thread_wake_up(struct timer_list *unused)
 {
 	wake_up_interruptible_all(&speakup_event);
 }

@@ -100,7 +100,6 @@ struct i40iw_puda_rsrc_info {
 	enum puda_resource_type type;	/* ILQ or IEQ */
 	u32 count;
 	u16 pd_id;
-	bool ceq_valid;
 	u32 cq_id;
 	u32 qp_id;
 	u32 sq_size;
@@ -125,7 +124,6 @@ struct i40iw_puda_rsrc {
 	enum puda_resource_type type;
 	u16 buf_size;		/*buffer must be max datalen + tcpip hdr + mac */
 	u16 mss;
-	bool ceq_valid;
 	u32 cq_id;
 	u32 qp_id;
 	u32 sq_size;
@@ -186,4 +184,5 @@ enum i40iw_status_code i40iw_cqp_qp_create_cmd(struct i40iw_sc_dev *dev, struct 
 enum i40iw_status_code i40iw_cqp_cq_create_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq);
 void i40iw_cqp_qp_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 void i40iw_cqp_cq_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq);
+void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp);
 #endif

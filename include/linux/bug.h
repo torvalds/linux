@@ -43,6 +43,8 @@ enum bug_trap_type report_bug(unsigned long bug_addr, struct pt_regs *regs);
 /* These are defined by the architecture */
 int is_valid_bugaddr(unsigned long addr);
 
+void generic_bug_clear_once(void);
+
 #else	/* !CONFIG_GENERIC_BUG */
 
 static inline enum bug_trap_type report_bug(unsigned long bug_addr,
@@ -50,6 +52,9 @@ static inline enum bug_trap_type report_bug(unsigned long bug_addr,
 {
 	return BUG_TRAP_TYPE_BUG;
 }
+
+
+static inline void generic_bug_clear_once(void) {}
 
 #endif	/* CONFIG_GENERIC_BUG */
 

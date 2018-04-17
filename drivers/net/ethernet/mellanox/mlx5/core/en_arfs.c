@@ -92,7 +92,7 @@ static enum mlx5e_traffic_types arfs_get_tt(enum arfs_type type)
 
 static int arfs_disable(struct mlx5e_priv *priv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5e_tir *tir = priv->indir_tir;
 	int err = 0;
 	int tt;
@@ -126,7 +126,7 @@ int mlx5e_arfs_disable(struct mlx5e_priv *priv)
 
 int mlx5e_arfs_enable(struct mlx5e_priv *priv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	int err = 0;
 	int tt;
 	int i;
@@ -175,7 +175,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 {
 	struct arfs_table *arfs_t = &priv->fs.arfs.arfs_tables[type];
 	struct mlx5e_tir *tir = priv->indir_tir;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct mlx5_flow_spec *spec;
 	enum mlx5e_traffic_types tt;
@@ -466,7 +466,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	struct mlx5e_arfs_tables *arfs = &priv->fs.arfs;
 	struct arfs_tuple *tuple = &arfs_rule->tuple;
 	struct mlx5_flow_handle *rule = NULL;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct arfs_table *arfs_table;
 	struct mlx5_flow_spec *spec;
@@ -557,7 +557,7 @@ out:
 static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 				struct mlx5_flow_handle *rule, u16 rxq)
 {
-	struct mlx5_flow_destination dst;
+	struct mlx5_flow_destination dst = {};
 	int err = 0;
 
 	dst.type = MLX5_FLOW_DESTINATION_TYPE_TIR;

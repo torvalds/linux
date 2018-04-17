@@ -238,7 +238,7 @@ static int __init combiner_probe(struct platform_device *pdev)
 {
 	struct combiner *combiner;
 	size_t alloc_sz;
-	u32 nregs;
+	int nregs;
 	int err;
 
 	nregs = count_registers(pdev);

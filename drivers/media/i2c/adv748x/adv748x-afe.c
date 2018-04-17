@@ -217,6 +217,7 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct adv748x_state *state = adv748x_afe_to_state(afe);
+	int afe_std;
 	int ret;
 
 	mutex_lock(&state->mutex);
@@ -235,8 +236,12 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	/* Read detected standard */
 	ret = adv748x_afe_status(afe, NULL, std);
 
+	afe_std = adv748x_afe_std(afe->curr_norm);
+	if (afe_std < 0)
+		goto unlock;
+
 	/* Restore original state */
-	adv748x_afe_set_video_standard(state, afe->curr_norm);
+	adv748x_afe_set_video_standard(state, afe_std);
 
 unlock:
 	mutex_unlock(&state->mutex);

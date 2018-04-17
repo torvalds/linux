@@ -204,9 +204,10 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
-	const unsigned int strength_1bit[] = {4, 8};
-	const unsigned int strength_2bit[] = {8, 12, 16, 20};
-	const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12, 14, 16};
+	static const unsigned int strength_1bit[] = {4, 8};
+	static const unsigned int strength_2bit[] = {8, 12, 16, 20};
+	static const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12,
+						     14, 16};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 	int ret;
@@ -399,9 +400,10 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
-	const unsigned int strength_1bit[] = {4, 8, -1};
-	const unsigned int strength_2bit[] = {8, 12, 16, 20, -1};
-	const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12, 14, 16, -1};
+	static const unsigned int strength_1bit[] = {4, 8, -1};
+	static const unsigned int strength_2bit[] = {8, 12, 16, 20, -1};
+	static const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12, 14,
+						     16, -1};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 

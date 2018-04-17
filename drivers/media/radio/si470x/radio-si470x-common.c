@@ -507,12 +507,12 @@ done:
 /*
  * si470x_fops_poll - poll RDS data
  */
-static unsigned int si470x_fops_poll(struct file *file,
+static __poll_t si470x_fops_poll(struct file *file,
 		struct poll_table_struct *pts)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(pts);
-	int retval = v4l2_ctrl_poll(file, pts);
+	__poll_t req_events = poll_requested_events(pts);
+	__poll_t retval = v4l2_ctrl_poll(file, pts);
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
 		/* switch on rds reception */
@@ -749,7 +749,7 @@ static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 /*
  * si470x_viddev_template - video device interface
  */
-struct video_device si470x_viddev_template = {
+const struct video_device si470x_viddev_template = {
 	.fops			= &si470x_fops,
 	.name			= DRIVER_NAME,
 	.release		= video_device_release_empty,

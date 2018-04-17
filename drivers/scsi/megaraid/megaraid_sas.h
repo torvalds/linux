@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.703.05.00-rc1"
-#define MEGASAS_RELDATE				"October 5, 2017"
+#define MEGASAS_VERSION				"07.704.04.00-rc1"
+#define MEGASAS_RELDATE				"December 7, 2017"
 
 /*
  * Device IDs
@@ -197,6 +197,7 @@ enum MFI_CMD_OP {
 	MFI_CMD_ABORT		= 0x6,
 	MFI_CMD_SMP		= 0x7,
 	MFI_CMD_STP		= 0x8,
+	MFI_CMD_NVME		= 0x9,
 	MFI_CMD_OP_COUNT,
 	MFI_CMD_INVALID		= 0xff
 };
@@ -230,7 +231,7 @@ enum MFI_CMD_OP {
 /*
  * Global functions
  */
-extern u8 MR_ValidateMapInfo(struct megasas_instance *instance);
+extern u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id);
 
 
 /*
@@ -1352,7 +1353,13 @@ struct megasas_ctrl_info {
 
 	struct {
 	#if defined(__BIG_ENDIAN_BITFIELD)
-		u16 reserved:8;
+		u16 reserved:2;
+		u16 support_nvme_passthru:1;
+		u16 support_pl_debug_info:1;
+		u16 support_flash_comp_info:1;
+		u16 support_host_info:1;
+		u16 support_dual_fw_update:1;
+		u16 support_ssc_rev3:1;
 		u16 fw_swaps_bbu_vpd_info:1;
 		u16 support_pd_map_target_id:1;
 		u16 support_ses_ctrl_in_multipathcfg:1;
@@ -1377,7 +1384,19 @@ struct megasas_ctrl_info {
 		 *  provide the data in little endian order
 		 */
 		u16 fw_swaps_bbu_vpd_info:1;
-		u16 reserved:8;
+		u16 support_ssc_rev3:1;
+		/* FW supports CacheCade 3.0, only one SSCD creation allowed */
+		u16 support_dual_fw_update:1;
+		/* FW supports dual firmware update feature */
+		u16 support_host_info:1;
+		/* FW supports MR_DCMD_CTRL_HOST_INFO_SET/GET */
+		u16 support_flash_comp_info:1;
+		/* FW supports MR_DCMD_CTRL_FLASH_COMP_INFO_GET */
+		u16 support_pl_debug_info:1;
+		/* FW supports retrieval of PL debug information through apps */
+		u16 support_nvme_passthru:1;
+		/* FW supports NVMe passthru commands */
+		u16 reserved:2;
 	#endif
 		} adapter_operations4;
 	u8 pad[0x800 - 0x7FE]; /* 0x7FE pad to 2K for expansion */
@@ -1630,7 +1649,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-	u32     reserved:18;
+	u32     reserved:17;
+	u32	support_nvme_passthru:1;
 	u32     support_64bit_mode:1;
 	u32 support_pd_map_target_id:1;
 	u32     support_qd_throttling:1;
@@ -1660,7 +1680,8 @@ typedef union _MFI_CAPABILITIES {
 	u32     support_qd_throttling:1;
 	u32	support_pd_map_target_id:1;
 	u32     support_64bit_mode:1;
-	u32     reserved:18;
+	u32	support_nvme_passthru:1;
+	u32     reserved:17;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -2188,7 +2209,6 @@ struct megasas_instance {
 	struct megasas_evt_detail *evt_detail;
 	dma_addr_t evt_detail_h;
 	struct megasas_cmd *aen_cmd;
-	struct mutex hba_mutex;
 	struct semaphore ioctl_sem;
 
 	struct Scsi_Host *host;
@@ -2269,6 +2289,7 @@ struct megasas_instance {
 	u32 nvme_page_size;
 	u8 adapter_type;
 	bool consistent_mask_64bit;
+	bool support_nvme_passthru;
 };
 struct MR_LD_VF_MAP {
 	u32 size;

@@ -268,31 +268,31 @@ struct timing_threshold {
 };
 
 /* Common Services */
-extern int common_nfc_set_geometry(struct gpmi_nand_data *);
-extern struct dma_chan *get_dma_chan(struct gpmi_nand_data *);
-extern void prepare_data_dma(struct gpmi_nand_data *,
-				enum dma_data_direction dr);
-extern int start_dma_without_bch_irq(struct gpmi_nand_data *,
-				struct dma_async_tx_descriptor *);
-extern int start_dma_with_bch_irq(struct gpmi_nand_data *,
-				struct dma_async_tx_descriptor *);
+int common_nfc_set_geometry(struct gpmi_nand_data *);
+struct dma_chan *get_dma_chan(struct gpmi_nand_data *);
+void prepare_data_dma(struct gpmi_nand_data *,
+		      enum dma_data_direction dr);
+int start_dma_without_bch_irq(struct gpmi_nand_data *,
+			      struct dma_async_tx_descriptor *);
+int start_dma_with_bch_irq(struct gpmi_nand_data *,
+			   struct dma_async_tx_descriptor *);
 
 /* GPMI-NAND helper function library */
-extern int gpmi_init(struct gpmi_nand_data *);
-extern int gpmi_extra_init(struct gpmi_nand_data *);
-extern void gpmi_clear_bch(struct gpmi_nand_data *);
-extern void gpmi_dump_info(struct gpmi_nand_data *);
-extern int bch_set_geometry(struct gpmi_nand_data *);
-extern int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
-extern int gpmi_send_command(struct gpmi_nand_data *);
-extern void gpmi_begin(struct gpmi_nand_data *);
-extern void gpmi_end(struct gpmi_nand_data *);
-extern int gpmi_read_data(struct gpmi_nand_data *);
-extern int gpmi_send_data(struct gpmi_nand_data *);
-extern int gpmi_send_page(struct gpmi_nand_data *,
-			dma_addr_t payload, dma_addr_t auxiliary);
-extern int gpmi_read_page(struct gpmi_nand_data *,
-			dma_addr_t payload, dma_addr_t auxiliary);
+int gpmi_init(struct gpmi_nand_data *);
+int gpmi_extra_init(struct gpmi_nand_data *);
+void gpmi_clear_bch(struct gpmi_nand_data *);
+void gpmi_dump_info(struct gpmi_nand_data *);
+int bch_set_geometry(struct gpmi_nand_data *);
+int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
+int gpmi_send_command(struct gpmi_nand_data *);
+void gpmi_begin(struct gpmi_nand_data *);
+void gpmi_end(struct gpmi_nand_data *);
+int gpmi_read_data(struct gpmi_nand_data *);
+int gpmi_send_data(struct gpmi_nand_data *);
+int gpmi_send_page(struct gpmi_nand_data *,
+		   dma_addr_t payload, dma_addr_t auxiliary);
+int gpmi_read_page(struct gpmi_nand_data *,
+		   dma_addr_t payload, dma_addr_t auxiliary);
 
 void gpmi_copy_bits(u8 *dst, size_t dst_bit_off,
 		    const u8 *src, size_t src_bit_off,

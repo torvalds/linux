@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <acpi/button.h>
 
 #define PREFIX "ACPI: "
@@ -75,6 +76,22 @@ static const struct acpi_device_id button_device_ids[] = {
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, button_device_ids);
+
+/*
+ * Some devices which don't even have a lid in anyway have a broken _LID
+ * method (e.g. pointing to a floating gpio pin) causing spurious LID events.
+ */
+static const struct dmi_system_id lid_blacklst[] = {
+	{
+		/* GP-electronic T701 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T701"),
+			DMI_MATCH(DMI_BIOS_VERSION, "BYT70A.YNCHENG.WIN.007"),
+		},
+	},
+	{}
+};
 
 static int acpi_button_add(struct acpi_device *device);
 static int acpi_button_remove(struct acpi_device *device);
@@ -210,6 +227,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 	/* Send the platform triggered reliable event */
 	if (do_update) {
+		acpi_handle_debug(device->handle, "ACPI LID %s\n",
+				  state ? "open" : "closed");
 		input_report_switch(button->input, SW_LID, !state);
 		input_sync(button->input);
 		button->last_state = !!state;
@@ -473,6 +492,9 @@ static int acpi_button_add(struct acpi_device *device)
 	char *name, *class;
 	int error;
 
+	if (!strcmp(hid, ACPI_BUTTON_HID_LID) && dmi_check_system(lid_blacklst))
+		return -ENODEV;
+
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
 		return -ENOMEM;
@@ -573,7 +595,8 @@ static int acpi_button_remove(struct acpi_device *device)
 	return 0;
 }
 
-static int param_set_lid_init_state(const char *val, struct kernel_param *kp)
+static int param_set_lid_init_state(const char *val,
+				    const struct kernel_param *kp)
 {
 	int result = 0;
 
@@ -591,7 +614,8 @@ static int param_set_lid_init_state(const char *val, struct kernel_param *kp)
 	return result;
 }
 
-static int param_get_lid_init_state(char *buffer, struct kernel_param *kp)
+static int param_get_lid_init_state(char *buffer,
+				    const struct kernel_param *kp)
 {
 	switch (lid_init_state) {
 	case ACPI_BUTTON_LID_INIT_OPEN:

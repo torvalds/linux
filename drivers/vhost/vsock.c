@@ -518,6 +518,8 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	vsock->guest_cid = 0; /* no CID assigned yet */
+
 	atomic_set(&vsock->queued_replies, 0);
 
 	vqs[VSOCK_VQ_TX] = &vsock->vqs[VSOCK_VQ_TX];

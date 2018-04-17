@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * i2c-stm32.h
  *
  * Copyright (C) M'boumba Cedric Madianga 2017
+ * Copyright (C) STMicroelectronics 2017
  * Author: M'boumba Cedric Madianga <cedric.madianga@gmail.com>
  *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _I2C_STM32_H

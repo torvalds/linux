@@ -63,8 +63,10 @@
 			cpm_ethernet: ethernet@0 {
 				compatible = "marvell,armada-7k-pp22";
 				reg = <0x0 0x100000>, <0x129000 0xb000>;
-				clocks = <&cpm_clk 1 3>, <&cpm_clk 1 9>, <&cpm_clk 1 5>;
-				clock-names = "pp_clk", "gop_clk", "mg_clk";
+				clocks = <&cpm_clk 1 3>, <&cpm_clk 1 9>,
+					 <&cpm_clk 1 5>, <&cpm_clk 1 18>;
+				clock-names = "pp_clk", "gop_clk",
+					      "mg_clk","axi_clk";
 				marvell,system-controller = <&cpm_syscon0>;
 				status = "disabled";
 				dma-coherent;
@@ -74,9 +76,10 @@
 						     <ICU_GRP_NSR 43 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 47 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 51 IRQ_TYPE_LEVEL_HIGH>,
-						     <ICU_GRP_NSR 55 IRQ_TYPE_LEVEL_HIGH>;
+						     <ICU_GRP_NSR 55 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 129 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-							  "tx-cpu3", "rx-shared";
+							  "tx-cpu3", "rx-shared", "link";
 					port-id = <0>;
 					gop-port-id = <0>;
 					status = "disabled";
@@ -87,9 +90,10 @@
 						     <ICU_GRP_NSR 44 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 48 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 52 IRQ_TYPE_LEVEL_HIGH>,
-						     <ICU_GRP_NSR 56 IRQ_TYPE_LEVEL_HIGH>;
+						     <ICU_GRP_NSR 56 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 128 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-							  "tx-cpu3", "rx-shared";
+							  "tx-cpu3", "rx-shared", "link";
 					port-id = <1>;
 					gop-port-id = <2>;
 					status = "disabled";
@@ -100,12 +104,51 @@
 						     <ICU_GRP_NSR 45 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 49 IRQ_TYPE_LEVEL_HIGH>,
 						     <ICU_GRP_NSR 53 IRQ_TYPE_LEVEL_HIGH>,
-						     <ICU_GRP_NSR 57 IRQ_TYPE_LEVEL_HIGH>;
+						     <ICU_GRP_NSR 57 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 127 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-							  "tx-cpu3", "rx-shared";
+							  "tx-cpu3", "rx-shared", "link";
 					port-id = <2>;
 					gop-port-id = <3>;
 					status = "disabled";
+				};
+			};
+
+			cpm_comphy: phy@120000 {
+				compatible = "marvell,comphy-cp110";
+				reg = <0x120000 0x6000>;
+				marvell,system-controller = <&cpm_syscon0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				cpm_comphy0: phy@0 {
+					reg = <0>;
+					#phy-cells = <1>;
+				};
+
+				cpm_comphy1: phy@1 {
+					reg = <1>;
+					#phy-cells = <1>;
+				};
+
+				cpm_comphy2: phy@2 {
+					reg = <2>;
+					#phy-cells = <1>;
+				};
+
+				cpm_comphy3: phy@3 {
+					reg = <3>;
+					#phy-cells = <1>;
+				};
+
+				cpm_comphy4: phy@4 {
+					reg = <4>;
+					#phy-cells = <1>;
+				};
+
+				cpm_comphy5: phy@5 {
+					reg = <5>;
+					#phy-cells = <1>;
 				};
 			};
 
@@ -114,7 +157,8 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
-				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>;
+				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>,
+					 <&cpm_clk 1 6>, <&cpm_clk 1 18>;
 				status = "disabled";
 			};
 
@@ -143,7 +187,7 @@
 
 			cpm_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x440000 0x1000>;
+				reg = <0x440000 0x2000>;
 
 				cpm_clk: clock {
 					compatible = "marvell,cp110-clock";
@@ -274,12 +318,14 @@
 				 * this controller is only usable on the CPM
 				 * for A7K and on the CPS for A8K.
 				 */
-				compatible = "marvell,armada370-nand";
+				compatible = "marvell,armada-8k-nand",
+					     "marvell,armada370-nand";
 				reg = <0x720000 0x54>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cpm_clk 1 2>;
+				marvell,system-controller = <&cpm_syscon0>;
 				status = "disabled";
 			};
 
@@ -295,8 +341,8 @@
 				compatible = "marvell,armada-cp110-sdhci";
 				reg = <0x780000 0x300>;
 				interrupts = <ICU_GRP_NSR 27 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "core";
-				clocks = <&cpm_clk 1 4>;
+				clock-names = "core","axi";
+				clocks = <&cpm_clk 1 4>, <&cpm_clk 1 18>;
 				dma-coherent;
 				status = "disabled";
 			};

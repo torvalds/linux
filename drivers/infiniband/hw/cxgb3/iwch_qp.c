@@ -722,10 +722,13 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
  */
 static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 				struct iwch_cq *schp)
+	__releases(&qhp->lock)
+	__acquires(&qhp->lock)
 {
 	int count;
 	int flushed;
 
+	lockdep_assert_held(&qhp->lock);
 
 	pr_debug("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */

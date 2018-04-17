@@ -11,11 +11,12 @@
 	status = "okay";
 	ranges = <1 0x00000000 0x42000000 0x02000000>;
 
-	support_card: support_card@1,1f00000 {
+	support_card: support-card@1,1f00000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 1 0x01f00000 0x00100000>;
+		interrupt-parent = <&gpio>;
 
 		ethsc: ethernet@0 {
 			compatible = "smsc,lan9118", "smsc,lan9115";

@@ -448,7 +448,7 @@ static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
 	int status;
 
 	DoC_WaitReady(doc);
-	this->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
+	nand_status_op(this, NULL);
 	DoC_WaitReady(doc);
 	status = (int)this->read_byte(mtd);
 
@@ -595,7 +595,7 @@ static void doc2001plus_select_chip(struct mtd_info *mtd, int chip)
 
 	/* Assert ChipEnable and deassert WriteProtect */
 	WriteDOC((DOC_FLASH_CE), docptr, Mplus_FlashSelect);
-	this->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+	nand_reset_op(this);
 
 	doc->curchip = chip;
 	doc->curfloor = floor;
@@ -705,8 +705,7 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		if (page_addr != -1) {
 			WriteDOC((unsigned char)(page_addr & 0xff), docptr, Mplus_FlashAddress);
 			WriteDOC((unsigned char)((page_addr >> 8) & 0xff), docptr, Mplus_FlashAddress);
-			/* One more address cycle for higher density devices */
-			if (this->chipsize & 0x0c000000) {
+			if (this->options & NAND_ROW_ADDR_3) {
 				WriteDOC((unsigned char)((page_addr >> 16) & 0x0f), docptr, Mplus_FlashAddress);
 				printk("high density\n");
 			}

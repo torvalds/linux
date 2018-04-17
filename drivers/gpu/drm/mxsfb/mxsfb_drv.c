@@ -35,6 +35,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -92,7 +93,7 @@ void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb)
 }
 
 static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
-	.fb_create		= drm_fb_cma_create,
+	.fb_create		= drm_gem_fb_create,
 	.atomic_check		= drm_atomic_helper_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
@@ -127,7 +128,7 @@ static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
 static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *plane_state)
 {
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
+	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static struct drm_simple_display_pipe_funcs mxsfb_funcs = {

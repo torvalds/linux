@@ -1550,9 +1550,9 @@ static void at91_vbus_timer_work(struct work_struct *work)
 		mod_timer(&udc->vbus_timer, jiffies + VBUS_POLL_TIMEOUT);
 }
 
-static void at91_vbus_timer(unsigned long data)
+static void at91_vbus_timer(struct timer_list *t)
 {
-	struct at91_udc *udc = (struct at91_udc *)data;
+	struct at91_udc *udc = from_timer(udc, t, vbus_timer);
 
 	/*
 	 * If we are polling vbus it is likely that the gpio is on an
@@ -1918,8 +1918,7 @@ static int at91udc_probe(struct platform_device *pdev)
 
 		if (udc->board.vbus_polled) {
 			INIT_WORK(&udc->vbus_timer_work, at91_vbus_timer_work);
-			setup_timer(&udc->vbus_timer, at91_vbus_timer,
-				    (unsigned long)udc);
+			timer_setup(&udc->vbus_timer, at91_vbus_timer, 0);
 			mod_timer(&udc->vbus_timer,
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {

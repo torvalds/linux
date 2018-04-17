@@ -109,9 +109,7 @@ extern void execve_tail(void);
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
-typedef struct {
-        __u32 ar4;
-} mm_segment_t;
+typedef unsigned int mm_segment_t;
 
 /*
  * Thread structure
@@ -247,7 +245,7 @@ static inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
-	asm volatile("stap %0" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
 

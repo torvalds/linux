@@ -269,6 +269,7 @@ config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
 	select CLKSRC_MMIO
+	select TIMER_OF
 
 config CLKSRC_MPS2
 	bool "Clocksource for MPS2 SoCs" if COMPILE_TEST
@@ -440,6 +441,13 @@ config MTK_TIMER
 	select CLKSRC_MMIO
 	help
 	  Support for Mediatek timer driver.
+
+config SPRD_TIMER
+	bool "Spreadtrum timer driver" if COMPILE_TEST
+	depends on HAS_IOMEM
+	select TIMER_OF
+	help
+	  Enables support for the Spreadtrum timer driver.
 
 config SYS_SUPPORTS_SH_MTU2
         bool

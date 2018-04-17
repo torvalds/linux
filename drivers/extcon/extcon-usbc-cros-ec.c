@@ -34,14 +34,24 @@ struct cros_ec_extcon_info {
 
 	struct notifier_block notifier;
 
+	unsigned int dr; /* data role */
+	bool pr; /* power role (true if VBUS enabled) */
 	bool dp; /* DisplayPort enabled */
 	bool mux; /* SuperSpeed (usb3) enabled */
 	unsigned int power_type;
 };
 
 static const unsigned int usb_type_c_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
 	EXTCON_DISP_DP,
 	EXTCON_NONE,
+};
+
+enum usb_data_roles {
+	DR_NONE,
+	DR_HOST,
+	DR_DEVICE,
 };
 
 /**
@@ -150,6 +160,7 @@ static int cros_ec_usb_get_role(struct cros_ec_extcon_info *info,
 	pd_control.port = info->port_id;
 	pd_control.role = USB_PD_CTRL_ROLE_NO_CHANGE;
 	pd_control.mux = USB_PD_CTRL_MUX_NO_CHANGE;
+	pd_control.swap = USB_PD_CTRL_SWAP_NONE;
 	ret = cros_ec_pd_command(info, EC_CMD_USB_PD_CONTROL, 1,
 				 &pd_control, sizeof(pd_control),
 				 &resp, sizeof(resp));
@@ -183,11 +194,72 @@ static int cros_ec_pd_get_num_ports(struct cros_ec_extcon_info *info)
 	return resp.num_ports;
 }
 
+static const char *cros_ec_usb_role_string(unsigned int role)
+{
+	return role == DR_NONE ? "DISCONNECTED" :
+		(role == DR_HOST ? "DFP" : "UFP");
+}
+
+static const char *cros_ec_usb_power_type_string(unsigned int type)
+{
+	switch (type) {
+	case USB_CHG_TYPE_NONE:
+		return "USB_CHG_TYPE_NONE";
+	case USB_CHG_TYPE_PD:
+		return "USB_CHG_TYPE_PD";
+	case USB_CHG_TYPE_PROPRIETARY:
+		return "USB_CHG_TYPE_PROPRIETARY";
+	case USB_CHG_TYPE_C:
+		return "USB_CHG_TYPE_C";
+	case USB_CHG_TYPE_BC12_DCP:
+		return "USB_CHG_TYPE_BC12_DCP";
+	case USB_CHG_TYPE_BC12_CDP:
+		return "USB_CHG_TYPE_BC12_CDP";
+	case USB_CHG_TYPE_BC12_SDP:
+		return "USB_CHG_TYPE_BC12_SDP";
+	case USB_CHG_TYPE_OTHER:
+		return "USB_CHG_TYPE_OTHER";
+	case USB_CHG_TYPE_VBUS:
+		return "USB_CHG_TYPE_VBUS";
+	case USB_CHG_TYPE_UNKNOWN:
+		return "USB_CHG_TYPE_UNKNOWN";
+	default:
+		return "USB_CHG_TYPE_UNKNOWN";
+	}
+}
+
+static bool cros_ec_usb_power_type_is_wall_wart(unsigned int type,
+						unsigned int role)
+{
+	switch (type) {
+	/* FIXME : Guppy, Donnettes, and other chargers will be miscategorized
+	 * because they identify with USB_CHG_TYPE_C, but we can't return true
+	 * here from that code because that breaks Suzy-Q and other kinds of
+	 * USB Type-C cables and peripherals.
+	 */
+	case USB_CHG_TYPE_PROPRIETARY:
+	case USB_CHG_TYPE_BC12_DCP:
+		return true;
+	case USB_CHG_TYPE_PD:
+	case USB_CHG_TYPE_C:
+	case USB_CHG_TYPE_BC12_CDP:
+	case USB_CHG_TYPE_BC12_SDP:
+	case USB_CHG_TYPE_OTHER:
+	case USB_CHG_TYPE_VBUS:
+	case USB_CHG_TYPE_UNKNOWN:
+	case USB_CHG_TYPE_NONE:
+	default:
+		return false;
+	}
+}
+
 static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 				       bool force)
 {
 	struct device *dev = info->dev;
 	int role, power_type;
+	unsigned int dr = DR_NONE;
+	bool pr = false;
 	bool polarity = false;
 	bool dp = false;
 	bool mux = false;
@@ -206,9 +278,12 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 			dev_err(dev, "failed getting role err = %d\n", role);
 			return role;
 		}
+		dev_dbg(dev, "disconnected\n");
 	} else {
 		int pd_mux_state;
 
+		dr = (role & PD_CTRL_RESP_ROLE_DATA) ? DR_HOST : DR_DEVICE;
+		pr = (role & PD_CTRL_RESP_ROLE_POWER);
 		pd_mux_state = cros_ec_usb_get_pd_mux_state(info);
 		if (pd_mux_state < 0)
 			pd_mux_state = USB_PD_MUX_USB_ENABLED;
@@ -216,20 +291,62 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 		dp = pd_mux_state & USB_PD_MUX_DP_ENABLED;
 		mux = pd_mux_state & USB_PD_MUX_USB_ENABLED;
 		hpd = pd_mux_state & USB_PD_MUX_HPD_IRQ;
+
+		dev_dbg(dev,
+			"connected role 0x%x pwr type %d dr %d pr %d pol %d mux %d dp %d hpd %d\n",
+			role, power_type, dr, pr, polarity, mux, dp, hpd);
 	}
 
-	if (force || info->dp != dp || info->mux != mux ||
-		info->power_type != power_type) {
+	/*
+	 * When there is no USB host (e.g. USB PD charger),
+	 * we are not really a UFP for the AP.
+	 */
+	if (dr == DR_DEVICE &&
+	    cros_ec_usb_power_type_is_wall_wart(power_type, role))
+		dr = DR_NONE;
 
+	if (force || info->dr != dr || info->pr != pr || info->dp != dp ||
+	    info->mux != mux || info->power_type != power_type) {
+		bool host_connected = false, device_connected = false;
+
+		dev_dbg(dev, "Type/Role switch! type = %s role = %s\n",
+			cros_ec_usb_power_type_string(power_type),
+			cros_ec_usb_role_string(dr));
+		info->dr = dr;
+		info->pr = pr;
 		info->dp = dp;
 		info->mux = mux;
 		info->power_type = power_type;
 
-		extcon_set_state(info->edev, EXTCON_DISP_DP, dp);
+		if (dr == DR_DEVICE)
+			device_connected = true;
+		else if (dr == DR_HOST)
+			host_connected = true;
 
+		extcon_set_state(info->edev, EXTCON_USB, device_connected);
+		extcon_set_state(info->edev, EXTCON_USB_HOST, host_connected);
+		extcon_set_state(info->edev, EXTCON_DISP_DP, dp);
+		extcon_set_property(info->edev, EXTCON_USB,
+				    EXTCON_PROP_USB_VBUS,
+				    (union extcon_property_value)(int)pr);
+		extcon_set_property(info->edev, EXTCON_USB_HOST,
+				    EXTCON_PROP_USB_VBUS,
+				    (union extcon_property_value)(int)pr);
+		extcon_set_property(info->edev, EXTCON_USB,
+				    EXTCON_PROP_USB_TYPEC_POLARITY,
+				    (union extcon_property_value)(int)polarity);
+		extcon_set_property(info->edev, EXTCON_USB_HOST,
+				    EXTCON_PROP_USB_TYPEC_POLARITY,
+				    (union extcon_property_value)(int)polarity);
 		extcon_set_property(info->edev, EXTCON_DISP_DP,
 				    EXTCON_PROP_USB_TYPEC_POLARITY,
 				    (union extcon_property_value)(int)polarity);
+		extcon_set_property(info->edev, EXTCON_USB,
+				    EXTCON_PROP_USB_SS,
+				    (union extcon_property_value)(int)mux);
+		extcon_set_property(info->edev, EXTCON_USB_HOST,
+				    EXTCON_PROP_USB_SS,
+				    (union extcon_property_value)(int)mux);
 		extcon_set_property(info->edev, EXTCON_DISP_DP,
 				    EXTCON_PROP_USB_SS,
 				    (union extcon_property_value)(int)mux);
@@ -237,6 +354,8 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 				    EXTCON_PROP_DISP_HPD,
 				    (union extcon_property_value)(int)hpd);
 
+		extcon_sync(info->edev, EXTCON_USB);
+		extcon_sync(info->edev, EXTCON_USB_HOST);
 		extcon_sync(info->edev, EXTCON_DISP_DP);
 
 	} else if (hpd) {
@@ -322,12 +441,27 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	extcon_set_property_capability(info->edev, EXTCON_USB,
+				       EXTCON_PROP_USB_VBUS);
+	extcon_set_property_capability(info->edev, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_VBUS);
+	extcon_set_property_capability(info->edev, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(info->edev, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
 	extcon_set_property_capability(info->edev, EXTCON_DISP_DP,
 				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(info->edev, EXTCON_USB,
+				       EXTCON_PROP_USB_SS);
+	extcon_set_property_capability(info->edev, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_SS);
 	extcon_set_property_capability(info->edev, EXTCON_DISP_DP,
 				       EXTCON_PROP_USB_SS);
 	extcon_set_property_capability(info->edev, EXTCON_DISP_DP,
 				       EXTCON_PROP_DISP_HPD);
+
+	info->dr = DR_NONE;
+	info->pr = false;
 
 	platform_set_drvdata(pdev, info);
 

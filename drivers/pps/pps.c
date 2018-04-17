@@ -49,7 +49,7 @@ static DEFINE_IDR(pps_idr);
  * Char device methods
  */
 
-static unsigned int pps_cdev_poll(struct file *file, poll_table *wait)
+static __poll_t pps_cdev_poll(struct file *file, poll_table *wait)
 {
 	struct pps_device *pps = file->private_data;
 

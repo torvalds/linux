@@ -82,6 +82,8 @@
 #define EDID_QUIRK_FORCE_6BPC			(1 << 10)
 /* Force 10bpc */
 #define EDID_QUIRK_FORCE_10BPC			(1 << 11)
+/* Non desktop display (i.e. HMD) */
+#define EDID_QUIRK_NON_DESKTOP			(1 << 12)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -157,6 +159,9 @@ static const struct edid_quirk {
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
+
+	/* HTC Vive VR Headset */
+	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
@@ -1533,6 +1538,10 @@ static void connector_bad_edid(struct drm_connector *connector,
  * level, drivers must make all reasonable efforts to expose it as an I2C
  * adapter and use drm_get_edid() instead of abusing this function.
  *
+ * The EDID may be overridden using debugfs override_edid or firmare EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
  * Return: Pointer to valid EDID or NULL if we couldn't find any.
  */
 struct edid *drm_do_get_edid(struct drm_connector *connector,
@@ -1542,6 +1551,17 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *edid, *new;
+	struct edid *override = NULL;
+
+	if (connector->override_edid)
+		override = drm_edid_duplicate((const struct edid *)
+					      connector->edid_blob_ptr->data);
+
+	if (!override)
+		override = drm_load_edid_firmware(connector);
+
+	if (!IS_ERR_OR_NULL(override))
+		return override;
 
 	if ((edid = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
@@ -1711,7 +1731,7 @@ EXPORT_SYMBOL(drm_edid_duplicate);
  *
  * Returns true if @vendor is in @edid, false otherwise
  */
-static bool edid_vendor(struct edid *edid, const char *vendor)
+static bool edid_vendor(const struct edid *edid, const char *vendor)
 {
 	char edid_vendor[3];
 
@@ -1729,7 +1749,7 @@ static bool edid_vendor(struct edid *edid, const char *vendor)
  *
  * This tells subsequent routines what fixes they need to apply.
  */
-static u32 edid_get_quirks(struct edid *edid)
+static u32 edid_get_quirks(const struct edid *edid)
 {
 	const struct edid_quirk *quirk;
 	int i;
@@ -2793,7 +2813,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_edid_extension(struct edid *edid, int ext_id)
+static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 {
 	u8 *edid_ext = NULL;
 	int i;
@@ -2815,12 +2835,12 @@ static u8 *drm_find_edid_extension(struct edid *edid, int ext_id)
 	return edid_ext;
 }
 
-static u8 *drm_find_cea_extension(struct edid *edid)
+static u8 *drm_find_cea_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, CEA_EXT);
 }
 
-static u8 *drm_find_displayid_extension(struct edid *edid)
+static u8 *drm_find_displayid_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, DISPLAYID_EXT);
 }
@@ -4343,7 +4363,7 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 }
 
 static void drm_parse_cea_ext(struct drm_connector *connector,
-			      struct edid *edid)
+			      const struct edid *edid)
 {
 	struct drm_display_info *info = &connector->display_info;
 	const u8 *edid_ext;
@@ -4377,10 +4397,32 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	}
 }
 
-static void drm_add_display_info(struct drm_connector *connector,
-				 struct edid *edid)
+/* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
+ * all of the values which would have been set from EDID
+ */
+void
+drm_reset_display_info(struct drm_connector *connector)
 {
 	struct drm_display_info *info = &connector->display_info;
+
+	info->width_mm = 0;
+	info->height_mm = 0;
+
+	info->bpc = 0;
+	info->color_formats = 0;
+	info->cea_rev = 0;
+	info->max_tmds_clock = 0;
+	info->dvi_dual = false;
+
+	info->non_desktop = 0;
+}
+EXPORT_SYMBOL_GPL(drm_reset_display_info);
+
+u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
+{
+	struct drm_display_info *info = &connector->display_info;
+
+	u32 quirks = edid_get_quirks(edid);
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
@@ -4392,11 +4434,15 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 
+	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
+
+	DRM_DEBUG_KMS("non_desktop set to %d\n", info->non_desktop);
+
 	if (edid->revision < 3)
-		return;
+		return quirks;
 
 	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
-		return;
+		return quirks;
 
 	drm_parse_cea_ext(connector, edid);
 
@@ -4416,7 +4462,7 @@ static void drm_add_display_info(struct drm_connector *connector,
 
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
-		return;
+		return quirks;
 
 	switch (edid->input & DRM_EDID_DIGITAL_DEPTH_MASK) {
 	case DRM_EDID_DIGITAL_DEPTH_6:
@@ -4451,7 +4497,9 @@ static void drm_add_display_info(struct drm_connector *connector,
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
+	return quirks;
 }
+EXPORT_SYMBOL_GPL(drm_add_display_info);
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {
@@ -4605,14 +4653,12 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		return 0;
 	}
 
-	quirks = edid_get_quirks(edid);
-
 	/*
 	 * CEA-861-F adds ycbcr capability map block, for HDMI 2.0 sinks.
 	 * To avoid multiple parsing of same block, lets parse that map
 	 * from sink info, before parsing CEA modes.
 	 */
-	drm_add_display_info(connector, edid);
+	quirks = drm_add_display_info(connector, edid);
 
 	/*
 	 * EDID spec says modes should be preferred in this order:
@@ -4809,7 +4855,8 @@ void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable)
+				   bool rgb_quant_range_selectable,
+				   bool is_hdmi2_sink)
 {
 	/*
 	 * CEA-861:
@@ -4833,8 +4880,15 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 *  YQ-field to match the RGB Quantization Range being transmitted
 	 *  (e.g., when Limited Range RGB, set YQ=0 or when Full Range RGB,
 	 *  set YQ=1) and the Sink shall ignore the YQ-field."
+	 *
+	 * Unfortunate certain sinks (eg. VIZ Model 67/E261VA) get confused
+	 * by non-zero YQ when receiving RGB. There doesn't seem to be any
+	 * good way to tell which version of CEA-861 the sink supports, so
+	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
+	 * on on CEA-861-F.
 	 */
-	if (rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
+	if (!is_hdmi2_sink ||
+	    rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
 		frame->ycc_quantization_range =
 			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	else

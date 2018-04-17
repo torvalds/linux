@@ -17,6 +17,7 @@ void nv40_gr_intr(struct nvkm_gr *);
 u64 nv40_gr_units(struct nvkm_gr *);
 
 #define nv40_gr_chan(p) container_of((p), struct nv40_gr_chan, object)
+#include <core/object.h>
 
 struct nv40_gr_chan {
 	struct nvkm_object object;

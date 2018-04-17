@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
+#include <linux/llist.h>
 
 #include <drm/drm_modeset_lock.h>
 
@@ -393,7 +394,7 @@ struct drm_mode_config {
 
 	/**
 	 * @connector_list_lock: Protects @num_connector and
-	 * @connector_list.
+	 * @connector_list and @connector_free_list.
 	 */
 	spinlock_t connector_list_lock;
 	/**
@@ -414,6 +415,21 @@ struct drm_mode_config {
 	 */
 	struct list_head connector_list;
 	/**
+	 * @connector_free_list:
+	 *
+	 * List of connector objects linked with &drm_connector.free_head.
+	 * Protected by @connector_list_lock. Used by
+	 * drm_for_each_connector_iter() and
+	 * &struct drm_connector_list_iter to savely free connectors using
+	 * @connector_free_work.
+	 */
+	struct llist_head connector_free_list;
+	/**
+	 * @connector_free_work: Work to clean up @connector_free_list.
+	 */
+	struct work_struct connector_free_work;
+
+	/**
 	 * @num_encoder:
 	 *
 	 * Number of encoders on this device. This is invariant over the
@@ -429,19 +445,6 @@ struct drm_mode_config {
 	 */
 	struct list_head encoder_list;
 
-	/**
-	 * @num_overlay_plane:
-	 *
-	 * Number of overlay planes on this device, excluding primary and cursor
-	 * planes.
-	 *
-	 * Track number of overlay planes separately from number of total
-	 * planes.  By default we only advertise overlay planes to userspace; if
-	 * userspace sets the "universal plane" capability bit, we'll go ahead
-	 * and expose all planes. This is invariant over the lifetime of a
-	 * device and hence doesn't need any locks.
-	 */
-	int num_overlay_plane;
 	/**
 	 * @num_total_plane:
 	 *
@@ -740,6 +743,13 @@ struct drm_mode_config {
 	 * the position of the output on the host's screen.
 	 */
 	struct drm_property *suggested_y_property;
+
+	/**
+	 * @non_desktop_property: Optional connector property with a hint
+	 * that device isn't a standard display, and the console/desktop,
+	 * should not be displayed on it.
+	 */
+	struct drm_property *non_desktop_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;

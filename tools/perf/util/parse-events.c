@@ -4,6 +4,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/param.h>
 #include "term.h"
 #include "../perf.h"
@@ -1116,6 +1119,7 @@ do {								\
 	INIT_LIST_HEAD(&__t->list);				\
 	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
 	__t->val.__name = __val;				\
+	__t->weak	= term->weak;				\
 	list_add_tail(&__t->list, head_terms);			\
 } while (0)
 
@@ -2410,6 +2414,7 @@ static int new_term(struct parse_events_term **_term,
 
 	*term = *temp;
 	INIT_LIST_HEAD(&term->list);
+	term->weak = false;
 
 	switch (term->type_val) {
 	case PARSE_EVENTS__TERM_TYPE_NUM:

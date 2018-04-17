@@ -13,30 +13,10 @@
 static void *loongson_dma_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
-	void *ret;
+	void *ret = swiotlb_alloc(dev, size, dma_handle, gfp, attrs);
 
-	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
-
-	if ((IS_ENABLED(CONFIG_ISA) && dev == NULL) ||
-	    (IS_ENABLED(CONFIG_ZONE_DMA) &&
-	     dev->coherent_dma_mask < DMA_BIT_MASK(32)))
-		gfp |= __GFP_DMA;
-	else if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
-		 dev->coherent_dma_mask < DMA_BIT_MASK(40))
-		gfp |= __GFP_DMA32;
-
-	gfp |= __GFP_NORETRY;
-
-	ret = swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
 	mb();
 	return ret;
-}
-
-static void loongson_dma_free_coherent(struct device *dev, size_t size,
-		void *vaddr, dma_addr_t dma_handle, unsigned long attrs)
-{
-	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
 }
 
 static dma_addr_t loongson_dma_map_page(struct device *dev, struct page *page,
@@ -109,7 +89,7 @@ phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 static const struct dma_map_ops loongson_dma_map_ops = {
 	.alloc = loongson_dma_alloc_coherent,
-	.free = loongson_dma_free_coherent,
+	.free = swiotlb_free,
 	.map_page = loongson_dma_map_page,
 	.unmap_page = swiotlb_unmap_page,
 	.map_sg = loongson_dma_map_sg,

@@ -980,11 +980,13 @@ void jit_bundle_gen(struct pt_regs *regs, tilegx_bundle_bits bundle,
 	}
 
 	if ((align_ctl == 0) || unexpected) {
-		siginfo_t info = {
-			.si_signo = SIGBUS,
-			.si_code = BUS_ADRALN,
-			.si_addr = (unsigned char __user *)0
-		};
+		siginfo_t info;
+
+		clear_siginfo(&info);
+		info.si_signo = SIGBUS;
+		info.si_code = BUS_ADRALN;
+		info.si_addr = (unsigned char __user *)0;
+
 		if (unaligned_printk)
 			pr_info("Unalign bundle: unexp @%llx, %llx\n",
 				(unsigned long long)regs->pc,
@@ -1396,11 +1398,12 @@ void jit_bundle_gen(struct pt_regs *regs, tilegx_bundle_bits bundle,
 				      &frag, sizeof(frag));
 		if (status) {
 			/* Fail to copy JIT into user land. send SIGSEGV. */
-			siginfo_t info = {
-				.si_signo = SIGSEGV,
-				.si_code = SEGV_MAPERR,
-				.si_addr = (void __user *)&jit_code_area[idx]
-			};
+			siginfo_t info;
+
+			clear_siginfo(&info);
+			info.si_signo = SIGSEGV;
+			info.si_code = SEGV_MAPERR;
+			info.si_addr = (void __user *)&jit_code_area[idx];
 
 			pr_warn("Unalign fixup: pid=%d %s jit_code_area=%llx\n",
 				current->pid, current->comm,
@@ -1511,11 +1514,12 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 	 * If so, we will trigger SIGBUS.
 	 */
 	if ((regs->sp & 0x7) || (regs->ex1) || (align_ctl < 0)) {
-		siginfo_t info = {
-			.si_signo = SIGBUS,
-			.si_code = BUS_ADRALN,
-			.si_addr = (unsigned char __user *)0
-		};
+		siginfo_t info;
+
+		clear_siginfo(&info);
+		info.si_signo = SIGBUS;
+		info.si_code = BUS_ADRALN;
+		info.si_addr = (unsigned char __user *)0;
 
 		if (unaligned_printk)
 			pr_info("Unalign fixup: %d %llx @%llx\n",
@@ -1535,11 +1539,13 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 	pc = (tilegx_bundle_bits __user *)(regs->pc);
 	if (get_user(bundle, pc) != 0) {
 		/* Probably never be here since pc is valid user address.*/
-		siginfo_t info = {
-			.si_signo = SIGSEGV,
-			.si_code = SEGV_MAPERR,
-			.si_addr = (void __user *)pc
-		};
+		siginfo_t info;
+
+		clear_siginfo(&info);
+		info.si_signo = SIGSEGV;
+		info.si_code = SEGV_MAPERR;
+		info.si_addr = (void __user *)pc;
+
 		pr_err("Couldn't read instruction at %p trying to step\n", pc);
 		trace_unhandled_signal("segfault in unalign fixup", regs,
 				       (unsigned long)info.si_addr, SIGSEGV);

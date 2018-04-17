@@ -125,7 +125,7 @@ static void sclp_console_sync_queue(void)
  * temporary write buffer without further waiting on a final new line.
  */
 static void
-sclp_console_timeout(unsigned long data)
+sclp_console_timeout(struct timer_list *unused)
 {
 	sclp_conbuf_emit();
 }
@@ -211,7 +211,6 @@ sclp_console_write(struct console *console, const char *message,
 	/* Setup timer to output current console buffer after 1/10 second */
 	if (sclp_conbuf != NULL && sclp_chars_in_buffer(sclp_conbuf) != 0 &&
 	    !timer_pending(&sclp_con_timer)) {
-		setup_timer(&sclp_con_timer, sclp_console_timeout, 0UL);
 		mod_timer(&sclp_con_timer, jiffies + HZ / 10);
 	}
 out:
@@ -332,7 +331,7 @@ sclp_console_init(void)
 	INIT_LIST_HEAD(&sclp_con_outqueue);
 	spin_lock_init(&sclp_con_lock);
 	sclp_conbuf = NULL;
-	init_timer(&sclp_con_timer);
+	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 
 	/* Set output format */
 	if (MACHINE_IS_VM)

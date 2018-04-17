@@ -642,9 +642,9 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void xgbe_tx_timer(unsigned long data)
+static void xgbe_tx_timer(struct timer_list *t)
 {
-	struct xgbe_channel *channel = (struct xgbe_channel *)data;
+	struct xgbe_channel *channel = from_timer(channel, t, tx_timer);
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct napi_struct *napi;
 
@@ -680,9 +680,9 @@ static void xgbe_service(struct work_struct *work)
 	pdata->phy_if.phy_status(pdata);
 }
 
-static void xgbe_service_timer(unsigned long data)
+static void xgbe_service_timer(struct timer_list *t)
 {
-	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
+	struct xgbe_prv_data *pdata = from_timer(pdata, t, service_timer);
 
 	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
@@ -694,16 +694,14 @@ static void xgbe_init_timers(struct xgbe_prv_data *pdata)
 	struct xgbe_channel *channel;
 	unsigned int i;
 
-	setup_timer(&pdata->service_timer, xgbe_service_timer,
-		    (unsigned long)pdata);
+	timer_setup(&pdata->service_timer, xgbe_service_timer, 0);
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		channel = pdata->channel[i];
 		if (!channel->tx_ring)
 			break;
 
-		setup_timer(&channel->tx_timer, xgbe_tx_timer,
-			    (unsigned long)channel);
+		timer_setup(&channel->tx_timer, xgbe_tx_timer, 0);
 	}
 }
 
@@ -2208,7 +2206,7 @@ static int xgbe_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 tc;
 
-	if (type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

@@ -1074,11 +1074,6 @@ static void bnx2x_vf_set_bars(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	}
 }
 
-static int bnx2x_ari_enabled(struct pci_dev *dev)
-{
-	return dev->bus->self && dev->bus->self->ari_enabled;
-}
-
 static int
 bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 {
@@ -1212,7 +1207,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 
 	err = -EIO;
 	/* verify ari is enabled */
-	if (!bnx2x_ari_enabled(bp->pdev)) {
+	if (!pci_ari_enabled(bp->pdev->bus)) {
 		BNX2X_ERR("ARI not supported (check pci bridge ARI forwarding), SRIOV can not be enabled\n");
 		return 0;
 	}

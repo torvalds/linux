@@ -3,41 +3,41 @@
         "EventCode": "0x00",
         "UMask": "0x1",
         "BriefDescription": "Instructions retired from execution.",
-        "Counter": "Fixed counter 1",
+        "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
         "PublicDescription": "Counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, Counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "Fixed counter 0"
+    },
+    {
+        "EventCode": "0x00",
+        "UMask": "0x2",
+        "BriefDescription": "Core cycles when the thread is not in halt state",
+        "Counter": "Fixed counter 1",
+        "EventName": "CPU_CLK_UNHALTED.THREAD",
+        "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "Fixed counter 1"
     },
     {
         "EventCode": "0x00",
         "UMask": "0x2",
-        "BriefDescription": "Core cycles when the thread is not in halt state",
-        "Counter": "Fixed counter 2",
-        "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 2"
-    },
-    {
-        "EventCode": "0x00",
-        "UMask": "0x2",
         "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
-        "Counter": "Fixed counter 2",
+        "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "AnyThread": "1",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 2"
+        "CounterHTOff": "Fixed counter 1"
     },
     {
         "EventCode": "0x00",
         "UMask": "0x3",
         "BriefDescription": "Reference cycles when the core is not in halt state.",
-        "Counter": "Fixed counter 3",
+        "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 3"
+        "CounterHTOff": "Fixed counter 2"
     },
     {
         "EventCode": "0x03",
@@ -126,7 +126,7 @@
         "BriefDescription": "Uops inserted at issue-stage in order to preserve upper bits of vector registers.",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_ISSUED.VECTOR_WIDTH_MISMATCH",
-        "PublicDescription": "Counts the number of Blend Uops issued by the Resource Allocation Table (RAT) to the reservation station (RS) in order to preserve upper bits of vector registers. Starting with the Skylake microarchitecture, these Blend uops are needed since every Intel SSE instruction executed in Dirty Upper State needs to preserve bits 128-255 of the destination register. For more information, refer to \u201cMixing Intel AVX and Intel SSE Code\u201d section of the Optimization Guide.",
+        "PublicDescription": "Counts the number of Blend Uops issued by the Resource Allocation Table (RAT) to the reservation station (RS) in order to preserve upper bits of vector registers. Starting with the Skylake microarchitecture, these Blend uops are needed since every Intel SSE instruction executed in Dirty Upper State needs to preserve bits 128-255 of the destination register. For more information, refer to Mixing Intel AVX and Intel SSE Code section of the Optimization Guide.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -762,11 +762,10 @@
         "EdgeDetect": "1",
         "EventCode": "0xC3",
         "UMask": "0x1",
-        "BriefDescription": "Number of machine clears (nukes) of any type. ",
+        "BriefDescription": "Number of machine clears (nukes) of any type.",
         "Counter": "0,1,2,3",
         "EventName": "MACHINE_CLEARS.COUNT",
         "CounterMask": "1",
-        "PublicDescription": "Number of machine clears (nukes) of any type.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -799,7 +798,7 @@
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
         "Errata": "SKL091",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts conditional branch instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts conditional branch instructions retired.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -811,14 +810,14 @@
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.NEAR_CALL",
         "Errata": "SKL091",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts both direct and indirect near call instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts both direct and indirect near call instructions retired.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xC4",
         "UMask": "0x4",
-        "BriefDescription": "All (macro) branch instructions retired. ",
+        "BriefDescription": "All (macro) branch instructions retired.",
         "PEBS": "2",
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES_PEBS",
@@ -835,7 +834,7 @@
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.NEAR_RETURN",
         "Errata": "SKL091",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts return instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts return instructions retired.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -858,19 +857,19 @@
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
         "Errata": "SKL091",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts taken branch instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xC4",
         "UMask": "0x40",
-        "BriefDescription": "Far branch instructions retired.",
+        "BriefDescription": "Counts the number of far branch instructions retired.",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "Errata": "SKL091",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts far branch instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts far branch instructions retired.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -891,7 +890,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_MISP_RETIRED.CONDITIONAL",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted conditional branch instructions retired.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts mispredicted conditional branch instructions retired.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -902,14 +901,14 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_MISP_RETIRED.NEAR_CALL",
-        "PublicDescription": "Counts both taken and not taken retired mispredicted direct and indirect near calls, including both register and memory indirect.",
+        "PublicDescription": "This event counts both taken and not taken retired mispredicted direct and indirect near calls, including both register and memory indirect.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xC5",
         "UMask": "0x4",
-        "BriefDescription": "Mispredicted macro branch instructions retired. ",
+        "BriefDescription": "Mispredicted macro branch instructions retired.",
         "PEBS": "2",
         "Counter": "0,1,2,3",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES_PEBS",
@@ -920,10 +919,11 @@
     {
         "EventCode": "0xC5",
         "UMask": "0x20",
-        "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken.",
+        "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken. ",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "PublicDescription": "Number of near branch instructions retired that were mispredicted and taken.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },

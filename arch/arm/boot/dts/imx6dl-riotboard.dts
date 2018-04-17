@@ -157,7 +157,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
@@ -165,7 +165,7 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	pmic: pf0100@08 {
+	pmic: pf0100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;

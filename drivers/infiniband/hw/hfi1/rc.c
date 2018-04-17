@@ -276,7 +276,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	if (IS_ERR(ps->s_txreq))
 		goto bail_no_tx;
 
-	ps->s_txreq->phdr.hdr.hdr_type = priv->hdr_type;
 	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
 		/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 		hwords = 5;
@@ -303,7 +302,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		smp_read_barrier_depends(); /* see post_one_send() */
 		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
@@ -347,7 +345,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		newreq = 0;
 		if (qp->s_cur == qp->s_tail) {
 			/* Check if send work queue is empty. */
-			smp_read_barrier_depends(); /* see post_one_send() */
 			if (qp->s_tail == READ_ONCE(qp->s_head)) {
 				clear_ahg(qp);
 				goto bail;
@@ -815,7 +812,7 @@ static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_16b_header *hdr = &opa_hdr->opah;
 	struct ib_other_headers *ohdr;
-	u32 bth0, bth1;
+	u32 bth0, bth1 = 0;
 	u16 len, pkey;
 	u8 becn = !!is_fecn;
 	u8 l4 = OPA_16B_L4_IB_LOCAL;
@@ -844,11 +841,11 @@ static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
 	/* Convert dwords to flits */
 	len = (*hwords + *nwords) >> 1;
 
-	hfi1_make_16b_hdr(hdr,
-			  ppd->lid | rdma_ah_get_path_bits(&qp->remote_ah_attr),
+	hfi1_make_16b_hdr(hdr, ppd->lid |
+			  (rdma_ah_get_path_bits(&qp->remote_ah_attr) &
+			  ((1 << ppd->lmc) - 1)),
 			  opa_get_lid(rdma_ah_get_dlid(&qp->remote_ah_attr),
-				      16B),
-			  len, pkey, becn, 0, l4, sc5);
+				      16B), len, pkey, becn, 0, l4, sc5);
 
 	bth0 = pkey | (OP(ACKNOWLEDGE) << 24);
 	bth0 |= extra_bytes << 20;
@@ -901,7 +898,6 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd,
 	}
 
 	/* Ensure s_rdma_ack_cnt changes are committed */
-	smp_read_barrier_depends();
 	if (qp->s_rdma_ack_cnt) {
 		hfi1_queue_rc_ack(qp, is_fecn);
 		return;
@@ -1563,7 +1559,6 @@ static void rc_rcv_resp(struct hfi1_packet *packet)
 	trace_hfi1_ack(qp, psn);
 
 	/* Ignore invalid responses. */
-	smp_read_barrier_depends(); /* see post_one_send */
 	if (cmp_psn(psn, READ_ONCE(qp->s_next_psn)) >= 0)
 		goto ack_done;
 
@@ -1966,7 +1961,7 @@ static void log_cca_event(struct hfi1_pportdata *ppd, u8 sl, u32 rlid,
 	cc_event->svc_type = svc_type;
 	cc_event->rlid = rlid;
 	/* keep timestamp in units of 1.024 usec */
-	cc_event->timestamp = ktime_to_ns(ktime_get()) / 1024;
+	cc_event->timestamp = ktime_get_ns() / 1024;
 
 	spin_unlock_irqrestore(&ppd->cc_log_lock, flags);
 }
@@ -2175,7 +2170,7 @@ send_middle:
 			goto no_immediate_data;
 		if (opcode == OP(SEND_ONLY_WITH_INVALIDATE))
 			goto send_last_inv;
-		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
+		/* FALLTHROUGH -- for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
@@ -2220,7 +2215,7 @@ send_last:
 			wc.opcode = IB_WC_RECV;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
-		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr) & U16_MAX;
 		/*
 		 * It seems that IB mandates the presence of an SL in a
 		 * work completion only for the UD transport (see section

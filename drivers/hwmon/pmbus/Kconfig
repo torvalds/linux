@@ -39,6 +39,7 @@ config SENSORS_ADM1275
 
 config SENSORS_IBM_CFFPS
 	tristate "IBM Common Form Factor Power Supply"
+	depends on LEDS_CLASS
 	help
 	  If you say yes here you get hardware monitoring support for the IBM
 	  Common Form Factor power supply.

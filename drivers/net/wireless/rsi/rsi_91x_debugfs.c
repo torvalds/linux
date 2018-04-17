@@ -83,19 +83,12 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 {
 	struct rsi_common *common = seq->private;
 
-	common->driver_ver.major = 0;
-	common->driver_ver.minor = 1;
-	common->driver_ver.release_num = 0;
-	common->driver_ver.patch_num = 0;
-	seq_printf(seq, "Driver : %x.%d.%d.%d\nLMAC   : %d.%d.%d.%d\n",
-		   common->driver_ver.major,
-		   common->driver_ver.minor,
-		   common->driver_ver.release_num,
-		   common->driver_ver.patch_num,
-		   common->fw_ver.major,
-		   common->fw_ver.minor,
-		   common->fw_ver.release_num,
-		   common->fw_ver.patch_num);
+	seq_printf(seq, "LMAC   : %d.%d.%d.%d\n",
+		   common->lmac_ver.major,
+		   common->lmac_ver.minor,
+		   common->lmac_ver.release_num,
+		   common->lmac_ver.patch_num);
+
 	return 0;
 }
 

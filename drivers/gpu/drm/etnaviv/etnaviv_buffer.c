@@ -250,6 +250,42 @@ void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 	}
 }
 
+/* Append a 'sync point' to the ring buffer. */
+void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
+{
+	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+	unsigned int waitlink_offset = buffer->user_size - 16;
+	u32 dwords, target;
+
+	/*
+	 * We need at most 3 dwords in the return target:
+	 * 1 event + 1 end + 1 wait + 1 link.
+	 */
+	dwords = 4;
+	target = etnaviv_buffer_reserve(gpu, buffer, dwords);
+
+	/* Signal sync point event */
+	CMD_LOAD_STATE(buffer, VIVS_GL_EVENT, VIVS_GL_EVENT_EVENT_ID(event) |
+		       VIVS_GL_EVENT_FROM_PE);
+
+	/* Stop the FE to 'pause' the GPU */
+	CMD_END(buffer);
+
+	/* Append waitlink */
+	CMD_WAIT(buffer);
+	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer) +
+			    buffer->user_size - 4);
+
+	/*
+	 * Kick off the 'sync point' command by replacing the previous
+	 * WAIT with a link to the address in the ring buffer.
+	 */
+	etnaviv_buffer_replace_wait(buffer, waitlink_offset,
+				    VIV_FE_LINK_HEADER_OP_LINK |
+				    VIV_FE_LINK_HEADER_PREFETCH(dwords),
+				    target);
+}
+
 /* Append a command buffer to the ring buffer. */
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	struct etnaviv_cmdbuf *cmdbuf)

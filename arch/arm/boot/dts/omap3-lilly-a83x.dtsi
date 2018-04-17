@@ -51,6 +51,7 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&reg_vcc3>;
+		#phy-cells = <0>;
 	};
 };
 
@@ -257,7 +258,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 		gpiom1: gpio@20 {
-			compatible = "mcp,mcp23017";
+			compatible = "microchip,mcp23017";
 			gpio-controller;
 			#gpio-cells = <2>;
 			reg = <0x20>;

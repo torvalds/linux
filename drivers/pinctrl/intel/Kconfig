@@ -5,7 +5,8 @@ if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
-	depends on GPIOLIB && ACPI
+	depends on ACPI
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINMUX
 	select PINCONF
@@ -64,6 +65,14 @@ config PINCTRL_CANNONLAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Cannon Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_CEDARFORK
+	tristate "Intel Cedar Fork pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Cedar Fork PCH pins and using them as GPIOs.
 
 config PINCTRL_DENVERTON
 	tristate "Intel Denverton pinctrl and GPIO driver"

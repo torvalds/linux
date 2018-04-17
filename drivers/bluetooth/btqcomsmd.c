@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/rpmsg.h>
+#include <linux/of.h>
+
 #include <linux/soc/qcom/wcnss_ctrl.h>
 #include <linux/platform_device.h>
 
@@ -26,6 +28,7 @@
 struct btqcomsmd {
 	struct hci_dev *hdev;
 
+	bdaddr_t bdaddr;
 	struct rpmsg_endpoint *acl_channel;
 	struct rpmsg_endpoint *cmd_channel;
 };
@@ -100,6 +103,38 @@ static int btqcomsmd_close(struct hci_dev *hdev)
 	return 0;
 }
 
+static int btqcomsmd_setup(struct hci_dev *hdev)
+{
+	struct btqcomsmd *btq = hci_get_drvdata(hdev);
+	struct sk_buff *skb;
+	int err;
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+	kfree_skb(skb);
+
+	/* Devices do not have persistent storage for BD address. If no
+	 * BD address has been retrieved during probe, mark the device
+	 * as having an invalid BD address.
+	 */
+	if (!bacmp(&btq->bdaddr, BDADDR_ANY)) {
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		return 0;
+	}
+
+	/* When setting a configured BD address fails, mark the device
+	 * as having an invalid BD address.
+	 */
+	err = qca_set_bdaddr_rome(hdev, &btq->bdaddr);
+	if (err) {
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		return 0;
+	}
+
+	return 0;
+}
+
 static int btqcomsmd_probe(struct platform_device *pdev)
 {
 	struct btqcomsmd *btq;
@@ -123,6 +158,15 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 	if (IS_ERR(btq->cmd_channel))
 		return PTR_ERR(btq->cmd_channel);
 
+	/* The local-bd-address property is usually injected by the
+	 * bootloader which has access to the allocated BD address.
+	 */
+	if (!of_property_read_u8_array(pdev->dev.of_node, "local-bd-address",
+				       (u8 *)&btq->bdaddr, sizeof(bdaddr_t))) {
+		dev_info(&pdev->dev, "BD address %pMR retrieved from device-tree",
+			 &btq->bdaddr);
+	}
+
 	hdev = hci_alloc_dev();
 	if (!hdev)
 		return -ENOMEM;
@@ -135,6 +179,7 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 	hdev->open = btqcomsmd_open;
 	hdev->close = btqcomsmd_close;
 	hdev->send = btqcomsmd_send;
+	hdev->setup = btqcomsmd_setup;
 	hdev->set_bdaddr = qca_set_bdaddr_rome;
 
 	ret = hci_register_dev(hdev);

@@ -41,8 +41,9 @@ hfcs_interrupt(int intno, void *dev_id)
 }
 
 static void
-hfcs_Timer(struct IsdnCardState *cs)
+hfcs_Timer(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, hw.hfcD.timer);
 	cs->hw.hfcD.timer.expires = jiffies + 75;
 	/* WD RESET */
 /*	WriteReg(cs, HFCD_DATA, HFCD_CTMT, cs->hw.hfcD.ctmt | 0x80);
@@ -195,7 +196,7 @@ int setup_hfcs(struct IsdnCard *card)
 					}
 					card->para[1] = pnp_port_start(pnp_d, 0);
 					card->para[0] = pnp_irq(pnp_d, 0);
-					if (!card->para[0] || !card->para[1]) {
+					if (card->para[0] == -1 || !card->para[1]) {
 						printk(KERN_ERR "HFC PnP:some resources are missing %ld/%lx\n",
 						       card->para[0], card->para[1]);
 						pnp_disable_dev(pnp_d);
@@ -253,7 +254,7 @@ int setup_hfcs(struct IsdnCard *card)
 		outb(0x57, cs->hw.hfcD.addr | 1);
 	}
 	set_cs_func(cs);
-	setup_timer(&cs->hw.hfcD.timer, (void *)hfcs_Timer, (long)cs);
+	timer_setup(&cs->hw.hfcD.timer, hfcs_Timer, 0);
 	cs->cardmsg = &hfcs_card_msg;
 	cs->irq_func = &hfcs_interrupt;
 	return (1);

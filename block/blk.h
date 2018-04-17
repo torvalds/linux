@@ -120,33 +120,23 @@ void blk_account_io_completion(struct request *req, unsigned int bytes);
 void blk_account_io_done(struct request *req);
 
 /*
- * Internal atomic flags for request handling
- */
-enum rq_atomic_flags {
-	/*
-	 * Keep these two bits first - not because we depend on the
-	 * value of them, but we do depend on them being in the same
-	 * byte of storage to ensure ordering on writes. Keeping them
-	 * first will achieve that nicely.
-	 */
-	REQ_ATOM_COMPLETE = 0,
-	REQ_ATOM_STARTED,
-
-	REQ_ATOM_POLL_SLEPT,
-};
-
-/*
  * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them succeeds
+ * sure that only one of them succeeds. Steal the bottom bit of the
+ * __deadline field for this.
  */
 static inline int blk_mark_rq_complete(struct request *rq)
 {
-	return test_and_set_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+	return test_and_set_bit(0, &rq->__deadline);
 }
 
 static inline void blk_clear_rq_complete(struct request *rq)
 {
-	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+	clear_bit(0, &rq->__deadline);
+}
+
+static inline bool blk_rq_is_complete(struct request *rq)
+{
+	return test_bit(0, &rq->__deadline);
 }
 
 /*
@@ -171,6 +161,9 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 	if (e->type->ops.sq.elevator_deactivate_req_fn)
 		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
+
+int elv_register_queue(struct request_queue *q);
+void elv_unregister_queue(struct request_queue *q);
 
 struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
 
@@ -243,6 +236,21 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 	req->cmd_flags |= REQ_NOMERGE;
 	if (req == q->last_merge)
 		q->last_merge = NULL;
+}
+
+/*
+ * Steal a bit from this field for legacy IO path atomic IO marking. Note that
+ * setting the deadline clears the bottom bit, potentially clearing the
+ * completed bit. The user has to be OK with this (current ones are fine).
+ */
+static inline void blk_rq_set_deadline(struct request *rq, unsigned long time)
+{
+	rq->__deadline = time & ~0x1UL;
+}
+
+static inline unsigned long blk_rq_deadline(struct request *rq)
+{
+	return rq->__deadline & ~0x1UL;
 }
 
 /*
@@ -329,5 +337,7 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 {
 }
 #endif /* CONFIG_BOUNCE */
+
+extern void blk_drain_queue(struct request_queue *q);
 
 #endif /* BLK_INTERNAL_H */

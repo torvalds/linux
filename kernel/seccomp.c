@@ -515,7 +515,7 @@ void put_seccomp_filter(struct task_struct *tsk)
 
 static void seccomp_init_siginfo(siginfo_t *info, int syscall, int reason)
 {
-	memset(info, 0, sizeof(*info));
+	clear_siginfo(info);
 	info->si_signo = SIGSYS;
 	info->si_code = SYS_SECCOMP;
 	info->si_call_addr = (void __user *)KSTK_EIP(current);

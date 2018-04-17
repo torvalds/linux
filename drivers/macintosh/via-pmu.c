@@ -2157,11 +2157,11 @@ pmu_write(struct file *file, const char __user *buf,
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 pmu_fpoll(struct file *filp, poll_table *wait)
 {
 	struct pmu_private *pp = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 	
 	if (pp == 0)

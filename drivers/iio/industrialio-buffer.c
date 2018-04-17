@@ -169,7 +169,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
  * Return: (POLLIN | POLLRDNORM) if data is available for reading
  *	   or 0 for other cases
  */
-unsigned int iio_buffer_poll(struct file *filp,
+__poll_t iio_buffer_poll(struct file *filp,
 			     struct poll_table_struct *wait)
 {
 	struct iio_dev *indio_dev = filp->private_data;

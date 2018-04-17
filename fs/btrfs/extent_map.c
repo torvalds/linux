@@ -454,3 +454,135 @@ void replace_extent_mapping(struct extent_map_tree *tree,
 
 	setup_extent_mapping(tree, new, modified);
 }
+
+static struct extent_map *next_extent_map(struct extent_map *em)
+{
+	struct rb_node *next;
+
+	next = rb_next(&em->rb_node);
+	if (!next)
+		return NULL;
+	return container_of(next, struct extent_map, rb_node);
+}
+
+static struct extent_map *prev_extent_map(struct extent_map *em)
+{
+	struct rb_node *prev;
+
+	prev = rb_prev(&em->rb_node);
+	if (!prev)
+		return NULL;
+	return container_of(prev, struct extent_map, rb_node);
+}
+
+/* helper for btfs_get_extent.  Given an existing extent in the tree,
+ * the existing extent is the nearest extent to map_start,
+ * and an extent that you want to insert, deal with overlap and insert
+ * the best fitted new extent into the tree.
+ */
+static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
+					 struct extent_map *existing,
+					 struct extent_map *em,
+					 u64 map_start)
+{
+	struct extent_map *prev;
+	struct extent_map *next;
+	u64 start;
+	u64 end;
+	u64 start_diff;
+
+	BUG_ON(map_start < em->start || map_start >= extent_map_end(em));
+
+	if (existing->start > map_start) {
+		next = existing;
+		prev = prev_extent_map(next);
+	} else {
+		prev = existing;
+		next = next_extent_map(prev);
+	}
+
+	start = prev ? extent_map_end(prev) : em->start;
+	start = max_t(u64, start, em->start);
+	end = next ? next->start : extent_map_end(em);
+	end = min_t(u64, end, extent_map_end(em));
+	start_diff = start - em->start;
+	em->start = start;
+	em->len = end - start;
+	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
+	    !test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+		em->block_start += start_diff;
+		em->block_len = em->len;
+	}
+	return add_extent_mapping(em_tree, em, 0);
+}
+
+/**
+ * btrfs_add_extent_mapping - add extent mapping into em_tree
+ * @em_tree - the extent tree into which we want to insert the extent mapping
+ * @em_in   - extent we are inserting
+ * @start   - start of the logical range btrfs_get_extent() is requesting
+ * @len     - length of the logical range btrfs_get_extent() is requesting
+ *
+ * Note that @em_in's range may be different from [start, start+len),
+ * but they must be overlapped.
+ *
+ * Insert @em_in into @em_tree. In case there is an overlapping range, handle
+ * the -EEXIST by either:
+ * a) Returning the existing extent in @em_in if @start is within the
+ *    existing em.
+ * b) Merge the existing extent with @em_in passed in.
+ *
+ * Return 0 on success, otherwise -EEXIST.
+ *
+ */
+int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
+			     struct extent_map **em_in, u64 start, u64 len)
+{
+	int ret;
+	struct extent_map *em = *em_in;
+
+	ret = add_extent_mapping(em_tree, em, 0);
+	/* it is possible that someone inserted the extent into the tree
+	 * while we had the lock dropped.  It is also possible that
+	 * an overlapping map exists in the tree
+	 */
+	if (ret == -EEXIST) {
+		struct extent_map *existing;
+
+		ret = 0;
+
+		existing = search_extent_mapping(em_tree, start, len);
+		/*
+		 * existing will always be non-NULL, since there must be
+		 * extent causing the -EEXIST.
+		 */
+		if (start >= existing->start &&
+		    start < extent_map_end(existing)) {
+			free_extent_map(em);
+			*em_in = existing;
+			ret = 0;
+		} else {
+			u64 orig_start = em->start;
+			u64 orig_len = em->len;
+
+			/*
+			 * The existing extent map is the one nearest to
+			 * the [start, start + len) range which overlaps
+			 */
+			ret = merge_extent_mapping(em_tree, existing,
+						   em, start);
+			if (ret) {
+				free_extent_map(em);
+				*em_in = NULL;
+				WARN_ONCE(ret,
+"unexpected error %d: merge existing(start %llu len %llu) with em(start %llu len %llu)\n",
+					  ret, existing->start, existing->len,
+					  orig_start, orig_len);
+			}
+			free_extent_map(existing);
+		}
+	}
+
+	ASSERT(ret == 0 || ret == -EEXIST);
+	return ret;
+}

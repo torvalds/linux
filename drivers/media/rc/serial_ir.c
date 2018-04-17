@@ -470,7 +470,7 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static void serial_ir_timeout(unsigned long arg)
+static void serial_ir_timeout(struct timer_list *unused)
 {
 	DEFINE_IR_RAW_EVENT(ev);
 
@@ -540,8 +540,7 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	serial_ir.rcdev = rcdev;
 
-	setup_timer(&serial_ir.timeout_timer, serial_ir_timeout,
-		    (unsigned long)&serial_ir);
+	timer_setup(&serial_ir.timeout_timer, serial_ir_timeout, 0);
 
 	result = devm_request_irq(&dev->dev, irq, serial_ir_irq_handler,
 				  share_irq ? IRQF_SHARED : 0,

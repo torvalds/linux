@@ -526,34 +526,13 @@ static int bL_cpufreq_exit(struct cpufreq_policy *policy)
 
 static void bL_cpufreq_ready(struct cpufreq_policy *policy)
 {
-	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	int cur_cluster = cpu_to_cluster(policy->cpu);
-	struct device_node *np;
 
 	/* Do not register a cpu_cooling device if we are in IKS mode */
 	if (cur_cluster >= MAX_CLUSTERS)
 		return;
 
-	np = of_node_get(cpu_dev->of_node);
-	if (WARN_ON(!np))
-		return;
-
-	if (of_find_property(np, "#cooling-cells", NULL)) {
-		u32 power_coefficient = 0;
-
-		of_property_read_u32(np, "dynamic-power-coefficient",
-				     &power_coefficient);
-
-		cdev[cur_cluster] = of_cpufreq_power_cooling_register(np,
-				policy, power_coefficient, NULL);
-		if (IS_ERR(cdev[cur_cluster])) {
-			dev_err(cpu_dev,
-				"running cpufreq without cooling device: %ld\n",
-				PTR_ERR(cdev[cur_cluster]));
-			cdev[cur_cluster] = NULL;
-		}
-	}
-	of_node_put(np);
+	cdev[cur_cluster] = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver bL_cpufreq_driver = {

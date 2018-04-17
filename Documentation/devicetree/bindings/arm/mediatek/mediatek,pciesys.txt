@@ -1,0 +1,22 @@
+MediaTek PCIESYS controller
+============================
+
+The MediaTek PCIESYS controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt7622-pciesys", "syscon"
+- #clock-cells: Must be 1
+
+The PCIESYS controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+pciesys: pciesys@1a100800 {
+	compatible = "mediatek,mt7622-pciesys", "syscon";
+	reg = <0 0x1a100800 0 0x1000>;
+	#clock-cells = <1>;
+};

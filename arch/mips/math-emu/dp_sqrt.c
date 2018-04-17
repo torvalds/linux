@@ -21,7 +21,7 @@
 
 #include "ieee754dp.h"
 
-static const unsigned table[] = {
+static const unsigned int table[] = {
 	0, 1204, 3062, 5746, 9193, 13348, 18162, 23592,
 	29598, 36145, 43202, 50740, 58733, 67158, 75992,
 	85215, 83599, 71378, 60428, 50647, 41945, 34246,
@@ -33,7 +33,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 {
 	struct _ieee754_csr oldcsr;
 	union ieee754dp y, z, t;
-	unsigned scalx, yh;
+	unsigned int scalx, yh;
 	COMPXDP;
 
 	EXPLODEXDP;

@@ -301,11 +301,11 @@ fail_paprd:
  *  When the task is complete, it reschedules itself depending on the
  *  appropriate interval that was calculated.
  */
-void ath_ani_calibrate(unsigned long data)
+void ath_ani_calibrate(struct timer_list *t)
 {
-	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_common *common = from_timer(common, t, ani.timer);
+	struct ath_softc *sc = (struct ath_softc *)common->priv;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	bool longcal = false;
 	bool shortcal = false;
 	bool aniflag = false;
@@ -367,10 +367,10 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Call ANI routine if necessary */
 	if (aniflag) {
-		spin_lock(&common->cc_lock);
+		spin_lock_irqsave(&common->cc_lock, flags);
 		ath9k_hw_ani_monitor(ah, ah->curchan);
 		ath_update_survey_stats(sc);
-		spin_unlock(&common->cc_lock);
+		spin_unlock_irqrestore(&common->cc_lock, flags);
 	}
 
 	/* Perform calibration if necessary */

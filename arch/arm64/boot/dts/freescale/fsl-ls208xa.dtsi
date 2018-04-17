@@ -786,4 +786,11 @@
 		interrupts = <0 18 0x4>;
 		little-endian;
 	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
 };

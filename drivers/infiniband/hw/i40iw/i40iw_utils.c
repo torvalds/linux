@@ -137,7 +137,7 @@ inline u32 i40iw_rd32(struct i40iw_hw *hw, u32 reg)
 }
 
 /**
- * i40iw_inetaddr_event - system notifier for netdev events
+ * i40iw_inetaddr_event - system notifier for ipv4 addr events
  * @notfier: not used
  * @event: event for notifier
  * @ptr: if address
@@ -168,11 +168,16 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
-	if (upper_dev)
-		local_ipaddr = ntohl(
-			((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-	else
+	if (upper_dev) {
+		struct in_device *in;
+
+		rcu_read_lock();
+		in = __in_dev_get_rcu(upper_dev);
+		local_ipaddr = ntohl(in->ifa_list->ifa_address);
+		rcu_read_unlock();
+	} else {
 		local_ipaddr = ntohl(ifa->ifa_address);
+	}
 	switch (event) {
 	case NETDEV_DOWN:
 		action = I40IW_ARP_DELETE;
@@ -195,7 +200,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_inet6addr_event - system notifier for ipv6 netdev events
+ * i40iw_inet6addr_event - system notifier for ipv6 addr events
  * @notfier: not used
  * @event: event for notifier
  * @ptr: if address
@@ -247,7 +252,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_net_event - system notifier for net events
+ * i40iw_net_event - system notifier for netevents
  * @notfier: not used
  * @event: event for notifier
  * @ptr: neighbor
@@ -284,6 +289,50 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 					       false,
 					       I40IW_ARP_DELETE);
 		}
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+/**
+ * i40iw_netdevice_event - system notifier for netdev events
+ * @notfier: not used
+ * @event: event for notifier
+ * @ptr: netdev
+ */
+int i40iw_netdevice_event(struct notifier_block *notifier,
+			  unsigned long event,
+			  void *ptr)
+{
+	struct net_device *event_netdev;
+	struct net_device *netdev;
+	struct i40iw_device *iwdev;
+	struct i40iw_handler *hdl;
+
+	event_netdev = netdev_notifier_info_to_dev(ptr);
+
+	hdl = i40iw_find_netdev(event_netdev);
+	if (!hdl)
+		return NOTIFY_DONE;
+
+	iwdev = &hdl->device;
+	if (iwdev->init_state < RDMA_DEV_REGISTERED || iwdev->closing)
+		return NOTIFY_DONE;
+
+	netdev = iwdev->ldev->netdev;
+	if (netdev != event_netdev)
+		return NOTIFY_DONE;
+
+	iwdev->iw_status = 1;
+
+	switch (event) {
+	case NETDEV_DOWN:
+		iwdev->iw_status = 0;
+		/* Fall through */
+	case NETDEV_UP:
+		i40iw_port_ibevent(iwdev);
 		break;
 	default:
 		break;
@@ -870,9 +919,9 @@ void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred)
  * i40iw_terminate_imeout - timeout happened
  * @context: points to iwarp qp
  */
-static void i40iw_terminate_timeout(unsigned long context)
+static void i40iw_terminate_timeout(struct timer_list *t)
 {
-	struct i40iw_qp *iwqp = (struct i40iw_qp *)context;
+	struct i40iw_qp *iwqp = from_timer(iwqp, t, terminate_timer);
 	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)&iwqp->sc_qp;
 
 	i40iw_terminate_done(qp, 1);
@@ -889,8 +938,7 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	i40iw_add_ref(&iwqp->ibqp);
-	setup_timer(&iwqp->terminate_timer, i40iw_terminate_timeout,
-		    (unsigned long)iwqp);
+	timer_setup(&iwqp->terminate_timer, i40iw_terminate_timeout, 0);
 	iwqp->terminate_timer.expires = jiffies + HZ;
 	add_timer(&iwqp->terminate_timer);
 }
@@ -1445,11 +1493,12 @@ enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_in
  * i40iw_hw_stats_timeout - Stats timer-handler which updates all HW stats
  * @vsi: pointer to the vsi structure
  */
-static void i40iw_hw_stats_timeout(unsigned long vsi)
+static void i40iw_hw_stats_timeout(struct timer_list *t)
 {
-	struct i40iw_sc_vsi *sc_vsi =  (struct i40iw_sc_vsi *)vsi;
+	struct i40iw_vsi_pestat *pf_devstat = from_timer(pf_devstat, t,
+						       stats_timer);
+	struct i40iw_sc_vsi *sc_vsi = pf_devstat->vsi;
 	struct i40iw_sc_dev *pf_dev = sc_vsi->dev;
-	struct i40iw_vsi_pestat *pf_devstat = sc_vsi->pestat;
 	struct i40iw_vsi_pestat *vf_devstat = NULL;
 	u16 iw_vf_idx;
 	unsigned long flags;
@@ -1480,8 +1529,7 @@ void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi)
 {
 	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
-	setup_timer(&devstat->stats_timer, i40iw_hw_stats_timeout,
-		    (unsigned long)vsi);
+	timer_setup(&devstat->stats_timer, i40iw_hw_stats_timeout, 0);
 	mod_timer(&devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
 }

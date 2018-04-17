@@ -35,15 +35,14 @@
 #include <linux/interrupt.h>
 #include <net/lapb.h>
 
-static void lapb_t1timer_expiry(unsigned long);
-static void lapb_t2timer_expiry(unsigned long);
+static void lapb_t1timer_expiry(struct timer_list *);
+static void lapb_t2timer_expiry(struct timer_list *);
 
 void lapb_start_t1timer(struct lapb_cb *lapb)
 {
 	del_timer(&lapb->t1timer);
 
-	lapb->t1timer.data     = (unsigned long)lapb;
-	lapb->t1timer.function = &lapb_t1timer_expiry;
+	lapb->t1timer.function = lapb_t1timer_expiry;
 	lapb->t1timer.expires  = jiffies + lapb->t1;
 
 	add_timer(&lapb->t1timer);
@@ -53,8 +52,7 @@ void lapb_start_t2timer(struct lapb_cb *lapb)
 {
 	del_timer(&lapb->t2timer);
 
-	lapb->t2timer.data     = (unsigned long)lapb;
-	lapb->t2timer.function = &lapb_t2timer_expiry;
+	lapb->t2timer.function = lapb_t2timer_expiry;
 	lapb->t2timer.expires  = jiffies + lapb->t2;
 
 	add_timer(&lapb->t2timer);
@@ -75,9 +73,9 @@ int lapb_t1timer_running(struct lapb_cb *lapb)
 	return timer_pending(&lapb->t1timer);
 }
 
-static void lapb_t2timer_expiry(unsigned long param)
+static void lapb_t2timer_expiry(struct timer_list *t)
 {
-	struct lapb_cb *lapb = (struct lapb_cb *)param;
+	struct lapb_cb *lapb = from_timer(lapb, t, t2timer);
 
 	if (lapb->condition & LAPB_ACK_PENDING_CONDITION) {
 		lapb->condition &= ~LAPB_ACK_PENDING_CONDITION;
@@ -85,9 +83,9 @@ static void lapb_t2timer_expiry(unsigned long param)
 	}
 }
 
-static void lapb_t1timer_expiry(unsigned long param)
+static void lapb_t1timer_expiry(struct timer_list *t)
 {
-	struct lapb_cb *lapb = (struct lapb_cb *)param;
+	struct lapb_cb *lapb = from_timer(lapb, t, t1timer);
 
 	switch (lapb->state) {
 

@@ -1257,10 +1257,10 @@ static int usbtmc_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &data->fasync);
 }
 
-static unsigned int usbtmc_poll(struct file *file, poll_table *wait)
+static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 {
 	struct usbtmc_device_data *data = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	mutex_lock(&data->io_mutex);
 

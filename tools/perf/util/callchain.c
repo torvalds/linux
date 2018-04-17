@@ -37,6 +37,15 @@ struct callchain_param callchain_param = {
 	CALLCHAIN_PARAM_DEFAULT
 };
 
+/*
+ * Are there any events usind DWARF callchains?
+ *
+ * I.e.
+ *
+ * -e cycles/call-graph=dwarf/
+ */
+bool dwarf_callchain_users;
+
 struct callchain_param callchain_param_default = {
 	CALLCHAIN_PARAM_DEFAULT
 };
@@ -265,6 +274,7 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 			ret = 0;
 			param->record_mode = CALLCHAIN_DWARF;
 			param->dump_size = default_stack_dump_size;
+			dwarf_callchain_users = true;
 
 			tok = strtok_r(NULL, ",", &saveptr);
 			if (tok) {

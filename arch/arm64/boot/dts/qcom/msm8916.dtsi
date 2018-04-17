@@ -69,8 +69,11 @@
 		};
 
 		rmtfs@86700000 {
+			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
 			no-map;
+
+			qcom,client-id = <1>;
 		};
 
 		rfsa@867e00000 {
@@ -257,6 +260,8 @@
 			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 			#reset-cells = <1>;
+
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
@@ -495,7 +500,7 @@
 			status = "disabled";
 		};
 
-		lpass: lpass@07708000 {
+		lpass: lpass@7708000 {
 			status = "disabled";
 			compatible = "qcom,lpass-cpu-apq8016";
 			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
@@ -530,7 +535,7 @@
 			#sound-dai-cells = <1>;
                 };
 
-		sdhc_1: sdhci@07824000 {
+		sdhc_1: sdhci@7824000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -547,7 +552,7 @@
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@07864000 {
+		sdhc_2: sdhci@7864000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07864900 0x11c>, <0x07864000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -814,7 +819,7 @@
 
 			mdp: mdp@1a01000 {
 				compatible = "qcom,mdp5";
-				reg = <0x1a01000 0x90000>;
+				reg = <0x1a01000 0x89000>;
 				reg-names = "mdp_phys";
 
 				interrupt-parent = <&mdss>;

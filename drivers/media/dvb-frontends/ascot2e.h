@@ -41,6 +41,15 @@ struct ascot2e_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_ASCOT2E)
+/**
+ * Attach an ascot2e tuner
+ *
+ * @fe: frontend to be attached
+ * @config: pointer to &struct ascot2e_config with tuner configuration.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *ascot2e_attach(struct dvb_frontend *fe,
 					const struct ascot2e_config *config,
 					struct i2c_adapter *i2c);

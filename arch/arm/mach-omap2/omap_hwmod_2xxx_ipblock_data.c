@@ -20,11 +20,6 @@
 #include "prm-regbits-24xx.h"
 #include "wd_timer.h"
 
-static struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
-	{ .name = "dispc", .dma_req = 5 },
-	{ .dma_req = -1, },
-};
-
 /*
  * 'dispc' class
  * display controller
@@ -550,7 +545,6 @@ struct omap_hwmod omap2xxx_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap2xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,

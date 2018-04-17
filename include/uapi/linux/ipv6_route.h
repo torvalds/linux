@@ -29,7 +29,7 @@
 
 #define RTF_ROUTEINFO	0x00800000	/* route information - RA	*/
 
-#define RTF_CACHE	0x01000000	/* cache entry			*/
+#define RTF_CACHE	0x01000000	/* read-only: can not be set by user */
 #define RTF_FLOW	0x02000000	/* flow significant route	*/
 #define RTF_POLICY	0x04000000	/* policy route			*/
 

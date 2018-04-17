@@ -20,7 +20,6 @@
 * Platform specific includes and functionality.
 */
 
-#include "storage_class.h"
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

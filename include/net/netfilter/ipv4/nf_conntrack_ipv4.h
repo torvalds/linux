@@ -11,7 +11,7 @@
 #define _NF_CONNTRACK_IPV4_H
 
 
-extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
+const extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
 
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4;
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4;

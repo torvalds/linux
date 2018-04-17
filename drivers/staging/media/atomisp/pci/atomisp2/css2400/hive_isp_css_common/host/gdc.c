@@ -22,12 +22,12 @@
 /*
  * Local function declarations
  */
-STORAGE_CLASS_INLINE void gdc_reg_store(
+static inline void gdc_reg_store(
 	const gdc_ID_t		ID,
 	const unsigned int	reg,
 	const hrt_data		value);
 
-STORAGE_CLASS_INLINE hrt_data gdc_reg_load(
+static inline hrt_data gdc_reg_load(
 	const gdc_ID_t		ID,
 	const unsigned int	reg);
 
@@ -62,7 +62,7 @@ void gdc_lut_store(
 		gdc_reg_store(ID, lut_offset++, word_0);
 		gdc_reg_store(ID, lut_offset++, word_1);
 	}
-return;
+	return;
 }
 
 /*
@@ -103,25 +103,25 @@ int gdc_get_unity(
 {
 	assert(ID < N_GDC_ID);
 	(void)ID;
-return (int)(1UL << HRT_GDC_FRAC_BITS);
+	return (int)(1UL << HRT_GDC_FRAC_BITS);
 }
 
 
 /*
  * Local function implementations
  */
-STORAGE_CLASS_INLINE void gdc_reg_store(
+static inline void gdc_reg_store(
 	const gdc_ID_t		ID,
 	const unsigned int	reg,
 	const hrt_data		value)
 {
 	ia_css_device_store_uint32(GDC_BASE[ID] + reg*sizeof(hrt_data), value);
-return;
+	return;
 }
 
-STORAGE_CLASS_INLINE hrt_data gdc_reg_load(
+static inline hrt_data gdc_reg_load(
 	const gdc_ID_t		ID,
 	const unsigned int	reg)
 {
-return ia_css_device_load_uint32(GDC_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(GDC_BASE[ID] + reg*sizeof(hrt_data));
 }

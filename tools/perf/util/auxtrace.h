@@ -43,6 +43,7 @@ enum auxtrace_type {
 	PERF_AUXTRACE_INTEL_PT,
 	PERF_AUXTRACE_INTEL_BTS,
 	PERF_AUXTRACE_CS_ETM,
+	PERF_AUXTRACE_ARM_SPE,
 };
 
 enum itrace_period_type {

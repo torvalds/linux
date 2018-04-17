@@ -26,7 +26,7 @@
 
 #define check_pgt_cache()		do { } while (0)
 
-#define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+#define PGALLOC_GFP	(GFP_KERNEL | __GFP_ZERO)
 #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
 
 #if CONFIG_PGTABLE_LEVELS > 2
@@ -44,7 +44,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 static inline void __pud_populate(pud_t *pud, phys_addr_t pmd, pudval_t prot)
 {
-	set_pud(pud, __pud(pmd | prot));
+	set_pud(pud, __pud(__phys_to_pud_val(pmd) | prot));
 }
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
@@ -73,7 +73,7 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 
 static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pud, pgdval_t prot)
 {
-	set_pgd(pgdp, __pgd(pud | prot));
+	set_pgd(pgdp, __pgd(__phys_to_pgd_val(pud) | prot));
 }
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
@@ -129,7 +129,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t pte,
 				  pmdval_t prot)
 {
-	set_pmd(pmdp, __pmd(pte | prot));
+	set_pmd(pmdp, __pmd(__phys_to_pmd_val(pte) | prot));
 }
 
 /*

@@ -121,7 +121,7 @@ module_param(action, int, 0);
 MODULE_PARM_DESC(action, "after watchdog resets, generate: "
 				"0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI");
 
-static void zf_ping(unsigned long data);
+static void zf_ping(struct timer_list *unused);
 
 static int zf_action = GEN_RESET;
 static unsigned long zf_is_open;
@@ -237,7 +237,7 @@ static void zf_timer_on(void)
 }
 
 
-static void zf_ping(unsigned long data)
+static void zf_ping(struct timer_list *unused)
 {
 	unsigned int ctrl_reg = 0;
 	unsigned long flags;

@@ -44,6 +44,7 @@ struct set_adt_elem {
 struct list_set {
 	u32 size;		/* size of set list array */
 	struct timer_list gc;	/* garbage collection */
+	struct ip_set *set;	/* attached to this ip_set */
 	struct net *net;	/* namespace */
 	struct list_head members; /* the set members */
 };
@@ -453,7 +454,6 @@ static size_t
 list_set_memsize(const struct list_set *map, size_t dsize)
 {
 	struct set_elem *e;
-	size_t memsize;
 	u32 n = 0;
 
 	rcu_read_lock();
@@ -461,9 +461,7 @@ list_set_memsize(const struct list_set *map, size_t dsize)
 		n++;
 	rcu_read_unlock();
 
-	memsize = sizeof(*map) + n * dsize;
-
-	return memsize;
+	return (sizeof(*map) + n * dsize);
 }
 
 static int
@@ -571,10 +569,10 @@ static const struct ip_set_type_variant set_variant = {
 };
 
 static void
-list_set_gc(unsigned long ul_set)
+list_set_gc(struct timer_list *t)
 {
-	struct ip_set *set = (struct ip_set *)ul_set;
-	struct list_set *map = set->data;
+	struct list_set *map = from_timer(map, t, gc);
+	struct ip_set *set = map->set;
 
 	spin_lock_bh(&set->lock);
 	set_cleanup_entries(set);
@@ -585,11 +583,11 @@ list_set_gc(unsigned long ul_set)
 }
 
 static void
-list_set_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
+list_set_gc_init(struct ip_set *set, void (*gc)(struct timer_list *t))
 {
 	struct list_set *map = set->data;
 
-	setup_timer(&map->gc, gc, (unsigned long)set);
+	timer_setup(&map->gc, gc, 0);
 	mod_timer(&map->gc, jiffies + IPSET_GC_PERIOD(set->timeout) * HZ);
 }
 
@@ -606,6 +604,7 @@ init_list_set(struct net *net, struct ip_set *set, u32 size)
 
 	map->size = size;
 	map->net = net;
+	map->set = set;
 	INIT_LIST_HEAD(&map->members);
 	set->data = map;
 

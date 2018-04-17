@@ -203,7 +203,7 @@ extern struct kmem_cache *btrfs_delayed_tree_ref_cachep;
 extern struct kmem_cache *btrfs_delayed_data_ref_cachep;
 extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
 
-int btrfs_delayed_ref_init(void);
+int __init btrfs_delayed_ref_init(void);
 void btrfs_delayed_ref_exit(void);
 
 static inline struct btrfs_delayed_extent_op *

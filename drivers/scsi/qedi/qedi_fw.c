@@ -198,7 +198,7 @@ static void qedi_process_tmf_resp(struct qedi_ctx *qedi,
 	cqe_tmp_response = &cqe->cqe_common.iscsi_hdr.tmf_response;
 
 	qedi_cmd = task->dd_data;
-	qedi_cmd->tmf_resp_buf = kzalloc(sizeof(*resp_hdr_ptr), GFP_KERNEL);
+	qedi_cmd->tmf_resp_buf = kzalloc(sizeof(*resp_hdr_ptr), GFP_ATOMIC);
 	if (!qedi_cmd->tmf_resp_buf) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Failed to allocate resp buf, cid=0x%x\n",

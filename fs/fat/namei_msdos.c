@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/iversion.h>
 #include "fat.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
@@ -480,7 +481,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 			} else
 				mark_inode_dirty(old_inode);
 
-			old_dir->i_version++;
+			inode_inc_iversion(old_dir);
 			old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
 			if (IS_DIRSYNC(old_dir))
 				(void)fat_sync_inode(old_dir);
@@ -508,7 +509,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 			goto out;
 		new_i_pos = sinfo.i_pos;
 	}
-	new_dir->i_version++;
+	inode_inc_iversion(new_dir);
 
 	fat_detach(old_inode);
 	fat_attach(old_inode, new_i_pos);
@@ -540,7 +541,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	old_sinfo.bh = NULL;
 	if (err)
 		goto error_dotdot;
-	old_dir->i_version++;
+	inode_inc_iversion(old_dir);
 	old_dir->i_ctime = old_dir->i_mtime = ts;
 	if (IS_DIRSYNC(old_dir))
 		(void)fat_sync_inode(old_dir);
@@ -646,7 +647,7 @@ static void setup(struct super_block *sb)
 {
 	MSDOS_SB(sb)->dir_ops = &msdos_dir_inode_operations;
 	sb->s_d_op = &msdos_dentry_operations;
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 }
 
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)

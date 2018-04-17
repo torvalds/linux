@@ -42,7 +42,8 @@ void rtl92se_get_hw_reg(struct ieee80211_hw *hw,
 			u8 variable, u8 *val);
 void rtl92se_read_eeprom_info(struct ieee80211_hw *hw);
 void rtl92se_interrupt_recognized(struct ieee80211_hw *hw,
-				  u32 *inta, u32 *intb);
+				  u32 *p_inta, u32 *p_intb,
+				  u32 *p_intc, u32 *p_intd);
 int rtl92se_hw_init(struct ieee80211_hw *hw);
 void rtl92se_card_disable(struct ieee80211_hw *hw);
 void rtl92se_enable_interrupt(struct ieee80211_hw *hw);
@@ -59,7 +60,7 @@ void rtl92se_update_interrupt_mask(struct ieee80211_hw *hw,
 void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable,
 			u8 *val);
 void rtl92se_update_hal_rate_tbl(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level);
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw);
 void rtl92se_update_channel_access_setting(struct ieee80211_hw *hw);
 bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw,
 					u8 *valid);

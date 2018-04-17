@@ -33,9 +33,8 @@ void
 gp100_grctx_generate_pagepool(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
 	mmio_refn(info, 0x40800c, 0x00000000, s, b);
 	mmio_wr32(info, 0x408010, 0x80000000);
 	mmio_refn(info, 0x419004, 0x00000000, s, b);
@@ -51,9 +50,8 @@ gp100_grctx_generate_attrib(struct gf100_grctx *info)
 	const u32 attrib = grctx->attrib_nr;
 	const u32 pertpc = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
 	const u32   size = roundup(gr->tpc_total * pertpc, 0x80);
-	const u32 access = NV_MEM_ACCESS_RW;
 	const int s = 12;
-	const int b = mmio_vram(info, size, (1 << s), access);
+	const int b = mmio_vram(info, size, (1 << s), false);
 	const int max_batches = 0xffff;
 	u32 ao = 0;
 	u32 bo = ao + grctx->alpha_nr_max * gr->tpc_total;

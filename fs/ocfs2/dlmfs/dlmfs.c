@@ -88,13 +88,13 @@ struct workqueue_struct *user_dlm_worker;
  */
 #define DLMFS_CAPABILITIES "bast stackglue"
 static int param_set_dlmfs_capabilities(const char *val,
-					struct kernel_param *kp)
+					const struct kernel_param *kp)
 {
 	printk(KERN_ERR "%s: readonly parameter\n", kp->name);
 	return -EINVAL;
 }
 static int param_get_dlmfs_capabilities(char *buffer,
-					struct kernel_param *kp)
+					const struct kernel_param *kp)
 {
 	return strlcpy(buffer, DLMFS_CAPABILITIES,
 		       strlen(DLMFS_CAPABILITIES) + 1);
@@ -220,9 +220,9 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
+static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 {
-	int event = 0;
+	__poll_t event = 0;
 	struct inode *inode = file_inode(file);
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 
@@ -670,7 +670,6 @@ static void __exit exit_dlmfs_fs(void)
 {
 	unregister_filesystem(&dlmfs_fs_type);
 
-	flush_workqueue(user_dlm_worker);
 	destroy_workqueue(user_dlm_worker);
 
 	/*

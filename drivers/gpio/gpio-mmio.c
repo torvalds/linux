@@ -152,14 +152,13 @@ static int bgpio_get_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 {
 	unsigned long get_mask = 0;
 	unsigned long set_mask = 0;
-	int bit = 0;
 
-	while ((bit = find_next_bit(mask, gc->ngpio, bit)) != gc->ngpio) {
-		if (gc->bgpio_dir & BIT(bit))
-			set_mask |= BIT(bit);
-		else
-			get_mask |= BIT(bit);
-	}
+	/* Make sure we first clear any bits that are zero when we read the register */
+	*bits &= ~*mask;
+
+	/* Exploit the fact that we know which directions are set */
+	set_mask = *mask & gc->bgpio_dir;
+	get_mask = *mask & ~gc->bgpio_dir;
 
 	if (set_mask)
 		*bits |= gc->read_reg(gc->reg_set) & set_mask;
@@ -176,13 +175,13 @@ static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
 
 /*
  * This only works if the bits in the GPIO register are in native endianness.
- * It is dirt simple and fast in this case. (Also the most common case.)
  */
 static int bgpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
 			      unsigned long *bits)
 {
-
-	*bits = gc->read_reg(gc->reg_dat) & *mask;
+	/* Make sure we first clear any bits that are zero when we read the register */
+	*bits &= ~*mask;
+	*bits |= gc->read_reg(gc->reg_dat) & *mask;
 	return 0;
 }
 
@@ -196,9 +195,12 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 	unsigned long val;
 	int bit;
 
+	/* Make sure we first clear any bits that are zero when we read the register */
+	*bits &= ~*mask;
+
 	/* Create a mirrored mask */
-	bit = 0;
-	while ((bit = find_next_bit(mask, gc->ngpio, bit)) != gc->ngpio)
+	bit = -1;
+	while ((bit = find_next_bit(mask, gc->ngpio, bit + 1)) < gc->ngpio)
 		readmask |= bgpio_line2mask(gc, bit);
 
 	/* Read the register */
@@ -208,8 +210,8 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 	 * Mirror the result into the "bits" result, this will give line 0
 	 * in bit 0 ... line 31 in bit 31 for a 32bit register.
 	 */
-	bit = 0;
-	while ((bit = find_next_bit(&val, gc->ngpio, bit)) != gc->ngpio)
+	bit = -1;
+	while ((bit = find_next_bit(&val, gc->ngpio, bit + 1)) < gc->ngpio)
 		*bits |= bgpio_line2mask(gc, bit);
 
 	return 0;

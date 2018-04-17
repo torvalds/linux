@@ -76,7 +76,7 @@ config VIDEO_EXYNOS4_ISP_DMA_CAPTURE
 	depends on VIDEO_EXYNOS4_FIMC_IS
 	select VIDEO_EXYNOS4_IS_COMMON
 	default y
-	  help
+	help
 	  This option enables an additional video device node exposing a V4L2
 	  video capture interface for the FIMC-IS ISP raw (Bayer) capture DMA.
 

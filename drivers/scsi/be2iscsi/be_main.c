@@ -5279,7 +5279,7 @@ static void beiscsi_hw_health_check(struct timer_list *t)
 		if (!test_bit(BEISCSI_HBA_UER_SUPP, &phba->state))
 			return;
 		/* modify this timer to check TPE */
-		phba->hw_check.function = (TIMER_FUNC_TYPE)beiscsi_hw_tpe_check;
+		phba->hw_check.function = beiscsi_hw_tpe_check;
 	}
 
 	mod_timer(&phba->hw_check,
@@ -5367,7 +5367,7 @@ static int beiscsi_enable_port(struct beiscsi_hba *phba)
 	 * Timer function gets modified for TPE detection.
 	 * Always reinit to do health check first.
 	 */
-	phba->hw_check.function = (TIMER_FUNC_TYPE)beiscsi_hw_health_check;
+	phba->hw_check.function = beiscsi_hw_health_check;
 	mod_timer(&phba->hw_check,
 		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
 	return 0;

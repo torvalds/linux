@@ -547,21 +547,30 @@ static void cxacru_blocking_completion(struct urb *urb)
 	complete(urb->context);
 }
 
-static void cxacru_timeout_kill(unsigned long data)
+struct cxacru_timer {
+	struct timer_list timer;
+	struct urb *urb;
+};
+
+static void cxacru_timeout_kill(struct timer_list *t)
 {
-	usb_unlink_urb((struct urb *) data);
+	struct cxacru_timer *timer = from_timer(timer, t, timer);
+
+	usb_unlink_urb(timer->urb);
 }
 
 static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 				 int *actual_length)
 {
-	struct timer_list timer;
+	struct cxacru_timer timer = {
+		.urb = urb,
+	};
 
-	setup_timer(&timer, cxacru_timeout_kill, (unsigned long)urb);
-	timer.expires = jiffies + msecs_to_jiffies(CMD_TIMEOUT);
-	add_timer(&timer);
+	timer_setup_on_stack(&timer.timer, cxacru_timeout_kill, 0);
+	mod_timer(&timer.timer, jiffies + msecs_to_jiffies(CMD_TIMEOUT));
 	wait_for_completion(done);
-	del_timer_sync(&timer);
+	del_timer_sync(&timer.timer);
+	destroy_timer_on_stack(&timer.timer);
 
 	if (actual_length)
 		*actual_length = urb->actual_length;

@@ -128,8 +128,7 @@ static struct host1x_channel *acquire_unused_channel(struct host1x *host)
  * host1x_channel_request() - Allocate a channel
  * @device: Host1x unit this channel will be used to send commands to
  *
- * Allocates a new host1x channel for @device. If there are no free channels,
- * this will sleep until one becomes available. May return NULL if CDMA
+ * Allocates a new host1x channel for @device. May return NULL if CDMA
  * initialization fails.
  */
 struct host1x_channel *host1x_channel_request(struct device *dev)

@@ -531,7 +531,7 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 	return 0;
 }
 
-static inline unsigned int llcp_accept_poll(struct sock *parent)
+static inline __poll_t llcp_accept_poll(struct sock *parent)
 {
 	struct nfc_llcp_sock *llcp_sock, *parent_sock;
 	struct sock *sk;
@@ -549,11 +549,11 @@ static inline unsigned int llcp_accept_poll(struct sock *parent)
 	return 0;
 }
 
-static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
+static __poll_t llcp_sock_poll(struct file *file, struct socket *sock,
 				   poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	pr_debug("%p\n", sk);
 

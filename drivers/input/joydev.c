@@ -436,7 +436,7 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 }
 
 /* No kernel lock - fine */
-static unsigned int joydev_poll(struct file *file, poll_table *wait)
+static __poll_t joydev_poll(struct file *file, poll_table *wait)
 {
 	struct joydev_client *client = file->private_data;
 	struct joydev *joydev = client->joydev;

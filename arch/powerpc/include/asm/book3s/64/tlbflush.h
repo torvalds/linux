@@ -58,6 +58,13 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 	return hash__local_flush_tlb_page(vma, vmaddr);
 }
 
+static inline void local_flush_all_mm(struct mm_struct *mm)
+{
+	if (radix_enabled())
+		return radix__local_flush_all_mm(mm);
+	return hash__local_flush_all_mm(mm);
+}
+
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
@@ -80,9 +87,17 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 		return radix__flush_tlb_page(vma, vmaddr);
 	return hash__flush_tlb_page(vma, vmaddr);
 }
+
+static inline void flush_all_mm(struct mm_struct *mm)
+{
+	if (radix_enabled())
+		return radix__flush_all_mm(mm);
+	return hash__flush_all_mm(mm);
+}
 #else
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
+#define flush_all_mm(mm)		local_flush_all_mm(mm)
 #endif /* CONFIG_SMP */
 /*
  * flush the page walk cache for the address

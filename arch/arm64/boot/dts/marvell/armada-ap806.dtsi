@@ -241,6 +241,12 @@
 
 			};
 
+			watchdog: watchdog@600000 {
+				compatible = "arm,sbsa-gwdt";
+				reg = <0x610000 0x1000>, <0x600000 0x1000>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			ap_sdhci0: sdhci@6e0000 {
 				compatible = "marvell,armada-ap806-sdhci";
 				reg = <0x6e0000 0x300>;
@@ -263,6 +269,11 @@
 
 				ap_pinctrl: pinctrl {
 					compatible = "marvell,ap806-pinctrl";
+
+					uart0_pins: uart0-pins {
+						marvell,pins = "mpp11", "mpp19";
+						marvell,function = "uart0";
+					};
 				};
 
 				ap_gpio: gpio@1040 {

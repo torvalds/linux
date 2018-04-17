@@ -361,7 +361,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	/* Final exception check (may have been changed from code above) */
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR_NAMESPACE(path, status);
+		ACPI_ERROR_NAMESPACE(walk_state->scope_info, path, status);
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		    ACPI_PARSE_EXECUTE) {

@@ -119,10 +119,10 @@ isdn_divert_write(struct file *file, const char __user *buf, size_t count, loff_
 /***************************************/
 /* select routines for various kernels */
 /***************************************/
-static unsigned int
+static __poll_t
 isdn_divert_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &(rd_queue), wait);
 	/* mask = POLLOUT | POLLWRNORM; */

@@ -33,9 +33,6 @@ of many distributions, e.g. :
 You can get the latest version released from the Coccinelle homepage at
 http://coccinelle.lip6.fr/
 
-Information and tips about Coccinelle are also provided on the wiki
-pages at http://cocci.ekstranet.diku.dk/wiki/doku.php
-
 Once you have it, run the following command::
 
      	./configure

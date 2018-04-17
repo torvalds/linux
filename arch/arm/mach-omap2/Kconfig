@@ -104,6 +104,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
+	select TI_SYSC
 	select OMAP_IRQCHIP
 	select CLKSRC_TI_32K
 	help

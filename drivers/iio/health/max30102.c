@@ -371,7 +371,7 @@ static int max30102_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 1;  /* 0.0625 */
+		*val = 1000;  /* 62.5 */
 		*val2 = 16;
 		ret = IIO_VAL_FRACTIONAL;
 		break;

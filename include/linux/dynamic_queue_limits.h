@@ -99,7 +99,7 @@ void dql_completed(struct dql *dql, unsigned int count);
 void dql_reset(struct dql *dql);
 
 /* Initialize dql state */
-int dql_init(struct dql *dql, unsigned hold_time);
+void dql_init(struct dql *dql, unsigned int hold_time);
 
 #endif /* _KERNEL_ */
 

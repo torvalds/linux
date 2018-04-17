@@ -623,13 +623,6 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 
 	mutex_lock(&inst->lock);
 
-	if (inst->cmd_stop) {
-		vbuf->flags |= V4L2_BUF_FLAG_LAST;
-		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
-		inst->cmd_stop = false;
-		goto unlock;
-	}
-
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
 	if (!(inst->streamon_out & inst->streamon_cap))

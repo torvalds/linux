@@ -1644,12 +1644,12 @@ pfm_write(struct file *file, const char __user *ubuf,
 	return -EINVAL;
 }
 
-static unsigned int
+static __poll_t
 pfm_poll(struct file *filp, poll_table * wait)
 {
 	pfm_context_t *ctx;
 	unsigned long flags;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (PFM_IS_FILE(filp) == 0) {
 		printk(KERN_ERR "perfmon: pfm_poll: bad magic [%d]\n", task_pid_nr(current));

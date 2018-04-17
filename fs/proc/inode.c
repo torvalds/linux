@@ -234,11 +234,11 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 	return rv;
 }
 
-static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
+static __poll_t proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
-	unsigned int rv = DEFAULT_POLLMASK;
-	unsigned int (*poll)(struct file *, struct poll_table_struct *);
+	__poll_t rv = DEFAULT_POLLMASK;
+	__poll_t (*poll)(struct file *, struct poll_table_struct *);
 	if (use_pde(pde)) {
 		poll = pde->proc_fops->poll;
 		if (poll)
@@ -483,7 +483,7 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 
 	/* User space would break if executables or devices appear on proc */
 	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NOEXEC | SB_I_NODEV;
-	s->s_flags |= MS_NODIRATIME | MS_NOSUID | MS_NOEXEC;
+	s->s_flags |= SB_NODIRATIME | SB_NOSUID | SB_NOEXEC;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = PROC_SUPER_MAGIC;

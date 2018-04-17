@@ -4307,8 +4307,10 @@ static void e1000_init_rx_addrs(struct e1000_hw *hw)
 
 	rar_num = E1000_RAR_ENTRIES;
 
-	/* Zero out the other 15 receive addresses. */
-	e_dbg("Clearing RAR[1-15]\n");
+	/* Zero out the following 14 receive addresses. RAR[15] is for
+	 * manageability
+	 */
+	e_dbg("Clearing RAR[1-14]\n");
 	for (i = 1; i < rar_num; i++) {
 		E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 		E1000_WRITE_FLUSH();

@@ -1267,7 +1267,8 @@ isar_int_main(struct IsdnCardState *cs)
 }
 
 static void
-ftimer_handler(struct BCState *bcs) {
+ftimer_handler(struct timer_list *t) {
+	struct BCState *bcs = from_timer(bcs, t, hw.isar.ftimer);
 	if (bcs->cs->debug)
 		debugl1(bcs->cs, "ftimer flags %04lx",
 			bcs->Flag);
@@ -1902,8 +1903,6 @@ void initisar(struct IsdnCardState *cs)
 	cs->bcs[1].BC_SetStack = setstack_isar;
 	cs->bcs[0].BC_Close = close_isarstate;
 	cs->bcs[1].BC_Close = close_isarstate;
-	setup_timer(&cs->bcs[0].hw.isar.ftimer, (void *)ftimer_handler,
-		    (long)&cs->bcs[0]);
-	setup_timer(&cs->bcs[1].hw.isar.ftimer, (void *)ftimer_handler,
-		    (long)&cs->bcs[1]);
+	timer_setup(&cs->bcs[0].hw.isar.ftimer, ftimer_handler, 0);
+	timer_setup(&cs->bcs[1].hw.isar.ftimer, ftimer_handler, 0);
 }

@@ -860,11 +860,8 @@ static int edma_terminate_all(struct dma_chan *chan)
 		/* Move the cyclic channel back to default queue */
 		if (!echan->tc && echan->edesc->cyclic)
 			edma_assign_channel_eventq(echan, EVENTQ_DEFAULT);
-		/*
-		 * free the running request descriptor
-		 * since it is not in any of the vdesc lists
-		 */
-		edma_desc_free(&echan->edesc->vdesc);
+
+		vchan_terminate_vdesc(&echan->edesc->vdesc);
 		echan->edesc = NULL;
 	}
 

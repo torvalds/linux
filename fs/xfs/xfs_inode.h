@@ -232,6 +232,7 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
  * log recovery to replay a bmap operation on the inode.
  */
 #define XFS_IRECOVERY		(1 << 11)
+#define XFS_ICOWBLOCKS		(1 << 12)/* has the cowblocks tag set */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
@@ -422,13 +423,14 @@ void		xfs_iunpin_wait(xfs_inode_t *);
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
 int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
-void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
+void		xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
+				struct xfs_inode *ip1, uint ip1_mode);
 
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
 int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
-			       xfs_nlink_t, dev_t, prid_t, int,
+			       xfs_nlink_t, dev_t, prid_t,
 			       struct xfs_inode **, int *);
 
 /* from xfs_file.c */
@@ -489,5 +491,7 @@ extern struct kmem_zone	*xfs_inode_zone;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
+
+bool xfs_inode_verify_forks(struct xfs_inode *ip);
 
 #endif	/* __XFS_INODE_H__ */

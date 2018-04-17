@@ -634,7 +634,7 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	INIT_LIST_HEAD(&aq->list);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
-	setup_timer(&aq->timeout, ap_request_timeout, (unsigned long) aq);
+	timer_setup(&aq->timeout, ap_request_timeout, 0);
 
 	return aq;
 }

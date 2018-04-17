@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 #include <linux/debugfs.h>
@@ -253,8 +254,8 @@ out_unlock:
 }
 
 static const struct drm_framebuffer_funcs mipi_dbi_fb_funcs = {
-	.destroy	= drm_fb_cma_destroy,
-	.create_handle	= drm_fb_cma_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 	.dirty		= mipi_dbi_fb_dirty,
 };
 
@@ -841,6 +842,8 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 		if (!mipi->tx_buf9)
 			return -ENOMEM;
 	}
+
+	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
 	return 0;
 }

@@ -27,19 +27,24 @@
  * DOC: overview
  *
  * This library provides helpers for drivers that don't subclass
- * &drm_framebuffer and and use &drm_gem_object for their backing storage.
+ * &drm_framebuffer and use &drm_gem_object for their backing storage.
  *
  * Drivers without additional needs to validate framebuffers can simply use
- * drm_gem_fb_create() and everything is wired up automatically. But all
- * parts can be used individually.
+ * drm_gem_fb_create() and everything is wired up automatically. Other drivers
+ * can use all parts independently.
  */
 
 /**
- * drm_gem_fb_get_obj() - Get GEM object for framebuffer
- * @fb: The framebuffer
- * @plane: Which plane
+ * drm_gem_fb_get_obj() - Get GEM object backing the framebuffer
+ * @fb: Framebuffer
+ * @plane: Plane index
  *
- * Returns the GEM object for given framebuffer.
+ * No additional reference is taken beyond the one that the &drm_frambuffer
+ * already holds.
+ *
+ * Returns:
+ * Pointer to &drm_gem_object for the given framebuffer and plane index or NULL
+ * if it does not exist.
  */
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
@@ -82,7 +87,7 @@ drm_gem_fb_alloc(struct drm_device *dev,
 
 /**
  * drm_gem_fb_destroy - Free GEM backed framebuffer
- * @fb: DRM framebuffer
+ * @fb: Framebuffer
  *
  * Frees a GEM backed framebuffer with its backing buffer(s) and the structure
  * itself. Drivers can use this as their &drm_framebuffer_funcs->destroy
@@ -102,12 +107,13 @@ EXPORT_SYMBOL(drm_gem_fb_destroy);
 
 /**
  * drm_gem_fb_create_handle - Create handle for GEM backed framebuffer
- * @fb: DRM framebuffer
- * @file: drm file
- * @handle: handle created
+ * @fb: Framebuffer
+ * @file: DRM file to register the handle for
+ * @handle: Pointer to return the created handle
  *
+ * This function creates a handle for the GEM object backing the framebuffer.
  * Drivers can use this as their &drm_framebuffer_funcs->create_handle
- * callback.
+ * callback. The GETFB IOCTL calls into this callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -120,18 +126,21 @@ int drm_gem_fb_create_handle(struct drm_framebuffer *fb, struct drm_file *file,
 EXPORT_SYMBOL(drm_gem_fb_create_handle);
 
 /**
- * drm_gem_fb_create_with_funcs() - helper function for the
+ * drm_gem_fb_create_with_funcs() - Helper function for the
  *                                  &drm_mode_config_funcs.fb_create
  *                                  callback
  * @dev: DRM device
- * @file: drm file for the ioctl call
- * @mode_cmd: metadata from the userspace fb creation request
+ * @file: DRM file that holds the GEM handle(s) backing the framebuffer
+ * @mode_cmd: Metadata from the userspace framebuffer creation request
  * @funcs: vtable to be used for the new framebuffer object
  *
  * This can be used to set &drm_framebuffer_funcs for drivers that need the
  * &drm_framebuffer_funcs.dirty callback. Use drm_gem_fb_create() if you don't
  * need to change &drm_framebuffer_funcs.
  * The function does buffer size validation.
+ *
+ * Returns:
+ * Pointer to a &drm_framebuffer on success or an error pointer on failure.
  */
 struct drm_framebuffer *
 drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
@@ -154,7 +163,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 
 		objs[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!objs[i]) {
-			DRM_DEV_ERROR(dev->dev, "Failed to lookup GEM\n");
+			DRM_DEBUG_KMS("Failed to lookup GEM object\n");
 			ret = -ENOENT;
 			goto err_gem_object_put;
 		}
@@ -192,15 +201,26 @@ static const struct drm_framebuffer_funcs drm_gem_fb_funcs = {
 };
 
 /**
- * drm_gem_fb_create() - &drm_mode_config_funcs.fb_create callback function
+ * drm_gem_fb_create() - Helper function for the
+ *                       &drm_mode_config_funcs.fb_create callback
  * @dev: DRM device
- * @file: drm file for the ioctl call
- * @mode_cmd: metadata from the userspace fb creation request
+ * @file: DRM file that holds the GEM handle(s) backing the framebuffer
+ * @mode_cmd: Metadata from the userspace framebuffer creation request
+ *
+ * This function creates a new framebuffer object described by
+ * &drm_mode_fb_cmd2. This description includes handles for the buffer(s)
+ * backing the framebuffer.
  *
  * If your hardware has special alignment or pitch requirements these should be
  * checked before calling this function. The function does buffer size
  * validation. Use drm_gem_fb_create_with_funcs() if you need to set
  * &drm_framebuffer_funcs.dirty.
+ *
+ * Drivers can use this as their &drm_mode_config_funcs.fb_create callback.
+ * The ADDFB2 IOCTL calls into this callback.
+ *
+ * Returns:
+ * Pointer to a &drm_framebuffer on success or an error pointer on failure.
  */
 struct drm_framebuffer *
 drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
@@ -212,15 +232,15 @@ drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 EXPORT_SYMBOL_GPL(drm_gem_fb_create);
 
 /**
- * drm_gem_fb_prepare_fb() - Prepare gem framebuffer
- * @plane: Which plane
- * @state: Plane state attach fence to
+ * drm_gem_fb_prepare_fb() - Prepare a GEM backed framebuffer
+ * @plane: Plane
+ * @state: Plane state the fence will be attached to
  *
- * This can be used as the &drm_plane_helper_funcs.prepare_fb hook.
- *
- * This function checks if the plane FB has an dma-buf attached, extracts
- * the exclusive fence and attaches it to plane state for the atomic helper
- * to wait on.
+ * This function prepares a GEM backed framebuffer for scanout by checking if
+ * the plane framebuffer has a DMA-BUF attached. If it does, it extracts the
+ * exclusive fence and attaches it to the plane state for the atomic helper to
+ * wait on. This function can be used as the &drm_plane_helper_funcs.prepare_fb
+ * callback.
  *
  * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * gem based framebuffer drivers which have their buffers always pinned in
@@ -232,7 +252,7 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 	struct dma_buf *dma_buf;
 	struct dma_fence *fence;
 
-	if ((plane->state->fb == state->fb) || !state->fb)
+	if (plane->state->fb == state->fb || !state->fb)
 		return 0;
 
 	dma_buf = drm_gem_fb_get_obj(state->fb, 0)->dma_buf;
@@ -246,17 +266,19 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
 
 /**
- * drm_gem_fbdev_fb_create - Create a drm_framebuffer for fbdev emulation
+ * drm_gem_fbdev_fb_create - Create a GEM backed &drm_framebuffer for fbdev
+ *                           emulation
  * @dev: DRM device
  * @sizes: fbdev size description
- * @pitch_align: optional pitch alignment
+ * @pitch_align: Optional pitch alignment
  * @obj: GEM object backing the framebuffer
  * @funcs: vtable to be used for the new framebuffer object
  *
- * This function creates a framebuffer for use with fbdev emulation.
+ * This function creates a framebuffer from a &drm_fb_helper_surface_size
+ * description for use in the &drm_fb_helper_funcs.fb_probe callback.
  *
  * Returns:
- * Pointer to a drm_framebuffer on success or an error pointer on failure.
+ * Pointer to a &drm_framebuffer on success or an error pointer on failure.
  */
 struct drm_framebuffer *
 drm_gem_fbdev_fb_create(struct drm_device *dev,

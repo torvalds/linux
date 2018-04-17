@@ -51,7 +51,10 @@ void bch_submit_bbio(struct bio *bio, struct cache_set *c,
 
 /* IO errors */
 
-void bch_count_io_errors(struct cache *ca, blk_status_t error, const char *m)
+void bch_count_io_errors(struct cache *ca,
+			 blk_status_t error,
+			 int is_read,
+			 const char *m)
 {
 	/*
 	 * The halflife of an error is:
@@ -94,8 +97,9 @@ void bch_count_io_errors(struct cache *ca, blk_status_t error, const char *m)
 		errors >>= IO_ERROR_SHIFT;
 
 		if (errors < ca->set->error_limit)
-			pr_err("%s: IO error on %s, recovering",
-			       bdevname(ca->bdev, buf), m);
+			pr_err("%s: IO error on %s%s",
+			       bdevname(ca->bdev, buf), m,
+			       is_read ? ", recovering." : ".");
 		else
 			bch_cache_set_error(ca->set,
 					    "%s: too many IO errors %s",
@@ -108,6 +112,7 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
 	struct cache *ca = PTR_CACHE(c, &b->key, 0);
+	int is_read = (bio_data_dir(bio) == READ ? 1 : 0);
 
 	unsigned threshold = op_is_write(bio_op(bio))
 		? c->congested_write_threshold_us
@@ -129,7 +134,7 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 			atomic_inc(&c->congested);
 	}
 
-	bch_count_io_errors(ca, error, m);
+	bch_count_io_errors(ca, error, is_read, m);
 }
 
 void bch_bbio_endio(struct cache_set *c, struct bio *bio,

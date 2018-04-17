@@ -68,4 +68,14 @@ extern bool perf_singlethreaded;
 void perf_set_singlethreaded(void);
 void perf_set_multithreaded(void);
 
+#ifndef O_CLOEXEC
+#ifdef __sparc__
+#define O_CLOEXEC      0x400000
+#elif defined(__alpha__) || defined(__hppa__)
+#define O_CLOEXEC      010000000
+#else
+#define O_CLOEXEC      02000000
+#endif
+#endif
+
 #endif /* GIT_COMPAT_UTIL_H */

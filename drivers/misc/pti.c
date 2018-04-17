@@ -32,7 +32,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
-#include <linux/pti.h>
+#include <linux/intel-pti.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 

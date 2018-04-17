@@ -160,9 +160,9 @@ out:
 	return err;
 }
 
-static void mmc_retune_timer(unsigned long data)
+static void mmc_retune_timer(struct timer_list *t)
 {
-	struct mmc_host *host = (struct mmc_host *)data;
+	struct mmc_host *host = from_timer(host, t, retune_timer);
 
 	mmc_retune_needed(host);
 }
@@ -389,7 +389,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	init_waitqueue_head(&host->wq);
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 	INIT_DELAYED_WORK(&host->sdio_irq_work, sdio_irq_work);
-	setup_timer(&host->retune_timer, mmc_retune_timer, (unsigned long)host);
+	timer_setup(&host->retune_timer, mmc_retune_timer, 0);
 
 	/*
 	 * By default, hosts do not support SGIO or large requests.

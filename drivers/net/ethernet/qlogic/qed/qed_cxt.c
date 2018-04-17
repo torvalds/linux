@@ -2069,6 +2069,12 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 
 	num_srqs = min_t(u32, 32 * 1024, p_params->num_srqs);
 
+	if (p_hwfn->mcp_info->func_info.protocol == QED_PCI_ETH_RDMA) {
+		DP_NOTICE(p_hwfn,
+			  "Current day drivers don't support RoCE & iWARP simultaneously on the same PF. Default to RoCE-only\n");
+		p_hwfn->hw_info.personality = QED_PCI_ETH_ROCE;
+	}
+
 	switch (p_hwfn->hw_info.personality) {
 	case QED_PCI_ETH_IWARP:
 		/* Each QP requires one connection */

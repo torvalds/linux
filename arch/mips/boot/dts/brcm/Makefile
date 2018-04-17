@@ -35,6 +35,3 @@ dtb-$(CONFIG_DT_NONE) += \
 	bcm97435svmb.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
-
-# Force kbuild to make empty built-in.o if necessary
-obj-				+= dummy.o

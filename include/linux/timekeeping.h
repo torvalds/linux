@@ -143,12 +143,6 @@ extern bool timekeeping_rtc_skipresume(void);
 extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
 
 /*
- * PPS accessor
- */
-extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
-				        struct timespec64 *ts_real);
-
-/*
  * struct system_time_snapshot - simultaneous raw/real time capture with
  *	counter value
  * @cycles:	Clocksource counter value to produce the system times

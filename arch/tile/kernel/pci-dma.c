@@ -54,7 +54,7 @@ static void *tile_dma_alloc_coherent(struct device *dev, size_t size,
 	 * which case we will return NULL.  But such devices are uncommon.
 	 */
 	if (dma_mask <= DMA_BIT_MASK(32)) {
-		gfp |= GFP_DMA;
+		gfp |= GFP_DMA32;
 		node = 0;
 	}
 
@@ -509,39 +509,9 @@ EXPORT_SYMBOL(gx_pci_dma_map_ops);
 /* PCI DMA mapping functions for legacy PCI devices */
 
 #ifdef CONFIG_SWIOTLB
-static void *tile_swiotlb_alloc_coherent(struct device *dev, size_t size,
-					 dma_addr_t *dma_handle, gfp_t gfp,
-					 unsigned long attrs)
-{
-	gfp |= GFP_DMA;
-	return swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
-}
-
-static void tile_swiotlb_free_coherent(struct device *dev, size_t size,
-				       void *vaddr, dma_addr_t dma_addr,
-				       unsigned long attrs)
-{
-	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
-}
-
-static const struct dma_map_ops pci_swiotlb_dma_ops = {
-	.alloc = tile_swiotlb_alloc_coherent,
-	.free = tile_swiotlb_free_coherent,
-	.map_page = swiotlb_map_page,
-	.unmap_page = swiotlb_unmap_page,
-	.map_sg = swiotlb_map_sg_attrs,
-	.unmap_sg = swiotlb_unmap_sg_attrs,
-	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
-	.sync_single_for_device = swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = swiotlb_sync_sg_for_device,
-	.dma_supported = swiotlb_dma_supported,
-	.mapping_error = swiotlb_dma_mapping_error,
-};
-
 static const struct dma_map_ops pci_hybrid_dma_ops = {
-	.alloc = tile_swiotlb_alloc_coherent,
-	.free = tile_swiotlb_free_coherent,
+	.alloc = swiotlb_alloc,
+	.free = swiotlb_free,
 	.map_page = tile_pci_dma_map_page,
 	.unmap_page = tile_pci_dma_unmap_page,
 	.map_sg = tile_pci_dma_map_sg,
@@ -552,7 +522,7 @@ static const struct dma_map_ops pci_hybrid_dma_ops = {
 	.sync_sg_for_device = tile_pci_dma_sync_sg_for_device,
 };
 
-const struct dma_map_ops *gx_legacy_pci_dma_map_ops = &pci_swiotlb_dma_ops;
+const struct dma_map_ops *gx_legacy_pci_dma_map_ops = &swiotlb_dma_ops;
 const struct dma_map_ops *gx_hybrid_pci_dma_map_ops = &pci_hybrid_dma_ops;
 #else
 const struct dma_map_ops *gx_legacy_pci_dma_map_ops;

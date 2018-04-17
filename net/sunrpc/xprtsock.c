@@ -52,6 +52,8 @@
 
 #include "sunrpc.h"
 
+#define RPC_TCP_READ_CHUNK_SZ	(3*512*1024)
+
 static void xs_close(struct rpc_xprt *xprt);
 static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 		struct socket *sock);
@@ -552,6 +554,7 @@ static int xs_local_send_request(struct rpc_task *task)
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
+		/* fall through */
 	case -EPIPE:
 		xs_close(xprt);
 		status = -ENOTCONN;
@@ -1002,6 +1005,7 @@ static void xs_local_data_receive(struct sock_xprt *transport)
 	struct sock *sk;
 	int err;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
@@ -1015,6 +1019,11 @@ static void xs_local_data_receive(struct sock_xprt *transport)
 		}
 		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 			break;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 out:
 	mutex_unlock(&transport->recv_mutex);
@@ -1093,6 +1102,7 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	struct sock *sk;
 	int err;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
@@ -1106,6 +1116,11 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 		}
 		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 			break;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 out:
 	mutex_unlock(&transport->recv_mutex);
@@ -1478,6 +1493,7 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 		.offset	= offset,
 		.count	= len,
 	};
+	size_t ret;
 
 	dprintk("RPC:       xs_tcp_data_recv started\n");
 	do {
@@ -1506,9 +1522,14 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 		/* Skip over any trailing bytes on short reads */
 		xs_tcp_read_discard(transport, &desc);
 	} while (desc.count);
+	ret = len - desc.count;
+	if (ret < rd_desc->count)
+		rd_desc->count -= ret;
+	else
+		rd_desc->count = 0;
 	trace_xs_tcp_data_recv(transport);
 	dprintk("RPC:       xs_tcp_data_recv done\n");
-	return len - desc.count;
+	return ret;
 }
 
 static void xs_tcp_data_receive(struct sock_xprt *transport)
@@ -1516,30 +1537,34 @@ static void xs_tcp_data_receive(struct sock_xprt *transport)
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct sock *sk;
 	read_descriptor_t rd_desc = {
-		.count = 2*1024*1024,
 		.arg.data = xprt,
 	};
 	unsigned long total = 0;
-	int loop;
 	int read = 0;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
 		goto out;
 
 	/* We use rd_desc to pass struct xprt to xs_tcp_data_recv */
-	for (loop = 0; loop < 64; loop++) {
+	for (;;) {
+		rd_desc.count = RPC_TCP_READ_CHUNK_SZ;
 		lock_sock(sk);
 		read = tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
-		if (read <= 0) {
+		if (rd_desc.count != 0 || read < 0) {
 			clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 			release_sock(sk);
 			break;
 		}
 		release_sock(sk);
 		total += read;
-		rd_desc.count = 65536;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 	if (test_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 		queue_work(xprtiod_workqueue, &transport->recv_worker);
@@ -1611,6 +1636,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		xprt->connect_cookie++;
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		xs_tcp_force_close(xprt);
+		/* fall through */
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -2368,6 +2394,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	switch (ret) {
 	case 0:
 		xs_set_srcport(transport, sock);
+		/* fall through */
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
@@ -2419,6 +2446,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	default:
 		printk("%s: connect returned unhandled error %d\n",
 			__func__, status);
+		/* fall through */
 	case -EADDRNOTAVAIL:
 		/* We're probably in TIME_WAIT. Get rid of existing socket,
 		 * and retry
@@ -2436,7 +2464,9 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		 */
 	case -ECONNREFUSED:
 	case -ECONNRESET:
+	case -ENETDOWN:
 	case -ENETUNREACH:
+	case -EHOSTUNREACH:
 	case -EADDRINUSE:
 	case -ENOBUFS:
 		/*

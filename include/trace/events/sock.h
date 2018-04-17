@@ -48,7 +48,7 @@ TRACE_EVENT(sock_exceed_buf_limit,
 		strncpy(__entry->name, prot->name, 32);
 		__entry->sysctl_mem = prot->sysctl_mem;
 		__entry->allocated = allocated;
-		__entry->sysctl_rmem = prot->sysctl_rmem[0];
+		__entry->sysctl_rmem = sk_get_rmem0(sk, prot);
 		__entry->rmem_alloc = atomic_read(&sk->sk_rmem_alloc);
 	),
 

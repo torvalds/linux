@@ -19,6 +19,7 @@
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
+#include <asm/jailhouse_para.h>
 
 #include <linux/acpi.h>
 
@@ -84,12 +85,8 @@ flat_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector)
 static void flat_send_IPI_allbutself(int vector)
 {
 	int cpu = smp_processor_id();
-#ifdef	CONFIG_HOTPLUG_CPU
-	int hotplug = 1;
-#else
-	int hotplug = 0;
-#endif
-	if (hotplug || vector == NMI_VECTOR) {
+
+	if (IS_ENABLED(CONFIG_HOTPLUG_CPU) || vector == NMI_VECTOR) {
 		if (!cpumask_equal(cpu_online_mask, cpumask_of(cpu))) {
 			unsigned long mask = cpumask_bits(cpu_online_mask)[0];
 
@@ -151,7 +148,7 @@ static struct apic apic_flat __ro_after_init = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.irq_delivery_mode		= dest_LowestPrio,
+	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 1, /* logical */
 
 	.disable_esr			= 0,
@@ -218,6 +215,15 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
+static void physflat_init_apic_ldr(void)
+{
+	/*
+	 * LDR and DFR are not involved in physflat mode, rather:
+	 * "In physical destination mode, the destination processor is
+	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
+	 */
+}
+
 static void physflat_send_IPI_allbutself(int vector)
 {
 	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
@@ -230,7 +236,8 @@ static void physflat_send_IPI_all(int vector)
 
 static int physflat_probe(void)
 {
-	if (apic == &apic_physflat || num_possible_cpus() > 8)
+	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
+	    jailhouse_paravirt())
 		return 1;
 
 	return 0;
@@ -251,8 +258,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	/* not needed, but shouldn't hurt: */
-	.init_apic_ldr			= flat_init_apic_ldr,
+	.init_apic_ldr			= physflat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,

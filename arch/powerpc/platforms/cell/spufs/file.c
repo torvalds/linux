@@ -762,10 +762,10 @@ out:
 	return count;
 }
 
-static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_ibox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->ibox_wq, wait);
 
@@ -898,10 +898,10 @@ out:
 	return count;
 }
 
-static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_wbox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->wbox_wq, wait);
 
@@ -1690,11 +1690,11 @@ out:
 	return ret;
 }
 
-static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
+static __poll_t spufs_mfc_poll(struct file *file,poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
 	u32 free_elements, tagstatus;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->mfc_wq, wait);
 
@@ -2455,11 +2455,11 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 	return cnt == 0 ? error : cnt;
 }
 
-static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_switch_log_poll(struct file *file, poll_table *wait)
 {
 	struct inode *inode = file_inode(file);
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int rc;
 
 	poll_wait(file, &ctx->switch_log->wait, wait);

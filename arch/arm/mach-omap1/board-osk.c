@@ -295,7 +295,7 @@ static struct omap_usb_config osk_usb_config __initdata = {
 };
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
-static struct omap_lcd_config osk_lcd_config __initdata = {
+static const struct omap_lcd_config osk_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 #endif

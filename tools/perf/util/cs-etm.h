@@ -18,6 +18,9 @@
 #ifndef INCLUDE__UTIL_PERF_CS_ETM_H__
 #define INCLUDE__UTIL_PERF_CS_ETM_H__
 
+#include "util/event.h"
+#include "util/session.h"
+
 /* Versionning header in case things need tro change in the future.  That way
  * decoding of old snapshot is still possible.
  */
@@ -61,6 +64,9 @@ enum {
 	CS_ETMV4_PRIV_MAX,
 };
 
+/* RB tree for quick conversion between traceID and CPUs */
+struct intlist *traceid_list;
+
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
 
@@ -70,5 +76,17 @@ static const u64 __perf_cs_etmv3_magic   = 0x3030303030303030ULL;
 static const u64 __perf_cs_etmv4_magic   = 0x4040404040404040ULL;
 #define CS_ETMV3_PRIV_SIZE (CS_ETM_PRIV_MAX * sizeof(u64))
 #define CS_ETMV4_PRIV_SIZE (CS_ETMV4_PRIV_MAX * sizeof(u64))
+
+#ifdef HAVE_CSTRACE_SUPPORT
+int cs_etm__process_auxtrace_info(union perf_event *event,
+				  struct perf_session *session);
+#else
+static inline int
+cs_etm__process_auxtrace_info(union perf_event *event __maybe_unused,
+			      struct perf_session *session __maybe_unused)
+{
+	return -1;
+}
+#endif
 
 #endif

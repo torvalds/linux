@@ -52,9 +52,9 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	return 0;
 }
 
-static void wakeup_timer_fn(unsigned long data)
+static void wakeup_timer_fn(struct timer_list *t)
 {
-	struct mwifiex_adapter *adapter = (struct mwifiex_adapter *)data;
+	struct mwifiex_adapter *adapter = from_timer(adapter, t, wakeup_timer);
 
 	mwifiex_dbg(adapter, ERROR, "Firmware wakeup failed\n");
 	adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
@@ -313,8 +313,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
 	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
 	adapter->active_scan_triggered = false;
-	setup_timer(&adapter->wakeup_timer, wakeup_timer_fn,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->wakeup_timer, wakeup_timer_fn, 0);
 }
 
 /*
@@ -579,10 +578,6 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 
 		{
 			spin_lock_irqsave(lock, flags);
-			if (list_empty(head)) {
-				spin_unlock_irqrestore(lock, flags);
-				continue;
-			}
 			list_for_each_entry_safe(bssprio_node, tmp_node, head,
 						 list) {
 				if (bssprio_node->priv == priv) {

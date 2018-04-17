@@ -136,5 +136,10 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 			   u32 handle,
 			   struct dma_fence **fence);
 void drm_syncobj_free(struct kref *kref);
+int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
+		       struct dma_fence *fence);
+int drm_syncobj_get_handle(struct drm_file *file_private,
+			   struct drm_syncobj *syncobj, u32 *handle);
+int drm_syncobj_get_fd(struct drm_syncobj *syncobj, int *p_fd);
 
 #endif

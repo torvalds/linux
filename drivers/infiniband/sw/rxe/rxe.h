@@ -57,6 +57,7 @@
 #include "rxe_hdr.h"
 #include "rxe_param.h"
 #include "rxe_verbs.h"
+#include "rxe_loc.h"
 
 #define RXE_UVERBS_ABI_VERSION		(1)
 
@@ -95,7 +96,10 @@ void rxe_remove_all(void);
 
 int rxe_rcv(struct sk_buff *skb);
 
-void rxe_dev_put(struct rxe_dev *rxe);
+static inline void rxe_dev_put(struct rxe_dev *rxe)
+{
+	kref_put(&rxe->ref_cnt, rxe_release);
+}
 struct rxe_dev *net_to_rxe(struct net_device *ndev);
 struct rxe_dev *get_rxe_by_name(const char *name);
 

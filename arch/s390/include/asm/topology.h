@@ -53,6 +53,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu);
 static inline void topology_init_early(void) { }
 static inline void topology_schedule_update(void) { }
 static inline int topology_cpu_init(struct cpu *cpu) { return 0; }
+static inline int topology_cpu_dedicated(int cpu_nr) { return 0; }
 static inline void topology_expect_change(void) { }
 
 #endif /* CONFIG_SCHED_TOPOLOGY */

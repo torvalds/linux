@@ -84,6 +84,7 @@
 			interrupts = <5>;
 
 			clocks = <&periph_clk>;
+			clock-names = "refclk";
 
 			status = "disabled";
 		};
@@ -96,6 +97,7 @@
 			interrupts = <34>;
 
 			clocks = <&periph_clk>;
+			clock-names = "refclk";
 
 			status = "disabled";
 		};

@@ -648,11 +648,11 @@ out:
 	return error;
 }
 
-unsigned int vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
+__poll_t vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct atm_vcc *vcc;
-	unsigned int mask;
+	__poll_t mask;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;

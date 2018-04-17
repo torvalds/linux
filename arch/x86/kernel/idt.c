@@ -56,7 +56,7 @@ struct idt_data {
  * Early traps running on the DEFAULT_STACK because the other interrupt
  * stacks work only after cpu_init().
  */
-static const __initdata struct idt_data early_idts[] = {
+static const __initconst struct idt_data early_idts[] = {
 	INTG(X86_TRAP_DB,		debug),
 	SYSG(X86_TRAP_BP,		int3),
 #ifdef CONFIG_X86_32
@@ -70,7 +70,7 @@ static const __initdata struct idt_data early_idts[] = {
  * the traps which use them are reinitialized with IST after cpu_init() has
  * set up TSS.
  */
-static const __initdata struct idt_data def_idts[] = {
+static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_DE,		divide_error),
 	INTG(X86_TRAP_NMI,		nmi),
 	INTG(X86_TRAP_BR,		bounds),
@@ -108,7 +108,7 @@ static const __initdata struct idt_data def_idts[] = {
 /*
  * The APIC and SMP idt entries
  */
-static const __initdata struct idt_data apic_idts[] = {
+static const __initconst struct idt_data apic_idts[] = {
 #ifdef CONFIG_SMP
 	INTG(RESCHEDULE_VECTOR,		reschedule_interrupt),
 	INTG(CALL_FUNCTION_VECTOR,	call_function_interrupt),
@@ -150,7 +150,7 @@ static const __initdata struct idt_data apic_idts[] = {
  * Early traps running on the DEFAULT_STACK because the other interrupt
  * stacks work only after cpu_init().
  */
-static const __initdata struct idt_data early_pf_idts[] = {
+static const __initconst struct idt_data early_pf_idts[] = {
 	INTG(X86_TRAP_PF,		page_fault),
 };
 
@@ -158,7 +158,7 @@ static const __initdata struct idt_data early_pf_idts[] = {
  * Override for the debug_idt. Same as the default, but with interrupt
  * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
  */
-static const __initdata struct idt_data dbg_idts[] = {
+static const __initconst struct idt_data dbg_idts[] = {
 	INTG(X86_TRAP_DB,	debug),
 	INTG(X86_TRAP_BP,	int3),
 };
@@ -180,7 +180,7 @@ gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
  * The exceptions which use Interrupt stacks. They are setup after
  * cpu_init() when the TSS has been initialized.
  */
-static const __initdata struct idt_data ist_idts[] = {
+static const __initconst struct idt_data ist_idts[] = {
 	ISTG(X86_TRAP_DB,	debug,		DEBUG_STACK),
 	ISTG(X86_TRAP_NMI,	nmi,		NMI_STACK),
 	SISTG(X86_TRAP_BP,	int3,		DEBUG_STACK),

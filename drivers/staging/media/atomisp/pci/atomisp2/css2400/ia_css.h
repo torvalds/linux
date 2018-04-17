@@ -16,7 +16,7 @@
 #ifndef _IA_CSS_H_
 #define _IA_CSS_H_
 
-/** @file
+/* @file
  * This file is the starting point of the CSS-API. It includes all CSS-API
  * header files.
  */

@@ -94,7 +94,6 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeout)
 {
 	/* Do not immediately delete the connection after the first
@@ -176,6 +175,12 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static void icmpv6_error_log(const struct sk_buff *skb, struct net *net,
+			     u8 pf, const char *msg)
+{
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMPV6, "%s", msg);
+}
+
 static int
 icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	     struct sk_buff *skb, unsigned int dataoff,
@@ -187,17 +192,13 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-			      "nf_ct_icmpv6: short packet ");
+		icmpv6_error_log(skb, net, pf, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_icmpv6: ICMPv6 checksum failed ");
+		icmpv6_error_log(skb, net, pf, "ICMPv6 checksum failed");
 		return -NF_ACCEPT;
 	}
 
@@ -258,9 +259,14 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 	return 0;
 }
 
-static int icmpv6_nlattr_tuple_size(void)
+static unsigned int icmpv6_nlattr_tuple_size(void)
 {
-	return nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+	static unsigned int size __read_mostly;
+
+	if (!size)
+		size = nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+
+	return size;
 }
 #endif
 

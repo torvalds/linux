@@ -1914,7 +1914,7 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 	if (task->sc) {
 		task->hdr = (struct iscsi_hdr *)tdata->skb->data;
 	} else {
-		task->hdr = kzalloc(SKB_TX_ISCSI_PDU_HEADER_MAX, GFP_KERNEL);
+		task->hdr = kzalloc(SKB_TX_ISCSI_PDU_HEADER_MAX, GFP_ATOMIC);
 		if (!task->hdr) {
 			__kfree_skb(tdata->skb);
 			tdata->skb = NULL;

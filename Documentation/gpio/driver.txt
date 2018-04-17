@@ -88,6 +88,10 @@ ending up in the pin control back-end "behind" the GPIO controller, usually
 closer to the actual pins. This way the pin controller can manage the below
 listed GPIO configurations.
 
+If a pin controller back-end is used, the GPIO controller or hardware
+description needs to provide "GPIO ranges" mapping the GPIO line offsets to pin
+numbers on the pin controller so they can properly cross-reference each other.
+
 
 GPIOs with debounce support
 ---------------------------

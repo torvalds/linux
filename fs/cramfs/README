@@ -49,16 +49,45 @@ same as the start of the (i+1)'th <block> if there is one).  The first
 <block> immediately follows the last <block_pointer> for the file.
 <block_pointer>s are each 32 bits long.
 
+When the CRAMFS_FLAG_EXT_BLOCK_POINTERS capability bit is set, each
+<block_pointer>'s top bits may contain special flags as follows:
+
+CRAMFS_BLK_FLAG_UNCOMPRESSED (bit 31):
+	The block data is not compressed and should be copied verbatim.
+
+CRAMFS_BLK_FLAG_DIRECT_PTR (bit 30):
+	The <block_pointer> stores the actual block start offset and not
+	its end, shifted right by 2 bits. The block must therefore be
+	aligned to a 4-byte boundary. The block size is either blksize
+	if CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified, otherwise
+	the compressed data length is included in the first 2 bytes of
+	the block data. This is used to allow discontiguous data layout
+	and specific data block alignments e.g. for XIP applications.
+
+
 The order of <file_data>'s is a depth-first descent of the directory
 tree, i.e. the same order as `find -size +0 \( -type f -o -type l \)
 -print'.
 
 
 <block>: The i'th <block> is the output of zlib's compress function
-applied to the i'th blksize-sized chunk of the input data.
+applied to the i'th blksize-sized chunk of the input data if the
+corresponding CRAMFS_BLK_FLAG_UNCOMPRESSED <block_ptr> bit is not set,
+otherwise it is the input data directly.
 (For the last <block> of the file, the input may of course be smaller.)
 Each <block> may be a different size.  (See <block_pointer> above.)
+
 <block>s are merely byte-aligned, not generally u32-aligned.
+
+When CRAMFS_BLK_FLAG_DIRECT_PTR is specified then the corresponding
+<block> may be located anywhere and not necessarily contiguous with
+the previous/next blocks. In that case it is minimally u32-aligned.
+If CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified then the size is always
+blksize except for the last block which is limited by the file length.
+If CRAMFS_BLK_FLAG_DIRECT_PTR is set and CRAMFS_BLK_FLAG_UNCOMPRESSED
+is not set then the first 2 bytes of the block contains the size of the
+remaining block data as this cannot be determined from the placement of
+logically adjacent blocks.
 
 
 Holes

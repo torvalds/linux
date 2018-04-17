@@ -26,6 +26,7 @@ enum netevent_notif_type {
 	NETEVENT_NEIGH_UPDATE = 1, /* arg is struct neighbour ptr */
 	NETEVENT_REDIRECT,	   /* arg is struct netevent_redirect ptr */
 	NETEVENT_DELAY_PROBE_TIME_UPDATE, /* arg is struct neigh_parms ptr */
+	NETEVENT_MULTIPATH_HASH_UPDATE, /* arg is struct net ptr */
 };
 
 int register_netevent_notifier(struct notifier_block *nb);

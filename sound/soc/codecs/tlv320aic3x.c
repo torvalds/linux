@@ -1804,11 +1804,18 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		if (!ai3x_setup)
 			return -ENOMEM;
 
-		ret = of_get_named_gpio(np, "gpio-reset", 0);
-		if (ret >= 0)
+		ret = of_get_named_gpio(np, "reset-gpios", 0);
+		if (ret >= 0) {
 			aic3x->gpio_reset = ret;
-		else
-			aic3x->gpio_reset = -1;
+		} else {
+			ret = of_get_named_gpio(np, "gpio-reset", 0);
+			if (ret > 0) {
+				dev_warn(&i2c->dev, "Using deprecated property \"gpio-reset\", please update your DT");
+				aic3x->gpio_reset = ret;
+			} else {
+				aic3x->gpio_reset = -1;
+			}
+		}
 
 		if (of_property_read_u32_array(np, "ai3x-gpio-func",
 					ai3x_setup->gpio_func, 2) >= 0) {

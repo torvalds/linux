@@ -800,18 +800,18 @@ static int irq_polarity(int idx)
 	/*
 	 * Determine IRQ line polarity (high active or low active):
 	 */
-	switch (mp_irqs[idx].irqflag & 0x03) {
-	case 0:
+	switch (mp_irqs[idx].irqflag & MP_IRQPOL_MASK) {
+	case MP_IRQPOL_DEFAULT:
 		/* conforms to spec, ie. bus-type dependent polarity */
 		if (test_bit(bus, mp_bus_not_pci))
 			return default_ISA_polarity(idx);
 		else
 			return default_PCI_polarity(idx);
-	case 1:
+	case MP_IRQPOL_ACTIVE_HIGH:
 		return IOAPIC_POL_HIGH;
-	case 2:
+	case MP_IRQPOL_RESERVED:
 		pr_warn("IOAPIC: Invalid polarity: 2, defaulting to low\n");
-	case 3:
+	case MP_IRQPOL_ACTIVE_LOW:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_POL_LOW;
 	}
@@ -845,8 +845,8 @@ static int irq_trigger(int idx)
 	/*
 	 * Determine IRQ trigger mode (edge or level sensitive):
 	 */
-	switch ((mp_irqs[idx].irqflag >> 2) & 0x03) {
-	case 0:
+	switch (mp_irqs[idx].irqflag & MP_IRQTRIG_MASK) {
+	case MP_IRQTRIG_DEFAULT:
 		/* conforms to spec, ie. bus-type dependent trigger mode */
 		if (test_bit(bus, mp_bus_not_pci))
 			trigger = default_ISA_trigger(idx);
@@ -854,11 +854,11 @@ static int irq_trigger(int idx)
 			trigger = default_PCI_trigger(idx);
 		/* Take EISA into account */
 		return eisa_irq_trigger(idx, bus, trigger);
-	case 1:
+	case MP_IRQTRIG_EDGE:
 		return IOAPIC_EDGE;
-	case 2:
+	case MP_IRQTRIG_RESERVED:
 		pr_warn("IOAPIC: Invalid trigger mode 2 defaulting to level\n");
-	case 3:
+	case MP_IRQTRIG_LEVEL:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_LEVEL;
 	}
@@ -2988,7 +2988,7 @@ void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 }
 
 int mp_irqdomain_activate(struct irq_domain *domain,
-			  struct irq_data *irq_data, bool early)
+			  struct irq_data *irq_data, bool reserve)
 {
 	unsigned long flags;
 

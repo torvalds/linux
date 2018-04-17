@@ -97,9 +97,7 @@ static int __qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	while (iter_cnt--) {
 		/* Validate we receive completion update */
-		if (READ_ONCE(comp_done->done) == 1) {
-			/* Read updated FW return value */
-			smp_read_barrier_depends();
+		if (smp_load_acquire(&comp_done->done) == 1) { /* ^^^ */
 			if (p_fw_ret)
 				*p_fw_ret = comp_done->fw_return_code;
 			return 0;
@@ -776,6 +774,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	int rc = 0;
 	struct qed_spq *p_spq = p_hwfn ? p_hwfn->p_spq : NULL;
 	bool b_ret_ent = true;
+	bool eblock;
 
 	if (!p_hwfn)
 		return -EINVAL;
@@ -794,6 +793,11 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto spq_post_fail;
 
+	/* Check if entry is in block mode before qed_spq_add_entry,
+	 * which might kfree p_ent.
+	 */
+	eblock = (p_ent->comp_mode == QED_SPQ_MODE_EBLOCK);
+
 	/* Add the request to the pending queue */
 	rc = qed_spq_add_entry(p_hwfn, p_ent, p_ent->priority);
 	if (rc)
@@ -811,7 +815,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 
 	spin_unlock_bh(&p_spq->lock);
 
-	if (p_ent->comp_mode == QED_SPQ_MODE_EBLOCK) {
+	if (eblock) {
 		/* For entries in QED BLOCK mode, the completion code cannot
 		 * perform the necessary cleanup - if it did, we couldn't
 		 * access p_ent here to see whether it's successful or not.

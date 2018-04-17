@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -162,7 +158,7 @@ static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
 	return size;
 }
 
-static struct driver_attribute iunit_drvfs_attrs[] = {
+static const struct driver_attribute iunit_drvfs_attrs[] = {
 	__ATTR(dbglvl, 0644, iunit_dbglvl_show, iunit_dbglvl_store),
 	__ATTR(dbgfun, 0644, iunit_dbgfun_show, iunit_dbgfun_store),
 	__ATTR(dbgopt, 0644, iunit_dbgopt_show, iunit_dbgopt_store),

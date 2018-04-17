@@ -90,6 +90,13 @@ typedef void fq_skb_free_t(struct fq *,
 			   struct fq_flow *,
 			   struct sk_buff *);
 
+/* Return %true to filter (drop) the frame. */
+typedef bool fq_skb_filter_t(struct fq *,
+			     struct fq_tin *,
+			     struct fq_flow *,
+			     struct sk_buff *,
+			     void *);
+
 typedef struct fq_flow *fq_flow_get_default_t(struct fq *,
 					      struct fq_tin *,
 					      int idx,

@@ -172,6 +172,9 @@ void machine__exit(struct machine *machine)
 {
 	int i;
 
+	if (machine == NULL)
+		return;
+
 	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
@@ -1723,7 +1726,7 @@ static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
 		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
 
 		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
-				      sym, show_sym, show_addr);
+				      sym, show_sym, show_addr, ip);
 		srcline__tree_insert(&map->dso->srclines, ip, srcline);
 	}
 
@@ -2201,7 +2204,7 @@ int thread__resolve_callchain(struct thread *thread,
 {
 	int ret = 0;
 
-	callchain_cursor_reset(&callchain_cursor);
+	callchain_cursor_reset(cursor);
 
 	if (callchain_param.order == ORDER_CALLEE) {
 		ret = thread__resolve_callchain_sample(thread, cursor,

@@ -63,7 +63,6 @@
 #include "util/group.h"
 #include "util/session.h"
 #include "util/tool.h"
-#include "util/group.h"
 #include "util/string2.h"
 #include "util/metricgroup.h"
 #include "asm/bug.h"
@@ -214,8 +213,13 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 
 static void perf_stat__reset_stats(void)
 {
+	int i;
+
 	perf_evlist__reset_stats(evsel_list);
 	perf_stat__reset_shadow_stats();
+
+	for (i = 0; i < stat_config.stats_num; i++)
+		perf_stat__reset_shadow_per_stat(&stat_config.stats[i]);
 }
 
 static int create_perf_stat_counter(struct perf_evsel *evsel)
@@ -272,7 +276,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 			attr->enable_on_exec = 1;
 	}
 
-	if (target__has_cpu(&target))
+	if (target__has_cpu(&target) && !target__has_per_thread(&target))
 		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
@@ -335,7 +339,7 @@ static int read_counter(struct perf_evsel *counter)
 	int nthreads = thread_map__nr(evsel_list->threads);
 	int ncpus, cpu, thread;
 
-	if (target__has_cpu(&target))
+	if (target__has_cpu(&target) && !target__has_per_thread(&target))
 		ncpus = perf_evsel__nr_cpus(counter);
 	else
 		ncpus = 1;
@@ -458,19 +462,8 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static bool has_unit(struct perf_evsel *counter)
-{
-	return counter->unit && *counter->unit;
-}
-
-static bool has_scale(struct perf_evsel *counter)
-{
-	return counter->scale != 1;
-}
-
 static int perf_stat_synthesize_config(bool is_pipe)
 {
-	struct perf_evsel *counter;
 	int err;
 
 	if (is_pipe) {
@@ -482,53 +475,10 @@ static int perf_stat_synthesize_config(bool is_pipe)
 		}
 	}
 
-	/*
-	 * Synthesize other events stuff not carried within
-	 * attr event - unit, scale, name
-	 */
-	evlist__for_each_entry(evsel_list, counter) {
-		if (!counter->supported)
-			continue;
-
-		/*
-		 * Synthesize unit and scale only if it's defined.
-		 */
-		if (has_unit(counter)) {
-			err = perf_event__synthesize_event_update_unit(NULL, counter, process_synthesized_event);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel unit.\n");
-				return err;
-			}
-		}
-
-		if (has_scale(counter)) {
-			err = perf_event__synthesize_event_update_scale(NULL, counter, process_synthesized_event);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel scale.\n");
-				return err;
-			}
-		}
-
-		if (counter->own_cpus) {
-			err = perf_event__synthesize_event_update_cpus(NULL, counter, process_synthesized_event);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel scale.\n");
-				return err;
-			}
-		}
-
-		/*
-		 * Name is needed only for pipe output,
-		 * perf.data carries event names.
-		 */
-		if (is_pipe) {
-			err = perf_event__synthesize_event_update_name(NULL, counter, process_synthesized_event);
-			if (err < 0) {
-				pr_err("Couldn't synthesize evsel name.\n");
-				return err;
-			}
-		}
-	}
+	err = perf_event__synthesize_extra_attr(NULL,
+						evsel_list,
+						process_synthesized_event,
+						is_pipe);
 
 	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
 						process_synthesized_event,
@@ -1151,7 +1101,8 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 }
 
 static void printout(int id, int nr, struct perf_evsel *counter, double uval,
-		     char *prefix, u64 run, u64 ena, double noise)
+		     char *prefix, u64 run, u64 ena, double noise,
+		     struct runtime_stat *st)
 {
 	struct perf_stat_output_ctx out;
 	struct outstate os = {
@@ -1244,7 +1195,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 
 	perf_stat__print_shadow_stats(counter, uval,
 				first_shadow_cpu(counter, id),
-				&out, &metric_events);
+				&out, &metric_events, st);
 	if (!csv_output && !metric_only) {
 		print_noise(counter, noise);
 		print_running(run, ena);
@@ -1268,7 +1219,8 @@ static void aggr_update_shadow(void)
 				val += perf_counts(counter->counts, cpu, 0)->val;
 			}
 			perf_stat__update_shadow_stats(counter, val,
-						       first_shadow_cpu(counter, id));
+					first_shadow_cpu(counter, id),
+					&rt_stat);
 		}
 	}
 }
@@ -1388,7 +1340,8 @@ static void print_aggr(char *prefix)
 				fprintf(output, "%s", prefix);
 
 			uval = val * counter->scale;
-			printout(id, nr, counter, uval, prefix, run, ena, 1.0);
+			printout(id, nr, counter, uval, prefix, run, ena, 1.0,
+				 &rt_stat);
 			if (!metric_only)
 				fputc('\n', output);
 		}
@@ -1397,13 +1350,24 @@ static void print_aggr(char *prefix)
 	}
 }
 
-static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
+static int cmp_val(const void *a, const void *b)
 {
-	FILE *output = stat_config.output;
-	int nthreads = thread_map__nr(counter->threads);
-	int ncpus = cpu_map__nr(counter->cpus);
-	int cpu, thread;
+	return ((struct perf_aggr_thread_value *)b)->val -
+		((struct perf_aggr_thread_value *)a)->val;
+}
+
+static struct perf_aggr_thread_value *sort_aggr_thread(
+					struct perf_evsel *counter,
+					int nthreads, int ncpus,
+					int *ret)
+{
+	int cpu, thread, i = 0;
 	double uval;
+	struct perf_aggr_thread_value *buf;
+
+	buf = calloc(nthreads, sizeof(struct perf_aggr_thread_value));
+	if (!buf)
+		return NULL;
 
 	for (thread = 0; thread < nthreads; thread++) {
 		u64 ena = 0, run = 0, val = 0;
@@ -1414,13 +1378,63 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 			run += perf_counts(counter->counts, cpu, thread)->run;
 		}
 
+		uval = val * counter->scale;
+
+		/*
+		 * Skip value 0 when enabling --per-thread globally,
+		 * otherwise too many 0 output.
+		 */
+		if (uval == 0.0 && target__has_per_thread(&target))
+			continue;
+
+		buf[i].counter = counter;
+		buf[i].id = thread;
+		buf[i].uval = uval;
+		buf[i].val = val;
+		buf[i].run = run;
+		buf[i].ena = ena;
+		i++;
+	}
+
+	qsort(buf, i, sizeof(struct perf_aggr_thread_value), cmp_val);
+
+	if (ret)
+		*ret = i;
+
+	return buf;
+}
+
+static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
+{
+	FILE *output = stat_config.output;
+	int nthreads = thread_map__nr(counter->threads);
+	int ncpus = cpu_map__nr(counter->cpus);
+	int thread, sorted_threads, id;
+	struct perf_aggr_thread_value *buf;
+
+	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads);
+	if (!buf) {
+		perror("cannot sort aggr thread");
+		return;
+	}
+
+	for (thread = 0; thread < sorted_threads; thread++) {
 		if (prefix)
 			fprintf(output, "%s", prefix);
 
-		uval = val * counter->scale;
-		printout(thread, 0, counter, uval, prefix, run, ena, 1.0);
+		id = buf[thread].id;
+		if (stat_config.stats)
+			printout(id, 0, buf[thread].counter, buf[thread].uval,
+				 prefix, buf[thread].run, buf[thread].ena, 1.0,
+				 &stat_config.stats[id]);
+		else
+			printout(id, 0, buf[thread].counter, buf[thread].uval,
+				 prefix, buf[thread].run, buf[thread].ena, 1.0,
+				 &rt_stat);
 		fputc('\n', output);
 	}
+
+	free(buf);
 }
 
 struct caggr_data {
@@ -1455,7 +1469,8 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 		fprintf(output, "%s", prefix);
 
 	uval = cd.avg * counter->scale;
-	printout(-1, 0, counter, uval, prefix, cd.avg_running, cd.avg_enabled, cd.avg);
+	printout(-1, 0, counter, uval, prefix, cd.avg_running, cd.avg_enabled,
+		 cd.avg, &rt_stat);
 	if (!metric_only)
 		fprintf(output, "\n");
 }
@@ -1494,7 +1509,8 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 			fprintf(output, "%s", prefix);
 
 		uval = val * counter->scale;
-		printout(cpu, 0, counter, uval, prefix, run, ena, 1.0);
+		printout(cpu, 0, counter, uval, prefix, run, ena, 1.0,
+			 &rt_stat);
 
 		fputc('\n', output);
 	}
@@ -1526,7 +1542,8 @@ static void print_no_aggr_metric(char *prefix)
 			run = perf_counts(counter->counts, cpu, 0)->run;
 
 			uval = val * counter->scale;
-			printout(cpu, 0, counter, uval, prefix, run, ena, 1.0);
+			printout(cpu, 0, counter, uval, prefix, run, ena, 1.0,
+				 &rt_stat);
 		}
 		fputc('\n', stat_config.output);
 	}
@@ -1582,7 +1599,8 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 		perf_stat__print_shadow_stats(counter, 0,
 					      0,
 					      &out,
-					      &metric_events);
+					      &metric_events,
+					      &rt_stat);
 	}
 	fputc('\n', stat_config.output);
 }
@@ -2541,6 +2559,35 @@ int process_cpu_map_event(struct perf_tool *tool,
 	return set_maps(st);
 }
 
+static int runtime_stat_new(struct perf_stat_config *config, int nthreads)
+{
+	int i;
+
+	config->stats = calloc(nthreads, sizeof(struct runtime_stat));
+	if (!config->stats)
+		return -1;
+
+	config->stats_num = nthreads;
+
+	for (i = 0; i < nthreads; i++)
+		runtime_stat__init(&config->stats[i]);
+
+	return 0;
+}
+
+static void runtime_stat_delete(struct perf_stat_config *config)
+{
+	int i;
+
+	if (!config->stats)
+		return;
+
+	for (i = 0; i < config->stats_num; i++)
+		runtime_stat__exit(&config->stats[i]);
+
+	free(config->stats);
+}
+
 static const char * const stat_report_usage[] = {
 	"perf stat report [<options>]",
 	NULL,
@@ -2750,12 +2797,16 @@ int cmd_stat(int argc, const char **argv)
 		run_count = 1;
 	}
 
-	if ((stat_config.aggr_mode == AGGR_THREAD) && !target__has_task(&target)) {
-		fprintf(stderr, "The --per-thread option is only available "
-			"when monitoring via -p -t options.\n");
-		parse_options_usage(NULL, stat_options, "p", 1);
-		parse_options_usage(NULL, stat_options, "t", 1);
-		goto out;
+	if ((stat_config.aggr_mode == AGGR_THREAD) &&
+		!target__has_task(&target)) {
+		if (!target.system_wide || target.cpu_list) {
+			fprintf(stderr, "The --per-thread option is only "
+				"available when monitoring via -p -t -a "
+				"options or only --per-thread.\n");
+			parse_options_usage(NULL, stat_options, "p", 1);
+			parse_options_usage(NULL, stat_options, "t", 1);
+			goto out;
+		}
 	}
 
 	/*
@@ -2779,6 +2830,9 @@ int cmd_stat(int argc, const char **argv)
 
 	target__validate(&target);
 
+	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
+		target.per_thread = true;
+
 	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
@@ -2796,8 +2850,15 @@ int cmd_stat(int argc, const char **argv)
 	 * Initialize thread_map with comm names,
 	 * so we could print it out on output.
 	 */
-	if (stat_config.aggr_mode == AGGR_THREAD)
+	if (stat_config.aggr_mode == AGGR_THREAD) {
 		thread_map__read_comms(evsel_list->threads);
+		if (target.system_wide) {
+			if (runtime_stat_new(&stat_config,
+				thread_map__nr(evsel_list->threads))) {
+				goto out;
+			}
+		}
+	}
 
 	if (interval && interval < 100) {
 		if (interval < 10) {
@@ -2887,5 +2948,8 @@ out:
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);
 
 	perf_evlist__delete(evsel_list);
+
+	runtime_stat_delete(&stat_config);
+
 	return status;
 }

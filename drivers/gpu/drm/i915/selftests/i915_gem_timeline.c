@@ -121,7 +121,7 @@ out:
 
 static unsigned int random_engine(struct rnd_state *rnd)
 {
-	return ((u64)prandom_u32_state(rnd) * I915_NUM_ENGINES) >> 32;
+	return i915_prandom_u32_max_state(I915_NUM_ENGINES, rnd);
 }
 
 static int bench_sync(void *arg)

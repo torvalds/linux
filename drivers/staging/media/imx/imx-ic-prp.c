@@ -320,9 +320,10 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 		 * the ->PRPENC link cannot be enabled if the source
 		 * is the VDIC
 		 */
-		if (priv->sink_sd_prpenc)
+		if (priv->sink_sd_prpenc) {
 			ret = -EINVAL;
-		goto out;
+			goto out;
+		}
 	} else {
 		/* the source is a CSI */
 		if (!csi) {

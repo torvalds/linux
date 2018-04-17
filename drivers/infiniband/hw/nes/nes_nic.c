@@ -926,11 +926,10 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 				nesadapter->pft_mcast_map[mc_index] !=
 					nesvnic->nic_index &&
 					mc_index < max_pft_entries_avaiable) {
-						nes_debug(NES_DBG_NIC_RX,
-					"mc_index=%d skipping nic_index=%d, "
-					"used for=%d \n", mc_index,
-					nesvnic->nic_index,
-					nesadapter->pft_mcast_map[mc_index]);
+				nes_debug(NES_DBG_NIC_RX,
+					  "mc_index=%d skipping nic_index=%d, used for=%d\n",
+					  mc_index, nesvnic->nic_index,
+					  nesadapter->pft_mcast_map[mc_index]);
 				mc_index++;
 			}
 			if (mc_index >= max_pft_entries_avaiable)
@@ -1746,8 +1745,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 		nesvnic->rdma_enabled = 0;
 	}
 	nesvnic->nic_cq.cq_number = nesvnic->nic.qp_id;
-	init_timer(&nesvnic->event_timer);
-	nesvnic->event_timer.function = NULL;
+	timer_setup(&nesvnic->event_timer, NULL, 0);
 	spin_lock_init(&nesvnic->tx_lock);
 	spin_lock_init(&nesvnic->port_ibevent_lock);
 	nesdev->netdev[nesdev->netdev_count] = netdev;

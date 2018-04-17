@@ -81,6 +81,7 @@ static int mcryptd_init_queue(struct mcryptd_queue *queue,
 		pr_debug("cpu_queue #%d %p\n", cpu, queue->cpu_queue);
 		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
 		INIT_WORK(&cpu_queue->work, mcryptd_queue_worker);
+		spin_lock_init(&cpu_queue->q_lock);
 	}
 	return 0;
 }
@@ -104,15 +105,16 @@ static int mcryptd_enqueue_request(struct mcryptd_queue *queue,
 	int cpu, err;
 	struct mcryptd_cpu_queue *cpu_queue;
 
-	cpu = get_cpu();
-	cpu_queue = this_cpu_ptr(queue->cpu_queue);
-	rctx->tag.cpu = cpu;
+	cpu_queue = raw_cpu_ptr(queue->cpu_queue);
+	spin_lock(&cpu_queue->q_lock);
+	cpu = smp_processor_id();
+	rctx->tag.cpu = smp_processor_id();
 
 	err = crypto_enqueue_request(&cpu_queue->queue, request);
 	pr_debug("enqueue request: cpu %d cpu_queue %p request %p\n",
 		 cpu, cpu_queue, request);
+	spin_unlock(&cpu_queue->q_lock);
 	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
-	put_cpu();
 
 	return err;
 }
@@ -161,16 +163,11 @@ static void mcryptd_queue_worker(struct work_struct *work)
 	cpu_queue = container_of(work, struct mcryptd_cpu_queue, work);
 	i = 0;
 	while (i < MCRYPTD_BATCH || single_task_running()) {
-		/*
-		 * preempt_disable/enable is used to prevent
-		 * being preempted by mcryptd_enqueue_request()
-		 */
-		local_bh_disable();
-		preempt_disable();
+
+		spin_lock_bh(&cpu_queue->q_lock);
 		backlog = crypto_get_backlog(&cpu_queue->queue);
 		req = crypto_dequeue_request(&cpu_queue->queue);
-		preempt_enable();
-		local_bh_enable();
+		spin_unlock_bh(&cpu_queue->q_lock);
 
 		if (!req) {
 			mcryptd_opportunistic_flush();
@@ -185,7 +182,7 @@ static void mcryptd_queue_worker(struct work_struct *work)
 		++i;
 	}
 	if (cpu_queue->queue.qlen)
-		queue_work(kcrypto_wq, &cpu_queue->work);
+		queue_work_on(smp_processor_id(), kcrypto_wq, &cpu_queue->work);
 }
 
 void mcryptd_flusher(struct work_struct *__work)

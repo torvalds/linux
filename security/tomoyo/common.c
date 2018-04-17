@@ -2120,7 +2120,7 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
  *
  * Waits for access requests which violated policy in enforcing mode.
  */
-static unsigned int tomoyo_poll_query(struct file *file, poll_table *wait)
+static __poll_t tomoyo_poll_query(struct file *file, poll_table *wait)
 {
 	if (!list_empty(&tomoyo_query_list))
 		return POLLIN | POLLRDNORM;
@@ -2453,7 +2453,7 @@ int tomoyo_open_control(const u8 type, struct file *file)
  * Returns POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM if ready to read/write,
  * POLLOUT | POLLWRNORM otherwise.
  */
-unsigned int tomoyo_poll_control(struct file *file, poll_table *wait)
+__poll_t tomoyo_poll_control(struct file *file, poll_table *wait)
 {
 	struct tomoyo_io_buffer *head = file->private_data;
 	if (head->poll)

@@ -762,31 +762,14 @@ abort:
 static long
 pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int			err = 0;
 	int			retval = 0;
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
-	u32			tmp;
+	void __user *argp = (void __user *)arg;
 
 	/* Check type and command number */
 	if (_IOC_TYPE(cmd) != PI433_IOC_MAGIC)
 		return -ENOTTY;
-
-	/* Check access direction once here; don't repeat below.
-	 * IOC_DIR is from the user perspective, while access_ok is
-	 * from the kernel perspective; so they look reversed.
-	 */
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		err = !access_ok(VERIFY_WRITE,
-				 (void __user *)arg,
-				 _IOC_SIZE(cmd));
-
-	if (err == 0 && _IOC_DIR(cmd) & _IOC_WRITE)
-		err = !access_ok(VERIFY_READ,
-				 (void __user *)arg,
-				 _IOC_SIZE(cmd));
-	if (err)
-		return -EFAULT;
 
 	/* TODO? guard against device removal before, or while,
 	 * we issue this ioctl. --> device_get()
@@ -799,78 +782,33 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case PI433_IOC_RD_TX_CFG:
-		tmp = _IOC_SIZE(cmd);
-		if ((tmp == 0) || ((tmp % sizeof(struct pi433_tx_cfg)) != 0)) {
-			retval = -EINVAL;
-			break;
-		}
-
-		if (__copy_to_user((void __user *)arg,
-				    &instance->tx_cfg,
-				    tmp))
-		{
-			retval = -EFAULT;
-			break;
-		}
-
+		if (copy_to_user(argp, &instance->tx_cfg,
+					sizeof(struct pi433_tx_cfg)))
+			return -EFAULT;
 		break;
 	case PI433_IOC_WR_TX_CFG:
-		tmp = _IOC_SIZE(cmd);
-		if ((tmp == 0) || ((tmp % sizeof(struct pi433_tx_cfg)) != 0)) {
-			retval = -EINVAL;
-			break;
-		}
-
-		if (__copy_from_user(&instance->tx_cfg,
-				     (void __user *)arg,
-				     tmp))
-		{
-			retval = -EFAULT;
-			break;
-		}
-
+		if (copy_from_user(&instance->tx_cfg, argp,
+					sizeof(struct pi433_tx_cfg)))
+			return -EFAULT;
 		break;
-
 	case PI433_IOC_RD_RX_CFG:
-		tmp = _IOC_SIZE(cmd);
-		if ( (tmp == 0) || ((tmp % sizeof(struct pi433_rx_cfg)) != 0) ) {
-			retval = -EINVAL;
-			break;
-		}
-
-		if (__copy_to_user((void __user *)arg,
-				   &device->rx_cfg,
-				   tmp))
-		{
-			retval = -EFAULT;
-			break;
-		}
-
+		if (copy_to_user(argp, &device->rx_cfg,
+					sizeof(struct pi433_rx_cfg)))
+			return -EFAULT;
 		break;
 	case PI433_IOC_WR_RX_CFG:
-		tmp = _IOC_SIZE(cmd);
 		mutex_lock(&device->rx_lock);
 
 		/* during pendig read request, change of config not allowed */
 		if (device->rx_active) {
-			retval = -EAGAIN;
 			mutex_unlock(&device->rx_lock);
-			break;
+			return -EAGAIN;
 		}
 
-		if ( (tmp == 0) || ((tmp % sizeof(struct pi433_rx_cfg)) != 0) ) {
-			retval = -EINVAL;
+		if (copy_from_user(&device->rx_cfg, argp,
+					sizeof(struct pi433_rx_cfg))) {
 			mutex_unlock(&device->rx_lock);
-			break;
-		}
-
-		if (__copy_from_user(&device->rx_cfg,
-				     (void __user *)arg,
-				     tmp))
-		{
-			retval = -EFAULT;
-			mutex_unlock(&device->rx_lock);
-			break;
+			return -EFAULT;
 		}
 
 		mutex_unlock(&device->rx_lock);

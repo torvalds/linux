@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * finite state machine for device handling
  *
@@ -91,12 +92,12 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 /*
  * Timeout function. It just triggers a DEV_EVENT_TIMEOUT.
  */
-static void
-ccw_device_timeout(unsigned long data)
+void
+ccw_device_timeout(struct timer_list *t)
 {
-	struct ccw_device *cdev;
+	struct ccw_device_private *priv = from_timer(priv, t, timer);
+	struct ccw_device *cdev = priv->cdev;
 
-	cdev = (struct ccw_device *) data;
 	spin_lock_irq(cdev->ccwlock);
 	if (timeout_log_enabled)
 		ccw_timeout_log(cdev);
@@ -118,8 +119,6 @@ ccw_device_set_timeout(struct ccw_device *cdev, int expires)
 		if (mod_timer(&cdev->private->timer, jiffies + expires))
 			return;
 	}
-	cdev->private->timer.function = ccw_device_timeout;
-	cdev->private->timer.data = (unsigned long) cdev;
 	cdev->private->timer.expires = jiffies + expires;
 	add_timer(&cdev->private->timer);
 }

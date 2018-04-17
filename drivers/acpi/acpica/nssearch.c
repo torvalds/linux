@@ -417,6 +417,7 @@ acpi_ns_search_and_enter(u32 target_name,
 	if (flags & ACPI_NS_EXTERNAL ||
 	    (walk_state && walk_state->opcode == AML_SCOPE_OP)) {
 		new_node->flags |= ANOBJ_IS_EXTERNAL;
+		new_node->flags |= IMPLICIT_EXTERNAL;
 	}
 #endif
 

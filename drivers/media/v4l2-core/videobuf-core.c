@@ -222,7 +222,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_is_busy);
 
-/**
+/*
  * __videobuf_free() - free all the buffers and their control structures
  *
  * This function can only be called if streaming/reading is off, i.e. no buffers
@@ -1118,13 +1118,13 @@ done:
 }
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
 
-unsigned int videobuf_poll_stream(struct file *file,
+__poll_t videobuf_poll_stream(struct file *file,
 				  struct videobuf_queue *q,
 				  poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct videobuf_buffer *buf = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 
 	videobuf_queue_lock(q);
 	if (q->streaming) {

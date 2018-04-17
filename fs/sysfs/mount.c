@@ -30,7 +30,7 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	void *ns;
 	bool new_sb;
 
-	if (!(flags & MS_KERNMOUNT)) {
+	if (!(flags & SB_KERNMOUNT)) {
 		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
 			return ERR_PTR(-EPERM);
 	}

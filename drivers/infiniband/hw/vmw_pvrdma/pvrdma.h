@@ -93,8 +93,8 @@ struct pvrdma_cq {
 	struct pvrdma_page_dir pdir;
 	u32 cq_handle;
 	bool is_kernel;
-	atomic_t refcnt;
-	wait_queue_head_t wait;
+	refcount_t refcnt;
+	struct completion free;
 };
 
 struct pvrdma_id_table {
@@ -162,6 +162,22 @@ struct pvrdma_ah {
 	struct pvrdma_av av;
 };
 
+struct pvrdma_srq {
+	struct ib_srq ibsrq;
+	int offset;
+	spinlock_t lock; /* SRQ lock. */
+	int wqe_cnt;
+	int wqe_size;
+	int max_gs;
+	struct ib_umem *umem;
+	struct pvrdma_ring_state *ring;
+	struct pvrdma_page_dir pdir;
+	u32 srq_handle;
+	int npages;
+	refcount_t refcnt;
+	struct completion free;
+};
+
 struct pvrdma_qp {
 	struct ib_qp ibqp;
 	u32 qp_handle;
@@ -171,6 +187,7 @@ struct pvrdma_qp {
 	struct ib_umem *rumem;
 	struct ib_umem *sumem;
 	struct pvrdma_page_dir pdir;
+	struct pvrdma_srq *srq;
 	int npages;
 	int npages_send;
 	int npages_recv;
@@ -179,8 +196,8 @@ struct pvrdma_qp {
 	u8 state;
 	bool is_kernel;
 	struct mutex mutex; /* QP state mutex. */
-	atomic_t refcnt;
-	wait_queue_head_t wait;
+	refcount_t refcnt;
+	struct completion free;
 };
 
 struct pvrdma_dev {
@@ -210,6 +227,8 @@ struct pvrdma_dev {
 	struct pvrdma_page_dir cq_pdir;
 	struct pvrdma_cq **cq_tbl;
 	spinlock_t cq_tbl_lock;
+	struct pvrdma_srq **srq_tbl;
+	spinlock_t srq_tbl_lock;
 	struct pvrdma_qp **qp_tbl;
 	spinlock_t qp_tbl_lock;
 	struct pvrdma_uar_table uar_table;
@@ -221,6 +240,7 @@ struct pvrdma_dev {
 	bool ib_active;
 	atomic_t num_qps;
 	atomic_t num_cqs;
+	atomic_t num_srqs;
 	atomic_t num_pds;
 	atomic_t num_ahs;
 
@@ -254,6 +274,11 @@ static inline struct pvrdma_pd *to_vpd(struct ib_pd *ibpd)
 static inline struct pvrdma_cq *to_vcq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct pvrdma_cq, ibcq);
+}
+
+static inline struct pvrdma_srq *to_vsrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct pvrdma_srq, ibsrq);
 }
 
 static inline struct pvrdma_user_mr *to_vmr(struct ib_mr *ibmr)

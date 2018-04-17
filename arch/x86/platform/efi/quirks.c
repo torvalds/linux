@@ -592,7 +592,18 @@ static int qrk_capsule_setup_info(struct capsule_info *cap_info, void **pkbuff,
 	/*
 	 * Update the first page pointer to skip over the CSH header.
 	 */
-	cap_info->pages[0] += csh->headersize;
+	cap_info->phys[0] += csh->headersize;
+
+	/*
+	 * cap_info->capsule should point at a virtual mapping of the entire
+	 * capsule, starting at the capsule header. Our image has the Quark
+	 * security header prepended, so we cannot rely on the default vmap()
+	 * mapping created by the generic capsule code.
+	 * Given that the Quark firmware does not appear to care about the
+	 * virtual mapping, let's just point cap_info->capsule at our copy
+	 * of the capsule header.
+	 */
+	cap_info->capsule = &cap_info->header;
 
 	return 1;
 }

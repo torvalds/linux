@@ -273,15 +273,26 @@ void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
 
 static inline bool __kvm_cpu_uses_extended_idmap(void)
 {
-	return __cpu_uses_extended_idmap();
+	return __cpu_uses_extended_idmap_level();
 }
 
+static inline unsigned long __kvm_idmap_ptrs_per_pgd(void)
+{
+	return idmap_ptrs_per_pgd;
+}
+
+/*
+ * Can't use pgd_populate here, because the extended idmap adds an extra level
+ * above CONFIG_PGTABLE_LEVELS (which is 2 or 3 if we're using the extended
+ * idmap), and pgd_populate is only available if CONFIG_PGTABLE_LEVELS = 4.
+ */
 static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       pgd_t *hyp_pgd,
 				       pgd_t *merged_hyp_pgd,
 				       unsigned long hyp_idmap_start)
 {
 	int idmap_idx;
+	u64 pgd_addr;
 
 	/*
 	 * Use the first entry to access the HYP mappings. It is
@@ -289,7 +300,8 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 * extended idmap.
 	 */
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[0]));
-	merged_hyp_pgd[0] = __pgd(__pa(hyp_pgd) | PMD_TYPE_TABLE);
+	pgd_addr = __phys_to_pgd_val(__pa(hyp_pgd));
+	merged_hyp_pgd[0] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 
 	/*
 	 * Create another extended level entry that points to the boot HYP map,
@@ -299,7 +311,8 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 */
 	idmap_idx = hyp_idmap_start >> VA_BITS;
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
-	merged_hyp_pgd[idmap_idx] = __pgd(__pa(boot_hyp_pgd) | PMD_TYPE_TABLE);
+	pgd_addr = __phys_to_pgd_val(__pa(boot_hyp_pgd));
+	merged_hyp_pgd[idmap_idx] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 }
 
 static inline unsigned int kvm_get_vmid_bits(void)
@@ -308,6 +321,46 @@ static inline unsigned int kvm_get_vmid_bits(void)
 
 	return (cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
+
+#ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
+#include <asm/mmu.h>
+
+static inline void *kvm_get_hyp_vector(void)
+{
+	struct bp_hardening_data *data = arm64_get_bp_hardening_data();
+	void *vect = kvm_ksym_ref(__kvm_hyp_vector);
+
+	if (data->fn) {
+		vect = __bp_harden_hyp_vecs_start +
+		       data->hyp_vectors_slot * SZ_2K;
+
+		if (!has_vhe())
+			vect = lm_alias(vect);
+	}
+
+	return vect;
+}
+
+static inline int kvm_map_vectors(void)
+{
+	return create_hyp_mappings(kvm_ksym_ref(__bp_harden_hyp_vecs_start),
+				   kvm_ksym_ref(__bp_harden_hyp_vecs_end),
+				   PAGE_HYP_EXEC);
+}
+
+#else
+static inline void *kvm_get_hyp_vector(void)
+{
+	return kvm_ksym_ref(__kvm_hyp_vector);
+}
+
+static inline int kvm_map_vectors(void)
+{
+	return 0;
+}
+#endif
+
+#define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

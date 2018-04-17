@@ -1075,7 +1075,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	/* give an index to each format */
 	index = 0;
-	j = 0;
 	for (i = gspca_dev->cam.nmodes; --i >= 0; ) {
 		fmt_tb[index] = gspca_dev->cam.cam_mode[i].pixelformat;
 		j = 0;
@@ -1863,11 +1862,11 @@ out:
 	return ret;
 }
 
-static unsigned int dev_poll(struct file *file, poll_table *wait)
+static __poll_t dev_poll(struct file *file, poll_table *wait)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(wait);
-	int ret = 0;
+	__poll_t req_events = poll_requested_events(wait);
+	__poll_t ret = 0;
 
 	PDEBUG(D_FRAM, "poll");
 

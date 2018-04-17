@@ -148,6 +148,21 @@ struct pinmux_drive_reg {
 	.reg = r, \
 	.fields =
 
+struct pinmux_bias_reg {
+	u32 puen;		/* Pull-enable or pull-up control register */
+	u32 pud;		/* Pull-up/down control register (optional) */
+	const u16 pins[32];
+};
+
+#define PINMUX_BIAS_REG(name1, r1, name2, r2) \
+	.puen = r1,	\
+	.pud = r2,	\
+	.pins =
+
+struct pinmux_ioctrl_reg {
+	u32 reg;
+};
+
 struct pinmux_data_reg {
 	u32 reg;
 	u8 reg_width;
@@ -189,12 +204,6 @@ struct sh_pfc_window {
 	unsigned long size;
 };
 
-struct sh_pfc_bias_info {
-	u16 pin;
-	u16 reg : 11;
-	u16 bit : 5;
-};
-
 struct sh_pfc_pin_range;
 
 struct sh_pfc {
@@ -213,6 +222,7 @@ struct sh_pfc {
 	unsigned int nr_gpio_pins;
 
 	struct sh_pfc_chip *gpio;
+	u32 *saved_regs;
 };
 
 struct sh_pfc_soc_operations {
@@ -245,6 +255,8 @@ struct sh_pfc_soc_info {
 
 	const struct pinmux_cfg_reg *cfg_regs;
 	const struct pinmux_drive_reg *drive_regs;
+	const struct pinmux_bias_reg *bias_regs;
+	const struct pinmux_ioctrl_reg *ioctrl_regs;
 	const struct pinmux_data_reg *data_regs;
 
 	const u16 *pinmux_data;

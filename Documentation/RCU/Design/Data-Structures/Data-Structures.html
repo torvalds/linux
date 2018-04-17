@@ -1097,7 +1097,8 @@ will cause the CPU to disregard the values of its counters on
 its next exit from idle.
 Finally, the <tt>rcu_qs_ctr_snap</tt> field is used to detect
 cases where a given operation has resulted in a quiescent state
-for all flavors of RCU, for example, <tt>cond_resched_rcu_qs()</tt>.
+for all flavors of RCU, for example, <tt>cond_resched()</tt>
+when RCU has indicated a need for quiescent states.
 
 <h5>RCU Callback Handling</h5>
 
@@ -1182,8 +1183,8 @@ CPU (and from tracing) unless otherwise stated.
 Its fields are as follows:
 
 <pre>
-  1   int dynticks_nesting;
-  2   int dynticks_nmi_nesting;
+  1   long dynticks_nesting;
+  2   long dynticks_nmi_nesting;
   3   atomic_t dynticks;
   4   bool rcu_need_heavy_qs;
   5   unsigned long rcu_qs_ctr;
@@ -1191,15 +1192,31 @@ Its fields are as follows:
 </pre>
 
 <p>The <tt>-&gt;dynticks_nesting</tt> field counts the
-nesting depth of normal interrupts.
-In addition, this counter is incremented when exiting dyntick-idle
-mode and decremented when entering it.
+nesting depth of process execution, so that in normal circumstances
+this counter has value zero or one.
+NMIs, irqs, and tracers are counted by the <tt>-&gt;dynticks_nmi_nesting</tt>
+field.
+Because NMIs cannot be masked, changes to this variable have to be
+undertaken carefully using an algorithm provided by Andy Lutomirski.
+The initial transition from idle adds one, and nested transitions
+add two, so that a nesting level of five is represented by a
+<tt>-&gt;dynticks_nmi_nesting</tt> value of nine.
 This counter can therefore be thought of as counting the number
 of reasons why this CPU cannot be permitted to enter dyntick-idle
-mode, aside from non-maskable interrupts (NMIs).
-NMIs are counted by the <tt>-&gt;dynticks_nmi_nesting</tt>
-field, except that NMIs that interrupt non-dyntick-idle execution
-are not counted.
+mode, aside from process-level transitions.
+
+<p>However, it turns out that when running in non-idle kernel context,
+the Linux kernel is fully capable of entering interrupt handlers that
+never exit and perhaps also vice versa.
+Therefore, whenever the <tt>-&gt;dynticks_nesting</tt> field is
+incremented up from zero, the <tt>-&gt;dynticks_nmi_nesting</tt> field
+is set to a large positive number, and whenever the
+<tt>-&gt;dynticks_nesting</tt> field is decremented down to zero,
+the the <tt>-&gt;dynticks_nmi_nesting</tt> field is set to zero.
+Assuming that the number of misnested interrupts is not sufficient
+to overflow the counter, this approach corrects the
+<tt>-&gt;dynticks_nmi_nesting</tt> field every time the corresponding
+CPU enters the idle loop from process context.
 
 </p><p>The <tt>-&gt;dynticks</tt> field counts the corresponding
 CPU's transitions to and from dyntick-idle mode, so that this counter
@@ -1231,14 +1248,16 @@ in response.
 <tr><th>&nbsp;</th></tr>
 <tr><th align="left">Quick Quiz:</th></tr>
 <tr><td>
-	Why not just count all NMIs?
-	Wouldn't that be simpler and less error prone?
+	Why not simply combine the <tt>-&gt;dynticks_nesting</tt>
+	and <tt>-&gt;dynticks_nmi_nesting</tt> counters into a
+	single counter that just counts the number of reasons that
+	the corresponding CPU is non-idle?
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
-	It seems simpler only until you think hard about how to go about
-	updating the <tt>rcu_dynticks</tt> structure's
-	<tt>-&gt;dynticks</tt> field.
+	Because this would fail in the presence of interrupts whose
+	handlers never return and of handlers that manage to return
+	from a made-up interrupt.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>

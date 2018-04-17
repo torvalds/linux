@@ -99,7 +99,7 @@ static struct {
 	{0x0000, 0},
 };
 
-static void mixcomwd_timerfun(unsigned long d);
+static void mixcomwd_timerfun(struct timer_list *unused);
 
 static unsigned long mixcomwd_opened; /* long req'd for setbit --RR */
 
@@ -120,7 +120,7 @@ static void mixcomwd_ping(void)
 	return;
 }
 
-static void mixcomwd_timerfun(unsigned long d)
+static void mixcomwd_timerfun(struct timer_list *unused)
 {
 	mixcomwd_ping();
 	mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);

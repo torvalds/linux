@@ -1297,19 +1297,9 @@ static bool aio_read_events(struct kioctx *ctx, long min_nr, long nr,
 
 static long read_events(struct kioctx *ctx, long min_nr, long nr,
 			struct io_event __user *event,
-			struct timespec __user *timeout)
+			ktime_t until)
 {
-	ktime_t until = KTIME_MAX;
 	long ret = 0;
-
-	if (timeout) {
-		struct timespec	ts;
-
-		if (unlikely(copy_from_user(&ts, timeout, sizeof(ts))))
-			return -EFAULT;
-
-		until = timespec_to_ktime(ts);
-	}
 
 	/*
 	 * Note that aio_read_events() is being called as the conditional - i.e.
@@ -1826,6 +1816,25 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 	return ret;
 }
 
+static long do_io_getevents(aio_context_t ctx_id,
+		long min_nr,
+		long nr,
+		struct io_event __user *events,
+		struct timespec64 *ts)
+{
+	ktime_t until = ts ? timespec64_to_ktime(*ts) : KTIME_MAX;
+	struct kioctx *ioctx = lookup_ioctx(ctx_id);
+	long ret = -EINVAL;
+
+	if (likely(ioctx)) {
+		if (likely(min_nr <= nr && min_nr >= 0))
+			ret = read_events(ioctx, min_nr, nr, events, until);
+		percpu_ref_put(&ioctx->users);
+	}
+
+	return ret;
+}
+
 /* io_getevents:
  *	Attempts to read at least min_nr events and up to nr events from
  *	the completion queue for the aio_context specified by ctx_id. If
@@ -1844,15 +1853,14 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 		struct io_event __user *, events,
 		struct timespec __user *, timeout)
 {
-	struct kioctx *ioctx = lookup_ioctx(ctx_id);
-	long ret = -EINVAL;
+	struct timespec64	ts;
 
-	if (likely(ioctx)) {
-		if (likely(min_nr <= nr && min_nr >= 0))
-			ret = read_events(ioctx, min_nr, nr, events, timeout);
-		percpu_ref_put(&ioctx->users);
+	if (timeout) {
+		if (unlikely(get_timespec64(&ts, timeout)))
+			return -EFAULT;
 	}
-	return ret;
+
+	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &ts : NULL);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1862,17 +1870,14 @@ COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
 		       struct io_event __user *, events,
 		       struct compat_timespec __user *, timeout)
 {
-	struct timespec t;
-	struct timespec __user *ut = NULL;
+	struct timespec64 t;
 
 	if (timeout) {
-		if (compat_get_timespec(&t, timeout))
+		if (compat_get_timespec64(&t, timeout))
 			return -EFAULT;
 
-		ut = compat_alloc_user_space(sizeof(*ut));
-		if (copy_to_user(ut, &t, sizeof(t)))
-			return -EFAULT;
 	}
-	return sys_io_getevents(ctx_id, min_nr, nr, events, ut);
+
+	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &t : NULL);
 }
 #endif

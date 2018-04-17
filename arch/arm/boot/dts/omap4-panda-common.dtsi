@@ -13,6 +13,10 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	aliases {
 		display0 = &dvi0;
 		display1 = &hdmi0;
@@ -85,6 +89,7 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;   /* gpio_62 */
+		#phy-cells = <0>;
 		vcc-supply = <&hsusb1_power>;
 		clocks = <&auxclk3_ck>;
 		clock-names = "main_clk";

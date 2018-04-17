@@ -753,9 +753,9 @@ static ssize_t tool_peer_mw_trans_read(struct file *filep,
 
 	phys_addr_t base;
 	resource_size_t mw_size;
-	resource_size_t align_addr;
-	resource_size_t align_size;
-	resource_size_t max_size;
+	resource_size_t align_addr = 0;
+	resource_size_t align_size = 0;
+	resource_size_t max_size = 0;
 
 	buf_size = min_t(size_t, size, 512);
 

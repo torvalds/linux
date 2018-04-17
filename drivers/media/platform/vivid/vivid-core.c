@@ -416,7 +416,7 @@ static ssize_t vivid_radio_write(struct file *file, const char __user *buf,
 	return vivid_radio_tx_write(file, buf, size, offset);
 }
 
-static unsigned int vivid_radio_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t vivid_radio_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 

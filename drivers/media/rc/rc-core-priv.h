@@ -106,7 +106,7 @@ struct ir_raw_event_ctrl {
 	} mce_kbd;
 	struct lirc_codec {
 		struct rc_dev *dev;
-		struct lirc_driver *drv;
+		struct lirc_dev *ldev;
 		int carrier_low;
 
 		ktime_t gap_start;

@@ -44,7 +44,7 @@ more details.
  * Virtual Input System. (Input System 2401)
  */
 typedef input_system_cfg_t	ia_css_isys_descr_t;
-/** end of Virtual Input System */
+/* end of Virtual Input System */
 #endif
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
@@ -112,7 +112,7 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits);
 
 #endif /* #if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
 
-/** @brief Translate format and compression to format type.
+/* @brief Translate format and compression to format type.
  *
  * @param[in]	input_format	The input format.
  * @param[in]	compression	The compression scheme.
@@ -195,7 +195,7 @@ extern void ia_css_isys_stream2mmio_sid_rmgr_release(
 	stream2mmio_ID_t	stream2mmio,
 	stream2mmio_sid_ID_t	*sid);
 
-/** end of Virtual Input System */
+/* end of Virtual Input System */
 #endif
 
 #endif				/* __IA_CSS_ISYS_H__ */

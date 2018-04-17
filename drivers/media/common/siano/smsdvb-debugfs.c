@@ -374,7 +374,7 @@ exit:
 	return rc;
 }
 
-static unsigned int smsdvb_stats_poll(struct file *file, poll_table *wait)
+static __poll_t smsdvb_stats_poll(struct file *file, poll_table *wait)
 {
 	struct smsdvb_debugfs *debug_data = file->private_data;
 	int rc;
@@ -384,12 +384,9 @@ static unsigned int smsdvb_stats_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &debug_data->stats_queue, wait);
 
 	rc = smsdvb_stats_wait_read(debug_data);
-	if (rc > 0)
-		rc = POLLIN | POLLRDNORM;
-
 	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
 
-	return rc;
+	return rc > 0 ? POLLIN | POLLRDNORM : 0;
 }
 
 static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,

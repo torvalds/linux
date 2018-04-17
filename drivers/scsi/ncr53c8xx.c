@@ -8093,9 +8093,9 @@ irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
      return IRQ_HANDLED;
 }
 
-static void ncr53c8xx_timeout(unsigned long npref)
+static void ncr53c8xx_timeout(struct timer_list *t)
 {
-	struct ncb *np = (struct ncb *) npref;
+	struct ncb *np = from_timer(np, t, timer);
 	unsigned long flags;
 	struct scsi_cmnd *done_list;
 
@@ -8357,9 +8357,7 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	if (!np->scripth0)
 		goto attach_error;
 
-	init_timer(&np->timer);
-	np->timer.data     = (unsigned long) np;
-	np->timer.function = ncr53c8xx_timeout;
+	timer_setup(&np->timer, ncr53c8xx_timeout, 0);
 
 	/* Try to map the controller chip to virtual and physical memory. */
 

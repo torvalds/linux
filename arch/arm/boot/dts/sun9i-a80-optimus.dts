@@ -62,11 +62,8 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_optimus>, <&led_r_pins_optimus>;
 
 		/* The LED names match those found on the board */
-
 		led2 {
 			label = "optimus:led2:usr";
 			gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>;
@@ -86,8 +83,6 @@
 	reg_usb1_vbus: usb1-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-0 = <&usb1_vbus_pin_optimus>;
-		regulator-name = "usb1-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -97,15 +92,13 @@
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-0 = <&usb3_vbus_pin_optimus>;
-		regulator-name = "usb3-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&ac100_rtc 1>;
 		clock-names = "ext_clock";
@@ -129,7 +122,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>, <&mmc0_cd_pin_optimus>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 18 GPIO_ACTIVE_HIGH>; /* PH8 */
@@ -139,7 +132,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>, <&wifi_en_pin_optimus>;
+	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	vqmmc-supply = <&reg_cldo3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
@@ -180,43 +173,8 @@
 	clocks = <&ac100_rtc 0>;
 };
 
-&pio {
-	led_pins_optimus: led-pins@0 {
-		pins = "PH0", "PH1";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_optimus: mmc0_cd_pin@0 {
-		pins = "PH18";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb1_vbus_pin_optimus: usb1_vbus_pin@1 {
-		pins = "PH4";
-		function = "gpio_out";
-	};
-
-	usb3_vbus_pin_optimus: usb3_vbus_pin@1 {
-		pins = "PH5";
-		function = "gpio_out";
-	};
-};
-
 &r_ir {
 	status = "okay";
-};
-
-&r_pio {
-	led_r_pins_optimus: led-pins@1 {
-		pins = "PM15";
-		function = "gpio_out";
-	};
-
-	wifi_en_pin_optimus: wifi_en_pin@0 {
-		pins = "PL2";
-		function = "gpio_out";
-	};
 };
 
 &r_rsb {
@@ -492,7 +450,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

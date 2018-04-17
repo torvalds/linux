@@ -80,9 +80,9 @@ static void mpc8xxx_wdt_keepalive(struct mpc8xxx_wdt_ddata *ddata)
 	spin_unlock(&ddata->lock);
 }
 
-static void mpc8xxx_wdt_timer_ping(unsigned long arg)
+static void mpc8xxx_wdt_timer_ping(struct timer_list *t)
 {
-	struct mpc8xxx_wdt_ddata *ddata = (void *)arg;
+	struct mpc8xxx_wdt_ddata *ddata = from_timer(ddata, t, timer);
 
 	mpc8xxx_wdt_keepalive(ddata);
 	/* We're pinging it twice faster than needed, just to be sure. */
@@ -173,8 +173,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	}
 
 	spin_lock_init(&ddata->lock);
-	setup_timer(&ddata->timer, mpc8xxx_wdt_timer_ping,
-		    (unsigned long)ddata);
+	timer_setup(&ddata->timer, mpc8xxx_wdt_timer_ping, 0);
 
 	ddata->wdd.info = &mpc8xxx_wdt_info,
 	ddata->wdd.ops = &mpc8xxx_wdt_ops,

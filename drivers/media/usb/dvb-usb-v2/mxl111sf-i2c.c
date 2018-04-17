@@ -516,7 +516,6 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 		   data required to program */
 		block_len = (msg->len / 8);
 		left_over_len = (msg->len % 8);
-		index = 0;
 
 		mxl_i2c("block_len %d, left_over_len %d",
 			block_len, left_over_len);

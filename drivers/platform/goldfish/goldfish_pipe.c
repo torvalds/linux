@@ -536,10 +536,10 @@ static ssize_t goldfish_pipe_write(struct file *filp,
 			/* is_write */ 1);
 }
 
-static unsigned int goldfish_pipe_poll(struct file *filp, poll_table *wait)
+static __poll_t goldfish_pipe_poll(struct file *filp, poll_table *wait)
 {
 	struct goldfish_pipe *pipe = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int status;
 
 	poll_wait(filp, &pipe->wake_queue, wait);

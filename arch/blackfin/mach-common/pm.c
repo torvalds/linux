@@ -15,12 +15,12 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 
 #include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/dpmc.h>
 #include <asm/pm.h>
+#include <asm/gpio.h>
 
 #ifdef CONFIG_BF60x
 struct bfin_cpu_pm_fns *bfin_cpu_pm;

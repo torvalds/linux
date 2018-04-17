@@ -15,7 +15,7 @@ Optional properties:
 - brcm,use-bcm-hdr:  present if a BCM header precedes each frame.
 
 Example:
-	pdc0: iproc-pdc0@0x612c0000 {
+	pdc0: iproc-pdc0@612c0000 {
 		compatible = "brcm,iproc-pdc-mbox";
 		reg = <0 0x612c0000 0 0x445>;  /* PDC FS0 regs */
 		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;

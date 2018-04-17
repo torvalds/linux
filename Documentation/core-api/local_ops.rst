@@ -177,18 +177,14 @@ Here is a sample module which implements a basic per cpu counter using
                     printk("Read : CPU %d, count %ld\n", cpu,
                             local_read(&per_cpu(counters, cpu)));
             }
-            del_timer(&test_timer);
-            test_timer.expires = jiffies + 1000;
-            add_timer(&test_timer);
+            mod_timer(&test_timer, jiffies + 1000);
     }
 
     static int __init test_init(void)
     {
             /* initialize the timer that will increment the counter */
-            init_timer(&test_timer);
-            test_timer.function = do_test_timer;
-            test_timer.expires = jiffies + 1;
-            add_timer(&test_timer);
+            timer_setup(&test_timer, do_test_timer, 0);
+            mod_timer(&test_timer, jiffies + 1);
 
             return 0;
     }

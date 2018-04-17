@@ -74,11 +74,11 @@ static ssize_t um_idi_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *offset);
 static ssize_t um_idi_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offset);
-static unsigned int um_idi_poll(struct file *file, poll_table *wait);
+static __poll_t um_idi_poll(struct file *file, poll_table *wait);
 static int um_idi_open(struct inode *inode, struct file *file);
 static int um_idi_release(struct inode *inode, struct file *file);
 static int remove_entity(void *entity);
-static void diva_um_timer_function(unsigned long data);
+static void diva_um_timer_function(struct timer_list *t);
 
 /*
  * proc entry
@@ -300,8 +300,7 @@ static int um_idi_open_adapter(struct file *file, int adapter_nr)
 	p_os = (diva_um_idi_os_context_t *) diva_um_id_get_os_context(e);
 	init_waitqueue_head(&p_os->read_wait);
 	init_waitqueue_head(&p_os->close_wait);
-	setup_timer(&p_os->diva_timer_id, (void *)diva_um_timer_function,
-		    (unsigned long)p_os);
+	timer_setup(&p_os->diva_timer_id, diva_um_timer_function, 0);
 	p_os->aborted = 0;
 	p_os->adapter_nr = adapter_nr;
 	return (1);
@@ -366,7 +365,7 @@ um_idi_write(struct file *file, const char __user *buf, size_t count,
 	return (ret);
 }
 
-static unsigned int um_idi_poll(struct file *file, poll_table *wait)
+static __poll_t um_idi_poll(struct file *file, poll_table *wait)
 {
 	diva_um_idi_os_context_t *p_os;
 
@@ -457,9 +456,9 @@ void diva_os_wakeup_close(void *os_context)
 }
 
 static
-void diva_um_timer_function(unsigned long data)
+void diva_um_timer_function(struct timer_list *t)
 {
-	diva_um_idi_os_context_t *p_os = (diva_um_idi_os_context_t *) data;
+	diva_um_idi_os_context_t *p_os = from_timer(p_os, t, diva_timer_id);
 
 	p_os->aborted = 1;
 	wake_up_interruptible(&p_os->read_wait);

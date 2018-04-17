@@ -194,8 +194,8 @@ static const struct dev_pm_ops tpiu_dev_pm_ops = {
 
 static const struct amba_id tpiu_ids[] = {
 	{
-		.id	= 0x0003b912,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb912,
+		.mask	= 0x000fffff,
 	},
 	{
 		.id	= 0x0004b912,

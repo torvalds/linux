@@ -828,7 +828,6 @@ EXPORT_SYMBOL(phy_stop);
  */
 void phy_start(struct phy_device *phydev)
 {
-	bool do_resume = false;
 	int err = 0;
 
 	mutex_lock(&phydev->lock);
@@ -841,6 +840,9 @@ void phy_start(struct phy_device *phydev)
 		phydev->state = PHY_UP;
 		break;
 	case PHY_HALTED:
+		/* if phy was suspended, bring the physical link up again */
+		phy_resume(phydev);
+
 		/* make sure interrupts are re-enabled for the PHY */
 		if (phydev->irq != PHY_POLL) {
 			err = phy_enable_interrupts(phydev);
@@ -849,16 +851,11 @@ void phy_start(struct phy_device *phydev)
 		}
 
 		phydev->state = PHY_RESUMING;
-		do_resume = true;
 		break;
 	default:
 		break;
 	}
 	mutex_unlock(&phydev->lock);
-
-	/* if phy was suspended, bring the physical link up again */
-	if (do_resume)
-		phy_resume(phydev);
 
 	phy_trigger_machine(phydev, true);
 }

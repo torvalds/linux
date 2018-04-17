@@ -58,6 +58,16 @@
 #define	V7M_SCB_CCSIDR		0x80	/* Cache size ID register */
 #define	V7M_SCB_CSSELR		0x84	/* Cache size selection register */
 
+/* Memory-mapped MPU registers for M-class */
+#define MPU_TYPE		0x90
+#define MPU_CTRL		0x94
+#define MPU_CTRL_ENABLE		1
+#define MPU_CTRL_PRIVDEFENA	(1 << 2)
+
+#define MPU_RNR			0x98
+#define MPU_RBAR		0x9c
+#define MPU_RASR		0xa0
+
 /* Cache opeartions */
 #define	V7M_SCB_ICIALLU		0x250	/* I-cache invalidate all to PoU */
 #define	V7M_SCB_ICIMVAU		0x258	/* I-cache invalidate by MVA to PoU */

@@ -37,9 +37,12 @@ static int regcache_flat_init(struct regmap *map)
 
 	cache = map->cache;
 
-	for (i = 0; i < map->num_reg_defaults; i++)
-		cache[regcache_flat_get_index(map, map->reg_defaults[i].reg)] =
-				map->reg_defaults[i].def;
+	for (i = 0; i < map->num_reg_defaults; i++) {
+		unsigned int reg = map->reg_defaults[i].reg;
+		unsigned int index = regcache_flat_get_index(map, reg);
+
+		cache[index] = map->reg_defaults[i].def;
+	}
 
 	return 0;
 }
@@ -56,8 +59,9 @@ static int regcache_flat_read(struct regmap *map,
 			      unsigned int reg, unsigned int *value)
 {
 	unsigned int *cache = map->cache;
+	unsigned int index = regcache_flat_get_index(map, reg);
 
-	*value = cache[regcache_flat_get_index(map, reg)];
+	*value = cache[index];
 
 	return 0;
 }
@@ -66,8 +70,9 @@ static int regcache_flat_write(struct regmap *map, unsigned int reg,
 			       unsigned int value)
 {
 	unsigned int *cache = map->cache;
+	unsigned int index = regcache_flat_get_index(map, reg);
 
-	cache[regcache_flat_get_index(map, reg)] = value;
+	cache[index] = value;
 
 	return 0;
 }

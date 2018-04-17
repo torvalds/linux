@@ -76,6 +76,9 @@ int main(void)
 	DEFINE(TASK_PID, offsetof (struct task_struct, pid));
 	DEFINE(TASK_THREAD, offsetof (struct task_struct, thread));
 	DEFINE(TASK_THREAD_INFO, offsetof (struct task_struct, stack));
+#ifdef CONFIG_CC_STACKPROTECTOR
+	DEFINE(TASK_STACK_CANARY, offsetof(struct task_struct, stack_canary));
+#endif
 	DEFINE(TASK_STRUCT_SIZE, sizeof (struct task_struct));
 
 	/* offsets in thread_info struct */
@@ -128,6 +131,19 @@ int main(void)
 	DEFINE(DT_ICOUNT_LEVEL_SAVE,
 	       offsetof(struct debug_table, icount_level_save));
 #endif
+
+	/* struct exc_table */
+	DEFINE(EXC_TABLE_KSTK, offsetof(struct exc_table, kstk));
+	DEFINE(EXC_TABLE_DOUBLE_SAVE, offsetof(struct exc_table, double_save));
+	DEFINE(EXC_TABLE_FIXUP, offsetof(struct exc_table, fixup));
+	DEFINE(EXC_TABLE_PARAM, offsetof(struct exc_table, fixup_param));
+	DEFINE(EXC_TABLE_SYSCALL_SAVE,
+	       offsetof(struct exc_table, syscall_save));
+	DEFINE(EXC_TABLE_FAST_USER,
+	       offsetof(struct exc_table, fast_user_handler));
+	DEFINE(EXC_TABLE_FAST_KERNEL,
+	       offsetof(struct exc_table, fast_kernel_handler));
+	DEFINE(EXC_TABLE_DEFAULT, offsetof(struct exc_table, default_handler));
 
 	return 0;
 }

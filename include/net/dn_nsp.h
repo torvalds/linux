@@ -17,7 +17,6 @@
 
 void dn_nsp_send_data_ack(struct sock *sk);
 void dn_nsp_send_oth_ack(struct sock *sk);
-void dn_nsp_delayed_ack(struct sock *sk);
 void dn_send_conn_ack(struct sock *sk);
 void dn_send_conn_conf(struct sock *sk, gfp_t gfp);
 void dn_nsp_send_disc(struct sock *sk, unsigned char type,

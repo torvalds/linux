@@ -963,8 +963,8 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 	spin_lock_bh(&csk->lock);
 
 	if (status == CPL_ERR_CONN_EXIST &&
-	    csk->retry_timer.function != (TIMER_FUNC_TYPE)csk_act_open_retry_timer) {
-		csk->retry_timer.function = (TIMER_FUNC_TYPE)csk_act_open_retry_timer;
+	    csk->retry_timer.function != csk_act_open_retry_timer) {
+		csk->retry_timer.function = csk_act_open_retry_timer;
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,

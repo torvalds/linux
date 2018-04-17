@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -166,7 +166,7 @@ static int32_t calculate_stride(
 	bool	raw_packed,
 	int32_t	align_in_bytes);
 
-/** end of Forwarded Declaration */
+/* end of Forwarded Declaration */
 
 /**************************************************
  *
@@ -292,7 +292,7 @@ ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
 	return rc;
 }
 
-/** end of Public Methods */
+/* end of Public Methods */
 
 /**************************************************
  *
@@ -894,5 +894,5 @@ static csi_mipi_packet_type_t get_csi_mipi_packet_type(
 
 	return packet_type;
 }
-/** end of Private Methods */
+/* end of Private Methods */
 #endif

@@ -108,10 +108,8 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 
 	/* allocate the mux */
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
-	if (!mux) {
-		pr_err("%s: could not allocate mux clk\n", __func__);
+	if (!mux)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;

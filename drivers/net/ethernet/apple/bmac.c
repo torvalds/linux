@@ -157,7 +157,7 @@ static irqreturn_t bmac_misc_intr(int irq, void *dev_id);
 static irqreturn_t bmac_txdma_intr(int irq, void *dev_id);
 static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id);
 static void bmac_set_timeout(struct net_device *dev);
-static void bmac_tx_timeout(unsigned long data);
+static void bmac_tx_timeout(struct timer_list *t);
 static int bmac_output(struct sk_buff *skb, struct net_device *dev);
 static void bmac_start(struct net_device *dev);
 
@@ -555,8 +555,6 @@ static inline void bmac_set_timeout(struct net_device *dev)
 	if (bp->timeout_active)
 		del_timer(&bp->tx_timeout);
 	bp->tx_timeout.expires = jiffies + TX_TIMEOUT;
-	bp->tx_timeout.function = bmac_tx_timeout;
-	bp->tx_timeout.data = (unsigned long) dev;
 	add_timer(&bp->tx_timeout);
 	bp->timeout_active = 1;
 	spin_unlock_irqrestore(&bp->lock, flags);
@@ -1321,7 +1319,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	bp->queue = (struct sk_buff_head *)(bp->rx_cmds + N_RX_RING + 1);
 	skb_queue_head_init(bp->queue);
 
-	init_timer(&bp->tx_timeout);
+	timer_setup(&bp->tx_timeout, bmac_tx_timeout, 0);
 
 	ret = request_irq(dev->irq, bmac_misc_intr, 0, "BMAC-misc", dev);
 	if (ret) {
@@ -1471,10 +1469,10 @@ bmac_output(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void bmac_tx_timeout(unsigned long data)
+static void bmac_tx_timeout(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct bmac_data *bp = netdev_priv(dev);
+	struct bmac_data *bp = from_timer(bp, t, tx_timeout);
+	struct net_device *dev = macio_get_drvdata(bp->mdev);
 	volatile struct dbdma_regs __iomem *td = bp->tx_dma;
 	volatile struct dbdma_regs __iomem *rd = bp->rx_dma;
 	volatile struct dbdma_cmd *cp;

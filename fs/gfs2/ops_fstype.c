@@ -1065,15 +1065,15 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sdp->sd_args = *args;
 
 	if (sdp->sd_args.ar_spectator) {
-                sb->s_flags |= MS_RDONLY;
+                sb->s_flags |= SB_RDONLY;
 		set_bit(SDF_RORECOVERY, &sdp->sd_flags);
 	}
 	if (sdp->sd_args.ar_posix_acl)
-		sb->s_flags |= MS_POSIXACL;
+		sb->s_flags |= SB_POSIXACL;
 	if (sdp->sd_args.ar_nobarrier)
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 
-	sb->s_flags |= MS_NOSEC;
+	sb->s_flags |= SB_NOSEC;
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_d_op = &gfs2_dops;
@@ -1257,7 +1257,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	struct gfs2_args args;
 	struct gfs2_sbd *sdp;
 
-	if (!(flags & MS_RDONLY))
+	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
 	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
@@ -1313,15 +1313,15 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 
 	if (s->s_root) {
 		error = -EBUSY;
-		if ((flags ^ s->s_flags) & MS_RDONLY)
+		if ((flags ^ s->s_flags) & SB_RDONLY)
 			goto error_super;
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		sb_set_blocksize(s, block_size(bdev));
-		error = fill_super(s, &args, flags & MS_SILENT ? 1 : 0);
+		error = fill_super(s, &args, flags & SB_SILENT ? 1 : 0);
 		if (error)
 			goto error_super;
-		s->s_flags |= MS_ACTIVE;
+		s->s_flags |= SB_ACTIVE;
 		bdev->bd_super = s;
 	}
 
@@ -1365,7 +1365,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		pr_warn("gfs2 mount does not exist\n");
 		return ERR_CAST(s);
 	}
-	if ((flags ^ s->s_flags) & MS_RDONLY) {
+	if ((flags ^ s->s_flags) & SB_RDONLY) {
 		deactivate_locked_super(s);
 		return ERR_PTR(-EBUSY);
 	}
@@ -1382,7 +1382,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 		return;
 	}
 
-	gfs2_log_flush(sdp, NULL, SYNC_FLUSH);
+	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SYNC | GFS2_LFC_KILL_SB);
 	dput(sdp->sd_root_dir);
 	dput(sdp->sd_master_dir);
 	sdp->sd_root_dir = NULL;

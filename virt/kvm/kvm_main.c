@@ -122,7 +122,6 @@ static void hardware_disable_all(void);
 
 static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
 
-static void kvm_release_pfn_dirty(kvm_pfn_t pfn);
 static void mark_page_dirty_in_slot(struct kvm_memory_slot *memslot, gfn_t gfn);
 
 __visible bool kvm_rebooting;
@@ -135,6 +134,11 @@ static bool largepages_enabled = true;
 static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
 static unsigned long long kvm_createvm_count;
 static unsigned long long kvm_active_vms;
+
+__weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+		unsigned long start, unsigned long end)
+{
+}
 
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 {
@@ -361,6 +365,9 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		kvm_flush_remote_tlbs(kvm);
 
 	spin_unlock(&kvm->mmu_lock);
+
+	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
+
 	srcu_read_unlock(&kvm->srcu, idx);
 }
 
@@ -1315,17 +1322,6 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
-static int get_user_page_nowait(unsigned long start, int write,
-		struct page **page)
-{
-	int flags = FOLL_NOWAIT | FOLL_HWPOISON;
-
-	if (write)
-		flags |= FOLL_WRITE;
-
-	return get_user_pages(start, 1, flags, page, NULL);
-}
-
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
@@ -1374,7 +1370,8 @@ static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
 static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 			   bool *writable, kvm_pfn_t *pfn)
 {
-	struct page *page[1];
+	unsigned int flags = FOLL_HWPOISON;
+	struct page *page;
 	int npages = 0;
 
 	might_sleep();
@@ -1382,35 +1379,26 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	if (writable)
 		*writable = write_fault;
 
-	if (async) {
-		down_read(&current->mm->mmap_sem);
-		npages = get_user_page_nowait(addr, write_fault, page);
-		up_read(&current->mm->mmap_sem);
-	} else {
-		unsigned int flags = FOLL_HWPOISON;
+	if (write_fault)
+		flags |= FOLL_WRITE;
+	if (async)
+		flags |= FOLL_NOWAIT;
 
-		if (write_fault)
-			flags |= FOLL_WRITE;
-
-		npages = get_user_pages_unlocked(addr, 1, page, flags);
-	}
+	npages = get_user_pages_unlocked(addr, 1, &page, flags);
 	if (npages != 1)
 		return npages;
 
 	/* map read fault as writable if possible */
 	if (unlikely(!write_fault) && writable) {
-		struct page *wpage[1];
+		struct page *wpage;
 
-		npages = __get_user_pages_fast(addr, 1, 1, wpage);
-		if (npages == 1) {
+		if (__get_user_pages_fast(addr, 1, 1, &wpage) == 1) {
 			*writable = true;
-			put_page(page[0]);
-			page[0] = wpage[0];
+			put_page(page);
+			page = wpage;
 		}
-
-		npages = 1;
 	}
-	*pfn = page_to_pfn(page[0]);
+	*pfn = page_to_pfn(page);
 	return npages;
 }
 
@@ -1679,11 +1667,12 @@ void kvm_release_page_dirty(struct page *page)
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
-static void kvm_release_pfn_dirty(kvm_pfn_t pfn)
+void kvm_release_pfn_dirty(kvm_pfn_t pfn)
 {
 	kvm_set_pfn_dirty(pfn);
 	kvm_release_pfn_clean(pfn);
 }
+EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
 
 void kvm_set_pfn_dirty(kvm_pfn_t pfn)
 {
@@ -2064,6 +2053,29 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn)
 	mark_page_dirty_in_slot(memslot, gfn);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
+
+void kvm_sigset_activate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	/*
+	 * This does a lockless modification of ->real_blocked, which is fine
+	 * because, only current can change ->real_blocked and all readers of
+	 * ->real_blocked don't care as long ->real_blocked is always a subset
+	 * of ->blocked.
+	 */
+	sigprocmask(SIG_SETMASK, &vcpu->sigset, &current->real_blocked);
+}
+
+void kvm_sigset_deactivate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	sigprocmask(SIG_SETMASK, &current->real_blocked, NULL);
+	sigemptyset(&current->real_blocked);
+}
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
@@ -2724,7 +2736,6 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 	case KVM_SET_SIGNAL_MASK: {
 		struct kvm_signal_mask __user *sigmask_arg = argp;
 		struct kvm_signal_mask kvm_sigmask;
-		compat_sigset_t csigset;
 		sigset_t sigset;
 
 		if (argp) {
@@ -2733,13 +2744,11 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 					   sizeof(kvm_sigmask)))
 				goto out;
 			r = -EINVAL;
-			if (kvm_sigmask.len != sizeof(csigset))
+			if (kvm_sigmask.len != sizeof(compat_sigset_t))
 				goto out;
 			r = -EFAULT;
-			if (copy_from_user(&csigset, sigmask_arg->sigset,
-					   sizeof(csigset)))
+			if (get_compat_sigset(&sigset, (void *)sigmask_arg->sigset))
 				goto out;
-			sigset_from_compat(&sigset, &csigset);
 			r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
 		} else
 			r = kvm_vcpu_ioctl_set_sigmask(vcpu, NULL);
@@ -4010,7 +4019,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	if (!vcpu_align)
 		vcpu_align = __alignof__(struct kvm_vcpu);
 	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
-					   0, NULL);
+					   SLAB_ACCOUNT, NULL);
 	if (!kvm_vcpu_cache) {
 		r = -ENOMEM;
 		goto out_free_3;

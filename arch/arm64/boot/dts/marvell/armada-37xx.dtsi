@@ -55,6 +55,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {
@@ -134,8 +135,24 @@
 
 			uart0: serial@12000 {
 				compatible = "marvell,armada-3700-uart";
-				reg = <0x12000 0x400>;
-				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x12000 0x200>;
+				clocks = <&xtalclk>;
+				interrupts =
+				<GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "uart-sum", "uart-tx", "uart-rx";
+				status = "disabled";
+			};
+
+			uart1: serial@12200 {
+				compatible = "marvell,armada-3700-uart-ext";
+				reg = <0x12200 0x30>;
+				clocks = <&xtalclk>;
+				interrupts =
+				<GIC_SPI 30 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "uart-tx", "uart-rx";
 				status = "disabled";
 			};
 
@@ -183,7 +200,6 @@
 					<GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
-
 				};
 
 				xtalclk: xtal-clk {

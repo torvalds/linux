@@ -967,7 +967,8 @@ sdev_show_wwid(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(wwid, S_IRUGO, sdev_show_wwid, NULL);
 
-#define BLIST_FLAG_NAME(name) [ilog2(BLIST_##name)] = #name
+#define BLIST_FLAG_NAME(name)					\
+	[ilog2((__force unsigned int)BLIST_##name)] = #name
 static const char *const sdev_bflags_name[] = {
 #include "scsi_devinfo_tbl.c"
 };
@@ -984,7 +985,7 @@ sdev_show_blacklist(struct device *dev, struct device_attribute *attr,
 	for (i = 0; i < sizeof(sdev->sdev_bflags) * BITS_PER_BYTE; i++) {
 		const char *name = NULL;
 
-		if (!(sdev->sdev_bflags & BIT(i)))
+		if (!(sdev->sdev_bflags & (__force blist_flags_t)BIT(i)))
 			continue;
 		if (i < ARRAY_SIZE(sdev_bflags_name) && sdev_bflags_name[i])
 			name = sdev_bflags_name[i];
@@ -1277,7 +1278,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	if (error) {
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add device: %d\n", error);
-		scsi_dh_remove_device(sdev);
 		return error;
 	}
 
@@ -1286,7 +1286,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	if (error) {
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add class device: %d\n", error);
-		scsi_dh_remove_device(sdev);
 		device_del(&sdev->sdev_gendev);
 		return error;
 	}
@@ -1353,7 +1352,6 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		bsg_unregister_queue(sdev->request_queue);
 		device_unregister(&sdev->sdev_dev);
 		transport_remove_device(dev);
-		scsi_dh_remove_device(sdev);
 		device_del(dev);
 	} else
 		put_device(&sdev->sdev_dev);
@@ -1414,7 +1412,10 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		 * check.
 		 */
 		if (sdev->channel != starget->channel ||
-		    sdev->id != starget->id ||
+		    sdev->id != starget->id)
+			continue;
+		if (sdev->sdev_state == SDEV_DEL ||
+		    sdev->sdev_state == SDEV_CANCEL ||
 		    !get_device(&sdev->sdev_gendev))
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);

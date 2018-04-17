@@ -49,83 +49,6 @@
  * File system operations
  */
 
-int
-xfs_fs_geometry(
-	xfs_mount_t		*mp,
-	xfs_fsop_geom_t		*geo,
-	int			new_version)
-{
-
-	memset(geo, 0, sizeof(*geo));
-
-	geo->blocksize = mp->m_sb.sb_blocksize;
-	geo->rtextsize = mp->m_sb.sb_rextsize;
-	geo->agblocks = mp->m_sb.sb_agblocks;
-	geo->agcount = mp->m_sb.sb_agcount;
-	geo->logblocks = mp->m_sb.sb_logblocks;
-	geo->sectsize = mp->m_sb.sb_sectsize;
-	geo->inodesize = mp->m_sb.sb_inodesize;
-	geo->imaxpct = mp->m_sb.sb_imax_pct;
-	geo->datablocks = mp->m_sb.sb_dblocks;
-	geo->rtblocks = mp->m_sb.sb_rblocks;
-	geo->rtextents = mp->m_sb.sb_rextents;
-	geo->logstart = mp->m_sb.sb_logstart;
-	ASSERT(sizeof(geo->uuid)==sizeof(mp->m_sb.sb_uuid));
-	memcpy(geo->uuid, &mp->m_sb.sb_uuid, sizeof(mp->m_sb.sb_uuid));
-	if (new_version >= 2) {
-		geo->sunit = mp->m_sb.sb_unit;
-		geo->swidth = mp->m_sb.sb_width;
-	}
-	if (new_version >= 3) {
-		geo->version = XFS_FSOP_GEOM_VERSION;
-		geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
-			     XFS_FSOP_GEOM_FLAGS_DIRV2 |
-			(xfs_sb_version_hasattr(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_ATTR : 0) |
-			(xfs_sb_version_hasquota(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_QUOTA : 0) |
-			(xfs_sb_version_hasalign(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_IALIGN : 0) |
-			(xfs_sb_version_hasdalign(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DALIGN : 0) |
-			(xfs_sb_version_hasextflgbit(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_EXTFLG : 0) |
-			(xfs_sb_version_hassector(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
-			(xfs_sb_version_hasasciici(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DIRV2CI : 0) |
-			(xfs_sb_version_haslazysbcount(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_LAZYSB : 0) |
-			(xfs_sb_version_hasattr2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_ATTR2 : 0) |
-			(xfs_sb_version_hasprojid32bit(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0) |
-			(xfs_sb_version_hascrc(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_V5SB : 0) |
-			(xfs_sb_version_hasftype(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FTYPE : 0) |
-			(xfs_sb_version_hasfinobt(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FINOBT : 0) |
-			(xfs_sb_version_hassparseinodes(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SPINODES : 0) |
-			(xfs_sb_version_hasrmapbt(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_RMAPBT : 0) |
-			(xfs_sb_version_hasreflink(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_REFLINK : 0);
-		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
-				mp->m_sb.sb_logsectsize : BBSIZE;
-		geo->rtsectsize = mp->m_sb.sb_blocksize;
-		geo->dirblocksize = mp->m_dir_geo->blksize;
-	}
-	if (new_version >= 4) {
-		geo->flags |=
-			(xfs_sb_version_haslogv2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_LOGV2 : 0);
-		geo->logsunit = mp->m_sb.sb_logsunit;
-	}
-	return 0;
-}
-
 static struct xfs_buf *
 xfs_growfs_get_hdr_buf(
 	struct xfs_mount	*mp,
@@ -571,6 +494,11 @@ xfs_growfs_data_private(
 		 * this doesn't actually exist in the rmap btree.
 		 */
 		xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
+		error = xfs_rmap_free(tp, bp, agno,
+				be32_to_cpu(agf->agf_length) - new,
+				new, &oinfo);
+		if (error)
+			goto error0;
 		error = xfs_free_extent(tp,
 				XFS_AGB_TO_FSB(mp, agno,
 					be32_to_cpu(agf->agf_length) - new),
@@ -950,7 +878,7 @@ xfs_do_force_shutdown(
 
 	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
 		xfs_notice(mp,
-	"%s(0x%x) called from line %d of file %s.  Return address = 0x%p",
+	"%s(0x%x) called from line %d of file %s.  Return address = "PTR_FMT,
 			__func__, flags, lnnum, fname, __return_address);
 	}
 	/*

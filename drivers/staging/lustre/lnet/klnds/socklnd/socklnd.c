@@ -487,21 +487,18 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 			      ksocknal_nid2peerlist(id.nid));
 	}
 
-	route2 = NULL;
 	list_for_each_entry(route2, &peer->ksnp_routes, ksnr_list) {
-		if (route2->ksnr_ipaddr == ipaddr)
-			break;
-
-		route2 = NULL;
+		if (route2->ksnr_ipaddr == ipaddr) {
+			/* Route already exists, use the old one */
+			ksocknal_route_decref(route);
+			route2->ksnr_share_count++;
+			goto out;
+		}
 	}
-	if (!route2) {
-		ksocknal_add_route_locked(peer, route);
-		route->ksnr_share_count++;
-	} else {
-		ksocknal_route_decref(route);
-		route2->ksnr_share_count++;
-	}
-
+	/* Route doesn't already exist, add the new one */
+	ksocknal_add_route_locked(peer, route);
+	route->ksnr_share_count++;
+out:
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
 	return 0;
@@ -1683,10 +1680,10 @@ ksocknal_destroy_conn(struct ksock_conn *conn)
 	case SOCKNAL_RX_LNET_PAYLOAD:
 		last_rcv = conn->ksnc_rx_deadline -
 			   cfs_time_seconds(*ksocknal_tunables.ksnd_timeout);
-		CERROR("Completing partial receive from %s[%d], ip %pI4h:%d, with error, wanted: %d, left: %d, last alive is %ld secs ago\n",
+		CERROR("Completing partial receive from %s[%d], ip %pI4h:%d, with error, wanted: %zd, left: %d, last alive is %ld secs ago\n",
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
 		       &conn->ksnc_ipaddr, conn->ksnc_port,
-		       conn->ksnc_rx_nob_wanted, conn->ksnc_rx_nob_left,
+		       iov_iter_count(&conn->ksnc_rx_to), conn->ksnc_rx_nob_left,
 		       cfs_duration_sec(cfs_time_sub(cfs_time_current(),
 						     last_rcv)));
 		lnet_finalize(conn->ksnc_peer->ksnp_ni,

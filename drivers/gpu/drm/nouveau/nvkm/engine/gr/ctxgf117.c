@@ -187,9 +187,8 @@ gf117_grctx_generate_attrib(struct gf100_grctx *info)
 	const u32  alpha = grctx->alpha_nr;
 	const u32   beta = grctx->attrib_nr;
 	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
-	const u32 access = NV_MEM_ACCESS_RW;
 	const int s = 12;
-	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), access);
+	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), false);
 	const int timeslice_mode = 1;
 	const int max_batches = 0xffff;
 	u32 bo = 0;

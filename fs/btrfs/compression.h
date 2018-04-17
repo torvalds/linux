@@ -34,6 +34,8 @@
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
+#define	BTRFS_ZLIB_DEFAULT_LEVEL		3
+
 struct compressed_bio {
 	/* number of bios pending for this compressed extent */
 	refcount_t pending_bios;
@@ -73,7 +75,7 @@ struct compressed_bio {
 	u32 sums;
 };
 
-void btrfs_init_compress(void);
+void __init btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
 int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
@@ -91,7 +93,8 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
-				  unsigned long nr_pages);
+				  unsigned long nr_pages,
+				  unsigned int write_flags);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
@@ -133,6 +136,8 @@ struct btrfs_compress_op {
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
+
+const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

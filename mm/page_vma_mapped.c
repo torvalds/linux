@@ -30,10 +30,37 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
 	return true;
 }
 
+static inline bool pfn_in_hpage(struct page *hpage, unsigned long pfn)
+{
+	unsigned long hpage_pfn = page_to_pfn(hpage);
+
+	/* THP can be referenced by any subpage */
+	return pfn >= hpage_pfn && pfn - hpage_pfn < hpage_nr_pages(hpage);
+}
+
+/**
+ * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
+ *
+ * page_vma_mapped_walk() found a place where @pvmw->page is *potentially*
+ * mapped. check_pte() has to validate this.
+ *
+ * @pvmw->pte may point to empty PTE, swap PTE or PTE pointing to arbitrary
+ * page.
+ *
+ * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
+ * entry that points to @pvmw->page or any subpage in case of THP.
+ *
+ * If PVMW_MIGRATION flag is not set, returns true if @pvmw->pte points to
+ * @pvmw->page or any subpage in case of THP.
+ *
+ * Otherwise, return false.
+ *
+ */
 static bool check_pte(struct page_vma_mapped_walk *pvmw)
 {
+	unsigned long pfn;
+
 	if (pvmw->flags & PVMW_MIGRATION) {
-#ifdef CONFIG_MIGRATION
 		swp_entry_t entry;
 		if (!is_swap_pte(*pvmw->pte))
 			return false;
@@ -41,38 +68,25 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
 
 		if (!is_migration_entry(entry))
 			return false;
-		if (migration_entry_to_page(entry) - pvmw->page >=
-				hpage_nr_pages(pvmw->page)) {
+
+		pfn = migration_entry_to_pfn(entry);
+	} else if (is_swap_pte(*pvmw->pte)) {
+		swp_entry_t entry;
+
+		/* Handle un-addressable ZONE_DEVICE memory */
+		entry = pte_to_swp_entry(*pvmw->pte);
+		if (!is_device_private_entry(entry))
 			return false;
-		}
-		if (migration_entry_to_page(entry) < pvmw->page)
-			return false;
-#else
-		WARN_ON_ONCE(1);
-#endif
+
+		pfn = device_private_entry_to_pfn(entry);
 	} else {
-		if (is_swap_pte(*pvmw->pte)) {
-			swp_entry_t entry;
-
-			entry = pte_to_swp_entry(*pvmw->pte);
-			if (is_device_private_entry(entry) &&
-			    device_private_entry_to_page(entry) == pvmw->page)
-				return true;
-		}
-
 		if (!pte_present(*pvmw->pte))
 			return false;
 
-		/* THP can be referenced by any subpage */
-		if (pte_page(*pvmw->pte) - pvmw->page >=
-				hpage_nr_pages(pvmw->page)) {
-			return false;
-		}
-		if (pte_page(*pvmw->pte) < pvmw->page)
-			return false;
+		pfn = pte_pfn(*pvmw->pte);
 	}
 
-	return true;
+	return pfn_in_hpage(pvmw->page, pfn);
 }
 
 /**

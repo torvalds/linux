@@ -699,11 +699,12 @@ static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
-	siginfo_t info = {
-		.si_signo = SIGFPE,
-		.si_code = FPE_INTOVF,
-		.si_addr = (void __user *)regs->cp0_epc,
-	};
+	siginfo_t info;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGFPE;
+	info.si_code = FPE_INTOVF;
+	info.si_addr = (void __user *)regs->cp0_epc;
 
 	prev_state = exception_enter();
 	die_if_kernel("Integer overflow", regs);
@@ -721,7 +722,11 @@ asmlinkage void do_ov(struct pt_regs *regs)
 void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 		     struct task_struct *tsk)
 {
-	struct siginfo si = { .si_addr = fault_addr, .si_signo = SIGFPE };
+	struct siginfo si;
+
+	clear_siginfo(&si);
+	si.si_addr = fault_addr;
+	si.si_signo = SIGFPE;
 
 	if (fcr31 & FPU_CSR_INV_X)
 		si.si_code = FPE_FLTINV;
@@ -739,9 +744,10 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
-	struct siginfo si = { 0 };
+	struct siginfo si;
 	struct vm_area_struct *vma;
 
+	clear_siginfo(&si);
 	switch (sig) {
 	case 0:
 		return 0;
@@ -890,9 +896,10 @@ out:
 void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 	const char *str)
 {
-	siginfo_t info = { 0 };
+	siginfo_t info;
 	char b[40];
 
+	clear_siginfo(&info);
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_TRAP, str, regs, code, current->thread.trap_nr,
 			 SIGTRAP) == NOTIFY_STOP)
@@ -1233,18 +1240,6 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static int wait_on_fp_mode_switch(atomic_t *p)
-{
-	/*
-	 * The FP mode for this task is currently being switched. That may
-	 * involve modifications to the format of this tasks FP context which
-	 * make it unsafe to proceed with execution for the moment. Instead,
-	 * schedule some other task.
-	 */
-	schedule();
-	return 0;
-}
-
 static int enable_restore_fp_context(int msa)
 {
 	int err, was_fpu_owner, prior_msa;
@@ -1254,7 +1249,7 @@ static int enable_restore_fp_context(int msa)
 	 * complete before proceeding.
 	 */
 	wait_on_atomic_t(&current->mm->context.fp_mode_switching,
-			 wait_on_fp_mode_switch, TASK_KILLABLE);
+			 atomic_t_wait, TASK_KILLABLE);
 
 	if (!used_math()) {
 		/* First time FP context user. */
@@ -1511,8 +1506,12 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
  */
 asmlinkage void do_watch(struct pt_regs *regs)
 {
-	siginfo_t info = { .si_signo = SIGTRAP, .si_code = TRAP_HWBKPT };
+	siginfo_t info;
 	enum ctx_state prev_state;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGTRAP;
+	info.si_code = TRAP_HWBKPT;
 
 	prev_state = exception_enter();
 	/*

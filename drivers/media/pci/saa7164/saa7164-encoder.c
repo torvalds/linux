@@ -909,13 +909,13 @@ err:
 	return ret;
 }
 
-static unsigned int fops_poll(struct file *file, poll_table *wait)
+static __poll_t fops_poll(struct file *file, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct saa7164_encoder_fh *fh =
 		(struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
-	unsigned int mask = v4l2_ctrl_poll(file, wait);
+	__poll_t mask = v4l2_ctrl_poll(file, wait);
 
 	port->last_poll_msecs_diff = port->last_poll_msecs;
 	port->last_poll_msecs = jiffies_to_msecs(jiffies);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "S/390 block device drivers"
 	depends on S390 && BLOCK
 

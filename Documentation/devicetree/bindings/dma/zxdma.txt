@@ -13,7 +13,7 @@ Required properties:
 Example:
 
 Controller:
-	dma: dma-controller@0x09c00000{
+	dma: dma-controller@09c00000{
 		compatible = "zte,zx296702-dma";
 		reg = <0x09c00000 0x1000>;
 		clocks = <&topclk ZX296702_DMA_ACLK>;

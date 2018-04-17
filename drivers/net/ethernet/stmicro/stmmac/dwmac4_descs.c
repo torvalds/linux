@@ -258,7 +258,8 @@ static int dwmac4_rx_check_timestamp(void *desc)
 	return ret;
 }
 
-static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
+static int dwmac4_wrback_get_rx_timestamp_status(void *desc, void *next_desc,
+						 u32 ats)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 	int ret = -EINVAL;
@@ -270,7 +271,7 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
 
 			/* Check if timestamp is OK from context descriptor */
 			do {
-				ret = dwmac4_rx_check_timestamp(desc);
+				ret = dwmac4_rx_check_timestamp(next_desc);
 				if (ret < 0)
 					goto exit;
 				i++;

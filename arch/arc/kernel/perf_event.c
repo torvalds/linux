@@ -336,15 +336,12 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (__test_and_set_bit(idx, pmu_cpu->used_mask)) {
-		idx = find_first_zero_bit(pmu_cpu->used_mask,
-					  arc_pmu->n_counters);
-		if (idx == arc_pmu->n_counters)
-			return -EAGAIN;
+	idx = ffz(pmu_cpu->used_mask[0]);
+	if (idx == arc_pmu->n_counters)
+		return -EAGAIN;
 
-		__set_bit(idx, pmu_cpu->used_mask);
-		hwc->idx = idx;
-	}
+	__set_bit(idx, pmu_cpu->used_mask);
+	hwc->idx = idx;
 
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
@@ -377,21 +374,22 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 	struct perf_sample_data data;
 	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
 	struct pt_regs *regs;
-	int active_ints;
+	unsigned int active_ints;
 	int idx;
 
 	arc_pmu_disable(&arc_pmu->pmu);
 
 	active_ints = read_aux_reg(ARC_REG_PCT_INT_ACT);
+	if (!active_ints)
+		goto done;
 
 	regs = get_irq_regs();
 
-	for (idx = 0; idx < arc_pmu->n_counters; idx++) {
-		struct perf_event *event = pmu_cpu->act_counter[idx];
+	do {
+		struct perf_event *event;
 		struct hw_perf_event *hwc;
 
-		if (!(active_ints & (1 << idx)))
-			continue;
+		idx = __ffs(active_ints);
 
 		/* Reset interrupt flag by writing of 1 */
 		write_aux_reg(ARC_REG_PCT_INT_ACT, 1 << idx);
@@ -404,19 +402,22 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
 			read_aux_reg(ARC_REG_PCT_INT_CTRL) | (1 << idx));
 
+		event = pmu_cpu->act_counter[idx];
 		hwc = &event->hw;
 
 		WARN_ON_ONCE(hwc->idx != idx);
 
 		arc_perf_event_update(event, &event->hw, event->hw.idx);
 		perf_sample_data_init(&data, 0, hwc->last_period);
-		if (!arc_pmu_event_set_period(event))
-			continue;
+		if (arc_pmu_event_set_period(event)) {
+			if (perf_event_overflow(event, &data, regs))
+				arc_pmu_stop(event, 0);
+		}
 
-		if (perf_event_overflow(event, &data, regs))
-			arc_pmu_stop(event, 0);
-	}
+		active_ints &= ~(1U << idx);
+	} while (active_ints);
 
+done:
 	arc_pmu_enable(&arc_pmu->pmu);
 
 	return IRQ_HANDLED;
@@ -461,6 +462,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		pr_err("This core does not have performance counters!\n");
 		return -ENODEV;
 	}
+	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
 	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);

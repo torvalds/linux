@@ -314,7 +314,7 @@ struct drm_crtc_helper_funcs {
 	 * implementation in drm_atomic_helper_check().
 	 *
 	 * When using drm_atomic_helper_check_planes() this hook is called
-	 * after the &drm_plane_helper_funcs.atomc_check hook for planes, which
+	 * after the &drm_plane_helper_funcs.atomic_check hook for planes, which
 	 * allows drivers to assign shared resources requested by planes in this
 	 * callback here. For more complicated dependencies the driver can call
 	 * the provided check helpers multiple times until the computed state

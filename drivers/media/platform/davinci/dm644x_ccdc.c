@@ -776,7 +776,7 @@ static void ccdc_restore_context(void)
 	regw(ccdc_ctx[CCDC_VP_OUT >> 2], CCDC_VP_OUT);
 	regw(ccdc_ctx[CCDC_PCR >> 2], CCDC_PCR);
 }
-static struct ccdc_hw_device ccdc_hw_dev = {
+static const struct ccdc_hw_device ccdc_hw_dev = {
 	.name = "DM6446 CCDC",
 	.owner = THIS_MODULE,
 	.hw_ops = {

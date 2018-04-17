@@ -26,14 +26,14 @@ do_reset() {
 fail() { # mesg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 do_reset
 
 FILTER=set_ftrace_filter
 FUNC1="schedule"
-FUNC2="do_IRQ"
+FUNC2="do_softirq"
 
 ALL_FUNCS="#### all functions enabled ####"
 

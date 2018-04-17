@@ -62,7 +62,7 @@ static void hclge_free_cmd_desc(struct hclge_cmq_ring *ring)
 	ring->desc = NULL;
 }
 
-static int hclge_init_cmd_queue(struct hclge_dev *hdev, int ring_type)
+static int hclge_alloc_cmd_queue(struct hclge_dev *hdev, int ring_type)
 {
 	struct hclge_hw *hw = &hdev->hw;
 	struct hclge_cmq_ring *ring =
@@ -79,10 +79,16 @@ static int hclge_init_cmd_queue(struct hclge_dev *hdev, int ring_type)
 		return ret;
 	}
 
-	ring->next_to_clean = 0;
-	ring->next_to_use = 0;
-
 	return 0;
+}
+
+void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read)
+{
+	desc->flag = cpu_to_le16(HCLGE_CMD_FLAG_NO_INTR | HCLGE_CMD_FLAG_IN);
+	if (is_read)
+		desc->flag |= cpu_to_le16(HCLGE_CMD_FLAG_WR);
+	else
+		desc->flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
 }
 
 void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
@@ -208,7 +214,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 * which will be use for hardware to write back
 	 */
 	ntc = hw->cmq.csq.next_to_use;
-	opcode = desc[0].opcode;
+	opcode = le16_to_cpu(desc[0].opcode);
 	while (handle < num) {
 		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
 		*desc_to_use = desc[handle];
@@ -225,7 +231,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 * If the command is sync, wait for the firmware to write back,
 	 * if multi descriptors to be sent, use the first one to check
 	 */
-	if (HCLGE_SEND_SYNC(desc->flag)) {
+	if (HCLGE_SEND_SYNC(le16_to_cpu(desc->flag))) {
 		do {
 			if (hclge_cmd_csq_done(hw))
 				break;
@@ -244,9 +250,9 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 			pr_debug("Get cmd desc:\n");
 
 			if (likely(!hclge_is_special_opcode(opcode)))
-				desc_ret = desc[handle].retval;
+				desc_ret = le16_to_cpu(desc[handle].retval);
 			else
-				desc_ret = desc[0].retval;
+				desc_ret = le16_to_cpu(desc[0].retval);
 
 			if ((enum hclge_cmd_return_status)desc_ret ==
 			    HCLGE_CMD_EXEC_SUCCESS)
@@ -276,15 +282,15 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	return retval;
 }
 
-enum hclge_cmd_status hclge_cmd_query_firmware_version(struct hclge_hw *hw,
-						       u32 *version)
+static enum hclge_cmd_status hclge_cmd_query_firmware_version(
+		struct hclge_hw *hw, u32 *version)
 {
-	struct hclge_query_version *resp;
+	struct hclge_query_version_cmd *resp;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FW_VER, 1);
-	resp = (struct hclge_query_version *)desc.data;
+	resp = (struct hclge_query_version_cmd *)desc.data;
 
 	ret = hclge_cmd_send(hw, &desc, 1);
 	if (!ret)
@@ -293,36 +299,51 @@ enum hclge_cmd_status hclge_cmd_query_firmware_version(struct hclge_hw *hw,
 	return ret;
 }
 
-int hclge_cmd_init(struct hclge_dev *hdev)
+int hclge_cmd_queue_init(struct hclge_dev *hdev)
 {
-	u32 version;
 	int ret;
 
 	/* Setup the queue entries for use cmd queue */
 	hdev->hw.cmq.csq.desc_num = HCLGE_NIC_CMQ_DESC_NUM;
 	hdev->hw.cmq.crq.desc_num = HCLGE_NIC_CMQ_DESC_NUM;
 
-	/* Setup the lock for command queue */
-	spin_lock_init(&hdev->hw.cmq.csq.lock);
-	spin_lock_init(&hdev->hw.cmq.crq.lock);
-
 	/* Setup Tx write back timeout */
 	hdev->hw.cmq.tx_timeout = HCLGE_CMDQ_TX_TIMEOUT;
 
 	/* Setup queue rings */
-	ret = hclge_init_cmd_queue(hdev, HCLGE_TYPE_CSQ);
+	ret = hclge_alloc_cmd_queue(hdev, HCLGE_TYPE_CSQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"CSQ ring setup error %d\n", ret);
 		return ret;
 	}
 
-	ret = hclge_init_cmd_queue(hdev, HCLGE_TYPE_CRQ);
+	ret = hclge_alloc_cmd_queue(hdev, HCLGE_TYPE_CRQ);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"CRQ ring setup error %d\n", ret);
 		goto err_csq;
 	}
+
+	return 0;
+err_csq:
+	hclge_free_cmd_desc(&hdev->hw.cmq.csq);
+	return ret;
+}
+
+int hclge_cmd_init(struct hclge_dev *hdev)
+{
+	u32 version;
+	int ret;
+
+	hdev->hw.cmq.csq.next_to_clean = 0;
+	hdev->hw.cmq.csq.next_to_use = 0;
+	hdev->hw.cmq.crq.next_to_clean = 0;
+	hdev->hw.cmq.crq.next_to_use = 0;
+
+	/* Setup the lock for command queue */
+	spin_lock_init(&hdev->hw.cmq.csq.lock);
+	spin_lock_init(&hdev->hw.cmq.crq.lock);
 
 	hclge_cmd_init_regs(&hdev->hw);
 
@@ -337,9 +358,6 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
 
 	return 0;
-err_csq:
-	hclge_free_cmd_desc(&hdev->hw.cmq.csq);
-	return ret;
 }
 
 static void hclge_destroy_queue(struct hclge_cmq_ring *ring)

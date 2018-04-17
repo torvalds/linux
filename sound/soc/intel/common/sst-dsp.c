@@ -269,7 +269,7 @@ int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
 	 */
 
 	timeout = jiffies + msecs_to_jiffies(time);
-	while (((sst_dsp_shim_read_unlocked(ctx, offset) & mask) != target)
+	while ((((reg = sst_dsp_shim_read_unlocked(ctx, offset)) & mask) != target)
 		&& time_before(jiffies, timeout)) {
 		k++;
 		if (k > 10)
@@ -277,8 +277,6 @@ int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
 
 		usleep_range(s, 2*s);
 	}
-
-	reg = sst_dsp_shim_read_unlocked(ctx, offset);
 
 	if ((reg & mask) == target) {
 		dev_dbg(ctx->dev, "FW Poll Status: reg=%#x %s successful\n",

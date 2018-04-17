@@ -44,7 +44,7 @@ extern int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 extern void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs);
 extern int mp_irqdomain_activate(struct irq_domain *domain,
-				 struct irq_data *irq_data, bool early);
+				 struct irq_data *irq_data, bool reserve);
 extern void mp_irqdomain_deactivate(struct irq_domain *domain,
 				    struct irq_data *irq_data);
 extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);
@@ -54,12 +54,6 @@ extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);
 extern void arch_init_msi_domain(struct irq_domain *domain);
 #else
 static inline void arch_init_msi_domain(struct irq_domain *domain) { }
-#endif
-
-#ifdef CONFIG_HT_IRQ
-extern void arch_init_htirq_domain(struct irq_domain *domain);
-#else
-static inline void arch_init_htirq_domain(struct irq_domain *domain) { }
 #endif
 
 #endif

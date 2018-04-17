@@ -475,7 +475,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_huge_page(pmd)	pte_huge(pmd_pte(pmd))
 #define pmd_mkhuge(pmd)		pte_pmd(pte_mkhuge(pmd_pte(pmd)))
-#define __HAVE_ARCH_PMD_WRITE
 
 #define pfn_pmd(pfn, pgprot)	pte_pmd(pfn_pte((pfn), (pgprot)))
 #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))

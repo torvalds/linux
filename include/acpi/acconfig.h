@@ -145,9 +145,9 @@
 
 #define ACPI_ADDRESS_RANGE_MAX          2
 
-/* Maximum number of While() loops before abort */
+/* Maximum time (default 30s) of While() loops before abort */
 
-#define ACPI_MAX_LOOP_COUNT             0x000FFFFF
+#define ACPI_MAX_LOOP_TIMEOUT           30
 
 /******************************************************************************
  *

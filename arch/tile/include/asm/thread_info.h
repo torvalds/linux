@@ -59,9 +59,6 @@ struct thread_info {
 	.align_ctl	= 0,			\
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
-
 #endif /* !__ASSEMBLY__ */
 
 #if PAGE_SIZE < 8192

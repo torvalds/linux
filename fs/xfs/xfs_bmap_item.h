@@ -93,6 +93,7 @@ struct xfs_bud_log_item *xfs_bud_init(struct xfs_mount *,
 		struct xfs_bui_log_item *);
 void xfs_bui_item_free(struct xfs_bui_log_item *);
 void xfs_bui_release(struct xfs_bui_log_item *);
-int xfs_bui_recover(struct xfs_mount *mp, struct xfs_bui_log_item *buip);
+int xfs_bui_recover(struct xfs_mount *mp, struct xfs_bui_log_item *buip,
+		struct xfs_defer_ops *dfops);
 
 #endif	/* __XFS_BMAP_ITEM_H__ */

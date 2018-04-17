@@ -44,7 +44,7 @@ libperf-y += machine.o
 libperf-y += map.o
 libperf-y += pstack.o
 libperf-y += session.o
-libperf-$(CONFIG_AUDIT) += syscalltbl.o
+libperf-$(CONFIG_TRACE) += syscalltbl.o
 libperf-y += ordered-events.o
 libperf-y += namespaces.o
 libperf-y += comm.o
@@ -86,6 +86,14 @@ libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
 libperf-$(CONFIG_AUXTRACE) += intel-pt.o
 libperf-$(CONFIG_AUXTRACE) += intel-bts.o
+libperf-$(CONFIG_AUXTRACE) += arm-spe.o
+libperf-$(CONFIG_AUXTRACE) += arm-spe-pkt-decoder.o
+
+ifdef CONFIG_LIBOPENCSD
+libperf-$(CONFIG_AUXTRACE) += cs-etm.o
+libperf-$(CONFIG_AUXTRACE) += cs-etm-decoder/
+endif
+
 libperf-y += parse-branch-options.o
 libperf-y += dump-insn.o
 libperf-y += parse-regs-options.o

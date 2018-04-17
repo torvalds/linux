@@ -2456,9 +2456,6 @@ struct radeon_device {
 	u64 vram_pin_size;
 	u64 gart_pin_size;
 
-	/* amdkfd interface */
-	struct kfd_dev		*kfd;
-
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
 };

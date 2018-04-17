@@ -45,6 +45,7 @@
 
 #include <asm/inst.h>
 #include <linux/linkage.h>
+#include <asm/nospec-branch.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
@@ -172,7 +173,7 @@ continue_block:
 	movzxw  (bufp, %rax, 2), len
 	lea	crc_array(%rip), bufp
 	lea     (bufp, len, 1), bufp
-	jmp     *bufp
+	JMP_NOSPEC bufp
 
 	################################################################
 	## 2a) PROCESS FULL BLOCKS:

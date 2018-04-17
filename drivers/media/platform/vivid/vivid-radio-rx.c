@@ -141,7 +141,7 @@ retry:
 	return i;
 }
 
-unsigned int vivid_radio_rx_poll(struct file *file, struct poll_table_struct *wait)
+__poll_t vivid_radio_rx_poll(struct file *file, struct poll_table_struct *wait)
 {
 	return POLLIN | POLLRDNORM | v4l2_ctrl_poll(file, wait);
 }

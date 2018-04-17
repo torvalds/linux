@@ -26,6 +26,7 @@
  * any later version.
  */
 
+#include <linux/dmi.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/input/mt.h>
@@ -115,6 +116,24 @@ static const struct asus_touchpad_info asus_t100ta_tp = {
 	.max_y = 1120,
 	.res_x = 30, /* units/mm */
 	.res_y = 27, /* units/mm */
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
+static const struct asus_touchpad_info asus_t100ha_tp = {
+	.max_x = 2640,
+	.max_y = 1320,
+	.res_x = 30, /* units/mm */
+	.res_y = 29, /* units/mm */
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
+static const struct asus_touchpad_info asus_t200ta_tp = {
+	.max_x = 3120,
+	.max_y = 1716,
+	.res_x = 30, /* units/mm */
+	.res_y = 28, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
 };
@@ -606,7 +625,17 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 		if (intf->altsetting->desc.bInterfaceNumber == T100_TPAD_INTF) {
 			drvdata->quirks = QUIRK_SKIP_INPUT_MAPPING;
-			drvdata->tp = &asus_t100ta_tp;
+			/*
+			 * The T100HA uses the same USB-ids as the T100TAF and
+			 * the T200TA uses the same USB-ids as the T100TA, while
+			 * both have different max x/y values as the T100TA[F].
+			 */
+			if (dmi_match(DMI_PRODUCT_NAME, "T100HAN"))
+				drvdata->tp = &asus_t100ha_tp;
+			else if (dmi_match(DMI_PRODUCT_NAME, "T200TA"))
+				drvdata->tp = &asus_t200ta_tp;
+			else
+				drvdata->tp = &asus_t100ta_tp;
 		}
 	}
 
@@ -686,9 +715,10 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
-	/* For the T100TA keyboard dock */
+	/* For the T100TA/T200TA keyboard dock */
 	if (drvdata->quirks & QUIRK_T100_KEYBOARD &&
-		 *rsize == 76 && rdesc[73] == 0x81 && rdesc[74] == 0x01) {
+		 (*rsize == 76 || *rsize == 101) &&
+		 rdesc[73] == 0x81 && rdesc[74] == 0x01) {
 		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
 		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
 	}
@@ -751,7 +781,10 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD3), QUIRK_G752_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
-		USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD),
+		USB_DEVICE_ID_ASUSTEK_T100TA_KEYBOARD),
+	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_T100TAF_KEYBOARD),
 	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },

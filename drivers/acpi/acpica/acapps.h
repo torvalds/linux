@@ -80,6 +80,9 @@
 	prefix, ACPICA_COPYRIGHT, \
 	prefix
 
+#define ACPI_COMMON_BUILD_TIME \
+	"Build date/time: %s %s\n", __DATE__, __TIME__
+
 /* Macros for usage messages */
 
 #define ACPI_USAGE_HEADER(usage) \

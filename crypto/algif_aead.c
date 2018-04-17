@@ -101,15 +101,21 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct aead_tfm *aeadc = pask->private;
 	struct crypto_aead *tfm = aeadc->aead;
 	struct crypto_skcipher *null_tfm = aeadc->null_tfm;
-	unsigned int as = crypto_aead_authsize(tfm);
+	unsigned int i, as = crypto_aead_authsize(tfm);
 	struct af_alg_async_req *areq;
-	struct af_alg_tsgl *tsgl;
-	struct scatterlist *src;
+	struct af_alg_tsgl *tsgl, *tmp;
+	struct scatterlist *rsgl_src, *tsgl_src = NULL;
 	int err = 0;
 	size_t used = 0;		/* [in]  TX bufs to be en/decrypted */
 	size_t outlen = 0;		/* [out] RX bufs produced by kernel */
 	size_t usedpages = 0;		/* [in]  RX bufs to be used from user */
 	size_t processed = 0;		/* [in]  TX bufs to be consumed */
+
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Data length provided by caller via sendmsg/sendpage that has not
@@ -178,7 +184,22 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	processed = used + ctx->aead_assoclen;
-	tsgl = list_first_entry(&ctx->tsgl_list, struct af_alg_tsgl, list);
+	list_for_each_entry_safe(tsgl, tmp, &ctx->tsgl_list, list) {
+		for (i = 0; i < tsgl->cur; i++) {
+			struct scatterlist *process_sg = tsgl->sg + i;
+
+			if (!(process_sg->length) || !sg_page(process_sg))
+				continue;
+			tsgl_src = process_sg;
+			break;
+		}
+		if (tsgl_src)
+			break;
+	}
+	if (processed && !tsgl_src) {
+		err = -EFAULT;
+		goto free;
+	}
 
 	/*
 	 * Copy of AAD from source to destination
@@ -194,7 +215,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 */
 
 	/* Use the RX SGL as source (and destination) for crypto op. */
-	src = areq->first_rsgl.sgl.sg;
+	rsgl_src = areq->first_rsgl.sgl.sg;
 
 	if (ctx->enc) {
 		/*
@@ -207,7 +228,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 *	    v	   v
 		 * RX SGL: AAD || PT || Tag
 		 */
-		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
 					   areq->first_rsgl.sgl.sg, processed);
 		if (err)
 			goto free;
@@ -225,7 +246,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 */
 
 		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
-		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
 					   areq->first_rsgl.sgl.sg, outlen);
 		if (err)
 			goto free;
@@ -257,23 +278,34 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				 areq->tsgl);
 		} else
 			/* no RX SGL present (e.g. authentication only) */
-			src = areq->tsgl;
+			rsgl_src = areq->tsgl;
 	}
 
 	/* Initialize the crypto operation */
-	aead_request_set_crypt(&areq->cra_u.aead_req, src,
+	aead_request_set_crypt(&areq->cra_u.aead_req, rsgl_src,
 			       areq->first_rsgl.sgl.sg, used, ctx->iv);
 	aead_request_set_ad(&areq->cra_u.aead_req, ctx->aead_assoclen);
 	aead_request_set_tfm(&areq->cra_u.aead_req, tfm);
 
 	if (msg->msg_iocb && !is_sync_kiocb(msg->msg_iocb)) {
 		/* AIO operation */
+		sock_hold(sk);
 		areq->iocb = msg->msg_iocb;
+
+		/* Remember output size that will be generated. */
+		areq->outlen = outlen;
+
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  af_alg_async_cb, areq);
 		err = ctx->enc ? crypto_aead_encrypt(&areq->cra_u.aead_req) :
 				 crypto_aead_decrypt(&areq->cra_u.aead_req);
+
+		/* AIO operation in progress */
+		if (err == -EINPROGRESS || err == -EBUSY)
+			return -EIOCBQUEUED;
+
+		sock_put(sk);
 	} else {
 		/* Synchronous operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
@@ -285,19 +317,9 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				&ctx->wait);
 	}
 
-	/* AIO operation in progress */
-	if (err == -EINPROGRESS) {
-		sock_hold(sk);
-
-		/* Remember output size that will be generated. */
-		areq->outlen = outlen;
-
-		return -EIOCBQUEUED;
-	}
 
 free:
-	af_alg_free_areq_sgls(areq);
-	sock_kfree_s(sk, areq, areq->areqlen);
+	af_alg_free_resources(areq);
 
 	return err ? err : outlen;
 }
@@ -487,6 +509,7 @@ static void aead_release(void *private)
 	struct aead_tfm *tfm = private;
 
 	crypto_free_aead(tfm->aead);
+	crypto_put_default_null_skcipher2();
 	kfree(tfm);
 }
 
@@ -519,7 +542,6 @@ static void aead_sock_destruct(struct sock *sk)
 	unsigned int ivlen = crypto_aead_ivsize(tfm);
 
 	af_alg_pull_tsgl(sk, ctx->used, NULL, 0);
-	crypto_put_default_null_skcipher2();
 	sock_kzfree_s(sk, ctx->iv, ivlen);
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
@@ -549,7 +571,7 @@ static int aead_accept_parent_nokey(void *private, struct sock *sk)
 	INIT_LIST_HEAD(&ctx->tsgl_list);
 	ctx->len = len;
 	ctx->used = 0;
-	ctx->rcvused = 0;
+	atomic_set(&ctx->rcvused, 0);
 	ctx->more = 0;
 	ctx->merge = 0;
 	ctx->enc = 0;

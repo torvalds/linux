@@ -107,30 +107,50 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
-/* Update the changed page order field of an rmap entry */
-void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize)
+/* Update the dirty bitmap of a memslot */
+void kvmppc_update_dirty_map(struct kvm_memory_slot *memslot,
+			     unsigned long gfn, unsigned long psize)
 {
-	unsigned long order;
+	unsigned long npages;
 
-	if (!psize)
+	if (!psize || !memslot->dirty_bitmap)
 		return;
-	order = ilog2(psize);
-	order <<= KVMPPC_RMAP_CHG_SHIFT;
-	if (order > (*rmap & KVMPPC_RMAP_CHG_ORDER))
-		*rmap = (*rmap & ~KVMPPC_RMAP_CHG_ORDER) | order;
+	npages = (psize + PAGE_SIZE - 1) / PAGE_SIZE;
+	gfn -= memslot->base_gfn;
+	set_dirty_bits_atomic(memslot->dirty_bitmap, gfn, npages);
 }
-EXPORT_SYMBOL_GPL(kvmppc_update_rmap_change);
+EXPORT_SYMBOL_GPL(kvmppc_update_dirty_map);
+
+static void kvmppc_set_dirty_from_hpte(struct kvm *kvm,
+				unsigned long hpte_v, unsigned long hpte_gr)
+{
+	struct kvm_memory_slot *memslot;
+	unsigned long gfn;
+	unsigned long psize;
+
+	psize = kvmppc_actual_pgsz(hpte_v, hpte_gr);
+	gfn = hpte_rpn(hpte_gr, psize);
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
+	if (memslot && memslot->dirty_bitmap)
+		kvmppc_update_dirty_map(memslot, gfn, psize);
+}
 
 /* Returns a pointer to the revmap entry for the page mapped by a HPTE */
 static unsigned long *revmap_for_hpte(struct kvm *kvm, unsigned long hpte_v,
-				      unsigned long hpte_gr)
+				      unsigned long hpte_gr,
+				      struct kvm_memory_slot **memslotp,
+				      unsigned long *gfnp)
 {
 	struct kvm_memory_slot *memslot;
 	unsigned long *rmap;
 	unsigned long gfn;
 
-	gfn = hpte_rpn(hpte_gr, hpte_page_size(hpte_v, hpte_gr));
+	gfn = hpte_rpn(hpte_gr, kvmppc_actual_pgsz(hpte_v, hpte_gr));
 	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
+	if (memslotp)
+		*memslotp = memslot;
+	if (gfnp)
+		*gfnp = gfn;
 	if (!memslot)
 		return NULL;
 
@@ -147,10 +167,12 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unsigned long ptel, head;
 	unsigned long *rmap;
 	unsigned long rcbits;
+	struct kvm_memory_slot *memslot;
+	unsigned long gfn;
 
 	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
 	ptel = rev->guest_rpte |= rcbits;
-	rmap = revmap_for_hpte(kvm, hpte_v, ptel);
+	rmap = revmap_for_hpte(kvm, hpte_v, ptel, &memslot, &gfn);
 	if (!rmap)
 		return;
 	lock_rmap(rmap);
@@ -169,7 +191,8 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	}
 	*rmap |= rcbits << KVMPPC_RMAP_RC_SHIFT;
 	if (rcbits & HPTE_R_C)
-		kvmppc_update_rmap_change(rmap, hpte_page_size(hpte_v, hpte_r));
+		kvmppc_update_dirty_map(memslot, gfn,
+					kvmppc_actual_pgsz(hpte_v, hpte_r));
 	unlock_rmap(rmap);
 }
 
@@ -193,7 +216,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	psize = hpte_page_size(pteh, ptel);
+	psize = kvmppc_actual_pgsz(pteh, ptel);
 	if (!psize)
 		return H_PARAMETER;
 	writing = hpte_is_writable(ptel);
@@ -797,7 +820,7 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 		gr |= r & (HPTE_R_R | HPTE_R_C);
 		if (r & HPTE_R_R) {
 			kvmppc_clear_ref_hpte(kvm, hpte, pte_index);
-			rmap = revmap_for_hpte(kvm, v, gr);
+			rmap = revmap_for_hpte(kvm, v, gr, NULL, NULL);
 			if (rmap) {
 				lock_rmap(rmap);
 				*rmap |= KVMPPC_RMAP_REFERENCED;
@@ -819,7 +842,6 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 	__be64 *hpte;
 	unsigned long v, r, gr;
 	struct revmap_entry *rev;
-	unsigned long *rmap;
 	long ret = H_NOT_FOUND;
 
 	if (kvm_is_radix(kvm))
@@ -848,16 +870,9 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 		r = be64_to_cpu(hpte[1]);
 		gr |= r & (HPTE_R_R | HPTE_R_C);
 		if (r & HPTE_R_C) {
-			unsigned long psize = hpte_page_size(v, r);
 			hpte[1] = cpu_to_be64(r & ~HPTE_R_C);
 			eieio();
-			rmap = revmap_for_hpte(kvm, v, gr);
-			if (rmap) {
-				lock_rmap(rmap);
-				*rmap |= KVMPPC_RMAP_CHANGED;
-				kvmppc_update_rmap_change(rmap, psize);
-				unlock_rmap(rmap);
-			}
+			kvmppc_set_dirty_from_hpte(kvm, v, gr);
 		}
 	}
 	vcpu->arch.gpr[4] = gr;
@@ -1014,7 +1029,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 			 * Check the HPTE again, including base page size
 			 */
 			if ((v & valid) && (v & mask) == val &&
-			    hpte_base_page_size(v, r) == (1ul << pshift))
+			    kvmppc_hpte_base_page_shift(v, r) == pshift)
 				/* Return with the HPTE still locked */
 				return (hash << 3) + (i >> 1);
 

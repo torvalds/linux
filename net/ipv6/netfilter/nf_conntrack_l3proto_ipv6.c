@@ -339,7 +339,7 @@ static void ipv6_hooks_unregister(struct net *net)
 	mutex_unlock(&register_ipv6_hooks);
 }
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
+const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.l3proto		= PF_INET6,
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,

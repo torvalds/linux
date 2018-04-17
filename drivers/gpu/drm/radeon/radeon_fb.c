@@ -245,7 +245,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = rfbdev;
-	info->skip_vt_switch = true;
 
 	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {
@@ -322,10 +321,10 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 	if (rfb->obj) {
 		radeonfb_destroy_pinned_object(rfb->obj);
 		rfb->obj = NULL;
+		drm_framebuffer_unregister_private(&rfb->base);
+		drm_framebuffer_cleanup(&rfb->base);
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
-	drm_framebuffer_unregister_private(&rfb->base);
-	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
 }

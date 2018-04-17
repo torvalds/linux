@@ -87,7 +87,7 @@ static void jfs_handle_error(struct super_block *sb)
 	else if (sbi->flag & JFS_ERR_REMOUNT_RO) {
 		jfs_err("ERROR: (device %s): remounting filesystem as read-only",
 			sb->s_id);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 
 	/* nothing is done for continue beyond marking the superblock dirty */
@@ -477,7 +477,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 			return rc;
 	}
 
-	if (sb_rdonly(sb) && !(*flags & MS_RDONLY)) {
+	if (sb_rdonly(sb) && !(*flags & SB_RDONLY)) {
 		/*
 		 * Invalidate any previously read metadata.  fsck may have
 		 * changed the on-disk data since we mounted r/o
@@ -488,12 +488,12 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		ret = jfs_mount_rw(sb, 1);
 
 		/* mark the fs r/w for quota activity */
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 
 		dquot_resume(sb, -1);
 		return ret;
 	}
-	if (!sb_rdonly(sb) && (*flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb) && (*flags & SB_RDONLY)) {
 		rc = dquot_suspend(sb, -1);
 		if (rc < 0)
 			return rc;
@@ -545,7 +545,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->flag = flag;
 
 #ifdef CONFIG_JFS_POSIX_ACL
-	sb->s_flags |= MS_POSIXACL;
+	sb->s_flags |= SB_POSIXACL;
 #endif
 
 	if (newLVSize) {

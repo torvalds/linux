@@ -115,6 +115,7 @@ gf104_gr_pack_mmio[] = {
 static const struct gf100_gr_func
 gf104_gr = {
 	.init = gf100_gr_init,
+	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.mmio = gf104_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

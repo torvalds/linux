@@ -40,6 +40,7 @@ struct bitmap_port {
 	u32 elements;		/* number of max elements in the set */
 	size_t memsize;		/* members size */
 	struct timer_list gc;	/* garbage collection */
+	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[0]	/* data extensions */
 		__aligned(__alignof__(u64));
 };
@@ -214,6 +215,7 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 	map->last_port = last_port;
 	set->timeout = IPSET_NO_TIMEOUT;
 
+	map->set = set;
 	set->data = map;
 	set->family = NFPROTO_UNSPEC;
 

@@ -151,6 +151,19 @@ struct drm_etnaviv_gem_submit_bo {
 	__u64 presumed;       /* in/out, presumed buffer address */
 };
 
+/* performance monitor request (pmr) */
+#define ETNA_PM_PROCESS_PRE             0x0001
+#define ETNA_PM_PROCESS_POST            0x0002
+struct drm_etnaviv_gem_submit_pmr {
+	__u32 flags;          /* in, when to process request (ETNA_PM_PROCESS_x) */
+	__u8  domain;         /* in, pm domain */
+	__u8  pad;
+	__u16 signal;         /* in, pm signal */
+	__u32 sequence;       /* in, sequence number */
+	__u32 read_offset;    /* in, offset from read_bo */
+	__u32 read_idx;       /* in, index of read_bo buffer */
+};
+
 /* Each cmdstream submit consists of a table of buffers involved, and
  * one or more cmdstream buffers.  This allows for conditional execution
  * (context-restore), and IB buffers needed for per tile/bin draw cmds.
@@ -176,6 +189,9 @@ struct drm_etnaviv_gem_submit {
 	__u64 stream;         /* in, ptr to cmdstream */
 	__u32 flags;          /* in, mask of ETNA_SUBMIT_x */
 	__s32 fence_fd;       /* in/out, fence fd (see ETNA_SUBMIT_FENCE_FD_x) */
+	__u64 pmrs;           /* in, ptr to array of submit_pmr's */
+	__u32 nr_pmrs;        /* in, number of submit_pmr's */
+	__u32 pad;
 };
 
 /* The normal way to synchronize with the GPU is just to CPU_PREP on
@@ -211,6 +227,27 @@ struct drm_etnaviv_gem_wait {
 	struct drm_etnaviv_timespec timeout;	/* in */
 };
 
+/*
+ * Performance Monitor (PM):
+ */
+
+struct drm_etnaviv_pm_domain {
+	__u32 pipe;       /* in */
+	__u8  iter;       /* in/out, select pm domain at index iter */
+	__u8  id;         /* out, id of domain */
+	__u16 nr_signals; /* out, how many signals does this domain provide */
+	char  name[64];   /* out, name of domain */
+};
+
+struct drm_etnaviv_pm_signal {
+	__u32 pipe;       /* in */
+	__u8  domain;     /* in, pm domain index */
+	__u8  pad;
+	__u16 iter;       /* in/out, select pm source at index iter */
+	__u16 id;         /* out, id of signal */
+	char  name[64];   /* out, name of domain */
+};
+
 #define DRM_ETNAVIV_GET_PARAM          0x00
 /* placeholder:
 #define DRM_ETNAVIV_SET_PARAM          0x01
@@ -223,7 +260,9 @@ struct drm_etnaviv_gem_wait {
 #define DRM_ETNAVIV_WAIT_FENCE         0x07
 #define DRM_ETNAVIV_GEM_USERPTR        0x08
 #define DRM_ETNAVIV_GEM_WAIT           0x09
-#define DRM_ETNAVIV_NUM_IOCTLS         0x0a
+#define DRM_ETNAVIV_PM_QUERY_DOM       0x0a
+#define DRM_ETNAVIV_PM_QUERY_SIG       0x0b
+#define DRM_ETNAVIV_NUM_IOCTLS         0x0c
 
 #define DRM_IOCTL_ETNAVIV_GET_PARAM    DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GET_PARAM, struct drm_etnaviv_param)
 #define DRM_IOCTL_ETNAVIV_GEM_NEW      DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_NEW, struct drm_etnaviv_gem_new)
@@ -234,6 +273,8 @@ struct drm_etnaviv_gem_wait {
 #define DRM_IOCTL_ETNAVIV_WAIT_FENCE   DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_WAIT_FENCE, struct drm_etnaviv_wait_fence)
 #define DRM_IOCTL_ETNAVIV_GEM_USERPTR  DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_USERPTR, struct drm_etnaviv_gem_userptr)
 #define DRM_IOCTL_ETNAVIV_GEM_WAIT     DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_WAIT, struct drm_etnaviv_gem_wait)
+#define DRM_IOCTL_ETNAVIV_PM_QUERY_DOM DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_PM_QUERY_DOM, struct drm_etnaviv_pm_domain)
+#define DRM_IOCTL_ETNAVIV_PM_QUERY_SIG DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_PM_QUERY_SIG, struct drm_etnaviv_pm_signal)
 
 #if defined(__cplusplus)
 }

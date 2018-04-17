@@ -44,9 +44,9 @@ FDINITRD=$6
 
 # Make sure the files actually exist
 verify "$FBZIMAGE"
-verify "$MTOOLSRC"
 
 genbzdisk() {
+	verify "$MTOOLSRC"
 	mformat a:
 	syslinux $FIMAGE
 	echo "$KCMDLINE" | mcopy - a:syslinux.cfg
@@ -57,6 +57,7 @@ genbzdisk() {
 }
 
 genfdimage144() {
+	verify "$MTOOLSRC"
 	dd if=/dev/zero of=$FIMAGE bs=1024 count=1440 2> /dev/null
 	mformat v:
 	syslinux $FIMAGE
@@ -68,6 +69,7 @@ genfdimage144() {
 }
 
 genfdimage288() {
+	verify "$MTOOLSRC"
 	dd if=/dev/zero of=$FIMAGE bs=1024 count=2880 2> /dev/null
 	mformat w:
 	syslinux $FIMAGE
@@ -78,39 +80,43 @@ genfdimage288() {
 	mcopy $FBZIMAGE w:linux
 }
 
-genisoimage() {
+geniso() {
 	tmp_dir=`dirname $FIMAGE`/isoimage
 	rm -rf $tmp_dir
 	mkdir $tmp_dir
-	for i in lib lib64 share end ; do
+	for i in lib lib64 share ; do
 		for j in syslinux ISOLINUX ; do
 			if [ -f /usr/$i/$j/isolinux.bin ] ; then
 				isolinux=/usr/$i/$j/isolinux.bin
-				cp $isolinux $tmp_dir
 			fi
 		done
 		for j in syslinux syslinux/modules/bios ; do
 			if [ -f /usr/$i/$j/ldlinux.c32 ]; then
 				ldlinux=/usr/$i/$j/ldlinux.c32
-				cp $ldlinux $tmp_dir
 			fi
 		done
 		if [ -n "$isolinux" -a -n "$ldlinux" ] ; then
 			break
 		fi
-		if [ $i = end -a -z "$isolinux" ] ; then
-			echo 'Need an isolinux.bin file, please install syslinux/isolinux.'
-			exit 1
-		fi
 	done
+	if [ -z "$isolinux" ] ; then
+		echo 'Need an isolinux.bin file, please install syslinux/isolinux.'
+		exit 1
+	fi
+	if [ -z "$ldlinux" ] ; then
+		echo 'Need an ldlinux.c32 file, please install syslinux/isolinux.'
+		exit 1
+	fi
+	cp $isolinux $tmp_dir
+	cp $ldlinux $tmp_dir
 	cp $FBZIMAGE $tmp_dir/linux
 	echo "$KCMDLINE" > $tmp_dir/isolinux.cfg
 	if [ -f "$FDINITRD" ] ; then
 		cp "$FDINITRD" $tmp_dir/initrd.img
 	fi
-	mkisofs -J -r -input-charset=utf-8 -quiet -o $FIMAGE -b isolinux.bin \
-		-c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-		$tmp_dir
+	genisoimage -J -r -input-charset=utf-8 -quiet -o $FIMAGE \
+		-b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 \
+		-boot-info-table $tmp_dir
 	isohybrid $FIMAGE 2>/dev/null || true
 	rm -rf $tmp_dir
 }
@@ -119,6 +125,6 @@ case $1 in
 	bzdisk)     genbzdisk;;
 	fdimage144) genfdimage144;;
 	fdimage288) genfdimage288;;
-	isoimage)   genisoimage;;
+	isoimage)   geniso;;
 	*)          echo 'Unknown image format'; exit 1;
 esac

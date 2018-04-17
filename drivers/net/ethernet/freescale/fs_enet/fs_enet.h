@@ -125,6 +125,7 @@ struct fs_enet_private {
 	spinlock_t lock;	/* during all ops except TX pckt processing */
 	spinlock_t tx_lock;	/* during fs_start_xmit and fs_tx         */
 	struct fs_platform_info *fpi;
+	struct work_struct timeout_work;
 	const struct fs_ops *ops;
 	int rx_ring, tx_ring;
 	dma_addr_t ring_mem_addr;
@@ -138,7 +139,6 @@ struct fs_enet_private {
 	cbd_t __iomem *cur_rx;
 	cbd_t __iomem *cur_tx;
 	int tx_free;
-	struct timer_list phy_timer_list;
 	const struct phy_info *phy;
 	u32 msg_enable;
 	struct mii_if_info mii_if;

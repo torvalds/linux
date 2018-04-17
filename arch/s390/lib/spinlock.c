@@ -78,7 +78,7 @@ static inline int arch_load_niai4(int *lock)
 		ALTERNATIVE("", ".long 0xb2fa0040", 49)	/* NIAI 4 */
 		"	l	%0,%1\n"
 		: "=d" (owner) : "Q" (*lock) : "memory");
-       return owner;
+	return owner;
 }
 
 static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
@@ -226,9 +226,10 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 		/* Try to get the lock if it is free. */
 		if (!owner) {
 			new = (old & _Q_TAIL_MASK) | lockval;
-			if (arch_cmpxchg_niai8(&lp->lock, old, new))
+			if (arch_cmpxchg_niai8(&lp->lock, old, new)) {
 				/* Got the lock */
-			       return;
+				return;
+			}
 			continue;
 		}
 		if (count-- >= 0)

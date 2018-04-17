@@ -49,6 +49,9 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsnames")
 
+/* Local Prototypes */
+static void acpi_ns_normalize_pathname(char *original_path);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_external_pathname
@@ -63,6 +66,7 @@ ACPI_MODULE_NAME("nsnames")
  *              for error and debug statements.
  *
  ******************************************************************************/
+
 char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 {
 	char *name_buffer;
@@ -351,4 +355,149 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 					    no_trailing);
 
 	return_PTR(name_buffer);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_build_prefixed_pathname
+ *
+ * PARAMETERS:  prefix_scope        - Scope/Path that prefixes the internal path
+ *              internal_path       - Name or path of the namespace node
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Construct a fully qualified pathname from a concatenation of:
+ *              1) Path associated with the prefix_scope namespace node
+ *              2) External path representation of the Internal path
+ *
+ ******************************************************************************/
+
+char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
+				      const char *internal_path)
+{
+	acpi_status status;
+	char *full_path = NULL;
+	char *external_path = NULL;
+	char *prefix_path = NULL;
+	u32 prefix_path_length = 0;
+
+	/* If there is a prefix, get the pathname to it */
+
+	if (prefix_scope && prefix_scope->scope.node) {
+		prefix_path =
+		    acpi_ns_get_normalized_pathname(prefix_scope->scope.node,
+						    TRUE);
+		if (prefix_path) {
+			prefix_path_length = strlen(prefix_path);
+		}
+	}
+
+	status = acpi_ns_externalize_name(ACPI_UINT32_MAX, internal_path,
+					  NULL, &external_path);
+	if (ACPI_FAILURE(status)) {
+		goto cleanup;
+	}
+
+	/* Merge the prefix path and the path. 2 is for one dot and trailing null */
+
+	full_path =
+	    ACPI_ALLOCATE_ZEROED(prefix_path_length + strlen(external_path) +
+				 2);
+	if (!full_path) {
+		goto cleanup;
+	}
+
+	/* Don't merge if the External path is already fully qualified */
+
+	if (prefix_path && (*external_path != '\\') && (*external_path != '^')) {
+		strcat(full_path, prefix_path);
+		if (prefix_path[1]) {
+			strcat(full_path, ".");
+		}
+	}
+
+	acpi_ns_normalize_pathname(external_path);
+	strcat(full_path, external_path);
+
+cleanup:
+	if (prefix_path) {
+		ACPI_FREE(prefix_path);
+	}
+	if (external_path) {
+		ACPI_FREE(external_path);
+	}
+
+	return (full_path);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_normalize_pathname
+ *
+ * PARAMETERS:  original_path       - Path to be normalized, in External format
+ *
+ * RETURN:      The original path is processed in-place
+ *
+ * DESCRIPTION: Remove trailing underscores from each element of a path.
+ *
+ *              For example:  \A___.B___.C___ becomes \A.B.C
+ *
+ ******************************************************************************/
+
+static void acpi_ns_normalize_pathname(char *original_path)
+{
+	char *input_path = original_path;
+	char *new_path_buffer;
+	char *new_path;
+	u32 i;
+
+	/* Allocate a temp buffer in which to construct the new path */
+
+	new_path_buffer = ACPI_ALLOCATE_ZEROED(strlen(input_path) + 1);
+	new_path = new_path_buffer;
+	if (!new_path_buffer) {
+		return;
+	}
+
+	/* Special characters may appear at the beginning of the path */
+
+	if (*input_path == '\\') {
+		*new_path = *input_path;
+		new_path++;
+		input_path++;
+	}
+
+	while (*input_path == '^') {
+		*new_path = *input_path;
+		new_path++;
+		input_path++;
+	}
+
+	/* Remainder of the path */
+
+	while (*input_path) {
+
+		/* Do one nameseg at a time */
+
+		for (i = 0; (i < ACPI_NAME_SIZE) && *input_path; i++) {
+			if ((i == 0) || (*input_path != '_')) {	/* First char is allowed to be underscore */
+				*new_path = *input_path;
+				new_path++;
+			}
+
+			input_path++;
+		}
+
+		/* Dot means that there are more namesegs to come */
+
+		if (*input_path == '.') {
+			*new_path = *input_path;
+			new_path++;
+			input_path++;
+		}
+	}
+
+	*new_path = 0;
+	strcpy(original_path, new_path_buffer);
+	ACPI_FREE(new_path_buffer);
 }

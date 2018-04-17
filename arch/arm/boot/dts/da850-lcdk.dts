@@ -26,6 +26,19 @@
 		reg = <0xc0000000 0x08000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		dsp_memory_region: dsp-memory@c3000000 {
+			compatible = "shared-dma-pool";
+			reg = <0xc3000000 0x1000000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "DA850/OMAP-L138 LCDK";
@@ -280,12 +293,12 @@
 					label = "u-boot env";
 					reg = <0 0x020000>;
 				};
-				partition@0x020000 {
+				partition@20000 {
 					/* The LCDK defaults to booting from this partition */
 					label = "u-boot";
 					reg = <0x020000 0x080000>;
 				};
-				partition@0x0a0000 {
+				partition@a0000 {
 					label = "free space";
 					reg = <0x0a0000 0>;
 				};
@@ -317,5 +330,10 @@
 &vpif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&vpif_capture_pins>;
+	status = "okay";
+};
+
+&dsp {
+	memory-region = <&dsp_memory_region>;
 	status = "okay";
 };

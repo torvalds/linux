@@ -34,8 +34,6 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
-#include "radeon_kfd.h"
-
 #if defined(CONFIG_VGA_SWITCHEROO)
 bool radeon_has_atpx(void);
 #else
@@ -67,8 +65,6 @@ void radeon_driver_unload_kms(struct drm_device *dev)
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
-
-	radeon_kfd_device_fini(rdev);
 
 	radeon_acpi_fini(rdev);
 	
@@ -173,9 +169,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
-
-	radeon_kfd_device_probe(rdev);
-	radeon_kfd_device_init(rdev);
 
 	if (radeon_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);

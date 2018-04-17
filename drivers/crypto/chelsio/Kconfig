@@ -5,6 +5,7 @@ config CRYPTO_DEV_CHELSIO
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
 	select CRYPTO_AUTHENC
+	select CRYPTO_GF128MUL
 	---help---
 	  The Chelsio Crypto Co-processor driver for T6 adapters.
 

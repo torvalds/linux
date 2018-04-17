@@ -239,7 +239,7 @@ cpus {
 	 * A simple fan controller which supports 10 speeds of operation
 	 * (represented as 0-9).
 	 */
-	fan0: fan@0x48 {
+	fan0: fan@48 {
 		...
 		cooling-min-level = <0>;
 		cooling-max-level = <9>;
@@ -252,7 +252,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ED00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -330,7 +330,7 @@ ocp {
 	/*
 	 * A simple IC with several bandgap temperature sensors.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ED00 {
 		...
 		#thermal-sensor-cells = <1>;
 	};
@@ -447,7 +447,7 @@ one thermal zone.
 	/*
 	 * A simple IC with a single temperature sensor.
 	 */
-	adc: sensor@0x49 {
+	adc: sensor@49 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -458,7 +458,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ED00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -516,7 +516,7 @@ with many sensors and many cooling devices.
 	/*
 	 * An IC with several temperature sensor.
 	 */
-	adc_dummy: sensor@0x50 {
+	adc_dummy: sensor@50 {
 		...
 		#thermal-sensor-cells = <1>; /* sensor internal ID */
 	};

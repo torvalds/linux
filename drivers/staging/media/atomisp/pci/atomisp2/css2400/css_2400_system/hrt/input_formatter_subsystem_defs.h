@@ -12,7 +12,7 @@
  * more details.
  */
 
-#ifndef _if_subsystem_defs_h
+#ifndef _if_subsystem_defs_h__
 #define _if_subsystem_defs_h__
 
 #define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_0            0

@@ -18,7 +18,7 @@ shortcut for ``print_hex_dump(KERN_DEBUG)``.
 
 For ``print_hex_dump_debug()``/``print_hex_dump_bytes()``, format string is
 its ``prefix_str`` argument, if it is constant string; or ``hexdump``
-in case ``prefix_str`` is build dynamically.
+in case ``prefix_str`` is built dynamically.
 
 Dynamic debug has even more useful features:
 
@@ -197,8 +197,8 @@ line
     line number matches the callsite line number exactly.  A
     range of line numbers matches any callsite between the first
     and last line number inclusive.  An empty first number means
-    the first line in the file, an empty line number means the
-    last number in the file.  Examples::
+    the first line in the file, an empty last line number means the
+    last line number in the file.  Examples::
 
 	line 1603           // exactly line 1603
 	line 1600-1605      // the six lines from line 1600 to line 1605

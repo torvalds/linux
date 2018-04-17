@@ -237,6 +237,7 @@ CLOCK
   devm_clk_get()
   devm_clk_put()
   devm_clk_hw_register()
+  devm_of_clk_add_hw_provider()
 
 DMA
   dmam_alloc_coherent()
@@ -382,6 +383,9 @@ REGULATOR
 RESET
   devm_reset_control_get()
   devm_reset_controller_register()
+
+SERDEV
+  devm_serdev_device_open()
 
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()

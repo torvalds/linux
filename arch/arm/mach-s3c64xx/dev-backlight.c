@@ -94,17 +94,14 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 
 	samsung_bl_device = kmemdup(&samsung_dfl_bl_device,
 			sizeof(struct platform_device), GFP_KERNEL);
-	if (!samsung_bl_device) {
-		printk(KERN_ERR "%s: no memory for platform dev\n", __func__);
+	if (!samsung_bl_device)
 		return;
-	}
 
 	samsung_bl_drvdata = kmemdup(&samsung_dfl_bl_data,
 				sizeof(samsung_dfl_bl_data), GFP_KERNEL);
-	if (!samsung_bl_drvdata) {
-		printk(KERN_ERR "%s: no memory for platform dev\n", __func__);
+	if (!samsung_bl_drvdata)
 		goto err_data;
-	}
+
 	samsung_bl_device->dev.platform_data = &samsung_bl_drvdata->plat_data;
 	samsung_bl_drvdata->gpio_info = gpio_info;
 	samsung_bl_data = &samsung_bl_drvdata->plat_data;
@@ -144,5 +141,4 @@ err_plat_reg2:
 	kfree(samsung_bl_data);
 err_data:
 	kfree(samsung_bl_device);
-	return;
 }

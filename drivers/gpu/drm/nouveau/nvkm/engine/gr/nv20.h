@@ -20,6 +20,7 @@ void nv20_gr_tile(struct nvkm_gr *, int, struct nvkm_fb_tile *);
 int nv30_gr_init(struct nvkm_gr *);
 
 #define nv20_gr_chan(p) container_of((p), struct nv20_gr_chan, object)
+#include <core/object.h>
 
 struct nv20_gr_chan {
 	struct nvkm_object object;

@@ -67,7 +67,9 @@ enum arch_timer_spi_nr {
 #define ARCH_TIMER_USR_VT_ACCESS_EN	(1 << 8) /* virtual timer registers */
 #define ARCH_TIMER_USR_PT_ACCESS_EN	(1 << 9) /* physical timer registers */
 
-#define ARCH_TIMER_EVT_STREAM_FREQ	10000	/* 100us */
+#define ARCH_TIMER_EVT_STREAM_PERIOD_US	100
+#define ARCH_TIMER_EVT_STREAM_FREQ				\
+	(USEC_PER_SEC / ARCH_TIMER_EVT_STREAM_PERIOD_US)
 
 struct arch_timer_kvm_info {
 	struct timecounter timecounter;
@@ -93,6 +95,7 @@ struct arch_timer_mem {
 extern u32 arch_timer_get_rate(void);
 extern u64 (*arch_timer_read_counter)(void);
 extern struct arch_timer_kvm_info *arch_timer_get_kvm_info(void);
+extern bool arch_timer_evtstrm_available(void);
 
 #else
 
@@ -104,6 +107,11 @@ static inline u32 arch_timer_get_rate(void)
 static inline u64 arch_timer_read_counter(void)
 {
 	return 0;
+}
+
+static inline bool arch_timer_evtstrm_available(void)
+{
+	return false;
 }
 
 #endif

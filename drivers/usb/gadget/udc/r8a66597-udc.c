@@ -1514,9 +1514,9 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 	return IRQ_HANDLED;
 }
 
-static void r8a66597_timer(unsigned long _r8a66597)
+static void r8a66597_timer(struct timer_list *t)
 {
-	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
+	struct r8a66597 *r8a66597 = from_timer(r8a66597, t, timer);
 	unsigned long flags;
 	u16 tmp;
 
@@ -1874,7 +1874,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 	r8a66597->gadget.max_speed = USB_SPEED_HIGH;
 	r8a66597->gadget.name = udc_name;
 
-	setup_timer(&r8a66597->timer, r8a66597_timer, (unsigned long)r8a66597);
+	timer_setup(&r8a66597->timer, r8a66597_timer, 0);
 	r8a66597->reg = reg;
 
 	if (r8a66597->pdata->on_chip) {

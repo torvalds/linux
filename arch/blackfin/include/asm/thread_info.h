@@ -56,8 +56,6 @@ struct thread_info {
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
 
 /* Given a task stack pointer, you can find its corresponding
  * thread_info structure just by masking it to the THREAD_SIZE

@@ -289,6 +289,9 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 				      u8 no_trailing);
 
+char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
+				      const char *internal_path);
+
 char *acpi_ns_name_of_current_scope(struct acpi_walk_state *walk_state);
 
 acpi_status

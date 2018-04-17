@@ -41,4 +41,5 @@ For more details see the file COPYING in the source distribution of Linux.
 	technisat
 	ttusb-dec
 	udev
+	frontends
 	contributors

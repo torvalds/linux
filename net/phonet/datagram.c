@@ -195,7 +195,7 @@ static struct proto pn_proto = {
 	.name		= "PHONET",
 };
 
-static struct phonet_protocol pn_dgram_proto = {
+static const struct phonet_protocol pn_dgram_proto = {
 	.ops		= &phonet_dgram_ops,
 	.prot		= &pn_proto,
 	.sock_type	= SOCK_DGRAM,

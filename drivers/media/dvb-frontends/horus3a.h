@@ -41,6 +41,15 @@ struct horus3a_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_HORUS3A)
+/**
+ * Attach a horus3a tuner
+ *
+ * @fe: frontend to be attached
+ * @config: pointer to &struct helene_config with tuner configuration.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *horus3a_attach(struct dvb_frontend *fe,
 					const struct horus3a_config *config,
 					struct i2c_adapter *i2c);

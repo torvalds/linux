@@ -12,7 +12,13 @@
 
 /* image of the saved processor state */
 struct saved_context {
-	u16 es, fs, gs, ss;
+	/*
+	 * On x86_32, all segment registers, with the possible exception of
+	 * gs, are saved at kernel entry in pt_regs.
+	 */
+#ifdef CONFIG_X86_32_LAZY_GS
+	u16 gs;
+#endif
 	unsigned long cr0, cr2, cr3, cr4;
 	u64 misc_enable;
 	bool misc_enable_saved;

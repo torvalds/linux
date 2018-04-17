@@ -36,6 +36,11 @@
 /* Define how often to check (and clear) the fault status register (in ms) */
 #define TAS5720_FAULT_CHECK_INTERVAL		200
 
+enum tas572x_type {
+	TAS5720,
+	TAS5722,
+};
+
 static const char * const tas5720_supply_names[] = {
 	"dvdd",		/* Digital power supply. Connect to 3.3-V supply. */
 	"pvdd",		/* Class-D amp and analog power supply (connected). */
@@ -47,6 +52,7 @@ struct tas5720_data {
 	struct snd_soc_codec *codec;
 	struct regmap *regmap;
 	struct i2c_client *tas5720_client;
+	enum tas572x_type devtype;
 	struct regulator_bulk_data supplies[TAS5720_NUM_SUPPLIES];
 	struct delayed_work fault_check_work;
 	unsigned int last_fault;
@@ -264,7 +270,7 @@ out:
 static int tas5720_codec_probe(struct snd_soc_codec *codec)
 {
 	struct tas5720_data *tas5720 = snd_soc_codec_get_drvdata(codec);
-	unsigned int device_id;
+	unsigned int device_id, expected_device_id;
 	int ret;
 
 	tas5720->codec = codec;
@@ -276,6 +282,11 @@ static int tas5720_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	/*
+	 * Take a liberal approach to checking the device ID to allow the
+	 * driver to be used even if the device ID does not match, however
+	 * issue a warning if there is a mismatch.
+	 */
 	ret = regmap_read(tas5720->regmap, TAS5720_DEVICE_ID_REG, &device_id);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to read device ID register: %d\n",
@@ -283,12 +294,21 @@ static int tas5720_codec_probe(struct snd_soc_codec *codec)
 		goto probe_fail;
 	}
 
-	if (device_id != TAS5720_DEVICE_ID) {
-		dev_err(codec->dev, "wrong device ID. expected: %u read: %u\n",
-			TAS5720_DEVICE_ID, device_id);
-		ret = -ENODEV;
-		goto probe_fail;
+	switch (tas5720->devtype) {
+	case TAS5720:
+		expected_device_id = TAS5720_DEVICE_ID;
+		break;
+	case TAS5722:
+		expected_device_id = TAS5722_DEVICE_ID;
+		break;
+	default:
+		dev_err(codec->dev, "unexpected private driver data\n");
+		return -EINVAL;
 	}
+
+	if (device_id != expected_device_id)
+		dev_warn(codec->dev, "wrong device ID. expected: %u read: %u\n",
+			 expected_device_id, device_id);
 
 	/* Set device to mute */
 	ret = snd_soc_update_bits(codec, TAS5720_DIGITAL_CTRL2_REG,
@@ -446,6 +466,15 @@ static const struct regmap_config tas5720_regmap_config = {
 	.volatile_reg = tas5720_is_volatile_reg,
 };
 
+static const struct regmap_config tas5722_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = TAS5722_MAX_REG,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = tas5720_is_volatile_reg,
+};
+
 /*
  * DAC analog gain. There are four discrete values to select from, ranging
  * from 19.2 dB to 26.3dB.
@@ -544,6 +573,7 @@ static int tas5720_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct tas5720_data *data;
+	const struct regmap_config *regmap_config;
 	int ret;
 	int i;
 
@@ -552,7 +582,20 @@ static int tas5720_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->tas5720_client = client;
-	data->regmap = devm_regmap_init_i2c(client, &tas5720_regmap_config);
+	data->devtype = id->driver_data;
+
+	switch (id->driver_data) {
+	case TAS5720:
+		regmap_config = &tas5720_regmap_config;
+		break;
+	case TAS5722:
+		regmap_config = &tas5722_regmap_config;
+		break;
+	default:
+		dev_err(dev, "unexpected private driver data\n");
+		return -EINVAL;
+	}
+	data->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(data->regmap)) {
 		ret = PTR_ERR(data->regmap);
 		dev_err(dev, "failed to allocate register map: %d\n", ret);
@@ -592,7 +635,8 @@ static int tas5720_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas5720_id[] = {
-	{ "tas5720", 0 },
+	{ "tas5720", TAS5720 },
+	{ "tas5722", TAS5722 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas5720_id);
@@ -600,6 +644,7 @@ MODULE_DEVICE_TABLE(i2c, tas5720_id);
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id tas5720_of_match[] = {
 	{ .compatible = "ti,tas5720", },
+	{ .compatible = "ti,tas5722", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tas5720_of_match);

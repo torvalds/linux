@@ -161,9 +161,9 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	}
 }
 
-static void if_usb_fw_timeo(unsigned long priv)
+static void if_usb_fw_timeo(struct timer_list *t)
 {
-	struct if_usb_card *cardp = (void *)priv;
+	struct if_usb_card *cardp = from_timer(cardp, t, fw_timeout);
 
 	if (cardp->fwdnldover) {
 		lbs_deb_usb("Download complete, no event. Assuming success\n");
@@ -205,7 +205,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!cardp)
 		goto error;
 
-	setup_timer(&cardp->fw_timeout, if_usb_fw_timeo, (unsigned long)cardp);
+	timer_setup(&cardp->fw_timeout, if_usb_fw_timeo, 0);
 	init_waitqueue_head(&cardp->fw_wq);
 
 	cardp->udev = udev;

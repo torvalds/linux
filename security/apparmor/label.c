@@ -2115,7 +2115,7 @@ void __aa_labelset_update_subtree(struct aa_ns *ns)
 	__labelset_update(ns);
 
 	list_for_each_entry(child, &ns->sub_ns, base.list) {
-		mutex_lock(&child->lock);
+		mutex_lock_nested(&child->lock, child->level);
 		__aa_labelset_update_subtree(child);
 		mutex_unlock(&child->lock);
 	}

@@ -10,7 +10,6 @@ config UML
 	select HAVE_DEBUG_KMEMLEAK
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
-	select GENERIC_IO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_GCC_PLUGINS
 	select TTY # Needed for line.c

@@ -77,8 +77,7 @@
 		regulator-name = "regulator-pcie-power-on-gpio";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio2 24 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_usb_h1_vbus: usb_h1_vbus {
@@ -362,7 +361,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio1 26 GPIO_ACTIVE_LOW>;
-	vdd-supply = <&reg_pcie_power_on_gpio>;
+	vpcie-supply = <&reg_pcie_power_on_gpio>;
 	status = "okay";
 };
 

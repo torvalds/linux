@@ -1383,7 +1383,7 @@ static int bond_option_slaves_set(struct bonding *bond,
 	switch (command[0]) {
 	case '+':
 		netdev_dbg(bond->dev, "Adding slave %s\n", dev->name);
-		ret = bond_enslave(bond->dev, dev);
+		ret = bond_enslave(bond->dev, dev, NULL);
 		break;
 
 	case '-':

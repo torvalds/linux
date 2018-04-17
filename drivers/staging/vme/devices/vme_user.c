@@ -134,7 +134,7 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 	if (copied < 0)
 		return (int)copied;
 
-	if (__copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
+	if (copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
 		return -EFAULT;
 
 	return copied;
@@ -146,7 +146,7 @@ static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 	if (count > image[minor].size_buf)
 		count = image[minor].size_buf;
 
-	if (__copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
+	if (copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return vme_master_write(image[minor].resource, image[minor].kern_buf,
@@ -159,7 +159,7 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_to_user(buf, image_ptr, (unsigned long)count))
+	if (copy_to_user(buf, image_ptr, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
@@ -171,7 +171,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_from_user(image_ptr, buf, (unsigned long)count))
+	if (copy_from_user(image_ptr, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return count;

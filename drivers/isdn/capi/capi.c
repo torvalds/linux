@@ -724,11 +724,11 @@ capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos
 	return count;
 }
 
-static unsigned int
+static __poll_t
 capi_poll(struct file *file, poll_table *wait)
 {
 	struct capidev *cdev = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (!cdev->ap.applid)
 		return POLLERR;

@@ -11,6 +11,8 @@
 #include <drm/drm_panel.h>
 #include "drm.h"
 
+#include <media/cec-notifier.h>
+
 int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
@@ -32,6 +34,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	else if (output->ddc)
 		edid = drm_get_edid(connector, output->ddc);
 
+	cec_notifier_set_phys_addr_from_edid(output->notifier, edid);
 	drm_mode_connector_update_edid_property(connector, edid);
 
 	if (edid) {
@@ -67,6 +70,9 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 		else
 			status = connector_status_connected;
 	}
+
+	if (status != connector_status_connected)
+		cec_notifier_phys_addr_invalidate(output->notifier);
 
 	return status;
 }

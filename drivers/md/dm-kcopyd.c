@@ -477,8 +477,10 @@ static int run_complete_job(struct kcopyd_job *job)
 	 * If this is the master job, the sub jobs have already
 	 * completed so we can free everything.
 	 */
-	if (job->master_job == job)
+	if (job->master_job == job) {
+		mutex_destroy(&job->lock);
 		mempool_free(job, kc->job_pool);
+	}
 	fn(read_err, write_err, context);
 
 	if (atomic_dec_and_test(&kc->nr_jobs))
@@ -750,6 +752,7 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	 * followed by SPLIT_COUNT sub jobs.
 	 */
 	job = mempool_alloc(kc->job_pool, GFP_NOIO);
+	mutex_init(&job->lock);
 
 	/*
 	 * set up for the read.
@@ -811,7 +814,6 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	if (job->source.count <= SUB_JOB_SIZE)
 		dispatch_job(job);
 	else {
-		mutex_init(&job->lock);
 		job->progress = 0;
 		split_job(job);
 	}

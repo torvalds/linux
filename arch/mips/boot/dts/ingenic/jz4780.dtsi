@@ -219,6 +219,11 @@
 		status = "disabled";
 	};
 
+	watchdog: watchdog@10002000 {
+		compatible = "ingenic,jz4780-watchdog";
+		reg = <0x10002000 0x100>;
+	};
+
 	nemc: nemc@13410000 {
 		compatible = "ingenic,jz4780-nemc";
 		reg = <0x13410000 0x10000>;

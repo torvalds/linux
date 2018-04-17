@@ -265,7 +265,7 @@ static u64 ndesc_get_timestamp(void *desc, u32 ats)
 	return ns;
 }
 
-static int ndesc_get_rx_timestamp_status(void *desc, u32 ats)
+static int ndesc_get_rx_timestamp_status(void *desc, void *next_desc, u32 ats)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 

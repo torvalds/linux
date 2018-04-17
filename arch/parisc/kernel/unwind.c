@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/sort.h>
-#include <linux/sched.h>
 
 #include <linux/uaccess.h>
 #include <asm/assembly.h>

@@ -51,7 +51,7 @@ static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
 	 */
 	preempt_disable();
 	rcu_read_lock();
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	ret = bpf_prog_run_save_cb(lwt->prog, skb);
 	rcu_read_unlock();
 

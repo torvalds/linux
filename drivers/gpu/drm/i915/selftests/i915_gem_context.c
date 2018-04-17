@@ -417,7 +417,7 @@ static int fake_aliasing_ppgtt_enable(struct drm_i915_private *i915)
 	if (err)
 		return err;
 
-	list_for_each_entry(obj, &i915->mm.bound_list, global_link) {
+	list_for_each_entry(obj, &i915->mm.bound_list, mm.link) {
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);

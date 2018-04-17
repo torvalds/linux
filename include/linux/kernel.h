@@ -549,7 +549,8 @@ extern enum system_states {
 #define TAINT_UNSIGNED_MODULE		13
 #define TAINT_SOFTLOCKUP		14
 #define TAINT_LIVEPATCH			15
-#define TAINT_FLAGS_COUNT		16
+#define TAINT_AUX			16
+#define TAINT_FLAGS_COUNT		17
 
 struct taint_flag {
 	char c_true;	/* character printed when tainted */

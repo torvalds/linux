@@ -533,10 +533,6 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 	scp->keepalive = 10 * HZ;
 	scp->keepalive_fxn = dn_keepalive;
 
-	init_timer(&scp->delack_timer);
-	scp->delack_pending = 0;
-	scp->delack_fxn = dn_nsp_delayed_ack;
-
 	dn_start_slow_timer(sk);
 out:
 	return sk;
@@ -634,10 +630,12 @@ static void dn_destroy_sock(struct sock *sk)
 		goto disc_reject;
 	case DN_RUN:
 		scp->state = DN_DI;
+		/* fall through */
 	case DN_DI:
 	case DN_DR:
 disc_reject:
 		dn_nsp_send_disc(sk, NSP_DISCINIT, 0, sk->sk_allocation);
+		/* fall through */
 	case DN_NC:
 	case DN_NR:
 	case DN_RJ:
@@ -651,6 +649,7 @@ disc_reject:
 		break;
 	default:
 		printk(KERN_DEBUG "DECnet: dn_destroy_sock passed socket in invalid state\n");
+		/* fall through */
 	case DN_O:
 		dn_stop_slow_timer(sk);
 
@@ -1210,11 +1209,11 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 }
 
 
-static unsigned int dn_poll(struct file *file, struct socket *sock, poll_table  *wait)
+static __poll_t dn_poll(struct file *file, struct socket *sock, poll_table  *wait)
 {
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
-	int mask = datagram_poll(file, sock, wait);
+	__poll_t mask = datagram_poll(file, sock, wait);
 
 	if (!skb_queue_empty(&scp->other_receive_queue))
 		mask |= POLLRDBAND;

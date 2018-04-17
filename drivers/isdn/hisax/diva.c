@@ -798,8 +798,9 @@ reset_diva(struct IsdnCardState *cs)
 #define DIVA_ASSIGN 1
 
 static void
-diva_led_handler(struct IsdnCardState *cs)
+diva_led_handler(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, hw.diva.tl);
 	int blink = 0;
 
 	if ((cs->subtyp == DIVA_IPAC_ISA) ||
@@ -828,7 +829,6 @@ diva_led_handler(struct IsdnCardState *cs)
 
 	byteout(cs->hw.diva.ctrl, cs->hw.diva.ctrl_reg);
 	if (blink) {
-		init_timer(&cs->hw.diva.tl);
 		cs->hw.diva.tl.expires = jiffies + ((blink * HZ) / 1000);
 		add_timer(&cs->hw.diva.tl);
 	}
@@ -900,7 +900,7 @@ Diva_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	    (cs->subtyp != DIVA_IPAC_PCI) &&
 	    (cs->subtyp != DIVA_IPACX_PCI)) {
 		spin_lock_irqsave(&cs->lock, flags);
-		diva_led_handler(cs);
+		diva_led_handler(&cs->hw.diva.tl);
 		spin_unlock_irqrestore(&cs->lock, flags);
 	}
 	return (0);
@@ -978,8 +978,7 @@ static int setup_diva_common(struct IsdnCardState *cs)
 		printk(KERN_INFO "Diva: IPACX Design Id: %x\n",
 		       MemReadISAC_IPACX(cs, IPACX_ID) & 0x3F);
 	} else { /* DIVA 2.0 */
-		setup_timer(&cs->hw.diva.tl, (void *)diva_led_handler,
-			    (long)cs);
+		timer_setup(&cs->hw.diva.tl, diva_led_handler, 0);
 		cs->readisac  = &ReadISAC;
 		cs->writeisac = &WriteISAC;
 		cs->readisacfifo  = &ReadISACfifo;
@@ -1094,7 +1093,7 @@ static int setup_diva_isapnp(struct IsdnCard *card)
 				}
 				card->para[1] = pnp_port_start(pnp_d, 0);
 				card->para[0] = pnp_irq(pnp_d, 0);
-				if (!card->para[0] || !card->para[1]) {
+				if (card->para[0] == -1 || !card->para[1]) {
 					printk(KERN_ERR "Diva PnP:some resources are missing %ld/%lx\n",
 					       card->para[0], card->para[1]);
 					pnp_disable_dev(pnp_d);

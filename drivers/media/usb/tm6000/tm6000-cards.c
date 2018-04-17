@@ -1184,7 +1184,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
-	struct tm6000_core *dev = NULL;
+	struct tm6000_core *dev;
 	int i, rc = 0;
 	int nr = 0;
 	char *speed;
@@ -1194,22 +1194,21 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	/* Selects the proper interface */
 	rc = usb_set_interface(usbdev, 0, 1);
 	if (rc < 0)
-		goto err;
+		goto report_failure;
 
 	/* Check to see next free device and mark as used */
 	nr = find_first_zero_bit(&tm6000_devused, TM6000_MAXBOARDS);
 	if (nr >= TM6000_MAXBOARDS) {
 		printk(KERN_ERR "tm6000: Supports only %i tm60xx boards.\n", TM6000_MAXBOARDS);
-		usb_put_dev(usbdev);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto put_device;
 	}
 
 	/* Create and initialize dev struct */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		printk(KERN_ERR "tm6000" ": out of memory!\n");
-		usb_put_dev(usbdev);
-		return -ENOMEM;
+	if (!dev) {
+		rc = -ENOMEM;
+		goto put_device;
 	}
 	spin_lock_init(&dev->slock);
 	mutex_init(&dev->usb_lock);
@@ -1313,8 +1312,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	if (!dev->isoc_in.endp) {
 		printk(KERN_ERR "tm6000: probing error: no IN ISOC endpoint!\n");
 		rc = -ENODEV;
-
-		goto err;
+		goto free_device;
 	}
 
 	/* save our data pointer in this interface device */
@@ -1324,17 +1322,18 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 
 	rc = tm6000_init_dev(dev);
 	if (rc < 0)
-		goto err;
+		goto free_device;
 
 	return 0;
 
-err:
+free_device:
+	kfree(dev);
+report_failure:
 	printk(KERN_ERR "tm6000: Error %d while registering\n", rc);
 
 	clear_bit(nr, &tm6000_devused);
+put_device:
 	usb_put_dev(usbdev);
-
-	kfree(dev);
 	return rc;
 }
 

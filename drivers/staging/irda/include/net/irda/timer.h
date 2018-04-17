@@ -75,7 +75,7 @@ struct lap_cb;
 static inline void irda_start_timer(struct timer_list *ptimer, int timeout,
 				    void (*callback)(struct timer_list *))
 {
-	ptimer->function = (TIMER_FUNC_TYPE) callback;
+	ptimer->function =  callback;
 
 	/* Set new value for timer (update or add timer).
 	 * We use mod_timer() because it's more efficient and also

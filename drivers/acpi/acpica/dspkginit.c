@@ -297,8 +297,10 @@ acpi_ds_init_package_element(u8 object_type,
 {
 	union acpi_operand_object **element_ptr;
 
+	ACPI_FUNCTION_TRACE(ds_init_package_element);
+
 	if (!source_object) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -329,7 +331,7 @@ acpi_ds_init_package_element(u8 object_type,
 		source_object->package.flags |= AOPOBJ_DATA_VALID;
 	}
 
-	return (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -352,6 +354,7 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	union acpi_generic_state scope_info;
 	union acpi_operand_object *element = *element_ptr;
 	struct acpi_namespace_node *resolved_node;
+	struct acpi_namespace_node *original_node;
 	char *external_path = NULL;
 	acpi_object_type type;
 
@@ -441,6 +444,7 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	 * will remain as named references. This behavior is not described
 	 * in the ACPI spec, but it appears to be an oversight.
 	 */
+	original_node = resolved_node;
 	status = acpi_ex_resolve_node_to_value(&resolved_node, NULL);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
@@ -468,26 +472,27 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 		 */
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_THERMAL:
-
-		/* TBD: This may not be necesssary */
-
-		acpi_ut_add_reference(resolved_node->object);
+	case ACPI_TYPE_METHOD:
 		break;
 
 	case ACPI_TYPE_MUTEX:
-	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_REGION:
 
+		/* acpi_ex_resolve_node_to_value gave these an extra reference */
+
+		acpi_ut_remove_reference(original_node->object);
 		break;
 
 	default:
 		/*
 		 * For all other types - the node was resolved to an actual
-		 * operand object with a value, return the object
+		 * operand object with a value, return the object. Remove
+		 * a reference on the existing object.
 		 */
+		acpi_ut_remove_reference(element);
 		*element_ptr = (union acpi_operand_object *)resolved_node;
 		break;
 	}

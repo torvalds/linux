@@ -198,7 +198,7 @@ static void moxa_hangup(struct tty_struct *);
 static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
-static void moxa_poll(unsigned long);
+static void moxa_poll(struct timer_list *);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static void moxa_shutdown(struct tty_port *);
 static int moxa_carrier_raised(struct tty_port *);
@@ -1429,7 +1429,7 @@ put:
 	return 0;
 }
 
-static void moxa_poll(unsigned long ignored)
+static void moxa_poll(struct timer_list *unused)
 {
 	struct moxa_board_conf *brd;
 	u16 __iomem *ip;

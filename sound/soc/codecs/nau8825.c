@@ -194,10 +194,10 @@ static const struct reg_default nau8825_reg_defaults[] = {
 
 /* register backup table when cross talk detection */
 static struct reg_default nau8825_xtalk_baktab[] = {
-	{ NAU8825_REG_ADC_DGAIN_CTRL, 0 },
+	{ NAU8825_REG_ADC_DGAIN_CTRL, 0x00cf },
 	{ NAU8825_REG_HSVOL_CTRL, 0 },
-	{ NAU8825_REG_DACL_CTRL, 0 },
-	{ NAU8825_REG_DACR_CTRL, 0 },
+	{ NAU8825_REG_DACL_CTRL, 0x00cf },
+	{ NAU8825_REG_DACR_CTRL, 0x02cf },
 };
 
 static const unsigned short logtable[256] = {
@@ -245,13 +245,14 @@ static const unsigned short logtable[256] = {
  * tasks are allowed to acquire the semaphore, calling this function will
  * put the task to sleep. If the semaphore is not released within the
  * specified number of jiffies, this function returns.
- * Acquires the semaphore without jiffies. If no more tasks are allowed
- * to acquire the semaphore, calling this function will put the task to
- * sleep until the semaphore is released.
  * If the semaphore is not released within the specified number of jiffies,
- * this function returns -ETIME.
- * If the sleep is interrupted by a signal, this function will return -EINTR.
- * It returns 0 if the semaphore was acquired successfully.
+ * this function returns -ETIME. If the sleep is interrupted by a signal,
+ * this function will return -EINTR. It returns 0 if the semaphore was
+ * acquired successfully.
+ *
+ * Acquires the semaphore without jiffies. Try to acquire the semaphore
+ * atomically. Returns 0 if the semaphore has been acquired successfully
+ * or 1 if it it cannot be acquired.
  */
 static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 {
@@ -262,8 +263,8 @@ static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 		if (ret < 0)
 			dev_warn(nau8825->dev, "Acquire semaphore timeout\n");
 	} else {
-		ret = down_interruptible(&nau8825->xtalk_sem);
-		if (ret < 0)
+		ret = down_trylock(&nau8825->xtalk_sem);
+		if (ret)
 			dev_warn(nau8825->dev, "Acquire semaphore fail\n");
 	}
 
@@ -454,22 +455,32 @@ static void nau8825_xtalk_backup(struct nau8825 *nau8825)
 {
 	int i;
 
+	if (nau8825->xtalk_baktab_initialized)
+		return;
+
 	/* Backup some register values to backup table */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++)
 		regmap_read(nau8825->regmap, nau8825_xtalk_baktab[i].reg,
 				&nau8825_xtalk_baktab[i].def);
+
+	nau8825->xtalk_baktab_initialized = true;
 }
 
-static void nau8825_xtalk_restore(struct nau8825 *nau8825)
+static void nau8825_xtalk_restore(struct nau8825 *nau8825, bool cause_cancel)
 {
 	int i, volume;
 
+	if (!nau8825->xtalk_baktab_initialized)
+		return;
+
 	/* Restore register values from backup table; When the driver restores
-	 * the headphone volumem, it needs recover to original level gradually
-	 * with 3dB per step for less pop noise.
+	 * the headphone volume in XTALK_DONE state, it needs recover to
+	 * original level gradually with 3dB per step for less pop noise.
+	 * Otherwise, the restore should do ASAP.
 	 */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++) {
-		if (nau8825_xtalk_baktab[i].reg == NAU8825_REG_HSVOL_CTRL) {
+		if (!cause_cancel && nau8825_xtalk_baktab[i].reg ==
+			NAU8825_REG_HSVOL_CTRL) {
 			/* Ramping up the volume change to reduce pop noise */
 			volume = nau8825_xtalk_baktab[i].def &
 				NAU8825_HPR_VOL_MASK;
@@ -479,6 +490,8 @@ static void nau8825_xtalk_restore(struct nau8825 *nau8825)
 		regmap_write(nau8825->regmap, nau8825_xtalk_baktab[i].reg,
 				nau8825_xtalk_baktab[i].def);
 	}
+
+	nau8825->xtalk_baktab_initialized = false;
 }
 
 static void nau8825_xtalk_prepare_dac(struct nau8825 *nau8825)
@@ -644,7 +657,7 @@ static void nau8825_xtalk_clean_adc(struct nau8825 *nau8825)
 		NAU8825_POWERUP_ADCL | NAU8825_ADC_VREFSEL_MASK, 0);
 }
 
-static void nau8825_xtalk_clean(struct nau8825 *nau8825)
+static void nau8825_xtalk_clean(struct nau8825 *nau8825, bool cause_cancel)
 {
 	/* Enable internal VCO needed for interruptions */
 	nau8825_configure_sysclk(nau8825, NAU8825_CLK_INTERNAL, 0);
@@ -660,7 +673,7 @@ static void nau8825_xtalk_clean(struct nau8825 *nau8825)
 		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_SLAVE);
 	/* Restore value of specific register for cross talk */
-	nau8825_xtalk_restore(nau8825);
+	nau8825_xtalk_restore(nau8825, cause_cancel);
 }
 
 static void nau8825_xtalk_imm_start(struct nau8825 *nau8825, int vol)
@@ -779,7 +792,7 @@ static void nau8825_xtalk_measure(struct nau8825 *nau8825)
 		dev_dbg(nau8825->dev, "cross talk sidetone: %x\n", sidetone);
 		regmap_write(nau8825->regmap, NAU8825_REG_DAC_DGAIN_CTRL,
 					(sidetone << 8) | sidetone);
-		nau8825_xtalk_clean(nau8825);
+		nau8825_xtalk_clean(nau8825, false);
 		nau8825->xtalk_state = NAU8825_XTALK_DONE;
 		break;
 	default:
@@ -815,13 +828,14 @@ static void nau8825_xtalk_work(struct work_struct *work)
 
 static void nau8825_xtalk_cancel(struct nau8825 *nau8825)
 {
-	/* If the xtalk_protect is true, that means the process is still
-	 * on going. The driver forces to cancel the cross talk task and
+	/* If the crosstalk is eanbled and the process is on going,
+	 * the driver forces to cancel the crosstalk task and
 	 * restores the configuration to original status.
 	 */
-	if (nau8825->xtalk_protect) {
+	if (nau8825->xtalk_enable && nau8825->xtalk_state !=
+		NAU8825_XTALK_DONE) {
 		cancel_work_sync(&nau8825->xtalk_work);
-		nau8825_xtalk_clean(nau8825);
+		nau8825_xtalk_clean(nau8825, true);
 	}
 	/* Reset parameters for cross talk suppression function */
 	nau8825_sema_reset(nau8825);
@@ -905,6 +919,7 @@ static int nau8825_adc_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		msleep(125);
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_ENA_CTRL,
 			NAU8825_ENABLE_ADC, NAU8825_ENABLE_ADC);
 		break;
@@ -1245,8 +1260,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		regmap_read(nau8825->regmap, NAU8825_REG_DAC_CTRL1, &osr);
 		osr &= NAU8825_DAC_OVERSAMPLE_MASK;
 		if (nau8825_clock_check(nau8825, substream->stream,
-			params_rate(params), osr))
+			params_rate(params), osr)) {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_DAC_SRC_MASK,
 			osr_dac_sel[osr].clk_src << NAU8825_CLK_DAC_SRC_SFT);
@@ -1254,8 +1271,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		regmap_read(nau8825->regmap, NAU8825_REG_ADC_RATE, &osr);
 		osr &= NAU8825_ADC_SYNC_DOWN_MASK;
 		if (nau8825_clock_check(nau8825, substream->stream,
-			params_rate(params), osr))
+			params_rate(params), osr)) {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_ADC_SRC_MASK,
 			osr_adc_sel[osr].clk_src << NAU8825_CLK_ADC_SRC_SFT);
@@ -1272,8 +1291,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 			bclk_div = 1;
 		else if (bclk_fs <= 128)
 			bclk_div = 0;
-		else
+		else {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
 			NAU8825_I2S_LRC_DIV_MASK | NAU8825_I2S_BLK_DIV_MASK,
 			((bclk_div + 1) << NAU8825_I2S_LRC_DIV_SFT) | bclk_div);
@@ -1293,6 +1314,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		val_len |= NAU8825_I2S_DL_32;
 		break;
 	default:
+		nau8825_sema_release(nau8825);
 		return -EINVAL;
 	}
 
@@ -1310,8 +1332,6 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
-
-	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1353,6 +1373,8 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
+
+	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1,
 		NAU8825_I2S_DL_MASK | NAU8825_I2S_DF_MASK |
@@ -1686,7 +1708,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 	} else if (active_irq & NAU8825_HEADSET_COMPLETION_IRQ) {
 		if (nau8825_is_jack_inserted(regmap)) {
 			event |= nau8825_jack_insert(nau8825);
-			if (!nau8825->xtalk_bypass && !nau8825->high_imped) {
+			if (nau8825->xtalk_enable && !nau8825->high_imped) {
 				/* Apply the cross talk suppression in the
 				 * headset without high impedance.
 				 */
@@ -1700,12 +1722,15 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 					int ret;
 					nau8825->xtalk_protect = true;
 					ret = nau8825_sema_acquire(nau8825, 0);
-					if (ret < 0)
+					if (ret)
 						nau8825->xtalk_protect = false;
 				}
 				/* Startup cross talk detection process */
-				nau8825->xtalk_state = NAU8825_XTALK_PREPARE;
-				schedule_work(&nau8825->xtalk_work);
+				if (nau8825->xtalk_protect) {
+					nau8825->xtalk_state =
+						NAU8825_XTALK_PREPARE;
+					schedule_work(&nau8825->xtalk_work);
+				}
 			} else {
 				/* The cross talk suppression shouldn't apply
 				 * in the headset with high impedance. Thus,
@@ -1732,7 +1757,9 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 			nau8825->xtalk_event_mask = event_mask;
 		}
 	} else if (active_irq & NAU8825_IMPEDANCE_MEAS_IRQ) {
-		schedule_work(&nau8825->xtalk_work);
+		/* crosstalk detection enable and process on going */
+		if (nau8825->xtalk_enable && nau8825->xtalk_protect)
+			schedule_work(&nau8825->xtalk_work);
 		clear_irq = NAU8825_IMPEDANCE_MEAS_IRQ;
 	} else if ((active_irq & NAU8825_JACK_INSERTION_IRQ_MASK) ==
 		NAU8825_JACK_INSERTION_DETECTED) {
@@ -2381,7 +2408,7 @@ static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 	regcache_sync(nau8825->regmap);
 	nau8825->xtalk_protect = true;
 	ret = nau8825_sema_acquire(nau8825, 0);
-	if (ret < 0)
+	if (ret)
 		nau8825->xtalk_protect = false;
 	enable_irq(nau8825->irq);
 
@@ -2440,8 +2467,8 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_insert_debounce);
 	dev_dbg(dev, "jack-eject-debounce:  %d\n",
 			nau8825->jack_eject_debounce);
-	dev_dbg(dev, "crosstalk-bypass:     %d\n",
-			nau8825->xtalk_bypass);
+	dev_dbg(dev, "crosstalk-enable:     %d\n",
+			nau8825->xtalk_enable);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
@@ -2506,8 +2533,8 @@ static int nau8825_read_device_properties(struct device *dev,
 		&nau8825->jack_eject_debounce);
 	if (ret)
 		nau8825->jack_eject_debounce = 0;
-	nau8825->xtalk_bypass = device_property_read_bool(dev,
-		"nuvoton,crosstalk-bypass");
+	nau8825->xtalk_enable = device_property_read_bool(dev,
+		"nuvoton,crosstalk-enable");
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
@@ -2568,6 +2595,7 @@ static int nau8825_i2c_probe(struct i2c_client *i2c,
 	 */
 	nau8825->xtalk_state = NAU8825_XTALK_DONE;
 	nau8825->xtalk_protect = false;
+	nau8825->xtalk_baktab_initialized = false;
 	sema_init(&nau8825->xtalk_sem, 1);
 	INIT_WORK(&nau8825->xtalk_work, nau8825_xtalk_work);
 

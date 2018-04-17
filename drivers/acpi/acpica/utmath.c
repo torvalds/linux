@@ -134,7 +134,7 @@ acpi_status acpi_ut_short_shift_left(u64 operand, u32 count, u64 *out_result)
 
 	if ((count & 63) >= 32) {
 		operand_ovl.part.hi = operand_ovl.part.lo;
-		operand_ovl.part.lo ^= operand_ovl.part.lo;
+		operand_ovl.part.lo = 0;
 		count = (count & 63) - 32;
 	}
 	ACPI_SHIFT_LEFT_64_BY_32(operand_ovl.part.hi,
@@ -171,7 +171,7 @@ acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result)
 
 	if ((count & 63) >= 32) {
 		operand_ovl.part.lo = operand_ovl.part.hi;
-		operand_ovl.part.hi ^= operand_ovl.part.hi;
+		operand_ovl.part.hi = 0;
 		count = (count & 63) - 32;
 	}
 	ACPI_SHIFT_RIGHT_64_BY_32(operand_ovl.part.hi,

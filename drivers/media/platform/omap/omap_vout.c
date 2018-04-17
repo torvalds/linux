@@ -839,7 +839,7 @@ static void omap_vout_buffer_release(struct videobuf_queue *q,
 /*
  *  File operations
  */
-static unsigned int omap_vout_poll(struct file *file,
+static __poll_t omap_vout_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct omap_vout_device *vout = file->private_data;
@@ -1004,10 +1004,11 @@ static int omap_vout_open(struct file *file)
 	struct omap_vout_device *vout = NULL;
 
 	vout = video_drvdata(file);
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	if (vout == NULL)
 		return -ENODEV;
+
+	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	/* for now, we only support single open */
 	if (vout->opened)

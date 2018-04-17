@@ -306,7 +306,6 @@ static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state, old_state;
@@ -522,8 +521,7 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 	}
 	return NF_ACCEPT;
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_SCTP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_SCTP, "%s", logmsg);
 	return -NF_ACCEPT;
 }
 

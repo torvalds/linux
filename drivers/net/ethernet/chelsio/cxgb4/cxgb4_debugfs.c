@@ -2211,7 +2211,7 @@ static int rss_key_show(struct seq_file *seq, void *v)
 {
 	u32 key[10];
 
-	t4_read_rss_key(seq->private, key);
+	t4_read_rss_key(seq->private, key, true);
 	seq_printf(seq, "%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x\n",
 		   key[9], key[8], key[7], key[6], key[5], key[4], key[3],
 		   key[2], key[1], key[0]);
@@ -2248,7 +2248,7 @@ static ssize_t rss_key_write(struct file *file, const char __user *buf,
 		}
 	}
 
-	t4_write_rss_key(adap, key, -1);
+	t4_write_rss_key(adap, key, -1, true);
 	return count;
 }
 
@@ -2325,12 +2325,13 @@ static int rss_pf_config_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	pfconf = (struct rss_pf_conf *)p->data;
-	rss_pf_map = t4_read_rss_pf_map(adapter);
-	rss_pf_mask = t4_read_rss_pf_mask(adapter);
+	rss_pf_map = t4_read_rss_pf_map(adapter, true);
+	rss_pf_mask = t4_read_rss_pf_mask(adapter, true);
 	for (pf = 0; pf < 8; pf++) {
 		pfconf[pf].rss_pf_map = rss_pf_map;
 		pfconf[pf].rss_pf_mask = rss_pf_mask;
-		t4_read_rss_pf_config(adapter, pf, &pfconf[pf].rss_pf_config);
+		t4_read_rss_pf_config(adapter, pf, &pfconf[pf].rss_pf_config,
+				      true);
 	}
 	return 0;
 }
@@ -2393,7 +2394,7 @@ static int rss_vf_config_open(struct inode *inode, struct file *file)
 	vfconf = (struct rss_vf_conf *)p->data;
 	for (vf = 0; vf < vfcount; vf++) {
 		t4_read_rss_vf_config(adapter, vf, &vfconf[vf].rss_vf_vfl,
-				      &vfconf[vf].rss_vf_vfh);
+				      &vfconf[vf].rss_vf_vfh, true);
 	}
 	return 0;
 }

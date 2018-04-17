@@ -1392,7 +1392,7 @@ int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 	else
 		except_str = "-";
 	caller = (unsigned long) entry->caller;
-	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %02i %p  ",
+	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %02i %pK  ",
 		      area, sec, usec, level, except_str,
 		      entry->id.fields.cpuid, (void *)caller);
 	return rc;

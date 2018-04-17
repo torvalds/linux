@@ -256,7 +256,7 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 			goto drop;
 		}
 	mdata = mlx5e_ipsec_add_metadata(skb);
-	if (unlikely(IS_ERR(mdata))) {
+	if (IS_ERR(mdata)) {
 		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_metadata);
 		goto drop;
 	}

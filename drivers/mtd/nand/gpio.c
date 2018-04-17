@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
@@ -31,12 +31,16 @@
 #include <linux/mtd/nand-gpio.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_gpio.h>
 
 struct gpiomtd {
 	void __iomem		*io_sync;
 	struct nand_chip	nand_chip;
 	struct gpio_nand_platdata plat;
+	struct gpio_desc *nce; /* Optional chip enable */
+	struct gpio_desc *cle;
+	struct gpio_desc *ale;
+	struct gpio_desc *rdy;
+	struct gpio_desc *nwp; /* Optional write protection */
 };
 
 static inline struct gpiomtd *gpio_nand_getpriv(struct mtd_info *mtd)
@@ -78,11 +82,10 @@ static void gpio_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	gpio_nand_dosync(gpiomtd);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		if (gpio_is_valid(gpiomtd->plat.gpio_nce))
-			gpio_set_value(gpiomtd->plat.gpio_nce,
-				       !(ctrl & NAND_NCE));
-		gpio_set_value(gpiomtd->plat.gpio_cle, !!(ctrl & NAND_CLE));
-		gpio_set_value(gpiomtd->plat.gpio_ale, !!(ctrl & NAND_ALE));
+		if (gpiomtd->nce)
+			gpiod_set_value(gpiomtd->nce, !(ctrl & NAND_NCE));
+		gpiod_set_value(gpiomtd->cle, !!(ctrl & NAND_CLE));
+		gpiod_set_value(gpiomtd->ale, !!(ctrl & NAND_ALE));
 		gpio_nand_dosync(gpiomtd);
 	}
 	if (cmd == NAND_CMD_NONE)
@@ -96,7 +99,7 @@ static int gpio_nand_devready(struct mtd_info *mtd)
 {
 	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
 
-	return gpio_get_value(gpiomtd->plat.gpio_rdy);
+	return gpiod_get_value(gpiomtd->rdy);
 }
 
 #ifdef CONFIG_OF
@@ -122,12 +125,6 @@ static int gpio_nand_get_config_of(const struct device *dev,
 			return -EINVAL;
 		}
 	}
-
-	plat->gpio_rdy = of_get_gpio(dev->of_node, 0);
-	plat->gpio_nce = of_get_gpio(dev->of_node, 1);
-	plat->gpio_ale = of_get_gpio(dev->of_node, 2);
-	plat->gpio_cle = of_get_gpio(dev->of_node, 3);
-	plat->gpio_nwp = of_get_gpio(dev->of_node, 4);
 
 	if (!of_property_read_u32(dev->of_node, "chip-delay", &val))
 		plat->chip_delay = val;
@@ -201,10 +198,11 @@ static int gpio_nand_remove(struct platform_device *pdev)
 
 	nand_release(nand_to_mtd(&gpiomtd->nand_chip));
 
-	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
-		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
-	if (gpio_is_valid(gpiomtd->plat.gpio_nce))
-		gpio_set_value(gpiomtd->plat.gpio_nce, 1);
+	/* Enable write protection and disable the chip */
+	if (gpiomtd->nwp && !IS_ERR(gpiomtd->nwp))
+		gpiod_set_value(gpiomtd->nwp, 0);
+	if (gpiomtd->nce && !IS_ERR(gpiomtd->nce))
+		gpiod_set_value(gpiomtd->nce, 0);
 
 	return 0;
 }
@@ -215,66 +213,66 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
 	struct resource *res;
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 
-	if (!pdev->dev.of_node && !dev_get_platdata(&pdev->dev))
+	if (!dev->of_node && !dev_get_platdata(dev))
 		return -EINVAL;
 
-	gpiomtd = devm_kzalloc(&pdev->dev, sizeof(*gpiomtd), GFP_KERNEL);
+	gpiomtd = devm_kzalloc(dev, sizeof(*gpiomtd), GFP_KERNEL);
 	if (!gpiomtd)
 		return -ENOMEM;
 
 	chip = &gpiomtd->nand_chip;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
+	chip->IO_ADDR_R = devm_ioremap_resource(dev, res);
 	if (IS_ERR(chip->IO_ADDR_R))
 		return PTR_ERR(chip->IO_ADDR_R);
 
 	res = gpio_nand_get_io_sync(pdev);
 	if (res) {
-		gpiomtd->io_sync = devm_ioremap_resource(&pdev->dev, res);
+		gpiomtd->io_sync = devm_ioremap_resource(dev, res);
 		if (IS_ERR(gpiomtd->io_sync))
 			return PTR_ERR(gpiomtd->io_sync);
 	}
 
-	ret = gpio_nand_get_config(&pdev->dev, &gpiomtd->plat);
+	ret = gpio_nand_get_config(dev, &gpiomtd->plat);
 	if (ret)
 		return ret;
 
-	if (gpio_is_valid(gpiomtd->plat.gpio_nce)) {
-		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nce,
-					"NAND NCE");
-		if (ret)
-			return ret;
-		gpio_direction_output(gpiomtd->plat.gpio_nce, 1);
+	/* Just enable the chip */
+	gpiomtd->nce = devm_gpiod_get_optional(dev, "nce", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiomtd->nce))
+		return PTR_ERR(gpiomtd->nce);
+
+	/* We disable write protection once we know probe() will succeed */
+	gpiomtd->nwp = devm_gpiod_get_optional(dev, "nwp", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiomtd->nwp)) {
+		ret = PTR_ERR(gpiomtd->nwp);
+		goto out_ce;
 	}
 
-	if (gpio_is_valid(gpiomtd->plat.gpio_nwp)) {
-		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nwp,
-					"NAND NWP");
-		if (ret)
-			return ret;
+	gpiomtd->ale = devm_gpiod_get(dev, "ale", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiomtd->ale)) {
+		ret = PTR_ERR(gpiomtd->ale);
+		goto out_ce;
 	}
 
-	ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_ale, "NAND ALE");
-	if (ret)
-		return ret;
-	gpio_direction_output(gpiomtd->plat.gpio_ale, 0);
+	gpiomtd->cle = devm_gpiod_get(dev, "cle", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiomtd->cle)) {
+		ret = PTR_ERR(gpiomtd->cle);
+		goto out_ce;
+	}
 
-	ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_cle, "NAND CLE");
-	if (ret)
-		return ret;
-	gpio_direction_output(gpiomtd->plat.gpio_cle, 0);
-
-	if (gpio_is_valid(gpiomtd->plat.gpio_rdy)) {
-		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_rdy,
-					"NAND RDY");
-		if (ret)
-			return ret;
-		gpio_direction_input(gpiomtd->plat.gpio_rdy);
+	gpiomtd->rdy = devm_gpiod_get_optional(dev, "rdy", GPIOD_IN);
+	if (IS_ERR(gpiomtd->rdy)) {
+		ret = PTR_ERR(gpiomtd->rdy);
+		goto out_ce;
+	}
+	/* Using RDY pin */
+	if (gpiomtd->rdy)
 		chip->dev_ready = gpio_nand_devready;
-	}
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->IO_ADDR_W		= chip->IO_ADDR_R;
@@ -285,12 +283,13 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip->cmd_ctrl		= gpio_nand_cmd_ctrl;
 
 	mtd			= nand_to_mtd(chip);
-	mtd->dev.parent		= &pdev->dev;
+	mtd->dev.parent		= dev;
 
 	platform_set_drvdata(pdev, gpiomtd);
 
-	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
-		gpio_direction_output(gpiomtd->plat.gpio_nwp, 1);
+	/* Disable write protection, if wired up */
+	if (gpiomtd->nwp && !IS_ERR(gpiomtd->nwp))
+		gpiod_direction_output(gpiomtd->nwp, 1);
 
 	ret = nand_scan(mtd, 1);
 	if (ret)
@@ -305,8 +304,11 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		return 0;
 
 err_wp:
-	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
-		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
+	if (gpiomtd->nwp && !IS_ERR(gpiomtd->nwp))
+		gpiod_set_value(gpiomtd->nwp, 0);
+out_ce:
+	if (gpiomtd->nce && !IS_ERR(gpiomtd->nce))
+		gpiod_set_value(gpiomtd->nce, 0);
 
 	return ret;
 }

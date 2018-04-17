@@ -27,6 +27,7 @@
 #include <asm/barrier.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/daifflags.h>
 #include <asm/irqflags.h>
 #include <asm/kexec.h>
 #include <asm/memory.h>
@@ -246,8 +247,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	}
 
 	pte = pte_offset_kernel(pmd, dst_addr);
-	set_pte(pte, __pte(virt_to_phys((void *)dst) |
-			 pgprot_val(PAGE_KERNEL_EXEC)));
+	set_pte(pte, pfn_pte(virt_to_pfn(dst), PAGE_KERNEL_EXEC));
 
 	/*
 	 * Load our new page tables. A strict BBM approach requires that we
@@ -263,7 +263,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	 */
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
-	write_sysreg(virt_to_phys(pgd), ttbr0_el1);
+	write_sysreg(phys_to_ttbr(virt_to_phys(pgd)), ttbr0_el1);
 	isb();
 
 	*phys_dst_addr = virt_to_phys((void *)dst);
@@ -285,7 +285,7 @@ int swsusp_arch_suspend(void)
 		return -EBUSY;
 	}
 
-	local_dbg_save(flags);
+	flags = local_daif_save();
 
 	if (__cpu_suspend_enter(&state)) {
 		/* make the crash dump kernel image visible/saveable */
@@ -315,7 +315,7 @@ int swsusp_arch_suspend(void)
 		__cpu_suspend_exit();
 	}
 
-	local_dbg_restore(flags);
+	local_daif_restore(flags);
 
 	return ret;
 }

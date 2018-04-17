@@ -274,7 +274,7 @@ struct xfs_inode_log_format {
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		u8		__pad[16];	/* unused */
+		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
@@ -295,7 +295,7 @@ struct xfs_inode_log_format_32 {
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		u8		__pad[16];	/* unused */
+		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */

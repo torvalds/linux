@@ -114,7 +114,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	unsigned long now = jiffies;
 
 	if (nsm != NULL)
-		atomic_inc(&nsm->sm_count);
+		refcount_inc(&nsm->sm_count);
 	else {
 		host = NULL;
 		nsm = nsm_get_handle(ni->net, ni->sap, ni->salen,
@@ -151,7 +151,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_state      = 0;
 	host->h_nsmstate   = 0;
 	host->h_pidcount   = 0;
-	atomic_set(&host->h_count, 1);
+	refcount_set(&host->h_count, 1);
 	mutex_init(&host->h_mutex);
 	host->h_nextrebind = now + NLM_HOST_REBIND;
 	host->h_expires    = now + NLM_HOST_EXPIRE;
@@ -290,7 +290,7 @@ void nlmclnt_release_host(struct nlm_host *host)
 
 	WARN_ON_ONCE(host->h_server);
 
-	if (atomic_dec_and_test(&host->h_count)) {
+	if (refcount_dec_and_test(&host->h_count)) {
 		WARN_ON_ONCE(!list_empty(&host->h_lockowners));
 		WARN_ON_ONCE(!list_empty(&host->h_granted));
 		WARN_ON_ONCE(!list_empty(&host->h_reclaim));
@@ -388,6 +388,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	ln->nrhosts++;
 	nrhosts++;
 
+	refcount_inc(&host->h_count);
+
 	dprintk("lockd: %s created host %s (%s)\n",
 		__func__, host->h_name, host->h_addrbuf);
 
@@ -410,7 +412,7 @@ void nlmsvc_release_host(struct nlm_host *host)
 	dprintk("lockd: release server host %s\n", host->h_name);
 
 	WARN_ON_ONCE(!host->h_server);
-	atomic_dec(&host->h_count);
+	refcount_dec(&host->h_count);
 }
 
 /*
@@ -504,7 +506,7 @@ struct nlm_host * nlm_get_host(struct nlm_host *host)
 {
 	if (host) {
 		dprintk("lockd: get host %s\n", host->h_name);
-		atomic_inc(&host->h_count);
+		refcount_inc(&host->h_count);
 		host->h_expires = jiffies + NLM_HOST_EXPIRE;
 	}
 	return host;
@@ -578,8 +580,10 @@ static void nlm_complain_hosts(struct net *net)
 
 		if (ln->nrhosts == 0)
 			return;
-		printk(KERN_WARNING "lockd: couldn't shutdown host module for net %p!\n", net);
-		dprintk("lockd: %lu hosts left in net %p:\n", ln->nrhosts, net);
+		pr_warn("lockd: couldn't shutdown host module for net %x!\n",
+			net->ns.inum);
+		dprintk("lockd: %lu hosts left in net %x:\n", ln->nrhosts,
+			net->ns.inum);
 	} else {
 		if (nrhosts == 0)
 			return;
@@ -590,9 +594,9 @@ static void nlm_complain_hosts(struct net *net)
 	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
-		dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
-			host->h_name, atomic_read(&host->h_count),
-			host->h_inuse, host->h_expires, host->net);
+		dprintk("       %s (cnt %d use %d exp %ld net %x)\n",
+			host->h_name, refcount_read(&host->h_count),
+			host->h_inuse, host->h_expires, host->net->ns.inum);
 	}
 }
 
@@ -605,7 +609,8 @@ nlm_shutdown_hosts_net(struct net *net)
 	mutex_lock(&nlm_host_mutex);
 
 	/* First, make all hosts eligible for gc */
-	dprintk("lockd: nuking all hosts in net %p...\n", net);
+	dprintk("lockd: nuking all hosts in net %x...\n",
+		net ? net->ns.inum : 0);
 	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
@@ -618,9 +623,8 @@ nlm_shutdown_hosts_net(struct net *net)
 
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts(net);
-	mutex_unlock(&nlm_host_mutex);
-
 	nlm_complain_hosts(net);
+	mutex_unlock(&nlm_host_mutex);
 }
 
 /*
@@ -646,7 +650,8 @@ nlm_gc_hosts(struct net *net)
 	struct hlist_node *next;
 	struct nlm_host	*host;
 
-	dprintk("lockd: host garbage collection for net %p\n", net);
+	dprintk("lockd: host garbage collection for net %x\n",
+		net ? net->ns.inum : 0);
 	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
@@ -659,15 +664,16 @@ nlm_gc_hosts(struct net *net)
 	for_each_host_safe(host, next, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
-		if (atomic_read(&host->h_count) || host->h_inuse
-		 || time_before(jiffies, host->h_expires)) {
+		if (host->h_inuse || time_before(jiffies, host->h_expires)) {
 			dprintk("nlm_gc_hosts skipping %s "
-				"(cnt %d use %d exp %ld net %p)\n",
-				host->h_name, atomic_read(&host->h_count),
-				host->h_inuse, host->h_expires, host->net);
+				"(cnt %d use %d exp %ld net %x)\n",
+				host->h_name, refcount_read(&host->h_count),
+				host->h_inuse, host->h_expires,
+				host->net->ns.inum);
 			continue;
 		}
-		nlm_destroy_host_locked(host);
+		if (refcount_dec_if_one(&host->h_count))
+			nlm_destroy_host_locked(host);
 	}
 
 	if (net) {

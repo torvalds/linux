@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dmx_types:
+.. _net_types:
 
 **************
 Net Data Types

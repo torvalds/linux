@@ -22,10 +22,10 @@
 #define _BUGVERBOSE_LOCATION(file, line) __BUGVERBOSE_LOCATION(file, line)
 #define __BUGVERBOSE_LOCATION(file, line)			\
 		.pushsection .rodata.str,"aMS",@progbits,1;	\
-	2:	.string file;					\
+	14472:	.string file;					\
 		.popsection;					\
 								\
-		.long 2b - 0b;					\
+		.long 14472b - 14470b;				\
 		.short line;
 #else
 #define _BUGVERBOSE_LOCATION(file, line)
@@ -36,11 +36,11 @@
 #define __BUG_ENTRY(flags) 				\
 		.pushsection __bug_table,"aw";		\
 		.align 2;				\
-	0:	.long 1f - 0b;				\
+	14470:	.long 14471f - 14470b;			\
 _BUGVERBOSE_LOCATION(__FILE__, __LINE__)		\
 		.short flags; 				\
 		.popsection;				\
-	1:
+	14471:
 #else
 #define __BUG_ENTRY(flags)
 #endif

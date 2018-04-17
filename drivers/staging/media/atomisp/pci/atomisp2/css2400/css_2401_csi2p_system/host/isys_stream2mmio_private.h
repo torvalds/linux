@@ -122,7 +122,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_dump_state(
 		stream2mmio_print_sid_state(&(state->sid_state[i]));
 	}
 }
-/** end of NCI */
+/* end of NCI */
 
 /*****************************************************
  *
@@ -163,6 +163,6 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_reg_store(
 	ia_css_device_store_uint32(STREAM2MMIO_CTRL_BASE[ID] +
 		reg * sizeof(hrt_data), value);
 }
-/** end of DLI */
+/* end of DLI */
 
 #endif /* __ISYS_STREAM2MMIO_PRIVATE_H_INCLUDED__ */

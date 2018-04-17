@@ -407,18 +407,18 @@ static int fnic_notify_set(struct fnic *fnic)
 	return err;
 }
 
-static void fnic_notify_timer(unsigned long data)
+static void fnic_notify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = (struct fnic *)data;
+	struct fnic *fnic = from_timer(fnic, t, notify_timer);
 
 	fnic_handle_link_event(fnic);
 	mod_timer(&fnic->notify_timer,
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
-static void fnic_fip_notify_timer(unsigned long data)
+static void fnic_fip_notify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = (struct fnic *)data;
+	struct fnic *fnic = from_timer(fnic, t, fip_timer);
 
 	fnic_handle_fip_timer(fnic);
 }
@@ -777,8 +777,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
 		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
-		setup_timer(&fnic->fip_timer, fnic_fip_notify_timer,
-							(unsigned long)fnic);
+		timer_setup(&fnic->fip_timer, fnic_fip_notify_timer, 0);
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
@@ -809,8 +808,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Setup notify timer when using MSI interrupts */
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		setup_timer(&fnic->notify_timer,
-			    fnic_notify_timer, (unsigned long)fnic);
+		timer_setup(&fnic->notify_timer, fnic_notify_timer, 0);
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {

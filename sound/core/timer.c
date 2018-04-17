@@ -2072,9 +2072,9 @@ static ssize_t snd_timer_user_read(struct file *file, char __user *buffer,
 	return result > 0 ? result : err;
 }
 
-static unsigned int snd_timer_user_poll(struct file *file, poll_table * wait)
+static __poll_t snd_timer_user_poll(struct file *file, poll_table * wait)
 {
-        unsigned int mask;
+        __poll_t mask;
         struct snd_timer_user *tu;
 
         tu = file->private_data;

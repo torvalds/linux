@@ -5860,7 +5860,7 @@ static int atlas7_gpio_request(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	if (pinctrl_request_gpio(chip->base + gpio))
+	if (pinctrl_gpio_request(chip->base + gpio))
 		return -ENODEV;
 
 	raw_spin_lock_irqsave(&a7gc->lock, flags);
@@ -5890,7 +5890,7 @@ static void atlas7_gpio_free(struct gpio_chip *chip,
 
 	raw_spin_unlock_irqrestore(&a7gc->lock, flags);
 
-	pinctrl_free_gpio(chip->base + gpio);
+	pinctrl_gpio_free(chip->base + gpio);
 }
 
 static int atlas7_gpio_direction_input(struct gpio_chip *chip,

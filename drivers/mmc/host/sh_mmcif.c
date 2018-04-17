@@ -916,7 +916,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 			       struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
-	u32 opc = cmd->opcode;
+	u32 opc;
 	u32 mask = 0;
 	unsigned long flags;
 

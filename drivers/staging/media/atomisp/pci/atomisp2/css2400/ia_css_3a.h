@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_3A_H
 #define __IA_CSS_3A_H
 
-/** @file
+/* @file
  * This file contains types used for 3A statistics
  */
 
@@ -31,7 +31,7 @@ enum ia_css_3a_tables {
 	IA_CSS_NUM_3A_TABLES
 };
 
-/** Structure that holds 3A statistics in the ISP internal
+/* Structure that holds 3A statistics in the ISP internal
  * format. Use ia_css_get_3a_statistics() to translate
  * this to the format used on the host (3A library).
  * */
@@ -48,13 +48,13 @@ struct ia_css_isp_3a_statistics {
 	struct {
 		ia_css_ptr rgby_tbl;
 	} data_hmem;
-	uint32_t exp_id;     /**< exposure id, to match statistics to a frame,
+	uint32_t exp_id;     /** exposure id, to match statistics to a frame,
 			          see ia_css_event_public.h for more detail. */
-	uint32_t isp_config_id;/**< Unique ID to track which config was actually applied to a particular frame */
-	ia_css_ptr data_ptr; /**< pointer to base of all data */
-	uint32_t   size;     /**< total size of all data */
+	uint32_t isp_config_id;/** Unique ID to track which config was actually applied to a particular frame */
+	ia_css_ptr data_ptr; /** pointer to base of all data */
+	uint32_t   size;     /** total size of all data */
 	uint32_t   dmem_size;
-	uint32_t   vmem_size; /**< both lo and hi have this size */
+	uint32_t   vmem_size; /** both lo and hi have this size */
 	uint32_t   hmem_size;
 };
 #define SIZE_OF_DMEM_STRUCT						\
@@ -77,7 +77,7 @@ struct ia_css_isp_3a_statistics {
 	 SIZE_OF_IA_CSS_PTR +						\
 	 4 * sizeof(uint32_t))
 
-/** Map with host-side pointers to ISP-format statistics.
+/* Map with host-side pointers to ISP-format statistics.
  * These pointers can either be copies of ISP data or memory mapped
  * ISP pointers.
  * All of the data behind these pointers is allocated contiguously, the
@@ -85,17 +85,17 @@ struct ia_css_isp_3a_statistics {
  * point into this one block of data.
  */
 struct ia_css_isp_3a_statistics_map {
-	void                    *data_ptr; /**< Pointer to start of memory */
+	void                    *data_ptr; /** Pointer to start of memory */
 	struct ia_css_3a_output *dmem_stats;
 	uint16_t                *vmem_stats_hi;
 	uint16_t                *vmem_stats_lo;
 	struct ia_css_bh_table  *hmem_stats;
-	uint32_t                 size; /**< total size in bytes of data_ptr */
-	uint32_t                 data_allocated; /**< indicate whether data_ptr
+	uint32_t                 size; /** total size in bytes of data_ptr */
+	uint32_t                 data_allocated; /** indicate whether data_ptr
 						    was allocated or not. */
 };
 
-/** @brief Copy and translate 3A statistics from an ISP buffer to a host buffer
+/* @brief Copy and translate 3A statistics from an ISP buffer to a host buffer
  * @param[out]	host_stats Host buffer.
  * @param[in]	isp_stats ISP buffer.
  * @return	error value if temporary memory cannot be allocated
@@ -109,7 +109,7 @@ enum ia_css_err
 ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
 			 const struct ia_css_isp_3a_statistics *isp_stats);
 
-/** @brief Translate 3A statistics from ISP format to host format.
+/* @brief Translate 3A statistics from ISP format to host format.
  * @param[out]	host_stats host-format statistics
  * @param[in]	isp_stats  ISP-format statistics
  * @return	None
@@ -125,35 +125,35 @@ ia_css_translate_3a_statistics(
 
 /* Convenience functions for alloc/free of certain datatypes */
 
-/** @brief Allocate memory for the 3a statistics on the ISP
+/* @brief Allocate memory for the 3a statistics on the ISP
  * @param[in]	grid The grid.
  * @return		Pointer to the allocated 3a statistics buffer on the ISP
 */
 struct ia_css_isp_3a_statistics *
 ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid);
 
-/** @brief Free the 3a statistics memory on the isp
+/* @brief Free the 3a statistics memory on the isp
  * @param[in]	me Pointer to the 3a statistics buffer on the ISP.
  * @return		None
 */
 void
 ia_css_isp_3a_statistics_free(struct ia_css_isp_3a_statistics *me);
 
-/** @brief Allocate memory for the 3a statistics on the host
+/* @brief Allocate memory for the 3a statistics on the host
  * @param[in]	grid The grid.
  * @return		Pointer to the allocated 3a statistics buffer on the host
 */
 struct ia_css_3a_statistics *
 ia_css_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid);
 
-/** @brief Free the 3a statistics memory on the host
+/* @brief Free the 3a statistics memory on the host
  * @param[in]	me Pointer to the 3a statistics buffer on the host.
  * @return		None
  */
 void
 ia_css_3a_statistics_free(struct ia_css_3a_statistics *me);
 
-/** @brief Allocate a 3a statistics map structure
+/* @brief Allocate a 3a statistics map structure
  * @param[in]	isp_stats pointer to ISP 3a statistis struct
  * @param[in]	data_ptr  host-side pointer to ISP 3a statistics.
  * @return		Pointer to the allocated 3a statistics map
@@ -174,7 +174,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	const struct ia_css_isp_3a_statistics *isp_stats,
 	void *data_ptr);
 
-/** @brief Free the 3a statistics map
+/* @brief Free the 3a statistics map
  * @param[in]	me Pointer to the 3a statistics map
  * @return		None
  *

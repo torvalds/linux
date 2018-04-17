@@ -223,6 +223,13 @@ config ZIIRAVE_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called ziirave_wdt.
 
+config RAVE_SP_WATCHDOG
+	tristate "RAVE SP Watchdog timer"
+	depends on RAVE_SP_CORE
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog on RAVE SP device.
+
 # ALPHA Architecture
 
 # ARM Architecture
@@ -1460,7 +1467,7 @@ config INDYDOG
 
 config JZ4740_WDT
 	tristate "Ingenic jz4740 SoC hardware watchdog"
-	depends on MACH_JZ4740
+	depends on MACH_JZ4740 || MACH_JZ4780
 	select WATCHDOG_CORE
 	help
 	  Hardware driver for the built-in watchdog timer on Ingenic jz4740 SoCs.

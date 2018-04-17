@@ -188,7 +188,7 @@ enum host2sp_commands {
 	N_host2sp_cmd
 };
 
-/** Enumeration used to indicate the events that are produced by
+/* Enumeration used to indicate the events that are produced by
  *  the SP and consumed by the Host.
  *
  * !!!IMPORTANT!!! KEEP THE FOLLOWING IN SYNC:
@@ -274,10 +274,10 @@ struct sh_css_ddr_address_map_compound {
 };
 
 struct ia_css_isp_parameter_set_info {
-	struct sh_css_ddr_address_map  mem_map;/**< pointers to Parameters in ISP format IMPT:
+	struct sh_css_ddr_address_map  mem_map;/** pointers to Parameters in ISP format IMPT:
 						    This should be first member of this struct */
-	uint32_t                       isp_parameters_id;/**< Unique ID to track which config was actually applied to a particular frame */
-	ia_css_ptr                     output_frame_ptr;/**< Output frame to which this config has to be applied (optional) */
+	uint32_t                       isp_parameters_id;/** Unique ID to track which config was actually applied to a particular frame */
+	ia_css_ptr                     output_frame_ptr;/** Output frame to which this config has to be applied (optional) */
 };
 
 /* this struct contains all arguments that can be passed to
@@ -398,9 +398,9 @@ struct sh_css_sp_input_formatter_set {
 /* SP configuration information */
 struct sh_css_sp_config {
 	uint8_t			no_isp_sync; /* Signal host immediately after start */
-	uint8_t			enable_raw_pool_locking; /**< Enable Raw Buffer Locking for HALv3 Support */
+	uint8_t			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
 	uint8_t			lock_all;
-	/**< If raw buffer locking is enabled, this flag indicates whether raw
+	/** If raw buffer locking is enabled, this flag indicates whether raw
 	     frames are locked when their EOF event is successfully sent to the
 	     host (true) or when they are passed to the preview/video pipe
 	     (false). */
@@ -458,13 +458,13 @@ struct sh_css_sp_pipeline_io {
 	/*struct sh_css_sp_pipeline_terminal	output;*/
 };
 
-/** This struct tracks how many streams are registered per CSI port.
+/* This struct tracks how many streams are registered per CSI port.
  * This is used to track which streams have already been configured.
  * Only when all streams are configured, the CSI RX is started for that port.
  */
 struct sh_css_sp_pipeline_io_status {
-	uint32_t	active[N_INPUT_SYSTEM_CSI_PORT];	/**< registered streams */
-	uint32_t	running[N_INPUT_SYSTEM_CSI_PORT];	/**< configured streams */
+	uint32_t	active[N_INPUT_SYSTEM_CSI_PORT];	/** registered streams */
+	uint32_t	running[N_INPUT_SYSTEM_CSI_PORT];	/** configured streams */
 };
 
 #endif
@@ -500,7 +500,7 @@ enum sh_css_port_type {
 #define SH_CSS_METADATA_OFFLINE_MODE   0x04
 #define SH_CSS_METADATA_WAIT_INPUT     0x08
 
-/** @brief Free an array of metadata buffers.
+/* @brief Free an array of metadata buffers.
  *
  * @param[in]	num_bufs	Number of metadata buffers to be freed.
  * @param[in]	bufs		Pointer of array of metadata buffers.
@@ -764,7 +764,7 @@ struct sh_css_hmm_buffer {
 			hrt_vaddress	frame_data;
 			uint32_t	flashed;
 			uint32_t	exp_id;
-			uint32_t	isp_parameters_id; /**< Unique ID to track which config was
+			uint32_t	isp_parameters_id; /** Unique ID to track which config was
 								actually applied to a particular frame */
 #if CONFIG_ON_FRAME_ENQUEUE()
 			struct sh_css_config_on_frame_enqueue config_on_frame_enqueue;
@@ -961,7 +961,7 @@ struct host_sp_queues {
 
 extern int (*sh_css_printf)(const char *fmt, va_list args);
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_print(const char *fmt, ...)
 {
 	va_list ap;
@@ -973,7 +973,7 @@ sh_css_print(const char *fmt, ...)
 	}
 }
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_vprint(const char *fmt, va_list args)
 {
 	if (sh_css_printf)

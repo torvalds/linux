@@ -1784,10 +1784,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int fw_device_op_poll(struct file *file, poll_table * pt)
+static __poll_t fw_device_op_poll(struct file *file, poll_table * pt)
 {
 	struct client *client = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &client->wait, pt);
 

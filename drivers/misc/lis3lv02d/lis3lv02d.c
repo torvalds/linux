@@ -651,7 +651,7 @@ out:
 	return retval;
 }
 
-static unsigned int lis3lv02d_misc_poll(struct file *file, poll_table *wait)
+static __poll_t lis3lv02d_misc_poll(struct file *file, poll_table *wait)
 {
 	struct lis3lv02d *lis3 = container_of(file->private_data,
 					      struct lis3lv02d, miscdev);

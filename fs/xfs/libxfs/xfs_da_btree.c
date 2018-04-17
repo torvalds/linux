@@ -128,7 +128,7 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
-static bool
+static xfs_failaddr_t
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
 {
@@ -145,24 +145,24 @@ xfs_da3_node_verify(
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 		if (ichdr.magic != XFS_DA3_NODE_MAGIC)
-			return false;
+			return __this_address;
 
 		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+			return __this_address;
 		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return false;
+			return __this_address;
 	} else {
 		if (ichdr.magic != XFS_DA_NODE_MAGIC)
-			return false;
+			return __this_address;
 	}
 	if (ichdr.level == 0)
-		return false;
+		return __this_address;
 	if (ichdr.level > XFS_DA_NODE_MAXDEPTH)
-		return false;
+		return __this_address;
 	if (ichdr.count == 0)
-		return false;
+		return __this_address;
 
 	/*
 	 * we don't know if the node is for and attribute or directory tree,
@@ -170,11 +170,11 @@ xfs_da3_node_verify(
 	 */
 	if (ichdr.count > mp->m_dir_geo->node_ents &&
 	    ichdr.count > mp->m_attr_geo->node_ents)
-		return false;
+		return __this_address;
 
 	/* XXX: hash order check? */
 
-	return true;
+	return NULL;
 }
 
 static void
@@ -182,12 +182,13 @@ xfs_da3_node_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (!xfs_da3_node_verify(bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+	fa = xfs_da3_node_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 
@@ -211,19 +212,20 @@ xfs_da3_node_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
+	xfs_failaddr_t		fa;
 
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA3_NODE_MAGIC:
 			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF)) {
-				xfs_buf_ioerror(bp, -EFSBADCRC);
+				xfs_verifier_error(bp, -EFSBADCRC,
+						__this_address);
 				break;
 			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			if (!xfs_da3_node_verify(bp)) {
-				xfs_buf_ioerror(bp, -EFSCORRUPTED);
-				break;
-			}
+			fa = xfs_da3_node_verify(bp);
+			if (fa)
+				xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
@@ -236,18 +238,40 @@ xfs_da3_node_read_verify(
 			bp->b_ops->verify_read(bp);
 			return;
 		default:
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 			break;
 	}
+}
 
-	/* corrupt block */
-	xfs_verifier_error(bp);
+/* Verify the structure of a da3 block. */
+static xfs_failaddr_t
+xfs_da3_node_verify_struct(
+	struct xfs_buf		*bp)
+{
+	struct xfs_da_blkinfo	*info = bp->b_addr;
+
+	switch (be16_to_cpu(info->magic)) {
+	case XFS_DA3_NODE_MAGIC:
+	case XFS_DA_NODE_MAGIC:
+		return xfs_da3_node_verify(bp);
+	case XFS_ATTR_LEAF_MAGIC:
+	case XFS_ATTR3_LEAF_MAGIC:
+		bp->b_ops = &xfs_attr3_leaf_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	case XFS_DIR2_LEAFN_MAGIC:
+	case XFS_DIR3_LEAFN_MAGIC:
+		bp->b_ops = &xfs_dir3_leafn_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	default:
+		return __this_address;
+	}
 }
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.name = "xfs_da3_node",
 	.verify_read = xfs_da3_node_read_verify,
 	.verify_write = xfs_da3_node_write_verify,
+	.verify_struct = xfs_da3_node_verify_struct,
 };
 
 int

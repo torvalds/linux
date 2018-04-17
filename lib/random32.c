@@ -213,11 +213,11 @@ static int __init prandom_init(void)
 }
 core_initcall(prandom_init);
 
-static void __prandom_timer(unsigned long dontcare);
+static void __prandom_timer(struct timer_list *unused);
 
 static DEFINE_TIMER(seed_timer, __prandom_timer);
 
-static void __prandom_timer(unsigned long dontcare)
+static void __prandom_timer(struct timer_list *unused)
 {
 	u32 entropy;
 	unsigned long expires;

@@ -288,9 +288,9 @@ static void invoke_padata_reorder(struct work_struct *work)
 	local_bh_enable();
 }
 
-static void padata_reorder_timer(unsigned long arg)
+static void padata_reorder_timer(struct timer_list *t)
 {
-	struct parallel_data *pd = (struct parallel_data *)arg;
+	struct parallel_data *pd = from_timer(pd, t, timer);
 	unsigned int weight;
 	int target_cpu, cpu;
 
@@ -485,7 +485,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
-	setup_timer(&pd->timer, padata_reorder_timer, (unsigned long)pd);
+	timer_setup(&pd->timer, padata_reorder_timer, 0);
 	atomic_set(&pd->seq_nr, -1);
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 0);

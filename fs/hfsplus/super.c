@@ -329,9 +329,9 @@ static int hfsplus_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		return 0;
-	if (!(*flags & MS_RDONLY)) {
+	if (!(*flags & SB_RDONLY)) {
 		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb)->s_vhdr;
 		int force = 0;
 
@@ -340,20 +340,20 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 
 		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 			pr_warn("filesystem was not cleanly unmounted, running fsck.hfsplus is recommended.  leaving read-only.\n");
-			sb->s_flags |= MS_RDONLY;
-			*flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
+			*flags |= SB_RDONLY;
 		} else if (force) {
 			/* nothing */
 		} else if (vhdr->attributes &
 				cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			pr_warn("filesystem is marked locked, leaving read-only.\n");
-			sb->s_flags |= MS_RDONLY;
-			*flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
+			*flags |= SB_RDONLY;
 		} else if (vhdr->attributes &
 				cpu_to_be32(HFSPLUS_VOL_JOURNALED)) {
 			pr_warn("filesystem is marked journaled, leaving read-only.\n");
-			sb->s_flags |= MS_RDONLY;
-			*flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
+			*flags |= SB_RDONLY;
 		}
 	}
 	return 0;
@@ -455,16 +455,16 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 		pr_warn("Filesystem was not cleanly unmounted, running fsck.hfsplus is recommended.  mounting read-only.\n");
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	} else if (test_and_clear_bit(HFSPLUS_SB_FORCE, &sbi->flags)) {
 		/* nothing */
 	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 		pr_warn("Filesystem is marked locked, mounting read-only.\n");
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	} else if ((vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_JOURNALED)) &&
 			!sb_rdonly(sb)) {
 		pr_warn("write access to a journaled filesystem is not supported, use the force option at your own risk, mounting read-only.\n");
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 
 	err = -EINVAL;

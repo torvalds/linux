@@ -1506,7 +1506,7 @@ static ssize_t do_read(struct file *fp, char __user *buf, size_t count, loff_t *
 	return 0;
 }
 
-static unsigned int do_poll(struct file *fp, poll_table *wait)
+static __poll_t do_poll(struct file *fp, poll_table *wait)
 {
 	struct apm_user *as;
 

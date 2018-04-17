@@ -376,7 +376,7 @@ static struct uverbs_method_spec *build_method_with_attrs(const struct uverbs_me
 				 min_id) ||
 			    WARN(attr_obj_with_special_access &&
 				 !(attr->flags & UVERBS_ATTR_SPEC_F_MANDATORY),
-				 "ib_uverbs: Tried to merge attr (%d) but it's an object with new/destroy aceess but isn't mandatory\n",
+				 "ib_uverbs: Tried to merge attr (%d) but it's an object with new/destroy access but isn't mandatory\n",
 				 min_id) ||
 			    WARN(IS_ATTR_OBJECT(attr) &&
 				 attr->flags & UVERBS_ATTR_SPEC_F_MIN_SZ,

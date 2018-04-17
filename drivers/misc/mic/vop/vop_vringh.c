@@ -1023,10 +1023,10 @@ __unlock_ret:
  * in the card->host (TX) path, when userspace is unblocked by poll it
  * must drain all available descriptors or it can stall.
  */
-static unsigned int vop_poll(struct file *f, poll_table *wait)
+static __poll_t vop_poll(struct file *f, poll_table *wait)
 {
 	struct vop_vdev *vdev = f->private_data;
-	int mask = 0;
+	__poll_t mask = 0;
 
 	mutex_lock(&vdev->vdev_mutex);
 	if (vop_vdev_inited(vdev)) {

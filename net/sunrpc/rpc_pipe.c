@@ -340,12 +340,12 @@ rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *of
 	return res;
 }
 
-static unsigned int
+static __poll_t
 rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct inode *inode = file_inode(filp);
 	struct rpc_inode *rpci = RPC_I(inode);
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = POLLOUT | POLLWRNORM;
 
 	poll_wait(filp, &rpci->waitq, wait);
 
@@ -1410,8 +1410,8 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 		return PTR_ERR(gssd_dentry);
 	}
 
-	dprintk("RPC:       sending pipefs MOUNT notification for net %p%s\n",
-		net, NET_NAME(net));
+	dprintk("RPC:       sending pipefs MOUNT notification for net %x%s\n",
+		net->ns.inum, NET_NAME(net));
 	mutex_lock(&sn->pipefs_sb_lock);
 	sn->pipefs_sb = sb;
 	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
@@ -1462,8 +1462,8 @@ static void rpc_kill_sb(struct super_block *sb)
 		goto out;
 	}
 	sn->pipefs_sb = NULL;
-	dprintk("RPC:       sending pipefs UMOUNT notification for net %p%s\n",
-		net, NET_NAME(net));
+	dprintk("RPC:       sending pipefs UMOUNT notification for net %x%s\n",
+		net->ns.inum, NET_NAME(net));
 	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_UMOUNT,
 					   sb);

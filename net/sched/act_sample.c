@@ -96,21 +96,14 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static void tcf_sample_cleanup_rcu(struct rcu_head *rcu)
-{
-	struct tcf_sample *s = container_of(rcu, struct tcf_sample, rcu);
-	struct psample_group *psample_group;
-
-	psample_group = rcu_dereference_protected(s->psample_group, 1);
-	RCU_INIT_POINTER(s->psample_group, NULL);
-	psample_group_put(psample_group);
-}
-
 static void tcf_sample_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_sample *s = to_sample(a);
+	struct psample_group *psample_group;
 
-	call_rcu(&s->rcu, tcf_sample_cleanup_rcu);
+	psample_group = rtnl_dereference(s->psample_group);
+	RCU_INIT_POINTER(s->psample_group, NULL);
+	psample_group_put(psample_group);
 }
 
 static bool tcf_sample_dev_ok_push(struct net_device *dev)
@@ -264,7 +257,6 @@ static int __init sample_init_module(void)
 
 static void __exit sample_cleanup_module(void)
 {
-	rcu_barrier();
 	tcf_unregister_action(&act_sample_ops, &sample_net_ops);
 }
 

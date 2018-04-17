@@ -2501,13 +2501,13 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	return res;
 }
 
-static unsigned int
+static __poll_t
 zoran_poll (struct file *file,
 	    poll_table  *wait)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 	int frame;
 	unsigned long flags;
 
@@ -2839,7 +2839,7 @@ static const struct v4l2_file_operations zoran_fops = {
 	.poll = zoran_poll,
 };
 
-struct video_device zoran_template = {
+const struct video_device zoran_template = {
 	.name = ZORAN_NAME,
 	.fops = &zoran_fops,
 	.ioctl_ops = &zoran_ioctl_ops,

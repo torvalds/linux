@@ -184,6 +184,7 @@ config BGMAC_PLATFORM
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
 	depends on OF
+	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
 	select FIXED_PHY

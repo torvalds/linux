@@ -61,7 +61,21 @@ static inline void
 xfs_rmap_skip_owner_update(
 	struct xfs_owner_info	*oi)
 {
-	oi->oi_owner = XFS_RMAP_OWN_UNKNOWN;
+	xfs_rmap_ag_owner(oi, XFS_RMAP_OWN_NULL);
+}
+
+static inline bool
+xfs_rmap_should_skip_owner_update(
+	struct xfs_owner_info	*oi)
+{
+	return oi->oi_owner == XFS_RMAP_OWN_NULL;
+}
+
+static inline void
+xfs_rmap_any_owner_update(
+	struct xfs_owner_info	*oi)
+{
+	xfs_rmap_ag_owner(oi, XFS_RMAP_OWN_UNKNOWN);
 }
 
 /* Reverse mapping functions. */
@@ -219,5 +233,10 @@ int xfs_rmap_compare(const struct xfs_rmap_irec *a,
 union xfs_btree_rec;
 int xfs_rmap_btrec_to_irec(union xfs_btree_rec *rec,
 		struct xfs_rmap_irec *irec);
+int xfs_rmap_has_record(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+		xfs_extlen_t len, bool *exists);
+int xfs_rmap_record_exists(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+		xfs_extlen_t len, struct xfs_owner_info *oinfo,
+		bool *has_rmap);
 
 #endif	/* __XFS_RMAP_H__ */

@@ -35,5 +35,5 @@
     |          um: | TODO |
     |   unicore32: | TODO |
     |         x86: |  ok  | 64-bit only
-    |      xtensa: | TODO |
+    |      xtensa: |  ok  |
     -----------------------

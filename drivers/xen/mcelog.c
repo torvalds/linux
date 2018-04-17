@@ -139,7 +139,7 @@ out:
 	return err ? err : buf - ubuf;
 }
 
-static unsigned int xen_mce_chrdev_poll(struct file *file, poll_table *wait)
+static __poll_t xen_mce_chrdev_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &xen_mce_chrdev_wait, wait);
 

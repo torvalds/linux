@@ -31,6 +31,7 @@
 #include <linux/io.h>
 #include <linux/gfp.h>
 #include <linux/atomic.h>
+#include <linux/dma-direct.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>

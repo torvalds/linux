@@ -33,6 +33,9 @@ config GENERIC_CALIBRATE_DELAY
 config NO_IOPORT_MAP
 	def_bool y if !PCI
 
+config NO_DMA
+	def_bool y if !PCI
+
 config FORCE_MAX_ZONEORDER
 	int
 	default 6
@@ -72,6 +75,7 @@ config CRIS
 	select GENERIC_SCHED_CLOCK if ETRAX_ARCH_V32
 	select HAVE_DEBUG_BUGVERBOSE if ETRAX_ARCH_V32
 	select HAVE_NMI
+	select DMA_DIRECT_OPS if PCI
 
 config HZ
 	int

@@ -31,12 +31,7 @@
  * tables. Each page table is also a single 4K page, giving 512 (==
  * PTRS_PER_PTE) 8 byte ptes. Each pud entry is initialized to point to
  * invalid_pmd_table, each pmd entry is initialized to point to
- * invalid_pte_table, each pte is initialized to 0. When memory is low,
- * and a pmd table or a page table allocation fails, empty_bad_pmd_table
- * and empty_bad_page_table is returned back to higher layer code, so
- * that the failure is recognized later on. Linux does not seem to
- * handle these failures very well though. The empty_bad_page_table has
- * invalid pte entries in it, to force page faults.
+ * invalid_pte_table, each pte is initialized to 0.
  *
  * Kernel mappings: kernel mappings are held in the swapper_pg_table.
  * The layout is identical to userspace except it's indexed with the
@@ -175,7 +170,6 @@
 	printk("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 extern pte_t invalid_pte_table[PTRS_PER_PTE];
-extern pte_t empty_bad_page_table[PTRS_PER_PTE];
 
 #ifndef __PAGETABLE_PUD_FOLDED
 /*

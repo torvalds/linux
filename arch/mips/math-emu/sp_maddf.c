@@ -20,9 +20,9 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 {
 	int re;
 	int rs;
-	unsigned rm;
-	uint64_t rm64;
-	uint64_t zm64;
+	unsigned int rm;
+	u64 rm64;
+	u64 zm64;
 	int s;
 
 	COMPXSP;

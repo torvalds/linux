@@ -2575,9 +2575,10 @@ static irqreturn_t atl1_intr(int irq, void *data)
  * atl1_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
-static void atl1_phy_config(unsigned long data)
+static void atl1_phy_config(struct timer_list *t)
 {
-	struct atl1_adapter *adapter = (struct atl1_adapter *)data;
+	struct atl1_adapter *adapter = from_timer(adapter, t,
+						  phy_config_timer);
 	struct atl1_hw *hw = &adapter->hw;
 	unsigned long flags;
 
@@ -3071,8 +3072,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* assume we have no link for now */
 	netif_carrier_off(netdev);
 
-	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->phy_config_timer, atl1_phy_config, 0);
 	adapter->phy_timer_pending = false;
 
 	INIT_WORK(&adapter->reset_dev_task, atl1_reset_dev_task);

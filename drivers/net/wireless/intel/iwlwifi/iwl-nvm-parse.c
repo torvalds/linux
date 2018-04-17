@@ -68,13 +68,14 @@
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
-#include <linux/acpi.h>
+
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-csr.h"
+#include "fw/acpi.h"
 
 /* NVM offsets (in words) definitions */
 enum nvm_offsets {
@@ -937,91 +938,3 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	return regd;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_mcc_info);
-
-#ifdef CONFIG_ACPI
-#define WRDD_METHOD		"WRDD"
-#define WRDD_WIFI		(0x07)
-#define WRDD_WIGIG		(0x10)
-
-static u32 iwl_wrdd_get_mcc(struct device *dev, union acpi_object *wrdd)
-{
-	union acpi_object *mcc_pkg, *domain_type, *mcc_value;
-	u32 i;
-
-	if (wrdd->type != ACPI_TYPE_PACKAGE ||
-	    wrdd->package.count < 2 ||
-	    wrdd->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    wrdd->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_EEPROM(dev, "Unsupported wrdd structure\n");
-		return 0;
-	}
-
-	for (i = 1 ; i < wrdd->package.count ; ++i) {
-		mcc_pkg = &wrdd->package.elements[i];
-
-		if (mcc_pkg->type != ACPI_TYPE_PACKAGE ||
-		    mcc_pkg->package.count < 2 ||
-		    mcc_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-		    mcc_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
-			mcc_pkg = NULL;
-			continue;
-		}
-
-		domain_type = &mcc_pkg->package.elements[0];
-		if (domain_type->integer.value == WRDD_WIFI)
-			break;
-
-		mcc_pkg = NULL;
-	}
-
-	if (mcc_pkg) {
-		mcc_value = &mcc_pkg->package.elements[1];
-		return mcc_value->integer.value;
-	}
-
-	return 0;
-}
-
-int iwl_get_bios_mcc(struct device *dev, char *mcc)
-{
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
-	u32 mcc_val;
-
-	root_handle = ACPI_HANDLE(dev);
-	if (!root_handle) {
-		IWL_DEBUG_EEPROM(dev,
-				 "Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
-
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)WRDD_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_EEPROM(dev, "WRD method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call WRDD with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &wrdd);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_EEPROM(dev, "WRDC invocation failed (0x%x)\n",
-				 status);
-		return -ENOENT;
-	}
-
-	mcc_val = iwl_wrdd_get_mcc(dev, wrdd.pointer);
-	kfree(wrdd.pointer);
-	if (!mcc_val)
-		return -ENOENT;
-
-	mcc[0] = (mcc_val >> 8) & 0xff;
-	mcc[1] = mcc_val & 0xff;
-	mcc[2] = '\0';
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_get_bios_mcc);
-#endif

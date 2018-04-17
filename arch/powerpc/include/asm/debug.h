@@ -49,7 +49,7 @@ void set_breakpoint(struct arch_hw_breakpoint *brk);
 void __set_breakpoint(struct arch_hw_breakpoint *brk);
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 extern void do_send_trap(struct pt_regs *regs, unsigned long address,
-			 unsigned long error_code, int signal_code, int brkpt);
+			 unsigned long error_code, int brkpt);
 #else
 
 extern void do_break(struct pt_regs *regs, unsigned long address,

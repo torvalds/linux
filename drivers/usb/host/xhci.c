@@ -395,14 +395,14 @@ static inline void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 
 #endif
 
-static void compliance_mode_recovery(unsigned long arg)
+static void compliance_mode_recovery(struct timer_list *t)
 {
 	struct xhci_hcd *xhci;
 	struct usb_hcd *hcd;
 	u32 temp;
 	int i;
 
-	xhci = (struct xhci_hcd *)arg;
+	xhci = from_timer(xhci, t, comp_mode_recovery_timer);
 
 	for (i = 0; i < xhci->num_usb3_ports; i++) {
 		temp = readl(xhci->usb3_ports[i]);
@@ -443,8 +443,8 @@ static void compliance_mode_recovery(unsigned long arg)
 static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 {
 	xhci->port_status_u0 = 0;
-	setup_timer(&xhci->comp_mode_recovery_timer,
-		    compliance_mode_recovery, (unsigned long)xhci);
+	timer_setup(&xhci->comp_mode_recovery_timer, compliance_mode_recovery,
+		    0);
 	xhci->comp_mode_recovery_timer.expires = jiffies +
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS);
 
@@ -3525,8 +3525,6 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_slot_ctx *slot_ctx;
 	int i, ret;
 
-	xhci_debugfs_remove_slot(xhci, udev->slot_id);
-
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
 	 * We called pm_runtime_get_noresume when the device was attached.
@@ -3555,8 +3553,10 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 
 	ret = xhci_disable_slot(xhci, udev->slot_id);
-	if (ret)
+	if (ret) {
+		xhci_debugfs_remove_slot(xhci, udev->slot_id);
 		xhci_free_virt_device(xhci, udev->slot_id);
+	}
 }
 
 int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)

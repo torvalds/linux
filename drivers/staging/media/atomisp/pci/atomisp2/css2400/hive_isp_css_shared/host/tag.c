@@ -17,7 +17,7 @@
 #include <assert_support.h>
 #include "tag_local.h"
 
-/**
+/*
  * @brief	Creates the tag description from the given parameters.
  * @param[in]	num_captures
  * @param[in]	skip
@@ -39,7 +39,7 @@ sh_css_create_tag_descr(int num_captures,
 	tag_descr->exp_id	= exp_id;
 }
 
-/**
+/*
  * @brief	Encodes the members of tag description into a 32-bit value.
  * @param[in]	tag		Pointer to the tag description
  * @return	(unsigned int)	Encoded 32-bit tag-info

@@ -340,10 +340,10 @@ unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
 }
 #endif
 
-unsigned int uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
+__poll_t uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
 			    poll_table *wait)
 {
-	unsigned int ret;
+	__poll_t ret;
 
 	mutex_lock(&queue->mutex);
 	ret = vb2_poll(&queue->queue, file, wait);

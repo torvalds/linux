@@ -84,9 +84,6 @@ struct thread_info {
 	.regs = NULL,			\
 }
 
-#define init_thread_info        (init_thread_union.thread_info)
-#define init_stack              (init_thread_union.stack)
-
 /* Tacky preprocessor trickery */
 #define	qqstr(s) qstr(s)
 #define qstr(s) #s

@@ -1553,7 +1553,7 @@ static int sh_mobile_ceu_set_liveselection(struct soc_camera_device *icd,
 	return ret;
 }
 
-static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
+static __poll_t sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 

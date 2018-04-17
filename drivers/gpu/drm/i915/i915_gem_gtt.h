@@ -42,7 +42,13 @@
 #include "i915_gem_request.h"
 #include "i915_selftest.h"
 
-#define I915_GTT_PAGE_SIZE 4096UL
+#define I915_GTT_PAGE_SIZE_4K BIT(12)
+#define I915_GTT_PAGE_SIZE_64K BIT(16)
+#define I915_GTT_PAGE_SIZE_2M BIT(21)
+
+#define I915_GTT_PAGE_SIZE I915_GTT_PAGE_SIZE_4K
+#define I915_GTT_MAX_PAGE_SIZE I915_GTT_PAGE_SIZE_2M
+
 #define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
 
 #define I915_FENCE_REG_NONE -1
@@ -126,13 +132,13 @@ typedef u64 gen8_ppgtt_pml4e_t;
  * tables */
 #define GEN8_PDPE_MASK			0x1ff
 
-#define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
-#define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
-#define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
-#define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
+#define PPAT_UNCACHED			(_PAGE_PWT | _PAGE_PCD)
+#define PPAT_CACHED_PDE			0 /* WB LLC */
+#define PPAT_CACHED			_PAGE_PAT /* WB LLCeLLC */
+#define PPAT_DISPLAY_ELLC		_PAGE_PCD /* WT eLLC */
 
 #define CHV_PPAT_SNOOP			(1<<6)
-#define GEN8_PPAT_AGE(x)		(x<<4)
+#define GEN8_PPAT_AGE(x)		((x)<<4)
 #define GEN8_PPAT_LLCeLLC		(3<<2)
 #define GEN8_PPAT_LLCELLC		(2<<2)
 #define GEN8_PPAT_LLC			(1<<2)
@@ -142,6 +148,14 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define GEN8_PPAT_UC			(0<<0)
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
 #define GEN8_PPAT(i, x)			((u64)(x) << ((i) * 8))
+
+#define GEN8_PPAT_GET_CA(x) ((x) & 3)
+#define GEN8_PPAT_GET_TC(x) ((x) & (3 << 2))
+#define GEN8_PPAT_GET_AGE(x) ((x) & (3 << 4))
+#define CHV_PPAT_GET_SNOOP(x) ((x) & (1 << 6))
+
+#define GEN8_PDE_IPS_64K BIT(11)
+#define GEN8_PDE_PS_2M   BIT(7)
 
 struct sg_table;
 
@@ -202,6 +216,7 @@ struct i915_vma;
 
 struct i915_page_dma {
 	struct page *page;
+	int order;
 	union {
 		dma_addr_t daddr;
 
@@ -324,6 +339,8 @@ struct i915_address_space {
 	int (*bind_vma)(struct i915_vma *vma,
 			enum i915_cache_level cache_level,
 			u32 flags);
+	int (*set_pages)(struct i915_vma *vma);
+	void (*clear_pages)(struct i915_vma *vma);
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
 };
@@ -334,6 +351,12 @@ static inline bool
 i915_vm_is_48bit(const struct i915_address_space *vm)
 {
 	return (vm->total - 1) >> 32;
+}
+
+static inline bool
+i915_vm_has_scratch_64K(struct i915_address_space *vm)
+{
+	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
@@ -535,6 +558,37 @@ i915_vm_to_ggtt(struct i915_address_space *vm)
 	GEM_BUG_ON(!i915_is_ggtt(vm));
 	return container_of(vm, struct i915_ggtt, base);
 }
+
+#define INTEL_MAX_PPAT_ENTRIES 8
+#define INTEL_PPAT_PERFECT_MATCH (~0U)
+
+struct intel_ppat;
+
+struct intel_ppat_entry {
+	struct intel_ppat *ppat;
+	struct kref ref;
+	u8 value;
+};
+
+struct intel_ppat {
+	struct intel_ppat_entry entries[INTEL_MAX_PPAT_ENTRIES];
+	DECLARE_BITMAP(used, INTEL_MAX_PPAT_ENTRIES);
+	DECLARE_BITMAP(dirty, INTEL_MAX_PPAT_ENTRIES);
+	unsigned int max_entries;
+	u8 clear_value;
+	/*
+	 * Return a score to show how two PPAT values match,
+	 * a INTEL_PPAT_PERFECT_MATCH indicates a perfect match
+	 */
+	unsigned int (*match)(u8 src, u8 dst);
+	void (*update_hw)(struct drm_i915_private *i915);
+
+	struct drm_i915_private *i915;
+};
+
+const struct intel_ppat_entry *
+intel_ppat_get(struct drm_i915_private *i915, u8 value);
+void intel_ppat_put(const struct intel_ppat_entry *entry);
 
 int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915);
 void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915);

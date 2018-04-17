@@ -32,7 +32,6 @@
  * @pid_filter: Set PID to PID filter.
  * @pid_filter_ctrl: Control PID filter.
  */
-
 struct rtl2830_platform_data {
 	u32 clk;
 	bool spec_inv;

@@ -178,7 +178,7 @@ static int tcf_em_validate(struct tcf_proto *tp,
 	struct tcf_ematch_hdr *em_hdr = nla_data(nla);
 	int data_len = nla_len(nla) - sizeof(*em_hdr);
 	void *data = (void *) em_hdr + sizeof(*em_hdr);
-	struct net *net = dev_net(qdisc_dev(tp->q));
+	struct net *net = tp->chain->block->net;
 
 	if (!TCF_EM_REL_VALID(em_hdr->flags))
 		goto errout;

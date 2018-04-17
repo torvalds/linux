@@ -630,12 +630,12 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static unsigned int proc_sys_poll(struct file *filp, poll_table *wait)
+static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
 {
 	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
-	unsigned int ret = DEFAULT_POLLMASK;
+	__poll_t ret = DEFAULT_POLLMASK;
 	unsigned long event;
 
 	/* sysctl was unregistered */

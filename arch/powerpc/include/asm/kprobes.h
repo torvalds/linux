@@ -103,8 +103,8 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_handler(struct pt_regs *regs);
 extern int kprobe_post_handler(struct pt_regs *regs);
-extern int is_current_kprobe_addr(unsigned long addr);
 #ifdef CONFIG_KPROBES_ON_FTRACE
+extern int __is_active_jprobe(unsigned long addr);
 extern int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 			   struct kprobe_ctlblk *kcb);
 #else

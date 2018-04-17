@@ -193,8 +193,18 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		return -1;
 	}
 	event_fd[prog_cnt - 1] = efd;
-	ioctl(efd, PERF_EVENT_IOC_ENABLE, 0);
-	ioctl(efd, PERF_EVENT_IOC_SET_BPF, fd);
+	err = ioctl(efd, PERF_EVENT_IOC_ENABLE, 0);
+	if (err < 0) {
+		printf("ioctl PERF_EVENT_IOC_ENABLE failed err %s\n",
+		       strerror(errno));
+		return -1;
+	}
+	err = ioctl(efd, PERF_EVENT_IOC_SET_BPF, fd);
+	if (err < 0) {
+		printf("ioctl PERF_EVENT_IOC_SET_BPF failed err %s\n",
+		       strerror(errno));
+		return -1;
+	}
 
 	return 0;
 }
@@ -222,6 +232,7 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
 
 			map_fd[i] = bpf_create_map_in_map_node(maps[i].def.type,
+							maps[i].name,
 							maps[i].def.key_size,
 							inner_map_fd,
 							maps[i].def.max_entries,
@@ -229,6 +240,7 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 							numa_node);
 		} else {
 			map_fd[i] = bpf_create_map_node(maps[i].def.type,
+							maps[i].name,
 							maps[i].def.key_size,
 							maps[i].def.value_size,
 							maps[i].def.max_entries,

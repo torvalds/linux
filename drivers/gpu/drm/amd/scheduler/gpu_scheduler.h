@@ -39,6 +39,7 @@ struct amd_sched_rq;
 struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_sched_rq		*rq;
+	spinlock_t			rq_lock;
 	struct amd_gpu_scheduler	*sched;
 
 	spinlock_t			queue_lock;
@@ -115,9 +116,14 @@ struct amd_sched_backend_ops {
 
 enum amd_sched_priority {
 	AMD_SCHED_PRIORITY_MIN,
-	AMD_SCHED_PRIORITY_NORMAL = AMD_SCHED_PRIORITY_MIN,
+	AMD_SCHED_PRIORITY_LOW = AMD_SCHED_PRIORITY_MIN,
+	AMD_SCHED_PRIORITY_NORMAL,
+	AMD_SCHED_PRIORITY_HIGH_SW,
+	AMD_SCHED_PRIORITY_HIGH_HW,
 	AMD_SCHED_PRIORITY_KERNEL,
-	AMD_SCHED_PRIORITY_MAX
+	AMD_SCHED_PRIORITY_MAX,
+	AMD_SCHED_PRIORITY_INVALID = -1,
+	AMD_SCHED_PRIORITY_UNSET = -2
 };
 
 /**
@@ -150,6 +156,8 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
 void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+void amd_sched_entity_set_rq(struct amd_sched_entity *entity,
+			     struct amd_sched_rq *rq);
 
 int amd_sched_fence_slab_init(void);
 void amd_sched_fence_slab_fini(void);
@@ -167,4 +175,11 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched);
 bool amd_sched_dependency_optimized(struct dma_fence* fence,
 				    struct amd_sched_entity *entity);
 void amd_sched_job_kickout(struct amd_sched_job *s_job);
+
+static inline enum amd_sched_priority
+amd_sched_get_job_priority(struct amd_sched_job *job)
+{
+	return (job->s_entity->rq - job->sched->sched_rq);
+}
+
 #endif

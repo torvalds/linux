@@ -14,6 +14,7 @@ iwlwifi-objs		+= iwl-trans.o
 iwlwifi-objs		+= fw/notif-wait.o
 iwlwifi-$(CONFIG_IWLMVM) += fw/paging.o fw/smem.o fw/init.o fw/dbg.o
 iwlwifi-$(CONFIG_IWLMVM) += fw/common_rx.o fw/nvm.o
+iwlwifi-$(CONFIG_ACPI) += fw/acpi.o
 
 iwlwifi-objs += $(iwlwifi-m)
 

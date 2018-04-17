@@ -34,9 +34,6 @@ struct compat_ucontext {
 
 /* ELF32 signal handling */
 
-int copy_siginfo_to_user32 (compat_siginfo_t __user *to, const siginfo_t *from);
-int copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from);
-
 /* In a deft move of uber-hackery, we decide to carry the top half of all
  * 64-bit registers in a non-portable, non-ABI, hidden structure.
  * Userspace can read the hidden structure if it *wants* but is never
@@ -79,8 +76,6 @@ struct compat_rt_sigframe {
 #define FUNCTIONCALLFRAME32     48
 #define PARISC_RT_SIGFRAME_SIZE32 (((sizeof(struct compat_rt_sigframe) + FUNCTIONCALLFRAME32) + SIGFRAME32) & -SIGFRAME32)
 
-void sigset_32to64(sigset_t *s64, compat_sigset_t *s32);
-void sigset_64to32(compat_sigset_t *s32, sigset_t *s64);
 long restore_sigcontext32(struct compat_sigcontext __user *sc, 
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs);

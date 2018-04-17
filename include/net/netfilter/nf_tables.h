@@ -312,6 +312,7 @@ struct nft_expr;
  *	@flush: deactivate element in the next generation
  *	@remove: remove element from set
  *	@walk: iterate over all set elemeennts
+ *	@get: get set elements
  *	@privsize: function to return size of set private data
  *	@init: initialize private data of new set instance
  *	@destroy: destroy private data of set instance
@@ -351,6 +352,10 @@ struct nft_set_ops {
 	void				(*walk)(const struct nft_ctx *ctx,
 						struct nft_set *set,
 						struct nft_set_iter *iter);
+	void *				(*get)(const struct net *net,
+					       const struct nft_set *set,
+					       const struct nft_set_elem *elem,
+					       unsigned int flags);
 
 	unsigned int			(*privsize)(const struct nlattr * const nla[],
 						    const struct nft_set_desc *desc);

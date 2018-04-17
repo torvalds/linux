@@ -1227,11 +1227,11 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	return cmd.result;
 }
 
-static unsigned int radio_poll(struct file *file, poll_table *wait)
+static __poll_t radio_poll(struct file *file, poll_table *wait)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa6588_command cmd;
-	unsigned int rc = v4l2_ctrl_poll(file, wait);
+	__poll_t rc = v4l2_ctrl_poll(file, wait);
 
 	cmd.instance = file;
 	cmd.event_list = wait;
@@ -2145,8 +2145,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	dev->automute       = 0;
 
 	INIT_LIST_HEAD(&dev->video_q.queue);
-	setup_timer(&dev->video_q.timeout, saa7134_buffer_timeout,
-		    (unsigned long)(&dev->video_q));
+	timer_setup(&dev->video_q.timeout, saa7134_buffer_timeout, 0);
 	dev->video_q.dev              = dev;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	dev->width    = 720;

@@ -232,6 +232,18 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 #define pte_valid_user(pte)	\
 	(pte_valid(pte) && pte_isset((pte), L_PTE_USER) && pte_young(pte))
 
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	pteval_t mask = L_PTE_PRESENT | L_PTE_USER;
+	pteval_t needed = mask;
+
+	if (write)
+		mask |= L_PTE_RDONLY;
+
+	return (pte_val(pte) & mask) == needed;
+}
+#define pte_access_permitted pte_access_permitted
+
 #if __LINUX_ARM_ARCH__ < 6
 static inline void __sync_icache_dcache(pte_t pteval)
 {

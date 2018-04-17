@@ -43,7 +43,6 @@ struct nf_conntrack_l4proto {
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      u_int8_t pf,
 		      unsigned int *timeouts);
 
 	/* Called when a new connection for this protocol found;
@@ -76,7 +75,7 @@ struct nf_conntrack_l4proto {
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 	/* Calculate tuple nlattr size */
-	int (*nlattr_tuple_size)(void);
+	unsigned int (*nlattr_tuple_size)(void);
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
@@ -146,15 +145,27 @@ int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple);
 int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
-int nf_ct_port_nlattr_tuple_size(void);
+unsigned int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL
-#define LOG_INVALID(net, proto)				\
-	((net)->ct.sysctl_log_invalid == (proto) ||	\
-	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
+__printf(3, 4) __cold
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...);
+__printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    struct net *net,
+			    u16 pf, u8 protonum,
+			    const char *fmt, ...);
 #else
-static inline int LOG_INVALID(struct net *net, int proto) { return 0; }
+static inline __printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb, struct net *net,
+			    u16 pf, u8 protonum, const char *fmt, ...) {}
+static inline __printf(3, 4) __cold
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

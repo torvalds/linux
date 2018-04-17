@@ -332,12 +332,13 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		adev->gart.pages[p] = pagelist[i];
 #endif
 
-	if (adev->gart.ptr) {
-		r = amdgpu_gart_map(adev, offset, pages, dma_addr, flags,
-			    adev->gart.ptr);
-		if (r)
-			return r;
-	}
+	if (!adev->gart.ptr)
+		return 0;
+
+	r = amdgpu_gart_map(adev, offset, pages, dma_addr, flags,
+		    adev->gart.ptr);
+	if (r)
+		return r;
 
 	mb();
 	amdgpu_gart_flush_gpu_tlb(adev, 0);

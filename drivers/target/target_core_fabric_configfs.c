@@ -623,8 +623,6 @@ static struct configfs_attribute *target_fabric_port_attrs[] = {
 	NULL,
 };
 
-extern struct configfs_item_operations target_core_dev_item_ops;
-
 static int target_fabric_port_link(
 	struct config_item *lun_ci,
 	struct config_item *se_dev_ci)

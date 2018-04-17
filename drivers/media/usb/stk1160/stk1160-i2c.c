@@ -246,7 +246,7 @@ static const struct i2c_adapter adap_template = {
 	.algo = &algo,
 };
 
-static struct i2c_client client_template = {
+static const struct i2c_client client_template = {
 	.name = "stk1160 internal",
 };
 

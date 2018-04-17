@@ -26,15 +26,16 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+#if IS_REACHABLE(CONFIG_DVB_STB6000)
 /**
  * Attach a stb6000 tuner to the supplied frontend structure.
  *
- * @param fe Frontend to attach to.
- * @param addr i2c address of the tuner.
- * @param i2c i2c adapter to use.
- * @return FE pointer on success, NULL on failure.
+ * @fe: Frontend to attach to.
+ * @addr: i2c address of the tuner.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
  */
-#if IS_REACHABLE(CONFIG_DVB_STB6000)
 extern struct dvb_frontend *stb6000_attach(struct dvb_frontend *fe, int addr,
 					   struct i2c_adapter *i2c);
 #else

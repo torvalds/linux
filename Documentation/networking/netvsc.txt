@@ -19,12 +19,12 @@ Features
 
   Receive Side Scaling
   --------------------
-  Hyper-V supports receive side scaling. For TCP, packets are
-  distributed among available queues based on IP address and port
+  Hyper-V supports receive side scaling. For TCP & UDP, packets can
+  be distributed among available queues based on IP address and port
   number.
 
-  For UDP, we can switch UDP hash level between L3 and L4 by ethtool
-  command. UDP over IPv4 and v6 can be set differently. The default
+  For TCP & UDP, we can switch hash level between L3 and L4 by ethtool
+  command. TCP/UDP over IPv4 and v6 can be set differently. The default
   hash level is L4. We currently only allow switching TX hash level
   from within the guests.
 

@@ -59,7 +59,6 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_CEQ_ENTRIES =			131071,
 	I40IW_MIN_CQ_SIZE =			1,
 	I40IW_MAX_CQ_SIZE =			1048575,
-	I40IW_MAX_AEQ_ALLOCATE_COUNT =		255,
 	I40IW_DB_ID_ZERO =			0,
 	I40IW_MAX_WQ_FRAGMENT_COUNT =		3,
 	I40IW_MAX_SGE_RD =			1,
@@ -72,7 +71,7 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_SQ_PAYLOAD_SIZE =		2145386496,
 	I40IW_MAX_INLINE_DATA_SIZE =		48,
 	I40IW_MAX_PUSHMODE_INLINE_DATA_SIZE =	48,
-	I40IW_MAX_IRD_SIZE =			63,
+	I40IW_MAX_IRD_SIZE =			64,
 	I40IW_MAX_ORD_SIZE =			127,
 	I40IW_MAX_WQ_ENTRIES =			2048,
 	I40IW_Q2_BUFFER_SIZE =			(248 + 100),
@@ -204,18 +203,6 @@ struct i40iw_post_inline_send {
 	u32 len;
 };
 
-struct i40iw_post_send_w_inv {
-	i40iw_sgl sg_list;
-	u32 num_sges;
-	i40iw_stag remote_stag_to_inv;
-};
-
-struct i40iw_post_inline_send_w_inv {
-	void *data;
-	u32 len;
-	i40iw_stag remote_stag_to_inv;
-};
-
 struct i40iw_rdma_write {
 	i40iw_sgl lo_sg_list;
 	u32 num_lo_sges;
@@ -257,9 +244,6 @@ struct i40iw_post_sq_info {
 	bool defer_flag;
 	union {
 		struct i40iw_post_send send;
-		struct i40iw_post_send send_w_sol;
-		struct i40iw_post_send_w_inv send_w_inv;
-		struct i40iw_post_send_w_inv send_w_sol_inv;
 		struct i40iw_rdma_write rdma_write;
 		struct i40iw_rdma_read rdma_read;
 		struct i40iw_rdma_read rdma_read_inv;
@@ -267,9 +251,6 @@ struct i40iw_post_sq_info {
 		struct i40iw_inv_local_stag inv_local_stag;
 		struct i40iw_inline_rdma_write inline_rdma_write;
 		struct i40iw_post_inline_send inline_send;
-		struct i40iw_post_inline_send inline_send_w_sol;
-		struct i40iw_post_inline_send_w_inv inline_send_w_inv;
-		struct i40iw_post_inline_send_w_inv inline_send_w_sol_inv;
 	} op;
 };
 
@@ -376,6 +357,7 @@ struct i40iw_qp_uk {
 	u8 rwqe_polarity;
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
+	bool first_sq_wq;
 	bool deferred_flag;
 };
 
@@ -442,5 +424,7 @@ enum i40iw_status_code i40iw_fragcnt_to_wqesize_sq(u32 frag_cnt, u8 *wqe_size);
 enum i40iw_status_code i40iw_fragcnt_to_wqesize_rq(u32 frag_cnt, u8 *wqe_size);
 enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 							 u8 *wqe_size);
-enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data, u8 *shift);
+void i40iw_get_wqe_shift(u32 sge, u32 inline_data, u8 *shift);
+enum i40iw_status_code i40iw_get_sqdepth(u32 sq_size, u8 shift, u32 *sqdepth);
+enum i40iw_status_code i40iw_get_rqdepth(u32 rq_size, u8 shift, u32 *rqdepth);
 #endif

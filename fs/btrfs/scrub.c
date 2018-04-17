@@ -301,6 +301,11 @@ static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_put_ctx(struct scrub_ctx *sctx);
 
+static inline int scrub_is_page_on_raid56(struct scrub_page *page)
+{
+	return page->recover &&
+	       (page->recover->bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK);
+}
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
 {
@@ -1323,15 +1328,34 @@ nodatasum_case:
 	 * could happen otherwise that a correct page would be
 	 * overwritten by a bad one).
 	 */
-	for (mirror_index = 0;
-	     mirror_index < BTRFS_MAX_MIRRORS &&
-	     sblocks_for_recheck[mirror_index].page_count > 0;
-	     mirror_index++) {
+	for (mirror_index = 0; ;mirror_index++) {
 		struct scrub_block *sblock_other;
 
 		if (mirror_index == failed_mirror_index)
 			continue;
-		sblock_other = sblocks_for_recheck + mirror_index;
+
+		/* raid56's mirror can be more than BTRFS_MAX_MIRRORS */
+		if (!scrub_is_page_on_raid56(sblock_bad->pagev[0])) {
+			if (mirror_index >= BTRFS_MAX_MIRRORS)
+				break;
+			if (!sblocks_for_recheck[mirror_index].page_count)
+				break;
+
+			sblock_other = sblocks_for_recheck + mirror_index;
+		} else {
+			struct scrub_recover *r = sblock_bad->pagev[0]->recover;
+			int max_allowed = r->bbio->num_stripes -
+						r->bbio->num_tgtdevs;
+
+			if (mirror_index >= max_allowed)
+				break;
+			if (!sblocks_for_recheck[1].page_count)
+				break;
+
+			ASSERT(failed_mirror_index == 0);
+			sblock_other = sblocks_for_recheck + 1;
+			sblock_other->pagev[0]->mirror_num = 1 + mirror_index;
+		}
 
 		/* build and submit the bios, check checksums */
 		scrub_recheck_block(fs_info, sblock_other, 0);
@@ -1666,49 +1690,32 @@ leave_nomem:
 	return 0;
 }
 
-struct scrub_bio_ret {
-	struct completion event;
-	blk_status_t status;
-};
-
 static void scrub_bio_wait_endio(struct bio *bio)
 {
-	struct scrub_bio_ret *ret = bio->bi_private;
-
-	ret->status = bio->bi_status;
-	complete(&ret->event);
-}
-
-static inline int scrub_is_page_on_raid56(struct scrub_page *page)
-{
-	return page->recover &&
-	       (page->recover->bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK);
+	complete(bio->bi_private);
 }
 
 static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 					struct bio *bio,
 					struct scrub_page *page)
 {
-	struct scrub_bio_ret done;
+	DECLARE_COMPLETION_ONSTACK(done);
 	int ret;
+	int mirror_num;
 
-	init_completion(&done.event);
-	done.status = 0;
 	bio->bi_iter.bi_sector = page->logical >> 9;
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
 
+	mirror_num = page->sblock->pagev[0]->mirror_num;
 	ret = raid56_parity_recover(fs_info, bio, page->recover->bbio,
 				    page->recover->map_length,
-				    page->mirror_num, 0);
+				    mirror_num, 0);
 	if (ret)
 		return ret;
 
-	wait_for_completion_io(&done.event);
-	if (done.status)
-		return -EIO;
-
-	return 0;
+	wait_for_completion_io(&done);
+	return blk_status_to_errno(bio->bi_status);
 }
 
 /*
@@ -2535,7 +2542,7 @@ leave_nomem:
 	}
 
 	WARN_ON(sblock->page_count == 0);
-	if (dev->missing) {
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state)) {
 		/*
 		 * This case should only be hit for RAID 5/6 device replace. See
 		 * the comment in scrub_missing_raid56_pages() for details.
@@ -2870,7 +2877,7 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	u8 csum[BTRFS_CSUM_SIZE];
 	u32 blocksize;
 
-	if (dev->missing) {
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state)) {
 		scrub_parity_mark_sectors_error(sparity, logical, len);
 		return 0;
 	}
@@ -4112,12 +4119,14 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
-	if (!dev || (dev->missing && !is_dev_replace)) {
+	if (!dev || (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state) &&
+		     !is_dev_replace)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		return -ENODEV;
 	}
 
-	if (!is_dev_replace && !readonly && !dev->writeable) {
+	if (!is_dev_replace && !readonly &&
+	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		rcu_read_lock();
 		name = rcu_dereference(dev->name);
@@ -4128,14 +4137,15 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	}
 
 	mutex_lock(&fs_info->scrub_lock);
-	if (!dev->in_fs_metadata || dev->is_tgtdev_for_dev_replace) {
+	if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &dev->dev_state) ||
+	    test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &dev->dev_state)) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		return -EIO;
 	}
 
 	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
-	if (dev->scrub_device ||
+	if (dev->scrub_ctx ||
 	    (!is_dev_replace &&
 	     btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))) {
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
@@ -4160,7 +4170,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return PTR_ERR(sctx);
 	}
 	sctx->readonly = readonly;
-	dev->scrub_device = sctx;
+	dev->scrub_ctx = sctx;
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	/*
@@ -4195,7 +4205,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		memcpy(progress, &sctx->stat, sizeof(*progress));
 
 	mutex_lock(&fs_info->scrub_lock);
-	dev->scrub_device = NULL;
+	dev->scrub_ctx = NULL;
 	scrub_workers_put(fs_info);
 	mutex_unlock(&fs_info->scrub_lock);
 
@@ -4252,16 +4262,16 @@ int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
 	struct scrub_ctx *sctx;
 
 	mutex_lock(&fs_info->scrub_lock);
-	sctx = dev->scrub_device;
+	sctx = dev->scrub_ctx;
 	if (!sctx) {
 		mutex_unlock(&fs_info->scrub_lock);
 		return -ENOTCONN;
 	}
 	atomic_inc(&sctx->cancel_req);
-	while (dev->scrub_device) {
+	while (dev->scrub_ctx) {
 		mutex_unlock(&fs_info->scrub_lock);
 		wait_event(fs_info->scrub_pause_wait,
-			   dev->scrub_device == NULL);
+			   dev->scrub_ctx == NULL);
 		mutex_lock(&fs_info->scrub_lock);
 	}
 	mutex_unlock(&fs_info->scrub_lock);
@@ -4278,7 +4288,7 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
 	if (dev)
-		sctx = dev->scrub_device;
+		sctx = dev->scrub_ctx;
 	if (sctx)
 		memcpy(progress, &sctx->stat, sizeof(*progress));
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
@@ -4478,8 +4488,7 @@ static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 	free_extent_map(em);
 
 out_unlock:
-	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state,
-			     GFP_NOFS);
+	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state);
 	return ret;
 }
 

@@ -137,17 +137,26 @@ static int new_mmio_info(struct intel_gvt *gvt,
 	return 0;
 }
 
-static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
+/**
+ * intel_gvt_render_mmio_to_ring_id - convert a mmio offset into ring id
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * Ring ID on success, negative error code if failed.
+ */
+int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
+		unsigned int offset)
 {
 	enum intel_engine_id id;
 	struct intel_engine_cs *engine;
 
-	reg &= ~GENMASK(11, 0);
+	offset &= ~GENMASK(11, 0);
 	for_each_engine(engine, gvt->dev_priv, id) {
-		if (engine->mmio_base == reg)
+		if (engine->mmio_base == offset)
 			return id;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 #define offset_to_fence_num(offset) \
@@ -1381,40 +1390,6 @@ static int skl_power_well_ctl_write(struct intel_vgpu *vgpu,
 	return intel_vgpu_default_mmio_write(vgpu, offset, &v, bytes);
 }
 
-static int skl_misc_ctl_write(struct intel_vgpu *vgpu, unsigned int offset,
-		void *p_data, unsigned int bytes)
-{
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	u32 v = *(u32 *)p_data;
-
-	if (!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv))
-		return intel_vgpu_default_mmio_write(vgpu,
-				offset, p_data, bytes);
-
-	switch (offset) {
-	case 0x4ddc:
-		/* bypass WaCompressedResourceSamplerPbeMediaNewHashMode */
-		vgpu_vreg(vgpu, offset) = v & ~(1 << 31);
-		break;
-	case 0x42080:
-		/* bypass WaCompressedResourceDisplayNewHashMode */
-		vgpu_vreg(vgpu, offset) = v & ~(1 << 15);
-		break;
-	case 0xe194:
-		/* bypass WaCompressedResourceSamplerPbeMediaNewHashMode */
-		vgpu_vreg(vgpu, offset) = v & ~(1 << 8);
-		break;
-	case 0x7014:
-		/* bypass WaCompressedResourceSamplerPbeMediaNewHashMode */
-		vgpu_vreg(vgpu, offset) = v & ~(1 << 13);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
@@ -1432,18 +1407,36 @@ static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	int ring_id;
+	u32 ring_base;
 
-	mmio_hw_access_pre(dev_priv);
-	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-	mmio_hw_access_post(dev_priv);
+	ring_id = intel_gvt_render_mmio_to_ring_id(gvt, offset);
+	/**
+	 * Read HW reg in following case
+	 * a. the offset isn't a ring mmio
+	 * b. the offset's ring is running on hw.
+	 * c. the offset is ring time stamp mmio
+	 */
+	if (ring_id >= 0)
+		ring_base = dev_priv->engine[ring_id]->mmio_base;
+
+	if (ring_id < 0 || vgpu  == gvt->scheduler.engine_owner[ring_id] ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(ring_base)) ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(ring_base))) {
+		mmio_hw_access_pre(dev_priv);
+		vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+		mmio_hw_access_post(dev_priv);
+	}
+
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
 static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
@@ -1470,7 +1463,7 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data = *(u32 *)p_data;
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	bool enable_execlist;
 
 	write_vreg(vgpu, offset, p_data, bytes);
@@ -1671,8 +1664,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(GAM_ECOCHK, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN7_COMMON_SLICE_CHICKEN1, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
 		NULL, NULL);
-	MMIO_DFH(COMMON_SLICE_CHICKEN2, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL,
-		 skl_misc_ctl_write);
+	MMIO_DFH(COMMON_SLICE_CHICKEN2, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
+		 NULL, NULL);
 	MMIO_DFH(0x9030, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(0x20a0, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(0x2420, D_ALL, F_CMD_ACCESS, NULL, NULL);
@@ -2564,8 +2557,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x6e570, D_BDW_PLUS);
 	MMIO_D(0x65f10, D_BDW_PLUS);
 
-	MMIO_DFH(0xe194, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL,
-		 skl_misc_ctl_write);
+	MMIO_DFH(0xe194, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(0xe188, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(HALF_SLICE_CHICKEN2, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(0x2580, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
@@ -2615,8 +2607,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_D(GEN9_RENDER_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_DFH(GEN9_GAMT_ECO_REG_RW_IA, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DH(0x4ddc, D_SKL_PLUS, NULL, skl_misc_ctl_write);
-	MMIO_DH(0x42080, D_SKL_PLUS, NULL, skl_misc_ctl_write);
+	MMIO_DH(0x4ddc, D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(0x42080, D_SKL_PLUS, NULL, NULL);
 	MMIO_D(0x45504, D_SKL_PLUS);
 	MMIO_D(0x45520, D_SKL_PLUS);
 	MMIO_D(0x46000, D_SKL_PLUS);

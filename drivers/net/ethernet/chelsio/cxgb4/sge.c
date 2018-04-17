@@ -2589,11 +2589,11 @@ irq_handler_t t4_intr_handler(struct adapter *adap)
 	return t4_intr_intx;
 }
 
-static void sge_rx_timer_cb(unsigned long data)
+static void sge_rx_timer_cb(struct timer_list *t)
 {
 	unsigned long m;
 	unsigned int i;
-	struct adapter *adap = (struct adapter *)data;
+	struct adapter *adap = from_timer(adap, t, sge.rx_timer);
 	struct sge *s = &adap->sge;
 
 	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
@@ -2626,11 +2626,11 @@ done:
 	mod_timer(&s->rx_timer, jiffies + RX_QCHECK_PERIOD);
 }
 
-static void sge_tx_timer_cb(unsigned long data)
+static void sge_tx_timer_cb(struct timer_list *t)
 {
 	unsigned long m;
 	unsigned int i, budget;
-	struct adapter *adap = (struct adapter *)data;
+	struct adapter *adap = from_timer(adap, t, sge.tx_timer);
 	struct sge *s = &adap->sge;
 
 	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
@@ -3464,8 +3464,8 @@ int t4_sge_init(struct adapter *adap)
 	/* Set up timers used for recuring callbacks to process RX and TX
 	 * administrative tasks.
 	 */
-	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
-	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
+	timer_setup(&s->rx_timer, sge_rx_timer_cb, 0);
+	timer_setup(&s->tx_timer, sge_tx_timer_cb, 0);
 
 	spin_lock_init(&s->intrq_lock);
 

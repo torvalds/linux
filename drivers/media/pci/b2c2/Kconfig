@@ -11,5 +11,5 @@ config DVB_B2C2_FLEXCOP_PCI_DEBUG
 	depends on DVB_B2C2_FLEXCOP_PCI
 	select DVB_B2C2_FLEXCOP_DEBUG
 	help
-	Say Y if you want to enable the module option to control debug messages
-	of all B2C2 FlexCop drivers.
+	  Say Y if you want to enable the module option to control debug messages
+	  of all B2C2 FlexCop drivers.

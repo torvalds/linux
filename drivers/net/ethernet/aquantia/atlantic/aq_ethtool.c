@@ -66,14 +66,14 @@ static const char aq_ethtool_stat_names[][ETH_GSTRING_LEN] = {
 	"OutUCast",
 	"OutMCast",
 	"OutBCast",
-	"InUCastOctects",
-	"OutUCastOctects",
-	"InMCastOctects",
-	"OutMCastOctects",
-	"InBCastOctects",
-	"OutBCastOctects",
-	"InOctects",
-	"OutOctects",
+	"InUCastOctets",
+	"OutUCastOctets",
+	"InMCastOctets",
+	"OutMCastOctets",
+	"InBCastOctets",
+	"OutBCastOctets",
+	"InOctets",
+	"OutOctets",
 	"InPacketsDma",
 	"OutPacketsDma",
 	"InOctetsDma",
@@ -221,8 +221,8 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 	return err;
 }
 
-int aq_ethtool_get_coalesce(struct net_device *ndev,
-			    struct ethtool_coalesce *coal)
+static int aq_ethtool_get_coalesce(struct net_device *ndev,
+				   struct ethtool_coalesce *coal)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
@@ -242,8 +242,8 @@ int aq_ethtool_get_coalesce(struct net_device *ndev,
 	return 0;
 }
 
-int aq_ethtool_set_coalesce(struct net_device *ndev,
-			    struct ethtool_coalesce *coal)
+static int aq_ethtool_set_coalesce(struct net_device *ndev,
+				   struct ethtool_coalesce *coal)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);

@@ -329,9 +329,9 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 	return 0;
 }
 
-static void dvb_dmxdev_filter_timeout(unsigned long data)
+static void dvb_dmxdev_filter_timeout(struct timer_list *t)
 {
-	struct dmxdev_filter *dmxdevfilter = (struct dmxdev_filter *)data;
+	struct dmxdev_filter *dmxdevfilter = from_timer(dmxdevfilter, t, timer);
 
 	dmxdevfilter->buffer.error = -ETIMEDOUT;
 	spin_lock_irq(&dmxdevfilter->dev->lock);
@@ -346,8 +346,6 @@ static void dvb_dmxdev_filter_timer(struct dmxdev_filter *dmxdevfilter)
 
 	del_timer(&dmxdevfilter->timer);
 	if (para->timeout) {
-		dmxdevfilter->timer.function = dvb_dmxdev_filter_timeout;
-		dmxdevfilter->timer.data = (unsigned long)dmxdevfilter;
 		dmxdevfilter->timer.expires =
 		    jiffies + 1 + (HZ / 2 + HZ * para->timeout) / 1000;
 		add_timer(&dmxdevfilter->timer);
@@ -754,7 +752,7 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
-	init_timer(&dmxdevfilter->timer);
+	timer_setup(&dmxdevfilter->timer, dvb_dmxdev_filter_timeout, 0);
 
 	dvbdev->users++;
 
@@ -1068,10 +1066,10 @@ static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
-static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
+static __poll_t dvb_demux_poll(struct file *file, poll_table *wait)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return POLLERR;
@@ -1162,11 +1160,11 @@ static long dvb_dvr_ioctl(struct file *file,
 	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
-static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
+static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	dprintk("%s\n", __func__);
 

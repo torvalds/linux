@@ -23,14 +23,14 @@ static const char * const backends[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
 #endif
-#if IS_ENABLED(CONFIG_CRYPTO_DEFLATE)
-	"deflate",
-#endif
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
 	"lz4hc",
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_842)
 	"842",
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
+	"zstd",
 #endif
 	NULL
 };

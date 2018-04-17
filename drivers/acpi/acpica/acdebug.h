@@ -223,6 +223,10 @@ void
 acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags);
 
 void
+acpi_db_create_execution_thread(char *method_name_arg,
+				char **arguments, acpi_object_type *types);
+
+void
 acpi_db_create_execution_threads(char *num_threads_arg,
 				 char *num_loops_arg, char *method_name_arg);
 

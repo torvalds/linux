@@ -108,6 +108,7 @@ struct saa7146_vv
 	struct saa7146_dmaqueue		vbi_dmaq;
 	struct v4l2_vbi_format		vbi_fmt;
 	struct timer_list		vbi_read_timeout;
+	struct file			*vbi_read_timeout_file;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;
@@ -184,7 +185,7 @@ int saa7146_unregister_device(struct video_device *vid, struct saa7146_dev *dev)
 void saa7146_buffer_finish(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, int state);
 void saa7146_buffer_next(struct saa7146_dev *dev, struct saa7146_dmaqueue *q,int vbi);
 int saa7146_buffer_queue(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, struct saa7146_buf *buf);
-void saa7146_buffer_timeout(unsigned long data);
+void saa7146_buffer_timeout(struct timer_list *t);
 void saa7146_dma_free(struct saa7146_dev* dev,struct videobuf_queue *q,
 						struct saa7146_buf *buf);
 
@@ -203,14 +204,14 @@ void saa7146_set_gpio(struct saa7146_dev *saa, u8 pin, u8 data);
 /* from saa7146_video.c */
 extern const struct v4l2_ioctl_ops saa7146_video_ioctl_ops;
 extern const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops;
-extern struct saa7146_use_ops saa7146_video_uops;
+extern const struct saa7146_use_ops saa7146_video_uops;
 int saa7146_start_preview(struct saa7146_fh *fh);
 int saa7146_stop_preview(struct saa7146_fh *fh);
 long saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg);
 int saa7146_s_ctrl(struct v4l2_ctrl *ctrl);
 
 /* from saa7146_vbi.c */
-extern struct saa7146_use_ops saa7146_vbi_uops;
+extern const struct saa7146_use_ops saa7146_vbi_uops;
 
 /* resource management functions */
 int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit);

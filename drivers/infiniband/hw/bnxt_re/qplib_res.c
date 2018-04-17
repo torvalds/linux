@@ -104,13 +104,12 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 
 	if (!sghead) {
 		for (i = 0; i < pages; i++) {
-			pbl->pg_arr[i] = dma_alloc_coherent(&pdev->dev,
-							    pbl->pg_size,
-							    &pbl->pg_map_arr[i],
-							    GFP_KERNEL);
+			pbl->pg_arr[i] = dma_zalloc_coherent(&pdev->dev,
+							     pbl->pg_size,
+							     &pbl->pg_map_arr[i],
+							     GFP_KERNEL);
 			if (!pbl->pg_arr[i])
 				goto fail;
-			memset(pbl->pg_arr[i], 0, pbl->pg_size);
 			pbl->pg_count++;
 		}
 	} else {

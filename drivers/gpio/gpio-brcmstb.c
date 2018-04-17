@@ -19,7 +19,6 @@
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/interrupt.h>
-#include <linux/bitops.h>
 
 enum gio_reg_index {
 	GIO_REG_ODEN = 0,
@@ -327,6 +326,7 @@ static struct brcmstb_gpio_bank *brcmstb_gpio_hwirq_to_bank(
  * category than their parents, so it won't report false recursion.
  */
 static struct lock_class_key brcmstb_gpio_irq_lock_class;
+static struct lock_class_key brcmstb_gpio_irq_request_class;
 
 
 static int brcmstb_gpio_irq_map(struct irq_domain *d, unsigned int irq,
@@ -346,7 +346,8 @@ static int brcmstb_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	ret = irq_set_chip_data(irq, &bank->gc);
 	if (ret < 0)
 		return ret;
-	irq_set_lockdep_class(irq, &brcmstb_gpio_irq_lock_class);
+	irq_set_lockdep_class(irq, &brcmstb_gpio_irq_lock_class,
+			      &brcmstb_gpio_irq_request_class);
 	irq_set_chip_and_handler(irq, &priv->irq_chip, handle_level_irq);
 	irq_set_noprobe(irq);
 	return 0;

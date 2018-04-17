@@ -85,6 +85,9 @@ int pvrdma_query_device(struct ib_device *ibdev,
 	props->max_sge = dev->dsr->caps.max_sge;
 	props->max_sge_rd = PVRDMA_GET_CAP(dev, dev->dsr->caps.max_sge,
 					   dev->dsr->caps.max_sge_rd);
+	props->max_srq = dev->dsr->caps.max_srq;
+	props->max_srq_wr = dev->dsr->caps.max_srq_wr;
+	props->max_srq_sge = dev->dsr->caps.max_srq_sge;
 	props->max_cq = dev->dsr->caps.max_cq;
 	props->max_cqe = dev->dsr->caps.max_cqe;
 	props->max_mr = dev->dsr->caps.max_mr;

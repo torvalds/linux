@@ -166,7 +166,7 @@ static irqreturn_t pmic_thermal_irq_handler(int irq, void *data)
 	struct pmic_thermal_data *td;
 	struct intel_soc_pmic *pmic;
 	struct regmap *regmap;
-	u8 reg_val, mask, irq_stat, trip;
+	u8 reg_val, mask, irq_stat;
 	u16 reg, evt_stat_reg;
 	int i, j, ret;
 
@@ -201,7 +201,6 @@ static irqreturn_t pmic_thermal_irq_handler(int irq, void *data)
 			if (regmap_read(regmap, evt_stat_reg, &ret))
 				return IRQ_HANDLED;
 
-			trip = td->maps[i].trip_config[j].trip_num;
 			tzd = thermal_zone_get_zone_by_name(td->maps[i].handle);
 			if (!IS_ERR(tzd))
 				thermal_zone_device_update(tzd,

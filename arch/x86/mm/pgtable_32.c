@@ -10,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>

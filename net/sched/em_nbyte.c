@@ -51,7 +51,7 @@ static int em_nbyte_match(struct sk_buff *skb, struct tcf_ematch *em,
 	if (!tcf_valid_offset(skb, ptr, nbyte->hdr.len))
 		return 0;
 
-	return !memcmp(ptr + nbyte->hdr.off, nbyte->pattern, nbyte->hdr.len);
+	return !memcmp(ptr, nbyte->pattern, nbyte->hdr.len);
 }
 
 static struct tcf_ematch_ops em_nbyte_ops = {

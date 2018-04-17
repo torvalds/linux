@@ -34,6 +34,8 @@ struct bnxt_led_cfg {
 #define BNXT_LED_DFLT_ENABLES(x)			\
 	cpu_to_le32(BNXT_LED_DFLT_ENA << (BNXT_LED_DFLT_ENA_SHIFT * (x)))
 
+#define BNXT_FW_RESET_CHIP	0xffff
+
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
 u32 _bnxt_fw_to_ethtool_adv_spds(u16, u8);

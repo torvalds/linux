@@ -342,8 +342,8 @@ static int NeedSeek = 0;
 static void fd_select_side( int side );
 static void fd_select_drive( int drive );
 static void fd_deselect( void );
-static void fd_motor_off_timer( unsigned long dummy );
-static void check_change( unsigned long dummy );
+static void fd_motor_off_timer(struct timer_list *unused);
+static void check_change(struct timer_list *unused);
 static irqreturn_t floppy_irq (int irq, void *dummy);
 static void fd_error( void );
 static int do_format(int drive, int type, struct atari_format_descr *desc);
@@ -353,12 +353,12 @@ static void fd_calibrate_done( int status );
 static void fd_seek( void );
 static void fd_seek_done( int status );
 static void fd_rwsec( void );
-static void fd_readtrack_check( unsigned long dummy );
+static void fd_readtrack_check(struct timer_list *unused);
 static void fd_rwsec_done( int status );
 static void fd_rwsec_done1(int status);
 static void fd_writetrack( void );
 static void fd_writetrack_done( int status );
-static void fd_times_out( unsigned long dummy );
+static void fd_times_out(struct timer_list *unused);
 static void finish_fdc( void );
 static void finish_fdc_done( int dummy );
 static void setup_req_params( int drive );
@@ -479,7 +479,7 @@ static void fd_deselect( void )
  * counts the index signals, which arrive only if one drive is selected.
  */
 
-static void fd_motor_off_timer( unsigned long dummy )
+static void fd_motor_off_timer(struct timer_list *unused)
 {
 	unsigned char status;
 
@@ -515,7 +515,7 @@ static void fd_motor_off_timer( unsigned long dummy )
  * as possible) and keep track of the current state of the write protection.
  */
 
-static void check_change( unsigned long dummy )
+static void check_change(struct timer_list *unused)
 {
 	static int    drive = 0;
 
@@ -966,7 +966,7 @@ static void fd_rwsec( void )
 }
 
     
-static void fd_readtrack_check( unsigned long dummy )
+static void fd_readtrack_check(struct timer_list *unused)
 {
 	unsigned long flags, addr, addr2;
 
@@ -1237,7 +1237,7 @@ static void fd_writetrack_done( int status )
 	fd_error();
 }
 
-static void fd_times_out( unsigned long dummy )
+static void fd_times_out(struct timer_list *unused)
 {
 	atari_disable_irq( IRQ_MFP_FDC );
 	if (!FloppyIRQHandler) goto end; /* int occurred after timer was fired, but

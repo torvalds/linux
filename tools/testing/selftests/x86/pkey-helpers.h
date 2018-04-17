@@ -30,6 +30,7 @@ static inline void sigsafe_printf(const char *format, ...)
 	if (!dprint_in_signal) {
 		vprintf(format, ap);
 	} else {
+		int ret;
 		int len = vsnprintf(dprint_in_signal_buffer,
 				    DPRINT_IN_SIGNAL_BUF_SIZE,
 				    format, ap);
@@ -39,7 +40,9 @@ static inline void sigsafe_printf(const char *format, ...)
 		 */
 		if (len > DPRINT_IN_SIGNAL_BUF_SIZE)
 			len = DPRINT_IN_SIGNAL_BUF_SIZE;
-		write(1, dprint_in_signal_buffer, len);
+		ret = write(1, dprint_in_signal_buffer, len);
+		if (ret < 0)
+			abort();
 	}
 	va_end(ap);
 }

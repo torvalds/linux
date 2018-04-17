@@ -79,9 +79,9 @@ void blk_stat_add(struct request *rq)
 	rcu_read_unlock();
 }
 
-static void blk_stat_timer_fn(unsigned long data)
+static void blk_stat_timer_fn(struct timer_list *t)
 {
-	struct blk_stat_callback *cb = (void *)data;
+	struct blk_stat_callback *cb = from_timer(cb, t, timer);
 	unsigned int bucket;
 	int cpu;
 
@@ -130,7 +130,7 @@ blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
 	cb->bucket_fn = bucket_fn;
 	cb->data = data;
 	cb->buckets = buckets;
-	setup_timer(&cb->timer, blk_stat_timer_fn, (unsigned long)cb);
+	timer_setup(&cb->timer, blk_stat_timer_fn, 0);
 
 	return cb;
 }

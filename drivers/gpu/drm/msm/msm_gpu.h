@@ -33,7 +33,7 @@ struct msm_gpu_config {
 	const char *irqname;
 	uint64_t va_start;
 	uint64_t va_end;
-	unsigned int ringsz;
+	unsigned int nr_rings;
 };
 
 /* So far, with hardware that I've seen to date, we can have:
@@ -57,9 +57,9 @@ struct msm_gpu_funcs {
 	int (*pm_resume)(struct msm_gpu *gpu);
 	void (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			struct msm_file_private *ctx);
-	void (*flush)(struct msm_gpu *gpu);
+	void (*flush)(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 	irqreturn_t (*irq)(struct msm_gpu *irq);
-	uint32_t (*last_fence)(struct msm_gpu *gpu);
+	struct msm_ringbuffer *(*active_ring)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
@@ -86,15 +86,11 @@ struct msm_gpu {
 	const struct msm_gpu_perfcntr *perfcntrs;
 	uint32_t num_perfcntrs;
 
-	/* ringbuffer: */
-	struct msm_ringbuffer *rb;
-	uint64_t rb_iova;
+	struct msm_ringbuffer *rb[MSM_GPU_MAX_RINGS];
+	int nr_rings;
 
 	/* list of GEM active objects: */
 	struct list_head active_list;
-
-	/* fencing: */
-	struct msm_fence_context *fctx;
 
 	/* does gpu need hw_init? */
 	bool needs_hw_init;
@@ -126,15 +122,31 @@ struct msm_gpu {
 #define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
 #define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
 	struct timer_list hangcheck_timer;
-	uint32_t hangcheck_fence;
 	struct work_struct recover_work;
 
-	struct list_head submit_list;
+	struct drm_gem_object *memptrs_bo;
 };
+
+/* It turns out that all targets use the same ringbuffer size */
+#define MSM_GPU_RINGBUFFER_SZ SZ_32K
+#define MSM_GPU_RINGBUFFER_BLKSIZE 32
+
+#define MSM_GPU_RB_CNTL_DEFAULT \
+		(AXXX_CP_RB_CNTL_BUFSZ(ilog2(MSM_GPU_RINGBUFFER_SZ / 8)) | \
+		AXXX_CP_RB_CNTL_BLKSZ(ilog2(MSM_GPU_RINGBUFFER_BLKSIZE / 8)))
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
 {
-	return gpu->fctx->last_fence > gpu->funcs->last_fence(gpu);
+	int i;
+
+	for (i = 0; i < gpu->nr_rings; i++) {
+		struct msm_ringbuffer *ring = gpu->rb[i];
+
+		if (ring->seqno > ring->memptrs->fence)
+			return true;
+	}
+
+	return false;
 }
 
 /* Perf-Counters:
@@ -148,6 +160,15 @@ struct msm_gpu_perfcntr {
 	uint32_t sample_reg;
 	uint32_t select_val;
 	const char *name;
+};
+
+struct msm_gpu_submitqueue {
+	int id;
+	u32 flags;
+	u32 prio;
+	int faults;
+	struct list_head node;
+	struct kref ref;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)
@@ -222,5 +243,11 @@ void msm_gpu_cleanup(struct msm_gpu *gpu);
 struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
 void __init adreno_register(void);
 void __exit adreno_unregister(void);
+
+static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
+{
+	if (queue)
+		kref_put(&queue->ref, msm_submitqueue_destroy);
+}
 
 #endif /* __MSM_GPU_H__ */

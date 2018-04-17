@@ -87,14 +87,11 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
 
-	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->proto_unreach_timer,
-		    sctp_generate_proto_unreach_event, (unsigned long)peer);
+	timer_setup(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event, 0);
+	timer_setup(&peer->hb_timer, sctp_generate_heartbeat_event, 0);
+	timer_setup(&peer->reconf_timer, sctp_generate_reconf_event, 0);
+	timer_setup(&peer->proto_unreach_timer,
+		    sctp_generate_proto_unreach_event, 0);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
@@ -251,28 +248,37 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
+bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
 	struct dst_entry *dst = sctp_transport_dst_check(t);
+	bool change = true;
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
-			__func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
-		/* Use default minimum segment size and disable
-		 * pmtu discovery on this transport.
-		 */
-		t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-	} else {
-		t->pathmtu = pmtu;
+		pr_warn_ratelimited("%s: Reported pmtu %d too low, using default minimum of %d\n",
+				    __func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
+		/* Use default minimum segment instead */
+		pmtu = SCTP_DEFAULT_MINSEGMENT;
 	}
+	pmtu = SCTP_TRUNC4(pmtu);
 
 	if (dst) {
 		dst->ops->update_pmtu(dst, t->asoc->base.sk, NULL, pmtu);
 		dst = sctp_transport_dst_check(t);
 	}
 
-	if (!dst)
+	if (!dst) {
 		t->af_specific->get_dst(t, &t->saddr, &t->fl, t->asoc->base.sk);
+		dst = t->dst;
+	}
+
+	if (dst) {
+		/* Re-fetch, as under layers may have a higher minimum size */
+		pmtu = SCTP_TRUNC4(dst_mtu(dst));
+		change = t->pathmtu != pmtu;
+	}
+	t->pathmtu = pmtu;
+
+	return change;
 }
 
 /* Caches the dst entry and source address for a transport's destination

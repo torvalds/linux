@@ -101,6 +101,9 @@ struct parse_events_term {
 	/* error string indexes for within parsed string */
 	int err_term;
 	int err_val;
+
+	/* Coming from implicit alias */
+	bool weak;
 };
 
 struct parse_events_error {

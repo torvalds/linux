@@ -21,4 +21,4 @@ include/generated/facilities.h: $(obj)/gen_facilities FORCE
 	$(call filechk,facilities.h)
 
 include/generated/dis.h: $(obj)/gen_opcode_table FORCE
-	$(call filechk,dis.h,__FUN)
+	$(call filechk,dis.h)

@@ -11,6 +11,7 @@
  * General Public License for more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/libnvdimm.h>
 #include <linux/sched/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -221,7 +222,7 @@ static void nvdimm_account_cleared_poison(struct nvdimm_bus *nvdimm_bus,
 		phys_addr_t phys, u64 cleared)
 {
 	if (cleared > 0)
-		nvdimm_forget_poison(nvdimm_bus, phys, cleared);
+		badrange_forget(&nvdimm_bus->badrange, phys, cleared);
 
 	if (cleared > 0 && cleared / 512)
 		nvdimm_clear_badblocks_regions(nvdimm_bus, phys, cleared);
@@ -344,11 +345,10 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		return NULL;
 	INIT_LIST_HEAD(&nvdimm_bus->list);
 	INIT_LIST_HEAD(&nvdimm_bus->mapping_list);
-	INIT_LIST_HEAD(&nvdimm_bus->poison_list);
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
 	mutex_init(&nvdimm_bus->reconfig_mutex);
-	spin_lock_init(&nvdimm_bus->poison_lock);
+	badrange_init(&nvdimm_bus->badrange);
 	if (nvdimm_bus->id < 0) {
 		kfree(nvdimm_bus);
 		return NULL;
@@ -395,15 +395,15 @@ static int child_unregister(struct device *dev, void *data)
 	return 0;
 }
 
-static void free_poison_list(struct list_head *poison_list)
+static void free_badrange_list(struct list_head *badrange_list)
 {
-	struct nd_poison *pl, *next;
+	struct badrange_entry *bre, *next;
 
-	list_for_each_entry_safe(pl, next, poison_list, list) {
-		list_del(&pl->list);
-		kfree(pl);
+	list_for_each_entry_safe(bre, next, badrange_list, list) {
+		list_del(&bre->list);
+		kfree(bre);
 	}
-	list_del_init(poison_list);
+	list_del_init(badrange_list);
 }
 
 static int nd_bus_remove(struct device *dev)
@@ -417,9 +417,9 @@ static int nd_bus_remove(struct device *dev)
 	nd_synchronize();
 	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
 
-	spin_lock(&nvdimm_bus->poison_lock);
-	free_poison_list(&nvdimm_bus->poison_list);
-	spin_unlock(&nvdimm_bus->poison_lock);
+	spin_lock(&nvdimm_bus->badrange.lock);
+	free_badrange_list(&nvdimm_bus->badrange.list);
+	spin_unlock(&nvdimm_bus->badrange.lock);
 
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 

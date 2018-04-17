@@ -702,11 +702,11 @@ static int hid_sensor_custom_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static unsigned int hid_sensor_custom_poll(struct file *file,
+static __poll_t hid_sensor_custom_poll(struct file *file,
 					   struct poll_table_struct *wait)
 {
 	struct hid_sensor_custom *sensor_inst;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	sensor_inst = container_of(file->private_data,
 				   struct hid_sensor_custom, custom_dev);

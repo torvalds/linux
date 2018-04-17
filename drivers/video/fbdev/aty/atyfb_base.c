@@ -2272,10 +2272,10 @@ static void aty_bl_exit(struct backlight_device *bd)
 
 static void aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
 {
-	const int ragepro_tbl[] = {
+	static const int ragepro_tbl[] = {
 		44, 50, 55, 66, 75, 80, 100
 	};
-	const int ragexl_tbl[] = {
+	static const int ragexl_tbl[] = {
 		50, 66, 75, 83, 90, 95, 100, 105,
 		110, 115, 120, 125, 133, 143, 166
 	};

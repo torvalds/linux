@@ -136,6 +136,7 @@ config SWIOTLB
 	bool "Soft IOMMU Support for All-Memory DMA"
 	default y
 	depends on CPU_LOONGSON3
+	select DMA_DIRECT_OPS
 	select IOMMU_HELPER
 	select NEED_SG_DMA_LENGTH
 	select NEED_DMA_MAP_STATE

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -393,11 +389,6 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 	},
 };
 #define N_RES (ARRAY_SIZE(mt9m114_res))
-
-static const struct i2c_device_id mt9m114_id[] = {
-	{"mt9m114", 0},
-	{}
-};
 
 static struct misensor_reg const mt9m114_exitstandby[] = {
 	{MISENSOR_16BIT,  0x098E, 0xDC00},

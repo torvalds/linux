@@ -107,7 +107,7 @@ static struct map_info nettel_amd_map = {
 	.bankwidth = AMD_BUSWIDTH,
 };
 
-static struct mtd_partition nettel_amd_partitions[] = {
+static const struct mtd_partition nettel_amd_partitions[] = {
 	{
 		.name = "SnapGear BIOS config",
 		.offset = 0x000e0000,

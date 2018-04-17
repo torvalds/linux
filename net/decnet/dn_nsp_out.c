@@ -313,11 +313,8 @@ static __le16 *dn_mk_ack_header(struct sock *sk, struct sk_buff *skb, unsigned c
 	ackcrs |= 0x8000;
 
 	/* If this is an "other data/ack" message, swap acknum and ackcrs */
-	if (other) {
-		unsigned short tmp = acknum;
-		acknum = ackcrs;
-		ackcrs = tmp;
-	}
+	if (other)
+		swap(acknum, ackcrs);
 
 	/* Set "cross subchannel" bit in ackcrs */
 	ackcrs |= 0x2000;
@@ -489,17 +486,6 @@ void dn_send_conn_ack (struct sock *sk)
 	msg->dstaddr = scp->addrrem;
 
 	dn_nsp_send(skb);
-}
-
-void dn_nsp_delayed_ack(struct sock *sk)
-{
-	struct dn_scp *scp = DN_SK(sk);
-
-	if (scp->ackxmt_oth != scp->numoth_rcv)
-		dn_nsp_send_oth_ack(sk);
-
-	if (scp->ackxmt_dat != scp->numdat_rcv)
-		dn_nsp_send_data_ack(sk);
 }
 
 static int dn_nsp_retrans_conn_conf(struct sock *sk)

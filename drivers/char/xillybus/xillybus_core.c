@@ -1736,10 +1736,10 @@ end:
 	return pos;
 }
 
-static unsigned int xillybus_poll(struct file *filp, poll_table *wait)
+static __poll_t xillybus_poll(struct file *filp, poll_table *wait)
 {
 	struct xilly_channel *channel = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	poll_wait(filp, &channel->endpoint->ep_wait, wait);

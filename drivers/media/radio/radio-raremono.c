@@ -254,7 +254,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				const struct v4l2_frequency *f)
 {
 	struct raremono_device *radio = video_drvdata(file);
-	u32 freq = f->frequency;
+	u32 freq;
 	unsigned band;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)

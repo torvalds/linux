@@ -51,31 +51,31 @@
 			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
 		};
 
-		i2c@07577000 {
+		i2c@7577000 {
 		/* On Low speed expansion */
 			label = "LS-I2C0";
 			status = "okay";
 		};
 
-		i2c@075b6000 {
+		i2c@75b6000 {
 		/* On Low speed expansion */
 			label = "LS-I2C1";
 			status = "okay";
 		};
 
-		spi@07575000 {
+		spi@7575000 {
 		/* On Low speed expansion */
 			label = "LS-SPI0";
 			status = "okay";
 		};
 
-		i2c@075b5000 {
+		i2c@75b5000 {
 		/* On High speed expansion */
 			label = "HS-I2C2";
 			status = "okay";
 		};
 
-		spi@075ba000{
+		spi@75ba000{
 		/* On High speed expansion */
 			label = "HS-SPI1";
 			status = "okay";
@@ -138,6 +138,22 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&usb2_vbus_det_gpio>;
 		};
+
+		agnoc@0 {
+			qcom,pcie@00600000 {
+				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+			};
+
+			qcom,pcie@00608000 {
+				status = "okay";
+				perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
+			};
+
+			qcom,pcie@00610000 {
+				status = "okay";
+				perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
+			};
+		};
 	};
 
 
@@ -173,9 +189,15 @@
 					regulator-min-microvolt = <1300000>;
 					regulator-max-microvolt = <1300000>;
 				};
+
+				/**
+				 * 1.8v required on LS expansion
+				 * for mezzanine boards
+				 */
 				s4 {
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 				};
 				s5 {
 					regulator-min-microvolt = <2150000>;

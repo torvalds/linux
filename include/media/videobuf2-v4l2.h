@@ -226,8 +226,7 @@ void vb2_queue_release(struct vb2_queue *q);
  * The return values from this function are intended to be directly returned
  * from poll handler in driver.
  */
-unsigned int vb2_poll(struct vb2_queue *q, struct file *file,
-		      poll_table *wait);
+__poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
 
 /*
  * The following functions are not part of the vb2 core API, but are simple
@@ -262,7 +261,7 @@ ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos);
 ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos);
-unsigned int vb2_fop_poll(struct file *file, poll_table *wait);
+__poll_t vb2_fop_poll(struct file *file, poll_table *wait);
 #ifndef CONFIG_MMU
 unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);

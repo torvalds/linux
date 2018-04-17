@@ -348,7 +348,7 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	}
 }
 
-static struct rio_device_id idtg3_id_table[] = {
+static const struct rio_device_id idtg3_id_table[] = {
 	{RIO_DEVICE(RIO_DID_IDTRXS1632, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTRXS2448, RIO_VID_IDT)},
 	{ 0, }	/* terminate list */

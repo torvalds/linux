@@ -101,44 +101,6 @@ static inline void hlist_nulls_add_head_rcu(struct hlist_nulls_node *n,
 }
 
 /**
- * hlist_nulls_add_tail_rcu
- * @n: the element to add to the hash list.
- * @h: the list to add to.
- *
- * Description:
- * Adds the specified element to the end of the specified hlist_nulls,
- * while permitting racing traversals.  NOTE: tail insertion requires
- * list traversal.
- *
- * The caller must take whatever precautions are necessary
- * (such as holding appropriate locks) to avoid racing
- * with another list-mutation primitive, such as hlist_nulls_add_head_rcu()
- * or hlist_nulls_del_rcu(), running on this same list.
- * However, it is perfectly legal to run concurrently with
- * the _rcu list-traversal primitives, such as
- * hlist_nulls_for_each_entry_rcu(), used to prevent memory-consistency
- * problems on Alpha CPUs.  Regardless of the type of CPU, the
- * list-traversal primitive must be guarded by rcu_read_lock().
- */
-static inline void hlist_nulls_add_tail_rcu(struct hlist_nulls_node *n,
-					struct hlist_nulls_head *h)
-{
-	struct hlist_nulls_node *i, *last = NULL;
-
-	for (i = hlist_nulls_first_rcu(h); !is_a_nulls(i);
-	     i = hlist_nulls_next_rcu(i))
-		last = i;
-
-	if (last) {
-		n->next = last->next;
-		n->pprev = &last->next;
-		rcu_assign_pointer(hlist_nulls_next_rcu(last), n);
-	} else {
-		hlist_nulls_add_head_rcu(n, h);
-	}
-}
-
-/**
  * hlist_nulls_for_each_entry_rcu - iterate over rcu list of given type
  * @tpos:	the type * to use as a loop cursor.
  * @pos:	the &struct hlist_nulls_node to use as a loop cursor.

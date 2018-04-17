@@ -791,7 +791,7 @@
 	};
 
 	/* D/A converter for auto-focus */
-	ad5820: dac@0c {
+	ad5820: dac@c {
 		compatible = "adi,ad5820";
 		reg = <0x0c>;
 
@@ -838,6 +838,7 @@
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
+		compatible = "ti,omap2-onenand";
 		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		gpmc,sync-read;

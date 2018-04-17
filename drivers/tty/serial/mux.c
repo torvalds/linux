@@ -371,7 +371,7 @@ static int mux_verify_port(struct uart_port *port, struct serial_struct *ser)
  *
  * This function periodically polls the Serial MUX to check for new data.
  */
-static void mux_poll(unsigned long unused)
+static void mux_poll(struct timer_list *unused)
 {  
 	int i;
 
@@ -572,7 +572,7 @@ static int __init mux_init(void)
 
 	if(port_cnt > 0) {
 		/* Start the Mux timer */
-		setup_timer(&mux_timer, mux_poll, 0UL);
+		timer_setup(&mux_timer, mux_poll, 0);
 		mod_timer(&mux_timer, jiffies + MUX_POLL_DELAY);
 
 #ifdef CONFIG_SERIAL_MUX_CONSOLE

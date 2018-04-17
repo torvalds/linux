@@ -267,7 +267,7 @@ static void sh_veu_process(struct sh_veu_dev *veu,
 	sh_veu_reg_write(veu, VEU_EIER, 1); /* enable interrupt in VEU */
 }
 
-/**
+/*
  * sh_veu_device_run() - prepares and starts the device
  *
  * This will be called by the framework when it decides to schedule a particular
@@ -1016,7 +1016,7 @@ static int sh_veu_release(struct file *file)
 	return 0;
 }
 
-static unsigned int sh_veu_poll(struct file *file,
+static __poll_t sh_veu_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
 	struct sh_veu_file *veu_file = file->private_data;

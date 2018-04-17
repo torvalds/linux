@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_FRAME_PUBLIC_H
 #define __IA_CSS_FRAME_PUBLIC_H
 
-/** @file
+/* @file
  * This file contains structs to describe various frame-formats supported by the ISP.
  */
 
@@ -25,73 +25,73 @@
 #include "ia_css_frame_format.h"
 #include "ia_css_buffer.h"
 
-/** For RAW input, the bayer order needs to be specified separately. There
+/* For RAW input, the bayer order needs to be specified separately. There
  *  are 4 possible orders. The name is constructed by taking the first two
  *  colors on the first line and the first two colors from the second line.
  */
 enum ia_css_bayer_order {
-	IA_CSS_BAYER_ORDER_GRBG, /**< GRGRGRGRGR .. BGBGBGBGBG */
-	IA_CSS_BAYER_ORDER_RGGB, /**< RGRGRGRGRG .. GBGBGBGBGB */
-	IA_CSS_BAYER_ORDER_BGGR, /**< BGBGBGBGBG .. GRGRGRGRGR */
-	IA_CSS_BAYER_ORDER_GBRG, /**< GBGBGBGBGB .. RGRGRGRGRG */
+	IA_CSS_BAYER_ORDER_GRBG, /** GRGRGRGRGR .. BGBGBGBGBG */
+	IA_CSS_BAYER_ORDER_RGGB, /** RGRGRGRGRG .. GBGBGBGBGB */
+	IA_CSS_BAYER_ORDER_BGGR, /** BGBGBGBGBG .. GRGRGRGRGR */
+	IA_CSS_BAYER_ORDER_GBRG, /** GBGBGBGBGB .. RGRGRGRGRG */
 };
 #define IA_CSS_BAYER_ORDER_NUM (IA_CSS_BAYER_ORDER_GBRG + 1)
 
-/** Frame plane structure. This describes one plane in an image
+/* Frame plane structure. This describes one plane in an image
  *  frame buffer.
  */
 struct ia_css_frame_plane {
-	unsigned int height; /**< height of a plane in lines */
-	unsigned int width;  /**< width of a line, in DMA elements, note that
+	unsigned int height; /** height of a plane in lines */
+	unsigned int width;  /** width of a line, in DMA elements, note that
 				  for RGB565 the three subpixels are stored in
 				  one element. For all other formats this is
 				  the number of subpixels per line. */
-	unsigned int stride; /**< stride of a line in bytes */
-	unsigned int offset; /**< offset in bytes to start of frame data.
+	unsigned int stride; /** stride of a line in bytes */
+	unsigned int offset; /** offset in bytes to start of frame data.
 				  offset is wrt data field in ia_css_frame */
 };
 
-/** Binary "plane". This is used to story binary streams such as jpeg
+/* Binary "plane". This is used to story binary streams such as jpeg
  *  images. This is not actually a real plane.
  */
 struct ia_css_frame_binary_plane {
-	unsigned int		  size; /**< number of bytes in the stream */
-	struct ia_css_frame_plane data; /**< plane */
+	unsigned int		  size; /** number of bytes in the stream */
+	struct ia_css_frame_plane data; /** plane */
 };
 
-/** Container for planar YUV frames. This contains 3 planes.
+/* Container for planar YUV frames. This contains 3 planes.
  */
 struct ia_css_frame_yuv_planes {
-	struct ia_css_frame_plane y; /**< Y plane */
-	struct ia_css_frame_plane u; /**< U plane */
-	struct ia_css_frame_plane v; /**< V plane */
+	struct ia_css_frame_plane y; /** Y plane */
+	struct ia_css_frame_plane u; /** U plane */
+	struct ia_css_frame_plane v; /** V plane */
 };
 
-/** Container for semi-planar YUV frames.
+/* Container for semi-planar YUV frames.
   */
 struct ia_css_frame_nv_planes {
-	struct ia_css_frame_plane y;  /**< Y plane */
-	struct ia_css_frame_plane uv; /**< UV plane */
+	struct ia_css_frame_plane y;  /** Y plane */
+	struct ia_css_frame_plane uv; /** UV plane */
 };
 
-/** Container for planar RGB frames. Each color has its own plane.
+/* Container for planar RGB frames. Each color has its own plane.
  */
 struct ia_css_frame_rgb_planes {
-	struct ia_css_frame_plane r; /**< Red plane */
-	struct ia_css_frame_plane g; /**< Green plane */
-	struct ia_css_frame_plane b; /**< Blue plane */
+	struct ia_css_frame_plane r; /** Red plane */
+	struct ia_css_frame_plane g; /** Green plane */
+	struct ia_css_frame_plane b; /** Blue plane */
 };
 
-/** Container for 6-plane frames. These frames are used internally
+/* Container for 6-plane frames. These frames are used internally
  *  in the advanced ISP only.
  */
 struct ia_css_frame_plane6_planes {
-	struct ia_css_frame_plane r;	  /**< Red plane */
-	struct ia_css_frame_plane r_at_b; /**< Red at blue plane */
-	struct ia_css_frame_plane gr;	  /**< Red-green plane */
-	struct ia_css_frame_plane gb;	  /**< Blue-green plane */
-	struct ia_css_frame_plane b;	  /**< Blue plane */
-	struct ia_css_frame_plane b_at_r; /**< Blue at red plane */
+	struct ia_css_frame_plane r;	  /** Red plane */
+	struct ia_css_frame_plane r_at_b; /** Red at blue plane */
+	struct ia_css_frame_plane gr;	  /** Red-green plane */
+	struct ia_css_frame_plane gb;	  /** Blue-green plane */
+	struct ia_css_frame_plane b;	  /** Blue plane */
+	struct ia_css_frame_plane b_at_r; /** Blue at red plane */
 };
 
 /* Crop info struct - stores the lines to be cropped in isp */
@@ -103,15 +103,15 @@ struct ia_css_crop_info {
 	unsigned int start_line;
 };
 
-/** Frame info struct. This describes the contents of an image frame buffer.
+/* Frame info struct. This describes the contents of an image frame buffer.
   */
 struct ia_css_frame_info {
-	struct ia_css_resolution res; /**< Frame resolution (valid data) */
-	unsigned int padded_width; /**< stride of line in memory (in pixels) */
-	enum ia_css_frame_format format; /**< format of the frame data */
-	unsigned int raw_bit_depth; /**< number of valid bits per pixel,
+	struct ia_css_resolution res; /** Frame resolution (valid data) */
+	unsigned int padded_width; /** stride of line in memory (in pixels) */
+	enum ia_css_frame_format format; /** format of the frame data */
+	unsigned int raw_bit_depth; /** number of valid bits per pixel,
 					 only valid for RAW bayer frames */
-	enum ia_css_bayer_order raw_bayer_order; /**< bayer order, only valid
+	enum ia_css_bayer_order raw_bayer_order; /** bayer order, only valid
 						      for RAW bayer frames */
 	/* the params below are computed based on bayer_order
 	 * we can remove the raw_bayer_order if it is redundant
@@ -136,9 +136,9 @@ struct ia_css_frame_info {
  *  Specifies the DVS loop delay in "frame periods"
  */
 enum ia_css_frame_delay {
-	IA_CSS_FRAME_DELAY_0, /**< Frame delay = 0 */
-	IA_CSS_FRAME_DELAY_1, /**< Frame delay = 1 */
-	IA_CSS_FRAME_DELAY_2  /**< Frame delay = 2 */
+	IA_CSS_FRAME_DELAY_0, /** Frame delay = 0 */
+	IA_CSS_FRAME_DELAY_1, /** Frame delay = 1 */
+	IA_CSS_FRAME_DELAY_2  /** Frame delay = 2 */
 };
 
 enum ia_css_frame_flash_state {
@@ -147,13 +147,13 @@ enum ia_css_frame_flash_state {
 	IA_CSS_FRAME_FLASH_STATE_FULL
 };
 
-/** Frame structure. This structure describes an image buffer or frame.
+/* Frame structure. This structure describes an image buffer or frame.
  *  This is the main structure used for all input and output images.
  */
 struct ia_css_frame {
-	struct ia_css_frame_info info; /**< info struct describing the frame */
-	ia_css_ptr   data;	       /**< pointer to start of image data */
-	unsigned int data_bytes;       /**< size of image data in bytes */
+	struct ia_css_frame_info info; /** info struct describing the frame */
+	ia_css_ptr   data;	       /** pointer to start of image data */
+	unsigned int data_bytes;       /** size of image data in bytes */
 	/* LA: move this to ia_css_buffer */
 	/*
 	 * -1 if data address is static during life time of pipeline
@@ -171,10 +171,10 @@ struct ia_css_frame {
 	enum ia_css_buffer_type buf_type;
 	enum ia_css_frame_flash_state flash_state;
 	unsigned int exp_id;
-	/**< exposure id, see ia_css_event_public.h for more detail */
-	uint32_t isp_config_id; /**< Unique ID to track which config was actually applied to a particular frame */
-	bool valid; /**< First video output frame is not valid */
-	bool contiguous; /**< memory is allocated physically contiguously */
+	/** exposure id, see ia_css_event_public.h for more detail */
+	uint32_t isp_config_id; /** Unique ID to track which config was actually applied to a particular frame */
+	bool valid; /** First video output frame is not valid */
+	bool contiguous; /** memory is allocated physically contiguously */
 	union {
 		unsigned int	_initialisation_dummy;
 		struct ia_css_frame_plane raw;
@@ -185,7 +185,7 @@ struct ia_css_frame {
 		struct ia_css_frame_nv_planes nv;
 		struct ia_css_frame_plane6_planes plane6;
 		struct ia_css_frame_binary_plane binary;
-	} planes; /**< frame planes, select the right one based on
+	} planes; /** frame planes, select the right one based on
 		       info.format */
 };
 
@@ -204,7 +204,7 @@ struct ia_css_frame {
 	{ 0 }					/* planes */ \
 }
 
-/** @brief Fill a frame with zeros
+/* @brief Fill a frame with zeros
  *
  * @param	frame		The frame.
  * @return	None
@@ -213,7 +213,7 @@ struct ia_css_frame {
  */
 void ia_css_frame_zero(struct ia_css_frame *frame);
 
-/** @brief Allocate a CSS frame structure
+/* @brief Allocate a CSS frame structure
  *
  * @param	frame		The allocated frame.
  * @param	width		The width (in pixels) of the frame.
@@ -234,7 +234,7 @@ ia_css_frame_allocate(struct ia_css_frame **frame,
 		      unsigned int stride,
 		      unsigned int raw_bit_depth);
 
-/** @brief Allocate a CSS frame structure using a frame info structure.
+/* @brief Allocate a CSS frame structure using a frame info structure.
  *
  * @param	frame	The allocated frame.
  * @param[in]	info	The frame info structure.
@@ -247,7 +247,7 @@ ia_css_frame_allocate(struct ia_css_frame **frame,
 enum ia_css_err
 ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 				const struct ia_css_frame_info *info);
-/** @brief Free a CSS frame structure.
+/* @brief Free a CSS frame structure.
  *
  * @param[in]	frame	Pointer to the frame.
  * @return	None
@@ -258,7 +258,7 @@ ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 void
 ia_css_frame_free(struct ia_css_frame *frame);
 
-/** @brief Allocate a contiguous CSS frame structure
+/* @brief Allocate a contiguous CSS frame structure
  *
  * @param	frame		The allocated frame.
  * @param	width		The width (in pixels) of the frame.
@@ -280,7 +280,7 @@ ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
 				 unsigned int stride,
 				 unsigned int raw_bit_depth);
 
-/** @brief Allocate a contiguous CSS frame from a frame info structure.
+/* @brief Allocate a contiguous CSS frame from a frame info structure.
  *
  * @param	frame	The allocated frame.
  * @param[in]	info	The frame info structure.
@@ -296,7 +296,7 @@ enum ia_css_err
 ia_css_frame_allocate_contiguous_from_info(struct ia_css_frame **frame,
 					  const struct ia_css_frame_info *info);
 
-/** @brief Allocate a CSS frame structure using a frame info structure.
+/* @brief Allocate a CSS frame structure using a frame info structure.
  *
  * @param	frame	The allocated frame.
  * @param[in]	info	The frame info structure.
@@ -309,7 +309,7 @@ enum ia_css_err
 ia_css_frame_create_from_info(struct ia_css_frame **frame,
 	const struct ia_css_frame_info *info);
 
-/** @brief Set a mapped data buffer to a CSS frame
+/* @brief Set a mapped data buffer to a CSS frame
  *
  * @param[in]	frame       Valid CSS frame pointer
  * @param[in]	mapped_data  Mapped data buffer to be assigned to the CSS frame
@@ -327,7 +327,7 @@ ia_css_frame_set_data(struct ia_css_frame *frame,
 	const ia_css_ptr   mapped_data,
 	size_t data_size_bytes);
 
-/** @brief Map an existing frame data pointer to a CSS frame.
+/* @brief Map an existing frame data pointer to a CSS frame.
  *
  * @param	frame		Pointer to the frame to be initialized
  * @param[in]	info		The frame info.
@@ -350,7 +350,7 @@ ia_css_frame_map(struct ia_css_frame **frame,
 		 uint16_t attribute,
 		 void *context);
 
-/** @brief Unmap a CSS frame structure.
+/* @brief Unmap a CSS frame structure.
  *
  * @param[in]	frame	Pointer to the CSS frame.
  * @return	None

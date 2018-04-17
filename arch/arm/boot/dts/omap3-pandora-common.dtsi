@@ -205,6 +205,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
 		vcc-supply = <&vaux2>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host VBUS supply

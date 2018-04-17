@@ -703,7 +703,6 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 {
 	struct send_context_info *sci;
 	struct send_context *sc = NULL;
-	int req_type = type;
 	dma_addr_t dma;
 	unsigned long flags;
 	u64 reg;
@@ -730,13 +729,6 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		return NULL;
 	}
 
-	/*
-	 * VNIC contexts are dynamically allocated.
-	 * Hence, pick a user context for VNIC.
-	 */
-	if (type == SC_VNIC)
-		type = SC_USER;
-
 	spin_lock_irqsave(&dd->sc_lock, flags);
 	ret = sc_hw_alloc(dd, type, &sw_index, &hw_context);
 	if (ret) {
@@ -744,15 +736,6 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		free_percpu(sc->buffers_allocated);
 		kfree(sc);
 		return NULL;
-	}
-
-	/*
-	 * VNIC contexts are used by kernel driver.
-	 * Hence, mark them as kernel contexts.
-	 */
-	if (req_type == SC_VNIC) {
-		dd->send_contexts[sw_index].type = SC_KERNEL;
-		type = SC_KERNEL;
 	}
 
 	sci = &dd->send_contexts[sw_index];

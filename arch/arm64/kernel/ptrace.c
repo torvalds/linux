@@ -32,6 +32,7 @@
 #include <linux/security.h>
 #include <linux/init.h>
 #include <linux/signal.h>
+#include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
@@ -40,6 +41,7 @@
 #include <linux/elf.h>
 
 #include <asm/compat.h>
+#include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
 #include <asm/pgtable.h>
 #include <asm/stacktrace.h>
@@ -178,34 +180,34 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 				struct pt_regs *regs)
 {
 	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
-	siginfo_t info = {
-		.si_signo	= SIGTRAP,
-		.si_errno	= 0,
-		.si_code	= TRAP_HWBKPT,
-		.si_addr	= (void __user *)(bkpt->trigger),
-	};
+	siginfo_t info;
+
+	clear_siginfo(&info);
+	info.si_signo	= SIGTRAP;
+	info.si_errno	= 0;
+	info.si_code	= TRAP_HWBKPT;
+	info.si_addr	= (void __user *)(bkpt->trigger);
 
 #ifdef CONFIG_COMPAT
-	int i;
+	if (is_compat_task()) {
+		int si_errno = 0;
+		int i;
 
-	if (!is_compat_task())
-		goto send_sig;
-
-	for (i = 0; i < ARM_MAX_BRP; ++i) {
-		if (current->thread.debug.hbp_break[i] == bp) {
-			info.si_errno = (i << 1) + 1;
-			break;
+		for (i = 0; i < ARM_MAX_BRP; ++i) {
+			if (current->thread.debug.hbp_break[i] == bp) {
+				si_errno = (i << 1) + 1;
+				break;
+			}
 		}
-	}
 
-	for (i = 0; i < ARM_MAX_WRP; ++i) {
-		if (current->thread.debug.hbp_watch[i] == bp) {
-			info.si_errno = -((i << 1) + 1);
-			break;
+		for (i = 0; i < ARM_MAX_WRP; ++i) {
+			if (current->thread.debug.hbp_watch[i] == bp) {
+				si_errno = -((i << 1) + 1);
+				break;
+			}
 		}
+		force_sig_ptrace_errno_trap(si_errno, (void __user *)bkpt->trigger);
 	}
-
-send_sig:
 #endif
 	force_sig_info(SIGTRAP, &info, current);
 }
@@ -618,17 +620,56 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 /*
  * TODO: update fp accessors for lazy context switching (sync/flush hwstate)
  */
+static int __fpr_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf, unsigned int start_pos)
+{
+	struct user_fpsimd_state *uregs;
+
+	sve_sync_to_fpsimd(target);
+
+	uregs = &target->thread.fpsimd_state.user_fpsimd;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs,
+				   start_pos, start_pos + sizeof(*uregs));
+}
+
 static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	struct user_fpsimd_state *uregs;
-	uregs = &target->thread.fpsimd_state.user_fpsimd;
-
 	if (target == current)
 		fpsimd_preserve_current_state();
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs, 0, -1);
+	return __fpr_get(target, regset, pos, count, kbuf, ubuf, 0);
+}
+
+static int __fpr_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf,
+		     unsigned int start_pos)
+{
+	int ret;
+	struct user_fpsimd_state newstate;
+
+	/*
+	 * Ensure target->thread.fpsimd_state is up to date, so that a
+	 * short copyin can't resurrect stale data.
+	 */
+	sve_sync_to_fpsimd(target);
+
+	newstate = target->thread.fpsimd_state.user_fpsimd;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newstate,
+				 start_pos, start_pos + sizeof(newstate));
+	if (ret)
+		return ret;
+
+	target->thread.fpsimd_state.user_fpsimd = newstate;
+
+	return ret;
 }
 
 static int fpr_set(struct task_struct *target, const struct user_regset *regset,
@@ -636,15 +677,14 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct user_fpsimd_state newstate =
-		target->thread.fpsimd_state.user_fpsimd;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newstate, 0, -1);
+	ret = __fpr_set(target, regset, pos, count, kbuf, ubuf, 0);
 	if (ret)
 		return ret;
 
-	target->thread.fpsimd_state.user_fpsimd = newstate;
+	sve_sync_from_fpsimd_zeropad(target);
 	fpsimd_flush_task_state(target);
+
 	return ret;
 }
 
@@ -702,6 +742,215 @@ static int system_call_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_ARM64_SVE
+
+static void sve_init_header_from_task(struct user_sve_header *header,
+				      struct task_struct *target)
+{
+	unsigned int vq;
+
+	memset(header, 0, sizeof(*header));
+
+	header->flags = test_tsk_thread_flag(target, TIF_SVE) ?
+		SVE_PT_REGS_SVE : SVE_PT_REGS_FPSIMD;
+	if (test_tsk_thread_flag(target, TIF_SVE_VL_INHERIT))
+		header->flags |= SVE_PT_VL_INHERIT;
+
+	header->vl = target->thread.sve_vl;
+	vq = sve_vq_from_vl(header->vl);
+
+	header->max_vl = sve_max_vl;
+	if (WARN_ON(!sve_vl_valid(sve_max_vl)))
+		header->max_vl = header->vl;
+
+	header->size = SVE_PT_SIZE(vq, header->flags);
+	header->max_size = SVE_PT_SIZE(sve_vq_from_vl(header->max_vl),
+				      SVE_PT_REGS_SVE);
+}
+
+static unsigned int sve_size_from_header(struct user_sve_header const *header)
+{
+	return ALIGN(header->size, SVE_VQ_BYTES);
+}
+
+static unsigned int sve_get_size(struct task_struct *target,
+				 const struct user_regset *regset)
+{
+	struct user_sve_header header;
+
+	if (!system_supports_sve())
+		return 0;
+
+	sve_init_header_from_task(&header, target);
+	return sve_size_from_header(&header);
+}
+
+static int sve_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	int ret;
+	struct user_sve_header header;
+	unsigned int vq;
+	unsigned long start, end;
+
+	if (!system_supports_sve())
+		return -EINVAL;
+
+	/* Header */
+	sve_init_header_from_task(&header, target);
+	vq = sve_vq_from_vl(header.vl);
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &header,
+				  0, sizeof(header));
+	if (ret)
+		return ret;
+
+	if (target == current)
+		fpsimd_preserve_current_state();
+
+	/* Registers: FPSIMD-only case */
+
+	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
+	if ((header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD)
+		return __fpr_get(target, regset, pos, count, kbuf, ubuf,
+				 SVE_PT_FPSIMD_OFFSET);
+
+	/* Otherwise: full SVE case */
+
+	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
+	start = SVE_PT_SVE_OFFSET;
+	end = SVE_PT_SVE_FFR_OFFSET(vq) + SVE_PT_SVE_FFR_SIZE(vq);
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  target->thread.sve_state,
+				  start, end);
+	if (ret)
+		return ret;
+
+	start = end;
+	end = SVE_PT_SVE_FPSR_OFFSET(vq);
+	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+				       start, end);
+	if (ret)
+		return ret;
+
+	/*
+	 * Copy fpsr, and fpcr which must follow contiguously in
+	 * struct fpsimd_state:
+	 */
+	start = end;
+	end = SVE_PT_SVE_FPCR_OFFSET(vq) + SVE_PT_SVE_FPCR_SIZE;
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpsimd_state.fpsr,
+				  start, end);
+	if (ret)
+		return ret;
+
+	start = end;
+	end = sve_size_from_header(&header);
+	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					start, end);
+}
+
+static int sve_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct user_sve_header header;
+	unsigned int vq;
+	unsigned long start, end;
+
+	if (!system_supports_sve())
+		return -EINVAL;
+
+	/* Header */
+	if (count < sizeof(header))
+		return -EINVAL;
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &header,
+				 0, sizeof(header));
+	if (ret)
+		goto out;
+
+	/*
+	 * Apart from PT_SVE_REGS_MASK, all PT_SVE_* flags are consumed by
+	 * sve_set_vector_length(), which will also validate them for us:
+	 */
+	ret = sve_set_vector_length(target, header.vl,
+		((unsigned long)header.flags & ~SVE_PT_REGS_MASK) << 16);
+	if (ret)
+		goto out;
+
+	/* Actual VL set may be less than the user asked for: */
+	vq = sve_vq_from_vl(target->thread.sve_vl);
+
+	/* Registers: FPSIMD-only case */
+
+	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
+	if ((header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD) {
+		ret = __fpr_set(target, regset, pos, count, kbuf, ubuf,
+				SVE_PT_FPSIMD_OFFSET);
+		clear_tsk_thread_flag(target, TIF_SVE);
+		goto out;
+	}
+
+	/* Otherwise: full SVE case */
+
+	/*
+	 * If setting a different VL from the requested VL and there is
+	 * register data, the data layout will be wrong: don't even
+	 * try to set the registers in this case.
+	 */
+	if (count && vq != sve_vq_from_vl(header.vl)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	sve_alloc(target);
+
+	/*
+	 * Ensure target->thread.sve_state is up to date with target's
+	 * FPSIMD regs, so that a short copyin leaves trailing registers
+	 * unmodified.
+	 */
+	fpsimd_sync_to_sve(target);
+	set_tsk_thread_flag(target, TIF_SVE);
+
+	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
+	start = SVE_PT_SVE_OFFSET;
+	end = SVE_PT_SVE_FFR_OFFSET(vq) + SVE_PT_SVE_FFR_SIZE(vq);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 target->thread.sve_state,
+				 start, end);
+	if (ret)
+		goto out;
+
+	start = end;
+	end = SVE_PT_SVE_FPSR_OFFSET(vq);
+	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					start, end);
+	if (ret)
+		goto out;
+
+	/*
+	 * Copy fpsr, and fpcr which must follow contiguously in
+	 * struct fpsimd_state:
+	 */
+	start = end;
+	end = SVE_PT_SVE_FPCR_OFFSET(vq) + SVE_PT_SVE_FPCR_SIZE;
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &target->thread.fpsimd_state.fpsr,
+				 start, end);
+
+out:
+	fpsimd_flush_task_state(target);
+	return ret;
+}
+
+#endif /* CONFIG_ARM64_SVE */
+
 enum aarch64_regset {
 	REGSET_GPR,
 	REGSET_FPR,
@@ -711,6 +960,9 @@ enum aarch64_regset {
 	REGSET_HW_WATCH,
 #endif
 	REGSET_SYSTEM_CALL,
+#ifdef CONFIG_ARM64_SVE
+	REGSET_SVE,
+#endif
 };
 
 static const struct user_regset aarch64_regsets[] = {
@@ -768,6 +1020,18 @@ static const struct user_regset aarch64_regsets[] = {
 		.get = system_call_get,
 		.set = system_call_set,
 	},
+#ifdef CONFIG_ARM64_SVE
+	[REGSET_SVE] = { /* Scalable Vector Extension */
+		.core_note_type = NT_ARM_SVE,
+		.n = DIV_ROUND_UP(SVE_PT_SIZE(SVE_VQ_MAX, SVE_PT_REGS_SVE),
+				  SVE_VQ_BYTES),
+		.size = SVE_VQ_BYTES,
+		.align = SVE_VQ_BYTES,
+		.get = sve_get,
+		.set = sve_set,
+		.get_size = sve_get_size,
+	},
+#endif
 };
 
 static const struct user_regset_view user_aarch64_view = {

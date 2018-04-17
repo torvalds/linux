@@ -169,10 +169,10 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
  *  cpia2_v4l_poll
  *
  *****************************************************************************/
-static unsigned int cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
+static __poll_t cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct camera_data *cam = video_drvdata(filp);
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&cam->v4l2_lock);
 	res = cpia2_poll(cam, filp, wait);

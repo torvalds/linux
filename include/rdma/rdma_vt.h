@@ -228,13 +228,6 @@ struct rvt_driver_provided {
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 
 	/*
-	 * Returns a string to represent the device for which is being
-	 * registered. This is primarily used for error and debug messages on
-	 * the console.
-	 */
-	const char * (*get_card_name)(struct rvt_dev_info *rdi);
-
-	/*
 	 * Returns a pointer to the undelying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
 	 * in an output message
@@ -418,6 +411,30 @@ struct rvt_dev_info {
 	spinlock_t n_mcast_grps_lock;
 
 };
+
+/**
+ * rvt_set_ibdev_name - Craft an IB device name from client info
+ * @rdi: pointer to the client rvt_dev_info structure
+ * @name: client specific name
+ * @unit: client specific unit number.
+ */
+static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
+				      const char *fmt, const char *name,
+				      const int unit)
+{
+	snprintf(rdi->ibdev.name, sizeof(rdi->ibdev.name), fmt, name, unit);
+}
+
+/**
+ * rvt_get_ibdev_name - return the IB name
+ * @rdi: rdmavt device
+ *
+ * Return the registered name of the device.
+ */
+static inline const char *rvt_get_ibdev_name(const struct rvt_dev_info *rdi)
+{
+	return rdi->ibdev.name;
+}
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
 {

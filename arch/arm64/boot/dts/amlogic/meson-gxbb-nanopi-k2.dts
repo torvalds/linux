@@ -168,6 +168,8 @@
 		eth_phy0: ethernet-phy@0 {
 			/* Realtek RTL8211F (0x001cc916) */
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
@@ -183,7 +185,9 @@
 			  "VCCK En", "CON1 Header Pin31",
 			  "I2S Header Pin6", "IR In", "I2S Header Pin7",
 			  "I2S Header Pin3", "I2S Header Pin4",
-			  "I2S Header Pin5", "HDMI CEC", "SYS LED";
+			  "I2S Header Pin5", "HDMI CEC", "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pinctrl_periphs {
@@ -229,11 +233,9 @@
 			  "Bluetooth UART TX", "Bluetooth UART RX",
 			  "Bluetooth UART CTS", "Bluetooth UART RTS",
 			  "", "", "", "WIFI 32K", "Bluetooth Enable",
-			  "Bluetooth WAKE HOST",
+			  "Bluetooth WAKE HOST", "",
 			  /* Bank GPIOCLK */
-			  "", "CON1 Header Pin35", "", "",
-			  /* GPIO_TEST_N */
-			  "";
+			  "", "CON1 Header Pin35", "", "";
 };
 
 &pwm_ef {
@@ -302,7 +304,7 @@
 /* eMMC */
 &sd_emmc_c {
 	status = "disabled";
-	pinctrl-0 = <&emmc_pins>;
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
 

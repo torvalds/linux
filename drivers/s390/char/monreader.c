@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Character device driver for reading z/VM *MONITOR service records.
  *
@@ -428,7 +429,7 @@ out_copy:
 	return count;
 }
 
-static unsigned int mon_poll(struct file *filp, struct poll_table_struct *p)
+static __poll_t mon_poll(struct file *filp, struct poll_table_struct *p)
 {
 	struct mon_private *monpriv = filp->private_data;
 

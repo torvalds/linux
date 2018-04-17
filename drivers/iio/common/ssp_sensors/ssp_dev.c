@@ -175,9 +175,9 @@ static void ssp_wdt_work_func(struct work_struct *work)
 	data->timeout_cnt = 0;
 }
 
-static void ssp_wdt_timer_func(unsigned long ptr)
+static void ssp_wdt_timer_func(struct timer_list *t)
 {
-	struct ssp_data *data = (struct ssp_data *)ptr;
+	struct ssp_data *data = from_timer(data, t, wdt_timer);
 
 	switch (data->fw_dl_state) {
 	case SSP_FW_DL_STATE_FAIL:
@@ -571,7 +571,7 @@ static int ssp_probe(struct spi_device *spi)
 	INIT_WORK(&data->work_wdt, ssp_wdt_work_func);
 	INIT_DELAYED_WORK(&data->work_refresh, ssp_refresh_task);
 
-	setup_timer(&data->wdt_timer, ssp_wdt_timer_func, (unsigned long)data);
+	timer_setup(&data->wdt_timer, ssp_wdt_timer_func, 0);
 
 	ret = request_threaded_irq(data->spi->irq, NULL,
 				   ssp_irq_thread_fn,

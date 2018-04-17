@@ -204,6 +204,16 @@ static inline kgid_t xfs_gid_to_kgid(uint32_t gid)
 	return make_kgid(&init_user_ns, gid);
 }
 
+static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
+{
+	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+}
+
+static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
+{
+	return sysv_encode_dev(dev);
+}
+
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
@@ -275,8 +285,22 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define XFS_IS_REALTIME_INODE(ip)			\
 	(((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME) &&	\
 	 (ip)->i_mount->m_rtdev_targp)
+#define XFS_IS_REALTIME_MOUNT(mp) ((mp)->m_rtdev_targp ? 1 : 0)
 #else
 #define XFS_IS_REALTIME_INODE(ip) (0)
+#define XFS_IS_REALTIME_MOUNT(mp) (0)
+#endif
+
+/*
+ * Starting in Linux 4.15, the %p (raw pointer value) printk modifier
+ * prints a hashed version of the pointer to avoid leaking kernel
+ * pointers into dmesg.  If we're trying to debug the kernel we want the
+ * raw values, so override this behavior as best we can.
+ */
+#ifdef DEBUG
+# define PTR_FMT "%px"
+#else
+# define PTR_FMT "%p"
 #endif
 
 #endif /* __XFS_LINUX__ */

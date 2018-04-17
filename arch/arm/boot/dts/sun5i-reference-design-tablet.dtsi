@@ -110,6 +110,14 @@
 
 #include "axp209.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
+
 &lradc {
 	vref-supply = <&reg_ldo2>;
 };

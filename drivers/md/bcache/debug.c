@@ -116,7 +116,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 		return;
 	check->bi_opf = REQ_OP_READ;
 
-	if (bio_alloc_pages(check, GFP_NOIO))
+	if (bch_bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
 	submit_bio_wait(check);
@@ -251,8 +251,7 @@ void bch_debug_exit(void)
 
 int __init bch_debug_init(struct kobject *kobj)
 {
-	int ret = 0;
-
 	debug = debugfs_create_dir("bcache", NULL);
-	return ret;
+
+	return IS_ERR_OR_NULL(debug);
 }

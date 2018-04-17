@@ -6,6 +6,14 @@
 / {
 	compatible = "digilent,nexys4ddr";
 
+	aliases {
+		serial0 = &axi_uart16550;
+	};
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x08000000>;

@@ -3501,7 +3501,7 @@ static void myri10ge_watchdog(struct work_struct *work)
  * cannot detect a NIC with a parity error in a timely fashion if the
  * NIC is lightly loaded.
  */
-static void myri10ge_watchdog_timer(unsigned long arg)
+static void myri10ge_watchdog_timer(struct timer_list *t)
 {
 	struct myri10ge_priv *mgp;
 	struct myri10ge_slice_state *ss;
@@ -3509,7 +3509,7 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 	u32 rx_pause_cnt;
 	u16 cmd;
 
-	mgp = (struct myri10ge_priv *)arg;
+	mgp = from_timer(mgp, t, watchdog_timer);
 
 	rx_pause_cnt = ntohl(mgp->ss[0].fw_stats->dropped_pause);
 	busy_slice_cnt = 0;
@@ -3930,8 +3930,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_save_state(pdev);
 
 	/* Setup the watchdog timer */
-	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
-		    (unsigned long)mgp);
+	timer_setup(&mgp->watchdog_timer, myri10ge_watchdog_timer, 0);
 
 	netdev->ethtool_ops = &myri10ge_ethtool_ops;
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);

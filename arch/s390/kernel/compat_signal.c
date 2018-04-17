@@ -50,119 +50,6 @@ typedef struct
 	struct ucontext32 uc;
 } rt_sigframe32;
 
-static inline void sigset_to_sigset32(unsigned long *set64,
-				      compat_sigset_word *set32)
-{
-	set32[0] = (compat_sigset_word) set64[0];
-	set32[1] = (compat_sigset_word)(set64[0] >> 32);
-}
-
-static inline void sigset32_to_sigset(compat_sigset_word *set32,
-				      unsigned long *set64)
-{
-	set64[0] = (unsigned long) set32[0] | ((unsigned long) set32[1] << 32);
-}
-
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-{
-	int err;
-
-	/* If you change siginfo_t structure, please be sure
-	   this code is fixed accordingly.
-	   It should never copy any pad contained in the structure
-	   to avoid security leaks, but must copy the generic
-	   3 ints plus the relevant union member.  
-	   This routine must convert siginfo from 64bit to 32bit as well
-	   at the same time.  */
-	err = __put_user(from->si_signo, &to->si_signo);
-	err |= __put_user(from->si_errno, &to->si_errno);
-	err |= __put_user(from->si_code, &to->si_code);
-	if (from->si_code < 0)
-		err |= __copy_to_user(&to->_sifields._pad, &from->_sifields._pad, SI_PAD_SIZE);
-	else {
-		switch (siginfo_layout(from->si_signo, from->si_code)) {
-		case SIL_RT:
-			err |= __put_user(from->si_int, &to->si_int);
-			/* fallthrough */
-		case SIL_KILL:
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_uid, &to->si_uid);
-			break;
-		case SIL_CHLD:
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_utime, &to->si_utime);
-			err |= __put_user(from->si_stime, &to->si_stime);
-			err |= __put_user(from->si_status, &to->si_status);
-			break;
-		case SIL_FAULT:
-			err |= __put_user((unsigned long) from->si_addr,
-					  &to->si_addr);
-			break;
-		case SIL_POLL:
-			err |= __put_user(from->si_band, &to->si_band);
-			err |= __put_user(from->si_fd, &to->si_fd);
-			break;
-		case SIL_TIMER:
-			err |= __put_user(from->si_tid, &to->si_tid);
-			err |= __put_user(from->si_overrun, &to->si_overrun);
-			err |= __put_user(from->si_int, &to->si_int);
-			break;
-		default:
-			break;
-		}
-	}
-	return err ? -EFAULT : 0;
-}
-
-int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
-{
-	int err;
-	u32 tmp;
-
-	err = __get_user(to->si_signo, &from->si_signo);
-	err |= __get_user(to->si_errno, &from->si_errno);
-	err |= __get_user(to->si_code, &from->si_code);
-
-	if (to->si_code < 0)
-		err |= __copy_from_user(&to->_sifields._pad, &from->_sifields._pad, SI_PAD_SIZE);
-	else {
-		switch (siginfo_layout(to->si_signo, to->si_code)) {
-		case SIL_RT:
-			err |= __get_user(to->si_int, &from->si_int);
-			/* fallthrough */
-		case SIL_KILL:
-			err |= __get_user(to->si_pid, &from->si_pid);
-			err |= __get_user(to->si_uid, &from->si_uid);
-			break;
-		case SIL_CHLD:
-			err |= __get_user(to->si_pid, &from->si_pid);
-			err |= __get_user(to->si_uid, &from->si_uid);
-			err |= __get_user(to->si_utime, &from->si_utime);
-			err |= __get_user(to->si_stime, &from->si_stime);
-			err |= __get_user(to->si_status, &from->si_status);
-			break;
-		case SIL_FAULT:
-			err |= __get_user(tmp, &from->si_addr);
-			to->si_addr = (void __force __user *)
-				(u64) (tmp & PSW32_ADDR_INSN);
-			break;
-		case SIL_POLL:
-			err |= __get_user(to->si_band, &from->si_band);
-			err |= __get_user(to->si_fd, &from->si_fd);
-			break;
-		case SIL_TIMER:
-			err |= __get_user(to->si_tid, &from->si_tid);
-			err |= __get_user(to->si_overrun, &from->si_overrun);
-			err |= __get_user(to->si_int, &from->si_int);
-			break;
-		default:
-			break;
-		}
-	}
-	return err ? -EFAULT : 0;
-}
-
 /* Store registers needed to create the signal frame */
 static void store_sigregs(void)
 {
@@ -294,12 +181,10 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	sigframe32 __user *frame = (sigframe32 __user *)regs->gprs[15];
-	compat_sigset_t cset;
 	sigset_t set;
 
-	if (__copy_from_user(&cset.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE32))
+	if (get_compat_sigset(&set, (compat_sigset_t __user *)frame->sc.oldmask))
 		goto badframe;
-	sigset32_to_sigset(cset.sig, set.sig);
 	set_current_blocked(&set);
 	save_fpu_regs();
 	if (restore_sigregs32(regs, &frame->sregs))
@@ -317,12 +202,10 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	rt_sigframe32 __user *frame = (rt_sigframe32 __user *)regs->gprs[15];
-	compat_sigset_t cset;
 	sigset_t set;
 
-	if (__copy_from_user(&cset, &frame->uc.uc_sigmask, sizeof(cset)))
+	if (get_compat_sigset(&set, &frame->uc.uc_sigmask))
 		goto badframe;
-	sigset32_to_sigset(cset.sig, set.sig);
 	set_current_blocked(&set);
 	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
@@ -372,7 +255,6 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 {
 	int sig = ksig->sig;
 	sigframe32 __user *frame;
-	struct sigcontext32 sc;
 	unsigned long restorer;
 	size_t frame_size;
 
@@ -394,9 +276,10 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 
 	/* Create struct sigcontext32 on the signal stack */
-	sigset_to_sigset32(set->sig, sc.oldmask);
-	sc.sregs = (__u32)(unsigned long __force) &frame->sregs;
-	if (__copy_to_user(&frame->sc, &sc, sizeof(frame->sc)))
+	if (put_compat_sigset((compat_sigset_t __user *)frame->sc.oldmask,
+			      set, sizeof(compat_sigset_t)))
+		return -EFAULT;
+	if (__put_user(ptr_to_compat(&frame->sc), &frame->sc.sregs))
 		return -EFAULT;
 
 	/* Store registers needed to create the signal frame */
@@ -455,7 +338,6 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 			    struct pt_regs *regs)
 {
-	compat_sigset_t cset;
 	rt_sigframe32 __user *frame;
 	unsigned long restorer;
 	size_t frame_size;
@@ -502,12 +384,11 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 	store_sigregs();
 
 	/* Create ucontext on the signal stack. */
-	sigset_to_sigset32(set->sig, cset.sig);
 	if (__put_user(uc_flags, &frame->uc.uc_flags) ||
 	    __put_user(0, &frame->uc.uc_link) ||
 	    __compat_save_altstack(&frame->uc.uc_stack, regs->gprs[15]) ||
 	    save_sigregs32(regs, &frame->uc.uc_mcontext) ||
-	    __copy_to_user(&frame->uc.uc_sigmask, &cset, sizeof(cset)) ||
+	    put_compat_sigset(&frame->uc.uc_sigmask, set, sizeof(compat_sigset_t)) ||
 	    save_sigregs_ext32(regs, &frame->uc.uc_mcontext_ext))
 		return -EFAULT;
 

@@ -37,6 +37,15 @@ config ARCH_BCM_CYGNUS
 	  BCM11300, BCM11320, BCM11350, BCM11360,
 	  BCM58300, BCM58302, BCM58303, BCM58305.
 
+config ARCH_BCM_HR2
+	bool "Broadcom Hurricane 2 SoC support"
+	depends on ARCH_MULTI_V7
+	select ARCH_BCM_IPROC
+	help
+	  Enable support for the Hurricane 2 family,
+	  which includes the following variants:
+	  BCM53342, BCM53343, BCM53344, BCM53346.
+
 config ARCH_BCM_NSP
 	bool "Broadcom Northstar Plus SoC Support"
 	depends on ARCH_MULTI_V7

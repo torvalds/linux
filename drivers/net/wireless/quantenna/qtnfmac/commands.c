@@ -147,96 +147,143 @@ static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_no,
 	return cmd_skb;
 }
 
-int qtnf_cmd_send_start_ap(struct qtnf_vif *vif)
+static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
+				    const u8 *buf, size_t len)
 {
-	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
-	int ret;
+	struct qlink_tlv_ie_set *tlv;
 
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
-					    QLINK_CMD_START_AP,
-					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
-		return -ENOMEM;
+	tlv = (struct qlink_tlv_ie_set *)skb_put(cmd_skb, sizeof(*tlv) + len);
+	tlv->hdr.type = cpu_to_le16(QTN_TLV_ID_IE_SET);
+	tlv->hdr.len = cpu_to_le16(len + sizeof(*tlv) - sizeof(tlv->hdr));
+	tlv->type = frame_type;
+	tlv->flags = 0;
 
-	qtnf_bus_lock(vif->mac->bus);
-
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
-		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
-
-	vif->bss_status |= QTNF_STATE_AP_START;
-	netif_carrier_on(vif->netdev);
-
-out:
-	qtnf_bus_unlock(vif->mac->bus);
-	return ret;
+	if (len && buf)
+		memcpy(tlv->ie_data, buf, len);
 }
 
-int qtnf_cmd_send_config_ap(struct qtnf_vif *vif)
+static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
+				      const struct cfg80211_ap_settings *s)
+{
+	unsigned int len = sizeof(struct qlink_cmd_start_ap);
+
+	len += s->ssid_len;
+	len += s->beacon.head_len;
+	len += s->beacon.tail_len;
+	len += s->beacon.beacon_ies_len;
+	len += s->beacon.proberesp_ies_len;
+	len += s->beacon.assocresp_ies_len;
+	len += s->beacon.probe_resp_len;
+
+	if (cfg80211_chandef_valid(&s->chandef))
+		len += sizeof(struct qlink_tlv_chandef);
+
+	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
+		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
+		       vif->mac->macid, vif->vifid, len);
+		return false;
+	}
+
+	return true;
+}
+
+int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
+			   const struct cfg80211_ap_settings *s)
 {
 	struct sk_buff *cmd_skb;
-	struct qtnf_bss_config *bss_cfg = &vif->bss_cfg;
-	struct cfg80211_chan_def *chandef = &vif->mac->chandef;
-	struct qlink_tlv_channel *qchan;
-	struct qlink_auth_encr aen;
+	struct qlink_cmd_start_ap *cmd;
+	struct qlink_auth_encr *aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
 
+	if (!qtnf_cmd_start_ap_can_fit(vif, s))
+		return -E2BIG;
+
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
-					    QLINK_CMD_CONFIG_AP,
-					    sizeof(struct qlink_cmd));
+					    QLINK_CMD_START_AP,
+					    sizeof(*cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
-	qtnf_bus_lock(vif->mac->bus);
+	cmd = (struct qlink_cmd_start_ap *)cmd_skb->data;
+	cmd->dtim_period = s->dtim_period;
+	cmd->beacon_interval = cpu_to_le16(s->beacon_interval);
+	cmd->hidden_ssid = qlink_hidden_ssid_nl2q(s->hidden_ssid);
+	cmd->inactivity_timeout = cpu_to_le16(s->inactivity_timeout);
+	cmd->smps_mode = s->smps_mode;
+	cmd->p2p_ctwindow = s->p2p_ctwindow;
+	cmd->p2p_opp_ps = s->p2p_opp_ps;
+	cmd->pbss = s->pbss;
+	cmd->ht_required = s->ht_required;
+	cmd->vht_required = s->vht_required;
 
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, bss_cfg->ssid,
-				 bss_cfg->ssid_len);
-	qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_BCN_PERIOD,
-				 bss_cfg->bcn_period);
-	qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_DTIM, bss_cfg->dtim);
-
-	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
-	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
-	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) -
-			sizeof(struct qlink_tlv_hdr));
-	qchan->hw_value = cpu_to_le16(
-		ieee80211_frequency_to_channel(chandef->chan->center_freq));
-
-	memset(&aen, 0, sizeof(aen));
-	aen.auth_type = bss_cfg->auth_type;
-	aen.privacy = !!bss_cfg->privacy;
-	aen.mfp = bss_cfg->mfp;
-	aen.wpa_versions = cpu_to_le32(bss_cfg->crypto.wpa_versions);
-	aen.cipher_group = cpu_to_le32(bss_cfg->crypto.cipher_group);
-	aen.n_ciphers_pairwise = cpu_to_le32(
-					bss_cfg->crypto.n_ciphers_pairwise);
+	aen = &cmd->aen;
+	aen->auth_type = s->auth_type;
+	aen->privacy = !!s->privacy;
+	aen->wpa_versions = cpu_to_le32(s->crypto.wpa_versions);
+	aen->cipher_group = cpu_to_le32(s->crypto.cipher_group);
+	aen->n_ciphers_pairwise = cpu_to_le32(s->crypto.n_ciphers_pairwise);
 	for (i = 0; i < QLINK_MAX_NR_CIPHER_SUITES; i++)
-		aen.ciphers_pairwise[i] = cpu_to_le32(
-					bss_cfg->crypto.ciphers_pairwise[i]);
-	aen.n_akm_suites = cpu_to_le32(
-					bss_cfg->crypto.n_akm_suites);
+		aen->ciphers_pairwise[i] =
+				cpu_to_le32(s->crypto.ciphers_pairwise[i]);
+	aen->n_akm_suites = cpu_to_le32(s->crypto.n_akm_suites);
 	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
-		aen.akm_suites[i] = cpu_to_le32(
-					bss_cfg->crypto.akm_suites[i]);
-	aen.control_port = bss_cfg->crypto.control_port;
-	aen.control_port_no_encrypt =
-			bss_cfg->crypto.control_port_no_encrypt;
-	aen.control_port_ethertype = cpu_to_le16(be16_to_cpu(
-				bss_cfg->crypto.control_port_ethertype));
+		aen->akm_suites[i] = cpu_to_le32(s->crypto.akm_suites[i]);
+	aen->control_port = s->crypto.control_port;
+	aen->control_port_no_encrypt = s->crypto.control_port_no_encrypt;
+	aen->control_port_ethertype =
+		cpu_to_le16(be16_to_cpu(s->crypto.control_port_ethertype));
 
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_CRYPTO, (u8 *)&aen,
-				 sizeof(aen));
+	if (s->ssid && s->ssid_len > 0 && s->ssid_len <= IEEE80211_MAX_SSID_LEN)
+		qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, s->ssid,
+					 s->ssid_len);
+
+	if (cfg80211_chandef_valid(&s->chandef)) {
+		struct qlink_tlv_chandef *chtlv =
+			(struct qlink_tlv_chandef *)skb_put(cmd_skb,
+							    sizeof(*chtlv));
+
+		chtlv->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANDEF);
+		chtlv->hdr.len = cpu_to_le16(sizeof(*chtlv) -
+					     sizeof(chtlv->hdr));
+		qlink_chandef_cfg2q(&s->chandef, &chtlv->chan);
+	}
+
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_HEAD,
+				s->beacon.head, s->beacon.head_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_TAIL,
+				s->beacon.tail, s->beacon.tail_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_IES,
+				s->beacon.beacon_ies, s->beacon.beacon_ies_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_RESP,
+				s->beacon.probe_resp, s->beacon.probe_resp_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_RESP_IES,
+				s->beacon.proberesp_ies,
+				s->beacon.proberesp_ies_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_ASSOC_RESP,
+				s->beacon.assocresp_ies,
+				s->beacon.assocresp_ies_len);
+
+	if (s->ht_cap) {
+		struct qlink_tlv_hdr *tlv = (struct qlink_tlv_hdr *)
+			skb_put(cmd_skb, sizeof(*tlv) + sizeof(*s->ht_cap));
+
+		tlv->type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
+		tlv->len = cpu_to_le16(sizeof(*s->ht_cap));
+		memcpy(tlv->val, s->ht_cap, sizeof(*s->ht_cap));
+	}
+
+	if (s->vht_cap) {
+		struct qlink_tlv_hdr *tlv = (struct qlink_tlv_hdr *)
+			skb_put(cmd_skb, sizeof(*tlv) + sizeof(*s->vht_cap));
+
+		tlv->type = cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
+		tlv->len = cpu_to_le16(sizeof(*s->vht_cap));
+		memcpy(tlv->val, s->vht_cap, sizeof(*s->vht_cap));
+	}
+
+	qtnf_bus_lock(vif->mac->bus);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 
@@ -250,7 +297,7 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif)
 		goto out;
 	}
 
-	vif->bss_status |= QTNF_STATE_AP_CONFIG;
+	netif_carrier_on(vif->netdev);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
@@ -282,9 +329,6 @@ int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 		ret = -EFAULT;
 		goto out;
 	}
-
-	vif->bss_status &= ~QTNF_STATE_AP_START;
-	vif->bss_status &= ~QTNF_STATE_AP_CONFIG;
 
 	netif_carrier_off(vif->netdev);
 
@@ -380,11 +424,10 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 				 const u8 *buf, size_t len)
 {
 	struct sk_buff *cmd_skb;
-	struct qlink_cmd_mgmt_append_ie *cmd;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
-	if (sizeof(*cmd) + len > QTNF_MAX_CMD_BUF_SIZE) {
+	if (len > QTNF_MAX_CMD_BUF_SIZE) {
 		pr_warn("VIF%u.%u: %u frame is too big: %zu\n", vif->mac->macid,
 			vif->vifid, frame_type, len);
 		return -E2BIG;
@@ -392,21 +435,13 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_MGMT_SET_APPIE,
-					    sizeof(*cmd));
+					    sizeof(struct qlink_cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, frame_type, buf, len);
+
 	qtnf_bus_lock(vif->mac->bus);
-
-	cmd = (struct qlink_cmd_mgmt_append_ie *)cmd_skb->data;
-	cmd->type = frame_type;
-	cmd->flags = 0;
-
-	/* If len == 0 then IE buf for specified frame type
-	 * should be cleared on EP.
-	 */
-	if (len && buf)
-		qtnf_cmd_skb_put_buffer(cmd_skb, buf, len);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 
@@ -975,10 +1010,11 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		return -EINVAL;
 	}
 
-	pr_info("fw_version=%d, MACs map %#x, alpha2=\"%c%c\", chains Tx=%u Rx=%u\n",
+	pr_info("fw_version=%d, MACs map %#x, alpha2=\"%c%c\", chains Tx=%u Rx=%u, capab=0x%x\n",
 		hwinfo->fw_ver, hwinfo->mac_bitmap,
 		hwinfo->rd->alpha2[0], hwinfo->rd->alpha2[1],
-		hwinfo->total_tx_chain, hwinfo->total_rx_chain);
+		hwinfo->total_tx_chain, hwinfo->total_rx_chain,
+		hwinfo->hw_capab);
 
 	return 0;
 }
@@ -1089,7 +1125,6 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info = &mac->macinfo;
 
 	mac_info->bands_cap = resp_info->bands_cap;
-	mac_info->phymode_cap = resp_info->phymode_cap;
 	memcpy(&mac_info->dev_mac, &resp_info->dev_mac,
 	       sizeof(mac_info->dev_mac));
 
@@ -1109,23 +1144,55 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 			qlink_chan_width_mask_to_nl(le16_to_cpu(
 					resp_info->radar_detect_widths));
 
-	memcpy(&mac_info->ht_cap, &resp_info->ht_cap, sizeof(mac_info->ht_cap));
-	memcpy(&mac_info->vht_cap, &resp_info->vht_cap,
-	       sizeof(mac_info->vht_cap));
+	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
+	       sizeof(mac_info->ht_cap_mod_mask));
+	memcpy(&mac_info->vht_cap_mod_mask, &resp_info->vht_cap_mod_mask,
+	       sizeof(mac_info->vht_cap_mod_mask));
+}
+
+static void qtnf_cmd_resp_band_fill_htcap(const u8 *info,
+					  struct ieee80211_sta_ht_cap *bcap)
+{
+	const struct ieee80211_ht_cap *ht_cap =
+		(const struct ieee80211_ht_cap *)info;
+
+	bcap->ht_supported = true;
+	bcap->cap = le16_to_cpu(ht_cap->cap_info);
+	bcap->ampdu_factor =
+		ht_cap->ampdu_params_info & IEEE80211_HT_AMPDU_PARM_FACTOR;
+	bcap->ampdu_density =
+		(ht_cap->ampdu_params_info & IEEE80211_HT_AMPDU_PARM_DENSITY) >>
+		IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT;
+	memcpy(&bcap->mcs, &ht_cap->mcs, sizeof(bcap->mcs));
+}
+
+static void qtnf_cmd_resp_band_fill_vhtcap(const u8 *info,
+					   struct ieee80211_sta_vht_cap *bcap)
+{
+	const struct ieee80211_vht_cap *vht_cap =
+		(const struct ieee80211_vht_cap *)info;
+
+	bcap->vht_supported = true;
+	bcap->cap = le32_to_cpu(vht_cap->vht_cap_info);
+	memcpy(&bcap->vht_mcs, &vht_cap->supp_mcs, sizeof(bcap->vht_mcs));
 }
 
 static int
-qtnf_cmd_resp_fill_channels_info(struct ieee80211_supported_band *band,
-				 struct qlink_resp_get_chan_info *resp,
-				 size_t payload_len)
+qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
+			     struct qlink_resp_band_info_get *resp,
+			     size_t payload_len)
 {
 	u16 tlv_type;
 	size_t tlv_len;
+	size_t tlv_dlen;
 	const struct qlink_tlv_hdr *tlv;
 	const struct qlink_tlv_channel *qchan;
 	struct ieee80211_channel *chan;
 	unsigned int chidx = 0;
 	u32 qflags;
+
+	memset(&band->ht_cap, 0, sizeof(band->ht_cap));
+	memset(&band->vht_cap, 0, sizeof(band->vht_cap));
 
 	if (band->channels) {
 		if (band->n_channels == resp->num_chans) {
@@ -1154,7 +1221,8 @@ qtnf_cmd_resp_fill_channels_info(struct ieee80211_supported_band *band,
 
 	while (payload_len >= sizeof(*tlv)) {
 		tlv_type = le16_to_cpu(tlv->type);
-		tlv_len = le16_to_cpu(tlv->len) + sizeof(*tlv);
+		tlv_dlen = le16_to_cpu(tlv->len);
+		tlv_len = tlv_dlen + sizeof(*tlv);
 
 		if (tlv_len > payload_len) {
 			pr_warn("malformed TLV 0x%.2X; LEN: %zu\n",
@@ -1240,13 +1308,32 @@ qtnf_cmd_resp_fill_channels_info(struct ieee80211_supported_band *band,
 				 chan->hw_value, chan->flags, chan->max_power,
 				 chan->max_reg_power);
 			break;
+		case WLAN_EID_HT_CAPABILITY:
+			if (unlikely(tlv_dlen !=
+				     sizeof(struct ieee80211_ht_cap))) {
+				pr_err("bad HTCAP TLV len %zu\n", tlv_dlen);
+				goto error_ret;
+			}
+
+			qtnf_cmd_resp_band_fill_htcap(tlv->val, &band->ht_cap);
+			break;
+		case WLAN_EID_VHT_CAPABILITY:
+			if (unlikely(tlv_dlen !=
+				     sizeof(struct ieee80211_vht_cap))) {
+				pr_err("bad VHTCAP TLV len %zu\n", tlv_dlen);
+				goto error_ret;
+			}
+
+			qtnf_cmd_resp_band_fill_vhtcap(tlv->val,
+						       &band->vht_cap);
+			break;
 		default:
 			pr_warn("unknown TLV type: %#x\n", tlv_type);
 			break;
 		}
 
 		payload_len -= tlv_len;
-		tlv = (struct qlink_tlv_hdr *)((u8 *)tlv + tlv_len);
+		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_dlen);
 	}
 
 	if (payload_len) {
@@ -1468,13 +1555,13 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
-			       struct ieee80211_supported_band *band)
+int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
+			   struct ieee80211_supported_band *band)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	size_t info_len;
-	struct qlink_cmd_chans_info_get *cmd;
-	struct qlink_resp_get_chan_info *resp;
+	struct qlink_cmd_band_info_get *cmd;
+	struct qlink_resp_band_info_get *resp;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
 	u8 qband;
@@ -1494,12 +1581,12 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 	}
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
-					    QLINK_CMD_CHANS_INFO_GET,
+					    QLINK_CMD_BAND_INFO_GET,
 					    sizeof(*cmd));
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	cmd = (struct qlink_cmd_chans_info_get *)cmd_skb->data;
+	cmd = (struct qlink_cmd_band_info_get *)cmd_skb->data;
 	cmd->band = qband;
 
 	qtnf_bus_lock(mac->bus);
@@ -1516,7 +1603,7 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 		goto out;
 	}
 
-	resp = (struct qlink_resp_get_chan_info *)resp_skb->data;
+	resp = (struct qlink_resp_band_info_get *)resp_skb->data;
 	if (resp->band != qband) {
 		pr_err("MAC%u: reply band %u != cmd band %u\n", mac->macid,
 		       resp->band, qband);
@@ -1524,7 +1611,7 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 		goto out;
 	}
 
-	ret = qtnf_cmd_resp_fill_channels_info(band, resp, info_len);
+	ret = qtnf_cmd_resp_fill_band_info(band, resp, info_len);
 
 out:
 	qtnf_bus_unlock(mac->bus);
@@ -1941,17 +2028,36 @@ out:
 	return ret;
 }
 
+static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
+				     const struct ieee80211_channel *sc)
+{
+	struct qlink_tlv_channel *qchan;
+	u32 flags = 0;
+
+	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
+	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
+	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) - sizeof(qchan->hdr));
+	qchan->center_freq = cpu_to_le16(sc->center_freq);
+	qchan->hw_value = cpu_to_le16(sc->hw_value);
+
+	if (sc->flags & IEEE80211_CHAN_NO_IR)
+		flags |= QLINK_CHAN_NO_IR;
+
+	if (sc->flags & IEEE80211_CHAN_RADAR)
+		flags |= QLINK_CHAN_RADAR;
+
+	qchan->flags = cpu_to_le32(flags);
+}
+
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	struct ieee80211_channel *sc;
 	struct cfg80211_scan_request *scan_req = mac->scan_req;
-	struct qlink_tlv_channel *qchan;
 	int n_channels;
 	int count = 0;
 	int ret;
-	u32 flags;
 
 	if (scan_req->n_ssids > QTNF_MAX_SSID_LIST_LENGTH) {
 		pr_err("MAC%u: too many SSIDs in scan request\n", mac->macid);
@@ -1976,9 +2082,8 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	}
 
 	if (scan_req->ie_len != 0)
-		qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_IE_SET,
-					 scan_req->ie,
-					 scan_req->ie_len);
+		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_REQ,
+					scan_req->ie, scan_req->ie_len);
 
 	if (scan_req->n_channels) {
 		n_channels = scan_req->n_channels;
@@ -1994,22 +2099,8 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 			pr_debug("MAC%u: scan chan=%d, freq=%d, flags=%#x\n",
 				 mac->macid, sc->hw_value, sc->center_freq,
 				 sc->flags);
-			qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
-			flags = 0;
 
-			qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
-			qchan->hdr.len = cpu_to_le16(sizeof(*qchan) -
-					sizeof(struct qlink_tlv_hdr));
-			qchan->center_freq = cpu_to_le16(sc->center_freq);
-			qchan->hw_value = cpu_to_le16(sc->hw_value);
-
-			if (sc->flags & IEEE80211_CHAN_NO_IR)
-				flags |= QLINK_CHAN_NO_IR;
-
-			if (sc->flags & IEEE80211_CHAN_RADAR)
-				flags |= QLINK_CHAN_RADAR;
-
-			qchan->flags = cpu_to_le32(flags);
+			qtnf_cmd_channel_tlv_add(cmd_skb, sc);
 			n_channels--;
 			count++;
 		}
@@ -2037,11 +2128,11 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 {
 	struct sk_buff *cmd_skb;
 	struct qlink_cmd_connect *cmd;
-	struct qtnf_bss_config *bss_cfg = &vif->bss_cfg;
-	struct qlink_auth_encr aen;
+	struct qlink_auth_encr *aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
+	u32 connect_flags = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_CONNECT,
@@ -2049,51 +2140,78 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
-	qtnf_bus_lock(vif->mac->bus);
-
 	cmd = (struct qlink_cmd_connect *)cmd_skb->data;
 
-	ether_addr_copy(cmd->bssid, bss_cfg->bssid);
+	ether_addr_copy(cmd->bssid, vif->bssid);
 
-	if (vif->mac->chandef.chan)
-		cmd->channel = cpu_to_le16(vif->mac->chandef.chan->hw_value);
+	if (sme->bssid_hint)
+		ether_addr_copy(cmd->bssid_hint, sme->bssid_hint);
+	else
+		eth_zero_addr(cmd->bssid_hint);
 
-	cmd->bg_scan_period = cpu_to_le16(bss_cfg->bg_scan_period);
+	if (sme->prev_bssid)
+		ether_addr_copy(cmd->prev_bssid, sme->prev_bssid);
+	else
+		eth_zero_addr(cmd->prev_bssid);
 
-	memset(&aen, 0, sizeof(aen));
-	aen.auth_type = bss_cfg->auth_type;
-	aen.privacy = !!bss_cfg->privacy;
-	aen.mfp = bss_cfg->mfp;
-	aen.wpa_versions = cpu_to_le32(bss_cfg->crypto.wpa_versions);
-	aen.cipher_group = cpu_to_le32(bss_cfg->crypto.cipher_group);
-	aen.n_ciphers_pairwise = cpu_to_le32(
-					bss_cfg->crypto.n_ciphers_pairwise);
+	if ((sme->bg_scan_period > 0) &&
+	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
+		cmd->bg_scan_period = cpu_to_le16(sme->bg_scan_period);
+	else if (sme->bg_scan_period == -1)
+		cmd->bg_scan_period = cpu_to_le16(QTNF_DEFAULT_BG_SCAN_PERIOD);
+	else
+		cmd->bg_scan_period = 0; /* disabled */
+
+	if (sme->flags & ASSOC_REQ_DISABLE_HT)
+		connect_flags |= QLINK_STA_CONNECT_DISABLE_HT;
+	if (sme->flags & ASSOC_REQ_DISABLE_VHT)
+		connect_flags |= QLINK_STA_CONNECT_DISABLE_VHT;
+	if (sme->flags & ASSOC_REQ_USE_RRM)
+		connect_flags |= QLINK_STA_CONNECT_USE_RRM;
+
+	cmd->flags = cpu_to_le32(connect_flags);
+	memcpy(&cmd->ht_capa, &sme->ht_capa, sizeof(cmd->ht_capa));
+	memcpy(&cmd->ht_capa_mask, &sme->ht_capa_mask,
+	       sizeof(cmd->ht_capa_mask));
+	memcpy(&cmd->vht_capa, &sme->vht_capa, sizeof(cmd->vht_capa));
+	memcpy(&cmd->vht_capa_mask, &sme->vht_capa_mask,
+	       sizeof(cmd->vht_capa_mask));
+	cmd->pbss = sme->pbss;
+
+	aen = &cmd->aen;
+	aen->auth_type = sme->auth_type;
+	aen->privacy = !!sme->privacy;
+	cmd->mfp = sme->mfp;
+	aen->wpa_versions = cpu_to_le32(sme->crypto.wpa_versions);
+	aen->cipher_group = cpu_to_le32(sme->crypto.cipher_group);
+	aen->n_ciphers_pairwise = cpu_to_le32(sme->crypto.n_ciphers_pairwise);
 
 	for (i = 0; i < QLINK_MAX_NR_CIPHER_SUITES; i++)
-		aen.ciphers_pairwise[i] = cpu_to_le32(
-					bss_cfg->crypto.ciphers_pairwise[i]);
+		aen->ciphers_pairwise[i] =
+			cpu_to_le32(sme->crypto.ciphers_pairwise[i]);
 
-	aen.n_akm_suites = cpu_to_le32(bss_cfg->crypto.n_akm_suites);
+	aen->n_akm_suites = cpu_to_le32(sme->crypto.n_akm_suites);
 
 	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
-		aen.akm_suites[i] = cpu_to_le32(
-					bss_cfg->crypto.akm_suites[i]);
+		aen->akm_suites[i] = cpu_to_le32(sme->crypto.akm_suites[i]);
 
-	aen.control_port = bss_cfg->crypto.control_port;
-	aen.control_port_no_encrypt =
-			bss_cfg->crypto.control_port_no_encrypt;
-	aen.control_port_ethertype = cpu_to_le16(be16_to_cpu(
-				bss_cfg->crypto.control_port_ethertype));
+	aen->control_port = sme->crypto.control_port;
+	aen->control_port_no_encrypt =
+		sme->crypto.control_port_no_encrypt;
+	aen->control_port_ethertype =
+		cpu_to_le16(be16_to_cpu(sme->crypto.control_port_ethertype));
 
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, bss_cfg->ssid,
-				 bss_cfg->ssid_len);
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_CRYPTO, (u8 *)&aen,
-				 sizeof(aen));
+	qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, sme->ssid,
+				 sme->ssid_len);
 
 	if (sme->ie_len != 0)
-		qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_IE_SET,
-					 sme->ie,
-					 sme->ie_len);
+		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_ASSOC_REQ,
+					sme->ie, sme->ie_len);
+
+	if (sme->channel)
+		qtnf_cmd_channel_tlv_add(cmd_skb, sme->channel);
+
+	qtnf_bus_lock(vif->mac->bus);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 
@@ -2304,15 +2422,16 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_send_chan_switch(struct qtnf_wmac *mac,
+int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 			      struct cfg80211_csa_settings *params)
 {
+	struct qtnf_wmac *mac = vif->mac;
 	struct qlink_cmd_chan_switch *cmd;
 	struct sk_buff *cmd_skb;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0x0,
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, vif->vifid,
 					    QLINK_CMD_CHAN_SWITCH,
 					    sizeof(*cmd));
 
@@ -2334,9 +2453,6 @@ int qtnf_cmd_send_chan_switch(struct qtnf_wmac *mac,
 
 	switch (res_code) {
 	case QLINK_CMD_RESULT_OK:
-		memcpy(&mac->csa_chandef, &params->chandef,
-		       sizeof(mac->csa_chandef));
-		mac->status |= QTNF_MAC_CSA_ACTIVE;
 		ret = 0;
 		break;
 	case QLINK_CMD_RESULT_ENOTFOUND:
@@ -2356,5 +2472,43 @@ int qtnf_cmd_send_chan_switch(struct qtnf_wmac *mac,
 
 out:
 	qtnf_bus_unlock(mac->bus);
+	return ret;
+}
+
+int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	const struct qlink_resp_channel_get *resp;
+	struct sk_buff *cmd_skb;
+	struct sk_buff *resp_skb = NULL;
+	u16 res_code = QLINK_CMD_RESULT_OK;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_CHAN_GET,
+					    sizeof(struct qlink_cmd));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	qtnf_bus_lock(bus);
+
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb, &res_code,
+				       sizeof(*resp), NULL);
+
+	qtnf_bus_unlock(bus);
+
+	if (unlikely(ret))
+		goto out;
+
+	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	resp = (const struct qlink_resp_channel_get *)resp_skb->data;
+	qlink_chandef_q2cfg(priv_to_wiphy(vif->mac), &resp->chan, chdef);
+
+out:
+	consume_skb(resp_skb);
 	return ret;
 }

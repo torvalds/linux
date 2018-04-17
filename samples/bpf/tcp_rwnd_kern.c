@@ -38,8 +38,10 @@ int bpf_rwnd(struct bpf_sock_ops *skops)
 	 * if neither port numberis 55601
 	 */
 	if (bpf_ntohl(skops->remote_port) !=
-	    55601 && skops->local_port != 55601)
-		return -1;
+	    55601 && skops->local_port != 55601) {
+		skops->reply = -1;
+		return 1;
+	}
 
 	op = (int) skops->op;
 

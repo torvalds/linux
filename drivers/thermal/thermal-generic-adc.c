@@ -126,36 +126,21 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	gti->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gti);
 
-	gti->channel = iio_channel_get(&pdev->dev, "sensor-channel");
+	gti->channel = devm_iio_channel_get(&pdev->dev, "sensor-channel");
 	if (IS_ERR(gti->channel)) {
 		ret = PTR_ERR(gti->channel);
 		dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
 		return ret;
 	}
 
-	gti->tz_dev = thermal_zone_of_sensor_register(&pdev->dev, 0,
-						      gti, &gadc_thermal_ops);
+	gti->tz_dev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, gti,
+							   &gadc_thermal_ops);
 	if (IS_ERR(gti->tz_dev)) {
 		ret = PTR_ERR(gti->tz_dev);
 		dev_err(&pdev->dev, "Thermal zone sensor register failed: %d\n",
 			ret);
-		goto sensor_fail;
+		return ret;
 	}
-
-	return 0;
-
-sensor_fail:
-	iio_channel_release(gti->channel);
-
-	return ret;
-}
-
-static int gadc_thermal_remove(struct platform_device *pdev)
-{
-	struct gadc_thermal_info *gti = platform_get_drvdata(pdev);
-
-	thermal_zone_of_sensor_unregister(&pdev->dev, gti->tz_dev);
-	iio_channel_release(gti->channel);
 
 	return 0;
 }
@@ -172,7 +157,6 @@ static struct platform_driver gadc_thermal_driver = {
 		.of_match_table = of_adc_thermal_match,
 	},
 	.probe = gadc_thermal_probe,
-	.remove = gadc_thermal_remove,
 };
 
 module_platform_driver(gadc_thermal_driver);

@@ -225,7 +225,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define IS_11N_ENABLED(priv) ((priv->adapter->config_bands & BAND_GN || \
 			priv->adapter->config_bands & BAND_AN) && \
-			priv->curr_bss_params.bss_descriptor.bcn_ht_cap)
+			priv->curr_bss_params.bss_descriptor.bcn_ht_cap && \
+			!priv->curr_bss_params.bss_descriptor.disable_11n)
 #define INITIATOR_BIT(DelBAParamSet) (((DelBAParamSet) &\
 			BIT(DELBA_INITIATOR_POS)) >> DELBA_INITIATOR_POS)
 
@@ -238,6 +239,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_DRCS_ENABLED(FwCapInfo) (FwCapInfo & BIT(15))
 #define ISSUPP_SDIO_SPA_ENABLED(FwCapInfo) (FwCapInfo & BIT(16))
 #define ISSUPP_ADHOC_ENABLED(FwCapInfo) (FwCapInfo & BIT(25))
+#define ISSUPP_RANDOM_MAC(FwCapInfo) (FwCapInfo & BIT(27))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \

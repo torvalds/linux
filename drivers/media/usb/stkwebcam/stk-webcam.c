@@ -721,10 +721,10 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	return ret;
 }
 
-static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
+static __poll_t v4l_stk_poll(struct file *fp, poll_table *wait)
 {
 	struct stk_camera *dev = video_drvdata(fp);
-	unsigned res = v4l2_ctrl_poll(fp, wait);
+	__poll_t res = v4l2_ctrl_poll(fp, wait);
 
 	poll_wait(fp, &dev->wait_frame, wait);
 

@@ -15,7 +15,6 @@
 #ifndef __ASSERT_SUPPORT_H_INCLUDED__
 #define __ASSERT_SUPPORT_H_INCLUDED__
 
-#include "storage_class.h"
 
 /**
  * The following macro can help to test the size of a struct at compile
@@ -92,7 +91,7 @@
  * The implemenation for the pipe generation tool is in see support.isp.h */
 #define OP___assert(cnd) assert(cnd)
 
-STORAGE_CLASS_INLINE void compile_time_assert (unsigned cond)
+static inline void compile_time_assert (unsigned cond)
 {
 	/* Call undefined function if cond is false */
 	extern void _compile_time_assert (void);

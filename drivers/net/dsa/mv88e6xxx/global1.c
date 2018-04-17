@@ -374,6 +374,22 @@ int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
 				 MV88E6XXX_G1_STATS_OP_BUSY);
 }
 
+int mv88e6095_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STATS_OP, &val);
+	if (err)
+		return err;
+
+	val |= MV88E6XXX_G1_STATS_OP_HIST_RX_TX;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP, val);
+
+	return err;
+}
+
 int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 {
 	int err;
@@ -443,4 +459,23 @@ void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val)
 		return;
 
 	*val = value | reg;
+}
+
+int mv88e6xxx_g1_stats_clear(struct mv88e6xxx_chip *chip)
+{
+	int err;
+	u16 val;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STATS_OP, &val);
+	if (err)
+		return err;
+
+	val |= MV88E6XXX_G1_STATS_OP_BUSY | MV88E6XXX_G1_STATS_OP_FLUSH_ALL;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP, val);
+	if (err)
+		return err;
+
+	/* Wait for the flush to complete. */
+	return mv88e6xxx_g1_stats_wait(chip);
 }

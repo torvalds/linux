@@ -750,14 +750,14 @@ void ath_reset_work(struct work_struct *work);
 bool ath_hw_check(struct ath_softc *sc);
 void ath_hw_pll_work(struct work_struct *work);
 void ath_paprd_calibrate(struct work_struct *work);
-void ath_ani_calibrate(unsigned long data);
+void ath_ani_calibrate(struct timer_list *t);
 void ath_start_ani(struct ath_softc *sc);
 void ath_stop_ani(struct ath_softc *sc);
 void ath_check_ani(struct ath_softc *sc);
 int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
-void ath_ps_full_sleep(unsigned long data);
+void ath_ps_full_sleep(struct timer_list *t);
 void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 		   bool sw_pending, bool timeout_override);
 

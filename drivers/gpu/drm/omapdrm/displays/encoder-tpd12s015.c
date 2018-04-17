@@ -51,6 +51,8 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	dssdev->dst = dst;
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 1);
+	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
+
 	/* DC-DC converter needs at max 300us to get to 90% of 5V */
 	udelay(300);
 
@@ -69,6 +71,7 @@ static void tpd_disconnect(struct omap_dss_device *dssdev,
 		return;
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
+	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 0);
 
 	dst->src = NULL;
 	dssdev->dst = NULL;
@@ -146,25 +149,22 @@ static int tpd_read_edid(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (!gpiod_get_value_cansleep(ddata->hpd_gpio))
 		return -ENODEV;
 
-	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
-
-	r = in->ops.hdmi->read_edid(in, edid, len);
-
-	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 0);
-
-	return r;
+	return in->ops.hdmi->read_edid(in, edid, len);
 }
 
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct omap_dss_device *in = ddata->in;
+	bool connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 
-	return gpiod_get_value_cansleep(ddata->hpd_gpio);
+	if (!connected && in->ops.hdmi->lost_hotplug)
+		in->ops.hdmi->lost_hotplug(in);
+	return connected;
 }
 
 static int tpd_register_hpd_cb(struct omap_dss_device *dssdev,

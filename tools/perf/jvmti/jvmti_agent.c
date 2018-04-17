@@ -384,13 +384,13 @@ jvmti_write_code(void *agent, char const *sym,
 }
 
 int
-jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
-		       jvmti_line_info_t *li, int nr_lines)
+jvmti_write_debug_info(void *agent, uint64_t code,
+    int nr_lines, jvmti_line_info_t *li,
+    const char * const * file_names)
 {
 	struct jr_code_debug_info rec;
-	size_t sret, len, size, flen;
+	size_t sret, len, size, flen = 0;
 	uint64_t addr;
-	const char *fn = file;
 	FILE *fp = agent;
 	int i;
 
@@ -405,7 +405,9 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 		return -1;
 	}
 
-	flen = strlen(file) + 1;
+	for (i = 0; i < nr_lines; ++i) {
+	    flen += strlen(file_names[i]) + 1;
+	}
 
 	rec.p.id        = JIT_CODE_DEBUG_INFO;
 	size            = sizeof(rec);
@@ -421,7 +423,7 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 	 * file[]   : source file name
 	 */
 	size += nr_lines * sizeof(struct debug_entry);
-	size += flen * nr_lines;
+	size += flen;
 	rec.p.total_size = size;
 
 	/*
@@ -452,7 +454,7 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 		if (sret != 1)
 			goto error;
 
-		sret = fwrite_unlocked(fn, flen, 1, fp);
+		sret = fwrite_unlocked(file_names[i], strlen(file_names[i]) + 1, 1, fp);
 		if (sret != 1)
 			goto error;
 	}

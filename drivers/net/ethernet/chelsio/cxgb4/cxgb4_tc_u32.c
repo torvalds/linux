@@ -380,7 +380,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 			return -EINVAL;
 	}
 
-	ret = cxgb4_del_filter(dev, filter_id);
+	ret = cxgb4_del_filter(dev, filter_id, NULL);
 	if (ret)
 		goto out;
 
@@ -399,7 +399,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 				if (!test_bit(j, link->tid_map))
 					continue;
 
-				ret = __cxgb4_del_filter(dev, j, NULL);
+				ret = __cxgb4_del_filter(dev, j, NULL, NULL);
 				if (ret)
 					goto out;
 

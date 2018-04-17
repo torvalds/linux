@@ -94,7 +94,7 @@ struct rdma_dev_addr {
  * The dev_addr->net field must be initialized.
  */
 int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr, u16 *vlan_id);
+		      struct rdma_dev_addr *dev_addr);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -125,15 +125,15 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
-	      const unsigned char *dst_dev_addr);
+void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
+		    const struct net_device *dev,
+		    const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(struct sockaddr *addr);
 
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *smac, u16 *vlan_id, int *if_index,
+				 u8 *dmac, const struct net_device *ndev,
 				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
@@ -197,34 +197,15 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 	}
 }
 
-static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
-				      union ib_gid *gid)
-{
-	struct net_device *dev;
-	struct in_device *ip4;
-
-	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
-	if (dev) {
-		ip4 = in_dev_get(dev);
-		if (ip4 && ip4->ifa_list && ip4->ifa_list->ifa_address)
-			ipv6_addr_set_v4mapped(ip4->ifa_list->ifa_address,
-					       (struct in6_addr *)gid);
-
-		if (ip4)
-			in_dev_put(ip4);
-
-		dev_put(dev);
-	}
-}
-
+/*
+ * rdma_get/set_sgid/dgid() APIs are applicable to IB, and iWarp.
+ * They are not applicable to RoCE.
+ * RoCE GIDs are derived from the IP addresses.
+ */
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	if (dev_addr->transport == RDMA_TRANSPORT_IB &&
-	    dev_addr->dev_type != ARPHRD_INFINIBAND)
-		iboe_addr_get_sgid(dev_addr, gid);
-	else
-		memcpy(gid, dev_addr->src_dev_addr +
-		       rdma_addr_gid_offset(dev_addr), sizeof *gid);
+	memcpy(gid, dev_addr->src_dev_addr + rdma_addr_gid_offset(dev_addr),
+	       sizeof(*gid));
 }
 
 static inline void rdma_addr_set_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
@@ -245,10 +226,11 @@ static inline void rdma_addr_set_dgid(struct rdma_dev_addr *dev_addr, union ib_g
 static inline enum ib_mtu iboe_get_mtu(int mtu)
 {
 	/*
-	 * reduce IB headers from effective IBoE MTU. 28 stands for
-	 * atomic header which is the biggest possible header after BTH
+	 * Reduce IB headers from effective IBoE MTU.
 	 */
-	mtu = mtu - IB_GRH_BYTES - IB_BTH_BYTES - 28;
+	mtu = mtu - (IB_GRH_BYTES + IB_UDP_BYTES + IB_BTH_BYTES +
+		     IB_EXT_XRC_BYTES + IB_EXT_ATOMICETH_BYTES +
+		     IB_ICRC_BYTES);
 
 	if (mtu >= ib_mtu_enum_to_int(IB_MTU_4096))
 		return IB_MTU_4096;
@@ -305,12 +287,12 @@ static inline void rdma_get_ll_mac(struct in6_addr *addr, u8 *mac)
 
 static inline int rdma_is_multicast_addr(struct in6_addr *addr)
 {
-	u32 ipv4_addr;
+	__be32 ipv4_addr;
 
 	if (addr->s6_addr[0] == 0xff)
 		return 1;
 
-	memcpy(&ipv4_addr, addr->s6_addr + 12, 4);
+	ipv4_addr = addr->s6_addr32[3];
 	return (ipv6_addr_v4mapped(addr) && ipv4_is_multicast(ipv4_addr));
 }
 

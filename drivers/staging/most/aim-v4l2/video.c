@@ -209,11 +209,11 @@ static ssize_t aim_vdev_read(struct file *filp, char __user *buf,
 	return ret;
 }
 
-static unsigned int aim_vdev_poll(struct file *filp, poll_table *wait)
+static __poll_t aim_vdev_poll(struct file *filp, poll_table *wait)
 {
 	struct aim_fh *fh = filp->private_data;
 	struct most_video_dev *mdev = fh->mdev;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	/* only wait if no data is available */
 	if (!data_ready(mdev))

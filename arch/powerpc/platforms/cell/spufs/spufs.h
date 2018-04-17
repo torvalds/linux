@@ -185,8 +185,7 @@ struct mfc_dma_command {
 struct spu_context_ops {
 	int (*mbox_read) (struct spu_context * ctx, u32 * data);
 	 u32(*mbox_stat_read) (struct spu_context * ctx);
-	unsigned int (*mbox_stat_poll)(struct spu_context *ctx,
-					unsigned int events);
+	__poll_t (*mbox_stat_poll)(struct spu_context *ctx, __poll_t events);
 	int (*ibox_read) (struct spu_context * ctx, u32 * data);
 	int (*wbox_write) (struct spu_context * ctx, u32 data);
 	 u32(*signal1_read) (struct spu_context * ctx);

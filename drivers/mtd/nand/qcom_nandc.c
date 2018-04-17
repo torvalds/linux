@@ -22,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/delay.h>
+#include <linux/dma/qcom_bam_dma.h>
+#include <linux/dma-direct.h> /* XXX: drivers shall never use this directly! */
 
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
@@ -199,6 +201,15 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
  */
 #define dev_cmd_reg_addr(nandc, reg) ((nandc)->props->dev_cmd_reg_start + (reg))
 
+/* Returns the NAND register physical address */
+#define nandc_reg_phys(chip, offset) ((chip)->base_phys + (offset))
+
+/* Returns the dma address for reg read buffer */
+#define reg_buf_dma_addr(chip, vaddr) \
+	((chip)->reg_read_dma + \
+	((uint8_t *)(vaddr) - (uint8_t *)(chip)->reg_read_buf))
+
+#define QPIC_PER_CW_CMD_ELEMENTS	32
 #define QPIC_PER_CW_CMD_SGL		32
 #define QPIC_PER_CW_DATA_SGL		8
 
@@ -221,8 +232,13 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
 /*
  * This data type corresponds to the BAM transaction which will be used for all
  * NAND transfers.
+ * @bam_ce - the array of BAM command elements
  * @cmd_sgl - sgl for NAND BAM command pipe
  * @data_sgl - sgl for NAND BAM consumer/producer pipe
+ * @bam_ce_pos - the index in bam_ce which is available for next sgl
+ * @bam_ce_start - the index in bam_ce which marks the start position ce
+ *		   for current sgl. It will be used for size calculation
+ *		   for current sgl
  * @cmd_sgl_pos - current index in command sgl.
  * @cmd_sgl_start - start index in command sgl.
  * @tx_sgl_pos - current index in data sgl for tx.
@@ -231,8 +247,11 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
  * @rx_sgl_start - start index in data sgl for rx.
  */
 struct bam_transaction {
+	struct bam_cmd_element *bam_ce;
 	struct scatterlist *cmd_sgl;
 	struct scatterlist *data_sgl;
+	u32 bam_ce_pos;
+	u32 bam_ce_start;
 	u32 cmd_sgl_pos;
 	u32 cmd_sgl_start;
 	u32 tx_sgl_pos;
@@ -307,7 +326,8 @@ struct nandc_regs {
  *				controller
  * @dev:			parent device
  * @base:			MMIO base
- * @base_dma:			physical base address of controller registers
+ * @base_phys:			physical base address of controller registers
+ * @base_dma:			dma base address of controller registers
  * @core_clk:			controller clock
  * @aon_clk:			another controller clock
  *
@@ -340,6 +360,7 @@ struct qcom_nand_controller {
 	struct device *dev;
 
 	void __iomem *base;
+	phys_addr_t base_phys;
 	dma_addr_t base_dma;
 
 	struct clk *core_clk;
@@ -462,7 +483,8 @@ alloc_bam_transaction(struct qcom_nand_controller *nandc)
 
 	bam_txn_size =
 		sizeof(*bam_txn) + num_cw *
-		((sizeof(*bam_txn->cmd_sgl) * QPIC_PER_CW_CMD_SGL) +
+		((sizeof(*bam_txn->bam_ce) * QPIC_PER_CW_CMD_ELEMENTS) +
+		(sizeof(*bam_txn->cmd_sgl) * QPIC_PER_CW_CMD_SGL) +
 		(sizeof(*bam_txn->data_sgl) * QPIC_PER_CW_DATA_SGL));
 
 	bam_txn_buf = devm_kzalloc(nandc->dev, bam_txn_size, GFP_KERNEL);
@@ -471,6 +493,10 @@ alloc_bam_transaction(struct qcom_nand_controller *nandc)
 
 	bam_txn = bam_txn_buf;
 	bam_txn_buf += sizeof(*bam_txn);
+
+	bam_txn->bam_ce = bam_txn_buf;
+	bam_txn_buf +=
+		sizeof(*bam_txn->bam_ce) * QPIC_PER_CW_CMD_ELEMENTS * num_cw;
 
 	bam_txn->cmd_sgl = bam_txn_buf;
 	bam_txn_buf +=
@@ -489,6 +515,8 @@ static void clear_bam_transaction(struct qcom_nand_controller *nandc)
 	if (!nandc->props->is_bam)
 		return;
 
+	bam_txn->bam_ce_pos = 0;
+	bam_txn->bam_ce_start = 0;
 	bam_txn->cmd_sgl_pos = 0;
 	bam_txn->cmd_sgl_start = 0;
 	bam_txn->tx_sgl_pos = 0;
@@ -734,6 +762,66 @@ static int prepare_bam_async_desc(struct qcom_nand_controller *nandc,
 }
 
 /*
+ * Prepares the command descriptor for BAM DMA which will be used for NAND
+ * register reads and writes. The command descriptor requires the command
+ * to be formed in command element type so this function uses the command
+ * element from bam transaction ce array and fills the same with required
+ * data. A single SGL can contain multiple command elements so
+ * NAND_BAM_NEXT_SGL will be used for starting the separate SGL
+ * after the current command element.
+ */
+static int prep_bam_dma_desc_cmd(struct qcom_nand_controller *nandc, bool read,
+				 int reg_off, const void *vaddr,
+				 int size, unsigned int flags)
+{
+	int bam_ce_size;
+	int i, ret;
+	struct bam_cmd_element *bam_ce_buffer;
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	bam_ce_buffer = &bam_txn->bam_ce[bam_txn->bam_ce_pos];
+
+	/* fill the command desc */
+	for (i = 0; i < size; i++) {
+		if (read)
+			bam_prep_ce(&bam_ce_buffer[i],
+				    nandc_reg_phys(nandc, reg_off + 4 * i),
+				    BAM_READ_COMMAND,
+				    reg_buf_dma_addr(nandc,
+						     (__le32 *)vaddr + i));
+		else
+			bam_prep_ce_le32(&bam_ce_buffer[i],
+					 nandc_reg_phys(nandc, reg_off + 4 * i),
+					 BAM_WRITE_COMMAND,
+					 *((__le32 *)vaddr + i));
+	}
+
+	bam_txn->bam_ce_pos += size;
+
+	/* use the separate sgl after this command */
+	if (flags & NAND_BAM_NEXT_SGL) {
+		bam_ce_buffer = &bam_txn->bam_ce[bam_txn->bam_ce_start];
+		bam_ce_size = (bam_txn->bam_ce_pos -
+				bam_txn->bam_ce_start) *
+				sizeof(struct bam_cmd_element);
+		sg_set_buf(&bam_txn->cmd_sgl[bam_txn->cmd_sgl_pos],
+			   bam_ce_buffer, bam_ce_size);
+		bam_txn->cmd_sgl_pos++;
+		bam_txn->bam_ce_start = bam_txn->bam_ce_pos;
+
+		if (flags & NAND_BAM_NWD) {
+			ret = prepare_bam_async_desc(nandc, nandc->cmd_chan,
+						     DMA_PREP_FENCE |
+						     DMA_PREP_CMD);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+/*
  * Prepares the data descriptor for BAM DMA which will be used for NAND
  * data reads and writes.
  */
@@ -851,19 +939,22 @@ static int read_reg_dma(struct qcom_nand_controller *nandc, int first,
 {
 	bool flow_control = false;
 	void *vaddr;
-	int size;
 
-	if (first == NAND_READ_ID || first == NAND_FLASH_STATUS)
-		flow_control = true;
+	vaddr = nandc->reg_read_buf + nandc->reg_read_pos;
+	nandc->reg_read_pos += num_regs;
 
 	if (first == NAND_DEV_CMD_VLD || first == NAND_DEV_CMD1)
 		first = dev_cmd_reg_addr(nandc, first);
 
-	size = num_regs * sizeof(u32);
-	vaddr = nandc->reg_read_buf + nandc->reg_read_pos;
-	nandc->reg_read_pos += num_regs;
+	if (nandc->props->is_bam)
+		return prep_bam_dma_desc_cmd(nandc, true, first, vaddr,
+					     num_regs, flags);
 
-	return prep_adm_dma_desc(nandc, true, first, vaddr, size, flow_control);
+	if (first == NAND_READ_ID || first == NAND_FLASH_STATUS)
+		flow_control = true;
+
+	return prep_adm_dma_desc(nandc, true, first, vaddr,
+				 num_regs * sizeof(u32), flow_control);
 }
 
 /*
@@ -880,12 +971,8 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	bool flow_control = false;
 	struct nandc_regs *regs = nandc->regs;
 	void *vaddr;
-	int size;
 
 	vaddr = offset_to_nandc_reg(regs, first);
-
-	if (first == NAND_FLASH_CMD)
-		flow_control = true;
 
 	if (first == NAND_ERASED_CW_DETECT_CFG) {
 		if (flags & NAND_ERASED_CW_SET)
@@ -903,10 +990,15 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_DEV_CMD_VLD_RESTORE || first == NAND_DEV_CMD_VLD)
 		first = dev_cmd_reg_addr(nandc, NAND_DEV_CMD_VLD);
 
-	size = num_regs * sizeof(u32);
+	if (nandc->props->is_bam)
+		return prep_bam_dma_desc_cmd(nandc, false, first, vaddr,
+					     num_regs, flags);
 
-	return prep_adm_dma_desc(nandc, false, first, vaddr, size,
-				 flow_control);
+	if (first == NAND_FLASH_CMD)
+		flow_control = true;
+
+	return prep_adm_dma_desc(nandc, false, first, vaddr,
+				 num_regs * sizeof(u32), flow_control);
 }
 
 /*
@@ -1170,7 +1262,8 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 		}
 
 		if (bam_txn->cmd_sgl_pos > bam_txn->cmd_sgl_start) {
-			r = prepare_bam_async_desc(nandc, nandc->cmd_chan, 0);
+			r = prepare_bam_async_desc(nandc, nandc->cmd_chan,
+						   DMA_PREP_CMD);
 			if (r)
 				return r;
 		}
@@ -1633,6 +1726,7 @@ static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 *data_buf, *oob_buf = NULL;
 	int ret;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	data_buf = buf;
 	oob_buf = oob_required ? chip->oob_poi : NULL;
 
@@ -1658,6 +1752,7 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 	int i, ret;
 	int read_loc;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	data_buf = buf;
 	oob_buf = chip->oob_poi;
 
@@ -1758,6 +1853,8 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 *data_buf, *oob_buf;
 	int i, ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
 
@@ -1810,6 +1907,9 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	free_descs(nandc);
 
+	if (!ret)
+		ret = nand_prog_page_end_op(chip);
+
 	return ret;
 }
 
@@ -1824,6 +1924,7 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 	u8 *data_buf, *oob_buf;
 	int i, ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
 
@@ -1878,6 +1979,9 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 
 	free_descs(nandc);
 
+	if (!ret)
+		ret = nand_prog_page_end_op(chip);
+
 	return ret;
 }
 
@@ -1898,7 +2002,7 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *oob = chip->oob_poi;
 	int data_size, oob_size;
-	int ret, status = 0;
+	int ret;
 
 	host->use_ecc = true;
 
@@ -1935,11 +2039,7 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 		return -EIO;
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
@@ -1989,7 +2089,7 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	int page, ret, status = 0;
+	int page, ret;
 
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
@@ -2022,11 +2122,7 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return -EIO;
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_end_op(chip);
 }
 
 /*
@@ -2544,6 +2640,9 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 
 	nand_set_flash_node(chip, dn);
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "qcom_nand.%d", host->cs);
+	if (!mtd->name)
+		return -ENOMEM;
+
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
 
@@ -2705,6 +2804,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (IS_ERR(nandc->base))
 		return PTR_ERR(nandc->base);
 
+	nandc->base_phys = res->start;
 	nandc->base_dma = phys_to_dma(dev, (phys_addr_t)res->start);
 
 	nandc->core_clk = devm_clk_get(dev, "core");

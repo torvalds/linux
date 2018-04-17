@@ -391,10 +391,10 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 }
 
 
-static void ieee80211_send_beacon_cb(unsigned long _ieee)
+static void ieee80211_send_beacon_cb(struct timer_list *t)
 {
 	struct ieee80211_device *ieee =
-		(struct ieee80211_device *) _ieee;
+		from_timer(ieee, t, beacon_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->beacon_lock, flags);
@@ -1251,9 +1251,11 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static void ieee80211_associate_abort_cb(unsigned long dev)
+static void ieee80211_associate_abort_cb(struct timer_list *t)
 {
-	ieee80211_associate_abort((struct ieee80211_device *) dev);
+	struct ieee80211_device *dev = from_timer(dev, t, associate_timer);
+
+	ieee80211_associate_abort(dev);
 }
 
 
@@ -2718,11 +2720,9 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
-	setup_timer(&ieee->associate_timer, ieee80211_associate_abort_cb,
-		    (unsigned long)ieee);
+	timer_setup(&ieee->associate_timer, ieee80211_associate_abort_cb, 0);
 
-	setup_timer(&ieee->beacon_timer, ieee80211_send_beacon_cb,
-		    (unsigned long)ieee);
+	timer_setup(&ieee->beacon_timer, ieee80211_send_beacon_cb, 0);
 
 
 	INIT_DELAYED_WORK(&ieee->start_ibss_wq, ieee80211_start_ibss_wq);

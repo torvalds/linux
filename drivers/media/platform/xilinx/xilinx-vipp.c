@@ -351,6 +351,11 @@ static int xvip_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return -EINVAL;
 }
 
+static const struct v4l2_async_notifier_operations xvip_graph_notify_ops = {
+	.bound = xvip_graph_notify_bound,
+	.complete = xvip_graph_notify_complete,
+};
+
 static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 				struct device_node *node)
 {
@@ -548,8 +553,7 @@ static int xvip_graph_init(struct xvip_composite_device *xdev)
 
 	xdev->notifier.subdevs = subdevs;
 	xdev->notifier.num_subdevs = num_subdevs;
-	xdev->notifier.bound = xvip_graph_notify_bound;
-	xdev->notifier.complete = xvip_graph_notify_complete;
+	xdev->notifier.ops = &xvip_graph_notify_ops;
 
 	ret = v4l2_async_notifier_register(&xdev->v4l2_dev, &xdev->notifier);
 	if (ret < 0) {

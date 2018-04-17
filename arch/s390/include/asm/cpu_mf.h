@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CPU-measurement facilities
  *
  *  Copyright IBM Corp. 2012
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *	       Jan Glauber <jang@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 #ifndef _ASM_S390_CPU_MF_H
 #define _ASM_S390_CPU_MF_H
@@ -144,6 +141,12 @@ struct hws_trailer_entry {
 	unsigned long long progusage2;	 /*				      */
 } __packed;
 
+/* Load program parameter */
+static inline void lpp(void *pp)
+{
+	asm volatile(".insn s,0xb2800000,0(%0)\n":: "a" (pp) : "memory");
+}
+
 /* Query counter information */
 static inline int qctri(struct cpumf_ctr_info *info)
 {
@@ -167,7 +170,7 @@ static inline int lcctl(u64 ctl)
 		"	.insn	s,0xb2840000,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc) : "m" (ctl) : "cc");
+		: "=d" (cc) : "Q" (ctl) : "cc");
 	return cc;
 }
 

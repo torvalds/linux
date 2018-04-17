@@ -16,8 +16,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		      struct tss_struct *tss);
 
 /* This runs runs on the previous thread's stack. */
-static inline void prepare_switch_to(struct task_struct *prev,
-				     struct task_struct *next)
+static inline void prepare_switch_to(struct task_struct *next)
 {
 #ifdef CONFIG_VMAP_STACK
 	/*
@@ -70,7 +69,7 @@ struct fork_frame {
 
 #define switch_to(prev, next, last)					\
 do {									\
-	prepare_switch_to(prev, next);					\
+	prepare_switch_to(next);					\
 									\
 	((last) = __switch_to_asm((prev), (next)));			\
 } while (0)
@@ -79,10 +78,10 @@ do {									\
 static inline void refresh_sysenter_cs(struct thread_struct *thread)
 {
 	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
-	if (unlikely(this_cpu_read(cpu_tss.x86_tss.ss1) == thread->sysenter_cs))
+	if (unlikely(this_cpu_read(cpu_tss_rw.x86_tss.ss1) == thread->sysenter_cs))
 		return;
 
-	this_cpu_write(cpu_tss.x86_tss.ss1, thread->sysenter_cs);
+	this_cpu_write(cpu_tss_rw.x86_tss.ss1, thread->sysenter_cs);
 	wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 }
 #endif
@@ -90,10 +89,12 @@ static inline void refresh_sysenter_cs(struct thread_struct *thread)
 /* This is used when switching tasks or entering/exiting vm86 mode. */
 static inline void update_sp0(struct task_struct *task)
 {
+	/* On x86_64, sp0 always points to the entry trampoline stack, which is constant: */
 #ifdef CONFIG_X86_32
 	load_sp0(task->thread.sp0);
 #else
-	load_sp0(task_top_of_stack(task));
+	if (static_cpu_has(X86_FEATURE_XENPV))
+		load_sp0(task_top_of_stack(task));
 #endif
 }
 

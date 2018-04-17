@@ -369,8 +369,8 @@ extern const struct ath10k_hw_values qca99x0_values;
 extern const struct ath10k_hw_values qca9888_values;
 extern const struct ath10k_hw_values qca4019_values;
 extern const struct ath10k_hw_values wcn3990_values;
-extern struct ath10k_hw_ce_regs wcn3990_ce_regs;
-extern struct ath10k_hw_ce_regs qcax_ce_regs;
+extern const struct ath10k_hw_ce_regs wcn3990_ce_regs;
+extern const struct ath10k_hw_ce_regs qcax_ce_regs;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
@@ -550,6 +550,9 @@ struct ath10k_hw_params {
 	 */
 	int vht160_mcs_rx_highest;
 	int vht160_mcs_tx_highest;
+
+	/* Number of ciphers supported (i.e First N) in cipher_suites array */
+	int n_cipher_suites;
 };
 
 struct htt_rx_desc;

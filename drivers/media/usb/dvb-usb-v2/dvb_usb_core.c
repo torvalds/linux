@@ -628,8 +628,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 	}
 
 	ret = dvb_usbv2_device_power_ctrl(d, 0);
-	if (ret < 0)
-		goto err;
+
 err:
 	if (!adap->suspend_resume_active) {
 		adap->active_fe = -1;

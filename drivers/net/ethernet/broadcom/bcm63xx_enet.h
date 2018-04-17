@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 
 #include <bcm63xx_regs.h>
-#include <bcm63xx_irq.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_iudma.h>
 

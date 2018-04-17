@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014-2017 Oracle.  All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -72,11 +73,10 @@ struct rpcrdma_ia {
 	struct completion	ri_remove_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_segs;
-	unsigned int		ri_max_frmr_depth;
+	unsigned int		ri_max_frwr_depth;
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
 	unsigned int		ri_max_send_sges;
-	bool			ri_reminv_expected;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
 	unsigned long		ri_flags;
@@ -93,35 +93,15 @@ enum {
  */
 
 struct rpcrdma_ep {
-	atomic_t		rep_cqcount;
-	int			rep_cqinit;
+	unsigned int		rep_send_count;
+	unsigned int		rep_send_batch;
 	int			rep_connected;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
-	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
 };
-
-static inline void
-rpcrdma_init_cqcount(struct rpcrdma_ep *ep, int count)
-{
-	atomic_set(&ep->rep_cqcount, ep->rep_cqinit - count);
-}
-
-/* To update send queue accounting, provider must take a
- * send completion every now and then.
- */
-static inline void
-rpcrdma_set_signaled(struct rpcrdma_ep *ep, struct ib_send_wr *send_wr)
-{
-	send_wr->send_flags = 0;
-	if (unlikely(atomic_sub_return(1, &ep->rep_cqcount) <= 0)) {
-		rpcrdma_init_cqcount(ep, 0);
-		send_wr->send_flags = IB_SEND_SIGNALED;
-	}
-}
 
 /* Pre-allocate extra Work Requests for handling backward receives
  * and sends. This is a fixed value because the Work Queues are
@@ -164,12 +144,6 @@ rdmab_lkey(struct rpcrdma_regbuf *rb)
 	return rb->rg_iov.lkey;
 }
 
-static inline struct rpcrdma_msg *
-rdmab_to_msg(struct rpcrdma_regbuf *rb)
-{
-	return (struct rpcrdma_msg *)rb->rg_base;
-}
-
 static inline struct ib_device *
 rdmab_device(struct rpcrdma_regbuf *rb)
 {
@@ -202,22 +176,24 @@ enum {
 };
 
 /*
- * struct rpcrdma_rep -- this structure encapsulates state required to recv
- * and complete a reply, asychronously. It needs several pieces of
- * state:
- *   o recv buffer (posted to provider)
- *   o ib_sge (also donated to provider)
- *   o status of reply (length, success or not)
- *   o bookkeeping state to get run by reply handler (list, etc)
+ * struct rpcrdma_rep -- this structure encapsulates state required
+ * to receive and complete an RPC Reply, asychronously. It needs
+ * several pieces of state:
  *
- * These are allocated during initialization, per-transport instance.
+ *   o receive buffer and ib_sge (donated to provider)
+ *   o status of receive (success or not, length, inv rkey)
+ *   o bookkeeping state to get run by reply handler (XDR stream)
  *
- * N of these are associated with a transport instance, and stored in
- * struct rpcrdma_buffer. N is the max number of outstanding requests.
+ * These structures are allocated during transport initialization.
+ * N of these are associated with a transport instance, managed by
+ * struct rpcrdma_buffer. N is the max number of outstanding RPCs.
  */
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
+	__be32			rr_xid;
+	__be32			rr_vers;
+	__be32			rr_proc;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
@@ -225,34 +201,58 @@ struct rpcrdma_rep {
 	struct work_struct	rr_work;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
+	struct rpc_rqst		*rr_rqst;
 	struct list_head	rr_list;
 	struct ib_recv_wr	rr_recv_wr;
 };
 
+/* struct rpcrdma_sendctx - DMA mapped SGEs to unmap after Send completes
+ */
+struct rpcrdma_req;
+struct rpcrdma_xprt;
+struct rpcrdma_sendctx {
+	struct ib_send_wr	sc_wr;
+	struct ib_cqe		sc_cqe;
+	struct rpcrdma_xprt	*sc_xprt;
+	struct rpcrdma_req	*sc_req;
+	unsigned int		sc_unmap_count;
+	struct ib_sge		sc_sges[];
+};
+
+/* Limit the number of SGEs that can be unmapped during one
+ * Send completion. This caps the amount of work a single
+ * completion can do before returning to the provider.
+ *
+ * Setting this to zero disables Send completion batching.
+ */
+enum {
+	RPCRDMA_MAX_SEND_BATCH = 7,
+};
+
 /*
- * struct rpcrdma_mw - external memory region metadata
+ * struct rpcrdma_mr - external memory region metadata
  *
  * An external memory region is any buffer or page that is registered
  * on the fly (ie, not pre-registered).
  *
- * Each rpcrdma_buffer has a list of free MWs anchored in rb_mws. During
+ * Each rpcrdma_buffer has a list of free MWs anchored in rb_mrs. During
  * call_allocate, rpcrdma_buffer_get() assigns one to each segment in
  * an rpcrdma_req. Then rpcrdma_register_external() grabs these to keep
  * track of registration metadata while each RPC is pending.
  * rpcrdma_deregister_external() uses this metadata to unmap and
  * release these resources when an RPC is complete.
  */
-enum rpcrdma_frmr_state {
-	FRMR_IS_INVALID,	/* ready to be used */
-	FRMR_IS_VALID,		/* in use */
-	FRMR_FLUSHED_FR,	/* flushed FASTREG WR */
-	FRMR_FLUSHED_LI,	/* flushed LOCALINV WR */
+enum rpcrdma_frwr_state {
+	FRWR_IS_INVALID,	/* ready to be used */
+	FRWR_IS_VALID,		/* in use */
+	FRWR_FLUSHED_FR,	/* flushed FASTREG WR */
+	FRWR_FLUSHED_LI,	/* flushed LOCALINV WR */
 };
 
-struct rpcrdma_frmr {
+struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
-	enum rpcrdma_frmr_state		fr_state;
+	enum rpcrdma_frwr_state		fr_state;
 	struct completion		fr_linv_done;
 	union {
 		struct ib_reg_wr	fr_regwr;
@@ -265,26 +265,20 @@ struct rpcrdma_fmr {
 	u64			*fm_physaddrs;
 };
 
-struct rpcrdma_mw {
-	struct list_head	mw_list;
-	struct scatterlist	*mw_sg;
-	int			mw_nents;
-	enum dma_data_direction	mw_dir;
-	unsigned long		mw_flags;
+struct rpcrdma_mr {
+	struct list_head	mr_list;
+	struct scatterlist	*mr_sg;
+	int			mr_nents;
+	enum dma_data_direction	mr_dir;
 	union {
 		struct rpcrdma_fmr	fmr;
-		struct rpcrdma_frmr	frmr;
+		struct rpcrdma_frwr	frwr;
 	};
-	struct rpcrdma_xprt	*mw_xprt;
-	u32			mw_handle;
-	u32			mw_length;
-	u64			mw_offset;
-	struct list_head	mw_all;
-};
-
-/* mw_flags */
-enum {
-	RPCRDMA_MW_F_RI		= 1,
+	struct rpcrdma_xprt	*mr_xprt;
+	u32			mr_handle;
+	u32			mr_length;
+	u64			mr_offset;
+	struct list_head	mr_all;
 };
 
 /*
@@ -340,24 +334,28 @@ enum {
 struct rpcrdma_buffer;
 struct rpcrdma_req {
 	struct list_head	rl_list;
-	unsigned int		rl_mapped_sges;
+	int			rl_cpu;
 	unsigned int		rl_connect_cookie;
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;
 	struct xdr_stream	rl_stream;
 	struct xdr_buf		rl_hdrbuf;
-	struct ib_send_wr	rl_send_wr;
-	struct ib_sge		rl_send_sge[RPCRDMA_MAX_SEND_SGES];
+	struct rpcrdma_sendctx	*rl_sendctx;
 	struct rpcrdma_regbuf	*rl_rdmabuf;	/* xprt header */
 	struct rpcrdma_regbuf	*rl_sendbuf;	/* rq_snd_buf */
 	struct rpcrdma_regbuf	*rl_recvbuf;	/* rq_rcv_buf */
 
-	struct ib_cqe		rl_cqe;
 	struct list_head	rl_all;
-	bool			rl_backchannel;
+	unsigned long		rl_flags;
 
 	struct list_head	rl_registered;	/* registered segments */
 	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
+};
+
+/* rl_flags */
+enum {
+	RPCRDMA_REQ_F_PENDING = 0,
+	RPCRDMA_REQ_F_TX_RESOURCES,
 };
 
 static inline void
@@ -367,25 +365,25 @@ rpcrdma_set_xprtdata(struct rpc_rqst *rqst, struct rpcrdma_req *req)
 }
 
 static inline struct rpcrdma_req *
-rpcr_to_rdmar(struct rpc_rqst *rqst)
+rpcr_to_rdmar(const struct rpc_rqst *rqst)
 {
 	return rqst->rq_xprtdata;
 }
 
 static inline void
-rpcrdma_push_mw(struct rpcrdma_mw *mw, struct list_head *list)
+rpcrdma_mr_push(struct rpcrdma_mr *mr, struct list_head *list)
 {
-	list_add_tail(&mw->mw_list, list);
+	list_add_tail(&mr->mr_list, list);
 }
 
-static inline struct rpcrdma_mw *
-rpcrdma_pop_mw(struct list_head *list)
+static inline struct rpcrdma_mr *
+rpcrdma_mr_pop(struct list_head *list)
 {
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mr *mr;
 
-	mw = list_first_entry(list, struct rpcrdma_mw, mw_list);
-	list_del(&mw->mw_list);
-	return mw;
+	mr = list_first_entry(list, struct rpcrdma_mr, mr_list);
+	list_del(&mr->mr_list);
+	return mr;
 }
 
 /*
@@ -395,16 +393,21 @@ rpcrdma_pop_mw(struct list_head *list)
  * One of these is associated with a transport instance
  */
 struct rpcrdma_buffer {
-	spinlock_t		rb_mwlock;	/* protect rb_mws list */
-	struct list_head	rb_mws;
+	spinlock_t		rb_mrlock;	/* protect rb_mrs list */
+	struct list_head	rb_mrs;
 	struct list_head	rb_all;
+
+	unsigned long		rb_sc_head;
+	unsigned long		rb_sc_tail;
+	unsigned long		rb_sc_last;
+	struct rpcrdma_sendctx	**rb_sc_ctxs;
 
 	spinlock_t		rb_lock;	/* protect buf lists */
 	int			rb_send_count, rb_recv_count;
 	struct list_head	rb_send_bufs;
 	struct list_head	rb_recv_bufs;
 	u32			rb_max_requests;
-	atomic_t		rb_credits;	/* most recent credit grant */
+	u32			rb_credits;	/* most recent credit grant */
 
 	u32			rb_bc_srv_max_requests;
 	spinlock_t		rb_reqslock;	/* protect rb_allreqs */
@@ -426,13 +429,11 @@ struct rpcrdma_buffer {
  * This data should be set with mount options
  */
 struct rpcrdma_create_data_internal {
-	struct sockaddr_storage	addr;	/* RDMA server address */
 	unsigned int	max_requests;	/* max requests (slots) in flight */
 	unsigned int	rsize;		/* mount rsize - max read hdr+data */
 	unsigned int	wsize;		/* mount wsize - max write hdr+data */
 	unsigned int	inline_rsize;	/* max non-rdma read data payload */
 	unsigned int	inline_wsize;	/* max non-rdma write data payload */
-	unsigned int	padding;	/* non-rdma write header padding */
 };
 
 /*
@@ -453,10 +454,12 @@ struct rpcrdma_stats {
 	unsigned long		mrs_recovered;
 	unsigned long		mrs_orphaned;
 	unsigned long		mrs_allocated;
+	unsigned long		empty_sendctx_q;
 
 	/* accessed when receiving a reply */
 	unsigned long long	total_rdma_reply;
 	unsigned long long	fixup_copy_count;
+	unsigned long		reply_waits_for_send;
 	unsigned long		local_inv_needed;
 	unsigned long		nomsg_call_count;
 	unsigned long		bcall_count;
@@ -470,19 +473,19 @@ struct rpcrdma_memreg_ops {
 	struct rpcrdma_mr_seg *
 			(*ro_map)(struct rpcrdma_xprt *,
 				  struct rpcrdma_mr_seg *, int, bool,
-				  struct rpcrdma_mw **);
+				  struct rpcrdma_mr **);
+	void		(*ro_reminv)(struct rpcrdma_rep *rep,
+				     struct list_head *mrs);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct list_head *);
-	void		(*ro_unmap_safe)(struct rpcrdma_xprt *,
-					 struct rpcrdma_req *, bool);
-	void		(*ro_recover_mr)(struct rpcrdma_mw *);
+	void		(*ro_recover_mr)(struct rpcrdma_mr *mr);
 	int		(*ro_open)(struct rpcrdma_ia *,
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
 	int		(*ro_init_mr)(struct rpcrdma_ia *,
-				      struct rpcrdma_mw *);
-	void		(*ro_release_mr)(struct rpcrdma_mw *);
+				      struct rpcrdma_mr *);
+	void		(*ro_release_mr)(struct rpcrdma_mr *mr);
 	const char	*ro_displayname;
 	const int	ro_send_w_inv_ok;
 };
@@ -513,6 +516,18 @@ struct rpcrdma_xprt {
 #define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, rx_xprt)
 #define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
 
+static inline const char *
+rpcrdma_addrstr(const struct rpcrdma_xprt *r_xprt)
+{
+	return r_xprt->rx_xprt.address_strings[RPC_DISPLAY_ADDR];
+}
+
+static inline const char *
+rpcrdma_portstr(const struct rpcrdma_xprt *r_xprt)
+{
+	return r_xprt->rx_xprt.address_strings[RPC_DISPLAY_PORT];
+}
+
 /* Setting this to 0 ensures interoperability with early servers.
  * Setting this to 1 enhances certain unaligned read/write performance.
  * Default is 0, see sysctl entry and rpc_rdma.c rpcrdma_convert_iovs() */
@@ -526,11 +541,13 @@ extern unsigned int xprt_rdma_memreg_strategy;
 /*
  * Interface Adapter calls - xprtrdma/verbs.c
  */
-int rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr);
+int rpcrdma_ia_open(struct rpcrdma_xprt *xprt);
 void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
 bool fmr_is_supported(struct rpcrdma_ia *);
+
+extern struct workqueue_struct *rpcrdma_receive_wq;
 
 /*
  * Endpoint calls - xprtrdma/verbs.c
@@ -550,19 +567,22 @@ int rpcrdma_ep_post_recv(struct rpcrdma_ia *, struct rpcrdma_rep *);
  * Buffer calls - xprtrdma/verbs.c
  */
 struct rpcrdma_req *rpcrdma_create_req(struct rpcrdma_xprt *);
-struct rpcrdma_rep *rpcrdma_create_rep(struct rpcrdma_xprt *);
 void rpcrdma_destroy_req(struct rpcrdma_req *);
+int rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt);
 int rpcrdma_buffer_create(struct rpcrdma_xprt *);
 void rpcrdma_buffer_destroy(struct rpcrdma_buffer *);
+struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_buffer *buf);
+void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 
-struct rpcrdma_mw *rpcrdma_get_mw(struct rpcrdma_xprt *);
-void rpcrdma_put_mw(struct rpcrdma_xprt *, struct rpcrdma_mw *);
+struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
+void rpcrdma_mr_put(struct rpcrdma_mr *mr);
+void rpcrdma_mr_unmap_and_put(struct rpcrdma_mr *mr);
+void rpcrdma_mr_defer_recovery(struct rpcrdma_mr *mr);
+
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);
 void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
-
-void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
 
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(size_t, enum dma_data_direction,
 					    gfp_t);
@@ -610,12 +630,18 @@ enum rpcrdma_chunktype {
 	rpcrdma_replych
 };
 
-bool rpcrdma_prepare_send_sges(struct rpcrdma_ia *, struct rpcrdma_req *,
-			       u32, struct xdr_buf *, enum rpcrdma_chunktype);
-void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
+int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
+			      struct rpcrdma_req *req, u32 hdrlen,
+			      struct xdr_buf *xdr,
+			      enum rpcrdma_chunktype rtype);
+void rpcrdma_unmap_sendctx(struct rpcrdma_sendctx *sc);
 int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
-void rpcrdma_reply_handler(struct work_struct *work);
+void rpcrdma_complete_rqst(struct rpcrdma_rep *rep);
+void rpcrdma_reply_handler(struct rpcrdma_rep *rep);
+void rpcrdma_release_rqst(struct rpcrdma_xprt *r_xprt,
+			  struct rpcrdma_req *req);
+void rpcrdma_deferred_completion(struct work_struct *work);
 
 static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 {
@@ -641,7 +667,7 @@ int xprt_rdma_bc_up(struct svc_serv *, struct net *);
 size_t xprt_rdma_bc_maxpayload(struct rpc_xprt *);
 int rpcrdma_bc_post_recv(struct rpcrdma_xprt *, unsigned int);
 void rpcrdma_bc_receive_call(struct rpcrdma_xprt *, struct rpcrdma_rep *);
-int rpcrdma_bc_marshal_reply(struct rpc_rqst *);
+int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst);
 void xprt_rdma_bc_free_rqst(struct rpc_rqst *);
 void xprt_rdma_bc_destroy(struct rpc_xprt *, unsigned int);
 #endif	/* CONFIG_SUNRPC_BACKCHANNEL */
@@ -649,3 +675,5 @@ void xprt_rdma_bc_destroy(struct rpc_xprt *, unsigned int);
 extern struct xprt_class xprt_rdma_bc;
 
 #endif				/* _LINUX_SUNRPC_XPRT_RDMA_H */
+
+#include <trace/events/rpcrdma.h>

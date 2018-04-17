@@ -1037,7 +1037,7 @@ int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
  * @file: pointer to struct file
  * @wait: pointer to struct poll_table_struct
  */
-unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
+__poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
 
 /* Helpers for ioctl_ops */
 

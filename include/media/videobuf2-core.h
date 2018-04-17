@@ -871,7 +871,7 @@ unsigned long vb2_get_unmapped_area(struct vb2_queue *q,
  * The return values from this function are intended to be directly returned
  * from poll handler in driver.
  */
-unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
+__poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 			   poll_table *wait);
 
 size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,

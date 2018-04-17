@@ -606,8 +606,7 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 }
 
 /* Walk up to the next node that needs to be processed */
-static int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path,
-			int *level)
+static int walk_up_tree(struct btrfs_path *path, int *level)
 {
 	int l;
 
@@ -984,7 +983,6 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_path *path;
-	struct btrfs_root *root;
 	struct extent_buffer *eb;
 	u64 bytenr = 0, num_bytes = 0;
 	int ret, level;
@@ -1014,7 +1012,7 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 				     &bytenr, &num_bytes);
 		if (ret)
 			break;
-		ret = walk_up_tree(root, path, &level);
+		ret = walk_up_tree(path, &level);
 		if (ret < 0)
 			break;
 		if (ret > 0) {

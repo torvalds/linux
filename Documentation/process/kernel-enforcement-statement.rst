@@ -118,6 +118,7 @@ we might work for today, have in the past, or will in the future.
   - Mike Marshall
   - Chris Mason
   - Paul E. McKenney
+  - Arnaldo Carvalho de Melo
   - David S. Miller
   - Ingo Molnar
   - Kuninori Morimoto

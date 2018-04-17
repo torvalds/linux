@@ -49,7 +49,7 @@ module_param(debug, int, 0644);
 #define V4L2_BUFFER_OUT_FLAGS	(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME | \
 				 V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_TIMECODE)
 
-/**
+/*
  * __verify_planes_array() - verify that the planes array passed in struct
  * v4l2_buffer from userspace can be safely used
  */
@@ -78,7 +78,7 @@ static int __verify_planes_array_core(struct vb2_buffer *vb, const void *pb)
 	return __verify_planes_array(vb, pb);
 }
 
-/**
+/*
  * __verify_length() - Verify that the bytesused value for each plane fits in
  * the plane length and that the data offset doesn't exceed the bytesused value.
  */
@@ -181,7 +181,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
 	return __verify_planes_array(q->bufs[b->index], b);
 }
 
-/**
+/*
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
@@ -286,7 +286,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		q->last_buffer_dequeued = true;
 }
 
-/**
+/*
  * __fill_vb2_buffer() - fill a vb2_buffer with information provided in a
  * v4l2_buffer by the userspace. It also verifies that struct
  * v4l2_buffer has a valid number of planes.
@@ -446,7 +446,7 @@ static const struct vb2_buf_ops v4l2_buf_ops = {
 	.copy_timestamp		= __copy_timestamp,
 };
 
-/**
+/*
  * vb2_querybuf() - query video buffer information
  * @q:		videobuf queue
  * @b:		buffer struct passed from userspace to vidioc_querybuf handler
@@ -671,11 +671,11 @@ void vb2_queue_release(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_queue_release);
 
-unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
+__poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
-	unsigned long req_events = poll_requested_events(wait);
-	unsigned int res = 0;
+	__poll_t req_events = poll_requested_events(wait);
+	__poll_t res = 0;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
@@ -904,12 +904,12 @@ exit:
 }
 EXPORT_SYMBOL_GPL(vb2_fop_read);
 
-unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
+__poll_t vb2_fop_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct vb2_queue *q = vdev->queue;
 	struct mutex *lock = q->lock ? q->lock : vdev->lock;
-	unsigned res;
+	__poll_t res;
 	void *fileio;
 
 	/*

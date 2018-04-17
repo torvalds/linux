@@ -22,7 +22,7 @@ obj-y			+= common.o
 obj-y			+= rdrand.o
 obj-y			+= match.o
 obj-y			+= bugs.o
-obj-$(CONFIG_CPU_FREQ)	+= aperfmperf.o
+obj-y			+= aperfmperf.o
 obj-y			+= cpuid-deps.o
 
 obj-$(CONFIG_PROC_FS)	+= proc.o

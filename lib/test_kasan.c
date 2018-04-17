@@ -353,10 +353,9 @@ static noinline void __init memcg_accounted_kmem_cache(void)
 	 */
 	for (i = 0; i < 5; i++) {
 		p = kmem_cache_alloc(cache, GFP_KERNEL);
-		if (!p) {
-			pr_err("Allocation failed\n");
+		if (!p)
 			goto free_cache;
-		}
+
 		kmem_cache_free(cache, p);
 		msleep(100);
 	}

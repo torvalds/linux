@@ -36,7 +36,9 @@
 static i40e_status i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 							u32 reg, u32 mask)
 {
-	const u32 patterns[] = {0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	static const u32 patterns[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF
+	};
 	u32 pat, val, orig_val;
 	int i;
 

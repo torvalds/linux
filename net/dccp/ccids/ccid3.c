@@ -195,10 +195,10 @@ static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hc,
 	}
 }
 
-static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
+static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)data;
-	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
+	struct ccid3_hc_tx_sock *hc = from_timer(hc, t, tx_no_feedback_timer);
+	struct sock *sk = hc->sk;
 	unsigned long t_nfb = USEC_PER_SEC / 5;
 
 	bh_lock_sock(sk);
@@ -505,8 +505,9 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hc->tx_state = TFRC_SSTATE_NO_SENT;
 	hc->tx_hist  = NULL;
-	setup_timer(&hc->tx_no_feedback_timer,
-			ccid3_hc_tx_no_feedback_timer, (unsigned long)sk);
+	hc->sk	     = sk;
+	timer_setup(&hc->tx_no_feedback_timer,
+		    ccid3_hc_tx_no_feedback_timer, 0);
 	return 0;
 }
 

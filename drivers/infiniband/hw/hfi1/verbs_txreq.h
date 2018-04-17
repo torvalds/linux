@@ -92,6 +92,8 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 	tx->psc = priv->s_sendcontext;
 	/* so that we can test if the sdma decriptors are there */
 	tx->txreq.num_desc = 0;
+	/* Set the header type */
+	tx->phdr.hdr.hdr_type = priv->hdr_type;
 	return tx;
 }
 

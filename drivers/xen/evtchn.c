@@ -621,9 +621,9 @@ static long evtchn_ioctl(struct file *file,
 	return rc;
 }
 
-static unsigned int evtchn_poll(struct file *file, poll_table *wait)
+static __poll_t evtchn_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = POLLOUT | POLLWRNORM;
 	struct per_user_data *u = file->private_data;
 
 	poll_wait(file, &u->evtchn_wait, wait);

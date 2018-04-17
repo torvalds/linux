@@ -127,6 +127,12 @@ Required properties for the LED child node:
 Optional properties for the LED child node:
 - label : see Documentation/devicetree/bindings/leds/common.txt
 
+Optional nodes:
+- max77693-muic :
+	Node used only by extcon consumers.
+	Required properties:
+		- compatible : "maxim,max77693-muic"
+
 Example:
 #include <dt-bindings/leds/common.h>
 

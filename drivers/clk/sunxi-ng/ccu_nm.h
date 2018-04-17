@@ -20,6 +20,7 @@
 #include "ccu_div.h"
 #include "ccu_frac.h"
 #include "ccu_mult.h"
+#include "ccu_sdm.h"
 
 /*
  * struct ccu_nm - Definition of an N-M clock
@@ -33,9 +34,33 @@ struct ccu_nm {
 	struct ccu_mult_internal	n;
 	struct ccu_div_internal		m;
 	struct ccu_frac_internal	frac;
+	struct ccu_sdm_internal		sdm;
 
 	struct ccu_common	common;
 };
+
+#define SUNXI_CCU_NM_WITH_SDM_GATE_LOCK(_struct, _name, _parent, _reg,	\
+					_nshift, _nwidth,		\
+					_mshift, _mwidth,		\
+					_sdm_table, _sdm_en,		\
+					_sdm_reg, _sdm_reg_en,		\
+					_gate, _lock, _flags)		\
+	struct ccu_nm _struct = {					\
+		.enable		= _gate,				\
+		.lock		= _lock,				\
+		.n		= _SUNXI_CCU_MULT(_nshift, _nwidth),	\
+		.m		= _SUNXI_CCU_DIV(_mshift, _mwidth),	\
+		.sdm		= _SUNXI_CCU_SDM(_sdm_table, _sdm_en,	\
+						 _sdm_reg, _sdm_reg_en),\
+		.common		= {					\
+			.reg		= _reg,				\
+			.features	= CCU_FEATURE_SIGMA_DELTA_MOD,	\
+			.hw.init	= CLK_HW_INIT(_name,		\
+						      _parent,		\
+						      &ccu_nm_ops,	\
+						      _flags),		\
+		},							\
+	}
 
 #define SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(_struct, _name, _parent, _reg,	\
 					 _nshift, _nwidth,		\

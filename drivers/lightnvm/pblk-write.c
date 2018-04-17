@@ -21,13 +21,28 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
 {
 	struct bio *original_bio;
+	struct pblk_rb *rwb = &pblk->rwb;
 	unsigned long ret;
 	int i;
 
 	for (i = 0; i < c_ctx->nr_valid; i++) {
 		struct pblk_w_ctx *w_ctx;
+		int pos = c_ctx->sentry + i;
+		int flags;
 
-		w_ctx = pblk_rb_w_ctx(&pblk->rwb, c_ctx->sentry + i);
+		w_ctx = pblk_rb_w_ctx(rwb, pos);
+		flags = READ_ONCE(w_ctx->flags);
+
+		if (flags & PBLK_FLUSH_ENTRY) {
+			flags &= ~PBLK_FLUSH_ENTRY;
+			/* Release flags on context. Protect from writes */
+			smp_store_release(&w_ctx->flags, flags);
+
+#ifdef CONFIG_NVM_DEBUG
+			atomic_dec(&rwb->inflight_flush_point);
+#endif
+		}
+
 		while ((original_bio = bio_list_pop(&w_ctx->bios)))
 			bio_endio(original_bio);
 	}
@@ -439,7 +454,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	struct pblk_line *meta_line;
 	int err;
 
-	ppa_set_empty(&erase_ppa);
+	pblk_ppa_set_empty(&erase_ppa);
 
 	/* Assign lbas to ppas and populate request structure */
 	err = pblk_setup_w_rq(pblk, rqd, &erase_ppa);
@@ -457,7 +472,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 	}
 
-	if (!ppa_empty(erase_ppa)) {
+	if (!pblk_ppa_empty(erase_ppa)) {
 		/* Submit erase for next data line */
 		if (pblk_blk_erase_async(pblk, erase_ppa)) {
 			struct pblk_line *e_line = pblk_line_get_erase(pblk);
@@ -508,7 +523,7 @@ static int pblk_submit_write(struct pblk *pblk)
 	if (!secs_avail)
 		return 1;
 
-	secs_to_flush = pblk_rb_sync_point_count(&pblk->rwb);
+	secs_to_flush = pblk_rb_flush_point_count(&pblk->rwb);
 	if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
 		return 1;
 

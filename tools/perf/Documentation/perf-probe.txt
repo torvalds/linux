@@ -170,7 +170,7 @@ Probe points are defined by following syntax.
      or,
      sdt_PROVIDER:SDTEVENT
 
-'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
+'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function, and for return probes, a "\_\_return" suffix is automatically added to the function name. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
 Note that using existing group name can conflict with other events. Especially, using the group name reserved for kernel modules can hide embedded events in the
 modules.
 'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
@@ -181,6 +181,14 @@ Note that before using the SDT event, the target binary (on which SDT events are
 
 For details of the SDT, see below.
 https://sourceware.org/gdb/onlinedocs/gdb/Static-Probe-Points.html
+
+ESCAPED CHARACTER
+-----------------
+
+In the probe syntax, '=', '@', '+', ':' and ';' are treated as a special character. You can use a backslash ('\') to escape the special characters.
+This is useful if you need to probe on a specific versioned symbols, like @GLIBC_... suffixes, or also you need to specify a source file which includes the special characters.
+Note that usually single backslash is consumed by shell, so you might need to pass double backslash (\\) or wrapping with single quotes (\'AAA\@BBB').
+See EXAMPLES how it is used.
 
 PROBE ARGUMENT
 --------------
@@ -276,6 +284,14 @@ Add a uprobe to a target process running in a different mount namespace
 Add a USDT probe to a target process running in a different mount namespace
 
  ./perf probe --target-ns <target pid> -x /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.121-0.b13.el7_3.x86_64/jre/lib/amd64/server/libjvm.so %sdt_hotspot:thread__sleep__end
+
+Add a probe on specific versioned symbol by backslash escape
+
+ ./perf probe -x /lib64/libc-2.25.so 'malloc_get_state\@GLIBC_2.2.5'
+
+Add a probe in a source file using special characters by backslash escape
+
+ ./perf probe -x /opt/test/a.out 'foo\+bar.c:4'
 
 
 SEE ALSO

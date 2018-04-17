@@ -269,7 +269,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
 {
 	int i = 0;
-	const unsigned short addr_list[] = {
+	static const unsigned short addr_list[] = {
 		 0x47, I2C_CLIENT_END
 	};
 

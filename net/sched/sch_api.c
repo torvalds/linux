@@ -795,6 +795,8 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	tcm->tcm_info = refcount_read(&q->refcnt);
 	if (nla_put_string(skb, TCA_KIND, q->ops->id))
 		goto nla_put_failure;
+	if (nla_put_u8(skb, TCA_HW_OFFLOAD, !!(q->flags & TCQ_F_OFFLOADED)))
+		goto nla_put_failure;
 	if (q->ops->dump && q->ops->dump(q, skb) < 0)
 		goto nla_put_failure;
 	qlen = q->q.qlen;
@@ -1061,17 +1063,6 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 	}
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
-		if (qdisc_is_percpu_stats(sch)) {
-			sch->cpu_bstats =
-				netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
-			if (!sch->cpu_bstats)
-				goto err_out4;
-
-			sch->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
-			if (!sch->cpu_qstats)
-				goto err_out4;
-		}
-
 		if (tca[TCA_STAB]) {
 			stab = qdisc_get_stab(tca[TCA_STAB]);
 			if (IS_ERR(stab)) {
@@ -1113,7 +1104,7 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 		ops->destroy(sch);
 err_out3:
 	dev_put(dev);
-	kfree((char *) sch - sch->padded);
+	qdisc_free(sch);
 err_out2:
 	module_put(ops->owner);
 err_out:
@@ -1121,8 +1112,6 @@ err_out:
 	return NULL;
 
 err_out4:
-	free_percpu(sch->cpu_bstats);
-	free_percpu(sch->cpu_qstats);
 	/*
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
@@ -1502,7 +1491,6 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_idx, s_q_idx;
 	struct net_device *dev;
 	const struct nlmsghdr *nlh = cb->nlh;
-	struct tcmsg *tcm = nlmsg_data(nlh);
 	struct nlattr *tca[TCA_MAX + 1];
 	int err;
 
@@ -1512,7 +1500,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	idx = 0;
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX, NULL, NULL);
 	if (err < 0)
 		return err;
 
@@ -1664,9 +1652,11 @@ static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 	struct tcf_bind_args *a = (void *)arg;
 
 	if (tp->ops->bind_class) {
-		tcf_tree_lock(tp);
+		struct Qdisc *q = tcf_block_q(tp->chain->block);
+
+		sch_tree_lock(q);
 		tp->ops->bind_class(n, a->classid, a->cl);
-		tcf_tree_unlock(tp);
+		sch_tree_unlock(q);
 	}
 	return 0;
 }

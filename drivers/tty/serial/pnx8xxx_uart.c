@@ -103,9 +103,9 @@ static void pnx8xxx_mctrl_check(struct pnx8xxx_port *sport)
  * This is our per-port timeout handler, for checking the
  * modem status signals.
  */
-static void pnx8xxx_timeout(unsigned long data)
+static void pnx8xxx_timeout(struct timer_list *t)
 {
-	struct pnx8xxx_port *sport = (struct pnx8xxx_port *)data;
+	struct pnx8xxx_port *sport = from_timer(sport, t, timer);
 	unsigned long flags;
 
 	if (sport->port.state) {
@@ -662,8 +662,7 @@ static void __init pnx8xxx_init_ports(void)
 	first = 0;
 
 	for (i = 0; i < NR_PORTS; i++) {
-		setup_timer(&pnx8xxx_ports[i].timer, pnx8xxx_timeout,
-			    (unsigned long)&pnx8xxx_ports[i]);
+		timer_setup(&pnx8xxx_ports[i].timer, pnx8xxx_timeout, 0);
 		pnx8xxx_ports[i].port.ops = &pnx8xxx_pops;
 	}
 }

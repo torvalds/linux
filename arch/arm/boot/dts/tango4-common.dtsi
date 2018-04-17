@@ -156,11 +156,10 @@
 			reg = <0x6e000 0x400>;
 			ranges = <0 0x6e000 0x400>;
 			interrupt-parent = <&gic>;
-			interrupt-controller;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			irq0: irq0@000 {
+			irq0: irq0@0 {
 				reg = <0x000 0x100>;
 				interrupt-controller;
 				#interrupt-cells = <2>;

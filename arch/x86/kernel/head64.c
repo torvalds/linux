@@ -157,8 +157,8 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	p = fixup_pointer(&phys_base, physaddr);
 	*p += load_delta - sme_get_me_mask();
 
-	/* Encrypt the kernel (if SME is active) */
-	sme_encrypt_kernel();
+	/* Encrypt the kernel and related (if SME is active) */
+	sme_encrypt_kernel(bp);
 
 	/*
 	 * Return the SME encryption mask (if SME is active) to be used as a

@@ -157,7 +157,7 @@ static int tomoyo_release(struct inode *inode, struct file *file)
  * Returns POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM if ready to read/write,
  * POLLOUT | POLLWRNORM otherwise.
  */
-static unsigned int tomoyo_poll(struct file *file, poll_table *wait)
+static __poll_t tomoyo_poll(struct file *file, poll_table *wait)
 {
 	return tomoyo_poll_control(file, wait);
 }

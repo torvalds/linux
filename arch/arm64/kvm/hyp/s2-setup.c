@@ -32,6 +32,8 @@ u32 __hyp_text __init_stage2_translation(void)
 	 * PS is only 3. Fortunately, bit 19 is RES0 in VTCR_EL2...
 	 */
 	parange = read_sysreg(id_aa64mmfr0_el1) & 7;
+	if (parange > ID_AA64MMFR0_PARANGE_MAX)
+		parange = ID_AA64MMFR0_PARANGE_MAX;
 	val |= parange << 16;
 
 	/* Compute the actual PARange... */

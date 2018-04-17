@@ -71,6 +71,10 @@ nvkm_pci_intr(int irq, void *arg)
 	struct nvkm_pci *pci = arg;
 	struct nvkm_device *device = pci->subdev.device;
 	bool handled = false;
+
+	if (pci->irq < 0)
+		return IRQ_HANDLED;
+
 	nvkm_mc_intr_unarm(device);
 	if (pci->msi)
 		pci->func->msi_rearm(pci);
@@ -83,11 +87,6 @@ static int
 nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
-
-	if (pci->irq >= 0) {
-		free_irq(pci->irq, pci);
-		pci->irq = -1;
-	};
 
 	if (pci->agp.bridge)
 		nvkm_agp_fini(pci);
@@ -108,8 +107,20 @@ static int
 nvkm_pci_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
-	if (pci_is_pcie(pci->pdev))
-		return nvkm_pcie_oneinit(pci);
+	struct pci_dev *pdev = pci->pdev;
+	int ret;
+
+	if (pci_is_pcie(pci->pdev)) {
+		ret = nvkm_pcie_oneinit(pci);
+		if (ret)
+			return ret;
+	}
+
+	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
+	if (ret)
+		return ret;
+
+	pci->irq = pdev->irq;
 	return 0;
 }
 
@@ -117,7 +128,6 @@ static int
 nvkm_pci_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
-	struct pci_dev *pdev = pci->pdev;
 	int ret;
 
 	if (pci->agp.bridge) {
@@ -131,21 +141,34 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 	if (pci->func->init)
 		pci->func->init(pci);
 
-	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
-	if (ret)
-		return ret;
+	/* Ensure MSI interrupts are armed, for the case where there are
+	 * already interrupts pending (for whatever reason) at load time.
+	 */
+	if (pci->msi)
+		pci->func->msi_rearm(pci);
 
-	pci->irq = pdev->irq;
-	return ret;
+	return 0;
 }
 
 static void *
 nvkm_pci_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
+
 	nvkm_agp_dtor(pci);
+
+	if (pci->irq >= 0) {
+		/* freq_irq() will call the handler, we use pci->irq == -1
+		 * to signal that it's been torn down and should be a noop.
+		 */
+		int irq = pci->irq;
+		pci->irq = -1;
+		free_irq(irq, pci);
+	}
+
 	if (pci->msi)
 		pci_disable_msi(pci->pdev);
+
 	return nvkm_pci(subdev);
 }
 

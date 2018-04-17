@@ -29,18 +29,17 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "xmem_local.h"
 
 #ifndef __INLINE_XMEM__
-#define STORAGE_CLASS_XMEM_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_XMEM_H extern
 #define STORAGE_CLASS_XMEM_C 
 #include "xmem_public.h"
 #else  /* __INLINE_XMEM__ */
-#define STORAGE_CLASS_XMEM_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_XMEM_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_XMEM_H static inline
+#define STORAGE_CLASS_XMEM_C static inline
 #include "xmem_private.h"
 #endif /* __INLINE_XMEM__ */
 

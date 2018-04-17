@@ -1087,7 +1087,7 @@ static bool sx150x_reg_volatile(struct device *dev, unsigned int reg)
 	return reg == pctl->data->reg_irq_src || reg == pctl->data->reg_data;
 }
 
-const struct regmap_config sx150x_regmap_config = {
+static const struct regmap_config sx150x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 32,
 

@@ -1,20 +1,20 @@
 * i.MX25 Real Time Clock controller
 
-This binding supports the following chips: i.MX25, i.MX53
-
 Required properties:
 - compatible: should be: "fsl,imx25-rtc"
 - reg: physical base address of the controller and length of memory mapped
   region.
+- clocks: should contain the phandle for the rtc clock
 - interrupts: rtc alarm interrupt
 
 Optional properties:
-- interrupts: dryice security violation interrupt
+- interrupts: dryice security violation interrupt (second entry)
 
 Example:
 
-rtc@80056000 {
-	compatible = "fsl,imx53-rtc", "fsl,imx25-rtc";
-	reg = <0x80056000 2000>;
-	interrupts = <29 56>;
+rtc@53ffc000 {
+	compatible = "fsl,imx25-rtc";
+	reg = <0x53ffc000 0x4000>;
+	clocks = <&clks 81>;
+	interrupts = <25 56>;
 };

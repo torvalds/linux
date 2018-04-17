@@ -670,9 +670,9 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 	return uUsed < 0? uUsed: uWritten;
 }
 
-static unsigned int sq_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t sq_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int retVal;
 	
 	if (write_sq.locked == 0) {

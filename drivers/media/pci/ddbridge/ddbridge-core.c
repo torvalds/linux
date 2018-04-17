@@ -732,13 +732,13 @@ static ssize_t ts_read(struct file *file, __user char *buf,
 	return (count && (left == count)) ? -EAGAIN : (count - left);
 }
 
-static unsigned int ts_poll(struct file *file, poll_table *wait)
+static __poll_t ts_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
 
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &input->dma->wq, wait);
 	poll_wait(file, &output->dma->wq, wait);

@@ -14,6 +14,7 @@
 
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
+#include <linux/regmap.h>
 
 #include <media/cec-pin.h>
 
@@ -58,15 +59,23 @@
 #define SUN4I_HDMI_PAD_CTRL0_TXEN		BIT(23)
 
 #define SUN4I_HDMI_PAD_CTRL1_REG	0x204
+#define SUN4I_HDMI_PAD_CTRL1_UNKNOWN		BIT(24)	/* set on A31 */
 #define SUN4I_HDMI_PAD_CTRL1_AMP_OPT		BIT(23)
 #define SUN4I_HDMI_PAD_CTRL1_AMPCK_OPT		BIT(22)
 #define SUN4I_HDMI_PAD_CTRL1_EMP_OPT		BIT(20)
 #define SUN4I_HDMI_PAD_CTRL1_EMPCK_OPT		BIT(19)
+#define SUN4I_HDMI_PAD_CTRL1_PWSCK		BIT(18)
+#define SUN4I_HDMI_PAD_CTRL1_PWSDT		BIT(17)
 #define SUN4I_HDMI_PAD_CTRL1_REG_DEN		BIT(15)
 #define SUN4I_HDMI_PAD_CTRL1_REG_DENCK		BIT(14)
 #define SUN4I_HDMI_PAD_CTRL1_REG_EMP(n)		(((n) & 7) << 10)
 #define SUN4I_HDMI_PAD_CTRL1_HALVE_CLK		BIT(6)
 #define SUN4I_HDMI_PAD_CTRL1_REG_AMP(n)		(((n) & 7) << 3)
+
+/* These bits seem to invert the TMDS data channels */
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_R		BIT(2)
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_G		BIT(1)
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_B		BIT(0)
 
 #define SUN4I_HDMI_PLL_CTRL_REG		0x208
 #define SUN4I_HDMI_PLL_CTRL_PLL_EN		BIT(31)
@@ -152,9 +161,89 @@
 
 #define SUN4I_HDMI_DDC_FIFO_SIZE	16
 
+/* A31 specific */
+#define SUN6I_HDMI_DDC_CTRL_REG		0x500
+#define SUN6I_HDMI_DDC_CTRL_RESET		BIT(31)
+#define SUN6I_HDMI_DDC_CTRL_START_CMD		BIT(27)
+#define SUN6I_HDMI_DDC_CTRL_SDA_ENABLE		BIT(6)
+#define SUN6I_HDMI_DDC_CTRL_SCL_ENABLE		BIT(4)
+#define SUN6I_HDMI_DDC_CTRL_ENABLE		BIT(0)
+
+#define SUN6I_HDMI_DDC_CMD_REG		0x508
+#define SUN6I_HDMI_DDC_CMD_BYTE_COUNT(count)	((count) << 16)
+/* command types in lower 3 bits are the same as sun4i */
+
+#define SUN6I_HDMI_DDC_ADDR_REG		0x50c
+#define SUN6I_HDMI_DDC_ADDR_SEGMENT(seg)	(((seg) & 0xff) << 24)
+#define SUN6I_HDMI_DDC_ADDR_EDDC(addr)		(((addr) & 0xff) << 16)
+#define SUN6I_HDMI_DDC_ADDR_OFFSET(off)		(((off) & 0xff) << 8)
+#define SUN6I_HDMI_DDC_ADDR_SLAVE(addr)		(((addr) & 0xff) << 1)
+
+#define SUN6I_HDMI_DDC_INT_STATUS_REG	0x514
+#define SUN6I_HDMI_DDC_INT_STATUS_TIMEOUT	BIT(8)
+/* lower 8 bits are the same as sun4i */
+
+#define SUN6I_HDMI_DDC_FIFO_CTRL_REG	0x518
+#define SUN6I_HDMI_DDC_FIFO_CTRL_CLEAR		BIT(15)
+/* lower 9 bits are the same as sun4i */
+
+#define SUN6I_HDMI_DDC_CLK_REG		0x520
+/* DDC CLK bit fields are the same, but the formula is not */
+
+#define SUN6I_HDMI_DDC_FIFO_DATA_REG	0x580
+
 enum sun4i_hdmi_pkt_type {
 	SUN4I_HDMI_PKT_AVI = 2,
 	SUN4I_HDMI_PKT_END = 15,
+};
+
+struct sun4i_hdmi_variant {
+	bool has_ddc_parent_clk;
+	bool has_reset_control;
+
+	u32 pad_ctrl0_init_val;
+	u32 pad_ctrl1_init_val;
+	u32 pll_ctrl_init_val;
+
+	struct reg_field ddc_clk_reg;
+	u8 ddc_clk_pre_divider;
+	u8 ddc_clk_m_offset;
+
+	u8 tmds_clk_div_offset;
+
+	/* Register fields for I2C adapter */
+	struct reg_field	field_ddc_en;
+	struct reg_field	field_ddc_start;
+	struct reg_field	field_ddc_reset;
+	struct reg_field	field_ddc_addr_reg;
+	struct reg_field	field_ddc_slave_addr;
+	struct reg_field	field_ddc_int_mask;
+	struct reg_field	field_ddc_int_status;
+	struct reg_field	field_ddc_fifo_clear;
+	struct reg_field	field_ddc_fifo_rx_thres;
+	struct reg_field	field_ddc_fifo_tx_thres;
+	struct reg_field	field_ddc_byte_count;
+	struct reg_field	field_ddc_cmd;
+	struct reg_field	field_ddc_sda_en;
+	struct reg_field	field_ddc_sck_en;
+
+	/* DDC FIFO register offset */
+	u32			ddc_fifo_reg;
+
+	/*
+	 * DDC FIFO threshold boundary conditions
+	 *
+	 * This is used to cope with the threshold boundary condition
+	 * being slightly different on sun5i and sun6i.
+	 *
+	 * On sun5i the threshold is exclusive, i.e. does not include,
+	 * the value of the threshold. ( > for RX; < for TX )
+	 * On sun6i the threshold is inclusive, i.e. includes, the
+	 * value of the threshold. ( >= for RX; <= for TX )
+	 */
+	bool			ddc_fifo_thres_incl;
+
+	bool			ddc_fifo_has_dir;
 };
 
 struct sun4i_hdmi {
@@ -163,10 +252,15 @@ struct sun4i_hdmi {
 	struct device		*dev;
 
 	void __iomem		*base;
+	struct regmap		*regmap;
+
+	/* Reset control */
+	struct reset_control	*reset;
 
 	/* Parent clocks */
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
+	struct clk		*ddc_parent_clk;
 	struct clk		*pll0_clk;
 	struct clk		*pll1_clk;
 
@@ -176,10 +270,28 @@ struct sun4i_hdmi {
 
 	struct i2c_adapter	*i2c;
 
+	/* Regmap fields for I2C adapter */
+	struct regmap_field	*field_ddc_en;
+	struct regmap_field	*field_ddc_start;
+	struct regmap_field	*field_ddc_reset;
+	struct regmap_field	*field_ddc_addr_reg;
+	struct regmap_field	*field_ddc_slave_addr;
+	struct regmap_field	*field_ddc_int_mask;
+	struct regmap_field	*field_ddc_int_status;
+	struct regmap_field	*field_ddc_fifo_clear;
+	struct regmap_field	*field_ddc_fifo_rx_thres;
+	struct regmap_field	*field_ddc_fifo_tx_thres;
+	struct regmap_field	*field_ddc_byte_count;
+	struct regmap_field	*field_ddc_cmd;
+	struct regmap_field	*field_ddc_sda_en;
+	struct regmap_field	*field_ddc_sck_en;
+
 	struct sun4i_drv	*drv;
 
 	bool			hdmi_monitor;
 	struct cec_adapter	*cec_adap;
+
+	const struct sun4i_hdmi_variant	*variant;
 };
 
 int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *clk);

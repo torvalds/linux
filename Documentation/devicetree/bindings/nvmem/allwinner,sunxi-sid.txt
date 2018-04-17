@@ -5,6 +5,7 @@ Required properties:
   "allwinner,sun4i-a10-sid"
   "allwinner,sun7i-a20-sid"
   "allwinner,sun8i-h3-sid"
+  "allwinner,sun50i-a64-sid"
 
 - reg: Should contain registers location and length
 

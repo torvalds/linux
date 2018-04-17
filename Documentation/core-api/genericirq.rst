@@ -225,9 +225,9 @@ interrupts.
 
 The following control flow is implemented (simplified excerpt)::
 
-    :c:func:`desc->irq_data.chip->irq_mask_ack`;
+    desc->irq_data.chip->irq_mask_ack();
     handle_irq_event(desc->action);
-    :c:func:`desc->irq_data.chip->irq_unmask`;
+    desc->irq_data.chip->irq_unmask();
 
 
 Default Fast EOI IRQ flow handler
@@ -239,7 +239,7 @@ which only need an EOI at the end of the handler.
 The following control flow is implemented (simplified excerpt)::
 
     handle_irq_event(desc->action);
-    :c:func:`desc->irq_data.chip->irq_eoi`;
+    desc->irq_data.chip->irq_eoi();
 
 
 Default Edge IRQ flow handler
@@ -251,15 +251,15 @@ interrupts.
 The following control flow is implemented (simplified excerpt)::
 
     if (desc->status & running) {
-        :c:func:`desc->irq_data.chip->irq_mask_ack`;
+        desc->irq_data.chip->irq_mask_ack();
         desc->status |= pending | masked;
         return;
     }
-    :c:func:`desc->irq_data.chip->irq_ack`;
+    desc->irq_data.chip->irq_ack();
     desc->status |= running;
     do {
         if (desc->status & masked)
-            :c:func:`desc->irq_data.chip->irq_unmask`;
+            desc->irq_data.chip->irq_unmask();
         desc->status &= ~pending;
         handle_irq_event(desc->action);
     } while (status & pending);
@@ -293,10 +293,10 @@ simplified version without locking.
 The following control flow is implemented (simplified excerpt)::
 
     if (desc->irq_data.chip->irq_ack)
-        :c:func:`desc->irq_data.chip->irq_ack`;
+        desc->irq_data.chip->irq_ack();
     handle_irq_event(desc->action);
     if (desc->irq_data.chip->irq_eoi)
-            :c:func:`desc->irq_data.chip->irq_eoi`;
+        desc->irq_data.chip->irq_eoi();
 
 
 EOI Edge IRQ flow handler

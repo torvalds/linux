@@ -7,25 +7,6 @@
 #  - Scans dmesg output.
 #  - Walks directory tree and parses each file (for each directory in @DIRS).
 #
-# You can configure the behaviour of the script;
-#
-#  - By adding paths, for directories you do not want to walk;
-#     absolute paths: @skip_walk_dirs_abs
-#     directory names: @skip_walk_dirs_any
-#
-#  - By adding paths, for files you do not want to parse;
-#     absolute paths: @skip_parse_files_abs
-#     file names: @skip_parse_files_any
-#
-# The use of @skip_xxx_xxx_any causes files to be skipped where ever they occur.
-# For example adding 'fd' to @skip_walk_dirs_any causes the fd/ directory to be
-# skipped for all PID sub-directories of /proc
-#
-# The same thing can be achieved by passing command line options to --dont-walk
-# and --dont-parse. If absolute paths are supplied to these options they are
-# appended to the @skip_xxx_xxx_abs arrays. If file names are supplied to these
-# options, they are appended to the @skip_xxx_xxx_any arrays.
-#
 # Use --debug to output path before parsing, this is useful to find files that
 # cause the script to choke.
 #
@@ -40,6 +21,7 @@ use File::Spec;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
+use Config;
 
 my $P = $0;
 my $V = '0.01';
@@ -47,21 +29,36 @@ my $V = '0.01';
 # Directories to scan.
 my @DIRS = ('/proc', '/sys');
 
+# Timer for parsing each file, in seconds.
+my $TIMEOUT = 10;
+
+# Script can only grep for kernel addresses on the following architectures. If
+# your architecture is not listed here and has a grep'able kernel address please
+# consider submitting a patch.
+my @SUPPORTED_ARCHITECTURES = ('x86_64', 'ppc64');
+
 # Command line options.
 my $help = 0;
 my $debug = 0;
-my @dont_walk = ();
-my @dont_parse = ();
+my $raw = 0;
+my $output_raw = "";	# Write raw results to file.
+my $input_raw = "";	# Read raw results from file instead of scanning.
+
+my $suppress_dmesg = 0;		# Don't show dmesg in output.
+my $squash_by_path = 0;		# Summary report grouped by absolute path.
+my $squash_by_filename = 0;	# Summary report grouped by filename.
 
 # Do not parse these files (absolute path).
 my @skip_parse_files_abs = ('/proc/kmsg',
 			    '/proc/kcore',
 			    '/proc/fs/ext4/sdb1/mb_groups',
 			    '/proc/1/fd/3',
+			    '/sys/firmware/devicetree',
+			    '/proc/device-tree',
 			    '/sys/kernel/debug/tracing/trace_pipe',
 			    '/sys/kernel/security/apparmor/revision');
 
-# Do not parse thes files under any subdirectory.
+# Do not parse these files under any subdirectory.
 my @skip_parse_files_any = ('0',
 			    '1',
 			    '2',
@@ -82,6 +79,7 @@ my @skip_walk_dirs_any = ('self',
 			  'thread-self',
 			  'cwd',
 			  'fd',
+			  'usbmon',
 			  'stderr',
 			  'stdin',
 			  'stdout');
@@ -91,24 +89,31 @@ sub help
 	my ($exitcode) = @_;
 
 	print << "EOM";
+
 Usage: $P [OPTIONS]
 Version: $V
 
 Options:
 
-	--dont-walk=<dir>      Don't walk tree starting at <dir>.
-	--dont-parse=<file>    Don't parse <file>.
-	-d, --debug                Display debugging output.
-	-h, --help, --version      Display this help and exit.
+	-o, --output-raw=<file>  Save results for future processing.
+	-i, --input-raw=<file>   Read results from file instead of scanning.
+	    --raw                Show raw results (default).
+	    --suppress-dmesg     Do not show dmesg results.
+	    --squash-by-path     Show one result per unique path.
+	    --squash-by-filename Show one result per unique filename.
+	-d, --debug              Display debugging output.
+	-h, --help, --version    Display this help and exit.
 
-If an absolute path is passed to --dont_XXX then this path is skipped. If a
-single filename is passed then this file/directory will be skipped when
-appearing under any subdirectory.
+Examples:
 
-Example:
+	# Scan kernel and dump raw results.
+	$0
 
-	# Just scan dmesg output.
-	scripts/leaking_addresses.pl --dont_walk_abs /proc --dont_walk_abs /sys
+	# Scan kernel and save results to file.
+	$0 --output-raw scan.out
+
+	# View summary report.
+	$0 --input-raw scan.out --squash-by-filename
 
 Scans the running (64 bit) kernel for potential leaking addresses.
 
@@ -117,99 +122,136 @@ EOM
 }
 
 GetOptions(
-	'dont-walk=s'		=> \@dont_walk,
-	'dont-parse=s'		=> \@dont_parse,
 	'd|debug'		=> \$debug,
 	'h|help'		=> \$help,
-	'version'		=> \$help
+	'version'		=> \$help,
+	'o|output-raw=s'        => \$output_raw,
+	'i|input-raw=s'         => \$input_raw,
+	'suppress-dmesg'        => \$suppress_dmesg,
+	'squash-by-path'        => \$squash_by_path,
+	'squash-by-filename'    => \$squash_by_filename,
+	'raw'                   => \$raw,
 ) or help(1);
 
 help(0) if ($help);
 
-push_to_global();
+if ($input_raw) {
+	format_output($input_raw);
+	exit(0);
+}
+
+if (!$input_raw and ($squash_by_path or $squash_by_filename)) {
+	printf "\nSummary reporting only available with --input-raw=<file>\n";
+	printf "(First run scan with --output-raw=<file>.)\n";
+	exit(128);
+}
+
+if (!is_supported_architecture()) {
+	printf "\nScript does not support your architecture, sorry.\n";
+	printf "\nCurrently we support: \n\n";
+	foreach(@SUPPORTED_ARCHITECTURES) {
+		printf "\t%s\n", $_;
+	}
+
+	my $archname = $Config{archname};
+	printf "\n\$ perl -MConfig -e \'print \"\$Config{archname}\\n\"\'\n";
+	printf "%s\n", $archname;
+
+	exit(129);
+}
+
+if ($output_raw) {
+	open my $fh, '>', $output_raw or die "$0: $output_raw: $!\n";
+	select $fh;
+}
 
 parse_dmesg();
 walk(@DIRS);
 
 exit 0;
 
-sub debug_arrays
-{
-	print 'dirs_any: ' . join(", ", @skip_walk_dirs_any) . "\n";
-	print 'dirs_abs: ' . join(", ", @skip_walk_dirs_abs) . "\n";
-	print 'parse_any: ' . join(", ", @skip_parse_files_any) . "\n";
-	print 'parse_abs: ' . join(", ", @skip_parse_files_abs) . "\n";
-}
-
 sub dprint
 {
 	printf(STDERR @_) if $debug;
 }
 
-sub push_in_abs_any
+sub is_supported_architecture
 {
-	my ($in, $abs, $any) = @_;
-
-	foreach my $path (@$in) {
-		if (File::Spec->file_name_is_absolute($path)) {
-			push @$abs, $path;
-		} elsif (index($path,'/') == -1) {
-			push @$any, $path;
-		} else {
-			print 'path error: ' . $path;
-		}
-	}
+	return (is_x86_64() or is_ppc64());
 }
 
-# Push command line options to global arrays.
-sub push_to_global
+sub is_x86_64
 {
-	push_in_abs_any(\@dont_walk, \@skip_walk_dirs_abs, \@skip_walk_dirs_any);
-	push_in_abs_any(\@dont_parse, \@skip_parse_files_abs, \@skip_parse_files_any);
+	my $archname = $Config{archname};
+
+	if ($archname =~ m/x86_64/) {
+		return 1;
+	}
+	return 0;
+}
+
+sub is_ppc64
+{
+	my $archname = $Config{archname};
+
+	if ($archname =~ m/powerpc/ and $archname =~ m/64/) {
+		return 1;
+	}
+	return 0;
 }
 
 sub is_false_positive
 {
-        my ($match) = @_;
+	my ($match) = @_;
 
-        if ($match =~ '\b(0x)?(f|F){16}\b' or
-            $match =~ '\b(0x)?0{16}\b') {
-                return 1;
-        }
+	if ($match =~ '\b(0x)?(f|F){16}\b' or
+	    $match =~ '\b(0x)?0{16}\b') {
+		return 1;
+	}
 
-        # vsyscall memory region, we should probably check against a range here.
-        if ($match =~ '\bf{10}600000\b' or
-            $match =~ '\bf{10}601000\b') {
-                return 1;
-        }
+	if (is_x86_64) {
+		# vsyscall memory region, we should probably check against a range here.
+		if ($match =~ '\bf{10}600000\b' or
+		    $match =~ '\bf{10}601000\b') {
+			return 1;
+		}
+	}
 
-        return 0;
+	return 0;
 }
 
 # True if argument potentially contains a kernel address.
 sub may_leak_address
 {
-        my ($line) = @_;
-        my $address = '\b(0x)?ffff[[:xdigit:]]{12}\b';
+	my ($line) = @_;
+	my $address_re;
 
-        # Signal masks.
-        if ($line =~ '^SigBlk:' or
-            $line =~ '^SigCgt:') {
-                return 0;
-        }
-
-        if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
-            $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+	# Signal masks.
+	if ($line =~ '^SigBlk:' or
+	    $line =~ '^SigIgn:' or
+	    $line =~ '^SigCgt:') {
 		return 0;
-        }
+	}
 
-        while (/($address)/g) {
-                if (!is_false_positive($1)) {
-                        return 1;
-                }
-        }
+	if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
+	    $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+		return 0;
+	}
 
-        return 0;
+	# One of these is guaranteed to be true.
+	if (is_x86_64()) {
+		$address_re = '\b(0x)?ffff[[:xdigit:]]{12}\b';
+	} elsif (is_ppc64()) {
+		$address_re = '\b(0x)?[89abcdef]00[[:xdigit:]]{13}\b';
+	}
+
+	while (/($address_re)/g) {
+		if (!is_false_positive($1)) {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 sub parse_dmesg
@@ -244,6 +286,23 @@ sub skip_parse
 {
 	my ($path) = @_;
 	return skip($path, \@skip_parse_files_abs, \@skip_parse_files_any);
+}
+
+sub timed_parse_file
+{
+	my ($file) = @_;
+
+	eval {
+		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required.
+		alarm $TIMEOUT;
+		parse_file($file);
+		alarm 0;
+	};
+
+	if ($@) {
+		die unless $@ eq "alarm\n";	# Propagate unexpected errors.
+		printf STDERR "timed out parsing: %s\n", $file;
+	}
 }
 
 sub parse_file
@@ -281,7 +340,6 @@ sub skip_walk
 sub walk
 {
 	my @dirs = @_;
-	my %seen;
 
 	while (my $pwd = shift @dirs) {
 		next if (skip_walk($pwd));
@@ -298,8 +356,146 @@ sub walk
 			if (-d $path) {
 				push @dirs, $path;
 			} else {
-				parse_file($path);
+				timed_parse_file($path);
 			}
 		}
 	}
+}
+
+sub format_output
+{
+	my ($file) = @_;
+
+	# Default is to show raw results.
+	if ($raw or (!$squash_by_path and !$squash_by_filename)) {
+		dump_raw_output($file);
+		return;
+	}
+
+	my ($total, $dmesg, $paths, $files) = parse_raw_file($file);
+
+	printf "\nTotal number of results from scan (incl dmesg): %d\n", $total;
+
+	if (!$suppress_dmesg) {
+		print_dmesg($dmesg);
+	}
+
+	if ($squash_by_filename) {
+		squash_by($files, 'filename');
+	}
+
+	if ($squash_by_path) {
+		squash_by($paths, 'path');
+	}
+}
+
+sub dump_raw_output
+{
+	my ($file) = @_;
+
+	open (my $fh, '<', $file) or die "$0: $file: $!\n";
+	while (<$fh>) {
+		if ($suppress_dmesg) {
+			if ("dmesg:" eq substr($_, 0, 6)) {
+				next;
+			}
+		}
+		print $_;
+	}
+	close $fh;
+}
+
+sub parse_raw_file
+{
+	my ($file) = @_;
+
+	my $total = 0;          # Total number of lines parsed.
+	my @dmesg;              # dmesg output.
+	my %files;              # Unique filenames containing leaks.
+	my %paths;              # Unique paths containing leaks.
+
+	open (my $fh, '<', $file) or die "$0: $file: $!\n";
+	while (my $line = <$fh>) {
+		$total++;
+
+		if ("dmesg:" eq substr($line, 0, 6)) {
+			push @dmesg, $line;
+			next;
+		}
+
+		cache_path(\%paths, $line);
+		cache_filename(\%files, $line);
+	}
+
+	return $total, \@dmesg, \%paths, \%files;
+}
+
+sub print_dmesg
+{
+	my ($dmesg) = @_;
+
+	print "\ndmesg output:\n";
+
+	if (@$dmesg == 0) {
+		print "<no results>\n";
+		return;
+	}
+
+	foreach(@$dmesg) {
+		my $index = index($_, ': ');
+		$index += 2;    # skid ': '
+		print substr($_, $index);
+	}
+}
+
+sub squash_by
+{
+	my ($ref, $desc) = @_;
+
+	print "\nResults squashed by $desc (excl dmesg). ";
+	print "Displaying [<number of results> <$desc>], <example result>\n";
+
+	if (keys %$ref == 0) {
+		print "<no results>\n";
+		return;
+	}
+
+	foreach(keys %$ref) {
+		my $lines = $ref->{$_};
+		my $length = @$lines;
+		printf "[%d %s] %s", $length, $_, @$lines[0];
+	}
+}
+
+sub cache_path
+{
+	my ($paths, $line) = @_;
+
+	my $index = index($line, ': ');
+	my $path = substr($line, 0, $index);
+
+	$index += 2;            # skip ': '
+	add_to_cache($paths, $path, substr($line, $index));
+}
+
+sub cache_filename
+{
+	my ($files, $line) = @_;
+
+	my $index = index($line, ': ');
+	my $path = substr($line, 0, $index);
+	my $filename = basename($path);
+
+	$index += 2;            # skip ': '
+	add_to_cache($files, $filename, substr($line, $index));
+}
+
+sub add_to_cache
+{
+	my ($cache, $key, $value) = @_;
+
+	if (!$cache->{$key}) {
+		$cache->{$key} = ();
+	}
+	push @{$cache->{$key}}, $value;
 }

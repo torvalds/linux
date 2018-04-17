@@ -27,7 +27,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/dma_fence.h>
 
-EXPORT_TRACEPOINT_SYMBOL(dma_fence_annotate_wait_on);
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_emit);
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_enable_signal);
 

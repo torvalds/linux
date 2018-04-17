@@ -320,14 +320,15 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
+	/*
+	 * Set to zero by things that touch the backing volume-- except
+	 * writeback.  Incremented by writeback.  Used to determine when to
+	 * accelerate idle writeback.
+	 */
+	atomic_t		backing_idle;
+
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
-
-	/*
-	 * Internal to the writeback code, so read_dirty() can keep track of
-	 * where it's at.
-	 */
-	sector_t		last_read;
 
 	/* Limit number of writeback bios in flight */
 	struct semaphore	in_flight;
@@ -335,6 +336,14 @@ struct cached_dev {
 	struct workqueue_struct	*writeback_write_wq;
 
 	struct keybuf		writeback_keys;
+
+	/*
+	 * Order the write-half of writeback operations strongly in dispatch
+	 * order.  (Maintain LBA order; don't allow reads completing out of
+	 * order to re-order the writes...)
+	 */
+	struct closure_waitlist writeback_ordering_wait;
+	atomic_t		writeback_sequence_next;
 
 	/* For tracking sequential IO */
 #define RECENT_IO_BITS	7
@@ -488,6 +497,7 @@ struct cache_set {
 	int			caches_loaded;
 
 	struct bcache_device	**devices;
+	unsigned		devices_max_used;
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
 	struct closure		caching;
@@ -852,7 +862,7 @@ static inline void wake_up_allocators(struct cache_set *c)
 
 /* Forward declarations */
 
-void bch_count_io_errors(struct cache *, blk_status_t, const char *);
+void bch_count_io_errors(struct cache *, blk_status_t, int, const char *);
 void bch_bbio_count_io_errors(struct cache_set *, struct bio *,
 			      blk_status_t, const char *);
 void bch_bbio_endio(struct cache_set *, struct bio *, blk_status_t,

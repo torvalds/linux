@@ -125,16 +125,16 @@ static struct mlx5_rl_entry *find_rl_entry(struct mlx5_rl_table *table,
 	return ret_entry;
 }
 
-static int mlx5_set_rate_limit_cmd(struct mlx5_core_dev *dev,
+static int mlx5_set_pp_rate_limit_cmd(struct mlx5_core_dev *dev,
 				   u32 rate, u16 index)
 {
-	u32 in[MLX5_ST_SZ_DW(set_rate_limit_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(set_rate_limit_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_pp_rate_limit_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(set_pp_rate_limit_out)] = {0};
 
-	MLX5_SET(set_rate_limit_in, in, opcode,
-		 MLX5_CMD_OP_SET_RATE_LIMIT);
-	MLX5_SET(set_rate_limit_in, in, rate_limit_index, index);
-	MLX5_SET(set_rate_limit_in, in, rate_limit, rate);
+	MLX5_SET(set_pp_rate_limit_in, in, opcode,
+		 MLX5_CMD_OP_SET_PP_RATE_LIMIT);
+	MLX5_SET(set_pp_rate_limit_in, in, rate_limit_index, index);
+	MLX5_SET(set_pp_rate_limit_in, in, rate_limit, rate);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
@@ -173,7 +173,7 @@ int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u32 rate, u16 *index)
 		entry->refcount++;
 	} else {
 		/* new rate limit */
-		err = mlx5_set_rate_limit_cmd(dev, rate, entry->index);
+		err = mlx5_set_pp_rate_limit_cmd(dev, rate, entry->index);
 		if (err) {
 			mlx5_core_err(dev, "Failed configuring rate: %u (%d)\n",
 				      rate, err);
@@ -209,7 +209,7 @@ void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, u32 rate)
 	entry->refcount--;
 	if (!entry->refcount) {
 		/* need to remove rate */
-		mlx5_set_rate_limit_cmd(dev, 0, entry->index);
+		mlx5_set_pp_rate_limit_cmd(dev, 0, entry->index);
 		entry->rate = 0;
 	}
 
@@ -262,8 +262,8 @@ void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev)
 	/* Clear all configured rates */
 	for (i = 0; i < table->max_size; i++)
 		if (table->rl_entry[i].rate)
-			mlx5_set_rate_limit_cmd(dev, 0,
-						table->rl_entry[i].index);
+			mlx5_set_pp_rate_limit_cmd(dev, 0,
+						   table->rl_entry[i].index);
 
 	kfree(dev->priv.rl_table.rl_entry);
 }

@@ -48,12 +48,6 @@ early_param("no-kvmclock", parse_no_kvmclock);
 static struct pvclock_vsyscall_time_info *hv_clock;
 static struct pvclock_wall_clock *wall_clock;
 
-struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
-{
-	return hv_clock;
-}
-EXPORT_SYMBOL_GPL(pvclock_pvti_cpu0_va);
-
 /*
  * The wallclock is the time of day when we booted. Since then, some time may
  * have elapsed since the hypervisor wrote the data. So we try to account for
@@ -377,6 +371,7 @@ int __init kvm_setup_vsyscall_timeinfo(void)
 		return 1;
 	}
 
+	pvclock_set_pvti_cpu0_va(hv_clock);
 	put_cpu();
 
 	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;

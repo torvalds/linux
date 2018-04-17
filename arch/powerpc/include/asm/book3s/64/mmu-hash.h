@@ -606,7 +606,7 @@ extern void slb_set_size(u16 size);
 
 /* 4 bits per slice and we have one slice per 1TB */
 #define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
-#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.addr_limit >> 41)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.slb_addr_limit >> 41)
 
 #ifndef __ASSEMBLY__
 

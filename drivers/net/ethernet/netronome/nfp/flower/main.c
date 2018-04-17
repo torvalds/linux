@@ -125,6 +125,21 @@ nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 	return nfp_flower_cmsg_portmod(repr, false);
 }
 
+static int
+nfp_flower_repr_netdev_init(struct nfp_app *app, struct net_device *netdev)
+{
+	return tc_setup_cb_egdev_register(netdev,
+					  nfp_flower_setup_tc_egress_cb,
+					  netdev_priv(netdev));
+}
+
+static void
+nfp_flower_repr_netdev_clean(struct nfp_app *app, struct net_device *netdev)
+{
+	tc_setup_cb_egdev_unregister(netdev, nfp_flower_setup_tc_egress_cb,
+				     netdev_priv(netdev));
+}
+
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -142,8 +157,8 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 {
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_reprs *reprs, *old_reprs;
 	enum nfp_port_type port_type;
+	struct nfp_reprs *reprs;
 	const u8 queue = 0;
 	int i, err;
 
@@ -194,11 +209,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			 reprs->reprs[i]->name);
 	}
 
-	old_reprs = nfp_app_reprs_set(app, repr_type, reprs);
-	if (IS_ERR(old_reprs)) {
-		err = PTR_ERR(old_reprs);
-		goto err_reprs_clean;
-	}
+	nfp_app_reprs_set(app, repr_type, reprs);
 
 	return 0;
 err_reprs_clean:
@@ -222,8 +233,8 @@ static int
 nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 {
 	struct nfp_eth_table *eth_tbl = app->pf->eth_tbl;
-	struct nfp_reprs *reprs, *old_reprs;
 	struct sk_buff *ctrl_skb;
+	struct nfp_reprs *reprs;
 	unsigned int i;
 	int err;
 
@@ -280,11 +291,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			 phys_port, reprs->reprs[phys_port]->name);
 	}
 
-	old_reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
-	if (IS_ERR(old_reprs)) {
-		err = PTR_ERR(old_reprs);
-		goto err_reprs_clean;
-	}
+	nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
 
 	/* The MAC_REPR control message should be sent after the MAC
 	 * representors are registered using nfp_app_reprs_set().  This is
@@ -436,6 +443,16 @@ static void nfp_flower_clean(struct nfp_app *app)
 	app->priv = NULL;
 }
 
+static int nfp_flower_start(struct nfp_app *app)
+{
+	return nfp_tunnel_config_start(app);
+}
+
+static void nfp_flower_stop(struct nfp_app *app)
+{
+	nfp_tunnel_config_stop(app);
+}
+
 const struct nfp_app_type app_flower = {
 	.id		= NFP_APP_FLOWER_NIC,
 	.name		= "flower",
@@ -450,8 +467,14 @@ const struct nfp_app_type app_flower = {
 	.vnic_init	= nfp_flower_vnic_init,
 	.vnic_clean	= nfp_flower_vnic_clean,
 
+	.repr_init	= nfp_flower_repr_netdev_init,
+	.repr_clean	= nfp_flower_repr_netdev_clean,
+
 	.repr_open	= nfp_flower_repr_netdev_open,
 	.repr_stop	= nfp_flower_repr_netdev_stop,
+
+	.start		= nfp_flower_start,
+	.stop		= nfp_flower_stop,
 
 	.ctrl_msg_rx	= nfp_flower_cmsg_rx,
 
