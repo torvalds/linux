@@ -2549,12 +2549,10 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 
 		/* 8168E family. */
 		{ 0x7c800000, 0x2c800000,	RTL_GIGA_MAC_VER_34 },
-		{ 0x7cf00000, 0x2c200000,	RTL_GIGA_MAC_VER_33 },
 		{ 0x7cf00000, 0x2c100000,	RTL_GIGA_MAC_VER_32 },
 		{ 0x7c800000, 0x2c000000,	RTL_GIGA_MAC_VER_33 },
 
 		/* 8168D family. */
-		{ 0x7cf00000, 0x28300000,	RTL_GIGA_MAC_VER_26 },
 		{ 0x7cf00000, 0x28100000,	RTL_GIGA_MAC_VER_25 },
 		{ 0x7c800000, 0x28000000,	RTL_GIGA_MAC_VER_26 },
 
@@ -2564,32 +2562,24 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 		{ 0x7cf00000, 0x28b00000,	RTL_GIGA_MAC_VER_31 },
 
 		/* 8168C family. */
-		{ 0x7cf00000, 0x3cb00000,	RTL_GIGA_MAC_VER_24 },
 		{ 0x7cf00000, 0x3c900000,	RTL_GIGA_MAC_VER_23 },
 		{ 0x7cf00000, 0x3c800000,	RTL_GIGA_MAC_VER_18 },
 		{ 0x7c800000, 0x3c800000,	RTL_GIGA_MAC_VER_24 },
 		{ 0x7cf00000, 0x3c000000,	RTL_GIGA_MAC_VER_19 },
 		{ 0x7cf00000, 0x3c200000,	RTL_GIGA_MAC_VER_20 },
 		{ 0x7cf00000, 0x3c300000,	RTL_GIGA_MAC_VER_21 },
-		{ 0x7cf00000, 0x3c400000,	RTL_GIGA_MAC_VER_22 },
 		{ 0x7c800000, 0x3c000000,	RTL_GIGA_MAC_VER_22 },
 
 		/* 8168B family. */
 		{ 0x7cf00000, 0x38000000,	RTL_GIGA_MAC_VER_12 },
-		{ 0x7cf00000, 0x38500000,	RTL_GIGA_MAC_VER_17 },
 		{ 0x7c800000, 0x38000000,	RTL_GIGA_MAC_VER_17 },
 		{ 0x7c800000, 0x30000000,	RTL_GIGA_MAC_VER_11 },
 
 		/* 8101 family. */
-		{ 0x7cf00000, 0x44900000,	RTL_GIGA_MAC_VER_39 },
 		{ 0x7c800000, 0x44800000,	RTL_GIGA_MAC_VER_39 },
 		{ 0x7c800000, 0x44000000,	RTL_GIGA_MAC_VER_37 },
-		{ 0x7cf00000, 0x40b00000,	RTL_GIGA_MAC_VER_30 },
-		{ 0x7cf00000, 0x40a00000,	RTL_GIGA_MAC_VER_30 },
 		{ 0x7cf00000, 0x40900000,	RTL_GIGA_MAC_VER_29 },
 		{ 0x7c800000, 0x40800000,	RTL_GIGA_MAC_VER_30 },
-		{ 0x7cf00000, 0x34a00000,	RTL_GIGA_MAC_VER_09 },
-		{ 0x7cf00000, 0x24a00000,	RTL_GIGA_MAC_VER_09 },
 		{ 0x7cf00000, 0x34900000,	RTL_GIGA_MAC_VER_08 },
 		{ 0x7cf00000, 0x24900000,	RTL_GIGA_MAC_VER_08 },
 		{ 0x7cf00000, 0x34800000,	RTL_GIGA_MAC_VER_07 },
@@ -8346,7 +8336,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_info(tp, probe, dev, "%s, %pM, XID %08x, IRQ %d\n",
 		   rtl_chip_infos[chipset].name, dev->dev_addr,
-		   (u32)(RTL_R32(tp, TxConfig) & 0x9cf0f8ff),
+		   (u32)(RTL_R32(tp, TxConfig) & 0xfcf0f8ff),
 		   pci_irq_vector(pdev, 0));
 	if (rtl_chip_infos[chipset].jumbo_max != JUMBO_1K) {
 		netif_info(tp, probe, dev, "jumbo features [frames: %d bytes, "
