@@ -144,7 +144,8 @@ static const struct IP_BASE UVD_BASE            ={ { { { 0x00007800, 0x00007E00,
                                         { { 0, 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE VCE_BASE            ={ { { { 0x00008800, 0, 0, 0, 0, 0 } },
+/* Adjust VCE_BASE to make vce_4_1 use vce_4_0 offset header files*/
+static const struct IP_BASE VCE_BASE            ={ { { { 0x00007E00/* 0x00008800 */, 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0, 0 } },
