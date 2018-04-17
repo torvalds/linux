@@ -74,6 +74,13 @@ static DEFINE_MUTEX(knav_dev_lock);
  */
 const char *knav_acc_firmwares[] = {"ks2_qmss_pdsp_acc48.bin"};
 
+static bool device_ready;
+bool knav_qmss_device_ready(void)
+{
+	return device_ready;
+}
+EXPORT_SYMBOL_GPL(knav_qmss_device_ready);
+
 /**
  * knav_queue_notify: qmss queue notfier call
  *
@@ -1849,6 +1856,7 @@ static int knav_queue_probe(struct platform_device *pdev)
 
 	debugfs_create_file("qmss", S_IFREG | S_IRUGO, NULL, NULL,
 			    &knav_queue_debug_ops);
+	device_ready = true;
 	return 0;
 
 err:
