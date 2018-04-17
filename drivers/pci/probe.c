@@ -554,6 +554,7 @@ struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 	bridge->native_aer = 1;
 	bridge->native_hotplug = 1;
 	bridge->native_pme = 1;
+	bridge->native_ltr = 1;
 
 	return bridge;
 }
@@ -1954,8 +1955,12 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 static void pci_configure_ltr(struct pci_dev *dev)
 {
 #ifdef CONFIG_PCIEASPM
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 	u32 cap;
 	struct pci_dev *bridge;
+
+	if (!host->native_ltr)
+		return;
 
 	if (!pci_is_pcie(dev))
 		return;

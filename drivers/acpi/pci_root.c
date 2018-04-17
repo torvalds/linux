@@ -153,6 +153,7 @@ static struct pci_osc_bit_struct pci_osc_control_bit[] = {
 	{ OSC_PCI_EXPRESS_PME_CONTROL, "PME" },
 	{ OSC_PCI_EXPRESS_AER_CONTROL, "AER" },
 	{ OSC_PCI_EXPRESS_CAPABILITY_CONTROL, "PCIeCapability" },
+	{ OSC_PCI_EXPRESS_LTR_CONTROL, "LTR" },
 };
 
 static void decode_osc_bits(struct acpi_pci_root *root, char *msg, u32 word,
@@ -474,6 +475,9 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 	control = OSC_PCI_EXPRESS_CAPABILITY_CONTROL
 		| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
 		| OSC_PCI_EXPRESS_PME_CONTROL;
+
+	if (IS_ENABLED(CONFIG_PCIEASPM))
+		control |= OSC_PCI_EXPRESS_LTR_CONTROL;
 
 	if (pci_aer_available()) {
 		if (aer_acpi_firmware_first())
@@ -905,6 +909,8 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 		host_bridge->native_aer = 0;
 	if (!(root->osc_control_set & OSC_PCI_EXPRESS_PME_CONTROL))
 		host_bridge->native_pme = 0;
+	if (!(root->osc_control_set & OSC_PCI_EXPRESS_LTR_CONTROL))
+		host_bridge->native_ltr = 0;
 
 	pci_scan_child_bus(bus);
 	pci_set_host_bridge_release(host_bridge, acpi_pci_root_release_info,
