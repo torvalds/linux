@@ -1216,7 +1216,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 		/* free the skb */
 		if (ring_is_xdp(tx_ring))
-			page_frag_free(tx_buffer->data);
+			xdp_return_frame(tx_buffer->data, &tx_buffer->xdp_mem);
 		else
 			napi_consume_skb(tx_buffer->skb, napi_budget);
 
@@ -5797,7 +5797,7 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 
 		/* Free all the Tx ring sk_buffs */
 		if (ring_is_xdp(tx_ring))
-			page_frag_free(tx_buffer->data);
+			xdp_return_frame(tx_buffer->data, &tx_buffer->xdp_mem);
 		else
 			dev_kfree_skb_any(tx_buffer->skb);
 
@@ -8366,6 +8366,8 @@ static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
 	dma_unmap_len_set(tx_buffer, len, len);
 	dma_unmap_addr_set(tx_buffer, dma, dma);
 	tx_buffer->data = xdp->data;
+	tx_buffer->xdp_mem = xdp->rxq->mem;
+
 	tx_desc->read.buffer_addr = cpu_to_le64(dma);
 
 	/* put descriptor type bits */

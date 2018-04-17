@@ -250,6 +250,7 @@ struct ixgbe_tx_buffer {
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
+	struct xdp_mem_info xdp_mem;
 };
 
 struct ixgbe_rx_buffer {
