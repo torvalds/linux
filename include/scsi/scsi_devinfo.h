@@ -63,8 +63,10 @@
 #define BLIST_MAX_1024		((__force blist_flags_t)(1ULL << 30))
 /* Use UNMAP limit for WRITE SAME */
 #define BLIST_UNMAP_LIMIT_WS	((__force blist_flags_t)(1ULL << 31))
+/* Always retry ABORTED_COMMAND with Internal Target Failure */
+#define BLIST_RETRY_ITF		((__force blist_flags_t)(1ULL << 32))
 
-#define __BLIST_LAST_USED BLIST_UNMAP_LIMIT_WS
+#define __BLIST_LAST_USED BLIST_RETRY_ITF
 
 #define __BLIST_HIGH_UNUSED (~(__BLIST_LAST_USED | \
 			       (__force blist_flags_t) \
