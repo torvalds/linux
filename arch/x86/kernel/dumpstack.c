@@ -268,7 +268,6 @@ unsigned long oops_begin(void)
 	bust_spinlocks(1);
 	return flags;
 }
-EXPORT_SYMBOL_GPL(oops_begin);
 NOKPROBE_SYMBOL(oops_begin);
 
 void __noreturn rewind_stack_do_exit(int signr);
