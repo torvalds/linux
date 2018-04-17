@@ -33,16 +33,43 @@
  * also mandatory during RX-ring setup.
  */
 
+enum xdp_mem_type {
+	MEM_TYPE_PAGE_SHARED = 0, /* Split-page refcnt based model */
+	MEM_TYPE_PAGE_ORDER0,     /* Orig XDP full page model */
+	MEM_TYPE_MAX,
+};
+
+struct xdp_mem_info {
+	u32 type; /* enum xdp_mem_type, but known size type */
+};
+
 struct xdp_rxq_info {
 	struct net_device *dev;
 	u32 queue_index;
 	u32 reg_state;
+	struct xdp_mem_info mem;
 } ____cacheline_aligned; /* perf critical, avoid false-sharing */
+
+
+static inline
+void xdp_return_frame(void *data, struct xdp_mem_info *mem)
+{
+	if (mem->type == MEM_TYPE_PAGE_SHARED)
+		page_frag_free(data);
+
+	if (mem->type == MEM_TYPE_PAGE_ORDER0) {
+		struct page *page = virt_to_page(data); /* Assumes order0 page*/
+
+		put_page(page);
+	}
+}
 
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 		     struct net_device *dev, u32 queue_index);
 void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq);
 void xdp_rxq_info_unused(struct xdp_rxq_info *xdp_rxq);
 bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq);
+int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
+			       enum xdp_mem_type type, void *allocator);
 
 #endif /* __LINUX_NET_XDP_H__ */

@@ -19,6 +19,7 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/ptr_ring.h>
+#include <net/xdp.h>
 
 #include <linux/sched.h>
 #include <linux/workqueue.h>
@@ -137,27 +138,6 @@ free_cmap:
 	return ERR_PTR(err);
 }
 
-static void __cpu_map_queue_destructor(void *ptr)
-{
-	/* The tear-down procedure should have made sure that queue is
-	 * empty.  See __cpu_map_entry_replace() and work-queue
-	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
-	 * gracefully and warn once.
-	 */
-	if (WARN_ON_ONCE(ptr))
-		page_frag_free(ptr);
-}
-
-static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
-{
-	if (atomic_dec_and_test(&rcpu->refcnt)) {
-		/* The queue should be empty at this point */
-		ptr_ring_cleanup(rcpu->queue, __cpu_map_queue_destructor);
-		kfree(rcpu->queue);
-		kfree(rcpu);
-	}
-}
-
 static void get_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
 {
 	atomic_inc(&rcpu->refcnt);
@@ -188,6 +168,10 @@ struct xdp_pkt {
 	u16 len;
 	u16 headroom;
 	u16 metasize;
+	/* Lifetime of xdp_rxq_info is limited to NAPI/enqueue time,
+	 * while mem info is valid on remote CPU.
+	 */
+	struct xdp_mem_info mem;
 	struct net_device *dev_rx;
 };
 
@@ -212,6 +196,9 @@ static struct xdp_pkt *convert_to_xdp_pkt(struct xdp_buff *xdp)
 	xdp_pkt->len  = xdp->data_end - xdp->data;
 	xdp_pkt->headroom = headroom - sizeof(*xdp_pkt);
 	xdp_pkt->metasize = metasize;
+
+	/* rxq only valid until napi_schedule ends, convert to xdp_mem_info */
+	xdp_pkt->mem = xdp->rxq->mem;
 
 	return xdp_pkt;
 }
@@ -265,6 +252,31 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	return skb;
 }
 
+static void __cpu_map_ring_cleanup(struct ptr_ring *ring)
+{
+	/* The tear-down procedure should have made sure that queue is
+	 * empty.  See __cpu_map_entry_replace() and work-queue
+	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
+	 * gracefully and warn once.
+	 */
+	struct xdp_pkt *xdp_pkt;
+
+	while ((xdp_pkt = ptr_ring_consume(ring)))
+		if (WARN_ON_ONCE(xdp_pkt))
+			xdp_return_frame(xdp_pkt, &xdp_pkt->mem);
+}
+
+static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
+{
+	if (atomic_dec_and_test(&rcpu->refcnt)) {
+		/* The queue should be empty at this point */
+		__cpu_map_ring_cleanup(rcpu->queue);
+		ptr_ring_cleanup(rcpu->queue, NULL);
+		kfree(rcpu->queue);
+		kfree(rcpu);
+	}
+}
+
 static int cpu_map_kthread_run(void *data)
 {
 	struct bpf_cpu_map_entry *rcpu = data;
@@ -307,7 +319,7 @@ static int cpu_map_kthread_run(void *data)
 
 			skb = cpu_map_build_skb(rcpu, xdp_pkt);
 			if (!skb) {
-				page_frag_free(xdp_pkt);
+				xdp_return_frame(xdp_pkt, &xdp_pkt->mem);
 				continue;
 			}
 
@@ -604,13 +616,13 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 	spin_lock(&q->producer_lock);
 
 	for (i = 0; i < bq->count; i++) {
-		void *xdp_pkt = bq->q[i];
+		struct xdp_pkt *xdp_pkt = bq->q[i];
 		int err;
 
 		err = __ptr_ring_produce(q, xdp_pkt);
 		if (err) {
 			drops++;
-			page_frag_free(xdp_pkt); /* Free xdp_pkt */
+			xdp_return_frame(xdp_pkt->data, &xdp_pkt->mem);
 		}
 		processed++;
 	}

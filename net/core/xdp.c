@@ -71,3 +71,21 @@ bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq)
 	return (xdp_rxq->reg_state == REG_STATE_REGISTERED);
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_is_reg);
+
+int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
+			       enum xdp_mem_type type, void *allocator)
+{
+	if (type >= MEM_TYPE_MAX)
+		return -EINVAL;
+
+	xdp_rxq->mem.type = type;
+
+	if (allocator)
+		return -EOPNOTSUPP;
+
+	/* TODO: Allocate an ID that maps to allocator pointer
+	 * See: https://www.kernel.org/doc/html/latest/core-api/idr.html
+	 */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
