@@ -832,8 +832,6 @@ struct rtl8169_private {
 		struct work_struct work;
 	} wk;
 
-	unsigned features;
-
 	struct mii_if_info mii;
 	dma_addr_t counters_phys_addr;
 	struct rtl8169_counters *counters;
