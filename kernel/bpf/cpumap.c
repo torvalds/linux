@@ -219,7 +219,7 @@ static void __cpu_map_ring_cleanup(struct ptr_ring *ring)
 
 	while ((xdpf = ptr_ring_consume(ring)))
 		if (WARN_ON_ONCE(xdpf))
-			xdp_return_frame(xdpf->data, &xdpf->mem);
+			xdp_return_frame(xdpf);
 }
 
 static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
@@ -275,7 +275,7 @@ static int cpu_map_kthread_run(void *data)
 
 			skb = cpu_map_build_skb(rcpu, xdpf);
 			if (!skb) {
-				xdp_return_frame(xdpf->data, &xdpf->mem);
+				xdp_return_frame(xdpf);
 				continue;
 			}
 
@@ -578,7 +578,7 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			xdp_return_frame(xdpf->data, &xdpf->mem);
+			xdp_return_frame(xdpf);
 		}
 		processed++;
 	}

@@ -663,7 +663,7 @@ void tun_ptr_free(void *ptr)
 	if (tun_is_xdp_frame(ptr)) {
 		struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
-		xdp_return_frame(xdpf->data, &xdpf->mem);
+		xdp_return_frame(xdpf);
 	} else {
 		__skb_array_destroy_skb(ptr);
 	}
@@ -2196,7 +2196,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 		struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
 		ret = tun_put_user_xdp(tun, tfile, xdpf, to);
-		xdp_return_frame(xdpf->data, &xdpf->mem);
+		xdp_return_frame(xdpf);
 	} else {
 		struct sk_buff *skb = ptr;
 

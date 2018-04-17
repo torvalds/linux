@@ -430,7 +430,7 @@ static int __virtnet_xdp_xmit(struct virtnet_info *vi,
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
-		xdp_return_frame(xdpf_sent->data, &xdpf_sent->mem);
+		xdp_return_frame(xdpf_sent);
 
 	xdpf = convert_to_xdp_frame(xdp);
 	if (unlikely(!xdpf))

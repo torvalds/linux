@@ -638,8 +638,7 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
 			kfree(tx_buffer->raw_buf);
 		else if (ring_is_xdp(ring))
-			xdp_return_frame(tx_buffer->xdpf->data,
-					 &tx_buffer->xdpf->mem);
+			xdp_return_frame(tx_buffer->xdpf);
 		else
 			dev_kfree_skb_any(tx_buffer->skb);
 		if (dma_unmap_len(tx_buffer, len))
@@ -842,7 +841,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 
 		/* free the skb/XDP data */
 		if (ring_is_xdp(tx_ring))
-			xdp_return_frame(tx_buf->xdpf->data, &tx_buf->xdpf->mem);
+			xdp_return_frame(tx_buf->xdpf);
 		else
 			napi_consume_skb(tx_buf->skb, napi_budget);
 

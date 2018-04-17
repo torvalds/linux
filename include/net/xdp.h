@@ -103,7 +103,7 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 	return xdp_frame;
 }
 
-void xdp_return_frame(void *data, struct xdp_mem_info *mem);
+void xdp_return_frame(struct xdp_frame *xdpf);
 
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 		     struct net_device *dev, u32 queue_index);

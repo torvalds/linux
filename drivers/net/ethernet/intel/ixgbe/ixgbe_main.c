@@ -1216,7 +1216,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 		/* free the skb */
 		if (ring_is_xdp(tx_ring))
-			xdp_return_frame(tx_buffer->data, &tx_buffer->xdp_mem);
+			xdp_return_frame(tx_buffer->xdpf);
 		else
 			napi_consume_skb(tx_buffer->skb, napi_budget);
 
@@ -2386,6 +2386,7 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			xdp.data_hard_start = xdp.data -
 					      ixgbe_rx_offset(rx_ring);
 			xdp.data_end = xdp.data + size;
+			prefetchw(xdp.data_hard_start); /* xdp_frame write */
 
 			skb = ixgbe_run_xdp(adapter, rx_ring, &xdp);
 		}
@@ -5797,7 +5798,7 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 
 		/* Free all the Tx ring sk_buffs */
 		if (ring_is_xdp(tx_ring))
-			xdp_return_frame(tx_buffer->data, &tx_buffer->xdp_mem);
+			xdp_return_frame(tx_buffer->xdpf);
 		else
 			dev_kfree_skb_any(tx_buffer->skb);
 
@@ -8348,16 +8349,21 @@ static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
 	struct ixgbe_ring *ring = adapter->xdp_ring[smp_processor_id()];
 	struct ixgbe_tx_buffer *tx_buffer;
 	union ixgbe_adv_tx_desc *tx_desc;
+	struct xdp_frame *xdpf;
 	u32 len, cmd_type;
 	dma_addr_t dma;
 	u16 i;
 
-	len = xdp->data_end - xdp->data;
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
+		return -EOVERFLOW;
+
+	len = xdpf->len;
 
 	if (unlikely(!ixgbe_desc_unused(ring)))
 		return IXGBE_XDP_CONSUMED;
 
-	dma = dma_map_single(ring->dev, xdp->data, len, DMA_TO_DEVICE);
+	dma = dma_map_single(ring->dev, xdpf->data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ring->dev, dma))
 		return IXGBE_XDP_CONSUMED;
 
@@ -8372,8 +8378,7 @@ static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
 
 	dma_unmap_len_set(tx_buffer, len, len);
 	dma_unmap_addr_set(tx_buffer, dma, dma);
-	tx_buffer->data = xdp->data;
-	tx_buffer->xdp_mem = xdp->rxq->mem;
+	tx_buffer->xdpf = xdpf;
 
 	tx_desc->read.buffer_addr = cpu_to_le64(dma);
 
