@@ -2042,6 +2042,13 @@ static int blk_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 
 	seqcount_init(&rq->gstate_seq);
 	u64_stats_init(&rq->aborted_gstate_sync);
+	/*
+	 * start gstate with gen 1 instead of 0, otherwise it will be equal
+	 * to aborted_gstate, and be identified timed out by
+	 * blk_mq_terminate_expired.
+	 */
+	WRITE_ONCE(rq->gstate, MQ_RQ_GEN_INC);
+
 	return 0;
 }
 

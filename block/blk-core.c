@@ -201,6 +201,10 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->part = NULL;
 	seqcount_init(&rq->gstate_seq);
 	u64_stats_init(&rq->aborted_gstate_sync);
+	/*
+	 * See comment of blk_mq_init_request
+	 */
+	WRITE_ONCE(rq->gstate, MQ_RQ_GEN_INC);
 }
 EXPORT_SYMBOL(blk_rq_init);
 
