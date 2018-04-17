@@ -113,11 +113,6 @@ typedef __compat_gid32_t	compat_gid_t;
 struct compat_sel_arg_struct;
 struct rusage;
 
-struct compat_utimbuf {
-	old_time32_t		actime;
-	old_time32_t		modtime;
-};
-
 struct compat_itimerval {
 	struct old_timeval32	it_interval;
 	struct old_timeval32	it_value;
@@ -942,7 +937,7 @@ asmlinkage long compat_sys_newlstat(const char __user *filename,
 /* __ARCH_WANT_SYSCALL_DEPRECATED */
 asmlinkage long compat_sys_time(old_time32_t __user *tloc);
 asmlinkage long compat_sys_utime(const char __user *filename,
-				 struct compat_utimbuf __user *t);
+				 struct old_utimbuf32 __user *t);
 asmlinkage long compat_sys_futimesat(unsigned int dfd,
 				     const char __user *filename,
 				     struct old_timeval32 __user *t);

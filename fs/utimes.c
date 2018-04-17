@@ -218,13 +218,14 @@ SYSCALL_DEFINE2(utime, char __user *, filename, struct utimbuf __user *, times)
 }
 #endif
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_32BIT_TIME
 /*
  * Not all architectures have sys_utime, so implement this in terms
  * of sys_utimes.
  */
+#ifdef __ARCH_WANT_SYS_UTIME32
 COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
-		       struct compat_utimbuf __user *, t)
+		       struct old_utimbuf32 __user *, t)
 {
 	struct timespec64 tv[2];
 
@@ -237,6 +238,7 @@ COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
 	}
 	return do_utimes(AT_FDCWD, filename, t ? tv : NULL, 0);
 }
+#endif
 
 COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filename, struct old_timespec32 __user *, t, int, flags)
 {
@@ -253,6 +255,7 @@ COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filena
 	return do_utimes(dfd, filename, t ? tv : NULL, flags);
 }
 
+#ifdef __ARCH_WANT_SYS_UTIME32
 static long do_compat_futimesat(unsigned int dfd, const char __user *filename,
 				struct old_timeval32 __user *t)
 {
@@ -284,4 +287,5 @@ COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct old_timeval
 {
 	return do_compat_futimesat(AT_FDCWD, filename, t);
 }
+#endif
 #endif
