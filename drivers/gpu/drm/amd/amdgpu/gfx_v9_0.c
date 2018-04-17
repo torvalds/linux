@@ -4144,7 +4144,12 @@ static void gfx_v9_0_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 
-	gfx_v9_0_wait_reg_mem(ring, usepfp, 0, 1, reg0, reg1, ref, mask, 0x20);
+	if (amdgpu_sriov_vf(ring->adev))
+		gfx_v9_0_wait_reg_mem(ring, usepfp, 0, 1, reg0, reg1,
+				      ref, mask, 0x20);
+	else
+		amdgpu_ring_emit_reg_write_reg_wait_helper(ring, reg0, reg1,
+							   ref, mask);
 }
 
 static void gfx_v9_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
