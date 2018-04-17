@@ -7473,7 +7473,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 			handled = 1;
 
 			rtl_irq_disable(tp);
-			napi_schedule(&tp->napi);
+			napi_schedule_irqoff(&tp->napi);
 		}
 	}
 	return IRQ_RETVAL(handled);
