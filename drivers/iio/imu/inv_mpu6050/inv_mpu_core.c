@@ -191,26 +191,29 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 {
-	int result = 0;
+	int result;
 
 	if (power_on) {
-		if (!st->powerup_count)
+		if (!st->powerup_count) {
 			result = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
-		if (!result)
-			st->powerup_count++;
+			if (result)
+				return result;
+			usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
+				     INV_MPU6050_REG_UP_TIME_MAX);
+		}
+		st->powerup_count++;
 	} else {
-		st->powerup_count--;
-		if (!st->powerup_count)
+		if (st->powerup_count == 1) {
 			result = regmap_write(st->map, st->reg->pwr_mgmt_1,
 					      INV_MPU6050_BIT_SLEEP);
+			if (result)
+				return result;
+		}
+		st->powerup_count--;
 	}
 
-	if (result)
-		return result;
-
-	if (power_on)
-		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
-			     INV_MPU6050_REG_UP_TIME_MAX);
+	dev_dbg(regmap_get_device(st->map), "set power %d, count=%u\n",
+		power_on, st->powerup_count);
 
 	return 0;
 }
@@ -856,14 +859,11 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	msleep(INV_MPU6050_POWER_UP_TIME);
 
 	/*
-	 * toggle power state. After reset, the sleep bit could be on
-	 * or off depending on the OTP settings. Toggling power would
+	 * Turn power on. After reset, the sleep bit could be on
+	 * or off depending on the OTP settings. Turning power on
 	 * make it in a definite state as well as making the hardware
 	 * state align with the software state
 	 */
-	result = inv_mpu6050_set_power_itg(st, false);
-	if (result)
-		return result;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
 		return result;
@@ -871,13 +871,17 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	result = inv_mpu6050_switch_engine(st, false,
 					   INV_MPU6050_BIT_PWR_ACCL_STBY);
 	if (result)
-		return result;
+		goto error_power_off;
 	result = inv_mpu6050_switch_engine(st, false,
 					   INV_MPU6050_BIT_PWR_GYRO_STBY);
 	if (result)
-		return result;
+		goto error_power_off;
 
-	return 0;
+	return inv_mpu6050_set_power_itg(st, false);
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
 }
 
 int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
