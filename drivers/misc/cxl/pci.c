@@ -514,9 +514,9 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	cxl_p1_write(adapter, CXL_PSL9_FIR_CNTL, psl_fircntl);
 
 	/* Setup the PSL to transmit packets on the PCIe before the
-	 * CAPP is enabled
+	 * CAPP is enabled. Make sure that CAPP virtual machines are disabled
 	 */
-	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0001001000002A10ULL);
+	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0001001000012A10ULL);
 
 	/*
 	 * A response to an ASB_Notify request is returned by the
