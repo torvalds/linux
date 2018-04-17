@@ -512,6 +512,14 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->mkey_be = c->mkey_be;
 	}
 
+	/* This must only be activate for order-0 pages */
+	if (rq->xdp_prog) {
+		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
+						 MEM_TYPE_PAGE_ORDER0, NULL);
+		if (err)
+			goto err_rq_wq_destroy;
+	}
+
 	for (i = 0; i < wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
 
