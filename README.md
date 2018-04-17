@@ -40,6 +40,7 @@ Kernel breakdown features by version
 | BT       |     |     |     |     |
 | VIDEO    |  Y  |  N  |  N  |  N  |
 | AUDIO    |  Y  |  N  |  N  |  N  |
+||| other Options |||
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |
 | iptables |  ?  |  ?  |  Y  |  ?  |
 | LXC / Docker |  ?  |  ?  |  Y  |  ?  |
