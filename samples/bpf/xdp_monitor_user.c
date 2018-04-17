@@ -330,7 +330,7 @@ static void stats_print(struct stats_record *stats_rec,
 			pps = calc_pps_u64(r, p, t);
 			if (pps > 0)
 				printf(fmt1, "Exception", i,
-				       0.0, pps, err2str(rec_i));
+				       0.0, pps, action2str(rec_i));
 		}
 		pps = calc_pps_u64(&rec->total, &prev->total, t);
 		if (pps > 0)
