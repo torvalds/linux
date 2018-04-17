@@ -356,14 +356,11 @@ void do_dispatch_tlb_misc(unsigned long entry, unsigned long addr,
 
 void do_revinsn(struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("Reserved Instruction\n");
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGILL);
-	si.si_signo = SIGILL;
-	si.si_errno = 0;
-	force_sig_info(SIGILL, &si, current);
+	force_sig(SIGILL, current);
 }
 
 #ifdef CONFIG_ALIGNMENT_TRAP
