@@ -636,6 +636,7 @@ static inline void INIT_VMA(struct vm_area_struct *vma)
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 	seqcount_init(&vma->vm_sequence);
+	atomic_set(&vma->vm_ref_count, 1);
 #endif
 }
 
