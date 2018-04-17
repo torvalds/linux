@@ -69,6 +69,13 @@ config FPGA_MGR_ICE40_SPI
 	help
 	  FPGA manager driver support for Lattice iCE40 FPGAs over SPI.
 
+config FPGA_MGR_MACHXO2_SPI
+	tristate "Lattice MachXO2 SPI"
+	depends on SPI
+	help
+	  FPGA manager driver support for Lattice MachXO2 configuration
+	  over slave SPI interface.
+
 config FPGA_MGR_TS73XX
 	tristate "Technologic Systems TS-73xx SBC FPGA Manager"
 	depends on ARCH_EP93XX && MACH_TS72XX
