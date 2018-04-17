@@ -624,6 +624,9 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	struct wcn36xx_hal_start_scan_offload_req_msg msg_body;
 	int ret, i;
 
+	if (req->ie_len > WCN36XX_MAX_SCAN_IE_LEN)
+		return -EINVAL;
+
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_START_SCAN_OFFLOAD_REQ);
 
@@ -647,6 +650,14 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 				     sizeof(msg_body.channels));
 	for (i = 0; i < msg_body.num_channel; i++)
 		msg_body.channels[i] = req->channels[i]->hw_value;
+
+	msg_body.header.len -= WCN36XX_MAX_SCAN_IE_LEN;
+
+	if (req->ie_len > 0) {
+		msg_body.ie_len = req->ie_len;
+		msg_body.header.len += req->ie_len;
+		memcpy(msg_body.ie, req->ie, req->ie_len);
+	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
