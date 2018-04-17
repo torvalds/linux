@@ -353,6 +353,19 @@ static void wcn36xx_stop(struct ieee80211_hw *hw)
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac stop\n");
 
+	cancel_work_sync(&wcn->scan_work);
+
+	mutex_lock(&wcn->scan_lock);
+	if (wcn->scan_req) {
+		struct cfg80211_scan_info scan_info = {
+			.aborted = true,
+		};
+
+		ieee80211_scan_completed(wcn->hw, &scan_info);
+	}
+	wcn->scan_req = NULL;
+	mutex_unlock(&wcn->scan_lock);
+
 	wcn36xx_debugfs_exit(wcn);
 	wcn36xx_smd_stop(wcn);
 	wcn36xx_dxe_deinit(wcn);
