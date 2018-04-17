@@ -1934,6 +1934,7 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3128-dmc", .data = rk3128_dmc_init },
 	{ .compatible = "rockchip,rk3228-dmc", .data = rk3228_dmc_init },
 	{ .compatible = "rockchip,rk3288-dmc", .data = rk3288_dmc_init },
+	{ .compatible = "rockchip,rk3308-dmc", .data = NULL },
 	{ .compatible = "rockchip,rk3328-dmc", .data = rk3328_dmc_init },
 	{ .compatible = "rockchip,rk3368-dmc", .data = rk3368_dmc_init },
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
