@@ -207,8 +207,8 @@ static int rcar_gen3_thermal_set_trips(void *devdata, int low, int high)
 {
 	struct rcar_gen3_thermal_tsc *tsc = devdata;
 
-	low = clamp_val(low, -40000, 125000);
-	high = clamp_val(high, -40000, 125000);
+	low = clamp_val(low, -40000, 120000);
+	high = clamp_val(high, -40000, 120000);
 
 	rcar_gen3_thermal_write(tsc, REG_GEN3_IRQTEMP1,
 				rcar_gen3_thermal_mcelsius_to_temp(tsc, low));
