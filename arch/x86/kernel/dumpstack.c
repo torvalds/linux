@@ -94,9 +94,19 @@ void show_opcodes(u8 *rip, const char *loglvl)
 	pr_cont("\n");
 }
 
+void show_ip(struct pt_regs *regs, const char *loglvl)
+{
+#ifdef CONFIG_X86_32
+	printk("%sEIP: %pS\n", loglvl, (void *)regs->ip);
+#else
+	printk("%sRIP: %04x:%pS\n", loglvl, (int)regs->cs, (void *)regs->ip);
+#endif
+	show_opcodes((u8 *)regs->ip, loglvl);
+}
+
 void show_iret_regs(struct pt_regs *regs)
 {
-	printk(KERN_DEFAULT "RIP: %04x:%pS\n", (int)regs->cs, (void *)regs->ip);
+	show_ip(regs, KERN_DEFAULT);
 	printk(KERN_DEFAULT "RSP: %04x:%016lx EFLAGS: %08lx", (int)regs->ss,
 		regs->sp, regs->flags);
 }
@@ -392,15 +402,8 @@ void show_regs(struct pt_regs *regs)
 	__show_regs(regs, all);
 
 	/*
-	 * When in-kernel, we also print out the stack and code at the
-	 * time of the fault..
+	 * When in-kernel, we also print out the stack at the time of the fault..
 	 */
-	if (!user_mode(regs)) {
+	if (!user_mode(regs))
 		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
-
-		if (regs->ip < PAGE_OFFSET)
-			printk(KERN_DEFAULT "Code: Bad RIP value.\n");
-		else
-			show_opcodes((u8 *)regs->ip, KERN_DEFAULT);
-	}
 }
