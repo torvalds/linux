@@ -48,6 +48,9 @@ OPTIONS
 --purge=::
         Purge all cached binaries including older caches which have specified
 	path from the cache.
+-P::
+--purge-all::
+	Purge all cached binaries. This will flush out entire cache.
 -M::
 --missing=::
 	List missing build ids in the cache for the specified file.

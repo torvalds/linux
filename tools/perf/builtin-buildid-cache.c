@@ -240,6 +240,34 @@ out:
 	return err;
 }
 
+static int build_id_cache__purge_all(void)
+{
+	struct strlist *list;
+	struct str_node *pos;
+	int err = 0;
+	char *buf;
+
+	list = build_id_cache__list_all(false);
+	if (!list) {
+		pr_debug("Failed to get buildids: -%d\n", errno);
+		return -EINVAL;
+	}
+
+	strlist__for_each_entry(pos, list) {
+		buf = build_id_cache__origname(pos->s);
+		err = build_id_cache__remove_s(pos->s);
+		pr_debug("Removing %s (%s): %s\n", buf, pos->s,
+			 err ? "FAIL" : "Ok");
+		free(buf);
+		if (err)
+			break;
+	}
+	strlist__delete(list);
+
+	pr_debug("Purged all: %s\n", err ? "FAIL" : "Ok");
+	return err;
+}
+
 static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 {
 	char filename[PATH_MAX];
@@ -327,6 +355,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 	bool force = false;
 	bool list_files = false;
 	bool opts_flag = false;
+	bool purge_all = false;
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
 		   *purge_name_list_str = NULL,
@@ -350,6 +379,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 		    "file(s) to remove"),
 	OPT_STRING('p', "purge", &purge_name_list_str, "file list",
 		    "file(s) to remove (remove old caches too)"),
+	OPT_BOOLEAN('P', "purge-all", &purge_all, "purge all cached files"),
 	OPT_BOOLEAN('l', "list", &list_files, "list all cached files"),
 	OPT_STRING('M', "missing", &missing_filename, "file",
 		   "to find missing build ids in the cache"),
@@ -370,7 +400,8 @@ int cmd_buildid_cache(int argc, const char **argv)
 
 	opts_flag = add_name_list_str || kcore_filename ||
 		remove_name_list_str || purge_name_list_str ||
-		missing_filename || update_name_list_str;
+		missing_filename || update_name_list_str ||
+		purge_all;
 
 	if (argc || !(list_files || opts_flag))
 		usage_with_options(buildid_cache_usage, buildid_cache_options);
@@ -456,6 +487,9 @@ int cmd_buildid_cache(int argc, const char **argv)
 			strlist__delete(list);
 		}
 	}
+
+	if (purge_all)
+		ret = build_id_cache__purge_all();
 
 	if (missing_filename)
 		ret = build_id_cache__fprintf_missing(session, stdout);
