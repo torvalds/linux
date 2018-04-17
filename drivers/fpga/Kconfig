@@ -53,7 +53,6 @@ config FPGA_MGR_ALTERA_CVP
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
 	depends on ARCH_ZYNQ || COMPILE_TEST
-	depends on HAS_DMA
 	help
 	  FPGA manager driver support for Xilinx Zynq FPGAs.
 
