@@ -51,6 +51,19 @@
 #define CODEC_DRV_NAME			"rk3308-acodec"
 
 #define ADC_LR_GROUP_MAX		4
+#define DEBUG_POP_ALWAYS		0
+#define ENABLE_AGC			0
+
+enum {
+	ADC_GRP0_MICIN = 0,
+	ADC_GRP0_LINEIN
+};
+
+enum {
+	DAC_LINEOUT = 0,
+	DAC_HPOUT = 1,
+	DAC_LINEOUT_HPOUT = 11,
+};
 
 struct rk3308_codec_priv {
 	const struct device *plat_dev;
@@ -60,6 +73,7 @@ struct rk3308_codec_priv {
 	struct clk *pclk;
 	struct clk *mclk_rx;
 	struct clk *mclk_tx;
+	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
 	/*
 	 * To select ADCs for groups:
@@ -71,6 +85,9 @@ struct rk3308_codec_priv {
 	 */
 	int adc_cur_grp;
 	int adc_grp0_using_linein;
+	int adc_zerocross;
+	/* 0: line out, 1: hp out, 11: lineout and hpout */
+	int dac_output;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *dbg_codec;
@@ -393,9 +410,16 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     0, rk3308_codec_dac_hpmix_gain_tlv),
 };
 
+static void rk3308_headphone_ctl(struct rk3308_codec_priv *rk3308, int on)
+{
+	if (rk3308->hp_ctl_gpio)
+		gpiod_direction_output(rk3308->hp_ctl_gpio, on);
+}
+
 static void rk3308_speaker_ctl(struct rk3308_codec_priv *rk3308, int on)
 {
-	gpiod_direction_output(rk3308->spk_ctl_gpio, on);
+	if (rk3308->spk_ctl_gpio)
+		gpiod_direction_output(rk3308->spk_ctl_gpio, on);
 }
 
 static int rk3308_codec_reset(struct snd_soc_codec *codec)
@@ -403,7 +427,7 @@ static int rk3308_codec_reset(struct snd_soc_codec *codec)
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
 	reset_control_assert(rk3308->reset);
-	usleep_range(200, 300);		/* estimated value */
+	usleep_range(2000, 2500);	/* estimated value */
 	reset_control_deassert(rk3308->reset);
 
 	regmap_write(rk3308->regmap, RK3308_GLB_CON, 0x00);
@@ -443,7 +467,7 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int adc_aif1 = 0, adc_aif2 = 0, dac_aif1 = 0, dac_aif2 = 0;
-	int grp;
+	int grp, is_master;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -451,12 +475,14 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		adc_aif2 |= RK3308_ADC_MODE_SLAVE;
 		dac_aif2 |= RK3308_DAC_IO_MODE_SLAVE;
 		dac_aif2 |= RK3308_DAC_MODE_SLAVE;
+		is_master = 0;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		adc_aif2 |= RK3308_ADC_IO_MODE_MASTER;
 		adc_aif2 |= RK3308_ADC_MODE_MASTER;
 		dac_aif2 |= RK3308_DAC_IO_MODE_MASTER;
 		dac_aif2 |= RK3308_DAC_MODE_MASTER;
+		is_master = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -512,6 +538,18 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
+	/*
+	 * Hold ADC Digital registers start at master mode
+	 *
+	 * There are 8 ADCs and use the same SCLK and LRCK internal for master
+	 * mode, We need to make sure that they are in effect at the same time,
+	 * otherwise they will cause the abnormal clocks.
+	 */
+	if (is_master)
+		regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_ADC_DIG_WORK,
+				   RK3308_ADC_DIG_RESET);
+
 	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON01(grp),
 				   RK3308_ADC_I2S_LRC_POL_MSK |
@@ -523,6 +561,12 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 				   RK3308_ADC_I2S_BIT_CLK_POL_MSK,
 				   adc_aif2);
 	}
+
+	/* Hold ADC Digital registers end at master mode */
+	if (is_master)
+		regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_ADC_DIG_WORK,
+				   RK3308_ADC_DIG_WORK);
 
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
 			   RK3308_DAC_I2S_LRC_POL_MSK |
@@ -544,7 +588,7 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int adc_aif1 = 0, adc_aif2  = 0, dac_aif1 = 0, dac_aif2  = 0;
-	int grp;
+	int grp, cur_grp_max;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -570,10 +614,12 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 1:
 		adc_aif1 |= RK3308_ADC_I2S_MONO;
+		cur_grp_max = 0;
 		break;
 	case 2:
 	case 8:
 		adc_aif1 |= RK3308_ADC_I2S_STEREO;
+		cur_grp_max = (params_channels(params) - 1) / 2;
 		break;
 	default:
 		return -EINVAL;
@@ -581,10 +627,8 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 
 	adc_aif1 |= RK3308_ADC_I2S_LR_NORMAL;
 	adc_aif2 |= RK3308_ADC_I2S_WORK;
-	dac_aif1 |= RK3308_DAC_I2S_LR_NORMAL;
-	dac_aif2 |= RK3308_DAC_I2S_WORK;
 
-	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+	for (grp = 0; grp <= cur_grp_max; grp++) {
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON01(grp),
 				   RK3308_ADC_I2S_VALID_LEN_MSK |
 				   RK3308_ADC_I2S_LR_MSK |
@@ -594,6 +638,9 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 				   RK3308_ADC_I2S_MSK,
 				   adc_aif2);
 	}
+
+	dac_aif1 |= RK3308_DAC_I2S_LR_NORMAL;
+	dac_aif2 |= RK3308_DAC_I2S_WORK;
 
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
 			   RK3308_DAC_I2S_VALID_LEN_MSK |
@@ -606,14 +653,87 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rk3308_digital_mute(struct snd_soc_dai *dai, int mute)
+static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
-	/* Do nothing */
+	struct snd_soc_codec *codec = dai->codec;
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		int dgain;
+
+		if (mute) {
+			for (dgain = 0x2; dgain <= 0x7; dgain++) {
+				/*
+				 * Keep the max -> min digital CIC interpolation
+				 * filter gain step by step.
+				 *
+				 * loud: 0x2; whisper: 0x7
+				 */
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_DAC_DIG_CON04,
+						   RK3308_DAC_CIC_IF_GAIN_MSK,
+						   dgain);
+				usleep_range(200, 300);  /* estimated value */
+			}
+
+#if !DEBUG_POP_ALWAYS
+			rk3308_headphone_ctl(rk3308, 0);
+			rk3308_speaker_ctl(rk3308, 0);
+#endif
+		} else {
+#if !DEBUG_POP_ALWAYS
+			rk3308_headphone_ctl(rk3308, 1);
+			rk3308_speaker_ctl(rk3308, 1);
+#endif
+
+			for (dgain = 0x7; dgain >= 0x2; dgain--) {
+				/*
+				 * Keep the min -> max digital CIC interpolation
+				 * filter gain step by step
+				 *
+				 * loud: 0x2; whisper: 0x7
+				 */
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_DAC_DIG_CON04,
+						   RK3308_DAC_CIC_IF_GAIN_MSK,
+						   dgain);
+				usleep_range(200, 300);  /* estimated value */
+			}
+		}
+	}
+
 	return 0;
 }
 
 static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 {
+	/*
+	 * Note1. If the ACODEC_DAC_ANA_CON12[6] or ACODEC_DAC_ANA_CON12[2]
+	 * is set to 0x1, ignoring the step9~12.
+	 */
+
+	/*
+	 * Note2. If the ACODEC_ DAC_ANA_CON12[7] or ACODEC_DAC_ANA_CON12[3]
+	 * is set to 0x1, the ADC0 or ADC1 should be enabled firstly, and
+	 * please refer to Enable ADC Configuration Standard Usage Flow(expect
+	 * step7~step9,step14).
+	 */
+
+	/*
+	 * Note3. If no opening the line out, ignoring the step6, step17 and
+	 * step19.
+	 */
+
+	/*
+	 * Note4. If no opening the headphone out, ignoring the step3,step7~8,
+	 * step16 and step18.
+	 */
+
+	/*
+	 * Note5. In the step18, adjust the register step by step to the
+	 * appropriate value and taking 10ms as one time step
+	 */
+
 	/*
 	 * 1. Set the ACODEC_DAC_ANA_CON0[0] to 0x1, to enable the current
 	 * source of DAC
@@ -632,57 +752,84 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_BUF_REF_L_EN |
 			   RK3308_DAC_BUF_REF_R_EN);
 
-	/* Step 03 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
-			   RK3308_DAC_POP_SOUND_L_MSK |
-			   RK3308_DAC_POP_SOUND_R_MSK,
-			   RK3308_DAC_POP_SOUND_L_WORK |
-			   RK3308_DAC_POP_SOUND_R_WORK);
+	if (rk3308->dac_output == DAC_HPOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 03 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+				   RK3308_DAC_POP_SOUND_L_MSK |
+				   RK3308_DAC_POP_SOUND_R_MSK,
+				   RK3308_DAC_POP_SOUND_L_WORK |
+				   RK3308_DAC_POP_SOUND_R_WORK);
+	}
 
 	/* Step 04 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
-			   RK3308_DAC_L_HPMIX_EN | RK3308_DAC_R_HPMIX_EN,
-			   RK3308_DAC_L_HPMIX_EN | RK3308_DAC_R_HPMIX_EN);
+			   RK3308_DAC_L_HPMIX_EN |
+			   RK3308_DAC_R_HPMIX_EN,
+			   RK3308_DAC_L_HPMIX_EN |
+			   RK3308_DAC_R_HPMIX_EN);
 
 	/* Step 05 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
-			   RK3308_DAC_L_HPMIX_WORK | RK3308_DAC_R_HPMIX_WORK,
-			   RK3308_DAC_L_HPMIX_WORK | RK3308_DAC_R_HPMIX_WORK);
+			   RK3308_DAC_L_HPMIX_WORK |
+			   RK3308_DAC_R_HPMIX_WORK,
+			   RK3308_DAC_L_HPMIX_WORK |
+			   RK3308_DAC_R_HPMIX_WORK);
 
-	/* Step 06 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-			   RK3308_DAC_L_LINEOUT_EN | RK3308_DAC_R_LINEOUT_EN,
-			   RK3308_DAC_L_LINEOUT_EN | RK3308_DAC_R_LINEOUT_EN);
+	if (rk3308->dac_output == DAC_LINEOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 06 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+				   RK3308_DAC_L_LINEOUT_EN |
+				   RK3308_DAC_R_LINEOUT_EN,
+				   RK3308_DAC_L_LINEOUT_EN |
+				   RK3308_DAC_R_LINEOUT_EN);
+	}
 
-	/* Step 07 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
-			   RK3308_DAC_L_HPOUT_EN | RK3308_DAC_R_HPOUT_EN,
-			   RK3308_DAC_L_HPOUT_EN | RK3308_DAC_R_HPOUT_EN);
+	if (rk3308->dac_output == DAC_HPOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 07 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+				   RK3308_DAC_L_HPOUT_EN |
+				   RK3308_DAC_R_HPOUT_EN,
+				   RK3308_DAC_L_HPOUT_EN |
+				   RK3308_DAC_R_HPOUT_EN);
 
-	/* Step 08 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
-			   RK3308_DAC_L_HPOUT_WORK | RK3308_DAC_R_HPOUT_WORK,
-			   RK3308_DAC_L_HPOUT_WORK | RK3308_DAC_R_HPOUT_WORK);
+		/* Step 08 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+				   RK3308_DAC_L_HPOUT_WORK |
+				   RK3308_DAC_R_HPOUT_WORK,
+				   RK3308_DAC_L_HPOUT_WORK |
+				   RK3308_DAC_R_HPOUT_WORK);
+	}
 
 	/* Step 09 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_REF_EN | RK3308_DAC_R_REF_EN,
-			   RK3308_DAC_L_REF_EN | RK3308_DAC_R_REF_EN);
+			   RK3308_DAC_L_REF_EN |
+			   RK3308_DAC_R_REF_EN,
+			   RK3308_DAC_L_REF_EN |
+			   RK3308_DAC_R_REF_EN);
 
 	/* Step 10 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_CLK_EN | RK3308_DAC_R_CLK_EN,
-			   RK3308_DAC_L_CLK_EN | RK3308_DAC_R_CLK_EN);
+			   RK3308_DAC_L_CLK_EN |
+			   RK3308_DAC_R_CLK_EN,
+			   RK3308_DAC_L_CLK_EN |
+			   RK3308_DAC_R_CLK_EN);
 
 	/* Step 11 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_DAC_EN | RK3308_DAC_R_DAC_EN,
-			   RK3308_DAC_L_DAC_EN | RK3308_DAC_R_DAC_EN);
+			   RK3308_DAC_L_DAC_EN |
+			   RK3308_DAC_R_DAC_EN,
+			   RK3308_DAC_L_DAC_EN |
+			   RK3308_DAC_R_DAC_EN);
 
 	/* Step 12 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_DAC_WORK | RK3308_DAC_R_DAC_WORK,
-			   RK3308_DAC_L_DAC_WORK | RK3308_DAC_R_DAC_WORK);
+			   RK3308_DAC_L_DAC_WORK |
+			   RK3308_DAC_R_DAC_WORK,
+			   RK3308_DAC_L_DAC_WORK |
+			   RK3308_DAC_R_DAC_WORK);
 
 	/* Step 13 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
@@ -705,42 +852,102 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
 			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
 
-	/* Step 16 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
-			   RK3308_DAC_L_HPOUT_UNMUTE |
-			   RK3308_DAC_R_HPOUT_UNMUTE,
-			   RK3308_DAC_L_HPOUT_UNMUTE |
-			   RK3308_DAC_R_HPOUT_UNMUTE);
+	if (rk3308->dac_output == DAC_HPOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 16 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+				   RK3308_DAC_L_HPOUT_UNMUTE |
+				   RK3308_DAC_R_HPOUT_UNMUTE,
+				   RK3308_DAC_L_HPOUT_UNMUTE |
+				   RK3308_DAC_R_HPOUT_UNMUTE);
+	}
 
-	/* Step 17 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-			   RK3308_DAC_L_LINEOUT_UNMUTE |
-			   RK3308_DAC_R_LINEOUT_UNMUTE,
-			   RK3308_DAC_L_LINEOUT_UNMUTE |
-			   RK3308_DAC_R_LINEOUT_UNMUTE);
+	if (rk3308->dac_output == DAC_LINEOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT)
+		/* Step 17 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+				   RK3308_DAC_L_LINEOUT_UNMUTE |
+				   RK3308_DAC_R_LINEOUT_UNMUTE,
+				   RK3308_DAC_L_LINEOUT_UNMUTE |
+				   RK3308_DAC_R_LINEOUT_UNMUTE);
 
-	/* Step 18 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
-			   RK3308_DAC_L_HPOUT_GAIN_MSK,
-			   RK3308_DAC_L_HPOUT_GAIN_NDB_1_5);
+	if (rk3308->dac_output == DAC_HPOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 18 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
+				   RK3308_DAC_L_HPOUT_GAIN_MSK,
+				   RK3308_DAC_L_HPOUT_GAIN_NDB_39);
 
-	/* Step 18 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
-			   RK3308_DAC_R_HPOUT_GAIN_MSK,
-			   RK3308_DAC_R_HPOUT_GAIN_NDB_1_5);
+		/* Step 18 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
+				   RK3308_DAC_R_HPOUT_GAIN_MSK,
+				   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
+	}
 
-	/* Step 19 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-			   RK3308_DAC_L_LINEOUT_GAIN_MSK |
-			   RK3308_DAC_R_LINEOUT_GAIN_MSK,
-			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
-			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+	if (rk3308->dac_output == DAC_LINEOUT ||
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
+		/* Step 19 */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+				   RK3308_DAC_L_LINEOUT_GAIN_MSK |
+				   RK3308_DAC_R_LINEOUT_GAIN_MSK,
+				   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
+				   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+	}
+
+	/* TODO: TRY TO TEST DRIVE STRENGTH */
+
+	return 0;
+}
+
+static int rk3308_codec_digital_fadeout(struct rk3308_codec_priv *rk3308)
+{
+	unsigned int l_dgain, r_dgain;
+
+	/*
+	 * Note. In the step2, adjusting the register step by step to
+	 * the appropriate value and taking 20ms as time step
+	 */
+	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON05, &l_dgain);
+	l_dgain &= RK3308_DAC_L_HPOUT_GAIN_MSK;
+
+	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON06, &r_dgain);
+	r_dgain &= RK3308_DAC_R_HPOUT_GAIN_MSK;
+
+	if (l_dgain != r_dgain)
+		pr_warn("HPOUT l_dgain: 0x%x != r_dgain: 0x%x\n",
+			l_dgain, r_dgain);
+
+	/*
+	 * We'd better change the gain of the left and right channels
+	 * at the same time to avoid different listening
+	 */
+	while (l_dgain >= RK3308_DAC_L_HPOUT_GAIN_NDB_39) {
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
+				   RK3308_DAC_L_HPOUT_GAIN_MSK,
+				   l_dgain);
+
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
+				   RK3308_DAC_R_HPOUT_GAIN_MSK,
+				   r_dgain);
+
+		usleep_range(200, 300);  /* estimated value */
+
+		if (l_dgain == RK3308_DAC_L_HPOUT_GAIN_NDB_39)
+			break;
+
+		l_dgain--;
+		r_dgain--;
+	}
 
 	return 0;
 }
 
 static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 {
+	/* Step 00, the min digital gain for mute */
+
 	/* Step 01 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
 			   RK3308_DAC_L_LINEOUT_GAIN_MSK |
@@ -748,20 +955,8 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
 			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
 
-	/*
-	 * Step 02
-	 *
-	 * Note. In the step2, adjusting the register step by step to the
-	 * appropriate value and taking 20ms as time step
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
-			   RK3308_DAC_L_HPOUT_GAIN_MSK,
-			   RK3308_DAC_L_HPOUT_GAIN_NDB_39);
-
 	/* Step 02 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
-			   RK3308_DAC_R_HPOUT_GAIN_MSK,
-			   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
+	rk3308_codec_digital_fadeout(rk3308);
 
 	/* Step 03 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
@@ -776,7 +971,6 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_SEL_MSK,
 			   RK3308_DAC_L_HPMIX_NONE |
 			   RK3308_DAC_R_HPMIX_NONE);
-
 	/* Step 05 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
 			   RK3308_DAC_L_HPOUT_UNMUTE |
@@ -786,13 +980,17 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 
 	/* Step 06 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_DAC_WORK | RK3308_DAC_R_DAC_WORK,
-			   RK3308_DAC_L_DAC_INIT | RK3308_DAC_R_DAC_INIT);
+			   RK3308_DAC_L_DAC_WORK |
+			   RK3308_DAC_R_DAC_WORK,
+			   RK3308_DAC_L_DAC_INIT |
+			   RK3308_DAC_R_DAC_INIT);
 
 	/* Step 07 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
-			   RK3308_DAC_L_HPOUT_EN | RK3308_DAC_R_HPOUT_EN,
-			   RK3308_DAC_L_HPOUT_DIS | RK3308_DAC_R_HPOUT_DIS);
+			   RK3308_DAC_L_HPOUT_EN |
+			   RK3308_DAC_R_HPOUT_EN,
+			   RK3308_DAC_L_HPOUT_DIS |
+			   RK3308_DAC_R_HPOUT_DIS);
 
 	/* Step 08 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
@@ -803,28 +1001,38 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 
 	/* Step 09 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-			   RK3308_DAC_L_LINEOUT_EN | RK3308_DAC_R_LINEOUT_EN,
-			   RK3308_DAC_L_LINEOUT_DIS | RK3308_DAC_R_LINEOUT_DIS);
+			   RK3308_DAC_L_LINEOUT_EN |
+			   RK3308_DAC_R_LINEOUT_EN,
+			   RK3308_DAC_L_LINEOUT_DIS |
+			   RK3308_DAC_R_LINEOUT_DIS);
 
 	/* Step 10 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
-			   RK3308_DAC_L_HPMIX_EN | RK3308_DAC_R_HPMIX_EN,
-			   RK3308_DAC_L_HPMIX_DIS | RK3308_DAC_R_HPMIX_DIS);
+			   RK3308_DAC_L_HPMIX_EN |
+			   RK3308_DAC_R_HPMIX_EN,
+			   RK3308_DAC_L_HPMIX_DIS |
+			   RK3308_DAC_R_HPMIX_DIS);
 
 	/* Step 11 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_DAC_EN | RK3308_DAC_R_DAC_EN,
-			   RK3308_DAC_L_DAC_DIS | RK3308_DAC_R_DAC_DIS);
+			   RK3308_DAC_L_DAC_EN |
+			   RK3308_DAC_R_DAC_EN,
+			   RK3308_DAC_L_DAC_DIS |
+			   RK3308_DAC_R_DAC_DIS);
 
 	/* Step 12 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_CLK_EN | RK3308_DAC_R_CLK_EN,
-			   RK3308_DAC_L_CLK_DIS | RK3308_DAC_R_CLK_DIS);
+			   RK3308_DAC_L_CLK_EN |
+			   RK3308_DAC_R_CLK_EN,
+			   RK3308_DAC_L_CLK_DIS |
+			   RK3308_DAC_R_CLK_DIS);
 
 	/* Step 13 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
-			   RK3308_DAC_L_REF_EN | RK3308_DAC_R_REF_EN,
-			   RK3308_DAC_L_REF_DIS | RK3308_DAC_R_REF_DIS);
+			   RK3308_DAC_L_REF_EN |
+			   RK3308_DAC_R_REF_EN,
+			   RK3308_DAC_L_REF_DIS |
+			   RK3308_DAC_R_REF_DIS);
 
 	/* Step 14 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
@@ -835,8 +1043,10 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 
 	/* Step 15 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
-			   RK3308_DAC_BUF_REF_L_EN | RK3308_DAC_BUF_REF_R_EN,
-			   RK3308_DAC_BUF_REF_L_DIS | RK3308_DAC_BUF_REF_R_DIS);
+			   RK3308_DAC_BUF_REF_L_EN |
+			   RK3308_DAC_BUF_REF_R_EN,
+			   RK3308_DAC_BUF_REF_L_DIS |
+			   RK3308_DAC_BUF_REF_R_DIS);
 
 	/* Step 16 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON00,
@@ -845,13 +1055,17 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 
 	/* Step 17 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
-			   RK3308_DAC_L_HPOUT_WORK | RK3308_DAC_R_HPOUT_WORK,
-			   RK3308_DAC_L_HPOUT_INIT | RK3308_DAC_R_HPOUT_INIT);
+			   RK3308_DAC_L_HPOUT_WORK |
+			   RK3308_DAC_R_HPOUT_WORK,
+			   RK3308_DAC_L_HPOUT_INIT |
+			   RK3308_DAC_R_HPOUT_INIT);
 
 	/* Step 18 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
-			   RK3308_DAC_L_HPMIX_WORK | RK3308_DAC_R_HPMIX_WORK,
-			   RK3308_DAC_L_HPMIX_INIT | RK3308_DAC_R_HPMIX_INIT);
+			   RK3308_DAC_L_HPMIX_WORK |
+			   RK3308_DAC_R_HPMIX_WORK,
+			   RK3308_DAC_L_HPMIX_INIT |
+			   RK3308_DAC_R_HPMIX_INIT);
 
 	/* Step 19 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
@@ -862,8 +1076,11 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 
 	/*
 	 * Note2. If the ACODEC_DAC_ANA_CON12[7] or ACODEC_DAC_ANA_CON12[3]
-	 * is set to 0x1, add the steps from the section Disable DAC
+	 * is set to 0x1, add the steps from the section Disable ADC
 	 * Configuration Standard Usage Flow after complete the step 19
+	 *
+	 * IF USING LINE-IN
+	 * rk3308_codec_adc_ana_disable(rk3308);
 	 */
 
 	return 0;
@@ -872,6 +1089,7 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 static int rk3308_codec_power_on(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	unsigned int v;
 
 	/* 1. Supply the power of digital part and reset the Audio Codec */
 	/* Do nothing */
@@ -914,20 +1132,22 @@ static int rk3308_codec_power_on(struct snd_soc_codec *codec)
 	 *    0x7f step by step or configure the ACODEC_ADC_ANA_CON10[6:0] to
 	 *    0x7f directly. The suggestion slot time of the step is 20ms.
 	 */
-	mdelay(20);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
-			   RK3308_ADC_CURRENT_CHARGE_MSK,
-			   RK3308_ADC_DONT_SEL_ALL);
+	for (v = 0x1; v <= 0x7f; v++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
+				   RK3308_ADC_CURRENT_CHARGE_MSK,
+				   v);
+		udelay(50);
+	}
 
 	/* 7. Wait until the voltage of VCM keeps stable at the AVDD/2 */
-	usleep_range(200, 300);	/* estimated value */
+	msleep(20);	/* estimated value */
 
 	/*
 	 * 8. Configure the register ACODEC_ADC_ANA_CON10[6:0] to the
 	 *    appropriate value(expect 0x0) for reducing power.
 	 */
 
-	 /* TODO: choose an appropriate charge value */
+	 /* VENDOR: choose an appropriate charge value */
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
 			   RK3308_ADC_CURRENT_CHARGE_MSK, 0x7c);
 
@@ -937,6 +1157,7 @@ static int rk3308_codec_power_on(struct snd_soc_codec *codec)
 static int rk3308_codec_power_off(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	unsigned int v;
 
 	/*
 	 * 1. Keep the power on and disable the DAC and ADC path according to
@@ -958,13 +1179,15 @@ static int rk3308_codec_power_off(struct snd_soc_codec *codec)
 	 *   step by step or configure the ACODEC_ADC_ANA_CON10[6:0] to 0x7f
 	 *   directly. The suggestion slot time of the step is 20ms
 	 */
-	mdelay(20);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
-			   RK3308_ADC_CURRENT_CHARGE_MSK,
-			   RK3308_ADC_DONT_SEL_ALL);
+	for (v = 0x1; v <= 0x7f; v++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
+				   RK3308_ADC_CURRENT_CHARGE_MSK,
+				   v);
+		udelay(50);
+	}
 
 	/* 5. Wait until the voltage of VCM keeps stable at the AGND */
-	usleep_range(200, 300);	/* estimated value */
+	msleep(20);	/* estimated value */
 
 	/* 6. Power off the analog power supply */
 	/* 7. Power off the digital power supply */
@@ -1031,9 +1254,9 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 {
 	int ret;
 
-	/* 1. Power up the ACODEC and keep the AVDDH stable */
+	/* 0. Power up the ACODEC and keep the AVDDH stable */
 
-	/* 2. Configure ACODEC_ADC_ANA_CON7[2:0] to the certain value */
+	/* Step 1. Configure ACODEC_ADC_ANA_CON7[2:0] to the certain value */
 	ret = check_micbias(micbias);
 	if (ret < 0) {
 		dev_err(rk3308->plat_dev, "This is an invalid micbias: %d\n",
@@ -1049,11 +1272,11 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 			   RK3308_ADC_LEVEL_RANGE_MICBIAS_MSK,
 			   micbias);
 
-	/* 3. Wait until the VCMH keep stable */
-	usleep_range(200, 300);	/* estimated value */
+	/* Step 2. Wait until the VCMH keep stable */
+	msleep(20);	/* estimated value */
 
 	/*
-	 * 4. Configure ACODEC_ADC_ANA_CON8[4] to 0x1
+	 * Step 3. Configure ACODEC_ADC_ANA_CON8[4] to 0x1
 	 *
 	 * Note: Only the reg (ADC_ANA_CON8+0x0)[4] represent the enable
 	 * signal of current source for MICBIAS
@@ -1063,12 +1286,12 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 			   RK3308_ADC_MICBIAS_CURRENT_EN);
 
 	/*
-	 * 5. Configure the (ADC_ANA_CON7+0x40)[3] or (ADC_ANA_CON7+0x80)[3]
-	 * to 0x1.
+	 * Step 4. Configure the (ADC_ANA_CON7+0x40)[3] or
+	 * (ADC_ANA_CON7+0x80)[3] to 0x1.
+	 *
 	 * (ADC_ANA_CON7+0x40)[3] used to control the MICBIAS1, and
 	 * (ADC_ANA_CON7+0x80)[3] used to control the MICBIAS2
 	 */
-
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON07(1),
 			   RK3308_ADC_MIC_BIAS_BUF_EN,
 			   RK3308_ADC_MIC_BIAS_BUF_EN);
@@ -1076,18 +1299,16 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 			   RK3308_ADC_MIC_BIAS_BUF_EN,
 			   RK3308_ADC_MIC_BIAS_BUF_EN);
 
-	usleep_range(200, 300);	/* estimated value */
-
 	return 0;
 }
 
 static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308)
 {
-	/* 1. Enable the MICBIAS and keep the Audio Codec stable */
+	/* Step 0. Enable the MICBIAS and keep the Audio Codec stable */
 	/* Do nothing */
 
 	/*
-	 * 2. Configure the (ADC_ANA_CON7+0x40)[3] or
+	 * Step 1. Configure the (ADC_ANA_CON7+0x40)[3] or
 	 * (ADC_ANA_CON7+0x80)[3] to 0x0
 	 */
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON07(1),
@@ -1098,7 +1319,7 @@ static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_ADC_MIC_BIAS_BUF_DIS);
 
 	/*
-	 * 3. Configure ACODEC_ADC_ANA_CON8[4] to 0x0
+	 * Step 2. Configure ACODEC_ADC_ANA_CON8[4] to 0x0
 	 *
 	 * Note: Only the reg (ADC_ANA_CON8+0x0)[4] represent the enable
 	 * signal of current source for MICBIAS
@@ -1119,84 +1340,179 @@ static int rk3308_codec_alc_enable(struct rk3308_codec_priv *rk3308)
 	 *
 	 * These values are estimated
 	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON05(grp),
-			   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
-			   0x16);
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON05(grp),
-			   RK3308_AGC_HI_8BITS_AGC_MIN_MSK,
-			   0x40);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON05(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MAX_MSK,
+				   0x26);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON05(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MAX_MSK,
+				   0x26);
 
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON05(grp),
-			   RK3308_AGC_LO_8BITS_AGC_MAX_MSK,
-			   0x26);
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON05(grp),
-			   RK3308_AGC_HI_8BITS_AGC_MAX_MSK,
-			   0x40);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON06(grp),
+				   RK3308_AGC_HI_8BITS_AGC_MAX_MSK,
+				   0x40);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON06(grp),
+				   RK3308_AGC_HI_8BITS_AGC_MAX_MSK,
+				   0x40);
+
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON07(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
+				   0x36);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON07(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
+				   0x36);
+
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON08(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
+				   0x20);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON08(grp),
+				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
+				   0x20);
+	}
 
 	/*
 	 * 2. Set ACODEC_ALC_DIG_CON4[2:0] according to the sample rate
 	 *
 	 * By default is 44.1KHz for sample.
 	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON04(grp),
-			   RK3308_AGC_APPROX_RATE_MSK,
-			   RK3308_AGC_APPROX_RATE_44_1K);
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON04(grp),
-			   RK3308_AGC_APPROX_RATE_MSK,
-			   RK3308_AGC_APPROX_RATE_44_1K);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON04(grp),
+				   RK3308_AGC_APPROX_RATE_MSK,
+				   RK3308_AGC_APPROX_RATE_44_1K);
 
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON04(grp),
+				   RK3308_AGC_APPROX_RATE_MSK,
+				   RK3308_AGC_APPROX_RATE_44_1K);
+	}
+
+#if ENABLE_AGC
 	/* 3. Set ACODEC_ALC_DIG_CON9[6] to 0x1, to enable the ALC module */
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
-			   RK3308_AGC_FUNC_SEL_MSK,
-			   RK3308_AGC_FUNC_SEL_EN);
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
-			   RK3308_AGC_FUNC_SEL_MSK,
-			   RK3308_AGC_FUNC_SEL_EN);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
+				   RK3308_AGC_FUNC_SEL_MSK,
+				   RK3308_AGC_FUNC_SEL_EN);
+
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
+				   RK3308_AGC_FUNC_SEL_MSK,
+				   RK3308_AGC_FUNC_SEL_EN);
+	}
 
 	/*
 	 * 4. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)[1:0],
 	 * (ACODEC_ADC_ANA_CON11+0x80)[1:0] and (ACODEC_ADC_ANA_CON11+0xc0)[1:0]
 	 * to 0x3, to enable the ALC module to control the gain of PGA.
 	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
-			   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
-			   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
-			   RK3308_ADC_ALCL_CON_GAIN_PGAL_EN |
-			   RK3308_ADC_ALCR_CON_GAIN_PGAR_EN);
-
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+				   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
+				   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
+				   RK3308_ADC_ALCL_CON_GAIN_PGAL_EN |
+				   RK3308_ADC_ALCR_CON_GAIN_PGAR_EN);
+	}
+#endif
 	/*
 	 * 5.Observe the current ALC output gain by reading
 	 * ACODEC_ALC_DIG_CON12[4:0]
 	 */
+
+	/* Do nothing if we don't use AGC */
 
 	return 0;
 }
 
 static int rk3308_codec_alc_disable(struct rk3308_codec_priv *rk3308)
 {
-	int grp = rk3308->adc_cur_grp;
+	int grp;
 
-	/*
-	 * 1. Set ACODEC_ALC_DIG_CON9[6] to 0x0, to disable the ALC module,
-	 * then the ALC output gain will keep to the last value
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
-			   RK3308_AGC_FUNC_SEL_MSK,
-			   RK3308_AGC_FUNC_SEL_DIS);
-	regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
-			   RK3308_AGC_FUNC_SEL_MSK,
-			   RK3308_AGC_FUNC_SEL_DIS);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/*
+		 * 1. Set ACODEC_ALC_DIG_CON9[6] to 0x0, to disable the ALC
+		 * module, then the ALC output gain will keep to the last value
+		 */
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
+				   RK3308_AGC_FUNC_SEL_MSK,
+				   RK3308_AGC_FUNC_SEL_DIS);
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
+				   RK3308_AGC_FUNC_SEL_MSK,
+				   RK3308_AGC_FUNC_SEL_DIS);
+	}
 
-	/*
-	 * 2. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)[1:0],
-	 * (ACODEC_ADC_ANA_CON11+0x80)[1:0] and (ACODEC_ADC_ANA_CON11+0xc0)[1:0]
-	 * to 0x0, to disable the ALC module to control the gain of PGA.
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
-			   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
-			   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
-			   RK3308_ADC_ALCL_CON_GAIN_PGAL_DIS |
-			   RK3308_ADC_ALCR_CON_GAIN_PGAR_DIS);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/*
+		 * 2. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)
+		 * [1:0], (ACODEC_ADC_ANA_CON11+0x80)[1:0] and
+		 * (ACODEC_ADC_ANA_CON11+0xc0)[1:0] to 0x0, to disable the ALC
+		 * module to control the gain of PGA.
+		 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+				   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
+				   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
+				   RK3308_ADC_ALCL_CON_GAIN_PGAL_DIS |
+				   RK3308_ADC_ALCR_CON_GAIN_PGAR_DIS);
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_adc_reinit_mics(struct rk3308_codec_priv *rk3308)
+{
+	int grp;
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 1 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK,
+				   RK3308_ADC_CH1_ADC_INIT |
+				   RK3308_ADC_CH2_ADC_INIT);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 2 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK,
+				   RK3308_ADC_CH1_ALC_INIT |
+				   RK3308_ADC_CH2_ALC_INIT);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 3 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK,
+				   RK3308_ADC_CH1_MIC_INIT |
+				   RK3308_ADC_CH2_MIC_INIT);
+	}
+
+	usleep_range(2000, 2500);	/* estimated value */
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 1 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK,
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 2 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK,
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 3 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK,
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK);
+	}
 
 	return 0;
 }
@@ -1214,151 +1530,268 @@ static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308)
 	 * Note1. Please ignore the step1 for enabling ADC3, ADC4, ADC5,
 	 * ADC6, ADC7, and ADC8
 	 */
-	if (grp == 0) {
-		if (rk3308->adc_grp0_using_linein) {
-			adc_aif1 = RK3308_ADC_CH1_IN_LINEIN_MIC;
-			adc_aif2 = RK3308_ADC_CH2_IN_LINEIN_MIC;
-		} else {
-			adc_aif1 = RK3308_ADC_CH1_IN_MIC;
-			adc_aif2 = RK3308_ADC_CH2_IN_MIC;
-		}
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON07(grp),
-				   RK3308_ADC_CH1_IN_SEL_MSK,
-				   adc_aif1);
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON07(grp),
+	if (rk3308->adc_grp0_using_linein) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON07(0),
+				   RK3308_ADC_CH1_IN_SEL_MSK |
 				   RK3308_ADC_CH2_IN_SEL_MSK,
-				   adc_aif2);
+				   RK3308_ADC_CH1_IN_LINEIN |
+				   RK3308_ADC_CH2_IN_LINEIN);
+
+		/* Keep other ADCs as MIC-IN */
+		for (grp = 1; grp < ADC_LR_GROUP_MAX; grp++) {
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_ANA_CON07(grp),
+					   RK3308_ADC_CH1_IN_SEL_MSK |
+					   RK3308_ADC_CH2_IN_SEL_MSK,
+					   RK3308_ADC_CH1_IN_MIC |
+					   RK3308_ADC_CH2_IN_MIC);
+		}
+	} else {
+		for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_ANA_CON07(grp),
+					   RK3308_ADC_CH1_IN_SEL_MSK |
+					   RK3308_ADC_CH2_IN_SEL_MSK,
+					   RK3308_ADC_CH1_IN_MIC |
+					   RK3308_ADC_CH2_IN_MIC);
+		}
 	}
 
 	/*
-	 * 2. Set ACODEC_ADC_ANA_CON0[7:0] to 0xff, to end the mute station
+	 * 2. Set ACODEC_ADC_ANA_CON0[7] and [3] to 0x1, to end the mute station
 	 * of ADC, to enable the MIC module, to enable the reference voltage
 	 * buffer, and to end the initialization of MIC
 	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
-			   RK3308_ADC_CH1_CH2_MIC_ALL_MSK,
-			   RK3308_ADC_CH1_CH2_MIC_ALL);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++)
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_UNMUTE |
+				   RK3308_ADC_CH2_MIC_UNMUTE,
+				   RK3308_ADC_CH1_MIC_UNMUTE |
+				   RK3308_ADC_CH2_MIC_UNMUTE);
 
 	/*
 	 * 3. Set ACODEC_ADC_ANA_CON6[0] to 0x1, to enable the current source
 	 * of audio
 	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON06(grp),
-			   RK3308_ADC_CURRENT_MSK,
-			   RK3308_ADC_CURRENT_EN);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON06(grp),
+				   RK3308_ADC_CURRENT_MSK,
+				   RK3308_ADC_CURRENT_EN);
+	}
 
-	/*
-	 * 4. Set ACODEC_ADC_ANA_CON2[7:0] to 0x77, to enable the ALC module,
-	 * to enable the zero-crossing detection function, and to end the
-	 * initialization of ALC
-	 *
-	 * Note2. Please set ACODEC_ADC_ANA_CON2[7:0] to 0x33 in step4
-	 * if the AGC function is closed
-	 */
+	/* vendor step 4*/
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_BUF_REF_EN |
+				   RK3308_ADC_CH2_BUF_REF_EN,
+				   RK3308_ADC_CH1_BUF_REF_EN |
+				   RK3308_ADC_CH2_BUF_REF_EN);
+	}
 
-	adc_aif1 = RK3308_ADC_CH1_ALC_EN | RK3308_ADC_CH1_ALC_WORK;
-	regmap_read(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp), &agc_func_en);
+	/* vendor step 5 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_EN |
+				   RK3308_ADC_CH2_MIC_EN,
+				   RK3308_ADC_CH1_MIC_EN |
+				   RK3308_ADC_CH2_MIC_EN);
+	}
 
-	if (agc_func_en & RK3308_AGC_FUNC_SEL_EN)
-		adc_aif1 |= RK3308_ADC_CH1_ZEROCROSS_DET_EN;
+	/* vendor step 6 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_EN |
+				   RK3308_ADC_CH2_ALC_EN,
+				   RK3308_ADC_CH1_ALC_EN |
+				   RK3308_ADC_CH2_ALC_EN);
+	}
 
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
-			   RK3308_ADC_CH1_ALC_ZC_MSK,
-			   adc_aif1);
+	/* vendor step 7 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_CLK_EN |
+				   RK3308_ADC_CH2_CLK_EN,
+				   RK3308_ADC_CH1_CLK_EN |
+				   RK3308_ADC_CH2_CLK_EN);
+	}
 
-	adc_aif2 = RK3308_ADC_CH2_ALC_EN | RK3308_ADC_CH2_ALC_WORK;
-	regmap_read(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp), &agc_func_en);
-	if (agc_func_en & RK3308_AGC_FUNC_SEL_EN)
-		adc_aif2 |= RK3308_ADC_CH2_ZEROCROSS_DET_EN;
+	/* vendor step 8 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_EN |
+				   RK3308_ADC_CH2_ADC_EN,
+				   RK3308_ADC_CH1_ADC_EN |
+				   RK3308_ADC_CH2_ADC_EN);
+	}
 
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
-			   RK3308_ADC_CH2_ALC_ZC_MSK,
-			   adc_aif2);
+	/* vendor step 9 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK,
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK);
+	}
 
-	/*
-	 * 5. Set ACODEC_ADC_ANA_CON5[7:0] to 0x77, to enable the clock and
-	 * ADC module, and to end the initialization of ADC
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
-			   RK3308_ADC_CH1_ADC_CLK_MSK |
-			   RK3308_ADC_CH2_ADC_CLK_MSK,
-			   0x77);
+	/* vendor step 10 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK,
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK);
+	}
 
-	/*
-	 * 6. Set ACODEC_ADC_ANA_CON1[5:4] and ACODEC_ADC_ANA_CON1[1:0],
-	 * to select the gain of the MIC
-	 *
-	 * By default is 0db.
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON01(grp),
-			   RK3308_ADC_CH1_MIC_GAIN_MSK,
-			   RK3308_ADC_CH1_MIC_GAIN_0DB);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON01(grp),
-			   RK3308_ADC_CH2_MIC_GAIN_MSK,
-			   RK3308_ADC_CH2_MIC_GAIN_0DB);
+	/* vendor step 11 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK,
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK);
+	}
 
-	/*
-	 * 7.Set ACODEC_ADC_ANA_CON3[4:0] and ACODEC_ADC_ANA_CON4[3:0] to
-	 * select the gain of ALC
-	 *
-	 * By default is 0db.
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON03(grp),
-			   RK3308_ADC_CH1_ALC_GAIN_MSK,
-			   RK3308_ADC_CH1_ALC_GAIN_0DB);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON04(grp),
-			   RK3308_ADC_CH2_ALC_GAIN_MSK,
-			   RK3308_ADC_CH2_ALC_GAIN_0DB);
+	/* vendor step 12 */
+	adc_aif1 = RK3308_ADC_CH1_MIC_GAIN_0DB;
+	adc_aif2 = RK3308_ADC_CH2_MIC_GAIN_0DB;
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON01(grp),
+				   RK3308_ADC_CH1_MIC_GAIN_MSK |
+				   RK3308_ADC_CH2_MIC_GAIN_MSK,
+				   adc_aif1 | adc_aif2);
+	}
 
-	/* 8.Begin recording */
+	/* vendor step 13 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON03(grp),
+				   RK3308_ADC_CH1_ALC_GAIN_MSK,
+				   RK3308_ADC_CH1_ALC_GAIN_0DB);
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON04(grp),
+				   RK3308_ADC_CH2_ALC_GAIN_MSK,
+				   RK3308_ADC_CH2_ALC_GAIN_0DB);
+	}
+
+	/* vendor step 14 */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_read(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
+			    &agc_func_en);
+		if (rk3308->adc_zerocross ||
+		    agc_func_en & RK3308_AGC_FUNC_SEL_EN) {
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_ANA_CON02(grp),
+					   RK3308_ADC_CH1_ZEROCROSS_DET_EN,
+					   RK3308_ADC_CH1_ZEROCROSS_DET_EN);
+		}
+		regmap_read(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
+			    &agc_func_en);
+		if (rk3308->adc_zerocross ||
+		    agc_func_en & RK3308_AGC_FUNC_SEL_EN) {
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_ANA_CON02(grp),
+					   RK3308_ADC_CH2_ZEROCROSS_DET_EN,
+					   RK3308_ADC_CH2_ZEROCROSS_DET_EN);
+		}
+	}
+
+	/* vendor step 15, re-init mic */
+	rk3308_codec_adc_reinit_mics(rk3308);
+
+	/* vendor step 16 Begin recording */
 
 	return 0;
 }
 
 static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308)
 {
-	int grp = rk3308->adc_cur_grp;
+	int grp;
 
-	/*
-	 * 1. Set ACODEC_ADC_ANA_CON2[7:0] to 0x0, to disable the ALC module,
-	 * to disable the zero-crossing detection function, and to begin the
-	 * initialization of ALC
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
-			   RK3308_ADC_CH1_ALC_ZC_MSK,
-			   0);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
-			   RK3308_ADC_CH2_ALC_ZC_MSK,
-			   0);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 1 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ZEROCROSS_DET_EN |
+				   RK3308_ADC_CH2_ZEROCROSS_DET_EN,
+				   RK3308_ADC_CH1_ZEROCROSS_DET_DIS |
+				   RK3308_ADC_CH2_ZEROCROSS_DET_DIS);
+	}
 
-	/*
-	 * 2. Set ACODEC_ADC_ANA_CON5[7:0] to 0x0, to disable the clock and
-	 * ADC module, and to begin the initialization of ADC
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
-			   RK3308_ADC_CH1_ADC_CLK_MSK,
-			   0);
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
-			   RK3308_ADC_CH2_ADC_CLK_MSK,
-			   0);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 2 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_EN |
+				   RK3308_ADC_CH2_ADC_EN,
+				   RK3308_ADC_CH1_ADC_DIS |
+				   RK3308_ADC_CH2_ADC_DIS);
+	}
 
-	/*
-	 * 3. Set ACODEC_ADC_ANA_CON0[7:0] to 0x88, to disable the MIC module,
-	 * to disable the reference voltage buffer, and to begin the
-	 * initialization of MIC
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
-			   RK3308_ADC_CH1_CH2_MIC_ALL_MSK,
-			   RK3308_ADC_CH1_MIC_MUTE |
-			   RK3308_ADC_CH2_MIC_MUTE);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 3 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_CLK_EN |
+				   RK3308_ADC_CH2_CLK_EN,
+				   RK3308_ADC_CH1_CLK_DIS |
+				   RK3308_ADC_CH2_CLK_DIS);
+	}
 
-	/*
-	 * 4. Set ACODEC_ADC_ANA_CON6[0] to 0x0, to disable the current
-	 * source of audio
-	 */
-	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON06(grp),
-			   RK3308_ADC_CURRENT_MSK,
-			   RK3308_ADC_CURRENT_DIS);
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 4 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_EN |
+				   RK3308_ADC_CH2_ALC_EN,
+				   RK3308_ADC_CH1_ALC_DIS |
+				   RK3308_ADC_CH2_ALC_DIS);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 5 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_EN |
+				   RK3308_ADC_CH2_MIC_EN,
+				   RK3308_ADC_CH1_MIC_DIS |
+				   RK3308_ADC_CH2_MIC_DIS);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 6 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_BUF_REF_EN |
+				   RK3308_ADC_CH2_BUF_REF_EN,
+				   RK3308_ADC_CH1_BUF_REF_DIS |
+				   RK3308_ADC_CH2_BUF_REF_DIS);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 7 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON06(grp),
+				   RK3308_ADC_CURRENT_MSK,
+				   RK3308_ADC_CURRENT_DIS);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 8 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
+				   RK3308_ADC_CH1_ADC_WORK |
+				   RK3308_ADC_CH2_ADC_WORK,
+				   RK3308_ADC_CH1_ADC_INIT |
+				   RK3308_ADC_CH2_ADC_INIT);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 9 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
+				   RK3308_ADC_CH1_ALC_WORK |
+				   RK3308_ADC_CH2_ALC_WORK,
+				   RK3308_ADC_CH1_ALC_INIT |
+				   RK3308_ADC_CH2_ALC_INIT);
+	}
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		/* vendor step 10 */
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
+				   RK3308_ADC_CH1_MIC_WORK |
+				   RK3308_ADC_CH2_MIC_WORK,
+				   RK3308_ADC_CH1_MIC_INIT |
+				   RK3308_ADC_CH2_MIC_INIT);
+	}
 
 	return 0;
 }
@@ -1366,17 +1799,30 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308)
 static int rk3308_codec_open_capture(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
-	int grp, temp_grp;
+	int grp = 0;
 
-	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_7);
+	rk3308_codec_alc_enable(rk3308);
+	rk3308_codec_adc_ana_enable(rk3308);
 
-	temp_grp = rk3308->adc_cur_grp;
-	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
-		rk3308->adc_cur_grp = grp;
-		rk3308_codec_alc_enable(rk3308);
-		rk3308_codec_adc_ana_enable(rk3308);
+	if (rk3308->adc_grp0_using_linein) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON03(0),
+				   RK3308_ADC_L_CH_BIST_MSK,
+				   RK3308_ADC_L_CH_NORMAL_RIGHT);
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON03(0),
+				   RK3308_ADC_R_CH_BIST_MSK,
+				   RK3308_ADC_R_CH_NORMAL_LEFT);
+	} else {
+		for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_DIG_CON03(grp),
+					   RK3308_ADC_L_CH_BIST_MSK,
+					   RK3308_ADC_L_CH_NORMAL_LEFT);
+			regmap_update_bits(rk3308->regmap,
+					   RK3308_ADC_DIG_CON03(grp),
+					   RK3308_ADC_R_CH_BIST_MSK,
+					   RK3308_ADC_R_CH_NORMAL_RIGHT);
+		}
 	}
-	rk3308->adc_cur_grp = temp_grp;
 
 	return 0;
 }
@@ -1384,17 +1830,9 @@ static int rk3308_codec_open_capture(struct snd_soc_codec *codec)
 static int rk3308_codec_close_capture(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
-	int grp, temp_grp;
 
-	temp_grp = rk3308->adc_cur_grp;
-	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
-		rk3308->adc_cur_grp = grp;
-		rk3308_codec_alc_disable(rk3308);
-		rk3308_codec_adc_ana_disable(rk3308);
-	}
-	rk3308->adc_cur_grp = temp_grp;
-
-	rk3308_codec_micbias_disable(rk3308);
+	rk3308_codec_alc_disable(rk3308);
+	rk3308_codec_adc_ana_disable(rk3308);
 
 	return 0;
 }
@@ -1404,7 +1842,6 @@ static int rk3308_codec_open_playback(struct snd_soc_codec *codec)
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
 	rk3308_codec_dac_enable(rk3308);
-	rk3308_speaker_ctl(rk3308, 1);
 
 	return 0;
 }
@@ -1413,7 +1850,6 @@ static int rk3308_codec_close_playback(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
-	rk3308_speaker_ctl(rk3308, 0);
 	rk3308_codec_dac_disable(rk3308);
 
 	return 0;
@@ -1455,7 +1891,7 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 static struct snd_soc_dai_ops rk3308_dai_ops = {
 	.hw_params = rk3308_hw_params,
 	.set_fmt = rk3308_set_dai_fmt,
-	.digital_mute = rk3308_digital_mute,
+	.mute_stream = rk3308_mute_stream,
 	.startup = rk3308_pcm_startup,
 	.shutdown = rk3308_pcm_shutdown,
 };
@@ -1468,7 +1904,7 @@ static struct snd_soc_dai_driver rk3308_dai[] = {
 			.stream_name = "HiFi Playback",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_96000,
+			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
@@ -1478,7 +1914,7 @@ static struct snd_soc_dai_driver rk3308_dai[] = {
 			.stream_name = "HiFi Capture",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_8000_96000,
+			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
@@ -1502,12 +1938,26 @@ static int rk3308_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int rk3308_codec_prepare(struct snd_soc_codec *codec)
+{
+	/* Clear registers for ADC and DAC */
+	rk3308_codec_close_playback(codec);
+	rk3308_codec_close_capture(codec);
+
+	return 0;
+}
+
 static int rk3308_probe(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
 	rk3308_codec_reset(codec);
 	rk3308_codec_power_on(codec);
+
+	/* From vendor recommend */
+	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
+
+	rk3308_codec_prepare(codec);
 	rk3308_codec_headset_detect_enable(rk3308);
 
 	regcache_cache_only(rk3308->regmap, false);
@@ -1520,9 +1970,11 @@ static int rk3308_remove(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
+	rk3308_headphone_ctl(rk3308, 0);
 	rk3308_speaker_ctl(rk3308, 0);
 	rk3308_codec_headset_detect_disable(rk3308);
 	rk3308_codec_power_off(codec);
+	rk3308_codec_micbias_disable(rk3308);
 
 	regcache_cache_only(rk3308->regmap, false);
 	regcache_sync(rk3308->regmap);
@@ -1638,9 +2090,101 @@ static ssize_t adc_grp0_in_store(struct device *dev,
 	return count;
 }
 
+static ssize_t adc_zerocross_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+
+	return sprintf(buf, "adc zerocross: %s\n",
+		       rk3308->adc_zerocross ? "enabled" : "disabled");
+}
+
+static ssize_t adc_zerocross_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	unsigned long zerocross;
+	int ret = kstrtoul(buf, 10, &zerocross);
+
+	if (ret < 0 || zerocross > 1) {
+		dev_err(dev, "Invalid zerocross: %ld, ret: %d\n",
+			zerocross, ret);
+		return -EINVAL;
+	}
+
+	rk3308->adc_zerocross = zerocross;
+
+	dev_info(dev, "store adc zerocross: %d\n", rk3308->adc_zerocross);
+
+	return count;
+}
+
+static ssize_t dac_output_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	ssize_t ret = 0;
+
+	switch (rk3308->dac_output) {
+	case DAC_LINEOUT:
+		ret = sprintf(buf, "dac path: %s\n", "line out");
+		break;
+	case DAC_HPOUT:
+		ret = sprintf(buf, "dac path: %s\n", "hp out");
+		break;
+	case DAC_LINEOUT_HPOUT:
+		ret = sprintf(buf, "dac path: %s\n",
+			      "both line out and hp out");
+		break;
+	default:
+		pr_err("Invalid dac path: %d ?\n", rk3308->dac_output);
+		break;
+	}
+
+	return ret;
+}
+
+static ssize_t dac_output_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	unsigned long dac_output;
+	int ret = kstrtoul(buf, 10, &dac_output);
+
+	if (ret < 0) {
+		dev_err(dev, "Invalid input status: %ld, ret: %d\n",
+			dac_output, ret);
+		return -EINVAL;
+	}
+
+	switch (dac_output) {
+	case DAC_LINEOUT:
+	case DAC_HPOUT:
+	case DAC_LINEOUT_HPOUT:
+		rk3308->dac_output = dac_output;
+		dev_info(dev, "Store dac_output: %d\n", rk3308->dac_output);
+		break;
+	default:
+		dev_err(dev, "Unknown value: %ld\n", dac_output);
+		break;
+	}
+
+	return count;
+}
+
 static const struct device_attribute adc_ch_attrs[] = {
 	__ATTR(adc_cur_grp, 0644, adc_ch_show, adc_ch_store),
 	__ATTR(adc_grp0_in, 0644, adc_grp0_in_show, adc_grp0_in_store),
+	__ATTR(adc_zerocross, 0644, adc_zerocross_show, adc_zerocross_store),
+	__ATTR(dac_output, 0644, dac_output_show, dac_output_store),
 };
 
 static void rk3308_codec_device_release(struct device *dev)
@@ -1801,14 +2345,36 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		rk3308->reset = NULL;
 	}
 
-	/* GPIO0_A5 control speaker on RK3308 EVB */
-	rk3308->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "spk_ctl",
-						       GPIOD_OUT_HIGH);
-	if (IS_ERR(rk3308->spk_ctl_gpio)) {
-		ret = PTR_ERR(rk3308->spk_ctl_gpio);
-		dev_err(&pdev->dev, "Unable to claim gpio spk_ctl\n");
+	rk3308->hp_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "hp-ctl",
+						       GPIOD_OUT_LOW);
+	if (!rk3308->hp_ctl_gpio) {
+		dev_info(&pdev->dev, "Don't need hp-ctl gpio\n");
+	} else if (IS_ERR(rk3308->hp_ctl_gpio)) {
+		ret = PTR_ERR(rk3308->hp_ctl_gpio);
+		dev_err(&pdev->dev, "Unable to claim gpio hp-ctl\n");
 		return ret;
 	}
+
+	rk3308->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "spk-ctl",
+						       GPIOD_OUT_LOW);
+
+	if (!rk3308->spk_ctl_gpio) {
+		dev_info(&pdev->dev, "Don't need spk-ctl gpio\n");
+	} else if (IS_ERR(rk3308->spk_ctl_gpio)) {
+		ret = PTR_ERR(rk3308->spk_ctl_gpio);
+		dev_err(&pdev->dev, "Unable to claim gpio spk-ctl\n");
+		return ret;
+	}
+
+#if DEBUG_POP_ALWAYS
+	dev_info(&pdev->dev, "Enable all ctl gpios always for debugging pop\n");
+	rk3308_headphone_ctl(rk3308, 1);
+	rk3308_speaker_ctl(rk3308, 1);
+#else
+	dev_info(&pdev->dev, "De-pop as much as possible\n");
+	rk3308_headphone_ctl(rk3308, 0);
+	rk3308_speaker_ctl(rk3308, 0);
+#endif
 
 	rk3308->pclk = devm_clk_get(&pdev->dev, "acodec");
 	if (IS_ERR(rk3308->pclk)) {
@@ -1875,7 +2441,9 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	rk3308->adc_grp0_using_linein = 0;
+	rk3308->adc_grp0_using_linein = ADC_GRP0_MICIN;
+	rk3308->dac_output = DAC_LINEOUT;
+	rk3308->adc_zerocross = 1;
 
 	platform_set_drvdata(pdev, rk3308);
 
