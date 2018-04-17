@@ -62,6 +62,7 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 	bp.byte_align = alignment;
 	bp.type = type;
 	bp.resv = resv;
+	bp.preferred_domain = initial_domain;
 retry:
 	bp.flags = flags;
 	bp.domain = initial_domain;

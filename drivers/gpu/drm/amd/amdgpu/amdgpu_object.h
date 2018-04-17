@@ -37,6 +37,7 @@ struct amdgpu_bo_param {
 	unsigned long			size;
 	int				byte_align;
 	u32				domain;
+	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
 	struct reservation_object	*resv;
