@@ -162,12 +162,8 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 
 	new_bus->name = "GPIO Bitbanged MDIO";
 
-	new_bus->phy_mask = pdata->phy_mask;
 	memcpy(new_bus->irq, pdata->irqs, sizeof(new_bus->irq));
 	new_bus->parent = dev;
-
-	if (new_bus->phy_mask == ~0)
-		goto out_free_bus;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		if (!new_bus->irq[i])
