@@ -250,6 +250,10 @@ struct btf_kind_operations {
 			  u32 meta_left);
 	int (*resolve)(struct btf_verifier_env *env,
 		       const struct resolve_vertex *v);
+	int (*check_member)(struct btf_verifier_env *env,
+			    const struct btf_type *struct_type,
+			    const struct btf_member *member,
+			    const struct btf_type *member_type);
 	void (*log_details)(struct btf_verifier_env *env,
 			    const struct btf_type *t);
 };
@@ -760,11 +764,59 @@ const struct btf_type *btf_type_id_size(const struct btf *btf,
 	return size_type;
 }
 
+static int btf_df_check_member(struct btf_verifier_env *env,
+			       const struct btf_type *struct_type,
+			       const struct btf_member *member,
+			       const struct btf_type *member_type)
+{
+	btf_verifier_log_basic(env, struct_type,
+			       "Unsupported check_member");
+	return -EINVAL;
+}
+
 static int btf_df_resolve(struct btf_verifier_env *env,
 			  const struct resolve_vertex *v)
 {
 	btf_verifier_log_basic(env, v->t, "Unsupported resolve");
 	return -EINVAL;
+}
+
+static int btf_int_check_member(struct btf_verifier_env *env,
+				const struct btf_type *struct_type,
+				const struct btf_member *member,
+				const struct btf_type *member_type)
+{
+	u32 int_data = btf_type_int(member_type);
+	u32 struct_bits_off = member->offset;
+	u32 struct_size = struct_type->size;
+	u32 nr_copy_bits;
+	u32 bytes_offset;
+
+	if (U32_MAX - struct_bits_off < BTF_INT_OFFSET(int_data)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"bits_offset exceeds U32_MAX");
+		return -EINVAL;
+	}
+
+	struct_bits_off += BTF_INT_OFFSET(int_data);
+	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
+	nr_copy_bits = BTF_INT_BITS(int_data) +
+		BITS_PER_BYTE_MASKED(struct_bits_off);
+
+	if (nr_copy_bits > BITS_PER_U64) {
+		btf_verifier_log_member(env, struct_type, member,
+					"nr_copy_bits exceeds 64");
+		return -EINVAL;
+	}
+
+	if (struct_size < bytes_offset ||
+	    struct_size - bytes_offset < BITS_ROUNDUP_BYTES(nr_copy_bits)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member exceeds struct_size");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static s32 btf_int_check_meta(struct btf_verifier_env *env,
@@ -830,8 +882,60 @@ static void btf_int_log(struct btf_verifier_env *env,
 static const struct btf_kind_operations int_ops = {
 	.check_meta = btf_int_check_meta,
 	.resolve = btf_df_resolve,
+	.check_member = btf_int_check_member,
 	.log_details = btf_int_log,
 };
+
+static int btf_modifier_check_member(struct btf_verifier_env *env,
+				     const struct btf_type *struct_type,
+				     const struct btf_member *member,
+				     const struct btf_type *member_type)
+{
+	const struct btf_type *resolved_type;
+	u32 resolved_type_id = member->type;
+	struct btf_member resolved_member;
+	struct btf *btf = env->btf;
+
+	resolved_type = btf_type_id_size(btf, &resolved_type_id, NULL);
+	if (!resolved_type) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Invalid member");
+		return -EINVAL;
+	}
+
+	resolved_member = *member;
+	resolved_member.type = resolved_type_id;
+
+	return btf_type_ops(resolved_type)->check_member(env, struct_type,
+							 &resolved_member,
+							 resolved_type);
+}
+
+static int btf_ptr_check_member(struct btf_verifier_env *env,
+				const struct btf_type *struct_type,
+				const struct btf_member *member,
+				const struct btf_type *member_type)
+{
+	u32 struct_size, struct_bits_off, bytes_offset;
+
+	struct_size = struct_type->size;
+	struct_bits_off = member->offset;
+	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
+
+	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member is not byte aligned");
+		return -EINVAL;
+	}
+
+	if (struct_size - bytes_offset < sizeof(void *)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member exceeds struct_size");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int btf_ref_type_check_meta(struct btf_verifier_env *env,
 				   const struct btf_type *t,
@@ -959,20 +1063,52 @@ static void btf_ref_type_log(struct btf_verifier_env *env,
 static struct btf_kind_operations modifier_ops = {
 	.check_meta = btf_ref_type_check_meta,
 	.resolve = btf_modifier_resolve,
+	.check_member = btf_modifier_check_member,
 	.log_details = btf_ref_type_log,
 };
 
 static struct btf_kind_operations ptr_ops = {
 	.check_meta = btf_ref_type_check_meta,
 	.resolve = btf_ptr_resolve,
+	.check_member = btf_ptr_check_member,
 	.log_details = btf_ref_type_log,
 };
 
 static struct btf_kind_operations fwd_ops = {
 	.check_meta = btf_ref_type_check_meta,
 	.resolve = btf_df_resolve,
+	.check_member = btf_df_check_member,
 	.log_details = btf_ref_type_log,
 };
+
+static int btf_array_check_member(struct btf_verifier_env *env,
+				  const struct btf_type *struct_type,
+				  const struct btf_member *member,
+				  const struct btf_type *member_type)
+{
+	u32 struct_bits_off = member->offset;
+	u32 struct_size, bytes_offset;
+	u32 array_type_id, array_size;
+	struct btf *btf = env->btf;
+
+	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member is not byte aligned");
+		return -EINVAL;
+	}
+
+	array_type_id = member->type;
+	btf_type_id_size(btf, &array_type_id, &array_size);
+	struct_size = struct_type->size;
+	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
+	if (struct_size - bytes_offset < array_size) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member exceeds struct_size");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static s32 btf_array_check_meta(struct btf_verifier_env *env,
 				const struct btf_type *t,
@@ -1076,8 +1212,34 @@ static void btf_array_log(struct btf_verifier_env *env,
 static struct btf_kind_operations array_ops = {
 	.check_meta = btf_array_check_meta,
 	.resolve = btf_array_resolve,
+	.check_member = btf_array_check_member,
 	.log_details = btf_array_log,
 };
+
+static int btf_struct_check_member(struct btf_verifier_env *env,
+				   const struct btf_type *struct_type,
+				   const struct btf_member *member,
+				   const struct btf_type *member_type)
+{
+	u32 struct_bits_off = member->offset;
+	u32 struct_size, bytes_offset;
+
+	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member is not byte aligned");
+		return -EINVAL;
+	}
+
+	struct_size = struct_type->size;
+	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
+	if (struct_size - bytes_offset < member_type->size) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member exceeds struct_size");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 				 const struct btf_type *t,
@@ -1137,6 +1299,7 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 			      const struct resolve_vertex *v)
 {
 	const struct btf_member *member;
+	int err;
 	u16 i;
 
 	/* Before continue resolving the next_member,
@@ -1144,6 +1307,7 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 	 * type with size info.
 	 */
 	if (v->next_member) {
+		const struct btf_type *last_member_type;
 		const struct btf_member *last_member;
 		u16 last_member_type_id;
 
@@ -1152,6 +1316,14 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 		if (WARN_ON_ONCE(!env_type_is_resolved(env,
 						       last_member_type_id)))
 			return -EINVAL;
+
+		last_member_type = btf_type_by_id(env->btf,
+						  last_member_type_id);
+		err = btf_type_ops(last_member_type)->check_member(env, v->t,
+							last_member,
+							last_member_type);
+		if (err)
+			return err;
 	}
 
 	for_each_member_from(i, v->next_member, v->t, member) {
@@ -1170,6 +1342,12 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 			env_stack_set_next_member(env, i + 1);
 			return env_stack_push(env, member_type, member_type_id);
 		}
+
+		err = btf_type_ops(member_type)->check_member(env, v->t,
+							      member,
+							      member_type);
+		if (err)
+			return err;
 	}
 
 	env_stack_pop_resolved(env, 0, 0);
@@ -1186,8 +1364,34 @@ static void btf_struct_log(struct btf_verifier_env *env,
 static struct btf_kind_operations struct_ops = {
 	.check_meta = btf_struct_check_meta,
 	.resolve = btf_struct_resolve,
+	.check_member = btf_struct_check_member,
 	.log_details = btf_struct_log,
 };
+
+static int btf_enum_check_member(struct btf_verifier_env *env,
+				 const struct btf_type *struct_type,
+				 const struct btf_member *member,
+				 const struct btf_type *member_type)
+{
+	u32 struct_bits_off = member->offset;
+	u32 struct_size, bytes_offset;
+
+	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member is not byte aligned");
+		return -EINVAL;
+	}
+
+	struct_size = struct_type->size;
+	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
+	if (struct_size - bytes_offset < sizeof(int)) {
+		btf_verifier_log_member(env, struct_type, member,
+					"Member exceeds struct_size");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 			       const struct btf_type *t,
@@ -1240,6 +1444,7 @@ static void btf_enum_log(struct btf_verifier_env *env,
 static struct btf_kind_operations enum_ops = {
 	.check_meta = btf_enum_check_meta,
 	.resolve = btf_df_resolve,
+	.check_member = btf_enum_check_member,
 	.log_details = btf_enum_log,
 };
 
