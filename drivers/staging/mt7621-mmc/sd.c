@@ -2467,21 +2467,17 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 		sdr_set_bits(MSDC_INTEN, MSDC_INTEN_CDSC);
 		sdr_set_bits(SDC_CFG, SDC_CFG_INSWKUP);  /* not in document! Fix me */
 	} else {
-		if (hw->disable_cd_eirq) {
-			hw->disable_cd_eirq();
-		} else {
-			if (hw->config_gpio_pin) /* NULL */
-				hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
+		if (hw->config_gpio_pin) /* NULL */
+			hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
 
-			sdr_clr_bits(SDC_CFG, SDC_CFG_INSWKUP);
-			sdr_clr_bits(MSDC_PS, MSDC_PS_CDEN);
-			sdr_clr_bits(MSDC_INTEN, MSDC_INTEN_CDSC);
+		sdr_clr_bits(SDC_CFG, SDC_CFG_INSWKUP);
+		sdr_clr_bits(MSDC_PS, MSDC_PS_CDEN);
+		sdr_clr_bits(MSDC_INTEN, MSDC_INTEN_CDSC);
 
-			/* Here decreases a reference count to core power since card
-			 * detection circuit is shutdown.
-			 */
-			//msdc_vcore_off(host);
-		}
+		/* Here decreases a reference count to core power since card
+		 * detection circuit is shutdown.
+		 */
+		//msdc_vcore_off(host);
 	}
 }
 
