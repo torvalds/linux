@@ -134,6 +134,7 @@ struct arm_smccc_res sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2)
 	res = __invoke_sip_fn_smc(PSCI_SIP_VPU_RESET, arg0, arg1, arg2);
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_vpu_reset);
 
 /************************** fiq debugger **************************************/
 #ifdef CONFIG_ARM64
