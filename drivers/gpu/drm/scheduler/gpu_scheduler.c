@@ -402,6 +402,9 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 	if (entity->guilty && atomic_read(entity->guilty))
 		dma_fence_set_error(&sched_job->s_fence->finished, -ECANCELED);
 
+	dma_fence_put(entity->last_scheduled);
+	entity->last_scheduled = dma_fence_get(&sched_job->s_fence->finished);
+
 	spsc_queue_pop(&entity->job_queue);
 	return sched_job;
 }
@@ -714,9 +717,6 @@ static int drm_sched_main(void *param)
 
 		fence = sched->ops->run_job(sched_job);
 		drm_sched_fence_scheduled(s_fence);
-
-		dma_fence_put(entity->last_scheduled);
-		entity->last_scheduled = dma_fence_get(&s_fence->finished);
 
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
