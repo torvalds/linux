@@ -909,7 +909,6 @@ struct msdc_dma {
 	struct scatterlist *sg;      /* I/O scatter list */
 	struct scatterlist_ex *esg;  /* extended I/O scatter list */
 	u8  mode;                    /* dma mode        */
-	u8  burstsz;                 /* burst size      */
 	u8  intr;                    /* dma done interrupt */
 	u8  padding;                 /* padding */
 	u32 cmd;                     /* enhanced mode command */

@@ -1338,7 +1338,8 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		else
 			sdr_write32((volatile u32 *)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
 //#endif
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ, dma->burstsz);
+		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
+			      MSDC_BRUST_64B);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 0);
 		break;
 	case MSDC_MODE_DMA_DESC:
@@ -1377,7 +1378,8 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		dma->used_bd += bdlen;
 
 		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, chksum);
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ, dma->burstsz);
+		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
+			      MSDC_BRUST_64B);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
 
 		sdr_write32(MSDC_DMA_SA, PHYSADDR((u32)dma->gpd_addr));
@@ -1404,7 +1406,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	//dma->flags = DMA_FLAG_NONE; /* CHECKME */
 	dma->sglen = sglen;
 	dma->xfersz = host->xfer_size;
-	dma->burstsz = MSDC_BRUST_64B;
 
 	if (sglen == 1 && sg_dma_len(sg) <= MAX_DMA_CNT)
 		dma->mode = MSDC_MODE_DMA_BASIC;
