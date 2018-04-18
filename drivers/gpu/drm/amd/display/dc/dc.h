@@ -75,6 +75,7 @@ struct dc_caps {
 	bool dynamic_audio;
 	bool is_apu;
 	bool dual_link_dvi;
+	bool post_blend_color_processing;
 };
 
 struct dc_dcc_surface_param {
