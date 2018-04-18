@@ -169,7 +169,8 @@ struct rcu_node {
 	bool __nonzero = false;						\
 									\
 	for (__i = 0; __i < ARRAY_SIZE((rnp)->need_future_gp); __i++)	\
-		__nonzero = __nonzero || (rnp)->need_future_gp[__i];	\
+		__nonzero = __nonzero ||				\
+			    READ_ONCE((rnp)->need_future_gp[__i]);	\
 	__nonzero;							\
 })
 
