@@ -276,10 +276,10 @@ void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 		}
-
-		dma_fence_put(entity->last_scheduled);
-		entity->last_scheduled = NULL;
 	}
+
+	dma_fence_put(entity->last_scheduled);
+	entity->last_scheduled = NULL;
 }
 EXPORT_SYMBOL(drm_sched_entity_cleanup);
 
