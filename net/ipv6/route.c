@@ -435,7 +435,7 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 			return true;
 	} else if (rt->from) {
 		return rt->dst.obsolete != DST_OBSOLETE_FORCE_CHK ||
-			rt6_check_expired(rt->from);
+			fib6_check_expired(rt->from);
 	}
 	return false;
 }
@@ -687,7 +687,7 @@ static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
 	    !(strict & RT6_LOOKUP_F_IGNORE_LINKSTATE))
 		goto out;
 
-	if (rt6_check_expired(rt))
+	if (fib6_check_expired(rt))
 		goto out;
 
 	m = rt6_score_route(rt, oif, strict);
@@ -871,9 +871,9 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 
 	if (rt) {
 		if (!addrconf_finite_timeout(lifetime))
-			rt6_clean_expires(rt);
+			fib6_clean_expires(rt);
 		else
-			rt6_set_expires(rt, jiffies + HZ * lifetime);
+			fib6_set_expires(rt, jiffies + HZ * lifetime);
 
 		ip6_rt_put(rt);
 	}
@@ -2383,7 +2383,7 @@ restart:
 	for_each_fib6_node_rt_rcu(fn) {
 		if (rt->fib6_nh.nh_flags & RTNH_F_DEAD)
 			continue;
-		if (rt6_check_expired(rt))
+		if (fib6_check_expired(rt))
 			continue;
 		if (rt->rt6i_flags & RTF_REJECT)
 			break;
@@ -2909,10 +2909,10 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto out;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
-		rt6_set_expires(rt, jiffies +
+		fib6_set_expires(rt, jiffies +
 				clock_t_to_jiffies(cfg->fc_expires));
 	else
-		rt6_clean_expires(rt);
+		fib6_clean_expires(rt);
 
 	if (cfg->fc_protocol == RTPROT_UNSPEC)
 		cfg->fc_protocol = RTPROT_BOOT;
@@ -4599,8 +4599,10 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 			goto nla_put_failure;
 	}
 
-	if (rt->rt6i_flags & RTF_EXPIRES && dst)
-		expires = dst->expires - jiffies;
+	if (rt->rt6i_flags & RTF_EXPIRES) {
+		expires = dst ? dst->expires : rt->expires;
+		expires -= jiffies;
+	}
 
 	if (rtnl_put_cacheinfo(skb, dst, 0, expires, dst ? dst->error : 0) < 0)
 		goto nla_put_failure;

@@ -1190,7 +1190,7 @@ cleanup_prefix_route(struct inet6_ifaddr *ifp, unsigned long expires, bool del_r
 			ip6_del_rt(dev_net(ifp->idev->dev), rt);
 		else {
 			if (!(rt->rt6i_flags & RTF_EXPIRES))
-				rt6_set_expires(rt, expires);
+				fib6_set_expires(rt, expires);
 			ip6_rt_put(rt);
 		}
 	}
@@ -2672,9 +2672,9 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 				rt = NULL;
 			} else if (addrconf_finite_timeout(rt_expires)) {
 				/* not infinity */
-				rt6_set_expires(rt, jiffies + rt_expires);
+				fib6_set_expires(rt, jiffies + rt_expires);
 			} else {
-				rt6_clean_expires(rt);
+				fib6_clean_expires(rt);
 			}
 		} else if (valid_lft) {
 			clock_t expires = 0;

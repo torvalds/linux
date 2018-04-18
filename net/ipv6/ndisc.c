@@ -1318,7 +1318,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	}
 
 	if (rt)
-		rt6_set_expires(rt, jiffies + (HZ * lifetime));
+		fib6_set_expires(rt, jiffies + (HZ * lifetime));
 	if (in6_dev->cnf.accept_ra_min_hop_limit < 256 &&
 	    ra_msg->icmph.icmp6_hop_limit) {
 		if (in6_dev->cnf.accept_ra_min_hop_limit <= ra_msg->icmph.icmp6_hop_limit) {

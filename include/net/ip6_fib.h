@@ -179,6 +179,7 @@ struct rt6_info {
 					should_flush:1,
 					unused:6;
 
+	unsigned long			expires;
 	struct dst_metrics		*fib6_metrics;
 #define fib6_pmtu		fib6_metrics->metrics[RTAX_MTU-1]
 	struct fib6_nh			fib6_nh;
@@ -197,6 +198,26 @@ static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 	return ((struct rt6_info *)dst)->rt6i_idev;
 }
 
+static inline void fib6_clean_expires(struct rt6_info *f6i)
+{
+	f6i->rt6i_flags &= ~RTF_EXPIRES;
+	f6i->expires = 0;
+}
+
+static inline void fib6_set_expires(struct rt6_info *f6i,
+				    unsigned long expires)
+{
+	f6i->expires = expires;
+	f6i->rt6i_flags |= RTF_EXPIRES;
+}
+
+static inline bool fib6_check_expired(const struct rt6_info *f6i)
+{
+	if (f6i->rt6i_flags & RTF_EXPIRES)
+		return time_after(jiffies, f6i->expires);
+	return false;
+}
+
 static inline void rt6_clean_expires(struct rt6_info *rt)
 {
 	rt->rt6i_flags &= ~RTF_EXPIRES;
@@ -211,11 +232,9 @@ static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
 
 static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 {
-	struct rt6_info *rt;
+	if (!(rt0->rt6i_flags & RTF_EXPIRES) && rt0->from)
+		rt0->dst.expires = rt0->from->expires;
 
-	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES); rt = rt->from);
-	if (rt && rt != rt0)
-		rt0->dst.expires = rt->dst.expires;
 	dst_set_expires(&rt0->dst, timeout);
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
