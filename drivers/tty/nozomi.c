@@ -155,7 +155,7 @@ enum card_type {
 
 /* Initialization states a card can be in */
 enum card_state {
-	NOZOMI_STATE_UKNOWN	= 0,
+	NOZOMI_STATE_UNKNOWN	= 0,
 	NOZOMI_STATE_ENABLED	= 1,	/* pci device enabled */
 	NOZOMI_STATE_ALLOCATED	= 2,	/* config setup done */
 	NOZOMI_STATE_READY	= 3,	/* flowcontrols received */
