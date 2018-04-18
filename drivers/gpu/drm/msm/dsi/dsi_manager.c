@@ -306,101 +306,24 @@ static void dsi_mgr_connector_destroy(struct drm_connector *connector)
 	kfree(dsi_connector);
 }
 
-static void dsi_dual_connector_fix_modes(struct drm_connector *connector)
-{
-	struct drm_display_mode *mode, *m;
-
-	/* Only support left-right mode */
-	list_for_each_entry_safe(mode, m, &connector->probed_modes, head) {
-		mode->clock >>= 1;
-		mode->hdisplay >>= 1;
-		mode->hsync_start >>= 1;
-		mode->hsync_end >>= 1;
-		mode->htotal >>= 1;
-		drm_mode_set_name(mode);
-	}
-}
-
-static int dsi_dual_connector_tile_init(
-			struct drm_connector *connector, int id)
-{
-	struct drm_display_mode *mode;
-	/* Fake topology id */
-	char topo_id[8] = {'M', 'S', 'M', 'D', 'U', 'D', 'S', 'I'};
-
-	if (connector->tile_group) {
-		DBG("Tile property has been initialized");
-		return 0;
-	}
-
-	/* Use the first mode only for now */
-	mode = list_first_entry(&connector->probed_modes,
-				struct drm_display_mode,
-				head);
-	if (!mode)
-		return -EINVAL;
-
-	connector->tile_group = drm_mode_get_tile_group(
-					connector->dev, topo_id);
-	if (!connector->tile_group)
-		connector->tile_group = drm_mode_create_tile_group(
-					connector->dev, topo_id);
-	if (!connector->tile_group) {
-		pr_err("%s: failed to create tile group\n", __func__);
-		return -ENOMEM;
-	}
-
-	connector->has_tile = true;
-	connector->tile_is_single_monitor = true;
-
-	/* mode has been fixed */
-	connector->tile_h_size = mode->hdisplay;
-	connector->tile_v_size = mode->vdisplay;
-
-	/* Only support left-right mode */
-	connector->num_h_tile = 2;
-	connector->num_v_tile = 1;
-
-	connector->tile_v_loc = 0;
-	connector->tile_h_loc = (id == DSI_RIGHT) ? 1 : 0;
-
-	return 0;
-}
-
 static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 {
 	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_panel *panel = msm_dsi->panel;
-	int ret, num;
+	int num;
 
 	if (!panel)
 		return 0;
 
-	/* Since we have 2 connectors, but only 1 drm_panel in dual DSI mode,
-	 * panel should not attach to any connector.
-	 * Only temporarily attach panel to the current connector here,
-	 * to let panel set mode to this connector.
+	/*
+	 * In dual DSI mode, we have one connector that can be
+	 * attached to the drm_panel.
 	 */
 	drm_panel_attach(panel, connector);
 	num = drm_panel_get_modes(panel);
-	drm_panel_detach(panel);
 	if (!num)
 		return 0;
-
-	if (IS_DUAL_DSI()) {
-		/* report half resolution to user */
-		dsi_dual_connector_fix_modes(connector);
-		ret = dsi_dual_connector_tile_init(connector, id);
-		if (ret)
-			return ret;
-		ret = drm_connector_set_tile_property(connector);
-		if (ret) {
-			pr_err("%s: set tile property failed, %d\n",
-					__func__, ret);
-			return ret;
-		}
-	}
 
 	return num;
 }
@@ -455,8 +378,8 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	if (ret)
 		goto phy_en_fail;
 
-	/* Do nothing with the host if it is DSI 1 in case of dual DSI */
-	if (is_dual_dsi && (DSI_1 == id))
+	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_dual_dsi);
@@ -557,11 +480,11 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 		return;
 
 	/*
-	 * Do nothing with the host if it is DSI 1 in case of dual DSI.
+	 * Do nothing with the host if it is slave-DSI in case of dual DSI.
 	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
 	 * won't be diabled until both PHYs request disable.
 	 */
-	if (is_dual_dsi && (DSI_1 == id))
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
 		goto disable_phy;
 
 	if (panel) {
@@ -622,7 +545,7 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
-	if (is_dual_dsi && (DSI_1 == id))
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	msm_dsi_host_set_display_mode(host, adjusted_mode);
@@ -688,6 +611,23 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	drm_connector_attach_encoder(connector, msm_dsi->encoder);
 
 	return connector;
+}
+
+bool msm_dsi_manager_validate_current_config(u8 id)
+{
+	bool is_dual_dsi = IS_DUAL_DSI();
+
+	/*
+	 * For dual DSI, we only have one drm panel. For this
+	 * use case, we register only one bridge/connector.
+	 * Skip bridge/connector initialisation if it is
+	 * slave-DSI for dual DSI configuration.
+	 */
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id)) {
+		DBG("Skip bridge registration for slave DSI->id: %d\n", id);
+		return false;
+	}
+	return true;
 }
 
 /* initialize bridge */
