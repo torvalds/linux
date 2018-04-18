@@ -320,5 +320,8 @@ extern int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
 					uint16_t virtual_voltage_id,
 					uint16_t efuse_voltage_id);
 extern int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual_voltage_id);
+
+extern void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
+							uint32_t *min_vddc);
 #endif
 

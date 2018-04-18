@@ -1505,3 +1505,31 @@ int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
+							uint32_t *min_vddc)
+{
+	void *profile;
+
+	profile = smu_atom_get_data_table(hwmgr->adev,
+					GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo),
+					NULL, NULL, NULL);
+
+	if (profile) {
+		switch (hwmgr->chip_id) {
+		case CHIP_TONGA:
+		case CHIP_FIJI:
+			*max_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_3 *)profile)->ulMaxVddc/4);
+			*min_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_3 *)profile)->ulMinVddc/4);
+			break;
+		case CHIP_POLARIS11:
+		case CHIP_POLARIS10:
+		case CHIP_POLARIS12:
+			*max_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_6 *)profile)->ulMaxVddc/100);
+			*min_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_6 *)profile)->ulMinVddc/100);
+			break;
+		default:
+			return;
+		}
+	}
+}

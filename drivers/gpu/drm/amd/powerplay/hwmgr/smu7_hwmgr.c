@@ -838,6 +838,33 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void smu7_setup_voltage_range_from_vbios(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	uint32_t min_vddc, max_vddc;
+
+	if (!table_info)
+		return;
+
+	dep_sclk_table = table_info->vdd_dep_on_sclk;
+
+	atomctrl_get_voltage_range(hwmgr, &max_vddc, &min_vddc);
+
+	if (min_vddc == 0 || min_vddc > 2000
+		|| min_vddc > dep_sclk_table->entries[0].vddc)
+		min_vddc = dep_sclk_table->entries[0].vddc;
+
+	if (max_vddc == 0 || max_vddc > 2000
+		|| max_vddc < dep_sclk_table->entries[dep_sclk_table->count-1].vddc)
+		max_vddc = dep_sclk_table->entries[dep_sclk_table->count-1].vddc;
+
+	data->odn_dpm_table.min_vddc = min_vddc;
+	data->odn_dpm_table.max_vddc = max_vddc;
+}
+
 static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -856,8 +883,10 @@ static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			sizeof(struct smu7_dpm_table));
 
 	/* initialize ODN table */
-	if (hwmgr->od_enabled)
+	if (hwmgr->od_enabled) {
+		smu7_setup_voltage_range_from_vbios(hwmgr);
 		smu7_odn_initial_default_setting(hwmgr);
+	}
 
 	return 0;
 }
@@ -4605,36 +4634,27 @@ static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	uint32_t min_vddc;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
-
-	if (table_info == NULL)
-		return false;
-
-	dep_sclk_table = table_info->vdd_dep_on_sclk;
-	min_vddc = dep_sclk_table->entries[0].vddc;
-
-	if (voltage < min_vddc || voltage > 2000) {
-		pr_info("OD voltage is out of range [%d - 2000] mV\n", min_vddc);
+	if (voltage < data->odn_dpm_table.min_vddc || voltage > data->odn_dpm_table.max_vddc) {
+		pr_info("OD voltage is out of range [%d - %d] mV\n",
+						data->odn_dpm_table.min_vddc,
+						data->odn_dpm_table.max_vddc);
 		return false;
 	}
 
 	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
-		if (data->vbios_boot_state.sclk_bootup_value > clk ||
+		if (data->golden_dpm_table.sclk_table.dpm_levels[0].value > clk ||
 			hwmgr->platform_descriptor.overdriveLimit.engineClock < clk) {
 			pr_info("OD engine clock is out of range [%d - %d] MHz\n",
-				data->vbios_boot_state.sclk_bootup_value,
-				hwmgr->platform_descriptor.overdriveLimit.engineClock / 100);
+				data->golden_dpm_table.sclk_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
 			return false;
 		}
 	} else if (type == PP_OD_EDIT_MCLK_VDDC_TABLE) {
-		if (data->vbios_boot_state.mclk_bootup_value > clk ||
+		if (data->golden_dpm_table.mclk_table.dpm_levels[0].value > clk ||
 			hwmgr->platform_descriptor.overdriveLimit.memoryClock < clk) {
 			pr_info("OD memory clock is out of range [%d - %d] MHz\n",
-				data->vbios_boot_state.mclk_bootup_value/100,
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock / 100);
+				data->golden_dpm_table.mclk_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock/100);
 			return false;
 		}
 	} else {
