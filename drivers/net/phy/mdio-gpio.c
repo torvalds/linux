@@ -161,7 +161,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	if (!new_bus)
 		goto out;
 
-	new_bus->name = "GPIO Bitbanged MDIO",
+	new_bus->name = "GPIO Bitbanged MDIO";
 
 	new_bus->phy_mask = pdata->phy_mask;
 	new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
