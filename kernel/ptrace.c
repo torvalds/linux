@@ -919,9 +919,8 @@ int ptrace_request(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_SETSIGINFO:
-		if (copy_from_user(&siginfo, datavp, sizeof siginfo))
-			ret = -EFAULT;
-		else
+		ret = copy_siginfo_from_user(&siginfo, datavp);
+		if (!ret)
 			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
 
@@ -1215,10 +1214,9 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 		break;
 
 	case PTRACE_SETSIGINFO:
-		if (copy_siginfo_from_user32(
-			    &siginfo, (struct compat_siginfo __user *) datap))
-			ret = -EFAULT;
-		else
+		ret = copy_siginfo_from_user32(
+			&siginfo, (struct compat_siginfo __user *) datap);
+		if (!ret)
 			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK

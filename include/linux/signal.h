@@ -22,6 +22,7 @@ static inline void clear_siginfo(struct siginfo *info)
 }
 
 int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
+int copy_siginfo_from_user(struct siginfo *to, const struct siginfo __user *from);
 
 enum siginfo_layout {
 	SIL_KILL,

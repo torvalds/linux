@@ -2896,6 +2896,13 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 	return 0;
 }
 
+int copy_siginfo_from_user(siginfo_t *to, const siginfo_t __user *from)
+{
+	if (copy_from_user(to, from, sizeof(struct siginfo)))
+		return -EFAULT;
+	return 0;
+}
+
 #ifdef CONFIG_COMPAT
 int copy_siginfo_to_user32(struct compat_siginfo __user *to,
 			   const struct siginfo *from)
@@ -3323,8 +3330,9 @@ SYSCALL_DEFINE3(rt_sigqueueinfo, pid_t, pid, int, sig,
 		siginfo_t __user *, uinfo)
 {
 	siginfo_t info;
-	if (copy_from_user(&info, uinfo, sizeof(siginfo_t)))
-		return -EFAULT;
+	int ret = copy_siginfo_from_user(&info, uinfo);
+	if (unlikely(ret))
+		return ret;
 	return do_rt_sigqueueinfo(pid, sig, &info);
 }
 
@@ -3365,10 +3373,9 @@ SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
 		siginfo_t __user *, uinfo)
 {
 	siginfo_t info;
-
-	if (copy_from_user(&info, uinfo, sizeof(siginfo_t)))
-		return -EFAULT;
-
+	int ret = copy_siginfo_from_user(&info, uinfo);
+	if (unlikely(ret))
+		return ret;
 	return do_rt_tgsigqueueinfo(tgid, pid, sig, &info);
 }
 
@@ -3380,9 +3387,9 @@ COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
 			struct compat_siginfo __user *, uinfo)
 {
 	siginfo_t info;
-
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
+	int ret = copy_siginfo_from_user32(&info, uinfo);
+	if (unlikely(ret))
+		return ret;
 	return do_rt_tgsigqueueinfo(tgid, pid, sig, &info);
 }
 #endif
