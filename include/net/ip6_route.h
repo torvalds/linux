@@ -66,9 +66,9 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
-static inline bool rt6_qualify_for_ecmp(const struct fib6_info *rt)
+static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
 {
-	return (rt->rt6i_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
+	return (f6i->fib6_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
 	       RTF_GATEWAY;
 }
 
@@ -102,23 +102,23 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 
 int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
 		  struct netlink_ext_ack *extack);
-int ip6_ins_rt(struct net *net, struct fib6_info *rt);
-int ip6_del_rt(struct net *net, struct fib6_info *rt);
+int ip6_ins_rt(struct net *net, struct fib6_info *f6i);
+int ip6_del_rt(struct net *net, struct fib6_info *f6i);
 
-void rt6_flush_exceptions(struct fib6_info *rt);
-void rt6_age_exceptions(struct fib6_info *rt, struct fib6_gc_args *gc_args,
+void rt6_flush_exceptions(struct fib6_info *f6i);
+void rt6_age_exceptions(struct fib6_info *f6i, struct fib6_gc_args *gc_args,
 			unsigned long now);
 
-static inline int ip6_route_get_saddr(struct net *net, struct fib6_info *rt,
+static inline int ip6_route_get_saddr(struct net *net, struct fib6_info *f6i,
 				      const struct in6_addr *daddr,
 				      unsigned int prefs,
 				      struct in6_addr *saddr)
 {
-	struct inet6_dev *idev = rt ? rt->rt6i_idev : NULL;
+	struct inet6_dev *idev = f6i ? f6i->fib6_idev : NULL;
 	int err = 0;
 
-	if (rt && rt->rt6i_prefsrc.plen)
-		*saddr = rt->rt6i_prefsrc.addr;
+	if (f6i && f6i->fib6_prefsrc.plen)
+		*saddr = f6i->fib6_prefsrc.addr;
 	else
 		err = ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
 					 daddr, prefs, saddr);
@@ -176,14 +176,14 @@ struct rt6_rtnl_dump_arg {
 	struct net *net;
 };
 
-int rt6_dump_route(struct fib6_info *rt, void *p_arg);
+int rt6_dump_route(struct fib6_info *f6i, void *p_arg);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
 void rt6_disable_ip(struct net_device *dev, unsigned long event);
 void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
-void rt6_multipath_rebalance(struct fib6_info *rt);
+void rt6_multipath_rebalance(struct fib6_info *f6i);
 
 void rt6_uncached_list_add(struct rt6_info *rt);
 void rt6_uncached_list_del(struct rt6_info *rt);
@@ -274,7 +274,7 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *b)
 {
 	return a->fib6_nh.nh_dev == b->fib6_nh.nh_dev &&
-	       a->rt6i_idev == b->rt6i_idev &&
+	       a->fib6_idev == b->fib6_idev &&
 	       ipv6_addr_equal(&a->fib6_nh.nh_gw, &b->fib6_nh.nh_gw) &&
 	       !lwtunnel_cmp_encap(a->fib6_nh.nh_lwtstate, b->fib6_nh.nh_lwtstate);
 }
