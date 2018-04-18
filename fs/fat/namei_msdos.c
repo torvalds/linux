@@ -314,10 +314,6 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
-	/*
-	 * Check whether the directory is not in use, then check
-	 * whether it is empty.
-	 */
 	err = fat_dir_empty(inode);
 	if (err)
 		goto out;
