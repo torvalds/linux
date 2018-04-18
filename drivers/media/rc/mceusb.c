@@ -1182,7 +1182,12 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			if (ir->rem) {
 				ir->parser_state = PARSE_IRDATA;
 			} else {
-				ir_raw_event_reset(ir->rc);
+				init_ir_raw_event(&rawir);
+				rawir.timeout = 1;
+				rawir.duration = ir->rc->timeout;
+				if (ir_raw_event_store_with_filter(ir->rc,
+								   &rawir))
+					event = true;
 				ir->pulse_tunit = 0;
 				ir->pulse_count = 0;
 			}
