@@ -62,12 +62,16 @@ struct mlx5_nic_flow_attr {
 	struct mlx5_flow_table	*hairpin_ft;
 };
 
+#define MLX5E_TC_FLOW_BASE (MLX5E_TC_LAST_EXPORTED_BIT + 1)
+
 enum {
-	MLX5E_TC_FLOW_ESWITCH	= BIT(0),
-	MLX5E_TC_FLOW_NIC	= BIT(1),
-	MLX5E_TC_FLOW_OFFLOADED	= BIT(2),
-	MLX5E_TC_FLOW_HAIRPIN	= BIT(3),
-	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(4),
+	MLX5E_TC_FLOW_INGRESS	= MLX5E_TC_INGRESS,
+	MLX5E_TC_FLOW_EGRESS	= MLX5E_TC_EGRESS,
+	MLX5E_TC_FLOW_ESWITCH	= BIT(MLX5E_TC_FLOW_BASE),
+	MLX5E_TC_FLOW_NIC	= BIT(MLX5E_TC_FLOW_BASE + 1),
+	MLX5E_TC_FLOW_OFFLOADED	= BIT(MLX5E_TC_FLOW_BASE + 2),
+	MLX5E_TC_FLOW_HAIRPIN	= BIT(MLX5E_TC_FLOW_BASE + 3),
+	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 4),
 };
 
 struct mlx5e_tc_flow {
@@ -2618,8 +2622,20 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	return 0;
 }
 
+static void get_flags(int flags, u8 *flow_flags)
+{
+	u8 __flow_flags = 0;
+
+	if (flags & MLX5E_TC_INGRESS)
+		__flow_flags |= MLX5E_TC_FLOW_INGRESS;
+	if (flags & MLX5E_TC_EGRESS)
+		__flow_flags |= MLX5E_TC_FLOW_EGRESS;
+
+	*flow_flags = __flow_flags;
+}
+
 int mlx5e_configure_flower(struct mlx5e_priv *priv,
-			   struct tc_cls_flower_offload *f)
+			   struct tc_cls_flower_offload *f, int flags)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
@@ -2628,11 +2644,13 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 	int attr_size, err = 0;
 	u8 flow_flags = 0;
 
+	get_flags(flags, &flow_flags);
+
 	if (esw && esw->mode == SRIOV_OFFLOADS) {
-		flow_flags = MLX5E_TC_FLOW_ESWITCH;
+		flow_flags |= MLX5E_TC_FLOW_ESWITCH;
 		attr_size  = sizeof(struct mlx5_esw_flow_attr);
 	} else {
-		flow_flags = MLX5E_TC_FLOW_NIC;
+		flow_flags |= MLX5E_TC_FLOW_NIC;
 		attr_size  = sizeof(struct mlx5_nic_flow_attr);
 	}
 
@@ -2691,7 +2709,7 @@ err_free:
 }
 
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
-			struct tc_cls_flower_offload *f)
+			struct tc_cls_flower_offload *f, int flags)
 {
 	struct mlx5e_tc_flow *flow;
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
@@ -2711,7 +2729,7 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 }
 
 int mlx5e_stats_flower(struct mlx5e_priv *priv,
-		       struct tc_cls_flower_offload *f)
+		       struct tc_cls_flower_offload *f, int flags)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	struct mlx5e_tc_flow *flow;

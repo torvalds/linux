@@ -38,16 +38,23 @@
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
 
 #ifdef CONFIG_MLX5_ESWITCH
+
+enum {
+	MLX5E_TC_INGRESS = BIT(0),
+	MLX5E_TC_EGRESS  = BIT(1),
+	MLX5E_TC_LAST_EXPORTED_BIT = 1,
+};
+
 int mlx5e_tc_init(struct mlx5e_priv *priv);
 void mlx5e_tc_cleanup(struct mlx5e_priv *priv);
 
 int mlx5e_configure_flower(struct mlx5e_priv *priv,
-			   struct tc_cls_flower_offload *f);
+			   struct tc_cls_flower_offload *f, int flags);
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
-			struct tc_cls_flower_offload *f);
+			struct tc_cls_flower_offload *f, int flags);
 
 int mlx5e_stats_flower(struct mlx5e_priv *priv,
-		       struct tc_cls_flower_offload *f);
+		       struct tc_cls_flower_offload *f, int flags);
 
 struct mlx5e_encap_entry;
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
