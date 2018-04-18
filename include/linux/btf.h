@@ -8,7 +8,11 @@
 
 struct btf;
 struct btf_type;
+union bpf_attr;
 
+void btf_put(struct btf *btf);
+int btf_new_fd(const union bpf_attr *attr);
+struct btf *btf_get_by_fd(int fd);
 /* Figure out the size of a type_id.  If type_id is a modifier
  * (e.g. const), it will be resolved to find out the type with size.
  *

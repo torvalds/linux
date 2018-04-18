@@ -7,6 +7,8 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/anon_inodes.h>
+#include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/bpf_verifier.h>
@@ -190,6 +192,7 @@ struct btf {
 	u32 nr_types;
 	u32 types_size;
 	u32 data_size;
+	refcount_t refcnt;
 };
 
 enum verifier_phase {
@@ -602,6 +605,17 @@ static void btf_free(struct btf *btf)
 	kvfree(btf->resolved_ids);
 	kvfree(btf->data);
 	kfree(btf);
+}
+
+static void btf_get(struct btf *btf)
+{
+	refcount_inc(&btf->refcnt);
+}
+
+void btf_put(struct btf *btf)
+{
+	if (btf && refcount_dec_and_test(&btf->refcnt))
+		btf_free(btf);
 }
 
 static int env_resolve_init(struct btf_verifier_env *env)
@@ -1963,6 +1977,7 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 
 	if (!err) {
 		btf_verifier_env_free(env);
+		btf_get(btf);
 		return btf;
 	}
 
@@ -1979,4 +1994,56 @@ void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
 	const struct btf_type *t = btf_type_by_id(btf, type_id);
 
 	btf_type_ops(t)->seq_show(btf, t, type_id, obj, 0, m);
+}
+
+static int btf_release(struct inode *inode, struct file *filp)
+{
+	btf_put(filp->private_data);
+	return 0;
+}
+
+static const struct file_operations btf_fops = {
+	.release	= btf_release,
+};
+
+int btf_new_fd(const union bpf_attr *attr)
+{
+	struct btf *btf;
+	int fd;
+
+	btf = btf_parse(u64_to_user_ptr(attr->btf),
+			attr->btf_size, attr->btf_log_level,
+			u64_to_user_ptr(attr->btf_log_buf),
+			attr->btf_log_size);
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+
+	fd = anon_inode_getfd("btf", &btf_fops, btf,
+			      O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		btf_put(btf);
+
+	return fd;
+}
+
+struct btf *btf_get_by_fd(int fd)
+{
+	struct btf *btf;
+	struct fd f;
+
+	f = fdget(fd);
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &btf_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	btf = f.file->private_data;
+	btf_get(btf);
+	fdput(f);
+
+	return btf;
 }
