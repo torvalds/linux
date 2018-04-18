@@ -147,7 +147,7 @@ _bpftool()
 
     # Deal with simplest keywords
     case $prev in
-        help|key|opcodes|visual)
+        help|hex|opcodes|visual)
             return 0
             ;;
         tag)
@@ -283,7 +283,7 @@ _bpftool()
                             return 0
                             ;;
                         key)
-                            return 0
+                            COMPREPLY+=( $( compgen -W 'hex' -- "$cur" ) )
                             ;;
                         *)
                             _bpftool_once_attr 'key'
@@ -302,7 +302,7 @@ _bpftool()
                             return 0
                             ;;
                         key)
-                            return 0
+                            COMPREPLY+=( $( compgen -W 'hex' -- "$cur" ) )
                             ;;
                         value)
                             # We can have bytes, or references to a prog or a
@@ -321,6 +321,8 @@ _bpftool()
                                     return 0
                                     ;;
                                 *)
+                                    COMPREPLY+=( $( compgen -W 'hex' \
+                                        -- "$cur" ) )
                                     return 0
                                     ;;
                             esac

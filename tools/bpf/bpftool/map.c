@@ -283,11 +283,16 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 static char **parse_bytes(char **argv, const char *name, unsigned char *val,
 			  unsigned int n)
 {
-	unsigned int i = 0;
+	unsigned int i = 0, base = 0;
 	char *endptr;
 
+	if (is_prefix(*argv, "hex")) {
+		base = 16;
+		argv++;
+	}
+
 	while (i < n && argv[i]) {
-		val[i] = strtoul(argv[i], &endptr, 0);
+		val[i] = strtoul(argv[i], &endptr, base);
 		if (*endptr) {
 			p_err("error parsing byte: %s", argv[i]);
 			return NULL;
@@ -869,10 +874,10 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s %s { show | list }   [MAP]\n"
 		"       %s %s dump    MAP\n"
-		"       %s %s update  MAP  key BYTES value VALUE [UPDATE_FLAGS]\n"
-		"       %s %s lookup  MAP  key BYTES\n"
-		"       %s %s getnext MAP [key BYTES]\n"
-		"       %s %s delete  MAP  key BYTES\n"
+		"       %s %s update  MAP  key [hex] BYTES value [hex] VALUE [UPDATE_FLAGS]\n"
+		"       %s %s lookup  MAP  key [hex] BYTES\n"
+		"       %s %s getnext MAP [key [hex] BYTES]\n"
+		"       %s %s delete  MAP  key [hex] BYTES\n"
 		"       %s %s pin     MAP  FILE\n"
 		"       %s %s help\n"
 		"\n"
