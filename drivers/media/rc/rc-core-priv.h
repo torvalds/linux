@@ -126,6 +126,9 @@ struct ir_raw_event_ctrl {
 		int count;
 		int last_chk;
 		unsigned int bits;
+		bool stick_keyboard;
+		struct input_dev *idev;
+		char name[64];
 	} imon;
 };
 
