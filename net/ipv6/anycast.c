@@ -218,7 +218,7 @@ static void aca_put(struct ifacaddr6 *ac)
 	}
 }
 
-static struct ifacaddr6 *aca_alloc(struct rt6_info *rt,
+static struct ifacaddr6 *aca_alloc(struct fib6_info *rt,
 				   const struct in6_addr *addr)
 {
 	struct inet6_dev *idev = rt->rt6i_idev;
@@ -247,7 +247,7 @@ static struct ifacaddr6 *aca_alloc(struct rt6_info *rt,
 int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca;
-	struct rt6_info *rt;
+	struct fib6_info *rt;
 	struct net *net;
 	int err;
 

@@ -1155,7 +1155,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
 	struct neighbour *neigh = NULL;
 	struct inet6_dev *in6_dev;
-	struct rt6_info *rt = NULL;
+	struct fib6_info *rt = NULL;
 	struct net *net;
 	int lifetime;
 	struct ndisc_options ndopts;
