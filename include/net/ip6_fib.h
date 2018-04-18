@@ -175,58 +175,20 @@ struct fib6_info {
 
 struct rt6_info {
 	struct dst_entry		dst;
-	struct rt6_info __rcu		*rt6_next;
 	struct fib6_info		*from;
 
-	/*
-	 * Tail elements of dst_entry (__refcnt etc.)
-	 * and these elements (rarely used in hot path) are in
-	 * the same cache line.
-	 */
-	struct fib6_table		*rt6i_table;
-	struct fib6_node __rcu		*rt6i_node;
-
-	struct in6_addr			rt6i_gateway;
-
-	/* Multipath routes:
-	 * siblings is a list of rt6_info that have the the same metric/weight,
-	 * destination, but not the same gateway. nsiblings is just a cache
-	 * to speed up lookup.
-	 */
-	struct list_head		rt6i_siblings;
-	unsigned int			rt6i_nsiblings;
-
-	atomic_t			rt6i_ref;
-
-	/* These are in a separate cache line. */
-	struct rt6key			rt6i_dst ____cacheline_aligned_in_smp;
-	u32				rt6i_flags;
+	struct rt6key			rt6i_dst;
 	struct rt6key			rt6i_src;
+	struct in6_addr			rt6i_gateway;
+	struct inet6_dev		*rt6i_idev;
+	u32				rt6i_flags;
 	struct rt6key			rt6i_prefsrc;
 
 	struct list_head		rt6i_uncached;
 	struct uncached_list		*rt6i_uncached_list;
 
-	struct inet6_dev		*rt6i_idev;
-	struct rt6_info * __percpu	*rt6i_pcpu;
-	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
-
-	u32				rt6i_metric;
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
-	u8				rt6i_protocol;
-	u8				fib6_type;
-	u8				exception_bucket_flushed:1,
-					should_flush:1,
-					dst_nocount:1,
-					dst_nopolicy:1,
-					dst_host:1,
-					unused:3;
-
-	unsigned long			expires;
-	struct dst_metrics		*fib6_metrics;
-#define fib6_pmtu		fib6_metrics->metrics[RTAX_MTU-1]
-	struct fib6_nh			fib6_nh;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
@@ -328,8 +290,6 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
-void rt6_free_pcpu(struct rt6_info *non_pcpu_rt);
-
 struct fib6_info *fib6_info_alloc(gfp_t gfp_flags);
 void fib6_info_destroy(struct fib6_info *f6i);
 
@@ -342,20 +302,6 @@ static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && atomic_dec_and_test(&f6i->rt6i_ref))
 		fib6_info_destroy(f6i);
-}
-
-static inline void rt6_hold(struct rt6_info *rt)
-{
-	atomic_inc(&rt->rt6i_ref);
-}
-
-static inline void rt6_release(struct rt6_info *rt)
-{
-	if (atomic_dec_and_test(&rt->rt6i_ref)) {
-		rt6_free_pcpu(rt);
-		dst_dev_put(&rt->dst);
-		dst_release(&rt->dst);
-	}
 }
 
 enum fib6_walk_state {

@@ -240,28 +240,6 @@ static void node_free(struct net *net, struct fib6_node *fn)
 	net->ipv6.rt6_stats->fib_nodes--;
 }
 
-void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
-{
-	int cpu;
-
-	if (!non_pcpu_rt->rt6i_pcpu)
-		return;
-
-	for_each_possible_cpu(cpu) {
-		struct rt6_info **ppcpu_rt;
-		struct rt6_info *pcpu_rt;
-
-		ppcpu_rt = per_cpu_ptr(non_pcpu_rt->rt6i_pcpu, cpu);
-		pcpu_rt = *ppcpu_rt;
-		if (pcpu_rt) {
-			dst_dev_put(&pcpu_rt->dst);
-			dst_release(&pcpu_rt->dst);
-			*ppcpu_rt = NULL;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(rt6_free_pcpu);
-
 static void fib6_free_table(struct fib6_table *table)
 {
 	inetpeer_invalidate_tree(&table->tb6_peers);
