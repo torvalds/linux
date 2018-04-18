@@ -242,22 +242,14 @@ static int msdc_rsp[] = {
 		WARN_ON(retry == 0);					\
 	} while (0)
 
-#if 0 /* --- by chhung */
-#define msdc_reset() \
-	do {								\
-		int retry = 3, cnt = 1000;				\
-		sdr_set_bits(MSDC_CFG, MSDC_CFG_RST);			\
-		dsb();							\
-		msdc_retry(sdr_read32(MSDC_CFG) & MSDC_CFG_RST, retry, cnt); \
-	} while (0)
-#else
-#define msdc_reset() \
-	do {								\
-		int retry = 3, cnt = 1000;				\
-		sdr_set_bits(MSDC_CFG, MSDC_CFG_RST);			\
-		msdc_retry(sdr_read32(MSDC_CFG) & MSDC_CFG_RST, retry, cnt); \
-	} while (0)
-#endif /* end of +/- */
+static void msdc_reset_hw(struct msdc_host *host)
+{
+	u32 base = host->base;
+
+	sdr_set_bits(MSDC_CFG, MSDC_CFG_RST);
+	while (sdr_read32(MSDC_CFG) & MSDC_CFG_RST)
+		cpu_relax();
+}
 
 #define msdc_clr_int() \
 	do {							\
@@ -590,7 +582,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 
 	if (!hz) { // set mmc system clock to 0 ?
 		//ERR_MSG("set mclk to 0!!!");
-		msdc_reset();
+		msdc_reset_hw(host);
 		return;
 	}
 
@@ -657,7 +649,7 @@ static void msdc_abort_data(struct msdc_host *host)
 
 	ERR_MSG("Need to Abort. dma<%d>", host->dma_xfer);
 
-	msdc_reset();
+	msdc_reset_hw(host);
 	msdc_clr_fifo();
 	msdc_clr_int();
 
@@ -944,7 +936,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 			if (time_after(jiffies, tmo)) {
 				ERR_MSG("XXX cmd_busy timeout: before CMD<%d>", opcode);
 				cmd->error = (unsigned int)-ETIMEDOUT;
-				msdc_reset();
+				msdc_reset_hw(host);
 				goto end;
 			}
 		}
@@ -955,7 +947,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 			if (time_after(jiffies, tmo)) {
 				ERR_MSG("XXX sdc_busy timeout: before CMD<%d>", opcode);
 				cmd->error = (unsigned int)-ETIMEDOUT;
-				msdc_reset();
+				msdc_reset_hw(host);
 				goto end;
 			}
 		}
@@ -997,7 +989,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 	if (!wait_for_completion_timeout(&host->cmd_done, 10 * timeout)) {
 		ERR_MSG("XXX CMD<%d> wait_for_completion timeout ARG<0x%.8x>", opcode, cmd->arg);
 		cmd->error = (unsigned int)-ETIMEDOUT;
-		msdc_reset();
+		msdc_reset_hw(host);
 	}
 	spin_lock(&host->lock);
 
@@ -1050,7 +1042,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 			msdc_abort_data(host);
 		} else {
 			/* do basic: reset*/
-			msdc_reset();
+			msdc_reset_hw(host);
 			msdc_clr_fifo();
 			msdc_clr_int();
 		}
@@ -1101,7 +1093,7 @@ static int msdc_pio_abort(struct msdc_host *host, struct mmc_data *data, unsigne
 	}
 
 	if (ret) {
-		msdc_reset();
+		msdc_reset_hw(host);
 		msdc_clr_fifo();
 		msdc_clr_int();
 		ERR_MSG("msdc pio find abort");
@@ -1538,7 +1530,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				ERR_MSG("    DMA_CFG  = 0x%x", sdr_read32(MSDC_DMA_CFG));
 				data->error = (unsigned int)-ETIMEDOUT;
 
-				msdc_reset();
+				msdc_reset_hw(host);
 				msdc_clr_fifo();
 				msdc_clr_int();
 			}
@@ -2324,7 +2316,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 
 		if (intsts & datsts) {
 			/* do basic reset, or stop command will sdc_busy */
-			msdc_reset();
+			msdc_reset_hw(host);
 			msdc_clr_fifo();
 			msdc_clr_int();
 			atomic_set(&host->abort, 1);  /* For PIO mode exit */
@@ -2376,7 +2368,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 			else
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_CMDTMO", cmd->opcode);
 			cmd->error = (unsigned int)-ETIMEDOUT;
-			msdc_reset();
+			msdc_reset_hw(host);
 			msdc_clr_fifo();
 			msdc_clr_int();
 		}
@@ -2493,7 +2485,7 @@ static void msdc_init_hw(struct msdc_host *host)
 	sdr_set_field(MSDC_CFG, MSDC_CFG_MODE, MSDC_SDMMC);
 
 	/* Reset */
-	msdc_reset();
+	msdc_reset_hw(host);
 	msdc_clr_fifo();
 
 	/* Disable card detection */
