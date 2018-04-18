@@ -1722,7 +1722,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
-			pkt_len -= xdp.data - orig_data;
+			pkt_len = xdp.data_end - xdp.data;
 			pkt_off += xdp.data - orig_data;
 
 			switch (act) {
