@@ -2475,6 +2475,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	int act_end;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 	int for_ddr_freq = 0;
+	bool dclk_inv;
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
@@ -2492,7 +2493,9 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	 */
 	if (vop->lut_active)
 		vop_crtc_load_lut(crtc);
-	VOP_CTRL_SET(vop, dclk_pol, 1);
+	dclk_inv = (adjusted_mode->flags & DRM_MODE_FLAG_PPIXDATA) ? 0 : 1;
+
+	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
@@ -2509,15 +2512,15 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
 		VOP_CTRL_SET(vop, rgb_pin_pol, val);
-		VOP_CTRL_SET(vop, rgb_dclk_pol, 1);
+		VOP_CTRL_SET(vop, rgb_dclk_pol, dclk_inv);
 		VOP_CTRL_SET(vop, lvds_en, 1);
 		VOP_CTRL_SET(vop, lvds_pin_pol, val);
-		VOP_CTRL_SET(vop, lvds_dclk_pol, 1);
+		VOP_CTRL_SET(vop, lvds_dclk_pol, dclk_inv);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		VOP_CTRL_SET(vop, edp_en, 1);
 		VOP_CTRL_SET(vop, edp_pin_pol, val);
-		VOP_CTRL_SET(vop, edp_dclk_pol, 1);
+		VOP_CTRL_SET(vop, edp_dclk_pol, dclk_inv);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		VOP_CTRL_SET(vop, hdmi_en, 1);
@@ -2527,7 +2530,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
-		VOP_CTRL_SET(vop, mipi_dclk_pol, 1);
+		VOP_CTRL_SET(vop, mipi_dclk_pol, dclk_inv);
 		VOP_CTRL_SET(vop, mipi_dual_channel_en,
 			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL));
 		VOP_CTRL_SET(vop, data01_swap,
