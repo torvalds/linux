@@ -14812,8 +14812,7 @@ F:	drivers/media/usb/zr364xx/
 USER-MODE LINUX (UML)
 M:	Jeff Dike <jdike@addtoit.com>
 M:	Richard Weinberger <richard@nod.at>
-L:	user-mode-linux-devel@lists.sourceforge.net
-L:	user-mode-linux-user@lists.sourceforge.net
+L:	linux-um@lists.infradead.org
 W:	http://user-mode-linux.sourceforge.net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/uml.git
 S:	Maintained
