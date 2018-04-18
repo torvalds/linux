@@ -27,7 +27,7 @@
 #include <linux/mdio-bitbang.h>
 #include <linux/mdio-gpio.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/mdio-gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
