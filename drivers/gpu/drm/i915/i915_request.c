@@ -125,22 +125,22 @@ i915_dependency_free(struct drm_i915_private *i915,
 }
 
 static void
-__i915_priotree_add_dependency(struct i915_priotree *pt,
-			       struct i915_priotree *signal,
-			       struct i915_dependency *dep,
-			       unsigned long flags)
+__i915_sched_node_add_dependency(struct i915_sched_node *node,
+				 struct i915_sched_node *signal,
+				 struct i915_dependency *dep,
+				 unsigned long flags)
 {
 	INIT_LIST_HEAD(&dep->dfs_link);
 	list_add(&dep->wait_link, &signal->waiters_list);
-	list_add(&dep->signal_link, &pt->signalers_list);
+	list_add(&dep->signal_link, &node->signalers_list);
 	dep->signaler = signal;
 	dep->flags = flags;
 }
 
 static int
-i915_priotree_add_dependency(struct drm_i915_private *i915,
-			     struct i915_priotree *pt,
-			     struct i915_priotree *signal)
+i915_sched_node_add_dependency(struct drm_i915_private *i915,
+			       struct i915_sched_node *node,
+			       struct i915_sched_node *signal)
 {
 	struct i915_dependency *dep;
 
@@ -148,16 +148,18 @@ i915_priotree_add_dependency(struct drm_i915_private *i915,
 	if (!dep)
 		return -ENOMEM;
 
-	__i915_priotree_add_dependency(pt, signal, dep, I915_DEPENDENCY_ALLOC);
+	__i915_sched_node_add_dependency(node, signal, dep,
+					 I915_DEPENDENCY_ALLOC);
 	return 0;
 }
 
 static void
-i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
+i915_sched_node_fini(struct drm_i915_private *i915,
+		     struct i915_sched_node *node)
 {
-	struct i915_dependency *dep, *next;
+	struct i915_dependency *dep, *tmp;
 
-	GEM_BUG_ON(!list_empty(&pt->link));
+	GEM_BUG_ON(!list_empty(&node->link));
 
 	/*
 	 * Everyone we depended upon (the fences we wait to be signaled)
@@ -165,8 +167,8 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 	 * However, retirement is run independently on each timeline and
 	 * so we may be called out-of-order.
 	 */
-	list_for_each_entry_safe(dep, next, &pt->signalers_list, signal_link) {
-		GEM_BUG_ON(!i915_priotree_signaled(dep->signaler));
+	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
+		GEM_BUG_ON(!i915_sched_node_signaled(dep->signaler));
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->wait_link);
@@ -175,8 +177,8 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 	}
 
 	/* Remove ourselves from everyone who depends upon us */
-	list_for_each_entry_safe(dep, next, &pt->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != pt);
+	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
+		GEM_BUG_ON(dep->signaler != node);
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->signal_link);
@@ -186,12 +188,12 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 }
 
 static void
-i915_priotree_init(struct i915_priotree *pt)
+i915_sched_node_init(struct i915_sched_node *node)
 {
-	INIT_LIST_HEAD(&pt->signalers_list);
-	INIT_LIST_HEAD(&pt->waiters_list);
-	INIT_LIST_HEAD(&pt->link);
-	pt->priority = I915_PRIORITY_INVALID;
+	INIT_LIST_HEAD(&node->signalers_list);
+	INIT_LIST_HEAD(&node->waiters_list);
+	INIT_LIST_HEAD(&node->link);
+	node->priority = I915_PRIORITY_INVALID;
 }
 
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
@@ -422,7 +424,7 @@ static void i915_request_retire(struct i915_request *request)
 	}
 	spin_unlock_irq(&request->lock);
 
-	i915_priotree_fini(request->i915, &request->priotree);
+	i915_sched_node_fini(request->i915, &request->sched);
 	i915_request_put(request);
 }
 
@@ -725,7 +727,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
 	init_waitqueue_head(&rq->execute);
 
-	i915_priotree_init(&rq->priotree);
+	i915_sched_node_init(&rq->sched);
 
 	INIT_LIST_HEAD(&rq->active_list);
 	rq->i915 = i915;
@@ -777,8 +779,8 @@ err_unwind:
 
 	/* Make sure we didn't add ourselves to external state before freeing */
 	GEM_BUG_ON(!list_empty(&rq->active_list));
-	GEM_BUG_ON(!list_empty(&rq->priotree.signalers_list));
-	GEM_BUG_ON(!list_empty(&rq->priotree.waiters_list));
+	GEM_BUG_ON(!list_empty(&rq->sched.signalers_list));
+	GEM_BUG_ON(!list_empty(&rq->sched.waiters_list));
 
 	kmem_cache_free(i915->requests, rq);
 err_unreserve:
@@ -800,9 +802,9 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 		return 0;
 
 	if (to->engine->schedule) {
-		ret = i915_priotree_add_dependency(to->i915,
-						   &to->priotree,
-						   &from->priotree);
+		ret = i915_sched_node_add_dependency(to->i915,
+						     &to->sched,
+						     &from->sched);
 		if (ret < 0)
 			return ret;
 	}
@@ -1033,10 +1035,10 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
 		if (engine->schedule)
-			__i915_priotree_add_dependency(&request->priotree,
-						       &prev->priotree,
-						       &request->dep,
-						       0);
+			__i915_sched_node_add_dependency(&request->sched,
+							 &prev->sched,
+							 &request->dep,
+							 0);
 	}
 
 	spin_lock_irq(&timeline->lock);

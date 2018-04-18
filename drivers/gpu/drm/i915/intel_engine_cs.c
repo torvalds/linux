@@ -1123,7 +1123,7 @@ static void print_request(struct drm_printer *m,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" : "",
 		   rq->fence.context, rq->fence.seqno,
-		   rq->priotree.priority,
+		   rq->sched.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   name);
 }
@@ -1367,7 +1367,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);
 
-		list_for_each_entry(rq, &p->requests, priotree.link)
+		list_for_each_entry(rq, &p->requests, sched.link)
 			print_request(m, rq, "\t\tQ ");
 	}
 	spin_unlock_irq(&engine->timeline->lock);

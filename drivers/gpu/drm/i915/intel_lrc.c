@@ -177,7 +177,7 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->priotree.priority;
+	return rq->sched.priority;
 }
 
 static inline bool need_preempt(const struct intel_engine_cs *engine,
@@ -258,7 +258,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 
 static struct i915_priolist *
 lookup_priolist(struct intel_engine_cs *engine,
-		struct i915_priotree *pt,
+		struct i915_sched_node *node,
 		int prio)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -344,10 +344,10 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != last_prio) {
 			last_prio = rq_prio(rq);
-			p = lookup_priolist(engine, &rq->priotree, last_prio);
+			p = lookup_priolist(engine, &rq->sched, last_prio);
 		}
 
-		list_add(&rq->priotree.link, &p->requests);
+		list_add(&rq->sched.link, &p->requests);
 	}
 }
 
@@ -654,7 +654,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
 			/*
 			 * Can we combine this request with the current port?
 			 * It has to be the same context/ringbuffer and not
@@ -674,7 +674,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 */
 				if (port == last_port) {
 					__list_del_many(&p->requests,
-							&rq->priotree.link);
+							&rq->sched.link);
 					goto done;
 				}
 
@@ -688,7 +688,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				if (ctx_single_port_submission(last->ctx) ||
 				    ctx_single_port_submission(rq->ctx)) {
 					__list_del_many(&p->requests,
-							&rq->priotree.link);
+							&rq->sched.link);
 					goto done;
 				}
 
@@ -701,7 +701,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				GEM_BUG_ON(port_isset(port));
 			}
 
-			INIT_LIST_HEAD(&rq->priotree.link);
+			INIT_LIST_HEAD(&rq->sched.link);
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));
 			last = rq;
@@ -882,8 +882,8 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	while (rb) {
 		struct i915_priolist *p = to_priolist(rb);
 
-		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
-			INIT_LIST_HEAD(&rq->priotree.link);
+		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
+			INIT_LIST_HEAD(&rq->sched.link);
 
 			dma_fence_set_error(&rq->fence, -EIO);
 			__i915_request_submit(rq);
@@ -1116,10 +1116,11 @@ static void execlists_submission_tasklet(unsigned long data)
 }
 
 static void queue_request(struct intel_engine_cs *engine,
-			  struct i915_priotree *pt,
+			  struct i915_sched_node *node,
 			  int prio)
 {
-	list_add_tail(&pt->link, &lookup_priolist(engine, pt, prio)->requests);
+	list_add_tail(&node->link,
+		      &lookup_priolist(engine, node, prio)->requests);
 }
 
 static void __submit_queue(struct intel_engine_cs *engine, int prio)
@@ -1142,24 +1143,24 @@ static void execlists_submit_request(struct i915_request *request)
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
-	queue_request(engine, &request->priotree, rq_prio(request));
+	queue_request(engine, &request->sched, rq_prio(request));
 	submit_queue(engine, rq_prio(request));
 
 	GEM_BUG_ON(!engine->execlists.first);
-	GEM_BUG_ON(list_empty(&request->priotree.link));
+	GEM_BUG_ON(list_empty(&request->sched.link));
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
-static struct i915_request *pt_to_request(struct i915_priotree *pt)
+static struct i915_request *sched_to_request(struct i915_sched_node *node)
 {
-	return container_of(pt, struct i915_request, priotree);
+	return container_of(node, struct i915_request, sched);
 }
 
 static struct intel_engine_cs *
-pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
+sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 {
-	struct intel_engine_cs *engine = pt_to_request(pt)->engine;
+	struct intel_engine_cs *engine = sched_to_request(node)->engine;
 
 	GEM_BUG_ON(!locked);
 
@@ -1183,23 +1184,23 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	if (i915_request_completed(request))
 		return;
 
-	if (prio <= READ_ONCE(request->priotree.priority))
+	if (prio <= READ_ONCE(request->sched.priority))
 		return;
 
 	/* Need BKL in order to use the temporary link inside i915_dependency */
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 
-	stack.signaler = &request->priotree;
+	stack.signaler = &request->sched;
 	list_add(&stack.dfs_link, &dfs);
 
 	/*
 	 * Recursively bump all dependent priorities to match the new request.
 	 *
 	 * A naive approach would be to use recursion:
-	 * static void update_priorities(struct i915_priotree *pt, prio) {
-	 *	list_for_each_entry(dep, &pt->signalers_list, signal_link)
+	 * static void update_priorities(struct i915_sched_node *node, prio) {
+	 *	list_for_each_entry(dep, &node->signalers_list, signal_link)
 	 *		update_priorities(dep->signal, prio)
-	 *	queue_request(pt);
+	 *	queue_request(node);
 	 * }
 	 * but that may have unlimited recursion depth and so runs a very
 	 * real risk of overunning the kernel stack. Instead, we build
@@ -1211,7 +1212,7 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	 * last element in the list is the request we must execute first.
 	 */
 	list_for_each_entry(dep, &dfs, dfs_link) {
-		struct i915_priotree *pt = dep->signaler;
+		struct i915_sched_node *node = dep->signaler;
 
 		/*
 		 * Within an engine, there can be no cycle, but we may
@@ -1219,13 +1220,13 @@ static void execlists_schedule(struct i915_request *request, int prio)
 		 * (redundant dependencies are not eliminated) and across
 		 * engines.
 		 */
-		list_for_each_entry(p, &pt->signalers_list, signal_link) {
+		list_for_each_entry(p, &node->signalers_list, signal_link) {
 			GEM_BUG_ON(p == dep); /* no cycles! */
 
-			if (i915_priotree_signaled(p->signaler))
+			if (i915_sched_node_signaled(p->signaler))
 				continue;
 
-			GEM_BUG_ON(p->signaler->priority < pt->priority);
+			GEM_BUG_ON(p->signaler->priority < node->priority);
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
 		}
@@ -1237,9 +1238,9 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
 	 */
-	if (request->priotree.priority == I915_PRIORITY_INVALID) {
-		GEM_BUG_ON(!list_empty(&request->priotree.link));
-		request->priotree.priority = prio;
+	if (request->sched.priority == I915_PRIORITY_INVALID) {
+		GEM_BUG_ON(!list_empty(&request->sched.link));
+		request->sched.priority = prio;
 		if (stack.dfs_link.next == stack.dfs_link.prev)
 			return;
 		__list_del_entry(&stack.dfs_link);
@@ -1250,23 +1251,23 @@ static void execlists_schedule(struct i915_request *request, int prio)
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
-		struct i915_priotree *pt = dep->signaler;
+		struct i915_sched_node *node = dep->signaler;
 
 		INIT_LIST_HEAD(&dep->dfs_link);
 
-		engine = pt_lock_engine(pt, engine);
+		engine = sched_lock_engine(node, engine);
 
-		if (prio <= pt->priority)
+		if (prio <= node->priority)
 			continue;
 
-		pt->priority = prio;
-		if (!list_empty(&pt->link)) {
-			__list_del_entry(&pt->link);
-			queue_request(engine, pt, prio);
+		node->priority = prio;
+		if (!list_empty(&node->link)) {
+			__list_del_entry(&node->link);
+			queue_request(engine, node, prio);
 		}
 
 		if (prio > engine->execlists.queue_priority &&
-		    i915_sw_fence_done(&pt_to_request(pt)->submit))
+		    i915_sw_fence_done(&sched_to_request(node)->submit))
 			__submit_queue(engine, prio);
 	}
 

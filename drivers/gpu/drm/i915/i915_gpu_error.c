@@ -1278,7 +1278,7 @@ static void record_request(struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->priority = request->priotree.priority;
+	erq->priority = request->sched.priority;
 	erq->ban_score = atomic_read(&request->ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;

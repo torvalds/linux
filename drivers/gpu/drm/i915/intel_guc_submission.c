@@ -659,7 +659,7 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->priotree.priority;
+	return rq->sched.priority;
 }
 
 static inline int port_prio(const struct execlist_port *port)
@@ -706,11 +706,11 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
 			if (last && rq->ctx != last->ctx) {
 				if (port == last_port) {
 					__list_del_many(&p->requests,
-							&rq->priotree.link);
+							&rq->sched.link);
 					goto done;
 				}
 
@@ -719,7 +719,7 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 				port++;
 			}
 
-			INIT_LIST_HEAD(&rq->priotree.link);
+			INIT_LIST_HEAD(&rq->sched.link);
 
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));

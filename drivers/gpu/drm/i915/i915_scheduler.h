@@ -38,7 +38,7 @@ enum {
  * is ready, and are able to reorder its portion of the graph to accommodate
  * dynamic priority changes.
  */
-struct i915_priotree {
+struct i915_sched_node {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
@@ -46,7 +46,7 @@ struct i915_priotree {
 };
 
 struct i915_dependency {
-	struct i915_priotree *signaler;
+	struct i915_sched_node *signaler;
 	struct list_head signal_link;
 	struct list_head wait_link;
 	struct list_head dfs_link;

@@ -117,7 +117,7 @@ struct i915_request {
 	 * to retirement), i.e. bidirectional dependency information for the
 	 * request not tied to individual fences.
 	 */
-	struct i915_priotree priotree;
+	struct i915_sched_node sched;
 	struct i915_dependency dep;
 
 	/**
@@ -306,10 +306,10 @@ static inline bool i915_request_started(const struct i915_request *rq)
 				 seqno - 1);
 }
 
-static inline bool i915_priotree_signaled(const struct i915_priotree *pt)
+static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)
 {
 	const struct i915_request *rq =
-		container_of(pt, const struct i915_request, priotree);
+		container_of(node, const struct i915_request, sched);
 
 	return i915_request_completed(rq);
 }
