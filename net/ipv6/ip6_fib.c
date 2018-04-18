@@ -145,6 +145,66 @@ static __be32 addr_bit_set(const void *token, int fn_bit)
 	       addr[fn_bit >> 5];
 }
 
+struct rt6_info *fib6_info_alloc(gfp_t gfp_flags)
+{
+	struct rt6_info *f6i;
+
+	f6i = kzalloc(sizeof(*f6i), gfp_flags);
+	if (!f6i)
+		return NULL;
+
+	f6i->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
+	if (!f6i->rt6i_pcpu) {
+		kfree(f6i);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&f6i->rt6i_siblings);
+	f6i->fib6_metrics = (struct dst_metrics *)&dst_default_metrics;
+
+	atomic_inc(&f6i->rt6i_ref);
+
+	return f6i;
+}
+
+void fib6_info_destroy(struct rt6_info *f6i)
+{
+	struct rt6_exception_bucket *bucket;
+
+	WARN_ON(f6i->rt6i_node);
+
+	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket, 1);
+	if (bucket) {
+		f6i->rt6i_exception_bucket = NULL;
+		kfree(bucket);
+	}
+
+	if (f6i->rt6i_pcpu) {
+		int cpu;
+
+		for_each_possible_cpu(cpu) {
+			struct rt6_info **ppcpu_rt;
+			struct rt6_info *pcpu_rt;
+
+			ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
+			pcpu_rt = *ppcpu_rt;
+			if (pcpu_rt) {
+				dst_dev_put(&pcpu_rt->dst);
+				dst_release(&pcpu_rt->dst);
+				*ppcpu_rt = NULL;
+			}
+		}
+	}
+
+	if (f6i->rt6i_idev)
+		in6_dev_put(f6i->rt6i_idev);
+	if (f6i->fib6_nh.nh_dev)
+		dev_put(f6i->fib6_nh.nh_dev);
+
+	kfree(f6i);
+}
+EXPORT_SYMBOL_GPL(fib6_info_destroy);
+
 static struct fib6_node *node_alloc(struct net *net)
 {
 	struct fib6_node *fn;
