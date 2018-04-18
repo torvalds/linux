@@ -67,10 +67,10 @@ u32 dma_size[4] = {
 };
 
 enum msdc_mode drv_mode[4] = {
-	MODE_SIZE_DEP, /* using DMA or not depend on the size */
-	MODE_SIZE_DEP,
-	MODE_SIZE_DEP,
-	MODE_SIZE_DEP
+	MODE_DMA, /* using DMA always */
+	MODE_DMA,
+	MODE_DMA,
+	MODE_DMA
 };
 
 #if defined(MT6575_SD_DEBUG)
