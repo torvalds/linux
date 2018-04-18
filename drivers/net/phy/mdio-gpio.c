@@ -115,15 +115,11 @@ static const struct mdiobb_ops mdio_gpio_ops = {
 };
 
 static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
+					  struct mdio_gpio_info *bitbang,
 					  struct mdio_gpio_platform_data *pdata,
 					  int bus_id)
 {
 	struct mii_bus *new_bus;
-	struct mdio_gpio_info *bitbang;
-
-	bitbang = devm_kzalloc(dev, sizeof(*bitbang), GFP_KERNEL);
-	if (!bitbang)
-		return NULL;
 
 	bitbang->ctrl.ops = &mdio_gpio_ops;
 	bitbang->mdc = pdata->mdc;
@@ -165,8 +161,13 @@ static void mdio_gpio_bus_destroy(struct device *dev)
 static int mdio_gpio_probe(struct platform_device *pdev)
 {
 	struct mdio_gpio_platform_data *pdata;
+	struct mdio_gpio_info *bitbang;
 	struct mii_bus *new_bus;
 	int ret, bus_id;
+
+	bitbang = devm_kzalloc(&pdev->dev, sizeof(*bitbang), GFP_KERNEL);
+	if (!bitbang)
+		return -ENOMEM;
 
 	if (pdev->dev.of_node) {
 		pdata = mdio_gpio_of_get_data(&pdev->dev);
@@ -183,7 +184,7 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, bus_id);
+	new_bus = mdio_gpio_bus_init(&pdev->dev, bitbang, pdata, bus_id);
 	if (!new_bus)
 		return -ENODEV;
 
