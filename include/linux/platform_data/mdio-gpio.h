@@ -15,13 +15,9 @@
 
 struct mdio_gpio_platform_data {
 	/* GPIO numbers for bus pins */
-	unsigned int mdc;
-	unsigned int mdio;
-	unsigned int mdo;
-
-	bool mdc_active_low;
-	bool mdio_active_low;
-	bool mdo_active_low;
+	struct gpio_desc *mdc;
+	struct gpio_desc *mdio;
+	struct gpio_desc *mdo;
 };
 
 #endif /* __LINUX_MDIO_GPIO_H */
