@@ -727,8 +727,10 @@ static int vbg_query_host_version(struct vbg_dev *gdev)
 
 	rc = vbg_req_perform(gdev, req);
 	ret = vbg_status_code_to_errno(rc);
-	if (ret)
+	if (ret) {
+		vbg_err("%s error: %d\n", __func__, rc);
 		goto out;
+	}
 
 	snprintf(gdev->host_version, sizeof(gdev->host_version), "%u.%u.%ur%u",
 		 req->major, req->minor, req->build, req->revision);
