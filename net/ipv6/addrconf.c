@@ -1046,7 +1046,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 
 	if (net->ipv6.devconf_all->disable_policy ||
 	    idev->cnf.disable_policy)
-		rt->dst.flags |= DST_NOPOLICY;
+		rt->dst_nopolicy = true;
 
 	neigh_parms_data_state_setall(idev->nd_parms);
 
@@ -5981,7 +5981,7 @@ void addrconf_disable_policy_idev(struct inet6_dev *idev, int val)
 			int cpu;
 
 			rcu_read_lock();
-			addrconf_set_nopolicy(ifa->rt, val);
+			ifa->rt->dst_nopolicy = val ? true : false;
 			if (rt->rt6i_pcpu) {
 				for_each_possible_cpu(cpu) {
 					struct rt6_info **rtp;

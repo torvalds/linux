@@ -177,7 +177,10 @@ struct rt6_info {
 	u8				fib6_type;
 	u8				exception_bucket_flushed:1,
 					should_flush:1,
-					unused:6;
+					dst_nocount:1,
+					dst_nopolicy:1,
+					dst_host:1,
+					unused:3;
 
 	unsigned long			expires;
 	struct dst_metrics		*fib6_metrics;
