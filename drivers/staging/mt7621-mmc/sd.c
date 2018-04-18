@@ -1253,7 +1253,6 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	u32 base = host->base;
 	//u32 i, j, num, bdlen, arg, xfersz;
 	u32 j, num;
-	u8  blkpad, dwpad, chksum;
 	struct scatterlist *sg = dma->sg;
 	struct gpd *gpd;
 	struct bd *bd;
@@ -1276,9 +1275,6 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 0);
 		break;
 	case MSDC_MODE_DMA_DESC:
-		blkpad = (dma->flags & DMA_FLAG_PAD_BLOCK) ? 1 : 0;
-		dwpad  = (dma->flags & DMA_FLAG_PAD_DWORD) ? 1 : 0;
-		chksum = (dma->flags & DMA_FLAG_EN_CHKSUM) ? 1 : 0;
 
 		/* calculate the required number of gpd */
 		num = (dma->sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
@@ -1292,12 +1288,12 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		gpd->hwo = 1;  /* hw will clear it */
 		gpd->bdp = 1;
 		gpd->chksum = 0;  /* need to clear first. */
-		gpd->chksum = (chksum ? msdc_dma_calcs((u8 *)gpd, 16) : 0);
+		gpd->chksum = msdc_dma_calcs((u8 *)gpd, 16);
 
 		/* modify bd*/
 		for_each_sg(dma->sg, sg, dma->sglen, j) {
-			bd[j].blkpad = blkpad;
-			bd[j].dwpad = dwpad;
+			bd[j].blkpad = 0;
+			bd[j].dwpad = 0;
 			bd[j].ptr = (void *)sg_dma_address(sg);
 			bd[j].buflen = sg_dma_len(sg);
 
@@ -1307,10 +1303,10 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 				bd[j].eol = 0;
 
 			bd[j].chksum = 0; /* checksume need to clear first */
-			bd[j].chksum = (chksum ? msdc_dma_calcs((u8 *)(&bd[j]), 16) : 0);
+			bd[j].chksum = msdc_dma_calcs((u8 *)(&bd[j]), 16);
 		}
 
-		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, chksum);
+		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, 1);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
 			      MSDC_BRUST_64B);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
@@ -1335,8 +1331,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
 
 	dma->sg = sg;
-	dma->flags = DMA_FLAG_EN_CHKSUM;
-	//dma->flags = DMA_FLAG_NONE; /* CHECKME */
 	dma->sglen = sglen;
 	dma->xfersz = host->xfer_size;
 

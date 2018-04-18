@@ -889,13 +889,7 @@ struct msdc_regs {
 	struct msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
 };
 
-#define DMA_FLAG_NONE       (0x00000000)
-#define DMA_FLAG_EN_CHKSUM  (0x00000001)
-#define DMA_FLAG_PAD_BLOCK  (0x00000002)
-#define DMA_FLAG_PAD_DWORD  (0x00000004)
-
 struct msdc_dma {
-	u32 flags;                   /* flags */
 	u32 xfersz;                  /* xfer size in bytes */
 	u32 sglen;                   /* size of scatter list */
 	struct scatterlist *sg;      /* I/O scatter list */
