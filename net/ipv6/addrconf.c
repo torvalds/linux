@@ -994,7 +994,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	gfp_t gfp_flags = can_block ? GFP_KERNEL : GFP_ATOMIC;
 	struct net *net = dev_net(idev->dev);
 	struct inet6_ifaddr *ifa = NULL;
-	struct fib6_info *rt = NULL;
+	struct fib6_info *f6i = NULL;
 	int err = 0;
 	int addr_type = ipv6_addr_type(addr);
 
@@ -1036,16 +1036,16 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		goto out;
 	}
 
-	rt = addrconf_dst_alloc(net, idev, addr, false, gfp_flags);
-	if (IS_ERR(rt)) {
-		err = PTR_ERR(rt);
-		rt = NULL;
+	f6i = addrconf_f6i_alloc(net, idev, addr, false, gfp_flags);
+	if (IS_ERR(f6i)) {
+		err = PTR_ERR(f6i);
+		f6i = NULL;
 		goto out;
 	}
 
 	if (net->ipv6.devconf_all->disable_policy ||
 	    idev->cnf.disable_policy)
-		rt->dst_nopolicy = true;
+		f6i->dst_nopolicy = true;
 
 	neigh_parms_data_state_setall(idev->nd_parms);
 
@@ -1067,7 +1067,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	ifa->cstamp = ifa->tstamp = jiffies;
 	ifa->tokenized = false;
 
-	ifa->rt = rt;
+	ifa->rt = f6i;
 
 	ifa->idev = idev;
 	in6_dev_hold(idev);
@@ -1101,7 +1101,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	inet6addr_notifier_call_chain(NETDEV_UP, ifa);
 out:
 	if (unlikely(err < 0)) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 
 		if (ifa) {
 			if (ifa->idev)
@@ -3346,17 +3346,17 @@ static int fixup_permanent_addr(struct net *net,
 	 * case regenerate the host route.
 	 */
 	if (!ifp->rt || !ifp->rt->fib6_node) {
-		struct fib6_info *rt, *prev;
+		struct fib6_info *f6i, *prev;
 
-		rt = addrconf_dst_alloc(net, idev, &ifp->addr, false,
-					GFP_ATOMIC);
-		if (IS_ERR(rt))
-			return PTR_ERR(rt);
+		f6i = addrconf_f6i_alloc(net, idev, &ifp->addr, false,
+					 GFP_ATOMIC);
+		if (IS_ERR(f6i))
+			return PTR_ERR(f6i);
 
 		/* ifp->rt can be accessed outside of rtnl */
 		spin_lock(&ifp->lock);
 		prev = ifp->rt;
-		ifp->rt = rt;
+		ifp->rt = f6i;
 		spin_unlock(&ifp->lock);
 
 		fib6_info_release(prev);

@@ -3591,44 +3591,44 @@ static int ip6_pkt_prohibit_out(struct net *net, struct sock *sk, struct sk_buff
  *	Allocate a dst for local (unicast / anycast) address.
  */
 
-struct fib6_info *addrconf_dst_alloc(struct net *net,
-				    struct inet6_dev *idev,
-				    const struct in6_addr *addr,
-				    bool anycast, gfp_t gfp_flags)
+struct fib6_info *addrconf_f6i_alloc(struct net *net,
+				     struct inet6_dev *idev,
+				     const struct in6_addr *addr,
+				     bool anycast, gfp_t gfp_flags)
 {
 	u32 tb_id;
 	struct net_device *dev = idev->dev;
-	struct fib6_info *rt;
+	struct fib6_info *f6i;
 
-	rt = fib6_info_alloc(gfp_flags);
-	if (!rt)
+	f6i = fib6_info_alloc(gfp_flags);
+	if (!f6i)
 		return ERR_PTR(-ENOMEM);
 
-	rt->dst_nocount = true;
+	f6i->dst_nocount = true;
 
 	in6_dev_hold(idev);
-	rt->fib6_idev = idev;
+	f6i->fib6_idev = idev;
 
-	rt->dst_host = true;
-	rt->fib6_protocol = RTPROT_KERNEL;
-	rt->fib6_flags = RTF_UP | RTF_NONEXTHOP;
+	f6i->dst_host = true;
+	f6i->fib6_protocol = RTPROT_KERNEL;
+	f6i->fib6_flags = RTF_UP | RTF_NONEXTHOP;
 	if (anycast) {
-		rt->fib6_type = RTN_ANYCAST;
-		rt->fib6_flags |= RTF_ANYCAST;
+		f6i->fib6_type = RTN_ANYCAST;
+		f6i->fib6_flags |= RTF_ANYCAST;
 	} else {
-		rt->fib6_type = RTN_LOCAL;
-		rt->fib6_flags |= RTF_LOCAL;
+		f6i->fib6_type = RTN_LOCAL;
+		f6i->fib6_flags |= RTF_LOCAL;
 	}
 
-	rt->fib6_nh.nh_gw = *addr;
+	f6i->fib6_nh.nh_gw = *addr;
 	dev_hold(dev);
-	rt->fib6_nh.nh_dev = dev;
-	rt->fib6_dst.addr = *addr;
-	rt->fib6_dst.plen = 128;
+	f6i->fib6_nh.nh_dev = dev;
+	f6i->fib6_dst.addr = *addr;
+	f6i->fib6_dst.plen = 128;
 	tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
-	rt->fib6_table = fib6_get_table(net, tb_id);
+	f6i->fib6_table = fib6_get_table(net, tb_id);
 
-	return rt;
+	return f6i;
 }
 
 /* remove deleted ip from prefsrc entries */

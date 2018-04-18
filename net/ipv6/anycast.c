@@ -247,7 +247,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca;
-	struct fib6_info *rt;
+	struct fib6_info *f6i;
 	struct net *net;
 	int err;
 
@@ -268,14 +268,14 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 
 	net = dev_net(idev->dev);
-	rt = addrconf_dst_alloc(net, idev, addr, true, GFP_ATOMIC);
-	if (IS_ERR(rt)) {
-		err = PTR_ERR(rt);
+	f6i = addrconf_f6i_alloc(net, idev, addr, true, GFP_ATOMIC);
+	if (IS_ERR(f6i)) {
+		err = PTR_ERR(f6i);
 		goto out;
 	}
-	aca = aca_alloc(rt, addr);
+	aca = aca_alloc(f6i, addr);
 	if (!aca) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -289,7 +289,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	aca_get(aca);
 	write_unlock_bh(&idev->lock);
 
-	ip6_ins_rt(net, rt);
+	ip6_ins_rt(net, f6i);
 
 	addrconf_join_solict(idev->dev, &aca->aca_addr);
 

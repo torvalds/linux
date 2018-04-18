@@ -136,7 +136,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 
 void fib6_force_start_gc(struct net *net);
 
-struct fib6_info *addrconf_dst_alloc(struct net *net, struct inet6_dev *idev,
+struct fib6_info *addrconf_f6i_alloc(struct net *net, struct inet6_dev *idev,
 				     const struct in6_addr *addr, bool anycast,
 				     gfp_t gfp_flags);
 
