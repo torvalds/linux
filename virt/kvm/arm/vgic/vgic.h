@@ -110,6 +110,20 @@ static inline bool vgic_irq_is_mapped_level(struct vgic_irq *irq)
 	return irq->config == VGIC_CONFIG_LEVEL && irq->hw;
 }
 
+static inline int vgic_irq_get_lr_count(struct vgic_irq *irq)
+{
+	/* Account for the active state as an interrupt */
+	if (vgic_irq_is_sgi(irq->intid) && irq->source)
+		return hweight8(irq->source) + irq->active;
+
+	return irq_is_pending(irq) || irq->active;
+}
+
+static inline bool vgic_irq_is_multi_sgi(struct vgic_irq *irq)
+{
+	return vgic_irq_get_lr_count(irq) > 1;
+}
+
 /*
  * This struct provides an intermediate representation of the fields contained
  * in the GICH_VMCR and ICH_VMCR registers, such that code exporting the GIC

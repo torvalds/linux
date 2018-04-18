@@ -131,6 +131,7 @@ struct vgic_irq {
 		u32 mpidr;			/* GICv3 target VCPU */
 	};
 	u8 source;			/* GICv2 SGIs only */
+	u8 active_source;		/* GICv2 SGIs only */
 	u8 priority;
 	enum vgic_irq_config config;	/* Level or edge */
 
