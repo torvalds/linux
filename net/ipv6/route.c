@@ -1055,6 +1055,19 @@ static bool ip6_hold_safe(struct net *net, struct rt6_info **prt,
 	return false;
 }
 
+/* called with rcu_lock held */
+static struct rt6_info *ip6_create_rt_rcu(struct rt6_info *rt)
+{
+	struct net_device *dev = rt->fib6_nh.nh_dev;
+	struct rt6_info *nrt;
+
+	nrt = __ip6_dst_alloc(dev_net(dev), dev, 0);
+	if (nrt)
+		ip6_rt_copy_init(nrt, rt);
+
+	return nrt;
+}
+
 static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 					     struct fib6_table *table,
 					     struct flowi6 *fl6,
@@ -1087,18 +1100,26 @@ restart:
 	}
 	/* Search through exception table */
 	rt_cache = rt6_find_cached_rt(rt, &fl6->daddr, &fl6->saddr);
-	if (rt_cache)
+	if (rt_cache) {
 		rt = rt_cache;
+		if (ip6_hold_safe(net, &rt, true))
+			dst_use_noref(&rt->dst, jiffies);
+	} else if (dst_hold_safe(&rt->dst)) {
+		struct rt6_info *nrt;
 
-	if (ip6_hold_safe(net, &rt, true))
-		dst_use_noref(&rt->dst, jiffies);
+		nrt = ip6_create_rt_rcu(rt);
+		dst_release(&rt->dst);
+		rt = nrt;
+	} else {
+		rt = net->ipv6.ip6_null_entry;
+		dst_hold(&rt->dst);
+	}
 
 	rcu_read_unlock();
 
 	trace_fib6_table_lookup(net, rt, table, fl6);
 
 	return rt;
-
 }
 
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
