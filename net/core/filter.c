@@ -2725,6 +2725,30 @@ static const struct bpf_func_proto bpf_xdp_adjust_head_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+BPF_CALL_2(bpf_xdp_adjust_tail, struct xdp_buff *, xdp, int, offset)
+{
+	void *data_end = xdp->data_end + offset;
+
+	/* only shrinking is allowed for now. */
+	if (unlikely(offset >= 0))
+		return -EINVAL;
+
+	if (unlikely(data_end < xdp->data + ETH_HLEN))
+		return -EINVAL;
+
+	xdp->data_end = data_end;
+
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_xdp_adjust_tail_proto = {
+	.func		= bpf_xdp_adjust_tail,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 BPF_CALL_2(bpf_xdp_adjust_meta, struct xdp_buff *, xdp, int, offset)
 {
 	void *meta = xdp->data_meta + offset;
@@ -3074,7 +3098,8 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_l4_csum_replace ||
 	    func == bpf_xdp_adjust_head ||
 	    func == bpf_xdp_adjust_meta ||
-	    func == bpf_msg_pull_data)
+	    func == bpf_msg_pull_data ||
+	    func == bpf_xdp_adjust_tail)
 		return true;
 
 	return false;
@@ -3888,6 +3913,8 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_xdp_redirect_proto;
 	case BPF_FUNC_redirect_map:
 		return &bpf_xdp_redirect_map_proto;
+	case BPF_FUNC_xdp_adjust_tail:
+		return &bpf_xdp_adjust_tail_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}

@@ -755,6 +755,13 @@ union bpf_attr {
  *     @addr: pointer to struct sockaddr to bind socket to
  *     @addr_len: length of sockaddr structure
  *     Return: 0 on success or negative error code
+ *
+ * int bpf_xdp_adjust_tail(xdp_md, delta)
+ *     Adjust the xdp_md.data_end by delta. Only shrinking of packet's
+ *     size is supported.
+ *     @xdp_md: pointer to xdp_md
+ *     @delta: A negative integer to be added to xdp_md.data_end
+ *     Return: 0 on success or negative on error
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -821,7 +828,8 @@ union bpf_attr {
 	FN(msg_apply_bytes),		\
 	FN(msg_cork_bytes),		\
 	FN(msg_pull_data),		\
-	FN(bind),
+	FN(bind),			\
+	FN(xdp_adjust_tail),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
