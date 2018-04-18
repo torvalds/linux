@@ -60,7 +60,8 @@ struct netns_ipv6 {
 #endif
 	struct xt_table		*ip6table_nat;
 #endif
-	struct rt6_info         *ip6_null_entry;
+	struct rt6_info         *fib6_null_entry;
+	struct rt6_info		*ip6_null_entry;
 	struct rt6_statistics   *rt6_stats;
 	struct timer_list       ip6_fib_timer;
 	struct hlist_head       *fib_table_hash;

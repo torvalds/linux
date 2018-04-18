@@ -231,7 +231,7 @@ static struct fib6_table *fib6_alloc_table(struct net *net, u32 id)
 	if (table) {
 		table->tb6_id = id;
 		rcu_assign_pointer(table->tb6_root.leaf,
-				   net->ipv6.ip6_null_entry);
+				   net->ipv6.fib6_null_entry);
 		table->tb6_root.fn_flags = RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 		inet_peer_base_init(&table->tb6_peers);
 	}
@@ -369,7 +369,7 @@ struct fib6_dump_arg {
 
 static void fib6_rt_dump(struct rt6_info *rt, struct fib6_dump_arg *arg)
 {
-	if (rt == arg->net->ipv6.ip6_null_entry)
+	if (rt == arg->net->ipv6.fib6_null_entry)
 		return;
 	call_fib6_entry_notifier(arg->nb, arg->net, FIB_EVENT_ENTRY_ADD, rt);
 }
@@ -658,7 +658,7 @@ static struct fib6_node *fib6_add_1(struct net *net,
 			/* remove null_entry in the root node */
 			} else if (fn->fn_flags & RTN_TL_ROOT &&
 				   rcu_access_pointer(fn->leaf) ==
-				   net->ipv6.ip6_null_entry) {
+				   net->ipv6.fib6_null_entry) {
 				RCU_INIT_POINTER(fn->leaf, NULL);
 			}
 
@@ -1171,9 +1171,9 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			if (!sfn)
 				goto failure;
 
-			atomic_inc(&info->nl_net->ipv6.ip6_null_entry->rt6i_ref);
+			atomic_inc(&info->nl_net->ipv6.fib6_null_entry->rt6i_ref);
 			rcu_assign_pointer(sfn->leaf,
-					   info->nl_net->ipv6.ip6_null_entry);
+					   info->nl_net->ipv6.fib6_null_entry);
 			sfn->fn_flags = RTN_ROOT;
 
 			/* Now add the first leaf node to new subtree */
@@ -1212,7 +1212,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			if (fn->fn_flags & RTN_TL_ROOT) {
 				/* put back null_entry for root node */
 				rcu_assign_pointer(fn->leaf,
-					    info->nl_net->ipv6.ip6_null_entry);
+					    info->nl_net->ipv6.fib6_null_entry);
 			} else {
 				atomic_inc(&rt->rt6i_ref);
 				rcu_assign_pointer(fn->leaf, rt);
@@ -1251,7 +1251,7 @@ out:
 				if (!pn_leaf) {
 					WARN_ON(!pn_leaf);
 					pn_leaf =
-					    info->nl_net->ipv6.ip6_null_entry;
+					    info->nl_net->ipv6.fib6_null_entry;
 				}
 #endif
 				atomic_inc(&pn_leaf->rt6i_ref);
@@ -1494,7 +1494,7 @@ static struct rt6_info *fib6_find_prefix(struct net *net,
 	struct fib6_node *child_left, *child_right;
 
 	if (fn->fn_flags & RTN_ROOT)
-		return net->ipv6.ip6_null_entry;
+		return net->ipv6.fib6_null_entry;
 
 	while (fn) {
 		child_left = rcu_dereference_protected(fn->left,
@@ -1531,7 +1531,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 
 	/* Set fn->leaf to null_entry for root node. */
 	if (fn->fn_flags & RTN_TL_ROOT) {
-		rcu_assign_pointer(fn->leaf, net->ipv6.ip6_null_entry);
+		rcu_assign_pointer(fn->leaf, net->ipv6.fib6_null_entry);
 		return fn;
 	}
 
@@ -1576,7 +1576,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 #if RT6_DEBUG >= 2
 			if (!new_fn_leaf) {
 				WARN_ON(!new_fn_leaf);
-				new_fn_leaf = net->ipv6.ip6_null_entry;
+				new_fn_leaf = net->ipv6.fib6_null_entry;
 			}
 #endif
 			atomic_inc(&new_fn_leaf->rt6i_ref);
@@ -1726,7 +1726,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 		return -ENOENT;
 	}
 #endif
-	if (!fn || rt == net->ipv6.ip6_null_entry)
+	if (!fn || rt == net->ipv6.fib6_null_entry)
 		return -ENOENT;
 
 	WARN_ON(!(fn->fn_flags & RTN_RTINFO));
@@ -2087,7 +2087,7 @@ static int __net_init fib6_net_init(struct net *net)
 
 	net->ipv6.fib6_main_tbl->tb6_id = RT6_TABLE_MAIN;
 	rcu_assign_pointer(net->ipv6.fib6_main_tbl->tb6_root.leaf,
-			   net->ipv6.ip6_null_entry);
+			   net->ipv6.fib6_null_entry);
 	net->ipv6.fib6_main_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 	inet_peer_base_init(&net->ipv6.fib6_main_tbl->tb6_peers);
@@ -2099,7 +2099,7 @@ static int __net_init fib6_net_init(struct net *net)
 		goto out_fib6_main_tbl;
 	net->ipv6.fib6_local_tbl->tb6_id = RT6_TABLE_LOCAL;
 	rcu_assign_pointer(net->ipv6.fib6_local_tbl->tb6_root.leaf,
-			   net->ipv6.ip6_null_entry);
+			   net->ipv6.fib6_null_entry);
 	net->ipv6.fib6_local_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 	inet_peer_base_init(&net->ipv6.fib6_local_tbl->tb6_peers);
