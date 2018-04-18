@@ -141,7 +141,6 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		goto out;
 
 	bitbang->ctrl.ops = &mdio_gpio_ops;
-	bitbang->ctrl.reset = pdata->reset;
 	mdc = pdata->mdc;
 	bitbang->mdc = gpio_to_desc(mdc);
 	if (pdata->mdc_active_low)
