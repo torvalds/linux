@@ -110,8 +110,8 @@ mapped:
 	/* fill the page */
 	f2fs_wait_on_page_writeback(page, DATA, false);
 
-	/* wait for GCed encrypted page writeback */
-	if (f2fs_encrypted_file(inode))
+	/* wait for GCed page writeback via META_MAPPING */
+	if (f2fs_post_read_required(inode))
 		f2fs_wait_on_block_writeback(sbi, dn.data_blkaddr);
 
 out_sem:
