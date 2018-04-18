@@ -65,8 +65,9 @@ VBG_LOG(vbg_debug, pr_debug);
 void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type)
 {
 	struct vmmdev_request_header *req;
+	int order = get_order(PAGE_ALIGN(len));
 
-	req = kmalloc(len, GFP_KERNEL | __GFP_DMA32);
+	req = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 	if (!req)
 		return NULL;
 
@@ -87,7 +88,7 @@ void vbg_req_free(void *req, size_t len)
 	if (!req)
 		return;
 
-	kfree(req);
+	free_pages((unsigned long)req, get_order(PAGE_ALIGN(len)));
 }
 
 /* Note this function returns a VBox status code, not a negative errno!! */
