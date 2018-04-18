@@ -730,6 +730,9 @@
 };
 
 &tsadc {
+	pinctrl-names = "init", "default";
+	pinctrl-0 = <&tsadc_otp_gpio>;
+	pinctrl-1 = <&tsadc_otp_out>;
 	status = "okay";
 };
 
