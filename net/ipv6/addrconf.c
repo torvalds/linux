@@ -4817,9 +4817,10 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 				u32 portid, u32 seq, int event, unsigned int flags)
 {
+	struct net_device *dev = fib6_info_nh_dev(ifaca->aca_rt);
+	int ifindex = dev ? dev->ifindex : 1;
 	struct nlmsghdr  *nlh;
 	u8 scope = RT_SCOPE_UNIVERSE;
-	int ifindex = ifaca->aca_idev->dev->ifindex;
 
 	if (ipv6_addr_scope(&ifaca->aca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;

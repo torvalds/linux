@@ -410,6 +410,11 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack);
 int fib6_del(struct fib6_info *rt, struct nl_info *info);
 
+static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
+{
+	return f6i->fib6_nh.nh_dev;
+}
+
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		     unsigned int flags);
 

@@ -212,7 +212,6 @@ static void aca_get(struct ifacaddr6 *aca)
 static void aca_put(struct ifacaddr6 *ac)
 {
 	if (refcount_dec_and_test(&ac->aca_refcnt)) {
-		in6_dev_put(ac->aca_idev);
 		fib6_info_release(ac->aca_rt);
 		kfree(ac);
 	}
@@ -221,7 +220,6 @@ static void aca_put(struct ifacaddr6 *ac)
 static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 				   const struct in6_addr *addr)
 {
-	struct inet6_dev *idev = f6i->fib6_idev;
 	struct ifacaddr6 *aca;
 
 	aca = kzalloc(sizeof(*aca), GFP_ATOMIC);
@@ -229,8 +227,6 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 		return NULL;
 
 	aca->aca_addr = *addr;
-	in6_dev_hold(idev);
-	aca->aca_idev = idev;
 	fib6_info_hold(f6i);
 	aca->aca_rt = f6i;
 	aca->aca_users = 1;
