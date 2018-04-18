@@ -618,7 +618,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 
 	/* wait clock stable */
 	while (!(sdr_read32(MSDC_CFG) & MSDC_CFG_CKSTB))
-		;
+		cpu_relax();
 
 	host->sclk = sclk;
 	host->mclk = hz;
