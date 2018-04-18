@@ -890,7 +890,6 @@ struct msdc_regs {
 };
 
 struct msdc_dma {
-	u32 xfersz;                  /* xfer size in bytes */
 	u32 sglen;                   /* size of scatter list */
 	struct scatterlist *sg;      /* I/O scatter list */
 	u8  mode;                    /* dma mode        */

@@ -1259,7 +1259,7 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 
 	switch (dma->mode) {
 	case MSDC_MODE_DMA_BASIC:
-		BUG_ON(dma->xfersz > 65535);
+		BUG_ON(host->xfer_size > 65535);
 		BUG_ON(dma->sglen != 1);
 		sdr_write32(MSDC_DMA_SA, PHYSADDR(sg_dma_address(sg)));
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_LASTBUF, 1);
@@ -1332,14 +1332,14 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 
 	dma->sg = sg;
 	dma->sglen = sglen;
-	dma->xfersz = host->xfer_size;
 
 	if (sglen == 1 && sg_dma_len(sg) <= MAX_DMA_CNT)
 		dma->mode = MSDC_MODE_DMA_BASIC;
 	else
 		dma->mode = MSDC_MODE_DMA_DESC;
 
-	N_MSG(DMA, "DMA mode<%d> sglen<%d> xfersz<%d>", dma->mode, dma->sglen, dma->xfersz);
+	N_MSG(DMA, "DMA mode<%d> sglen<%d> xfersz<%d>", dma->mode, dma->sglen,
+	      host->xfer_size);
 
 	msdc_dma_config(host, dma);
 }
@@ -2221,7 +2221,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	/* transfer complete interrupt */
 	if (data != NULL) {
 		if (inten & MSDC_INT_XFER_COMPL) {
-			data->bytes_xfered = host->dma.xfersz;
+			data->bytes_xfered = host->xfer_size;
 			complete(&host->xfer_done);
 		}
 
