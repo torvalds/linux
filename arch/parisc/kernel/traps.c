@@ -837,6 +837,17 @@ void __init initialize_ivt(const void *iva)
 	if (pdc_instr(&instr) == PDC_OK)
 		ivap[0] = instr;
 
+	/*
+	 * Rules for the checksum of the HPMC handler:
+	 * 1. The IVA does not point to PDC/PDH space (ie: the OS has installed
+	 *    its own IVA).
+	 * 2. The word at IVA + 32 is nonzero.
+	 * 3. If Length (IVA + 60) is not zero, then Length (IVA + 60) and
+	 *    Address (IVA + 56) are word-aligned.
+	 * 4. The checksum of the 8 words starting at IVA + 32 plus the sum of
+	 *    the Length/4 words starting at Address is zero.
+	 */
+
 	/* Compute Checksum for HPMC handler */
 	length = os_hpmc_size;
 	ivap[7] = length;
