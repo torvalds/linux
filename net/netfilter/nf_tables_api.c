@@ -4977,7 +4977,7 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 	struct nft_base_chain *basechain;
 
 	if (nft_trans_chain_name(trans))
-		strcpy(trans->ctx.chain->name, nft_trans_chain_name(trans));
+		swap(trans->ctx.chain->name, nft_trans_chain_name(trans));
 
 	if (!nft_is_base_chain(trans->ctx.chain))
 		return;
