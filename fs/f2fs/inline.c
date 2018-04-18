@@ -26,7 +26,7 @@ bool f2fs_may_inline_data(struct inode *inode)
 	if (i_size_read(inode) > MAX_INLINE_DATA(inode))
 		return false;
 
-	if (f2fs_encrypted_file(inode))
+	if (f2fs_post_read_required(inode))
 		return false;
 
 	return true;
