@@ -2495,32 +2495,21 @@ static void msdc_init_gpd_bd(struct msdc_host *host, struct msdc_dma *dma)
 {
 	struct gpd *gpd = dma->gpd;
 	struct bd  *bd  = dma->bd;
-	struct bd  *ptr, *prev;
+	int i;
 
-	/* we just support one gpd */
-	int bdlen = MAX_BD_PER_GPD;
+	/* we just support one gpd, but gpd->next must be set for desc
+	 * DMA. That's why we alloc 2 gpd structurs.
+	 */
 
-	/* init the 2 gpd */
 	memset(gpd, 0, sizeof(struct gpd) * 2);
-	//gpd->next = (void *)virt_to_phys(gpd + 1); /* pointer to a null gpd, bug! kmalloc <-> virt_to_phys */
-	//gpd->next = (dma->gpd_addr + 1);    /* bug */
+
+	gpd->bdp  = 1;   /* hwo, cs, bd pointer */
+	gpd->ptr = (void *)dma->bd_addr; /* physical address */
 	gpd->next = (void *)((u32)dma->gpd_addr + sizeof(struct gpd));
 
-	//gpd->intr = 0;
-	gpd->bdp  = 1;   /* hwo, cs, bd pointer */
-	//gpd->ptr  = (void*)virt_to_phys(bd);
-	gpd->ptr = (void *)dma->bd_addr; /* physical address */
-
-	memset(bd, 0, sizeof(struct bd) * bdlen);
-	ptr = bd + bdlen - 1;
-	//ptr->eol  = 1;  /* 0 or 1 [Fix me]*/
-	//ptr->next = 0;
-
-	while (ptr != bd) {
-		prev = ptr - 1;
-		prev->next = (void *)(dma->bd_addr + sizeof(struct bd) * (ptr - bd));
-		ptr = prev;
-	}
+	memset(bd, 0, sizeof(struct bd) * MAX_BD_NUM);
+	for (i = 0; i < (MAX_BD_NUM - 1); i++)
+		bd[i].next = (void *)(dma->bd_addr * sizeof(*bd) * (i + 1));
 }
 
 static int msdc_drv_probe(struct platform_device *pdev)
