@@ -476,6 +476,14 @@ void hubbub1_toggle_watermark_change_req(struct hubbub *hubbub)
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
 }
 
+void hubbub1_soft_reset(struct hubbub *hubbub, bool reset)
+{
+	uint32_t reset_en = reset ? 1 : 0;
+
+	REG_UPDATE(DCHUBBUB_SOFT_RESET,
+			DCHUBBUB_GLOBAL_SOFT_RESET, reset_en);
+}
+
 static bool hubbub1_dcc_support_swizzle(
 		enum swizzle_mode_values swizzle,
 		unsigned int bytes_per_element,

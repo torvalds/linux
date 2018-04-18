@@ -253,6 +253,7 @@
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_BANKS, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, PIPE_INTERLEAVE, mask_sh),\
@@ -421,6 +422,7 @@
 
 #define DCN_HUBP_REG_FIELD_LIST(type) \
 	type HUBP_BLANK_EN;\
+	type HUBP_DISABLE;\
 	type HUBP_TTU_DISABLE;\
 	type HUBP_NO_OUTSTANDING_REQ;\
 	type HUBP_VTG_SEL;\
@@ -722,5 +724,6 @@ void dcn10_hubp_construct(
 void hubp1_read_state(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
+
 
 #endif

@@ -747,6 +747,90 @@ static void reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
+static bool dcn10_hw_wa_force_recovery(struct dc *dc)
+{
+	struct hubp *hubp ;
+	unsigned int i;
+	bool need_recover = true;
+
+	if (!dc->debug.recovery_enabled)
+		return false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			if (hubp != NULL) {
+				if (hubp->funcs->hubp_get_underflow_status(hubp) != 0) {
+					/* one pipe underflow, we will reset all the pipes*/
+					need_recover = true;
+				}
+			}
+		}
+	}
+	if (!need_recover)
+		return false;
+	/*
+	DCHUBP_CNTL:HUBP_BLANK_EN=1
+	DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=1
+	DCHUBP_CNTL:HUBP_DISABLE=1
+	DCHUBP_CNTL:HUBP_DISABLE=0
+	DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=0
+	DCSURF_PRIMARY_SURFACE_ADDRESS
+	DCHUBP_CNTL:HUBP_BLANK_EN=0
+	*/
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_BLANK_EN=1*/
+			if (hubp != NULL)
+				hubp->funcs->set_hubp_blank_en(hubp, true);
+		}
+	}
+	/*DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=1*/
+	hubbub1_soft_reset(dc->res_pool->hubbub, true);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_DISABLE=1*/
+			if (hubp != NULL)
+				hubp->funcs->hubp_disable_control(hubp, true);
+		}
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_DISABLE=0*/
+			if (hubp != NULL)
+				hubp->funcs->hubp_disable_control(hubp, true);
+		}
+	}
+	/*DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=0*/
+	hubbub1_soft_reset(dc->res_pool->hubbub, false);
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_BLANK_EN=0*/
+			if (hubp != NULL)
+				hubp->funcs->set_hubp_blank_en(hubp, true);
+		}
+	}
+	return true;
+
+}
+
+
 static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
@@ -755,8 +839,12 @@ static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 		if (should_log_hw_state) {
 			dcn10_log_hw_state(dc);
 		}
-
 		BREAK_TO_DEBUGGER();
+		if (dcn10_hw_wa_force_recovery(dc)) {
+		/*check again*/
+			if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub))
+				BREAK_TO_DEBUGGER();
+		}
 	}
 }
 
