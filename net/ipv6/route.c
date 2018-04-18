@@ -455,7 +455,6 @@ static inline struct fib6_info *rt6_device_match(struct net *net,
 						    int oif,
 						    int flags)
 {
-	struct fib6_info *local = NULL;
 	struct fib6_info *sprt;
 
 	if (!oif && ipv6_addr_any(saddr) &&
@@ -471,17 +470,6 @@ static inline struct fib6_info *rt6_device_match(struct net *net,
 		if (oif) {
 			if (dev->ifindex == oif)
 				return sprt;
-			if (dev->flags & IFF_LOOPBACK) {
-				if (!sprt->fib6_idev ||
-				    sprt->fib6_idev->dev->ifindex != oif) {
-					if (flags & RT6_LOOKUP_F_IFACE)
-						continue;
-					if (local &&
-					    local->fib6_idev->dev->ifindex == oif)
-						continue;
-				}
-				local = sprt;
-			}
 		} else {
 			if (ipv6_chk_addr(net, saddr, dev,
 					  flags & RT6_LOOKUP_F_IFACE))
@@ -489,13 +477,8 @@ static inline struct fib6_info *rt6_device_match(struct net *net,
 		}
 	}
 
-	if (oif) {
-		if (local)
-			return local;
-
-		if (flags & RT6_LOOKUP_F_IFACE)
-			return net->ipv6.fib6_null_entry;
-	}
+	if (oif && flags & RT6_LOOKUP_F_IFACE)
+		return net->ipv6.fib6_null_entry;
 
 	return rt->fib6_nh.nh_flags & RTNH_F_DEAD ? net->ipv6.fib6_null_entry : rt;
 }
@@ -586,9 +569,6 @@ static inline int rt6_check_dev(struct fib6_info *rt, int oif)
 
 	if (!oif || dev->ifindex == oif)
 		return 2;
-	if ((dev->flags & IFF_LOOPBACK) &&
-	    rt->fib6_idev && rt->fib6_idev->dev->ifindex == oif)
-		return 1;
 	return 0;
 }
 
