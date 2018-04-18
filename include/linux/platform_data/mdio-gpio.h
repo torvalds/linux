@@ -24,7 +24,6 @@ struct mdio_gpio_platform_data {
 	bool mdo_active_low;
 
 	u32 phy_mask;
-	u32 phy_ignore_ta_mask;
 	int irqs[PHY_MAX_ADDR];
 };
 
