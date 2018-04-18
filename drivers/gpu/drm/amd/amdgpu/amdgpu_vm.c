@@ -1568,10 +1568,9 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		 * the evicted list so that it gets validated again on the
 		 * next command submission.
 		 */
+		list_del_init(&bo_va->base.vm_status);
 		if (!(bo->preferred_domains & amdgpu_mem_type_to_domain(mem_type)))
 			list_add_tail(&bo_va->base.vm_status, &vm->evicted);
-		else
-			list_del_init(&bo_va->base.vm_status);
 	} else {
 		list_del_init(&bo_va->base.vm_status);
 	}
