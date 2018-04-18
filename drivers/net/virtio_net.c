@@ -606,6 +606,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		case XDP_PASS:
 			/* Recalculate length in case bpf program changed it */
 			delta = orig_data - xdp.data;
+			len = xdp.data_end - xdp.data;
 			break;
 		case XDP_TX:
 			xdpf = convert_to_xdp_frame(&xdp);
@@ -642,7 +643,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		goto err;
 	}
 	skb_reserve(skb, headroom - delta);
-	skb_put(skb, len + delta);
+	skb_put(skb, len);
 	if (!delta) {
 		buf += header_offset;
 		memcpy(skb_vnet_hdr(skb), buf, vi->hdr_len);
@@ -757,6 +758,10 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			offset = xdp.data -
 					page_address(xdp_page) - vi->hdr_len;
 
+			/* recalculate len if xdp.data or xdp.data_end were
+			 * adjusted
+			 */
+			len = xdp.data_end - xdp.data;
 			/* We can only create skb based on xdp_page. */
 			if (unlikely(xdp_page != page)) {
 				rcu_read_unlock();
