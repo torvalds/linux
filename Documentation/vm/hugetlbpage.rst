@@ -379,11 +379,3 @@ The `libhugetlbfs`_  library provides a wide range of userspace tools
 to help with huge page usability, environment setup, and control.
 
 .. _libhugetlbfs: https://github.com/libhugetlbfs/libhugetlbfs
-
-Kernel development regression testing
-=====================================
-
-The most complete set of hugetlb tests are in the libhugetlbfs repository.
-If you modify any hugetlb related code, use the libhugetlbfs test suite
-to check for regressions.  In addition, if you add any new hugetlb
-functionality, please add appropriate tests to libhugetlbfs.
