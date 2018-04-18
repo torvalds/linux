@@ -1283,7 +1283,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			ND_PRINTK(0, err,
 				  "RA: %s got default router without neighbour\n",
 				  __func__);
-			ip6_rt_put(rt);
+			fib6_info_release(rt);
 			return;
 		}
 	}
@@ -1313,7 +1313,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			ND_PRINTK(0, err,
 				  "RA: %s got default router without neighbour\n",
 				  __func__);
-			ip6_rt_put(rt);
+			fib6_info_release(rt);
 			return;
 		}
 		neigh->flags |= NTF_ROUTER;
@@ -1499,7 +1499,7 @@ skip_routeinfo:
 		ND_PRINTK(2, warn, "RA: invalid RA options\n");
 	}
 out:
-	ip6_rt_put(rt);
+	fib6_info_release(rt);
 	if (neigh)
 		neigh_release(neigh);
 }

@@ -170,6 +170,7 @@ struct rt6_info *fib6_info_alloc(gfp_t gfp_flags)
 void fib6_info_destroy(struct rt6_info *f6i)
 {
 	struct rt6_exception_bucket *bucket;
+	struct dst_metrics *m;
 
 	WARN_ON(f6i->rt6i_node);
 
@@ -200,6 +201,10 @@ void fib6_info_destroy(struct rt6_info *f6i)
 		in6_dev_put(f6i->rt6i_idev);
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
+
+	m = f6i->fib6_metrics;
+	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
+		kfree(m);
 
 	kfree(f6i);
 }
@@ -714,7 +719,7 @@ static struct fib6_node *fib6_add_1(struct net *net,
 			/* clean up an intermediate node */
 			if (!(fn->fn_flags & RTN_RTINFO)) {
 				RCU_INIT_POINTER(fn->leaf, NULL);
-				rt6_release(leaf);
+				fib6_info_release(leaf);
 			/* remove null_entry in the root node */
 			} else if (fn->fn_flags & RTN_TL_ROOT &&
 				   rcu_access_pointer(fn->leaf) ==
@@ -898,11 +903,31 @@ static void fib6_purge_rt(struct rt6_info *rt, struct fib6_node *fn,
 			if (!(fn->fn_flags & RTN_RTINFO) && leaf == rt) {
 				new_leaf = fib6_find_prefix(net, table, fn);
 				atomic_inc(&new_leaf->rt6i_ref);
+
 				rcu_assign_pointer(fn->leaf, new_leaf);
-				rt6_release(rt);
+				fib6_info_release(rt);
 			}
 			fn = rcu_dereference_protected(fn->parent,
 				    lockdep_is_held(&table->tb6_lock));
+		}
+
+		if (rt->rt6i_pcpu) {
+			int cpu;
+
+			/* release the reference to this fib entry from
+			 * all of its cached pcpu routes
+			 */
+			for_each_possible_cpu(cpu) {
+				struct rt6_info **ppcpu_rt;
+				struct rt6_info *pcpu_rt;
+
+				ppcpu_rt = per_cpu_ptr(rt->rt6i_pcpu, cpu);
+				pcpu_rt = *ppcpu_rt;
+				if (pcpu_rt) {
+					fib6_info_release(pcpu_rt->from);
+					pcpu_rt->from = NULL;
+				}
+			}
 		}
 	}
 }
@@ -1099,7 +1124,7 @@ add:
 		fib6_purge_rt(iter, fn, info->nl_net);
 		if (rcu_access_pointer(fn->rr_ptr) == iter)
 			fn->rr_ptr = NULL;
-		rt6_release(iter);
+		fib6_info_release(iter);
 
 		if (nsiblings) {
 			/* Replacing an ECMP route, remove all siblings */
@@ -1115,7 +1140,7 @@ add:
 					fib6_purge_rt(iter, fn, info->nl_net);
 					if (rcu_access_pointer(fn->rr_ptr) == iter)
 						fn->rr_ptr = NULL;
-					rt6_release(iter);
+					fib6_info_release(iter);
 					nsiblings--;
 					info->nl_net->ipv6.rt6_stats->fib_rt_entries--;
 				} else {
@@ -1182,9 +1207,6 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	int allow_create = 1;
 	int replace_required = 0;
 	int sernum = fib6_new_sernum(info->nl_net);
-
-	if (WARN_ON_ONCE(!atomic_read(&rt->dst.__refcnt)))
-		return -EINVAL;
 
 	if (info->nlh) {
 		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
@@ -1300,7 +1322,7 @@ out:
 			if (pn_leaf == rt) {
 				pn_leaf = NULL;
 				RCU_INIT_POINTER(pn->leaf, NULL);
-				atomic_dec(&rt->rt6i_ref);
+				fib6_info_release(rt);
 			}
 			if (!pn_leaf && !(pn->fn_flags & RTN_RTINFO)) {
 				pn_leaf = fib6_find_prefix(info->nl_net, table,
@@ -1312,7 +1334,7 @@ out:
 					    info->nl_net->ipv6.fib6_null_entry;
 				}
 #endif
-				atomic_inc(&pn_leaf->rt6i_ref);
+				fib6_info_hold(pn_leaf);
 				rcu_assign_pointer(pn->leaf, pn_leaf);
 			}
 		}
@@ -1334,10 +1356,6 @@ failure:
 	     (fn->fn_flags & RTN_TL_ROOT &&
 	      !rcu_access_pointer(fn->leaf))))
 		fib6_repair_tree(info->nl_net, table, fn);
-	/* Always release dst as dst->__refcnt is guaranteed
-	 * to be taken before entering this function
-	 */
-	dst_release_immediate(&rt->dst);
 	return err;
 }
 
@@ -1637,7 +1655,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 				new_fn_leaf = net->ipv6.fib6_null_entry;
 			}
 #endif
-			atomic_inc(&new_fn_leaf->rt6i_ref);
+			fib6_info_hold(new_fn_leaf);
 			rcu_assign_pointer(fn->leaf, new_fn_leaf);
 			return pn;
 		}
@@ -1693,7 +1711,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 			return pn;
 
 		RCU_INIT_POINTER(pn->leaf, NULL);
-		rt6_release(pn_leaf);
+		fib6_info_release(pn_leaf);
 		fn = pn;
 	}
 }
@@ -1763,7 +1781,7 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 	call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, rt, NULL);
 	if (!info->skip_notify)
 		inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
-	rt6_release(rt);
+	fib6_info_release(rt);
 }
 
 /* Need to own table->tb6_lock */
@@ -2261,9 +2279,8 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 
 	dev = rt->fib6_nh.nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
-		   rt->rt6i_metric, atomic_read(&rt->dst.__refcnt),
-		   rt->dst.__use, rt->rt6i_flags,
-		   dev ? dev->name : "");
+		   rt->rt6i_metric, atomic_read(&rt->rt6i_ref), 0,
+		   rt->rt6i_flags, dev ? dev->name : "");
 	iter->w.leaf = NULL;
 	return 0;
 }

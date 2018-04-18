@@ -968,7 +968,8 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 		if (!had_dst)
 			*dst = ip6_route_output(net, sk, fl6);
 		rt = (*dst)->error ? NULL : (struct rt6_info *)*dst;
-		err = ip6_route_get_saddr(net, rt, &fl6->daddr,
+		err = ip6_route_get_saddr(net, rt ? rt->from : NULL,
+					  &fl6->daddr,
 					  sk ? inet6_sk(sk)->srcprefs : 0,
 					  &fl6->saddr);
 		if (err)

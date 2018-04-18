@@ -314,9 +314,7 @@ static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 
 	if (rt->rt6i_flags & RTF_PCPU ||
 	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
-		rt = rt->from;
-
-	rt6_get_cookie_safe(rt, &cookie);
+		rt6_get_cookie_safe(rt->from, &cookie);
 
 	return cookie;
 }
