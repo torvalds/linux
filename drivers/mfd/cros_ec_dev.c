@@ -472,6 +472,14 @@ static int ec_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void ec_device_shutdown(struct platform_device *pdev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
+
+	/* Be sure to clear up debugfs delayed works */
+	cros_ec_debugfs_remove(ec);
+}
+
 static const struct platform_device_id cros_ec_id[] = {
 	{ DRV_NAME, 0 },
 	{ /* sentinel */ },
@@ -514,6 +522,7 @@ static struct platform_driver cros_ec_dev_driver = {
 	},
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,
+	.shutdown = ec_device_shutdown,
 };
 
 static int __init cros_ec_dev_init(void)
