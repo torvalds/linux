@@ -2759,11 +2759,15 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	}
 
 	if (!hcd->skip_phy_initialization && usb_hcd_is_primary_hcd(hcd)) {
-		hcd->phy_roothub = usb_phy_roothub_init(hcd->self.sysdev);
+		hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
 		if (IS_ERR(hcd->phy_roothub)) {
 			retval = PTR_ERR(hcd->phy_roothub);
-			goto err_phy_roothub_init;
+			goto err_phy_roothub_alloc;
 		}
+
+		retval = usb_phy_roothub_init(hcd->phy_roothub);
+		if (retval)
+			goto err_phy_roothub_alloc;
 
 		retval = usb_phy_roothub_power_on(hcd->phy_roothub);
 		if (retval)
@@ -2937,7 +2941,7 @@ err_create_buf:
 	usb_phy_roothub_power_off(hcd->phy_roothub);
 err_usb_phy_roothub_power_on:
 	usb_phy_roothub_exit(hcd->phy_roothub);
-err_phy_roothub_init:
+err_phy_roothub_alloc:
 	if (hcd->remove_phy && hcd->usb_phy) {
 		usb_phy_shutdown(hcd->usb_phy);
 		usb_put_phy(hcd->usb_phy);
