@@ -958,7 +958,6 @@ struct msdc_host {
 	u8                          reserved;
 	u8                          app_cmd;        /* for app command */
 	u32                         app_cmd_arg;
-	u64                         starttime;
 };
 
 static inline unsigned int uffs(unsigned int x)
