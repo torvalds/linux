@@ -2255,12 +2255,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *dest = NULL;
 	struct btrfs_ioctl_vol_args *vol_args;
-	struct btrfs_trans_handle *trans;
-	struct btrfs_block_rsv block_rsv;
-	u64 root_flags;
-	u64 qgroup_reserved;
 	int namelen;
-	int ret;
 	int err = 0;
 
 	if (!S_ISDIR(dir->i_mode))
@@ -2344,133 +2339,11 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	}
 
 	inode_lock(inode);
-
-	/*
-	 * Don't allow to delete a subvolume with send in progress. This is
-	 * inside the i_mutex so the error handling that has to drop the bit
-	 * again is not run concurrently.
-	 */
-	spin_lock(&dest->root_item_lock);
-	root_flags = btrfs_root_flags(&dest->root_item);
-	if (dest->send_in_progress == 0) {
-		btrfs_set_root_flags(&dest->root_item,
-				root_flags | BTRFS_ROOT_SUBVOL_DEAD);
-		spin_unlock(&dest->root_item_lock);
-	} else {
-		spin_unlock(&dest->root_item_lock);
-		btrfs_warn(fs_info,
-			   "Attempt to delete subvolume %llu during send",
-			   dest->root_key.objectid);
-		err = -EPERM;
-		goto out_unlock_inode;
-	}
-
-	down_write(&fs_info->subvol_sem);
-
-	err = may_destroy_subvol(dest);
-	if (err)
-		goto out_up_write;
-
-	btrfs_init_block_rsv(&block_rsv, BTRFS_BLOCK_RSV_TEMP);
-	/*
-	 * One for dir inode, two for dir entries, two for root
-	 * ref/backref.
-	 */
-	err = btrfs_subvolume_reserve_metadata(root, &block_rsv,
-					       5, &qgroup_reserved, true);
-	if (err)
-		goto out_up_write;
-
-	trans = btrfs_start_transaction(root, 0);
-	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
-		goto out_release;
-	}
-	trans->block_rsv = &block_rsv;
-	trans->bytes_reserved = block_rsv.size;
-
-	btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
-
-	ret = btrfs_unlink_subvol(trans, root, dir,
-				dest->root_key.objectid,
-				dentry->d_name.name,
-				dentry->d_name.len);
-	if (ret) {
-		err = ret;
-		btrfs_abort_transaction(trans, ret);
-		goto out_end_trans;
-	}
-
-	btrfs_record_root_in_trans(trans, dest);
-
-	memset(&dest->root_item.drop_progress, 0,
-		sizeof(dest->root_item.drop_progress));
-	dest->root_item.drop_level = 0;
-	btrfs_set_root_refs(&dest->root_item, 0);
-
-	if (!test_and_set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &dest->state)) {
-		ret = btrfs_insert_orphan_item(trans,
-					fs_info->tree_root,
-					dest->root_key.objectid);
-		if (ret) {
-			btrfs_abort_transaction(trans, ret);
-			err = ret;
-			goto out_end_trans;
-		}
-	}
-
-	ret = btrfs_uuid_tree_rem(trans, fs_info, dest->root_item.uuid,
-				  BTRFS_UUID_KEY_SUBVOL,
-				  dest->root_key.objectid);
-	if (ret && ret != -ENOENT) {
-		btrfs_abort_transaction(trans, ret);
-		err = ret;
-		goto out_end_trans;
-	}
-	if (!btrfs_is_empty_uuid(dest->root_item.received_uuid)) {
-		ret = btrfs_uuid_tree_rem(trans, fs_info,
-					  dest->root_item.received_uuid,
-					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
-					  dest->root_key.objectid);
-		if (ret && ret != -ENOENT) {
-			btrfs_abort_transaction(trans, ret);
-			err = ret;
-			goto out_end_trans;
-		}
-	}
-
-out_end_trans:
-	trans->block_rsv = NULL;
-	trans->bytes_reserved = 0;
-	ret = btrfs_end_transaction(trans);
-	if (ret && !err)
-		err = ret;
-	inode->i_flags |= S_DEAD;
-out_release:
-	btrfs_subvolume_release_metadata(fs_info, &block_rsv);
-out_up_write:
-	up_write(&fs_info->subvol_sem);
-	if (err) {
-		spin_lock(&dest->root_item_lock);
-		root_flags = btrfs_root_flags(&dest->root_item);
-		btrfs_set_root_flags(&dest->root_item,
-				root_flags & ~BTRFS_ROOT_SUBVOL_DEAD);
-		spin_unlock(&dest->root_item_lock);
-	}
-out_unlock_inode:
+	err = btrfs_delete_subvolume(dir, dentry);
 	inode_unlock(inode);
-	if (!err) {
-		d_invalidate(dentry);
-		btrfs_invalidate_inodes(dest);
+	if (!err)
 		d_delete(dentry);
-		ASSERT(dest->send_in_progress == 0);
 
-		/* the last ref */
-		if (dest->ino_cache_inode) {
-			iput(dest->ino_cache_inode);
-			dest->ino_cache_inode = NULL;
-		}
-	}
 out_dput:
 	dput(dentry);
 out_unlock_dir:
