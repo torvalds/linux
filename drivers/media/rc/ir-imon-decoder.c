@@ -31,8 +31,68 @@ enum imon_state {
 	STATE_INACTIVE,
 	STATE_BIT_CHK,
 	STATE_BIT_START,
-	STATE_FINISHED
+	STATE_FINISHED,
+	STATE_ERROR,
 };
+
+static void ir_imon_decode_scancode(struct rc_dev *dev)
+{
+	struct imon_dec *imon = &dev->raw->imon;
+
+	/* Keyboard/Mouse toggle */
+	if (imon->bits == 0x299115b7)
+		imon->stick_keyboard = !imon->stick_keyboard;
+
+	if ((imon->bits & 0xfc0000ff) == 0x680000b7) {
+		int rel_x, rel_y;
+		u8 buf;
+
+		buf = imon->bits >> 16;
+		rel_x = (buf & 0x08) | (buf & 0x10) >> 2 |
+			(buf & 0x20) >> 4 | (buf & 0x40) >> 6;
+		if (imon->bits & 0x02000000)
+			rel_x |= ~0x0f;
+		buf = imon->bits >> 8;
+		rel_y = (buf & 0x08) | (buf & 0x10) >> 2 |
+			(buf & 0x20) >> 4 | (buf & 0x40) >> 6;
+		if (imon->bits & 0x01000000)
+			rel_y |= ~0x0f;
+
+		if (rel_x && rel_y && imon->stick_keyboard) {
+			if (abs(rel_y) > abs(rel_x))
+				imon->bits = rel_y > 0 ?
+					0x289515b7 : /* KEY_DOWN */
+					0x2aa515b7;  /* KEY_UP */
+			else
+				imon->bits = rel_x > 0 ?
+					0x2ba515b7 : /* KEY_RIGHT */
+					0x29a515b7;  /* KEY_LEFT */
+		}
+
+		if (!imon->stick_keyboard) {
+			struct lirc_scancode lsc = {
+				.scancode = imon->bits,
+				.rc_proto = RC_PROTO_IMON,
+			};
+
+			ir_lirc_scancode_event(dev, &lsc);
+
+			input_event(imon->idev, EV_MSC, MSC_SCAN, imon->bits);
+
+			input_report_rel(imon->idev, REL_X, rel_x);
+			input_report_rel(imon->idev, REL_Y, rel_y);
+
+			input_report_key(imon->idev, BTN_LEFT,
+					 (imon->bits & 0x00010000) != 0);
+			input_report_key(imon->idev, BTN_RIGHT,
+					 (imon->bits & 0x00040000) != 0);
+			input_sync(imon->idev);
+			return;
+		}
+	}
+
+	rc_keydown(dev, RC_PROTO_IMON, imon->bits, 0);
+}
 
 /**
  * ir_imon_decode() - Decode one iMON pulse or space
@@ -55,6 +115,22 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		"iMON decode started at state %d bitno %d (%uus %s)\n",
 		data->state, data->count, TO_US(ev.duration),
 		TO_STR(ev.pulse));
+
+	/*
+	 * Since iMON protocol is a series of bits, if at any point
+	 * we encounter an error, make sure that any remaining bits
+	 * aren't parsed as a scancode made up of less bits.
+	 *
+	 * Note that if the stick is held, then the remote repeats
+	 * the scancode with about 12ms between them. So, make sure
+	 * we have at least 10ms of space after an error. That way,
+	 * we're at a new scancode.
+	 */
+	if (data->state == STATE_ERROR) {
+		if (!ev.pulse && ev.duration > MS_TO_NS(10))
+			data->state = STATE_INACTIVE;
+		return 0;
+	}
 
 	for (;;) {
 		if (!geq_margin(ev.duration, IMON_UNIT, IMON_UNIT / 2))
@@ -95,7 +171,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		case STATE_FINISHED:
 			if (ev.pulse)
 				goto err_out;
-			rc_keydown(dev, RC_PROTO_IMON, data->bits, 0);
+			ir_imon_decode_scancode(dev);
 			data->state = STATE_INACTIVE;
 			break;
 		}
@@ -107,7 +183,7 @@ err_out:
 		data->state, data->count, TO_US(ev.duration),
 		TO_STR(ev.pulse));
 
-	data->state = STATE_INACTIVE;
+	data->state = STATE_ERROR;
 
 	return -EINVAL;
 }
@@ -165,11 +241,64 @@ static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
 	return e - events;
 }
 
+static int ir_imon_register(struct rc_dev *dev)
+{
+	struct input_dev *idev;
+	struct imon_dec *imon = &dev->raw->imon;
+	int ret;
+
+	idev = input_allocate_device();
+	if (!idev)
+		return -ENOMEM;
+
+	snprintf(imon->name, sizeof(imon->name),
+		 "iMON PAD Stick (%s)", dev->device_name);
+	idev->name = imon->name;
+	idev->phys = dev->input_phys;
+
+	/* Mouse bits */
+	set_bit(EV_REL, idev->evbit);
+	set_bit(EV_KEY, idev->evbit);
+	set_bit(REL_X, idev->relbit);
+	set_bit(REL_Y, idev->relbit);
+	set_bit(BTN_LEFT, idev->keybit);
+	set_bit(BTN_RIGHT, idev->keybit);
+
+	/* Report scancodes too */
+	set_bit(EV_MSC, idev->evbit);
+	set_bit(MSC_SCAN, idev->mscbit);
+
+	input_set_drvdata(idev, imon);
+
+	ret = input_register_device(idev);
+	if (ret < 0) {
+		input_free_device(idev);
+		return -EIO;
+	}
+
+	imon->idev = idev;
+	imon->stick_keyboard = false;
+
+	return 0;
+}
+
+static int ir_imon_unregister(struct rc_dev *dev)
+{
+	struct imon_dec *imon = &dev->raw->imon;
+
+	input_unregister_device(imon->idev);
+	imon->idev = NULL;
+
+	return 0;
+}
+
 static struct ir_raw_handler imon_handler = {
 	.protocols	= RC_PROTO_BIT_IMON,
 	.decode		= ir_imon_decode,
 	.encode		= ir_imon_encode,
 	.carrier	= 38000,
+	.raw_register	= ir_imon_register,
+	.raw_unregister	= ir_imon_unregister,
 	.min_timeout	= IMON_UNIT * IMON_BITS * 2,
 };
 
