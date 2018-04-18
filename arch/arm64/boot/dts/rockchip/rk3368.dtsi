@@ -1381,6 +1381,7 @@
 
 	vop: vop@ff930000 {
 		compatible = "rockchip,rk3368-vop";
+		rockchip,grf = <&grf>;
 		reg = <0x0 0xff930000 0x0 0x2fc>, <0x0 0xff931000 0x0 0x400>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
