@@ -1709,7 +1709,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * current grace period, we don't need to explicitly start one.
 	 */
 	if (rnp->gpnum != rnp->completed) {
-		need_future_gp_element(rnp, c)++;
+		need_future_gp_element(rnp, c) = true;
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleaf"));
 		goto out;
 	}
@@ -1741,7 +1741,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	}
 
 	/* Record the need for the future grace period. */
-	need_future_gp_element(rnp_root, c)++;
+	need_future_gp_element(rnp_root, c) = true;
 
 	/* If a grace period is not already in progress, start one. */
 	if (rnp_root->gpnum != rnp_root->completed) {
@@ -1769,7 +1769,7 @@ static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 	bool needmore;
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
-	need_future_gp_element(rnp, c) = 0;
+	need_future_gp_element(rnp, c) = false;
 	needmore = need_any_future_gp(rnp);
 	trace_rcu_future_gp(rnp, rdp, c,
 			    needmore ? TPS("CleanupMore") : TPS("Cleanup"));
