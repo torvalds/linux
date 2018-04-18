@@ -1246,63 +1246,6 @@ static void msdc_dma_stop(struct msdc_host *host)
 	N_MSG(DMA, "DMA stop");
 }
 
-#if 0 /* --- by chhung */
-/* dump a gpd list */
-static void msdc_dma_dump(struct msdc_host *host, struct msdc_dma *dma)
-{
-	struct gpd *gpd = dma->gpd;
-	struct bd   *bd = dma->bd;
-	struct bd   *ptr;
-	int i = 0;
-	int p_to_v;
-
-	if (dma->mode != MSDC_MODE_DMA_DESC)
-		return;
-
-	ERR_MSG("try to dump gpd and bd");
-
-	/* dump gpd */
-	ERR_MSG(".gpd<0x%.8x> gpd_phy<0x%.8x>", (int)gpd, (int)dma->gpd_addr);
-	ERR_MSG("...hwo   <%d>", gpd->hwo);
-	ERR_MSG("...bdp   <%d>", gpd->bdp);
-	ERR_MSG("...chksum<0x%.8x>", gpd->chksum);
-	//ERR_MSG("...intr  <0x%.8x>", gpd->intr );
-	ERR_MSG("...next  <0x%.8x>", (int)gpd->next);
-	ERR_MSG("...ptr   <0x%.8x>", (int)gpd->ptr);
-	ERR_MSG("...buflen<0x%.8x>", gpd->buflen);
-	//ERR_MSG("...extlen<0x%.8x>", gpd->extlen );
-	//ERR_MSG("...arg   <0x%.8x>", gpd->arg );
-	//ERR_MSG("...blknum<0x%.8x>", gpd->blknum );
-	//ERR_MSG("...cmd   <0x%.8x>", gpd->cmd );
-
-	/* dump bd */
-	ERR_MSG(".bd<0x%.8x> bd_phy<0x%.8x> gpd_ptr<0x%.8x>", (int)bd, (int)dma->bd_addr, (int)gpd->ptr);
-	ptr = bd;
-	p_to_v = ((u32)bd - (u32)dma->bd_addr);
-	while (1) {
-		ERR_MSG(".bd[%d]", i); i++;
-		ERR_MSG("...eol   <%d>", ptr->eol);
-		ERR_MSG("...chksum<0x%.8x>", ptr->chksum);
-		//ERR_MSG("...blkpad<0x%.8x>", ptr->blkpad );
-		//ERR_MSG("...dwpad <0x%.8x>", ptr->dwpad );
-		ERR_MSG("...next  <0x%.8x>", (int)ptr->next);
-		ERR_MSG("...ptr   <0x%.8x>", (int)ptr->ptr);
-		ERR_MSG("...buflen<0x%.8x>", (int)ptr->buflen);
-
-		if (ptr->eol == 1)
-			break;
-
-		/* find the next bd, virtual address of ptr->next */
-		/* don't need to enable when use malloc */
-		//BUG_ON( (ptr->next + p_to_v)!=(ptr+1) );
-		//ERR_MSG(".next bd<0x%.8x><0x%.8x>", (ptr->next + p_to_v), (ptr+1));
-		ptr++;
-	}
-
-	ERR_MSG("dump gpd and bd finished");
-}
-#endif /* end of --- */
-
 /* calc checksum */
 static u8 msdc_dma_calcs(u8 *buf, u32 len)
 {
@@ -1415,10 +1358,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	N_MSG(DMA, "DMA mode<%d> sglen<%d> xfersz<%d>", dma->mode, dma->sglen, dma->xfersz);
 
 	msdc_dma_config(host, dma);
-
-	/*if (dma->mode == MSDC_MODE_DMA_DESC) {
-	//msdc_dma_dump(host, dma);
-	} */
 }
 
 /* set block number before send command */
