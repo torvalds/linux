@@ -3499,12 +3499,16 @@ static void tcp_xmit_recovery(struct sock *sk, int rexmit)
 /* Returns the number of packets newly acked or sacked by the current ACK */
 static u32 tcp_newly_delivered(struct sock *sk, u32 prior_delivered, int flag)
 {
+	const struct net *net = sock_net(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 delivered;
 
 	delivered = tp->delivered - prior_delivered;
-	if (flag & FLAG_ECE)
+	NET_ADD_STATS(net, LINUX_MIB_TCPDELIVERED, delivered);
+	if (flag & FLAG_ECE) {
 		tp->delivered_ce += delivered;
+		NET_ADD_STATS(net, LINUX_MIB_TCPDELIVEREDCE, delivered);
+	}
 	return delivered;
 }
 
