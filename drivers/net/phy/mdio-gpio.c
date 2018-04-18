@@ -35,27 +35,20 @@ struct mdio_gpio_info {
 	struct gpio_desc *mdc, *mdio, *mdo;
 };
 
-static void *mdio_gpio_of_get_data(struct device *dev)
+static int mdio_gpio_get_data(struct device *dev,
+			      struct mdio_gpio_info *bitbang)
 {
-	struct mdio_gpio_platform_data *pdata;
+	bitbang->mdc = devm_gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
+	if (IS_ERR(bitbang->mdc))
+		return PTR_ERR(bitbang->mdc);
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return NULL;
+	bitbang->mdio = devm_gpiod_get_index(dev, NULL, 1, GPIOD_IN);
+	if (IS_ERR(bitbang->mdio))
+		return PTR_ERR(bitbang->mdio);
 
-	pdata->mdc = devm_gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
-	if (IS_ERR(pdata->mdc))
-		return ERR_CAST(pdata->mdc);
-
-	pdata->mdio = devm_gpiod_get_index(dev, NULL, 1, GPIOD_IN);
-	if (IS_ERR(pdata->mdio))
-		return ERR_CAST(pdata->mdio);
-
-	pdata->mdo = devm_gpiod_get_index_optional(dev, NULL, 2, GPIOD_OUT_LOW);
-	if (IS_ERR(pdata->mdo))
-		return ERR_CAST(pdata->mdo);
-
-	return pdata;
+	bitbang->mdo = devm_gpiod_get_index_optional(dev, NULL, 2,
+						     GPIOD_OUT_LOW);
+	return PTR_ERR_OR_ZERO(bitbang->mdo);
 }
 
 static void mdio_dir(struct mdiobb_ctrl *ctrl, int dir)
@@ -116,15 +109,11 @@ static const struct mdiobb_ops mdio_gpio_ops = {
 
 static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 					  struct mdio_gpio_info *bitbang,
-					  struct mdio_gpio_platform_data *pdata,
 					  int bus_id)
 {
 	struct mii_bus *new_bus;
 
 	bitbang->ctrl.ops = &mdio_gpio_ops;
-	bitbang->mdc = pdata->mdc;
-	bitbang->mdio = pdata->mdio;
-	bitbang->mdo = pdata->mdo;
 
 	new_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!new_bus)
@@ -160,7 +149,6 @@ static void mdio_gpio_bus_destroy(struct device *dev)
 
 static int mdio_gpio_probe(struct platform_device *pdev)
 {
-	struct mdio_gpio_platform_data *pdata;
 	struct mdio_gpio_info *bitbang;
 	struct mii_bus *new_bus;
 	int ret, bus_id;
@@ -169,22 +157,21 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 	if (!bitbang)
 		return -ENOMEM;
 
+	ret = mdio_gpio_get_data(&pdev->dev, bitbang);
+	if (ret)
+		return ret;
+
 	if (pdev->dev.of_node) {
-		pdata = mdio_gpio_of_get_data(&pdev->dev);
 		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
 		if (bus_id < 0) {
 			dev_warn(&pdev->dev, "failed to get alias id\n");
 			bus_id = 0;
 		}
 	} else {
-		pdata = dev_get_platdata(&pdev->dev);
 		bus_id = pdev->id;
 	}
 
-	if (!pdata)
-		return -ENODEV;
-
-	new_bus = mdio_gpio_bus_init(&pdev->dev, bitbang, pdata, bus_id);
+	new_bus = mdio_gpio_bus_init(&pdev->dev, bitbang, bus_id);
 	if (!new_bus)
 		return -ENODEV;
 
