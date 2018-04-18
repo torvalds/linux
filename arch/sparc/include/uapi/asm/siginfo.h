@@ -4,7 +4,6 @@
 
 #if defined(__sparc__) && defined(__arch64__)
 
-#define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 #define __ARCH_SI_BAND_T int
 
 #endif /* defined(__sparc__) && defined(__arch64__) */

@@ -3963,9 +3963,6 @@ __weak const char *arch_vma_name(struct vm_area_struct *vma)
 
 void __init signals_init(void)
 {
-	/* If this check fails, the __ARCH_SI_PREAMBLE_SIZE value is wrong! */
-	BUILD_BUG_ON(__ARCH_SI_PREAMBLE_SIZE
-		!= offsetof(struct siginfo, _sifields._pad));
 	BUILD_BUG_ON(sizeof(struct siginfo) != SI_MAX_SIZE);
 
 	sigqueue_cachep = KMEM_CACHE(sigqueue, SLAB_PANIC);
