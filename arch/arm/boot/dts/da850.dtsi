@@ -7,10 +7,19 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0xc0000000 0x0>;
+	};
+
 	arm {
 		#address-cells = <1>;
 		#size-cells = <1>;
