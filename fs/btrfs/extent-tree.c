@@ -4450,7 +4450,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_space_info *space_info;
-	int wait_for_alloc = 0;
+	bool wait_for_alloc = false;
+	bool should_alloc = false;
 	int ret = 0;
 
 	/* Don't re-enter if we're already allocating a chunk */
@@ -4460,45 +4461,44 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 	space_info = __find_space_info(fs_info, flags);
 	ASSERT(space_info);
 
-again:
-	spin_lock(&space_info->lock);
-	if (force < space_info->force_alloc)
-		force = space_info->force_alloc;
-	if (space_info->full) {
-		if (should_alloc_chunk(fs_info, space_info, force))
-			ret = -ENOSPC;
-		else
-			ret = 0;
-		spin_unlock(&space_info->lock);
-		return ret;
-	}
+	do {
+		spin_lock(&space_info->lock);
+		if (force < space_info->force_alloc)
+			force = space_info->force_alloc;
+		should_alloc = should_alloc_chunk(fs_info, space_info, force);
+		if (space_info->full) {
+			/* No more free physical space */
+			if (should_alloc)
+				ret = -ENOSPC;
+			else
+				ret = 0;
+			spin_unlock(&space_info->lock);
+			return ret;
+		} else if (!should_alloc) {
+			spin_unlock(&space_info->lock);
+			return 0;
+		} else if (space_info->chunk_alloc) {
+			/*
+			 * Someone is already allocating, so we need to block
+			 * until this someone is finished and then loop to
+			 * recheck if we should continue with our allocation
+			 * attempt.
+			 */
+			wait_for_alloc = true;
+			spin_unlock(&space_info->lock);
+			mutex_lock(&fs_info->chunk_mutex);
+			mutex_unlock(&fs_info->chunk_mutex);
+		} else {
+			/* Proceed with allocation */
+			space_info->chunk_alloc = 1;
+			wait_for_alloc = false;
+			spin_unlock(&space_info->lock);
+		}
 
-	if (!should_alloc_chunk(fs_info, space_info, force)) {
-		spin_unlock(&space_info->lock);
-		return 0;
-	} else if (space_info->chunk_alloc) {
-		wait_for_alloc = 1;
-	} else {
-		space_info->chunk_alloc = 1;
-	}
-
-	spin_unlock(&space_info->lock);
+		cond_resched();
+	} while (wait_for_alloc);
 
 	mutex_lock(&fs_info->chunk_mutex);
-
-	/*
-	 * The chunk_mutex is held throughout the entirety of a chunk
-	 * allocation, so once we've acquired the chunk_mutex we know that the
-	 * other guy is done and we need to recheck and see if we should
-	 * allocate.
-	 */
-	if (wait_for_alloc) {
-		mutex_unlock(&fs_info->chunk_mutex);
-		wait_for_alloc = 0;
-		cond_resched();
-		goto again;
-	}
-
 	trans->allocating_chunk = true;
 
 	/*
