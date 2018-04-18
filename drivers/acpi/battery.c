@@ -75,6 +75,7 @@ static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
 static int battery_ac_is_broken;
+static int battery_check_pmic = 1;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -1354,6 +1355,13 @@ battery_ac_is_broken_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init
+battery_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+{
+	battery_check_pmic = 0;
+	return 0;
+}
+
 static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
 		/* NEC LZ750/LS */
@@ -1380,6 +1388,22 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1013"),
 			/* Above matches are too generic, add bios-date match */
 			DMI_MATCH(DMI_BIOS_DATE, "08/22/2014"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.callback = battery_do_not_check_pmic_quirk,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Lenovo Ideapad Miix 320 */
+		.callback = battery_do_not_check_pmic_quirk,
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
 		},
 	},
 	{},
@@ -1521,15 +1545,17 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	unsigned int i;
 	int result;
 
-	for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
-		if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
-			pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
-				": found native %s PMIC, not loading\n",
-				acpi_battery_blacklist[i]);
-			return;
-		}
-
 	dmi_check_system(bat_dmi_table);
+
+	if (battery_check_pmic) {
+		for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
+			if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
+				pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
+					": found native %s PMIC, not loading\n",
+					acpi_battery_blacklist[i]);
+				return;
+			}
+	}
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();
