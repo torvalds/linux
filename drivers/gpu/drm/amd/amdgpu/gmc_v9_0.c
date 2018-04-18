@@ -562,8 +562,7 @@ static int gmc_v9_0_early_init(void *handle)
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
 		adev->gmc.shared_aperture_start + (4ULL << 30) - 1;
-	adev->gmc.private_aperture_start =
-		adev->gmc.shared_aperture_end + 1;
+	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
 
