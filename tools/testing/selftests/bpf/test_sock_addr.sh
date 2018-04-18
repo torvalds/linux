@@ -4,7 +4,7 @@ set -eu
 
 ping_once()
 {
-	ping -q -c 1 -W 1 ${1%%/*} >/dev/null 2>&1
+	ping -${1} -q -c 1 -W 1 ${2%%/*} >/dev/null 2>&1
 }
 
 wait_for_ip()
@@ -13,7 +13,7 @@ wait_for_ip()
 	echo -n "Wait for testing IPv4/IPv6 to become available "
 	for _i in $(seq ${MAX_PING_TRIES}); do
 		echo -n "."
-		if ping_once ${TEST_IPv4} && ping_once ${TEST_IPv6}; then
+		if ping_once 4 ${TEST_IPv4} && ping_once 6 ${TEST_IPv6}; then
 			echo " OK"
 			return
 		fi
