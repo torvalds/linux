@@ -78,6 +78,7 @@ struct mlx5e_sw_stats {
 	u64 tx_queue_dropped;
 	u64 tx_xmit_more;
 	u64 tx_recover;
+	u64 tx_cqes;
 	u64 tx_queue_wake;
 	u64 tx_udp_seg_rem;
 	u64 tx_cqe_err;
@@ -208,7 +209,8 @@ struct mlx5e_sq_stats {
 	u64 dropped;
 	u64 recover;
 	/* dirtied @completion */
-	u64 wake ____cacheline_aligned_in_smp;
+	u64 cqes ____cacheline_aligned_in_smp;
+	u64 wake;
 	u64 cqe_err;
 };
 
