@@ -4683,10 +4683,6 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
-		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-	}
 
 	dep_table = table_info->vdd_dep_on_sclk;
 	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
@@ -4696,9 +4692,9 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
 		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
 	}
 }
 
