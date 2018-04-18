@@ -193,7 +193,7 @@ i915_sched_node_init(struct i915_sched_node *node)
 	INIT_LIST_HEAD(&node->signalers_list);
 	INIT_LIST_HEAD(&node->waiters_list);
 	INIT_LIST_HEAD(&node->link);
-	node->priority = I915_PRIORITY_INVALID;
+	node->attr.priority = I915_PRIORITY_INVALID;
 }
 
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
@@ -1064,7 +1064,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	 */
 	rcu_read_lock();
 	if (engine->schedule)
-		engine->schedule(request, request->ctx->priority);
+		engine->schedule(request, &request->ctx->sched);
 	rcu_read_unlock();
 
 	local_bh_disable();

@@ -1113,17 +1113,29 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915)
 	return which;
 }
 
+static void print_sched_attr(struct drm_printer *m,
+			     const struct drm_i915_private *i915,
+			     const struct i915_sched_attr *attr)
+{
+	if (attr->priority == I915_PRIORITY_INVALID)
+		return;
+
+	drm_printf(m, "prio=%d", attr->priority);
+}
+
 static void print_request(struct drm_printer *m,
 			  struct i915_request *rq,
 			  const char *prefix)
 {
 	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
 
-	drm_printf(m, "%s%x%s [%llx:%x] prio=%d @ %dms: %s\n", prefix,
+	drm_printf(m, "%s%x%s [%llx:%x] ",
+		   prefix,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" : "",
-		   rq->fence.context, rq->fence.seqno,
-		   rq->sched.priority,
+		   rq->fence.context, rq->fence.seqno);
+	print_sched_attr(m, rq->i915, &rq->sched.attr);
+	drm_printf(m, " @ %dms: %s\n",
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   name);
 }

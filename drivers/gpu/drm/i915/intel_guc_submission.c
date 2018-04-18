@@ -659,7 +659,7 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.priority;
+	return rq->sched.attr.priority;
 }
 
 static inline int port_prio(const struct execlist_port *port)

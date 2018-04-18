@@ -19,6 +19,21 @@ enum {
 	I915_PRIORITY_INVALID = INT_MIN
 };
 
+struct i915_sched_attr {
+	/**
+	 * @priority: execution and service priority
+	 *
+	 * All clients are equal, but some are more equal than others!
+	 *
+	 * Requests from a context with a greater (more positive) value of
+	 * @priority will be executed before those with a lower @priority
+	 * value, forming a simple QoS.
+	 *
+	 * The &drm_i915_private.kernel_context is assigned the lowest priority.
+	 */
+	int priority;
+};
+
 /*
  * "People assume that time is a strict progression of cause to effect, but
  * actually, from a nonlinear, non-subjective viewpoint, it's more like a big
@@ -42,7 +57,7 @@ struct i915_sched_node {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
-	int priority;
+	struct i915_sched_attr attr;
 };
 
 struct i915_dependency {

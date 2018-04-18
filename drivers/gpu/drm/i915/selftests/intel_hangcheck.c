@@ -628,7 +628,7 @@ static int active_engine(void *data)
 		}
 
 		if (arg->flags & TEST_PRIORITY)
-			ctx[idx]->priority =
+			ctx[idx]->sched.priority =
 				i915_prandom_u32_max_state(512, &prng);
 
 		rq[idx] = i915_request_get(new);
@@ -683,7 +683,7 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 			return err;
 
 		if (flags & TEST_PRIORITY)
-			h.ctx->priority = 1024;
+			h.ctx->sched.priority = 1024;
 	}
 
 	for_each_engine(engine, i915, id) {

@@ -12761,6 +12761,15 @@ static void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 		intel_unpin_fb_vma(vma, old_plane_state->flags);
 }
 
+static void fb_obj_bump_render_priority(struct drm_i915_gem_object *obj)
+{
+	struct i915_sched_attr attr = {
+		.priority = I915_PRIORITY_DISPLAY,
+	};
+
+	i915_gem_object_wait_priority(obj, 0, &attr);
+}
+
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
@@ -12837,7 +12846,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 	ret = intel_plane_pin_fb(to_intel_plane_state(new_state));
 
-	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
+	fb_obj_bump_render_priority(obj);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);

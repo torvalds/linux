@@ -281,7 +281,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
-	ctx->priority = I915_PRIORITY_NORMAL;
+	ctx->sched.priority = I915_PRIORITY_NORMAL;
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
@@ -431,7 +431,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 		return ctx;
 
 	i915_gem_context_clear_bannable(ctx);
-	ctx->priority = prio;
+	ctx->sched.priority = prio;
 	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
@@ -753,7 +753,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
 	case I915_CONTEXT_PARAM_PRIORITY:
-		args->value = ctx->priority;
+		args->value = ctx->sched.priority;
 		break;
 	default:
 		ret = -EINVAL;
@@ -826,7 +826,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				 !capable(CAP_SYS_NICE))
 				ret = -EPERM;
 			else
-				ctx->priority = priority;
+				ctx->sched.priority = priority;
 		}
 		break;
 

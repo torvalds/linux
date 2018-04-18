@@ -177,7 +177,7 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.priority;
+	return rq->sched.attr.priority;
 }
 
 static inline bool need_preempt(const struct intel_engine_cs *engine,
@@ -1172,11 +1172,13 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 	return engine;
 }
 
-static void execlists_schedule(struct i915_request *request, int prio)
+static void execlists_schedule(struct i915_request *request,
+			       const struct i915_sched_attr *attr)
 {
 	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
+	const int prio = attr->priority;
 	LIST_HEAD(dfs);
 
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
@@ -1184,7 +1186,7 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	if (i915_request_completed(request))
 		return;
 
-	if (prio <= READ_ONCE(request->sched.priority))
+	if (prio <= READ_ONCE(request->sched.attr.priority))
 		return;
 
 	/* Need BKL in order to use the temporary link inside i915_dependency */
@@ -1226,8 +1228,8 @@ static void execlists_schedule(struct i915_request *request, int prio)
 			if (i915_sched_node_signaled(p->signaler))
 				continue;
 
-			GEM_BUG_ON(p->signaler->priority < node->priority);
-			if (prio > READ_ONCE(p->signaler->priority))
+			GEM_BUG_ON(p->signaler->attr.priority < node->attr.priority);
+			if (prio > READ_ONCE(p->signaler->attr.priority))
 				list_move_tail(&p->dfs_link, &dfs);
 		}
 	}
@@ -1238,9 +1240,9 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
 	 */
-	if (request->sched.priority == I915_PRIORITY_INVALID) {
+	if (request->sched.attr.priority == I915_PRIORITY_INVALID) {
 		GEM_BUG_ON(!list_empty(&request->sched.link));
-		request->sched.priority = prio;
+		request->sched.attr = *attr;
 		if (stack.dfs_link.next == stack.dfs_link.prev)
 			return;
 		__list_del_entry(&stack.dfs_link);
@@ -1257,10 +1259,10 @@ static void execlists_schedule(struct i915_request *request, int prio)
 
 		engine = sched_lock_engine(node, engine);
 
-		if (prio <= node->priority)
+		if (prio <= node->attr.priority)
 			continue;
 
-		node->priority = prio;
+		node->attr.priority = prio;
 		if (!list_empty(&node->link)) {
 			__list_del_entry(&node->link);
 			queue_request(engine, node, prio);

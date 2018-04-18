@@ -564,7 +564,8 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 	return timeout;
 }
 
-static void __fence_set_priority(struct dma_fence *fence, int prio)
+static void __fence_set_priority(struct dma_fence *fence,
+				 const struct i915_sched_attr *attr)
 {
 	struct i915_request *rq;
 	struct intel_engine_cs *engine;
@@ -577,11 +578,12 @@ static void __fence_set_priority(struct dma_fence *fence, int prio)
 
 	rcu_read_lock();
 	if (engine->schedule)
-		engine->schedule(rq, prio);
+		engine->schedule(rq, attr);
 	rcu_read_unlock();
 }
 
-static void fence_set_priority(struct dma_fence *fence, int prio)
+static void fence_set_priority(struct dma_fence *fence,
+			       const struct i915_sched_attr *attr)
 {
 	/* Recurse once into a fence-array */
 	if (dma_fence_is_array(fence)) {
@@ -589,16 +591,16 @@ static void fence_set_priority(struct dma_fence *fence, int prio)
 		int i;
 
 		for (i = 0; i < array->num_fences; i++)
-			__fence_set_priority(array->fences[i], prio);
+			__fence_set_priority(array->fences[i], attr);
 	} else {
-		__fence_set_priority(fence, prio);
+		__fence_set_priority(fence, attr);
 	}
 }
 
 int
 i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 			      unsigned int flags,
-			      int prio)
+			      const struct i915_sched_attr *attr)
 {
 	struct dma_fence *excl;
 
@@ -613,7 +615,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 			return ret;
 
 		for (i = 0; i < count; i++) {
-			fence_set_priority(shared[i], prio);
+			fence_set_priority(shared[i], attr);
 			dma_fence_put(shared[i]);
 		}
 
@@ -623,7 +625,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 	}
 
 	if (excl) {
-		fence_set_priority(excl, prio);
+		fence_set_priority(excl, attr);
 		dma_fence_put(excl);
 	}
 	return 0;

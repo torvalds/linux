@@ -14,6 +14,7 @@
 #include "intel_gpu_commands.h"
 
 struct drm_printer;
+struct i915_sched_attr;
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -460,7 +461,8 @@ struct intel_engine_cs {
 	 *
 	 * Called under the struct_mutex.
 	 */
-	void		(*schedule)(struct i915_request *request, int priority);
+	void		(*schedule)(struct i915_request *request,
+				    const struct i915_sched_attr *attr);
 
 	/*
 	 * Cancel all requests on the hardware, or queued for execution.
