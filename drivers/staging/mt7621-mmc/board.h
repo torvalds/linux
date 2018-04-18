@@ -76,7 +76,6 @@ struct msdc_hw {
 	/* external cd irq operations */
 	void (*enable_cd_eirq)(void);
 	void (*disable_cd_eirq)(void);
-	int  (*get_cd_status)(void);
 };
 
 extern struct msdc_hw msdc0_hw;

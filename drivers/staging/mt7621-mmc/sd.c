@@ -513,7 +513,6 @@ static void msdc_tasklet_card(struct work_struct *work)
 	struct msdc_host *host = (struct msdc_host *)container_of(work,
 				struct msdc_host, card_delaywork.work);
 #endif
-	struct msdc_hw *hw = host->hw;
 	u32 base = host->base;
 	u32 inserted;
 	u32 status = 0;
@@ -521,15 +520,11 @@ static void msdc_tasklet_card(struct work_struct *work)
 
 	spin_lock(&host->lock);
 
-	if (hw->get_cd_status) { // NULL
-		inserted = hw->get_cd_status();
-	} else {
-		status = sdr_read32(MSDC_PS);
-		if (cd_active_low)
-			inserted = (status & MSDC_PS_CDSTS) ? 0 : 1;
-		else
-			inserted = (status & MSDC_PS_CDSTS) ? 1 : 0;
-	}
+	status = sdr_read32(MSDC_PS);
+	if (cd_active_low)
+		inserted = (status & MSDC_PS_CDSTS) ? 0 : 1;
+	else
+		inserted = (status & MSDC_PS_CDSTS) ? 1 : 0;
 
 #if 0
 	change = host->card_inserted ^ inserted;
