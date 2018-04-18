@@ -4378,8 +4378,11 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 	spin_unlock(&state_lock);
 
 	if (status)
-		destroy_unhashed_deleg(dp);
+		goto out_unlock;
+
 	return dp;
+out_unlock:
+	vfs_setlease(fp->fi_deleg_file, F_UNLCK, NULL, (void **)&dp);
 out_clnt_odstate:
 	put_clnt_odstate(dp->dl_clnt_odstate);
 out_stid:
