@@ -775,8 +775,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
+			length = xdp.data_end - xdp.data;
 			if (xdp.data != orig_data) {
-				length = xdp.data_end - xdp.data;
 				frags[0].page_offset = xdp.data -
 					xdp.data_hard_start;
 				va = xdp.data;
