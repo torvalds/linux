@@ -182,7 +182,6 @@ struct msdc_hw msdc0_hw = {
 	.clk_drv        = 4,
 	.cmd_drv        = 4,
 	.dat_drv        = 4,
-	.data_offset    = 0,
 	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 //	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
