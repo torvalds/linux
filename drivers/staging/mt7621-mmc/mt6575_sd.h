@@ -889,13 +889,6 @@ struct msdc_regs {
 	struct msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
 };
 
-struct scatterlist_ex {
-	u32 cmd;
-	u32 arg;
-	u32 sglen;
-	struct scatterlist *sg;
-};
-
 #define DMA_FLAG_NONE       (0x00000000)
 #define DMA_FLAG_EN_CHKSUM  (0x00000001)
 #define DMA_FLAG_PAD_BLOCK  (0x00000002)
@@ -905,23 +898,13 @@ struct msdc_dma {
 	u32 flags;                   /* flags */
 	u32 xfersz;                  /* xfer size in bytes */
 	u32 sglen;                   /* size of scatter list */
-	u32 blklen;                  /* block size */
 	struct scatterlist *sg;      /* I/O scatter list */
-	struct scatterlist_ex *esg;  /* extended I/O scatter list */
 	u8  mode;                    /* dma mode        */
-	u8  intr;                    /* dma done interrupt */
-	u8  padding;                 /* padding */
-	u32 cmd;                     /* enhanced mode command */
-	u32 arg;                     /* enhanced mode arg */
-	u32 rsp;                     /* enhanced mode command response */
-	u32 autorsp;                 /* auto command response */
 
 	struct gpd *gpd;                  /* pointer to gpd array */
 	struct bd  *bd;                   /* pointer to bd array */
 	dma_addr_t gpd_addr;         /* the physical address of gpd array */
 	dma_addr_t bd_addr;          /* the physical address of bd array */
-	u32 used_gpd;                /* the number of used gpd elements */
-	u32 used_bd;                 /* the number of used bd elements */
 };
 
 struct msdc_host {

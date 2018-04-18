@@ -1310,9 +1310,6 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 			bd[j].chksum = (chksum ? msdc_dma_calcs((u8 *)(&bd[j]), 16) : 0);
 		}
 
-		dma->used_gpd += 2;
-		dma->used_bd += dma->sglen;
-
 		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, chksum);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
 			      MSDC_BRUST_64B);
@@ -1511,8 +1508,6 @@ done:
 		host->dma_xfer = 0;
 		if (dma != 0) {
 			msdc_dma_off();
-			host->dma.used_bd  = 0;
-			host->dma.used_gpd = 0;
 			dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len, dir);
 		}
 		host->blksz = 0;
@@ -2618,8 +2613,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->mrq = NULL;
 	//init_MUTEX(&host->sem); /* we don't need to support multiple threads access */
 
-	host->dma.used_gpd = 0;
-	host->dma.used_bd = 0;
 	mmc_dev(mmc)->dma_mask = NULL;
 
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
