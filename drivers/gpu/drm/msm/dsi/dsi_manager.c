@@ -134,8 +134,9 @@ static int enable_phy(struct msm_dsi *msm_dsi, int src_pll_id,
 {
 	struct msm_dsi_phy_clk_request clk_req;
 	int ret;
+	bool is_dual_dsi = IS_DUAL_DSI();
 
-	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req);
+	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req, is_dual_dsi);
 
 	ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, &clk_req);
 	msm_dsi_phy_get_shared_timings(msm_dsi->phy, shared_timings);
@@ -458,7 +459,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	if (is_dual_dsi && (DSI_1 == id))
 		return;
 
-	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id]);
+	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_dual_dsi);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
 		goto host_on_fail;
@@ -466,7 +467,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 
 	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_power_on(msm_dsi1->host,
-					    &phy_shared_timings[DSI_1]);
+				&phy_shared_timings[DSI_1], is_dual_dsi);
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
 							__func__, ret);
