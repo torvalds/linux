@@ -165,7 +165,7 @@ int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 {
 	return VM_FAULT_SIGBUS;
 }

@@ -3993,7 +3993,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	return r;
 }
 
-int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 {
 #ifdef CONFIG_KVM_S390_UCONTROL
 	if ((vmf->pgoff == KVM_S390_SIE_PAGE_OFFSET)
