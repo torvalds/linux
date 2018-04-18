@@ -101,8 +101,8 @@ void ip6_route_cleanup(void);
 int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 
 int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
-int ip6_ins_rt(struct rt6_info *);
-int ip6_del_rt(struct rt6_info *);
+int ip6_ins_rt(struct net *net, struct rt6_info *rt);
+int ip6_del_rt(struct net *net, struct rt6_info *rt);
 
 void rt6_flush_exceptions(struct rt6_info *rt);
 int rt6_remove_exception_rt(struct rt6_info *rt);
@@ -137,7 +137,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 
 void fib6_force_start_gc(struct net *net);
 
-struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
+struct rt6_info *addrconf_dst_alloc(struct net *net, struct inet6_dev *idev,
 				    const struct in6_addr *addr, bool anycast);
 
 struct rt6_info *ip6_dst_alloc(struct net *net, struct net_device *dev,
@@ -147,9 +147,11 @@ struct rt6_info *ip6_dst_alloc(struct net *net, struct net_device *dev,
  *	support functions for ND
  *
  */
-struct rt6_info *rt6_get_dflt_router(const struct in6_addr *addr,
+struct rt6_info *rt6_get_dflt_router(struct net *net,
+				     const struct in6_addr *addr,
 				     struct net_device *dev);
-struct rt6_info *rt6_add_dflt_router(const struct in6_addr *gwaddr,
+struct rt6_info *rt6_add_dflt_router(struct net *net,
+				     const struct in6_addr *gwaddr,
 				     struct net_device *dev, unsigned int pref);
 
 void rt6_purge_dflt_routers(struct net *net);
