@@ -197,6 +197,41 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  *     device_list_mutex
  *       chunk_mutex
  *     balance_mutex
+ *
+ *
+ * Exclusive operations, BTRFS_FS_EXCL_OP
+ * ======================================
+ *
+ * Maintains the exclusivity of the following operations that apply to the
+ * whole filesystem and cannot run in parallel.
+ *
+ * - Balance (*)
+ * - Device add
+ * - Device remove
+ * - Device replace (*)
+ * - Resize
+ *
+ * The device operations (as above) can be in one of the following states:
+ *
+ * - Running state
+ * - Paused state
+ * - Completed state
+ *
+ * Only device operations marked with (*) can go into the Paused state for the
+ * following reasons:
+ *
+ * - ioctl (only Balance can be Paused through ioctl)
+ * - filesystem remounted as read-only
+ * - filesystem unmounted and mounted as read-only
+ * - system power-cycle and filesystem mounted as read-only
+ * - filesystem or device errors leading to forced read-only
+ *
+ * BTRFS_FS_EXCL_OP flag is set and cleared using atomic operations.
+ * During the course of Paused state, the BTRFS_FS_EXCL_OP remains set.
+ * A device operation in Paused or Running state can be canceled or resumed
+ * either by ioctl (Balance only) or when remounted as read-write.
+ * BTRFS_FS_EXCL_OP flag is cleared when the device operation is canceled or
+ * completed.
  */
 
 DEFINE_MUTEX(uuid_mutex);
