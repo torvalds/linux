@@ -2261,10 +2261,6 @@ static void msdc_ops_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	u32 tmp;
 
 	if (hw->flags & MSDC_EXT_SDIO_IRQ) { /* yes for sdio */
-		if (enable)
-			hw->enable_sdio_eirq();  /* combo_sdio_enable_eirq */
-		else
-			hw->disable_sdio_eirq(); /* combo_sdio_disable_eirq */
 	} else {
 		ERR_MSG("XXX ");  /* so never enter here */
 		tmp = sdr_read32(SDC_CFG);
