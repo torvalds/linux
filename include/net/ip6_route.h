@@ -114,14 +114,15 @@ static inline int ip6_route_get_saddr(struct net *net, struct fib6_info *f6i,
 				      unsigned int prefs,
 				      struct in6_addr *saddr)
 {
-	struct inet6_dev *idev = f6i ? f6i->fib6_idev : NULL;
 	int err = 0;
 
-	if (f6i && f6i->fib6_prefsrc.plen)
+	if (f6i && f6i->fib6_prefsrc.plen) {
 		*saddr = f6i->fib6_prefsrc.addr;
-	else
-		err = ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
-					 daddr, prefs, saddr);
+	} else {
+		struct net_device *dev = f6i ? fib6_info_nh_dev(f6i) : NULL;
+
+		err = ipv6_dev_get_saddr(net, dev, daddr, prefs, saddr);
+	}
 
 	return err;
 }
