@@ -2002,7 +2002,7 @@ static int btf_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static const struct file_operations btf_fops = {
+const struct file_operations btf_fops = {
 	.release	= btf_release,
 };
 
@@ -2046,4 +2046,19 @@ struct btf *btf_get_by_fd(int fd)
 	fdput(f);
 
 	return btf;
+}
+
+int btf_get_info_by_fd(const struct btf *btf,
+		       const union bpf_attr *attr,
+		       union bpf_attr __user *uattr)
+{
+	void __user *udata = u64_to_user_ptr(attr->info.info);
+	u32 copy_len = min_t(u32, btf->data_size,
+			     attr->info.info_len);
+
+	if (copy_to_user(udata, btf->data, copy_len) ||
+	    put_user(btf->data_size, &uattr->info.info_len))
+		return -EFAULT;
+
+	return 0;
 }
