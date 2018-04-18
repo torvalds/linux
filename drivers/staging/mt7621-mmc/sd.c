@@ -588,16 +588,6 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 
 	msdc_irq_save(flags);
 
-#if defined(CONFIG_MT7621_FPGA) || defined(CONFIG_MT7628_FPGA)
-	mode = 0x0; /* use divisor */
-	if (hz >= (hclk >> 1)) {
-		div  = 0;         /* mean div = 1/2 */
-		sclk = hclk >> 1; /* sclk = clk / 2 */
-	} else {
-		div  = (hclk + ((hz << 2) - 1)) / (hz << 2);
-		sclk = (hclk >> 2) / div;
-	}
-#else
 	if (ddr) {
 		mode = 0x2; /* ddr mode and use divisor */
 		if (hz >= (hclk >> 2)) {
@@ -621,7 +611,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 			sclk = (hclk >> 2) / div;
 		}
 	}
-#endif
+
 	/* set clock mode and divisor */
 	sdr_set_field(MSDC_CFG, MSDC_CFG_CKMOD, mode);
 	sdr_set_field(MSDC_CFG, MSDC_CFG_CKDIV, div);
