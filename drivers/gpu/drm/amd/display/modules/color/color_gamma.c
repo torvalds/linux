@@ -913,7 +913,7 @@ static void apply_lut_1d(
 	struct fixed31_32 lut2;
 	const int max_lut_index = 4095;
 	const struct fixed31_32 max_lut_index_f =
-			dc_fixpt_from_int_nonconst(max_lut_index);
+			dc_fixpt_from_int(max_lut_index);
 	int32_t index = 0, index_next = 0;
 	struct fixed31_32 index_f;
 	struct fixed31_32 delta_lut;
@@ -934,7 +934,7 @@ static void apply_lut_1d(
 			norm_y = dc_fixpt_mul(max_lut_index_f,
 						   *regamma_y);
 			index = dc_fixpt_floor(norm_y);
-			index_f = dc_fixpt_from_int_nonconst(index);
+			index_f = dc_fixpt_from_int(index);
 
 			if (index < 0 || index > max_lut_index)
 				continue;
@@ -1094,7 +1094,7 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 	struct fixed31_32 *tf_point;
 	struct fixed31_32 hw_x;
 	struct fixed31_32 norm_factor =
-			dc_fixpt_from_int_nonconst(255);
+			dc_fixpt_from_int(255);
 	struct fixed31_32 norm_x;
 	struct fixed31_32 index_f;
 	struct fixed31_32 lut1;
@@ -1134,7 +1134,7 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 			if (index < 0 || index > 255)
 				continue;
 
-			index_f = dc_fixpt_from_int_nonconst(index);
+			index_f = dc_fixpt_from_int(index);
 			index_next = (index == 255) ? index : index + 1;
 
 			if (color == 0) {
