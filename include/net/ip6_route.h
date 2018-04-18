@@ -279,4 +279,7 @@ static inline bool rt6_duplicate_nexthop(struct rt6_info *a, struct rt6_info *b)
 	       !lwtunnel_cmp_encap(a->fib6_nh.nh_lwtstate, b->fib6_nh.nh_lwtstate);
 }
 
+struct neighbour *ip6_neigh_lookup(const struct in6_addr *gw,
+				   struct net_device *dev, struct sk_buff *skb,
+				   const void *daddr);
 #endif

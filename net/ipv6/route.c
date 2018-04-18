@@ -182,12 +182,10 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 	}
 }
 
-static inline const void *choose_neigh_daddr(struct rt6_info *rt,
+static inline const void *choose_neigh_daddr(const struct in6_addr *p,
 					     struct sk_buff *skb,
 					     const void *daddr)
 {
-	struct in6_addr *p = &rt->rt6i_gateway;
-
 	if (!ipv6_addr_any(p))
 		return (const void *) p;
 	else if (skb)
@@ -195,18 +193,27 @@ static inline const void *choose_neigh_daddr(struct rt6_info *rt,
 	return daddr;
 }
 
-static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst,
-					  struct sk_buff *skb,
-					  const void *daddr)
+struct neighbour *ip6_neigh_lookup(const struct in6_addr *gw,
+				   struct net_device *dev,
+				   struct sk_buff *skb,
+				   const void *daddr)
 {
-	struct rt6_info *rt = (struct rt6_info *) dst;
 	struct neighbour *n;
 
-	daddr = choose_neigh_daddr(rt, skb, daddr);
-	n = __ipv6_neigh_lookup(dst->dev, daddr);
+	daddr = choose_neigh_daddr(gw, skb, daddr);
+	n = __ipv6_neigh_lookup(dev, daddr);
 	if (n)
 		return n;
-	return neigh_create(&nd_tbl, daddr, dst->dev);
+	return neigh_create(&nd_tbl, daddr, dev);
+}
+
+static struct neighbour *ip6_dst_neigh_lookup(const struct dst_entry *dst,
+					      struct sk_buff *skb,
+					      const void *daddr)
+{
+	const struct rt6_info *rt = container_of(dst, struct rt6_info, dst);
+
+	return ip6_neigh_lookup(&rt->rt6i_gateway, dst->dev, skb, daddr);
 }
 
 static void ip6_confirm_neigh(const struct dst_entry *dst, const void *daddr)
@@ -214,7 +221,7 @@ static void ip6_confirm_neigh(const struct dst_entry *dst, const void *daddr)
 	struct net_device *dev = dst->dev;
 	struct rt6_info *rt = (struct rt6_info *)dst;
 
-	daddr = choose_neigh_daddr(rt, NULL, daddr);
+	daddr = choose_neigh_daddr(&rt->rt6i_gateway, NULL, daddr);
 	if (!daddr)
 		return;
 	if (dev->flags & (IFF_NOARP | IFF_LOOPBACK))
@@ -239,7 +246,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.update_pmtu		=	ip6_rt_update_pmtu,
 	.redirect		=	rt6_do_redirect,
 	.local_out		=	__ip6_local_out,
-	.neigh_lookup		=	ip6_neigh_lookup,
+	.neigh_lookup		=	ip6_dst_neigh_lookup,
 	.confirm_neigh		=	ip6_confirm_neigh,
 };
 
@@ -269,7 +276,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 	.redirect		=	ip6_rt_blackhole_redirect,
 	.cow_metrics		=	dst_cow_metrics_generic,
-	.neigh_lookup		=	ip6_neigh_lookup,
+	.neigh_lookup		=	ip6_dst_neigh_lookup,
 };
 
 static const u32 ip6_template_metrics[RTAX_MAX] = {
