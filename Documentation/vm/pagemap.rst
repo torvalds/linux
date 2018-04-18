@@ -13,7 +13,7 @@ There are four components to pagemap:
  * ``/proc/pid/pagemap``.  This file lets a userspace process find out which
    physical frame each virtual page is mapped to.  It contains one 64-bit
    value for each virtual page, containing the following data (from
-   fs/proc/task_mmu.c, above pagemap_read):
+   ``fs/proc/task_mmu.c``, above pagemap_read):
 
     * Bits 0-54  page frame number (PFN) if present
     * Bits 0-4   swap type if swapped
@@ -36,7 +36,7 @@ There are four components to pagemap:
    precisely which pages are mapped (or in swap) and comparing mapped
    pages between processes.
 
-   Efficient users of this interface will use /proc/pid/maps to
+   Efficient users of this interface will use ``/proc/pid/maps`` to
    determine which areas of memory are actually mapped and llseek to
    skip over unmapped regions.
 
@@ -79,11 +79,11 @@ There are four components to pagemap:
    memory cgroup each page is charged to, indexed by PFN. Only available when
    CONFIG_MEMCG is set.
 
-Short descriptions to the page flags:
-=====================================
+Short descriptions to the page flags
+====================================
 
 0 - LOCKED
-   page is being locked for exclusive access, eg. by undergoing read/write IO
+   page is being locked for exclusive access, e.g. by undergoing read/write IO
 7 - SLAB
    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
    When compound page is used, SLUB/SLQB will only set this flag on the head
@@ -132,7 +132,7 @@ IO related page flags
    ie. for file backed page: (in-memory data revision >= on-disk one)
 4 - DIRTY
    page has been written to, hence contains new data
-   ie. for file backed page: (in-memory data revision >  on-disk one)
+   i.e. for file backed page: (in-memory data revision >  on-disk one)
 8 - WRITEBACK
    page is being synced to disk
 
@@ -145,7 +145,7 @@ LRU related page flags
    page is in the active LRU list
 18 - UNEVICTABLE
    page is in the unevictable (non-)LRU list It is somehow pinned and
-   not a candidate for LRU page reclaims, eg. ramfs pages,
+   not a candidate for LRU page reclaims, e.g. ramfs pages,
    shmctl(SHM_LOCK) and mlock() memory segments
 2 - REFERENCED
    page has been referenced since last LRU list enqueue/requeue
@@ -156,7 +156,7 @@ LRU related page flags
 12 - ANON
    a memory mapped page that is not part of a file
 13 - SWAPCACHE
-   page is mapped to swap space, ie. has an associated swap entry
+   page is mapped to swap space, i.e. has an associated swap entry
 14 - SWAPBACKED
    page is backed by swap/RAM
 
