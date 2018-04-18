@@ -1054,8 +1054,8 @@ void hubp1_cursor_set_position(
 	ASSERT(param->h_scale_ratio.value);
 
 	if (param->h_scale_ratio.value)
-		dst_x_offset = dal_fixed31_32_floor(dal_fixed31_32_div(
-				dal_fixed31_32_from_int(dst_x_offset),
+		dst_x_offset = dc_fixpt_floor(dc_fixpt_div(
+				dc_fixpt_from_int(dst_x_offset),
 				param->h_scale_ratio));
 
 	if (src_x_offset >= (int)param->viewport_width)

@@ -25,7 +25,7 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
-#include "fixed32_32.h"
+#include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
 #include "dc_dp_types.h"

@@ -50,16 +50,16 @@ struct fixed31_32 {
  * Useful constants
  */
 
-static const struct fixed31_32 dal_fixed31_32_zero = { 0 };
-static const struct fixed31_32 dal_fixed31_32_epsilon = { 1LL };
-static const struct fixed31_32 dal_fixed31_32_half = { 0x80000000LL };
-static const struct fixed31_32 dal_fixed31_32_one = { 0x100000000LL };
+static const struct fixed31_32 dc_fixpt_zero = { 0 };
+static const struct fixed31_32 dc_fixpt_epsilon = { 1LL };
+static const struct fixed31_32 dc_fixpt_half = { 0x80000000LL };
+static const struct fixed31_32 dc_fixpt_one = { 0x100000000LL };
 
-static const struct fixed31_32 dal_fixed31_32_pi = { 13493037705LL };
-static const struct fixed31_32 dal_fixed31_32_two_pi = { 26986075409LL };
-static const struct fixed31_32 dal_fixed31_32_e = { 11674931555LL };
-static const struct fixed31_32 dal_fixed31_32_ln2 = { 2977044471LL };
-static const struct fixed31_32 dal_fixed31_32_ln2_div_2 = { 1488522236LL };
+static const struct fixed31_32 dc_fixpt_pi = { 13493037705LL };
+static const struct fixed31_32 dc_fixpt_two_pi = { 26986075409LL };
+static const struct fixed31_32 dc_fixpt_e = { 11674931555LL };
+static const struct fixed31_32 dc_fixpt_ln2 = { 2977044471LL };
+static const struct fixed31_32 dc_fixpt_ln2_div_2 = { 1488522236LL };
 
 /*
  * @brief
@@ -70,7 +70,7 @@ static const struct fixed31_32 dal_fixed31_32_ln2_div_2 = { 1488522236LL };
  * @brief
  * result = numerator / denominator
  */
-struct fixed31_32 dal_fixed31_32_from_fraction(
+struct fixed31_32 dc_fixpt_from_fraction(
 	long long numerator,
 	long long denominator);
 
@@ -78,8 +78,8 @@ struct fixed31_32 dal_fixed31_32_from_fraction(
  * @brief
  * result = arg
  */
-struct fixed31_32 dal_fixed31_32_from_int_nonconst(long long arg);
-static inline struct fixed31_32 dal_fixed31_32_from_int(long long arg)
+struct fixed31_32 dc_fixpt_from_int_nonconst(long long arg);
+static inline struct fixed31_32 dc_fixpt_from_int(long long arg)
 {
 	if (__builtin_constant_p(arg)) {
 		struct fixed31_32 res;
@@ -87,7 +87,7 @@ static inline struct fixed31_32 dal_fixed31_32_from_int(long long arg)
 		res.value = arg << FIXED31_32_BITS_PER_FRACTIONAL_PART;
 		return res;
 	} else
-		return dal_fixed31_32_from_int_nonconst(arg);
+		return dc_fixpt_from_int_nonconst(arg);
 }
 
 /*
@@ -99,7 +99,7 @@ static inline struct fixed31_32 dal_fixed31_32_from_int(long long arg)
  * @brief
  * result = -arg
  */
-static inline struct fixed31_32 dal_fixed31_32_neg(struct fixed31_32 arg)
+static inline struct fixed31_32 dc_fixpt_neg(struct fixed31_32 arg)
 {
 	struct fixed31_32 res;
 
@@ -112,10 +112,10 @@ static inline struct fixed31_32 dal_fixed31_32_neg(struct fixed31_32 arg)
  * @brief
  * result = abs(arg) := (arg >= 0) ? arg : -arg
  */
-static inline struct fixed31_32 dal_fixed31_32_abs(struct fixed31_32 arg)
+static inline struct fixed31_32 dc_fixpt_abs(struct fixed31_32 arg)
 {
 	if (arg.value < 0)
-		return dal_fixed31_32_neg(arg);
+		return dc_fixpt_neg(arg);
 	else
 		return arg;
 }
@@ -129,7 +129,7 @@ static inline struct fixed31_32 dal_fixed31_32_abs(struct fixed31_32 arg)
  * @brief
  * result = arg1 < arg2
  */
-static inline bool dal_fixed31_32_lt(struct fixed31_32 arg1,
+static inline bool dc_fixpt_lt(struct fixed31_32 arg1,
 				     struct fixed31_32 arg2)
 {
 	return arg1.value < arg2.value;
@@ -139,7 +139,7 @@ static inline bool dal_fixed31_32_lt(struct fixed31_32 arg1,
  * @brief
  * result = arg1 <= arg2
  */
-static inline bool dal_fixed31_32_le(struct fixed31_32 arg1,
+static inline bool dc_fixpt_le(struct fixed31_32 arg1,
 				     struct fixed31_32 arg2)
 {
 	return arg1.value <= arg2.value;
@@ -149,7 +149,7 @@ static inline bool dal_fixed31_32_le(struct fixed31_32 arg1,
  * @brief
  * result = arg1 == arg2
  */
-static inline bool dal_fixed31_32_eq(struct fixed31_32 arg1,
+static inline bool dc_fixpt_eq(struct fixed31_32 arg1,
 				     struct fixed31_32 arg2)
 {
 	return arg1.value == arg2.value;
@@ -159,7 +159,7 @@ static inline bool dal_fixed31_32_eq(struct fixed31_32 arg1,
  * @brief
  * result = min(arg1, arg2) := (arg1 <= arg2) ? arg1 : arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_min(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_min(struct fixed31_32 arg1,
 						   struct fixed31_32 arg2)
 {
 	if (arg1.value <= arg2.value)
@@ -172,7 +172,7 @@ static inline struct fixed31_32 dal_fixed31_32_min(struct fixed31_32 arg1,
  * @brief
  * result = max(arg1, arg2) := (arg1 <= arg2) ? arg2 : arg1
  */
-static inline struct fixed31_32 dal_fixed31_32_max(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_max(struct fixed31_32 arg1,
 						   struct fixed31_32 arg2)
 {
 	if (arg1.value <= arg2.value)
@@ -187,14 +187,14 @@ static inline struct fixed31_32 dal_fixed31_32_max(struct fixed31_32 arg1,
  * result = | arg, when min_value < arg < max_value
  *          | max_value, when arg >= max_value
  */
-static inline struct fixed31_32 dal_fixed31_32_clamp(
+static inline struct fixed31_32 dc_fixpt_clamp(
 	struct fixed31_32 arg,
 	struct fixed31_32 min_value,
 	struct fixed31_32 max_value)
 {
-	if (dal_fixed31_32_le(arg, min_value))
+	if (dc_fixpt_le(arg, min_value))
 		return min_value;
-	else if (dal_fixed31_32_le(max_value, arg))
+	else if (dc_fixpt_le(max_value, arg))
 		return max_value;
 	else
 		return arg;
@@ -209,7 +209,7 @@ static inline struct fixed31_32 dal_fixed31_32_clamp(
  * @brief
  * result = arg << shift
  */
-struct fixed31_32 dal_fixed31_32_shl(
+struct fixed31_32 dc_fixpt_shl(
 	struct fixed31_32 arg,
 	unsigned char shift);
 
@@ -217,7 +217,7 @@ struct fixed31_32 dal_fixed31_32_shl(
  * @brief
  * result = arg >> shift
  */
-static inline struct fixed31_32 dal_fixed31_32_shr(
+static inline struct fixed31_32 dc_fixpt_shr(
 	struct fixed31_32 arg,
 	unsigned char shift)
 {
@@ -235,7 +235,7 @@ static inline struct fixed31_32 dal_fixed31_32_shr(
  * @brief
  * result = arg1 + arg2
  */
-struct fixed31_32 dal_fixed31_32_add(
+struct fixed31_32 dc_fixpt_add(
 	struct fixed31_32 arg1,
 	struct fixed31_32 arg2);
 
@@ -243,18 +243,18 @@ struct fixed31_32 dal_fixed31_32_add(
  * @brief
  * result = arg1 + arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_add_int(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_add_int(struct fixed31_32 arg1,
 						       int arg2)
 {
-	return dal_fixed31_32_add(arg1,
-				  dal_fixed31_32_from_int(arg2));
+	return dc_fixpt_add(arg1,
+				  dc_fixpt_from_int(arg2));
 }
 
 /*
  * @brief
  * result = arg1 - arg2
  */
-struct fixed31_32 dal_fixed31_32_sub(
+struct fixed31_32 dc_fixpt_sub(
 	struct fixed31_32 arg1,
 	struct fixed31_32 arg2);
 
@@ -262,11 +262,11 @@ struct fixed31_32 dal_fixed31_32_sub(
  * @brief
  * result = arg1 - arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_sub_int(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_sub_int(struct fixed31_32 arg1,
 						       int arg2)
 {
-	return dal_fixed31_32_sub(arg1,
-				  dal_fixed31_32_from_int(arg2));
+	return dc_fixpt_sub(arg1,
+				  dc_fixpt_from_int(arg2));
 }
 
 
@@ -279,7 +279,7 @@ static inline struct fixed31_32 dal_fixed31_32_sub_int(struct fixed31_32 arg1,
  * @brief
  * result = arg1 * arg2
  */
-struct fixed31_32 dal_fixed31_32_mul(
+struct fixed31_32 dc_fixpt_mul(
 	struct fixed31_32 arg1,
 	struct fixed31_32 arg2);
 
@@ -288,39 +288,39 @@ struct fixed31_32 dal_fixed31_32_mul(
  * @brief
  * result = arg1 * arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_mul_int(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_mul_int(struct fixed31_32 arg1,
 						       int arg2)
 {
-	return dal_fixed31_32_mul(arg1,
-				  dal_fixed31_32_from_int(arg2));
+	return dc_fixpt_mul(arg1,
+				  dc_fixpt_from_int(arg2));
 }
 
 /*
  * @brief
  * result = square(arg) := arg * arg
  */
-struct fixed31_32 dal_fixed31_32_sqr(
+struct fixed31_32 dc_fixpt_sqr(
 	struct fixed31_32 arg);
 
 /*
  * @brief
  * result = arg1 / arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_div_int(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_div_int(struct fixed31_32 arg1,
 						       long long arg2)
 {
-	return dal_fixed31_32_from_fraction(arg1.value,
-					    dal_fixed31_32_from_int(arg2).value);
+	return dc_fixpt_from_fraction(arg1.value,
+					    dc_fixpt_from_int(arg2).value);
 }
 
 /*
  * @brief
  * result = arg1 / arg2
  */
-static inline struct fixed31_32 dal_fixed31_32_div(struct fixed31_32 arg1,
+static inline struct fixed31_32 dc_fixpt_div(struct fixed31_32 arg1,
 						   struct fixed31_32 arg2)
 {
-	return dal_fixed31_32_from_fraction(arg1.value,
+	return dc_fixpt_from_fraction(arg1.value,
 					    arg2.value);
 }
 
@@ -336,7 +336,7 @@ static inline struct fixed31_32 dal_fixed31_32_div(struct fixed31_32 arg1,
  * @note
  * No special actions taken in case argument is zero.
  */
-struct fixed31_32 dal_fixed31_32_recip(
+struct fixed31_32 dc_fixpt_recip(
 	struct fixed31_32 arg);
 
 /*
@@ -352,7 +352,7 @@ struct fixed31_32 dal_fixed31_32_recip(
  * Argument specified in radians,
  * internally it's normalized to [-2pi...2pi] range.
  */
-struct fixed31_32 dal_fixed31_32_sinc(
+struct fixed31_32 dc_fixpt_sinc(
 	struct fixed31_32 arg);
 
 /*
@@ -363,7 +363,7 @@ struct fixed31_32 dal_fixed31_32_sinc(
  * Argument specified in radians,
  * internally it's normalized to [-2pi...2pi] range.
  */
-struct fixed31_32 dal_fixed31_32_sin(
+struct fixed31_32 dc_fixpt_sin(
 	struct fixed31_32 arg);
 
 /*
@@ -376,7 +376,7 @@ struct fixed31_32 dal_fixed31_32_sin(
  * passing arguments outside that range
  * will cause incorrect result!
  */
-struct fixed31_32 dal_fixed31_32_cos(
+struct fixed31_32 dc_fixpt_cos(
 	struct fixed31_32 arg);
 
 /*
@@ -391,7 +391,7 @@ struct fixed31_32 dal_fixed31_32_cos(
  * @note
  * Currently, function is verified for abs(arg) <= 1.
  */
-struct fixed31_32 dal_fixed31_32_exp(
+struct fixed31_32 dc_fixpt_exp(
 	struct fixed31_32 arg);
 
 /*
@@ -404,7 +404,7 @@ struct fixed31_32 dal_fixed31_32_exp(
  * Currently, no special actions taken
  * in case of invalid argument(s). Take care!
  */
-struct fixed31_32 dal_fixed31_32_log(
+struct fixed31_32 dc_fixpt_log(
 	struct fixed31_32 arg);
 
 /*
@@ -419,7 +419,7 @@ struct fixed31_32 dal_fixed31_32_log(
  * @note
  * Currently, abs(arg1) should be less than 1. Take care!
  */
-struct fixed31_32 dal_fixed31_32_pow(
+struct fixed31_32 dc_fixpt_pow(
 	struct fixed31_32 arg1,
 	struct fixed31_32 arg2);
 
@@ -432,21 +432,21 @@ struct fixed31_32 dal_fixed31_32_pow(
  * @brief
  * result = floor(arg) := greatest integer lower than or equal to arg
  */
-int dal_fixed31_32_floor(
+int dc_fixpt_floor(
 	struct fixed31_32 arg);
 
 /*
  * @brief
  * result = round(arg) := integer nearest to arg
  */
-int dal_fixed31_32_round(
+int dc_fixpt_round(
 	struct fixed31_32 arg);
 
 /*
  * @brief
  * result = ceil(arg) := lowest integer greater than or equal to arg
  */
-int dal_fixed31_32_ceil(
+int dc_fixpt_ceil(
 	struct fixed31_32 arg);
 
 /* the following two function are used in scaler hw programming to convert fixed
@@ -455,20 +455,20 @@ int dal_fixed31_32_ceil(
  * fractional
  */
 
-unsigned int dal_fixed31_32_u2d19(
+unsigned int dc_fixpt_u2d19(
 	struct fixed31_32 arg);
 
-unsigned int dal_fixed31_32_u0d19(
+unsigned int dc_fixpt_u0d19(
 	struct fixed31_32 arg);
 
 
-unsigned int dal_fixed31_32_clamp_u0d14(
+unsigned int dc_fixpt_clamp_u0d14(
 	struct fixed31_32 arg);
 
-unsigned int dal_fixed31_32_clamp_u0d10(
+unsigned int dc_fixpt_clamp_u0d10(
 	struct fixed31_32 arg);
 
-int dal_fixed31_32_s4d19(
+int dc_fixpt_s4d19(
 	struct fixed31_32 arg);
 
 #endif

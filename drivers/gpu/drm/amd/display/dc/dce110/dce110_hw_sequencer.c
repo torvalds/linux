@@ -509,19 +509,19 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
-	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(region_start));
-	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(region_end));
+	arr_points[0].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+					     dc_fixpt_from_int(region_start));
+	arr_points[1].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+					     dc_fixpt_from_int(region_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;
 	y_b = rgb_resulted[0].blue;
 
-	y1_min = dal_fixed31_32_min(y_r, dal_fixed31_32_min(y_g, y_b));
+	y1_min = dc_fixpt_min(y_r, dc_fixpt_min(y_g, y_b));
 
 	arr_points[0].y = y1_min;
-	arr_points[0].slope = dal_fixed31_32_div(arr_points[0].y,
+	arr_points[0].slope = dc_fixpt_div(arr_points[0].y,
 						 arr_points[0].x);
 
 	y_r = rgb_resulted[hw_points - 1].red;
@@ -531,21 +531,21 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
 	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
 	 */
-	y3_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
+	y3_max = dc_fixpt_max(y_r, dc_fixpt_max(y_g, y_b));
 
 	arr_points[1].y = y3_max;
 
-	arr_points[1].slope = dal_fixed31_32_zero;
+	arr_points[1].slope = dc_fixpt_zero;
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* for PQ, we want to have a straight line from last HW X point,
 		 * and the slope to be such that we hit 1.0 at 10000 nits.
 		 */
-		const struct fixed31_32 end_value = dal_fixed31_32_from_int(125);
+		const struct fixed31_32 end_value = dc_fixpt_from_int(125);
 
-		arr_points[1].slope = dal_fixed31_32_div(
-				dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-				dal_fixed31_32_sub(end_value, arr_points[1].x));
+		arr_points[1].slope = dc_fixpt_div(
+				dc_fixpt_sub(dc_fixpt_one, arr_points[1].y),
+				dc_fixpt_sub(end_value, arr_points[1].x));
 	}
 
 	regamma_params->hw_points_num = hw_points;
@@ -569,16 +569,16 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	i = 1;
 
 	while (i != hw_points + 1) {
-		if (dal_fixed31_32_lt(rgb_plus_1->red, rgb->red))
+		if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
 			rgb_plus_1->red = rgb->red;
-		if (dal_fixed31_32_lt(rgb_plus_1->green, rgb->green))
+		if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
 			rgb_plus_1->green = rgb->green;
-		if (dal_fixed31_32_lt(rgb_plus_1->blue, rgb->blue))
+		if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
 			rgb_plus_1->blue = rgb->blue;
 
-		rgb->delta_red = dal_fixed31_32_sub(rgb_plus_1->red, rgb->red);
-		rgb->delta_green = dal_fixed31_32_sub(rgb_plus_1->green, rgb->green);
-		rgb->delta_blue = dal_fixed31_32_sub(rgb_plus_1->blue, rgb->blue);
+		rgb->delta_red = dc_fixpt_sub(rgb_plus_1->red, rgb->red);
+		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
+		rgb->delta_blue = dc_fixpt_sub(rgb_plus_1->blue, rgb->blue);
 
 		++rgb_plus_1;
 		++rgb;

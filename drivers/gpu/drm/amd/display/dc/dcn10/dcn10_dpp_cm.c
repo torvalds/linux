@@ -811,13 +811,13 @@ void dpp1_program_input_lut(
 	REG_UPDATE(CM_IGAM_LUT_RW_INDEX, CM_IGAM_LUT_RW_INDEX, 0);
 	for (i = 0; i < gamma->num_entries; i++) {
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.red[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.green[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.blue[i]));
 	}
 	// Power off LUT memory

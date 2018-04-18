@@ -130,7 +130,7 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 	/* Gamut remap in bypass */
 }
 
-#define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
+#define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
 
 bool dpp_get_optimal_number_of_taps(

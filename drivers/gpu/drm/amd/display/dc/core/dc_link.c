@@ -631,7 +631,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				/* Need to setup mst link_cap struct here
 				 * otherwise dc_link_detect() will leave mst link_cap
 				 * empty which leads to allocate_mst_payload() has "0"
-				 * pbn_per_slot value leading to exception on dal_fixed31_32_div()
+				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
 				link->verified_link_cap = link->reported_link_cap;
 				return false;
@@ -2059,10 +2059,10 @@ static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 			&stream->sink->link->cur_link_settings;
 	uint32_t link_rate_in_mbps =
 			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
-	struct fixed31_32 mbps = dal_fixed31_32_from_int(
+	struct fixed31_32 mbps = dc_fixpt_from_int(
 			link_rate_in_mbps * link_settings->lane_count);
 
-	return dal_fixed31_32_div_int(mbps, 54);
+	return dc_fixpt_div_int(mbps, 54);
 }
 
 static int get_color_depth(enum dc_color_depth color_depth)
@@ -2103,7 +2103,7 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	numerator = 64 * PEAK_FACTOR_X1000;
 	denominator = 54 * 8 * 1000 * 1000;
 	kbps *= numerator;
-	peak_kbps = dal_fixed31_32_from_fraction(kbps, denominator);
+	peak_kbps = dc_fixpt_from_fraction(kbps, denominator);
 
 	return peak_kbps;
 }
@@ -2230,7 +2230,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	/* slot X.Y for only current stream */
 	pbn_per_slot = get_pbn_per_slot(stream);
 	pbn = get_pbn_from_timing(pipe_ctx);
-	avg_time_slots_per_mtp = dal_fixed31_32_div(pbn, pbn_per_slot);
+	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
 	stream_encoder->funcs->set_mst_bandwidth(
 		stream_encoder,
@@ -2247,7 +2247,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
-	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
+	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 	uint8_t i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
 	DC_LOGGER_INIT(link->ctx->logger);

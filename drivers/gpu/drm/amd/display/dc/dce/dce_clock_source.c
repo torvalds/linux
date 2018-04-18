@@ -657,12 +657,12 @@ static uint32_t dce110_get_d_to_pixel_rate_in_hz(
 			return 0;
 		}
 
-		pix_rate = dal_fixed31_32_from_int(clk_src->ref_freq_khz);
-		pix_rate = dal_fixed31_32_mul_int(pix_rate, 1000);
-		pix_rate = dal_fixed31_32_mul_int(pix_rate, phase);
-		pix_rate = dal_fixed31_32_div_int(pix_rate, modulo);
+		pix_rate = dc_fixpt_from_int(clk_src->ref_freq_khz);
+		pix_rate = dc_fixpt_mul_int(pix_rate, 1000);
+		pix_rate = dc_fixpt_mul_int(pix_rate, phase);
+		pix_rate = dc_fixpt_div_int(pix_rate, modulo);
 
-		return dal_fixed31_32_round(pix_rate);
+		return dc_fixpt_round(pix_rate);
 	} else {
 		return dce110_get_dp_pixel_rate_from_combo_phy_pll(cs, pix_clk_params, pll_settings);
 	}
@@ -711,12 +711,12 @@ static bool calculate_ss(
 		const struct spread_spectrum_data *ss_data,
 		struct delta_sigma_data *ds_data)
 {
-	struct fixed32_32 fb_div;
-	struct fixed32_32 ss_amount;
-	struct fixed32_32 ss_nslip_amount;
-	struct fixed32_32 ss_ds_frac_amount;
-	struct fixed32_32 ss_step_size;
-	struct fixed32_32 modulation_time;
+	struct fixed31_32 fb_div;
+	struct fixed31_32 ss_amount;
+	struct fixed31_32 ss_nslip_amount;
+	struct fixed31_32 ss_ds_frac_amount;
+	struct fixed31_32 ss_step_size;
+	struct fixed31_32 modulation_time;
 
 	if (ds_data == NULL)
 		return false;
@@ -731,42 +731,42 @@ static bool calculate_ss(
 
 	/* compute SS_AMOUNT_FBDIV & SS_AMOUNT_NFRAC_SLIP & SS_AMOUNT_DSFRAC*/
 	/* 6 decimal point support in fractional feedback divider */
-	fb_div  = dal_fixed32_32_from_fraction(
+	fb_div  = dc_fixpt_from_fraction(
 		pll_settings->fract_feedback_divider, 1000000);
-	fb_div = dal_fixed32_32_add_int(fb_div, pll_settings->feedback_divider);
+	fb_div = dc_fixpt_add_int(fb_div, pll_settings->feedback_divider);
 
 	ds_data->ds_frac_amount = 0;
 	/*spreadSpectrumPercentage is in the unit of .01%,
 	 * so have to divided by 100 * 100*/
-	ss_amount = dal_fixed32_32_mul(
-		fb_div, dal_fixed32_32_from_fraction(ss_data->percentage,
+	ss_amount = dc_fixpt_mul(
+		fb_div, dc_fixpt_from_fraction(ss_data->percentage,
 					100 * ss_data->percentage_divider));
-	ds_data->feedback_amount = dal_fixed32_32_floor(ss_amount);
+	ds_data->feedback_amount = dc_fixpt_floor(ss_amount);
 
-	ss_nslip_amount = dal_fixed32_32_sub(ss_amount,
-		dal_fixed32_32_from_int(ds_data->feedback_amount));
-	ss_nslip_amount = dal_fixed32_32_mul_int(ss_nslip_amount, 10);
-	ds_data->nfrac_amount = dal_fixed32_32_floor(ss_nslip_amount);
+	ss_nslip_amount = dc_fixpt_sub(ss_amount,
+		dc_fixpt_from_int(ds_data->feedback_amount));
+	ss_nslip_amount = dc_fixpt_mul_int(ss_nslip_amount, 10);
+	ds_data->nfrac_amount = dc_fixpt_floor(ss_nslip_amount);
 
-	ss_ds_frac_amount = dal_fixed32_32_sub(ss_nslip_amount,
-		dal_fixed32_32_from_int(ds_data->nfrac_amount));
-	ss_ds_frac_amount = dal_fixed32_32_mul_int(ss_ds_frac_amount, 65536);
-	ds_data->ds_frac_amount = dal_fixed32_32_floor(ss_ds_frac_amount);
+	ss_ds_frac_amount = dc_fixpt_sub(ss_nslip_amount,
+		dc_fixpt_from_int(ds_data->nfrac_amount));
+	ss_ds_frac_amount = dc_fixpt_mul_int(ss_ds_frac_amount, 65536);
+	ds_data->ds_frac_amount = dc_fixpt_floor(ss_ds_frac_amount);
 
 	/* compute SS_STEP_SIZE_DSFRAC */
-	modulation_time = dal_fixed32_32_from_fraction(
+	modulation_time = dc_fixpt_from_fraction(
 		pll_settings->reference_freq * 1000,
 		pll_settings->reference_divider * ss_data->modulation_freq_hz);
 
 	if (ss_data->flags.CENTER_SPREAD)
-		modulation_time = dal_fixed32_32_div_int(modulation_time, 4);
+		modulation_time = dc_fixpt_div_int(modulation_time, 4);
 	else
-		modulation_time = dal_fixed32_32_div_int(modulation_time, 2);
+		modulation_time = dc_fixpt_div_int(modulation_time, 2);
 
-	ss_step_size = dal_fixed32_32_div(ss_amount, modulation_time);
+	ss_step_size = dc_fixpt_div(ss_amount, modulation_time);
 	/* SS_STEP_SIZE_DSFRAC_DEC = Int(SS_STEP_SIZE * 2 ^ 16 * 10)*/
-	ss_step_size = dal_fixed32_32_mul_int(ss_step_size, 65536 * 10);
-	ds_data->ds_frac_size =  dal_fixed32_32_floor(ss_step_size);
+	ss_step_size = dc_fixpt_mul_int(ss_step_size, 65536 * 10);
+	ds_data->ds_frac_size =  dc_fixpt_floor(ss_step_size);
 
 	return true;
 }

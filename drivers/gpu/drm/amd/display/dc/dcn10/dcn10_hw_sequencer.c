@@ -1685,22 +1685,22 @@ static uint16_t fixed_point_to_int_frac(
 
 	uint16_t result;
 
-	uint16_t d = (uint16_t)dal_fixed31_32_floor(
-		dal_fixed31_32_abs(
+	uint16_t d = (uint16_t)dc_fixpt_floor(
+		dc_fixpt_abs(
 			arg));
 
 	if (d <= (uint16_t)(1 << integer_bits) - (1 / (uint16_t)divisor))
-		numerator = (uint16_t)dal_fixed31_32_floor(
-			dal_fixed31_32_mul_int(
+		numerator = (uint16_t)dc_fixpt_floor(
+			dc_fixpt_mul_int(
 				arg,
 				divisor));
 	else {
-		numerator = dal_fixed31_32_floor(
-			dal_fixed31_32_sub(
-				dal_fixed31_32_from_int(
+		numerator = dc_fixpt_floor(
+			dc_fixpt_sub(
+				dc_fixpt_from_int(
 					1LL << integer_bits),
-				dal_fixed31_32_recip(
-					dal_fixed31_32_from_int(
+				dc_fixpt_recip(
+					dc_fixpt_from_int(
 						divisor))));
 	}
 
@@ -1710,8 +1710,8 @@ static uint16_t fixed_point_to_int_frac(
 		result = (uint16_t)(
 		(1 << (integer_bits + fractional_bits + 1)) + numerator);
 
-	if ((result != 0) && dal_fixed31_32_lt(
-		arg, dal_fixed31_32_zero))
+	if ((result != 0) && dc_fixpt_lt(
+		arg, dc_fixpt_zero))
 		result |= 1 << (integer_bits + fractional_bits);
 
 	return result;
@@ -1725,8 +1725,8 @@ void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
 			&& plane_state->input_csc_color_matrix.enable_adjustment
 			&& plane_state->coeff_reduction_factor.value != 0) {
 		bias_and_scale->scale_blue = fixed_point_to_int_frac(
-			dal_fixed31_32_mul(plane_state->coeff_reduction_factor,
-					dal_fixed31_32_from_fraction(256, 255)),
+			dc_fixpt_mul(plane_state->coeff_reduction_factor,
+					dc_fixpt_from_fraction(256, 255)),
 				2,
 				13);
 		bias_and_scale->scale_red = bias_and_scale->scale_blue;
@@ -1995,7 +1995,7 @@ static void dcn10_blank_pixel_data(
 
 static void set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
 {
-	struct fixed31_32 multiplier = dal_fixed31_32_from_fraction(
+	struct fixed31_32 multiplier = dc_fixpt_from_fraction(
 			pipe_ctx->plane_state->sdr_white_level, 80);
 	uint32_t hw_mult = 0x1f000; // 1.0 default multiplier
 	struct custom_float_format fmt;
