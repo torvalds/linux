@@ -33,7 +33,6 @@
 #include <linux/phy/phy.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <linux/usb/phy.h>
 #include <linux/usb/otg.h>
 
 #include "usb.h"
@@ -2739,30 +2738,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	int retval;
 	struct usb_device *rhdev;
 
-	if (IS_ENABLED(CONFIG_USB_PHY) && !hcd->skip_phy_initialization) {
-		struct usb_phy *phy = usb_get_phy_dev(hcd->self.sysdev, 0);
-
-		if (IS_ERR(phy)) {
-			retval = PTR_ERR(phy);
-			if (retval == -EPROBE_DEFER)
-				return retval;
-		} else {
-			retval = usb_phy_init(phy);
-			if (retval) {
-				usb_put_phy(phy);
-				return retval;
-			}
-			hcd->usb_phy = phy;
-			hcd->remove_phy = 1;
-		}
-	}
-
 	if (!hcd->skip_phy_initialization && usb_hcd_is_primary_hcd(hcd)) {
 		hcd->phy_roothub = usb_phy_roothub_init(hcd->self.sysdev);
-		if (IS_ERR(hcd->phy_roothub)) {
-			retval = PTR_ERR(hcd->phy_roothub);
-			goto err_phy_roothub_init;
-		}
+		if (IS_ERR(hcd->phy_roothub))
+			return PTR_ERR(hcd->phy_roothub);
 
 		retval = usb_phy_roothub_power_on(hcd->phy_roothub);
 		if (retval)
@@ -2936,12 +2915,7 @@ err_create_buf:
 	usb_phy_roothub_power_off(hcd->phy_roothub);
 err_usb_phy_roothub_power_on:
 	usb_phy_roothub_exit(hcd->phy_roothub);
-err_phy_roothub_init:
-	if (hcd->remove_phy && hcd->usb_phy) {
-		usb_phy_shutdown(hcd->usb_phy);
-		usb_put_phy(hcd->usb_phy);
-		hcd->usb_phy = NULL;
-	}
+
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_add_hcd);
@@ -3016,12 +2990,6 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 
 	usb_phy_roothub_power_off(hcd->phy_roothub);
 	usb_phy_roothub_exit(hcd->phy_roothub);
-
-	if (hcd->remove_phy && hcd->usb_phy) {
-		usb_phy_shutdown(hcd->usb_phy);
-		usb_put_phy(hcd->usb_phy);
-		hcd->usb_phy = NULL;
-	}
 
 	usb_put_invalidate_rhdev(hcd);
 	hcd->flags = 0;
