@@ -48,6 +48,34 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
+if NF_NAT_IPV6
+
+config NFT_CHAIN_NAT_IPV6
+	tristate "IPv6 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv6 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
+
+config NFT_MASQ_IPV6
+	tristate "IPv6 masquerade support for nf_tables"
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
+
+config NFT_REDIR_IPV6
+	tristate "IPv6 redirect support for nf_tables"
+	depends on NFT_REDIR
+	select NF_NAT_REDIRECT
+	help
+	  This is the expression that provides IPv4 redirect support for
+	  nf_tables.
+
+endif # NF_NAT_IPV6
+
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
 	default NFT_REJECT
@@ -99,38 +127,11 @@ config NF_NAT_IPV6
 
 if NF_NAT_IPV6
 
-config NFT_CHAIN_NAT_IPV6
-	depends on NF_TABLES_IPV6
-	tristate "IPv6 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv6 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
 config NF_NAT_MASQUERADE_IPV6
 	tristate "IPv6 masquerade support"
 	help
 	  This is the kernel functionality to provide NAT in the masquerade
 	  flavour (automatic source address selection) for IPv6.
-
-config NFT_MASQ_IPV6
-	tristate "IPv6 masquerade support for nf_tables"
-	depends on NF_TABLES_IPV6
-	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV6
-	help
-	  This is the expression that provides IPv4 masquerading support for
-	  nf_tables.
-
-config NFT_REDIR_IPV6
-	tristate "IPv6 redirect support for nf_tables"
-	depends on NF_TABLES_IPV6
-	depends on NFT_REDIR
-	select NF_NAT_REDIRECT
-	help
-	  This is the expression that provides IPv4 redirect support for
-	  nf_tables.
 
 endif # NF_NAT_IPV6
 
