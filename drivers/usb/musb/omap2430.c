@@ -239,21 +239,15 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	if (dev->parent->of_node) {
-		musb->phy = devm_phy_get(dev->parent, "usb2-phy");
+	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
 
-		/* We can't totally remove musb->xceiv as of now because
-		 * musb core uses xceiv.state and xceiv.otg. Once we have
-		 * a separate state machine to handle otg, these can be moved
-		 * out of xceiv and then we can start using the generic PHY
-		 * framework
-		 */
-		musb->xceiv = devm_usb_get_phy_by_phandle(dev->parent,
-		    "usb-phy", 0);
-	} else {
-		musb->xceiv = devm_usb_get_phy_dev(dev, 0);
-		musb->phy = devm_phy_get(dev, "usb");
-	}
+	/* We can't totally remove musb->xceiv as of now because
+	 * musb core uses xceiv.state and xceiv.otg. Once we have
+	 * a separate state machine to handle otg, these can be moved
+	 * out of xceiv and then we can start using the generic PHY
+	 * framework
+	 */
+	musb->xceiv = devm_usb_get_phy_by_phandle(dev->parent, "usb-phy", 0);
 
 	if (IS_ERR(musb->xceiv)) {
 		status = PTR_ERR(musb->xceiv);
@@ -391,7 +385,12 @@ static int omap2430_probe(struct platform_device *pdev)
 	struct omap2430_glue		*glue;
 	struct device_node		*np = pdev->dev.of_node;
 	struct musb_hdrc_config		*config;
+	struct device_node		*control_node;
+	struct platform_device		*control_pdev;
 	int				ret = -ENOMEM, val;
+
+	if (!np)
+		return -ENODEV;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
@@ -412,47 +411,43 @@ static int omap2430_probe(struct platform_device *pdev)
 	glue->status			= MUSB_UNKNOWN;
 	glue->control_otghs = ERR_PTR(-ENODEV);
 
-	if (np) {
-		struct device_node *control_node;
-		struct platform_device *control_pdev;
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto err2;
 
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto err2;
+
+	config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
+	if (!config)
+		goto err2;
+
+	of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
+	of_property_read_u32(np, "interface-type",
+			(u32 *)&data->interface_type);
+	of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
+	of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
+	of_property_read_u32(np, "power", (u32 *)&pdata->power);
+
+	ret = of_property_read_u32(np, "multipoint", &val);
+	if (!ret && val)
+		config->multipoint = true;
+
+	pdata->board_data	= data;
+	pdata->config		= config;
+
+	control_node = of_parse_phandle(np, "ctrl-module", 0);
+	if (control_node) {
+		control_pdev = of_find_device_by_node(control_node);
+		if (!control_pdev) {
+			dev_err(&pdev->dev, "Failed to get control device\n");
+			ret = -EINVAL;
 			goto err2;
-
-		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-		if (!data)
-			goto err2;
-
-		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!config)
-			goto err2;
-
-		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
-		of_property_read_u32(np, "interface-type",
-						(u32 *)&data->interface_type);
-		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
-		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
-		of_property_read_u32(np, "power", (u32 *)&pdata->power);
-
-		ret = of_property_read_u32(np, "multipoint", &val);
-		if (!ret && val)
-			config->multipoint = true;
-
-		pdata->board_data	= data;
-		pdata->config		= config;
-
-		control_node = of_parse_phandle(np, "ctrl-module", 0);
-		if (control_node) {
-			control_pdev = of_find_device_by_node(control_node);
-			if (!control_pdev) {
-				dev_err(&pdev->dev, "Failed to get control device\n");
-				ret = -EINVAL;
-				goto err2;
-			}
-			glue->control_otghs = &control_pdev->dev;
 		}
+		glue->control_otghs = &control_pdev->dev;
 	}
+
 	pdata->platform_ops		= &omap2430_ops;
 
 	platform_set_drvdata(pdev, glue);
