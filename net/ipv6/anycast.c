@@ -267,7 +267,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 
 	net = dev_net(idev->dev);
-	rt = addrconf_dst_alloc(net, idev, addr, true);
+	rt = addrconf_dst_alloc(net, idev, addr, true, GFP_ATOMIC);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		goto out;

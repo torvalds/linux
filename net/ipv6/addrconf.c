@@ -1037,7 +1037,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		goto out;
 	}
 
-	rt = addrconf_dst_alloc(net, idev, addr, false);
+	rt = addrconf_dst_alloc(net, idev, addr, false, gfp_flags);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		rt = NULL;
@@ -2320,7 +2320,7 @@ static void  ipv6_try_regen_rndid(struct inet6_dev *idev, struct in6_addr *tmpad
 
 static void
 addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
-		      unsigned long expires, u32 flags)
+		      unsigned long expires, u32 flags, gfp_t gfp_flags)
 {
 	struct fib6_config cfg = {
 		.fc_table = l3mdev_fib_table(dev) ? : RT6_TABLE_PREFIX,
@@ -2345,7 +2345,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 		cfg.fc_flags |= RTF_NONEXTHOP;
 #endif
 
-	ip6_route_add(&cfg, NULL);
+	ip6_route_add(&cfg, gfp_flags, NULL);
 }
 
 
@@ -2401,7 +2401,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 
 	ipv6_addr_set(&cfg.fc_dst, htonl(0xFF000000), 0, 0, 0);
 
-	ip6_route_add(&cfg, NULL);
+	ip6_route_add(&cfg, GFP_ATOMIC, NULL);
 }
 
 static struct inet6_dev *addrconf_add_dev(struct net_device *dev)
@@ -2685,7 +2685,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 				expires = jiffies_to_clock_t(rt_expires);
 			}
 			addrconf_prefix_route(&pinfo->prefix, pinfo->prefix_len,
-					      dev, expires, flags);
+					      dev, expires, flags, GFP_ATOMIC);
 		}
 		ip6_rt_put(rt);
 	}
@@ -2900,7 +2900,7 @@ static int inet6_addr_add(struct net *net, int ifindex,
 	if (!IS_ERR(ifp)) {
 		if (!(ifa_flags & IFA_F_NOPREFIXROUTE)) {
 			addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev,
-					      expires, flags);
+					      expires, flags, GFP_KERNEL);
 		}
 
 		/* Send a netlink notification if DAD is enabled and
@@ -3053,7 +3053,8 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 
 	if (addr.s6_addr32[3]) {
 		add_addr(idev, &addr, plen, scope);
-		addrconf_prefix_route(&addr, plen, idev->dev, 0, pflags);
+		addrconf_prefix_route(&addr, plen, idev->dev, 0, pflags,
+				      GFP_ATOMIC);
 		return;
 	}
 
@@ -3078,7 +3079,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 
 				add_addr(idev, &addr, plen, flag);
 				addrconf_prefix_route(&addr, plen, idev->dev, 0,
-						      pflags);
+						      pflags, GFP_ATOMIC);
 			}
 		}
 	}
@@ -3118,7 +3119,8 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
 	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags,
 			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME, true, NULL);
 	if (!IS_ERR(ifp)) {
-		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev,
+				      0, 0, GFP_ATOMIC);
 		addrconf_dad_start(ifp);
 		in6_ifa_put(ifp);
 	}
@@ -3233,7 +3235,8 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 			addrconf_add_linklocal(idev, &addr,
 					       IFA_F_STABLE_PRIVACY);
 		else if (prefix_route)
-			addrconf_prefix_route(&addr, 64, idev->dev, 0, 0);
+			addrconf_prefix_route(&addr, 64, idev->dev,
+					      0, 0, GFP_KERNEL);
 		break;
 	case IN6_ADDR_GEN_MODE_EUI64:
 		/* addrconf_add_linklocal also adds a prefix_route and we
@@ -3243,7 +3246,8 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 		if (ipv6_generate_eui64(addr.s6_addr + 8, idev->dev) == 0)
 			addrconf_add_linklocal(idev, &addr, 0);
 		else if (prefix_route)
-			addrconf_prefix_route(&addr, 64, idev->dev, 0, 0);
+			addrconf_prefix_route(&addr, 64, idev->dev,
+					      0, 0, GFP_ATOMIC);
 		break;
 	case IN6_ADDR_GEN_MODE_NONE:
 	default:
@@ -3346,7 +3350,8 @@ static int fixup_permanent_addr(struct net *net,
 	if (!ifp->rt || !ifp->rt->rt6i_node) {
 		struct rt6_info *rt, *prev;
 
-		rt = addrconf_dst_alloc(net, idev, &ifp->addr, false);
+		rt = addrconf_dst_alloc(net, idev, &ifp->addr, false,
+					GFP_ATOMIC);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 
@@ -3361,7 +3366,7 @@ static int fixup_permanent_addr(struct net *net,
 
 	if (!(ifp->flags & IFA_F_NOPREFIXROUTE)) {
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len,
-				      idev->dev, 0, 0);
+				      idev->dev, 0, 0, GFP_ATOMIC);
 	}
 
 	if (ifp->state == INET6_IFADDR_STATE_PREDAD)
@@ -4572,8 +4577,9 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, u32 ifa_flags,
 		ipv6_ifa_notify(0, ifp);
 
 	if (!(ifa_flags & IFA_F_NOPREFIXROUTE)) {
-		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, ifp->idev->dev,
-				      expires, flags);
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len,
+				      ifp->idev->dev, expires, flags,
+				      GFP_KERNEL);
 	} else if (had_prefixroute) {
 		enum cleanup_prefix_rt_t action;
 		unsigned long rt_expires;
@@ -5614,7 +5620,8 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			addrconf_join_anycast(ifp);
 		if (!ipv6_addr_any(&ifp->peer_addr))
 			addrconf_prefix_route(&ifp->peer_addr, 128,
-					      ifp->idev->dev, 0, 0);
+					      ifp->idev->dev, 0, 0,
+					      GFP_KERNEL);
 		break;
 	case RTM_DELADDR:
 		if (ifp->idev->cnf.forwarding)

@@ -100,7 +100,8 @@ void ip6_route_cleanup(void);
 
 int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 
-int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
+int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
+		  struct netlink_ext_ack *extack);
 int ip6_ins_rt(struct net *net, struct rt6_info *rt);
 int ip6_del_rt(struct net *net, struct rt6_info *rt);
 
@@ -138,7 +139,8 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 void fib6_force_start_gc(struct net *net);
 
 struct rt6_info *addrconf_dst_alloc(struct net *net, struct inet6_dev *idev,
-				    const struct in6_addr *addr, bool anycast);
+				    const struct in6_addr *addr, bool anycast,
+				    gfp_t gfp_flags);
 
 struct rt6_info *ip6_dst_alloc(struct net *net, struct net_device *dev,
 			       int flags);
