@@ -451,8 +451,22 @@ bool dm_pp_get_static_clocks(
 	const struct dc_context *ctx,
 	struct dm_pp_static_clock_info *static_clk_info)
 {
-	/* TODO: to be implemented */
-	return false;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct amd_pp_clock_info *pp_clk_info = {0};
+	int ret = 0;
+
+	if (adev->powerplay.pp_funcs->get_current_clocks)
+		ret = adev->powerplay.pp_funcs->get_current_clocks(
+			adev->powerplay.pp_handle,
+			pp_clk_info);
+	if (ret)
+		return false;
+
+	static_clk_info->max_clocks_state = pp_clk_info->max_clocks_state;
+	static_clk_info->max_mclk_khz = pp_clk_info->max_memory_clock;
+	static_clk_info->max_sclk_khz = pp_clk_info->max_engine_clock;
+
+	return true;
 }
 
 void dm_pp_get_funcs_rv(
