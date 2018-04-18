@@ -3503,6 +3503,8 @@ static u32 tcp_newly_delivered(struct sock *sk, u32 prior_delivered, int flag)
 	u32 delivered;
 
 	delivered = tp->delivered - prior_delivered;
+	if (flag & FLAG_ECE)
+		tp->delivered_ce += delivered;
 	return delivered;
 }
 
