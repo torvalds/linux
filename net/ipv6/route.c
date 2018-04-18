@@ -78,7 +78,6 @@ enum rt6_nud_state {
 	RT6_NUD_SUCCEED = 1
 };
 
-static void ip6_rt_copy_init(struct rt6_info *rt, struct rt6_info *ort);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ip6_default_advmss(const struct dst_entry *dst);
 static unsigned int	 ip6_mtu(const struct dst_entry *dst);
@@ -879,6 +878,65 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 }
 #endif
 
+/*
+ *	Misc support functions
+ */
+
+/* called with rcu_lock held */
+static struct net_device *ip6_rt_get_dev_rcu(struct rt6_info *rt)
+{
+	struct net_device *dev = rt->dst.dev;
+
+	if (rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST)) {
+		/* for copies of local routes, dst->dev needs to be the
+		 * device if it is a master device, the master device if
+		 * device is enslaved, and the loopback as the default
+		 */
+		if (netif_is_l3_slave(dev) &&
+		    !rt6_need_strict(&rt->rt6i_dst.addr))
+			dev = l3mdev_master_dev_rcu(dev);
+		else if (!netif_is_l3_master(dev))
+			dev = dev_net(dev)->loopback_dev;
+		/* last case is netif_is_l3_master(dev) is true in which
+		 * case we want dev returned to be dev
+		 */
+	}
+
+	return dev;
+}
+
+static void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
+{
+	BUG_ON(from->from);
+
+	rt->rt6i_flags &= ~RTF_EXPIRES;
+	dst_hold(&from->dst);
+	rt->from = from;
+	dst_init_metrics(&rt->dst, dst_metrics_ptr(&from->dst), true);
+}
+
+static void ip6_rt_copy_init(struct rt6_info *rt, struct rt6_info *ort)
+{
+	rt->dst.input = ort->dst.input;
+	rt->dst.output = ort->dst.output;
+	rt->rt6i_dst = ort->rt6i_dst;
+	rt->dst.error = ort->dst.error;
+	rt->rt6i_idev = ort->rt6i_idev;
+	if (rt->rt6i_idev)
+		in6_dev_hold(rt->rt6i_idev);
+	rt->dst.lastuse = jiffies;
+	rt->rt6i_gateway = ort->rt6i_gateway;
+	rt->rt6i_flags = ort->rt6i_flags;
+	rt6_set_from(rt, ort);
+	rt->rt6i_metric = ort->rt6i_metric;
+#ifdef CONFIG_IPV6_SUBTREES
+	rt->rt6i_src = ort->rt6i_src;
+#endif
+	rt->rt6i_prefsrc = ort->rt6i_prefsrc;
+	rt->rt6i_table = ort->rt6i_table;
+	rt->dst.lwtstate = lwtstate_get(ort->dst.lwtstate);
+}
+
 static struct fib6_node* fib6_backtrack(struct fib6_node *fn,
 					struct in6_addr *saddr)
 {
@@ -1022,29 +1080,6 @@ int ip6_ins_rt(struct net *net, struct rt6_info *rt)
 	/* Hold dst to account for the reference from the fib6 tree */
 	dst_hold(&rt->dst);
 	return __ip6_ins_rt(rt, &info, &mxc, NULL);
-}
-
-/* called with rcu_lock held */
-static struct net_device *ip6_rt_get_dev_rcu(struct rt6_info *rt)
-{
-	struct net_device *dev = rt->dst.dev;
-
-	if (rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST)) {
-		/* for copies of local routes, dst->dev needs to be the
-		 * device if it is a master device, the master device if
-		 * device is enslaved, and the loopback as the default
-		 */
-		if (netif_is_l3_slave(dev) &&
-		    !rt6_need_strict(&rt->rt6i_dst.addr))
-			dev = l3mdev_master_dev_rcu(dev);
-		else if (!netif_is_l3_master(dev))
-			dev = dev_net(dev)->loopback_dev;
-		/* last case is netif_is_l3_master(dev) is true in which
-		 * case we want dev returned to be dev
-		 */
-	}
-
-	return dev;
 }
 
 static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
@@ -3268,42 +3303,6 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 
 out:
 	neigh_release(neigh);
-}
-
-/*
- *	Misc support functions
- */
-
-static void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
-{
-	BUG_ON(from->from);
-
-	rt->rt6i_flags &= ~RTF_EXPIRES;
-	dst_hold(&from->dst);
-	rt->from = from;
-	dst_init_metrics(&rt->dst, dst_metrics_ptr(&from->dst), true);
-}
-
-static void ip6_rt_copy_init(struct rt6_info *rt, struct rt6_info *ort)
-{
-	rt->dst.input = ort->dst.input;
-	rt->dst.output = ort->dst.output;
-	rt->rt6i_dst = ort->rt6i_dst;
-	rt->dst.error = ort->dst.error;
-	rt->rt6i_idev = ort->rt6i_idev;
-	if (rt->rt6i_idev)
-		in6_dev_hold(rt->rt6i_idev);
-	rt->dst.lastuse = jiffies;
-	rt->rt6i_gateway = ort->rt6i_gateway;
-	rt->rt6i_flags = ort->rt6i_flags;
-	rt6_set_from(rt, ort);
-	rt->rt6i_metric = ort->rt6i_metric;
-#ifdef CONFIG_IPV6_SUBTREES
-	rt->rt6i_src = ort->rt6i_src;
-#endif
-	rt->rt6i_prefsrc = ort->rt6i_prefsrc;
-	rt->rt6i_table = ort->rt6i_table;
-	rt->dst.lwtstate = lwtstate_get(ort->dst.lwtstate);
 }
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
