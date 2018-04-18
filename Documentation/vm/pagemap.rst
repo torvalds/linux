@@ -1,8 +1,8 @@
 .. _pagemap:
 
-======================================
-pagemap from the Userspace Perspective
-======================================
+=============================
+Examining Process Page Tables
+=============================
 
 pagemap is a new (as of 2.6.25) set of interfaces in the kernel that allow
 userspace programs to examine the page tables and related information by
