@@ -12,14 +12,10 @@ highmem.rst
 	- Outline of highmem and common issues.
 hmm.rst
 	- Documentation of heterogeneous memory management
-hugetlbpage.rst
-	- a brief summary of hugetlbpage support in the Linux kernel.
 hugetlbfs_reserv.rst
 	- A brief overview of hugetlbfs reservation design/implementation.
 hwpoison.rst
 	- explains what hwpoison is
-idle_page_tracking.rst
-	- description of the idle page tracking feature.
 ksm.rst
 	- how to use the Kernel Samepage Merging feature.
 mmu_notifier.rst
@@ -34,16 +30,12 @@ page_frags.rst
 	- description of page fragments allocator
 page_migration.rst
 	- description of page migration in NUMA systems.
-pagemap.rst
-	- pagemap, from the userspace perspective
 page_owner.rst
 	- tracking about who allocated each page
 remap_file_pages.rst
 	- a note about remap_file_pages() system call
 slub.rst
 	- a short users guide for SLUB.
-soft-dirty.rst
-	- short explanation for soft-dirty PTEs
 split_page_table_lock.rst
 	- Separate per-table lock to improve scalability of the old page_table_lock.
 swap_numa.rst
@@ -52,8 +44,6 @@ transhuge.rst
 	- Transparent Hugepage Support, alternative way of using hugepages.
 unevictable-lru.rst
 	- Unevictable LRU infrastructure
-userfaultfd.rst
-	- description of userfaultfd system call
 z3fold.txt
 	- outline of z3fold allocator for storing compressed pages
 zsmalloc.rst

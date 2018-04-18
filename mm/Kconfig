@@ -530,7 +530,7 @@ config MEM_SOFT_DIRTY
 	  into a page just as regular dirty bit, but unlike the latter
 	  it can be cleared by hands.
 
-	  See Documentation/vm/soft-dirty.rst for more details.
+	  See Documentation/admin-guide/mm/soft-dirty.rst for more details.
 
 config ZSWAP
 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
@@ -656,7 +656,8 @@ config IDLE_PAGE_TRACKING
 	  be useful to tune memory cgroup limits and/or for job placement
 	  within a compute cluster.
 
-	  See Documentation/vm/idle_page_tracking.rst for more details.
+	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
+	  more details.
 
 # arch_add_memory() comprehends device memory
 config ARCH_HAS_ZONE_DEVICE

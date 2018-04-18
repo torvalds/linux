@@ -13,15 +13,10 @@ various features of the Linux memory management
 .. toctree::
    :maxdepth: 1
 
-   hugetlbpage
-   idle_page_tracking
    ksm
    numa_memory_policy
-   pagemap
    transhuge
-   soft-dirty
    swap_numa
-   userfaultfd
    zswap
 
 Kernel developers MM documentation

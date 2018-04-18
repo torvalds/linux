@@ -17,3 +17,12 @@ are described in Documentation/sysctl/vm.txt and in `man 5 proc`_.
 
 Here we document in detail how to interact with various mechanisms in
 the Linux memory management.
+
+.. toctree::
+   :maxdepth: 1
+
+   hugetlbpage
+   idle_page_tracking
+   pagemap
+   soft-dirty
+   userfaultfd
