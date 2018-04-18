@@ -1588,102 +1588,6 @@ out:
 	return rv;
 }
 
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-static int smi_type_proc_show(struct seq_file *m, void *v)
-{
-	struct smi_info *smi = m->private;
-
-	seq_printf(m, "%s\n", si_to_str[smi->io.si_type]);
-
-	return 0;
-}
-
-static int smi_type_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_type_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations smi_type_proc_ops = {
-	.open		= smi_type_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int smi_si_stats_proc_show(struct seq_file *m, void *v)
-{
-	struct smi_info *smi = m->private;
-
-	seq_printf(m, "interrupts_enabled:    %d\n",
-		       smi->io.irq && !smi->interrupt_disabled);
-	seq_printf(m, "short_timeouts:        %u\n",
-		       smi_get_stat(smi, short_timeouts));
-	seq_printf(m, "long_timeouts:         %u\n",
-		       smi_get_stat(smi, long_timeouts));
-	seq_printf(m, "idles:                 %u\n",
-		       smi_get_stat(smi, idles));
-	seq_printf(m, "interrupts:            %u\n",
-		       smi_get_stat(smi, interrupts));
-	seq_printf(m, "attentions:            %u\n",
-		       smi_get_stat(smi, attentions));
-	seq_printf(m, "flag_fetches:          %u\n",
-		       smi_get_stat(smi, flag_fetches));
-	seq_printf(m, "hosed_count:           %u\n",
-		       smi_get_stat(smi, hosed_count));
-	seq_printf(m, "complete_transactions: %u\n",
-		       smi_get_stat(smi, complete_transactions));
-	seq_printf(m, "events:                %u\n",
-		       smi_get_stat(smi, events));
-	seq_printf(m, "watchdog_pretimeouts:  %u\n",
-		       smi_get_stat(smi, watchdog_pretimeouts));
-	seq_printf(m, "incoming_messages:     %u\n",
-		       smi_get_stat(smi, incoming_messages));
-	return 0;
-}
-
-static int smi_si_stats_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_si_stats_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations smi_si_stats_proc_ops = {
-	.open		= smi_si_stats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int smi_params_proc_show(struct seq_file *m, void *v)
-{
-	struct smi_info *smi = m->private;
-
-	seq_printf(m,
-		   "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
-		   si_to_str[smi->io.si_type],
-		   addr_space_to_str[smi->io.addr_type],
-		   smi->io.addr_data,
-		   smi->io.regspacing,
-		   smi->io.regsize,
-		   smi->io.regshift,
-		   smi->io.irq,
-		   smi->io.slave_addr);
-
-	return 0;
-}
-
-static int smi_params_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_params_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations smi_params_proc_ops = {
-	.open		= smi_params_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif
-
 #define IPMI_SI_ATTR(name) \
 static ssize_t ipmi_##name##_show(struct device *dev,			\
 				  struct device_attribute *attr,	\
@@ -2171,35 +2075,6 @@ static int try_smi_init(struct smi_info *new_smi)
 			rv);
 		goto out_err;
 	}
-
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
-				     &smi_type_proc_ops,
-				     new_smi);
-	if (rv) {
-		dev_err(new_smi->io.dev,
-			"Unable to create proc entry: %d\n", rv);
-		goto out_err;
-	}
-
-	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
-				     &smi_si_stats_proc_ops,
-				     new_smi);
-	if (rv) {
-		dev_err(new_smi->io.dev,
-			"Unable to create proc entry: %d\n", rv);
-		goto out_err;
-	}
-
-	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
-				     &smi_params_proc_ops,
-				     new_smi);
-	if (rv) {
-		dev_err(new_smi->io.dev,
-			"Unable to create proc entry: %d\n", rv);
-		goto out_err;
-	}
-#endif
 
 	/* Don't increment till we know we have succeeded. */
 	smi_num++;

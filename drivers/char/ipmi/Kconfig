@@ -22,14 +22,6 @@ config IPMI_DMI_DECODE
 
 if IPMI_HANDLER
 
-config IPMI_PROC_INTERFACE
-       bool 'Provide an interface for IPMI stats in /proc (deprecated)'
-       depends on PROC_FS
-       default y
-       help
-         Do not use this any more, use sysfs for this info.  It will be
-	 removed in future kernel versions.
-
 config IPMI_PANIC_EVENT
        bool 'Generate a panic event to all BMCs on a panic'
        help

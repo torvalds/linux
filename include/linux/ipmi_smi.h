@@ -240,15 +240,4 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
 	msg->done(msg);
 }
 
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-/*
- * Allow the lower layer to add things to the proc filesystem
- * directory for this interface.  Note that the entry will
- * automatically be dstroyed when the interface is destroyed.
- */
-int ipmi_smi_add_proc_entry(struct ipmi_smi *smi, char *name,
-			    const struct file_operations *proc_ops,
-			    void *data);
-#endif
-
 #endif /* __LINUX_IPMI_SMI_H */

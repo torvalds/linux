@@ -1316,72 +1316,6 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return rv;
 }
 
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-static int smi_type_proc_show(struct seq_file *m, void *v)
-{
-	seq_puts(m, "ssif\n");
-
-	return 0;
-}
-
-static int smi_type_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_type_proc_show, inode->i_private);
-}
-
-static const struct file_operations smi_type_proc_ops = {
-	.open		= smi_type_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int smi_stats_proc_show(struct seq_file *m, void *v)
-{
-	struct ssif_info *ssif_info = m->private;
-
-	seq_printf(m, "sent_messages:          %u\n",
-		   ssif_get_stat(ssif_info, sent_messages));
-	seq_printf(m, "sent_messages_parts:    %u\n",
-		   ssif_get_stat(ssif_info, sent_messages_parts));
-	seq_printf(m, "send_retries:           %u\n",
-		   ssif_get_stat(ssif_info, send_retries));
-	seq_printf(m, "send_errors:            %u\n",
-		   ssif_get_stat(ssif_info, send_errors));
-	seq_printf(m, "received_messages:      %u\n",
-		   ssif_get_stat(ssif_info, received_messages));
-	seq_printf(m, "received_message_parts: %u\n",
-		   ssif_get_stat(ssif_info, received_message_parts));
-	seq_printf(m, "receive_retries:        %u\n",
-		   ssif_get_stat(ssif_info, receive_retries));
-	seq_printf(m, "receive_errors:         %u\n",
-		   ssif_get_stat(ssif_info, receive_errors));
-	seq_printf(m, "flag_fetches:           %u\n",
-		   ssif_get_stat(ssif_info, flag_fetches));
-	seq_printf(m, "hosed:                  %u\n",
-		   ssif_get_stat(ssif_info, hosed));
-	seq_printf(m, "events:                 %u\n",
-		   ssif_get_stat(ssif_info, events));
-	seq_printf(m, "watchdog_pretimeouts:   %u\n",
-		   ssif_get_stat(ssif_info, watchdog_pretimeouts));
-	seq_printf(m, "alerts:                 %u\n",
-		   ssif_get_stat(ssif_info, alerts));
-	return 0;
-}
-
-static int smi_stats_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_stats_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations smi_stats_proc_ops = {
-	.open		= smi_stats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif
-
 static int strcmp_nospace(char *s1, char *s2)
 {
 	while (*s1 && *s2) {
@@ -1712,24 +1646,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto out_remove_attr;
 	}
 
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "type",
-				     &smi_type_proc_ops,
-				     ssif_info);
-	if (rv) {
-		pr_err(PFX "Unable to create proc entry: %d\n", rv);
-		goto out_err_unreg;
-	}
-
-	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "ssif_stats",
-				     &smi_stats_proc_ops,
-				     ssif_info);
-	if (rv) {
-		pr_err(PFX "Unable to create proc entry: %d\n", rv);
-		goto out_err_unreg;
-	}
-#endif
-
  out:
 	if (rv) {
 		/*
@@ -1746,11 +1662,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 	kfree(resp);
 	return rv;
-
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-out_err_unreg:
-	ipmi_unregister_smi(ssif_info->intf);
-#endif
 
 out_remove_attr:
 	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
