@@ -1074,7 +1074,7 @@ add:
 static void fib6_start_gc(struct net *net, struct rt6_info *rt)
 {
 	if (!timer_pending(&net->ipv6.ip6_fib_timer) &&
-	    (rt->rt6i_flags & (RTF_EXPIRES | RTF_CACHE)))
+	    (rt->rt6i_flags & RTF_EXPIRES))
 		mod_timer(&net->ipv6.ip6_fib_timer,
 			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
@@ -1124,8 +1124,6 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	int sernum = fib6_new_sernum(info->nl_net);
 
 	if (WARN_ON_ONCE(!atomic_read(&rt->dst.__refcnt)))
-		return -EINVAL;
-	if (WARN_ON_ONCE(rt->rt6i_flags & RTF_CACHE))
 		return -EINVAL;
 
 	if (info->nlh) {
@@ -1650,8 +1648,6 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 
 	RT6_TRACE("fib6_del_route\n");
 
-	WARN_ON_ONCE(rt->rt6i_flags & RTF_CACHE);
-
 	/* Unlink it */
 	*rtp = rt->rt6_next;
 	rt->rt6i_node = NULL;
@@ -1720,20 +1716,10 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	struct rt6_info __rcu **rtp;
 	struct rt6_info __rcu **rtp_next;
 
-#if RT6_DEBUG >= 2
-	if (rt->dst.obsolete > 0) {
-		WARN_ON(fn);
-		return -ENOENT;
-	}
-#endif
 	if (!fn || rt == net->ipv6.fib6_null_entry)
 		return -ENOENT;
 
 	WARN_ON(!(fn->fn_flags & RTN_RTINFO));
-
-	/* remove cached dst from exception table */
-	if (rt->rt6i_flags & RTF_CACHE)
-		return rt6_remove_exception_rt(rt);
 
 	/*
 	 *	Walk the leaf entries looking for ourself

@@ -106,7 +106,6 @@ int ip6_ins_rt(struct net *net, struct rt6_info *rt);
 int ip6_del_rt(struct net *net, struct rt6_info *rt);
 
 void rt6_flush_exceptions(struct rt6_info *rt);
-int rt6_remove_exception_rt(struct rt6_info *rt);
 void rt6_age_exceptions(struct rt6_info *rt, struct fib6_gc_args *gc_args,
 			unsigned long now);
 
