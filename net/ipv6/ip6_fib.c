@@ -2221,6 +2221,7 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct rt6_info *rt = v;
 	struct ipv6_route_iter *iter = seq->private;
+	const struct net_device *dev;
 
 	seq_printf(seq, "%pi6 %02x ", &rt->rt6i_dst.addr, rt->rt6i_dst.plen);
 
@@ -2230,14 +2231,15 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
 	if (rt->rt6i_flags & RTF_GATEWAY)
-		seq_printf(seq, "%pi6", &rt->rt6i_gateway);
+		seq_printf(seq, "%pi6", &rt->fib6_nh.nh_gw);
 	else
 		seq_puts(seq, "00000000000000000000000000000000");
 
+	dev = rt->fib6_nh.nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
 		   rt->rt6i_metric, atomic_read(&rt->dst.__refcnt),
 		   rt->dst.__use, rt->rt6i_flags,
-		   rt->dst.dev ? rt->dst.dev->name : "");
+		   dev ? dev->name : "");
 	iter->w.leaf = NULL;
 	return 0;
 }

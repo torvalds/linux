@@ -2369,7 +2369,7 @@ static struct rt6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 		goto out;
 
 	for_each_fib6_node_rt_rcu(fn) {
-		if (rt->dst.dev->ifindex != dev->ifindex)
+		if (rt->fib6_nh.nh_dev->ifindex != dev->ifindex)
 			continue;
 		if ((rt->rt6i_flags & flags) != flags)
 			continue;

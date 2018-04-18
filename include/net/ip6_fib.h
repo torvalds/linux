@@ -127,6 +127,16 @@ struct rt6_exception {
 #define FIB6_EXCEPTION_BUCKET_SIZE (1 << FIB6_EXCEPTION_BUCKET_SIZE_SHIFT)
 #define FIB6_MAX_DEPTH 5
 
+struct fib6_nh {
+	struct in6_addr		nh_gw;
+	struct net_device	*nh_dev;
+	struct lwtunnel_state	*nh_lwtstate;
+
+	unsigned int		nh_flags;
+	atomic_t		nh_upper_bound;
+	int			nh_weight;
+};
+
 struct rt6_info {
 	struct dst_entry		dst;
 	struct rt6_info __rcu		*rt6_next;
@@ -149,11 +159,8 @@ struct rt6_info {
 	 */
 	struct list_head		rt6i_siblings;
 	unsigned int			rt6i_nsiblings;
-	atomic_t			rt6i_nh_upper_bound;
 
 	atomic_t			rt6i_ref;
-
-	unsigned int			rt6i_nh_flags;
 
 	/* These are in a separate cache line. */
 	struct rt6key			rt6i_dst ____cacheline_aligned_in_smp;
@@ -171,13 +178,14 @@ struct rt6_info {
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
-	int				rt6i_nh_weight;
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 	u8				fib6_type;
 	u8				exception_bucket_flushed:1,
 					should_flush:1,
 					unused:6;
+
+	struct fib6_nh			fib6_nh;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
