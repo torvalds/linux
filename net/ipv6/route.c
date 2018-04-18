@@ -920,6 +920,75 @@ static struct net_device *ip6_rt_get_dev_rcu(struct rt6_info *rt)
 	return dev;
 }
 
+static const int fib6_prop[RTN_MAX + 1] = {
+	[RTN_UNSPEC]	= 0,
+	[RTN_UNICAST]	= 0,
+	[RTN_LOCAL]	= 0,
+	[RTN_BROADCAST]	= 0,
+	[RTN_ANYCAST]	= 0,
+	[RTN_MULTICAST]	= 0,
+	[RTN_BLACKHOLE]	= -EINVAL,
+	[RTN_UNREACHABLE] = -EHOSTUNREACH,
+	[RTN_PROHIBIT]	= -EACCES,
+	[RTN_THROW]	= -EAGAIN,
+	[RTN_NAT]	= -EINVAL,
+	[RTN_XRESOLVE]	= -EINVAL,
+};
+
+static int ip6_rt_type_to_error(u8 fib6_type)
+{
+	return fib6_prop[fib6_type];
+}
+
+static void ip6_rt_init_dst_reject(struct rt6_info *rt, struct rt6_info *ort)
+{
+	rt->dst.error = ip6_rt_type_to_error(ort->fib6_type);
+
+	switch (ort->fib6_type) {
+	case RTN_BLACKHOLE:
+		rt->dst.output = dst_discard_out;
+		rt->dst.input = dst_discard;
+		break;
+	case RTN_PROHIBIT:
+		rt->dst.output = ip6_pkt_prohibit_out;
+		rt->dst.input = ip6_pkt_prohibit;
+		break;
+	case RTN_THROW:
+	case RTN_UNREACHABLE:
+	default:
+		rt->dst.output = ip6_pkt_discard_out;
+		rt->dst.input = ip6_pkt_discard;
+		break;
+	}
+}
+
+static void ip6_rt_init_dst(struct rt6_info *rt, struct rt6_info *ort)
+{
+	if (ort->rt6i_flags & RTF_REJECT) {
+		ip6_rt_init_dst_reject(rt, ort);
+		return;
+	}
+
+	rt->dst.error = 0;
+	rt->dst.output = ip6_output;
+
+	if (ort->fib6_type == RTN_LOCAL) {
+		rt->dst.flags |= DST_HOST;
+		rt->dst.input = ip6_input;
+	} else if (ipv6_addr_type(&ort->rt6i_dst.addr) & IPV6_ADDR_MULTICAST) {
+		rt->dst.input = ip6_mc_input;
+	} else {
+		rt->dst.input = ip6_forward;
+	}
+
+	if (ort->fib6_nh.nh_lwtstate) {
+		rt->dst.lwtstate = lwtstate_get(ort->fib6_nh.nh_lwtstate);
+		lwtunnel_set_redirect(&rt->dst);
+	}
+
+	rt->dst.lastuse = jiffies;
+}
+
 static void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
 {
 	BUG_ON(from->from);
@@ -932,14 +1001,12 @@ static void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
 
 static void ip6_rt_copy_init(struct rt6_info *rt, struct rt6_info *ort)
 {
-	rt->dst.input = ort->dst.input;
-	rt->dst.output = ort->dst.output;
+	ip6_rt_init_dst(rt, ort);
+
 	rt->rt6i_dst = ort->rt6i_dst;
-	rt->dst.error = ort->dst.error;
 	rt->rt6i_idev = ort->rt6i_idev;
 	if (rt->rt6i_idev)
 		in6_dev_hold(rt->rt6i_idev);
-	rt->dst.lastuse = jiffies;
 	rt->rt6i_gateway = ort->fib6_nh.nh_gw;
 	rt->rt6i_flags = ort->rt6i_flags;
 	rt6_set_from(rt, ort);
@@ -2329,7 +2396,7 @@ restart:
 			continue;
 		if (rt6_check_expired(rt))
 			continue;
-		if (rt->dst.error)
+		if (rt->rt6i_flags & RTF_REJECT)
 			break;
 		if (!(rt->rt6i_flags & RTF_GATEWAY))
 			continue;
@@ -2357,7 +2424,7 @@ restart:
 
 	if (!rt)
 		rt = net->ipv6.ip6_null_entry;
-	else if (rt->dst.error) {
+	else if (rt->rt6i_flags & RTF_REJECT) {
 		rt = net->ipv6.ip6_null_entry;
 		goto out;
 	}
@@ -2900,15 +2967,6 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 
 	addr_type = ipv6_addr_type(&cfg->fc_dst);
 
-	if (addr_type & IPV6_ADDR_MULTICAST)
-		rt->dst.input = ip6_mc_input;
-	else if (cfg->fc_flags & RTF_LOCAL)
-		rt->dst.input = ip6_input;
-	else
-		rt->dst.input = ip6_forward;
-
-	rt->dst.output = ip6_output;
-
 	if (cfg->fc_encap) {
 		struct lwtunnel_state *lwtstate;
 
@@ -2918,7 +2976,6 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		if (err)
 			goto out;
 		rt->fib6_nh.nh_lwtstate = lwtstate_get(lwtstate);
-		lwtunnel_set_redirect(&rt->dst);
 	}
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
@@ -2958,27 +3015,6 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 			}
 		}
 		rt->rt6i_flags = RTF_REJECT|RTF_NONEXTHOP;
-		switch (cfg->fc_type) {
-		case RTN_BLACKHOLE:
-			rt->dst.error = -EINVAL;
-			rt->dst.output = dst_discard_out;
-			rt->dst.input = dst_discard;
-			break;
-		case RTN_PROHIBIT:
-			rt->dst.error = -EACCES;
-			rt->dst.output = ip6_pkt_prohibit_out;
-			rt->dst.input = ip6_pkt_prohibit;
-			break;
-		case RTN_THROW:
-		case RTN_UNREACHABLE:
-		default:
-			rt->dst.error = (cfg->fc_type == RTN_THROW) ? -EAGAIN
-					: (cfg->fc_type == RTN_UNREACHABLE)
-					? -EHOSTUNREACH : -ENETUNREACH;
-			rt->dst.output = ip6_pkt_discard_out;
-			rt->dst.input = ip6_pkt_discard;
-			break;
-		}
 		goto install_route;
 	}
 
@@ -3623,12 +3659,9 @@ struct rt6_info *addrconf_dst_alloc(struct net *net,
 		return ERR_PTR(-ENOMEM);
 
 	in6_dev_hold(idev);
-
-	rt->dst.flags |= DST_HOST;
-	rt->dst.input = ip6_input;
-	rt->dst.output = ip6_output;
 	rt->rt6i_idev = idev;
 
+	rt->dst.flags |= DST_HOST;
 	rt->rt6i_protocol = RTPROT_KERNEL;
 	rt->rt6i_flags = RTF_UP | RTF_NONEXTHOP;
 	if (anycast) {
