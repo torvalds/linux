@@ -130,7 +130,6 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 {
 	struct mii_bus *new_bus;
 	struct mdio_gpio_info *bitbang;
-	int i;
 	int mdc, mdio, mdo;
 	unsigned long mdc_flags = GPIOF_OUT_INIT_LOW;
 	unsigned long mdio_flags = GPIOF_DIR_IN;
@@ -161,13 +160,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		goto out;
 
 	new_bus->name = "GPIO Bitbanged MDIO";
-
-	memcpy(new_bus->irq, pdata->irqs, sizeof(new_bus->irq));
 	new_bus->parent = dev;
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		if (!new_bus->irq[i])
-			new_bus->irq[i] = PHY_POLL;
 
 	if (bus_id != -1)
 		snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);

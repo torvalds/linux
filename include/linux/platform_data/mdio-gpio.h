@@ -22,8 +22,6 @@ struct mdio_gpio_platform_data {
 	bool mdc_active_low;
 	bool mdio_active_low;
 	bool mdo_active_low;
-
-	int irqs[PHY_MAX_ADDR];
 };
 
 #endif /* __LINUX_MDIO_GPIO_H */
