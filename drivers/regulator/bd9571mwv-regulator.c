@@ -24,6 +24,18 @@
 
 #include <linux/mfd/bd9571mwv.h>
 
+struct bd9571mwv_reg {
+	struct bd9571mwv *bd;
+
+	/* DDR Backup Power */
+	u8 bkup_mode_cnt_keepon;	/* from "rohm,ddr-backup-power" */
+	u8 bkup_mode_cnt_saved;
+
+	/* Power switch type */
+	bool rstbmode_level;
+	bool rstbmode_pulse;
+};
+
 enum bd9571mwv_regulators { VD09, VD18, VD25, VD33, DVFS };
 
 #define BD9571MWV_REG(_name, _of, _id, _ops, _vr, _vm, _nv, _min, _step, _lmin)\
@@ -131,14 +143,99 @@ static struct regulator_desc regulators[] = {
 		      0x80, 600000, 10000, 0x3c),
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int bd9571mwv_bkup_mode_read(struct bd9571mwv *bd, unsigned int *mode)
+{
+	int ret;
+
+	ret = regmap_read(bd->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
+	if (ret) {
+		dev_err(bd->dev, "failed to read backup mode (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int bd9571mwv_bkup_mode_write(struct bd9571mwv *bd, unsigned int mode)
+{
+	int ret;
+
+	ret = regmap_write(bd->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
+	if (ret) {
+		dev_err(bd->dev, "failed to configure backup mode 0x%x (%d)\n",
+			mode, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int bd9571mwv_suspend(struct device *dev)
+{
+	struct bd9571mwv_reg *bdreg = dev_get_drvdata(dev);
+	unsigned int mode;
+	int ret;
+
+	if (!device_may_wakeup(dev))
+		return 0;
+
+	/* Save DDR Backup Mode */
+	ret = bd9571mwv_bkup_mode_read(bdreg->bd, &mode);
+	if (ret)
+		return ret;
+
+	bdreg->bkup_mode_cnt_saved = mode;
+
+	if (!bdreg->rstbmode_pulse)
+		return 0;
+
+	/* Enable DDR Backup Mode */
+	mode &= ~BD9571MWV_BKUP_MODE_CNT_KEEPON_MASK;
+	mode |= bdreg->bkup_mode_cnt_keepon;
+
+	if (mode != bdreg->bkup_mode_cnt_saved)
+		return bd9571mwv_bkup_mode_write(bdreg->bd, mode);
+
+	return 0;
+}
+
+static int bd9571mwv_resume(struct device *dev)
+{
+	struct bd9571mwv_reg *bdreg = dev_get_drvdata(dev);
+
+	if (!device_may_wakeup(dev))
+		return 0;
+
+	/* Restore DDR Backup Mode */
+	return bd9571mwv_bkup_mode_write(bdreg->bd, bdreg->bkup_mode_cnt_saved);
+}
+
+static const struct dev_pm_ops bd9571mwv_pm  = {
+	SET_SYSTEM_SLEEP_PM_OPS(bd9571mwv_suspend, bd9571mwv_resume)
+};
+
+#define DEV_PM_OPS	&bd9571mwv_pm
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 {
 	struct bd9571mwv *bd = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
+	struct bd9571mwv_reg *bdreg;
 	struct regulator_dev *rdev;
+	unsigned int val;
 	int i;
 
-	platform_set_drvdata(pdev, bd);
+	bdreg = devm_kzalloc(&pdev->dev, sizeof(*bdreg), GFP_KERNEL);
+	if (!bdreg)
+		return -ENOMEM;
+
+	bdreg->bd = bd;
+
+	platform_set_drvdata(pdev, bdreg);
 
 	config.dev = &pdev->dev;
 	config.dev->of_node = bd->dev->of_node;
@@ -155,6 +252,33 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 		}
 	}
 
+	val = 0;
+	of_property_read_u32(bd->dev->of_node, "rohm,ddr-backup-power", &val);
+	if (val & ~BD9571MWV_BKUP_MODE_CNT_KEEPON_MASK) {
+		dev_err(bd->dev, "invalid %s mode %u\n",
+			"rohm,ddr-backup-power", val);
+		return -EINVAL;
+	}
+	bdreg->bkup_mode_cnt_keepon = val;
+
+	bdreg->rstbmode_level = of_property_read_bool(bd->dev->of_node,
+						      "rohm,rstbmode-level");
+	bdreg->rstbmode_pulse = of_property_read_bool(bd->dev->of_node,
+						      "rohm,rstbmode-pulse");
+	if (bdreg->rstbmode_level && bdreg->rstbmode_pulse) {
+		dev_err(bd->dev, "only one rohm,rstbmode-* may be specified");
+		return -EINVAL;
+	}
+
+	if (bdreg->bkup_mode_cnt_keepon) {
+		device_set_wakeup_capable(&pdev->dev, true);
+		/*
+		 * Wakeup is enabled by default in pulse mode, but needs
+		 * explicit user setup in level mode.
+		 */
+		device_set_wakeup_enable(&pdev->dev, bdreg->rstbmode_pulse);
+	}
+
 	return 0;
 }
 
@@ -167,6 +291,7 @@ MODULE_DEVICE_TABLE(platform, bd9571mwv_regulator_id_table);
 static struct platform_driver bd9571mwv_regulator_driver = {
 	.driver = {
 		.name = "bd9571mwv-regulator",
+		.pm = DEV_PM_OPS,
 	},
 	.probe = bd9571mwv_regulator_probe,
 	.id_table = bd9571mwv_regulator_id_table,
