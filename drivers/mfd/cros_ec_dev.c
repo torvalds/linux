@@ -482,7 +482,7 @@ static void ec_device_shutdown(struct platform_device *pdev)
 
 static const struct platform_device_id cros_ec_id[] = {
 	{ DRV_NAME, 0 },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
