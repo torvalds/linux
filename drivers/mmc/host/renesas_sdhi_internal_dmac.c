@@ -157,14 +157,20 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 {
 	struct scatterlist *sg = host->sg_ptr;
 	u32 dtran_mode = DTRAN_MODE_BUS_WID_TH | DTRAN_MODE_ADDR_MODE;
-	int ret;
 
 	/* This DMAC cannot handle if sg_len is not 1 */
 	WARN_ON(host->sg_len > 1);
 
-	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
-	if (!IS_ALIGNED(sg->offset, 8))
+	if (!dma_map_sg(&host->pdev->dev, sg, host->sg_len,
+			mmc_get_dma_dir(data)))
 		goto force_pio;
+
+	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
+	if (!IS_ALIGNED(sg_dma_address(sg), 8)) {
+		dma_unmap_sg(&host->pdev->dev, sg, host->sg_len,
+			     mmc_get_dma_dir(data));
+		goto force_pio;
+	}
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
@@ -174,11 +180,6 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	} else {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH0;
 	}
-
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len,
-			 mmc_get_dma_dir(data));
-	if (ret == 0)
-		goto force_pio;
 
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 
