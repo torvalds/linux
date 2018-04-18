@@ -411,10 +411,10 @@ union qxl_release_info *qxl_release_map(struct qxl_device *qdev,
 	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
 	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 
-	ptr = qxl_bo_kmap_atomic_page(qdev, bo, release->release_offset & PAGE_SIZE);
+	ptr = qxl_bo_kmap_atomic_page(qdev, bo, release->release_offset & PAGE_MASK);
 	if (!ptr)
 		return NULL;
-	info = ptr + (release->release_offset & ~PAGE_SIZE);
+	info = ptr + (release->release_offset & ~PAGE_MASK);
 	return info;
 }
 
@@ -426,7 +426,7 @@ void qxl_release_unmap(struct qxl_device *qdev,
 	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 	void *ptr;
 
-	ptr = ((void *)info) - (release->release_offset & ~PAGE_SIZE);
+	ptr = ((void *)info) - (release->release_offset & ~PAGE_MASK);
 	qxl_bo_kunmap_atomic_page(qdev, bo, ptr);
 }
 
