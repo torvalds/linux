@@ -174,6 +174,7 @@ struct rt6_info {
 	int				rt6i_nh_weight;
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
+	u8				fib6_type;
 	u8				exception_bucket_flushed:1,
 					should_flush:1,
 					unused:6;

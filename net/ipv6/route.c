@@ -307,6 +307,7 @@ static const struct rt6_info ip6_null_entry_template = {
 	.rt6i_protocol  = RTPROT_KERNEL,
 	.rt6i_metric	= ~(u32) 0,
 	.rt6i_ref	= ATOMIC_INIT(1),
+	.fib6_type	= RTN_UNREACHABLE,
 };
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
@@ -324,6 +325,7 @@ static const struct rt6_info ip6_prohibit_entry_template = {
 	.rt6i_protocol  = RTPROT_KERNEL,
 	.rt6i_metric	= ~(u32) 0,
 	.rt6i_ref	= ATOMIC_INIT(1),
+	.fib6_type	= RTN_PROHIBIT,
 };
 
 static const struct rt6_info ip6_blk_hole_entry_template = {
@@ -339,6 +341,7 @@ static const struct rt6_info ip6_blk_hole_entry_template = {
 	.rt6i_protocol  = RTPROT_KERNEL,
 	.rt6i_metric	= ~(u32) 0,
 	.rt6i_ref	= ATOMIC_INIT(1),
+	.fib6_type	= RTN_BLACKHOLE,
 };
 
 #endif
@@ -2802,6 +2805,11 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto out;
 	}
 
+	if (cfg->fc_type > RTN_MAX) {
+		NL_SET_ERR_MSG(extack, "Invalid route type");
+		goto out;
+	}
+
 	if (cfg->fc_dst_len > 128) {
 		NL_SET_ERR_MSG(extack, "Invalid prefix length");
 		goto out;
@@ -2913,6 +2921,8 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 
 	rt->rt6i_metric = cfg->fc_metric;
 	rt->rt6i_nh_weight = 1;
+
+	rt->fib6_type = cfg->fc_type;
 
 	/* We cannot add true routes via loopback here,
 	   they would result in kernel looping; promote them to reject routes
@@ -3354,6 +3364,7 @@ static struct rt6_info *rt6_add_route_info(struct net *net,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_ROUTEINFO |
 				  RTF_UP | RTF_PREF(pref),
 		.fc_protocol = RTPROT_RA,
+		.fc_type = RTN_UNICAST,
 		.fc_nlinfo.portid = 0,
 		.fc_nlinfo.nlh = NULL,
 		.fc_nlinfo.nl_net = net,
@@ -3410,6 +3421,7 @@ struct rt6_info *rt6_add_dflt_router(struct net *net,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_DEFAULT |
 				  RTF_UP | RTF_EXPIRES | RTF_PREF(pref),
 		.fc_protocol = RTPROT_RA,
+		.fc_type = RTN_UNICAST,
 		.fc_nlinfo.portid = 0,
 		.fc_nlinfo.nlh = NULL,
 		.fc_nlinfo.nl_net = net,
@@ -3485,6 +3497,7 @@ static void rtmsg_to_fib6_config(struct net *net,
 	cfg->fc_dst_len = rtmsg->rtmsg_dst_len;
 	cfg->fc_src_len = rtmsg->rtmsg_src_len;
 	cfg->fc_flags = rtmsg->rtmsg_flags;
+	cfg->fc_type = rtmsg->rtmsg_type;
 
 	cfg->fc_nlinfo.nl_net = net;
 
@@ -3606,10 +3619,13 @@ struct rt6_info *addrconf_dst_alloc(struct net *net,
 
 	rt->rt6i_protocol = RTPROT_KERNEL;
 	rt->rt6i_flags = RTF_UP | RTF_NONEXTHOP;
-	if (anycast)
+	if (anycast) {
+		rt->fib6_type = RTN_ANYCAST;
 		rt->rt6i_flags |= RTF_ANYCAST;
-	else
+	} else {
+		rt->fib6_type = RTN_LOCAL;
 		rt->rt6i_flags |= RTF_LOCAL;
+	}
 
 	rt->rt6i_gateway  = *addr;
 	rt->rt6i_dst.addr = *addr;
@@ -4509,30 +4525,8 @@ static int rt6_fill_node(struct net *net,
 	rtm->rtm_table = table;
 	if (nla_put_u32(skb, RTA_TABLE, table))
 		goto nla_put_failure;
-	if (rt->rt6i_flags & RTF_REJECT) {
-		switch (rt->dst.error) {
-		case -EINVAL:
-			rtm->rtm_type = RTN_BLACKHOLE;
-			break;
-		case -EACCES:
-			rtm->rtm_type = RTN_PROHIBIT;
-			break;
-		case -EAGAIN:
-			rtm->rtm_type = RTN_THROW;
-			break;
-		default:
-			rtm->rtm_type = RTN_UNREACHABLE;
-			break;
-		}
-	}
-	else if (rt->rt6i_flags & RTF_LOCAL)
-		rtm->rtm_type = RTN_LOCAL;
-	else if (rt->rt6i_flags & RTF_ANYCAST)
-		rtm->rtm_type = RTN_ANYCAST;
-	else if (rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK))
-		rtm->rtm_type = RTN_LOCAL;
-	else
-		rtm->rtm_type = RTN_UNICAST;
+
+	rtm->rtm_type = rt->fib6_type;
 	rtm->rtm_flags = 0;
 	rtm->rtm_scope = RT_SCOPE_UNIVERSE;
 	rtm->rtm_protocol = rt->rt6i_protocol;
