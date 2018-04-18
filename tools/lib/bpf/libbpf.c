@@ -1845,6 +1845,7 @@ BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
 BPF_PROG_TYPE_FNS(sched_cls, BPF_PROG_TYPE_SCHED_CLS);
 BPF_PROG_TYPE_FNS(sched_act, BPF_PROG_TYPE_SCHED_ACT);
 BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
+BPF_PROG_TYPE_FNS(raw_tracepoint, BPF_PROG_TYPE_RAW_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
@@ -1858,6 +1859,9 @@ static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	{ string, sizeof(string) - 1, ptype, atype }
 
 #define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
+
+#define BPF_S_PROG_SEC(string, ptype) \
+	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK, ptype)
 
 #define BPF_SA_PROG_SEC(string, ptype) \
 	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
@@ -1874,6 +1878,7 @@ static const struct {
 	BPF_PROG_SEC("classifier",	BPF_PROG_TYPE_SCHED_CLS),
 	BPF_PROG_SEC("action",		BPF_PROG_TYPE_SCHED_ACT),
 	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("raw_tracepoint/",	BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
@@ -1889,10 +1894,13 @@ static const struct {
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
 	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
+	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
+	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
 };
 
 #undef BPF_PROG_SEC
 #undef BPF_PROG_SEC_FULL
+#undef BPF_S_PROG_SEC
 #undef BPF_SA_PROG_SEC
 
 static int bpf_program__identify_section(struct bpf_program *prog)
