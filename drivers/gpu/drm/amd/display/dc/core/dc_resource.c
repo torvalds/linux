@@ -652,6 +652,14 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.scl_data.ratios.horz_c.value /= 2;
 		pipe_ctx->plane_res.scl_data.ratios.vert_c.value /= 2;
 	}
+	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert, 19);
+	pipe_ctx->plane_res.scl_data.ratios.horz_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz_c, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
 static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
@@ -688,17 +696,18 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	 * 	init_bot = init + scaling_ratio
 	 * 	init_c = init + truncated_vp_c_offset(from calculate viewport)
 	 */
-	data->inits.h = dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.horz, data->taps.h_taps + 1), 2);
+	data->inits.h = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz, data->taps.h_taps + 1), 2), 19);
 
-	data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2));
+	data->inits.h_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.h_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2)), 19);
 
-	data->inits.v = dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.vert, data->taps.v_taps + 1), 2);
+	data->inits.v = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert, data->taps.v_taps + 1), 2), 19);
 
-	data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2));
+	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
+
 
 
 	/* Adjust for viewport end clip-off */
