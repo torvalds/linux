@@ -219,7 +219,8 @@ When adjusting the persistent hugepage count via ``nr_hugepages_mempolicy``, any
 memory policy mode--bind, preferred, local or interleave--may be used.  The
 resulting effect on persistent huge page allocation is as follows:
 
-#. Regardless of mempolicy mode [see Documentation/vm/numa_memory_policy.rst],
+#. Regardless of mempolicy mode [see
+   :ref:`Documentation/vm/numa_memory_policy.rst <numa_memory_policy>`],
    persistent huge pages will be distributed across the node or nodes
    specified in the mempolicy as if "interleave" had been specified.
    However, if a node in the policy does not contain sufficient contiguous

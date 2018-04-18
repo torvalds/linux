@@ -18,7 +18,8 @@ There are four components to pagemap:
     * Bits 0-54  page frame number (PFN) if present
     * Bits 0-4   swap type if swapped
     * Bits 5-54  swap offset if swapped
-    * Bit  55    pte is soft-dirty (see Documentation/admin-guide/mm/soft-dirty.rst)
+    * Bit  55    pte is soft-dirty (see
+      :ref:`Documentation/admin-guide/mm/soft-dirty.rst <soft_dirty>`)
     * Bit  56    page exclusively mapped (since 4.2)
     * Bits 57-60 zero
     * Bit  61    page is file-page or shared-anon (since 3.5)
@@ -97,9 +98,11 @@ Short descriptions to the page flags
     A compound page with order N consists of 2^N physically contiguous pages.
     A compound page with order 2 takes the form of "HTTT", where H donates its
     head page and T donates its tail page(s).  The major consumers of compound
-    pages are hugeTLB pages (Documentation/admin-guide/mm/hugetlbpage.rst), the SLUB etc.
-    memory allocators and various device drivers. However in this interface,
-    only huge/giga pages are made visible to end users.
+    pages are hugeTLB pages
+    (:ref:`Documentation/admin-guide/mm/hugetlbpage.rst <hugetlbpage>`),
+    the SLUB etc.  memory allocators and various device drivers.
+    However in this interface, only huge/giga pages are made visible
+    to end users.
 16 - COMPOUND_TAIL
     A compound page tail (see description above).
 17 - HUGE
@@ -118,9 +121,10 @@ Short descriptions to the page flags
     zero page for pfn_zero or huge_zero page
 25 - IDLE
     page has not been accessed since it was marked idle (see
-    Documentation/admin-guide/mm/idle_page_tracking.rst). Note that this flag may be
-    stale in case the page was accessed via a PTE. To make sure the flag
-    is up-to-date one has to read ``/sys/kernel/mm/page_idle/bitmap`` first.
+    :ref:`Documentation/admin-guide/mm/idle_page_tracking.rst <idle_page_tracking>`).
+    Note that this flag may be stale in case the page was accessed via
+    a PTE. To make sure the flag is up-to-date one has to read
+    ``/sys/kernel/mm/page_idle/bitmap`` first.
 
 IO related page flags
 ---------------------
