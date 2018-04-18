@@ -2601,13 +2601,19 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	trace_run_delayed_ref_head(fs_info, head, 0);
 
 	if (head->total_ref_mod < 0) {
-		struct btrfs_block_group_cache *cache;
+		struct btrfs_space_info *space_info;
+		u64 flags;
 
-		cache = btrfs_lookup_block_group(fs_info, head->bytenr);
-		ASSERT(cache);
-		percpu_counter_add(&cache->space_info->total_bytes_pinned,
+		if (head->is_data)
+			flags = BTRFS_BLOCK_GROUP_DATA;
+		else if (head->is_system)
+			flags = BTRFS_BLOCK_GROUP_SYSTEM;
+		else
+			flags = BTRFS_BLOCK_GROUP_METADATA;
+		space_info = __find_space_info(fs_info, flags);
+		ASSERT(space_info);
+		percpu_counter_add(&space_info->total_bytes_pinned,
 				   -head->num_bytes);
-		btrfs_put_block_group(cache);
 
 		if (head->is_data) {
 			spin_lock(&delayed_refs->lock);
