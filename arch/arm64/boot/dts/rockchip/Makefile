@@ -7,6 +7,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-pdm-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-fpga.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-ai-va-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-linux-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-863-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3328-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3328-evb-android.dtb
