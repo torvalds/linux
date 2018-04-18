@@ -408,7 +408,7 @@ void __net_exit fib6_notifier_exit(struct net *net);
 unsigned int fib6_tables_seq_read(struct net *net);
 int fib6_tables_dump(struct net *net, struct notifier_block *nb);
 
-void fib6_update_sernum(struct rt6_info *rt);
+void fib6_update_sernum(struct net *net, struct rt6_info *rt);
 void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES

@@ -1352,7 +1352,7 @@ out:
 	/* Update fn->fn_sernum to invalidate all cached dst */
 	if (!err) {
 		spin_lock_bh(&ort->rt6i_table->tb6_lock);
-		fib6_update_sernum(ort);
+		fib6_update_sernum(net, ort);
 		spin_unlock_bh(&ort->rt6i_table->tb6_lock);
 		fib6_force_start_gc(net);
 	}
@@ -3786,11 +3786,11 @@ void rt6_multipath_rebalance(struct rt6_info *rt)
 static int fib6_ifup(struct rt6_info *rt, void *p_arg)
 {
 	const struct arg_netdev_event *arg = p_arg;
-	const struct net *net = dev_net(arg->dev);
+	struct net *net = dev_net(arg->dev);
 
 	if (rt != net->ipv6.ip6_null_entry && rt->dst.dev == arg->dev) {
 		rt->rt6i_nh_flags &= ~arg->nh_flags;
-		fib6_update_sernum_upto_root(dev_net(rt->dst.dev), rt);
+		fib6_update_sernum_upto_root(net, rt);
 		rt6_multipath_rebalance(rt);
 	}
 
@@ -3869,7 +3869,7 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 {
 	const struct arg_netdev_event *arg = p_arg;
 	const struct net_device *dev = arg->dev;
-	const struct net *net = dev_net(dev);
+	struct net *net = dev_net(dev);
 
 	if (rt == net->ipv6.ip6_null_entry)
 		return 0;
@@ -3892,7 +3892,7 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 			}
 			rt6_multipath_nh_flags_set(rt, dev, RTNH_F_DEAD |
 						   RTNH_F_LINKDOWN);
-			fib6_update_sernum(rt);
+			fib6_update_sernum(net, rt);
 			rt6_multipath_rebalance(rt);
 		}
 		return -2;

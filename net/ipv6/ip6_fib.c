@@ -105,9 +105,8 @@ enum {
 	FIB6_NO_SERNUM_CHANGE = 0,
 };
 
-void fib6_update_sernum(struct rt6_info *rt)
+void fib6_update_sernum(struct net *net, struct rt6_info *rt)
 {
-	struct net *net = dev_net(rt->dst.dev);
 	struct fib6_node *fn;
 
 	fn = rcu_dereference_protected(rt->rt6i_node,
