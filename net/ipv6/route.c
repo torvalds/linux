@@ -525,15 +525,17 @@ static void rt6_probe(struct fib6_info *rt)
 	rcu_read_lock_bh();
 	neigh = __ipv6_neigh_lookup_noref(dev, nh_gw);
 	if (neigh) {
+		struct inet6_dev *idev;
+
 		if (neigh->nud_state & NUD_VALID)
 			goto out;
 
+		idev = __in6_dev_get(dev);
 		work = NULL;
 		write_lock(&neigh->lock);
 		if (!(neigh->nud_state & NUD_VALID) &&
 		    time_after(jiffies,
-			       neigh->updated +
-			       rt->fib6_idev->cnf.rtr_probe_interval)) {
+			       neigh->updated + idev->cnf.rtr_probe_interval)) {
 			work = kmalloc(sizeof(*work), GFP_ATOMIC);
 			if (work)
 				__neigh_set_probe_once(neigh);
@@ -622,18 +624,32 @@ static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
 	return m;
 }
 
+/* called with rc_read_lock held */
+static inline bool fib6_ignore_linkdown(const struct fib6_info *f6i)
+{
+	const struct net_device *dev = fib6_info_nh_dev(f6i);
+	bool rc = false;
+
+	if (dev) {
+		const struct inet6_dev *idev = __in6_dev_get(dev);
+
+		rc = !!idev->cnf.ignore_routes_with_linkdown;
+	}
+
+	return rc;
+}
+
 static struct fib6_info *find_match(struct fib6_info *rt, int oif, int strict,
 				   int *mpri, struct fib6_info *match,
 				   bool *do_rr)
 {
 	int m;
 	bool match_do_rr = false;
-	struct inet6_dev *idev = rt->fib6_idev;
 
 	if (rt->fib6_nh.nh_flags & RTNH_F_DEAD)
 		goto out;
 
-	if (idev->cnf.ignore_routes_with_linkdown &&
+	if (fib6_ignore_linkdown(rt) &&
 	    rt->fib6_nh.nh_flags & RTNH_F_LINKDOWN &&
 	    !(strict & RT6_LOOKUP_F_IGNORE_LINKSTATE))
 		goto out;
@@ -957,12 +973,12 @@ static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 
 static void ip6_rt_copy_init(struct rt6_info *rt, struct fib6_info *ort)
 {
+	struct net_device *dev = fib6_info_nh_dev(ort);
+
 	ip6_rt_init_dst(rt, ort);
 
 	rt->rt6i_dst = ort->fib6_dst;
-	rt->rt6i_idev = ort->fib6_idev;
-	if (rt->rt6i_idev)
-		in6_dev_hold(rt->rt6i_idev);
+	rt->rt6i_idev = dev ? in6_dev_get(dev) : NULL;
 	rt->rt6i_gateway = ort->fib6_nh.nh_gw;
 	rt->rt6i_flags = ort->fib6_flags;
 	rt6_set_from(rt, ort);
@@ -1355,7 +1371,18 @@ static unsigned int fib6_mtu(const struct fib6_info *rt)
 {
 	unsigned int mtu;
 
-	mtu = rt->fib6_pmtu ? : rt->fib6_idev->cnf.mtu6;
+	if (rt->fib6_pmtu) {
+		mtu = rt->fib6_pmtu;
+	} else {
+		struct net_device *dev = fib6_info_nh_dev(rt);
+		struct inet6_dev *idev;
+
+		rcu_read_lock();
+		idev = __in6_dev_get(dev);
+		mtu = idev->cnf.mtu6;
+		rcu_read_unlock();
+	}
+
 	mtu = min_t(unsigned int, mtu, IP6_MAX_MTU);
 
 	return mtu - lwtunnel_headroom(rt->fib6_nh.nh_lwtstate, mtu);
@@ -2985,10 +3012,12 @@ install_route:
 		rt->fib6_nh.nh_flags |= RTNH_F_LINKDOWN;
 	rt->fib6_nh.nh_flags |= (cfg->fc_flags & RTNH_F_ONLINK);
 	rt->fib6_nh.nh_dev = dev;
-	rt->fib6_idev = idev;
 	rt->fib6_table = table;
 
 	cfg->fc_nlinfo.nl_net = dev_net(dev);
+
+	if (idev)
+		in6_dev_put(idev);
 
 	return rt;
 out:
@@ -3425,8 +3454,11 @@ static void __rt6_purge_dflt_routers(struct net *net,
 restart:
 	rcu_read_lock();
 	for_each_fib6_node_rt_rcu(&table->tb6_root) {
+		struct net_device *dev = fib6_info_nh_dev(rt);
+		struct inet6_dev *idev = dev ? __in6_dev_get(dev) : NULL;
+
 		if (rt->fib6_flags & (RTF_DEFAULT | RTF_ADDRCONF) &&
-		    (!rt->fib6_idev || rt->fib6_idev->cnf.accept_ra != 2)) {
+		    (!idev || idev->cnf.accept_ra != 2)) {
 			fib6_info_hold(rt);
 			rcu_read_unlock();
 			ip6_del_rt(net, rt);
@@ -3585,10 +3617,6 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 		return ERR_PTR(-ENOMEM);
 
 	f6i->dst_nocount = true;
-
-	in6_dev_hold(idev);
-	f6i->fib6_idev = idev;
-
 	f6i->dst_host = true;
 	f6i->fib6_protocol = RTPROT_KERNEL;
 	f6i->fib6_flags = RTF_UP | RTF_NONEXTHOP;
@@ -3706,7 +3734,7 @@ static bool rt6_is_dead(const struct fib6_info *rt)
 {
 	if (rt->fib6_nh.nh_flags & RTNH_F_DEAD ||
 	    (rt->fib6_nh.nh_flags & RTNH_F_LINKDOWN &&
-	     rt->fib6_idev->cnf.ignore_routes_with_linkdown))
+	     fib6_ignore_linkdown(rt)))
 		return true;
 
 	return false;
@@ -4424,8 +4452,11 @@ static int rt6_nexthop_info(struct sk_buff *skb, struct fib6_info *rt,
 
 	if (rt->fib6_nh.nh_flags & RTNH_F_LINKDOWN) {
 		*flags |= RTNH_F_LINKDOWN;
-		if (rt->fib6_idev->cnf.ignore_routes_with_linkdown)
+
+		rcu_read_lock();
+		if (fib6_ignore_linkdown(rt))
 			*flags |= RTNH_F_DEAD;
+		rcu_read_unlock();
 	}
 
 	if (rt->fib6_flags & RTF_GATEWAY) {
@@ -4800,7 +4831,6 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 
 	if (event == NETDEV_REGISTER) {
 		net->ipv6.fib6_null_entry->fib6_nh.nh_dev = dev;
-		net->ipv6.fib6_null_entry->fib6_idev = in6_dev_get(dev);
 		net->ipv6.ip6_null_entry->dst.dev = dev;
 		net->ipv6.ip6_null_entry->rt6i_idev = in6_dev_get(dev);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
@@ -4814,7 +4844,6 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 		/* NETDEV_UNREGISTER could be fired for multiple times by
 		 * netdev_wait_allrefs(). Make sure we only call this once.
 		 */
-		in6_dev_put_clear(&net->ipv6.fib6_null_entry->fib6_idev);
 		in6_dev_put_clear(&net->ipv6.ip6_null_entry->rt6i_idev);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 		in6_dev_put_clear(&net->ipv6.ip6_prohibit_entry->rt6i_idev);
@@ -5137,7 +5166,6 @@ void __init ip6_route_init_special_entries(void)
 	 * the loopback reference in rt6_info will not be taken, do it
 	 * manually for init_net */
 	init_net.ipv6.fib6_null_entry->fib6_nh.nh_dev = init_net.loopback_dev;
-	init_net.ipv6.fib6_null_entry->fib6_idev = in6_dev_get(init_net.loopback_dev);
 	init_net.ipv6.ip6_null_entry->dst.dev = init_net.loopback_dev;
 	init_net.ipv6.ip6_null_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
   #ifdef CONFIG_IPV6_MULTIPLE_TABLES

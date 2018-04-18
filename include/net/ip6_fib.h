@@ -147,7 +147,6 @@ struct fib6_info {
 	unsigned int			fib6_nsiblings;
 
 	atomic_t			fib6_ref;
-	struct inet6_dev		*fib6_idev;
 	unsigned long			expires;
 	struct dst_metrics		*fib6_metrics;
 #define fib6_pmtu		fib6_metrics->metrics[RTAX_MTU-1]

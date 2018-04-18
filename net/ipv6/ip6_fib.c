@@ -197,8 +197,6 @@ void fib6_info_destroy(struct fib6_info *f6i)
 		}
 	}
 
-	if (f6i->fib6_idev)
-		in6_dev_put(f6i->fib6_idev);
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
 
