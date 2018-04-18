@@ -909,7 +909,6 @@ struct msdc_host {
 	struct mmc_request          *mrq;
 	int                         cmd_rsp;
 	int                         cmd_rsp_done;
-	int                         cmd_r1b_done;
 
 	int                         error;
 	spinlock_t                  lock;           /* mutex */
