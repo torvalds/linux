@@ -140,7 +140,7 @@ static int dataflash_waitready(struct spi_device *spi)
 		if (status & (1 << 7))	/* RDY/nBSY */
 			return status;
 
-		msleep(3);
+		usleep_range(3000, 4000);
 	}
 }
 
