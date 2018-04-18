@@ -209,15 +209,6 @@ static int msdc_rsp[] = {
 		((struct gpd *)_gpd)->blknum = blknum;	    \
 	} while (0)
 
-#define msdc_init_bd(_bd, blkpad, dwpad, dptr, dlen) \
-	do {					    \
-		BUG_ON(dlen > 0xFFFFUL);	    \
-		((struct bd *)_bd)->blkpad = blkpad;	    \
-		((struct bd *)_bd)->dwpad  = dwpad;	    \
-		((struct bd *)_bd)->ptr    = (void *)dptr;  \
-		((struct bd *)_bd)->buflen = dlen;	    \
-	} while (0)
-
 #define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
 #define msdc_rxfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) >> 0)
 #define msdc_fifo_write32(v)   sdr_write32(MSDC_TXDATA, (v))
@@ -1260,9 +1251,8 @@ static u8 msdc_dma_calcs(u8 *buf, u32 len)
 static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 {
 	u32 base = host->base;
-	u32 sglen = dma->sglen;
 	//u32 i, j, num, bdlen, arg, xfersz;
-	u32 j, num, bdlen;
+	u32 j, num;
 	u8  blkpad, dwpad, chksum;
 	struct scatterlist *sg = dma->sg;
 	struct gpd *gpd;
@@ -1291,12 +1281,11 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		chksum = (dma->flags & DMA_FLAG_EN_CHKSUM) ? 1 : 0;
 
 		/* calculate the required number of gpd */
-		num = (sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
+		num = (dma->sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
 		BUG_ON(num != 1);
 
 		gpd = dma->gpd;
 		bd  = dma->bd;
-		bdlen = sglen;
 
 		/* modify gpd*/
 		//gpd->intr = 0;
@@ -1306,19 +1295,23 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 		gpd->chksum = (chksum ? msdc_dma_calcs((u8 *)gpd, 16) : 0);
 
 		/* modify bd*/
-		for (j = 0; j < bdlen; j++) {
-			msdc_init_bd(&bd[j], blkpad, dwpad, sg_dma_address(sg), sg_dma_len(sg));
-			if (j == bdlen - 1)
+		for_each_sg(dma->sg, sg, dma->sglen, j) {
+			bd[j].blkpad = blkpad;
+			bd[j].dwpad = dwpad;
+			bd[j].ptr = (void *)sg_dma_address(sg);
+			bd[j].buflen = sg_dma_len(sg);
+
+			if (j == dma->sglen - 1)
 				bd[j].eol = 1;	/* the last bd */
 			else
 				bd[j].eol = 0;
+
 			bd[j].chksum = 0; /* checksume need to clear first */
 			bd[j].chksum = (chksum ? msdc_dma_calcs((u8 *)(&bd[j]), 16) : 0);
-			sg++;
 		}
 
 		dma->used_gpd += 2;
-		dma->used_bd += bdlen;
+		dma->used_bd += dma->sglen;
 
 		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, chksum);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
