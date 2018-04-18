@@ -718,11 +718,9 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
 static int rcu_future_needs_gp(struct rcu_state *rsp)
 {
 	struct rcu_node *rnp = rcu_get_root(rsp);
-	int idx = (READ_ONCE(rnp->completed) + 1) & 0x1;
-	int *fp = &rnp->need_future_gp[idx];
 
 	lockdep_assert_irqs_disabled();
-	return READ_ONCE(*fp);
+	return READ_ONCE(need_future_gp_element(rnp, rnp->completed));
 }
 
 /*
@@ -1699,7 +1697,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 */
 	c = rcu_cbs_completed(rdp->rsp, rnp);
 	trace_rcu_future_gp(rnp, rdp, c, TPS("Startleaf"));
-	if (rnp->need_future_gp[c & 0x1]) {
+	if (need_future_gp_element(rnp, c)) {
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Prestartleaf"));
 		goto out;
 	}
@@ -1711,7 +1709,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * current grace period, we don't need to explicitly start one.
 	 */
 	if (rnp->gpnum != rnp->completed) {
-		rnp->need_future_gp[c & 0x1]++;
+		need_future_gp_element(rnp, c)++;
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleaf"));
 		goto out;
 	}
@@ -1737,13 +1735,13 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * If the needed for the required grace period is already
 	 * recorded, trace and leave.
 	 */
-	if (rnp_root->need_future_gp[c & 0x1]) {
+	if (need_future_gp_element(rnp_root, c)) {
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Prestartedroot"));
 		goto unlock_out;
 	}
 
 	/* Record the need for the future grace period. */
-	rnp_root->need_future_gp[c & 0x1]++;
+	need_future_gp_element(rnp_root, c)++;
 
 	/* If a grace period is not already in progress, start one. */
 	if (rnp_root->gpnum != rnp_root->completed) {
@@ -1771,8 +1769,8 @@ static int rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 	int needmore;
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
-	rnp->need_future_gp[c & 0x1] = 0;
-	needmore = rnp->need_future_gp[(c + 1) & 0x1];
+	need_future_gp_element(rnp, c) = 0;
+	needmore = need_future_gp_element(rnp, c + 1);
 	trace_rcu_future_gp(rnp, rdp, c,
 			    needmore ? TPS("CleanupMore") : TPS("Cleanup"));
 	return needmore;

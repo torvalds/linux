@@ -1790,7 +1790,7 @@ static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
  */
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
-	rnp->need_future_gp[(rnp->completed + 1) & 0x1] += nrq;
+	need_future_gp_element(rnp, rnp->completed + 1) += nrq;
 }
 
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp)
