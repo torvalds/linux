@@ -1019,47 +1019,8 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 static int
 fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 {
-	bool ecn_ca = false;
-	struct nlattr *nla;
-	int remaining;
-
-	if (!cfg->fc_mx)
-		return 0;
-
-	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
-		int type = nla_type(nla);
-		u32 val;
-
-		if (!type)
-			continue;
-		if (type > RTAX_MAX)
-			return -EINVAL;
-
-		if (type == RTAX_CC_ALGO) {
-			char tmp[TCP_CA_NAME_MAX];
-
-			nla_strlcpy(tmp, nla, sizeof(tmp));
-			val = tcp_ca_get_key_by_name(fi->fib_net, tmp, &ecn_ca);
-			if (val == TCP_CA_UNSPEC)
-				return -EINVAL;
-		} else {
-			val = nla_get_u32(nla);
-		}
-		if (type == RTAX_ADVMSS && val > 65535 - 40)
-			val = 65535 - 40;
-		if (type == RTAX_MTU && val > 65535 - 15)
-			val = 65535 - 15;
-		if (type == RTAX_HOPLIMIT && val > 255)
-			val = 255;
-		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
-			return -EINVAL;
-		fi->fib_metrics->metrics[type - 1] = val;
-	}
-
-	if (ecn_ca)
-		fi->fib_metrics->metrics[RTAX_FEATURES - 1] |= DST_FEATURE_ECN_CA;
-
-	return 0;
+	return ip_metrics_convert(fi->fib_net, cfg->fc_mx, cfg->fc_mx_len,
+				  fi->fib_metrics->metrics);
 }
 
 struct fib_info *fib_create_info(struct fib_config *cfg,

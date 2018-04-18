@@ -396,6 +396,9 @@ static inline unsigned int ip_skb_dst_mtu(struct sock *sk,
 	return min(READ_ONCE(skb_dst(skb)->dev->mtu), IP_MAX_MTU);
 }
 
+int ip_metrics_convert(struct net *net, struct nlattr *fc_mx, int fc_mx_len,
+		       u32 *metrics);
+
 u32 ip_idents_reserve(u32 hash, int segs);
 void __ip_select_ident(struct net *net, struct iphdr *iph, int segs);
 
