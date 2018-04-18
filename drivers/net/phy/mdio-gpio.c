@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/mdio-bitbang.h>
+#include <linux/mdio-gpio.h>
 #include <linux/gpio.h>
 #include <linux/platform_data/mdio-gpio.h>
 
@@ -38,15 +40,17 @@ struct mdio_gpio_info {
 static int mdio_gpio_get_data(struct device *dev,
 			      struct mdio_gpio_info *bitbang)
 {
-	bitbang->mdc = devm_gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
+	bitbang->mdc = devm_gpiod_get_index(dev, NULL, MDIO_GPIO_MDC,
+					    GPIOD_OUT_LOW);
 	if (IS_ERR(bitbang->mdc))
 		return PTR_ERR(bitbang->mdc);
 
-	bitbang->mdio = devm_gpiod_get_index(dev, NULL, 1, GPIOD_IN);
+	bitbang->mdio = devm_gpiod_get_index(dev, NULL, MDIO_GPIO_MDIO,
+					     GPIOD_IN);
 	if (IS_ERR(bitbang->mdio))
 		return PTR_ERR(bitbang->mdio);
 
-	bitbang->mdo = devm_gpiod_get_index_optional(dev, NULL, 2,
+	bitbang->mdo = devm_gpiod_get_index_optional(dev, NULL, MDIO_GPIO_MDO,
 						     GPIOD_OUT_LOW);
 	return PTR_ERR_OR_ZERO(bitbang->mdo);
 }
