@@ -322,12 +322,21 @@ static const struct vop_intr rk3288_vop_intr = {
 	.clear = VOP_REG(RK3288_INTR_CTRL0, 0xf, 8),
 };
 
+static const struct vop_grf_ctrl rk3288_vop_big_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 12),
+};
+
+static const struct vop_grf_ctrl rk3288_vop_lit_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 14),
+};
+
 static const struct vop_data rk3288_vop_big = {
 	.version = VOP_VERSION(3, 0),
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {3840, 2160},
 	.intr = &rk3288_vop_intr,
+	.grf_ctrl = &rk3288_vop_big_grf_ctrl,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3288_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
@@ -339,6 +348,7 @@ static const struct vop_data rk3288_vop_lit = {
 	.max_input = {4096, 8192},
 	.max_output = {2560, 1600},
 	.intr = &rk3288_vop_intr,
+	.grf_ctrl = &rk3288_vop_lit_grf_ctrl,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3288_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
@@ -460,12 +470,17 @@ static const struct vop_intr rk3366_vop_intr = {
 	.clear = VOP_REG_MASK(RK3366_INTR_CLEAR0, 0xffff, 0),
 };
 
+static const struct vop_grf_ctrl rk3368_vop_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RK3368_GRF_SOC_CON6, 0x1, 5),
+};
+
 static const struct vop_data rk3366_vop = {
 	.version = VOP_VERSION(3, 4),
 	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
+	.grf_ctrl = &rk3368_vop_grf_ctrl,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3368_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3368_vop_win_data),
@@ -1550,12 +1565,17 @@ static const struct vop_win_data px30_vop_lit_win_data[] = {
 	{ .phy = NULL },
 };
 
+static const struct vop_grf_ctrl px30_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(PX30_GRF_PD_VO_CON1, 0x1, 4),
+};
+
 static const struct vop_data px30_vop_lit = {
 	.version = VOP_VERSION(2, 5),
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
 	.ctrl = &px30_ctrl_data,
 	.intr = &rk3366_lit_intr,
+	.grf_ctrl = &px30_grf_ctrl,
 	.win = px30_vop_lit_win_data,
 	.win_size = ARRAY_SIZE(px30_vop_lit_win_data),
 };
@@ -1567,6 +1587,7 @@ static const struct vop_data px30_vop_big = {
 	.max_output = {1920, 1080},
 	.ctrl = &px30_ctrl_data,
 	.intr = &rk3366_lit_intr,
+	.grf_ctrl = &px30_grf_ctrl,
 	.win = px30_vop_big_win_data,
 	.win_size = ARRAY_SIZE(px30_vop_big_win_data),
 };

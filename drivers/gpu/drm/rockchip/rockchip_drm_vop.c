@@ -34,6 +34,8 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include <linux/reset.h>
 #include <linux/delay.h>
@@ -134,6 +136,12 @@
 
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->offset + VOP_WIN_NAME(win, yrgb_mst).offset)
+#define VOP_GRF_SET(vop, reg, v) \
+	do { \
+		if (vop->data->grf_ctrl) { \
+			vop_grf_writel(vop, vop->data->grf_ctrl->reg, v); \
+		} \
+	} while (0)
 
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
@@ -229,6 +237,7 @@ struct vop {
 
 	uint32_t *regsbak;
 	void __iomem *regs;
+	struct regmap *grf;
 
 	/* physical map length of vop register */
 	uint32_t len;
@@ -271,6 +280,18 @@ struct vop {
 static struct vop *dmc_vop[MAX_VOPS];
 static struct devfreq *devfreq_vop;
 static DEFINE_MUTEX(register_devfreq_lock);
+static inline void vop_grf_writel(struct vop *vop, struct vop_reg reg, u32 v)
+{
+	u32 val = 0;
+
+	if (IS_ERR_OR_NULL(vop->grf))
+		return;
+
+	if (VOP_REG_SUPPORT(vop, reg)) {
+		val = (v << reg.shift) | (reg.mask << (reg.shift + 16));
+		regmap_write(vop->grf, reg.offset, val);
+	}
+}
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -2516,6 +2537,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, lvds_en, 1);
 		VOP_CTRL_SET(vop, lvds_pin_pol, val);
 		VOP_CTRL_SET(vop, lvds_dclk_pol, dclk_inv);
+
+		VOP_GRF_SET(vop, grf_dclk_inv, !dclk_inv);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		VOP_CTRL_SET(vop, edp_en, 1);
@@ -4246,6 +4269,11 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 			return -EINVAL;
 		}
 	}
+
+	vop->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+						   "rockchip,grf");
+	if (IS_ERR(vop->grf))
+		dev_err(dev, "missing rockchip,grf property\n");
 
 	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
 	if (IS_ERR(vop->hclk)) {

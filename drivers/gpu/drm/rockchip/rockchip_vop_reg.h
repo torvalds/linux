@@ -125,6 +125,7 @@
 #define RK3288_BCSH_COLOR_BAR			0x01b0
 #define RK3288_BCSH_BCS				0x01b4
 #define RK3288_BCSH_H				0x01b8
+#define RK3288_GRF_SOC_CON15			0x03a4
 /* register definition end */
 
 /* rk3368 register definition */
@@ -312,6 +313,7 @@
 #define RK3368_CABC_GAMMA_LUT_ADDR		0x1800
 #define RK3368_MCU_BYPASS_WPORT			0x2200
 #define RK3368_MCU_BYPASS_RPORT			0x2300
+#define RK3368_GRF_SOC_CON6			0x0418
 /* rk3368 register definition end */
 
 #define RK3366_REG_CFG_DONE			0x0000
@@ -1037,6 +1039,7 @@
 #define PX30_AFBCD0_PIC_SIZE			0x00248
 #define PX30_AFBCD0_PIC_OFFSET			0x0024c
 #define PX30_AFBCD0_AXI_CTRL			0x00250
+#define PX30_GRF_PD_VO_CON1			0x00438
 /* px30 register definition end */
 
 #endif /* _ROCKCHIP_VOP_REG_H */

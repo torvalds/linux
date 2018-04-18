@@ -427,6 +427,10 @@ struct vop_win_data {
 	u64 feature;
 };
 
+struct vop_grf_ctrl {
+	struct vop_reg grf_dclk_inv;
+};
+
 #define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
 #define VOP_FEATURE_AFBDC		BIT(1)
 #define VOP_FEATURE_ALPHA_SCALE		BIT(2)
@@ -449,6 +453,7 @@ struct vop_data {
 	const struct vop_win_data *win;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
+	const struct vop_grf_ctrl *grf_ctrl;
 	unsigned int win_size;
 	uint32_t version;
 	struct vop_rect max_input;
