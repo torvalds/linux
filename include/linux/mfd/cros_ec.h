@@ -327,5 +327,7 @@ extern struct attribute_group cros_ec_vbc_attr_group;
 /* debugfs stuff */
 int cros_ec_debugfs_init(struct cros_ec_dev *ec);
 void cros_ec_debugfs_remove(struct cros_ec_dev *ec);
+void cros_ec_debugfs_suspend(struct cros_ec_dev *ec);
+void cros_ec_debugfs_resume(struct cros_ec_dev *ec);
 
 #endif /* __LINUX_MFD_CROS_EC_H */
