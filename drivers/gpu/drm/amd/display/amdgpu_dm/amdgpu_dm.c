@@ -3049,12 +3049,11 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		return r;
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
-		domain = amdgpu_display_framebuffer_domains(adev);
+		domain = amdgpu_display_supported_domains(adev);
 	else
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 	r = amdgpu_bo_pin(rbo, domain, &afb->address);
-
 	amdgpu_bo_unreserve(rbo);
 
 	if (unlikely(r != 0)) {
