@@ -111,7 +111,7 @@ int usb_phy_roothub_exit(struct usb_phy_roothub *phy_roothub)
 	list_for_each_entry(roothub_entry, head, list) {
 		err = phy_exit(roothub_entry->phy);
 		if (err)
-			ret = ret;
+			ret = err;
 	}
 
 	return ret;
