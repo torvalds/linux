@@ -771,16 +771,10 @@ static void msdc_card_power(struct msdc_host *host, int on)
 
 	if (on) {
 		msdc_pin_config(host, MSDC_PIN_PULL_UP);
-		if (host->hw->ext_power_on)
-			host->hw->ext_power_on();
-		//else
-			//msdc_vdd_on(host);  // need todo card detection.
+		//msdc_vdd_on(host);  // need todo card detection.
 		msleep(1);
 	} else {
-		if (host->hw->ext_power_off)
-			host->hw->ext_power_off();
-		//else
-			//msdc_vdd_off(host);
+		//msdc_vdd_off(host);
 		msdc_pin_config(host, MSDC_PIN_PULL_DOWN);
 		msleep(1);
 	}

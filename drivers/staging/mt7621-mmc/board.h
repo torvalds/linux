@@ -64,10 +64,6 @@ struct msdc_hw {
 
 	/* config gpio pull mode */
 	void (*config_gpio_pin)(int type, int pull);
-
-	/* external power control for card */
-	void (*ext_power_on)(void);
-	void (*ext_power_off)(void);
 };
 
 extern struct msdc_hw msdc0_hw;
