@@ -1410,9 +1410,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	__clear_bit(pol->plid, q->blkcg_pols);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
-		/* grab blkcg lock too while removing @pd from @blkg */
-		spin_lock(&blkg->blkcg->lock);
-
 		if (blkg->pd[pol->plid]) {
 			if (!blkg->pd[pol->plid]->offline &&
 			    pol->pd_offline_fn) {
@@ -1422,8 +1419,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 			pol->pd_free_fn(blkg->pd[pol->plid]);
 			blkg->pd[pol->plid] = NULL;
 		}
-
-		spin_unlock(&blkg->blkcg->lock);
 	}
 
 	spin_unlock_irq(q->queue_lock);
