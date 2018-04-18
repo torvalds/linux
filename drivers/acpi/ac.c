@@ -87,6 +87,7 @@ static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 
 static int ac_sleep_before_get_state_ms;
+static int ac_check_pmic = 1;
 
 static struct acpi_driver acpi_ac_driver = {
 	.name = "ac",
@@ -310,19 +311,41 @@ static int acpi_ac_battery_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int thinkpad_e530_quirk(const struct dmi_system_id *d)
+static int __init thinkpad_e530_quirk(const struct dmi_system_id *d)
 {
 	ac_sleep_before_get_state_ms = 1000;
 	return 0;
 }
 
-static const struct dmi_system_id ac_dmi_table[] = {
+static int __init ac_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+{
+	ac_check_pmic = 0;
+	return 0;
+}
+
+static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 	{
 	.callback = thinkpad_e530_quirk,
 	.ident = "thinkpad e530",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "32597CG"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.callback = ac_do_not_check_pmic_quirk,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Lenovo Ideapad Miix 320 */
+		.callback = ac_do_not_check_pmic_quirk,
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
 		},
 	},
 	{},
@@ -384,7 +407,6 @@ end:
 		kfree(ac);
 	}
 
-	dmi_check_system(ac_dmi_table);
 	return result;
 }
 
@@ -442,13 +464,17 @@ static int __init acpi_ac_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
-		if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
-				     acpi_ac_blacklist[i].hrv)) {
-			pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
-				acpi_ac_blacklist[i].hid);
-			return -ENODEV;
-		}
+	dmi_check_system(ac_dmi_table);
+
+	if (ac_check_pmic) {
+		for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
+			if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
+					     acpi_ac_blacklist[i].hrv)) {
+				pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
+					acpi_ac_blacklist[i].hid);
+				return -ENODEV;
+			}
+	}
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_dir = acpi_lock_ac_dir();
