@@ -50,6 +50,9 @@ struct usb_phy_roothub *usb_phy_roothub_alloc(struct device *dev)
 	struct usb_phy_roothub *phy_roothub;
 	int i, num_phys, err;
 
+	if (!IS_ENABLED(CONFIG_GENERIC_PHY))
+		return NULL;
+
 	num_phys = of_count_phandle_with_args(dev->of_node, "phys",
 					      "#phy-cells");
 	if (num_phys <= 0)
