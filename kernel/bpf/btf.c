@@ -3,6 +3,7 @@
 
 #include <uapi/linux/btf.h>
 #include <uapi/linux/types.h>
+#include <linux/seq_file.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -256,6 +257,9 @@ struct btf_kind_operations {
 			    const struct btf_type *member_type);
 	void (*log_details)(struct btf_verifier_env *env,
 			    const struct btf_type *t);
+	void (*seq_show)(const struct btf *btf, const struct btf_type *t,
+			 u32 type_id, void *data, u8 bits_offsets,
+			 struct seq_file *m);
 };
 
 static const struct btf_kind_operations * const kind_ops[NR_BTF_KINDS];
@@ -781,6 +785,13 @@ static int btf_df_resolve(struct btf_verifier_env *env,
 	return -EINVAL;
 }
 
+static void btf_df_seq_show(const struct btf *btf, const struct btf_type *t,
+			    u32 type_id, void *data, u8 bits_offsets,
+			    struct seq_file *m)
+{
+	seq_printf(m, "<unsupported kind:%u>", BTF_INFO_KIND(t->info));
+}
+
 static int btf_int_check_member(struct btf_verifier_env *env,
 				const struct btf_type *struct_type,
 				const struct btf_member *member,
@@ -879,11 +890,96 @@ static void btf_int_log(struct btf_verifier_env *env,
 			 btf_int_encoding_str(BTF_INT_ENCODING(int_data)));
 }
 
+static void btf_int_bits_seq_show(const struct btf *btf,
+				  const struct btf_type *t,
+				  void *data, u8 bits_offset,
+				  struct seq_file *m)
+{
+	u32 int_data = btf_type_int(t);
+	u16 nr_bits = BTF_INT_BITS(int_data);
+	u16 total_bits_offset;
+	u16 nr_copy_bytes;
+	u16 nr_copy_bits;
+	u8 nr_upper_bits;
+	union {
+		u64 u64_num;
+		u8  u8_nums[8];
+	} print_num;
+
+	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
+	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
+	bits_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	nr_copy_bits = nr_bits + bits_offset;
+	nr_copy_bytes = BITS_ROUNDUP_BYTES(nr_copy_bits);
+
+	print_num.u64_num = 0;
+	memcpy(&print_num.u64_num, data, nr_copy_bytes);
+
+	/* Ditch the higher order bits */
+	nr_upper_bits = BITS_PER_BYTE_MASKED(nr_copy_bits);
+	if (nr_upper_bits) {
+		/* We need to mask out some bits of the upper byte. */
+		u8 mask = (1 << nr_upper_bits) - 1;
+
+		print_num.u8_nums[nr_copy_bytes - 1] &= mask;
+	}
+
+	print_num.u64_num >>= bits_offset;
+
+	seq_printf(m, "0x%llx", print_num.u64_num);
+}
+
+static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
+			     u32 type_id, void *data, u8 bits_offset,
+			     struct seq_file *m)
+{
+	u32 int_data = btf_type_int(t);
+	u8 encoding = BTF_INT_ENCODING(int_data);
+	bool sign = encoding & BTF_INT_SIGNED;
+	u32 nr_bits = BTF_INT_BITS(int_data);
+
+	if (bits_offset || BTF_INT_OFFSET(int_data) ||
+	    BITS_PER_BYTE_MASKED(nr_bits)) {
+		btf_int_bits_seq_show(btf, t, data, bits_offset, m);
+		return;
+	}
+
+	switch (nr_bits) {
+	case 64:
+		if (sign)
+			seq_printf(m, "%lld", *(s64 *)data);
+		else
+			seq_printf(m, "%llu", *(u64 *)data);
+		break;
+	case 32:
+		if (sign)
+			seq_printf(m, "%d", *(s32 *)data);
+		else
+			seq_printf(m, "%u", *(u32 *)data);
+		break;
+	case 16:
+		if (sign)
+			seq_printf(m, "%d", *(s16 *)data);
+		else
+			seq_printf(m, "%u", *(u16 *)data);
+		break;
+	case 8:
+		if (sign)
+			seq_printf(m, "%d", *(s8 *)data);
+		else
+			seq_printf(m, "%u", *(u8 *)data);
+		break;
+	default:
+		btf_int_bits_seq_show(btf, t, data, bits_offset, m);
+	}
+}
+
 static const struct btf_kind_operations int_ops = {
 	.check_meta = btf_int_check_meta,
 	.resolve = btf_df_resolve,
 	.check_member = btf_int_check_member,
 	.log_details = btf_int_log,
+	.seq_show = btf_int_seq_show,
 };
 
 static int btf_modifier_check_member(struct btf_verifier_env *env,
@@ -1054,6 +1150,24 @@ resolved:
 	return 0;
 }
 
+static void btf_modifier_seq_show(const struct btf *btf,
+				  const struct btf_type *t,
+				  u32 type_id, void *data,
+				  u8 bits_offset, struct seq_file *m)
+{
+	t = btf_type_id_resolve(btf, &type_id);
+
+	btf_type_ops(t)->seq_show(btf, t, type_id, data, bits_offset, m);
+}
+
+static void btf_ptr_seq_show(const struct btf *btf, const struct btf_type *t,
+			     u32 type_id, void *data, u8 bits_offset,
+			     struct seq_file *m)
+{
+	/* It is a hashed value */
+	seq_printf(m, "%p", *(void **)data);
+}
+
 static void btf_ref_type_log(struct btf_verifier_env *env,
 			     const struct btf_type *t)
 {
@@ -1065,6 +1179,7 @@ static struct btf_kind_operations modifier_ops = {
 	.resolve = btf_modifier_resolve,
 	.check_member = btf_modifier_check_member,
 	.log_details = btf_ref_type_log,
+	.seq_show = btf_modifier_seq_show,
 };
 
 static struct btf_kind_operations ptr_ops = {
@@ -1072,6 +1187,7 @@ static struct btf_kind_operations ptr_ops = {
 	.resolve = btf_ptr_resolve,
 	.check_member = btf_ptr_check_member,
 	.log_details = btf_ref_type_log,
+	.seq_show = btf_ptr_seq_show,
 };
 
 static struct btf_kind_operations fwd_ops = {
@@ -1079,6 +1195,7 @@ static struct btf_kind_operations fwd_ops = {
 	.resolve = btf_df_resolve,
 	.check_member = btf_df_check_member,
 	.log_details = btf_ref_type_log,
+	.seq_show = btf_df_seq_show,
 };
 
 static int btf_array_check_member(struct btf_verifier_env *env,
@@ -1209,11 +1326,36 @@ static void btf_array_log(struct btf_verifier_env *env,
 			 array->type, array->index_type, array->nelems);
 }
 
+static void btf_array_seq_show(const struct btf *btf, const struct btf_type *t,
+			       u32 type_id, void *data, u8 bits_offset,
+			       struct seq_file *m)
+{
+	const struct btf_array *array = btf_type_array(t);
+	const struct btf_kind_operations *elem_ops;
+	const struct btf_type *elem_type;
+	u32 i, elem_size, elem_type_id;
+
+	elem_type_id = array->type;
+	elem_type = btf_type_id_size(btf, &elem_type_id, &elem_size);
+	elem_ops = btf_type_ops(elem_type);
+	seq_puts(m, "[");
+	for (i = 0; i < array->nelems; i++) {
+		if (i)
+			seq_puts(m, ",");
+
+		elem_ops->seq_show(btf, elem_type, elem_type_id, data,
+				   bits_offset, m);
+		data += elem_size;
+	}
+	seq_puts(m, "]");
+}
+
 static struct btf_kind_operations array_ops = {
 	.check_meta = btf_array_check_meta,
 	.resolve = btf_array_resolve,
 	.check_member = btf_array_check_member,
 	.log_details = btf_array_log,
+	.seq_show = btf_array_seq_show,
 };
 
 static int btf_struct_check_member(struct btf_verifier_env *env,
@@ -1361,11 +1503,39 @@ static void btf_struct_log(struct btf_verifier_env *env,
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
 }
 
+static void btf_struct_seq_show(const struct btf *btf, const struct btf_type *t,
+				u32 type_id, void *data, u8 bits_offset,
+				struct seq_file *m)
+{
+	const char *seq = BTF_INFO_KIND(t->info) == BTF_KIND_UNION ? "|" : ",";
+	const struct btf_member *member;
+	u32 i;
+
+	seq_puts(m, "{");
+	for_each_member(i, t, member) {
+		const struct btf_type *member_type = btf_type_by_id(btf,
+								member->type);
+		u32 member_offset = member->offset;
+		u32 bytes_offset = BITS_ROUNDDOWN_BYTES(member_offset);
+		u8 bits8_offset = BITS_PER_BYTE_MASKED(member_offset);
+		const struct btf_kind_operations *ops;
+
+		if (i)
+			seq_puts(m, seq);
+
+		ops = btf_type_ops(member_type);
+		ops->seq_show(btf, member_type, member->type,
+			      data + bytes_offset, bits8_offset, m);
+	}
+	seq_puts(m, "}");
+}
+
 static struct btf_kind_operations struct_ops = {
 	.check_meta = btf_struct_check_meta,
 	.resolve = btf_struct_resolve,
 	.check_member = btf_struct_check_member,
 	.log_details = btf_struct_log,
+	.seq_show = btf_struct_seq_show,
 };
 
 static int btf_enum_check_member(struct btf_verifier_env *env,
@@ -1441,11 +1611,31 @@ static void btf_enum_log(struct btf_verifier_env *env,
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
 }
 
+static void btf_enum_seq_show(const struct btf *btf, const struct btf_type *t,
+			      u32 type_id, void *data, u8 bits_offset,
+			      struct seq_file *m)
+{
+	const struct btf_enum *enums = btf_type_enum(t);
+	u32 i, nr_enums = btf_type_vlen(t);
+	int v = *(int *)data;
+
+	for (i = 0; i < nr_enums; i++) {
+		if (v == enums[i].val) {
+			seq_printf(m, "%s",
+				   btf_name_by_offset(btf, enums[i].name));
+			return;
+		}
+	}
+
+	seq_printf(m, "%d", v);
+}
+
 static struct btf_kind_operations enum_ops = {
 	.check_meta = btf_enum_check_meta,
 	.resolve = btf_df_resolve,
 	.check_member = btf_enum_check_member,
 	.log_details = btf_enum_log,
+	.seq_show = btf_enum_seq_show,
 };
 
 static const struct btf_kind_operations * const kind_ops[NR_BTF_KINDS] = {
@@ -1781,4 +1971,12 @@ errout:
 	if (btf)
 		btf_free(btf);
 	return ERR_PTR(err);
+}
+
+void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
+		       struct seq_file *m)
+{
+	const struct btf_type *t = btf_type_by_id(btf, type_id);
+
+	btf_type_ops(t)->seq_show(btf, t, type_id, obj, 0, m);
 }

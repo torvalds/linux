@@ -33,5 +33,7 @@ struct btf_type;
 const struct btf_type *btf_type_id_size(const struct btf *btf,
 					u32 *type_id,
 					u32 *ret_size);
+void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
+		       struct seq_file *m);
 
 #endif
