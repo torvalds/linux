@@ -74,7 +74,6 @@ struct msdc_hw {
 	void (*disable_sdio_eirq)(void);
 
 	/* external cd irq operations */
-	void (*enable_cd_eirq)(void);
 	void (*disable_cd_eirq)(void);
 };
 

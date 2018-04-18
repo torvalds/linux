@@ -2453,23 +2453,19 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 	N_MSG(CFG, "CD IRQ Eanable(%d)", enable);
 
 	if (enable) {
-		if (hw->enable_cd_eirq) { /* not set, never enter */
-			hw->enable_cd_eirq();
-		} else {
-			/* card detection circuit relies on the core power so that the core power
-			 * shouldn't be turned off. Here adds a reference count to keep
-			 * the core power alive.
-			 */
-			//msdc_vcore_on(host); //did in msdc_init_hw()
+		/* card detection circuit relies on the core power so that the core power
+		 * shouldn't be turned off. Here adds a reference count to keep
+		 * the core power alive.
+		 */
+		//msdc_vcore_on(host); //did in msdc_init_hw()
 
-			if (hw->config_gpio_pin) /* NULL */
-				hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_UP);
+		if (hw->config_gpio_pin) /* NULL */
+			hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_UP);
 
-			sdr_set_field(MSDC_PS, MSDC_PS_CDDEBOUNCE, DEFAULT_DEBOUNCE);
-			sdr_set_bits(MSDC_PS, MSDC_PS_CDEN);
-			sdr_set_bits(MSDC_INTEN, MSDC_INTEN_CDSC);
-			sdr_set_bits(SDC_CFG, SDC_CFG_INSWKUP);  /* not in document! Fix me */
-		}
+		sdr_set_field(MSDC_PS, MSDC_PS_CDDEBOUNCE, DEFAULT_DEBOUNCE);
+		sdr_set_bits(MSDC_PS, MSDC_PS_CDEN);
+		sdr_set_bits(MSDC_INTEN, MSDC_INTEN_CDSC);
+		sdr_set_bits(SDC_CFG, SDC_CFG_INSWKUP);  /* not in document! Fix me */
 	} else {
 		if (hw->disable_cd_eirq) {
 			hw->disable_cd_eirq();
