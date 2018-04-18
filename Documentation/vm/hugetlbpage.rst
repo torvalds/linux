@@ -87,7 +87,7 @@ memory pressure.
 Once a number of huge pages have been pre-allocated to the kernel huge page
 pool, a user with appropriate privilege can use either the mmap system call
 or shared memory system calls to use the huge pages.  See the discussion of
-Using Huge Pages, below.
+:ref:`Using Huge Pages <using_huge_pages>`, below.
 
 The administrator can allocate persistent huge pages on the kernel boot
 command line by specifying the "hugepages=N" parameter, where 'N' = the
@@ -115,8 +115,9 @@ over all the set of allowed nodes specified by the NUMA memory policy of the
 task that modifies ``nr_hugepages``. The default for the allowed nodes--when the
 task has default memory policy--is all on-line nodes with memory.  Allowed
 nodes with insufficient available, contiguous memory for a huge page will be
-silently skipped when allocating persistent huge pages.  See the discussion
-below of the interaction of task memory policy, cpusets and per node attributes
+silently skipped when allocating persistent huge pages.  See the
+:ref:`discussion below <mem_policy_and_hp_alloc>`
+of the interaction of task memory policy, cpusets and per node attributes
 with the allocation and freeing of persistent huge pages.
 
 The success or failure of huge page allocation depends on the amount of
@@ -158,7 +159,7 @@ normal page pool.
 Caveat: Shrinking the persistent huge page pool via ``nr_hugepages`` such that
 it becomes less than the number of huge pages in use will convert the balance
 of the in-use huge pages to surplus huge pages.  This will occur even if
-the number of surplus pages it would exceed the overcommit value.  As long as
+the number of surplus pages would exceed the overcommit value.  As long as
 this condition holds--that is, until ``nr_hugepages+nr_overcommit_hugepages`` is
 increased sufficiently, or the surplus huge pages go out of use and are freed--
 no more surplus huge pages will be allowed to be allocated.
@@ -187,6 +188,7 @@ Inside each of these directories, the same set of files will exist::
 
 which function as described above for the default huge page-sized case.
 
+.. _mem_policy_and_hp_alloc:
 
 Interaction of Task Memory Policy with Huge Page Allocation/Freeing
 ===================================================================
@@ -282,6 +284,7 @@ Note that the number of overcommit and reserve pages remain global quantities,
 as we don't know until fault time, when the faulting task's mempolicy is
 applied, from which node the huge page allocation will be attempted.
 
+.. _using_huge_pages:
 
 Using Huge Pages
 ================
@@ -295,7 +298,7 @@ type hugetlbfs::
 	min_size=<value>,nr_inodes=<value> none /mnt/huge
 
 This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
-``/mnt/huge``.  Any files created on ``/mnt/huge`` uses huge pages.
+``/mnt/huge``.  Any file created on ``/mnt/huge`` uses huge pages.
 
 The ``uid`` and ``gid`` options sets the owner and group of the root of the
 file system.  By default the ``uid`` and ``gid`` of the current process
@@ -345,8 +348,8 @@ applications are going to use only shmat/shmget system calls or mmap with
 MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
 :ref:`map_hugetlb <map_hugetlb>` below.
 
-Users who wish to use hugetlb memory via shared memory segment should be a
-member of a supplementary group and system admin needs to configure that gid
+Users who wish to use hugetlb memory via shared memory segment should be
+members of a supplementary group and system admin needs to configure that gid
 into ``/proc/sys/vm/hugetlb_shm_group``.  It is possible for same or different
 applications to use any combination of mmaps and shm* calls, though the mount of
 filesystem will be required for using mmap calls without MAP_HUGETLB.
