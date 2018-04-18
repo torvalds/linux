@@ -1247,9 +1247,8 @@ xfs_qm_flush_one(
 	 */
 	if (!xfs_dqflock_nowait(dqp)) {
 		/* buf is pinned in-core by delwri list */
-		DEFINE_SINGLE_BUF_MAP(map, dqp->q_blkno,
-				      mp->m_quotainfo->qi_dqchunklen);
-		bp = _xfs_buf_find(mp->m_ddev_targp, &map, 1, 0, NULL);
+		bp = xfs_buf_incore(mp->m_ddev_targp, dqp->q_blkno,
+				mp->m_quotainfo->qi_dqchunklen, 0);
 		if (!bp) {
 			error = -EINVAL;
 			goto out_unlock;

@@ -549,17 +549,17 @@ xfs_buf_hash_destroy(
 }
 
 /*
- *	Look up, and creates if absent, a lockable buffer for
- *	a given range of an inode.  The buffer is returned
- *	locked.	No I/O is implied by this call.
+ * Look up (and insert if absent), a lockable buffer for a given
+ * range of an inode.  The buffer is returned locked. No I/O is
+ * implied by this call.
  */
-xfs_buf_t *
+static struct xfs_buf *
 _xfs_buf_find(
 	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map,
 	int			nmaps,
 	xfs_buf_flags_t		flags,
-	xfs_buf_t		*new_bp)
+	struct xfs_buf		*new_bp)
 {
 	struct xfs_perag	*pag;
 	xfs_buf_t		*bp;
@@ -647,6 +647,17 @@ found:
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
 	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
 	return bp;
+}
+
+struct xfs_buf *
+xfs_buf_incore(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags)
+{
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	return _xfs_buf_find(target, &map, 1, flags, NULL);
 }
 
 /*

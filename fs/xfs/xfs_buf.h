@@ -218,20 +218,9 @@ typedef struct xfs_buf {
 } xfs_buf_t;
 
 /* Finding and Reading Buffers */
-struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target,
-			      struct xfs_buf_map *map, int nmaps,
-			      xfs_buf_flags_t flags, struct xfs_buf *new_bp);
-
-static inline struct xfs_buf *
-xfs_incore(
-	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
-	xfs_buf_flags_t		flags)
-{
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return _xfs_buf_find(target, &map, 1, flags, NULL);
-}
+struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
+			   xfs_daddr_t blkno, size_t numblks,
+			   xfs_buf_flags_t flags);
 
 struct xfs_buf *_xfs_buf_alloc(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
