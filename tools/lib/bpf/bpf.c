@@ -73,43 +73,76 @@ static inline int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
-			int key_size, int value_size, int max_entries,
-			__u32 map_flags, int node)
+int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 {
-	__u32 name_len = name ? strlen(name) : 0;
+	__u32 name_len = create_attr->name ? strlen(create_attr->name) : 0;
 	union bpf_attr attr;
 
 	memset(&attr, '\0', sizeof(attr));
 
-	attr.map_type = map_type;
-	attr.key_size = key_size;
-	attr.value_size = value_size;
-	attr.max_entries = max_entries;
-	attr.map_flags = map_flags;
-	memcpy(attr.map_name, name, min(name_len, BPF_OBJ_NAME_LEN - 1));
-
-	if (node >= 0) {
-		attr.map_flags |= BPF_F_NUMA_NODE;
-		attr.numa_node = node;
-	}
+	attr.map_type = create_attr->map_type;
+	attr.key_size = create_attr->key_size;
+	attr.value_size = create_attr->value_size;
+	attr.max_entries = create_attr->max_entries;
+	attr.map_flags = create_attr->map_flags;
+	memcpy(attr.map_name, create_attr->name,
+	       min(name_len, BPF_OBJ_NAME_LEN - 1));
+	attr.numa_node = create_attr->numa_node;
+	attr.btf_fd = create_attr->btf_fd;
+	attr.btf_key_id = create_attr->btf_key_id;
+	attr.btf_value_id = create_attr->btf_value_id;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+}
+
+int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
+			int key_size, int value_size, int max_entries,
+			__u32 map_flags, int node)
+{
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.name = name;
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+	if (node >= 0) {
+		map_attr.numa_node = node;
+		map_attr.map_flags |= BPF_F_NUMA_NODE;
+	}
+
+	return bpf_create_map_xattr(&map_attr);
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,
 		   int value_size, int max_entries, __u32 map_flags)
 {
-	return bpf_create_map_node(map_type, NULL, key_size, value_size,
-				   max_entries, map_flags, -1);
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+
+	return bpf_create_map_xattr(&map_attr);
 }
 
 int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
 			int key_size, int value_size, int max_entries,
 			__u32 map_flags)
 {
-	return bpf_create_map_node(map_type, name, key_size, value_size,
-				   max_entries, map_flags, -1);
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.name = name;
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+
+	return bpf_create_map_xattr(&map_attr);
 }
 
 int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
@@ -572,4 +605,29 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 cleanup:
 	close(sock);
 	return ret;
+}
+
+int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
+		 bool do_log)
+{
+	union bpf_attr attr = {};
+	int fd;
+
+	attr.btf = ptr_to_u64(btf);
+	attr.btf_size = btf_size;
+
+retry:
+	if (do_log && log_buf && log_buf_size) {
+		attr.btf_log_level = 1;
+		attr.btf_log_size = log_buf_size;
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+	}
+
+	fd = sys_bpf(BPF_BTF_LOAD, &attr, sizeof(attr));
+	if (fd == -1 && !do_log && log_buf && log_buf_size) {
+		do_log = true;
+		goto retry;
+	}
+
+	return fd;
 }

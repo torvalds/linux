@@ -95,6 +95,7 @@ enum bpf_cmd {
 	BPF_OBJ_GET_INFO_BY_FD,
 	BPF_PROG_QUERY,
 	BPF_RAW_TRACEPOINT_OPEN,
+	BPF_BTF_LOAD,
 };
 
 enum bpf_map_type {
@@ -279,6 +280,9 @@ union bpf_attr {
 					 */
 		char	map_name[BPF_OBJ_NAME_LEN];
 		__u32	map_ifindex;	/* ifindex of netdev to create on */
+		__u32	btf_fd;		/* fd pointing to a BTF type data */
+		__u32	btf_key_id;	/* BTF type_id of the key */
+		__u32	btf_value_id;	/* BTF type_id of the value */
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -363,6 +367,14 @@ union bpf_attr {
 		__u64 name;
 		__u32 prog_fd;
 	} raw_tracepoint;
+
+	struct { /* anonymous struct for BPF_BTF_LOAD */
+		__aligned_u64	btf;
+		__aligned_u64	btf_log_buf;
+		__u32		btf_size;
+		__u32		btf_log_size;
+		__u32		btf_log_level;
+	};
 } __attribute__((aligned(8)));
 
 /* BPF helper function descriptions:
