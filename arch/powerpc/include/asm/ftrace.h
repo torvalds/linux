@@ -82,6 +82,23 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 	return !strcmp(sym + 4, name + 3);
 }
 #endif /* CONFIG_FTRACE_SYSCALLS && PPC64_ELF_ABI_v1 */
+
+#ifdef CONFIG_PPC64
+#include <asm/paca.h>
+
+static inline void this_cpu_disable_ftrace(void)
+{
+	get_paca()->ftrace_enabled = 0;
+}
+
+static inline void this_cpu_enable_ftrace(void)
+{
+	get_paca()->ftrace_enabled = 1;
+}
+#else /* CONFIG_PPC64 */
+static inline void this_cpu_disable_ftrace(void) { }
+static inline void this_cpu_enable_ftrace(void) { }
+#endif /* CONFIG_PPC64 */
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_FTRACE */
