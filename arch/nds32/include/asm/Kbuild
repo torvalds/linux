@@ -49,6 +49,7 @@ generic-y += switch_to.h
 generic-y += timex.h
 generic-y += topology.h
 generic-y += trace_clock.h
+generic-y += xor.h
 generic-y += unaligned.h
 generic-y += user.h
 generic-y += vga.h
