@@ -695,9 +695,9 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       const __le32 *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *req_sa,
 		       const unsigned int sa_len,
-		       const unsigned int assoclen)
+		       const unsigned int assoclen,
+		       struct scatterlist *_dst)
 {
-	struct scatterlist _dst[2];
 	struct crypto4xx_device *dev = ctx->dev;
 	struct dynamic_sa_ctl *sa;
 	struct ce_gd *gd;
@@ -996,9 +996,9 @@ static int crypto4xx_aead_init(struct crypto_aead *tfm)
 
 	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.aead);
 	crypto4xx_ctx_init(amcc_alg, ctx);
-	crypto_aead_set_reqsize(tfm, sizeof(struct aead_request) +
-				max(sizeof(struct crypto4xx_ctx), 32 +
-				crypto_aead_reqsize(ctx->sw_cipher.aead)));
+	crypto_aead_set_reqsize(tfm, max(sizeof(struct aead_request) + 32 +
+				crypto_aead_reqsize(ctx->sw_cipher.aead),
+				sizeof(struct crypto4xx_aead_reqctx)));
 	return 0;
 }
 

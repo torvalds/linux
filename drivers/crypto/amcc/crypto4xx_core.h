@@ -133,6 +133,10 @@ struct crypto4xx_ctx {
 	} sw_cipher;
 };
 
+struct crypto4xx_aead_reqctx {
+	struct scatterlist dst[2];
+};
+
 struct crypto4xx_alg_common {
 	u32 type;
 	union {
@@ -159,7 +163,8 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       const __le32 *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *sa,
 		       const unsigned int sa_len,
-		       const unsigned int assoclen);
+		       const unsigned int assoclen,
+		       struct scatterlist *dst_tmp);
 int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_cfb(struct crypto_skcipher *cipher,

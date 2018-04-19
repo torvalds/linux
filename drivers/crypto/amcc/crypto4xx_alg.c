@@ -87,7 +87,7 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 		req->cryptlen, iv, ivlen, decrypt ? ctx->sa_in : ctx->sa_out,
-		ctx->sa_len, 0);
+		ctx->sa_len, 0, NULL);
 }
 
 int crypto4xx_encrypt_noiv(struct skcipher_request *req)
@@ -223,7 +223,7 @@ int crypto4xx_rfc3686_encrypt(struct skcipher_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  req->cryptlen, iv, AES_IV_SIZE,
-				  ctx->sa_out, ctx->sa_len, 0);
+				  ctx->sa_out, ctx->sa_len, 0, NULL);
 }
 
 int crypto4xx_rfc3686_decrypt(struct skcipher_request *req)
@@ -238,7 +238,7 @@ int crypto4xx_rfc3686_decrypt(struct skcipher_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  req->cryptlen, iv, AES_IV_SIZE,
-				  ctx->sa_out, ctx->sa_len, 0);
+				  ctx->sa_out, ctx->sa_len, 0, NULL);
 }
 
 static int
@@ -449,6 +449,7 @@ int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher, const u8 *key,
 static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 {
 	struct crypto4xx_ctx *ctx  = crypto_tfm_ctx(req->base.tfm);
+	struct crypto4xx_aead_reqctx *rctx = aead_request_ctx(req);
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	__le32 iv[16];
 	u32 tmp_sa[SA_AES128_CCM_LEN + 4];
@@ -474,7 +475,7 @@ static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  len, iv, sizeof(iv),
-				  sa, ctx->sa_len, req->assoclen);
+				  sa, ctx->sa_len, req->assoclen, rctx->dst);
 }
 
 int crypto4xx_encrypt_aes_ccm(struct aead_request *req)
@@ -622,7 +623,7 @@ static inline int crypto4xx_crypt_aes_gcm(struct aead_request *req,
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  len, iv, sizeof(iv),
 				  decrypt ? ctx->sa_in : ctx->sa_out,
-				  ctx->sa_len, req->assoclen);
+				  ctx->sa_len, req->assoclen, rctx->dst);
 }
 
 int crypto4xx_encrypt_aes_gcm(struct aead_request *req)
@@ -707,7 +708,7 @@ int crypto4xx_hash_update(struct ahash_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, &dst,
 				  req->nbytes, NULL, 0, ctx->sa_in,
-				  ctx->sa_len, 0);
+				  ctx->sa_len, 0, NULL);
 }
 
 int crypto4xx_hash_final(struct ahash_request *req)
@@ -726,7 +727,7 @@ int crypto4xx_hash_digest(struct ahash_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, &dst,
 				  req->nbytes, NULL, 0, ctx->sa_in,
-				  ctx->sa_len, 0);
+				  ctx->sa_len, 0, NULL);
 }
 
 /**
