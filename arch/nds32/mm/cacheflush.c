@@ -273,6 +273,24 @@ void flush_kernel_dcache_page(struct page *page)
 	local_irq_restore(flags);
 }
 
+void flush_kernel_vmap_range(void *addr, int size)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	cpu_dcache_wb_range((unsigned long)addr, (unsigned long)addr +  size);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(flush_kernel_vmap_range);
+
+void invalidate_kernel_vmap_range(void *addr, int size)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	cpu_dcache_inval_range((unsigned long)addr, (unsigned long)addr + size);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(invalidate_kernel_vmap_range);
+
 void flush_icache_range(unsigned long start, unsigned long end)
 {
 	unsigned long line_size, flags;
