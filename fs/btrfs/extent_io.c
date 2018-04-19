@@ -4202,8 +4202,7 @@ int extent_invalidatepage(struct extent_io_tree *tree,
  * are locked or under IO and drops the related state bits if it is safe
  * to drop the page.
  */
-static int try_release_extent_state(struct extent_map_tree *map,
-				    struct extent_io_tree *tree,
+static int try_release_extent_state(struct extent_io_tree *tree,
 				    struct page *page, gfp_t mask)
 {
 	u64 start = page_offset(page);
@@ -4278,7 +4277,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			free_extent_map(em);
 		}
 	}
-	return try_release_extent_state(map, tree, page, mask);
+	return try_release_extent_state(tree, page, mask);
 }
 
 /*
