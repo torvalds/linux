@@ -567,6 +567,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		switch (wValue & 0xff00) {
 		case USB_DT_DEVICE << 8:
 			switch (hcd->speed) {
+			case HCD_USB32:
 			case HCD_USB31:
 				bufp = usb31_rh_dev_descriptor;
 				break;
@@ -591,6 +592,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			break;
 		case USB_DT_CONFIG << 8:
 			switch (hcd->speed) {
+			case HCD_USB32:
 			case HCD_USB31:
 			case HCD_USB3:
 				bufp = ss_rh_config_descriptor;
@@ -2804,6 +2806,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	case HCD_USB3:
 		rhdev->speed = USB_SPEED_SUPER;
 		break;
+	case HCD_USB32:
 	case HCD_USB31:
 		rhdev->speed = USB_SPEED_SUPER_PLUS;
 		break;
