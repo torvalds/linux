@@ -408,6 +408,17 @@ fail:
 	return count;
 }
 
+/**
+ * DOC: pp_table
+ *
+ * The amdgpu driver provides a sysfs API for uploading new powerplay
+ * tables.  The file pp_table is used for this.  Reading the file
+ * will dump the current power play table.  Writing to the file
+ * will attempt to upload a new powerplay table and re-initialize
+ * powerplay using that new table.
+ *
+ */
+
 static ssize_t amdgpu_get_pp_table(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
