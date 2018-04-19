@@ -31,7 +31,7 @@
 
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-ocores.h>
-#include <linux/i2c-xiic.h>
+#include <linux/platform_data/i2c-xiic.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/xilinx_spi.h>
