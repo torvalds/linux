@@ -549,6 +549,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		} else {
 			wcn36xx_smd_set_bsskey(wcn,
 				vif_priv->encrypt_type,
+				vif_priv->bss_index,
 				key_conf->keyidx,
 				key_conf->keylen,
 				key);
@@ -566,10 +567,13 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	case DISABLE_KEY:
 		if (!(IEEE80211_KEY_FLAG_PAIRWISE & key_conf->flags)) {
+			if (vif_priv->bss_index != WCN36XX_HAL_BSS_INVALID_IDX)
+				wcn36xx_smd_remove_bsskey(wcn,
+					vif_priv->encrypt_type,
+					vif_priv->bss_index,
+					key_conf->keyidx);
+
 			vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;
-			wcn36xx_smd_remove_bsskey(wcn,
-				vif_priv->encrypt_type,
-				key_conf->keyidx);
 		} else {
 			sta_priv->is_data_encrypted = false;
 			/* do not remove key if disassociated */
