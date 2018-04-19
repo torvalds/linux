@@ -2602,31 +2602,30 @@ static const iw_handler ks_wlan_handler[] = {
 
 /* private_handler */
 static const iw_handler ks_wlan_private_handler[] = {
-	(iw_handler)NULL,	/*  0 */
-	(iw_handler)NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
-	(iw_handler)NULL,	/*  2 */
-	(iw_handler)ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
+	(iw_handler)NULL,			/* 0 */
+	(iw_handler)NULL,			/* 1, KS_WLAN_GET_DRIVER_VERSION */
+	(iw_handler)NULL,			/* 2 */
+	(iw_handler)ks_wlan_get_firmware_version,/* 3 KS_WLAN_GET_FIRM_VERSION */
 #ifdef WPS
-	(iw_handler)ks_wlan_set_wps_enable,	/*  4 KS_WLAN_SET_WPS_ENABLE  */
-	(iw_handler)ks_wlan_get_wps_enable,	/*  5 KS_WLAN_GET_WPS_ENABLE  */
-	(iw_handler)ks_wlan_set_wps_probe_req,	/*  6 KS_WLAN_SET_WPS_PROBE_REQ */
+	(iw_handler)ks_wlan_set_wps_enable,	/* 4 KS_WLAN_SET_WPS_ENABLE */
+	(iw_handler)ks_wlan_get_wps_enable,	/* 5 KS_WLAN_GET_WPS_ENABLE */
+	(iw_handler)ks_wlan_set_wps_probe_req,	/* 6 KS_WLAN_SET_WPS_PROBE_REQ */
 #else
-	(iw_handler)NULL,	/*  4 */
-	(iw_handler)NULL,	/*  5 */
-	(iw_handler)NULL,	/*  6 */
+	(iw_handler)NULL,			/* 4 */
+	(iw_handler)NULL,			/* 5 */
+	(iw_handler)NULL,			/* 6 */
 #endif /* WPS */
-
-	(iw_handler)ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
-	(iw_handler)ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
-	(iw_handler)ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
+	(iw_handler)ks_wlan_get_eeprom_cksum,	/* 7 KS_WLAN_GET_CONNECT */
+	(iw_handler)ks_wlan_set_preamble,	/* 8 KS_WLAN_SET_PREAMBLE */
+	(iw_handler)ks_wlan_get_preamble,	/* 9 KS_WLAN_GET_PREAMBLE */
 	(iw_handler)ks_wlan_set_power_mgmt,	/* 10 KS_WLAN_SET_POWER_SAVE */
 	(iw_handler)ks_wlan_get_power_mgmt,	/* 11 KS_WLAN_GET_POWER_SAVE */
 	(iw_handler)ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
 	(iw_handler)ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
 	(iw_handler)ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
 	(iw_handler)ks_wlan_get_rx_gain,	/* 15 KS_WLAN_GET_RX_GAIN */
-	(iw_handler)ks_wlan_hostt,	/* 16 KS_WLAN_HOSTT */
-	(iw_handler)NULL,	/* 17 */
+	(iw_handler)ks_wlan_hostt,		/* 16 KS_WLAN_HOSTT */
+	(iw_handler)NULL,			/* 17 */
 	(iw_handler)ks_wlan_set_beacon_lost,	/* 18 KS_WLAN_SET_BECAN_LOST */
 	(iw_handler)ks_wlan_get_beacon_lost,	/* 19 KS_WLAN_GET_BECAN_LOST */
 	(iw_handler)ks_wlan_set_tx_gain,	/* 20 KS_WLAN_SET_TX_GAIN */
@@ -2635,12 +2634,12 @@ static const iw_handler ks_wlan_private_handler[] = {
 	(iw_handler)ks_wlan_get_phy_type,	/* 23 KS_WLAN_GET_PHY_TYPE */
 	(iw_handler)ks_wlan_set_cts_mode,	/* 24 KS_WLAN_SET_CTS_MODE */
 	(iw_handler)ks_wlan_get_cts_mode,	/* 25 KS_WLAN_GET_CTS_MODE */
-	(iw_handler)NULL,	/* 26 */
-	(iw_handler)NULL,	/* 27 */
+	(iw_handler)NULL,			/* 26 */
+	(iw_handler)NULL,			/* 27 */
 	(iw_handler)ks_wlan_set_sleep_mode,	/* 28 KS_WLAN_SET_SLEEP_MODE */
 	(iw_handler)ks_wlan_get_sleep_mode,	/* 29 KS_WLAN_GET_SLEEP_MODE */
-	(iw_handler)NULL,	/* 30 */
-	(iw_handler)NULL,	/* 31 */
+	(iw_handler)NULL,			/* 30 */
+	(iw_handler)NULL,			/* 31 */
 };
 
 static const struct iw_handler_def ks_wlan_handler_def = {
