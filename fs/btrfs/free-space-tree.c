@@ -157,6 +157,26 @@ static u8 *alloc_bitmap(u32 bitmap_size)
 	return ret;
 }
 
+static void le_bitmap_set(u8 *map, unsigned int start, int len)
+{
+	u8 *p = map + BIT_BYTE(start);
+	const unsigned int size = start + len;
+	int bits_to_set = BITS_PER_BYTE - (start % BITS_PER_BYTE);
+	u8 mask_to_set = BITMAP_FIRST_BYTE_MASK(start);
+
+	while (len - bits_to_set >= 0) {
+		*p |= mask_to_set;
+		len -= bits_to_set;
+		bits_to_set = BITS_PER_BYTE;
+		mask_to_set = ~0;
+		p++;
+	}
+	if (len) {
+		mask_to_set &= BITMAP_LAST_BYTE_MASK(size);
+		*p |= mask_to_set;
+	}
+}
+
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 				  struct btrfs_fs_info *fs_info,
 				  struct btrfs_block_group_cache *block_group,

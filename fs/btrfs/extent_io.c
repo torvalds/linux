@@ -5620,46 +5620,6 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 	}
 }
 
-void le_bitmap_set(u8 *map, unsigned int start, int len)
-{
-	u8 *p = map + BIT_BYTE(start);
-	const unsigned int size = start + len;
-	int bits_to_set = BITS_PER_BYTE - (start % BITS_PER_BYTE);
-	u8 mask_to_set = BITMAP_FIRST_BYTE_MASK(start);
-
-	while (len - bits_to_set >= 0) {
-		*p |= mask_to_set;
-		len -= bits_to_set;
-		bits_to_set = BITS_PER_BYTE;
-		mask_to_set = ~0;
-		p++;
-	}
-	if (len) {
-		mask_to_set &= BITMAP_LAST_BYTE_MASK(size);
-		*p |= mask_to_set;
-	}
-}
-
-void le_bitmap_clear(u8 *map, unsigned int start, int len)
-{
-	u8 *p = map + BIT_BYTE(start);
-	const unsigned int size = start + len;
-	int bits_to_clear = BITS_PER_BYTE - (start % BITS_PER_BYTE);
-	u8 mask_to_clear = BITMAP_FIRST_BYTE_MASK(start);
-
-	while (len - bits_to_clear >= 0) {
-		*p &= ~mask_to_clear;
-		len -= bits_to_clear;
-		bits_to_clear = BITS_PER_BYTE;
-		mask_to_clear = ~0;
-		p++;
-	}
-	if (len) {
-		mask_to_clear &= BITMAP_LAST_BYTE_MASK(size);
-		*p &= ~mask_to_clear;
-	}
-}
-
 /*
  * eb_bitmap_offset() - calculate the page and offset of the byte containing the
  * given bit number
