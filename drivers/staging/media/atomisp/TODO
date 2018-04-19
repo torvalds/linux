@@ -50,6 +50,11 @@
 
 11. Switch from videobuf1 to videobuf2. Videobuf1 is being removed!
 
+12. Convert all uses of the old GPIO API from <linux/gpio.h> to the
+    GPIO descriptor API in <linux/gpio/consumer.h> and look up GPIO
+    lines from device properties. See other platform drivers for
+    examples.
+
 Limitations:
 
 1. To test the patches, you also need the ISP firmware
