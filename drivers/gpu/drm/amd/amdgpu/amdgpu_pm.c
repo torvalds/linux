@@ -780,6 +780,26 @@ fail:
 	return count;
 }
 
+/**
+ * DOC: pp_power_profile_mode
+ *
+ * The amdgpu driver provides a sysfs API for adjusting the heuristics
+ * related to switching between power levels in a power state.  The file
+ * pp_power_profile_mode is used for this.
+ *
+ * Reading this file outputs a list of all of the predefined power profiles
+ * and the relevant heuristics settings for that profile.
+ *
+ * To select a profile or create a custom profile, first select manual using
+ * power_dpm_force_performance_level.  Writing the number of a predefined
+ * profile to pp_power_profile_mode will enable those heuristics.  To
+ * create a custom set of heuristics, write a string of numbers to the file
+ * starting with the number of the custom profile along with a setting
+ * for each heuristic parameter.  Due to differences across asic families
+ * the heuristic parameters vary from family to family.
+ *
+ */
+
 static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
