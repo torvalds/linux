@@ -2607,21 +2607,19 @@ out:
 static int ip6_convert_metrics(struct net *net, struct fib6_info *rt,
 			       struct fib6_config *cfg)
 {
-	int err = 0;
+	struct dst_metrics *p;
 
-	if (cfg->fc_mx) {
-		rt->fib6_metrics = kzalloc(sizeof(*rt->fib6_metrics),
-					   GFP_KERNEL);
-		if (unlikely(!rt->fib6_metrics))
-			return -ENOMEM;
+	if (!cfg->fc_mx)
+		return 0;
 
-		refcount_set(&rt->fib6_metrics->refcnt, 1);
+	p = kzalloc(sizeof(*rt->fib6_metrics), GFP_KERNEL);
+	if (unlikely(!p))
+		return -ENOMEM;
 
-		err = ip_metrics_convert(net, cfg->fc_mx, cfg->fc_mx_len,
-					 rt->fib6_metrics->metrics);
-	}
+	refcount_set(&p->refcnt, 1);
+	rt->fib6_metrics = p;
 
-	return err;
+	return ip_metrics_convert(net, cfg->fc_mx, cfg->fc_mx_len, p->metrics);
 }
 
 static struct rt6_info *ip6_nh_lookup_table(struct net *net,
