@@ -42,6 +42,15 @@ static DEFINE_MUTEX(knav_dev_lock);
 #define KNAV_QUEUE_PUSH_REG_INDEX	4
 #define KNAV_QUEUE_POP_REG_INDEX	5
 
+/* Queue manager register indices in DTS for QMSS in K2G NAVSS.
+ * There are no status and vbusm push registers on this version
+ * of QMSS. Push registers are same as pop, So all indices above 1
+ * are to be re-defined
+ */
+#define KNAV_L_QUEUE_CONFIG_REG_INDEX	1
+#define KNAV_L_QUEUE_REGION_REG_INDEX	2
+#define KNAV_L_QUEUE_PUSH_REG_INDEX	3
+
 /* PDSP register indices in DTS */
 #define KNAV_QUEUE_PDSP_IRAM_REG_INDEX	0
 #define KNAV_QUEUE_PDSP_REGS_REG_INDEX	1
@@ -64,6 +73,13 @@ static DEFINE_MUTEX(knav_dev_lock);
  * until a firmware file is found.
  */
 const char *knav_acc_firmwares[] = {"ks2_qmss_pdsp_acc48.bin"};
+
+static bool device_ready;
+bool knav_qmss_device_ready(void)
+{
+	return device_ready;
+}
+EXPORT_SYMBOL_GPL(knav_qmss_device_ready);
 
 /**
  * knav_queue_notify: qmss queue notfier call
@@ -1169,8 +1185,12 @@ static int knav_queue_setup_link_ram(struct knav_device *kdev)
 		dev_dbg(kdev->dev, "linkram0: dma:%pad, virt:%p, size:%x\n",
 			&block->dma, block->virt, block->size);
 		writel_relaxed((u32)block->dma, &qmgr->reg_config->link_ram_base0);
-		writel_relaxed(block->size, &qmgr->reg_config->link_ram_size0);
-
+		if (kdev->version == QMSS_66AK2G)
+			writel_relaxed(block->size,
+				       &qmgr->reg_config->link_ram_size0);
+		else
+			writel_relaxed(block->size - 1,
+				       &qmgr->reg_config->link_ram_size0);
 		block++;
 		if (!block->size)
 			continue;
@@ -1387,41 +1407,63 @@ static int knav_queue_init_qmgrs(struct knav_device *kdev,
 		qmgr->reg_peek =
 			knav_queue_map_reg(kdev, child,
 					   KNAV_QUEUE_PEEK_REG_INDEX);
-		qmgr->reg_status =
-			knav_queue_map_reg(kdev, child,
-					   KNAV_QUEUE_STATUS_REG_INDEX);
+
+		if (kdev->version == QMSS) {
+			qmgr->reg_status =
+				knav_queue_map_reg(kdev, child,
+						   KNAV_QUEUE_STATUS_REG_INDEX);
+		}
+
 		qmgr->reg_config =
 			knav_queue_map_reg(kdev, child,
+					   (kdev->version == QMSS_66AK2G) ?
+					   KNAV_L_QUEUE_CONFIG_REG_INDEX :
 					   KNAV_QUEUE_CONFIG_REG_INDEX);
 		qmgr->reg_region =
 			knav_queue_map_reg(kdev, child,
+					   (kdev->version == QMSS_66AK2G) ?
+					   KNAV_L_QUEUE_REGION_REG_INDEX :
 					   KNAV_QUEUE_REGION_REG_INDEX);
+
 		qmgr->reg_push =
 			knav_queue_map_reg(kdev, child,
-					   KNAV_QUEUE_PUSH_REG_INDEX);
-		qmgr->reg_pop =
-			knav_queue_map_reg(kdev, child,
-					   KNAV_QUEUE_POP_REG_INDEX);
+					   (kdev->version == QMSS_66AK2G) ?
+					    KNAV_L_QUEUE_PUSH_REG_INDEX :
+					    KNAV_QUEUE_PUSH_REG_INDEX);
 
-		if (IS_ERR(qmgr->reg_peek) || IS_ERR(qmgr->reg_status) ||
+		if (kdev->version == QMSS) {
+			qmgr->reg_pop =
+				knav_queue_map_reg(kdev, child,
+						   KNAV_QUEUE_POP_REG_INDEX);
+		}
+
+		if (IS_ERR(qmgr->reg_peek) ||
+		    ((kdev->version == QMSS) &&
+		    (IS_ERR(qmgr->reg_status) || IS_ERR(qmgr->reg_pop))) ||
 		    IS_ERR(qmgr->reg_config) || IS_ERR(qmgr->reg_region) ||
-		    IS_ERR(qmgr->reg_push) || IS_ERR(qmgr->reg_pop)) {
+		    IS_ERR(qmgr->reg_push)) {
 			dev_err(dev, "failed to map qmgr regs\n");
+			if (kdev->version == QMSS) {
+				if (!IS_ERR(qmgr->reg_status))
+					devm_iounmap(dev, qmgr->reg_status);
+				if (!IS_ERR(qmgr->reg_pop))
+					devm_iounmap(dev, qmgr->reg_pop);
+			}
 			if (!IS_ERR(qmgr->reg_peek))
 				devm_iounmap(dev, qmgr->reg_peek);
-			if (!IS_ERR(qmgr->reg_status))
-				devm_iounmap(dev, qmgr->reg_status);
 			if (!IS_ERR(qmgr->reg_config))
 				devm_iounmap(dev, qmgr->reg_config);
 			if (!IS_ERR(qmgr->reg_region))
 				devm_iounmap(dev, qmgr->reg_region);
 			if (!IS_ERR(qmgr->reg_push))
 				devm_iounmap(dev, qmgr->reg_push);
-			if (!IS_ERR(qmgr->reg_pop))
-				devm_iounmap(dev, qmgr->reg_pop);
 			devm_kfree(dev, qmgr);
 			continue;
 		}
+
+		/* Use same push register for pop as well */
+		if (kdev->version == QMSS_66AK2G)
+			qmgr->reg_pop = qmgr->reg_push;
 
 		list_add_tail(&qmgr->list, &kdev->qmgrs);
 		dev_info(dev, "added qmgr start queue %d, num of queues %d, reg_peek %p, reg_status %p, reg_config %p, reg_region %p, reg_push %p, reg_pop %p\n",
@@ -1681,10 +1723,24 @@ static int knav_queue_init_queues(struct knav_device *kdev)
 	return 0;
 }
 
+/* Match table for of_platform binding */
+static const struct of_device_id keystone_qmss_of_match[] = {
+	{
+		.compatible = "ti,keystone-navigator-qmss",
+	},
+	{
+		.compatible = "ti,66ak2g-navss-qm",
+		.data	= (void *)QMSS_66AK2G,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, keystone_qmss_of_match);
+
 static int knav_queue_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
+	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
@@ -1699,6 +1755,10 @@ static int knav_queue_probe(struct platform_device *pdev)
 		dev_err(dev, "memory allocation failed\n");
 		return -ENOMEM;
 	}
+
+	match = of_match_device(of_match_ptr(keystone_qmss_of_match), dev);
+	if (match && match->data)
+		kdev->version = QMSS_66AK2G;
 
 	platform_set_drvdata(pdev, kdev);
 	kdev->dev = dev;
@@ -1796,6 +1856,7 @@ static int knav_queue_probe(struct platform_device *pdev)
 
 	debugfs_create_file("qmss", S_IFREG | S_IRUGO, NULL, NULL,
 			    &knav_queue_debug_ops);
+	device_ready = true;
 	return 0;
 
 err:
@@ -1814,13 +1875,6 @@ static int knav_queue_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
-
-/* Match table for of_platform binding */
-static struct of_device_id keystone_qmss_of_match[] = {
-	{ .compatible = "ti,keystone-navigator-qmss", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, keystone_qmss_of_match);
 
 static struct platform_driver keystone_qmss_driver = {
 	.probe		= knav_queue_probe,
