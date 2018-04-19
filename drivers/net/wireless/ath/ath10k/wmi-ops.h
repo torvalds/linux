@@ -25,6 +25,7 @@ struct sk_buff;
 struct wmi_ops {
 	void (*rx)(struct ath10k *ar, struct sk_buff *skb);
 	void (*map_svc)(const __le32 *in, unsigned long *out, size_t len);
+	void (*map_svc_ext)(const __le32 *in, unsigned long *out, size_t len);
 
 	int (*pull_scan)(struct ath10k *ar, struct sk_buff *skb,
 			 struct wmi_scan_ev_arg *arg);
@@ -54,6 +55,9 @@ struct wmi_ops {
 			      struct wmi_wow_ev_arg *arg);
 	int (*pull_echo_ev)(struct ath10k *ar, struct sk_buff *skb,
 			    struct wmi_echo_ev_arg *arg);
+	int (*pull_svc_avail)(struct ath10k *ar, struct sk_buff *skb,
+			      struct wmi_svc_avail_ev_arg *arg);
+
 	enum wmi_txbf_conf (*get_txbf_conf_scheme)(struct ath10k *ar);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
@@ -230,6 +234,17 @@ ath10k_wmi_map_svc(struct ath10k *ar, const __le32 *in, unsigned long *out,
 }
 
 static inline int
+ath10k_wmi_map_svc_ext(struct ath10k *ar, const __le32 *in, unsigned long *out,
+		       size_t len)
+{
+	if (!ar->wmi.ops->map_svc_ext)
+		return -EOPNOTSUPP;
+
+	ar->wmi.ops->map_svc_ext(in, out, len);
+	return 0;
+}
+
+static inline int
 ath10k_wmi_pull_scan(struct ath10k *ar, struct sk_buff *skb,
 		     struct wmi_scan_ev_arg *arg)
 {
@@ -327,6 +342,15 @@ ath10k_wmi_pull_rdy(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_rdy(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_svc_avail(struct ath10k *ar, struct sk_buff *skb,
+			  struct wmi_svc_avail_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_svc_avail)
+		return -EOPNOTSUPP;
+	return ar->wmi.ops->pull_svc_avail(ar, skb, arg);
 }
 
 static inline int

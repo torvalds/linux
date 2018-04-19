@@ -594,6 +594,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
+	case WMI_TLV_SERVICE_AVAILABLE_EVENTID:
+		ath10k_wmi_event_service_available(ar, skb);
+		break;
 	case WMI_TLV_OFFLOAD_BCN_TX_STATUS_EVENTID:
 		ath10k_wmi_tlv_event_bcn_tx_status(ar, skb);
 		break;
@@ -1114,6 +1117,39 @@ static int ath10k_wmi_tlv_op_pull_rdy_ev(struct ath10k *ar,
 	arg->mac_addr = ev->mac_addr.addr;
 
 	kfree(tb);
+	return 0;
+}
+
+static int ath10k_wmi_tlv_svc_avail_parse(struct ath10k *ar, u16 tag, u16 len,
+					  const void *ptr, void *data)
+{
+	struct wmi_svc_avail_ev_arg *arg = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_SERVICE_AVAILABLE_EVENT:
+		arg->service_map_ext_len = *(__le32 *)ptr;
+		arg->service_map_ext = ptr + sizeof(__le32);
+		return 0;
+	default:
+		break;
+	}
+	return -EPROTO;
+}
+
+static int ath10k_wmi_tlv_op_pull_svc_avail(struct ath10k *ar,
+					    struct sk_buff *skb,
+					    struct wmi_svc_avail_ev_arg *arg)
+{
+	int ret;
+
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_svc_avail_parse, arg);
+
+	if (ret) {
+		ath10k_warn(ar, "failed to parse svc_avail tlv: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -3740,6 +3776,7 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 static const struct wmi_ops wmi_tlv_ops = {
 	.rx = ath10k_wmi_tlv_op_rx,
 	.map_svc = wmi_tlv_svc_map,
+	.map_svc_ext = wmi_tlv_svc_map_ext,
 
 	.pull_scan = ath10k_wmi_tlv_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_tlv_op_pull_mgmt_rx_ev,
@@ -3751,6 +3788,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_tlv_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_tlv_op_pull_rdy_ev,
+	.pull_svc_avail = ath10k_wmi_tlv_op_pull_svc_avail,
 	.pull_fw_stats = ath10k_wmi_tlv_op_pull_fw_stats,
 	.pull_roam_ev = ath10k_wmi_tlv_op_pull_roam_ev,
 	.pull_wow_event = ath10k_wmi_tlv_op_pull_wow_ev,

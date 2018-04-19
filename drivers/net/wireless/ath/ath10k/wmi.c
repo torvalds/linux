@@ -5059,7 +5059,6 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 		return;
 	}
 
-	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 	ath10k_wmi_map_svc(ar, arg.service_map, ar->wmi.svc_map,
 			   arg.service_map_len);
 
@@ -5269,6 +5268,21 @@ int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+void ath10k_wmi_event_service_available(struct ath10k *ar, struct sk_buff *skb)
+{
+	int ret;
+	struct wmi_svc_avail_ev_arg arg = {};
+
+	ret = ath10k_wmi_pull_svc_avail(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse servive available event: %d\n",
+			    ret);
+	}
+
+	ath10k_wmi_map_svc_ext(ar, arg.service_map_ext, ar->wmi.svc_map,
+			       __le32_to_cpu(arg.service_map_ext_len));
+}
+
 static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
 {
 	const struct wmi_pdev_temperature_event *ev;
@@ -5464,6 +5478,9 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
+		break;
+	case WMI_SERVICE_AVAILABLE_EVENTID:
+		ath10k_wmi_event_service_available(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -5879,6 +5896,8 @@ int ath10k_wmi_connect(struct ath10k *ar)
 	int status;
 	struct ath10k_htc_svc_conn_req conn_req;
 	struct ath10k_htc_svc_conn_resp conn_resp;
+
+	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 
 	memset(&conn_req, 0, sizeof(conn_req));
 	memset(&conn_resp, 0, sizeof(conn_resp));
