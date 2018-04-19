@@ -786,6 +786,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
+	struct device *dev = &pdev->dev;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
 	struct resource *res;
@@ -794,42 +795,42 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "must be instantiated using device tree\n");
+	if (!dev->of_node) {
+		dev_err(dev, "must be instantiated using device tree\n");
 		return -ENODEV;
 	}
 
-	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
+	nvec = devm_kzalloc(dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (!nvec)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, nvec);
-	nvec->dev = &pdev->dev;
+	nvec->dev = dev;
 
 	err = nvec_i2c_parse_dt_pdata(nvec);
 	if (err < 0)
 		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	nvec->irq = platform_get_irq(pdev, 0);
 	if (nvec->irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+		dev_err(dev, "no irq resource?\n");
 		return -ENODEV;
 	}
 
-	i2c_clk = devm_clk_get(&pdev->dev, "div-clk");
+	i2c_clk = devm_clk_get(dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
-		dev_err(nvec->dev, "failed to get controller clock\n");
+		dev_err(dev, "failed to get controller clock\n");
 		return -ENODEV;
 	}
 
-	nvec->rst = devm_reset_control_get_exclusive(&pdev->dev, "i2c");
+	nvec->rst = devm_reset_control_get_exclusive(dev, "i2c");
 	if (IS_ERR(nvec->rst)) {
-		dev_err(nvec->dev, "failed to get controller reset\n");
+		dev_err(dev, "failed to get controller reset\n");
 		return PTR_ERR(nvec->rst);
 	}
 
@@ -849,17 +850,17 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 
-	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
+	err = devm_gpio_request_one(dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
 				    "nvec gpio");
 	if (err < 0) {
-		dev_err(nvec->dev, "couldn't request gpio\n");
+		dev_err(dev, "couldn't request gpio\n");
 		return -ENODEV;
 	}
 
-	err = devm_request_irq(&pdev->dev, nvec->irq, nvec_interrupt, 0,
+	err = devm_request_irq(dev, nvec->irq, nvec_interrupt, 0,
 			       "nvec", nvec);
 	if (err) {
-		dev_err(nvec->dev, "couldn't request irq\n");
+		dev_err(dev, "couldn't request irq\n");
 		return -ENODEV;
 	}
 	disable_irq(nvec->irq);
@@ -879,7 +880,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	err = nvec_write_sync(nvec, get_firmware_version, 2, &msg);
 
 	if (!err) {
-		dev_warn(nvec->dev,
+		dev_warn(dev,
 			 "ec firmware version %02x.%02x.%02x / %02x\n",
 			 msg->data[4], msg->data[5],
 			 msg->data[6], msg->data[7]);
@@ -887,10 +888,10 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		nvec_msg_free(nvec, msg);
 	}
 
-	ret = mfd_add_devices(nvec->dev, 0, nvec_devices,
+	ret = mfd_add_devices(dev, 0, nvec_devices,
 			      ARRAY_SIZE(nvec_devices), NULL, 0, NULL);
 	if (ret)
-		dev_err(nvec->dev, "error adding subdevices\n");
+		dev_err(dev, "error adding subdevices\n");
 
 	/* unmute speakers? */
 	nvec_write_async(nvec, unmute_speakers, 4);
