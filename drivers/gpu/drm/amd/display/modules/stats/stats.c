@@ -177,44 +177,51 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	logger = dc->ctx->logger;
 	time = core_stats->time;
 
-	//LogEntry* pLog = GetLog()->Open(LogMajor_ISR, LogMinor_ISR_FreeSyncSW);
+	dm_logger_write(logger, LOG_DISPLAYSTATS, "==Display Caps==");
+	dm_logger_write(logger, LOG_DISPLAYSTATS, " ");
 
-	//if (!pLog->IsDummyEntry())
-	{
-		dm_logger_write(logger, LOG_PROFILING, "==Display Caps==\n");
-		dm_logger_write(logger, LOG_PROFILING, "\n");
-		dm_logger_write(logger, LOG_PROFILING, "\n");
+	dm_logger_write(logger, LOG_DISPLAYSTATS, "==Display Stats==");
+	dm_logger_write(logger, LOG_DISPLAYSTATS, " ");
 
-		dm_logger_write(logger, LOG_PROFILING, "==Stats==\n");
-		dm_logger_write(logger, LOG_PROFILING,
-			"render avgRender minWindow midPoint maxWindow vsyncToFlip flipToVsync #vsyncBetweenFlip #frame insertDuration vTotalMin vTotalMax eventTrigs vSyncTime1 vSyncTime2 vSyncTime3 vSyncTime4 vSyncTime5 flags\n");
+	dm_logger_write(logger, LOG_DISPLAYSTATS,
+		"%10s %10s %10s %10s %10s"
+			" %11s %11s %17s %10s %14s"
+			" %10s %10s %10s %10s %10s"
+			" %10s %10s %10s %10s",
+		"render", "avgRender",
+		"minWindow", "midPoint", "maxWindow",
+		"vsyncToFlip", "flipToVsync", "vsyncsBetweenFlip",
+		"numFrame", "insertDuration",
+		"vTotalMin", "vTotalMax", "eventTrigs",
+		"vSyncTime1", "vSyncTime2", "vSyncTime3",
+		"vSyncTime4", "vSyncTime5", "flags");
 
-		for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
-			dm_logger_write(logger, LOG_PROFILING,
-					"%u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u",
-					time[i].render_time_in_us,
-					time[i].avg_render_time_in_us_last_ten,
-					time[i].min_window,
-					time[i].lfc_mid_point_in_us,
-					time[i].max_window,
-					time[i].vsync_to_flip_time_in_us,
-					time[i].flip_to_vsync_time_in_us,
-					time[i].num_vsync_between_flips,
-					time[i].num_frames_inserted,
-					time[i].inserted_duration_in_us,
-					time[i].v_total_min,
-					time[i].v_total_max,
-					time[i].event_triggers,
-					time[i].v_sync_time_in_us[0],
-					time[i].v_sync_time_in_us[1],
-					time[i].v_sync_time_in_us[2],
-					time[i].v_sync_time_in_us[3],
-					time[i].v_sync_time_in_us[4],
-					time[i].flags);
-		}
+	for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
+		dm_logger_write(logger, LOG_DISPLAYSTATS,
+			"%10u %10u %10u %10u %10u"
+				" %11u %11u %17u %10u %14u"
+				" %10u %10u %10u %10u %10u"
+				" %10u %10u %10u %10u",
+			time[i].render_time_in_us,
+			time[i].avg_render_time_in_us_last_ten,
+			time[i].min_window,
+			time[i].lfc_mid_point_in_us,
+			time[i].max_window,
+			time[i].vsync_to_flip_time_in_us,
+			time[i].flip_to_vsync_time_in_us,
+			time[i].num_vsync_between_flips,
+			time[i].num_frames_inserted,
+			time[i].inserted_duration_in_us,
+			time[i].v_total_min,
+			time[i].v_total_max,
+			time[i].event_triggers,
+			time[i].v_sync_time_in_us[0],
+			time[i].v_sync_time_in_us[1],
+			time[i].v_sync_time_in_us[2],
+			time[i].v_sync_time_in_us[3],
+			time[i].v_sync_time_in_us[4],
+			time[i].flags);
 	}
-	//GetLog()->Close(pLog);
-	//GetLog()->UnSetLogMask(LogMajor_ISR, LogMinor_ISR_FreeSyncSW);
 }
 
 void mod_stats_reset_data(struct mod_stats *mod_stats)
