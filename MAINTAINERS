@@ -11878,7 +11878,7 @@ F:	include/linux/rtc.h
 F:	include/uapi/linux/rtc.h
 F:	include/linux/rtc/
 F:	include/linux/platform_data/rtc-*
-F:	tools/testing/selftests/timers/rtctest.c
+F:	tools/testing/selftests/rtc/
 
 REALTEK AUDIO CODECS
 M:	Bard Liao <bardliao@realtek.com>
