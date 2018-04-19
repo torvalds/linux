@@ -163,6 +163,21 @@ static void ax_reset_8390(struct net_device *dev)
 	ei_outb(ENISR_RESET, addr + EN0_ISR);	/* Ack intr. */
 }
 
+/* Wrapper for __ei_interrupt for platforms that have a platform-specific
+ * way to find out whether the interrupt request might be caused by
+ * the ax88796 chip.
+ */
+static irqreturn_t ax_ei_interrupt_filtered(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct ax_device *ax = to_ax_dev(dev);
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+
+	if (!ax->plat->check_irq(pdev))
+		return IRQ_NONE;
+
+	return ax_ei_interrupt(irq, dev_id);
+}
 
 static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			    int ring_page)
@@ -482,8 +497,12 @@ static int ax_open(struct net_device *dev)
 	if (ret)
 		goto failed_mii;
 
-	ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
-			  dev->name, dev);
+	if (ax->plat->check_irq)
+		ret = request_irq(dev->irq, ax_ei_interrupt_filtered,
+				  ax->irqflags, dev->name, dev);
+	else
+		ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
+				  dev->name, dev);
 	if (ret)
 		goto failed_request_irq;
 
