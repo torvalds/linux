@@ -178,6 +178,9 @@ struct amdgpu_vm {
 	struct list_head	moved;
 	spinlock_t		moved_lock;
 
+	/* All BOs of this VM not currently in the state machine */
+	struct list_head	idle;
+
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
