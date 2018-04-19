@@ -2911,7 +2911,11 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
+	this_cpu_disable_ftrace();
+
 	trap = __kvmppc_vcore_entry();
+
+	this_cpu_enable_ftrace();
 
 	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
 

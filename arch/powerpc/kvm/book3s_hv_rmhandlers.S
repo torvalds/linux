@@ -342,6 +342,9 @@ kvm_start_guest:
 
 	ld	r2,PACATOC(r13)
 
+	li	r0,0
+	stb	r0,PACA_FTRACE_ENABLED(r13)
+
 	li	r0,KVM_HWTHREAD_IN_KVM
 	stb	r0,HSTATE_HWTHREAD_STATE(r13)
 
