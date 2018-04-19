@@ -6370,6 +6370,8 @@ static const struct hda_fixup alc269_fixups[] = {
 			{ 0x19, 0x01a1913c }, /* use as headset mic, without its own jack detect */
 			{ }
 		},
+		.chained = true,
+		.chain_id = ALC269_FIXUP_HEADSET_MIC
 	},
 };
 
