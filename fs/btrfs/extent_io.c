@@ -4238,13 +4238,13 @@ static int try_release_extent_state(struct extent_map_tree *map,
  * in the range corresponding to the page, both state records and extent
  * map records are removed
  */
-int try_release_extent_mapping(struct extent_map_tree *map,
-			       struct extent_io_tree *tree, struct page *page,
-			       gfp_t mask)
+int try_release_extent_mapping(struct page *page, gfp_t mask)
 {
 	struct extent_map *em;
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
+	struct extent_io_tree *tree = &BTRFS_I(page->mapping->host)->io_tree;
+	struct extent_map_tree *map = &BTRFS_I(page->mapping->host)->extent_tree;
 
 	if (gfpflags_allow_blocking(mask) &&
 	    page->mapping->host->i_size > SZ_16M) {
