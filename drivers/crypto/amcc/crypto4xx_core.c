@@ -41,6 +41,7 @@
 #include <crypto/gcm.h>
 #include <crypto/sha.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/skcipher.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include "crypto4xx_reg_def.h"
@@ -526,21 +527,19 @@ static void crypto4xx_ret_sg_desc(struct crypto4xx_device *dev,
 	}
 }
 
-static void crypto4xx_ablkcipher_done(struct crypto4xx_device *dev,
+static void crypto4xx_cipher_done(struct crypto4xx_device *dev,
 				     struct pd_uinfo *pd_uinfo,
 				     struct ce_pd *pd)
 {
-	struct crypto4xx_ctx *ctx;
-	struct ablkcipher_request *ablk_req;
+	struct skcipher_request *req;
 	struct scatterlist *dst;
 	dma_addr_t addr;
 
-	ablk_req = ablkcipher_request_cast(pd_uinfo->async_req);
-	ctx  = crypto_tfm_ctx(ablk_req->base.tfm);
+	req = skcipher_request_cast(pd_uinfo->async_req);
 
 	if (pd_uinfo->using_sd) {
-		crypto4xx_copy_pkt_to_dst(dev, pd, pd_uinfo, ablk_req->nbytes,
-					  ablk_req->dst);
+		crypto4xx_copy_pkt_to_dst(dev, pd, pd_uinfo,
+					  req->cryptlen, req->dst);
 	} else {
 		dst = pd_uinfo->dest_va;
 		addr = dma_map_page(dev->core_dev->device, sg_page(dst),
@@ -549,8 +548,8 @@ static void crypto4xx_ablkcipher_done(struct crypto4xx_device *dev,
 	crypto4xx_ret_sg_desc(dev, pd_uinfo);
 
 	if (pd_uinfo->state & PD_ENTRY_BUSY)
-		ablkcipher_request_complete(ablk_req, -EINPROGRESS);
-	ablkcipher_request_complete(ablk_req, 0);
+		skcipher_request_complete(req, -EINPROGRESS);
+	skcipher_request_complete(req, 0);
 }
 
 static void crypto4xx_ahash_done(struct crypto4xx_device *dev,
@@ -641,8 +640,8 @@ static void crypto4xx_pd_done(struct crypto4xx_device *dev, u32 idx)
 	struct pd_uinfo *pd_uinfo = &dev->pdr_uinfo[idx];
 
 	switch (crypto_tfm_alg_type(pd_uinfo->async_req->tfm)) {
-	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		crypto4xx_ablkcipher_done(dev, pd_uinfo, pd);
+	case CRYPTO_ALG_TYPE_SKCIPHER:
+		crypto4xx_cipher_done(dev, pd_uinfo, pd);
 		break;
 	case CRYPTO_ALG_TYPE_AEAD:
 		crypto4xx_aead_done(dev, pd_uinfo, pd);
@@ -936,15 +935,14 @@ static void crypto4xx_ctx_init(struct crypto4xx_alg *amcc_alg,
 	ctx->sa_len = 0;
 }
 
-static int crypto4xx_ablk_init(struct crypto_tfm *tfm)
+static int crypto4xx_sk_init(struct crypto_skcipher *sk)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
+	struct skcipher_alg *alg = crypto_skcipher_alg(sk);
 	struct crypto4xx_alg *amcc_alg;
-	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto4xx_ctx *ctx =  crypto_skcipher_ctx(sk);
 
 	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.cipher);
 	crypto4xx_ctx_init(amcc_alg, ctx);
-	tfm->crt_ablkcipher.reqsize = sizeof(struct crypto4xx_ctx);
 	return 0;
 }
 
@@ -953,9 +951,11 @@ static void crypto4xx_common_exit(struct crypto4xx_ctx *ctx)
 	crypto4xx_free_sa(ctx);
 }
 
-static void crypto4xx_ablk_exit(struct crypto_tfm *tfm)
+static void crypto4xx_sk_exit(struct crypto_skcipher *sk)
 {
-	crypto4xx_common_exit(crypto_tfm_ctx(tfm));
+	struct crypto4xx_ctx *ctx =  crypto_skcipher_ctx(sk);
+
+	crypto4xx_common_exit(ctx);
 }
 
 static int crypto4xx_aead_init(struct crypto_aead *tfm)
@@ -1012,7 +1012,7 @@ static int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 			break;
 
 		default:
-			rc = crypto_register_alg(&alg->alg.u.cipher);
+			rc = crypto_register_skcipher(&alg->alg.u.cipher);
 			break;
 		}
 
@@ -1041,7 +1041,7 @@ static void crypto4xx_unregister_alg(struct crypto4xx_device *sec_dev)
 			break;
 
 		default:
-			crypto_unregister_alg(&alg->alg.u.cipher);
+			crypto_unregister_skcipher(&alg->alg.u.cipher);
 		}
 		kfree(alg);
 	}
@@ -1103,126 +1103,109 @@ static irqreturn_t crypto4xx_ce_interrupt_handler_revb(int irq, void *data)
  */
 static struct crypto4xx_alg_common crypto4xx_alg[] = {
 	/* Crypto AES modes */
-	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name 	= "cbc(aes)",
-		.cra_driver_name = "cbc-aes-ppc4xx",
-		.cra_priority 	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize 	= AES_BLOCK_SIZE,
-		.cra_ctxsize 	= sizeof(struct crypto4xx_ctx),
-		.cra_type 	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_ablk_init,
-		.cra_exit	= crypto4xx_ablk_exit,
-		.cra_module 	= THIS_MODULE,
-		.cra_u 		= {
-			.ablkcipher = {
-				.min_keysize 	= AES_MIN_KEY_SIZE,
-				.max_keysize 	= AES_MAX_KEY_SIZE,
-				.ivsize		= AES_IV_SIZE,
-				.setkey 	= crypto4xx_setkey_aes_cbc,
-				.encrypt	= crypto4xx_encrypt_iv,
-				.decrypt	= crypto4xx_decrypt_iv,
-			}
-		}
-	}},
-	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name	= "cfb(aes)",
-		.cra_driver_name = "cfb-aes-ppc4xx",
-		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_ablk_init,
-		.cra_exit	= crypto4xx_ablk_exit,
-		.cra_module	= THIS_MODULE,
-		.cra_u		= {
-			.ablkcipher = {
-				.min_keysize	= AES_MIN_KEY_SIZE,
-				.max_keysize	= AES_MAX_KEY_SIZE,
-				.ivsize		= AES_IV_SIZE,
-				.setkey		= crypto4xx_setkey_aes_cfb,
-				.encrypt	= crypto4xx_encrypt_iv,
-				.decrypt	= crypto4xx_decrypt_iv,
-			}
-		}
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "cbc(aes)",
+			.cra_driver_name = "cbc-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize	= AES_IV_SIZE,
+		.setkey = crypto4xx_setkey_aes_cbc,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
 	} },
-	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name	= "rfc3686(ctr(aes))",
-		.cra_driver_name = "rfc3686-ctr-aes-ppc4xx",
-		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_ablk_init,
-		.cra_exit	= crypto4xx_ablk_exit,
-		.cra_module	= THIS_MODULE,
-		.cra_u		= {
-			.ablkcipher = {
-				.min_keysize	= AES_MIN_KEY_SIZE +
-						  CTR_RFC3686_NONCE_SIZE,
-				.max_keysize	= AES_MAX_KEY_SIZE +
-						  CTR_RFC3686_NONCE_SIZE,
-				.ivsize		= CTR_RFC3686_IV_SIZE,
-				.setkey		= crypto4xx_setkey_rfc3686,
-				.encrypt	= crypto4xx_rfc3686_encrypt,
-				.decrypt	= crypto4xx_rfc3686_decrypt,
-			}
-		}
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "cfb(aes)",
+			.cra_driver_name = "cfb-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize	= AES_IV_SIZE,
+		.setkey	= crypto4xx_setkey_aes_cfb,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
 	} },
-	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name	= "ecb(aes)",
-		.cra_driver_name = "ecb-aes-ppc4xx",
-		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_ablk_init,
-		.cra_exit	= crypto4xx_ablk_exit,
-		.cra_module	= THIS_MODULE,
-		.cra_u		= {
-			.ablkcipher = {
-				.min_keysize	= AES_MIN_KEY_SIZE,
-				.max_keysize	= AES_MAX_KEY_SIZE,
-				.setkey		= crypto4xx_setkey_aes_ecb,
-				.encrypt	= crypto4xx_encrypt_noiv,
-				.decrypt	= crypto4xx_decrypt_noiv,
-			}
-		}
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "rfc3686(ctr(aes))",
+			.cra_driver_name = "rfc3686-ctr-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+		.ivsize	= CTR_RFC3686_IV_SIZE,
+		.setkey = crypto4xx_setkey_rfc3686,
+		.encrypt = crypto4xx_rfc3686_encrypt,
+		.decrypt = crypto4xx_rfc3686_decrypt,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
 	} },
-	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name	= "ofb(aes)",
-		.cra_driver_name = "ofb-aes-ppc4xx",
-		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_ablk_init,
-		.cra_exit	= crypto4xx_ablk_exit,
-		.cra_module	= THIS_MODULE,
-		.cra_u		= {
-			.ablkcipher = {
-				.min_keysize	= AES_MIN_KEY_SIZE,
-				.max_keysize	= AES_MAX_KEY_SIZE,
-				.ivsize		= AES_IV_SIZE,
-				.setkey		= crypto4xx_setkey_aes_ofb,
-				.encrypt	= crypto4xx_encrypt_iv,
-				.decrypt	= crypto4xx_decrypt_iv,
-			}
-		}
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "ecb(aes)",
+			.cra_driver_name = "ecb-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.setkey	= crypto4xx_setkey_aes_ecb,
+		.encrypt = crypto4xx_encrypt_noiv,
+		.decrypt = crypto4xx_decrypt_noiv,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
+	} },
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "ofb(aes)",
+			.cra_driver_name = "ofb-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize	= AES_IV_SIZE,
+		.setkey	= crypto4xx_setkey_aes_ofb,
+		.encrypt = crypto4xx_encrypt_iv,
+		.decrypt = crypto4xx_decrypt_iv,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
 	} },
 
 	/* AEAD */
