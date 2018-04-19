@@ -4865,10 +4865,11 @@ static void __init regulator_release_early_min_volt(void)
 		rdev = regulator->rdev;
 		regulator->min_uV = 0;
 		regulator->max_uV = 0;
-		if (regulator_set_voltage(regulator, regulator->min_uV,
-					  regulator->max_uV))
+		if (regulator_set_voltage(regulator, rdev->constraints->min_uV,
+					  rdev->constraints->max_uV))
 			rdev_err(regulator->rdev, "set voltage(%d, %d) failed\n",
-				 regulator->min_uV, regulator->max_uV);
+				 rdev->constraints->min_uV,
+				 rdev->constraints->max_uV);
 		list_del(&regulator->early_min_list);
 		regulator_put(regulator);
 	}
