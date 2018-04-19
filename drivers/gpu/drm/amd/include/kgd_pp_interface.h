@@ -94,6 +94,7 @@ enum pp_clock_type {
 	PP_PCIE,
 	OD_SCLK,
 	OD_MCLK,
+	OD_RANGE,
 };
 
 enum amd_pp_sensors {

@@ -4335,20 +4335,34 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
-			size = sprintf(buf, "%s: \n", "OD_SCLK");
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
 			for (i = 0; i < odn_sclk_table->num_of_pl; i++)
-				size += sprintf(buf + size, "%d: %10uMhz %10u mV\n",
-					i, odn_sclk_table->entries[i].clock / 100,
+				size += sprintf(buf + size, "%d: %10uMHz %10umV\n",
+					i, odn_sclk_table->entries[i].clock/100,
 					odn_sclk_table->entries[i].vddc);
 		}
 		break;
 	case OD_MCLK:
 		if (hwmgr->od_enabled) {
-			size = sprintf(buf, "%s: \n", "OD_MCLK");
+			size = sprintf(buf, "%s:\n", "OD_MCLK");
 			for (i = 0; i < odn_mclk_table->num_of_pl; i++)
-				size += sprintf(buf + size, "%d: %10uMhz %10u mV\n",
-					i, odn_mclk_table->entries[i].clock / 100,
+				size += sprintf(buf + size, "%d: %10uMHz %10umV\n",
+					i, odn_mclk_table->entries[i].clock/100,
 					odn_mclk_table->entries[i].vddc);
+		}
+		break;
+	case OD_RANGE:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_RANGE");
+			size += sprintf(buf + size, "SCLK: %7uMHz %10uMHz\n",
+				data->golden_dpm_table.sclk_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
+			size += sprintf(buf + size, "MCLK: %7uMHz %10uMHz\n",
+				data->golden_dpm_table.mclk_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock/100);
+			size += sprintf(buf + size, "VDDC: %7umV %11umV\n",
+				data->odn_dpm_table.min_vddc,
+				data->odn_dpm_table.max_vddc);
 		}
 		break;
 	default:

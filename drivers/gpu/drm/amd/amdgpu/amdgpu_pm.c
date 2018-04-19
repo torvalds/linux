@@ -555,6 +555,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf+size);
 		return size;
 	} else {
 		return snprintf(buf, PAGE_SIZE, "\n");
