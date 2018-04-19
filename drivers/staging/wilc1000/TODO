@@ -16,3 +16,7 @@ TODO:
 - support resume/suspend function
 - replace SIOCDEVPRIVATE commands with generic API functions
 - use wext-core handling instead of private SIOCSIWPRIV implementation
+- convert all uses of the old GPIO API from <linux/gpio.h> to the
+  GPIO descriptor API in <linux/gpio/consumer.h> and look up GPIO
+  lines from device tree, ACPI or board files, board files should
+  use <linux/gpio/machine.h>
