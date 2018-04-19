@@ -318,8 +318,7 @@ dev_unref:
 
 static void vc4_drm_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
 
