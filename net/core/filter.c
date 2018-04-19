@@ -2694,19 +2694,12 @@ BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
 {
 	void *xdp_frame_end = xdp->data_hard_start + sizeof(struct xdp_frame);
 	unsigned long metalen = xdp_get_metalen(xdp);
-	void *data_start = xdp->data_hard_start + metalen;
+	void *data_start = xdp_frame_end + metalen;
 	void *data = xdp->data + offset;
 
 	if (unlikely(data < data_start ||
 		     data > xdp->data_end - ETH_HLEN))
 		return -EINVAL;
-
-	/* Avoid info leak, when reusing area prev used by xdp_frame */
-	if (data < xdp_frame_end) {
-		unsigned long clearlen = xdp_frame_end - data;
-
-		memset(data, 0, clearlen);
-	}
 
 	if (metalen)
 		memmove(xdp->data_meta + offset,
@@ -2751,12 +2744,13 @@ static const struct bpf_func_proto bpf_xdp_adjust_tail_proto = {
 
 BPF_CALL_2(bpf_xdp_adjust_meta, struct xdp_buff *, xdp, int, offset)
 {
+	void *xdp_frame_end = xdp->data_hard_start + sizeof(struct xdp_frame);
 	void *meta = xdp->data_meta + offset;
 	unsigned long metalen = xdp->data - meta;
 
 	if (xdp_data_meta_unsupported(xdp))
 		return -ENOTSUPP;
-	if (unlikely(meta < xdp->data_hard_start ||
+	if (unlikely(meta < xdp_frame_end ||
 		     meta > xdp->data))
 		return -EINVAL;
 	if (unlikely((metalen & (sizeof(__u32) - 1)) ||
