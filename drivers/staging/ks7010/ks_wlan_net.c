@@ -819,64 +819,48 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			      struct iw_point *dwrq, char *extra)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
-
 	struct wep_key key;
 	int index = (dwrq->flags & IW_ENCODE_INDEX);
-	int current_index = priv->reg.wep_index;
-	int i;
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
+	if (dwrq->length > MAX_KEY_SIZE)
+		return -EINVAL;
+
 	/* for SLEEP MODE */
-	/* index check */
 	if ((index < 0) || (index > 4))
 		return -EINVAL;
-	else if (index == 0)
-		index = current_index;
-	else
-		index--;
+
+	index = (index == 0) ? priv->reg.wep_index : (index - 1);
 
 	/* Is WEP supported ? */
 	/* Basic checking: do we have a key to set ? */
 	if (dwrq->length > 0) {
-		if (dwrq->length > MAX_KEY_SIZE) {	/* Check the size of the key */
-			return -EINVAL;
-		}
-		if (dwrq->length > MIN_KEY_SIZE) {	/* Set the length */
-			key.len = MAX_KEY_SIZE;
-			priv->reg.privacy_invoked = 0x01;
-			priv->need_commit |= SME_WEP_FLAG;
-			wep_on_off = WEP_ON_128BIT;
-		} else {
-			if (dwrq->length > 0) {
-				key.len = MIN_KEY_SIZE;
-				priv->reg.privacy_invoked = 0x01;
-				priv->need_commit |= SME_WEP_FLAG;
-				wep_on_off = WEP_ON_64BIT;
-			} else {	/* Disable the key */
-				key.len = 0;
-			}
-		}
+		key.len = (dwrq->length > MIN_KEY_SIZE) ?
+			   MAX_KEY_SIZE : MIN_KEY_SIZE;
+		priv->reg.privacy_invoked = 0x01;
+		priv->need_commit |= SME_WEP_FLAG;
+		wep_on_off = (dwrq->length > MIN_KEY_SIZE) ?
+			      WEP_ON_128BIT : WEP_ON_64BIT;
 		/* Check if the key is not marked as invalid */
-		if (!(dwrq->flags & IW_ENCODE_NOKEY)) {
-			/* Cleanup */
-			memset(key.key, 0, MAX_KEY_SIZE);
-			/* Copy the key in the driver */
-			if (copy_from_user
-			    (key.key, dwrq->pointer, dwrq->length)) {
-				key.len = 0;
-				return -EFAULT;
-			}
-			/* Send the key to the card */
-			priv->reg.wep_key[index].size = key.len;
-			for (i = 0; i < (priv->reg.wep_key[index].size); i++)
-				priv->reg.wep_key[index].val[i] = key.key[i];
+		if (dwrq->flags & IW_ENCODE_NOKEY)
+			return 0;
 
-			priv->need_commit |= (SME_WEP_VAL1 << index);
-			priv->reg.wep_index = index;
-			priv->need_commit |= SME_WEP_INDEX;
+		/* Cleanup */
+		memset(key.key, 0, MAX_KEY_SIZE);
+		/* Copy the key in the driver */
+		if (copy_from_user(key.key, dwrq->pointer, dwrq->length)) {
+			key.len = 0;
+			return -EFAULT;
 		}
+		/* Send the key to the card */
+		priv->reg.wep_key[index].size = key.len;
+		memcpy(&priv->reg.wep_key[index].val[0], &key.key[0],
+		       priv->reg.wep_key[index].size);
+		priv->need_commit |= (SME_WEP_VAL1 << index);
+		priv->reg.wep_index = index;
+		priv->need_commit |= SME_WEP_INDEX;
 	} else {
 		if (dwrq->flags & IW_ENCODE_DISABLED) {
 			priv->reg.wep_key[0].size = 0;
@@ -891,16 +875,11 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			wep_on_off = WEP_OFF;
 			priv->need_commit |= SME_WEP_FLAG;
 		} else {
-			/* Do we want to just set the transmit key index ? */
-			if ((index >= 0) && (index < 4)) {
-				/* set_wep_key(priv, index, 0, 0, 1);   xxx */
-				if (priv->reg.wep_key[index].size != 0) {
-					priv->reg.wep_index = index;
-					priv->need_commit |= SME_WEP_INDEX;
-				} else {
-					return -EINVAL;
-				}
-			}
+			/* set_wep_key(priv, index, 0, 0, 1);   xxx */
+			if (priv->reg.wep_key[index].size == 0)
+				return -EINVAL;
+			priv->reg.wep_index = index;
+			priv->need_commit |= SME_WEP_INDEX;
 		}
 	}
 
@@ -919,7 +898,6 @@ static int ks_wlan_set_encode(struct net_device *dev,
 
 		priv->reg.authenticate_type = AUTH_TYPE_SHARED_KEY;
 	}
-//      return -EINPROGRESS;            /* Call commit handler */
 	if (priv->need_commit) {
 		ks_wlan_setup_parameter(priv, priv->need_commit);
 		priv->need_commit = 0;
