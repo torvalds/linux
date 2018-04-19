@@ -22,9 +22,10 @@ editor=${EDITOR-vi}
 files=
 for i in ${rundir}/*/Make.out
 do
-	if grep -q "error:" < $i
+	if egrep -q "error:|warning:" < $i
 	then
-		files="$files $i"
+		egrep "error:|warning:" < $i > $i.diags
+		files="$files $i.diags $i"
 	fi
 done
 if test -n "$files"
