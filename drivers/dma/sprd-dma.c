@@ -116,6 +116,13 @@
 #define SPRD_DMA_SRC_TRSF_STEP_OFFSET	0
 #define SPRD_DMA_TRSF_STEP_MASK		GENMASK(15, 0)
 
+/* define the DMA transfer step type */
+#define SPRD_DMA_NONE_STEP		0
+#define SPRD_DMA_BYTE_STEP		1
+#define SPRD_DMA_SHORT_STEP		2
+#define SPRD_DMA_WORD_STEP		4
+#define SPRD_DMA_DWORD_STEP		8
+
 #define SPRD_DMA_SOFTWARE_UID		0
 
 /*
@@ -598,16 +605,16 @@ static int sprd_dma_config(struct dma_chan *chan, struct sprd_dma_desc *sdesc,
 
 	if (IS_ALIGNED(len, 4)) {
 		datawidth = 2;
-		src_step = 4;
-		des_step = 4;
+		src_step = SPRD_DMA_WORD_STEP;
+		des_step = SPRD_DMA_WORD_STEP;
 	} else if (IS_ALIGNED(len, 2)) {
 		datawidth = 1;
-		src_step = 2;
-		des_step = 2;
+		src_step = SPRD_DMA_SHORT_STEP;
+		des_step = SPRD_DMA_SHORT_STEP;
 	} else {
 		datawidth = 0;
-		src_step = 1;
-		des_step = 1;
+		src_step = SPRD_DMA_BYTE_STEP;
+		des_step = SPRD_DMA_BYTE_STEP;
 	}
 
 	fragment_len = SPRD_DMA_MEMCPY_MIN_SIZE;
