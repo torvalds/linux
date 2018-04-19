@@ -914,13 +914,10 @@ static void ks7010_private_init(struct ks_wlan_private *priv,
 static int ks7010_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *device)
 {
-	struct ks_wlan_private *priv;
+	struct ks_wlan_private *priv = NULL;
+	struct net_device *netdev = NULL;
 	struct ks_sdio_card *card;
-	struct net_device *netdev;
 	int ret;
-
-	priv = NULL;
-	netdev = NULL;
 
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
