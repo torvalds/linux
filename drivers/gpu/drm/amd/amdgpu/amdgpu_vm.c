@@ -224,21 +224,16 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param)
 {
 	struct ttm_bo_global *glob = adev->mman.bdev.glob;
-	int r;
+	struct amdgpu_vm_bo_base *bo_base, *tmp;
+	int r = 0;
 
-	while (!list_empty(&vm->evicted)) {
-		struct amdgpu_vm_bo_base *bo_base;
-		struct amdgpu_bo *bo;
+	list_for_each_entry_safe(bo_base, tmp, &vm->evicted, vm_status) {
+		struct amdgpu_bo *bo = bo_base->bo;
 
-		bo_base = list_first_entry(&vm->evicted,
-					   struct amdgpu_vm_bo_base,
-					   vm_status);
-
-		bo = bo_base->bo;
 		if (bo->parent) {
 			r = validate(param, bo);
 			if (r)
-				return r;
+				break;
 
 			spin_lock(&glob->lru_lock);
 			ttm_bo_move_to_lru_tail(&bo->tbo);
@@ -251,7 +246,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		    vm->use_cpu_for_update) {
 			r = amdgpu_bo_kmap(bo, NULL);
 			if (r)
-				return r;
+				break;
 		}
 
 		if (bo->tbo.type != ttm_bo_type_kernel) {
@@ -263,7 +258,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		}
 	}
 
-	return 0;
+	return r;
 }
 
 /**
