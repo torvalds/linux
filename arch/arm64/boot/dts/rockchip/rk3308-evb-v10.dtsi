@@ -272,6 +272,7 @@
 };
 
 &i2c1 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	is31fl3236: led-controller@3c {
