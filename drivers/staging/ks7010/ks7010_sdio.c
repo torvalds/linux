@@ -10,17 +10,15 @@
  *   published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/atomic.h>
 #include <linux/circ_buf.h>
 #include <linux/firmware.h>
+#include <linux/jiffies.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/module.h>
 #include <linux/workqueue.h>
-#include <linux/atomic.h>
-#include <linux/jiffies.h>
-
 #include "ks_wlan.h"
-#include "ks_wlan_ioctl.h"
 #include "ks_hostif.h"
 #include "ks7010_sdio.h"
 
