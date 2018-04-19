@@ -11657,6 +11657,14 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rkuo/linux-hexagon-kernel.g
 S:	Supported
 F:	arch/hexagon/
 
+QUALCOMM HIDMA DRIVER
+M:	Sinan Kaya <okaya@codeaurora.org>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-arm-msm@vger.kernel.org
+L:	dmaengine@vger.kernel.org
+S:	Supported
+F:	drivers/dma/qcom/hidma*
+
 QUALCOMM IOMMU
 M:	Rob Clark <robdclark@gmail.com>
 L:	iommu@lists.linux-foundation.org
