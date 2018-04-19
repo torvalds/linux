@@ -400,16 +400,9 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 asmlinkage void
 do_entDbg(struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	die_if_kernel("Instruction fault", regs, 0, NULL);
 
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code = ILL_ILLOPC;
-	info.si_addr = (void __user *) regs->pc;
-	force_sig_info(SIGILL, &info, current);
+	force_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc, 0, current);
 }
 
 
