@@ -145,18 +145,17 @@ bool dpp_get_optimal_number_of_taps(
 	else
 		pixel_width = scl_data->viewport.width;
 
+	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
 	if (scl_data->viewport.width  != scl_data->h_active &&
-		scl_data->viewport.height != scl_data->v_active) {
+		scl_data->viewport.height != scl_data->v_active &&
+		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
+		scl_data->format == PIXEL_FORMAT_FP16)
+		return false;
 
-		/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
-		if (dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
-			scl_data->format == PIXEL_FORMAT_FP16)
-			return false;
-
-		if (dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
-			scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
-			return false;
-	}
+	if (scl_data->viewport.width > scl_data->h_active &&
+		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
+		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
+		return false;
 
 	/* TODO: add lb check */
 
