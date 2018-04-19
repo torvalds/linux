@@ -1765,7 +1765,7 @@ out:
  */
 static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
-	int c = rnp->completed;
+	unsigned long c = rnp->completed;
 	bool needmore;
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
