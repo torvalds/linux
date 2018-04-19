@@ -550,8 +550,7 @@ void qede_force_mac(void *dev, u8 *mac, bool forced)
 
 	__qede_lock(edev);
 
-	/* MAC hints take effect only if we haven't set one already */
-	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced) {
+	if (!is_valid_ether_addr(mac)) {
 		__qede_unlock(edev);
 		return;
 	}
