@@ -80,7 +80,7 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 {
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
-	__le32 iv[ivlen];
+	__le32 iv[AES_IV_SIZE];
 
 	if (ivlen)
 		crypto4xx_memcpy_to_le32(iv, req->iv, ivlen);
@@ -270,13 +270,7 @@ static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
 static int crypto4xx_aead_fallback(struct aead_request *req,
 	struct crypto4xx_ctx *ctx, bool do_decrypt)
 {
-	char aead_req_data[sizeof(struct aead_request) +
-			   crypto_aead_reqsize(ctx->sw_cipher.aead)]
-		__aligned(__alignof__(struct aead_request));
-
-	struct aead_request *subreq = (void *) aead_req_data;
-
-	memset(subreq, 0, sizeof(aead_req_data));
+	struct aead_request *subreq = aead_request_ctx(req);
 
 	aead_request_set_tfm(subreq, ctx->sw_cipher.aead);
 	aead_request_set_callback(subreq, req->base.flags,
@@ -377,7 +371,7 @@ static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	unsigned int len = req->cryptlen;
 	__le32 iv[16];
-	u32 tmp_sa[ctx->sa_len * 4];
+	u32 tmp_sa[SA_AES128_CCM_LEN + 4];
 	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *)tmp_sa;
 
 	if (crypto4xx_aead_need_fallback(req, true, decrypt))
@@ -386,7 +380,7 @@ static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 	if (decrypt)
 		len -= crypto_aead_authsize(aead);
 
-	memcpy(tmp_sa, decrypt ? ctx->sa_in : ctx->sa_out, sizeof(tmp_sa));
+	memcpy(tmp_sa, decrypt ? ctx->sa_in : ctx->sa_out, ctx->sa_len * 4);
 	sa->sa_command_0.bf.digest_len = crypto_aead_authsize(aead) >> 2;
 
 	if (req->iv[0] == 1) {
