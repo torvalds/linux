@@ -342,6 +342,7 @@ static struct tps6586x_regulator *find_regulator_info(int id, int version)
 
 	switch (version) {
 	case TPS658623:
+	case TPS658624:
 		table = tps658623_regulator;
 		num = ARRAY_SIZE(tps658623_regulator);
 		break;
