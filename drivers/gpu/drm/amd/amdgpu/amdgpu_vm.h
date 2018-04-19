@@ -187,9 +187,6 @@ struct amdgpu_vm {
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
 
-	/* protecting freed */
-	spinlock_t		freed_lock;
-
 	/* Scheduler entity for page table updates */
 	struct drm_sched_entity	entity;
 
