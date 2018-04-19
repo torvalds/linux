@@ -329,6 +329,9 @@ CROSS_COMPILE	?= $(srctree)/../prebuilts/gcc/linux-x86/aarch64/aarch64-linux-and
 endif
 endif
 ifeq ($(ARCH),arm)
+ifneq ($(wildcard $(srctree)/../prebuilts/gcc/linux-x86/arm/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf),)
+CROSS_COMPILE	?= $(srctree)/../prebuilts/gcc/linux-x86/arm/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+endif
 ifneq ($(wildcard $(srctree)/../prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9),)
 CROSS_COMPILE	?= $(srctree)/../prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/bin/arm-linux-androidkernel-
 endif
