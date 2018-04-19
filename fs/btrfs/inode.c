@@ -10254,7 +10254,7 @@ out:
 		btrfs_wait_and_free_delalloc_work(work);
 	}
 
-	if (!list_empty_careful(&splice)) {
+	if (!list_empty(&splice)) {
 		spin_lock(&root->delalloc_lock);
 		list_splice_tail(&splice, &root->delalloc_inodes);
 		spin_unlock(&root->delalloc_lock);
@@ -10316,7 +10316,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput,
 
 	ret = 0;
 out:
-	if (!list_empty_careful(&splice)) {
+	if (!list_empty(&splice)) {
 		spin_lock(&fs_info->delalloc_root_lock);
 		list_splice_tail(&splice, &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);
