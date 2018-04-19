@@ -173,6 +173,7 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 							ARRAY_SIZE(polaris11_golden_settings_a11));
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							polaris10_golden_settings_a11,
 							ARRAY_SIZE(polaris10_golden_settings_a11));
@@ -473,6 +474,7 @@ static int dce_v11_0_get_num_crtc (struct amdgpu_device *adev)
 		num_crtc = 2;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		num_crtc = 6;
 		break;
 	case CHIP_POLARIS11:
@@ -1445,6 +1447,7 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.num_pins = 7;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.audio.num_pins = 8;
 		break;
 	case CHIP_POLARIS11:
@@ -2248,7 +2251,8 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
@@ -2666,7 +2670,8 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		int encoder_mode =
@@ -2823,6 +2828,7 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_dig = 9;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
@@ -2942,7 +2948,8 @@ static int dce_v11_0_hw_init(void *handle)
 	amdgpu_atombios_encoder_init_dig(adev);
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
 						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
 		amdgpu_atombios_crtc_set_dce_clock(adev, 0,
