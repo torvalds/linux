@@ -1270,8 +1270,8 @@ static const struct display_timing koe_tx31d200vm0baa_timing = {
 	.hback_porch = { 16, 36, 56 },
 	.hsync_len = { 8, 8, 8 },
 	.vactive = { 480, 480, 480 },
-	.vfront_porch = { 6, 21, 33.5 },
-	.vback_porch = { 6, 21, 33.5 },
+	.vfront_porch = { 6, 21, 33 },
+	.vback_porch = { 6, 21, 33 },
 	.vsync_len = { 8, 8, 8 },
 	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
