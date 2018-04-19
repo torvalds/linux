@@ -77,6 +77,37 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 	}
 }
 
+/**
+ * DOC: power_dpm_state
+ *
+ * This is a legacy interface and is only provided for backwards compatibility.
+ * The amdgpu driver provides a sysfs API for adjusting certain power
+ * related parameters.  The file power_dpm_state is used for this.
+ * It accepts the following arguments:
+ * - battery
+ * - balanced
+ * - performance
+ *
+ * battery
+ *
+ * On older GPUs, the vbios provided a special power state for battery
+ * operation.  Selecting battery switched to this state.  This is no
+ * longer provided on newer GPUs so the option does nothing in that case.
+ *
+ * balanced
+ *
+ * On older GPUs, the vbios provided a special power state for balanced
+ * operation.  Selecting balanced switched to this state.  This is no
+ * longer provided on newer GPUs so the option does nothing in that case.
+ *
+ * performance
+ *
+ * On older GPUs, the vbios provided a special power state for performance
+ * operation.  Selecting performance switched to this state.  This is no
+ * longer provided on newer GPUs so the option does nothing in that case.
+ *
+ */
+
 static ssize_t amdgpu_get_dpm_state(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
