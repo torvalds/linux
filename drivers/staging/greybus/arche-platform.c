@@ -315,8 +315,7 @@ static ssize_t state_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
+	struct arche_platform_drvdata *arche_pdata = dev_get_drvdata(dev);
 	int ret = 0;
 
 	mutex_lock(&arche_pdata->platform_state_mutex);
