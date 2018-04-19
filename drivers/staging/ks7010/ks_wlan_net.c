@@ -673,10 +673,7 @@ static int ks_wlan_get_rate(struct net_device *dev,
 		ks_wlan_update_phy_information(priv);
 
 	vwrq->value = ((priv->current_rate) & RATE_MASK) * 500000;
-	if (priv->reg.tx_rate == TX_RATE_FIXED)
-		vwrq->fixed = 1;
-	else
-		vwrq->fixed = 0;
+	vwrq->fixed = (priv->reg.tx_rate == TX_RATE_FIXED) ? 1 : 0;
 
 	return 0;
 }
