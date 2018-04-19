@@ -1430,8 +1430,7 @@ static int cdns_uart_resume(struct device *device)
 #endif /* ! CONFIG_PM_SLEEP */
 static int __maybe_unused cdns_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 	struct cdns_uart *cdns_uart = port->private_data;
 
 	clk_disable(cdns_uart->uartclk);
@@ -1441,8 +1440,7 @@ static int __maybe_unused cdns_runtime_suspend(struct device *dev)
 
 static int __maybe_unused cdns_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 	struct cdns_uart *cdns_uart = port->private_data;
 
 	clk_enable(cdns_uart->pclk);

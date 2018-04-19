@@ -1085,8 +1085,7 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
 
 static int __maybe_unused qcom_geni_serial_sys_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qcom_geni_serial_port *port = platform_get_drvdata(pdev);
+	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
 	uart_suspend_port(uport->private_data, uport);
@@ -1095,8 +1094,7 @@ static int __maybe_unused qcom_geni_serial_sys_suspend_noirq(struct device *dev)
 
 static int __maybe_unused qcom_geni_serial_sys_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qcom_geni_serial_port *port = platform_get_drvdata(pdev);
+	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
 	if (console_suspend_enabled && uport->suspended) {

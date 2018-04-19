@@ -2408,8 +2408,7 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 
 static int imx_uart_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	imx_uart_save_context(sport);
 
@@ -2420,8 +2419,7 @@ static int imx_uart_suspend_noirq(struct device *dev)
 
 static int imx_uart_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_enable(sport->clk_ipg);
@@ -2435,8 +2433,7 @@ static int imx_uart_resume_noirq(struct device *dev)
 
 static int imx_uart_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 	int ret;
 
 	uart_suspend_port(&imx_uart_uart_driver, &sport->port);
@@ -2454,8 +2451,7 @@ static int imx_uart_suspend(struct device *dev)
 
 static int imx_uart_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	/* disable wakeup from i.MX UART */
 	imx_uart_enable_wakeup(sport, false);
@@ -2470,8 +2466,7 @@ static int imx_uart_resume(struct device *dev)
 
 static int imx_uart_freeze(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	uart_suspend_port(&imx_uart_uart_driver, &sport->port);
 
@@ -2480,8 +2475,7 @@ static int imx_uart_freeze(struct device *dev)
 
 static int imx_uart_thaw(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct imx_port *sport = platform_get_drvdata(pdev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	uart_resume_port(&imx_uart_uart_driver, &sport->port);
 
