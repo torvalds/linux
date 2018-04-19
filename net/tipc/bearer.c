@@ -1029,6 +1029,9 @@ static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
 		goto prop_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, media->window))
 		goto prop_msg_full;
+	if (media->type_id == TIPC_MEDIA_TYPE_UDP)
+		if (nla_put_u32(msg->skb, TIPC_NLA_PROP_MTU, media->mtu))
+			goto prop_msg_full;
 
 	nla_nest_end(msg->skb, prop);
 	nla_nest_end(msg->skb, attrs);
@@ -1158,6 +1161,16 @@ int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 			m->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
 		if (props[TIPC_NLA_PROP_WIN])
 			m->window = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+		if (props[TIPC_NLA_PROP_MTU]) {
+			if (m->type_id != TIPC_MEDIA_TYPE_UDP)
+				return -EINVAL;
+#ifdef CONFIG_TIPC_MEDIA_UDP
+			if (tipc_udp_mtu_bad(nla_get_u32
+					     (props[TIPC_NLA_PROP_MTU])))
+				return -EINVAL;
+			m->mtu = nla_get_u32(props[TIPC_NLA_PROP_MTU]);
+#endif
+		}
 	}
 
 	return 0;
