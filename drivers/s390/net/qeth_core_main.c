@@ -818,7 +818,6 @@ void qeth_clear_cmd_buffers(struct qeth_channel *channel)
 
 	for (cnt = 0; cnt < QETH_CMD_BUFFER_NO; cnt++)
 		qeth_release_buffer(channel, &channel->iob[cnt]);
-	channel->buf_no = 0;
 	channel->io_buf_no = 0;
 }
 EXPORT_SYMBOL_GPL(qeth_clear_cmd_buffers);
@@ -924,7 +923,6 @@ static int qeth_setup_channel(struct qeth_channel *channel)
 			kfree(channel->iob[cnt].data);
 		return -ENOMEM;
 	}
-	channel->buf_no = 0;
 	channel->io_buf_no = 0;
 	atomic_set(&channel->irq_pending, 0);
 	spin_lock_init(&channel->iob_lock);
@@ -1100,11 +1098,9 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 {
 	int rc;
 	int cstat, dstat;
-	struct qeth_cmd_buffer *buffer;
 	struct qeth_channel *channel;
 	struct qeth_card *card;
 	struct qeth_cmd_buffer *iob;
-	__u8 index;
 
 	if (__qeth_check_irb_error(cdev, intparm, irb))
 		return;
@@ -1182,25 +1178,18 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		channel->state = CH_STATE_RCD_DONE;
 		goto out;
 	}
-	if (intparm) {
-		buffer = (struct qeth_cmd_buffer *) __va((addr_t)intparm);
-		buffer->state = BUF_STATE_PROCESSED;
-	}
 	if (channel == &card->data)
 		return;
 	if (channel == &card->read &&
 	    channel->state == CH_STATE_UP)
 		__qeth_issue_next_read(card);
 
-	iob = channel->iob;
-	index = channel->buf_no;
-	while (iob[index].state == BUF_STATE_PROCESSED) {
-		if (iob[index].callback != NULL)
-			iob[index].callback(channel, iob + index);
-
-		index = (index + 1) % QETH_CMD_BUFFER_NO;
+	if (intparm) {
+		iob = (struct qeth_cmd_buffer *) __va((addr_t)intparm);
+		if (iob->callback)
+			iob->callback(iob->channel, iob);
 	}
-	channel->buf_no = index;
+
 out:
 	wake_up(&card->wait_q);
 	return;
@@ -2214,7 +2203,6 @@ time_err:
 error:
 	atomic_set(&card->write.irq_pending, 0);
 	qeth_release_buffer(iob->channel, iob);
-	card->write.buf_no = (card->write.buf_no + 1) % QETH_CMD_BUFFER_NO;
 	rc = reply->rc;
 	qeth_put_reply(reply);
 	return rc;
