@@ -1261,7 +1261,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (data[IFLA_GENEVE_REMOTE6]) {
- #if IS_ENABLED(CONFIG_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 		if (changelink && (ip_tunnel_info_af(info) == AF_INET)) {
 			attrtype = IFLA_GENEVE_REMOTE6;
 			goto change_notsup;
