@@ -215,10 +215,12 @@ struct batadv_hard_iface {
 	struct batadv_hard_iface_bat_v bat_v;
 #endif
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/**
 	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
 	 */
 	struct dentry *debug_dir;
+#endif
 
 	/**
 	 * @neigh_list: list of unique single hop neighbors via this interface
@@ -1242,10 +1244,12 @@ struct batadv_priv_nc {
 	/** @work: work queue callback item for cleanup */
 	struct delayed_work work;
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/**
 	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
 	 */
 	struct dentry *debug_dir;
+#endif
 
 	/**
 	 * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
@@ -1598,8 +1602,10 @@ struct batadv_priv {
 	/** @mesh_obj: kobject for sysfs mesh subdirectory */
 	struct kobject *mesh_obj;
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @debug_dir: dentry for debugfs batman-adv subdirectory */
 	struct dentry *debug_dir;
+#endif
 
 	/** @forw_bat_list: list of aggregated OGMs that will be forwarded */
 	struct hlist_head forw_bat_list;
