@@ -10245,7 +10245,7 @@ F:	arch/arm/mach-omap1/
 F:	arch/arm/plat-omap/
 F:	arch/arm/configs/omap1_defconfig
 F:	drivers/i2c/busses/i2c-omap.c
-F:	include/linux/i2c-omap.h
+F:	include/linux/platform_data/i2c-omap.h
 
 OMAP2+ SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
@@ -10277,7 +10277,7 @@ F:	drivers/regulator/tps65218-regulator.c
 F:	drivers/regulator/tps65910-regulator.c
 F:	drivers/regulator/twl-regulator.c
 F:	drivers/regulator/twl6030-regulator.c
-F:	include/linux/i2c-omap.h
+F:	include/linux/platform_data/i2c-omap.h
 
 ONION OMEGA2+ BOARD
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
