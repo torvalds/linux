@@ -994,7 +994,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	gfp_t gfp_flags = can_block ? GFP_KERNEL : GFP_ATOMIC;
 	struct net *net = dev_net(idev->dev);
 	struct inet6_ifaddr *ifa = NULL;
-	struct fib6_info *rt = NULL;
+	struct fib6_info *f6i = NULL;
 	int err = 0;
 	int addr_type = ipv6_addr_type(addr);
 
@@ -1036,16 +1036,16 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		goto out;
 	}
 
-	rt = addrconf_dst_alloc(net, idev, addr, false, gfp_flags);
-	if (IS_ERR(rt)) {
-		err = PTR_ERR(rt);
-		rt = NULL;
+	f6i = addrconf_f6i_alloc(net, idev, addr, false, gfp_flags);
+	if (IS_ERR(f6i)) {
+		err = PTR_ERR(f6i);
+		f6i = NULL;
 		goto out;
 	}
 
 	if (net->ipv6.devconf_all->disable_policy ||
 	    idev->cnf.disable_policy)
-		rt->dst_nopolicy = true;
+		f6i->dst_nopolicy = true;
 
 	neigh_parms_data_state_setall(idev->nd_parms);
 
@@ -1067,7 +1067,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	ifa->cstamp = ifa->tstamp = jiffies;
 	ifa->tokenized = false;
 
-	ifa->rt = rt;
+	ifa->rt = f6i;
 
 	ifa->idev = idev;
 	in6_dev_hold(idev);
@@ -1101,7 +1101,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	inet6addr_notifier_call_chain(NETDEV_UP, ifa);
 out:
 	if (unlikely(err < 0)) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 
 		if (ifa) {
 			if (ifa->idev)
@@ -1178,19 +1178,19 @@ check_cleanup_prefix_route(struct inet6_ifaddr *ifp, unsigned long *expires)
 static void
 cleanup_prefix_route(struct inet6_ifaddr *ifp, unsigned long expires, bool del_rt)
 {
-	struct fib6_info *rt;
+	struct fib6_info *f6i;
 
-	rt = addrconf_get_prefix_route(&ifp->addr,
+	f6i = addrconf_get_prefix_route(&ifp->addr,
 				       ifp->prefix_len,
 				       ifp->idev->dev,
 				       0, RTF_GATEWAY | RTF_DEFAULT);
-	if (rt) {
+	if (f6i) {
 		if (del_rt)
-			ip6_del_rt(dev_net(ifp->idev->dev), rt);
+			ip6_del_rt(dev_net(ifp->idev->dev), f6i);
 		else {
-			if (!(rt->rt6i_flags & RTF_EXPIRES))
-				fib6_set_expires(rt, expires);
-			fib6_info_release(rt);
+			if (!(f6i->fib6_flags & RTF_EXPIRES))
+				fib6_set_expires(f6i, expires);
+			fib6_info_release(f6i);
 		}
 	}
 }
@@ -2370,9 +2370,9 @@ static struct fib6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 	for_each_fib6_node_rt_rcu(fn) {
 		if (rt->fib6_nh.nh_dev->ifindex != dev->ifindex)
 			continue;
-		if ((rt->rt6i_flags & flags) != flags)
+		if ((rt->fib6_flags & flags) != flags)
 			continue;
-		if ((rt->rt6i_flags & noflags) != 0)
+		if ((rt->fib6_flags & noflags) != 0)
 			continue;
 		fib6_info_hold(rt);
 		break;
@@ -3245,7 +3245,7 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 			addrconf_add_linklocal(idev, &addr, 0);
 		else if (prefix_route)
 			addrconf_prefix_route(&addr, 64, idev->dev,
-					      0, 0, GFP_ATOMIC);
+					      0, 0, GFP_KERNEL);
 		break;
 	case IN6_ADDR_GEN_MODE_NONE:
 	default:
@@ -3341,22 +3341,22 @@ static int fixup_permanent_addr(struct net *net,
 				struct inet6_dev *idev,
 				struct inet6_ifaddr *ifp)
 {
-	/* !rt6i_node means the host route was removed from the
+	/* !fib6_node means the host route was removed from the
 	 * FIB, for example, if 'lo' device is taken down. In that
 	 * case regenerate the host route.
 	 */
-	if (!ifp->rt || !ifp->rt->rt6i_node) {
-		struct fib6_info *rt, *prev;
+	if (!ifp->rt || !ifp->rt->fib6_node) {
+		struct fib6_info *f6i, *prev;
 
-		rt = addrconf_dst_alloc(net, idev, &ifp->addr, false,
-					GFP_ATOMIC);
-		if (IS_ERR(rt))
-			return PTR_ERR(rt);
+		f6i = addrconf_f6i_alloc(net, idev, &ifp->addr, false,
+					 GFP_ATOMIC);
+		if (IS_ERR(f6i))
+			return PTR_ERR(f6i);
 
 		/* ifp->rt can be accessed outside of rtnl */
 		spin_lock(&ifp->lock);
 		prev = ifp->rt;
-		ifp->rt = rt;
+		ifp->rt = f6i;
 		spin_unlock(&ifp->lock);
 
 		fib6_info_release(prev);
@@ -4817,9 +4817,10 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 				u32 portid, u32 seq, int event, unsigned int flags)
 {
+	struct net_device *dev = fib6_info_nh_dev(ifaca->aca_rt);
+	int ifindex = dev ? dev->ifindex : 1;
 	struct nlmsghdr  *nlh;
 	u8 scope = RT_SCOPE_UNIVERSE;
-	int ifindex = ifaca->aca_idev->dev->ifindex;
 
 	if (ipv6_addr_scope(&ifaca->aca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;
@@ -5612,14 +5613,14 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		 * our DAD process, so we don't need
 		 * to do it again
 		 */
-		if (!rcu_access_pointer(ifp->rt->rt6i_node))
+		if (!rcu_access_pointer(ifp->rt->fib6_node))
 			ip6_ins_rt(net, ifp->rt);
 		if (ifp->idev->cnf.forwarding)
 			addrconf_join_anycast(ifp);
 		if (!ipv6_addr_any(&ifp->peer_addr))
 			addrconf_prefix_route(&ifp->peer_addr, 128,
 					      ifp->idev->dev, 0, 0,
-					      GFP_KERNEL);
+					      GFP_ATOMIC);
 		break;
 	case RTM_DELADDR:
 		if (ifp->idev->cnf.forwarding)

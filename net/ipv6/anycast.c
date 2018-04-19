@@ -212,16 +212,14 @@ static void aca_get(struct ifacaddr6 *aca)
 static void aca_put(struct ifacaddr6 *ac)
 {
 	if (refcount_dec_and_test(&ac->aca_refcnt)) {
-		in6_dev_put(ac->aca_idev);
 		fib6_info_release(ac->aca_rt);
 		kfree(ac);
 	}
 }
 
-static struct ifacaddr6 *aca_alloc(struct fib6_info *rt,
+static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 				   const struct in6_addr *addr)
 {
-	struct inet6_dev *idev = rt->rt6i_idev;
 	struct ifacaddr6 *aca;
 
 	aca = kzalloc(sizeof(*aca), GFP_ATOMIC);
@@ -229,10 +227,8 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *rt,
 		return NULL;
 
 	aca->aca_addr = *addr;
-	in6_dev_hold(idev);
-	aca->aca_idev = idev;
-	fib6_info_hold(rt);
-	aca->aca_rt = rt;
+	fib6_info_hold(f6i);
+	aca->aca_rt = f6i;
 	aca->aca_users = 1;
 	/* aca_tstamp should be updated upon changes */
 	aca->aca_cstamp = aca->aca_tstamp = jiffies;
@@ -247,7 +243,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *rt,
 int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca;
-	struct fib6_info *rt;
+	struct fib6_info *f6i;
 	struct net *net;
 	int err;
 
@@ -268,14 +264,14 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 
 	net = dev_net(idev->dev);
-	rt = addrconf_dst_alloc(net, idev, addr, true, GFP_ATOMIC);
-	if (IS_ERR(rt)) {
-		err = PTR_ERR(rt);
+	f6i = addrconf_f6i_alloc(net, idev, addr, true, GFP_ATOMIC);
+	if (IS_ERR(f6i)) {
+		err = PTR_ERR(f6i);
 		goto out;
 	}
-	aca = aca_alloc(rt, addr);
+	aca = aca_alloc(f6i, addr);
 	if (!aca) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -289,7 +285,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	aca_get(aca);
 	write_unlock_bh(&idev->lock);
 
-	ip6_ins_rt(net, rt);
+	ip6_ins_rt(net, f6i);
 
 	addrconf_join_solict(idev->dev, &aca->aca_addr);
 
