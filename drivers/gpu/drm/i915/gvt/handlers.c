@@ -191,6 +191,8 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 	unsigned int max_fence = vgpu_fence_sz(vgpu);
 
 	if (fence_num >= max_fence) {
+		gvt_vgpu_err("access oob fence reg %d/%d\n",
+			     fence_num, max_fence);
 
 		/* When guest access oob fence regs without access
 		 * pv_info first, we treat guest not supporting GVT,
@@ -200,11 +202,6 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 			enter_failsafe_mode(vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
 
-		if (!vgpu->mmio.disable_warn_untrack) {
-			gvt_vgpu_err("found oob fence register access\n");
-			gvt_vgpu_err("total fence %d, access fence %d\n",
-				     max_fence, fence_num);
-		}
 		memset(p_data, 0, bytes);
 		return -EINVAL;
 	}
@@ -3092,9 +3089,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	 */
 	mmio_info = find_mmio_info(gvt, offset);
 	if (!mmio_info) {
-		if (!vgpu->mmio.disable_warn_untrack)
-			gvt_vgpu_err("untracked MMIO %08x len %d\n",
-				     offset, bytes);
+		gvt_dbg_mmio("untracked MMIO %08x len %d\n", offset, bytes);
 		goto default_rw;
 	}
 

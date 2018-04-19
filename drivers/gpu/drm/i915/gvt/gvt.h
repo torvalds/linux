@@ -99,7 +99,6 @@ struct intel_vgpu_fence {
 struct intel_vgpu_mmio {
 	void *vreg;
 	void *sreg;
-	bool disable_warn_untrack;
 };
 
 #define INTEL_GVT_MAX_BAR_NUM 4
