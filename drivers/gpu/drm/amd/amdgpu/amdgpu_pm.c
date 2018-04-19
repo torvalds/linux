@@ -539,6 +539,23 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 
 }
 
+/**
+ * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_pcie
+ *
+ * The amdgpu driver provides a sysfs API for adjusting what power levels
+ * are enabled for a given power state.  The files pp_dpm_sclk, pp_dpm_mclk,
+ * and pp_dpm_pcie are used for this.
+ *
+ * Reading back the files will show you the available power levels within
+ * the power state and the clock information for those levels.
+ *
+ * To manually adjust these states, first select manual using
+ * power_dpm_force_performance_level.  Writing a string of the level
+ * numbers to the file will select which levels you want to enable.
+ * E.g., writing 456 to the file will enable levels 4, 5, and 6.
+ *
+ */
+
 static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
