@@ -532,8 +532,7 @@ update_existing_head_ref(struct btrfs_delayed_ref_root *delayed_refs,
  * overall modification count.
  */
 static noinline struct btrfs_delayed_ref_head *
-add_delayed_ref_head(struct btrfs_fs_info *fs_info,
-		     struct btrfs_trans_handle *trans,
+add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		     struct btrfs_delayed_ref_head *head_ref,
 		     struct btrfs_qgroup_extent_record *qrecord,
 		     u64 bytenr, u64 num_bytes, u64 ref_root, u64 reserved,
@@ -606,14 +605,14 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		qrecord->num_bytes = num_bytes;
 		qrecord->old_roots = NULL;
 
-		if(btrfs_qgroup_trace_extent_nolock(fs_info,
+		if(btrfs_qgroup_trace_extent_nolock(trans->fs_info,
 					delayed_refs, qrecord))
 			kfree(qrecord);
 		else
 			qrecord_inserted = 1;
 	}
 
-	trace_add_delayed_ref_head(fs_info, head_ref, action);
+	trace_add_delayed_ref_head(trans->fs_info, head_ref, action);
 
 	existing = htree_insert(&delayed_refs->href_root,
 				&head_ref->href_node);
@@ -799,8 +798,8 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	 * insert both the head node and the new ref without dropping
 	 * the spin lock
 	 */
-	head_ref = add_delayed_ref_head(fs_info, trans, head_ref, record,
-					bytenr, num_bytes, 0, 0, action, 0,
+	head_ref = add_delayed_ref_head(trans, head_ref, record, bytenr,
+					num_bytes, 0, 0, action, 0,
 					is_system, &qrecord_inserted,
 					old_ref_mod, new_ref_mod);
 
@@ -867,8 +866,8 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	 * insert both the head node and the new ref without dropping
 	 * the spin lock
 	 */
-	head_ref = add_delayed_ref_head(fs_info, trans, head_ref, record,
-					bytenr, num_bytes, ref_root, reserved,
+	head_ref = add_delayed_ref_head(trans, head_ref, record, bytenr,
+					num_bytes, ref_root, reserved,
 					action, 1, 0, &qrecord_inserted,
 					old_ref_mod, new_ref_mod);
 
@@ -904,9 +903,9 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 	 * in ref count changes, hence it's safe to pass false/0 for is_system
 	 * argument
 	 */
-	add_delayed_ref_head(fs_info, trans, head_ref, NULL, bytenr,
-			     num_bytes, 0, 0, BTRFS_UPDATE_DELAYED_HEAD,
-			     extent_op->is_data, 0, NULL, NULL, NULL);
+	add_delayed_ref_head(trans, head_ref, NULL, bytenr, num_bytes, 0, 0,
+			     BTRFS_UPDATE_DELAYED_HEAD, extent_op->is_data,
+			     0, NULL, NULL, NULL);
 
 	spin_unlock(&delayed_refs->lock);
 	return 0;
