@@ -925,8 +925,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 static int nvec_suspend(struct device *dev)
 {
 	int err;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct nvec_chip *nvec = platform_get_drvdata(pdev);
+	struct nvec_chip *nvec = dev_get_drvdata(dev);
 	struct nvec_msg *msg;
 	char ap_suspend[] = { NVEC_SLEEP, AP_SUSPEND };
 
@@ -946,8 +945,7 @@ static int nvec_suspend(struct device *dev)
 
 static int nvec_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct nvec_chip *nvec = platform_get_drvdata(pdev);
+	struct nvec_chip *nvec = dev_get_drvdata(dev);
 
 	dev_dbg(nvec->dev, "resuming\n");
 	tegra_init_i2c_slave(nvec);
