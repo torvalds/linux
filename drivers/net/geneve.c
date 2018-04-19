@@ -1387,6 +1387,48 @@ change_notsup:
 	return -EOPNOTSUPP;
 }
 
+static void geneve_link_config(struct net_device *dev,
+			       struct ip_tunnel_info *info, struct nlattr *tb[])
+{
+	struct geneve_dev *geneve = netdev_priv(dev);
+	int ldev_mtu = 0;
+
+	if (tb[IFLA_MTU]) {
+		geneve_change_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
+		return;
+	}
+
+	switch (ip_tunnel_info_af(info)) {
+	case AF_INET: {
+		struct flowi4 fl4 = { .daddr = info->key.u.ipv4.dst };
+		struct rtable *rt = ip_route_output_key(geneve->net, &fl4);
+
+		if (!IS_ERR(rt) && rt->dst.dev) {
+			ldev_mtu = rt->dst.dev->mtu - GENEVE_IPV4_HLEN;
+			ip_rt_put(rt);
+		}
+		break;
+	}
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6: {
+		struct rt6_info *rt = rt6_lookup(geneve->net,
+						 &info->key.u.ipv6.dst, NULL, 0,
+						 NULL, 0);
+
+		if (rt && rt->dst.dev)
+			ldev_mtu = rt->dst.dev->mtu - GENEVE_IPV6_HLEN;
+		ip6_rt_put(rt);
+		break;
+	}
+#endif
+	}
+
+	if (ldev_mtu <= 0)
+		return;
+
+	geneve_change_mtu(dev, ldev_mtu - info->options_len);
+}
+
 static int geneve_newlink(struct net *net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[],
 			  struct netlink_ext_ack *extack)
@@ -1402,8 +1444,14 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 	if (err)
 		return err;
 
-	return geneve_configure(net, dev, extack, &info, metadata,
-				use_udp6_rx_checksums);
+	err = geneve_configure(net, dev, extack, &info, metadata,
+			       use_udp6_rx_checksums);
+	if (err)
+		return err;
+
+	geneve_link_config(dev, &info, tb);
+
+	return 0;
 }
 
 /* Quiesces the geneve device data path for both TX and RX.
@@ -1477,8 +1525,10 @@ static int geneve_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (err)
 		return err;
 
-	if (!geneve_dst_addr_equal(&geneve->info, &info))
+	if (!geneve_dst_addr_equal(&geneve->info, &info)) {
 		dst_cache_reset(&info.dst_cache);
+		geneve_link_config(dev, &info, tb);
+	}
 
 	geneve_quiesce(geneve, &gs4, &gs6);
 	geneve->info = info;
