@@ -232,6 +232,10 @@
 				compatible = "aspeed,ast2500-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
+				resets = <&syscon ASPEED_RESET_CRT1>;
+				status = "disabled";
+				interrupts = <0x19>;
 			};
 
 			adc: adc@1e6e9000 {
