@@ -9,23 +9,11 @@
  *   published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/compiler.h>
-#include <linux/init.h>
-#include <linux/ioport.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/if_arp.h>
-#include <linux/rtnetlink.h>
-#include <linux/delay.h>
-#include <linux/completion.h>
-#include <linux/mii.h>
-#include <linux/pci.h>
-#include <linux/ctype.h>
-#include <linux/timer.h>
 #include <linux/atomic.h>
-#include <linux/io.h>
+#include <linux/completion.h>
+#include <linux/if_arp.h>
+#include <linux/netdevice.h>
+#include <linux/timer.h>
 #include <linux/uaccess.h>
 
 static int wep_on_off;
