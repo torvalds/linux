@@ -203,6 +203,7 @@ struct dc_debug {
 	bool clock_trace;
 	bool validation_trace;
 	bool bandwidth_calcs_trace;
+	int max_downscale_src_width;
 
 	/* stutter efficiency related */
 	bool disable_stutter;

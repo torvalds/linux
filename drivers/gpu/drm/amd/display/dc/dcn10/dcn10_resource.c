@@ -447,6 +447,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.performance_trace = false,
 		.az_endpoint_mute_only = true,
 		.recovery_enabled = false, /*enable this by default after testing.*/
+		.max_downscale_src_width = 3840,
 };
 
 static const struct dc_debug debug_defaults_diags = {
