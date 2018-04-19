@@ -274,8 +274,8 @@ static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
 		ret = readl_poll_timeout(reg, tmp,
 					 !(tmp & SDHCI_CDNS_HRS06_TUNE_UP),
 					 0, 1);
-
-		return ret;
+		if (ret)
+			return ret;
 	}
 
 	return 0;
