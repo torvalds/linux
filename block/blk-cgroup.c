@@ -1181,17 +1181,15 @@ int blkcg_init_queue(struct request_queue *q)
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 	blkg = blkg_create(&blkcg_root, q, new_blkg);
+	if (IS_ERR(blkg))
+		goto err_unlock;
+	q->root_blkg = blkg;
+	q->root_rl.blkg = blkg;
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
 
 	if (preloaded)
 		radix_tree_preload_end();
-
-	if (IS_ERR(blkg))
-		return PTR_ERR(blkg);
-
-	q->root_blkg = blkg;
-	q->root_rl.blkg = blkg;
 
 	ret = blk_throtl_init(q);
 	if (ret) {
@@ -1200,6 +1198,13 @@ int blkcg_init_queue(struct request_queue *q)
 		spin_unlock_irq(q->queue_lock);
 	}
 	return ret;
+
+err_unlock:
+	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
+	if (preloaded)
+		radix_tree_preload_end();
+	return PTR_ERR(blkg);
 }
 
 /**
