@@ -286,14 +286,6 @@ struct scan_ext {
 	char ssid[IW_ESSID_MAX_SIZE + 1];
 };
 
-enum {
-	CIPHER_NONE,
-	CIPHER_WEP40,
-	CIPHER_TKIP,
-	CIPHER_CCMP,
-	CIPHER_WEP104
-};
-
 #define CIPHER_ID_WPA_NONE    "\x00\x50\xf2\x00"
 #define CIPHER_ID_WPA_WEP40   "\x00\x50\xf2\x01"
 #define CIPHER_ID_WPA_TKIP    "\x00\x50\xf2\x02"
