@@ -13,7 +13,8 @@ Required properties:
  - reg: Address where registers are mapped and size of region.
  - interrupts: Should contain the MAC interrupt.
  - phy-mode: See ethernet.txt in the same directory. Allow to choose
-	"rgmii", "rmii", or "mii" according to the PHY.
+	"rgmii", "rmii", "mii", or "internal" according to the PHY.
+	The acceptable mode is SoC-dependent.
  - phy-handle: Should point to the external phy device.
 	See ethernet.txt file in the same directory.
  - clocks: A phandle to the clock for the MAC.
@@ -27,6 +28,8 @@ Required properties:
  - reset-names: Should contain
 	- "ether", "gio" for Pro4 SoC
 	- "ether" for others
+ - socionext,syscon-phy-mode: A phandle to syscon with one argument
+	that configures phy mode. The argument is the ID of MAC instance.
 
 Optional properties:
  - local-mac-address: See ethernet.txt in the same directory.
@@ -47,6 +50,7 @@ Example:
 		clocks = <&sys_clk 6>;
 		reset-names = "ether";
 		resets = <&sys_rst 6>;
+		socionext,syscon-phy-mode = <&soc_glue 0>;
 		local-mac-address = [00 00 00 00 00 00];
 
 		mdio {
