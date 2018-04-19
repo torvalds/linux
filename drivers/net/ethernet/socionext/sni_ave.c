@@ -199,6 +199,9 @@
 
 #define IS_DESC_64BIT(p)	((p)->data->is_desc_64bit)
 
+#define AVE_MAX_CLKS		4
+#define AVE_MAX_RSTS		2
+
 enum desc_id {
 	AVE_DESCID_RX,
 	AVE_DESCID_TX,
@@ -227,6 +230,8 @@ struct ave_desc_info {
 
 struct ave_soc_data {
 	bool	is_desc_64bit;
+	const char	*clock_names[AVE_MAX_CLKS];
+	const char	*reset_names[AVE_MAX_RSTS];
 };
 
 struct ave_stats {
@@ -245,8 +250,10 @@ struct ave_private {
 	int			phy_id;
 	unsigned int		desc_size;
 	u32			msg_enable;
-	struct clk		*clk;
-	struct reset_control	*rst;
+	int			nclks;
+	struct clk		*clk[AVE_MAX_CLKS];
+	int			nrsts;
+	struct reset_control	*rst[AVE_MAX_RSTS];
 	phy_interface_t		phy_mode;
 	struct phy_device	*phydev;
 	struct mii_bus		*mdio;
@@ -1153,18 +1160,23 @@ static int ave_init(struct net_device *ndev)
 	struct device_node *np = dev->of_node;
 	struct device_node *mdio_np;
 	struct phy_device *phydev;
-	int ret;
+	int nc, nr, ret;
 
 	/* enable clk because of hw access until ndo_open */
-	ret = clk_prepare_enable(priv->clk);
-	if (ret) {
-		dev_err(dev, "can't enable clock\n");
-		return ret;
+	for (nc = 0; nc < priv->nclks; nc++) {
+		ret = clk_prepare_enable(priv->clk[nc]);
+		if (ret) {
+			dev_err(dev, "can't enable clock\n");
+			goto out_clk_disable;
+		}
 	}
-	ret = reset_control_deassert(priv->rst);
-	if (ret) {
-		dev_err(dev, "can't deassert reset\n");
-		goto out_clk_disable;
+
+	for (nr = 0; nr < priv->nrsts; nr++) {
+		ret = reset_control_deassert(priv->rst[nr]);
+		if (ret) {
+			dev_err(dev, "can't deassert reset\n");
+			goto out_reset_assert;
+		}
 	}
 
 	ave_global_reset(ndev);
@@ -1207,9 +1219,11 @@ static int ave_init(struct net_device *ndev)
 out_mdio_unregister:
 	mdiobus_unregister(priv->mdio);
 out_reset_assert:
-	reset_control_assert(priv->rst);
+	while (--nr >= 0)
+		reset_control_assert(priv->rst[nr]);
 out_clk_disable:
-	clk_disable_unprepare(priv->clk);
+	while (--nc >= 0)
+		clk_disable_unprepare(priv->clk[nc]);
 
 	return ret;
 }
@@ -1217,13 +1231,16 @@ out_clk_disable:
 static void ave_uninit(struct net_device *ndev)
 {
 	struct ave_private *priv = netdev_priv(ndev);
+	int i;
 
 	phy_disconnect(priv->phydev);
 	mdiobus_unregister(priv->mdio);
 
 	/* disable clk because of hw access after ndo_stop */
-	reset_control_assert(priv->rst);
-	clk_disable_unprepare(priv->clk);
+	for (i = 0; i < priv->nrsts; i++)
+		reset_control_assert(priv->rst[i]);
+	for (i = 0; i < priv->nclks; i++)
+		clk_disable_unprepare(priv->clk[i]);
 }
 
 static int ave_open(struct net_device *ndev)
@@ -1527,8 +1544,9 @@ static int ave_probe(struct platform_device *pdev)
 	struct resource	*res;
 	const void *mac_addr;
 	void __iomem *base;
+	const char *name;
+	int i, irq, ret;
 	u64 dma_mask;
-	int irq, ret;
 	u32 ave_id;
 
 	data = of_device_get_match_data(dev);
@@ -1614,16 +1632,28 @@ static int ave_probe(struct platform_device *pdev)
 	u64_stats_init(&priv->stats_tx.syncp);
 	u64_stats_init(&priv->stats_rx.syncp);
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		goto out_free_netdev;
+	for (i = 0; i < AVE_MAX_CLKS; i++) {
+		name = priv->data->clock_names[i];
+		if (!name)
+			break;
+		priv->clk[i] = devm_clk_get(dev, name);
+		if (IS_ERR(priv->clk[i])) {
+			ret = PTR_ERR(priv->clk[i]);
+			goto out_free_netdev;
+		}
+		priv->nclks++;
 	}
 
-	priv->rst = devm_reset_control_get_optional_shared(dev, NULL);
-	if (IS_ERR(priv->rst)) {
-		ret = PTR_ERR(priv->rst);
-		goto out_free_netdev;
+	for (i = 0; i < AVE_MAX_RSTS; i++) {
+		name = priv->data->reset_names[i];
+		if (!name)
+			break;
+		priv->rst[i] = devm_reset_control_get_shared(dev, name);
+		if (IS_ERR(priv->rst[i])) {
+			ret = PTR_ERR(priv->rst[i]);
+			goto out_free_netdev;
+		}
+		priv->nrsts++;
 	}
 
 	priv->mdio = devm_mdiobus_alloc(dev);
@@ -1687,22 +1717,52 @@ static int ave_remove(struct platform_device *pdev)
 
 static const struct ave_soc_data ave_pro4_data = {
 	.is_desc_64bit = false,
+	.clock_names = {
+		"gio", "ether", "ether-gb", "ether-phy",
+	},
+	.reset_names = {
+		"gio", "ether",
+	},
 };
 
 static const struct ave_soc_data ave_pxs2_data = {
 	.is_desc_64bit = false,
+	.clock_names = {
+		"ether",
+	},
+	.reset_names = {
+		"ether",
+	},
 };
 
 static const struct ave_soc_data ave_ld11_data = {
 	.is_desc_64bit = false,
+	.clock_names = {
+		"ether",
+	},
+	.reset_names = {
+		"ether",
+	},
 };
 
 static const struct ave_soc_data ave_ld20_data = {
 	.is_desc_64bit = true,
+	.clock_names = {
+		"ether",
+	},
+	.reset_names = {
+		"ether",
+	},
 };
 
 static const struct ave_soc_data ave_pxs3_data = {
 	.is_desc_64bit = false,
+	.clock_names = {
+		"ether",
+	},
+	.reset_names = {
+		"ether",
+	},
 };
 
 static const struct of_device_id of_ave_match[] = {
