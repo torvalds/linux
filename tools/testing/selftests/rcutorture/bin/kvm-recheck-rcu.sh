@@ -42,7 +42,7 @@ if test -z "$ngps"
 then
 	echo "$configfile ------- " $stopstate
 else
-	title="$configfile ------- $ngps grace periods"
+	title="$configfile ------- $ngps GPs"
 	dur=`sed -e 's/^.* rcutorture.shutdown_secs=//' -e 's/ .*$//' < $i/qemu-cmd 2> /dev/null`
 	if test -z "$dur"
 	then
@@ -50,7 +50,7 @@ else
 	else
 		ngpsps=`awk -v ngps=$ngps -v dur=$dur '
 			BEGIN { print ngps / dur }' < /dev/null`
-		title="$title ($ngpsps per second)"
+		title="$title ($ngpsps/s)"
 	fi
 	echo $title $stopstate
 	nclosecalls=`grep --binary-files=text 'torture: Reader Batch' $i/console.log | tail -1 | awk '{for (i=NF-8;i<=NF;i++) sum+=$i; } END {print sum}'`
