@@ -321,6 +321,7 @@ int crypto4xx_decrypt_ctr(struct skcipher_request *req)
 }
 
 static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
+						unsigned int len,
 						bool is_ccm, bool decrypt)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
@@ -330,14 +331,14 @@ static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
 		return true;
 
 	/*
-	 * hardware does not handle cases where cryptlen
-	 * is less than a block
+	 * hardware does not handle cases where plaintext
+	 * is less than a block.
 	 */
-	if (req->cryptlen < AES_BLOCK_SIZE)
+	if (len < AES_BLOCK_SIZE)
 		return true;
 
-	/* assoc len needs to be a multiple of 4 */
-	if (req->assoclen & 0x3)
+	/* assoc len needs to be a multiple of 4 and <= 1020 */
+	if (req->assoclen & 0x3 || req->assoclen > 1020)
 		return true;
 
 	/* CCM supports only counter field length of 2 and 4 bytes */
@@ -449,16 +450,16 @@ static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 {
 	struct crypto4xx_ctx *ctx  = crypto_tfm_ctx(req->base.tfm);
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	unsigned int len = req->cryptlen;
 	__le32 iv[16];
 	u32 tmp_sa[SA_AES128_CCM_LEN + 4];
 	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *)tmp_sa;
-
-	if (crypto4xx_aead_need_fallback(req, true, decrypt))
-		return crypto4xx_aead_fallback(req, ctx, decrypt);
+	unsigned int len = req->cryptlen;
 
 	if (decrypt)
 		len -= crypto_aead_authsize(aead);
+
+	if (crypto4xx_aead_need_fallback(req, len, true, decrypt))
+		return crypto4xx_aead_fallback(req, ctx, decrypt);
 
 	memcpy(tmp_sa, decrypt ? ctx->sa_in : ctx->sa_out, ctx->sa_len * 4);
 	sa->sa_command_0.bf.digest_len = crypto_aead_authsize(aead) >> 2;
@@ -605,17 +606,18 @@ static inline int crypto4xx_crypt_aes_gcm(struct aead_request *req,
 					  bool decrypt)
 {
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	unsigned int len = req->cryptlen;
+	struct crypto4xx_aead_reqctx *rctx = aead_request_ctx(req);
 	__le32 iv[4];
+	unsigned int len = req->cryptlen;
 
-	if (crypto4xx_aead_need_fallback(req, false, decrypt))
+	if (decrypt)
+		len -= crypto_aead_authsize(crypto_aead_reqtfm(req));
+
+	if (crypto4xx_aead_need_fallback(req, len, false, decrypt))
 		return crypto4xx_aead_fallback(req, ctx, decrypt);
 
 	crypto4xx_memcpy_to_le32(iv, req->iv, GCM_AES_IV_SIZE);
 	iv[3] = cpu_to_le32(1);
-
-	if (decrypt)
-		len -= crypto_aead_authsize(crypto_aead_reqtfm(req));
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  len, iv, sizeof(iv),
