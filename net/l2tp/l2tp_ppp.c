@@ -1618,8 +1618,11 @@ static void pppol2tp_seq_stop(struct seq_file *p, void *v)
 		return;
 
 	/* Drop reference taken by last invocation of pppol2tp_next_tunnel() */
-	if (pd->tunnel)
+	if (pd->tunnel) {
 		l2tp_tunnel_dec_refcount(pd->tunnel);
+		pd->tunnel = NULL;
+		pd->session = NULL;
+	}
 }
 
 static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
