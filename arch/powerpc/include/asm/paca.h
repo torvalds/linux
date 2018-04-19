@@ -223,6 +223,7 @@ struct paca_struct {
 	u8 hmi_event_available;		/* HMI event is available */
 	u8 hmi_p9_special_emu;		/* HMI P9 special emulation */
 #endif
+	u8 ftrace_enabled;		/* Hard disable ftrace */
 
 	/* Stuff for accurate time accounting */
 	struct cpu_accounting_data accounting;
