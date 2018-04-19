@@ -1160,6 +1160,10 @@ int qede_set_mac_addr(struct net_device *ndev, void *p)
 	if (edev->state != QEDE_STATE_OPEN) {
 		DP_VERBOSE(edev, NETIF_MSG_IFDOWN,
 			   "The device is currently down\n");
+		/* Ask PF to explicitly update a copy in bulletin board */
+		if (IS_VF(edev) && edev->ops->req_bulletin_update_mac)
+			edev->ops->req_bulletin_update_mac(edev->cdev,
+							   ndev->dev_addr);
 		goto out;
 	}
 

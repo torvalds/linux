@@ -3820,6 +3820,40 @@ static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
 		__qed_vf_get_link_caps(p_hwfn, p_caps, p_bulletin);
 }
 
+static int
+qed_iov_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  struct qed_vf_info *p_vf)
+{
+	struct qed_bulletin_content *p_bulletin = p_vf->bulletin.p_virt;
+	struct qed_iov_vf_mbx *mbx = &p_vf->vf_mbx;
+	struct vfpf_bulletin_update_mac_tlv *p_req;
+	u8 status = PFVF_STATUS_SUCCESS;
+	int rc = 0;
+
+	if (!p_vf->p_vf_info.is_trusted_configured) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "Blocking bulletin update request from untrusted VF[%d]\n",
+			   p_vf->abs_vf_id);
+		status = PFVF_STATUS_NOT_SUPPORTED;
+		rc = -EINVAL;
+		goto send_status;
+	}
+
+	p_req = &mbx->req_virt->bulletin_update_mac;
+	ether_addr_copy(p_bulletin->mac, p_req->mac);
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "Updated bulletin of VF[%d] with requested MAC[%pM]\n",
+		   p_vf->abs_vf_id, p_req->mac);
+
+send_status:
+	qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf,
+			     CHANNEL_TLV_BULLETIN_UPDATE_MAC,
+			     sizeof(struct pfvf_def_resp_tlv), status);
+	return rc;
+}
+
 static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt, int vfid)
 {
@@ -3898,6 +3932,9 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			break;
 		case CHANNEL_TLV_COALESCE_READ:
 			qed_iov_vf_pf_get_coalesce(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_BULLETIN_UPDATE_MAC:
+			qed_iov_vf_pf_bulletin_update_mac(p_hwfn, p_ptt, p_vf);
 			break;
 		}
 	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
