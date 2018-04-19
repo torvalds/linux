@@ -28,7 +28,7 @@ static const char default_rtc[] = "/dev/rtc0";
 int main(int argc, char **argv)
 {
 	int i, fd, retval, irqcount = 0;
-	unsigned long tmp, data;
+	unsigned long tmp, data, old_pie_rate;
 	const char *rtc = default_rtc;
 	struct timeval start, end, diff;
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Read periodic IRQ rate */
-	retval = ioctl(fd, RTC_IRQP_READ, &tmp);
+	retval = ioctl(fd, RTC_IRQP_READ, &old_pie_rate);
 	if (retval == -1) {
 		/* not all RTCs support periodic IRQs */
 		if (errno == EINVAL) {
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 		perror("RTC_IRQP_READ ioctl");
 		exit(errno);
 	}
-	fprintf(stderr, "\nPeriodic IRQ rate is %ldHz.\n", tmp);
+	fprintf(stderr, "\nPeriodic IRQ rate is %ldHz.\n", old_pie_rate);
 
 	fprintf(stderr, "Counting 20 interrupts at:");
 	fflush(stderr);
@@ -124,6 +124,8 @@ int main(int argc, char **argv)
 	}
 
 done:
+	ioctl(fd, RTC_IRQP_SET, old_pie_rate);
+
 	fprintf(stderr, "\n\n\t\t\t *** Test complete ***\n");
 
 	close(fd);
