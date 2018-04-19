@@ -302,6 +302,7 @@ config CRYPTO_DEV_PPC4XX
 	select CRYPTO_AEAD
 	select CRYPTO_AES
 	select CRYPTO_CCM
+	select CRYPTO_CTR
 	select CRYPTO_GCM
 	select CRYPTO_BLKCIPHER
 	help

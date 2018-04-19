@@ -941,6 +941,19 @@ static int crypto4xx_sk_init(struct crypto_skcipher *sk)
 	struct crypto4xx_alg *amcc_alg;
 	struct crypto4xx_ctx *ctx =  crypto_skcipher_ctx(sk);
 
+	if (alg->base.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
+		ctx->sw_cipher.cipher =
+			crypto_alloc_skcipher(alg->base.cra_name, 0,
+					      CRYPTO_ALG_NEED_FALLBACK |
+					      CRYPTO_ALG_ASYNC);
+		if (IS_ERR(ctx->sw_cipher.cipher))
+			return PTR_ERR(ctx->sw_cipher.cipher);
+
+		crypto_skcipher_set_reqsize(sk,
+			sizeof(struct skcipher_request) + 32 +
+			crypto_skcipher_reqsize(ctx->sw_cipher.cipher));
+	}
+
 	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.cipher);
 	crypto4xx_ctx_init(amcc_alg, ctx);
 	return 0;
@@ -956,6 +969,8 @@ static void crypto4xx_sk_exit(struct crypto_skcipher *sk)
 	struct crypto4xx_ctx *ctx =  crypto_skcipher_ctx(sk);
 
 	crypto4xx_common_exit(ctx);
+	if (ctx->sw_cipher.cipher)
+		crypto_free_skcipher(ctx->sw_cipher.cipher);
 }
 
 static int crypto4xx_aead_init(struct crypto_aead *tfm)
@@ -1142,6 +1157,28 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.setkey	= crypto4xx_setkey_aes_cfb,
 		.encrypt = crypto4xx_encrypt_iv,
 		.decrypt = crypto4xx_decrypt_iv,
+		.init = crypto4xx_sk_init,
+		.exit = crypto4xx_sk_exit,
+	} },
+	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
+		.base = {
+			.cra_name = "ctr(aes)",
+			.cra_driver_name = "ctr-aes-ppc4xx",
+			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				CRYPTO_ALG_NEED_FALLBACK |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
+			.cra_module = THIS_MODULE,
+		},
+		.min_keysize = AES_MIN_KEY_SIZE,
+		.max_keysize = AES_MAX_KEY_SIZE,
+		.ivsize	= AES_IV_SIZE,
+		.setkey	= crypto4xx_setkey_aes_ctr,
+		.encrypt = crypto4xx_encrypt_ctr,
+		.decrypt = crypto4xx_decrypt_ctr,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },

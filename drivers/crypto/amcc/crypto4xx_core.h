@@ -128,6 +128,7 @@ struct crypto4xx_ctx {
 	__le32 iv_nonce;
 	u32 sa_len;
 	union {
+		struct crypto_skcipher *cipher;
 		struct crypto_aead *aead;
 	} sw_cipher;
 };
@@ -163,12 +164,16 @@ int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_cfb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
+int crypto4xx_setkey_aes_ctr(struct crypto_skcipher *cipher,
+			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_ecb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_ofb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
+int crypto4xx_encrypt_ctr(struct skcipher_request *req);
+int crypto4xx_decrypt_ctr(struct skcipher_request *req);
 int crypto4xx_encrypt_iv(struct skcipher_request *req);
 int crypto4xx_decrypt_iv(struct skcipher_request *req);
 int crypto4xx_encrypt_noiv(struct skcipher_request *req);

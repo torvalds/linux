@@ -240,6 +240,85 @@ int crypto4xx_rfc3686_decrypt(struct skcipher_request *req)
 				  ctx->sa_out, ctx->sa_len, 0);
 }
 
+static int
+crypto4xx_ctr_crypt(struct skcipher_request *req, bool encrypt)
+{
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
+	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
+	size_t iv_len = crypto_skcipher_ivsize(cipher);
+	unsigned int counter = be32_to_cpup((__be32 *)(req->iv + iv_len - 4));
+	unsigned int nblks = ALIGN(req->cryptlen, AES_BLOCK_SIZE) /
+			AES_BLOCK_SIZE;
+
+	/*
+	 * The hardware uses only the last 32-bits as the counter while the
+	 * kernel tests (aes_ctr_enc_tv_template[4] for example) expect that
+	 * the whole IV is a counter.  So fallback if the counter is going to
+	 * overlow.
+	 */
+	if (counter + nblks < counter) {
+		struct skcipher_request *subreq = skcipher_request_ctx(req);
+		int ret;
+
+		skcipher_request_set_tfm(subreq, ctx->sw_cipher.cipher);
+		skcipher_request_set_callback(subreq, req->base.flags,
+			NULL, NULL);
+		skcipher_request_set_crypt(subreq, req->src, req->dst,
+			req->cryptlen, req->iv);
+		ret = encrypt ? crypto_skcipher_encrypt(subreq)
+			: crypto_skcipher_decrypt(subreq);
+		skcipher_request_zero(subreq);
+		return ret;
+	}
+
+	return encrypt ? crypto4xx_encrypt_iv(req)
+		       : crypto4xx_decrypt_iv(req);
+}
+
+static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,
+				       struct crypto_skcipher *cipher,
+				       const u8 *key,
+				       unsigned int keylen)
+{
+	int rc;
+
+	crypto_skcipher_clear_flags(ctx->sw_cipher.cipher,
+				    CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(ctx->sw_cipher.cipher,
+		crypto_skcipher_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
+	rc = crypto_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
+	crypto_skcipher_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
+	crypto_skcipher_set_flags(cipher,
+		crypto_skcipher_get_flags(ctx->sw_cipher.cipher) &
+			CRYPTO_TFM_RES_MASK);
+
+	return rc;
+}
+
+int crypto4xx_setkey_aes_ctr(struct crypto_skcipher *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
+	int rc;
+
+	rc = crypto4xx_sk_setup_fallback(ctx, cipher, key, keylen);
+	if (rc)
+		return rc;
+
+	return crypto4xx_setkey_aes(cipher, key, keylen,
+		CRYPTO_MODE_CTR, CRYPTO_FEEDBACK_MODE_NO_FB);
+}
+
+int crypto4xx_encrypt_ctr(struct skcipher_request *req)
+{
+	return crypto4xx_ctr_crypt(req, true);
+}
+
+int crypto4xx_decrypt_ctr(struct skcipher_request *req)
+{
+	return crypto4xx_ctr_crypt(req, false);
+}
+
 static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
 						bool is_ccm, bool decrypt)
 {
@@ -282,10 +361,10 @@ static int crypto4xx_aead_fallback(struct aead_request *req,
 			    crypto_aead_encrypt(subreq);
 }
 
-static int crypto4xx_setup_fallback(struct crypto4xx_ctx *ctx,
-				    struct crypto_aead *cipher,
-				    const u8 *key,
-				    unsigned int keylen)
+static int crypto4xx_aead_setup_fallback(struct crypto4xx_ctx *ctx,
+					 struct crypto_aead *cipher,
+					 const u8 *key,
+					 unsigned int keylen)
 {
 	int rc;
 
@@ -313,7 +392,7 @@ int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher, const u8 *key,
 	struct dynamic_sa_ctl *sa;
 	int rc = 0;
 
-	rc = crypto4xx_setup_fallback(ctx, cipher, key, keylen);
+	rc = crypto4xx_aead_setup_fallback(ctx, cipher, key, keylen);
 	if (rc)
 		return rc;
 
@@ -472,7 +551,7 @@ int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,
 		return -EINVAL;
 	}
 
-	rc = crypto4xx_setup_fallback(ctx, cipher, key, keylen);
+	rc = crypto4xx_aead_setup_fallback(ctx, cipher, key, keylen);
 	if (rc)
 		return rc;
 
