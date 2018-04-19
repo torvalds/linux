@@ -20,8 +20,8 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
  *
- * ftrace_caller() is the function that replaces _mcount() when ftrace is
- * active.
+ * ftrace_caller()/ftrace_regs_caller() is the function that replaces _mcount()
+ * when ftrace is active.
  *
  * We arrive here after a function A calls function B, and we are the trace
  * function for B. When we enter r1 points to A's stack frame, B has not yet
@@ -37,7 +37,7 @@
  * Our job is to save the register state into a struct pt_regs (on the stack)
  * and then arrange for the ftrace function to be called.
  */
-_GLOBAL(ftrace_caller)
+_GLOBAL(ftrace_regs_caller)
 	/* Save the original return address in A's stack frame */
 	std	r0,LRSAVE(r1)
 
@@ -100,8 +100,8 @@ _GLOBAL(ftrace_caller)
 	addi    r6, r1 ,STACK_FRAME_OVERHEAD
 
 	/* ftrace_call(r3, r4, r5, r6) */
-.globl ftrace_call
-ftrace_call:
+.globl ftrace_regs_call
+ftrace_regs_call:
 	bl	ftrace_stub
 	nop
 
@@ -162,6 +162,7 @@ ftrace_call:
 	bne-	livepatch_handler
 #endif
 
+ftrace_caller_common:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
 ftrace_graph_call:
@@ -181,6 +182,66 @@ ftrace_no_trace:
 	addi	r1, r1, SWITCH_FRAME_SIZE
 	mtlr	r0
 	bctr
+
+_GLOBAL(ftrace_caller)
+	/* Save the original return address in A's stack frame */
+	std	r0, LRSAVE(r1)
+
+	/* Create our stack frame + pt_regs */
+	stdu	r1, -SWITCH_FRAME_SIZE(r1)
+
+	/* Save all gprs to pt_regs */
+	SAVE_8GPRS(3, r1)
+
+	lbz	r3, PACA_FTRACE_ENABLED(r13)
+	cmpdi	r3, 0
+	beq	ftrace_no_trace
+
+	/* Get the _mcount() call site out of LR */
+	mflr	r7
+	std     r7, _NIP(r1)
+
+	/* Save callee's TOC in the ABI compliant location */
+	std	r2, 24(r1)
+	ld	r2, PACATOC(r13)	/* get kernel TOC in r2 */
+
+	addis	r3, r2, function_trace_op@toc@ha
+	addi	r3, r3, function_trace_op@toc@l
+	ld	r5, 0(r3)
+
+	/* Calculate ip from nip-4 into r3 for call below */
+	subi    r3, r7, MCOUNT_INSN_SIZE
+
+	/* Put the original return address in r4 as parent_ip */
+	mr	r4, r0
+
+	/* Set pt_regs to NULL */
+	li	r6, 0
+
+	/* ftrace_call(r3, r4, r5, r6) */
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+
+	ld	r3, _NIP(r1)
+	mtctr	r3
+
+	/* Restore gprs */
+	REST_8GPRS(3,r1)
+
+	/* Restore callee's TOC */
+	ld	r2, 24(r1)
+
+	/* Pop our stack frame */
+	addi	r1, r1, SWITCH_FRAME_SIZE
+
+	/* Reload original LR */
+	ld	r0, LRSAVE(r1)
+	mtlr	r0
+
+	/* Handle function_graph or go back */
+	b	ftrace_caller_common
 
 #ifdef CONFIG_LIVEPATCH
 	/*

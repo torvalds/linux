@@ -280,6 +280,10 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/* make the trampoline to the ftrace_caller */
 	relocs++;
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	/* an additional one for ftrace_regs_caller */
+	relocs++;
+#endif
 #endif
 
 	pr_debug("Looks like a total of %lu stubs, max\n", relocs);
@@ -765,7 +769,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
  * via the paca (in r13). The target (ftrace_caller()) is responsible for
  * saving and restoring the toc before returning.
  */
-static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs, struct module *me)
+static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs,
+				struct module *me, unsigned long addr)
 {
 	struct ppc64_stub_entry *entry;
 	unsigned int i, num_stubs;
@@ -792,9 +797,10 @@ static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs, struct module
 	memcpy(entry->jump, stub_insns, sizeof(stub_insns));
 
 	/* Stub uses address relative to kernel toc (from the paca) */
-	reladdr = (unsigned long)ftrace_caller - kernel_toc_addr();
+	reladdr = addr - kernel_toc_addr();
 	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
-		pr_err("%s: Address of ftrace_caller out of range of kernel_toc.\n", me->name);
+		pr_err("%s: Address of %ps out of range of kernel_toc.\n",
+							me->name, (void *)addr);
 		return 0;
 	}
 
@@ -802,22 +808,30 @@ static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs, struct module
 	entry->jump[2] |= PPC_LO(reladdr);
 
 	/* Eventhough we don't use funcdata in the stub, it's needed elsewhere. */
-	entry->funcdata = func_desc((unsigned long)ftrace_caller);
+	entry->funcdata = func_desc(addr);
 	entry->magic = STUB_MAGIC;
 
 	return (unsigned long)entry;
 }
 #else
-static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs, struct module *me)
+static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs,
+				struct module *me, unsigned long addr)
 {
-	return stub_for_addr(sechdrs, (unsigned long)ftrace_caller, me);
+	return stub_for_addr(sechdrs, addr, me);
 }
 #endif
 
 int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
 {
 	mod->arch.toc = my_r2(sechdrs, mod);
-	mod->arch.tramp = create_ftrace_stub(sechdrs, mod);
+	mod->arch.tramp = create_ftrace_stub(sechdrs, mod,
+					(unsigned long)ftrace_caller);
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	mod->arch.tramp_regs = create_ftrace_stub(sechdrs, mod,
+					(unsigned long)ftrace_regs_caller);
+	if (!mod->arch.tramp_regs)
+		return -ENOENT;
+#endif
 
 	if (!mod->arch.tramp)
 		return -ENOENT;

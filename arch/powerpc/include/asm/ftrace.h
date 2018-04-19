@@ -49,8 +49,6 @@
 extern void _mcount(void);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-# define FTRACE_ADDR ((unsigned long)ftrace_caller)
-# define FTRACE_REGS_ADDR FTRACE_ADDR
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
        /* reloction of mcount call site is the same as the address */

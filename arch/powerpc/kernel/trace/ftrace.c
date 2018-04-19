@@ -357,6 +357,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op[2];
 	void *ip = (void *)rec->ip;
+	unsigned long entry, ptr, tramp;
+	struct module *mod = rec->arch.mod;
 
 	/* read where this goes */
 	if (probe_kernel_read(op, ip, sizeof(op)))
@@ -368,33 +370,50 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	/* If we never set up a trampoline to ftrace_caller, then bail */
-	if (!rec->arch.mod->arch.tramp) {
+	/* If we never set up ftrace trampoline(s), then bail */
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
+#else
+	if (!mod->arch.tramp) {
+#endif
 		pr_err("No ftrace trampoline\n");
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (rec->flags & FTRACE_FL_REGS)
+		tramp = mod->arch.tramp_regs;
+	else
+#endif
+		tramp = mod->arch.tramp;
+
+	if (module_trampoline_target(mod, tramp, &ptr)) {
+		pr_err("Failed to get trampoline target\n");
+		return -EFAULT;
+	}
+
+	pr_devel("trampoline target %lx", ptr);
+
+	entry = ppc_global_function_entry((void *)addr);
+	/* This should match what was called */
+	if (ptr != entry) {
+		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		return -EINVAL;
+	}
+
 	/* Ensure branch is within 24 bits */
-	if (!create_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
+	if (!create_branch(ip, tramp, BRANCH_SET_LINK)) {
 		pr_err("Branch out of range\n");
 		return -EINVAL;
 	}
 
-	if (patch_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
+	if (patch_branch(ip, tramp, BRANCH_SET_LINK)) {
 		pr_err("REL24 out of range!\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
-
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
-			unsigned long addr)
-{
-	return ftrace_make_call(rec, addr);
-}
-#endif
 
 #else  /* !CONFIG_PPC64: */
 static int
@@ -472,6 +491,137 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 #endif /* CONFIG_MODULES */
 }
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_MODULES
+static int
+__ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+					unsigned long addr)
+{
+	unsigned int op;
+	unsigned long ip = rec->ip;
+	unsigned long entry, ptr, tramp;
+	struct module *mod = rec->arch.mod;
+
+	/* If we never set up ftrace trampolines, then bail */
+	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
+		pr_err("No ftrace trampoline\n");
+		return -EINVAL;
+	}
+
+	/* read where this goes */
+	if (probe_kernel_read(&op, (void *)ip, sizeof(int))) {
+		pr_err("Fetching opcode failed.\n");
+		return -EFAULT;
+	}
+
+	/* Make sure that that this is still a 24bit jump */
+	if (!is_bl_op(op)) {
+		pr_err("Not expected bl: opcode is %x\n", op);
+		return -EINVAL;
+	}
+
+	/* lets find where the pointer goes */
+	tramp = find_bl_target(ip, op);
+	entry = ppc_global_function_entry((void *)old_addr);
+
+	pr_devel("ip:%lx jumps to %lx", ip, tramp);
+
+	if (tramp != entry) {
+		/* old_addr is not within range, so we must have used a trampoline */
+		if (module_trampoline_target(mod, tramp, &ptr)) {
+			pr_err("Failed to get trampoline target\n");
+			return -EFAULT;
+		}
+
+		pr_devel("trampoline target %lx", ptr);
+
+		/* This should match what was called */
+		if (ptr != entry) {
+			pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+			return -EINVAL;
+		}
+	}
+
+	/* The new target may be within range */
+	if (test_24bit_addr(ip, addr)) {
+		/* within range */
+		if (patch_branch((unsigned int *)ip, addr, BRANCH_SET_LINK)) {
+			pr_err("REL24 out of range!\n");
+			return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	if (rec->flags & FTRACE_FL_REGS)
+		tramp = mod->arch.tramp_regs;
+	else
+		tramp = mod->arch.tramp;
+
+	if (module_trampoline_target(mod, tramp, &ptr)) {
+		pr_err("Failed to get trampoline target\n");
+		return -EFAULT;
+	}
+
+	pr_devel("trampoline target %lx", ptr);
+
+	entry = ppc_global_function_entry((void *)addr);
+	/* This should match what was called */
+	if (ptr != entry) {
+		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		return -EINVAL;
+	}
+
+	/* Ensure branch is within 24 bits */
+	if (!create_branch((unsigned int *)ip, tramp, BRANCH_SET_LINK)) {
+		pr_err("Branch out of range\n");
+		return -EINVAL;
+	}
+
+	if (patch_branch((unsigned int *)ip, tramp, BRANCH_SET_LINK)) {
+		pr_err("REL24 out of range!\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
+
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+			unsigned long addr)
+{
+	unsigned long ip = rec->ip;
+	unsigned int old, new;
+
+	/*
+	 * If the calling address is more that 24 bits away,
+	 * then we had to use a trampoline to make the call.
+	 * Otherwise just update the call site.
+	 */
+	if (test_24bit_addr(ip, addr) && test_24bit_addr(ip, old_addr)) {
+		/* within range */
+		old = ftrace_call_replace(ip, old_addr, 1);
+		new = ftrace_call_replace(ip, addr, 1);
+		return ftrace_modify_code(ip, old, new);
+	}
+
+#ifdef CONFIG_MODULES
+	/*
+	 * Out of range jumps are called from modules.
+	 */
+	if (!rec->arch.mod) {
+		pr_err("No module loaded\n");
+		return -EINVAL;
+	}
+
+	return __ftrace_modify_call(rec, old_addr, addr);
+#else
+	/* We should not get here without modules */
+	return -EINVAL;
+#endif /* CONFIG_MODULES */
+}
+#endif
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
@@ -481,6 +631,16 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	old = *(unsigned int *)&ftrace_call;
 	new = ftrace_call_replace(ip, (unsigned long)func, 1);
 	ret = ftrace_modify_code(ip, old, new);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	/* Also update the regs callback function */
+	if (!ret) {
+		ip = (unsigned long)(&ftrace_regs_call);
+		old = *(unsigned int *)&ftrace_regs_call;
+		new = ftrace_call_replace(ip, (unsigned long)func, 1);
+		ret = ftrace_modify_code(ip, old, new);
+	}
+#endif
 
 	return ret;
 }
