@@ -14,8 +14,10 @@ Required properties:
     It is required only on stm32h7.
 - interrupt-parent: phandle for the interrupt controller.
 - interrupts: rtc alarm interrupt.
-- st,syscfg: phandle for pwrcfg, mandatory to disable/enable backup domain
-  (RTC registers) write protection.
+- st,syscfg: phandle/offset/mask triplet. The phandle to pwrcfg used to
+  access control register at offset, and change the dbp (Disable Backup
+  Protection) bit represented by the mask, mandatory to disable/enable backup
+  domain (RTC registers) write protection.
 
 Optional properties (to override default rtc_ck parent clock):
 - assigned-clocks: reference to the rtc_ck clock entry.
@@ -31,7 +33,7 @@ Example:
 		assigned-clock-parents = <&rcc 1 CLK_LSE>;
 		interrupt-parent = <&exti>;
 		interrupts = <17 1>;
-		st,syscfg = <&pwrcfg>;
+		st,syscfg = <&pwrcfg 0x00 0x100>;
 	};
 
 	rtc: rtc@58004000 {
@@ -44,5 +46,5 @@ Example:
 		interrupt-parent = <&exti>;
 		interrupts = <17 1>;
 		interrupt-names = "alarm";
-		st,syscfg = <&pwrcfg>;
+		st,syscfg = <&pwrcfg 0x00 0x100>;
 	};
