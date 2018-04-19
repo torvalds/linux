@@ -2224,11 +2224,10 @@ static int ks_wlan_set_wps_enable(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq == 0 || *uwrq == 1)
-		priv->wps.wps_enabled = *uwrq;
-	else
+	if (*uwrq != 0 && *uwrq != 1)
 		return -EINVAL;
 
+	priv->wps.wps_enabled = *uwrq;
 	hostif_sme_enqueue(priv, SME_WPS_ENABLE_REQUEST);
 
 	return 0;
