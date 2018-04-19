@@ -663,8 +663,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	/* Handle RTC alarm interrupts */
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq_alarm, NULL,
-					stm32_rtc_alarm_irq,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					stm32_rtc_alarm_irq, IRQF_ONESHOT,
 					pdev->name, rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d (alarm interrupt) already claimed\n",
