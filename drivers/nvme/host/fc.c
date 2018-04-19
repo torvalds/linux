@@ -3284,6 +3284,8 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 	}
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
+	pr_warn("%s: %s - %s combination not found\n",
+		__func__, opts->traddr, opts->host_traddr);
 	return ERR_PTR(-ENOENT);
 }
 
