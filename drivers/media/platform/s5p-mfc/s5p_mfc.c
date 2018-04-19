@@ -1449,8 +1449,7 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 
 static int s5p_mfc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
+	struct s5p_mfc_dev *m_dev = dev_get_drvdata(dev);
 	int ret;
 
 	if (m_dev->num_inst == 0)
@@ -1484,8 +1483,7 @@ static int s5p_mfc_suspend(struct device *dev)
 
 static int s5p_mfc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
+	struct s5p_mfc_dev *m_dev = dev_get_drvdata(dev);
 
 	if (m_dev->num_inst == 0)
 		return 0;
