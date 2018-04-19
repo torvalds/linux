@@ -6835,6 +6835,10 @@ struct wmi_wow_ev_arg {
 #define WOW_MIN_PATTERN_SIZE	1
 #define WOW_MAX_PATTERN_SIZE	148
 #define WOW_MAX_PKT_OFFSET	128
+#define WOW_HDR_LEN	(sizeof(struct ieee80211_hdr_3addr) + \
+	sizeof(struct rfc1042_hdr))
+#define WOW_MAX_REDUCE	(WOW_HDR_LEN - sizeof(struct ethhdr) - \
+	offsetof(struct ieee80211_hdr_3addr, addr1))
 
 enum wmi_tdls_state {
 	WMI_TDLS_DISABLE,
