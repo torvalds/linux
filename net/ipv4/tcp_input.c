@@ -3496,6 +3496,22 @@ static void tcp_xmit_recovery(struct sock *sk, int rexmit)
 	tcp_xmit_retransmit_queue(sk);
 }
 
+/* Returns the number of packets newly acked or sacked by the current ACK */
+static u32 tcp_newly_delivered(struct sock *sk, u32 prior_delivered, int flag)
+{
+	const struct net *net = sock_net(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	u32 delivered;
+
+	delivered = tp->delivered - prior_delivered;
+	NET_ADD_STATS(net, LINUX_MIB_TCPDELIVERED, delivered);
+	if (flag & FLAG_ECE) {
+		tp->delivered_ce += delivered;
+		NET_ADD_STATS(net, LINUX_MIB_TCPDELIVEREDCE, delivered);
+	}
+	return delivered;
+}
+
 /* This routine deals with incoming acks, but not outgoing ones. */
 static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 {
@@ -3619,7 +3635,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP))
 		sk_dst_confirm(sk);
 
-	delivered = tp->delivered - delivered;	/* freshly ACKed or SACKed */
+	delivered = tcp_newly_delivered(sk, delivered, flag);
 	lost = tp->lost - lost;			/* freshly marked lost */
 	rs.is_ack_delayed = !!(flag & FLAG_ACK_MAYBE_DELAYED);
 	tcp_rate_gen(sk, delivered, lost, is_sack_reneg, sack_state.rate);
@@ -3629,9 +3645,11 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 no_queue:
 	/* If data was DSACKed, see if we can undo a cwnd reduction. */
-	if (flag & FLAG_DSACKING_ACK)
+	if (flag & FLAG_DSACKING_ACK) {
 		tcp_fastretrans_alert(sk, prior_snd_una, is_dupack, &flag,
 				      &rexmit);
+		tcp_newly_delivered(sk, delivered, flag);
+	}
 	/* If this ack opens up a zero window, clear backoff.  It was
 	 * being used to time the probes, and is probably far higher than
 	 * it needs to be for normal retransmission.
@@ -3655,6 +3673,7 @@ old_ack:
 						&sack_state);
 		tcp_fastretrans_alert(sk, prior_snd_una, is_dupack, &flag,
 				      &rexmit);
+		tcp_newly_delivered(sk, delivered, flag);
 		tcp_xmit_recovery(sk, rexmit);
 	}
 
@@ -5567,9 +5586,12 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 		return true;
 	}
 	tp->syn_data_acked = tp->syn_data;
-	if (tp->syn_data_acked)
-		NET_INC_STATS(sock_net(sk),
-				LINUX_MIB_TCPFASTOPENACTIVE);
+	if (tp->syn_data_acked) {
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFASTOPENACTIVE);
+		/* SYN-data is counted as two separate packets in tcp_ack() */
+		if (tp->delivered > 1)
+			--tp->delivered;
+	}
 
 	tcp_fastopen_add_skb(sk, synack);
 
@@ -5901,6 +5923,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	}
 	switch (sk->sk_state) {
 	case TCP_SYN_RECV:
+		tp->delivered++; /* SYN-ACK delivery isn't tracked in tcp_ack */
 		if (!tp->srtt_us)
 			tcp_synack_rtt_meas(sk, req);
 
