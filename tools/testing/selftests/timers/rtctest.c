@@ -94,10 +94,9 @@ static int compare_dates(struct rtc_time *a, struct rtc_time *b)
 int main(int argc, char **argv)
 {
 	int i, fd, retval, irqcount = 0, dangerous = 0;
-	unsigned long tmp, data;
+	unsigned long data;
 	struct rtc_time rtc_tm;
 	const char *rtc = default_rtc;
-	struct timeval start, end, diff;
 
 	switch (argc) {
 	case 3:
@@ -211,7 +210,7 @@ test_READ:
 		if (errno == EINVAL) {
 			fprintf(stderr,
 				"\n...Alarm IRQs not supported.\n");
-			goto test_PIE;
+			goto test_DATE;
 		}
 
 		perror("RTC_ALM_SET ioctl");
@@ -224,7 +223,7 @@ test_READ:
 		if (errno == EINVAL) {
 			fprintf(stderr,
 					"\n...EINVAL reading current alarm setting.\n");
-			goto test_PIE;
+			goto test_DATE;
 		}
 		perror("RTC_ALM_READ ioctl");
 		exit(errno);
@@ -239,7 +238,7 @@ test_READ:
 		if (errno == EINVAL || errno == EIO) {
 			fprintf(stderr,
 				"\n...Alarm IRQs not supported.\n");
-			goto test_PIE;
+			goto test_DATE;
 		}
 
 		perror("RTC_AIE_ON ioctl");
@@ -262,80 +261,6 @@ test_READ:
 	if (retval == -1) {
 		perror("RTC_AIE_OFF ioctl");
 		exit(errno);
-	}
-
-test_PIE:
-	/* Read periodic IRQ rate */
-	retval = ioctl(fd, RTC_IRQP_READ, &tmp);
-	if (retval == -1) {
-		/* not all RTCs support periodic IRQs */
-		if (errno == EINVAL) {
-			fprintf(stderr, "\nNo periodic IRQ support\n");
-			goto test_DATE;
-		}
-		perror("RTC_IRQP_READ ioctl");
-		exit(errno);
-	}
-	fprintf(stderr, "\nPeriodic IRQ rate is %ldHz.\n", tmp);
-
-	fprintf(stderr, "Counting 20 interrupts at:");
-	fflush(stderr);
-
-	/* The frequencies 128Hz, 256Hz, ... 8192Hz are only allowed for root. */
-	for (tmp=2; tmp<=64; tmp*=2) {
-
-		retval = ioctl(fd, RTC_IRQP_SET, tmp);
-		if (retval == -1) {
-			/* not all RTCs can change their periodic IRQ rate */
-			if (errno == EINVAL) {
-				fprintf(stderr,
-					"\n...Periodic IRQ rate is fixed\n");
-				goto test_DATE;
-			}
-			perror("RTC_IRQP_SET ioctl");
-			exit(errno);
-		}
-
-		fprintf(stderr, "\n%ldHz:\t", tmp);
-		fflush(stderr);
-
-		/* Enable periodic interrupts */
-		retval = ioctl(fd, RTC_PIE_ON, 0);
-		if (retval == -1) {
-			perror("RTC_PIE_ON ioctl");
-			exit(errno);
-		}
-
-		for (i=1; i<21; i++) {
-			gettimeofday(&start, NULL);
-			/* This blocks */
-			retval = read(fd, &data, sizeof(unsigned long));
-			if (retval == -1) {
-				perror("read");
-				exit(errno);
-			}
-			gettimeofday(&end, NULL);
-			timersub(&end, &start, &diff);
-			if (diff.tv_sec > 0 ||
-			    diff.tv_usec > ((1000000L / tmp) * 1.10)) {
-				fprintf(stderr, "\nPIE delta error: %ld.%06ld should be close to 0.%06ld\n",
-				       diff.tv_sec, diff.tv_usec,
-				       (1000000L / tmp));
-				fflush(stdout);
-				exit(-1);
-			}
-
-			fprintf(stderr, " %d",i);
-			fflush(stderr);
-			irqcount++;
-		}
-
-		/* Disable periodic interrupts */
-		retval = ioctl(fd, RTC_PIE_OFF, 0);
-		if (retval == -1) {
-			perror("RTC_PIE_OFF ioctl");
-			exit(errno);
-		}
 	}
 
 test_DATE:
