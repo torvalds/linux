@@ -26,6 +26,13 @@
 			no-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	gpio-keys {
@@ -565,6 +572,7 @@
 
 &gfx {
 	status = "okay";
+	memory-region = <&gfx_memory>;
 };
 
 &pinctrl {
