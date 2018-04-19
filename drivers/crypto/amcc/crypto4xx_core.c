@@ -580,7 +580,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 	struct scatterlist *dst = pd_uinfo->dest_va;
 	size_t cp_len = crypto_aead_authsize(
 		crypto_aead_reqtfm(aead_req));
-	u32 icv[cp_len];
+	u32 icv[AES_BLOCK_SIZE];
 	int err = 0;
 
 	if (pd_uinfo->using_sd) {
@@ -595,7 +595,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 	if (pd_uinfo->sa_va->sa_command_0.bf.dir == DIR_OUTBOUND) {
 		/* append icv at the end */
 		crypto4xx_memcpy_from_le32(icv, pd_uinfo->sr_va->save_digest,
-					   cp_len);
+					   sizeof(icv));
 
 		scatterwalk_map_and_copy(icv, dst, aead_req->cryptlen,
 					 cp_len, 1);
@@ -605,7 +605,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 			aead_req->assoclen + aead_req->cryptlen -
 			cp_len, cp_len, 0);
 
-		crypto4xx_memcpy_from_le32(icv, icv, cp_len);
+		crypto4xx_memcpy_from_le32(icv, icv, sizeof(icv));
 
 		if (crypto_memneq(icv, pd_uinfo->sr_va->save_digest, cp_len))
 			err = -EBADMSG;
@@ -1122,8 +1122,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 				.max_keysize 	= AES_MAX_KEY_SIZE,
 				.ivsize		= AES_IV_SIZE,
 				.setkey 	= crypto4xx_setkey_aes_cbc,
-				.encrypt 	= crypto4xx_encrypt,
-				.decrypt 	= crypto4xx_decrypt,
+				.encrypt	= crypto4xx_encrypt_iv,
+				.decrypt	= crypto4xx_decrypt_iv,
 			}
 		}
 	}},
@@ -1146,8 +1146,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 				.max_keysize	= AES_MAX_KEY_SIZE,
 				.ivsize		= AES_IV_SIZE,
 				.setkey		= crypto4xx_setkey_aes_cfb,
-				.encrypt	= crypto4xx_encrypt,
-				.decrypt	= crypto4xx_decrypt,
+				.encrypt	= crypto4xx_encrypt_iv,
+				.decrypt	= crypto4xx_decrypt_iv,
 			}
 		}
 	} },
@@ -1195,8 +1195,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 				.min_keysize	= AES_MIN_KEY_SIZE,
 				.max_keysize	= AES_MAX_KEY_SIZE,
 				.setkey		= crypto4xx_setkey_aes_ecb,
-				.encrypt	= crypto4xx_encrypt,
-				.decrypt	= crypto4xx_decrypt,
+				.encrypt	= crypto4xx_encrypt_noiv,
+				.decrypt	= crypto4xx_decrypt_noiv,
 			}
 		}
 	} },
@@ -1219,8 +1219,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 				.max_keysize	= AES_MAX_KEY_SIZE,
 				.ivsize		= AES_IV_SIZE,
 				.setkey		= crypto4xx_setkey_aes_ofb,
-				.encrypt	= crypto4xx_encrypt,
-				.decrypt	= crypto4xx_decrypt,
+				.encrypt	= crypto4xx_encrypt_iv,
+				.decrypt	= crypto4xx_decrypt_iv,
 			}
 		}
 	} },

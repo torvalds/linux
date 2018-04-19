@@ -168,8 +168,10 @@ int crypto4xx_setkey_aes_ofb(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_rfc3686(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen);
-int crypto4xx_encrypt(struct ablkcipher_request *req);
-int crypto4xx_decrypt(struct ablkcipher_request *req);
+int crypto4xx_encrypt_iv(struct ablkcipher_request *req);
+int crypto4xx_decrypt_iv(struct ablkcipher_request *req);
+int crypto4xx_encrypt_noiv(struct ablkcipher_request *req);
+int crypto4xx_decrypt_noiv(struct ablkcipher_request *req);
 int crypto4xx_rfc3686_encrypt(struct ablkcipher_request *req);
 int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req);
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);

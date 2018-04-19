@@ -74,32 +74,38 @@ static void set_dynamic_sa_command_1(struct dynamic_sa_ctl *sa, u32 cm,
 	sa->sa_command_1.bf.copy_hdr = cp_hdr;
 }
 
-int crypto4xx_encrypt(struct ablkcipher_request *req)
+static inline int crypto4xx_crypt(struct ablkcipher_request *req,
+				  const unsigned int ivlen, bool decrypt)
 {
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	unsigned int ivlen = crypto_ablkcipher_ivsize(
-		crypto_ablkcipher_reqtfm(req));
 	__le32 iv[ivlen];
 
 	if (ivlen)
 		crypto4xx_memcpy_to_le32(iv, req->info, ivlen);
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-		req->nbytes, iv, ivlen, ctx->sa_out, ctx->sa_len, 0);
+		req->nbytes, iv, ivlen, decrypt ? ctx->sa_in : ctx->sa_out,
+		ctx->sa_len, 0);
 }
 
-int crypto4xx_decrypt(struct ablkcipher_request *req)
+int crypto4xx_encrypt_noiv(struct ablkcipher_request *req)
 {
-	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	unsigned int ivlen = crypto_ablkcipher_ivsize(
-		crypto_ablkcipher_reqtfm(req));
-	__le32 iv[ivlen];
+	return crypto4xx_crypt(req, 0, false);
+}
 
-	if (ivlen)
-		crypto4xx_memcpy_to_le32(iv, req->info, ivlen);
+int crypto4xx_encrypt_iv(struct ablkcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, false);
+}
 
-	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-		req->nbytes, iv, ivlen, ctx->sa_in, ctx->sa_len, 0);
+int crypto4xx_decrypt_noiv(struct ablkcipher_request *req)
+{
+	return crypto4xx_crypt(req, 0, true);
+}
+
+int crypto4xx_decrypt_iv(struct ablkcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, true);
 }
 
 /**
