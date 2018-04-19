@@ -1160,13 +1160,13 @@ struct batadv_priv_dat {
  */
 struct batadv_mcast_querier_state {
 	/** @exists: whether a querier exists in the mesh */
-	bool exists;
+	unsigned char exists:1;
 
 	/**
 	 * @shadowing: if a querier exists, whether it is potentially shadowing
 	 *  multicast listeners (i.e. querier is behind our own bridge segment)
 	 */
-	bool shadowing;
+	unsigned char shadowing:1;
 };
 
 /**
@@ -1207,10 +1207,10 @@ struct batadv_priv_mcast {
 	u8 flags;
 
 	/** @enabled: whether the multicast tvlv is currently enabled */
-	bool enabled;
+	unsigned char enabled:1;
 
 	/** @bridged: whether the soft interface has a bridge on top */
-	bool bridged;
+	unsigned char bridged:1;
 
 	/**
 	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
@@ -1389,7 +1389,7 @@ struct batadv_tp_vars {
 	atomic_t dup_acks;
 
 	/** @fast_recovery: true if in Fast Recovery mode */
-	bool fast_recovery;
+	unsigned char fast_recovery:1;
 
 	/** @recover: last sent seqno when entering Fast Recovery */
 	u32 recover;
@@ -2046,10 +2046,10 @@ struct batadv_skb_cb {
 	 * @decoded: Marks a skb as decoded, which is checked when searching for
 	 *  coding opportunities in network-coding.c
 	 */
-	bool decoded;
+	unsigned char decoded:1;
 
 	/** @num_bcasts: Counter for broadcast packet retransmissions */
-	unsigned int num_bcasts;
+	unsigned char num_bcasts;
 };
 
 /**
