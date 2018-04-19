@@ -1781,19 +1781,18 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 			   struct amdgpu_vm *vm)
 {
+	struct amdgpu_bo_va *bo_va, *tmp;
+	struct list_head moved;
 	bool clear;
-	int r = 0;
+	int r;
 
+	INIT_LIST_HEAD(&moved);
 	spin_lock(&vm->moved_lock);
-	while (!list_empty(&vm->moved)) {
-		struct amdgpu_bo_va *bo_va;
-		struct reservation_object *resv;
+	list_splice_init(&vm->moved, &moved);
+	spin_unlock(&vm->moved_lock);
 
-		bo_va = list_first_entry(&vm->moved,
-			struct amdgpu_bo_va, base.vm_status);
-		spin_unlock(&vm->moved_lock);
-
-		resv = bo_va->base.bo->tbo.resv;
+	list_for_each_entry_safe(bo_va, tmp, &moved, base.vm_status) {
+		struct reservation_object *resv = bo_va->base.bo->tbo.resv;
 
 		/* Per VM BOs never need to bo cleared in the page tables */
 		if (resv == vm->root.base.bo->tbo.resv)
@@ -1806,17 +1805,19 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 			clear = true;
 
 		r = amdgpu_vm_bo_update(adev, bo_va, clear);
-		if (r)
+		if (r) {
+			spin_lock(&vm->moved_lock);
+			list_splice(&moved, &vm->moved);
+			spin_unlock(&vm->moved_lock);
 			return r;
+		}
 
 		if (!clear && resv != vm->root.base.bo->tbo.resv)
 			reservation_object_unlock(resv);
 
-		spin_lock(&vm->moved_lock);
 	}
-	spin_unlock(&vm->moved_lock);
 
-	return r;
+	return 0;
 }
 
 /**
