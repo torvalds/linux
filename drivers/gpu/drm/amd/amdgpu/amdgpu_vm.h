@@ -168,9 +168,6 @@ struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
 
-	/* protecting invalidated */
-	spinlock_t		status_lock;
-
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
@@ -179,6 +176,7 @@ struct amdgpu_vm {
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
+	spinlock_t		moved_lock;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
