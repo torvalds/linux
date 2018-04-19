@@ -1229,7 +1229,7 @@ static int i2c_hid_resume(struct device *dev)
 	 */
 	if (ihid->quirks & I2C_HID_QUIRK_RESEND_REPORT_DESCR) {
 		ret = i2c_hid_command(client, &hid_report_descr_cmd, NULL, 0);
-		if (!ret)
+		if (ret)
 			return ret;
 	}
 
