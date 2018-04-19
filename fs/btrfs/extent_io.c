@@ -4126,9 +4126,8 @@ int extent_writepages(struct extent_io_tree *tree,
 	return ret;
 }
 
-int extent_readpages(struct extent_io_tree *tree,
-		     struct address_space *mapping,
-		     struct list_head *pages, unsigned nr_pages)
+int extent_readpages(struct address_space *mapping, struct list_head *pages,
+		     unsigned nr_pages)
 {
 	struct bio *bio = NULL;
 	unsigned page_idx;
@@ -4136,6 +4135,7 @@ int extent_readpages(struct extent_io_tree *tree,
 	struct page *pagepool[16];
 	struct page *page;
 	struct extent_map *em_cached = NULL;
+	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
 	int nr = 0;
 	u64 prev_em_start = (u64)-1;
 

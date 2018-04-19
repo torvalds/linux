@@ -8907,10 +8907,9 @@ static int
 btrfs_readpages(struct file *file, struct address_space *mapping,
 		struct list_head *pages, unsigned nr_pages)
 {
-	struct extent_io_tree *tree;
-	tree = &BTRFS_I(mapping->host)->io_tree;
-	return extent_readpages(tree, mapping, pages, nr_pages);
+	return extent_readpages(mapping, pages, nr_pages);
 }
+
 static int __btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	int ret = try_release_extent_mapping(page, gfp_flags);
