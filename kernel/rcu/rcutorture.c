@@ -1609,6 +1609,9 @@ static enum cpuhp_state rcutor_hp;
 static void
 rcu_torture_cleanup(void)
 {
+	int flags = 0;
+	unsigned long gpnum = 0;
+	unsigned long completed = 0;
 	int i;
 
 	rcutorture_record_test_transition();
@@ -1639,6 +1642,11 @@ rcu_torture_cleanup(void)
 		fakewriter_tasks = NULL;
 	}
 
+	rcutorture_get_gp_data(cur_ops->ttype, &flags, &gpnum, &completed);
+	srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
+				&flags, &gpnum, &completed);
+	pr_alert("%s:  End-test grace-period state: g%lu c%lu f%#x\n",
+		 cur_ops->name, gpnum, completed, flags);
 	torture_stop_kthread(rcu_torture_stats, stats_task);
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
 	for (i = 0; i < ncbflooders; i++)
