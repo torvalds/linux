@@ -1551,6 +1551,38 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	return 0;
 }
 
+#if defined(CONFIG_SMP)
+static void efx_set_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	unsigned int cpu;
+
+	efx_for_each_channel(channel, efx) {
+		cpu = cpumask_local_spread(channel->channel,
+					   pcibus_to_node(efx->pci_dev->bus));
+		irq_set_affinity_hint(channel->irq, cpumask_of(cpu));
+	}
+}
+
+static void efx_clear_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		irq_set_affinity_hint(channel->irq, NULL);
+}
+#else
+static void
+efx_set_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+
+static void
+efx_clear_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+#endif /* CONFIG_SMP */
+
 static int efx_soft_enable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel, *end_channel;
@@ -3165,6 +3197,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	cancel_work_sync(&efx->reset_work);
 
 	efx_disable_interrupts(efx);
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -3314,6 +3347,8 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
+
+	efx_set_interrupt_affinity(efx);
 	rc = efx_enable_interrupts(efx);
 	if (rc)
 		goto fail6;
@@ -3321,6 +3356,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	return 0;
 
  fail6:
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
  fail5:
 	efx_fini_port(efx);
