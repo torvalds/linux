@@ -8897,10 +8897,7 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 static int btrfs_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	struct extent_io_tree *tree;
-
-	tree = &BTRFS_I(mapping->host)->io_tree;
-	return extent_writepages(tree, mapping, wbc);
+	return extent_writepages(mapping, wbc);
 }
 
 static int
