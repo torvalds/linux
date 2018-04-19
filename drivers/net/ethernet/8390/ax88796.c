@@ -826,6 +826,7 @@ static int ax_remove(struct platform_device *pdev)
 		release_mem_region(mem->start, resource_size(mem));
 	}
 
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return 0;
@@ -959,6 +960,7 @@ static int ax_probe(struct platform_device *pdev)
 	release_mem_region(mem->start, mem_size);
 
  exit_mem:
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return ret;
