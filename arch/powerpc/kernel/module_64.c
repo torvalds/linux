@@ -463,8 +463,11 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 }
 
 #ifdef CC_USING_MPROFILE_KERNEL
-static bool is_early_mcount_callsite(u32 *instruction)
+static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
 {
+	if (strcmp("_mcount", name))
+		return false;
+
 	/*
 	 * Check if this is one of the -mprofile-kernel sequences.
 	 */
@@ -496,8 +499,7 @@ static void squash_toc_save_inst(const char *name, unsigned long addr)
 #else
 static void squash_toc_save_inst(const char *name, unsigned long addr) { }
 
-/* without -mprofile-kernel, mcount calls are never early */
-static bool is_early_mcount_callsite(u32 *instruction)
+static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
 {
 	return false;
 }
@@ -505,11 +507,11 @@ static bool is_early_mcount_callsite(u32 *instruction)
 
 /* We expect a noop next: if it is, replace it with instruction to
    restore r2. */
-static int restore_r2(u32 *instruction, struct module *me)
+static int restore_r2(const char *name, u32 *instruction, struct module *me)
 {
 	u32 *prev_insn = instruction - 1;
 
-	if (is_early_mcount_callsite(prev_insn))
+	if (is_mprofile_mcount_callsite(name, prev_insn))
 		return 1;
 
 	/*
@@ -650,7 +652,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 				value = stub_for_addr(sechdrs, value, me);
 				if (!value)
 					return -ENOENT;
-				if (!restore_r2((u32 *)location + 1, me))
+				if (!restore_r2(strtab + sym->st_name,
+							(u32 *)location + 1, me))
 					return -ENOEXEC;
 
 				squash_toc_save_inst(strtab + sym->st_name, value);
