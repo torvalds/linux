@@ -1470,8 +1470,7 @@ static struct docg3 *sysfs_dev2docg3(struct device *dev,
 				     struct device_attribute *attr)
 {
 	int floor;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mtd_info **docg3_floors = platform_get_drvdata(pdev);
+	struct mtd_info **docg3_floors = dev_get_drvdata(dev);
 
 	floor = attr->attr.name[1] - '0';
 	if (floor < 0 || floor >= DOC_MAX_NBFLOORS)
