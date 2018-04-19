@@ -791,6 +791,7 @@ struct wmi_cmd_map {
 	u32 stop_scan_cmdid;
 	u32 scan_chan_list_cmdid;
 	u32 scan_sch_prio_tbl_cmdid;
+	u32 scan_prob_req_oui_cmdid;
 	u32 pdev_set_regdomain_cmdid;
 	u32 pdev_set_channel_cmdid;
 	u32 pdev_set_param_cmdid;
@@ -3168,6 +3169,8 @@ struct wmi_start_scan_arg {
 	u16 channels[64];
 	struct wmi_ssid_arg ssids[WLAN_SCAN_PARAMS_MAX_SSID];
 	struct wmi_bssid_arg bssids[WLAN_SCAN_PARAMS_MAX_BSSID];
+	struct wmi_mac_addr mac_addr;
+	struct wmi_mac_addr mac_mask;
 };
 
 /* scan control flags */
@@ -3190,6 +3193,12 @@ struct wmi_start_scan_arg {
  * Allow the driver to have influence over that.
  */
 #define WMI_SCAN_CONTINUE_ON_ERROR 0x80
+
+/* Use random MAC address for TA for Probe Request frame and add
+ * OUI specified by WMI_SCAN_PROB_REQ_OUI_CMDID to the Probe Request frame.
+ * if OUI is not set by WMI_SCAN_PROB_REQ_OUI_CMDID then the flag is ignored.
+ */
+#define WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ   0x1000
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000

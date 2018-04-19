@@ -119,6 +119,8 @@ struct wmi_ops {
 					 u32 value);
 	struct sk_buff *(*gen_scan_chan_list)(struct ath10k *ar,
 					      const struct wmi_scan_chan_list_arg *arg);
+	struct sk_buff *(*gen_scan_prob_req_oui)(struct ath10k *ar,
+						 u32 prob_req_oui);
 	struct sk_buff *(*gen_beacon_dma)(struct ath10k *ar, u32 vdev_id,
 					  const void *bcn, size_t bcn_len,
 					  u32 bcn_paddr, bool dtim_zero,
@@ -912,6 +914,26 @@ ath10k_wmi_scan_chan_list(struct ath10k *ar,
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->scan_chan_list_cmdid);
+}
+
+static inline int
+ath10k_wmi_scan_prob_req_oui(struct ath10k *ar, const u8 mac_addr[ETH_ALEN])
+{
+	struct sk_buff *skb;
+	u32 prob_req_oui;
+
+	prob_req_oui = (((u32)mac_addr[0]) << 16) |
+		       (((u32)mac_addr[1]) << 8) | mac_addr[2];
+
+	if (!ar->wmi.ops->gen_scan_prob_req_oui)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_scan_prob_req_oui(ar, prob_req_oui);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+			ar->wmi.cmd->scan_prob_req_oui_cmdid);
 }
 
 static inline int

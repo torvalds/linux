@@ -1706,6 +1706,15 @@ struct wmi_tlv_scan_chan_list_cmd {
 	__le32 num_scan_chans;
 } __packed;
 
+struct wmi_scan_prob_req_oui_cmd {
+/* OUI to be used in Probe Request frame when random MAC address is
+ * requested part of scan parameters. This is applied to both FW internal
+ * scans and host initiated scans. Host can request for random MAC address
+ * with WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ flag.
+ */
+	__le32 prob_req_oui;
+}  __packed;
+
 struct wmi_tlv_start_scan_cmd {
 	struct wmi_start_scan_common common;
 	__le32 burst_duration_ms;
@@ -1714,6 +1723,8 @@ struct wmi_tlv_start_scan_cmd {
 	__le32 num_ssids;
 	__le32 ie_len;
 	__le32 num_probes;
+	struct wmi_mac_addr mac_addr;
+	struct wmi_mac_addr mac_mask;
 } __packed;
 
 struct wmi_tlv_vdev_start_cmd {

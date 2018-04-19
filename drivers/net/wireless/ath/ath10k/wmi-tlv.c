@@ -1636,6 +1636,8 @@ ath10k_wmi_tlv_op_gen_start_scan(struct ath10k *ar,
 	cmd->num_bssids = __cpu_to_le32(arg->n_bssids);
 	cmd->ie_len = __cpu_to_le32(arg->ie_len);
 	cmd->num_probes = __cpu_to_le32(3);
+	ether_addr_copy(cmd->mac_addr.addr, arg->mac_addr.addr);
+	ether_addr_copy(cmd->mac_mask.addr, arg->mac_mask.addr);
 
 	/* FIXME: There are some scan flag inconsistencies across firmwares,
 	 * e.g. WMI-TLV inverts the logic behind the following flag.
@@ -2479,6 +2481,27 @@ ath10k_wmi_tlv_op_gen_scan_chan_list(struct ath10k *ar,
 	ptr += chans_len;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv scan chan list\n");
+	return skb;
+}
+
+static struct sk_buff *
+ath10k_wmi_tlv_op_gen_scan_prob_req_oui(struct ath10k *ar, u32 prob_req_oui)
+{
+	struct wmi_scan_prob_req_oui_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	tlv = (void *)skb->data;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_SCAN_PROB_REQ_OUI_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->prob_req_oui = __cpu_to_le32(prob_req_oui);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv scan prob req oui\n");
 	return skb;
 }
 
@@ -3452,6 +3475,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.stop_scan_cmdid = WMI_TLV_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_TLV_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_TLV_SCAN_SCH_PRIO_TBL_CMDID,
+	.scan_prob_req_oui_cmdid = WMI_TLV_SCAN_PROB_REQ_OUI_CMDID,
 	.pdev_set_regdomain_cmdid = WMI_TLV_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_TLV_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_TLV_PDEV_SET_PARAM_CMDID,
@@ -3820,6 +3844,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_set_sta_ps = ath10k_wmi_tlv_op_gen_set_sta_ps,
 	.gen_set_ap_ps = ath10k_wmi_tlv_op_gen_set_ap_ps,
 	.gen_scan_chan_list = ath10k_wmi_tlv_op_gen_scan_chan_list,
+	.gen_scan_prob_req_oui = ath10k_wmi_tlv_op_gen_scan_prob_req_oui,
 	.gen_beacon_dma = ath10k_wmi_tlv_op_gen_beacon_dma,
 	.gen_pdev_set_wmm = ath10k_wmi_tlv_op_gen_pdev_set_wmm,
 	.gen_request_stats = ath10k_wmi_tlv_op_gen_request_stats,
