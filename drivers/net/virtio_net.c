@@ -155,7 +155,7 @@ struct control_buf {
 	u8 promisc;
 	u8 allmulti;
 	__virtio16 vid;
-	u64 offloads;
+	__virtio64 offloads;
 };
 
 struct virtnet_info {
