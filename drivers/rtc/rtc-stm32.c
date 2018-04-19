@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) STMicroelectronics SA 2017
- * Author:  Amelie Delaunay <amelie.delaunay@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
+ * Copyright (C) STMicroelectronics 2017
+ * Author:  Amelie Delaunay <amelie.delaunay@st.com>
  */
 
 #include <linux/bcd.h>
