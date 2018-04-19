@@ -932,7 +932,6 @@ static int ks_wlan_get_encode(struct net_device *dev,
 			      struct iw_point *dwrq, char *extra)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
-	char zeros[16];
 	int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -951,8 +950,6 @@ static int ks_wlan_get_encode(struct net_device *dev,
 		break;
 	}
 
-	memset(zeros, 0, sizeof(zeros));
-
 	/* Which key do we want ? -1 -> tx index */
 	if ((index < 0) || (index >= 4))
 		index = priv->reg.wep_index;
@@ -962,16 +959,10 @@ static int ks_wlan_get_encode(struct net_device *dev,
 	}
 	dwrq->flags |= index + 1;
 	/* Copy the key to the user buffer */
-	if ((index >= 0) && (index < 4))
-		dwrq->length = priv->reg.wep_key[index].size;
-	if (dwrq->length > 16)
-		dwrq->length = 0;
-	if (dwrq->length) {
-		if ((index >= 0) && (index < 4))
-			memcpy(extra, priv->reg.wep_key[index].val,
-			       dwrq->length);
-	} else {
-		memcpy(extra, zeros, dwrq->length);
+	if (index >= 0 && index < 4) {
+		dwrq->length = (priv->reg.wep_key[index].size <= 16) ?
+				priv->reg.wep_key[index].size : 0;
+		memcpy(extra, priv->reg.wep_key[index].val, dwrq->length);
 	}
 
 	return 0;
