@@ -147,6 +147,25 @@ void flush_cache_vunmap(unsigned long start, unsigned long end)
 	cpu_icache_inval_all();
 }
 
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+		    struct page *to)
+{
+	cpu_dcache_wbinval_page((unsigned long)vaddr);
+	cpu_icache_inval_page((unsigned long)vaddr);
+	copy_page(vto, vfrom);
+	cpu_dcache_wbinval_page((unsigned long)vto);
+	cpu_icache_inval_page((unsigned long)vto);
+}
+
+void clear_user_page(void *addr, unsigned long vaddr, struct page *page)
+{
+	cpu_dcache_wbinval_page((unsigned long)vaddr);
+	cpu_icache_inval_page((unsigned long)vaddr);
+	clear_page(addr);
+	cpu_dcache_wbinval_page((unsigned long)addr);
+	cpu_icache_inval_page((unsigned long)addr);
+}
+
 void copy_user_highpage(struct page *to, struct page *from,
 			unsigned long vaddr, struct vm_area_struct *vma)
 {
@@ -213,6 +232,7 @@ void flush_dcache_page(struct page *page)
 		local_irq_restore(flags);
 	}
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long vaddr, void *dst, void *src, int len)
@@ -272,6 +292,7 @@ void flush_kernel_dcache_page(struct page *page)
 	cpu_dcache_wbinval_page((unsigned long)page_address(page));
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(flush_kernel_dcache_page);
 
 void flush_kernel_vmap_range(void *addr, int size)
 {
@@ -301,6 +322,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 	cpu_cache_wbinval_range(start, end, 1);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(flush_icache_range);
 
 void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 {
