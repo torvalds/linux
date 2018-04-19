@@ -176,6 +176,14 @@ enum sprd_dma_int_type {
 	SPRD_DMA_CFGERR_INT,
 };
 
+/* dma data width values */
+enum sprd_dma_datawidth {
+	SPRD_DMA_DATAWIDTH_1_BYTE,
+	SPRD_DMA_DATAWIDTH_2_BYTES,
+	SPRD_DMA_DATAWIDTH_4_BYTES,
+	SPRD_DMA_DATAWIDTH_8_BYTES,
+};
+
 /* dma channel hardware configuration */
 struct sprd_dma_chn_hw {
 	u32 pause;
@@ -604,15 +612,15 @@ static int sprd_dma_config(struct dma_chan *chan, struct sprd_dma_desc *sdesc,
 	u32 fix_mode = 0, fix_en = 0;
 
 	if (IS_ALIGNED(len, 4)) {
-		datawidth = 2;
+		datawidth = SPRD_DMA_DATAWIDTH_4_BYTES;
 		src_step = SPRD_DMA_WORD_STEP;
 		des_step = SPRD_DMA_WORD_STEP;
 	} else if (IS_ALIGNED(len, 2)) {
-		datawidth = 1;
+		datawidth = SPRD_DMA_DATAWIDTH_2_BYTES;
 		src_step = SPRD_DMA_SHORT_STEP;
 		des_step = SPRD_DMA_SHORT_STEP;
 	} else {
-		datawidth = 0;
+		datawidth = SPRD_DMA_DATAWIDTH_1_BYTE;
 		src_step = SPRD_DMA_BYTE_STEP;
 		des_step = SPRD_DMA_BYTE_STEP;
 	}
