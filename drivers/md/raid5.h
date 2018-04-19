@@ -257,6 +257,7 @@ struct stripe_head {
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
 		u32		log_checksum;
+		unsigned short	write_hint;
 	} dev[1]; /* allocated with extra space depending of RAID geometry */
 };
 
