@@ -17,12 +17,11 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/list.h>
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
@@ -236,8 +235,8 @@ static size_t nvec_msg_size(struct nvec_msg *msg)
 static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 {
 	dev_dbg(nvec->dev, "GPIO changed from %u to %u\n",
-		gpio_get_value(nvec->gpio), value);
-	gpio_set_value(nvec->gpio, value);
+		gpiod_get_value(nvec->gpiod), value);
+	gpiod_set_value(nvec->gpiod, value);
 }
 
 /**
@@ -761,27 +760,6 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, ap_pwr_down, 2);
 }
 
-/*
- *  Parse common device tree data
- */
-static int nvec_i2c_parse_dt_pdata(struct nvec_chip *nvec)
-{
-	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
-
-	if (nvec->gpio < 0) {
-		dev_err(nvec->dev, "no gpio specified");
-		return -ENODEV;
-	}
-
-	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
-				 &nvec->i2c_addr)) {
-		dev_err(nvec->dev, "no i2c address specified");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
@@ -807,9 +785,10 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = dev;
 
-	err = nvec_i2c_parse_dt_pdata(nvec);
-	if (err < 0)
-		return err;
+	if (of_property_read_u32(dev->of_node, "slave-addr", &nvec->i2c_addr)) {
+		dev_err(dev, "no i2c address specified");
+		return -ENODEV;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(dev, res);
@@ -850,11 +829,10 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 
-	err = devm_gpio_request_one(dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
-				    "nvec gpio");
-	if (err < 0) {
+	nvec->gpiod = devm_gpiod_get(dev, "request", GPIOD_OUT_HIGH);
+	if (IS_ERR(nvec->gpiod)) {
 		dev_err(dev, "couldn't request gpio\n");
-		return -ENODEV;
+		return PTR_ERR(nvec->gpiod);
 	}
 
 	err = devm_request_irq(dev, nvec->irq, nvec_interrupt, 0,
