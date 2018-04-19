@@ -9,10 +9,9 @@
  *   published by the Free Software Foundation.
  */
 
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/bitops.h>
 #include <asm/unaligned.h>
+#include <linux/bitops.h>
+#include <linux/string.h>
 #include "michael_mic.h"
 
 
