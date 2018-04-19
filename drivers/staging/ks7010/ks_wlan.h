@@ -14,23 +14,12 @@
 
 #define WPS
 
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-
-#include <linux/spinlock.h>	/* spinlock_t */
-#include <linux/sched.h>	/* wait_queue_head_t */
-#include <linux/types.h>	/* pid_t */
-#include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
-#include <linux/etherdevice.h>
-#include <linux/wireless.h>
 #include <linux/atomic.h>	/* struct atomic_t */
-#include <linux/timer.h>	/* struct timer_list */
-#include <linux/string.h>
 #include <linux/completion.h>	/* struct completion */
-#include <linux/workqueue.h>
-
-#include <linux/io.h>
+#include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
+#include <linux/sched.h>	/* wait_queue_head_t */
+#include <linux/spinlock.h>	/* spinlock_t */
+#include <linux/wireless.h>
 
 #include "ks7010_sdio.h"
 

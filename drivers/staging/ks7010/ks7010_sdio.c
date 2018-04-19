@@ -10,6 +10,7 @@
  *   published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/circ_buf.h>
 #include <linux/firmware.h>
 #include <linux/mmc/card.h>
