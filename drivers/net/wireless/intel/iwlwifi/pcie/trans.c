@@ -2266,6 +2266,10 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx)
 	unsigned long now = jiffies;
 	u8 wr_ptr;
 
+	/* Make sure the NIC is still alive in the bus */
+	if (trans_pcie->scheduled_for_removal)
+		return -EIO;
+
 	if (!test_bit(txq_idx, trans_pcie->queue_used))
 		return -EINVAL;
 
