@@ -485,42 +485,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-static int __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
-{
-	unsigned long ftrace_addr = (unsigned long)FTRACE_ADDR;
-	int ret;
-
-	ret = ftrace_update_record(rec, enable);
-
-	switch (ret) {
-	case FTRACE_UPDATE_IGNORE:
-		return 0;
-	case FTRACE_UPDATE_MAKE_CALL:
-		return ftrace_make_call(rec, ftrace_addr);
-	case FTRACE_UPDATE_MAKE_NOP:
-		return ftrace_make_nop(NULL, rec, ftrace_addr);
-	}
-
-	return 0;
-}
-
-void ftrace_replace_code(int enable)
-{
-	struct ftrace_rec_iter *iter;
-	struct dyn_ftrace *rec;
-	int ret;
-
-	for (iter = ftrace_rec_iter_start(); iter;
-	     iter = ftrace_rec_iter_next(iter)) {
-		rec = ftrace_rec_iter_record(iter);
-		ret = __ftrace_replace_code(rec, enable);
-		if (ret) {
-			ftrace_bug(ret, rec);
-			return;
-		}
-	}
-}
-
 /*
  * Use the default ftrace_modify_all_code, but without
  * stop_machine().
