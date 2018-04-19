@@ -161,12 +161,12 @@ struct etnaviv_gpu {
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
 {
-	etnaviv_writel(data, gpu->mmio + reg);
+	writel(data, gpu->mmio + reg);
 }
 
 static inline u32 gpu_read(struct etnaviv_gpu *gpu, u32 reg)
 {
-	return etnaviv_readl(gpu->mmio + reg);
+	return readl(gpu->mmio + reg);
 }
 
 static inline bool fence_completed(struct etnaviv_gpu *gpu, u32 fence)

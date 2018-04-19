@@ -1735,6 +1735,7 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct etnaviv_gpu *gpu;
+	struct resource *res;
 	int err;
 
 	gpu = devm_kzalloc(dev, sizeof(*gpu), GFP_KERNEL);
@@ -1746,7 +1747,8 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	mutex_init(&gpu->fence_idr_lock);
 
 	/* Map registers: */
-	gpu->mmio = etnaviv_ioremap(pdev, NULL, dev_name(gpu->dev));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	gpu->mmio = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(gpu->mmio))
 		return PTR_ERR(gpu->mmio);
 

@@ -25,57 +25,6 @@
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
 
-#ifdef CONFIG_DRM_ETNAVIV_REGISTER_LOGGING
-static bool reglog;
-MODULE_PARM_DESC(reglog, "Enable register read/write logging");
-module_param(reglog, bool, 0600);
-#else
-#define reglog 0
-#endif
-
-void __iomem *etnaviv_ioremap(struct platform_device *pdev, const char *name,
-		const char *dbgname)
-{
-	struct resource *res;
-	void __iomem *ptr;
-
-	if (name)
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	else
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	ptr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ptr)) {
-		dev_err(&pdev->dev, "failed to ioremap %s: %ld\n", name,
-			PTR_ERR(ptr));
-		return ptr;
-	}
-
-	if (reglog)
-		dev_printk(KERN_DEBUG, &pdev->dev, "IO:region %s 0x%p %08zx\n",
-			   dbgname, ptr, (size_t)resource_size(res));
-
-	return ptr;
-}
-
-void etnaviv_writel(u32 data, void __iomem *addr)
-{
-	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
-
-	writel(data, addr);
-}
-
-u32 etnaviv_readl(const void __iomem *addr)
-{
-	u32 val = readl(addr);
-
-	if (reglog)
-		printk(KERN_DEBUG "IO:R %p %08x\n", addr, val);
-
-	return val;
-}
-
 /*
  * DRM operations:
  */
