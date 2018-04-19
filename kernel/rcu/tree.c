@@ -1698,6 +1698,8 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	for (rnp_root = rnp; 1; rnp_root = rnp_root->parent) {
 		if (rnp_root != rnp)
 			raw_spin_lock_rcu_node(rnp_root);
+		WARN_ON_ONCE(ULONG_CMP_LT(rnp_root->gpnum +
+					  need_future_gp_mask(), c));
 		if (need_future_gp_element(rnp_root, c) ||
 		    ULONG_CMP_GE(rnp_root->gpnum, c) ||
 		    (rnp != rnp_root &&
