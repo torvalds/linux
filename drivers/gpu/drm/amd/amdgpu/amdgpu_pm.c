@@ -455,6 +455,29 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
 	return count;
 }
 
+/**
+ * DOC: pp_od_clk_voltage
+ *
+ * The amdgpu driver provides a sysfs API for adjusting the clocks and voltages
+ * in each power level within a power state.  The pp_od_clk_voltage is used for
+ * this.
+ *
+ * Reading the file will display:
+ * - a list of engine clock levels and voltages labeled OD_SCLK
+ * - a list of memory clock levels and voltages labeled OD_MCLK
+ * - a list of valid ranges for sclk, mclk, and voltage labeled OD_RANGE
+ *
+ * To manually adjust these settings, first select manual using
+ * power_dpm_force_performance_level. Enter a new value for each
+ * level by writing a string that contains "s/m level clock voltage" to
+ * the file.  E.g., "s 1 500 820" will update sclk level 1 to be 500 MHz
+ * at 820 mV; "m 0 350 810" will update mclk level 0 to be 350 MHz at
+ * 810 mV.  When you have edited all of the states as needed, write
+ * "c" (commit) to the file to commit your changes.  If you want to reset to the
+ * default power levels, write "r" (reset) to the file to reset them.
+ *
+ */
+
 static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
