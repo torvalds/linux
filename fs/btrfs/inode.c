@@ -10186,12 +10186,6 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 	return work;
 }
 
-void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
-{
-	wait_for_completion(&work->completion);
-	kfree(work);
-}
-
 /*
  * some fairly slow code that needs optimization. This walks the list
  * of all the inodes with pending delalloc and forces them to disk.
@@ -10248,7 +10242,8 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput,
 out:
 	list_for_each_entry_safe(work, next, &works, list) {
 		list_del_init(&work->list);
-		btrfs_wait_and_free_delalloc_work(work);
+		wait_for_completion(&work->completion);
+		kfree(work);
 	}
 
 	if (!list_empty(&splice)) {
