@@ -447,8 +447,6 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		for (i = 0; i < npages; ++i) {
 			asm volatile(PPC_TLBIE_5(%0,%1,0,0,0) : :
 				     "r" (rbvalues[i]), "r" (kvm->arch.lpid));
-			trace_tlbie(kvm->arch.lpid, 0, rbvalues[i],
-				kvm->arch.lpid, 0, 0, 0);
 		}
 		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 		kvm->arch.tlbie_lock = 0;
@@ -458,8 +456,6 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		for (i = 0; i < npages; ++i) {
 			asm volatile(PPC_TLBIEL(%0,%1,0,0,0) : :
 				     "r" (rbvalues[i]), "r" (0));
-			trace_tlbie(kvm->arch.lpid, 1, rbvalues[i],
-				0, 0, 0, 0);
 		}
 		asm volatile("ptesync" : : : "memory");
 	}
