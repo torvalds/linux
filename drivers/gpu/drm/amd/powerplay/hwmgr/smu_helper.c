@@ -657,7 +657,7 @@ int smu_set_watermarks_for_clocks_ranges(void *wt_table,
 	uint32_t i;
 	struct watermarks *table = wt_table;
 
-	if (!table || wm_with_clock_ranges)
+	if (!table || !wm_with_clock_ranges)
 		return -EINVAL;
 
 	if (wm_with_clock_ranges->num_wm_sets_dmif > 4 || wm_with_clock_ranges->num_wm_sets_mcif > 4)
