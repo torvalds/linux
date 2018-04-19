@@ -141,7 +141,8 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	/* Setup SA */
 	sa = ctx->sa_in;
 
-	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, SA_NOT_SAVE_IV,
+	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, (cm == CRYPTO_MODE_CBC ?
+				 SA_SAVE_IV : SA_NOT_SAVE_IV),
 				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
 				 SA_NO_HEADER_PROC, SA_HASH_ALG_NULL,
 				 SA_CIPHER_ALG_AES, SA_PAD_TYPE_ZERO,
