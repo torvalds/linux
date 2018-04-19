@@ -1177,11 +1177,7 @@ int blkcg_init_queue(struct request_queue *q)
 
 	preloaded = !radix_tree_preload(GFP_KERNEL);
 
-	/*
-	 * Make sure the root blkg exists and count the existing blkgs.  As
-	 * @q is bypassing at this point, blkg_lookup_create() can't be
-	 * used.  Open code insertion.
-	 */
+	/* Make sure the root blkg exists. */
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 	blkg = blkg_create(&blkcg_root, q, new_blkg);
