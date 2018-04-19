@@ -902,8 +902,8 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_device *adev,
 		if (!entry->base.bo)
 			continue;
 
-		if (list_empty(&entry->base.vm_status))
-			list_add(&entry->base.vm_status, &vm->relocated);
+		if (!entry->base.moved)
+			list_move(&entry->base.vm_status, &vm->relocated);
 		amdgpu_vm_invalidate_level(adev, vm, entry, level + 1);
 	}
 }
@@ -964,6 +964,7 @@ restart:
 		bo_base = list_first_entry(&vm->relocated,
 					   struct amdgpu_vm_bo_base,
 					   vm_status);
+		bo_base->moved = false;
 		list_del_init(&bo_base->vm_status);
 
 		bo = bo_base->bo->parent;
@@ -1877,10 +1878,10 @@ static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
 	if (mapping->flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
 
-	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv) {
+	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv &&
+	    !bo_va->base.moved) {
 		spin_lock(&vm->moved_lock);
-		if (list_empty(&bo_va->base.vm_status))
-			list_add(&bo_va->base.vm_status, &vm->moved);
+		list_move(&bo_va->base.vm_status, &vm->moved);
 		spin_unlock(&vm->moved_lock);
 	}
 	trace_amdgpu_vm_bo_map(bo_va, mapping);
@@ -2233,6 +2234,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 
 	list_for_each_entry(bo_base, &bo->va, bo_list) {
 		struct amdgpu_vm *vm = bo_base->vm;
+		bool was_moved = bo_base->moved;
 
 		bo_base->moved = true;
 		if (evicted && bo->tbo.resv == vm->root.base.bo->tbo.resv) {
@@ -2244,16 +2246,16 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			continue;
 		}
 
-		if (bo->tbo.type == ttm_bo_type_kernel) {
-			if (list_empty(&bo_base->vm_status))
-				list_add(&bo_base->vm_status, &vm->relocated);
+		if (was_moved)
 			continue;
-		}
 
-		spin_lock(&bo_base->vm->moved_lock);
-		if (list_empty(&bo_base->vm_status))
-			list_add(&bo_base->vm_status, &vm->moved);
-		spin_unlock(&bo_base->vm->moved_lock);
+		if (bo->tbo.type == ttm_bo_type_kernel) {
+			list_move(&bo_base->vm_status, &vm->relocated);
+		} else {
+			spin_lock(&bo_base->vm->moved_lock);
+			list_move(&bo_base->vm_status, &vm->moved);
+			spin_unlock(&bo_base->vm->moved_lock);
+		}
 	}
 }
 
