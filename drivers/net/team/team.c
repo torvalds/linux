@@ -2918,7 +2918,7 @@ static int team_device_event(struct notifier_block *unused,
 	case NETDEV_CHANGE:
 		if (netif_running(port->dev))
 			team_port_change_check(port,
-					       !!netif_carrier_ok(port->dev));
+					       !!netif_oper_up(port->dev));
 		break;
 	case NETDEV_UNREGISTER:
 		team_del_slave(port->team->dev, dev);
