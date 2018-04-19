@@ -218,6 +218,12 @@ config AQUANTIA_PHY
 	---help---
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
+config ASIX_PHY
+	tristate "Asix PHYs"
+	help
+	  Currently supports the Asix Electronics PHY found in the X-Surf 100
+	  AX88796B package.
+
 config AT803X_PHY
 	tristate "AT803X PHYs"
 	---help---
