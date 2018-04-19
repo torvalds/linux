@@ -314,8 +314,7 @@ ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 static int
 ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	if (pdata->irq <= 0)
 		return -EINVAL;
@@ -334,8 +333,7 @@ ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int
 ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	if (pdata->irq <= 0)
 		return -EINVAL;
@@ -373,8 +371,7 @@ ds1511_interrupt(int irq, void *dev_id)
 
 static int ds1511_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	if (pdata->irq <= 0)
 		return -EINVAL;

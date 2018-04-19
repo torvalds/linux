@@ -84,8 +84,7 @@ static ssize_t test_irq_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int retval;
-	struct platform_device *plat_dev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
+	struct rtc_device *rtc = dev_get_drvdata(dev);
 
 	retval = count;
 	if (strncmp(buf, "tick", 4) == 0 && rtc->pie_enabled)
