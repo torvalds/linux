@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -18,6 +19,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/types.h>
 #include <linux/u64_stats_sync.h>
@@ -197,6 +199,11 @@
 #define AVE_INTM_COUNT		20
 #define AVE_FORCE_TXINTCNT	1
 
+/* SG */
+#define SG_ETPINMODE		0x540
+#define SG_ETPINMODE_EXTPHY	BIT(1)	/* for LD11 */
+#define SG_ETPINMODE_RMII(ins)	BIT(ins)
+
 #define IS_DESC_64BIT(p)	((p)->data->is_desc_64bit)
 
 #define AVE_MAX_CLKS		4
@@ -228,12 +235,6 @@ struct ave_desc_info {
 	struct ave_desc *desc;	/* skb info related descriptor */
 };
 
-struct ave_soc_data {
-	bool	is_desc_64bit;
-	const char	*clock_names[AVE_MAX_CLKS];
-	const char	*reset_names[AVE_MAX_RSTS];
-};
-
 struct ave_stats {
 	struct	u64_stats_sync	syncp;
 	u64	packets;
@@ -257,6 +258,9 @@ struct ave_private {
 	phy_interface_t		phy_mode;
 	struct phy_device	*phydev;
 	struct mii_bus		*mdio;
+	struct regmap		*regmap;
+	unsigned int		pinmode_mask;
+	unsigned int		pinmode_val;
 
 	/* stats */
 	struct ave_stats	stats_rx;
@@ -277,6 +281,14 @@ struct ave_private {
 	int pause_tx;
 
 	const struct ave_soc_data *data;
+};
+
+struct ave_soc_data {
+	bool	is_desc_64bit;
+	const char	*clock_names[AVE_MAX_CLKS];
+	const char	*reset_names[AVE_MAX_RSTS];
+	int	(*get_pinmode)(struct ave_private *priv,
+			       phy_interface_t phy_mode, u32 arg);
 };
 
 static u32 ave_desc_read(struct net_device *ndev, enum desc_id id, int entry,
@@ -1179,6 +1191,11 @@ static int ave_init(struct net_device *ndev)
 		}
 	}
 
+	ret = regmap_update_bits(priv->regmap, SG_ETPINMODE,
+				 priv->pinmode_mask, priv->pinmode_val);
+	if (ret)
+		return ret;
+
 	ave_global_reset(ndev);
 
 	mdio_np = of_get_child_by_name(np, "mdio");
@@ -1537,6 +1554,7 @@ static int ave_probe(struct platform_device *pdev)
 	const struct ave_soc_data *data;
 	struct device *dev = &pdev->dev;
 	char buf[ETHTOOL_FWVERS_LEN];
+	struct of_phandle_args args;
 	phy_interface_t phy_mode;
 	struct ave_private *priv;
 	struct net_device *ndev;
@@ -1557,12 +1575,6 @@ static int ave_probe(struct platform_device *pdev)
 	phy_mode = of_get_phy_mode(np);
 	if (phy_mode < 0) {
 		dev_err(dev, "phy-mode not found\n");
-		return -EINVAL;
-	}
-	if ((!phy_interface_mode_is_rgmii(phy_mode)) &&
-	    phy_mode != PHY_INTERFACE_MODE_RMII &&
-	    phy_mode != PHY_INTERFACE_MODE_MII) {
-		dev_err(dev, "phy-mode is invalid\n");
 		return -EINVAL;
 	}
 
@@ -1656,6 +1668,26 @@ static int ave_probe(struct platform_device *pdev)
 		priv->nrsts++;
 	}
 
+	ret = of_parse_phandle_with_fixed_args(np,
+					       "socionext,syscon-phy-mode",
+					       1, 0, &args);
+	if (ret) {
+		netdev_err(ndev, "can't get syscon-phy-mode property\n");
+		goto out_free_netdev;
+	}
+	priv->regmap = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(priv->regmap)) {
+		netdev_err(ndev, "can't map syscon-phy-mode\n");
+		ret = PTR_ERR(priv->regmap);
+		goto out_free_netdev;
+	}
+	ret = priv->data->get_pinmode(priv, phy_mode, args.args[0]);
+	if (ret) {
+		netdev_err(ndev, "invalid phy-mode setting\n");
+		goto out_free_netdev;
+	}
+
 	priv->mdio = devm_mdiobus_alloc(dev);
 	if (!priv->mdio) {
 		ret = -ENOMEM;
@@ -1715,6 +1747,95 @@ static int ave_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ave_pro4_get_pinmode(struct ave_private *priv,
+				phy_interface_t phy_mode, u32 arg)
+{
+	if (arg > 0)
+		return -EINVAL;
+
+	priv->pinmode_mask = SG_ETPINMODE_RMII(0);
+
+	switch (phy_mode) {
+	case PHY_INTERFACE_MODE_RMII:
+		priv->pinmode_val = SG_ETPINMODE_RMII(0);
+		break;
+	case PHY_INTERFACE_MODE_MII:
+	case PHY_INTERFACE_MODE_RGMII:
+		priv->pinmode_val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ave_ld11_get_pinmode(struct ave_private *priv,
+				phy_interface_t phy_mode, u32 arg)
+{
+	if (arg > 0)
+		return -EINVAL;
+
+	priv->pinmode_mask = SG_ETPINMODE_EXTPHY | SG_ETPINMODE_RMII(0);
+
+	switch (phy_mode) {
+	case PHY_INTERFACE_MODE_INTERNAL:
+		priv->pinmode_val = 0;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		priv->pinmode_val = SG_ETPINMODE_EXTPHY | SG_ETPINMODE_RMII(0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ave_ld20_get_pinmode(struct ave_private *priv,
+				phy_interface_t phy_mode, u32 arg)
+{
+	if (arg > 0)
+		return -EINVAL;
+
+	priv->pinmode_mask = SG_ETPINMODE_RMII(0);
+
+	switch (phy_mode) {
+	case PHY_INTERFACE_MODE_RMII:
+		priv->pinmode_val = SG_ETPINMODE_RMII(0);
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+		priv->pinmode_val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ave_pxs3_get_pinmode(struct ave_private *priv,
+				phy_interface_t phy_mode, u32 arg)
+{
+	if (arg > 1)
+		return -EINVAL;
+
+	priv->pinmode_mask = SG_ETPINMODE_RMII(arg);
+
+	switch (phy_mode) {
+	case PHY_INTERFACE_MODE_RMII:
+		priv->pinmode_val = SG_ETPINMODE_RMII(arg);
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+		priv->pinmode_val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct ave_soc_data ave_pro4_data = {
 	.is_desc_64bit = false,
 	.clock_names = {
@@ -1723,6 +1844,7 @@ static const struct ave_soc_data ave_pro4_data = {
 	.reset_names = {
 		"gio", "ether",
 	},
+	.get_pinmode = ave_pro4_get_pinmode,
 };
 
 static const struct ave_soc_data ave_pxs2_data = {
@@ -1733,6 +1855,7 @@ static const struct ave_soc_data ave_pxs2_data = {
 	.reset_names = {
 		"ether",
 	},
+	.get_pinmode = ave_pro4_get_pinmode,
 };
 
 static const struct ave_soc_data ave_ld11_data = {
@@ -1743,6 +1866,7 @@ static const struct ave_soc_data ave_ld11_data = {
 	.reset_names = {
 		"ether",
 	},
+	.get_pinmode = ave_ld11_get_pinmode,
 };
 
 static const struct ave_soc_data ave_ld20_data = {
@@ -1753,6 +1877,7 @@ static const struct ave_soc_data ave_ld20_data = {
 	.reset_names = {
 		"ether",
 	},
+	.get_pinmode = ave_ld20_get_pinmode,
 };
 
 static const struct ave_soc_data ave_pxs3_data = {
@@ -1763,6 +1888,7 @@ static const struct ave_soc_data ave_pxs3_data = {
 	.reset_names = {
 		"ether",
 	},
+	.get_pinmode = ave_pxs3_get_pinmode,
 };
 
 static const struct of_device_id of_ave_match[] = {
