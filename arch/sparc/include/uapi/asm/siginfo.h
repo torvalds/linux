@@ -17,10 +17,4 @@
 
 #define SI_NOINFO	32767		/* no information in siginfo_t */
 
-/*
- * SIGEMT si_codes
- */
-#define EMT_TAGOVF	1	/* tag overflow */
-#define NSIGEMT		1
-
 #endif /* _UAPI__SPARC_SIGINFO_H */

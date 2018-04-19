@@ -286,6 +286,12 @@ typedef struct siginfo {
 #define NSIGSYS		1
 
 /*
+ * SIGEMT si_codes
+ */
+#define EMT_TAGOVF	1	/* tag overflow */
+#define NSIGEMT		1
+
+/*
  * sigevent definitions
  * 
  * It seems likely that SIGEV_THREAD will have to be handled from 
