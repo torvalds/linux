@@ -433,8 +433,17 @@ fail:
  */
 static int __init fscrypt_init(void)
 {
+	/*
+	 * Use an unbound workqueue to allow bios to be decrypted in parallel
+	 * even when they happen to complete on the same CPU.  This sacrifices
+	 * locality, but it's worthwhile since decryption is CPU-intensive.
+	 *
+	 * Also use a high-priority workqueue to prioritize decryption work,
+	 * which blocks reads from completing, over regular application tasks.
+	 */
 	fscrypt_read_workqueue = alloc_workqueue("fscrypt_read_queue",
-							WQ_HIGHPRI, 0);
+						 WQ_UNBOUND | WQ_HIGHPRI,
+						 num_online_cpus());
 	if (!fscrypt_read_workqueue)
 		goto fail;
 
