@@ -15,8 +15,7 @@
 
 
 menuconfig MALI_BIFROST
-	tristate "Mali Bifrost series support"
-	select GPU_TRACEPOINTS if ANDROID
+	tristate "Mali Bifrost series support (Linux only)"
 	default n
 	help
 	  Enable this option to build support for a ARM Mali Bifrost GPU.
