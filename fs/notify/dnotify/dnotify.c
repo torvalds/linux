@@ -319,7 +319,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
-		error = fsnotify_add_mark_locked(new_fsn_mark, inode, NULL, 0);
+		error = fsnotify_add_inode_mark_locked(new_fsn_mark, inode, 0);
 		if (error) {
 			mutex_unlock(&dnotify_group->mark_mutex);
 			goto out_err;

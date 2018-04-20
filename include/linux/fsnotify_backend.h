@@ -401,7 +401,21 @@ extern struct fsnotify_mark *fsnotify_find_mark(
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
 			     struct vfsmount *mnt, int allow_dups);
 extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-				    struct inode *inode, struct vfsmount *mnt, int allow_dups);
+				    struct inode *inode, struct vfsmount *mnt,
+				    int allow_dups);
+/* attach the mark to the inode */
+static inline int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
+					  struct inode *inode,
+					  int allow_dups)
+{
+	return fsnotify_add_mark(mark, inode, NULL, allow_dups);
+}
+static inline int fsnotify_add_inode_mark_locked(struct fsnotify_mark *mark,
+						 struct inode *inode,
+						 int allow_dups)
+{
+	return fsnotify_add_mark_locked(mark, inode, NULL, allow_dups);
+}
 /* given a group and a mark, flag mark to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 				  struct fsnotify_group *group);
