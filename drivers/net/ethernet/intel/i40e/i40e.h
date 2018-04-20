@@ -310,10 +310,12 @@ struct i40e_tc_configuration {
 	struct i40e_tc_info tc_info[I40E_MAX_TRAFFIC_CLASS];
 };
 
+#define I40E_UDP_PORT_INDEX_UNUSED	255
 struct i40e_udp_port_config {
 	/* AdminQ command interface expects port number in Host byte order */
 	u16 port;
 	u8 type;
+	u8 filter_index;
 };
 
 /* macros related to FLX_PIT */
