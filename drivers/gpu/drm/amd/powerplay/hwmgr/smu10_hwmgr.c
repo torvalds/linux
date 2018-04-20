@@ -479,8 +479,8 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
-	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK;
-	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK;
+	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK * 100;
+	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK * 100;
 
 	return result;
 }
