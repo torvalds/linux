@@ -606,7 +606,7 @@ static int venc_device_get(struct device *dev, void *data)
 struct v4l2_subdev *venc_sub_dev_init(struct v4l2_device *v4l2_dev,
 		const char *venc_name)
 {
-	struct venc_state *venc;
+	struct venc_state *venc = NULL;
 
 	bus_for_each_dev(&platform_bus_type, NULL, &venc,
 			venc_device_get);
