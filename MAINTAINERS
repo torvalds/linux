@@ -9773,6 +9773,7 @@ F:	include/uapi/linux/net_namespace.h
 F:	tools/testing/selftests/net/
 F:	lib/net_utils.c
 F:	lib/random32.c
+F:	Documentation/networking/
 
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>
