@@ -1523,6 +1523,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 #endif
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		if (adev->asic_type == CHIP_RAVEN)
 			adev->family = AMDGPU_FAMILY_RV;
