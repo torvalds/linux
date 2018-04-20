@@ -78,12 +78,15 @@
 #define CORE_HC_MCLK_SEL_DFLT	(2 << 8)
 #define CORE_HC_MCLK_SEL_HS400	(3 << 8)
 #define CORE_HC_MCLK_SEL_MASK	(3 << 8)
+#define CORE_IO_PAD_PWR_SWITCH_EN	(1 << 15)
+#define CORE_IO_PAD_PWR_SWITCH  (1 << 16)
 #define CORE_HC_SELECT_IN_EN	BIT(18)
 #define CORE_HC_SELECT_IN_HS400	(6 << 19)
 #define CORE_HC_SELECT_IN_MASK	(7 << 19)
 
 #define CORE_3_0V_SUPPORT	(1 << 25)
 #define CORE_1_8V_SUPPORT	(1 << 26)
+#define CORE_VOLT_SUPPORT	(CORE_3_0V_SUPPORT | CORE_1_8V_SUPPORT)
 
 #define CORE_CSR_CDC_CTLR_CFG0		0x130
 #define CORE_SW_TRIG_FULL_CALIB		BIT(16)
@@ -1109,7 +1112,7 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	u32 irq_status, irq_ack = 0;
 	int retry = 10;
 	u32 pwr_state = 0, io_level = 0;
-
+	u32 config;
 
 	irq_status = readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
 	irq_status &= INT_MASK;
@@ -1165,6 +1168,38 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	 * switches are handled by the sdhci core, so just report success.
 	 */
 	writel_relaxed(irq_ack, msm_host->core_mem + CORE_PWRCTL_CTL);
+
+	/*
+	 * If we don't have info regarding the voltage levels supported by
+	 * regulators, don't change the IO PAD PWR SWITCH.
+	 */
+	if (msm_host->caps_0 & CORE_VOLT_SUPPORT) {
+		u32 new_config;
+		/*
+		 * We should unset IO PAD PWR switch only if the register write
+		 * can set IO lines high and the regulator also switches to 3 V.
+		 * Else, we should keep the IO PAD PWR switch set.
+		 * This is applicable to certain targets where eMMC vccq supply
+		 * is only 1.8V. In such targets, even during REQ_IO_HIGH, the
+		 * IO PAD PWR switch must be kept set to reflect actual
+		 * regulator voltage. This way, during initialization of
+		 * controllers with only 1.8V, we will set the IO PAD bit
+		 * without waiting for a REQ_IO_LOW.
+		 */
+		config = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC);
+		new_config = config;
+
+		if ((io_level & REQ_IO_HIGH) &&
+				(msm_host->caps_0 & CORE_3_0V_SUPPORT))
+			new_config &= ~CORE_IO_PAD_PWR_SWITCH;
+		else if ((io_level & REQ_IO_LOW) ||
+				(msm_host->caps_0 & CORE_1_8V_SUPPORT))
+			new_config |= CORE_IO_PAD_PWR_SWITCH;
+
+		if (config ^ new_config)
+			writel_relaxed(new_config,
+					host->ioaddr + CORE_VENDOR_SPEC);
+	}
 
 	if (pwr_state)
 		msm_host->curr_pwr_state = pwr_state;
@@ -1322,7 +1357,8 @@ static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
 {
 	struct mmc_host *mmc = msm_host->mmc;
 	struct regulator *supply = mmc->supply.vqmmc;
-	u32 caps = 0;
+	u32 caps = 0, config;
+	struct sdhci_host *host = mmc_priv(mmc);
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		if (regulator_is_supported_voltage(supply, 1700000, 1950000))
@@ -1335,6 +1371,23 @@ static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
 					mmc_hostname(mmc));
 	}
 
+	if (caps) {
+		/*
+		 * Set the PAD_PWR_SWITCH_EN bit so that the PAD_PWR_SWITCH
+		 * bit can be used as required later on.
+		 */
+		u32 io_level = msm_host->curr_io_level;
+
+		config = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC);
+		config |= CORE_IO_PAD_PWR_SWITCH_EN;
+
+		if ((io_level & REQ_IO_HIGH) && (caps &	CORE_3_0V_SUPPORT))
+			config &= ~CORE_IO_PAD_PWR_SWITCH;
+		else if ((io_level & REQ_IO_LOW) || (caps & CORE_1_8V_SUPPORT))
+			config |= CORE_IO_PAD_PWR_SWITCH;
+
+		writel_relaxed(config, host->ioaddr + CORE_VENDOR_SPEC);
+	}
 	msm_host->caps_0 |= caps;
 	pr_debug("%s: supported caps: 0x%08x\n", mmc_hostname(mmc), caps);
 }
