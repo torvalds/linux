@@ -69,6 +69,9 @@ void *ife_decode(struct sk_buff *skb, u16 *metalen)
 	int total_pull;
 	u16 ifehdrln;
 
+	if (!pskb_may_pull(skb, skb->dev->hard_header_len + IFE_METAHDRLEN))
+		return NULL;
+
 	ifehdr = (struct ifeheadr *) (skb->data + skb->dev->hard_header_len);
 	ifehdrln = ntohs(ifehdr->metalen);
 	total_pull = skb->dev->hard_header_len + ifehdrln;
