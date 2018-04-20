@@ -405,6 +405,19 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	kvm_call_hyp(__kvm_set_tpidr_el2, tpidr_el2);
 }
 
+static inline bool kvm_arch_check_sve_has_vhe(void)
+{
+	/*
+	 * The Arm architecture specifies that implementation of SVE
+	 * requires VHE also to be implemented.  The KVM code for arm64
+	 * relies on this when SVE is present:
+	 */
+	if (system_supports_sve())
+		return has_vhe();
+	else
+		return true;
+}
+
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
