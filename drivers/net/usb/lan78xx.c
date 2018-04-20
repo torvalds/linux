@@ -37,6 +37,8 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/microchipphy.h>
 #include <linux/phy.h>
+#include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include "lan78xx.h"
 
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
@@ -1652,34 +1654,31 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 	addr[5] = (addr_hi >> 8) & 0xFF;
 
 	if (!is_valid_ether_addr(addr)) {
-		/* reading mac address from EEPROM or OTP */
-		if ((lan78xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
-					 addr) == 0) ||
-		    (lan78xx_read_otp(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
-				      addr) == 0)) {
-			if (is_valid_ether_addr(addr)) {
-				/* eeprom values are valid so use them */
-				netif_dbg(dev, ifup, dev->net,
-					  "MAC address read from EEPROM");
-			} else {
-				/* generate random MAC */
-				random_ether_addr(addr);
-				netif_dbg(dev, ifup, dev->net,
-					  "MAC address set to random addr");
-			}
-
-			addr_lo = addr[0] | (addr[1] << 8) |
-				  (addr[2] << 16) | (addr[3] << 24);
-			addr_hi = addr[4] | (addr[5] << 8);
-
-			ret = lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
-			ret = lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
+		if (!eth_platform_get_mac_address(&dev->udev->dev, addr)) {
+			/* valid address present in Device Tree */
+			netif_dbg(dev, ifup, dev->net,
+				  "MAC address read from Device Tree");
+		} else if (((lan78xx_read_eeprom(dev, EEPROM_MAC_OFFSET,
+						 ETH_ALEN, addr) == 0) ||
+			    (lan78xx_read_otp(dev, EEPROM_MAC_OFFSET,
+					      ETH_ALEN, addr) == 0)) &&
+			   is_valid_ether_addr(addr)) {
+			/* eeprom values are valid so use them */
+			netif_dbg(dev, ifup, dev->net,
+				  "MAC address read from EEPROM");
 		} else {
 			/* generate random MAC */
 			random_ether_addr(addr);
 			netif_dbg(dev, ifup, dev->net,
 				  "MAC address set to random addr");
 		}
+
+		addr_lo = addr[0] | (addr[1] << 8) |
+			  (addr[2] << 16) | (addr[3] << 24);
+		addr_hi = addr[4] | (addr[5] << 8);
+
+		ret = lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
+		ret = lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
 	}
 
 	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
@@ -1762,6 +1761,7 @@ done:
 
 static int lan78xx_mdio_init(struct lan78xx_net *dev)
 {
+	struct device_node *node;
 	int ret;
 
 	dev->mdiobus = mdiobus_alloc();
@@ -1790,7 +1790,13 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 		break;
 	}
 
-	ret = mdiobus_register(dev->mdiobus);
+	node = of_get_child_by_name(dev->udev->dev.of_node, "mdio");
+	if (node) {
+		ret = of_mdiobus_register(dev->mdiobus, node);
+		of_node_put(node);
+	} else {
+		ret = mdiobus_register(dev->mdiobus);
+	}
 	if (ret) {
 		netdev_err(dev->net, "can't register MDIO bus\n");
 		goto exit1;
@@ -2078,6 +2084,28 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
 	mii_adv = (u32)mii_advertise_flowctrl(dev->fc_request_control);
 	phydev->advertising |= mii_adv_to_ethtool_adv_t(mii_adv);
+
+	if (phydev->mdio.dev.of_node) {
+		u32 reg;
+		int len;
+
+		len = of_property_count_elems_of_size(phydev->mdio.dev.of_node,
+						      "microchip,led-modes",
+						      sizeof(u32));
+		if (len >= 0) {
+			/* Ensure the appropriate LEDs are enabled */
+			lan78xx_read_reg(dev, HW_CFG, &reg);
+			reg &= ~(HW_CFG_LED0_EN_ |
+				 HW_CFG_LED1_EN_ |
+				 HW_CFG_LED2_EN_ |
+				 HW_CFG_LED3_EN_);
+			reg |= (len > 0) * HW_CFG_LED0_EN_ |
+				(len > 1) * HW_CFG_LED1_EN_ |
+				(len > 2) * HW_CFG_LED2_EN_ |
+				(len > 3) * HW_CFG_LED3_EN_;
+			lan78xx_write_reg(dev, HW_CFG, reg);
+		}
+	}
 
 	genphy_config_aneg(phydev);
 
