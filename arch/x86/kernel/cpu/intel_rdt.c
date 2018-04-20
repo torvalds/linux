@@ -179,7 +179,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.msr_update		= mba_wrmsr,
 		.cache_level		= 3,
 		.parse_ctrlval		= parse_bw,
-		.format_str		= "%d=%*d",
+		.format_str		= "%d=%*u",
 		.fflags			= RFTYPE_RES_MB,
 	},
 };
