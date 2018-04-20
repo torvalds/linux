@@ -201,6 +201,17 @@ struct fsnotify_group {
 #define FSNOTIFY_EVENT_PATH	1
 #define FSNOTIFY_EVENT_INODE	2
 
+enum fsnotify_obj_type {
+	FSNOTIFY_OBJ_TYPE_INODE,
+	FSNOTIFY_OBJ_TYPE_VFSMOUNT,
+	FSNOTIFY_OBJ_TYPE_COUNT,
+	FSNOTIFY_OBJ_TYPE_DETACHED = FSNOTIFY_OBJ_TYPE_COUNT
+};
+
+#define FSNOTIFY_OBJ_TYPE_INODE_FL	(1U << FSNOTIFY_OBJ_TYPE_INODE)
+#define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+#define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
+
 /*
  * Inode / vfsmount point to this structure which tracks all marks attached to
  * the inode / vfsmount. The reference to inode / vfsmount is held by this
@@ -209,11 +220,7 @@ struct fsnotify_group {
  */
 struct fsnotify_mark_connector {
 	spinlock_t lock;
-#define FSNOTIFY_OBJ_TYPE_INODE		0x01
-#define FSNOTIFY_OBJ_TYPE_VFSMOUNT	0x02
-#define FSNOTIFY_OBJ_ALL_TYPES		(FSNOTIFY_OBJ_TYPE_INODE | \
-					 FSNOTIFY_OBJ_TYPE_VFSMOUNT)
-	unsigned int flags;	/* Type of object [lock] */
+	unsigned int type;	/* Type of object [lock] */
 	union {	/* Object pointer [lock] */
 		struct inode *inode;
 		struct vfsmount *mnt;
@@ -369,12 +376,12 @@ extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group, unsigned
 /* run all the marks in a group, and clear all of the vfsmount marks */
 static inline void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL);
 }
 /* run all the marks in a group, and clear all of the inode marks */
 static inline void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE_FL);
 }
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
