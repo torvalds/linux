@@ -39,6 +39,7 @@ config RPMSG_QCOM_GLINK_SMEM
 
 config RPMSG_QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
+	depends on MAILBOX
 	depends on QCOM_SMEM
 	select RPMSG
 	help
