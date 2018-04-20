@@ -98,7 +98,7 @@ int rxe_add(struct rxe_dev *rxe, unsigned int mtu);
 void rxe_remove(struct rxe_dev *rxe);
 void rxe_remove_all(void);
 
-int rxe_rcv(struct sk_buff *skb);
+void rxe_rcv(struct sk_buff *skb);
 
 static inline void rxe_dev_put(struct rxe_dev *rxe)
 {

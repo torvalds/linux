@@ -276,9 +276,12 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	pkt->mask = RXE_GRH_MASK;
 	pkt->paylen = be16_to_cpu(udph->len) - sizeof(*udph);
 
-	return rxe_rcv(skb);
+	rxe_rcv(skb);
+
+	return 0;
 drop:
 	kfree_skb(skb);
+
 	return 0;
 }
 
@@ -517,9 +520,9 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	return 0;
 }
 
-int rxe_loopback(struct sk_buff *skb)
+void rxe_loopback(struct sk_buff *skb)
 {
-	return rxe_rcv(skb);
+	rxe_rcv(skb);
 }
 
 static inline int addr_same(struct rxe_dev *rxe, struct rxe_av *av)

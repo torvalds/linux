@@ -345,7 +345,7 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 }
 
 /* rxe_rcv is called from the interface driver */
-int rxe_rcv(struct sk_buff *skb)
+void rxe_rcv(struct sk_buff *skb)
 {
 	int err;
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
@@ -403,12 +403,11 @@ int rxe_rcv(struct sk_buff *skb)
 	else
 		rxe_rcv_pkt(rxe, pkt, skb);
 
-	return 0;
+	return;
 
 drop:
 	if (pkt->qp)
 		rxe_drop_ref(pkt->qp);
 
 	kfree_skb(skb);
-	return 0;
 }
