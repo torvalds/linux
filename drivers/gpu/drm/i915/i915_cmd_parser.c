@@ -211,7 +211,7 @@ struct drm_i915_cmd_table {
 
 /*            Command                          Mask   Fixed Len   Action
 	      ---------------------------------------------------------- */
-static const struct drm_i915_cmd_descriptor common_cmds[] = {
+static const struct drm_i915_cmd_descriptor gen7_common_cmds[] = {
 	CMD(  MI_NOOP,                          SMI,    F,  1,      S  ),
 	CMD(  MI_USER_INTERRUPT,                SMI,    F,  1,      R  ),
 	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      M  ),
@@ -244,7 +244,7 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
-static const struct drm_i915_cmd_descriptor render_cmds[] = {
+static const struct drm_i915_cmd_descriptor gen7_render_cmds[] = {
 	CMD(  MI_FLUSH,                         SMI,    F,  1,      S  ),
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_PREDICATE,                     SMI,    F,  1,      S  ),
@@ -328,7 +328,7 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 	CMD(  GFX_OP_3DSTATE_BINDING_TABLE_EDIT_PS,  S3D,   !F,  0x1FF,  S  ),
 };
 
-static const struct drm_i915_cmd_descriptor video_cmds[] = {
+static const struct drm_i915_cmd_descriptor gen7_video_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
@@ -372,7 +372,7 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 	CMD(  MFX_WAIT,                         SMFX,   F,  1,      S  ),
 };
 
-static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
+static const struct drm_i915_cmd_descriptor gen7_vecs_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
@@ -410,7 +410,7 @@ static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
 	      }},						       ),
 };
 
-static const struct drm_i915_cmd_descriptor blt_cmds[] = {
+static const struct drm_i915_cmd_descriptor gen7_blt_cmds[] = {
 	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3FF,  B,
 	      .bits = {{
@@ -463,35 +463,35 @@ static const struct drm_i915_cmd_descriptor noop_desc =
 #undef B
 #undef M
 
-static const struct drm_i915_cmd_table gen7_render_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ render_cmds, ARRAY_SIZE(render_cmds) },
+static const struct drm_i915_cmd_table gen7_render_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_render_cmds, ARRAY_SIZE(gen7_render_cmds) },
 };
 
-static const struct drm_i915_cmd_table hsw_render_ring_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ render_cmds, ARRAY_SIZE(render_cmds) },
+static const struct drm_i915_cmd_table hsw_render_ring_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_render_cmds, ARRAY_SIZE(gen7_render_cmds) },
 	{ hsw_render_cmds, ARRAY_SIZE(hsw_render_cmds) },
 };
 
-static const struct drm_i915_cmd_table gen7_video_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ video_cmds, ARRAY_SIZE(video_cmds) },
+static const struct drm_i915_cmd_table gen7_video_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_video_cmds, ARRAY_SIZE(gen7_video_cmds) },
 };
 
-static const struct drm_i915_cmd_table hsw_vebox_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ vecs_cmds, ARRAY_SIZE(vecs_cmds) },
+static const struct drm_i915_cmd_table hsw_vebox_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_vecs_cmds, ARRAY_SIZE(gen7_vecs_cmds) },
 };
 
-static const struct drm_i915_cmd_table gen7_blt_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ blt_cmds, ARRAY_SIZE(blt_cmds) },
+static const struct drm_i915_cmd_table gen7_blt_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_blt_cmds, ARRAY_SIZE(gen7_blt_cmds) },
 };
 
-static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
-	{ common_cmds, ARRAY_SIZE(common_cmds) },
-	{ blt_cmds, ARRAY_SIZE(blt_cmds) },
+static const struct drm_i915_cmd_table hsw_blt_ring_cmd_table[] = {
+	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
+	{ gen7_blt_cmds, ARRAY_SIZE(gen7_blt_cmds) },
 	{ hsw_blt_cmds, ARRAY_SIZE(hsw_blt_cmds) },
 };
 
@@ -871,12 +871,12 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	switch (engine->id) {
 	case RCS:
 		if (IS_HASWELL(engine->i915)) {
-			cmd_tables = hsw_render_ring_cmds;
+			cmd_tables = hsw_render_ring_cmd_table;
 			cmd_table_count =
-				ARRAY_SIZE(hsw_render_ring_cmds);
+				ARRAY_SIZE(hsw_render_ring_cmd_table);
 		} else {
-			cmd_tables = gen7_render_cmds;
-			cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
+			cmd_tables = gen7_render_cmd_table;
+			cmd_table_count = ARRAY_SIZE(gen7_render_cmd_table);
 		}
 
 		if (IS_HASWELL(engine->i915)) {
@@ -890,17 +890,17 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		engine->get_cmd_length_mask = gen7_render_get_cmd_length_mask;
 		break;
 	case VCS:
-		cmd_tables = gen7_video_cmds;
-		cmd_table_count = ARRAY_SIZE(gen7_video_cmds);
+		cmd_tables = gen7_video_cmd_table;
+		cmd_table_count = ARRAY_SIZE(gen7_video_cmd_table);
 		engine->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
 	case BCS:
 		if (IS_HASWELL(engine->i915)) {
-			cmd_tables = hsw_blt_ring_cmds;
-			cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmds);
+			cmd_tables = hsw_blt_ring_cmd_table;
+			cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmd_table);
 		} else {
-			cmd_tables = gen7_blt_cmds;
-			cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
+			cmd_tables = gen7_blt_cmd_table;
+			cmd_table_count = ARRAY_SIZE(gen7_blt_cmd_table);
 		}
 
 		if (IS_HASWELL(engine->i915)) {
@@ -914,8 +914,8 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		engine->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
 		break;
 	case VECS:
-		cmd_tables = hsw_vebox_cmds;
-		cmd_table_count = ARRAY_SIZE(hsw_vebox_cmds);
+		cmd_tables = hsw_vebox_cmd_table;
+		cmd_table_count = ARRAY_SIZE(hsw_vebox_cmd_table);
 		/* VECS can use the same length_mask function as VCS */
 		engine->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
