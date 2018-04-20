@@ -300,7 +300,7 @@
 		compatible = "dlg,da9053-aa";
 		reg = <0>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <12 0x8>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
 		spi-max-frequency = <1000000>;
 		dlg,tsi-as-adc;
 		tsiref-supply = <&reg_tsiref>;
@@ -473,7 +473,7 @@
 				compatible = "fsl,mma8453";
 				reg = <0x1c>;
 				interrupt-parent = <&gpio1>;
-				interrupts = <6 0>;
+				interrupts = <6 IRQ_TYPE_NONE>;
 				interrupt-names = "INT1";
 			};
 
@@ -539,7 +539,7 @@
 		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <4 0x8>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
