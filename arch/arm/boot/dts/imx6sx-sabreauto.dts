@@ -37,6 +37,10 @@
 	};
 };
 
+&anaclk2 {
+	clock-frequency = <24576000>;
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
