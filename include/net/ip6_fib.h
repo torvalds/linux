@@ -223,27 +223,6 @@ static inline bool fib6_check_expired(const struct fib6_info *f6i)
 	return false;
 }
 
-static inline void rt6_clean_expires(struct rt6_info *rt)
-{
-	rt->rt6i_flags &= ~RTF_EXPIRES;
-	rt->dst.expires = 0;
-}
-
-static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
-{
-	rt->dst.expires = expires;
-	rt->rt6i_flags |= RTF_EXPIRES;
-}
-
-static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
-{
-	if (!(rt0->rt6i_flags & RTF_EXPIRES) && rt0->from)
-		rt0->dst.expires = rt0->from->expires;
-
-	dst_set_expires(&rt0->dst, timeout);
-	rt0->rt6i_flags |= RTF_EXPIRES;
-}
-
 /* Function to safely get fn->sernum for passed in rt
  * and store result in passed in cookie.
  * Return true if we can get cookie safely

@@ -2221,6 +2221,15 @@ static void ip6_link_failure(struct sk_buff *skb)
 	}
 }
 
+static void rt6_update_expires(struct rt6_info *rt0, int timeout)
+{
+	if (!(rt0->rt6i_flags & RTF_EXPIRES) && rt0->from)
+		rt0->dst.expires = rt0->from->expires;
+
+	dst_set_expires(&rt0->dst, timeout);
+	rt0->rt6i_flags |= RTF_EXPIRES;
+}
+
 static void rt6_do_update_pmtu(struct rt6_info *rt, u32 mtu)
 {
 	struct net *net = dev_net(rt->dst.dev);
