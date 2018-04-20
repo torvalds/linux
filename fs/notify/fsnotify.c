@@ -269,25 +269,29 @@ static struct fsnotify_mark *fsnotify_next_mark(struct fsnotify_mark *mark)
 static unsigned int fsnotify_iter_select_report_types(
 		struct fsnotify_iter_info *iter_info)
 {
-	struct fsnotify_mark *inode_mark = iter_info->inode_mark;
-	struct fsnotify_mark *vfsmount_mark = iter_info->vfsmount_mark;
-	int cmp;
+	struct fsnotify_group *max_prio_group = NULL;
+	struct fsnotify_mark *mark;
+	int type;
 
-	if (!inode_mark && !vfsmount_mark)
-		return 0;
-
-	if (inode_mark && vfsmount_mark) {
-		cmp = fsnotify_compare_groups(inode_mark->group,
-					      vfsmount_mark->group);
-	} else {
-		cmp = inode_mark ? -1 : 1;
+	/* Choose max prio group among groups of all queue heads */
+	fsnotify_foreach_obj_type(type) {
+		mark = iter_info->marks[type];
+		if (mark &&
+		    fsnotify_compare_groups(max_prio_group, mark->group) > 0)
+			max_prio_group = mark->group;
 	}
 
+	if (!max_prio_group)
+		return 0;
+
+	/* Set the report mask for marks from same group as max prio group */
 	iter_info->report_mask = 0;
-	if (cmp <= 0)
-		iter_info->report_mask |= FSNOTIFY_OBJ_TYPE_INODE_FL;
-	if (cmp >= 0)
-		iter_info->report_mask |= FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL;
+	fsnotify_foreach_obj_type(type) {
+		mark = iter_info->marks[type];
+		if (mark &&
+		    fsnotify_compare_groups(max_prio_group, mark->group) == 0)
+			fsnotify_iter_set_report_type(iter_info, type);
+	}
 
 	return iter_info->report_mask;
 }
@@ -298,13 +302,13 @@ static unsigned int fsnotify_iter_select_report_types(
  */
 static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
 {
-	if (iter_info->report_mask & FSNOTIFY_OBJ_TYPE_INODE_FL)
-		iter_info->inode_mark =
-			fsnotify_next_mark(iter_info->inode_mark);
+	int type;
 
-	if (iter_info->report_mask & FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL)
-		iter_info->vfsmount_mark =
-			fsnotify_next_mark(iter_info->vfsmount_mark);
+	fsnotify_foreach_obj_type(type) {
+		if (fsnotify_iter_should_report_type(iter_info, type))
+			iter_info->marks[type] =
+				fsnotify_next_mark(iter_info->marks[type]);
+	}
 }
 
 /*
@@ -351,15 +355,15 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 
 	if ((mask & FS_MODIFY) ||
 	    (test_mask & to_tell->i_fsnotify_mask)) {
-		iter_info.inode_mark =
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
 			fsnotify_first_mark(&to_tell->i_fsnotify_marks);
 	}
 
 	if (mnt && ((mask & FS_MODIFY) ||
 		    (test_mask & mnt->mnt_fsnotify_mask))) {
-		iter_info.inode_mark =
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
 			fsnotify_first_mark(&to_tell->i_fsnotify_marks);
-		iter_info.vfsmount_mark =
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_VFSMOUNT] =
 			fsnotify_first_mark(&mnt->mnt_fsnotify_marks);
 	}
 

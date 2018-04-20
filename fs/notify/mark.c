@@ -294,12 +294,12 @@ static void fsnotify_put_mark_wake(struct fsnotify_mark *mark)
 
 bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info)
 {
-	/* This can fail if mark is being removed */
-	if (!fsnotify_get_mark_safe(iter_info->inode_mark))
-		return false;
-	if (!fsnotify_get_mark_safe(iter_info->vfsmount_mark)) {
-		fsnotify_put_mark_wake(iter_info->inode_mark);
-		return false;
+	int type;
+
+	fsnotify_foreach_obj_type(type) {
+		/* This can fail if mark is being removed */
+		if (!fsnotify_get_mark_safe(iter_info->marks[type]))
+			goto fail;
 	}
 
 	/*
@@ -310,13 +310,20 @@ bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info)
 	srcu_read_unlock(&fsnotify_mark_srcu, iter_info->srcu_idx);
 
 	return true;
+
+fail:
+	for (type--; type >= 0; type--)
+		fsnotify_put_mark_wake(iter_info->marks[type]);
+	return false;
 }
 
 void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info)
 {
+	int type;
+
 	iter_info->srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
-	fsnotify_put_mark_wake(iter_info->inode_mark);
-	fsnotify_put_mark_wake(iter_info->vfsmount_mark);
+	fsnotify_foreach_obj_type(type)
+		fsnotify_put_mark_wake(iter_info->marks[type]);
 }
 
 /*

@@ -485,10 +485,10 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark *i_mark;
-	struct fsnotify_iter_info iter_info = {
-		.inode_mark = fsn_mark,
-		.report_mask = FSNOTIFY_OBJ_TYPE_INODE_FL,
-	};
+	struct fsnotify_iter_info iter_info = { };
+
+	fsnotify_iter_set_report_type_mark(&iter_info, FSNOTIFY_OBJ_TYPE_INODE,
+					   fsn_mark);
 
 	/* Queue ignore event for the watch */
 	inotify_handle_event(group, NULL, FS_IN_IGNORED, NULL,

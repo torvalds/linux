@@ -211,22 +211,44 @@ enum fsnotify_obj_type {
 #define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
 
 struct fsnotify_iter_info {
-	struct fsnotify_mark *inode_mark;
-	struct fsnotify_mark *vfsmount_mark;
+	struct fsnotify_mark *marks[FSNOTIFY_OBJ_TYPE_COUNT];
 	unsigned int report_mask;
 	int srcu_idx;
 };
+
+static inline bool fsnotify_iter_should_report_type(
+		struct fsnotify_iter_info *iter_info, int type)
+{
+	return (iter_info->report_mask & (1U << type));
+}
+
+static inline void fsnotify_iter_set_report_type(
+		struct fsnotify_iter_info *iter_info, int type)
+{
+	iter_info->report_mask |= (1U << type);
+}
+
+static inline void fsnotify_iter_set_report_type_mark(
+		struct fsnotify_iter_info *iter_info, int type,
+		struct fsnotify_mark *mark)
+{
+	iter_info->marks[type] = mark;
+	iter_info->report_mask |= (1U << type);
+}
 
 #define FSNOTIFY_ITER_FUNCS(name, NAME) \
 static inline struct fsnotify_mark *fsnotify_iter_##name##_mark( \
 		struct fsnotify_iter_info *iter_info) \
 { \
 	return (iter_info->report_mask & FSNOTIFY_OBJ_TYPE_##NAME##_FL) ? \
-		iter_info->name##_mark : NULL; \
+		iter_info->marks[FSNOTIFY_OBJ_TYPE_##NAME] : NULL; \
 }
 
 FSNOTIFY_ITER_FUNCS(inode, INODE)
 FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
+
+#define fsnotify_foreach_obj_type(type) \
+	for (type = 0; type < FSNOTIFY_OBJ_TYPE_COUNT; type++)
 
 /*
  * Inode / vfsmount point to this structure which tracks all marks attached to
