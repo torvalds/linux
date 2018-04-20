@@ -78,7 +78,7 @@ static int comp_threshold_set(struct tps65910 *tps65910, int id, int voltage)
 		return -EINVAL;
 
 	val = index << 1;
-	ret = tps65910->write(tps65910, tps_comp.reg, 1, &val);
+	ret = tps65910_reg_write(tps65910, tps_comp.reg, val);
 
 	return ret;
 }
@@ -86,13 +86,13 @@ static int comp_threshold_set(struct tps65910 *tps65910, int id, int voltage)
 static int comp_threshold_get(struct tps65910 *tps65910, int id)
 {
 	struct comparator tps_comp = tps_comparators[id];
+	unsigned int val;
 	int ret;
-	u8 val;
 
 	if (id == COMP)
 		return 0;
 
-	ret = tps65910->read(tps65910, tps_comp.reg, 1, &val);
+	ret = tps65910_reg_read(tps65910, tps_comp.reg, &val);
 	if (ret < 0)
 		return ret;
 
