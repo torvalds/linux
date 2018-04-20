@@ -151,7 +151,7 @@ static int byt_max98090_probe(struct platform_device *pdev)
 	struct byt_max98090_private *priv;
 	int ret_val;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_ATOMIC);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "allocation failed\n");
 		return -ENOMEM;
