@@ -483,7 +483,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 /**
  * i40e_ptp_get_ts_config - ioctl interface to read the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Obtain the current hardware timestamping settigs as requested. To do this,
  * keep a shadow copy of the timestamp settings rather than attempting to
@@ -627,7 +627,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 /**
  * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Respond to the user filter requests and make the appropriate hardware
  * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping

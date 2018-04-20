@@ -1055,6 +1055,9 @@ static int i40e_nway_reset(struct net_device *netdev)
 
 /**
  * i40e_get_pauseparam -  Get Flow Control status
+ * @netdev: netdevice structure
+ * @pause: buffer to return pause parameters
+ *
  * Return tx/rx-pause status
  **/
 static void i40e_get_pauseparam(struct net_device *netdev,
@@ -2526,7 +2529,7 @@ static int i40e_get_rss_hash_opts(struct i40e_pf *pf, struct ethtool_rxnfc *cmd)
 /**
  * i40e_check_mask - Check whether a mask field is set
  * @mask: the full mask value
- * @field; mask of the field to check
+ * @field: mask of the field to check
  *
  * If the given mask is fully set, return positive value. If the mask for the
  * field is fully unset, return zero. Otherwise return a negative error code.
@@ -2597,6 +2600,7 @@ static int i40e_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
 /**
  * i40e_fill_rx_flow_user_data - Fill in user-defined data field
  * @fsp: pointer to rx_flow specification
+ * @data: pointer to return userdef data
  *
  * Reads the userdef data structure and properly fills in the user defined
  * fields of the rx_flow_spec.
@@ -2775,6 +2779,7 @@ no_input_set:
  * i40e_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
+ * @rule_locs: pointer to store rule data
  *
  * Returns Success if the command is supported.
  **/
@@ -2816,7 +2821,7 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 /**
  * i40e_get_rss_hash_bits - Read RSS Hash bits from register
  * @nfc: pointer to user request
- * @i_setc bits currently set
+ * @i_setc: bits currently set
  *
  * Returns value of bits to be set per user request
  **/
@@ -2861,7 +2866,7 @@ static u64 i40e_get_rss_hash_bits(struct ethtool_rxnfc *nfc, u64 i_setc)
 /**
  * i40e_set_rss_hash_opt - Enable/Disable flow types for RSS hash
  * @pf: pointer to the physical function struct
- * @cmd: ethtool rxnfc command
+ * @nfc: ethtool rxnfc command
  *
  * Returns Success if the flow input set is supported.
  **/
@@ -3260,7 +3265,7 @@ static int i40e_add_flex_offset(struct list_head *flex_pit_list,
  * __i40e_reprogram_flex_pit - Re-program specific FLX_PIT table
  * @pf: Pointer to the PF structure
  * @flex_pit_list: list of flexible src offsets in use
- * #flex_pit_start: index to first entry for this section of the table
+ * @flex_pit_start: index to first entry for this section of the table
  *
  * In order to handle flexible data, the hardware uses a table of values
  * called the FLX_PIT table. This table is used to indicate which sections of
@@ -3374,7 +3379,7 @@ static void i40e_reprogram_flex_pit(struct i40e_pf *pf)
 
 /**
  * i40e_flow_str - Converts a flow_type into a human readable string
- * @flow_type: the flow type from a flow specification
+ * @fsp: the flow specification
  *
  * Currently only flow types we support are included here, and the string
  * value attempts to match what ethtool would use to configure this flow type.
@@ -4079,7 +4084,7 @@ static unsigned int i40e_max_channels(struct i40e_vsi *vsi)
 
 /**
  * i40e_get_channels - Get the current channels enabled and max supported etc.
- * @netdev: network interface device structure
+ * @dev: network interface device structure
  * @ch: ethtool channels structure
  *
  * We don't support separate tx and rx queues as channels. The other count
@@ -4088,7 +4093,7 @@ static unsigned int i40e_max_channels(struct i40e_vsi *vsi)
  * q_vectors since we support a lot more queue pairs than q_vectors.
  **/
 static void i40e_get_channels(struct net_device *dev,
-			       struct ethtool_channels *ch)
+			      struct ethtool_channels *ch)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -4107,14 +4112,14 @@ static void i40e_get_channels(struct net_device *dev,
 
 /**
  * i40e_set_channels - Set the new channels count.
- * @netdev: network interface device structure
+ * @dev: network interface device structure
  * @ch: ethtool channels structure
  *
  * The new channels count may not be the same as requested by the user
  * since it gets rounded down to a power of 2 value.
  **/
 static int i40e_set_channels(struct net_device *dev,
-			      struct ethtool_channels *ch)
+			     struct ethtool_channels *ch)
 {
 	const u8 drop = I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET;
 	struct i40e_netdev_priv *np = netdev_priv(dev);
@@ -4249,6 +4254,7 @@ out:
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key
+ * @hfunc: hash function to use
  *
  * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.

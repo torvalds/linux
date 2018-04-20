@@ -8,8 +8,8 @@
 /**
  * i40e_vc_vf_broadcast
  * @pf: pointer to the PF structure
- * @opcode: operation code
- * @retval: return value
+ * @v_opcode: operation code
+ * @v_retval: return value
  * @msg: pointer to the msg buffer
  * @msglen: msg length
  *
@@ -1639,6 +1639,7 @@ static int i40e_vc_send_resp_to_vf(struct i40e_vf *vf,
 /**
  * i40e_vc_get_version_msg
  * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
  *
  * called from the VF to request the API version used by the PF
  **/
@@ -1682,7 +1683,6 @@ static void i40e_del_qch(struct i40e_vf *vf)
  * i40e_vc_get_vf_resources_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to request its resources
  **/
@@ -1806,8 +1806,6 @@ err:
 /**
  * i40e_vc_reset_vf_msg
  * @vf: pointer to the VF info
- * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to reset itself,
  * unlike other virtchnl messages, PF driver
@@ -3532,15 +3530,16 @@ err:
  * i40e_vc_process_vf_msg
  * @pf: pointer to the PF structure
  * @vf_id: source VF id
+ * @v_opcode: operation code
+ * @v_retval: unused return value code
  * @msg: pointer to the msg buffer
  * @msglen: msg length
- * @msghndl: msg handle
  *
  * called from the common aeq/arq handler to
  * process request from VF
  **/
 int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
-			   u32 v_retval, u8 *msg, u16 msglen)
+			   u32 __always_unused v_retval, u8 *msg, u16 msglen)
 {
 	struct i40e_hw *hw = &pf->hw;
 	int local_vf_id = vf_id - (s16)hw->func_caps.vf_base_id;
@@ -3991,7 +3990,8 @@ error_pvid:
  * i40e_ndo_set_vf_bw
  * @netdev: network interface device structure
  * @vf_id: VF identifier
- * @tx_rate: Tx rate
+ * @min_tx_rate: Minimum Tx rate
+ * @max_tx_rate: Maximum Tx rate
  *
  * configure VF Tx rate
  **/

@@ -449,6 +449,7 @@ static void i40evf_irq_affinity_release(struct kref *ref) {}
 /**
  * i40evf_request_traffic_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
+ * @basename: device basename
  *
  * Allocates MSI-X vectors for tx and rx handling, and requests
  * interrupts from the kernel.
@@ -721,6 +722,7 @@ static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
 /**
  * i40evf_vlan_rx_add_vid - Add a VLAN filter to a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
@@ -738,6 +740,7 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
 /**
  * i40evf_vlan_rx_kill_vid - Remove a VLAN filter from a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
@@ -3136,7 +3139,7 @@ static int i40evf_set_features(struct net_device *netdev,
 /**
  * i40evf_features_check - Validate encapsulated packet conforms to limits
  * @skb: skb buff
- * @netdev: This physical port's netdev
+ * @dev: This physical port's netdev
  * @features: Offload features that the stack believes apply
  **/
 static netdev_features_t i40evf_features_check(struct sk_buff *skb,
