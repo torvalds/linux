@@ -230,6 +230,14 @@ static inline void cache_alloc_hsw_probe(void)
 	rdt_alloc_capable = true;
 }
 
+bool is_mba_sc(struct rdt_resource *r)
+{
+	if (!r)
+		return rdt_resources_all[RDT_RESOURCE_MBA].membw.mba_sc;
+
+	return r->membw.mba_sc;
+}
+
 /*
  * rdt_get_mb_table() - get a mapping of bandwidth(b/w) percentage values
  * exposed to user interface and the h/w understandable delay values.
