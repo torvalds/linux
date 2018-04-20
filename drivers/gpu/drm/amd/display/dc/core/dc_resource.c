@@ -1798,9 +1798,9 @@ enum dc_status dc_validate_global_state(
 		return DC_ERROR_UNEXPECTED;
 
 	if (dc->res_pool->funcs->validate_global) {
-			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
-			if (result != DC_OK)
-				return result;
+		result = dc->res_pool->funcs->validate_global(dc, new_ctx);
+		if (result != DC_OK)
+			return result;
 	}
 
 	for (i = 0; i < new_ctx->stream_count; i++) {
