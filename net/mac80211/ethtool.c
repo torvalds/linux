@@ -4,6 +4,7 @@
  * Copied from cfg.c - originally
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014	Intel Corporation (Author: Johannes Berg)
+ * Copyright (C) 2018 Intel Corporation
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -106,7 +107,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 		if (!(sta && !WARN_ON(sta->sdata->dev != dev)))
 			goto do_survey;
 
-		sinfo.filled = 0;
+		memset(&sinfo, 0, sizeof(sinfo));
 		sta_set_sinfo(sta, &sinfo);
 
 		i = 0;
@@ -133,7 +134,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 			if (sta->sdata->dev != dev)
 				continue;
 
-			sinfo.filled = 0;
+			memset(&sinfo, 0, sizeof(sinfo));
 			sta_set_sinfo(sta, &sinfo);
 			i = 0;
 			ADD_STA_STATS(sta);
