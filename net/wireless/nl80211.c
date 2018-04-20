@@ -4,6 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  */
 
 #include <linux/if.h>
@@ -645,7 +646,43 @@ static inline void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 	return genlmsg_put(skb, portid, seq, &nl80211_fam, flags, cmd);
 }
 
-static int nl80211_msg_put_channel(struct sk_buff *msg,
+static int nl80211_msg_put_wmm_rules(struct sk_buff *msg,
+				     const struct ieee80211_reg_rule *rule)
+{
+	int j;
+	struct nlattr *nl_wmm_rules =
+		nla_nest_start(msg, NL80211_FREQUENCY_ATTR_WMM);
+
+	if (!nl_wmm_rules)
+		goto nla_put_failure;
+
+	for (j = 0; j < IEEE80211_NUM_ACS; j++) {
+		struct nlattr *nl_wmm_rule = nla_nest_start(msg, j);
+
+		if (!nl_wmm_rule)
+			goto nla_put_failure;
+
+		if (nla_put_u16(msg, NL80211_WMMR_CW_MIN,
+				rule->wmm_rule->client[j].cw_min) ||
+		    nla_put_u16(msg, NL80211_WMMR_CW_MAX,
+				rule->wmm_rule->client[j].cw_max) ||
+		    nla_put_u8(msg, NL80211_WMMR_AIFSN,
+			       rule->wmm_rule->client[j].aifsn) ||
+		    nla_put_u8(msg, NL80211_WMMR_TXOP,
+			       rule->wmm_rule->client[j].cot))
+			goto nla_put_failure;
+
+		nla_nest_end(msg, nl_wmm_rule);
+	}
+	nla_nest_end(msg, nl_wmm_rules);
+
+	return 0;
+
+nla_put_failure:
+	return -ENOBUFS;
+}
+
+static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 				   struct ieee80211_channel *chan,
 				   bool large)
 {
@@ -720,6 +757,16 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
 			DBM_TO_MBM(chan->max_power)))
 		goto nla_put_failure;
+
+	if (large) {
+		const struct ieee80211_reg_rule *rule =
+			freq_reg_info(wiphy, chan->center_freq);
+
+		if (!IS_ERR(rule) && rule->wmm_rule) {
+			if (nl80211_msg_put_wmm_rules(msg, rule))
+				goto nla_put_failure;
+		}
+	}
 
 	return 0;
 
@@ -1631,7 +1678,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 					chan = &sband->channels[i];
 
 					if (nl80211_msg_put_channel(
-							msg, chan,
+							msg, &rdev->wiphy, chan,
 							state->split))
 						goto nla_put_failure;
 
@@ -14320,7 +14367,8 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_BEFORE);
 	if (!nl_freq)
 		goto nla_put_failure;
-	if (nl80211_msg_put_channel(msg, channel_before, false))
+
+	if (nl80211_msg_put_channel(msg, wiphy, channel_before, false))
 		goto nla_put_failure;
 	nla_nest_end(msg, nl_freq);
 
@@ -14328,7 +14376,8 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_AFTER);
 	if (!nl_freq)
 		goto nla_put_failure;
-	if (nl80211_msg_put_channel(msg, channel_after, false))
+
+	if (nl80211_msg_put_channel(msg, wiphy, channel_after, false))
 		goto nla_put_failure;
 	nla_nest_end(msg, nl_freq);
 

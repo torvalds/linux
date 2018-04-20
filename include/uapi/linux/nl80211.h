@@ -11,6 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -3142,6 +3143,29 @@ enum nl80211_band_attr {
 #define NL80211_BAND_ATTR_HT_CAPA NL80211_BAND_ATTR_HT_CAPA
 
 /**
+ * enum nl80211_wmm_rule - regulatory wmm rule
+ *
+ * @__NL80211_WMMR_INVALID: attribute number 0 is reserved
+ * @NL80211_WMMR_CW_MIN: Minimum contention window slot.
+ * @NL80211_WMMR_CW_MAX: Maximum contention window slot.
+ * @NL80211_WMMR_AIFSN: Arbitration Inter Frame Space.
+ * @NL80211_WMMR_TXOP: Maximum allowed tx operation time.
+ * @nl80211_WMMR_MAX: highest possible wmm rule.
+ * @__NL80211_WMMR_LAST: Internal use.
+ */
+enum nl80211_wmm_rule {
+	__NL80211_WMMR_INVALID,
+	NL80211_WMMR_CW_MIN,
+	NL80211_WMMR_CW_MAX,
+	NL80211_WMMR_AIFSN,
+	NL80211_WMMR_TXOP,
+
+	/* keep last */
+	__NL80211_WMMR_LAST,
+	NL80211_WMMR_MAX = __NL80211_WMMR_LAST - 1
+};
+
+/**
  * enum nl80211_frequency_attr - frequency attributes
  * @__NL80211_FREQUENCY_ATTR_INVALID: attribute number 0 is reserved
  * @NL80211_FREQUENCY_ATTR_FREQ: Frequency in MHz
@@ -3190,6 +3214,9 @@ enum nl80211_band_attr {
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
  *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_WMM: this channel has wmm limitations.
+ *	This is a nested attribute that contains the wmm limitation per AC.
+ *	(see &enum nl80211_wmm_rule)
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -3218,6 +3245,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_20MHZ,
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
+	NL80211_FREQUENCY_ATTR_WMM,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
