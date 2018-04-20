@@ -1526,6 +1526,9 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		*val = get_reg_val(id, vcpu->arch.dec_expires +
 				   vcpu->arch.vcore->tb_offset);
 		break;
+	case KVM_REG_PPC_ONLINE:
+		*val = get_reg_val(id, vcpu->arch.online);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -1756,6 +1759,9 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_DEC_EXPIRY:
 		vcpu->arch.dec_expires = set_reg_val(id, *val) -
 			vcpu->arch.vcore->tb_offset;
+		break;
+	case KVM_REG_PPC_ONLINE:
+		vcpu->arch.online = set_reg_val(id, *val);
 		break;
 	default:
 		r = -EINVAL;

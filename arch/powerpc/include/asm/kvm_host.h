@@ -772,6 +772,8 @@ struct kvm_vcpu_arch {
 	u64 busy_preempt;
 
 	u32 emul_inst;
+
+	u32 online;
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
