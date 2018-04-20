@@ -550,8 +550,7 @@ void qede_force_mac(void *dev, u8 *mac, bool forced)
 
 	__qede_lock(edev);
 
-	/* MAC hints take effect only if we haven't set one already */
-	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced) {
+	if (!is_valid_ether_addr(mac)) {
 		__qede_unlock(edev);
 		return;
 	}
@@ -1161,6 +1160,10 @@ int qede_set_mac_addr(struct net_device *ndev, void *p)
 	if (edev->state != QEDE_STATE_OPEN) {
 		DP_VERBOSE(edev, NETIF_MSG_IFDOWN,
 			   "The device is currently down\n");
+		/* Ask PF to explicitly update a copy in bulletin board */
+		if (IS_VF(edev) && edev->ops->req_bulletin_update_mac)
+			edev->ops->req_bulletin_update_mac(edev->cdev,
+							   ndev->dev_addr);
 		goto out;
 	}
 

@@ -2850,6 +2850,24 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 				      cqe);
 }
 
+static int qed_req_bulletin_update_mac(struct qed_dev *cdev, u8 *mac)
+{
+	int i, ret;
+
+	if (IS_PF(cdev))
+		return 0;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		ret = qed_vf_pf_bulletin_update_mac(p_hwfn, mac);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_QED_SRIOV
 extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 #endif
@@ -2887,6 +2905,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.ntuple_filter_config = &qed_ntuple_arfs_filter_config,
 	.configure_arfs_searcher = &qed_configure_arfs_searcher,
 	.get_coalesce = &qed_get_coalesce,
+	.req_bulletin_update_mac = &qed_req_bulletin_update_mac,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void)
