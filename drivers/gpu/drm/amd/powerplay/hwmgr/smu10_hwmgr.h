@@ -311,11 +311,9 @@ int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 #define SMU10_UMD_PSTATE_FCLK                   933
 #define SMU10_UMD_PSTATE_VCE                    0x03C00320
 
-#define SMU10_UMD_PSTATE_PEAK_GFXCLK            1100
 #define SMU10_UMD_PSTATE_PEAK_SOCCLK            757
 #define SMU10_UMD_PSTATE_PEAK_FCLK              1200
 
-#define SMU10_UMD_PSTATE_MIN_GFXCLK             200
 #define SMU10_UMD_PSTATE_MIN_FCLK               400
 #define SMU10_UMD_PSTATE_MIN_SOCCLK             200
 #define SMU10_UMD_PSTATE_MIN_VCE                0x0190012C

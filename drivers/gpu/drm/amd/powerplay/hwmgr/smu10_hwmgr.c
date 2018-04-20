@@ -383,7 +383,7 @@ static int smu10_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 
 static int smu10_populate_clock_table(struct pp_hwmgr *hwmgr)
 {
-	int result;
+	uint32_t result;
 
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 	DpmClocks_t  *table = &(smu10_data->clock_table);
@@ -429,11 +429,11 @@ static int smu10_populate_clock_table(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency);
 	result = smum_get_argument(hwmgr);
-	smu10_data->gfx_min_freq_limit = result * 100;
+	smu10_data->gfx_min_freq_limit = result / 10 * 1000;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency);
 	result = smum_get_argument(hwmgr);
-	smu10_data->gfx_max_freq_limit = result * 100;
+	smu10_data->gfx_max_freq_limit = result / 10 * 1000;
 
 	return 0;
 }
@@ -515,6 +515,8 @@ static int smu10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
+	struct smu10_hwmgr *data = hwmgr->backend;
+
 	if (hwmgr->smu_version < 0x1E3700) {
 		pr_info("smu firmware version too old, can not set dpm level\n");
 		return 0;
@@ -525,7 +527,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -538,7 +540,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -552,10 +554,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -595,7 +597,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						SMU10_UMD_PSTATE_MIN_FCLK);
@@ -608,7 +610,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -622,10 +624,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						SMU10_UMD_PSTATE_MIN_FCLK);
@@ -773,21 +775,30 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
 	struct smu10_voltage_dependency_table *mclk_table =
 			data->clock_vol_info.vdd_dep_on_fclk;
-	int i, now, size = 0;
+	uint32_t i, now, size = 0;
 
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
 		now = smum_get_argument(hwmgr);
 
+	/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
+		if (now == data->gfx_max_freq_limit/100)
+			i = 2;
+		else if (now == data->gfx_min_freq_limit/100)
+			i = 0;
+		else
+			i = 1;
+
 		size += sprintf(buf + size, "0: %uMhz %s\n",
-				data->gfx_min_freq_limit / 100,
-				((data->gfx_min_freq_limit / 100)
-				 == now) ? "*" : "");
+					data->gfx_min_freq_limit/100,
+					i == 0 ? "*" : "");
 		size += sprintf(buf + size, "1: %uMhz %s\n",
-				data->gfx_max_freq_limit / 100,
-				((data->gfx_max_freq_limit / 100)
-				 == now) ? "*" : "");
+					i == 1 ? now : SMU10_UMD_PSTATE_GFXCLK,
+					i == 1 ? "*" : "");
+		size += sprintf(buf + size, "2: %uMhz %s\n",
+					data->gfx_max_freq_limit/100,
+					i == 2 ? "*" : "");
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
