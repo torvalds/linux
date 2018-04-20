@@ -21,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/iopoll.h>
+#include <linux/regulator/consumer.h>
 
 #include "sdhci-pltfm.h"
 
@@ -80,6 +81,9 @@
 #define CORE_HC_SELECT_IN_EN	BIT(18)
 #define CORE_HC_SELECT_IN_HS400	(6 << 19)
 #define CORE_HC_SELECT_IN_MASK	(7 << 19)
+
+#define CORE_3_0V_SUPPORT	(1 << 25)
+#define CORE_1_8V_SUPPORT	(1 << 26)
 
 #define CORE_CSR_CDC_CTLR_CFG0		0x130
 #define CORE_SW_TRIG_FULL_CALIB		BIT(16)
@@ -148,6 +152,7 @@ struct sdhci_msm_host {
 	u32 curr_io_level;
 	wait_queue_head_t pwr_irq_wait;
 	bool pwr_irq_flag;
+	u32 caps_0;
 };
 
 static unsigned int msm_get_clock_rate_for_bus_mode(struct sdhci_host *host,
@@ -1103,7 +1108,7 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 	u32 irq_status, irq_ack = 0;
 	int retry = 10;
-	int pwr_state = 0, io_level = 0;
+	u32 pwr_state = 0, io_level = 0;
 
 
 	irq_status = readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
@@ -1311,6 +1316,27 @@ static void sdhci_msm_writeb(struct sdhci_host *host, u8 val, int reg)
 
 	if (req_type)
 		sdhci_msm_check_power_status(host, req_type);
+}
+
+static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
+{
+	struct mmc_host *mmc = msm_host->mmc;
+	struct regulator *supply = mmc->supply.vqmmc;
+	u32 caps = 0;
+
+	if (!IS_ERR(mmc->supply.vqmmc)) {
+		if (regulator_is_supported_voltage(supply, 1700000, 1950000))
+			caps |= CORE_1_8V_SUPPORT;
+		if (regulator_is_supported_voltage(supply, 2700000, 3600000))
+			caps |= CORE_3_0V_SUPPORT;
+
+		if (!caps)
+			pr_warn("%s: 1.8/3V not supported for vqmmc\n",
+					mmc_hostname(mmc));
+	}
+
+	msm_host->caps_0 |= caps;
+	pr_debug("%s: supported caps: 0x%08x\n", mmc_hostname(mmc), caps);
 }
 
 static const struct of_device_id sdhci_msm_dt_match[] = {
@@ -1530,6 +1556,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto pm_runtime_disable;
+	sdhci_msm_set_regulator_caps(msm_host);
 
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
