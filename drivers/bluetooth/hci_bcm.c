@@ -501,7 +501,7 @@ static int bcm_setup(struct hci_uart *hu)
 	hu->hdev->set_diag = bcm_set_diag;
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name));
+	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name), false);
 	if (err)
 		return err;
 
