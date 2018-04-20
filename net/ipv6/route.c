@@ -2128,7 +2128,7 @@ static bool fib6_check(struct fib6_info *f6i, u32 cookie)
 {
 	u32 rt_cookie = 0;
 
-	if ((f6i && !rt6_get_cookie_safe(f6i, &rt_cookie)) ||
+	if ((f6i && !fib6_get_cookie_safe(f6i, &rt_cookie)) ||
 	     rt_cookie != cookie)
 		return false;
 
@@ -2142,7 +2142,7 @@ static struct dst_entry *rt6_check(struct rt6_info *rt, u32 cookie)
 {
 	u32 rt_cookie = 0;
 
-	if ((rt->from && !rt6_get_cookie_safe(rt->from, &rt_cookie)) ||
+	if ((rt->from && !fib6_get_cookie_safe(rt->from, &rt_cookie)) ||
 	    rt_cookie != cookie)
 		return NULL;
 
