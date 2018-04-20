@@ -42,6 +42,8 @@ MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/vega20_sdma.bin");
+MODULE_FIRMWARE("amdgpu/vega20_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
@@ -181,6 +183,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGA12:
 		chip_name = "vega12";
+		break;
+	case CHIP_VEGA20:
+		chip_name = "vega20";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
