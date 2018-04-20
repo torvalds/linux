@@ -10,6 +10,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "uapi/drm/vc4_drm.h"
 
@@ -193,6 +194,9 @@ struct vc4_dev {
 	} hangcheck;
 
 	struct semaphore async_modeset;
+
+	struct drm_modeset_lock ctm_state_lock;
+	struct drm_private_obj ctm_manager;
 };
 
 static inline struct vc4_dev *
