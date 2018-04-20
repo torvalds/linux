@@ -92,12 +92,43 @@ struct meta_tlvhdr {
 	__be16 len;
 };
 
+static bool __ife_tlv_meta_valid(const unsigned char *skbdata,
+				 const unsigned char *ifehdr_end)
+{
+	const struct meta_tlvhdr *tlv;
+	u16 tlvlen;
+
+	if (unlikely(skbdata + sizeof(*tlv) > ifehdr_end))
+		return false;
+
+	tlv = (const struct meta_tlvhdr *)skbdata;
+	tlvlen = ntohs(tlv->len);
+
+	/* tlv length field is inc header, check on minimum */
+	if (tlvlen < NLA_HDRLEN)
+		return false;
+
+	/* overflow by NLA_ALIGN check */
+	if (NLA_ALIGN(tlvlen) < tlvlen)
+		return false;
+
+	if (unlikely(skbdata + NLA_ALIGN(tlvlen) > ifehdr_end))
+		return false;
+
+	return true;
+}
+
 /* Caller takes care of presenting data in network order
  */
-void *ife_tlv_meta_decode(void *skbdata, u16 *attrtype, u16 *dlen, u16 *totlen)
+void *ife_tlv_meta_decode(void *skbdata, const void *ifehdr_end, u16 *attrtype,
+			  u16 *dlen, u16 *totlen)
 {
-	struct meta_tlvhdr *tlv = (struct meta_tlvhdr *) skbdata;
+	struct meta_tlvhdr *tlv;
 
+	if (!__ife_tlv_meta_valid(skbdata, ifehdr_end))
+		return NULL;
+
+	tlv = (struct meta_tlvhdr *)skbdata;
 	*dlen = ntohs(tlv->len) - NLA_HDRLEN;
 	*attrtype = ntohs(tlv->type);
 
