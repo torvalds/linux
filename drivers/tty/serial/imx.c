@@ -316,7 +316,7 @@ static u32 imx_uart_readl(struct imx_port *sport, u32 offset)
 		 * differ from the value that was last written. As it only
 		 * clears after being set, reread conditionally.
 		 */
-		if (sport->ucr2 & UCR2_SRST)
+		if (!(sport->ucr2 & UCR2_SRST))
 			sport->ucr2 = readl(sport->port.membase + offset);
 		return sport->ucr2;
 		break;
