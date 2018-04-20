@@ -280,6 +280,30 @@ struct lan78xx_statstage64 {
 	u64 eee_tx_lpi_time;
 };
 
+static u32 lan78xx_regs[] = {
+	ID_REV,
+	INT_STS,
+	HW_CFG,
+	PMT_CTL,
+	E2P_CMD,
+	E2P_DATA,
+	USB_STATUS,
+	VLAN_TYPE,
+	MAC_CR,
+	MAC_RX,
+	MAC_TX,
+	FLOW,
+	ERR_STS,
+	MII_ACC,
+	MII_DATA,
+	EEE_TX_LPI_REQ_DLY,
+	EEE_TW_TX_SYS,
+	EEE_TX_LPI_REM_DLY,
+	WUCSR
+};
+
+#define PHY_REG_SIZE (32 * sizeof(u32))
+
 struct lan78xx_net;
 
 struct lan78xx_priv {
@@ -1607,6 +1631,34 @@ exit:
 	return ret;
 }
 
+static int lan78xx_get_regs_len(struct net_device *netdev)
+{
+	if (!netdev->phydev)
+		return (sizeof(lan78xx_regs));
+	else
+		return (sizeof(lan78xx_regs) + PHY_REG_SIZE);
+}
+
+static void
+lan78xx_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
+		 void *buf)
+{
+	u32 *data = buf;
+	int i, j;
+	struct lan78xx_net *dev = netdev_priv(netdev);
+
+	/* Read Device/MAC registers */
+	for (i = 0; i < (sizeof(lan78xx_regs) / sizeof(u32)); i++)
+		lan78xx_read_reg(dev, lan78xx_regs[i], &data[i]);
+
+	if (!netdev->phydev)
+		return;
+
+	/* Read PHY registers */
+	for (j = 0; j < 32; i++, j++)
+		data[i] = phy_read(netdev->phydev, j);
+}
+
 static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_link	= lan78xx_get_link,
 	.nway_reset	= phy_ethtool_nway_reset,
@@ -1627,6 +1679,8 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.set_pauseparam	= lan78xx_set_pause,
 	.get_link_ksettings = lan78xx_get_link_ksettings,
 	.set_link_ksettings = lan78xx_set_link_ksettings,
+	.get_regs_len	= lan78xx_get_regs_len,
+	.get_regs	= lan78xx_get_regs,
 };
 
 static int lan78xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
