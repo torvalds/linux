@@ -525,11 +525,6 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 
 	rcu_read_lock();
 
-	/* We may get a very small possibility of OOO during switching, not
-	 * worth to optimize.*/
-	if (tun->numqueues == 1 || tfile->detached)
-		goto unlock;
-
 	e = tun_flow_find(head, rxhash);
 	if (likely(e)) {
 		/* TODO: keep queueing to old queue until it's empty? */
@@ -548,7 +543,6 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 		spin_unlock_bh(&tun->lock);
 	}
 
-unlock:
 	rcu_read_unlock();
 }
 
@@ -1937,10 +1931,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		rcu_read_unlock();
 	}
 
-	rcu_read_lock();
-	if (!rcu_dereference(tun->steering_prog))
+	/* Compute the costly rx hash only if needed for flow updates.
+	 * We may get a very small possibility of OOO during switching, not
+	 * worth to optimize.
+	 */
+	if (!rcu_access_pointer(tun->steering_prog) && tun->numqueues > 1 &&
+	    !tfile->detached)
 		rxhash = __skb_get_hash_symmetric(skb);
-	rcu_read_unlock();
 
 	if (frags) {
 		/* Exercise flow dissector code path. */
