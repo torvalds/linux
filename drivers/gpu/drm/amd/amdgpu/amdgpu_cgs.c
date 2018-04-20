@@ -400,6 +400,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 			case CHIP_VEGA12:
 				strcpy(fw_name, "amdgpu/vega12_smc.bin");
 				break;
+			case CHIP_VEGA20:
+				strcpy(fw_name, "amdgpu/vega20_smc.bin");
+				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
 				return -EINVAL;
