@@ -350,7 +350,7 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 		     bool reinit)
 {
 	u16 subver, rev, pid, vid;
-	const char *hw_name = NULL;
+	const char *hw_name = "BCM";
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
 	const struct bcm_subver_table *bcm_subver_table;
@@ -403,14 +403,13 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 		kfree_skb(skb);
 
 		snprintf(fw_name, len, "brcm/%s-%4.4x-%4.4x.hcd",
-			 hw_name ? : "BCM", vid, pid);
+			 hw_name, vid, pid);
 	} else {
-		snprintf(fw_name, len, "brcm/%s.hcd",
-			 hw_name ? : "BCM");
+		snprintf(fw_name, len, "brcm/%s.hcd", hw_name);
 	}
 
 	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
+		    hw_name, (subver & 0xe000) >> 13,
 		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	return 0;
