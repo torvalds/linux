@@ -117,7 +117,7 @@ static const struct iio_trigger_ops inv_mpu_trigger_ops = {
 	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 
-int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
+int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 {
 	int ret;
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
@@ -131,7 +131,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 
 	ret = devm_request_irq(&indio_dev->dev, st->irq,
 			       &iio_trigger_generic_data_rdy_poll,
-			       IRQF_TRIGGER_RISING,
+			       irq_type,
 			       "inv_mpu",
 			       st->trig);
 	if (ret)

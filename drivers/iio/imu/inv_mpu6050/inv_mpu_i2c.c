@@ -38,8 +38,7 @@ static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 		goto error_unlock;
 
 	ret = regmap_write(st->map, st->reg->int_pin_cfg,
-			   INV_MPU6050_INT_PIN_CFG |
-			   INV_MPU6050_BIT_BYPASS_EN);
+			   st->irq_mask | INV_MPU6050_BIT_BYPASS_EN);
 
 error_unlock:
 	mutex_unlock(&st->lock);
@@ -55,7 +54,7 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	mutex_lock(&st->lock);
 
 	/* It doesn't really mattter, if any of the calls fails */
-	regmap_write(st->map, st->reg->int_pin_cfg, INV_MPU6050_INT_PIN_CFG);
+	regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	inv_mpu6050_set_power_itg(st, false);
 
 	mutex_unlock(&st->lock);

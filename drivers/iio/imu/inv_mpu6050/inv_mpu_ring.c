@@ -127,8 +127,23 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	u16 fifo_count;
 	s64 timestamp;
+	int int_status;
 
 	mutex_lock(&st->lock);
+
+	/* ack interrupt and check status */
+	result = regmap_read(st->map, st->reg->int_status, &int_status);
+	if (result) {
+		dev_err(regmap_get_device(st->map),
+			"failed to ack interrupt\n");
+		goto flush_fifo;
+	}
+	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
+		dev_warn(regmap_get_device(st->map),
+			"spurious interrupt with status 0x%x\n", int_status);
+		goto end_session;
+	}
+
 	if (!(st->chip_config.accl_fifo_enable |
 		st->chip_config.gyro_fifo_enable))
 		goto end_session;

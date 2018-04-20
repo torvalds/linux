@@ -40,6 +40,7 @@
  *  @raw_accl:		Address of first accel register.
  *  @temperature:	temperature register
  *  @int_enable:	Interrupt enable register.
+ *  @int_status:	Interrupt status register.
  *  @pwr_mgmt_1:	Controls chip's power state and clock source.
  *  @pwr_mgmt_2:	Controls power state of individual sensors.
  *  @int_pin_cfg;	Controls interrupt pin configuration.
@@ -60,6 +61,7 @@ struct inv_mpu6050_reg_map {
 	u8 raw_accl;
 	u8 temperature;
 	u8 int_enable;
+	u8 int_status;
 	u8 pwr_mgmt_1;
 	u8 pwr_mgmt_2;
 	u8 int_pin_cfg;
@@ -126,6 +128,7 @@ struct inv_mpu6050_hw {
  *  @timestamps:        kfifo queue to store time stamp.
  *  @map		regmap pointer.
  *  @irq		interrupt number.
+ *  @irq_mask		the int_pin_cfg mask to configure interrupt type.
  */
 struct inv_mpu6050_state {
 #define TIMESTAMP_FIFO_SIZE 16
@@ -144,6 +147,7 @@ struct inv_mpu6050_state {
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
 	int irq;
+	u8 irq_mask;
 };
 
 /*register and associated bit definition*/
@@ -166,6 +170,9 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_RAW_ACCEL           0x3B
 #define INV_MPU6050_REG_TEMPERATURE         0x41
 #define INV_MPU6050_REG_RAW_GYRO            0x43
+
+#define INV_MPU6050_REG_INT_STATUS          0x3A
+#define INV_MPU6050_BIT_RAW_DATA_RDY_INT    0x01
 
 #define INV_MPU6050_REG_USER_CTRL           0x6A
 #define INV_MPU6050_BIT_FIFO_RST            0x04
@@ -216,8 +223,12 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_OUTPUT_DATA_SIZE         24
 
 #define INV_MPU6050_REG_INT_PIN_CFG	0x37
+#define INV_MPU6050_ACTIVE_HIGH		0x00
+#define INV_MPU6050_ACTIVE_LOW		0x80
+/* enable level triggering */
+#define INV_MPU6050_LATCH_INT_EN	0x20
 #define INV_MPU6050_BIT_BYPASS_EN	0x2
-#define INV_MPU6050_INT_PIN_CFG		0
+
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
@@ -289,7 +300,7 @@ enum inv_mpu6050_clock_sel_e {
 
 irqreturn_t inv_mpu6050_irq_handler(int irq, void *p);
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p);
-int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev);
+int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type);
 void inv_mpu6050_remove_trigger(struct inv_mpu6050_state *st);
 int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);

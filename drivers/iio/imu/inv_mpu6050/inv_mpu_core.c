@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 #include "inv_mpu_iio.h"
 
 /*
@@ -52,6 +53,7 @@ static const struct inv_mpu6050_reg_map reg_set_6500 = {
 	.raw_accl               = INV_MPU6050_REG_RAW_ACCEL,
 	.temperature            = INV_MPU6050_REG_TEMPERATURE,
 	.int_enable             = INV_MPU6050_REG_INT_ENABLE,
+	.int_status             = INV_MPU6050_REG_INT_STATUS,
 	.pwr_mgmt_1             = INV_MPU6050_REG_PWR_MGMT_1,
 	.pwr_mgmt_2             = INV_MPU6050_REG_PWR_MGMT_2,
 	.int_pin_cfg		= INV_MPU6050_REG_INT_PIN_CFG,
@@ -284,6 +286,10 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 
 	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->accl_config, d);
+	if (result)
+		return result;
+
+	result = regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	if (result)
 		return result;
 
@@ -892,6 +898,8 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	struct inv_mpu6050_platform_data *pdata;
 	struct device *dev = regmap_get_device(regmap);
 	int result;
+	struct irq_data *desc;
+	int irq_type;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
@@ -921,6 +929,29 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		}
 	} else {
 		st->plat_data = *pdata;
+	}
+
+	desc = irq_get_irq_data(irq);
+	if (!desc) {
+		dev_err(dev, "Could not find IRQ %d\n", irq);
+		return -EINVAL;
+	}
+
+	irq_type = irqd_get_trigger_type(desc);
+	if (irq_type == IRQF_TRIGGER_RISING)
+		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
+	else if (irq_type == IRQF_TRIGGER_FALLING)
+		st->irq_mask = INV_MPU6050_ACTIVE_LOW;
+	else if (irq_type == IRQF_TRIGGER_HIGH)
+		st->irq_mask = INV_MPU6050_ACTIVE_HIGH |
+			INV_MPU6050_LATCH_INT_EN;
+	else if (irq_type == IRQF_TRIGGER_LOW)
+		st->irq_mask = INV_MPU6050_ACTIVE_LOW |
+			INV_MPU6050_LATCH_INT_EN;
+	else {
+		dev_err(dev, "Invalid interrupt type 0x%x specified\n",
+			irq_type);
+		return -EINVAL;
 	}
 
 	/* power is turned on inside check chip type*/
@@ -958,7 +989,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		dev_err(dev, "configure buffer fail %d\n", result);
 		return result;
 	}
-	result = inv_mpu6050_probe_trigger(indio_dev);
+	result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
 	if (result) {
 		dev_err(dev, "trigger probe fail %d\n", result);
 		goto out_unreg_ring;
