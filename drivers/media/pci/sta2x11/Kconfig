@@ -1,6 +1,6 @@
 config STA2X11_VIP
 	tristate "STA2X11 VIP Video For Linux"
-	depends on STA2X11
+	depends on STA2X11 || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEO_ADV7180 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEOBUF2_DMA_CONTIG
