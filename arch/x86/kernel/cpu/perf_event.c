@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/nospec.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -406,6 +407,8 @@ int x86_setup_perfctr(struct perf_event *event)
 
 	if (attr->config >= x86_pmu.max_events)
 		return -EINVAL;
+
+	attr->config = array_index_nospec((unsigned long)attr->config, x86_pmu.max_events);
 
 	/*
 	 * The generic map:
