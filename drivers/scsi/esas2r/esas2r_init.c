@@ -1202,8 +1202,6 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 	case ESAS2R_INIT_MSG_START:
 	case ESAS2R_INIT_MSG_REINIT:
 	{
-		struct timeval now;
-		do_gettimeofday(&now);
 		esas2r_hdebug("CFG init");
 		esas2r_build_cfg_req(a,
 				     rq,
@@ -1212,7 +1210,8 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 				     NULL);
 		ci = (struct atto_vda_cfg_init *)&rq->vrq->cfg.data.init;
 		ci->sgl_page_size = cpu_to_le32(sgl_page_size);
-		ci->epoch_time = cpu_to_le32(now.tv_sec);
+		/* firmware interface overflows in y2106 */
+		ci->epoch_time = cpu_to_le32(ktime_get_real_seconds());
 		rq->flags |= RF_FAILURE_OK;
 		a->init_msg = ESAS2R_INIT_MSG_INIT;
 		break;
