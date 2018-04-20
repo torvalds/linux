@@ -368,7 +368,8 @@ config RADIO_GEMTEK_PROBE
 
 config RADIO_MIROPCM20
 	tristate "miroSOUND PCM20 radio"
-	depends on ISA && ISA_DMA_API && VIDEO_V4L2 && SND
+	depends on ISA || COMPILE_TEST
+	depends on ISA_DMA_API && VIDEO_V4L2 && SND
 	select SND_ISA
 	select SND_MIRO
 	---help---
