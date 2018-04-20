@@ -104,6 +104,7 @@ struct kvmppc_vcore {
 	ulong vtb;		/* virtual timebase */
 	ulong conferring_threads;
 	unsigned int halt_poll_ns;
+	atomic_t online_count;
 };
 
 struct kvmppc_vcpu_book3s {
