@@ -582,6 +582,8 @@ void tcp_rcv_space_adjust(struct sock *sk)
 	u32 copied;
 	int time;
 
+	trace_tcp_rcv_space_adjust(sk);
+
 	tcp_mstamp_refresh(tp);
 	time = tcp_stamp_us_delta(tp->tcp_mstamp, tp->rcvq_space.time);
 	if (time < (tp->rcv_rtt_est.rtt_us >> 3) || tp->rcv_rtt_est.rtt_us == 0)
