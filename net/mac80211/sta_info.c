@@ -3,6 +3,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1992,7 +1993,6 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 		int band = STA_STATS_GET(LEGACY_BAND, rate);
 		int rate_idx = STA_STATS_GET(LEGACY_IDX, rate);
 
-		rinfo->flags = 0;
 		sband = local->hw.wiphy->bands[band];
 		brate = sband->bitrates[rate_idx].bitrate;
 		if (rinfo->bw == RATE_INFO_BW_5)
