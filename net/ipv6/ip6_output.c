@@ -962,16 +962,21 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	 * that's why we try it again later.
 	 */
 	if (ipv6_addr_any(&fl6->saddr) && (!*dst || !(*dst)->error)) {
+		struct fib6_info *from;
 		struct rt6_info *rt;
 		bool had_dst = *dst != NULL;
 
 		if (!had_dst)
 			*dst = ip6_route_output(net, sk, fl6);
 		rt = (*dst)->error ? NULL : (struct rt6_info *)*dst;
-		err = ip6_route_get_saddr(net, rt ? rt->from : NULL,
-					  &fl6->daddr,
+
+		rcu_read_lock();
+		from = rt ? rcu_dereference(rt->from) : NULL;
+		err = ip6_route_get_saddr(net, from, &fl6->daddr,
 					  sk ? inet6_sk(sk)->srcprefs : 0,
 					  &fl6->saddr);
+		rcu_read_unlock();
+
 		if (err)
 			goto out_err_release;
 

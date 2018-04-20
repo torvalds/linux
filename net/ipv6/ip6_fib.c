@@ -875,8 +875,12 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
 		if (pcpu_rt) {
-			fib6_info_release(pcpu_rt->from);
-			pcpu_rt->from = NULL;
+			struct fib6_info *from;
+
+			from = rcu_dereference_protected(pcpu_rt->from,
+					     lockdep_is_held(&table->tb6_lock));
+			rcu_assign_pointer(pcpu_rt->from, NULL);
+			fib6_info_release(from);
 		}
 	}
 }
