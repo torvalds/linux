@@ -217,7 +217,7 @@ static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
 	bitmap_zero(bits, chip->ngpio);
 
 	/* get bits are evaluated a gpio port register at a time */
-	for (i = 0; i < ARRAY_SIZE(ports); i++) {
+	for (i = 0; i < ARRAY_SIZE(ports) + 1; i++) {
 		/* gpio offset in bits array */
 		bits_offset = i * gpio_reg_size;
 
