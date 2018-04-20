@@ -354,7 +354,6 @@ bad_area:
 
 	if (user_mode(regs)) {
 		struct siginfo si;
-		unsigned int lsb = 0;
 
 		clear_siginfo(&si);
 		switch (code) {
@@ -391,26 +390,27 @@ bad_area:
 
 #ifdef CONFIG_MEMORY_FAILURE
 		if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+			unsigned int lsb = 0;
 			printk(KERN_ERR
 	"MCE: Killing %s:%d due to hardware memory corruption fault at %08lx\n",
 			tsk->comm, tsk->pid, address);
-			si.si_signo = SIGBUS;
-			si.si_code = BUS_MCEERR_AR;
+			/*
+			 * Either small page or large page may be poisoned.
+			 * In other words, VM_FAULT_HWPOISON_LARGE and
+			 * VM_FAULT_HWPOISON are mutually exclusive.
+			 */
+			if (fault & VM_FAULT_HWPOISON_LARGE)
+				lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+			else if (fault & VM_FAULT_HWPOISON)
+				lsb = PAGE_SHIFT;
+
+			force_sig_mceerr(BUS_MCEERR_AR, (void __user *) address,
+					 lsb, current);
+			return;
 		}
 #endif
 
-		/*
-		 * Either small page or large page may be poisoned.
-		 * In other words, VM_FAULT_HWPOISON_LARGE and
-		 * VM_FAULT_HWPOISON are mutually exclusive.
-		 */
-		if (fault & VM_FAULT_HWPOISON_LARGE)
-			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
-		else if (fault & VM_FAULT_HWPOISON)
-			lsb = PAGE_SHIFT;
-		else
-			show_signal_msg(regs, code, address, tsk, vma);
-		si.si_addr_lsb = lsb;
+		show_signal_msg(regs, code, address, tsk, vma);
 
 		si.si_errno = 0;
 		si.si_addr = (void __user *) address;
