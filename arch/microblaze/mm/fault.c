@@ -268,11 +268,6 @@ bad_area_nosemaphore:
 	/* User mode accesses cause a SIGSEGV */
 	if (user_mode(regs)) {
 		_exception(SIGSEGV, regs, code, address);
-/*		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code = code;
-		info.si_addr = (void *) address;
-		force_sig_info(SIGSEGV, &info, current);*/
 		return;
 	}
 
