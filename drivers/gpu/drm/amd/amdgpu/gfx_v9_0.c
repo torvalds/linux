@@ -63,6 +63,13 @@ MODULE_FIRMWARE("amdgpu/vega12_mec.bin");
 MODULE_FIRMWARE("amdgpu/vega12_mec2.bin");
 MODULE_FIRMWARE("amdgpu/vega12_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/vega20_ce.bin");
+MODULE_FIRMWARE("amdgpu/vega20_pfp.bin");
+MODULE_FIRMWARE("amdgpu/vega20_me.bin");
+MODULE_FIRMWARE("amdgpu/vega20_mec.bin");
+MODULE_FIRMWARE("amdgpu/vega20_mec2.bin");
+MODULE_FIRMWARE("amdgpu/vega20_rlc.bin");
+
 MODULE_FIRMWARE("amdgpu/raven_ce.bin");
 MODULE_FIRMWARE("amdgpu/raven_pfp.bin");
 MODULE_FIRMWARE("amdgpu/raven_me.bin");
@@ -460,6 +467,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGA12:
 		chip_name = "vega12";
+		break;
+	case CHIP_VEGA20:
+		chip_name = "vega20";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
