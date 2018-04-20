@@ -2060,8 +2060,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * timings.
 	 */
 	name = gpmc_cs_get_name(cs);
-	if (name && child->name && of_node_cmp(child->name, name) == 0)
-			goto no_timings;
+	if (name && of_node_cmp(child->name, name) == 0)
+		goto no_timings;
 
 	ret = gpmc_cs_request(cs, resource_size(&res), &base);
 	if (ret < 0) {
