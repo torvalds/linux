@@ -2130,8 +2130,7 @@ static bool fib6_check(struct fib6_info *f6i, u32 cookie)
 {
 	u32 rt_cookie = 0;
 
-	if ((f6i && !fib6_get_cookie_safe(f6i, &rt_cookie)) ||
-	     rt_cookie != cookie)
+	if (!fib6_get_cookie_safe(f6i, &rt_cookie) || rt_cookie != cookie)
 		return false;
 
 	if (fib6_check_expired(f6i))
