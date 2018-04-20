@@ -4084,6 +4084,31 @@ unlock:
 }
 EXPORT_SYMBOL(ieee80211_csa_update_counter);
 
+void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct beacon_data *beacon = NULL;
+
+	rcu_read_lock();
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		beacon = rcu_dereference(sdata->u.ap.beacon);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		beacon = rcu_dereference(sdata->u.ibss.presp);
+	else if (ieee80211_vif_is_mesh(&sdata->vif))
+		beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+	if (!beacon)
+		goto unlock;
+
+	if (counter < beacon->csa_current_counter)
+		beacon->csa_current_counter = counter;
+
+unlock:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(ieee80211_csa_set_counter);
+
 bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);

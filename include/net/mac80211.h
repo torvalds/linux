@@ -4450,6 +4450,19 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_csa_set_counter - request mac80211 to set csa counter
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @counter: the new value for the counter
+ *
+ * The csa counter can be changed by the device, this API should be
+ * used by the device driver to update csa counter in mac80211.
+ *
+ * It should never be used together with ieee80211_csa_update_counter(),
+ * as it will cause a race condition around the counter value.
+ */
+void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter);
+
+/**
  * ieee80211_csa_finish - notify mac80211 about channel switch
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
