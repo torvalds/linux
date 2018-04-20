@@ -225,10 +225,18 @@ void free_rmid(u32 rmid)
 		list_add_tail(&entry->list, &rmid_free_lru);
 }
 
+static u64 mbm_overflow_count(u64 prev_msr, u64 cur_msr)
+{
+	u64 shift = 64 - MBM_CNTR_WIDTH, chunks;
+
+	chunks = (cur_msr << shift) - (prev_msr << shift);
+	return chunks >>= shift;
+}
+
 static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 {
-	u64 chunks, shift, tval;
 	struct mbm_state *m;
+	u64 chunks, tval;
 
 	tval = __rmid_read(rmid, rr->evtid);
 	if (tval & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL)) {
@@ -254,19 +262,43 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 	}
 
 	if (rr->first) {
-		m->prev_msr = tval;
-		m->chunks = 0;
+		memset(m, 0, sizeof(struct mbm_state));
+		m->prev_bw_msr = m->prev_msr = tval;
 		return 0;
 	}
 
-	shift = 64 - MBM_CNTR_WIDTH;
-	chunks = (tval << shift) - (m->prev_msr << shift);
-	chunks >>= shift;
+	chunks = mbm_overflow_count(m->prev_msr, tval);
 	m->chunks += chunks;
 	m->prev_msr = tval;
 
 	rr->val += m->chunks;
 	return 0;
+}
+
+/*
+ * Supporting function to calculate the memory bandwidth
+ * and delta bandwidth in MBps.
+ */
+static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
+{
+	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct mbm_state *m = &rr->d->mbm_local[rmid];
+	u64 tval, cur_bw, chunks;
+
+	tval = __rmid_read(rmid, rr->evtid);
+	if (tval & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+		return;
+
+	chunks = mbm_overflow_count(m->prev_bw_msr, tval);
+	m->chunks_bw += chunks;
+	m->chunks = m->chunks_bw;
+	cur_bw = (chunks * r->mon_scale) >> 20;
+
+	if (m->delta_comp)
+		m->delta_bw = abs(cur_bw - m->prev_bw);
+	m->delta_comp = false;
+	m->prev_bw = cur_bw;
+	m->prev_bw_msr = tval;
 }
 
 /*
