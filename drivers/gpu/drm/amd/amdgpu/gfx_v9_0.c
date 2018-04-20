@@ -27,6 +27,7 @@
 #include "amdgpu_gfx.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "amdgpu_atomfirmware.h"
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -1113,9 +1114,10 @@ static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q
 };
 
-static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
+static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
+	int err;
 
 	adev->gfx.funcs = &gfx_v9_0_gfx_funcs;
 
@@ -1146,6 +1148,10 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		gb_addr_config = RREG32_SOC15(GC, 0, mmGB_ADDR_CONFIG);
 		gb_addr_config &= ~0xf3e777ff;
 		gb_addr_config |= 0x22014042;
+		/* check vbios table if gpu info is not available */
+		err = amdgpu_atomfirmware_get_gfx_info(adev);
+		if (err)
+			return err;
 		break;
 	case CHIP_RAVEN:
 		adev->gfx.config.max_hw_contexts = 8;
@@ -1196,6 +1202,8 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 					adev->gfx.config.gb_addr_config,
 					GB_ADDR_CONFIG,
 					PIPE_INTERLEAVE_SIZE));
+
+	return 0;
 }
 
 static int gfx_v9_0_ngg_create_buf(struct amdgpu_device *adev,
@@ -1557,7 +1565,9 @@ static int gfx_v9_0_sw_init(void *handle)
 
 	adev->gfx.ce_ram_size = 0x8000;
 
-	gfx_v9_0_gpu_early_init(adev);
+	r = gfx_v9_0_gpu_early_init(adev);
+	if (r)
+		return r;
 
 	r = gfx_v9_0_ngg_init(adev);
 	if (r)
