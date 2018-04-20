@@ -953,7 +953,9 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	    ethtool_link_ksettings_test_link_mode(ks, advertising,
 						  10000baseCR_Full) ||
 	    ethtool_link_ksettings_test_link_mode(ks, advertising,
-						  10000baseSR_Full))
+						  10000baseSR_Full) ||
+	    ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  10000baseLR_Full))
 		config.link_speed |= I40E_LINK_SPEED_10GB;
 	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
 						  20000baseKR2_Full))
