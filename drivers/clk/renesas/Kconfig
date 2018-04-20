@@ -19,6 +19,7 @@ config CLK_RENESAS
 	select CLK_R8A77965 if ARCH_R8A77965
 	select CLK_R8A77970 if ARCH_R8A77970
 	select CLK_R8A77980 if ARCH_R8A77980
+	select CLK_R8A77990 if ARCH_R8A77990
 	select CLK_R8A77995 if ARCH_R8A77995
 	select CLK_SH73A0 if ARCH_SH73A0
 
@@ -114,6 +115,10 @@ config CLK_R8A77970
 
 config CLK_R8A77980
 	bool "R-Car V3H clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77990
+	bool "R-Car E3 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
 config CLK_R8A77995
