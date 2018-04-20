@@ -33,7 +33,6 @@
 #include <asm/intel_rdt_sched.h>
 #include "intel_rdt.h"
 
-#define MAX_MBA_BW	100u
 #define MBA_IS_LINEAR	0x4
 #define MBA_MAX_MBPS	U32_MAX
 
@@ -350,7 +349,7 @@ static int get_cache_id(int cpu, int level)
  * that can be written to QOS_MSRs.
  * There are currently no SKUs which support non linear delay values.
  */
-static u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
+u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 {
 	if (r->membw.delay_linear)
 		return MAX_MBA_BW - bw;

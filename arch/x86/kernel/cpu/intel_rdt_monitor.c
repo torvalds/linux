@@ -329,6 +329,118 @@ void mon_event_count(void *info)
 	}
 }
 
+/*
+ * Feedback loop for MBA software controller (mba_sc)
+ *
+ * mba_sc is a feedback loop where we periodically read MBM counters and
+ * adjust the bandwidth percentage values via the IA32_MBA_THRTL_MSRs so
+ * that:
+ *
+ *   current bandwdith(cur_bw) < user specified bandwidth(user_bw)
+ *
+ * This uses the MBM counters to measure the bandwidth and MBA throttle
+ * MSRs to control the bandwidth for a particular rdtgrp. It builds on the
+ * fact that resctrl rdtgroups have both monitoring and control.
+ *
+ * The frequency of the checks is 1s and we just tag along the MBM overflow
+ * timer. Having 1s interval makes the calculation of bandwidth simpler.
+ *
+ * Although MBA's goal is to restrict the bandwidth to a maximum, there may
+ * be a need to increase the bandwidth to avoid uncecessarily restricting
+ * the L2 <-> L3 traffic.
+ *
+ * Since MBA controls the L2 external bandwidth where as MBM measures the
+ * L3 external bandwidth the following sequence could lead to such a
+ * situation.
+ *
+ * Consider an rdtgroup which had high L3 <-> memory traffic in initial
+ * phases -> mba_sc kicks in and reduced bandwidth percentage values -> but
+ * after some time rdtgroup has mostly L2 <-> L3 traffic.
+ *
+ * In this case we may restrict the rdtgroup's L2 <-> L3 traffic as its
+ * throttle MSRs already have low percentage values.  To avoid
+ * unnecessarily restricting such rdtgroups, we also increase the bandwidth.
+ */
+static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
+{
+	u32 closid, rmid, cur_msr, cur_msr_val, new_msr_val;
+	struct mbm_state *pmbm_data, *cmbm_data;
+	u32 cur_bw, delta_bw, user_bw;
+	struct rdt_resource *r_mba;
+	struct rdt_domain *dom_mba;
+	struct list_head *head;
+	struct rdtgroup *entry;
+
+	r_mba = &rdt_resources_all[RDT_RESOURCE_MBA];
+	closid = rgrp->closid;
+	rmid = rgrp->mon.rmid;
+	pmbm_data = &dom_mbm->mbm_local[rmid];
+
+	dom_mba = get_domain_from_cpu(smp_processor_id(), r_mba);
+	if (!dom_mba) {
+		pr_warn_once("Failure to get domain for MBA update\n");
+		return;
+	}
+
+	cur_bw = pmbm_data->prev_bw;
+	user_bw = dom_mba->mbps_val[closid];
+	delta_bw = pmbm_data->delta_bw;
+	cur_msr_val = dom_mba->ctrl_val[closid];
+
+	/*
+	 * For Ctrl groups read data from child monitor groups.
+	 */
+	head = &rgrp->mon.crdtgrp_list;
+	list_for_each_entry(entry, head, mon.crdtgrp_list) {
+		cmbm_data = &dom_mbm->mbm_local[entry->mon.rmid];
+		cur_bw += cmbm_data->prev_bw;
+		delta_bw += cmbm_data->delta_bw;
+	}
+
+	/*
+	 * Scale up/down the bandwidth linearly for the ctrl group.  The
+	 * bandwidth step is the bandwidth granularity specified by the
+	 * hardware.
+	 *
+	 * The delta_bw is used when increasing the bandwidth so that we
+	 * dont alternately increase and decrease the control values
+	 * continuously.
+	 *
+	 * For ex: consider cur_bw = 90MBps, user_bw = 100MBps and if
+	 * bandwidth step is 20MBps(> user_bw - cur_bw), we would keep
+	 * switching between 90 and 110 continuously if we only check
+	 * cur_bw < user_bw.
+	 */
+	if (cur_msr_val > r_mba->membw.min_bw && user_bw < cur_bw) {
+		new_msr_val = cur_msr_val - r_mba->membw.bw_gran;
+	} else if (cur_msr_val < MAX_MBA_BW &&
+		   (user_bw > (cur_bw + delta_bw))) {
+		new_msr_val = cur_msr_val + r_mba->membw.bw_gran;
+	} else {
+		return;
+	}
+
+	cur_msr = r_mba->msr_base + closid;
+	wrmsrl(cur_msr, delay_bw_map(new_msr_val, r_mba));
+	dom_mba->ctrl_val[closid] = new_msr_val;
+
+	/*
+	 * Delta values are updated dynamically package wise for each
+	 * rdtgrp everytime the throttle MSR changes value.
+	 *
+	 * This is because (1)the increase in bandwidth is not perfectly
+	 * linear and only "approximately" linear even when the hardware
+	 * says it is linear.(2)Also since MBA is a core specific
+	 * mechanism, the delta values vary based on number of cores used
+	 * by the rdtgrp.
+	 */
+	pmbm_data->delta_comp = true;
+	list_for_each_entry(entry, head, mon.crdtgrp_list) {
+		cmbm_data = &dom_mbm->mbm_local[entry->mon.rmid];
+		cmbm_data->delta_comp = true;
+	}
+}
+
 static void mbm_update(struct rdt_domain *d, int rmid)
 {
 	struct rmid_read rr;
@@ -346,7 +458,16 @@ static void mbm_update(struct rdt_domain *d, int rmid)
 	}
 	if (is_mbm_local_enabled()) {
 		rr.evtid = QOS_L3_MBM_LOCAL_EVENT_ID;
-		__mon_event_count(rmid, &rr);
+
+		/*
+		 * Call the MBA software controller only for the
+		 * control groups and when user has enabled
+		 * the software controller explicitly.
+		 */
+		if (!is_mba_sc(NULL))
+			__mon_event_count(rmid, &rr);
+		else
+			mbm_bw_count(rmid, &rr);
 	}
 }
 
@@ -417,6 +538,9 @@ void mbm_handle_overflow(struct work_struct *work)
 		head = &prgrp->mon.crdtgrp_list;
 		list_for_each_entry(crgrp, head, mon.crdtgrp_list)
 			mbm_update(d, crgrp->mon.rmid);
+
+		if (is_mba_sc(NULL))
+			update_mba_bw(prgrp, d);
 	}
 
 	schedule_delayed_work_on(cpu, &d->mbm_over, delay);
