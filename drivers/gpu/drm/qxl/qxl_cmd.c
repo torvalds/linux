@@ -341,12 +341,9 @@ int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 	surface_height = surf->surf.height;
 
 	if (area->left < 0 || area->top < 0 ||
-	    area->right > surface_width || area->bottom > surface_height) {
-		qxl_io_log(qdev, "%s: not doing area update for "
-			   "%d, (%d,%d,%d,%d) (%d,%d)\n", __func__, surface_id, area->left,
-			   area->top, area->right, area->bottom, surface_width, surface_height);
+	    area->right > surface_width || area->bottom > surface_height)
 		return -EINVAL;
-	}
+
 	mutex_lock(&qdev->update_area_mutex);
 	qdev->ram_header->update_area = *area;
 	qdev->ram_header->update_surface = surface_id;
@@ -407,20 +404,6 @@ void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id)
 	wait_for_io_cmd(qdev, id, QXL_IO_MEMSLOT_ADD_ASYNC);
 }
 
-void qxl_io_log(struct qxl_device *qdev, const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	vsnprintf(qdev->ram_header->log_buf, QXL_LOG_BUF_SIZE, fmt, args);
-	va_end(args);
-	/*
-	 * DO not do a DRM output here - this will call printk, which will
-	 * call back into qxl for rendering (qxl_fb)
-	 */
-	outb(0, qdev->io_base + QXL_IO_LOG);
-}
-
 void qxl_io_reset(struct qxl_device *qdev)
 {
 	outb(0, qdev->io_base + QXL_IO_RESET);
@@ -428,19 +411,6 @@ void qxl_io_reset(struct qxl_device *qdev)
 
 void qxl_io_monitors_config(struct qxl_device *qdev)
 {
-	qxl_io_log(qdev, "%s: %d [%dx%d+%d+%d]\n", __func__,
-		   qdev->monitors_config ?
-		   qdev->monitors_config->count : -1,
-		   qdev->monitors_config && qdev->monitors_config->count ?
-		   qdev->monitors_config->heads[0].width : -1,
-		   qdev->monitors_config && qdev->monitors_config->count ?
-		   qdev->monitors_config->heads[0].height : -1,
-		   qdev->monitors_config && qdev->monitors_config->count ?
-		   qdev->monitors_config->heads[0].x : -1,
-		   qdev->monitors_config && qdev->monitors_config->count ?
-		   qdev->monitors_config->heads[0].y : -1
-		   );
-
 	wait_for_io_cmd(qdev, 0, QXL_IO_MONITORS_CONFIG_ASYNC);
 }
 

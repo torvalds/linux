@@ -48,12 +48,8 @@ static void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned c
 		qdev->client_monitors_config = kzalloc(
 				sizeof(struct qxl_monitors_config) +
 				sizeof(struct qxl_head) * count, GFP_KERNEL);
-		if (!qdev->client_monitors_config) {
-			qxl_io_log(qdev,
-				   "%s: allocation failure for %u heads\n",
-				   __func__, count);
+		if (!qdev->client_monitors_config)
 			return;
-		}
 	}
 	qdev->client_monitors_config->count = count;
 }
@@ -74,12 +70,8 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	num_monitors = qdev->rom->client_monitors_config.count;
 	crc = crc32(0, (const uint8_t *)&qdev->rom->client_monitors_config,
 		  sizeof(qdev->rom->client_monitors_config));
-	if (crc != qdev->rom->client_monitors_config_crc) {
-		qxl_io_log(qdev, "crc mismatch: have %X (%zd) != %X\n", crc,
-			   sizeof(qdev->rom->client_monitors_config),
-			   qdev->rom->client_monitors_config_crc);
+	if (crc != qdev->rom->client_monitors_config_crc)
 		return MONITORS_CONFIG_BAD_CRC;
-	}
 	if (!num_monitors) {
 		DRM_DEBUG_KMS("no client monitors configured\n");
 		return status;
@@ -170,12 +162,10 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		udelay(5);
 	}
 	if (status == MONITORS_CONFIG_BAD_CRC) {
-		qxl_io_log(qdev, "config: bad crc\n");
 		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
 		return;
 	}
 	if (status == MONITORS_CONFIG_UNCHANGED) {
-		qxl_io_log(qdev, "config: unchanged\n");
 		DRM_DEBUG_KMS("ignoring client monitors config: unchanged");
 		return;
 	}
@@ -385,14 +375,6 @@ static bool qxl_crtc_mode_fixup(struct drm_crtc *crtc,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = crtc->dev;
-	struct qxl_device *qdev = dev->dev_private;
-
-	qxl_io_log(qdev, "%s: (%d,%d) => (%d,%d)\n",
-		   __func__,
-		   mode->hdisplay, mode->vdisplay,
-		   adjusted_mode->hdisplay,
-		   adjusted_mode->vdisplay);
 	return true;
 }
 
@@ -403,10 +385,9 @@ qxl_send_monitors_config(struct qxl_device *qdev)
 
 	BUG_ON(!qdev->ram_header->monitors_config);
 
-	if (qdev->monitors_config->count == 0) {
-		qxl_io_log(qdev, "%s: 0 monitors??\n", __func__);
+	if (qdev->monitors_config->count == 0)
 		return;
-	}
+
 	for (i = 0 ; i < qdev->monitors_config->count ; ++i) {
 		struct qxl_head *head = &qdev->monitors_config->heads[i];
 
