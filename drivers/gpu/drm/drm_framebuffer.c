@@ -484,8 +484,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	 * backwards-compatibility reasons, we cannot make GET_FB() privileged,
 	 * so just return an invalid handle for non-masters.
 	 */
-	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN) &&
-	    !drm_is_control_client(file_priv)) {
+	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN)) {
 		r->handle = 0;
 		ret = 0;
 		goto out;

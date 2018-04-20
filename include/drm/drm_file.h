@@ -49,7 +49,6 @@ struct device;
 
 enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
-	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
 };
 
@@ -346,18 +345,6 @@ static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 static inline bool drm_is_render_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_RENDER;
-}
-
-/**
- * drm_is_control_client - is this an open file of the control node
- * @file_priv: DRM file
- *
- * Control nodes are deprecated and in the process of getting removed from the
- * DRM userspace API. Do not ever use!
- */
-static inline bool drm_is_control_client(const struct drm_file *file_priv)
-{
-	return file_priv->minor->type == DRM_MINOR_CONTROL;
 }
 
 int drm_open(struct inode *inode, struct file *filp);

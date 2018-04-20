@@ -38,7 +38,6 @@ struct drm_device {
 	struct device *dev;		/**< Device structure of bus-device */
 	struct drm_driver *driver;	/**< DRM driver managing the device */
 	void *dev_private;		/**< DRM driver private data */
-	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
 	bool registered;
