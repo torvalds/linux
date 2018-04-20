@@ -117,6 +117,12 @@
 	((rev >= STONEY_A0) && (rev < CZ_UNKNOWN))
 
 /* DCE12 */
+#define AI_UNKNOWN 0xFF
+
+#ifdef CONFIG_DRM_AMD_DC_VG20
+#define AI_VEGA20_P_A0 40
+#define ASICREV_IS_VEGA20_P(eChipRev) ((eChipRev >= AI_VEGA20_P_A0) && (eChipRev < AI_UNKNOWN))
+#endif
 
 #define AI_GREENLAND_P_A0 1
 #define AI_GREENLAND_P_A1 2
