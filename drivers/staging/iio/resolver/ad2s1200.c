@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
+
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -52,10 +53,12 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&st->lock);
 	gpio_set_value(st->sample, 0);
+
 	/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
 	udelay(1);
 	gpio_set_value(st->sample, 1);
 	gpio_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
+
 	ret = spi_read(st->sdev, st->rx, 2);
 	if (ret < 0) {
 		mutex_unlock(&st->lock);
@@ -75,9 +78,11 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 		return -EINVAL;
 	}
+
 	/* delay (2 * AD2S1200_TSCLK + 20) ns for sample pulse */
 	udelay(1);
 	mutex_unlock(&st->lock);
+
 	return IIO_VAL_INT;
 }
 
@@ -115,9 +120,11 @@ static int ad2s1200_probe(struct spi_device *spi)
 			return ret;
 		}
 	}
+
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
