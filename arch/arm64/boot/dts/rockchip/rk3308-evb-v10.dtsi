@@ -102,6 +102,19 @@
 		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk3308-acodec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch_2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
 	spdif_tx_sound: spdif-tx-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
@@ -225,6 +238,15 @@
 		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&acodec {
+	status = "okay";
+
+	#sound-dai-cells = <0>;
+
+	hp-ctl-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	spk-ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 };
 
 &cpu0 {
@@ -606,6 +628,12 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+
+	#sound-dai-cells = <0>;
 };
 
 &nandc {
