@@ -1164,10 +1164,8 @@ static struct rt6_info *ip6_rt_cache_alloc(struct fib6_info *ort,
 	 *	Clone the route.
 	 */
 
-	rcu_read_lock();
 	dev = ip6_rt_get_dev_rcu(ort);
 	rt = ip6_dst_alloc(dev_net(dev), dev, 0);
-	rcu_read_unlock();
 	if (!rt)
 		return NULL;
 
@@ -1855,14 +1853,11 @@ redo_rt6_select:
 		 * the daddr in the skb during the neighbor look-up is different
 		 * from the fl6->daddr used to look-up route here.
 		 */
-
 		struct rt6_info *uncached_rt;
 
-		fib6_info_hold(f6i);
-		rcu_read_unlock();
-
 		uncached_rt = ip6_rt_cache_alloc(f6i, &fl6->daddr, NULL);
-		fib6_info_release(f6i);
+
+		rcu_read_unlock();
 
 		if (uncached_rt) {
 			/* Uncached_rt's refcnt is taken during ip6_rt_cache_alloc()
@@ -2280,7 +2275,9 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 	} else if (daddr) {
 		struct rt6_info *nrt6;
 
+		rcu_read_lock();
 		nrt6 = ip6_rt_cache_alloc(rt6->from, daddr, saddr);
+		rcu_read_unlock();
 		if (nrt6) {
 			rt6_do_update_pmtu(nrt6, mtu);
 			if (rt6_insert_exception(nrt6, rt6->from))
@@ -3299,7 +3296,9 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 				     NEIGH_UPDATE_F_ISROUTER)),
 		     NDISC_REDIRECT, &ndopts);
 
+	rcu_read_lock();
 	nrt = ip6_rt_cache_alloc(rt->from, &msg->dest, NULL);
+	rcu_read_unlock();
 	if (!nrt)
 		goto out;
 
