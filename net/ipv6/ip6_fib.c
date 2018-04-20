@@ -860,6 +860,27 @@ insert_above:
 	return ln;
 }
 
+static void fib6_drop_pcpu_from(struct fib6_info *f6i,
+				const struct fib6_table *table)
+{
+	int cpu;
+
+	/* release the reference to this fib entry from
+	 * all of its cached pcpu routes
+	 */
+	for_each_possible_cpu(cpu) {
+		struct rt6_info **ppcpu_rt;
+		struct rt6_info *pcpu_rt;
+
+		ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
+		pcpu_rt = *ppcpu_rt;
+		if (pcpu_rt) {
+			fib6_info_release(pcpu_rt->from);
+			pcpu_rt->from = NULL;
+		}
+	}
+}
+
 static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 			  struct net *net)
 {
@@ -887,24 +908,8 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 				    lockdep_is_held(&table->tb6_lock));
 		}
 
-		if (rt->rt6i_pcpu) {
-			int cpu;
-
-			/* release the reference to this fib entry from
-			 * all of its cached pcpu routes
-			 */
-			for_each_possible_cpu(cpu) {
-				struct rt6_info **ppcpu_rt;
-				struct rt6_info *pcpu_rt;
-
-				ppcpu_rt = per_cpu_ptr(rt->rt6i_pcpu, cpu);
-				pcpu_rt = *ppcpu_rt;
-				if (pcpu_rt) {
-					fib6_info_release(pcpu_rt->from);
-					pcpu_rt->from = NULL;
-				}
-			}
-		}
+		if (rt->rt6i_pcpu)
+			fib6_drop_pcpu_from(rt, table);
 	}
 }
 
