@@ -189,46 +189,44 @@ static int send_to_group(struct inode *to_tell,
 			 const unsigned char *file_name,
 			 struct fsnotify_iter_info *iter_info)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	struct fsnotify_mark *vfsmount_mark = fsnotify_iter_vfsmount_mark(iter_info);
 	struct fsnotify_group *group = NULL;
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 	__u32 marks_mask = 0;
 	__u32 marks_ignored_mask = 0;
+	struct fsnotify_mark *mark;
+	int type;
 
 	if (WARN_ON(!iter_info->report_mask))
 		return 0;
 
 	/* clear ignored on inode modification */
 	if (mask & FS_MODIFY) {
-		if (inode_mark &&
-		    !(inode_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-			inode_mark->ignored_mask = 0;
-		if (vfsmount_mark &&
-		    !(vfsmount_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-			vfsmount_mark->ignored_mask = 0;
+		fsnotify_foreach_obj_type(type) {
+			if (!fsnotify_iter_should_report_type(iter_info, type))
+				continue;
+			mark = iter_info->marks[type];
+			if (mark &&
+			    !(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+				mark->ignored_mask = 0;
+		}
 	}
 
-	/* does the inode mark tell us to do something? */
-	if (inode_mark) {
-		group = inode_mark->group;
-		marks_mask |= inode_mark->mask;
-		marks_ignored_mask |= inode_mark->ignored_mask;
+	fsnotify_foreach_obj_type(type) {
+		if (!fsnotify_iter_should_report_type(iter_info, type))
+			continue;
+		mark = iter_info->marks[type];
+		/* does the object mark tell us to do something? */
+		if (mark) {
+			group = mark->group;
+			marks_mask |= mark->mask;
+			marks_ignored_mask |= mark->ignored_mask;
+		}
 	}
 
-	/* does the vfsmount_mark tell us to do something? */
-	if (vfsmount_mark) {
-		group = vfsmount_mark->group;
-		marks_mask |= vfsmount_mark->mask;
-		marks_ignored_mask |= vfsmount_mark->ignored_mask;
-	}
-
-	pr_debug("%s: group=%p to_tell=%p mask=%x inode_mark=%p"
-		 " vfsmount_mark=%p marks_mask=%x marks_ignored_mask=%x"
+	pr_debug("%s: group=%p to_tell=%p mask=%x marks_mask=%x marks_ignored_mask=%x"
 		 " data=%p data_is=%d cookie=%d\n",
-		 __func__, group, to_tell, mask, inode_mark, vfsmount_mark,
-		 marks_mask, marks_ignored_mask, data,
-		 data_is, cookie);
+		 __func__, group, to_tell, mask, marks_mask, marks_ignored_mask,
+		 data, data_is, cookie);
 
 	if (!(test_mask & marks_mask & ~marks_ignored_mask))
 		return 0;
