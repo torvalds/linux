@@ -3378,6 +3378,8 @@ enum ieee80211_reconfig_type {
  *	frame in case that no beacon was heard from the AP/P2P GO.
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
+ *      If duration is greater than zero, mac80211 hints to the driver the
+ *      duration for which the operation is requested.
  *	The callback is optional and can (should!) sleep.
  *
  * @mgd_protect_tdls_discover: Protect a TDLS discovery session. After sending
@@ -3697,7 +3699,8 @@ struct ieee80211_ops {
 				  u32 sset, u8 *data);
 
 	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif);
+				  struct ieee80211_vif *vif,
+				  u16 duration);
 
 	void	(*mgd_protect_tdls_discover)(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif);
