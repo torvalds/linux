@@ -86,6 +86,7 @@ static const char *amdgpu_asic_name[] = {
 	"VEGAM",
 	"VEGA10",
 	"VEGA12",
+	"VEGA20",
 	"RAVEN",
 	"LAST",
 };
