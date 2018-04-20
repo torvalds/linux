@@ -434,6 +434,8 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 	ima_policy = NULL;
 #elif defined(CONFIG_IMA_WRITE_POLICY)
 	clear_bit(IMA_FS_BUSY, &ima_fs_flags);
+#elif defined(CONFIG_IMA_READ_POLICY)
+	inode->i_mode &= ~S_IWUSR;
 #endif
 	return 0;
 }
