@@ -98,8 +98,6 @@ struct fsnotify_iter_info;
 struct fsnotify_ops {
 	int (*handle_event)(struct fsnotify_group *group,
 			    struct inode *inode,
-			    struct fsnotify_mark *inode_mark,
-			    struct fsnotify_mark *vfsmount_mark,
 			    u32 mask, const void *data, int data_type,
 			    const unsigned char *file_name, u32 cookie,
 			    struct fsnotify_iter_info *iter_info);
@@ -211,6 +209,24 @@ enum fsnotify_obj_type {
 #define FSNOTIFY_OBJ_TYPE_INODE_FL	(1U << FSNOTIFY_OBJ_TYPE_INODE)
 #define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 #define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
+
+struct fsnotify_iter_info {
+	struct fsnotify_mark *inode_mark;
+	struct fsnotify_mark *vfsmount_mark;
+	unsigned int report_mask;
+	int srcu_idx;
+};
+
+#define FSNOTIFY_ITER_FUNCS(name, NAME) \
+static inline struct fsnotify_mark *fsnotify_iter_##name##_mark( \
+		struct fsnotify_iter_info *iter_info) \
+{ \
+	return (iter_info->report_mask & FSNOTIFY_OBJ_TYPE_##NAME##_FL) ? \
+		iter_info->name##_mark : NULL; \
+}
+
+FSNOTIFY_ITER_FUNCS(inode, INODE)
+FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 
 /*
  * Inode / vfsmount point to this structure which tracks all marks attached to

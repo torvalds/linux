@@ -184,22 +184,20 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
 static int send_to_group(struct inode *to_tell,
-			 struct fsnotify_mark *inode_mark,
-			 struct fsnotify_mark *vfsmount_mark,
 			 __u32 mask, const void *data,
 			 int data_is, u32 cookie,
 			 const unsigned char *file_name,
 			 struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
+	struct fsnotify_mark *vfsmount_mark = fsnotify_iter_vfsmount_mark(iter_info);
 	struct fsnotify_group *group = NULL;
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 	__u32 marks_mask = 0;
 	__u32 marks_ignored_mask = 0;
 
-	if (unlikely(!inode_mark && !vfsmount_mark)) {
-		BUG();
+	if (WARN_ON(!iter_info->report_mask))
 		return 0;
-	}
 
 	/* clear ignored on inode modification */
 	if (mask & FS_MODIFY) {
@@ -235,8 +233,7 @@ static int send_to_group(struct inode *to_tell,
 	if (!(test_mask & marks_mask & ~marks_ignored_mask))
 		return 0;
 
-	return group->ops->handle_event(group, to_tell, inode_mark,
-					vfsmount_mark, mask, data, data_is,
+	return group->ops->handle_event(group, to_tell, mask, data, data_is,
 					file_name, cookie, iter_info);
 }
 
@@ -327,27 +324,32 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	while (iter_info.inode_mark || iter_info.vfsmount_mark) {
 		struct fsnotify_mark *inode_mark = iter_info.inode_mark;
 		struct fsnotify_mark *vfsmount_mark = iter_info.vfsmount_mark;
+		int cmp;
 
 		if (inode_mark && vfsmount_mark) {
-			int cmp = fsnotify_compare_groups(inode_mark->group,
-							  vfsmount_mark->group);
-			if (cmp > 0)
-				inode_mark = NULL;
-			else if (cmp < 0)
-				vfsmount_mark = NULL;
+			cmp = fsnotify_compare_groups(inode_mark->group,
+						      vfsmount_mark->group);
+		} else {
+			cmp = inode_mark ? -1 : 1;
 		}
 
-		ret = send_to_group(to_tell, inode_mark, vfsmount_mark, mask,
-				    data, data_is, cookie, file_name,
-				    &iter_info);
+		iter_info.report_mask = 0;
+		if (cmp <= 0)
+			iter_info.report_mask |= FSNOTIFY_OBJ_TYPE_INODE_FL;
+		if (cmp >= 0)
+			iter_info.report_mask |= FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL;
+
+		ret = send_to_group(to_tell, mask, data, data_is, cookie,
+				    file_name, &iter_info);
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
 			goto out;
 
-		if (inode_mark)
+		if (iter_info.report_mask & FSNOTIFY_OBJ_TYPE_INODE_FL)
 			iter_info.inode_mark =
 				fsnotify_next_mark(iter_info.inode_mark);
-		if (vfsmount_mark)
+
+		if (iter_info.report_mask & FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL)
 			iter_info.vfsmount_mark =
 				fsnotify_next_mark(iter_info.vfsmount_mark);
 	}
