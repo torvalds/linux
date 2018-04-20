@@ -16,9 +16,9 @@
  * At 1Gb link, the period is multiplied by 20. (32ns)
  * 1588 functionality is not supported at 100Mbps.
  */
-#define I40E_PTP_40GB_INCVAL 0x0199999999ULL
-#define I40E_PTP_10GB_INCVAL 0x0333333333ULL
-#define I40E_PTP_1GB_INCVAL  0x2000000000ULL
+#define I40E_PTP_40GB_INCVAL		0x0199999999ULL
+#define I40E_PTP_10GB_INCVAL_MULT	2
+#define I40E_PTP_1GB_INCVAL_MULT	20
 
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  BIT(I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
@@ -106,17 +106,24 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		ppb = -ppb;
 	}
 
-	smp_mb(); /* Force any pending update before accessing. */
-	adj = READ_ONCE(pf->ptp_base_adj);
-
-	freq = adj;
+	freq = I40E_PTP_40GB_INCVAL;
 	freq *= ppb;
 	diff = div_u64(freq, 1000000000ULL);
 
 	if (neg_adj)
-		adj -= diff;
+		adj = I40E_PTP_40GB_INCVAL - diff;
 	else
-		adj += diff;
+		adj = I40E_PTP_40GB_INCVAL + diff;
+
+	/* At some link speeds, the base incval is so large that directly
+	 * multiplying by ppb would result in arithmetic overflow even when
+	 * using a u64. Avoid this by instead calculating the new incval
+	 * always in terms of the 40GbE clock rate and then multiplying by the
+	 * link speed factor afterwards. This does result in slightly lower
+	 * precision at lower link speeds, but it is fairly minor.
+	 */
+	smp_mb(); /* Force any pending update before accessing. */
+	adj *= READ_ONCE(pf->ptp_adj_mult);
 
 	wr32(hw, I40E_PRTTSYN_INC_L, adj & 0xFFFFFFFF);
 	wr32(hw, I40E_PRTTSYN_INC_H, adj >> 32);
@@ -438,6 +445,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	struct i40e_link_status *hw_link_info;
 	struct i40e_hw *hw = &pf->hw;
 	u64 incval;
+	u32 mult;
 
 	hw_link_info = &hw->phy.link_info;
 
@@ -445,10 +453,10 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 
 	switch (hw_link_info->link_speed) {
 	case I40E_LINK_SPEED_10GB:
-		incval = I40E_PTP_10GB_INCVAL;
+		mult = I40E_PTP_10GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_1GB:
-		incval = I40E_PTP_1GB_INCVAL;
+		mult = I40E_PTP_1GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_100MB:
 	{
@@ -459,14 +467,19 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 				 "1588 functionality is not supported at 100 Mbps. Stopping the PHC.\n");
 			warn_once++;
 		}
-		incval = 0;
+		mult = 0;
 		break;
 	}
 	case I40E_LINK_SPEED_40GB:
 	default:
-		incval = I40E_PTP_40GB_INCVAL;
+		mult = 1;
 		break;
 	}
+
+	/* The increment value is calculated by taking the base 40GbE incvalue
+	 * and multiplying it by a factor based on the link speed.
+	 */
+	incval = I40E_PTP_40GB_INCVAL * mult;
 
 	/* Write the new increment value into the increment register. The
 	 * hardware will not update the clock until both registers have been
@@ -476,7 +489,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	wr32(hw, I40E_PRTTSYN_INC_H, incval >> 32);
 
 	/* Update the base adjustement value. */
-	WRITE_ONCE(pf->ptp_base_adj, incval);
+	WRITE_ONCE(pf->ptp_adj_mult, mult);
 	smp_mb(); /* Force the above update. */
 }
 
