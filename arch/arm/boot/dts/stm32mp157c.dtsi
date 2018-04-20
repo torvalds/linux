@@ -509,6 +509,7 @@
 			clocks = <&rcc DMA1>;
 			#dma-cells = <4>;
 			st,mem2mem;
+			dma-requests = <8>;
 		};
 
 		dma2: dma@48001000 {
@@ -525,6 +526,17 @@
 			clocks = <&rcc DMA2>;
 			#dma-cells = <4>;
 			st,mem2mem;
+			dma-requests = <8>;
+		};
+
+		dmamux1: dma-router@48002000 {
+			compatible = "st,stm32h7-dmamux";
+			reg = <0x48002000 0x1c>;
+			#dma-cells = <3>;
+			dma-requests = <128>;
+			dma-masters = <&dma1 &dma2>;
+			dma-channels = <16>;
+			clocks = <&rcc DMAMUX>;
 		};
 
 		rcc: rcc@50000000 {
