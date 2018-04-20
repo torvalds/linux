@@ -7213,8 +7213,7 @@ static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
 			if (mask->dst == cpu_to_be32(0xffffffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
-				mask->dst = be32_to_cpu(mask->dst);
-				dev_err(&pf->pdev->dev, "Bad ip dst mask %pI4\n",
+				dev_err(&pf->pdev->dev, "Bad ip dst mask %pI4b\n",
 					&mask->dst);
 				return I40E_ERR_CONFIG;
 			}
@@ -7224,8 +7223,7 @@ static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
 			if (mask->src == cpu_to_be32(0xffffffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
-				mask->src = be32_to_cpu(mask->src);
-				dev_err(&pf->pdev->dev, "Bad ip src mask %pI4\n",
+				dev_err(&pf->pdev->dev, "Bad ip src mask %pI4b\n",
 					&mask->src);
 				return I40E_ERR_CONFIG;
 			}
