@@ -394,18 +394,7 @@ static struct pci_driver hibmc_pci_driver = {
 	.driver.pm =    &hibmc_pm_ops,
 };
 
-static int __init hibmc_init(void)
-{
-	return pci_register_driver(&hibmc_pci_driver);
-}
-
-static void __exit hibmc_exit(void)
-{
-	return pci_unregister_driver(&hibmc_pci_driver);
-}
-
-module_init(hibmc_init);
-module_exit(hibmc_exit);
+module_pci_driver(hibmc_pci_driver);
 
 MODULE_DEVICE_TABLE(pci, hibmc_pci_table);
 MODULE_AUTHOR("RongrongZou <zourongrong@huawei.com>");
