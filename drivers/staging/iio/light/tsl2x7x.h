@@ -56,9 +56,9 @@ struct tsl2x7x_lux {
  *                          aperture effects.
  *  @wait_time:             Time between PRX and ALS cycles
  *                          in 2.7 periods
- *  @prx_time:              5.2ms prox integration time -
+ *  @prox_time:             5.2ms prox integration time -
  *                          decrease in 2.7ms periods
- *  @prx_gain:              Proximity gain index
+ *  @prox_gain:             Proximity gain index
  *  @prox_config:           Prox configuration filters.
  *  @als_cal_target:        Known external ALS reading for
  *                          calibration.
@@ -80,7 +80,7 @@ struct tsl2x7x_settings {
 	int als_gain;
 	int als_gain_trim;
 	int wait_time;
-	int prx_time;
+	int prox_time;
 	int prox_gain;
 	int prox_config;
 	int als_cal_target;

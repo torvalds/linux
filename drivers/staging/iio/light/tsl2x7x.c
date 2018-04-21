@@ -211,7 +211,7 @@ static const struct tsl2x7x_lux *tsl2x7x_default_lux_table_group[] = {
 static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.als_time = 219, /* 101 ms */
 	.als_gain = 0,
-	.prx_time = 254, /* 5.4 ms */
+	.prox_time = 254, /* 5.4 ms */
 	.prox_gain = 0,
 	.wait_time = 245,
 	.prox_config = 0,
@@ -238,7 +238,7 @@ static const s16 tsl2x7x_als_gain[] = {
 	120
 };
 
-static const s16 tsl2x7x_prx_gain[] = {
+static const s16 tsl2x7x_prox_gain[] = {
 	1,
 	2,
 	4,
@@ -602,7 +602,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	u8 *dev_reg, reg_val;
 
 	/* Non calculated parameters */
-	chip->tsl2x7x_config[TSL2X7X_PRX_TIME] = chip->settings.prx_time;
+	chip->tsl2x7x_config[TSL2X7X_PRX_TIME] = chip->settings.prox_time;
 	chip->tsl2x7x_config[TSL2X7X_WAIT_TIME] = chip->settings.wait_time;
 	chip->tsl2x7x_config[TSL2X7X_PRX_CONFIG] = chip->settings.prox_config;
 
@@ -1032,7 +1032,7 @@ static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
 		if (chan->type == IIO_INTENSITY)
 			time = chip->settings.als_time;
 		else
-			time = chip->settings.prx_time;
+			time = chip->settings.prox_time;
 
 		y = (TSL2X7X_MAX_TIMER_CNT - time) + 1;
 		z = y * TSL2X7X_MIN_ITIME;
@@ -1101,7 +1101,7 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 			time = chip->settings.als_time;
 			mult = chip->settings.als_persistence;
 		} else {
-			time = chip->settings.prx_time;
+			time = chip->settings.prox_time;
 			mult = chip->settings.prox_persistence;
 		}
 
@@ -1164,7 +1164,7 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 		if (chan->type == IIO_LIGHT)
 			*val = tsl2x7x_als_gain[chip->settings.als_gain];
 		else
-			*val = tsl2x7x_prx_gain[chip->settings.prox_gain];
+			*val = tsl2x7x_prox_gain[chip->settings.prox_gain];
 		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
