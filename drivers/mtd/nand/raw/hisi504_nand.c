@@ -808,7 +808,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "Err MTD partition=%d\n", ret);
-		nand_release(mtd);
+		nand_cleanup(chip);
 		return ret;
 	}
 
