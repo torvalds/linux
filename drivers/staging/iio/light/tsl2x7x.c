@@ -1285,22 +1285,22 @@ static DEVICE_ATTR_WO(in_proximity0_calibrate);
 static DEVICE_ATTR_RW(in_illuminance0_lux_table);
 
 /* Use the default register values to identify the Taos device */
-static int tsl2x7x_device_id(int *id, int target)
+static int tsl2x7x_device_id_verif(int id, int target)
 {
 	switch (target) {
 	case tsl2571:
 	case tsl2671:
 	case tsl2771:
-		return (*id & 0xf0) == TRITON_ID;
+		return (id & 0xf0) == TRITON_ID;
 	case tmd2671:
 	case tmd2771:
-		return (*id & 0xf0) == HALIBUT_ID;
+		return (id & 0xf0) == HALIBUT_ID;
 	case tsl2572:
 	case tsl2672:
 	case tmd2672:
 	case tsl2772:
 	case tmd2772:
-		return (*id & 0xf0) == SWORDFISH_ID;
+		return (id & 0xf0) == SWORDFISH_ID;
 	}
 
 	return -EINVAL;
@@ -1620,8 +1620,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	if (ret < 0)
 		return ret;
 
-	if ((!tsl2x7x_device_id(&ret, id->driver_data)) ||
-	    (tsl2x7x_device_id(&ret, id->driver_data) == -EINVAL)) {
+	if (tsl2x7x_device_id_verif(ret, id->driver_data) <= 0) {
 		dev_info(&chip->client->dev,
 			 "%s: i2c device found does not match expected id\n",
 				__func__);
