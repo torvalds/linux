@@ -453,10 +453,13 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 
 	} else {
 		/* 10 segments
-		 * segment is from 2^-10 to 2^0
+		 * segment is from 2^-10 to 2^1
+		 * We include an extra segment for range [2^0, 2^1). This is to
+		 * ensure that colors with normalized values of 1 don't miss the
+		 * LUT.
 		 */
 		region_start = -10;
-		region_end = 0;
+		region_end = 1;
 
 		seg_distr[0] = 4;
 		seg_distr[1] = 4;
@@ -468,7 +471,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		seg_distr[7] = 4;
 		seg_distr[8] = 4;
 		seg_distr[9] = 4;
-		seg_distr[10] = -1;
+		seg_distr[10] = 0;
 		seg_distr[11] = -1;
 		seg_distr[12] = -1;
 		seg_distr[13] = -1;
@@ -1016,8 +1019,10 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
-	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, false);
+		dc_link_set_abm_disable(link);
+	}
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);

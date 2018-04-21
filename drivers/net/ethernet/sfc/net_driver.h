@@ -733,6 +733,27 @@ struct efx_rss_context {
 	u32 rx_indir_table[128];
 };
 
+#ifdef CONFIG_RFS_ACCEL
+/**
+ * struct efx_async_filter_insertion - Request to asynchronously insert a filter
+ * @net_dev: Reference to the netdevice
+ * @spec: The filter to insert
+ * @work: Workitem for this request
+ * @rxq_index: Identifies the channel for which this request was made
+ * @flow_id: Identifies the kernel-side flow for which this request was made
+ */
+struct efx_async_filter_insertion {
+	struct net_device *net_dev;
+	struct efx_filter_spec spec;
+	struct work_struct work;
+	u16 rxq_index;
+	u32 flow_id;
+};
+
+/* Maximum number of ARFS workitems that may be in flight on an efx_nic */
+#define EFX_RPS_MAX_IN_FLIGHT	8
+#endif /* CONFIG_RFS_ACCEL */
+
 /**
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
@@ -850,6 +871,8 @@ struct efx_rss_context {
  * @rps_expire_channel: Next channel to check for expiry
  * @rps_expire_index: Next index to check for expiry in
  *	@rps_expire_channel's @rps_flow_id
+ * @rps_slot_map: bitmap of in-flight entries in @rps_slot
+ * @rps_slot: array of ARFS insertion requests for efx_filter_rfs_work()
  * @active_queues: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
@@ -1004,6 +1027,8 @@ struct efx_nic {
 	struct mutex rps_mutex;
 	unsigned int rps_expire_channel;
 	unsigned int rps_expire_index;
+	unsigned long rps_slot_map;
+	struct efx_async_filter_insertion rps_slot[EFX_RPS_MAX_IN_FLIGHT];
 #endif
 
 	atomic_t active_queues;

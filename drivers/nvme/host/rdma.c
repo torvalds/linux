@@ -1601,17 +1601,6 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 	return BLK_EH_HANDLED;
 }
 
-/*
- * We cannot accept any other command until the Connect command has completed.
- */
-static inline blk_status_t
-nvme_rdma_is_ready(struct nvme_rdma_queue *queue, struct request *rq)
-{
-	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags)))
-		return nvmf_check_init_req(&queue->ctrl->ctrl, rq);
-	return BLK_STS_OK;
-}
-
 static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -1627,7 +1616,8 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	WARN_ON_ONCE(rq->tag < 0);
 
-	ret = nvme_rdma_is_ready(queue, rq);
+	ret = nvmf_check_if_ready(&queue->ctrl->ctrl, rq,
+		test_bit(NVME_RDMA_Q_LIVE, &queue->flags), true);
 	if (unlikely(ret))
 		return ret;
 

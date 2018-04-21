@@ -848,7 +848,7 @@ restart:
 	/* attach all the transactions w/ busy extents to iclog */
 	ctx->log_cb.cb_func = xlog_cil_committed;
 	ctx->log_cb.cb_arg = ctx;
-	error = xfs_log_notify(log->l_mp, commit_iclog, &ctx->log_cb);
+	error = xfs_log_notify(commit_iclog, &ctx->log_cb);
 	if (error)
 		goto out_abort;
 

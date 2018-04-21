@@ -31,13 +31,6 @@ static void dwmac4_core_init(struct mac_device_info *hw,
 
 	value |= GMAC_CORE_INIT;
 
-	/* Clear ACS bit because Ethernet switch tagging formats such as
-	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
-	 * hardware to truncate packets on reception.
-	 */
-	if (netdev_uses_dsa(dev))
-		value &= ~GMAC_CONFIG_ACS;
-
 	if (mtu > 1500)
 		value |= GMAC_CONFIG_2K;
 	if (mtu > 2000)

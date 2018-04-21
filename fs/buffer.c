@@ -494,33 +494,10 @@ repeat:
 	return err;
 }
 
-static void do_thaw_one(struct super_block *sb, void *unused)
+void emergency_thaw_bdev(struct super_block *sb)
 {
 	while (sb->s_bdev && !thaw_bdev(sb->s_bdev, sb))
 		printk(KERN_WARNING "Emergency Thaw on %pg\n", sb->s_bdev);
-}
-
-static void do_thaw_all(struct work_struct *work)
-{
-	iterate_supers(do_thaw_one, NULL);
-	kfree(work);
-	printk(KERN_WARNING "Emergency Thaw complete\n");
-}
-
-/**
- * emergency_thaw_all -- forcibly thaw every frozen filesystem
- *
- * Used for emergency unfreeze of all filesystems via SysRq
- */
-void emergency_thaw_all(void)
-{
-	struct work_struct *work;
-
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (work) {
-		INIT_WORK(work, do_thaw_all);
-		schedule_work(work);
-	}
 }
 
 /**

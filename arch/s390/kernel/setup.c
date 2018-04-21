@@ -821,6 +821,7 @@ static int __init setup_hwcaps(void)
 		strcpy(elf_platform, "z13");
 		break;
 	case 0x3906:
+	case 0x3907:
 		strcpy(elf_platform, "z14");
 		break;
 	}
@@ -893,6 +894,9 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) _end;
+
+	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
+		nospec_auto_detect();
 
 	parse_early_param();
 #ifdef CONFIG_CRASH_DUMP

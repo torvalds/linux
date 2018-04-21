@@ -2238,8 +2238,8 @@ int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = sock_net(skb->sk);
 	u32 prev_bearer = cb->args[0];
 	struct tipc_nl_msg msg;
+	int bearer_id;
 	int err;
-	int i;
 
 	if (prev_bearer == MAX_BEARERS)
 		return 0;
@@ -2249,16 +2249,13 @@ int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb)
 	msg.seq = cb->nlh->nlmsg_seq;
 
 	rtnl_lock();
-	for (i = prev_bearer; i < MAX_BEARERS; i++) {
-		prev_bearer = i;
+	for (bearer_id = prev_bearer; bearer_id < MAX_BEARERS; bearer_id++) {
 		err = __tipc_nl_add_monitor(net, &msg, prev_bearer);
 		if (err)
-			goto out;
+			break;
 	}
-
-out:
 	rtnl_unlock();
-	cb->args[0] = prev_bearer;
+	cb->args[0] = bearer_id;
 
 	return skb->len;
 }

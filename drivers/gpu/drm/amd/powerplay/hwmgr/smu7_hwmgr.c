@@ -3374,7 +3374,8 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
 			"Failed to start pm status log!",
 			return -1);
 
-	msleep_interruptible(20);
+	/* Sampling period from 50ms to 4sec */
+	msleep_interruptible(200);
 
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PmStatusLogSample),

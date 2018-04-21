@@ -140,6 +140,10 @@ static struct radeon_px_quirk radeon_px_quirk_list[] = {
 	 * https://bugs.freedesktop.org/show_bug.cgi?id=101491
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6741, 0x1043, 0x2122, RADEON_PX_QUIRK_DISABLE_PX },
+	/* Asus K73TK laptop with AMD A6-3420M APU and Radeon 7670m GPU
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381#c52
+	 */
+	{ PCI_VENDOR_ID_ATI, 0x6840, 0x1043, 0x2123, RADEON_PX_QUIRK_DISABLE_PX },
 	{ 0, 0, 0, 0, 0 },
 };
 

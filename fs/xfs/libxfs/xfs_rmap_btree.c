@@ -499,7 +499,6 @@ xfs_rmapbt_init_cursor(
  */
 int
 xfs_rmapbt_maxrecs(
-	struct xfs_mount	*mp,
 	int			blocklen,
 	int			leaf)
 {
@@ -534,7 +533,7 @@ xfs_rmapbt_compute_maxlevels(
 	if (xfs_sb_version_hasreflink(&mp->m_sb))
 		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
 	else
-		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
+		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
 				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
 }
 
@@ -544,7 +543,7 @@ xfs_rmapbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp, mp->m_rmap_mnr, len);
+	return xfs_btree_calc_size(mp->m_rmap_mnr, len);
 }
 
 /*

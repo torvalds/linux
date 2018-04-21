@@ -3061,11 +3061,18 @@ static void gfx_v6_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
 		start + SQIND_WAVE_SGPRS_OFFSET, size, dst);
 }
 
+static void gfx_v6_0_select_me_pipe_q(struct amdgpu_device *adev,
+				  u32 me, u32 pipe, u32 q)
+{
+	DRM_INFO("Not implemented\n");
+}
+
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v6_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v6_0_select_se_sh,
 	.read_wave_data = &gfx_v6_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v6_0_read_wave_sgprs,
+	.select_me_pipe_q = &gfx_v6_0_select_me_pipe_q
 };
 
 static int gfx_v6_0_early_init(void *handle)

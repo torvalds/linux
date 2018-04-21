@@ -75,6 +75,9 @@ struct shrinker {
 #define SHRINKER_NUMA_AWARE	(1 << 0)
 #define SHRINKER_MEMCG_AWARE	(1 << 1)
 
-extern int register_shrinker(struct shrinker *);
-extern void unregister_shrinker(struct shrinker *);
+extern int prealloc_shrinker(struct shrinker *shrinker);
+extern void register_shrinker_prepared(struct shrinker *shrinker);
+extern int register_shrinker(struct shrinker *shrinker);
+extern void unregister_shrinker(struct shrinker *shrinker);
+extern void free_prealloced_shrinker(struct shrinker *shrinker);
 #endif

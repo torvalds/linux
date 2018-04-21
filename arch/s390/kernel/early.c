@@ -342,16 +342,6 @@ static __init void memmove_early(void *dst, const void *src, size_t n)
 	S390_lowcore.program_new_psw = old;
 }
 
-static __init noinline void ipl_save_parameters(void)
-{
-	void *src, *dst;
-
-	src = (void *)(unsigned long) S390_lowcore.ipl_parmblock_ptr;
-	dst = (void *) IPL_PARMBLOCK_ORIGIN;
-	memmove_early(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
-}
-
 static __init noinline void rescue_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -421,10 +411,8 @@ static void __init setup_boot_command_line(void)
 void __init startup_init(void)
 {
 	reset_tod_clock();
-	ipl_save_parameters();
 	rescue_initrd();
 	clear_bss_section();
-	ipl_verify_parameters();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
@@ -432,7 +420,7 @@ void __init startup_init(void)
 	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
-	ipl_update_parameters();
+	ipl_store_parameters();
 	setup_boot_command_line();
 	detect_diag9c();
 	detect_diag44();

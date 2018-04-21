@@ -1326,7 +1326,6 @@ xfs_collapse_file_space(
 	int			error;
 	struct xfs_defer_ops	dfops;
 	xfs_fsblock_t		first_block;
-	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
 	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
@@ -1361,7 +1360,7 @@ xfs_collapse_file_space(
 
 		xfs_defer_init(&dfops, &first_block);
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops);
+				&done, &first_block, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 

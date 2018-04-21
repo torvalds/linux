@@ -338,6 +338,7 @@ source "mm/Kconfig"
 config COMPAT
 	def_bool y
 	depends on 64BIT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	def_bool y

@@ -3225,7 +3225,7 @@ xfs_bmap_longest_free_extent(
 		}
 	}
 
-	longest = xfs_alloc_longest_free_extent(mp, pag,
+	longest = xfs_alloc_longest_free_extent(pag,
 				xfs_alloc_min_freelist(mp, pag),
 				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 	if (*blen < longest)
@@ -5667,7 +5667,6 @@ xfs_bmap_collapse_extents(
 	xfs_fileoff_t		*next_fsb,
 	xfs_fileoff_t		offset_shift_fsb,
 	bool			*done,
-	xfs_fileoff_t		stop_fsb,
 	xfs_fsblock_t		*firstblock,
 	struct xfs_defer_ops	*dfops)
 {

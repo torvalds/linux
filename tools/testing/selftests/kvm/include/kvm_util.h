@@ -112,23 +112,26 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
 	vm_paddr_t paddr_min, uint32_t memslot);
 
-void kvm_get_supported_cpuid(struct kvm_cpuid2 *cpuid);
+struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
 void vcpu_set_cpuid(
 	struct kvm_vm *vm, uint32_t vcpuid, struct kvm_cpuid2 *cpuid);
 
-struct kvm_cpuid2 *allocate_kvm_cpuid2(void);
 struct kvm_cpuid_entry2 *
-find_cpuid_index_entry(struct kvm_cpuid2 *cpuid, uint32_t function,
-		       uint32_t index);
+kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
 
 static inline struct kvm_cpuid_entry2 *
-find_cpuid_entry(struct kvm_cpuid2 *cpuid, uint32_t function)
+kvm_get_supported_cpuid_entry(uint32_t function)
 {
-	return find_cpuid_index_entry(cpuid, function, 0);
+	return kvm_get_supported_cpuid_index(function, 0);
 }
 
 struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code);
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
+
+typedef void (*vmx_guest_code_t)(vm_vaddr_t vmxon_vaddr,
+				 vm_paddr_t vmxon_paddr,
+				 vm_vaddr_t vmcs_vaddr,
+				 vm_paddr_t vmcs_paddr);
 
 struct kvm_userspace_memory_region *
 kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,

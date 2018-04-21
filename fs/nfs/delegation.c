@@ -19,6 +19,7 @@
 #include <linux/nfs_xdr.h>
 
 #include "nfs4_fs.h"
+#include "nfs4session.h"
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4trace.h"
@@ -171,11 +172,15 @@ again:
  * nfs_inode_reclaim_delegation - process a delegation reclaim request
  * @inode: inode to process
  * @cred: credential to use for request
- * @res: new delegation state from server
+ * @type: delegation type
+ * @stateid: delegation stateid
+ * @pagemod_limit: write delegation "space_limit"
  *
  */
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
-				  struct nfs_openres *res)
+				  fmode_t type,
+				  const nfs4_stateid *stateid,
+				  unsigned long pagemod_limit)
 {
 	struct nfs_delegation *delegation;
 	struct rpc_cred *oldcred = NULL;
@@ -185,9 +190,9 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 	if (delegation != NULL) {
 		spin_lock(&delegation->lock);
 		if (delegation->inode != NULL) {
-			nfs4_stateid_copy(&delegation->stateid, &res->delegation);
-			delegation->type = res->delegation_type;
-			delegation->pagemod_limit = res->pagemod_limit;
+			nfs4_stateid_copy(&delegation->stateid, stateid);
+			delegation->type = type;
+			delegation->pagemod_limit = pagemod_limit;
 			oldcred = delegation->cred;
 			delegation->cred = get_rpccred(cred);
 			clear_bit(NFS_DELEGATION_NEED_RECLAIM,
@@ -195,14 +200,14 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 			spin_unlock(&delegation->lock);
 			rcu_read_unlock();
 			put_rpccred(oldcred);
-			trace_nfs4_reclaim_delegation(inode, res->delegation_type);
+			trace_nfs4_reclaim_delegation(inode, type);
 			return;
 		}
 		/* We appear to have raced with a delegation return. */
 		spin_unlock(&delegation->lock);
 	}
 	rcu_read_unlock();
-	nfs_inode_set_delegation(inode, cred, res);
+	nfs_inode_set_delegation(inode, cred, type, stateid, pagemod_limit);
 }
 
 static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation, int issync)
@@ -329,11 +334,16 @@ nfs_update_inplace_delegation(struct nfs_delegation *delegation,
  * nfs_inode_set_delegation - set up a delegation on an inode
  * @inode: inode to which delegation applies
  * @cred: cred to use for subsequent delegation processing
- * @res: new delegation state from server
+ * @type: delegation type
+ * @stateid: delegation stateid
+ * @pagemod_limit: write delegation "space_limit"
  *
  * Returns zero on success, or a negative errno value.
  */
-int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res)
+int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred,
+				  fmode_t type,
+				  const nfs4_stateid *stateid,
+				  unsigned long pagemod_limit)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_client *clp = server->nfs_client;
@@ -345,9 +355,9 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	delegation = kmalloc(sizeof(*delegation), GFP_NOFS);
 	if (delegation == NULL)
 		return -ENOMEM;
-	nfs4_stateid_copy(&delegation->stateid, &res->delegation);
-	delegation->type = res->delegation_type;
-	delegation->pagemod_limit = res->pagemod_limit;
+	nfs4_stateid_copy(&delegation->stateid, stateid);
+	delegation->type = type;
+	delegation->pagemod_limit = pagemod_limit;
 	delegation->change_attr = inode_peek_iversion_raw(inode);
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
@@ -392,7 +402,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	rcu_assign_pointer(nfsi->delegation, delegation);
 	delegation = NULL;
 
-	trace_nfs4_set_delegation(inode, res->delegation_type);
+	trace_nfs4_set_delegation(inode, type);
 
 out:
 	spin_unlock(&clp->cl_lock);
@@ -545,6 +555,22 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	if (delegation != NULL)
 		err = nfs_end_delegation_return(inode, delegation, 1);
 	return err;
+}
+
+/**
+ * nfs4_inode_make_writeable
+ * @inode: pointer to inode
+ *
+ * Make the inode writeable by returning the delegation if necessary
+ *
+ * Returns zero on success, or a negative errno value.
+ */
+int nfs4_inode_make_writeable(struct inode *inode)
+{
+	if (!nfs4_has_session(NFS_SERVER(inode)->nfs_client) ||
+	    !nfs4_check_delegation(inode, FMODE_WRITE))
+		return nfs4_inode_return_delegation(inode);
+	return 0;
 }
 
 static void nfs_mark_return_if_closed_delegation(struct nfs_server *server,

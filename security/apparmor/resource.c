@@ -16,7 +16,7 @@
 #include <linux/security.h>
 
 #include "include/audit.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/resource.h"
 #include "include/policy.h"
 

@@ -560,7 +560,6 @@ xfs_log_done(
  */
 int
 xfs_log_notify(
-	struct xfs_mount	*mp,
 	struct xlog_in_core	*iclog,
 	xfs_log_callback_t	*cb)
 {

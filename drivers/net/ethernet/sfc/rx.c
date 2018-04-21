@@ -827,31 +827,16 @@ MODULE_PARM_DESC(rx_refill_threshold,
 
 #ifdef CONFIG_RFS_ACCEL
 
-/**
- * struct efx_async_filter_insertion - Request to asynchronously insert a filter
- * @net_dev: Reference to the netdevice
- * @spec: The filter to insert
- * @work: Workitem for this request
- * @rxq_index: Identifies the channel for which this request was made
- * @flow_id: Identifies the kernel-side flow for which this request was made
- */
-struct efx_async_filter_insertion {
-	struct net_device *net_dev;
-	struct efx_filter_spec spec;
-	struct work_struct work;
-	u16 rxq_index;
-	u32 flow_id;
-};
-
 static void efx_filter_rfs_work(struct work_struct *data)
 {
 	struct efx_async_filter_insertion *req = container_of(data, struct efx_async_filter_insertion,
 							      work);
 	struct efx_nic *efx = netdev_priv(req->net_dev);
 	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
+	int slot_idx = req - efx->rps_slot;
 	int rc;
 
-	rc = efx->type->filter_insert(efx, &req->spec, false);
+	rc = efx->type->filter_insert(efx, &req->spec, true);
 	if (rc >= 0) {
 		/* Remember this so we can check whether to expire the filter
 		 * later.
@@ -878,8 +863,8 @@ static void efx_filter_rfs_work(struct work_struct *data)
 	}
 
 	/* Release references */
+	clear_bit(slot_idx, &efx->rps_slot_map);
 	dev_put(req->net_dev);
-	kfree(req);
 }
 
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
@@ -888,22 +873,36 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_async_filter_insertion *req;
 	struct flow_keys fk;
+	int slot_idx;
+	int rc;
 
-	if (flow_id == RPS_FLOW_ID_INVALID)
-		return -EINVAL;
+	/* find a free slot */
+	for (slot_idx = 0; slot_idx < EFX_RPS_MAX_IN_FLIGHT; slot_idx++)
+		if (!test_and_set_bit(slot_idx, &efx->rps_slot_map))
+			break;
+	if (slot_idx >= EFX_RPS_MAX_IN_FLIGHT)
+		return -EBUSY;
 
-	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return -EPROTONOSUPPORT;
+	if (flow_id == RPS_FLOW_ID_INVALID) {
+		rc = -EINVAL;
+		goto out_clear;
+	}
 
-	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6))
-		return -EPROTONOSUPPORT;
-	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT)
-		return -EPROTONOSUPPORT;
+	if (!skb_flow_dissect_flow_keys(skb, &fk, 0)) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
 
-	req = kmalloc(sizeof(*req), GFP_ATOMIC);
-	if (!req)
-		return -ENOMEM;
+	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6)) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
+	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
 
+	req = efx->rps_slot + slot_idx;
 	efx_filter_init_rx(&req->spec, EFX_FILTER_PRI_HINT,
 			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
 			   rxq_index);
@@ -933,6 +932,9 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	req->flow_id = flow_id;
 	schedule_work(&req->work);
 	return 0;
+out_clear:
+	clear_bit(slot_idx, &efx->rps_slot_map);
+	return rc;
 }
 
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
