@@ -518,10 +518,10 @@ static void pcic_map_pci_device(struct linux_pcic *pcic,
 				 * board in a PCI slot. We must remap it
 				 * under 64K but it is not done yet. XXX
 				 */
-				printk("PCIC: Skipping I/O space at 0x%lx, "
-				    "this will Oops if a driver attaches "
-				    "device '%s' at %02x:%02x)\n", address,
-				    namebuf, dev->bus->number, dev->devfn);
+				pci_info(dev, "PCIC: Skipping I/O space at "
+					 "0x%lx, this will Oops if a driver "
+					 "attaches device '%s'\n", address,
+					 namebuf);
 			}
 		}
 	}
@@ -551,8 +551,8 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 		p++;
 	}
 	if (i >= pcic->pcic_imdim) {
-		printk("PCIC: device %s devfn %02x:%02x not found in %d\n",
-		    namebuf, dev->bus->number, dev->devfn, pcic->pcic_imdim);
+		pci_info(dev, "PCIC: device %s not found in %d\n", namebuf,
+			 pcic->pcic_imdim);
 		dev->irq = 0;
 		return;
 	}
@@ -565,7 +565,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_HI);
 		real_irq = ivec >> ((i-4) << 2) & 0xF;
 	} else {					/* Corrupted map */
-		printk("PCIC: BAD PIN %d\n", i); for (;;) {}
+		pci_info(dev, "PCIC: BAD PIN %d\n", i); for (;;) {}
 	}
 /* P3 */ /* printk("PCIC: device %s pin %d ivec 0x%x irq %x\n", namebuf, i, ivec, dev->irq); */
 
@@ -574,10 +574,10 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 	 */
 	if (real_irq == 0 || p->force) {
 		if (p->irq == 0 || p->irq >= 15) {	/* Corrupted map */
-			printk("PCIC: BAD IRQ %d\n", p->irq); for (;;) {}
+			pci_info(dev, "PCIC: BAD IRQ %d\n", p->irq); for (;;) {}
 		}
-		printk("PCIC: setting irq %d at pin %d for device %02x:%02x\n",
-		    p->irq, p->pin, dev->bus->number, dev->devfn);
+		pci_info(dev, "PCIC: setting irq %d at pin %d\n", p->irq,
+			 p->pin);
 		real_irq = p->irq;
 
 		i = p->pin;
@@ -608,7 +608,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	struct pcidev_cookie *pcp;
 
 	if (!pcic0_up) {
-		printk("pcibios_fixup_bus: no PCIC\n");
+		pci_info(bus, "pcibios_fixup_bus: no PCIC\n");
 		return;
 	}
 	pcic = &pcic0;
@@ -617,7 +617,8 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 * Next crud is an equivalent of pbm = pcic_bus_to_pbm(bus);
 	 */
 	if (bus->number != 0) {
-		printk("pcibios_fixup_bus: nonzero bus 0x%x\n", bus->number);
+		pci_info(bus, "pcibios_fixup_bus: nonzero bus 0x%x\n",
+			 bus->number);
 		return;
 	}
 
@@ -662,9 +663,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	}
 
 	if (cmd != oldcmd) {
-		printk(KERN_DEBUG "PCI: Enabling device: (%s), cmd %x\n",
-		       pci_name(dev), cmd);
-                /* Enable the appropriate bits in the PCI command register.  */
+		pci_info(dev, "enabling device (%04x -> %04x)\n", oldcmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;

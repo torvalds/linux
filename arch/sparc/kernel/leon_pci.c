@@ -82,9 +82,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	}
 
 	if (cmd != oldcmd) {
-		printk(KERN_DEBUG "PCI: Enabling device: (%s), cmd %x\n",
-		       pci_name(dev), cmd);
-                /* Enable the appropriate bits in the PCI command register.  */
+		pci_info(dev, "enabling device (%04x -> %04x)\n", oldcmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;

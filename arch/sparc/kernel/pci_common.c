@@ -489,8 +489,8 @@ void pci_scan_for_target_abort(struct pci_pbm_info *pbm,
 				   PCI_STATUS_REC_TARGET_ABORT));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("%s: Device %s saw Target Abort [%016x]\n",
-			       pbm->name, pci_name(pdev), status);
+			pci_info(pdev, "%s: Device saw Target Abort [%016x]\n",
+				 pbm->name, status);
 		}
 	}
 
@@ -512,8 +512,8 @@ void pci_scan_for_master_abort(struct pci_pbm_info *pbm,
 			(status & (PCI_STATUS_REC_MASTER_ABORT));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("%s: Device %s received Master Abort [%016x]\n",
-			       pbm->name, pci_name(pdev), status);
+			pci_info(pdev, "%s: Device received Master Abort "
+				 "[%016x]\n", pbm->name, status);
 		}
 	}
 
@@ -536,8 +536,8 @@ void pci_scan_for_parity_error(struct pci_pbm_info *pbm,
 				   PCI_STATUS_DETECTED_PARITY));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("%s: Device %s saw Parity Error [%016x]\n",
-			       pbm->name, pci_name(pdev), status);
+			pci_info(pdev, "%s: Device saw Parity Error [%016x]\n",
+				 pbm->name, status);
 		}
 	}
 
