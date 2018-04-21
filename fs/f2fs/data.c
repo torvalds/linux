@@ -19,8 +19,6 @@
 #include <linux/bio.h>
 #include <linux/prefetch.h>
 #include <linux/uio.h>
-#include <linux/mm.h>
-#include <linux/memcontrol.h>
 #include <linux/cleancache.h>
 
 #include "f2fs.h"
@@ -2473,37 +2471,6 @@ int f2fs_release_page(struct page *page, gfp_t wait)
 	return 1;
 }
 
-/*
- * This was copied from __set_page_dirty_buffers which gives higher performance
- * in very high speed storages. (e.g., pmem)
- */
-void f2fs_set_page_dirty_nobuffers(struct page *page)
-{
-	struct address_space *mapping = page->mapping;
-	struct mem_cgroup *memcg;
-	unsigned long flags;
-
-	if (unlikely(!mapping))
-		return;
-
-	spin_lock(&mapping->private_lock);
-	memcg = mem_cgroup_begin_page_stat(page);
-	SetPageDirty(page);
-	spin_unlock(&mapping->private_lock);
-
-	spin_lock_irqsave(&mapping->tree_lock, flags);
-	WARN_ON_ONCE(!PageUptodate(page));
-	account_page_dirtied(page, mapping, memcg);
-	radix_tree_tag_set(&mapping->page_tree,
-			page_index(page), PAGECACHE_TAG_DIRTY);
-	spin_unlock_irqrestore(&mapping->tree_lock, flags);
-
-	mem_cgroup_end_page_stat(memcg);
-
-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-	return;
-}
-
 static int f2fs_set_data_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
@@ -2527,7 +2494,7 @@ static int f2fs_set_data_page_dirty(struct page *page)
 	}
 
 	if (!PageDirty(page)) {
-		f2fs_set_page_dirty_nobuffers(page);
+		__set_page_dirty_nobuffers(page);
 		update_dirty_page(inode, page);
 		return 1;
 	}
