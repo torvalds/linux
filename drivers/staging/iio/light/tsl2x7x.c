@@ -1690,27 +1690,15 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 static int tsl2x7x_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
 
-	if (chip->tsl2x7x_chip_status == TSL2X7X_CHIP_WORKING) {
-		ret = tsl2x7x_chip_off(indio_dev);
-		chip->tsl2x7x_chip_status = TSL2X7X_CHIP_SUSPENDED;
-	}
-
-	return ret;
+	return tsl2x7x_chip_off(indio_dev);
 }
 
 static int tsl2x7x_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
 
-	if (chip->tsl2x7x_chip_status == TSL2X7X_CHIP_SUSPENDED)
-		ret = tsl2x7x_chip_on(indio_dev);
-
-	return ret;
+	return tsl2x7x_chip_on(indio_dev);
 }
 
 static int tsl2x7x_remove(struct i2c_client *client)
