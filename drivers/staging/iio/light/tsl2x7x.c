@@ -1,6 +1,6 @@
 /*
- * Device driver for monitoring ambient light intensity in (lux)
- * and proximity detection (prox) within the TAOS TSL2X7X family of devices.
+ * Device driver for monitoring ambient light intensity in (lux) and proximity
+ * detection (prox) within the TAOS TSL2X7X family of devices.
  *
  * Copyright (c) 2012, TAOS Corporation.
  * Copyright (c) 2017-2018 Brian Masney <masneyb@onstation.org>
@@ -29,7 +29,7 @@
 #include <linux/iio/sysfs.h>
 #include "tsl2x7x.h"
 
-/* Cal defs*/
+/* Cal defs */
 #define PROX_STAT_CAL			0
 #define PROX_STAT_SAMP			1
 #define MAX_SAMPLES_CAL			200
@@ -42,10 +42,11 @@
 /* Lux calculation constants */
 #define TSL2X7X_LUX_CALC_OVER_FLOW	65535
 
-/* TAOS Register definitions - note:
- * depending on device, some of these register are not used and the
- * register address is benign.
+/*
+ * TAOS Register definitions - Note: depending on device, some of these register
+ * are not used and the register address is benign.
  */
+
 /* 2X7X register offsets */
 #define TSL2X7X_MAX_CONFIG_REG		16
 
@@ -350,15 +351,14 @@ static int tsl2x7x_read_autoinc_regs(struct tsl2X7X_chip *chip, int lower_reg,
  * @indio_dev:	pointer to IIO device
  *
  * The raw ch0 and ch1 values of the ambient light sensed in the last
- * integration cycle are read from the device.
- * Time scale factor array values are adjusted based on the integration time.
- * The raw values are multiplied by a scale factor, and device gain is obtained
- * using gain index. Limit checks are done next, then the ratio of a multiple
- * of ch1 value, to the ch0 value, is calculated. Array tsl2x7x_device_lux[]
- * is then scanned to find the first ratio value that is just above the ratio
- * we just calculated. The ch0 and ch1 multiplier constants in the array are
- * then used along with the time scale factor array values, to calculate the
- * lux.
+ * integration cycle are read from the device. Time scale factor array values
+ * are adjusted based on the integration time. The raw values are multiplied
+ * by a scale factor, and device gain is obtained using gain index. Limit
+ * checks are done next, then the ratio of a multiple of ch1 value, to the
+ * ch0 value, is calculated. Array tsl2x7x_device_lux[] is then scanned to
+ * find the first ratio value that is just above the ratio we just calculated.
+ * The ch0 and ch1 multiplier constants in the array are then used along with
+ * the time scale factor array values, to calculate the lux.
  */
 static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 {
@@ -371,7 +371,6 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	mutex_lock(&chip->als_mutex);
 
 	if (chip->tsl2x7x_chip_status != TSL2X7X_CHIP_WORKING) {
-		/* device is not enabled */
 		dev_err(&chip->client->dev, "%s: device is not enabled\n",
 			__func__);
 		ret = -EBUSY;
@@ -382,7 +381,6 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	if (ret < 0)
 		goto out_unlock;
 
-	/* is data new & valid */
 	if (!(ret & TSL2X7X_STA_ADC_VALID)) {
 		dev_err(&chip->client->dev,
 			"%s: data not valid yet\n", __func__);
@@ -438,12 +436,12 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 		lux = (lux + (chip->als_time_scale >> 1)) /
 			chip->als_time_scale;
 
-	/* adjust for active gain scale
-	 * The tsl2x7x_device_lux tables have a factor of 256 built-in.
-	 * User-specified gain provides a multiplier.
+	/*
+	 * adjust for active gain scale. The tsl2x7x_device_lux tables have a
+	 * factor of 256 built-in. User-specified gain provides a multiplier.
 	 * Apply user-specified gain before shifting right to retain precision.
-	 * Use 64 bits to avoid overflow on multiplication.
-	 * Then go back to 32 bits before division to avoid using div_u64().
+	 * Use 64 bits to avoid overflow on multiplication. Then go back to
+	 * 32 bits before division to avoid using div_u64().
 	 */
 
 	lux64 = lux;
@@ -721,14 +719,13 @@ static int tsl2x7x_chip_off(struct iio_dev *indio_dev)
 }
 
 /**
- * tsl2x7x_invoke_change
+ * tsl2x7x_invoke_change - power cycle the device to implement the user
+ *                         parameters
  * @indio_dev:	pointer to IIO device
  *
- * Obtain and lock both ALS and PROX resources,
- * determine and save device state (On/Off),
- * cycle device to implement updated parameter,
- * put device back into proper state, and unlock
- * resource.
+ * Obtain and lock both ALS and PROX resources, determine and save device state
+ * (On/Off), cycle device to implement updated parameter, put device back into
+ * proper state, and unlock resource.
  */
 static int tsl2x7x_invoke_change(struct iio_dev *indio_dev)
 {
@@ -904,7 +901,8 @@ static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 
 	get_options(buf, ARRAY_SIZE(value), value);
 
-	/* We now have an array of ints starting at value[1], and
+	/*
+	 * We now have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of three ints is one table entry,
 	 * and the last table entry is all 0.
@@ -1654,9 +1652,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 		}
 	}
 
-	/* Load up the defaults */
 	tsl2x7x_defaults(chip);
-	/* Make sure the chip is on */
 	tsl2x7x_chip_on(indio_dev);
 
 	ret = iio_device_register(indio_dev);
@@ -1730,7 +1726,6 @@ static const struct dev_pm_ops tsl2x7x_pm_ops = {
 	.resume  = tsl2x7x_resume,
 };
 
-/* Driver definition */
 static struct i2c_driver tsl2x7x_driver = {
 	.driver = {
 		.name = "tsl2x7x",

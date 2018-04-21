@@ -48,32 +48,35 @@ struct tsl2x7x_lux {
 #define TSL2X7X_MAX_TIMER_CNT           0xFF
 
 /**
- * struct tsl2x7x_default_settings - power on defaults unless
- *                                   overridden by platform data.
- *  @als_time:              ALS Integration time - multiple of 50mS
- *  @als_gain:              Index into the ALS gain table.
- *  @als_gain_trim:         default gain trim to account for
- *                          aperture effects.
- *  @wait_time:             Time between PRX and ALS cycles
- *                          in 2.7 periods
- *  @prox_time:             5.2ms prox integration time -
- *                          decrease in 2.7ms periods
- *  @prox_gain:             Proximity gain index
+ * struct tsl2x7x_settings - Settings for the tsl2x7x driver
+ *  @als_time:              Integration time of the ALS channel ADCs in 2.73 ms
+ *                          increments. Total integration time is
+ *                          (256 - als_time) * 2.73.
+ *  @als_gain:              Index into the tsl2x7x_als_gain array.
+ *  @als_gain_trim:         Default gain trim to account for aperture effects.
+ *  @wait_time:             Time between proximity and ALS cycles in 2.73
+ *                          periods.
+ *  @prox_time:             Integration time of the proximity ADC in 2.73 ms
+ *                          increments. Total integration time is
+ *                          (256 - prx_time) * 2.73.
+ *  @prox_gain:             Index into the tsl2x7x_prx_gain array.
  *  @prox_config:           Prox configuration filters.
- *  @als_cal_target:        Known external ALS reading for
- *                          calibration.
- *  @als_persistence:       H/W Filters, Number of 'out of limits'
- *                          ALS readings.
+ *  @als_cal_target:        Known external ALS reading for calibration.
+ *  @als_persistence:       H/W Filters, Number of 'out of limits' ALS readings.
  *  @als_interrupt_en:      Enable/Disable ALS interrupts
  *  @als_thresh_low:        CH0 'low' count to trigger interrupt.
  *  @als_thresh_high:       CH0 'high' count to trigger interrupt.
- *  @prox_persistence:      H/W Filters, Number of 'out of limits'
- *                          proximity readings.
- *  @prox_interrupt_en:     Enable/Disable proximity interrupts
+ *  @prox_persistence:      H/W Filters, Number of 'out of limits' proximity
+ *                          readings.
+ *  @prox_interrupt_en:     Enable/Disable proximity interrupts.
  *  @prox_thres_low:        Low threshold proximity detection.
- *  @prox_thres_high:       High threshold proximity detection
- *  @prox_pulse_count:      Number if proximity emitter pulses
- *  @prox_max_samples_cal:  Used for prox cal.
+ *  @prox_thres_high:       High threshold proximity detection.
+ *  @prox_pulse_count:      Number if proximity emitter pulses.
+ *  @prox_max_samples_cal:  The number of samples that are taken when performing
+ *                          a proximity calibration.
+ *  @prox_diode             Which diode(s) to use for driving the external
+ *                          LED(s) for proximity sensing.
+ *  @prox_power             The amount of power to use for the external LED(s).
  */
 struct tsl2x7x_settings {
 	int als_time;
@@ -100,9 +103,6 @@ struct tsl2x7x_settings {
 
 /**
  * struct tsl2X7X_platform_data - Platform callback, glass and defaults
- * @platform_power:            Suspend/resume platform callback
- * @power_on:                  Power on callback
- * @power_off:                 Power off callback
  * @platform_lux_table:        Device specific glass coefficents
  * @platform_default_settings: Device specific power on defaults
  *
