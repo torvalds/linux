@@ -3369,6 +3369,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetCurrPkgPwr, 0);
 	tmp = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+	*query = tmp;
 
 	if (tmp != 0)
 		return 0;
