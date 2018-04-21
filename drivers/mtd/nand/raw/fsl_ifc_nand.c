@@ -924,8 +924,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 {
 	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
-	nand_release(mtd);
-
 	kfree(mtd->name);
 
 	if (priv->vbase)
@@ -1059,21 +1057,29 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 
 	/* First look for RedBoot table or partitions on the command
 	 * line, these take precedence over device tree information */
-	mtd_device_parse_register(mtd, part_probe_types, NULL, NULL, 0);
+	ret = mtd_device_parse_register(mtd, part_probe_types, NULL, NULL, 0);
+	if (ret)
+		goto cleanup_nand;
 
 	dev_info(priv->dev, "IFC NAND device at 0x%llx, bank %d\n",
 		 (unsigned long long)res.start, priv->bank);
+
 	return 0;
 
+cleanup_nand:
+	nand_cleanup(&priv->chip);
 err:
 	fsl_ifc_chip_remove(priv);
+
 	return ret;
 }
 
 static int fsl_ifc_nand_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_mtd *priv = dev_get_drvdata(&dev->dev);
+	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
+	nand_release(mtd);
 	fsl_ifc_chip_remove(priv);
 
 	mutex_lock(&fsl_ifc_nand_mutex);
