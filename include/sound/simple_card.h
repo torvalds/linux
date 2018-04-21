@@ -35,4 +35,6 @@ struct asoc_simple_card_info {
 	struct asoc_simple_dai codec_dai;
 };
 
+struct snd_soc_jack *asoc_simple_card_get_hp_jack(void);
+
 #endif /* __SIMPLE_CARD_H */
