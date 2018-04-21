@@ -990,18 +990,13 @@ static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
 					  int val)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret;
 
 	if (chan->type == IIO_INTENSITY)
 		chip->settings.als_interrupt_en = val ? true : false;
 	else
 		chip->settings.prox_interrupt_en = val ? true : false;
 
-	ret = tsl2x7x_invoke_change(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return tsl2x7x_invoke_change(indio_dev);
 }
 
 static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
