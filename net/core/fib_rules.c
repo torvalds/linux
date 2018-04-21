@@ -469,14 +469,18 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (frh->src_len)
 		if (!tb[FRA_SRC] ||
 		    frh->src_len > (ops->addr_size * 8) ||
-		    nla_len(tb[FRA_SRC]) != ops->addr_size)
+		    nla_len(tb[FRA_SRC]) != ops->addr_size) {
+			NL_SET_ERR_MSG(extack, "Invalid source address");
 			goto errout;
+	}
 
 	if (frh->dst_len)
 		if (!tb[FRA_DST] ||
 		    frh->dst_len > (ops->addr_size * 8) ||
-		    nla_len(tb[FRA_DST]) != ops->addr_size)
+		    nla_len(tb[FRA_DST]) != ops->addr_size) {
+			NL_SET_ERR_MSG(extack, "Invalid dst address");
 			goto errout;
+	}
 
 	nlrule = kzalloc(ops->rule_size, GFP_KERNEL);
 	if (!nlrule) {
@@ -537,6 +541,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->l3mdev = nla_get_u8(tb[FRA_L3MDEV]);
 		if (nlrule->l3mdev != 1)
 #endif
+			NL_SET_ERR_MSG(extack, "Invalid l3mdev");
 			goto errout_free;
 	}
 
@@ -554,31 +559,41 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->suppress_ifgroup = -1;
 
 	if (tb[FRA_GOTO]) {
-		if (nlrule->action != FR_ACT_GOTO)
+		if (nlrule->action != FR_ACT_GOTO) {
+			NL_SET_ERR_MSG(extack, "Unexpected goto");
 			goto errout_free;
+		}
 
 		nlrule->target = nla_get_u32(tb[FRA_GOTO]);
 		/* Backward jumps are prohibited to avoid endless loops */
-		if (nlrule->target <= nlrule->pref)
+		if (nlrule->target <= nlrule->pref) {
+			NL_SET_ERR_MSG(extack, "Backward goto not supported");
 			goto errout_free;
+		}
 	} else if (nlrule->action == FR_ACT_GOTO) {
+		NL_SET_ERR_MSG(extack, "Missing goto target for action goto");
 		goto errout_free;
 	}
 
-	if (nlrule->l3mdev && nlrule->table)
+	if (nlrule->l3mdev && nlrule->table) {
+		NL_SET_ERR_MSG(extack, "l3mdev and table are mutually exclusive");
 		goto errout_free;
+	}
 
 	if (tb[FRA_UID_RANGE]) {
 		if (current_user_ns() != net->user_ns) {
 			err = -EPERM;
+			NL_SET_ERR_MSG(extack, "No permission to set uid");
 			goto errout_free;
 		}
 
 		nlrule->uid_range = nla_get_kuid_range(tb);
 
 		if (!uid_range_set(&nlrule->uid_range) ||
-		    !uid_lte(nlrule->uid_range.start, nlrule->uid_range.end))
+		    !uid_lte(nlrule->uid_range.start, nlrule->uid_range.end)) {
+			NL_SET_ERR_MSG(extack, "Invalid uid range");
 			goto errout_free;
+		}
 	} else {
 		nlrule->uid_range = fib_kuid_range_unset;
 	}
@@ -589,15 +604,19 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[FRA_SPORT_RANGE]) {
 		err = nla_get_port_range(tb[FRA_SPORT_RANGE],
 					 &nlrule->sport_range);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG(extack, "Invalid sport range");
 			goto errout_free;
+		}
 	}
 
 	if (tb[FRA_DPORT_RANGE]) {
 		err = nla_get_port_range(tb[FRA_DPORT_RANGE],
 					 &nlrule->dport_range);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG(extack, "Invalid dport range");
 			goto errout_free;
+		}
 	}
 
 	*rule = nlrule;
@@ -621,18 +640,23 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err = -EINVAL, unresolved = 0;
 	bool user_priority = false;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh))) {
+		NL_SET_ERR_MSG(extack, "Invalid msg length");
 		goto errout;
+	}
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (!ops) {
 		err = -EAFNOSUPPORT;
+		NL_SET_ERR_MSG(extack, "Rule family not supported");
 		goto errout;
 	}
 
 	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy, extack);
-	if (err < 0)
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Error parsing msg");
 		goto errout;
+	}
 
 	err = fib_nl2rule(skb, nlh, extack, ops, tb, &rule, &user_priority);
 	if (err)
@@ -644,7 +668,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout_free;
 	}
 
-	err = ops->configure(rule, skb, frh, tb);
+	err = ops->configure(rule, skb, frh, tb, extack);
 	if (err < 0)
 		goto errout_free;
 
@@ -723,18 +747,23 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err = -EINVAL;
 	bool user_priority = false;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh))) {
+		NL_SET_ERR_MSG(extack, "Invalid msg length");
 		goto errout;
+	}
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
 		err = -EAFNOSUPPORT;
+		NL_SET_ERR_MSG(extack, "Rule family not supported");
 		goto errout;
 	}
 
 	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy, extack);
-	if (err < 0)
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Error parsing msg");
 		goto errout;
+	}
 
 	err = fib_nl2rule(skb, nlh, extack, ops, tb, &nlrule, &user_priority);
 	if (err)
