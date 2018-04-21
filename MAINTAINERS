@@ -1373,7 +1373,8 @@ F:	arch/arm/mach-ebsa110/
 F:	drivers/net/ethernet/amd/am79c961a.*
 
 ARM/ENERGY MICRO (SILICON LABS) EFM32 SUPPORT
-M:	Uwe Kleine-König <kernel@pengutronix.de>
+M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	efm32
@@ -1401,7 +1402,8 @@ F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Fabio Estevam <fabio.estevam@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -1416,7 +1418,8 @@ F:	include/soc/imx/
 
 ARM/FREESCALE VYBRID ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Stefan Agner <stefan@agner.ch>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -5652,7 +5655,8 @@ F:	drivers/net/ethernet/freescale/fec.h
 F:	Documentation/devicetree/bindings/net/fsl-fec.txt
 
 FREESCALE IMX / MXC FRAMEBUFFER DRIVER
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -12825,7 +12829,8 @@ F:	include/linux/siphash.h
 
 SIOX
 M:	Gavin Schenk <g.schenk@eckelmann.de>
-M:	Uwe Kleine-König <kernel@pengutronix.de>
+M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 S:	Supported
 F:	drivers/siox/*
 F:	include/trace/events/siox.h
