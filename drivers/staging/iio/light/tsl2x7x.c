@@ -209,11 +209,11 @@ static const struct tsl2x7x_lux *tsl2x7x_default_lux_table_group[] = {
 };
 
 static const struct tsl2x7x_settings tsl2x7x_default_settings = {
-	.als_time = 219, /* 101 ms */
+	.als_time = 255, /* 2.73 ms */
 	.als_gain = 0,
-	.prox_time = 254, /* 5.4 ms */
+	.prox_time = 255, /* 2.73 ms */
 	.prox_gain = 0,
-	.wait_time = 245,
+	.wait_time = 255,
 	.prox_config = 0,
 	.als_gain_trim = 1000,
 	.als_cal_target = 150,
