@@ -64,7 +64,7 @@
 #define TSL2X7X_PRX_MAXTHRESHLO		0X0A
 #define TSL2X7X_PRX_MAXTHRESHHI		0X0B
 #define TSL2X7X_PERSISTENCE		0x0C
-#define TSL2X7X_PRX_CONFIG		0x0D
+#define TSL2X7X_ALS_PRX_CONFIG		0x0D
 #define TSL2X7X_PRX_COUNT		0x0E
 #define TSL2X7X_GAIN			0x0F
 #define TSL2X7X_NOTUSED			0x10
@@ -215,7 +215,7 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.prox_time = 255, /* 2.73 ms */
 	.prox_gain = 0,
 	.wait_time = 255,
-	.prox_config = 0,
+	.als_prox_config = 0,
 	.als_gain_trim = 1000,
 	.als_cal_target = 150,
 	.als_persistence = 1,
@@ -602,7 +602,8 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	/* Non calculated parameters */
 	chip->tsl2x7x_config[TSL2X7X_PRX_TIME] = chip->settings.prox_time;
 	chip->tsl2x7x_config[TSL2X7X_WAIT_TIME] = chip->settings.wait_time;
-	chip->tsl2x7x_config[TSL2X7X_PRX_CONFIG] = chip->settings.prox_config;
+	chip->tsl2x7x_config[TSL2X7X_ALS_PRX_CONFIG] =
+		chip->settings.als_prox_config;
 
 	chip->tsl2x7x_config[TSL2X7X_ALS_MINTHRESHLO] =
 		(chip->settings.als_thresh_low) & 0xFF;

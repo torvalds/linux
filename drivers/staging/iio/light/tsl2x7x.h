@@ -60,7 +60,8 @@ struct tsl2x7x_lux {
  *                          increments. Total integration time is
  *                          (256 - prx_time) * 2.73.
  *  @prox_gain:             Index into the tsl2x7x_prx_gain array.
- *  @prox_config:           Prox configuration filters.
+ *  @als_prox_config:       The value of the ALS / Proximity configuration
+ *                          register.
  *  @als_cal_target:        Known external ALS reading for calibration.
  *  @als_persistence:       H/W Filters, Number of 'out of limits' ALS readings.
  *  @als_interrupt_en:      Enable/Disable ALS interrupts
@@ -85,7 +86,7 @@ struct tsl2x7x_settings {
 	int wait_time;
 	int prox_time;
 	int prox_gain;
-	int prox_config;
+	int als_prox_config;
 	int als_cal_target;
 	u8 als_persistence;
 	bool als_interrupt_en;
