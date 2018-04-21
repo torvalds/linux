@@ -76,6 +76,8 @@
 
 #define IOMMU_REG_POLL_COUNT_FAST 1000
 
+#define IOMMU_INV_TLB_ENTIRE	BIT(4) /* invalidate tlb entire */
+
 static LIST_HEAD(iommu_dev_list);
 
 struct rk_iommu_domain {
@@ -756,7 +758,8 @@ static int rk_iommu_map_iova(struct rk_iommu_domain *rk_domain, u32 *pte_addr,
 	 * We only zap the first and last iova, since only they could have
 	 * dte or pte shared with an existing mapping.
 	 */
-	rk_iommu_zap_iova_first_last(rk_domain, iova, size);
+	if (!(prot & IOMMU_INV_TLB_ENTIRE))
+		rk_iommu_zap_iova_first_last(rk_domain, iova, size);
 
 	return 0;
 unwind:
@@ -845,6 +848,72 @@ static size_t rk_iommu_unmap(struct iommu_domain *domain, unsigned long _iova,
 	rk_iommu_zap_iova(rk_domain, iova, unmap_size);
 
 	return unmap_size;
+}
+
+static void rk_iommu_zap_tlb(struct iommu_domain *domain)
+{
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
+	struct list_head *pos;
+	int i;
+
+	mutex_lock(&rk_domain->iommus_lock);
+	list_for_each(pos, &rk_domain->iommus) {
+		struct rk_iommu *iommu;
+
+		iommu = list_entry(pos, struct rk_iommu, node);
+		rk_iommu_power_on(iommu);
+		for (i = 0; i < iommu->num_mmu; i++) {
+			rk_iommu_write(iommu->bases[i],
+				       RK_MMU_COMMAND,
+				       RK_MMU_CMD_ZAP_CACHE);
+		}
+		rk_iommu_power_off(iommu);
+	}
+	mutex_unlock(&rk_domain->iommus_lock);
+}
+
+static size_t rk_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+			 struct scatterlist *sg, unsigned int nents, int prot)
+{
+	struct scatterlist *s;
+	size_t mapped = 0;
+	unsigned int i, min_pagesz;
+	int ret;
+
+	if (unlikely(domain->ops->pgsize_bitmap == 0UL))
+		return 0;
+
+	min_pagesz = 1 << __ffs(domain->ops->pgsize_bitmap);
+
+	for_each_sg(sg, s, nents, i) {
+		phys_addr_t phys = page_to_phys(sg_page(s)) + s->offset;
+
+		/*
+		 * We are mapping on IOMMU page boundaries, so offset within
+		 * the page must be 0. However, the IOMMU may support pages
+		 * smaller than PAGE_SIZE, so s->offset may still represent
+		 * an offset of that boundary within the CPU page.
+		 */
+		if (!IS_ALIGNED(s->offset, min_pagesz))
+			goto out_err;
+
+		ret = iommu_map(domain, iova + mapped, phys, s->length,
+				prot | IOMMU_INV_TLB_ENTIRE);
+		if (ret)
+			goto out_err;
+
+		mapped += s->length;
+	}
+
+	rk_iommu_zap_tlb(domain);
+
+	return mapped;
+
+out_err:
+	/* undo mappings already done */
+	iommu_unmap(domain, iova, mapped);
+
+	return 0;
 }
 
 static struct rk_iommu *rk_iommu_from_dev(struct device *dev)
@@ -1165,7 +1234,7 @@ static const struct iommu_ops rk_iommu_ops = {
 	.detach_dev = rk_iommu_detach_device,
 	.map = rk_iommu_map,
 	.unmap = rk_iommu_unmap,
-	.map_sg = default_iommu_map_sg,
+	.map_sg = rk_iommu_map_sg,
 	.add_device = rk_iommu_add_device,
 	.remove_device = rk_iommu_remove_device,
 	.iova_to_phys = rk_iommu_iova_to_phys,
