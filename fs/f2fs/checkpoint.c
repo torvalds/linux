@@ -589,10 +589,11 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	}
 
 	err = dquot_initialize(inode);
-	if (err)
+	if (err) {
+		iput(inode);
 		goto err_out;
+	}
 
-	dquot_initialize(inode);
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */
