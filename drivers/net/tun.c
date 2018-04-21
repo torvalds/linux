@@ -1690,6 +1690,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 			return NULL;
 		case XDP_PASS:
 			delta = orig_data - xdp.data;
+			len = xdp.data_end - xdp.data;
 			break;
 		default:
 			bpf_warn_invalid_xdp_action(act);
@@ -1710,7 +1711,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	}
 
 	skb_reserve(skb, pad - delta);
-	skb_put(skb, len + delta);
+	skb_put(skb, len);
 	get_page(alloc_frag->page);
 	alloc_frag->offset += buflen;
 

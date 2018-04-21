@@ -24,8 +24,23 @@
 #define __BPF_BPF_H
 
 #include <linux/bpf.h>
+#include <stdbool.h>
 #include <stddef.h>
 
+struct bpf_create_map_attr {
+	const char *name;
+	enum bpf_map_type map_type;
+	__u32 map_flags;
+	__u32 key_size;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 numa_node;
+	__u32 btf_fd;
+	__u32 btf_key_id;
+	__u32 btf_value_id;
+};
+
+int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
 int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
 			int key_size, int value_size, int max_entries,
 			__u32 map_flags, int node);
@@ -87,4 +102,6 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
 int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
 		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt);
 int bpf_raw_tracepoint_open(const char *name, int prog_fd);
+int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
+		 bool do_log);
 #endif

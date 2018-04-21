@@ -11,11 +11,13 @@
  * General Public License for more details.
  */
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/filter.h>
 #include <linux/perf_event.h>
+#include <uapi/linux/btf.h>
 
 #include "map_in_map.h"
 
@@ -336,6 +338,52 @@ static void array_map_free(struct bpf_map *map)
 	bpf_map_area_free(array);
 }
 
+static void array_map_seq_show_elem(struct bpf_map *map, void *key,
+				    struct seq_file *m)
+{
+	void *value;
+
+	rcu_read_lock();
+
+	value = array_map_lookup_elem(map, key);
+	if (!value) {
+		rcu_read_unlock();
+		return;
+	}
+
+	seq_printf(m, "%u: ", *(u32 *)key);
+	btf_type_seq_show(map->btf, map->btf_value_id, value, m);
+	seq_puts(m, "\n");
+
+	rcu_read_unlock();
+}
+
+static int array_map_check_btf(const struct bpf_map *map, const struct btf *btf,
+			       u32 btf_key_id, u32 btf_value_id)
+{
+	const struct btf_type *key_type, *value_type;
+	u32 key_size, value_size;
+	u32 int_data;
+
+	key_type = btf_type_id_size(btf, &btf_key_id, &key_size);
+	if (!key_type || BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
+		return -EINVAL;
+
+	int_data = *(u32 *)(key_type + 1);
+	/* bpf array can only take a u32 key.  This check makes
+	 * sure that the btf matches the attr used during map_create.
+	 */
+	if (BTF_INT_BITS(int_data) != 32 || key_size != 4 ||
+	    BTF_INT_OFFSET(int_data))
+		return -EINVAL;
+
+	value_type = btf_type_id_size(btf, &btf_value_id, &value_size);
+	if (!value_type || value_size > map->value_size)
+		return -EINVAL;
+
+	return 0;
+}
+
 const struct bpf_map_ops array_map_ops = {
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
@@ -345,6 +393,8 @@ const struct bpf_map_ops array_map_ops = {
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
 	.map_gen_lookup = array_map_gen_lookup,
+	.map_seq_show_elem = array_map_seq_show_elem,
+	.map_check_btf = array_map_check_btf,
 };
 
 const struct bpf_map_ops percpu_array_map_ops = {

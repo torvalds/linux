@@ -78,6 +78,7 @@ int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
 const char *bpf_object__name(struct bpf_object *obj);
 unsigned int bpf_object__kversion(struct bpf_object *obj);
+int bpf_object__btf_fd(const struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
@@ -185,6 +186,7 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n);
  */
 int bpf_program__set_socket_filter(struct bpf_program *prog);
 int bpf_program__set_tracepoint(struct bpf_program *prog);
+int bpf_program__set_raw_tracepoint(struct bpf_program *prog);
 int bpf_program__set_kprobe(struct bpf_program *prog);
 int bpf_program__set_sched_cls(struct bpf_program *prog);
 int bpf_program__set_sched_act(struct bpf_program *prog);
@@ -194,6 +196,7 @@ void bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type);
 
 bool bpf_program__is_socket_filter(struct bpf_program *prog);
 bool bpf_program__is_tracepoint(struct bpf_program *prog);
+bool bpf_program__is_raw_tracepoint(struct bpf_program *prog);
 bool bpf_program__is_kprobe(struct bpf_program *prog);
 bool bpf_program__is_sched_cls(struct bpf_program *prog);
 bool bpf_program__is_sched_act(struct bpf_program *prog);
@@ -239,6 +242,8 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 int bpf_map__fd(struct bpf_map *map);
 const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
 const char *bpf_map__name(struct bpf_map *map);
+uint32_t bpf_map__btf_key_id(const struct bpf_map *map);
+uint32_t bpf_map__btf_value_id(const struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,

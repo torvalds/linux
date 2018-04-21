@@ -45,6 +45,7 @@
 
 #include "libbpf.h"
 #include "bpf.h"
+#include "btf.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -212,6 +213,8 @@ struct bpf_map {
 	char *name;
 	size_t offset;
 	struct bpf_map_def def;
+	uint32_t btf_key_id;
+	uint32_t btf_value_id;
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 };
@@ -255,6 +258,8 @@ struct bpf_object {
 	 * all objects.
 	 */
 	struct list_head list;
+
+	struct btf *btf;
 
 	void *priv;
 	bpf_object_clear_priv_t clear_priv;
@@ -819,7 +824,15 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 							data->d_size);
 		else if (strcmp(name, "maps") == 0)
 			obj->efile.maps_shndx = idx;
-		else if (sh.sh_type == SHT_SYMTAB) {
+		else if (strcmp(name, BTF_ELF_SEC) == 0) {
+			obj->btf = btf__new(data->d_buf, data->d_size,
+					    __pr_debug);
+			if (IS_ERR(obj->btf)) {
+				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
+					   BTF_ELF_SEC, PTR_ERR(obj->btf));
+				obj->btf = NULL;
+			}
+		} else if (sh.sh_type == SHT_SYMTAB) {
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
@@ -996,33 +1009,126 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 	return 0;
 }
 
+static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
+{
+	struct bpf_map_def *def = &map->def;
+	const size_t max_name = 256;
+	int64_t key_size, value_size;
+	int32_t key_id, value_id;
+	char name[max_name];
+
+	/* Find key type by name from BTF */
+	if (snprintf(name, max_name, "%s_key", map->name) == max_name) {
+		pr_warning("map:%s length of BTF key_type:%s_key is too long\n",
+			   map->name, map->name);
+		return -EINVAL;
+	}
+
+	key_id = btf__find_by_name(btf, name);
+	if (key_id < 0) {
+		pr_debug("map:%s key_type:%s cannot be found in BTF\n",
+			 map->name, name);
+		return key_id;
+	}
+
+	key_size = btf__resolve_size(btf, key_id);
+	if (key_size < 0) {
+		pr_warning("map:%s key_type:%s cannot get the BTF type_size\n",
+			   map->name, name);
+		return key_size;
+	}
+
+	if (def->key_size != key_size) {
+		pr_warning("map:%s key_type:%s has BTF type_size:%ld != key_size:%u\n",
+			   map->name, name, key_size, def->key_size);
+		return -EINVAL;
+	}
+
+	/* Find value type from BTF */
+	if (snprintf(name, max_name, "%s_value", map->name) == max_name) {
+		pr_warning("map:%s length of BTF value_type:%s_value is too long\n",
+			  map->name, map->name);
+		return -EINVAL;
+	}
+
+	value_id = btf__find_by_name(btf, name);
+	if (value_id < 0) {
+		pr_debug("map:%s value_type:%s cannot be found in BTF\n",
+			 map->name, name);
+		return value_id;
+	}
+
+	value_size = btf__resolve_size(btf, value_id);
+	if (value_size < 0) {
+		pr_warning("map:%s value_type:%s cannot get the BTF type_size\n",
+			   map->name, name);
+		return value_size;
+	}
+
+	if (def->value_size != value_size) {
+		pr_warning("map:%s value_type:%s has BTF type_size:%ld != value_size:%u\n",
+			   map->name, name, value_size, def->value_size);
+		return -EINVAL;
+	}
+
+	map->btf_key_id = key_id;
+	map->btf_value_id = value_id;
+
+	return 0;
+}
+
 static int
 bpf_object__create_maps(struct bpf_object *obj)
 {
+	struct bpf_create_map_attr create_attr = {};
 	unsigned int i;
+	int err;
 
 	for (i = 0; i < obj->nr_maps; i++) {
-		struct bpf_map_def *def = &obj->maps[i].def;
-		int *pfd = &obj->maps[i].fd;
+		struct bpf_map *map = &obj->maps[i];
+		struct bpf_map_def *def = &map->def;
+		int *pfd = &map->fd;
 
-		*pfd = bpf_create_map_name(def->type,
-					   obj->maps[i].name,
-					   def->key_size,
-					   def->value_size,
-					   def->max_entries,
-					   def->map_flags);
+		create_attr.name = map->name;
+		create_attr.map_type = def->type;
+		create_attr.map_flags = def->map_flags;
+		create_attr.key_size = def->key_size;
+		create_attr.value_size = def->value_size;
+		create_attr.max_entries = def->max_entries;
+		create_attr.btf_fd = 0;
+		create_attr.btf_key_id = 0;
+		create_attr.btf_value_id = 0;
+
+		if (obj->btf && !bpf_map_find_btf_info(map, obj->btf)) {
+			create_attr.btf_fd = btf__fd(obj->btf);
+			create_attr.btf_key_id = map->btf_key_id;
+			create_attr.btf_value_id = map->btf_value_id;
+		}
+
+		*pfd = bpf_create_map_xattr(&create_attr);
+		if (*pfd < 0 && create_attr.btf_key_id) {
+			pr_warning("Error in bpf_create_map_xattr(%s):%s(%d). Retrying without BTF.\n",
+				   map->name, strerror(errno), errno);
+			create_attr.btf_fd = 0;
+			create_attr.btf_key_id = 0;
+			create_attr.btf_value_id = 0;
+			map->btf_key_id = 0;
+			map->btf_value_id = 0;
+			*pfd = bpf_create_map_xattr(&create_attr);
+		}
+
 		if (*pfd < 0) {
 			size_t j;
-			int err = *pfd;
 
+			err = *pfd;
 			pr_warning("failed to create map (name: '%s'): %s\n",
-				   obj->maps[i].name,
+				   map->name,
 				   strerror(errno));
 			for (j = 0; j < i; j++)
 				zclose(obj->maps[j].fd);
 			return err;
 		}
-		pr_debug("create map %s: fd=%d\n", obj->maps[i].name, *pfd);
+		pr_debug("create map %s: fd=%d\n", map->name, *pfd);
 	}
 
 	return 0;
@@ -1641,6 +1747,7 @@ void bpf_object__close(struct bpf_object *obj)
 
 	bpf_object__elf_finish(obj);
 	bpf_object__unload(obj);
+	btf__free(obj->btf);
 
 	for (i = 0; i < obj->nr_maps; i++) {
 		zfree(&obj->maps[i].name);
@@ -1690,6 +1797,11 @@ const char *bpf_object__name(struct bpf_object *obj)
 unsigned int bpf_object__kversion(struct bpf_object *obj)
 {
 	return obj ? obj->kern_version : 0;
+}
+
+int bpf_object__btf_fd(const struct bpf_object *obj)
+{
+	return obj->btf ? btf__fd(obj->btf) : -1;
 }
 
 int bpf_object__set_priv(struct bpf_object *obj, void *priv,
@@ -1845,6 +1957,7 @@ BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
 BPF_PROG_TYPE_FNS(sched_cls, BPF_PROG_TYPE_SCHED_CLS);
 BPF_PROG_TYPE_FNS(sched_act, BPF_PROG_TYPE_SCHED_ACT);
 BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
+BPF_PROG_TYPE_FNS(raw_tracepoint, BPF_PROG_TYPE_RAW_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
@@ -1858,6 +1971,9 @@ static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	{ string, sizeof(string) - 1, ptype, atype }
 
 #define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
+
+#define BPF_S_PROG_SEC(string, ptype) \
+	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK, ptype)
 
 #define BPF_SA_PROG_SEC(string, ptype) \
 	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
@@ -1874,6 +1990,7 @@ static const struct {
 	BPF_PROG_SEC("classifier",	BPF_PROG_TYPE_SCHED_CLS),
 	BPF_PROG_SEC("action",		BPF_PROG_TYPE_SCHED_ACT),
 	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("raw_tracepoint/",	BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
@@ -1889,10 +2006,13 @@ static const struct {
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
 	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
+	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
+	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
 };
 
 #undef BPF_PROG_SEC
 #undef BPF_PROG_SEC_FULL
+#undef BPF_S_PROG_SEC
 #undef BPF_SA_PROG_SEC
 
 static int bpf_program__identify_section(struct bpf_program *prog)
@@ -1927,6 +2047,16 @@ const struct bpf_map_def *bpf_map__def(struct bpf_map *map)
 const char *bpf_map__name(struct bpf_map *map)
 {
 	return map ? map->name : NULL;
+}
+
+uint32_t bpf_map__btf_key_id(const struct bpf_map *map)
+{
+	return map ? map->btf_key_id : 0;
+}
+
+uint32_t bpf_map__btf_value_id(const struct bpf_map *map)
+{
+	return map ? map->btf_value_id : 0;
 }
 
 int bpf_map__set_priv(struct bpf_map *map, void *priv,
