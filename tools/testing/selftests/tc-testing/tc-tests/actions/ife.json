@@ -1,7 +1,7 @@
 [
     {
-        "id": "a568",
-        "name": "Add action with ife type",
+        "id": "7682",
+        "name": "Create valid ife encode action with mark and pass control",
         "category": [
             "actions",
             "ife"
@@ -12,21 +12,400 @@
                 0,
                 1,
                 255
-            ],
-            "$TC actions add action ife encode type 0xDEAD index 1"
+            ]
         ],
-        "cmdUnderTest": "$TC actions get action ife index 1",
+        "cmdUnderTest": "$TC actions add action ife encode allow mark pass index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow mark.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "ef47",
+        "name": "Create valid ife encode action with mark and pipe control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 10 pipe index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use mark.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "df43",
+        "name": "Create valid ife encode action with mark and continue control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow mark continue index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*allow mark.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "e4cf",
+        "name": "Create valid ife encode action with mark and drop control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 789 drop index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action drop.*type 0xED3E.*use mark 789.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "ccba",
+        "name": "Create valid ife encode action with mark and reclassify control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 656768 reclassify index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use mark 656768.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "a1cf",
+        "name": "Create valid ife encode action with mark and jump control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 65 jump 1 index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 2",
+        "matchPattern": "action order [0-9]*: ife encode action jump 1.*type 0xED3E.*use mark 65.*index 2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "cb3d",
+        "name": "Create valid ife encode action with mark value at 32-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 4294967295 reclassify index 90",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 90",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use mark 4294967295.*index 90",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "1efb",
+        "name": "Create ife encode action with mark value exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 4294967295999 pipe index 90",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 90",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use mark 4294967295999.*index 90",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "95ed",
+        "name": "Create valid ife encode action with prio and pass control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio pass index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow prio.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "aa17",
+        "name": "Create valid ife encode action with prio and pipe control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 7 pipe index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use prio 7.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "74c7",
+        "name": "Create valid ife encode action with prio and continue control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 3 continue index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*use prio 3.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "7a97",
+        "name": "Create valid ife encode action with prio and drop control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio drop index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action drop.*type 0xED3E.*allow prio.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "f66b",
+        "name": "Create valid ife encode action with prio and reclassify control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 998877 reclassify index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use prio 998877.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "3056",
+        "name": "Create valid ife encode action with prio and jump control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 998877 jump 10 index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 9",
+        "matchPattern": "action order [0-9]*: ife encode action jump 10.*type 0xED3E.*use prio 998877.*index 9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "7dd3",
+        "name": "Create valid ife encode action with prio value at 32-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 4294967295 reclassify index 99",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 99",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use prio 4294967295.*index 99",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "2ca1",
+        "name": "Create ife encode action with prio value exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 4294967298 pipe index 99",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 99",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use prio 4294967298.*index 99",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "05bb",
+        "name": "Create valid ife encode action with tcindex and pass control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow tcindex pass index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action ife index 1",
-        "matchPattern": "type 0xDEAD",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow tcindex.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action ife"
         ]
     },
     {
-        "id": "b983",
-        "name": "Add action without ife type",
+        "id": "ce65",
+        "name": "Create valid ife encode action with tcindex and pipe control",
         "category": [
             "actions",
             "ife"
@@ -37,16 +416,649 @@
                 0,
                 1,
                 255
-            ],
-            "$TC actions add action ife encode index 1"
+            ]
         ],
-        "cmdUnderTest": "$TC actions get action ife index 1",
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 111 pipe index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action ife index 1",
-        "matchPattern": "type 0xED3E",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use tcindex 111.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action ife"
         ]
+    },
+    {
+        "id": "09cd",
+        "name": "Create valid ife encode action with tcindex and continue control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 1 continue index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*use tcindex 1.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "8eb5",
+        "name": "Create valid ife encode action with tcindex and continue control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 1 continue index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*use tcindex 1.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "451a",
+        "name": "Create valid ife encode action with tcindex and drop control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow tcindex drop index 77",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 77",
+        "matchPattern": "action order [0-9]*: ife encode action drop.*type 0xED3E.*allow tcindex.*index 77",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "d76c",
+        "name": "Create valid ife encode action with tcindex and reclassify control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow tcindex reclassify index 77",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 77",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*allow tcindex.*index 77",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "e731",
+        "name": "Create valid ife encode action with tcindex and jump control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow tcindex jump 999 index 77",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 77",
+        "matchPattern": "action order [0-9]*: ife encode action jump 999.*type 0xED3E.*allow tcindex.*index 77",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "b7b8",
+        "name": "Create valid ife encode action with tcindex value at 16-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 65535 pass index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*use tcindex 65535.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "d0d8",
+        "name": "Create ife encode action with tcindex value exceeding 16-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 65539 pipe index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use tcindex 65539.*index 1",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "2a9c",
+        "name": "Create valid ife encode action with mac src parameter",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow mark src 00:11:22:33:44:55 pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*allow mark src 00:11:22:33:44:55.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "cf5c",
+        "name": "Create valid ife encode action with mac dst parameter",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 9876 dst 00:11:22:33:44:55 reclassify index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use prio 9876 dst 00:11:22:33:44:55.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "2353",
+        "name": "Create valid ife encode action with mac src and mac dst parameters",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow tcindex src 00:aa:bb:cc:dd:ee dst 00:11:22:33:44:55 pass index 11",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 11",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow tcindex dst 00:11:22:33:44:55 src 00:aa:bb:cc:dd:ee .*index 11",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "552c",
+        "name": "Create valid ife encode action with mark and type parameters",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use mark 7 type 0xfefe pass index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xFEFE.*use mark 7.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "0421",
+        "name": "Create valid ife encode action with prio and type parameters",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use prio 444 type 0xabba pipe index 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 21",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xABBA.*use prio 444.*index 21",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "4017",
+        "name": "Create valid ife encode action with tcindex and type parameters",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode use tcindex 5000 type 0xabcd reclassify index 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 21",
+        "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xABCD.*use tcindex 5000.*index 21",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "fac3",
+        "name": "Create valid ife encode action with index at 32-bit maximnum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow mark pass index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 4294967295",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow mark.*index 4294967295",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "7c25",
+        "name": "Create valid ife decode action with pass control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode pass index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action pass.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "dccb",
+        "name": "Create valid ife decode action with pipe control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action pipe.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "7bb9",
+        "name": "Create valid ife decode action with continue control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode continue index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action continue.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "d9ad",
+        "name": "Create valid ife decode action with drop control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode drop index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action drop.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "219f",
+        "name": "Create valid ife decode action with reclassify control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode reclassify index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action reclassify.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "8f44",
+        "name": "Create valid ife decode action with jump control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife decode jump 10 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "action order [0-9]*: ife decode action jump 10.*type 0x0.*allow mark allow tcindex allow prio.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "56cf",
+        "name": "Create ife encode action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow mark pass index 4294967295999",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4294967295999",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow mark.*index 4294967295999",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "ee94",
+        "name": "Create ife encode action with invalid control",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow mark kuka index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action kuka.*type 0xED3E.*allow mark.*index 4",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "b330",
+        "name": "Create ife encode action with cookie",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio pipe index 4 cookie aabbccddeeff112233445566778800a1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*allow prio.*index 4.*cookie aabbccddeeff112233445566778800a1",
+        "matchCount": "1",
+        "teardown": [
+           "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "bbc0",
+        "name": "Create ife encode action with invalid argument",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow foo pipe index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*allow foo.*index 4",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "d54a",
+        "name": "Create ife encode action with invalid type argument",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio type 70000 pipe index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0x11170.*allow prio.*index 4",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "7ee0",
+        "name": "Create ife encode action with invalid mac src argument",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio src 00:11:22:33:44:pp pipe index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*allow prio.*index 4",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "0a7d",
+        "name": "Create ife encode action with invalid mac dst argument",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ife encode allow prio dst 00.111-22:33:44:aa pipe index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action ife index 4",
+        "matchPattern": "action order [0-9]*: ife encode action pipe.*allow prio.*index 4",
+        "matchCount": "0",
+        "teardown": []
     }
 ]
