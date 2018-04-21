@@ -279,20 +279,6 @@ static const u8 device_channel_config[] = {
 	ALSPRX2
 };
 
-static int tsl2x7x_clear_interrupts(struct tsl2X7X_chip *chip, int reg)
-{
-	int ret;
-
-	ret = i2c_smbus_write_byte(chip->client,
-				   TSL2X7X_CMD_REG | TSL2X7X_CMD_SPL_FN | reg);
-	if (ret < 0)
-		dev_err(&chip->client->dev,
-			"%s: failed to clear interrupt status %x: %d\n",
-			__func__, reg, ret);
-
-	return ret;
-}
-
 static int tsl2x7x_read_status(struct tsl2X7X_chip *chip)
 {
 	int ret;
@@ -722,9 +708,15 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_PROXALS_INT_CLR);
-	if (ret < 0)
+	ret = i2c_smbus_write_byte(chip->client,
+				   TSL2X7X_CMD_REG | TSL2X7X_CMD_SPL_FN |
+				   TSL2X7X_CMD_PROXALS_INT_CLR);
+	if (ret < 0) {
+		dev_err(&chip->client->dev,
+			"%s: failed to clear interrupt status: %d\n",
+			__func__, ret);
 		return ret;
+	}
 
 	chip->tsl2x7x_chip_status = TSL2X7X_CHIP_WORKING;
 
@@ -1349,7 +1341,13 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 			       timestamp);
 	}
 
-	tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_PROXALS_INT_CLR);
+	ret = i2c_smbus_write_byte(chip->client,
+				   TSL2X7X_CMD_REG | TSL2X7X_CMD_SPL_FN |
+				   TSL2X7X_CMD_PROXALS_INT_CLR);
+	if (ret < 0)
+		dev_err(&chip->client->dev,
+			"%s: failed to clear interrupt status: %d\n",
+			__func__, ret);
 
 	return IRQ_HANDLED;
 }
