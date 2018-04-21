@@ -926,12 +926,12 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	res = mtd_device_register(mtd, host->ncfg->parts,
 				  host->ncfg->num_parts);
 	if (res)
-		goto release_nand;
+		goto cleanup_nand;
 
 	return 0;
 
-release_nand:
-	nand_release(mtd);
+cleanup_nand:
+	nand_cleanup(chip);
 release_dma:
 	dma_release_channel(host->dma_chan);
 unprepare_clk:
