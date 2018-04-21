@@ -111,18 +111,6 @@
 #define TSL2X7X_CNTL_PROXPON_ENBL	0x0F
 #define TSL2X7X_CNTL_INTPROXPON_ENBL	0x2F
 
-/*Prox diode to use */
-#define TSL2X7X_DIODE0			0x01
-#define TSL2X7X_DIODE1			0x02
-#define TSL2X7X_DIODE_BOTH		0x03
-
-/* LED Power */
-#define TSL2X7X_100_mA			0x00
-#define TSL2X7X_50_mA			0x01
-#define TSL2X7X_25_mA			0x02
-#define TSL2X7X_13_mA			0x03
-#define TSL2X7X_MAX_TIMER_CNT		0xFF
-
 #define TSL2X7X_MIN_ITIME		3
 
 /* TAOS txx2x7x Device family members */

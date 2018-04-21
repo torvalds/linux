@@ -35,6 +35,18 @@ struct tsl2x7x_lux {
 #define TSL2X7X_DEFAULT_TABLE_BYTES (sizeof(struct tsl2x7x_lux) * \
 				     TSL2X7X_DEF_LUX_TABLE_SZ)
 
+/* Proximity diode to use */
+#define TSL2X7X_DIODE0                  0x01
+#define TSL2X7X_DIODE1                  0x02
+#define TSL2X7X_DIODE_BOTH              0x03
+
+/* LED Power */
+#define TSL2X7X_100_mA                  0x00
+#define TSL2X7X_50_mA                   0x01
+#define TSL2X7X_25_mA                   0x02
+#define TSL2X7X_13_mA                   0x03
+#define TSL2X7X_MAX_TIMER_CNT           0xFF
+
 /**
  * struct tsl2x7x_default_settings - power on defaults unless
  *                                   overridden by platform data.
