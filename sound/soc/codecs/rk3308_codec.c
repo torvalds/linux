@@ -35,8 +35,10 @@
 #include <sound/core.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/initval.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/simple_card.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
@@ -53,6 +55,7 @@
 #define ADC_LR_GROUP_MAX		4
 #define DEBUG_POP_ALWAYS		0
 #define ENABLE_AGC			0
+#define HPDET_POLL_MS			2000
 
 enum {
 	ADC_GRP0_MICIN = 0,
@@ -75,6 +78,7 @@ struct rk3308_codec_priv {
 	struct clk *mclk_tx;
 	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
+	int irq;
 	/*
 	 * To select ADCs for groups:
 	 *
@@ -88,6 +92,9 @@ struct rk3308_codec_priv {
 	int adc_zerocross;
 	/* 0: line out, 1: hp out, 11: lineout and hpout */
 	int dac_output;
+
+	bool hp_plugged;
+	struct delayed_work hpdet_work;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *dbg_codec;
@@ -1201,9 +1208,6 @@ static int rk3308_codec_power_off(struct snd_soc_codec *codec)
 
 static int rk3308_codec_headset_detect_enable(struct rk3308_codec_priv *rk3308)
 {
-	/* HACK: headset_detect bypass */
-	return 0;
-
 	/*
 	 * Set ACODEC_DAC_ANA_CON0[1] to 0x1, to enable the headset insert
 	 * detection
@@ -1220,9 +1224,6 @@ static int rk3308_codec_headset_detect_enable(struct rk3308_codec_priv *rk3308)
 
 static int rk3308_codec_headset_detect_disable(struct rk3308_codec_priv *rk3308)
 {
-	/* HACK: headset_detect bypass */
-	return 0;
-
 	/*
 	 * Set ACODEC_DAC_ANA_CON0[1] to 0x0, to disable the headset insert
 	 * detection
@@ -1570,7 +1571,6 @@ static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_ADC_CH2_MIC_UNMUTE,
 				   RK3308_ADC_CH1_MIC_UNMUTE |
 				   RK3308_ADC_CH2_MIC_UNMUTE);
-
 	/*
 	 * 3. Set ACODEC_ADC_ANA_CON6[0] to 0x1, to enable the current source
 	 * of audio
@@ -2009,8 +2009,56 @@ static bool rk3308_codec_volatile_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
-static irqreturn_t rk3308_codec_headset_isr(int irq, void *dev_id)
+static void rk3308_codec_hpdetect_work(struct work_struct *work)
 {
+	struct rk3308_codec_priv *rk3308 =
+		container_of(work, struct rk3308_codec_priv, hpdet_work.work);
+	unsigned int val;
+	int need_poll = 0, need_irq = 0;
+	int need_report = 0, report_type = 0;
+
+	regmap_read(rk3308->regmap, RK3308_DAC_DIG_CON14, &val);
+	if (!val) {
+		rk3308->hp_plugged = false;
+
+		report_type = 0;
+		need_report = 1;
+		need_irq = 1;
+	} else {
+		if (!rk3308->hp_plugged) {
+			rk3308->hp_plugged = true;
+			report_type = SND_JACK_HEADPHONE;
+			need_report = 1;
+		}
+		need_poll = 1;
+	}
+
+	if (need_poll)
+		queue_delayed_work(system_power_efficient_wq,
+				   &rk3308->hpdet_work,
+				   msecs_to_jiffies(HPDET_POLL_MS));
+
+	if (need_report)
+		snd_soc_jack_report(asoc_simple_card_get_hp_jack(),
+				    report_type,
+				    SND_JACK_HEADPHONE);
+
+	if (need_irq)
+		enable_irq(rk3308->irq);
+}
+
+static irqreturn_t rk3308_codec_hpdet_isr(int irq, void *data)
+{
+	struct rk3308_codec_priv *rk3308 = data;
+
+	/*
+	 * For the high level irq trigger, disable irq and avoid a lot of
+	 * repeated irq handlers entry.
+	 */
+	disable_irq_nosync(rk3308->irq);
+	queue_delayed_work(system_power_efficient_wq,
+			   &rk3308->hpdet_work, msecs_to_jiffies(10));
+
 	return IRQ_HANDLED;
 }
 
@@ -2306,7 +2354,6 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct regmap *grf;
 	void __iomem *base;
-	int irq;
 	int ret;
 
 	grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -2430,14 +2477,19 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	rk3308->irq = platform_get_irq(pdev, 0);
+	if (rk3308->irq < 0) {
 		dev_err(&pdev->dev, "Can not get codec irq\n");
 		goto failed;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, rk3308_codec_headset_isr,
-			       0, "headset-irq", rk3308);
+	INIT_DELAYED_WORK(&rk3308->hpdet_work, rk3308_codec_hpdetect_work);
+
+	ret = devm_request_irq(&pdev->dev, rk3308->irq,
+			       rk3308_codec_hpdet_isr,
+			       0,
+			       "acodec-hpdet",
+			       rk3308);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ: %d\n", ret);
 		goto failed;
