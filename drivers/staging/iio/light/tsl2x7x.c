@@ -1328,7 +1328,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 
 	ret = tsl2x7x_read_status(chip);
 	if (ret < 0)
-		return ret;
+		return IRQ_HANDLED;
 
 	/* What type of interrupt do we need to process */
 	if (ret & TSL2X7X_STA_PRX_INTR) {
@@ -1349,9 +1349,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 			       timestamp);
 	}
 
-	ret = tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_PROXALS_INT_CLR);
-	if (ret < 0)
-		return ret;
+	tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_PROXALS_INT_CLR);
 
 	return IRQ_HANDLED;
 }
