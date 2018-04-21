@@ -201,6 +201,7 @@ static void vc4_plane_reset(struct drm_plane *plane)
 		return;
 
 	plane->state = &vc4_state->base;
+	plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
 	vc4_state->base.plane = plane;
 }
 
@@ -467,6 +468,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	int num_planes = drm_format_num_planes(format->drm);
+	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
 	u32 lbm_size, tiling;
@@ -552,7 +554,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 0: Image Positions and Alpha Value */
 	vc4_state->pos0_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
-			VC4_SET_FIELD(0xff, SCALER_POS0_FIXED_ALPHA) |
+			VC4_SET_FIELD(state->alpha >> 8, SCALER_POS0_FIXED_ALPHA) |
 			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
 			VC4_SET_FIELD(vc4_state->crtc_y, SCALER_POS0_START_Y));
 
@@ -565,6 +567,13 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 					      SCALER_POS1_SCL_HEIGHT));
 	}
 
+	/* Don't waste cycles mixing with plane alpha if the set alpha
+	 * is opaque or there is no per-pixel alpha information.
+	 * In any case we use the alpha property value as the fixed alpha.
+	 */
+	mix_plane_alpha = state->alpha != DRM_BLEND_ALPHA_OPAQUE &&
+			  fb->format->has_alpha;
+
 	/* Position Word 2: Source Image Size, Alpha */
 	vc4_state->pos2_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
@@ -572,6 +581,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
+			(mix_plane_alpha ? SCALER_POS2_ALPHA_MIX : 0) |
 			(fb->format->has_alpha ? SCALER_POS2_ALPHA_PREMULT : 0) |
 			VC4_SET_FIELD(vc4_state->src_w[0], SCALER_POS2_WIDTH) |
 			VC4_SET_FIELD(vc4_state->src_h[0], SCALER_POS2_HEIGHT));
@@ -653,10 +663,11 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			vc4_state->crtc_w == state->crtc->mode.hdisplay &&
 			vc4_state->crtc_h == state->crtc->mode.vdisplay;
 	/* Background fill might be necessary when the plane has per-pixel
-	 * alpha content and blends from the background or does not cover
-	 * the entire screen.
+	 * alpha content or a non-opaque plane alpha and could blend from the
+	 * background or does not cover the entire screen.
 	 */
-	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen;
+	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
+				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
 
 	return 0;
 }
@@ -915,6 +926,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				       modifiers, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
+
+	drm_plane_create_alpha_property(plane);
 
 	return plane;
 }
