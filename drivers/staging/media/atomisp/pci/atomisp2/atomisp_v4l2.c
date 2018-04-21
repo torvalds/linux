@@ -1554,18 +1554,7 @@ static struct pci_driver atomisp_pci_driver = {
 	.remove = atomisp_pci_remove,
 };
 
-static int __init atomisp_init(void)
-{
-	return pci_register_driver(&atomisp_pci_driver);
-}
-
-static void __exit atomisp_exit(void)
-{
-	pci_unregister_driver(&atomisp_pci_driver);
-}
-
-module_init(atomisp_init);
-module_exit(atomisp_exit);
+module_pci_driver(atomisp_pci_driver);
 
 MODULE_AUTHOR("Wen Wang <wen.w.wang@intel.com>");
 MODULE_AUTHOR("Xiaolin Zhang <xiaolin.zhang@intel.com>");
