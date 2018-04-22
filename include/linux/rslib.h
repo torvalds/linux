@@ -50,9 +50,11 @@ struct rs_codec {
 /**
  * struct rs_control - rs control structure per instance
  * @codec:	The codec used for this instance
+ * @buffers:	Internal scratch buffers used in calls to decode_rs()
  */
 struct rs_control {
 	struct rs_codec	*codec;
+	uint16_t	buffers[0];
 };
 
 /* General purpose RS codec, 8-bit data width, symbol width 1-15 bit  */
