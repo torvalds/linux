@@ -212,7 +212,7 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 }
 
 static void
-smb2_dump_detail(void *buf)
+smb2_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
@@ -220,7 +220,8 @@ smb2_dump_detail(void *buf)
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d\n",
 		 shdr->Command, shdr->Status, shdr->Flags, shdr->MessageId,
 		 shdr->ProcessId);
-	cifs_dbg(VFS, "smb buf %p len %u\n", buf, smb2_calc_size(buf));
+	cifs_dbg(VFS, "smb buf %p len %u\n", buf,
+		 server->ops->calc_smb_size(buf));
 #endif
 }
 

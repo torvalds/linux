@@ -42,7 +42,7 @@ cifs_dump_mem(char *label, void *data, int length)
 		       data, length, true);
 }
 
-void cifs_dump_detail(void *buf)
+void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
@@ -50,7 +50,8 @@ void cifs_dump_detail(void *buf)
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d\n",
 		 smb->Command, smb->Status.CifsError,
 		 smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
-	cifs_dbg(VFS, "smb buf %p len %u\n", smb, smbCalcSize(smb));
+	cifs_dbg(VFS, "smb buf %p len %u\n", smb,
+		 server->ops->calc_smb_size(smb));
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
