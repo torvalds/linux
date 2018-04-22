@@ -297,7 +297,7 @@ struct smb2_encryption_neg_context {
 	__le16	DataLength;
 	__le32	Reserved;
 	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
-	__le16	Ciphers[2]; /* Ciphers[0] since only one used now */
+	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
 } __packed;
 
 struct smb2_negotiate_rsp {
