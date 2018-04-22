@@ -1,5 +1,5 @@
 /*
- * Pin controller and GPIO driver for Amlogic Meson8.
+ * Pin controller and GPIO driver for Amlogic Meson8 and Meson8m2.
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
  *
@@ -1078,6 +1078,14 @@ static const struct of_device_id meson8_pinctrl_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic,meson8-aobus-pinctrl",
+		.data = &meson8_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-cbus-pinctrl",
+		.data = &meson8_cbus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-aobus-pinctrl",
 		.data = &meson8_aobus_pinctrl_data,
 	},
 	{ },
