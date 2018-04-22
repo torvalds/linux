@@ -3,8 +3,10 @@
 Required properties for the root node:
  - compatible: one of "amlogic,meson8-cbus-pinctrl"
 		      "amlogic,meson8b-cbus-pinctrl"
+		      "amlogic,meson8m2-cbus-pinctrl"
 		      "amlogic,meson8-aobus-pinctrl"
 		      "amlogic,meson8b-aobus-pinctrl"
+		      "amlogic,meson8m2-aobus-pinctrl"
 		      "amlogic,meson-gxbb-periphs-pinctrl"
 		      "amlogic,meson-gxbb-aobus-pinctrl"
 		      "amlogic,meson-gxl-periphs-pinctrl"
