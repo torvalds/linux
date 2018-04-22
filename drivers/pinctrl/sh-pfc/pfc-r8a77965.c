@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R8A77965 processor support - PFC hardware block.
  *
