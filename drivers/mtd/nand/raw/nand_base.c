@@ -6630,24 +6630,26 @@ EXPORT_SYMBOL(nand_scan_tail);
 #endif
 
 /**
- * nand_scan - [NAND Interface] Scan for the NAND device
+ * nand_scan_with_ids - [NAND Interface] Scan for the NAND device
  * @mtd: MTD device structure
  * @maxchips: number of chips to scan for
+ * @ids: optional flash IDs table
  *
  * This fills out all the uninitialized function pointers with the defaults.
  * The flash ID is read and the mtd/chip structures are filled with the
  * appropriate values.
  */
-int nand_scan(struct mtd_info *mtd, int maxchips)
+int nand_scan_with_ids(struct mtd_info *mtd, int maxchips,
+		       struct nand_flash_dev *ids)
 {
 	int ret;
 
-	ret = nand_scan_ident(mtd, maxchips, NULL);
+	ret = nand_scan_ident(mtd, maxchips, ids);
 	if (!ret)
 		ret = nand_scan_tail(mtd);
 	return ret;
 }
-EXPORT_SYMBOL(nand_scan);
+EXPORT_SYMBOL(nand_scan_with_ids);
 
 /**
  * nand_cleanup - [NAND Interface] Free resources held by the NAND device

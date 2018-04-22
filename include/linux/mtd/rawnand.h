@@ -28,7 +28,14 @@ struct nand_flash_dev;
 struct device_node;
 
 /* Scan and identify a NAND device */
-int nand_scan(struct mtd_info *mtd, int max_chips);
+int nand_scan_with_ids(struct mtd_info *mtd, int max_chips,
+		       struct nand_flash_dev *ids);
+
+static inline int nand_scan(struct mtd_info *mtd, int max_chips)
+{
+	return nand_scan_with_ids(mtd, max_chips, NULL);
+}
+
 /*
  * Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type.
