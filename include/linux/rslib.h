@@ -41,15 +41,15 @@
  * @list:	List entry for the rs control list
 */
 struct rs_control {
-	int 		mm;
-	int 		nn;
+	int		mm;
+	int		nn;
 	uint16_t	*alpha_to;
 	uint16_t	*index_of;
 	uint16_t	*genpoly;
-	int 		nroots;
-	int 		fcr;
-	int 		prim;
-	int 		iprim;
+	int		nroots;
+	int		fcr;
+	int		prim;
+	int		iprim;
 	int		gfpoly;
 	int		(*gffunc)(int);
 	int		users;
