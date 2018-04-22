@@ -10,6 +10,7 @@
  * Generic data width independent code which is included by the wrappers.
  */
 {
+	struct rs_codec *rs = rsc->codec;
 	int deg_lambda, el, deg_omega;
 	int i, j, r, k, pad;
 	int nn = rs->nn;
