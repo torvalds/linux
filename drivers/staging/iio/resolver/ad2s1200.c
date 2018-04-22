@@ -38,7 +38,7 @@ struct ad2s1200_state {
 	struct spi_device *sdev;
 	int sample;
 	int rdvel;
-	u8 rx[2] ____cacheline_aligned;
+	__be16 rx ____cacheline_aligned;
 };
 
 static int ad2s1200_read_raw(struct iio_dev *indio_dev,
@@ -49,7 +49,6 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad2s1200_state *st = iio_priv(indio_dev);
 	int ret = 0;
-	s16 vel;
 
 	mutex_lock(&st->lock);
 	gpio_set_value(st->sample, 0);
@@ -59,7 +58,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 	gpio_set_value(st->sample, 1);
 	gpio_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
 
-	ret = spi_read(st->sdev, st->rx, 2);
+	ret = spi_read(st->sdev, &st->rx, 2);
 	if (ret < 0) {
 		mutex_unlock(&st->lock);
 		return ret;
@@ -67,12 +66,10 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 
 	switch (chan->type) {
 	case IIO_ANGL:
-		*val = (((u16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
+		*val = be16_to_cpup(&st->rx) >> 4;
 		break;
 	case IIO_ANGL_VEL:
-		vel = (((s16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
-		vel = sign_extend32(vel, 11);
-		*val = vel;
+		*val = sign_extend32(be16_to_cpup(&st->rx) >> 4, 11);
 		break;
 	default:
 		mutex_unlock(&st->lock);
