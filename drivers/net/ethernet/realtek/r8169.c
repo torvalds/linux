@@ -2483,7 +2483,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
-				    struct net_device *dev, u8 default_version)
+				    u8 default_version)
 {
 	/*
 	 * The driver currently handles the 8168Bf and the 8168Be identically
@@ -2588,8 +2588,8 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	tp->mac_version = p->mac_version;
 
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
-		netif_notice(tp, probe, dev,
-			     "unknown MAC, using family default\n");
+		dev_notice(tp_to_dev(tp),
+			   "unknown MAC, using family default\n");
 		tp->mac_version = default_version;
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_42) {
 		tp->mac_version = tp->mii.supports_gmii ?
@@ -8107,40 +8107,39 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
 	if (rc < 0) {
-		netif_err(tp, probe, dev, "enable failure\n");
+		dev_err(&pdev->dev, "enable failure\n");
 		return rc;
 	}
 
 	if (pcim_set_mwi(pdev) < 0)
-		netif_info(tp, probe, dev, "Mem-Wr-Inval unavailable\n");
+		dev_info(&pdev->dev, "Mem-Wr-Inval unavailable\n");
 
 	/* use first MMIO region */
 	region = ffs(pci_select_bars(pdev, IORESOURCE_MEM)) - 1;
 	if (region < 0) {
-		netif_err(tp, probe, dev, "no MMIO resource found\n");
+		dev_err(&pdev->dev, "no MMIO resource found\n");
 		return -ENODEV;
 	}
 
 	/* check for weird/broken PCI region reporting */
 	if (pci_resource_len(pdev, region) < R8169_REGS_SIZE) {
-		netif_err(tp, probe, dev,
-			  "Invalid PCI region size(s), aborting\n");
+		dev_err(&pdev->dev, "Invalid PCI region size(s), aborting\n");
 		return -ENODEV;
 	}
 
 	rc = pcim_iomap_regions(pdev, BIT(region), MODULENAME);
 	if (rc < 0) {
-		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
+		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
 		return rc;
 	}
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
 	if (!pci_is_pcie(pdev))
-		netif_info(tp, probe, dev, "not PCI Express\n");
+		dev_info(&pdev->dev, "not PCI Express\n");
 
 	/* Identify chip attached to board */
-	rtl8169_get_mac_version(tp, dev, cfg->default_ver);
+	rtl8169_get_mac_version(tp, cfg->default_ver);
 
 	tp->cp_cmd = 0;
 
@@ -8157,7 +8156,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc < 0) {
-			netif_err(tp, probe, dev, "DMA configuration failed\n");
+			dev_err(&pdev->dev, "DMA configuration failed\n");
 			return rc;
 		}
 	}
@@ -8185,7 +8184,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = rtl_alloc_irq(tp);
 	if (rc < 0) {
-		netif_err(tp, probe, dev, "Can't allocate interrupt\n");
+		dev_err(&pdev->dev, "Can't allocate interrupt\n");
 		return rc;
 	}
 
