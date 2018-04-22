@@ -233,7 +233,7 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 		return 1;
 	}
 
-	clc_len = smb2_calc_size(hdr);
+	clc_len = smb2_calc_size(hdr, srvr);
 
 #ifdef CONFIG_CIFS_SMB311
 	if (shdr->Command == SMB2_NEGOTIATE)
@@ -403,7 +403,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
  * portion, the number of word parameters and the data portion of the message.
  */
 unsigned int
-smb2_calc_size(void *buf)
+smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 {
 	struct smb2_pdu *pdu = (struct smb2_pdu *)buf;
 	struct smb2_hdr *hdr = &pdu->hdr;
@@ -411,7 +411,7 @@ smb2_calc_size(void *buf)
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
 	/* Structure Size has already been checked to make sure it is 64 */
-	int len = 4 + le16_to_cpu(shdr->StructureSize);
+	int len = srvr->vals->header_preamble_size + le16_to_cpu(shdr->StructureSize);
 
 	/*
 	 * StructureSize2, ie length of fixed parameter area has already
@@ -433,12 +433,12 @@ smb2_calc_size(void *buf)
 		 * so we must add one to the calculation (and 4 to account for
 		 * the size of the RFC1001 hdr.
 		 */
-		if (offset + 4 + 1 < len) {
-			cifs_dbg(VFS, "data area offset %d overlaps SMB2 header %d\n",
-				 offset + 4 + 1, len);
+		if (offset + srvr->vals->header_preamble_size + 1 < len) {
+			cifs_dbg(VFS, "data area offset %zu overlaps SMB2 header %d\n",
+				 offset + srvr->vals->header_preamble_size + 1, len);
 			data_length = 0;
 		} else {
-			len = 4 + offset + data_length;
+			len = srvr->vals->header_preamble_size + offset + data_length;
 		}
 	}
 calc_size_exit:

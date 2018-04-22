@@ -372,7 +372,7 @@ struct smb_version_operations {
 	int (*close_dir)(const unsigned int, struct cifs_tcon *,
 			 struct cifs_fid *);
 	/* calculate a size of SMB message */
-	unsigned int (*calc_smb_size)(void *);
+	unsigned int (*calc_smb_size)(void *buf, struct TCP_Server_Info *ptcpi);
 	/* check for STATUS_PENDING and process it in a positive case */
 	bool (*is_status_pending)(char *, struct TCP_Server_Info *, int);
 	/* check for STATUS_NETWORK_SESSION_EXPIRED */
