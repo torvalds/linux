@@ -1522,6 +1522,22 @@ err_init_queue:
 	return ret;
 }
 
+/**
+ * spi_flush_queue - Send all pending messages in the queue from the callers'
+ *		     context
+ * @ctlr: controller to process queue for
+ *
+ * This should be used when one wants to ensure all pending messages have been
+ * sent before doing something. Is used by the spi-mem code to make sure SPI
+ * memory operations do not preempt regular SPI transfers that have been queued
+ * before the spi-mem operation.
+ */
+void spi_flush_queue(struct spi_controller *ctlr)
+{
+	if (ctlr->transfer == spi_queued_transfer)
+		__spi_pump_messages(ctlr, false);
+}
+
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_OF)
