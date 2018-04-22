@@ -59,19 +59,20 @@ static DEFINE_MUTEX(rslistlock);
  * @fcr:	first root of RS code generator polynomial, index form
  * @prim:	primitive element to generate polynomial roots
  * @nroots:	RS code generator polynomial degree (number of roots)
+ * @gfp:	GFP_ flags for allocations
  *
  * Allocate a control structure and the polynom arrays for faster
  * en/decoding. Fill the arrays according to the given parameters.
  */
 static struct rs_control *rs_init(int symsize, int gfpoly, int (*gffunc)(int),
-                                  int fcr, int prim, int nroots)
+				  int fcr, int prim, int nroots, gfp_t gfp)
 {
 	struct rs_control *rs;
 	int i, j, sr, root, iprim;
 
 	/* Allocate the control structure */
-	rs = kmalloc(sizeof (struct rs_control), GFP_KERNEL);
-	if (rs == NULL)
+	rs = kmalloc(sizeof(*rs), gfp);
+	if (!rs)
 		return NULL;
 
 	INIT_LIST_HEAD(&rs->list);
@@ -85,15 +86,15 @@ static struct rs_control *rs_init(int symsize, int gfpoly, int (*gffunc)(int),
 	rs->gffunc = gffunc;
 
 	/* Allocate the arrays */
-	rs->alpha_to = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
+	rs->alpha_to = kmalloc(sizeof(uint16_t) * (rs->nn + 1), gfp);
 	if (rs->alpha_to == NULL)
 		goto errrs;
 
-	rs->index_of = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
+	rs->index_of = kmalloc(sizeof(uint16_t) * (rs->nn + 1), gfp);
 	if (rs->index_of == NULL)
 		goto erralp;
 
-	rs->genpoly = kmalloc(sizeof(uint16_t) * (rs->nroots + 1), GFP_KERNEL);
+	rs->genpoly = kmalloc(sizeof(uint16_t) * (rs->nroots + 1), gfp);
 	if(rs->genpoly == NULL)
 		goto erridx;
 
@@ -181,6 +182,7 @@ void free_rs(struct rs_control *rs)
 	}
 	mutex_unlock(&rslistlock);
 }
+EXPORT_SYMBOL_GPL(free_rs);
 
 /**
  * init_rs_internal - Find a matching or allocate a new rs control structure
@@ -195,13 +197,14 @@ void free_rs(struct rs_control *rs)
  *		in index form
  *  @prim:	primitive element to generate polynomial roots
  *  @nroots:	RS code generator polynomial degree (number of roots)
+ *  @gfp:	GFP_ flags for allocations
  */
 static struct rs_control *init_rs_internal(int symsize, int gfpoly,
-                                           int (*gffunc)(int), int fcr,
-                                           int prim, int nroots)
+					   int (*gffunc)(int), int fcr,
+					   int prim, int nroots, gfp_t gfp)
 {
-	struct list_head	*tmp;
-	struct rs_control	*rs;
+	struct list_head *tmp;
+	struct rs_control *rs;
 
 	/* Sanity checks */
 	if (symsize < 1)
@@ -236,7 +239,7 @@ static struct rs_control *init_rs_internal(int symsize, int gfpoly,
 	}
 
 	/* Create a new one */
-	rs = rs_init(symsize, gfpoly, gffunc, fcr, prim, nroots);
+	rs = rs_init(symsize, gfpoly, gffunc, fcr, prim, nroots, gfp);
 	if (rs) {
 		rs->users = 1;
 		list_add(&rs->list, &rslist);
@@ -247,7 +250,7 @@ out:
 }
 
 /**
- * init_rs - Find a matching or allocate a new rs control structure
+ * init_rs_gfp - Find a matching or allocate a new rs control structure
  *  @symsize:	the symbol size (number of bits)
  *  @gfpoly:	the extended Galois field generator polynomial coefficients,
  *		with the 0th coefficient in the low order bit. The polynomial
@@ -256,12 +259,14 @@ out:
  *		in index form
  *  @prim:	primitive element to generate polynomial roots
  *  @nroots:	RS code generator polynomial degree (number of roots)
+ *  @gfp:	GFP_ flags for allocations
  */
-struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
-                           int nroots)
+struct rs_control *init_rs_gfp(int symsize, int gfpoly, int fcr, int prim,
+			       int nroots, gfp_t gfp)
 {
-	return init_rs_internal(symsize, gfpoly, NULL, fcr, prim, nroots);
+	return init_rs_internal(symsize, gfpoly, NULL, fcr, prim, nroots, gfp);
 }
+EXPORT_SYMBOL_GPL(init_rs_gfp);
 
 /**
  * init_rs_non_canonical - Find a matching or allocate a new rs control
@@ -279,8 +284,10 @@ struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
 struct rs_control *init_rs_non_canonical(int symsize, int (*gffunc)(int),
                                          int fcr, int prim, int nroots)
 {
-	return init_rs_internal(symsize, 0, gffunc, fcr, prim, nroots);
+	return init_rs_internal(symsize, 0, gffunc, fcr, prim, nroots,
+				GFP_KERNEL);
 }
+EXPORT_SYMBOL_GPL(init_rs_non_canonical);
 
 #ifdef CONFIG_REED_SOLOMON_ENC8
 /**
@@ -373,10 +380,6 @@ int decode_rs16(struct rs_control *rs, uint16_t *data, uint16_t *par, int len,
 }
 EXPORT_SYMBOL_GPL(decode_rs16);
 #endif
-
-EXPORT_SYMBOL_GPL(init_rs);
-EXPORT_SYMBOL_GPL(init_rs_non_canonical);
-EXPORT_SYMBOL_GPL(free_rs);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Reed Solomon encoder/decoder");

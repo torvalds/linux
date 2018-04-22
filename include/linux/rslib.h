@@ -20,6 +20,8 @@
 #define _RSLIB_H_
 
 #include <linux/list.h>
+#include <linux/types.h>	/* for gfp_t */
+#include <linux/gfp.h>		/* for GFP_KERNEL */
 
 /**
  * struct rs_control - rs control structure
@@ -77,10 +79,30 @@ int decode_rs16(struct rs_control *rs, uint16_t *data, uint16_t *par, int len,
 #endif
 
 /* Create or get a matching rs control structure */
-struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
-			   int nroots);
+struct rs_control *init_rs_gfp(int symsize, int gfpoly, int fcr, int prim,
+			       int nroots, gfp_t gfp);
+
+/**
+ * init_rs - Create a RS control struct and initialize it
+ *  @symsize:	the symbol size (number of bits)
+ *  @gfpoly:	the extended Galois field generator polynomial coefficients,
+ *		with the 0th coefficient in the low order bit. The polynomial
+ *		must be primitive;
+ *  @fcr:	the first consecutive root of the rs code generator polynomial
+ *		in index form
+ *  @prim:	primitive element to generate polynomial roots
+ *  @nroots:	RS code generator polynomial degree (number of roots)
+ *
+ * Allocations use GFP_KERNEL.
+ */
+static inline struct rs_control *init_rs(int symsize, int gfpoly, int fcr,
+					 int prim, int nroots)
+{
+	return init_rs_gfp(symsize, gfpoly, fcr, prim, nroots, GFP_KERNEL);
+}
+
 struct rs_control *init_rs_non_canonical(int symsize, int (*func)(int),
-                                         int fcr, int prim, int nroots);
+					 int fcr, int prim, int nroots);
 
 /* Release a rs control structure */
 void free_rs(struct rs_control *rs);
