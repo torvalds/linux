@@ -34,6 +34,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
 #include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rockchip/rockchip_sip.h>
@@ -807,6 +808,8 @@ struct rockchip_dmcfreq {
 
 	int (*set_auto_self_refresh)(u32 en);
 };
+
+static struct pm_qos_request pm_qos;
 
 /*
  * function: packaging de-skew setting to px30_ddr_dts_config_timing,
@@ -1606,8 +1609,18 @@ int rockchip_dmcfreq_wait_complete(void)
 		return 0;
 	}
 	wait_ctrl.wait_flag = -1;
+
+	/*
+	 * CPUs only enter WFI when idle to make sure that
+	 * FIQn can quick response.
+	 */
+	pm_qos_update_request(&pm_qos, 0);
+
 	wait_event_timeout(wait_ctrl.wait_wq, (wait_ctrl.wait_flag == 0),
 			   msecs_to_jiffies(wait_ctrl.wait_time_out_ms));
+
+	pm_qos_update_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
+
 	return 0;
 }
 
@@ -2985,6 +2998,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		data->touchboostpulse_duration_val *= USEC_PER_MSEC;
 	else
 		data->touchboostpulse_duration_val = 500 * USEC_PER_MSEC;
+
+	pm_qos_add_request(&pm_qos, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
 
 	ret = devfreq_add_governor(&devfreq_dmc_ondemand);
 	if (ret) {
