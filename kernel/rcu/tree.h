@@ -374,6 +374,8 @@ struct rcu_state {
 						/*  but in jiffies. */
 	unsigned long gp_activity;		/* Time of last GP kthread */
 						/*  activity in jiffies. */
+	unsigned long gp_req_activity;		/* Time of last GP request */
+						/*  in jiffies. */
 	unsigned long jiffies_stall;		/* Time at which to check */
 						/*  for CPU stalls. */
 	unsigned long jiffies_resched;		/* Time at which to resched */
