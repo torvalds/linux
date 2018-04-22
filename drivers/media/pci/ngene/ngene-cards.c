@@ -137,11 +137,6 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 		chan->dev->card_info->tuner_config[chan->number];
 	const struct stv6110x_devctl *ctl;
 
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
-
 	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
 		dev_err(pdev, "No STV6110X found!\n");
@@ -303,14 +298,6 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
-
-	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
-	/* Note: Both adapters share the same i2c bus, but the demod     */
-	/*       driver requires that each demod has its own i2c adapter */
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
 
 	chan->fe = dvb_attach(stv090x_attach, feconf, i2c,
 			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
