@@ -670,8 +670,7 @@ static int idma64_platform_remove(struct platform_device *pdev)
 
 static int idma64_pm_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_off(chip->idma64);
 	return 0;
@@ -679,8 +678,7 @@ static int idma64_pm_suspend(struct device *dev)
 
 static int idma64_pm_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_on(chip->idma64);
 	return 0;
