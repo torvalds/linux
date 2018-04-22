@@ -2117,8 +2117,9 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		rsp->gp_req_activity = jiffies;
 		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
 				       TPS("newreq"));
+	} else {
+		WRITE_ONCE(rsp->gp_flags, rsp->gp_flags & RCU_GP_FLAG_INIT);
 	}
-	WRITE_ONCE(rsp->gp_flags, rsp->gp_flags & RCU_GP_FLAG_INIT);
 	raw_spin_unlock_irq_rcu_node(rnp);
 }
 
