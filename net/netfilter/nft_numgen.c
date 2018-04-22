@@ -24,13 +24,11 @@ struct nft_ng_inc {
 	u32			modulus;
 	atomic_t		counter;
 	u32			offset;
+	struct nft_set		*map;
 };
 
-static void nft_ng_inc_eval(const struct nft_expr *expr,
-			    struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt)
+static u32 nft_ng_inc_gen(struct nft_ng_inc *priv)
 {
-	struct nft_ng_inc *priv = nft_expr_priv(expr);
 	u32 nval, oval;
 
 	do {
@@ -38,7 +36,36 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 		nval = (oval + 1 < priv->modulus) ? oval + 1 : 0;
 	} while (atomic_cmpxchg(&priv->counter, oval, nval) != oval);
 
-	regs->data[priv->dreg] = nval + priv->offset;
+	return nval + priv->offset;
+}
+
+static void nft_ng_inc_eval(const struct nft_expr *expr,
+			    struct nft_regs *regs,
+			    const struct nft_pktinfo *pkt)
+{
+	struct nft_ng_inc *priv = nft_expr_priv(expr);
+
+	regs->data[priv->dreg] = nft_ng_inc_gen(priv);
+}
+
+static void nft_ng_inc_map_eval(const struct nft_expr *expr,
+				struct nft_regs *regs,
+				const struct nft_pktinfo *pkt)
+{
+	struct nft_ng_inc *priv = nft_expr_priv(expr);
+	const struct nft_set *map = priv->map;
+	const struct nft_set_ext *ext;
+	u32 result;
+	bool found;
+
+	result = nft_ng_inc_gen(priv);
+	found = map->ops->lookup(nft_net(pkt), map, &result, &ext);
+
+	if (!found)
+		return;
+
+	nft_data_copy(&regs->data[priv->dreg],
+		      nft_set_ext_data(ext), map->dlen);
 }
 
 static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
@@ -46,6 +73,9 @@ static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
 	[NFTA_NG_MODULUS]	= { .type = NLA_U32 },
 	[NFTA_NG_TYPE]		= { .type = NLA_U32 },
 	[NFTA_NG_OFFSET]	= { .type = NLA_U32 },
+	[NFTA_NG_SET_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
+	[NFTA_NG_SET_ID]	= { .type = NLA_U32 },
 };
 
 static int nft_ng_inc_init(const struct nft_ctx *ctx,
@@ -69,6 +99,25 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, sizeof(u32));
+}
+
+static int nft_ng_inc_map_init(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr,
+			       const struct nlattr * const tb[])
+{
+	struct nft_ng_inc *priv = nft_expr_priv(expr);
+	u8 genmask = nft_genmask_next(ctx->net);
+
+	nft_ng_inc_init(ctx, expr, tb);
+
+	priv->map = nft_set_lookup_global(ctx->net, ctx->table,
+					  tb[NFTA_NG_SET_NAME],
+					  tb[NFTA_NG_SET_ID], genmask);
+
+	if (IS_ERR(priv->map))
+		return PTR_ERR(priv->map);
+
+	return 0;
 }
 
 static int nft_ng_dump(struct sk_buff *skb, enum nft_registers dreg,
@@ -95,6 +144,22 @@ static int nft_ng_inc_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	return nft_ng_dump(skb, priv->dreg, priv->modulus, NFT_NG_INCREMENTAL,
 			   priv->offset);
+}
+
+static int nft_ng_inc_map_dump(struct sk_buff *skb,
+			       const struct nft_expr *expr)
+{
+	const struct nft_ng_inc *priv = nft_expr_priv(expr);
+
+	if (nft_ng_dump(skb, priv->dreg, priv->modulus,
+			NFT_NG_INCREMENTAL, priv->offset) ||
+	    nla_put_string(skb, NFTA_NG_SET_NAME, priv->map->name))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -1;
 }
 
 struct nft_ng_random {
@@ -156,6 +221,14 @@ static const struct nft_expr_ops nft_ng_inc_ops = {
 	.dump		= nft_ng_inc_dump,
 };
 
+static const struct nft_expr_ops nft_ng_inc_map_ops = {
+	.type		= &nft_ng_type,
+	.size		= NFT_EXPR_SIZE(sizeof(struct nft_ng_inc)),
+	.eval		= nft_ng_inc_map_eval,
+	.init		= nft_ng_inc_map_init,
+	.dump		= nft_ng_inc_map_dump,
+};
+
 static const struct nft_expr_ops nft_ng_random_ops = {
 	.type		= &nft_ng_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_ng_random)),
@@ -178,6 +251,8 @@ nft_ng_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 
 	switch (type) {
 	case NFT_NG_INCREMENTAL:
+		if (tb[NFTA_NG_SET_NAME])
+			return &nft_ng_inc_map_ops;
 		return &nft_ng_inc_ops;
 	case NFT_NG_RANDOM:
 		return &nft_ng_random_ops;
