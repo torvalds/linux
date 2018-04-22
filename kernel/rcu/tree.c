@@ -3876,6 +3876,7 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	struct rcu_data *my_rdp;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
+	bool needwake;
 
 	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
 		return;  /* No callbacks to migrate. */
@@ -3887,12 +3888,15 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 		return;
 	}
 	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
-	rcu_advance_cbs(rsp, rnp_root, rdp); /* Leverage recent GPs. */
-	rcu_advance_cbs(rsp, rnp_root, my_rdp); /* Assign GP to pending CBs. */
+	/* Leverage recent GPs and set GP for new callbacks. */
+	needwake = rcu_advance_cbs(rsp, rnp_root, rdp) ||
+		   rcu_advance_cbs(rsp, rnp_root, my_rdp);
 	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
 	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) !=
 		     !rcu_segcblist_n_cbs(&my_rdp->cblist));
 	raw_spin_unlock_irqrestore_rcu_node(rnp_root, flags);
+	if (needwake)
+		rcu_gp_kthread_wake(rsp);
 	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
 		  !rcu_segcblist_empty(&rdp->cblist),
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
