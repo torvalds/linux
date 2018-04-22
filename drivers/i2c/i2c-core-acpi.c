@@ -446,7 +446,8 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret < 0)
-		dev_err(&client->adapter->dev, "i2c read failed\n");
+		dev_err(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
+			data_len, client->addr, cmd, ret);
 	else
 		memcpy(data, buffer, data_len);
 
