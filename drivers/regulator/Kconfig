@@ -855,6 +855,13 @@ config REGULATOR_TPS51632
 	  The voltage output can be configure through I2C interface or PWM
 	  interface.
 
+config REGULATOR_TPS549B22
+	tristate "TI TPS549B22 Power regulators"
+	depends on I2C
+	help
+	  This driver supports TPS549B22 voltage regulator chip.
+	  The voltage output can be configure through I2C interface.
+
 config REGULATOR_TPS6105X
 	tristate "TI TPS6105X Power regulators"
 	depends on TPS6105X
