@@ -113,6 +113,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 			goto free;
 		}
 
+		err = iova_cache_get();
+		if (err < 0)
+			goto domain;
+
 		geometry = &tegra->domain->geometry;
 		gem_start = geometry->aperture_start;
 		gem_end = geometry->aperture_end - CARVEOUT_SZ;
@@ -207,8 +211,11 @@ config:
 		mutex_destroy(&tegra->mm_lock);
 		drm_mm_takedown(&tegra->mm);
 		put_iova_domain(&tegra->carveout.domain);
-		iommu_domain_free(tegra->domain);
+		iova_cache_put();
 	}
+domain:
+	if (tegra->domain)
+		iommu_domain_free(tegra->domain);
 free:
 	kfree(tegra);
 	return err;
@@ -233,6 +240,7 @@ static void tegra_drm_unload(struct drm_device *drm)
 		mutex_destroy(&tegra->mm_lock);
 		drm_mm_takedown(&tegra->mm);
 		put_iova_domain(&tegra->carveout.domain);
+		iova_cache_put();
 		iommu_domain_free(tegra->domain);
 	}
 
