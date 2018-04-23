@@ -218,6 +218,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_display_info *di = &conn_state->connector->display_info;
 
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
@@ -229,6 +230,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
+	s->output_bpc = di->bpc;
 
 	return 0;
 }

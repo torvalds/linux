@@ -925,6 +925,12 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA && s->output_bpc == 8)
+		VOP_REG_SET(vop, common, pre_dither_down, 1);
+	else
+		VOP_REG_SET(vop, common, pre_dither_down, 0);
+
 	VOP_REG_SET(vop, common, out_mode, s->output_mode);
 
 	VOP_REG_SET(vop, modeset, htotal_pw, (htotal << 16) | hsync_len);
