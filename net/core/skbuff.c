@@ -1169,7 +1169,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	skb->head     = data;
 	skb->head_frag = 0;
-	skb->data     = data + off;
+	skb->data     = skb->head + off;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end      = size;
 	off           = nhead;
