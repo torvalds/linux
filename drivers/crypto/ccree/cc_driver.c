@@ -265,7 +265,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	if (rc) {
-		dev_err(dev, "Failed in dma_set_mask, mask=%pad\n", &dma_mask);
+		dev_err(dev, "Failed in dma_set_mask, mask=%llx\n", dma_mask);
 		return rc;
 	}
 
