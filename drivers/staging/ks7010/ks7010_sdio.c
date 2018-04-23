@@ -101,13 +101,6 @@ enum gen_com_reg_b {
 
 #define KS7010_IO_BLOCK_SIZE 512
 
-static const struct sdio_device_id ks7010_sdio_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_A, SDIO_DEVICE_ID_KS_7010)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_B, SDIO_DEVICE_ID_KS_7010)},
-	{ /* all zero */ }
-};
-MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
-
 static inline void inc_txqhead(struct ks_wlan_private *priv)
 {
 	priv->tx_dev.qhead = (priv->tx_dev.qhead + 1) % TX_DEVICE_BUFF_SIZE;
@@ -1152,6 +1145,13 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	sdio_set_drvdata(func, NULL);
 	kfree(card);
 }
+
+static const struct sdio_device_id ks7010_sdio_ids[] = {
+	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_A, SDIO_DEVICE_ID_KS_7010)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_B, SDIO_DEVICE_ID_KS_7010)},
+	{ /* all zero */ }
+};
+MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
 
 static struct sdio_driver ks7010_sdio_driver = {
 	.name = "ks7010_sdio",
