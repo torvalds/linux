@@ -362,7 +362,7 @@ config TOUCHSCREEN_HIDEEP
 
 	  If unsure, say N.
 
-	  To compile this driver as a moudle, choose M here : the
+	  To compile this driver as a module, choose M here : the
 	  module will be called hideep_ts.
 
 config TOUCHSCREEN_ILI210X
