@@ -1278,7 +1278,8 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 	return cpu_to_le16((uint16_t)capability);
 }
 
-static void init_request(struct ks_wlan_private *priv, struct hostif_request *req)
+static void init_request(struct ks_wlan_private *priv,
+			 struct hostif_request *req)
 {
 	req->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
 	req->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
