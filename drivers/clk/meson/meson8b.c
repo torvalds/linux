@@ -639,6 +639,54 @@ static struct clk_regmap meson8b_cpu_clk = {
 	},
 };
 
+static struct clk_regmap meson8b_nand_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "nand_clk_sel",
+		.ops = &clk_regmap_mux_ops,
+		/* FIXME all other parents are unknown: */
+		.parent_names = (const char *[]){ "fclk_div4", "fclk_div3",
+			"fclk_div5", "fclk_div7", "xtal" },
+		.num_parents = 5,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_nand_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset =  HHI_NAND_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "nand_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "nand_clk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_nand_clk_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "nand_clk_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "nand_clk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 
 static MESON_GATE(meson8b_ddr, HHI_GCLK_MPEG0, 0);
@@ -834,6 +882,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_FCLK_DIV4_DIV]	    = &meson8b_fclk_div4_div.hw,
 		[CLKID_FCLK_DIV5_DIV]	    = &meson8b_fclk_div5_div.hw,
 		[CLKID_FCLK_DIV7_DIV]	    = &meson8b_fclk_div7_div.hw,
+		[CLKID_NAND_SEL]	    = &meson8b_nand_clk_sel.hw,
+		[CLKID_NAND_DIV]	    = &meson8b_nand_clk_div.hw,
+		[CLKID_NAND_CLK]	    = &meson8b_nand_clk_gate.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -939,6 +990,9 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_fclk_div4,
 	&meson8b_fclk_div5,
 	&meson8b_fclk_div7,
+	&meson8b_nand_clk_sel,
+	&meson8b_nand_clk_div,
+	&meson8b_nand_clk_gate,
 };
 
 static const struct meson8b_clk_reset_line {
