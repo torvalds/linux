@@ -291,6 +291,12 @@ static void process_channel_reply(
 	value = REG_GET(AUX_SW_STATUS,
 			AUX_SW_REPLY_BYTE_COUNT, &bytes_replied);
 
+	/* in case HPD is LOW, exit AUX transaction */
+	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
+		reply->status = AUX_TRANSACTION_REPLY_HPD_DISCON;
+		return;
+	}
+
 	if (bytes_replied) {
 		uint32_t reply_result;
 
@@ -347,8 +353,10 @@ static void process_channel_reply(
 		 * because there was surely an error that was asserted
 		 * that should have been handled
 		 * for hot plug case, this could happens*/
-		if (!(value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
+		if (!(value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
+			reply->status = AUX_TRANSACTION_REPLY_INVALID;
 			ASSERT_CRITICAL(false);
+		}
 	}
 }
 
@@ -370,6 +378,10 @@ static enum aux_channel_operation_result get_channel_status(
 	/* poll to make sure that SW_DONE is asserted */
 	value = REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 1,
 				10, aux110->timeout_period/10);
+
+	/* in case HPD is LOW, exit AUX transaction */
+	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
+		return AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
 
 	/* Note that the following bits are set in 'status.bits'
 	 * during CTS 4.2.1.2 (FW 3.3.1):
@@ -402,10 +414,10 @@ static enum aux_channel_operation_result get_channel_status(
 			return AUX_CHANNEL_OPERATION_SUCCEEDED;
 		}
 	} else {
-		/*time_elapsed >= aux_engine->timeout_period */
-		if (!(value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
-			ASSERT_CRITICAL(false);
-
+		/*time_elapsed >= aux_engine->timeout_period
+		 *  AUX_SW_STATUS__AUX_SW_HPD_DISCON = at this point
+		 */
+		ASSERT_CRITICAL(false);
 		return AUX_CHANNEL_OPERATION_FAILED_TIMEOUT;
 	}
 }
