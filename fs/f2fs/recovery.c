@@ -204,8 +204,6 @@ static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
 		set_inode_flag(inode, FI_DATA_EXIST);
 	else
 		clear_inode_flag(inode, FI_DATA_EXIST);
-	if (!(ri->i_inline & F2FS_INLINE_DOTS))
-		clear_inode_flag(inode, FI_INLINE_DOTS);
 }
 
 static void recover_inode(struct inode *inode, struct page *page)
