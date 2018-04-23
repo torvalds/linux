@@ -106,20 +106,20 @@ enum copy_direction {
 	from_mem_obj,
 };
 
-int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_dma(struct rxe_pd *pd,
 		     int access, struct rxe_mem *mem);
 
-int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
+int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		      u64 length, u64 iova, int access, struct ib_udata *udata,
 		      struct rxe_mem *mr);
 
-int rxe_mem_init_fast(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_fast(struct rxe_pd *pd,
 		      int max_pages, struct rxe_mem *mem);
 
 int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr,
 		 int length, enum copy_direction dir, u32 *crcp);
 
-int copy_data(struct rxe_dev *rxe, struct rxe_pd *pd, int access,
+int copy_data(struct rxe_pd *pd, int access,
 	      struct rxe_dma_info *dma, void *addr, int length,
 	      enum copy_direction dir, u32 *crcp);
 

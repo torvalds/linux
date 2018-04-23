@@ -355,10 +355,9 @@ static inline enum comp_state do_read(struct rxe_qp *qp,
 				      struct rxe_pkt_info *pkt,
 				      struct rxe_send_wqe *wqe)
 {
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	int ret;
 
-	ret = copy_data(rxe, qp->pd, IB_ACCESS_LOCAL_WRITE,
+	ret = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE,
 			&wqe->dma, payload_addr(pkt),
 			payload_size(pkt), to_mem_obj, NULL);
 	if (ret)
@@ -374,12 +373,11 @@ static inline enum comp_state do_atomic(struct rxe_qp *qp,
 					struct rxe_pkt_info *pkt,
 					struct rxe_send_wqe *wqe)
 {
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	int ret;
 
 	u64 atomic_orig = atmack_orig(pkt);
 
-	ret = copy_data(rxe, qp->pd, IB_ACCESS_LOCAL_WRITE,
+	ret = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE,
 			&wqe->dma, &atomic_orig,
 			sizeof(u64), to_mem_obj, NULL);
 	if (ret)

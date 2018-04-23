@@ -490,7 +490,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			wqe->dma.resid -= paylen;
 			wqe->dma.sge_offset += paylen;
 		} else {
-			err = copy_data(rxe, qp->pd, 0, &wqe->dma,
+			err = copy_data(qp->pd, 0, &wqe->dma,
 					payload_addr(pkt), paylen,
 					from_mem_obj,
 					&crc);

@@ -511,9 +511,8 @@ static enum resp_states send_data_in(struct rxe_qp *qp, void *data_addr,
 				     int data_len)
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
-	err = copy_data(rxe, qp->pd, IB_ACCESS_LOCAL_WRITE, &qp->resp.wqe->dma,
+	err = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE, &qp->resp.wqe->dma,
 			data_addr, data_len, to_mem_obj, NULL);
 	if (unlikely(err))
 		return (err == -ENOSPC) ? RESPST_ERR_LENGTH
