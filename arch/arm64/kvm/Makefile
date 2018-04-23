@@ -4,6 +4,7 @@
 #
 
 ccflags-y += -I $(srctree)/$(src) -I $(srctree)/virt/kvm/arm/vgic
+CFLAGS_REMOVE_debug.o += $(CC_FLAGS_CFI)
 
 KVM=../../../virt/kvm
 
