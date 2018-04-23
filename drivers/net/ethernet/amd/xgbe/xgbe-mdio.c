@@ -432,6 +432,8 @@ static void xgbe_an73_disable(struct xgbe_prv_data *pdata)
 	xgbe_an73_set(pdata, false, false);
 	xgbe_an73_disable_interrupts(pdata);
 
+	pdata->an_start = 0;
+
 	netif_dbg(pdata, link, pdata->netdev, "CL73 AN disabled\n");
 }
 
@@ -511,11 +513,11 @@ static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
 		XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL,
 			    reg);
 
-		if (pdata->phy_if.phy_impl.kr_training_post)
-			pdata->phy_if.phy_impl.kr_training_post(pdata);
-
 		netif_dbg(pdata, link, pdata->netdev,
 			  "KR training initiated\n");
+
+		if (pdata->phy_if.phy_impl.kr_training_post)
+			pdata->phy_if.phy_impl.kr_training_post(pdata);
 	}
 
 	return XGBE_AN_PAGE_RECEIVED;
