@@ -632,6 +632,14 @@
 			status = "disabled";
 		};
 
+		rng1: rng@54003000 {
+			compatible = "st,stm32-rng";
+			reg = <0x54003000 0x400>;
+			clocks = <&rcc RNG1_K>;
+			resets = <&rcc RNG1_R>;
+			status = "disabled";
+		};
+
 		mdma1: dma@58000000 {
 			compatible = "st,stm32h7-mdma";
 			reg = <0x58000000 0x1000>;
