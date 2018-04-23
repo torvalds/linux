@@ -164,6 +164,7 @@ static bool			forever				= false;
 static bool			metric_only			= false;
 static bool			force_metric_only		= false;
 static bool			no_merge			= false;
+static bool			walltime_run_table		= false;
 static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
 static aggr_get_id_t		aggr_get_id;
@@ -173,6 +174,7 @@ static const char		*output_name;
 static int			output_fd;
 static int			print_free_counters_hint;
 static int			print_mixed_hw_group_error;
+static u64			*walltime_run;
 
 struct perf_stat {
 	bool			 record;
@@ -569,7 +571,7 @@ static struct perf_evsel *perf_evsel__reset_weak_group(struct perf_evsel *evsel)
 	return leader;
 }
 
-static int __run_perf_stat(int argc, const char **argv)
+static int __run_perf_stat(int argc, const char **argv, int run_idx)
 {
 	int interval = stat_config.interval;
 	int times = stat_config.times;
@@ -752,6 +754,9 @@ try_again:
 
 	t1 = rdclock();
 
+	if (walltime_run_table)
+		walltime_run[run_idx] = t1 - t0;
+
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	/*
@@ -766,7 +771,7 @@ try_again:
 	return WEXITSTATUS(status);
 }
 
-static int run_perf_stat(int argc, const char **argv)
+static int run_perf_stat(int argc, const char **argv, int run_idx)
 {
 	int ret;
 
@@ -779,7 +784,7 @@ static int run_perf_stat(int argc, const char **argv)
 	if (sync_run)
 		sync();
 
-	ret = __run_perf_stat(argc, argv);
+	ret = __run_perf_stat(argc, argv, run_idx);
 	if (ret)
 		return ret;
 
@@ -1772,6 +1777,27 @@ static int get_precision(double num)
 	return lround(ceil(-log10(num)));
 }
 
+static void print_table(FILE *output, int precision, double avg)
+{
+	char tmp[64];
+	int idx, indent = 0;
+
+	scnprintf(tmp, 64, " %17.*f", precision, avg);
+	while (tmp[indent] == ' ')
+		indent++;
+
+	fprintf(output, "%*s# Table of individual measurements:\n", indent, "");
+
+	for (idx = 0; idx < run_count; idx++) {
+		double run = (double) walltime_run[idx] / NSEC_PER_SEC;
+
+		fprintf(output, " %17.*f (%+.*f)\n",
+			precision, run, precision, run - avg);
+	}
+
+	fprintf(output, "\n%*s# Final result:\n", indent, "");
+}
+
 static void print_footer(void)
 {
 	double avg = avg_stats(&walltime_nsecs_stats) / NSEC_PER_SEC;
@@ -1790,6 +1816,9 @@ static void print_footer(void)
 		 * digits than the stddev inaccuracy.
 		 */
 		int precision = get_precision(sd) + 2;
+
+		if (walltime_run_table)
+			print_table(output, precision, avg);
 
 		fprintf(output, " %17.*f +- %.*f seconds time elapsed",
 			precision, avg, precision, sd);
@@ -1970,6 +1999,8 @@ static const struct option stat_options[] = {
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
 		    "repeat command and print average + stddev (max: 100, forever: 0)"),
+	OPT_BOOLEAN(0, "table", &walltime_run_table,
+		    "display details about each run (only with -r option)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
 	OPT_INCR('d', "detailed", &detailed_run,
@@ -2861,6 +2892,13 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
+	if (walltime_run_table && run_count <= 1) {
+		fprintf(stderr, "--table is only supported with -r\n");
+		parse_options_usage(stat_usage, stat_options, "r", 1);
+		parse_options_usage(NULL, stat_options, "table", 0);
+		goto out;
+	}
+
 	if (output_fd < 0) {
 		fprintf(stderr, "argument to --log-fd must be a > 0\n");
 		parse_options_usage(stat_usage, stat_options, "log-fd", 0);
@@ -2913,6 +2951,14 @@ int cmd_stat(int argc, const char **argv)
 	} else if (run_count == 0) {
 		forever = true;
 		run_count = 1;
+	}
+
+	if (walltime_run_table) {
+		walltime_run = zalloc(run_count * sizeof(walltime_run[0]));
+		if (!walltime_run) {
+			pr_err("failed to setup -r option");
+			goto out;
+		}
 	}
 
 	if ((stat_config.aggr_mode == AGGR_THREAD) &&
@@ -3030,7 +3076,7 @@ int cmd_stat(int argc, const char **argv)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
 
-		status = run_perf_stat(argc, argv);
+		status = run_perf_stat(argc, argv, run_idx);
 		if (forever && status != -1) {
 			print_counters(NULL, argc, argv);
 			perf_stat__reset_stats();
@@ -3078,6 +3124,8 @@ int cmd_stat(int argc, const char **argv)
 	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
+	free(walltime_run);
+
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);
 
