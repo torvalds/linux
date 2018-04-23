@@ -1021,7 +1021,9 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		dev_err(&card->func->dev, "Unable to alloc new net device\n");
 		goto err_release_irq;
 	}
-	if (dev_alloc_name(netdev, "wlan%d") < 0) {
+
+	ret = dev_alloc_name(netdev, "wlan%d");
+	if (ret < 0) {
 		dev_err(&card->func->dev, "Couldn't get name!\n");
 		goto err_free_netdev;
 	}
