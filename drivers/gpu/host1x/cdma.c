@@ -127,7 +127,7 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 iommu_free_iova:
 	__free_iova(&host1x->iova, alloc);
 iommu_free_mem:
-	dma_free_wc(host1x->dev, pb->alloc_size, pb->mapped, pb->phys);
+	dma_free_wc(host1x->dev, size, pb->mapped, pb->phys);
 
 	return err;
 }
