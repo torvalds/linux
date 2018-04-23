@@ -74,17 +74,17 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time time;
+
 	ts->tv_sec = 0;
 	ts->tv_nsec = 0;
 
-	if (mach_hwclk) {
-		mach_hwclk(0, &time);
+	if (!mach_hwclk)
+		return;
 
-		if ((time.tm_year += 1900) < 1970)
-			time.tm_year += 100;
-		ts->tv_sec = mktime(time.tm_year, time.tm_mon, time.tm_mday,
-				      time.tm_hour, time.tm_min, time.tm_sec);
-	}
+	mach_hwclk(0, &time);
+
+	ts->tv_sec = mktime(time.tm_year + 1900, time.tm_mon + 1, time.tm_mday,
+			    time.tm_hour, time.tm_min, time.tm_sec);
 }
 
 #if defined(CONFIG_ARCH_USES_GETTIMEOFFSET) && IS_ENABLED(CONFIG_RTC_DRV_GENERIC)
