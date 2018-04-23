@@ -668,11 +668,10 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 		if (analogix_dp_is_slave_video_stream_clock_on(dp) == 0)
 			break;
 		if (timeout_loop > DP_TIMEOUT_LOOP_COUNT) {
-			dev_err(dp->dev, "Timeout of video streamclk ok\n");
+			dev_err(dp->dev, "Timeout of slave video streamclk ok\n");
 			return -ETIMEDOUT;
 		}
-
-		usleep_range(1, 2);
+		usleep_range(1000, 1001);
 	}
 
 	/* Set to use the register calculated M/N video */
@@ -686,6 +685,9 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	/* Configure video slave mode */
 	analogix_dp_enable_video_master(dp, 0);
+
+	/* Enable video */
+	analogix_dp_start_video(dp);
 
 	timeout_loop = 0;
 
@@ -809,9 +811,6 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 		if (drm_panel_enable(dp->plat_data->panel))
 			DRM_ERROR("failed to enable the panel\n");
 	}
-
-	/* Enable video */
-	analogix_dp_start_video(dp);
 }
 
 static int analogix_dp_get_modes(struct drm_connector *connector)
