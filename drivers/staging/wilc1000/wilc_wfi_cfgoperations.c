@@ -160,12 +160,6 @@ static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
 	.n_bitrates = ARRAY_SIZE(ieee80211_bitrates),
 };
 
-struct add_key_params {
-	u8 key_idx;
-	bool pairwise;
-	u8 *mac_addr;
-};
-
 #define AGING_TIME	(9 * 1000)
 #define during_ip_time	15000
 
