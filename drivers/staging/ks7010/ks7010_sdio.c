@@ -1112,39 +1112,39 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		return;
 
 	priv = card->priv;
-	if (priv) {
-		struct net_device *netdev = priv->net_dev;
+	if (!priv)
+		goto err_free_card;
 
-		ks_wlan_net_stop(netdev);
+	ks_wlan_net_stop(priv->net_dev);
 
-		/* interrupt disable */
-		sdio_claim_host(func);
-		sdio_writeb(func, 0, INT_ENABLE_REG, &ret);
-		sdio_writeb(func, 0xff, INT_PENDING_REG, &ret);
-		sdio_release_host(func);
+	/* interrupt disable */
+	sdio_claim_host(func);
+	sdio_writeb(func, 0, INT_ENABLE_REG, &ret);
+	sdio_writeb(func, 0xff, INT_PENDING_REG, &ret);
+	sdio_release_host(func);
 
-		ret = send_stop_request(func);
-		if (ret)	/* memory allocation failure */
-			return;
+	ret = send_stop_request(func);
+	if (ret)	/* memory allocation failure */
+		goto err_free_card;
 
-		if (priv->wq) {
-			flush_workqueue(priv->wq);
-			destroy_workqueue(priv->wq);
-		}
-
-		hostif_exit(priv);
-
-		unregister_netdev(netdev);
-
-		trx_device_exit(priv);
-		free_netdev(priv->net_dev);
-		card->priv = NULL;
+	if (priv->wq) {
+		flush_workqueue(priv->wq);
+		destroy_workqueue(priv->wq);
 	}
+
+	hostif_exit(priv);
+
+	unregister_netdev(priv->net_dev);
+
+	trx_device_exit(priv);
+	free_netdev(priv->net_dev);
+	card->priv = NULL;
 
 	sdio_claim_host(func);
 	sdio_release_irq(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
+err_free_card:
 	sdio_set_drvdata(func, NULL);
 	kfree(card);
 }
