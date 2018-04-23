@@ -946,7 +946,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 	if (!ret) {
 		dev_err(&spi->dev,
 			"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
-		goto _fail_;
+		return ret;
 	}
 	tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
 
@@ -976,7 +976,6 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 
 	*int_status = tmp;
 
-_fail_:
 	return ret;
 }
 
