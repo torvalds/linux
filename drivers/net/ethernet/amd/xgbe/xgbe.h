@@ -833,6 +833,7 @@ struct xgbe_hw_if {
 /* This structure represents implementation specific routines for an
  * implementation of a PHY. All routines are required unless noted below.
  *   Optional routines:
+ *     an_pre, an_post
  *     kr_training_pre, kr_training_post
  */
 struct xgbe_phy_impl_if {
@@ -874,6 +875,10 @@ struct xgbe_phy_impl_if {
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);
+
+	/* Pre/Post auto-negotiation support */
+	void (*an_pre)(struct xgbe_prv_data *);
+	void (*an_post)(struct xgbe_prv_data *);
 
 	/* Pre/Post KR training enablement support */
 	void (*kr_training_pre)(struct xgbe_prv_data *);
