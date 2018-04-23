@@ -204,10 +204,10 @@ config:
 	drm_mode_config_cleanup(drm);
 
 	if (tegra->domain) {
-		iommu_domain_free(tegra->domain);
-		drm_mm_takedown(&tegra->mm);
 		mutex_destroy(&tegra->mm_lock);
+		drm_mm_takedown(&tegra->mm);
 		put_iova_domain(&tegra->carveout.domain);
+		iommu_domain_free(tegra->domain);
 	}
 free:
 	kfree(tegra);
@@ -230,10 +230,10 @@ static void tegra_drm_unload(struct drm_device *drm)
 		return;
 
 	if (tegra->domain) {
-		iommu_domain_free(tegra->domain);
-		drm_mm_takedown(&tegra->mm);
 		mutex_destroy(&tegra->mm_lock);
+		drm_mm_takedown(&tegra->mm);
 		put_iova_domain(&tegra->carveout.domain);
+		iommu_domain_free(tegra->domain);
 	}
 
 	kfree(tegra);
