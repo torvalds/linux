@@ -9,15 +9,12 @@
  *   published by the Free Software Foundation.
  */
 
-#include "ks_wlan.h"
-#include "ks_hostif.h"
-#include "eap_packet.h"
-#include "michael_mic.h"
-
-#include <linux/etherdevice.h>
-#include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <net/iw_handler.h>
+#include "eap_packet.h"
+#include "ks_wlan.h"
+#include "michael_mic.h"
+#include "ks_hostif.h"
 
 static inline void inc_smeqhead(struct ks_wlan_private *priv)
 {
