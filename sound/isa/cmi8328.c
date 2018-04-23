@@ -192,7 +192,7 @@ static int snd_cmi8328_mixer(struct snd_wss *chip)
 }
 
 /* find index of an item in "-1"-ended array */
-int array_find(int array[], int item)
+static int array_find(int array[], int item)
 {
 	int i;
 
@@ -203,7 +203,7 @@ int array_find(int array[], int item)
 	return -1;
 }
 /* the same for long */
-int array_find_l(long array[], long item)
+static int array_find_l(long array[], long item)
 {
 	int i;
 
