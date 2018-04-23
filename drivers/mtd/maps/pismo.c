@@ -265,7 +265,6 @@ MODULE_DEVICE_TABLE(i2c, pismo_id);
 static struct i2c_driver pismo_driver = {
 	.driver	= {
 		.name	= "pismo",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pismo_probe,
 	.remove		= pismo_remove,
