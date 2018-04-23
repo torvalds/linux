@@ -938,6 +938,14 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 
 	frame_desc->actual_length += len;
 
+	if (chan->align_buf) {
+		dev_vdbg(hsotg->dev, "non-aligned buffer\n");
+		dma_unmap_single(hsotg->dev, chan->qh->dw_align_buf_dma,
+				 DWC2_KMEM_UNALIGNED_BUF_SIZE, DMA_FROM_DEVICE);
+		memcpy(qtd->urb->buf + (chan->xfer_dma - qtd->urb->dma),
+		       chan->qh->dw_align_buf, len);
+	}
+
 	qtd->isoc_split_offset += len;
 
 	hctsiz = dwc2_readl(hsotg->regs + HCTSIZ(chnum));
