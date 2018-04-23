@@ -53,45 +53,58 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_BIT_PWR_GYRO_STBY);
 			if (result)
-				return result;
+				goto error_power_off;
 		}
 		if (st->chip_config.accl_fifo_enable) {
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_BIT_PWR_ACCL_STBY);
 			if (result)
-				return result;
+				goto error_gyro_off;
 		}
 		result = inv_reset_fifo(indio_dev);
 		if (result)
-			return result;
+			goto error_accl_off;
 	} else {
 		result = regmap_write(st->map, st->reg->fifo_en, 0);
 		if (result)
-			return result;
+			goto error_accl_off;
 
 		result = regmap_write(st->map, st->reg->int_enable, 0);
 		if (result)
-			return result;
+			goto error_accl_off;
 
 		result = regmap_write(st->map, st->reg->user_ctrl, 0);
 		if (result)
-			return result;
-
-		result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-		if (result)
-			return result;
+			goto error_accl_off;
 
 		result = inv_mpu6050_switch_engine(st, false,
 					INV_MPU6050_BIT_PWR_ACCL_STBY);
 		if (result)
-			return result;
+			goto error_accl_off;
+
+		result = inv_mpu6050_switch_engine(st, false,
+					INV_MPU6050_BIT_PWR_GYRO_STBY);
+		if (result)
+			goto error_gyro_off;
+
 		result = inv_mpu6050_set_power_itg(st, false);
 		if (result)
-			return result;
+			goto error_power_off;
 	}
 
 	return 0;
+
+error_accl_off:
+	if (st->chip_config.accl_fifo_enable)
+		inv_mpu6050_switch_engine(st, false,
+					  INV_MPU6050_BIT_PWR_ACCL_STBY);
+error_gyro_off:
+	if (st->chip_config.gyro_fifo_enable)
+		inv_mpu6050_switch_engine(st, false,
+					  INV_MPU6050_BIT_PWR_GYRO_STBY);
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
 }
 
 /**

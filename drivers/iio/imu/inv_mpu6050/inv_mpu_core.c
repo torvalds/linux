@@ -273,21 +273,21 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	d = (INV_MPU6050_FSR_2000DPS << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->gyro_config, d);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	d = INV_MPU6050_ONE_K_HZ / INV_MPU6050_INIT_FIFO_RATE - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->accl_config, d);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	result = regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	if (result)
@@ -295,8 +295,11 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
 	       sizeof(struct inv_mpu6050_chip_config));
-	result = inv_mpu6050_set_power_itg(st, false);
 
+	return inv_mpu6050_set_power_itg(st, false);
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
 	return result;
 }
 
