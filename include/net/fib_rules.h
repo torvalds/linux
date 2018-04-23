@@ -75,7 +75,8 @@ struct fib_rules_ops {
 	int			(*configure)(struct fib_rule *,
 					     struct sk_buff *,
 					     struct fib_rule_hdr *,
-					     struct nlattr **);
+					     struct nlattr **,
+					     struct netlink_ext_ack *);
 	int			(*delete)(struct fib_rule *);
 	int			(*compare)(struct fib_rule *,
 					   struct fib_rule_hdr *,
