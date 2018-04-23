@@ -811,16 +811,14 @@ void __init generic_calibrate_decr(void)
 	}
 }
 
-int update_persistent_clock(struct timespec now)
+int update_persistent_clock64(struct timespec64 now)
 {
 	struct rtc_time tm;
 
 	if (!ppc_md.set_rtc_time)
 		return -ENODEV;
 
-	to_tm(now.tv_sec + 1 + timezone_offset, &tm);
-	tm.tm_year -= 1900;
-	tm.tm_mon -= 1;
+	rtc_time64_to_tm(now.tv_sec + 1 + timezone_offset, &tm);
 
 	return ppc_md.set_rtc_time(&tm);
 }

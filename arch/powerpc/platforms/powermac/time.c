@@ -84,15 +84,6 @@ long __init pmac_time_init(void)
 	return delta;
 }
 
-#if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU) || \
-    defined(CONFIG_PMAC_SMU)
-static unsigned long from_rtc_time(struct rtc_time *tm)
-{
-	return mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-		      tm->tm_hour, tm->tm_min, tm->tm_sec);
-}
-#endif
-
 #ifdef CONFIG_ADB_CUDA
 static time64_t cuda_get_time(void)
 {
@@ -115,10 +106,10 @@ static time64_t cuda_get_time(void)
 
 static int cuda_set_rtc_time(struct rtc_time *tm)
 {
-	unsigned int nowtime;
+	time64_t nowtime;
 	struct adb_request req;
 
-	nowtime = from_rtc_time(tm) + RTC_OFFSET;
+	nowtime = rtc_tm_to_time64(tm) + RTC_OFFSET;
 	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
 			 nowtime >> 24, nowtime >> 16, nowtime >> 8,
 			 nowtime) < 0)
@@ -158,10 +149,10 @@ static time64_t pmu_get_time(void)
 
 static int pmu_set_rtc_time(struct rtc_time *tm)
 {
-	unsigned int nowtime;
+	time64_t nowtime;
 	struct adb_request req;
 
-	nowtime = from_rtc_time(tm) + RTC_OFFSET;
+	nowtime = rtc_tm_to_time64(tm) + RTC_OFFSET;
 	if (pmu_request(&req, NULL, 5, PMU_SET_RTC, nowtime >> 24,
 			nowtime >> 16, nowtime >> 8, nowtime) < 0)
 		return -ENXIO;
