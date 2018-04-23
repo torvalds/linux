@@ -4343,7 +4343,7 @@ commit_trans:
 			need_commit--;
 
 			if (need_commit > 0) {
-				btrfs_start_delalloc_roots(fs_info, 0, -1);
+				btrfs_start_delalloc_roots(fs_info, -1);
 				btrfs_wait_ordered_roots(fs_info, U64_MAX, 0,
 							 (u64)-1);
 			}
@@ -4796,7 +4796,7 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_fs_info *fs_info,
 		 * the filesystem is readonly(all dirty pages are written to
 		 * the disk).
 		 */
-		btrfs_start_delalloc_roots(fs_info, 0, nr_items);
+		btrfs_start_delalloc_roots(fs_info, nr_items);
 		if (!current->journal_info)
 			btrfs_wait_ordered_roots(fs_info, nr_items, 0, (u64)-1);
 	}

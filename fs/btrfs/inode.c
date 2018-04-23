@@ -10269,8 +10269,7 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	return ret;
 }
 
-int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput,
-			       int nr)
+int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_root *root;
 	struct list_head splice;
@@ -10293,7 +10292,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput,
 			       &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);
 
-		ret = __start_delalloc_inodes(root, delay_iput, nr);
+		ret = __start_delalloc_inodes(root, 0, nr);
 		btrfs_put_fs_root(root);
 		if (ret < 0)
 			goto out;
