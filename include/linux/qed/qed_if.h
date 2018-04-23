@@ -159,6 +159,9 @@ struct qed_dcbx_get {
 enum qed_nvm_images {
 	QED_NVM_IMAGE_ISCSI_CFG,
 	QED_NVM_IMAGE_FCOE_CFG,
+	QED_NVM_IMAGE_NVM_CFG1,
+	QED_NVM_IMAGE_DEFAULT_CFG,
+	QED_NVM_IMAGE_NVM_META,
 };
 
 struct qed_link_eee_params {

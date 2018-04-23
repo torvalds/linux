@@ -486,6 +486,20 @@ struct qed_nvm_image_att {
  * @brief Allows reading a whole nvram image
  *
  * @param p_hwfn
+ * @param image_id - image to get attributes for
+ * @param p_image_att - image attributes structure into which to fill data
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
+			  enum qed_nvm_images image_id,
+			  struct qed_nvm_image_att *p_image_att);
+
+/**
+ * @brief Allows reading a whole nvram image
+ *
+ * @param p_hwfn
  * @param image_id - image requested for reading
  * @param p_buffer - allocated buffer into which to fill data
  * @param buffer_len - length of the allocated buffer.
