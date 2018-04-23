@@ -146,6 +146,36 @@
 				gpio-ranges = <&pinctrl 0 160 8>;
 			};
 
+			i2c1_pins_a: i2c1-0 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
+						 <STM32_PINMUX('F', 15, AF5)>; /* I2C1_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			i2c2_pins_a: i2c2-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 4, AF4)>, /* I2C2_SCL */
+						 <STM32_PINMUX('H', 5, AF4)>; /* I2C2_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			i2c5_pins_a: i2c5-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 11, AF4)>, /* I2C5_SCL */
+						 <STM32_PINMUX('A', 12, AF4)>; /* I2C5_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
 			pwm2_pins_a: pwm2-0 {
 				pins {
 					pinmux = <STM32_PINMUX('A', 3, AF1)>; /* TIM2_CH4 */
@@ -206,6 +236,16 @@
 				st,bank-ioport = <11>;
 				ngpios = <8>;
 				gpio-ranges = <&pinctrl_z 0 400 8>;
+			};
+
+			i2c4_pins_a: i2c4-0 {
+				pins {
+					pinmux = <STM32_PINMUX('Z', 4, AF6)>, /* I2C4_SCL */
+						 <STM32_PINMUX('Z', 5, AF6)>; /* I2C4_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
 			};
 		};
 	};
