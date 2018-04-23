@@ -632,7 +632,8 @@ static struct clk_regmap meson8b_cpu_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_clk",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_names = (const char *[]){ "xtal", "cpu_out_sel" },
+		.parent_names = (const char *[]){ "xtal",
+						  "cpu_scale_out_sel" },
 		.num_parents = 2,
 		.flags = (CLK_SET_RATE_PARENT |
 			  CLK_SET_RATE_NO_REPARENT),
