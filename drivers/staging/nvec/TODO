@@ -4,8 +4,3 @@ ToDo list (incomplete, unordered)
 	- move event handling to nvec_events
 	- finish suspend/resume support
 	- add support for more device implementations
-	- convert all uses of the old GPIO API from <linux/gpio.h> to the
-	  GPIO descriptor API in <linux/gpio/consumer.h> and look up GPIO
-	  line descriptor from device tree, ACPI or board files
-	- drop the dependency on <linux/of_gpio.h> altogether when migrating
-	  to GPIO descriptors
