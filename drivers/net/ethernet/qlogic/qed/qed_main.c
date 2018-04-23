@@ -1894,15 +1894,8 @@ static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
 			     u8 *buf, u16 len)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
-	int rc;
 
-	if (!ptt)
-		return -EAGAIN;
-
-	rc = qed_mcp_get_nvm_image(hwfn, ptt, type, buf, len);
-	qed_ptt_release(hwfn, ptt);
-	return rc;
+	return qed_mcp_get_nvm_image(hwfn, type, buf, len);
 }
 
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
