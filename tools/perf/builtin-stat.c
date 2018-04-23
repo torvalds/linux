@@ -1790,9 +1790,15 @@ static void print_table(FILE *output, int precision, double avg)
 
 	for (idx = 0; idx < run_count; idx++) {
 		double run = (double) walltime_run[idx] / NSEC_PER_SEC;
+		int h, n = 1 + abs((int) (100.0 * (run - avg)/run) / 5);
 
-		fprintf(output, " %17.*f (%+.*f)\n",
+		fprintf(output, " %17.*f (%+.*f) ",
 			precision, run, precision, run - avg);
+
+		for (h = 0; h < n; h++)
+			fprintf(output, "#");
+
+		fprintf(output, "\n");
 	}
 
 	fprintf(output, "\n%*s# Final result:\n", indent, "");

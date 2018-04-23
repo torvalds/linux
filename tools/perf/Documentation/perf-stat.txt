@@ -123,14 +123,14 @@ spreadsheets. Columns are separated by the string specified in SEP.
    Performance counter stats for 'perf bench sched pipe' (5 runs):
 
              # Table of individual measurements:
-             5.379 (-0.176)
-             5.243 (-0.311)
-             5.238 (-0.317)
-             5.536 (-0.019)
-             6.377 (+0.823)
+             5.189 (-0.293) #
+             5.189 (-0.294) #
+             5.186 (-0.296) #
+             5.663 (+0.181) ##
+             6.186 (+0.703) ####
 
              # Final result:
-             5.555 +- 0.213 seconds time elapsed  ( +-  3.83% )
+             5.483 +- 0.198 seconds time elapsed  ( +-  3.62% )
 
 -G name::
 --cgroup name::
