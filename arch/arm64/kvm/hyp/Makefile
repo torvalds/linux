@@ -11,3 +11,6 @@ subdir-ccflags-y := -I$(incdir)				\
 		    $(DISABLE_STACKLEAK_PLUGIN)
 
 obj-$(CONFIG_KVM) += vhe/ nvhe/ pgtable.o smccc_wa.o
+
+# Disable LTO+CFI for the files in this directory
+KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
