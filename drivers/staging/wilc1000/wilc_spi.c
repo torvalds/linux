@@ -1013,7 +1013,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 			dev_err(&spi->dev,
 				"Failed wilc_spi_write_reg, set reg %x ...\n",
 				0x10c8 + i * 4);
-			goto _fail_;
+			return ret;
 		}
 		for (i = g_spi.nint; i < MAX_NUM_INT; i++) {
 			if (flags & 1)
@@ -1035,7 +1035,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 	ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL, tbl_ctl);
 	if (!ret) {
 		dev_err(&spi->dev, "fail write reg vmm_tbl_ctl...\n");
-		goto _fail_;
+		return ret;
 	}
 
 	if ((val & EN_VMM) == EN_VMM) {
@@ -1045,10 +1045,10 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 		ret = wilc_spi_write_reg(wilc, WILC_VMM_CORE_CTL, 1);
 		if (!ret) {
 			dev_err(&spi->dev, "fail write reg vmm_core_ctl...\n");
-			goto _fail_;
+			return ret;
 		}
 	}
-_fail_:
+
 	return ret;
 }
 
