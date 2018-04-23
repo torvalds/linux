@@ -22,6 +22,7 @@
 #include "ks_hostif.h"
 #include "ks7010_sdio.h"
 
+#define ROM_FILE "ks7010sd.rom"
 #define KS7010_FUNC_NUM 1
 #define KS7010_IO_BLOCK_SIZE 512
 #define KS7010_MAX_CLOCK 25000000

@@ -154,6 +154,4 @@ struct rx_device {
 	spinlock_t rx_dev_lock;	/* protect access to the queue */
 };
 
-#define	ROM_FILE "ks7010sd.rom"
-
 #endif /* _KS7010_SDIO_H */
