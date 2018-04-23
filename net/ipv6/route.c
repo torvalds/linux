@@ -1541,11 +1541,13 @@ static struct rt6_info *rt6_find_cached_rt(struct fib6_info *rt,
 static int rt6_remove_exception_rt(struct rt6_info *rt)
 {
 	struct rt6_exception_bucket *bucket;
-	struct fib6_info *from = rt->from;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
+	struct fib6_info *from;
 	int err;
 
+	from = rcu_dereference_protected(rt->from,
+					 lockdep_is_held(&rt6_exception_lock));
 	if (!from ||
 	    !(rt->rt6i_flags & RTF_CACHE))
 		return -EINVAL;
@@ -2223,6 +2225,7 @@ static void ip6_link_failure(struct sk_buff *skb)
 
 	rt = (struct rt6_info *) skb_dst(skb);
 	if (rt) {
+		rcu_read_lock();
 		if (rt->rt6i_flags & RTF_CACHE) {
 			if (dst_hold_safe(&rt->dst))
 				rt6_remove_exception_rt(rt);
@@ -2230,15 +2233,14 @@ static void ip6_link_failure(struct sk_buff *skb)
 			struct fib6_info *from;
 			struct fib6_node *fn;
 
-			rcu_read_lock();
 			from = rcu_dereference(rt->from);
 			if (from) {
 				fn = rcu_dereference(from->fib6_node);
 				if (fn && (rt->rt6i_flags & RTF_DEFAULT))
 					fn->fn_sernum = -1;
 			}
-			rcu_read_unlock();
 		}
+		rcu_read_unlock();
 	}
 }
 
@@ -3340,8 +3342,10 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 
 	rcu_read_lock();
 	from = rcu_dereference(rt->from);
-	nrt = ip6_rt_cache_alloc(from, &msg->dest, NULL);
+	fib6_info_hold(from);
 	rcu_read_unlock();
+
+	nrt = ip6_rt_cache_alloc(from, &msg->dest, NULL);
 	if (!nrt)
 		goto out;
 
@@ -3355,7 +3359,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	 * a cached route because rt6_insert_exception() will
 	 * takes care of it
 	 */
-	if (rt6_insert_exception(nrt, rt->from)) {
+	if (rt6_insert_exception(nrt, from)) {
 		dst_release_immediate(&nrt->dst);
 		goto out;
 	}
@@ -3367,6 +3371,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 out:
+	fib6_info_release(from);
 	neigh_release(neigh);
 }
 
