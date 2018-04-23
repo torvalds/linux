@@ -70,7 +70,7 @@ static inline void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 
 static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
 {
-	return 0;
+	return -ENODEV;
 }
 
 static inline void ghes_edac_unregister(struct ghes *ghes)
