@@ -98,6 +98,20 @@ static void otm8009a_dcs_write_buf(struct otm8009a *ctx, const void *data,
 		DRM_WARN("mipi dsi dcs write buffer failed\n");
 }
 
+static void otm8009a_dcs_write_buf_hs(struct otm8009a *ctx, const void *data,
+				      size_t len)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+
+	/* data will be sent in dsi hs mode (ie. no lpm) */
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+
+	otm8009a_dcs_write_buf(ctx, data, len);
+
+	/* restore back the dsi lpm mode */
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+}
+
 #define dcs_write_seq(ctx, seq...)			\
 ({							\
 	static const u8 d[] = { seq };			\
@@ -387,7 +401,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 		 */
 		data[0] = MIPI_DCS_SET_DISPLAY_BRIGHTNESS;
 		data[1] = bd->props.brightness;
-		otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+		otm8009a_dcs_write_buf_hs(ctx, data, ARRAY_SIZE(data));
 
 		/* set Brightness Control & Backlight on */
 		data[1] = 0x24;
@@ -399,7 +413,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 
 	/* Update Brightness Control & Backlight */
 	data[0] = MIPI_DCS_WRITE_CONTROL_DISPLAY;
-	otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+	otm8009a_dcs_write_buf_hs(ctx, data, ARRAY_SIZE(data));
 
 	return 0;
 }
