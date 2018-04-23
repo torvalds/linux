@@ -1133,6 +1133,7 @@ static void finish_hunting(struct ceph_mon_client *monc)
 		monc->hunting = false;
 		monc->had_a_connection = true;
 		un_backoff(monc);
+		__schedule_delayed(monc);
 	}
 }
 
