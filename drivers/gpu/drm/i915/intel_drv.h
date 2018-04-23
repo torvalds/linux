@@ -49,12 +49,12 @@
  * check the condition before the timeout.
  */
 #define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
-	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
+	const ktime_t end__ = ktime_add_ns(ktime_get_raw(), 1000ll * (US)); \
 	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
-		bool expired__ = time_after(jiffies, timeout__);	\
+		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
 		OP;							\
 		if (COND) {						\
 			ret__ = 0;					\
