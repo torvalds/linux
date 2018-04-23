@@ -43,8 +43,10 @@ struct bridge_init {
 	struct device_node *node;
 };
 
-static void analogix_dp_init_dp(struct analogix_dp_device *dp)
+static int analogix_dp_init_dp(struct analogix_dp_device *dp)
 {
+	int ret;
+
 	analogix_dp_reset(dp);
 
 	analogix_dp_swreset(dp);
@@ -56,10 +58,13 @@ static void analogix_dp_init_dp(struct analogix_dp_device *dp)
 	analogix_dp_enable_sw_function(dp);
 
 	analogix_dp_config_interrupt(dp);
-	analogix_dp_init_analog_func(dp);
+	ret = analogix_dp_init_analog_func(dp);
+	if (ret)
+		return ret;
 
 	analogix_dp_init_hpd(dp);
 	analogix_dp_init_aux(dp);
+	return 0;
 }
 
 static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
@@ -918,7 +923,7 @@ static irqreturn_t analogix_dp_irq_thread(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void analogix_dp_commit(struct analogix_dp_device *dp)
+static int analogix_dp_commit(struct analogix_dp_device *dp)
 {
 	int ret;
 
@@ -928,11 +933,10 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 			DRM_ERROR("failed to disable the panel\n");
 	}
 
-	ret = readx_poll_timeout(analogix_dp_train_link, dp, ret, !ret, 100,
-				 DP_TIMEOUT_TRAINING_US * 5);
+	ret = analogix_dp_train_link(dp);
 	if (ret) {
 		dev_err(dp->dev, "unable to do link train, ret=%d\n", ret);
-		return;
+		return ret;
 	}
 
 	analogix_dp_enable_scramble(dp, 1);
@@ -953,6 +957,7 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 	dp->psr_enable = analogix_dp_detect_sink_psr(dp);
 	if (dp->psr_enable)
 		analogix_dp_enable_sink_psr(dp);
+	return 0;
 }
 
 /*
@@ -1149,12 +1154,9 @@ static void analogix_dp_bridge_pre_enable(struct drm_bridge *bridge)
 		DRM_ERROR("failed to setup the panel ret = %d\n", ret);
 }
 
-static void analogix_dp_bridge_enable(struct drm_bridge *bridge)
+static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = bridge->driver_private;
-
-	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
-		return;
+	int ret;
 
 	pm_runtime_get_sync(dp->dev);
 
@@ -1162,11 +1164,46 @@ static void analogix_dp_bridge_enable(struct drm_bridge *bridge)
 		dp->plat_data->power_on(dp->plat_data);
 
 	phy_power_on(dp->phy);
-	analogix_dp_init_dp(dp);
-	enable_irq(dp->irq);
-	analogix_dp_commit(dp);
 
-	dp->dpms_mode = DRM_MODE_DPMS_ON;
+	ret = analogix_dp_init_dp(dp);
+	if (ret)
+		goto out_dp_init;
+
+	ret = analogix_dp_commit(dp);
+	if (ret)
+		goto out_dp_init;
+
+	enable_irq(dp->irq);
+	return 0;
+
+out_dp_init:
+	phy_power_off(dp->phy);
+	if (dp->plat_data->power_off)
+		dp->plat_data->power_off(dp->plat_data);
+	pm_runtime_put_sync(dp->dev);
+
+	return ret;
+}
+
+static void analogix_dp_bridge_enable(struct drm_bridge *bridge)
+{
+	struct analogix_dp_device *dp = bridge->driver_private;
+	int timeout_loop = 0;
+
+	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
+		return;
+
+	while (timeout_loop < MAX_PLL_LOCK_LOOP) {
+		if (analogix_dp_set_bridge(dp) == 0) {
+			dp->dpms_mode = DRM_MODE_DPMS_ON;
+			return;
+		}
+		dev_err(dp->dev, "failed to set bridge, retry: %d\n",
+			timeout_loop);
+		timeout_loop++;
+		usleep_range(10, 11);
+	}
+	dev_err(dp->dev, "too many times retry set bridge, give it up\n");
 }
 
 static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
