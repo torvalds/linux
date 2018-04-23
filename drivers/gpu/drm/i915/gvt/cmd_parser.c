@@ -1603,7 +1603,8 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
 		|| IS_KABYLAKE(gvt->dev_priv)) {
 		/* BDW decides privilege based on address space */
-		if (cmd_val(s, 0) & (1 << 8))
+		if (cmd_val(s, 0) & (1 << 8) &&
+			!(s->vgpu->scan_nonprivbb & (1 << s->ring_id)))
 			return 0;
 	}
 	return 1;
@@ -1617,6 +1618,8 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 	bool bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
 	u32 cmd;
+	struct intel_vgpu_mm *mm = (s->buf_addr_type == GTT_BUFFER) ?
+		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
 
 	*bb_size = 0;
 
@@ -1628,18 +1631,22 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 	cmd = cmd_val(s, 0);
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
-				cmd, get_opcode(cmd, s->ring_id));
+		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+				cmd, get_opcode(cmd, s->ring_id),
+				(s->buf_addr_type == PPGTT_BUFFER) ?
+				"ppgtt" : "ggtt", s->ring_id, s->workload);
 		return -EBADRQC;
 	}
 	do {
-		if (copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
+		if (copy_gma_to_hva(s->vgpu, mm,
 				gma, gma + 4, &cmd) < 0)
 			return -EFAULT;
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 		if (info == NULL) {
-			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
-				cmd, get_opcode(cmd, s->ring_id));
+			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+				cmd, get_opcode(cmd, s->ring_id),
+				(s->buf_addr_type == PPGTT_BUFFER) ?
+				"ppgtt" : "ggtt", s->ring_id, s->workload);
 			return -EBADRQC;
 		}
 
@@ -1665,6 +1672,9 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	unsigned long gma = 0;
 	unsigned long bb_size;
 	int ret = 0;
+	struct intel_vgpu_mm *mm = (s->buf_addr_type == GTT_BUFFER) ?
+		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
+	unsigned long gma_start_offset = 0;
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
@@ -1679,8 +1689,24 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (!bb)
 		return -ENOMEM;
 
+	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
+
+	/* the gma_start_offset stores the batch buffer's start gma's
+	 * offset relative to page boundary. so for non-privileged batch
+	 * buffer, the shadowed gem object holds exactly the same page
+	 * layout as original gem object. This is for the convience of
+	 * replacing the whole non-privilged batch buffer page to this
+	 * shadowed one in PPGTT at the same gma address. (this replacing
+	 * action is not implemented yet now, but may be necessary in
+	 * future).
+	 * for prileged batch buffer, we just change start gma address to
+	 * that of shadowed page.
+	 */
+	if (bb->ppgtt)
+		gma_start_offset = gma & ~I915_GTT_PAGE_MASK;
+
 	bb->obj = i915_gem_object_create(s->vgpu->gvt->dev_priv,
-					 roundup(bb_size, PAGE_SIZE));
+			 roundup(bb_size + gma_start_offset, PAGE_SIZE));
 	if (IS_ERR(bb->obj)) {
 		ret = PTR_ERR(bb->obj);
 		goto err_free_bb;
@@ -1701,9 +1727,9 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		bb->clflush &= ~CLFLUSH_BEFORE;
 	}
 
-	ret = copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
+	ret = copy_gma_to_hva(s->vgpu, mm,
 			      gma, gma + bb_size,
-			      bb->va);
+			      bb->va + gma_start_offset);
 	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		ret = -EFAULT;
@@ -1729,7 +1755,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	 * buffer's gma in pair. After all, we don't want to pin the shadow
 	 * buffer here (too early).
 	 */
-	s->ip_va = bb->va;
+	s->ip_va = bb->va + gma_start_offset;
 	s->ip_gma = gma;
 	return 0;
 err_unmap:
@@ -2468,15 +2494,18 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
-				cmd, get_opcode(cmd, s->ring_id));
+		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+				cmd, get_opcode(cmd, s->ring_id),
+				(s->buf_addr_type == PPGTT_BUFFER) ?
+				"ppgtt" : "ggtt", s->ring_id, s->workload);
 		return -EBADRQC;
 	}
 
 	s->info = info;
 
 	trace_gvt_command(vgpu->id, s->ring_id, s->ip_gma, s->ip_va,
-			  cmd_length(s), s->buf_type);
+			  cmd_length(s), s->buf_type, s->buf_addr_type,
+			  s->workload, info->name);
 
 	if (info->handler) {
 		ret = info->handler(s);

@@ -97,7 +97,7 @@ static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		i915_mmio_reg_offset(EU_PERF_CNTL6),
 	};
 
-	if (!workload || !reg_state || workload->ring_id != RCS)
+	if (workload->ring_id != RCS)
 		return;
 
 	if (save) {
@@ -452,12 +452,6 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	int ret;
 
 	list_for_each_entry(bb, &workload->shadow_bb, list) {
-		bb->vma = i915_gem_object_ggtt_pin(bb->obj, NULL, 0, 0, 0);
-		if (IS_ERR(bb->vma)) {
-			ret = PTR_ERR(bb->vma);
-			goto err;
-		}
-
 		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
 		 * is only updated into ring_scan_buffer, not real ring address
 		 * allocated in later copy_workload_to_ring_buffer. pls be noted
@@ -469,25 +463,53 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			bb->bb_start_cmd_va = workload->shadow_ring_buffer_va
 				+ bb->bb_offset;
 
-		/* relocate shadow batch buffer */
-		bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
-		if (gmadr_bytes == 8)
-			bb->bb_start_cmd_va[2] = 0;
+		if (bb->ppgtt) {
+			/* for non-priv bb, scan&shadow is only for
+			 * debugging purpose, so the content of shadow bb
+			 * is the same as original bb. Therefore,
+			 * here, rather than switch to shadow bb's gma
+			 * address, we directly use original batch buffer's
+			 * gma address, and send original bb to hardware
+			 * directly
+			 */
+			if (bb->clflush & CLFLUSH_AFTER) {
+				drm_clflush_virt_range(bb->va,
+						bb->obj->base.size);
+				bb->clflush &= ~CLFLUSH_AFTER;
+			}
+			i915_gem_obj_finish_shmem_access(bb->obj);
+			bb->accessing = false;
 
-		/* No one is going to touch shadow bb from now on. */
-		if (bb->clflush & CLFLUSH_AFTER) {
-			drm_clflush_virt_range(bb->va, bb->obj->base.size);
-			bb->clflush &= ~CLFLUSH_AFTER;
+		} else {
+			bb->vma = i915_gem_object_ggtt_pin(bb->obj,
+					NULL, 0, 0, 0);
+			if (IS_ERR(bb->vma)) {
+				ret = PTR_ERR(bb->vma);
+				goto err;
+			}
+
+			/* relocate shadow batch buffer */
+			bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
+			if (gmadr_bytes == 8)
+				bb->bb_start_cmd_va[2] = 0;
+
+			/* No one is going to touch shadow bb from now on. */
+			if (bb->clflush & CLFLUSH_AFTER) {
+				drm_clflush_virt_range(bb->va,
+						bb->obj->base.size);
+				bb->clflush &= ~CLFLUSH_AFTER;
+			}
+
+			ret = i915_gem_object_set_to_gtt_domain(bb->obj,
+					false);
+			if (ret)
+				goto err;
+
+			i915_gem_obj_finish_shmem_access(bb->obj);
+			bb->accessing = false;
+
+			i915_vma_move_to_active(bb->vma, workload->req, 0);
 		}
-
-		ret = i915_gem_object_set_to_gtt_domain(bb->obj, false);
-		if (ret)
-			goto err;
-
-		i915_gem_obj_finish_shmem_access(bb->obj);
-		bb->accessing = false;
-
-		i915_vma_move_to_active(bb->vma, workload->req, 0);
 	}
 	return 0;
 err:
