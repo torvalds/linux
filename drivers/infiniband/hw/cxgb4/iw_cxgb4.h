@@ -185,6 +185,10 @@ struct c4iw_rdev {
 	struct wr_log_entry *wr_log;
 	int wr_log_size;
 	struct workqueue_struct *free_workq;
+	struct completion rqt_compl;
+	struct completion pbl_compl;
+	struct kref rqt_kref;
+	struct kref pbl_kref;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
