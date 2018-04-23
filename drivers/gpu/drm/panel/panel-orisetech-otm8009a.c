@@ -260,11 +260,7 @@ static int otm8009a_disable(struct drm_panel *panel)
 	if (!ctx->enabled)
 		return 0; /* This is not an issue so we return 0 here */
 
-	/* Power off the backlight. Note: end-user still controls brightness */
-	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
-	ret = backlight_update_status(ctx->bl_dev);
-	if (ret)
-		return ret;
+	backlight_disable(ctx->bl_dev);
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret)
@@ -338,12 +334,7 @@ static int otm8009a_enable(struct drm_panel *panel)
 	if (ctx->enabled)
 		return 0;
 
-	/*
-	 * Power on the backlight. Note: end-user still controls brightness
-	 * Note: ctx->prepared must be true before updating the backlight.
-	 */
-	ctx->bl_dev->props.power = FB_BLANK_UNBLANK;
-	backlight_update_status(ctx->bl_dev);
+	backlight_enable(ctx->bl_dev);
 
 	ctx->enabled = true;
 
@@ -459,11 +450,14 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = &otm8009a_drm_funcs;
 
-	ctx->bl_dev = backlight_device_register(dev_name(dev), dev, ctx,
-						&otm8009a_backlight_ops, NULL);
+	ctx->bl_dev = devm_backlight_device_register(dev, dev_name(dev),
+						     dsi->host->dev, ctx,
+						     &otm8009a_backlight_ops,
+						     NULL);
 	if (IS_ERR(ctx->bl_dev)) {
-		dev_err(dev, "failed to register backlight device\n");
-		return PTR_ERR(ctx->bl_dev);
+		ret = PTR_ERR(ctx->bl_dev);
+		dev_err(dev, "failed to register backlight: %d\n", ret);
+		return ret;
 	}
 
 	ctx->bl_dev->props.max_brightness = OTM8009A_BACKLIGHT_MAX;
@@ -490,8 +484,6 @@ static int otm8009a_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	backlight_device_unregister(ctx->bl_dev);
 
 	return 0;
 }
