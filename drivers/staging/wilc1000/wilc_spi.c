@@ -917,13 +917,12 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 		if (!ret) {
 			dev_err(&spi->dev,
 				"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
-			goto _fail_;
+			return ret;
 		}
 		tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
 		*size = tmp;
 	}
 
-_fail_:
 	return ret;
 }
 
