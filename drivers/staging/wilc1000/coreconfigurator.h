@@ -17,7 +17,6 @@
 #define NUM_RSSI                5
 
 #define MAC_HDR_LEN             24
-#define MAX_SSID_LEN            33
 #define FCS_LEN                 4
 #define TIME_STAMP_LEN          8
 #define BEACON_INTERVAL_LEN     2
