@@ -1360,9 +1360,6 @@ bool dc_is_stream_scaling_unchanged(
 	return true;
 }
 
-/* Maximum TMDS single link pixel clock 165MHz */
-#define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
-
 static void update_stream_engine_usage(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,

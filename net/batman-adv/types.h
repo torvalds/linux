@@ -167,7 +167,7 @@ struct batadv_hard_iface {
 	struct list_head list;
 
 	/** @if_num: identificator of the interface */
-	s16 if_num;
+	unsigned int if_num;
 
 	/** @if_status: status of the interface for batman-adv */
 	char if_status;
@@ -1596,7 +1596,7 @@ struct batadv_priv {
 	atomic_t batman_queue_left;
 
 	/** @num_ifaces: number of interfaces assigned to this mesh interface */
-	char num_ifaces;
+	unsigned int num_ifaces;
 
 	/** @mesh_obj: kobject for sysfs mesh subdirectory */
 	struct kobject *mesh_obj;
@@ -2186,15 +2186,16 @@ struct batadv_algo_orig_ops {
 	 *  orig_node due to a new hard-interface being added into the mesh
 	 *  (optional)
 	 */
-	int (*add_if)(struct batadv_orig_node *orig_node, int max_if_num);
+	int (*add_if)(struct batadv_orig_node *orig_node,
+		      unsigned int max_if_num);
 
 	/**
 	 * @del_if: ask the routing algorithm to apply the needed changes to the
 	 *  orig_node due to an hard-interface being removed from the mesh
 	 *  (optional)
 	 */
-	int (*del_if)(struct batadv_orig_node *orig_node, int max_if_num,
-		      int del_if_num);
+	int (*del_if)(struct batadv_orig_node *orig_node,
+		      unsigned int max_if_num, unsigned int del_if_num);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @print: print the originator table (optional) */

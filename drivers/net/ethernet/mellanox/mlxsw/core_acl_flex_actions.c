@@ -443,6 +443,17 @@ int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_jump);
 
+int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block)
+{
+	if (block->finished)
+		return -EINVAL;
+	mlxsw_afa_set_goto_set(block->cur_set,
+			       MLXSW_AFA_SET_GOTO_BINDING_CMD_TERM, 0);
+	block->finished = true;
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_terminate);
+
 static struct mlxsw_afa_fwd_entry *
 mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u8 local_port)
 {

@@ -550,18 +550,13 @@ static int addr_resolve(struct sockaddr *src_in,
 		dst_release(dst);
 	}
 
-	if (ndev->flags & IFF_LOOPBACK) {
-		ret = rdma_translate_ip(dst_in, addr);
-		/*
-		 * Put the loopback device and get the translated
-		 * device instead.
-		 */
+	if (ndev) {
+		if (ndev->flags & IFF_LOOPBACK)
+			ret = rdma_translate_ip(dst_in, addr);
+		else
+			addr->bound_dev_if = ndev->ifindex;
 		dev_put(ndev);
-		ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
-	} else {
-		addr->bound_dev_if = ndev->ifindex;
 	}
-	dev_put(ndev);
 
 	return ret;
 }

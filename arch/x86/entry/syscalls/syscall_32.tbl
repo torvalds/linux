@@ -8,12 +8,12 @@
 #
 0	i386	restart_syscall		sys_restart_syscall
 1	i386	exit			sys_exit
-2	i386	fork			sys_fork			sys_fork
+2	i386	fork			sys_fork
 3	i386	read			sys_read
 4	i386	write			sys_write
 5	i386	open			sys_open			compat_sys_open
 6	i386	close			sys_close
-7	i386	waitpid			sys_waitpid			sys32_waitpid
+7	i386	waitpid			sys_waitpid			compat_sys_x86_waitpid
 8	i386	creat			sys_creat
 9	i386	link			sys_link
 10	i386	unlink			sys_unlink
@@ -78,7 +78,7 @@
 69	i386	ssetmask		sys_ssetmask
 70	i386	setreuid		sys_setreuid16
 71	i386	setregid		sys_setregid16
-72	i386	sigsuspend		sys_sigsuspend			sys_sigsuspend
+72	i386	sigsuspend		sys_sigsuspend
 73	i386	sigpending		sys_sigpending			compat_sys_sigpending
 74	i386	sethostname		sys_sethostname
 75	i386	setrlimit		sys_setrlimit			compat_sys_setrlimit
@@ -96,7 +96,7 @@
 87	i386	swapon			sys_swapon
 88	i386	reboot			sys_reboot
 89	i386	readdir			sys_old_readdir			compat_sys_old_readdir
-90	i386	mmap			sys_old_mmap			sys32_mmap
+90	i386	mmap			sys_old_mmap			compat_sys_x86_mmap
 91	i386	munmap			sys_munmap
 92	i386	truncate		sys_truncate			compat_sys_truncate
 93	i386	ftruncate		sys_ftruncate			compat_sys_ftruncate
@@ -126,7 +126,7 @@
 117	i386	ipc			sys_ipc				compat_sys_ipc
 118	i386	fsync			sys_fsync
 119	i386	sigreturn		sys_sigreturn			sys32_sigreturn
-120	i386	clone			sys_clone			stub32_clone
+120	i386	clone			sys_clone			compat_sys_x86_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
 123	i386	modify_ldt		sys_modify_ldt
@@ -186,8 +186,8 @@
 177	i386	rt_sigtimedwait		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait
 178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 179	i386	rt_sigsuspend		sys_rt_sigsuspend
-180	i386	pread64			sys_pread64			sys32_pread
-181	i386	pwrite64		sys_pwrite64			sys32_pwrite
+180	i386	pread64			sys_pread64			compat_sys_x86_pread
+181	i386	pwrite64		sys_pwrite64			compat_sys_x86_pwrite
 182	i386	chown			sys_chown16
 183	i386	getcwd			sys_getcwd
 184	i386	capget			sys_capget
@@ -196,14 +196,14 @@
 187	i386	sendfile		sys_sendfile			compat_sys_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
-190	i386	vfork			sys_vfork			sys_vfork
+190	i386	vfork			sys_vfork
 191	i386	ugetrlimit		sys_getrlimit			compat_sys_getrlimit
 192	i386	mmap2			sys_mmap_pgoff
-193	i386	truncate64		sys_truncate64			sys32_truncate64
-194	i386	ftruncate64		sys_ftruncate64			sys32_ftruncate64
-195	i386	stat64			sys_stat64			sys32_stat64
-196	i386	lstat64			sys_lstat64			sys32_lstat64
-197	i386	fstat64			sys_fstat64			sys32_fstat64
+193	i386	truncate64		sys_truncate64			compat_sys_x86_truncate64
+194	i386	ftruncate64		sys_ftruncate64			compat_sys_x86_ftruncate64
+195	i386	stat64			sys_stat64			compat_sys_x86_stat64
+196	i386	lstat64			sys_lstat64			compat_sys_x86_lstat64
+197	i386	fstat64			sys_fstat64			compat_sys_x86_fstat64
 198	i386	lchown32		sys_lchown
 199	i386	getuid32		sys_getuid
 200	i386	getgid32		sys_getgid
@@ -231,7 +231,7 @@
 # 222 is unused
 # 223 is unused
 224	i386	gettid			sys_gettid
-225	i386	readahead		sys_readahead			sys32_readahead
+225	i386	readahead		sys_readahead			compat_sys_x86_readahead
 226	i386	setxattr		sys_setxattr
 227	i386	lsetxattr		sys_lsetxattr
 228	i386	fsetxattr		sys_fsetxattr
@@ -256,7 +256,7 @@
 247	i386	io_getevents		sys_io_getevents		compat_sys_io_getevents
 248	i386	io_submit		sys_io_submit			compat_sys_io_submit
 249	i386	io_cancel		sys_io_cancel
-250	i386	fadvise64		sys_fadvise64			sys32_fadvise64
+250	i386	fadvise64		sys_fadvise64			compat_sys_x86_fadvise64
 # 251 is available for reuse (was briefly sys_set_zone_reclaim)
 252	i386	exit_group		sys_exit_group
 253	i386	lookup_dcookie		sys_lookup_dcookie		compat_sys_lookup_dcookie
@@ -278,7 +278,7 @@
 269	i386	fstatfs64		sys_fstatfs64			compat_sys_fstatfs64
 270	i386	tgkill			sys_tgkill
 271	i386	utimes			sys_utimes			compat_sys_utimes
-272	i386	fadvise64_64		sys_fadvise64_64		sys32_fadvise64_64
+272	i386	fadvise64_64		sys_fadvise64_64		compat_sys_x86_fadvise64_64
 273	i386	vserver
 274	i386	mbind			sys_mbind
 275	i386	get_mempolicy		sys_get_mempolicy		compat_sys_get_mempolicy
@@ -306,7 +306,7 @@
 297	i386	mknodat			sys_mknodat
 298	i386	fchownat		sys_fchownat
 299	i386	futimesat		sys_futimesat			compat_sys_futimesat
-300	i386	fstatat64		sys_fstatat64			sys32_fstatat
+300	i386	fstatat64		sys_fstatat64			compat_sys_x86_fstatat
 301	i386	unlinkat		sys_unlinkat
 302	i386	renameat		sys_renameat
 303	i386	linkat			sys_linkat
@@ -320,7 +320,7 @@
 311	i386	set_robust_list		sys_set_robust_list		compat_sys_set_robust_list
 312	i386	get_robust_list		sys_get_robust_list		compat_sys_get_robust_list
 313	i386	splice			sys_splice
-314	i386	sync_file_range		sys_sync_file_range		sys32_sync_file_range
+314	i386	sync_file_range		sys_sync_file_range		compat_sys_x86_sync_file_range
 315	i386	tee			sys_tee
 316	i386	vmsplice		sys_vmsplice			compat_sys_vmsplice
 317	i386	move_pages		sys_move_pages			compat_sys_move_pages
@@ -330,7 +330,7 @@
 321	i386	signalfd		sys_signalfd			compat_sys_signalfd
 322	i386	timerfd_create		sys_timerfd_create
 323	i386	eventfd			sys_eventfd
-324	i386	fallocate		sys_fallocate			sys32_fallocate
+324	i386	fallocate		sys_fallocate			compat_sys_x86_fallocate
 325	i386	timerfd_settime		sys_timerfd_settime		compat_sys_timerfd_settime
 326	i386	timerfd_gettime		sys_timerfd_gettime		compat_sys_timerfd_gettime
 327	i386	signalfd4		sys_signalfd4			compat_sys_signalfd4

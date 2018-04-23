@@ -386,6 +386,7 @@ config ATMEL_PIT
 
 config ATMEL_ST
 	bool "Atmel ST timer support" if COMPILE_TEST
+	depends on HAS_IOMEM
 	select TIMER_OF
 	select MFD_SYSCON
 	help

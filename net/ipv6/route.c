@@ -128,7 +128,7 @@ struct uncached_list {
 
 static DEFINE_PER_CPU_ALIGNED(struct uncached_list, rt6_uncached_list);
 
-static void rt6_uncached_list_add(struct rt6_info *rt)
+void rt6_uncached_list_add(struct rt6_info *rt)
 {
 	struct uncached_list *ul = raw_cpu_ptr(&rt6_uncached_list);
 
@@ -139,7 +139,7 @@ static void rt6_uncached_list_add(struct rt6_info *rt)
 	spin_unlock_bh(&ul->lock);
 }
 
-static void rt6_uncached_list_del(struct rt6_info *rt)
+void rt6_uncached_list_del(struct rt6_info *rt)
 {
 	if (!list_empty(&rt->rt6i_uncached)) {
 		struct uncached_list *ul = rt->rt6i_uncached_list;
@@ -1509,7 +1509,30 @@ static void rt6_exceptions_remove_prefsrc(struct rt6_info *rt)
 	}
 }
 
-static void rt6_exceptions_update_pmtu(struct rt6_info *rt, int mtu)
+static bool rt6_mtu_change_route_allowed(struct inet6_dev *idev,
+					 struct rt6_info *rt, int mtu)
+{
+	/* If the new MTU is lower than the route PMTU, this new MTU will be the
+	 * lowest MTU in the path: always allow updating the route PMTU to
+	 * reflect PMTU decreases.
+	 *
+	 * If the new MTU is higher, and the route PMTU is equal to the local
+	 * MTU, this means the old MTU is the lowest in the path, so allow
+	 * updating it: if other nodes now have lower MTUs, PMTU discovery will
+	 * handle this.
+	 */
+
+	if (dst_mtu(&rt->dst) >= mtu)
+		return true;
+
+	if (dst_mtu(&rt->dst) == idev->cnf.mtu6)
+		return true;
+
+	return false;
+}
+
+static void rt6_exceptions_update_pmtu(struct inet6_dev *idev,
+				       struct rt6_info *rt, int mtu)
 {
 	struct rt6_exception_bucket *bucket;
 	struct rt6_exception *rt6_ex;
@@ -1518,20 +1541,22 @@ static void rt6_exceptions_update_pmtu(struct rt6_info *rt, int mtu)
 	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
 					lockdep_is_held(&rt6_exception_lock));
 
-	if (bucket) {
-		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
-			hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
-				struct rt6_info *entry = rt6_ex->rt6i;
-				/* For RTF_CACHE with rt6i_pmtu == 0
-				 * (i.e. a redirected route),
-				 * the metrics of its rt->dst.from has already
-				 * been updated.
-				 */
-				if (entry->rt6i_pmtu && entry->rt6i_pmtu > mtu)
-					entry->rt6i_pmtu = mtu;
-			}
-			bucket++;
+	if (!bucket)
+		return;
+
+	for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+		hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
+			struct rt6_info *entry = rt6_ex->rt6i;
+
+			/* For RTF_CACHE with rt6i_pmtu == 0 (i.e. a redirected
+			 * route), the metrics of its rt->dst.from have already
+			 * been updated.
+			 */
+			if (entry->rt6i_pmtu &&
+			    rt6_mtu_change_route_allowed(idev, entry, mtu))
+				entry->rt6i_pmtu = mtu;
 		}
+		bucket++;
 	}
 }
 
@@ -3809,25 +3834,13 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	   Since RFC 1981 doesn't include administrative MTU increase
 	   update PMTU increase is a MUST. (i.e. jumbo frame)
 	 */
-	/*
-	   If new MTU is less than route PMTU, this new MTU will be the
-	   lowest MTU in the path, update the route PMTU to reflect PMTU
-	   decreases; if new MTU is greater than route PMTU, and the
-	   old MTU is the lowest MTU in the path, update the route PMTU
-	   to reflect the increase. In this case if the other nodes' MTU
-	   also have the lowest MTU, TOO BIG MESSAGE will be lead to
-	   PMTU discovery.
-	 */
 	if (rt->dst.dev == arg->dev &&
-	    dst_metric_raw(&rt->dst, RTAX_MTU) &&
 	    !dst_metric_locked(&rt->dst, RTAX_MTU)) {
 		spin_lock_bh(&rt6_exception_lock);
-		if (dst_mtu(&rt->dst) >= arg->mtu ||
-		    (dst_mtu(&rt->dst) < arg->mtu &&
-		     dst_mtu(&rt->dst) == idev->cnf.mtu6)) {
+		if (dst_metric_raw(&rt->dst, RTAX_MTU) &&
+		    rt6_mtu_change_route_allowed(idev, rt, arg->mtu))
 			dst_metric_set(&rt->dst, RTAX_MTU, arg->mtu);
-		}
-		rt6_exceptions_update_pmtu(rt, arg->mtu);
+		rt6_exceptions_update_pmtu(idev, rt, arg->mtu);
 		spin_unlock_bh(&rt6_exception_lock);
 	}
 	return 0;
@@ -4099,6 +4112,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 				r_cfg.fc_encap_type = nla_get_u16(nla);
 		}
 
+		r_cfg.fc_flags |= (rtnh->rtnh_flags & RTNH_F_ONLINK);
 		rt = ip6_route_info_create(&r_cfg, extack);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);

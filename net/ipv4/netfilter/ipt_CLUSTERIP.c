@@ -232,7 +232,6 @@ clusterip_config_init(struct net *net, const struct ipt_clusterip_tgt_info *i,
 	c->hash_mode = i->hash_mode;
 	c->hash_initval = i->hash_initval;
 	refcount_set(&c->refcount, 1);
-	refcount_set(&c->entries, 1);
 
 	spin_lock_bh(&cn->lock);
 	if (__clusterip_config_find(net, ip)) {
@@ -263,8 +262,10 @@ clusterip_config_init(struct net *net, const struct ipt_clusterip_tgt_info *i,
 
 	c->notifier.notifier_call = clusterip_netdev_event;
 	err = register_netdevice_notifier(&c->notifier);
-	if (!err)
+	if (!err) {
+		refcount_set(&c->entries, 1);
 		return c;
+	}
 
 #ifdef CONFIG_PROC_FS
 	proc_remove(c->pde);
@@ -273,7 +274,7 @@ err:
 	spin_lock_bh(&cn->lock);
 	list_del_rcu(&c->list);
 	spin_unlock_bh(&cn->lock);
-	kfree(c);
+	clusterip_config_put(c);
 
 	return ERR_PTR(err);
 }
@@ -496,12 +497,15 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 				return PTR_ERR(config);
 		}
 	}
-	cipinfo->config = config;
 
 	ret = nf_ct_netns_get(par->net, par->family);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
+		clusterip_config_entry_put(par->net, config);
+		clusterip_config_put(config);
+		return ret;
+	}
 
 	if (!par->net->xt.clusterip_deprecated_warning) {
 		pr_info("ipt_CLUSTERIP is deprecated and it will removed soon, "
@@ -509,6 +513,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 		par->net->xt.clusterip_deprecated_warning = true;
 	}
 
+	cipinfo->config = config;
 	return ret;
 }
 

@@ -350,7 +350,7 @@ static int tcf_csum_sctp(struct sk_buff *skb, unsigned int ihl,
 {
 	struct sctphdr *sctph;
 
-	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_SCTP)
+	if (skb_is_gso(skb) && skb_is_gso_sctp(skb))
 		return 1;
 
 	sctph = tcf_csum_skb_nextlayer(skb, ihl, ipl, sizeof(*sctph));
@@ -626,7 +626,8 @@ static void tcf_csum_cleanup(struct tc_action *a)
 	struct tcf_csum_params *params;
 
 	params = rcu_dereference_protected(p->params, 1);
-	kfree_rcu(params, rcu);
+	if (params)
+		kfree_rcu(params, rcu);
 }
 
 static int tcf_csum_walker(struct net *net, struct sk_buff *skb,

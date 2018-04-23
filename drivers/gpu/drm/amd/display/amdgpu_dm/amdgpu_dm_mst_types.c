@@ -189,6 +189,12 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
 
+	/*
+	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
+	 */
+	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
+		return;
+
 	edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
 	if (!edid) {

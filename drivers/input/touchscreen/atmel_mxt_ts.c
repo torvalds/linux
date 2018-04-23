@@ -23,12 +23,13 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <linux/property.h>
 #include <asm/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -268,12 +269,16 @@ static const struct v4l2_file_operations mxt_video_fops = {
 	.poll = vb2_fop_poll,
 };
 
+enum mxt_suspend_mode {
+	MXT_SUSPEND_DEEP_SLEEP	= 0,
+	MXT_SUSPEND_T9_CTRL	= 1,
+};
+
 /* Each client has this additional data */
 struct mxt_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	char phys[64];		/* device physical location */
-	const struct mxt_platform_data *pdata;
 	struct mxt_object *object_table;
 	struct mxt_info info;
 	unsigned int irq;
@@ -324,6 +329,11 @@ struct mxt_data {
 
 	/* for config update handling */
 	struct completion crc_completion;
+
+	u32 *t19_keymap;
+	unsigned int t19_num_keys;
+
+	enum mxt_suspend_mode suspend_mode;
 };
 
 struct mxt_vb2_buffer {
@@ -742,15 +752,14 @@ static int mxt_write_object(struct mxt_data *data,
 static void mxt_input_button(struct mxt_data *data, u8 *message)
 {
 	struct input_dev *input = data->input_dev;
-	const struct mxt_platform_data *pdata = data->pdata;
 	int i;
 
-	for (i = 0; i < pdata->t19_num_keys; i++) {
-		if (pdata->t19_keymap[i] == KEY_RESERVED)
+	for (i = 0; i < data->t19_num_keys; i++) {
+		if (data->t19_keymap[i] == KEY_RESERVED)
 			continue;
 
 		/* Active-low switch */
-		input_report_key(input, pdata->t19_keymap[i],
+		input_report_key(input, data->t19_keymap[i],
 				 !(message[1] & BIT(i)));
 	}
 }
@@ -758,7 +767,7 @@ static void mxt_input_button(struct mxt_data *data, u8 *message)
 static void mxt_input_sync(struct mxt_data *data)
 {
 	input_mt_report_pointer_emulation(data->input_dev,
-					  data->pdata->t19_num_keys);
+					  data->t19_num_keys);
 	input_sync(data->input_dev);
 }
 
@@ -1858,7 +1867,6 @@ static void mxt_input_close(struct input_dev *dev);
 static void mxt_set_up_as_touchpad(struct input_dev *input_dev,
 				   struct mxt_data *data)
 {
-	const struct mxt_platform_data *pdata = data->pdata;
 	int i;
 
 	input_dev->name = "Atmel maXTouch Touchpad";
@@ -1872,15 +1880,14 @@ static void mxt_set_up_as_touchpad(struct input_dev *input_dev,
 	input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
 			  MXT_PIXELS_PER_MM);
 
-	for (i = 0; i < pdata->t19_num_keys; i++)
-		if (pdata->t19_keymap[i] != KEY_RESERVED)
+	for (i = 0; i < data->t19_num_keys; i++)
+		if (data->t19_keymap[i] != KEY_RESERVED)
 			input_set_capability(input_dev, EV_KEY,
-					     pdata->t19_keymap[i]);
+					     data->t19_keymap[i]);
 }
 
 static int mxt_initialize_input_device(struct mxt_data *data)
 {
-	const struct mxt_platform_data *pdata = data->pdata;
 	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev;
 	int error;
@@ -1946,7 +1953,7 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	}
 
 	/* If device has buttons we assume it is a touchpad */
-	if (pdata->t19_num_keys) {
+	if (data->t19_num_keys) {
 		mxt_set_up_as_touchpad(input_dev, data);
 		mt_flags |= INPUT_MT_POINTER;
 	} else {
@@ -2868,7 +2875,7 @@ static const struct attribute_group mxt_attr_group = {
 
 static void mxt_start(struct mxt_data *data)
 {
-	switch (data->pdata->suspend_mode) {
+	switch (data->suspend_mode) {
 	case MXT_SUSPEND_T9_CTRL:
 		mxt_soft_reset(data);
 
@@ -2886,12 +2893,11 @@ static void mxt_start(struct mxt_data *data)
 		mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
 		break;
 	}
-
 }
 
 static void mxt_stop(struct mxt_data *data)
 {
-	switch (data->pdata->suspend_mode) {
+	switch (data->suspend_mode) {
 	case MXT_SUSPEND_T9_CTRL:
 		/* Touch disable */
 		mxt_write_object(data,
@@ -2921,55 +2927,49 @@ static void mxt_input_close(struct input_dev *dev)
 	mxt_stop(data);
 }
 
-#ifdef CONFIG_OF
-static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+static int mxt_parse_device_properties(struct mxt_data *data)
 {
-	struct mxt_platform_data *pdata;
-	struct device_node *np = client->dev.of_node;
+	static const char keymap_property[] = "linux,gpio-keymap";
+	struct device *dev = &data->client->dev;
 	u32 *keymap;
-	int proplen, ret;
+	int n_keys;
+	int error;
 
-	if (!np)
-		return ERR_PTR(-ENOENT);
+	if (device_property_present(dev, keymap_property)) {
+		n_keys = device_property_read_u32_array(dev, keymap_property,
+							NULL, 0);
+		if (n_keys <= 0) {
+			error = n_keys < 0 ? n_keys : -EINVAL;
+			dev_err(dev, "invalid/malformed '%s' property: %d\n",
+				keymap_property, error);
+			return error;
+		}
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	if (of_find_property(np, "linux,gpio-keymap", &proplen)) {
-		pdata->t19_num_keys = proplen / sizeof(u32);
-
-		keymap = devm_kzalloc(&client->dev,
-				pdata->t19_num_keys * sizeof(keymap[0]),
-				GFP_KERNEL);
+		keymap = devm_kmalloc_array(dev, n_keys, sizeof(*keymap),
+					    GFP_KERNEL);
 		if (!keymap)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
-		ret = of_property_read_u32_array(np, "linux,gpio-keymap",
-						 keymap, pdata->t19_num_keys);
-		if (ret)
-			dev_warn(&client->dev,
-				 "Couldn't read linux,gpio-keymap: %d\n", ret);
+		error = device_property_read_u32_array(dev, keymap_property,
+						       keymap, n_keys);
+		if (error) {
+			dev_err(dev, "failed to parse '%s' property: %d\n",
+				keymap_property, error);
+			return error;
+		}
 
-		pdata->t19_keymap = keymap;
+		data->t19_keymap = keymap;
+		data->t19_num_keys = n_keys;
 	}
 
-	pdata->suspend_mode = MXT_SUSPEND_DEEP_SLEEP;
-
-	return pdata;
+	return 0;
 }
-#else
-static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
-{
-	return ERR_PTR(-ENOENT);
-}
-#endif
 
 #ifdef CONFIG_ACPI
 
 struct mxt_acpi_platform_data {
 	const char *hid;
-	struct mxt_platform_data pdata;
+	const struct property_entry *props;
 };
 
 static unsigned int samus_touchpad_buttons[] = {
@@ -2979,14 +2979,16 @@ static unsigned int samus_touchpad_buttons[] = {
 	BTN_LEFT
 };
 
+static const struct property_entry samus_touchpad_props[] = {
+	PROPERTY_ENTRY_U32_ARRAY("linux,gpio-keymap", samus_touchpad_buttons),
+	{ }
+};
+
 static struct mxt_acpi_platform_data samus_platform_data[] = {
 	{
 		/* Touchpad */
 		.hid	= "ATML0000",
-		.pdata	= {
-			.t19_num_keys	= ARRAY_SIZE(samus_touchpad_buttons),
-			.t19_keymap	= samus_touchpad_buttons,
-		},
+		.props	= samus_touchpad_props,
 	},
 	{
 		/* Touchscreen */
@@ -3004,14 +3006,16 @@ static unsigned int chromebook_tp_buttons[] = {
 	BTN_LEFT
 };
 
+static const struct property_entry chromebook_tp_props[] = {
+	PROPERTY_ENTRY_U32_ARRAY("linux,gpio-keymap", chromebook_tp_buttons),
+	{ }
+};
+
 static struct mxt_acpi_platform_data chromebook_platform_data[] = {
 	{
 		/* Touchpad */
 		.hid	= "ATML0000",
-		.pdata	= {
-			.t19_num_keys	= ARRAY_SIZE(chromebook_tp_buttons),
-			.t19_keymap	= chromebook_tp_buttons,
-		},
+		.props	= chromebook_tp_props,
 	},
 	{
 		/* Touchscreen */
@@ -3041,11 +3045,72 @@ static const struct dmi_system_id mxt_dmi_table[] = {
 	{ }
 };
 
-static const struct mxt_platform_data *mxt_parse_acpi(struct i2c_client *client)
+static int mxt_prepare_acpi_properties(struct i2c_client *client)
 {
 	struct acpi_device *adev;
 	const struct dmi_system_id *system_id;
 	const struct mxt_acpi_platform_data *acpi_pdata;
+
+	adev = ACPI_COMPANION(&client->dev);
+	if (!adev)
+		return -ENOENT;
+
+	system_id = dmi_first_match(mxt_dmi_table);
+	if (!system_id)
+		return -ENOENT;
+
+	acpi_pdata = system_id->driver_data;
+	if (!acpi_pdata)
+		return -ENOENT;
+
+	while (acpi_pdata->hid) {
+		if (!strcmp(acpi_device_hid(adev), acpi_pdata->hid)) {
+			/*
+			 * Remove previously installed properties if we
+			 * are probing this device not for the very first
+			 * time.
+			 */
+			device_remove_properties(&client->dev);
+
+			/*
+			 * Now install the platform-specific properties
+			 * that are missing from ACPI.
+			 */
+			device_add_properties(&client->dev, acpi_pdata->props);
+			break;
+		}
+
+		acpi_pdata++;
+	}
+
+	return 0;
+}
+#else
+static int mxt_prepare_acpi_properties(struct i2c_client *client)
+{
+	return -ENOENT;
+}
+#endif
+
+static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Peppy"),
+		},
+	},
+	{ }
+};
+
+static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct mxt_data *data;
+	int error;
 
 	/*
 	 * Ignore ACPI devices representing bootloader mode.
@@ -3057,67 +3122,8 @@ static const struct mxt_platform_data *mxt_parse_acpi(struct i2c_client *client)
 	 * application mode addresses were all above 0x40, so we'll use it
 	 * as a threshold.
 	 */
-	if (client->addr < 0x40)
-		return ERR_PTR(-ENXIO);
-
-	adev = ACPI_COMPANION(&client->dev);
-	if (!adev)
-		return ERR_PTR(-ENOENT);
-
-	system_id = dmi_first_match(mxt_dmi_table);
-	if (!system_id)
-		return ERR_PTR(-ENOENT);
-
-	acpi_pdata = system_id->driver_data;
-	if (!acpi_pdata)
-		return ERR_PTR(-ENOENT);
-
-	while (acpi_pdata->hid) {
-		if (!strcmp(acpi_device_hid(adev), acpi_pdata->hid))
-			return &acpi_pdata->pdata;
-
-		acpi_pdata++;
-	}
-
-	return ERR_PTR(-ENOENT);
-}
-#else
-static const struct mxt_platform_data *mxt_parse_acpi(struct i2c_client *client)
-{
-	return ERR_PTR(-ENOENT);
-}
-#endif
-
-static const struct mxt_platform_data *
-mxt_get_platform_data(struct i2c_client *client)
-{
-	const struct mxt_platform_data *pdata;
-
-	pdata = dev_get_platdata(&client->dev);
-	if (pdata)
-		return pdata;
-
-	pdata = mxt_parse_dt(client);
-	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
-		return pdata;
-
-	pdata = mxt_parse_acpi(client);
-	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
-		return pdata;
-
-	dev_err(&client->dev, "No platform data specified\n");
-	return ERR_PTR(-EINVAL);
-}
-
-static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{
-	struct mxt_data *data;
-	const struct mxt_platform_data *pdata;
-	int error;
-
-	pdata = mxt_get_platform_data(client);
-	if (IS_ERR(pdata))
-		return PTR_ERR(pdata);
+	if (ACPI_COMPANION(&client->dev) && client->addr < 0x40)
+		return -ENXIO;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mxt_data), GFP_KERNEL);
 	if (!data)
@@ -3127,13 +3133,23 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 client->adapter->nr, client->addr);
 
 	data->client = client;
-	data->pdata = pdata;
 	data->irq = client->irq;
 	i2c_set_clientdata(client, data);
 
 	init_completion(&data->bl_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
+
+	data->suspend_mode = dmi_check_system(chromebook_T9_suspend_dmi) ?
+		MXT_SUSPEND_T9_CTRL : MXT_SUSPEND_DEEP_SLEEP;
+
+	error = mxt_prepare_acpi_properties(client);
+	if (error && error != -ENOENT)
+		return error;
+
+	error = mxt_parse_device_properties(data);
+	if (error)
+		return error;
 
 	data->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						   "reset", GPIOD_OUT_LOW);
@@ -3144,8 +3160,7 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, mxt_interrupt,
-					  pdata->irqflags | IRQF_ONESHOT,
+					  NULL, mxt_interrupt, IRQF_ONESHOT,
 					  client->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
@@ -3265,7 +3280,7 @@ MODULE_DEVICE_TABLE(i2c, mxt_id);
 static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
-		.of_match_table = of_match_ptr(mxt_of_match),
+		.of_match_table = mxt_of_match,
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= &mxt_pm_ops,
 	},

@@ -211,7 +211,7 @@ enum {
  * @TE_V2_NOTIF_HOST_FRAG_END:request/receive notification on frag end
  * @TE_V2_NOTIF_INTERNAL_FRAG_START: internal FW use.
  * @TE_V2_NOTIF_INTERNAL_FRAG_END: internal FW use.
- * @T2_V2_START_IMMEDIATELY: start time event immediately
+ * @TE_V2_START_IMMEDIATELY: start time event immediately
  * @TE_V2_DEP_OTHER: depends on another time event
  * @TE_V2_DEP_TSF: depends on a specific time
  * @TE_V2_EVENT_SOCIOPATHIC: can't co-exist with other events of tha same MAC
@@ -230,7 +230,7 @@ enum iwl_time_event_policy {
 	TE_V2_NOTIF_HOST_FRAG_END = BIT(5),
 	TE_V2_NOTIF_INTERNAL_FRAG_START = BIT(6),
 	TE_V2_NOTIF_INTERNAL_FRAG_END = BIT(7),
-	T2_V2_START_IMMEDIATELY = BIT(11),
+	TE_V2_START_IMMEDIATELY = BIT(11),
 
 	/* placement characteristics */
 	TE_V2_DEP_OTHER = BIT(TE_V2_PLACEMENT_POS),

@@ -222,4 +222,7 @@ struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
 					   struct ib_udata *udata);
 int bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
+
+unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp);
+void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp, unsigned long flags);
 #endif /* __BNXT_RE_IB_VERBS_H__ */

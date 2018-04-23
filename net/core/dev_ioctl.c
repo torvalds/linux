@@ -402,8 +402,6 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	if (colon)
 		*colon = 0;
 
-	dev_load(net, ifr->ifr_name);
-
 	/*
 	 *	See which interface the caller is talking about.
 	 */
@@ -423,6 +421,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	case SIOCGIFMAP:
 	case SIOCGIFINDEX:
 	case SIOCGIFTXQLEN:
+		dev_load(net, ifr->ifr_name);
 		rcu_read_lock();
 		ret = dev_ifsioc_locked(net, ifr, cmd);
 		rcu_read_unlock();
@@ -431,6 +430,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 		return ret;
 
 	case SIOCETHTOOL:
+		dev_load(net, ifr->ifr_name);
 		rtnl_lock();
 		ret = dev_ethtool(net, ifr);
 		rtnl_unlock();
@@ -447,6 +447,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSIFNAME:
+		dev_load(net, ifr->ifr_name);
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
 		rtnl_lock();
@@ -494,6 +495,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 		/* fall through */
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
+		dev_load(net, ifr->ifr_name);
 		rtnl_lock();
 		ret = dev_ifsioc(net, ifr, cmd);
 		rtnl_unlock();
@@ -518,6 +520,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 		    cmd == SIOCGHWTSTAMP ||
 		    (cmd >= SIOCDEVPRIVATE &&
 		     cmd <= SIOCDEVPRIVATE + 15)) {
+			dev_load(net, ifr->ifr_name);
 			rtnl_lock();
 			ret = dev_ifsioc(net, ifr, cmd);
 			rtnl_unlock();

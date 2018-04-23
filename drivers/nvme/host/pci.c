@@ -1153,12 +1153,6 @@ static bool nvme_should_reset(struct nvme_dev *dev, u32 csts)
 	if (!(csts & NVME_CSTS_CFS) && !nssro)
 		return false;
 
-	/* If PCI error recovery process is happening, we cannot reset or
-	 * the recovery mechanism will surely fail.
-	 */
-	if (pci_channel_offline(to_pci_dev(dev->dev)))
-		return false;
-
 	return true;
 }
 
@@ -1188,6 +1182,13 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	struct request *abort_req;
 	struct nvme_command cmd;
 	u32 csts = readl(dev->bar + NVME_REG_CSTS);
+
+	/* If PCI error recovery process is happening, we cannot reset or
+	 * the recovery mechanism will surely fail.
+	 */
+	mb();
+	if (pci_channel_offline(to_pci_dev(dev->dev)))
+		return BLK_EH_RESET_TIMER;
 
 	/*
 	 * Reset immediately if the controller is failed
@@ -1913,7 +1914,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	int result, nr_io_queues;
 	unsigned long size;
 
-	nr_io_queues = num_present_cpus();
+	nr_io_queues = num_possible_cpus();
 	result = nvme_set_queue_count(&dev->ctrl, &nr_io_queues);
 	if (result < 0)
 		return result;

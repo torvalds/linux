@@ -683,10 +683,8 @@ static const struct amdgpu_irq_src_funcs dm_hpd_irq_funcs = {
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.num_crtc > 0)
-		adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VLINE1 + adev->mode_info.num_crtc;
-	else
-		adev->crtc_irq.num_types = 0;
+
+	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
 
 	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;

@@ -93,7 +93,8 @@ static void set_tun_src(struct net *net, struct net_device *dev,
 /* encapsulate an IPv6 packet within an outer IPv6 header with a given SRH */
 int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
+	struct dst_entry *dst = skb_dst(skb);
+	struct net *net = dev_net(dst->dev);
 	struct ipv6hdr *hdr, *inner_hdr;
 	struct ipv6_sr_hdr *isrh;
 	int hdrlen, tot_len, err;
@@ -134,7 +135,7 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 	isrh->nexthdr = proto;
 
 	hdr->daddr = isrh->segments[isrh->first_segment];
-	set_tun_src(net, skb->dev, &hdr->daddr, &hdr->saddr);
+	set_tun_src(net, ip6_dst_idev(dst)->dev, &hdr->daddr, &hdr->saddr);
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	if (sr_has_hmac(isrh)) {
@@ -418,7 +419,7 @@ static int seg6_build_state(struct nlattr *nla,
 
 	slwt = seg6_lwt_lwtunnel(newts);
 
-	err = dst_cache_init(&slwt->cache, GFP_KERNEL);
+	err = dst_cache_init(&slwt->cache, GFP_ATOMIC);
 	if (err) {
 		kfree(newts);
 		return err;

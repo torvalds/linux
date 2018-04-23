@@ -714,7 +714,7 @@ static int __init dell_wmi_init(void)
 
 	return wmi_driver_register(&dell_wmi_driver);
 }
-module_init(dell_wmi_init);
+late_initcall(dell_wmi_init);
 
 static void __exit dell_wmi_exit(void)
 {

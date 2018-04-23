@@ -92,21 +92,23 @@ static void dbc_start_rx(struct dbc_port *port)
 static void
 dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 {
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
-	spin_lock(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	list_add_tail(&req->list_pool, &port->read_queue);
 	tasklet_schedule(&port->push);
-	spin_unlock(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 {
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
-	spin_lock(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	list_add(&req->list_pool, &port->write_pool);
 	switch (req->status) {
 	case 0:
@@ -119,7 +121,7 @@ static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 			  req->status);
 		break;
 	}
-	spin_unlock(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
@@ -327,12 +329,13 @@ static void dbc_rx_push(unsigned long _port)
 {
 	struct dbc_request	*req;
 	struct tty_struct	*tty;
+	unsigned long		flags;
 	bool			do_push = false;
 	bool			disconnect = false;
 	struct dbc_port		*port = (void *)_port;
 	struct list_head	*queue = &port->read_queue;
 
-	spin_lock_irq(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	tty = port->port.tty;
 	while (!list_empty(queue)) {
 		req = list_first_entry(queue, struct dbc_request, list_pool);
@@ -392,16 +395,17 @@ static void dbc_rx_push(unsigned long _port)
 	if (!disconnect)
 		dbc_start_rx(port);
 
-	spin_unlock_irq(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static int dbc_port_activate(struct tty_port *_port, struct tty_struct *tty)
 {
+	unsigned long	flags;
 	struct dbc_port	*port = container_of(_port, struct dbc_port, port);
 
-	spin_lock_irq(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	dbc_start_rx(port);
-	spin_unlock_irq(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 
 	return 0;
 }

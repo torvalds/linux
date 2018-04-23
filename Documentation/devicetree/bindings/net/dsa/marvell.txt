@@ -50,14 +50,15 @@ Example:
 			compatible = "marvell,mv88e6085";
 			reg = <0>;
 			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		};
-		mdio {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			switch1phy0: switch1phy0@0 {
-				reg = <0>;
-				interrupt-parent = <&switch0>;
-				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				switch1phy0: switch1phy0@0 {
+					reg = <0>;
+					interrupt-parent = <&switch0>;
+					interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+				};
 			};
 		};
 	};
@@ -74,23 +75,24 @@ Example:
 			compatible = "marvell,mv88e6390";
 			reg = <0>;
 			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		};
-		mdio {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			switch1phy0: switch1phy0@0 {
-				reg = <0>;
-				interrupt-parent = <&switch0>;
-				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
-			};
-		};
 
-		mdio1 {
-			compatible = "marvell,mv88e6xxx-mdio-external";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			switch1phy9: switch1phy0@9 {
-				reg = <9>;
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				switch1phy0: switch1phy0@0 {
+					reg = <0>;
+					interrupt-parent = <&switch0>;
+					interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			mdio1 {
+				compatible = "marvell,mv88e6xxx-mdio-external";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				switch1phy9: switch1phy0@9 {
+					reg = <9>;
+				};
 			};
 		};
 	};

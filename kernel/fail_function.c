@@ -14,6 +14,15 @@
 
 static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs);
 
+static void fei_post_handler(struct kprobe *kp, struct pt_regs *regs,
+			     unsigned long flags)
+{
+	/*
+	 * A dummy post handler is required to prohibit optimizing, because
+	 * jump optimization does not support execution path overriding.
+	 */
+}
+
 struct fei_attr {
 	struct list_head list;
 	struct kprobe kp;
@@ -56,6 +65,7 @@ static struct fei_attr *fei_attr_new(const char *sym, unsigned long addr)
 			return NULL;
 		}
 		attr->kp.pre_handler = fei_kprobe_handler;
+		attr->kp.post_handler = fei_post_handler;
 		attr->retval = adjust_error_retval(addr, 0);
 		INIT_LIST_HEAD(&attr->list);
 	}

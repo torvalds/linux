@@ -2727,6 +2727,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	mutex_init(&data->mutex);
 
 	data->netgroup = hwsim_net_get_netgroup(net);
+	data->wmediumd = hwsim_net_get_wmediumd(net);
 
 	/* Enable frame retransmissions for lossy channels */
 	hw->max_rates = 4;

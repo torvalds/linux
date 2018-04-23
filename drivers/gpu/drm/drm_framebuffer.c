@@ -461,6 +461,12 @@ int drm_mode_getfb(struct drm_device *dev,
 	if (!fb)
 		return -ENOENT;
 
+	/* Multi-planar framebuffers need getfb2. */
+	if (fb->format->num_planes > 1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
@@ -484,6 +490,7 @@ int drm_mode_getfb(struct drm_device *dev,
 		ret = -ENODEV;
 	}
 
+out:
 	drm_framebuffer_put(fb);
 
 	return ret;
