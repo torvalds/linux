@@ -765,7 +765,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			/* recalculate len if xdp.data or xdp.data_end were
 			 * adjusted
 			 */
-			len = xdp.data_end - xdp.data;
+			len = xdp.data_end - xdp.data + vi->hdr_len;
 			/* We can only create skb based on xdp_page. */
 			if (unlikely(xdp_page != page)) {
 				rcu_read_unlock();
