@@ -495,7 +495,9 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 	void __iomem *reg_base = cqspi->iobase;
 	void __iomem *ahb_base = cqspi->ahb_base;
 	unsigned int remaining = n_rx;
+	unsigned int mod_bytes = n_rx % 4;
 	unsigned int bytes_to_read = 0;
+	u8 *rxbuf_end = rxbuf + n_rx;
 	int ret = 0;
 
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTRDBYTES);
@@ -523,11 +525,24 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 		}
 
 		while (bytes_to_read != 0) {
+			unsigned int word_remain = round_down(remaining, 4);
+
 			bytes_to_read *= cqspi->fifo_width;
 			bytes_to_read = bytes_to_read > remaining ?
 					remaining : bytes_to_read;
-			ioread32_rep(ahb_base, rxbuf,
-				     DIV_ROUND_UP(bytes_to_read, 4));
+			bytes_to_read = round_down(bytes_to_read, 4);
+			/* Read 4 byte word chunks then single bytes */
+			if (bytes_to_read) {
+				ioread32_rep(ahb_base, rxbuf,
+					     (bytes_to_read / 4));
+			} else if (!word_remain && mod_bytes) {
+				unsigned int temp = ioread32(ahb_base);
+
+				bytes_to_read = mod_bytes;
+				memcpy(rxbuf, &temp, min((unsigned int)
+							 (rxbuf_end - rxbuf),
+							 bytes_to_read));
+			}
 			rxbuf += bytes_to_read;
 			remaining -= bytes_to_read;
 			bytes_to_read = cqspi_get_rd_sram_level(cqspi);
