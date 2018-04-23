@@ -36,6 +36,7 @@ enum typec_cc_polarity {
 /* Time to wait for TCPC to complete transmit */
 #define PD_T_TCPC_TX_TIMEOUT	100		/* in ms	*/
 #define PD_ROLE_SWAP_TIMEOUT	(MSEC_PER_SEC * 10)
+#define PD_PPS_CTRL_TIMEOUT	(MSEC_PER_SEC * 10)
 
 enum tcpm_transmit_status {
 	TCPC_TX_SUCCESS = 0,
