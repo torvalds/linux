@@ -359,7 +359,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
-	s32 s32Freq;
+	s32 freq;
 	struct ieee80211_channel *channel;
 	struct cfg80211_bss *bss = NULL;
 
@@ -378,9 +378,9 @@ static void cfg_scan_result(enum scan_event scan_event,
 		    ((s32)network_info->rssi * 100) > 100))
 			return;
 
-		s32Freq = ieee80211_channel_to_frequency((s32)network_info->ch,
-							 NL80211_BAND_2GHZ);
-		channel = ieee80211_get_channel(wiphy, s32Freq);
+		freq = ieee80211_channel_to_frequency((s32)network_info->ch,
+						      NL80211_BAND_2GHZ);
+		channel = ieee80211_get_channel(wiphy, freq);
 
 		if (!channel)
 			return;
@@ -1396,12 +1396,12 @@ static void wilc_wfi_cfg_parse_rx_vendor_spec(struct wilc_priv *priv, u8 *buff,
 	}
 }
 
-void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
+void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 {
 	struct wilc_priv *priv;
 	u32 header, pkt_offset;
 	struct host_if_drv *wfi_drv;
-	s32 s32Freq;
+	s32 freq;
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	wfi_drv = (struct host_if_drv *)priv->hif_drv;
@@ -1422,10 +1422,10 @@ void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 		return;
 	}
 
-	s32Freq = ieee80211_channel_to_frequency(curr_channel, NL80211_BAND_2GHZ);
+	freq = ieee80211_channel_to_frequency(curr_channel, NL80211_BAND_2GHZ);
 
 	if (!ieee80211_is_action(buff[FRAME_TYPE_ID])) {
-		cfg80211_rx_mgmt(priv->wdev, s32Freq, 0, buff, size, 0);
+		cfg80211_rx_mgmt(priv->wdev, freq, 0, buff, size, 0);
 		return;
 	}
 
@@ -1461,7 +1461,7 @@ void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 		}
 	}
 
-	cfg80211_rx_mgmt(priv->wdev, s32Freq, 0, buff, size, 0);
+	cfg80211_rx_mgmt(priv->wdev, freq, 0, buff, size, 0);
 }
 
 static void wilc_wfi_mgmt_tx_complete(void *priv, int status)

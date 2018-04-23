@@ -1166,7 +1166,7 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	vif = netdev_priv(wilc->vif[1]->ndev);
 	if ((buff[0] == vif->frame_reg[0].type && vif->frame_reg[0].reg) ||
 	    (buff[0] == vif->frame_reg[1].type && vif->frame_reg[1].reg))
-		WILC_WFI_p2p_rx(wilc->vif[1]->ndev, buff, size);
+		wilc_wfi_p2p_rx(wilc->vif[1]->ndev, buff, size);
 }
 
 void wilc_netdev_cleanup(struct wilc *wilc)
