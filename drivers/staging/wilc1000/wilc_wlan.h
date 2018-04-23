@@ -222,7 +222,7 @@ struct txq_entry_t {
 	int buffer_size;
 	void *priv;
 	int status;
-	void (*tx_complete_func)(void *, int);
+	void (*tx_complete_func)(void *priv, int status);
 };
 
 struct rxq_entry_t {
@@ -238,18 +238,18 @@ struct rxq_entry_t {
  ********************************************/
 struct wilc;
 struct wilc_hif_func {
-	int (*hif_init)(struct wilc *, bool resume);
-	int (*hif_deinit)(struct wilc *);
-	int (*hif_read_reg)(struct wilc *, u32, u32 *);
-	int (*hif_write_reg)(struct wilc *, u32, u32);
-	int (*hif_block_rx)(struct wilc *, u32, u8 *, u32);
-	int (*hif_block_tx)(struct wilc *, u32, u8 *, u32);
-	int (*hif_read_int)(struct wilc *, u32 *);
-	int (*hif_clear_int_ext)(struct wilc *, u32);
-	int (*hif_read_size)(struct wilc *, u32 *);
-	int (*hif_block_tx_ext)(struct wilc *, u32, u8 *, u32);
-	int (*hif_block_rx_ext)(struct wilc *, u32, u8 *, u32);
-	int (*hif_sync_ext)(struct wilc *, int);
+	int (*hif_init)(struct wilc *wilc, bool resume);
+	int (*hif_deinit)(struct wilc *wilc);
+	int (*hif_read_reg)(struct wilc *wilc, u32 addr, u32 *data);
+	int (*hif_write_reg)(struct wilc *wilc, u32 addr, u32 data);
+	int (*hif_block_rx)(struct wilc *wilc, u32 addr, u8 *buf, u32 size);
+	int (*hif_block_tx)(struct wilc *wilc, u32 addr, u8 *buf, u32 size);
+	int (*hif_read_int)(struct wilc *wilc, u32 *int_status);
+	int (*hif_clear_int_ext)(struct wilc *wilc, u32 val);
+	int (*hif_read_size)(struct wilc *wilc, u32 *size);
+	int (*hif_block_tx_ext)(struct wilc *wilc, u32 addr, u8 *buf, u32 size);
+	int (*hif_block_rx_ext)(struct wilc *wilc, u32 addr, u8 *buf, u32 size);
+	int (*hif_sync_ext)(struct wilc *wilc, int nint);
 	int (*enable_interrupt)(struct wilc *nic);
 	void (*disable_interrupt)(struct wilc *nic);
 };
