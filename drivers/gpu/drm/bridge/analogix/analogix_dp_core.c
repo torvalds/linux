@@ -1337,11 +1337,12 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	}
 
 	disable_irq(dp->irq);
-	analogix_dp_set_analog_power_down(dp, POWER_ALL, 1);
-	phy_power_off(dp->phy);
 
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
+
+	analogix_dp_set_analog_power_down(dp, POWER_ALL, 1);
+	phy_power_off(dp->phy);
 
 	clk_disable_unprepare(dp->clock);
 
