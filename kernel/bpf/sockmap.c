@@ -43,6 +43,7 @@
 #include <net/tcp.h>
 #include <linux/ptr_ring.h>
 #include <net/inet_common.h>
+#include <linux/sched/signal.h>
 
 #define SOCK_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
@@ -732,6 +733,26 @@ out_err:
 	return err;
 }
 
+static int bpf_wait_data(struct sock *sk,
+			 struct smap_psock *psk, int flags,
+			 long timeo, int *err)
+{
+	int rc;
+
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+
+	add_wait_queue(sk_sleep(sk), &wait);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
+	rc = sk_wait_event(sk, &timeo,
+			   !list_empty(&psk->ingress) ||
+			   !skb_queue_empty(&sk->sk_receive_queue),
+			   &wait);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
+	remove_wait_queue(sk_sleep(sk), &wait);
+
+	return rc;
+}
+
 static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			   int nonblock, int flags, int *addr_len)
 {
@@ -755,6 +776,7 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	lock_sock(sk);
+bytes_ready:
 	while (copied != len) {
 		struct scatterlist *sg;
 		struct sk_msg_buff *md;
@@ -807,6 +829,28 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 				consume_skb(md->skb);
 			kfree(md);
 		}
+	}
+
+	if (!copied) {
+		long timeo;
+		int data;
+		int err = 0;
+
+		timeo = sock_rcvtimeo(sk, nonblock);
+		data = bpf_wait_data(sk, psock, flags, timeo, &err);
+
+		if (data) {
+			if (!skb_queue_empty(&sk->sk_receive_queue)) {
+				release_sock(sk);
+				smap_release_sock(psock, sk);
+				copied = tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+				return copied;
+			}
+			goto bytes_ready;
+		}
+
+		if (err)
+			copied = err;
 	}
 
 	release_sock(sk);
