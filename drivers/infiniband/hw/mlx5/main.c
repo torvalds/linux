@@ -5426,9 +5426,7 @@ static void mlx5_ib_stage_cong_debugfs_cleanup(struct mlx5_ib_dev *dev)
 static int mlx5_ib_stage_uar_init(struct mlx5_ib_dev *dev)
 {
 	dev->mdev->priv.uar = mlx5_get_uars_page(dev->mdev);
-	if (!dev->mdev->priv.uar)
-		return -ENOMEM;
-	return 0;
+	return PTR_ERR_OR_ZERO(dev->mdev->priv.uar);
 }
 
 static void mlx5_ib_stage_uar_cleanup(struct mlx5_ib_dev *dev)
