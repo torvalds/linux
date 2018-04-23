@@ -1562,7 +1562,7 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 static void devio_rec_ind(struct ks_wlan_private *priv, unsigned char *p,
 			  unsigned int size)
 {
-	if (priv->device_open_status) {
+	if (priv->is_device_open) {
 		spin_lock(&priv->dev_read_lock);	/* request spin lock */
 		priv->dev_data[atomic_read(&priv->rec_count)] = p;
 		priv->dev_size[atomic_read(&priv->rec_count)] = size;

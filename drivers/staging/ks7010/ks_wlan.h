@@ -424,7 +424,7 @@ struct ks_wlan_private {
 	unsigned int need_commit;	/* for ioctl */
 
 	/* DeviceIoControl */
-	bool device_open_status;
+	bool is_device_open;
 	atomic_t event_count;
 	atomic_t rec_count;
 	int dev_count;
