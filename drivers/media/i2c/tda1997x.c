@@ -2444,7 +2444,7 @@ static int tda1997x_pcm_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct tda1997x_state *state = snd_soc_dai_get_drvdata(dai);
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	struct snd_pcm_runtime *rtd = substream->runtime;
 	int rate, err;
 
@@ -2452,11 +2452,11 @@ static int tda1997x_pcm_startup(struct snd_pcm_substream *substream,
 	err = snd_pcm_hw_constraint_minmax(rtd, SNDRV_PCM_HW_PARAM_RATE,
 					   rate, rate);
 	if (err < 0) {
-		dev_err(codec->dev, "failed to constrain samplerate to %dHz\n",
+		dev_err(component->dev, "failed to constrain samplerate to %dHz\n",
 			rate);
 		return err;
 	}
-	dev_info(codec->dev, "set samplerate constraint to %dHz\n", rate);
+	dev_info(component->dev, "set samplerate constraint to %dHz\n", rate);
 
 	return 0;
 }
@@ -2479,20 +2479,22 @@ static struct snd_soc_dai_driver tda1997x_audio_dai = {
 	.ops = &tda1997x_dai_ops,
 };
 
-static int tda1997x_codec_probe(struct snd_soc_codec *codec)
+static int tda1997x_codec_probe(struct snd_soc_component *component)
 {
 	return 0;
 }
 
-static int tda1997x_codec_remove(struct snd_soc_codec *codec)
+static void tda1997x_codec_remove(struct snd_soc_component *component)
 {
-	return 0;
 }
 
-static struct snd_soc_codec_driver tda1997x_codec_driver = {
-	.probe = tda1997x_codec_probe,
-	.remove = tda1997x_codec_remove,
-	.reg_word_size = sizeof(u16),
+static struct snd_soc_component_driver tda1997x_codec_driver = {
+	.probe			= tda1997x_codec_probe,
+	.remove			= tda1997x_codec_remove,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int tda1997x_probe(struct i2c_client *client,
@@ -2737,7 +2739,7 @@ static int tda1997x_probe(struct i2c_client *client,
 		else
 			formats = SNDRV_PCM_FMTBIT_S16_LE;
 		tda1997x_audio_dai.capture.formats = formats;
-		ret = snd_soc_register_codec(&state->client->dev,
+		ret = devm_snd_soc_register_component(&state->client->dev,
 					     &tda1997x_codec_driver,
 					     &tda1997x_audio_dai, 1);
 		if (ret) {
@@ -2782,7 +2784,6 @@ static int tda1997x_remove(struct i2c_client *client)
 	struct tda1997x_platform_data *pdata = &state->pdata;
 
 	if (pdata->audout_format) {
-		snd_soc_unregister_codec(&client->dev);
 		mutex_destroy(&state->audio_lock);
 	}
 
