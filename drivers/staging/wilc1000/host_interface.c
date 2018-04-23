@@ -3331,7 +3331,6 @@ static void get_periodic_rssi(struct timer_list *unused)
 
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
-	int result = 0;
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
@@ -3345,10 +3344,9 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	init_completion(&hif_wait_response);
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
-	if (!hif_drv) {
-		result = -ENOMEM;
-		goto _fail_;
-	}
+	if (!hif_drv)
+		return -ENOMEM;
+
 	*hif_drv_handler = hif_drv;
 	for (i = 0; i < wilc->vif_num; i++)
 		if (dev == wilc->vif[i]->ndev) {
@@ -3359,7 +3357,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	wilc_optaining_ip = false;
 
-	if (clients_count == 0)	{
+	if (clients_count == 0) {
 		init_completion(&hif_thread_comp);
 		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
@@ -3370,12 +3368,12 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	init_completion(&hif_drv->comp_get_rssi);
 	init_completion(&hif_drv->comp_inactive_time);
 
-	if (clients_count == 0)	{
+	if (clients_count == 0) {
 		hif_workqueue = create_singlethread_workqueue("WILC_wq");
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
-			result = -ENOMEM;
-			goto _fail_;
+			kfree(hif_drv);
+			return -ENOMEM;
 		}
 
 		periodic_rssi_vif = vif;
@@ -3403,8 +3401,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-_fail_:
-	return result;
+	return 0;
 }
 
 int wilc_deinit(struct wilc_vif *vif)
