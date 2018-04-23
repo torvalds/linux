@@ -471,6 +471,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  */
 #define BCS_SWCTRL _MMIO(0x22200)
 
+/* There are 16 GPR registers */
+#define BCS_GPR(n)	_MMIO(0x22600 + (n) * 8)
+#define BCS_GPR_UDW(n)	_MMIO(0x22600 + (n) * 8 + 4)
+
 #define GPGPU_THREADS_DISPATCHED        _MMIO(0x2290)
 #define GPGPU_THREADS_DISPATCHED_UDW	_MMIO(0x2290 + 4)
 #define HS_INVOCATION_COUNT             _MMIO(0x2300)
