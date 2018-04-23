@@ -180,8 +180,6 @@
 
 	power-gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		power-button {
 			label = "Power button";
@@ -192,8 +190,6 @@
 
 	touch-lock-key {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		touch-lock-button {
 			label = "Touch lock button";
