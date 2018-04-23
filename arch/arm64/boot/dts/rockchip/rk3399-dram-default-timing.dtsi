@@ -68,13 +68,13 @@
 		phy_lpddr3_dq_drv = <PHY_DRV_ODT_34_3>;
 		phy_lpddr3_odt = <PHY_DRV_ODT_240>;
 
-		lpddr4_odt_dis_freq = <933>;
-		lpddr4_drv = <LP4_PDDS_60ohm>;
+		lpddr4_odt_dis_freq = <800>;
+		lpddr4_drv = <LP4_PDDS_240ohm>;
 		lpddr4_dq_odt = <LP4_DQ_ODT_40ohm>;
-		lpddr4_ca_odt = <LP4_CA_ODT_40ohm>;
+		lpddr4_ca_odt = <LP4_CA_ODT_DIS>;
 		phy_lpddr4_ca_drv = <PHY_DRV_ODT_40>;
-		phy_lpddr4_ck_cs_drv = <PHY_DRV_ODT_80>;
-		phy_lpddr4_dq_drv = <PHY_DRV_ODT_80>;
-		phy_lpddr4_odt = <PHY_DRV_ODT_60>;
+		phy_lpddr4_ck_cs_drv = <PHY_DRV_ODT_40>;
+		phy_lpddr4_dq_drv = <PHY_DRV_ODT_60>;
+		phy_lpddr4_odt = <PHY_DRV_ODT_40>;
 	};
 };
