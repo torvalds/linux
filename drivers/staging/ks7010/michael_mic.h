@@ -21,4 +21,4 @@ struct michael_mic {
 };
 
 void michael_mic_function(struct michael_mic *mic, u8 *key,
-			  u8 *data, int len, u8 priority, u8 *result);
+			  u8 *data, unsigned int len, u8 priority, u8 *result);

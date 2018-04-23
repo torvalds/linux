@@ -110,7 +110,7 @@ static void michael_get_mic(struct michael_mic *mic, u8 *dst)
 }
 
 void michael_mic_function(struct michael_mic *mic, u8 *key,
-			  u8 *data, int len, u8 priority, u8 *result)
+			  u8 *data, unsigned int len, u8 priority, u8 *result)
 {
 	u8 pad_data[4] = { priority, 0, 0, 0 };
 	// Compute the MIC value
