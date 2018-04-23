@@ -173,20 +173,21 @@ static void clear_shadow_scan(void)
 {
 	int i;
 
-	if (op_ifcs == 0) {
-		del_timer_sync(&aging_timer);
+	if (op_ifcs != 0)
+		return;
 
-		for (i = 0; i < last_scanned_cnt; i++) {
-			if (last_scanned_shadow[last_scanned_cnt].ies) {
-				kfree(last_scanned_shadow[i].ies);
-				last_scanned_shadow[last_scanned_cnt].ies = NULL;
-			}
+	del_timer_sync(&aging_timer);
 
-			kfree(last_scanned_shadow[i].join_params);
-			last_scanned_shadow[i].join_params = NULL;
+	for (i = 0; i < last_scanned_cnt; i++) {
+		if (last_scanned_shadow[last_scanned_cnt].ies) {
+			kfree(last_scanned_shadow[i].ies);
+			last_scanned_shadow[last_scanned_cnt].ies = NULL;
 		}
-		last_scanned_cnt = 0;
+
+		kfree(last_scanned_shadow[i].join_params);
+		last_scanned_shadow[i].join_params = NULL;
 	}
+	last_scanned_cnt = 0;
 }
 
 static u32 get_rssi_avg(struct network_info *network_info)
