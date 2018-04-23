@@ -1392,6 +1392,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	disable_irq(vop->irq);
 
 	vop->is_enabled = false;
+	smp_wmb();
 	if (vop->is_iommu_enabled) {
 		/*
 		 * vop standby complete, so iommu detach is safe.
@@ -2328,7 +2329,14 @@ static void vop_crtc_close(struct drm_crtc *crtc)
 	if (!crtc)
 		return;
 	vop = to_vop(crtc);
+	mutex_lock(&vop->vop_lock);
+	if (!vop->is_enabled) {
+		mutex_unlock(&vop->vop_lock);
+		return;
+	}
+
 	vop_disable_all_planes(vop);
+	mutex_unlock(&vop->vop_lock);
 }
 
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
