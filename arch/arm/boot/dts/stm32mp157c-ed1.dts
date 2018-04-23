@@ -25,6 +25,10 @@
 	};
 };
 
+&rng1 {
+	status = "okay";
+};
+
 &timers6 {
 	status = "okay";
 	timer@5 {
