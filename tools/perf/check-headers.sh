@@ -55,17 +55,26 @@ include/uapi/asm-generic/ioctls.h
 include/uapi/asm-generic/mman-common.h
 '
 
+check_2 () {
+  file1=$1
+  file2=$2
+
+  shift
+  shift
+
+  cmd="diff $* $file1 $file2 > /dev/null"
+
+  test -f $file2 &&
+  eval $cmd || echo "Warning: Kernel ABI header at 'tools/$file' differs from latest version at '$file'" >&2
+}
+
 check () {
   file=$1
 
   shift
 
-  cmd="diff $* ../$file ../../$file > /dev/null"
-
-  test -f ../../$file &&
-  eval $cmd || echo "Warning: Kernel ABI header at 'tools/$file' differs from latest version at '$file'" >&2
+  check_2 ../$file ../../$file $*
 }
-
 
 # Check if we have the kernel headers (tools/perf/../../include), else
 # we're probably on a detached tarball, so no point in trying to check
