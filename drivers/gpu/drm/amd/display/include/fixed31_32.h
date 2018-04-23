@@ -27,6 +27,12 @@
 #define __DAL_FIXED31_32_H__
 
 #define FIXED31_32_BITS_PER_FRACTIONAL_PART 32
+#ifndef LLONG_MIN
+#define LLONG_MIN (1LL<<63)
+#endif
+#ifndef LLONG_MAX
+#define LLONG_MAX (-1LL>>1)
+#endif
 
 /*
  * @brief
@@ -44,6 +50,7 @@
 struct fixed31_32 {
 	long long value;
 };
+
 
 /*
  * @brief
@@ -201,14 +208,12 @@ static inline struct fixed31_32 dc_fixpt_clamp(
  */
 static inline struct fixed31_32 dc_fixpt_shl(struct fixed31_32 arg, unsigned char shift)
 {
-	struct fixed31_32 res;
-
 	ASSERT(((arg.value >= 0) && (arg.value <= LLONG_MAX >> shift)) ||
-		((arg.value < 0) && (arg.value >= LLONG_MIN >> shift)));
+		((arg.value < 0) && (arg.value >= (LLONG_MIN / (1 << shift)))));
 
-	res.value = arg.value << shift;
+	arg.value = arg.value << shift;
 
-	return res;
+	return arg;
 }
 
 /*
@@ -217,9 +222,14 @@ static inline struct fixed31_32 dc_fixpt_shl(struct fixed31_32 arg, unsigned cha
  */
 static inline struct fixed31_32 dc_fixpt_shr(struct fixed31_32 arg, unsigned char shift)
 {
-	struct fixed31_32 res;
-	res.value = arg.value >> shift;
-	return res;
+	bool negative = arg.value < 0;
+
+	if (negative)
+		arg.value = -arg.value;
+	arg.value = arg.value >> shift;
+	if (negative)
+		arg.value = -arg.value;
+	return arg;
 }
 
 /*
