@@ -581,6 +581,49 @@ static int set_channel(struct wiphy *wiphy,
 	return result;
 }
 
+static inline int
+wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
+			     struct hidden_network *ntwk)
+{
+	int i;
+	int slot_id = 0;
+
+	ntwk->net_info = kcalloc(request->n_ssids,
+				 sizeof(struct hidden_network), GFP_KERNEL);
+	if (!ntwk->net_info)
+		goto out;
+
+	ntwk->n_ssids = request->n_ssids;
+
+	for (i = 0; i < request->n_ssids; i++) {
+		if (request->ssids[i].ssid_len > 0) {
+			struct hidden_net_info *info = &ntwk->net_info[slot_id];
+
+			info->ssid = kmemdup(request->ssids[i].ssid,
+					     request->ssids[i].ssid_len,
+					     GFP_KERNEL);
+			if (!info->ssid)
+				goto out_free;
+
+			info->ssid_len = request->ssids[i].ssid_len;
+			slot_id++;
+		} else {
+			ntwk->n_ssids -= 1;
+		}
+	}
+	return 0;
+
+out_free:
+
+	for (i = 0; i < slot_id ; i--)
+		kfree(ntwk->net_info[i].ssid);
+
+	kfree(ntwk->net_info);
+out:
+
+	return -ENOMEM;
+}
+
 static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct wilc_priv *priv;
@@ -605,23 +648,10 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 			scan_ch_list[i] = (u8)ieee80211_frequency_to_channel(request->channels[i]->center_freq);
 
 		if (request->n_ssids >= 1) {
-			hidden_ntwk.net_info =
-				kmalloc_array(request->n_ssids,
-					      sizeof(struct hidden_network),
-					      GFP_KERNEL);
-			if (!hidden_ntwk.net_info)
+			if (wilc_wfi_cfg_alloc_fill_ssid(request,
+							 &hidden_ntwk))
 				return -ENOMEM;
-			hidden_ntwk.n_ssids = request->n_ssids;
 
-			for (i = 0; i < request->n_ssids; i++) {
-				if (request->ssids[i].ssid_len != 0) {
-					hidden_ntwk.net_info[i].ssid = kmalloc(request->ssids[i].ssid_len, GFP_KERNEL);
-					memcpy(hidden_ntwk.net_info[i].ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
-					hidden_ntwk.net_info[i].ssid_len = request->ssids[i].ssid_len;
-				} else {
-					hidden_ntwk.n_ssids -= 1;
-				}
-			}
 			ret = wilc_scan(vif, USER_SCAN, ACTIVE_SCAN,
 					scan_ch_list,
 					request->n_channels,
