@@ -1107,6 +1107,9 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
 {
+	/* Set interrupt coalescing timer to default (2048 usecs) */
+	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+
 	/*
 	 * We don't configure the RFH.
 	 * Restock will be done at alive, after firmware configured the RFH.
