@@ -192,9 +192,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 
 	/* Get time from the RTC. */
 	data = in_be32(&sys_tmr->sit_rtc);
-	to_tm(data, tm);
-	tm->tm_year -= 1900;
-	tm->tm_mon -= 1;
+	rtc_time64_to_tm(data, tm);
 	immr_unmap(sys_tmr);
 	return;
 }

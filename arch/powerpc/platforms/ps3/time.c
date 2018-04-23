@@ -76,7 +76,7 @@ static u64 read_rtc(void)
 	return rtc_val;
 }
 
-unsigned long __init ps3_get_boot_time(void)
+time64_t __init ps3_get_boot_time(void)
 {
 	return read_rtc() + ps3_os_area_get_rtc_diff();
 }
