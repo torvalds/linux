@@ -179,7 +179,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 			if (rep_ndev == ndev)
 				roce->netdev = (event == NETDEV_UNREGISTER) ?
 					NULL : ndev;
-		} else if (ndev->dev.parent == &ibdev->mdev->pdev->dev) {
+		} else if (ndev->dev.parent == &mdev->pdev->dev) {
 			roce->netdev = (event == NETDEV_UNREGISTER) ?
 				NULL : ndev;
 		}
