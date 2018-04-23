@@ -48,12 +48,17 @@ enum reg_status_type {
 /* Write Index Register */
 #define WRITE_INDEX_REG		0x000010
 
-/* Write Status/Read Data Size Register
+/*
+ * Write Status/Read Data Size Register
  * for network packet (less than 2048 bytes data)
  */
 #define WSTATUS_RSIZE_REG	0x000014
-#define WSTATUS_MASK		0x80	/* Write Status Register value */
-#define RSIZE_MASK		0x7F	/* Read Data Size Register value [10:4] */
+
+/* Write Status Register value */
+#define WSTATUS_MASK		0x80
+
+/* Read Data Size Register value [10:4] */
+#define RSIZE_MASK		0x7F
 
 /* ARM to SD interrupt Enable */
 #define INT_ENABLE_REG		0x000020
