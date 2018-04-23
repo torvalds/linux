@@ -294,9 +294,6 @@
 		reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
 
 		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			ov5640_to_mipi_csi2: endpoint {
 				remote-endpoint = <&mipi_csi2_in>;
 				clock-lanes = <0>;
