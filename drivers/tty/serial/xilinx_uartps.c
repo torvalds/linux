@@ -1206,6 +1206,10 @@ OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p8", cdns_early_console_setup);
 OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p12", cdns_early_console_setup);
 OF_EARLYCON_DECLARE(cdns, "xlnx,zynqmp-uart", cdns_early_console_setup);
 
+
+/* Static pointer to console port */
+static struct uart_port *console_port;
+
 /**
  * cdns_uart_console_write - perform write operation
  * @co: Console handle
@@ -1215,7 +1219,7 @@ OF_EARLYCON_DECLARE(cdns, "xlnx,zynqmp-uart", cdns_early_console_setup);
 static void cdns_uart_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
-	struct uart_port *port = &cdns_uart_port[co->index];
+	struct uart_port *port = console_port;
 	unsigned long flags;
 	unsigned int imr, ctrl;
 	int locked = 1;
@@ -1261,14 +1265,12 @@ static void cdns_uart_console_write(struct console *co, const char *s,
  */
 static int __init cdns_uart_console_setup(struct console *co, char *options)
 {
-	struct uart_port *port = &cdns_uart_port[co->index];
+	struct uart_port *port = console_port;
+
 	int baud = 9600;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
-
-	if (co->index < 0 || co->index >= CDNS_UART_NR_PORTS)
-		return -EINVAL;
 
 	if (!port->membase) {
 		pr_debug("console on " CDNS_UART_TTY_NAME "%i not present\n",
@@ -1563,12 +1565,29 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
+#ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
+	/*
+	 * If console hasn't been found yet try to assign this port
+	 * because it is required to be assigned for console setup function.
+	 * If register_console() don't assign value, then console_port pointer
+	 * is cleanup.
+	 */
+	if (cdns_uart_uart_driver.cons->index == -1)
+		console_port = port;
+#endif
+
 	rc = uart_add_one_port(&cdns_uart_uart_driver, port);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"uart_add_one_port() failed; err=%i\n", rc);
 		goto err_out_pm_disable;
 	}
+
+#ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
+	/* This is not port which is used for console that's why clean it up */
+	if (cdns_uart_uart_driver.cons->index == -1)
+		console_port = NULL;
+#endif
 
 	return 0;
 
