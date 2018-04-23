@@ -1041,7 +1041,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	priv->dev_state = DEVICE_STATE_BOOT;
 
-	priv->wq = create_workqueue("wq");
+	priv->wq = alloc_workqueue("wq", WQ_MEM_RECLAIM, 1);
 	if (!priv->wq) {
 		netdev_err(priv->net_dev, "create_workqueue failed !!\n");
 		goto err_free_netdev;
