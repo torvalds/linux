@@ -204,7 +204,7 @@ static void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 	if (atomic_read(&priv->sleepstatus.status) == 0) {
 		ret = ks7010_sdio_writeb(priv, GCR_B_REG, GCR_B_DOZE);
 		if (ret) {
-			netdev_err(priv->net_dev, " error : GCR_B_REG\n");
+			netdev_err(priv->net_dev, "write GCR_B_REG\n");
 			goto set_sleep_mode;
 		}
 		atomic_set(&priv->sleepstatus.status, 1);
@@ -225,7 +225,7 @@ static void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 	if (atomic_read(&priv->sleepstatus.status) == 1) {
 		ret = ks7010_sdio_writeb(priv, WAKEUP_REG, WAKEUP_REQ);
 		if (ret) {
-			netdev_err(priv->net_dev, " error : WAKEUP_REG\n");
+			netdev_err(priv->net_dev, "write WAKEUP_REG\n");
 			goto set_sleep_mode;
 		}
 		atomic_set(&priv->sleepstatus.status, 0);
@@ -244,7 +244,7 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
 		ret = ks7010_sdio_writeb(priv, WAKEUP_REG, WAKEUP_REQ);
 		if (ret)
-			netdev_err(priv->net_dev, " error : WAKEUP_REG\n");
+			netdev_err(priv->net_dev, "write WAKEUP_REG\n");
 
 		priv->last_wakeup = jiffies;
 		++priv->wakeup_count;
@@ -286,7 +286,7 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 
 	ret = ks7010_sdio_readb(priv, INT_PENDING_REG, &byte);
 	if (ret) {
-		netdev_err(priv->net_dev, " error : INT_PENDING_REG\n");
+		netdev_err(priv->net_dev, "read INT_PENDING_REG\n");
 		goto queue_delayed_work;
 	}
 	if (byte)
@@ -294,7 +294,7 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 
 	ret = ks7010_sdio_writeb(priv, GCR_B_REG, GCR_B_DOZE);
 	if (ret) {
-		netdev_err(priv->net_dev, " error : GCR_B_REG\n");
+		netdev_err(priv->net_dev, "write GCR_B_REG\n");
 		goto queue_delayed_work;
 	}
 	atomic_set(&priv->psstatus.status, PS_SNOOZE);
@@ -365,13 +365,13 @@ static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 
 	ret = ks7010_sdio_write(priv, DATA_WINDOW, buffer, size);
 	if (ret) {
-		netdev_err(priv->net_dev, " write error : retval=%d\n", ret);
+		netdev_err(priv->net_dev, "write DATA_WINDOW\n");
 		return ret;
 	}
 
 	ret = ks7010_sdio_writeb(priv, WRITE_STATUS_REG, REG_STATUS_BUSY);
 	if (ret) {
-		netdev_err(priv->net_dev, " error : WRITE_STATUS_REG\n");
+		netdev_err(priv->net_dev, "write WRITE_STATUS_REG\n");
 		return ret;
 	}
 
@@ -479,7 +479,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 #endif
 		ret = ks7010_sdio_writeb(priv, READ_STATUS_REG, REG_STATUS_IDLE);
 		if (ret)
-			netdev_err(priv->net_dev, " error : READ_STATUS_REG\n");
+			netdev_err(priv->net_dev, "write READ_STATUS_REG\n");
 
 		/* length check fail */
 		return;
@@ -492,7 +492,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 	ret = ks7010_sdio_writeb(priv, READ_STATUS_REG, REG_STATUS_IDLE);
 	if (ret)
-		netdev_err(priv->net_dev, " error : READ_STATUS_REG\n");
+		netdev_err(priv->net_dev, "write READ_STATUS_REG\n");
 
 	if (atomic_read(&priv->psstatus.confirm_wait)) {
 		if (is_hif_conf(event)) {
@@ -553,7 +553,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	/* read (WriteStatus/ReadDataSize FN1:00_0014) */
 	ret = ks7010_sdio_readb(priv, WSTATUS_RSIZE_REG, &byte);
 	if (ret) {
-		netdev_err(priv->net_dev, " error : WSTATUS_RSIZE_REG psstatus=%d\n",
+		netdev_err(priv->net_dev, "read WSTATUS_RSIZE_REG psstatus=%d\n",
 			   atomic_read(&priv->psstatus.status));
 		goto release_host;
 	}
@@ -585,7 +585,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 
 	ret = ks7010_sdio_readb(priv, INT_PENDING_REG, &status);
 	if (ret) {
-		netdev_err(priv->net_dev, "error : INT_PENDING_REG\n");
+		netdev_err(priv->net_dev, "read INT_PENDING_REG\n");
 		goto queue_delayed_work;
 	}
 
@@ -598,7 +598,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 	    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
 		ret = ks7010_sdio_readb(priv, GCR_B_REG, &byte);
 		if (ret) {
-			netdev_err(priv->net_dev, " error : GCR_B_REG\n");
+			netdev_err(priv->net_dev, "read GCR_B_REG\n");
 			goto queue_delayed_work;
 		}
 		if (byte == GCR_B_ACTIVE) {
@@ -614,7 +614,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		/* read (WriteStatus/ReadDataSize FN1:00_0014) */
 		ret = ks7010_sdio_readb(priv, WSTATUS_RSIZE_REG, &byte);
 		if (ret) {
-			netdev_err(priv->net_dev, " error : WSTATUS_RSIZE_REG\n");
+			netdev_err(priv->net_dev, "read WSTATUS_RSIZE_REG\n");
 			goto queue_delayed_work;
 		}
 		rsize = byte & RSIZE_MASK;
@@ -948,7 +948,7 @@ static void ks7010_sdio_init_irqs(struct sdio_func *func,
 	ret = ks7010_sdio_writeb(priv, INT_PENDING_REG, 0xff);
 	sdio_release_host(func);
 	if (ret)
-		netdev_err(priv->net_dev, " error : INT_PENDING_REG\n");
+		netdev_err(priv->net_dev, "write INT_PENDING_REG\n");
 
 	/* enable ks7010sdio interrupt */
 	byte = (INT_GCR_B | INT_READ_STATUS | INT_WRITE_STATUS);
@@ -956,7 +956,7 @@ static void ks7010_sdio_init_irqs(struct sdio_func *func,
 	ret = ks7010_sdio_writeb(priv, INT_ENABLE_REG, byte);
 	sdio_release_host(func);
 	if (ret)
-		netdev_err(priv->net_dev, " err : INT_ENABLE_REG\n");
+		netdev_err(priv->net_dev, "write INT_ENABLE_REG\n");
 }
 
 static void ks7010_private_init(struct ks_wlan_private *priv,
@@ -1024,12 +1024,11 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	/* private memory allocate */
 	netdev = alloc_etherdev(sizeof(*priv));
 	if (!netdev) {
-		dev_err(&card->func->dev, "ks7010 : Unable to alloc new net device\n");
+		dev_err(&card->func->dev, "Unable to alloc new net device\n");
 		goto err_release_irq;
 	}
 	if (dev_alloc_name(netdev, "wlan%d") < 0) {
-		dev_err(&card->func->dev,
-			"ks7010 :  Couldn't get name!\n");
+		dev_err(&card->func->dev, "Couldn't get name!\n");
 		goto err_free_netdev;
 	}
 
@@ -1043,8 +1042,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	ret = ks7010_upload_firmware(card);
 	if (ret) {
 		netdev_err(priv->net_dev,
-			   "ks7010: firmware load failed !! return code = %d\n",
-			   ret);
+			   "firmware load failed !! ret = %d\n", ret);
 		goto err_free_netdev;
 	}
 
