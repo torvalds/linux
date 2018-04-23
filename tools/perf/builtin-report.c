@@ -523,12 +523,9 @@ static void report__warn_kptr_restrict(const struct report *rep)
 		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
 		    "can't be resolved.";
 
-		if (kernel_map) {
-			const struct dso *kdso = kernel_map->dso;
-			if (dso__has_symbols(kdso, MAP__FUNCTION)) {
-				desc = "If some relocation was applied (e.g. "
-				       "kexec) symbols may be misresolved.";
-			}
+		if (kernel_map && map__has_symbols(kernel_map)) {
+			desc = "If some relocation was applied (e.g. "
+			       "kexec) symbols may be misresolved.";
 		}
 
 		ui__warning(

@@ -259,6 +259,11 @@ bool __map__is_kernel(const struct map *map)
 	return __machine__kernel_map(map->groups->machine, map->type) == map;
 }
 
+bool map__has_symbols(const struct map *map)
+{
+	return dso__has_symbols(map->dso, map->type);
+}
+
 static void map__exit(struct map *map)
 {
 	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
