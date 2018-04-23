@@ -994,6 +994,9 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	sdio_claim_host(func);
 
 	ret = sdio_set_block_size(func, KS7010_IO_BLOCK_SIZE);
+	if (ret)
+		goto err_free_card;
+
 	dev_dbg(&card->func->dev, "multi_block=%d sdio_set_block_size()=%d %d\n",
 		func->card->cccr.multi_block, func->cur_blksize, ret);
 
