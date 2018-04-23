@@ -330,19 +330,22 @@ static int otm8009a_prepare(struct drm_panel *panel)
 
 	ctx->prepared = true;
 
-	/*
-	 * Power on the backlight. Note: end-user still controls brightness
-	 * Note: ctx->prepared must be true before updating the backlight.
-	 */
-	ctx->bl_dev->props.power = FB_BLANK_UNBLANK;
-	backlight_update_status(ctx->bl_dev);
-
 	return 0;
 }
 
 static int otm8009a_enable(struct drm_panel *panel)
 {
 	struct otm8009a *ctx = panel_to_otm8009a(panel);
+
+	if (ctx->enabled)
+		return 0;
+
+	/*
+	 * Power on the backlight. Note: end-user still controls brightness
+	 * Note: ctx->prepared must be true before updating the backlight.
+	 */
+	ctx->bl_dev->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(ctx->bl_dev);
 
 	ctx->enabled = true;
 
