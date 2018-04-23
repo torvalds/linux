@@ -52,6 +52,8 @@ void running_handler(int a);
 #define S1_PORT 10000
 #define S2_PORT 10001
 
+#define BPF_FILENAME "sockmap_kern.o"
+
 /* global sockets */
 int s1, s2, c1, c2, p1, p2;
 
@@ -226,6 +228,9 @@ struct sockmap_options {
 	bool sendpage;
 	bool data_test;
 	bool drop_expected;
+	int iov_count;
+	int iov_length;
+	int rate;
 };
 
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
@@ -409,12 +414,14 @@ static inline float recvdBps(struct msg_stats s)
 	return s.bytes_recvd / (s.end.tv_sec - s.start.tv_sec);
 }
 
-static int sendmsg_test(int iov_count, int iov_buf, int cnt,
-			struct sockmap_options *opt)
+static int sendmsg_test(struct sockmap_options *opt)
 {
 	float sent_Bps = 0, recvd_Bps = 0;
 	int rx_fd, txpid, rxpid, err = 0;
 	struct msg_stats s = {0};
+	int iov_count = opt->iov_count;
+	int iov_buf = opt->iov_length;
+	int cnt = opt->rate;
 	int status;
 
 	errno = 0;
@@ -568,98 +575,13 @@ enum {
 	SENDPAGE,
 };
 
-int main(int argc, char **argv)
+static int run_options(struct sockmap_options options, int cg_fd,  int test)
 {
-	int iov_count = 1, length = 1024, rate = 1, tx_prog_fd;
-	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
-	int opt, longindex, err, cg_fd = 0;
-	struct sockmap_options options = {0};
-	int test = PING_PONG;
+	char *bpf_file = BPF_FILENAME;
+	int err, tx_prog_fd;
 	char filename[256];
 
-	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
-				  long_options, &longindex)) != -1) {
-		switch (opt) {
-		case 's':
-			txmsg_start = atoi(optarg);
-			break;
-		case 'e':
-			txmsg_end = atoi(optarg);
-			break;
-		case 'a':
-			txmsg_apply = atoi(optarg);
-			break;
-		case 'k':
-			txmsg_cork = atoi(optarg);
-			break;
-		case 'c':
-			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
-			if (cg_fd < 0) {
-				fprintf(stderr,
-					"ERROR: (%i) open cg path failed: %s\n",
-					cg_fd, optarg);
-				return cg_fd;
-			}
-			break;
-		case 'r':
-			rate = atoi(optarg);
-			break;
-		case 'v':
-			options.verbose = 1;
-			break;
-		case 'i':
-			iov_count = atoi(optarg);
-			break;
-		case 'l':
-			length = atoi(optarg);
-			break;
-		case 'd':
-			options.data_test = true;
-			break;
-		case 't':
-			if (strcmp(optarg, "ping") == 0) {
-				test = PING_PONG;
-			} else if (strcmp(optarg, "sendmsg") == 0) {
-				test = SENDMSG;
-			} else if (strcmp(optarg, "base") == 0) {
-				test = BASE;
-			} else if (strcmp(optarg, "base_sendpage") == 0) {
-				test = BASE_SENDPAGE;
-			} else if (strcmp(optarg, "sendpage") == 0) {
-				test = SENDPAGE;
-			} else {
-				usage(argv);
-				return -1;
-			}
-			break;
-		case 0:
-			break;
-		case 'h':
-		default:
-			usage(argv);
-			return -1;
-		}
-	}
-
-	if (!cg_fd) {
-		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
-			argv[0]);
-		return -1;
-	}
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
-
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-
-	running = 1;
-
-	/* catch SIGINT */
-	signal(SIGINT, running_handler);
-
-	if (load_bpf_file(filename)) {
+	if (load_bpf_file(bpf_file)) {
 		fprintf(stderr, "load_bpf_file: (%s) %s\n",
 			filename, strerror(errno));
 		return 1;
@@ -857,23 +779,23 @@ run:
 		options.drop_expected = true;
 
 	if (test == PING_PONG)
-		err = forever_ping_pong(rate, &options);
+		err = forever_ping_pong(options.rate, &options);
 	else if (test == SENDMSG) {
 		options.base = false;
 		options.sendpage = false;
-		err = sendmsg_test(iov_count, length, rate, &options);
+		err = sendmsg_test(&options);
 	} else if (test == SENDPAGE) {
 		options.base = false;
 		options.sendpage = true;
-		err = sendmsg_test(iov_count, length, rate, &options);
+		err = sendmsg_test(&options);
 	} else if (test == BASE) {
 		options.base = true;
 		options.sendpage = false;
-		err = sendmsg_test(iov_count, length, rate, &options);
+		err = sendmsg_test(&options);
 	} else if (test == BASE_SENDPAGE) {
 		options.base = true;
 		options.sendpage = true;
-		err = sendmsg_test(iov_count, length, rate, &options);
+		err = sendmsg_test(&options);
 	} else
 		fprintf(stderr, "unknown test\n");
 out:
@@ -886,6 +808,101 @@ out:
 	close(c2);
 	close(cg_fd);
 	return err;
+}
+
+int main(int argc, char **argv)
+{
+	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
+	int iov_count = 1, length = 1024, rate = 1;
+	struct sockmap_options options = {0};
+	int opt, longindex, cg_fd = 0;
+	int test = PING_PONG;
+
+	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
+				  long_options, &longindex)) != -1) {
+		switch (opt) {
+		case 's':
+			txmsg_start = atoi(optarg);
+			break;
+		case 'e':
+			txmsg_end = atoi(optarg);
+			break;
+		case 'a':
+			txmsg_apply = atoi(optarg);
+			break;
+		case 'k':
+			txmsg_cork = atoi(optarg);
+			break;
+		case 'c':
+			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
+			if (cg_fd < 0) {
+				fprintf(stderr,
+					"ERROR: (%i) open cg path failed: %s\n",
+					cg_fd, optarg);
+				return cg_fd;
+			}
+			break;
+		case 'r':
+			rate = atoi(optarg);
+			break;
+		case 'v':
+			options.verbose = 1;
+			break;
+		case 'i':
+			iov_count = atoi(optarg);
+			break;
+		case 'l':
+			length = atoi(optarg);
+			break;
+		case 'd':
+			options.data_test = true;
+			break;
+		case 't':
+			if (strcmp(optarg, "ping") == 0) {
+				test = PING_PONG;
+			} else if (strcmp(optarg, "sendmsg") == 0) {
+				test = SENDMSG;
+			} else if (strcmp(optarg, "base") == 0) {
+				test = BASE;
+			} else if (strcmp(optarg, "base_sendpage") == 0) {
+				test = BASE_SENDPAGE;
+			} else if (strcmp(optarg, "sendpage") == 0) {
+				test = SENDPAGE;
+			} else {
+				usage(argv);
+				return -1;
+			}
+			break;
+		case 0:
+			break;
+		case 'h':
+		default:
+			usage(argv);
+			return -1;
+		}
+	}
+
+	if (!cg_fd) {
+		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
+			argv[0]);
+		return -1;
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
+
+	running = 1;
+
+	/* catch SIGINT */
+	signal(SIGINT, running_handler);
+
+	options.iov_count = iov_count;
+	options.iov_length = length;
+	options.rate = rate;
+
+	return run_options(options, cg_fd, test);
 }
 
 void running_handler(int a)
