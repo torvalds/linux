@@ -7,3 +7,4 @@ reuseport_bpf_cpu
 reuseport_bpf_numa
 reuseport_dualstack
 reuseaddr_conflict
+tcp_mmap
