@@ -90,7 +90,7 @@ static const struct wiphy_wowlan_support wowlan_support = {
 static struct network_info last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 static u32 last_scanned_cnt;
 struct timer_list wilc_during_ip_timer;
-static struct timer_list hAgingTimer;
+static struct timer_list aging_timer;
 static u8 op_ifcs;
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
@@ -174,7 +174,7 @@ static void clear_shadow_scan(void)
 	int i;
 
 	if (op_ifcs == 0) {
-		del_timer_sync(&hAgingTimer);
+		del_timer_sync(&aging_timer);
 
 		for (i = 0; i < last_scanned_cnt; i++) {
 			if (last_scanned_shadow[last_scanned_cnt].ies) {
@@ -276,7 +276,7 @@ static void remove_network_from_shadow(struct timer_list *unused)
 	}
 
 	if (last_scanned_cnt != 0)
-		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
+		mod_timer(&aging_timer, jiffies + msecs_to_jiffies(AGING_TIME));
 }
 
 static void clear_duringIP(struct timer_list *unused)
@@ -290,7 +290,7 @@ static int is_network_in_shadow(struct network_info *nw_info, void *user_void)
 	int i;
 
 	if (last_scanned_cnt == 0) {
-		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
+		mod_timer(&aging_timer, jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
 		for (i = 0; i < last_scanned_cnt; i++) {
@@ -2272,7 +2272,7 @@ int wilc_init_host_int(struct net_device *net)
 
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		timer_setup(&hAgingTimer, remove_network_from_shadow, 0);
+		timer_setup(&aging_timer, remove_network_from_shadow, 0);
 		timer_setup(&wilc_during_ip_timer, clear_duringIP, 0);
 	}
 	op_ifcs++;
