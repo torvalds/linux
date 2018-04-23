@@ -255,6 +255,7 @@ static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 					    struct net_device *rdma_ndev)
 {
 	struct net_device *real_dev = rdma_vlan_dev_real_dev(event_ndev);
+	unsigned long gid_type_mask;
 
 	if (!rdma_ndev)
 		return;
@@ -264,21 +265,22 @@ static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 
 	rcu_read_lock();
 
-	if (rdma_is_upper_dev_rcu(rdma_ndev, event_ndev) &&
-	    is_eth_active_slave_of_bonding_rcu(rdma_ndev, real_dev) ==
-	    BONDING_SLAVE_STATE_INACTIVE) {
-		unsigned long gid_type_mask;
-
+	if (((rdma_ndev != event_ndev &&
+	      !rdma_is_upper_dev_rcu(rdma_ndev, event_ndev)) ||
+	     is_eth_active_slave_of_bonding_rcu(rdma_ndev, real_dev)
+						 ==
+	     BONDING_SLAVE_STATE_INACTIVE)) {
 		rcu_read_unlock();
-
-		gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
-
-		ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev,
-					     gid_type_mask,
-					     IB_CACHE_GID_DEFAULT_MODE_DELETE);
-	} else {
-		rcu_read_unlock();
+		return;
 	}
+
+	rcu_read_unlock();
+
+	gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+
+	ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev,
+				     gid_type_mask,
+				     IB_CACHE_GID_DEFAULT_MODE_DELETE);
 }
 
 static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,

@@ -427,7 +427,7 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 static int
 _ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 		  union ib_gid *gid, struct ib_gid_attr *attr,
-		  bool default_gid)
+		  unsigned long mask, bool default_gid)
 {
 	struct ib_gid_table *table;
 	int ret = 0;
@@ -437,12 +437,7 @@ _ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 
 	mutex_lock(&table->lock);
 
-	ix = find_gid(table, gid, attr, default_gid,
-		      GID_ATTR_FIND_MASK_GID	  |
-		      GID_ATTR_FIND_MASK_GID_TYPE |
-		      GID_ATTR_FIND_MASK_DEFAULT  |
-		      GID_ATTR_FIND_MASK_NETDEV,
-		      NULL);
+	ix = find_gid(table, gid, attr, default_gid, mask, NULL);
 	if (ix < 0) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -462,7 +457,12 @@ out_unlock:
 int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr)
 {
-	return _ib_cache_gid_del(ib_dev, port, gid, attr, false);
+	unsigned long mask = GID_ATTR_FIND_MASK_GID	  |
+			     GID_ATTR_FIND_MASK_GID_TYPE |
+			     GID_ATTR_FIND_MASK_DEFAULT  |
+			     GID_ATTR_FIND_MASK_NETDEV;
+
+	return _ib_cache_gid_del(ib_dev, port, gid, attr, mask, false);
 }
 
 int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
@@ -741,7 +741,7 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode)
 {
-	union ib_gid gid;
+	union ib_gid gid = { };
 	struct ib_gid_attr gid_attr;
 	struct ib_gid_table *table;
 	unsigned int gid_type;
@@ -749,7 +749,9 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 
 	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
 
-	make_default_gid(ndev, &gid);
+	mask = GID_ATTR_FIND_MASK_GID_TYPE |
+	       GID_ATTR_FIND_MASK_DEFAULT |
+	       GID_ATTR_FIND_MASK_NETDEV;
 	memset(&gid_attr, 0, sizeof(gid_attr));
 	gid_attr.ndev = ndev;
 
@@ -760,12 +762,12 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 		gid_attr.gid_type = gid_type;
 
 		if (mode == IB_CACHE_GID_DEFAULT_MODE_SET) {
-			mask = GID_ATTR_FIND_MASK_GID_TYPE |
-			       GID_ATTR_FIND_MASK_DEFAULT;
+			make_default_gid(ndev, &gid);
 			__ib_cache_gid_add(ib_dev, port, &gid,
 					   &gid_attr, mask, true);
 		} else if (mode == IB_CACHE_GID_DEFAULT_MODE_DELETE) {
-			_ib_cache_gid_del(ib_dev, port, &gid, &gid_attr, true);
+			_ib_cache_gid_del(ib_dev, port, &gid,
+					  &gid_attr, mask, true);
 		}
 	}
 }
