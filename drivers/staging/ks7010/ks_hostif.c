@@ -1562,24 +1562,25 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 static void devio_rec_ind(struct ks_wlan_private *priv, unsigned char *p,
 			  unsigned int size)
 {
-	if (priv->is_device_open) {
-		spin_lock(&priv->dev_read_lock);	/* request spin lock */
-		priv->dev_data[atomic_read(&priv->rec_count)] = p;
-		priv->dev_size[atomic_read(&priv->rec_count)] = size;
+	if (!priv->is_device_open)
+		return;
 
-		if (atomic_read(&priv->event_count) != DEVICE_STOCK_COUNT) {
-			/* rx event count inc */
-			atomic_inc(&priv->event_count);
-		}
-		atomic_inc(&priv->rec_count);
-		if (atomic_read(&priv->rec_count) == DEVICE_STOCK_COUNT)
-			atomic_set(&priv->rec_count, 0);
+	spin_lock(&priv->dev_read_lock);	/* request spin lock */
+	priv->dev_data[atomic_read(&priv->rec_count)] = p;
+	priv->dev_size[atomic_read(&priv->rec_count)] = size;
 
-		wake_up_interruptible_all(&priv->devread_wait);
-
-		/* release spin lock */
-		spin_unlock(&priv->dev_read_lock);
+	if (atomic_read(&priv->event_count) != DEVICE_STOCK_COUNT) {
+		/* rx event count inc */
+		atomic_inc(&priv->event_count);
 	}
+	atomic_inc(&priv->rec_count);
+	if (atomic_read(&priv->rec_count) == DEVICE_STOCK_COUNT)
+		atomic_set(&priv->rec_count, 0);
+
+	wake_up_interruptible_all(&priv->devread_wait);
+
+	/* release spin lock */
+	spin_unlock(&priv->dev_read_lock);
 }
 
 void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
