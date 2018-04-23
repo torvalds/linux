@@ -46,6 +46,11 @@ static const char * const power_supply_type_text[] = {
 	"USB_PD", "USB_PD_DRP", "BrickID"
 };
 
+static const char * const power_supply_usb_type_text[] = {
+	"Unknown", "SDP", "DCP", "CDP", "ACA", "C",
+	"PD", "PD_DRP", "PD_PPS", "BrickID"
+};
+
 static const char * const power_supply_status_text[] = {
 	"Unknown", "Charging", "Discharging", "Not charging", "Full"
 };
@@ -72,6 +77,41 @@ static const char * const power_supply_capacity_level_text[] = {
 static const char * const power_supply_scope_text[] = {
 	"Unknown", "System", "Device"
 };
+
+static ssize_t power_supply_show_usb_type(struct device *dev,
+					  enum power_supply_usb_type *usb_types,
+					  ssize_t num_usb_types,
+					  union power_supply_propval *value,
+					  char *buf)
+{
+	enum power_supply_usb_type usb_type;
+	ssize_t count = 0;
+	bool match = false;
+	int i;
+
+	for (i = 0; i < num_usb_types; ++i) {
+		usb_type = usb_types[i];
+
+		if (value->intval == usb_type) {
+			count += sprintf(buf + count, "[%s] ",
+					 power_supply_usb_type_text[usb_type]);
+			match = true;
+		} else {
+			count += sprintf(buf + count, "%s ",
+					 power_supply_usb_type_text[usb_type]);
+		}
+	}
+
+	if (!match) {
+		dev_warn(dev, "driver reporting unsupported connected type\n");
+		return -EINVAL;
+	}
+
+	if (count)
+		buf[count - 1] = '\n';
+
+	return count;
+}
 
 static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
@@ -115,6 +155,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 	else if (off == POWER_SUPPLY_PROP_TYPE)
 		return sprintf(buf, "%s\n",
 			       power_supply_type_text[value.intval]);
+	else if (off == POWER_SUPPLY_PROP_USB_TYPE)
+		return power_supply_show_usb_type(dev, psy->desc->usb_types,
+						  psy->desc->num_usb_types,
+						  &value, buf);
 	else if (off == POWER_SUPPLY_PROP_SCOPE)
 		return sprintf(buf, "%s\n",
 			       power_supply_scope_text[value.intval]);
@@ -241,6 +285,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_full_now),
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
+	POWER_SUPPLY_ATTR(usb_type),
 	POWER_SUPPLY_ATTR(scope),
 	POWER_SUPPLY_ATTR(precharge_current),
 	POWER_SUPPLY_ATTR(charge_term_current),

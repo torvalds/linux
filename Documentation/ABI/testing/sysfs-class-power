@@ -409,6 +409,18 @@ Description:
 		Access: Read
 		Valid values: Represented in 1/10 Degrees Celsius
 
+What: 		/sys/class/power_supply/<supply_name>/usb_type
+Date:		March 2018
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports what type of USB connection is currently active for
+		the supply, for example it can show if USB-PD capable source
+		is attached.
+
+		Access: Read-Only
+		Valid values: "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",
+			      "PD_DRP", "PD_PPS", "BrickID"
+
 What: 		/sys/class/power_supply/<supply_name>/voltage_max
 Date:		January 2008
 Contact:	linux-pm@vger.kernel.org
