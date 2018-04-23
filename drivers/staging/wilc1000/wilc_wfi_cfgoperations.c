@@ -870,15 +870,15 @@ static inline void wilc_wfi_cfg_copy_wep_info(struct wilc_priv *priv,
 static int wilc_wfi_cfg_allocate_wpa_entry(struct wilc_priv *priv, u8 idx)
 {
 	if (!priv->wilc_gtk[idx]) {
-		priv->wilc_gtk[idx] = kzalloc(sizeof(struct wilc_wfi_key),
-					       GFP_KERNEL);
+		priv->wilc_gtk[idx] = kzalloc(sizeof(*priv->wilc_gtk[idx]),
+					      GFP_KERNEL);
 		if (!priv->wilc_gtk[idx])
 			return -ENOMEM;
 	}
 
 	if (!priv->wilc_ptk[idx]) {
-		priv->wilc_ptk[idx] = kzalloc(sizeof(struct wilc_wfi_key),
-					       GFP_KERNEL);
+		priv->wilc_ptk[idx] = kzalloc(sizeof(*priv->wilc_ptk[idx]),
+					      GFP_KERNEL);
 		if (!priv->wilc_ptk[idx])
 			return -ENOMEM;
 	}
