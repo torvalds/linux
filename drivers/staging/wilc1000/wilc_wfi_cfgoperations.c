@@ -1185,20 +1185,20 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT) {
 		cfg_param_val.flag  |= RETRY_SHORT;
-		cfg_param_val.short_retry_limit = priv->dev->ieee80211_ptr->wiphy->retry_short;
+		cfg_param_val.short_retry_limit = wiphy->retry_short;
 	}
 	if (changed & WIPHY_PARAM_RETRY_LONG) {
 		cfg_param_val.flag |= RETRY_LONG;
-		cfg_param_val.long_retry_limit = priv->dev->ieee80211_ptr->wiphy->retry_long;
+		cfg_param_val.long_retry_limit = wiphy->retry_long;
 	}
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
 		cfg_param_val.flag |= FRAG_THRESHOLD;
-		cfg_param_val.frag_threshold = priv->dev->ieee80211_ptr->wiphy->frag_threshold;
+		cfg_param_val.frag_threshold = wiphy->frag_threshold;
 	}
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
 		cfg_param_val.flag |= RTS_THRESHOLD;
-		cfg_param_val.rts_threshold = priv->dev->ieee80211_ptr->wiphy->rts_threshold;
+		cfg_param_val.rts_threshold = wiphy->rts_threshold;
 	}
 
 	ret = wilc_hif_set_cfg(vif, &cfg_param_val);
