@@ -338,7 +338,7 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	int result;
-	int ret = IIO_VAL_INT;
+	int ret;
 
 	result = iio_device_claim_direct_mode(indio_dev);
 	if (result)
@@ -383,14 +383,18 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 		break;
 	}
 
-error_power_off:
-	result |= inv_mpu6050_set_power_itg(st, false);
-error_release:
-	iio_device_release_direct_mode(indio_dev);
+	result = inv_mpu6050_set_power_itg(st, false);
 	if (result)
-		return result;
+		goto error_power_off;
+	iio_device_release_direct_mode(indio_dev);
 
 	return ret;
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+error_release:
+	iio_device_release_direct_mode(indio_dev);
+	return result;
 }
 
 static int
