@@ -122,8 +122,6 @@ enum {
 
 #define MAC_CONNECTED		1
 #define MAC_DISCONNECTED	0
-
-#define SCAN_DONE		TRUE
 enum {
 	PASSIVE_SCAN		= 0,
 	ACTIVE_SCAN		= 1,

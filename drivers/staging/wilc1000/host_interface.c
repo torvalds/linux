@@ -53,9 +53,6 @@
 #define HOST_IF_SCAN_TIMEOUT                    4000
 #define HOST_IF_CONNECT_TIMEOUT                 9500
 
-#define BA_SESSION_DEFAULT_BUFFER_SIZE          16
-#define BA_SESSION_DEFAULT_TIMEOUT              1000
-#define BLOCK_ACK_REQ_SIZE                      0x14
 #define FALSE_FRMWR_CHANNEL			100
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54

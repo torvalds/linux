@@ -14,18 +14,7 @@
 
 #include "wilc_wlan_if.h"
 
-#define NUM_BASIC_SWITCHES      45
-#define NUM_FHSS_SWITCHES       0
-
 #define NUM_RSSI                5
-
-#ifdef MAC_802_11N
-#define NUM_11N_BASIC_SWITCHES  25
-#define NUM_11N_HUT_SWITCHES    47
-#else
-#define NUM_11N_BASIC_SWITCHES  0
-#define NUM_11N_HUT_SWITCHES    0
-#endif
 
 #define MAC_HDR_LEN             24
 #define MAX_SSID_LEN            33
@@ -41,8 +30,6 @@
 #define GET_CFG              1
 
 #define MAX_STRING_LEN               256
-#define MAX_SURVEY_RESULT_FRAG_SIZE  MAX_STRING_LEN
-#define SURVEY_RESULT_LENGTH         44
 #define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
 
 #define MAC_CONNECTED                1

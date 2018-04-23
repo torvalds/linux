@@ -79,9 +79,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-#define WILC_WFI_DWELL_PASSIVE 100
-#define WILC_WFI_DWELL_ACTIVE  40
-
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
 
