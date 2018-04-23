@@ -1187,8 +1187,6 @@
 			};
 
 			mipi_dsi: mipi@21e0000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0x021e0000 0x4000>;
 				status = "disabled";
 
