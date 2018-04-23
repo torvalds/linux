@@ -524,8 +524,6 @@ static int bpf_tcp_ingress(struct sock *sk, int apply_bytes,
 	i = md->sg_start;
 
 	do {
-		r->sg_data[i] = md->sg_data[i];
-
 		size = (apply && apply_bytes < md->sg_data[i].length) ?
 			apply_bytes : md->sg_data[i].length;
 
@@ -536,6 +534,7 @@ static int bpf_tcp_ingress(struct sock *sk, int apply_bytes,
 		}
 
 		sk_mem_charge(sk, size);
+		r->sg_data[i] = md->sg_data[i];
 		r->sg_data[i].length = size;
 		md->sg_data[i].length -= size;
 		md->sg_data[i].offset += size;
