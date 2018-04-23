@@ -253,6 +253,10 @@ enum xgbe_sfp_speed {
 #define XGBE_SFP_BASE_VENDOR_SN			4
 #define XGBE_SFP_BASE_VENDOR_SN_LEN		16
 
+#define XGBE_SFP_EXTD_OPT1			1
+#define XGBE_SFP_EXTD_OPT1_RX_LOS		BIT(1)
+#define XGBE_SFP_EXTD_OPT1_TX_FAULT		BIT(3)
+
 #define XGBE_SFP_EXTD_DIAG			28
 #define XGBE_SFP_EXTD_DIAG_ADDR_CHANGE		BIT(2)
 
@@ -332,6 +336,7 @@ struct xgbe_phy_data {
 
 	unsigned int sfp_gpio_address;
 	unsigned int sfp_gpio_mask;
+	unsigned int sfp_gpio_inputs;
 	unsigned int sfp_gpio_rx_los;
 	unsigned int sfp_gpio_tx_fault;
 	unsigned int sfp_gpio_mod_absent;
@@ -986,6 +991,49 @@ static void xgbe_phy_sfp_external_phy(struct xgbe_prv_data *pdata)
 	phy_data->sfp_phy_avail = 1;
 }
 
+static bool xgbe_phy_check_sfp_rx_los(struct xgbe_phy_data *phy_data)
+{
+	u8 *sfp_extd = phy_data->sfp_eeprom.extd;
+
+	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_RX_LOS))
+		return false;
+
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_RX_LOS)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_rx_los))
+		return true;
+
+	return false;
+}
+
+static bool xgbe_phy_check_sfp_tx_fault(struct xgbe_phy_data *phy_data)
+{
+	u8 *sfp_extd = phy_data->sfp_eeprom.extd;
+
+	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_TX_FAULT))
+		return false;
+
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_TX_FAULT)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_tx_fault))
+		return true;
+
+	return false;
+}
+
+static bool xgbe_phy_check_sfp_mod_absent(struct xgbe_phy_data *phy_data)
+{
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_MOD_ABSENT)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_mod_absent))
+		return true;
+
+	return false;
+}
+
 static bool xgbe_phy_belfuse_parse_quirks(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -1030,6 +1078,10 @@ static void xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 
 	if (sfp_base[XGBE_SFP_BASE_EXT_ID] != XGBE_SFP_EXT_ID_SFP)
 		return;
+
+	/* Update transceiver signals (eeprom extd/options) */
+	phy_data->sfp_tx_fault = xgbe_phy_check_sfp_tx_fault(phy_data);
+	phy_data->sfp_rx_los = xgbe_phy_check_sfp_rx_los(phy_data);
 
 	if (xgbe_phy_sfp_parse_quirks(pdata))
 		return;
@@ -1196,7 +1248,6 @@ put:
 static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int gpio_input;
 	u8 gpio_reg, gpio_ports[2];
 	int ret;
 
@@ -1211,23 +1262,9 @@ static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 		return;
 	}
 
-	gpio_input = (gpio_ports[1] << 8) | gpio_ports[0];
+	phy_data->sfp_gpio_inputs = (gpio_ports[1] << 8) | gpio_ports[0];
 
-	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_MOD_ABSENT) {
-		/* No GPIO, just assume the module is present for now */
-		phy_data->sfp_mod_absent = 0;
-	} else {
-		if (!(gpio_input & (1 << phy_data->sfp_gpio_mod_absent)))
-			phy_data->sfp_mod_absent = 0;
-	}
-
-	if (!(phy_data->sfp_gpio_mask & XGBE_GPIO_NO_RX_LOS) &&
-	    (gpio_input & (1 << phy_data->sfp_gpio_rx_los)))
-		phy_data->sfp_rx_los = 1;
-
-	if (!(phy_data->sfp_gpio_mask & XGBE_GPIO_NO_TX_FAULT) &&
-	    (gpio_input & (1 << phy_data->sfp_gpio_tx_fault)))
-		phy_data->sfp_tx_fault = 1;
+	phy_data->sfp_mod_absent = xgbe_phy_check_sfp_mod_absent(phy_data);
 }
 
 static void xgbe_phy_sfp_mod_absent(struct xgbe_prv_data *pdata)
