@@ -579,14 +579,14 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		if (retval != 1) {
 			dev_err(dp->dev, "failed to read downspread %d\n",
 				retval);
-			dp->fast_train_support = false;
+			dp->fast_train_enable = false;
 		} else {
-			dp->fast_train_support =
+			dp->fast_train_enable =
 				(spread & DP_NO_AUX_HANDSHAKE_LINK_TRAINING) ?
 					true : false;
 		}
 		dev_dbg(dp->dev, "fast link training %s\n",
-			dp->fast_train_support ? "supported" : "unsupported");
+			dp->fast_train_enable ? "supported" : "unsupported");
 
 		/* set enhanced mode if available */
 		analogix_dp_set_enhanced_mode(dp);
@@ -793,7 +793,7 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 
 static int analogix_dp_train_link(struct analogix_dp_device *dp)
 {
-	if (dp->fast_train_support)
+	if (dp->fast_train_enable)
 		return analogix_dp_fast_link_train(dp);
 
 	return analogix_dp_full_link_train(dp, dp->video_info.max_lane_count,
@@ -1197,6 +1197,7 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 		DRM_ERROR("failed to setup the panel ret = %d\n", ret);
 
 	dp->psr_enable = false;
+	dp->fast_train_enable = false;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
