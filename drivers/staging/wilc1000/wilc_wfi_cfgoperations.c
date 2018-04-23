@@ -921,8 +921,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	const u8 *rx_mic = NULL;
 	const u8 *tx_mic = NULL;
 	u8 mode = NO_ENCRYPT;
-	u8 gmode = NO_ENCRYPT;
-	u8 pmode = NO_ENCRYPT;
+	u8 op_mode;
 	enum AUTHTYPE auth_type = ANY;
 	struct wilc *wl;
 	struct wilc_vif *vif;
@@ -965,71 +964,54 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 		    priv->wdev->iftype == NL80211_IFTYPE_P2P_GO) {
 			wilc_wfi_cfg_allocate_wpa_entry(priv, key_index);
 
+			if (params->key_len > 16 &&
+			    params->cipher == WLAN_CIPHER_SUITE_TKIP) {
+				tx_mic = params->key + 24;
+				rx_mic = params->key + 16;
+				keylen = params->key_len - 16;
+			}
+
 			if (!pairwise) {
 				if (params->cipher == WLAN_CIPHER_SUITE_TKIP)
-					gmode = ENCRYPT_ENABLED | WPA | TKIP;
+					mode = ENCRYPT_ENABLED | WPA | TKIP;
 				else
-					gmode = ENCRYPT_ENABLED | WPA2 | AES;
+					mode = ENCRYPT_ENABLED | WPA2 | AES;
 
-				priv->wilc_groupkey = gmode;
+				priv->wilc_groupkey = mode;
 
-				if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-					tx_mic = params->key + 24;
-					rx_mic = params->key + 16;
-					keylen = params->key_len - 16;
-				}
 				wilc_wfi_cfg_copy_wpa_info(priv->wilc_gtk[key_index],
 							   params);
-
-				wilc_add_rx_gtk(vif, params->key, keylen,
-						key_index, params->seq_len,
-						params->seq, rx_mic,
-						tx_mic, AP_MODE, gmode);
-
 			} else {
 				if (params->cipher == WLAN_CIPHER_SUITE_TKIP)
-					pmode = ENCRYPT_ENABLED | WPA | TKIP;
+					mode = ENCRYPT_ENABLED | WPA | TKIP;
 				else
-					pmode = priv->wilc_groupkey | AES;
-
-				if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-					tx_mic = params->key + 24;
-					rx_mic = params->key + 16;
-					keylen = params->key_len - 16;
-				}
+					mode = priv->wilc_groupkey | AES;
 
 				wilc_wfi_cfg_copy_wpa_info(priv->wilc_ptk[key_index],
 							   params);
-
-				wilc_add_ptk(vif, params->key, keylen,
-					     mac_addr, rx_mic, tx_mic,
-					     AP_MODE, pmode, key_index);
 			}
-			break;
+			op_mode = AP_MODE;
+		} else {
+			if (params->key_len > 16 &&
+			    params->cipher == WLAN_CIPHER_SUITE_TKIP) {
+				rx_mic = params->key + 24;
+				tx_mic = params->key + 16;
+				keylen = params->key_len - 16;
+			}
+
+			op_mode = STATION_MODE;
 		}
 
 		if (!pairwise) {
-			if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-				rx_mic = params->key + 24;
-				tx_mic = params->key + 16;
-				keylen = params->key_len - 16;
-			}
-
 			wilc_add_rx_gtk(vif, params->key, keylen,
 					key_index, params->seq_len,
 					params->seq, rx_mic,
-					tx_mic, STATION_MODE,
+					tx_mic, op_mode,
 					mode);
 		} else {
-			if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-				rx_mic = params->key + 24;
-				tx_mic = params->key + 16;
-				keylen = params->key_len - 16;
-			}
-
 			wilc_add_ptk(vif, params->key, keylen,
 				     mac_addr, rx_mic, tx_mic,
-				     STATION_MODE, mode, key_index);
+				     op_mode, mode, key_index);
 		}
 		break;
 
