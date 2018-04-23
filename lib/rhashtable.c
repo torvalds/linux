@@ -737,6 +737,8 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 
 	if (!iter->walker.tbl && !iter->end_of_table) {
 		iter->walker.tbl = rht_dereference_rcu(ht->tbl, ht);
+		iter->slot = 0;
+		iter->skip = 0;
 		return -EAGAIN;
 	}
 
