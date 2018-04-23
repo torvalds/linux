@@ -233,6 +233,11 @@ static inline void __dso__zput(struct dso **dso)
 
 bool dso__loaded(const struct dso *dso, enum map_type type);
 
+static inline bool dso__has_symbols(const struct dso *dso, enum map_type type)
+{
+	return !RB_EMPTY_ROOT(&dso->symbols[type]);
+}
+
 bool dso__sorted_by_name(const struct dso *dso, enum map_type type);
 void dso__set_sorted_by_name(struct dso *dso, enum map_type type);
 void dso__sort_by_name(struct dso *dso, enum map_type type);
