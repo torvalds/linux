@@ -769,7 +769,6 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 		netdev_info(priv->dev,
 			    "IEEE 1588-2008 Advanced Timestamp supported\n");
 
-	priv->hw->ptp = &stmmac_ptp;
 	priv->hwts_tx_en = 0;
 	priv->hwts_rx_en = 0;
 
@@ -2119,32 +2118,6 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 	} else
 		netdev_info(priv->dev, "No MAC Management Counters available\n");
-}
-
-/**
- * stmmac_selec_desc_mode - to select among: normal/alternate/extend descriptors
- * @priv: driver private structure
- * Description: select the Enhanced/Alternate or Normal descriptors.
- * In case of Enhanced/Alternate, it checks if the extended descriptors are
- * supported by the HW capability register.
- */
-static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
-{
-	if (priv->plat->enh_desc) {
-		dev_info(priv->device, "Enhanced/Alternate descriptors\n");
-
-		/* GMAC older than 3.50 has no extended descriptors */
-		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
-			dev_info(priv->device, "Enabled extended descriptors\n");
-			priv->extend_desc = 1;
-		} else
-			dev_warn(priv->device, "Extended descriptors not supported\n");
-
-		priv->hw->desc = &enh_desc_ops;
-	} else {
-		dev_info(priv->device, "Normal descriptors\n");
-		priv->hw->desc = &ndesc_ops;
-	}
 }
 
 /**
@@ -4098,49 +4071,17 @@ static void stmmac_service_task(struct work_struct *work)
  */
 static int stmmac_hw_init(struct stmmac_priv *priv)
 {
-	struct mac_device_info *mac;
-
-	/* Identify the MAC HW device */
-	if (priv->plat->setup) {
-		mac = priv->plat->setup(priv);
-	} else if (priv->plat->has_gmac) {
-		priv->dev->priv_flags |= IFF_UNICAST_FLT;
-		mac = dwmac1000_setup(priv->ioaddr,
-				      priv->plat->multicast_filter_bins,
-				      priv->plat->unicast_filter_entries,
-				      &priv->synopsys_id);
-	} else if (priv->plat->has_gmac4) {
-		priv->dev->priv_flags |= IFF_UNICAST_FLT;
-		mac = dwmac4_setup(priv->ioaddr,
-				   priv->plat->multicast_filter_bins,
-				   priv->plat->unicast_filter_entries,
-				   &priv->synopsys_id);
-	} else {
-		mac = dwmac100_setup(priv->ioaddr, &priv->synopsys_id);
-	}
-	if (!mac)
-		return -ENOMEM;
-
-	priv->hw = mac;
+	int ret;
 
 	/* dwmac-sun8i only work in chain mode */
 	if (priv->plat->has_sun8i)
 		chain_mode = 1;
+	priv->chain_mode = chain_mode;
 
-	/* To use the chained or ring mode */
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		priv->hw->mode = &dwmac4_ring_mode_ops;
-	} else {
-		if (chain_mode) {
-			priv->hw->mode = &chain_mode_ops;
-			dev_info(priv->device, "Chain mode enabled\n");
-			priv->mode = STMMAC_CHAIN_MODE;
-		} else {
-			priv->hw->mode = &ring_mode_ops;
-			dev_info(priv->device, "Ring mode enabled\n");
-			priv->mode = STMMAC_RING_MODE;
-		}
-	}
+	/* Initialize HW Interface */
+	ret = stmmac_hwif_init(priv);
+	if (ret)
+		return ret;
 
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
@@ -4173,12 +4114,6 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	} else {
 		dev_info(priv->device, "No HW DMA feature register supported\n");
 	}
-
-	/* To use alternate (extended), normal or GMAC4 descriptor structures */
-	if (priv->synopsys_id >= DWMAC_CORE_4_00)
-		priv->hw->desc = &dwmac4_desc_ops;
-	else
-		stmmac_selec_desc_mode(priv);
 
 	if (priv->plat->rx_coe) {
 		priv->hw->rx_csum = priv->plat->rx_coe;

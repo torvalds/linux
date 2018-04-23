@@ -130,6 +130,7 @@ struct stmmac_priv {
 	int eee_active;
 	int tx_lpi_timer;
 	unsigned int mode;
+	unsigned int chain_mode;
 	int extend_desc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
