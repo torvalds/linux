@@ -527,8 +527,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			if (wilc_spi_rx(wilc, &b[ix], nbytes)) {
 				dev_err(&spi->dev,
 					"Failed block read, bus err\n");
-				result = N_FAIL;
-				goto _error_;
+				return N_FAIL;
 			}
 
 			/*
@@ -537,8 +536,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			if (!g_spi.crc_off && wilc_spi_rx(wilc, crc, 2)) {
 				dev_err(&spi->dev,
 					"Failed block crc read, bus err\n");
-				result = N_FAIL;
-				goto _error_;
+				return N_FAIL;
 			}
 
 			ix += nbytes;
@@ -604,7 +602,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			sz -= nbytes;
 		}
 	}
-_error_:
 	return result;
 }
 
