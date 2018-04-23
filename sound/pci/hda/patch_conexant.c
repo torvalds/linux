@@ -588,6 +588,7 @@ static void cxt_fixup_olpc_xo(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	struct conexant_spec *spec = codec->spec;
+	struct snd_kcontrol_new *kctl;
 	int i;
 
 	if (action != HDA_FIXUP_ACT_PROBE)
@@ -606,9 +607,7 @@ static void cxt_fixup_olpc_xo(struct hda_codec *codec,
 	snd_hda_codec_set_pin_target(codec, 0x1a, PIN_VREF50);
 
 	/* override mic boost control */
-	for (i = 0; i < spec->gen.kctls.used; i++) {
-		struct snd_kcontrol_new *kctl =
-			snd_array_elem(&spec->gen.kctls, i);
+	snd_array_for_each(&spec->gen.kctls, i, kctl) {
 		if (!strcmp(kctl->name, "Mic Boost Volume")) {
 			kctl->put = olpc_xo_mic_boost_put;
 			break;
