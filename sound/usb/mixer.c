@@ -1776,7 +1776,8 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 				build_feature_ctl(state, _ftr, ch_bits, control,
 						  &iterm, unitid, ch_read_only);
 			if (uac_v2v3_control_is_readable(master_bits, control))
-				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid,
+				build_feature_ctl(state, _ftr, 0, control,
+						  &iterm, unitid,
 						  !uac_v2v3_control_is_writeable(master_bits,
 										 control));
 		}
