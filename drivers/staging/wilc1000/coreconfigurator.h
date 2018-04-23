@@ -31,9 +31,6 @@
 #define MAX_STRING_LEN               256
 #define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
 
-#define MAC_CONNECTED                1
-#define MAC_DISCONNECTED             0
-
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
