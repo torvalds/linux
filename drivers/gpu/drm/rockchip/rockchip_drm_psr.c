@@ -33,23 +33,6 @@ struct psr_drv {
 	int (*set)(struct drm_encoder *encoder, bool enable);
 };
 
-static struct psr_drv *find_psr_by_crtc(struct drm_crtc *crtc)
-{
-	struct rockchip_drm_private *drm_drv = crtc->dev->dev_private;
-	struct psr_drv *psr;
-
-	mutex_lock(&drm_drv->psr_list_lock);
-	list_for_each_entry(psr, &drm_drv->psr_list, list) {
-		if (psr->encoder->crtc == crtc)
-			goto out;
-	}
-	psr = ERR_PTR(-ENODEV);
-
-out:
-	mutex_unlock(&drm_drv->psr_list_lock);
-	return psr;
-}
-
 static struct psr_drv *find_psr_by_encoder(struct drm_encoder *encoder)
 {
 	struct rockchip_drm_private *drm_drv = encoder->dev->dev_private;
@@ -165,24 +148,6 @@ static void rockchip_drm_do_flush(struct psr_drv *psr)
 				 PSR_FLUSH_TIMEOUT_MS);
 	mutex_unlock(&psr->lock);
 }
-
-/**
- * rockchip_drm_psr_flush - flush a single pipe
- * @crtc: CRTC of the pipe to flush
- *
- * Returns:
- * 0 on success, -errno on fail
- */
-int rockchip_drm_psr_flush(struct drm_crtc *crtc)
-{
-	struct psr_drv *psr = find_psr_by_crtc(crtc);
-	if (IS_ERR(psr))
-		return PTR_ERR(psr);
-
-	rockchip_drm_do_flush(psr);
-	return 0;
-}
-EXPORT_SYMBOL(rockchip_drm_psr_flush);
 
 /**
  * rockchip_drm_psr_flush_all - force to flush all registered PSR encoders
