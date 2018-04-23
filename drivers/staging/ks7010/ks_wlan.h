@@ -447,9 +447,6 @@ struct ks_wlan_private {
 #define CONNECT_STATUS_MASK 0x7FFFFFFF
 	u32 connect_status;	/* connect status */
 	int infra_status;	/* Infractructure status */
-
-	u8 data_buff[0x1000];
-
 	u8 scan_ssid_len;
 	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
 	struct local_gain gain;
