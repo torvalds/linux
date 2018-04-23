@@ -437,6 +437,9 @@ static void xgbe_an73_disable(struct xgbe_prv_data *pdata)
 
 static void xgbe_an_restart(struct xgbe_prv_data *pdata)
 {
+	if (pdata->phy_if.phy_impl.an_pre)
+		pdata->phy_if.phy_impl.an_pre(pdata);
+
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
 	case XGBE_AN_MODE_CL73_REDRV:
@@ -453,6 +456,9 @@ static void xgbe_an_restart(struct xgbe_prv_data *pdata)
 
 static void xgbe_an_disable(struct xgbe_prv_data *pdata)
 {
+	if (pdata->phy_if.phy_impl.an_post)
+		pdata->phy_if.phy_impl.an_post(pdata);
+
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
 	case XGBE_AN_MODE_CL73_REDRV:
@@ -637,11 +643,11 @@ static enum xgbe_an xgbe_an73_incompat_link(struct xgbe_prv_data *pdata)
 			return XGBE_AN_NO_LINK;
 	}
 
-	xgbe_an73_disable(pdata);
+	xgbe_an_disable(pdata);
 
 	xgbe_switch_mode(pdata);
 
-	xgbe_an73_restart(pdata);
+	xgbe_an_restart(pdata);
 
 	return XGBE_AN_INCOMPAT_LINK;
 }
@@ -820,6 +826,9 @@ static void xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
 		pdata->an_result = pdata->an_state;
 		pdata->an_state = XGBE_AN_READY;
 
+		if (pdata->phy_if.phy_impl.an_post)
+			pdata->phy_if.phy_impl.an_post(pdata);
+
 		netif_dbg(pdata, link, pdata->netdev, "CL37 AN result: %s\n",
 			  xgbe_state_as_string(pdata->an_result));
 	}
@@ -902,6 +911,9 @@ again:
 		pdata->kr_state = XGBE_RX_BPA;
 		pdata->kx_state = XGBE_RX_BPA;
 		pdata->an_start = 0;
+
+		if (pdata->phy_if.phy_impl.an_post)
+			pdata->phy_if.phy_impl.an_post(pdata);
 
 		netif_dbg(pdata, link, pdata->netdev, "CL73 AN result: %s\n",
 			  xgbe_state_as_string(pdata->an_result));
