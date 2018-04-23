@@ -291,14 +291,18 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 		 * so lookup free slot only if requested.
 		 */
 		if (pempty && empty < 0) {
-			if (data->props & GID_TABLE_ENTRY_INVALID) {
-				/* Found an invalid (free) entry; allocate it */
-				if (data->props & GID_TABLE_ENTRY_DEFAULT) {
-					if (default_gid)
-						empty = curr_index;
-				} else {
-					empty = curr_index;
-				}
+			if (data->props & GID_TABLE_ENTRY_INVALID &&
+			    (default_gid ==
+			     !!(data->props & GID_TABLE_ENTRY_DEFAULT))) {
+				/*
+				 * Found an invalid (free) entry; allocate it.
+				 * If default GID is requested, then our
+				 * found slot must be one of the DEFAULT
+				 * reserved slots or we fail.
+				 * This ensures that only DEFAULT reserved
+				 * slots are used for default property GIDs.
+				 */
+				empty = curr_index;
 			}
 		}
 
