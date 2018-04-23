@@ -668,8 +668,9 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * For a completely stable walk you should construct your own data
  * structure outside the hash table.
  *
- * This function may sleep so you must not call it from interrupt
- * context or with spin locks held.
+ * This function may be called from any process context, including
+ * non-preemptable context, but cannot be called from softirq or
+ * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
  */
