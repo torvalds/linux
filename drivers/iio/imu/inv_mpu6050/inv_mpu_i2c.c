@@ -129,14 +129,12 @@ static int inv_mpu_probe(struct i2c_client *client,
 				 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
 				 inv_mpu6050_select_bypass,
 				 inv_mpu6050_deselect_bypass);
-	if (!st->muxc) {
-		result = -ENOMEM;
-		goto out_unreg_device;
-	}
+	if (!st->muxc)
+		return -ENOMEM;
 	st->muxc->priv = dev_get_drvdata(&client->dev);
 	result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
 	if (result)
-		goto out_unreg_device;
+		return result;
 
 	result = inv_mpu_acpi_create_mux_client(client);
 	if (result)
@@ -146,8 +144,6 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 out_del_mux:
 	i2c_mux_del_adapters(st->muxc);
-out_unreg_device:
-	inv_mpu_core_remove(&client->dev);
 	return result;
 }
 
@@ -159,7 +155,7 @@ static int inv_mpu_remove(struct i2c_client *client)
 	inv_mpu_acpi_delete_mux_client(client);
 	i2c_mux_del_adapters(st->muxc);
 
-	return inv_mpu_core_remove(&client->dev);
+	return 0;
 }
 
 /*

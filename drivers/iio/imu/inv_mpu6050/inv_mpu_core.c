@@ -984,10 +984,10 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	indio_dev->info = &mpu_info;
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	result = iio_triggered_buffer_setup(indio_dev,
-					    inv_mpu6050_irq_handler,
-					    inv_mpu6050_read_fifo,
-					    NULL);
+	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						 inv_mpu6050_irq_handler,
+						 inv_mpu6050_read_fifo,
+						 NULL);
 	if (result) {
 		dev_err(dev, "configure buffer fail %d\n", result);
 		return result;
@@ -995,38 +995,20 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
 	if (result) {
 		dev_err(dev, "trigger probe fail %d\n", result);
-		goto out_unreg_ring;
+		return result;
 	}
 
 	INIT_KFIFO(st->timestamps);
 	spin_lock_init(&st->time_stamp_lock);
-	result = iio_device_register(indio_dev);
+	result = devm_iio_device_register(dev, indio_dev);
 	if (result) {
 		dev_err(dev, "IIO register fail %d\n", result);
-		goto out_remove_trigger;
+		return result;
 	}
 
 	return 0;
-
-out_remove_trigger:
-	inv_mpu6050_remove_trigger(st);
-out_unreg_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return result;
 }
 EXPORT_SYMBOL_GPL(inv_mpu_core_probe);
-
-int inv_mpu_core_remove(struct device  *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(indio_dev);
-	inv_mpu6050_remove_trigger(iio_priv(indio_dev));
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(inv_mpu_core_remove);
 
 #ifdef CONFIG_PM_SLEEP
 

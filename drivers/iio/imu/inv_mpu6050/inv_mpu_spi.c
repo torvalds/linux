@@ -69,11 +69,6 @@ static int inv_mpu_probe(struct spi_device *spi)
 				  inv_mpu_i2c_disable, chip_type);
 }
 
-static int inv_mpu_remove(struct spi_device *spi)
-{
-	return inv_mpu_core_remove(&spi->dev);
-}
-
 /*
  * device id table is used to identify what device can be
  * supported by this driver
@@ -98,7 +93,6 @@ MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 
 static struct spi_driver inv_mpu_driver = {
 	.probe		=	inv_mpu_probe,
-	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {
 		.acpi_match_table = ACPI_PTR(inv_acpi_match),
