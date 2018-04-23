@@ -454,8 +454,6 @@ struct ks_wlan_private {
 	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
 	struct local_gain gain;
 #ifdef WPS
-	struct net_device *l2_dev;
-	int l2_fd;
 	struct wps_status wps;
 #endif /* WPS */
 	u8 sleep_mode;
