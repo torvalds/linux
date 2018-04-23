@@ -689,10 +689,10 @@ err_free_data_buf:
 
 #define ROM_BUFF_SIZE (64 * 1024)
 static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
-				    unsigned char *data, unsigned int size)
+				    u8 *data, unsigned int size)
 {
 	int ret;
-	unsigned char *read_buf;
+	u8 *read_buf;
 
 	read_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!read_buf)
@@ -723,7 +723,7 @@ static int ks7010_copy_firmware(struct ks_wlan_private *priv,
 	unsigned int size;
 	unsigned int offset;
 	unsigned int n = 0;
-	unsigned char *rom_buf;
+	u8 *rom_buf;
 	int ret;
 
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
