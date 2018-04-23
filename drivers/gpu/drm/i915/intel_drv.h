@@ -56,6 +56,8 @@
 	for (;;) {							\
 		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
 		OP;							\
+		/* Guarantee COND check prior to timeout */		\
+		barrier();						\
 		if (COND) {						\
 			ret__ = 0;					\
 			break;						\
@@ -96,6 +98,8 @@
 		u64 now = local_clock(); \
 		if (!(ATOMIC)) \
 			preempt_enable(); \
+		/* Guarantee COND check prior to timeout */ \
+		barrier(); \
 		if (COND) { \
 			ret = 0; \
 			break; \
