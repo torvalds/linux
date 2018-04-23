@@ -1008,31 +1008,28 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			break;
 		}
 
-		{
-			mode = 0;
-			if (!pairwise) {
-				if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-					rx_mic = params->key + 24;
-					tx_mic = params->key + 16;
-					keylen = params->key_len - 16;
-				}
-
-				wilc_add_rx_gtk(vif, params->key, keylen,
-						key_index, params->seq_len,
-						params->seq, rx_mic,
-						tx_mic, STATION_MODE,
-						mode);
-			} else {
-				if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-					rx_mic = params->key + 24;
-					tx_mic = params->key + 16;
-					keylen = params->key_len - 16;
-				}
-
-				wilc_add_ptk(vif, params->key, keylen,
-					     mac_addr, rx_mic, tx_mic,
-					     STATION_MODE, mode, key_index);
+		if (!pairwise) {
+			if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
+				rx_mic = params->key + 24;
+				tx_mic = params->key + 16;
+				keylen = params->key_len - 16;
 			}
+
+			wilc_add_rx_gtk(vif, params->key, keylen,
+					key_index, params->seq_len,
+					params->seq, rx_mic,
+					tx_mic, STATION_MODE,
+					mode);
+		} else {
+			if (params->key_len > 16 && params->cipher == WLAN_CIPHER_SUITE_TKIP) {
+				rx_mic = params->key + 24;
+				tx_mic = params->key + 16;
+				keylen = params->key_len - 16;
+			}
+
+			wilc_add_ptk(vif, params->key, keylen,
+				     mac_addr, rx_mic, tx_mic,
+				     STATION_MODE, mode, key_index);
 		}
 		break;
 
