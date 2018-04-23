@@ -14,8 +14,6 @@
 #include <linux/regulator/consumer.h>
 #include <video/mipi_display.h>
 
-#define DRV_NAME "orisetech_otm8009a"
-
 #define OTM8009A_BACKLIGHT_DEFAULT	240
 #define OTM8009A_BACKLIGHT_MAX		255
 
@@ -461,7 +459,7 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = &otm8009a_drm_funcs;
 
-	ctx->bl_dev = backlight_device_register(DRV_NAME "_backlight", dev, ctx,
+	ctx->bl_dev = backlight_device_register(dev_name(dev), dev, ctx,
 						&otm8009a_backlight_ops, NULL);
 	if (IS_ERR(ctx->bl_dev)) {
 		dev_err(dev, "failed to register backlight device\n");
@@ -482,11 +480,6 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 		backlight_device_unregister(ctx->bl_dev);
 		return ret;
 	}
-
-	DRM_INFO(DRV_NAME "_panel %ux%u@%u %ubpp dsi %udl - ready\n",
-		 default_mode.hdisplay, default_mode.vdisplay,
-		 default_mode.vrefresh,
-		 mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);
 
 	return 0;
 }
@@ -513,7 +506,7 @@ static struct mipi_dsi_driver orisetech_otm8009a_driver = {
 	.probe  = otm8009a_probe,
 	.remove = otm8009a_remove,
 	.driver = {
-		.name = DRV_NAME "_panel",
+		.name = "panel-orisetech-otm8009a",
 		.of_match_table = orisetech_otm8009a_of_match,
 	},
 };
