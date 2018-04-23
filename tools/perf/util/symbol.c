@@ -1163,7 +1163,6 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			   const char *kallsyms_filename)
 {
 	struct map_groups *kmaps = map__kmaps(map);
-	struct machine *machine;
 	struct kcore_mapfn_data md;
 	struct map *old_map, *new_map, *replacement_map = NULL;
 	bool is_64_bit;
@@ -1174,10 +1173,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	if (!kmaps)
 		return -EINVAL;
 
-	machine = kmaps->machine;
-
 	/* This function requires that the map is the kernel map */
-	if (map != machine->vmlinux_maps[map->type])
+	if (!__map__is_kernel(map))
 		return -EINVAL;
 
 	if (!filename_from_kallsyms_filename(kcore_filename, "kcore",
