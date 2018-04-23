@@ -94,10 +94,7 @@ enum gen_com_reg_b {
 
 #define KS7010_IRAM_ADDRESS	0x06000000
 
-
-#define KS7010_FUNC_NUM 1
 #define KS7010_IO_BLOCK_SIZE 512
-#define KS7010_MAX_CLOCK 25000000
 
 static const struct sdio_device_id ks7010_sdio_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_KS_CODE_A, SDIO_DEVICE_ID_KS_7010)},
