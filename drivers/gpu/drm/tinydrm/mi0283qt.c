@@ -85,24 +85,6 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	/* Memory Access Control */
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
 
-	switch (mipi->rotation) {
-	default:
-		addr_mode = ILI9341_MADCTL_MV | ILI9341_MADCTL_MY |
-			    ILI9341_MADCTL_MX;
-		break;
-	case 90:
-		addr_mode = ILI9341_MADCTL_MY;
-		break;
-	case 180:
-		addr_mode = ILI9341_MADCTL_MV;
-		break;
-	case 270:
-		addr_mode = ILI9341_MADCTL_MX;
-		break;
-	}
-	addr_mode |= ILI9341_MADCTL_BGR;
-	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-
 	/* Frame Rate */
 	mipi_dbi_command(mipi, ILI9341_FRMCTR1, 0x00, 0x1b);
 
@@ -128,6 +110,29 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	msleep(100);
 
 out_enable:
+	/* The PiTFT (ili9340) has a hardware reset circuit that
+	 * resets only on power-on and not on each reboot through
+	 * a gpio like the rpi-display does.
+	 * As a result, we need to always apply the rotation value
+	 * regardless of the display "on/off" state.
+	 */
+	switch (mipi->rotation) {
+	default:
+		addr_mode = ILI9341_MADCTL_MV | ILI9341_MADCTL_MY |
+			    ILI9341_MADCTL_MX;
+		break;
+	case 90:
+		addr_mode = ILI9341_MADCTL_MY;
+		break;
+	case 180:
+		addr_mode = ILI9341_MADCTL_MV;
+		break;
+	case 270:
+		addr_mode = ILI9341_MADCTL_MX;
+		break;
+	}
+	addr_mode |= ILI9341_MADCTL_BGR;
+	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
