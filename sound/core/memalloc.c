@@ -192,6 +192,9 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		snd_malloc_dev_iram(dmab, size);
 		if (dmab->area)
 			break;
+#ifdef CONFIG_SND_SOC_ROCKCHIP_FORCE_SRAM
+		break;
+#endif
 		/* Internal memory might have limited size and no enough space,
 		 * so if we fail to malloc, try to fetch memory traditionally.
 		 */

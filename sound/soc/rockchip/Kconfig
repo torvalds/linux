@@ -6,6 +6,13 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_SOC_ROCKCHIP_FORCE_SRAM
+	bool "Rockchip force using sram buffer"
+	def_bool n
+	help
+	  Say Y if you want to force using sram buffer for pcm buffer,
+	  but the sram size is limited.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP

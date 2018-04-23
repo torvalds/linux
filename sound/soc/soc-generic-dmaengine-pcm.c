@@ -267,6 +267,9 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		max_buffer_size = SIZE_MAX;
 	}
 
+#ifdef CONFIG_SND_SOC_ROCKCHIP_FORCE_SRAM
+	prealloc_buffer_size = 32 * 1024;
+#endif
 
 	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
 		substream = rtd->pcm->streams[i].substream;
