@@ -381,7 +381,7 @@ unm_err_out:
  * vfs inode dirty.  This ensures that any changes to the mft record are
  * written out to disk.
  *
- * NOTE:  We only set I_DIRTY_SYNC and I_DIRTY_DATASYNC (and not I_DIRTY_PAGES)
+ * NOTE:  We only set I_DIRTY_DATASYNC (and not I_DIRTY_PAGES)
  * on the base vfs inode, because even though file data may have been modified,
  * it is dirty in the inode meta data rather than the data page cache of the
  * inode, and thus there are no data pages that need writing out.  Therefore, a
@@ -407,7 +407,7 @@ void __mark_mft_record_dirty(ntfs_inode *ni)
 	else
 		base_ni = ni->ext.base_ntfs_ino;
 	mutex_unlock(&ni->extent_lock);
-	__mark_inode_dirty(VFS_I(base_ni), I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	__mark_inode_dirty(VFS_I(base_ni), I_DIRTY_DATASYNC);
 }
 
 static const char *ntfs_please_email = "Please email "

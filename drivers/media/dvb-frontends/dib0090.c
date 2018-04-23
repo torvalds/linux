@@ -1285,7 +1285,7 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 #endif
 
 			if (*tune_state == CT_AGC_STEP_1) {	/* quickly go to the correct range of the ADC power */
-				if (ABS(adc_error) < 50 || state->agc_step++ > 5) {
+				if (abs(adc_error) < 50 || state->agc_step++ > 5) {
 
 #ifdef CONFIG_STANDARD_DAB
 					if (state->fe->dtv_property_cache.delivery_system == STANDARD_DAB) {
@@ -1754,7 +1754,7 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 			*tune_state = CT_TUNER_STEP_1;
 		} else {
 			/* the minimum was what we have seen in the step before */
-			if (ABS(state->adc_diff) > ABS(state->min_adc_diff)) {
+			if (abs(state->adc_diff) > abs(state->min_adc_diff)) {
 				dprintk("Since adc_diff N = %d  > adc_diff step N-1 = %d, Come back one step\n", state->adc_diff, state->min_adc_diff);
 				state->step--;
 			}

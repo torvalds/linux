@@ -19,7 +19,7 @@
 #include "be.h"
 #include "be_cmds.h"
 
-char *be_misconfig_evt_port_state[] = {
+const char * const be_misconfig_evt_port_state[] = {
 	"Physical Link is functional",
 	"Optics faulted/incorrectly installed/not installed - Reseat optics. If issue not resolved, replace.",
 	"Optics of two types installed – Remove one optic or install matching pair of optics.",

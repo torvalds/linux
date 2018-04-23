@@ -967,10 +967,10 @@ API functions which are exported. Each function has a short description
 which is marked with an [XXX] identifier. See the chapter "Documentation
 hints" for an explanation.
 
-.. kernel-doc:: drivers/mtd/nand/nand_base.c
+.. kernel-doc:: drivers/mtd/nand/raw/nand_base.c
    :export:
 
-.. kernel-doc:: drivers/mtd/nand/nand_ecc.c
+.. kernel-doc:: drivers/mtd/nand/raw/nand_ecc.c
    :export:
 
 Internal Functions Provided
@@ -982,10 +982,10 @@ marked with an [XXX] identifier. See the chapter "Documentation hints"
 for an explanation. The functions marked with [DEFAULT] might be
 relevant for a board driver developer.
 
-.. kernel-doc:: drivers/mtd/nand/nand_base.c
+.. kernel-doc:: drivers/mtd/nand/raw/nand_base.c
    :internal:
 
-.. kernel-doc:: drivers/mtd/nand/nand_bbt.c
+.. kernel-doc:: drivers/mtd/nand/raw/nand_bbt.c
    :internal:
 
 Credits

@@ -50,18 +50,6 @@ u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 	return ilen;
 }
 
-static int handle_noop(struct kvm_vcpu *vcpu)
-{
-	switch (vcpu->arch.sie_block->icptcode) {
-	case 0x10:
-		vcpu->stat.exit_external_request++;
-		break;
-	default:
-		break; /* nothing */
-	}
-	return 0;
-}
-
 static int handle_stop(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
@@ -465,8 +453,11 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 
 	switch (vcpu->arch.sie_block->icptcode) {
 	case ICPT_EXTREQ:
+		vcpu->stat.exit_external_request++;
+		return 0;
 	case ICPT_IOREQ:
-		return handle_noop(vcpu);
+		vcpu->stat.exit_io_request++;
+		return 0;
 	case ICPT_INST:
 		rc = handle_instruction(vcpu);
 		break;

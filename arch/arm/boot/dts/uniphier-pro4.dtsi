@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier Pro4 SoC
- *
- * Copyright (C) 2015-2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier Pro4 SoC
+//
+// Copyright (C) 2015-2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <dt-bindings/gpio/uniphier-gpio.h>
 
@@ -363,6 +361,24 @@
 			sys_rst: reset {
 				compatible = "socionext,uniphier-pro4-reset";
 				#reset-cells = <1>;
+			};
+		};
+
+		eth: ethernet@65000000 {
+			compatible = "socionext,uniphier-pro4-ave4";
+			status = "disabled";
+			reg = <0x65000000 0x8500>;
+			interrupts = <0 66 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ether_rgmii>;
+			clocks = <&sys_clk 6>;
+			resets = <&sys_rst 6>;
+			phy-mode = "rgmii";
+			local-mac-address = [00 00 00 00 00 00];
+
+			mdio: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 

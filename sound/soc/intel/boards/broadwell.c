@@ -78,7 +78,7 @@ static const struct snd_soc_dapm_route broadwell_rt286_map[] = {
 
 static int broadwell_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 	int ret = 0;
 	ret = snd_soc_card_jack_new(rtd->card, "Headset",
 		SND_JACK_HEADSET | SND_JACK_BTN_0, &broadwell_headset,
@@ -86,7 +86,7 @@ static int broadwell_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	rt286_mic_detect(codec, &broadwell_headset);
+	rt286_mic_detect(component, &broadwell_headset);
 	return 0;
 }
 
@@ -132,7 +132,8 @@ static const struct snd_soc_ops broadwell_rt286_ops = {
 
 static int broadwell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct sst_pdata *pdata = dev_get_platdata(rtd->platform->dev);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct sst_pdata *pdata = dev_get_platdata(component->dev);
 	struct sst_hsw *broadwell = pdata->dsp;
 	int ret;
 
@@ -224,10 +225,9 @@ static int broadwell_suspend(struct snd_soc_card *card){
 
 	list_for_each_entry(component, &card->component_dev_list, card_list) {
 		if (!strcmp(component->name, "i2c-INT343A:00")) {
-			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 
-			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
-			rt286_mic_detect(codec, NULL);
+			dev_dbg(component->dev, "disabling jack detect before going to suspend.\n");
+			rt286_mic_detect(component, NULL);
 			break;
 		}
 	}
@@ -239,10 +239,9 @@ static int broadwell_resume(struct snd_soc_card *card){
 
 	list_for_each_entry(component, &card->component_dev_list, card_list) {
 		if (!strcmp(component->name, "i2c-INT343A:00")) {
-			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 
-			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
-			rt286_mic_detect(codec, &broadwell_headset);
+			dev_dbg(component->dev, "enabling jack detect for resume.\n");
+			rt286_mic_detect(component, &broadwell_headset);
 			break;
 		}
 	}

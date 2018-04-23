@@ -1174,7 +1174,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *usbdev;
 	struct tm6000_core *dev;
-	int i, rc = 0;
+	int i, rc;
 	int nr = 0;
 	char *speed;
 

@@ -45,6 +45,7 @@ config ARM_DT_BL_CPUFREQ
 config ARM_SCPI_CPUFREQ
 	tristate "SCPI based CPUfreq driver"
 	depends on ARM_SCPI_PROTOCOL && COMMON_CLK_SCPI
+	depends on !CPU_THERMAL || THERMAL
 	help
 	  This adds the CPUfreq driver support for ARM platforms using SCPI
 	  protocol for CPU power management.
@@ -237,6 +238,18 @@ config ARM_SA1100_CPUFREQ
 
 config ARM_SA1110_CPUFREQ
 	bool
+
+config ARM_SCMI_CPUFREQ
+	tristate "SCMI based CPUfreq driver"
+	depends on ARM_SCMI_PROTOCOL || COMPILE_TEST
+	depends on !CPU_THERMAL || THERMAL
+	select PM_OPP
+	help
+	  This adds the CPUfreq driver support for ARM platforms using SCMI
+	  protocol for CPU power management.
+
+	  This driver uses SCMI Message Protocol driver to interact with the
+	  firmware providing the CPU DVFS functionality.
 
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"

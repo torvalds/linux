@@ -69,7 +69,22 @@
  * will remain defined here.
  */
 
-#define CLK_NR_CLKS		96
+#define CLKID_MPLL0_DIV		96
+#define CLKID_MPLL1_DIV		97
+#define CLKID_MPLL2_DIV		98
+#define CLKID_CPU_IN_SEL	99
+#define CLKID_CPU_DIV2		100
+#define CLKID_CPU_DIV3		101
+#define CLKID_CPU_SCALE_DIV	102
+#define CLKID_CPU_SCALE_OUT_SEL	103
+#define CLKID_MPLL_PREDIV	104
+#define CLKID_FCLK_DIV2_DIV	105
+#define CLKID_FCLK_DIV3_DIV	106
+#define CLKID_FCLK_DIV4_DIV	107
+#define CLKID_FCLK_DIV5_DIV	108
+#define CLKID_FCLK_DIV7_DIV	109
+
+#define CLK_NR_CLKS		110
 
 /*
  * include the CLKID and RESETID that have

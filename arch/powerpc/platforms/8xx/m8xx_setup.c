@@ -217,13 +217,7 @@ void __noreturn mpc8xx_restart(char *cmd)
 
 static void cpm_cascade(struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int cascade_irq = cpm_get_irq();
-
-	if (cascade_irq >= 0)
-		generic_handle_irq(cascade_irq);
-
-	chip->irq_eoi(&desc->irq_data);
+	generic_handle_irq(cpm_get_irq());
 }
 
 /* Initialize the internal interrupt controllers.  The number of

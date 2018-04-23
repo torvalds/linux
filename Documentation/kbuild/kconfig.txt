@@ -119,7 +119,7 @@ Examples:
 		15% of tristates will be set to 'y', 15% to 'm', 70% to 'n'
 
 ______________________________________________________________________
-Environment variables for 'silentoldconfig'
+Environment variables for 'syncconfig'
 
 KCONFIG_NOSILENTUPDATE
 --------------------------------------------------

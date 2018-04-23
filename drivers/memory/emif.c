@@ -127,7 +127,7 @@ static int emif_regdump_show(struct seq_file *s, void *unused)
 
 	for (i = 0; i < EMIF_MAX_NUM_FREQUENCIES && regs_cache[i]; i++) {
 		do_emif_regdump_show(s, emif, regs_cache[i]);
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 
 	return 0;

@@ -12,5 +12,7 @@
 #
 #
 #Family-model,Version,Filename,EventType
-0x00000000420f5160,v1,cavium,core
-0x00000000410fd03[[:xdigit:]],v1,cortex-a53,core
+0x00000000410fd03[[:xdigit:]],v1,arm/cortex-a53,core
+0x00000000420f5160,v1,cavium/thunderx2,core
+0x00000000430f0af0,v1,cavium/thunderx2,core
+0x00000000480fd010,v1,hisilicon/hip08,core

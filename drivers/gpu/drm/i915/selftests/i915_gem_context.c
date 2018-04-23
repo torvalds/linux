@@ -114,7 +114,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_address_space *vm =
 		ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct i915_vma *vma;
 	struct i915_vma *batch;
 	unsigned int flags;
@@ -152,7 +152,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		goto err_vma;
 	}
 
-	rq = i915_gem_request_alloc(engine, ctx);
+	rq = i915_request_alloc(engine, ctx);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;
@@ -180,12 +180,12 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	reservation_object_add_excl_fence(obj->resv, &rq->fence);
 	reservation_object_unlock(obj->resv);
 
-	__i915_add_request(rq, true);
+	__i915_request_add(rq, true);
 
 	return 0;
 
 err_request:
-	__i915_add_request(rq, false);
+	__i915_request_add(rq, false);
 err_batch:
 	i915_vma_unpin(batch);
 err_vma:
@@ -215,8 +215,8 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 	}
 
 	i915_gem_obj_finish_shmem_access(obj);
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT | I915_GEM_DOMAIN_CPU;
-	obj->base.write_domain = 0;
+	obj->read_domains = I915_GEM_DOMAIN_GTT | I915_GEM_DOMAIN_CPU;
+	obj->write_domain = 0;
 	return 0;
 }
 

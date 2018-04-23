@@ -18,8 +18,6 @@ Optional properties:
   in unit of nanoseconds.
 - voltage-tolerance: Specify the CPU voltage tolerance in percentage.
 - #cooling-cells:
-- cooling-min-level:
-- cooling-max-level:
      Please refer to Documentation/devicetree/bindings/thermal/thermal.txt.
 
 Examples:
@@ -40,8 +38,6 @@ cpus {
 		>;
 		clock-latency = <61036>; /* two CLK32 periods */
 		#cooling-cells = <2>;
-		cooling-min-level = <0>;
-		cooling-max-level = <2>;
 	};
 
 	cpu@1 {

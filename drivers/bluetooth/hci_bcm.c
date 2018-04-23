@@ -98,6 +98,8 @@ struct bcm_device {
 	int			(*set_shutdown)(struct bcm_device *, bool);
 #ifdef CONFIG_ACPI
 	acpi_handle		btlp, btpu, btpd;
+	int			gpio_count;
+	int			gpio_int_idx;
 #endif
 
 	struct clk		*clk;
@@ -125,6 +127,10 @@ struct bcm_data {
 /* List of BCM BT UART devices */
 static DEFINE_MUTEX(bcm_device_lock);
 static LIST_HEAD(bcm_device_list);
+
+static int irq_polarity = -1;
+module_param(irq_polarity, int, 0444);
+MODULE_PARM_DESC(irq_polarity, "IRQ polarity 0: active-high 1: active-low");
 
 static inline void host_set_baudrate(struct hci_uart *hu, unsigned int speed)
 {
@@ -244,7 +250,9 @@ static irqreturn_t bcm_host_wake(int irq, void *data)
 
 	bt_dev_dbg(bdev, "Host wake IRQ");
 
-	pm_request_resume(bdev->dev);
+	pm_runtime_get(bdev->dev);
+	pm_runtime_mark_last_busy(bdev->dev);
+	pm_runtime_put_autosuspend(bdev->dev);
 
 	return IRQ_HANDLED;
 }
@@ -301,7 +309,7 @@ static const struct bcm_set_sleep_mode default_sleep_params = {
 	.usb_auto_sleep = 0,
 	.usb_resume_timeout = 0,
 	.break_to_host = 0,
-	.pulsed_host_wake = 0,
+	.pulsed_host_wake = 1,
 };
 
 static int bcm_setup_sleep(struct hci_uart *hu)
@@ -586,8 +594,11 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 	} else if (!bcm->rx_skb) {
 		/* Delay auto-suspend when receiving completed packet */
 		mutex_lock(&bcm_device_lock);
-		if (bcm->dev && bcm_device_exists(bcm->dev))
-			pm_request_resume(bcm->dev->dev);
+		if (bcm->dev && bcm_device_exists(bcm->dev)) {
+			pm_runtime_get(bcm->dev->dev);
+			pm_runtime_mark_last_busy(bcm->dev->dev);
+			pm_runtime_put_autosuspend(bcm->dev->dev);
+		}
 		mutex_unlock(&bcm_device_lock);
 	}
 
@@ -765,59 +776,32 @@ unlock:
 }
 #endif
 
-static const struct acpi_gpio_params int_last_device_wakeup_gpios = { 0, 0, false };
-static const struct acpi_gpio_params int_last_shutdown_gpios = { 1, 0, false };
-static const struct acpi_gpio_params int_last_host_wakeup_gpios = { 2, 0, false };
+static const struct acpi_gpio_params first_gpio = { 0, 0, false };
+static const struct acpi_gpio_params second_gpio = { 1, 0, false };
+static const struct acpi_gpio_params third_gpio = { 2, 0, false };
 
 static const struct acpi_gpio_mapping acpi_bcm_int_last_gpios[] = {
-	{ "device-wakeup-gpios", &int_last_device_wakeup_gpios, 1 },
-	{ "shutdown-gpios", &int_last_shutdown_gpios, 1 },
-	{ "host-wakeup-gpios", &int_last_host_wakeup_gpios, 1 },
+	{ "device-wakeup-gpios", &first_gpio, 1 },
+	{ "shutdown-gpios", &second_gpio, 1 },
+	{ "host-wakeup-gpios", &third_gpio, 1 },
 	{ },
 };
 
-static const struct acpi_gpio_params int_first_host_wakeup_gpios = { 0, 0, false };
-static const struct acpi_gpio_params int_first_device_wakeup_gpios = { 1, 0, false };
-static const struct acpi_gpio_params int_first_shutdown_gpios = { 2, 0, false };
-
 static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
-	{ "device-wakeup-gpios", &int_first_device_wakeup_gpios, 1 },
-	{ "shutdown-gpios", &int_first_shutdown_gpios, 1 },
-	{ "host-wakeup-gpios", &int_first_host_wakeup_gpios, 1 },
+	{ "host-wakeup-gpios", &first_gpio, 1 },
+	{ "device-wakeup-gpios", &second_gpio, 1 },
+	{ "shutdown-gpios", &third_gpio, 1 },
 	{ },
 };
 
 #ifdef CONFIG_ACPI
 /* IRQ polarity of some chipsets are not defined correctly in ACPI table. */
 static const struct dmi_system_id bcm_active_low_irq_dmi_table[] = {
-	{
-		.ident = "Asus T100TA",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR,
-					"ASUSTeK COMPUTER INC."),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100TA"),
-		},
-	},
-	{
-		.ident = "Asus T100CHI",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR,
-					"ASUSTeK COMPUTER INC."),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100CHI"),
-		},
-	},
 	{	/* Handle ThinkPad 8 tablets with BCM2E55 chipset ACPI ID */
 		.ident = "Lenovo ThinkPad 8",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
-		},
-	},
-	{
-		.ident = "MINIX Z83-4",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
 		},
 	},
 	{ }
@@ -833,13 +817,18 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		irq = &ares->data.extended_irq;
-		dev->irq_active_low = irq->polarity == ACPI_ACTIVE_LOW;
+		if (irq->polarity != ACPI_ACTIVE_LOW)
+			dev_info(dev->dev, "ACPI Interrupt resource is active-high, this is usually wrong, treating the IRQ as active-low\n");
+		dev->irq_active_low = true;
 		break;
 
 	case ACPI_RESOURCE_TYPE_GPIO:
 		gpio = &ares->data.gpio;
-		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT)
+		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT) {
+			dev->gpio_int_idx = dev->gpio_count;
 			dev->irq_active_low = gpio->polarity == ACPI_ACTIVE_LOW;
+		}
+		dev->gpio_count++;
 		break;
 
 	case ACPI_RESOURCE_TYPE_SERIAL_BUS:
@@ -903,13 +892,13 @@ static inline int bcm_apple_get_resources(struct bcm_device *dev)
 
 static int bcm_gpio_set_device_wakeup(struct bcm_device *dev, bool awake)
 {
-	gpiod_set_value(dev->device_wakeup, awake);
+	gpiod_set_value_cansleep(dev->device_wakeup, awake);
 	return 0;
 }
 
 static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 {
-	gpiod_set_value(dev->shutdown, powered);
+	gpiod_set_value_cansleep(dev->shutdown, powered);
 	return 0;
 }
 
@@ -957,20 +946,11 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	LIST_HEAD(resources);
 	const struct dmi_system_id *dmi_id;
 	const struct acpi_gpio_mapping *gpio_mapping = acpi_bcm_int_last_gpios;
-	const struct acpi_device_id *id;
 	struct resource_entry *entry;
 	int ret;
 
-	/* Retrieve GPIO data */
-	id = acpi_match_device(dev->dev->driver->acpi_match_table, dev->dev);
-	if (id)
-		gpio_mapping = (const struct acpi_gpio_mapping *) id->driver_data;
-
-	ret = devm_acpi_dev_add_driver_gpios(dev->dev, gpio_mapping);
-	if (ret)
-		return ret;
-
 	/* Retrieve UART ACPI info */
+	dev->gpio_int_idx = -1;
 	ret = acpi_dev_get_resources(ACPI_COMPANION(dev->dev),
 				     &resources, bcm_resource, dev);
 	if (ret < 0)
@@ -984,11 +964,40 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	}
 	acpi_dev_free_resource_list(&resources);
 
-	dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
-	if (dmi_id) {
-		dev_warn(dev->dev, "%s: Overwriting IRQ polarity to active low",
-			    dmi_id->ident);
-		dev->irq_active_low = true;
+	/* If the DSDT uses an Interrupt resource for the IRQ, then there are
+	 * only 2 GPIO resources, we use the irq-last mapping for this, since
+	 * we already have an irq the 3th / last mapping will not be used.
+	 */
+	if (dev->irq)
+		gpio_mapping = acpi_bcm_int_last_gpios;
+	else if (dev->gpio_int_idx == 0)
+		gpio_mapping = acpi_bcm_int_first_gpios;
+	else if (dev->gpio_int_idx == 2)
+		gpio_mapping = acpi_bcm_int_last_gpios;
+	else
+		dev_warn(dev->dev, "Unexpected ACPI gpio_int_idx: %d\n",
+			 dev->gpio_int_idx);
+
+	/* Warn if our expectations are not met. */
+	if (dev->gpio_count != (dev->irq ? 2 : 3))
+		dev_warn(dev->dev, "Unexpected number of ACPI GPIOs: %d\n",
+			 dev->gpio_count);
+
+	ret = devm_acpi_dev_add_driver_gpios(dev->dev, gpio_mapping);
+	if (ret)
+		return ret;
+
+	if (irq_polarity != -1) {
+		dev->irq_active_low = irq_polarity;
+		dev_warn(dev->dev, "Overwriting IRQ polarity to active %s by module-param\n",
+			 dev->irq_active_low ? "low" : "high");
+	} else {
+		dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
+		if (dmi_id) {
+			dev_warn(dev->dev, "%s: Overwriting IRQ polarity to active low",
+				 dmi_id->ident);
+			dev->irq_active_low = true;
+		}
 	}
 
 	return 0;
@@ -1074,25 +1083,172 @@ static const struct hci_uart_proto bcm_proto = {
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id bcm_acpi_match[] = {
-	{ "BCM2E1A", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E39", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E3A", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E3D", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E3F", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E40", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E54", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E55", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E64", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E65", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E67", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E71", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E72", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E7B", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E7C", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
-	{ "BCM2E7E", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
-	{ "BCM2E95", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
-	{ "BCM2E96", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
-	{ "BCM2EA4", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
+	{ "BCM2E00" },
+	{ "BCM2E01" },
+	{ "BCM2E02" },
+	{ "BCM2E03" },
+	{ "BCM2E04" },
+	{ "BCM2E05" },
+	{ "BCM2E06" },
+	{ "BCM2E07" },
+	{ "BCM2E08" },
+	{ "BCM2E09" },
+	{ "BCM2E0A" },
+	{ "BCM2E0B" },
+	{ "BCM2E0C" },
+	{ "BCM2E0D" },
+	{ "BCM2E0E" },
+	{ "BCM2E0F" },
+	{ "BCM2E10" },
+	{ "BCM2E11" },
+	{ "BCM2E12" },
+	{ "BCM2E13" },
+	{ "BCM2E14" },
+	{ "BCM2E15" },
+	{ "BCM2E16" },
+	{ "BCM2E17" },
+	{ "BCM2E18" },
+	{ "BCM2E19" },
+	{ "BCM2E1A" },
+	{ "BCM2E1B" },
+	{ "BCM2E1C" },
+	{ "BCM2E1D" },
+	{ "BCM2E1F" },
+	{ "BCM2E20" },
+	{ "BCM2E21" },
+	{ "BCM2E22" },
+	{ "BCM2E23" },
+	{ "BCM2E24" },
+	{ "BCM2E25" },
+	{ "BCM2E26" },
+	{ "BCM2E27" },
+	{ "BCM2E28" },
+	{ "BCM2E29" },
+	{ "BCM2E2A" },
+	{ "BCM2E2B" },
+	{ "BCM2E2C" },
+	{ "BCM2E2D" },
+	{ "BCM2E2E" },
+	{ "BCM2E2F" },
+	{ "BCM2E30" },
+	{ "BCM2E31" },
+	{ "BCM2E32" },
+	{ "BCM2E33" },
+	{ "BCM2E34" },
+	{ "BCM2E35" },
+	{ "BCM2E36" },
+	{ "BCM2E37" },
+	{ "BCM2E38" },
+	{ "BCM2E39" },
+	{ "BCM2E3A" },
+	{ "BCM2E3B" },
+	{ "BCM2E3C" },
+	{ "BCM2E3D" },
+	{ "BCM2E3E" },
+	{ "BCM2E3F" },
+	{ "BCM2E40" },
+	{ "BCM2E41" },
+	{ "BCM2E42" },
+	{ "BCM2E43" },
+	{ "BCM2E44" },
+	{ "BCM2E45" },
+	{ "BCM2E46" },
+	{ "BCM2E47" },
+	{ "BCM2E48" },
+	{ "BCM2E49" },
+	{ "BCM2E4A" },
+	{ "BCM2E4B" },
+	{ "BCM2E4C" },
+	{ "BCM2E4D" },
+	{ "BCM2E4E" },
+	{ "BCM2E4F" },
+	{ "BCM2E50" },
+	{ "BCM2E51" },
+	{ "BCM2E52" },
+	{ "BCM2E53" },
+	{ "BCM2E54" },
+	{ "BCM2E55" },
+	{ "BCM2E56" },
+	{ "BCM2E57" },
+	{ "BCM2E58" },
+	{ "BCM2E59" },
+	{ "BCM2E5A" },
+	{ "BCM2E5B" },
+	{ "BCM2E5C" },
+	{ "BCM2E5D" },
+	{ "BCM2E5E" },
+	{ "BCM2E5F" },
+	{ "BCM2E60" },
+	{ "BCM2E61" },
+	{ "BCM2E62" },
+	{ "BCM2E63" },
+	{ "BCM2E64" },
+	{ "BCM2E65" },
+	{ "BCM2E66" },
+	{ "BCM2E67" },
+	{ "BCM2E68" },
+	{ "BCM2E69" },
+	{ "BCM2E6B" },
+	{ "BCM2E6D" },
+	{ "BCM2E6E" },
+	{ "BCM2E6F" },
+	{ "BCM2E70" },
+	{ "BCM2E71" },
+	{ "BCM2E72" },
+	{ "BCM2E73" },
+	{ "BCM2E74" },
+	{ "BCM2E75" },
+	{ "BCM2E76" },
+	{ "BCM2E77" },
+	{ "BCM2E78" },
+	{ "BCM2E79" },
+	{ "BCM2E7A" },
+	{ "BCM2E7B" },
+	{ "BCM2E7C" },
+	{ "BCM2E7D" },
+	{ "BCM2E7E" },
+	{ "BCM2E7F" },
+	{ "BCM2E80" },
+	{ "BCM2E81" },
+	{ "BCM2E82" },
+	{ "BCM2E83" },
+	{ "BCM2E84" },
+	{ "BCM2E85" },
+	{ "BCM2E86" },
+	{ "BCM2E87" },
+	{ "BCM2E88" },
+	{ "BCM2E89" },
+	{ "BCM2E8A" },
+	{ "BCM2E8B" },
+	{ "BCM2E8C" },
+	{ "BCM2E8D" },
+	{ "BCM2E8E" },
+	{ "BCM2E90" },
+	{ "BCM2E92" },
+	{ "BCM2E93" },
+	{ "BCM2E94" },
+	{ "BCM2E95" },
+	{ "BCM2E96" },
+	{ "BCM2E97" },
+	{ "BCM2E98" },
+	{ "BCM2E99" },
+	{ "BCM2E9A" },
+	{ "BCM2E9B" },
+	{ "BCM2E9C" },
+	{ "BCM2E9D" },
+	{ "BCM2EA0" },
+	{ "BCM2EA1" },
+	{ "BCM2EA2" },
+	{ "BCM2EA3" },
+	{ "BCM2EA4" },
+	{ "BCM2EA5" },
+	{ "BCM2EA6" },
+	{ "BCM2EA7" },
+	{ "BCM2EA8" },
+	{ "BCM2EA9" },
+	{ "BCM2EAA" },
+	{ "BCM2EAB" },
+	{ "BCM2EAC" },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);
@@ -1140,6 +1296,12 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 	err = bcm_get_resources(bcmdev);
 	if (err)
 		return err;
+
+	if (!bcmdev->shutdown) {
+		dev_warn(&serdev->dev,
+			 "No reset resource, using default baud rate\n");
+		bcmdev->oper_speed = bcmdev->init_speed;
+	}
 
 	err = bcm_gpio_set_power(bcmdev, false);
 	if (err)

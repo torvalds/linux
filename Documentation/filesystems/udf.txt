@@ -36,18 +36,14 @@ The following mount options are supported:
 	iocharset=	Set the NLS character set
 
 The uid= and gid= options need a bit more explaining.  They will accept a
-decimal numeric value which will be used as the default ID for that mount.
-They will also accept the string "ignore" and "forget".  For files on the disk
-that are owned by nobody ( -1 ), they will instead look as if they are owned
-by the default ID.  The ignore option causes the default ID to override all
-IDs on the disk, not just -1.  The forget option causes all IDs to be written
-to disk as -1, so when the media is later remounted, they will appear to be
-owned by whatever default ID it is mounted with at that time.
+decimal numeric value and all inodes on that mount will then appear as
+belonging to that uid and gid.  Mount options also accept the string "forget".
+The forget option causes all IDs to be written to disk as -1 which is a way
+of UDF standard to indicate that IDs are not supported for these files .
 
-For typical desktop use of removable media, you should set the ID to that
-of the interactively logged on user, and also specify both the forget and
-ignore options.  This way the interactive user will always see the files
-on the disk as belonging to him.
+For typical desktop use of removable media, you should set the ID to that of
+the interactively logged on user, and also specify the forget option.  This way
+the interactive user will always see the files on the disk as belonging to him.
 
 The remaining are for debugging and disaster recovery:
 
@@ -57,16 +53,8 @@ The following expect a offset from 0.
 
 	session=	Set the CDROM session (default= last session)
 	anchor=		Override standard anchor location. (default= 256)
-	volume=		Override the VolumeDesc location. (unused)
-	partition=	Override the PartitionDesc location. (unused)
 	lastblock=	Set the last block of the filesystem/
 
-The following expect a offset from the partition root.
-
-	fileset=	Override the fileset block location. (unused)
-	rootdir=	Override the root directory location. (unused)
-			WARNING: overriding the rootdir to a non-directory may
-				yield highly unpredictable results.
 -------------------------------------------------------------------------------
 
 

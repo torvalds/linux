@@ -144,7 +144,7 @@ void release_pages(struct page **pages, int nr);
  * 3. check the page is still in pagecache (if no, goto 1)
  *
  * Remove-side that cares about stability of _refcount (eg. reclaim) has the
- * following (with tree_lock held for write):
+ * following (with the i_pages lock held):
  * A. atomically check refcount is correct and set it to 0 (atomic_cmpxchg)
  * B. remove page from pagecache
  * C. free the page
@@ -157,7 +157,7 @@ void release_pages(struct page **pages, int nr);
  *
  * It is possible that between 1 and 2, the page is removed then the exact same
  * page is inserted into the same position in pagecache. That's OK: the
- * old find_get_page using tree_lock could equally have run before or after
+ * old find_get_page using a lock could equally have run before or after
  * such a re-insertion, depending on order that locks are granted.
  *
  * Lookups racing against pagecache insertion isn't a big problem: either 1

@@ -146,6 +146,8 @@ int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
 			int flags, unsigned int verb, unsigned int parm);
 bool snd_hdac_check_power_state(struct hdac_device *hdac,
 		hda_nid_t nid, unsigned int target_state);
+unsigned int snd_hdac_sync_power_state(struct hdac_device *hdac,
+		      hda_nid_t nid, unsigned int target_state);
 /**
  * snd_hdac_read_parm - read a codec parameter
  * @codec: the codec object
@@ -226,9 +228,6 @@ struct hdac_io_ops {
 
 #define HDA_UNSOL_QUEUE_SIZE	64
 #define HDA_MAX_CODECS		8	/* limit by controller side */
-
-/* HD Audio class code */
-#define PCI_CLASS_MULTIMEDIA_HD_AUDIO	0x0403
 
 /*
  * CORB/RIRB

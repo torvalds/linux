@@ -464,12 +464,12 @@ static void brcmf_chip_ai_resetcore(struct brcmf_core_priv *core, u32 prereset,
 	ci->ops->read32(ci->ctx, core->wrapbase + BCMA_IOCTL);
 }
 
-static char *brcmf_chip_name(uint chipid, char *buf, uint len)
+char *brcmf_chip_name(u32 id, u32 rev, char *buf, uint len)
 {
 	const char *fmt;
 
-	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
-	snprintf(buf, len, fmt, chipid);
+	fmt = ((id > 0xa000) || (id < 0x4000)) ? "BCM%d/%u" : "BCM%x/%u";
+	snprintf(buf, len, fmt, id, rev);
 	return buf;
 }
 
@@ -924,10 +924,10 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	ci->pub.chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 	socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 
-	brcmf_chip_name(ci->pub.chip, ci->pub.name, sizeof(ci->pub.name));
-	brcmf_dbg(INFO, "found %s chip: BCM%s, rev=%d\n",
-		  socitype == SOCI_SB ? "SB" : "AXI", ci->pub.name,
-		  ci->pub.chiprev);
+	brcmf_chip_name(ci->pub.chip, ci->pub.chiprev,
+			ci->pub.name, sizeof(ci->pub.name));
+	brcmf_dbg(INFO, "found %s chip: %s\n",
+		  socitype == SOCI_SB ? "SB" : "AXI", ci->pub.name);
 
 	if (socitype == SOCI_SB) {
 		if (ci->pub.chip != BRCM_CC_4329_CHIP_ID) {

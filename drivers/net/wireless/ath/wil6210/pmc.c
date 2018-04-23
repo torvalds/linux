@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2015,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -53,6 +54,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	u32 i;
 	struct pmc_ctx *pmc = &wil->pmc;
 	struct device *dev = wil_to_dev(wil);
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_pmc_cmd pmc_cmd = {0};
 	int last_cmd_err = -ENOMEM;
 
@@ -186,6 +188,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	wil_dbg_misc(wil, "pmc_alloc: send WMI_PMC_CMD with ALLOCATE op\n");
 	pmc->last_cmd_status = wmi_send(wil,
 					WMI_PMC_CMDID,
+					vif->mid,
 					&pmc_cmd,
 					sizeof(pmc_cmd));
 	if (pmc->last_cmd_status) {
@@ -236,6 +239,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 {
 	struct pmc_ctx *pmc = &wil->pmc;
 	struct device *dev = wil_to_dev(wil);
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_pmc_cmd pmc_cmd = {0};
 
 	mutex_lock(&pmc->lock);
@@ -254,8 +258,8 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 		wil_dbg_misc(wil, "send WMI_PMC_CMD with RELEASE op\n");
 		pmc_cmd.op = WMI_PMC_RELEASE;
 		pmc->last_cmd_status =
-				wmi_send(wil, WMI_PMC_CMDID, &pmc_cmd,
-					 sizeof(pmc_cmd));
+				wmi_send(wil, WMI_PMC_CMDID, vif->mid,
+					 &pmc_cmd, sizeof(pmc_cmd));
 		if (pmc->last_cmd_status) {
 			wil_err(wil,
 				"WMI_PMC_CMD with RELEASE op failed, status %d",

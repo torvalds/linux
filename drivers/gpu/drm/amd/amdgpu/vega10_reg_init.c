@@ -24,7 +24,8 @@
 #include "soc15.h"
 
 #include "soc15_common.h"
-#include "soc15ip.h"
+#include "soc15_hw_ip.h"
+#include "vega10_ip_offset.h"
 
 int vega10_reg_base_init(struct amdgpu_device *adev)
 {
@@ -37,6 +38,7 @@ int vega10_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[ATHUB_HWIP][i] = (uint32_t *)(&(ATHUB_BASE.instance[i]));
 		adev->reg_offset[NBIO_HWIP][i] = (uint32_t *)(&(NBIO_BASE.instance[i]));
 		adev->reg_offset[MP0_HWIP][i] = (uint32_t *)(&(MP0_BASE.instance[i]));
+		adev->reg_offset[MP1_HWIP][i] = (uint32_t *)(&(MP1_BASE.instance[i]));
 		adev->reg_offset[UVD_HWIP][i] = (uint32_t *)(&(UVD_BASE.instance[i]));
 		adev->reg_offset[VCE_HWIP][i] = (uint32_t *)(&(VCE_BASE.instance[i]));
 		adev->reg_offset[VCN_HWIP][i] = (uint32_t *)(&(VCN_BASE.instance[i]));
@@ -48,7 +50,7 @@ int vega10_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[SMUIO_HWIP][i] = (uint32_t *)(&(SMUIO_BASE.instance[i]));
 		adev->reg_offset[PWR_HWIP][i] = (uint32_t *)(&(PWR_BASE.instance[i]));
 		adev->reg_offset[NBIF_HWIP][i] = (uint32_t *)(&(NBIF_BASE.instance[i]));
-
+		adev->reg_offset[THM_HWIP][i] = (uint32_t *)(&(THM_BASE.instance[i]));
 	}
 	return 0;
 }

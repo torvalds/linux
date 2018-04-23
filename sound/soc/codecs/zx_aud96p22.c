@@ -57,8 +57,8 @@ struct aud96p22_priv {
 static int aud96p22_adc_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct aud96p22_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct aud96p22_priv *priv = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = priv->regmap;
 
 	if (event != SND_SOC_DAPM_POST_PMU)
@@ -74,8 +74,8 @@ static int aud96p22_adc_event(struct snd_soc_dapm_widget *w,
 static int aud96p22_dac_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct aud96p22_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct aud96p22_priv *priv = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = priv->regmap;
 
 	if (event != SND_SOC_DAPM_POST_PMU)
@@ -261,20 +261,22 @@ static const struct snd_soc_dapm_route aud96p22_dapm_routes[] = {
 	{ "LINEOUTMN", NULL, "LD2" },
 };
 
-static const struct snd_soc_codec_driver aud96p22_driver = {
-	.component_driver = {
-		.controls = aud96p22_snd_controls,
-		.num_controls = ARRAY_SIZE(aud96p22_snd_controls),
-		.dapm_widgets = aud96p22_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(aud96p22_dapm_widgets),
-		.dapm_routes = aud96p22_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(aud96p22_dapm_routes),
-	},
+static const struct snd_soc_component_driver aud96p22_driver = {
+	.controls		= aud96p22_snd_controls,
+	.num_controls		= ARRAY_SIZE(aud96p22_snd_controls),
+	.dapm_widgets		= aud96p22_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(aud96p22_dapm_widgets),
+	.dapm_routes		= aud96p22_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(aud96p22_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int aud96p22_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct aud96p22_priv *priv = snd_soc_codec_get_drvdata(dai->codec);
+	struct aud96p22_priv *priv = snd_soc_component_get_drvdata(dai->component);
 	struct regmap *regmap = priv->regmap;
 	unsigned int val;
 
@@ -367,9 +369,9 @@ static int aud96p22_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, priv);
 
-	ret = snd_soc_register_codec(dev, &aud96p22_driver, &aud96p22_dai, 1);
+	ret = devm_snd_soc_register_component(dev, &aud96p22_driver, &aud96p22_dai, 1);
 	if (ret) {
-		dev_err(dev, "failed to register codec: %d\n", ret);
+		dev_err(dev, "failed to register component: %d\n", ret);
 		return ret;
 	}
 
@@ -378,7 +380,6 @@ static int aud96p22_i2c_probe(struct i2c_client *i2c,
 
 static int aud96p22_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
 }
 

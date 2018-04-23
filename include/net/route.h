@@ -63,9 +63,8 @@ struct rtable {
 	__be32			rt_gateway;
 
 	/* Miscellaneous cached information */
-	u32			rt_pmtu;
-
-	u32			rt_table_id;
+	u32			rt_mtu_locked:1,
+				rt_pmtu:31;
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
@@ -226,6 +225,9 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
 void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
+
+void rt_add_uncached_list(struct rtable *rt);
+void rt_del_uncached_list(struct rtable *rt);
 
 static inline void ip_rt_put(struct rtable *rt)
 {

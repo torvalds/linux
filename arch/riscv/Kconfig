@@ -33,6 +33,7 @@ config RISCV
 	select MODULES_USE_ELF_RELA if MODULES
 	select THREAD_INFO_IN_TASK
 	select RISCV_TIMER
+	select GENERIC_IRQ_MULTI_HANDLER
 
 config MMU
 	def_bool y
@@ -114,6 +115,9 @@ config ARCH_RV64I
 	select 64BIT
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 endchoice
 
@@ -131,6 +135,10 @@ choice
 		bool "medium any code model"
 endchoice
 
+config MODULE_SECTIONS
+	bool
+	select HAVE_MOD_ARCH_SPECIFIC
+
 choice
 	prompt "Maximum Physical Memory"
 	default MAXPHYSMEM_2GB if 32BIT
@@ -141,6 +149,7 @@ choice
 		bool "2GiB"
 	config MAXPHYSMEM_128GB
 		depends on 64BIT && CMODEL_MEDANY
+		select MODULE_SECTIONS if MODULES
 		bool "128GiB"
 endchoice
 
@@ -281,7 +290,7 @@ config CMDLINE_BOOL
 	  in CONFIG_CMDLINE.
 
 	  The built-in options will be concatenated to the default command
-	  line if CMDLINE_OVERRIDE is set to 'N'. Otherwise, the default
+	  line if CMDLINE_FORCE is set to 'N'. Otherwise, the default
 	  command line will be ignored and replaced by the built-in string.
 
 config CMDLINE
@@ -291,7 +300,7 @@ config CMDLINE
 	help
 	  Supply command-line options at build time by entering them here.
 
-config CMDLINE_OVERRIDE
+config CMDLINE_FORCE
 	bool "Built-in command line overrides bootloader arguments"
 	depends on CMDLINE_BOOL
 	help

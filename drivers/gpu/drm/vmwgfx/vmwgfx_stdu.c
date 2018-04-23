@@ -114,7 +114,6 @@ struct vmw_screen_target_display_unit {
 	bool defined;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 
@@ -492,69 +491,15 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
-	struct drm_vmw_rect vclips;
 	int ret;
-
-	dev_priv          = vmw_priv(crtc->dev);
-	stdu              = vmw_crtc_to_stdu(crtc);
 
 	if (!stdu->defined || !vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	/*
-	 * We're always async, but the helper doesn't know how to set async
-	 * so lie to the helper. Also, the helper expects someone
-	 * to pick the event up from the crtc state, and if nobody does,
-	 * it will free it. Since we handle the event in this function,
-	 * don't hand it to the helper.
-	 */
-	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags, ctx);
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;
-	}
-
-	if (stdu->base.is_implicit)
-		vmw_kms_update_implicit_fb(dev_priv, crtc);
-
-	/*
-	 * Now that we've bound a new surface to the screen target,
-	 * update the contents.
-	 */
-	vclips.x = crtc->x;
-	vclips.y = crtc->y;
-	vclips.w = crtc->mode.hdisplay;
-	vclips.h = crtc->mode.vdisplay;
-
-	if (vfb->dmabuf)
-		ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL, &vclips,
-				       1, 1, true, false);
-	else
-		ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL, &vclips,
-						 NULL, 0, 0, 1, 1, NULL);
-	if (ret) {
-		DRM_ERROR("Page flip update error %d.\n", ret);
-		return ret;
-	}
-
-	if (event) {
-		struct vmw_fence_obj *fence = NULL;
-		struct drm_file *file_priv = event->base.file_priv;
-
-		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		if (!fence)
-			return -ENOMEM;
-
-		ret = vmw_event_fence_action_queue(file_priv, fence,
-						   &event->base,
-						   &event->event.vbl.tv_sec,
-						   &event->event.vbl.tv_usec,
-						   true);
-		vmw_fence_obj_unreference(&fence);
-	} else {
-		(void) vmw_fifo_flush(dev_priv, false);
 	}
 
 	return 0;
@@ -693,10 +638,9 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 		container_of(dirty->unit, typeof(*stdu), base);
 	s32 width, height;
 	s32 src_pitch, dst_pitch;
-	u8 *src, *dst;
-	bool not_used;
-	struct ttm_bo_kmap_obj guest_map;
-	int ret;
+	struct ttm_buffer_object *src_bo, *dst_bo;
+	u32 src_offset, dst_offset;
+	struct vmw_diff_cpy diff = VMW_CPU_BLIT_DIFF_INITIALIZER(stdu->cpp);
 
 	if (!dirty->num_hits)
 		return;
@@ -707,57 +651,38 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	if (width == 0 || height == 0)
 		return;
 
-	ret = ttm_bo_kmap(&ddirty->buf->base, 0, ddirty->buf->base.num_pages,
-			  &guest_map);
-	if (ret) {
-		DRM_ERROR("Failed mapping framebuffer for blit: %d\n",
-			  ret);
-		goto out_cleanup;
+	/* Assume we are blitting from Guest (dmabuf) to Host (display_srf) */
+	dst_pitch = stdu->display_srf->base_size.width * stdu->cpp;
+	dst_bo = &stdu->display_srf->res.backup->base;
+	dst_offset = ddirty->top * dst_pitch + ddirty->left * stdu->cpp;
+
+	src_pitch = ddirty->pitch;
+	src_bo = &ddirty->buf->base;
+	src_offset = ddirty->fb_top * src_pitch + ddirty->fb_left * stdu->cpp;
+
+	/* Swap src and dst if the assumption was wrong. */
+	if (ddirty->transfer != SVGA3D_WRITE_HOST_VRAM) {
+		swap(dst_pitch, src_pitch);
+		swap(dst_bo, src_bo);
+		swap(src_offset, dst_offset);
 	}
 
-	/* Assume we are blitting from Host (display_srf) to Guest (dmabuf) */
-	src_pitch = stdu->display_srf->base_size.width * stdu->cpp;
-	src = ttm_kmap_obj_virtual(&stdu->host_map, &not_used);
-	src += ddirty->top * src_pitch + ddirty->left * stdu->cpp;
+	(void) vmw_bo_cpu_blit(dst_bo, dst_offset, dst_pitch,
+			       src_bo, src_offset, src_pitch,
+			       width * stdu->cpp, height, &diff);
 
-	dst_pitch = ddirty->pitch;
-	dst = ttm_kmap_obj_virtual(&guest_map, &not_used);
-	dst += ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
-
-
-	/* Figure out the real direction */
-	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM) {
-		u8 *tmp;
-		s32 tmp_pitch;
-
-		tmp = src;
-		tmp_pitch = src_pitch;
-
-		src = dst;
-		src_pitch = dst_pitch;
-
-		dst = tmp;
-		dst_pitch = tmp_pitch;
-	}
-
-	/* CPU Blit */
-	while (height-- > 0) {
-		memcpy(dst, src, width * stdu->cpp);
-		dst += dst_pitch;
-		src += src_pitch;
-	}
-
-	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM) {
+	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM &&
+	    drm_rect_visible(&diff.rect)) {
 		struct vmw_private *dev_priv;
 		struct vmw_stdu_update *cmd;
 		struct drm_clip_rect region;
 		int ret;
 
 		/* We are updating the actual surface, not a proxy */
-		region.x1 = ddirty->left;
-		region.x2 = ddirty->right;
-		region.y1 = ddirty->top;
-		region.y2 = ddirty->bottom;
+		region.x1 = diff.rect.x1;
+		region.x2 = diff.rect.x2;
+		region.y1 = diff.rect.y1;
+		region.y2 = diff.rect.y2;
 		ret = vmw_kms_update_proxy(
 			(struct vmw_resource *) &stdu->display_srf->res,
 			(const struct drm_clip_rect *) &region, 1, 1);
@@ -774,13 +699,12 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 		}
 
 		vmw_stdu_populate_update(cmd, stdu->base.unit,
-					 ddirty->left, ddirty->right,
-					 ddirty->top, ddirty->bottom);
+					 region.x1, region.x2,
+					 region.y1, region.y2);
 
 		vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	}
 
-	ttm_bo_kunmap(&guest_map);
 out_cleanup:
 	ddirty->left = ddirty->top = ddirty->fb_left = ddirty->fb_top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
@@ -802,6 +726,7 @@ out_cleanup:
  * @to_surface: Whether to DMA to the screen target system as opposed to
  * from the screen target system.
  * @interruptible: Whether to perform waits interruptible if possible.
+ * @crtc: If crtc is passed, perform stdu dma on that crtc only.
  *
  * If DMA-ing till the screen target system, the function will also notify
  * the screen target system that a bounding box of the cliprects has been
@@ -818,15 +743,22 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     uint32_t num_clips,
 		     int increment,
 		     bool to_surface,
-		     bool interruptible)
+		     bool interruptible,
+		     struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
 	struct vmw_stdu_dirty ddirty;
 	int ret;
+	bool cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
 
+	/*
+	 * VMs without 3D support don't have the surface DMA command and
+	 * we'll be using a CPU blit, and the framebuffer should be moved out
+	 * of VRAM.
+	 */
 	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false);
+					    false, cpu_blit);
 	if (ret)
 		return ret;
 
@@ -845,12 +777,14 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 	if (to_surface)
 		ddirty.base.fifo_reserve_size += sizeof(struct vmw_stdu_update);
 
-	/* 2D VMs cannot use SVGA_3D_CMD_SURFACE_DMA so do CPU blit instead */
-	if (!(dev_priv->capabilities & SVGA_CAP_3D)) {
+
+	if (cpu_blit) {
 		ddirty.base.fifo_commit = vmw_stdu_dmabuf_cpu_commit;
 		ddirty.base.clip = vmw_stdu_dmabuf_cpu_clip;
 		ddirty.base.fifo_reserve_size = 0;
 	}
+
+	ddirty.base.crtc = crtc;
 
 	ret = vmw_kms_helper_dirty(dev_priv, vfb, clips, vclips,
 				   0, 0, num_clips, increment, &ddirty.base);
@@ -963,6 +897,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -975,17 +910,19 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       s32 dest_x,
 			       s32 dest_y,
 			       unsigned num_clips, int inc,
-			       struct vmw_fence_obj **out_fence)
+			       struct vmw_fence_obj **out_fence,
+			       struct drm_crtc *crtc)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
 	struct vmw_stdu_dirty sdirty;
+	struct vmw_validation_ctx ctx;
 	int ret;
 
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_kms_helper_resource_prepare(srf, true);
+	ret = vmw_kms_helper_resource_prepare(srf, true, &ctx);
 	if (ret)
 		return ret;
 
@@ -1000,6 +937,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	sdirty.base.fifo_reserve_size = sizeof(struct vmw_stdu_surface_copy) +
 		sizeof(SVGA3dCopyBox) * num_clips +
 		sizeof(struct vmw_stdu_update);
+	sdirty.base.crtc = crtc;
 	sdirty.sid = srf->id;
 	sdirty.left = sdirty.top = S32_MAX;
 	sdirty.right = sdirty.bottom = S32_MIN;
@@ -1008,7 +946,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 				   dest_x, dest_y, num_clips, inc,
 				   &sdirty.base);
 out_finish:
-	vmw_kms_helper_resource_finish(srf, out_fence);
+	vmw_kms_helper_resource_finish(&ctx, out_fence);
 
 	return ret;
 }
@@ -1117,9 +1055,6 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
-
-	if (vps->host_map.virtual)
-		ttm_bo_kunmap(&vps->host_map);
 
 	if (vps->surf)
 		WARN_ON(!vps->pinned);
@@ -1282,23 +1217,10 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * so cache these mappings
 	 */
 	if (vps->content_fb_type == SEPARATE_DMA &&
-	    !(dev_priv->capabilities & SVGA_CAP_3D)) {
-		ret = ttm_bo_kmap(&vps->surf->res.backup->base, 0,
-				  vps->surf->res.backup->base.num_pages,
-				  &vps->host_map);
-		if (ret) {
-			DRM_ERROR("Failed to map display buffer to CPU\n");
-			goto out_srf_unpin;
-		}
-
+	    !(dev_priv->capabilities & SVGA_CAP_3D))
 		vps->cpp = new_fb->pitches[0] / new_fb->width;
-	}
 
 	return 0;
-
-out_srf_unpin:
-	vmw_resource_unpin(&vps->surf->res);
-	vps->pinned--;
 
 out_srf_unref:
 	vmw_surface_unreference(&vps->surf);
@@ -1322,41 +1244,104 @@ static void
 vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct vmw_private *dev_priv;
-	struct vmw_screen_target_display_unit *stdu;
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
-	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct drm_crtc *crtc = plane->state->crtc;
+	struct vmw_screen_target_display_unit *stdu;
+	struct drm_pending_vblank_event *event;
+	struct vmw_private *dev_priv;
 	int ret;
-
-	stdu     = vmw_crtc_to_stdu(crtc);
-	dev_priv = vmw_priv(crtc->dev);
-
-	stdu->display_srf = vps->surf;
-	stdu->content_fb_type = vps->content_fb_type;
-	stdu->cpp = vps->cpp;
-	memcpy(&stdu->host_map, &vps->host_map, sizeof(vps->host_map));
-
-	if (!stdu->defined)
-		return;
-
-	if (plane->state->fb)
-		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
-	else
-		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
 
 	/*
 	 * We cannot really fail this function, so if we do, then output an
-	 * error and quit
+	 * error and maintain consistent atomic state.
 	 */
-	if (ret)
-		DRM_ERROR("Failed to bind surface to STDU.\n");
-	else
+	if (crtc && plane->state->fb) {
+		struct vmw_framebuffer *vfb =
+			vmw_framebuffer_to_vfb(plane->state->fb);
+		struct drm_vmw_rect vclips;
+		stdu = vmw_crtc_to_stdu(crtc);
+		dev_priv = vmw_priv(crtc->dev);
+
+		stdu->display_srf = vps->surf;
+		stdu->content_fb_type = vps->content_fb_type;
+		stdu->cpp = vps->cpp;
+
+		vclips.x = crtc->x;
+		vclips.y = crtc->y;
+		vclips.w = crtc->mode.hdisplay;
+		vclips.h = crtc->mode.vdisplay;
+
+		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
+		if (ret)
+			DRM_ERROR("Failed to bind surface to STDU.\n");
+
+		if (vfb->dmabuf)
+			ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL,
+					       &vclips, 1, 1, true, false,
+					       crtc);
+		else
+			ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL,
+							 &vclips, NULL, 0, 0,
+							 1, 1, NULL, crtc);
+		if (ret)
+			DRM_ERROR("Failed to update STDU.\n");
+
 		crtc->primary->fb = plane->state->fb;
+	} else {
+		crtc = old_state->crtc;
+		stdu = vmw_crtc_to_stdu(crtc);
+		dev_priv = vmw_priv(crtc->dev);
 
-	ret = vmw_stdu_update_st(dev_priv, stdu);
+		/*
+		 * When disabling a plane, CRTC and FB should always be NULL
+		 * together, otherwise it's an error.
+		 * Here primary plane is being disable so blank the screen
+		 * target display unit, if not already done.
+		 */
+		if (!stdu->defined)
+			return;
 
-	if (ret)
-		DRM_ERROR("Failed to update STDU.\n");
+		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
+		if (ret)
+			DRM_ERROR("Failed to blank STDU\n");
+
+		ret = vmw_stdu_update_st(dev_priv, stdu);
+		if (ret)
+			DRM_ERROR("Failed to update STDU.\n");
+
+		return;
+	}
+
+	event = crtc->state->event;
+	/*
+	 * In case of failure and other cases, vblank event will be sent in
+	 * vmw_du_crtc_atomic_flush.
+	 */
+	if (event && (ret == 0)) {
+		struct vmw_fence_obj *fence = NULL;
+		struct drm_file *file_priv = event->base.file_priv;
+
+		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+
+		/*
+		 * If fence is NULL, then already sync.
+		 */
+		if (fence) {
+			ret = vmw_event_fence_action_queue(
+				file_priv, fence, &event->base,
+				&event->event.vbl.tv_sec,
+				&event->event.vbl.tv_usec,
+				true);
+			if (ret)
+				DRM_ERROR("Failed to queue event on fence.\n");
+			else
+				crtc->state->event = NULL;
+
+			vmw_fence_obj_unreference(&fence);
+		}
+	} else {
+		(void) vmw_fifo_flush(dev_priv, false);
+	}
 }
 
 

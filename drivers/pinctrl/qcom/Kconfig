@@ -147,4 +147,13 @@ config PINCTRL_QCOM_SSBI_PMIC
          which are using SSBI for communication with SoC. Example PMIC's
          devices are pm8058 and pm8921.
 
+config PINCTRL_SDM845
+       tristate "Qualcomm Technologies Inc SDM845 pin controller driver"
+       depends on GPIOLIB && OF
+       select PINCTRL_MSM
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SDM845 platform.
+
 endif

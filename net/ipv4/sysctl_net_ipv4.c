@@ -400,7 +400,7 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_MULTIPATH_HASH_UPDATE, net);
+		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -519,22 +519,6 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_udp_mem),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-	},
-	{
-		.procname	= "udp_rmem_min",
-		.data		= &sysctl_udp_rmem_min,
-		.maxlen		= sizeof(sysctl_udp_rmem_min),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &one
-	},
-	{
-		.procname	= "udp_wmem_min",
-		.data		= &sysctl_udp_wmem_min,
-		.maxlen		= sizeof(sysctl_udp_wmem_min),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &one
 	},
 	{ }
 };
@@ -1166,6 +1150,22 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
+	},
+	{
+		.procname	= "udp_rmem_min",
+		.data		= &init_net.ipv4.sysctl_udp_rmem_min,
+		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_rmem_min),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one
+	},
+	{
+		.procname	= "udp_wmem_min",
+		.data		= &init_net.ipv4.sysctl_udp_wmem_min,
+		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_wmem_min),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one
 	},
 	{ }
 };

@@ -46,7 +46,7 @@ module_param(bnad_ioc_auto_recover, uint, 0444);
 MODULE_PARM_DESC(bnad_ioc_auto_recover, "Enable / Disable auto recovery");
 
 static uint bna_debugfs_enable = 1;
-module_param(bna_debugfs_enable, uint, S_IRUGO | S_IWUSR);
+module_param(bna_debugfs_enable, uint, 0644);
 MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
 		 " Range[false:0|true:1]");
 

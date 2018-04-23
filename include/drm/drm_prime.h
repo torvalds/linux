@@ -54,6 +54,9 @@ struct device;
 
 struct dma_buf_export_info;
 struct dma_buf;
+struct dma_buf_attachment;
+
+enum dma_data_direction;
 
 struct drm_device;
 struct drm_gem_object;
@@ -79,6 +82,25 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 				      struct dma_buf_export_info *exp_info);
 void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
+int drm_gem_map_attach(struct dma_buf *dma_buf, struct device *target_dev,
+		       struct dma_buf_attachment *attach);
+void drm_gem_map_detach(struct dma_buf *dma_buf,
+			struct dma_buf_attachment *attach);
+struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
+				     enum dma_data_direction dir);
+void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
+			   struct sg_table *sgt,
+			   enum dma_data_direction dir);
+void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf);
+void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr);
+void *drm_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
+				 unsigned long page_num);
+void drm_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
+				  unsigned long page_num, void *addr);
+void *drm_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num);
+void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num,
+			   void *addr);
+int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
 
 int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 				     dma_addr_t *addrs, int max_pages);

@@ -444,7 +444,7 @@ static int vpfe_register_entities(struct vpfe_device *vpfe_dev)
 	for (i = 0; i < vpfe_dev->num_ext_subdevs; i++)
 		/*
 		 * if entity has no pads (ex: amplifier),
-		 * cant establish link
+		 * can't establish link
 		 */
 		if (vpfe_dev->sd[i]->entity.num_pads) {
 			ret = media_create_pad_link(&vpfe_dev->sd[i]->entity,

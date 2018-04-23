@@ -48,7 +48,12 @@
 	interrupt-controller;
 	#interrupt-cells = <1>;
 
-	axp_gpio: axp-gpio {
+	axp_adc: adc {
+		compatible = "x-powers,axp813-adc";
+		#io-channel-cells = <1>;
+	};
+
+	axp_gpio: gpio {
 		compatible = "x-powers,axp813-gpio";
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -62,6 +67,11 @@
 			pins = "GPIO1";
 			function = "ldo";
 		};
+	};
+
+	battery_power_supply: battery-power-supply {
+		compatible = "x-powers,axp813-battery-power-supply";
+		status = "disabled";
 	};
 
 	regulators {

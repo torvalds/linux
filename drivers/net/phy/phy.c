@@ -618,6 +618,68 @@ static void phy_error(struct phy_device *phydev)
 }
 
 /**
+ * phy_disable_interrupts - Disable the PHY interrupts from the PHY side
+ * @phydev: target phy_device struct
+ */
+static int phy_disable_interrupts(struct phy_device *phydev)
+{
+	int err;
+
+	/* Disable PHY interrupts */
+	err = phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
+	if (err)
+		return err;
+
+	/* Clear the interrupt */
+	return phy_clear_interrupt(phydev);
+}
+
+/**
+ * phy_change - Called by the phy_interrupt to handle PHY changes
+ * @phydev: phy_device struct that interrupted
+ */
+static irqreturn_t phy_change(struct phy_device *phydev)
+{
+	if (phy_interrupt_is_valid(phydev)) {
+		if (phydev->drv->did_interrupt &&
+		    !phydev->drv->did_interrupt(phydev))
+			return IRQ_NONE;
+
+		if (phydev->state == PHY_HALTED)
+			if (phy_disable_interrupts(phydev))
+				goto phy_err;
+	}
+
+	mutex_lock(&phydev->lock);
+	if ((PHY_RUNNING == phydev->state) || (PHY_NOLINK == phydev->state))
+		phydev->state = PHY_CHANGELINK;
+	mutex_unlock(&phydev->lock);
+
+	/* reschedule state queue work to run as soon as possible */
+	phy_trigger_machine(phydev, true);
+
+	if (phy_interrupt_is_valid(phydev) && phy_clear_interrupt(phydev))
+		goto phy_err;
+	return IRQ_HANDLED;
+
+phy_err:
+	phy_error(phydev);
+	return IRQ_NONE;
+}
+
+/**
+ * phy_change_work - Scheduled by the phy_mac_interrupt to handle PHY changes
+ * @work: work_struct that describes the work to be done
+ */
+void phy_change_work(struct work_struct *work)
+{
+	struct phy_device *phydev =
+		container_of(work, struct phy_device, phy_queue);
+
+	phy_change(phydev);
+}
+
+/**
  * phy_interrupt - PHY interrupt handler
  * @irq: interrupt line
  * @phy_dat: phy_device pointer
@@ -632,9 +694,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	if (PHY_HALTED == phydev->state)
 		return IRQ_NONE;		/* It can't be ours.  */
 
-	phy_change(phydev);
-
-	return IRQ_HANDLED;
+	return phy_change(phydev);
 }
 
 /**
@@ -649,32 +709,6 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 		return err;
 
 	return phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
-}
-
-/**
- * phy_disable_interrupts - Disable the PHY interrupts from the PHY side
- * @phydev: target phy_device struct
- */
-static int phy_disable_interrupts(struct phy_device *phydev)
-{
-	int err;
-
-	/* Disable PHY interrupts */
-	err = phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
-	if (err)
-		goto phy_err;
-
-	/* Clear the interrupt */
-	err = phy_clear_interrupt(phydev);
-	if (err)
-		goto phy_err;
-
-	return 0;
-
-phy_err:
-	phy_error(phydev);
-
-	return err;
 }
 
 /**
@@ -720,50 +754,6 @@ int phy_stop_interrupts(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_stop_interrupts);
 
 /**
- * phy_change - Called by the phy_interrupt to handle PHY changes
- * @phydev: phy_device struct that interrupted
- */
-void phy_change(struct phy_device *phydev)
-{
-	if (phy_interrupt_is_valid(phydev)) {
-		if (phydev->drv->did_interrupt &&
-		    !phydev->drv->did_interrupt(phydev))
-			return;
-
-		if (phydev->state == PHY_HALTED)
-			if (phy_disable_interrupts(phydev))
-				goto phy_err;
-	}
-
-	mutex_lock(&phydev->lock);
-	if ((PHY_RUNNING == phydev->state) || (PHY_NOLINK == phydev->state))
-		phydev->state = PHY_CHANGELINK;
-	mutex_unlock(&phydev->lock);
-
-	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev, true);
-
-	if (phy_interrupt_is_valid(phydev) && phy_clear_interrupt(phydev))
-		goto phy_err;
-	return;
-
-phy_err:
-	phy_error(phydev);
-}
-
-/**
- * phy_change_work - Scheduled by the phy_mac_interrupt to handle PHY changes
- * @work: work_struct that describes the work to be done
- */
-void phy_change_work(struct work_struct *work)
-{
-	struct phy_device *phydev =
-		container_of(work, struct phy_device, phy_queue);
-
-	phy_change(phydev);
-}
-
-/**
  * phy_stop - Bring down the PHY link, and stop checking the status
  * @phydev: target phy_device struct
  */
@@ -774,13 +764,8 @@ void phy_stop(struct phy_device *phydev)
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
 
-	if (phy_interrupt_is_valid(phydev)) {
-		/* Disable PHY Interrupts */
-		phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
-
-		/* Clear any pending interrupts */
-		phy_clear_interrupt(phydev);
-	}
+	if (phy_interrupt_is_valid(phydev))
+		phy_disable_interrupts(phydev);
 
 	phydev->state = PHY_HALTED;
 

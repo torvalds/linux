@@ -390,6 +390,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				svc_type = IB_CC_SVCTYPE_UC;
 				break;
 			default:
+				rcu_read_unlock();
 				goto drop;
 			}
 

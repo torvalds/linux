@@ -34,6 +34,7 @@
 #include "dcn_calcs.h"
 #endif
 #include "core_types.h"
+#include "dc_types.h"
 
 
 #define TO_DCE_CLOCKS(clocks)\
@@ -48,6 +49,8 @@
 
 #define CTX \
 	clk_dce->base.ctx
+#define DC_LOGGER \
+	clk->ctx->logger
 
 /* Max clock values for each state indexed by "enum clocks_state": */
 static const struct state_dependent_clocks dce80_max_clks_by_state[] = {
@@ -291,8 +294,10 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 
 	low_req_clk = i + 1;
 	if (low_req_clk > clk->max_clks_state) {
-		dm_logger_write(clk->ctx->logger, LOG_WARNING,
-				"%s: clocks unsupported", __func__);
+		DC_LOG_WARNING("%s: clocks unsupported disp_clk %d pix_clk %d",
+				__func__,
+				req_clocks->display_clk_khz,
+				req_clocks->pixel_clk_khz);
 		low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
 	}
 
@@ -308,8 +313,7 @@ static bool dce_clock_set_min_clocks_state(
 
 	if (clocks_state > clk->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
-		dm_logger_write(clk->ctx->logger, LOG_WARNING,
-				"Requested state exceeds max supported state");
+		DC_LOG_WARNING("Requested state exceeds max supported state");
 		return false;
 	} else if (clocks_state == clk->cur_min_clks_state) {
 		/*if we're trying to set the same state, we can just return
@@ -415,9 +419,12 @@ static int dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (clk_dce->dfs_bypass_disp_clk != actual_clock)
-		dmcu->funcs->set_psr_wait_loop(dmcu,
-				actual_clock / 1000 / 7);
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (clk_dce->dfs_bypass_disp_clk != actual_clock)
+			dmcu->funcs->set_psr_wait_loop(dmcu,
+					actual_clock / 1000 / 7);
+	}
+
 	clk_dce->dfs_bypass_disp_clk = actual_clock;
 	return actual_clock;
 }

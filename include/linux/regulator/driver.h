@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
 
+struct gpio_desc;
 struct regmap;
 struct regulator_dev;
 struct regulator_config;
@@ -387,6 +388,7 @@ struct regulator_desc {
  *                        initialized, meaning that >= 0 is a valid gpio
  *                        identifier and < 0 is a non existent gpio.
  * @ena_gpio: GPIO controlling regulator enable.
+ * @ena_gpiod: GPIO descriptor controlling regulator enable.
  * @ena_gpio_invert: Sense for GPIO enable control.
  * @ena_gpio_flags: Flags to use when calling gpio_request_one()
  */
@@ -399,6 +401,7 @@ struct regulator_config {
 
 	bool ena_gpio_initialized;
 	int ena_gpio;
+	struct gpio_desc *ena_gpiod;
 	unsigned int ena_gpio_invert:1;
 	unsigned int ena_gpio_flags;
 };

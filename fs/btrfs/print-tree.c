@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include "ctree.h"
@@ -202,9 +189,10 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	fs_info = l->fs_info;
 	nr = btrfs_header_nritems(l);
 
-	btrfs_info(fs_info, "leaf %llu total ptrs %d free space %d",
-		   btrfs_header_bytenr(l), nr,
-		   btrfs_leaf_free_space(fs_info, l));
+	btrfs_info(fs_info,
+		   "leaf %llu gen %llu total ptrs %d free space %d owner %llu",
+		   btrfs_header_bytenr(l), btrfs_header_generation(l), nr,
+		   btrfs_leaf_free_space(fs_info, l), btrfs_header_owner(l));
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
@@ -338,7 +326,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	}
 }
 
-void btrfs_print_tree(struct extent_buffer *c)
+void btrfs_print_tree(struct extent_buffer *c, bool follow)
 {
 	struct btrfs_fs_info *fs_info;
 	int i; u32 nr;
@@ -355,19 +343,27 @@ void btrfs_print_tree(struct extent_buffer *c)
 		return;
 	}
 	btrfs_info(fs_info,
-		   "node %llu level %d total ptrs %d free spc %u",
-		   btrfs_header_bytenr(c), level, nr,
-		   (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr);
+		   "node %llu level %d gen %llu total ptrs %d free spc %u owner %llu",
+		   btrfs_header_bytenr(c), level, btrfs_header_generation(c),
+		   nr, (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr,
+		   btrfs_header_owner(c));
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
-		pr_info("\tkey %d (%llu %u %llu) block %llu\n",
+		pr_info("\tkey %d (%llu %u %llu) block %llu gen %llu\n",
 		       i, key.objectid, key.type, key.offset,
-		       btrfs_node_blockptr(c, i));
+		       btrfs_node_blockptr(c, i),
+		       btrfs_node_ptr_generation(c, i));
 	}
+	if (!follow)
+		return;
 	for (i = 0; i < nr; i++) {
-		struct extent_buffer *next = read_tree_block(fs_info,
-					btrfs_node_blockptr(c, i),
-					btrfs_node_ptr_generation(c, i));
+		struct btrfs_key first_key;
+		struct extent_buffer *next;
+
+		btrfs_node_key_to_cpu(c, &first_key, i);
+		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
+				       btrfs_node_ptr_generation(c, i),
+				       level - 1, &first_key);
 		if (IS_ERR(next)) {
 			continue;
 		} else if (!extent_buffer_uptodate(next)) {
@@ -381,7 +377,7 @@ void btrfs_print_tree(struct extent_buffer *c)
 		if (btrfs_header_level(next) !=
 		       level - 1)
 			BUG();
-		btrfs_print_tree(next);
+		btrfs_print_tree(next, follow);
 		free_extent_buffer(next);
 	}
 }

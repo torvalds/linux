@@ -440,6 +440,31 @@ err:
 	return -1;
 }
 
+static int ctnetlink_dump_ct_synproxy(struct sk_buff *skb, struct nf_conn *ct)
+{
+	struct nf_conn_synproxy *synproxy = nfct_synproxy(ct);
+	struct nlattr *nest_parms;
+
+	if (!synproxy)
+		return 0;
+
+	nest_parms = nla_nest_start(skb, CTA_SYNPROXY | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
+
+	if (nla_put_be32(skb, CTA_SYNPROXY_ISN, htonl(synproxy->isn)) ||
+	    nla_put_be32(skb, CTA_SYNPROXY_ITS, htonl(synproxy->its)) ||
+	    nla_put_be32(skb, CTA_SYNPROXY_TSOFF, htonl(synproxy->tsoff)))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest_parms);
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 static int ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	if (nla_put_be32(skb, CTA_ID, htonl((unsigned long)ct)))
@@ -518,7 +543,8 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
 	    ctnetlink_dump_master(skb, ct) < 0 ||
-	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
+	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0 ||
+	    ctnetlink_dump_ct_synproxy(skb, ct) < 0)
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -729,6 +755,10 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 
 		if (events & (1 << IPCT_SEQADJ) &&
 		    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
+			goto nla_put_failure;
+
+		if (events & (1 << IPCT_SYNPROXY) &&
+		    ctnetlink_dump_ct_synproxy(skb, ct) < 0)
 			goto nla_put_failure;
 	}
 
@@ -1497,9 +1527,8 @@ ctnetlink_setup_nat(struct nf_conn *ct, const struct nlattr * const cda[])
 	if (ret < 0)
 		return ret;
 
-	ret = ctnetlink_parse_nat_setup(ct, NF_NAT_MANIP_SRC,
-					cda[CTA_NAT_SRC]);
-	return ret;
+	return ctnetlink_parse_nat_setup(ct, NF_NAT_MANIP_SRC,
+					 cda[CTA_NAT_SRC]);
 #else
 	if (!cda[CTA_NAT_DST] && !cda[CTA_NAT_SRC])
 		return 0;
@@ -1689,6 +1718,39 @@ err:
 	return ret;
 }
 
+static const struct nla_policy synproxy_policy[CTA_SYNPROXY_MAX + 1] = {
+	[CTA_SYNPROXY_ISN]	= { .type = NLA_U32 },
+	[CTA_SYNPROXY_ITS]	= { .type = NLA_U32 },
+	[CTA_SYNPROXY_TSOFF]	= { .type = NLA_U32 },
+};
+
+static int ctnetlink_change_synproxy(struct nf_conn *ct,
+				     const struct nlattr * const cda[])
+{
+	struct nf_conn_synproxy *synproxy = nfct_synproxy(ct);
+	struct nlattr *tb[CTA_SYNPROXY_MAX + 1];
+	int err;
+
+	if (!synproxy)
+		return 0;
+
+	err = nla_parse_nested(tb, CTA_SYNPROXY_MAX, cda[CTA_SYNPROXY],
+			       synproxy_policy, NULL);
+	if (err < 0)
+		return err;
+
+	if (!tb[CTA_SYNPROXY_ISN] ||
+	    !tb[CTA_SYNPROXY_ITS] ||
+	    !tb[CTA_SYNPROXY_TSOFF])
+		return -EINVAL;
+
+	synproxy->isn = ntohl(nla_get_be32(tb[CTA_SYNPROXY_ISN]));
+	synproxy->its = ntohl(nla_get_be32(tb[CTA_SYNPROXY_ITS]));
+	synproxy->tsoff = ntohl(nla_get_be32(tb[CTA_SYNPROXY_TSOFF]));
+
+	return 0;
+}
+
 static int
 ctnetlink_attach_labels(struct nf_conn *ct, const struct nlattr * const cda[])
 {
@@ -1755,6 +1817,12 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 
 	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
 		err = ctnetlink_change_seq_adj(ct, cda);
+		if (err < 0)
+			return err;
+	}
+
+	if (cda[CTA_SYNPROXY]) {
+		err = ctnetlink_change_synproxy(ct, cda);
 		if (err < 0)
 			return err;
 	}
@@ -1880,6 +1948,12 @@ ctnetlink_create_conntrack(struct net *net,
 			goto err2;
 	}
 
+	if (cda[CTA_SYNPROXY]) {
+		err = ctnetlink_change_synproxy(ct, cda);
+		if (err < 0)
+			goto err2;
+	}
+
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
 		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
@@ -1991,7 +2065,9 @@ static int ctnetlink_new_conntrack(struct net *net, struct sock *ctnl,
 						      (1 << IPCT_HELPER) |
 						      (1 << IPCT_PROTOINFO) |
 						      (1 << IPCT_SEQADJ) |
-						      (1 << IPCT_MARK) | events,
+						      (1 << IPCT_MARK) |
+						      (1 << IPCT_SYNPROXY) |
+						      events,
 						      ct, NETLINK_CB(skb).portid,
 						      nlmsg_report(nlh));
 			nf_ct_put(ct);
@@ -2012,7 +2088,8 @@ static int ctnetlink_new_conntrack(struct net *net, struct sock *ctnl,
 						      (1 << IPCT_LABEL) |
 						      (1 << IPCT_PROTOINFO) |
 						      (1 << IPCT_SEQADJ) |
-						      (1 << IPCT_MARK),
+						      (1 << IPCT_MARK) |
+						      (1 << IPCT_SYNPROXY),
 						      ct, NETLINK_CB(skb).portid,
 						      nlmsg_report(nlh));
 		}
@@ -2280,6 +2357,9 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 
 	if ((ct->status & IPS_SEQ_ADJUST) &&
 	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
+		goto nla_put_failure;
+
+	if (ctnetlink_dump_ct_synproxy(skb, ct) < 0)
 		goto nla_put_failure;
 
 #ifdef CONFIG_NF_CONNTRACK_MARK

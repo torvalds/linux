@@ -136,11 +136,12 @@ void aq_ring_queue_stop(struct aq_ring_s *ring)
 		netif_stop_subqueue(ndev, ring->idx);
 }
 
-void aq_ring_tx_clean(struct aq_ring_s *self)
+bool aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
+	unsigned int budget = AQ_CFG_TX_CLEAN_BUDGET;
 
-	for (; self->sw_head != self->hw_head;
+	for (; self->sw_head != self->hw_head && budget--;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
@@ -167,6 +168,8 @@ void aq_ring_tx_clean(struct aq_ring_s *self)
 		buff->pa = 0U;
 		buff->eop_index = 0xffffU;
 	}
+
+	return !!budget;
 }
 
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))

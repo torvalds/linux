@@ -1388,7 +1388,7 @@ out:
 }
 
 static int ax25_getname(struct socket *sock, struct sockaddr *uaddr,
-	int *uaddr_len, int peer)
+	int peer)
 {
 	struct full_sockaddr_ax25 *fsa = (struct full_sockaddr_ax25 *)uaddr;
 	struct sock *sk = sock->sk;
@@ -1427,7 +1427,7 @@ static int ax25_getname(struct socket *sock, struct sockaddr *uaddr,
 			fsa->fsa_digipeater[0] = null_ax25_address;
 		}
 	}
-	*uaddr_len = sizeof (struct full_sockaddr_ax25);
+	err = sizeof (struct full_sockaddr_ax25);
 
 out:
 	release_sock(sk);
@@ -1989,10 +1989,10 @@ static int __init ax25_init(void)
 	dev_add_pack(&ax25_packet_type);
 	register_netdevice_notifier(&ax25_dev_notifier);
 
-	proc_create("ax25_route", S_IRUGO, init_net.proc_net,
+	proc_create("ax25_route", 0444, init_net.proc_net,
 		    &ax25_route_fops);
-	proc_create("ax25", S_IRUGO, init_net.proc_net, &ax25_info_fops);
-	proc_create("ax25_calls", S_IRUGO, init_net.proc_net, &ax25_uid_fops);
+	proc_create("ax25", 0444, init_net.proc_net, &ax25_info_fops);
+	proc_create("ax25_calls", 0444, init_net.proc_net, &ax25_uid_fops);
 out:
 	return rc;
 }

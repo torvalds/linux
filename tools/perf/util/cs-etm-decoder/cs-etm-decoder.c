@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * SPDX-License-Identifier: GPL-2.0
- *
  * Copyright(C) 2015-2018 Linaro Limited.
  *
  * Author: Tor Jeremiassen <tor@ti.com>
@@ -77,6 +76,8 @@ int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
 int cs_etm_decoder__reset(struct cs_etm_decoder *decoder)
 {
 	ocsd_datapath_resp_t dp_ret;
+
+	decoder->prev_return = OCSD_RESP_CONT;
 
 	dp_ret = ocsd_dt_process_data(decoder->dcd_tree, OCSD_OP_RESET,
 				      0, 0, NULL, NULL);
@@ -253,16 +254,16 @@ static void cs_etm_decoder__clear_buffer(struct cs_etm_decoder *decoder)
 	decoder->packet_count = 0;
 	for (i = 0; i < MAX_BUFFER; i++) {
 		decoder->packet_buffer[i].start_addr = 0xdeadbeefdeadbeefUL;
-		decoder->packet_buffer[i].end_addr   = 0xdeadbeefdeadbeefUL;
-		decoder->packet_buffer[i].exc	     = false;
-		decoder->packet_buffer[i].exc_ret    = false;
-		decoder->packet_buffer[i].cpu	     = INT_MIN;
+		decoder->packet_buffer[i].end_addr = 0xdeadbeefdeadbeefUL;
+		decoder->packet_buffer[i].last_instr_taken_branch = false;
+		decoder->packet_buffer[i].exc = false;
+		decoder->packet_buffer[i].exc_ret = false;
+		decoder->packet_buffer[i].cpu = INT_MIN;
 	}
 }
 
 static ocsd_datapath_resp_t
 cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
-			      const ocsd_generic_trace_elem *elem,
 			      const u8 trace_chan_id,
 			      enum cs_etm_sample_type sample_type)
 {
@@ -278,23 +279,62 @@ cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	et = decoder->tail;
+	et = (et + 1) & (MAX_BUFFER - 1);
+	decoder->tail = et;
+	decoder->packet_count++;
+
 	decoder->packet_buffer[et].sample_type = sample_type;
-	decoder->packet_buffer[et].start_addr = elem->st_addr;
-	decoder->packet_buffer[et].end_addr = elem->en_addr;
 	decoder->packet_buffer[et].exc = false;
 	decoder->packet_buffer[et].exc_ret = false;
 	decoder->packet_buffer[et].cpu = *((int *)inode->priv);
-
-	/* Wrap around if need be */
-	et = (et + 1) & (MAX_BUFFER - 1);
-
-	decoder->tail = et;
-	decoder->packet_count++;
+	decoder->packet_buffer[et].start_addr = 0xdeadbeefdeadbeefUL;
+	decoder->packet_buffer[et].end_addr = 0xdeadbeefdeadbeefUL;
 
 	if (decoder->packet_count == MAX_BUFFER - 1)
 		return OCSD_RESP_WAIT;
 
 	return OCSD_RESP_CONT;
+}
+
+static ocsd_datapath_resp_t
+cs_etm_decoder__buffer_range(struct cs_etm_decoder *decoder,
+			     const ocsd_generic_trace_elem *elem,
+			     const uint8_t trace_chan_id)
+{
+	int ret = 0;
+	struct cs_etm_packet *packet;
+
+	ret = cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+					    CS_ETM_RANGE);
+	if (ret != OCSD_RESP_CONT && ret != OCSD_RESP_WAIT)
+		return ret;
+
+	packet = &decoder->packet_buffer[decoder->tail];
+
+	packet->start_addr = elem->st_addr;
+	packet->end_addr = elem->en_addr;
+	switch (elem->last_i_type) {
+	case OCSD_INSTR_BR:
+	case OCSD_INSTR_BR_INDIRECT:
+		packet->last_instr_taken_branch = elem->last_instr_exec;
+		break;
+	case OCSD_INSTR_ISB:
+	case OCSD_INSTR_DSB_DMB:
+	case OCSD_INSTR_OTHER:
+	default:
+		packet->last_instr_taken_branch = false;
+		break;
+	}
+
+	return ret;
+}
+
+static ocsd_datapath_resp_t
+cs_etm_decoder__buffer_trace_on(struct cs_etm_decoder *decoder,
+				const uint8_t trace_chan_id)
+{
+	return cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+					     CS_ETM_TRACE_ON);
 }
 
 static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
@@ -313,12 +353,13 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 		decoder->trace_on = false;
 		break;
 	case OCSD_GEN_TRC_ELEM_TRACE_ON:
+		resp = cs_etm_decoder__buffer_trace_on(decoder,
+						       trace_chan_id);
 		decoder->trace_on = true;
 		break;
 	case OCSD_GEN_TRC_ELEM_INSTR_RANGE:
-		resp = cs_etm_decoder__buffer_packet(decoder, elem,
-						     trace_chan_id,
-						     CS_ETM_RANGE);
+		resp = cs_etm_decoder__buffer_range(decoder, elem,
+						    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_EXCEPTION:
 		decoder->packet_buffer[decoder->tail].exc = true;

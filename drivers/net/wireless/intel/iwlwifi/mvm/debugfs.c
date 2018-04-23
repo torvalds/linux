@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1281,9 +1283,6 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 {
 	int ret;
 
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EIO;
-
 	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
 	if (ret)
 		return ret;
@@ -1915,7 +1914,7 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	if (iwl_mvm_has_tlc_offload(mvm))
-		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, S_IRUSR);
+		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, 0400);
 
 	return;
 err:
@@ -1931,48 +1930,45 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 
 	mvm->debugfs_dir = dbgfs_dir;
 
-	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir,
-			     S_IWUSR | S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(ctdp_budget, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(stop_ctdp, dbgfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(force_ctkill, dbgfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
-			     S_IRUSR | S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(bt_tx_prio, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
-			     S_IWUSR | S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(ctdp_budget, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(stop_ctdp, dbgfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(force_ctkill, dbgfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(bt_tx_prio, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 #ifdef CONFIG_ACPI
-	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif
 
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
-				 S_IRUSR | S_IWUSR,
+				 0600,
 				 mvm->debugfs_dir,
 				 &mvm->scan_iter_notif_enabled))
 		goto err;
-	if (!debugfs_create_bool("drop_bcn_ap_mode", S_IRUSR | S_IWUSR,
+	if (!debugfs_create_bool("drop_bcn_ap_mode", 0600,
 				 mvm->debugfs_dir, &mvm->drop_bcn_ap_mode))
 		goto err;
 
@@ -1983,50 +1979,49 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		if (!bcast_dir)
 			goto err;
 
-		if (!debugfs_create_bool("override", S_IRUSR | S_IWUSR,
-				bcast_dir,
-				&mvm->dbgfs_bcast_filtering.override))
+		if (!debugfs_create_bool("override", 0600,
+					 bcast_dir,
+					 &mvm->dbgfs_bcast_filtering.override))
 			goto err;
 
 		MVM_DEBUGFS_ADD_FILE_ALIAS("filters", bcast_filters,
-					   bcast_dir, S_IWUSR | S_IRUSR);
+					   bcast_dir, 0600);
 		MVM_DEBUGFS_ADD_FILE_ALIAS("macs", bcast_filters_macs,
-					   bcast_dir, S_IWUSR | S_IRUSR);
+					   bcast_dir, 0600);
 	}
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, S_IRUSR);
-	if (!debugfs_create_bool("d3_wake_sysassert", S_IRUSR | S_IWUSR,
+	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, 0400);
+	if (!debugfs_create_bool("d3_wake_sysassert", 0600,
 				 mvm->debugfs_dir, &mvm->d3_wake_sysassert))
 		goto err;
-	if (!debugfs_create_u32("last_netdetect_scans", S_IRUSR,
+	if (!debugfs_create_u32("last_netdetect_scans", 0400,
 				mvm->debugfs_dir, &mvm->last_netdetect_scans))
 		goto err;
 #endif
 
-	if (!debugfs_create_u8("ps_disabled", S_IRUSR,
+	if (!debugfs_create_u8("ps_disabled", 0400,
 			       mvm->debugfs_dir, &mvm->ps_disabled))
 		goto err;
-	if (!debugfs_create_blob("nvm_hw", S_IRUSR,
-				  mvm->debugfs_dir, &mvm->nvm_hw_blob))
+	if (!debugfs_create_blob("nvm_hw", 0400,
+				 mvm->debugfs_dir, &mvm->nvm_hw_blob))
 		goto err;
-	if (!debugfs_create_blob("nvm_sw", S_IRUSR,
-				  mvm->debugfs_dir, &mvm->nvm_sw_blob))
+	if (!debugfs_create_blob("nvm_sw", 0400,
+				 mvm->debugfs_dir, &mvm->nvm_sw_blob))
 		goto err;
-	if (!debugfs_create_blob("nvm_calib", S_IRUSR,
-				  mvm->debugfs_dir, &mvm->nvm_calib_blob))
+	if (!debugfs_create_blob("nvm_calib", 0400,
+				 mvm->debugfs_dir, &mvm->nvm_calib_blob))
 		goto err;
-	if (!debugfs_create_blob("nvm_prod", S_IRUSR,
-				  mvm->debugfs_dir, &mvm->nvm_prod_blob))
+	if (!debugfs_create_blob("nvm_prod", 0400,
+				 mvm->debugfs_dir, &mvm->nvm_prod_blob))
 		goto err;
-	if (!debugfs_create_blob("nvm_phy_sku", S_IRUSR,
+	if (!debugfs_create_blob("nvm_phy_sku", 0400,
 				 mvm->debugfs_dir, &mvm->nvm_phy_sku_blob))
 		goto err;
 
-	debugfs_create_file("mem", S_IRUSR | S_IWUSR, dbgfs_dir, mvm,
-			    &iwl_dbgfs_mem_ops);
+	debugfs_create_file("mem", 0600, dbgfs_dir, mvm, &iwl_dbgfs_mem_ops);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211

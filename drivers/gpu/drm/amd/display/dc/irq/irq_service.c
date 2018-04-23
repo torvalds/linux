@@ -47,6 +47,8 @@
 
 #define CTX \
 		irq_service->ctx
+#define DC_LOGGER \
+	irq_service->ctx->logger
 
 void dal_irq_service_construct(
 	struct irq_service *irq_service,
@@ -104,9 +106,7 @@ bool dal_irq_service_set(
 		find_irq_source_info(irq_service, source);
 
 	if (!info) {
-		dm_logger_write(
-			irq_service->ctx->logger, LOG_ERROR,
-			"%s: cannot find irq info table entry for %d\n",
+		DC_LOG_ERROR("%s: cannot find irq info table entry for %d\n",
 			__func__,
 			source);
 		return false;
@@ -142,9 +142,7 @@ bool dal_irq_service_ack(
 		find_irq_source_info(irq_service, source);
 
 	if (!info) {
-		dm_logger_write(
-			irq_service->ctx->logger, LOG_ERROR,
-			"%s: cannot find irq info table entry for %d\n",
+		DC_LOG_ERROR("%s: cannot find irq info table entry for %d\n",
 			__func__,
 			source);
 		return false;

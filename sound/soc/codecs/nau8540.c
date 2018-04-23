@@ -236,8 +236,8 @@ static const struct snd_kcontrol_new digital_ch1_mux =
 static int adc_power_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		msleep(300);
@@ -258,8 +258,8 @@ static int adc_power_control(struct snd_soc_dapm_widget *w,
 static int aiftx_power_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		regmap_write(nau8540->regmap, NAU8540_REG_RST, 0x0001);
@@ -379,8 +379,8 @@ static int nau8540_clock_check(struct nau8540 *nau8540, int rate, int osr)
 static int nau8540_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, osr;
 
 	/* CLK_ADC = OSR * FS
@@ -422,8 +422,8 @@ static int nau8540_hw_params(struct snd_pcm_substream *substream,
 
 static int nau8540_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -493,8 +493,8 @@ static int nau8540_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int nau8540_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 	unsigned int ctrl2_val = 0, ctrl4_val = 0;
 
 	if (slots > 4 || ((tx_mask & 0xf0) && (tx_mask & 0xf)))
@@ -649,10 +649,10 @@ static void nau8540_fll_apply(struct regmap *regmap,
 }
 
 /* freq_out must be 256*Fs in order to achieve the best performance */
-static int nau8540_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
+static int nau8540_set_pll(struct snd_soc_component *component, int pll_id, int source,
 		unsigned int freq_in, unsigned int freq_out)
 {
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 	struct nau8540_fll fll_param;
 	int ret, fs;
 
@@ -702,10 +702,10 @@ static int nau8540_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 	return 0;
 }
 
-static int nau8540_set_sysclk(struct snd_soc_codec *codec,
+static int nau8540_set_sysclk(struct snd_soc_component *component,
 	int clk_id, int source, unsigned int freq, int dir)
 {
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	switch (clk_id) {
 	case NAU8540_CLK_DIS:
@@ -777,9 +777,9 @@ static void nau8540_init_regs(struct nau8540 *nau8540)
 		NAU8540_I2S_DO34_TRI, NAU8540_I2S_DO34_TRI);
 }
 
-static int __maybe_unused nau8540_suspend(struct snd_soc_codec *codec)
+static int __maybe_unused nau8540_suspend(struct snd_soc_component *component)
 {
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(nau8540->regmap, true);
 	regcache_mark_dirty(nau8540->regmap);
@@ -787,9 +787,9 @@ static int __maybe_unused nau8540_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int __maybe_unused nau8540_resume(struct snd_soc_codec *codec)
+static int __maybe_unused nau8540_resume(struct snd_soc_component *component)
 {
-	struct nau8540 *nau8540 = snd_soc_codec_get_drvdata(codec);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(nau8540->regmap, false);
 	regcache_sync(nau8540->regmap);
@@ -797,21 +797,22 @@ static int __maybe_unused nau8540_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver nau8540_codec_driver = {
-	.set_sysclk = nau8540_set_sysclk,
-	.set_pll = nau8540_set_pll,
-	.suspend = nau8540_suspend,
-	.resume = nau8540_resume,
-	.suspend_bias_off = true,
-
-	.component_driver = {
-		.controls = nau8540_snd_controls,
-		.num_controls = ARRAY_SIZE(nau8540_snd_controls),
-		.dapm_widgets = nau8540_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(nau8540_dapm_widgets),
-		.dapm_routes = nau8540_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(nau8540_dapm_routes),
-	},
+static const struct snd_soc_component_driver nau8540_component_driver = {
+	.set_sysclk		= nau8540_set_sysclk,
+	.set_pll		= nau8540_set_pll,
+	.suspend		= nau8540_suspend,
+	.resume			= nau8540_resume,
+	.controls		= nau8540_snd_controls,
+	.num_controls		= ARRAY_SIZE(nau8540_snd_controls),
+	.dapm_widgets		= nau8540_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(nau8540_dapm_widgets),
+	.dapm_routes		= nau8540_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(nau8540_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config nau8540_regmap_config = {
@@ -856,16 +857,9 @@ static int nau8540_i2c_probe(struct i2c_client *i2c,
 	nau8540_reset_chip(nau8540->regmap);
 	nau8540_init_regs(nau8540);
 
-	return snd_soc_register_codec(dev,
-		&nau8540_codec_driver, &nau8540_dai, 1);
+	return devm_snd_soc_register_component(dev,
+		&nau8540_component_driver, &nau8540_dai, 1);
 }
-
-static int nau8540_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
 
 static const struct i2c_device_id nau8540_i2c_ids[] = {
 	{ "nau8540", 0 },
@@ -887,7 +881,6 @@ static struct i2c_driver nau8540_i2c_driver = {
 		.of_match_table = of_match_ptr(nau8540_of_ids),
 	},
 	.probe = nau8540_i2c_probe,
-	.remove = nau8540_i2c_remove,
 	.id_table = nau8540_i2c_ids,
 };
 module_i2c_driver(nau8540_i2c_driver);

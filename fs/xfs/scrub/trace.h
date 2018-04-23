@@ -174,53 +174,32 @@ DEFINE_SCRUB_BLOCK_ERROR_EVENT(xfs_scrub_block_error);
 DEFINE_SCRUB_BLOCK_ERROR_EVENT(xfs_scrub_block_preen);
 
 DECLARE_EVENT_CLASS(xfs_scrub_ino_error_class,
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_ino_t ino, xfs_daddr_t daddr,
-		 void *ret_ip),
-	TP_ARGS(sc, ino, daddr, ret_ip),
+	TP_PROTO(struct xfs_scrub_context *sc, xfs_ino_t ino, void *ret_ip),
+	TP_ARGS(sc, ino, ret_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(unsigned int, type)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, bno)
 		__field(void *, ret_ip)
 	),
 	TP_fast_assign(
-		xfs_fsblock_t	fsbno;
-		xfs_agnumber_t	agno;
-		xfs_agblock_t	bno;
-
-		if (daddr) {
-			fsbno = XFS_DADDR_TO_FSB(sc->mp, daddr);
-			agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
-			bno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
-		} else {
-			agno = XFS_INO_TO_AGNO(sc->mp, ino);
-			bno = XFS_AGINO_TO_AGBNO(sc->mp,
-					XFS_INO_TO_AGINO(sc->mp, ino));
-		}
-
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->ino = ino;
 		__entry->type = sc->sm->sm_type;
-		__entry->agno = agno;
-		__entry->bno = bno;
 		__entry->ret_ip = ret_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx type %u agno %u agbno %u ret_ip %pS",
+	TP_printk("dev %d:%d ino 0x%llx type %u ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->type,
-		  __entry->agno,
-		  __entry->bno,
 		  __entry->ret_ip)
 )
 
 #define DEFINE_SCRUB_INO_ERROR_EVENT(name) \
 DEFINE_EVENT(xfs_scrub_ino_error_class, name, \
 	TP_PROTO(struct xfs_scrub_context *sc, xfs_ino_t ino, \
-		 xfs_daddr_t daddr, void *ret_ip), \
-	TP_ARGS(sc, ino, daddr, ret_ip))
+		 void *ret_ip), \
+	TP_ARGS(sc, ino, ret_ip))
 
 DEFINE_SCRUB_INO_ERROR_EVENT(xfs_scrub_ino_error);
 DEFINE_SCRUB_INO_ERROR_EVENT(xfs_scrub_ino_preen);

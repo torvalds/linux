@@ -460,7 +460,7 @@ xfs_buf_item_unpin(
 			list_del_init(&bp->b_li_list);
 			bp->b_iodone = NULL;
 		} else {
-			spin_lock(&ailp->xa_lock);
+			spin_lock(&ailp->ail_lock);
 			xfs_trans_ail_delete(ailp, lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
 			ASSERT(bp->b_log_item == NULL);
@@ -1057,12 +1057,12 @@ xfs_buf_do_callbacks_fail(
 	lip = list_first_entry(&bp->b_li_list, struct xfs_log_item,
 			li_bio_list);
 	ailp = lip->li_ailp;
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 		if (lip->li_ops->iop_error)
 			lip->li_ops->iop_error(lip, bp);
 	}
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 }
 
 static bool
@@ -1226,7 +1226,7 @@ xfs_buf_iodone(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	xfs_trans_ail_delete(ailp, lip, SHUTDOWN_CORRUPT_INCORE);
 	xfs_buf_item_free(BUF_ITEM(lip));
 }
@@ -1246,7 +1246,7 @@ xfs_buf_resubmit_failed_buffers(
 	/*
 	 * Clear XFS_LI_FAILED flag from all items before resubmit
 	 *
-	 * XFS_LI_FAILED set/clear is protected by xa_lock, caller  this
+	 * XFS_LI_FAILED set/clear is protected by ail_lock, caller  this
 	 * function already have it acquired
 	 */
 	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)

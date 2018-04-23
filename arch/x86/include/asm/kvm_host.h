@@ -34,6 +34,7 @@
 #include <asm/msr-index.h>
 #include <asm/asm.h>
 #include <asm/kvm_page_track.h>
+#include <asm/hyperv-tlfs.h>
 
 #define KVM_MAX_VCPUS 288
 #define KVM_SOFT_MAX_VCPUS 240
@@ -73,6 +74,7 @@
 #define KVM_REQ_HV_RESET		KVM_ARCH_REQ(20)
 #define KVM_REQ_HV_EXIT			KVM_ARCH_REQ(21)
 #define KVM_REQ_HV_STIMER		KVM_ARCH_REQ(22)
+#define KVM_REQ_LOAD_EOI_EXITMAP	KVM_ARCH_REQ(23)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -498,6 +500,7 @@ struct kvm_vcpu_arch {
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
 	bool apicv_active;
+	bool load_eoi_exitmap_pending;
 	DECLARE_BITMAP(ioapic_handled_vectors, 256);
 	unsigned long apic_attention;
 	int32_t apic_arb_prio;
@@ -571,7 +574,7 @@ struct kvm_vcpu_arch {
 	} exception;
 
 	struct kvm_queued_interrupt {
-		bool pending;
+		bool injected;
 		bool soft;
 		u8 nr;
 	} interrupt;
@@ -754,21 +757,18 @@ struct kvm_hv {
 	u64 hv_crash_ctl;
 
 	HV_REFERENCE_TSC_PAGE tsc_ref;
+
+	struct idr conn_to_evt;
+
+	u64 hv_reenlightenment_control;
+	u64 hv_tsc_emulation_control;
+	u64 hv_tsc_emulation_status;
 };
 
 enum kvm_irqchip_mode {
 	KVM_IRQCHIP_NONE,
 	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
-};
-
-struct kvm_sev_info {
-	bool active;		/* SEV enabled guest */
-	unsigned int asid;	/* ASID used for this guest */
-	unsigned int handle;	/* SEV firmware handle */
-	int fd;			/* SEV device fd */
-	unsigned long pages_locked; /* Number of pages locked */
-	struct list_head regions_list;  /* List of registered regions */
 };
 
 struct kvm_arch {
@@ -800,13 +800,13 @@ struct kvm_arch {
 	struct mutex apic_map_lock;
 	struct kvm_apic_map *apic_map;
 
-	unsigned int tss_addr;
 	bool apic_access_page_done;
 
 	gpa_t wall_clock;
 
-	bool ept_identity_pagetable_done;
-	gpa_t ept_identity_map_addr;
+	bool mwait_in_guest;
+	bool hlt_in_guest;
+	bool pause_in_guest;
 
 	unsigned long irq_sources_bitmap;
 	s64 kvmclock_offset;
@@ -849,17 +849,8 @@ struct kvm_arch {
 
 	bool disabled_lapic_found;
 
-	/* Struct members for AVIC */
-	u32 avic_vm_id;
-	u32 ldr_mode;
-	struct page *avic_logical_id_table_page;
-	struct page *avic_physical_id_table_page;
-	struct hlist_node hnode;
-
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
-
-	struct kvm_sev_info sev_info;
 };
 
 struct kvm_vm_stat {
@@ -936,6 +927,8 @@ struct kvm_x86_ops {
 	bool (*cpu_has_high_real_mode_segbase)(void);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
 
+	struct kvm *(*vm_alloc)(void);
+	void (*vm_free)(struct kvm *);
 	int (*vm_init)(struct kvm *kvm);
 	void (*vm_destroy)(struct kvm *kvm);
 
@@ -1007,6 +1000,7 @@ struct kvm_x86_ops {
 	void (*deliver_posted_interrupt)(struct kvm_vcpu *vcpu, int vector);
 	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
+	int (*set_identity_map_addr)(struct kvm *kvm, u64 ident_addr);
 	int (*get_tdp_level)(struct kvm_vcpu *vcpu);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	int (*get_lpage_level)(void);
@@ -1019,6 +1013,7 @@ struct kvm_x86_ops {
 
 	bool (*has_wbinvd_exit)(void);
 
+	u64 (*read_l1_tsc_offset)(struct kvm_vcpu *vcpu);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);
@@ -1109,6 +1104,17 @@ struct kvm_arch_async_pf {
 
 extern struct kvm_x86_ops *kvm_x86_ops;
 
+#define __KVM_HAVE_ARCH_VM_ALLOC
+static inline struct kvm *kvm_arch_alloc_vm(void)
+{
+	return kvm_x86_ops->vm_alloc();
+}
+
+static inline void kvm_arch_free_vm(struct kvm *kvm)
+{
+	return kvm_x86_ops->vm_free(kvm);
+}
+
 int kvm_mmu_module_init(void);
 void kvm_mmu_module_exit(void);
 
@@ -1187,6 +1193,8 @@ enum emulation_result {
 #define EMULTYPE_SKIP		    (1 << 2)
 #define EMULTYPE_RETRY		    (1 << 3)
 #define EMULTYPE_NO_REEXECUTE	    (1 << 4)
+#define EMULTYPE_NO_UD_ON_FAIL	    (1 << 5)
+#define EMULTYPE_VMWARE		    (1 << 6)
 int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
 			    int emulation_type, void *insn, int insn_len);
 
@@ -1204,8 +1212,7 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
 
 struct x86_emulate_ctxt;
 
-int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
-int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port);
+int kvm_fast_pio(struct kvm_vcpu *vcpu, int size, unsigned short port, int in);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int kvm_vcpu_halt(struct kvm_vcpu *vcpu);

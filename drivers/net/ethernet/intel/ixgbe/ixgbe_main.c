@@ -353,23 +353,32 @@ static void ixgbe_remove_adapter(struct ixgbe_hw *hw)
 		ixgbe_service_event_schedule(adapter);
 }
 
-static void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
+static u32 ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
 {
+	u8 __iomem *reg_addr;
 	u32 value;
+	int i;
 
-	/* The following check not only optimizes a bit by not
-	 * performing a read on the status register when the
-	 * register just read was a status register read that
-	 * returned IXGBE_FAILED_READ_REG. It also blocks any
-	 * potential recursion.
+	reg_addr = READ_ONCE(hw->hw_addr);
+	if (ixgbe_removed(reg_addr))
+		return IXGBE_FAILED_READ_REG;
+
+	/* Register read of 0xFFFFFFF can indicate the adapter has been removed,
+	 * so perform several status register reads to determine if the adapter
+	 * has been removed.
 	 */
-	if (reg == IXGBE_STATUS) {
-		ixgbe_remove_adapter(hw);
-		return;
+	for (i = 0; i < IXGBE_FAILED_READ_RETRIES; i++) {
+		value = readl(reg_addr + IXGBE_STATUS);
+		if (value != IXGBE_FAILED_READ_REG)
+			break;
+		mdelay(3);
 	}
-	value = ixgbe_read_reg(hw, IXGBE_STATUS);
+
 	if (value == IXGBE_FAILED_READ_REG)
 		ixgbe_remove_adapter(hw);
+	else
+		value = readl(reg_addr + reg);
+	return value;
 }
 
 /**
@@ -415,7 +424,7 @@ u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 writes_completed:
 	value = readl(reg_addr + reg);
 	if (unlikely(value == IXGBE_FAILED_READ_REG))
-		ixgbe_check_remove(hw, reg);
+		value = ixgbe_check_remove(hw, reg);
 	return value;
 }
 
@@ -1620,7 +1629,8 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 	bi->dma = dma;
 	bi->page = page;
 	bi->page_offset = ixgbe_rx_offset(rx_ring);
-	bi->pagecnt_bias = 1;
+	page_ref_add(page, USHRT_MAX - 1);
+	bi->pagecnt_bias = USHRT_MAX;
 	rx_ring->rx_stats.alloc_rx_page++;
 
 	return true;
@@ -2030,8 +2040,8 @@ static bool ixgbe_can_reuse_rx_page(struct ixgbe_rx_buffer *rx_buffer)
 	 * the pagecnt_bias and page count so that we fully restock the
 	 * number of references the driver holds.
 	 */
-	if (unlikely(!pagecnt_bias)) {
-		page_ref_add(page, USHRT_MAX);
+	if (unlikely(pagecnt_bias == 1)) {
+		page_ref_add(page, USHRT_MAX - 1);
 		rx_buffer->pagecnt_bias = USHRT_MAX;
 	}
 
@@ -7711,7 +7721,8 @@ static void ixgbe_service_task(struct work_struct *work)
 
 	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state)) {
 		ixgbe_ptp_overflow_check(adapter);
-		ixgbe_ptp_rx_hang(adapter);
+		if (adapter->flags & IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER)
+			ixgbe_ptp_rx_hang(adapter);
 		ixgbe_ptp_tx_hang(adapter);
 	}
 
@@ -7720,7 +7731,8 @@ static void ixgbe_service_task(struct work_struct *work)
 
 static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 		     struct ixgbe_tx_buffer *first,
-		     u8 *hdr_len)
+		     u8 *hdr_len,
+		     struct ixgbe_ipsec_tx_data *itd)
 {
 	u32 vlan_macip_lens, type_tucmd, mss_l4len_idx;
 	struct sk_buff *skb = first->skb;
@@ -7734,6 +7746,7 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 		unsigned char *hdr;
 	} l4;
 	u32 paylen, l4_offset;
+	u32 fceof_saidx = 0;
 	int err;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -7759,13 +7772,15 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 	if (ip.v4->version == 4) {
 		unsigned char *csum_start = skb_checksum_start(skb);
 		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
+		int len = csum_start - trans_start;
 
 		/* IP header will have to cancel out any data that
-		 * is not a part of the outer IP header
+		 * is not a part of the outer IP header, so set to
+		 * a reverse csum if needed, else init check to 0.
 		 */
-		ip.v4->check = csum_fold(csum_partial(trans_start,
-						      csum_start - trans_start,
-						      0));
+		ip.v4->check = (skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL) ?
+					   csum_fold(csum_partial(trans_start,
+								  len, 0)) : 0;
 		type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
 
 		ip.v4->tot_len = 0;
@@ -7796,12 +7811,15 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 	mss_l4len_idx = (*hdr_len - l4_offset) << IXGBE_ADVTXD_L4LEN_SHIFT;
 	mss_l4len_idx |= skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
 
+	fceof_saidx |= itd->sa_idx;
+	type_tucmd |= itd->flags | itd->trailer_len;
+
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	vlan_macip_lens = l4.hdr - ip.hdr;
 	vlan_macip_lens |= (ip.hdr - skb->data) << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
-	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0, type_tucmd,
+	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, fceof_saidx, type_tucmd,
 			  mss_l4len_idx);
 
 	return 1;
@@ -7863,10 +7881,8 @@ no_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
-	if (first->tx_flags & IXGBE_TX_FLAGS_IPSEC) {
-		fceof_saidx |= itd->sa_idx;
-		type_tucmd |= itd->flags | itd->trailer_len;
-	}
+	fceof_saidx |= itd->sa_idx;
+	type_tucmd |= itd->flags | itd->trailer_len;
 
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, fceof_saidx, type_tucmd, 0);
 }
@@ -8494,7 +8510,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	if (skb->sp && !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
-	tso = ixgbe_tso(tx_ring, first, &hdr_len);
+	tso = ixgbe_tso(tx_ring, first, &hdr_len, &ipsec_tx);
 	if (tso < 0)
 		goto out_drop;
 	else if (!tso)
@@ -9903,15 +9919,15 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 
 	/* We can only support IPV4 TSO in tunnels if we can mangle the
 	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 * IPsec offoad sets skb->encapsulation but still can handle
+	 * the TSO, so it's the exception.
 	 */
-	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
-		features &= ~NETIF_F_TSO;
-
-#ifdef CONFIG_XFRM_OFFLOAD
-	/* IPsec offload doesn't get along well with others *yet* */
-	if (skb->sp)
-		features &= ~(NETIF_F_TSO | NETIF_F_HW_CSUM);
+	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID)) {
+#ifdef CONFIG_XFRM
+		if (!skb->sp)
 #endif
+			features &= ~NETIF_F_TSO;
+	}
 
 	return features;
 }

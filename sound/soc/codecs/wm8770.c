@@ -84,7 +84,7 @@ struct wm8770_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8770_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8770_NUM_SUPPLIES];
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int sysclk;
 };
 
@@ -308,14 +308,14 @@ static const struct snd_soc_dapm_route wm8770_intercon[] = {
 static int vout12supply_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec, WM8770_OUTMUX1, 0x180, 0);
+		snd_soc_component_update_bits(component, WM8770_OUTMUX1, 0x180, 0);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, WM8770_OUTMUX1, 0x180, 0x180);
+		snd_soc_component_update_bits(component, WM8770_OUTMUX1, 0x180, 0x180);
 		break;
 	}
 
@@ -325,31 +325,31 @@ static int vout12supply_event(struct snd_soc_dapm_widget *w,
 static int vout34supply_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec, WM8770_OUTMUX2, 0x180, 0);
+		snd_soc_component_update_bits(component, WM8770_OUTMUX2, 0x180, 0);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, WM8770_OUTMUX2, 0x180, 0x180);
+		snd_soc_component_update_bits(component, WM8770_OUTMUX2, 0x180, 0x180);
 		break;
 	}
 
 	return 0;
 }
 
-static int wm8770_reset(struct snd_soc_codec *codec)
+static int wm8770_reset(struct snd_soc_component *component)
 {
-	return snd_soc_write(codec, WM8770_RESET, 0);
+	return snd_soc_component_write(component, WM8770_RESET, 0);
 }
 
 static int wm8770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int iface, master;
 
-	codec = dai->codec;
+	component = dai->component;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -392,8 +392,8 @@ static int wm8770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, WM8770_IFACECTRL, 0xf, iface);
-	snd_soc_update_bits(codec, WM8770_MSTRCTRL, 0x100, master);
+	snd_soc_component_update_bits(component, WM8770_IFACECTRL, 0xf, iface);
+	snd_soc_component_update_bits(component, WM8770_MSTRCTRL, 0x100, master);
 
 	return 0;
 }
@@ -411,15 +411,15 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct wm8770_priv *wm8770;
 	int i;
 	int iface;
 	int shift;
 	int ratio;
 
-	codec = dai->codec;
-	wm8770 = snd_soc_codec_get_drvdata(codec);
+	component = dai->component;
+	wm8770 = snd_soc_component_get_drvdata(component);
 
 	iface = 0;
 	switch (params_width(params)) {
@@ -450,7 +450,7 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
-	if (snd_soc_read(codec, WM8770_MSTRCTRL) & 0x100) {
+	if (snd_soc_component_read32(component, WM8770_MSTRCTRL) & 0x100) {
 		for (; i < ARRAY_SIZE(mclk_ratios); ++i) {
 			ratio = wm8770->sysclk / params_rate(params);
 			if (ratio == mclk_ratios[i])
@@ -458,51 +458,51 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		if (i == ARRAY_SIZE(mclk_ratios)) {
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Unable to configure MCLK ratio %d/%d\n",
 				wm8770->sysclk, params_rate(params));
 			return -EINVAL;
 		}
 
-		dev_dbg(codec->dev, "MCLK is %dfs\n", mclk_ratios[i]);
+		dev_dbg(component->dev, "MCLK is %dfs\n", mclk_ratios[i]);
 
-		snd_soc_update_bits(codec, WM8770_MSTRCTRL, 0x7 << shift,
+		snd_soc_component_update_bits(component, WM8770_MSTRCTRL, 0x7 << shift,
 				    i << shift);
 	}
 
-	snd_soc_update_bits(codec, WM8770_IFACECTRL, 0x30, iface);
+	snd_soc_component_update_bits(component, WM8770_IFACECTRL, 0x30, iface);
 
 	return 0;
 }
 
 static int wm8770_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	codec = dai->codec;
-	return snd_soc_update_bits(codec, WM8770_DACMUTE, 0x10,
+	component = dai->component;
+	return snd_soc_component_update_bits(component, WM8770_DACMUTE, 0x10,
 				   !!mute << 4);
 }
 
 static int wm8770_set_sysclk(struct snd_soc_dai *dai,
 			     int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct wm8770_priv *wm8770;
 
-	codec = dai->codec;
-	wm8770 = snd_soc_codec_get_drvdata(codec);
+	component = dai->component;
+	wm8770 = snd_soc_component_get_drvdata(component);
 	wm8770->sysclk = freq;
 	return 0;
 }
 
-static int wm8770_set_bias_level(struct snd_soc_codec *codec,
+static int wm8770_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	int ret;
 	struct wm8770_priv *wm8770;
 
-	wm8770 = snd_soc_codec_get_drvdata(codec);
+	wm8770 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -510,11 +510,11 @@ static int wm8770_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8770->supplies),
 						    wm8770->supplies);
 			if (ret) {
-				dev_err(codec->dev,
+				dev_err(component->dev,
 					"Failed to enable supplies: %d\n",
 					ret);
 				return ret;
@@ -523,12 +523,12 @@ static int wm8770_set_bias_level(struct snd_soc_codec *codec,
 			regcache_sync(wm8770->regmap);
 
 			/* global powerup */
-			snd_soc_write(codec, WM8770_PWDNCTRL, 0);
+			snd_soc_component_write(component, WM8770_PWDNCTRL, 0);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* global powerdown */
-		snd_soc_write(codec, WM8770_PWDNCTRL, 1);
+		snd_soc_component_write(component, WM8770_PWDNCTRL, 1);
 		regulator_bulk_disable(ARRAY_SIZE(wm8770->supplies),
 				       wm8770->supplies);
 		break;
@@ -567,60 +567,59 @@ static struct snd_soc_dai_driver wm8770_dai = {
 	.symmetric_rates = 1
 };
 
-static int wm8770_probe(struct snd_soc_codec *codec)
+static int wm8770_probe(struct snd_soc_component *component)
 {
 	struct wm8770_priv *wm8770;
 	int ret;
 
-	wm8770 = snd_soc_codec_get_drvdata(codec);
-	wm8770->codec = codec;
+	wm8770 = snd_soc_component_get_drvdata(component);
+	wm8770->component = component;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8770->supplies),
 				    wm8770->supplies);
 	if (ret) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		dev_err(component->dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
 
-	ret = wm8770_reset(codec);
+	ret = wm8770_reset(component);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
+		dev_err(component->dev, "Failed to issue reset: %d\n", ret);
 		goto err_reg_enable;
 	}
 
 	/* latch the volume update bits */
-	snd_soc_update_bits(codec, WM8770_MSDIGVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_MSALGVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_VOUT1RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_VOUT2RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_VOUT3RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_VOUT4RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_DAC1RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_DAC2RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_DAC3RVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8770_DAC4RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_MSDIGVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_MSALGVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_VOUT1RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_VOUT2RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_VOUT3RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_VOUT4RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_DAC1RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_DAC2RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_DAC3RVOL, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8770_DAC4RVOL, 0x100, 0x100);
 
 	/* mute all DACs */
-	snd_soc_update_bits(codec, WM8770_DACMUTE, 0x10, 0x10);
+	snd_soc_component_update_bits(component, WM8770_DACMUTE, 0x10, 0x10);
 
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8770->supplies), wm8770->supplies);
 	return ret;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
-	.probe = wm8770_probe,
-	.set_bias_level = wm8770_set_bias_level,
-	.idle_bias_off = true,
-
-	.component_driver = {
-		.controls		= wm8770_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm8770_snd_controls),
-		.dapm_widgets		= wm8770_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8770_dapm_widgets),
-		.dapm_routes		= wm8770_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(wm8770_intercon),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8770 = {
+	.probe			= wm8770_probe,
+	.set_bias_level		= wm8770_set_bias_level,
+	.controls		= wm8770_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8770_snd_controls),
+	.dapm_widgets		= wm8770_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8770_dapm_widgets),
+	.dapm_routes		= wm8770_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(wm8770_intercon),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8770_of_match[] = {
@@ -682,8 +681,8 @@ static int wm8770_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm8770);
 
-	ret = snd_soc_register_codec(&spi->dev,
-				     &soc_codec_dev_wm8770, &wm8770_dai, 1);
+	ret = devm_snd_soc_register_component(&spi->dev,
+				     &soc_component_dev_wm8770, &wm8770_dai, 1);
 
 	return ret;
 }
@@ -696,8 +695,6 @@ static int wm8770_spi_remove(struct spi_device *spi)
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); ++i)
 		regulator_unregister_notifier(wm8770->supplies[i].consumer,
 					      &wm8770->disable_nb[i]);
-
-	snd_soc_unregister_codec(&spi->dev);
 
 	return 0;
 }

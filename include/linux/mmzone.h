@@ -180,6 +180,7 @@ enum node_stat_item {
 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
 	NR_DIRTIED,		/* page dirtyings since bootup */
 	NR_WRITTEN,		/* page writings since bootup */
+	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
 	NR_VM_NODE_STAT_ITEMS
 };
 
@@ -633,14 +634,15 @@ typedef struct pglist_data {
 #ifndef CONFIG_NO_BOOTMEM
 	struct bootmem_data *bdata;
 #endif
-#ifdef CONFIG_MEMORY_HOTPLUG
+#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
 	/*
 	 * Must be held any time you expect node_start_pfn, node_present_pages
 	 * or node_spanned_pages stay constant.  Holding this will also
 	 * guarantee that any pfn_valid() stays that way.
 	 *
 	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
-	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG.
+	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
+	 * or CONFIG_DEFERRED_STRUCT_PAGE_INIT.
 	 *
 	 * Nests above zone->lock and zone->span_seqlock
 	 */
@@ -775,7 +777,8 @@ static inline bool is_dev_zone(const struct zone *zone)
 #include <linux/memory_hotplug.h>
 
 void build_all_zonelists(pg_data_t *pgdat);
-void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
+void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, int order,
+		   enum zone_type classzone_idx);
 bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 			 int classzone_idx, unsigned int alloc_flags,
 			 long free_pages);
@@ -814,10 +817,6 @@ static inline void memory_present(int nid, unsigned long start, unsigned long en
 int local_memory_node(int node_id);
 #else
 static inline int local_memory_node(int node_id) { return node_id; };
-#endif
-
-#ifdef CONFIG_NEED_NODE_MEMMAP_SIZE
-unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 #endif
 
 /*
@@ -886,7 +885,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
-extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
@@ -1289,7 +1288,6 @@ struct mminit_pfnnid_cache {
 #endif
 
 void memory_present(int nid, unsigned long start, unsigned long end);
-unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 
 /*
  * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we

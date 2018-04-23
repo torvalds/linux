@@ -100,6 +100,14 @@ struct i915_pmu {
 	 * @suspended_jiffies_last: Cached suspend time from PM core.
 	 */
 	unsigned long suspended_jiffies_last;
+	/**
+	 * @i915_attr: Memory block holding device attributes.
+	 */
+	void *i915_attr;
+	/**
+	 * @pmu_attr: Memory block holding device attributes.
+	 */
+	void *pmu_attr;
 };
 
 #ifdef CONFIG_PERF_EVENTS

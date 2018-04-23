@@ -51,6 +51,11 @@
 		stdout-path = &uart1;
 	};
 
+	/* Will be filled by the bootloader */
+	memory@90000000 {
+		reg = <0x90000000 0>;
+	};
+
 	aliases {
 		mdio-gpio0 = &mdio_gpio;
 		rtc0 = &ds1341;
@@ -568,6 +573,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";
+
+	rave-sp {
+		compatible = "zii,rave-sp-rdu1";
+		current-speed = <38400>;
+
+		watchdog {
+			compatible = "zii,rave-sp-watchdog";
+		};
+	};
 };
 
 &usbh1 {

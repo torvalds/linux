@@ -3072,7 +3072,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 			 * We need to return the correct block within the
 			 * cluster which should hold our entry.
 			 */
-			off = ocfs2_dx_dir_hash_idx(OCFS2_SB(dir->i_sb),
+			off = ocfs2_dx_dir_hash_idx(osb,
 						    &lookup->dl_hinfo);
 			get_bh(dx_leaves[off]);
 			lookup->dl_dx_leaf_bh = dx_leaves[off];

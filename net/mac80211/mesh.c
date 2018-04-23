@@ -880,7 +880,8 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_HT |
 		      BSS_CHANGED_BASIC_RATES |
-		      BSS_CHANGED_BEACON_INT;
+		      BSS_CHANGED_BEACON_INT |
+		      BSS_CHANGED_MCAST_RATE;
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */

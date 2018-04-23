@@ -19,7 +19,7 @@
 	model = "i.MX23 Olinuxino Low Cost Board";
 	compatible = "olimex,imx23-olinuxino", "fsl,imx23";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x04000000>;
 	};
 

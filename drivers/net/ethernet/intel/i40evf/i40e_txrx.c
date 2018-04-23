@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
@@ -196,7 +197,7 @@ void i40evf_detect_recover_hung(struct i40e_vsi *vsi)
 			 */
 			smp_rmb();
 			tx_ring->tx_stats.prev_pkt_ctr =
-			  i40evf_get_tx_pending(tx_ring, false) ? packets : -1;
+			  i40evf_get_tx_pending(tx_ring, true) ? packets : -1;
 		}
 	}
 }
@@ -392,99 +393,241 @@ void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 	     val);
 }
 
+static inline bool i40e_container_is_rx(struct i40e_q_vector *q_vector,
+					struct i40e_ring_container *rc)
+{
+	return &q_vector->rx == rc;
+}
+
+static inline unsigned int i40e_itr_divisor(struct i40e_q_vector *q_vector)
+{
+	unsigned int divisor;
+
+	switch (q_vector->adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		divisor = I40E_ITR_ADAPTIVE_MIN_INC * 1024;
+		break;
+	case I40E_LINK_SPEED_25GB:
+	case I40E_LINK_SPEED_20GB:
+		divisor = I40E_ITR_ADAPTIVE_MIN_INC * 512;
+		break;
+	default:
+	case I40E_LINK_SPEED_10GB:
+		divisor = I40E_ITR_ADAPTIVE_MIN_INC * 256;
+		break;
+	case I40E_LINK_SPEED_1GB:
+	case I40E_LINK_SPEED_100MB:
+		divisor = I40E_ITR_ADAPTIVE_MIN_INC * 32;
+		break;
+	}
+
+	return divisor;
+}
+
 /**
- * i40e_set_new_dynamic_itr - Find new ITR level
+ * i40e_update_itr - update the dynamic ITR value based on statistics
+ * @q_vector: structure containing interrupt and ring information
  * @rc: structure containing ring performance data
  *
- * Returns true if ITR changed, false if not
- *
- * Stores a new ITR value based on packets and byte counts during
- * the last interrupt.  The advantage of per interrupt computation
- * is faster updates and more accurate ITR for the current traffic
- * pattern.  Constants in this function were computed based on
- * theoretical maximum wire speed and thresholds were set based on
- * testing data as well as attempting to minimize response time
+ * Stores a new ITR value based on packets and byte
+ * counts during the last interrupt.  The advantage of per interrupt
+ * computation is faster updates and more accurate ITR for the current
+ * traffic pattern.  Constants in this function were computed
+ * based on theoretical maximum wire speed and thresholds were set based
+ * on testing data as well as attempting to minimize response time
  * while increasing bulk throughput.
  **/
-static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
+static void i40e_update_itr(struct i40e_q_vector *q_vector,
+			    struct i40e_ring_container *rc)
 {
-	enum i40e_latency_range new_latency_range = rc->latency_range;
-	u32 new_itr = rc->itr;
-	int bytes_per_usec;
-	unsigned int usecs, estimated_usecs;
+	unsigned int avg_wire_size, packets, bytes, itr;
+	unsigned long next_update = jiffies;
 
-	if (rc->total_packets == 0 || !rc->itr)
-		return false;
-
-	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
-	bytes_per_usec = rc->total_bytes / usecs;
-
-	/* The calculations in this algorithm depend on interrupts actually
-	 * firing at the ITR rate. This may not happen if the packet rate is
-	 * really low, or if we've been napi polling. Check to make sure
-	 * that's not the case before we continue.
+	/* If we don't have any rings just leave ourselves set for maximum
+	 * possible latency so we take ourselves out of the equation.
 	 */
-	estimated_usecs = jiffies_to_usecs(jiffies - rc->last_itr_update);
-	if (estimated_usecs > usecs) {
-		new_latency_range = I40E_LOW_LATENCY;
-		goto reset_latency;
+	if (!rc->ring || !ITR_IS_DYNAMIC(rc->ring->itr_setting))
+		return;
+
+	/* For Rx we want to push the delay up and default to low latency.
+	 * for Tx we want to pull the delay down and default to high latency.
+	 */
+	itr = i40e_container_is_rx(q_vector, rc) ?
+	      I40E_ITR_ADAPTIVE_MIN_USECS | I40E_ITR_ADAPTIVE_LATENCY :
+	      I40E_ITR_ADAPTIVE_MAX_USECS | I40E_ITR_ADAPTIVE_LATENCY;
+
+	/* If we didn't update within up to 1 - 2 jiffies we can assume
+	 * that either packets are coming in so slow there hasn't been
+	 * any work, or that there is so much work that NAPI is dealing
+	 * with interrupt moderation and we don't need to do anything.
+	 */
+	if (time_after(next_update, rc->next_update))
+		goto clear_counts;
+
+	/* If itr_countdown is set it means we programmed an ITR within
+	 * the last 4 interrupt cycles. This has a side effect of us
+	 * potentially firing an early interrupt. In order to work around
+	 * this we need to throw out any data received for a few
+	 * interrupts following the update.
+	 */
+	if (q_vector->itr_countdown) {
+		itr = rc->target_itr;
+		goto clear_counts;
 	}
 
-	/* simple throttlerate management
-	 *   0-10MB/s   lowest (50000 ints/s)
-	 *  10-20MB/s   low    (20000 ints/s)
-	 *  20-1249MB/s bulk   (18000 ints/s)
+	packets = rc->total_packets;
+	bytes = rc->total_bytes;
+
+	if (i40e_container_is_rx(q_vector, rc)) {
+		/* If Rx there are 1 to 4 packets and bytes are less than
+		 * 9000 assume insufficient data to use bulk rate limiting
+		 * approach unless Tx is already in bulk rate limiting. We
+		 * are likely latency driven.
+		 */
+		if (packets && packets < 4 && bytes < 9000 &&
+		    (q_vector->tx.target_itr & I40E_ITR_ADAPTIVE_LATENCY)) {
+			itr = I40E_ITR_ADAPTIVE_LATENCY;
+			goto adjust_by_size;
+		}
+	} else if (packets < 4) {
+		/* If we have Tx and Rx ITR maxed and Tx ITR is running in
+		 * bulk mode and we are receiving 4 or fewer packets just
+		 * reset the ITR_ADAPTIVE_LATENCY bit for latency mode so
+		 * that the Rx can relax.
+		 */
+		if (rc->target_itr == I40E_ITR_ADAPTIVE_MAX_USECS &&
+		    (q_vector->rx.target_itr & I40E_ITR_MASK) ==
+		     I40E_ITR_ADAPTIVE_MAX_USECS)
+			goto clear_counts;
+	} else if (packets > 32) {
+		/* If we have processed over 32 packets in a single interrupt
+		 * for Tx assume we need to switch over to "bulk" mode.
+		 */
+		rc->target_itr &= ~I40E_ITR_ADAPTIVE_LATENCY;
+	}
+
+	/* We have no packets to actually measure against. This means
+	 * either one of the other queues on this vector is active or
+	 * we are a Tx queue doing TSO with too high of an interrupt rate.
 	 *
-	 * The math works out because the divisor is in 10^(-6) which
-	 * turns the bytes/us input value into MB/s values, but
-	 * make sure to use usecs, as the register values written
-	 * are in 2 usec increments in the ITR registers, and make sure
-	 * to use the smoothed values that the countdown timer gives us.
+	 * Between 4 and 56 we can assume that our current interrupt delay
+	 * is only slightly too low. As such we should increase it by a small
+	 * fixed amount.
 	 */
-	switch (new_latency_range) {
-	case I40E_LOWEST_LATENCY:
-		if (bytes_per_usec > 10)
-			new_latency_range = I40E_LOW_LATENCY;
-		break;
-	case I40E_LOW_LATENCY:
-		if (bytes_per_usec > 20)
-			new_latency_range = I40E_BULK_LATENCY;
-		else if (bytes_per_usec <= 10)
-			new_latency_range = I40E_LOWEST_LATENCY;
-		break;
-	case I40E_BULK_LATENCY:
-	default:
-		if (bytes_per_usec <= 20)
-			new_latency_range = I40E_LOW_LATENCY;
-		break;
+	if (packets < 56) {
+		itr = rc->target_itr + I40E_ITR_ADAPTIVE_MIN_INC;
+		if ((itr & I40E_ITR_MASK) > I40E_ITR_ADAPTIVE_MAX_USECS) {
+			itr &= I40E_ITR_ADAPTIVE_LATENCY;
+			itr += I40E_ITR_ADAPTIVE_MAX_USECS;
+		}
+		goto clear_counts;
 	}
 
-reset_latency:
-	rc->latency_range = new_latency_range;
+	if (packets <= 256) {
+		itr = min(q_vector->tx.current_itr, q_vector->rx.current_itr);
+		itr &= I40E_ITR_MASK;
 
-	switch (new_latency_range) {
-	case I40E_LOWEST_LATENCY:
-		new_itr = I40E_ITR_50K;
-		break;
-	case I40E_LOW_LATENCY:
-		new_itr = I40E_ITR_20K;
-		break;
-	case I40E_BULK_LATENCY:
-		new_itr = I40E_ITR_18K;
-		break;
-	default:
-		break;
+		/* Between 56 and 112 is our "goldilocks" zone where we are
+		 * working out "just right". Just report that our current
+		 * ITR is good for us.
+		 */
+		if (packets <= 112)
+			goto clear_counts;
+
+		/* If packet count is 128 or greater we are likely looking
+		 * at a slight overrun of the delay we want. Try halving
+		 * our delay to see if that will cut the number of packets
+		 * in half per interrupt.
+		 */
+		itr /= 2;
+		itr &= I40E_ITR_MASK;
+		if (itr < I40E_ITR_ADAPTIVE_MIN_USECS)
+			itr = I40E_ITR_ADAPTIVE_MIN_USECS;
+
+		goto clear_counts;
 	}
+
+	/* The paths below assume we are dealing with a bulk ITR since
+	 * number of packets is greater than 256. We are just going to have
+	 * to compute a value and try to bring the count under control,
+	 * though for smaller packet sizes there isn't much we can do as
+	 * NAPI polling will likely be kicking in sooner rather than later.
+	 */
+	itr = I40E_ITR_ADAPTIVE_BULK;
+
+adjust_by_size:
+	/* If packet counts are 256 or greater we can assume we have a gross
+	 * overestimation of what the rate should be. Instead of trying to fine
+	 * tune it just use the formula below to try and dial in an exact value
+	 * give the current packet size of the frame.
+	 */
+	avg_wire_size = bytes / packets;
+
+	/* The following is a crude approximation of:
+	 *  wmem_default / (size + overhead) = desired_pkts_per_int
+	 *  rate / bits_per_byte / (size + ethernet overhead) = pkt_rate
+	 *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
+	 *
+	 * Assuming wmem_default is 212992 and overhead is 640 bytes per
+	 * packet, (256 skb, 64 headroom, 320 shared info), we can reduce the
+	 * formula down to
+	 *
+	 *  (170 * (size + 24)) / (size + 640) = ITR
+	 *
+	 * We first do some math on the packet size and then finally bitshift
+	 * by 8 after rounding up. We also have to account for PCIe link speed
+	 * difference as ITR scales based on this.
+	 */
+	if (avg_wire_size <= 60) {
+		/* Start at 250k ints/sec */
+		avg_wire_size = 4096;
+	} else if (avg_wire_size <= 380) {
+		/* 250K ints/sec to 60K ints/sec */
+		avg_wire_size *= 40;
+		avg_wire_size += 1696;
+	} else if (avg_wire_size <= 1084) {
+		/* 60K ints/sec to 36K ints/sec */
+		avg_wire_size *= 15;
+		avg_wire_size += 11452;
+	} else if (avg_wire_size <= 1980) {
+		/* 36K ints/sec to 30K ints/sec */
+		avg_wire_size *= 5;
+		avg_wire_size += 22420;
+	} else {
+		/* plateau at a limit of 30K ints/sec */
+		avg_wire_size = 32256;
+	}
+
+	/* If we are in low latency mode halve our delay which doubles the
+	 * rate to somewhere between 100K to 16K ints/sec
+	 */
+	if (itr & I40E_ITR_ADAPTIVE_LATENCY)
+		avg_wire_size /= 2;
+
+	/* Resultant value is 256 times larger than it needs to be. This
+	 * gives us room to adjust the value as needed to either increase
+	 * or decrease the value based on link speeds of 10G, 2.5G, 1G, etc.
+	 *
+	 * Use addition as we have already recorded the new latency flag
+	 * for the ITR value.
+	 */
+	itr += DIV_ROUND_UP(avg_wire_size, i40e_itr_divisor(q_vector)) *
+	       I40E_ITR_ADAPTIVE_MIN_INC;
+
+	if ((itr & I40E_ITR_MASK) > I40E_ITR_ADAPTIVE_MAX_USECS) {
+		itr &= I40E_ITR_ADAPTIVE_LATENCY;
+		itr += I40E_ITR_ADAPTIVE_MAX_USECS;
+	}
+
+clear_counts:
+	/* write back value */
+	rc->target_itr = itr;
+
+	/* next update should occur within next jiffy */
+	rc->next_update = next_update + 1;
 
 	rc->total_bytes = 0;
 	rc->total_packets = 0;
-	rc->last_itr_update = jiffies;
-
-	if (new_itr != rc->itr) {
-		rc->itr = new_itr;
-		return true;
-	}
-	return false;
 }
 
 /**
@@ -1273,7 +1416,7 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
  * @rx_buffer: rx buffer to pull data from
  *
  * This function will clean up the contents of the rx_buffer.  It will
- * either recycle the bufer or unmap it and free the associated resources.
+ * either recycle the buffer or unmap it and free the associated resources.
  */
 static void i40e_put_rx_buffer(struct i40e_ring *rx_ring,
 			       struct i40e_rx_buffer *rx_buffer)
@@ -1457,33 +1600,45 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	return failure ? budget : (int)total_rx_packets;
 }
 
-static u32 i40e_buildreg_itr(const int type, const u16 itr)
+static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 {
 	u32 val;
 
+	/* We don't bother with setting the CLEARPBA bit as the data sheet
+	 * points out doing so is "meaningless since it was already
+	 * auto-cleared". The auto-clearing happens when the interrupt is
+	 * asserted.
+	 *
+	 * Hardware errata 28 for also indicates that writing to a
+	 * xxINT_DYN_CTLx CSR with INTENA_MSK (bit 31) set to 0 will clear
+	 * an event in the PBA anyway so we need to rely on the automask
+	 * to hold pending events for us until the interrupt is re-enabled
+	 *
+	 * The itr value is reported in microseconds, and the register
+	 * value is recorded in 2 microsecond units. For this reason we
+	 * only need to shift by the interval shift - 1 instead of the
+	 * full value.
+	 */
+	itr &= I40E_ITR_MASK;
+
 	val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	      I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
 	      (type << I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
-	      (itr << I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
+	      (itr << (I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT - 1));
 
 	return val;
 }
 
 /* a small macro to shorten up some long lines */
 #define INTREG I40E_VFINT_DYN_CTLN1
-static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
-{
-	struct i40evf_adapter *adapter = vsi->back;
 
-	return adapter->rx_rings[idx].rx_itr_setting;
-}
-
-static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
-{
-	struct i40evf_adapter *adapter = vsi->back;
-
-	return adapter->tx_rings[idx].tx_itr_setting;
-}
+/* The act of updating the ITR will cause it to immediately trigger. In order
+ * to prevent this from throwing off adaptive update statistics we defer the
+ * update so that it can only happen so often. So after either Tx or Rx are
+ * updated we make the adaptive scheme wait until either the ITR completely
+ * expires via the next_update expiration or we have been through at least
+ * 3 interrupts.
+ */
+#define ITR_COUNTDOWN_START 3
 
 /**
  * i40e_update_enable_itr - Update itr and re-enable MSIX interrupt
@@ -1495,70 +1650,51 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 					  struct i40e_q_vector *q_vector)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
-	bool rx = false, tx = false;
-	u32 rxval, txval;
-	int idx = q_vector->v_idx;
-	int rx_itr_setting, tx_itr_setting;
+	u32 intval;
 
-	/* avoid dynamic calculation if in countdown mode OR if
-	 * all dynamic is disabled
+	/* These will do nothing if dynamic updates are not enabled */
+	i40e_update_itr(q_vector, &q_vector->tx);
+	i40e_update_itr(q_vector, &q_vector->rx);
+
+	/* This block of logic allows us to get away with only updating
+	 * one ITR value with each interrupt. The idea is to perform a
+	 * pseudo-lazy update with the following criteria.
+	 *
+	 * 1. Rx is given higher priority than Tx if both are in same state
+	 * 2. If we must reduce an ITR that is given highest priority.
+	 * 3. We then give priority to increasing ITR based on amount.
 	 */
-	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
-
-	rx_itr_setting = get_rx_itr(vsi, idx);
-	tx_itr_setting = get_tx_itr(vsi, idx);
-
-	if (q_vector->itr_countdown > 0 ||
-	    (!ITR_IS_DYNAMIC(rx_itr_setting) &&
-	     !ITR_IS_DYNAMIC(tx_itr_setting))) {
-		goto enable_int;
-	}
-
-	if (ITR_IS_DYNAMIC(rx_itr_setting)) {
-		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
-		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
-	}
-
-	if (ITR_IS_DYNAMIC(tx_itr_setting)) {
-		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
-		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
-	}
-
-	if (rx || tx) {
-		/* get the higher of the two ITR adjustments and
-		 * use the same value for both ITR registers
-		 * when in adaptive mode (Rx and/or Tx)
-		 */
-		u16 itr = max(q_vector->tx.itr, q_vector->rx.itr);
-
-		q_vector->tx.itr = q_vector->rx.itr = itr;
-		txval = i40e_buildreg_itr(I40E_TX_ITR, itr);
-		tx = true;
-		rxval = i40e_buildreg_itr(I40E_RX_ITR, itr);
-		rx = true;
-	}
-
-	/* only need to enable the interrupt once, but need
-	 * to possibly update both ITR values
-	 */
-	if (rx) {
-		/* set the INTENA_MSK_MASK so that this first write
-		 * won't actually enable the interrupt, instead just
-		 * updating the ITR (it's bit 31 PF and VF)
-		 */
-		rxval |= BIT(31);
-		/* don't check _DOWN because interrupt isn't being enabled */
-		wr32(hw, INTREG(q_vector->reg_idx), rxval);
-	}
-
-enable_int:
-	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
-		wr32(hw, INTREG(q_vector->reg_idx), txval);
-
-	if (q_vector->itr_countdown)
-		q_vector->itr_countdown--;
-	else
+	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
+		/* Rx ITR needs to be reduced, this is highest priority */
+		intval = i40e_buildreg_itr(I40E_RX_ITR,
+					   q_vector->rx.target_itr);
+		q_vector->rx.current_itr = q_vector->rx.target_itr;
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
+		   ((q_vector->rx.target_itr - q_vector->rx.current_itr) <
+		    (q_vector->tx.target_itr - q_vector->tx.current_itr))) {
+		/* Tx ITR needs to be reduced, this is second priority
+		 * Tx ITR needs to be increased more than Rx, fourth priority
+		 */
+		intval = i40e_buildreg_itr(I40E_TX_ITR,
+					   q_vector->tx.target_itr);
+		q_vector->tx.current_itr = q_vector->tx.target_itr;
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
+		/* Rx ITR needs to be increased, third priority */
+		intval = i40e_buildreg_itr(I40E_RX_ITR,
+					   q_vector->rx.target_itr);
+		q_vector->rx.current_itr = q_vector->rx.target_itr;
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	} else {
+		/* No ITR update, lowest priority */
+		intval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
+		if (q_vector->itr_countdown)
+			q_vector->itr_countdown--;
+	}
+
+	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
+		wr32(hw, INTREG(q_vector->reg_idx), intval);
 }
 
 /**

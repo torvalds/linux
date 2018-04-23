@@ -157,10 +157,8 @@ int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 		       u16 index, u16 *pkey);
-int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, void **context);
-int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, const union ib_gid *gid,
+int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context);
+int bnxt_re_add_gid(const union ib_gid *gid,
 		    const struct ib_gid_attr *attr, void **context);
 int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 		      int index, union ib_gid *gid);

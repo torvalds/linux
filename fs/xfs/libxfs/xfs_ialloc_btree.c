@@ -93,8 +93,6 @@ __xfs_inobt_alloc_block(
 	int			error;		/* error return value */
 	xfs_agblock_t		sbno = be32_to_cpu(start->s);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
@@ -107,17 +105,14 @@ __xfs_inobt_alloc_block(
 	args.resv = resv;
 
 	error = xfs_alloc_vextent(&args);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
+
 	if (args.fsbno == NULLFSBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
 	ASSERT(args.len == 1);
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 
 	new->s = cpu_to_be32(XFS_FSB_TO_AGBNO(args.mp, args.fsbno));
 	*stat = 1;
@@ -561,7 +556,7 @@ xfs_inobt_max_size(
 	if (mp->m_inobt_mxr[0] == 0)
 		return 0;
 
-	return xfs_btree_calc_size(mp, mp->m_inobt_mnr,
+	return xfs_btree_calc_size(mp->m_inobt_mnr,
 		(uint64_t)mp->m_sb.sb_agblocks * mp->m_sb.sb_inopblock /
 				XFS_INODES_PER_CHUNK);
 }

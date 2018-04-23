@@ -196,10 +196,10 @@ static const struct snd_soc_dapm_route rk3036_codec_dapm_routes[] = {
 
 static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	unsigned int reg01_val = 0,  reg02_val = 0, reg03_val = 0;
 
-	dev_dbg(codec->dev, "rk3036_codec dai set fmt : %08x\n", fmt);
+	dev_dbg(component->dev, "rk3036_codec dai set fmt : %08x\n", fmt);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -211,7 +211,7 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			     INNO_R01_I2SMODE_MASTER;
 		break;
 	default:
-		dev_err(codec->dev, "invalid fmt\n");
+		dev_err(component->dev, "invalid fmt\n");
 		return -EINVAL;
 	}
 
@@ -229,7 +229,7 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		reg02_val |= INNO_R02_DACM_LJM;
 		break;
 	default:
-		dev_err(codec->dev, "set dai format failed\n");
+		dev_err(component->dev, "set dai format failed\n");
 		return -EINVAL;
 	}
 
@@ -251,15 +251,15 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		reg03_val |= INNO_R03_BCP_REVERSAL;
 		break;
 	default:
-		dev_err(codec->dev, "set dai format failed\n");
+		dev_err(component->dev, "set dai format failed\n");
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, INNO_R01, INNO_R01_I2SMODE_MSK |
+	snd_soc_component_update_bits(component, INNO_R01, INNO_R01_I2SMODE_MSK |
 			    INNO_R01_PINDIR_MSK, reg01_val);
-	snd_soc_update_bits(codec, INNO_R02, INNO_R02_LRCP_MSK |
+	snd_soc_component_update_bits(component, INNO_R02, INNO_R02_LRCP_MSK |
 			    INNO_R02_DACM_MSK, reg02_val);
-	snd_soc_update_bits(codec, INNO_R03, INNO_R03_BCP_MSK, reg03_val);
+	snd_soc_component_update_bits(component, INNO_R03, INNO_R03_BCP_MSK, reg03_val);
 
 	return 0;
 }
@@ -268,7 +268,7 @@ static int rk3036_codec_dai_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *hw_params,
 				      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	unsigned int reg02_val = 0, reg03_val = 0;
 
 	switch (params_format(hw_params)) {
@@ -291,9 +291,9 @@ static int rk3036_codec_dai_hw_params(struct snd_pcm_substream *substream,
 	reg02_val |= INNO_R02_LRCP_NORMAL;
 	reg03_val |= INNO_R03_FWL_32BIT | INNO_R03_DACR_WORK;
 
-	snd_soc_update_bits(codec, INNO_R02, INNO_R02_LRCP_MSK |
+	snd_soc_component_update_bits(component, INNO_R02, INNO_R02_LRCP_MSK |
 			    INNO_R02_VWL_MSK, reg02_val);
-	snd_soc_update_bits(codec, INNO_R03, INNO_R03_DACR_MSK |
+	snd_soc_component_update_bits(component, INNO_R03, INNO_R03_DACR_MSK |
 			    INNO_R03_FWL_MSK, reg03_val);
 	return 0;
 }
@@ -330,43 +330,42 @@ static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
 	},
 };
 
-static void rk3036_codec_reset(struct snd_soc_codec *codec)
+static void rk3036_codec_reset(struct snd_soc_component *component)
 {
-	snd_soc_write(codec, INNO_R00,
+	snd_soc_component_write(component, INNO_R00,
 		      INNO_R00_CSR_RESET | INNO_R00_CDCR_RESET);
-	snd_soc_write(codec, INNO_R00,
+	snd_soc_component_write(component, INNO_R00,
 		      INNO_R00_CSR_WORK | INNO_R00_CDCR_WORK);
 }
 
-static int rk3036_codec_probe(struct snd_soc_codec *codec)
+static int rk3036_codec_probe(struct snd_soc_component *component)
 {
-	rk3036_codec_reset(codec);
+	rk3036_codec_reset(component);
 	return 0;
 }
 
-static int rk3036_codec_remove(struct snd_soc_codec *codec)
+static void rk3036_codec_remove(struct snd_soc_component *component)
 {
-	rk3036_codec_reset(codec);
-	return 0;
+	rk3036_codec_reset(component);
 }
 
-static int rk3036_codec_set_bias_level(struct snd_soc_codec *codec,
+static int rk3036_codec_set_bias_level(struct snd_soc_component *component,
 				       enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
 		/* set a big current for capacitor charging. */
-		snd_soc_write(codec, INNO_R10, INNO_R10_MAX_CUR);
+		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
 		/* start precharge */
-		snd_soc_write(codec, INNO_R06, INNO_R06_DAC_PRECHARGE);
+		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_PRECHARGE);
 
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		/* set a big current for capacitor discharging. */
-		snd_soc_write(codec, INNO_R10, INNO_R10_MAX_CUR);
+		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
 		/* start discharge. */
-		snd_soc_write(codec, INNO_R06, INNO_R06_DAC_DISCHARGE);
+		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_DISCHARGE);
 
 		break;
 	default:
@@ -376,18 +375,20 @@ static int rk3036_codec_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static const struct snd_soc_codec_driver rk3036_codec_driver = {
+static const struct snd_soc_component_driver rk3036_codec_driver = {
 	.probe			= rk3036_codec_probe,
 	.remove			= rk3036_codec_remove,
 	.set_bias_level		= rk3036_codec_set_bias_level,
-	.component_driver = {
-		.controls		= rk3036_codec_dapm_controls,
-		.num_controls		= ARRAY_SIZE(rk3036_codec_dapm_controls),
-		.dapm_routes		= rk3036_codec_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(rk3036_codec_dapm_routes),
-		.dapm_widgets		= rk3036_codec_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(rk3036_codec_dapm_widgets),
-	},
+	.controls		= rk3036_codec_dapm_controls,
+	.num_controls		= ARRAY_SIZE(rk3036_codec_dapm_controls),
+	.dapm_routes		= rk3036_codec_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rk3036_codec_dapm_routes),
+	.dapm_widgets		= rk3036_codec_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rk3036_codec_dapm_widgets),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rk3036_codec_regmap_config = {
@@ -449,7 +450,7 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, priv);
 
-	ret = snd_soc_register_codec(&pdev->dev, &rk3036_codec_driver,
+	ret = devm_snd_soc_register_component(&pdev->dev, &rk3036_codec_driver,
 				     rk3036_codec_dai_driver,
 				     ARRAY_SIZE(rk3036_codec_dai_driver));
 	if (ret) {
@@ -464,7 +465,6 @@ static int rk3036_codec_platform_remove(struct platform_device *pdev)
 {
 	struct rk3036_codec_priv *priv = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_codec(&pdev->dev);
 	clk_disable_unprepare(priv->pclk);
 
 	return 0;

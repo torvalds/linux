@@ -83,7 +83,7 @@ int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
 {
 	struct dfsdm_priv *priv = container_of(dfsdm, struct dfsdm_priv, dfsdm);
 	struct device *dev = &priv->pdev->dev;
-	unsigned int clk_div = priv->spi_clk_out_div;
+	unsigned int clk_div = priv->spi_clk_out_div, clk_src;
 	int ret;
 
 	if (atomic_inc_return(&priv->n_active_ch) == 1) {
@@ -99,6 +99,14 @@ int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
 				goto disable_clk;
 			}
 		}
+
+		/* select clock source, e.g. 0 for "dfsdm" or 1 for "audio" */
+		clk_src = priv->aclk ? 1 : 0;
+		ret = regmap_update_bits(dfsdm->regmap, DFSDM_CHCFGR1(0),
+					 DFSDM_CHCFGR1_CKOUTSRC_MASK,
+					 DFSDM_CHCFGR1_CKOUTSRC(clk_src));
+		if (ret < 0)
+			goto disable_aclk;
 
 		/* Output the SPI CLKOUT (if clk_div == 0 clock if OFF) */
 		ret = regmap_update_bits(dfsdm->regmap, DFSDM_CHCFGR1(0),
@@ -274,7 +282,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 
 	dfsdm->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "dfsdm",
 						  dfsdm->base,
-						  &stm32h7_dfsdm_regmap_cfg);
+						  dev_data->regmap_cfg);
 	if (IS_ERR(dfsdm->regmap)) {
 		ret = PTR_ERR(dfsdm->regmap);
 		dev_err(&pdev->dev, "%s: Failed to allocate regmap: %d\n",

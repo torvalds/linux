@@ -701,6 +701,89 @@ static const struct ath10k_mem_region qca988x_hw20_mem_regions[] = {
 	},
 };
 
+static const struct ath10k_mem_region qca9984_hw10_mem_regions[] = {
+	{
+		.type = ATH10K_MEM_REGION_TYPE_DRAM,
+		.start = 0x400000,
+		.len = 0x80000,
+		.name = "DRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0x98000,
+		.len = 0x50000,
+		.name = "IRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOSRAM,
+		.start = 0xC0000,
+		.len = 0x40000,
+		.name = "SRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x30000,
+		.len = 0x7000,
+		.name = "APB REG 1",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x3f000,
+		.len = 0x3000,
+		.name = "APB REG 2",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x43000,
+		.len = 0x3000,
+		.name = "WIFI REG",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x4A000,
+		.len = 0x5000,
+		.name = "CE REG",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x80000,
+		.len = 0x6000,
+		.name = "SOC REG",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+};
+
 static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 	{
 		.hw_id = QCA6174_HW_1_0_VERSION,
@@ -756,6 +839,13 @@ static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 		.region_table = {
 			.regions = qca988x_hw20_mem_regions,
 			.size = ARRAY_SIZE(qca988x_hw20_mem_regions),
+		},
+	},
+	{
+		.hw_id = QCA9984_HW_1_0_DEV_VERSION,
+		.region_table = {
+			.regions = qca9984_hw10_mem_regions,
+			.size = ARRAY_SIZE(qca9984_hw10_mem_regions),
 		},
 	},
 };

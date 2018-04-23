@@ -1,5 +1,5 @@
 /*
- * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
+ * Generic LVDS panel driver
  *
  * Copyright (C) 2016 Laurent Pinchart
  * Copyright (C) 2016 Renesas Electronics Corporation

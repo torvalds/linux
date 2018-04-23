@@ -820,7 +820,7 @@ static int tg3_ape_event_lock(struct tg3 *tp, u32 timeout_us)
 
 		tg3_ape_unlock(tp, TG3_APE_LOCK_MEM);
 
-		usleep_range(10, 20);
+		udelay(10);
 		timeout_us -= (timeout_us > 10) ? 10 : timeout_us;
 	}
 
@@ -10799,11 +10799,11 @@ static ssize_t tg3_show_temp(struct device *dev,
 }
 
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_SENSOR_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_crit, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_CAUTION_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_max, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_MAX_OFFSET);
 
 static struct attribute *tg3_attrs[] = {

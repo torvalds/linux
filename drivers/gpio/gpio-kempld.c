@@ -20,7 +20,7 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/mfd/kempld.h>
 
 #define KEMPLD_GPIO_MAX_NUM		16

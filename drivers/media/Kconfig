@@ -141,6 +141,7 @@ config DVB_CORE
 	tristate
 	depends on MEDIA_SUPPORT
 	depends on MEDIA_DIGITAL_TV_SUPPORT
+	depends on (I2C || I2C=n)
 	default y
 	select CRC32
 
@@ -151,7 +152,7 @@ config DVB_MMAP
 	select VIDEOBUF2_VMALLOC
 	default n
 	help
-	  This option enables DVB experimental memory-mapped API, with
+	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
 	  the buffers can use mmap() syscalls.
 

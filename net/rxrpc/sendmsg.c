@@ -130,7 +130,9 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call, int ix)
 	spin_lock_bh(&call->lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
+		call->rxtx_annotations[ix] =
+			(call->rxtx_annotations[ix] & RXRPC_TX_ANNO_LAST) |
+			RXRPC_TX_ANNO_RETRANS;
 		if (!test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
 			rxrpc_queue_call(call);
 	}
@@ -554,6 +556,7 @@ static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				  struct rxrpc_send_params *p)
 	__releases(&rx->sk.sk_lock.slock)
+	__acquires(&call->user_mutex)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -579,9 +582,11 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.exclusive		= rx->exclusive | p->exclusive;
 	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL,
+				     atomic_inc_return(&rxrpc_debug_id));
 	/* The socket is now unlocked */
 
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %p\n", call);
 	return call;
 }
@@ -593,6 +598,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
  */
 int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	__releases(&rx->sk.sk_lock.slock)
+	__releases(&call->user_mutex)
 {
 	enum rxrpc_call_state state;
 	struct rxrpc_call *call;

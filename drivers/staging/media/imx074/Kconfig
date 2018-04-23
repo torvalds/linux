@@ -1,0 +1,5 @@
+config SOC_CAMERA_IMX074
+	tristate "imx074 support (DEPRECATED)"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports IMX074 cameras from Sony

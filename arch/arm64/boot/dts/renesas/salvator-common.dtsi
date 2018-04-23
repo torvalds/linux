@@ -256,6 +256,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
+	phy-mode = "rgmii-txid";
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -337,6 +338,13 @@
 
 &i2c4 {
 	status = "okay";
+
+	pca9654: gpio@20 {
+		compatible = "onnn,pca9654";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 
 	csa_vdd: adc@7c {
 		compatible = "maxim,max9611";

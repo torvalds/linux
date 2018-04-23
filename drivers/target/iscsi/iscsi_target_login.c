@@ -1020,7 +1020,7 @@ int iscsit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 	struct socket *new_sock, *sock = np->np_socket;
 	struct sockaddr_in sock_in;
 	struct sockaddr_in6 sock_in6;
-	int rc, err;
+	int rc;
 
 	rc = kernel_accept(sock, &new_sock, 0);
 	if (rc < 0)
@@ -1033,8 +1033,8 @@ int iscsit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 		memset(&sock_in6, 0, sizeof(struct sockaddr_in6));
 
 		rc = conn->sock->ops->getname(conn->sock,
-				(struct sockaddr *)&sock_in6, &err, 1);
-		if (!rc) {
+				(struct sockaddr *)&sock_in6, 1);
+		if (rc >= 0) {
 			if (!ipv6_addr_v4mapped(&sock_in6.sin6_addr)) {
 				memcpy(&conn->login_sockaddr, &sock_in6, sizeof(sock_in6));
 			} else {
@@ -1047,8 +1047,8 @@ int iscsit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 		}
 
 		rc = conn->sock->ops->getname(conn->sock,
-				(struct sockaddr *)&sock_in6, &err, 0);
-		if (!rc) {
+				(struct sockaddr *)&sock_in6, 0);
+		if (rc >= 0) {
 			if (!ipv6_addr_v4mapped(&sock_in6.sin6_addr)) {
 				memcpy(&conn->local_sockaddr, &sock_in6, sizeof(sock_in6));
 			} else {
@@ -1063,13 +1063,13 @@ int iscsit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 		memset(&sock_in, 0, sizeof(struct sockaddr_in));
 
 		rc = conn->sock->ops->getname(conn->sock,
-				(struct sockaddr *)&sock_in, &err, 1);
-		if (!rc)
+				(struct sockaddr *)&sock_in, 1);
+		if (rc >= 0)
 			memcpy(&conn->login_sockaddr, &sock_in, sizeof(sock_in));
 
 		rc = conn->sock->ops->getname(conn->sock,
-				(struct sockaddr *)&sock_in, &err, 0);
-		if (!rc)
+				(struct sockaddr *)&sock_in, 0);
+		if (rc >= 0)
 			memcpy(&conn->local_sockaddr, &sock_in, sizeof(sock_in));
 	}
 

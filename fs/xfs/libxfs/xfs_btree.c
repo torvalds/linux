@@ -1438,8 +1438,6 @@ xfs_btree_log_keys(
 	int			first,
 	int			last)
 {
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
 
 	if (bp) {
 		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
@@ -1450,8 +1448,6 @@ xfs_btree_log_keys(
 		xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,
 				xfs_ilog_fbroot(cur->bc_private.b.whichfork));
 	}
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 }
 
 /*
@@ -1464,15 +1460,12 @@ xfs_btree_log_recs(
 	int			first,
 	int			last)
 {
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
 
 	xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
 	xfs_trans_log_buf(cur->bc_tp, bp,
 			  xfs_btree_rec_offset(cur, first),
 			  xfs_btree_rec_offset(cur, last + 1) - 1);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 }
 
 /*
@@ -1485,8 +1478,6 @@ xfs_btree_log_ptrs(
 	int			first,	/* index of first pointer to log */
 	int			last)	/* index of last pointer to log */
 {
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
 
 	if (bp) {
 		struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
@@ -1501,7 +1492,6 @@ xfs_btree_log_ptrs(
 			xfs_ilog_fbroot(cur->bc_private.b.whichfork));
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 }
 
 /*
@@ -1543,9 +1533,6 @@ xfs_btree_log_block(
 		XFS_BTREE_LBLOCK_CRC_LEN
 	};
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGBI(cur, bp, fields);
-
 	if (bp) {
 		int nbits;
 
@@ -1573,8 +1560,6 @@ xfs_btree_log_block(
 		xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,
 			xfs_ilog_fbroot(cur->bc_private.b.whichfork));
 	}
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 }
 
 /*
@@ -1592,9 +1577,6 @@ xfs_btree_increment(
 	struct xfs_buf		*bp;
 	int			error;		/* error return value */
 	int			lev;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, level);
 
 	ASSERT(level < cur->bc_nlevels);
 
@@ -1671,17 +1653,14 @@ xfs_btree_increment(
 		cur->bc_ptrs[lev] = 1;
 	}
 out1:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -1700,9 +1679,6 @@ xfs_btree_decrement(
 	int			error;		/* error return value */
 	int			lev;
 	union xfs_btree_ptr	ptr;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, level);
 
 	ASSERT(level < cur->bc_nlevels);
 
@@ -1769,17 +1745,14 @@ xfs_btree_decrement(
 		cur->bc_ptrs[lev] = xfs_btree_get_numrecs(block);
 	}
 out1:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -1881,9 +1854,6 @@ xfs_btree_lookup(
 	union xfs_btree_ptr	*pp;	/* ptr to btree block */
 	union xfs_btree_ptr	ptr;	/* ptr to btree block */
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, dir);
-
 	XFS_BTREE_STATS_INC(cur, lookup);
 
 	/* No such thing as a zero-level tree. */
@@ -1929,7 +1899,6 @@ xfs_btree_lookup(
 				ASSERT(level == 0 && cur->bc_nlevels == 1);
 
 				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
-				XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 				*stat = 0;
 				return 0;
 			}
@@ -2004,7 +1973,6 @@ xfs_btree_lookup(
 			if (error)
 				goto error0;
 			XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
-			XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 			*stat = 1;
 			return 0;
 		}
@@ -2019,11 +1987,9 @@ xfs_btree_lookup(
 		*stat = 1;
 	else
 		*stat = 0;
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -2169,10 +2135,8 @@ __xfs_btree_updkeys(
 		trace_xfs_btree_updkeys(cur, level, bp);
 #ifdef DEBUG
 		error = xfs_btree_check_block(cur, block, level, bp);
-		if (error) {
-			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		if (error)
 			return error;
-		}
 #endif
 		ptr = cur->bc_ptrs[level];
 		nlkey = xfs_btree_key_addr(cur, ptr, block);
@@ -2224,9 +2188,6 @@ xfs_btree_update_keys(
 	if (cur->bc_flags & XFS_BTREE_OVERLAPPING)
 		return __xfs_btree_updkeys(cur, level, block, bp, false);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGIK(cur, level, keyp);
-
 	/*
 	 * Go up the tree from this level toward the root.
 	 * At each level, update the key value to the value input.
@@ -2241,10 +2202,8 @@ xfs_btree_update_keys(
 		block = xfs_btree_get_block(cur, level, &bp);
 #ifdef DEBUG
 		error = xfs_btree_check_block(cur, block, level, bp);
-		if (error) {
-			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		if (error)
 			return error;
-		}
 #endif
 		ptr = cur->bc_ptrs[level];
 		kp = xfs_btree_key_addr(cur, ptr, block);
@@ -2252,7 +2211,6 @@ xfs_btree_update_keys(
 		xfs_btree_log_keys(cur, bp, ptr, ptr);
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 }
 
@@ -2271,9 +2229,6 @@ xfs_btree_update(
 	int			error;
 	int			ptr;
 	union xfs_btree_rec	*rp;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGR(cur, rec);
 
 	/* Pick up the current block. */
 	block = xfs_btree_get_block(cur, 0, &bp);
@@ -2307,11 +2262,9 @@ xfs_btree_update(
 			goto error0;
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -2338,9 +2291,6 @@ xfs_btree_lshift(
 	union xfs_btree_rec	*rrp = NULL;	/* right record pointer */
 	int			error;		/* error return value */
 	int			i;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, level);
 
 	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
 	    level == cur->bc_nlevels - 1)
@@ -2500,21 +2450,17 @@ xfs_btree_lshift(
 	/* Slide the cursor value left one. */
 	cur->bc_ptrs[level]--;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 
 error1:
-	XFS_BTREE_TRACE_CURSOR(tcur, XBT_ERROR);
 	xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 	return error;
 }
@@ -2540,9 +2486,6 @@ xfs_btree_rshift(
 	int			lrecs;		/* left record count */
 	int			error;		/* error return value */
 	int			i;		/* loop counter */
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, level);
 
 	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
 	    (level == cur->bc_nlevels - 1))
@@ -2676,21 +2619,17 @@ xfs_btree_rshift(
 
 	xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 
 error1:
-	XFS_BTREE_TRACE_CURSOR(tcur, XBT_ERROR);
 	xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 	return error;
 }
@@ -2725,9 +2664,6 @@ __xfs_btree_split(
 #ifdef DEBUG
 	int			i;
 #endif
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGIPK(cur, level, *ptrp, key);
 
 	XFS_BTREE_STATS_INC(cur, split);
 
@@ -2878,16 +2814,13 @@ __xfs_btree_split(
 		(*curp)->bc_ptrs[level + 1]++;
 	}
 	*ptrp = rptr;
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -2994,7 +2927,6 @@ xfs_btree_new_iroot(
 	int			i;		/* loop counter */
 #endif
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 	XFS_BTREE_STATS_INC(cur, newroot);
 
 	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
@@ -3008,10 +2940,9 @@ xfs_btree_new_iroot(
 	error = cur->bc_ops->alloc_block(cur, pp, &nptr, stat);
 	if (error)
 		goto error0;
-	if (*stat == 0) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	if (*stat == 0)
 		return 0;
-	}
+
 	XFS_BTREE_STATS_INC(cur, alloc);
 
 	/* Copy the root into a real block. */
@@ -3074,10 +3005,8 @@ xfs_btree_new_iroot(
 	*logflags |=
 		XFS_ILOG_CORE | xfs_ilog_fbroot(cur->bc_private.b.whichfork);
 	*stat = 1;
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -3102,7 +3031,6 @@ xfs_btree_new_root(
 	union xfs_btree_ptr	rptr;
 	union xfs_btree_ptr	lptr;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 	XFS_BTREE_STATS_INC(cur, newroot);
 
 	/* initialise our start point from the cursor */
@@ -3202,14 +3130,11 @@ xfs_btree_new_root(
 	xfs_btree_setbuf(cur, cur->bc_nlevels, nbp);
 	cur->bc_ptrs[cur->bc_nlevels] = nptr;
 	cur->bc_nlevels++;
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
 }
@@ -3230,7 +3155,7 @@ xfs_btree_make_block_unfull(
 
 	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
 	    level == cur->bc_nlevels - 1) {
-	    	struct xfs_inode *ip = cur->bc_private.b.ip;
+		struct xfs_inode *ip = cur->bc_private.b.ip;
 
 		if (numrecs < cur->bc_ops->get_dmaxrecs(cur, level)) {
 			/* A root block that can be made bigger. */
@@ -3309,9 +3234,6 @@ xfs_btree_insrec(
 #endif
 	xfs_daddr_t		old_bn;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGIPR(cur, level, *ptrp, &rec);
-
 	ncur = NULL;
 	lkey = &nkey;
 
@@ -3324,14 +3246,12 @@ xfs_btree_insrec(
 		error = xfs_btree_new_root(cur, stat);
 		xfs_btree_set_ptr_null(cur, ptrp);
 
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		return error;
 	}
 
 	/* If we're off the left edge, return failure. */
 	ptr = cur->bc_ptrs[level];
 	if (ptr == 0) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -3489,12 +3409,10 @@ xfs_btree_insrec(
 		*curp = ncur;
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -3572,11 +3490,9 @@ xfs_btree_insert(
 		}
 	} while (!xfs_btree_ptr_is_null(cur, &nptr));
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = i;
 	return 0;
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -3610,8 +3526,6 @@ xfs_btree_kill_iroot(
 	union xfs_btree_ptr	ptr;
 	int			i;
 #endif
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 
 	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
 	ASSERT(cur->bc_nlevels > 1);
@@ -3670,19 +3584,15 @@ xfs_btree_kill_iroot(
 #ifdef DEBUG
 	for (i = 0; i < numrecs; i++) {
 		error = xfs_btree_check_ptr(cur, cpp, i, level - 1);
-		if (error) {
-			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		if (error)
 			return error;
-		}
 	}
 #endif
 	xfs_btree_copy_ptrs(cur, pp, cpp, numrecs);
 
 	error = xfs_btree_free_block(cur, cbp);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
 
 	cur->bc_bufs[level - 1] = NULL;
 	be16_add_cpu(&block->bb_level, -1);
@@ -3690,7 +3600,6 @@ xfs_btree_kill_iroot(
 		XFS_ILOG_CORE | xfs_ilog_fbroot(cur->bc_private.b.whichfork));
 	cur->bc_nlevels--;
 out0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 }
 
@@ -3706,7 +3615,6 @@ xfs_btree_kill_root(
 {
 	int			error;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 	XFS_BTREE_STATS_INC(cur, killroot);
 
 	/*
@@ -3716,16 +3624,13 @@ xfs_btree_kill_root(
 	cur->bc_ops->set_root(cur, newroot, -1);
 
 	error = xfs_btree_free_block(cur, bp);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
 
 	cur->bc_bufs[level] = NULL;
 	cur->bc_ra[level] = 0;
 	cur->bc_nlevels--;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 }
 
@@ -3744,7 +3649,6 @@ xfs_btree_dec_cursor(
 			return error;
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 }
@@ -3780,15 +3684,11 @@ xfs_btree_delrec(
 	struct xfs_btree_cur	*tcur;		/* temporary btree cursor */
 	int			numrecs;	/* temporary numrec count */
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGI(cur, level);
-
 	tcur = NULL;
 
 	/* Get the index of the entry being deleted, check for nothing there. */
 	ptr = cur->bc_ptrs[level];
 	if (ptr == 0) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -3805,7 +3705,6 @@ xfs_btree_delrec(
 
 	/* Fail if we're off the end of the block. */
 	if (ptr > numrecs) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -4080,7 +3979,7 @@ xfs_btree_delrec(
 				tcur = NULL;
 				if (level == 0)
 					cur->bc_ptrs[0]++;
-				XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+
 				*stat = 1;
 				return 0;
 			}
@@ -4250,13 +4149,11 @@ xfs_btree_delrec(
 	 * call updkeys directly.
 	 */
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	/* Return value means the next level up has something to do. */
 	*stat = 2;
 	return 0;
 
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	if (tcur)
 		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 	return error;
@@ -4276,8 +4173,6 @@ xfs_btree_delete(
 	int			level;
 	int			i;
 	bool			joined = false;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 
 	/*
 	 * Go up the tree, starting at leaf level.
@@ -4314,11 +4209,9 @@ xfs_btree_delete(
 		}
 	}
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = i;
 	return 0;
 error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -4638,7 +4531,6 @@ xfs_btree_sblock_verify(
  */
 uint
 xfs_btree_compute_maxlevels(
-	struct xfs_mount	*mp,
 	uint			*limits,
 	unsigned long		len)
 {
@@ -4946,7 +4838,6 @@ xfs_btree_query_all(
  */
 xfs_extlen_t
 xfs_btree_calc_size(
-	struct xfs_mount	*mp,
 	uint			*limits,
 	unsigned long long	len)
 {

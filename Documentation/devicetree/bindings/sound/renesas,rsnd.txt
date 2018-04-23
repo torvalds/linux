@@ -351,6 +351,7 @@ Required properties:
 				    - "renesas,rcar_sound-r8a7793" (R-Car M2-N)
 				    - "renesas,rcar_sound-r8a7794" (R-Car E2)
 				    - "renesas,rcar_sound-r8a7795" (R-Car H3)
+				    - "renesas,rcar_sound-r8a7796" (R-Car M3-W)
 - reg				: Should contain the register physical address.
 				  required register is
 				   SRU/ADG/SSI      if generation1

@@ -714,7 +714,7 @@ static void process_queued_bios(struct work_struct *work)
 		case DM_MAPIO_REMAPPED:
 			generic_make_request(bio);
 			break;
-		case 0:
+		case DM_MAPIO_SUBMITTED:
 			break;
 		default:
 			WARN_ONCE(true, "__multipath_map_bio() returned %d\n", r);
@@ -887,7 +887,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 
 	q = bdev_get_queue(p->path.dev->bdev);
 	attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
-	if (attached_handler_name) {
+	if (attached_handler_name || m->hw_handler_name) {
 		INIT_DELAYED_WORK(&p->activate_path, activate_path_work);
 		r = setup_scsi_dh(p->path.dev->bdev, m, attached_handler_name, &ti->error);
 		if (r) {
@@ -1811,7 +1811,8 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
-static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
+static int multipath_message(struct dm_target *ti, unsigned argc, char **argv,
+			     char *result, unsigned maxlen)
 {
 	int r = -EINVAL;
 	struct dm_dev *dev;
@@ -1875,7 +1876,7 @@ out:
 }
 
 static int multipath_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+				   struct block_device **bdev)
 {
 	struct multipath *m = ti->private;
 	struct pgpath *current_pgpath;
@@ -1888,7 +1889,6 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	if (current_pgpath) {
 		if (!test_bit(MPATHF_QUEUE_IO, &m->flags)) {
 			*bdev = current_pgpath->path.dev->bdev;
-			*mode = current_pgpath->path.dev->mode;
 			r = 0;
 		} else {
 			/* pg_init has not started or completed */

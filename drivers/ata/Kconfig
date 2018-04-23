@@ -211,10 +211,10 @@ config AHCI_SUNXI
 	  If unsure, say N.
 
 config AHCI_TEGRA
-	tristate "NVIDIA Tegra124 AHCI SATA support"
+	tristate "NVIDIA Tegra AHCI SATA support"
 	depends on ARCH_TEGRA
 	help
-	  This option enables support for the NVIDIA Tegra124 SoC's
+	  This option enables support for the NVIDIA Tegra SoC's
 	  onboard AHCI SATA.
 
 	  If unsure, say N.
@@ -546,15 +546,6 @@ config PATA_ATP867X
 	help
 	  This option enables support for ARTOP/Acard ATP867X PATA
 	  controllers.
-
-	  If unsure, say N.
-
-config PATA_BF54X
-	tristate "Blackfin 54x ATAPI support"
-	depends on BF542 || BF548 || BF549
-	help
-	  This option enables support for the built-in ATAPI controller on
-	  Blackfin 54x family chips.
 
 	  If unsure, say N.
 
@@ -960,6 +951,18 @@ config PATA_FALCON
 	help
 	  This option enables support for the on-board IDE
 	  interface on the Atari Falcon.
+
+	  If unsure, say N.
+
+config PATA_GAYLE
+	tristate "Amiga Gayle PATA support"
+	depends on M68K && AMIGA
+	help
+	  This option enables support for the on-board IDE
+	  interfaces on some Amiga models (A600, A1200,
+	  A4000 and A4000T) and also for IDE interfaces on
+	  the Zorro expansion bus (M-Tech E-Matrix 530
+	  expansion card).
 
 	  If unsure, say N.
 

@@ -75,6 +75,7 @@
 #include "t4fw_api.h"
 #include "t4fw_version.h"
 #include "cxgb4_dcb.h"
+#include "srq.h"
 #include "cxgb4_debugfs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
@@ -209,6 +210,9 @@ static void link_report(struct net_device *dev)
 			break;
 		case 40000:
 			s = "40Gbps";
+			break;
+		case 50000:
+			s = "50Gbps";
 			break;
 		case 100000:
 			s = "100Gbps";
@@ -583,6 +587,10 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		const struct cpl_abort_rpl_rss *p = (void *)rsp;
 
 		hash_del_filter_rpl(q->adap, p);
+	} else if (opcode == CPL_SRQ_TABLE_RPL) {
+		const struct cpl_srq_table_rpl *p = (void *)rsp;
+
+		do_srq_table_rpl(q->adap, p);
 	} else
 		dev_err(q->adap->pdev_dev,
 			"unexpected CPL %#x on FW event queue\n", opcode);
@@ -833,8 +841,6 @@ static int setup_fw_sge_queues(struct adapter *adap)
 
 	err = t4_sge_alloc_rxq(adap, &s->fw_evtq, true, adap->port[0],
 			       adap->msi_idx, NULL, fwevtq_handler, NULL, -1);
-	if (err)
-		t4_free_sge_resources(adap);
 	return err;
 }
 
@@ -1733,10 +1739,11 @@ EXPORT_SYMBOL(cxgb4_sync_txq_pidx);
 
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 {
-	struct adapter *adap;
-	u32 offset, memtype, memaddr;
 	u32 edc0_size, edc1_size, mc0_size, mc1_size, size;
 	u32 edc0_end, edc1_end, mc0_end, mc1_end;
+	u32 offset, memtype, memaddr;
+	struct adapter *adap;
+	u32 hma_size = 0;
 	int ret;
 
 	adap = netdev2adap(dev);
@@ -1756,6 +1763,10 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 	size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
 	mc0_size = EXT_MEM0_SIZE_G(size) << 20;
 
+	if (t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A) & HMA_MUX_F) {
+		size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+		hma_size = EXT_MEM1_SIZE_G(size) << 20;
+	}
 	edc0_end = edc0_size;
 	edc1_end = edc0_end + edc1_size;
 	mc0_end = edc1_end + mc0_size;
@@ -1767,7 +1778,10 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 		memtype = MEM_EDC1;
 		memaddr = offset - edc0_end;
 	} else {
-		if (offset < mc0_end) {
+		if (hma_size && (offset < (edc1_end + hma_size))) {
+			memtype = MEM_HMA;
+			memaddr = offset - edc1_end;
+		} else if (offset < mc0_end) {
 			memtype = MEM_MC0;
 			memaddr = offset - edc1_end;
 		} else if (is_t5(adap->params.chip)) {
@@ -2681,13 +2695,17 @@ static int cxgb4_mgmt_get_vf_config(struct net_device *dev,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	struct vf_info *vfinfo;
 
 	if (vf >= adap->num_vfs)
 		return -EINVAL;
+	vfinfo = &adap->vfinfo[vf];
+
 	ivi->vf = vf;
-	ivi->max_tx_rate = adap->vfinfo[vf].tx_rate;
+	ivi->max_tx_rate = vfinfo->tx_rate;
 	ivi->min_tx_rate = 0;
-	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
+	ether_addr_copy(ivi->mac, vfinfo->vf_mac_addr);
+	ivi->vlan = vfinfo->vlan;
 	return 0;
 }
 
@@ -2870,11 +2888,11 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	/* Convert from Mbps to Kbps */
 	req_rate = rate << 10;
 
-	/* Max rate is 10 Gbps */
+	/* Max rate is 100 Gbps */
 	if (req_rate >= SCHED_MAX_RATE_KBPS) {
 		dev_err(adap->pdev_dev,
-			"Invalid rate %u Mbps, Max rate is %u Gbps\n",
-			rate, SCHED_MAX_RATE_KBPS);
+			"Invalid rate %u Mbps, Max rate is %u Mbps\n",
+			rate, SCHED_MAX_RATE_KBPS >> 10);
 		return -ERANGE;
 	}
 
@@ -3244,6 +3262,14 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
 
+static void notify_fatal_err(struct work_struct *work)
+{
+	struct adapter *adap;
+
+	adap = container_of(work, struct adapter, fatal_err_notify_task);
+	notify_ulds(adap, CXGB4_STATE_FATAL_ERROR);
+}
+
 void t4_fatal_err(struct adapter *adap)
 {
 	int port;
@@ -3268,6 +3294,7 @@ void t4_fatal_err(struct adapter *adap)
 		netif_carrier_off(dev);
 	}
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
+	queue_work(adap->workq, &adap->fatal_err_notify_task);
 }
 
 static void setup_memwin(struct adapter *adap)
@@ -3296,6 +3323,206 @@ static void setup_memwin_rdma(struct adapter *adap)
 		t4_read_reg(adap,
 			    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, 3));
 	}
+}
+
+/* HMA Definitions */
+
+/* The maximum number of address that can be send in a single FW cmd */
+#define HMA_MAX_ADDR_IN_CMD	5
+
+#define HMA_PAGE_SIZE		PAGE_SIZE
+
+#define HMA_MAX_NO_FW_ADDRESS	(16 << 10)  /* FW supports 16K addresses */
+
+#define HMA_PAGE_ORDER					\
+	((HMA_PAGE_SIZE < HMA_MAX_NO_FW_ADDRESS) ?	\
+	ilog2(HMA_MAX_NO_FW_ADDRESS / HMA_PAGE_SIZE) : 0)
+
+/* The minimum and maximum possible HMA sizes that can be specified in the FW
+ * configuration(in units of MB).
+ */
+#define HMA_MIN_TOTAL_SIZE	1
+#define HMA_MAX_TOTAL_SIZE				\
+	(((HMA_PAGE_SIZE << HMA_PAGE_ORDER) *		\
+	  HMA_MAX_NO_FW_ADDRESS) >> 20)
+
+static void adap_free_hma_mem(struct adapter *adapter)
+{
+	struct scatterlist *iter;
+	struct page *page;
+	int i;
+
+	if (!adapter->hma.sgt)
+		return;
+
+	if (adapter->hma.flags & HMA_DMA_MAPPED_FLAG) {
+		dma_unmap_sg(adapter->pdev_dev, adapter->hma.sgt->sgl,
+			     adapter->hma.sgt->nents, PCI_DMA_BIDIRECTIONAL);
+		adapter->hma.flags &= ~HMA_DMA_MAPPED_FLAG;
+	}
+
+	for_each_sg(adapter->hma.sgt->sgl, iter,
+		    adapter->hma.sgt->orig_nents, i) {
+		page = sg_page(iter);
+		if (page)
+			__free_pages(page, HMA_PAGE_ORDER);
+	}
+
+	kfree(adapter->hma.phy_addr);
+	sg_free_table(adapter->hma.sgt);
+	kfree(adapter->hma.sgt);
+	adapter->hma.sgt = NULL;
+}
+
+static int adap_config_hma(struct adapter *adapter)
+{
+	struct scatterlist *sgl, *iter;
+	struct sg_table *sgt;
+	struct page *newpage;
+	unsigned int i, j, k;
+	u32 param, hma_size;
+	unsigned int ncmds;
+	size_t page_size;
+	u32 page_order;
+	int node, ret;
+
+	/* HMA is supported only for T6+ cards.
+	 * Avoid initializing HMA in kdump kernels.
+	 */
+	if (is_kdump_kernel() ||
+	    CHELSIO_CHIP_VERSION(adapter->params.chip) < CHELSIO_T6)
+		return 0;
+
+	/* Get the HMA region size required by fw */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_HMA_SIZE));
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
+			      1, &param, &hma_size);
+	/* An error means card has its own memory or HMA is not supported by
+	 * the firmware. Return without any errors.
+	 */
+	if (ret || !hma_size)
+		return 0;
+
+	if (hma_size < HMA_MIN_TOTAL_SIZE ||
+	    hma_size > HMA_MAX_TOTAL_SIZE) {
+		dev_err(adapter->pdev_dev,
+			"HMA size %uMB beyond bounds(%u-%lu)MB\n",
+			hma_size, HMA_MIN_TOTAL_SIZE, HMA_MAX_TOTAL_SIZE);
+		return -EINVAL;
+	}
+
+	page_size = HMA_PAGE_SIZE;
+	page_order = HMA_PAGE_ORDER;
+	adapter->hma.sgt = kzalloc(sizeof(*adapter->hma.sgt), GFP_KERNEL);
+	if (unlikely(!adapter->hma.sgt)) {
+		dev_err(adapter->pdev_dev, "HMA SG table allocation failed\n");
+		return -ENOMEM;
+	}
+	sgt = adapter->hma.sgt;
+	/* FW returned value will be in MB's
+	 */
+	sgt->orig_nents = (hma_size << 20) / (page_size << page_order);
+	if (sg_alloc_table(sgt, sgt->orig_nents, GFP_KERNEL)) {
+		dev_err(adapter->pdev_dev, "HMA SGL allocation failed\n");
+		kfree(adapter->hma.sgt);
+		adapter->hma.sgt = NULL;
+		return -ENOMEM;
+	}
+
+	sgl = adapter->hma.sgt->sgl;
+	node = dev_to_node(adapter->pdev_dev);
+	for_each_sg(sgl, iter, sgt->orig_nents, i) {
+		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL,
+					   page_order);
+		if (!newpage) {
+			dev_err(adapter->pdev_dev,
+				"Not enough memory for HMA page allocation\n");
+			ret = -ENOMEM;
+			goto free_hma;
+		}
+		sg_set_page(iter, newpage, page_size << page_order, 0);
+	}
+
+	sgt->nents = dma_map_sg(adapter->pdev_dev, sgl, sgt->orig_nents,
+				DMA_BIDIRECTIONAL);
+	if (!sgt->nents) {
+		dev_err(adapter->pdev_dev,
+			"Not enough memory for HMA DMA mapping");
+		ret = -ENOMEM;
+		goto free_hma;
+	}
+	adapter->hma.flags |= HMA_DMA_MAPPED_FLAG;
+
+	adapter->hma.phy_addr = kcalloc(sgt->nents, sizeof(dma_addr_t),
+					GFP_KERNEL);
+	if (unlikely(!adapter->hma.phy_addr))
+		goto free_hma;
+
+	for_each_sg(sgl, iter, sgt->nents, i) {
+		newpage = sg_page(iter);
+		adapter->hma.phy_addr[i] = sg_dma_address(iter);
+	}
+
+	ncmds = DIV_ROUND_UP(sgt->nents, HMA_MAX_ADDR_IN_CMD);
+	/* Pass on the addresses to firmware */
+	for (i = 0, k = 0; i < ncmds; i++, k += HMA_MAX_ADDR_IN_CMD) {
+		struct fw_hma_cmd hma_cmd;
+		u8 naddr = HMA_MAX_ADDR_IN_CMD;
+		u8 soc = 0, eoc = 0;
+		u8 hma_mode = 1; /* Presently we support only Page table mode */
+
+		soc = (i == 0) ? 1 : 0;
+		eoc = (i == ncmds - 1) ? 1 : 0;
+
+		/* For last cmd, set naddr corresponding to remaining
+		 * addresses
+		 */
+		if (i == ncmds - 1) {
+			naddr = sgt->nents % HMA_MAX_ADDR_IN_CMD;
+			naddr = naddr ? naddr : HMA_MAX_ADDR_IN_CMD;
+		}
+		memset(&hma_cmd, 0, sizeof(hma_cmd));
+		hma_cmd.op_pkd = htonl(FW_CMD_OP_V(FW_HMA_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+		hma_cmd.retval_len16 = htonl(FW_LEN16(hma_cmd));
+
+		hma_cmd.mode_to_pcie_params =
+			htonl(FW_HMA_CMD_MODE_V(hma_mode) |
+			      FW_HMA_CMD_SOC_V(soc) | FW_HMA_CMD_EOC_V(eoc));
+
+		/* HMA cmd size specified in MB's */
+		hma_cmd.naddr_size =
+			htonl(FW_HMA_CMD_SIZE_V(hma_size) |
+			      FW_HMA_CMD_NADDR_V(naddr));
+
+		/* Total Page size specified in units of 4K */
+		hma_cmd.addr_size_pkd =
+			htonl(FW_HMA_CMD_ADDR_SIZE_V
+				((page_size << page_order) >> 12));
+
+		/* Fill the 5 addresses */
+		for (j = 0; j < naddr; j++) {
+			hma_cmd.phy_address[j] =
+				cpu_to_be64(adapter->hma.phy_addr[j + k]);
+		}
+		ret = t4_wr_mbox(adapter, adapter->mbox, &hma_cmd,
+				 sizeof(hma_cmd), &hma_cmd);
+		if (ret) {
+			dev_err(adapter->pdev_dev,
+				"HMA FW command failed with err %d\n", ret);
+			goto free_hma;
+		}
+	}
+
+	if (!ret)
+		dev_info(adapter->pdev_dev,
+			 "Reserved %uMB host memory for HMA\n", hma_size);
+	return ret;
+
+free_hma:
+	adap_free_hma_mem(adapter);
+	return ret;
 }
 
 static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
@@ -3751,6 +3978,12 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
+	/* We will proceed even if HMA init fails. */
+	ret = adap_config_hma(adapter);
+	if (ret)
+		dev_err(adapter->pdev_dev,
+			"HMA configuration failed with error %d\n", ret);
+
 	/*
 	 * And finally tell the firmware to initialize itself using the
 	 * parameters from the Configuration File.
@@ -3957,6 +4190,11 @@ static int adap_init0(struct adapter *adap)
 	 * effect. Otherwise, it's time to try initializing the adapter.
 	 */
 	if (state == DEV_STATE_INIT) {
+		ret = adap_config_hma(adap);
+		if (ret)
+			dev_err(adap->pdev_dev,
+				"HMA configuration failed with error %d\n",
+				ret);
 		dev_info(adap->pdev_dev, "Coming up as %s: "\
 			 "Adapter already initialized\n",
 			 adap->flags & MASTER_PF ? "MASTER" : "SLAVE");
@@ -4211,7 +4449,8 @@ static int adap_init0(struct adapter *adap)
 		adap->params.ofldq_wr_cred = val[5];
 
 		if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER)) {
-			if (init_hash_filter(adap) < 0)
+			ret = init_hash_filter(adap);
+			if (ret < 0)
 				goto bye;
 		} else {
 			adap->params.offload = 1;
@@ -4235,6 +4474,20 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.rq.size = val[3] - val[2] + 1;
 		adap->vres.pbl.start = val[4];
 		adap->vres.pbl.size = val[5] - val[4] + 1;
+
+		params[0] = FW_PARAM_PFVF(SRQ_START);
+		params[1] = FW_PARAM_PFVF(SRQ_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (!ret) {
+			adap->vres.srq.start = val[0];
+			adap->vres.srq.size = val[1] - val[0] + 1;
+		}
+		if (adap->vres.srq.size) {
+			adap->srq = t4_init_srq(adap->vres.srq.size);
+			if (!adap->srq)
+				dev_warn(&adap->pdev->dev, "could not allocate SRQ, continuing\n");
+		}
 
 		params[0] = FW_PARAM_PFVF(SQRQ_START);
 		params[1] = FW_PARAM_PFVF(SQRQ_END);
@@ -4269,6 +4522,18 @@ static int adap_init0(struct adapter *adap)
 			 "max_ordird_qp %d max_ird_adapter %d\n",
 			 adap->params.max_ordird_qp,
 			 adap->params.max_ird_adapter);
+
+		/* Enable write_with_immediate if FW supports it */
+		params[0] = FW_PARAM_DEV(RDMA_WRITE_WITH_IMM);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params,
+				      val);
+		adap->params.write_w_imm_support = (ret == 0 && val[0] != 0);
+
+		/* Enable write_cmpl if FW supports it */
+		params[0] = FW_PARAM_DEV(RI_WRITE_CMPL_WR);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params,
+				      val);
+		adap->params.write_cmpl_support = (ret == 0 && val[0] != 0);
 		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.iscsicaps) {
@@ -4284,18 +4549,32 @@ static int adap_init0(struct adapter *adap)
 		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.cryptocaps) {
-		/* Should query params here...TODO */
-		params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
-		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
-				      params, val);
-		if (ret < 0) {
-			if (ret != -EINVAL)
+		if (ntohs(caps_cmd.cryptocaps) &
+		    FW_CAPS_CONFIG_CRYPTO_LOOKASIDE) {
+			params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+					      2, params, val);
+			if (ret < 0) {
+				if (ret != -EINVAL)
+					goto bye;
+			} else {
+				adap->vres.ncrypto_fc = val[0];
+			}
+			adap->num_ofld_uld += 1;
+		}
+		if (ntohs(caps_cmd.cryptocaps) &
+		    FW_CAPS_CONFIG_TLS_INLINE) {
+			params[0] = FW_PARAM_PFVF(TLS_START);
+			params[1] = FW_PARAM_PFVF(TLS_END);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+					      2, params, val);
+			if (ret < 0)
 				goto bye;
-		} else {
-			adap->vres.ncrypto_fc = val[0];
+			adap->vres.key.start = val[0];
+			adap->vres.key.size = val[1] - val[0] + 1;
+			adap->num_uld += 1;
 		}
 		adap->params.crypto = ntohs(caps_cmd.cryptocaps);
-		adap->num_uld += 1;
 	}
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
@@ -4346,6 +4625,7 @@ static int adap_init0(struct adapter *adap)
 	 * happened to HW/FW, stop issuing commands.
 	 */
 bye:
+	adap_free_hma_mem(adap);
 	kfree(adap->sge.egr_map);
 	kfree(adap->sge.ingr_map);
 	kfree(adap->sge.starving_fl);
@@ -4903,6 +5183,7 @@ static void free_some_resources(struct adapter *adapter)
 
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
+	kvfree(adapter->srq);
 	t4_cleanup_sched(adapter);
 	kvfree(adapter->tids.tid_tab);
 	cxgb4_cleanup_tc_flower(adapter);
@@ -4970,7 +5251,6 @@ static void cxgb4_mgmt_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &cxgb4_mgmt_netdev_ops;
 	dev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
-	dev->needs_free_netdev = true;
 }
 
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
@@ -5181,6 +5461,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
+	adapter->params.chip = chip;
+	adapter->adap_idx = adap_idx;
 	adapter->msg_enable = DFLT_MSG_ENABLE;
 	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
 				    (sizeof(struct mbox_cmd) *
@@ -5256,6 +5538,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);
 	INIT_WORK(&adapter->db_drop_task, process_db_drop);
+	INIT_WORK(&adapter->fatal_err_notify_task, notify_fatal_err);
 
 	err = t4_prep_adapter(adapter);
 	if (err)
@@ -5473,6 +5756,13 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_dev;
 
+	err = setup_fw_sge_queues(adapter);
+	if (err) {
+		dev_err(adapter->pdev_dev,
+			"FW sge queue allocation failed, err %d", err);
+		goto out_free_dev;
+	}
+
 	/*
 	 * The card is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole card but rather proceed only
@@ -5521,10 +5811,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cxgb4_ptp_init(adapter);
 
 	print_adapter_info(adapter);
-	setup_fw_sge_queues(adapter);
 	return 0;
 
  out_free_dev:
+	t4_free_sge_resources(adapter);
 	free_some_resources(adapter);
 	if (adapter->flags & USING_MSIX)
 		free_msix_info(adapter);
@@ -5572,6 +5862,8 @@ static void remove_one(struct pci_dev *pdev)
 			detach_ulds(adapter);
 			t4_uld_clean_up(adapter);
 		}
+
+		adap_free_hma_mem(adapter);
 
 		disable_interrupts(adapter);
 

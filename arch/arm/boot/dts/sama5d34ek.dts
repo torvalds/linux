@@ -38,7 +38,7 @@
 				status = "okay";
 
 				24c256@50 {
-					compatible = "24c256";
+					compatible = "atmel,24c256";
 					reg = <0x50>;
 					pagesize = <64>;
 				};

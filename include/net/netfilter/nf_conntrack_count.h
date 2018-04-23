@@ -11,7 +11,6 @@ void nf_conncount_destroy(struct net *net, unsigned int family,
 unsigned int nf_conncount_count(struct net *net,
 				struct nf_conncount_data *data,
 				const u32 *key,
-				unsigned int family,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_zone *zone);
 #endif

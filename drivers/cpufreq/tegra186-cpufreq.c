@@ -78,7 +78,8 @@ static int tegra186_cpufreq_init(struct cpufreq_policy *policy)
 
 		policy->driver_data =
 			data->regs + info->offset + EDVD_CORE_VOLT_FREQ(core);
-		cpufreq_table_validate_and_show(policy, cluster->table);
+		policy->freq_table = cluster->table;
+		break;
 	}
 
 	policy->cpuinfo.transition_latency = 300 * 1000;

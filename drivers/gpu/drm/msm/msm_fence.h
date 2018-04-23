@@ -37,8 +37,6 @@ void msm_fence_context_free(struct msm_fence_context *fctx);
 
 int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 		ktime_t *timeout, bool interruptible);
-int msm_queue_fence_cb(struct msm_fence_context *fctx,
-		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence);
 
 struct dma_fence * msm_fence_alloc(struct msm_fence_context *fctx);

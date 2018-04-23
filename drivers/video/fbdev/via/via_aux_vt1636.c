@@ -36,7 +36,7 @@ void via_aux_vt1636_probe(struct via_aux_bus *bus)
 		.name	=	name};
 	/* check vendor id and device id */
 	const u8 id[] = {0x06, 0x11, 0x45, 0x33}, len = ARRAY_SIZE(id);
-	u8 tmp[len];
+	u8 tmp[ARRAY_SIZE(id)];
 
 	if (!via_aux_read(&drv, 0x00, tmp, len) || memcmp(id, tmp, len))
 		return;

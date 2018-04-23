@@ -22,9 +22,15 @@ struct typec_port;
 struct fwnode_handle;
 
 enum typec_port_type {
+	TYPEC_PORT_SRC,
+	TYPEC_PORT_SNK,
+	TYPEC_PORT_DRP,
+};
+
+enum typec_port_data {
 	TYPEC_PORT_DFP,
 	TYPEC_PORT_UFP,
-	TYPEC_PORT_DRP,
+	TYPEC_PORT_DRD,
 };
 
 enum typec_plug_type {
@@ -59,6 +65,12 @@ enum typec_accessory {
 };
 
 #define TYPEC_MAX_ACCESSORY	3
+
+enum typec_orientation {
+	TYPEC_ORIENTATION_NONE,
+	TYPEC_ORIENTATION_NORMAL,
+	TYPEC_ORIENTATION_REVERSE,
+};
 
 /*
  * struct usb_pd_identity - USB Power Delivery identity data
@@ -180,11 +192,14 @@ struct typec_partner_desc {
 
 /*
  * struct typec_capability - USB Type-C Port Capabilities
- * @role: DFP (Host-only), UFP (Device-only) or DRP (Dual Role)
+ * @type: Supported power role of the port
+ * @data: Supported data role of the port
  * @revision: USB Type-C Specification release. Binary coded decimal
  * @pd_revision: USB Power Delivery Specification revision if supported
- * @prefer_role: Initial role preference
+ * @prefer_role: Initial role preference (DRP ports).
  * @accessory: Supported Accessory Modes
+ * @sw: Cable plug orientation switch
+ * @mux: Multiplexer switch for Alternate/Accessory Modes
  * @fwnode: Optional fwnode of the port
  * @try_role: Set data role preference for DRP port
  * @dr_set: Set Data Role
@@ -197,11 +212,14 @@ struct typec_partner_desc {
  */
 struct typec_capability {
 	enum typec_port_type	type;
+	enum typec_port_data	data;
 	u16			revision; /* 0120H = "1.2" */
 	u16			pd_revision; /* 0300H = "3.0" */
 	int			prefer_role;
 	enum typec_accessory	accessory[TYPEC_MAX_ACCESSORY];
 
+	struct typec_switch	*sw;
+	struct typec_mux	*mux;
 	struct fwnode_handle	*fwnode;
 
 	int		(*try_role)(const struct typec_capability *,
@@ -244,5 +262,9 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role);
 void typec_set_pwr_role(struct typec_port *port, enum typec_role role);
 void typec_set_vconn_role(struct typec_port *port, enum typec_role role);
 void typec_set_pwr_opmode(struct typec_port *port, enum typec_pwr_opmode mode);
+
+int typec_set_orientation(struct typec_port *port,
+			  enum typec_orientation orientation);
+int typec_set_mode(struct typec_port *port, int mode);
 
 #endif /* __LINUX_USB_TYPEC_H */

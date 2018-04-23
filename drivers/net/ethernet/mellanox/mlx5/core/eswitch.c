@@ -1619,10 +1619,14 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d) mode (%d)\n", nvfs, mode);
 	esw->mode = mode;
 
-	if (mode == SRIOV_LEGACY)
+	if (mode == SRIOV_LEGACY) {
 		err = esw_create_legacy_fdb_table(esw, nvfs + 1);
-	else
+	} else {
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+
 		err = esw_offloads_init(esw, nvfs + 1);
+	}
+
 	if (err)
 		goto abort;
 
@@ -1644,12 +1648,17 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 abort:
 	esw->mode = SRIOV_NONE;
+
+	if (mode == SRIOV_OFFLOADS)
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+
 	return err;
 }
 
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 {
 	struct esw_mc_addr *mc_promisc;
+	int old_mode;
 	int nvports;
 	int i;
 
@@ -1675,7 +1684,11 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	else if (esw->mode == SRIOV_OFFLOADS)
 		esw_offloads_cleanup(esw, nvports);
 
+	old_mode = esw->mode;
 	esw->mode = SRIOV_NONE;
+
+	if (old_mode == SRIOV_OFFLOADS)
+		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
 }
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
@@ -2083,17 +2096,19 @@ unlock:
 	return err;
 }
 
-static void mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
-						int vport_idx,
-						struct mlx5_vport_drop_stats *stats)
+static int mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
+					       int vport_idx,
+					       struct mlx5_vport_drop_stats *stats)
 {
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5_vport *vport = &esw->vports[vport_idx];
+	u64 rx_discard_vport_down, tx_discard_vport_down;
 	u64 bytes = 0;
 	u16 idx = 0;
+	int err = 0;
 
 	if (!vport->enabled || esw->mode != SRIOV_LEGACY)
-		return;
+		return 0;
 
 	if (vport->egress.drop_counter) {
 		idx = vport->egress.drop_counter->id;
@@ -2104,6 +2119,23 @@ static void mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
 		idx = vport->ingress.drop_counter->id;
 		mlx5_fc_query(dev, idx, &stats->tx_dropped, &bytes);
 	}
+
+	if (!MLX5_CAP_GEN(dev, receive_discard_vport_down) &&
+	    !MLX5_CAP_GEN(dev, transmit_discard_vport_down))
+		return 0;
+
+	err = mlx5_query_vport_down_stats(dev, vport_idx,
+					  &rx_discard_vport_down,
+					  &tx_discard_vport_down);
+	if (err)
+		return err;
+
+	if (MLX5_CAP_GEN(dev, receive_discard_vport_down))
+		stats->rx_dropped += rx_discard_vport_down;
+	if (MLX5_CAP_GEN(dev, transmit_discard_vport_down))
+		stats->tx_dropped += tx_discard_vport_down;
+
+	return 0;
 }
 
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
@@ -2167,7 +2199,9 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 	vf_stats->broadcast =
 		MLX5_GET_CTR(out, received_eth_broadcast.packets);
 
-	mlx5_eswitch_query_vport_drop_stats(esw->dev, vport, &stats);
+	err = mlx5_eswitch_query_vport_drop_stats(esw->dev, vport, &stats);
+	if (err)
+		goto free_out;
 	vf_stats->rx_dropped = stats.rx_dropped;
 	vf_stats->tx_dropped = stats.tx_dropped;
 
@@ -2175,3 +2209,9 @@ free_out:
 	kvfree(out);
 	return err;
 }
+
+u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw)
+{
+	return esw->mode;
+}
+EXPORT_SYMBOL_GPL(mlx5_eswitch_mode);

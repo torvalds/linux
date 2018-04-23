@@ -217,7 +217,7 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
 	u8 regs[ABB5ZES3_REG_RTC_SC + ABB5ZES3_RTC_SEC_LEN];
-	int ret;
+	int ret = 0;
 
 	/*
 	 * As we need to read CTRL1 register anyway to access 24/12h
@@ -254,8 +254,6 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = bcd2bin(regs[ABB5ZES3_REG_RTC_DW]);
 	tm->tm_mon  = bcd2bin(regs[ABB5ZES3_REG_RTC_MO]) - 1; /* starts at 1 */
 	tm->tm_year = bcd2bin(regs[ABB5ZES3_REG_RTC_YR]) + 100;
-
-	ret = rtc_valid_tm(tm);
 
 err:
 	return ret;
@@ -648,7 +646,7 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 			ret);
 
 	return ret;
- }
+}
 
 /* Enable or disable battery low irq generation */
 static inline int _abb5zes3_rtc_battery_low_irq_enable(struct regmap *regmap,

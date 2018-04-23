@@ -7443,10 +7443,10 @@ static int raid5_run(struct mddev *mddev)
 		if (devices_handle_discard_safely &&
 		    mddev->queue->limits.max_discard_sectors >= (stripe >> 9) &&
 		    mddev->queue->limits.discard_granularity >= stripe)
-			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
+			blk_queue_flag_set(QUEUE_FLAG_DISCARD,
 						mddev->queue);
 		else
-			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD,
+			blk_queue_flag_clear(QUEUE_FLAG_DISCARD,
 						mddev->queue);
 
 		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);

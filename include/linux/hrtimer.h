@@ -161,11 +161,9 @@ struct hrtimer_clock_base {
 enum  hrtimer_base_type {
 	HRTIMER_BASE_MONOTONIC,
 	HRTIMER_BASE_REALTIME,
-	HRTIMER_BASE_BOOTTIME,
 	HRTIMER_BASE_TAI,
 	HRTIMER_BASE_MONOTONIC_SOFT,
 	HRTIMER_BASE_REALTIME_SOFT,
-	HRTIMER_BASE_BOOTTIME_SOFT,
 	HRTIMER_BASE_TAI_SOFT,
 	HRTIMER_MAX_CLOCK_BASES,
 };
@@ -426,6 +424,7 @@ static inline ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 }
 
 extern u64 hrtimer_get_next_event(void);
+extern u64 hrtimer_next_event_without(const struct hrtimer *exclude);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 

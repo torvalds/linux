@@ -260,8 +260,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 	ret = ttm_bo_create(&dev_priv->bdev, bo_size,
 			    ttm_bo_type_device,
 			    &vmw_sys_ne_placement,
-			    0, false, NULL,
-			    &batch->otable_bo);
+			    0, false, &batch->otable_bo);
 
 	if (unlikely(ret != 0))
 		goto out_no_bo;
@@ -444,7 +443,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 	ret = ttm_bo_create(&dev_priv->bdev, mob->num_pages * PAGE_SIZE,
 			    ttm_bo_type_device,
 			    &vmw_sys_ne_placement,
-			    0, false, NULL, &mob->pt_bo);
+			    0, false, &mob->pt_bo);
 	if (unlikely(ret != 0))
 		return ret;
 

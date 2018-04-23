@@ -275,19 +275,31 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.xmit_more         += READ_ONCE(ring->xmit_more);
 	}
 
-	if (mlx4_is_master(mdev->dev)) {
-		stats->rx_packets = en_stats_adder(&mlx4_en_stats->RTOT_prio_0,
-						   &mlx4_en_stats->RTOT_prio_1,
-						   NUM_PRIORITIES);
-		stats->tx_packets = en_stats_adder(&mlx4_en_stats->TTOT_prio_0,
-						   &mlx4_en_stats->TTOT_prio_1,
-						   NUM_PRIORITIES);
-		stats->rx_bytes = en_stats_adder(&mlx4_en_stats->ROCT_prio_0,
-						 &mlx4_en_stats->ROCT_prio_1,
-						 NUM_PRIORITIES);
-		stats->tx_bytes = en_stats_adder(&mlx4_en_stats->TOCT_prio_0,
-						 &mlx4_en_stats->TOCT_prio_1,
-						 NUM_PRIORITIES);
+	if (!mlx4_is_slave(mdev->dev)) {
+		struct mlx4_en_phy_stats *p_stats = &priv->phy_stats;
+
+		p_stats->rx_packets_phy =
+			en_stats_adder(&mlx4_en_stats->RTOT_prio_0,
+				       &mlx4_en_stats->RTOT_prio_1,
+				       NUM_PRIORITIES);
+		p_stats->tx_packets_phy =
+			en_stats_adder(&mlx4_en_stats->TTOT_prio_0,
+				       &mlx4_en_stats->TTOT_prio_1,
+				       NUM_PRIORITIES);
+		p_stats->rx_bytes_phy =
+			en_stats_adder(&mlx4_en_stats->ROCT_prio_0,
+				       &mlx4_en_stats->ROCT_prio_1,
+				       NUM_PRIORITIES);
+		p_stats->tx_bytes_phy =
+			en_stats_adder(&mlx4_en_stats->TOCT_prio_0,
+				       &mlx4_en_stats->TOCT_prio_1,
+				       NUM_PRIORITIES);
+		if (mlx4_is_master(mdev->dev)) {
+			stats->rx_packets = p_stats->rx_packets_phy;
+			stats->tx_packets = p_stats->tx_packets_phy;
+			stats->rx_bytes = p_stats->rx_bytes_phy;
+			stats->tx_bytes = p_stats->tx_bytes_phy;
+		}
 	}
 
 	/* net device stats */

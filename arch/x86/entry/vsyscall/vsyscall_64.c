@@ -127,6 +127,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	int vsyscall_nr, syscall_nr, tmp;
 	int prev_sig_on_uaccess_err;
 	long ret;
+	unsigned long orig_dx;
 
 	/*
 	 * No point in checking CS -- the only way to get here is a user mode
@@ -227,19 +228,22 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	ret = -EFAULT;
 	switch (vsyscall_nr) {
 	case 0:
-		ret = sys_gettimeofday(
-			(struct timeval __user *)regs->di,
-			(struct timezone __user *)regs->si);
+		/* this decodes regs->di and regs->si on its own */
+		ret = __x64_sys_gettimeofday(regs);
 		break;
 
 	case 1:
-		ret = sys_time((time_t __user *)regs->di);
+		/* this decodes regs->di on its own */
+		ret = __x64_sys_time(regs);
 		break;
 
 	case 2:
-		ret = sys_getcpu((unsigned __user *)regs->di,
-				 (unsigned __user *)regs->si,
-				 NULL);
+		/* while we could clobber regs->dx, we didn't in the past... */
+		orig_dx = regs->dx;
+		regs->dx = 0;
+		/* this decodes regs->di, regs->si and regs->dx on its own */
+		ret = __x64_sys_getcpu(regs);
+		regs->dx = orig_dx;
 		break;
 	}
 
@@ -347,7 +351,7 @@ void __init set_vsyscall_pgtable_user_bits(pgd_t *root)
 	set_pgd(pgd, __pgd(pgd_val(*pgd) | _PAGE_USER));
 	p4d = p4d_offset(pgd, VSYSCALL_ADDR);
 #if CONFIG_PGTABLE_LEVELS >= 5
-	p4d->p4d |= _PAGE_USER;
+	set_p4d(p4d, __p4d(p4d_val(*p4d) | _PAGE_USER));
 #endif
 	pud = pud_offset(p4d, VSYSCALL_ADDR);
 	set_pud(pud, __pud(pud_val(*pud) | _PAGE_USER));

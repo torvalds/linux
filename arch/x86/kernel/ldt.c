@@ -145,6 +145,7 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 		unsigned long offset = i << PAGE_SHIFT;
 		const void *src = (char *)ldt->entries + offset;
 		unsigned long pfn;
+		pgprot_t pte_prot;
 		pte_t pte, *ptep;
 
 		va = (unsigned long)ldt_slot_va(slot) + offset;
@@ -163,7 +164,10 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 		 * target via some kernel interface which misses a
 		 * permission check.
 		 */
-		pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL));
+		pte_prot = __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL);
+		/* Filter out unsuppored __PAGE_KERNEL* bits: */
+		pgprot_val(pte_prot) &= __supported_pte_mask;
+		pte = pfn_pte(pfn, pte_prot);
 		set_pte_at(mm, va, ptep, pte);
 		pte_unmap_unlock(ptep, ptl);
 	}

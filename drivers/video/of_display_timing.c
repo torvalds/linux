@@ -244,23 +244,3 @@ dispfail:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(of_get_display_timings);
-
-/**
- * of_display_timings_exist - check if a display-timings node is provided
- * @np: device_node with the timing
- **/
-int of_display_timings_exist(const struct device_node *np)
-{
-	struct device_node *timings_np;
-
-	if (!np)
-		return -EINVAL;
-
-	timings_np = of_parse_phandle(np, "display-timings", 0);
-	if (!timings_np)
-		return -EINVAL;
-
-	of_node_put(timings_np);
-	return 1;
-}
-EXPORT_SYMBOL_GPL(of_display_timings_exist);

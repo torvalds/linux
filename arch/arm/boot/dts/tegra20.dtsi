@@ -17,7 +17,7 @@
 		#size-cells = <1>;
 		ranges = <0 0x40000000 0x40000>;
 
-		vde_pool: vde {
+		vde_pool: vde@400 {
 			reg = <0x400 0x3fc00>;
 			pool;
 		};
@@ -741,7 +741,7 @@
 		phy_type = "ulpi";
 		clocks = <&tegra_car TEGRA20_CLK_USB2>,
 			 <&tegra_car TEGRA20_CLK_PLL_U>,
-			 <&tegra_car TEGRA20_CLK_CDEV2>;
+			 <&tegra_car TEGRA20_CLK_PLL_P_OUT4>;
 		clock-names = "reg", "pll_u", "ulpi-link";
 		resets = <&tegra_car 58>, <&tegra_car 22>;
 		reset-names = "usb", "utmi-pads";

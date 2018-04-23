@@ -158,5 +158,17 @@ int main(int argc, char **argv)
 		unload_progs();
 	}
 
+	if (test_flags & 0xC0) {
+		snprintf(filename, sizeof(filename),
+			 "%s_raw_tp_kern.o", argv[0]);
+		if (load_bpf_file(filename)) {
+			printf("%s", bpf_log_buf);
+			return 1;
+		}
+		printf("w/RAW_TRACEPOINT\n");
+		run_perf_test(num_cpu, test_flags >> 6);
+		unload_progs();
+	}
+
 	return 0;
 }

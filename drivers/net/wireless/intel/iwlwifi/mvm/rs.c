@@ -2684,7 +2684,8 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta,
 				struct iwl_lq_sta *lq_sta,
 				enum nl80211_band band,
-				struct rs_rate *rate)
+				struct rs_rate *rate,
+				bool init)
 {
 	int i, nentries;
 	unsigned long active_rate;
@@ -2738,14 +2739,25 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 	 */
 	if (sta->vht_cap.vht_supported &&
 	    best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
-		switch (sta->bandwidth) {
-		case IEEE80211_STA_RX_BW_160:
-		case IEEE80211_STA_RX_BW_80:
-		case IEEE80211_STA_RX_BW_40:
+		/*
+		 * In AP mode, when a new station associates, rs is initialized
+		 * immediately upon association completion, before the phy
+		 * context is updated with the association parameters, so the
+		 * sta bandwidth might be wider than the phy context allows.
+		 * To avoid this issue, always initialize rs with 20mhz
+		 * bandwidth rate, and after authorization, when the phy context
+		 * is already up-to-date, re-init rs with the correct bw.
+		 */
+		u32 bw = init ? RATE_MCS_CHAN_WIDTH_20 : rs_bw_from_sta_bw(sta);
+
+		switch (bw) {
+		case RATE_MCS_CHAN_WIDTH_40:
+		case RATE_MCS_CHAN_WIDTH_80:
+		case RATE_MCS_CHAN_WIDTH_160:
 			initial_rates = rs_optimal_rates_vht;
 			nentries = ARRAY_SIZE(rs_optimal_rates_vht);
 			break;
-		case IEEE80211_STA_RX_BW_20:
+		case RATE_MCS_CHAN_WIDTH_20:
 			initial_rates = rs_optimal_rates_vht_20mhz;
 			nentries = ARRAY_SIZE(rs_optimal_rates_vht_20mhz);
 			break;
@@ -2756,7 +2768,7 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 
 		active_rate = lq_sta->active_siso_rate;
 		rate->type = LQ_VHT_SISO;
-		rate->bw = rs_bw_from_sta_bw(sta);
+		rate->bw = bw;
 	} else if (sta->ht_cap.ht_supported &&
 		   best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
 		initial_rates = rs_optimal_rates_ht;
@@ -2839,7 +2851,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	tbl = &(lq_sta->lq_info[active_tbl]);
 	rate = &tbl->rate;
 
-	rs_get_initial_rate(mvm, sta, lq_sta, band, rate);
+	rs_get_initial_rate(mvm, sta, lq_sta, band, rate, init);
 	rs_init_optimal_rate(mvm, sta, lq_sta);
 
 	WARN_ONCE(rate->ant != ANT_A && rate->ant != ANT_B,
@@ -3998,18 +4010,18 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 	if (!mvmsta->vif)
 		return;
 
-	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_file("rate_scale_table", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	debugfs_create_file("rate_stats_table", S_IRUSR, dir,
+	debugfs_create_file("rate_stats_table", 0400, dir,
 			    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	debugfs_create_file("drv_tx_stats", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_file("drv_tx_stats", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_drv_tx_stats_ops);
-	debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
 			  &lq_sta->tx_agg_tid_en);
-	debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_u8("reduced_tpc", 0600, dir,
 			  &lq_sta->pers.dbg_fixed_txp_reduction);
 
-	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
 	return;
 err:
 	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");

@@ -95,18 +95,32 @@ u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
 
 /* This function maps IEEE HT secondary channel type to NL80211 channel type
  */
-u8 mwifiex_sec_chan_offset_to_chan_type(u8 second_chan_offset)
+u8 mwifiex_get_chan_type(struct mwifiex_private *priv)
 {
-	switch (second_chan_offset) {
-	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
-		return NL80211_CHAN_HT20;
-	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-		return NL80211_CHAN_HT40PLUS;
-	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-		return NL80211_CHAN_HT40MINUS;
-	default:
-		return NL80211_CHAN_HT20;
+	struct mwifiex_channel_band channel_band;
+	int ret;
+
+	ret = mwifiex_get_chan_info(priv, &channel_band);
+
+	if (!ret) {
+		switch (channel_band.band_config.chan_width) {
+		case CHAN_BW_20MHZ:
+			if (IS_11N_ENABLED(priv))
+				return NL80211_CHAN_HT20;
+			else
+				return NL80211_CHAN_NO_HT;
+		case CHAN_BW_40MHZ:
+			if (channel_band.band_config.chan2_offset ==
+			    SEC_CHAN_ABOVE)
+				return NL80211_CHAN_HT40PLUS;
+			else
+				return NL80211_CHAN_HT40MINUS;
+		default:
+			return NL80211_CHAN_HT20;
+		}
 	}
+
+	return NL80211_CHAN_HT20;
 }
 
 /*
@@ -3937,7 +3951,6 @@ static int mwifiex_cfg80211_get_channel(struct wiphy *wiphy,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_bssdescriptor *curr_bss;
 	struct ieee80211_channel *chan;
-	u8 second_chan_offset;
 	enum nl80211_channel_type chan_type;
 	enum nl80211_band band;
 	int freq;
@@ -3954,10 +3967,7 @@ static int mwifiex_cfg80211_get_channel(struct wiphy *wiphy,
 		chan = ieee80211_get_channel(wiphy, freq);
 
 		if (priv->ht_param_present) {
-			second_chan_offset = priv->assoc_resp_ht_param &
-					IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
-			chan_type = mwifiex_sec_chan_offset_to_chan_type
-							(second_chan_offset);
+			chan_type = mwifiex_get_chan_type(priv);
 			cfg80211_chandef_create(chandef, chan, chan_type);
 		} else {
 			cfg80211_chandef_create(chandef, chan,

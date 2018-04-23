@@ -515,7 +515,8 @@ static inline unsigned long *sd_zbc_alloc_zone_bitmap(struct scsi_disk *sdkp)
  * sd_zbc_get_seq_zones - Parse report zones reply to identify sequential zones
  * @sdkp: disk used
  * @buf: report reply buffer
- * @seq_zone_bitamp: bitmap of sequential zones to set
+ * @buflen: length of @buf
+ * @seq_zones_bitmap: bitmap of sequential zones to set
  *
  * Parse reported zone descriptors in @buf to identify sequential zones and
  * set the reported zone bit in @seq_zones_bitmap accordingly.

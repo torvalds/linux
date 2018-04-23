@@ -1151,6 +1151,8 @@ static const struct clk_ops tegra_clk_pllu_ops = {
 	.enable = clk_pllu_enable,
 	.disable = clk_pll_disable,
 	.recalc_rate = clk_pll_recalc_rate,
+	.round_rate = clk_pll_round_rate,
+	.set_rate = clk_pll_set_rate,
 };
 
 static int _pll_fixed_mdiv(struct tegra_clk_pll_params *pll_params,

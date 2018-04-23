@@ -1703,6 +1703,13 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 	iph = (struct iphdr *)((u8 *)(ethh) + eth_hlen);
 
 	if (eth_type == ETH_P_IP) {
+		if (iph->protocol != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		cm_info->local_ip[0] = ntohl(iph->daddr);
 		cm_info->remote_ip[0] = ntohl(iph->saddr);
 		cm_info->ip_version = TCP_IPV4;
@@ -1711,6 +1718,14 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 		*payload_len = ntohs(iph->tot_len) - ip_hlen;
 	} else if (eth_type == ETH_P_IPV6) {
 		ip6h = (struct ipv6hdr *)iph;
+
+		if (ip6h->nexthdr != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		for (i = 0; i < 4; i++) {
 			cm_info->local_ip[i] =
 			    ntohl(ip6h->daddr.in6_u.u6_addr32[i]);
@@ -1784,7 +1799,7 @@ enum qed_iwarp_mpa_pkt_type {
 /* fpdu can be fragmented over maximum 3 bds: header, partial mpa, unaligned */
 #define QED_IWARP_MAX_BDS_PER_FPDU 3
 
-char *pkt_type_str[] = {
+static const char * const pkt_type_str[] = {
 	"QED_IWARP_MPA_PKT_PACKED",
 	"QED_IWARP_MPA_PKT_PARTIAL",
 	"QED_IWARP_MPA_PKT_UNALIGNED"
@@ -1928,8 +1943,8 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 		/* Missing lower byte is now available */
 		mpa_len = fpdu->fpdu_length | *mpa_data;
 		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
-		fpdu->mpa_frag_len = fpdu->fpdu_length;
 		/* one byte of hdr */
+		fpdu->mpa_frag_len = 1;
 		fpdu->incomplete_bytes = fpdu->fpdu_length - 1;
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_RDMA,
@@ -2360,13 +2375,6 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 		memset(&tx_pkt, 0, sizeof(tx_pkt));
 		tx_pkt.num_of_bds = 1;
-		tx_pkt.vlan = data->vlan;
-
-		if (GET_FIELD(data->parse_flags,
-			      PARSING_AND_ERR_FLAGS_TAG8021QEXIST))
-			SET_FIELD(tx_pkt.bd_flags,
-				  CORE_TX_BD_DATA_VLAN_INSERTION, 1);
-
 		tx_pkt.l4_hdr_offset_w = (data->length.packet_length) >> 2;
 		tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
 		tx_pkt.first_frag = buf->data_phys_addr +

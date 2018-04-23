@@ -88,19 +88,16 @@ static int snd_soc_component_update_bits_legacy(
 	unsigned int old, new;
 	int ret;
 
-	if (!component->read || !component->write)
-		return -EIO;
-
 	mutex_lock(&component->io_mutex);
 
-	ret = component->read(component, reg, &old);
+	ret = snd_soc_component_read(component, reg, &old);
 	if (ret < 0)
 		goto out_unlock;
 
 	new = (old & ~mask) | (val & mask);
 	*change = old != new;
 	if (*change)
-		ret = component->write(component, reg, new);
+		ret = snd_soc_component_write(component, reg, new);
 out_unlock:
 	mutex_unlock(&component->io_mutex);
 

@@ -507,8 +507,10 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->aqueue = *ciw;
 
 	/* set new interrupt handler */
+	spin_lock_irq(get_ccwdev_lock(irq_ptr->cdev));
 	irq_ptr->orig_handler = init_data->cdev->handler;
 	init_data->cdev->handler = qdio_int_handler;
+	spin_unlock_irq(get_ccwdev_lock(irq_ptr->cdev));
 	return 0;
 out_err:
 	qdio_release_memory(irq_ptr);

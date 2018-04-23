@@ -8,6 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +68,7 @@
 #include "iwl-drv.h"
 #include "runtime.h"
 #include "dbg.h"
+#include "debugfs.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
@@ -942,7 +945,6 @@ dump_trans_data:
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
-	fwrt->dump.trig = NULL;
 	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
 	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 }
@@ -1005,6 +1007,12 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       const struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
+
+	if (trigger && trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
+		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", trig);
+		iwl_force_nmi(fwrt->trans);
+		return 0;
+	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
 	if (!desc)
@@ -1079,6 +1087,9 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 		IWL_WARN(fwrt, "FW already configured (%d) - re-configuring\n",
 			 fwrt->dump.conf);
 
+	/* start default config marker cmd for syncing logs */
+	iwl_fw_trigger_timestamp(fwrt, 1);
+
 	/* Send all HCMDs for configuring the FW debug */
 	ptr = (void *)&fwrt->fw->dbg_conf_tlv[conf_id]->hcmd;
 	for (i = 0; i < fwrt->fw->dbg_conf_tlv[conf_id]->num_of_hcmds; i++) {
@@ -1111,6 +1122,14 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	if (fwrt->ops && fwrt->ops->dump_start &&
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
+
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
+		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
+		iwl_fw_free_dump_desc(fwrt);
+		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+		goto out;
+	}
 
 	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/* stop recording */
@@ -1145,7 +1164,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 			iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, out_ctrl);
 		}
 	}
-
+out:
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }

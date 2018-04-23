@@ -121,6 +121,16 @@ char *strchr(const char *s, int c)
 	return (char *)s;
 }
 
+char *strrchr(const char *s, int c)
+{
+	const char *last = NULL;
+	do {
+		if (*s == (char)c)
+			last = s;
+	} while (*s++);
+	return (char *)last;
+}
+
 #undef memset
 
 void *memset(void *s, int c, size_t count)

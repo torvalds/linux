@@ -13,32 +13,25 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
-#include <linux/syscalls.h>
-#include <linux/membarrier.h>
-#include <linux/tick.h>
-#include <linux/cpumask.h>
-#include <linux/atomic.h>
-
-#include "sched.h"	/* for cpu_rq(). */
+#include "sched.h"
 
 /*
  * Bitmask made from a "or" of all commands within enum membarrier_cmd,
  * except MEMBARRIER_CMD_QUERY.
  */
 #ifdef CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE
-#define MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK	\
-	(MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE \
+#define MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK			\
+	(MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE			\
 	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE)
 #else
 #define MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK	0
 #endif
 
-#define MEMBARRIER_CMD_BITMASK	\
-	(MEMBARRIER_CMD_GLOBAL | MEMBARRIER_CMD_GLOBAL_EXPEDITED \
-	| MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED \
-	| MEMBARRIER_CMD_PRIVATE_EXPEDITED	\
-	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED	\
+#define MEMBARRIER_CMD_BITMASK						\
+	(MEMBARRIER_CMD_GLOBAL | MEMBARRIER_CMD_GLOBAL_EXPEDITED	\
+	| MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED			\
+	| MEMBARRIER_CMD_PRIVATE_EXPEDITED				\
+	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED			\
 	| MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK)
 
 static void ipi_mb(void *info)
@@ -85,6 +78,7 @@ static int membarrier_global_expedited(void)
 		 */
 		if (cpu == raw_smp_processor_id())
 			continue;
+
 		rcu_read_lock();
 		p = task_rcu_dereference(&cpu_rq(cpu)->curr);
 		if (p && p->mm && (atomic_read(&p->mm->membarrier_state) &
@@ -188,6 +182,7 @@ static int membarrier_private_expedited(int flags)
 	 * rq->curr modification in scheduler.
 	 */
 	smp_mb();	/* exit from system call is not a mb */
+
 	return 0;
 }
 
@@ -219,6 +214,7 @@ static int membarrier_register_global_expedited(void)
 	}
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
 		  &mm->membarrier_state);
+
 	return 0;
 }
 
@@ -253,6 +249,7 @@ static int membarrier_register_private_expedited(int flags)
 		synchronize_sched();
 	}
 	atomic_or(state, &mm->membarrier_state);
+
 	return 0;
 }
 

@@ -110,7 +110,7 @@
 
 #define FW_MAJOR_VERSION	8
 #define FW_MINOR_VERSION	33
-#define FW_REVISION_VERSION	1
+#define FW_REVISION_VERSION     11
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/

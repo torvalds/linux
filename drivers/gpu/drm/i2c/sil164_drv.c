@@ -326,8 +326,7 @@ sil164_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct sil164_priv *priv = to_sil164_priv(encoder);
 
-	if (priv->duallink_slave)
-		i2c_unregister_device(priv->duallink_slave);
+	i2c_unregister_device(priv->duallink_slave);
 
 	kfree(priv);
 	drm_i2c_encoder_destroy(encoder);

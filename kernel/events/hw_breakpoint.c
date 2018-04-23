@@ -44,6 +44,7 @@
 #include <linux/list.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/bug.h>
 
 #include <linux/hw_breakpoint.h>
 /*
@@ -85,9 +86,9 @@ __weak int hw_breakpoint_weight(struct perf_event *bp)
 	return 1;
 }
 
-static inline enum bp_type_idx find_slot_idx(struct perf_event *bp)
+static inline enum bp_type_idx find_slot_idx(u64 bp_type)
 {
-	if (bp->attr.bp_type & HW_BREAKPOINT_RW)
+	if (bp_type & HW_BREAKPOINT_RW)
 		return TYPE_DATA;
 
 	return TYPE_INST;
@@ -122,7 +123,7 @@ static int task_bp_pinned(int cpu, struct perf_event *bp, enum bp_type_idx type)
 
 	list_for_each_entry(iter, &bp_task_head, hw.bp_list) {
 		if (iter->hw.target == tsk &&
-		    find_slot_idx(iter) == type &&
+		    find_slot_idx(iter->attr.bp_type) == type &&
 		    (iter->cpu < 0 || cpu == iter->cpu))
 			count += hw_breakpoint_weight(iter);
 	}
@@ -277,7 +278,7 @@ __weak void arch_unregister_hw_breakpoint(struct perf_event *bp)
  *       ((per_cpu(info->flexible, *) > 1) + max(per_cpu(info->cpu_pinned, *))
  *            + max(per_cpu(info->tsk_pinned, *))) < HBP_NUM
  */
-static int __reserve_bp_slot(struct perf_event *bp)
+static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 {
 	struct bp_busy_slots slots = {0};
 	enum bp_type_idx type;
@@ -288,11 +289,11 @@ static int __reserve_bp_slot(struct perf_event *bp)
 		return -ENOMEM;
 
 	/* Basic checks */
-	if (bp->attr.bp_type == HW_BREAKPOINT_EMPTY ||
-	    bp->attr.bp_type == HW_BREAKPOINT_INVALID)
+	if (bp_type == HW_BREAKPOINT_EMPTY ||
+	    bp_type == HW_BREAKPOINT_INVALID)
 		return -EINVAL;
 
-	type = find_slot_idx(bp);
+	type = find_slot_idx(bp_type);
 	weight = hw_breakpoint_weight(bp);
 
 	fetch_bp_busy_slots(&slots, bp, type);
@@ -317,19 +318,19 @@ int reserve_bp_slot(struct perf_event *bp)
 
 	mutex_lock(&nr_bp_mutex);
 
-	ret = __reserve_bp_slot(bp);
+	ret = __reserve_bp_slot(bp, bp->attr.bp_type);
 
 	mutex_unlock(&nr_bp_mutex);
 
 	return ret;
 }
 
-static void __release_bp_slot(struct perf_event *bp)
+static void __release_bp_slot(struct perf_event *bp, u64 bp_type)
 {
 	enum bp_type_idx type;
 	int weight;
 
-	type = find_slot_idx(bp);
+	type = find_slot_idx(bp_type);
 	weight = hw_breakpoint_weight(bp);
 	toggle_bp_slot(bp, false, type, weight);
 }
@@ -339,9 +340,41 @@ void release_bp_slot(struct perf_event *bp)
 	mutex_lock(&nr_bp_mutex);
 
 	arch_unregister_hw_breakpoint(bp);
-	__release_bp_slot(bp);
+	__release_bp_slot(bp, bp->attr.bp_type);
 
 	mutex_unlock(&nr_bp_mutex);
+}
+
+static int __modify_bp_slot(struct perf_event *bp, u64 old_type)
+{
+	int err;
+
+	__release_bp_slot(bp, old_type);
+
+	err = __reserve_bp_slot(bp, bp->attr.bp_type);
+	if (err) {
+		/*
+		 * Reserve the old_type slot back in case
+		 * there's no space for the new type.
+		 *
+		 * This must succeed, because we just released
+		 * the old_type slot in the __release_bp_slot
+		 * call above. If not, something is broken.
+		 */
+		WARN_ON(__reserve_bp_slot(bp, old_type));
+	}
+
+	return err;
+}
+
+static int modify_bp_slot(struct perf_event *bp, u64 old_type)
+{
+	int ret;
+
+	mutex_lock(&nr_bp_mutex);
+	ret = __modify_bp_slot(bp, old_type);
+	mutex_unlock(&nr_bp_mutex);
+	return ret;
 }
 
 /*
@@ -354,7 +387,7 @@ int dbg_reserve_bp_slot(struct perf_event *bp)
 	if (mutex_is_locked(&nr_bp_mutex))
 		return -1;
 
-	return __reserve_bp_slot(bp);
+	return __reserve_bp_slot(bp, bp->attr.bp_type);
 }
 
 int dbg_release_bp_slot(struct perf_event *bp)
@@ -362,7 +395,7 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	if (mutex_is_locked(&nr_bp_mutex))
 		return -1;
 
-	__release_bp_slot(bp);
+	__release_bp_slot(bp, bp->attr.bp_type);
 
 	return 0;
 }
@@ -423,20 +456,45 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
+int
+modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *attr,
+			        bool check)
+{
+	u64 old_addr = bp->attr.bp_addr;
+	u64 old_len  = bp->attr.bp_len;
+	int old_type = bp->attr.bp_type;
+	bool modify  = attr->bp_type != old_type;
+	int err = 0;
+
+	bp->attr.bp_addr = attr->bp_addr;
+	bp->attr.bp_type = attr->bp_type;
+	bp->attr.bp_len  = attr->bp_len;
+
+	if (check && memcmp(&bp->attr, attr, sizeof(*attr)))
+		return -EINVAL;
+
+	err = validate_hw_breakpoint(bp);
+	if (!err && modify)
+		err = modify_bp_slot(bp, old_type);
+
+	if (err) {
+		bp->attr.bp_addr = old_addr;
+		bp->attr.bp_type = old_type;
+		bp->attr.bp_len  = old_len;
+		return err;
+	}
+
+	bp->attr.disabled = attr->disabled;
+	return 0;
+}
+
 /**
  * modify_user_hw_breakpoint - modify a user-space hardware breakpoint
  * @bp: the breakpoint structure to modify
  * @attr: new breakpoint attributes
- * @triggered: callback to trigger when we hit the breakpoint
- * @tsk: pointer to 'task_struct' of the process to which the address belongs
  */
 int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
-	u64 old_addr = bp->attr.bp_addr;
-	u64 old_len = bp->attr.bp_len;
-	int old_type = bp->attr.bp_type;
-	int err = 0;
-
 	/*
 	 * modify_user_hw_breakpoint can be invoked with IRQs disabled and hence it
 	 * will not be possible to raise IPIs that invoke __perf_event_disable.
@@ -448,30 +506,14 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	else
 		perf_event_disable(bp);
 
-	bp->attr.bp_addr = attr->bp_addr;
-	bp->attr.bp_type = attr->bp_type;
-	bp->attr.bp_len = attr->bp_len;
+	if (!attr->disabled) {
+		int err = modify_user_hw_breakpoint_check(bp, attr, false);
 
-	if (attr->disabled)
-		goto end;
-
-	err = validate_hw_breakpoint(bp);
-	if (!err)
+		if (err)
+			return err;
 		perf_event_enable(bp);
-
-	if (err) {
-		bp->attr.bp_addr = old_addr;
-		bp->attr.bp_type = old_type;
-		bp->attr.bp_len = old_len;
-		if (!bp->attr.disabled)
-			perf_event_enable(bp);
-
-		return err;
+		bp->attr.disabled = 0;
 	}
-
-end:
-	bp->attr.disabled = attr->disabled;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);

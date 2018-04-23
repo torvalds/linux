@@ -1,0 +1,5 @@
+This sensor driver needs to be converted to a regular
+v4l2 subdev driver. The soc_camera framework is deprecated and
+will be removed in the future. Unless someone does this work this
+sensor driver will be deleted when the soc_camera framework is
+deleted.

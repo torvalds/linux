@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * SPDX-License-Identifier: GPL-2.0
- *
  * Copyright(C) 2015-2018 Linaro Limited.
  *
  * Author: Tor Jeremiassen <tor@ti.com>
@@ -32,6 +31,14 @@
 
 #define MAX_TIMESTAMP (~0ULL)
 
+/*
+ * A64 instructions are always 4 bytes
+ *
+ * Only A64 is supported, so can use this constant for converting between
+ * addresses and instruction counts, calculting offsets etc
+ */
+#define A64_INSTR_SIZE 4
+
 struct cs_etm_auxtrace {
 	struct auxtrace auxtrace;
 	struct auxtrace_queues queues;
@@ -45,11 +52,15 @@ struct cs_etm_auxtrace {
 	u8 snapshot_mode;
 	u8 data_queued;
 	u8 sample_branches;
+	u8 sample_instructions;
 
 	int num_cpu;
 	u32 auxtrace_type;
 	u64 branches_sample_type;
 	u64 branches_id;
+	u64 instructions_sample_type;
+	u64 instructions_sample_period;
+	u64 instructions_id;
 	u64 **metadata;
 	u64 kernel_start;
 	unsigned int pmu_type;
@@ -68,6 +79,12 @@ struct cs_etm_queue {
 	u64 time;
 	u64 timestamp;
 	u64 offset;
+	u64 period_instructions;
+	struct branch_stack *last_branch;
+	struct branch_stack *last_branch_rb;
+	size_t last_branch_pos;
+	struct cs_etm_packet *prev_packet;
+	struct cs_etm_packet *packet;
 };
 
 static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
@@ -174,6 +191,16 @@ static void cs_etm__free_queue(void *priv)
 {
 	struct cs_etm_queue *etmq = priv;
 
+	if (!etmq)
+		return;
+
+	thread__zput(etmq->thread);
+	cs_etm_decoder__free(etmq->decoder);
+	zfree(&etmq->event_buf);
+	zfree(&etmq->last_branch);
+	zfree(&etmq->last_branch_rb);
+	zfree(&etmq->prev_packet);
+	zfree(&etmq->packet);
 	free(etmq);
 }
 
@@ -270,10 +297,34 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm,
 	struct cs_etm_decoder_params d_params;
 	struct cs_etm_trace_params  *t_params;
 	struct cs_etm_queue *etmq;
+	size_t szp = sizeof(struct cs_etm_packet);
 
 	etmq = zalloc(sizeof(*etmq));
 	if (!etmq)
 		return NULL;
+
+	etmq->packet = zalloc(szp);
+	if (!etmq->packet)
+		goto out_free;
+
+	if (etm->synth_opts.last_branch || etm->sample_branches) {
+		etmq->prev_packet = zalloc(szp);
+		if (!etmq->prev_packet)
+			goto out_free;
+	}
+
+	if (etm->synth_opts.last_branch) {
+		size_t sz = sizeof(struct branch_stack);
+
+		sz += etm->synth_opts.last_branch_sz *
+		      sizeof(struct branch_entry);
+		etmq->last_branch = zalloc(sz);
+		if (!etmq->last_branch)
+			goto out_free;
+		etmq->last_branch_rb = zalloc(sz);
+		if (!etmq->last_branch_rb)
+			goto out_free;
+	}
 
 	etmq->event_buf = malloc(PERF_SAMPLE_MAX_SIZE);
 	if (!etmq->event_buf)
@@ -329,6 +380,7 @@ static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm,
 		goto out_free_decoder;
 
 	etmq->offset = 0;
+	etmq->period_instructions = 0;
 
 	return etmq;
 
@@ -336,6 +388,10 @@ out_free_decoder:
 	cs_etm_decoder__free(etmq->decoder);
 out_free:
 	zfree(&etmq->event_buf);
+	zfree(&etmq->last_branch);
+	zfree(&etmq->last_branch_rb);
+	zfree(&etmq->prev_packet);
+	zfree(&etmq->packet);
 	free(etmq);
 
 	return NULL;
@@ -388,6 +444,129 @@ static int cs_etm__update_queues(struct cs_etm_auxtrace *etm)
 
 	return 0;
 }
+
+static inline void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq)
+{
+	struct branch_stack *bs_src = etmq->last_branch_rb;
+	struct branch_stack *bs_dst = etmq->last_branch;
+	size_t nr = 0;
+
+	/*
+	 * Set the number of records before early exit: ->nr is used to
+	 * determine how many branches to copy from ->entries.
+	 */
+	bs_dst->nr = bs_src->nr;
+
+	/*
+	 * Early exit when there is nothing to copy.
+	 */
+	if (!bs_src->nr)
+		return;
+
+	/*
+	 * As bs_src->entries is a circular buffer, we need to copy from it in
+	 * two steps.  First, copy the branches from the most recently inserted
+	 * branch ->last_branch_pos until the end of bs_src->entries buffer.
+	 */
+	nr = etmq->etm->synth_opts.last_branch_sz - etmq->last_branch_pos;
+	memcpy(&bs_dst->entries[0],
+	       &bs_src->entries[etmq->last_branch_pos],
+	       sizeof(struct branch_entry) * nr);
+
+	/*
+	 * If we wrapped around at least once, the branches from the beginning
+	 * of the bs_src->entries buffer and until the ->last_branch_pos element
+	 * are older valid branches: copy them over.  The total number of
+	 * branches copied over will be equal to the number of branches asked by
+	 * the user in last_branch_sz.
+	 */
+	if (bs_src->nr >= etmq->etm->synth_opts.last_branch_sz) {
+		memcpy(&bs_dst->entries[nr],
+		       &bs_src->entries[0],
+		       sizeof(struct branch_entry) * etmq->last_branch_pos);
+	}
+}
+
+static inline void cs_etm__reset_last_branch_rb(struct cs_etm_queue *etmq)
+{
+	etmq->last_branch_pos = 0;
+	etmq->last_branch_rb->nr = 0;
+}
+
+static inline u64 cs_etm__last_executed_instr(struct cs_etm_packet *packet)
+{
+	/*
+	 * The packet records the execution range with an exclusive end address
+	 *
+	 * A64 instructions are constant size, so the last executed
+	 * instruction is A64_INSTR_SIZE before the end address
+	 * Will need to do instruction level decode for T32 instructions as
+	 * they can be variable size (not yet supported).
+	 */
+	return packet->end_addr - A64_INSTR_SIZE;
+}
+
+static inline u64 cs_etm__instr_count(const struct cs_etm_packet *packet)
+{
+	/*
+	 * Only A64 instructions are currently supported, so can get
+	 * instruction count by dividing.
+	 * Will need to do instruction level decode for T32 instructions as
+	 * they can be variable size (not yet supported).
+	 */
+	return (packet->end_addr - packet->start_addr) / A64_INSTR_SIZE;
+}
+
+static inline u64 cs_etm__instr_addr(const struct cs_etm_packet *packet,
+				     u64 offset)
+{
+	/*
+	 * Only A64 instructions are currently supported, so can get
+	 * instruction address by muliplying.
+	 * Will need to do instruction level decode for T32 instructions as
+	 * they can be variable size (not yet supported).
+	 */
+	return packet->start_addr + offset * A64_INSTR_SIZE;
+}
+
+static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq)
+{
+	struct branch_stack *bs = etmq->last_branch_rb;
+	struct branch_entry *be;
+
+	/*
+	 * The branches are recorded in a circular buffer in reverse
+	 * chronological order: we start recording from the last element of the
+	 * buffer down.  After writing the first element of the stack, move the
+	 * insert position back to the end of the buffer.
+	 */
+	if (!etmq->last_branch_pos)
+		etmq->last_branch_pos = etmq->etm->synth_opts.last_branch_sz;
+
+	etmq->last_branch_pos -= 1;
+
+	be       = &bs->entries[etmq->last_branch_pos];
+	be->from = cs_etm__last_executed_instr(etmq->prev_packet);
+	be->to	 = etmq->packet->start_addr;
+	/* No support for mispredict */
+	be->flags.mispred = 0;
+	be->flags.predicted = 1;
+
+	/*
+	 * Increment bs->nr until reaching the number of last branches asked by
+	 * the user on the command line.
+	 */
+	if (bs->nr < etmq->etm->synth_opts.last_branch_sz)
+		bs->nr += 1;
+}
+
+static int cs_etm__inject_event(union perf_event *event,
+			       struct perf_sample *sample, u64 type)
+{
+	event->header.size = perf_event__sample_event_size(sample, type, 0);
+	return perf_event__synthesize_sample(event, type, 0, sample);
+}
+
 
 static int
 cs_etm__get_trace(struct cs_etm_buffer *buff, struct cs_etm_queue *etmq)
@@ -453,34 +632,104 @@ static void  cs_etm__set_pid_tid_cpu(struct cs_etm_auxtrace *etm,
 	}
 }
 
-/*
- * The cs etm packet encodes an instruction range between a branch target
- * and the next taken branch. Generate sample accordingly.
- */
-static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
-				       struct cs_etm_packet *packet)
+static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
+					    u64 addr, u64 period)
 {
 	int ret = 0;
 	struct cs_etm_auxtrace *etm = etmq->etm;
-	struct perf_sample sample = {.ip = 0,};
 	union perf_event *event = etmq->event_buf;
-	u64 start_addr = packet->start_addr;
-	u64 end_addr = packet->end_addr;
+	struct perf_sample sample = {.ip = 0,};
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
 	event->sample.header.misc = PERF_RECORD_MISC_USER;
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	sample.ip = start_addr;
+	sample.ip = addr;
 	sample.pid = etmq->pid;
 	sample.tid = etmq->tid;
-	sample.addr = end_addr;
+	sample.id = etmq->etm->instructions_id;
+	sample.stream_id = etmq->etm->instructions_id;
+	sample.period = period;
+	sample.cpu = etmq->packet->cpu;
+	sample.flags = 0;
+	sample.insn_len = 1;
+	sample.cpumode = event->header.misc;
+
+	if (etm->synth_opts.last_branch) {
+		cs_etm__copy_last_branch_rb(etmq);
+		sample.branch_stack = etmq->last_branch;
+	}
+
+	if (etm->synth_opts.inject) {
+		ret = cs_etm__inject_event(event, &sample,
+					   etm->instructions_sample_type);
+		if (ret)
+			return ret;
+	}
+
+	ret = perf_session__deliver_synth_event(etm->session, event, &sample);
+
+	if (ret)
+		pr_err(
+			"CS ETM Trace: failed to deliver instruction event, error %d\n",
+			ret);
+
+	if (etm->synth_opts.last_branch)
+		cs_etm__reset_last_branch_rb(etmq);
+
+	return ret;
+}
+
+/*
+ * The cs etm packet encodes an instruction range between a branch target
+ * and the next taken branch. Generate sample accordingly.
+ */
+static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
+{
+	int ret = 0;
+	struct cs_etm_auxtrace *etm = etmq->etm;
+	struct perf_sample sample = {.ip = 0,};
+	union perf_event *event = etmq->event_buf;
+	struct dummy_branch_stack {
+		u64			nr;
+		struct branch_entry	entries;
+	} dummy_bs;
+
+	event->sample.header.type = PERF_RECORD_SAMPLE;
+	event->sample.header.misc = PERF_RECORD_MISC_USER;
+	event->sample.header.size = sizeof(struct perf_event_header);
+
+	sample.ip = cs_etm__last_executed_instr(etmq->prev_packet);
+	sample.pid = etmq->pid;
+	sample.tid = etmq->tid;
+	sample.addr = etmq->packet->start_addr;
 	sample.id = etmq->etm->branches_id;
 	sample.stream_id = etmq->etm->branches_id;
 	sample.period = 1;
-	sample.cpu = packet->cpu;
+	sample.cpu = etmq->packet->cpu;
 	sample.flags = 0;
 	sample.cpumode = PERF_RECORD_MISC_USER;
+
+	/*
+	 * perf report cannot handle events without a branch stack
+	 */
+	if (etm->synth_opts.last_branch) {
+		dummy_bs = (struct dummy_branch_stack){
+			.nr = 1,
+			.entries = {
+				.from = sample.ip,
+				.to = sample.addr,
+			},
+		};
+		sample.branch_stack = (struct branch_stack *)&dummy_bs;
+	}
+
+	if (etm->synth_opts.inject) {
+		ret = cs_etm__inject_event(event, &sample,
+					   etm->branches_sample_type);
+		if (ret)
+			return ret;
+	}
 
 	ret = perf_session__deliver_synth_event(etm->session, event, &sample);
 
@@ -578,6 +827,24 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 		etm->sample_branches = true;
 		etm->branches_sample_type = attr.sample_type;
 		etm->branches_id = id;
+		id += 1;
+		attr.sample_type &= ~(u64)PERF_SAMPLE_ADDR;
+	}
+
+	if (etm->synth_opts.last_branch)
+		attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
+
+	if (etm->synth_opts.instructions) {
+		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
+		attr.sample_period = etm->synth_opts.period;
+		etm->instructions_sample_period = attr.sample_period;
+		err = cs_etm__synth_event(session, &attr, id);
+		if (err)
+			return err;
+		etm->sample_instructions = true;
+		etm->instructions_sample_type = attr.sample_type;
+		etm->instructions_id = id;
+		id += 1;
 	}
 
 	return 0;
@@ -585,23 +852,106 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 
 static int cs_etm__sample(struct cs_etm_queue *etmq)
 {
+	struct cs_etm_auxtrace *etm = etmq->etm;
+	struct cs_etm_packet *tmp;
 	int ret;
-	struct cs_etm_packet packet;
+	u64 instrs_executed;
 
-	while (1) {
-		ret = cs_etm_decoder__get_packet(etmq->decoder, &packet);
-		if (ret <= 0)
-			return ret;
+	instrs_executed = cs_etm__instr_count(etmq->packet);
+	etmq->period_instructions += instrs_executed;
+
+	/*
+	 * Record a branch when the last instruction in
+	 * PREV_PACKET is a branch.
+	 */
+	if (etm->synth_opts.last_branch &&
+	    etmq->prev_packet &&
+	    etmq->prev_packet->sample_type == CS_ETM_RANGE &&
+	    etmq->prev_packet->last_instr_taken_branch)
+		cs_etm__update_last_branch_rb(etmq);
+
+	if (etm->sample_instructions &&
+	    etmq->period_instructions >= etm->instructions_sample_period) {
+		/*
+		 * Emit instruction sample periodically
+		 * TODO: allow period to be defined in cycles and clock time
+		 */
+
+		/* Get number of instructions executed after the sample point */
+		u64 instrs_over = etmq->period_instructions -
+			etm->instructions_sample_period;
 
 		/*
-		 * If the packet contains an instruction range, generate an
-		 * instruction sequence event.
+		 * Calculate the address of the sampled instruction (-1 as
+		 * sample is reported as though instruction has just been
+		 * executed, but PC has not advanced to next instruction)
 		 */
-		if (packet.sample_type & CS_ETM_RANGE)
-			cs_etm__synth_branch_sample(etmq, &packet);
+		u64 offset = (instrs_executed - instrs_over - 1);
+		u64 addr = cs_etm__instr_addr(etmq->packet, offset);
+
+		ret = cs_etm__synth_instruction_sample(
+			etmq, addr, etm->instructions_sample_period);
+		if (ret)
+			return ret;
+
+		/* Carry remaining instructions into next sample period */
+		etmq->period_instructions = instrs_over;
+	}
+
+	if (etm->sample_branches &&
+	    etmq->prev_packet &&
+	    etmq->prev_packet->sample_type == CS_ETM_RANGE &&
+	    etmq->prev_packet->last_instr_taken_branch) {
+		ret = cs_etm__synth_branch_sample(etmq);
+		if (ret)
+			return ret;
+	}
+
+	if (etm->sample_branches || etm->synth_opts.last_branch) {
+		/*
+		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
+		 * the next incoming packet.
+		 */
+		tmp = etmq->packet;
+		etmq->packet = etmq->prev_packet;
+		etmq->prev_packet = tmp;
 	}
 
 	return 0;
+}
+
+static int cs_etm__flush(struct cs_etm_queue *etmq)
+{
+	int err = 0;
+	struct cs_etm_packet *tmp;
+
+	if (etmq->etm->synth_opts.last_branch &&
+	    etmq->prev_packet &&
+	    etmq->prev_packet->sample_type == CS_ETM_RANGE) {
+		/*
+		 * Generate a last branch event for the branches left in the
+		 * circular buffer at the end of the trace.
+		 *
+		 * Use the address of the end of the last reported execution
+		 * range
+		 */
+		u64 addr = cs_etm__last_executed_instr(etmq->prev_packet);
+
+		err = cs_etm__synth_instruction_sample(
+			etmq, addr,
+			etmq->period_instructions);
+		etmq->period_instructions = 0;
+
+		/*
+		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
+		 * the next incoming packet.
+		 */
+		tmp = etmq->packet;
+		etmq->packet = etmq->prev_packet;
+		etmq->prev_packet = tmp;
+	}
+
+	return err;
 }
 
 static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
@@ -615,45 +965,72 @@ static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
 		etm->kernel_start = machine__kernel_start(etm->machine);
 
 	/* Go through each buffer in the queue and decode them one by one */
-more:
-	buffer_used = 0;
-	memset(&buffer, 0, sizeof(buffer));
-	err = cs_etm__get_trace(&buffer, etmq);
-	if (err <= 0)
-		return err;
-	/*
-	 * We cannot assume consecutive blocks in the data file are contiguous,
-	 * reset the decoder to force re-sync.
-	 */
-	err = cs_etm_decoder__reset(etmq->decoder);
-	if (err != 0)
-		return err;
-
-	/* Run trace decoder until buffer consumed or end of trace */
-	do {
-		processed = 0;
-
-		err = cs_etm_decoder__process_data_block(
-						etmq->decoder,
-						etmq->offset,
-						&buffer.buf[buffer_used],
-						buffer.len - buffer_used,
-						&processed);
-
-		if (err)
+	while (1) {
+		buffer_used = 0;
+		memset(&buffer, 0, sizeof(buffer));
+		err = cs_etm__get_trace(&buffer, etmq);
+		if (err <= 0)
+			return err;
+		/*
+		 * We cannot assume consecutive blocks in the data file are
+		 * contiguous, reset the decoder to force re-sync.
+		 */
+		err = cs_etm_decoder__reset(etmq->decoder);
+		if (err != 0)
 			return err;
 
-		etmq->offset += processed;
-		buffer_used += processed;
+		/* Run trace decoder until buffer consumed or end of trace */
+		do {
+			processed = 0;
+			err = cs_etm_decoder__process_data_block(
+				etmq->decoder,
+				etmq->offset,
+				&buffer.buf[buffer_used],
+				buffer.len - buffer_used,
+				&processed);
+			if (err)
+				return err;
 
-		/*
-		 * Nothing to do with an error condition, let's hope the next
-		 * chunk will be better.
-		 */
-		err = cs_etm__sample(etmq);
-	} while (buffer.len > buffer_used);
+			etmq->offset += processed;
+			buffer_used += processed;
 
-goto more;
+			/* Process each packet in this chunk */
+			while (1) {
+				err = cs_etm_decoder__get_packet(etmq->decoder,
+								 etmq->packet);
+				if (err <= 0)
+					/*
+					 * Stop processing this chunk on
+					 * end of data or error
+					 */
+					break;
+
+				switch (etmq->packet->sample_type) {
+				case CS_ETM_RANGE:
+					/*
+					 * If the packet contains an instruction
+					 * range, generate instruction sequence
+					 * events.
+					 */
+					cs_etm__sample(etmq);
+					break;
+				case CS_ETM_TRACE_ON:
+					/*
+					 * Discontinuity in trace, flush
+					 * previous branch stack
+					 */
+					cs_etm__flush(etmq);
+					break;
+				default:
+					break;
+				}
+			}
+		} while (buffer.len > buffer_used);
+
+		if (err == 0)
+			/* Flush any remaining branch stack entries */
+			err = cs_etm__flush(etmq);
+	}
 
 	return err;
 }

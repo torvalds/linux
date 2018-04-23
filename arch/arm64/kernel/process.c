@@ -257,7 +257,7 @@ static void tls_thread_flush(void)
 	write_sysreg(0, tpidr_el0);
 
 	if (is_compat_task()) {
-		current->thread.tp_value = 0;
+		current->thread.uw.tp_value = 0;
 
 		/*
 		 * We need to ensure ordering between the shadow state and the
@@ -351,7 +351,7 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		 * for the new thread.
 		 */
 		if (clone_flags & CLONE_SETTLS)
-			p->thread.tp_value = childregs->regs[3];
+			p->thread.uw.tp_value = childregs->regs[3];
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h;
@@ -379,7 +379,7 @@ static void tls_thread_switch(struct task_struct *next)
 	tls_preserve_current_state();
 
 	if (is_compat_thread(task_thread_info(next)))
-		write_sysreg(next->thread.tp_value, tpidrro_el0);
+		write_sysreg(next->thread.uw.tp_value, tpidrro_el0);
 	else if (!arm64_kernel_unmapped_at_el0())
 		write_sysreg(0, tpidrro_el0);
 

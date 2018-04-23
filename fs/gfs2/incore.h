@@ -130,15 +130,12 @@ static inline bool gfs2_rbm_eq(const struct gfs2_rbm *rbm1,
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
 	BH_Escaped = BH_PrivateStart + 1,
-	BH_Zeronew = BH_PrivateStart + 2,
 };
 
 BUFFER_FNS(Pinned, pinned)
 TAS_BUFFER_FNS(Pinned, pinned)
 BUFFER_FNS(Escaped, escaped)
 TAS_BUFFER_FNS(Escaped, escaped)
-BUFFER_FNS(Zeronew, zeronew)
-TAS_BUFFER_FNS(Zeronew, zeronew)
 
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;

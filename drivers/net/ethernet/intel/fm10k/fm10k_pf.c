@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2017 Intel Corporation.
+ * Copyright(c) 2013 - 2018 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -1180,7 +1181,7 @@ s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *hw, u32 **results,
 
 /**
  * fm10k_iov_select_vid - Select correct default VLAN ID
- * @hw: Pointer to hardware structure
+ * @vf_info: pointer to VF information structure
  * @vid: VLAN ID to correct
  *
  * Will report an error if the VLAN ID is out of range. For VID = 0, it will

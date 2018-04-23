@@ -221,10 +221,8 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			struct sk_buff *newskb = skb_copy_expand(skb, 0, 3,
 								 GFP_KERNEL);
 
-			if (unlikely(newskb == NULL)) {
-				wl1251_error("Can't allocate skb!");
+			if (unlikely(newskb == NULL))
 				return -EINVAL;
-			}
 
 			tx_hdr = (struct tx_double_buffer_desc *) newskb->data;
 

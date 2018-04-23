@@ -21,6 +21,8 @@
 #define DRV_NAME	"nicpf"
 #define DRV_VERSION	"1.0"
 
+#define NIC_VF_PER_MBX_REG      64
+
 struct hw_info {
 	u8		bgx_cnt;
 	u8		chans_per_lmac;
@@ -1072,6 +1074,40 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_PTP_CFG:
 		nic_config_timestamp(nic, vf, &mbx.ptp);
 		break;
+	case NIC_MBOX_MSG_RESET_XCAST:
+		if (vf >= nic->num_vf_en) {
+			ret = -1; /* NACK */
+			break;
+		}
+		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		bgx_reset_xcast_mode(nic->node, bgx, lmac,
+				     vf < NIC_VF_PER_MBX_REG ? vf :
+				     vf - NIC_VF_PER_MBX_REG);
+		break;
+
+	case NIC_MBOX_MSG_ADD_MCAST:
+		if (vf >= nic->num_vf_en) {
+			ret = -1; /* NACK */
+			break;
+		}
+		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		bgx_set_dmac_cam_filter(nic->node, bgx, lmac,
+					mbx.xcast.data.mac,
+					vf < NIC_VF_PER_MBX_REG ? vf :
+					vf - NIC_VF_PER_MBX_REG);
+		break;
+
+	case NIC_MBOX_MSG_SET_XCAST:
+		if (vf >= nic->num_vf_en) {
+			ret = -1; /* NACK */
+			break;
+		}
+		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.data.mode);
+		break;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);
@@ -1094,7 +1130,7 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	struct nicpf *nic = (struct nicpf *)nic_irq;
 	int mbx;
 	u64 intr;
-	u8  vf, vf_per_mbx_reg = 64;
+	u8  vf;
 
 	if (irq == pci_irq_vector(nic->pdev, NIC_PF_INTR_ID_MBOX0))
 		mbx = 0;
@@ -1103,12 +1139,13 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 
 	intr = nic_reg_read(nic, NIC_PF_MAILBOX_INT + (mbx << 3));
 	dev_dbg(&nic->pdev->dev, "PF interrupt Mbox%d 0x%llx\n", mbx, intr);
-	for (vf = 0; vf < vf_per_mbx_reg; vf++) {
+	for (vf = 0; vf < NIC_VF_PER_MBX_REG; vf++) {
 		if (intr & (1ULL << vf)) {
 			dev_dbg(&nic->pdev->dev, "Intr from VF %d\n",
-				vf + (mbx * vf_per_mbx_reg));
+				vf + (mbx * NIC_VF_PER_MBX_REG));
 
-			nic_handle_mbx_intr(nic, vf + (mbx * vf_per_mbx_reg));
+			nic_handle_mbx_intr(nic, vf +
+					    (mbx * NIC_VF_PER_MBX_REG));
 			nic_clear_mbx_intr(nic, vf, mbx);
 		}
 	}

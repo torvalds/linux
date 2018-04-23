@@ -86,14 +86,14 @@ struct audio_substream_data {
 	u16 num_of_pages;
 	u16 direction;
 	uint64_t size;
-	u64 renderbytescount;
-	u64 capturebytescount;
+	u64 i2ssp_renderbytescount;
+	u64 i2ssp_capturebytescount;
 	void __iomem *acp_mmio;
 };
 
 struct audio_drv_data {
-	struct snd_pcm_substream *play_stream;
-	struct snd_pcm_substream *capture_stream;
+	struct snd_pcm_substream *play_i2ssp_stream;
+	struct snd_pcm_substream *capture_i2ssp_stream;
 	void __iomem *acp_mmio;
 	u32 asic_type;
 };

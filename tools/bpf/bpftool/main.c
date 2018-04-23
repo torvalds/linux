@@ -46,6 +46,9 @@
 
 #include "main.h"
 
+#define BATCH_LINE_LEN_MAX 65536
+#define BATCH_ARG_NB_MAX 4096
+
 const char *bin_name;
 static int last_argc;
 static char **last_argv;
@@ -157,6 +160,54 @@ void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 	}
 }
 
+/* Split command line into argument vector. */
+static int make_args(char *line, char *n_argv[], int maxargs, int cmd_nb)
+{
+	static const char ws[] = " \t\r\n";
+	char *cp = line;
+	int n_argc = 0;
+
+	while (*cp) {
+		/* Skip leading whitespace. */
+		cp += strspn(cp, ws);
+
+		if (*cp == '\0')
+			break;
+
+		if (n_argc >= (maxargs - 1)) {
+			p_err("too many arguments to command %d", cmd_nb);
+			return -1;
+		}
+
+		/* Word begins with quote. */
+		if (*cp == '\'' || *cp == '"') {
+			char quote = *cp++;
+
+			n_argv[n_argc++] = cp;
+			/* Find ending quote. */
+			cp = strchr(cp, quote);
+			if (!cp) {
+				p_err("unterminated quoted string in command %d",
+				      cmd_nb);
+				return -1;
+			}
+		} else {
+			n_argv[n_argc++] = cp;
+
+			/* Find end of word. */
+			cp += strcspn(cp, ws);
+			if (*cp == '\0')
+				break;
+		}
+
+		/* Separate words. */
+		*cp++ = 0;
+	}
+	n_argv[n_argc] = NULL;
+
+	return n_argc;
+}
+
 static int do_batch(int argc, char **argv);
 
 static const struct cmd cmds[] = {
@@ -171,11 +222,12 @@ static const struct cmd cmds[] = {
 
 static int do_batch(int argc, char **argv)
 {
+	char buf[BATCH_LINE_LEN_MAX], contline[BATCH_LINE_LEN_MAX];
+	char *n_argv[BATCH_ARG_NB_MAX];
 	unsigned int lines = 0;
-	char *n_argv[4096];
-	char buf[65536];
 	int n_argc;
 	FILE *fp;
+	char *cp;
 	int err;
 	int i;
 
@@ -191,7 +243,10 @@ static int do_batch(int argc, char **argv)
 	}
 	NEXT_ARG();
 
-	fp = fopen(*argv, "r");
+	if (!strcmp(*argv, "-"))
+		fp = stdin;
+	else
+		fp = fopen(*argv, "r");
 	if (!fp) {
 		p_err("Can't open file (%s): %s", *argv, strerror(errno));
 		return -1;
@@ -200,27 +255,45 @@ static int do_batch(int argc, char **argv)
 	if (json_output)
 		jsonw_start_array(json_wtr);
 	while (fgets(buf, sizeof(buf), fp)) {
+		cp = strchr(buf, '#');
+		if (cp)
+			*cp = '\0';
+
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
 			break;
 		}
 
-		n_argc = 0;
-		n_argv[n_argc] = strtok(buf, " \t\n");
-
-		while (n_argv[n_argc]) {
-			n_argc++;
-			if (n_argc == ARRAY_SIZE(n_argv)) {
-				p_err("line %d has too many arguments, skip",
+		/* Append continuation lines if any (coming after a line ending
+		 * with '\' in the batch file).
+		 */
+		while ((cp = strstr(buf, "\\\n")) != NULL) {
+			if (!fgets(contline, sizeof(contline), fp) ||
+			    strlen(contline) == 0) {
+				p_err("missing continuation line on command %d",
 				      lines);
-				n_argc = 0;
-				break;
+				err = -1;
+				goto err_close;
 			}
-			n_argv[n_argc] = strtok(NULL, " \t\n");
+
+			cp = strchr(contline, '#');
+			if (cp)
+				*cp = '\0';
+
+			if (strlen(buf) + strlen(contline) + 1 > sizeof(buf)) {
+				p_err("command %d is too long", lines);
+				err = -1;
+				goto err_close;
+			}
+			buf[strlen(buf) - 2] = '\0';
+			strcat(buf, contline);
 		}
 
+		n_argc = make_args(buf, n_argv, BATCH_ARG_NB_MAX, lines);
 		if (!n_argc)
 			continue;
+		if (n_argc < 0)
+			goto err_close;
 
 		if (json_output) {
 			jsonw_start_object(json_wtr);
@@ -247,11 +320,12 @@ static int do_batch(int argc, char **argv)
 		p_err("reading batch file failed: %s", strerror(errno));
 		err = -1;
 	} else {
-		p_info("processed %d lines", lines);
+		p_info("processed %d commands", lines);
 		err = 0;
 	}
 err_close:
-	fclose(fp);
+	if (fp != stdin)
+		fclose(fp);
 
 	if (json_output)
 		jsonw_end_array(json_wtr);

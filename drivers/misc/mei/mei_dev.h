@@ -210,6 +210,7 @@ struct mei_cl_cb {
  * @timer_count:  watchdog timer for operation completion
  * @notify_en: notification - enabled/disabled
  * @notify_ev: pending notification event
+ * @tx_cb_queued: number of tx callbacks in queue
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
  * @rd_completed: completed read
@@ -234,12 +235,17 @@ struct mei_cl {
 	u8 timer_count;
 	u8 notify_en;
 	u8 notify_ev;
+	u8 tx_cb_queued;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
 	struct list_head rd_completed;
 
 	struct mei_cl_device *cldev;
 };
+
+#define MEI_TX_QUEUE_LIMIT_DEFAULT 50
+#define MEI_TX_QUEUE_LIMIT_MAX 255
+#define MEI_TX_QUEUE_LIMIT_MIN 30
 
 /**
  * struct mei_hw_ops - hw specific ops
@@ -315,8 +321,6 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
 bool mei_cl_bus_notify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
-bool mei_cl_bus_module_get(struct mei_cl *cl);
-void mei_cl_bus_module_put(struct mei_cl *cl);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 
@@ -361,6 +365,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @write_waiting_list : write completion list
  * @ctrl_wr_list : pending control write list
  * @ctrl_rd_list : pending control read list
+ * @tx_queue_limit: tx queues per client linit
  *
  * @file_list   : list of opened handles
  * @open_handle_count: number of opened handles
@@ -425,6 +430,7 @@ struct mei_device {
 	struct list_head write_waiting_list;
 	struct list_head ctrl_wr_list;
 	struct list_head ctrl_rd_list;
+	u8 tx_queue_limit;
 
 	struct list_head file_list;
 	long open_handle_count;

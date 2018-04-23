@@ -180,14 +180,7 @@ struct sctp_transport *sctp_epaddr_lookup_transport(
 /*
  * sctp/proc.c
  */
-int sctp_snmp_proc_init(struct net *net);
-void sctp_snmp_proc_exit(struct net *net);
-int sctp_eps_proc_init(struct net *net);
-void sctp_eps_proc_exit(struct net *net);
-int sctp_assocs_proc_init(struct net *net);
-void sctp_assocs_proc_exit(struct net *net);
-int sctp_remaddr_proc_init(struct net *net);
-void sctp_remaddr_proc_exit(struct net *net);
+int __net_init sctp_proc_init(struct net *net);
 
 /*
  * sctp/offload.c
@@ -318,7 +311,6 @@ atomic_t sctp_dbg_objcnt_## name = ATOMIC_INIT(0)
 {.label= #name, .counter= &sctp_dbg_objcnt_## name}
 
 void sctp_dbg_objcnt_init(struct net *);
-void sctp_dbg_objcnt_exit(struct net *);
 
 #else
 
@@ -326,7 +318,6 @@ void sctp_dbg_objcnt_exit(struct net *);
 #define SCTP_DBG_OBJCNT_DEC(name)
 
 static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
-static inline void sctp_dbg_objcnt_exit(struct net *net) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
@@ -441,9 +432,11 @@ static inline int sctp_list_single_entry(struct list_head *head)
 static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
 	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
+	struct sctp_af *af = sp->pf->af;
 	int frag = pmtu;
 
-	frag -= sp->pf->af->net_header_len;
+	frag -= af->ip_options_len(asoc->base.sk);
+	frag -= af->net_header_len;
 	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
 
 	if (asoc->user_frag)

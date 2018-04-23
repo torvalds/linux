@@ -17,7 +17,7 @@
 	model = "Phytec pca100";
 	compatible = "phytec,imx27-pca100", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x08000000>; /* 128MB */
 	};
 };

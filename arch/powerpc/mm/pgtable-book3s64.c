@@ -155,15 +155,15 @@ void mmu_cleanup_all(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int create_section_mapping(unsigned long start, unsigned long end)
+int __meminit create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
 	if (radix_enabled())
-		return radix__create_section_mapping(start, end);
+		return radix__create_section_mapping(start, end, nid);
 
-	return hash__create_section_mapping(start, end);
+	return hash__create_section_mapping(start, end, nid);
 }
 
-int remove_section_mapping(unsigned long start, unsigned long end)
+int __meminit remove_section_mapping(unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
 		return radix__remove_section_mapping(start, end);

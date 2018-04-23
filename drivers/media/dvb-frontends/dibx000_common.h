@@ -223,8 +223,6 @@ struct dvb_frontend_parametersContext {
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
 
-#define ABS(x) ((x < 0) ? (-x) : (x))
-
 #define DATA_BUS_ACCESS_MODE_8BIT                 0x01
 #define DATA_BUS_ACCESS_MODE_16BIT                0x02
 #define DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT 0x10

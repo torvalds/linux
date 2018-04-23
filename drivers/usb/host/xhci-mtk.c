@@ -14,7 +14,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -352,62 +351,6 @@ static const struct xhci_driver_overrides xhci_mtk_overrides __initconst = {
 
 static struct hc_driver __read_mostly xhci_mtk_hc_driver;
 
-static int xhci_mtk_phy_init(struct xhci_hcd_mtk *mtk)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < mtk->num_phys; i++) {
-		ret = phy_init(mtk->phys[i]);
-		if (ret)
-			goto exit_phy;
-	}
-	return 0;
-
-exit_phy:
-	for (; i > 0; i--)
-		phy_exit(mtk->phys[i - 1]);
-
-	return ret;
-}
-
-static int xhci_mtk_phy_exit(struct xhci_hcd_mtk *mtk)
-{
-	int i;
-
-	for (i = 0; i < mtk->num_phys; i++)
-		phy_exit(mtk->phys[i]);
-
-	return 0;
-}
-
-static int xhci_mtk_phy_power_on(struct xhci_hcd_mtk *mtk)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < mtk->num_phys; i++) {
-		ret = phy_power_on(mtk->phys[i]);
-		if (ret)
-			goto power_off_phy;
-	}
-	return 0;
-
-power_off_phy:
-	for (; i > 0; i--)
-		phy_power_off(mtk->phys[i - 1]);
-
-	return ret;
-}
-
-static void xhci_mtk_phy_power_off(struct xhci_hcd_mtk *mtk)
-{
-	unsigned int i;
-
-	for (i = 0; i < mtk->num_phys; i++)
-		phy_power_off(mtk->phys[i]);
-}
-
 static int xhci_mtk_ldos_enable(struct xhci_hcd_mtk *mtk)
 {
 	int ret;
@@ -488,8 +431,6 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	struct xhci_hcd *xhci;
 	struct resource *res;
 	struct usb_hcd *hcd;
-	struct phy *phy;
-	int phy_num;
 	int ret = -ENODEV;
 	int irq;
 
@@ -529,16 +470,6 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mtk->num_phys = of_count_phandle_with_args(node,
-			"phys", "#phy-cells");
-	if (mtk->num_phys > 0) {
-		mtk->phys = devm_kcalloc(dev, mtk->num_phys,
-					sizeof(*mtk->phys), GFP_KERNEL);
-		if (!mtk->phys)
-			return -ENOMEM;
-	} else {
-		mtk->num_phys = 0;
-	}
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	device_enable_async_suspend(dev);
@@ -596,23 +527,6 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		mtk->has_ippc = false;
 	}
 
-	for (phy_num = 0; phy_num < mtk->num_phys; phy_num++) {
-		phy = devm_of_phy_get_by_index(dev, node, phy_num);
-		if (IS_ERR(phy)) {
-			ret = PTR_ERR(phy);
-			goto put_usb2_hcd;
-		}
-		mtk->phys[phy_num] = phy;
-	}
-
-	ret = xhci_mtk_phy_init(mtk);
-	if (ret)
-		goto put_usb2_hcd;
-
-	ret = xhci_mtk_phy_power_on(mtk);
-	if (ret)
-		goto exit_phys;
-
 	device_init_wakeup(dev, true);
 
 	xhci = hcd_to_xhci(hcd);
@@ -630,7 +544,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 			dev_name(dev), hcd);
 	if (!xhci->shared_hcd) {
 		ret = -ENOMEM;
-		goto power_off_phys;
+		goto disable_device_wakeup;
 	}
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -653,12 +567,8 @@ put_usb3_hcd:
 	xhci_mtk_sch_exit(mtk);
 	usb_put_hcd(xhci->shared_hcd);
 
-power_off_phys:
-	xhci_mtk_phy_power_off(mtk);
+disable_device_wakeup:
 	device_init_wakeup(dev, false);
-
-exit_phys:
-	xhci_mtk_phy_exit(mtk);
 
 put_usb2_hcd:
 	usb_put_hcd(hcd);
@@ -682,8 +592,6 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 
 	usb_remove_hcd(xhci->shared_hcd);
-	xhci_mtk_phy_power_off(mtk);
-	xhci_mtk_phy_exit(mtk);
 	device_init_wakeup(&dev->dev, false);
 
 	usb_remove_hcd(hcd);
@@ -718,7 +626,6 @@ static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 	del_timer_sync(&xhci->shared_hcd->rh_timer);
 
 	xhci_mtk_host_disable(mtk);
-	xhci_mtk_phy_power_off(mtk);
 	xhci_mtk_clks_disable(mtk);
 	usb_wakeup_set(mtk, true);
 	return 0;
@@ -732,7 +639,6 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 
 	usb_wakeup_set(mtk, false);
 	xhci_mtk_clks_enable(mtk);
-	xhci_mtk_phy_power_on(mtk);
 	xhci_mtk_host_enable(mtk);
 
 	xhci_dbg(xhci, "%s: restart port polling\n", __func__);

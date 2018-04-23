@@ -414,8 +414,7 @@ int dlm_init_mle_cache(void)
 
 void dlm_destroy_mle_cache(void)
 {
-	if (dlm_mle_cache)
-		kmem_cache_destroy(dlm_mle_cache);
+	kmem_cache_destroy(dlm_mle_cache);
 }
 
 static void dlm_mle_release(struct kref *kref)
@@ -472,15 +471,11 @@ bail:
 
 void dlm_destroy_master_caches(void)
 {
-	if (dlm_lockname_cache) {
-		kmem_cache_destroy(dlm_lockname_cache);
-		dlm_lockname_cache = NULL;
-	}
+	kmem_cache_destroy(dlm_lockname_cache);
+	dlm_lockname_cache = NULL;
 
-	if (dlm_lockres_cache) {
-		kmem_cache_destroy(dlm_lockres_cache);
-		dlm_lockres_cache = NULL;
-	}
+	kmem_cache_destroy(dlm_lockres_cache);
+	dlm_lockres_cache = NULL;
 }
 
 static void dlm_lockres_release(struct kref *kref)
@@ -2495,13 +2490,13 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
 }
 
 /*
- * A migrateable resource is one that is :
+ * A migratable resource is one that is :
  * 1. locally mastered, and,
  * 2. zero local locks, and,
  * 3. one or more non-local locks, or, one or more references
  * Returns 1 if yes, 0 if not.
  */
-static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
+static int dlm_is_lockres_migratable(struct dlm_ctxt *dlm,
 				      struct dlm_lock_resource *res)
 {
 	enum dlm_lockres_list idx;
@@ -2532,7 +2527,7 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 				continue;
 			}
 			cookie = be64_to_cpu(lock->ml.cookie);
-			mlog(0, "%s: Not migrateable res %.*s, lock %u:%llu on "
+			mlog(0, "%s: Not migratable res %.*s, lock %u:%llu on "
 			     "%s list\n", dlm->name, res->lockname.len,
 			     res->lockname.name,
 			     dlm_get_lock_cookie_node(cookie),
@@ -2548,7 +2543,7 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 			return 0;
 	}
 
-	mlog(0, "%s: res %.*s, Migrateable\n", dlm->name, res->lockname.len,
+	mlog(0, "%s: res %.*s, Migratable\n", dlm->name, res->lockname.len,
 	     res->lockname.name);
 
 	return 1;
@@ -2792,7 +2787,7 @@ int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	assert_spin_locked(&dlm->spinlock);
 
 	spin_lock(&res->spinlock);
-	if (dlm_is_lockres_migrateable(dlm, res))
+	if (dlm_is_lockres_migratable(dlm, res))
 		target = dlm_pick_migration_target(dlm, res);
 	spin_unlock(&res->spinlock);
 

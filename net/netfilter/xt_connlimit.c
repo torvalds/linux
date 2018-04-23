@@ -67,8 +67,8 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		key[1] = zone->id;
 	}
 
-	connections = nf_conncount_count(net, info->data, key,
-					 xt_family(par), tuple_ptr, zone);
+	connections = nf_conncount_count(net, info->data, key, tuple_ptr,
+					 zone);
 	if (connections == 0)
 		/* kmalloc failed, drop it entirely */
 		goto hotdrop;
