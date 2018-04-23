@@ -617,6 +617,8 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 		cur_grp_max = 0;
 		break;
 	case 2:
+	case 4:
+	case 6:
 	case 8:
 		adc_aif1 |= RK3308_ADC_I2S_STEREO;
 		cur_grp_max = (params_channels(params) - 1) / 2;
