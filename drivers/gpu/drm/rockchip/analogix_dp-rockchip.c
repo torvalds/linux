@@ -77,13 +77,13 @@ struct rockchip_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
+static int analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 {
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	int ret;
 
 	if (!analogix_dp_psr_enabled(dp->adp))
-		return;
+		return 0;
 
 	DRM_DEV_DEBUG(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
 
@@ -91,13 +91,13 @@ static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 					 PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "line flag interrupt did not arrive\n");
-		return;
+		return -ETIMEDOUT;
 	}
 
 	if (enabled)
-		analogix_dp_enable_psr(dp->adp);
+		return analogix_dp_enable_psr(dp->adp);
 	else
-		analogix_dp_disable_psr(dp->adp);
+		return analogix_dp_disable_psr(dp->adp);
 }
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)

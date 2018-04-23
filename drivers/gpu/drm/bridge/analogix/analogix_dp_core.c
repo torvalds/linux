@@ -153,8 +153,10 @@ int analogix_dp_disable_psr(struct analogix_dp_device *dp)
 	psr_vsc.DB1 = 0;
 
 	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
-	if (ret != 1)
+	if (ret != 1) {
 		dev_err(dp->dev, "Failed to set DP Power0 %d\n", ret);
+		return ret;
+	}
 
 	return analogix_dp_send_psr_spd(dp, &psr_vsc, false);
 }
