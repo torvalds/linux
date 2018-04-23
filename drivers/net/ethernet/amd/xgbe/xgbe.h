@@ -994,6 +994,7 @@ struct xgbe_version_data {
 	unsigned int irq_reissue_support;
 	unsigned int tx_desc_prefetch;
 	unsigned int rx_desc_prefetch;
+	unsigned int an_cdr_workaround;
 };
 
 struct xgbe_vxlan_data {
@@ -1262,6 +1263,9 @@ struct xgbe_prv_data {
 	unsigned int debugfs_xprop_reg;
 
 	unsigned int debugfs_xi2c_reg;
+
+	bool debugfs_an_cdr_workaround;
+	bool debugfs_an_cdr_track_early;
 };
 
 /* Function prototypes*/
