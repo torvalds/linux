@@ -351,6 +351,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		struct bpf_prog **_prog, *__prog;	\
 		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
+		preempt_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
 		if (unlikely(check_non_null && !_array))\
@@ -362,6 +363,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		}					\
 _out:							\
 		rcu_read_unlock();			\
+		preempt_enable_no_resched();		\
 		_ret;					\
 	 })
 
