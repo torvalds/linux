@@ -663,7 +663,7 @@ enum mvpp2_tag_type {
 #define MVPP2_PE_VID_FILT_RANGE_END     (MVPP2_PRS_TCAM_SRAM_SIZE - 31)
 #define MVPP2_PE_VID_FILT_RANGE_START   (MVPP2_PE_VID_FILT_RANGE_END - \
 					 MVPP2_PRS_VLAN_FILT_RANGE_SIZE + 1)
-#define MVPP2_PE_LAST_FREE_TID          (MVPP2_PE_VID_FILT_RANGE_START - 1)
+#define MVPP2_PE_LAST_FREE_TID          (MVPP2_PE_MAC_RANGE_START - 1)
 #define MVPP2_PE_IP6_EXT_PROTO_UN	(MVPP2_PRS_TCAM_SRAM_SIZE - 30)
 #define MVPP2_PE_IP6_ADDR_UN		(MVPP2_PRS_TCAM_SRAM_SIZE - 29)
 #define MVPP2_PE_IP4_ADDR_UN		(MVPP2_PRS_TCAM_SRAM_SIZE - 28)
@@ -915,6 +915,8 @@ static struct {
 #define MVPP2_MIB_LATE_COLLISION		0x7c
 
 #define MVPP2_MIB_COUNTERS_STATS_DELAY		(1 * HZ)
+
+#define MVPP2_DESC_DMA_MASK	DMA_BIT_MASK(40)
 
 /* Definitions */
 
@@ -1429,7 +1431,7 @@ static dma_addr_t mvpp2_txdesc_dma_addr_get(struct mvpp2_port *port,
 	if (port->priv->hw_version == MVPP21)
 		return tx_desc->pp21.buf_dma_addr;
 	else
-		return tx_desc->pp22.buf_dma_addr_ptp & GENMASK_ULL(40, 0);
+		return tx_desc->pp22.buf_dma_addr_ptp & MVPP2_DESC_DMA_MASK;
 }
 
 static void mvpp2_txdesc_dma_addr_set(struct mvpp2_port *port,
@@ -1447,7 +1449,7 @@ static void mvpp2_txdesc_dma_addr_set(struct mvpp2_port *port,
 	} else {
 		u64 val = (u64)addr;
 
-		tx_desc->pp22.buf_dma_addr_ptp &= ~GENMASK_ULL(40, 0);
+		tx_desc->pp22.buf_dma_addr_ptp &= ~MVPP2_DESC_DMA_MASK;
 		tx_desc->pp22.buf_dma_addr_ptp |= val;
 		tx_desc->pp22.packet_offset = offset;
 	}
@@ -1507,7 +1509,7 @@ static dma_addr_t mvpp2_rxdesc_dma_addr_get(struct mvpp2_port *port,
 	if (port->priv->hw_version == MVPP21)
 		return rx_desc->pp21.buf_dma_addr;
 	else
-		return rx_desc->pp22.buf_dma_addr_key_hash & GENMASK_ULL(40, 0);
+		return rx_desc->pp22.buf_dma_addr_key_hash & MVPP2_DESC_DMA_MASK;
 }
 
 static unsigned long mvpp2_rxdesc_cookie_get(struct mvpp2_port *port,
@@ -1516,7 +1518,7 @@ static unsigned long mvpp2_rxdesc_cookie_get(struct mvpp2_port *port,
 	if (port->priv->hw_version == MVPP21)
 		return rx_desc->pp21.buf_cookie;
 	else
-		return rx_desc->pp22.buf_cookie_misc & GENMASK_ULL(40, 0);
+		return rx_desc->pp22.buf_cookie_misc & MVPP2_DESC_DMA_MASK;
 }
 
 static size_t mvpp2_rxdesc_size_get(struct mvpp2_port *port,
@@ -8789,7 +8791,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	if (priv->hw_version == MVPP22) {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(40));
+		err = dma_set_mask(&pdev->dev, MVPP2_DESC_DMA_MASK);
 		if (err)
 			goto err_mg_clk;
 		/* Sadly, the BM pools all share the same register to

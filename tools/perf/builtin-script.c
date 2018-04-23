@@ -657,8 +657,11 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 			break;
 		case PERF_RECORD_SWITCH:
 		case PERF_RECORD_SWITCH_CPU_WIDE:
-			if (has(SWITCH_OUT))
+			if (has(SWITCH_OUT)) {
 				ret += fprintf(fp, "S");
+				if (sample->misc & PERF_RECORD_MISC_SWITCH_OUT_PREEMPT)
+					ret += fprintf(fp, "p");
+			}
 		default:
 			break;
 		}
@@ -2801,11 +2804,11 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		scnprintf(lang_path, MAXPATHLEN, "%s/%s", scripts_path,
 			  lang_dirent->d_name);
-#ifdef NO_LIBPERL
+#ifndef HAVE_LIBPERL_SUPPORT
 		if (strstr(lang_path, "perl"))
 			continue;
 #endif
-#ifdef NO_LIBPYTHON
+#ifndef HAVE_LIBPYTHON_SUPPORT
 		if (strstr(lang_path, "python"))
 			continue;
 #endif

@@ -285,9 +285,17 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 			       struct sk_buff_head *rxq)
 {
 	u16 buf[4] = { 0 }, status, seq_id;
-	u64 ns, timelo, timehi;
 	struct skb_shared_hwtstamps *shwt;
+	struct sk_buff_head received;
+	u64 ns, timelo, timehi;
+	unsigned long flags;
 	int err;
+
+	/* The latched timestamp belongs to one of the received frames. */
+	__skb_queue_head_init(&received);
+	spin_lock_irqsave(&rxq->lock, flags);
+	skb_queue_splice_tail_init(rxq, &received);
+	spin_unlock_irqrestore(&rxq->lock, flags);
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
@@ -311,7 +319,7 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	/* Since the device can only handle one time stamp at a time,
 	 * we purge any extra frames from the queue.
 	 */
-	for ( ; skb; skb = skb_dequeue(rxq)) {
+	for ( ; skb; skb = __skb_dequeue(&received)) {
 		if (mv88e6xxx_ts_valid(status) && seq_match(skb, seq_id)) {
 			ns = timehi << 16 | timelo;
 

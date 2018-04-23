@@ -1109,6 +1109,10 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	struct ip_options_rcu *opt;
 	struct rtable *rt;
 
+	rt = *rtp;
+	if (unlikely(!rt))
+		return -EFAULT;
+
 	/*
 	 * setup for corking.
 	 */
@@ -1124,9 +1128,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 		cork->flags |= IPCORK_OPT;
 		cork->addr = ipc->addr;
 	}
-	rt = *rtp;
-	if (unlikely(!rt))
-		return -EFAULT;
+
 	/*
 	 * We steal reference to this route, caller should not release it
 	 */

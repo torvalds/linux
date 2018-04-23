@@ -252,6 +252,8 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		u64 *w0 = (u64 *)&node_id[0];
 		u64 *w1 = (u64 *)&node_id[8];
 
+		if (!attrs[TIPC_NLA_NET_NODEID_W1])
+			return -EINVAL;
 		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID]);
 		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID_W1]);
 		tipc_net_init(net, node_id, 0);
