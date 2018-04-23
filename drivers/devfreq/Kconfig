@@ -98,6 +98,12 @@ config ARM_TEGRA_DEVFREQ
          It reads ACTMON counters of memory controllers and adjusts the
          operating frequencies and voltages with OPP support.
 
+config ARM_ROCKCHIP_BUS_DEVFREQ
+	tristate "ARM ROCKCHIP BUS DEVFREQ Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the DEVFREQ driver for the ROCKCHIP BUS.
+
 config ARM_ROCKCHIP_DMC_DEVFREQ
 	tristate "ARM ROCKCHIP DMC DEVFREQ Driver"
 	depends on ARCH_ROCKCHIP

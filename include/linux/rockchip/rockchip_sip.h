@@ -31,6 +31,7 @@
 #define SIP_SIP_VERSION			0x8200000a
 #define SIP_REMOTECTL_CFG		0x8200000b
 #define PSCI_SIP_VPU_RESET		0x8200000c
+#define RK_SIP_SOC_BUS_DIV		0x8200000d
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -116,6 +117,7 @@ int sip_smc_remotectl_config(u32 func, u32 data);
 
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
 u32 sip_smc_secure_reg_read(u32 addr_phy);
+struct arm_smccc_res sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2);
 
 /***************************fiq debugger **************************************/
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
@@ -175,6 +177,10 @@ static inline int sip_smc_virtual_poweroff(void) { return 0; }
 static inline int sip_smc_remotectl_config(u32 func, u32 data) { return 0; }
 static inline u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
 static inline int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
+static inline int sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2)
+{
+	return 0;
+}
 
 /***************************fiq debugger **************************************/
 static inline void sip_fiq_debugger_enable_fiq
