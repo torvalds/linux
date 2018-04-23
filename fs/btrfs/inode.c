@@ -10159,15 +10159,11 @@ static void btrfs_run_delalloc_work(struct btrfs_work *work)
 				&BTRFS_I(inode)->runtime_flags))
 		filemap_flush(inode->i_mapping);
 
-	if (delalloc_work->delay_iput)
-		btrfs_add_delayed_iput(inode);
-	else
-		iput(inode);
+	iput(inode);
 	complete(&delalloc_work->completion);
 }
 
-struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
-						    int delay_iput)
+struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode)
 {
 	struct btrfs_delalloc_work *work;
 
@@ -10178,7 +10174,6 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 	init_completion(&work->completion);
 	INIT_LIST_HEAD(&work->list);
 	work->inode = inode;
-	work->delay_iput = delay_iput;
 	WARN_ON_ONCE(!inode);
 	btrfs_init_work(&work->work, btrfs_flush_delalloc_helper,
 			btrfs_run_delalloc_work, NULL, NULL);
@@ -10218,7 +10213,7 @@ static int start_delalloc_inodes(struct btrfs_root *root, int nr)
 		}
 		spin_unlock(&root->delalloc_lock);
 
-		work = btrfs_alloc_delalloc_work(inode, 0);
+		work = btrfs_alloc_delalloc_work(inode);
 		if (!work) {
 			iput(inode);
 			ret = -ENOMEM;
