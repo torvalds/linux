@@ -1024,7 +1024,6 @@ static void *hostif_generic_request(size_t size, int event)
 int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 {
 	unsigned int skb_len = 0;
-
 	unsigned char *buffer = NULL;
 	unsigned int length = 0;
 	struct hostif_data_request *pp;
