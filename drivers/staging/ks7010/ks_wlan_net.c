@@ -52,8 +52,6 @@ struct wep_key {
 /* List of Wireless Handlers (new API) */
 static const struct iw_handler_def ks_wlan_handler_def;
 
-#define KSC_OPNOTSUPP	/* Operation Not Support */
-
 /*
  *	function prototypes
  */
@@ -934,52 +932,6 @@ static int ks_wlan_get_encode(struct net_device *dev,
 	return 0;
 }
 
-#ifndef KSC_OPNOTSUPP
-static int ks_wlan_set_txpow(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *vwrq, char *extra)
-{
-	return -EOPNOTSUPP;	/* Not Support */
-}
-
-static int ks_wlan_get_txpow(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *vwrq, char *extra)
-{
-	if (priv->sleep_mode == SLP_SLEEP)
-		return -EPERM;
-
-	/* for SLEEP MODE */
-	/* Not Support */
-	vwrq->txpower.value = 0;
-	vwrq->txpower.disabled = (vwrq->txpower.value == 0);
-	vwrq->txpower.fixed = 1;
-	return 0;
-}
-
-static int ks_wlan_set_retry(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *vwrq, char *extra)
-{
-	return -EOPNOTSUPP;	/* Not Support */
-}
-
-static int ks_wlan_get_retry(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *vwrq, char *extra)
-{
-	if (priv->sleep_mode == SLP_SLEEP)
-		return -EPERM;
-
-	/* for SLEEP MODE */
-	/* Not Support */
-	vwrq->retry.value = 0;
-	vwrq->retry.disabled = (vwrq->retry.value == 0);
-	vwrq->retry.fixed = 1;
-	return 0;
-}
-#endif /* KSC_OPNOTSUPP */
-
 static int ks_wlan_get_range(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *dwrq, char *extra)
@@ -1166,27 +1118,6 @@ static int ks_wlan_get_iwstats(struct net_device *dev,
 
 	return 0;
 }
-
-#ifndef KSC_OPNOTSUPP
-
-static int ks_wlan_set_sens(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *vwrq, char *extra)
-{
-	return -EOPNOTSUPP;	/* Not Support */
-}
-
-static int ks_wlan_get_sens(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *vwrq, char *extra)
-{
-	/* Not Support */
-	vwrq->sens.value = 0;
-	vwrq->sens.disabled = (vwrq->sens.value == 0);
-	vwrq->sens.fixed = 1;
-	return 0;
-}
-#endif /* KSC_OPNOTSUPP */
 
 /* Note : this is deprecated in favor of IWSCAN */
 static int ks_wlan_get_aplist(struct net_device *dev,
@@ -2540,10 +2471,6 @@ static const iw_handler ks_wlan_handler[] = {
 	IW_HANDLER(SIOCGIWFREQ, ks_wlan_get_freq),
 	IW_HANDLER(SIOCSIWMODE, ks_wlan_set_mode),
 	IW_HANDLER(SIOCGIWMODE, ks_wlan_get_mode),
-#ifndef KSC_OPNOTSUPP
-	IW_HANDLER(SIOCSIWSENS, ks_wlan_set_sens),
-	IW_HANDLER(SIOCGIWSENS, ks_wlan_get_sens),
-#endif /* KSC_OPNOTSUPP */
 	IW_HANDLER(SIOCGIWRANGE, ks_wlan_get_range),
 	IW_HANDLER(SIOCGIWSTATS, ks_wlan_get_iwstats),
 	IW_HANDLER(SIOCSIWAP, ks_wlan_set_wap),
@@ -2562,12 +2489,6 @@ static const iw_handler ks_wlan_handler[] = {
 	IW_HANDLER(SIOCGIWRTS, ks_wlan_get_rts),
 	IW_HANDLER(SIOCSIWFRAG, ks_wlan_set_frag),
 	IW_HANDLER(SIOCGIWFRAG, ks_wlan_get_frag),
-#ifndef KSC_OPNOTSUPP
-	IW_HANDLER(SIOCSIWTXPOW, ks_wlan_set_txpow),
-	IW_HANDLER(SIOCGIWTXPOW, ks_wlan_get_txpow),
-	IW_HANDLER(SIOCSIWRETRY, ks_wlan_set_retry),
-	IW_HANDLER(SIOCGIWRETRY, ks_wlan_get_retry),
-#endif /* KSC_OPNOTSUPP */
 	IW_HANDLER(SIOCSIWENCODE, ks_wlan_set_encode),
 	IW_HANDLER(SIOCGIWENCODE, ks_wlan_get_encode),
 	IW_HANDLER(SIOCSIWPOWER, ks_wlan_set_power),
