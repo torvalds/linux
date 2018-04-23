@@ -251,6 +251,16 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_BXT_PCM512x_MACH
+	tristate "Broxton with TI PCM512x codec"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_PCM512x_I2C
+	help
+	  This adds support for ASoC machine driver for Broxton platforms
+	  with TI PCM512x I2S audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 endif ##  SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_APOLLOLAKE
 
 if  SND_SOC_INTEL_SKYLAKE
