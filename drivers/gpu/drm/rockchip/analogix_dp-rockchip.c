@@ -134,7 +134,7 @@ static int rockchip_dp_poweron_end(struct analogix_dp_plat_data *plat_data)
 {
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 
-	return rockchip_drm_psr_activate(&dp->encoder);
+	return rockchip_drm_psr_inhibit_put(&dp->encoder);
 }
 
 static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
@@ -142,7 +142,7 @@ static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 	int ret;
 
-	ret = rockchip_drm_psr_deactivate(&dp->encoder);
+	ret = rockchip_drm_psr_inhibit_get(&dp->encoder);
 	if (ret != 0)
 		return ret;
 

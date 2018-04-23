@@ -25,7 +25,7 @@ struct psr_drv {
 	struct drm_encoder	*encoder;
 
 	struct mutex		lock;
-	bool			active;
+	int			inhibit_count;
 	bool			enabled;
 
 	struct delayed_work	flush_work;
@@ -71,7 +71,7 @@ static int psr_set_state_locked(struct psr_drv *psr, bool enable)
 {
 	int ret;
 
-	if (!psr->active)
+	if (psr->inhibit_count > 0)
 		return -EINVAL;
 
 	if (enable == psr->enabled)
@@ -96,13 +96,18 @@ static void psr_flush_handler(struct work_struct *work)
 }
 
 /**
- * rockchip_drm_psr_activate - activate PSR on the given pipe
+ * rockchip_drm_psr_inhibit_put - release PSR inhibit on given encoder
  * @encoder: encoder to obtain the PSR encoder
+ *
+ * Decrements PSR inhibit count on given encoder. Should be called only
+ * for a PSR inhibit count increment done before. If PSR inhibit counter
+ * reaches zero, PSR flush work is scheduled to make the hardware enter
+ * PSR mode in PSR_FLUSH_TIMEOUT_MS.
  *
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int rockchip_drm_psr_activate(struct drm_encoder *encoder)
+int rockchip_drm_psr_inhibit_put(struct drm_encoder *encoder)
 {
 	struct psr_drv *psr = find_psr_by_encoder(encoder);
 
@@ -110,21 +115,30 @@ int rockchip_drm_psr_activate(struct drm_encoder *encoder)
 		return PTR_ERR(psr);
 
 	mutex_lock(&psr->lock);
-	psr->active = true;
+	--psr->inhibit_count;
+	WARN_ON(psr->inhibit_count < 0);
+	if (!psr->inhibit_count)
+		mod_delayed_work(system_wq, &psr->flush_work,
+				 PSR_FLUSH_TIMEOUT_MS);
 	mutex_unlock(&psr->lock);
 
 	return 0;
 }
-EXPORT_SYMBOL(rockchip_drm_psr_activate);
+EXPORT_SYMBOL(rockchip_drm_psr_inhibit_put);
 
 /**
- * rockchip_drm_psr_deactivate - deactivate PSR on the given pipe
+ * rockchip_drm_psr_inhibit_get - acquire PSR inhibit on given encoder
  * @encoder: encoder to obtain the PSR encoder
+ *
+ * Increments PSR inhibit count on given encoder. This function guarantees
+ * that after it returns PSR is turned off on given encoder and no PSR-related
+ * hardware state change occurs at least until a matching call to
+ * rockchip_drm_psr_inhibit_put() is done.
  *
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int rockchip_drm_psr_deactivate(struct drm_encoder *encoder)
+int rockchip_drm_psr_inhibit_get(struct drm_encoder *encoder)
 {
 	struct psr_drv *psr = find_psr_by_encoder(encoder);
 
@@ -132,14 +146,14 @@ int rockchip_drm_psr_deactivate(struct drm_encoder *encoder)
 		return PTR_ERR(psr);
 
 	mutex_lock(&psr->lock);
-	psr->active = false;
-	psr->enabled = false;
+	psr_set_state_locked(psr, false);
+	++psr->inhibit_count;
 	mutex_unlock(&psr->lock);
 	cancel_delayed_work_sync(&psr->flush_work);
 
 	return 0;
 }
-EXPORT_SYMBOL(rockchip_drm_psr_deactivate);
+EXPORT_SYMBOL(rockchip_drm_psr_inhibit_get);
 
 static void rockchip_drm_do_flush(struct psr_drv *psr)
 {
@@ -199,6 +213,11 @@ EXPORT_SYMBOL(rockchip_drm_psr_flush_all);
  * @encoder: encoder that obtain the PSR function
  * @psr_set: call back to set PSR state
  *
+ * The function returns with PSR inhibit counter initialized with one
+ * and the caller (typically encoder driver) needs to call
+ * rockchip_drm_psr_inhibit_put() when it becomes ready to accept PSR
+ * enable request.
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -218,7 +237,7 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 	INIT_DELAYED_WORK(&psr->flush_work, psr_flush_handler);
 	mutex_init(&psr->lock);
 
-	psr->active = false;
+	psr->inhibit_count = 1;
 	psr->enabled = false;
 	psr->encoder = encoder;
 	psr->set = psr_set;
@@ -236,6 +255,11 @@ EXPORT_SYMBOL(rockchip_drm_psr_register);
  * @encoder: encoder that obtain the PSR function
  * @psr_set: call back to set PSR state
  *
+ * It is expected that the PSR inhibit counter is 1 when this function is
+ * called, which corresponds to a state when related encoder has been
+ * disconnected from any CRTCs and its driver called
+ * rockchip_drm_psr_inhibit_get() to stop the PSR logic.
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -247,7 +271,12 @@ void rockchip_drm_psr_unregister(struct drm_encoder *encoder)
 	mutex_lock(&drm_drv->psr_list_lock);
 	list_for_each_entry_safe(psr, n, &drm_drv->psr_list, list) {
 		if (psr->encoder == encoder) {
-			cancel_delayed_work_sync(&psr->flush_work);
+			/*
+			 * Any other value would mean that the encoder
+			 * is still in use.
+			 */
+			WARN_ON(psr->inhibit_count != 1);
+
 			list_del(&psr->list);
 			kfree(psr);
 		}
