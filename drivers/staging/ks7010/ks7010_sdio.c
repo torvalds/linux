@@ -494,11 +494,9 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 	if (ret)
 		netdev_err(priv->net_dev, "write READ_STATUS_REG\n");
 
-	if (atomic_read(&priv->psstatus.confirm_wait)) {
-		if (is_hif_conf(event)) {
-			netdev_dbg(priv->net_dev, "IS_HIF_CONF true !!\n");
-			atomic_dec(&priv->psstatus.confirm_wait);
-		}
+	if (atomic_read(&priv->psstatus.confirm_wait) && is_hif_conf(event)) {
+		netdev_dbg(priv->net_dev, "IS_HIF_CONF true !!\n");
+		atomic_dec(&priv->psstatus.confirm_wait);
 	}
 
 	tasklet_schedule(&priv->rx_bh_task);
