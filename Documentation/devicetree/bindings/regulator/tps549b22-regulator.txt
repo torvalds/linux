@@ -1,0 +1,27 @@
+TPS549b22 Voltage regulators
+
+Required properties:
+- compatible: Must be "ti,tps549b22"
+- reg: I2C slave address
+
+Any property defined as part of the core regulator binding, defined in
+regulator.txt, can also be used.
+
+Example:
+	tps549b22@1e {
+		compatible = "ti,tps549b22";
+		reg = <0x1e>;
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			regulator@0 {
+				reg = <0>;
+				regulator-compatible = "tps549b22_dcdc";
+				regulator-name = "vdd_xxx";
+				regulator-min-microvolt = <767500>;
+				regulator-max-microvolt = <1535000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};

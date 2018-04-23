@@ -85,6 +85,7 @@ obj-$(CONFIG_REGULATOR_SKY81452) += sky81452-regulator.o
 obj-$(CONFIG_REGULATOR_STW481X_VMMC) += stw481x-vmmc.o
 obj-$(CONFIG_REGULATOR_SYR82X) += syr82x.o
 obj-$(CONFIG_REGULATOR_TI_ABB) += ti-abb-regulator.o
+obj-$(CONFIG_REGULATOR_TPS549B22) += tps549b22-regulator.o
 obj-$(CONFIG_REGULATOR_TPS6105X) += tps6105x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS62360) += tps62360-regulator.o
 obj-$(CONFIG_REGULATOR_TPS65023) += tps65023-regulator.o
@@ -106,6 +107,5 @@ obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
 obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 obj-$(CONFIG_REGULATOR_XZ3216) += xz3216.o
-
 
 ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG
