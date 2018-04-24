@@ -22,6 +22,7 @@ done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
 
 kernver=$(make kernelversion)
+kernbranch=$(git rev-parse --abbrev-ref HEAD)
 gitbranch=$(git rev-parse --abbrev-ref HEAD|sed 's/^4\.[0-9]\+-//')
 
 function pack {
@@ -84,6 +85,50 @@ function install {
 			echo "SD-Card not found!"
 		fi
 	fi
+}
+
+function deb {
+set -x
+  ver=${kernver}-bpi-r2-${gitbranch}
+  echo "deb package ${ver}"
+  prepare_SD
+
+#    cd ../SD
+#    fname=bpi-r2_${kernver}_${gitbranch}.tar.gz
+#    tar -cz --owner=root --group=root -f $fname BPI-BOOT BPI-ROOT
+
+  mkdir -p debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/
+  mkdir -p debian/bananapi-r2-image/lib/modules/
+  mkdir -p debian/bananapi-r2-image/DEBIAN/
+  rm debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/*
+  rm -rf debian/bananapi-r2-image/lib/modules/*
+
+  #sudo mount --bind ../SD/BPI-ROOT/lib/modules debian/bananapi-r2-image/lib/modules/
+  if test -e ./uImage && test -d ../SD/BPI-ROOT/lib/modules/${ver}; then
+     cp ./uImage debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/uImage_${ver}
+     pwd
+     cp -r ../SD/BPI-ROOT/lib/modules/${ver} debian/bananapi-r2-image/lib/modules/
+     #rm debian/bananapi-r2-image/lib/modules/${ver}/{build,source}
+     #mkdir debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
+     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
+     cat > debian/bananapi-r2-image/DEBIAN/control << EOF
+Package: bananapi-r2-image-${kernbranch}
+Version: ${kernver}-1
+Section: custom
+Priority: optional
+Architecture: armhf
+Multi-Arch: no
+Essential: no
+Maintainer: frankwu@gmx.de
+Description: BPI-R2 linux image ${ver}
+EOF
+     cd debian
+     fakeroot dpkg-deb --build bananapi-r2-image ../debian
+     ls -lh *.deb
+ else
+     echo "First build kernel ${ver}"
+     echo "eg: ./build"
+ fi
 }
 
 function build {
@@ -186,7 +231,10 @@ if [ -n "$kernver" ]; then
 			echo "Edit def config"
 			nano arch/arm/configs/mt7623n_evb_fwu_defconfig
 			;;
-
+		"deb")
+			echo "deb-package (currently testing-state)"
+			deb
+			;;
 		"dtsi")
 			echo "Edit mt7623.dtsi"
 			nano arch/arm/boot/dts/mt7623.dtsi
