@@ -1566,14 +1566,14 @@ try_again:
 	return al->map;
 }
 
-void __thread__find_symbol(struct thread *thread, u8 cpumode,
-			   enum map_type type, u64 addr,
-			   struct addr_location *al)
+struct symbol *__thread__find_symbol(struct thread *thread, u8 cpumode,
+				     enum map_type type, u64 addr,
+				     struct addr_location *al)
 {
+	al->sym = NULL;
 	if (__thread__find_map(thread, cpumode, type, addr, al))
 		al->sym = map__find_symbol(al->map, al->addr);
-	else
-		al->sym = NULL;
+	return al->sym;
 }
 
 /*
