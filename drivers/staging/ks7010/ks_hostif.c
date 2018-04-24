@@ -1558,9 +1558,8 @@ void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 	priv->rxp = p;
 	priv->rx_size = size;
 
-	if (get_word(priv) == priv->rx_size) {
+	if (get_word(priv) == priv->rx_size)
 		hostif_event_check(priv);
-	}
 }
 
 static
