@@ -770,7 +770,11 @@ struct pcie_sg_list {
 struct chain_tracker {
 	void *chain_buffer;
 	dma_addr_t chain_buffer_dma;
-	struct list_head tracker_list;
+};
+
+struct chain_lookup {
+	struct chain_tracker *chains_per_smid;
+	atomic_t	chain_offset;
 };
 
 /**
@@ -1261,7 +1265,7 @@ struct MPT3SAS_ADAPTER {
 	u32		page_size;
 
 	/* chain */
-	struct chain_tracker *chain_lookup;
+	struct chain_lookup *chain_lookup;
 	struct list_head free_chain_list;
 	struct dma_pool *chain_dma_pool;
 	ulong		chain_pages;

@@ -297,12 +297,15 @@ static void *
 _base_get_chain_buffer_dma_to_chain_buffer(struct MPT3SAS_ADAPTER *ioc,
 		dma_addr_t chain_buffer_dma)
 {
-	u16 index;
+	u16 index, j;
+	struct chain_tracker *ct;
 
-	for (index = 0; index < ioc->chain_depth; index++) {
-		if (ioc->chain_lookup[index].chain_buffer_dma ==
-				chain_buffer_dma)
-			return ioc->chain_lookup[index].chain_buffer;
+	for (index = 0; index < ioc->scsiio_depth; index++) {
+		for (j = 0; j < ioc->chains_needed_per_io; j++) {
+			ct = &ioc->chain_lookup[index].chains_per_smid[j];
+			if (ct && ct->chain_buffer_dma == chain_buffer_dma)
+				return ct->chain_buffer;
+		}
 	}
 	pr_info(MPT3SAS_FMT
 	    "Provided chain_buffer_dma address is not in the lookup list\n",
@@ -1679,7 +1682,8 @@ _base_add_sg_single_64(void *paddr, u32 flags_length, dma_addr_t dma_addr)
  * @ioc: per adapter object
  * @scmd: SCSI commands of the IO request
  *
- * Returns chain tracker(from ioc->free_chain_list)
+ * Returns chain tracker from chain_lookup table using key as
+ * smid and smid's chain_offset.
  */
 static struct chain_tracker *
 _base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc,
@@ -1687,20 +1691,15 @@ _base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc,
 {
 	struct chain_tracker *chain_req;
 	struct scsiio_tracker *st = scsi_cmd_priv(scmd);
-	unsigned long flags;
+	u16 smid = st->smid;
+	u8 chain_offset =
+	   atomic_read(&ioc->chain_lookup[smid - 1].chain_offset);
 
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	if (list_empty(&ioc->free_chain_list)) {
-		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-		dfailprintk(ioc, pr_warn(MPT3SAS_FMT
-			"chain buffers not available\n", ioc->name));
+	if (chain_offset == ioc->chains_needed_per_io)
 		return NULL;
-	}
-	chain_req = list_entry(ioc->free_chain_list.next,
-	    struct chain_tracker, tracker_list);
-	list_del_init(&chain_req->tracker_list);
-	list_add_tail(&chain_req->tracker_list, &st->chain_list);
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	chain_req = &ioc->chain_lookup[smid - 1].chains_per_smid[chain_offset];
+	atomic_inc(&ioc->chain_lookup[smid - 1].chain_offset);
 	return chain_req;
 }
 
@@ -3281,13 +3280,7 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
 		return;
 	st->cb_idx = 0xFF;
 	st->direct_io = 0;
-	if (!list_empty(&st->chain_list)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-		list_splice_init(&st->chain_list, &ioc->free_chain_list);
-		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-	}
+	atomic_set(&ioc->chain_lookup[st->smid - 1].chain_offset, 0);
 }
 
 /**
@@ -4105,6 +4098,8 @@ static void
 _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 {
 	int i = 0;
+	int j = 0;
+	struct chain_tracker *ct;
 	struct reply_post_struct *rps;
 
 	dexitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
@@ -4195,14 +4190,18 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
 	if (ioc->chain_lookup) {
-		for (i = 0; i < ioc->chain_depth; i++) {
-			if (ioc->chain_lookup[i].chain_buffer)
-				dma_pool_free(ioc->chain_dma_pool,
-				    ioc->chain_lookup[i].chain_buffer,
-				    ioc->chain_lookup[i].chain_buffer_dma);
+		for (i = 0; i < ioc->scsiio_depth; i++) {
+			for (j = 0; j < ioc->chains_needed_per_io; j++) {
+				ct = &ioc->chain_lookup[i].chains_per_smid[j];
+				if (ct && ct->chain_buffer)
+					dma_pool_free(ioc->chain_dma_pool,
+						ct->chain_buffer,
+						ct->chain_buffer_dma);
+			}
+			kfree(ioc->chain_lookup[i].chains_per_smid);
 		}
 		dma_pool_destroy(ioc->chain_dma_pool);
-		free_pages((ulong)ioc->chain_lookup, ioc->chain_pages);
+		kfree(ioc->chain_lookup);
 		ioc->chain_lookup = NULL;
 	}
 }
@@ -4224,7 +4223,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	u16 max_request_credit, nvme_blocks_needed;
 	unsigned short sg_tablesize;
 	u16 sge_size;
-	int i;
+	int i, j;
+	struct chain_tracker *ct;
 
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
 	    __func__));
@@ -4505,15 +4505,24 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc->name, ioc->request, ioc->scsiio_depth));
 
 	ioc->chain_depth = min_t(u32, ioc->chain_depth, MAX_CHAIN_DEPTH);
-	sz = ioc->chain_depth * sizeof(struct chain_tracker);
-	ioc->chain_pages = get_order(sz);
-	ioc->chain_lookup = (struct chain_tracker *)__get_free_pages(
-	    GFP_KERNEL, ioc->chain_pages);
+	sz = ioc->scsiio_depth * sizeof(struct chain_lookup);
+	ioc->chain_lookup = kzalloc(sz, GFP_KERNEL);
 	if (!ioc->chain_lookup) {
-		pr_err(MPT3SAS_FMT "chain_lookup: __get_free_pages failed\n",
-			ioc->name);
+		pr_err(MPT3SAS_FMT "chain_lookup: __get_free_pages "
+		"failed\n", ioc->name);
 		goto out;
 	}
+
+	sz = ioc->chains_needed_per_io * sizeof(struct chain_tracker);
+	for (i = 0; i < ioc->scsiio_depth; i++) {
+		ioc->chain_lookup[i].chains_per_smid = kzalloc(sz, GFP_KERNEL);
+		if (!ioc->chain_lookup[i].chains_per_smid) {
+			pr_err(MPT3SAS_FMT "chain_lookup: "
+					" kzalloc failed\n", ioc->name);
+			goto out;
+		}
+	}
+
 	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
 	    ioc->chain_segment_sz, 16, 0);
 	if (!ioc->chain_dma_pool) {
@@ -4521,17 +4530,21 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			ioc->name);
 		goto out;
 	}
-	for (i = 0; i < ioc->chain_depth; i++) {
-		ioc->chain_lookup[i].chain_buffer = dma_pool_alloc(
+	for (i = 0; i < ioc->scsiio_depth; i++) {
+		for (j = 0; j < ioc->chains_needed_per_io; j++) {
+			ct = &ioc->chain_lookup[i].chains_per_smid[j];
+			ct->chain_buffer = dma_pool_alloc(
 		    ioc->chain_dma_pool , GFP_KERNEL,
-		    &ioc->chain_lookup[i].chain_buffer_dma);
-		if (!ioc->chain_lookup[i].chain_buffer) {
-			ioc->chain_depth = i;
-			goto chain_done;
+		    &ct->chain_buffer_dma);
+			if (!ct->chain_buffer) {
+				pr_err(MPT3SAS_FMT "chain_lookup: "
+				" pci_pool_alloc failed\n", ioc->name);
+				goto out;
+			}
 		}
 		total_sz += ioc->chain_segment_sz;
 	}
- chain_done:
+
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
 		ioc->name, ioc->chain_depth, ioc->chain_segment_sz,
@@ -6178,12 +6191,6 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		list_add_tail(&ioc->internal_lookup[i].tracker_list,
 		    &ioc->internal_free_list);
 	}
-
-	/* chain pool */
-	INIT_LIST_HEAD(&ioc->free_chain_list);
-	for (i = 0; i < ioc->chain_depth; i++)
-		list_add_tail(&ioc->chain_lookup[i].tracker_list,
-		    &ioc->free_chain_list);
 
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
