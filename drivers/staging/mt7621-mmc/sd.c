@@ -1423,8 +1423,10 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				goto done;
 
 			dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-			(void)dma_map_sg(mmc_dev(mmc), data->sg, data->sg_len, dir);
-			msdc_dma_setup(host, &host->dma, data->sg, data->sg_len);
+			data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
+						    data->sg_len, dir);
+			msdc_dma_setup(host, &host->dma, data->sg,
+				       data->sg_count);
 
 			/* then wait command done */
 			if (msdc_command_resp(host, cmd, 1, CMD_TIMEOUT) != 0)
