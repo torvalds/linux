@@ -444,7 +444,7 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 	return 0;
 }
 
-static int get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
