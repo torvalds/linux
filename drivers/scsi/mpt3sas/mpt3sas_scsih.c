@@ -3680,11 +3680,7 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 ioc_state;
 	struct _sc_list *delayed_sc;
 
-	if (ioc->remove_host) {
-		dewtprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: host has been removed\n", __func__, ioc->name));
-		return 1;
-	} else if (ioc->pci_error_recovery) {
+	if (ioc->pci_error_recovery) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
 			"%s: host in pci error recovery\n", __func__,
 			ioc->name));
@@ -3806,8 +3802,7 @@ _scsih_tm_tr_volume_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	u16 smid;
 	struct _tr_list *delayed_tr;
 
-	if (ioc->shost_recovery || ioc->remove_host ||
-	    ioc->pci_error_recovery) {
+	if (ioc->pci_error_recovery) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
 			"%s: host reset in progress!\n",
 			__func__, ioc->name));
@@ -3860,8 +3855,7 @@ _scsih_tm_volume_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	Mpi2SCSITaskManagementReply_t *mpi_reply =
 	    mpt3sas_base_get_reply_virt_addr(ioc, reply);
 
-	if (ioc->shost_recovery || ioc->remove_host ||
-	    ioc->pci_error_recovery) {
+	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
 			"%s: host reset in progress!\n",
 			__func__, ioc->name));
@@ -9471,8 +9465,8 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	u16 sz;
 	Mpi26EventDataActiveCableExcept_t *ActiveCableEventData;
 
-	/* events turned off due to host reset or driver unloading */
-	if (ioc->remove_host || ioc->pci_error_recovery)
+	/* events turned off due to host reset */
+	if (ioc->pci_error_recovery)
 		return 1;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
