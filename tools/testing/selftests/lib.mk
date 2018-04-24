@@ -22,6 +22,7 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 define RUN_TESTS
 	@export KSFT_TAP_LEVEL=`echo 1`;		\
 	test_num=`echo 0`;				\
+	skip=`echo 4`;					\
 	echo "TAP version 13";				\
 	for TEST in $(1); do				\
 		BASENAME_TEST=`basename $$TEST`;	\
@@ -34,9 +35,19 @@ define RUN_TESTS
 		else					\
 			cd `dirname $$TEST` > /dev/null; \
 			if [ "X$(summary)" != "X" ]; then	\
-				(./$$BASENAME_TEST > /tmp/$$BASENAME_TEST 2>&1 && echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";		\
+				(./$$BASENAME_TEST > /tmp/$$BASENAME_TEST 2>&1 && \
+				echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || \
+				(if [ $$? -eq $$skip ]; then	\
+					echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [SKIP]";				\
+				else echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";					\
+				fi;)			\
 			else				\
-				(./$$BASENAME_TEST && echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";					\
+				(./$$BASENAME_TEST &&	\
+				echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") ||						\
+				(if [ $$? -eq $$skip ]; then \
+					echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [SKIP]"; \
+				else echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";				\
+				fi;)		\
 			fi;				\
 			cd - > /dev/null;		\
 		fi;					\
