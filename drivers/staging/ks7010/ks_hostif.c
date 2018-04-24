@@ -1962,21 +1962,11 @@ void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 	unsigned long mode, wake_up, receive_dtims;
 
 	switch (priv->reg.power_mgmt) {
-	case POWER_MGMT_ACTIVE:
-		mode = POWER_ACTIVE;
+	case POWER_MGMT_SAVE1:
+		mode = (priv->reg.operation_mode == MODE_INFRASTRUCTURE) ?
+			POWER_SAVE : POWER_ACTIVE;
 		wake_up = 0;
 		receive_dtims = 0;
-		break;
-	case POWER_MGMT_SAVE1:
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
-			mode = POWER_SAVE;
-			wake_up = 0;
-			receive_dtims = 0;
-		} else {
-			mode = POWER_ACTIVE;
-			wake_up = 0;
-			receive_dtims = 0;
-		}
 		break;
 	case POWER_MGMT_SAVE2:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
@@ -1989,6 +1979,7 @@ void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 			receive_dtims = 0;
 		}
 		break;
+	case POWER_MGMT_ACTIVE:
 	default:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
