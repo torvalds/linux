@@ -1025,6 +1025,9 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	if (err)
 		goto err_sq_wq_destroy;
 
+	INIT_WORK(&sq->dim.work, mlx5e_tx_dim_work);
+	sq->dim.mode = params->tx_cq_moderation.cq_period_mode;
+
 	sq->edge = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
 
 	return 0;
@@ -1187,6 +1190,9 @@ static int mlx5e_open_txqsq(struct mlx5e_channel *c,
 	tx_rate = c->priv->tx_rates[sq->txq_ix];
 	if (tx_rate)
 		mlx5e_set_sq_maxrate(c->netdev, sq, tx_rate);
+
+	if (params->tx_dim_enabled)
+		sq->state |= BIT(MLX5E_SQ_STATE_AM);
 
 	return 0;
 
@@ -4084,18 +4090,48 @@ static bool slow_pci_heuristic(struct mlx5_core_dev *mdev)
 		link_speed > MLX5E_SLOW_PCI_RATIO * pci_bw;
 }
 
+static struct net_dim_cq_moder mlx5e_get_def_tx_moderation(u8 cq_period_mode)
+{
+	struct net_dim_cq_moder moder;
+
+	moder.cq_period_mode = cq_period_mode;
+	moder.pkts = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
+	moder.usec = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
+		moder.usec = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC_FROM_CQE;
+
+	return moder;
+}
+
+static struct net_dim_cq_moder mlx5e_get_def_rx_moderation(u8 cq_period_mode)
+{
+	struct net_dim_cq_moder moder;
+
+	moder.cq_period_mode = cq_period_mode;
+	moder.pkts = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
+	moder.usec = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
+		moder.usec = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE;
+
+	return moder;
+}
+
+static u8 mlx5_to_net_dim_cq_period_mode(u8 cq_period_mode)
+{
+	return cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE ?
+		NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE :
+		NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+}
+
 void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 {
-	params->tx_cq_moderation.cq_period_mode = cq_period_mode;
+	if (params->tx_dim_enabled) {
+		u8 dim_period_mode = mlx5_to_net_dim_cq_period_mode(cq_period_mode);
 
-	params->tx_cq_moderation.pkts =
-		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
-	params->tx_cq_moderation.usec =
-		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
-
-	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
-		params->tx_cq_moderation.usec =
-			MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC_FROM_CQE;
+		params->tx_cq_moderation = net_dim_get_def_tx_moderation(dim_period_mode);
+	} else {
+		params->tx_cq_moderation = mlx5e_get_def_tx_moderation(cq_period_mode);
+	}
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_TX_CQE_BASED_MODER,
 			params->tx_cq_moderation.cq_period_mode ==
@@ -4104,30 +4140,12 @@ void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 {
-	params->rx_cq_moderation.cq_period_mode = cq_period_mode;
-
-	params->rx_cq_moderation.pkts =
-		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
-	params->rx_cq_moderation.usec =
-		MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
-
-	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
-		params->rx_cq_moderation.usec =
-			MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE;
-
 	if (params->rx_dim_enabled) {
-		switch (cq_period_mode) {
-		case MLX5_CQ_PERIOD_MODE_START_FROM_CQE:
-			params->rx_cq_moderation =
-				net_dim_get_def_rx_moderation(
-					NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE);
-			break;
-		case MLX5_CQ_PERIOD_MODE_START_FROM_EQE:
-		default:
-			params->rx_cq_moderation =
-				net_dim_get_def_rx_moderation(
-					NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE);
-		}
+		u8 dim_period_mode = mlx5_to_net_dim_cq_period_mode(cq_period_mode);
+
+		params->rx_cq_moderation = net_dim_get_def_rx_moderation(dim_period_mode);
+	} else {
+		params->rx_cq_moderation = mlx5e_get_def_rx_moderation(cq_period_mode);
 	}
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_BASED_MODER,
@@ -4191,6 +4209,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 			MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
+	params->tx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, rx_cq_period_mode);
 	mlx5e_set_tx_cq_mode_params(params, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 
