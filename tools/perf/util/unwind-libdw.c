@@ -104,8 +104,7 @@ static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
 	struct addr_location al;
 	ssize_t size;
 
-	thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al);
-	if (!al.map) {
+	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al)) {
 		/*
 		 * We've seen cases (softice) where DWARF unwinder went
 		 * through non executable mmaps, which we need to lookup

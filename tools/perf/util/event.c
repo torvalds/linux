@@ -1489,8 +1489,8 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 	return machine__process_event(machine, event, sample);
 }
 
-void __thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
-			u64 addr, struct addr_location *al)
+struct map *__thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
+			       u64 addr, struct addr_location *al)
 {
 	struct map_groups *mg = thread->mg;
 	struct machine *machine = mg->machine;
@@ -1504,7 +1504,7 @@ void __thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
 
 	if (machine == NULL) {
 		al->map = NULL;
-		return;
+		return NULL;
 	}
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
@@ -1532,7 +1532,7 @@ void __thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
 			!perf_host)
 			al->filtered |= (1 << HIST_FILTER__HOST);
 
-		return;
+		return NULL;
 	}
 try_again:
 	al->map = map_groups__find(mg, type, al->addr);
@@ -1562,14 +1562,15 @@ try_again:
 			map__load(al->map);
 		al->addr = al->map->map_ip(al->map, al->addr);
 	}
+
+	return al->map;
 }
 
 void __thread__find_symbol(struct thread *thread, u8 cpumode,
 			   enum map_type type, u64 addr,
 			   struct addr_location *al)
 {
-	__thread__find_map(thread, cpumode, type, addr, al);
-	if (al->map != NULL)
+	if (__thread__find_map(thread, cpumode, type, addr, al))
 		al->sym = map__find_symbol(al->map, al->addr);
 	else
 		al->sym = NULL;
@@ -1668,8 +1669,7 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 void thread__resolve(struct thread *thread, struct addr_location *al,
 		     struct perf_sample *sample)
 {
-	thread__find_map(thread, sample->cpumode, sample->addr, al);
-	if (!al->map) {
+	if (!thread__find_map(thread, sample->cpumode, sample->addr, al)) {
 		__thread__find_map(thread, sample->cpumode, MAP__VARIABLE,
 				   sample->addr, al);
 	}
