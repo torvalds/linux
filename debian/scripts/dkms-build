@@ -118,7 +118,7 @@ for log in "$dkms_dir/build/$dkms_package/$dkms_version/$abi_flavour"/*/"log/mak
 do
 	break
 done
-cat "$log"
+sed -e "s@$dkms_dir@<<DKMSDIR>>@g" <"$log"
 
 # If this build failed then exit here.
 [ "$rc" != 0 ] && exit "$rc"
@@ -140,6 +140,12 @@ while read module; do
 		$sign "$module" "$pkgdir/$vmodule"
 		;;
 	esac
+done
+
+find "$dkms_dir/build/$dkms_package/$dkms_version/objects" -name \*.o -print | \
+while read object
+do
+	"$srcdir/debian/scripts/fix-filenames" "$object" "$dkms_dir"
 done
 
 # Finally see if there is a dkms-package specific post processor present.  Hand

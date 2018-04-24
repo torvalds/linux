@@ -141,6 +141,7 @@ clean: debian/control
 
 	# Remove generated intermediate files
 	rm -f $(DROOT)/control.stub $(DEBIAN)/control.stub
+	rm -f $(DROOT)/scripts/fix-filenames
 
 distclean: clean
 	rm -rf $(DROOT)/control debian/changelog \

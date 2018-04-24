@@ -17,11 +17,14 @@ endif
 
 shlibdeps_opts = $(if $(CROSS_COMPILE),-- -l$(CROSS_COMPILE:%-=/usr/%)/lib)
 
+debian/scripts/fix-filenames: debian/scripts/fix-filenames.c
+	$(CC) -o $@ $^
+
 $(stampdir)/stamp-prepare-%: config-prepare-check-%
 	@echo Debug: $@
 	@touch $@
 $(stampdir)/stamp-prepare-tree-%: target_flavour = $*
-$(stampdir)/stamp-prepare-tree-%: $(commonconfdir)/config.common.$(family) $(archconfdir)/config.common.$(arch) $(archconfdir)/config.flavour.%
+$(stampdir)/stamp-prepare-tree-%: $(commonconfdir)/config.common.$(family) $(archconfdir)/config.common.$(arch) $(archconfdir)/config.flavour.% debian/scripts/fix-filenames
 	@echo Debug: $@
 	install -d $(builddir)/build-$*
 	touch $(builddir)/build-$*/ubuntu-build
@@ -72,6 +75,17 @@ define install_control =
 	done
 endef
 
+# Ensure the directory prefix is exactly 100 characters long so pathnames are the
+# exact same length in any binary files produced by the builds.  These will be
+# commonised later.
+dkms_20d=....................
+dkms_100d=$(dkms_20d)$(dkms_20d)$(dkms_20d)$(dkms_20d)$(dkms_20d)
+dkms_100c=$(shell echo '$(dkms_100d)' | sed -e 's/\./_/g')
+define dkms_dir_prefix =
+$(shell echo $(1)/$(dkms_100c) | \
+	sed -e 's/\($(dkms_100d)\).*/\1/' -e 's/^\(.*\)....$$/\1dkms/')
+endef
+
 # Install the finished build
 install-%: pkgdir_bin = $(CURDIR)/debian/$(bin_pkg_name)-$*
 install-%: pkgdir = $(CURDIR)/debian/$(mods_pkg_name)-$*
@@ -92,7 +106,7 @@ install-%: MODHASHALGO=sha512
 install-%: MODSECKEY=$(builddir)/build-$*/certs/signing_key.pem
 install-%: MODPUBKEY=$(builddir)/build-$*/certs/signing_key.x509
 install-%: build_dir=$(builddir)/build-$*
-install-%: dkms_dir=$(builddir)/build-$*/dkms
+install-%: dkms_dir=$(call dkms_dir_prefix,$(builddir)/build-$*)
 install-%: enable_zfs = $(call custom_override,do_zfs,$*)
 install-%: $(stampdir)/stamp-build-% install-headers
 	@echo Debug: $@ kernel_file $(kernel_file) kernfile $(kernfile) install_file $(install_file) instfile $(instfile)
