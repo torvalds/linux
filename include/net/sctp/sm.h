@@ -207,7 +207,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
 					    int len, __u8 flags, gfp_t gfp);
 struct sctp_chunk *sctp_make_ecne(const struct sctp_association *asoc,
 				  const __u32 lowest_tsn);
-struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc);
+struct sctp_chunk *sctp_make_sack(struct sctp_association *asoc);
 struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk);
 struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
