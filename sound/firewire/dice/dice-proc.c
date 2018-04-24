@@ -148,12 +148,12 @@ static void dice_proc_read(struct snd_info_entry *entry,
 				   >> CLOCK_RATE_SHIFT));
 	snd_iprintf(buffer, "  ext status: %08x\n", buf.global.extended_status);
 	snd_iprintf(buffer, "  sample rate: %u\n", buf.global.sample_rate);
-	snd_iprintf(buffer, "  version: %u.%u.%u.%u\n",
-		    (buf.global.version >> 24) & 0xff,
-		    (buf.global.version >> 16) & 0xff,
-		    (buf.global.version >>  8) & 0xff,
-		    (buf.global.version >>  0) & 0xff);
 	if (quadlets >= 90) {
+		snd_iprintf(buffer, "  version: %u.%u.%u.%u\n",
+			    (buf.global.version >> 24) & 0xff,
+			    (buf.global.version >> 16) & 0xff,
+			    (buf.global.version >>  8) & 0xff,
+			    (buf.global.version >>  0) & 0xff);
 		snd_iprintf(buffer, "  clock caps:");
 		for (i = 0; i <= 6; ++i)
 			if (buf.global.clock_caps & (1 << i))

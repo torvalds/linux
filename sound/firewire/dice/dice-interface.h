@@ -175,12 +175,17 @@
 #define GLOBAL_SAMPLE_RATE		0x05c
 
 /*
+ * Some old firmware versions do not have the following global registers.
+ * Windows drivers produced by TCAT lost backward compatibility in its
+ * early release because they can handle firmware only which supports the
+ * following registers.
+ */
+
+/*
  * The version of the DICE driver specification that this device conforms to;
  * read-only.
  */
 #define GLOBAL_VERSION			0x060
-
-/* Some old firmware versions do not have the following global registers: */
 
 /*
  * Supported sample rates and clock sources; read-only.
