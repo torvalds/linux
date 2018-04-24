@@ -7,6 +7,9 @@
 soundwire-bus-objs := bus_type.o bus.o master.o slave.o mipi_disco.o stream.o
 obj-$(CONFIG_SOUNDWIRE) += soundwire-bus.o
 
+soundwire-generic-allocation-objs := generic_bandwidth_allocation.o
+obj-$(CONFIG_SOUNDWIRE_GENERIC_ALLOCATION) += soundwire-generic-allocation.o
+
 ifdef CONFIG_DEBUG_FS
 soundwire-bus-objs += debugfs.o
 endif

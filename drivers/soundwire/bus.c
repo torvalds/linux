@@ -31,6 +31,12 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 		return -EINVAL;
 	}
 
+	if (!bus->compute_params) {
+		dev_err(bus->dev,
+			"Bandwidth allocation not configured, compute_parems no set\n");
+		return -EINVAL;
+	}
+
 	mutex_init(&bus->msg_lock);
 	mutex_init(&bus->bus_lock);
 	INIT_LIST_HEAD(&bus->slaves);
