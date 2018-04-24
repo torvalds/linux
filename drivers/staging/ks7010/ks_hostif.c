@@ -159,14 +159,18 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 			   "IWEVENT: connect bssid=%pM\n", wrqu.ap_addr.sa_data);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
 	}
-	netdev_dbg(priv->net_dev, "    Link AP\n");
-	netdev_dbg(priv->net_dev, "    bssid=%02X:%02X:%02X:%02X:%02X:%02X\n"
-		   "    essid=%s\n"
-		   "    rate_set=%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n"
-		   "    channel=%d\n"
-		   "    rssi=%d\n"
-		   "    sq=%d\n"
-		   "    capability=%04X\n",
+	netdev_dbg(priv->net_dev, "Link AP\n"
+		   "- bssid=%02X:%02X:%02X:%02X:%02X:%02X\n"
+		   "- essid=%s\n"
+		   "- rate_set=%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n"
+		   "- channel=%d\n"
+		   "- rssi=%d\n"
+		   "- sq=%d\n"
+		   "- capability=%04X\n"
+		   "- rsn.mode=%d\n"
+		   "- rsn.size=%d\n"
+		   "- ext_rate_set_size=%d\n"
+		   "- rate_set_size=%d\n",
 		   ap->bssid[0], ap->bssid[1], ap->bssid[2],
 		   ap->bssid[3], ap->bssid[4], ap->bssid[5],
 		   &(ap->ssid.body[0]),
@@ -174,10 +178,8 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 		   ap->rate_set.body[2], ap->rate_set.body[3],
 		   ap->rate_set.body[4], ap->rate_set.body[5],
 		   ap->rate_set.body[6], ap->rate_set.body[7],
-		   ap->channel, ap->rssi, ap->sq, ap->capability);
-	netdev_dbg(priv->net_dev, "    Link AP\n    rsn.mode=%d\n    rsn.size=%d\n",
-		   ap_info->rsn_mode, ap_info->rsn.size);
-	netdev_dbg(priv->net_dev, "    ext_rate_set_size=%d\n    rate_set_size=%d\n",
+		   ap->channel, ap->rssi, ap->sq, ap->capability,
+		   ap_info->rsn_mode, ap_info->rsn.size,
 		   ap_info->ext_rate_set.size, ap_info->rate_set.size);
 
 	return 0;
