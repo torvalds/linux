@@ -4119,12 +4119,14 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 		switch (cq_period_mode) {
 		case MLX5_CQ_PERIOD_MODE_START_FROM_CQE:
 			params->rx_cq_moderation =
-				net_dim_get_def_profile(NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE);
+				net_dim_get_def_rx_moderation(
+					NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE);
 			break;
 		case MLX5_CQ_PERIOD_MODE_START_FROM_EQE:
 		default:
 			params->rx_cq_moderation =
-				net_dim_get_def_profile(NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE);
+				net_dim_get_def_rx_moderation(
+					NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE);
 		}
 	}
 

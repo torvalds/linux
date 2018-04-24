@@ -38,11 +38,11 @@ void mlx5e_rx_dim_work(struct work_struct *work)
 	struct net_dim *dim = container_of(work, struct net_dim,
 					   work);
 	struct mlx5e_rq *rq = container_of(dim, struct mlx5e_rq, dim);
-	struct net_dim_cq_moder cur_profile = net_dim_get_profile(dim->mode,
-								  dim->profile_ix);
+	struct net_dim_cq_moder cur_moder =
+		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 
 	mlx5_core_modify_cq_moderation(rq->mdev, &rq->cq.mcq,
-				       cur_profile.usec, cur_profile.pkts);
+				       cur_moder.usec, cur_moder.pkts);
 
 	dim->state = NET_DIM_START_MEASURE;
 }

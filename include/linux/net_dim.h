@@ -129,17 +129,17 @@ profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
 	NET_DIM_CQE_PROFILES,
 };
 
-static inline struct net_dim_cq_moder net_dim_get_profile(u8 cq_period_mode,
-							  int ix)
+static inline struct net_dim_cq_moder
+net_dim_get_rx_moderation(u8 cq_period_mode, int ix)
 {
-	struct net_dim_cq_moder cq_moder;
+	struct net_dim_cq_moder cq_moder = profile[cq_period_mode][ix];
 
-	cq_moder = profile[cq_period_mode][ix];
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
 
-static inline struct net_dim_cq_moder net_dim_get_def_profile(u8 rx_cq_period_mode)
+static inline struct net_dim_cq_moder
+net_dim_get_def_rx_moderation(u8 rx_cq_period_mode)
 {
 	int default_profile_ix;
 
@@ -148,7 +148,7 @@ static inline struct net_dim_cq_moder net_dim_get_def_profile(u8 rx_cq_period_mo
 	else /* NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE */
 		default_profile_ix = NET_DIM_DEF_PROFILE_EQE;
 
-	return net_dim_get_profile(rx_cq_period_mode, default_profile_ix);
+	return net_dim_get_rx_moderation(rx_cq_period_mode, default_profile_ix);
 }
 
 static inline bool net_dim_on_top(struct net_dim *dim)
