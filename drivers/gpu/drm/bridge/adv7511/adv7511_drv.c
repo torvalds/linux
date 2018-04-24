@@ -654,7 +654,7 @@ adv7511_detect(struct adv7511 *adv7511, struct drm_connector *connector)
 	return status;
 }
 
-static int adv7511_mode_valid(struct adv7511 *adv7511,
+static enum drm_mode_status adv7511_mode_valid(struct adv7511 *adv7511,
 			      struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)
