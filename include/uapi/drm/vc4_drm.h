@@ -187,6 +187,12 @@ struct drm_vc4_submit_cl {
 	 * will not start until the syncobj is signaled. 0 means ignore.
 	 */
 	__u32 in_sync;
+
+	/* Syncobj handle to export fence to. If set, the fence in the syncobj
+	 * will be replaced with a fence that signals upon completion of this
+	 * render job. 0 means ignore.
+	 */
+	__u32 out_sync;
 };
 
 /**
