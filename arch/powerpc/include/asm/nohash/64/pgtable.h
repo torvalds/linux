@@ -186,14 +186,12 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3		# pte_update\n\
-	andi.	%1,%0,%6\n\
-	bne-	1b \n\
 	andc	%1,%0,%4 \n\
-	or	%1,%1,%7\n\
+	or	%1,%1,%6\n\
 	stdcx.	%1,0,%3 \n\
 	bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
-	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY), "r" (set)
+	: "r" (ptep), "r" (clr), "m" (*ptep), "r" (set)
 	: "cc" );
 #else
 	unsigned long old = pte_val(*ptep);
@@ -295,13 +293,11 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%4\n\
-		andi.	%1,%0,%6\n\
-		bne-	1b \n\
 		or	%0,%3,%0\n\
 		stdcx.	%0,0,%4\n\
 		bne-	1b"
 	:"=&r" (old), "=&r" (tmp), "=m" (*ptep)
-	:"r" (bits), "r" (ptep), "m" (*ptep), "i" (_PAGE_BUSY)
+	:"r" (bits), "r" (ptep), "m" (*ptep)
 	:"cc");
 #else
 	unsigned long old = pte_val(*ptep);

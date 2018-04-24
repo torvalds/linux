@@ -57,12 +57,7 @@
 #define _PAGE_USER		(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
 #define _PAGE_PRIVILEGED	(_PAGE_BAP_SR)
 
-#define _PAGE_BUSY	0
-
 #define _PAGE_SPECIAL	_PAGE_SW0
-
-/* Flags to be preserved on PTE modifications */
-#define _PAGE_HPTEFLAGS	_PAGE_BUSY
 
 /* Base page size */
 #ifdef CONFIG_PPC_64K_PAGES
