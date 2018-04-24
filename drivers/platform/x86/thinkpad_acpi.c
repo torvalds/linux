@@ -4098,7 +4098,7 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		tpacpi_input_send_tabletsw();
 		hotkey_tablet_mode_notify_change();
 		*send_acpi_ev = false;
-		break;
+		return true;
 
 	case TP_HKEY_EV_PALM_DETECTED:
 	case TP_HKEY_EV_PALM_UNDETECTED:
