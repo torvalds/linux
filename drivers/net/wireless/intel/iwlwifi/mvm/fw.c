@@ -218,7 +218,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_lmac_alive *lmac1;
 	struct iwl_lmac_alive *lmac2 = NULL;
 	u16 status;
-	u32 umac_error_event_table;
+	u32 lmac_error_event_table, umac_error_event_table;
 
 	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
 		palive = (void *)pkt->data;
@@ -233,30 +233,35 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		status = le16_to_cpu(palive3->status);
 	}
 
-	mvm->error_event_table[0] = le32_to_cpu(lmac1->error_event_table_ptr);
-	if (lmac2)
-		mvm->error_event_table[1] =
-			le32_to_cpu(lmac2->error_event_table_ptr);
-	mvm->log_event_table = le32_to_cpu(lmac1->log_event_table_ptr);
+	lmac_error_event_table =
+		le32_to_cpu(lmac1->dbg_ptrs.error_event_table_ptr);
+	iwl_fw_lmac1_set_alive_err_table(mvm->trans, lmac_error_event_table);
 
-	umac_error_event_table = le32_to_cpu(umac->error_info_addr);
+	if (lmac2)
+		mvm->trans->lmac_error_event_table[1] =
+			le32_to_cpu(lmac2->dbg_ptrs.error_event_table_ptr);
+
+	umac_error_event_table = le32_to_cpu(umac->dbg_ptrs.error_info_addr);
 
 	if (!umac_error_event_table) {
 		mvm->support_umac_log = false;
 	} else if (umac_error_event_table >=
 		   mvm->trans->cfg->min_umac_error_event_table) {
 		mvm->support_umac_log = true;
-		mvm->umac_error_event_table = umac_error_event_table;
 	} else {
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
-			mvm->umac_error_event_table,
+			umac_error_event_table,
 			(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) ?
 			"Init" : "RT");
 		mvm->support_umac_log = false;
 	}
 
-	alive_data->scd_base_addr = le32_to_cpu(lmac1->scd_base_ptr);
+	if (mvm->support_umac_log)
+		iwl_fw_umac_set_alive_err_table(mvm->trans,
+						umac_error_event_table);
+
+	alive_data->scd_base_addr = le32_to_cpu(lmac1->dbg_ptrs.scd_base_ptr);
 	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
 
 	IWL_DEBUG_FW(mvm,
