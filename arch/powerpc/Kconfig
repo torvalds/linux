@@ -473,15 +473,6 @@ config MPROFILE_KERNEL
 	depends on PPC64 && CPU_LITTLE_ENDIAN
 	def_bool !DISABLE_MPROFILE_KERNEL
 
-config SWIOTLB
-	bool "SWIOTLB support"
-	default n
-	---help---
-	  Support for IO bounce buffering for systems without an IOMMU.
-	  This allows us to DMA to the full physical address space on
-	  platforms where the size of a physical address is larger
-	  than the bus address.  Not all platforms support this.
-
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \

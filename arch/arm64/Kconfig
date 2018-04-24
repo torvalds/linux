@@ -143,6 +143,7 @@ config ARM64
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
 	select SPARSE_IRQ
+	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	help
@@ -236,9 +237,6 @@ config HAVE_GENERIC_GUP
 	def_bool y
 
 config SMP
-	def_bool y
-
-config SWIOTLB
 	def_bool y
 
 config KERNEL_MODE_NEON

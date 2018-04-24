@@ -79,9 +79,6 @@ config MMU
 	bool
 	default y
 
-config SWIOTLB
-       bool
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -138,7 +135,6 @@ config IA64_GENERIC
 	bool "generic"
 	select NUMA
 	select ACPI_NUMA
-	select DMA_DIRECT_OPS
 	select SWIOTLB
 	select PCI_MSI
 	help
@@ -159,7 +155,6 @@ config IA64_GENERIC
 
 config IA64_DIG
 	bool "DIG-compliant"
-	select DMA_DIRECT_OPS
 	select SWIOTLB
 
 config IA64_DIG_VTD
@@ -175,7 +170,6 @@ config IA64_HP_ZX1
 
 config IA64_HP_ZX1_SWIOTLB
 	bool "HP-zx1/sx1000 with software I/O TLB"
-	select DMA_DIRECT_OPS
 	select SWIOTLB
 	help
 	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
@@ -199,7 +193,6 @@ config IA64_SGI_UV
 	bool "SGI-UV"
 	select NUMA
 	select ACPI_NUMA
-	select DMA_DIRECT_OPS
 	select SWIOTLB
 	help
 	  Selecting this option will optimize the kernel for use on UV based
@@ -210,7 +203,6 @@ config IA64_SGI_UV
 
 config IA64_HP_SIM
 	bool "Ski-simulator"
-	select DMA_DIRECT_OPS
 	select SWIOTLB
 	depends on !PM
 

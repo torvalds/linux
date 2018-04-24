@@ -1772,9 +1772,6 @@ config SECCOMP
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
-config SWIOTLB
-	bool
-
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	help

@@ -911,6 +911,7 @@ config CAVIUM_OCTEON_SOC
 	select MIPS_NR_CPU_NR_MAP_1024
 	select BUILTIN_DTB
 	select MTD_COMPLEX_MAPPINGS
+	select SWIOTLB
 	select SYS_SUPPORTS_RELOCATABLE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
@@ -1366,6 +1367,7 @@ config CPU_LOONGSON3
 	select MIPS_PGD_C0_CONTEXT
 	select MIPS_L1_CACHE_SHIFT_6
 	select GPIOLIB
+	select SWIOTLB
 	help
 		The Loongson 3 processor implements the MIPS64R2 instruction
 		set with many extensions.

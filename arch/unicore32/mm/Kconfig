@@ -39,7 +39,3 @@ config CPU_TLB_SINGLE_ENTRY_DISABLE
 	default y
 	help
 	  Say Y here to disable the TLB single entry operations.
-
-config SWIOTLB
-	def_bool y
-	select DMA_DIRECT_OPS

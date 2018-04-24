@@ -130,13 +130,6 @@ config LOONGSON_UART_BASE
 	default y
 	depends on EARLY_PRINTK || SERIAL_8250
 
-config SWIOTLB
-	bool "Soft IOMMU Support for All-Memory DMA"
-	default y
-	depends on CPU_LOONGSON3
-	select DMA_DIRECT_OPS
-	select NEED_DMA_MAP_STATE
-
 config PHYS48_TO_HT40
 	bool
 	default y if CPU_LOONGSON3
