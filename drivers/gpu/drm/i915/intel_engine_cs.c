@@ -1113,14 +1113,17 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915)
 	return which;
 }
 
-static void print_sched_attr(struct drm_printer *m,
-			     const struct drm_i915_private *i915,
-			     const struct i915_sched_attr *attr)
+static int print_sched_attr(struct drm_i915_private *i915,
+			    const struct i915_sched_attr *attr,
+			    char *buf, int x, int len)
 {
 	if (attr->priority == I915_PRIORITY_INVALID)
-		return;
+		return x;
 
-	drm_printf(m, "prio=%d", attr->priority);
+	x += snprintf(buf + x, len - x,
+		      " prio=%d", attr->priority);
+
+	return x;
 }
 
 static void print_request(struct drm_printer *m,
@@ -1128,14 +1131,17 @@ static void print_request(struct drm_printer *m,
 			  const char *prefix)
 {
 	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
+	char buf[80];
+	int x = 0;
 
-	drm_printf(m, "%s%x%s [%llx:%x] ",
+	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));
+
+	drm_printf(m, "%s%x%s [%llx:%x]%s @ %dms: %s\n",
 		   prefix,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" : "",
-		   rq->fence.context, rq->fence.seqno);
-	print_sched_attr(m, rq->i915, &rq->sched.attr);
-	drm_printf(m, " @ %dms: %s\n",
+		   rq->fence.context, rq->fence.seqno,
+		   buf,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   name);
 }
