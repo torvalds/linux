@@ -1284,7 +1284,8 @@ static void uniquify_event_name(struct perf_evsel *counter)
 	char *new_name;
 	char *config;
 
-	if (!counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
+	if (counter->uniquified_name ||
+	    !counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
 					   strlen(counter->pmu_name)))
 		return;
 
@@ -1302,6 +1303,8 @@ static void uniquify_event_name(struct perf_evsel *counter)
 			counter->name = new_name;
 		}
 	}
+
+	counter->uniquified_name = true;
 }
 
 static void collect_all_aliases(struct perf_evsel *counter,
