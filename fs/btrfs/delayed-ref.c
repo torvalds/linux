@@ -645,6 +645,57 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * init_delayed_ref_common - Initialize the structure which represents a
+ *			     modification to a an extent.
+ *
+ * @fs_info:    Internal to the mounted filesystem mount structure.
+ *
+ * @ref:	The structure which is going to be initialized.
+ *
+ * @bytenr:	The logical address of the extent for which a modification is
+ *		going to be recorded.
+ *
+ * @num_bytes:  Size of the extent whose modification is being recorded.
+ *
+ * @ref_root:	The id of the root where this modification has originated, this
+ *		can be either one of the well-known metadata trees or the
+ *		subvolume id which references this extent.
+ *
+ * @action:	Can be one of BTRFS_ADD_DELAYED_REF/BTRFS_DROP_DELAYED_REF or
+ *		BTRFS_ADD_DELAYED_EXTENT
+ *
+ * @ref_type:	Holds the type of the extent which is being recorded, can be
+ *		one of BTRFS_SHARED_BLOCK_REF_KEY/BTRFS_TREE_BLOCK_REF_KEY
+ *		when recording a metadata extent or BTRFS_SHARED_DATA_REF_KEY/
+ *		BTRFS_EXTENT_DATA_REF_KEY when recording data extent
+ */
+static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
+				    struct btrfs_delayed_ref_node *ref,
+				    u64 bytenr, u64 num_bytes, u64 ref_root,
+				    int action, u8 ref_type)
+{
+	u64 seq = 0;
+
+	if (action == BTRFS_ADD_DELAYED_EXTENT)
+		action = BTRFS_ADD_DELAYED_REF;
+
+	if (is_fstree(ref_root))
+		seq = atomic64_read(&fs_info->tree_mod_seq);
+
+	refcount_set(&ref->refs, 1);
+	ref->bytenr = bytenr;
+	ref->num_bytes = num_bytes;
+	ref->ref_mod = 1;
+	ref->action = action;
+	ref->is_head = 0;
+	ref->in_tree = 1;
+	ref->seq = seq;
+	ref->type = ref_type;
+	RB_CLEAR_NODE(&ref->ref_node);
+	INIT_LIST_HEAD(&ref->add_list);
+}
+
+/*
  * helper to insert a delayed tree ref into the rbtree.
  */
 static noinline void
