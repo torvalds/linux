@@ -150,14 +150,12 @@ max_page_sharing
         traversals are always schedule friendly themselves.
 
 stable_node_chains_prune_millisecs
-        How frequently to walk the whole list of stable_node "dups"
-        linked in the stable_node "chains" in order to prune stale
-        stable_nodes. Smaller milllisecs values will free up the KSM
-        metadata with lower latency, but they will make ksmd use more
-        CPU during the scan. This only applies to the stable_node
-        chains so it's a noop if not a single KSM page hit the
-        ``max_page_sharing`` yet (there would be no stable_node chains in
-        such case).
+        specifies how frequently KSM checks the metadata of the pages
+        that hit the deduplication limit for stale information.
+        Smaller milllisecs values will free up the KSM metadata with
+        lower latency, but they will make ksmd use more CPU during the
+        scan. It's a noop if not a single KSM page hit the
+        ``max_page_sharing`` yet.
 
 The effectiveness of KSM and MADV_MERGEABLE is shown in ``/sys/kernel/mm/ksm/``:
 
@@ -248,6 +246,11 @@ stable_node chain->hlist to check for pruning) and higher
 deduplication factor at the expense of slower worst case for rmap
 walks for any KSM page which can happen during swapping, compaction,
 NUMA balancing and page migration.
+
+The whole list of stable_node "dups" linked in the stable_node
+"chains" is scanned periodically in order to prune stale stable_nodes.
+The frequency of such scans is defined by
+``stable_node_chains_prune_millisecs`` sysfs tunable.
 
 Reference
 ---------
