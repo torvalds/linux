@@ -64,6 +64,7 @@ struct bpf_test {
 	struct bpf_insn	insns[MAX_INSNS];
 	int fixup_map1[MAX_FIXUPS];
 	int fixup_map2[MAX_FIXUPS];
+	int fixup_map3[MAX_FIXUPS];
 	int fixup_prog[MAX_FIXUPS];
 	int fixup_map_in_map[MAX_FIXUPS];
 	const char *errstr;
@@ -86,6 +87,11 @@ struct bpf_test {
 struct test_val {
 	unsigned int index;
 	int foo[MAX_ENTRIES];
+};
+
+struct other_val {
+	long long foo;
+	long long bar;
 };
 
 static struct bpf_test tests[] = {
@@ -5591,6 +5597,257 @@ static struct bpf_test tests[] = {
 		.fixup_map2 = { 3 },
 		.result = REJECT,
 		.errstr = "R1 min value is negative",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map lookup helper access to map",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 8 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map update helper access to map",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+			BPF_MOV64_REG(BPF_REG_3, BPF_REG_0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_update_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 10 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map update helper access to map: wrong size",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+			BPF_MOV64_REG(BPF_REG_3, BPF_REG_0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_update_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.fixup_map3 = { 10 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=8 off=0 size=16",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const imm)",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2,
+				      offsetof(struct other_val, bar)),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 9 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const imm): out-of-bound 1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2,
+				      sizeof(struct other_val) - 4),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 9 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=16 off=12 size=8",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const imm): out-of-bound 2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 9 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=16 off=-4 size=8",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const reg)",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_3,
+				      offsetof(struct other_val, bar)),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 10 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const reg): out-of-bound 1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_3,
+				      sizeof(struct other_val) - 4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 10 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=16 off=12 size=8",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via const reg): out-of-bound 2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_3, -4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 10 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=16 off=-4 size=8",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via variable)",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 7),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_3,
+				    offsetof(struct other_val, bar), 4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 11 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via variable): no max check",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_0, 0),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 10 },
+		.result = REJECT,
+		.errstr = "R2 unbounded memory access, make sure to bounds check any array access into a map",
+		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	},
+	{
+		"map helper access to adjusted map (via variable): wrong max check",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 7),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_3,
+				    offsetof(struct other_val, bar) + 1, 4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map3 = { 3, 11 },
+		.result = REJECT,
+		.errstr = "invalid access to map value, value_size=16 off=9 size=8",
 		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 	},
 	{
@@ -11533,6 +11790,7 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 {
 	int *fixup_map1 = test->fixup_map1;
 	int *fixup_map2 = test->fixup_map2;
+	int *fixup_map3 = test->fixup_map3;
 	int *fixup_prog = test->fixup_prog;
 	int *fixup_map_in_map = test->fixup_map_in_map;
 
@@ -11554,6 +11812,14 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 			prog[*fixup_map2].imm = map_fds[1];
 			fixup_map2++;
 		} while (*fixup_map2);
+	}
+
+	if (*fixup_map3) {
+		map_fds[1] = create_map(sizeof(struct other_val), 1);
+		do {
+			prog[*fixup_map3].imm = map_fds[1];
+			fixup_map3++;
+		} while (*fixup_map3);
 	}
 
 	if (*fixup_prog) {
