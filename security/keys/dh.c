@@ -162,8 +162,8 @@ static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
 			goto err;
 
 		if (zlen && h) {
-			u8 tmpbuffer[h];
-			size_t chunk = min_t(size_t, zlen, h);
+			u8 tmpbuffer[32];
+			size_t chunk = min_t(size_t, zlen, sizeof(tmpbuffer));
 			memset(tmpbuffer, 0, chunk);
 
 			do {
@@ -173,7 +173,7 @@ static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
 					goto err;
 
 				zlen -= chunk;
-				chunk = min_t(size_t, zlen, h);
+				chunk = min_t(size_t, zlen, sizeof(tmpbuffer));
 			} while (zlen);
 		}
 
