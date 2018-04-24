@@ -395,6 +395,15 @@
 			status = "disabled";
 		};
 
+		cec: cec@40016000 {
+			compatible = "st,stm32-cec";
+			reg = <0x40016000 0x400>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc CEC_K>, <&clk_lse>;
+			clock-names = "cec", "hdmi-cec";
+			status = "disabled";
+		};
+
 		dac: dac@40017000 {
 			compatible = "st,stm32h7-dac-core";
 			reg = <0x40017000 0x400>;
