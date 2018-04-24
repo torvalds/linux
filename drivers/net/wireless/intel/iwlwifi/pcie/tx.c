@@ -495,6 +495,9 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
 
+	if (trans->cfg->use_tfh)
+		tfd_sz = trans_pcie->tfd_size * slots_num;
+
 	timer_setup(&txq->stuck_timer, iwl_pcie_txq_stuck_timer, 0);
 	txq->trans_pcie = trans_pcie;
 
@@ -950,8 +953,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
-			TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
 					 slots_num, cmd_queue);
@@ -970,29 +972,12 @@ error:
 	return ret;
 }
 
-void iwl_pcie_set_tx_cmd_queue_size(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int queue_size = TFD_CMD_SLOTS;
-
-	if (trans->cfg->tx_cmd_queue_size)
-		queue_size = trans->cfg->tx_cmd_queue_size;
-
-	if (WARN_ON(!(is_power_of_2(queue_size) &&
-		      TFD_QUEUE_CB_SIZE(queue_size) > 0)))
-		trans_pcie->tx_cmd_queue_size = TFD_CMD_SLOTS;
-	else
-		trans_pcie->tx_cmd_queue_size = queue_size;
-}
-
 int iwl_pcie_tx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	int txq_id, slots_num;
 	bool alloc = false;
-
-	iwl_pcie_set_tx_cmd_queue_size(trans);
 
 	if (!trans_pcie->txq_memory) {
 		ret = iwl_pcie_tx_alloc(trans);
@@ -1017,8 +1002,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
-			TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
 					slots_num, cmd_queue);
 		if (ret) {
@@ -1166,7 +1150,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			 * In that case, iwl_queue_space will be small again
 			 * and we won't wake mac80211's queue.
 			 */
-			iwl_trans_pcie_tx(trans, skb, dev_cmd_ptr, txq_id);
+			iwl_trans_tx(trans, skb, dev_cmd_ptr, txq_id);
 		}
 		spin_lock_bh(&txq->lock);
 
