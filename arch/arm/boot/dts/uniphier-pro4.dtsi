@@ -371,8 +371,11 @@
 			interrupts = <0 66 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_ether_rgmii>;
-			clocks = <&sys_clk 6>;
-			resets = <&sys_rst 6>;
+			clock-names = "gio", "ether", "ether-gb", "ether-phy";
+			clocks = <&sys_clk 12>, <&sys_clk 6>, <&sys_clk 7>,
+				 <&sys_clk 10>;
+			reset-names = "gio", "ether";
+			resets = <&sys_rst 12>, <&sys_rst 6>;
 			phy-mode = "rgmii";
 			local-mac-address = [00 00 00 00 00 00];
 
