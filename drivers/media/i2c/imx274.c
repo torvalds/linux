@@ -971,7 +971,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 	if (!ret) {
 		/*
 		 * exposure time range is decided by frame interval
-		 * need to update it after frame interal changes
+		 * need to update it after frame interval changes
 		 */
 		min = IMX274_MIN_EXPOSURE_TIME;
 		max = fi->interval.numerator * 1000000
