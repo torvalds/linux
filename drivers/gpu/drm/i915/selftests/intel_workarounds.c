@@ -239,7 +239,7 @@ static int live_reset_whitelist(void *arg)
 	struct intel_engine_cs *engine = i915->engine[RCS];
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct whitelist w;
-	int err;
+	int err = 0;
 
 	/* If we reset the gpu, we should not lose the RING_NONPRIV */
 
