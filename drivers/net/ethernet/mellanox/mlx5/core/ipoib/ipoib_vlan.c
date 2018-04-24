@@ -290,7 +290,7 @@ static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
 	netdev->ethtool_ops = &mlx5i_pkey_ethtool_ops;
 
 	/* Use dummy rqs */
-	priv->channels.params.log_rq_size = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+	priv->channels.params.log_rq_mtu_frames = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */

@@ -433,6 +433,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	char serr[STRERR_BUFSIZE];
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
 	const char *template = llvm_param.clang_bpf_cmd_template;
+	char *command_echo, *command_out;
 
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
 		err = errno;
@@ -487,6 +488,16 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      (path[0] == '-') ? path : abspath);
 
 	pr_debug("llvm compiling command template: %s\n", template);
+
+	if (asprintf(&command_echo, "echo -n \"%s\"", template) < 0)
+		goto errout;
+
+	err = read_from_pipe(command_echo, (void **) &command_out, NULL);
+	if (err)
+		goto errout;
+
+	pr_debug("llvm compiling command : %s\n", command_out);
+
 	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);
 	if (err) {
 		pr_err("ERROR:\tunable to compile %s\n", path);
@@ -497,6 +508,8 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		goto errout;
 	}
 
+	free(command_echo);
+	free(command_out);
 	free(kbuild_dir);
 	free(kbuild_include_opts);
 
@@ -509,6 +522,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		*p_obj_buf_sz = obj_buf_sz;
 	return 0;
 errout:
+	free(command_echo);
 	free(kbuild_dir);
 	free(kbuild_include_opts);
 	free(obj_buf);

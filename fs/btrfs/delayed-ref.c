@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -216,7 +203,7 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_root *delayed_refs;
 
 	delayed_refs = &trans->transaction->delayed_refs;
-	assert_spin_locked(&delayed_refs->lock);
+	lockdep_assert_held(&delayed_refs->lock);
 	if (mutex_trylock(&head->mutex))
 		return 0;
 
@@ -239,7 +226,7 @@ static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 				    struct btrfs_delayed_ref_head *head,
 				    struct btrfs_delayed_ref_node *ref)
 {
-	assert_spin_locked(&head->lock);
+	lockdep_assert_held(&head->lock);
 	rb_erase(&ref->ref_node, &head->ref_tree);
 	RB_CLEAR_NODE(&ref->ref_node);
 	if (!list_empty(&ref->add_list))
@@ -307,7 +294,7 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 	struct rb_node *node;
 	u64 seq = 0;
 
-	assert_spin_locked(&head->lock);
+	lockdep_assert_held(&head->lock);
 
 	if (RB_EMPTY_ROOT(&head->ref_tree))
 		return;
@@ -553,8 +540,10 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		     struct btrfs_delayed_ref_head *head_ref,
 		     struct btrfs_qgroup_extent_record *qrecord,
 		     u64 bytenr, u64 num_bytes, u64 ref_root, u64 reserved,
-		     int action, int is_data, int *qrecord_inserted_ret,
+		     int action, int is_data, int is_system,
+		     int *qrecord_inserted_ret,
 		     int *old_ref_mod, int *new_ref_mod)
+
 {
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -598,6 +587,7 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	head_ref->ref_mod = count_mod;
 	head_ref->must_insert_reserved = must_insert_reserved;
 	head_ref->is_data = is_data;
+	head_ref->is_system = is_system;
 	head_ref->ref_tree = RB_ROOT;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	RB_CLEAR_NODE(&head_ref->href_node);
@@ -785,6 +775,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
 	int qrecord_inserted;
+	int is_system = (ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	BUG_ON(extent_op && extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
@@ -813,8 +804,8 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	 */
 	head_ref = add_delayed_ref_head(fs_info, trans, head_ref, record,
 					bytenr, num_bytes, 0, 0, action, 0,
-					&qrecord_inserted, old_ref_mod,
-					new_ref_mod);
+					is_system, &qrecord_inserted,
+					old_ref_mod, new_ref_mod);
 
 	add_delayed_tree_ref(fs_info, trans, head_ref, &ref->node, bytenr,
 			     num_bytes, parent, ref_root, level, action);
@@ -881,7 +872,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	 */
 	head_ref = add_delayed_ref_head(fs_info, trans, head_ref, record,
 					bytenr, num_bytes, ref_root, reserved,
-					action, 1, &qrecord_inserted,
+					action, 1, 0, &qrecord_inserted,
 					old_ref_mod, new_ref_mod);
 
 	add_delayed_data_ref(fs_info, trans, head_ref, &ref->node, bytenr,
@@ -911,9 +902,14 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
 
+	/*
+	 * extent_ops just modify the flags of an extent and they don't result
+	 * in ref count changes, hence it's safe to pass false/0 for is_system
+	 * argument
+	 */
 	add_delayed_ref_head(fs_info, trans, head_ref, NULL, bytenr,
 			     num_bytes, 0, 0, BTRFS_UPDATE_DELAYED_HEAD,
-			     extent_op->is_data, NULL, NULL, NULL);
+			     extent_op->is_data, 0, NULL, NULL, NULL);
 
 	spin_unlock(&delayed_refs->lock);
 	return 0;
@@ -930,7 +926,7 @@ btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 byt
 	return find_ref_head(&delayed_refs->href_root, bytenr, 0);
 }
 
-void btrfs_delayed_ref_exit(void)
+void __cold btrfs_delayed_ref_exit(void)
 {
 	kmem_cache_destroy(btrfs_delayed_ref_head_cachep);
 	kmem_cache_destroy(btrfs_delayed_tree_ref_cachep);

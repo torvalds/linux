@@ -16,11 +16,8 @@
 #include "efistub.h"
 
 #ifdef CONFIG_RESET_ATTACK_MITIGATION
-static const efi_char16_t efi_MemoryOverWriteRequest_name[] = {
-	'M', 'e', 'm', 'o', 'r', 'y', 'O', 'v', 'e', 'r', 'w', 'r', 'i', 't',
-	'e', 'R', 'e', 'q', 'u', 'e', 's', 't', 'C', 'o', 'n', 't', 'r', 'o',
-	'l', 0
-};
+static const efi_char16_t efi_MemoryOverWriteRequest_name[] =
+	L"MemoryOverwriteRequestControl";
 
 #define MEMORY_ONLY_RESET_CONTROL_GUID \
 	EFI_GUID(0xe20939be, 0x32d4, 0x41be, 0xa1, 0x50, 0x89, 0x7f, 0x85, 0xd4, 0x98, 0x29)
@@ -68,11 +65,11 @@ void efi_retrieve_tpm2_eventlog_1_2(efi_system_table_t *sys_table_arg)
 	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
 	efi_status_t status;
 	efi_physical_addr_t log_location, log_last_entry;
-	struct linux_efi_tpm_eventlog *log_tbl;
+	struct linux_efi_tpm_eventlog *log_tbl = NULL;
 	unsigned long first_entry_addr, last_entry_addr;
 	size_t log_size, last_entry_size;
 	efi_bool_t truncated;
-	void *tcg2_protocol;
+	void *tcg2_protocol = NULL;
 
 	status = efi_call_early(locate_protocol, &tcg2_guid, NULL,
 				&tcg2_protocol);

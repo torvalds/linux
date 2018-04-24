@@ -14,6 +14,9 @@
 
 #include "qla_def.h"
 
+/* default dev loss time (seconds) before transport tears down ctrl */
+#define NVME_FC_DEV_LOSS_TMO  30
+
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048
@@ -28,11 +31,11 @@ struct nvme_private {
 	struct srb	*sp;
 	struct nvmefc_ls_req *fd;
 	struct work_struct ls_work;
+	struct work_struct abort_work;
 	int comp_status;
 };
 
-struct nvme_rport {
-	struct nvme_fc_port_info req;
+struct qla_nvme_rport {
 	struct list_head list;
 	struct fc_port *fcport;
 };
@@ -142,7 +145,7 @@ struct pt_ls4_rx_unsol {
 void qla_nvme_register_hba(struct scsi_qla_host *);
 int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
-void qla_nvme_abort(struct qla_hw_data *, struct srb *sp);
+void qla_nvme_abort(struct qla_hw_data *, struct srb *sp, int res);
 void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *, struct pt_ls4_request *,
     struct req_que *);
 void qla24xx_async_gffid_sp_done(void *, int);

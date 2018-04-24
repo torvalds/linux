@@ -52,17 +52,6 @@ struct ia_css_pipe_extra_config {
 	bool disable_vf_pp;
 };
 
-#define DEFAULT_PIPE_EXTRA_CONFIG \
-{ \
-	false,				/* enable_raw_binning */ \
-	false,				/* enable_yuv_ds */ \
-	false,				/* enable_high_speed */ \
-	false,				/* enable_dvs_6axis */ \
-	false,				/* enable_reduced_pipe */ \
-	false,				/* enable_fractional_ds */ \
-	false,				/* disable_vf_pp */ \
-}
-
 enum ia_css_err
 ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 			 const struct ia_css_pipe_extra_config *extra_config,

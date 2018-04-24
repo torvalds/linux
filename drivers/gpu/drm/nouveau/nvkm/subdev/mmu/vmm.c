@@ -1354,7 +1354,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 
 		tail = this->addr + this->size;
 		if (vmm->func->page_block && next && next->page != p)
-			tail = ALIGN_DOWN(addr, vmm->func->page_block);
+			tail = ALIGN_DOWN(tail, vmm->func->page_block);
 
 		if (addr <= tail && tail - addr >= size) {
 			rb_erase(&this->tree, &vmm->free);

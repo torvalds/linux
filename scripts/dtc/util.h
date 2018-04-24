@@ -1,5 +1,5 @@
-#ifndef _UTIL_H
-#define _UTIL_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -34,6 +34,9 @@
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+#define stringify(s)	stringify_(s)
+#define stringify_(s)	#s
 
 static inline void NORETURN PRINTF(1, 2) die(const char *str, ...)
 {
@@ -260,4 +263,4 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 	case 'V': util_version(); \
 	case '?': usage("unknown option");
 
-#endif /* _UTIL_H */
+#endif /* UTIL_H */

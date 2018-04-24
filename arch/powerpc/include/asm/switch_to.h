@@ -35,7 +35,6 @@ static inline void disable_kernel_fp(void)
 	msr_check_and_clear(MSR_FP);
 }
 #else
-static inline void __giveup_fpu(struct task_struct *t) { }
 static inline void save_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 #endif

@@ -330,8 +330,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	 * write-combined buffer or a delay through the chipset for GTT
 	 * writes that do require us to treat GTT as a separate cache domain.)
 	 */
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
-	obj->base.write_domain = 0;
+	obj->read_domains = I915_GEM_DOMAIN_GTT;
+	obj->write_domain = 0;
 
 	return &obj->base;
 

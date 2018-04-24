@@ -117,10 +117,17 @@ enum nfit_dimm_notifiers {
 	NFIT_NOTIFY_DIMM_HEALTH = 0x81,
 };
 
+enum nfit_ars_state {
+	ARS_REQ,
+	ARS_DONE,
+	ARS_SHORT,
+	ARS_FAILED,
+};
+
 struct nfit_spa {
 	struct list_head list;
 	struct nd_region *nd_region;
-	unsigned int ars_required:1;
+	unsigned long ars_state;
 	u32 clear_err_unit;
 	u32 max_ars;
 	struct acpi_nfit_system_address spa[0];
@@ -171,9 +178,8 @@ struct nfit_mem {
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	int family;
-	u32 has_lsi:1;
-	u32 has_lsr:1;
-	u32 has_lsw:1;
+	bool has_lsr;
+	bool has_lsw;
 };
 
 struct acpi_nfit_desc {
@@ -191,18 +197,18 @@ struct acpi_nfit_desc {
 	struct device *dev;
 	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
-	size_t ars_status_size;
-	struct work_struct work;
+	struct delayed_work dwork;
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
+	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
 	unsigned int cancel:1;
-	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	unsigned long bus_nfit_cmd_force_en;
 	unsigned int platform_cap;
+	unsigned int scrub_tmo;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
@@ -244,7 +250,7 @@ struct nfit_blk {
 
 extern struct list_head acpi_descs;
 extern struct mutex acpi_desc_lock;
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, u8 flags);
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags);
 
 #ifdef CONFIG_X86_MCE
 void nfit_mce_register(void);

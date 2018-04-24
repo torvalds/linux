@@ -540,6 +540,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
 		dev_warn(geth->dev, "TX queue base it not aligned\n");
+		kfree(skb_tab);
 		return -ENOMEM;
 	}
 

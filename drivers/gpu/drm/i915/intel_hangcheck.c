@@ -246,7 +246,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 */
 	tmp = I915_READ_CTL(engine);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev_priv, 0,
+		i915_handle_error(dev_priv, BIT(engine->id),
 				  "Kicking stuck wait on %s",
 				  engine->name);
 		I915_WRITE_CTL(engine, tmp);
@@ -258,7 +258,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 		default:
 			return ENGINE_DEAD;
 		case 1:
-			i915_handle_error(dev_priv, 0,
+			i915_handle_error(dev_priv, ALL_ENGINES,
 					  "Kicking stuck semaphore on %s",
 					  engine->name);
 			I915_WRITE_CTL(engine, tmp);
@@ -359,7 +359,7 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 	case ENGINE_DEAD:
 		if (drm_debug & DRM_UT_DRIVER) {
 			struct drm_printer p = drm_debug_printer("hangcheck");
-			intel_engine_dump(engine, &p, "%s", engine->name);
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
 		}
 		break;
 

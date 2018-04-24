@@ -396,6 +396,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 				pasid_max - 1, GFP_KERNEL);
 		if (ret < 0) {
 			kfree(svm);
+			kfree(sdev);
 			goto out;
 		}
 		svm->pasid = ret;
@@ -422,17 +423,13 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		iommu->pasid_table[svm->pasid].val = pasid_entry_val;
 
 		wmb();
-		/* In caching mode, we still have to flush with PASID 0 when
-		 * a PASID table entry becomes present. Not entirely clear
-		 * *why* that would be the case — surely we could just issue
-		 * a flush with the PASID value that we've changed? The PASID
-		 * is the index into the table, after all. It's not like domain
-		 * IDs in the case of the equivalent context-entry change in
-		 * caching mode. And for that matter it's not entirely clear why
-		 * a VMM would be in the business of caching the PASID table
-		 * anyway. Surely that can be left entirely to the guest? */
+
+		/*
+		 * Flush PASID cache when a PASID table entry becomes
+		 * present.
+		 */
 		if (cap_caching_mode(iommu->cap))
-			intel_flush_pasid_dev(svm, sdev, 0);
+			intel_flush_pasid_dev(svm, sdev, svm->pasid);
 	}
 	list_add_rcu(&sdev->list, &svm->devs);
 

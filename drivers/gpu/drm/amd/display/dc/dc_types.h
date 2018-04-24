@@ -193,6 +193,10 @@ union display_content_support {
 	} bits;
 };
 
+struct dc_panel_patch {
+	unsigned int dppowerup_delay;
+};
+
 struct dc_edid_caps {
 	/* sink identification */
 	uint16_t manufacturer_id;
@@ -219,6 +223,8 @@ struct dc_edid_caps {
 
 	bool edid_hdmi;
 	bool hdr_supported;
+
+	struct dc_panel_patch panel_patch;
 };
 
 struct view {
@@ -515,6 +521,24 @@ struct audio_info {
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
 
+struct vrr_params {
+	enum vrr_state state;
+	uint32_t window_min;
+	uint32_t window_max;
+	uint32_t inserted_frame_duration_in_us;
+	uint32_t frames_to_insert;
+	uint32_t frame_counter;
+};
+
+#define DC_PLANE_UPDATE_TIMES_MAX 10
+
+struct dc_plane_flip_time {
+	unsigned int time_elapsed_in_us[DC_PLANE_UPDATE_TIMES_MAX];
+	unsigned int index;
+	unsigned int prev_update_time_in_us;
+};
+
+// Will combine with vrr_params at some point.
 struct freesync_context {
 	bool supported;
 	bool enabled;

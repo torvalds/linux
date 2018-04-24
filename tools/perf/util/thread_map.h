@@ -14,6 +14,7 @@ struct thread_map_data {
 struct thread_map {
 	refcount_t refcnt;
 	int nr;
+	int err_thread;
 	struct thread_map_data map[];
 };
 
@@ -31,7 +32,7 @@ struct thread_map *thread_map__get(struct thread_map *map);
 void thread_map__put(struct thread_map *map);
 
 struct thread_map *thread_map__new_str(const char *pid,
-		const char *tid, uid_t uid, bool per_thread);
+		const char *tid, uid_t uid, bool all_threads);
 
 struct thread_map *thread_map__new_by_tid_str(const char *tid_str);
 

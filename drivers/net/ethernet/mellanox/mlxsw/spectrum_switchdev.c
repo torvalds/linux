@@ -1203,6 +1203,7 @@ static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				     bool dynamic)
 {
 	char *sfd_pl;
+	u8 num_rec;
 	int err;
 
 	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
@@ -1212,9 +1213,16 @@ static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_uc_pack(sfd_pl, 0, mlxsw_sp_sfd_rec_policy(dynamic),
 			      mac, fid, action, local_port);
+	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
-	kfree(sfd_pl);
+	if (err)
+		goto out;
 
+	if (num_rec != mlxsw_reg_sfd_num_rec_get(sfd_pl))
+		err = -EBUSY;
+
+out:
+	kfree(sfd_pl);
 	return err;
 }
 
@@ -1239,6 +1247,7 @@ static int mlxsw_sp_port_fdb_uc_lag_op(struct mlxsw_sp *mlxsw_sp, u16 lag_id,
 				       bool adding, bool dynamic)
 {
 	char *sfd_pl;
+	u8 num_rec;
 	int err;
 
 	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
@@ -1249,9 +1258,16 @@ static int mlxsw_sp_port_fdb_uc_lag_op(struct mlxsw_sp *mlxsw_sp, u16 lag_id,
 	mlxsw_reg_sfd_uc_lag_pack(sfd_pl, 0, mlxsw_sp_sfd_rec_policy(dynamic),
 				  mac, fid, MLXSW_REG_SFD_REC_ACTION_NOP,
 				  lag_vid, lag_id);
+	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
-	kfree(sfd_pl);
+	if (err)
+		goto out;
 
+	if (num_rec != mlxsw_reg_sfd_num_rec_get(sfd_pl))
+		err = -EBUSY;
+
+out:
+	kfree(sfd_pl);
 	return err;
 }
 
@@ -1296,6 +1312,7 @@ static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 				u16 fid, u16 mid_idx, bool adding)
 {
 	char *sfd_pl;
+	u8 num_rec;
 	int err;
 
 	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
@@ -1305,7 +1322,15 @@ static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_mc_pack(sfd_pl, 0, addr, fid,
 			      MLXSW_REG_SFD_REC_ACTION_NOP, mid_idx);
+	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
+	if (err)
+		goto out;
+
+	if (num_rec != mlxsw_reg_sfd_num_rec_get(sfd_pl))
+		err = -EBUSY;
+
+out:
 	kfree(sfd_pl);
 	return err;
 }
@@ -1819,7 +1844,7 @@ mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	if (is_vlan_dev(bridge_port->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Can not enslave a VLAN device to a VLAN-aware bridge");
+		NL_SET_ERR_MSG_MOD(extack, "Can not enslave a VLAN device to a VLAN-aware bridge");
 		return -EINVAL;
 	}
 
@@ -1882,20 +1907,16 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	struct net_device *dev = bridge_port->dev;
 	u16 vid;
 
-	if (!is_vlan_dev(bridge_port->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Only VLAN devices can be enslaved to a VLAN-unaware bridge");
-		return -EINVAL;
-	}
-	vid = vlan_dev_vlan_id(bridge_port->dev);
-
+	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 1;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_port_vlan))
 		return -EINVAL;
 
 	if (mlxsw_sp_port_is_br_member(mlxsw_sp_port, bridge_device->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Can not bridge VLAN uppers of the same port");
+		NL_SET_ERR_MSG_MOD(extack, "Can not bridge VLAN uppers of the same port");
 		return -EINVAL;
 	}
 
@@ -1912,8 +1933,10 @@ mlxsw_sp_bridge_8021d_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 				 struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	u16 vid = vlan_dev_vlan_id(bridge_port->dev);
+	struct net_device *dev = bridge_port->dev;
+	u16 vid;
 
+	vid = is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 1;
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_port_vlan))
 		return;

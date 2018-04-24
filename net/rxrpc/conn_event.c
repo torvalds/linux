@@ -136,6 +136,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	}
 
 	kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
+	conn->params.peer->last_tx_at = ktime_get_real();
 	_leave("");
 	return;
 }
@@ -160,7 +161,8 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			lockdep_is_held(&conn->channel_lock));
 		if (call) {
 			if (compl == RXRPC_CALL_LOCALLY_ABORTED)
-				trace_rxrpc_abort("CON", call->cid,
+				trace_rxrpc_abort(call->debug_id,
+						  "CON", call->cid,
 						  call->call_id, 0,
 						  abort_code, error);
 			if (rxrpc_set_call_completion(call, compl,
@@ -237,6 +239,8 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
 	}
+
+	conn->params.peer->last_tx_at = ktime_get_real();
 
 	_leave(" = 0");
 	return 0;

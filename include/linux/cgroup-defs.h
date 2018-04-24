@@ -151,8 +151,8 @@ struct cgroup_subsys_state {
 	atomic_t online_cnt;
 
 	/* percpu_ref killing and RCU release */
-	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
+	struct rcu_work destroy_rwork;
 
 	/*
 	 * PI: the parent css.	Placed here for cache proximity to following
@@ -755,13 +755,13 @@ struct sock_cgroup_data {
  * updaters and return part of the previous pointer as the prioidx or
  * classid.  Such races are short-lived and the result isn't critical.
  */
-static inline u16 sock_cgroup_prioidx(struct sock_cgroup_data *skcd)
+static inline u16 sock_cgroup_prioidx(const struct sock_cgroup_data *skcd)
 {
 	/* fallback to 1 which is always the ID of the root cgroup */
 	return (skcd->is_data & 1) ? skcd->prioidx : 1;
 }
 
-static inline u32 sock_cgroup_classid(struct sock_cgroup_data *skcd)
+static inline u32 sock_cgroup_classid(const struct sock_cgroup_data *skcd)
 {
 	/* fallback to 0 which is the unconfigured default classid */
 	return (skcd->is_data & 1) ? skcd->classid : 0;

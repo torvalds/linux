@@ -33,8 +33,7 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-#define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
-static void update_stream_signal(struct dc_stream_state *stream)
+void update_stream_signal(struct dc_stream_state *stream)
 {
 
 	struct dc_sink *dc_sink = stream->sink;
@@ -45,8 +44,9 @@ static void update_stream_signal(struct dc_stream_state *stream)
 		stream->signal = dc_sink->sink_signal;
 
 	if (dc_is_dvi_signal(stream->signal)) {
-		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
-			stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+		if (stream->ctx->dc->caps.dual_link_dvi &&
+		    stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK &&
+		    stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
@@ -193,45 +193,19 @@ bool dc_stream_set_cursor_attributes(
 
 	core_dc = stream->ctx->dc;
 	res_ctx = &core_dc->current_state->res_ctx;
+	stream->cursor_attributes = *attributes;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream || (!pipe_ctx->plane_res.xfm &&
-		    !pipe_ctx->plane_res.dpp) || !pipe_ctx->plane_res.ipp)
+		if (pipe_ctx->stream != stream)
 			continue;
 		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
 
 
-		if (pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes != NULL)
-			pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
-						pipe_ctx->plane_res.ipp, attributes);
-
-		if (pipe_ctx->plane_res.hubp != NULL &&
-				pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes != NULL)
-			pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
-					pipe_ctx->plane_res.hubp, attributes);
-
-		if (pipe_ctx->plane_res.mi != NULL &&
-				pipe_ctx->plane_res.mi->funcs->set_cursor_attributes != NULL)
-			pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
-					pipe_ctx->plane_res.mi, attributes);
-
-
-		if (pipe_ctx->plane_res.xfm != NULL &&
-				pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes != NULL)
-			pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
-				pipe_ctx->plane_res.xfm, attributes);
-
-		if (pipe_ctx->plane_res.dpp != NULL &&
-				pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes != NULL)
-			pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes(
-				pipe_ctx->plane_res.dpp, attributes->color_format);
+		core_dc->hwss.set_cursor_attribute(pipe_ctx);
 	}
-
-	stream->cursor_attributes = *attributes;
-
 	return true;
 }
 
@@ -255,21 +229,10 @@ bool dc_stream_set_cursor_position(
 
 	core_dc = stream->ctx->dc;
 	res_ctx = &core_dc->current_state->res_ctx;
+	stream->cursor_position = *position;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-		struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
-		struct mem_input *mi = pipe_ctx->plane_res.mi;
-		struct hubp *hubp = pipe_ctx->plane_res.hubp;
-		struct dpp *dpp = pipe_ctx->plane_res.dpp;
-		struct dc_cursor_position pos_cpy = *position;
-		struct dc_cursor_mi_param param = {
-			.pixel_clk_khz = stream->timing.pix_clk_khz,
-			.ref_clk_khz = core_dc->res_pool->ref_clock_inKhz,
-			.viewport_x_start = pipe_ctx->plane_res.scl_data.viewport.x,
-			.viewport_width = pipe_ctx->plane_res.scl_data.viewport.width,
-			.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz
-		};
 
 		if (pipe_ctx->stream != stream ||
 				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
@@ -278,32 +241,8 @@ bool dc_stream_set_cursor_position(
 				!pipe_ctx->plane_res.ipp)
 			continue;
 
-		if (pipe_ctx->plane_state->address.type
-				== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
-			pos_cpy.enable = false;
-
-		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
-			pos_cpy.enable = false;
-
-
-		if (ipp != NULL && ipp->funcs->ipp_cursor_set_position != NULL)
-			ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
-
-		if (mi != NULL && mi->funcs->set_cursor_position != NULL)
-			mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
-
-		if (!hubp)
-			continue;
-
-		if (hubp->funcs->set_cursor_position != NULL)
-			hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
-
-		if (dpp != NULL && dpp->funcs->set_cursor_position != NULL)
-			dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
-
+		core_dc->hwss.set_cursor_position(pipe_ctx);
 	}
-
-	stream->cursor_position = *position;
 
 	return true;
 }

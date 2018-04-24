@@ -84,7 +84,7 @@ static const struct nla_policy skbmod_policy[TCA_SKBMOD_MAX + 1] = {
 
 static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
-			   int ovr, int bind)
+			   int ovr, int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 	struct nlattr *tb[TCA_SKBMOD_MAX + 1];
@@ -152,7 +152,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		if (ovr)
+		if (ret == ACT_P_CREATED)
 			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
@@ -190,7 +190,8 @@ static void tcf_skbmod_cleanup(struct tc_action *a)
 	struct tcf_skbmod_params  *p;
 
 	p = rcu_dereference_protected(d->skbmod_p, 1);
-	kfree_rcu(p, rcu);
+	if (p)
+		kfree_rcu(p, rcu);
 }
 
 static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
@@ -232,14 +233,16 @@ nla_put_failure:
 
 static int tcf_skbmod_walker(struct net *net, struct sk_buff *skb,
 			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops)
+			     const struct tc_action_ops *ops,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 

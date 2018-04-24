@@ -154,10 +154,21 @@ enum rtl8192c_h2c_cmd {
 	MAX_H2CCMD
 };
 
+enum {
+	H2C_BT_PORT_ID = 0x71,
+};
+
+#define GET_TX_REPORT_SN_V1(c2h)	(c2h[6])
+#define GET_TX_REPORT_ST_V1(c2h)	(c2h[0] & 0xC0)
+#define GET_TX_REPORT_RETRY_V1(c2h)	(c2h[2] & 0x3F)
+#define GET_TX_REPORT_SN_V2(c2h)	(c2h[6])
+#define GET_TX_REPORT_ST_V2(c2h)	(c2h[7] & 0xC0)
+#define GET_TX_REPORT_RETRY_V2(c2h)	(c2h[8] & 0x3F)
+
 #define MAX_TX_COUNT			4
 #define MAX_REGULATION_NUM		4
 #define MAX_RF_PATH_NUM			4
-#define MAX_RATE_SECTION_NUM		6
+#define MAX_RATE_SECTION_NUM		6	/* = MAX_RATE_SECTION */
 #define MAX_2_4G_BANDWIDTH_NUM		4
 #define MAX_5G_BANDWIDTH_NUM		4
 #define	MAX_RF_PATH			4
@@ -167,8 +178,9 @@ enum rtl8192c_h2c_cmd {
 #define TX_PWR_BY_RATE_NUM_BAND		2
 #define TX_PWR_BY_RATE_NUM_RF		4
 #define TX_PWR_BY_RATE_NUM_SECTION	12
-#define MAX_BASE_NUM_IN_PHY_REG_PG_24G  6
-#define MAX_BASE_NUM_IN_PHY_REG_PG_5G	5
+#define TX_PWR_BY_RATE_NUM_RATE		84 /* >= TX_PWR_BY_RATE_NUM_SECTION */
+#define MAX_BASE_NUM_IN_PHY_REG_PG_24G	6  /* MAX_RATE_SECTION */
+#define MAX_BASE_NUM_IN_PHY_REG_PG_5G	5  /* MAX_RATE_SECTION -1 */
 
 #define BUFDESC_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
 
@@ -264,6 +276,7 @@ enum rate_section {
 	HT_MCS8_MCS15,
 	VHT_1SSMCS0_1SSMCS9,
 	VHT_2SSMCS0_2SSMCS9,
+	MAX_RATE_SECTION,
 };
 
 enum intf_type {
@@ -276,6 +289,13 @@ enum radio_path {
 	RF90_PATH_B = 1,
 	RF90_PATH_C = 2,
 	RF90_PATH_D = 3,
+};
+
+enum radio_mask {
+	RF_MASK_A = BIT(0),
+	RF_MASK_B = BIT(1),
+	RF_MASK_C = BIT(2),
+	RF_MASK_D = BIT(3),
 };
 
 enum regulation_txpwr_lmt {
@@ -536,6 +556,7 @@ enum rt_oem_id {
 	RT_CID_NETGEAR = 36,
 	RT_CID_PLANEX = 37,
 	RT_CID_CC_C = 38,
+	RT_CID_LENOVO_CHINA = 40,
 };
 
 enum hw_descs {
@@ -571,6 +592,7 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
 	HT_CHANNEL_WIDTH_80 = 2,
+	HT_CHANNEL_WIDTH_MAX,
 };
 
 /* Ref: 802.11i sepc D10.0 7.3.2.25.1
@@ -952,6 +974,40 @@ enum package_type {
 
 enum rtl_spec_ver {
 	RTL_SPEC_NEW_RATEID = BIT(0),	/* use ratr_table_mode_new */
+	RTL_SPEC_SUPPORT_VHT = BIT(1),	/* support VHT */
+	RTL_SPEC_EXT_C2H = BIT(2),	/* extend FW C2H (e.g. TX REPORT) */
+};
+
+enum dm_info_query {
+	DM_INFO_FA_OFDM,
+	DM_INFO_FA_CCK,
+	DM_INFO_FA_TOTAL,
+	DM_INFO_CCA_OFDM,
+	DM_INFO_CCA_CCK,
+	DM_INFO_CCA_ALL,
+	DM_INFO_CRC32_OK_VHT,
+	DM_INFO_CRC32_OK_HT,
+	DM_INFO_CRC32_OK_LEGACY,
+	DM_INFO_CRC32_OK_CCK,
+	DM_INFO_CRC32_ERROR_VHT,
+	DM_INFO_CRC32_ERROR_HT,
+	DM_INFO_CRC32_ERROR_LEGACY,
+	DM_INFO_CRC32_ERROR_CCK,
+	DM_INFO_EDCCA_FLAG,
+	DM_INFO_OFDM_ENABLE,
+	DM_INFO_CCK_ENABLE,
+	DM_INFO_CRC32_OK_HT_AGG,
+	DM_INFO_CRC32_ERROR_HT_AGG,
+	DM_INFO_DBG_PORT_0,
+	DM_INFO_CURR_IGI,
+	DM_INFO_RSSI_MIN,
+	DM_INFO_RSSI_MAX,
+	DM_INFO_CLM_RATIO,
+	DM_INFO_NHM_RATIO,
+	DM_INFO_IQK_ALL,
+	DM_INFO_IQK_OK,
+	DM_INFO_IQK_NG,
+	DM_INFO_SIZE,
 };
 
 struct octet_string {
@@ -1277,7 +1333,7 @@ struct rtl_phy {
 	u32 tx_power_by_rate_offset[TX_PWR_BY_RATE_NUM_BAND]
 				   [TX_PWR_BY_RATE_NUM_RF]
 				   [TX_PWR_BY_RATE_NUM_RF]
-				   [TX_PWR_BY_RATE_NUM_SECTION];
+				   [TX_PWR_BY_RATE_NUM_RATE];
 	u8 txpwr_by_rate_base_24g[TX_PWR_BY_RATE_NUM_RF]
 				 [TX_PWR_BY_RATE_NUM_RF]
 				 [MAX_BASE_NUM_IN_PHY_REG_PG_24G];
@@ -1794,6 +1850,7 @@ struct rtl_dm {
 #define	EFUSE_MAX_LOGICAL_SIZE			512
 
 struct rtl_efuse {
+	const struct rtl_efuse_ops *efuse_ops;
 	bool autoLoad_ok;
 	bool bootfromefuse;
 	u16 max_physical_size;
@@ -1897,6 +1954,12 @@ struct rtl_efuse {
 
 	/*channel plan */
 	u8 channel_plan;
+};
+
+struct rtl_efuse_ops {
+	int (*efuse_onebyte_read)(struct ieee80211_hw *hw, u16 addr, u8 *data);
+	void (*efuse_logical_map_read)(struct ieee80211_hw *hw, u8 type,
+				       u16 offset, u32 *value);
 };
 
 struct rtl_tx_report {
@@ -2231,6 +2294,7 @@ struct rtl_hal_ops {
 	void (*bt_coex_off_before_lps) (struct ieee80211_hw *hw);
 	void (*fill_h2c_cmd) (struct ieee80211_hw *hw, u8 element_id,
 			      u32 cmd_len, u8 *p_cmdbuffer);
+	void (*set_default_port_id_cmd)(struct ieee80211_hw *hw);
 	bool (*get_btc_status) (void);
 	bool (*is_fw_header)(struct rtlwifi_firmware_header *hdr);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,

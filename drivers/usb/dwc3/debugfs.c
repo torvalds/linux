@@ -81,6 +81,11 @@ static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GHWPARAMS7),
 	dump_register(GDBGFIFOSPACE),
 	dump_register(GDBGLTSSM),
+	dump_register(GDBGBMU),
+	dump_register(GDBGLSPMUX),
+	dump_register(GDBGLSP),
+	dump_register(GDBGEPINFO0),
+	dump_register(GDBGEPINFO1),
 	dump_register(GPRTBIMAP_HS0),
 	dump_register(GPRTBIMAP_HS1),
 	dump_register(GPRTBIMAP_FS0),
@@ -487,8 +492,8 @@ static const struct file_operations dwc3_link_state_fops = {
 };
 
 struct dwc3_ep_file_map {
-	char name[25];
-	int (*show)(struct seq_file *s, void *unused);
+	const char name[25];
+	const struct file_operations *const fops;
 };
 
 static int dwc3_tx_fifo_queue_show(struct seq_file *s, void *unused)
@@ -596,7 +601,7 @@ static int dwc3_event_queue_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_ep_transfer_type_show(struct seq_file *s, void *unused)
+static int dwc3_transfer_type_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
@@ -632,7 +637,7 @@ out:
 	return 0;
 }
 
-static int dwc3_ep_trb_ring_show(struct seq_file *s, void *unused)
+static int dwc3_trb_ring_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
@@ -670,58 +675,39 @@ out:
 	return 0;
 }
 
-static struct dwc3_ep_file_map map[] = {
-	{ "tx_fifo_queue", dwc3_tx_fifo_queue_show, },
-	{ "rx_fifo_queue", dwc3_rx_fifo_queue_show, },
-	{ "tx_request_queue", dwc3_tx_request_queue_show, },
-	{ "rx_request_queue", dwc3_rx_request_queue_show, },
-	{ "rx_info_queue", dwc3_rx_info_queue_show, },
-	{ "descriptor_fetch_queue", dwc3_descriptor_fetch_queue_show, },
-	{ "event_queue", dwc3_event_queue_show, },
-	{ "transfer_type", dwc3_ep_transfer_type_show, },
-	{ "trb_ring", dwc3_ep_trb_ring_show, },
+DEFINE_SHOW_ATTRIBUTE(dwc3_tx_fifo_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_rx_fifo_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_tx_request_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_rx_request_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_rx_info_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_descriptor_fetch_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_event_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_transfer_type);
+DEFINE_SHOW_ATTRIBUTE(dwc3_trb_ring);
+
+static const struct dwc3_ep_file_map dwc3_ep_file_map[] = {
+	{ "tx_fifo_queue", &dwc3_tx_fifo_queue_fops, },
+	{ "rx_fifo_queue", &dwc3_rx_fifo_queue_fops, },
+	{ "tx_request_queue", &dwc3_tx_request_queue_fops, },
+	{ "rx_request_queue", &dwc3_rx_request_queue_fops, },
+	{ "rx_info_queue", &dwc3_rx_info_queue_fops, },
+	{ "descriptor_fetch_queue", &dwc3_descriptor_fetch_queue_fops, },
+	{ "event_queue", &dwc3_event_queue_fops, },
+	{ "transfer_type", &dwc3_transfer_type_fops, },
+	{ "trb_ring", &dwc3_trb_ring_fops, },
 };
-
-static int dwc3_endpoint_open(struct inode *inode, struct file *file)
-{
-	const char		*file_name = file_dentry(file)->d_iname;
-	struct dwc3_ep_file_map	*f_map;
-	int			i;
-
-	for (i = 0; i < ARRAY_SIZE(map); i++) {
-		f_map = &map[i];
-
-		if (strcmp(f_map->name, file_name) == 0)
-			break;
-	}
-
-	return single_open(file, f_map->show, inode->i_private);
-}
-
-static const struct file_operations dwc3_endpoint_fops = {
-	.open			= dwc3_endpoint_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
-
-static void dwc3_debugfs_create_endpoint_file(struct dwc3_ep *dep,
-		struct dentry *parent, int type)
-{
-	struct dentry		*file;
-	struct dwc3_ep_file_map	*ep_file = &map[type];
-
-	file = debugfs_create_file(ep_file->name, S_IRUGO, parent, dep,
-			&dwc3_endpoint_fops);
-}
 
 static void dwc3_debugfs_create_endpoint_files(struct dwc3_ep *dep,
 		struct dentry *parent)
 {
 	int			i;
 
-	for (i = 0; i < ARRAY_SIZE(map); i++)
-		dwc3_debugfs_create_endpoint_file(dep, parent, i);
+	for (i = 0; i < ARRAY_SIZE(dwc3_ep_file_map); i++) {
+		const struct file_operations *fops = dwc3_ep_file_map[i].fops;
+		const char *name = dwc3_ep_file_map[i].name;
+
+		debugfs_create_file(name, S_IRUGO, parent, dep, fops);
+	}
 }
 
 static void dwc3_debugfs_create_endpoint_dir(struct dwc3_ep *dep,

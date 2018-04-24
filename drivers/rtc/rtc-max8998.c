@@ -120,7 +120,7 @@ static int max8998_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	max8998_data_to_tm(data, tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int max8998_rtc_set_time(struct device *dev, struct rtc_time *tm)

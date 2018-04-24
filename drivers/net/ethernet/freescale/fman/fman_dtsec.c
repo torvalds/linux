@@ -1100,7 +1100,7 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	set_bucket(dtsec->regs, bucket, true);
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_KERNEL);
+	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -1113,6 +1113,25 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	else
 		list_add_tail(&hash_entry->node,
 			      &dtsec->unicast_addr_hash->lsts[bucket]);
+
+	return 0;
+}
+
+int dtsec_set_allmulti(struct fman_mac *dtsec, bool enable)
+{
+	u32 tmp;
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+
+	if (!is_init_done(dtsec->dtsec_drv_param))
+		return -EINVAL;
+
+	tmp = ioread32be(&regs->rctrl);
+	if (enable)
+		tmp |= RCTRL_MPROM;
+	else
+		tmp &= ~RCTRL_MPROM;
+
+	iowrite32be(tmp, &regs->rctrl);
 
 	return 0;
 }

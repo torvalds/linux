@@ -84,6 +84,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_SET_TRUSTED_VF	0x13
 #define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
@@ -192,7 +193,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_MAX_FRM_SIZE        (16000 + OCTNET_FRM_HEADER_SIZE)
 
-#define   OCTNET_DEFAULT_FRM_SIZE    (1500 + OCTNET_FRM_HEADER_SIZE)
+#define   OCTNET_DEFAULT_MTU         (1500)
+#define   OCTNET_DEFAULT_FRM_SIZE  (OCTNET_DEFAULT_MTU + OCTNET_FRM_HEADER_SIZE)
 
 /** NIC Commands are sent using this Octeon Input Queue */
 #define   OCTNET_CMD_Q                0
@@ -675,9 +677,11 @@ union oct_link_status {
 		u64 if_mode:5;
 		u64 pause:1;
 		u64 flashing:1;
-		u64 reserved:15;
+		u64 phy_type:5;
+		u64 reserved:10;
 #else
-		u64 reserved:15;
+		u64 reserved:10;
+		u64 phy_type:5;
 		u64 flashing:1;
 		u64 pause:1;
 		u64 if_mode:5;
@@ -688,6 +692,12 @@ union oct_link_status {
 		u64 duplex:8;
 #endif
 	} s;
+};
+
+enum lio_phy_type {
+	LIO_PHY_PORT_TP = 0x0,
+	LIO_PHY_PORT_FIBRE = 0x1,
+	LIO_PHY_PORT_UNKNOWN,
 };
 
 /** The txpciq info passed to host from the firmware */
@@ -702,9 +712,13 @@ union oct_txpciq {
 		u64 pkind:6;
 		u64 use_qpg:1;
 		u64 qpg:11;
-		u64 reserved:30;
+		u64 reserved0:10;
+		u64 ctrl_qpg:11;
+		u64 reserved:9;
 #else
-		u64 reserved:30;
+		u64 reserved:9;
+		u64 ctrl_qpg:11;
+		u64 reserved0:10;
 		u64 qpg:11;
 		u64 use_qpg:1;
 		u64 pkind:6;
@@ -907,6 +921,12 @@ union oct_nic_if_cfg {
 		u64 base_queue:16;
 #endif
 	} s;
+};
+
+struct lio_trusted_vf {
+	uint64_t active: 1;
+	uint64_t id : 8;
+	uint64_t reserved: 55;
 };
 
 struct lio_time {

@@ -943,13 +943,26 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 			    struct net_device *dev)
 {
 	int ret;
-	u64 mac_addr;
+	u64 mac_addr, old_mac_addr;
 
-	if (priv->bss_type != MWIFIEX_BSS_TYPE_P2P)
-		goto done;
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_ANY)
+		return -ENOTSUPP;
 
 	mac_addr = ether_addr_to_u64(priv->curr_addr);
-	mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+	old_mac_addr = mac_addr;
+
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+		mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+
+	if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
+		/* Set mac address based on bss_type/bss_num */
+		mac_addr ^= BIT_ULL(priv->bss_type + 8);
+		mac_addr += priv->bss_num;
+	}
+
+	if (mac_addr == old_mac_addr)
+		goto done;
+
 	u64_to_ether_addr(mac_addr, priv->curr_addr);
 
 	/* Send request to firmware */
@@ -957,13 +970,14 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 			       HostCmd_ACT_GEN_SET, 0, NULL, true);
 
 	if (ret) {
+		u64_to_ether_addr(old_mac_addr, priv->curr_addr);
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "set mac address failed: ret=%d\n", ret);
 		return ret;
 	}
 
 done:
-	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
+	ether_addr_copy(dev->dev_addr, priv->curr_addr);
 	return 0;
 }
 

@@ -73,14 +73,14 @@ static u8 clk_gpio_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_gpio *clk = to_clk_gpio(hw);
 
-	return gpiod_get_value(clk->gpiod);
+	return gpiod_get_value_cansleep(clk->gpiod);
 }
 
 static int clk_gpio_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_gpio *clk = to_clk_gpio(hw);
 
-	gpiod_set_value(clk->gpiod, index);
+	gpiod_set_value_cansleep(clk->gpiod, index);
 
 	return 0;
 }

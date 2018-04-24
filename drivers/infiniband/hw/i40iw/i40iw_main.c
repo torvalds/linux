@@ -1560,8 +1560,6 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	enum i40iw_status_code status;
 
 	memcpy(&hdl->ldev, ldev, sizeof(*ldev));
-	if (resource_profile == 1)
-		resource_profile = 2;
 
 	iwdev->mpa_version = mpa_version;
 	iwdev->resource_profile = (resource_profile < I40IW_HMC_PROFILE_EQUAL) ?

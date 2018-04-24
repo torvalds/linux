@@ -146,7 +146,7 @@ static unsigned int radix_tree_descend(const struct radix_tree_node *parent,
 
 static inline gfp_t root_gfp_mask(const struct radix_tree_root *root)
 {
-	return root->gfp_mask & __GFP_BITS_MASK;
+	return root->gfp_mask & (__GFP_BITS_MASK & ~GFP_ZONEMASK);
 }
 
 static inline void tag_set(struct radix_tree_node *node, unsigned int tag,
@@ -2285,6 +2285,7 @@ void __init radix_tree_init(void)
 	int ret;
 
 	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
+	BUILD_BUG_ON(ROOT_IS_IDR & ~GFP_ZONEMASK);
 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
 			sizeof(struct radix_tree_node), 0,
 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,

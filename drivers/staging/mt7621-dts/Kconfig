@@ -1,0 +1,5 @@
+config DTB_GNUBEE1
+	bool "GnuBee1 NAS"
+	depends on SOC_MT7621 && DTB_RT_NONE
+	select BUILTIN_DTB
+

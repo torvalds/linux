@@ -2181,10 +2181,6 @@ static void free_module(struct module *mod)
 	/* Finally, free the core (containing the module structure) */
 	disable_ro_nx(&mod->core_layout);
 	module_memfree(mod->core_layout.base);
-
-#ifdef CONFIG_MPU
-	update_protections(current->mm);
-#endif
 }
 
 void *__symbol_get(const char *symbol)
@@ -4228,7 +4224,7 @@ static int modules_open(struct inode *inode, struct file *file)
 		m->private = kallsyms_show_value() ? NULL : (void *)8ul;
 	}
 
-	return 0;
+	return err;
 }
 
 static const struct file_operations proc_modules_operations = {

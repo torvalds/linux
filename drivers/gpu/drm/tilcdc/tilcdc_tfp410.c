@@ -111,10 +111,8 @@ static struct drm_encoder *tfp410_encoder_create(struct drm_device *dev,
 
 	tfp410_encoder = devm_kzalloc(dev->dev, sizeof(*tfp410_encoder),
 				      GFP_KERNEL);
-	if (!tfp410_encoder) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!tfp410_encoder)
 		return NULL;
-	}
 
 	tfp410_encoder->dpms = DRM_MODE_DPMS_OFF;
 	tfp410_encoder->mod = mod;
@@ -224,10 +222,8 @@ static struct drm_connector *tfp410_connector_create(struct drm_device *dev,
 
 	tfp410_connector = devm_kzalloc(dev->dev, sizeof(*tfp410_connector),
 					GFP_KERNEL);
-	if (!tfp410_connector) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!tfp410_connector)
 		return NULL;
-	}
 
 	tfp410_connector->encoder = encoder;
 	tfp410_connector->mod = mod;

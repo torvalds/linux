@@ -37,6 +37,9 @@ Print the current tool version
 Add the dmesg log to the html output. It will be viewable by
 clicking a button in the timeline.
 .TP
+\fB-result \fIfile\fR
+Export a results table to a text file for parsing.
+.TP
 \fB-o \fIname\fR
 Overrides the output subdirectory name when running a new test.
 Use {date}, {time}, {hostname} for current values.
@@ -44,13 +47,13 @@ Use {date}, {time}, {hostname} for current values.
 e.g. boot-{hostname}-{date}-{time}
 .SS "advanced"
 .TP
-\fB-f\fR
-Use ftrace to add function detail (default: disabled)
-.TP
-\fB-callgraph\fR
+\fB-f or -callgraph\fR
 Use ftrace to create initcall callgraphs (default: disabled). If -func
 is not used there will be one callgraph per initcall. This can produce
 very large outputs, i.e. 10MB - 100MB.
+.TP
+\fB-fstat\fR
+Use ftrace to add function detail (default: disabled)
 .TP
 \fB-maxdepth \fIlevel\fR
 limit the callgraph trace depth to \fIlevel\fR (default: 2). This is
@@ -65,6 +68,13 @@ The value is a float: e.g. 0.001 represents 1 us.
 \fB-cgfilter \fI"func1,func2,..."\fR
 Reduce callgraph output in the timeline by limiting it to a list of calls. The
 argument can be a single function name or a comma delimited list.
+(default: none)
+.TP
+\fB-cgskip \fIfile\fR
+Reduce callgraph output in the timeline by skipping over uninteresting
+functions in the trace, e.g. printk or console_unlock. The functions listed
+in this file will show up as empty leaves in the callgraph with only the start/end
+times displayed.
 (default: none)
 .TP
 \fB-timeprec \fIn\fR

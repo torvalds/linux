@@ -81,6 +81,13 @@ enum qed_coalescing_mode {
 	QED_COAL_MODE_ENABLE
 };
 
+enum qed_nvm_cmd {
+	QED_PUT_FILE_BEGIN = DRV_MSG_CODE_NVM_PUT_FILE_BEGIN,
+	QED_PUT_FILE_DATA = DRV_MSG_CODE_NVM_PUT_FILE_DATA,
+	QED_NVM_WRITE_NVRAM = DRV_MSG_CODE_NVM_WRITE_NVRAM,
+	QED_GET_MCP_NVM_RESP = 0xFFFFFF00
+};
+
 struct qed_eth_cb_ops;
 struct qed_dev_info;
 union qed_mcp_protocol_stats;
@@ -437,6 +444,11 @@ enum BAR_ID {
 	BAR_ID_1		/* Used for doorbells */
 };
 
+struct qed_nvm_image_info {
+	u32 num_images;
+	struct bist_nvm_image_att *image_att;
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \
@@ -560,6 +572,9 @@ struct qed_hwfn {
 
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;
+
+	/* Nvm images number and attributes */
+	struct qed_nvm_image_info nvm_info;
 
 	struct qed_ptt *p_arfs_ptt;
 

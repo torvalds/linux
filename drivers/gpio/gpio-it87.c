@@ -31,7 +31,7 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff

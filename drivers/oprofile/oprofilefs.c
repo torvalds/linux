@@ -138,6 +138,9 @@ static int __oprofilefs_create_file(struct dentry *root, char const *name,
 	struct dentry *dentry;
 	struct inode *inode;
 
+	if (!root)
+		return -ENOMEM;
+
 	inode_lock(d_inode(root));
 	dentry = d_alloc_name(root, name);
 	if (!dentry) {

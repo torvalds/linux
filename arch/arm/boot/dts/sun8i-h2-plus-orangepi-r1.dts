@@ -68,6 +68,14 @@
 	};
 };
 
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "mxicy,mx25l12805d", "jedec,spi-nor";
+	};
+};
+
 &ohci1 {
 	/*
 	 * RTL8152B USB-Ethernet adapter is connected to USB1,

@@ -106,8 +106,8 @@ int hfi_core_deinit(struct venus_core *core, bool blocking)
 
 	if (!empty) {
 		mutex_unlock(&core->lock);
-		wait_on_atomic_t(&core->insts_count, atomic_t_wait,
-				 TASK_UNINTERRUPTIBLE);
+		wait_var_event(&core->insts_count,
+			       !atomic_read(&core->insts_count));
 		mutex_lock(&core->lock);
 	}
 
@@ -229,8 +229,8 @@ void hfi_session_destroy(struct venus_inst *inst)
 
 	mutex_lock(&core->lock);
 	list_del_init(&inst->list);
-	atomic_dec(&core->insts_count);
-	wake_up_atomic_t(&core->insts_count);
+	if (atomic_dec_and_test(&core->insts_count))
+		wake_up_var(&core->insts_count);
 	mutex_unlock(&core->lock);
 }
 EXPORT_SYMBOL_GPL(hfi_session_destroy);

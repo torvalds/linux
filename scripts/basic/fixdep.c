@@ -93,14 +93,6 @@
  * (Note: it'd be easy to port over the complete mkdep state machine,
  *  but I don't think the added complexity is worth it)
  */
-/*
- * Note 2: if somebody writes HELLO_CONFIG_BOOM in a file, it will depend onto
- * CONFIG_BOOM. This could seem a bug (not too hard to fix), but please do not
- * fix it! Some UserModeLinux files (look at arch/um/) call CONFIG_BOOM as
- * UML_CONFIG_BOOM, to avoid conflicts with /usr/include/linux/autoconf.h,
- * through arch/um/include/uml-config.h; this fixdep "bug" makes sure that
- * those files will have correct dependencies.
- */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -121,11 +113,11 @@ static void usage(void)
 /*
  * Print out a dependency path from a symbol name
  */
-static void print_config(const char *m, int slen)
+static void print_dep(const char *m, int slen, const char *dir)
 {
 	int c, i;
 
-	printf("    $(wildcard include/config/");
+	printf("    $(wildcard %s/", dir);
 	for (i = 0; i < slen; i++) {
 		c = m[i];
 		if (c == '_')
@@ -148,7 +140,7 @@ static void do_extra_deps(void)
 			fprintf(stderr, "fixdep: bad data on stdin\n");
 			exit(1);
 		}
-		print_config(buf, len - 1);
+		print_dep(buf, len - 1, "include/ksym");
 	}
 }
 
@@ -216,7 +208,7 @@ static void use_config(const char *m, int slen)
 	    return;
 
 	define_config(m, slen, hash);
-	print_config(m, slen);
+	print_dep(m, slen, "include/config");
 }
 
 /* test if s ends in sub */
@@ -233,8 +225,13 @@ static int str_ends_with(const char *s, int slen, const char *sub)
 static void parse_config_file(const char *p)
 {
 	const char *q, *r;
+	const char *start = p;
 
 	while ((p = strstr(p, "CONFIG_"))) {
+		if (p > start && (isalnum(p[-1]) || p[-1] == '_')) {
+			p += 7;
+			continue;
+		}
 		p += 7;
 		q = p;
 		while (*q && (isalnum(*q) || *q == '_'))
@@ -286,8 +283,6 @@ static int is_ignored_file(const char *s, int len)
 {
 	return str_ends_with(s, len, "include/generated/autoconf.h") ||
 	       str_ends_with(s, len, "include/generated/autoksyms.h") ||
-	       str_ends_with(s, len, "arch/um/include/uml-config.h") ||
-	       str_ends_with(s, len, "include/linux/kconfig.h") ||
 	       str_ends_with(s, len, ".ver");
 }
 

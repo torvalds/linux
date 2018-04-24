@@ -619,7 +619,7 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.g_volatile_ctrl = gc0310_g_volatile_ctrl
 };
 
-struct v4l2_ctrl_config gc0310_controls[] = {
+static const struct v4l2_ctrl_config gc0310_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_EXPOSURE_ABSOLUTE,
@@ -1204,57 +1204,6 @@ fail_power_off:
 	return ret;
 }
 
-static int gc0310_g_parm(struct v4l2_subdev *sd,
-			struct v4l2_streamparm *param)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!param)
-		return -EINVAL;
-
-	if (param->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		dev_err(&client->dev,  "unsupported buffer type.\n");
-		return -EINVAL;
-	}
-
-	memset(param, 0, sizeof(*param));
-	param->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	if (dev->fmt_idx >= 0 && dev->fmt_idx < N_RES) {
-		param->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-		param->parm.capture.timeperframe.numerator = 1;
-		param->parm.capture.capturemode = dev->run_mode;
-		param->parm.capture.timeperframe.denominator =
-			gc0310_res[dev->fmt_idx].fps;
-	}
-	return 0;
-}
-
-static int gc0310_s_parm(struct v4l2_subdev *sd,
-			struct v4l2_streamparm *param)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	dev->run_mode = param->parm.capture.capturemode;
-
-	mutex_lock(&dev->input_lock);
-	switch (dev->run_mode) {
-	case CI_MODE_VIDEO:
-		gc0310_res = gc0310_res_video;
-		N_RES = N_RES_VIDEO;
-		break;
-	case CI_MODE_STILL_CAPTURE:
-		gc0310_res = gc0310_res_still;
-		N_RES = N_RES_STILL;
-		break;
-	default:
-		gc0310_res = gc0310_res_preview;
-		N_RES = N_RES_PREVIEW;
-	}
-	mutex_unlock(&dev->input_lock);
-	return 0;
-}
-
 static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
@@ -1313,8 +1262,6 @@ static const struct v4l2_subdev_sensor_ops gc0310_sensor_ops = {
 
 static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 	.s_stream = gc0310_s_stream,
-	.g_parm = gc0310_g_parm,
-	.s_parm = gc0310_s_parm,
 	.g_frame_interval = gc0310_g_frame_interval,
 };
 

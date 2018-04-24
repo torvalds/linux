@@ -146,7 +146,7 @@ struct proto_ops {
 				      struct socket *newsock, int flags, bool kern);
 	int		(*getname)   (struct socket *sock,
 				      struct sockaddr *addr,
-				      int *sockaddr_len, int peer);
+				      int peer);
 	__poll_t	(*poll)	     (struct file *file, struct socket *sock,
 				      struct poll_table_struct *wait);
 	int		(*ioctl)     (struct socket *sock, unsigned int cmd,
@@ -222,6 +222,7 @@ enum {
 int sock_wake_async(struct socket_wq *sk_wq, int how, int band);
 int sock_register(const struct net_proto_family *fam);
 void sock_unregister(int family);
+bool sock_is_registered(int family);
 int __sock_create(struct net *net, int family, int type, int proto,
 		  struct socket **res, int kern);
 int sock_create(int family, int type, int proto, struct socket **res);
@@ -294,10 +295,8 @@ int kernel_listen(struct socket *sock, int backlog);
 int kernel_accept(struct socket *sock, struct socket **newsock, int flags);
 int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
 		   int flags);
-int kernel_getsockname(struct socket *sock, struct sockaddr *addr,
-		       int *addrlen);
-int kernel_getpeername(struct socket *sock, struct sockaddr *addr,
-		       int *addrlen);
+int kernel_getsockname(struct socket *sock, struct sockaddr *addr);
+int kernel_getpeername(struct socket *sock, struct sockaddr *addr);
 int kernel_getsockopt(struct socket *sock, int level, int optname, char *optval,
 		      int *optlen);
 int kernel_setsockopt(struct socket *sock, int level, int optname, char *optval,

@@ -507,7 +507,6 @@ static int eem_unwrap(struct gether *port,
 						0,
 						GFP_ATOMIC);
 			if (unlikely(!skb3)) {
-				DBG(cdev, "unable to realign EEM packet\n");
 				dev_kfree_skb_any(skb2);
 				continue;
 			}

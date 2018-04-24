@@ -58,7 +58,6 @@ config MACH_KUROBOX_PRO
 
 config MACH_DNS323
 	bool "D-Link DNS-323"
-	select GENERIC_NET_UTILS
 	select I2C_BOARDINFO if I2C
 	help
 	  Say 'Y' here if you want your kernel to support the
@@ -66,7 +65,6 @@ config MACH_DNS323
 
 config MACH_TS209
 	bool "QNAP TS-109/TS-209"
-	select GENERIC_NET_UTILS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-109/TS-209 platform.
@@ -101,7 +99,6 @@ config MACH_LINKSTATION_LS_HGL
 
 config MACH_TS409
 	bool "QNAP TS-409"
-	select GENERIC_NET_UTILS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-409 platform.

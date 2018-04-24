@@ -122,7 +122,7 @@ extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
 		     struct smb2_file_all_info *buf,
-		     struct smb2_err_rsp **err_buf);
+		     struct kvec *err_iov);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,
@@ -202,4 +202,9 @@ extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+#ifdef CONFIG_CIFS_SMB311
+extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
+extern int smb311_update_preauth_hash(struct cifs_ses *ses,
+				      struct kvec *iov, int nvec);
+#endif
 #endif			/* _SMB2PROTO_H */

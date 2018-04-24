@@ -59,15 +59,6 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
-* clock-freq-min-max (DEPRECATED): Minimum and Maximum clock frequency for card output
-  clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
-	  (Use the "max-frequency" instead of "clock-freq-min-max".)
-
-* num-slots (DEPRECATED): specifies the number of slots supported by the controller.
-  The number of physical slots actually used could be equal or less than the
-  value specified by num-slots. If this property is not specified, the value
-  of num-slot property is assumed to be 1.
-
 * fifo-depth: The maximum size of the tx/rx fifo's. If this property is not
   specified, the default value of the fifo size is determined from the
   controller registers.

@@ -27,7 +27,6 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_lvdsenc.h"
 #include "rcar_du_regs.h"
 #include "rcar_du_vsp.h"
 
@@ -341,11 +340,10 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	of_node_put(entity_ep_node);
 
 	if (!encoder) {
-		/*
-		 * If no encoder has been found the entity must be the
-		 * connector.
-		 */
-		connector = entity;
+		dev_warn(rcdu->dev,
+			 "no encoder found for endpoint %pOF, skipping\n",
+			 ep->local_node);
+		return -ENODEV;
 	}
 
 	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
@@ -595,10 +593,6 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	}
 
 	/* Initialize the encoders. */
-	ret = rcar_du_lvdsenc_init(rcdu);
-	if (ret < 0)
-		return ret;
-
 	ret = rcar_du_encoders_init(rcdu);
 	if (ret < 0)
 		return ret;

@@ -195,7 +195,9 @@ static struct sk_buff *ieee80211_DELBA(
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
-	IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA, "========>%s(), ReasonCode(%d) sentd to:%pM\n", __func__, ReasonCode, dst);
+		IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
+				"========>%s(), ReasonCode(%d) sentd to:%pM\n",
+				__func__, ReasonCode, dst);
 
 	memset(&DelbaParamSet, 0, 2);
 
@@ -233,7 +235,8 @@ static struct sk_buff *ieee80211_DELBA(
 
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	if (net_ratelimit())
-	IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA, "<=====%s()\n", __func__);
+		IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
+				"<=====%s()\n", __func__);
 	return skb;
 }
 

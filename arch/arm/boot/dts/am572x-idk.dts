@@ -9,9 +9,8 @@
 /dts-v1/;
 
 #include "dra74x.dtsi"
-#include "am572x-idk-common.dtsi"
-#include "am57xx-idk-common.dtsi"
 #include "dra74x-mmc-iodelay.dtsi"
+#include "am572x-idk-common.dtsi"
 
 / {
 	model = "TI AM5728 IDK";

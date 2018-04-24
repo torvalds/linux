@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/rom.c
+ * PCI ROM access routines
  *
  * (C) Copyright 2004 Jon Smirl <jonsmirl@yahoo.com>
  * (C) Copyright 2004 Silicon Graphics, Inc. Jesse Barnes <jbarnes@sgi.com>
- *
- * PCI ROM access routines
  */
 #include <linux/kernel.h>
 #include <linux/export.h>

@@ -293,19 +293,6 @@ config USB_CNS3XXX_EHCI
 	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
 	  support.
 
-config USB_EHCI_ATH79
-	bool "EHCI support for AR7XXX/AR9XXX SoCs (DEPRECATED)"
-	depends on (SOC_AR71XX || SOC_AR724X || SOC_AR913X || SOC_AR933X)
-	select USB_EHCI_ROOT_HUB_TT
-	select USB_EHCI_HCD_PLATFORM
-	default y
-	---help---
-	  This option is deprecated now and the driver was removed, use
-	  USB_EHCI_HCD_PLATFORM instead.
-
-	  Enables support for the built-in EHCI controller present
-	  on the Atheros AR7XXX/AR9XXX SoCs.
-
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
 	default n
@@ -360,6 +347,7 @@ config USB_ISP116X_HCD
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
 	depends on HAS_IOMEM
+	depends on COMPILE_TEST # nothing uses this
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
@@ -488,18 +476,6 @@ config USB_OHCI_HCD_DAVINCI
 	  Enables support for the DaVinci DA8xx integrated OHCI
 	  controller. This driver cannot currently be a loadable
 	  module because it lacks a proper PHY abstraction.
-
-config USB_OHCI_ATH79
-	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs (DEPRECATED)"
-	depends on (SOC_AR71XX || SOC_AR724X)
-	select USB_OHCI_HCD_PLATFORM
-	default y
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enables support for the built-in OHCI controller present on the
-	  Atheros AR71XX/AR7240 SoCs.
 
 config USB_OHCI_HCD_PPC_OF_BE
 	bool "OHCI support for OF platform bus (big endian)"

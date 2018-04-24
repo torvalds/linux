@@ -116,6 +116,8 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
 
 static phys_addr_t xen_pt_base, xen_pt_size __initdata;
 
+static DEFINE_STATIC_KEY_FALSE(xen_struct_pages_ready);
+
 /*
  * Just beyond the highest usermode address.  STACK_TOP_MAX has a
  * redzone above it, so round it up to a PGD boundary.
@@ -155,11 +157,18 @@ void make_lowmem_page_readwrite(void *vaddr)
 }
 
 
+/*
+ * During early boot all page table pages are pinned, but we do not have struct
+ * pages, so return true until struct pages are ready.
+ */
 static bool xen_page_pinned(void *ptr)
 {
-	struct page *page = virt_to_page(ptr);
+	if (static_branch_likely(&xen_struct_pages_ready)) {
+		struct page *page = virt_to_page(ptr);
 
-	return PagePinned(page);
+		return PagePinned(page);
+	}
+	return true;
 }
 
 static void xen_extend_mmu_update(const struct mmu_update *update)
@@ -538,6 +547,22 @@ static void xen_set_p4d(p4d_t *ptr, p4d_t val)
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+__visible p4dval_t xen_p4d_val(p4d_t p4d)
+{
+	return pte_mfn_to_pfn(p4d.p4d);
+}
+PV_CALLEE_SAVE_REGS_THUNK(xen_p4d_val);
+
+__visible p4d_t xen_make_p4d(p4dval_t p4d)
+{
+	p4d = pte_pfn_to_mfn(p4d);
+
+	return native_make_p4d(p4d);
+}
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_p4d);
+#endif  /* CONFIG_PGTABLE_LEVELS >= 5 */
 #endif	/* CONFIG_X86_64 */
 
 static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
@@ -820,11 +845,6 @@ void xen_mm_pin_all(void)
 	spin_unlock(&pgd_lock);
 }
 
-/*
- * The init_mm pagetable is really pinned as soon as its created, but
- * that's before we have page structures to store the bits.  So do all
- * the book-keeping now.
- */
 static int __init xen_mark_pinned(struct mm_struct *mm, struct page *page,
 				  enum pt_level level)
 {
@@ -832,8 +852,18 @@ static int __init xen_mark_pinned(struct mm_struct *mm, struct page *page,
 	return 0;
 }
 
-static void __init xen_mark_init_mm_pinned(void)
+/*
+ * The init_mm pagetable is really pinned as soon as its created, but
+ * that's before we have page structures to store the bits.  So do all
+ * the book-keeping now once struct pages for allocated pages are
+ * initialized. This happens only after free_all_bootmem() is called.
+ */
+static void __init xen_after_bootmem(void)
 {
+	static_branch_enable(&xen_struct_pages_ready);
+#ifdef CONFIG_X86_64
+	SetPagePinned(virt_to_page(level3_user_vsyscall));
+#endif
 	xen_pgd_walk(&init_mm, xen_mark_pinned, FIXADDR_TOP);
 }
 
@@ -1607,14 +1637,15 @@ static inline void __set_pfn_prot(unsigned long pfn, pgprot_t prot)
 static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
 				    unsigned level)
 {
-	bool pinned = PagePinned(virt_to_page(mm->pgd));
+	bool pinned = xen_page_pinned(mm->pgd);
 
 	trace_xen_mmu_alloc_ptpage(mm, pfn, level, pinned);
 
 	if (pinned) {
 		struct page *page = pfn_to_page(pfn);
 
-		SetPagePinned(page);
+		if (static_branch_likely(&xen_struct_pages_ready))
+			SetPagePinned(page);
 
 		if (!PageHighMem(page)) {
 			xen_mc_batch();
@@ -2348,9 +2379,7 @@ static void __init xen_post_allocator_init(void)
 
 #ifdef CONFIG_X86_64
 	pv_mmu_ops.write_cr3 = &xen_write_cr3;
-	SetPagePinned(virt_to_page(level3_user_vsyscall));
 #endif
-	xen_mark_init_mm_pinned();
 }
 
 static void xen_leave_lazy_mmu(void)
@@ -2411,6 +2440,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 
 	.alloc_pud = xen_alloc_pmd_init,
 	.release_pud = xen_release_pmd_init,
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+	.p4d_val = PV_CALLEE_SAVE(xen_p4d_val),
+	.make_p4d = PV_CALLEE_SAVE(xen_make_p4d),
+#endif
 #endif	/* CONFIG_X86_64 */
 
 	.activate_mm = xen_activate_mm,
@@ -2429,6 +2463,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 void __init xen_init_mmu_ops(void)
 {
 	x86_init.paging.pagetable_init = xen_pagetable_init;
+	x86_init.hyper.init_after_bootmem = xen_after_bootmem;
 
 	pv_mmu_ops = xen_mmu_ops;
 

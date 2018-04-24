@@ -454,6 +454,16 @@ static void dpaa_set_rx_mode(struct net_device *net_dev)
 				  err);
 	}
 
+	if (!!(net_dev->flags & IFF_ALLMULTI) != priv->mac_dev->allmulti) {
+		priv->mac_dev->allmulti = !priv->mac_dev->allmulti;
+		err = priv->mac_dev->set_allmulti(priv->mac_dev->fman_mac,
+						  priv->mac_dev->allmulti);
+		if (err < 0)
+			netif_err(priv, drv, net_dev,
+				  "mac_dev->set_allmulti() = %d\n",
+				  err);
+	}
+
 	err = priv->mac_dev->set_multi(net_dev, priv->mac_dev);
 	if (err < 0)
 		netif_err(priv, drv, net_dev, "mac_dev->set_multi() = %d\n",
@@ -1916,8 +1926,10 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 		goto csum_failed;
 	}
 
+	/* SGT[0] is used by the linear part */
 	sgt = (struct qm_sg_entry *)(sgt_buf + priv->tx_headroom);
-	qm_sg_entry_set_len(&sgt[0], skb_headlen(skb));
+	frag_len = skb_headlen(skb);
+	qm_sg_entry_set_len(&sgt[0], frag_len);
 	sgt[0].bpid = FSL_DPAA_BPID_INV;
 	sgt[0].offset = 0;
 	addr = dma_map_single(dev, skb->data,
@@ -1930,9 +1942,9 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	qm_sg_entry_set64(&sgt[0], addr);
 
 	/* populate the rest of SGT entries */
-	frag = &skb_shinfo(skb)->frags[0];
-	frag_len = frag->size;
-	for (i = 1; i <= nr_frags; i++, frag++) {
+	for (i = 0; i < nr_frags; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		frag_len = frag->size;
 		WARN_ON(!skb_frag_page(frag));
 		addr = skb_frag_dma_map(dev, frag, 0,
 					frag_len, dma_dir);
@@ -1942,15 +1954,16 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 			goto sg_map_failed;
 		}
 
-		qm_sg_entry_set_len(&sgt[i], frag_len);
-		sgt[i].bpid = FSL_DPAA_BPID_INV;
-		sgt[i].offset = 0;
+		qm_sg_entry_set_len(&sgt[i + 1], frag_len);
+		sgt[i + 1].bpid = FSL_DPAA_BPID_INV;
+		sgt[i + 1].offset = 0;
 
 		/* keep the offset in the address */
-		qm_sg_entry_set64(&sgt[i], addr);
-		frag_len = frag->size;
+		qm_sg_entry_set64(&sgt[i + 1], addr);
 	}
-	qm_sg_entry_set_f(&sgt[i - 1], frag_len);
+
+	/* Set the final bit in the last used entry of the SGT */
+	qm_sg_entry_set_f(&sgt[nr_frags], frag_len);
 
 	qm_fd_set_sg(fd, priv->tx_headroom, skb->len);
 
@@ -2008,7 +2021,6 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 	}
 
 	if (unlikely(err < 0)) {
-		percpu_stats->tx_errors++;
 		percpu_stats->tx_fifo_errors++;
 		return err;
 	}
@@ -2052,19 +2064,23 @@ static int dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	/* MAX_SKB_FRAGS is equal or larger than our dpaa_SGT_MAX_ENTRIES;
 	 * make sure we don't feed FMan with more fragments than it supports.
 	 */
-	if (nonlinear &&
-	    likely(skb_shinfo(skb)->nr_frags < DPAA_SGT_MAX_ENTRIES)) {
+	if (unlikely(nonlinear &&
+		     (skb_shinfo(skb)->nr_frags >= DPAA_SGT_MAX_ENTRIES))) {
+		/* If the egress skb contains more fragments than we support
+		 * we have no choice but to linearize it ourselves.
+		 */
+		if (__skb_linearize(skb))
+			goto enomem;
+
+		nonlinear = skb_is_nonlinear(skb);
+	}
+
+	if (nonlinear) {
 		/* Just create a S/G fd based on the skb */
 		err = skb_to_sg_fd(priv, skb, &fd);
 		percpu_priv->tx_frag_skbuffs++;
 	} else {
-		/* If the egress skb contains more fragments than we support
-		 * we have no choice but to linearize it ourselves.
-		 */
-		if (unlikely(nonlinear) && __skb_linearize(skb))
-			goto enomem;
-
-		/* Finally, create a contig FD from this skb */
+		/* Create a contig FD from this skb */
 		err = skb_to_contig_fd(priv, skb, &fd, &offset);
 	}
 	if (unlikely(err < 0))
@@ -2201,14 +2217,8 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 	if (dpaa_eth_napi_schedule(percpu_priv, portal))
 		return qman_cb_dqrr_stop;
 
-	if (dpaa_eth_refill_bpools(priv))
-		/* Unable to refill the buffer pool due to insufficient
-		 * system memory. Just release the frame back into the pool,
-		 * otherwise we'll soon end up with an empty buffer pool.
-		 */
-		dpaa_fd_release(net_dev, &dq->fd);
-	else
-		dpaa_rx_error(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
+	dpaa_eth_refill_bpools(priv);
+	dpaa_rx_error(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
 
 	return qman_cb_dqrr_consume;
 }
@@ -2278,7 +2288,6 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	vaddr = phys_to_virt(addr);
 	prefetch(vaddr + qm_fd_get_offset(fd));
 
-	fd_format = qm_fd_get_format(fd);
 	/* The only FD types that we may receive are contig and S/G */
 	WARN_ON((fd_format != qm_fd_contig) && (fd_format != qm_fd_sg));
 
@@ -2311,8 +2320,10 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 
 	skb_len = skb->len;
 
-	if (unlikely(netif_receive_skb(skb) == NET_RX_DROP))
+	if (unlikely(netif_receive_skb(skb) == NET_RX_DROP)) {
+		percpu_stats->rx_dropped++;
 		return qman_cb_dqrr_consume;
+	}
 
 	percpu_stats->rx_packets++;
 	percpu_stats->rx_bytes += skb_len;
@@ -2766,7 +2777,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	priv->channel = (u16)channel;
 
-	/* Start a thread that will walk the CPUs with affine portals
+	/* Walk the CPUs with affine portals
 	 * and add this pool channel to each's dequeue mask.
 	 */
 	dpaa_eth_add_channel(priv->channel);
@@ -2860,7 +2871,7 @@ static int dpaa_remove(struct platform_device *pdev)
 	struct device *dev;
 	int err;
 
-	dev = &pdev->dev;
+	dev = pdev->dev.parent;
 	net_dev = dev_get_drvdata(dev);
 
 	priv = netdev_priv(net_dev);

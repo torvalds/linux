@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 
 use warnings;
 use strict;
@@ -328,13 +329,15 @@ my $lineprefix="";
 use constant {
     STATE_NORMAL        => 0, # normal code
     STATE_NAME          => 1, # looking for function name
-    STATE_FIELD         => 2, # scanning field start
-    STATE_PROTO         => 3, # scanning prototype
-    STATE_DOCBLOCK      => 4, # documentation block
-    STATE_INLINE        => 5, # gathering documentation outside main block
+    STATE_BODY_MAYBE    => 2, # body - or maybe more description
+    STATE_BODY          => 3, # the body of the comment
+    STATE_PROTO         => 4, # scanning prototype
+    STATE_DOCBLOCK      => 5, # documentation block
+    STATE_INLINE        => 6, # gathering documentation outside main block
 };
 my $state;
 my $in_doc_sect;
+my $leading_space;
 
 # Inline documentation state
 use constant {
@@ -363,7 +366,7 @@ my $doc_sect = $doc_com .
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
-my $doc_inline_sect = '\s*\*\s*(@[\w\s]+):(.*)';
+my $doc_inline_sect = '\s*\*\s*(@\s*[\w][\w\.]*\s*):(.*)';
 my $doc_inline_end = '^\s*\*/\s*$';
 my $doc_inline_oneline = '^\s*/\*\*\s*(@[\w\s]+):\s*(.*)\s*\*/\s*$';
 my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
@@ -553,10 +556,9 @@ sub output_highlight {
 	}
 	if ($line eq ""){
 	    if (! $output_preformatted) {
-		print $lineprefix, local_unescape($blankline);
+		print $lineprefix, $blankline;
 	    }
 	} else {
-	    $line =~ s/\\\\\\/\&/g;
 	    if ($output_mode eq "man" && substr($line, 0, 1) eq ".") {
 		print "\\&$line";
 	    } else {
@@ -747,17 +749,73 @@ sub output_blockhead_rst(%) {
     }
 }
 
-sub output_highlight_rst {
-    my $contents = join "\n",@_;
-    my $line;
-
-    # undo the evil effects of xml_escape() earlier
-    $contents = xml_unescape($contents);
-
+#
+# Apply the RST highlights to a sub-block of text.
+#   
+sub highlight_block($) {
+    # The dohighlight kludge requires the text be called $contents
+    my $contents = shift;
     eval $dohighlight;
     die $@ if $@;
+    return $contents;
+}
 
-    foreach $line (split "\n", $contents) {
+#
+# Regexes used only here.
+#
+my $sphinx_literal = '^[^.].*::$';
+my $sphinx_cblock = '^\.\.\ +code-block::';
+
+sub output_highlight_rst {
+    my $input = join "\n",@_;
+    my $output = "";
+    my $line;
+    my $in_literal = 0;
+    my $litprefix;
+    my $block = "";
+
+    foreach $line (split "\n",$input) {
+	#
+	# If we're in a literal block, see if we should drop out
+	# of it.  Otherwise pass the line straight through unmunged.
+	#
+	if ($in_literal) {
+	    if (! ($line =~ /^\s*$/)) {
+		#
+		# If this is the first non-blank line in a literal
+		# block we need to figure out what the proper indent is.
+		#
+		if ($litprefix eq "") {
+		    $line =~ /^(\s*)/;
+		    $litprefix = '^' . $1;
+		    $output .= $line . "\n";
+		} elsif (! ($line =~ /$litprefix/)) {
+		    $in_literal = 0;
+		} else {
+		    $output .= $line . "\n";
+		}
+	    } else {
+		$output .= $line . "\n";
+	    }
+	}
+	#
+	# Not in a literal block (or just dropped out)
+	#
+	if (! $in_literal) {
+	    $block .= $line . "\n";
+	    if (($line =~ /$sphinx_literal/) || ($line =~ /$sphinx_cblock/)) {
+		$in_literal = 1;
+		$litprefix = "";
+		$output .= highlight_block($block);
+		$block = ""
+	    }
+	}
+    }
+
+    if ($block) {
+	$output .= highlight_block($block);
+    }
+    foreach $line (split "\n", $output) {
 	print $lineprefix . $line . "\n";
     }
 }
@@ -1062,7 +1120,7 @@ sub dump_struct($$) {
 					# Handle bitmaps
 					$arg =~ s/:\s*\d+\s*//g;
 					# Handle arrays
-					$arg =~ s/\[\S+\]//g;
+					$arg =~ s/\[.*\]//g;
 					# The type may have multiple words,
 					# and multiple IDs can be defined, like:
 					#	const struct foo, *bar, foobar
@@ -1422,8 +1480,6 @@ sub push_parameter($$$$) {
 		}
 	}
 
-	$param = xml_escape($param);
-
 	# strip spaces from $param so that it is one continuous string
 	# on @parameterlist;
 	# this fixes a problem where check_sections() cannot find
@@ -1522,6 +1578,7 @@ sub dump_function($$) {
     $prototype =~ s/__meminit +//;
     $prototype =~ s/__must_check +//;
     $prototype =~ s/__weak +//;
+    $prototype =~ s/__sched +//;
     my $define = $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute__\s*\(\(
             (?:
@@ -1748,47 +1805,6 @@ sub process_proto_type($$) {
     }
 }
 
-# xml_escape: replace <, >, and & in the text stream;
-#
-# however, formatting controls that are generated internally/locally in the
-# kernel-doc script are not escaped here; instead, they begin life like
-# $blankline_html (4 of '\' followed by a mnemonic + ':'), then these strings
-# are converted to their mnemonic-expected output, without the 4 * '\' & ':',
-# just before actual output; (this is done by local_unescape())
-sub xml_escape($) {
-	my $text = shift;
-	if ($output_mode eq "man") {
-		return $text;
-	}
-	$text =~ s/\&/\\\\\\amp;/g;
-	$text =~ s/\</\\\\\\lt;/g;
-	$text =~ s/\>/\\\\\\gt;/g;
-	return $text;
-}
-
-# xml_unescape: reverse the effects of xml_escape
-sub xml_unescape($) {
-	my $text = shift;
-	if ($output_mode eq "man") {
-		return $text;
-	}
-	$text =~ s/\\\\\\amp;/\&/g;
-	$text =~ s/\\\\\\lt;/</g;
-	$text =~ s/\\\\\\gt;/>/g;
-	return $text;
-}
-
-# convert local escape strings to html
-# local escape strings look like:  '\\\\menmonic:' (that's 4 backslashes)
-sub local_unescape($) {
-	my $text = shift;
-	if ($output_mode eq "man") {
-		return $text;
-	}
-	$text =~ s/\\\\\\\\lt:/</g;
-	$text =~ s/\\\\\\\\gt:/>/g;
-	return $text;
-}
 
 sub map_filename($) {
     my $file;
@@ -1826,15 +1842,291 @@ sub process_export_file($) {
     close(IN);
 }
 
+#
+# Parsers for the various processing states.
+#
+# STATE_NORMAL: looking for the /** to begin everything.
+#
+sub process_normal() {
+    if (/$doc_start/o) {
+	$state = STATE_NAME;	# next line is always the function name
+	$in_doc_sect = 0;
+	$declaration_start_line = $. + 1;
+    }
+}
+
+#
+# STATE_NAME: Looking for the "name - description" line
+#
+sub process_name($$) {
+    my $file = shift;
+    my $identifier;
+    my $descr;
+
+    if (/$doc_block/o) {
+	$state = STATE_DOCBLOCK;
+	$contents = "";
+	$new_start_line = $. + 1;
+
+	if ( $1 eq "" ) {
+	    $section = $section_intro;
+	} else {
+	    $section = $1;
+	}
+    }
+    elsif (/$doc_decl/o) {
+	$identifier = $1;
+	if (/\s*([\w\s]+?)(\(\))?\s*-/) {
+	    $identifier = $1;
+	}
+
+	$state = STATE_BODY;
+	# if there's no @param blocks need to set up default section
+	# here
+	$contents = "";
+	$section = $section_default;
+	$new_start_line = $. + 1;
+	if (/-(.*)/) {
+	    # strip leading/trailing/multiple spaces
+	    $descr= $1;
+	    $descr =~ s/^\s*//;
+	    $descr =~ s/\s*$//;
+	    $descr =~ s/\s+/ /g;
+	    $declaration_purpose = $descr;
+	    $state = STATE_BODY_MAYBE;
+	} else {
+	    $declaration_purpose = "";
+	}
+
+	if (($declaration_purpose eq "") && $verbose) {
+	    print STDERR "${file}:$.: warning: missing initial short description on line:\n";
+	    print STDERR $_;
+	    ++$warnings;
+	}
+
+	if ($identifier =~ m/^struct/) {
+	    $decl_type = 'struct';
+	} elsif ($identifier =~ m/^union/) {
+	    $decl_type = 'union';
+	} elsif ($identifier =~ m/^enum/) {
+	    $decl_type = 'enum';
+	} elsif ($identifier =~ m/^typedef/) {
+	    $decl_type = 'typedef';
+	} else {
+	    $decl_type = 'function';
+	}
+
+	if ($verbose) {
+	    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
+	}
+    } else {
+	print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
+	    " - I thought it was a doc line\n";
+	++$warnings;
+	$state = STATE_NORMAL;
+    }
+}
+
+
+#
+# STATE_BODY and STATE_BODY_MAYBE: the bulk of a kerneldoc comment.
+#
+sub process_body($$) {
+    my $file = shift;
+
+    if (/$doc_sect/i) { # case insensitive for supported section names
+	$newsection = $1;
+	$newcontents = $2;
+
+	# map the supported section names to the canonical names
+	if ($newsection =~ m/^description$/i) {
+	    $newsection = $section_default;
+	} elsif ($newsection =~ m/^context$/i) {
+	    $newsection = $section_context;
+	} elsif ($newsection =~ m/^returns?$/i) {
+	    $newsection = $section_return;
+	} elsif ($newsection =~ m/^\@return$/) {
+	    # special: @return is a section, not a param description
+	    $newsection = $section_return;
+	}
+
+	if (($contents ne "") && ($contents ne "\n")) {
+	    if (!$in_doc_sect && $verbose) {
+		print STDERR "${file}:$.: warning: contents before sections\n";
+		++$warnings;
+	    }
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	}
+
+	$in_doc_sect = 1;
+	$state = STATE_BODY;
+	$contents = $newcontents;
+	$new_start_line = $.;
+	while (substr($contents, 0, 1) eq " ") {
+	    $contents = substr($contents, 1);
+	}
+	if ($contents ne "") {
+	    $contents .= "\n";
+	}
+	$section = $newsection;
+	$leading_space = undef;
+    } elsif (/$doc_end/) {
+	if (($contents ne "") && ($contents ne "\n")) {
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	    $contents = "";
+	}
+	# look for doc_com + <text> + doc_end:
+	if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
+	    print STDERR "${file}:$.: warning: suspicious ending line: $_";
+	    ++$warnings;
+	}
+
+	$prototype = "";
+	$state = STATE_PROTO;
+	$brcount = 0;
+    } elsif (/$doc_content/) {
+	# miguel-style comment kludge, look for blank lines after
+	# @parameter line to signify start of description
+	if ($1 eq "") {
+	    if ($section =~ m/^@/ || $section eq $section_context) {
+		dump_section($file, $section, $contents);
+		$section = $section_default;
+		$contents = "";
+		$new_start_line = $.;
+	    } else {
+		$contents .= "\n";
+	    }
+	    $state = STATE_BODY;
+	} elsif ($state == STATE_BODY_MAYBE) {
+	    # Continued declaration purpose
+	    chomp($declaration_purpose);
+	    $declaration_purpose .= " " . $1;
+	    $declaration_purpose =~ s/\s+/ /g;
+	} else {
+	    my $cont = $1;
+	    if ($section =~ m/^@/ || $section eq $section_context) {
+		if (!defined $leading_space) {
+		    if ($cont =~ m/^(\s+)/) {
+			$leading_space = $1;
+		    } else {
+			$leading_space = "";
+		    }
+		}
+		$cont =~ s/^$leading_space//;
+	    }
+	    $contents .= $cont . "\n";
+	}
+    } else {
+	# i dont know - bad line?  ignore.
+	print STDERR "${file}:$.: warning: bad line: $_";
+	++$warnings;
+    }
+}
+
+
+#
+# STATE_PROTO: reading a function/whatever prototype.
+#
+sub process_proto($$) {
+    my $file = shift;
+
+    if (/$doc_inline_oneline/) {
+	$section = $1;
+	$contents = $2;
+	if ($contents ne "") {
+	    $contents .= "\n";
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	    $contents = "";
+	}
+    } elsif (/$doc_inline_start/) {
+	$state = STATE_INLINE;
+	$inline_doc_state = STATE_INLINE_NAME;
+    } elsif ($decl_type eq 'function') {
+	process_proto_function($_, $file);
+    } else {
+	process_proto_type($_, $file);
+    }
+}
+
+#
+# STATE_DOCBLOCK: within a DOC: block.
+#
+sub process_docblock($$) {
+    my $file = shift;
+
+    if (/$doc_end/) {
+	dump_doc_section($file, $section, $contents);
+	$section = $section_default;
+	$contents = "";
+	$function = "";
+	%parameterdescs = ();
+	%parametertypes = ();
+	@parameterlist = ();
+	%sections = ();
+	@sectionlist = ();
+	$prototype = "";
+	$state = STATE_NORMAL;
+    } elsif (/$doc_content/) {
+	if ( $1 eq "" )	{
+	    $contents .= $blankline;
+	} else {
+	    $contents .= $1 . "\n";
+	}
+    }
+}
+
+#
+# STATE_INLINE: docbook comments within a prototype.
+#
+sub process_inline($$) {
+    my $file = shift;
+
+    # First line (state 1) needs to be a @parameter
+    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
+	$section = $1;
+	$contents = $2;
+	$new_start_line = $.;
+	if ($contents ne "") {
+	    while (substr($contents, 0, 1) eq " ") {
+		$contents = substr($contents, 1);
+	    }
+	    $contents .= "\n";
+	}
+	$inline_doc_state = STATE_INLINE_TEXT;
+	# Documentation block end */
+    } elsif (/$doc_inline_end/) {
+	if (($contents ne "") && ($contents ne "\n")) {
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	    $contents = "";
+	}
+	$state = STATE_PROTO;
+	$inline_doc_state = STATE_INLINE_NA;
+	# Regular text
+    } elsif (/$doc_content/) {
+	if ($inline_doc_state == STATE_INLINE_TEXT) {
+	    $contents .= $1 . "\n";
+	    # nuke leading blank lines
+	    if ($contents =~ /^\s*$/) {
+		$contents = "";
+	    }
+	} elsif ($inline_doc_state == STATE_INLINE_NAME) {
+	    $inline_doc_state = STATE_INLINE_ERROR;
+	    print STDERR "${file}:$.: warning: ";
+	    print STDERR "Incorrect use of kernel-doc format: $_";
+	    ++$warnings;
+	}
+    }
+}
+
+
 sub process_file($) {
     my $file;
-    my $identifier;
-    my $func;
-    my $descr;
-    my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
-    my $leading_space;
 
     $file = map_filename($orig_file);
 
@@ -1853,250 +2145,23 @@ sub process_file($) {
 	}
 	# Replace tabs by spaces
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
+	# Hand this line to the appropriate state handler
 	if ($state == STATE_NORMAL) {
-	    if (/$doc_start/o) {
-		$state = STATE_NAME;	# next line is always the function name
-		$in_doc_sect = 0;
-		$declaration_start_line = $. + 1;
-	    }
-	} elsif ($state == STATE_NAME) {# this line is the function name (always)
-	    if (/$doc_block/o) {
-		$state = STATE_DOCBLOCK;
-		$contents = "";
-                $new_start_line = $. + 1;
-
-		if ( $1 eq "" ) {
-			$section = $section_intro;
-		} else {
-			$section = $1;
-		}
-	    }
-	    elsif (/$doc_decl/o) {
-		$identifier = $1;
-		if (/\s*([\w\s]+?)\s*-/) {
-		    $identifier = $1;
-		}
-
-		$state = STATE_FIELD;
-		# if there's no @param blocks need to set up default section
-		# here
-		$contents = "";
-		$section = $section_default;
-		$new_start_line = $. + 1;
-		if (/-(.*)/) {
-		    # strip leading/trailing/multiple spaces
-		    $descr= $1;
-		    $descr =~ s/^\s*//;
-		    $descr =~ s/\s*$//;
-		    $descr =~ s/\s+/ /g;
-		    $declaration_purpose = xml_escape($descr);
-		    $in_purpose = 1;
-		} else {
-		    $declaration_purpose = "";
-		}
-
-		if (($declaration_purpose eq "") && $verbose) {
-			print STDERR "${file}:$.: warning: missing initial short description on line:\n";
-			print STDERR $_;
-			++$warnings;
-		}
-
-		if ($identifier =~ m/^struct/) {
-		    $decl_type = 'struct';
-		} elsif ($identifier =~ m/^union/) {
-		    $decl_type = 'union';
-		} elsif ($identifier =~ m/^enum/) {
-		    $decl_type = 'enum';
-		} elsif ($identifier =~ m/^typedef/) {
-		    $decl_type = 'typedef';
-		} else {
-		    $decl_type = 'function';
-		}
-
-		if ($verbose) {
-		    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
-		}
-	    } else {
-		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
-		" - I thought it was a doc line\n";
-		++$warnings;
-		$state = STATE_NORMAL;
-	    }
-	} elsif ($state == STATE_FIELD) {	# look for head: lines, and include content
-	    if (/$doc_sect/i) { # case insensitive for supported section names
-		$newsection = $1;
-		$newcontents = $2;
-
-		# map the supported section names to the canonical names
-		if ($newsection =~ m/^description$/i) {
-		    $newsection = $section_default;
-		} elsif ($newsection =~ m/^context$/i) {
-		    $newsection = $section_context;
-		} elsif ($newsection =~ m/^returns?$/i) {
-		    $newsection = $section_return;
-		} elsif ($newsection =~ m/^\@return$/) {
-		    # special: @return is a section, not a param description
-		    $newsection = $section_return;
-		}
-
-		if (($contents ne "") && ($contents ne "\n")) {
-		    if (!$in_doc_sect && $verbose) {
-			print STDERR "${file}:$.: warning: contents before sections\n";
-			++$warnings;
-		    }
-		    dump_section($file, $section, xml_escape($contents));
-		    $section = $section_default;
-		}
-
-		$in_doc_sect = 1;
-		$in_purpose = 0;
-		$contents = $newcontents;
-                $new_start_line = $.;
-		while (substr($contents, 0, 1) eq " ") {
-		    $contents = substr($contents, 1);
-		}
-		if ($contents ne "") {
-		    $contents .= "\n";
-		}
-		$section = $newsection;
-		$leading_space = undef;
-	    } elsif (/$doc_end/) {
-		if (($contents ne "") && ($contents ne "\n")) {
-		    dump_section($file, $section, xml_escape($contents));
-		    $section = $section_default;
-		    $contents = "";
-		}
-		# look for doc_com + <text> + doc_end:
-		if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
-		    print STDERR "${file}:$.: warning: suspicious ending line: $_";
-		    ++$warnings;
-		}
-
-		$prototype = "";
-		$state = STATE_PROTO;
-		$brcount = 0;
-#		print STDERR "end of doc comment, looking for prototype\n";
-	    } elsif (/$doc_content/) {
-		# miguel-style comment kludge, look for blank lines after
-		# @parameter line to signify start of description
-		if ($1 eq "") {
-		    if ($section =~ m/^@/ || $section eq $section_context) {
-			dump_section($file, $section, xml_escape($contents));
-			$section = $section_default;
-			$contents = "";
-                        $new_start_line = $.;
-		    } else {
-			$contents .= "\n";
-		    }
-		    $in_purpose = 0;
-		} elsif ($in_purpose == 1) {
-		    # Continued declaration purpose
-		    chomp($declaration_purpose);
-		    $declaration_purpose .= " " . xml_escape($1);
-		    $declaration_purpose =~ s/\s+/ /g;
-		} else {
-		    my $cont = $1;
-		    if ($section =~ m/^@/ || $section eq $section_context) {
-			if (!defined $leading_space) {
-			    if ($cont =~ m/^(\s+)/) {
-				$leading_space = $1;
-			    } else {
-				$leading_space = "";
-			    }
-			}
-
-			$cont =~ s/^$leading_space//;
-		    }
-		    $contents .= $cont . "\n";
-		}
-	    } else {
-		# i dont know - bad line?  ignore.
-		print STDERR "${file}:$.: warning: bad line: $_";
-		++$warnings;
-	    }
+	    process_normal();
+	} elsif ($state == STATE_NAME) {
+	    process_name($file, $_);
+	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE) {
+	    process_body($file, $_);
 	} elsif ($state == STATE_INLINE) { # scanning for inline parameters
-	    # First line (state 1) needs to be a @parameter
-	    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
-		$section = $1;
-		$contents = $2;
-                $new_start_line = $.;
-		if ($contents ne "") {
-		    while (substr($contents, 0, 1) eq " ") {
-			$contents = substr($contents, 1);
-		    }
-		    $contents .= "\n";
-		}
-		$inline_doc_state = STATE_INLINE_TEXT;
-	    # Documentation block end */
-	    } elsif (/$doc_inline_end/) {
-		if (($contents ne "") && ($contents ne "\n")) {
-		    dump_section($file, $section, xml_escape($contents));
-		    $section = $section_default;
-		    $contents = "";
-		}
-		$state = STATE_PROTO;
-		$inline_doc_state = STATE_INLINE_NA;
-	    # Regular text
-	    } elsif (/$doc_content/) {
-		if ($inline_doc_state == STATE_INLINE_TEXT) {
-		    $contents .= $1 . "\n";
-		    # nuke leading blank lines
-		    if ($contents =~ /^\s*$/) {
-			$contents = "";
-		    }
-		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
-		    $inline_doc_state = STATE_INLINE_ERROR;
-		    print STDERR "${file}:$.: warning: ";
-		    print STDERR "Incorrect use of kernel-doc format: $_";
-		    ++$warnings;
-		}
-	    }
-	} elsif ($state == STATE_PROTO) {	# scanning for function '{' (end of prototype)
-	    if (/$doc_inline_oneline/) {
-		$section = $1;
-		$contents = $2;
-		if ($contents ne "") {
-		    $contents .= "\n";
-		    dump_section($file, $section, xml_escape($contents));
-		    $section = $section_default;
-		    $contents = "";
-		}
-	    } elsif (/$doc_inline_start/) {
-		$state = STATE_INLINE;
-		$inline_doc_state = STATE_INLINE_NAME;
-	    } elsif ($decl_type eq 'function') {
-		process_proto_function($_, $file);
-	    } else {
-		process_proto_type($_, $file);
-	    }
+	    process_inline($file, $_);
+	} elsif ($state == STATE_PROTO) {
+	    process_proto($file, $_);
 	} elsif ($state == STATE_DOCBLOCK) {
-		if (/$doc_end/)
-		{
-			dump_doc_section($file, $section, xml_escape($contents));
-			$section = $section_default;
-			$contents = "";
-			$function = "";
-			%parameterdescs = ();
-			%parametertypes = ();
-			@parameterlist = ();
-			%sections = ();
-			@sectionlist = ();
-			$prototype = "";
-			$state = STATE_NORMAL;
-		}
-		elsif (/$doc_content/)
-		{
-			if ( $1 eq "" )
-			{
-				$contents .= $blankline;
-			}
-			else
-			{
-				$contents .= $1 . "\n";
-			}
-		}
+	    process_docblock($file, $_);
 	}
     }
+
+    # Make sure we got something interesting.
     if ($initial_section_counter == $section_counter) {
 	if ($output_mode ne "none") {
 	    print STDERR "${file}:1: warning: no structured comments found\n";

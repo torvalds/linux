@@ -323,6 +323,20 @@ static void aq_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static void aq_pci_shutdown(struct pci_dev *pdev)
+{
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
+
+	aq_nic_shutdown(self);
+
+	pci_disable_device(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
 static int aq_pci_suspend(struct pci_dev *pdev, pm_message_t pm_msg)
 {
 	struct aq_nic_s *self = pci_get_drvdata(pdev);
@@ -345,6 +359,7 @@ static struct pci_driver aq_pci_ops = {
 	.remove = aq_pci_remove,
 	.suspend = aq_pci_suspend,
 	.resume = aq_pci_resume,
+	.shutdown = aq_pci_shutdown,
 };
 
 module_pci_driver(aq_pci_ops);

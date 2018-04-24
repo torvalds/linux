@@ -250,7 +250,7 @@
 		status = "okay";
 
 		24c512@50 {
-			compatible = "24c512";
+			compatible = "atmel,24c512";
 			reg = <0x50>;
 			pagesize = <128>;
 		};

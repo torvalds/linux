@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-/* pci-stub - simple stub driver to reserve a pci device
+/*
+ * Simple stub driver to reserve a PCI device
  *
  * Copyright (C) 2008 Red Hat, Inc.
  * Author:

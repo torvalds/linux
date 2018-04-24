@@ -37,6 +37,8 @@
 #include "fs_core.h"
 #include "fs_cmd.h"
 #include "diag/fs_tracepoint.h"
+#include "accel/ipsec.h"
+#include "fpga/ipsec.h"
 
 #define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
 					 sizeof(struct init_tree_node))
@@ -425,15 +427,17 @@ static void del_sw_prio(struct fs_node *node)
 
 static void del_hw_flow_table(struct fs_node *node)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_table *ft;
 	struct mlx5_core_dev *dev;
 	int err;
 
 	fs_get_obj(ft, node);
 	dev = get_dev(&ft->node);
+	root = find_root(&ft->node);
 
 	if (node->active) {
-		err = mlx5_cmd_destroy_flow_table(dev, ft);
+		err = root->cmds->destroy_flow_table(dev, ft);
 		if (err)
 			mlx5_core_warn(dev, "flow steering can't destroy ft\n");
 	}
@@ -454,6 +458,7 @@ static void del_sw_flow_table(struct fs_node *node)
 
 static void del_sw_hw_rule(struct fs_node *node)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_rule *rule;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
@@ -477,19 +482,20 @@ static void del_sw_hw_rule(struct fs_node *node)
 	if (rule->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER  &&
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
-		fte->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		fte->action.action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		update_fte = true;
 		goto out;
 	}
 
-	if ((fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
+	if ((fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
 		update_fte = true;
 	}
 out:
+	root = find_root(&ft->node);
 	if (update_fte && fte->dests_size) {
-		err = mlx5_cmd_update_fte(dev, ft, fg->id, modify_mask, fte);
+		err = root->cmds->update_fte(dev, ft, fg->id, modify_mask, fte);
 		if (err)
 			mlx5_core_warn(dev,
 				       "%s can't del rule fg id=%d fte_index=%d\n",
@@ -500,6 +506,7 @@ out:
 
 static void del_hw_fte(struct fs_node *node)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
 	struct mlx5_core_dev *dev;
@@ -512,9 +519,9 @@ static void del_hw_fte(struct fs_node *node)
 
 	trace_mlx5_fs_del_fte(fte);
 	dev = get_dev(&ft->node);
+	root = find_root(&ft->node);
 	if (node->active) {
-		err = mlx5_cmd_delete_fte(dev, ft,
-					  fte->index);
+		err = root->cmds->delete_fte(dev, ft, fte);
 		if (err)
 			mlx5_core_warn(dev,
 				       "flow steering can't delete fte in index %d of flow group id %d\n",
@@ -542,6 +549,7 @@ static void del_sw_fte(struct fs_node *node)
 
 static void del_hw_flow_group(struct fs_node *node)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_group *fg;
 	struct mlx5_flow_table *ft;
 	struct mlx5_core_dev *dev;
@@ -551,7 +559,8 @@ static void del_hw_flow_group(struct fs_node *node)
 	dev = get_dev(&ft->node);
 	trace_mlx5_fs_del_fg(fg);
 
-	if (fg->node.active && mlx5_cmd_destroy_flow_group(dev, ft, fg->id))
+	root = find_root(&ft->node);
+	if (fg->node.active && root->cmds->destroy_flow_group(dev, ft, fg->id))
 		mlx5_core_warn(dev, "flow steering can't destroy fg %d of ft %d\n",
 			       fg->id, ft->id);
 }
@@ -615,10 +624,7 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
 
 	memcpy(fte->val, match_value, sizeof(fte->val));
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
-	fte->flow_tag = flow_act->flow_tag;
-	fte->action = flow_act->action;
-	fte->encap_id = flow_act->encap_id;
-	fte->modify_id = flow_act->modify_id;
+	fte->action = *flow_act;
 
 	tree_init_node(&fte->node, del_hw_fte, del_sw_fte);
 
@@ -797,15 +803,14 @@ static int connect_fts_in_prio(struct mlx5_core_dev *dev,
 			       struct fs_prio *prio,
 			       struct mlx5_flow_table *ft)
 {
+	struct mlx5_flow_root_namespace *root = find_root(&prio->node);
 	struct mlx5_flow_table *iter;
 	int i = 0;
 	int err;
 
 	fs_for_each_ft(iter, prio) {
 		i++;
-		err = mlx5_cmd_modify_flow_table(dev,
-						 iter,
-						 ft);
+		err = root->cmds->modify_flow_table(dev, iter, ft);
 		if (err) {
 			mlx5_core_warn(dev, "Failed to modify flow table %d\n",
 				       iter->id);
@@ -853,12 +858,12 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 	if (list_empty(&root->underlay_qpns)) {
 		/* Don't set any QPN (zero) in case QPN list is empty */
 		qpn = 0;
-		err = mlx5_cmd_update_root_ft(root->dev, ft, qpn, false);
+		err = root->cmds->update_root_ft(root->dev, ft, qpn, false);
 	} else {
 		list_for_each_entry(uqp, &root->underlay_qpns, list) {
 			qpn = uqp->qpn;
-			err = mlx5_cmd_update_root_ft(root->dev, ft, qpn,
-						      false);
+			err = root->cmds->update_root_ft(root->dev, ft,
+							 qpn, false);
 			if (err)
 				break;
 		}
@@ -877,6 +882,7 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 					 struct mlx5_flow_destination *dest)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
@@ -884,17 +890,16 @@ static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 	int err = 0;
 
 	fs_get_obj(fte, rule->node.parent);
-	if (!(fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
+	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return -EINVAL;
 	down_write_ref_node(&fte->node);
 	fs_get_obj(fg, fte->node.parent);
 	fs_get_obj(ft, fg->node.parent);
 
 	memcpy(&rule->dest_attr, dest, sizeof(*dest));
-	err = mlx5_cmd_update_fte(get_dev(&ft->node),
-				  ft, fg->id,
-				  modify_mask,
-				  fte);
+	root = find_root(&ft->node);
+	err = root->cmds->update_fte(get_dev(&ft->node), ft, fg->id,
+				     modify_mask, fte);
 	up_write_ref_node(&fte->node);
 
 	return err;
@@ -1035,9 +1040,9 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	tree_init_node(&ft->node, del_hw_flow_table, del_sw_flow_table);
 	log_table_sz = ft->max_fte ? ilog2(ft->max_fte) : 0;
 	next_ft = find_next_chained_ft(fs_prio);
-	err = mlx5_cmd_create_flow_table(root->dev, ft->vport, ft->op_mod, ft->type,
-					 ft->level, log_table_sz, next_ft, &ft->id,
-					 ft->flags);
+	err = root->cmds->create_flow_table(root->dev, ft->vport, ft->op_mod,
+					    ft->type, ft->level, log_table_sz,
+					    next_ft, &ft->id, ft->flags);
 	if (err)
 		goto free_ft;
 
@@ -1053,7 +1058,7 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	mutex_unlock(&root->chain_lock);
 	return ft;
 destroy_ft:
-	mlx5_cmd_destroy_flow_table(root->dev, ft);
+	root->cmds->destroy_flow_table(root->dev, ft);
 free_ft:
 	kfree(ft);
 unlock_root:
@@ -1125,6 +1130,7 @@ EXPORT_SYMBOL(mlx5_create_auto_grouped_flow_table);
 struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 					       u32 *fg_in)
 {
+	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	void *match_criteria = MLX5_ADDR_OF(create_flow_group_in,
 					    fg_in, match_criteria);
 	u8 match_criteria_enable = MLX5_GET(create_flow_group_in,
@@ -1152,7 +1158,7 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 	if (IS_ERR(fg))
 		return fg;
 
-	err = mlx5_cmd_create_flow_group(dev, ft, fg_in, &fg->id);
+	err = root->cmds->create_flow_group(dev, ft, fg_in, &fg->id);
 	if (err) {
 		tree_put_node(&fg->node);
 		return ERR_PTR(err);
@@ -1275,6 +1281,7 @@ add_rule_fte(struct fs_fte *fte,
 	     int dest_num,
 	     bool update_action)
 {
+	struct mlx5_flow_root_namespace *root;
 	struct mlx5_flow_handle *handle;
 	struct mlx5_flow_table *ft;
 	int modify_mask = 0;
@@ -1290,12 +1297,13 @@ add_rule_fte(struct fs_fte *fte,
 		modify_mask |= BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
 
 	fs_get_obj(ft, fg->node.parent);
+	root = find_root(&fg->node);
 	if (!(fte->status & FS_FTE_STATUS_EXISTING))
-		err = mlx5_cmd_create_fte(get_dev(&ft->node),
-					  ft, fg->id, fte);
+		err = root->cmds->create_fte(get_dev(&ft->node),
+					     ft, fg, fte);
 	else
-		err = mlx5_cmd_update_fte(get_dev(&ft->node),
-					  ft, fg->id, modify_mask, fte);
+		err = root->cmds->update_fte(get_dev(&ft->node), ft, fg->id,
+						     modify_mask, fte);
 	if (err)
 		goto free_handle;
 
@@ -1360,6 +1368,7 @@ out:
 static int create_auto_flow_group(struct mlx5_flow_table *ft,
 				  struct mlx5_flow_group *fg)
 {
+	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	struct mlx5_core_dev *dev = get_dev(&ft->node);
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	void *match_criteria_addr;
@@ -1380,7 +1389,7 @@ static int create_auto_flow_group(struct mlx5_flow_table *ft,
 	memcpy(match_criteria_addr, fg->mask.match_criteria,
 	       sizeof(fg->mask.match_criteria));
 
-	err = mlx5_cmd_create_flow_group(dev, ft, in, &fg->id);
+	err = root->cmds->create_flow_group(dev, ft, in, &fg->id);
 	if (!err) {
 		fg->node.active = true;
 		trace_mlx5_fs_add_fg(fg);
@@ -1430,7 +1439,9 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 	if (xored_actions & (MLX5_FLOW_CONTEXT_ACTION_DROP  |
 			     MLX5_FLOW_CONTEXT_ACTION_ENCAP |
 			     MLX5_FLOW_CONTEXT_ACTION_DECAP |
-			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR))
+			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR  |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH))
 		return true;
 
 	return false;
@@ -1438,16 +1449,17 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 
 static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act *flow_act)
 {
-	if (check_conflicting_actions(flow_act->action, fte->action)) {
+	if (check_conflicting_actions(flow_act->action, fte->action.action)) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "Found two FTEs with conflicting actions\n");
 		return -EEXIST;
 	}
 
-	if (fte->flow_tag != flow_act->flow_tag) {
+	if (flow_act->has_flow_tag &&
+	    fte->action.flow_tag != flow_act->flow_tag) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "FTE flow tag %u already exists with different flow tag %u\n",
-			       fte->flow_tag,
+			       fte->action.flow_tag,
 			       flow_act->flow_tag);
 		return -EEXIST;
 	}
@@ -1471,12 +1483,12 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	if (ret)
 		return ERR_PTR(ret);
 
-	old_action = fte->action;
-	fte->action |= flow_act->action;
+	old_action = fte->action.action;
+	fte->action.action |= flow_act->action;
 	handle = add_rule_fte(fte, fg, dest, dest_num,
 			      old_action != flow_act->action);
 	if (IS_ERR(handle)) {
-		fte->action = old_action;
+		fte->action.action = old_action;
 		return handle;
 	}
 	trace_mlx5_fs_set_fte(fte, false);
@@ -1637,7 +1649,6 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 
 	list_for_each_entry(iter, match_head, list) {
 		nested_down_read_ref_node(&iter->g->node, FS_LOCK_PARENT);
-		ida_pre_get(&iter->g->fte_allocator, GFP_KERNEL);
 	}
 
 search_again_locked:
@@ -1919,7 +1930,6 @@ static int update_root_ft_destroy(struct mlx5_flow_table *ft)
 		return 0;
 
 	new_root_ft = find_next_ft(ft);
-
 	if (!new_root_ft) {
 		root->root_ft = NULL;
 		return 0;
@@ -1928,13 +1938,14 @@ static int update_root_ft_destroy(struct mlx5_flow_table *ft)
 	if (list_empty(&root->underlay_qpns)) {
 		/* Don't set any QPN (zero) in case QPN list is empty */
 		qpn = 0;
-		err = mlx5_cmd_update_root_ft(root->dev, new_root_ft, qpn,
-					      false);
+		err = root->cmds->update_root_ft(root->dev, new_root_ft,
+						 qpn, false);
 	} else {
 		list_for_each_entry(uqp, &root->underlay_qpns, list) {
 			qpn = uqp->qpn;
-			err = mlx5_cmd_update_root_ft(root->dev, new_root_ft,
-						      qpn, false);
+			err = root->cmds->update_root_ft(root->dev,
+							 new_root_ft, qpn,
+							 false);
 			if (err)
 				break;
 		}
@@ -2044,6 +2055,11 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	case MLX5_FLOW_NAMESPACE_SNIFFER_TX:
 		if (steering->sniffer_tx_root_ns)
 			return &steering->sniffer_tx_root_ns->ns;
+		else
+			return NULL;
+	case MLX5_FLOW_NAMESPACE_EGRESS:
+		if (steering->egress_root_ns)
+			return &steering->egress_root_ns->ns;
 		else
 			return NULL;
 	default:
@@ -2236,12 +2252,17 @@ static int init_root_tree(struct mlx5_flow_steering *steering,
 	return 0;
 }
 
-static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_flow_steering *steering,
-						       enum fs_flow_table_type
-						       table_type)
+static struct mlx5_flow_root_namespace
+*create_root_ns(struct mlx5_flow_steering *steering,
+		enum fs_flow_table_type table_type)
 {
+	const struct mlx5_flow_cmds *cmds = mlx5_fs_cmd_get_default(table_type);
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_namespace *ns;
+
+	if (mlx5_accel_ipsec_device_caps(steering->dev) & MLX5_ACCEL_IPSEC_CAP_DEVICE &&
+	    (table_type == FS_FT_NIC_RX || table_type == FS_FT_NIC_TX))
+		cmds = mlx5_fs_cmd_get_default_ipsec_fpga_cmds(table_type);
 
 	/* Create the root namespace */
 	root_ns = kvzalloc(sizeof(*root_ns), GFP_KERNEL);
@@ -2250,6 +2271,7 @@ static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_flow_steering
 
 	root_ns->dev = steering->dev;
 	root_ns->table_type = table_type;
+	root_ns->cmds = cmds;
 
 	INIT_LIST_HEAD(&root_ns->underlay_qpns);
 
@@ -2408,6 +2430,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 	cleanup_root_ns(steering->fdb_root_ns);
 	cleanup_root_ns(steering->sniffer_rx_root_ns);
 	cleanup_root_ns(steering->sniffer_tx_root_ns);
+	cleanup_root_ns(steering->egress_root_ns);
 	mlx5_cleanup_fc_stats(dev);
 	kmem_cache_destroy(steering->ftes_cache);
 	kmem_cache_destroy(steering->fgs_cache);
@@ -2553,6 +2576,20 @@ cleanup_root_ns:
 	return err;
 }
 
+static int init_egress_root_ns(struct mlx5_flow_steering *steering)
+{
+	struct fs_prio *prio;
+
+	steering->egress_root_ns = create_root_ns(steering,
+						  FS_FT_NIC_TX);
+	if (!steering->egress_root_ns)
+		return -ENOMEM;
+
+	/* create 1 prio*/
+	prio = fs_create_prio(&steering->egress_root_ns->ns, 0, 1);
+	return PTR_ERR_OR_ZERO(prio);
+}
+
 int mlx5_init_fs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering;
@@ -2618,6 +2655,12 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 			goto err;
 	}
 
+	if (MLX5_IPSEC_DEV(dev)) {
+		err = init_egress_root_ns(steering);
+		if (err)
+			goto err;
+	}
+
 	return 0;
 err:
 	mlx5_cleanup_fs(dev);
@@ -2641,7 +2684,8 @@ int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn)
 		goto update_ft_fail;
 	}
 
-	err = mlx5_cmd_update_root_ft(dev, root->root_ft, underlay_qpn, false);
+	err = root->cmds->update_root_ft(dev, root->root_ft, underlay_qpn,
+					 false);
 	if (err) {
 		mlx5_core_warn(dev, "Failed adding underlay QPN (%u) to root FT err(%d)\n",
 			       underlay_qpn, err);
@@ -2684,7 +2728,8 @@ int mlx5_fs_remove_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn)
 		goto out;
 	}
 
-	err = mlx5_cmd_update_root_ft(dev, root->root_ft, underlay_qpn, true);
+	err = root->cmds->update_root_ft(dev, root->root_ft, underlay_qpn,
+					 true);
 	if (err)
 		mlx5_core_warn(dev, "Failed removing underlay QPN (%u) from root FT err(%d)\n",
 			       underlay_qpn, err);

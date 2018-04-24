@@ -31,7 +31,8 @@
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 #include "atom.h"
-#include "amdgpu_powerplay.h"
+#include "amd_pcie.h"
+#include "si_dpm.h"
 #include "sid.h"
 #include "si_ih.h"
 #include "gfx_v6_0.h"
@@ -1230,6 +1231,92 @@ static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
+static void si_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+		RREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	}
+}
+
+static void si_invalidate_hdp(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_DEBUG0, 1);
+		RREG32(mmHDP_DEBUG0);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+	}
+}
+
+static int si_get_pcie_lanes(struct amdgpu_device *adev)
+{
+	u32 link_width_cntl;
+
+	if (adev->flags & AMD_IS_APU)
+		return 0;
+
+	link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
+
+	switch ((link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT) {
+	case LC_LINK_WIDTH_X1:
+		return 1;
+	case LC_LINK_WIDTH_X2:
+		return 2;
+	case LC_LINK_WIDTH_X4:
+		return 4;
+	case LC_LINK_WIDTH_X8:
+		return 8;
+	case LC_LINK_WIDTH_X0:
+	case LC_LINK_WIDTH_X16:
+	default:
+		return 16;
+	}
+}
+
+static void si_set_pcie_lanes(struct amdgpu_device *adev, int lanes)
+{
+	u32 link_width_cntl, mask;
+
+	if (adev->flags & AMD_IS_APU)
+		return;
+
+	switch (lanes) {
+	case 0:
+		mask = LC_LINK_WIDTH_X0;
+		break;
+	case 1:
+		mask = LC_LINK_WIDTH_X1;
+		break;
+	case 2:
+		mask = LC_LINK_WIDTH_X2;
+		break;
+	case 4:
+		mask = LC_LINK_WIDTH_X4;
+		break;
+	case 8:
+		mask = LC_LINK_WIDTH_X8;
+		break;
+	case 16:
+		mask = LC_LINK_WIDTH_X16;
+		break;
+	default:
+		DRM_ERROR("invalid pcie lane request: %d\n", lanes);
+		return;
+	}
+
+	link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl &= ~LC_LINK_WIDTH_MASK;
+	link_width_cntl |= mask << LC_LINK_WIDTH_SHIFT;
+	link_width_cntl |= (LC_RECONFIG_NOW |
+			    LC_RECONFIG_ARC_MISSING_ESCAPE);
+
+	WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+}
+
 static const struct amdgpu_asic_funcs si_asic_funcs =
 {
 	.read_disabled_bios = &si_read_disabled_bios,
@@ -1240,7 +1327,11 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.get_xclk = &si_get_xclk,
 	.set_uvd_clocks = &si_set_uvd_clocks,
 	.set_vce_clocks = NULL,
+	.get_pcie_lanes = &si_get_pcie_lanes,
+	.set_pcie_lanes = &si_set_pcie_lanes,
 	.get_config_memsize = &si_get_config_memsize,
+	.flush_hdp = &si_flush_hdp,
+	.invalidate_hdp = &si_invalidate_hdp,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
@@ -1461,8 +1552,8 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
 	int bridge_pos, gpu_pos;
-	u32 speed_cntl, mask, current_data_rate;
-	int ret, i;
+	u32 speed_cntl, current_data_rate;
+	int i;
 	u16 tmp16;
 
 	if (pci_is_root_bus(adev->pdev->bus))
@@ -1474,23 +1565,20 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret != 0)
-		return;
-
-	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
+	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
 		return;
 
 	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	current_data_rate = (speed_cntl & LC_CURRENT_DATA_RATE_MASK) >>
 		LC_CURRENT_DATA_RATE_SHIFT;
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate == 2) {
 			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
 			return;
 		}
 		DRM_INFO("enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
-	} else if (mask & DRM_PCIE_SPEED_50) {
+	} else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) {
 		if (current_data_rate == 1) {
 			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 			return;
@@ -1506,7 +1594,7 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (!gpu_pos)
 		return;
 
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -1589,9 +1677,9 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 
 	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
 	tmp16 &= ~0xf;
-	if (mask & DRM_PCIE_SPEED_80)
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 		tmp16 |= 3;
-	else if (mask & DRM_PCIE_SPEED_50)
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
 		tmp16 |= 2;
 	else
 		tmp16 |= 1;
@@ -1962,7 +2050,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -1976,7 +2064,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -1990,7 +2078,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);

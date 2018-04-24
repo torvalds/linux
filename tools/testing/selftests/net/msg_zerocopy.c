@@ -14,6 +14,9 @@
  * - SOCK_DGRAM
  * - SOCK_RAW
  *
+ * PF_RDS
+ * - SOCK_SEQPACKET
+ *
  * Start this program on two connected hosts, one in send mode and
  * the other with option '-r' to put it in receiver mode.
  *
@@ -53,6 +56,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <linux/rds.h>
 
 #ifndef SO_EE_ORIGIN_ZEROCOPY
 #define SO_EE_ORIGIN_ZEROCOPY		5
@@ -164,17 +168,39 @@ static int do_accept(int fd)
 	return fd;
 }
 
-static bool do_sendmsg(int fd, struct msghdr *msg, bool do_zerocopy)
+static void add_zcopy_cookie(struct msghdr *msg, uint32_t cookie)
+{
+	struct cmsghdr *cm;
+
+	if (!msg->msg_control)
+		error(1, errno, "NULL cookie");
+	cm = (void *)msg->msg_control;
+	cm->cmsg_len = CMSG_LEN(sizeof(cookie));
+	cm->cmsg_level = SOL_RDS;
+	cm->cmsg_type = RDS_CMSG_ZCOPY_COOKIE;
+	memcpy(CMSG_DATA(cm), &cookie, sizeof(cookie));
+}
+
+static bool do_sendmsg(int fd, struct msghdr *msg, bool do_zerocopy, int domain)
 {
 	int ret, len, i, flags;
+	static uint32_t cookie;
+	char ckbuf[CMSG_SPACE(sizeof(cookie))];
 
 	len = 0;
 	for (i = 0; i < msg->msg_iovlen; i++)
 		len += msg->msg_iov[i].iov_len;
 
 	flags = MSG_DONTWAIT;
-	if (do_zerocopy)
+	if (do_zerocopy) {
 		flags |= MSG_ZEROCOPY;
+		if (domain == PF_RDS) {
+			memset(&msg->msg_control, 0, sizeof(msg->msg_control));
+			msg->msg_controllen = CMSG_SPACE(sizeof(cookie));
+			msg->msg_control = (struct cmsghdr *)ckbuf;
+			add_zcopy_cookie(msg, ++cookie);
+		}
+	}
 
 	ret = sendmsg(fd, msg, flags);
 	if (ret == -1 && errno == EAGAIN)
@@ -189,6 +215,10 @@ static bool do_sendmsg(int fd, struct msghdr *msg, bool do_zerocopy)
 		bytes += ret;
 		if (do_zerocopy && ret)
 			expected_completions++;
+	}
+	if (do_zerocopy && domain == PF_RDS) {
+		msg->msg_control = NULL;
+		msg->msg_controllen = 0;
 	}
 
 	return true;
@@ -216,7 +246,9 @@ static void do_sendmsg_corked(int fd, struct msghdr *msg)
 		msg->msg_iov[0].iov_len = payload_len + extra_len;
 		extra_len = 0;
 
-		do_sendmsg(fd, msg, do_zerocopy);
+		do_sendmsg(fd, msg, do_zerocopy,
+			   (cfg_dst_addr.ss_family == AF_INET ?
+			    PF_INET : PF_INET6));
 	}
 
 	do_setsockopt(fd, IPPROTO_UDP, UDP_CORK, 0);
@@ -300,14 +332,65 @@ static int do_setup_tx(int domain, int type, int protocol)
 	if (cfg_zerocopy)
 		do_setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, 1);
 
-	if (domain != PF_PACKET)
+	if (domain != PF_PACKET && domain != PF_RDS)
 		if (connect(fd, (void *) &cfg_dst_addr, cfg_alen))
 			error(1, errno, "connect");
+
+	if (domain == PF_RDS) {
+		if (bind(fd, (void *) &cfg_src_addr, cfg_alen))
+			error(1, errno, "bind");
+	}
 
 	return fd;
 }
 
-static bool do_recv_completion(int fd)
+static uint32_t do_process_zerocopy_cookies(struct rds_zcopy_cookies *ck)
+{
+	int i;
+
+	if (ck->num > RDS_MAX_ZCOOKIES)
+		error(1, 0, "Returned %d cookies, max expected %d\n",
+		      ck->num, RDS_MAX_ZCOOKIES);
+	for (i = 0; i < ck->num; i++)
+		if (cfg_verbose >= 2)
+			fprintf(stderr, "%d\n", ck->cookies[i]);
+	return ck->num;
+}
+
+static bool do_recvmsg_completion(int fd)
+{
+	char cmsgbuf[CMSG_SPACE(sizeof(struct rds_zcopy_cookies))];
+	struct rds_zcopy_cookies *ck;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	bool ret = false;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = sizeof(cmsgbuf);
+
+	if (recvmsg(fd, &msg, MSG_DONTWAIT))
+		return ret;
+
+	if (msg.msg_flags & MSG_CTRUNC)
+		error(1, errno, "recvmsg notification: truncated");
+
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_RDS &&
+		    cmsg->cmsg_type == RDS_CMSG_ZCOPY_COMPLETION) {
+
+			ck = (struct rds_zcopy_cookies *)CMSG_DATA(cmsg);
+			completions += do_process_zerocopy_cookies(ck);
+			ret = true;
+			break;
+		}
+		error(0, 0, "ignoring cmsg at level %d type %d\n",
+			    cmsg->cmsg_level, cmsg->cmsg_type);
+	}
+	return ret;
+}
+
+static bool do_recv_completion(int fd, int domain)
 {
 	struct sock_extended_err *serr;
 	struct msghdr msg = {};
@@ -315,6 +398,9 @@ static bool do_recv_completion(int fd)
 	uint32_t hi, lo, range;
 	int ret, zerocopy;
 	char control[100];
+
+	if (domain == PF_RDS)
+		return do_recvmsg_completion(fd);
 
 	msg.msg_control = control;
 	msg.msg_controllen = sizeof(control);
@@ -337,6 +423,7 @@ static bool do_recv_completion(int fd)
 		      cm->cmsg_level, cm->cmsg_type);
 
 	serr = (void *) CMSG_DATA(cm);
+
 	if (serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY)
 		error(1, 0, "serr: wrong origin: %u", serr->ee_origin);
 	if (serr->ee_errno != 0)
@@ -371,20 +458,20 @@ static bool do_recv_completion(int fd)
 }
 
 /* Read all outstanding messages on the errqueue */
-static void do_recv_completions(int fd)
+static void do_recv_completions(int fd, int domain)
 {
-	while (do_recv_completion(fd)) {}
+	while (do_recv_completion(fd, domain)) {}
 }
 
 /* Wait for all remaining completions on the errqueue */
-static void do_recv_remaining_completions(int fd)
+static void do_recv_remaining_completions(int fd, int domain)
 {
 	int64_t tstop = gettimeofday_ms() + cfg_waittime_ms;
 
 	while (completions < expected_completions &&
 	       gettimeofday_ms() < tstop) {
-		if (do_poll(fd, POLLERR))
-			do_recv_completions(fd);
+		if (do_poll(fd, domain == PF_RDS ? POLLIN : POLLERR))
+			do_recv_completions(fd, domain);
 	}
 
 	if (completions < expected_completions)
@@ -444,6 +531,13 @@ static void do_tx(int domain, int type, int protocol)
 		msg.msg_iovlen++;
 	}
 
+	if (domain == PF_RDS) {
+		msg.msg_name = &cfg_dst_addr;
+		msg.msg_namelen =  (cfg_dst_addr.ss_family == AF_INET ?
+				    sizeof(struct sockaddr_in) :
+				    sizeof(struct sockaddr_in6));
+	}
+
 	iov[2].iov_base = payload;
 	iov[2].iov_len = cfg_payload_len;
 	msg.msg_iovlen++;
@@ -454,17 +548,17 @@ static void do_tx(int domain, int type, int protocol)
 		if (cfg_cork)
 			do_sendmsg_corked(fd, &msg);
 		else
-			do_sendmsg(fd, &msg, cfg_zerocopy);
+			do_sendmsg(fd, &msg, cfg_zerocopy, domain);
 
 		while (!do_poll(fd, POLLOUT)) {
 			if (cfg_zerocopy)
-				do_recv_completions(fd);
+				do_recv_completions(fd, domain);
 		}
 
 	} while (gettimeofday_ms() < tstop);
 
 	if (cfg_zerocopy)
-		do_recv_remaining_completions(fd);
+		do_recv_remaining_completions(fd, domain);
 
 	if (close(fd))
 		error(1, errno, "close");
@@ -610,6 +704,7 @@ static void parse_opts(int argc, char **argv)
 				    40 /* max tcp options */;
 	int c;
 	char *daddr = NULL, *saddr = NULL;
+	char *cfg_test;
 
 	cfg_payload_len = max_payload_len;
 
@@ -667,6 +762,14 @@ static void parse_opts(int argc, char **argv)
 			break;
 		}
 	}
+
+	cfg_test = argv[argc - 1];
+	if (strcmp(cfg_test, "rds") == 0) {
+		if (!daddr)
+			error(1, 0, "-D <server addr> required for PF_RDS\n");
+		if (!cfg_rx && !saddr)
+			error(1, 0, "-S <client addr> required for PF_RDS\n");
+	}
 	setup_sockaddr(cfg_family, daddr, &cfg_dst_addr);
 	setup_sockaddr(cfg_family, saddr, &cfg_src_addr);
 
@@ -699,6 +802,8 @@ int main(int argc, char **argv)
 		do_test(cfg_family, SOCK_STREAM, 0);
 	else if (!strcmp(cfg_test, "udp"))
 		do_test(cfg_family, SOCK_DGRAM, 0);
+	else if (!strcmp(cfg_test, "rds"))
+		do_test(PF_RDS, SOCK_SEQPACKET, 0);
 	else
 		error(1, 0, "unknown cfg_test %s", cfg_test);
 

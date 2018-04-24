@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 Facebook.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/types.h>
@@ -63,7 +50,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	btrfs_set_extent_generation(leaf, item, 1);
 	btrfs_set_extent_flags(leaf, item, BTRFS_EXTENT_FLAG_TREE_BLOCK);
 	block_info = (struct btrfs_tree_block_info *)(item + 1);
-	btrfs_set_tree_block_level(leaf, block_info, 1);
+	btrfs_set_tree_block_level(leaf, block_info, 0);
 	iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
 	if (parent > 0) {
 		btrfs_set_extent_inline_ref_type(leaf, iref,

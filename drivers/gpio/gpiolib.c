@@ -337,6 +337,57 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 	return 0;
 }
 
+static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
+{
+	unsigned long *p;
+
+	p = kmalloc_array(BITS_TO_LONGS(chip->ngpio), sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return NULL;
+
+	/* Assume by default all GPIOs are valid */
+	bitmap_fill(p, chip->ngpio);
+
+	return p;
+}
+
+static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
+{
+#ifdef CONFIG_OF_GPIO
+	int size;
+	struct device_node *np = gpiochip->of_node;
+
+	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
+	if (size > 0 && size % 2 == 0)
+		gpiochip->need_valid_mask = true;
+#endif
+
+	if (!gpiochip->need_valid_mask)
+		return 0;
+
+	gpiochip->valid_mask = gpiochip_allocate_mask(gpiochip);
+	if (!gpiochip->valid_mask)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void gpiochip_free_valid_mask(struct gpio_chip *gpiochip)
+{
+	kfree(gpiochip->valid_mask);
+	gpiochip->valid_mask = NULL;
+}
+
+bool gpiochip_line_is_valid(const struct gpio_chip *gpiochip,
+				unsigned int offset)
+{
+	/* No mask means all valid */
+	if (likely(!gpiochip->valid_mask))
+		return true;
+	return test_bit(offset, gpiochip->valid_mask);
+}
+EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
+
 /*
  * GPIO line handle management
  */
@@ -1261,6 +1312,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	if (status)
 		goto err_remove_from_list;
 
+	status = gpiochip_init_valid_mask(chip);
+	if (status)
+		goto err_remove_irqchip_mask;
+
 	status = gpiochip_add_irqchip(chip, lock_key, request_key);
 	if (status)
 		goto err_remove_chip;
@@ -1290,6 +1345,8 @@ err_remove_chip:
 	acpi_gpiochip_remove(chip);
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
+	gpiochip_free_valid_mask(chip);
+err_remove_irqchip_mask:
 	gpiochip_irqchip_free_valid_mask(chip);
 err_remove_from_list:
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -1346,6 +1403,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 	acpi_gpiochip_remove(chip);
 	gpiochip_remove_pin_ranges(chip);
 	of_gpiochip_remove(chip);
+	gpiochip_free_valid_mask(chip);
 	/*
 	 * We accept no more calls into the driver from this point, so
 	 * NULL the driver data pointer
@@ -1506,13 +1564,9 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 	if (!gpiochip->irq.need_valid_mask)
 		return 0;
 
-	gpiochip->irq.valid_mask = kcalloc(BITS_TO_LONGS(gpiochip->ngpio),
-					   sizeof(long), GFP_KERNEL);
+	gpiochip->irq.valid_mask = gpiochip_allocate_mask(gpiochip);
 	if (!gpiochip->irq.valid_mask)
 		return -ENOMEM;
-
-	/* Assume by default all GPIOs are valid */
-	bitmap_fill(gpiochip->irq.valid_mask, gpiochip->ngpio);
 
 	return 0;
 }
@@ -1526,6 +1580,8 @@ static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip)
 bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
 				unsigned int offset)
 {
+	if (!gpiochip_line_is_valid(gpiochip, offset))
+		return false;
 	/* No mask means all valid */
 	if (likely(!gpiochip->irq.valid_mask))
 		return true;
@@ -3689,7 +3745,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	}
 
 	if (IS_ERR(desc)) {
-		dev_dbg(dev, "lookup for GPIO %s failed\n", con_id);
+		dev_dbg(dev, "No GPIO consumer %s found\n", con_id);
 		return desc;
 	}
 

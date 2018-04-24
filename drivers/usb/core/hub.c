@@ -2192,9 +2192,13 @@ static void show_string(struct usb_device *udev, char *id, char *string)
 
 static void announce_device(struct usb_device *udev)
 {
-	dev_info(&udev->dev, "New USB device found, idVendor=%04x, idProduct=%04x\n",
+	u16 bcdDevice = le16_to_cpu(udev->descriptor.bcdDevice);
+
+	dev_info(&udev->dev,
+		"New USB device found, idVendor=%04x, idProduct=%04x, bcdDevice=%2x.%02x\n",
 		le16_to_cpu(udev->descriptor.idVendor),
-		le16_to_cpu(udev->descriptor.idProduct));
+		le16_to_cpu(udev->descriptor.idProduct),
+		bcdDevice >> 8, bcdDevice & 0xff);
 	dev_info(&udev->dev,
 		"New USB device strings: Mfr=%d, Product=%d, SerialNumber=%d\n",
 		udev->descriptor.iManufacturer,
@@ -3655,7 +3659,7 @@ static int hub_reset_resume(struct usb_interface *intf)
  */
 void usb_root_hub_lost_power(struct usb_device *rhdev)
 {
-	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
+	dev_notice(&rhdev->dev, "root hub lost power or was reset\n");
 	rhdev->reset_resume = 1;
 }
 EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
@@ -5104,8 +5108,10 @@ static void port_event(struct usb_hub *hub, int port1)
 
 	if (portchange & USB_PORT_STAT_C_OVERCURRENT) {
 		u16 status = 0, unused;
+		port_dev->over_current_count++;
 
-		dev_dbg(&port_dev->dev, "over-current change\n");
+		dev_dbg(&port_dev->dev, "over-current change #%u\n",
+			port_dev->over_current_count);
 		usb_clear_port_feature(hdev, port1,
 				USB_PORT_FEAT_C_OVER_CURRENT);
 		msleep(100);	/* Cool down */
@@ -5505,19 +5511,13 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	if (udev->usb2_hw_lpm_enabled == 1)
 		usb_set_usb2_hardware_lpm(udev, 0);
 
-	/* Disable LPM and LTM while we reset the device and reinstall the alt
-	 * settings.  Device-initiated LPM settings, and system exit latency
-	 * settings are cleared when the device is reset, so we have to set
-	 * them up again.
+	/* Disable LPM while we reset the device and reinstall the alt settings.
+	 * Device-initiated LPM, and system exit latency settings are cleared
+	 * when the device is reset, so we have to set them up again.
 	 */
 	ret = usb_unlocked_disable_lpm(udev);
 	if (ret) {
 		dev_err(&udev->dev, "%s Failed to disable LPM\n", __func__);
-		goto re_enumerate_no_bos;
-	}
-	ret = usb_disable_ltm(udev);
-	if (ret) {
-		dev_err(&udev->dev, "%s Failed to disable LTM\n", __func__);
 		goto re_enumerate_no_bos;
 	}
 

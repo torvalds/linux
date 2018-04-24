@@ -105,7 +105,7 @@ static void nfs_do_call_unlink(struct nfs_unlinkdata *data)
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(data->res.dir_attr);
 
-	NFS_PROTO(dir)->unlink_setup(&msg, dir);
+	NFS_PROTO(dir)->unlink_setup(&msg, data->dentry);
 
 	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);
@@ -386,7 +386,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 
 	nfs_sb_active(old_dir->i_sb);
 
-	NFS_PROTO(data->old_dir)->rename_setup(&msg, old_dir);
+	NFS_PROTO(data->old_dir)->rename_setup(&msg, old_dentry, new_dentry);
 
 	return rpc_run_task(&task_setup_data);
 }
@@ -462,9 +462,6 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		goto out;
 
 	fileid = NFS_FILEID(d_inode(dentry));
-
-	/* Return delegation in anticipation of the rename */
-	NFS_PROTO(d_inode(dentry))->return_delegation(d_inode(dentry));
 
 	sdentry = NULL;
 	do {

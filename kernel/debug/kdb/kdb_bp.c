@@ -242,11 +242,11 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
 	kdb_symbol_print(bp->bp_addr, NULL, KDB_SP_DEFAULT);
 
 	if (bp->bp_enabled)
-		kdb_printf("\n    is enabled");
+		kdb_printf("\n    is enabled ");
 	else
 		kdb_printf("\n    is disabled");
 
-	kdb_printf("\taddr at %016lx, hardtype=%d installed=%d\n",
+	kdb_printf("  addr at %016lx, hardtype=%d installed=%d\n",
 		   bp->bp_addr, bp->bp_type, bp->bp_installed);
 
 	kdb_printf("\n");

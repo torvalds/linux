@@ -578,7 +578,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	struct si470x_device *radio;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int i, int_end_size, retval = 0;
+	int i, int_end_size, retval;
 	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */

@@ -36,11 +36,11 @@ static inline void __clear_shadow_entry(struct address_space *mapping,
 	struct radix_tree_node *node;
 	void **slot;
 
-	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
+	if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
 		return;
 	if (*slot != entry)
 		return;
-	__radix_tree_replace(&mapping->page_tree, node, slot, NULL,
+	__radix_tree_replace(&mapping->i_pages, node, slot, NULL,
 			     workingset_update_node);
 	mapping->nrexceptional--;
 }
@@ -48,9 +48,9 @@ static inline void __clear_shadow_entry(struct address_space *mapping,
 static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
 			       void *entry)
 {
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 	__clear_shadow_entry(mapping, index, entry);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 }
 
 /*
@@ -79,7 +79,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 	dax = dax_mapping(mapping);
 	lock = !dax && indices[j] < end;
 	if (lock)
-		spin_lock_irq(&mapping->tree_lock);
+		xa_lock_irq(&mapping->i_pages);
 
 	for (i = j; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
@@ -102,7 +102,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 	}
 
 	if (lock)
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 	pvec->nr = j;
 }
 
@@ -518,8 +518,8 @@ void truncate_inode_pages_final(struct address_space *mapping)
 		 * modification that does not see AS_EXITING is
 		 * completed before starting the final truncate.
 		 */
-		spin_lock_irq(&mapping->tree_lock);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_lock_irq(&mapping->i_pages);
+		xa_unlock_irq(&mapping->i_pages);
 
 		truncate_inode_pages(mapping, 0);
 	}
@@ -627,13 +627,13 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	if (page_has_private(page) && !try_to_release_page(page, GFP_KERNEL))
 		return 0;
 
-	spin_lock_irqsave(&mapping->tree_lock, flags);
+	xa_lock_irqsave(&mapping->i_pages, flags);
 	if (PageDirty(page))
 		goto failed;
 
 	BUG_ON(page_has_private(page));
 	__delete_from_page_cache(page, NULL);
-	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	xa_unlock_irqrestore(&mapping->i_pages, flags);
 
 	if (mapping->a_ops->freepage)
 		mapping->a_ops->freepage(page);
@@ -641,7 +641,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	put_page(page);	/* pagecache ref */
 	return 1;
 failed:
-	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	xa_unlock_irqrestore(&mapping->i_pages, flags);
 	return 0;
 }
 

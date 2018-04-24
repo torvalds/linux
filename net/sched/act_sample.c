@@ -37,7 +37,7 @@ static const struct nla_policy sample_policy[TCA_SAMPLE_MAX + 1] = {
 
 static int tcf_sample_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
-			   int bind)
+			   int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
@@ -103,7 +103,8 @@ static void tcf_sample_cleanup(struct tc_action *a)
 
 	psample_group = rtnl_dereference(s->psample_group);
 	RCU_INIT_POINTER(s->psample_group, NULL);
-	psample_group_put(psample_group);
+	if (psample_group)
+		psample_group_put(psample_group);
 }
 
 static bool tcf_sample_dev_ok_push(struct net_device *dev)
@@ -202,14 +203,16 @@ nla_put_failure:
 
 static int tcf_sample_walker(struct net *net, struct sk_buff *skb,
 			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops)
+			     const struct tc_action_ops *ops,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 

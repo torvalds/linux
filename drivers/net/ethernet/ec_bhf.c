@@ -602,7 +602,7 @@ static struct pci_driver pci_driver = {
 };
 module_pci_driver(pci_driver);
 
-module_param(polling_frequency, long, S_IRUGO);
+module_param(polling_frequency, long, 0444);
 MODULE_PARM_DESC(polling_frequency, "Polling timer frequency in ns");
 
 MODULE_LICENSE("GPL");

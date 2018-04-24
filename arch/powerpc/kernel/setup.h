@@ -46,13 +46,10 @@ static inline void emergency_stack_init(void) { };
 #endif
 
 #ifdef CONFIG_PPC64
-void record_spr_defaults(void);
-#else
-static inline void record_spr_defaults(void) { };
-#endif
-
-#ifdef CONFIG_PPC64
 u64 ppc64_bolted_size(void);
+
+/* Default SPR values from firmware/kexec */
+extern unsigned long spr_default_dscr;
 #endif
 
 /*

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,14 +104,14 @@ struct iwl_mvm_mod_params iwlmvm_mod_params = {
 	/* rest of fields are 0 by default */
 };
 
-module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, S_IRUGO);
+module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, 0444);
 MODULE_PARM_DESC(init_dbg,
 		 "set to true to debug an ASSERT in INIT fw (default: false");
-module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, S_IRUGO);
+module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, 0444);
 MODULE_PARM_DESC(power_scheme,
 		 "power management scheme: 1-active, 2-balanced, 3-low power, default: 2");
 module_param_named(tfd_q_hang_detect, iwlmvm_mod_params.tfd_q_hang_detect,
-		   bool, S_IRUGO);
+		   bool, 0444);
 MODULE_PARM_DESC(tfd_q_hang_detect,
 		 "TFD queues hang detection (default: true");
 
@@ -552,9 +554,15 @@ static void iwl_mvm_fwrt_dump_end(void *ctx)
 	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
 }
 
+static bool iwl_mvm_fwrt_fw_running(void *ctx)
+{
+	return iwl_mvm_firmware_running(ctx);
+}
+
 static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.dump_start = iwl_mvm_fwrt_dump_start,
 	.dump_end = iwl_mvm_fwrt_dump_end,
+	.fw_running = iwl_mvm_fwrt_fw_running,
 };
 
 static struct iwl_op_mode *
@@ -802,7 +810,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_mvm_leds_exit(mvm);
 	iwl_mvm_thermal_exit(mvm);
  out_free:
-	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_fw_flush_dump(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -843,7 +850,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
 #endif
-	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_trans_op_mode_leave(mvm->trans);
 
 	iwl_phy_db_free(mvm->phy_db);

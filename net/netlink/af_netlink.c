@@ -1085,6 +1085,9 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	if (addr->sa_family != AF_NETLINK)
 		return -EINVAL;
 
+	if (alen < sizeof(struct sockaddr_nl))
+		return -EINVAL;
+
 	if ((nladdr->nl_groups || nladdr->nl_pid) &&
 	    !netlink_allowed(sock, NL_CFG_F_NONROOT_SEND))
 		return -EPERM;
@@ -1105,7 +1108,7 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 }
 
 static int netlink_getname(struct socket *sock, struct sockaddr *addr,
-			   int *addr_len, int peer)
+			   int peer)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1113,7 +1116,6 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 
 	nladdr->nl_family = AF_NETLINK;
 	nladdr->nl_pad = 0;
-	*addr_len = sizeof(*nladdr);
 
 	if (peer) {
 		nladdr->nl_pid = nlk->dst_portid;
@@ -1124,7 +1126,7 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 		nladdr->nl_groups = nlk->groups ? nlk->groups[0] : 0;
 		netlink_unlock_table();
 	}
-	return 0;
+	return sizeof(*nladdr);
 }
 
 static int netlink_ioctl(struct socket *sock, unsigned int cmd,
@@ -1842,6 +1844,8 @@ static int netlink_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	if (msg->msg_namelen) {
 		err = -EINVAL;
+		if (msg->msg_namelen < sizeof(struct sockaddr_nl))
+			goto out;
 		if (addr->nl_family != AF_NETLINK)
 			goto out;
 		dst_portid = addr->nl_pid;

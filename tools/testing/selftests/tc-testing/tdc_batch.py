@@ -49,13 +49,13 @@ index = 0
 for i in range(0x100):
     for j in range(0x100):
         for k in range(0x100):
-            mac = ("%02x:%02x:%02x" % (i, j, k))
+            mac = ("{:02x}:{:02x}:{:02x}".format(i, j, k))
             src_mac = "e4:11:00:" + mac
             dst_mac = "e4:12:00:" + mac
-            cmd = ("filter add dev %s %s protocol ip parent ffff: flower %s "
-                   "src_mac %s dst_mac %s action drop %s" %
+            cmd = ("filter add dev {} {} protocol ip parent ffff: flower {} "
+                   "src_mac {} dst_mac {} action drop {}".format
                    (device, prio, skip, src_mac, dst_mac, share_action))
-            file.write("%s\n" % cmd)
+            file.write("{}\n".format(cmd))
             index += 1
             if index >= number:
                 file.close()

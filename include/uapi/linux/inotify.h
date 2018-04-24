@@ -71,5 +71,13 @@ struct inotify_event {
 #define IN_CLOEXEC O_CLOEXEC
 #define IN_NONBLOCK O_NONBLOCK
 
+/*
+ * ioctl numbers: inotify uses 'I' prefix for all ioctls,
+ * except historical FIONREAD, which is based on 'T'.
+ *
+ * INOTIFY_IOC_SETNEXTWD: set desired number of next created
+ * watch descriptor.
+ */
+#define INOTIFY_IOC_SETNEXTWD	_IOW('I', 0, __s32)
 
 #endif /* _UAPI_LINUX_INOTIFY_H */

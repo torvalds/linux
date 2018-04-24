@@ -267,7 +267,6 @@ struct dqstats {
 	struct percpu_counter counter[_DQST_DQSTAT_LAST];
 };
 
-extern struct dqstats *dqstats_pcpu;
 extern struct dqstats dqstats;
 
 static inline void dqstats_inc(unsigned int type)

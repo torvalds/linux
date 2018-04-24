@@ -1125,8 +1125,10 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 {
 	lockdep_assert_held(&prepare_lock);
 
-	if (!core)
+	if (!core) {
+		req->rate = 0;
 		return 0;
+	}
 
 	clk_core_init_rate_req(core, req);
 
@@ -2309,8 +2311,11 @@ static int clk_core_set_phase_nolock(struct clk_core *core, int degrees)
 
 	trace_clk_set_phase(core, degrees);
 
-	if (core->ops->set_phase)
+	if (core->ops->set_phase) {
 		ret = core->ops->set_phase(core->hw, degrees);
+		if (!ret)
+			core->phase = degrees;
+	}
 
 	trace_clk_set_phase_complete(core, degrees);
 
@@ -2370,6 +2375,9 @@ static int clk_core_get_phase(struct clk_core *core)
 	int ret;
 
 	clk_prepare_lock();
+	/* Always try to update cached phase if possible */
+	if (core->ops->get_phase)
+		core->phase = core->ops->get_phase(core->hw);
 	ret = core->phase;
 	clk_prepare_unlock();
 
@@ -2486,19 +2494,7 @@ static int clk_summary_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-
-static int clk_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_summary_show, inode->i_private);
-}
-
-static const struct file_operations clk_summary_fops = {
-	.open		= clk_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(clk_summary);
 
 static void clk_dump_one(struct seq_file *s, struct clk_core *c, int level)
 {
@@ -2532,7 +2528,7 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 	seq_putc(s, '}');
 }
 
-static int clk_dump(struct seq_file *s, void *data)
+static int clk_dump_show(struct seq_file *s, void *data)
 {
 	struct clk_core *c;
 	bool first_node = true;
@@ -2555,19 +2551,7 @@ static int clk_dump(struct seq_file *s, void *data)
 	seq_puts(s, "}\n");
 	return 0;
 }
-
-
-static int clk_dump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_dump, inode->i_private);
-}
-
-static const struct file_operations clk_dump_fops = {
-	.open		= clk_dump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(clk_dump);
 
 static const struct {
 	unsigned long flag;
@@ -2589,7 +2573,7 @@ static const struct {
 #undef ENTRY
 };
 
-static int clk_flags_dump(struct seq_file *s, void *data)
+static int clk_flags_show(struct seq_file *s, void *data)
 {
 	struct clk_core *core = s->private;
 	unsigned long flags = core->flags;
@@ -2608,20 +2592,9 @@ static int clk_flags_dump(struct seq_file *s, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(clk_flags);
 
-static int clk_flags_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_flags_dump, inode->i_private);
-}
-
-static const struct file_operations clk_flags_fops = {
-	.open		= clk_flags_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int possible_parents_dump(struct seq_file *s, void *data)
+static int possible_parents_show(struct seq_file *s, void *data)
 {
 	struct clk_core *core = s->private;
 	int i;
@@ -2633,18 +2606,7 @@ static int possible_parents_dump(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int possible_parents_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, possible_parents_dump, inode->i_private);
-}
-
-static const struct file_operations possible_parents_fops = {
-	.open		= possible_parents_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(possible_parents);
 
 static int clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 {
@@ -2928,6 +2890,17 @@ static int __clk_core_init(struct clk_core *core)
 	}
 
 	/*
+	 * optional platform-specific magic
+	 *
+	 * The .init callback is not used by any of the basic clock types, but
+	 * exists for weird hardware that must perform initialization magic.
+	 * Please consider other ways of solving initialization problems before
+	 * using this callback, as its use is discouraged.
+	 */
+	if (core->ops->init)
+		core->ops->init(core->hw);
+
+	/*
 	 * Set clk's accuracy.  The preferred method is to use
 	 * .recalc_accuracy. For simple clocks and lazy developers the default
 	 * fallback is to use the parent's accuracy.  If a clock doesn't have a
@@ -2968,38 +2941,10 @@ static int __clk_core_init(struct clk_core *core)
 	core->rate = core->req_rate = rate;
 
 	/*
-	 * walk the list of orphan clocks and reparent any that newly finds a
-	 * parent.
+	 * Enable CLK_IS_CRITICAL clocks so newly added critical clocks
+	 * don't get accidentally disabled when walking the orphan tree and
+	 * reparenting clocks
 	 */
-	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_node) {
-		struct clk_core *parent = __clk_init_parent(orphan);
-		unsigned long flags;
-
-		/*
-		 * we could call __clk_set_parent, but that would result in a
-		 * redundant call to the .set_rate op, if it exists
-		 */
-		if (parent) {
-			/* update the clk tree topology */
-			flags = clk_enable_lock();
-			clk_reparent(orphan, parent);
-			clk_enable_unlock(flags);
-			__clk_recalc_accuracies(orphan);
-			__clk_recalc_rates(orphan, 0);
-		}
-	}
-
-	/*
-	 * optional platform-specific magic
-	 *
-	 * The .init callback is not used by any of the basic clock types, but
-	 * exists for weird hardware that must perform initialization magic.
-	 * Please consider other ways of solving initialization problems before
-	 * using this callback, as its use is discouraged.
-	 */
-	if (core->ops->init)
-		core->ops->init(core->hw);
-
 	if (core->flags & CLK_IS_CRITICAL) {
 		unsigned long flags;
 
@@ -3008,6 +2953,28 @@ static int __clk_core_init(struct clk_core *core)
 		flags = clk_enable_lock();
 		clk_core_enable(core);
 		clk_enable_unlock(flags);
+	}
+
+	/*
+	 * walk the list of orphan clocks and reparent any that newly finds a
+	 * parent.
+	 */
+	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_node) {
+		struct clk_core *parent = __clk_init_parent(orphan);
+
+		/*
+		 * We need to use __clk_set_parent_before() and _after() to
+		 * to properly migrate any prepare/enable count of the orphan
+		 * clock. This is important for CLK_IS_CRITICAL clocks, which
+		 * are enabled during init but might not have a parent yet.
+		 */
+		if (parent) {
+			/* update the clk tree topology */
+			__clk_set_parent_before(orphan, parent);
+			__clk_set_parent_after(orphan, parent, NULL);
+			__clk_recalc_accuracies(orphan);
+			__clk_recalc_rates(orphan, 0);
+		}
 	}
 
 	kref_init(&core->ref);

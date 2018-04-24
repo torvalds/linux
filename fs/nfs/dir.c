@@ -1272,7 +1272,9 @@ static void nfs_drop_nlink(struct inode *inode)
 	/* drop the inode if we're reasonably sure this is the last link */
 	if (inode->i_nlink == 1)
 		clear_nlink(inode);
-	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+		| NFS_INO_INVALID_CTIME
+		| NFS_INO_INVALID_OTHER;
 	spin_unlock(&inode->i_lock);
 }
 
@@ -1798,12 +1800,11 @@ static int nfs_safe_remove(struct dentry *dentry)
 
 	trace_nfs_remove_enter(dir, dentry);
 	if (inode != NULL) {
-		NFS_PROTO(inode)->return_delegation(inode);
-		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+		error = NFS_PROTO(dir)->remove(dir, dentry);
 		if (error == 0)
 			nfs_drop_nlink(inode);
 	} else
-		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+		error = NFS_PROTO(dir)->remove(dir, dentry);
 	if (error == -ENOENT)
 		nfs_dentry_handle_enoent(dentry);
 	trace_nfs_remove_exit(dir, dentry, error);
@@ -1932,8 +1933,6 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		old_dentry, dentry);
 
 	trace_nfs_link_enter(inode, dir, dentry);
-	NFS_PROTO(inode)->return_delegation(inode);
-
 	d_drop(dentry);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
 	if (error == 0) {
@@ -2022,10 +2021,6 @@ int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			new_inode = NULL;
 		}
 	}
-
-	NFS_PROTO(old_inode)->return_delegation(old_inode);
-	if (new_inode != NULL)
-		NFS_PROTO(new_inode)->return_delegation(new_inode);
 
 	task = nfs_async_rename(old_dir, new_dir, old_dentry, new_dentry, NULL);
 	if (IS_ERR(task)) {

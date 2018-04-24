@@ -52,8 +52,8 @@ static const u32 formats[] = {
 /* per-plane info for the fb: */
 struct plane {
 	struct drm_gem_object *bo;
-	uint32_t pitch;
-	uint32_t offset;
+	u32 pitch;
+	u32 offset;
 	dma_addr_t dma_addr;
 };
 
@@ -100,10 +100,10 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.destroy = omap_framebuffer_destroy,
 };
 
-static uint32_t get_linear_addr(struct plane *plane,
+static u32 get_linear_addr(struct plane *plane,
 		const struct drm_format_info *format, int n, int x, int y)
 {
-	uint32_t offset;
+	u32 offset;
 
 	offset = plane->offset
 	       + (x * format->cpp[n] / (n == 0 ? 1 : format->hsub))
@@ -121,9 +121,9 @@ bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
 }
 
 /* Note: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
-static uint32_t drm_rotation_to_tiler(unsigned int drm_rot)
+static u32 drm_rotation_to_tiler(unsigned int drm_rot)
 {
-	uint32_t orient;
+	u32 orient;
 
 	switch (drm_rot & DRM_MODE_ROTATE_MASK) {
 	default:
@@ -158,7 +158,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct drm_format_info *format = omap_fb->format;
 	struct plane *plane = &omap_fb->planes[0];
-	uint32_t x, y, orient = 0;
+	u32 x, y, orient = 0;
 
 	info->fourcc = fb->format->format;
 
@@ -177,8 +177,8 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	y = state->src_y >> 16;
 
 	if (omap_gem_flags(plane->bo) & OMAP_BO_TILED) {
-		uint32_t w = state->src_w >> 16;
-		uint32_t h = state->src_h >> 16;
+		u32 w = state->src_w >> 16;
+		u32 h = state->src_h >> 16;
 
 		orient = drm_rotation_to_tiler(state->rotation);
 

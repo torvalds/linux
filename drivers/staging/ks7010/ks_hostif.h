@@ -13,6 +13,7 @@
 #define _KS_HOSTIF_H_
 
 #include <linux/compiler.h>
+#include <linux/ieee80211.h>
 
 /*
  * HOST-MAC I/F events
@@ -58,7 +59,7 @@
 
 /*
  * HOST-MAC I/F data structure
- * Byte alignmet Little Endian
+ * Byte alignment Little Endian
  */
 
 struct hostif_hdr {
@@ -224,10 +225,9 @@ struct hostif_start_confirm_t {
 	__le16 result_code;
 } __packed;
 
-#define SSID_MAX_SIZE 32
 struct ssid_t {
 	u8 size;
-	u8 body[SSID_MAX_SIZE];
+	u8 body[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_pad;
 } __packed;
 
@@ -284,20 +284,8 @@ struct ap_info_t {
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
-#define BSS_CAP_ESS             BIT(0)
-#define BSS_CAP_IBSS            BIT(1)
-#define BSS_CAP_CF_POLABLE      BIT(2)
-#define BSS_CAP_CF_POLL_REQ     BIT(3)
-#define BSS_CAP_PRIVACY         BIT(4)
-#define BSS_CAP_SHORT_PREAMBLE  BIT(5)
-#define BSS_CAP_PBCC            BIT(6)
-#define BSS_CAP_CHANNEL_AGILITY BIT(7)
-#define BSS_CAP_SHORT_SLOT_TIME BIT(10)
-#define BSS_CAP_DSSS_OFDM       BIT(13)
 	u8 frame_type;	/* +14 */
 	u8 ch_info;	/* +15 */
-#define FRAME_TYPE_BEACON	0x80
-#define FRAME_TYPE_PROBE_RESP	0x50
 	__le16 body_size;	/* +16 */
 	u8 body[1024];	/* +18 */
 	/* +1032 */
@@ -347,6 +335,22 @@ struct hostif_stop_confirm_t {
 	__le16 result_code;
 } __packed;
 
+#define D_11B_ONLY_MODE		0
+#define D_11G_ONLY_MODE		1
+#define D_11BG_COMPATIBLE_MODE	2
+#define D_11A_ONLY_MODE		3
+
+#define CTS_MODE_FALSE	0
+#define CTS_MODE_TRUE	1
+
+struct hostif_request_t {
+	__le16 phy_type;
+	__le16 cts_mode;
+	__le16 scan_type;
+	__le16 capability;
+	struct rate_set16_t rate_set;
+} __packed;
+
 /**
  * struct hostif_ps_adhoc_set_request_t - pseudo adhoc mode
  * @capability: bit5  : preamble
@@ -356,24 +360,17 @@ struct hostif_stop_confirm_t {
  */
 struct hostif_ps_adhoc_set_request_t {
 	struct hostif_hdr header;
-	__le16 phy_type;
-#define D_11B_ONLY_MODE		0
-#define D_11G_ONLY_MODE		1
-#define D_11BG_COMPATIBLE_MODE	2
-#define D_11A_ONLY_MODE		3
-	__le16 cts_mode;
-#define CTS_MODE_FALSE	0
-#define CTS_MODE_TRUE	1
+	struct hostif_request_t request;
 	__le16 channel;
-	struct rate_set16_t rate_set;
-	__le16 capability;
-	__le16 scan_type;
 } __packed;
 
 struct hostif_ps_adhoc_set_confirm_t {
 	struct hostif_hdr header;
 	__le16 result_code;
 } __packed;
+
+#define AUTH_TYPE_OPEN_SYSTEM 0
+#define AUTH_TYPE_SHARED_KEY  1
 
 /**
  * struct hostif_infrastructure_set_request_t
@@ -384,39 +381,11 @@ struct hostif_ps_adhoc_set_confirm_t {
  */
 struct hostif_infrastructure_set_request_t {
 	struct hostif_hdr header;
-	__le16 phy_type;
-	__le16 cts_mode;
-	struct rate_set16_t rate_set;
+	struct hostif_request_t request;
 	struct ssid_t ssid;
-	__le16 capability;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
-#define AUTH_TYPE_OPEN_SYSTEM 0
-#define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
-	__le16 scan_type;
-} __packed;
-
-/**
- * struct hostif_infrastructure_set2_request_t
- * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
- *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
- */
-struct hostif_infrastructure_set2_request_t {
-	struct hostif_hdr header;
-	__le16 phy_type;
-	__le16 cts_mode;
-	struct rate_set16_t rate_set;
-	struct ssid_t ssid;
-	__le16 capability;
-	__le16 beacon_lost_count;
-	__le16 auth_type;
-#define AUTH_TYPE_OPEN_SYSTEM 0
-#define AUTH_TYPE_SHARED_KEY  1
-	struct channel_list_t channel_list;
-	__le16 scan_type;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
@@ -434,13 +403,9 @@ struct hostif_infrastructure_set_confirm_t {
  */
 struct hostif_adhoc_set_request_t {
 	struct hostif_hdr header;
-	__le16 phy_type;
-	__le16 cts_mode;
-	__le16 channel;
-	struct rate_set16_t rate_set;
+	struct hostif_request_t request;
 	struct ssid_t ssid;
-	__le16 capability;
-	__le16 scan_type;
+	__le16 channel;
 } __packed;
 
 /**
@@ -452,13 +417,9 @@ struct hostif_adhoc_set_request_t {
  */
 struct hostif_adhoc_set2_request_t {
 	struct hostif_hdr header;
-	__le16 phy_type;
-	__le16 cts_mode;
+	struct hostif_request_t request;
 	__le16 reserved;
-	struct rate_set16_t rate_set;
 	struct ssid_t ssid;
-	__le16 capability;
-	__le16 scan_type;
 	struct channel_list_t channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
@@ -475,8 +436,6 @@ struct last_associate_t {
 
 struct association_request_t {
 	u8 type;
-#define FRAME_TYPE_ASSOC_REQ	0x00
-#define FRAME_TYPE_REASSOC_REQ	0x20
 	u8 pad;
 	__le16 capability;
 	__le16 listen_interval;
@@ -486,8 +445,6 @@ struct association_request_t {
 
 struct association_response_t {
 	u8 type;
-#define FRAME_TYPE_ASSOC_RESP	0x10
-#define FRAME_TYPE_REASSOC_RESP	0x30
 	u8 pad;
 	__le16 capability;
 	__le16 status;

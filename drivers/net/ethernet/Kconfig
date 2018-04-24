@@ -34,7 +34,6 @@ source "drivers/net/ethernet/arc/Kconfig"
 source "drivers/net/ethernet/atheros/Kconfig"
 source "drivers/net/ethernet/aurora/Kconfig"
 source "drivers/net/ethernet/cadence/Kconfig"
-source "drivers/net/ethernet/adi/Kconfig"
 source "drivers/net/ethernet/broadcom/Kconfig"
 source "drivers/net/ethernet/brocade/Kconfig"
 source "drivers/net/ethernet/calxeda/Kconfig"
@@ -129,6 +128,7 @@ config FEALNX
 
 source "drivers/net/ethernet/natsemi/Kconfig"
 source "drivers/net/ethernet/netronome/Kconfig"
+source "drivers/net/ethernet/ni/Kconfig"
 source "drivers/net/ethernet/8390/Kconfig"
 
 config NET_NETX
@@ -176,7 +176,6 @@ source "drivers/net/ethernet/stmicro/Kconfig"
 source "drivers/net/ethernet/sun/Kconfig"
 source "drivers/net/ethernet/tehuti/Kconfig"
 source "drivers/net/ethernet/ti/Kconfig"
-source "drivers/net/ethernet/tile/Kconfig"
 source "drivers/net/ethernet/toshiba/Kconfig"
 source "drivers/net/ethernet/tundra/Kconfig"
 source "drivers/net/ethernet/via/Kconfig"

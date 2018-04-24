@@ -32,18 +32,17 @@ static struct snd_soc_dai_driver pcm5102a_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm5102a;
+static struct snd_soc_component_driver soc_component_dev_pcm5102a = {
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
 
 static int pcm5102a_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_pcm5102a,
+	return devm_snd_soc_register_component(&pdev->dev, &soc_component_dev_pcm5102a,
 			&pcm5102a_dai, 1);
-}
-
-static int pcm5102a_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id pcm5102a_of_match[] = {
@@ -54,7 +53,6 @@ MODULE_DEVICE_TABLE(of, pcm5102a_of_match);
 
 static struct platform_driver pcm5102a_codec_driver = {
 	.probe		= pcm5102a_probe,
-	.remove		= pcm5102a_remove,
 	.driver		= {
 		.name	= "pcm5102a-codec",
 		.of_match_table = pcm5102a_of_match,

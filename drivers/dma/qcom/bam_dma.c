@@ -393,6 +393,7 @@ struct bam_device {
 	struct device_dma_parameters dma_parms;
 	struct bam_chan *channels;
 	u32 num_channels;
+	u32 num_ees;
 
 	/* execution environment ID, from DT */
 	u32 ee;
@@ -934,12 +935,15 @@ static void bam_apply_new_config(struct bam_chan *bchan,
 	struct bam_device *bdev = bchan->bdev;
 	u32 maxburst;
 
-	if (dir == DMA_DEV_TO_MEM)
-		maxburst = bchan->slave.src_maxburst;
-	else
-		maxburst = bchan->slave.dst_maxburst;
+	if (!bdev->controlled_remotely) {
+		if (dir == DMA_DEV_TO_MEM)
+			maxburst = bchan->slave.src_maxburst;
+		else
+			maxburst = bchan->slave.dst_maxburst;
 
-	writel_relaxed(maxburst, bam_addr(bdev, 0, BAM_DESC_CNT_TRSHLD));
+		writel_relaxed(maxburst,
+			       bam_addr(bdev, 0, BAM_DESC_CNT_TRSHLD));
+	}
 
 	bchan->reconfigure = 0;
 }
@@ -1128,15 +1132,19 @@ static int bam_init(struct bam_device *bdev)
 	u32 val;
 
 	/* read revision and configuration information */
-	val = readl_relaxed(bam_addr(bdev, 0, BAM_REVISION)) >> NUM_EES_SHIFT;
-	val &= NUM_EES_MASK;
+	if (!bdev->num_ees) {
+		val = readl_relaxed(bam_addr(bdev, 0, BAM_REVISION));
+		bdev->num_ees = (val >> NUM_EES_SHIFT) & NUM_EES_MASK;
+	}
 
 	/* check that configured EE is within range */
-	if (bdev->ee >= val)
+	if (bdev->ee >= bdev->num_ees)
 		return -EINVAL;
 
-	val = readl_relaxed(bam_addr(bdev, 0, BAM_NUM_PIPES));
-	bdev->num_channels = val & BAM_NUM_PIPES_MASK;
+	if (!bdev->num_channels) {
+		val = readl_relaxed(bam_addr(bdev, 0, BAM_NUM_PIPES));
+		bdev->num_channels = val & BAM_NUM_PIPES_MASK;
+	}
 
 	if (bdev->controlled_remotely)
 		return 0;
@@ -1232,9 +1240,25 @@ static int bam_dma_probe(struct platform_device *pdev)
 	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_node,
 						"qcom,controlled-remotely");
 
+	if (bdev->controlled_remotely) {
+		ret = of_property_read_u32(pdev->dev.of_node, "num-channels",
+					   &bdev->num_channels);
+		if (ret)
+			dev_err(bdev->dev, "num-channels unspecified in dt\n");
+
+		ret = of_property_read_u32(pdev->dev.of_node, "qcom,num-ees",
+					   &bdev->num_ees);
+		if (ret)
+			dev_err(bdev->dev, "num-ees unspecified in dt\n");
+	}
+
 	bdev->bamclk = devm_clk_get(bdev->dev, "bam_clk");
-	if (IS_ERR(bdev->bamclk))
-		return PTR_ERR(bdev->bamclk);
+	if (IS_ERR(bdev->bamclk)) {
+		if (!bdev->controlled_remotely)
+			return PTR_ERR(bdev->bamclk);
+
+		bdev->bamclk = NULL;
+	}
 
 	ret = clk_prepare_enable(bdev->bamclk);
 	if (ret) {
@@ -1308,6 +1332,11 @@ static int bam_dma_probe(struct platform_device *pdev)
 					&bdev->common);
 	if (ret)
 		goto err_unregister_dma;
+
+	if (bdev->controlled_remotely) {
+		pm_runtime_disable(&pdev->dev);
+		return 0;
+	}
 
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, BAM_DMA_AUTOSUSPEND_DELAY);
@@ -1392,7 +1421,8 @@ static int __maybe_unused bam_dma_suspend(struct device *dev)
 {
 	struct bam_device *bdev = dev_get_drvdata(dev);
 
-	pm_runtime_force_suspend(dev);
+	if (!bdev->controlled_remotely)
+		pm_runtime_force_suspend(dev);
 
 	clk_unprepare(bdev->bamclk);
 
@@ -1408,7 +1438,8 @@ static int __maybe_unused bam_dma_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	pm_runtime_force_resume(dev);
+	if (!bdev->controlled_remotely)
+		pm_runtime_force_resume(dev);
 
 	return 0;
 }

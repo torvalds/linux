@@ -200,9 +200,6 @@ int iwch_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&chp->lock, flags);
 	for (npolled = 0; npolled < num_entries; ++npolled) {
-#ifdef DEBUG
-		int i=0;
-#endif
 
 		/*
 		 * Because T3 can post CQEs that are _not_ associated
@@ -211,9 +208,6 @@ int iwch_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		 */
 		do {
 			err = iwch_poll_cq_one(rhp, chp, wc + npolled);
-#ifdef DEBUG
-			BUG_ON(++i > 1000);
-#endif
 		} while (err == -EAGAIN);
 		if (err <= 0)
 			break;

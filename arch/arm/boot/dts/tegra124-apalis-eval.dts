@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Toradex AG
+ * Copyright 2016-2018 Toradex AG
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -105,7 +105,7 @@
 	 */
 	i2c@7000c000 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 
 		pcie-switch@58 {
 			compatible = "plx,pex8605";
@@ -114,7 +114,7 @@
 
 		/* M41T0M6 real time clock on carrier board */
 		rtc@68 {
-			compatible = "st,m41t00";
+			compatible = "st,m41t0";
 			reg = <0x68>;
 		};
 	};
@@ -124,7 +124,6 @@
 	 */
 	hdmi_ddc: i2c@7000c400 {
 		status = "okay";
-		clock-frequency = <100000>;
 	};
 
 	/*
@@ -133,7 +132,7 @@
 	 */
 	i2c@7000c500 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 	};
 
 	/* I2C4 (DDC): unused */
@@ -226,9 +225,7 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-
-		/* BKL1_PWM */
-		pwms = <&pwm 3 5000000>;
+		pwms = <&pwm 3 5000000>; /* BKL1_PWM */
 		brightness-levels = <255 231 223 207 191 159 127 0>;
 		default-brightness-level = <6>;
 		/* BKL1_ON */
@@ -274,5 +271,15 @@
 		gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&reg_5v0>;
+	};
+};
+
+&gpio {
+	/* Apalis GPIO7 MXM3 pin 15 PLX PEX 8605 PCIe Switch Reset */
+	pex_perst_n {
+		gpio-hog;
+		gpios = <TEGRA_GPIO(DD, 1) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "PEX_PERST_N";
 	};
 };

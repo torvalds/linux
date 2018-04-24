@@ -5206,12 +5206,12 @@ static void md_free(struct kobject *ko)
 	if (mddev->sysfs_state)
 		sysfs_put(mddev->sysfs_state);
 
+	if (mddev->gendisk)
+		del_gendisk(mddev->gendisk);
 	if (mddev->queue)
 		blk_cleanup_queue(mddev->queue);
-	if (mddev->gendisk) {
-		del_gendisk(mddev->gendisk);
+	if (mddev->gendisk)
 		put_disk(mddev->gendisk);
-	}
 	percpu_ref_exit(&mddev->writes_pending);
 
 	kfree(mddev);
@@ -5619,9 +5619,9 @@ int md_run(struct mddev *mddev)
 		if (mddev->degraded)
 			nonrot = false;
 		if (nonrot)
-			queue_flag_set_unlocked(QUEUE_FLAG_NONROT, mddev->queue);
+			blk_queue_flag_set(QUEUE_FLAG_NONROT, mddev->queue);
 		else
-			queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, mddev->queue);
+			blk_queue_flag_clear(QUEUE_FLAG_NONROT, mddev->queue);
 		mddev->queue->backing_dev_info->congested_data = mddev;
 		mddev->queue->backing_dev_info->congested_fn = md_congested;
 	}
@@ -9256,8 +9256,10 @@ void md_reload_sb(struct mddev *mddev, int nr)
 	check_sb_changes(mddev, rdev);
 
 	/* Read all rdev's to update recovery_offset */
-	rdev_for_each_rcu(rdev, mddev)
-		read_rdev(mddev, rdev);
+	rdev_for_each_rcu(rdev, mddev) {
+		if (!test_bit(Faulty, &rdev->flags))
+			read_rdev(mddev, rdev);
+	}
 }
 EXPORT_SYMBOL(md_reload_sb);
 

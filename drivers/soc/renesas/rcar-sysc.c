@@ -254,7 +254,7 @@ finalize:
 	pm_genpd_init(genpd, gov, false);
 }
 
-static const struct of_device_id rcar_sysc_matches[] = {
+static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #ifdef CONFIG_SYSC_R8A7743
 	{ .compatible = "renesas,r8a7743-sysc", .data = &r8a7743_sysc_info },
 #endif
@@ -284,8 +284,14 @@ static const struct of_device_id rcar_sysc_matches[] = {
 #ifdef CONFIG_SYSC_R8A7796
 	{ .compatible = "renesas,r8a7796-sysc", .data = &r8a7796_sysc_info },
 #endif
+#ifdef CONFIG_SYSC_R8A77965
+	{ .compatible = "renesas,r8a77965-sysc", .data = &r8a77965_sysc_info },
+#endif
 #ifdef CONFIG_SYSC_R8A77970
 	{ .compatible = "renesas,r8a77970-sysc", .data = &r8a77970_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A77980
+	{ .compatible = "renesas,r8a77980-sysc", .data = &r8a77980_sysc_info },
 #endif
 #ifdef CONFIG_SYSC_R8A77995
 	{ .compatible = "renesas,r8a77995-sysc", .data = &r8a77995_sysc_info },

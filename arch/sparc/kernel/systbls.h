@@ -9,9 +9,9 @@
 
 #include <asm/utrap.h>
 
-asmlinkage unsigned long sys_getpagesize(void);
-asmlinkage long sparc_pipe(struct pt_regs *regs);
-asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs);
+asmlinkage long sys_getpagesize(void);
+asmlinkage long sys_sparc_pipe(void);
+asmlinkage long sys_nis_syscall(void);
 asmlinkage long sys_getdomainname(char __user *name, int len);
 void do_rt_sigreturn(struct pt_regs *regs);
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
@@ -23,7 +23,7 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs);
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff);
-long sparc_remap_file_pages(unsigned long start, unsigned long size,
+long sys_sparc_remap_file_pages(unsigned long start, unsigned long size,
 			    unsigned long prot, unsigned long pgoff,
 			    unsigned long flags);
 
@@ -46,16 +46,15 @@ asmlinkage long sys_utrap_install(utrap_entry_t type,
 				  utrap_handler_t new_d,
 				  utrap_handler_t __user *old_p,
 				  utrap_handler_t __user *old_d);
-asmlinkage long sparc_memory_ordering(unsigned long model,
-				      struct pt_regs *regs);
+asmlinkage long sys_memory_ordering(unsigned long model);
 asmlinkage void sparc64_set_context(struct pt_regs *regs);
 asmlinkage void sparc64_get_context(struct pt_regs *regs);
-asmlinkage long sys32_truncate64(const char __user * path,
-				 unsigned long high,
-				 unsigned long low);
-asmlinkage long sys32_ftruncate64(unsigned int fd,
-				  unsigned long high,
-				  unsigned long low);
+asmlinkage long compat_sys_truncate64(const char __user * path,
+				 u32 high,
+				 u32 low);
+asmlinkage long compat_sys_ftruncate64(unsigned int fd,
+				  u32 high,
+				  u32 low);
 struct compat_stat64;
 asmlinkage long compat_sys_stat64(const char __user * filename,
 				  struct compat_stat64 __user *statbuf);
@@ -66,31 +65,31 @@ asmlinkage long compat_sys_fstat64(unsigned int fd,
 asmlinkage long compat_sys_fstatat64(unsigned int dfd,
 				     const char __user *filename,
 				     struct compat_stat64 __user * statbuf, int flag);
-asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
+asmlinkage long compat_sys_pread64(unsigned int fd,
 					char __user *ubuf,
 					compat_size_t count,
-					unsigned long poshi,
-					unsigned long poslo);
-asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
+					u32 poshi,
+					u32 poslo);
+asmlinkage long compat_sys_pwrite64(unsigned int fd,
 					 char __user *ubuf,
 					 compat_size_t count,
-					 unsigned long poshi,
-					 unsigned long poslo);
+					 u32 poshi,
+					 u32 poslo);
 asmlinkage long compat_sys_readahead(int fd,
-				     unsigned long offhi,
-				     unsigned long offlo,
+				     unsigned offhi,
+				     unsigned offlo,
 				     compat_size_t count);
 long compat_sys_fadvise64(int fd,
-			  unsigned long offhi,
-			  unsigned long offlo,
+			  unsigned offhi,
+			  unsigned offlo,
 			  compat_size_t len, int advice);
 long compat_sys_fadvise64_64(int fd,
-			     unsigned long offhi, unsigned long offlo,
-			     unsigned long lenhi, unsigned long lenlo,
+			     unsigned offhi, unsigned offlo,
+			     unsigned lenhi, unsigned lenlo,
 			     int advice);
-long sys32_sync_file_range(unsigned int fd,
-			   unsigned long off_high, unsigned long off_low,
-			   unsigned long nb_high, unsigned long nb_low,
+long compat_sys_sync_file_range(unsigned int fd,
+			   unsigned off_high, unsigned off_low,
+			   unsigned nb_high, unsigned nb_low,
 			   unsigned int flags);
 asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				     u32 lenhi, u32 lenlo);

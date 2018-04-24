@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 - ARM Ltd
+ * Copyright (C) 2015-2018 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/mmu.h>
 
 	.text
 	.pushsection	.hyp.text, "ax"
@@ -55,15 +56,9 @@ ENTRY(__vhe_hyp_call)
 ENDPROC(__vhe_hyp_call)
 
 el1_sync:				// Guest trapped into EL2
-	stp	x0, x1, [sp, #-16]!
 
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x1, esr_el2
-alternative_else
-	mrs	x1, esr_el1
-alternative_endif
-	lsr	x0, x1, #ESR_ELx_EC_SHIFT
-
+	mrs	x0, esr_el2
+	lsr	x0, x0, #ESR_ELx_EC_SHIFT
 	cmp	x0, #ESR_ELx_EC_HVC64
 	ccmp	x0, #ESR_ELx_EC_HVC32, #4, ne
 	b.ne	el1_trap
@@ -117,10 +112,14 @@ el1_hvc_guest:
 	eret
 
 el1_trap:
+	get_vcpu_ptr	x1, x0
+
+	mrs		x0, esr_el2
+	lsr		x0, x0, #ESR_ELx_EC_SHIFT
 	/*
 	 * x0: ESR_EC
+	 * x1: vcpu pointer
 	 */
-	ldr	x1, [sp, #16 + 8]	// vcpu stored by __guest_enter
 
 	/*
 	 * We trap the first access to the FP/SIMD to save the host context
@@ -137,18 +136,18 @@ alternative_else_nop_endif
 	b	__guest_exit
 
 el1_irq:
-	stp     x0, x1, [sp, #-16]!
-	ldr	x1, [sp, #16 + 8]
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
 el1_error:
-	stp     x0, x1, [sp, #-16]!
-	ldr	x1, [sp, #16 + 8]
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
 el2_error:
+	ldp	x0, x1, [sp], #16
+
 	/*
 	 * Only two possibilities:
 	 * 1) Either we come from the exit path, having just unmasked
@@ -180,14 +179,7 @@ ENTRY(__hyp_do_panic)
 ENDPROC(__hyp_do_panic)
 
 ENTRY(__hyp_panic)
-	/*
-	 * '=kvm_host_cpu_state' is a host VA from the constant pool, it may
-	 * not be accessible by this address from EL2, hyp_panic() converts
-	 * it with kern_hyp_va() before use.
-	 */
-	ldr	x0, =kvm_host_cpu_state
-	mrs	x1, tpidr_el2
-	add	x0, x0, x1
+	get_host_ctxt x0, x1
 	b	hyp_panic
 ENDPROC(__hyp_panic)
 
@@ -206,32 +198,104 @@ ENDPROC(\label)
 	invalid_vector	el2h_sync_invalid
 	invalid_vector	el2h_irq_invalid
 	invalid_vector	el2h_fiq_invalid
-	invalid_vector	el1_sync_invalid
-	invalid_vector	el1_irq_invalid
 	invalid_vector	el1_fiq_invalid
 
 	.ltorg
 
 	.align 11
 
+.macro valid_vect target
+	.align 7
+	stp	x0, x1, [sp, #-16]!
+	b	\target
+.endm
+
+.macro invalid_vect target
+	.align 7
+	b	\target
+	ldp	x0, x1, [sp], #16
+	b	\target
+.endm
+
 ENTRY(__kvm_hyp_vector)
-	ventry	el2t_sync_invalid		// Synchronous EL2t
-	ventry	el2t_irq_invalid		// IRQ EL2t
-	ventry	el2t_fiq_invalid		// FIQ EL2t
-	ventry	el2t_error_invalid		// Error EL2t
+	invalid_vect	el2t_sync_invalid	// Synchronous EL2t
+	invalid_vect	el2t_irq_invalid	// IRQ EL2t
+	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
+	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	ventry	el2h_sync_invalid		// Synchronous EL2h
-	ventry	el2h_irq_invalid		// IRQ EL2h
-	ventry	el2h_fiq_invalid		// FIQ EL2h
-	ventry	el2_error			// Error EL2h
+	invalid_vect	el2h_sync_invalid	// Synchronous EL2h
+	invalid_vect	el2h_irq_invalid	// IRQ EL2h
+	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
+	valid_vect	el2_error		// Error EL2h
 
-	ventry	el1_sync			// Synchronous 64-bit EL1
-	ventry	el1_irq				// IRQ 64-bit EL1
-	ventry	el1_fiq_invalid			// FIQ 64-bit EL1
-	ventry	el1_error			// Error 64-bit EL1
+	valid_vect	el1_sync		// Synchronous 64-bit EL1
+	valid_vect	el1_irq			// IRQ 64-bit EL1
+	invalid_vect	el1_fiq_invalid		// FIQ 64-bit EL1
+	valid_vect	el1_error		// Error 64-bit EL1
 
-	ventry	el1_sync			// Synchronous 32-bit EL1
-	ventry	el1_irq				// IRQ 32-bit EL1
-	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
-	ventry	el1_error			// Error 32-bit EL1
+	valid_vect	el1_sync		// Synchronous 32-bit EL1
+	valid_vect	el1_irq			// IRQ 32-bit EL1
+	invalid_vect	el1_fiq_invalid		// FIQ 32-bit EL1
+	valid_vect	el1_error		// Error 32-bit EL1
 ENDPROC(__kvm_hyp_vector)
+
+#ifdef CONFIG_KVM_INDIRECT_VECTORS
+.macro hyp_ventry
+	.align 7
+1:	.rept 27
+	nop
+	.endr
+/*
+ * The default sequence is to directly branch to the KVM vectors,
+ * using the computed offset. This applies for VHE as well as
+ * !ARM64_HARDEN_EL2_VECTORS.
+ *
+ * For ARM64_HARDEN_EL2_VECTORS configurations, this gets replaced
+ * with:
+ *
+ * stp	x0, x1, [sp, #-16]!
+ * movz	x0, #(addr & 0xffff)
+ * movk	x0, #((addr >> 16) & 0xffff), lsl #16
+ * movk	x0, #((addr >> 32) & 0xffff), lsl #32
+ * br	x0
+ *
+ * Where addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + 4.
+ * See kvm_patch_vector_branch for details.
+ */
+alternative_cb	kvm_patch_vector_branch
+	b	__kvm_hyp_vector + (1b - 0b)
+	nop
+	nop
+	nop
+	nop
+alternative_cb_end
+.endm
+
+.macro generate_vectors
+0:
+	.rept 16
+	hyp_ventry
+	.endr
+	.org 0b + SZ_2K		// Safety measure
+.endm
+
+	.align	11
+ENTRY(__bp_harden_hyp_vecs_start)
+	.rept BP_HARDEN_EL2_SLOTS
+	generate_vectors
+	.endr
+ENTRY(__bp_harden_hyp_vecs_end)
+
+	.popsection
+
+ENTRY(__smccc_workaround_1_smc_start)
+	sub	sp, sp, #(8 * 4)
+	stp	x2, x3, [sp, #(8 * 0)]
+	stp	x0, x1, [sp, #(8 * 2)]
+	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_1
+	smc	#0
+	ldp	x2, x3, [sp, #(8 * 0)]
+	ldp	x0, x1, [sp, #(8 * 2)]
+	add	sp, sp, #(8 * 4)
+ENTRY(__smccc_workaround_1_smc_end)
+#endif

@@ -196,8 +196,19 @@ nfp_repr_get_offload_stats(int attr_id, const struct net_device *dev,
 static int nfp_repr_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
+	int err;
 
-	return nfp_app_change_mtu(repr->app, netdev, new_mtu);
+	err = nfp_app_check_mtu(repr->app, netdev, new_mtu);
+	if (err)
+		return err;
+
+	err = nfp_app_repr_change_mtu(repr->app, netdev, new_mtu);
+	if (err)
+		return err;
+
+	netdev->mtu = new_mtu;
+
+	return 0;
 }
 
 static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)

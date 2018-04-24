@@ -11,6 +11,8 @@
 #include "dpcd_defs.h"
 
 #include "resource.h"
+#define DC_LOGGER \
+	link->ctx->logger
 
 /* maximum pre emphasis level allowed for each voltage swing level*/
 static const enum dc_pre_emphasis voltage_swing_to_pre_emphasis[] = {
@@ -63,8 +65,7 @@ static void wait_for_training_aux_rd_interval(
 
 	udelay(default_wait_in_micro_secs);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n wait = %d\n",
+	DC_LOG_HW_LINK_TRAINING("%s:\n wait = %d\n",
 		__func__,
 		default_wait_in_micro_secs);
 }
@@ -79,8 +80,7 @@ static void dpcd_set_training_pattern(
 		&dpcd_pattern.raw,
 		1);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x pattern = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n %x pattern = %x\n",
 		__func__,
 		DP_TRAINING_PATTERN_SET,
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
@@ -116,8 +116,7 @@ static void dpcd_set_link_settings(
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
 		__func__,
 		DP_LINK_BW_SET,
 		lt_settings->link_settings.link_rate,
@@ -151,8 +150,7 @@ static enum dpcd_training_patterns
 		break;
 	default:
 		ASSERT(0);
-		dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-			"%s: Invalid HW Training pattern: %d\n",
+		DC_LOG_HW_LINK_TRAINING("%s: Invalid HW Training pattern: %d\n",
 			__func__, pattern);
 		break;
 	}
@@ -184,8 +182,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	dpcd_lt_buffer[DP_TRAINING_PATTERN_SET - dpcd_base_lt_offset]
 		= dpcd_pattern.raw;
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x pattern = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n %x pattern = %x\n",
 		__func__,
 		DP_TRAINING_PATTERN_SET,
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
@@ -219,8 +216,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		dpcd_lane,
 		size_in_bytes);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s:\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -456,14 +452,12 @@ static void get_lane_status_and_drive_settings(
 
 	ln_status_updated->raw = dpcd_buf[2];
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n%x Lane01Status = %x\n %x Lane23Status = %x\n ",
+	DC_LOG_HW_LINK_TRAINING("%s:\n%x Lane01Status = %x\n %x Lane23Status = %x\n ",
 		__func__,
 		DP_LANE0_1_STATUS, dpcd_buf[0],
 		DP_LANE2_3_STATUS, dpcd_buf[1]);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n %x Lane01AdjustRequest = %x\n %x Lane23AdjustRequest = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s:\n %x Lane01AdjustRequest = %x\n %x Lane23AdjustRequest = %x\n",
 		__func__,
 		DP_ADJUST_REQUEST_LANE0_1,
 		dpcd_buf[4],
@@ -556,8 +550,7 @@ static void dpcd_set_lane_settings(
 	}
 	*/
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -669,16 +662,14 @@ static bool perform_post_lt_adj_req_sequence(
 		}
 
 		if (!req_drv_setting_changed) {
-			dm_logger_write(link->ctx->logger, LOG_WARNING,
-				"%s: Post Link Training Adjust Request Timed out\n",
+			DC_LOG_WARNING("%s: Post Link Training Adjust Request Timed out\n",
 				__func__);
 
 			ASSERT(0);
 			return true;
 		}
 	}
-	dm_logger_write(link->ctx->logger, LOG_WARNING,
-		"%s: Post Link Training Adjust Request limit reached\n",
+	DC_LOG_WARNING("%s: Post Link Training Adjust Request limit reached\n",
 		__func__);
 
 	ASSERT(0);
@@ -707,6 +698,22 @@ static enum hw_dp_training_pattern get_supported_tp(struct dc_link *link)
 		return HW_DP_TRAINING_PATTERN_3;
 
 	return HW_DP_TRAINING_PATTERN_2;
+}
+
+static enum link_training_result get_cr_failure(enum dc_lane_count ln_count,
+					union lane_status *dpcd_lane_status)
+{
+	enum link_training_result result = LINK_TRAINING_SUCCESS;
+
+	if (ln_count >= LANE_COUNT_ONE && !dpcd_lane_status[0].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE0;
+	else if (ln_count >= LANE_COUNT_TWO && !dpcd_lane_status[1].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE1;
+	else if (ln_count >= LANE_COUNT_FOUR && !dpcd_lane_status[2].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE23;
+	else if (ln_count >= LANE_COUNT_FOUR && !dpcd_lane_status[3].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE23;
+	return result;
 }
 
 static enum link_training_result perform_channel_equalization_sequence(
@@ -771,7 +778,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 
 }
 
-static bool perform_clock_recovery_sequence(
+static enum link_training_result perform_clock_recovery_sequence(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings)
 {
@@ -846,11 +853,11 @@ static bool perform_clock_recovery_sequence(
 
 		/* 5. check CR done*/
 		if (is_cr_done(lane_count, dpcd_lane_status))
-			return true;
+			return LINK_TRAINING_SUCCESS;
 
 		/* 6. max VS reached*/
 		if (is_max_vs_reached(lt_settings))
-			return false;
+			break;
 
 		/* 7. same voltage*/
 		/* Note: VS same for all lanes,
@@ -869,20 +876,19 @@ static bool perform_clock_recovery_sequence(
 
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
-		dm_logger_write(link->ctx->logger, LOG_ERROR,
-			"%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
+		DC_LOG_ERROR("%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
 			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
 
 	}
 
-	return false;
+	return get_cr_failure(lane_count, dpcd_lane_status);
 }
 
-static inline bool perform_link_training_int(
+static inline enum link_training_result perform_link_training_int(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
-	bool status)
+	enum link_training_result status)
 {
 	union lane_count_set lane_count_set = { {0} };
 	union dpcd_training_pattern dpcd_pattern = { {0} };
@@ -903,9 +909,9 @@ static inline bool perform_link_training_int(
 			get_supported_tp(link) == HW_DP_TRAINING_PATTERN_4)
 		return status;
 
-	if (status &&
+	if (status == LINK_TRAINING_SUCCESS &&
 		perform_post_lt_adj_req_sequence(link, lt_settings) == false)
-		status = false;
+		status = LINK_TRAINING_LQA_FAIL;
 
 	lane_count_set.bits.LANE_COUNT_SET = lt_settings->link_settings.lane_count;
 	lane_count_set.bits.ENHANCED_FRAMING = 1;
@@ -928,6 +934,8 @@ enum link_training_result dc_link_dp_perform_link_training(
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 
 	char *link_rate = "Unknown";
+	char *lt_result = "Unknown";
+
 	struct link_training_settings lt_settings;
 
 	memset(&lt_settings, '\0', sizeof(lt_settings));
@@ -951,22 +959,16 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)*/
-	if (!perform_clock_recovery_sequence(link, &lt_settings)) {
-		status = LINK_TRAINING_CR_FAIL;
-	} else {
+	status = perform_clock_recovery_sequence(link, &lt_settings);
+	if (status == LINK_TRAINING_SUCCESS) {
 		status = perform_channel_equalization_sequence(link,
 				&lt_settings);
 	}
 
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
-		if (!perform_link_training_int(link,
+		status = perform_link_training_int(link,
 				&lt_settings,
-				status == LINK_TRAINING_SUCCESS)) {
-			/* the next link training setting in this case
-			 * would be the same as CR failure case.
-			 */
-			status = LINK_TRAINING_CR_FAIL;
-		}
+				status);
 	}
 
 	/* 6. print status message*/
@@ -991,13 +993,37 @@ enum link_training_result dc_link_dp_perform_link_training(
 		break;
 	}
 
+	switch (status) {
+	case LINK_TRAINING_SUCCESS:
+		lt_result = "pass";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE0:
+		lt_result = "CR failed lane0";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE1:
+		lt_result = "CR failed lane1";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE23:
+		lt_result = "CR failed lane23";
+		break;
+	case LINK_TRAINING_EQ_FAIL_CR:
+		lt_result = "CR failed in EQ";
+		break;
+	case LINK_TRAINING_EQ_FAIL_EQ:
+		lt_result = "EQ failed";
+		break;
+	case LINK_TRAINING_LQA_FAIL:
+		lt_result = "LQA failed";
+		break;
+	default:
+		break;
+	}
+
 	/* Connectivity log: link training */
 	CONN_MSG_LT(link, "%sx%d %s VS=%d, PE=%d",
 			link_rate,
 			lt_settings.link_settings.lane_count,
-			(status ==  LINK_TRAINING_SUCCESS) ? "pass" :
-			((status == LINK_TRAINING_CR_FAIL) ? "CR failed" :
-			"EQ failed"),
+			lt_result,
 			lt_settings.lane_settings[0].VOLTAGE_SWING,
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
@@ -1114,6 +1140,7 @@ bool dp_hbr_verify_link_cap(
 				link->connector_signal,
 				dp_cs_id,
 				cur);
+
 
 		if (skip_link_training)
 			success = true;
@@ -1279,7 +1306,10 @@ static bool decide_fallback_link_setting(
 		return false;
 
 	switch (training_result) {
-	case LINK_TRAINING_CR_FAIL:
+	case LINK_TRAINING_CR_FAIL_LANE0:
+	case LINK_TRAINING_CR_FAIL_LANE1:
+	case LINK_TRAINING_CR_FAIL_LANE23:
+	case LINK_TRAINING_LQA_FAIL:
 	{
 		if (!reached_minimum_link_rate
 				(current_link_setting->link_rate)) {
@@ -1290,8 +1320,18 @@ static bool decide_fallback_link_setting(
 				(current_link_setting->lane_count)) {
 			current_link_setting->link_rate =
 				initial_link_settings.link_rate;
-			current_link_setting->lane_count =
-				reduce_lane_count(
+			if (training_result == LINK_TRAINING_CR_FAIL_LANE0)
+				return false;
+			else if (training_result == LINK_TRAINING_CR_FAIL_LANE1)
+				current_link_setting->lane_count =
+						LANE_COUNT_ONE;
+			else if (training_result ==
+					LINK_TRAINING_CR_FAIL_LANE23)
+				current_link_setting->lane_count =
+						LANE_COUNT_TWO;
+			else
+				current_link_setting->lane_count =
+					reduce_lane_count(
 					current_link_setting->lane_count);
 		} else {
 			return false;
@@ -1556,8 +1596,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 	if (sink_status_changed ||
 		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
 
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-			"%s: Link Status changed.\n", __func__);
+		DC_LOG_HW_HPD_IRQ("%s: Link Status changed.\n", __func__);
 
 		return_code = true;
 
@@ -1570,8 +1609,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 			sizeof(irq_reg_rx_power_state));
 
 		if (dpcd_result != DC_OK) {
-			dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-				"%s: DPCD read failed to obtain power state.\n",
+			DC_LOG_HW_HPD_IRQ("%s: DPCD read failed to obtain power state.\n",
 				__func__);
 		} else {
 			if (irq_reg_rx_power_state != DP_SET_POWER_D0)
@@ -1932,8 +1970,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 * PSR and device auto test, refer to function handle_sst_hpd_irq
 	 * in DAL2.1*/
 
-	dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-		"%s: Got short pulse HPD on link %d\n",
+	DC_LOG_HW_HPD_IRQ("%s: Got short pulse HPD on link %d\n",
 		__func__, link->link_index);
 
 
@@ -1947,8 +1984,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
 	if (result != DC_OK) {
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-			"%s: DPCD read failed to obtain irq data\n",
+		DC_LOG_HW_HPD_IRQ("%s: DPCD read failed to obtain irq data\n",
 			__func__);
 		return false;
 	}
@@ -1966,8 +2002,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	}
 
 	if (!allow_hpd_rx_irq(link)) {
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
-			"%s: skipping HPD handling on %d\n",
+		DC_LOG_HW_HPD_IRQ("%s: skipping HPD handling on %d\n",
 			__func__, link->link_index);
 		return false;
 	}
@@ -2235,13 +2270,14 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		link->wa_flags.dp_keep_receiver_powered = false;
 }
 
-static void retrieve_link_cap(struct dc_link *link)
+static bool retrieve_link_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[DP_TRAINING_AUX_RD_INTERVAL - DP_DPCD_REV + 1];
 
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
+	enum dc_status status = DC_ERROR_UNEXPECTED;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2249,11 +2285,16 @@ static void retrieve_link_cap(struct dc_link *link)
 	memset(&edp_config_cap, '\0',
 		sizeof(union edp_configuration_cap));
 
-	core_link_read_dpcd(
-		link,
-		DP_DPCD_REV,
-		dpcd_data,
-		sizeof(dpcd_data));
+	status = core_link_read_dpcd(
+			link,
+			DP_DPCD_REV,
+			dpcd_data,
+			sizeof(dpcd_data));
+
+	if (status != DC_OK) {
+		dm_error("%s: Read dpcd data failed.\n", __func__);
+		return false;
+	}
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
@@ -2315,11 +2356,13 @@ static void retrieve_link_cap(struct dc_link *link)
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
+
+	return true;
 }
 
-void detect_dp_sink_caps(struct dc_link *link)
+bool detect_dp_sink_caps(struct dc_link *link)
 {
-	retrieve_link_cap(link);
+	return retrieve_link_cap(link);
 
 	/* dc init_hw has power encoder using default
 	 * signal for connector. For native DP, no

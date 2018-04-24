@@ -135,6 +135,7 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_BRR_DIV_F_MASK	GENMASK(3, 0)
 #define USART_BRR_DIV_M_MASK	GENMASK(15, 4)
 #define USART_BRR_DIV_M_SHIFT	4
+#define USART_BRR_04_R_SHIFT	1
 
 /* USART_CR1 */
 #define USART_CR1_SBK		BIT(0)
@@ -162,6 +163,8 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_CR1_M1		BIT(28)		/* F7 */
 #define USART_CR1_IE_MASK	(GENMASK(8, 4) | BIT(14) | BIT(26) | BIT(27))
 #define USART_CR1_FIFOEN	BIT(29)		/* H7 */
+#define USART_CR1_DEAT_SHIFT 21
+#define USART_CR1_DEDT_SHIFT 16
 
 /* USART_CR2 */
 #define USART_CR2_ADD_MASK	GENMASK(3, 0)	/* F4 */

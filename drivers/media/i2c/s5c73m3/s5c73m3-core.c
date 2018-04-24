@@ -248,17 +248,17 @@ static int s5c73m3_check_status(struct s5c73m3 *state, unsigned int value)
 {
 	unsigned long start = jiffies;
 	unsigned long end = start + msecs_to_jiffies(2000);
-	int ret = 0;
+	int ret;
 	u16 status;
 	int count = 0;
 
-	while (time_is_after_jiffies(end)) {
+	do {
 		ret = s5c73m3_read(state, REG_STATUS, &status);
 		if (ret < 0 || status == value)
 			break;
 		usleep_range(500, 1000);
 		++count;
-	}
+	} while (time_is_after_jiffies(end));
 
 	if (count > 0)
 		v4l2_dbg(1, s5c73m3_dbg, &state->sensor_sd,

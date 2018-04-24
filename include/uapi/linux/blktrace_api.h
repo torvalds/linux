@@ -101,7 +101,7 @@ enum blktrace_notify {
 struct blk_io_trace {
 	__u32 magic;		/* MAGIC << 8 | version */
 	__u32 sequence;		/* event number */
-	__u64 time;		/* in microseconds */
+	__u64 time;		/* in nanoseconds */
 	__u64 sector;		/* disk offset */
 	__u32 bytes;		/* transfer length */
 	__u32 action;		/* what happened */

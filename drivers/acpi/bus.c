@@ -68,7 +68,7 @@ static int set_copy_dsdt(const struct dmi_system_id *id)
 #endif
 static int set_gbl_term_list(const struct dmi_system_id *id)
 {
-	acpi_gbl_parse_table_as_term_list = 1;
+	acpi_gbl_execute_tables_as_methods = 1;
 	return 0;
 }
 
@@ -1077,7 +1077,7 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	if (!acpi_gbl_parse_table_as_term_list &&
+	if (!acpi_gbl_execute_tables_as_methods &&
 	    acpi_gbl_group_module_level_code) {
 		status = acpi_load_tables();
 		if (ACPI_FAILURE(status)) {
@@ -1167,7 +1167,7 @@ static int __init acpi_bus_init(void)
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
 
-	if (acpi_gbl_parse_table_as_term_list ||
+	if (acpi_gbl_execute_tables_as_methods ||
 	    !acpi_gbl_group_module_level_code) {
 		status = acpi_load_tables();
 		if (ACPI_FAILURE(status)) {

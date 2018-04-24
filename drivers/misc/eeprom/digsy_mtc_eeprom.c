@@ -7,9 +7,18 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * FIXME: this driver is used on a device-tree probed platform: it
+ * should be defined as a bit-banged SPI device and probed from the device
+ * tree and not like this with static grabbing of a few numbered GPIO
+ * lines at random.
+ *
+ * Add proper SPI and EEPROM in arch/powerpc/boot/dts/digsy_mtc.dts
+ * and delete this driver.
  */
 
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -42,9 +51,6 @@ struct eeprom_93xx46_platform_data digsy_mtc_eeprom_data = {
 };
 
 static struct spi_gpio_platform_data eeprom_spi_gpio_data = {
-	.sck		= GPIO_EEPROM_CLK,
-	.mosi		= GPIO_EEPROM_DI,
-	.miso		= GPIO_EEPROM_DO,
 	.num_chipselect	= 1,
 };
 
@@ -56,6 +62,21 @@ static struct platform_device digsy_mtc_eeprom = {
 	},
 };
 
+static struct gpiod_lookup_table eeprom_spi_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_CLK,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_DI,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_DO,
+			    "miso", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_CS,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct spi_board_info digsy_mtc_eeprom_info[] __initdata = {
 	{
 		.modalias		= "93xx46",
@@ -63,7 +84,6 @@ static struct spi_board_info digsy_mtc_eeprom_info[] __initdata = {
 		.bus_num		= EE_SPI_BUS_NUM,
 		.chip_select		= 0,
 		.mode			= SPI_MODE_0,
-		.controller_data	= (void *)GPIO_EEPROM_CS,
 		.platform_data		= &digsy_mtc_eeprom_data,
 	},
 };
@@ -78,6 +98,7 @@ static int __init digsy_mtc_eeprom_devices_init(void)
 		pr_err("can't request gpio %d\n", GPIO_EEPROM_OE);
 		return ret;
 	}
+	gpiod_add_lookup_table(&eeprom_spi_gpiod_table);
 	spi_register_board_info(digsy_mtc_eeprom_info,
 				ARRAY_SIZE(digsy_mtc_eeprom_info));
 	return platform_device_register(&digsy_mtc_eeprom);

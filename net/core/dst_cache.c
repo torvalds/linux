@@ -107,7 +107,7 @@ EXPORT_SYMBOL_GPL(dst_cache_set_ip4);
 
 #if IS_ENABLED(CONFIG_IPV6)
 void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
-		       const struct in6_addr *addr)
+		       const struct in6_addr *saddr)
 {
 	struct dst_cache_pcpu *idst;
 
@@ -117,7 +117,7 @@ void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
 	idst = this_cpu_ptr(dst_cache->cache);
 	dst_cache_per_cpu_dst_set(this_cpu_ptr(dst_cache->cache), dst,
 				  rt6_get_cookie((struct rt6_info *)dst));
-	idst->in6_saddr = *addr;
+	idst->in6_saddr = *saddr;
 }
 EXPORT_SYMBOL_GPL(dst_cache_set_ip6);
 

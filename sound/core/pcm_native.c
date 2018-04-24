@@ -323,7 +323,7 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_constraints *constrs =
 					&substream->runtime->hw_constraints;
 	unsigned int k;
-	unsigned int rstamps[constrs->rules_num];
+	unsigned int *rstamps;
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp;
 	struct snd_pcm_hw_rule *r;
@@ -331,7 +331,7 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_mask old_mask;
 	struct snd_interval old_interval;
 	bool again;
-	int changed;
+	int changed, err = 0;
 
 	/*
 	 * Each application of rule has own sequence number.
@@ -339,8 +339,9 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	 * Each member of 'rstamps' array represents the sequence number of
 	 * recent application of corresponding rule.
 	 */
-	for (k = 0; k < constrs->rules_num; k++)
-		rstamps[k] = 0;
+	rstamps = kcalloc(constrs->rules_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!rstamps)
+		return -ENOMEM;
 
 	/*
 	 * Each member of 'vstamps' array represents the sequence number of
@@ -398,8 +399,10 @@ retry:
 		}
 
 		changed = r->func(params, r);
-		if (changed < 0)
-			return changed;
+		if (changed < 0) {
+			err = changed;
+			goto out;
+		}
 
 		/*
 		 * When the parameter is changed, notify it to the caller
@@ -430,7 +433,9 @@ retry:
 	if (again)
 		goto retry;
 
-	return 0;
+ out:
+	kfree(rstamps);
+	return err;
 }
 
 static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
@@ -612,7 +617,7 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 			changed = snd_pcm_hw_param_first(pcm, params, *v, NULL);
 		else
 			changed = snd_pcm_hw_param_last(pcm, params, *v, NULL);
-		if (snd_BUG_ON(changed < 0))
+		if (changed < 0)
 			return changed;
 		if (changed == 0)
 			continue;
@@ -3422,7 +3427,7 @@ int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 					 area,
 					 substream->runtime->dma_area,
 					 substream->runtime->dma_addr,
-					 area->vm_end - area->vm_start);
+					 substream->runtime->dma_bytes);
 #endif /* CONFIG_X86 */
 	/* mmap with fault handler */
 	area->vm_ops = &snd_pcm_vm_ops_data_fault;

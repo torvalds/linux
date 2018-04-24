@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
@@ -204,6 +205,7 @@ static int dumb_vga_probe(struct platform_device *pdev)
 
 	vga->bridge.funcs = &dumb_vga_bridge_funcs;
 	vga->bridge.of_node = pdev->dev.of_node;
+	vga->bridge.timings = of_device_get_match_data(&pdev->dev);
 
 	drm_bridge_add(&vga->bridge);
 
@@ -222,10 +224,61 @@ static int dumb_vga_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * We assume the ADV7123 DAC is the "default" for historical reasons
+ * Information taken from the ADV7123 datasheet, revision D.
+ * NOTE: the ADV7123EP seems to have other timings and need a new timings
+ * set if used.
+ */
+static const struct drm_bridge_timings default_dac_timings = {
+	/* Timing specifications, datasheet page 7 */
+	.sampling_edge = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.setup_time_ps = 500,
+	.hold_time_ps = 1500,
+};
+
+/*
+ * Information taken from the THS8134, THS8134A, THS8134B datasheet named
+ * "SLVS205D", dated May 1990, revised March 2000.
+ */
+static const struct drm_bridge_timings ti_ths8134_dac_timings = {
+	/* From timing diagram, datasheet page 9 */
+	.sampling_edge = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	/* From datasheet, page 12 */
+	.setup_time_ps = 3000,
+	/* I guess this means latched input */
+	.hold_time_ps = 0,
+};
+
+/*
+ * Information taken from the THS8135 datasheet named "SLAS343B", dated
+ * May 2001, revised April 2013.
+ */
+static const struct drm_bridge_timings ti_ths8135_dac_timings = {
+	/* From timing diagram, datasheet page 14 */
+	.sampling_edge = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	/* From datasheet, page 16 */
+	.setup_time_ps = 2000,
+	.hold_time_ps = 500,
+};
+
 static const struct of_device_id dumb_vga_match[] = {
-	{ .compatible = "dumb-vga-dac" },
-	{ .compatible = "adi,adv7123" },
-	{ .compatible = "ti,ths8135" },
+	{
+		.compatible = "dumb-vga-dac",
+		.data = NULL,
+	},
+	{
+		.compatible = "adi,adv7123",
+		.data = &default_dac_timings,
+	},
+	{
+		.compatible = "ti,ths8135",
+		.data = &ti_ths8135_dac_timings,
+	},
+	{
+		.compatible = "ti,ths8134",
+		.data = &ti_ths8134_dac_timings,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dumb_vga_match);

@@ -9,6 +9,9 @@
  *	This file is distributed under the terms of the GNU General Public
  *	License (GPL). Copies of the GPL can be obtained from gnu.org/gpl.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -266,13 +269,11 @@ static int __init time_mt_init(void)
 	int minutes = sys_tz.tz_minuteswest;
 
 	if (minutes < 0) /* east of Greenwich */
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": kernel timezone is +%02d%02d\n",
-		       -minutes / 60, -minutes % 60);
+		pr_info("kernel timezone is +%02d%02d\n",
+			-minutes / 60, -minutes % 60);
 	else /* west of Greenwich */
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": kernel timezone is -%02d%02d\n",
-		       minutes / 60, minutes % 60);
+		pr_info("kernel timezone is -%02d%02d\n",
+			minutes / 60, minutes % 60);
 
 	return xt_register_match(&xt_time_mt_reg);
 }

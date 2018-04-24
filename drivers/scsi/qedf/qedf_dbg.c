@@ -160,7 +160,7 @@ qedf_uevent_emit(struct Scsi_Host *shost, u32 code, char *msg)
 	switch (code) {
 	case QEDF_UEVENT_CODE_GRCDUMP:
 		if (msg)
-			strncpy(event_string, msg, strlen(msg));
+			strscpy(event_string, msg, sizeof(event_string));
 		else
 			sprintf(event_string, "GRCDUMP=%u", shost->host_no);
 		break;

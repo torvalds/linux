@@ -411,6 +411,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TDLS_OPER                         0x0122
 #define HostCmd_CMD_FW_DUMP_EVENT		      0x0125
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
+#define HostCmd_CMD_STA_CONFIGURE		      0x023f
 #define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 #define HostCmd_CMD_PACKET_AGGR_CTRL		      0x0251
 
@@ -2285,6 +2286,11 @@ struct host_cmd_ds_pkt_aggr_ctrl {
 	__le16 tx_aggr_align;
 } __packed;
 
+struct host_cmd_ds_sta_configure {
+	__le16 action;
+	u8 tlv_buffer[0];
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2361,6 +2367,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_gtk_rekey_params rekey;
 		struct host_cmd_ds_chan_region_cfg reg_cfg;
 		struct host_cmd_ds_pkt_aggr_ctrl pkt_aggr_ctrl;
+		struct host_cmd_ds_sta_configure sta_cfg;
 	} params;
 } __packed;
 

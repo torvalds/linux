@@ -309,7 +309,7 @@ static int tcm_loop_target_reset(struct scsi_cmnd *sc)
 
 static int tcm_loop_slave_alloc(struct scsi_device *sd)
 {
-	set_bit(QUEUE_FLAG_BIDI, &sd->request_queue->queue_flags);
+	blk_queue_flag_set(QUEUE_FLAG_BIDI, sd->request_queue);
 	return 0;
 }
 

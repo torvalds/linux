@@ -44,12 +44,12 @@ void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
-	mutex_lock(&ctrl->namespaces_mutex);
+	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		if (ns->head->disk)
 			kblockd_schedule_work(&ns->head->requeue_work);
 	}
-	mutex_unlock(&ctrl->namespaces_mutex);
+	up_read(&ctrl->namespaces_rwsem);
 }
 
 static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head)
@@ -162,13 +162,13 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	if (!(ctrl->subsys->cmic & (1 << 1)) || !multipath)
 		return 0;
 
-	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE, NULL);
 	if (!q)
 		goto out;
 	q->queuedata = head;
 	blk_queue_make_request(q, nvme_ns_head_make_request);
 	q->poll_fn = nvme_ns_head_poll;
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	/* set to a default value for 512 until disk is validated */
 	blk_queue_logical_block_size(q, 512);
 
@@ -210,25 +210,6 @@ void nvme_mpath_add_disk(struct nvme_ns_head *head)
 	mutex_unlock(&head->subsys->lock);
 }
 
-void nvme_mpath_add_disk_links(struct nvme_ns *ns)
-{
-	struct kobject *slave_disk_kobj, *holder_disk_kobj;
-
-	if (!ns->head->disk)
-		return;
-
-	slave_disk_kobj = &disk_to_dev(ns->disk)->kobj;
-	if (sysfs_create_link(ns->head->disk->slave_dir, slave_disk_kobj,
-			kobject_name(slave_disk_kobj)))
-		return;
-
-	holder_disk_kobj = &disk_to_dev(ns->head->disk)->kobj;
-	if (sysfs_create_link(ns->disk->part0.holder_dir, holder_disk_kobj,
-			kobject_name(holder_disk_kobj)))
-		sysfs_remove_link(ns->head->disk->slave_dir,
-			kobject_name(slave_disk_kobj));
-}
-
 void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	if (!head->disk)
@@ -242,15 +223,4 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 	flush_work(&head->requeue_work);
 	blk_cleanup_queue(head->disk->queue);
 	put_disk(head->disk);
-}
-
-void nvme_mpath_remove_disk_links(struct nvme_ns *ns)
-{
-	if (!ns->head->disk)
-		return;
-
-	sysfs_remove_link(ns->disk->part0.holder_dir,
-			kobject_name(&disk_to_dev(ns->head->disk)->kobj));
-	sysfs_remove_link(ns->head->disk->slave_dir,
-			kobject_name(&disk_to_dev(ns->disk)->kobj));
 }

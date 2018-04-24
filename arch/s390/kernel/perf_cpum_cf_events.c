@@ -583,6 +583,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		model = cpumcf_z13_pmu_event_attr;
 		break;
 	case 0x3906:
+	case 0x3907:
 		model = cpumcf_z14_pmu_event_attr;
 		break;
 	default:

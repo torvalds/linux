@@ -604,7 +604,7 @@ mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 }
 
 static int
-mt7530_get_sset_count(struct dsa_switch *ds)
+mt7530_get_sset_count(struct dsa_switch *ds, int port)
 {
 	return ARRAY_SIZE(mt7530_mib);
 }
@@ -917,7 +917,7 @@ mt7530_port_fdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&priv->reg_mutex);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_ENT);
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, NULL);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
@@ -933,7 +933,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&priv->reg_mutex);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_EMP);
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, NULL);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
@@ -1293,7 +1293,7 @@ mt7530_setup(struct dsa_switch *ds)
 	}
 
 	/* Flush the FDB table */
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -1409,6 +1409,7 @@ static const struct of_device_id mt7530_of_match[] = {
 	{ .compatible = "mediatek,mt7530" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, mt7530_of_match);
 
 static struct mdio_driver mt7530_mdio_driver = {
 	.probe  = mt7530_probe,
@@ -1424,4 +1425,3 @@ mdio_module_driver(mt7530_mdio_driver);
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_DESCRIPTION("Driver for Mediatek MT7530 Switch");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:mediatek-mt7530");

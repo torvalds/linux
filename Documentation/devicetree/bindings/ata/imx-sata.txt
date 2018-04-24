@@ -7,6 +7,7 @@ Required properties:
 - compatible : should be one of the following:
    - "fsl,imx53-ahci" for i.MX53 SATA controller
    - "fsl,imx6q-ahci" for i.MX6Q SATA controller
+   - "fsl,imx6qp-ahci" for i.MX6QP SATA controller
 - interrupts : interrupt mapping for SATA IRQ
 - reg : registers mapping
 - clocks : list of clock specifiers, must contain an entry for each

@@ -64,6 +64,9 @@ static int mt7601u_add_interface(struct ieee80211_hw *hw,
 	 */
 	mvif->idx = idx;
 
+	if (!ether_addr_equal(dev->macaddr, vif->addr))
+		mt7601u_set_macaddr(dev, vif->addr);
+
 	if (dev->wcid_mask[wcid / BITS_PER_LONG] & BIT(wcid % BITS_PER_LONG))
 		return -ENOSPC;
 	dev->wcid_mask[wcid / BITS_PER_LONG] |= BIT(wcid % BITS_PER_LONG);

@@ -826,6 +826,7 @@ static void xprt_connect_status(struct rpc_task *task)
  * @xprt: transport on which the original request was transmitted
  * @xid: RPC XID of incoming reply
  *
+ * Caller holds xprt->recv_lock.
  */
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
@@ -834,6 +835,7 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 	list_for_each_entry(entry, &xprt->recv, rq_list)
 		if (entry->rq_xid == xid) {
 			trace_xprt_lookup_rqst(xprt, xid, 0);
+			entry->rq_rtt = ktime_sub(ktime_get(), entry->rq_xtime);
 			return entry;
 		}
 
@@ -889,7 +891,13 @@ __must_hold(&req->rq_xprt->recv_lock)
 	}
 }
 
-static void xprt_update_rtt(struct rpc_task *task)
+/**
+ * xprt_update_rtt - Update RPC RTT statistics
+ * @task: RPC request that recently completed
+ *
+ * Caller holds xprt->recv_lock.
+ */
+void xprt_update_rtt(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
@@ -902,13 +910,14 @@ static void xprt_update_rtt(struct rpc_task *task)
 		rpc_set_timeo(rtt, timer, req->rq_ntrans - 1);
 	}
 }
+EXPORT_SYMBOL_GPL(xprt_update_rtt);
 
 /**
  * xprt_complete_rqst - called when reply processing is complete
  * @task: RPC request that recently completed
  * @copied: actual number of bytes received from the transport
  *
- * Caller holds transport lock.
+ * Caller holds xprt->recv_lock.
  */
 void xprt_complete_rqst(struct rpc_task *task, int copied)
 {
@@ -920,9 +929,6 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	trace_xprt_complete_rqst(xprt, req->rq_xid, copied);
 
 	xprt->stat.recvs++;
-	req->rq_rtt = ktime_sub(ktime_get(), req->rq_xtime);
-	if (xprt->ops->timer != NULL)
-		xprt_update_rtt(task);
 
 	list_del_init(&req->rq_list);
 	req->rq_private_buf.len = copied;
@@ -1003,7 +1009,7 @@ void xprt_transmit(struct rpc_task *task)
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
 	unsigned int connect_cookie;
-	int status, numreqs;
+	int status;
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
 
@@ -1027,7 +1033,6 @@ void xprt_transmit(struct rpc_task *task)
 		return;
 
 	connect_cookie = xprt->connect_cookie;
-	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
@@ -1042,9 +1047,6 @@ void xprt_transmit(struct rpc_task *task)
 
 	xprt->ops->set_retrans_timeout(task);
 
-	numreqs = atomic_read(&xprt->num_reqs);
-	if (numreqs > xprt->stat.max_slots)
-		xprt->stat.max_slots = numreqs;
 	xprt->stat.sends++;
 	xprt->stat.req_u += xprt->stat.sends - xprt->stat.recvs;
 	xprt->stat.bklog_u += xprt->backlog.qlen;
@@ -1106,14 +1108,15 @@ static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt)
 {
 	struct rpc_rqst *req = ERR_PTR(-EAGAIN);
 
-	if (!atomic_add_unless(&xprt->num_reqs, 1, xprt->max_reqs))
+	if (xprt->num_reqs >= xprt->max_reqs)
 		goto out;
+	++xprt->num_reqs;
 	spin_unlock(&xprt->reserve_lock);
 	req = kzalloc(sizeof(struct rpc_rqst), GFP_NOFS);
 	spin_lock(&xprt->reserve_lock);
 	if (req != NULL)
 		goto out;
-	atomic_dec(&xprt->num_reqs);
+	--xprt->num_reqs;
 	req = ERR_PTR(-ENOMEM);
 out:
 	return req;
@@ -1121,7 +1124,8 @@ out:
 
 static bool xprt_dynamic_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 {
-	if (atomic_add_unless(&xprt->num_reqs, -1, xprt->min_reqs)) {
+	if (xprt->num_reqs > xprt->min_reqs) {
+		--xprt->num_reqs;
 		kfree(req);
 		return true;
 	}
@@ -1157,6 +1161,8 @@ void xprt_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 	spin_unlock(&xprt->reserve_lock);
 	return;
 out_init_req:
+	xprt->stat.max_slots = max_t(unsigned int, xprt->stat.max_slots,
+				     xprt->num_reqs);
 	task->tk_status = 0;
 	task->tk_rqstp = req;
 	xprt_request_init(task, xprt);
@@ -1224,7 +1230,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 	else
 		xprt->max_reqs = num_prealloc;
 	xprt->min_reqs = num_prealloc;
-	atomic_set(&xprt->num_reqs, num_prealloc);
+	xprt->num_reqs = num_prealloc;
 
 	return xprt;
 

@@ -214,11 +214,11 @@ minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
 {
 	struct minstrel_sta_info *mi = priv_sta;
 
-	mi->dbg_stats = debugfs_create_file("rc_stats", S_IRUGO, dir, mi,
-			&minstrel_stat_fops);
+	mi->dbg_stats = debugfs_create_file("rc_stats", 0444, dir, mi,
+					    &minstrel_stat_fops);
 
-	mi->dbg_stats_csv = debugfs_create_file("rc_stats_csv", S_IRUGO, dir,
-			mi, &minstrel_stat_csv_fops);
+	mi->dbg_stats_csv = debugfs_create_file("rc_stats_csv", 0444, dir, mi,
+						&minstrel_stat_csv_fops);
 }
 
 void

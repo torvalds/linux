@@ -27,6 +27,7 @@
 #include <linux/pkeys.h>
 #include <linux/ksm.h>
 #include <linux/uaccess.h>
+#include <linux/mm_inline.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
@@ -87,6 +88,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				/* Also skip shared copy-on-write pages */
 				if (is_cow_mapping(vma->vm_flags) &&
 				    page_mapcount(page) != 1)
+					continue;
+
+				/*
+				 * While migration can move some dirty pages,
+				 * it cannot move them all from MIGRATE_ASYNC
+				 * context.
+				 */
+				if (page_is_file_cache(page) && PageDirty(page))
 					continue;
 
 				/* Avoid TLB flush if possible */
@@ -417,7 +426,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	end = start + len;
 	if (end <= start)
 		return -ENOMEM;
-	if (!arch_validate_prot(prot))
+	if (!arch_validate_prot(prot, start))
 		return -EINVAL;
 
 	reqprot = prot;
@@ -475,7 +484,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 		 * cleared from the VMA.
 		 */
 		mask_off_old_flags = VM_READ | VM_WRITE | VM_EXEC |
-					ARCH_VM_PKEY_FLAGS;
+					VM_FLAGS_CLEAR;
 
 		new_vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
 		newflags = calc_vm_prot_bits(prot, new_vma_pkey);
