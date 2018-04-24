@@ -409,7 +409,10 @@ void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
-	return dev->driver->gem_prime_vmap(obj);
+	if (dev->driver->gem_prime_vmap)
+		return dev->driver->gem_prime_vmap(obj);
+	else
+		return NULL;
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 
@@ -426,7 +429,8 @@ void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
-	dev->driver->gem_prime_vunmap(obj, vaddr);
+	if (dev->driver->gem_prime_vunmap)
+		dev->driver->gem_prime_vunmap(obj, vaddr);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
 
