@@ -147,40 +147,33 @@ extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 				pte_t *ptep, pte_t pte, int percpu)
 {
-#if defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
 	/* Second case is 32-bit with 64-bit PTE.  In this case, we
 	 * can just store as long as we do the two halves in the right order
 	 * with a barrier in between.
 	 * In the percpu case, we also fallback to the simple update
 	 */
-	if (percpu) {
-		*ptep = pte;
+	if (IS_ENABLED(CONFIG_PPC32) && IS_ENABLED(CONFIG_PTE_64BIT) && !percpu) {
+		__asm__ __volatile__("\
+			stw%U0%X0 %2,%0\n\
+			eieio\n\
+			stw%U0%X0 %L2,%1"
+		: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
+		: "r" (pte) : "memory");
 		return;
 	}
-	__asm__ __volatile__("\
-		stw%U0%X0 %2,%0\n\
-		eieio\n\
-		stw%U0%X0 %L2,%1"
-	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
-	: "r" (pte) : "memory");
-
-#else
 	/* Anything else just stores the PTE normally. That covers all 64-bit
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
 
-#ifdef CONFIG_PPC_BOOK3E_64
 	/*
 	 * With hardware tablewalk, a sync is needed to ensure that
 	 * subsequent accesses see the PTE we just wrote.  Unlike userspace
 	 * mappings, we can't tolerate spurious faults, so make sure
 	 * the new PTE will be seen the first time.
 	 */
-	if (is_kernel_addr(addr))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3E_64) && is_kernel_addr(addr))
 		mb();
-#endif
-#endif
 }
 
 
