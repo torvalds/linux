@@ -51,6 +51,7 @@ struct drm_printer;
 	param(int, guc_log_level, -1) \
 	param(char *, guc_firmware_path, NULL) \
 	param(char *, huc_firmware_path, NULL) \
+	param(char *, dmc_firmware_path, NULL) \
 	param(int, mmio_debug, 0) \
 	param(int, edp_vswing, 0) \
 	param(int, reset, 2) \
