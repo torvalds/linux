@@ -2401,17 +2401,17 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (rw == WRITE && whint_mode == WHINT_MODE_OFF)
 		iocb->ki_hint = WRITE_LIFE_NOT_SET;
 
-	if (!down_read_trylock(&F2FS_I(inode)->dio_rwsem[rw])) {
+	if (!down_read_trylock(&F2FS_I(inode)->i_gc_rwsem[rw])) {
 		if (iocb->ki_flags & IOCB_NOWAIT) {
 			iocb->ki_hint = hint;
 			err = -EAGAIN;
 			goto out;
 		}
-		down_read(&F2FS_I(inode)->dio_rwsem[rw]);
+		down_read(&F2FS_I(inode)->i_gc_rwsem[rw]);
 	}
 
 	err = blockdev_direct_IO(iocb, inode, iter, get_data_block_dio);
-	up_read(&F2FS_I(inode)->dio_rwsem[rw]);
+	up_read(&F2FS_I(inode)->i_gc_rwsem[rw]);
 
 	if (rw == WRITE) {
 		if (whint_mode == WHINT_MODE_OFF)
