@@ -1910,7 +1910,7 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp0_mmu";
 		#iommu-cells = <0>;
-		clocks = <&cru ACLK_ISP0_NOC>, <&cru HCLK_ISP0_NOC>;
+		clocks = <&cru ACLK_ISP0_WRAPPER>, <&cru HCLK_ISP0_WRAPPER>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3399_PD_ISP0>;
 		rk_iommu,disable_reset_quirk;
@@ -1923,10 +1923,12 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_ISP1>,
 			 <&cru ACLK_ISP1>, <&cru HCLK_ISP1>,
-			 <&cru ACLK_ISP1_WRAPPER>, <&cru HCLK_ISP1_WRAPPER>;
+			 <&cru ACLK_ISP1_WRAPPER>, <&cru HCLK_ISP1_WRAPPER>,
+			 <&cru PCLK_ISP1_WRAPPER>;
 		clock-names = "clk_isp",
 			 "aclk_isp", "hclk_isp",
-			 "aclk_isp_wrap", "hclk_isp_wrap";
+			 "aclk_isp_wrap", "hclk_isp_wrap",
+			 "pclk_isp_wrap";
 		devfreq = <&dmc>;
 		power-domains = <&power RK3399_PD_ISP1>;
 		iommus = <&isp1_mmu>;
@@ -1939,7 +1941,7 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp1_mmu";
 		#iommu-cells = <0>;
-		clocks = <&cru ACLK_ISP1_NOC>, <&cru HCLK_ISP1_NOC>;
+		clocks = <&cru ACLK_ISP1_WRAPPER>, <&cru HCLK_ISP1_WRAPPER>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3399_PD_ISP1>;
 		rk_iommu,disable_reset_quirk;
@@ -2041,6 +2043,20 @@
 				};
 			};
 		};
+	};
+
+	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@0xff968000 {
+		compatible = "rockchip,rk3399-mipi-dphy";
+		reg = <0x0 0xff968000 0x0 0x8000>;
+		clocks = <&cru SCLK_MIPIDPHY_REF>,
+			<&cru SCLK_DPHY_TX1RX1_CFG>,
+			<&cru PCLK_VIO_GRF>,
+			<&cru PCLK_MIPI_DSI1>;
+		clock-names = "dphy-ref", "dphy-cfg",
+			"grf", "pclk_mipi_dsi";
+		rockchip,grf = <&grf>;
+		power-domains = <&power RK3399_PD_VIO>;
+		status = "disabled";
 	};
 
 	edp: edp@ff970000 {
