@@ -3828,6 +3828,105 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_display_fwpkg_version - sends FWUpload request to pull FWPkg
+ *				version from FW Image Header.
+ * @ioc: per adapter object
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+	static int
+_base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi2FWImageHeader_t *FWImgHdr;
+	Mpi25FWUploadRequest_t *mpi_request;
+	Mpi2FWUploadReply_t mpi_reply;
+	int r = 0;
+	void *fwpkg_data = NULL;
+	dma_addr_t fwpkg_data_dma;
+	u16 smid, ioc_status;
+	size_t data_length;
+
+	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+				__func__));
+
+	if (ioc->base_cmds.status & MPT3_CMD_PENDING) {
+		pr_err(MPT3SAS_FMT "%s: internal command already in use\n",
+				ioc->name, __func__);
+		return -EAGAIN;
+	}
+
+	data_length = sizeof(Mpi2FWImageHeader_t);
+	fwpkg_data = pci_alloc_consistent(ioc->pdev, data_length,
+			&fwpkg_data_dma);
+	if (!fwpkg_data) {
+		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
+				ioc->name, __FILE__, __LINE__, __func__);
+		return -ENOMEM;
+	}
+
+	smid = mpt3sas_base_get_smid(ioc, ioc->base_cb_idx);
+	if (!smid) {
+		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
+				ioc->name, __func__);
+		r = -EAGAIN;
+		goto out;
+	}
+
+	ioc->base_cmds.status = MPT3_CMD_PENDING;
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	ioc->base_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi25FWUploadRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_FW_UPLOAD;
+	mpi_request->ImageType = MPI2_FW_UPLOAD_ITYPE_FW_FLASH;
+	mpi_request->ImageSize = cpu_to_le32(data_length);
+	ioc->build_sg(ioc, &mpi_request->SGL, 0, 0, fwpkg_data_dma,
+			data_length);
+	init_completion(&ioc->base_cmds.done);
+	mpt3sas_base_put_smid_default(ioc, smid);
+	/* Wait for 15 seconds */
+	wait_for_completion_timeout(&ioc->base_cmds.done,
+			FW_IMG_HDR_READ_TIMEOUT*HZ);
+	pr_info(MPT3SAS_FMT "%s: complete\n",
+			ioc->name, __func__);
+	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
+		pr_err(MPT3SAS_FMT "%s: timeout\n",
+				ioc->name, __func__);
+		_debug_dump_mf(mpi_request,
+				sizeof(Mpi25FWUploadRequest_t)/4);
+		r = -ETIME;
+	} else {
+		memset(&mpi_reply, 0, sizeof(Mpi2FWUploadReply_t));
+		if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID) {
+			memcpy(&mpi_reply, ioc->base_cmds.reply,
+					sizeof(Mpi2FWUploadReply_t));
+			ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+						MPI2_IOCSTATUS_MASK;
+			if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
+				FWImgHdr = (Mpi2FWImageHeader_t *)fwpkg_data;
+				if (FWImgHdr->PackageVersion.Word) {
+					pr_info(MPT3SAS_FMT "FW Package Version"
+					"(%02d.%02d.%02d.%02d)\n",
+					ioc->name,
+					FWImgHdr->PackageVersion.Struct.Major,
+					FWImgHdr->PackageVersion.Struct.Minor,
+					FWImgHdr->PackageVersion.Struct.Unit,
+					FWImgHdr->PackageVersion.Struct.Dev);
+				}
+			} else {
+				_debug_dump_mf(&mpi_reply,
+						sizeof(Mpi2FWUploadReply_t)/4);
+			}
+		}
+	}
+	ioc->base_cmds.status = MPT3_CMD_NOT_USED;
+out:
+	if (fwpkg_data)
+		pci_free_consistent(ioc->pdev, data_length, fwpkg_data,
+				fwpkg_data_dma);
+	return r;
+}
+
+/**
  * _base_display_ioc_capabilities - Disply IOC's capabilities.
  * @ioc: per adapter object
  *
@@ -6361,11 +6460,17 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
  skip_init_reply_post_host_index:
 
 	_base_unmask_interrupts(ioc);
+
+	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		r = _base_display_fwpkg_version(ioc);
+		if (r)
+			return r;
+	}
+
+	_base_static_config_pages(ioc);
 	r = _base_event_notification(ioc);
 	if (r)
 		return r;
-
-	_base_static_config_pages(ioc);
 
 	if (ioc->is_driver_loading) {
 

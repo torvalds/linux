@@ -138,6 +138,7 @@
 #define MAX_CHAIN_ELEMT_SZ		16
 #define DEFAULT_NUM_FWCHAIN_ELEMTS	8
 
+#define FW_IMG_HDR_READ_TIMEOUT	15
 /*
  * NVMe defines
  */
