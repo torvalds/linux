@@ -276,6 +276,9 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 /* Is this rcu_node a leaf? */
 #define rcu_is_leaf_node(rnp) ((rnp)->level == rcu_num_lvls - 1)
 
+/* Is this rcu_node the last leaf? */
+#define rcu_is_last_leaf_node(rsp, rnp) ((rnp) == &(rsp)->node[rcu_num_nodes - 1])
+
 /*
  * Do a full breadth-first scan of the rcu_node structures for the
  * specified rcu_state structure.
