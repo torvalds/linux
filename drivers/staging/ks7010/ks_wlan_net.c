@@ -765,18 +765,9 @@ static int ks_wlan_get_mode(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* for SLEEP MODE */
 	/* If not managed, assume it's ad-hoc */
-	switch (priv->reg.operation_mode) {
-	case MODE_INFRASTRUCTURE:
-		uwrq->mode = IW_MODE_INFRA;
-		break;
-	case MODE_ADHOC:
-		uwrq->mode = IW_MODE_ADHOC;
-		break;
-	default:
-		uwrq->mode = IW_MODE_ADHOC;
-	}
+	uwrq->mode = (priv->reg.operation_mode == MODE_INFRASTRUCTURE) ?
+		      IW_MODE_INFRA : IW_MODE_ADHOC;
 
 	return 0;
 }
