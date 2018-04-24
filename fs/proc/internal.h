@@ -46,6 +46,7 @@ struct proc_dir_entry {
 	const struct file_operations *proc_fops;
 	const struct seq_operations *seq_ops;
 	void *data;
+	unsigned int state_size;
 	unsigned int low_ino;
 	nlink_t nlink;
 	kuid_t uid;

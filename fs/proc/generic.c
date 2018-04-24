@@ -560,6 +560,8 @@ static int proc_seq_open(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *de = PDE(inode);
 
+	if (de->state_size)
+		return seq_open_private(file, de->seq_ops, de->state_size);
 	return seq_open(file, de->seq_ops);
 }
 
@@ -570,9 +572,9 @@ static const struct file_operations proc_seq_fops = {
 	.release	= seq_release,
 };
 
-struct proc_dir_entry *proc_create_seq_data(const char *name, umode_t mode,
+struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
 		struct proc_dir_entry *parent, const struct seq_operations *ops,
-		void *data)
+		unsigned int state_size, void *data)
 {
 	struct proc_dir_entry *p;
 
@@ -581,9 +583,10 @@ struct proc_dir_entry *proc_create_seq_data(const char *name, umode_t mode,
 		return NULL;
 	p->proc_fops = &proc_seq_fops;
 	p->seq_ops = ops;
+	p->state_size = state_size;
 	return proc_register(parent, p);
 }
-EXPORT_SYMBOL(proc_create_seq_data);
+EXPORT_SYMBOL(proc_create_seq_private);
 
 void proc_set_size(struct proc_dir_entry *de, loff_t size)
 {
