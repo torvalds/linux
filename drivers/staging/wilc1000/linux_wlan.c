@@ -939,7 +939,7 @@ static void linux_wlan_tx_complete(void *priv, int status)
 	kfree(pv_data);
 }
 
-int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
+netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wilc_vif *vif;
 	struct tx_complete_data *tx_data = NULL;
