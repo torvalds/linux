@@ -178,19 +178,13 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	logger = dc->ctx->logger;
 	time = core_stats->time;
 
-	dm_logger_open(
-		dc->ctx->logger,
-		&log_entry,
-		LOG_DISPLAYSTATS);
+	DISPLAY_STATS_BEGIN(log_entry);
 
-	dm_logger_append(&log_entry, "==Display Caps==\n");
-	dm_logger_append(&log_entry, "\n");
+	DISPLAY_STATS("==Display Caps==\n");
 
-	dm_logger_append(&log_entry, "==Display Stats==\n");
-	dm_logger_append(&log_entry, "\n");
+	DISPLAY_STATS("==Display Stats==\n");
 
-	dm_logger_append(&log_entry,
-		"%10s %10s %10s %10s %10s"
+	DISPLAY_STATS("%10s %10s %10s %10s %10s"
 			" %11s %11s %17s %10s %14s"
 			" %10s %10s %10s %10s %10s"
 			" %10s %10s %10s %10s\n",
@@ -203,8 +197,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 		"vSyncTime4", "vSyncTime5", "flags");
 
 	for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
-		dm_logger_append(&log_entry,
-			"%10u %10u %10u %10u %10u"
+		DISPLAY_STATS("%10u %10u %10u %10u %10u"
 				" %11u %11u %17u %10u %14u"
 				" %10u %10u %10u %10u %10u"
 				" %10u %10u %10u %10u\n",
@@ -229,7 +222,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 			time[i].flags);
 	}
 
-	dm_logger_close(&log_entry);
+	DISPLAY_STATS_END(log_entry);
 }
 
 void mod_stats_reset_data(struct mod_stats *mod_stats)
