@@ -950,6 +950,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 				      struct mmc_command *cmd,
 				      int                 tune,
 				      unsigned long       timeout)
+	__must_hold(&host->lock)
 {
 	void __iomem *base = host->base;
 	u32 opcode = cmd->opcode;
@@ -1353,6 +1354,7 @@ static void msdc_set_blknum(struct msdc_host *host, u32 blknum)
 }
 
 static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
+	__must_hold(&host->lock)
 {
 	struct msdc_host *host = mmc_priv(mmc);
 	struct mmc_command *cmd;
