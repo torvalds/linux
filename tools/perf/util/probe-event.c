@@ -161,8 +161,7 @@ static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
 
 static struct map *kernel_get_module_map(const char *module)
 {
-	struct map_groups *grp = &host_machine->kmaps;
-	struct maps *maps = &grp->maps[MAP__FUNCTION];
+	struct maps *maps = machine__kernel_maps(host_machine);
 	struct map *pos;
 
 	/* A file path -- this is an offline module */

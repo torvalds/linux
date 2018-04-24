@@ -20,7 +20,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
 	enum map_type type = MAP__FUNCTION;
-	struct maps *maps = &vmlinux.kmaps.maps[type];
+	struct maps *maps = machine__kernel_maps(&vmlinux);
 	u64 mem_start, mem_end;
 	bool header_printed;
 
@@ -228,7 +228,7 @@ next_pair:
 
 	header_printed = false;
 
-	maps = &kallsyms.kmaps.maps[type];
+	maps = machine__kernel_maps(&kallsyms);
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		if (!map->priv) {

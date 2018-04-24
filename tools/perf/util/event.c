@@ -464,8 +464,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 {
 	int rc = 0;
 	struct map *pos;
-	struct map_groups *kmaps = &machine->kmaps;
-	struct maps *maps = &kmaps->maps[MAP__FUNCTION];
+	struct maps *maps = machine__kernel_maps(machine);
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {

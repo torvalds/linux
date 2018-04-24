@@ -70,10 +70,22 @@ struct map *__machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
+/*
+ * The main kernel (vmlinux) map
+ */
 static inline
 struct map *machine__kernel_map(struct machine *machine)
 {
 	return __machine__kernel_map(machine, MAP__FUNCTION);
+}
+
+/*
+ * kernel (the one returned by machine__kernel_map()) plus kernel modules maps
+ */
+static inline
+struct maps *machine__kernel_maps(struct machine *machine)
+{
+	return &machine->kmaps.maps[MAP__FUNCTION];
 }
 
 int machine__get_kernel_start(struct machine *machine);
