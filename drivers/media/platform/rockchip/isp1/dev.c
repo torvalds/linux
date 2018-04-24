@@ -342,7 +342,7 @@ static int rkisp1_fwnode_parse(struct device *dev,
 	 * not be get in here
 	 */
 	if (vep->bus_type != V4L2_MBUS_BT656 &&
-		vep->bus_type != V4L2_MBUS_PARALLEL)
+	    vep->bus_type != V4L2_MBUS_PARALLEL)
 		return 0;
 
 	rk_asd->mbus.flags = bus->flags;
@@ -444,6 +444,7 @@ static const char * const rk3399_isp_clks[] = {
 	"hclk_isp",
 	"aclk_isp_wrap",
 	"hclk_isp_wrap",
+	"pclk_isp_wrap"
 };
 
 static const struct isp_match_data rk3288_isp_match_data = {
@@ -508,7 +509,8 @@ static void rkisp1_disable_sys_clk(struct rkisp1_device *rkisp1_dev)
 	int i;
 
 	for (i = rkisp1_dev->clk_size - 1; i >= 0; i--)
-		clk_disable_unprepare(rkisp1_dev->clks[i]);
+		if (!IS_ERR(rkisp1_dev->clks[i]))
+			clk_disable_unprepare(rkisp1_dev->clks[i]);
 }
 
 static int rkisp1_enable_sys_clk(struct rkisp1_device *rkisp1_dev)
@@ -516,14 +518,17 @@ static int rkisp1_enable_sys_clk(struct rkisp1_device *rkisp1_dev)
 	int i, ret = -EINVAL;
 
 	for (i = 0; i < rkisp1_dev->clk_size; i++) {
-		ret = clk_prepare_enable(rkisp1_dev->clks[i]);
-		if (ret < 0)
-			goto err;
+		if (!IS_ERR(rkisp1_dev->clks[i])) {
+			ret = clk_prepare_enable(rkisp1_dev->clks[i]);
+			if (ret < 0)
+				goto err;
+		}
 	}
 	return 0;
 err:
 	for (--i; i >= 0; --i)
-		clk_disable_unprepare(rkisp1_dev->clks[i]);
+		if (!IS_ERR(rkisp1_dev->clks[i]))
+			clk_disable_unprepare(rkisp1_dev->clks[i]);
 	return ret;
 }
 
@@ -557,7 +562,7 @@ static int rkisp1_iommu_init(struct rkisp1_device *rkisp1_dev)
 	if (ret)
 		goto err;
 	if (!common_iommu_setup_dma_ops(rkisp1_dev->dev, 0x10000000,
-	    SZ_2G, rkisp1_dev->domain->ops)) {
+					SZ_2G, rkisp1_dev->domain->ops)) {
 		iommu_detach_device(rkisp1_dev->domain, rkisp1_dev->dev);
 		ret = -ENODEV;
 		goto err;
@@ -618,10 +623,8 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	for (i = 0; i < match_data->size; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
-		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get %s\n", match_data->clks[i]);
-			return PTR_ERR(clk);
-		}
+		if (IS_ERR(clk))
+			dev_dbg(dev, "failed to get %s\n", match_data->clks[i]);
 		isp_dev->clks[i] = clk;
 	}
 	isp_dev->clk_size = match_data->size;
