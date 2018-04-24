@@ -158,6 +158,9 @@ static u8 ic_domain[64];		/* DNS (not NIS) domain name */
  * Private state.
  */
 
+/* proc_dir_entry for /proc/net/ipconfig */
+static struct proc_dir_entry *ipconfig_dir;
+
 /* Name of user-selected boot device */
 static char user_dev_name[IFNAMSIZ] __initdata = { 0, };
 
@@ -1301,6 +1304,16 @@ static const struct file_operations pnp_seq_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+
+/* Create the /proc/net/ipconfig directory */
+static int ipconfig_proc_net_init(void)
+{
+	ipconfig_dir = proc_net_mkdir(&init_net, "ipconfig", init_net.proc_net);
+	if (!ipconfig_dir)
+		return -ENOMEM;
+
+	return 0;
+}
 #endif /* CONFIG_PROC_FS */
 
 /*
@@ -1384,6 +1397,8 @@ static int __init ip_auto_config(void)
 
 #ifdef CONFIG_PROC_FS
 	proc_create("pnp", 0444, init_net.proc_net, &pnp_seq_fops);
+
+	ipconfig_proc_net_init();
 #endif /* CONFIG_PROC_FS */
 
 	if (!ic_enable)
