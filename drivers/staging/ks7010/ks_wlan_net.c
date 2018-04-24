@@ -43,9 +43,6 @@ struct wep_key {
 	u8 key[16];	/* 40-bit and 104-bit keys */
 };
 
-/* List of Wireless Handlers (new API) */
-static const struct iw_handler_def ks_wlan_handler_def;
-
 /*
  *	function prototypes
  */
