@@ -2961,8 +2961,11 @@ out_wake_log_root:
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
-	 * The barrier before waitqueue_active is implied by mutex_unlock
+	 * The barrier before waitqueue_active is needed so all the updates
+	 * above are seen by the woken threads. It might not be necessary, but
+	 * proving that seems to be hard.
 	 */
+	smp_mb();
 	if (waitqueue_active(&log_root_tree->log_commit_wait[index2]))
 		wake_up(&log_root_tree->log_commit_wait[index2]);
 out:
@@ -2973,8 +2976,11 @@ out:
 	mutex_unlock(&root->log_mutex);
 
 	/*
-	 * The barrier before waitqueue_active is implied by mutex_unlock
+	 * The barrier before waitqueue_active is needed so all the updates
+	 * above are seen by the woken threads. It might not be necessary, but
+	 * proving that seems to be hard.
 	 */
+	smp_mb();
 	if (waitqueue_active(&root->log_commit_wait[index1]))
 		wake_up(&root->log_commit_wait[index1]);
 	return ret;
