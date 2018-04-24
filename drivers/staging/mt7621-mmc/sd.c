@@ -1360,7 +1360,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	u32 base = host->base;
 	//u32 intsts = 0;
 	unsigned int left = 0;
-	int dma = 0, read = 1, dir = DMA_FROM_DEVICE, send_type = 0;
+	int dma = 0, read = 1, send_type = 0;
 
 #define SND_DAT 0
 #define SND_CMD 1
@@ -1422,9 +1422,9 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			if (msdc_command_start(host, cmd, 1, CMD_TIMEOUT) != 0)
 				goto done;
 
-			dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 			data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
-						    data->sg_len, dir);
+						    data->sg_len,
+						    mmc_get_dma_dir(data));
 			msdc_dma_setup(host, &host->dma, data->sg,
 				       data->sg_count);
 
@@ -1505,7 +1505,8 @@ done:
 		host->dma_xfer = 0;
 		if (dma != 0) {
 			msdc_dma_off();
-			dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len, dir);
+			dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
+				     mmc_get_dma_dir(data));
 		}
 		host->blksz = 0;
 
