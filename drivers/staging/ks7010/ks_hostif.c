@@ -11,6 +11,7 @@
 
 #include <linux/if_arp.h>
 #include <net/iw_handler.h>
+#include <uapi/linux/llc.h>
 #include "eap_packet.h"
 #include "ks_wlan.h"
 #include "michael_mic.h"
@@ -399,7 +400,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 	/* check 13th byte at rx data */
 	switch (*(priv->rxp + 12)) {
-	case 0xAA:	/* SNAP */
+	case LLC_SAP_SNAP:
 		rx_ind_size = priv->rx_size - 6;
 		skb = dev_alloc_skb(rx_ind_size);
 		if (!skb) {
@@ -419,7 +420,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + ETHER_HDR_SIZE);
 		break;
-	case 0xF0:	/* NETBEUI/NetBIOS */
+	case LLC_SAP_NETBEUI:
 		rx_ind_size = (priv->rx_size + 2);
 		skb = dev_alloc_skb(rx_ind_size);
 		if (!skb) {
