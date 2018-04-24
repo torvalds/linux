@@ -776,8 +776,7 @@ static void auok190x_recover(struct auok190xfb_par *par)
  */
 static int __maybe_unused auok190x_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info *info = platform_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct auok190xfb_par *par = info->par;
 	struct auok190x_board *board = par->board;
 	u16 standby_param;
@@ -823,8 +822,7 @@ finish:
 
 static int __maybe_unused auok190x_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info *info = platform_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct auok190xfb_par *par = info->par;
 	struct auok190x_board *board = par->board;
 
@@ -857,8 +855,7 @@ static int __maybe_unused auok190x_runtime_resume(struct device *dev)
 
 static int __maybe_unused auok190x_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info *info = platform_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct auok190xfb_par *par = info->par;
 	struct auok190x_board *board = par->board;
 	int ret;
@@ -897,8 +894,7 @@ static int __maybe_unused auok190x_suspend(struct device *dev)
 
 static int __maybe_unused auok190x_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info *info = platform_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct auok190xfb_par *par = info->par;
 	struct auok190x_board *board = par->board;
 

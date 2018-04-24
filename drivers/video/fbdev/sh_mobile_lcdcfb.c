@@ -2354,8 +2354,7 @@ static int sh_mobile_lcdc_resume(struct device *dev)
 
 static int sh_mobile_lcdc_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_mobile_lcdc_priv *priv = platform_get_drvdata(pdev);
+	struct sh_mobile_lcdc_priv *priv = dev_get_drvdata(dev);
 
 	/* turn off LCDC hardware */
 	lcdc_write(priv, _LDCNT1R, 0);
@@ -2365,8 +2364,7 @@ static int sh_mobile_lcdc_runtime_suspend(struct device *dev)
 
 static int sh_mobile_lcdc_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_mobile_lcdc_priv *priv = platform_get_drvdata(pdev);
+	struct sh_mobile_lcdc_priv *priv = dev_get_drvdata(dev);
 
 	__sh_mobile_lcdc_start(priv);
 
