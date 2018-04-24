@@ -849,7 +849,7 @@ static bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
  *
  * Return: NETDEV_TX_OK.
  */
-static int visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct visornic_devdata *devdata;
 	int len, firstfraglen, padlen;
