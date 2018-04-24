@@ -188,8 +188,8 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 {
 }
 
-static int batadv_interface_tx(struct sk_buff *skb,
-			       struct net_device *soft_iface)
+static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
+				       struct net_device *soft_iface)
 {
 	struct ethhdr *ethhdr;
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
