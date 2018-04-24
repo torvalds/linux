@@ -156,10 +156,7 @@ enum imx274_mode {
  * imx274 format related structure
  */
 struct imx274_frmfmt {
-	u32 mbus_code;
-	enum v4l2_colorspace colorspace;
 	struct v4l2_frmsize_discrete size;
-	enum imx274_mode mode;
 };
 
 /*
@@ -501,12 +498,9 @@ static const struct reg_8 *mode_table[] = {
  * imx274 format related structure
  */
 static const struct imx274_frmfmt imx274_formats[] = {
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {3840, 2160},
-		IMX274_MODE_3840X2160},
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {1920, 1080},
-		IMX274_MODE_1920X1080},
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {1280, 720},
-		IMX274_MODE_1280X720},
+	{ {3840, 2160} },
+	{ {1920, 1080} },
+	{ {1280,  720} },
 };
 
 /*
@@ -890,9 +884,8 @@ static int imx274_set_fmt(struct v4l2_subdev *sd,
 	int index;
 
 	dev_dbg(&client->dev,
-		"%s: width = %d height = %d code = %d mbus_code = %d\n",
-		__func__, fmt->width, fmt->height, fmt->code,
-		imx274_formats[imx274->mode_index].mbus_code);
+		"%s: width = %d height = %d code = %d\n",
+		__func__, fmt->width, fmt->height, fmt->code);
 
 	mutex_lock(&imx274->lock);
 
