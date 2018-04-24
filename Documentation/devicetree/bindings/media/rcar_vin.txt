@@ -24,7 +24,6 @@ on Gen3 platforms to a CSI-2 receiver.
    - "renesas,vin-r8a77970" for the R8A77970 device
    - "renesas,rcar-gen2-vin" for a generic R-Car Gen2 or RZ/G1 compatible
      device.
-   - "renesas,rcar-gen3-vin" for a generic R-Car Gen3 compatible device.
 
    When compatible with the generic version nodes must list the
    SoC-specific version corresponding to the platform first
