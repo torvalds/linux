@@ -1681,14 +1681,14 @@ static void ip__resolve_data(struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	thread__find_addr_location(thread, m, MAP__VARIABLE, addr, &al);
+	__thread__find_symbol(thread, m, MAP__VARIABLE, addr, &al);
 	if (al.map == NULL) {
 		/*
 		 * some shared data regions have execute bit set which puts
 		 * their mapping in the MAP__FUNCTION type array.
 		 * Check there as a fallback option before dropping the sample.
 		 */
-		thread__find_addr_location(thread, m, MAP__FUNCTION, addr, &al);
+		thread__find_symbol(thread, m, addr, &al);
 	}
 
 	ams->addr = addr;
@@ -1784,8 +1784,7 @@ static int add_callchain_ip(struct thread *thread,
 			}
 			return 0;
 		}
-		thread__find_addr_location(thread, *cpumode, MAP__FUNCTION,
-					   ip, &al);
+		thread__find_symbol(thread, *cpumode, ip, &al);
 	}
 
 	if (al.sym != NULL) {

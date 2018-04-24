@@ -1564,9 +1564,9 @@ try_again:
 	}
 }
 
-void thread__find_addr_location(struct thread *thread,
-				u8 cpumode, enum map_type type, u64 addr,
-				struct addr_location *al)
+void __thread__find_symbol(struct thread *thread, u8 cpumode,
+			   enum map_type type, u64 addr,
+			   struct addr_location *al)
 {
 	__thread__find_map(thread, cpumode, type, addr, al);
 	if (al->map != NULL)

@@ -384,7 +384,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(cpumodes); i++) {
-		thread__find_addr_location(thread, cpumodes[i], type, addr, al);
+		__thread__find_symbol(thread, cpumodes[i], type, addr, al);
 		if (al->map)
 			break;
 	}
