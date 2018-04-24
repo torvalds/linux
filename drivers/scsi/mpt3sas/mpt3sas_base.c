@@ -4208,6 +4208,31 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * is_MSB_are_same - checks whether all reply queues in a set are
+ *	having same upper 32bits in their base memory address.
+ * @reply_pool_start_address: Base address of a reply queue set
+ * @pool_sz: Size of single Reply Descriptor Post Queues pool size
+ *
+ * Returns 1 if reply queues in a set have a same upper 32bits
+ * in their base memory address,
+ * else 0
+ */
+
+static int
+is_MSB_are_same(long reply_pool_start_address, u32 pool_sz)
+{
+	long reply_pool_end_address;
+
+	reply_pool_end_address = reply_pool_start_address + pool_sz;
+
+	if (upper_32_bits(reply_pool_start_address) ==
+		upper_32_bits(reply_pool_end_address))
+		return 1;
+	else
+		return 0;
+}
+
+/**
  * _base_allocate_memory_pools - allocate start of day memory pools
  * @ioc: per adapter object
  *
@@ -4666,6 +4691,37 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		pr_err(MPT3SAS_FMT "sense pool: dma_pool_alloc failed\n",
 		    ioc->name);
 		goto out;
+	}
+	/* sense buffer requires to be in same 4 gb region.
+	 * Below function will check the same.
+	 * In case of failure, new pci pool will be created with updated
+	 * alignment. Older allocation and pool will be destroyed.
+	 * Alignment will be used such a way that next allocation if
+	 * success, will always meet same 4gb region requirement.
+	 * Actual requirement is not alignment, but we need start and end of
+	 * DMA address must have same upper 32 bit address.
+	 */
+	if (!is_MSB_are_same((long)ioc->sense, sz)) {
+		//Release Sense pool & Reallocate
+		dma_pool_free(ioc->sense_dma_pool, ioc->sense, ioc->sense_dma);
+		dma_pool_destroy(ioc->sense_dma_pool);
+		ioc->sense = NULL;
+
+		ioc->sense_dma_pool =
+			dma_pool_create("sense pool", &ioc->pdev->dev, sz,
+						roundup_pow_of_two(sz), 0);
+		if (!ioc->sense_dma_pool) {
+			pr_err(MPT3SAS_FMT "sense pool: pci_pool_create failed\n",
+					ioc->name);
+			goto out;
+		}
+		ioc->sense = dma_pool_alloc(ioc->sense_dma_pool, GFP_KERNEL,
+				&ioc->sense_dma);
+		if (!ioc->sense) {
+			pr_err(MPT3SAS_FMT "sense pool: pci_pool_alloc failed\n",
+					ioc->name);
+			goto out;
+		}
 	}
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 	    "sense pool(0x%p): depth(%d), element_size(%d), pool_size"
