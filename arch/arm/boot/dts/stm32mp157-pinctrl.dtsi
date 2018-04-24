@@ -146,6 +146,15 @@
 				gpio-ranges = <&pinctrl 0 160 8>;
 			};
 
+			cec_pins_a: cec-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 15, AF4)>;
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
 			i2c1_pins_a: i2c1-0 {
 				pins {
 					pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
