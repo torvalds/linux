@@ -1303,8 +1303,8 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
@@ -1412,8 +1412,8 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
