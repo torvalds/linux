@@ -133,31 +133,21 @@ use_zero_pages
 
 max_page_sharing
         Maximum sharing allowed for each KSM page. This enforces a
-        deduplication limit to avoid the virtual memory rmap lists to
-        grow too large. The minimum value is 2 as a newly created KSM
-        page will have at least two sharers. The rmap walk has O(N)
-        complexity where N is the number of rmap_items (i.e. virtual
-        mappings) that are sharing the page, which is in turn capped
-        by ``max_page_sharing``. So this effectively spreads the linear
-        O(N) computational complexity from rmap walk context over
-        different KSM pages. The ksmd walk over the stable_node
-        "chains" is also O(N), but N is the number of stable_node
-        "dups", not the number of rmap_items, so it has not a
-        significant impact on ksmd performance. In practice the best
-        stable_node "dup" candidate will be kept and found at the head
-        of the "dups" list. The higher this value the faster KSM will
-        merge the memory (because there will be fewer stable_node dups
-        queued into the stable_node chain->hlist to check for pruning)
-        and the higher the deduplication factor will be, but the
-        slowest the worst case rmap walk could be for any given KSM
-        page. Slowing down the rmap_walk means there will be higher
+        deduplication limit to avoid high latency for virtual memory
+        operations that involve traversal of the virtual mappings that
+        share the KSM page. The minimum value is 2 as a newly created
+        KSM page will have at least two sharers. The higher this value
+        the faster KSM will merge the memory and the higher the
+        deduplication factor will be, but the slower the worst case
+        virtual mappings traversal could be for any given KSM
+        page. Slowing down this traversal means there will be higher
         latency for certain virtual memory operations happening during
         swapping, compaction, NUMA balancing and page migration, in
         turn decreasing responsiveness for the caller of those virtual
         memory operations. The scheduler latency of other tasks not
-        involved with the VM operations doing the rmap walk is not
-        affected by this parameter as the rmap walks are always
-        schedule friendly themselves.
+        involved with the VM operations doing the virtual mappings
+        traversal is not affected by this parameter as these
+        traversals are always schedule friendly themselves.
 
 stable_node_chains_prune_millisecs
         How frequently to walk the whole list of stable_node "dups"
@@ -239,6 +229,25 @@ This way the stable tree lookup computational complexity is unaffected
 if compared to an unlimited list of reverse mappings. It is still
 enforced that there cannot be KSM page content duplicates in the
 stable tree itself.
+
+The deduplication limit enforced by ``max_page_sharing`` is required
+to avoid the virtual memory rmap lists to grow too large. The rmap
+walk has O(N) complexity where N is the number of rmap_items
+(i.e. virtual mappings) that are sharing the page, which is in turn
+capped by ``max_page_sharing``. So this effectively spreads the linear
+O(N) computational complexity from rmap walk context over different
+KSM pages. The ksmd walk over the stable_node "chains" is also O(N),
+but N is the number of stable_node "dups", not the number of
+rmap_items, so it has not a significant impact on ksmd performance. In
+practice the best stable_node "dup" candidate will be kept and found
+at the head of the "dups" list.
+
+High values of ``max_page_sharing`` result in faster memory merging
+(because there will be fewer stable_node dups queued into the
+stable_node chain->hlist to check for pruning) and higher
+deduplication factor at the expense of slower worst case for rmap
+walks for any KSM page which can happen during swapping, compaction,
+NUMA balancing and page migration.
 
 Reference
 ---------
