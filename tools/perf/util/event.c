@@ -1489,9 +1489,8 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 	return machine__process_event(machine, event, sample);
 }
 
-void thread__find_addr_map(struct thread *thread, u8 cpumode,
-			   enum map_type type, u64 addr,
-			   struct addr_location *al)
+void __thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
+			u64 addr, struct addr_location *al)
 {
 	struct map_groups *mg = thread->mg;
 	struct machine *machine = mg->machine;
@@ -1569,7 +1568,7 @@ void thread__find_addr_location(struct thread *thread,
 				u8 cpumode, enum map_type type, u64 addr,
 				struct addr_location *al)
 {
-	thread__find_addr_map(thread, cpumode, type, addr, al);
+	__thread__find_map(thread, cpumode, type, addr, al);
 	if (al->map != NULL)
 		al->sym = map__find_symbol(al->map, al->addr);
 	else
@@ -1590,7 +1589,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		return -1;
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
-	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
+	thread__find_map(thread, sample->cpumode, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
@@ -1669,10 +1668,11 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 void thread__resolve(struct thread *thread, struct addr_location *al,
 		     struct perf_sample *sample)
 {
-	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->addr, al);
-	if (!al->map)
-		thread__find_addr_map(thread, sample->cpumode, MAP__VARIABLE,
-				      sample->addr, al);
+	thread__find_map(thread, sample->cpumode, sample->addr, al);
+	if (!al->map) {
+		__thread__find_map(thread, sample->cpumode, MAP__VARIABLE,
+				   sample->addr, al);
+	}
 
 	al->cpu = sample->cpu;
 	al->sym = NULL;
