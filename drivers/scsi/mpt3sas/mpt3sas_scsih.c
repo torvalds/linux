@@ -11287,9 +11287,9 @@ _mpt3sas_exit(void)
 	pr_info("mpt3sas version %s unloading\n",
 				MPT3SAS_DRIVER_VERSION);
 
-	pci_unregister_driver(&mpt3sas_driver);
-
 	mpt3sas_ctl_exit(hbas_to_enumerate);
+
+	pci_unregister_driver(&mpt3sas_driver);
 
 	scsih_exit();
 }
