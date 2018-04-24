@@ -1928,7 +1928,7 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	if (priv->sme_i.sme_flag & SME_MULTICAST) {
 		mc_count = netdev_mc_count(dev);
 		netdev_for_each_mc_addr(ha, dev) {
-			memcpy(&set_address[i * ETH_ALEN], ha->addr, ETH_ALEN);
+			ether_addr_copy(&set_address[i * ETH_ALEN], ha->addr);
 			i++;
 		}
 		priv->sme_i.sme_flag &= ~SME_MULTICAST;
