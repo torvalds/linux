@@ -28,9 +28,6 @@
 #include <linux/of.h>
 #include "governor.h"
 
-#define MAX(a,b)	((a > b) ? a : b)
-#define MIN(a,b)	((a < b) ? a : b)
-
 static struct class *devfreq_class;
 
 /*
@@ -280,8 +277,8 @@ int update_devfreq(struct devfreq *devfreq)
 	 * max_freq
 	 * min_freq
 	 */
-	max_freq = MIN(devfreq->scaling_max_freq, devfreq->max_freq);
-	min_freq = MAX(devfreq->scaling_min_freq, devfreq->min_freq);
+	max_freq = min(devfreq->scaling_max_freq, devfreq->max_freq);
+	min_freq = max(devfreq->scaling_min_freq, devfreq->min_freq);
 
 	if (min_freq && freq < min_freq) {
 		freq = min_freq;
@@ -1152,7 +1149,7 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 {
 	struct devfreq *df = to_devfreq(dev);
 
-	return sprintf(buf, "%lu\n", MAX(df->scaling_min_freq, df->min_freq));
+	return sprintf(buf, "%lu\n", max(df->scaling_min_freq, df->min_freq));
 }
 
 static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
@@ -1188,7 +1185,7 @@ static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 {
 	struct devfreq *df = to_devfreq(dev);
 
-	return sprintf(buf, "%lu\n", MIN(df->scaling_max_freq, df->max_freq));
+	return sprintf(buf, "%lu\n", min(df->scaling_max_freq, df->max_freq));
 }
 static DEVICE_ATTR_RW(max_freq);
 
