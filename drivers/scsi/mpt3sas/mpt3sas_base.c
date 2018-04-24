@@ -1030,6 +1030,9 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
 		desc = "Cable Event";
 		break;
+	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+		desc = "SAS Device Discovery Error";
+		break;
 	case MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE:
 		desc = "PCIE Device Status Change";
 		break;
@@ -6599,6 +6602,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
 	_base_unmask_events(ioc, MPI2_EVENT_TEMP_THRESHOLD);
 	_base_unmask_events(ioc, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
+	_base_unmask_events(ioc, MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
 	if (ioc->hba_mpi_version_belonged == MPI26_VERSION) {
 		if (ioc->is_gen35_ioc) {
 			_base_unmask_events(ioc,

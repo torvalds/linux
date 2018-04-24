@@ -7527,6 +7527,44 @@ _scsih_sas_discovery_event(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_sas_device_discovery_error_event - display SAS device discovery error
+ *						events
+ * @ioc: per adapter object
+ * @fw_event: The fw_event_work object
+ * Context: user.
+ *
+ * Return nothing.
+ */
+static void
+_scsih_sas_device_discovery_error_event(struct MPT3SAS_ADAPTER *ioc,
+	struct fw_event_work *fw_event)
+{
+	Mpi25EventDataSasDeviceDiscoveryError_t *event_data =
+		(Mpi25EventDataSasDeviceDiscoveryError_t *)fw_event->event_data;
+
+	switch (event_data->ReasonCode) {
+	case MPI25_EVENT_SAS_DISC_ERR_SMP_FAILED:
+		pr_warn(MPT3SAS_FMT "SMP command sent to the expander"
+			"(handle:0x%04x, sas_address:0x%016llx,"
+			"physical_port:0x%02x) has failed",
+			ioc->name, le16_to_cpu(event_data->DevHandle),
+			(unsigned long long)le64_to_cpu(event_data->SASAddress),
+			event_data->PhysicalPort);
+		break;
+	case MPI25_EVENT_SAS_DISC_ERR_SMP_TIMEOUT:
+		pr_warn(MPT3SAS_FMT "SMP command sent to the expander"
+			"(handle:0x%04x, sas_address:0x%016llx,"
+			"physical_port:0x%02x) has timed out",
+			ioc->name, le16_to_cpu(event_data->DevHandle),
+			(unsigned long long)le64_to_cpu(event_data->SASAddress),
+			event_data->PhysicalPort);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
  * _scsih_pcie_enumeration_event - handle enumeration events
  * @ioc: per adapter object
  * @fw_event: The fw_event_work object
@@ -9353,6 +9391,9 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 	case MPI2_EVENT_SAS_DISCOVERY:
 		_scsih_sas_discovery_event(ioc, fw_event);
 		break;
+	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+		_scsih_sas_device_discovery_error_event(ioc, fw_event);
+		break;
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
 		_scsih_sas_broadcast_primitive_event(ioc, fw_event);
 		break;
@@ -9537,6 +9578,7 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_IR_OPERATION_STATUS:
 	case MPI2_EVENT_SAS_DISCOVERY:
+	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
 	case MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_IR_PHYSICAL_DISK:
 	case MPI2_EVENT_PCIE_ENUMERATION:
