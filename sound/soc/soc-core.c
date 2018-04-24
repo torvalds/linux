@@ -56,7 +56,6 @@ EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
 #endif
 
 static DEFINE_MUTEX(client_mutex);
-static LIST_HEAD(platform_list);
 static LIST_HEAD(codec_list);
 static LIST_HEAD(component_list);
 
@@ -381,21 +380,6 @@ static int dai_list_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(dai_list);
 
-static int platform_list_show(struct seq_file *m, void *v)
-{
-	struct snd_soc_platform *platform;
-
-	mutex_lock(&client_mutex);
-
-	list_for_each_entry(platform, &platform_list, list)
-		seq_printf(m, "%s\n", platform->component.name);
-
-	mutex_unlock(&client_mutex);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(platform_list);
-
 static void soc_init_card_debugfs(struct snd_soc_card *card)
 {
 	if (!snd_soc_debugfs_root)
@@ -438,10 +422,6 @@ static void snd_soc_debugfs_init(void)
 	if (!debugfs_create_file("dais", 0444, snd_soc_debugfs_root, NULL,
 				 &dai_list_fops))
 		pr_warn("ASoC: Failed to create DAI list debugfs file\n");
-
-	if (!debugfs_create_file("platforms", 0444, snd_soc_debugfs_root, NULL,
-				 &platform_list_fops))
-		pr_warn("ASoC: Failed to create platform list debugfs file\n");
 }
 
 static void snd_soc_debugfs_exit(void)
@@ -1045,7 +1025,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
-	struct snd_soc_platform *platform;
 	struct device_node *platform_of_node;
 	const char *platform_name;
 	int i;
@@ -1111,23 +1090,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 
 		snd_soc_rtdcom_add(rtd, component);
-	}
-
-	/* find one from the set of registered platforms */
-	list_for_each_entry(platform, &platform_list, list) {
-		platform_of_node = platform->dev->of_node;
-		if (!platform_of_node && platform->dev->parent->of_node)
-			platform_of_node = platform->dev->parent->of_node;
-
-		if (dai_link->platform_of_node) {
-			if (platform_of_node != dai_link->platform_of_node)
-				continue;
-		} else {
-			if (strcmp(platform->component.name, platform_name))
-				continue;
-		}
-
-		rtd->platform = platform;
 	}
 
 	soc_add_pcm_runtime(card, rtd);
@@ -2513,24 +2475,6 @@ int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
 
 /**
- * snd_soc_add_platform_controls - add an array of controls to a platform.
- * Convenience function to add a list of controls.
- *
- * @platform: platform to add controls to
- * @controls: array of controls to add
- * @num_controls: number of elements in the array
- *
- * Return 0 for success, else error.
- */
-int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
-	const struct snd_kcontrol_new *controls, unsigned int num_controls)
-{
-	return snd_soc_add_component_controls(&platform->component, controls,
-		num_controls);
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_platform_controls);
-
-/**
  * snd_soc_add_card_controls - add an array of controls to a SoC card.
  * Convenience function to add a list of controls.
  *
@@ -3502,164 +3446,6 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
-
-static int snd_soc_platform_drv_probe(struct snd_soc_component *component)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	return platform->driver->probe(platform);
-}
-
-static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	platform->driver->remove(platform);
-}
-
-static int snd_soc_platform_drv_pcm_new(struct snd_soc_component *component,
-					struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	if (platform->driver->pcm_new)
-		return platform->driver->pcm_new(rtd);
-
-	return 0;
-}
-
-static void snd_soc_platform_drv_pcm_free(struct snd_soc_component *component,
-					  struct snd_pcm *pcm)
-{
-	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
-
-	if (platform->driver->pcm_free)
-		platform->driver->pcm_free(pcm);
-}
-
-/**
- * snd_soc_add_platform - Add a platform to the ASoC core
- * @dev: The parent device for the platform
- * @platform: The platform to add
- * @platform_drv: The driver for the platform
- */
-int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
-		const struct snd_soc_platform_driver *platform_drv)
-{
-	int ret;
-
-	ret = snd_soc_component_initialize(&platform->component,
-			&platform_drv->component_driver, dev);
-	if (ret)
-		return ret;
-
-	platform->dev = dev;
-	platform->driver = platform_drv;
-
-	if (platform_drv->probe)
-		platform->component.probe = snd_soc_platform_drv_probe;
-	if (platform_drv->remove)
-		platform->component.remove = snd_soc_platform_drv_remove;
-	if (platform_drv->pcm_new)
-		platform->component.pcm_new = snd_soc_platform_drv_pcm_new;
-	if (platform_drv->pcm_free)
-		platform->component.pcm_free = snd_soc_platform_drv_pcm_free;
-
-#ifdef CONFIG_DEBUG_FS
-	platform->component.debugfs_prefix = "platform";
-#endif
-
-	mutex_lock(&client_mutex);
-	snd_soc_component_add_unlocked(&platform->component);
-	list_add(&platform->list, &platform_list);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(dev, "ASoC: Registered platform '%s'\n",
-		platform->component.name);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_platform);
-
-/**
- * snd_soc_register_platform - Register a platform with the ASoC core
- *
- * @dev: The device for the platform
- * @platform_drv: The driver for the platform
- */
-int snd_soc_register_platform(struct device *dev,
-		const struct snd_soc_platform_driver *platform_drv)
-{
-	struct snd_soc_platform *platform;
-	int ret;
-
-	dev_dbg(dev, "ASoC: platform register %s\n", dev_name(dev));
-
-	platform = kzalloc(sizeof(struct snd_soc_platform), GFP_KERNEL);
-	if (platform == NULL)
-		return -ENOMEM;
-
-	ret = snd_soc_add_platform(dev, platform, platform_drv);
-	if (ret)
-		kfree(platform);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_platform);
-
-/**
- * snd_soc_remove_platform - Remove a platform from the ASoC core
- * @platform: the platform to remove
- */
-void snd_soc_remove_platform(struct snd_soc_platform *platform)
-{
-
-	mutex_lock(&client_mutex);
-	list_del(&platform->list);
-	snd_soc_component_del_unlocked(&platform->component);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(platform->dev, "ASoC: Unregistered platform '%s'\n",
-		platform->component.name);
-
-	snd_soc_component_cleanup(&platform->component);
-}
-EXPORT_SYMBOL_GPL(snd_soc_remove_platform);
-
-struct snd_soc_platform *snd_soc_lookup_platform(struct device *dev)
-{
-	struct snd_soc_platform *platform;
-
-	mutex_lock(&client_mutex);
-	list_for_each_entry(platform, &platform_list, list) {
-		if (dev == platform->dev) {
-			mutex_unlock(&client_mutex);
-			return platform;
-		}
-	}
-	mutex_unlock(&client_mutex);
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_lookup_platform);
-
-/**
- * snd_soc_unregister_platform - Unregister a platform from the ASoC core
- *
- * @dev: platform to unregister
- */
-void snd_soc_unregister_platform(struct device *dev)
-{
-	struct snd_soc_platform *platform;
-
-	platform = snd_soc_lookup_platform(dev);
-	if (!platform)
-		return;
-
-	snd_soc_remove_platform(platform);
-	kfree(platform);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
 
 static int snd_soc_codec_drv_probe(struct snd_soc_component *component)
 {

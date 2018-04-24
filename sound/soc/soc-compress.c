@@ -29,7 +29,6 @@
 static int soc_compr_open(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -47,22 +46,8 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 		}
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->open) {
-		ret = platform->driver->compr_ops->open(cstream);
-		if (ret < 0) {
-			dev_err(platform->dev,
-				"Compress ASoC: can't open platform %s: %d\n",
-				platform->component.name, ret);
-			goto plat_err;
-		}
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->open)
@@ -101,10 +86,6 @@ machine_err:
 		if (err_comp == component)
 			break;
 
-		/* ignore duplication for now */
-		if (platform && (err_comp == &platform->component))
-			continue;
-
 		if (!err_comp->driver->compr_ops ||
 		    !err_comp->driver->compr_ops->free)
 			continue;
@@ -112,9 +93,6 @@ machine_err:
 		err_comp->driver->compr_ops->free(cstream);
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
-		platform->driver->compr_ops->free(cstream);
-plat_err:
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
 out:
@@ -127,7 +105,6 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_pcm_substream *fe_substream =
 		 fe->pcm->streams[cstream->direction].substream;
-	struct snd_soc_platform *platform = fe->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
@@ -153,22 +130,8 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 		}
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->open) {
-		ret = platform->driver->compr_ops->open(cstream);
-		if (ret < 0) {
-			dev_err(platform->dev,
-				"Compress ASoC: can't open platform %s: %d\n",
-				platform->component.name, ret);
-			goto plat_err;
-		}
-	}
-
 	for_each_rtdcom(fe, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->open)
@@ -242,10 +205,6 @@ machine_err:
 		if (err_comp == component)
 			break;
 
-		/* ignore duplication for now */
-		if (platform && (err_comp == &platform->component))
-			continue;
-
 		if (!err_comp->driver->compr_ops ||
 		    !err_comp->driver->compr_ops->free)
 			continue;
@@ -253,9 +212,6 @@ machine_err:
 		err_comp->driver->compr_ops->free(cstream);
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
-		platform->driver->compr_ops->free(cstream);
-plat_err:
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
 out:
@@ -296,7 +252,6 @@ static void close_delayed_work(struct work_struct *work)
 static int soc_compr_free(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -326,19 +281,12 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
-
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->free)
 			continue;
 
 		component->driver->compr_ops->free(cstream);
 	}
-
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
-		platform->driver->compr_ops->free(cstream);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
@@ -368,7 +316,6 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
-	struct snd_soc_platform *platform = fe->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
@@ -408,15 +355,8 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->shutdown)
 		fe->dai_link->compr_ops->shutdown(cstream);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
-		platform->driver->compr_ops->free(cstream);
-
 	for_each_rtdcom(fe, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->free)
@@ -436,7 +376,6 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 {
 
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
@@ -445,18 +384,8 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->trigger) {
-		ret = platform->driver->compr_ops->trigger(cstream, cmd);
-		if (ret < 0)
-			goto out;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->trigger)
@@ -489,7 +418,6 @@ out:
 static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 {
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
-	struct snd_soc_platform *platform = fe->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
@@ -498,18 +426,8 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 	if (cmd == SND_COMPR_TRIGGER_PARTIAL_DRAIN ||
 		cmd == SND_COMPR_TRIGGER_DRAIN) {
 
-		if (platform &&
-		    platform->driver->compr_ops &&
-		    platform->driver->compr_ops->trigger)
-			return platform->driver->compr_ops->trigger(cstream,
-								    cmd);
-
 		for_each_rtdcom(fe, rtdcom) {
 			component = rtdcom->component;
-
-			/* ignore duplication for now */
-			if (platform && (component == &platform->component))
-				continue;
 
 			if (!component->driver->compr_ops ||
 			    !component->driver->compr_ops->trigger)
@@ -536,18 +454,8 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 			goto out;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->trigger) {
-		ret = platform->driver->compr_ops->trigger(cstream, cmd);
-		if (ret < 0)
-			goto out;
-	}
-
 	for_each_rtdcom(fe, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->trigger)
@@ -589,7 +497,6 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 					struct snd_compr_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -597,11 +504,12 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	/* first we call set_params for the platform driver
-	 * this should configure the soc side
-	 * if the machine has compressed ops then we call that as well
-	 * expectation is that platform and machine will configure everything
-	 * for this compress path, like configuring pcm port for codec
+	/*
+	 * First we call set_params for the CPU DAI, then the component
+	 * driver this should configure the SoC side. If the machine has
+	 * compressed ops then we call that as well. The expectation is
+	 * that these callbacks will configure everything for this compress
+	 * path, like configuring a PCM port for a CODEC.
 	 */
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_params) {
 		ret = cpu_dai->driver->cops->set_params(cstream, params, cpu_dai);
@@ -609,18 +517,8 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 			goto err;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->set_params) {
-		ret = platform->driver->compr_ops->set_params(cstream, params);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->set_params)
@@ -665,7 +563,6 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_pcm_substream *fe_substream =
 		 fe->pcm->streams[cstream->direction].substream;
-	struct snd_soc_platform *platform = fe->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
@@ -684,18 +581,8 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 			goto out;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->set_params) {
-		ret = platform->driver->compr_ops->set_params(cstream, params);
-		if (ret < 0)
-			goto out;
-	}
-
 	for_each_rtdcom(fe, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->set_params)
@@ -745,7 +632,6 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 					struct snd_codec *params)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -759,18 +645,8 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 			goto err;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->get_params) {
-		ret = platform->driver->compr_ops->get_params(cstream, params);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_params)
@@ -790,25 +666,14 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 				struct snd_compr_caps *caps)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret = 0, __ret;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->get_caps) {
-		ret = platform->driver->compr_ops->get_caps(cstream, caps);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_caps)
@@ -819,7 +684,6 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 			ret = __ret;
 	}
 
-err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
@@ -828,25 +692,14 @@ static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
 				struct snd_compr_codec_caps *codec)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret = 0, __ret;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->get_codec_caps) {
-		ret = platform->driver->compr_ops->get_codec_caps(cstream, codec);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_codec_caps)
@@ -857,7 +710,6 @@ static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
 			ret = __ret;
 	}
 
-err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
@@ -865,7 +717,6 @@ err:
 static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -879,18 +730,8 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 			goto err;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->ack) {
-		ret = platform->driver->compr_ops->ack(cstream, bytes);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->ack)
@@ -910,7 +751,6 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 			struct snd_compr_tstamp *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret = 0, __ret;
@@ -921,18 +761,8 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->pointer)
 		cpu_dai->driver->cops->pointer(cstream, tstamp, cpu_dai);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->pointer) {
-		ret = platform->driver->compr_ops->pointer(cstream, tstamp);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->pointer)
@@ -943,7 +773,6 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 			ret = __ret;
 	}
 
-err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
@@ -952,25 +781,14 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 			  char __user *buf, size_t count)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->copy) {
-		ret = platform->driver->compr_ops->copy(cstream, buf, count);
-		if (ret < 0)
-			goto err;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->copy)
@@ -980,7 +798,6 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 		break;
 	}
 
-err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
@@ -989,7 +806,6 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 				struct snd_compr_metadata *metadata)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -1001,18 +817,8 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 			return ret;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->set_metadata) {
-		ret = platform->driver->compr_ops->set_metadata(cstream, metadata);
-		if (ret < 0)
-			return ret;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->set_metadata)
@@ -1030,7 +836,6 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 				struct snd_compr_metadata *metadata)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -1042,18 +847,8 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 			return ret;
 	}
 
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->get_metadata) {
-		ret = platform->driver->compr_ops->get_metadata(cstream, metadata);
-		if (ret < 0)
-			return ret;
-	}
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_metadata)
@@ -1107,7 +902,6 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
  */
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 {
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
@@ -1188,17 +982,8 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		memcpy(compr->ops, &soc_compr_ops, sizeof(soc_compr_ops));
 	}
 
-
-	/* Add copy callback for not memory mapped DSPs */
-	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->copy)
-		compr->ops->copy = soc_compr_copy;
-
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
-
-		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
-			continue;
 
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->copy)

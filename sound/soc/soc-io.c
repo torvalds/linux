@@ -267,24 +267,3 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 	return snd_soc_component_test_bits(&codec->component, reg, mask, value);
 }
 EXPORT_SYMBOL_GPL(snd_soc_test_bits);
-
-int snd_soc_platform_read(struct snd_soc_platform *platform,
-					unsigned int reg)
-{
-	unsigned int val;
-	int ret;
-
-	ret = snd_soc_component_read(&platform->component, reg, &val);
-	if (ret < 0)
-		return -1;
-
-	return val;
-}
-EXPORT_SYMBOL_GPL(snd_soc_platform_read);
-
-int snd_soc_platform_write(struct snd_soc_platform *platform,
-					 unsigned int reg, unsigned int val)
-{
-	return snd_soc_component_write(&platform->component, reg, val);
-}
-EXPORT_SYMBOL_GPL(snd_soc_platform_write);
