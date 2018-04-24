@@ -1397,11 +1397,12 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		/* deside the transfer mode */
 		if (drv_mode[host->id] == MODE_PIO)
-			host->dma_xfer = dma = 0;
+			host->dma_xfer = 0;
 		else if (drv_mode[host->id] == MODE_DMA)
-			host->dma_xfer = dma = 1;
+			host->dma_xfer = 1;
 		else if (drv_mode[host->id] == MODE_SIZE_DEP)
-			host->dma_xfer = dma = ((host->xfer_size >= dma_size[host->id]) ? 1 : 0);
+			host->dma_xfer = ((host->xfer_size >= dma_size[host->id]) ? 1 : 0);
+		dma = host->dma_xfer;
 
 		if (read) {
 			if ((host->timeout_ns != data->timeout_ns) ||
