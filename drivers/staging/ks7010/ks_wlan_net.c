@@ -745,24 +745,13 @@ static int ks_wlan_set_mode(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* for SLEEP MODE */
-	switch (uwrq->mode) {
-	case IW_MODE_ADHOC:
-		priv->reg.operation_mode = MODE_ADHOC;
-		priv->need_commit |= SME_MODE_SET;
-		break;
-	case IW_MODE_INFRA:
-		priv->reg.operation_mode = MODE_INFRASTRUCTURE;
-		priv->need_commit |= SME_MODE_SET;
-		break;
-	case IW_MODE_AUTO:
-	case IW_MODE_MASTER:
-	case IW_MODE_REPEAT:
-	case IW_MODE_SECOND:
-	case IW_MODE_MONITOR:
-	default:
+	if (uwrq->mode != IW_MODE_ADHOC &&
+	    uwrq->mode != IW_MODE_INFRA)
 		return -EINVAL;
-	}
+
+	priv->reg.operation_mode = (uwrq->mode == IW_MODE_ADHOC) ?
+				    MODE_ADHOC : MODE_INFRASTRUCTURE;
+	priv->need_commit |= SME_MODE_SET;
 
 	return -EINPROGRESS;	/* Call commit handler */
 }
