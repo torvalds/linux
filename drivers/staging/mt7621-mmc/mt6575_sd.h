@@ -44,7 +44,7 @@
 /*--------------------------------------------------------------------------*/
 /* Common Macro                                                             */
 /*--------------------------------------------------------------------------*/
-#define REG_ADDR(x)                 ((volatile u32*)(base + OFFSET_##x))
+#define REG_ADDR(x)                 (base + OFFSET_##x)
 
 /*--------------------------------------------------------------------------*/
 /* Common Definition                                                        */
@@ -914,7 +914,7 @@ struct msdc_host {
 	struct semaphore            sem;
 
 	u32                         blksz;          /* host block size */
-	u32                         base;           /* host base address */
+	void __iomem                *base;           /* host base address */
 	int                         id;             /* host id */
 	int                         pwr_ref;        /* core power reference count */
 
@@ -984,15 +984,28 @@ static inline unsigned int uffs(unsigned int x)
 	return r;
 }
 
-#define sdr_read8(reg)           __raw_readb(reg)
-#define sdr_read16(reg)          __raw_readw(reg)
-#define sdr_read32(reg)          __raw_readl(reg)
-#define sdr_write8(reg, val)      __raw_writeb(val, reg)
-#define sdr_write16(reg, val)     __raw_writew(val, reg)
-#define sdr_write32(reg, val)     __raw_writel(val, reg)
+#define sdr_read8(reg)            readb(reg)
+#define sdr_read16(reg)           readw(reg)
+#define sdr_read32(reg)           readl(reg)
+#define sdr_write8(reg, val)      writeb(val, reg)
+#define sdr_write16(reg, val)     writew(val, reg)
+#define sdr_write32(reg, val)     writel(val, reg)
 
-#define sdr_set_bits(reg, bs)     ((*(volatile u32*)(reg)) |= (u32)(bs))
-#define sdr_clr_bits(reg, bs)     ((*(volatile u32*)(reg)) &= ~((u32)(bs)))
+static inline void sdr_set_bits(void __iomem *reg, u32 bs)
+{
+	u32 val = readl(reg);
+
+	val |= bs;
+	writel(val, reg);
+}
+
+static inline void sdr_clr_bits(void __iomem *reg, u32 bs)
+{
+	u32 val = readl(reg);
+
+	val &= ~bs;
+	writel(val, reg);
+}
 
 #define sdr_set_field(reg, field, val)					\
 do {								\

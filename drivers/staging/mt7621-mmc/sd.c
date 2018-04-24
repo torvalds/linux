@@ -234,7 +234,7 @@ static int msdc_rsp[] = {
 
 static void msdc_reset_hw(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	sdr_set_bits(MSDC_CFG, MSDC_CFG_RST);
 	while (sdr_read32(MSDC_CFG) & MSDC_CFG_RST)
@@ -467,7 +467,7 @@ static void msdc_dump_io_resp(struct msdc_host *host, u32 resp)
 
 static void msdc_set_timeout(struct msdc_host *host, u32 ns, u32 clks)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 timeout, clk_ns;
 
 	host->timeout_ns   = ns;
@@ -495,7 +495,7 @@ static void msdc_tasklet_card(struct work_struct *work)
 	struct msdc_host *host = (struct msdc_host *)container_of(work,
 				struct msdc_host, card_delaywork.work);
 #endif
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 inserted;
 	u32 status = 0;
     //u32 change = 0;
@@ -540,7 +540,7 @@ static u8 clk_src_bit[4] = {
 static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
 {
 	u32 val;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	BUG_ON(clksrc > 3);
 	INIT_MSG("set clock source to <%d>", clksrc);
@@ -562,7 +562,7 @@ static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
 static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 {
 	//struct msdc_hw *hw = host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 mode;
 	u32 flags;
 	u32 div;
@@ -624,7 +624,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 /* Fix me. when need to abort */
 static void msdc_abort_data(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	struct mmc_command *stop = host->mrq->stop;
 
 	ERR_MSG("Need to Abort. dma<%d>", host->dma_xfer);
@@ -649,7 +649,7 @@ static void msdc_abort_data(struct msdc_host *host)
 static void msdc_pin_config(struct msdc_host *host, int mode)
 {
 	struct msdc_hw *hw = host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	int pull = (mode == MSDC_PIN_PULL_UP) ? GPIO_PULL_UP : GPIO_PULL_DOWN;
 
 	/* Config WP pin */
@@ -693,7 +693,7 @@ static void msdc_pin_config(struct msdc_host *host, int mode)
 void msdc_pin_reset(struct msdc_host *host, int mode)
 {
 	struct msdc_hw *hw = (struct msdc_hw *)host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	int pull = (mode == MSDC_PIN_PULL_UP) ? GPIO_PULL_UP : GPIO_PULL_DOWN;
 
 	/* Config reset pin */
@@ -821,7 +821,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 				       int                 tune,   /* not used */
 				       unsigned long       timeout)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 opcode = cmd->opcode;
 	u32 rawcmd;
 	u32 wints = MSDC_INT_CMDRDY  | MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO  |
@@ -951,7 +951,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 				      int                 tune,
 				      unsigned long       timeout)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 opcode = cmd->opcode;
 	//u32 rawcmd;
 	u32 resp;
@@ -1061,7 +1061,7 @@ end:
 static int msdc_pio_abort(struct msdc_host *host, struct mmc_data *data, unsigned long tmo)
 {
 	int  ret = 0;
-	u32  base = host->base;
+	void __iomem *base = host->base;
 
 	if (atomic_read(&host->abort))
 		ret = 1;
@@ -1088,7 +1088,7 @@ static int msdc_pio_abort(struct msdc_host *host, struct mmc_data *data, unsigne
 static int msdc_pio_read(struct msdc_host *host, struct mmc_data *data)
 {
 	struct scatterlist *sg = data->sg;
-	u32  base = host->base;
+	void __iomem *base = host->base;
 	u32  num = data->sg_len;
 	u32 *ptr;
 	u8  *u8ptr;
@@ -1143,7 +1143,7 @@ end:
 */
 static int msdc_pio_write(struct msdc_host *host, struct mmc_data *data)
 {
-	u32  base = host->base;
+	void __iomem *base = host->base;
 	struct scatterlist *sg = data->sg;
 	u32  num = data->sg_len;
 	u32 *ptr;
@@ -1198,7 +1198,7 @@ end:
 // DMA resume / start / stop
 static void msdc_dma_resume(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_RESUME, 1);
 
@@ -1208,7 +1208,7 @@ static void msdc_dma_resume(struct msdc_host *host)
 
 static void msdc_dma_start(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 wints = MSDC_INTEN_XFER_COMPL | MSDC_INTEN_DATTMO | MSDC_INTEN_DATCRCERR;
 
 	sdr_set_bits(MSDC_INTEN, wints);
@@ -1220,7 +1220,7 @@ static void msdc_dma_start(struct msdc_host *host)
 
 static void msdc_dma_stop(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	//u32 retries=500;
 	u32 wints = MSDC_INTEN_XFER_COMPL | MSDC_INTEN_DATTMO | MSDC_INTEN_DATCRCERR;
 
@@ -1250,7 +1250,7 @@ static u8 msdc_dma_calcs(u8 *buf, u32 len)
 /* gpd bd setup + dma registers */
 static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	//u32 i, j, num, bdlen, arg, xfersz;
 	u32 j, num;
 	struct scatterlist *sg = dma->sg;
@@ -1268,7 +1268,7 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 			sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_XFERSZ, sg_dma_len(sg));
 //#elif defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
 		else
-			sdr_write32((volatile u32 *)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
+			sdr_write32((void __iomem *)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
 //#endif
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
 			      MSDC_BRUST_64B);
@@ -1347,7 +1347,7 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 /* set block number before send command */
 static void msdc_set_blknum(struct msdc_host *host, u32 blknum)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	sdr_write32(SDC_BLK_NUM, blknum);
 }
@@ -1357,7 +1357,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct msdc_host *host = mmc_priv(mmc);
 	struct mmc_command *cmd;
 	struct mmc_data *data;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	//u32 intsts = 0;
 	unsigned int left = 0;
 	int dma = 0, read = 1, send_type = 0;
@@ -1584,7 +1584,7 @@ static int msdc_app_cmd(struct mmc_host *mmc, struct msdc_host *host)
 static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 {
 	int result = -1;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 rsmpl, cur_rsmpl, orig_rsmpl;
 	u32 rrdly, cur_rrdly = 0xffffffff, orig_rrdly;
 	u32 skip = 1;
@@ -1646,7 +1646,7 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 ddr = 0;
 	u32 dcrc = 0;
 	u32 rxdly, cur_rxdly0, cur_rxdly1;
@@ -1757,7 +1757,7 @@ done:
 static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	u32 wrrdly, cur_wrrdly = 0xffffffff, orig_wrrdly;
 	u32 dsmpl,  cur_dsmpl,  orig_dsmpl;
@@ -2004,7 +2004,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 /* called by ops.set_ios */
 static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 val = sdr_read32(SDC_CFG);
 
 	val &= ~SDC_CFG_BUSWIDTH;
@@ -2033,7 +2033,7 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
 	struct msdc_hw *hw = host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 ddr = 0;
 
 #ifdef MT6575_SD_DEBUG
@@ -2098,7 +2098,7 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 static int msdc_ops_get_ro(struct mmc_host *mmc)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	unsigned long flags;
 	int ro = 0;
 
@@ -2114,7 +2114,7 @@ static int msdc_ops_get_ro(struct mmc_host *mmc)
 static int msdc_ops_get_cd(struct mmc_host *mmc)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	unsigned long flags;
 	int present = 1;
 
@@ -2158,7 +2158,7 @@ static void msdc_ops_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct msdc_host *host = mmc_priv(mmc);
 	struct msdc_hw *hw = host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	u32 tmp;
 
 	if (hw->flags & MSDC_EXT_SDIO_IRQ) { /* yes for sdio */
@@ -2190,7 +2190,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	struct msdc_host  *host = (struct msdc_host *)dev_id;
 	struct mmc_data   *data = host->data;
 	struct mmc_command *cmd = host->cmd;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	u32 cmdsts = MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO  | MSDC_INT_CMDRDY  |
 		MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO | MSDC_INT_ACMDRDY |
@@ -2332,7 +2332,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 {
 	struct msdc_hw *hw = host->hw;
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	/* for sdio, not set */
 	if ((hw->flags & MSDC_CD_PIN_EN) == 0) {
@@ -2381,7 +2381,7 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 /* called by msdc_drv_probe */
 static void msdc_init_hw(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 	struct msdc_hw *hw = host->hw;
 
 #ifdef MT6575_SD_DEBUG
@@ -2483,7 +2483,7 @@ static void msdc_init_hw(struct msdc_host *host)
 /* called by msdc_drv_remove */
 static void msdc_deinit_hw(struct msdc_host *host)
 {
-	u32 base = host->base;
+	void __iomem *base = host->base;
 
 	/* Disable and clear all interrupts */
 	sdr_clr_bits(MSDC_INTEN, sdr_read32(MSDC_INTEN));
@@ -2583,7 +2583,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		goto host_free;
 	}
 
-	host->base      = (unsigned long)base;
+	host->base      = base;
 	host->mclk      = 0;                   /* mclk: the request clock of mmc sub-system */
 	host->hclk      = hclks[hw->clk_src];  /* hclk: clock of clock source to msdc controller */
 	host->sclk      = 0;                   /* sclk: the really clock after divition */
@@ -2765,8 +2765,8 @@ static int __init mt_msdc_init(void)
 
 	// Set the pins for sdxc to sdxc mode
 	//FIXME: this should be done by pinctl and not by the sd driver
-	reg = sdr_read32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
-	sdr_write32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60), reg);
+	reg = sdr_read32((void __iomem *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
+	sdr_write32((void __iomem *)(RALINK_SYSCTL_BASE + 0x60), reg);
 
 	ret = platform_driver_register(&mt_msdc_driver);
 	if (ret) {
