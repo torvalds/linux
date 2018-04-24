@@ -12,8 +12,6 @@
 #ifndef _KS_WLAN_H
 #define _KS_WLAN_H
 
-#define WPS
-
 #include <linux/atomic.h>	/* struct atomic_t */
 #include <linux/completion.h>	/* struct completion */
 #include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
@@ -122,10 +120,8 @@ enum {
 	SME_RSN_AUTH_REQUEST,
 	SME_RSN_ENABLED_REQUEST,
 	SME_RSN_MODE_REQUEST,
-#ifdef WPS
 	SME_WPS_ENABLE_REQUEST,
 	SME_WPS_PROBE_REQUEST,
-#endif
 	SME_SET_GAIN,
 	SME_GET_GAIN,
 	SME_SLEEP_REQUEST,
@@ -198,14 +194,12 @@ struct rsn_ie {
 	u8 body[RSN_IE_BODY_MAX];
 } __packed;
 
-#ifdef WPS
 #define WPS_IE_BODY_MAX 255
 struct wps_ie {
 	u8 id;	/* 221 'dd <len> 00 50 F2 04' */
 	u8 size;	/* max ? 255 ? */
 	u8 body[WPS_IE_BODY_MAX];
 } __packed;
-#endif /* WPS */
 
 struct local_ap {
 	u8 bssid[6];
@@ -226,9 +220,7 @@ struct local_ap {
 	u8 noise;
 	struct rsn_ie wpa_ie;
 	struct rsn_ie rsn_ie;
-#ifdef WPS
 	struct wps_ie wps_ie;
-#endif /* WPS */
 };
 
 #define LOCAL_APLIST_MAX 31
@@ -371,13 +363,11 @@ struct pmk_list {
 	} pmk[PMK_LIST_MAX];
 };
 
-#ifdef WPS
 struct wps_status {
 	int wps_enabled;
 	int ielen;
 	u8 ie[255];
 };
-#endif /* WPS */
 
 struct ks_wlan_private {
 	/* hardware information */
@@ -450,9 +440,7 @@ struct ks_wlan_private {
 	u8 scan_ssid_len;
 	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
 	struct local_gain gain;
-#ifdef WPS
 	struct wps_status wps;
-#endif /* WPS */
 	u8 sleep_mode;
 
 	u8 region;

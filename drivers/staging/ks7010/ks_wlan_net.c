@@ -2113,8 +2113,6 @@ static int ks_wlan_get_sleep_mode(struct net_device *dev,
 	return 0;
 }
 
-#ifdef WPS
-
 static int ks_wlan_set_wps_enable(struct net_device *dev,
 				  struct iw_request_info *info, __u32 *uwrq,
 				  char *extra)
@@ -2178,7 +2176,6 @@ static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 
 	return 0;
 }
-#endif /* WPS */
 
 static int ks_wlan_set_tx_gain(struct net_device *dev,
 			       struct iw_request_info *info, __u32 *uwrq,
@@ -2389,14 +2386,12 @@ static const struct iw_priv_args ks_wlan_private_args[] = {
 /*{ cmd, set_args, get_args, name[16] } */
 	{KS_WLAN_GET_FIRM_VERSION, IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_CHAR | (128 + 1), "GetFirmwareVer"},
-#ifdef WPS
 	{KS_WLAN_SET_WPS_ENABLE, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE, "SetWPSEnable"},
 	{KS_WLAN_GET_WPS_ENABLE, IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "GetW"},
 	{KS_WLAN_SET_WPS_PROBE_REQ, IW_PRIV_TYPE_BYTE | 2047, IW_PRIV_TYPE_NONE,
 	 "SetWPSProbeReq"},
-#endif /* WPS */
 	{KS_WLAN_SET_PREAMBLE, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE, "SetPreamble"},
 	{KS_WLAN_GET_PREAMBLE, IW_PRIV_TYPE_NONE,
@@ -2482,15 +2477,9 @@ static const iw_handler ks_wlan_private_handler[] = {
 	(iw_handler)NULL,			/* 1, KS_WLAN_GET_DRIVER_VERSION */
 	(iw_handler)NULL,			/* 2 */
 	(iw_handler)ks_wlan_get_firmware_version,/* 3 KS_WLAN_GET_FIRM_VERSION */
-#ifdef WPS
 	(iw_handler)ks_wlan_set_wps_enable,	/* 4 KS_WLAN_SET_WPS_ENABLE */
 	(iw_handler)ks_wlan_get_wps_enable,	/* 5 KS_WLAN_GET_WPS_ENABLE */
 	(iw_handler)ks_wlan_set_wps_probe_req,	/* 6 KS_WLAN_SET_WPS_PROBE_REQ */
-#else
-	(iw_handler)NULL,			/* 4 */
-	(iw_handler)NULL,			/* 5 */
-	(iw_handler)NULL,			/* 6 */
-#endif /* WPS */
 	(iw_handler)ks_wlan_get_eeprom_cksum,	/* 7 KS_WLAN_GET_CONNECT */
 	(iw_handler)ks_wlan_set_preamble,	/* 8 KS_WLAN_SET_PREAMBLE */
 	(iw_handler)ks_wlan_get_preamble,	/* 9 KS_WLAN_GET_PREAMBLE */
