@@ -49,6 +49,11 @@ static int uvd_v7_0_start(struct amdgpu_device *adev);
 static void uvd_v7_0_stop(struct amdgpu_device *adev);
 static int uvd_v7_0_sriov_start(struct amdgpu_device *adev);
 
+static int amdgpu_ih_clientid_uvds[] = {
+	SOC15_IH_CLIENTID_UVD,
+	SOC15_IH_CLIENTID_UVD1
+};
+
 /**
  * uvd_v7_0_ring_get_rptr - get read pointer
  *
@@ -397,13 +402,13 @@ static int uvd_v7_0_sw_init(void *handle)
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		/* UVD TRAP */
-		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UVD, 124, &adev->uvd.inst[j].irq);
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], 124, &adev->uvd.inst[j].irq);
 		if (r)
 			return r;
 
 		/* UVD ENC TRAP */
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
-			r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UVD, i + 119, &adev->uvd.inst[j].irq);
+			r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], i + 119, &adev->uvd.inst[j].irq);
 			if (r)
 				return r;
 		}
@@ -1479,6 +1484,9 @@ static int uvd_v7_0_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->client_id) {
 	case SOC15_IH_CLIENTID_UVD:
 		ip_instance = 0;
+		break;
+	case SOC15_IH_CLIENTID_UVD1:
+		ip_instance = 1;
 		break;
 	default:
 		DRM_ERROR("Unhandled client id: %d\n", entry->client_id);
