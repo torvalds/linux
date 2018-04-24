@@ -375,7 +375,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	eth_proto = ntohs(eth_hdr->h_proto);
 
 	/* source address check */
-	if (memcmp(&priv->eth_addr[0], eth_hdr->h_source, ETH_ALEN) == 0) {
+	if (ether_addr_equal(&priv->eth_addr[0], eth_hdr->h_source)) {
 		netdev_err(priv->net_dev, "invalid : source is own mac address !!\n");
 		netdev_err(priv->net_dev,
 			   "eth_hdrernet->h_dest=%02X:%02X:%02X:%02X:%02X:%02X\n",
