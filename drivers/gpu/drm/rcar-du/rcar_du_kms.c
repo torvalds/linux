@@ -441,7 +441,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 	struct {
 		struct device_node *np;
 		unsigned int crtcs_mask;
-	} vsps[RCAR_DU_MAX_VSPS] = { { 0, }, };
+	} vsps[RCAR_DU_MAX_VSPS] = { { NULL, }, };
 	unsigned int vsps_count = 0;
 	unsigned int cells;
 	unsigned int i;
