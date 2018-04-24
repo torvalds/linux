@@ -444,7 +444,6 @@ void debug_dma_dump_mappings(struct device *dev)
 		spin_unlock_irqrestore(&bucket->lock, flags);
 	}
 }
-EXPORT_SYMBOL(debug_dma_dump_mappings);
 
 /*
  * For each mapping (initial cacheline in the case of
@@ -753,7 +752,6 @@ int dma_debug_resize_entries(u32 num_entries)
 
 	return ret;
 }
-EXPORT_SYMBOL(dma_debug_resize_entries);
 
 /*
  * DMA-API debugging init code
