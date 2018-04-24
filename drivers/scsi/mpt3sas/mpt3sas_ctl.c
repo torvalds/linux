@@ -297,7 +297,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 			nvme_error_reply =
 			    (Mpi26NVMeEncapsulatedErrorReply_t *)mpi_reply;
 			sz = min_t(u32, NVME_ERROR_RESPONSE_SIZE,
-			    le32_to_cpu(nvme_error_reply->ErrorResponseCount));
+			    le16_to_cpu(nvme_error_reply->ErrorResponseCount));
 			sense_data = mpt3sas_base_get_sense_buffer(ioc, smid);
 			memcpy(ioc->ctl_cmds.sense, sense_data, sz);
 		}
@@ -803,12 +803,13 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		 * Build the PRPs and set direction bits.
 		 * Send the request.
 		 */
-		nvme_encap_request->ErrorResponseBaseAddress = ioc->sense_dma &
-		    0xFFFFFFFF00000000;
+		nvme_encap_request->ErrorResponseBaseAddress =
+		    cpu_to_le64(ioc->sense_dma & 0xFFFFFFFF00000000UL);
 		nvme_encap_request->ErrorResponseBaseAddress |=
-		    (U64)mpt3sas_base_get_sense_buffer_dma(ioc, smid);
+		   cpu_to_le64(le32_to_cpu(
+		   mpt3sas_base_get_sense_buffer_dma(ioc, smid)));
 		nvme_encap_request->ErrorResponseAllocationLength =
-						NVME_ERROR_RESPONSE_SIZE;
+					cpu_to_le16(NVME_ERROR_RESPONSE_SIZE);
 		memset(ioc->ctl_cmds.sense, 0, NVME_ERROR_RESPONSE_SIZE);
 		ioc->build_nvme_prp(ioc, smid, nvme_encap_request,
 		    data_out_dma, data_out_sz, data_in_dma, data_in_sz);

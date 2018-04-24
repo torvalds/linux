@@ -829,8 +829,8 @@ struct _sc_list {
  */
 struct _event_ack_list {
 	struct list_head list;
-	u16     Event;
-	u32     EventContext;
+	U16     Event;
+	U32     EventContext;
 };
 
 /**

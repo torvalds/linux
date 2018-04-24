@@ -157,8 +157,8 @@ MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=7 ");
 
 
 /* raid transport support */
-struct raid_template *mpt3sas_raid_template;
-struct raid_template *mpt2sas_raid_template;
+static struct raid_template *mpt3sas_raid_template;
+static struct raid_template *mpt2sas_raid_template;
 
 
 /**
@@ -3725,7 +3725,7 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 		if (!delayed_sc)
 			return _scsih_check_for_pending_tm(ioc, smid);
 		INIT_LIST_HEAD(&delayed_sc->list);
-		delayed_sc->handle = mpi_request_tm->DevHandle;
+		delayed_sc->handle = le16_to_cpu(mpi_request_tm->DevHandle);
 		list_add_tail(&delayed_sc->list, &ioc->delayed_sc_list);
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
 		    "DELAYED:sc:handle(0x%04x), (open)\n",
@@ -3903,8 +3903,8 @@ _scsih_tm_volume_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * Context - processed in interrupt context.
  */
 static void
-_scsih_issue_delayed_event_ack(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 event,
-				u32 event_context)
+_scsih_issue_delayed_event_ack(struct MPT3SAS_ADAPTER *ioc, u16 smid, U16 event,
+				U32 event_context)
 {
 	Mpi2EventAckRequest_t *ack_request;
 	int i = smid - ioc->internal_smid;
@@ -3979,13 +3979,13 @@ _scsih_issue_delayed_sas_io_unit_ctrl(struct MPT3SAS_ADAPTER *ioc,
 
 	dewtprintk(ioc, pr_info(MPT3SAS_FMT
 	    "sc_send:handle(0x%04x), (open), smid(%d), cb(%d)\n",
-	    ioc->name, le16_to_cpu(handle), smid,
+	    ioc->name, handle, smid,
 	    ioc->tm_sas_control_cb_idx));
 	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
 	memset(mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
-	mpi_request->DevHandle = handle;
+	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpt3sas_base_put_smid_default(ioc, smid);
 }
 
@@ -6108,7 +6108,7 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	if (sas_device_pg0.EnclosureHandle) {
 		encl_pg0_rc = mpt3sas_config_get_enclosure_pg0(ioc, &mpi_reply,
 		    &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
-		    sas_device_pg0.EnclosureHandle);
+		    le16_to_cpu(sas_device_pg0.EnclosureHandle));
 		if (encl_pg0_rc)
 			pr_info(MPT3SAS_FMT
 			    "Enclosure Pg0 read failed for handle(0x%04x)\n",
@@ -6917,7 +6917,7 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	if (pcie_device->enclosure_handle != 0)
 		pcie_device->slot = le16_to_cpu(pcie_device_pg0.Slot);
 
-	if (le16_to_cpu(pcie_device_pg0.Flags) &
+	if (le32_to_cpu(pcie_device_pg0.Flags) &
 	    MPI26_PCIEDEV0_FLAGS_ENCL_LEVEL_VALID) {
 		pcie_device->enclosure_level = pcie_device_pg0.EnclosureLevel;
 		memcpy(&pcie_device->connector_name[0],
@@ -8364,8 +8364,9 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-		if ((sas_device->sas_address == sas_device_pg0->SASAddress) &&
-			(sas_device->slot == sas_device_pg0->Slot)) {
+		if ((sas_device->sas_address == le64_to_cpu(
+		    sas_device_pg0->SASAddress)) && (sas_device->slot ==
+		    le16_to_cpu(sas_device_pg0->Slot))) {
 			sas_device->responding = 1;
 			starget = sas_device->starget;
 			if (starget && starget->hostdata) {
@@ -8377,7 +8378,7 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 			if (starget) {
 				starget_printk(KERN_INFO, starget,
 				    "handle(0x%04x), sas_addr(0x%016llx)\n",
-				    sas_device_pg0->DevHandle,
+				    le16_to_cpu(sas_device_pg0->DevHandle),
 				    (unsigned long long)
 				    sas_device->sas_address);
 
@@ -8389,7 +8390,7 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 					 sas_device->enclosure_logical_id,
 					 sas_device->slot);
 			}
-			if (sas_device_pg0->Flags &
+			if (le16_to_cpu(sas_device_pg0->Flags) &
 			      MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 				sas_device->enclosure_level =
 				   sas_device_pg0->EnclosureLevel;
@@ -8403,14 +8404,16 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 			_scsih_get_enclosure_logicalid_chassis_slot(ioc,
 			    sas_device_pg0, sas_device);
 
-			if (sas_device->handle == sas_device_pg0->DevHandle)
+			if (sas_device->handle == le16_to_cpu(
+			    sas_device_pg0->DevHandle))
 				goto out;
 			pr_info("\thandle changed from(0x%04x)!!!\n",
 			    sas_device->handle);
-			sas_device->handle = sas_device_pg0->DevHandle;
+			sas_device->handle = le16_to_cpu(
+			    sas_device_pg0->DevHandle);
 			if (sas_target_priv_data)
 				sas_target_priv_data->handle =
-					sas_device_pg0->DevHandle;
+				    le16_to_cpu(sas_device_pg0->DevHandle);
 			goto out;
 		}
 	}
@@ -8449,15 +8452,10 @@ _scsih_search_responding_sas_devices(struct MPT3SAS_ADAPTER *ioc)
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
 			break;
-		handle = sas_device_pg0.DevHandle =
-				le16_to_cpu(sas_device_pg0.DevHandle);
+		handle = le16_to_cpu(sas_device_pg0.DevHandle);
 		device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
 		if (!(_scsih_is_end_device(device_info)))
 			continue;
-		sas_device_pg0.SASAddress =
-				le64_to_cpu(sas_device_pg0.SASAddress);
-		sas_device_pg0.Slot = le16_to_cpu(sas_device_pg0.Slot);
-		sas_device_pg0.Flags = le16_to_cpu(sas_device_pg0.Flags);
 		_scsih_mark_responding_sas_device(ioc, &sas_device_pg0);
 	}
 
@@ -8487,8 +8485,9 @@ _scsih_mark_responding_pcie_device(struct MPT3SAS_ADAPTER *ioc,
 
 	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
 	list_for_each_entry(pcie_device, &ioc->pcie_device_list, list) {
-		if ((pcie_device->wwid == pcie_device_pg0->WWID) &&
-		    (pcie_device->slot == pcie_device_pg0->Slot)) {
+		if ((pcie_device->wwid == le64_to_cpu(pcie_device_pg0->WWID))
+		    && (pcie_device->slot == le16_to_cpu(
+		    pcie_device_pg0->Slot))) {
 			pcie_device->responding = 1;
 			starget = pcie_device->starget;
 			if (starget && starget->hostdata) {
@@ -8523,14 +8522,16 @@ _scsih_mark_responding_pcie_device(struct MPT3SAS_ADAPTER *ioc,
 				pcie_device->connector_name[0] = '\0';
 			}
 
-			if (pcie_device->handle == pcie_device_pg0->DevHandle)
+			if (pcie_device->handle == le16_to_cpu(
+			    pcie_device_pg0->DevHandle))
 				goto out;
 			pr_info("\thandle changed from(0x%04x)!!!\n",
 			    pcie_device->handle);
-			pcie_device->handle = pcie_device_pg0->DevHandle;
+			pcie_device->handle = le16_to_cpu(
+			    pcie_device_pg0->DevHandle);
 			if (sas_target_priv_data)
 				sas_target_priv_data->handle =
-				    pcie_device_pg0->DevHandle;
+				    le16_to_cpu(pcie_device_pg0->DevHandle);
 			goto out;
 		}
 	}
@@ -8579,10 +8580,6 @@ _scsih_search_responding_pcie_devices(struct MPT3SAS_ADAPTER *ioc)
 		device_info = le32_to_cpu(pcie_device_pg0.DeviceInfo);
 		if (!(_scsih_is_nvme_device(device_info)))
 			continue;
-		pcie_device_pg0.WWID = le64_to_cpu(pcie_device_pg0.WWID),
-		pcie_device_pg0.Slot = le16_to_cpu(pcie_device_pg0.Slot);
-		pcie_device_pg0.Flags = le32_to_cpu(pcie_device_pg0.Flags);
-		pcie_device_pg0.DevHandle = handle;
 		_scsih_mark_responding_pcie_device(ioc, &pcie_device_pg0);
 	}
 out:

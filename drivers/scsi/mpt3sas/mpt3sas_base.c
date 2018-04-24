@@ -394,13 +394,14 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 	buff_ptr_phys = buffer_iomem_phys;
 	WARN_ON(buff_ptr_phys > U32_MAX);
 
-	if (sgel->FlagsLength &
+	if (le32_to_cpu(sgel->FlagsLength) &
 			(MPI2_SGE_FLAGS_HOST_TO_IOC << MPI2_SGE_FLAGS_SHIFT))
 		is_write = 1;
 
 	for (i = 0; i < MPT_MIN_PHYS_SEGMENTS + ioc->facts.MaxChainDepth; i++) {
 
-		sgl_flags = (sgel->FlagsLength >> MPI2_SGE_FLAGS_SHIFT);
+		sgl_flags =
+		    (le32_to_cpu(sgel->FlagsLength) >> MPI2_SGE_FLAGS_SHIFT);
 
 		switch (sgl_flags & MPI2_SGE_FLAGS_ELEMENT_MASK) {
 		case MPI2_SGE_FLAGS_CHAIN_ELEMENT:
@@ -411,7 +412,7 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 			 */
 			sgel_next =
 				_base_get_chain_buffer_dma_to_chain_buffer(ioc,
-						sgel->Address);
+						le32_to_cpu(sgel->Address));
 			if (sgel_next == NULL)
 				return;
 			/*
@@ -426,7 +427,8 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 			dst_addr_phys = _base_get_chain_phys(ioc,
 						smid, sge_chain_count);
 			WARN_ON(dst_addr_phys > U32_MAX);
-			sgel->Address = (u32)dst_addr_phys;
+			sgel->Address =
+				cpu_to_le32(lower_32_bits(dst_addr_phys));
 			sgel = sgel_next;
 			sge_chain_count++;
 			break;
@@ -435,22 +437,28 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 				if (is_scsiio_req) {
 					_base_clone_to_sys_mem(buff_ptr,
 					    sg_virt(sg_scmd),
-					    (sgel->FlagsLength & 0x00ffffff));
+					    (le32_to_cpu(sgel->FlagsLength) &
+					    0x00ffffff));
 					/*
 					 * FIXME: this relies on a a zero
 					 * PCI mem_offset.
 					 */
-					sgel->Address = (u32)buff_ptr_phys;
+					sgel->Address =
+					    cpu_to_le32((u32)buff_ptr_phys);
 				} else {
 					_base_clone_to_sys_mem(buff_ptr,
 					    ioc->config_vaddr,
-					    (sgel->FlagsLength & 0x00ffffff));
-					sgel->Address = (u32)buff_ptr_phys;
+					    (le32_to_cpu(sgel->FlagsLength) &
+					    0x00ffffff));
+					sgel->Address =
+					    cpu_to_le32((u32)buff_ptr_phys);
 				}
 			}
-			buff_ptr += (sgel->FlagsLength & 0x00ffffff);
-			buff_ptr_phys += (sgel->FlagsLength & 0x00ffffff);
-			if ((sgel->FlagsLength &
+			buff_ptr += (le32_to_cpu(sgel->FlagsLength) &
+			    0x00ffffff);
+			buff_ptr_phys += (le32_to_cpu(sgel->FlagsLength) &
+			    0x00ffffff);
+			if ((le32_to_cpu(sgel->FlagsLength) &
 			    (MPI2_SGE_FLAGS_END_OF_BUFFER
 					<< MPI2_SGE_FLAGS_SHIFT)))
 				goto eob_clone_chain;
@@ -1433,7 +1441,7 @@ _base_interrupt(int irq, void *bus_id)
 				    cpu_to_le32(reply);
 				if (ioc->is_mcpu_endpoint)
 					_base_clone_reply_to_sys_mem(ioc,
-						cpu_to_le32(reply),
+						reply,
 						ioc->reply_free_host_index);
 				writel(ioc->reply_free_host_index,
 				    &ioc->chip->ReplyFreeHostIndex);
@@ -3044,7 +3052,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 
 		for (i = 0; i < ioc->combined_reply_index_count; i++) {
 			ioc->replyPostRegisterIndex[i] = (resource_size_t *)
-			     ((u8 *)&ioc->chip->Doorbell +
+			     ((u8 __force *)&ioc->chip->Doorbell +
 			     MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET +
 			     (i * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET));
 		}
@@ -3339,7 +3347,7 @@ _base_mpi_ep_writeq(__u64 b, volatile void __iomem *addr,
 					spinlock_t *writeq_lock)
 {
 	unsigned long flags;
-	__u64 data_out = cpu_to_le64(b);
+	__u64 data_out = b;
 
 	spin_lock_irqsave(writeq_lock, flags);
 	writel((u32)(data_out), addr);
@@ -3362,7 +3370,7 @@ _base_mpi_ep_writeq(__u64 b, volatile void __iomem *addr,
 static inline void
 _base_writeq(__u64 b, volatile void __iomem *addr, spinlock_t *writeq_lock)
 {
-	writeq(cpu_to_le64(b), addr);
+	writeq(b, addr);
 }
 #else
 static inline void
@@ -3389,7 +3397,7 @@ _base_put_smid_mpi_ep_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 handle)
 	__le32 *mfp = (__le32 *)mpt3sas_base_get_msg_frame(ioc, smid);
 
 	_clone_sg_entries(ioc, (void *) mfp, smid);
-	mpi_req_iomem = (void *)ioc->chip +
+	mpi_req_iomem = (void __force *)ioc->chip +
 			MPI_FRAME_START_OFFSET + (smid * ioc->request_sz);
 	_base_clone_mpi_to_sys_mem(mpi_req_iomem, (void *)mfp,
 					ioc->request_sz);
@@ -3473,7 +3481,8 @@ mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 
 		request_hdr = (MPI2RequestHeader_t *)mfp;
 		/* TBD 256 is offset within sys register. */
-		mpi_req_iomem = (void *)ioc->chip + MPI_FRAME_START_OFFSET
+		mpi_req_iomem = (void __force *)ioc->chip
+					+ MPI_FRAME_START_OFFSET
 					+ (smid * ioc->request_sz);
 		_base_clone_mpi_to_sys_mem(mpi_req_iomem, (void *)mfp,
 							ioc->request_sz);
@@ -3542,7 +3551,7 @@ mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 
 		_clone_sg_entries(ioc, (void *) mfp, smid);
 		/* TBD 256 is offset within sys register */
-		mpi_req_iomem = (void *)ioc->chip +
+		mpi_req_iomem = (void __force *)ioc->chip +
 			MPI_FRAME_START_OFFSET + (smid * ioc->request_sz);
 		_base_clone_mpi_to_sys_mem(mpi_req_iomem, (void *)mfp,
 							ioc->request_sz);
@@ -5002,7 +5011,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 
 	/* send message 32-bits at a time */
 	for (i = 0, failed = 0; i < request_bytes/4 && !failed; i++) {
-		writel(cpu_to_le32(request[i]), &ioc->chip->Doorbell);
+		writel((u32)(request[i]), &ioc->chip->Doorbell);
 		if ((_base_wait_for_doorbell_ack(ioc, 5)))
 			failed = 1;
 	}
@@ -5023,7 +5032,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	}
 
 	/* read the first two 16-bits, it gives the total length of the reply */
-	reply[0] = le16_to_cpu(readl(&ioc->chip->Doorbell)
+	reply[0] = (u16)(readl(&ioc->chip->Doorbell)
 	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 	if ((_base_wait_for_doorbell_int(ioc, 5))) {
@@ -5032,7 +5041,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 			ioc->name, __LINE__);
 		return -EFAULT;
 	}
-	reply[1] = le16_to_cpu(readl(&ioc->chip->Doorbell)
+	reply[1] = (u16)(readl(&ioc->chip->Doorbell)
 	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 
@@ -5046,7 +5055,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 		if (i >=  reply_bytes/2) /* overflow case */
 			readl(&ioc->chip->Doorbell);
 		else
-			reply[i] = le16_to_cpu(readl(&ioc->chip->Doorbell)
+			reply[i] = (u16)(readl(&ioc->chip->Doorbell)
 			    & MPI2_DOORBELL_DATA_MASK);
 		writel(0, &ioc->chip->HostInterruptStatus);
 	}
@@ -6172,7 +6181,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		ioc->reply_free[i] = cpu_to_le32(reply_address);
 		if (ioc->is_mcpu_endpoint)
 			_base_clone_reply_to_sys_mem(ioc,
-					(__le32)reply_address, i);
+					reply_address, i);
 	}
 
 	/* initialize reply queues */
