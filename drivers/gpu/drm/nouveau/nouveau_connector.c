@@ -1005,7 +1005,7 @@ get_tmds_link_bandwidth(struct drm_connector *connector, bool hdmi)
 		return 112000;
 }
 
-static int
+static enum drm_mode_status
 nouveau_connector_mode_valid(struct drm_connector *connector,
 			     struct drm_display_mode *mode)
 {
