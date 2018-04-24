@@ -4191,7 +4191,8 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	kfree(ioc->internal_lookup);
 	if (ioc->chain_lookup) {
 		for (i = 0; i < ioc->scsiio_depth; i++) {
-			for (j = 0; j < ioc->chains_needed_per_io; j++) {
+			for (j = ioc->chains_per_prp_buffer;
+			    j < ioc->chains_needed_per_io; j++) {
 				ct = &ioc->chain_lookup[i].chains_per_smid[j];
 				if (ct && ct->chain_buffer)
 					dma_pool_free(ioc->chain_dma_pool,
@@ -4509,7 +4510,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	ioc->chain_lookup = kzalloc(sz, GFP_KERNEL);
 	if (!ioc->chain_lookup) {
 		pr_err(MPT3SAS_FMT "chain_lookup: __get_free_pages "
-		"failed\n", ioc->name);
+				"failed\n", ioc->name);
 		goto out;
 	}
 
@@ -4522,33 +4523,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			goto out;
 		}
 	}
-
-	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
-	    ioc->chain_segment_sz, 16, 0);
-	if (!ioc->chain_dma_pool) {
-		pr_err(MPT3SAS_FMT "chain_dma_pool: dma_pool_create failed\n",
-			ioc->name);
-		goto out;
-	}
-	for (i = 0; i < ioc->scsiio_depth; i++) {
-		for (j = 0; j < ioc->chains_needed_per_io; j++) {
-			ct = &ioc->chain_lookup[i].chains_per_smid[j];
-			ct->chain_buffer = dma_pool_alloc(
-		    ioc->chain_dma_pool , GFP_KERNEL,
-		    &ct->chain_buffer_dma);
-			if (!ct->chain_buffer) {
-				pr_err(MPT3SAS_FMT "chain_lookup: "
-				" pci_pool_alloc failed\n", ioc->name);
-				goto out;
-			}
-		}
-		total_sz += ioc->chain_segment_sz;
-	}
-
-	dinitprintk(ioc, pr_info(MPT3SAS_FMT
-		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
-		ioc->name, ioc->chain_depth, ioc->chain_segment_sz,
-		((ioc->chain_depth *  ioc->chain_segment_sz))/1024));
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
@@ -4590,6 +4564,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	 * be required for NVMe PRP's, only each set of NVMe blocks will be
 	 * contiguous, so a new set is allocated for each possible I/O.
 	 */
+	ioc->chains_per_prp_buffer = 0;
 	if (ioc->facts.ProtocolFlags & MPI2_IOCFACTS_PROTOCOL_NVME_DEVICES) {
 		nvme_blocks_needed =
 			(ioc->shost->sg_tablesize * NVME_PRP_SIZE) - 1;
@@ -4612,6 +4587,11 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			    ioc->name);
 			goto out;
 		}
+
+		ioc->chains_per_prp_buffer = sz/ioc->chain_segment_sz;
+		ioc->chains_per_prp_buffer = min(ioc->chains_per_prp_buffer,
+						ioc->chains_needed_per_io);
+
 		for (i = 0; i < ioc->scsiio_depth; i++) {
 			ioc->pcie_sg_lookup[i].pcie_sgl = dma_pool_alloc(
 				ioc->pcie_sgl_dma_pool, GFP_KERNEL,
@@ -4622,13 +4602,55 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 				    ioc->name);
 				goto out;
 			}
+			for (j = 0; j < ioc->chains_per_prp_buffer; j++) {
+				ct = &ioc->chain_lookup[i].chains_per_smid[j];
+				ct->chain_buffer =
+				    ioc->pcie_sg_lookup[i].pcie_sgl +
+				    (j * ioc->chain_segment_sz);
+				ct->chain_buffer_dma =
+				    ioc->pcie_sg_lookup[i].pcie_sgl_dma +
+				    (j * ioc->chain_segment_sz);
+			}
 		}
 
 		dinitprintk(ioc, pr_info(MPT3SAS_FMT "PCIe sgl pool depth(%d), "
 			"element_size(%d), pool_size(%d kB)\n", ioc->name,
 			ioc->scsiio_depth, sz, (sz * ioc->scsiio_depth)/1024));
+		dinitprintk(ioc, pr_info(MPT3SAS_FMT "Number of chains can "
+		    "fit in a PRP page(%d)\n", ioc->name,
+		    ioc->chains_per_prp_buffer));
 		total_sz += sz * ioc->scsiio_depth;
 	}
+
+	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
+	    ioc->chain_segment_sz, 16, 0);
+	if (!ioc->chain_dma_pool) {
+		pr_err(MPT3SAS_FMT "chain_dma_pool: dma_pool_create failed\n",
+			ioc->name);
+		goto out;
+	}
+	for (i = 0; i < ioc->scsiio_depth; i++) {
+		for (j = ioc->chains_per_prp_buffer;
+				j < ioc->chains_needed_per_io; j++) {
+			ct = &ioc->chain_lookup[i].chains_per_smid[j];
+			ct->chain_buffer = dma_pool_alloc(
+					ioc->chain_dma_pool, GFP_KERNEL,
+					&ct->chain_buffer_dma);
+			if (!ct->chain_buffer) {
+				pr_err(MPT3SAS_FMT "chain_lookup: "
+				" pci_pool_alloc failed\n", ioc->name);
+				_base_release_memory_pools(ioc);
+				goto out;
+			}
+		}
+		total_sz += ioc->chain_segment_sz;
+	}
+
+	dinitprintk(ioc, pr_info(MPT3SAS_FMT
+		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
+		ioc->name, ioc->chain_depth, ioc->chain_segment_sz,
+		((ioc->chain_depth *  ioc->chain_segment_sz))/1024));
+
 	/* sense buffers, 4 byte align */
 	sz = ioc->scsiio_depth * SCSI_SENSE_BUFFERSIZE;
 	ioc->sense_dma_pool = dma_pool_create("sense pool", &ioc->pdev->dev, sz,
