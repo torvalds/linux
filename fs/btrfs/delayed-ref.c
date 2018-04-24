@@ -696,49 +696,6 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * helper to insert a delayed tree ref into the rbtree.
- */
-static noinline void
-add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
-		     struct btrfs_trans_handle *trans,
-		     struct btrfs_delayed_ref_head *head_ref,
-		     struct btrfs_delayed_ref_node *ref, u64 bytenr,
-		     u64 num_bytes, u64 parent, u64 ref_root, int level,
-		     int action)
-{
-	struct btrfs_delayed_tree_ref *full_ref;
-	struct btrfs_delayed_ref_root *delayed_refs;
-	u8 ref_type;
-	int ret;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-	full_ref = btrfs_delayed_node_to_tree_ref(ref);
-	if (parent)
-	        ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
-	else
-	        ref_type = BTRFS_TREE_BLOCK_REF_KEY;
-
-	init_delayed_ref_common(fs_info, ref, bytenr, num_bytes, ref_root,
-				action, ref_type);
-	full_ref->root = ref_root;
-	full_ref->parent = parent;
-	full_ref->level = level;
-
-	trace_add_delayed_tree_ref(fs_info, ref, full_ref,
-				   action == BTRFS_ADD_DELAYED_EXTENT ?
-				   BTRFS_ADD_DELAYED_REF : action);
-
-	ret = insert_delayed_ref(trans, delayed_refs, head_ref, ref);
-
-	/*
-	 * XXX: memory should be freed at the same level allocated.
-	 * But bad practice is anywhere... Follow it now. Need cleanup.
-	 */
-	if (ret > 0)
-		kmem_cache_free(btrfs_delayed_tree_ref_cachep, full_ref);
-}
-
-/*
  * helper to insert a delayed data ref into the rbtree.
  */
 static noinline void
@@ -794,11 +751,23 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	struct btrfs_qgroup_extent_record *record = NULL;
 	int qrecord_inserted;
 	int is_system = (ref_root == BTRFS_CHUNK_TREE_OBJECTID);
+	int ret;
+	u8 ref_type;
 
 	BUG_ON(extent_op && extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
+
+	if (parent)
+		ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
+	else
+		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
+	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
+				ref_root, action, ref_type);
+	ref->root = ref_root;
+	ref->parent = parent;
+	ref->level = level;
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref)
@@ -825,9 +794,15 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 					is_system, &qrecord_inserted,
 					old_ref_mod, new_ref_mod);
 
-	add_delayed_tree_ref(fs_info, trans, head_ref, &ref->node, bytenr,
-			     num_bytes, parent, ref_root, level, action);
+
+	ret = insert_delayed_ref(trans, delayed_refs, head_ref, &ref->node);
 	spin_unlock(&delayed_refs->lock);
+
+	trace_add_delayed_tree_ref(fs_info, &ref->node, ref,
+				   action == BTRFS_ADD_DELAYED_EXTENT ?
+				   BTRFS_ADD_DELAYED_REF : action);
+	if (ret > 0)
+		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
 
 	if (qrecord_inserted)
 		btrfs_qgroup_trace_extent_post(fs_info, record);
