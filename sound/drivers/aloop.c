@@ -804,7 +804,7 @@ static void loopback_snd_timer_tasklet(unsigned long arg)
 
 static void loopback_snd_timer_event(struct snd_timer_instance *timeri,
 				     int event,
-				     struct timespec *tstamp,
+				     struct timespec64 *tstamp,
 				     unsigned long resolution)
 {
 	/* Do not lock cable->lock here because timer->lock is already hold.

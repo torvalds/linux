@@ -93,8 +93,8 @@ struct snd_soc_component_driver {
 	snd_pcm_uframes_t (*pointer)(struct snd_soc_component *component,
 				     struct snd_pcm_substream *substream);
 	int (*get_time_info)(struct snd_soc_component *component,
-		struct snd_pcm_substream *substream, struct timespec *system_ts,
-		struct timespec *audio_ts,
+		struct snd_pcm_substream *substream, struct timespec64 *system_ts,
+		struct timespec64 *audio_ts,
 		struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
 		struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
 	int (*copy_user)(struct snd_soc_component *component,
