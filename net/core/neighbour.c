@@ -820,7 +820,8 @@ static void neigh_periodic_work(struct work_struct *work)
 			write_lock(&n->lock);
 
 			state = n->nud_state;
-			if (state & (NUD_PERMANENT | NUD_IN_TIMER)) {
+			if ((state & (NUD_PERMANENT | NUD_IN_TIMER)) ||
+			    (n->flags & NTF_EXT_LEARNED)) {
 				write_unlock(&n->lock);
 				goto next_elt;
 			}
@@ -1135,6 +1136,8 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		goto out;
 	if (neigh->dead)
 		goto out;
+
+	neigh_update_ext_learned(neigh, flags, &notify);
 
 	if (!(new & NUD_VALID)) {
 		neigh_del_timer(neigh);
@@ -1780,6 +1783,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (!(nlh->nlmsg_flags & NLM_F_REPLACE))
 			flags &= ~NEIGH_UPDATE_F_OVERRIDE;
 	}
+
+	if (ndm->ndm_flags & NTF_EXT_LEARNED)
+		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
 
 	if (ndm->ndm_flags & NTF_USE) {
 		neigh_event_send(neigh, NULL);
