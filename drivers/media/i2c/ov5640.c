@@ -2536,8 +2536,8 @@ static int ov5640_probe(struct i2c_client *client,
 
 	sensor->ae_target = 52;
 
-	endpoint = fwnode_graph_get_next_endpoint(
-		of_fwnode_handle(client->dev.of_node), NULL);
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
+						  NULL);
 	if (!endpoint) {
 		dev_err(dev, "endpoint node not found\n");
 		return -EINVAL;
