@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/elf.h>
 #include <linux/ptrace.h>
+#include <linux/pagemap.h>
 #include <linux/ratelimit.h>
 #include <linux/syscalls.h>
 #ifdef CONFIG_PPC64
@@ -1049,7 +1050,6 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 #endif
 {
 	struct pt_regs *regs = current_pt_regs();
-	unsigned char tmp __maybe_unused;
 	int ctx_has_vsx_region = 0;
 
 #ifdef CONFIG_PPC64
@@ -1113,9 +1113,8 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(VERIFY_READ, new_ctx, ctx_size)
-	    || __get_user(tmp, (u8 __user *) new_ctx)
-	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
+	if (!access_ok(VERIFY_READ, new_ctx, ctx_size) ||
+	    fault_in_pages_readable((u8 __user *)new_ctx, ctx_size))
 		return -EFAULT;
 
 	/*
@@ -1242,7 +1241,6 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	struct pt_regs *regs = current_pt_regs();
 	struct sig_dbg_op op;
 	int i;
-	unsigned char tmp __maybe_unused;
 	unsigned long new_msr = regs->msr;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	unsigned long new_dbcr0 = current->thread.debug.dbcr0;
@@ -1298,9 +1296,8 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	current->thread.debug.dbcr0 = new_dbcr0;
 #endif
 
-	if (!access_ok(VERIFY_READ, ctx, sizeof(*ctx))
-	    || __get_user(tmp, (u8 __user *) ctx)
-	    || __get_user(tmp, (u8 __user *) (ctx + 1) - 1))
+	if (!access_ok(VERIFY_READ, ctx, sizeof(*ctx)) ||
+	    fault_in_pages_readable((u8 __user *)ctx, sizeof(*ctx)))
 		return -EFAULT;
 
 	/*
