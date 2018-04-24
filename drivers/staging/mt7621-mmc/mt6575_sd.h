@@ -931,11 +931,7 @@ struct msdc_host {
 
 	int                         irq;            /* host interrupt */
 
-#if 0
-	struct work_struct		card_workqueue;
-#else
 	struct delayed_work		card_delaywork;
-#endif
 
 	struct completion           cmd_done;
 	struct completion           xfer_done;
