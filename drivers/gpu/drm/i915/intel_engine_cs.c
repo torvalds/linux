@@ -1307,11 +1307,13 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
 {
+	const int MAX_REQUESTS_TO_SHOW = 8;
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
-	struct i915_request *rq;
+	struct i915_request *rq, *last;
 	struct rb_node *rb;
+	int count;
 
 	if (header) {
 		va_list ap;
@@ -1378,16 +1380,47 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	}
 
 	spin_lock_irq(&engine->timeline->lock);
-	list_for_each_entry(rq, &engine->timeline->requests, link)
-		print_request(m, rq, "\t\tE ");
+
+	last = NULL;
+	count = 0;
+	list_for_each_entry(rq, &engine->timeline->requests, link) {
+		if (count++ < MAX_REQUESTS_TO_SHOW - 1)
+			print_request(m, rq, "\t\tE ");
+		else
+			last = rq;
+	}
+	if (last) {
+		if (count > MAX_REQUESTS_TO_SHOW) {
+			drm_printf(m,
+				   "\t\t...skipping %d executing requests...\n",
+				   count - MAX_REQUESTS_TO_SHOW);
+		}
+		print_request(m, last, "\t\tE ");
+	}
+
+	last = NULL;
+	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = execlists->first; rb; rb = rb_next(rb)) {
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);
 
-		list_for_each_entry(rq, &p->requests, sched.link)
-			print_request(m, rq, "\t\tQ ");
+		list_for_each_entry(rq, &p->requests, sched.link) {
+			if (count++ < MAX_REQUESTS_TO_SHOW - 1)
+				print_request(m, rq, "\t\tQ ");
+			else
+				last = rq;
+		}
 	}
+	if (last) {
+		if (count > MAX_REQUESTS_TO_SHOW) {
+			drm_printf(m,
+				   "\t\t...skipping %d queued requests...\n",
+				   count - MAX_REQUESTS_TO_SHOW);
+		}
+		print_request(m, last, "\t\tQ ");
+	}
+
 	spin_unlock_irq(&engine->timeline->lock);
 
 	spin_lock_irq(&b->rb_lock);
