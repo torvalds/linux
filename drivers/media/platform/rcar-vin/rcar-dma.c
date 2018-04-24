@@ -653,6 +653,10 @@ static int rvin_setup(struct rvin_dev *vin)
 		vnmc |= VNMC_INF_YUV16;
 		input_is_yuv = true;
 		break;
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		vnmc |= VNMC_INF_YUV16 | VNMC_YCAL;
+		input_is_yuv = true;
+		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
 		vnmc |= vin->mbus_cfg.type == V4L2_MBUS_BT656 ?
@@ -1009,6 +1013,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 
 	switch (fmt.format.code) {
 	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 	case MEDIA_BUS_FMT_RGB888_1X24:
