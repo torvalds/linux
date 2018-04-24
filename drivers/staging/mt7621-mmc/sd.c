@@ -2709,10 +2709,10 @@ static int msdc_drv_remove(struct platform_device *pdev)
 static void msdc_drv_pm(struct platform_device *pdev, pm_message state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
-	struct msdc_host *host = mmc_priv(mmc);
-
-	if (mmc)
+	if (mmc) {
+		struct msdc_host *host = mmc_priv(mmc);
 		msdc_pm(state, (void *)host);
+	}
 }
 
 static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
