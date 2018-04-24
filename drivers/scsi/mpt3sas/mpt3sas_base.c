@@ -4090,6 +4090,27 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * mpt3sas_free_enclosure_list - release memory
+ * @ioc: per adapter object
+ *
+ * Free memory allocated during encloure add.
+ *
+ * Return nothing.
+ */
+void
+mpt3sas_free_enclosure_list(struct MPT3SAS_ADAPTER *ioc)
+{
+	struct _enclosure_node *enclosure_dev, *enclosure_dev_next;
+
+	/* Free enclosure list */
+	list_for_each_entry_safe(enclosure_dev,
+			enclosure_dev_next, &ioc->enclosure_list, list) {
+		list_del(&enclosure_dev->list);
+		kfree(enclosure_dev);
+	}
+}
+
+/**
  * _base_release_memory_pools - release memory
  * @ioc: per adapter object
  *
@@ -6669,6 +6690,7 @@ mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc)
 	mpt3sas_base_stop_watchdog(ioc);
 	mpt3sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
+	mpt3sas_free_enclosure_list(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->cpu_msix_table);
 	if (ioc->is_warpdrive)

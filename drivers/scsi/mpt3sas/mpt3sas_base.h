@@ -741,6 +741,17 @@ struct _sas_node {
 	struct list_head sas_port_list;
 };
 
+
+/**
+ * struct _enclosure_node - enclosure information
+ * @list: list of enclosures
+ * @pg0: enclosure pg0;
+ */
+struct _enclosure_node {
+	struct list_head list;
+	Mpi2SasEnclosurePage0_t pg0;
+};
+
 /**
  * enum reset_type - reset state
  * @FORCE_BIG_HAMMER: issue diagnostic reset
@@ -1013,6 +1024,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @iounit_pg8: static iounit page 8
  * @sas_hba: sas host object
  * @sas_expander_list: expander object list
+ * @enclosure_list: enclosure object list
  * @sas_node_lock:
  * @sas_device_list: sas device object list
  * @sas_device_init_list: sas device object list (used only at init time)
@@ -1218,6 +1230,7 @@ struct MPT3SAS_ADAPTER {
 	/* sas hba, expander, and device list */
 	struct _sas_node sas_hba;
 	struct list_head sas_expander_list;
+	struct list_head enclosure_list;
 	spinlock_t	sas_node_lock;
 	struct list_head sas_device_list;
 	struct list_head sas_device_init_list;
@@ -1391,6 +1404,7 @@ int mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc);
 int mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_free_enclosure_list(struct MPT3SAS_ADAPTER *ioc);
 int mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	enum reset_type type);
 
