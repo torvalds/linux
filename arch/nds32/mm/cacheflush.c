@@ -217,17 +217,20 @@ void flush_dcache_page(struct page *page)
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
 	else {
-		int i, pc;
-		unsigned long vto, kaddr, flags;
+		unsigned long kaddr, flags;
+
 		kaddr = (unsigned long)page_address(page);
-		cpu_dcache_wbinval_page(kaddr);
-		pc = CACHE_SET(DCACHE) * CACHE_LINE_SIZE(DCACHE) / PAGE_SIZE;
 		local_irq_save(flags);
-		for (i = 0; i < pc; i++) {
-			vto =
-			    kremap0(kaddr + i * PAGE_SIZE, page_to_phys(page));
-			cpu_dcache_wbinval_page(vto);
-			kunmap01(vto);
+		cpu_dcache_wbinval_page(kaddr);
+		if (mapping) {
+			unsigned long vaddr, kto;
+
+			vaddr = page->index << PAGE_SHIFT;
+			if (aliasing(vaddr, kaddr)) {
+				kto = kremap0(vaddr, page_to_phys(page));
+				cpu_dcache_wbinval_page(kto);
+				kunmap01(kto);
+			}
 		}
 		local_irq_restore(flags);
 	}
