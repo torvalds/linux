@@ -4039,8 +4039,6 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	bool known = true;
-
 	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
@@ -4107,13 +4105,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		return true;
 
 	default:
-		pr_warn("unknown possible thermal alarm or keyboard event received\n");
-		known = false;
+		/* report simply as unknown, no sensor dump */
+		return false;
 	}
 
 	thermal_dump_all_sensors();
-
-	return known;
+	return true;
 }
 
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
