@@ -2059,16 +2059,14 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		} __packed list[PMK_LIST_MAX];
 	} __packed pmkcache;
 	struct pmk *pmk;
-	int i;
+	int i = 0;
 
-	i = 0;
 	list_for_each_entry(pmk, &priv->pmklist.head, list) {
-		if (i < PMK_LIST_MAX) {
-			memcpy(pmkcache.list[i].bssid, pmk->bssid, ETH_ALEN);
-			memcpy(pmkcache.list[i].pmkid, pmk->pmkid,
-			       IW_PMKID_LEN);
-			i++;
-		}
+		if (i >= PMK_LIST_MAX)
+			break;
+		ether_addr_copy(pmkcache.list[i].bssid, pmk->bssid);
+		memcpy(pmkcache.list[i].pmkid, pmk->pmkid, IW_PMKID_LEN);
+		i++;
 	}
 	pmkcache.size = cpu_to_le16((uint16_t)(priv->pmklist.size));
 	hostif_mib_set_request(priv, LOCAL_PMK,
