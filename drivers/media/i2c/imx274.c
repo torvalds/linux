@@ -984,7 +984,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 		}
 
 		/* update exposure time accordingly */
-		imx274_set_exposure(imx274, imx274->ctrls.exposure->val);
+		imx274_set_exposure(imx274, ctrl->val);
 
 		dev_dbg(&imx274->client->dev, "set frame interval to %uus\n",
 			fi->interval.numerator * 1000000
