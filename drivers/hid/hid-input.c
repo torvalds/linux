@@ -1610,6 +1610,20 @@ static struct hid_input *hidinput_match(struct hid_report *report)
 	return NULL;
 }
 
+static struct hid_input *hidinput_match_application(struct hid_report *report)
+{
+	struct hid_device *hid = report->device;
+	struct hid_input *hidinput;
+
+	list_for_each_entry(hidinput, &hid->inputs, list) {
+		if (hidinput->report &&
+		    hidinput->report->application == report->application)
+			return hidinput;
+	}
+
+	return NULL;
+}
+
 static inline void hidinput_configure_usages(struct hid_input *hidinput,
 					     struct hid_report *report)
 {
@@ -1670,6 +1684,9 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			 */
 			if (hid->quirks & HID_QUIRK_MULTI_INPUT)
 				hidinput = hidinput_match(report);
+			else if (hid->maxapplication > 1 &&
+				 (hid->quirks & HID_QUIRK_INPUT_PER_APP))
+				hidinput = hidinput_match_application(report);
 
 			if (!hidinput) {
 				hidinput = hidinput_allocate(hid);
