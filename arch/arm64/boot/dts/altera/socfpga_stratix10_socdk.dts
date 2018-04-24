@@ -94,7 +94,7 @@
 			rxd2-skew-ps = <420>; /* 0ps */
 			rxd3-skew-ps = <420>; /* 0ps */
 			txen-skew-ps = <0>; /* -420ps */
-			txc-skew-ps = <1860>; /* 960ps */
+			txc-skew-ps = <900>; /* 0ps */
 			rxdv-skew-ps = <420>; /* 0ps */
 			rxc-skew-ps = <1680>; /* 780ps */
 		};
