@@ -3622,8 +3622,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa, *tmp;
-	int _keep_addr;
-	bool keep_addr;
+	bool keep_addr = false;
 	int state, i;
 
 	ASSERT_RTNL();
@@ -3649,15 +3648,18 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	}
 
-	/* aggregate the system setting and interface setting */
-	_keep_addr = net->ipv6.devconf_all->keep_addr_on_down;
-	if (!_keep_addr)
-		_keep_addr = idev->cnf.keep_addr_on_down;
-
 	/* combine the user config with event to determine if permanent
 	 * addresses are to be removed from address hash table
 	 */
-	keep_addr = !(how || _keep_addr <= 0 || idev->cnf.disable_ipv6);
+	if (!how && !idev->cnf.disable_ipv6) {
+		/* aggregate the system setting and interface setting */
+		int _keep_addr = net->ipv6.devconf_all->keep_addr_on_down;
+
+		if (!_keep_addr)
+			_keep_addr = idev->cnf.keep_addr_on_down;
+
+		keep_addr = (_keep_addr > 0);
+	}
 
 	/* Step 2: clear hash table */
 	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
@@ -3706,11 +3708,6 @@ restart:
 		in6_ifa_put(ifa);
 		write_lock_bh(&idev->lock);
 	}
-
-	/* re-combine the user config with event to determine if permanent
-	 * addresses are to be removed from the interface list
-	 */
-	keep_addr = (!how && _keep_addr > 0 && !idev->cnf.disable_ipv6);
 
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {
 		struct fib6_info *rt = NULL;
