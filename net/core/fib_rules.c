@@ -541,8 +541,10 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->l3mdev = nla_get_u8(tb[FRA_L3MDEV]);
 		if (nlrule->l3mdev != 1)
 #endif
+		{
 			NL_SET_ERR_MSG(extack, "Invalid l3mdev");
 			goto errout_free;
+		}
 	}
 
 	nlrule->action = frh->action;
