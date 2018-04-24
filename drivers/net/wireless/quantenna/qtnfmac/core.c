@@ -76,7 +76,7 @@ static int qtnf_netdev_close(struct net_device *ndev)
 
 /* Netdev handler for data transmission.
  */
-static int
+static netdev_tx_t
 qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct qtnf_vif *vif;
