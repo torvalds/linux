@@ -541,8 +541,6 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
 		goto err_unref;
 
 	engine->scratch = vma;
-	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
-			 engine->name, i915_ggtt_offset(vma));
 	return 0;
 
 err_unref:
@@ -636,9 +634,6 @@ static int init_status_page(struct intel_engine_cs *engine)
 	engine->status_page.vma = vma;
 	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
 	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
-
-	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
-			 engine->name, i915_ggtt_offset(vma));
 	return 0;
 
 err_unpin:
