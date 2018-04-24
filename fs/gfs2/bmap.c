@@ -1538,7 +1538,7 @@ more_rgrps:
 				goto out;
 			}
 			ret = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-						 0, rd_gh);
+						 LM_FLAG_NODE_SCOPE, rd_gh);
 			if (ret)
 				goto out;
 

@@ -1442,7 +1442,8 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 
 	while (1) {
 
-		ret = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &gh);
+		ret = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
+					 LM_FLAG_NODE_SCOPE, &gh);
 		if (ret)
 			goto out;
 
@@ -2055,7 +2056,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *begin = NULL;
 	struct gfs2_blkreserv *rs = &ip->i_res;
-	int error = 0, flags = 0;
+	int error = 0, flags = LM_FLAG_NODE_SCOPE;
 	bool rg_locked;
 	u64 last_unlinked = NO_BLOCK;
 	u32 target = ap->target;
@@ -2736,9 +2737,8 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist)
 				      sizeof(struct gfs2_holder),
 				      GFP_NOFS | __GFP_NOFAIL);
 	for (x = 0; x < rlist->rl_rgrps; x++)
-		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl,
-				LM_ST_EXCLUSIVE, 0,
-				&rlist->rl_ghs[x]);
+		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl, LM_ST_EXCLUSIVE,
+				 LM_FLAG_NODE_SCOPE, &rlist->rl_ghs[x]);
 }
 
 /**
