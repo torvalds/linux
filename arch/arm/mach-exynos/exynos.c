@@ -63,15 +63,6 @@ void __init exynos_sysram_init(void)
 	}
 }
 
-static void __init exynos_init_late(void)
-{
-	if (of_machine_is_compatible("samsung,exynos5440"))
-		/* to be supported later */
-		return;
-
-	exynos_pm_init();
-}
-
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 					int depth, void *data)
 {
@@ -79,8 +70,7 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 	const __be32 *reg;
 	int len;
 
-	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid") &&
-		!of_flat_dt_is_compatible(node, "samsung,exynos5440-clock"))
+	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid"))
 		return 0;
 
 	reg = of_get_flat_dt_prop(node, "reg", &len);
@@ -209,7 +199,6 @@ static char const *const exynos_dt_compat[] __initconst = {
 	"samsung,exynos5250",
 	"samsung,exynos5260",
 	"samsung,exynos5420",
-	"samsung,exynos5440",
 	NULL
 };
 
@@ -232,7 +221,7 @@ DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	.init_early	= exynos_firmware_init,
 	.init_irq	= exynos_init_irq,
 	.init_machine	= exynos_dt_machine_init,
-	.init_late	= exynos_init_late,
+	.init_late	= exynos_pm_init,
 	.dt_compat	= exynos_dt_compat,
 	.dt_fixup	= exynos_dt_fixup,
 MACHINE_END
