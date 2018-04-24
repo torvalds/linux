@@ -15,6 +15,9 @@
  *	implemenents security file system for reporting
  *	current measurement list and IMA statistics
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fcntl.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -336,7 +339,7 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 	if (data[0] == '/') {
 		result = ima_read_policy(data);
 	} else if (ima_appraise & IMA_APPRAISE_POLICY) {
-		pr_err("IMA: signed policy file (specified as an absolute pathname) required\n");
+		pr_err("signed policy file (specified as an absolute pathname) required\n");
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
 				    "policy_update", "signed policy required",
 				    1, 0);
@@ -417,7 +420,7 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 		valid_policy = 0;
 	}
 
-	pr_info("IMA: policy update %s\n", cause);
+	pr_info("policy update %s\n", cause);
 	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
 			    "policy_update", cause, !valid_policy, 0);
 
