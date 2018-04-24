@@ -1274,54 +1274,48 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct mt_device *td = hid_get_drvdata(hdev);
 	char *name;
 	const char *suffix = NULL;
-	struct hid_field *field = hi->report->field[0];
+	unsigned int application = 0;
+	struct hid_report *report;
 	int ret;
 
-	if (hi->report->id == td->mt_report_id) {
-		ret = mt_touch_input_configured(hdev, hi);
-		if (ret)
-			return ret;
-	}
+	list_for_each_entry(report, &hi->reports, hidinput_list) {
+		application = report->application;
+		if (report->id == td->mt_report_id) {
+			ret = mt_touch_input_configured(hdev, hi);
+			if (ret)
+				return ret;
+		}
 
-	/*
-	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
-	 * for the stylus. Check this first, and then rely on the application
-	 * field.
-	 */
-	if (hi->report->field[0]->physical == HID_DG_STYLUS) {
-		suffix = "Pen";
-		/* force BTN_STYLUS to allow tablet matching in udev */
-		__set_bit(BTN_STYLUS, hi->input->keybit);
-	} else {
-		switch (field->application) {
-		case HID_GD_KEYBOARD:
-			suffix = "Keyboard";
-			break;
-		case HID_GD_KEYPAD:
-			suffix = "Keypad";
-			break;
-		case HID_GD_MOUSE:
-			suffix = "Mouse";
-			break;
-		case HID_DG_STYLUS:
+		/*
+		 * some egalax touchscreens have "application == DG_TOUCHSCREEN"
+		 * for the stylus. Check this first, and then rely on
+		 * the application field.
+		 */
+		if (report->field[0]->physical == HID_DG_STYLUS) {
 			suffix = "Pen";
 			/* force BTN_STYLUS to allow tablet matching in udev */
 			__set_bit(BTN_STYLUS, hi->input->keybit);
+		}
+	}
+
+	if (!suffix) {
+		switch (application) {
+		case HID_GD_KEYBOARD:
+		case HID_GD_KEYPAD:
+		case HID_GD_MOUSE:
+		case HID_DG_TOUCHPAD:
+		case HID_GD_SYSTEM_CONTROL:
+		case HID_CP_CONSUMER_CONTROL:
+		case HID_GD_WIRELESS_RADIO_CTLS:
+			/* already handled by hid core */
 			break;
 		case HID_DG_TOUCHSCREEN:
 			/* we do not set suffix = "Touchscreen" */
+			hi->input->name = hdev->name;
 			break;
-		case HID_DG_TOUCHPAD:
-			suffix = "Touchpad";
-			break;
-		case HID_GD_SYSTEM_CONTROL:
-			suffix = "System Control";
-			break;
-		case HID_CP_CONSUMER_CONTROL:
-			suffix = "Consumer Control";
-			break;
-		case HID_GD_WIRELESS_RADIO_CTLS:
-			suffix = "Wireless Radio Control";
+		case HID_DG_STYLUS:
+			/* force BTN_STYLUS to allow tablet matching in udev */
+			__set_bit(BTN_STYLUS, hi->input->keybit);
 			break;
 		case HID_VD_ASUS_CUSTOM_MEDIA_KEYS:
 			suffix = "Custom Media Keys";
@@ -1459,10 +1453,10 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/*
 	 * This allows the driver to handle different input sensors
-	 * that emits events through different reports on the same HID
+	 * that emits events through different applications on the same HID
 	 * device.
 	 */
-	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
+	hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
 
 	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
