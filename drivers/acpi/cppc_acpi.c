@@ -39,6 +39,7 @@
 
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/ktime.h>
 #include <linux/rwsem.h>
 #include <linux/wait.h>
@@ -49,7 +50,7 @@ struct cppc_pcc_data {
 	struct mbox_chan *pcc_channel;
 	void __iomem *pcc_comm_addr;
 	bool pcc_channel_acquired;
-	ktime_t deadline;
+	unsigned int deadline_us;
 	unsigned int pcc_mpar, pcc_mrtt, pcc_nominal;
 
 	bool pending_pcc_write_cmd;	/* Any pending/batched PCC write cmds? */
@@ -198,42 +199,31 @@ static struct kobj_type cppc_ktype = {
 
 static int check_pcc_chan(int pcc_ss_id, bool chk_err_bit)
 {
-	int ret = -EIO, status = 0;
+	int ret, status;
 	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
 	struct acpi_pcct_shared_memory __iomem *generic_comm_base =
 		pcc_ss_data->pcc_comm_addr;
-	ktime_t next_deadline = ktime_add(ktime_get(),
-					  pcc_ss_data->deadline);
 
 	if (!pcc_ss_data->platform_owns_pcc)
 		return 0;
 
-	/* Retry in case the remote processor was too slow to catch up. */
-	while (!ktime_after(ktime_get(), next_deadline)) {
-		/*
-		 * Per spec, prior to boot the PCC space wil be initialized by
-		 * platform and should have set the command completion bit when
-		 * PCC can be used by OSPM
-		 */
-		status = readw_relaxed(&generic_comm_base->status);
-		if (status & PCC_CMD_COMPLETE_MASK) {
-			ret = 0;
-			if (chk_err_bit && (status & PCC_ERROR_MASK))
-				ret = -EIO;
-			break;
-		}
-		/*
-		 * Reducing the bus traffic in case this loop takes longer than
-		 * a few retries.
-		 */
-		udelay(3);
+	/*
+	 * Poll PCC status register every 3us(delay_us) for maximum of
+	 * deadline_us(timeout_us) until PCC command complete bit is set(cond)
+	 */
+	ret = readw_relaxed_poll_timeout(&generic_comm_base->status, status,
+					status & PCC_CMD_COMPLETE_MASK, 3,
+					pcc_ss_data->deadline_us);
+
+	if (likely(!ret)) {
+		pcc_ss_data->platform_owns_pcc = false;
+		if (chk_err_bit && (status & PCC_ERROR_MASK))
+			ret = -EIO;
 	}
 
-	if (likely(!ret))
-		pcc_ss_data->platform_owns_pcc = false;
-	else
-		pr_err("PCC check channel failed for ss: %d. Status=%x\n",
-		       pcc_ss_id, status);
+	if (unlikely(ret))
+		pr_err("PCC check channel failed for ss: %d. ret=%d\n",
+		       pcc_ss_id, ret);
 
 	return ret;
 }
@@ -585,7 +575,7 @@ static int register_pcc_channel(int pcc_ss_idx)
 		 * So add an arbitrary amount of wait on top of Nominal.
 		 */
 		usecs_lat = NUM_RETRIES * cppc_ss->latency;
-		pcc_data[pcc_ss_idx]->deadline = ns_to_ktime(usecs_lat * NSEC_PER_USEC);
+		pcc_data[pcc_ss_idx]->deadline_us = usecs_lat;
 		pcc_data[pcc_ss_idx]->pcc_mrtt = cppc_ss->min_turnaround_time;
 		pcc_data[pcc_ss_idx]->pcc_mpar = cppc_ss->max_access_rate;
 		pcc_data[pcc_ss_idx]->pcc_nominal = cppc_ss->latency;
