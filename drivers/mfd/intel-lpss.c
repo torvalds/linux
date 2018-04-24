@@ -40,8 +40,8 @@
 
 /* Offsets from lpss->priv */
 #define LPSS_PRIV_RESETS		0x04
-#define LPSS_PRIV_RESETS_FUNC		BIT(2)
-#define LPSS_PRIV_RESETS_IDMA		0x3
+#define LPSS_PRIV_RESETS_IDMA		BIT(2)
+#define LPSS_PRIV_RESETS_FUNC		0x3
 
 #define LPSS_PRIV_ACTIVELTR		0x10
 #define LPSS_PRIV_IDLELTR		0x14
