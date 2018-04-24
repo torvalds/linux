@@ -81,6 +81,11 @@ MODULE_LICENSE("GPL");
 
 #define MT_BUTTONTYPE_CLICKPAD		0
 
+enum latency_mode {
+	HID_LATENCY_NORMAL = 0,
+	HID_LATENCY_HIGH = 1,
+};
+
 #define MT_IO_FLAGS_RUNNING		0
 #define MT_IO_FLAGS_ACTIVE_SLOTS	1
 #define MT_IO_FLAGS_PENDING_SLOTS	2
@@ -1156,7 +1161,10 @@ static void mt_report(struct hid_device *hid, struct hid_report *report)
 
 static bool mt_need_to_apply_feature(struct hid_device *hdev,
 				     struct hid_field *field,
-				     struct hid_usage *usage)
+				     struct hid_usage *usage,
+				     enum latency_mode latency,
+				     bool surface_switch,
+				     bool button_switch)
 {
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct mt_class *cls = &td->mtclass;
@@ -1195,12 +1203,25 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 			}
 		}
 		break;
+
+	case HID_DG_LATENCYMODE:
+		field->value[index] = latency;
+		return 1;
+
+	case HID_DG_SURFACESWITCH:
+		field->value[index] = surface_switch;
+		return 1;
+
+	case HID_DG_BUTTONSWITCH:
+		field->value[index] = button_switch;
+		return 1;
 	}
 
 	return false; /* no need to update the report */
 }
 
-static void mt_set_modes(struct hid_device *hdev)
+static void mt_set_modes(struct hid_device *hdev, enum latency_mode latency,
+			 bool surface_switch, bool button_switch)
 {
 	struct hid_report_enum *rep_enum;
 	struct hid_report *rep;
@@ -1222,7 +1243,10 @@ static void mt_set_modes(struct hid_device *hdev)
 
 				if (mt_need_to_apply_feature(hdev,
 							     rep->field[i],
-							     usage))
+							     usage,
+							     latency,
+							     surface_switch,
+							     button_switch))
 					update_report = true;
 			}
 		}
@@ -1467,7 +1491,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		dev_warn(&hdev->dev, "Cannot allocate sysfs group for %s\n",
 				hdev->name);
 
-	mt_set_modes(hdev);
+	mt_set_modes(hdev, HID_LATENCY_NORMAL, true, true);
 
 	/* release .fields memory as it is not used anymore */
 	devm_kfree(&hdev->dev, td->fields);
@@ -1480,7 +1504,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 static int mt_reset_resume(struct hid_device *hdev)
 {
 	mt_release_contacts(hdev);
-	mt_set_modes(hdev);
+	mt_set_modes(hdev, HID_LATENCY_NORMAL, true, true);
 	return 0;
 }
 
