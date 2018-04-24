@@ -1914,7 +1914,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 	if (arg_type == ARG_PTR_TO_MAP_KEY ||
 	    arg_type == ARG_PTR_TO_MAP_VALUE) {
 		expected_type = PTR_TO_STACK;
-		if (!type_is_pkt_pointer(type) &&
+		if (!type_is_pkt_pointer(type) && type != PTR_TO_MAP_VALUE &&
 		    type != expected_type)
 			goto err_type;
 	} else if (arg_type == ARG_CONST_SIZE ||
@@ -1966,14 +1966,9 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			verbose(env, "invalid map_ptr to access map->key\n");
 			return -EACCES;
 		}
-		if (type_is_pkt_pointer(type))
-			err = check_packet_access(env, regno, reg->off,
-						  meta->map_ptr->key_size,
-						  false);
-		else
-			err = check_stack_boundary(env, regno,
-						   meta->map_ptr->key_size,
-						   false, NULL);
+		err = check_helper_mem_access(env, regno,
+					      meta->map_ptr->key_size, false,
+					      NULL);
 	} else if (arg_type == ARG_PTR_TO_MAP_VALUE) {
 		/* bpf_map_xxx(..., map_ptr, ..., value) call:
 		 * check [value, value + map->value_size) validity
@@ -1983,14 +1978,9 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			verbose(env, "invalid map_ptr to access map->value\n");
 			return -EACCES;
 		}
-		if (type_is_pkt_pointer(type))
-			err = check_packet_access(env, regno, reg->off,
-						  meta->map_ptr->value_size,
-						  false);
-		else
-			err = check_stack_boundary(env, regno,
-						   meta->map_ptr->value_size,
-						   false, NULL);
+		err = check_helper_mem_access(env, regno,
+					      meta->map_ptr->value_size, false,
+					      NULL);
 	} else if (arg_type_is_mem_size(arg_type)) {
 		bool zero_size_allowed = (arg_type == ARG_CONST_SIZE_OR_ZERO);
 
