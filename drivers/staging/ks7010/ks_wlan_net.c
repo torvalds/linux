@@ -933,7 +933,8 @@ static int ks_wlan_get_range(struct net_device *dev,
 		range->freq[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
 	}
 	range->num_frequency = k;
-	if (priv->reg.phy_type == D_11B_ONLY_MODE || priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) {	/* channel 14 */
+	if (priv->reg.phy_type == D_11B_ONLY_MODE ||
+	    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) {	/* channel 14 */
 		range->freq[13].i = 14;	/* List index */
 		range->freq[13].m = frequency_list[13] * 100000;
 		range->freq[13].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
