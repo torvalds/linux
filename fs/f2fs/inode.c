@@ -185,6 +185,21 @@ void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct page *page)
 	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, page));
 }
 
+static bool sanity_check_inode(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)
+			&& !f2fs_has_extra_attr(inode)) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: corrupted inode ino=%lx, run fsck to fix.",
+			__func__, inode->i_ino);
+		return false;
+	}
+	return true;
+}
+
 static int do_read_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -235,7 +250,6 @@ static int do_read_inode(struct inode *inode)
 					le16_to_cpu(ri->i_extra_isize) : 0;
 
 	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)) {
-		f2fs_bug_on(sbi, !f2fs_has_extra_attr(inode));
 		fi->i_inline_xattr_size = le16_to_cpu(ri->i_inline_xattr_size);
 	} else if (f2fs_has_inline_xattr(inode) ||
 				f2fs_has_inline_dentry(inode)) {
@@ -313,6 +327,10 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
 	ret = do_read_inode(inode);
 	if (ret)
 		goto bad_inode;
+	if (!sanity_check_inode(inode)) {
+		ret = -EINVAL;
+		goto bad_inode;
+	}
 make_now:
 	if (ino == F2FS_NODE_INO(sbi)) {
 		inode->i_mapping->a_ops = &f2fs_node_aops;
