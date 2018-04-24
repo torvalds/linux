@@ -71,3 +71,7 @@
 		status = "okay";
 	};
 };
+
+&usbphyc {
+	status = "okay";
+};
