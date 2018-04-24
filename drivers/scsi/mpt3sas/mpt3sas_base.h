@@ -146,7 +146,11 @@
 #define	NVME_CMD_PRP1_OFFSET		24	/* PRP1 offset in NVMe cmd */
 #define	NVME_CMD_PRP2_OFFSET		32	/* PRP2 offset in NVMe cmd */
 #define	NVME_ERROR_RESPONSE_SIZE	16	/* Max NVME Error Response */
+#define NVME_TASK_ABORT_MIN_TIMEOUT	6
+#define NVME_TASK_ABORT_MAX_TIMEOUT	60
+#define NVME_TASK_MNGT_CUSTOM_MASK	(0x0010)
 #define	NVME_PRP_PAGE_SIZE		4096	/* Page size */
+
 
 /*
  * reset phases
@@ -363,7 +367,15 @@ struct Mpi2ManufacturingPage11_t {
 	u8	EEDPTagMode;			/* 09h */
 	u8	Reserved3;			/* 0Ah */
 	u8	Reserved4;			/* 0Bh */
-	__le32	Reserved5[23];			/* 0Ch-60h*/
+	__le32	Reserved5[8];			/* 0Ch-2Ch */
+	u16	AddlFlags2;			/* 2Ch */
+	u8	AddlFlags3;			/* 2Eh */
+	u8	Reserved6;			/* 2Fh */
+	__le32	Reserved7[7];			/* 30h - 4Bh */
+	u8	NVMeAbortTO;			/* 4Ch */
+	u8	Reserved8;			/* 4Dh */
+	u16	Reserved9;			/* 4Eh */
+	__le32	Reserved10[4];			/* 50h - 60h */
 };
 
 /**
@@ -573,6 +585,7 @@ struct _pcie_device {
 	u8	enclosure_level;
 	u8	connector_name[4];
 	u8	*serial_number;
+	u8	reset_timeout;
 	struct kref refcount;
 };
 /**
@@ -1211,6 +1224,10 @@ struct MPT3SAS_ADAPTER {
 	void		*event_log;
 	u32		event_masks[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 
+	u8		tm_custom_handling;
+	u8		nvme_abort_timeout;
+
+
 	/* static config pages */
 	struct mpt3sas_facts facts;
 	struct mpt3sas_port_facts *pfacts;
@@ -1473,10 +1490,11 @@ u8 mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply);
 void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
 
-int mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout);
+int mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
+	u8 type, u16 smid_task, u16 msix_task, u8 timeout, u8 tr_method);
 int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout);
+	u64 lun, u8 type, u16 smid_task, u16 msix_task,
+	u8 timeout, u8 tr_method);
 
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);

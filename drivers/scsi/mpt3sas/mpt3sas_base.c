@@ -4142,6 +4142,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 	Mpi2ConfigReply_t mpi_reply;
 	u32 iounit_pg1_flags;
 
+	ioc->nvme_abort_timeout = 30;
 	mpt3sas_config_get_manufacturing_pg0(ioc, &mpi_reply, &ioc->manu_pg0);
 	if (ioc->ir_firmware)
 		mpt3sas_config_get_manufacturing_pg10(ioc, &mpi_reply,
@@ -4159,6 +4160,18 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		ioc->manu_pg11.EEDPTagMode |= 0x1;
 		mpt3sas_config_set_manufacturing_pg11(ioc, &mpi_reply,
 		    &ioc->manu_pg11);
+	}
+	if (ioc->manu_pg11.AddlFlags2 & NVME_TASK_MNGT_CUSTOM_MASK)
+		ioc->tm_custom_handling = 1;
+	else {
+		ioc->tm_custom_handling = 0;
+		if (ioc->manu_pg11.NVMeAbortTO < NVME_TASK_ABORT_MIN_TIMEOUT)
+			ioc->nvme_abort_timeout = NVME_TASK_ABORT_MIN_TIMEOUT;
+		else if (ioc->manu_pg11.NVMeAbortTO >
+					NVME_TASK_ABORT_MAX_TIMEOUT)
+			ioc->nvme_abort_timeout = NVME_TASK_ABORT_MAX_TIMEOUT;
+		else
+			ioc->nvme_abort_timeout = ioc->manu_pg11.NVMeAbortTO;
 	}
 
 	mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);

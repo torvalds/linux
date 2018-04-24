@@ -1088,7 +1088,7 @@ _scsih_pcie_device_remove(struct MPT3SAS_ADAPTER *ioc,
 		pcie_device->slot);
 	if (pcie_device->connector_name[0] != '\0')
 		pr_info(MPT3SAS_FMT
-			"removing enclosure level(0x%04x), connector name( %s)\n",
+		    "removing enclosure level(0x%04x), connector name( %s)\n",
 			ioc->name, pcie_device->enclosure_level,
 			pcie_device->connector_name);
 
@@ -2632,6 +2632,7 @@ mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle)
  * @smid_task: smid assigned to the task
  * @msix_task: MSIX table index supplied by the OS
  * @timeout: timeout in seconds
+ * @tr_method: Target Reset Method
  * Context: user
  *
  * A generic API for sending task management requests to firmware.
@@ -2642,8 +2643,8 @@ mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle)
  * Return SUCCESS or FAILED.
  */
 int
-mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout)
+mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
+	u8 type, u16 smid_task, u16 msix_task, u8 timeout, u8 tr_method)
 {
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
 	Mpi2SCSITaskManagementReply_t *mpi_reply;
@@ -2689,8 +2690,8 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	}
 
 	dtmprintk(ioc, pr_info(MPT3SAS_FMT
-		"sending tm: handle(0x%04x), task_type(0x%02x), smid(%d)\n",
-		ioc->name, handle, type, smid_task));
+		"sending tm: handle(0x%04x), task_type(0x%02x), smid(%d), timeout(%d), tr_method(0x%x)\n",
+		ioc->name, handle, type, smid_task, timeout, tr_method));
 	ioc->tm_cmds.status = MPT3_CMD_PENDING;
 	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
 	ioc->tm_cmds.smid = smid;
@@ -2699,6 +2700,7 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = type;
+	mpi_request->MsgFlags = tr_method;
 	mpi_request->TaskMID = cpu_to_le16(smid_task);
 	int_to_scsilun(lun, (struct scsi_lun *)mpi_request->LUN);
 	mpt3sas_scsih_set_tm_flag(ioc, handle);
@@ -2745,13 +2747,14 @@ out:
 }
 
 int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout)
+		u64 lun, u8 type, u16 smid_task, u16 msix_task,
+		u8 timeout, u8 tr_method)
 {
 	int ret;
 
 	mutex_lock(&ioc->tm_cmds.mutex);
 	ret = mpt3sas_scsih_issue_tm(ioc, handle, lun, type, smid_task,
-			msix_task, timeout);
+			msix_task, timeout, tr_method);
 	mutex_unlock(&ioc->tm_cmds.mutex);
 
 	return ret;
@@ -2854,6 +2857,8 @@ scsih_abort(struct scsi_cmnd *scmd)
 	u16 handle;
 	int r;
 
+	u8 timeout = 30;
+	struct _pcie_device *pcie_device = NULL;
 	sdev_printk(KERN_INFO, scmd->device,
 		"attempting task abort! scmd(%p)\n", scmd);
 	_scsih_tm_display_info(ioc, scmd);
@@ -2888,15 +2893,20 @@ scsih_abort(struct scsi_cmnd *scmd)
 	mpt3sas_halt_firmware(ioc);
 
 	handle = sas_device_priv_data->sas_target->handle;
+	pcie_device = mpt3sas_get_pdev_by_handle(ioc, handle);
+	if (pcie_device && (!ioc->tm_custom_handling))
+		timeout = ioc->nvme_abort_timeout;
 	r = mpt3sas_scsih_issue_locked_tm(ioc, handle, scmd->device->lun,
 		MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
-		st->smid, st->msix_io, 30);
+		st->smid, st->msix_io, timeout, 0);
 	/* Command must be cleared after abort */
 	if (r == SUCCESS && st->cb_idx != 0xFF)
 		r = FAILED;
  out:
 	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(%p)\n",
 	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
+	if (pcie_device)
+		pcie_device_put(pcie_device);
 	return r;
 }
 
@@ -2912,7 +2922,10 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(scmd->device->host);
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct _sas_device *sas_device = NULL;
+	struct _pcie_device *pcie_device = NULL;
 	u16	handle;
+	u8	tr_method = 0;
+	u8	tr_timeout = 30;
 	int r;
 
 	struct scsi_target *starget = scmd->device->sdev_target;
@@ -2950,8 +2963,16 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
+	pcie_device = mpt3sas_get_pdev_by_handle(ioc, handle);
+
+	if (pcie_device && (!ioc->tm_custom_handling)) {
+		tr_timeout = pcie_device->reset_timeout;
+		tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+	} else
+		tr_method = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 	r = mpt3sas_scsih_issue_locked_tm(ioc, handle, scmd->device->lun,
-		MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 0, 30);
+		MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 0,
+		tr_timeout, tr_method);
 	/* Check for busy commands after reset */
 	if (r == SUCCESS && atomic_read(&scmd->device->device_busy))
 		r = FAILED;
@@ -2961,6 +2982,8 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 
 	if (sas_device)
 		sas_device_put(sas_device);
+	if (pcie_device)
+		pcie_device_put(pcie_device);
 
 	return r;
 }
@@ -2977,7 +3000,10 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(scmd->device->host);
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct _sas_device *sas_device = NULL;
+	struct _pcie_device *pcie_device = NULL;
 	u16	handle;
+	u8	tr_method = 0;
+	u8	tr_timeout = 30;
 	int r;
 	struct scsi_target *starget = scmd->device->sdev_target;
 	struct MPT3SAS_TARGET *target_priv_data = starget->hostdata;
@@ -3014,8 +3040,16 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
+	pcie_device = mpt3sas_get_pdev_by_handle(ioc, handle);
+
+	if (pcie_device && (!ioc->tm_custom_handling)) {
+		tr_timeout = pcie_device->reset_timeout;
+		tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+	} else
+		tr_method = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 	r = mpt3sas_scsih_issue_locked_tm(ioc, handle, 0,
-		MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 0, 30);
+		MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 0,
+	    tr_timeout, tr_method);
 	/* Check for busy commands after reset */
 	if (r == SUCCESS && atomic_read(&starget->target_busy))
 		r = FAILED;
@@ -3025,7 +3059,8 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 
 	if (sas_device)
 		sas_device_put(sas_device);
-
+	if (pcie_device)
+		pcie_device_put(pcie_device);
 	return r;
 }
 
@@ -3559,6 +3594,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
 	u32 ioc_state;
+	u8 tr_method = 0;
 
 	if (ioc->pci_error_recovery) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3601,6 +3637,11 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 			sas_address = pcie_device->wwid;
 		}
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
+		if (pcie_device && (!ioc->tm_custom_handling))
+			tr_method =
+			    MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
+		else
+			tr_method = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 	}
 	if (sas_target_priv_data) {
 		dewtprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3664,6 +3705,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
+	mpi_request->MsgFlags = tr_method;
 	set_bit(handle, ioc->device_remove_in_progress);
 	mpt3sas_base_put_smid_hi_priority(ioc, smid, 0);
 	mpt3sas_trigger_master(ioc, MASTER_TRIGGER_DEVICE_REMOVAL);
@@ -6938,6 +6980,11 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	}
 	pcie_device->nvme_mdts =
 		le32_to_cpu(pcie_device_pg2.MaximumDataTransferSize);
+	if (pcie_device_pg2.ControllerResetTO)
+		pcie_device->reset_timeout =
+			pcie_device_pg2.ControllerResetTO;
+	else
+		pcie_device->reset_timeout = 30;
 
 	if (ioc->wait_for_discovery_to_complete)
 		_scsih_pcie_device_init_add(ioc, pcie_device);
@@ -7189,6 +7236,9 @@ _scsih_pcie_device_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 		break;
 	case MPI26_EVENT_PCIDEV_STAT_RC_ASYNC_NOTIFICATION:
 		reason_str = "internal async notification";
+		break;
+	case MPI26_EVENT_PCIDEV_STAT_RC_PCIE_HOT_RESET_FAILED:
+		reason_str = "pcie hot reset failed";
 		break;
 	default:
 		reason_str = "unknown reason";
@@ -7444,7 +7494,7 @@ _scsih_sas_broadcast_primitive_event(struct MPT3SAS_ADAPTER *ioc,
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 		r = mpt3sas_scsih_issue_tm(ioc, handle, lun,
 			MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, st->smid,
-			st->msix_io, 30);
+			st->msix_io, 30, 0);
 		if (r == FAILED) {
 			sdev_printk(KERN_WARNING, sdev,
 			    "mpt3sas_scsih_issue_tm: FAILED when sending "
@@ -7485,7 +7535,7 @@ _scsih_sas_broadcast_primitive_event(struct MPT3SAS_ADAPTER *ioc,
 
 		r = mpt3sas_scsih_issue_tm(ioc, handle, sdev->lun,
 			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, st->smid,
-			st->msix_io, 30);
+			st->msix_io, 30, 0);
 		if (r == FAILED || st->cb_idx != 0xFF) {
 			sdev_printk(KERN_WARNING, sdev,
 			    "mpt3sas_scsih_issue_tm: ABORT_TASK: FAILED : "

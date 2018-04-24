@@ -644,9 +644,10 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	MPI2RequestHeader_t *mpi_request = NULL, *request;
 	MPI2DefaultReply_t *mpi_reply;
 	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
+	struct _pcie_device *pcie_device = NULL;
 	u32 ioc_state;
 	u16 smid;
-	unsigned long timeout;
+	u8 timeout;
 	u8 issue_reset;
 	u32 sz, sz_arg;
 	void *psge;
@@ -659,6 +660,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	long ret;
 	u16 wait_state_count;
 	u16 device_handle = MPT3SAS_INVALID_DEVICE_HANDLE;
+	u8 tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
 
 	issue_reset = 0;
 
@@ -1074,14 +1076,26 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 				ioc->name,
 				le16_to_cpu(mpi_request->FunctionDependent1));
 			mpt3sas_halt_firmware(ioc);
-			mpt3sas_scsih_issue_locked_tm(ioc,
-			    le16_to_cpu(mpi_request->FunctionDependent1), 0,
-			    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 0, 30);
+			pcie_device = mpt3sas_get_pdev_by_handle(ioc,
+				le16_to_cpu(mpi_request->FunctionDependent1));
+			if (pcie_device && (!ioc->tm_custom_handling))
+				mpt3sas_scsih_issue_locked_tm(ioc,
+				  le16_to_cpu(mpi_request->FunctionDependent1),
+				  0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+				  0, pcie_device->reset_timeout,
+				  tr_method);
+			else
+				mpt3sas_scsih_issue_locked_tm(ioc,
+				  le16_to_cpu(mpi_request->FunctionDependent1),
+				  0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+				  0, 30, MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET);
 		} else
 			mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 	}
 
  out:
+	if (pcie_device)
+		pcie_device_put(pcie_device);
 
 	/* free memory associated with sg buffers */
 	if (data_in)
