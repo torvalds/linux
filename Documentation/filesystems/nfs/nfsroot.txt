@@ -110,6 +110,9 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 		will not be triggered if it is missing and NFS root is not
 		in operation.
 
+		Value is exported to /proc/net/pnp with the prefix "bootserver "
+		(see below).
+
 		Default: Determined using autoconfiguration.
 		         The address of the autoconfiguration server is used.
 
@@ -165,12 +168,33 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 
                 Default: any
 
-  <dns0-ip>	IP address of first nameserver.
-		Value gets exported by /proc/net/pnp which is often linked
-		on embedded systems by /etc/resolv.conf.
+  <dns0-ip>	IP address of primary nameserver.
+		Value is exported to /proc/net/pnp with the prefix "nameserver "
+		(see below).
 
-  <dns1-ip>	IP address of second nameserver.
-		Same as above.
+		Default: None if not using autoconfiguration; determined
+		automatically if using autoconfiguration.
+
+  <dns1-ip>	IP address of secondary nameserver.
+		See <dns0-ip>.
+
+  After configuration (whether manual or automatic) is complete, a file is
+  created at /proc/net/pnp in the following format; lines are omitted if
+  their respective value is empty following configuration.
+
+	#PROTO: <DHCP|BOOTP|RARP|MANUAL>	(depending on configuration method)
+	domain <dns-domain>			(if autoconfigured, the DNS domain)
+	nameserver <dns0-ip>			(primary name server IP)
+	nameserver <dns1-ip>			(secondary name server IP)
+	nameserver <dns2-ip>			(tertiary name server IP)
+	bootserver <server-ip>			(NFS server IP)
+
+  <dns-domain> and <dns2-ip> are requested during autoconfiguration; they
+  cannot be specified as part of the "ip=" kernel command line parameter.
+
+  Because the "domain" and "nameserver" options are recognised by DNS
+  resolvers, /etc/resolv.conf is often linked to /proc/net/pnp on systems
+  that use an NFS root filesystem.
 
 
 nfsrootdebug
