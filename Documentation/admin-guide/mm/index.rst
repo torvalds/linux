@@ -23,6 +23,7 @@ the Linux memory management.
 
    hugetlbpage
    idle_page_tracking
+   ksm
    pagemap
    soft-dirty
    userfaultfd
