@@ -344,8 +344,8 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		if (err < 0)
 			perror("recv start time: ");
 		while (s->bytes_recvd < total_bytes) {
-			timeout.tv_sec = 1;
-			timeout.tv_usec = 0;
+			timeout.tv_sec = 0;
+			timeout.tv_usec = 10;
 
 			/* FD sets */
 			FD_ZERO(&w);
@@ -903,12 +903,10 @@ static int test_exec(int cgrp, struct sockmap_options *opt)
 {
 	int err = __test_exec(cgrp, SENDMSG, opt);
 
-	sched_yield();
 	if (err)
 		goto out;
 
 	err = __test_exec(cgrp, SENDPAGE, opt);
-	sched_yield();
 out:
 	return err;
 }
@@ -928,19 +926,18 @@ static int test_loop(int cgrp)
 	opt.iov_length = 0;
 	opt.rate = 0;
 
-	for (r = 1; r < 100; r += 33) {
-		for (i = 1; i < 100; i += 33) {
-			for (l = 1; l < 100; l += 33) {
-				opt.rate = r;
-				opt.iov_count = i;
-				opt.iov_length = l;
-				err = test_exec(cgrp, &opt);
-				if (err)
-					goto out;
-			}
+	r = 1;
+	for (i = 1; i < 100; i += 33) {
+		for (l = 1; l < 100; l += 33) {
+			opt.rate = r;
+			opt.iov_count = i;
+			opt.iov_length = l;
+			err = test_exec(cgrp, &opt);
+			if (err)
+				goto out;
 		}
 	}
-
+	sched_yield();
 out:
 	return err;
 }
@@ -1031,6 +1028,7 @@ static int test_send(struct sockmap_options *opt, int cgrp)
 	if (err)
 		goto out;
 out:
+	sched_yield();
 	return err;
 }
 
@@ -1168,7 +1166,7 @@ static int test_start_end(int cgrp)
 	opt.iov_length = 100;
 	txmsg_cork = 1600;
 
-	for (i = 99; i <= 1600; i += 100) {
+	for (i = 99; i <= 1600; i += 500) {
 		txmsg_start = 0;
 		txmsg_end = i;
 		err = test_exec(cgrp, &opt);
@@ -1177,7 +1175,7 @@ static int test_start_end(int cgrp)
 	}
 
 	/* Test start/end with cork but pull data in middle */
-	for (i = 199; i <= 1600; i += 100) {
+	for (i = 199; i <= 1600; i += 500) {
 		txmsg_start = 100;
 		txmsg_end = i;
 		err = test_exec(cgrp, &opt);
@@ -1221,6 +1219,7 @@ static int test_start_end(int cgrp)
 out:
 	txmsg_start = 0;
 	txmsg_end = 0;
+	sched_yield();
 	return err;
 }
 
