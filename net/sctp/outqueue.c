@@ -1457,7 +1457,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 * the outstanding bytes for this chunk, so only
 			 * count bytes associated with a transport.
 			 */
-			if (transport) {
+			if (transport && !tchunk->tsn_gap_acked) {
 				/* If this chunk is being used for RTT
 				 * measurement, calculate the RTT and update
 				 * the RTO using this value.
@@ -1469,13 +1469,33 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * first instance of the packet or a later
 				 * instance).
 				 */
-				if (!tchunk->tsn_gap_acked &&
-				    !sctp_chunk_retransmitted(tchunk) &&
+				if (!sctp_chunk_retransmitted(tchunk) &&
 				    tchunk->rtt_in_progress) {
 					tchunk->rtt_in_progress = 0;
 					rtt = jiffies - tchunk->sent_at;
 					sctp_transport_update_rto(transport,
 								  rtt);
+				}
+
+				if (TSN_lte(tsn, sack_ctsn)) {
+					/*
+					 * SFR-CACC algorithm:
+					 * 2) If the SACK contains gap acks
+					 * and the flag CHANGEOVER_ACTIVE is
+					 * set the receiver of the SACK MUST
+					 * take the following action:
+					 *
+					 * B) For each TSN t being acked that
+					 * has not been acked in any SACK so
+					 * far, set cacc_saw_newack to 1 for
+					 * the destination that the TSN was
+					 * sent to.
+					 */
+					if (sack->num_gap_ack_blocks &&
+					    q->asoc->peer.primary_path->cacc.
+					    changeover_active)
+						transport->cacc.cacc_saw_newack
+							= 1;
 				}
 			}
 
@@ -1507,28 +1527,6 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 */
 				restart_timer = 1;
 				forward_progress = true;
-
-				if (!tchunk->tsn_gap_acked) {
-					/*
-					 * SFR-CACC algorithm:
-					 * 2) If the SACK contains gap acks
-					 * and the flag CHANGEOVER_ACTIVE is
-					 * set the receiver of the SACK MUST
-					 * take the following action:
-					 *
-					 * B) For each TSN t being acked that
-					 * has not been acked in any SACK so
-					 * far, set cacc_saw_newack to 1 for
-					 * the destination that the TSN was
-					 * sent to.
-					 */
-					if (transport &&
-					    sack->num_gap_ack_blocks &&
-					    q->asoc->peer.primary_path->cacc.
-					    changeover_active)
-						transport->cacc.cacc_saw_newack
-							= 1;
-				}
 
 				list_add_tail(&tchunk->transmitted_list,
 					      &q->sacked);
