@@ -721,9 +721,11 @@ static void __init ic_bootp_init_ext(u8 *e)
 	*e++ = 3;		/* Default gateway request */
 	*e++ = 4;
 	e += 4;
+#if CONF_NAMESERVERS_MAX > 0
 	*e++ = 6;		/* (DNS) name server request */
-	*e++ = 8;
-	e += 8;
+	*e++ = 4 * CONF_NAMESERVERS_MAX;
+	e += 4 * CONF_NAMESERVERS_MAX;
+#endif
 	*e++ = 12;		/* Host name request */
 	*e++ = 32;
 	e += 32;
