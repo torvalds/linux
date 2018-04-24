@@ -464,6 +464,7 @@ struct hid_field {
 
 struct hid_report {
 	struct list_head list;
+	struct list_head hidinput_list;
 	unsigned id;					/* id of this report */
 	unsigned type;					/* report type */
 	struct hid_field *field[HID_MAX_FIELDS];	/* fields of the report */
@@ -510,6 +511,7 @@ struct hid_input {
 	struct hid_report *report;
 	struct input_dev *input;
 	bool registered;
+	struct list_head reports;	/* the list of reports */
 };
 
 enum hid_type {
