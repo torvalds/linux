@@ -26,11 +26,63 @@
 #include <sound/initval.h>
 #include <sound/soc-dpcm.h>
 
-static int soc_compr_open(struct snd_compr_stream *cstream)
+static int soc_compr_components_open(struct snd_compr_stream *cstream,
+				     struct snd_soc_component **last)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (!component->driver->compr_ops ||
+		    !component->driver->compr_ops->open)
+			continue;
+
+		ret = component->driver->compr_ops->open(cstream);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"Compress ASoC: can't open platform %s: %d\n",
+				component->name, ret);
+
+			*last = component;
+			return ret;
+		}
+	}
+
+	*last = NULL;
+	return 0;
+}
+
+static int soc_compr_components_free(struct snd_compr_stream *cstream,
+				     struct snd_soc_component *last)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component == last)
+			break;
+
+		if (!component->driver->compr_ops ||
+		    !component->driver->compr_ops->free)
+			continue;
+
+		component->driver->compr_ops->free(cstream);
+	}
+
+	return 0;
+}
+
+static int soc_compr_open(struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
@@ -46,22 +98,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 		}
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->open)
-			continue;
-
-		ret = component->driver->compr_ops->open(cstream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Compress ASoC: can't open platform %s: %d\n",
-				component->name, ret);
-			goto machine_err;
-		}
-	}
-	component = NULL;
+	ret = soc_compr_components_open(cstream, &component);
+	if (ret < 0)
+		goto machine_err;
 
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
 		ret = rtd->dai_link->compr_ops->startup(cstream);
@@ -80,18 +119,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	for_each_rtdcom(rtd, rtdcom) {
-		struct snd_soc_component *err_comp = rtdcom->component;
-
-		if (err_comp == component)
-			break;
-
-		if (!err_comp->driver->compr_ops ||
-		    !err_comp->driver->compr_ops->free)
-			continue;
-
-		err_comp->driver->compr_ops->free(cstream);
-	}
+	soc_compr_components_free(cstream, component);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
@@ -106,7 +134,6 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	struct snd_pcm_substream *fe_substream =
 		 fe->pcm->streams[cstream->direction].substream;
 	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dapm_widget_list *list;
@@ -130,22 +157,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 		}
 	}
 
-	for_each_rtdcom(fe, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->open)
-			continue;
-
-		ret = component->driver->compr_ops->open(cstream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Compress ASoC: can't open platform %s: %d\n",
-				component->name, ret);
-			goto machine_err;
-		}
-	}
-	component = NULL;
+	ret = soc_compr_components_open(cstream, &component);
+	if (ret < 0)
+		goto machine_err;
 
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
 		ret = fe->dai_link->compr_ops->startup(cstream);
@@ -199,18 +213,7 @@ fe_err:
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->shutdown)
 		fe->dai_link->compr_ops->shutdown(cstream);
 machine_err:
-	for_each_rtdcom(fe, rtdcom) {
-		struct snd_soc_component *err_comp = rtdcom->component;
-
-		if (err_comp == component)
-			break;
-
-		if (!err_comp->driver->compr_ops ||
-		    !err_comp->driver->compr_ops->free)
-			continue;
-
-		err_comp->driver->compr_ops->free(cstream);
-	}
+	soc_compr_components_free(cstream, component);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
@@ -252,8 +255,6 @@ static void close_delayed_work(struct work_struct *work)
 static int soc_compr_free(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int stream;
@@ -278,15 +279,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->shutdown)
 		rtd->dai_link->compr_ops->shutdown(cstream);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->free)
-			continue;
-
-		component->driver->compr_ops->free(cstream);
-	}
+	soc_compr_components_free(cstream, NULL);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
@@ -316,8 +309,6 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
 	struct snd_soc_dpcm *dpcm;
 	int stream, ret;
@@ -355,15 +346,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->shutdown)
 		fe->dai_link->compr_ops->shutdown(cstream);
 
-	for_each_rtdcom(fe, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->free)
-			continue;
-
-		component->driver->compr_ops->free(cstream);
-	}
+	soc_compr_components_free(cstream, NULL);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
