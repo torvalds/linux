@@ -206,6 +206,45 @@ stable_node "dups" with few rmap_items in them, but that may increase
 the ksmd CPU usage and possibly slowdown the readonly computations on
 the KSM pages of the applications.
 
+Design
+======
+
+Overview
+--------
+
+.. kernel-doc:: mm/ksm.c
+   :DOC: Overview
+
+Reverse mapping
+---------------
+KSM maintains reverse mapping information for KSM pages in the stable
+tree.
+
+If a KSM page is shared between less than ``max_page_sharing`` VMAs,
+the node of the stable tree that represents such KSM page points to a
+list of :c:type:`struct rmap_item` and the ``page->mapping`` of the
+KSM page points to the stable tree node.
+
+When the sharing passes this threshold, KSM adds a second dimension to
+the stable tree. The tree node becomes a "chain" that links one or
+more "dups". Each "dup" keeps reverse mapping information for a KSM
+page with ``page->mapping`` pointing to that "dup".
+
+Every "chain" and all "dups" linked into a "chain" enforce the
+invariant that they represent the same write protected memory content,
+even if each "dup" will be pointed by a different KSM page copy of
+that content.
+
+This way the stable tree lookup computational complexity is unaffected
+if compared to an unlimited list of reverse mappings. It is still
+enforced that there cannot be KSM page content duplicates in the
+stable tree itself.
+
+Reference
+---------
+.. kernel-doc:: mm/ksm.c
+   :functions: mm_slot ksm_scan stable_node rmap_item
+
 --
 Izik Eidus,
 Hugh Dickins, 17 Nov 2009
