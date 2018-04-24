@@ -721,7 +721,7 @@ static void __init ic_bootp_init_ext(u8 *e)
 	*e++ = 3;		/* Default gateway request */
 	*e++ = 4;
 	e += 4;
-	*e++ = 5;		/* Name server request */
+	*e++ = 6;		/* (DNS) name server request */
 	*e++ = 8;
 	e += 8;
 	*e++ = 12;		/* Host name request */
