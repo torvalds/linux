@@ -87,7 +87,7 @@
 #define IMX274_SHR_LIMIT_CONST			(4)
 
 /*
- * Constants for sensor reset delay
+ * Min and max sensor reset delay (microseconds)
  */
 #define IMX274_RESET_DELAY1			(2000)
 #define IMX274_RESET_DELAY2			(2200)
