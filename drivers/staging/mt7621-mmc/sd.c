@@ -485,16 +485,10 @@ static void msdc_set_timeout(struct msdc_host *host, u32 ns, u32 clks)
 	      ns, clks, timeout + 1);
 }
 
-#if 0
-static void msdc_tasklet_card(unsigned long arg)
-{
-	struct msdc_host *host = (struct msdc_host *)arg;
-#else
 static void msdc_tasklet_card(struct work_struct *work)
 {
 	struct msdc_host *host = (struct msdc_host *)container_of(work,
 				struct msdc_host, card_delaywork.work);
-#endif
 	void __iomem *base = host->base;
 	u32 inserted;
 	u32 status = 0;
@@ -2210,11 +2204,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 		if (host->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return IRQ_HANDLED;
 		IRQ_MSG("MSDC_INT_CDSC irq<0x%.8x>", intsts);
-#if 0 /* ---/+++ by chhung: fix slot mechanical bounce issue */
-		tasklet_hi_schedule(&host->card_tasklet);
-#else
 		schedule_delayed_work(&host->card_delaywork, HZ);
-#endif
 		/* tuning when plug card ? */
 	}
 
@@ -2617,11 +2607,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	}
 	msdc_init_gpd_bd(host, &host->dma);
 
-#if 0
-	tasklet_init(&host->card_tasklet, msdc_tasklet_card, (ulong)host);
-#else
 	INIT_DELAYED_WORK(&host->card_delaywork, msdc_tasklet_card);
-#endif
 	spin_lock_init(&host->lock);
 	msdc_init_hw(host);
 
@@ -2655,12 +2641,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 release:
 	platform_set_drvdata(pdev, NULL);
 	msdc_deinit_hw(host);
-
-#if 0
-	tasklet_kill(&host->card_tasklet);
-#else
 	cancel_delayed_work_sync(&host->card_delaywork);
-#endif
 
 release_mem:
 	if (host->dma.gpd)
@@ -2693,11 +2674,7 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	mmc_remove_host(host->mmc);
 	msdc_deinit_hw(host);
 
-#if 0
-	tasklet_kill(&host->card_tasklet);
-#else
 	cancel_delayed_work_sync(&host->card_delaywork);
-#endif
 
 	dma_free_coherent(&pdev->dev, MAX_GPD_NUM * sizeof(struct gpd),
 			  host->dma.gpd, host->dma.gpd_addr);

@@ -931,7 +931,6 @@ struct msdc_host {
 
 	int                         irq;            /* host interrupt */
 
-	struct tasklet_struct       card_tasklet;
 #if 0
 	struct work_struct		card_workqueue;
 #else
