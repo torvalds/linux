@@ -338,19 +338,21 @@ err_group:
 
 static void rvin_group_put(struct rvin_dev *vin)
 {
-	mutex_lock(&vin->group->lock);
+	struct rvin_group *group = vin->group;
+
+	mutex_lock(&group->lock);
 
 	vin->group = NULL;
 	vin->v4l2_dev.mdev = NULL;
 
-	if (WARN_ON(vin->group->vin[vin->id] != vin))
+	if (WARN_ON(group->vin[vin->id] != vin))
 		goto out;
 
-	vin->group->vin[vin->id] = NULL;
+	group->vin[vin->id] = NULL;
 out:
-	mutex_unlock(&vin->group->lock);
+	mutex_unlock(&group->lock);
 
-	kref_put(&vin->group->refcount, rvin_group_release);
+	kref_put(&group->refcount, rvin_group_release);
 }
 
 /* -----------------------------------------------------------------------------
