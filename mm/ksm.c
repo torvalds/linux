@@ -51,7 +51,9 @@
 #define DO_NUMA(x)	do { } while (0)
 #endif
 
-/*
+/**
+ * DOC: Overview
+ *
  * A few notes about the KSM scanning process,
  * to make it easier to understand the data structures below:
  *
@@ -66,6 +68,21 @@
  * by their contents.  Because each such page is write-protected, searching on
  * this tree is fully assured to be working (except when pages are unmapped),
  * and therefore this tree is called the stable tree.
+ *
+ * The stable tree node includes information required for reverse
+ * mapping from a KSM page to virtual addresses that map this page.
+ *
+ * In order to avoid large latencies of the rmap walks on KSM pages,
+ * KSM maintains two types of nodes in the stable tree:
+ *
+ * * the regular nodes that keep the reverse mapping structures in a
+ *   linked list
+ * * the "chains" that link nodes ("dups") that represent the same
+ *   write protected memory content, but each "dup" corresponds to a
+ *   different KSM page copy of that content
+ *
+ * Internally, the regular nodes, "dups" and "chains" are represented
+ * using the same :c:type:`struct stable_node` structure.
  *
  * In addition to the stable tree, KSM uses a second data structure called the
  * unstable tree: this tree holds pointers to pages which have been found to
