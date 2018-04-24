@@ -512,6 +512,7 @@ struct hid_input {
 	struct list_head list;
 	struct hid_report *report;
 	struct input_dev *input;
+	const char *name;
 	bool registered;
 	struct list_head reports;	/* the list of reports */
 };

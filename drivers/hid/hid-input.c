@@ -1500,15 +1500,56 @@ static void report_features(struct hid_device *hid)
 		}
 }
 
-static struct hid_input *hidinput_allocate(struct hid_device *hid)
+static struct hid_input *hidinput_allocate(struct hid_device *hid,
+					   unsigned int application)
 {
 	struct hid_input *hidinput = kzalloc(sizeof(*hidinput), GFP_KERNEL);
 	struct input_dev *input_dev = input_allocate_device();
-	if (!hidinput || !input_dev) {
-		kfree(hidinput);
-		input_free_device(input_dev);
-		hid_err(hid, "Out of memory during hid input probe\n");
-		return NULL;
+	const char *suffix = NULL;
+
+	if (!hidinput || !input_dev)
+		goto fail;
+
+	if ((hid->quirks & HID_QUIRK_INPUT_PER_APP) &&
+	    hid->maxapplication > 1) {
+		switch (application) {
+		case HID_GD_KEYBOARD:
+			suffix = "Keyboard";
+			break;
+		case HID_GD_KEYPAD:
+			suffix = "Keypad";
+			break;
+		case HID_GD_MOUSE:
+			suffix = "Mouse";
+			break;
+		case HID_DG_STYLUS:
+			suffix = "Pen";
+			break;
+		case HID_DG_TOUCHSCREEN:
+			suffix = "Touchscreen";
+			break;
+		case HID_DG_TOUCHPAD:
+			suffix = "Touchpad";
+			break;
+		case HID_GD_SYSTEM_CONTROL:
+			suffix = "System Control";
+			break;
+		case HID_CP_CONSUMER_CONTROL:
+			suffix = "Consumer Control";
+			break;
+		case HID_GD_WIRELESS_RADIO_CTLS:
+			suffix = "Wireless Radio Control";
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (suffix) {
+		hidinput->name = kasprintf(GFP_KERNEL, "%s %s",
+					   hid->name, suffix);
+		if (!hidinput->name)
+			goto fail;
 	}
 
 	input_set_drvdata(input_dev, hid);
@@ -1518,7 +1559,7 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid)
 	input_dev->setkeycode = hidinput_setkeycode;
 	input_dev->getkeycode = hidinput_getkeycode;
 
-	input_dev->name = hid->name;
+	input_dev->name = hidinput->name ? hidinput->name : hid->name;
 	input_dev->phys = hid->phys;
 	input_dev->uniq = hid->uniq;
 	input_dev->id.bustype = hid->bus;
@@ -1533,6 +1574,12 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid)
 	INIT_LIST_HEAD(&hidinput->reports);
 
 	return hidinput;
+
+fail:
+	kfree(hidinput);
+	input_free_device(input_dev);
+	hid_err(hid, "Out of memory during hid input probe\n");
+	return NULL;
 }
 
 static bool hidinput_has_been_populated(struct hid_input *hidinput)
@@ -1578,6 +1625,7 @@ static void hidinput_cleanup_hidinput(struct hid_device *hid,
 
 	list_del(&hidinput->list);
 	input_free_device(hidinput->input);
+	kfree(hidinput->name);
 
 	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++) {
 		if (k == HID_OUTPUT_REPORT &&
@@ -1646,6 +1694,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	struct hid_driver *drv = hid->driver;
 	struct hid_report *report;
 	struct hid_input *next, *hidinput = NULL;
+	unsigned int application;
 	int i, k;
 
 	INIT_LIST_HEAD(&hid->inputs);
@@ -1678,6 +1727,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			if (!report->maxfield)
 				continue;
 
+			application = report->application;
+
 			/*
 			 * Find the previous hidinput report attached
 			 * to this report id.
@@ -1689,7 +1740,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = hidinput_match_application(report);
 
 			if (!hidinput) {
-				hidinput = hidinput_allocate(hid);
+				hidinput = hidinput_allocate(hid, application);
 				if (!hidinput)
 					goto out_unwind;
 			}
