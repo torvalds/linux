@@ -574,10 +574,10 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
  * the power state and the clock information for those levels.
  *
  * To manually adjust these states, first select manual using
- * power_dpm_force_performance_level.  Writing a string of the level
- * numbers to the file will select which levels you want to enable.
- * E.g., writing 456 to the file will enable levels 4, 5, and 6.
- *
+ * power_dpm_force_performance_level.
+ * Secondly,Enter a new value for each level by inputing a string that
+ * contains " echo xx xx xx > pp_dpm_sclk/mclk/pcie"
+ * E.g., echo 4 5 6 to > pp_dpm_sclk will enable sclk levels 4, 5, and 6.
  */
 
 static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
@@ -602,23 +602,27 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
-	uint32_t i, mask = 0;
-	char sub_str[2];
+	uint32_t mask = 0;
+	char *sub_str = NULL;
+	char *tmp;
+	char buf_cpy[count];
+	const char delimiter[3] = {' ', '\n', '\0'};
 
-	for (i = 0; i < strlen(buf); i++) {
-		if (*(buf + i) == '\n')
-			continue;
-		sub_str[0] = *(buf + i);
-		sub_str[1] = '\0';
-		ret = kstrtol(sub_str, 0, &level);
+	memcpy(buf_cpy, buf, count+1);
+	tmp = buf_cpy;
+	while (tmp[0]) {
+		sub_str =  strsep(&tmp, delimiter);
+		if (strlen(sub_str)) {
+			ret = kstrtol(sub_str, 0, &level);
 
-		if (ret) {
-			count = -EINVAL;
-			goto fail;
-		}
-		mask |= 1 << level;
+			if (ret) {
+				count = -EINVAL;
+				goto fail;
+			}
+			mask |= 1 << level;
+		} else
+			break;
 	}
-
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 
@@ -648,21 +652,26 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
-	uint32_t i, mask = 0;
-	char sub_str[2];
+	uint32_t mask = 0;
+	char *sub_str = NULL;
+	char *tmp;
+	char buf_cpy[count];
+	const char delimiter[3] = {' ', '\n', '\0'};
 
-	for (i = 0; i < strlen(buf); i++) {
-		if (*(buf + i) == '\n')
-			continue;
-		sub_str[0] = *(buf + i);
-		sub_str[1] = '\0';
-		ret = kstrtol(sub_str, 0, &level);
+	memcpy(buf_cpy, buf, count+1);
+	tmp = buf_cpy;
+	while (tmp[0]) {
+		sub_str =  strsep(&tmp, delimiter);
+		if (strlen(sub_str)) {
+			ret = kstrtol(sub_str, 0, &level);
 
-		if (ret) {
-			count = -EINVAL;
-			goto fail;
-		}
-		mask |= 1 << level;
+			if (ret) {
+				count = -EINVAL;
+				goto fail;
+			}
+			mask |= 1 << level;
+		} else
+			break;
 	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
@@ -693,21 +702,27 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
-	uint32_t i, mask = 0;
-	char sub_str[2];
+	uint32_t mask = 0;
+	char *sub_str = NULL;
+	char *tmp;
+	char buf_cpy[count];
+	const char delimiter[3] = {' ', '\n', '\0'};
 
-	for (i = 0; i < strlen(buf); i++) {
-		if (*(buf + i) == '\n')
-			continue;
-		sub_str[0] = *(buf + i);
-		sub_str[1] = '\0';
-		ret = kstrtol(sub_str, 0, &level);
+	memcpy(buf_cpy, buf, count+1);
+	tmp = buf_cpy;
 
-		if (ret) {
-			count = -EINVAL;
-			goto fail;
-		}
-		mask |= 1 << level;
+	while (tmp[0]) {
+		sub_str =  strsep(&tmp, delimiter);
+		if (strlen(sub_str)) {
+			ret = kstrtol(sub_str, 0, &level);
+
+			if (ret) {
+				count = -EINVAL;
+				goto fail;
+			}
+			mask |= 1 << level;
+		} else
+			break;
 	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
