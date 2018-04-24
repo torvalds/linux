@@ -33,7 +33,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret = 0, __ret;
+	int ret;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -68,16 +68,15 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 		    !component->driver->compr_ops->open)
 			continue;
 
-		__ret = component->driver->compr_ops->open(cstream);
-		if (__ret < 0) {
+		ret = component->driver->compr_ops->open(cstream);
+		if (ret < 0) {
 			dev_err(component->dev,
 				"Compress ASoC: can't open platform %s: %d\n",
-				component->name, __ret);
-			ret = __ret;
+				component->name, ret);
+			goto machine_err;
 		}
 	}
-	if (ret < 0)
-		goto machine_err;
+	component = NULL;
 
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
 		ret = rtd->dai_link->compr_ops->startup(cstream);
@@ -97,17 +96,20 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 machine_err:
 	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
+		struct snd_soc_component *err_comp = rtdcom->component;
+
+		if (err_comp == component)
+			break;
 
 		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
+		if (platform && (err_comp == &platform->component))
 			continue;
 
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->free)
+		if (!err_comp->driver->compr_ops ||
+		    !err_comp->driver->compr_ops->free)
 			continue;
 
-		component->driver->compr_ops->free(cstream);
+		err_comp->driver->compr_ops->free(cstream);
 	}
 
 	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
@@ -132,7 +134,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dapm_widget_list *list;
 	int stream;
-	int ret = 0, __ret;
+	int ret;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
 		stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -172,16 +174,15 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 		    !component->driver->compr_ops->open)
 			continue;
 
-		__ret = component->driver->compr_ops->open(cstream);
-		if (__ret < 0) {
+		ret = component->driver->compr_ops->open(cstream);
+		if (ret < 0) {
 			dev_err(component->dev,
 				"Compress ASoC: can't open platform %s: %d\n",
-				component->name, __ret);
-			ret = __ret;
+				component->name, ret);
+			goto machine_err;
 		}
 	}
-	if (ret < 0)
-		goto machine_err;
+	component = NULL;
 
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
 		ret = fe->dai_link->compr_ops->startup(cstream);
@@ -236,17 +237,20 @@ fe_err:
 		fe->dai_link->compr_ops->shutdown(cstream);
 machine_err:
 	for_each_rtdcom(fe, rtdcom) {
-		component = rtdcom->component;
+		struct snd_soc_component *err_comp = rtdcom->component;
+
+		if (err_comp == component)
+			break;
 
 		/* ignore duplication for now */
-		if (platform && (component == &platform->component))
+		if (platform && (err_comp == &platform->component))
 			continue;
 
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->free)
+		if (!err_comp->driver->compr_ops ||
+		    !err_comp->driver->compr_ops->free)
 			continue;
 
-		component->driver->compr_ops->free(cstream);
+		err_comp->driver->compr_ops->free(cstream);
 	}
 
 	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->free)
