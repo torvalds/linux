@@ -514,9 +514,11 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		if (adev->asic_type != CHIP_VEGA20) {
+			amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+			if (!amdgpu_sriov_vf(adev))
+				amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		}
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -527,8 +529,10 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
+		if (adev->asic_type != CHIP_VEGA20) {
+			amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
+			amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
+		}
 		break;
 	case CHIP_RAVEN:
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
