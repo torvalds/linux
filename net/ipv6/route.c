@@ -1546,8 +1546,7 @@ static int rt6_remove_exception_rt(struct rt6_info *rt)
 	struct fib6_info *from;
 	int err;
 
-	from = rcu_dereference_protected(rt->from,
-					 lockdep_is_held(&rt6_exception_lock));
+	from = rcu_dereference(rt->from);
 	if (!from ||
 	    !(rt->rt6i_flags & RTF_CACHE))
 		return -EINVAL;
