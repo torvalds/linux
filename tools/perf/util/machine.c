@@ -673,8 +673,7 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 	if (kmod_path__parse_name(&m, filename))
 		return NULL;
 
-	map = map_groups__find_by_name(&machine->kmaps, MAP__FUNCTION,
-				       m.name);
+	map = map_groups__find_by_name(&machine->kmaps, m.name);
 	if (map) {
 		/*
 		 * If the map's dso is an offline module, give dso__load()
@@ -1055,10 +1054,9 @@ static bool is_kmod_dso(struct dso *dso)
 static int map_groups__set_module_path(struct map_groups *mg, const char *path,
 				       struct kmod_path *m)
 {
-	struct map *map;
 	char *long_name;
+	struct map *map = map_groups__find_by_name(mg, m->name);
 
-	map = map_groups__find_by_name(mg, MAP__FUNCTION, m->name);
 	if (map == NULL)
 		return 0;
 

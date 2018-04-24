@@ -1042,7 +1042,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", dso->short_name, section_name);
 
-			curr_map = map_groups__find_by_name(kmaps, map->type, dso_name);
+			curr_map = __map_groups__find_by_name(kmaps, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 

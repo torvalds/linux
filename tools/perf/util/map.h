@@ -254,8 +254,12 @@ struct symbol *map_groups__find_function_by_name(struct map_groups *mg,
 int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 				   FILE *fp);
 
-struct map *map_groups__find_by_name(struct map_groups *mg,
-				     enum map_type type, const char *name);
+struct map *__map_groups__find_by_name(struct map_groups *mg, enum map_type type, const char *name);
+
+static inline struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
+{
+	return __map_groups__find_by_name(mg, MAP__FUNCTION, name);
+}
 
 bool __map__is_kernel(const struct map *map);
 

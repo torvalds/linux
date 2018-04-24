@@ -183,7 +183,7 @@ next_pair:
 		 * so use the short name, less descriptive but the same ("[kernel]" in
 		 * both cases.
 		 */
-		pair = map_groups__find_by_name(&kallsyms.kmaps, type,
+		pair = map_groups__find_by_name(&kallsyms.kmaps,
 						(map->dso->kernel ?
 							map->dso->short_name :
 							map->dso->name));

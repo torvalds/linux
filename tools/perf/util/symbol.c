@@ -792,8 +792,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta)
 							curr_map->type);
 				}
 
-				curr_map = map_groups__find_by_name(kmaps,
-							map->type, module);
+				curr_map = __map_groups__find_by_name(kmaps, map->type, module);
 				if (curr_map == NULL) {
 					pr_debug("%s/proc/{kallsyms,modules} "
 					         "inconsistency while looking "
@@ -1667,8 +1666,7 @@ out:
 	return ret;
 }
 
-struct map *map_groups__find_by_name(struct map_groups *mg,
-				     enum map_type type, const char *name)
+struct map *__map_groups__find_by_name(struct map_groups *mg, enum map_type type, const char *name)
 {
 	struct maps *maps = &mg->maps[type];
 	struct map *map;
