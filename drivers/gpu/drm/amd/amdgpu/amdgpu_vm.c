@@ -2252,6 +2252,10 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 {
 	struct amdgpu_vm_bo_base *bo_base;
 
+	/* shadow bo doesn't have bo base, its validation needs its parent */
+	if (bo->parent && bo->parent->shadow == bo)
+		bo = bo->parent;
+
 	list_for_each_entry(bo_base, &bo->va, bo_list) {
 		struct amdgpu_vm *vm = bo_base->vm;
 
