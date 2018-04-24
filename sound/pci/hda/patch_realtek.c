@@ -2828,6 +2828,7 @@ static int find_ext_mic_pin(struct hda_codec *codec);
 
 static void alc286_shutup(struct hda_codec *codec)
 {
+	const struct hda_pincfg *pin;
 	int i;
 	int mic_pin = find_ext_mic_pin(codec);
 	/* don't shut up pins when unloading the driver; otherwise it breaks
@@ -2835,8 +2836,7 @@ static void alc286_shutup(struct hda_codec *codec)
 	 */
 	if (codec->bus->shutdown)
 		return;
-	for (i = 0; i < codec->init_pins.used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+	snd_array_for_each(&codec->init_pins, i, pin) {
 		/* use read here for syncing after issuing each verb */
 		if (pin->nid != mic_pin)
 			snd_hda_codec_read(codec, pin->nid, 0,

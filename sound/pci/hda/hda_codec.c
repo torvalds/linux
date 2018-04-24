@@ -481,9 +481,10 @@ static struct hda_pincfg *look_up_pincfg(struct hda_codec *codec,
 					 struct snd_array *array,
 					 hda_nid_t nid)
 {
+	struct hda_pincfg *pin;
 	int i;
-	for (i = 0; i < array->used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(array, i);
+
+	snd_array_for_each(array, i, pin) {
 		if (pin->nid == nid)
 			return pin;
 	}
@@ -618,14 +619,15 @@ EXPORT_SYMBOL_GPL(snd_hda_codec_get_pin_target);
  */
 void snd_hda_shutup_pins(struct hda_codec *codec)
 {
+	const struct hda_pincfg *pin;
 	int i;
+
 	/* don't shut up pins when unloading the driver; otherwise it breaks
 	 * the default pin setup at the next load of the driver
 	 */
 	if (codec->bus->shutdown)
 		return;
-	for (i = 0; i < codec->init_pins.used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+	snd_array_for_each(&codec->init_pins, i, pin) {
 		/* use read here for syncing after issuing each verb */
 		snd_hda_codec_read(codec, pin->nid, 0,
 				   AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
@@ -638,13 +640,14 @@ EXPORT_SYMBOL_GPL(snd_hda_shutup_pins);
 /* Restore the pin controls cleared previously via snd_hda_shutup_pins() */
 static void restore_shutup_pins(struct hda_codec *codec)
 {
+	const struct hda_pincfg *pin;
 	int i;
+
 	if (!codec->pins_shutup)
 		return;
 	if (codec->bus->shutdown)
 		return;
-	for (i = 0; i < codec->init_pins.used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+	snd_array_for_each(&codec->init_pins, i, pin) {
 		snd_hda_codec_write(codec, pin->nid, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    pin->ctrl);
@@ -697,8 +700,7 @@ get_hda_cvt_setup(struct hda_codec *codec, hda_nid_t nid)
 	struct hda_cvt_setup *p;
 	int i;
 
-	for (i = 0; i < codec->cvt_setups.used; i++) {
-		p = snd_array_elem(&codec->cvt_setups, i);
+	snd_array_for_each(&codec->cvt_setups, i, p) {
 		if (p->nid == nid)
 			return p;
 	}
@@ -1076,8 +1078,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	/* make other inactive cvts with the same stream-tag dirty */
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	list_for_each_codec(c, codec->bus) {
-		for (i = 0; i < c->cvt_setups.used; i++) {
-			p = snd_array_elem(&c->cvt_setups, i);
+		snd_array_for_each(&c->cvt_setups, i, p) {
 			if (!p->active && p->stream_tag == stream_tag &&
 			    get_wcaps_type(get_wcaps(c, p->nid)) == type)
 				p->dirty = 1;
@@ -1140,12 +1141,11 @@ static void really_cleanup_stream(struct hda_codec *codec,
 static void purify_inactive_streams(struct hda_codec *codec)
 {
 	struct hda_codec *c;
+	struct hda_cvt_setup *p;
 	int i;
 
 	list_for_each_codec(c, codec->bus) {
-		for (i = 0; i < c->cvt_setups.used; i++) {
-			struct hda_cvt_setup *p;
-			p = snd_array_elem(&c->cvt_setups, i);
+		snd_array_for_each(&c->cvt_setups, i, p) {
 			if (p->dirty)
 				really_cleanup_stream(c, p);
 		}
@@ -1156,10 +1156,10 @@ static void purify_inactive_streams(struct hda_codec *codec)
 /* clean up all streams; called from suspend */
 static void hda_cleanup_all_streams(struct hda_codec *codec)
 {
+	struct hda_cvt_setup *p;
 	int i;
 
-	for (i = 0; i < codec->cvt_setups.used; i++) {
-		struct hda_cvt_setup *p = snd_array_elem(&codec->cvt_setups, i);
+	snd_array_for_each(&codec->cvt_setups, i, p) {
 		if (p->stream_tag)
 			really_cleanup_stream(codec, p);
 	}
@@ -2461,10 +2461,10 @@ EXPORT_SYMBOL_GPL(snd_hda_create_dig_out_ctls);
 struct hda_spdif_out *snd_hda_spdif_out_of_nid(struct hda_codec *codec,
 					       hda_nid_t nid)
 {
+	struct hda_spdif_out *spdif;
 	int i;
-	for (i = 0; i < codec->spdif_out.used; i++) {
-		struct hda_spdif_out *spdif =
-				snd_array_elem(&codec->spdif_out, i);
+
+	snd_array_for_each(&codec->spdif_out, i, spdif) {
 		if (spdif->nid == nid)
 			return spdif;
 	}
