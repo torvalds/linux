@@ -173,8 +173,6 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 /* to find an entry in a kernel page-table-directory */
 /* This now only contains the vmalloc pages */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
-			    pte_t *ptep, unsigned long pte, int huge);
 
 /* Atomic PTE updates */
 static inline unsigned long pte_update(struct mm_struct *mm,
@@ -205,12 +203,12 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (old & _PAGE_HASHPTE)
-		hpte_need_flush(mm, addr, ptep, old, huge);
-#endif
-
 	return old;
+}
+
+static inline int pte_young(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_ACCESSED;
 }
 
 static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
@@ -218,7 +216,7 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 {
 	unsigned long old;
 
-	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
+	if (pte_young(*ptep))
 		return 0;
 	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
 	return (old & _PAGE_ACCESSED) != 0;
@@ -312,7 +310,7 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 }
 
 #define __HAVE_ARCH_PTE_SAME
-#define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
+#define pte_same(A,B)	((pte_val(A) ^ pte_val(B)) == 0)
 
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -324,11 +322,6 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 /* Encode and de-code a swap entry */
 #define MAX_SWAPFILES_CHECK() do { \
 	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
-	/*							\
-	 * Don't have overlapping bits with _PAGE_HPTEFLAGS	\
-	 * We filter HPTEFLAGS on set_pte.			\
-	 */							\
-	BUILD_BUG_ON(_PAGE_HPTEFLAGS & (0x1f << _PAGE_BIT_SWAP_TYPE)); \
 	} while (0)
 /*
  * on pte we don't need handle RADIX_TREE_EXCEPTIONAL_SHIFT;
