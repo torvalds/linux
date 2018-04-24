@@ -789,21 +789,8 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 
 static void clear_gtiir(struct intel_engine_cs *engine)
 {
-	static const u8 gtiir[] = {
-		[RCS]  = 0,
-		[BCS]  = 0,
-		[VCS]  = 1,
-		[VCS2] = 1,
-		[VECS] = 3,
-	};
 	struct drm_i915_private *dev_priv = engine->i915;
 	int i;
-
-	/* TODO: correctly reset irqs for gen11 */
-	if (WARN_ON_ONCE(INTEL_GEN(engine->i915) >= 11))
-		return;
-
-	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
 
 	/*
 	 * Clear any pending interrupt state.
@@ -812,13 +799,50 @@ static void clear_gtiir(struct intel_engine_cs *engine)
 	 * double buffered, and so if we only reset it once there may
 	 * still be an interrupt pending.
 	 */
-	for (i = 0; i < 2; i++) {
-		I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+	if (INTEL_GEN(dev_priv) >= 11) {
+		static const struct {
+			u8 bank;
+			u8 bit;
+		} gen11_gtiir[] = {
+			[RCS] = {0, GEN11_RCS0},
+			[BCS] = {0, GEN11_BCS},
+			[_VCS(0)] = {1, GEN11_VCS(0)},
+			[_VCS(1)] = {1, GEN11_VCS(1)},
+			[_VCS(2)] = {1, GEN11_VCS(2)},
+			[_VCS(3)] = {1, GEN11_VCS(3)},
+			[_VECS(0)] = {1, GEN11_VECS(0)},
+			[_VECS(1)] = {1, GEN11_VECS(1)},
+		};
+		unsigned long irqflags;
+
+		GEM_BUG_ON(engine->id >= ARRAY_SIZE(gen11_gtiir));
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		for (i = 0; i < 2; i++) {
+			gen11_reset_one_iir(dev_priv,
+					    gen11_gtiir[engine->id].bank,
+					    gen11_gtiir[engine->id].bit);
+		}
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	} else {
+		static const u8 gtiir[] = {
+			[RCS]  = 0,
+			[BCS]  = 0,
+			[VCS]  = 1,
+			[VCS2] = 1,
+			[VECS] = 3,
+		};
+
+		GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
+
+		for (i = 0; i < 2; i++) {
+			I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+				   engine->irq_keep_mask);
+			POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
+		}
+		GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
 			   engine->irq_keep_mask);
-		POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
 	}
-	GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
-		   engine->irq_keep_mask);
 }
 
 static void reset_irq(struct intel_engine_cs *engine)
