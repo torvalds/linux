@@ -276,11 +276,7 @@ abort:
 				goto fail;
 
 			call_firmware_op(cpu_boot, 1);
-
-			if (soc_is_exynos3250())
-				dsb_sev();
-			else
-				arch_send_wakeup_ipi_mask(cpumask_of(1));
+			dsb_sev();
 		}
 	}
 fail:

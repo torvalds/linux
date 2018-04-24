@@ -1258,10 +1258,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
-	/* Work out if we support NX */
-	get_cpu_cap(&boot_cpu_data);
-	x86_configure_nx();
-
 	/* Get mfn list */
 	xen_build_dynamic_phys_to_machine();
 
@@ -1270,6 +1266,10 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * -fstack-protector code can be executed.
 	 */
 	xen_setup_gdt(0);
+
+	/* Work out if we support NX */
+	get_cpu_cap(&boot_cpu_data);
+	x86_configure_nx();
 
 	xen_init_irq_ops();
 

@@ -203,4 +203,7 @@ extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+#ifdef CONFIG_CIFS_SMB311
+extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
+#endif
 #endif			/* _SMB2PROTO_H */

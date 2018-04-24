@@ -120,6 +120,9 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		return NULL;
 
+	if (unlikely(ds->cpu_port_mask & BIT(source_port)))
+		return NULL;
+
 	/*
 	 * If the 'tagged' bit is set, convert the DSA tag to a 802.1q
 	 * tag and delete the ethertype part.  If the 'tagged' bit is
