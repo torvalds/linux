@@ -166,6 +166,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 {
 	struct armada_37xx_dvfs *dvfs;
 	struct platform_device *pdev;
+	unsigned long freq;
 	unsigned int cur_frequency;
 	struct regmap *nb_pm_base;
 	struct device *cpu_dev;
@@ -207,33 +208,43 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	}
 
 	dvfs = armada_37xx_cpu_freq_info_get(cur_frequency);
-	if (!dvfs)
+	if (!dvfs) {
+		clk_put(clk);
 		return -EINVAL;
+	}
 
 	armada37xx_cpufreq_dvfs_setup(nb_pm_base, clk, dvfs->divider);
 	clk_put(clk);
 
 	for (load_lvl = ARMADA_37XX_DVFS_LOAD_0; load_lvl < LOAD_LEVEL_NR;
 	     load_lvl++) {
-		unsigned long freq = cur_frequency / dvfs->divider[load_lvl];
+		freq = cur_frequency / dvfs->divider[load_lvl];
 
 		ret = dev_pm_opp_add(cpu_dev, freq, 0);
-		if (ret) {
-			/* clean-up the already added opp before leaving */
-			while (load_lvl-- > ARMADA_37XX_DVFS_LOAD_0) {
-				freq = cur_frequency / dvfs->divider[load_lvl];
-				dev_pm_opp_remove(cpu_dev, freq);
-			}
-			return ret;
-		}
+		if (ret)
+			goto remove_opp;
 	}
 
 	/* Now that everything is setup, enable the DVFS at hardware level */
 	armada37xx_cpufreq_enable_dvfs(nb_pm_base);
 
 	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	ret = PTR_ERR_OR_ZERO(pdev);
+	if (ret)
+		goto disable_dvfs;
 
-	return PTR_ERR_OR_ZERO(pdev);
+	return 0;
+
+disable_dvfs:
+	armada37xx_cpufreq_disable_dvfs(nb_pm_base);
+remove_opp:
+	/* clean-up the already added opp before leaving */
+	while (load_lvl-- > ARMADA_37XX_DVFS_LOAD_0) {
+		freq = cur_frequency / dvfs->divider[load_lvl];
+		dev_pm_opp_remove(cpu_dev, freq);
+	}
+
+	return ret;
 }
 /* late_initcall, to guarantee the driver is loaded after A37xx clock driver */
 late_initcall(armada37xx_cpufreq_driver_init);
