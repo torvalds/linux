@@ -1315,6 +1315,9 @@ struct MPT3SAS_ADAPTER {
 	u8		rdpq_array_enable;
 	u8		rdpq_array_enable_assigned;
 	struct dma_pool *reply_post_free_dma_pool;
+	struct dma_pool *reply_post_free_array_dma_pool;
+	Mpi2IOCInitRDPQArrayEntry *reply_post_free_array;
+	dma_addr_t reply_post_free_array_dma;
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
 

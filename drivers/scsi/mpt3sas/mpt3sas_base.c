@@ -4162,7 +4162,14 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			}
 		} while (ioc->rdpq_array_enable &&
 			   (++i < ioc->reply_queue_count));
-
+		if (ioc->reply_post_free_array &&
+			ioc->rdpq_array_enable) {
+			dma_pool_free(ioc->reply_post_free_array_dma_pool,
+				ioc->reply_post_free_array,
+				ioc->reply_post_free_array_dma);
+			ioc->reply_post_free_array = NULL;
+		}
+		dma_pool_destroy(ioc->reply_post_free_array_dma_pool);
 		dma_pool_destroy(ioc->reply_post_free_dma_pool);
 		kfree(ioc->reply_post);
 	}
@@ -4212,7 +4219,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	struct mpt3sas_facts *facts;
 	u16 max_sge_elements;
 	u16 chains_needed_per_io;
-	u32 sz, total_sz, reply_post_free_sz;
+	u32 sz, total_sz, reply_post_free_sz, reply_post_free_array_sz;
 	u32 retry_sz;
 	u16 max_request_credit, nvme_blocks_needed;
 	unsigned short sg_tablesize;
@@ -4684,6 +4691,28 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc->name, (unsigned long long)ioc->reply_free_dma));
 	total_sz += sz;
 
+	if (ioc->rdpq_array_enable) {
+		reply_post_free_array_sz = ioc->reply_queue_count *
+		    sizeof(Mpi2IOCInitRDPQArrayEntry);
+		ioc->reply_post_free_array_dma_pool =
+		    dma_pool_create("reply_post_free_array pool",
+		    &ioc->pdev->dev, reply_post_free_array_sz, 16, 0);
+		if (!ioc->reply_post_free_array_dma_pool) {
+			dinitprintk(ioc,
+			    pr_info(MPT3SAS_FMT "reply_post_free_array pool: "
+			    "dma_pool_create failed\n", ioc->name));
+			goto out;
+		}
+		ioc->reply_post_free_array =
+		    dma_pool_alloc(ioc->reply_post_free_array_dma_pool,
+		    GFP_KERNEL, &ioc->reply_post_free_array_dma);
+		if (!ioc->reply_post_free_array) {
+			dinitprintk(ioc,
+			    pr_info(MPT3SAS_FMT "reply_post_free_array pool: "
+			    "dma_pool_alloc failed\n", ioc->name));
+			goto out;
+		}
+	}
 	ioc->config_page_sz = 512;
 	ioc->config_page = pci_alloc_consistent(ioc->pdev,
 	    ioc->config_page_sz, &ioc->config_page_dma);
@@ -5490,8 +5519,6 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 	ktime_t current_time;
 	u16 ioc_status;
 	u32 reply_post_free_array_sz = 0;
-	Mpi2IOCInitRDPQArrayEntry *reply_post_free_array = NULL;
-	dma_addr_t reply_post_free_array_dma;
 
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
 	    __func__));
@@ -5525,23 +5552,14 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc->rdpq_array_enable) {
 		reply_post_free_array_sz = ioc->reply_queue_count *
 		    sizeof(Mpi2IOCInitRDPQArrayEntry);
-		reply_post_free_array = pci_alloc_consistent(ioc->pdev,
-			reply_post_free_array_sz, &reply_post_free_array_dma);
-		if (!reply_post_free_array) {
-			pr_err(MPT3SAS_FMT
-			"reply_post_free_array: pci_alloc_consistent failed\n",
-			ioc->name);
-			r = -ENOMEM;
-			goto out;
-		}
-		memset(reply_post_free_array, 0, reply_post_free_array_sz);
+		memset(ioc->reply_post_free_array, 0, reply_post_free_array_sz);
 		for (i = 0; i < ioc->reply_queue_count; i++)
-			reply_post_free_array[i].RDPQBaseAddress =
+			ioc->reply_post_free_array[i].RDPQBaseAddress =
 			    cpu_to_le64(
 				(u64)ioc->reply_post[i].reply_post_free_dma);
 		mpi_request.MsgFlags = MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE;
 		mpi_request.ReplyDescriptorPostQueueAddress =
-		    cpu_to_le64((u64)reply_post_free_array_dma);
+		    cpu_to_le64((u64)ioc->reply_post_free_array_dma);
 	} else {
 		mpi_request.ReplyDescriptorPostQueueAddress =
 		    cpu_to_le64((u64)ioc->reply_post[0].reply_post_free_dma);
@@ -5571,7 +5589,7 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 	if (r != 0) {
 		pr_err(MPT3SAS_FMT "%s: handshake failed (r=%d)\n",
 		    ioc->name, __func__, r);
-		goto out;
+		return r;
 	}
 
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
@@ -5581,11 +5599,6 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 		r = -EIO;
 	}
 
-out:
-	if (reply_post_free_array)
-		pci_free_consistent(ioc->pdev, reply_post_free_array_sz,
-				    reply_post_free_array,
-				    reply_post_free_array_dma);
 	return r;
 }
 
