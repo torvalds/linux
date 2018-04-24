@@ -693,8 +693,7 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	if (!sgout) {
 		nsg = skb_cow_data(skb, 0, &unused) + 1;
 		sgin = kmalloc_array(nsg, sizeof(*sgin), sk->sk_allocation);
-		if (!sgout)
-			sgout = sgin;
+		sgout = sgin;
 	}
 
 	sg_init_table(sgin, nsg);
