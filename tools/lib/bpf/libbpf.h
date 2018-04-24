@@ -193,6 +193,8 @@ int bpf_program__set_sched_act(struct bpf_program *prog);
 int bpf_program__set_xdp(struct bpf_program *prog);
 int bpf_program__set_perf_event(struct bpf_program *prog);
 void bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type);
+void bpf_program__set_expected_attach_type(struct bpf_program *prog,
+					   enum bpf_attach_type type);
 
 bool bpf_program__is_socket_filter(struct bpf_program *prog);
 bool bpf_program__is_tracepoint(struct bpf_program *prog);
