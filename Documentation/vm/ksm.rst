@@ -170,10 +170,9 @@ pages_volatile
 full_scans
         how many times all mergeable areas have been scanned
 stable_node_chains
-        number of stable node chains allocated, this is effectively
         the number of KSM pages that hit the ``max_page_sharing`` limit
 stable_node_dups
-        number of stable node dups queued into the stable_node chains
+        number of duplicated KSM pages
 
 A high ratio of ``pages_sharing`` to ``pages_shared`` indicates good
 sharing, but a high ratio of ``pages_unshared`` to ``pages_sharing``
@@ -184,15 +183,6 @@ indicate poor use of madvise MADV_MERGEABLE.
 The maximum possible ``pages_sharing/pages_shared`` ratio is limited by the
 ``max_page_sharing`` tunable. To increase the ratio ``max_page_sharing`` must
 be increased accordingly.
-
-The ``stable_node_dups/stable_node_chains`` ratio is also affected by the
-``max_page_sharing`` tunable, and an high ratio may indicate fragmentation
-in the stable_node dups, which could be solved by introducing
-fragmentation algorithms in ksmd which would refile rmap_items from
-one stable_node dup to another stable_node dup, in order to free up
-stable_node "dups" with few rmap_items in them, but that may increase
-the ksmd CPU usage and possibly slowdown the readonly computations on
-the KSM pages of the applications.
 
 Design
 ======
@@ -246,6 +236,15 @@ stable_node chain->hlist to check for pruning) and higher
 deduplication factor at the expense of slower worst case for rmap
 walks for any KSM page which can happen during swapping, compaction,
 NUMA balancing and page migration.
+
+The ``stable_node_dups/stable_node_chains`` ratio is also affected by the
+``max_page_sharing`` tunable, and an high ratio may indicate fragmentation
+in the stable_node dups, which could be solved by introducing
+fragmentation algorithms in ksmd which would refile rmap_items from
+one stable_node dup to another stable_node dup, in order to free up
+stable_node "dups" with few rmap_items in them, but that may increase
+the ksmd CPU usage and possibly slowdown the readonly computations on
+the KSM pages of the applications.
 
 The whole list of stable_node "dups" linked in the stable_node
 "chains" is scanned periodically in order to prune stale stable_nodes.
