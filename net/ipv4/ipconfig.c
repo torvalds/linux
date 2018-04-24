@@ -1481,16 +1481,19 @@ static int __init ip_auto_config(void)
 		&ic_servaddr, &root_server_addr, root_server_path);
 	if (ic_dev_mtu)
 		pr_cont(", mtu=%d", ic_dev_mtu);
-	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
+	/* Name servers (if any): */
+	for (i = 0; i < CONF_NAMESERVERS_MAX; i++) {
 		if (ic_nameservers[i] != NONE) {
-			pr_cont("     nameserver%u=%pI4",
-				i, &ic_nameservers[i]);
-			break;
+			if (i == 0)
+				pr_info("     nameserver%u=%pI4",
+					i, &ic_nameservers[i]);
+			else
+				pr_cont(", nameserver%u=%pI4",
+					i, &ic_nameservers[i]);
 		}
-	for (i++; i < CONF_NAMESERVERS_MAX; i++)
-		if (ic_nameservers[i] != NONE)
-			pr_cont(", nameserver%u=%pI4", i, &ic_nameservers[i]);
-	pr_cont("\n");
+		if (i + 1 == CONF_NAMESERVERS_MAX)
+			pr_cont("\n");
+	}
 #endif /* !SILENT */
 
 	/*
