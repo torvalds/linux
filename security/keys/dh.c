@@ -183,24 +183,13 @@ static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
 				goto err;
 		}
 
-		if (dlen < h) {
-			u8 tmpbuffer[h];
+		err = crypto_shash_final(desc, dst);
+		if (err)
+			goto err;
 
-			err = crypto_shash_final(desc, tmpbuffer);
-			if (err)
-				goto err;
-			memcpy(dst, tmpbuffer, dlen);
-			memzero_explicit(tmpbuffer, h);
-			return 0;
-		} else {
-			err = crypto_shash_final(desc, dst);
-			if (err)
-				goto err;
-
-			dlen -= h;
-			dst += h;
-			counter = cpu_to_be32(be32_to_cpu(counter) + 1);
-		}
+		dlen -= h;
+		dst += h;
+		counter = cpu_to_be32(be32_to_cpu(counter) + 1);
 	}
 
 	return 0;
@@ -216,14 +205,16 @@ static int keyctl_dh_compute_kdf(struct kdf_sdesc *sdesc,
 {
 	uint8_t *outbuf = NULL;
 	int ret;
+	size_t outbuf_len = round_up(buflen,
+			             crypto_shash_digestsize(sdesc->shash.tfm));
 
-	outbuf = kmalloc(buflen, GFP_KERNEL);
+	outbuf = kmalloc(outbuf_len, GFP_KERNEL);
 	if (!outbuf) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	ret = kdf_ctr(sdesc, kbuf, kbuflen, outbuf, buflen, lzero);
+	ret = kdf_ctr(sdesc, kbuf, kbuflen, outbuf, outbuf_len, lzero);
 	if (ret)
 		goto err;
 
