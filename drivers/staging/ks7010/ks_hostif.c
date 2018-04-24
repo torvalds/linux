@@ -103,6 +103,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 	struct local_ap *ap;
 	union iwreq_data wrqu;
 	struct net_device *netdev = priv->net_dev;
+	u8 size;
 
 	ap = &priv->current_ap;
 
@@ -129,30 +130,18 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 	ap->sq = ap_info->sq;
 	ap->noise = ap_info->noise;
 	ap->capability = le16_to_cpu(ap_info->capability);
+	size = (ap_info->rsn.size <= RSN_IE_BODY_MAX) ?
+		ap_info->rsn.size : RSN_IE_BODY_MAX;
 	if ((ap_info->rsn_mode & RSN_MODE_WPA2) &&
 	    (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
 		ap->rsn_ie.id = 0x30;
-		if (ap_info->rsn.size <= RSN_IE_BODY_MAX) {
-			ap->rsn_ie.size = ap_info->rsn.size;
-			memcpy(ap->rsn_ie.body, ap_info->rsn.body,
-			       ap_info->rsn.size);
-		} else {
-			ap->rsn_ie.size = RSN_IE_BODY_MAX;
-			memcpy(ap->rsn_ie.body, ap_info->rsn.body,
-			       RSN_IE_BODY_MAX);
-		}
+		ap->rsn_ie.size = size;
+		memcpy(ap->rsn_ie.body, ap_info->rsn.body, size);
 	} else if ((ap_info->rsn_mode & RSN_MODE_WPA) &&
 		   (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA)) {
 		ap->wpa_ie.id = 0xdd;
-		if (ap_info->rsn.size <= RSN_IE_BODY_MAX) {
-			ap->wpa_ie.size = ap_info->rsn.size;
-			memcpy(ap->wpa_ie.body, ap_info->rsn.body,
-			       ap_info->rsn.size);
-		} else {
-			ap->wpa_ie.size = RSN_IE_BODY_MAX;
-			memcpy(ap->wpa_ie.body, ap_info->rsn.body,
-			       RSN_IE_BODY_MAX);
-		}
+		ap->wpa_ie.size = size;
+		memcpy(ap->wpa_ie.body, ap_info->rsn.body, size);
 	} else {
 		ap->rsn_ie.id = 0;
 		ap->rsn_ie.size = 0;
