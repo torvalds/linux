@@ -144,12 +144,6 @@ enum imx274_mode {
 	IMX274_MODE_3840X2160,
 	IMX274_MODE_1920X1080,
 	IMX274_MODE_1280X720,
-
-	IMX274_MODE_START_STREAM_1,
-	IMX274_MODE_START_STREAM_2,
-	IMX274_MODE_START_STREAM_3,
-	IMX274_MODE_START_STREAM_4,
-	IMX274_MODE_STOP_STREAM
 };
 
 /*
@@ -486,12 +480,6 @@ static const struct reg_8 *mode_table[] = {
 	[IMX274_MODE_3840X2160]		= imx274_mode1_3840x2160_raw10,
 	[IMX274_MODE_1920X1080]		= imx274_mode3_1920x1080_raw10,
 	[IMX274_MODE_1280X720]		= imx274_mode5_1280x720_raw10,
-
-	[IMX274_MODE_START_STREAM_1]	= imx274_start_1,
-	[IMX274_MODE_START_STREAM_2]	= imx274_start_2,
-	[IMX274_MODE_START_STREAM_3]	= imx274_start_3,
-	[IMX274_MODE_START_STREAM_4]	= imx274_start_4,
-	[IMX274_MODE_STOP_STREAM]	= imx274_stop,
 };
 
 /*
@@ -731,11 +719,11 @@ static int imx274_mode_regs(struct stimx274 *priv, int mode)
 {
 	int err = 0;
 
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_1]);
+	err = imx274_write_table(priv, imx274_start_1);
 	if (err)
 		return err;
 
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_2]);
+	err = imx274_write_table(priv, imx274_start_2);
 	if (err)
 		return err;
 
@@ -760,7 +748,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(11);
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_3]);
+	err = imx274_write_table(priv, imx274_start_3);
 	if (err)
 		return err;
 
@@ -770,7 +758,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(8);
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_4]);
+	err = imx274_write_table(priv, imx274_start_4);
 	if (err)
 		return err;
 
@@ -1081,8 +1069,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 			goto fail;
 	} else {
 		/* stop stream */
-		ret = imx274_write_table(imx274,
-					 mode_table[IMX274_MODE_STOP_STREAM]);
+		ret = imx274_write_table(imx274, imx274_stop);
 		if (ret)
 			goto fail;
 	}
@@ -1779,7 +1766,7 @@ static int imx274_remove(struct i2c_client *client)
 	struct stimx274 *imx274 = to_imx274(sd);
 
 	/* stop stream */
-	imx274_write_table(imx274, mode_table[IMX274_MODE_STOP_STREAM]);
+	imx274_write_table(imx274, imx274_stop);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&imx274->ctrls.handler);
