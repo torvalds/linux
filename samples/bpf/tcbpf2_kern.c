@@ -593,4 +593,20 @@ int _ip6ip6_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
+SEC("xfrm_get_state")
+int _xfrm_get_state(struct __sk_buff *skb)
+{
+	struct bpf_xfrm_state x;
+	char fmt[] = "reqid %d spi 0x%x remote ip 0x%x\n";
+	int ret;
+
+	ret = bpf_skb_get_xfrm_state(skb, 0, &x, sizeof(x), 0);
+	if (ret < 0)
+		return TC_ACT_OK;
+
+	bpf_trace_printk(fmt, sizeof(fmt), x.reqid, bpf_ntohl(x.spi),
+			 bpf_ntohl(x.remote_ipv4));
+	return TC_ACT_OK;
+}
+
 char _license[] SEC("license") = "GPL";

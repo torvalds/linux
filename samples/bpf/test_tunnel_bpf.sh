@@ -155,6 +155,57 @@ function add_ipip_tunnel {
 	ip addr add dev $DEV 10.1.1.200/24
 }
 
+function setup_xfrm_tunnel {
+	auth=0x$(printf '1%.0s' {1..40})
+	enc=0x$(printf '2%.0s' {1..32})
+	spi_in_to_out=0x1
+	spi_out_to_in=0x2
+	# in namespace
+	# in -> out
+	ip netns exec at_ns0 \
+		ip xfrm state add src 172.16.1.100 dst 172.16.1.200 proto esp \
+			spi $spi_in_to_out reqid 1 mode tunnel \
+			auth-trunc 'hmac(sha1)' $auth 96 enc 'cbc(aes)' $enc
+	ip netns exec at_ns0 \
+		ip xfrm policy add src 10.1.1.100/32 dst 10.1.1.200/32 dir out \
+		tmpl src 172.16.1.100 dst 172.16.1.200 proto esp reqid 1 \
+		mode tunnel
+	# out -> in
+	ip netns exec at_ns0 \
+		ip xfrm state add src 172.16.1.200 dst 172.16.1.100 proto esp \
+			spi $spi_out_to_in reqid 2 mode tunnel \
+			auth-trunc 'hmac(sha1)' $auth 96 enc 'cbc(aes)' $enc
+	ip netns exec at_ns0 \
+		ip xfrm policy add src 10.1.1.200/32 dst 10.1.1.100/32 dir in \
+		tmpl src 172.16.1.200 dst 172.16.1.100 proto esp reqid 2 \
+		mode tunnel
+	# address & route
+	ip netns exec at_ns0 \
+		ip addr add dev veth0 10.1.1.100/32
+	ip netns exec at_ns0 \
+		ip route add 10.1.1.200 dev veth0 via 172.16.1.200 \
+			src 10.1.1.100
+
+	# out of namespace
+	# in -> out
+	ip xfrm state add src 172.16.1.100 dst 172.16.1.200 proto esp \
+		spi $spi_in_to_out reqid 1 mode tunnel \
+		auth-trunc 'hmac(sha1)' $auth 96  enc 'cbc(aes)' $enc
+	ip xfrm policy add src 10.1.1.100/32 dst 10.1.1.200/32 dir in \
+		tmpl src 172.16.1.100 dst 172.16.1.200 proto esp reqid 1 \
+		mode tunnel
+	# out -> in
+	ip xfrm state add src 172.16.1.200 dst 172.16.1.100 proto esp \
+		spi $spi_out_to_in reqid 2 mode tunnel \
+		auth-trunc 'hmac(sha1)' $auth 96  enc 'cbc(aes)' $enc
+	ip xfrm policy add src 10.1.1.200/32 dst 10.1.1.100/32 dir out \
+		tmpl src 172.16.1.200 dst 172.16.1.100 proto esp reqid 2 \
+		mode tunnel
+	# address & route
+	ip addr add dev veth1 10.1.1.200/32
+	ip route add 10.1.1.100 dev veth1 via 172.16.1.100 src 10.1.1.200
+}
+
 function attach_bpf {
 	DEV=$1
 	SET_TUNNEL=$2
@@ -278,6 +329,22 @@ function test_ipip {
 	cleanup
 }
 
+function test_xfrm_tunnel {
+	config_device
+        tcpdump -nei veth1 ip &
+	output=$(mktemp)
+	cat /sys/kernel/debug/tracing/trace_pipe | tee $output &
+        setup_xfrm_tunnel
+	tc qdisc add dev veth1 clsact
+	tc filter add dev veth1 proto ip ingress bpf da obj tcbpf2_kern.o \
+		sec xfrm_get_state
+	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	grep "reqid 1" $output
+	grep "spi 0x1" $output
+	grep "remote ip 0xac100164" $output
+	cleanup
+}
+
 function cleanup {
 	set +ex
 	pkill iperf
@@ -291,6 +358,8 @@ function cleanup {
 	ip link del geneve11
 	ip link del erspan11
 	ip link del ip6erspan11
+	ip x s flush
+	ip x p flush
 	pkill tcpdump
 	pkill cat
 	set -ex
@@ -316,4 +385,6 @@ echo "Testing GENEVE tunnel..."
 test_geneve
 echo "Testing IPIP tunnel..."
 test_ipip
+echo "Testing IPSec tunnel..."
+test_xfrm_tunnel
 echo "*** PASS ***"
