@@ -168,6 +168,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	struct core_stats *core_stats = NULL;
 	struct stats_time_cache *time = NULL;
 	unsigned int index = 0;
+	struct log_entry log_entry;
 
 	if (mod_stats == NULL)
 		return;
@@ -177,17 +178,22 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	logger = dc->ctx->logger;
 	time = core_stats->time;
 
-	dm_logger_write(logger, LOG_DISPLAYSTATS, "==Display Caps==");
-	dm_logger_write(logger, LOG_DISPLAYSTATS, " ");
+	dm_logger_open(
+		dc->ctx->logger,
+		&log_entry,
+		LOG_DISPLAYSTATS);
 
-	dm_logger_write(logger, LOG_DISPLAYSTATS, "==Display Stats==");
-	dm_logger_write(logger, LOG_DISPLAYSTATS, " ");
+	dm_logger_append(&log_entry, "==Display Caps==\n");
+	dm_logger_append(&log_entry, "\n");
 
-	dm_logger_write(logger, LOG_DISPLAYSTATS,
+	dm_logger_append(&log_entry, "==Display Stats==\n");
+	dm_logger_append(&log_entry, "\n");
+
+	dm_logger_append(&log_entry,
 		"%10s %10s %10s %10s %10s"
 			" %11s %11s %17s %10s %14s"
 			" %10s %10s %10s %10s %10s"
-			" %10s %10s %10s %10s",
+			" %10s %10s %10s %10s\n",
 		"render", "avgRender",
 		"minWindow", "midPoint", "maxWindow",
 		"vsyncToFlip", "flipToVsync", "vsyncsBetweenFlip",
@@ -197,11 +203,11 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 		"vSyncTime4", "vSyncTime5", "flags");
 
 	for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
-		dm_logger_write(logger, LOG_DISPLAYSTATS,
+		dm_logger_append(&log_entry,
 			"%10u %10u %10u %10u %10u"
 				" %11u %11u %17u %10u %14u"
 				" %10u %10u %10u %10u %10u"
-				" %10u %10u %10u %10u",
+				" %10u %10u %10u %10u\n",
 			time[i].render_time_in_us,
 			time[i].avg_render_time_in_us_last_ten,
 			time[i].min_window,
@@ -222,6 +228,8 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 			time[i].v_sync_time_in_us[4],
 			time[i].flags);
 	}
+
+	dm_logger_close(&log_entry);
 }
 
 void mod_stats_reset_data(struct mod_stats *mod_stats)
