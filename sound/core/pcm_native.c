@@ -891,8 +891,8 @@ snd_pcm_calc_delay(struct snd_pcm_substream *substream)
 	return delay + substream->runtime->delay;
 }
 
-int snd_pcm_status(struct snd_pcm_substream *substream,
-		   struct snd_pcm_status *status)
+int snd_pcm_status64(struct snd_pcm_substream *substream,
+		     struct snd_pcm_status64 *status)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -918,14 +918,22 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	status->suspended_state = runtime->status->suspended_state;
 	if (status->state == SNDRV_PCM_STATE_OPEN)
 		goto _end;
-	status->trigger_tstamp = timespec64_to_timespec(runtime->trigger_tstamp);
+	status->trigger_tstamp_sec = runtime->trigger_tstamp.tv_sec;
+	status->trigger_tstamp_nsec = runtime->trigger_tstamp.tv_nsec;
 	if (snd_pcm_running(substream)) {
 		snd_pcm_update_hw_ptr(substream);
 		if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
-			status->tstamp = runtime->status->tstamp;
-			status->driver_tstamp = timespec64_to_timespec(runtime->driver_tstamp);
-			status->audio_tstamp =
-				runtime->status->audio_tstamp;
+			status->tstamp_sec = runtime->status->tstamp.tv_sec;
+			status->tstamp_nsec =
+				runtime->status->tstamp.tv_nsec;
+			status->driver_tstamp_sec =
+				runtime->driver_tstamp.tv_sec;
+			status->driver_tstamp_nsec =
+				runtime->driver_tstamp.tv_nsec;
+			status->audio_tstamp_sec =
+				runtime->status->audio_tstamp.tv_sec;
+			status->audio_tstamp_nsec =
+				runtime->status->audio_tstamp.tv_nsec;
 			if (runtime->audio_tstamp_report.valid == 1)
 				/* backwards compatibility, no report provided in COMPAT mode */
 				snd_pcm_pack_audio_tstamp_report(&status->audio_tstamp_data,
@@ -940,7 +948,8 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 			struct timespec64 tstamp;
 
 			snd_pcm_gettime(runtime, &tstamp);
-			status->tstamp = timespec64_to_timespec(tstamp);
+			status->tstamp_sec = tstamp.tv_sec;
+			status->tstamp_nsec = tstamp.tv_nsec;
 		}
 	}
  _tstamp_end:
@@ -958,11 +967,11 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int snd_pcm_status_user(struct snd_pcm_substream *substream,
-			       struct snd_pcm_status __user * _status,
-			       bool ext)
+static int snd_pcm_status_user64(struct snd_pcm_substream *substream,
+				 struct snd_pcm_status64 __user * _status,
+				 bool ext)
 {
-	struct snd_pcm_status status;
+	struct snd_pcm_status64 status;
 	int res;
 
 	memset(&status, 0, sizeof(status));
@@ -974,11 +983,60 @@ static int snd_pcm_status_user(struct snd_pcm_substream *substream,
 	if (ext && get_user(status.audio_tstamp_data,
 				(u32 __user *)(&_status->audio_tstamp_data)))
 		return -EFAULT;
-	res = snd_pcm_status(substream, &status);
+	res = snd_pcm_status64(substream, &status);
 	if (res < 0)
 		return res;
 	if (copy_to_user(_status, &status, sizeof(status)))
 		return -EFAULT;
+	return 0;
+}
+
+static int snd_pcm_status_user32(struct snd_pcm_substream *substream,
+				 struct snd_pcm_status32 __user * _status,
+				 bool ext)
+{
+	struct snd_pcm_status64 status64;
+	struct snd_pcm_status32 status32;
+	int res;
+
+	memset(&status64, 0, sizeof(status64));
+	memset(&status32, 0, sizeof(status32));
+	/*
+	 * with extension, parameters are read/write,
+	 * get audio_tstamp_data from user,
+	 * ignore rest of status structure
+	 */
+	if (ext && get_user(status64.audio_tstamp_data,
+			    (u32 __user *)(&_status->audio_tstamp_data)))
+		return -EFAULT;
+	res = snd_pcm_status64(substream, &status64);
+	if (res < 0)
+		return res;
+
+	status32 = (struct snd_pcm_status32) {
+		.state = status64.state,
+		.trigger_tstamp_sec = status64.trigger_tstamp_sec,
+		.trigger_tstamp_nsec = status64.trigger_tstamp_nsec,
+		.tstamp_sec = status64.tstamp_sec,
+		.tstamp_nsec = status64.tstamp_nsec,
+		.appl_ptr = status64.appl_ptr,
+		.hw_ptr = status64.hw_ptr,
+		.delay = status64.delay,
+		.avail = status64.avail,
+		.avail_max = status64.avail_max,
+		.overrange = status64.overrange,
+		.suspended_state = status64.suspended_state,
+		.audio_tstamp_data = status64.audio_tstamp_data,
+		.audio_tstamp_sec = status64.audio_tstamp_sec,
+		.audio_tstamp_nsec = status64.audio_tstamp_nsec,
+		.driver_tstamp_sec = status64.audio_tstamp_sec,
+		.driver_tstamp_nsec = status64.audio_tstamp_nsec,
+		.audio_tstamp_accuracy = status64.audio_tstamp_accuracy,
+	};
+
+	if (copy_to_user(_status, &status32, sizeof(status32)))
+		return -EFAULT;
+
 	return 0;
 }
 
@@ -2959,10 +3017,14 @@ static int snd_pcm_common_ioctl(struct file *file,
 		return snd_pcm_hw_free(substream);
 	case SNDRV_PCM_IOCTL_SW_PARAMS:
 		return snd_pcm_sw_params_user(substream, arg);
-	case SNDRV_PCM_IOCTL_STATUS:
-		return snd_pcm_status_user(substream, arg, false);
-	case SNDRV_PCM_IOCTL_STATUS_EXT:
-		return snd_pcm_status_user(substream, arg, true);
+	case SNDRV_PCM_IOCTL_STATUS32:
+		return snd_pcm_status_user32(substream, arg, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT32:
+		return snd_pcm_status_user32(substream, arg, true);
+	case SNDRV_PCM_IOCTL_STATUS64:
+		return snd_pcm_status_user64(substream, arg, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT64:
+		return snd_pcm_status_user64(substream, arg, true);
 	case SNDRV_PCM_IOCTL_CHANNEL_INFO:
 		return snd_pcm_channel_info_user(substream, arg);
 	case SNDRV_PCM_IOCTL_PREPARE:

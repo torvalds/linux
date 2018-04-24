@@ -456,8 +456,13 @@ enum {
 	SNDRV_PCM_AUDIO_TSTAMP_TYPE_LAST = SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK_SYNCHRONIZED
 };
 
+#ifndef __KERNEL__
+/* explicit padding avoids incompatibility between i386 and x86-64 */
+typedef struct { unsigned char pad[sizeof(time_t) - sizeof(int)] __time_pad;
+
 struct snd_pcm_status {
 	snd_pcm_state_t state;		/* stream state */
+	__time_pad pad1;		/* align to timespec */
 	struct timespec trigger_tstamp;	/* time when stream was started/stopped/paused */
 	struct timespec tstamp;		/* reference timestamp */
 	snd_pcm_uframes_t appl_ptr;	/* appl ptr */
@@ -473,6 +478,7 @@ struct snd_pcm_status {
 	__u32 audio_tstamp_accuracy;	/* in ns units, only valid if indicated in audio_tstamp_data */
 	unsigned char reserved[52-2*sizeof(struct timespec)]; /* must be filled with zero */
 };
+#endif
 
 struct snd_pcm_mmap_status {
 	snd_pcm_state_t state;		/* RO: state - SNDRV_PCM_STATE_XXXX */
