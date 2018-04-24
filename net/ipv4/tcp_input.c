@@ -78,7 +78,6 @@
 #include <linux/errqueue.h>
 #include <trace/events/tcp.h>
 #include <linux/static_key.h>
-#include <linux/sock_diag.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 
@@ -6191,15 +6190,10 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 #if IS_ENABLED(CONFIG_IPV6)
 		ireq->pktopts = NULL;
 #endif
+		atomic64_set(&ireq->ir_cookie, 0);
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
 		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
 		ireq->ireq_family = sk_listener->sk_family;
-
-		BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=
-					offsetof(struct sock, sk_cookie));
-		BUILD_BUG_ON(offsetof(struct inet_request_sock, ireq_net) !=
-					offsetof(struct sock, sk_net));
-		sock_init_cookie((struct sock *)ireq);
 	}
 
 	return req;
