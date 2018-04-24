@@ -774,6 +774,15 @@ union bpf_attr {
  *     @xdp_md: pointer to xdp_md
  *     @delta: A negative integer to be added to xdp_md.data_end
  *     Return: 0 on success or negative on error
+ *
+ * int bpf_skb_get_xfrm_state(skb, index, xfrm_state, size, flags)
+ *     retrieve XFRM state
+ *     @skb: pointer to skb
+ *     @index: index of the xfrm state in the secpath
+ *     @key: pointer to 'struct bpf_xfrm_state'
+ *     @size: size of 'struct bpf_xfrm_state'
+ *     @flags: room for future extensions
+ *     Return: 0 on success or negative error
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -841,7 +850,8 @@ union bpf_attr {
 	FN(msg_cork_bytes),		\
 	FN(msg_pull_data),		\
 	FN(bind),			\
-	FN(xdp_adjust_tail),
+	FN(xdp_adjust_tail),		\
+	FN(skb_get_xfrm_state),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -945,6 +955,19 @@ struct bpf_tunnel_key {
 	__u8 tunnel_ttl;
 	__u16 tunnel_ext;
 	__u32 tunnel_label;
+};
+
+/* user accessible mirror of in-kernel xfrm_state.
+ * new fields can only be added to the end of this structure
+ */
+struct bpf_xfrm_state {
+	__u32 reqid;
+	__u32 spi;	/* Stored in network byte order */
+	__u16 family;
+	union {
+		__u32 remote_ipv4;	/* Stored in network byte order */
+		__u32 remote_ipv6[4];	/* Stored in network byte order */
+	};
 };
 
 /* Generic BPF return codes which all BPF program types may support.
