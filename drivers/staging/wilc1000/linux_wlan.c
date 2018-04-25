@@ -24,34 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 
-static int dev_state_ev_handler(struct notifier_block *this,
-				unsigned long event, void *ptr);
-
-static struct notifier_block g_dev_notifier = {
-	.notifier_call = dev_state_ev_handler
-};
-
-static int wlan_deinit_locks(struct net_device *dev);
-static void wlan_deinitialize_threads(struct net_device *dev);
-
-static void linux_wlan_tx_complete(void *priv, int status);
-static int  mac_init_fn(struct net_device *ndev);
-static struct net_device_stats *mac_stats(struct net_device *dev);
-static int wilc_mac_open(struct net_device *ndev);
-static int wilc_mac_close(struct net_device *ndev);
-static void wilc_set_multicast_list(struct net_device *dev);
-
 bool wilc_enable_ps = true;
-
-static const struct net_device_ops wilc_netdev_ops = {
-	.ndo_init = mac_init_fn,
-	.ndo_open = wilc_mac_open,
-	.ndo_stop = wilc_mac_close,
-	.ndo_start_xmit = wilc_mac_xmit,
-	.ndo_get_stats = mac_stats,
-	.ndo_set_rx_mode  = wilc_set_multicast_list,
-
-};
 
 static int dev_state_ev_handler(struct notifier_block *this,
 				unsigned long event, void *ptr)
@@ -604,6 +577,39 @@ fail:
 	return -1;
 }
 
+static int wlan_deinit_locks(struct net_device *dev)
+{
+	struct wilc_vif *vif;
+	struct wilc *wilc;
+
+	vif = netdev_priv(dev);
+	wilc = vif->wilc;
+
+	mutex_destroy(&wilc->hif_cs);
+	mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->txq_add_to_head_cs);
+
+	return 0;
+}
+
+static void wlan_deinitialize_threads(struct net_device *dev)
+{
+	struct wilc_vif *vif;
+	struct wilc *wl;
+
+	vif = netdev_priv(dev);
+	wl = vif->wilc;
+
+	wl->close = 1;
+
+	complete(&wl->txq_event);
+
+	if (wl->txq_thread) {
+		kthread_stop(wl->txq_thread);
+		wl->txq_thread = NULL;
+	}
+}
+
 static void wilc_wlan_deinitialize(struct net_device *dev)
 {
 	struct wilc_vif *vif;
@@ -666,21 +672,6 @@ static int wlan_init_locks(struct net_device *dev)
 	return 0;
 }
 
-static int wlan_deinit_locks(struct net_device *dev)
-{
-	struct wilc_vif *vif;
-	struct wilc *wilc;
-
-	vif = netdev_priv(dev);
-	wilc = vif->wilc;
-
-	mutex_destroy(&wilc->hif_cs);
-	mutex_destroy(&wilc->rxq_cs);
-	mutex_destroy(&wilc->txq_add_to_head_cs);
-
-	return 0;
-}
-
 static int wlan_initialize_threads(struct net_device *dev)
 {
 	struct wilc_vif *vif;
@@ -699,24 +690,6 @@ static int wlan_initialize_threads(struct net_device *dev)
 	wait_for_completion(&wilc->txq_thread_started);
 
 	return 0;
-}
-
-static void wlan_deinitialize_threads(struct net_device *dev)
-{
-	struct wilc_vif *vif;
-	struct wilc *wl;
-
-	vif = netdev_priv(dev);
-	wl = vif->wilc;
-
-	wl->close = 1;
-
-	complete(&wl->txq_event);
-
-	if (wl->txq_thread) {
-		kthread_stop(wl->txq_thread);
-		wl->txq_thread = NULL;
-	}
 }
 
 static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
@@ -1106,6 +1079,10 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		wilc_wfi_p2p_rx(wilc->vif[1]->ndev, buff, size);
 }
 
+static struct notifier_block g_dev_notifier = {
+	.notifier_call = dev_state_ev_handler
+};
+
 void wilc_netdev_cleanup(struct wilc *wilc)
 {
 	int i;
@@ -1134,6 +1111,15 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	kfree(wilc);
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
+
+static const struct net_device_ops wilc_netdev_ops = {
+	.ndo_init = mac_init_fn,
+	.ndo_open = wilc_mac_open,
+	.ndo_stop = wilc_mac_close,
+	.ndo_start_xmit = wilc_mac_xmit,
+	.ndo_get_stats = mac_stats,
+	.ndo_set_rx_mode  = wilc_set_multicast_list,
+};
 
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		     int gpio, const struct wilc_hif_func *ops)
