@@ -134,7 +134,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2, "FIP frame send: "
 	    "dest=%pM op=%x sub=%x vlan=%04x.", eth_hdr->h_dest, op, sub,
-	    ntohs(vlan_tci));
+	    vlan_tci);
 	if (qedf_dump_frames)
 		print_hex_dump(KERN_WARNING, "fip ", DUMP_PREFIX_OFFSET, 16, 1,
 		    skb->data, skb->len, false);
