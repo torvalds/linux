@@ -2505,7 +2505,7 @@ static void msdc_init_gpd_bd(struct msdc_host *host, struct msdc_dma *dma)
 
 	memset(bd, 0, sizeof(struct bd) * MAX_BD_NUM);
 	for (i = 0; i < (MAX_BD_NUM - 1); i++)
-		bd[i].next = (void *)(dma->bd_addr * sizeof(*bd) * (i + 1));
+		bd[i].next = (void *)(dma->bd_addr + sizeof(*bd) * (i + 1));
 }
 
 static int msdc_drv_probe(struct platform_device *pdev)
