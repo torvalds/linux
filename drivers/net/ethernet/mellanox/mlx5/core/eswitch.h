@@ -38,6 +38,7 @@
 #include <net/devlink.h>
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/eswitch.h>
+#include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
 
 #ifdef CONFIG_MLX5_ESWITCH
@@ -256,9 +257,10 @@ struct mlx5_esw_flow_attr {
 	int out_count;
 
 	int	action;
-	__be16	vlan_proto[1];
-	u16	vlan_vid[1];
-	u8	vlan_prio[1];
+	__be16	vlan_proto[MLX5_FS_VLAN_DEPTH];
+	u16	vlan_vid[MLX5_FS_VLAN_DEPTH];
+	u8	vlan_prio[MLX5_FS_VLAN_DEPTH];
+	u8	total_vlan;
 	bool	vlan_handled;
 	u32	encap_id;
 	u32	mod_hdr_id;
@@ -282,10 +284,17 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  int vport, u16 vlan, u8 qos, u8 set_flags);
 
-static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev)
+static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
+						       u8 vlan_depth)
 {
-	return MLX5_CAP_ESW_FLOWTABLE_FDB(dev, pop_vlan) &&
-	       MLX5_CAP_ESW_FLOWTABLE_FDB(dev, push_vlan);
+	bool ret = MLX5_CAP_ESW_FLOWTABLE_FDB(dev, pop_vlan) &&
+		   MLX5_CAP_ESW_FLOWTABLE_FDB(dev, push_vlan);
+
+	if (vlan_depth == 1)
+		return ret;
+
+	return  ret && MLX5_CAP_ESW_FLOWTABLE_FDB(dev, pop_vlan_2) &&
+		MLX5_CAP_ESW_FLOWTABLE_FDB(dev, push_vlan_2);
 }
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)

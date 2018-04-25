@@ -2583,23 +2583,47 @@ static int parse_tc_vlan_action(struct mlx5e_priv *priv,
 				struct mlx5_esw_flow_attr *attr,
 				u32 *action)
 {
+	u8 vlan_idx = attr->total_vlan;
+
+	if (vlan_idx >= MLX5_FS_VLAN_DEPTH)
+		return -EOPNOTSUPP;
+
 	if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
-		*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+		if (vlan_idx) {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
+								 MLX5_FS_VLAN_DEPTH))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2;
+		} else {
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+		}
 	} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
-		*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-		attr->vlan_vid[0] = tcf_vlan_push_vid(a);
-		if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
-			attr->vlan_prio[0] = tcf_vlan_push_prio(a);
-			attr->vlan_proto[0] = tcf_vlan_push_proto(a);
-			if (!attr->vlan_proto[0])
-				attr->vlan_proto[0] = htons(ETH_P_8021Q);
-		} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
-			   tcf_vlan_push_prio(a)) {
-			return -EOPNOTSUPP;
+		attr->vlan_vid[vlan_idx] = tcf_vlan_push_vid(a);
+		attr->vlan_prio[vlan_idx] = tcf_vlan_push_prio(a);
+		attr->vlan_proto[vlan_idx] = tcf_vlan_push_proto(a);
+		if (!attr->vlan_proto[vlan_idx])
+			attr->vlan_proto[vlan_idx] = htons(ETH_P_8021Q);
+
+		if (vlan_idx) {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
+								 MLX5_FS_VLAN_DEPTH))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
+		} else {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev, 1) &&
+			    (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
+			     tcf_vlan_push_prio(a)))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
 		}
 	} else { /* action is TCA_VLAN_ACT_MODIFY */
 		return -EOPNOTSUPP;
 	}
+
+	attr->total_vlan = vlan_idx + 1;
 
 	return 0;
 }

@@ -66,13 +66,18 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 	flow_act.action = attr->action;
 	/* if per flow vlan pop/push is emulated, don't set that into the firmware */
-	if (!mlx5_eswitch_vlan_actions_supported(esw->dev))
+	if (!mlx5_eswitch_vlan_actions_supported(esw->dev, 1))
 		flow_act.action &= ~(MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
 				     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
 	else if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
 		flow_act.vlan[0].ethtype = ntohs(attr->vlan_proto[0]);
 		flow_act.vlan[0].vid = attr->vlan_vid[0];
 		flow_act.vlan[0].prio = attr->vlan_prio[0];
+		if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2) {
+			flow_act.vlan[1].ethtype = ntohs(attr->vlan_proto[1]);
+			flow_act.vlan[1].vid = attr->vlan_vid[1];
+			flow_act.vlan[1].prio = attr->vlan_prio[1];
+		}
 	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
@@ -284,7 +289,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 	int err = 0;
 
 	/* nop if we're on the vlan push/pop non emulation mode */
-	if (mlx5_eswitch_vlan_actions_supported(esw->dev))
+	if (mlx5_eswitch_vlan_actions_supported(esw->dev, 1))
 		return 0;
 
 	push = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH);
@@ -347,7 +352,7 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 	int err = 0;
 
 	/* nop if we're on the vlan push/pop non emulation mode */
-	if (mlx5_eswitch_vlan_actions_supported(esw->dev))
+	if (mlx5_eswitch_vlan_actions_supported(esw->dev, 1))
 		return 0;
 
 	if (!attr->vlan_handled)
