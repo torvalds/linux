@@ -940,28 +940,35 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 int mwifiex_set_mac_address(struct mwifiex_private *priv,
-			    struct net_device *dev)
+			    struct net_device *dev, bool external,
+			    u8 *new_mac)
 {
 	int ret;
 	u64 mac_addr, old_mac_addr;
 
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_ANY)
-		return -ENOTSUPP;
+	old_mac_addr = ether_addr_to_u64(priv->curr_addr);
 
-	mac_addr = ether_addr_to_u64(priv->curr_addr);
-	old_mac_addr = mac_addr;
+	if (external) {
+		mac_addr = ether_addr_to_u64(new_mac);
+	} else {
+		/* Internal mac address change */
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_ANY)
+			return -ENOTSUPP;
 
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
-		mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+		mac_addr = old_mac_addr;
 
-	if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
-		/* Set mac address based on bss_type/bss_num */
-		mac_addr ^= BIT_ULL(priv->bss_type + 8);
-		mac_addr += priv->bss_num;
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+			mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+
+		if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
+			/* Set mac address based on bss_type/bss_num */
+			mac_addr ^= BIT_ULL(priv->bss_type + 8);
+			mac_addr += priv->bss_num;
+		}
+
+		if (mac_addr == old_mac_addr)
+			goto done;
 	}
-
-	if (mac_addr == old_mac_addr)
-		goto done;
 
 	u64_to_ether_addr(mac_addr, priv->curr_addr);
 
@@ -989,8 +996,7 @@ mwifiex_ndo_set_mac_address(struct net_device *dev, void *addr)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sockaddr *hw_addr = addr;
 
-	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
-	return mwifiex_set_mac_address(priv, dev);
+	return mwifiex_set_mac_address(priv, dev, true, hw_addr->sa_data);
 }
 
 /*
