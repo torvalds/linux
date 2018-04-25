@@ -1247,6 +1247,7 @@ static int cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
 	const struct jmp_code_map *code;
+	enum alu_op alu_op, carry_op;
 	u8 reg = insn->dst_reg * 2;
 	swreg tmp_reg;
 
@@ -1254,19 +1255,22 @@ static int cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (!code)
 		return -EINVAL;
 
+	alu_op = meta->jump_neg_op ? ALU_OP_ADD : ALU_OP_SUB;
+	carry_op = meta->jump_neg_op ? ALU_OP_ADD_C : ALU_OP_SUB_C;
+
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 	if (!code->swap)
-		emit_alu(nfp_prog, reg_none(), reg_a(reg), ALU_OP_SUB, tmp_reg);
+		emit_alu(nfp_prog, reg_none(), reg_a(reg), alu_op, tmp_reg);
 	else
-		emit_alu(nfp_prog, reg_none(), tmp_reg, ALU_OP_SUB, reg_a(reg));
+		emit_alu(nfp_prog, reg_none(), tmp_reg, alu_op, reg_a(reg));
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
 	if (!code->swap)
 		emit_alu(nfp_prog, reg_none(),
-			 reg_a(reg + 1), ALU_OP_SUB_C, tmp_reg);
+			 reg_a(reg + 1), carry_op, tmp_reg);
 	else
 		emit_alu(nfp_prog, reg_none(),
-			 tmp_reg, ALU_OP_SUB_C, reg_a(reg + 1));
+			 tmp_reg, carry_op, reg_a(reg + 1));
 
 	emit_br(nfp_prog, code->br_mask, insn->off, 0);
 
@@ -2745,21 +2749,35 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 			continue;
 
 		if (BPF_CLASS(insn.code) != BPF_ALU &&
-		    BPF_CLASS(insn.code) != BPF_ALU64)
+		    BPF_CLASS(insn.code) != BPF_ALU64 &&
+		    BPF_CLASS(insn.code) != BPF_JMP)
 			continue;
 		if (BPF_SRC(insn.code) != BPF_K)
 			continue;
 		if (insn.imm >= 0)
 			continue;
 
-		if (BPF_OP(insn.code) == BPF_ADD)
-			insn.code = BPF_CLASS(insn.code) | BPF_SUB;
-		else if (BPF_OP(insn.code) == BPF_SUB)
-			insn.code = BPF_CLASS(insn.code) | BPF_ADD;
-		else
-			continue;
+		if (BPF_CLASS(insn.code) == BPF_JMP) {
+			switch (BPF_OP(insn.code)) {
+			case BPF_JGE:
+			case BPF_JSGE:
+			case BPF_JLT:
+			case BPF_JSLT:
+				meta->jump_neg_op = true;
+				break;
+			default:
+				continue;
+			}
+		} else {
+			if (BPF_OP(insn.code) == BPF_ADD)
+				insn.code = BPF_CLASS(insn.code) | BPF_SUB;
+			else if (BPF_OP(insn.code) == BPF_SUB)
+				insn.code = BPF_CLASS(insn.code) | BPF_ADD;
+			else
+				continue;
 
-		meta->insn.code = insn.code | BPF_K;
+			meta->insn.code = insn.code | BPF_K;
+		}
 
 		meta->insn.imm = -insn.imm;
 	}
