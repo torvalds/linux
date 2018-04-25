@@ -56,7 +56,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * be compacted against the list of modules found in the "vmlinux"
 	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
-	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type) <= 0) {
+	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms") <= 0) {
 		pr_debug("dso__load_kallsyms ");
 		goto out;
 	}

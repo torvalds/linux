@@ -237,8 +237,14 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
 int arch__fix_module_text_start(u64 *start, const char *name);
 
-int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type);
+int __machine__load_kallsyms(struct machine *machine, const char *filename,
+			     enum map_type type);
+
+static inline int machine__load_kallsyms(struct machine *machine, const char *filename)
+{
+	return __machine__load_kallsyms(machine, filename, MAP__FUNCTION);
+}
+
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type);
 
 size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
