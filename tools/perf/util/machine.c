@@ -2367,7 +2367,7 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 {
 	struct machine *machine = vmachine;
 	struct map *map;
-	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map);
+	struct symbol *sym = machine__find_kernel_function(machine, *addrp, &map);
 
 	if (sym == NULL)
 		return NULL;
