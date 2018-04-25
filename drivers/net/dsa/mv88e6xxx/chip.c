@@ -742,10 +742,13 @@ static void mv88e6xxx_atu_vtu_get_strings(uint8_t *data)
 }
 
 static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
-				  uint8_t *data)
+				  u32 stringset, uint8_t *data)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int count = 0;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	mutex_lock(&chip->reg_lock);
 
@@ -789,11 +792,14 @@ static int mv88e6320_stats_get_sset_count(struct mv88e6xxx_chip *chip)
 					      STATS_TYPE_BANK1);
 }
 
-static int mv88e6xxx_get_sset_count(struct dsa_switch *ds, int port)
+static int mv88e6xxx_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int serdes_count = 0;
 	int count = 0;
+
+	if (sset != ETH_SS_STATS)
+		return 0;
 
 	mutex_lock(&chip->reg_lock);
 	if (chip->info->ops->stats_get_sset_count)

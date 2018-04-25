@@ -86,15 +86,22 @@ static int dsa_loop_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port)
+static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return __DSA_LOOP_CNT_MAX;
 }
 
-static void dsa_loop_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static void dsa_loop_get_strings(struct dsa_switch *ds, int port,
+				 u32 stringset, uint8_t *data)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	unsigned int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < __DSA_LOOP_CNT_MAX; i++)
 		memcpy(data + i * ETH_GSTRING_LEN,

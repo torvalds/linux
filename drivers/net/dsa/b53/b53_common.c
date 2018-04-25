@@ -806,12 +806,16 @@ static unsigned int b53_get_mib_size(struct b53_device *dev)
 		return B53_MIBS_SIZE;
 }
 
-void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+void b53_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+		     uint8_t *data)
 {
 	struct b53_device *dev = ds->priv;
 	const struct b53_mib_desc *mibs = b53_get_mib(dev);
 	unsigned int mib_size = b53_get_mib_size(dev);
 	unsigned int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < mib_size; i++)
 		strlcpy(data + i * ETH_GSTRING_LEN,
@@ -852,9 +856,12 @@ void b53_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
 }
 EXPORT_SYMBOL(b53_get_ethtool_stats);
 
-int b53_get_sset_count(struct dsa_switch *ds, int port)
+int b53_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	struct b53_device *dev = ds->priv;
+
+	if (sset != ETH_SS_STATS)
+		return 0;
 
 	return b53_get_mib_size(dev);
 }

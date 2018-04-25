@@ -560,7 +560,8 @@ static void dsa_slave_get_strings(struct net_device *dev,
 		strncpy(data + 2 * len, "rx_packets", len);
 		strncpy(data + 3 * len, "rx_bytes", len);
 		if (ds->ops->get_strings)
-			ds->ops->get_strings(ds, dp->index, data + 4 * len);
+			ds->ops->get_strings(ds, dp->index, stringset,
+					     data + 4 * len);
 	}
 }
 
@@ -605,7 +606,7 @@ static int dsa_slave_get_sset_count(struct net_device *dev, int sset)
 
 		count = 4;
 		if (ds->ops->get_sset_count)
-			count += ds->ops->get_sset_count(ds, dp->index);
+			count += ds->ops->get_sset_count(ds, dp->index, sset);
 
 		return count;
 	}

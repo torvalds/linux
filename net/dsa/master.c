@@ -38,11 +38,14 @@ static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 	struct dsa_switch *ds = cpu_dp->ds;
 	int count = 0;
 
-	if (ops->get_sset_count)
-		count += ops->get_sset_count(dev, sset);
+	if (ops->get_sset_count) {
+		count = ops->get_sset_count(dev, sset);
+		if (count < 0)
+			count = 0;
+	}
 
-	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
-		count += ds->ops->get_sset_count(ds, cpu_dp->index);
+	if (ds->ops->get_sset_count)
+		count += ds->ops->get_sset_count(ds, cpu_dp->index, sset);
 
 	return count;
 }
@@ -65,18 +68,20 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	pfx[sizeof(pfx) - 1] = '_';
 
 	if (ops->get_sset_count && ops->get_strings) {
-		mcount = ops->get_sset_count(dev, ETH_SS_STATS);
+		mcount = ops->get_sset_count(dev, stringset);
+		if (mcount < 0)
+			mcount = 0;
 		ops->get_strings(dev, stringset, data);
 	}
 
-	if (stringset == ETH_SS_STATS && ds->ops->get_strings) {
+	if (ds->ops->get_strings) {
 		ndata = data + mcount * len;
 		/* This function copies ETH_GSTRINGS_LEN bytes, we will mangle
 		 * the output after to prepend our CPU port prefix we
 		 * constructed earlier
 		 */
-		ds->ops->get_strings(ds, port, ndata);
-		count = ds->ops->get_sset_count(ds, port);
+		ds->ops->get_strings(ds, port, stringset, ndata);
+		count = ds->ops->get_sset_count(ds, port, stringset);
 		for (i = 0; i < count; i++) {
 			memmove(ndata + (i * len + sizeof(pfx)),
 				ndata + i * len, len - sizeof(pfx));
