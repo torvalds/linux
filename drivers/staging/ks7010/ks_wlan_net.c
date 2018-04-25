@@ -1045,10 +1045,9 @@ static int ks_wlan_set_power(struct net_device *dev,
 	if (vwrq->power.disabled) {
 		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
 	} else {
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
-		else
+		if (priv->reg.operation_mode != MODE_INFRASTRUCTURE)
 			return -EINVAL;
+		priv->reg.power_mgmt = POWER_MGMT_SAVE1;
 	}
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
