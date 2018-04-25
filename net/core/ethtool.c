@@ -211,23 +211,6 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static int phy_get_sset_count(struct phy_device *phydev)
-{
-	int ret;
-
-	if (phydev->drv->get_sset_count &&
-	    phydev->drv->get_strings &&
-	    phydev->drv->get_stats) {
-		mutex_lock(&phydev->lock);
-		ret = phydev->drv->get_sset_count(phydev);
-		mutex_unlock(&phydev->lock);
-
-		return ret;
-	}
-
-	return -EOPNOTSUPP;
-}
-
 static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -246,7 +229,7 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 
 	if (sset == ETH_SS_PHY_STATS) {
 		if (dev->phydev)
-			return phy_get_sset_count(dev->phydev);
+			return phy_ethtool_get_sset_count(dev->phydev);
 		else
 			return -EOPNOTSUPP;
 	}
@@ -273,15 +256,10 @@ static void __ethtool_get_strings(struct net_device *dev,
 	else if (stringset == ETH_SS_PHY_TUNABLES)
 		memcpy(data, phy_tunable_strings, sizeof(phy_tunable_strings));
 	else if (stringset == ETH_SS_PHY_STATS) {
-		struct phy_device *phydev = dev->phydev;
-
-		if (phydev) {
-			mutex_lock(&phydev->lock);
-			phydev->drv->get_strings(phydev, data);
-			mutex_unlock(&phydev->lock);
-		} else {
+		if (dev->phydev)
+			phy_ethtool_get_strings(dev->phydev, data);
+		else
 			return;
-		}
 	} else
 		/* ops->get_strings is valid because checked earlier */
 		ops->get_strings(dev, stringset, data);
@@ -2002,7 +1980,7 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	if (!phydev)
 		return -EOPNOTSUPP;
 
-	n_stats = phy_get_sset_count(phydev);
+	n_stats = phy_ethtool_get_sset_count(dev->phydev);
 	if (n_stats < 0)
 		return n_stats;
 	if (n_stats > S32_MAX / sizeof(u64))
@@ -2017,9 +1995,9 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	if (n_stats && !data)
 		return -ENOMEM;
 
-	mutex_lock(&phydev->lock);
-	phydev->drv->get_stats(phydev, &stats, data);
-	mutex_unlock(&phydev->lock);
+	ret = phy_ethtool_get_stats(dev->phydev, &stats, data);
+	if (ret < 0)
+		return ret;
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &stats, sizeof(stats)))
