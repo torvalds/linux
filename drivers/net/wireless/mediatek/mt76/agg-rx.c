@@ -103,6 +103,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 	__skb_queue_head_init(&frames);
 
 	local_bh_disable();
+	rcu_read_lock();
 
 	spin_lock(&tid->lock);
 	mt76_rx_aggr_check_release(tid, &frames);
@@ -114,6 +115,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 					     REORDER_TIMEOUT);
 	mt76_rx_complete(dev, &frames, -1);
 
+	rcu_read_unlock();
 	local_bh_enable();
 }
 
@@ -266,6 +268,8 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	u8 size = tid->size;
 	int i;
 
+	cancel_delayed_work(&tid->reorder_work);
+
 	spin_lock_bh(&tid->lock);
 
 	tid->stopped = true;
@@ -280,8 +284,6 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	}
 
 	spin_unlock_bh(&tid->lock);
-
-	cancel_delayed_work(&tid->reorder_work);
 }
 
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
