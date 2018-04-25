@@ -33,8 +33,8 @@
 
 #include <linux/platform_data/edma.h>
 
-#include "dmaengine.h"
-#include "virt-dma.h"
+#include "../dmaengine.h"
+#include "../virt-dma.h"
 
 /* Offsets matching "struct edmacc_param" */
 #define PARM_OPT		0x00

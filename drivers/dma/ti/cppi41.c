@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/pm_runtime.h>
-#include "dmaengine.h"
+#include "../dmaengine.h"
 
 #define DESC_TYPE	27
 #define DESC_TYPE_HOST	0x10

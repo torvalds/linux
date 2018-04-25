@@ -21,7 +21,7 @@
 #include <linux/of_dma.h>
 #include <linux/of_device.h>
 
-#include "virt-dma.h"
+#include "../virt-dma.h"
 
 #define OMAP_SDMA_REQUESTS	127
 #define OMAP_SDMA_CHANNELS	32
