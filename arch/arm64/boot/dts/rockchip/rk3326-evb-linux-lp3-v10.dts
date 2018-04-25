@@ -687,6 +687,35 @@
 
 &i2c2 {
 	status = "okay";
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times; TODO: measure */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	ov5695: ov5695@36 {
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout_m0>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc2v8_dvp>;
+		dovdd-supply = <&vcc1v8_dvp>;
+		dvdd-supply = <&vcc1v8_dvp>;
+
+		/*reset-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;*/
+		pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ucam_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &i2s1_2ch {
@@ -700,7 +729,7 @@
 	vccio1-supply = <&vcc1v8_soc>;
 	vccio2-supply = <&vccio_sd>;
 	vccio3-supply = <&vcc1v8_dvp>;
-	vccio4-supply = <&vcc_3v0>;
+	vccio4-supply = <&vcc1v8_soc>;
 	vccio5-supply = <&vcc_3v0>;
 };
 
@@ -730,8 +759,54 @@
 	status = "okay";
 };
 
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
 &nandc0 {
 	status = "okay";
+};
+
+&rkisp1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
+		};
+	};
 };
 
 &pinctrl {
@@ -778,10 +853,6 @@
 };
 
 &pwm1 {
-	status = "okay";
-};
-
-&rk_isp {
 	status = "okay";
 };
 
