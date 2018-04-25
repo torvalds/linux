@@ -2206,8 +2206,9 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 	unsigned int mv, ma, mw, flags;
 	unsigned int max_ma, max_mw;
 	enum pd_pdo_type type;
-	int src_pdo_index, snk_pdo_index;
 	u32 pdo, matching_snk_pdo;
+	int src_pdo_index = 0;
+	int snk_pdo_index = 0;
 	int ret;
 
 	ret = tcpm_pd_select_pdo(port, &snk_pdo_index, &src_pdo_index);
