@@ -6757,6 +6757,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/ibmvscsi/ibmvfc*
 
+IBM Power Virtual Management Channel Driver
+M:	Bryant G. Ly <bryantly@linux.vnet.ibm.com>
+M:	Steven Royer <seroyer@linux.vnet.ibm.com>
+S:	Supported
+F:	drivers/misc/ibmvmc.*
+
 IBM Power Virtual SCSI Device Drivers
 M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
 L:	linux-scsi@vger.kernel.org
