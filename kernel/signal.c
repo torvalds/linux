@@ -2888,12 +2888,9 @@ int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
 			new.si_lower = ptr_to_compat(from->si_lower);
 			new.si_upper = ptr_to_compat(from->si_upper);
 		}
-#ifdef SEGV_PKUERR
 		if ((from->si_signo == SIGSEGV) &&
 		    (from->si_code == SEGV_PKUERR))
 			new.si_pkey = from->si_pkey;
-#endif
-
 		break;
 	case SIL_CHLD:
 		new.si_pid    = from->si_pid;
@@ -2968,10 +2965,8 @@ int copy_siginfo_from_user32(struct siginfo *to,
 			to->si_lower = compat_ptr(from.si_lower);
 			to->si_upper = compat_ptr(from.si_upper);
 		}
-#ifdef SEGV_PKUERR
 		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_PKUERR))
 			to->si_pkey = from.si_pkey;
-#endif
 		break;
 	case SIL_CHLD:
 		to->si_pid    = from.si_pid;
