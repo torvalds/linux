@@ -447,6 +447,8 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		btbcm_check_bdaddr(hdev);
 		break;
 #endif
+	default:
+		break;
 	}
 
 done:
