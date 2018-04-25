@@ -47,6 +47,7 @@
 struct net_device;
 struct nfp_app;
 
+#define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
 #define NFP_FL_STATS_ENTRY_RS		BIT(20)
 #define NFP_FL_STATS_ELEM_RS		4
 #define NFP_FL_REPEATED_HASH_MAX	BIT(17)
@@ -189,9 +190,11 @@ struct nfp_fl_payload {
 	spinlock_t lock; /* lock stats */
 	struct nfp_fl_stats stats;
 	__be32 nfp_tun_ipv4_addr;
+	struct net_device *ingress_dev;
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+	bool ingress_offload;
 };
 
 struct nfp_fl_stats_frame {
@@ -216,12 +219,14 @@ int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
 			      struct nfp_fl_payload *nfp_flow);
 int nfp_compile_flow_metadata(struct nfp_app *app,
 			      struct tc_cls_flower_offload *flow,
-			      struct nfp_fl_payload *nfp_flow);
+			      struct nfp_fl_payload *nfp_flow,
+			      struct net_device *netdev);
 int nfp_modify_flow_metadata(struct nfp_app *app,
 			     struct nfp_fl_payload *nfp_flow);
 
 struct nfp_fl_payload *
-nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
+nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
+			   struct net_device *netdev, __be32 host_ctx);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
