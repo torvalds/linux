@@ -1594,7 +1594,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 		memcpy(&key->rx_seq[0], &enc->rx_seq[0], IW_ENCODE_SEQ_MAX_SIZE);
 	}
 
-	memcpy(&key->addr.sa_data[0], &enc->addr.sa_data[0], ETH_ALEN);
+	ether_addr_copy(&key->addr.sa_data[0], &enc->addr.sa_data[0]);
 
 	switch (enc->alg) {
 	case IW_ENCODE_ALG_NONE:
