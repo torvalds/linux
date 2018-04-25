@@ -1094,7 +1094,6 @@ static int ks_wlan_get_aplist(struct net_device *dev,
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct sockaddr *address = (struct sockaddr *)extra;
 	struct iw_quality qual[LOCAL_APLIST_MAX];
-
 	int i;
 
 	if (priv->sleep_mode == SLP_SLEEP)
