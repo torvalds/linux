@@ -1860,14 +1860,10 @@ static int ks_wlan_set_preamble(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	if (*uwrq == LONG_PREAMBLE) {	/* 0 */
-		priv->reg.preamble = LONG_PREAMBLE;
-	} else if (*uwrq == SHORT_PREAMBLE) {	/* 1 */
-		priv->reg.preamble = SHORT_PREAMBLE;
-	} else {
+	if (*uwrq != LONG_PREAMBLE && *uwrq != SHORT_PREAMBLE)
 		return -EINVAL;
-	}
 
+	priv->reg.preamble = *uwrq;
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
 }
