@@ -108,15 +108,9 @@ struct wilc_priv {
 	struct net_device_stats stats;
 	u8 monitor_flag;
 	int status;
-	struct WILC_WFI_packet *ppool;
-	struct WILC_WFI_packet *rx_queue; /* List of incoming packets */
-	int rx_int_enabled;
-	int tx_packetlen;
-	u8 *tx_packetdata;
 	struct sk_buff *skb;
 	spinlock_t lock;
 	struct net_device *dev;
-	struct napi_struct napi;
 	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct wilc_wfi_stats netstats;
