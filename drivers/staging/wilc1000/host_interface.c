@@ -2244,19 +2244,16 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set remain on channel\n");
 
 error:
-	{
-		p2p_listen_state = 1;
-		hif_drv->remain_on_ch_timer_vif = vif;
-		mod_timer(&hif_drv->remain_on_ch_timer,
-			  jiffies +
-			  msecs_to_jiffies(hif_remain_ch->duration));
+	p2p_listen_state = 1;
+	hif_drv->remain_on_ch_timer_vif = vif;
+	mod_timer(&hif_drv->remain_on_ch_timer,
+		  jiffies + msecs_to_jiffies(hif_remain_ch->duration));
 
-		if (hif_drv->remain_on_ch.ready)
-			hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
+	if (hif_drv->remain_on_ch.ready)
+		hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
 
-		if (hif_drv->remain_on_ch_pending)
-			hif_drv->remain_on_ch_pending = 0;
-	}
+	if (hif_drv->remain_on_ch_pending)
+		hif_drv->remain_on_ch_pending = 0;
 
 	return result;
 }
