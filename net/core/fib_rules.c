@@ -454,6 +454,27 @@ static struct fib_rule *rule_find(struct fib_rules_ops *ops,
 	return NULL;
 }
 
+#ifdef CONFIG_NET_L3_MASTER_DEV
+static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
+			      struct netlink_ext_ack *extack)
+{
+	nlrule->l3mdev = nla_get_u8(nla);
+	if (nlrule->l3mdev != 1) {
+		NL_SET_ERR_MSG(extack, "Invalid l3mdev attribute");
+		return -1;
+	}
+
+	return 0;
+}
+#else
+static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
+			      struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "l3mdev support is not enabled in kernel");
+	return -1;
+}
+#endif
+
 static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		       struct netlink_ext_ack *extack,
 		       struct fib_rules_ops *ops,
@@ -536,16 +557,9 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->tun_id = nla_get_be64(tb[FRA_TUN_ID]);
 
 	err = -EINVAL;
-	if (tb[FRA_L3MDEV]) {
-#ifdef CONFIG_NET_L3_MASTER_DEV
-		nlrule->l3mdev = nla_get_u8(tb[FRA_L3MDEV]);
-		if (nlrule->l3mdev != 1)
-#endif
-		{
-			NL_SET_ERR_MSG(extack, "Invalid l3mdev");
-			goto errout_free;
-		}
-	}
+	if (tb[FRA_L3MDEV] &&
+	    fib_nl2rule_l3mdev(tb[FRA_L3MDEV], nlrule, extack) < 0)
+		goto errout_free;
 
 	nlrule->action = frh->action;
 	nlrule->flags = frh->flags;
