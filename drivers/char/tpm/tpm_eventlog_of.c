@@ -56,8 +56,8 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	 * but physical tpm needs the conversion.
 	 */
 	if (of_property_match_string(np, "compatible", "IBM,vtpm") < 0) {
-		size = be32_to_cpup(sizep);
-		base = be64_to_cpup(basep);
+		size = be32_to_cpup((__force __be32 *)sizep);
+		base = be64_to_cpup((__force __be64 *)basep);
 	} else {
 		size = *sizep;
 		base = *basep;
