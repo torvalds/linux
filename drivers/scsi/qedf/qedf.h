@@ -301,6 +301,7 @@ struct qedf_ctx {
 #define QEDF_FALLBACK_VLAN	1002
 #define QEDF_DEFAULT_PRIO	3
 	int vlan_id;
+	u8 prio;
 	struct qed_dev *cdev;
 	struct qed_dev_fcoe_info dev_info;
 	struct qed_int_info int_info;

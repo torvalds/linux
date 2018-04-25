@@ -54,10 +54,10 @@ module_param_named(fallback_vlan, qedf_fallback_vlan, int, S_IRUGO);
 MODULE_PARM_DESC(fallback_vlan, " VLAN ID to try if fip vlan request fails "
 	"(default 1002).");
 
-static uint qedf_default_prio = QEDF_DEFAULT_PRIO;
+static int qedf_default_prio = -1;
 module_param_named(default_prio, qedf_default_prio, int, S_IRUGO);
-MODULE_PARM_DESC(default_prio, " Default 802.1q priority for FIP and FCoE"
-	" traffic (default 3).");
+MODULE_PARM_DESC(default_prio, " Override 802.1q priority for FIP and FCoE"
+	" traffic (value between 0 and 7, default 3).");
 
 uint qedf_dump_frames;
 module_param_named(dump_frames, qedf_dump_frames, int, S_IRUGO | S_IWUSR);
@@ -114,9 +114,9 @@ static struct kmem_cache *qedf_io_work_cache;
 void qedf_set_vlan_id(struct qedf_ctx *qedf, int vlan_id)
 {
 	qedf->vlan_id = vlan_id;
-	qedf->vlan_id |= qedf_default_prio << VLAN_PRIO_SHIFT;
+	qedf->vlan_id |= qedf->prio << VLAN_PRIO_SHIFT;
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Setting vlan_id=%04x "
-		   "prio=%d.\n", vlan_id, qedf_default_prio);
+		   "prio=%d.\n", vlan_id, qedf->prio);
 }
 
 /* Returns true if we have a valid vlan, false otherwise */
@@ -521,7 +521,7 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 			    "Starting link down tmo.\n");
 			atomic_set(&qedf->link_down_tmo_valid, 1);
 		}
-		qedf->vlan_id  = 0;
+		qedf->vlan_id = 0;
 		qedf_update_link_speed(qedf, link);
 		queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 		    qedf_link_down_tmo * HZ);
@@ -532,6 +532,7 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 {
 	struct qedf_ctx *qedf = (struct qedf_ctx *)dev;
+	u8 tmp_prio;
 
 	QEDF_ERR(&(qedf->dbg_ctx), "DCBx event valid=%d enabled=%d fcoe "
 	    "prio=%d.\n", get->operational.valid, get->operational.enabled,
@@ -546,6 +547,24 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 		}
 
 		atomic_set(&qedf->dcbx, QEDF_DCBX_DONE);
+
+		/*
+		 * Set the 8021q priority in the following manner:
+		 *
+		 * 1. If a modparam is set use that
+		 * 2. If the value is not between 0..7 use the default
+		 * 3. Use the priority we get from the DCBX app tag
+		 */
+		tmp_prio = get->operational.app_prio.fcoe;
+		if (qedf_default_prio > -1)
+			qedf->prio = qedf_default_prio;
+		else if (tmp_prio < 0 || tmp_prio > 7) {
+			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
+			    "FIP/FCoE prio %d out of range, setting to %d.\n",
+			    tmp_prio, QEDF_DEFAULT_PRIO);
+			qedf->prio = QEDF_DEFAULT_PRIO;
+		} else
+			qedf->prio = tmp_prio;
 
 		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP &&
 		    !qedf_dcbx_no_wait) {
@@ -1114,7 +1133,7 @@ static int qedf_offload_connection(struct qedf_ctx *qedf,
 	conn_info.vlan_tag = qedf->vlan_id <<
 	    FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_SHIFT;
 	conn_info.vlan_tag |=
-	    qedf_default_prio << FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT;
+	    qedf->prio << FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT;
 	conn_info.flags |= (FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_MASK <<
 	    FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_SHIFT);
 
@@ -2985,8 +3004,9 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	qedf->link_update_wq = create_workqueue(host_buf);
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
-
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
+	/* Set a default prio in case DCBX doesn't converge */
+	qedf->prio = QEDF_DEFAULT_PRIO;
 
 	/*
 	 * Common probe. Takes care of basic hardware init and pci_*
@@ -3412,12 +3432,16 @@ static int __init qedf_init(void)
 	if (qedf_debug == QEDF_LOG_DEFAULT)
 		qedf_debug = QEDF_DEFAULT_LOG_MASK;
 
-	/* Check that default prio for FIP/FCoE traffic is between 0..7 */
-	if (qedf_default_prio > 7) {
-		qedf_default_prio = QEDF_DEFAULT_PRIO;
-		QEDF_ERR(NULL, "FCoE/FIP priority out of range, resetting to %d.\n",
-		    QEDF_DEFAULT_PRIO);
-	}
+	/*
+	 * Check that default prio for FIP/FCoE traffic is between 0..7 if a
+	 * value has been set
+	 */
+	if (qedf_default_prio > -1)
+		if (qedf_default_prio > 7) {
+			qedf_default_prio = QEDF_DEFAULT_PRIO;
+			QEDF_ERR(NULL, "FCoE/FIP priority out of range, resetting to %d.\n",
+			    QEDF_DEFAULT_PRIO);
+		}
 
 	/* Print driver banner */
 	QEDF_INFO(NULL, QEDF_LOG_INFO, "%s v%s.\n", QEDF_DESCR,
