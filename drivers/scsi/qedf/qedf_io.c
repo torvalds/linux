@@ -1445,8 +1445,8 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 			rc = kref_get_unless_zero(&io_req->refcount);
 			if (!rc) {
 				QEDF_ERR(&(qedf->dbg_ctx),
-				    "Could not get kref for io_req=0x%p.\n",
-				    io_req);
+				    "Could not get kref for ELS io_req=0x%p xid=0x%x.\n",
+				    io_req, io_req->xid);
 				continue;
 			}
 			qedf_flush_els_req(qedf, io_req);
@@ -1472,7 +1472,7 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 		rc = kref_get_unless_zero(&io_req->refcount);
 		if (!rc) {
 			QEDF_ERR(&(qedf->dbg_ctx), "Could not get kref for "
-			    "io_req=0x%p\n", io_req);
+			    "io_req=0x%p xid=0x%x\n", io_req, io_req->xid);
 			continue;
 		}
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
