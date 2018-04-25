@@ -1101,8 +1101,7 @@ static int ks_wlan_get_aplist(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	for (i = 0; i < priv->aplist.size; i++) {
-		memcpy(address[i].sa_data, &(priv->aplist.ap[i].bssid[0]),
-		       ETH_ALEN);
+		ether_addr_copy(address[i].sa_data, priv->aplist.ap[i].bssid);
 		address[i].sa_family = ARPHRD_ETHER;
 		qual[i].level = 256 - priv->aplist.ap[i].rssi;
 		qual[i].qual = priv->aplist.ap[i].sq;
