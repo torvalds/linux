@@ -25,7 +25,6 @@
 
 #define MT2701_PLL_DOMAIN_0_RATE	98304000
 #define MT2701_PLL_DOMAIN_1_RATE	90316800
-#define MT2701_I2S_NUM	4
 
 enum {
 	MT2701_MEMIF_DL1,
@@ -100,7 +99,6 @@ struct mt2701_i2s_data {
 };
 
 struct mt2701_i2s_path {
-	int dai_id;
 	int mclk_rate;
 	int on[MTK_STREAM_NUM];
 	int occupied[MTK_STREAM_NUM];
@@ -112,11 +110,18 @@ struct mt2701_i2s_path {
 	struct clk *asrco_ck;
 };
 
+struct mt2701_soc_variants {
+	bool has_one_heart_mode;
+	int i2s_num;
+};
+
 struct mt2701_afe_private {
-	struct mt2701_i2s_path i2s_path[MT2701_I2S_NUM];
+	struct mt2701_i2s_path *i2s_path;
 	struct clk *base_ck[MT2701_BASE_CLK_NUM];
 	struct clk *mrgif_ck;
 	bool mrg_enable[MTK_STREAM_NUM];
+
+	const struct mt2701_soc_variants *soc;
 };
 
 #endif

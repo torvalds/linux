@@ -44,7 +44,7 @@ int mt2701_init_clock(struct mtk_base_afe *afe)
 	}
 
 	/* Get I2S related clocks */
-	for (i = 0; i < MT2701_I2S_NUM; i++) {
+	for (i = 0; i < afe_priv->soc->i2s_num; i++) {
 		struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[i];
 		struct clk *i2s_ck;
 		char name[13];

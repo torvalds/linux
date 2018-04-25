@@ -21,6 +21,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #include "mt2701-afe-common.h"
@@ -37,7 +38,7 @@ static const struct snd_pcm_hardware mt2701_afe_hardware = {
 	.period_bytes_max = 1024 * 256,
 	.periods_min = 4,
 	.periods_max = 1024,
-	.buffer_bytes_max = 1024 * 1024 * 16,
+	.buffer_bytes_max = 1024 * 1024,
 	.fifo_size = 0,
 };
 
@@ -69,9 +70,10 @@ static const struct mt2701_afe_rate mt2701_afe_i2s_rates[] = {
 
 static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
 {
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int val = num - MT2701_IO_I2S;
 
-	if (val < 0 || val >= MT2701_I2S_NUM) {
+	if (val < 0 || val >= afe_priv->soc->i2s_num) {
 		dev_err(afe->dev, "%s, num not available, num %d, val %d\n",
 			__func__, num, val);
 		return -EINVAL;
@@ -94,12 +96,14 @@ static int mt2701_afe_i2s_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
+	bool mode = afe_priv->soc->has_one_heart_mode;
 
 	if (i2s_num < 0)
 		return i2s_num;
 
-	return mt2701_afe_enable_mclk(afe, i2s_num);
+	return mt2701_afe_enable_mclk(afe, mode ? 1 : i2s_num);
 }
 
 static int mt2701_afe_i2s_path_disable(struct mtk_base_afe *afe,
@@ -130,6 +134,7 @@ static void mt2701_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
+	bool mode = afe_priv->soc->has_one_heart_mode;
 
 	if (i2s_num < 0)
 		return;
@@ -149,7 +154,7 @@ static void mt2701_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 
 exit:
 	/* disable mclk */
-	mt2701_afe_disable_mclk(afe, i2s_num);
+	mt2701_afe_disable_mclk(afe, mode ? 1 : i2s_num);
 }
 
 static int mt2701_i2s_path_enable(struct mtk_base_afe *afe,
@@ -157,6 +162,7 @@ static int mt2701_i2s_path_enable(struct mtk_base_afe *afe,
 				  int stream_dir, int rate)
 {
 	const struct mt2701_i2s_data *i2s_data = i2s_path->i2s_data[stream_dir];
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int reg, fs, w_len = 1; /* now we support bck 64bits only */
 	unsigned int mask, val;
 
@@ -180,6 +186,10 @@ static int mt2701_i2s_path_enable(struct mtk_base_afe *afe,
 		val |= ASYS_I2S_IN_PHASE_FIX;
 		reg = ASMI_TIMING_CON1;
 	} else {
+		if (afe_priv->soc->has_one_heart_mode) {
+			mask |= ASYS_I2S_CON_ONE_HEART_MODE;
+			val |= ASYS_I2S_CON_ONE_HEART_MODE;
+		}
 		reg = ASMO_TIMING_CON1;
 	}
 
@@ -212,6 +222,7 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int ret, i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
+	bool mode = afe_priv->soc->has_one_heart_mode;
 
 	if (i2s_num < 0)
 		return i2s_num;
@@ -221,7 +232,7 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 	if (i2s_path->occupied[substream->stream])
 		return -EBUSY;
 
-	ret = mt2701_mclk_configuration(afe, i2s_num);
+	ret = mt2701_mclk_configuration(afe, mode ? 1 : i2s_num);
 	if (ret)
 		return ret;
 
@@ -244,19 +255,18 @@ static int mt2701_afe_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
+	bool mode = afe_priv->soc->has_one_heart_mode;
 
 	if (i2s_num < 0)
 		return i2s_num;
 
 	/* mclk */
 	if (dir == SND_SOC_CLOCK_IN) {
-		dev_warn(dai->dev,
-			 "%s() warning: mt2701 doesn't support mclk input\n",
-			__func__);
+		dev_warn(dai->dev, "The SoCs doesn't support mclk input\n");
 		return -EINVAL;
 	}
 
-	afe_priv->i2s_path[i2s_num].mclk_rate = freq;
+	afe_priv->i2s_path[mode ? 1 : i2s_num].mclk_rate = freq;
 
 	return 0;
 }
@@ -1347,8 +1357,15 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	afe_priv = afe->platform_priv;
+	afe_priv->soc = of_device_get_match_data(&pdev->dev);
 	afe->dev = &pdev->dev;
 	dev = afe->dev;
+
+	afe_priv->i2s_path = devm_kzalloc(dev, afe_priv->soc->i2s_num *
+					  sizeof(struct mt2701_i2s_path),
+					  GFP_KERNEL);
+	if (!afe_priv->i2s_path)
+		return -ENOMEM;
 
 	irq_id = platform_get_irq_byname(pdev, "asys");
 	if (irq_id < 0) {
@@ -1394,7 +1411,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		afe->irqs[i].irq_data = &irq_data[i];
 
 	/* I2S initialize */
-	for (i = 0; i < MT2701_I2S_NUM; i++) {
+	for (i = 0; i < afe_priv->soc->i2s_num; i++) {
 		afe_priv->i2s_path[i].i2s_data[SNDRV_PCM_STREAM_PLAYBACK] =
 			&mt2701_i2s_data[i][SNDRV_PCM_STREAM_PLAYBACK];
 		afe_priv->i2s_path[i].i2s_data[SNDRV_PCM_STREAM_CAPTURE] =
@@ -1459,8 +1476,18 @@ static int mt2701_afe_pcm_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mt2701_soc_variants mt2701_soc_v1 = {
+	.i2s_num = 4,
+};
+
+static const struct mt2701_soc_variants mt2701_soc_v2 = {
+	.has_one_heart_mode = true,
+	.i2s_num = 4,
+};
+
 static const struct of_device_id mt2701_afe_pcm_dt_match[] = {
-	{ .compatible = "mediatek,mt2701-audio", },
+	{ .compatible = "mediatek,mt2701-audio", .data = &mt2701_soc_v1 },
+	{ .compatible = "mediatek,mt7622-audio", .data = &mt2701_soc_v2 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mt2701_afe_pcm_dt_match);
