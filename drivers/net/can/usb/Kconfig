@@ -1,6 +1,12 @@
 menu "CAN USB interfaces"
 	depends on USB
 
+config CAN_8DEV_USB
+	tristate "8 devices USB2CAN interface"
+	---help---
+	  This driver supports the USB2CAN interface
+	  from 8 devices (http://www.8devices.com).
+
 config CAN_EMS_USB
 	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
 	---help---
@@ -61,6 +67,12 @@ config CAN_KVASER_USB
 	  To compile this driver as a module, choose M here: the
 	  module will be called kvaser_usb.
 
+config CAN_MCBA_USB
+	tristate "Microchip CAN BUS Analyzer interface"
+	---help---
+	  This driver supports the CAN BUS Analyzer interface
+	  from Microchip (http://www.microchip.com/development-tools/).
+
 config CAN_PEAK_USB
 	tristate "PEAK PCAN-USB/USB Pro interfaces for CAN 2.0b/CAN-FD"
 	---help---
@@ -76,12 +88,6 @@ config CAN_PEAK_USB
 	  PCAN-USB X6          6 CAN-FD channels USB adapter
 
 	  (see also http://www.peak-system.com).
-
-config CAN_8DEV_USB
-	tristate "8 devices USB2CAN interface"
-	---help---
-	  This driver supports the USB2CAN interface
-	  from 8 devices (http://www.8devices.com).
 
 config CAN_MCBA_USB
 	tristate "Microchip CAN BUS Analyzer interface"
