@@ -345,7 +345,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 }
 
 static struct nfp_fl_payload *
-nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
+nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer, bool egress)
 {
 	struct nfp_fl_payload *flow_pay;
 
@@ -370,6 +370,8 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
 	spin_lock_init(&flow_pay->lock);
+
+	flow_pay->ingress_offload = !egress;
 
 	return flow_pay;
 
@@ -402,7 +404,19 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *flow_pay;
 	struct nfp_fl_key_ls *key_layer;
+	struct net_device *ingr_dev;
 	int err;
+
+	ingr_dev = egress ? NULL : netdev;
+	flow_pay = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
+					      NFP_FL_STATS_CTX_DONT_CARE);
+	if (flow_pay) {
+		/* Ignore as duplicate if it has been added by different cb. */
+		if (flow_pay->ingress_offload && egress)
+			return 0;
+		else
+			return -EOPNOTSUPP;
+	}
 
 	key_layer = kmalloc(sizeof(*key_layer), GFP_KERNEL);
 	if (!key_layer)
@@ -413,7 +427,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_free_key_ls;
 
-	flow_pay = nfp_flower_allocate_new(key_layer);
+	flow_pay = nfp_flower_allocate_new(key_layer, egress);
 	if (!flow_pay) {
 		err = -ENOMEM;
 		goto err_free_key_ls;
@@ -485,7 +499,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
 					      NFP_FL_STATS_CTX_DONT_CARE);
 	if (!nfp_flow)
-		return -ENOENT;
+		return egress ? 0 : -ENOENT;
 
 	err = nfp_modify_flow_metadata(app, nfp_flow);
 	if (err)
@@ -533,6 +547,9 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 					      NFP_FL_STATS_CTX_DONT_CARE);
 	if (!nfp_flow)
 		return -EINVAL;
+
+	if (nfp_flow->ingress_offload && egress)
+		return 0;
 
 	spin_lock_bh(&nfp_flow->lock);
 	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,

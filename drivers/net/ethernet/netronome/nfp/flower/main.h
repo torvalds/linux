@@ -194,6 +194,7 @@ struct nfp_fl_payload {
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+	bool ingress_offload;
 };
 
 struct nfp_fl_stats_frame {
