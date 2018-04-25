@@ -1940,14 +1940,11 @@ static int ks_wlan_set_scan_type(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq == ACTIVE_SCAN) {	/* 0 */
-		priv->reg.scan_type = ACTIVE_SCAN;
-	} else if (*uwrq == PASSIVE_SCAN) {	/* 1 */
-		priv->reg.scan_type = PASSIVE_SCAN;
-	} else {
-		return -EINVAL;
-	}
 
+	if (*uwrq != ACTIVE_SCAN && *uwrq != PASSIVE_SCAN)
+		return -EINVAL;
+
+	priv->reg.scan_type = *uwrq;
 	return 0;
 }
 
