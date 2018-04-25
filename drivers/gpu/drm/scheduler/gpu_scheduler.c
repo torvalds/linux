@@ -575,9 +575,6 @@ void drm_sched_job_recovery(struct drm_gpu_scheduler *sched)
 		fence = sched->ops->run_job(s_job);
 		atomic_inc(&sched->hw_rq_count);
 
-		dma_fence_put(s_job->entity->last_scheduled);
-		s_job->entity->last_scheduled = dma_fence_get(&s_fence->finished);
-
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
 			r = dma_fence_add_callback(fence, &s_fence->cb,
