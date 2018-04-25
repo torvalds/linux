@@ -95,29 +95,29 @@ static u8 crc7(u8 crc, const u8 *buffer, u32 len)
 
 #define CMD_DMA_WRITE				0xc1
 #define CMD_DMA_READ				0xc2
-#define CMD_INTERNAL_WRITE		0xc3
-#define CMD_INTERNAL_READ		0xc4
+#define CMD_INTERNAL_WRITE			0xc3
+#define CMD_INTERNAL_READ			0xc4
 #define CMD_TERMINATE				0xc5
-#define CMD_REPEAT					0xc6
-#define CMD_DMA_EXT_WRITE		0xc7
-#define CMD_DMA_EXT_READ		0xc8
+#define CMD_REPEAT				0xc6
+#define CMD_DMA_EXT_WRITE			0xc7
+#define CMD_DMA_EXT_READ			0xc8
 #define CMD_SINGLE_WRITE			0xc9
-#define CMD_SINGLE_READ			0xca
-#define CMD_RESET						0xcf
+#define CMD_SINGLE_READ				0xca
+#define CMD_RESET				0xcf
 
-#define N_OK								1
-#define N_FAIL								0
-#define N_RESET							-1
-#define N_RETRY							-2
+#define N_OK					1
+#define N_FAIL					0
+#define N_RESET					-1
+#define N_RETRY					-2
 
 #define DATA_PKT_SZ_256				256
-#define DATA_PKT_SZ_512			512
+#define DATA_PKT_SZ_512				512
 #define DATA_PKT_SZ_1K				1024
 #define DATA_PKT_SZ_4K				(4 * 1024)
 #define DATA_PKT_SZ_8K				(8 * 1024)
-#define DATA_PKT_SZ					DATA_PKT_SZ_8K
+#define DATA_PKT_SZ				DATA_PKT_SZ_8K
 
-#define USE_SPI_DMA     0
+#define USE_SPI_DMA				0
 
 static int wilc_bus_probe(struct spi_device *spi)
 {
