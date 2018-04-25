@@ -4026,9 +4026,9 @@ struct wmi_pdev_get_tpc_config_cmd {
 } __packed;
 
 #define WMI_TPC_CONFIG_PARAM		1
-#define WMI_TPC_RATE_MAX		160
 #define WMI_TPC_FINAL_RATE_MAX		240
 #define WMI_TPC_TX_N_CHAIN		4
+#define WMI_TPC_RATE_MAX               (WMI_TPC_TX_N_CHAIN * 65)
 #define WMI_TPC_PREAM_TABLE_MAX		10
 #define WMI_TPC_FLAG			3
 #define WMI_TPC_BUF_SIZE		10

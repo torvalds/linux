@@ -1519,7 +1519,13 @@ static void ath10k_tpc_stats_print(struct ath10k_tpc_stats *tpc_stats,
 	*len += scnprintf(buf + *len, buf_len - *len,
 			  "********************************\n");
 	*len += scnprintf(buf + *len, buf_len - *len,
-			  "No.  Preamble Rate_code tpc_value1 tpc_value2 tpc_value3\n");
+			  "No.  Preamble Rate_code ");
+
+	for (i = 0; i < WMI_TPC_TX_N_CHAIN; i++)
+		*len += scnprintf(buf + *len, buf_len - *len,
+				  "tpc_value%d ", i);
+
+	*len += scnprintf(buf + *len, buf_len - *len, "\n");
 
 	for (i = 0; i < tpc_stats->rate_max; i++) {
 		*len += scnprintf(buf + *len, buf_len - *len,
