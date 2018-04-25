@@ -125,6 +125,43 @@ void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
 	I915_WRITE(EDP_PSR_IMR, ~mask);
 }
 
+static void psr_event_print(u32 val, bool psr2_enabled)
+{
+	DRM_DEBUG_KMS("PSR exit events: 0x%x\n", val);
+	if (val & PSR_EVENT_PSR2_WD_TIMER_EXPIRE)
+		DRM_DEBUG_KMS("\tPSR2 watchdog timer expired\n");
+	if ((val & PSR_EVENT_PSR2_DISABLED) && psr2_enabled)
+		DRM_DEBUG_KMS("\tPSR2 disabled\n");
+	if (val & PSR_EVENT_SU_DIRTY_FIFO_UNDERRUN)
+		DRM_DEBUG_KMS("\tSU dirty FIFO underrun\n");
+	if (val & PSR_EVENT_SU_CRC_FIFO_UNDERRUN)
+		DRM_DEBUG_KMS("\tSU CRC FIFO underrun\n");
+	if (val & PSR_EVENT_GRAPHICS_RESET)
+		DRM_DEBUG_KMS("\tGraphics reset\n");
+	if (val & PSR_EVENT_PCH_INTERRUPT)
+		DRM_DEBUG_KMS("\tPCH interrupt\n");
+	if (val & PSR_EVENT_MEMORY_UP)
+		DRM_DEBUG_KMS("\tMemory up\n");
+	if (val & PSR_EVENT_FRONT_BUFFER_MODIFY)
+		DRM_DEBUG_KMS("\tFront buffer modification\n");
+	if (val & PSR_EVENT_WD_TIMER_EXPIRE)
+		DRM_DEBUG_KMS("\tPSR watchdog timer expired\n");
+	if (val & PSR_EVENT_PIPE_REGISTERS_UPDATE)
+		DRM_DEBUG_KMS("\tPIPE registers updated\n");
+	if (val & PSR_EVENT_REGISTER_UPDATE)
+		DRM_DEBUG_KMS("\tRegister updated\n");
+	if (val & PSR_EVENT_HDCP_ENABLE)
+		DRM_DEBUG_KMS("\tHDCP enabled\n");
+	if (val & PSR_EVENT_KVMR_SESSION_ENABLE)
+		DRM_DEBUG_KMS("\tKVMR session enabled\n");
+	if (val & PSR_EVENT_VBI_ENABLE)
+		DRM_DEBUG_KMS("\tVBI enabled\n");
+	if (val & PSR_EVENT_LPSP_MODE_EXIT)
+		DRM_DEBUG_KMS("\tLPSP mode exited\n");
+	if ((val & PSR_EVENT_PSR_DISABLE) && !psr2_enabled)
+		DRM_DEBUG_KMS("\tPSR disabled\n");
+}
+
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 {
 	u32 transcoders = BIT(TRANSCODER_EDP);
@@ -152,6 +189,14 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 			dev_priv->psr.last_exit = time_ns;
 			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
 				      transcoder_name(cpu_transcoder));
+
+			if (INTEL_GEN(dev_priv) >= 9) {
+				u32 val = I915_READ(PSR_EVENT(cpu_transcoder));
+				bool psr2_enabled = dev_priv->psr.psr2_enabled;
+
+				I915_WRITE(PSR_EVENT(cpu_transcoder), val);
+				psr_event_print(val, psr2_enabled);
+			}
 		}
 	}
 }
