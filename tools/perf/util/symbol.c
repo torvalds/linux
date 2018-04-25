@@ -1044,6 +1044,16 @@ out_delete_from:
 	return ret;
 }
 
+static struct map *__map_groups__first(struct map_groups *mg, enum map_type type)
+{
+	return maps__first(&mg->maps[type]);
+}
+
+struct map *map_groups__first(struct map_groups *mg)
+{
+	return __map_groups__first(mg, MAP__FUNCTION);
+}
+
 static int do_validate_kcore_modules(const char *filename, struct map *map,
 				  struct map_groups *kmaps)
 {
@@ -1055,7 +1065,7 @@ static int do_validate_kcore_modules(const char *filename, struct map *map,
 	if (err)
 		return err;
 
-	old_map = map_groups__first(kmaps, map->type);
+	old_map = __map_groups__first(kmaps, map->type);
 	while (old_map) {
 		struct map *next = map_groups__next(old_map);
 		struct module_info *mi;
@@ -1218,7 +1228,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Remove old maps */
-	old_map = map_groups__first(kmaps, map->type);
+	old_map = __map_groups__first(kmaps, map->type);
 	while (old_map) {
 		struct map *next = map_groups__next(old_map);
 

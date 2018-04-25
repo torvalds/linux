@@ -225,11 +225,7 @@ static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 	return __map_groups__find(mg, MAP__FUNCTION, addr);
 }
 
-static inline struct map *map_groups__first(struct map_groups *mg,
-					    enum map_type type)
-{
-	return maps__first(&mg->maps[type]);
-}
+struct map *map_groups__first(struct map_groups *mg);
 
 static inline struct map *map_groups__next(struct map *map)
 {
