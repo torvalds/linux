@@ -1096,6 +1096,9 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
+	if (!dmcfreq)
+		return 0;
+
 	if (dmcfreq->edev) {
 		ret = devfreq_event_disable_edev(dmcfreq->edev);
 		if (ret < 0) {
@@ -1117,6 +1120,9 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
+
+	if (!dmcfreq)
+		return 0;
 
 	if (dmcfreq->edev) {
 		ret = devfreq_event_enable_edev(dmcfreq->edev);
@@ -2979,9 +2985,12 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get system status rate\n");
 		if (ret == -ENODEV && !data->auto_freq_en) {
 			dev_info(dev, "don't add devfreq feature\n");
+			if (data->edev)
+				devfreq_event_disable_edev(data->edev);
 			return 0;
 		}
 	}
+
 	of_property_read_u32(np, "upthreshold",
 			     &data->ondemand_data.upthreshold);
 	of_property_read_u32(np, "downdifferential",
