@@ -1414,6 +1414,12 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 	if (!fcport)
 		return;
 
+	/* Check that fcport is still offloaded */
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
+		return;
+	}
+
 	qedf = fcport->qedf;
 	cmd_mgr = qedf->cmd_mgr;
 
