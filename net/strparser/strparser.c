@@ -67,7 +67,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 
 static void strp_start_timer(struct strparser *strp, long timeo)
 {
-	if (timeo)
+	if (timeo && timeo != LONG_MAX)
 		mod_delayed_work(strp_wq, &strp->msg_timer_work, timeo);
 }
 

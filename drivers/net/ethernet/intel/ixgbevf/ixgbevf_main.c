@@ -3420,7 +3420,7 @@ static int ixgbevf_setup_all_tx_resources(struct ixgbevf_adapter *adapter)
 		if (!err)
 			continue;
 		hw_dbg(&adapter->hw, "Allocation for XDP Queue %u failed\n", j);
-		break;
+		goto err_setup_tx;
 	}
 
 	return 0;

@@ -354,8 +354,25 @@ struct kvm_xcrs {
 	__u64 padding[16];
 };
 
-/* definition of registers in kvm_run */
+#define KVM_SYNC_X86_REGS      (1UL << 0)
+#define KVM_SYNC_X86_SREGS     (1UL << 1)
+#define KVM_SYNC_X86_EVENTS    (1UL << 2)
+
+#define KVM_SYNC_X86_VALID_FIELDS \
+	(KVM_SYNC_X86_REGS| \
+	 KVM_SYNC_X86_SREGS| \
+	 KVM_SYNC_X86_EVENTS)
+
+/* kvm_sync_regs struct included by kvm_run struct */
 struct kvm_sync_regs {
+	/* Members of this structure are potentially malicious.
+	 * Care must be taken by code reading, esp. interpreting,
+	 * data fields from them inside KVM to prevent TOCTOU and
+	 * double-fetch types of vulnerabilities.
+	 */
+	struct kvm_regs regs;
+	struct kvm_sregs sregs;
+	struct kvm_vcpu_events events;
 };
 
 #define KVM_X86_QUIRK_LINT0_REENABLED	(1 << 0)

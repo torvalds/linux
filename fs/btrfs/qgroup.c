@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/btrfs.h>
+#include <linux/sizes.h>
 
 #include "ctree.h"
 #include "transaction.h"
@@ -2375,8 +2376,21 @@ out:
 	return ret;
 }
 
-static bool qgroup_check_limits(const struct btrfs_qgroup *qg, u64 num_bytes)
+/*
+ * Two limits to commit transaction in advance.
+ *
+ * For RATIO, it will be 1/RATIO of the remaining limit
+ * (excluding data and prealloc meta) as threshold.
+ * For SIZE, it will be in byte unit as threshold.
+ */
+#define QGROUP_PERTRANS_RATIO		32
+#define QGROUP_PERTRANS_SIZE		SZ_32M
+static bool qgroup_check_limits(struct btrfs_fs_info *fs_info,
+				const struct btrfs_qgroup *qg, u64 num_bytes)
 {
+	u64 limit;
+	u64 threshold;
+
 	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
 	    qgroup_rsv_total(qg) + (s64)qg->rfer + num_bytes > qg->max_rfer)
 		return false;
@@ -2384,6 +2398,31 @@ static bool qgroup_check_limits(const struct btrfs_qgroup *qg, u64 num_bytes)
 	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
 	    qgroup_rsv_total(qg) + (s64)qg->excl + num_bytes > qg->max_excl)
 		return false;
+
+	/*
+	 * Even if we passed the check, it's better to check if reservation
+	 * for meta_pertrans is pushing us near limit.
+	 * If there is too much pertrans reservation or it's near the limit,
+	 * let's try commit transaction to free some, using transaction_kthread
+	 */
+	if ((qg->lim_flags & (BTRFS_QGROUP_LIMIT_MAX_RFER |
+			      BTRFS_QGROUP_LIMIT_MAX_EXCL))) {
+		if (qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL)
+			limit = qg->max_excl;
+		else
+			limit = qg->max_rfer;
+		threshold = (limit - qg->rsv.values[BTRFS_QGROUP_RSV_DATA] -
+			    qg->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC]) /
+			    QGROUP_PERTRANS_RATIO;
+		threshold = min_t(u64, threshold, QGROUP_PERTRANS_SIZE);
+
+		/*
+		 * Use transaction_kthread to commit transaction, so we no
+		 * longer need to bother nested transaction nor lock context.
+		 */
+		if (qg->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS] > threshold)
+			btrfs_commit_transaction_locksafe(fs_info);
+	}
 
 	return true;
 }
@@ -2434,7 +2473,7 @@ static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes, bool enforce,
 
 		qg = unode_aux_to_qgroup(unode);
 
-		if (enforce && !qgroup_check_limits(qg, num_bytes)) {
+		if (enforce && !qgroup_check_limits(fs_info, qg, num_bytes)) {
 			ret = -EDQUOT;
 			goto out;
 		}
