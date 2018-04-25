@@ -20,26 +20,27 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 
 .ONESHELL:
 define RUN_TEST_PRINT_RESULT
-	echo "selftests: $$BASENAME_TEST";	\
+	TEST_HDR_MSG="selftests: "`basename $$PWD`:" $$BASENAME_TEST";	\
+	echo $$TEST_HDR_MSG;					\
 	echo "========================================";	\
 	if [ ! -x $$TEST ]; then	\
-		echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
-		echo "not ok 1..$$test_num selftests: $$BASENAME_TEST [FAIL]"; \
+		echo "$$TEST_HDR_MSG: Warning: file $$BASENAME_TEST is not executable, correct this.";\
+		echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]"; \
 	else					\
 		cd `dirname $$TEST` > /dev/null; \
 		if [ "X$(summary)" != "X" ]; then	\
 			(./$$BASENAME_TEST > /tmp/$$BASENAME_TEST 2>&1 && \
-			echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || \
+			echo "ok 1..$$test_num $$TEST_HDR_MSG [PASS]") || \
 			(if [ $$? -eq $$skip ]; then	\
-				echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [SKIP]";				\
-			else echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";					\
+				echo "not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]";				\
+			else echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]";					\
 			fi;)			\
 		else				\
 			(./$$BASENAME_TEST &&	\
-			echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") ||						\
+			echo "ok 1..$$test_num $$TEST_HDR_MSG [PASS]") ||						\
 			(if [ $$? -eq $$skip ]; then \
-				echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [SKIP]"; \
-			else echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]";				\
+				echo "not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]"; \
+			else echo "not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]";				\
 			fi;)		\
 		fi;				\
 		cd - > /dev/null;		\
