@@ -2091,10 +2091,6 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 				  enum sctp_transport_cmd command,
 				  sctp_sn_error_t error);
 struct sctp_transport *sctp_assoc_lookup_tsn(struct sctp_association *, __u32);
-struct sctp_transport *sctp_assoc_is_match(struct sctp_association *,
-					   struct net *,
-					   const union sctp_addr *,
-					   const union sctp_addr *);
 void sctp_assoc_migrate(struct sctp_association *, struct sock *);
 int sctp_assoc_update(struct sctp_association *old,
 		      struct sctp_association *new);
