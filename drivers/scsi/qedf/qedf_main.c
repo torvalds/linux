@@ -2134,7 +2134,8 @@ static int qedf_setup_int(struct qedf_ctx *qedf)
 	    QEDF_SIMD_HANDLER_NUM, qedf_simd_int_handler);
 	qedf->int_info.used_cnt = 1;
 
-	return 0;
+	QEDF_ERR(&qedf->dbg_ctx, "Only MSI-X supported. Failing probe.\n");
+	return -EINVAL;
 }
 
 /* Main function for libfc frame reception */
