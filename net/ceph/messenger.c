@@ -2575,9 +2575,6 @@ static int try_write(struct ceph_connection *con)
 	    con->state != CON_STATE_OPEN)
 		return 0;
 
-more:
-	dout("try_write out_kvec_bytes %d\n", con->out_kvec_bytes);
-
 	/* open the socket first? */
 	if (con->state == CON_STATE_PREOPEN) {
 		BUG_ON(con->sock);
@@ -2598,7 +2595,8 @@ more:
 		}
 	}
 
-more_kvec:
+more:
+	dout("try_write out_kvec_bytes %d\n", con->out_kvec_bytes);
 	BUG_ON(!con->sock);
 
 	/* kvec data queued? */
@@ -2623,7 +2621,7 @@ more_kvec:
 
 		ret = write_partial_message_data(con);
 		if (ret == 1)
-			goto more_kvec;  /* we need to send the footer, too! */
+			goto more;  /* we need to send the footer, too! */
 		if (ret == 0)
 			goto out;
 		if (ret < 0) {
@@ -2658,8 +2656,6 @@ out:
 	dout("try_write done on %p ret %d\n", con, ret);
 	return ret;
 }
-
-
 
 /*
  * Read what we can from the socket.
