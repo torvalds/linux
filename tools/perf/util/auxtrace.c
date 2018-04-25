@@ -1679,7 +1679,7 @@ struct sym_args {
 static bool kern_sym_match(struct sym_args *args, const char *name, char type)
 {
 	/* A function with the same name, and global or the n'th found or any */
-	return symbol_type__is_a(type, MAP__FUNCTION) &&
+	return kallsyms__is_function(type) &&
 	       !strcmp(name, args->name) &&
 	       ((args->global && isupper(type)) ||
 		(args->selected && ++(args->cnt) == args->idx) ||
@@ -1784,7 +1784,7 @@ static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
 {
 	struct sym_args *args = arg;
 
-	if (!symbol_type__is_a(type, MAP__FUNCTION))
+	if (!kallsyms__is_function(type))
 		return 0;
 
 	if (!args->started) {

@@ -868,7 +868,7 @@ static int find_symbol_cb(void *arg, const char *name, char type,
 	 * Must be a function or at least an alias, as in PARISC64, where "_text" is
 	 * an 'A' to the same address as "_stext".
 	 */
-	if (!(symbol_type__is_a(type, MAP__FUNCTION) ||
+	if (!(kallsyms__is_function(type) ||
 	      type == 'A') || strcmp(name, args->name))
 		return 0;
 
