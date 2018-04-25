@@ -245,6 +245,10 @@ typedef u64 acpi_physical_address;
 #define acpi_spinlock                   void *
 #endif
 
+#ifndef acpi_raw_spinlock
+#define acpi_raw_spinlock		acpi_spinlock
+#endif
+
 #ifndef acpi_semaphore
 #define acpi_semaphore                  void *
 #endif
