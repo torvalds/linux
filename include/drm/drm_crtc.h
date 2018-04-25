@@ -525,6 +525,31 @@ struct drm_crtc_funcs {
 	void (*early_unregister)(struct drm_crtc *crtc);
 };
 
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+struct vop_dump_info {
+	int win_id;
+	int area_id;
+	unsigned int pitches;
+	unsigned int height;
+	u32 pixel_format;
+	bool AFBC_flag;
+	bool yuv_format;
+	unsigned long offset;
+	unsigned long num_pages;
+	struct page **pages;
+};
+
+struct vop_dump_list {
+	struct list_head entry;
+	struct vop_dump_info dump_info;
+};
+
+enum vop_dump_status {
+	DUMP_DISABLE = 0,
+	DUMP_KEEP
+};
+#endif
+
 /**
  * struct drm_crtc - central CRTC control structure
  * @dev: parent DRM device
@@ -629,6 +654,21 @@ struct drm_crtc {
 	 * context.
 	 */
 	struct drm_modeset_acquire_ctx *acquire_ctx;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	/**
+	 * @vop_dump_status the status of vop dump control
+	 * @vop_dump_list_head the list head of vop dump list
+	 * @vop_dump_list_init_flag init once
+	 * @vop_dump_times control the dump times
+	 * @frme_count the frame of dump buf
+	 */
+	enum vop_dump_status vop_dump_status;
+	struct list_head vop_dump_list_head;
+	bool vop_dump_list_init_flag;
+	int vop_dump_times;
+	int frame_count;
+#endif
 };
 
 /**

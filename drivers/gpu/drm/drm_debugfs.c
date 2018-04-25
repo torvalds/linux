@@ -37,8 +37,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "drm_internal.h"
+#include <linux/ctype.h>
+#include <linux/syscalls.h>
 
 #if defined(CONFIG_DEBUG_FS)
+#define DUMP_BUF_PATH		"/data/vop_buf"
 
 /***************************************************
  * Initialization, etc.
@@ -71,7 +74,219 @@ static const struct file_operations drm_debugfs_fops = {
 	.release = single_release,
 };
 
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+static char *get_format_str(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return "ARGB8888";
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		return "BGR888";
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		return "RGB565";
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV12_10:
+		return "YUV420NV12";
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV16_10:
+		return "YUV422NV16";
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV24_10:
+		return "YUV444NV24";
+	default:
+		DRM_ERROR("unsupport format[%08x]\n", format);
+		return "UNF";
+	}
+}
 
+int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
+{
+	int flags;
+	int bits = 32;
+	int fd;
+	const char *ptr;
+	char file_name[100];
+	int width;
+	void *kvaddr;
+	mm_segment_t old_fs;
+	u32 format = dump_info->pixel_format;
+
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		bits = 32;
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV24_10:
+		bits = 24;
+		break;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV16_10:
+		bits = 16;
+		break;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV12_10:
+		bits = 12;
+		break;
+	default:
+		DRM_ERROR("unsupport format[%08x]\n", format);
+		return -1;
+	}
+
+	if (dump_info->yuv_format) {
+		width = dump_info->pitches;
+		flags = O_RDWR | O_CREAT | O_APPEND;
+		snprintf(file_name, 100, "%s/video%d_%d_%s.%s", DUMP_BUF_PATH,
+			 width, dump_info->height, get_format_str(format),
+			 "bin");
+	} else {
+		width = dump_info->pitches >> 2;
+		flags = O_RDWR | O_CREAT;
+		snprintf(file_name, 100, "%s/win%d_area%d_%dx%d_%s%s%d.%s",
+			 DUMP_BUF_PATH, dump_info->win_id,
+			 dump_info->area_id, width, dump_info->height,
+			 get_format_str(format), dump_info->AFBC_flag ?
+			 "_AFBC_" : "_", frame_count, "bin");
+	}
+	kvaddr = vmap(dump_info->pages, dump_info->num_pages, VM_MAP,
+		      pgprot_writecombine(PAGE_KERNEL));
+	if (!kvaddr)
+		DRM_ERROR("failed to vmap() buffer\n");
+	else
+		kvaddr += dump_info->offset;
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	sys_mkdir(DUMP_BUF_PATH, 0700);
+	ptr = file_name;
+	fd = sys_open(ptr, flags, 0644);
+	if (fd >= 0) {
+		sys_write(fd, kvaddr, width * dump_info->height * bits >> 3);
+		DRM_INFO("dump file name is:%s\n", file_name);
+		sys_close(fd);
+	} else {
+		DRM_INFO("writ fail fd err fd is %d\n", fd);
+	}
+	set_fs(old_fs);
+	vunmap(kvaddr);
+	return 0;
+}
+
+static int vop_dump_show(struct seq_file *m, void *data)
+{
+	seq_puts(m, "  echo dump    > dump to dump one frame\n");
+	seq_puts(m, "  echo dumpon  > dump to start vop keep dumping\n");
+	seq_puts(m, "  echo dumpoff > dump to stop keep dumping\n");
+	seq_puts(m, "  echo dumpn   > dump n is the number of dump times\n");
+	seq_puts(m, "  dump path is /data/vop_buf\n");
+	seq_puts(m, "  if fd err = -3 try rm -r /data/vopbuf echo dump1 > dump can fix it\n");
+	seq_puts(m, "  if fd err = -28 save needed data try rm -r /data/vopbuf\n");
+	return 0;
+}
+
+static int vop_dump_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, vop_dump_show, crtc);
+}
+
+static int temp_pow(int sum, int n)
+{
+	int i;
+	int temp = sum;
+
+	if (n < 1)
+		return 1;
+	for (i = 1; i < n ; i++)
+		sum *= temp;
+	return sum;
+}
+
+static ssize_t vop_dump_write(struct file *file, const char __user *ubuf,
+			      size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_crtc *crtc = m->private;
+	char buf[14];
+	int dump_times = 0;
+	struct vop_dump_list *pos, *n;
+	int i = 0;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+	if (strncmp(buf, "dumpon", 6) == 0) {
+		crtc->vop_dump_status = DUMP_KEEP;
+		DRM_INFO("keep dumping\n");
+	} else if (strncmp(buf, "dumpoff", 7) == 0) {
+		crtc->vop_dump_status = DUMP_DISABLE;
+		DRM_INFO("close keep dumping\n");
+	} else if (strncmp(buf, "dump", 4) == 0) {
+		if (isdigit(buf[4])) {
+			for (i = 4; i < strlen(buf); i++) {
+				dump_times += temp_pow(10, (strlen(buf)
+						       - i - 1))
+						       * (buf[i] - '0');
+		}
+			crtc->vop_dump_times = dump_times;
+		} else {
+			drm_modeset_lock_all(crtc->dev);
+			list_for_each_entry_safe(pos, n,
+						 &crtc->vop_dump_list_head,
+						 entry) {
+				vop_plane_dump(&pos->dump_info,
+					       crtc->frame_count);
+		}
+			drm_modeset_unlock_all(crtc->dev);
+			crtc->frame_count++;
+		}
+	} else {
+		return -EINVAL;
+	}
+	return len;
+}
+
+static const struct file_operations drm_vopdump_fops = {
+	.owner = THIS_MODULE,
+	.open = vop_dump_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = vop_dump_write,
+};
+
+int drm_debugfs_vop_add(struct drm_crtc *crtc, struct dentry *root)
+{
+	struct dentry *vop_dump_root;
+	struct dentry *ent;
+
+	vop_dump_root = debugfs_create_dir("vop_dump", root);
+	crtc->vop_dump_status = DUMP_DISABLE;
+	crtc->vop_dump_list_init_flag = false;
+	crtc->vop_dump_times = 0;
+	crtc->frame_count = 0;
+	ent = debugfs_create_file("dump", 0644, vop_dump_root,
+				  crtc, &drm_vopdump_fops);
+	if (!ent) {
+		DRM_ERROR("create vop_plane_dump err\n");
+		debugfs_remove_recursive(vop_dump_root);
+	}
+	return 0;
+}
+#endif
 /**
  * Initialize a given set of debugfs files for a device
  *

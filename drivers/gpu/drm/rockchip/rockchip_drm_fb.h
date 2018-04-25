@@ -53,4 +53,13 @@ rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
 }
 #endif
 
+#define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
+
+struct rockchip_drm_fb {
+	struct drm_framebuffer fb;
+	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
+	void *kvaddr[ROCKCHIP_MAX_FB_BUFFER];
+	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
+	struct rockchip_logo *logo;
+};
 #endif /* _ROCKCHIP_DRM_FB_H */

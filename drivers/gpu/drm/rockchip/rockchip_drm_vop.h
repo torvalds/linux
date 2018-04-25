@@ -689,4 +689,10 @@ static inline int interpolate(int x1, int y1, int x2, int y2, int x)
 }
 
 extern const struct component_ops vop_component_ops;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+int drm_debugfs_vop_add(struct drm_crtc *crtc, struct dentry *root);
+int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count);
+#endif
+
 #endif /* _ROCKCHIP_DRM_VOP_H */

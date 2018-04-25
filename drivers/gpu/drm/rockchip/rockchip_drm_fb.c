@@ -27,16 +27,6 @@
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_backlight.h"
 
-#define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
-
-struct rockchip_drm_fb {
-	struct drm_framebuffer fb;
-	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
-	void *kvaddr[ROCKCHIP_MAX_FB_BUFFER];
-	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
-	struct rockchip_logo *logo;
-};
-
 bool rockchip_fb_is_logo(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);

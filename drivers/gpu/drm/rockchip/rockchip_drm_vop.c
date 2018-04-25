@@ -178,6 +178,7 @@ struct vop_plane_state {
 	bool enable;
 	int global_alpha;
 	int blend_mode;
+	unsigned long offset;
 };
 
 struct vop_win {
@@ -1531,6 +1532,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	offset = (src->x1 >> 16) * drm_format_plane_bpp(fb->pixel_format, 0) / 8;
+	vop_plane_state->offset = offset + fb->offsets[0];
 	if (state->rotation & BIT(DRM_REFLECT_Y) ||
 	    (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror))
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
@@ -1626,6 +1628,29 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t val;
 	bool rb_swap, global_alpha_en;
 
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	bool AFBC_flag = false;
+	struct vop_dump_list *planlist;
+	unsigned long num_pages;
+	struct page **pages;
+	struct rockchip_drm_fb *rk_fb;
+	struct drm_gem_object *obj;
+	struct rockchip_gem_object *rk_obj;
+
+	num_pages = 0;
+	pages = NULL;
+	rk_fb = to_rockchip_fb(fb);
+	obj = rk_fb->obj[0];
+	rk_obj = to_rockchip_obj(obj);
+	if (rk_obj) {
+		num_pages = rk_obj->num_pages;
+		pages = rk_obj->pages;
+	}
+	if (fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC)
+		AFBC_flag = true;
+	else
+		AFBC_flag = false;
+#endif
 	/*
 	 * can't update plane when vop is disabled.
 	 */
@@ -1728,6 +1753,32 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	 * actual_w, actual_h)
 	 */
 	vop->is_iommu_needed = true;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	planlist = kmalloc(sizeof(*planlist), GFP_KERNEL);
+	if (planlist) {
+		planlist->dump_info.AFBC_flag = AFBC_flag;
+		planlist->dump_info.area_id = win->area_id;
+		planlist->dump_info.win_id = win->win_id;
+		planlist->dump_info.yuv_format =
+			is_yuv_support(fb->pixel_format);
+		planlist->dump_info.num_pages = num_pages;
+		planlist->dump_info.pages = pages;
+		planlist->dump_info.offset = vop_plane_state->offset;
+		planlist->dump_info.pitches = fb->pitches[0];
+		planlist->dump_info.height = actual_h;
+		planlist->dump_info.pixel_format = fb->pixel_format;
+		list_add_tail(&planlist->entry, &crtc->vop_dump_list_head);
+	} else {
+		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
+		return;
+	}
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
+		vop_plane_dump(&planlist->dump_info, crtc->frame_count);
+		crtc->vop_dump_times--;
+	}
+#endif
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
@@ -2145,7 +2196,9 @@ static int vop_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc)
 		ret = -ENOMEM;
 		goto remove;
 	}
-
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	drm_debugfs_vop_add(crtc, vop->debugfs);
+#endif
 	for (i = 0; i < ARRAY_SIZE(vop_debugfs_files); i++)
 		vop->debugfs_files[i].data = vop;
 
@@ -2829,6 +2882,23 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
 	int i, j, cnt = 0, ret = 0;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	struct vop_dump_list *pos, *n;
+
+	if (!crtc->vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
+		crtc->vop_dump_list_init_flag = true;
+	}
+	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
+		list_del(&pos->entry);
+		kfree(pos);
+	}
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
+		crtc->frame_count++;
+	}
+#endif
 
 	ret = vop_afbdc_atomic_check(crtc, crtc_state);
 	if (ret)

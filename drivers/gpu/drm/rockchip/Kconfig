@@ -16,6 +16,20 @@ config DRM_ROCKCHIP
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
 
+config ROCKCHIP_DRM_DEBUG
+	tristate "Rockchip DRM debug"
+	depends on DRM_ROCKCHIP
+	help
+	  This option add a debug nod to dump buf from application.
+	  dump path: /data/vop_buf
+	  debug nod: d/dri/0/ff900000.vop/vop_dump/dump
+	  echo dump    > dump to dump one frame
+	  echo dumpon  > dump to start vop keep dumping
+	  echo dumpoff > dump to stop keep dumping
+	  echo dumpn   > dump n is the number of dump times
+	  if fd err -3 try rm -r /data/vopbuf echo dump1 > dump can fix it
+	  if fd err -28 save needed data try rm -r /data/vopbuf
+
 config ROCKCHIP_CDN_DP
 	tristate "Rockchip cdn DP"
 	depends on DRM_ROCKCHIP
