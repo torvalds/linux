@@ -134,7 +134,6 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		new.ssi_stime  = kinfo->si_stime;
 		break;
 	case SIL_RT:
-	default:
 		/*
 		 * This case catches also the signals queued by sigqueue().
 		 */
@@ -142,6 +141,11 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		new.ssi_uid = kinfo->si_uid;
 		new.ssi_ptr = (long) kinfo->si_ptr;
 		new.ssi_int = kinfo->si_int;
+		break;
+	case SIL_SYS:
+		new.ssi_call_addr = (long) kinfo->si_call_addr;
+		new.ssi_syscall   = kinfo->si_syscall;
+		new.ssi_arch      = kinfo->si_arch;
 		break;
 	}
 
