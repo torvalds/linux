@@ -1026,10 +1026,10 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 
 	tbl_ctl = 0;
 	/* select VMM table 0 */
-	if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
+	if (val & SEL_VMM_TBL0)
 		tbl_ctl |= BIT(0);
 	/* select VMM table 1 */
-	if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
+	if (val & SEL_VMM_TBL1)
 		tbl_ctl |= BIT(1);
 
 	ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL, tbl_ctl);
@@ -1038,7 +1038,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 		return ret;
 	}
 
-	if ((val & EN_VMM) == EN_VMM) {
+	if (val & EN_VMM) {
 		/*
 		 * enable vmm transfer.
 		 */
