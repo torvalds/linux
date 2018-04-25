@@ -643,16 +643,6 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 		goto out;
 	}
 
-	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
-	    test_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags) ||
-	    test_bit(QEDF_CMD_IN_ABORT, &io_req->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "io_req xid=0x%x already in "
-			  "cleanup or abort processing or already "
-			  "completed.\n", io_req->xid);
-		rc = SUCCESS;
-		goto out;
-	}
-
 	QEDF_ERR(&(qedf->dbg_ctx), "Aborting io_req sc_cmd=%p xid=0x%x "
 		  "fp_idx=%d.\n", sc_cmd, io_req->xid, io_req->fp_idx);
 
@@ -748,6 +738,22 @@ static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
+	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
+	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct qedf_rport *fcport = (struct qedf_rport *)&rp[1];
+	int rval;
+
+	rval = fc_remote_port_chkready(rport);
+
+	if (rval) {
+		QEDF_ERR(NULL, "device_reset rport not ready\n");
+		return FAILED;
+	}
+
+	if (fcport == NULL) {
+		QEDF_ERR(NULL, "device_reset: rport is NULL\n");
+		return FAILED;
+	}
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = lport_priv(lport);

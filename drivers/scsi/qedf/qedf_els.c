@@ -14,8 +14,8 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	void (*cb_func)(struct qedf_els_cb_arg *cb_arg),
 	struct qedf_els_cb_arg *cb_arg, uint32_t timer_msec)
 {
-	struct qedf_ctx *qedf = fcport->qedf;
-	struct fc_lport *lport = qedf->lport;
+	struct qedf_ctx *qedf;
+	struct fc_lport *lport;
 	struct qedf_ioreq *els_req;
 	struct qedf_mp_req *mp_req;
 	struct fc_frame_header *fc_hdr;
@@ -28,6 +28,15 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	struct fcoe_wqe *sqe;
 	unsigned long flags;
 	u16 sqe_idx;
+
+	if (!fcport) {
+		QEDF_ERR(NULL, "fcport is NULL");
+		rc = -EINVAL;
+		goto els_err;
+	}
+
+	qedf = fcport->qedf;
+	lport = qedf->lport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending ELS\n");
 

@@ -23,12 +23,31 @@ static void qedf_cmd_timeout(struct work_struct *work)
 
 	struct qedf_ioreq *io_req =
 	    container_of(work, struct qedf_ioreq, timeout_work.work);
-	struct qedf_ctx *qedf = io_req->fcport->qedf;
-	struct qedf_rport *fcport = io_req->fcport;
+	struct qedf_ctx *qedf;
+	struct qedf_rport *fcport;
 	u8 op = 0;
+
+	if (io_req == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
+		return;
+	}
+
+	fcport = io_req->fcport;
+	if (io_req->fcport == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO,  "fcport is NULL.\n");
+		return;
+	}
+
+	qedf = fcport->qedf;
 
 	switch (io_req->cmd_type) {
 	case QEDF_ABTS:
+		if (qedf == NULL) {
+			QEDF_INFO(NULL, QEDF_LOG_IO, "qedf is NULL for xid=0x%x.\n",
+			    io_req->xid);
+			return;
+		}
+
 		QEDF_ERR((&qedf->dbg_ctx), "ABTS timeout, xid=0x%x.\n",
 		    io_req->xid);
 		/* Cleanup timed out ABTS */
@@ -1561,6 +1580,16 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 
 	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		QEDF_ERR(&qedf->dbg_ctx, "fcport is uploading.\n");
+		rc = 1;
+		goto out;
+	}
+
+	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
+	    test_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags) ||
+	    test_bit(QEDF_CMD_IN_ABORT, &io_req->flags)) {
+		QEDF_ERR(&(qedf->dbg_ctx), "io_req xid=0x%x already in "
+			  "cleanup or abort processing or already "
+			  "completed.\n", io_req->xid);
 		rc = 1;
 		goto out;
 	}
