@@ -978,10 +978,6 @@ static void smc_tcp_listen_work(struct work_struct *work)
 	}
 
 out:
-	if (lsmc->clcsock) {
-		sock_release(lsmc->clcsock);
-		lsmc->clcsock = NULL;
-	}
 	release_sock(lsk);
 	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
 }
