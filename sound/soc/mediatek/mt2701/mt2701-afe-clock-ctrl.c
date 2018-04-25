@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
+ *	   Ryder Lee <ryder.lee@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -102,10 +103,10 @@ int mt2701_init_clock(struct mtk_base_afe *afe)
 	return 0;
 }
 
-int mt2701_afe_enable_i2s(struct mtk_base_afe *afe, int id, int dir)
+int mt2701_afe_enable_i2s(struct mtk_base_afe *afe,
+			  struct mt2701_i2s_path *i2s_path,
+			  int dir)
 {
-	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[id];
 	int ret;
 
 	ret = clk_prepare_enable(i2s_path->asrco_ck);
@@ -128,11 +129,10 @@ err_hop_ck:
 	return ret;
 }
 
-void mt2701_afe_disable_i2s(struct mtk_base_afe *afe, int id, int dir)
+void mt2701_afe_disable_i2s(struct mtk_base_afe *afe,
+			    struct mt2701_i2s_path *i2s_path,
+			    int dir)
 {
-	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[id];
-
 	clk_disable_unprepare(i2s_path->hop_ck[dir]);
 	clk_disable_unprepare(i2s_path->asrco_ck);
 }
@@ -272,27 +272,32 @@ int mt2701_afe_disable_clock(struct mtk_base_afe *afe)
 	return 0;
 }
 
-void mt2701_mclk_configuration(struct mtk_base_afe *afe, int id, int domain,
-			       int mclk)
+int mt2701_mclk_configuration(struct mtk_base_afe *afe, int id)
+
 {
 	struct mt2701_afe_private *priv = afe->platform_priv;
 	struct mt2701_i2s_path *i2s_path = &priv->i2s_path[id];
-	int ret;
+	int ret = -EINVAL;
 
 	/* Set mclk source */
-	if (domain == 0)
+	if (!(MT2701_PLL_DOMAIN_0_RATE % i2s_path->mclk_rate))
 		ret = clk_set_parent(i2s_path->sel_ck,
 				     priv->base_ck[MT2701_TOP_AUD_MCLK_SRC0]);
-	else
+	else if (!(MT2701_PLL_DOMAIN_1_RATE % i2s_path->mclk_rate))
 		ret = clk_set_parent(i2s_path->sel_ck,
 				     priv->base_ck[MT2701_TOP_AUD_MCLK_SRC1]);
 
-	if (ret)
-		dev_err(afe->dev, "failed to set domain%d mclk source %d\n",
-			domain, ret);
+	if (ret) {
+		dev_err(afe->dev, "failed to set mclk source\n");
+		return ret;
+	}
 
 	/* Set mclk divider */
-	ret = clk_set_rate(i2s_path->div_ck, mclk);
-	if (ret)
+	ret = clk_set_rate(i2s_path->div_ck, i2s_path->mclk_rate);
+	if (ret) {
 		dev_err(afe->dev, "failed to set mclk divider %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
