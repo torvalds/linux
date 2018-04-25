@@ -965,9 +965,6 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 			mac_addr ^= BIT_ULL(priv->bss_type + 8);
 			mac_addr += priv->bss_num;
 		}
-
-		if (mac_addr == old_mac_addr)
-			goto done;
 	}
 
 	u64_to_ether_addr(mac_addr, priv->curr_addr);
@@ -983,7 +980,6 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 		return ret;
 	}
 
-done:
 	ether_addr_copy(dev->dev_addr, priv->curr_addr);
 	return 0;
 }
