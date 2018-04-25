@@ -623,6 +623,260 @@ union bpf_attr {
  * 		direct packet access.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
+ *
+ * u64 bpf_get_current_pid_tgid(void)
+ * 	Return
+ * 		A 64-bit integer containing the current tgid and pid, and
+ * 		created as such:
+ * 		*current_task*\ **->tgid << 32 \|**
+ * 		*current_task*\ **->pid**.
+ *
+ * u64 bpf_get_current_uid_gid(void)
+ * 	Return
+ * 		A 64-bit integer containing the current GID and UID, and
+ * 		created as such: *current_gid* **<< 32 \|** *current_uid*.
+ *
+ * int bpf_get_current_comm(char *buf, u32 size_of_buf)
+ * 	Description
+ * 		Copy the **comm** attribute of the current task into *buf* of
+ * 		*size_of_buf*. The **comm** attribute contains the name of
+ * 		the executable (excluding the path) for the current task. The
+ * 		*size_of_buf* must be strictly positive. On success, the
+ * 		helper makes sure that the *buf* is NUL-terminated. On failure,
+ * 		it is filled with zeroes.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci)
+ * 	Description
+ * 		Push a *vlan_tci* (VLAN tag control information) of protocol
+ * 		*vlan_proto* to the packet associated to *skb*, then update
+ * 		the checksum. Note that if *vlan_proto* is different from
+ * 		**ETH_P_8021Q** and **ETH_P_8021AD**, it is considered to
+ * 		be **ETH_P_8021Q**.
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_skb_vlan_pop(struct sk_buff *skb)
+ * 	Description
+ * 		Pop a VLAN header from the packet associated to *skb*.
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_skb_get_tunnel_key(struct sk_buff *skb, struct bpf_tunnel_key *key, u32 size, u64 flags)
+ * 	Description
+ * 		Get tunnel metadata. This helper takes a pointer *key* to an
+ * 		empty **struct bpf_tunnel_key** of **size**, that will be
+ * 		filled with tunnel metadata for the packet associated to *skb*.
+ * 		The *flags* can be set to **BPF_F_TUNINFO_IPV6**, which
+ * 		indicates that the tunnel is based on IPv6 protocol instead of
+ * 		IPv4.
+ *
+ * 		The **struct bpf_tunnel_key** is an object that generalizes the
+ * 		principal parameters used by various tunneling protocols into a
+ * 		single struct. This way, it can be used to easily make a
+ * 		decision based on the contents of the encapsulation header,
+ * 		"summarized" in this struct. In particular, it holds the IP
+ * 		address of the remote end (IPv4 or IPv6, depending on the case)
+ * 		in *key*\ **->remote_ipv4** or *key*\ **->remote_ipv6**. Also,
+ * 		this struct exposes the *key*\ **->tunnel_id**, which is
+ * 		generally mapped to a VNI (Virtual Network Identifier), making
+ * 		it programmable together with the **bpf_skb_set_tunnel_key**\
+ * 		() helper.
+ *
+ * 		Let's imagine that the following code is part of a program
+ * 		attached to the TC ingress interface, on one end of a GRE
+ * 		tunnel, and is supposed to filter out all messages coming from
+ * 		remote ends with IPv4 address other than 10.0.0.1:
+ *
+ * 		::
+ *
+ * 			int ret;
+ * 			struct bpf_tunnel_key key = {};
+ * 			
+ * 			ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key), 0);
+ * 			if (ret < 0)
+ * 				return TC_ACT_SHOT;	// drop packet
+ * 			
+ * 			if (key.remote_ipv4 != 0x0a000001)
+ * 				return TC_ACT_SHOT;	// drop packet
+ * 			
+ * 			return TC_ACT_OK;		// accept packet
+ *
+ * 		This interface can also be used with all encapsulation devices
+ * 		that can operate in "collect metadata" mode: instead of having
+ * 		one network device per specific configuration, the "collect
+ * 		metadata" mode only requires a single device where the
+ * 		configuration can be extracted from this helper.
+ *
+ * 		This can be used together with various tunnels such as VXLan,
+ * 		Geneve, GRE or IP in IP (IPIP).
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_skb_set_tunnel_key(struct sk_buff *skb, struct bpf_tunnel_key *key, u32 size, u64 flags)
+ * 	Description
+ * 		Populate tunnel metadata for packet associated to *skb.* The
+ * 		tunnel metadata is set to the contents of *key*, of *size*. The
+ * 		*flags* can be set to a combination of the following values:
+ *
+ * 		**BPF_F_TUNINFO_IPV6**
+ * 			Indicate that the tunnel is based on IPv6 protocol
+ * 			instead of IPv4.
+ * 		**BPF_F_ZERO_CSUM_TX**
+ * 			For IPv4 packets, add a flag to tunnel metadata
+ * 			indicating that checksum computation should be skipped
+ * 			and checksum set to zeroes.
+ * 		**BPF_F_DONT_FRAGMENT**
+ * 			Add a flag to tunnel metadata indicating that the
+ * 			packet should not be fragmented.
+ * 		**BPF_F_SEQ_NUMBER**
+ * 			Add a flag to tunnel metadata indicating that a
+ * 			sequence number should be added to tunnel header before
+ * 			sending the packet. This flag was added for GRE
+ * 			encapsulation, but might be used with other protocols
+ * 			as well in the future.
+ *
+ * 		Here is a typical usage on the transmit path:
+ *
+ * 		::
+ *
+ * 			struct bpf_tunnel_key key;
+ * 			     populate key ...
+ * 			bpf_skb_set_tunnel_key(skb, &key, sizeof(key), 0);
+ * 			bpf_clone_redirect(skb, vxlan_dev_ifindex, 0);
+ *
+ * 		See also the description of the **bpf_skb_get_tunnel_key**\ ()
+ * 		helper for additional information.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_redirect(u32 ifindex, u64 flags)
+ * 	Description
+ * 		Redirect the packet to another net device of index *ifindex*.
+ * 		This helper is somewhat similar to **bpf_clone_redirect**\
+ * 		(), except that the packet is not cloned, which provides
+ * 		increased performance.
+ *
+ * 		Except for XDP, both ingress and egress interfaces can be used
+ * 		for redirection. The **BPF_F_INGRESS** value in *flags* is used
+ * 		to make the distinction (ingress path is selected if the flag
+ * 		is present, egress path otherwise). Currently, XDP only
+ * 		supports redirection to the egress interface, and accepts no
+ * 		flag at all.
+ *
+ * 		The same effect can be attained with the more generic
+ * 		**bpf_redirect_map**\ (), which requires specific maps to be
+ * 		used but offers better performance.
+ * 	Return
+ * 		For XDP, the helper returns **XDP_REDIRECT** on success or
+ * 		**XDP_ABORTED** on error. For other program types, the values
+ * 		are **TC_ACT_REDIRECT** on success or **TC_ACT_SHOT** on
+ * 		error.
+ *
+ * int bpf_perf_event_output(struct pt_reg *ctx, struct bpf_map *map, u64 flags, void *data, u64 size)
+ * 	Description
+ * 		Write raw *data* blob into a special BPF perf event held by
+ * 		*map* of type **BPF_MAP_TYPE_PERF_EVENT_ARRAY**. This perf
+ * 		event must have the following attributes: **PERF_SAMPLE_RAW**
+ * 		as **sample_type**, **PERF_TYPE_SOFTWARE** as **type**, and
+ * 		**PERF_COUNT_SW_BPF_OUTPUT** as **config**.
+ *
+ * 		The *flags* are used to indicate the index in *map* for which
+ * 		the value must be put, masked with **BPF_F_INDEX_MASK**.
+ * 		Alternatively, *flags* can be set to **BPF_F_CURRENT_CPU**
+ * 		to indicate that the index of the current CPU core should be
+ * 		used.
+ *
+ * 		The value to write, of *size*, is passed through eBPF stack and
+ * 		pointed by *data*.
+ *
+ * 		The context of the program *ctx* needs also be passed to the
+ * 		helper.
+ *
+ * 		On user space, a program willing to read the values needs to
+ * 		call **perf_event_open**\ () on the perf event (either for
+ * 		one or for all CPUs) and to store the file descriptor into the
+ * 		*map*. This must be done before the eBPF program can send data
+ * 		into it. An example is available in file
+ * 		*samples/bpf/trace_output_user.c* in the Linux kernel source
+ * 		tree (the eBPF program counterpart is in
+ * 		*samples/bpf/trace_output_kern.c*).
+ *
+ * 		**bpf_perf_event_output**\ () achieves better performance
+ * 		than **bpf_trace_printk**\ () for sharing data with user
+ * 		space, and is much better suitable for streaming data from eBPF
+ * 		programs.
+ *
+ * 		Note that this helper is not restricted to tracing use cases
+ * 		and can be used with programs attached to TC or XDP as well,
+ * 		where it allows for passing data to user space listeners. Data
+ * 		can be:
+ *
+ * 		* Only custom structs,
+ * 		* Only the packet payload, or
+ * 		* A combination of both.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_get_stackid(struct pt_reg *ctx, struct bpf_map *map, u64 flags)
+ * 	Description
+ * 		Walk a user or a kernel stack and return its id. To achieve
+ * 		this, the helper needs *ctx*, which is a pointer to the context
+ * 		on which the tracing program is executed, and a pointer to a
+ * 		*map* of type **BPF_MAP_TYPE_STACK_TRACE**.
+ *
+ * 		The last argument, *flags*, holds the number of stack frames to
+ * 		skip (from 0 to 255), masked with
+ * 		**BPF_F_SKIP_FIELD_MASK**. The next bits can be used to set
+ * 		a combination of the following flags:
+ *
+ * 		**BPF_F_USER_STACK**
+ * 			Collect a user space stack instead of a kernel stack.
+ * 		**BPF_F_FAST_STACK_CMP**
+ * 			Compare stacks by hash only.
+ * 		**BPF_F_REUSE_STACKID**
+ * 			If two different stacks hash into the same *stackid*,
+ * 			discard the old one.
+ *
+ * 		The stack id retrieved is a 32 bit long integer handle which
+ * 		can be further combined with other data (including other stack
+ * 		ids) and used as a key into maps. This can be useful for
+ * 		generating a variety of graphs (such as flame graphs or off-cpu
+ * 		graphs).
+ *
+ * 		For walking a stack, this helper is an improvement over
+ * 		**bpf_probe_read**\ (), which can be used with unrolled loops
+ * 		but is not efficient and consumes a lot of eBPF instructions.
+ * 		Instead, **bpf_get_stackid**\ () can collect up to
+ * 		**PERF_MAX_STACK_DEPTH** both kernel and user frames. Note that
+ * 		this limit can be controlled with the **sysctl** program, and
+ * 		that it should be manually increased in order to profile long
+ * 		user stacks (such as stacks for Java programs). To do so, use:
+ *
+ * 		::
+ *
+ * 			# sysctl kernel.perf_event_max_stack=<new value>
+ *
+ * 	Return
+ * 		The positive or null stack id on success, or a negative error
+ * 		in case of failure.
+ *
+ * u64 bpf_get_current_task(void)
+ * 	Return
+ * 		A pointer to the current task struct.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
