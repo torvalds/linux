@@ -854,6 +854,18 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		}
 	}
 
+	/* layout and rstat are not tracked by capability, update them if
+	 * the inode info is from auth mds */
+	if (new_version || (info->cap.flags & CEPH_CAP_FLAG_AUTH)) {
+		if (S_ISDIR(inode->i_mode)) {
+			ci->i_dir_layout = iinfo->dir_layout;
+			ci->i_rbytes = le64_to_cpu(info->rbytes);
+			ci->i_rfiles = le64_to_cpu(info->rfiles);
+			ci->i_rsubdirs = le64_to_cpu(info->rsubdirs);
+			ceph_decode_timespec(&ci->i_rctime, &info->rctime);
+		}
+	}
+
 	/* xattrs */
 	/* note that if i_xattrs.len <= 4, i_xattrs.data will still be NULL. */
 	if ((ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))  &&
@@ -919,14 +931,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
 
-		ci->i_dir_layout = iinfo->dir_layout;
 
 		ci->i_files = le64_to_cpu(info->files);
 		ci->i_subdirs = le64_to_cpu(info->subdirs);
-		ci->i_rbytes = le64_to_cpu(info->rbytes);
-		ci->i_rfiles = le64_to_cpu(info->rfiles);
-		ci->i_rsubdirs = le64_to_cpu(info->rsubdirs);
-		ceph_decode_timespec(&ci->i_rctime, &info->rctime);
 		break;
 	default:
 		pr_err("fill_inode %llx.%llx BAD mode 0%o\n",
@@ -2178,6 +2185,7 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
+	int mode;
 	int err;
 
 	if (ceph_snap(inode) == CEPH_SNAPDIR) {
@@ -2190,7 +2198,8 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	if (!force && ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
 		return 0;
 
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
+	mode = (mask & CEPH_STAT_RSTAT) ? USE_AUTH_MDS : USE_ANY_MDS;
+	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, mode);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	req->r_inode = inode;

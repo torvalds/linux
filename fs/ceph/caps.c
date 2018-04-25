@@ -69,6 +69,8 @@ static char *gcap_string(char *s, int c)
 		*s++ = 'w';
 	if (c & CEPH_CAP_GBUFFER)
 		*s++ = 'b';
+	if (c & CEPH_CAP_GWREXTEND)
+		*s++ = 'a';
 	if (c & CEPH_CAP_GLAZYIO)
 		*s++ = 'l';
 	return s;

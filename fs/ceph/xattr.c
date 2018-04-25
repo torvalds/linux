@@ -56,6 +56,7 @@ struct ceph_vxattr {
 
 #define VXATTR_FLAG_READONLY		(1<<0)
 #define VXATTR_FLAG_HIDDEN		(1<<1)
+#define VXATTR_FLAG_RSTAT		(1<<2)
 
 /* layouts */
 
@@ -265,14 +266,16 @@ static size_t ceph_vxattrcb_quota_max_files(struct ceph_inode_info *ci,
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
 	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
 
-#define XATTR_NAME_CEPH(_type, _name)					\
+#define XATTR_NAME_CEPH(_type, _name, _flags)				\
 	{								\
 		.name = CEPH_XATTR_NAME(_type, _name),			\
 		.name_size = sizeof (CEPH_XATTR_NAME(_type, _name)), \
 		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
-		.exists_cb = NULL,				\
-		.flags = VXATTR_FLAG_READONLY,			\
+		.exists_cb = NULL,					\
+		.flags = (VXATTR_FLAG_READONLY | _flags),		\
 	}
+#define XATTR_RSTAT_FIELD(_type, _name)			\
+	XATTR_NAME_CEPH(_type, _name, VXATTR_FLAG_RSTAT)
 #define XATTR_LAYOUT_FIELD(_type, _name, _field)			\
 	{								\
 		.name = CEPH_XATTR_NAME2(_type, _name, _field),	\
@@ -303,14 +306,14 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_LAYOUT_FIELD(dir, layout, object_size),
 	XATTR_LAYOUT_FIELD(dir, layout, pool),
 	XATTR_LAYOUT_FIELD(dir, layout, pool_namespace),
-	XATTR_NAME_CEPH(dir, entries),
-	XATTR_NAME_CEPH(dir, files),
-	XATTR_NAME_CEPH(dir, subdirs),
-	XATTR_NAME_CEPH(dir, rentries),
-	XATTR_NAME_CEPH(dir, rfiles),
-	XATTR_NAME_CEPH(dir, rsubdirs),
-	XATTR_NAME_CEPH(dir, rbytes),
-	XATTR_NAME_CEPH(dir, rctime),
+	XATTR_NAME_CEPH(dir, entries, 0),
+	XATTR_NAME_CEPH(dir, files, 0),
+	XATTR_NAME_CEPH(dir, subdirs, 0),
+	XATTR_RSTAT_FIELD(dir, rentries),
+	XATTR_RSTAT_FIELD(dir, rfiles),
+	XATTR_RSTAT_FIELD(dir, rsubdirs),
+	XATTR_RSTAT_FIELD(dir, rbytes),
+	XATTR_RSTAT_FIELD(dir, rctime),
 	{
 		.name = "ceph.quota",
 		.name_size = sizeof("ceph.quota"),
@@ -807,7 +810,10 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	/* let's see if a virtual xattr was requested */
 	vxattr = ceph_match_vxattr(inode, name);
 	if (vxattr) {
-		err = ceph_do_getattr(inode, 0, true);
+		int mask = 0;
+		if (vxattr->flags & VXATTR_FLAG_RSTAT)
+			mask |= CEPH_STAT_RSTAT;
+		err = ceph_do_getattr(inode, mask, true);
 		if (err)
 			return err;
 		err = -ENODATA;
