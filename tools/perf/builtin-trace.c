@@ -2036,7 +2036,7 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	__thread__find_symbol(thread, sample->cpumode, MAP__VARIABLE, sample->addr, &al);
+	thread__find_symbol(thread, sample->cpumode, sample->addr, &al);
 
 	if (!al.map) {
 		thread__find_symbol(thread, sample->cpumode, sample->addr, &al);

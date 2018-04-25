@@ -1677,15 +1677,7 @@ static void ip__resolve_data(struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	__thread__find_symbol(thread, m, MAP__VARIABLE, addr, &al);
-	if (al.map == NULL) {
-		/*
-		 * some shared data regions have execute bit set which puts
-		 * their mapping in the MAP__FUNCTION type array.
-		 * Check there as a fallback option before dropping the sample.
-		 */
-		thread__find_symbol(thread, m, addr, &al);
-	}
+	thread__find_symbol(thread, m, addr, &al);
 
 	ams->addr = addr;
 	ams->al_addr = al.addr;
