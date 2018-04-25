@@ -4776,8 +4776,7 @@ static bool efx_ef10_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 		goto out_unlock;
 	}
 
-	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id,
-				 flow_id, filter_idx)) {
+	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id, flow_id, 0)) {
 		ret = false;
 		goto out_unlock;
 	}
@@ -5265,7 +5264,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 		ids = vlan->uc;
 	}
 
-	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+	filter_flags = efx_rss_active(&efx->rss_context) ? EFX_FILTER_FLAG_RX_RSS : 0;
 
 	/* Insert/renew filters */
 	for (i = 0; i < addr_count; i++) {
@@ -5334,7 +5333,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 	int rc;
 	u16 *id;
 
-	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+	filter_flags = efx_rss_active(&efx->rss_context) ? EFX_FILTER_FLAG_RX_RSS : 0;
 
 	efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 

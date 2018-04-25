@@ -732,6 +732,7 @@ static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
  */
 enum {
 	Opt_queue_depth,
+	Opt_lock_timeout,
 	Opt_last_int,
 	/* int args above */
 	Opt_last_string,
@@ -740,11 +741,13 @@ enum {
 	Opt_read_write,
 	Opt_lock_on_read,
 	Opt_exclusive,
+	Opt_notrim,
 	Opt_err
 };
 
 static match_table_t rbd_opts_tokens = {
 	{Opt_queue_depth, "queue_depth=%d"},
+	{Opt_lock_timeout, "lock_timeout=%d"},
 	/* int args above */
 	/* string args above */
 	{Opt_read_only, "read_only"},
@@ -753,20 +756,25 @@ static match_table_t rbd_opts_tokens = {
 	{Opt_read_write, "rw"},		/* Alternate spelling */
 	{Opt_lock_on_read, "lock_on_read"},
 	{Opt_exclusive, "exclusive"},
+	{Opt_notrim, "notrim"},
 	{Opt_err, NULL}
 };
 
 struct rbd_options {
 	int	queue_depth;
+	unsigned long	lock_timeout;
 	bool	read_only;
 	bool	lock_on_read;
 	bool	exclusive;
+	bool	trim;
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
+#define RBD_LOCK_TIMEOUT_DEFAULT 0  /* no timeout */
 #define RBD_READ_ONLY_DEFAULT	false
 #define RBD_LOCK_ON_READ_DEFAULT false
 #define RBD_EXCLUSIVE_DEFAULT	false
+#define RBD_TRIM_DEFAULT	true
 
 static int parse_rbd_opts_token(char *c, void *private)
 {
@@ -796,6 +804,14 @@ static int parse_rbd_opts_token(char *c, void *private)
 		}
 		rbd_opts->queue_depth = intval;
 		break;
+	case Opt_lock_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (intval < 0 || intval > INT_MAX / 1000) {
+			pr_err("lock_timeout out of range\n");
+			return -EINVAL;
+		}
+		rbd_opts->lock_timeout = msecs_to_jiffies(intval * 1000);
+		break;
 	case Opt_read_only:
 		rbd_opts->read_only = true;
 		break;
@@ -807,6 +823,9 @@ static int parse_rbd_opts_token(char *c, void *private)
 		break;
 	case Opt_exclusive:
 		rbd_opts->exclusive = true;
+		break;
+	case Opt_notrim:
+		rbd_opts->trim = false;
 		break;
 	default:
 		/* libceph prints "bad option" msg */
@@ -1392,7 +1411,7 @@ static bool rbd_img_is_write(struct rbd_img_request *img_req)
 	case OBJ_OP_DISCARD:
 		return true;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 }
 
@@ -2466,7 +2485,7 @@ again:
 		}
 		return false;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 }
 
@@ -2494,7 +2513,7 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 		}
 		return false;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 }
 
@@ -3533,9 +3552,22 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 /*
  * lock_rwsem must be held for read
  */
-static void rbd_wait_state_locked(struct rbd_device *rbd_dev)
+static int rbd_wait_state_locked(struct rbd_device *rbd_dev, bool may_acquire)
 {
 	DEFINE_WAIT(wait);
+	unsigned long timeout;
+	int ret = 0;
+
+	if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags))
+		return -EBLACKLISTED;
+
+	if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED)
+		return 0;
+
+	if (!may_acquire) {
+		rbd_warn(rbd_dev, "exclusive lock required");
+		return -EROFS;
+	}
 
 	do {
 		/*
@@ -3547,12 +3579,22 @@ static void rbd_wait_state_locked(struct rbd_device *rbd_dev)
 		prepare_to_wait_exclusive(&rbd_dev->lock_waitq, &wait,
 					  TASK_UNINTERRUPTIBLE);
 		up_read(&rbd_dev->lock_rwsem);
-		schedule();
+		timeout = schedule_timeout(ceph_timeout_jiffies(
+						rbd_dev->opts->lock_timeout));
 		down_read(&rbd_dev->lock_rwsem);
-	} while (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED &&
-		 !test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags));
+		if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
+			ret = -EBLACKLISTED;
+			break;
+		}
+		if (!timeout) {
+			rbd_warn(rbd_dev, "timed out waiting for lock");
+			ret = -ETIMEDOUT;
+			break;
+		}
+	} while (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED);
 
 	finish_wait(&rbd_dev->lock_waitq, &wait);
+	return ret;
 }
 
 static void rbd_queue_workfn(struct work_struct *work)
@@ -3638,19 +3680,10 @@ static void rbd_queue_workfn(struct work_struct *work)
 	    (op_type != OBJ_OP_READ || rbd_dev->opts->lock_on_read);
 	if (must_be_locked) {
 		down_read(&rbd_dev->lock_rwsem);
-		if (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED &&
-		    !test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
-			if (rbd_dev->opts->exclusive) {
-				rbd_warn(rbd_dev, "exclusive lock required");
-				result = -EROFS;
-				goto err_unlock;
-			}
-			rbd_wait_state_locked(rbd_dev);
-		}
-		if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
-			result = -EBLACKLISTED;
+		result = rbd_wait_state_locked(rbd_dev,
+					       !rbd_dev->opts->exclusive);
+		if (result)
 			goto err_unlock;
-		}
 	}
 
 	img_request = rbd_img_request_create(rbd_dev, op_type, snapc);
@@ -3902,7 +3935,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk;
 	struct request_queue *q;
-	u64 segment_size;
+	unsigned int objset_bytes =
+	    rbd_dev->layout.object_size * rbd_dev->layout.stripe_count;
 	int err;
 
 	/* create gendisk info */
@@ -3942,20 +3976,19 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	/* QUEUE_FLAG_ADD_RANDOM is off by default for blk-mq */
 
-	/* set io sizes to object size */
-	segment_size = rbd_obj_bytes(&rbd_dev->header);
-	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_hw_sectors(q, objset_bytes >> SECTOR_SHIFT);
 	q->limits.max_sectors = queue_max_hw_sectors(q);
 	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, UINT_MAX);
-	blk_queue_io_min(q, segment_size);
-	blk_queue_io_opt(q, segment_size);
+	blk_queue_io_min(q, objset_bytes);
+	blk_queue_io_opt(q, objset_bytes);
 
-	/* enable the discard support */
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-	q->limits.discard_granularity = segment_size;
-	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
-	blk_queue_max_write_zeroes_sectors(q, segment_size / SECTOR_SIZE);
+	if (rbd_dev->opts->trim) {
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
+		q->limits.discard_granularity = objset_bytes;
+		blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
+		blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
+	}
 
 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
 		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
@@ -5179,8 +5212,10 @@ static int rbd_add_parse_args(const char *buf,
 
 	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
 	rbd_opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
+	rbd_opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
 	rbd_opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
 	rbd_opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
+	rbd_opts->trim = RBD_TRIM_DEFAULT;
 
 	copts = ceph_parse_options(options, mon_addrs,
 					mon_addrs + mon_addrs_size - 1,
@@ -5216,6 +5251,8 @@ static void rbd_dev_image_unlock(struct rbd_device *rbd_dev)
 
 static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 {
+	int ret;
+
 	if (!(rbd_dev->header.features & RBD_FEATURE_EXCLUSIVE_LOCK)) {
 		rbd_warn(rbd_dev, "exclusive-lock feature is not enabled");
 		return -EINVAL;
@@ -5223,9 +5260,9 @@ static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 
 	/* FIXME: "rbd map --exclusive" should be in interruptible */
 	down_read(&rbd_dev->lock_rwsem);
-	rbd_wait_state_locked(rbd_dev);
+	ret = rbd_wait_state_locked(rbd_dev, true);
 	up_read(&rbd_dev->lock_rwsem);
-	if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
+	if (ret) {
 		rbd_warn(rbd_dev, "failed to acquire exclusive lock");
 		return -EROFS;
 	}

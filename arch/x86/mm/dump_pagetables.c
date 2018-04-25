@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/highmem.h>
 
 #include <asm/pgtable.h>
 
@@ -334,16 +335,16 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 			   pgprotval_t eff_in, unsigned long P)
 {
 	int i;
-	pte_t *start;
+	pte_t *pte;
 	pgprotval_t prot, eff;
 
-	start = (pte_t *)pmd_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		prot = pte_flags(*start);
-		eff = effective_prot(eff_in, prot);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
+		pte = pte_offset_map(&addr, st->current_address);
+		prot = pte_flags(*pte);
+		eff = effective_prot(eff_in, prot);
 		note_page(m, st, __pgprot(prot), eff, 5);
-		start++;
+		pte_unmap(pte);
 	}
 }
 #ifdef CONFIG_KASAN
