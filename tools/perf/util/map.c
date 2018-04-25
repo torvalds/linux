@@ -574,7 +574,7 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 				       enum map_type type, u64 addr,
 				       struct map **mapp)
 {
-	struct map *map = map_groups__find(mg, type, addr);
+	struct map *map = __map_groups__find(mg, type, addr);
 
 	/* Ensure map is loaded before using map->map_ip */
 	if (map != NULL && map__load(map) >= 0) {
@@ -627,8 +627,7 @@ int map_groups__find_ams(struct addr_map_symbol *ams)
 	if (ams->addr < ams->map->start || ams->addr >= ams->map->end) {
 		if (ams->map->groups == NULL)
 			return -1;
-		ams->map = map_groups__find(ams->map->groups, ams->map->type,
-					    ams->addr);
+		ams->map = __map_groups__find(ams->map->groups, ams->map->type, ams->addr);
 		if (ams->map == NULL)
 			return -1;
 	}

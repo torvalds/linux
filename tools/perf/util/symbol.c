@@ -723,7 +723,7 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map)
 		if (module)
 			*module = '\0';
 
-		curr_map = map_groups__find(kmaps, map->type, pos->start);
+		curr_map = __map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map) {
 			symbol__delete(pos);

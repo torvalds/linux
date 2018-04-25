@@ -214,10 +214,15 @@ static inline void map_groups__remove(struct map_groups *mg, struct map *map)
 	maps__remove(&mg->maps[map->type], map);
 }
 
-static inline struct map *map_groups__find(struct map_groups *mg,
-					   enum map_type type, u64 addr)
+static inline struct map *__map_groups__find(struct map_groups *mg,
+					     enum map_type type, u64 addr)
 {
 	return maps__find(&mg->maps[type], addr);
+}
+
+static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
+{
+	return __map_groups__find(mg, MAP__FUNCTION, addr);
 }
 
 static inline struct map *map_groups__first(struct map_groups *mg,

@@ -1534,7 +1534,7 @@ struct map *__thread__find_map(struct thread *thread, u8 cpumode, enum map_type 
 		return NULL;
 	}
 try_again:
-	al->map = map_groups__find(mg, type, al->addr);
+	al->map = __map_groups__find(mg, type, al->addr);
 	if (al->map == NULL) {
 		/*
 		 * If this is outside of all known maps, and is a negative

@@ -19,7 +19,6 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	struct symbol *sym;
 	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
-	enum map_type type = MAP__FUNCTION;
 	struct maps *maps = machine__kernel_maps(&vmlinux);
 	u64 mem_start, mem_end;
 	bool header_printed;
@@ -205,7 +204,7 @@ next_pair:
 		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
 		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
 
-		pair = map_groups__find(&kallsyms.kmaps, type, mem_start);
+		pair = map_groups__find(&kallsyms.kmaps, mem_start);
 		if (pair == NULL || pair->priv)
 			continue;
 
