@@ -89,6 +89,11 @@ module_param_named(retry_delay, qedf_retry_delay, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(retry_delay, " Enable/disable handling of FCP_RSP IU retry "
 	"delay handling (default off).");
 
+static bool qedf_dcbx_no_wait;
+module_param_named(dcbx_no_wait, qedf_dcbx_no_wait, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dcbx_no_wait, " Do not wait for DCBX convergence to start "
+	"sending FIP VLAN requests on link up (Default: off).");
+
 static uint qedf_dp_module;
 module_param_named(dp_module, qedf_dp_module, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_module, " bit flags control for verbose printk passed "
@@ -489,7 +494,8 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 		atomic_set(&qedf->link_state, QEDF_LINK_UP);
 		qedf_update_link_speed(qedf, link);
 
-		if (atomic_read(&qedf->dcbx) == QEDF_DCBX_DONE) {
+		if (atomic_read(&qedf->dcbx) == QEDF_DCBX_DONE ||
+		    qedf_dcbx_no_wait) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			     "DCBx done.\n");
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
@@ -541,7 +547,8 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 
 		atomic_set(&qedf->dcbx, QEDF_DCBX_DONE);
 
-		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP &&
+		    !qedf_dcbx_no_wait) {
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
 				queue_delayed_work(qedf->link_update_wq,
 				    &qedf->link_recovery, 0);
