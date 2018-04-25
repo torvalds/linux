@@ -641,6 +641,9 @@ static void srcu_funnel_exp_start(struct srcu_struct *sp, struct srcu_node *snp,
  * period s.  Losers must either ensure that their desired grace-period
  * number is recorded on at least their leaf srcu_node structure, or they
  * must take steps to invoke their own callbacks.
+ *
+ * Note that this function also does the work of srcu_funnel_exp_start(),
+ * in some cases by directly invoking it.
  */
 static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 				 unsigned long s, bool do_norm)
