@@ -667,7 +667,8 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
-			   EDP_PSR_DEBUG_MASK_LPSP);
+			   EDP_PSR_DEBUG_MASK_LPSP |
+			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
 	}
 }
 
