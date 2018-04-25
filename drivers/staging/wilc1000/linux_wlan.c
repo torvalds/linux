@@ -604,7 +604,7 @@ fail:
 	return -1;
 }
 
-void wilc1000_wlan_deinit(struct net_device *dev)
+void wilc_wlan_deinitialize(struct net_device *dev)
 {
 	struct wilc_vif *vif;
 	struct wilc *wl;
@@ -719,7 +719,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 	}
 }
 
-int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif)
+int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 {
 	int ret = 0;
 	struct wilc *wl = vif->wilc;
@@ -846,7 +846,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = wilc1000_wlan_init(ndev, vif);
+	ret = wilc_wlan_initialize(ndev, vif);
 	if (ret < 0) {
 		wilc_deinit_host_int(ndev);
 		return ret;
@@ -869,7 +869,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		netdev_err(ndev, "Wrong MAC address\n");
 		wilc_deinit_host_int(ndev);
-		wilc1000_wlan_deinit(ndev);
+		wilc_wlan_deinitialize(ndev);
 		return -EINVAL;
 	}
 
@@ -1038,7 +1038,7 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (wl->open_ifcs == 0) {
 		netdev_dbg(ndev, "Deinitializing wilc1000\n");
 		wl->close = 1;
-		wilc1000_wlan_deinit(ndev);
+		wilc_wlan_deinitialize(ndev);
 		WILC_WFI_deinit_mon_interface();
 	}
 
