@@ -734,7 +734,6 @@ static void qedf_ctx_soft_reset(struct fc_lport *lport)
 
 	/* For host reset, essentially do a soft link up/down */
 	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
-	atomic_set(&qedf->dcbx, QEDF_DCBX_PENDING);
 	queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 	    0);
 	qedf_wait_for_upload(qedf);
