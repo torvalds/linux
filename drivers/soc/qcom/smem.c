@@ -655,6 +655,33 @@ int qcom_smem_get_free_space(unsigned host)
 }
 EXPORT_SYMBOL(qcom_smem_get_free_space);
 
+/**
+ * qcom_smem_virt_to_phys() - return the physical address associated
+ * with an smem item pointer (previously returned by qcom_smem_get()
+ * @p:	the virtual address to convert
+ *
+ * Returns 0 if the pointer provided is not within any smem region.
+ */
+phys_addr_t qcom_smem_virt_to_phys(void *p)
+{
+	unsigned i;
+
+	for (i = 0; i < __smem->num_regions; i++) {
+		struct smem_region *region = &__smem->regions[i];
+
+		if (p < region->virt_base)
+			continue;
+		if (p < region->virt_base + region->size) {
+			u64 offset = p - region->virt_base;
+
+			return (phys_addr_t)region->aux_base + offset;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_smem_virt_to_phys);
+
 static int qcom_smem_get_sbl_version(struct qcom_smem *smem)
 {
 	struct smem_header *header;
