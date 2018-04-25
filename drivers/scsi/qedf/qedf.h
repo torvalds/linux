@@ -180,6 +180,7 @@ struct qedf_rport {
 	spinlock_t rport_lock;
 #define QEDF_RPORT_SESSION_READY 1
 #define QEDF_RPORT_UPLOADING_CONNECTION	2
+#define QEDF_RPORT_IN_RESET 3
 	unsigned long flags;
 	unsigned long retry_delay_timestamp;
 	struct fc_rport *rport;

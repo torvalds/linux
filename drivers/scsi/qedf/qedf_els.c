@@ -322,6 +322,17 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	if (!fcport)
 		return;
 
+	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
+	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
+	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
+		    fcport);
+		return;
+	}
+
+	/* Set that we are now in reset */
+	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
+
 	rdata = fcport->rdata;
 	if (rdata) {
 		lport = fcport->qedf->lport;
@@ -334,6 +345,7 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 		if (rdata)
 			fc_rport_login(rdata);
 	}
+	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }
 
 static void qedf_l2_els_compl(struct qedf_els_cb_arg *cb_arg)
