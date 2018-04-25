@@ -64,9 +64,20 @@ respectively. 'x' prefix implies it is unsigned. Traced arguments are shown
 in decimal ('s' and 'u') or hexadecimal ('x'). Without type casting, 'x32'
 or 'x64' is used depends on the architecture (e.g. x86-32 uses x32, and
 x86-64 uses x64).
+These value types can be an array. To record array data, you can add '[N]'
+(where N is a fixed number, less than 64) to the base type.
+E.g. 'x16[4]' means an array of x16 (2bytes hex) with 4 elements.
+Note that the array can be applied to memory type fetchargs, you can not
+apply it to registers/stack-entries etc. (for example, '$stack1:x8[8]' is
+wrong, but '+8($stack):x8[8]' is OK.)
 String type is a special type, which fetches a "null-terminated" string from
 kernel space. This means it will fail and store NULL if the string container
 has been paged out.
+The string array type is a bit different from other types. For other base
+types, <base-type>[1] is equal to <base-type> (e.g. +0(%di):x32[1] is same
+as +0(%di):x32.) But string[1] is not equal to string. The string type itself
+represents "char array", but string array type represents "char * array".
+So, for example, +0(%di):string[1] is equal to +0(+0(%di)):string.
 Bitfield is another special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is::
 

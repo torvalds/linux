@@ -30,6 +30,7 @@
 
 #define MAX_TRACE_ARGS		128
 #define MAX_ARGSTR_LEN		63
+#define MAX_ARRAY_LEN		64
 #define MAX_STRING_SIZE		PATH_MAX
 
 /* Reserved field names */
@@ -65,6 +66,14 @@ static nokprobe_inline void *get_loc_data(u32 *dl, void *ent)
 	return (u8 *)ent + get_loc_offs(*dl);
 }
 
+static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
+{
+	u32 maxlen = get_loc_len(loc);
+	u32 offset = get_loc_offs(loc);
+
+	return make_data_loc(maxlen - consumed, offset + consumed);
+}
+
 /* Printing function type */
 typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 
@@ -86,6 +95,8 @@ enum fetch_op {
 	FETCH_OP_ST_STRING,	/* String: .offset, .size */
 	// Stage 4 (modify) op
 	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
+	// Stage 5 (loop) op
+	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
 	FETCH_OP_END,
 };
 
@@ -175,6 +186,7 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(symbol);
 	_ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, atype)
 
 #define ASSIGN_FETCH_TYPE_END {}
+#define MAX_ARRAY_LEN	64
 
 #ifdef CONFIG_KPROBE_EVENTS
 bool trace_kprobe_on_func_entry(struct trace_event_call *call);
@@ -195,8 +207,10 @@ struct probe_arg {
 	struct fetch_insn	*code;
 	bool			dynamic;/* Dynamic array (string) is used */
 	unsigned int		offset;	/* Offset from argument entry */
+	unsigned int		count;	/* Array count */
 	const char		*name;	/* Name of this argument */
 	const char		*comm;	/* Command of this argument */
+	char			*fmt;	/* Format string if needed */
 	const struct fetch_type	*type;	/* Type of this argument */
 };
 
