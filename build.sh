@@ -88,7 +88,7 @@ function install {
 }
 
 function deb {
-set -x
+#set -x
   ver=${kernver}-bpi-r2-${gitbranch}
   echo "deb package ${ver}"
   prepare_SD
@@ -105,13 +105,13 @@ set -x
 
   #sudo mount --bind ../SD/BPI-ROOT/lib/modules debian/bananapi-r2-image/lib/modules/
   if test -e ./uImage && test -d ../SD/BPI-ROOT/lib/modules/${ver}; then
-     cp ./uImage debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/uImage_${ver}
-     pwd
-     cp -r ../SD/BPI-ROOT/lib/modules/${ver} debian/bananapi-r2-image/lib/modules/
-     #rm debian/bananapi-r2-image/lib/modules/${ver}/{build,source}
-     #mkdir debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
-     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
-     cat > debian/bananapi-r2-image/DEBIAN/control << EOF
+    cp ./uImage debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/uImage_${ver}
+#    pwd
+    cp -r ../SD/BPI-ROOT/lib/modules/${ver} debian/bananapi-r2-image/lib/modules/
+    #rm debian/bananapi-r2-image/lib/modules/${ver}/{build,source}
+    #mkdir debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
+    #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
+    cat > debian/bananapi-r2-image/DEBIAN/control << EOF
 Package: bananapi-r2-image-${kernbranch}
 Version: ${kernver}-1
 Section: custom
@@ -119,16 +119,18 @@ Priority: optional
 Architecture: armhf
 Multi-Arch: no
 Essential: no
-Maintainer: frankwu@gmx.de
+Maintainer: Frank Wunderlich
 Description: BPI-R2 linux image ${ver}
 EOF
-     cd debian
-     fakeroot dpkg-deb --build bananapi-r2-image ../debian
-     ls -lh *.deb
- else
-     echo "First build kernel ${ver}"
-     echo "eg: ./build"
- fi
+    cd debian
+    fakeroot dpkg-deb --build bananapi-r2-image ../debian
+    cd ..
+    ls -lh debian/*.deb
+    dpkg -c debian/bananapi-r2-image-4.14-main_4.14.36-1_armhf.deb
+  else
+    echo "First build kernel ${ver}"
+    echo "eg: ./build"
+  fi
 }
 
 function build {
