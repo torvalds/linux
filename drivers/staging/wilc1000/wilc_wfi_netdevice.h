@@ -45,11 +45,6 @@
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
 
-enum stats_flags {
-	WILC_WFI_RX_PKT = BIT(0),
-	WILC_WFI_TX_PKT = BIT(1),
-};
-
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
 	unsigned long tx_packets;
