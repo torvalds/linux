@@ -60,6 +60,7 @@ enum {
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);
+bool tipc_node_get_id(struct net *net, u32 addr, u8 *id);
 u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr);
 void tipc_node_check_dest(struct net *net, u32 onode, u8 *peer_id128,
 			  struct tipc_bearer *bearer,
