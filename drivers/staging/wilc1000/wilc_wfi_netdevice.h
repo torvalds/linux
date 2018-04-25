@@ -50,7 +50,7 @@ enum stats_flags {
 	WILC_WFI_TX_PKT = BIT(1),
 };
 
-struct WILC_WFI_stats {
+struct wilc_wfi_stats {
 	unsigned long rx_packets;
 	unsigned long tx_packets;
 	unsigned long rx_bytes;
@@ -119,7 +119,7 @@ struct wilc_priv {
 	struct napi_struct napi;
 	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
-	struct WILC_WFI_stats netstats;
+	struct wilc_wfi_stats netstats;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 wep_key_len[4];
 	/* The real interface that the monitor is on */
