@@ -201,6 +201,14 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 		kref_put(&orig_io_req->refcount, qedf_release_cmd);
 
 out_free:
+	/*
+	 * Release a reference to the rrq request if we timed out as the
+	 * rrq completion handler is called directly from the timeout handler
+	 * and not from els_compl where the reference would have normally been
+	 * released.
+	 */
+	if (rrq_req->event == QEDF_IOREQ_EV_ELS_TMO)
+		kref_put(&rrq_req->refcount, qedf_release_cmd);
 	kfree(cb_arg);
 }
 
