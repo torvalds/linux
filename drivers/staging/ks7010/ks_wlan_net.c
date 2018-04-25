@@ -1973,17 +1973,17 @@ static int ks_wlan_set_beacon_lost(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq >= BEACON_LOST_COUNT_MIN && *uwrq <= BEACON_LOST_COUNT_MAX)
-		priv->reg.beacon_lost_count = *uwrq;
-	else
+	if (*uwrq < BEACON_LOST_COUNT_MIN || *uwrq > BEACON_LOST_COUNT_MAX)
 		return -EINVAL;
+
+	priv->reg.beacon_lost_count = *uwrq;
 
 	if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 		priv->need_commit |= SME_MODE_SET;
 		return -EINPROGRESS;	/* Call commit handler */
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
 static int ks_wlan_get_beacon_lost(struct net_device *dev,
