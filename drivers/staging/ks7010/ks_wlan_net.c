@@ -1895,23 +1895,16 @@ static int ks_wlan_set_power_mgmt(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* for SLEEP MODE */
-	if (*uwrq == POWER_MGMT_ACTIVE) {	/* 0 */
-		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
-	} else if (*uwrq == POWER_MGMT_SAVE1) {	/* 1 */
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
-		else
-			return -EINVAL;
-	} else if (*uwrq == POWER_MGMT_SAVE2) {	/* 2 */
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.power_mgmt = POWER_MGMT_SAVE2;
-		else
-			return -EINVAL;
-	} else {
+	if (*uwrq != POWER_MGMT_ACTIVE &&
+	    *uwrq != POWER_MGMT_SAVE1 &&
+	    *uwrq != POWER_MGMT_SAVE2)
 		return -EINVAL;
-	}
 
+	if ((*uwrq == POWER_MGMT_SAVE1 || *uwrq == POWER_MGMT_SAVE2) &&
+	    (priv->reg.operation_mode != MODE_INFRASTRUCTURE))
+		return -EINVAL;
+
+	priv->reg.power_mgmt = *uwrq;
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 
 	return 0;
