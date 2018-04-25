@@ -315,8 +315,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
-			al.sym = dso__find_symbol(al.map->dso, MAP__FUNCTION,
-						  al.addr);
+			al.sym = dso__find_symbol(al.map->dso, al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 

@@ -504,8 +504,8 @@ void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
 	}
 }
 
-struct symbol *dso__find_symbol(struct dso *dso,
-				enum map_type type, u64 addr)
+struct symbol *__dso__find_symbol(struct dso *dso,
+				  enum map_type type, u64 addr)
 {
 	if (dso->last_find_result[type].addr != addr || dso->last_find_result[type].symbol == NULL) {
 		dso->last_find_result[type].addr   = addr;
@@ -549,10 +549,10 @@ struct symbol *symbol__next_by_name(struct symbol *sym)
 }
 
  /*
-  * Teturns first symbol that matched with @name.
+  * Returns first symbol that matched with @name.
   */
-struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
-					const char *name)
+struct symbol *__dso__find_symbol_by_name(struct dso *dso, enum map_type type,
+					  const char *name)
 {
 	struct symbol *s = symbols__find_by_name(&dso->symbol_names[type], name,
 						 SYMBOL_TAG_INCLUDE__NONE);

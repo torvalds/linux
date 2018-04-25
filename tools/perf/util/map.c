@@ -353,7 +353,7 @@ struct symbol *map__find_symbol(struct map *map, u64 addr)
 	if (map__load(map) < 0)
 		return NULL;
 
-	return dso__find_symbol(map->dso, map->type, addr);
+	return __dso__find_symbol(map->dso, map->type, addr);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
@@ -364,7 +364,7 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 	if (!dso__sorted_by_name(map->dso, map->type))
 		dso__sort_by_name(map->dso, map->type);
 
-	return dso__find_symbol_by_name(map->dso, map->type, name);
+	return __dso__find_symbol_by_name(map->dso, map->type, name);
 }
 
 struct map *map__clone(struct map *from)

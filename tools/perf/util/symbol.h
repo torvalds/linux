@@ -262,10 +262,14 @@ int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 void dso__insert_symbol(struct dso *dso, enum map_type type,
 			struct symbol *sym);
 
-struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
-				u64 addr);
-struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
-					const char *name);
+struct symbol *__dso__find_symbol(struct dso *dso, enum map_type type, u64 addr);
+struct symbol *__dso__find_symbol_by_name(struct dso *dso, enum map_type type, const char *name);
+
+static inline struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
+{
+	return __dso__find_symbol(dso, MAP__FUNCTION, addr);
+}
+
 struct symbol *symbol__next_by_name(struct symbol *sym);
 
 struct symbol *dso__first_symbol(struct dso *dso);
