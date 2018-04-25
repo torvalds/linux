@@ -515,14 +515,24 @@ struct symbol *dso__find_symbol(struct dso *dso,
 	return dso->last_find_result[type].symbol;
 }
 
-struct symbol *dso__first_symbol(struct dso *dso, enum map_type type)
+static struct symbol *__dso__first_symbol(struct dso *dso, enum map_type type)
 {
 	return symbols__first(&dso->symbols[type]);
 }
 
-struct symbol *dso__last_symbol(struct dso *dso, enum map_type type)
+struct symbol *dso__first_symbol(struct dso *dso)
+{
+	return __dso__first_symbol(dso, MAP__FUNCTION);
+}
+
+static struct symbol *__dso__last_symbol(struct dso *dso, enum map_type type)
 {
 	return symbols__last(&dso->symbols[type]);
+}
+
+struct symbol *dso__last_symbol(struct dso *dso)
+{
+	return __dso__last_symbol(dso, MAP__FUNCTION);
 }
 
 struct symbol *dso__next_symbol(struct symbol *sym)
@@ -1218,7 +1228,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Find the kernel map using the first symbol */
-	sym = dso__first_symbol(dso, map->type);
+	sym = __dso__first_symbol(dso, map->type);
 	list_for_each_entry(new_map, &md.maps, node) {
 		if (sym && sym->start >= new_map->start &&
 		    sym->start < new_map->end) {

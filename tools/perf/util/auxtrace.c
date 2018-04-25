@@ -1915,7 +1915,7 @@ static void print_duplicate_syms(struct dso *dso, const char *sym_name)
 
 	pr_err("Multiple symbols with name '%s'\n", sym_name);
 
-	sym = dso__first_symbol(dso, MAP__FUNCTION);
+	sym = dso__first_symbol(dso);
 	while (sym) {
 		if (dso_sym_match(sym, sym_name, &cnt, -1)) {
 			pr_err("#%d\t0x%"PRIx64"\t%c\t%s\n",
@@ -1945,7 +1945,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 	*start = 0;
 	*size = 0;
 
-	sym = dso__first_symbol(dso, MAP__FUNCTION);
+	sym = dso__first_symbol(dso);
 	while (sym) {
 		if (*start) {
 			if (!*size)
@@ -1972,8 +1972,8 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 
 static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
 {
-	struct symbol *first_sym = dso__first_symbol(dso, MAP__FUNCTION);
-	struct symbol *last_sym = dso__last_symbol(dso, MAP__FUNCTION);
+	struct symbol *first_sym = dso__first_symbol(dso);
+	struct symbol *last_sym = dso__last_symbol(dso);
 
 	if (!first_sym || !last_sym) {
 		pr_err("Failed to determine filter for %s\nNo symbols found.\n",
