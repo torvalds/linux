@@ -21,7 +21,6 @@
 
 #define HIF_SDIO		(0)
 #define HIF_SPI			BIT(0)
-#define HIF_SDIO_GPIO_IRQ	BIT(2)
 
 /********************************************
  *
