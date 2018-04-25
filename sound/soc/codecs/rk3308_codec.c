@@ -761,6 +761,9 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_BUF_REF_L_EN |
 			   RK3308_DAC_BUF_REF_R_EN);
 
+	/* Waiting the stable reference voltage */
+	udelay(10);
+
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
 		/* Step 03 */
@@ -777,6 +780,9 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_EN,
 			   RK3308_DAC_L_HPMIX_EN |
 			   RK3308_DAC_R_HPMIX_EN);
+
+	/* Waiting the stable HPMIX */
+	udelay(10);
 
 	/* Step 05 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
