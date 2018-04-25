@@ -485,6 +485,11 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 	struct qedf_ctx *qedf = (struct qedf_ctx *)dev;
 
 	if (link->link_up) {
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
+			QEDF_INFO((&qedf->dbg_ctx), QEDF_LOG_DISC,
+			    "Ignoring link up event as link is already up.\n");
+			return;
+		}
 		QEDF_ERR(&(qedf->dbg_ctx), "LINK UP (%d GB/s).\n",
 		    link->speed / 1000);
 
