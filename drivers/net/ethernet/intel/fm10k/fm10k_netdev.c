@@ -22,6 +22,7 @@
 #include "fm10k.h"
 #include <linux/vmalloc.h>
 #include <net/udp_tunnel.h>
+#include <linux/if_macvlan.h>
 
 /**
  * fm10k_setup_tx_resources - allocate Tx resources (Descriptors)
@@ -1254,7 +1255,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 			glort = l2_accel->dglort + 1 + i;
 
 			hw->mac.ops.update_xcast_mode(hw, glort,
-						      FM10K_XCAST_MODE_MULTI);
+						      FM10K_XCAST_MODE_NONE);
 			fm10k_queue_mac_request(interface, glort,
 						sdev->dev_addr,
 						hw->mac.default_vid, true);
@@ -1449,6 +1450,13 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	int size = 0, i;
 	u16 glort;
 
+	/* The hardware supported by fm10k only filters on the destination MAC
+	 * address. In order to avoid issues we only support offloading modes
+	 * where the hardware can actually provide the functionality.
+	 */
+	if (!macvlan_supports_dest_filter(sdev))
+		return ERR_PTR(-EMEDIUMTYPE);
+
 	/* allocate l2 accel structure if it is not available */
 	if (!l2_accel) {
 		/* verify there is enough free GLORTs to support l2_accel */
@@ -1515,7 +1523,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 
 	if (fm10k_host_mbx_ready(interface)) {
 		hw->mac.ops.update_xcast_mode(hw, glort,
-					      FM10K_XCAST_MODE_MULTI);
+					      FM10K_XCAST_MODE_NONE);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
 					hw->mac.default_vid, true);
 	}

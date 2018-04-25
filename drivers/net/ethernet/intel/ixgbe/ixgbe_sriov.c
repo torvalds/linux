@@ -266,7 +266,7 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 #endif
 
 	/* Disable VMDq flag so device will be set in VM mode */
-	if (adapter->ring_feature[RING_F_VMDQ].limit == 1) {
+	if (bitmap_weight(adapter->fwd_bitmask, adapter->num_rx_pools) == 1) {
 		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 		rss = min_t(int, ixgbe_max_rss_indices(adapter),
@@ -312,7 +312,8 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	 * other values out of range.
 	 */
 	num_tc = adapter->hw_tcs;
-	num_rx_pools = adapter->num_rx_pools;
+	num_rx_pools = bitmap_weight(adapter->fwd_bitmask,
+				     adapter->num_rx_pools);
 	limit = (num_tc > 4) ? IXGBE_MAX_VFS_8TC :
 		(num_tc > 1) ? IXGBE_MAX_VFS_4TC : IXGBE_MAX_VFS_1TC;
 
