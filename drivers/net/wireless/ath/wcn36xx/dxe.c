@@ -78,7 +78,6 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 		if (!cur_ctl)
 			goto out_fail;
 
-		spin_lock_init(&cur_ctl->skb_lock);
 		cur_ctl->ctl_blk_order = i;
 		if (i == 0) {
 			ch->head_blk_ctl = cur_ctl;
@@ -275,12 +274,14 @@ static int wcn36xx_dxe_enable_ch_int(struct wcn36xx *wcn, u16 wcn_ch)
 	return 0;
 }
 
-static int wcn36xx_dxe_fill_skb(struct device *dev, struct wcn36xx_dxe_ctl *ctl)
+static int wcn36xx_dxe_fill_skb(struct device *dev,
+				struct wcn36xx_dxe_ctl *ctl,
+				gfp_t gfp)
 {
 	struct wcn36xx_dxe_desc *dxe = ctl->desc;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(WCN36XX_PKT_SIZE, GFP_ATOMIC);
+	skb = alloc_skb(WCN36XX_PKT_SIZE, gfp);
 	if (skb == NULL)
 		return -ENOMEM;
 
@@ -307,7 +308,7 @@ static int wcn36xx_dxe_ch_alloc_skb(struct wcn36xx *wcn,
 	cur_ctl = wcn_ch->head_blk_ctl;
 
 	for (i = 0; i < wcn_ch->desc_num; i++) {
-		wcn36xx_dxe_fill_skb(wcn->dev, cur_ctl);
+		wcn36xx_dxe_fill_skb(wcn->dev, cur_ctl, GFP_KERNEL);
 		cur_ctl = cur_ctl->next;
 	}
 
@@ -367,7 +368,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->tail_blk_ctl;
 	do {
-		if (ctl->desc->ctrl & WCN36xx_DXE_CTRL_VLD)
+		if (READ_ONCE(ctl->desc->ctrl) & WCN36xx_DXE_CTRL_VLD)
 			break;
 		if (ctl->skb) {
 			dma_unmap_single(wcn->dev, ctl->desc->src_addr_l,
@@ -377,18 +378,16 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 				/* Keep frame until TX status comes */
 				ieee80211_free_txskb(wcn->hw, ctl->skb);
 			}
-			spin_lock(&ctl->skb_lock);
+
 			if (wcn->queues_stopped) {
 				wcn->queues_stopped = false;
 				ieee80211_wake_queues(wcn->hw);
 			}
-			spin_unlock(&ctl->skb_lock);
 
 			ctl->skb = NULL;
 		}
 		ctl = ctl->next;
-	} while (ctl != ch->head_blk_ctl &&
-	       !(ctl->desc->ctrl & WCN36xx_DXE_CTRL_VLD));
+	} while (ctl != ch->head_blk_ctl);
 
 	ch->tail_blk_ctl = ctl;
 	spin_unlock_irqrestore(&ch->lock, flags);
@@ -530,10 +529,10 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 		int_mask = WCN36XX_DXE_INT_CH3_MASK;
 	}
 
-	while (!(dxe->ctrl & WCN36xx_DXE_CTRL_VLD)) {
+	while (!(READ_ONCE(dxe->ctrl) & WCN36xx_DXE_CTRL_VLD)) {
 		skb = ctl->skb;
 		dma_addr = dxe->dst_addr_l;
-		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl);
+		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl, GFP_ATOMIC);
 		if (0 == ret) {
 			/* new skb allocation ok. Use the new one and queue
 			 * the old one to network system.
@@ -654,8 +653,6 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->head_blk_ctl;
 
-	spin_lock(&ctl->next->skb_lock);
-
 	/*
 	 * If skb is not null that means that we reached the tail of the ring
 	 * hence ring is full. Stop queues to let mac80211 back off until ring
@@ -664,11 +661,9 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	if (NULL != ctl->next->skb) {
 		ieee80211_stop_queues(wcn->hw);
 		wcn->queues_stopped = true;
-		spin_unlock(&ctl->next->skb_lock);
 		spin_unlock_irqrestore(&ch->lock, flags);
 		return -EBUSY;
 	}
-	spin_unlock(&ctl->next->skb_lock);
 
 	ctl->skb = NULL;
 	desc = ctl->desc;
@@ -693,7 +688,6 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	/* Set source address of the SKB we send */
 	ctl = ctl->next;
-	ctl->skb = skb;
 	desc = ctl->desc;
 	if (ctl->bd_cpu_addr) {
 		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
@@ -702,10 +696,16 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	}
 
 	desc->src_addr_l = dma_map_single(wcn->dev,
-					  ctl->skb->data,
-					  ctl->skb->len,
+					  skb->data,
+					  skb->len,
 					  DMA_TO_DEVICE);
+	if (dma_mapping_error(wcn->dev, desc->src_addr_l)) {
+		dev_err(wcn->dev, "unable to DMA map src_addr_l\n");
+		ret = -ENOMEM;
+		goto unlock;
+	}
 
+	ctl->skb = skb;
 	desc->dst_addr_l = ch->dxe_wq;
 	desc->fr_len = ctl->skb->len;
 

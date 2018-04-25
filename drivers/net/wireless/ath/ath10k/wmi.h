@@ -201,6 +201,8 @@ enum wmi_service {
 	WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
 	WMI_SERVICE_HOST_DFS_CHECK_SUPPORT,
 	WMI_SERVICE_TPC_STATS_FINAL,
+	WMI_SERVICE_RESET_CHIP,
+	WMI_SERVICE_SPOOF_MAC_SUPPORT,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -238,6 +240,8 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_MESH,
 	WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
 	WMI_10X_SERVICE_PEER_STATS,
+	WMI_10X_SERVICE_RESET_CHIP,
+	WMI_10X_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
 };
 
 enum wmi_main_service {
@@ -548,6 +552,10 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
 	SVCMAP(WMI_10X_SERVICE_PEER_STATS,
 	       WMI_SERVICE_PEER_STATS, len);
+	SVCMAP(WMI_10X_SERVICE_RESET_CHIP,
+	       WMI_SERVICE_RESET_CHIP, len);
+	SVCMAP(WMI_10X_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
+	       WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -783,6 +791,7 @@ struct wmi_cmd_map {
 	u32 stop_scan_cmdid;
 	u32 scan_chan_list_cmdid;
 	u32 scan_sch_prio_tbl_cmdid;
+	u32 scan_prob_req_oui_cmdid;
 	u32 pdev_set_regdomain_cmdid;
 	u32 pdev_set_channel_cmdid;
 	u32 pdev_set_param_cmdid;
@@ -1183,6 +1192,7 @@ enum wmi_cmd_id {
 enum wmi_event_id {
 	WMI_SERVICE_READY_EVENTID = 0x1,
 	WMI_READY_EVENTID,
+	WMI_SERVICE_AVAILABLE_EVENTID,
 
 	/* Scan specific events */
 	WMI_SCAN_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_SCAN),
@@ -3159,6 +3169,8 @@ struct wmi_start_scan_arg {
 	u16 channels[64];
 	struct wmi_ssid_arg ssids[WLAN_SCAN_PARAMS_MAX_SSID];
 	struct wmi_bssid_arg bssids[WLAN_SCAN_PARAMS_MAX_BSSID];
+	struct wmi_mac_addr mac_addr;
+	struct wmi_mac_addr mac_mask;
 };
 
 /* scan control flags */
@@ -3181,6 +3193,12 @@ struct wmi_start_scan_arg {
  * Allow the driver to have influence over that.
  */
 #define WMI_SCAN_CONTINUE_ON_ERROR 0x80
+
+/* Use random MAC address for TA for Probe Request frame and add
+ * OUI specified by WMI_SCAN_PROB_REQ_OUI_CMDID to the Probe Request frame.
+ * if OUI is not set by WMI_SCAN_PROB_REQ_OUI_CMDID then the flag is ignored.
+ */
+#define WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ   0x1000
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000
@@ -6632,6 +6650,11 @@ struct wmi_svc_rdy_ev_arg {
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
 };
 
+struct wmi_svc_avail_ev_arg {
+	__le32 service_map_ext_len;
+	const __le32 *service_map_ext;
+};
+
 struct wmi_rdy_ev_arg {
 	__le32 sw_version;
 	__le32 abi_version;
@@ -6812,6 +6835,10 @@ struct wmi_wow_ev_arg {
 #define WOW_MIN_PATTERN_SIZE	1
 #define WOW_MAX_PATTERN_SIZE	148
 #define WOW_MAX_PKT_OFFSET	128
+#define WOW_HDR_LEN	(sizeof(struct ieee80211_hdr_3addr) + \
+	sizeof(struct rfc1042_hdr))
+#define WOW_MAX_REDUCE	(WOW_HDR_LEN - sizeof(struct ethhdr) - \
+	offsetof(struct ieee80211_hdr_3addr, addr1))
 
 enum wmi_tdls_state {
 	WMI_TDLS_DISABLE,
@@ -7052,6 +7079,7 @@ void ath10k_wmi_event_vdev_standby_req(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_vdev_resume_req(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_wmi_event_service_available(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar, const void *phyerr_buf,
 				 int left_len, struct wmi_phyerr_ev_arg *arg);
 void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,

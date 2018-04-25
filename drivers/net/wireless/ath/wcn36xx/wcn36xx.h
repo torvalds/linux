@@ -32,12 +32,6 @@
 #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define WCN36XX_AGGR_BUFFER_SIZE 64
 
-/* How many frames until we start a-mpdu TX session */
-#define WCN36XX_AMPDU_START_THRESH	20
-
-#define WCN36XX_MAX_SCAN_SSIDS		9
-#define WCN36XX_MAX_SCAN_IE_LEN		500
-
 extern unsigned int wcn36xx_dbg_mask;
 
 enum wcn36xx_debug_mask {
@@ -123,6 +117,7 @@ struct wcn36xx_vif {
 	bool is_joining;
 	bool sta_assoc;
 	struct wcn36xx_hal_mac_ssid ssid;
+	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
 	enum wcn36xx_power_state pw_state;

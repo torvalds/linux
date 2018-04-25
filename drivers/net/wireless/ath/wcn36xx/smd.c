@@ -620,8 +620,12 @@ out:
 int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			      struct cfg80211_scan_request *req)
 {
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	struct wcn36xx_hal_start_scan_offload_req_msg msg_body;
 	int ret, i;
+
+	if (req->ie_len > WCN36XX_MAX_SCAN_IE_LEN)
+		return -EINVAL;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_START_SCAN_OFFLOAD_REQ);
@@ -631,6 +635,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	msg_body.max_ch_time = 100;
 	msg_body.scan_hidden = 1;
 	memcpy(msg_body.mac, vif->addr, ETH_ALEN);
+	msg_body.bss_type = vif_priv->bss_type;
 	msg_body.p2p_search = vif->p2p;
 
 	msg_body.num_ssid = min_t(u8, req->n_ssids, ARRAY_SIZE(msg_body.ssids));
@@ -645,6 +650,14 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 				     sizeof(msg_body.channels));
 	for (i = 0; i < msg_body.num_channel; i++)
 		msg_body.channels[i] = req->channels[i]->hw_value;
+
+	msg_body.header.len -= WCN36XX_MAX_SCAN_IE_LEN;
+
+	if (req->ie_len > 0) {
+		msg_body.ie_len = req->ie_len;
+		msg_body.header.len += req->ie_len;
+		memcpy(msg_body.ie, req->ie, req->ie_len);
+	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -1399,8 +1412,9 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	bss->spectrum_mgt_enable = 0;
 	bss->tx_mgmt_power = 0;
 	bss->max_tx_power = WCN36XX_MAX_POWER(wcn);
-
 	bss->action = update;
+
+	vif_priv->bss_type = bss->bss_type;
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
 		    "hal config bss bssid %pM self_mac_addr %pM bss_type %d oper_mode %d nw_type %d\n",
@@ -1446,6 +1460,10 @@ int wcn36xx_smd_delete_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 	int ret = 0;
 
 	mutex_lock(&wcn->hal_mutex);
+
+	if (vif_priv->bss_index == WCN36XX_HAL_BSS_INVALID_IDX)
+		goto out;
+
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DELETE_BSS_REQ);
 
 	msg_body.bss_index = vif_priv->bss_index;
@@ -1464,6 +1482,8 @@ int wcn36xx_smd_delete_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 		wcn36xx_err("hal_delete_bss response failed err=%d\n", ret);
 		goto out;
 	}
+
+	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
@@ -1630,6 +1650,7 @@ out:
 
 int wcn36xx_smd_set_bsskey(struct wcn36xx *wcn,
 			   enum ani_ed_type enc_type,
+			   u8 bssidx,
 			   u8 keyidx,
 			   u8 keylen,
 			   u8 *key)
@@ -1639,7 +1660,7 @@ int wcn36xx_smd_set_bsskey(struct wcn36xx *wcn,
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_BSSKEY_REQ);
-	msg_body.bss_idx = 0;
+	msg_body.bss_idx = bssidx;
 	msg_body.enc_type = enc_type;
 	msg_body.num_keys = 1;
 	msg_body.keys[0].id = keyidx;
@@ -1700,6 +1721,7 @@ out:
 
 int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      enum ani_ed_type enc_type,
+			      u8 bssidx,
 			      u8 keyidx)
 {
 	struct wcn36xx_hal_remove_bss_key_req_msg msg_body;
@@ -1707,7 +1729,7 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_RMV_BSSKEY_REQ);
-	msg_body.bss_idx = 0;
+	msg_body.bss_idx = bssidx;
 	msg_body.enc_type = enc_type;
 	msg_body.key_id = keyidx;
 
@@ -2132,11 +2154,13 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 		return -EIO;
 	}
 
-	wcn36xx_dbg(WCN36XX_DBG_HAL, "scan indication (type %x)", rsp->type);
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "scan indication (type %x)\n", rsp->type);
 
 	switch (rsp->type) {
 	case WCN36XX_HAL_SCAN_IND_FAILED:
+	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 		scan_info.aborted = true;
+		/* fall through */
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
 		mutex_lock(&wcn->scan_lock);
 		wcn->scan_req = NULL;
@@ -2147,7 +2171,6 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 		break;
 	case WCN36XX_HAL_SCAN_IND_STARTED:
 	case WCN36XX_HAL_SCAN_IND_FOREIGN_CHANNEL:
-	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 	case WCN36XX_HAL_SCAN_IND_PREEMPTED:
 	case WCN36XX_HAL_SCAN_IND_RESTARTED:
 		break;

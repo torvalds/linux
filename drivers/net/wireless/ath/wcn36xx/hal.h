@@ -88,6 +88,12 @@
 /* version string max length (including NULL) */
 #define WCN36XX_HAL_VERSION_LENGTH  64
 
+/* How many frames until we start a-mpdu TX session */
+#define WCN36XX_AMPDU_START_THRESH	20
+
+#define WCN36XX_MAX_SCAN_SSIDS		9
+#define WCN36XX_MAX_SCAN_IE_LEN		500
+
 /* message types for messages exchanged between WDI and HAL */
 enum wcn36xx_hal_host_msg_type {
 	/* Init/De-Init */
@@ -1170,7 +1176,7 @@ struct wcn36xx_hal_start_scan_offload_req_msg {
 
 	/* IE field */
 	u16 ie_len;
-	u8 ie[0];
+	u8 ie[WCN36XX_MAX_SCAN_IE_LEN];
 } __packed;
 
 struct wcn36xx_hal_start_scan_offload_rsp_msg {

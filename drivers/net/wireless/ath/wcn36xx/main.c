@@ -353,6 +353,19 @@ static void wcn36xx_stop(struct ieee80211_hw *hw)
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac stop\n");
 
+	cancel_work_sync(&wcn->scan_work);
+
+	mutex_lock(&wcn->scan_lock);
+	if (wcn->scan_req) {
+		struct cfg80211_scan_info scan_info = {
+			.aborted = true,
+		};
+
+		ieee80211_scan_completed(wcn->hw, &scan_info);
+	}
+	wcn->scan_req = NULL;
+	mutex_unlock(&wcn->scan_lock);
+
 	wcn36xx_debugfs_exit(wcn);
 	wcn36xx_smd_stop(wcn);
 	wcn36xx_dxe_deinit(wcn);
@@ -549,6 +562,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		} else {
 			wcn36xx_smd_set_bsskey(wcn,
 				vif_priv->encrypt_type,
+				vif_priv->bss_index,
 				key_conf->keyidx,
 				key_conf->keylen,
 				key);
@@ -566,10 +580,13 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	case DISABLE_KEY:
 		if (!(IEEE80211_KEY_FLAG_PAIRWISE & key_conf->flags)) {
+			if (vif_priv->bss_index != WCN36XX_HAL_BSS_INVALID_IDX)
+				wcn36xx_smd_remove_bsskey(wcn,
+					vif_priv->encrypt_type,
+					vif_priv->bss_index,
+					key_conf->keyidx);
+
 			vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;
-			wcn36xx_smd_remove_bsskey(wcn,
-				vif_priv->encrypt_type,
-				key_conf->keyidx);
 		} else {
 			sta_priv->is_data_encrypted = false;
 			/* do not remove key if disassociated */
@@ -670,10 +687,18 @@ static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
 	wcn->scan_aborted = true;
 	mutex_unlock(&wcn->scan_lock);
 
-	/* ieee80211_scan_completed will be called on FW scan indication */
-	wcn36xx_smd_stop_hw_scan(wcn);
+	if (get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
+		/* ieee80211_scan_completed will be called on FW scan
+		 * indication */
+		wcn36xx_smd_stop_hw_scan(wcn);
+	} else {
+		struct cfg80211_scan_info scan_info = {
+			.aborted = true,
+		};
 
-	cancel_work_sync(&wcn->scan_work);
+		cancel_work_sync(&wcn->scan_work);
+		ieee80211_scan_completed(wcn->hw, &scan_info);
+	}
 }
 
 static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
@@ -953,6 +978,7 @@ static int wcn36xx_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&wcn->conf_mutex);
 
+	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
 	list_add(&vif_priv->list, &wcn->vif_list);
 	wcn36xx_smd_add_sta_self(wcn, vif);
 

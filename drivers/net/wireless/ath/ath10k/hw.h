@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -131,7 +132,7 @@ enum qca9377_chip_id_rev {
 
 /* WCN3990 1.0 definitions */
 #define WCN3990_HW_1_0_DEV_VERSION	ATH10K_HW_WCN3990
-#define WCN3990_HW_1_0_FW_DIR		ATH10K_FW_DIR "/WCN3990/hw3.0"
+#define WCN3990_HW_1_0_FW_DIR		ATH10K_FW_DIR "/WCN3990/hw1.0"
 
 #define ATH10K_FW_FILE_BASE		"firmware"
 #define ATH10K_FW_API_MAX		6
@@ -335,6 +336,12 @@ struct ath10k_hw_ce_dst_src_wm_regs {
 	struct ath10k_hw_ce_regs_addr_map *wm_low;
 	struct ath10k_hw_ce_regs_addr_map *wm_high; };
 
+struct ath10k_hw_ce_ctrl1_upd {
+	u32 shift;
+	u32 mask;
+	u32 enable;
+};
+
 struct ath10k_hw_ce_regs {
 	u32 sr_base_addr;
 	u32 sr_size_addr;
@@ -357,7 +364,9 @@ struct ath10k_hw_ce_regs {
 	struct ath10k_hw_ce_cmd_halt *cmd_halt;
 	struct ath10k_hw_ce_host_ie *host_ie;
 	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
-	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr; };
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr;
+	struct ath10k_hw_ce_ctrl1_upd *upd;
+};
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -568,6 +577,15 @@ struct ath10k_hw_params {
 
 	/* Target rx ring fill level */
 	u32 rx_ring_fill_level;
+
+	/* target supporting per ce IRQ */
+	bool per_ce_irq;
+
+	/* target supporting shadow register for ce write */
+	bool shadow_reg_support;
+
+	/* target supporting retention restore on ddr */
+	bool rri_on_ddr;
 };
 
 struct htt_rx_desc;

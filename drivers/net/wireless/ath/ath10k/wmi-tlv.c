@@ -594,6 +594,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
+	case WMI_TLV_SERVICE_AVAILABLE_EVENTID:
+		ath10k_wmi_event_service_available(ar, skb);
+		break;
 	case WMI_TLV_OFFLOAD_BCN_TX_STATUS_EVENTID:
 		ath10k_wmi_tlv_event_bcn_tx_status(ar, skb);
 		break;
@@ -1117,6 +1120,39 @@ static int ath10k_wmi_tlv_op_pull_rdy_ev(struct ath10k *ar,
 	return 0;
 }
 
+static int ath10k_wmi_tlv_svc_avail_parse(struct ath10k *ar, u16 tag, u16 len,
+					  const void *ptr, void *data)
+{
+	struct wmi_svc_avail_ev_arg *arg = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_SERVICE_AVAILABLE_EVENT:
+		arg->service_map_ext_len = *(__le32 *)ptr;
+		arg->service_map_ext = ptr + sizeof(__le32);
+		return 0;
+	default:
+		break;
+	}
+	return -EPROTO;
+}
+
+static int ath10k_wmi_tlv_op_pull_svc_avail(struct ath10k *ar,
+					    struct sk_buff *skb,
+					    struct wmi_svc_avail_ev_arg *arg)
+{
+	int ret;
+
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_svc_avail_parse, arg);
+
+	if (ret) {
+		ath10k_warn(ar, "failed to parse svc_avail tlv: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath10k_wmi_tlv_pull_vdev_stats(const struct wmi_tlv_vdev_stats *src,
 					   struct ath10k_fw_stats_vdev *dst)
 {
@@ -1600,6 +1636,8 @@ ath10k_wmi_tlv_op_gen_start_scan(struct ath10k *ar,
 	cmd->num_bssids = __cpu_to_le32(arg->n_bssids);
 	cmd->ie_len = __cpu_to_le32(arg->ie_len);
 	cmd->num_probes = __cpu_to_le32(3);
+	ether_addr_copy(cmd->mac_addr.addr, arg->mac_addr.addr);
+	ether_addr_copy(cmd->mac_mask.addr, arg->mac_mask.addr);
 
 	/* FIXME: There are some scan flag inconsistencies across firmwares,
 	 * e.g. WMI-TLV inverts the logic behind the following flag.
@@ -2443,6 +2481,27 @@ ath10k_wmi_tlv_op_gen_scan_chan_list(struct ath10k *ar,
 	ptr += chans_len;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv scan chan list\n");
+	return skb;
+}
+
+static struct sk_buff *
+ath10k_wmi_tlv_op_gen_scan_prob_req_oui(struct ath10k *ar, u32 prob_req_oui)
+{
+	struct wmi_scan_prob_req_oui_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	tlv = (void *)skb->data;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_SCAN_PROB_REQ_OUI_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->prob_req_oui = __cpu_to_le32(prob_req_oui);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv scan prob req oui\n");
 	return skb;
 }
 
@@ -3416,6 +3475,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.stop_scan_cmdid = WMI_TLV_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_TLV_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_TLV_SCAN_SCH_PRIO_TBL_CMDID,
+	.scan_prob_req_oui_cmdid = WMI_TLV_SCAN_PROB_REQ_OUI_CMDID,
 	.pdev_set_regdomain_cmdid = WMI_TLV_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_TLV_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_TLV_PDEV_SET_PARAM_CMDID,
@@ -3740,6 +3800,7 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 static const struct wmi_ops wmi_tlv_ops = {
 	.rx = ath10k_wmi_tlv_op_rx,
 	.map_svc = wmi_tlv_svc_map,
+	.map_svc_ext = wmi_tlv_svc_map_ext,
 
 	.pull_scan = ath10k_wmi_tlv_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_tlv_op_pull_mgmt_rx_ev,
@@ -3751,6 +3812,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_tlv_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_tlv_op_pull_rdy_ev,
+	.pull_svc_avail = ath10k_wmi_tlv_op_pull_svc_avail,
 	.pull_fw_stats = ath10k_wmi_tlv_op_pull_fw_stats,
 	.pull_roam_ev = ath10k_wmi_tlv_op_pull_roam_ev,
 	.pull_wow_event = ath10k_wmi_tlv_op_pull_wow_ev,
@@ -3782,6 +3844,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_set_sta_ps = ath10k_wmi_tlv_op_gen_set_sta_ps,
 	.gen_set_ap_ps = ath10k_wmi_tlv_op_gen_set_ap_ps,
 	.gen_scan_chan_list = ath10k_wmi_tlv_op_gen_scan_chan_list,
+	.gen_scan_prob_req_oui = ath10k_wmi_tlv_op_gen_scan_prob_req_oui,
 	.gen_beacon_dma = ath10k_wmi_tlv_op_gen_beacon_dma,
 	.gen_pdev_set_wmm = ath10k_wmi_tlv_op_gen_pdev_set_wmm,
 	.gen_request_stats = ath10k_wmi_tlv_op_gen_request_stats,
