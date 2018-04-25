@@ -987,13 +987,13 @@ static ssize_t ath10k_write_htt_max_amsdu_ampdu(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	int res;
-	char buf[64];
+	char buf[64] = {0};
 	unsigned int amsdu, ampdu;
 
-	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-
-	/* make sure that buf is null terminated */
-	buf[sizeof(buf) - 1] = 0;
+	res = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos,
+				     user_buf, count);
+	if (res <= 0)
+		return res;
 
 	res = sscanf(buf, "%u %u", &amsdu, &ampdu);
 
@@ -1043,14 +1043,14 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	int ret;
-	char buf[96];
+	char buf[96] = {0};
 	unsigned int log_level;
 	u64 mask;
 
-	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-
-	/* make sure that buf is null terminated */
-	buf[sizeof(buf) - 1] = 0;
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos,
+				     user_buf, count);
+	if (ret <= 0)
+		return ret;
 
 	ret = sscanf(buf, "%llx %u", &mask, &log_level);
 
