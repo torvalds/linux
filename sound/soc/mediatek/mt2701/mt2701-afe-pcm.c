@@ -1256,63 +1256,24 @@ static const struct mtk_base_irq_data irq_data[MT2701_IRQ_ASYS_END] = {
 	}
 };
 
-static const struct mt2701_i2s_data mt2701_i2s_data[MT2701_I2S_NUM][2] = {
+static const struct mt2701_i2s_data mt2701_i2s_data[][2] = {
 	{
-		{
-			.i2s_ctrl_reg = ASYS_I2SO1_CON,
-			.i2s_asrc_fs_shift = 0,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
-		{
-			.i2s_ctrl_reg = ASYS_I2SIN1_CON,
-			.i2s_asrc_fs_shift = 0,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
+		{ ASYS_I2SO1_CON, 0, 0x1f },
+		{ ASYS_I2SIN1_CON, 0, 0x1f },
 	},
 	{
-		{
-			.i2s_ctrl_reg = ASYS_I2SO2_CON,
-			.i2s_asrc_fs_shift = 5,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
-		{
-			.i2s_ctrl_reg = ASYS_I2SIN2_CON,
-			.i2s_asrc_fs_shift = 5,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
+		{ ASYS_I2SO2_CON, 5, 0x1f },
+		{ ASYS_I2SIN2_CON, 5, 0x1f },
 	},
 	{
-		{
-			.i2s_ctrl_reg = ASYS_I2SO3_CON,
-			.i2s_asrc_fs_shift = 10,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
-		{
-			.i2s_ctrl_reg = ASYS_I2SIN3_CON,
-			.i2s_asrc_fs_shift = 10,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
+		{ ASYS_I2SO3_CON, 10, 0x1f },
+		{ ASYS_I2SIN3_CON, 10, 0x1f },
 	},
 	{
-		{
-			.i2s_ctrl_reg = ASYS_I2SO4_CON,
-			.i2s_asrc_fs_shift = 15,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
-		{
-			.i2s_ctrl_reg = ASYS_I2SIN4_CON,
-			.i2s_asrc_fs_shift = 15,
-			.i2s_asrc_fs_mask = 0x1f,
-
-		},
+		{ ASYS_I2SO4_CON, 15, 0x1f },
+		{ ASYS_I2SIN4_CON, 15, 0x1f },
 	},
+	/* TODO - extend control registers supported by newer SoCs */
 };
 
 static irqreturn_t mt2701_asys_isr(int irq_id, void *dev)
@@ -1434,10 +1395,10 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	/* I2S initialize */
 	for (i = 0; i < MT2701_I2S_NUM; i++) {
-		afe_priv->i2s_path[i].i2s_data[I2S_OUT]
-			= &mt2701_i2s_data[i][I2S_OUT];
-		afe_priv->i2s_path[i].i2s_data[I2S_IN]
-			= &mt2701_i2s_data[i][I2S_IN];
+		afe_priv->i2s_path[i].i2s_data[SNDRV_PCM_STREAM_PLAYBACK] =
+			&mt2701_i2s_data[i][SNDRV_PCM_STREAM_PLAYBACK];
+		afe_priv->i2s_path[i].i2s_data[SNDRV_PCM_STREAM_CAPTURE] =
+			&mt2701_i2s_data[i][SNDRV_PCM_STREAM_CAPTURE];
 	}
 
 	afe->mtk_afe_hardware = &mt2701_afe_hardware;

@@ -46,6 +46,7 @@ int mt2701_init_clock(struct mtk_base_afe *afe)
 	/* Get I2S related clocks */
 	for (i = 0; i < MT2701_I2S_NUM; i++) {
 		struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[i];
+		struct clk *i2s_ck;
 		char name[13];
 
 		snprintf(name, sizeof(name), "i2s%d_src_sel", i);
@@ -70,18 +71,20 @@ int mt2701_init_clock(struct mtk_base_afe *afe)
 		}
 
 		snprintf(name, sizeof(name), "i2so%d_hop_ck", i);
-		i2s_path->hop_ck[I2S_OUT] = devm_clk_get(afe->dev, name);
-		if (IS_ERR(i2s_path->hop_ck[I2S_OUT])) {
+		i2s_ck = devm_clk_get(afe->dev, name);
+		if (IS_ERR(i2s_ck)) {
 			dev_err(afe->dev, "failed to get %s\n", name);
-			return PTR_ERR(i2s_path->hop_ck[I2S_OUT]);
+			return PTR_ERR(i2s_ck);
 		}
+		i2s_path->hop_ck[SNDRV_PCM_STREAM_PLAYBACK] = i2s_ck;
 
 		snprintf(name, sizeof(name), "i2si%d_hop_ck", i);
-		i2s_path->hop_ck[I2S_IN] = devm_clk_get(afe->dev, name);
-		if (IS_ERR(i2s_path->hop_ck[I2S_IN])) {
+		i2s_ck = devm_clk_get(afe->dev, name);
+		if (IS_ERR(i2s_ck)) {
 			dev_err(afe->dev, "failed to get %s\n", name);
-			return PTR_ERR(i2s_path->hop_ck[I2S_IN]);
+			return PTR_ERR(i2s_ck);
 		}
+		i2s_path->hop_ck[SNDRV_PCM_STREAM_CAPTURE] = i2s_ck;
 
 		snprintf(name, sizeof(name), "asrc%d_out_ck", i);
 		i2s_path->asrco_ck = devm_clk_get(afe->dev, name);

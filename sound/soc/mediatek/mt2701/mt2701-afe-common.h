@@ -23,7 +23,6 @@
 #include "mt2701-reg.h"
 #include "../common/mtk-base-afe.h"
 
-#define MT2701_STREAM_DIR_NUM (SNDRV_PCM_STREAM_LAST + 1)
 #define MT2701_PLL_DOMAIN_0_RATE	98304000
 #define MT2701_PLL_DOMAIN_1_RATE	90316800
 #define MT2701_I2S_NUM	4
@@ -100,19 +99,13 @@ struct mt2701_i2s_data {
 	int i2s_asrc_fs_mask;
 };
 
-enum mt2701_i2s_dir {
-	I2S_OUT,
-	I2S_IN,
-	I2S_DIR_NUM,
-};
-
 struct mt2701_i2s_path {
 	int dai_id;
 	int mclk_rate;
-	int on[I2S_DIR_NUM];
-	int occupied[I2S_DIR_NUM];
-	const struct mt2701_i2s_data *i2s_data[I2S_DIR_NUM];
-	struct clk *hop_ck[I2S_DIR_NUM];
+	int on[MTK_STREAM_NUM];
+	int occupied[MTK_STREAM_NUM];
+	const struct mt2701_i2s_data *i2s_data[MTK_STREAM_NUM];
+	struct clk *hop_ck[MTK_STREAM_NUM];
 	struct clk *sel_ck;
 	struct clk *div_ck;
 	struct clk *mclk_ck;
@@ -123,7 +116,7 @@ struct mt2701_afe_private {
 	struct mt2701_i2s_path i2s_path[MT2701_I2S_NUM];
 	struct clk *base_ck[MT2701_BASE_CLK_NUM];
 	struct clk *mrgif_ck;
-	bool mrg_enable[MT2701_STREAM_DIR_NUM];
+	bool mrg_enable[MTK_STREAM_NUM];
 };
 
 #endif

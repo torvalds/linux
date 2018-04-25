@@ -17,6 +17,8 @@
 #ifndef _MTK_BASE_AFE_H_
 #define _MTK_BASE_AFE_H_
 
+#define MTK_STREAM_NUM (SNDRV_PCM_STREAM_LAST + 1)
+
 struct mtk_base_memif_data {
 	int id;
 	const char *name;
