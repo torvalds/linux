@@ -146,9 +146,9 @@
 
 			nand@d0000 {
 				status = "okay";
+				label = "pxa3xx_nand-0";
 				num-cs = <1>;
 				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
 
 				partitions {
