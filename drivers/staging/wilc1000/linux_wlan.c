@@ -315,7 +315,7 @@ static int linux_wlan_txq_task(void *vp)
 	return 0;
 }
 
-int wilc_wlan_get_firmware(struct net_device *dev)
+static int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif;
 	struct wilc *wilc;
@@ -604,7 +604,7 @@ fail:
 	return -1;
 }
 
-void wilc_wlan_deinitialize(struct net_device *dev)
+static void wilc_wlan_deinitialize(struct net_device *dev)
 {
 	struct wilc_vif *vif;
 	struct wilc *wl;
@@ -719,7 +719,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 	}
 }
 
-int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
+static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 {
 	int ret = 0;
 	struct wilc *wl = vif->wilc;
