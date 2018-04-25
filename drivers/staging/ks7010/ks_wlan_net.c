@@ -1064,10 +1064,7 @@ static int ks_wlan_get_power(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (priv->reg.power_mgmt > 0)
-		vwrq->power.disabled = 0;
-	else
-		vwrq->power.disabled = 1;
+	vwrq->power.disabled = (priv->reg.power_mgmt <= 0);
 
 	return 0;
 }
