@@ -385,6 +385,10 @@ restart:
 		bool empty = false;
 		int cur;
 
+		if (test_bit(MT76_SCANNING, &dev->state) ||
+		    test_bit(MT76_RESET, &dev->state))
+			return -EBUSY;
+
 		mtxq = list_first_entry(&hwq->swq, struct mt76_txq, list);
 		if (mtxq->send_bar && mtxq->aggr) {
 			struct ieee80211_txq *txq = mtxq_to_txq(mtxq);
