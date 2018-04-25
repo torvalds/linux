@@ -44,8 +44,7 @@ int mtk_afe_fe_startup(struct snd_pcm_substream *substream,
 		       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int memif_num = rtd->cpu_dai->id;
 	struct mtk_base_afe_memif *memif = &afe->memif[memif_num];
@@ -107,8 +106,7 @@ void mtk_afe_fe_shutdown(struct snd_pcm_substream *substream,
 			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 	int irq_id;
 
@@ -131,8 +129,7 @@ int mtk_afe_fe_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 	int msb_at_bit33 = 0;
 	int ret, fs = 0;
@@ -196,8 +193,7 @@ int mtk_afe_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime * const runtime = substream->runtime;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 	struct mtk_base_afe_irq *irqs = &afe->irqs[memif->irq_usage];
 	const struct mtk_base_irq_data *irq_data = irqs->irq_data;
@@ -260,8 +256,7 @@ int mtk_afe_fe_prepare(struct snd_pcm_substream *substream,
 		       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd  = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 	int hd_audio = 0;
 
@@ -333,7 +328,7 @@ EXPORT_SYMBOL_GPL(mtk_dynamic_irq_release);
 
 int mtk_afe_dai_suspend(struct snd_soc_dai *dai)
 {
-	struct mtk_base_afe *afe = dev_get_drvdata(dai->dev);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
 	int i;
@@ -358,7 +353,7 @@ EXPORT_SYMBOL_GPL(mtk_afe_dai_suspend);
 
 int mtk_afe_dai_resume(struct snd_soc_dai *dai)
 {
-	struct mtk_base_afe *afe = dev_get_drvdata(dai->dev);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
 	int i = 0;
@@ -383,4 +378,3 @@ EXPORT_SYMBOL_GPL(mtk_afe_dai_resume);
 MODULE_DESCRIPTION("Mediatek simple fe dai operator");
 MODULE_AUTHOR("Garlic Tseng <garlic.tseng@mediatek.com>");
 MODULE_LICENSE("GPL v2");
-
