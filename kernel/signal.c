@@ -2820,8 +2820,19 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 			[SIGPOLL] = { NSIGPOLL, SIL_POLL },
 			[SIGSYS]  = { NSIGSYS,  SIL_SYS },
 		};
-		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit))
+		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit)) {
 			layout = filter[sig].layout;
+			/* Handle the exceptions */
+			if ((sig == SIGBUS) &&
+			    (si_code >= BUS_MCEERR_AR) && (si_code <= BUS_MCEERR_AO))
+				layout = SIL_FAULT_MCEERR;
+			else if ((sig == SIGSEGV) && (si_code == SEGV_BNDERR))
+				layout = SIL_FAULT_BNDERR;
+#ifdef SEGV_PKUERR
+			else if ((sig == SIGSEGV) && (si_code == SEGV_PKUERR))
+				layout = SIL_FAULT_PKUERR;
+#endif
+		}
 		else if (si_code <= NSIGPOLL)
 			layout = SIL_POLL;
 	} else {
@@ -2878,19 +2889,28 @@ int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
 #ifdef __ARCH_SI_TRAPNO
 		new.si_trapno = from->si_trapno;
 #endif
-		if ((from->si_signo == SIGBUS) &&
-		    ((from->si_code == BUS_MCEERR_AR) ||
-		     (from->si_code == BUS_MCEERR_AO)))
-			new.si_addr_lsb = from->si_addr_lsb;
-
-		if ((from->si_signo == SIGSEGV) &&
-		    (from->si_code == SEGV_BNDERR)) {
-			new.si_lower = ptr_to_compat(from->si_lower);
-			new.si_upper = ptr_to_compat(from->si_upper);
-		}
-		if ((from->si_signo == SIGSEGV) &&
-		    (from->si_code == SEGV_PKUERR))
-			new.si_pkey = from->si_pkey;
+		break;
+	case SIL_FAULT_MCEERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
+#endif
+		new.si_addr_lsb = from->si_addr_lsb;
+		break;
+	case SIL_FAULT_BNDERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
+#endif
+		new.si_lower = ptr_to_compat(from->si_lower);
+		new.si_upper = ptr_to_compat(from->si_upper);
+		break;
+	case SIL_FAULT_PKUERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
+#endif
+		new.si_pkey = from->si_pkey;
 		break;
 	case SIL_CHLD:
 		new.si_pid    = from->si_pid;
@@ -2956,17 +2976,28 @@ int copy_siginfo_from_user32(struct siginfo *to,
 #ifdef __ARCH_SI_TRAPNO
 		to->si_trapno = from.si_trapno;
 #endif
-		if ((from.si_signo == SIGBUS) &&
-		    ((from.si_code == BUS_MCEERR_AR) ||
-		     (from.si_code == BUS_MCEERR_AO)))
-			to->si_addr_lsb = from.si_addr_lsb;
-
-		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_BNDERR)) {
-			to->si_lower = compat_ptr(from.si_lower);
-			to->si_upper = compat_ptr(from.si_upper);
-		}
-		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_PKUERR))
-			to->si_pkey = from.si_pkey;
+		break;
+	case SIL_FAULT_MCEERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
+#endif
+		to->si_addr_lsb = from.si_addr_lsb;
+		break;
+	case SIL_FAULT_BNDERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
+#endif
+		to->si_lower = compat_ptr(from.si_lower);
+		to->si_upper = compat_ptr(from.si_upper);
+		break;
+	case SIL_FAULT_PKUERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
+#endif
+		to->si_pkey = from.si_pkey;
 		break;
 	case SIL_CHLD:
 		to->si_pid    = from.si_pid;
