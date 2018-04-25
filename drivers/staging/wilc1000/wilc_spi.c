@@ -617,28 +617,23 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 	 */
 	ix = 0;
 	do {
-		if (sz <= DATA_PKT_SZ)
+		if (sz <= DATA_PKT_SZ) {
 			nbytes = sz;
-		else
+			order = 0x3;
+		} else {
 			nbytes = DATA_PKT_SZ;
+			if (ix == 0)
+				order = 0x1;
+			else
+				order = 0x02;
+		}
 
 		/*
 		 * Write command
 		 */
 		cmd = 0xf0;
-		if (ix == 0) {
-			if (sz <= DATA_PKT_SZ)
-
-				order = 0x3;
-			else
-				order = 0x1;
-		} else {
-			if (sz <= DATA_PKT_SZ)
-				order = 0x3;
-			else
-				order = 0x2;
-		}
 		cmd |= order;
+
 		if (wilc_spi_tx(wilc, &cmd, 1)) {
 			dev_err(&spi->dev,
 				"Failed data block cmd write, bus error...\n");
