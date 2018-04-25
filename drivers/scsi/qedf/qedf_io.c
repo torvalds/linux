@@ -1457,6 +1457,31 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 			goto free_cmd;
 		}
 
+		if (io_req->cmd_type == QEDF_ABTS) {
+			rc = kref_get_unless_zero(&io_req->refcount);
+			if (!rc) {
+				QEDF_ERR(&(qedf->dbg_ctx),
+				    "Could not get kref for abort io_req=0x%p xid=0x%x.\n",
+				    io_req, io_req->xid);
+				continue;
+			}
+			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			    "Flushing abort xid=0x%x.\n", io_req->xid);
+
+			clear_bit(QEDF_CMD_IN_ABORT, &io_req->flags);
+
+			if (io_req->sc_cmd) {
+				if (io_req->return_scsi_cmd_on_abts)
+					qedf_scsi_done(qedf, io_req, DID_ERROR);
+			}
+
+			/* Notify eh_abort handler that ABTS is complete */
+			complete(&io_req->abts_done);
+			kref_put(&io_req->refcount, qedf_release_cmd);
+
+			goto free_cmd;
+		}
+
 		if (!io_req->sc_cmd)
 			continue;
 		if (lun > 0) {
@@ -1534,6 +1559,11 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 		goto abts_err;
 	}
 
+	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx, "fcport is uploading.\n");
+		rc = 1;
+		goto out;
+	}
 
 	kref_get(&io_req->refcount);
 
@@ -1573,6 +1603,7 @@ abts_err:
 	 * task at the firmware.
 	 */
 	qedf_initiate_cleanup(io_req, return_scsi_cmd_on_abts);
+out:
 	return rc;
 }
 
