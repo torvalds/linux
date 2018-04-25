@@ -499,6 +499,9 @@ static s8 gt1x_request_input_dev(void)
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 
+	input_set_abs_params(input_dev, ABS_X, 0, 255, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 255, 0, 0);
+
 	input_dev->name = gt1x_ts_name;
 	input_dev->phys = input_dev_phys;
 	input_dev->id.bustype = BUS_I2C;
