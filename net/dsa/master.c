@@ -22,7 +22,7 @@ static void dsa_master_get_ethtool_stats(struct net_device *dev,
 	int port = cpu_dp->index;
 	int count = 0;
 
-	if (ops && ops->get_sset_count && ops->get_ethtool_stats) {
+	if (ops->get_sset_count && ops->get_ethtool_stats) {
 		count = ops->get_sset_count(dev, ETH_SS_STATS);
 		ops->get_ethtool_stats(dev, stats, data);
 	}
@@ -38,7 +38,7 @@ static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 	struct dsa_switch *ds = cpu_dp->ds;
 	int count = 0;
 
-	if (ops && ops->get_sset_count)
+	if (ops->get_sset_count)
 		count += ops->get_sset_count(dev, sset);
 
 	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
@@ -64,7 +64,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	/* We do not want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
-	if (ops && ops->get_sset_count && ops->get_strings) {
+	if (ops->get_sset_count && ops->get_strings) {
 		mcount = ops->get_sset_count(dev, ETH_SS_STATS);
 		ops->get_strings(dev, stringset, data);
 	}
