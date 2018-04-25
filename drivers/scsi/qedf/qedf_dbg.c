@@ -147,7 +147,7 @@ qedf_get_grc_dump(struct qed_dev *cdev, const struct qed_common_ops *common,
 	if (!*buf)
 		return -EINVAL;
 
-	return common->dbg_grc(cdev, *buf, grcsize);
+	return common->dbg_all_data(cdev, *buf);
 }
 
 void

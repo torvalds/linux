@@ -3008,6 +3008,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	qedf->link_update_wq = create_workqueue(host_buf);
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
+	INIT_DELAYED_WORK(&qedf->grcdump_work, qedf_wq_grcdump);
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
 	/* Set a default prio in case DCBX doesn't converge */
 	qedf->prio = QEDF_DEFAULT_PRIO;
@@ -3240,7 +3241,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	 * unload process.
 	 */
 	if (mode != QEDF_MODE_RECOVERY) {
-		qedf->grcdump_size = qed_ops->common->dbg_grc_size(qedf->cdev);
+		qedf->grcdump_size =
+		    qed_ops->common->dbg_all_data_size(qedf->cdev);
 		if (qedf->grcdump_size) {
 			rc = qedf_alloc_grc_dump_buf(&qedf->grcdump,
 			    qedf->grcdump_size);
@@ -3422,6 +3424,15 @@ static void qedf_remove(struct pci_dev *pdev)
 		return;
 
 	__qedf_remove(pdev, QEDF_MODE_NORMAL);
+}
+
+void qedf_wq_grcdump(struct work_struct *work)
+{
+	struct qedf_ctx *qedf =
+	    container_of(work, struct qedf_ctx, grcdump_work.work);
+
+	QEDF_ERR(&(qedf->dbg_ctx), "Collecting GRC dump.\n");
+	qedf_capture_grc_dump(qedf);
 }
 
 /*
