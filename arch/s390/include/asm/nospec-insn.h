@@ -2,9 +2,14 @@
 #ifndef _ASM_S390_NOSPEC_ASM_H
 #define _ASM_S390_NOSPEC_ASM_H
 
+#include <asm/alternative-asm.h>
+#include <asm/asm-offsets.h>
+
 #ifdef __ASSEMBLY__
 
 #ifdef CONFIG_EXPOLINE
+
+_LC_BR_R1 = __LC_BR_R1
 
 /*
  * The expoline macros are used to create thunks in the same format
@@ -101,13 +106,21 @@
 	.endm
 
 	.macro __THUNK_EX_BR reg,ruse
+	# Be very careful when adding instructions to this macro!
+	# The ALTERNATIVE replacement code has a .+10 which targets
+	# the "br \reg" after the code has been patched.
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	exrl	0,555f
 	j	.
 #else
+	.ifc \reg,%r1
+	ALTERNATIVE "ex %r0,_LC_BR_R1", ".insn ril,0xc60000000000,0,.+10", 35
+	j	.
+	.else
 	larl	\ruse,555f
 	ex	0,0(\ruse)
 	j	.
+	.endif
 #endif
 555:	br	\reg
 	.endm
