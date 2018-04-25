@@ -226,7 +226,7 @@ void wilc_mac_indicate(struct wilc *wilc, int flag)
 	if (flag == WILC_MAC_INDICATE_STATUS) {
 		wilc_wlan_cfg_get_val(WID_STATUS,
 				      (unsigned char *)&status, 4);
-		if (wilc->mac_status == WILC_MAC_STATUS_INIT) {
+		if (wilc->mac_status == MAC_STATUS_INIT) {
 			wilc->mac_status = status;
 			complete(&wilc->sync_event);
 		} else {
@@ -725,7 +725,7 @@ int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif)
 	struct wilc *wl = vif->wilc;
 
 	if (!wl->initialized) {
-		wl->mac_status = WILC_MAC_STATUS_INIT;
+		wl->mac_status = MAC_STATUS_INIT;
 		wl->close = 0;
 
 		wlan_init_locks(dev);

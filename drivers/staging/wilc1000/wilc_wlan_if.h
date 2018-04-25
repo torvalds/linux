@@ -48,9 +48,11 @@ struct sdio_cmd53 {
 };
 
 #define WILC_MAC_INDICATE_STATUS	0x1
-#define WILC_MAC_STATUS_INIT		-1
-
 #define WILC_MAC_INDICATE_SCAN		0x2
+
+#define MAC_STATUS_INIT			-1
+#define MAC_STATUS_CONNECTED		1
+#define MAC_STATUS_DISCONNECTED		0
 
 struct tx_complete_data {
 	int size;
@@ -117,8 +119,6 @@ enum {
 	G_AUTO_PREAMBLE		= 2,	/* Auto Preamble Selection */
 };
 
-#define MAC_CONNECTED		1
-#define MAC_DISCONNECTED	0
 enum {
 	PASSIVE_SCAN		= 0,
 	ACTIVE_SCAN		= 1,
