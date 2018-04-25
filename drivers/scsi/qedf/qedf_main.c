@@ -3405,6 +3405,13 @@ static int __init qedf_init(void)
 	if (qedf_debug == QEDF_LOG_DEFAULT)
 		qedf_debug = QEDF_DEFAULT_LOG_MASK;
 
+	/* Check that default prio for FIP/FCoE traffic is between 0..7 */
+	if (qedf_default_prio > 7) {
+		qedf_default_prio = QEDF_DEFAULT_PRIO;
+		QEDF_ERR(NULL, "FCoE/FIP priority out of range, resetting to %d.\n",
+		    QEDF_DEFAULT_PRIO);
+	}
+
 	/* Print driver banner */
 	QEDF_INFO(NULL, QEDF_LOG_INFO, "%s v%s.\n", QEDF_DESCR,
 		   QEDF_VERSION);
