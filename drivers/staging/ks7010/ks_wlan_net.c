@@ -1146,6 +1146,33 @@ static int ks_wlan_set_scan(struct net_device *dev,
 	return 0;
 }
 
+static char *ks_wlan_add_leader_event(const char *rsn_leader, char *end_buf,
+				      char *current_ev, struct rsn_ie *rsn,
+				      struct iw_event *iwe,
+				      struct iw_request_info *info)
+{
+	char buffer[RSN_IE_BODY_MAX * 2 + 30];
+	char *pbuf;
+	int i;
+
+	pbuf = &buffer[0];
+	memset(iwe, 0, sizeof(*iwe));
+	iwe->cmd = IWEVCUSTOM;
+	memcpy(buffer, rsn_leader, sizeof(rsn_leader) - 1);
+	iwe->u.data.length += sizeof(rsn_leader) - 1;
+	pbuf += sizeof(rsn_leader) - 1;
+	pbuf += sprintf(pbuf, "%02x", rsn->id);
+	pbuf += sprintf(pbuf, "%02x", rsn->size);
+	iwe->u.data.length += 4;
+
+	for (i = 0; i < rsn->size; i++)
+		pbuf += sprintf(pbuf, "%02x", rsn->body[i]);
+
+	iwe->u.data.length += rsn->size * 2;
+
+	return iwe_stream_add_point(info, current_ev, end_buf, iwe, &buffer[0]);
+}
+
 /*
  * Translate scan data returned from the card to a card independent
  * format that the Wireless Tools will understand - Jean II
@@ -1156,22 +1183,19 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 					   struct local_ap *ap)
 {
 	/* struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv; */
+	static const char rsn_leader[] = "rsn_ie=";
+	static const char wpa_leader[] = "wpa_ie=";
 	struct iw_event iwe;	/* Temporary buffer */
 	u16 capabilities;
 	char *current_val;	/* For rates */
 	int i;
-	static const char rsn_leader[] = "rsn_ie=";
-	static const char wpa_leader[] = "wpa_ie=";
-	char buf0[RSN_IE_BODY_MAX * 2 + 30];
-	char buf1[RSN_IE_BODY_MAX * 2 + 30];
-	char *pbuf;
+
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, ap->bssid, ETH_ALEN);
-	current_ev =
-	    iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-				 IW_EV_ADDR_LEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, ap->bssid);
+	current_ev = iwe_stream_add_event(info, current_ev,
+					  end_buf, &iwe, IW_EV_ADDR_LEN);
 
 	/* Other entries will be displayed in the order we give them */
 
@@ -1181,21 +1205,17 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 		iwe.u.data.length = 32;
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	current_ev =
-	    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-				 ap->ssid.body);
+	current_ev = iwe_stream_add_point(info, current_ev,
+					  end_buf, &iwe, ap->ssid.body);
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
 	capabilities = ap->capability;
 	if (capabilities & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
-		if (capabilities & WLAN_CAPABILITY_ESS)
-			iwe.u.mode = IW_MODE_INFRA;
-		else
-			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev =
-		    iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-					 IW_EV_UINT_LEN);
+		iwe.u.mode = (capabilities & WLAN_CAPABILITY_ESS) ?
+			      IW_MODE_INFRA : IW_MODE_ADHOC;
+		current_ev = iwe_stream_add_event(info, current_ev,
+						  end_buf, &iwe, IW_EV_UINT_LEN);
 	}
 
 	/* Add frequency */
@@ -1203,32 +1223,29 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	iwe.u.freq.m = ap->channel;
 	iwe.u.freq.m = frequency_list[iwe.u.freq.m - 1] * 100000;
 	iwe.u.freq.e = 1;
-	current_ev =
-	    iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-				 IW_EV_FREQ_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev,
+					  end_buf, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.level = 256 - ap->rssi;
 	iwe.u.qual.qual = ap->sq;
 	iwe.u.qual.noise = 0;	/* invalid noise value */
-	current_ev =
-	    iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-				 IW_EV_QUAL_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
-	if (capabilities & WLAN_CAPABILITY_PRIVACY)
-		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-	else
-		iwe.u.data.flags = IW_ENCODE_DISABLED;
+	iwe.u.data.flags = (capabilities & WLAN_CAPABILITY_PRIVACY) ?
+			    (IW_ENCODE_ENABLED | IW_ENCODE_NOKEY) :
+			     IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	current_ev =
-	    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-				 ap->ssid.body);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, ap->ssid.body);
 
-	/* Rate : stuffing multiple values in a single event require a bit
-	 * more of magic - Jean II
+	/*
+	 * Rate : stuffing multiple values in a single event
+	 * require a bit more of magic - Jean II
 	 */
 	current_val = current_ev + IW_EV_LCP_LEN;
 
@@ -1246,9 +1263,9 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 		/* Bit rate given in 500 kb/s units (+ 0x80) */
 		iwe.u.bitrate.value = ((ap->rate_set.body[i] & 0x7f) * 500000);
 		/* Add new value to event */
-		current_val =
-		    iwe_stream_add_value(info, current_ev, current_val, end_buf,
-					 &iwe, IW_EV_PARAM_LEN);
+		current_val = iwe_stream_add_value(info, current_ev,
+						   current_val, end_buf, &iwe,
+						   IW_EV_PARAM_LEN);
 	}
 	/* Check if we added any event */
 	if ((current_val - current_ev) > IW_EV_LCP_LEN)
@@ -1256,53 +1273,18 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 #define GENERIC_INFO_ELEM_ID 0xdd
 #define RSN_INFO_ELEM_ID 0x30
-	if (ap->rsn_ie.id == RSN_INFO_ELEM_ID && ap->rsn_ie.size != 0) {
-		pbuf = &buf0[0];
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		memcpy(buf0, rsn_leader, sizeof(rsn_leader) - 1);
-		iwe.u.data.length += sizeof(rsn_leader) - 1;
-		pbuf += sizeof(rsn_leader) - 1;
+	if (ap->rsn_ie.id == RSN_INFO_ELEM_ID && ap->rsn_ie.size != 0)
+		current_ev = ks_wlan_add_leader_event(rsn_leader, end_buf,
+						      current_ev, &ap->rsn_ie,
+						      &iwe, info);
 
-		pbuf += sprintf(pbuf, "%02x", ap->rsn_ie.id);
-		pbuf += sprintf(pbuf, "%02x", ap->rsn_ie.size);
-		iwe.u.data.length += 4;
+	if (ap->wpa_ie.id == GENERIC_INFO_ELEM_ID && ap->wpa_ie.size != 0)
+		current_ev = ks_wlan_add_leader_event(wpa_leader, end_buf,
+						      current_ev, &ap->wpa_ie,
+						      &iwe, info);
 
-		for (i = 0; i < ap->rsn_ie.size; i++)
-			pbuf += sprintf(pbuf, "%02x", ap->rsn_ie.body[i]);
-		iwe.u.data.length += (ap->rsn_ie.size) * 2;
-
-		netdev_dbg(dev, "ap->rsn.size=%d\n", ap->rsn_ie.size);
-
-		current_ev =
-		    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-					 &buf0[0]);
-	}
-	if (ap->wpa_ie.id == GENERIC_INFO_ELEM_ID && ap->wpa_ie.size != 0) {
-		pbuf = &buf1[0];
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		memcpy(buf1, wpa_leader, sizeof(wpa_leader) - 1);
-		iwe.u.data.length += sizeof(wpa_leader) - 1;
-		pbuf += sizeof(wpa_leader) - 1;
-
-		pbuf += sprintf(pbuf, "%02x", ap->wpa_ie.id);
-		pbuf += sprintf(pbuf, "%02x", ap->wpa_ie.size);
-		iwe.u.data.length += 4;
-
-		for (i = 0; i < ap->wpa_ie.size; i++)
-			pbuf += sprintf(pbuf, "%02x", ap->wpa_ie.body[i]);
-		iwe.u.data.length += (ap->wpa_ie.size) * 2;
-
-		netdev_dbg(dev, "ap->rsn.size=%d\n", ap->wpa_ie.size);
-		netdev_dbg(dev, "iwe.u.data.length=%d\n", iwe.u.data.length);
-
-		current_ev =
-		    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-					 &buf1[0]);
-	}
-
-	/* The other data in the scan result are not really
+	/*
+	 * The other data in the scan result are not really
 	 * interesting, so for now drop it - Jean II
 	 */
 	return current_ev;
