@@ -44,10 +44,10 @@ module_param_named(debug, qedf_debug, uint, S_IRUGO);
 MODULE_PARM_DESC(debug, " Debug mask. Pass '1' to enable default debugging"
 	" mask");
 
-static uint qedf_fipvlan_retries = 30;
+static uint qedf_fipvlan_retries = 60;
 module_param_named(fipvlan_retries, qedf_fipvlan_retries, int, S_IRUGO);
 MODULE_PARM_DESC(fipvlan_retries, " Number of FIP VLAN requests to attempt "
-	"before giving up (default 30)");
+	"before giving up (default 60)");
 
 static uint qedf_fallback_vlan = QEDF_FALLBACK_VLAN;
 module_param_named(fallback_vlan, qedf_fallback_vlan, int, S_IRUGO);
