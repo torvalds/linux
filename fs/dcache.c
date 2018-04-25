@@ -907,6 +907,35 @@ repeat:
 }
 EXPORT_SYMBOL(dget_parent);
 
+static struct dentry * __d_find_any_alias(struct inode *inode)
+{
+	struct dentry *alias;
+
+	if (hlist_empty(&inode->i_dentry))
+		return NULL;
+	alias = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
+	__dget(alias);
+	return alias;
+}
+
+/**
+ * d_find_any_alias - find any alias for a given inode
+ * @inode: inode to find an alias for
+ *
+ * If any aliases exist for the given inode, take and return a
+ * reference for one of them.  If no aliases exist, return %NULL.
+ */
+struct dentry *d_find_any_alias(struct inode *inode)
+{
+	struct dentry *de;
+
+	spin_lock(&inode->i_lock);
+	de = __d_find_any_alias(inode);
+	spin_unlock(&inode->i_lock);
+	return de;
+}
+EXPORT_SYMBOL(d_find_any_alias);
+
 /**
  * d_find_alias - grab a hashed alias of inode
  * @inode: inode in question
@@ -923,34 +952,19 @@ EXPORT_SYMBOL(dget_parent);
  */
 static struct dentry *__d_find_alias(struct inode *inode)
 {
-	struct dentry *alias, *discon_alias;
+	struct dentry *alias;
 
-again:
-	discon_alias = NULL;
+	if (S_ISDIR(inode->i_mode))
+		return __d_find_any_alias(inode);
+
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
 		spin_lock(&alias->d_lock);
- 		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (IS_ROOT(alias) &&
-			    (alias->d_flags & DCACHE_DISCONNECTED)) {
-				discon_alias = alias;
-			} else {
-				__dget_dlock(alias);
-				spin_unlock(&alias->d_lock);
-				return alias;
-			}
-		}
-		spin_unlock(&alias->d_lock);
-	}
-	if (discon_alias) {
-		alias = discon_alias;
-		spin_lock(&alias->d_lock);
-		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
+ 		if (!d_unhashed(alias)) {
 			__dget_dlock(alias);
 			spin_unlock(&alias->d_lock);
 			return alias;
 		}
 		spin_unlock(&alias->d_lock);
-		goto again;
 	}
 	return NULL;
 }
@@ -1940,35 +1954,6 @@ struct dentry *d_make_root(struct inode *root_inode)
 	return res;
 }
 EXPORT_SYMBOL(d_make_root);
-
-static struct dentry * __d_find_any_alias(struct inode *inode)
-{
-	struct dentry *alias;
-
-	if (hlist_empty(&inode->i_dentry))
-		return NULL;
-	alias = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-	__dget(alias);
-	return alias;
-}
-
-/**
- * d_find_any_alias - find any alias for a given inode
- * @inode: inode to find an alias for
- *
- * If any aliases exist for the given inode, take and return a
- * reference for one of them.  If no aliases exist, return %NULL.
- */
-struct dentry *d_find_any_alias(struct inode *inode)
-{
-	struct dentry *de;
-
-	spin_lock(&inode->i_lock);
-	de = __d_find_any_alias(inode);
-	spin_unlock(&inode->i_lock);
-	return de;
-}
-EXPORT_SYMBOL(d_find_any_alias);
 
 static struct dentry *__d_instantiate_anon(struct dentry *dentry,
 					   struct inode *inode,
