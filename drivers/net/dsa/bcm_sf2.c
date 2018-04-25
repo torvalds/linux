@@ -859,6 +859,7 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_strings		= b53_get_strings,
 	.get_ethtool_stats	= b53_get_ethtool_stats,
 	.get_sset_count		= b53_get_sset_count,
+	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.adjust_link		= bcm_sf2_sw_adjust_link,
 	.fixed_link_update	= bcm_sf2_sw_fixed_link_update,
