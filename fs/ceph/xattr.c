@@ -50,9 +50,12 @@ struct ceph_vxattr {
 	size_t name_size;	/* strlen(name) + 1 (for '\0') */
 	size_t (*getxattr_cb)(struct ceph_inode_info *ci, char *val,
 			      size_t size);
-	bool readonly, hidden;
 	bool (*exists_cb)(struct ceph_inode_info *ci);
+	unsigned int flags;
 };
+
+#define VXATTR_FLAG_READONLY		(1<<0)
+#define VXATTR_FLAG_HIDDEN		(1<<1)
 
 /* layouts */
 
@@ -267,27 +270,24 @@ static size_t ceph_vxattrcb_quota_max_files(struct ceph_inode_info *ci,
 		.name = CEPH_XATTR_NAME(_type, _name),			\
 		.name_size = sizeof (CEPH_XATTR_NAME(_type, _name)), \
 		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
-		.readonly = true,				\
-		.hidden = false,				\
-		.exists_cb = NULL,			\
+		.exists_cb = NULL,				\
+		.flags = VXATTR_FLAG_READONLY,			\
 	}
 #define XATTR_LAYOUT_FIELD(_type, _name, _field)			\
 	{								\
 		.name = CEPH_XATTR_NAME2(_type, _name, _field),	\
 		.name_size = sizeof (CEPH_XATTR_NAME2(_type, _name, _field)), \
 		.getxattr_cb = ceph_vxattrcb_ ## _name ## _ ## _field, \
-		.readonly = false,				\
-		.hidden = true,			\
 		.exists_cb = ceph_vxattrcb_layout_exists,	\
+		.flags = VXATTR_FLAG_HIDDEN,			\
 	}
 #define XATTR_QUOTA_FIELD(_type, _name)					\
 	{								\
 		.name = CEPH_XATTR_NAME(_type, _name),			\
 		.name_size = sizeof(CEPH_XATTR_NAME(_type, _name)),	\
 		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name,	\
-		.readonly = false,					\
-		.hidden = true,						\
 		.exists_cb = ceph_vxattrcb_quota_exists,		\
+		.flags = VXATTR_FLAG_HIDDEN,				\
 	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
@@ -295,9 +295,8 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 		.name = "ceph.dir.layout",
 		.name_size = sizeof("ceph.dir.layout"),
 		.getxattr_cb = ceph_vxattrcb_layout,
-		.readonly = false,
-		.hidden = true,
 		.exists_cb = ceph_vxattrcb_layout_exists,
+		.flags = VXATTR_FLAG_HIDDEN,
 	},
 	XATTR_LAYOUT_FIELD(dir, layout, stripe_unit),
 	XATTR_LAYOUT_FIELD(dir, layout, stripe_count),
@@ -316,9 +315,8 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 		.name = "ceph.quota",
 		.name_size = sizeof("ceph.quota"),
 		.getxattr_cb = ceph_vxattrcb_quota,
-		.readonly = false,
-		.hidden = true,
 		.exists_cb = ceph_vxattrcb_quota_exists,
+		.flags = VXATTR_FLAG_HIDDEN,
 	},
 	XATTR_QUOTA_FIELD(quota, max_bytes),
 	XATTR_QUOTA_FIELD(quota, max_files),
@@ -333,9 +331,8 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 		.name = "ceph.file.layout",
 		.name_size = sizeof("ceph.file.layout"),
 		.getxattr_cb = ceph_vxattrcb_layout,
-		.readonly = false,
-		.hidden = true,
 		.exists_cb = ceph_vxattrcb_layout_exists,
+		.flags = VXATTR_FLAG_HIDDEN,
 	},
 	XATTR_LAYOUT_FIELD(file, layout, stripe_unit),
 	XATTR_LAYOUT_FIELD(file, layout, stripe_count),
@@ -374,9 +371,10 @@ static size_t __init vxattrs_name_size(struct ceph_vxattr *vxattrs)
 	struct ceph_vxattr *vxattr;
 	size_t size = 0;
 
-	for (vxattr = vxattrs; vxattr->name; vxattr++)
-		if (!vxattr->hidden)
+	for (vxattr = vxattrs; vxattr->name; vxattr++) {
+		if (!(vxattr->flags & VXATTR_FLAG_HIDDEN))
 			size += vxattr->name_size;
+	}
 
 	return size;
 }
@@ -919,7 +917,7 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	err = namelen;
 	if (vxattrs) {
 		for (i = 0; vxattrs[i].name; i++) {
-			if (!vxattrs[i].hidden &&
+			if (!(vxattrs[i].flags & VXATTR_FLAG_HIDDEN) &&
 			    !(vxattrs[i].exists_cb &&
 			      !vxattrs[i].exists_cb(ci))) {
 				len = sprintf(names, "%s", vxattrs[i].name);
@@ -1024,7 +1022,7 @@ int __ceph_setxattr(struct inode *inode, const char *name,
 
 	vxattr = ceph_match_vxattr(inode, name);
 	if (vxattr) {
-		if (vxattr->readonly)
+		if (vxattr->flags & VXATTR_FLAG_READONLY)
 			return -EOPNOTSUPP;
 		if (value && !strncmp(vxattr->name, "ceph.quota", 10))
 			check_realm = true;
