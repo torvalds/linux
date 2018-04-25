@@ -3521,7 +3521,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 	for (raid_type = 0; raid_type < BTRFS_NR_RAID_TYPES; raid_type++) {
 		if (raid_type == BTRFS_RAID_SINGLE)
 			continue;
-		if (!(flags & btrfs_raid_group[raid_type]))
+		if (!(flags & btrfs_raid_array[raid_type].bg_flag))
 			continue;
 		min_tolerated = min(min_tolerated,
 				    btrfs_raid_array[raid_type].

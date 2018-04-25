@@ -41,6 +41,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 2,
 		.ncopies	= 2,
 		.raid_name	= "raid10",
+		.bg_flag	= BTRFS_BLOCK_GROUP_RAID10,
 	},
 	[BTRFS_RAID_RAID1] = {
 		.sub_stripes	= 1,
@@ -51,6 +52,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 2,
 		.ncopies	= 2,
 		.raid_name	= "raid1",
+		.bg_flag	= BTRFS_BLOCK_GROUP_RAID1,
 	},
 	[BTRFS_RAID_DUP] = {
 		.sub_stripes	= 1,
@@ -61,6 +63,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 1,
 		.ncopies	= 2,
 		.raid_name	= "dup",
+		.bg_flag	= BTRFS_BLOCK_GROUP_DUP,
 	},
 	[BTRFS_RAID_RAID0] = {
 		.sub_stripes	= 1,
@@ -71,6 +74,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 1,
 		.ncopies	= 1,
 		.raid_name	= "raid0",
+		.bg_flag	= BTRFS_BLOCK_GROUP_RAID0,
 	},
 	[BTRFS_RAID_SINGLE] = {
 		.sub_stripes	= 1,
@@ -81,6 +85,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 1,
 		.ncopies	= 1,
 		.raid_name	= "single",
+		.bg_flag	= 0,
 	},
 	[BTRFS_RAID_RAID5] = {
 		.sub_stripes	= 1,
@@ -91,6 +96,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 1,
 		.ncopies	= 2,
 		.raid_name	= "raid5",
+		.bg_flag	= BTRFS_BLOCK_GROUP_RAID5,
 	},
 	[BTRFS_RAID_RAID6] = {
 		.sub_stripes	= 1,
@@ -101,6 +107,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_increment	= 1,
 		.ncopies	= 3,
 		.raid_name	= "raid6",
+		.bg_flag	= BTRFS_BLOCK_GROUP_RAID6,
 	},
 };
 
@@ -111,16 +118,6 @@ const char *get_raid_name(enum btrfs_raid_types type)
 
 	return btrfs_raid_array[type].raid_name;
 }
-
-const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
-	[BTRFS_RAID_RAID10] = BTRFS_BLOCK_GROUP_RAID10,
-	[BTRFS_RAID_RAID1]  = BTRFS_BLOCK_GROUP_RAID1,
-	[BTRFS_RAID_DUP]    = BTRFS_BLOCK_GROUP_DUP,
-	[BTRFS_RAID_RAID0]  = BTRFS_BLOCK_GROUP_RAID0,
-	[BTRFS_RAID_SINGLE] = 0,
-	[BTRFS_RAID_RAID5]  = BTRFS_BLOCK_GROUP_RAID5,
-	[BTRFS_RAID_RAID6]  = BTRFS_BLOCK_GROUP_RAID6,
-};
 
 /*
  * Table to convert BTRFS_RAID_* to the error code if minimum number of devices
@@ -1899,7 +1896,7 @@ static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info,
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
 	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
-		if (!(all_avail & btrfs_raid_group[i]))
+		if (!(all_avail & btrfs_raid_array[i].bg_flag))
 			continue;
 
 		if (num_devices < btrfs_raid_array[i].devs_min) {
