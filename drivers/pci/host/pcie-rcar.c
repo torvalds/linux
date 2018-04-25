@@ -1081,44 +1081,6 @@ static const struct of_device_id rcar_pcie_of_match[] = {
 	{},
 };
 
-static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
-{
-	int err;
-	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
-	resource_size_t iobase;
-	struct resource_entry *win, *tmp;
-
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
-					       &iobase);
-	if (err)
-		return err;
-
-	err = devm_request_pci_bus_resources(dev, &pci->resources);
-	if (err)
-		goto out_release_res;
-
-	resource_list_for_each_entry_safe(win, tmp, &pci->resources) {
-		struct resource *res = win->res;
-
-		if (resource_type(res) == IORESOURCE_IO) {
-			err = pci_remap_iospace(res, iobase);
-			if (err) {
-				dev_warn(dev, "error %d: failed to map resource %pR\n",
-					 err, res);
-
-				resource_list_destroy_entry(win);
-			}
-		}
-	}
-
-	return 0;
-
-out_release_res:
-	pci_free_resource_list(&pci->resources);
-	return err;
-}
-
 static int rcar_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1136,9 +1098,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	pcie->dev = dev;
 
-	INIT_LIST_HEAD(&pcie->resources);
-
-	err = rcar_pcie_parse_request_of_pci_ranges(pcie);
+	err = pci_parse_request_of_pci_ranges(dev, &pcie->resources, NULL);
 	if (err)
 		goto err_free_bridge;
 
