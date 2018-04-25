@@ -549,7 +549,6 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		if (nr_maps < 0) {
 			printf("Error: Failed loading ELF maps (errno:%d):%s\n",
 			       nr_maps, strerror(-nr_maps));
-			ret = 1;
 			goto done;
 		}
 		if (load_maps(map_data, nr_maps, fixup_map))
@@ -615,7 +614,6 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		}
 	}
 
-	ret = 0;
 done:
 	close(fd);
 	return ret;
