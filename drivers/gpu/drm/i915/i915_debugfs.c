@@ -2603,6 +2603,26 @@ static const char *psr2_live_status(u32 val)
 	return "unknown";
 }
 
+static const char *psr_sink_status(u8 val)
+{
+	static const char * const sink_status[] = {
+		"inactive",
+		"transition to active, capture and display",
+		"active, display from RFB",
+		"active, capture and display on sink device timings",
+		"transition to inactive, capture and display, timing re-sync",
+		"reserved",
+		"reserved",
+		"sink internal error"
+	};
+
+	val &= DP_PSR_SINK_STATE_MASK;
+	if (val < ARRAY_SIZE(sink_status))
+		return sink_status[val];
+
+	return "unknown";
+}
+
 static int i915_edp_psr_status(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2683,6 +2703,15 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "EDP_PSR2_STATUS: %x [%s]\n",
 			   psr2, psr2_live_status(psr2));
+	}
+
+	if (dev_priv->psr.enabled) {
+		struct drm_dp_aux *aux = &dev_priv->psr.enabled->aux;
+		u8 val;
+
+		if (drm_dp_dpcd_readb(aux, DP_PSR_STATUS, &val) == 1)
+			seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val,
+				   psr_sink_status(val));
 	}
 	mutex_unlock(&dev_priv->psr.lock);
 
