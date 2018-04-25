@@ -229,7 +229,7 @@ struct join_bss_param {
 
 static struct host_if_drv *terminated_handle;
 bool wilc_optaining_ip;
-static u8 P2P_LISTEN_STATE;
+static u8 p2p_listen_state;
 static struct workqueue_struct *hif_workqueue;
 static struct completion hif_thread_comp;
 static struct completion hif_driver_comp;
@@ -2245,7 +2245,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 
 error:
 	{
-		P2P_LISTEN_STATE = 1;
+		p2p_listen_state = 1;
 		hif_drv->remain_on_ch_timer_vif = vif;
 		mod_timer(&hif_drv->remain_on_ch_timer,
 			  jiffies +
@@ -2301,7 +2301,7 @@ static u32 handle_listen_state_expired(struct wilc_vif *vif,
 	s32 result = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (P2P_LISTEN_STATE) {
+	if (p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = (u16)WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
@@ -2326,7 +2326,7 @@ static u32 handle_listen_state_expired(struct wilc_vif *vif,
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
 						      hif_remain_ch->id);
 		}
-		P2P_LISTEN_STATE = 0;
+		p2p_listen_state = 0;
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
 		result = -EFAULT;
