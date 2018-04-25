@@ -2030,18 +2030,13 @@ static int ks_wlan_set_cts_mode(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq == CTS_MODE_FALSE) {	/* 0 */
-		priv->reg.cts_mode = CTS_MODE_FALSE;
-	} else if (*uwrq == CTS_MODE_TRUE) {	/* 1 */
-		if (priv->reg.phy_type == D_11G_ONLY_MODE ||
-		    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) {
-			priv->reg.cts_mode = CTS_MODE_TRUE;
-		} else {
-			priv->reg.cts_mode = CTS_MODE_FALSE;
-		}
-	} else {
+	if (*uwrq != CTS_MODE_FALSE && *uwrq != CTS_MODE_TRUE)
 		return -EINVAL;
-	}
+
+	priv->reg.cts_mode = (*uwrq == CTS_MODE_FALSE) ? *uwrq :
+			      (priv->reg.phy_type == D_11G_ONLY_MODE ||
+			       priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) ?
+			       *uwrq : !*uwrq;
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
