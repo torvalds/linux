@@ -316,17 +316,15 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	if (priv->reg.operation_mode == MODE_ADHOC ||
-	    priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
-		memcpy(priv->reg.bssid, &awrq->ap_addr.sa_data, ETH_ALEN);
-
-		if (is_valid_ether_addr((u8 *)priv->reg.bssid))
-			priv->need_commit |= SME_MODE_SET;
-
-	} else {
+	if (priv->reg.operation_mode != MODE_ADHOC &&
+	    priv->reg.operation_mode != MODE_INFRASTRUCTURE) {
 		eth_zero_addr(priv->reg.bssid);
 		return -EOPNOTSUPP;
 	}
+
+	ether_addr_copy(priv->reg.bssid, awrq->ap_addr.sa_data);
+	if (is_valid_ether_addr((u8 *)priv->reg.bssid))
+		priv->need_commit |= SME_MODE_SET;
 
 	netdev_dbg(dev, "bssid = %pM\n", priv->reg.bssid);
 
