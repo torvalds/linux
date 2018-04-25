@@ -17,6 +17,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/timekeeping.h>
 #include <linux/uaccess.h>
 
 #include "isp.h"
@@ -237,7 +238,7 @@ static int isp_stat_buf_queue(struct ispstat *stat)
 	if (!stat->active_buf)
 		return STAT_NO_BUF;
 
-	v4l2_get_timestamp(&stat->active_buf->ts);
+	ktime_get_ts64(&stat->active_buf->ts);
 
 	stat->active_buf->buf_size = stat->buf_size;
 	if (isp_stat_buf_check_magic(stat, stat->active_buf)) {
@@ -498,7 +499,8 @@ int omap3isp_stat_request_statistics(struct ispstat *stat,
 		return PTR_ERR(buf);
 	}
 
-	data->ts = buf->ts;
+	data->ts.tv_sec = buf->ts.tv_sec;
+	data->ts.tv_usec = buf->ts.tv_nsec / NSEC_PER_USEC;
 	data->config_counter = buf->config_counter;
 	data->frame_number = buf->frame_number;
 	data->buf_size = buf->buf_size;
@@ -506,6 +508,23 @@ int omap3isp_stat_request_statistics(struct ispstat *stat,
 	buf->empty = 1;
 	isp_stat_buf_release(stat);
 	mutex_unlock(&stat->ioctl_lock);
+
+	return 0;
+}
+
+int omap3isp_stat_request_statistics_time32(struct ispstat *stat,
+					struct omap3isp_stat_data_time32 *data)
+{
+	struct omap3isp_stat_data data64;
+	int ret;
+
+	ret = omap3isp_stat_request_statistics(stat, &data64);
+	if (ret)
+		return ret;
+
+	data->ts.tv_sec = data64.ts.tv_sec;
+	data->ts.tv_usec = data64.ts.tv_usec;
+	memcpy(&data->buf, &data64.buf, sizeof(*data) - sizeof(data->ts));
 
 	return 0;
 }

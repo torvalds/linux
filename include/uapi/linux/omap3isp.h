@@ -55,6 +55,8 @@
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct omap3isp_h3a_af_config)
 #define VIDIOC_OMAP3ISP_STAT_REQ \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct omap3isp_stat_data)
+#define VIDIOC_OMAP3ISP_STAT_REQ_TIME32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct omap3isp_stat_data_time32)
 #define VIDIOC_OMAP3ISP_STAT_EN \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 7, unsigned long)
 
@@ -165,7 +167,14 @@ struct omap3isp_h3a_aewb_config {
  * @config_counter: Number of the configuration associated with the data.
  */
 struct omap3isp_stat_data {
+#ifdef __KERNEL__
+	struct {
+		__s64	tv_sec;
+		__s64	tv_usec;
+	} ts;
+#else
 	struct timeval ts;
+#endif
 	void __user *buf;
 	__u32 buf_size;
 	__u16 frame_number;
@@ -173,6 +182,19 @@ struct omap3isp_stat_data {
 	__u16 config_counter;
 };
 
+#ifdef __KERNEL__
+struct omap3isp_stat_data_time32 {
+	struct {
+		__s32	tv_sec;
+		__s32	tv_usec;
+	} ts;
+	__u32 buf;
+	__u32 buf_size;
+	__u16 frame_number;
+	__u16 cur_frame;
+	__u16 config_counter;
+};
+#endif
 
 /* Histogram related structs */
 
