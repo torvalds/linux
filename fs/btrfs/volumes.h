@@ -329,12 +329,12 @@ struct btrfs_raid_attr {
 	int tolerated_failures; /* max tolerated fail devs */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
+	int mindev_error;	/* error code if min devs requisite is unmet */
 	const char raid_name[8]; /* name of the raid */
 	u64 bg_flag;		/* block group flag of the raid */
 };
 
 extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
-extern const int btrfs_raid_mindev_error[BTRFS_NR_RAID_TYPES];
 
 struct map_lookup {
 	u64 type;
