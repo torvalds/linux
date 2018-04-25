@@ -422,12 +422,14 @@ void mt76_txq_schedule(struct mt76_dev *dev, struct mt76_queue *hwq)
 {
 	int len;
 
+	rcu_read_lock();
 	do {
 		if (hwq->swq_queued >= 4 || list_empty(&hwq->swq))
 			break;
 
 		len = mt76_txq_schedule_list(dev, hwq);
 	} while (len > 0);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(mt76_txq_schedule);
 
