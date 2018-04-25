@@ -346,7 +346,7 @@ static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 
 	/* for SLEEP MODE */
 	if (is_connect_status(priv->connect_status))
-		memcpy(awrq->ap_addr.sa_data, priv->current_ap.bssid, ETH_ALEN);
+		ether_addr_copy(awrq->ap_addr.sa_data, priv->current_ap.bssid);
 	else
 		eth_zero_addr(awrq->ap_addr.sa_data);
 
