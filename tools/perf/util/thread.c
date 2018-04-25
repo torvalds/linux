@@ -371,8 +371,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 	return thread__clone_map_groups(thread, parent);
 }
 
-void thread__find_cpumode_addr_location(struct thread *thread,
-					enum map_type type, u64 addr,
+void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 					struct addr_location *al)
 {
 	size_t i;
@@ -384,7 +383,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(cpumodes); i++) {
-		__thread__find_symbol(thread, cpumodes[i], type, addr, al);
+		thread__find_symbol(thread, cpumodes[i], addr, al);
 		if (al->map)
 			break;
 	}

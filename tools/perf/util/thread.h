@@ -110,8 +110,7 @@ static inline struct symbol *thread__find_symbol(struct thread *thread, u8 cpumo
 	return __thread__find_symbol(thread, cpumode, MAP__FUNCTION, addr, al);
 }
 
-void thread__find_cpumode_addr_location(struct thread *thread,
-					enum map_type type, u64 addr,
+void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 					struct addr_location *al);
 
 static inline void *thread__priv(struct thread *thread)
