@@ -99,14 +99,18 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 
 /* Must be called with either RTNL or rcu_read_lock */
 struct nfp_fl_payload *
-nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie)
+nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
+			   struct net_device *netdev, __be32 host_ctx)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *flower_entry;
 
 	hash_for_each_possible_rcu(priv->flow_table, flower_entry, link,
 				   tc_flower_cookie)
-		if (flower_entry->tc_flower_cookie == tc_flower_cookie)
+		if (flower_entry->tc_flower_cookie == tc_flower_cookie &&
+		    (!netdev || flower_entry->ingress_dev == netdev) &&
+		    (host_ctx == NFP_FL_STATS_CTX_DONT_CARE ||
+		     flower_entry->meta.host_ctx_id == host_ctx))
 			return flower_entry;
 
 	return NULL;
@@ -121,11 +125,9 @@ nfp_flower_update_stats(struct nfp_app *app, struct nfp_fl_stats_frame *stats)
 	flower_cookie = be64_to_cpu(stats->stats_cookie);
 
 	rcu_read_lock();
-	nfp_flow = nfp_flower_search_fl_table(app, flower_cookie);
+	nfp_flow = nfp_flower_search_fl_table(app, flower_cookie, NULL,
+					      stats->stats_con_id);
 	if (!nfp_flow)
-		goto exit_rcu_unlock;
-
-	if (nfp_flow->meta.host_ctx_id != stats->stats_con_id)
 		goto exit_rcu_unlock;
 
 	spin_lock(&nfp_flow->lock);
@@ -317,7 +319,8 @@ nfp_check_mask_remove(struct nfp_app *app, char *mask_data, u32 mask_len,
 
 int nfp_compile_flow_metadata(struct nfp_app *app,
 			      struct tc_cls_flower_offload *flow,
-			      struct nfp_fl_payload *nfp_flow)
+			      struct nfp_fl_payload *nfp_flow,
+			      struct net_device *netdev)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *check_entry;
@@ -348,7 +351,8 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	nfp_flow->stats.bytes = 0;
 	nfp_flow->stats.used = jiffies;
 
-	check_entry = nfp_flower_search_fl_table(app, flow->cookie);
+	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev,
+						 NFP_FL_STATS_CTX_DONT_CARE);
 	if (check_entry) {
 		if (nfp_release_stats_entry(app, stats_cxt))
 			return -EINVAL;
