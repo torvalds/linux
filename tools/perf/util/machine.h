@@ -245,7 +245,7 @@ static inline int machine__load_kallsyms(struct machine *machine, const char *fi
 	return __machine__load_kallsyms(machine, filename, MAP__FUNCTION);
 }
 
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type);
+int machine__load_vmlinux_path(struct machine *machine);
 
 size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
 				     bool (skip)(struct dso *dso, int parm), int parm);
