@@ -2777,6 +2777,40 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 	}
 }
 
+/* abs(insn.imm) will fit better into unrestricted reg immediate -
+ * convert add/sub of a negative number into a sub/add of a positive one.
+ */
+static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta;
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		struct bpf_insn insn = meta->insn;
+
+		if (meta->skip)
+			continue;
+
+		if (BPF_CLASS(insn.code) != BPF_ALU &&
+		    BPF_CLASS(insn.code) != BPF_ALU64)
+			continue;
+		if (BPF_SRC(insn.code) != BPF_K)
+			continue;
+		if (insn.imm >= 0)
+			continue;
+
+		if (BPF_OP(insn.code) == BPF_ADD)
+			insn.code = BPF_CLASS(insn.code) | BPF_SUB;
+		else if (BPF_OP(insn.code) == BPF_SUB)
+			insn.code = BPF_CLASS(insn.code) | BPF_ADD;
+		else
+			continue;
+
+		meta->insn.code = insn.code | BPF_K;
+
+		meta->insn.imm = -insn.imm;
+	}
+}
+
 /* Remove masking after load since our load guarantees this is not needed */
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
@@ -3212,6 +3246,7 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 {
 	nfp_bpf_opt_reg_init(nfp_prog);
 
+	nfp_bpf_opt_neg_add_sub(nfp_prog);
 	nfp_bpf_opt_ld_mask(nfp_prog);
 	nfp_bpf_opt_ld_shift(nfp_prog);
 	nfp_bpf_opt_ldst_gather(nfp_prog);
