@@ -3011,7 +3011,14 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	INIT_DELAYED_WORK(&qedf->grcdump_work, qedf_wq_grcdump);
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
 	/* Set a default prio in case DCBX doesn't converge */
-	qedf->prio = QEDF_DEFAULT_PRIO;
+	if (qedf_default_prio > -1) {
+		/*
+		 * This is the case where we pass a modparam in so we want to
+		 * honor it even if dcbx doesn't converge.
+		 */
+		qedf->prio = qedf_default_prio;
+	} else
+		qedf->prio = QEDF_DEFAULT_PRIO;
 
 	/*
 	 * Common probe. Takes care of basic hardware init and pci_*
