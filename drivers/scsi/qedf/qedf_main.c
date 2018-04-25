@@ -1649,6 +1649,15 @@ static int qedf_vport_destroy(struct fc_vport *vport)
 	struct Scsi_Host *shost = vport_to_shost(vport);
 	struct fc_lport *n_port = shost_priv(shost);
 	struct fc_lport *vn_port = vport->dd_data;
+	struct qedf_ctx *qedf = lport_priv(vn_port);
+
+	if (!qedf) {
+		QEDF_ERR(NULL, "qedf is NULL.\n");
+		goto out;
+	}
+
+	/* Set unloading bit on vport qedf_ctx to prevent more I/O */
+	set_bit(QEDF_UNLOADING, &qedf->flags);
 
 	mutex_lock(&n_port->lp_mutex);
 	list_del(&vn_port->list);
@@ -1675,6 +1684,7 @@ static int qedf_vport_destroy(struct fc_vport *vport)
 	if (vn_port->host)
 		scsi_host_put(vn_port->host);
 
+out:
 	return 0;
 }
 
