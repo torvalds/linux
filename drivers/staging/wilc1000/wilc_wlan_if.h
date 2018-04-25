@@ -49,8 +49,6 @@ struct sdio_cmd53 {
 
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
-#define WILC_MAC_STATUS_READY		0
-#define WILC_MAC_STATUS_CONNECT		1
 
 #define WILC_MAC_INDICATE_SCAN		0x2
 
