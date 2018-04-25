@@ -385,8 +385,7 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 {
 	struct fsl_ssi *ssi = dev_id;
 	struct regmap *regs = ssi->regs;
-	__be32 sisr;
-	__be32 sisr2;
+	u32 sisr, sisr2;
 
 	regmap_read(regs, REG_SSI_SISR, &sisr);
 
