@@ -2190,6 +2190,7 @@ static void qedf_recv_frame(struct qedf_ctx *qedf,
 	if (ntoh24(&dest_mac[3]) != ntoh24(fh->fh_d_id)) {
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2,
 		    "FC frame d_id mismatch with MAC %pM.\n", dest_mac);
+		kfree_skb(skb);
 		return;
 	}
 

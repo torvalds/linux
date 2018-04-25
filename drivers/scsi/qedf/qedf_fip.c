@@ -181,6 +181,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			    "Dropping CVL since FCF has not been selected "
 			    "yet.");
+			kfree_skb(skb);
 			return;
 		}
 
