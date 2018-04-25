@@ -1400,7 +1400,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (!load_lm_ptr)
 		return 0;
 
-	emit_csr_wr(nfp_prog, stack_reg(nfp_prog),  NFP_CSR_ACT_LM_ADDR0);
+	emit_csr_wr(nfp_prog, stack_reg(nfp_prog), NFP_CSR_ACT_LM_ADDR0);
 	wrp_nops(nfp_prog, 3);
 
 	return 0;
