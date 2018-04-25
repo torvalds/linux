@@ -745,7 +745,6 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;
-	u8 cmd = CMD_DMA_EXT_WRITE;
 
 	/*
 	 * has to be greated than 4
@@ -753,7 +752,7 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	if (size <= 4)
 		return 0;
 
-	result = spi_cmd_complete(wilc, cmd, addr, NULL, size, 0);
+	result = spi_cmd_complete(wilc, CMD_DMA_EXT_WRITE, addr, NULL, size, 0);
 	if (result != N_OK) {
 		dev_err(&spi->dev,
 			"Failed cmd, write block (%08x)...\n", addr);
@@ -798,13 +797,12 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 static int wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
-	u8 cmd = CMD_DMA_EXT_READ;
 	int result;
 
 	if (size <= 4)
 		return 0;
 
-	result = spi_cmd_complete(wilc, cmd, addr, buf, size, 0);
+	result = spi_cmd_complete(wilc, CMD_DMA_EXT_READ, addr, buf, size, 0);
 	if (result != N_OK) {
 		dev_err(&spi->dev, "Failed cmd, read block (%08x)...\n", addr);
 		return 0;
