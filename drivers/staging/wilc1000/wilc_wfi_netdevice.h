@@ -65,7 +65,7 @@ struct wilc_wfi_stats {
  * packets in and out, so there is place for a packet
  */
 
-#define num_reg_frame 2
+#define NUM_REG_FRAME 2
 
 struct wilc_wfi_key {
 	u8 *key;
@@ -146,7 +146,7 @@ struct wilc_vif {
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	struct frame_reg frame_reg[num_reg_frame];
+	struct frame_reg frame_reg[NUM_REG_FRAME];
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
