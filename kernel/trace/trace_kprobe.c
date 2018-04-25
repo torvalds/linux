@@ -14,6 +14,7 @@
 
 #include "trace_kprobe_selftest.h"
 #include "trace_probe.h"
+#include "trace_probe_tmpl.h"
 
 #define KPROBE_EVENT_SYSTEM "kprobes"
 #define KRETPROBE_MAXACTIVE_MAX 4096
@@ -119,160 +120,6 @@ static LIST_HEAD(probe_list);
 static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs);
 static int kretprobe_dispatcher(struct kretprobe_instance *ri,
 				struct pt_regs *regs);
-
-/* Memory fetching by symbol */
-struct symbol_cache {
-	char		*symbol;
-	long		offset;
-	unsigned long	addr;
-};
-
-unsigned long update_symbol_cache(struct symbol_cache *sc)
-{
-	sc->addr = (unsigned long)kallsyms_lookup_name(sc->symbol);
-
-	if (sc->addr)
-		sc->addr += sc->offset;
-
-	return sc->addr;
-}
-
-void free_symbol_cache(struct symbol_cache *sc)
-{
-	kfree(sc->symbol);
-	kfree(sc);
-}
-
-struct symbol_cache *alloc_symbol_cache(const char *sym, long offset)
-{
-	struct symbol_cache *sc;
-
-	if (!sym || strlen(sym) == 0)
-		return NULL;
-
-	sc = kzalloc(sizeof(struct symbol_cache), GFP_KERNEL);
-	if (!sc)
-		return NULL;
-
-	sc->symbol = kstrdup(sym, GFP_KERNEL);
-	if (!sc->symbol) {
-		kfree(sc);
-		return NULL;
-	}
-	sc->offset = offset;
-	update_symbol_cache(sc);
-
-	return sc;
-}
-
-/*
- * Kprobes-specific fetch functions
- */
-#define DEFINE_FETCH_stack(type)					\
-static void FETCH_FUNC_NAME(stack, type)(struct pt_regs *regs,		\
-					  void *offset, void *dest)	\
-{									\
-	*(type *)dest = (type)regs_get_kernel_stack_nth(regs,		\
-				(unsigned int)((unsigned long)offset));	\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(stack, type));
-
-DEFINE_BASIC_FETCH_FUNCS(stack)
-/* No string on the stack entry */
-#define fetch_stack_string	NULL
-#define fetch_stack_string_size	NULL
-
-#define DEFINE_FETCH_memory(type)					\
-static void FETCH_FUNC_NAME(memory, type)(struct pt_regs *regs,		\
-					  void *addr, void *dest)	\
-{									\
-	type retval;							\
-	if (probe_kernel_address(addr, retval))				\
-		*(type *)dest = 0;					\
-	else								\
-		*(type *)dest = retval;					\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(memory, type));
-
-DEFINE_BASIC_FETCH_FUNCS(memory)
-/*
- * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
- * length and relative data location.
- */
-static void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
-					    void *addr, void *dest)
-{
-	int maxlen = get_rloc_len(*(u32 *)dest);
-	u8 *dst = get_rloc_data(dest);
-	long ret;
-
-	if (!maxlen)
-		return;
-
-	/*
-	 * Try to get string again, since the string can be changed while
-	 * probing.
-	 */
-	ret = strncpy_from_unsafe(dst, addr, maxlen);
-
-	if (ret < 0) {	/* Failed to fetch string */
-		dst[0] = '\0';
-		*(u32 *)dest = make_data_rloc(0, get_rloc_offs(*(u32 *)dest));
-	} else {
-		*(u32 *)dest = make_data_rloc(ret, get_rloc_offs(*(u32 *)dest));
-	}
-}
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(memory, string));
-
-/* Return the length of string -- including null terminal byte */
-static void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
-						 void *addr, void *dest)
-{
-	mm_segment_t old_fs;
-	int ret, len = 0;
-	u8 c;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-
-	do {
-		ret = __copy_from_user_inatomic(&c, (u8 *)addr + len, 1);
-		len++;
-	} while (c && ret == 0 && len < MAX_STRING_SIZE);
-
-	pagefault_enable();
-	set_fs(old_fs);
-
-	if (ret < 0)	/* Failed to check the length */
-		*(u32 *)dest = 0;
-	else
-		*(u32 *)dest = len;
-}
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(memory, string_size));
-
-#define DEFINE_FETCH_symbol(type)					\
-void FETCH_FUNC_NAME(symbol, type)(struct pt_regs *regs, void *data, void *dest)\
-{									\
-	struct symbol_cache *sc = data;					\
-	if (sc->addr)							\
-		fetch_memory_##type(regs, (void *)sc->addr, dest);	\
-	else								\
-		*(type *)dest = 0;					\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(symbol, type));
-
-DEFINE_BASIC_FETCH_FUNCS(symbol)
-DEFINE_FETCH_symbol(string)
-DEFINE_FETCH_symbol(string_size)
-
-/* kprobes don't support file_offset fetch methods */
-#define fetch_file_offset_u8		NULL
-#define fetch_file_offset_u16		NULL
-#define fetch_file_offset_u32		NULL
-#define fetch_file_offset_u64		NULL
-#define fetch_file_offset_string	NULL
-#define fetch_file_offset_string_size	NULL
 
 /* Fetch type information table */
 static const struct fetch_type kprobes_fetch_type_table[] = {
@@ -529,7 +376,7 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 /* Internal register function - just handle k*probes and flags */
 static int __register_trace_kprobe(struct trace_kprobe *tk)
 {
-	int i, ret;
+	int ret;
 
 	if (trace_probe_is_registered(&tk->tp))
 		return -EINVAL;
@@ -539,9 +386,6 @@ static int __register_trace_kprobe(struct trace_kprobe *tk)
 			trace_kprobe_symbol(tk));
 		return -EINVAL;
 	}
-
-	for (i = 0; i < tk->tp.nr_args; i++)
-		traceprobe_update_arg(&tk->tp.args[i]);
 
 	/* Set/clear disabled flag according to tp->flag */
 	if (trace_probe_is_enabled(&tk->tp))
@@ -876,8 +720,8 @@ static int create_trace_kprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tk->tp.size, parg,
-						is_return, true,
-						kprobes_fetch_type_table);
+						 is_return, true,
+						 kprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
@@ -1030,6 +874,133 @@ static const struct file_operations kprobe_profile_ops = {
 	.llseek         = seq_lseek,
 	.release        = seq_release,
 };
+
+/* Kprobe specific fetch functions */
+
+/* Return the length of string -- including null terminal byte */
+static nokprobe_inline void
+fetch_store_strlen(unsigned long addr, void *dest)
+{
+	mm_segment_t old_fs;
+	int ret, len = 0;
+	u8 c;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	pagefault_disable();
+
+	do {
+		ret = __copy_from_user_inatomic(&c, (u8 *)addr + len, 1);
+		len++;
+	} while (c && ret == 0 && len < MAX_STRING_SIZE);
+
+	pagefault_enable();
+	set_fs(old_fs);
+
+	if (ret < 0)	/* Failed to check the length */
+		*(u32 *)dest = 0;
+	else
+		*(u32 *)dest = len;
+}
+
+/*
+ * Fetch a null-terminated string. Caller MUST set *(u32 *)buf with max
+ * length and relative data location.
+ */
+static nokprobe_inline void
+fetch_store_string(unsigned long addr, void *dest)
+{
+	int maxlen = get_rloc_len(*(u32 *)dest);
+	u8 *dst = get_rloc_data(dest);
+	long ret;
+
+	if (!maxlen)
+		return;
+
+	/*
+	 * Try to get string again, since the string can be changed while
+	 * probing.
+	 */
+	ret = strncpy_from_unsafe(dst, (void *)addr, maxlen);
+
+	if (ret < 0) {	/* Failed to fetch string */
+		dst[0] = '\0';
+		*(u32 *)dest = make_data_rloc(0, get_rloc_offs(*(u32 *)dest));
+	} else {
+		*(u32 *)dest = make_data_rloc(ret, get_rloc_offs(*(u32 *)dest));
+	}
+}
+
+/* Note that we don't verify it, since the code does not come from user space */
+static int
+process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
+		   bool pre)
+{
+	unsigned long val;
+	int ret;
+
+	/* 1st stage: get value from context */
+	switch (code->op) {
+	case FETCH_OP_REG:
+		val = regs_get_register(regs, code->param);
+		break;
+	case FETCH_OP_STACK:
+		val = regs_get_kernel_stack_nth(regs, code->param);
+		break;
+	case FETCH_OP_STACKP:
+		val = kernel_stack_pointer(regs);
+		break;
+	case FETCH_OP_RETVAL:
+		val = regs_return_value(regs);
+		break;
+	case FETCH_OP_IMM:
+		val = code->immediate;
+		break;
+	case FETCH_OP_COMM:
+		val = (unsigned long)current->comm;
+		break;
+	default:
+		return -EILSEQ;
+	}
+	code++;
+
+	/* 2nd stage: dereference memory if needed */
+	while (code->op == FETCH_OP_DEREF) {
+		ret = probe_kernel_read(&val, (void *)val + code->offset,
+					sizeof(val));
+		if (ret)
+			return ret;
+		code++;
+	}
+
+	/* 3rd stage: store value to buffer */
+	switch (code->op) {
+	case FETCH_OP_ST_RAW:
+		fetch_store_raw(val, code, dest);
+		break;
+	case FETCH_OP_ST_MEM:
+		probe_kernel_read(dest, (void *)val + code->offset, code->size);
+		break;
+	case FETCH_OP_ST_STRING:
+		if (pre)
+			fetch_store_strlen(val + code->offset, dest);
+		else
+			fetch_store_string(val + code->offset, dest);
+		break;
+	default:
+		return -EILSEQ;
+	}
+	code++;
+
+	/* 4th stage: modify stored value if needed */
+	if (code->op == FETCH_OP_MOD_BF) {
+		fetch_apply_bitfield(code, dest);
+		code++;
+	}
+
+	return code->op == FETCH_OP_END ? 0 : -EILSEQ;
+}
+NOKPROBE_SYMBOL(process_fetch_insn)
 
 /* Kprobe handler */
 static nokprobe_inline void

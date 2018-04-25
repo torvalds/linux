@@ -15,6 +15,7 @@
 #include <linux/rculist.h>
 
 #include "trace_probe.h"
+#include "trace_probe_tmpl.h"
 
 #define UPROBE_EVENT_SYSTEM	"uprobes"
 
@@ -99,37 +100,19 @@ static unsigned long get_user_stack_nth(struct pt_regs *regs, unsigned int n)
 /*
  * Uprobes-specific fetch functions
  */
-#define DEFINE_FETCH_stack(type)					\
-static void FETCH_FUNC_NAME(stack, type)(struct pt_regs *regs,		\
-					 void *offset, void *dest)	\
-{									\
-	*(type *)dest = (type)get_user_stack_nth(regs,			\
-					      ((unsigned long)offset)); \
-}
-DEFINE_BASIC_FETCH_FUNCS(stack)
-/* No string on the stack entry */
-#define fetch_stack_string	NULL
-#define fetch_stack_string_size	NULL
+static nokprobe_inline int
+probe_user_read(void *dest, void *src, size_t size)
+{
+	void __user *vaddr = (void __force __user *)src;
 
-#define DEFINE_FETCH_memory(type)					\
-static void FETCH_FUNC_NAME(memory, type)(struct pt_regs *regs,		\
-					  void *addr, void *dest)	\
-{									\
-	type retval;							\
-	void __user *vaddr = (void __force __user *) addr;		\
-									\
-	if (copy_from_user(&retval, vaddr, sizeof(type)))		\
-		*(type *)dest = 0;					\
-	else								\
-		*(type *) dest = retval;				\
+	return copy_from_user(dest, vaddr, size);
 }
-DEFINE_BASIC_FETCH_FUNCS(memory)
 /*
  * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
  * length and relative data location.
  */
-static void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
-					    void *addr, void *dest)
+static nokprobe_inline void
+fetch_store_string(unsigned long addr, void *dest)
 {
 	long ret;
 	u32 rloc = *(u32 *)dest;
@@ -152,8 +135,9 @@ static void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
 	}
 }
 
-static void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
-						 void *addr, void *dest)
+/* Return the length of string -- including null terminal byte */
+static nokprobe_inline void
+fetch_store_strlen(unsigned long addr, void *dest)
 {
 	int len;
 	void __user *vaddr = (void __force __user *) addr;
@@ -166,7 +150,7 @@ static void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
 		*(u32 *)dest = len;
 }
 
-static unsigned long translate_user_vaddr(void *file_offset)
+static unsigned long translate_user_vaddr(unsigned long file_offset)
 {
 	unsigned long base_addr;
 	struct uprobe_dispatch_data *udd;
@@ -174,20 +158,8 @@ static unsigned long translate_user_vaddr(void *file_offset)
 	udd = (void *) current->utask->vaddr;
 
 	base_addr = udd->bp_addr - udd->tu->offset;
-	return base_addr + (unsigned long)file_offset;
+	return base_addr + file_offset;
 }
-
-#define DEFINE_FETCH_file_offset(type)					\
-static void FETCH_FUNC_NAME(file_offset, type)(struct pt_regs *regs,	\
-					       void *offset, void *dest)\
-{									\
-	void *vaddr = (void *)translate_user_vaddr(offset);		\
-									\
-	FETCH_FUNC_NAME(memory, type)(regs, vaddr, dest);		\
-}
-DEFINE_BASIC_FETCH_FUNCS(file_offset)
-DEFINE_FETCH_file_offset(string)
-DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
 static const struct fetch_type uprobes_fetch_type_table[] = {
@@ -212,6 +184,77 @@ static const struct fetch_type uprobes_fetch_type_table[] = {
 
 	ASSIGN_FETCH_TYPE_END
 };
+
+/* Note that we don't verify it, since the code does not come from user space */
+static int
+process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
+		   bool pre)
+{
+	unsigned long val;
+	int ret;
+
+	/* 1st stage: get value from context */
+	switch (code->op) {
+	case FETCH_OP_REG:
+		val = regs_get_register(regs, code->param);
+		break;
+	case FETCH_OP_STACK:
+		val = get_user_stack_nth(regs, code->param);
+		break;
+	case FETCH_OP_STACKP:
+		val = user_stack_pointer(regs);
+		break;
+	case FETCH_OP_RETVAL:
+		val = regs_return_value(regs);
+		break;
+	case FETCH_OP_IMM:
+		val = code->immediate;
+		break;
+	case FETCH_OP_FOFFS:
+		val = translate_user_vaddr(code->immediate);
+		break;
+	default:
+		return -EILSEQ;
+	}
+	code++;
+
+	/* 2nd stage: dereference memory if needed */
+	while (code->op == FETCH_OP_DEREF) {
+		ret = probe_user_read(&val, (void *)val + code->offset,
+				      sizeof(val));
+		if (ret)
+			return ret;
+		code++;
+	}
+
+	/* 3rd stage: store value to buffer */
+	switch (code->op) {
+	case FETCH_OP_ST_RAW:
+		fetch_store_raw(val, code, dest);
+		break;
+	case FETCH_OP_ST_MEM:
+		probe_user_read(dest, (void *)val + code->offset, code->size);
+		break;
+	case FETCH_OP_ST_STRING:
+		if (pre)
+			fetch_store_strlen(val + code->offset, dest);
+		else
+			fetch_store_string(val + code->offset, dest);
+		break;
+	default:
+		return -EILSEQ;
+	}
+	code++;
+
+	/* 4th stage: modify stored value if needed */
+	if (code->op == FETCH_OP_MOD_BF) {
+		fetch_apply_bitfield(code, dest);
+		code++;
+	}
+
+	return code->op == FETCH_OP_END ? 0 : -EILSEQ;
+}
+NOKPROBE_SYMBOL(process_fetch_insn)
 
 static inline void init_trace_uprobe_filter(struct trace_uprobe_filter *filter)
 {
