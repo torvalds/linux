@@ -931,6 +931,15 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 		return 0;
 	}
 
+	if (!qedf->pdev->msix_enabled) {
+		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
+		    "Completing sc_cmd=%p DID_NO_CONNECT as MSI-X is not enabled.\n",
+		    sc_cmd);
+		sc_cmd->result = DID_NO_CONNECT << 16;
+		sc_cmd->scsi_done(sc_cmd);
+		return 0;
+	}
+
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
