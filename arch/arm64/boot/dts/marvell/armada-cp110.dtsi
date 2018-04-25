@@ -141,6 +141,8 @@
 			#size-cells = <0>;
 			compatible = "marvell,xmdio";
 			reg = <0x12a600 0x10>;
+			clocks = <&CP110_LABEL(clk) 1 5>,
+				 <&CP110_LABEL(clk) 1 6>, <&CP110_LABEL(clk) 1 18>;
 			status = "disabled";
 		};
 
