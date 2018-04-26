@@ -87,6 +87,7 @@ struct rcu_node {
 	unsigned long completed; /* Last GP completed for this node. */
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
+	unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
 	unsigned long completedqs; /* All QSes done for this node. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
@@ -211,6 +212,7 @@ struct rcu_data {
 					/*  in order to detect GP end. */
 	unsigned long	gpnum;		/* Highest gp number that this CPU */
 					/*  is aware of having started. */
+	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
@@ -343,6 +345,7 @@ struct rcu_state {
 						/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
+	unsigned long gp_seq;			/* Grace-period sequence #. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
 	struct swait_queue_head gp_wq;		/* Where GP task waits. */
 	short gp_flags;				/* Commands for GP task. */

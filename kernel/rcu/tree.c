@@ -97,6 +97,7 @@ struct rcu_state sname##_state = { \
 	.gp_state = RCU_GP_IDLE, \
 	.gpnum = 0UL - 300UL, \
 	.completed = 0UL - 300UL, \
+	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT, \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
@@ -1849,6 +1850,8 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		WRITE_ONCE(rdp->gpwrap, false);
 		rcu_gpnum_ovf(rnp, rdp);
 	}
+	if (rdp->gp_seq != rnp->gp_seq)
+		rdp->gp_seq = rnp->gp_seq;
 	return ret;
 }
 
@@ -1910,7 +1913,10 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	/* Advance to a new grace period and initialize state. */
 	record_gp_stall_check_time(rsp);
 	/* Record GP times before starting GP, hence smp_store_release(). */
+	WARN_ON_ONCE(rsp->gpnum << RCU_SEQ_CTR_SHIFT != rsp->gp_seq);
 	smp_store_release(&rsp->gpnum, rsp->gpnum + 1);
+	smp_mb(); /* Pairs with barriers in stall-warning code. */
+	rcu_seq_start(&rsp->gp_seq);
 	trace_rcu_grace_period(rsp->name, rsp->gpnum, TPS("start"));
 	raw_spin_unlock_irq_rcu_node(rnp);
 
@@ -1984,6 +1990,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 		WRITE_ONCE(rnp->gpnum, rsp->gpnum);
 		if (WARN_ON_ONCE(rnp->completed != rsp->completed))
 			WRITE_ONCE(rnp->completed, rsp->completed);
+		WRITE_ONCE(rnp->gp_seq, rsp->gp_seq);
 		if (rnp == rdp->mynode)
 			(void)__note_gp_changes(rsp, rnp, rdp);
 		rcu_preempt_boost_start_gp(rnp);
@@ -2050,6 +2057,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 {
 	unsigned long gp_duration;
 	bool needgp = false;
+	unsigned long new_gp_seq;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	struct swait_queue_head *sq;
@@ -2079,12 +2087,15 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	 * all of the rcu_node structures before the beginning of the next
 	 * grace period is recorded in any of the rcu_node structures.
 	 */
+	new_gp_seq = rsp->gp_seq;
+	rcu_seq_end(&new_gp_seq);
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		raw_spin_lock_irq_rcu_node(rnp);
 		if (WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)))
 			dump_blkd_tasks(rnp, 10);
 		WARN_ON_ONCE(rnp->qsmask);
 		WRITE_ONCE(rnp->completed, rsp->gpnum);
+		WRITE_ONCE(rnp->gp_seq, new_gp_seq);
 		rdp = this_cpu_ptr(rsp->rda);
 		if (rnp == rdp->mynode)
 			needgp = __note_gp_changes(rsp, rnp, rdp) || needgp;
@@ -2098,10 +2109,11 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		rcu_gp_slow(rsp, gp_cleanup_delay);
 	}
 	rnp = rcu_get_root(rsp);
-	raw_spin_lock_irq_rcu_node(rnp); /* Order GP before ->completed update. */
+	raw_spin_lock_irq_rcu_node(rnp); /* GP before rsp->gp_seq update. */
 
 	/* Declare grace period done. */
 	WRITE_ONCE(rsp->completed, rsp->gpnum);
+	rcu_seq_end(&rsp->gp_seq);
 	trace_rcu_grace_period(rsp->name, rsp->completed, TPS("end"));
 	rsp->gp_state = RCU_GP_IDLE;
 	/* Check for GP requests since above loop. */
@@ -3612,6 +3624,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->beenonline = true;	 /* We have now been online. */
 	rdp->gpnum = rnp->completed; /* Make CPU later note any new GP. */
 	rdp->completed = rnp->completed;
+	rdp->gp_seq = rnp->gp_seq;
 	rdp->cpu_no_qs.b.norm = true;
 	rdp->rcu_qs_ctr_snap = per_cpu(rcu_dynticks.rcu_qs_ctr, cpu);
 	rdp->core_needs_qs = false;
@@ -3991,6 +4004,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 						   &rcu_fqs_class[i], fqs[i]);
 			rnp->gpnum = rsp->gpnum;
 			rnp->completed = rsp->completed;
+			rnp->gp_seq = rsp->gp_seq;
 			rnp->completedqs = rsp->completed;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
