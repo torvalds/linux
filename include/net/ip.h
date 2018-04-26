@@ -171,7 +171,7 @@ struct sk_buff *ip_make_skb(struct sock *sk, struct flowi4 *fl4,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length, int transhdrlen,
 			    struct ipcm_cookie *ipc, struct rtable **rtp,
-			    unsigned int flags);
+			    struct inet_cork *cork, unsigned int flags);
 
 static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 {
