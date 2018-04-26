@@ -1805,6 +1805,48 @@ TRACE_EVENT(btrfs_inode_mod_outstanding_extents,
 			__entry->ino, __entry->mod)
 );
 
+DECLARE_EVENT_CLASS(btrfs__block_group,
+	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+
+	TP_ARGS(bg_cache),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	bytenr		)
+		__field(	u64,	len		)
+		__field(	u64,	used		)
+		__field(	u64,	flags		)
+	),
+
+	TP_fast_assign_btrfs(bg_cache->fs_info,
+		__entry->bytenr = bg_cache->key.objectid,
+		__entry->len	= bg_cache->key.offset,
+		__entry->used	= btrfs_block_group_used(&bg_cache->item);
+		__entry->flags	= bg_cache->flags;
+	),
+
+	TP_printk_btrfs("bg bytenr=%llu len=%llu used=%llu flags=%llu(%s)",
+		__entry->bytenr, __entry->len, __entry->used, __entry->flags,
+		__print_flags(__entry->flags, "|", BTRFS_GROUP_FLAGS))
+);
+
+DEFINE_EVENT(btrfs__block_group, btrfs_remove_block_group,
+	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+
+	TP_ARGS(bg_cache)
+);
+
+DEFINE_EVENT(btrfs__block_group, btrfs_add_unused_block_group,
+	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+
+	TP_ARGS(bg_cache)
+);
+
+DEFINE_EVENT(btrfs__block_group, btrfs_skip_unused_block_group,
+	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+
+	TP_ARGS(bg_cache)
+);
+
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */
