@@ -2185,9 +2185,6 @@ static void genpd_dev_pm_sync(struct device *dev)
  * Parse device's OF node to find a PM domain specifier. If such is found,
  * attaches the device to retrieved pm_domain ops.
  *
- * Both generic and legacy Samsung-specific DT bindings are supported to keep
- * backwards compatibility with existing DTBs.
- *
  * Returns 0 on successfully attached PM domain or negative error code. Note
  * that if a power-domain exists for the device, but it cannot be found or
  * turned on, then return -EPROBE_DEFER to ensure that the device is not
