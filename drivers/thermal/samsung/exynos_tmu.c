@@ -409,15 +409,13 @@ static void exynos4210_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
-	const struct thermal_trip * const trips =
-		of_thermal_get_trip_points(tz);
-	unsigned long temp;
-	int i;
+	int i, temp;
 
 	sanitize_temp_error(data, readl(data->base + EXYNOS_TMU_REG_TRIMINFO));
 
 	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
-		temp = trips[i].temperature / MCELSIUS;
+		tz->ops->get_trip_temp(tz, i, &temp);
+		temp /= MCELSIUS;
 		exynos4210_tmu_set_trip_temp(data, i, temp);
 	}
 }
@@ -455,11 +453,9 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
-	const struct thermal_trip * const trips =
-		of_thermal_get_trip_points(tz);
-	unsigned long temp, hyst;
 	unsigned int trim_info, ctrl;
 	int i, ntrips = min_t(int, of_thermal_get_ntrips(tz), data->ntrip);
+	int temp, hyst;
 
 	if (data->soc == SOC_ARCH_EXYNOS3250 ||
 	    data->soc == SOC_ARCH_EXYNOS4412 ||
@@ -484,10 +480,12 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 
 	/* Write temperature code for rising and falling threshold */
 	for (i = 0; i < ntrips; i++) {
-		temp = trips[i].temperature / MCELSIUS;
+		tz->ops->get_trip_temp(tz, i, &temp);
+		temp /= MCELSIUS;
 		exynos4412_tmu_set_trip_temp(data, i, temp);
 
-		hyst = trips[i].hysteresis / MCELSIUS;
+		tz->ops->get_trip_hyst(tz, i, &hyst);
+		hyst /= MCELSIUS;
 		exynos4412_tmu_set_trip_hyst(data, i, temp, hyst);
 	}
 }
