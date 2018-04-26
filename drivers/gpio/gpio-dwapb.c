@@ -441,14 +441,19 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
 	if (!pp->irq_shared) {
-		irq_set_chained_handler_and_data(pp->irq, dwapb_irq_handler,
-						 gpio);
+		int i;
+
+		for (i = 0; i < pp->ngpio; i++) {
+			if (pp->irq[i])
+				irq_set_chained_handler_and_data(pp->irq[i],
+						dwapb_irq_handler, gpio);
+		}
 	} else {
 		/*
 		 * Request a shared IRQ since where MFD would have devices
 		 * using the same irq pin
 		 */
-		err = devm_request_irq(gpio->dev, pp->irq,
+		err = devm_request_irq(gpio->dev, pp->irq[0],
 				       dwapb_irq_handler_mfd,
 				       IRQF_SHARED, "gpio-dwapb-mfd", gpio);
 		if (err) {
@@ -524,7 +529,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	if (pp->idx == 0)
 		port->gc.set_config = dwapb_gpio_set_config;
 
-	if (pp->irq)
+	if (pp->has_irq)
 		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add_data(&port->gc, port);
@@ -535,7 +540,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		port->is_registered = true;
 
 	/* Add GPIO-signaled ACPI event support */
-	if (pp->irq)
+	if (pp->has_irq)
 		acpi_gpiochip_request_interrupts(&port->gc);
 
 	return err;
@@ -601,13 +606,36 @@ dwapb_gpio_get_pdata(struct device *dev)
 		if (dev->of_node && pp->idx == 0 &&
 			fwnode_property_read_bool(fwnode,
 						  "interrupt-controller")) {
-			pp->irq = irq_of_parse_and_map(to_of_node(fwnode), 0);
-			if (!pp->irq)
+			struct device_node *np = to_of_node(fwnode);
+			unsigned int j;
+
+			/*
+			 * The IP has configuration options to allow a single
+			 * combined interrupt or one per gpio. If one per gpio,
+			 * some might not be used.
+			 */
+			for (j = 0; j < pp->ngpio; j++) {
+				int irq = of_irq_get(np, j);
+				if (irq < 0)
+					continue;
+
+				pp->irq[j] = irq;
+				pp->has_irq = true;
+			}
+
+			if (!pp->has_irq)
 				dev_warn(dev, "no irq for port%d\n", pp->idx);
 		}
 
-		if (has_acpi_companion(dev) && pp->idx == 0)
-			pp->irq = platform_get_irq(to_platform_device(dev), 0);
+		if (has_acpi_companion(dev) && pp->idx == 0) {
+			unsigned int j;
+
+			for (j = 0; j < pp->ngpio; j++) {
+				pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
+				if (pp->irq[j])
+					pp->has_irq = true;
+			}
+		}
 
 		pp->irq_shared	= false;
 		pp->gpio_base	= -1;
