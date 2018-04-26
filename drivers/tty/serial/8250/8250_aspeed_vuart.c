@@ -226,7 +226,8 @@ static void aspeed_vuart_unthrottle_exp(struct timer_list *timer)
 	struct uart_8250_port *up = vuart->port;
 
 	if (!tty_buffer_space_avail(&up->port.state->port)) {
-		mod_timer(&vuart->unthrottle_timer, unthrottle_timeout);
+		mod_timer(&vuart->unthrottle_timer,
+			  jiffies + unthrottle_timeout);
 		return;
 	}
 
@@ -271,7 +272,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 			if (!timer_pending(&vuart->unthrottle_timer)) {
 				vuart->port = up;
 				mod_timer(&vuart->unthrottle_timer,
-						unthrottle_timeout);
+					  jiffies + unthrottle_timeout);
 			}
 
 		} else {
