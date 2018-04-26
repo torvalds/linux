@@ -447,7 +447,7 @@ struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
 }
 
 /* Can we use the upper's buffer directly for DMA? */
-void prepare_data_dma(struct gpmi_nand_data *this, const void *buf, int len,
+bool prepare_data_dma(struct gpmi_nand_data *this, const void *buf, int len,
 		      enum dma_data_direction dr)
 {
 	struct scatterlist *sgl = &this->data_sgl;
@@ -460,8 +460,7 @@ void prepare_data_dma(struct gpmi_nand_data *this, const void *buf, int len,
 		if (ret == 0)
 			goto map_fail;
 
-		this->direct_dma_map_ok = true;
-		return;
+		return true;
 	}
 
 map_fail:
@@ -473,7 +472,7 @@ map_fail:
 
 	dma_map_sg(this->dev, sgl, 1, dr);
 
-	this->direct_dma_map_ok = false;
+	return false;
 }
 
 /* This will be called after the DMA operation is finished. */
@@ -966,12 +965,12 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	unsigned char *status;
 	unsigned int  max_bitflips = 0;
 	int           ret;
+	bool          direct = false;
 
 	dev_dbg(this->dev, "page number is : %d\n", page);
 
 	payload_virt = this->payload_virt;
 	payload_phys = this->payload_phys;
-	this->direct_dma_map_ok = false;
 
 	if (virt_addr_valid(buf)) {
 		dma_addr_t dest_phys;
@@ -981,7 +980,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 		if (!dma_mapping_error(this->dev, dest_phys)) {
 			payload_virt = buf;
 			payload_phys = dest_phys;
-			this->direct_dma_map_ok = true;
+			direct = true;
 		}
 	}
 
@@ -991,7 +990,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	/* go! */
 	ret = gpmi_read_page(this, payload_phys, auxiliary_phys);
 
-	if (this->direct_dma_map_ok)
+	if (direct)
 		dma_unmap_single(this->dev, payload_phys, nfc_geo->payload_size,
 				 DMA_FROM_DEVICE);
 
@@ -1003,7 +1002,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	/* Loop over status bytes, accumulating ECC status. */
 	status = auxiliary_virt + nfc_geo->auxiliary_status_offset;
 
-	if (!this->direct_dma_map_ok)
+	if (!direct)
 		memcpy(buf, this->payload_virt, nfc_geo->payload_size);
 
 	for (i = 0; i < nfc_geo->ecc_chunk_count; i++, status++) {

@@ -636,6 +636,7 @@ int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 	int chip = this->current_chip;
 	int ret;
 	u32 pio[2];
+	bool direct;
 
 	/* [1] : send PIO */
 	pio[0] = BF_GPMI_CTRL0_COMMAND_MODE(BV_GPMI_CTRL0_COMMAND_MODE__READ)
@@ -652,7 +653,7 @@ int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 		return -EINVAL;
 
 	/* [2] : send DMA request */
-	prepare_data_dma(this, buf, len, DMA_FROM_DEVICE);
+	direct = prepare_data_dma(this, buf, len, DMA_FROM_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -664,7 +665,7 @@ int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 	ret = start_dma_without_bch_irq(this, desc);
 
 	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_FROM_DEVICE);
-	if (this->direct_dma_map_ok == false)
+	if (!direct)
 		memcpy(buf, this->data_buffer_dma, len);
 
 	return ret;

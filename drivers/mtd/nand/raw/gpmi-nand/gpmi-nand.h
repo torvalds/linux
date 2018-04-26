@@ -141,9 +141,6 @@ struct gpmi_nand_data {
 	int			current_chip;
 	unsigned int		command_length;
 
-	/* for DMA operations */
-	bool			direct_dma_map_ok;
-
 	struct scatterlist	cmd_sgl;
 	char			*cmd_buffer;
 
@@ -174,7 +171,7 @@ struct gpmi_nand_data {
 /* Common Services */
 int common_nfc_set_geometry(struct gpmi_nand_data *);
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *);
-void prepare_data_dma(struct gpmi_nand_data *, const void *buf, int len,
+bool prepare_data_dma(struct gpmi_nand_data *, const void *buf, int len,
 		      enum dma_data_direction dr);
 int start_dma_without_bch_irq(struct gpmi_nand_data *,
 			      struct dma_async_tx_descriptor *);
