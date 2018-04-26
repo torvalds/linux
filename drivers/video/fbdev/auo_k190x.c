@@ -1076,7 +1076,6 @@ int auok190x_common_probe(struct platform_device *pdev,
 				     sizeof(struct fb_deferred_io),
 				     GFP_KERNEL);
 	if (!info->fbdefio) {
-		dev_err(info->device, "Failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto err_defio;
 	}
