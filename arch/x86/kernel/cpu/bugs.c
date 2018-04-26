@@ -27,6 +27,7 @@
 #include <asm/intel-family.h>
 
 static void __init spectre_v2_select_mitigation(void);
+static void __init ssb_select_mitigation(void);
 
 /*
  * Our boot-time value of the SPEC_CTRL MSR. We read it once so that any
@@ -52,6 +53,12 @@ void __init check_bugs(void)
 
 	/* Select the proper spectre mitigation before patching alternatives */
 	spectre_v2_select_mitigation();
+
+	/*
+	 * Select proper mitigation for any exposure to the Speculative Store
+	 * Bypass vulnerability.
+	 */
+	ssb_select_mitigation();
 
 #ifdef CONFIG_X86_32
 	/*
@@ -358,6 +365,99 @@ retpoline_auto:
 }
 
 #undef pr_fmt
+#define pr_fmt(fmt)	"Speculative Store Bypass: " fmt
+
+static enum ssb_mitigation ssb_mode = SPEC_STORE_BYPASS_NONE;
+
+/* The kernel command line selection */
+enum ssb_mitigation_cmd {
+	SPEC_STORE_BYPASS_CMD_NONE,
+	SPEC_STORE_BYPASS_CMD_AUTO,
+	SPEC_STORE_BYPASS_CMD_ON,
+};
+
+static const char *ssb_strings[] = {
+	[SPEC_STORE_BYPASS_NONE]	= "Vulnerable",
+	[SPEC_STORE_BYPASS_DISABLE]	= "Mitigation: Speculative Store Bypass disabled"
+};
+
+static const struct {
+	const char *option;
+	enum ssb_mitigation_cmd cmd;
+} ssb_mitigation_options[] = {
+	{ "auto",	SPEC_STORE_BYPASS_CMD_AUTO }, /* Platform decides */
+	{ "on",		SPEC_STORE_BYPASS_CMD_ON },   /* Disable Speculative Store Bypass */
+	{ "off",	SPEC_STORE_BYPASS_CMD_NONE }, /* Don't touch Speculative Store Bypass */
+};
+
+static enum ssb_mitigation_cmd __init ssb_parse_cmdline(void)
+{
+	enum ssb_mitigation_cmd cmd = SPEC_STORE_BYPASS_CMD_AUTO;
+	char arg[20];
+	int ret, i;
+
+	if (cmdline_find_option_bool(boot_command_line, "nospec_store_bypass_disable")) {
+		return SPEC_STORE_BYPASS_CMD_NONE;
+	} else {
+		ret = cmdline_find_option(boot_command_line, "spec_store_bypass_disable",
+					  arg, sizeof(arg));
+		if (ret < 0)
+			return SPEC_STORE_BYPASS_CMD_AUTO;
+
+		for (i = 0; i < ARRAY_SIZE(ssb_mitigation_options); i++) {
+			if (!match_option(arg, ret, ssb_mitigation_options[i].option))
+				continue;
+
+			cmd = ssb_mitigation_options[i].cmd;
+			break;
+		}
+
+		if (i >= ARRAY_SIZE(ssb_mitigation_options)) {
+			pr_err("unknown option (%s). Switching to AUTO select\n", arg);
+			return SPEC_STORE_BYPASS_CMD_AUTO;
+		}
+	}
+
+	return cmd;
+}
+
+static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
+{
+	enum ssb_mitigation mode = SPEC_STORE_BYPASS_NONE;
+	enum ssb_mitigation_cmd cmd;
+
+	if (!boot_cpu_has(X86_FEATURE_RDS))
+		return mode;
+
+	cmd = ssb_parse_cmdline();
+	if (!boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS) &&
+	    (cmd == SPEC_STORE_BYPASS_CMD_NONE ||
+	     cmd == SPEC_STORE_BYPASS_CMD_AUTO))
+		return mode;
+
+	switch (cmd) {
+	case SPEC_STORE_BYPASS_CMD_AUTO:
+	case SPEC_STORE_BYPASS_CMD_ON:
+		mode = SPEC_STORE_BYPASS_DISABLE;
+		break;
+	case SPEC_STORE_BYPASS_CMD_NONE:
+		break;
+	}
+
+	if (mode != SPEC_STORE_BYPASS_NONE)
+		setup_force_cpu_cap(X86_FEATURE_SPEC_STORE_BYPASS_DISABLE);
+	return mode;
+}
+
+static void ssb_select_mitigation()
+{
+	ssb_mode = __ssb_select_mitigation();
+
+	if (boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
+		pr_info("%s\n", ssb_strings[ssb_mode]);
+}
+
+#undef pr_fmt
 
 #ifdef CONFIG_SYSFS
 
@@ -382,6 +482,9 @@ ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr,
 			       boot_cpu_has(X86_FEATURE_USE_IBPB) ? ", IBPB" : "",
 			       boot_cpu_has(X86_FEATURE_USE_IBRS_FW) ? ", IBRS_FW" : "",
 			       spectre_v2_module_string());
+
+	case X86_BUG_SPEC_STORE_BYPASS:
+		return sprintf(buf, "%s\n", ssb_strings[ssb_mode]);
 
 	default:
 		break;
