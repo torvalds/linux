@@ -587,7 +587,7 @@ int gpmi_send_command(struct gpmi_nand_data *this)
 	return ret;
 }
 
-int gpmi_send_data(struct gpmi_nand_data *this)
+int gpmi_send_data(struct gpmi_nand_data *this, const void *buf, int len)
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
@@ -606,7 +606,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		| BF_GPMI_CTRL0_CS(chip, this)
 		| BF_GPMI_CTRL0_LOCK_CS(LOCK_CS_ENABLE, this)
 		| BF_GPMI_CTRL0_ADDRESS(address)
-		| BF_GPMI_CTRL0_XFER_COUNT(this->upper_len);
+		| BF_GPMI_CTRL0_XFER_COUNT(len);
 	pio[1] = 0;
 	desc = dmaengine_prep_slave_sg(channel, (struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE, 0);
@@ -614,7 +614,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [2] send DMA request */
-	prepare_data_dma(this, DMA_TO_DEVICE);
+	prepare_data_dma(this, buf, len, DMA_TO_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -629,7 +629,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 	return ret;
 }
 
-int gpmi_read_data(struct gpmi_nand_data *this)
+int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
@@ -643,7 +643,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		| BF_GPMI_CTRL0_CS(chip, this)
 		| BF_GPMI_CTRL0_LOCK_CS(LOCK_CS_ENABLE, this)
 		| BF_GPMI_CTRL0_ADDRESS(BV_GPMI_CTRL0_ADDRESS__NAND_DATA)
-		| BF_GPMI_CTRL0_XFER_COUNT(this->upper_len);
+		| BF_GPMI_CTRL0_XFER_COUNT(len);
 	pio[1] = 0;
 	desc = dmaengine_prep_slave_sg(channel,
 					(struct scatterlist *)pio,
@@ -652,7 +652,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [2] : send DMA request */
-	prepare_data_dma(this, DMA_FROM_DEVICE);
+	prepare_data_dma(this, buf, len, DMA_FROM_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -665,7 +665,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 
 	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_FROM_DEVICE);
 	if (this->direct_dma_map_ok == false)
-		memcpy(this->upper_buf, this->data_buffer_dma, this->upper_len);
+		memcpy(buf, this->data_buffer_dma, len);
 
 	return ret;
 }

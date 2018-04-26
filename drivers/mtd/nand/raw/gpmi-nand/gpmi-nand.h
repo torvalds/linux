@@ -141,10 +141,6 @@ struct gpmi_nand_data {
 	int			current_chip;
 	unsigned int		command_length;
 
-	/* passed from upper layer */
-	uint8_t			*upper_buf;
-	int			upper_len;
-
 	/* for DMA operations */
 	bool			direct_dma_map_ok;
 
@@ -178,7 +174,7 @@ struct gpmi_nand_data {
 /* Common Services */
 int common_nfc_set_geometry(struct gpmi_nand_data *);
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *);
-void prepare_data_dma(struct gpmi_nand_data *,
+void prepare_data_dma(struct gpmi_nand_data *, const void *buf, int len,
 		      enum dma_data_direction dr);
 int start_dma_without_bch_irq(struct gpmi_nand_data *,
 			      struct dma_async_tx_descriptor *);
@@ -197,8 +193,9 @@ int gpmi_disable_clk(struct gpmi_nand_data *this);
 int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
 			      const struct nand_data_interface *conf);
 void gpmi_nfc_apply_timings(struct gpmi_nand_data *this);
-int gpmi_read_data(struct gpmi_nand_data *);
-int gpmi_send_data(struct gpmi_nand_data *);
+int gpmi_read_data(struct gpmi_nand_data *, void *buf, int len);
+int gpmi_send_data(struct gpmi_nand_data *, const void *buf, int len);
+
 int gpmi_send_page(struct gpmi_nand_data *,
 		   dma_addr_t payload, dma_addr_t auxiliary);
 int gpmi_read_page(struct gpmi_nand_data *,

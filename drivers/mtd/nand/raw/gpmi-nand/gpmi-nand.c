@@ -447,15 +447,15 @@ struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
 }
 
 /* Can we use the upper's buffer directly for DMA? */
-void prepare_data_dma(struct gpmi_nand_data *this, enum dma_data_direction dr)
+void prepare_data_dma(struct gpmi_nand_data *this, const void *buf, int len,
+		      enum dma_data_direction dr)
 {
 	struct scatterlist *sgl = &this->data_sgl;
 	int ret;
 
 	/* first try to map the upper buffer directly */
-	if (virt_addr_valid(this->upper_buf) &&
-		!object_is_on_stack(this->upper_buf)) {
-		sg_init_one(sgl, this->upper_buf, this->upper_len);
+	if (virt_addr_valid(buf) && !object_is_on_stack(buf)) {
+		sg_init_one(sgl, buf, len);
 		ret = dma_map_sg(this->dev, sgl, 1, dr);
 		if (ret == 0)
 			goto map_fail;
@@ -466,10 +466,10 @@ void prepare_data_dma(struct gpmi_nand_data *this, enum dma_data_direction dr)
 
 map_fail:
 	/* We have to use our own DMA buffer. */
-	sg_init_one(sgl, this->data_buffer_dma, this->upper_len);
+	sg_init_one(sgl, this->data_buffer_dma, len);
 
 	if (dr == DMA_TO_DEVICE)
-		memcpy(this->data_buffer_dma, this->upper_buf, this->upper_len);
+		memcpy(this->data_buffer_dma, buf, len);
 
 	dma_map_sg(this->dev, sgl, 1, dr);
 
@@ -929,10 +929,8 @@ static void gpmi_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);
-	this->upper_buf	= buf;
-	this->upper_len	= len;
 
-	gpmi_read_data(this);
+	gpmi_read_data(this, buf, len);
 }
 
 static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
@@ -941,10 +939,8 @@ static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);
-	this->upper_buf	= (uint8_t *)buf;
-	this->upper_len	= len;
 
-	gpmi_send_data(this);
+	gpmi_send_data(this, buf, len);
 }
 
 static uint8_t gpmi_read_byte(struct mtd_info *mtd)
