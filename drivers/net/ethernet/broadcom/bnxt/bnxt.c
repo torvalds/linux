@@ -7702,7 +7702,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	coal->coal_bufs = 30;
 	coal->coal_ticks_irq = 1;
 	coal->coal_bufs_irq = 2;
-	coal->idle_thresh = 25;
+	coal->idle_thresh = 50;
 	coal->bufs_per_record = 2;
 	coal->budget = 64;		/* NAPI budget */
 
