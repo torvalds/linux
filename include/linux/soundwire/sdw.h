@@ -791,6 +791,10 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 		struct sdw_stream_runtime *stream);
 int sdw_stream_remove_slave(struct sdw_slave *slave,
 		struct sdw_stream_runtime *stream);
+int sdw_prepare_stream(struct sdw_stream_runtime *stream);
+int sdw_enable_stream(struct sdw_stream_runtime *stream);
+int sdw_disable_stream(struct sdw_stream_runtime *stream);
+int sdw_deprepare_stream(struct sdw_stream_runtime *stream);
 
 /* messaging and data APIs */
 

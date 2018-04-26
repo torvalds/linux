@@ -1233,3 +1233,247 @@ struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
 
 	return NULL;
 }
+
+static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = stream->m_rt;
+	struct sdw_bus *bus = m_rt->bus;
+	struct sdw_master_prop *prop = NULL;
+	struct sdw_bus_params params;
+	int ret;
+
+	prop = &bus->prop;
+	memcpy(&params, &bus->params, sizeof(params));
+
+	/* TODO: Support Asynchronous mode */
+	if ((prop->max_freq % stream->params.rate) != 0) {
+		dev_err(bus->dev, "Async mode not supported");
+		return -EINVAL;
+	}
+
+	/* Increment cumulative bus bandwidth */
+	/* TODO: Update this during Device-Device support */
+	bus->params.bandwidth += m_rt->stream->params.rate *
+		m_rt->ch_count * m_rt->stream->params.bps;
+
+	/* Program params */
+	ret = sdw_program_params(bus);
+	if (ret < 0) {
+		dev_err(bus->dev, "Program params failed: %d", ret);
+		goto restore_params;
+	}
+
+	ret = do_bank_switch(stream);
+	if (ret < 0) {
+		dev_err(bus->dev, "Bank switch failed: %d", ret);
+		goto restore_params;
+	}
+
+	/* Prepare port(s) on the new clock configuration */
+	ret = sdw_prep_deprep_ports(m_rt, true);
+	if (ret < 0) {
+		dev_err(bus->dev, "Prepare port(s) failed ret = %d",
+				ret);
+		return ret;
+	}
+
+	stream->state = SDW_STREAM_PREPARED;
+
+	return ret;
+
+restore_params:
+	memcpy(&bus->params, &params, sizeof(params));
+	return ret;
+}
+
+/**
+ * sdw_prepare_stream() - Prepare SoundWire stream
+ *
+ * @stream: Soundwire stream
+ *
+ * Documentation/soundwire/stream.txt explains this API in detail
+ */
+int sdw_prepare_stream(struct sdw_stream_runtime *stream)
+{
+	int ret = 0;
+
+	if (!stream) {
+		pr_err("SoundWire: Handle not found for stream");
+		return -EINVAL;
+	}
+
+	mutex_lock(&stream->m_rt->bus->bus_lock);
+
+	ret = _sdw_prepare_stream(stream);
+	if (ret < 0)
+		pr_err("Prepare for stream:%s failed: %d", stream->name, ret);
+
+	mutex_unlock(&stream->m_rt->bus->bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL(sdw_prepare_stream);
+
+static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = stream->m_rt;
+	struct sdw_bus *bus = m_rt->bus;
+	int ret;
+
+	/* Program params */
+	ret = sdw_program_params(bus);
+	if (ret < 0) {
+		dev_err(bus->dev, "Program params failed: %d", ret);
+		return ret;
+	}
+
+	/* Enable port(s) */
+	ret = sdw_enable_disable_ports(m_rt, true);
+	if (ret < 0) {
+		dev_err(bus->dev, "Enable port(s) failed ret: %d", ret);
+		return ret;
+	}
+
+	ret = do_bank_switch(stream);
+	if (ret < 0) {
+		dev_err(bus->dev, "Bank switch failed: %d", ret);
+		return ret;
+	}
+
+	stream->state = SDW_STREAM_ENABLED;
+	return 0;
+}
+
+/**
+ * sdw_enable_stream() - Enable SoundWire stream
+ *
+ * @stream: Soundwire stream
+ *
+ * Documentation/soundwire/stream.txt explains this API in detail
+ */
+int sdw_enable_stream(struct sdw_stream_runtime *stream)
+{
+	int ret = 0;
+
+	if (!stream) {
+		pr_err("SoundWire: Handle not found for stream");
+		return -EINVAL;
+	}
+
+	mutex_lock(&stream->m_rt->bus->bus_lock);
+
+	ret = _sdw_enable_stream(stream);
+	if (ret < 0)
+		pr_err("Enable for stream:%s failed: %d", stream->name, ret);
+
+	mutex_unlock(&stream->m_rt->bus->bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL(sdw_enable_stream);
+
+static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = stream->m_rt;
+	struct sdw_bus *bus = m_rt->bus;
+	int ret;
+
+	/* Disable port(s) */
+	ret = sdw_enable_disable_ports(m_rt, false);
+	if (ret < 0) {
+		dev_err(bus->dev, "Disable port(s) failed: %d", ret);
+		return ret;
+	}
+
+	stream->state = SDW_STREAM_DISABLED;
+
+	/* Program params */
+	ret = sdw_program_params(bus);
+	if (ret < 0) {
+		dev_err(bus->dev, "Program params failed: %d", ret);
+		return ret;
+	}
+
+	return do_bank_switch(stream);
+}
+
+/**
+ * sdw_disable_stream() - Disable SoundWire stream
+ *
+ * @stream: Soundwire stream
+ *
+ * Documentation/soundwire/stream.txt explains this API in detail
+ */
+int sdw_disable_stream(struct sdw_stream_runtime *stream)
+{
+	int ret = 0;
+
+	if (!stream) {
+		pr_err("SoundWire: Handle not found for stream");
+		return -EINVAL;
+	}
+
+	mutex_lock(&stream->m_rt->bus->bus_lock);
+
+	ret = _sdw_disable_stream(stream);
+	if (ret < 0)
+		pr_err("Disable for stream:%s failed: %d", stream->name, ret);
+
+	mutex_unlock(&stream->m_rt->bus->bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL(sdw_disable_stream);
+
+static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = stream->m_rt;
+	struct sdw_bus *bus = m_rt->bus;
+	int ret = 0;
+
+	/* De-prepare port(s) */
+	ret = sdw_prep_deprep_ports(m_rt, false);
+	if (ret < 0) {
+		dev_err(bus->dev, "De-prepare port(s) failed: %d", ret);
+		return ret;
+	}
+
+	stream->state = SDW_STREAM_DEPREPARED;
+
+	/* TODO: Update this during Device-Device support */
+	bus->params.bandwidth -= m_rt->stream->params.rate *
+		m_rt->ch_count * m_rt->stream->params.bps;
+
+	/* Program params */
+	ret = sdw_program_params(bus);
+	if (ret < 0) {
+		dev_err(bus->dev, "Program params failed: %d", ret);
+		return ret;
+	}
+
+	return do_bank_switch(stream);
+}
+
+/**
+ * sdw_deprepare_stream() - Deprepare SoundWire stream
+ *
+ * @stream: Soundwire stream
+ *
+ * Documentation/soundwire/stream.txt explains this API in detail
+ */
+int sdw_deprepare_stream(struct sdw_stream_runtime *stream)
+{
+	int ret = 0;
+
+	if (!stream) {
+		pr_err("SoundWire: Handle not found for stream");
+		return -EINVAL;
+	}
+
+	mutex_lock(&stream->m_rt->bus->bus_lock);
+
+	ret = _sdw_deprepare_stream(stream);
+	if (ret < 0)
+		pr_err("De-prepare for stream:%d failed: %d", ret, ret);
+
+	mutex_unlock(&stream->m_rt->bus->bus_lock);
+	return ret;
+}
+EXPORT_SYMBOL(sdw_deprepare_stream);

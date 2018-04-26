@@ -17,6 +17,7 @@
  */
 int sdw_add_bus_master(struct sdw_bus *bus)
 {
+	struct sdw_master_prop *prop = NULL;
 	int ret;
 
 	if (!bus->dev) {
@@ -79,9 +80,17 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	}
 
 	/*
+	 * Initialize clock values based on Master properties. The max
+	 * frequency is read from max_freq property. Current assumption
+	 * is that the bus will start at highest clock frequency when
+	 * powered on.
+	 *
 	 * Default active bank will be 0 as out of reset the Slaves have
 	 * to start with bank 0 (Table 40 of Spec)
 	 */
+	prop = &bus->prop;
+	bus->params.max_dr_freq = prop->max_freq * SDW_DOUBLE_RATE_FACTOR;
+	bus->params.curr_dr_freq = bus->params.max_dr_freq;
 	bus->params.curr_bank = SDW_BANK0;
 	bus->params.next_bank = SDW_BANK1;
 
