@@ -666,8 +666,6 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	peer->pmtu_pending = 0;
 
-	asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
-
 	/* The asoc->peer.port might not be meaningful yet, but
 	 * initialize the packet structure anyway.
 	 */
@@ -1370,10 +1368,26 @@ sctp_assoc_choose_alter_transport(struct sctp_association *asoc,
 	}
 }
 
+void sctp_assoc_update_frag_point(struct sctp_association *asoc)
+{
+	int frag = sctp_mtu_payload(sctp_sk(asoc->base.sk), asoc->pathmtu,
+				    sctp_datachk_len(&asoc->stream));
+
+	if (asoc->user_frag)
+		frag = min_t(int, frag, asoc->user_frag);
+
+	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN -
+				sctp_datachk_len(&asoc->stream));
+
+	asoc->frag_point = SCTP_TRUNC4(frag);
+}
+
 void sctp_assoc_set_pmtu(struct sctp_association *asoc, __u32 pmtu)
 {
-	if (asoc->pathmtu != pmtu)
+	if (asoc->pathmtu != pmtu) {
 		asoc->pathmtu = pmtu;
+		sctp_assoc_update_frag_point(asoc);
+	}
 
 	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
 		 asoc->pathmtu, asoc->frag_point);
@@ -1403,10 +1417,6 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 	}
 
 	sctp_assoc_set_pmtu(asoc, pmtu);
-	asoc->frag_point = sctp_frag_point(asoc, pmtu);
-
-	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
-		 asoc->pathmtu, asoc->frag_point);
 }
 
 /* Should we send a SACK to update our peer? */

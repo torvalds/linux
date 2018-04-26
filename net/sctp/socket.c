@@ -3251,7 +3251,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 			       sctp_datachk_len(&asoc->stream);
 		}
 		asoc->user_frag = val;
-		asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
+		sctp_assoc_update_frag_point(asoc);
 	} else {
 		if (params.assoc_id && sctp_style(sk, UDP))
 			return -EINVAL;
