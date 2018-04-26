@@ -238,6 +238,7 @@ enum amdgpu_firmware_load_type {
 	AMDGPU_FW_LOAD_DIRECT = 0,
 	AMDGPU_FW_LOAD_SMU,
 	AMDGPU_FW_LOAD_PSP,
+	AMDGPU_FW_LOAD_RLC_AUTO,
 };
 
 /* conform to smu_ucode_xfer_cz.h */
