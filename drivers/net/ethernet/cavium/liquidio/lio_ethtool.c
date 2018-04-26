@@ -112,6 +112,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tso_err",
 	"tx_vxlan",
 
+	"tx_mcast",
+	"tx_bcast",
+
 	"mac_tx_total_pkts",
 	"mac_tx_total_bytes",
 	"mac_tx_mcast_pkts",
@@ -127,6 +130,8 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 
 	"rx_total_rcvd",
 	"rx_total_fwd",
+	"rx_mcast",
+	"rx_bcast",
 	"rx_jabber_err",
 	"rx_l2_err",
 	"rx_frame_err",
@@ -171,6 +176,10 @@ static const char oct_vf_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_errors",
 	"rx_dropped",
 	"tx_dropped",
+	"rx_mcast",
+	"tx_mcast",
+	"rx_bcast",
+	"tx_bcast",
 	"link_state_changes",
 };
 
@@ -1056,50 +1065,48 @@ lio_get_ethtool_stats(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	int i = 0, j;
 
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
-	octnet_get_link_stats(netdev);
-
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/*sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/*sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors +
-			       oct_dev->link_stats.fromwire.fcs_err +
-			       oct_dev->link_stats.fromwire.jabber_err +
-			       oct_dev->link_stats.fromwire.l2_err +
-			       oct_dev->link_stats.fromwire.frame_err);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors +
+			oct_dev->link_stats.fromwire.fcs_err +
+			oct_dev->link_stats.fromwire.jabber_err +
+			oct_dev->link_stats.fromwire.l2_err +
+			oct_dev->link_stats.fromwire.frame_err;
+	data[i++] = lstats.tx_errors;
 	/*sum of oct->droq[oq_no]->stats->rx_dropped +
 	 *oct->droq[oq_no]->stats->dropped_nodispatch +
 	 *oct->droq[oq_no]->stats->dropped_toomany +
 	 *oct->droq[oq_no]->stats->dropped_nomem
 	 */
-	data[i++] = CVM_CAST64(netstats->rx_dropped +
-			       oct_dev->link_stats.fromwire.fifo_err +
-			       oct_dev->link_stats.fromwire.dmac_drop +
-			       oct_dev->link_stats.fromwire.red_drops +
-			       oct_dev->link_stats.fromwire.fw_err_pko +
-			       oct_dev->link_stats.fromwire.fw_err_link +
-			       oct_dev->link_stats.fromwire.fw_err_drop);
+	data[i++] = lstats.rx_dropped +
+			oct_dev->link_stats.fromwire.fifo_err +
+			oct_dev->link_stats.fromwire.dmac_drop +
+			oct_dev->link_stats.fromwire.red_drops +
+			oct_dev->link_stats.fromwire.fw_err_pko +
+			oct_dev->link_stats.fromwire.fw_err_link +
+			oct_dev->link_stats.fromwire.fw_err_drop;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped +
-			       oct_dev->link_stats.fromhost.max_collision_fail +
-			       oct_dev->link_stats.fromhost.max_deferral_fail +
-			       oct_dev->link_stats.fromhost.total_collisions +
-			       oct_dev->link_stats.fromhost.fw_err_pko +
-			       oct_dev->link_stats.fromhost.fw_err_link +
-			       oct_dev->link_stats.fromhost.fw_err_drop +
-			       oct_dev->link_stats.fromhost.fw_err_pki);
+	data[i++] = lstats.tx_dropped +
+			oct_dev->link_stats.fromhost.max_collision_fail +
+			oct_dev->link_stats.fromhost.max_deferral_fail +
+			oct_dev->link_stats.fromhost.total_collisions +
+			oct_dev->link_stats.fromhost.fw_err_pko +
+			oct_dev->link_stats.fromhost.fw_err_link +
+			oct_dev->link_stats.fromhost.fw_err_drop +
+			oct_dev->link_stats.fromhost.fw_err_pki;
 
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
@@ -1133,6 +1140,10 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_tx_vxlan
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_tx_vxlan);
+
+	/* Multicast packets sent by this port */
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
 
 	/* mac tx statistics */
 	/*CVMX_BGXX_CMRX_TX_STAT5 */
@@ -1170,6 +1181,9 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_total_fwd
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_total_fwd);
+	/* Multicast packets received on this port */
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.jabber_err */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.jabber_err);
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.l2_err */
@@ -1338,7 +1352,7 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 				     __attribute__((unused)),
 				     u64 *data)
 {
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
 	int i = 0, j, vj;
@@ -1346,25 +1360,31 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/* sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/* sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors;
+	data[i++] = lstats.tx_errors;
 	 /* sum of oct->droq[oq_no]->stats->rx_dropped +
 	  * oct->droq[oq_no]->stats->dropped_nodispatch +
 	  * oct->droq[oq_no]->stats->dropped_toomany +
 	  * oct->droq[oq_no]->stats->dropped_nomem
 	  */
-	data[i++] = CVM_CAST64(netstats->rx_dropped);
+	data[i++] = lstats.rx_dropped;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped);
+	data[i++] = lstats.tx_dropped;
+
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
+
 	/* lio->link_changes */
 	data[i++] = CVM_CAST64(lio->link_changes);
 

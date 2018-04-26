@@ -802,6 +802,9 @@ struct nic_rx_stats {
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast;
+	u64 fw_total_bcast;
+
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -858,6 +861,8 @@ struct nic_tx_stats {
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast_sent;
+	u64 fw_total_bcast_sent;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;

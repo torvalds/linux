@@ -1207,6 +1207,8 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		/* RX firmware stats */
 		rstats->fw_total_rcvd = rsp_rstats->fw_total_rcvd;
 		rstats->fw_total_fwd = rsp_rstats->fw_total_fwd;
+		rstats->fw_total_mcast = rsp_rstats->fw_total_mcast;
+		rstats->fw_total_bcast = rsp_rstats->fw_total_bcast;
 		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
 		rstats->fw_err_link = rsp_rstats->fw_err_link;
 		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
@@ -1251,6 +1253,8 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		/* firmware stats */
 		tstats->fw_total_sent = rsp_tstats->fw_total_sent;
 		tstats->fw_total_fwd = rsp_tstats->fw_total_fwd;
+		tstats->fw_total_mcast_sent = rsp_tstats->fw_total_mcast_sent;
+		tstats->fw_total_bcast_sent = rsp_tstats->fw_total_bcast_sent;
 		tstats->fw_err_pko = rsp_tstats->fw_err_pko;
 		tstats->fw_err_pki = rsp_tstats->fw_err_pki;
 		tstats->fw_err_link = rsp_tstats->fw_err_link;
