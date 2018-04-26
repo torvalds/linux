@@ -9,6 +9,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
@@ -234,6 +236,149 @@ static int intel_shim_init(struct sdw_intel *sdw)
 	return ret;
 }
 
+/*
+ * PDI routines
+ */
+static void intel_pdi_init(struct sdw_intel *sdw,
+			struct sdw_cdns_stream_config *config)
+{
+	void __iomem *shim = sdw->res->shim;
+	unsigned int link_id = sdw->instance;
+	int pcm_cap, pdm_cap;
+
+	/* PCM Stream Capability */
+	pcm_cap = intel_readw(shim, SDW_SHIM_PCMSCAP(link_id));
+
+	config->pcm_bd = (pcm_cap & SDW_SHIM_PCMSCAP_BSS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PCMSCAP_BSS);
+	config->pcm_in = (pcm_cap & SDW_SHIM_PCMSCAP_ISS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PCMSCAP_ISS);
+	config->pcm_out = (pcm_cap & SDW_SHIM_PCMSCAP_OSS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PCMSCAP_OSS);
+
+	/* PDM Stream Capability */
+	pdm_cap = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
+
+	config->pdm_bd = (pdm_cap & SDW_SHIM_PDMSCAP_BSS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_BSS);
+	config->pdm_in = (pdm_cap & SDW_SHIM_PDMSCAP_ISS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_ISS);
+	config->pdm_out = (pdm_cap & SDW_SHIM_PDMSCAP_OSS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_OSS);
+}
+
+static int
+intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
+{
+	void __iomem *shim = sdw->res->shim;
+	unsigned int link_id = sdw->instance;
+	int count;
+
+	if (pcm) {
+		count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
+	} else {
+		count = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
+		count = ((count & SDW_SHIM_PDMSCAP_CPSS) >>
+					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_CPSS));
+	}
+
+	/* zero based values for channel count in register */
+	count++;
+
+	return count;
+}
+
+static int intel_pdi_get_ch_update(struct sdw_intel *sdw,
+				struct sdw_cdns_pdi *pdi,
+				unsigned int num_pdi,
+				unsigned int *num_ch, bool pcm)
+{
+	int i, ch_count = 0;
+
+	for (i = 0; i < num_pdi; i++) {
+		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num, pcm);
+		ch_count += pdi->ch_count;
+		pdi++;
+	}
+
+	*num_ch = ch_count;
+	return 0;
+}
+
+static int intel_pdi_stream_ch_update(struct sdw_intel *sdw,
+				struct sdw_cdns_streams *stream, bool pcm)
+{
+	intel_pdi_get_ch_update(sdw, stream->bd, stream->num_bd,
+			&stream->num_ch_bd, pcm);
+
+	intel_pdi_get_ch_update(sdw, stream->in, stream->num_in,
+			&stream->num_ch_in, pcm);
+
+	intel_pdi_get_ch_update(sdw, stream->out, stream->num_out,
+			&stream->num_ch_out, pcm);
+
+	return 0;
+}
+
+static int intel_pdi_ch_update(struct sdw_intel *sdw)
+{
+	/* First update PCM streams followed by PDM streams */
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm, true);
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pdm, false);
+
+	return 0;
+}
+
+static void
+intel_pdi_shim_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
+{
+	void __iomem *shim = sdw->res->shim;
+	unsigned int link_id = sdw->instance;
+	int pdi_conf = 0;
+
+	pdi->intel_alh_id = (link_id * 16) + pdi->num + 5;
+
+	/*
+	 * Program stream parameters to stream SHIM register
+	 * This is applicable for PCM stream only.
+	 */
+	if (pdi->type != SDW_STREAM_PCM)
+		return;
+
+	if (pdi->dir == SDW_DATA_DIR_RX)
+		pdi_conf |= SDW_SHIM_PCMSYCM_DIR;
+	else
+		pdi_conf &= ~(SDW_SHIM_PCMSYCM_DIR);
+
+	pdi_conf |= (pdi->intel_alh_id <<
+			SDW_REG_SHIFT(SDW_SHIM_PCMSYCM_STREAM));
+	pdi_conf |= (pdi->l_ch_num << SDW_REG_SHIFT(SDW_SHIM_PCMSYCM_LCHN));
+	pdi_conf |= (pdi->h_ch_num << SDW_REG_SHIFT(SDW_SHIM_PCMSYCM_HCHN));
+
+	intel_writew(shim, SDW_SHIM_PCMSYCHM(link_id, pdi->num), pdi_conf);
+}
+
+static void
+intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
+{
+	void __iomem *alh = sdw->res->alh;
+	unsigned int link_id = sdw->instance;
+	unsigned int conf;
+
+	pdi->intel_alh_id = (link_id * 16) + pdi->num + 5;
+
+	/* Program Stream config ALH register */
+	conf = intel_readl(alh, SDW_ALH_STRMZCFG(pdi->intel_alh_id));
+
+	conf |= (SDW_ALH_STRMZCFG_DMAT_VAL <<
+			SDW_REG_SHIFT(SDW_ALH_STRMZCFG_DMAT));
+
+	conf |= ((pdi->ch_count - 1) <<
+			SDW_REG_SHIFT(SDW_ALH_STRMZCFG_CHN));
+
+	intel_writel(alh, SDW_ALH_STRMZCFG(pdi->intel_alh_id), conf);
+}
+
 static int intel_prop_read(struct sdw_bus *bus)
 {
 	/* Initialize with default handler to read all DisCo properties */
@@ -265,6 +410,7 @@ static struct sdw_master_ops sdw_intel_ops = {
  */
 static int intel_probe(struct platform_device *pdev)
 {
+	struct sdw_cdns_stream_config config;
 	struct sdw_intel *sdw;
 	int ret;
 
@@ -287,6 +433,9 @@ static int intel_probe(struct platform_device *pdev)
 	sdw_intel_ops.read_prop = intel_prop_read;
 	sdw->cdns.bus.ops = &sdw_intel_ops;
 
+	sdw_intel_ops.read_prop = intel_prop_read;
+	sdw->cdns.bus.ops = &sdw_intel_ops;
+
 	platform_set_drvdata(pdev, sdw);
 
 	ret = sdw_add_bus_master(&sdw->cdns.bus);
@@ -304,8 +453,14 @@ static int intel_probe(struct platform_device *pdev)
 		goto err_init;
 
 	ret = sdw_cdns_enable_interrupt(&sdw->cdns);
+
+	/* Read the PDI config and initialize cadence PDI */
+	intel_pdi_init(sdw, &config);
+	ret = sdw_cdns_pdi_init(&sdw->cdns, config);
 	if (ret)
 		goto err_init;
+
+	intel_pdi_ch_update(sdw);
 
 	/* Acquire IRQ */
 	ret = request_threaded_irq(sdw->res->irq, sdw_cdns_irq,
