@@ -51,7 +51,7 @@ static void smc_rx_data_ready(struct sock *sk)
  * 1 if at least 1 byte available in rcvbuf or if socket error/shutdown.
  * 0 otherwise (nothing in rcvbuf nor timeout, e.g. interrupted).
  */
-static int smc_rx_wait_data(struct smc_sock *smc, long *timeo)
+int smc_rx_wait_data(struct smc_sock *smc, long *timeo)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct smc_connection *conn = &smc->conn;

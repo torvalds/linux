@@ -1044,6 +1044,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 
 	if (lsmc->sk.sk_state != SMC_LISTEN) {
 		rc = -EINVAL;
+		release_sock(sk);
 		goto out;
 	}
 
@@ -1071,9 +1072,29 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 
 	if (!rc)
 		rc = sock_error(nsk);
+	release_sock(sk);
+	if (rc)
+		goto out;
+
+	if (lsmc->sockopt_defer_accept && !(flags & O_NONBLOCK)) {
+		/* wait till data arrives on the socket */
+		timeo = msecs_to_jiffies(lsmc->sockopt_defer_accept *
+								MSEC_PER_SEC);
+		if (smc_sk(nsk)->use_fallback) {
+			struct sock *clcsk = smc_sk(nsk)->clcsock->sk;
+
+			lock_sock(clcsk);
+			if (skb_queue_empty(&clcsk->sk_receive_queue))
+				sk_wait_data(clcsk, &timeo, NULL);
+			release_sock(clcsk);
+		} else if (!atomic_read(&smc_sk(nsk)->conn.bytes_to_rcv)) {
+			lock_sock(nsk);
+			smc_rx_wait_data(smc_sk(nsk), &timeo);
+			release_sock(nsk);
+		}
+	}
 
 out:
-	release_sock(sk);
 	sock_put(sk); /* sock_hold above */
 	return rc;
 }
@@ -1339,6 +1360,9 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 				mod_delayed_work(system_wq, &smc->conn.tx_work,
 						 0);
 		}
+		break;
+	case TCP_DEFER_ACCEPT:
+		smc->sockopt_defer_accept = val;
 		break;
 	default:
 		break;
