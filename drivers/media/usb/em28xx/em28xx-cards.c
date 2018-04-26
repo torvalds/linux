@@ -87,6 +87,21 @@ static const struct em28xx_reg_seq default_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+/* Board :Zolid Hybrid Tv Stick */
+static struct em28xx_reg_seq zolid_tuner[] = {
+	{EM2820_R08_GPIO_CTRL,		0xfd,		0xff,	100},
+	{EM2820_R08_GPIO_CTRL,		0xfe,		0xff,	100},
+	{		-1,					-1,			-1,		 -1},
+};
+
+static struct em28xx_reg_seq zolid_digital[] = {
+	{EM2820_R08_GPIO_CTRL,		0x6a,		0xff,	100},
+	{EM2820_R08_GPIO_CTRL,		0x7a,		0xff,	100},
+	{EM2880_R04_GPO,			0x04,		0xff,	100},
+	{EM2880_R04_GPO,			0x0c,		0xff,	100},
+	{	-1,						-1,			-1,		 -1},
+};
+
 /* Board Hauppauge WinTV HVR 900 analog */
 static const struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
 	{EM2820_R08_GPIO_CTRL,	0x2d,	~EM_GPIO_4,	10},
@@ -665,6 +680,16 @@ const struct em28xx_board em28xx_boards[] = {
 		.name          = "Unknown EM2750/28xx video grabber",
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,	/* To enable sensor probe */
+	},
+	[EM2882_BOARD_ZOLID_HYBRID_TV_STICK] = {
+		.name			= ":ZOLID HYBRID TV STICK",
+		.tuner_type		= TUNER_XC2028,
+		.tuner_gpio		= zolid_tuner,
+		.decoder		= EM28XX_TVP5150,
+		.xclk			= EM28XX_XCLK_FREQUENCY_12MHZ,
+		.mts_firmware	= 1,
+		.has_dvb		= 1,
+		.dvb_gpio		= zolid_digital,
 	},
 	[EM2750_BOARD_DLCW_130] = {
 		/* Beijing Huaqi Information Digital Technology Co., Ltd */
@@ -2493,7 +2518,7 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2881),
 			.driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2883),
+	{ USB_DEVICE(0xeb1a, 0x2883), /* used by :Zolid Hybrid Tv Stick */
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2868),
 			.driver_info = EM2820_BOARD_UNKNOWN },
@@ -2690,6 +2715,7 @@ static const struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
 	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
 	{0x4e913442, EM2882_BOARD_DIKOM_DK300, TUNER_XC2028},
+	{0x85dd871e, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -2701,6 +2727,7 @@ static const struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
 	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
+	{0x27e10080, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
 };
 
 /* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
@@ -3187,6 +3214,7 @@ void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+	case EM2882_BOARD_ZOLID_HYBRID_TV_STICK:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
