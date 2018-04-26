@@ -6844,6 +6844,8 @@ static void bnxt_preset_reg_win(struct bnxt *bp)
 	}
 }
 
+static int bnxt_init_dflt_ring_mode(struct bnxt *bp);
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -6851,6 +6853,12 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	bnxt_preset_reg_win(bp);
 	netif_carrier_off(bp->dev);
 	if (irq_re_init) {
+		/* Reserve rings now if none were reserved at driver probe. */
+		rc = bnxt_init_dflt_ring_mode(bp);
+		if (rc) {
+			netdev_err(bp->dev, "Failed to reserve default rings at open\n");
+			return rc;
+		}
 		rc = bnxt_reserve_rings(bp);
 		if (rc)
 			return rc;
@@ -8598,6 +8606,29 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		bp->cp_nr_rings++;
 	}
 	return rc;
+}
+
+static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
+{
+	int rc;
+
+	if (bp->tx_nr_rings)
+		return 0;
+
+	rc = bnxt_set_dflt_rings(bp, true);
+	if (rc) {
+		netdev_err(bp->dev, "Not enough rings available.\n");
+		return rc;
+	}
+	rc = bnxt_init_int_mode(bp);
+	if (rc)
+		return rc;
+	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	if (bnxt_rfs_supported(bp) && bnxt_rfs_capable(bp)) {
+		bp->flags |= BNXT_FLAG_RFS;
+		bp->dev->features |= NETIF_F_NTUPLE;
+	}
+	return 0;
 }
 
 int bnxt_restore_pf_fw_resources(struct bnxt *bp)
