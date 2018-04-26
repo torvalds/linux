@@ -1291,7 +1291,7 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	struct smc_sock *smc;
-	int rc;
+	int val, rc;
 
 	smc = smc_sk(sk);
 
@@ -1307,6 +1307,10 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 	if (rc)
 		return rc;
 
+	if (optlen < sizeof(int))
+		return rc;
+	get_user(val, (int __user *)optval);
+
 	lock_sock(sk);
 	switch (optname) {
 	case TCP_ULP:
@@ -1320,6 +1324,20 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		} else {
 			if (!smc->use_fallback)
 				rc = -EINVAL;
+		}
+		break;
+	case TCP_NODELAY:
+		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
+			if (val)
+				mod_delayed_work(system_wq, &smc->conn.tx_work,
+						 0);
+		}
+		break;
+	case TCP_CORK:
+		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
+			if (!val)
+				mod_delayed_work(system_wq, &smc->conn.tx_work,
+						 0);
 		}
 		break;
 	default:
