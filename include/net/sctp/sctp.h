@@ -600,10 +600,15 @@ static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
 	return mtu ? mtu - overhead : overhead;
 }
 
+static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
+{
+	return SCTP_TRUNC4(max_t(__u32, dst_mtu(dst),
+				 SCTP_DEFAULT_MINSEGMENT));
+}
+
 static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
 {
-	__u32 pmtu = max_t(size_t, SCTP_TRUNC4(dst_mtu(t->dst)),
-			   SCTP_DEFAULT_MINSEGMENT);
+	__u32 pmtu = sctp_dst_mtu(t->dst);
 
 	if (t->pathmtu == pmtu)
 		return true;
