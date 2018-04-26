@@ -1650,6 +1650,8 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int bpp, bpc;
 
 	bpp = pipe_config->pipe_bpp;
@@ -1665,6 +1667,17 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n",
 			      pipe_config->pipe_bpp);
 	}
+
+	if (intel_dp_is_edp(intel_dp)) {
+		/* Get bpp from vbt only for panels that dont have bpp in edid */
+		if (intel_connector->base.display_info.bpc == 0 &&
+		    dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp) {
+			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+				      dev_priv->vbt.edp.bpp);
+			bpp = dev_priv->vbt.edp.bpp;
+		}
+	}
+
 	return bpp;
 }
 
@@ -1689,10 +1702,8 @@ static bool
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
 	int min_lane_count = 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
@@ -1735,15 +1746,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	 * bpc in between. */
 	bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 	if (intel_dp_is_edp(intel_dp)) {
-
-		/* Get bpp from vbt only for panels that dont have bpp in edid */
-		if (intel_connector->base.display_info.bpc == 0 &&
-			(dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp)) {
-			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
-				      dev_priv->vbt.edp.bpp);
-			bpp = dev_priv->vbt.edp.bpp;
-		}
-
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
 		 * advertizes being capable of. The panels are generally
