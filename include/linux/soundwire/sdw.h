@@ -26,6 +26,8 @@ struct sdw_slave;
 
 #define SDW_MAX_DEVICES			11
 
+#define SDW_VALID_PORT_RANGE(n)		(n <= 14 && n >= 1)
+
 /**
  * enum sdw_slave_status - Slave status
  * @SDW_SLAVE_UNATTACHED: Slave is not attached with the bus.
@@ -430,6 +432,56 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
  * SDW master structures and APIs
  */
 
+/**
+ * struct sdw_port_params: Data Port parameters
+ *
+ * @num: Port number
+ * @bps: Word length of the Port
+ * @flow_mode: Port Data flow mode
+ * @data_mode: Test modes or normal mode
+ *
+ * This is used to program the Data Port based on Data Port stream
+ * parameters.
+ */
+struct sdw_port_params {
+	unsigned int num;
+	unsigned int bps;
+	unsigned int flow_mode;
+	unsigned int data_mode;
+};
+
+/**
+ * struct sdw_transport_params: Data Port Transport Parameters
+ *
+ * @blk_grp_ctrl_valid: Port implements block group control
+ * @num: Port number
+ * @blk_grp_ctrl: Block group control value
+ * @sample_interval: Sample interval
+ * @offset1: Blockoffset of the payload data
+ * @offset2: Blockoffset of the payload data
+ * @hstart: Horizontal start of the payload data
+ * @hstop: Horizontal stop of the payload data
+ * @blk_pkg_mode: Block per channel or block per port
+ * @lane_ctrl: Data lane Port uses for Data transfer. Currently only single
+ * data lane is supported in bus
+ *
+ * This is used to program the Data Port based on Data Port transport
+ * parameters. All these parameters are banked and can be modified
+ * during a bank switch without any artifacts in audio stream.
+ */
+struct sdw_transport_params {
+	bool blk_grp_ctrl_valid;
+	unsigned int port_num;
+	unsigned int blk_grp_ctrl;
+	unsigned int sample_interval;
+	unsigned int offset1;
+	unsigned int offset2;
+	unsigned int hstart;
+	unsigned int hstop;
+	unsigned int blk_pkg_mode;
+	unsigned int lane_ctrl;
+};
+
 struct sdw_msg;
 
 /**
@@ -496,6 +548,17 @@ struct sdw_bus {
 
 int sdw_add_bus_master(struct sdw_bus *bus);
 void sdw_delete_bus_master(struct sdw_bus *bus);
+
+/**
+ * sdw_port_config: Master or Slave Port configuration
+ *
+ * @num: Port number
+ * @ch_mask: channels mask for port
+ */
+struct sdw_port_config {
+	unsigned int num;
+	unsigned int ch_mask;
+};
 
 /**
  * sdw_stream_config: Master or Slave stream configuration
@@ -569,9 +632,13 @@ struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name);
 void sdw_release_stream(struct sdw_stream_runtime *stream);
 int sdw_stream_add_master(struct sdw_bus *bus,
 		struct sdw_stream_config *stream_config,
+		struct sdw_port_config *port_config,
+		unsigned int num_ports,
 		struct sdw_stream_runtime *stream);
 int sdw_stream_add_slave(struct sdw_slave *slave,
 		struct sdw_stream_config *stream_config,
+		struct sdw_port_config *port_config,
+		unsigned int num_ports,
 		struct sdw_stream_runtime *stream);
 int sdw_stream_remove_master(struct sdw_bus *bus,
 		struct sdw_stream_runtime *stream);
