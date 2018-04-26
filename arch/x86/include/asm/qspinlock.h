@@ -16,7 +16,7 @@
  */
 static inline void native_queued_spin_unlock(struct qspinlock *lock)
 {
-	smp_store_release((u8 *)lock, 0);
+	smp_store_release(&lock->locked, 0);
 }
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
