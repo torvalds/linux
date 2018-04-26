@@ -3495,15 +3495,29 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
+	/* convert timeout to usec */
+	timeout *= 1000;
 
 	i = 0;
-	tmo_count = timeout * 40;
+	/* Short timeout for the first few iterations:
+	 * number of loops = number of loops for short timeout +
+	 * number of loops for standard timeout.
+	 */
+	tmo_count = HWRM_SHORT_TIMEOUT_COUNTER;
+	timeout = timeout - HWRM_SHORT_MIN_TIMEOUT * HWRM_SHORT_TIMEOUT_COUNTER;
+	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
 	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
 		       i++ < tmo_count) {
-			usleep_range(25, 40);
+			/* on first few passes, just barely sleep */
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
+				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
+					     HWRM_SHORT_MAX_TIMEOUT);
+			else
+				usleep_range(HWRM_MIN_TIMEOUT,
+					     HWRM_MAX_TIMEOUT);
 		}
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
@@ -3521,7 +3535,13 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			      HWRM_RESP_LEN_SFT;
 			if (len)
 				break;
-			usleep_range(25, 40);
+			/* on first few passes, just barely sleep */
+			if (i < DFLT_HWRM_CMD_TIMEOUT)
+				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
+					     HWRM_SHORT_MAX_TIMEOUT);
+			else
+				usleep_range(HWRM_MIN_TIMEOUT,
+					     HWRM_MAX_TIMEOUT);
 		}
 
 		if (i >= tmo_count) {
