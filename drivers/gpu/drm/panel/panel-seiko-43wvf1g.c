@@ -292,7 +292,6 @@ static int seiko_panel_remove(struct platform_device *pdev)
 {
 	struct seiko_panel *panel = dev_get_drvdata(&pdev->dev);
 
-	drm_panel_detach(&panel->base);
 	drm_panel_remove(&panel->base);
 
 	seiko_panel_disable(&panel->base);

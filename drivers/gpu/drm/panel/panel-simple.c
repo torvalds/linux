@@ -364,7 +364,6 @@ static int panel_simple_remove(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
 
-	drm_panel_detach(&panel->base);
 	drm_panel_remove(&panel->base);
 
 	panel_simple_disable(&panel->base);

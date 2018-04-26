@@ -418,7 +418,6 @@ static int sharp_panel_remove(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
-	drm_panel_detach(&sharp->base);
 	sharp_panel_del(sharp);
 
 	return 0;

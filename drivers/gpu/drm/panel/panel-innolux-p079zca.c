@@ -292,7 +292,6 @@ static int innolux_panel_remove(struct mipi_dsi_device *dsi)
 		DRM_DEV_ERROR(&dsi->dev, "failed to detach from DSI host: %d\n",
 			      err);
 
-	drm_panel_detach(&innolux->base);
 	innolux_panel_del(innolux);
 
 	return 0;
