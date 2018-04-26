@@ -1666,14 +1666,6 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 	if (bpc > 0)
 		bpp = min(bpp, 3*bpc);
 
-	/* For DP Compliance we override the computed bpp for the pipe */
-	if (intel_dp->compliance.test_data.bpc != 0) {
-		pipe_config->pipe_bpp =	3*intel_dp->compliance.test_data.bpc;
-		pipe_config->dither_force_disable = pipe_config->pipe_bpp == 6*3;
-		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n",
-			      pipe_config->pipe_bpp);
-	}
-
 	if (intel_dp_is_edp(intel_dp)) {
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
 		if (intel_connector->base.display_info.bpc == 0 &&
@@ -1702,6 +1694,42 @@ static bool intel_edp_compare_alt_mode(struct drm_display_mode *m1,
 			m1->vsync_end == m2->vsync_end &&
 			m1->vtotal == m2->vtotal);
 	return bres;
+}
+
+/* Adjust link config limits based on compliance test requests. */
+static void
+intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  struct link_config_limits *limits)
+{
+	/* For DP Compliance we override the computed bpp for the pipe */
+	if (intel_dp->compliance.test_data.bpc != 0) {
+		int bpp = 3 * intel_dp->compliance.test_data.bpc;
+
+		limits->min_bpp = limits->max_bpp = bpp;
+		pipe_config->dither_force_disable = bpp == 6 * 3;
+
+		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n", bpp);
+	}
+
+	/* Use values requested by Compliance Test Request */
+	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
+		int index;
+
+		/* Validate the compliance test data since max values
+		 * might have changed due to link train fallback.
+		 */
+		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
+					       intel_dp->compliance.test_lane_count)) {
+			index = intel_dp_rate_index(intel_dp->common_rates,
+						    intel_dp->num_common_rates,
+						    intel_dp->compliance.test_link_rate);
+			if (index >= 0)
+				limits->min_clock = limits->max_clock = index;
+			limits->min_lane_count = limits->max_lane_count =
+				intel_dp->compliance.test_lane_count;
+		}
+	}
 }
 
 /* Optimize link config in order: max bpp, min clock, min lanes */
@@ -1764,24 +1792,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_bpp = 6 * 3;
 	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
-	/* Use values requested by Compliance Test Request */
-	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
-		int index;
-
-		/* Validate the compliance test data since max values
-		 * might have changed due to link train fallback.
-		 */
-		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
-					       intel_dp->compliance.test_lane_count)) {
-			index = intel_dp_rate_index(intel_dp->common_rates,
-						    intel_dp->num_common_rates,
-						    intel_dp->compliance.test_link_rate);
-			if (index >= 0)
-				limits.min_clock = limits.max_clock = index;
-			limits.min_lane_count = limits.max_lane_count = intel_dp->compliance.test_lane_count;
-		}
-	}
-
 	if (intel_dp_is_edp(intel_dp)) {
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
@@ -1793,6 +1803,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		limits.min_lane_count = limits.max_lane_count;
 		limits.min_clock = limits.max_clock;
 	}
+
+	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max rate %d max bpp %d pixel clock %iKHz\n",
