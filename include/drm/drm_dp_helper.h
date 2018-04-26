@@ -967,18 +967,18 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw);
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
 /* 0x80+ CEA-861 infoframe types */
 
-struct edp_sdp_header {
+struct dp_sdp_header {
 	u8 HB0; /* Secondary Data Packet ID */
 	u8 HB1; /* Secondary Data Packet Type */
-	u8 HB2; /* 7:5 reserved, 4:0 revision number */
-	u8 HB3; /* 7:5 reserved, 4:0 number of valid data bytes */
+	u8 HB2; /* Secondary Data Packet Specific header, Byte 0 */
+	u8 HB3; /* Secondary Data packet Specific header, Byte 1 */
 } __packed;
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
 #define EDP_SDP_HEADER_VALID_PAYLOAD_BYTES	0x1F
 
 struct edp_vsc_psr {
-	struct edp_sdp_header sdp_header;
+	struct dp_sdp_header sdp_header;
 	u8 DB0; /* Stereo Interface */
 	u8 DB1; /* 0 - PSR State; 1 - Update RFB; 2 - CRC Valid */
 	u8 DB2; /* CRC value bits 7:0 of the R or Cr component */
