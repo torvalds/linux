@@ -577,6 +577,32 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 	mutex_unlock(&slave->bus->bus_lock);
 }
 
+int sdw_configure_dpn_intr(struct sdw_slave *slave,
+			int port, bool enable, int mask)
+{
+	u32 addr;
+	int ret;
+	u8 val = 0;
+
+	addr = SDW_DPN_INTMASK(port);
+
+	/* Set/Clear port ready interrupt mask */
+	if (enable) {
+		val |= mask;
+		val |= SDW_DPN_INT_PORT_READY;
+	} else {
+		val &= ~(mask);
+		val &= ~SDW_DPN_INT_PORT_READY;
+	}
+
+	ret = sdw_update(slave, addr, (mask | SDW_DPN_INT_PORT_READY), val);
+	if (ret < 0)
+		dev_err(slave->bus->dev,
+				"SDW_DPN_INTMASK write failed:%d", val);
+
+	return ret;
+}
+
 static int sdw_initialize_slave(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;

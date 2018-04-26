@@ -377,6 +377,37 @@ enum sdw_reg_bank {
 };
 
 /**
+ * struct sdw_prepare_ch: Prepare/De-prepare Data Port channel
+ *
+ * @num: Port number
+ * @ch_mask: Active channel mask
+ * @prepare: Prepare (true) /de-prepare (false) channel
+ * @bank: Register bank, which bank Slave/Master driver should program for
+ * implementation defined registers. This is always updated to next_bank
+ * value read from bus params.
+ *
+ */
+struct sdw_prepare_ch {
+	unsigned int num;
+	unsigned int ch_mask;
+	bool prepare;
+	unsigned int bank;
+};
+
+/**
+ * enum sdw_port_prep_ops: Prepare operations for Data Port
+ *
+ * @SDW_OPS_PORT_PRE_PREP: Pre prepare operation for the Port
+ * @SDW_OPS_PORT_PREP: Prepare operation for the Port
+ * @SDW_OPS_PORT_POST_PREP: Post prepare operation for the Port
+ */
+enum sdw_port_prep_ops {
+	SDW_OPS_PORT_PRE_PREP = 0,
+	SDW_OPS_PORT_PREP = 1,
+	SDW_OPS_PORT_POST_PREP = 2,
+};
+
+/**
  * struct sdw_bus_params: Structure holding bus configuration
  *
  * @curr_bank: Current bank in use (BANK0/BANK1)
@@ -395,6 +426,7 @@ struct sdw_bus_params {
  * @interrupt_callback: Device interrupt notification (invoked in thread
  * context)
  * @update_status: Update Slave status
+ * @port_prep: Prepare the port with parameters
  */
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
@@ -402,6 +434,9 @@ struct sdw_slave_ops {
 			struct sdw_slave_intr_status *status);
 	int (*update_status)(struct sdw_slave *slave,
 			enum sdw_slave_status status);
+	int (*port_prep)(struct sdw_slave *slave,
+			struct sdw_prepare_ch *prepare_ch,
+			enum sdw_port_prep_ops pre_ops);
 };
 
 /**
@@ -506,6 +541,19 @@ struct sdw_transport_params {
 };
 
 /**
+ * struct sdw_enable_ch: Enable/disable Data Port channel
+ *
+ * @num: Port number
+ * @ch_mask: Active channel mask
+ * @enable: Enable (true) /disable (false) channel
+ */
+struct sdw_enable_ch {
+	unsigned int port_num;
+	unsigned int ch_mask;
+	bool enable;
+};
+
+/**
  * struct sdw_master_port_ops: Callback functions from bus to Master
  * driver to set Master Data ports.
  *
@@ -513,6 +561,8 @@ struct sdw_transport_params {
  * Mandatory callback
  * @dpn_set_port_transport_params: Set transport parameters for the Master
  * Port. Mandatory callback
+ * @dpn_port_prep: Port prepare operations for the Master Data Port.
+ * @dpn_port_enable_ch: Enable the channels of Master Port.
  */
 struct sdw_master_port_ops {
 	int (*dpn_set_port_params)(struct sdw_bus *bus,
@@ -521,6 +571,10 @@ struct sdw_master_port_ops {
 	int (*dpn_set_port_transport_params)(struct sdw_bus *bus,
 			struct sdw_transport_params *transport_params,
 			enum sdw_reg_bank bank);
+	int (*dpn_port_prep)(struct sdw_bus *bus,
+			struct sdw_prepare_ch *prepare_ch);
+	int (*dpn_port_enable_ch)(struct sdw_bus *bus,
+			struct sdw_enable_ch *enable_ch, unsigned int bank);
 };
 
 struct sdw_msg;

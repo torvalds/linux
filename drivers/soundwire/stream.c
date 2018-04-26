@@ -244,6 +244,277 @@ static int sdw_program_port_params(struct sdw_master_runtime *m_rt)
 }
 
 /**
+ * sdw_enable_disable_slave_ports: Enable/disable slave data port
+ *
+ * @bus: bus instance
+ * @s_rt: slave runtime
+ * @p_rt: port runtime
+ * @en: enable or disable operation
+ *
+ * This function only sets the enable/disable bits in the relevant bank, the
+ * actual enable/disable is done with a bank switch
+ */
+static int sdw_enable_disable_slave_ports(struct sdw_bus *bus,
+				struct sdw_slave_runtime *s_rt,
+				struct sdw_port_runtime *p_rt, bool en)
+{
+	struct sdw_transport_params *t_params = &p_rt->transport_params;
+	u32 addr;
+	int ret;
+
+	if (bus->params.next_bank)
+		addr = SDW_DPN_CHANNELEN_B1(p_rt->num);
+	else
+		addr = SDW_DPN_CHANNELEN_B0(p_rt->num);
+
+	/*
+	 * Since bus doesn't support sharing a port across two streams,
+	 * it is safe to reset this register
+	 */
+	if (en)
+		ret = sdw_update(s_rt->slave, addr, 0xFF, p_rt->ch_mask);
+	else
+		ret = sdw_update(s_rt->slave, addr, 0xFF, 0x0);
+
+	if (ret < 0)
+		dev_err(&s_rt->slave->dev,
+			"Slave chn_en reg write failed:%d port:%d",
+			ret, t_params->port_num);
+
+	return ret;
+}
+
+static int sdw_enable_disable_master_ports(struct sdw_master_runtime *m_rt,
+			struct sdw_port_runtime *p_rt, bool en)
+{
+	struct sdw_transport_params *t_params = &p_rt->transport_params;
+	struct sdw_bus *bus = m_rt->bus;
+	struct sdw_enable_ch enable_ch;
+	int ret = 0;
+
+	enable_ch.port_num = p_rt->num;
+	enable_ch.ch_mask = p_rt->ch_mask;
+	enable_ch.enable = en;
+
+	/* Perform Master port channel(s) enable/disable */
+	if (bus->port_ops->dpn_port_enable_ch) {
+		ret = bus->port_ops->dpn_port_enable_ch(bus,
+				&enable_ch, bus->params.next_bank);
+		if (ret < 0) {
+			dev_err(bus->dev,
+				"Master chn_en write failed:%d port:%d",
+				ret, t_params->port_num);
+			return ret;
+		}
+	} else {
+		dev_err(bus->dev,
+			"dpn_port_enable_ch not supported, %s failed\n",
+			en ? "enable" : "disable");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * sdw_enable_disable_ports() - Enable/disable port(s) for Master and
+ * Slave(s)
+ *
+ * @m_rt: Master stream runtime
+ * @en: mode (enable/disable)
+ */
+static int sdw_enable_disable_ports(struct sdw_master_runtime *m_rt, bool en)
+{
+	struct sdw_port_runtime *s_port, *m_port;
+	struct sdw_slave_runtime *s_rt = NULL;
+	int ret = 0;
+
+	/* Enable/Disable Slave port(s) */
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		list_for_each_entry(s_port, &s_rt->port_list, port_node) {
+			ret = sdw_enable_disable_slave_ports(m_rt->bus, s_rt,
+							s_port, en);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* Enable/Disable Master port(s) */
+	list_for_each_entry(m_port, &m_rt->port_list, port_node) {
+		ret = sdw_enable_disable_master_ports(m_rt, m_port, en);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int sdw_do_port_prep(struct sdw_slave_runtime *s_rt,
+		struct sdw_prepare_ch prep_ch, enum sdw_port_prep_ops cmd)
+{
+	const struct sdw_slave_ops *ops = s_rt->slave->ops;
+	int ret;
+
+	if (ops->port_prep) {
+		ret = ops->port_prep(s_rt->slave, &prep_ch, cmd);
+		if (ret < 0) {
+			dev_err(&s_rt->slave->dev,
+				"Slave Port Prep cmd %d failed: %d", cmd, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
+			struct sdw_slave_runtime *s_rt,
+			struct sdw_port_runtime *p_rt, bool prep)
+{
+	struct completion *port_ready = NULL;
+	struct sdw_dpn_prop *dpn_prop;
+	struct sdw_prepare_ch prep_ch;
+	unsigned int time_left;
+	bool intr = false;
+	int ret = 0, val;
+	u32 addr;
+
+	prep_ch.num = p_rt->num;
+	prep_ch.ch_mask = p_rt->ch_mask;
+
+	dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave,
+					s_rt->direction,
+					prep_ch.num);
+	if (!dpn_prop) {
+		dev_err(bus->dev,
+			"Slave Port:%d properties not found", prep_ch.num);
+		return -EINVAL;
+	}
+
+	prep_ch.prepare = prep;
+
+	prep_ch.bank = bus->params.next_bank;
+
+	if (dpn_prop->device_interrupts || !dpn_prop->simple_ch_prep_sm)
+		intr = true;
+
+	/*
+	 * Enable interrupt before Port prepare.
+	 * For Port de-prepare, it is assumed that port
+	 * was prepared earlier
+	 */
+	if (prep && intr) {
+		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
+						dpn_prop->device_interrupts);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Inform slave about the impending port prepare */
+	sdw_do_port_prep(s_rt, prep_ch, SDW_OPS_PORT_PRE_PREP);
+
+	/* Prepare Slave port implementing CP_SM */
+	if (!dpn_prop->simple_ch_prep_sm) {
+		addr = SDW_DPN_PREPARECTRL(p_rt->num);
+
+		if (prep)
+			ret = sdw_update(s_rt->slave, addr,
+					0xFF, p_rt->ch_mask);
+		else
+			ret = sdw_update(s_rt->slave, addr, 0xFF, 0x0);
+
+		if (ret < 0) {
+			dev_err(&s_rt->slave->dev,
+				"Slave prep_ctrl reg write failed");
+			return ret;
+		}
+
+		/* Wait for completion on port ready */
+		port_ready = &s_rt->slave->port_ready[prep_ch.num];
+		time_left = wait_for_completion_timeout(port_ready,
+				msecs_to_jiffies(dpn_prop->ch_prep_timeout));
+
+		val = sdw_read(s_rt->slave, SDW_DPN_PREPARESTATUS(p_rt->num));
+		val &= p_rt->ch_mask;
+		if (!time_left || val) {
+			dev_err(&s_rt->slave->dev,
+				"Chn prep failed for port:%d", prep_ch.num);
+			return -ETIMEDOUT;
+		}
+	}
+
+	/* Inform slaves about ports prepared */
+	sdw_do_port_prep(s_rt, prep_ch, SDW_OPS_PORT_POST_PREP);
+
+	/* Disable interrupt after Port de-prepare */
+	if (!prep && intr)
+		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
+						dpn_prop->device_interrupts);
+
+	return ret;
+}
+
+static int sdw_prep_deprep_master_ports(struct sdw_master_runtime *m_rt,
+				struct sdw_port_runtime *p_rt, bool prep)
+{
+	struct sdw_transport_params *t_params = &p_rt->transport_params;
+	struct sdw_bus *bus = m_rt->bus;
+	const struct sdw_master_port_ops *ops = bus->port_ops;
+	struct sdw_prepare_ch prep_ch;
+	int ret = 0;
+
+	prep_ch.num = p_rt->num;
+	prep_ch.ch_mask = p_rt->ch_mask;
+	prep_ch.prepare = prep; /* Prepare/De-prepare */
+	prep_ch.bank = bus->params.next_bank;
+
+	/* Pre-prepare/Pre-deprepare port(s) */
+	if (ops->dpn_port_prep) {
+		ret = ops->dpn_port_prep(bus, &prep_ch);
+		if (ret < 0) {
+			dev_err(bus->dev, "Port prepare failed for port:%d",
+					t_params->port_num);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+/**
+ * sdw_prep_deprep_ports() - Prepare/De-prepare port(s) for Master(s) and
+ * Slave(s)
+ *
+ * @m_rt: Master runtime handle
+ * @prep: Prepare or De-prepare
+ */
+static int sdw_prep_deprep_ports(struct sdw_master_runtime *m_rt, bool prep)
+{
+	struct sdw_slave_runtime *s_rt = NULL;
+	struct sdw_port_runtime *p_rt;
+	int ret = 0;
+
+	/* Prepare/De-prepare Slave port(s) */
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+			ret = sdw_prep_deprep_slave_ports(m_rt->bus, s_rt,
+							p_rt, prep);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* Prepare/De-prepare Master port(s) */
+	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+		ret = sdw_prep_deprep_master_ports(m_rt, p_rt, prep);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+/**
  * sdw_release_stream() - Free the assigned stream runtime
  *
  * @stream: SoundWire stream runtime

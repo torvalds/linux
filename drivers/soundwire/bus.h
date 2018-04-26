@@ -109,6 +109,8 @@ struct sdw_master_runtime {
 struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
 				enum sdw_data_direction direction,
 				unsigned int port_num);
+int sdw_configure_dpn_intr(struct sdw_slave *slave, int port,
+					bool enable, int mask);
 
 int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
 int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
