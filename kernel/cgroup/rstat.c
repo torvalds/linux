@@ -145,8 +145,17 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp, bool may_sleep)
 		struct cgroup *pos = NULL;
 
 		raw_spin_lock(cpu_lock);
-		while ((pos = cgroup_rstat_cpu_pop_updated(pos, cgrp, cpu)))
+		while ((pos = cgroup_rstat_cpu_pop_updated(pos, cgrp, cpu))) {
+			struct cgroup_subsys_state *css;
+
 			cgroup_base_stat_flush(pos, cpu);
+
+			rcu_read_lock();
+			list_for_each_entry_rcu(css, &pos->rstat_css_list,
+						rstat_css_node)
+				css->ss->css_rstat_flush(css, cpu);
+			rcu_read_unlock();
+		}
 		raw_spin_unlock(cpu_lock);
 
 		/* if @may_sleep, play nice and yield if necessary */
