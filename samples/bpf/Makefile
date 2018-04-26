@@ -114,7 +114,6 @@ always += sock_flags_kern.o
 always += test_probe_write_user_kern.o
 always += trace_output_kern.o
 always += tcbpf1_kern.o
-always += tcbpf2_kern.o
 always += tc_l2_redirect_kern.o
 always += lathist_kern.o
 always += offwaketime_kern.o
