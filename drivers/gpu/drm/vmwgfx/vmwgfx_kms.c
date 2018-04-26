@@ -2680,7 +2680,9 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 	struct vmw_display_unit *du;
 	struct drm_display_mode *mode;
 	int i = 0;
+	int ret = 0;
 
+	mutex_lock(&dev_priv->dev->mode_config.mutex);
 	list_for_each_entry(con, &dev_priv->dev->mode_config.connector_list,
 			    head) {
 		if (i == unit)
@@ -2691,7 +2693,8 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 
 	if (i != unit) {
 		DRM_ERROR("Could not find initial display unit.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
 	if (list_empty(&con->modes))
@@ -2699,7 +2702,8 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 
 	if (list_empty(&con->modes)) {
 		DRM_ERROR("Could not find initial display mode.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
 	du = vmw_connector_to_du(con);
@@ -2720,7 +2724,10 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 					   head);
 	}
 
-	return 0;
+ out_unlock:
+	mutex_unlock(&dev_priv->dev->mode_config.mutex);
+
+	return ret;
 }
 
 /**
