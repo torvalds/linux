@@ -136,8 +136,9 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 						 BRCMF_PCIE_MB_INT_D2H3_DB0 | \
 						 BRCMF_PCIE_MB_INT_D2H3_DB1)
 
+#define BRCMF_PCIE_SHARED_VERSION_7		7
 #define BRCMF_PCIE_MIN_SHARED_VERSION		5
-#define BRCMF_PCIE_MAX_SHARED_VERSION		6
+#define BRCMF_PCIE_MAX_SHARED_VERSION		BRCMF_PCIE_SHARED_VERSION_7
 #define BRCMF_PCIE_SHARED_VERSION_MASK		0x00FF
 #define BRCMF_PCIE_SHARED_DMA_INDEX		0x10000
 #define BRCMF_PCIE_SHARED_DMA_2B_IDX		0x100000
@@ -316,6 +317,14 @@ static const u32 brcmf_ring_max_item[BRCMF_NROF_COMMON_MSGRINGS] = {
 	BRCMF_D2H_MSGRING_CONTROL_COMPLETE_MAX_ITEM,
 	BRCMF_D2H_MSGRING_TX_COMPLETE_MAX_ITEM,
 	BRCMF_D2H_MSGRING_RX_COMPLETE_MAX_ITEM
+};
+
+static const u32 brcmf_ring_itemsize_pre_v7[BRCMF_NROF_COMMON_MSGRINGS] = {
+	BRCMF_H2D_MSGRING_CONTROL_SUBMIT_ITEMSIZE,
+	BRCMF_H2D_MSGRING_RXPOST_SUBMIT_ITEMSIZE,
+	BRCMF_D2H_MSGRING_CONTROL_COMPLETE_ITEMSIZE,
+	BRCMF_D2H_MSGRING_TX_COMPLETE_ITEMSIZE_PRE_V7,
+	BRCMF_D2H_MSGRING_RX_COMPLETE_ITEMSIZE_PRE_V7
 };
 
 static const u32 brcmf_ring_itemsize[BRCMF_NROF_COMMON_MSGRINGS] = {
@@ -1007,8 +1016,14 @@ brcmf_pcie_alloc_dma_and_ring(struct brcmf_pciedev_info *devinfo, u32 ring_id,
 	struct brcmf_pcie_ringbuf *ring;
 	u32 size;
 	u32 addr;
+	const u32 *ring_itemsize_array;
 
-	size = brcmf_ring_max_item[ring_id] * brcmf_ring_itemsize[ring_id];
+	if (devinfo->shared.version < BRCMF_PCIE_SHARED_VERSION_7)
+		ring_itemsize_array = brcmf_ring_itemsize_pre_v7;
+	else
+		ring_itemsize_array = brcmf_ring_itemsize;
+
+	size = brcmf_ring_max_item[ring_id] * ring_itemsize_array[ring_id];
 	dma_buf = brcmf_pcie_init_dmabuffer_for_device(devinfo, size,
 			tcm_ring_phys_addr + BRCMF_RING_MEM_BASE_ADDR_OFFSET,
 			&dma_handle);
@@ -1018,7 +1033,7 @@ brcmf_pcie_alloc_dma_and_ring(struct brcmf_pciedev_info *devinfo, u32 ring_id,
 	addr = tcm_ring_phys_addr + BRCMF_RING_MAX_ITEM_OFFSET;
 	brcmf_pcie_write_tcm16(devinfo, addr, brcmf_ring_max_item[ring_id]);
 	addr = tcm_ring_phys_addr + BRCMF_RING_LEN_ITEMS_OFFSET;
-	brcmf_pcie_write_tcm16(devinfo, addr, brcmf_ring_itemsize[ring_id]);
+	brcmf_pcie_write_tcm16(devinfo, addr, ring_itemsize_array[ring_id]);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring) {
@@ -1027,7 +1042,7 @@ brcmf_pcie_alloc_dma_and_ring(struct brcmf_pciedev_info *devinfo, u32 ring_id,
 		return NULL;
 	}
 	brcmf_commonring_config(&ring->commonring, brcmf_ring_max_item[ring_id],
-				brcmf_ring_itemsize[ring_id], dma_buf);
+				ring_itemsize_array[ring_id], dma_buf);
 	ring->dma_handle = dma_handle;
 	ring->devinfo = devinfo;
 	brcmf_commonring_register_cb(&ring->commonring,
