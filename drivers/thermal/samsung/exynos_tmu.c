@@ -331,12 +331,20 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	struct thermal_zone_device *tzd = data->tzd;
 	const struct thermal_trip * const trips =
 		of_thermal_get_trip_points(tzd);
-	int ret;
+	int ret = 0, temp;
 
 	if (!trips) {
 		dev_err(&pdev->dev,
 			"Cannot get trip points from device tree!\n");
 		return -ENODEV;
+	}
+
+	if (data->soc != SOC_ARCH_EXYNOS5433) /* FIXME */
+		ret = tzd->ops->get_crit_temp(tzd, &temp);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"No CRITICAL trip point defined in device tree!\n");
+		goto out;
 	}
 
 	if (of_thermal_get_ntrips(tzd) > data->ntrip) {
@@ -356,7 +364,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	mutex_unlock(&data->lock);
 	if (!IS_ERR(data->clk_sec))
 		clk_disable(data->clk_sec);
-
+out:
 	return ret;
 }
 
@@ -478,13 +486,6 @@ static int exynos4412_tmu_initialize(struct platform_device *pdev)
 			crit_temp = trips[i].temperature;
 			break;
 		}
-	}
-
-	if (i == of_thermal_get_ntrips(data->tzd)) {
-		pr_err("%s: No CRITICAL trip point defined at of-thermal.c!\n",
-		       __func__);
-		ret = -EINVAL;
-		goto out;
 	}
 
 	threshold_code = temp_to_code(data, crit_temp / MCELSIUS);
