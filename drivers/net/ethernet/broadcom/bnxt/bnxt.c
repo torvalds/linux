@@ -5379,7 +5379,8 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	struct tm tm;
 	time64_t now = ktime_get_real_seconds();
 
-	if (bp->hwrm_spec_code < 0x10400)
+	if ((BNXT_VF(bp) && bp->hwrm_spec_code < 0x10901) ||
+	    bp->hwrm_spec_code < 0x10400)
 		return -EOPNOTSUPP;
 
 	time64_to_tm(now, 0, &tm);
