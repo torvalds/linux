@@ -173,44 +173,59 @@ static int bnxt_hwrm_queue_cos2bw_qcfg(struct bnxt *bp, struct ieee_ets *ets)
 	return 0;
 }
 
-static int bnxt_hwrm_queue_cfg(struct bnxt *bp, unsigned int lltc_mask)
+static int bnxt_queue_remap(struct bnxt *bp, unsigned int lltc_mask)
 {
-	struct hwrm_queue_cfg_input req = {0};
-	int i;
+	unsigned long qmap = 0;
+	int max = bp->max_tc;
+	int i, j, rc;
 
-	if (netif_running(bp->dev))
-		bnxt_tx_disable(bp);
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_QUEUE_CFG, -1, -1);
-	req.flags = cpu_to_le32(QUEUE_CFG_REQ_FLAGS_PATH_BIDIR);
-	req.enables = cpu_to_le32(QUEUE_CFG_REQ_ENABLES_SERVICE_PROFILE);
-
-	/* Configure lossless queues to lossy first */
-	req.service_profile = QUEUE_CFG_REQ_SERVICE_PROFILE_LOSSY;
-	for (i = 0; i < bp->max_tc; i++) {
-		if (BNXT_LLQ(bp->q_info[i].queue_profile)) {
-			req.queue_id = cpu_to_le32(bp->q_info[i].queue_id);
-			hwrm_send_message(bp, &req, sizeof(req),
-					  HWRM_CMD_TIMEOUT);
-			bp->q_info[i].queue_profile =
-				QUEUE_CFG_REQ_SERVICE_PROFILE_LOSSY;
-		}
-	}
-
-	/* Now configure desired queues to lossless */
-	req.service_profile = QUEUE_CFG_REQ_SERVICE_PROFILE_LOSSLESS;
-	for (i = 0; i < bp->max_tc; i++) {
+	/* Assign lossless TCs first */
+	for (i = 0, j = 0; i < max; ) {
 		if (lltc_mask & (1 << i)) {
-			req.queue_id = cpu_to_le32(bp->q_info[i].queue_id);
-			hwrm_send_message(bp, &req, sizeof(req),
-					  HWRM_CMD_TIMEOUT);
-			bp->q_info[i].queue_profile =
-				QUEUE_CFG_REQ_SERVICE_PROFILE_LOSSLESS;
+			if (BNXT_LLQ(bp->q_info[j].queue_profile)) {
+				bp->tc_to_qidx[i] = j;
+				__set_bit(j, &qmap);
+				i++;
+			}
+			j++;
+			continue;
+		}
+		i++;
+	}
+
+	for (i = 0, j = 0; i < max; i++) {
+		if (lltc_mask & (1 << i))
+			continue;
+		j = find_next_zero_bit(&qmap, max, j);
+		bp->tc_to_qidx[i] = j;
+		__set_bit(j, &qmap);
+		j++;
+	}
+
+	if (netif_running(bp->dev)) {
+		bnxt_close_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+		if (rc) {
+			netdev_warn(bp->dev, "failed to open NIC, rc = %d\n", rc);
+			return rc;
 		}
 	}
-	if (netif_running(bp->dev))
-		bnxt_tx_enable(bp);
+	if (bp->ieee_ets) {
+		int tc = netdev_get_num_tc(bp->dev);
 
+		if (!tc)
+			tc = 1;
+		rc = bnxt_hwrm_queue_cos2bw_cfg(bp, bp->ieee_ets, tc);
+		if (rc) {
+			netdev_warn(bp->dev, "failed to config BW, rc = %d\n", rc);
+			return rc;
+		}
+		rc = bnxt_hwrm_queue_pri2cos_cfg(bp, bp->ieee_ets);
+		if (rc) {
+			netdev_warn(bp->dev, "failed to config prio, rc = %d\n", rc);
+			return rc;
+		}
+	}
 	return 0;
 }
 
@@ -220,7 +235,7 @@ static int bnxt_hwrm_queue_pfc_cfg(struct bnxt *bp, struct ieee_pfc *pfc)
 	struct ieee_ets *my_ets = bp->ieee_ets;
 	unsigned int tc_mask = 0, pri_mask = 0;
 	u8 i, pri, lltc_count = 0;
-	bool need_q_recfg = false;
+	bool need_q_remap = false;
 	int rc;
 
 	if (!my_ets)
@@ -240,21 +255,25 @@ static int bnxt_hwrm_queue_pfc_cfg(struct bnxt *bp, struct ieee_pfc *pfc)
 	if (lltc_count > bp->max_lltc)
 		return -EINVAL;
 
+	for (i = 0; i < bp->max_tc; i++) {
+		if (tc_mask & (1 << i)) {
+			u8 qidx = bp->tc_to_qidx[i];
+
+			if (!BNXT_LLQ(bp->q_info[qidx].queue_profile)) {
+				need_q_remap = true;
+				break;
+			}
+		}
+	}
+
+	if (need_q_remap)
+		rc = bnxt_queue_remap(bp, tc_mask);
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_QUEUE_PFCENABLE_CFG, -1, -1);
 	req.flags = cpu_to_le32(pri_mask);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return rc;
-
-	for (i = 0; i < bp->max_tc; i++) {
-		if (tc_mask & (1 << i)) {
-			if (!BNXT_LLQ(bp->q_info[i].queue_profile))
-				need_q_recfg = true;
-		}
-	}
-
-	if (need_q_recfg)
-		rc = bnxt_hwrm_queue_cfg(bp, tc_mask);
 
 	return rc;
 }
