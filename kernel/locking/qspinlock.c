@@ -12,11 +12,11 @@
  * GNU General Public License for more details.
  *
  * (C) Copyright 2013-2015 Hewlett-Packard Development Company, L.P.
- * (C) Copyright 2013-2014 Red Hat, Inc.
+ * (C) Copyright 2013-2014,2018 Red Hat, Inc.
  * (C) Copyright 2015 Intel Corp.
  * (C) Copyright 2015 Hewlett-Packard Enterprise Development LP
  *
- * Authors: Waiman Long <waiman.long@hpe.com>
+ * Authors: Waiman Long <longman@redhat.com>
  *          Peter Zijlstra <peterz@infradead.org>
  */
 
@@ -31,6 +31,11 @@
 #include <linux/prefetch.h>
 #include <asm/byteorder.h>
 #include <asm/qspinlock.h>
+
+/*
+ * Include queued spinlock statistics code
+ */
+#include "qspinlock_stat.h"
 
 /*
  * The basic principle of a queue-based spinlock can best be understood
@@ -295,7 +300,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
 	if (pv_enabled())
-		goto queue;
+		goto pv_queue;
 
 	if (virt_spin_lock(lock))
 		return;
@@ -348,6 +353,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 		 * *,1,0 -> *,0,1
 		 */
 		clear_pending_set_locked(lock);
+		qstat_inc(qstat_lock_pending, true);
 		return;
 	}
 
@@ -363,6 +369,8 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * queuing.
 	 */
 queue:
+	qstat_inc(qstat_lock_slowpath, true);
+pv_queue:
 	node = this_cpu_ptr(&mcs_nodes[0]);
 	idx = node->count++;
 	tail = encode_tail(smp_processor_id(), idx);

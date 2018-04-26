@@ -56,11 +56,6 @@ struct pv_node {
 };
 
 /*
- * Include queued spinlock statistics code
- */
-#include "qspinlock_stat.h"
-
-/*
  * Hybrid PV queued/unfair lock
  *
  * By replacing the regular queued_spin_trylock() with the function below,
@@ -428,7 +423,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 	/*
 	 * Tracking # of slowpath locking operations
 	 */
-	qstat_inc(qstat_pv_lock_slowpath, true);
+	qstat_inc(qstat_lock_slowpath, true);
 
 	for (;; waitcnt++) {
 		/*
