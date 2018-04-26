@@ -868,7 +868,6 @@ static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
 				u8 flags)
 {
 	if ((card->dev->features & NETIF_F_RXCSUM) &&
-	    (flags & QETH_HDR_EXT_CSUM_HDR_REQ) &&
 	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
