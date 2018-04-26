@@ -809,6 +809,9 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_fwd_resp_input req = {0};
 	struct hwrm_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FWD_RESP, -1, -1);
 
 	/* Set the new target id */
@@ -845,6 +848,9 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_reject_fwd_resp_input req = {0};
 	struct hwrm_reject_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_REJ_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_REJECT_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
@@ -876,6 +882,9 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	int rc = 0;
 	struct hwrm_exec_fwd_resp_input req = {0};
 	struct hwrm_exec_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
+
+	if (BNXT_EXEC_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_EXEC_FWD_RESP, -1, -1);
 	/* Set the new target id */
