@@ -23,7 +23,17 @@ struct sdw_slave;
 #define SDW_MASTER_DEV_NUM		14
 
 #define SDW_NUM_DEV_ID_REGISTERS	6
+/* frame shape defines */
 
+/*
+ * Note: The maximum row define in SoundWire spec 1.1 is 23. In order to
+ * fill hole with 0, one more dummy entry is added
+ */
+#define SDW_FRAME_ROWS		24
+#define SDW_FRAME_COLS		8
+#define SDW_FRAME_ROW_COLS		(SDW_FRAME_ROWS * SDW_FRAME_COLS)
+
+#define SDW_FRAME_CTRL_BITS		48
 #define SDW_MAX_DEVICES			11
 
 #define SDW_VALID_PORT_RANGE(n)		(n <= 14 && n >= 1)
@@ -377,6 +387,21 @@ enum sdw_reg_bank {
 };
 
 /**
+ * struct sdw_bus_conf: Bus configuration
+ *
+ * @clk_freq: Clock frequency, in Hz
+ * @num_rows: Number of rows in frame
+ * @num_cols: Number of columns in frame
+ * @bank: Next register bank
+ */
+struct sdw_bus_conf {
+	unsigned int clk_freq;
+	unsigned int num_rows;
+	unsigned int num_cols;
+	unsigned int bank;
+};
+
+/**
  * struct sdw_prepare_ch: Prepare/De-prepare Data Port channel
  *
  * @num: Port number
@@ -413,10 +438,20 @@ enum sdw_port_prep_ops {
  * @curr_bank: Current bank in use (BANK0/BANK1)
  * @next_bank: Next bank to use (BANK0/BANK1). next_bank will always be
  * set to !curr_bank
+ * @max_dr_freq: Maximum double rate clock frequency supported, in Hz
+ * @curr_dr_freq: Current double rate clock frequency, in Hz
+ * @bandwidth: Current bandwidth
+ * @col: Active columns
+ * @row: Active rows
  */
 struct sdw_bus_params {
 	enum sdw_reg_bank curr_bank;
 	enum sdw_reg_bank next_bank;
+	unsigned int max_dr_freq;
+	unsigned int curr_dr_freq;
+	unsigned int bandwidth;
+	unsigned int col;
+	unsigned int row;
 };
 
 /**
@@ -426,6 +461,7 @@ struct sdw_bus_params {
  * @interrupt_callback: Device interrupt notification (invoked in thread
  * context)
  * @update_status: Update Slave status
+ * @bus_config: Update the bus config for Slave
  * @port_prep: Prepare the port with parameters
  */
 struct sdw_slave_ops {
@@ -434,6 +470,8 @@ struct sdw_slave_ops {
 			struct sdw_slave_intr_status *status);
 	int (*update_status)(struct sdw_slave *slave,
 			enum sdw_slave_status status);
+	int (*bus_config)(struct sdw_slave *slave,
+			struct sdw_bus_params *params);
 	int (*port_prep)(struct sdw_slave *slave,
 			struct sdw_prepare_ch *prepare_ch,
 			enum sdw_port_prep_ops pre_ops);
@@ -597,6 +635,9 @@ struct sdw_defer {
  * @xfer_msg: Transfer message callback
  * @xfer_msg_defer: Defer version of transfer message callback
  * @reset_page_addr: Reset the SCP page address registers
+ * @set_bus_conf: Set the bus configuration
+ * @pre_bank_switch: Callback for pre bank switch
+ * @post_bank_switch: Callback for post bank switch
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
@@ -608,6 +649,11 @@ struct sdw_master_ops {
 			struct sdw_defer *defer);
 	enum sdw_command_response (*reset_page_addr)
 			(struct sdw_bus *bus, unsigned int dev_num);
+	int (*set_bus_conf)(struct sdw_bus *bus,
+			struct sdw_bus_params *params);
+	int (*pre_bank_switch)(struct sdw_bus *bus);
+	int (*post_bank_switch)(struct sdw_bus *bus);
+
 };
 
 /**
@@ -628,6 +674,7 @@ struct sdw_master_ops {
  * transport and port parameters
  * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
+ * @bank_switch_timeout: Bank switch timeout computed
  */
 struct sdw_bus {
 	struct device *dev;
@@ -643,6 +690,7 @@ struct sdw_bus {
 	struct list_head m_rt_list;
 	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
+	u32 bank_switch_timeout;
 };
 
 int sdw_add_bus_master(struct sdw_bus *bus);

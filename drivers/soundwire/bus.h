@@ -45,6 +45,11 @@ struct sdw_msg {
 	bool page;
 };
 
+#define SDW_DOUBLE_RATE_FACTOR		2
+
+extern int rows[SDW_FRAME_ROWS];
+extern int cols[SDW_FRAME_COLS];
+
 /**
  * sdw_port_runtime: Runtime port parameters for Master or Slave
  *

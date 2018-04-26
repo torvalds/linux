@@ -78,6 +78,13 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 		return ret;
 	}
 
+	/*
+	 * Default active bank will be 0 as out of reset the Slaves have
+	 * to start with bank 0 (Table 40 of Spec)
+	 */
+	bus->params.curr_bank = SDW_BANK0;
+	bus->params.next_bank = SDW_BANK1;
+
 	return 0;
 }
 EXPORT_SYMBOL(sdw_add_bus_master);
