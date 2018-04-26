@@ -306,7 +306,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
 
-	spin_lock_init(&engine->stats.lock);
+	seqlock_init(&engine->stats.lock);
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
@@ -1481,7 +1481,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 		return -ENODEV;
 
 	tasklet_disable(&execlists->tasklet);
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
 		err = -EBUSY;
@@ -1505,7 +1505,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	}
 
 unlock:
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 	tasklet_enable(&execlists->tasklet);
 
 	return err;
@@ -1534,12 +1534,13 @@ static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
  */
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine)
 {
+	unsigned int seq;
 	ktime_t total;
-	unsigned long flags;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
-	total = __intel_engine_get_busy_time(engine);
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	do {
+		seq = read_seqbegin(&engine->stats.lock);
+		total = __intel_engine_get_busy_time(engine);
+	} while (read_seqretry(&engine->stats.lock, seq));
 
 	return total;
 }
@@ -1557,13 +1558,13 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 	WARN_ON_ONCE(engine->stats.enabled == 0);
 	if (--engine->stats.enabled == 0) {
 		engine->stats.total = __intel_engine_get_busy_time(engine);
 		engine->stats.active = 0;
 	}
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
