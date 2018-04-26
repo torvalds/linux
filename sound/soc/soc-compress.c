@@ -973,6 +973,7 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 			continue;
 
 		compr->ops->copy = soc_compr_copy;
+		break;
 	}
 
 
