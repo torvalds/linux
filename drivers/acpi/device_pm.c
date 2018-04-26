@@ -1259,9 +1259,6 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 	if (!adev)
 		return -ENODEV;
 
-	if (dev->pm_domain)
-		return -EEXIST;
-
 	/*
 	 * Only attach the power domain to the first device if the
 	 * companion is shared by multiple. This is to prevent doing power

@@ -2194,9 +2194,6 @@ int genpd_dev_pm_attach(struct device *dev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	if (dev->pm_domain)
-		return -EEXIST;
-
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 					"#power-domain-cells", 0, &pd_args);
 	if (ret < 0)
