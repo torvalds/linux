@@ -24,6 +24,7 @@
 
 #include "sane_ctype.h"
 #include <symbol/kallsyms.h>
+#include <linux/mman.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 
@@ -1457,6 +1458,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	struct thread *thread;
 	struct map *map;
 	enum map_type type;
+	u32 prot = 0;
 	int ret = 0;
 
 	if (dump_trace)
@@ -1477,12 +1479,14 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	if (event->header.misc & PERF_RECORD_MISC_MMAP_DATA)
 		type = MAP__VARIABLE;
-	else
+	else {
 		type = MAP__FUNCTION;
+		prot = PROT_EXEC;
+	}
 
 	map = map__new(machine, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, prot, 0,
 			event->mmap.filename,
 			type, thread);
 
