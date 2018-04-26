@@ -735,22 +735,6 @@ static int qeth_l3_setadapter_parms(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_send_simple_setassparms_ipv6(struct qeth_card *card,
-		enum qeth_ipa_funcs ipa_func, __u16 cmd_code)
-{
-	int rc;
-	struct qeth_cmd_buffer *iob;
-
-	QETH_CARD_TEXT(card, 4, "simassp6");
-	iob = qeth_get_setassparms_cmd(card, ipa_func, cmd_code,
-				       0, QETH_PROT_IPV6);
-	if (!iob)
-		return -ENOMEM;
-	rc = qeth_send_setassparms(card, iob, 0, 0,
-				   qeth_setassparms_cb, NULL);
-	return rc;
-}
-
 static int qeth_l3_start_ipa_arp_processing(struct qeth_card *card)
 {
 	int rc;
@@ -862,16 +846,16 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 			QETH_CARD_IFNAME(card));
 		return rc;
 	}
-	rc = qeth_l3_send_simple_setassparms_ipv6(card, IPA_IPV6,
-					       IPA_CMD_ASS_START);
+	rc = qeth_send_simple_setassparms_v6(card, IPA_IPV6,
+					     IPA_CMD_ASS_START, 0);
 	if (rc) {
 		dev_err(&card->gdev->dev,
 			"Activating IPv6 support for %s failed\n",
 			 QETH_CARD_IFNAME(card));
 		return rc;
 	}
-	rc = qeth_l3_send_simple_setassparms_ipv6(card, IPA_PASSTHRU,
-					       IPA_CMD_ASS_START);
+	rc = qeth_send_simple_setassparms_v6(card, IPA_PASSTHRU,
+					     IPA_CMD_ASS_START, 0);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Enabling the passthrough mode for %s failed\n",

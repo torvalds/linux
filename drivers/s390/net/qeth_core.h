@@ -900,6 +900,27 @@ static inline int qeth_is_diagass_supported(struct qeth_card *card,
 	return card->info.diagass_support & (__u32)cmd;
 }
 
+int qeth_send_simple_setassparms_prot(struct qeth_card *card,
+				      enum qeth_ipa_funcs ipa_func,
+				      u16 cmd_code, long data,
+				      enum qeth_prot_versions prot);
+/* IPv4 variant */
+static inline int qeth_send_simple_setassparms(struct qeth_card *card,
+					       enum qeth_ipa_funcs ipa_func,
+					       u16 cmd_code, long data)
+{
+	return qeth_send_simple_setassparms_prot(card, ipa_func, cmd_code,
+						 data, QETH_PROT_IPV4);
+}
+
+static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
+						  enum qeth_ipa_funcs ipa_func,
+						  u16 cmd_code, long data)
+{
+	return qeth_send_simple_setassparms_prot(card, ipa_func, cmd_code,
+						 data, QETH_PROT_IPV6);
+}
+
 extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
 extern const struct attribute_group *qeth_generic_attr_groups[];
@@ -994,8 +1015,6 @@ int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
 void qeth_trace_features(struct qeth_card *);
 void qeth_close_dev(struct qeth_card *);
-int qeth_send_simple_setassparms(struct qeth_card *, enum qeth_ipa_funcs,
-				 __u16, long);
 int qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *, __u16,
 			  long,
 			  int (*reply_cb)(struct qeth_card *,
