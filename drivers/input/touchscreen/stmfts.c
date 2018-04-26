@@ -687,15 +687,20 @@ static int stmfts_probe(struct i2c_client *client,
 
 	input_set_drvdata(sdata->input, sdata);
 
+	/*
+	 * stmfts_power_on expects interrupt to be disabled, but
+	 * at this point the device is still off and I do not trust
+	 * the status of the irq line that can generate some spurious
+	 * interrupts. To be on the safe side it's better to not enable
+	 * the interrupts during their request.
+	 */
+	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);
 	err = devm_request_threaded_irq(&client->dev, client->irq,
 					NULL, stmfts_irq_handler,
 					IRQF_ONESHOT,
 					"stmfts_irq", sdata);
 	if (err)
 		return err;
-
-	/* stmfts_power_on expects interrupt to be disabled */
-	disable_irq(client->irq);
 
 	dev_dbg(&client->dev, "initializing ST-Microelectronics FTS...\n");
 

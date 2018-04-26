@@ -327,7 +327,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 		 */
 		cwnd_by_slope = (u32)
 			div64_u64(((u64)ca->nv_rtt_max_rate) * ca->nv_min_rtt,
-				  (u64)(80000 * tp->mss_cache));
+				  80000ULL * tp->mss_cache);
 		max_win = cwnd_by_slope + nv_pad;
 
 		/* If cwnd > max_win, decrease cwnd

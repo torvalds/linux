@@ -17,6 +17,7 @@
 
 /* # of WCs to poll for with a single call to ib_poll_cq */
 #define IB_POLL_BATCH			16
+#define IB_POLL_BATCH_DIRECT		8
 
 /* # of WCs to iterate over before yielding */
 #define IB_POLL_BUDGET_IRQ		256
@@ -25,7 +26,8 @@
 #define IB_POLL_FLAGS \
 	(IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS)
 
-static int __ib_process_cq(struct ib_cq *cq, int budget)
+static int __ib_process_cq(struct ib_cq *cq, int budget, struct ib_wc *wcs,
+			   int batch)
 {
 	int i, n, completed = 0;
 
@@ -34,10 +36,10 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
 	 * want to bound this call, thus we need unsigned
 	 * minimum here.
 	 */
-	while ((n = ib_poll_cq(cq, min_t(u32, IB_POLL_BATCH,
-			budget - completed), cq->wc)) > 0) {
+	while ((n = ib_poll_cq(cq, min_t(u32, batch,
+					 budget - completed), wcs)) > 0) {
 		for (i = 0; i < n; i++) {
-			struct ib_wc *wc = &cq->wc[i];
+			struct ib_wc *wc = &wcs[i];
 
 			if (wc->wr_cqe)
 				wc->wr_cqe->done(cq, wc);
@@ -47,8 +49,7 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
 
 		completed += n;
 
-		if (n != IB_POLL_BATCH ||
-		    (budget != -1 && completed >= budget))
+		if (n != batch || (budget != -1 && completed >= budget))
 			break;
 	}
 
@@ -60,18 +61,20 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
  * @cq:		CQ to process
  * @budget:	number of CQEs to poll for
  *
- * This function is used to process all outstanding CQ entries on a
- * %IB_POLL_DIRECT CQ.  It does not offload CQ processing to a different
- * context and does not ask for completion interrupts from the HCA.
+ * This function is used to process all outstanding CQ entries.
+ * It does not offload CQ processing to a different context and does
+ * not ask for completion interrupts from the HCA.
+ * Using direct processing on CQ with non IB_POLL_DIRECT type may trigger
+ * concurrent processing.
  *
  * Note: do not pass -1 as %budget unless it is guaranteed that the number
  * of completions that will be processed is small.
  */
 int ib_process_cq_direct(struct ib_cq *cq, int budget)
 {
-	WARN_ON_ONCE(cq->poll_ctx != IB_POLL_DIRECT);
+	struct ib_wc wcs[IB_POLL_BATCH_DIRECT];
 
-	return __ib_process_cq(cq, budget);
+	return __ib_process_cq(cq, budget, wcs, IB_POLL_BATCH_DIRECT);
 }
 EXPORT_SYMBOL(ib_process_cq_direct);
 
@@ -85,7 +88,7 @@ static int ib_poll_handler(struct irq_poll *iop, int budget)
 	struct ib_cq *cq = container_of(iop, struct ib_cq, iop);
 	int completed;
 
-	completed = __ib_process_cq(cq, budget);
+	completed = __ib_process_cq(cq, budget, cq->wc, IB_POLL_BATCH);
 	if (completed < budget) {
 		irq_poll_complete(&cq->iop);
 		if (ib_req_notify_cq(cq, IB_POLL_FLAGS) > 0)
@@ -105,7 +108,8 @@ static void ib_cq_poll_work(struct work_struct *work)
 	struct ib_cq *cq = container_of(work, struct ib_cq, work);
 	int completed;
 
-	completed = __ib_process_cq(cq, IB_POLL_BUDGET_WORKQUEUE);
+	completed = __ib_process_cq(cq, IB_POLL_BUDGET_WORKQUEUE, cq->wc,
+				    IB_POLL_BATCH);
 	if (completed >= IB_POLL_BUDGET_WORKQUEUE ||
 	    ib_req_notify_cq(cq, IB_POLL_FLAGS) > 0)
 		queue_work(ib_comp_wq, &cq->work);

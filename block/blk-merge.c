@@ -551,6 +551,24 @@ static bool req_no_special_merge(struct request *req)
 	return !q->mq_ops && req->special;
 }
 
+static bool req_attempt_discard_merge(struct request_queue *q, struct request *req,
+		struct request *next)
+{
+	unsigned short segments = blk_rq_nr_discard_segments(req);
+
+	if (segments >= queue_max_discard_segments(q))
+		goto no_merge;
+	if (blk_rq_sectors(req) + bio_sectors(next->bio) >
+	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
+		goto no_merge;
+
+	req->nr_phys_segments = segments + blk_rq_nr_discard_segments(next);
+	return true;
+no_merge:
+	req_set_nomerge(q, req);
+	return false;
+}
+
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
@@ -684,9 +702,13 @@ static struct request *attempt_merge(struct request_queue *q,
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn
 	 * will have updated segment counts, update sector
-	 * counts here.
+	 * counts here. Handle DISCARDs separately, as they
+	 * have separate settings.
 	 */
-	if (!ll_merge_requests_fn(q, req, next))
+	if (req_op(req) == REQ_OP_DISCARD) {
+		if (!req_attempt_discard_merge(q, req, next))
+			return NULL;
+	} else if (!ll_merge_requests_fn(q, req, next))
 		return NULL;
 
 	/*
@@ -716,7 +738,8 @@ static struct request *attempt_merge(struct request_queue *q,
 
 	req->__data_len += blk_rq_bytes(next);
 
-	elv_merge_requests(q, req, next);
+	if (req_op(req) != REQ_OP_DISCARD)
+		elv_merge_requests(q, req, next);
 
 	/*
 	 * 'next' is going away, so update stats accordingly

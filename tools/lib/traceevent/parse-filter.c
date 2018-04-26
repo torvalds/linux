@@ -1879,17 +1879,25 @@ static const char *get_field_str(struct filter_arg *arg, struct pevent_record *r
 	struct pevent *pevent;
 	unsigned long long addr;
 	const char *val = NULL;
+	unsigned int size;
 	char hex[64];
 
 	/* If the field is not a string convert it */
 	if (arg->str.field->flags & FIELD_IS_STRING) {
 		val = record->data + arg->str.field->offset;
+		size = arg->str.field->size;
+
+		if (arg->str.field->flags & FIELD_IS_DYNAMIC) {
+			addr = *(unsigned int *)val;
+			val = record->data + (addr & 0xffff);
+			size = addr >> 16;
+		}
 
 		/*
 		 * We need to copy the data since we can't be sure the field
 		 * is null terminated.
 		 */
-		if (*(val + arg->str.field->size - 1)) {
+		if (*(val + size - 1)) {
 			/* copy it */
 			memcpy(arg->str.buffer, val, arg->str.field->size);
 			/* the buffer is already NULL terminated */

@@ -465,6 +465,8 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (!pdata->mmio_base) {
+		/* Avoid acpi_bus_attach() instantiating a pdev for this dev. */
+		adev->pnp.type.platform_id = 0;
 		/* Skip the device, but continue the namespace scan. */
 		ret = 0;
 		goto err_out;

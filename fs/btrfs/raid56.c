@@ -858,10 +858,17 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 	kfree(rbio);
 }
 
-static void free_raid_bio(struct btrfs_raid_bio *rbio)
+static void rbio_endio_bio_list(struct bio *cur, blk_status_t err)
 {
-	unlock_stripe(rbio);
-	__free_raid_bio(rbio);
+	struct bio *next;
+
+	while (cur) {
+		next = cur->bi_next;
+		cur->bi_next = NULL;
+		cur->bi_status = err;
+		bio_endio(cur);
+		cur = next;
+	}
 }
 
 /*
@@ -871,20 +878,26 @@ static void free_raid_bio(struct btrfs_raid_bio *rbio)
 static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
-	struct bio *next;
+	struct bio *extra;
 
 	if (rbio->generic_bio_cnt)
 		btrfs_bio_counter_sub(rbio->fs_info, rbio->generic_bio_cnt);
 
-	free_raid_bio(rbio);
+	/*
+	 * At this moment, rbio->bio_list is empty, however since rbio does not
+	 * always have RBIO_RMW_LOCKED_BIT set and rbio is still linked on the
+	 * hash list, rbio may be merged with others so that rbio->bio_list
+	 * becomes non-empty.
+	 * Once unlock_stripe() is done, rbio->bio_list will not be updated any
+	 * more and we can call bio_endio() on all queued bios.
+	 */
+	unlock_stripe(rbio);
+	extra = bio_list_get(&rbio->bio_list);
+	__free_raid_bio(rbio);
 
-	while (cur) {
-		next = cur->bi_next;
-		cur->bi_next = NULL;
-		cur->bi_status = err;
-		bio_endio(cur);
-		cur = next;
-	}
+	rbio_endio_bio_list(cur, err);
+	if (extra)
+		rbio_endio_bio_list(extra, err);
 }
 
 /*
@@ -2159,11 +2172,21 @@ int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
 	}
 
 	/*
-	 * reconstruct from the q stripe if they are
-	 * asking for mirror 3
+	 * Loop retry:
+	 * for 'mirror == 2', reconstruct from all other stripes.
+	 * for 'mirror_num > 2', select a stripe to fail on every retry.
 	 */
-	if (mirror_num == 3)
-		rbio->failb = rbio->real_stripes - 2;
+	if (mirror_num > 2) {
+		/*
+		 * 'mirror == 3' is to fail the p stripe and
+		 * reconstruct from the q stripe.  'mirror > 3' is to
+		 * fail a data stripe and reconstruct from p+q stripe.
+		 */
+		rbio->failb = rbio->real_stripes - (mirror_num - 1);
+		ASSERT(rbio->failb > 0);
+		if (rbio->failb <= rbio->faila)
+			rbio->failb--;
+	}
 
 	ret = lock_stripe_add(rbio);
 

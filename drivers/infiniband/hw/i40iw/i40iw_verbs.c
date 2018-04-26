@@ -428,6 +428,7 @@ void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 {
 	struct i40iw_pbl *iwpbl = &iwqp->iwpbl;
 
+	i40iw_ieq_cleanup_qp(iwdev->vsi.ieq, &iwqp->sc_qp);
 	i40iw_dealloc_push_page(iwdev, &iwqp->sc_qp);
 	if (qp_num)
 		i40iw_free_resource(iwdev, iwdev->allocated_qps, qp_num);
@@ -1655,6 +1656,7 @@ static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
 		err_code = -EOVERFLOW;
 		goto err;
 	}
+	stag &= ~I40IW_CQPSQ_STAG_KEY_MASK;
 	iwmr->stag = stag;
 	iwmr->ibmr.rkey = stag;
 	iwmr->ibmr.lkey = stag;

@@ -82,15 +82,15 @@ memx_train_tail:
 // $r0  - zero
 memx_func_enter:
 #if NVKM_PPWR_CHIPSET == GT215
-	movw $r8 0x1610
+	mov $r8 0x1610
 	nv_rd32($r7, $r8)
 	imm32($r6, 0xfffffffc)
 	and $r7 $r6
-	movw $r6 0x2
+	mov $r6 0x2
 	or $r7 $r6
 	nv_wr32($r8, $r7)
 #else
-	movw $r6 0x001620
+	mov $r6 0x001620
 	imm32($r7, ~0x00000aa2);
 	nv_rd32($r8, $r6)
 	and $r8 $r7
@@ -101,7 +101,7 @@ memx_func_enter:
 	and $r8 $r7
 	nv_wr32($r6, $r8)
 
-	movw $r6 0x0026f0
+	mov $r6 0x0026f0
 	nv_rd32($r8, $r6)
 	and $r8 $r7
 	nv_wr32($r6, $r8)
@@ -136,19 +136,19 @@ memx_func_leave:
 		bra nz #memx_func_leave_wait
 
 #if NVKM_PPWR_CHIPSET == GT215
-	movw $r8 0x1610
+	mov $r8 0x1610
 	nv_rd32($r7, $r8)
 	imm32($r6, 0xffffffcc)
 	and $r7 $r6
 	nv_wr32($r8, $r7)
 #else
-	movw $r6 0x0026f0
+	mov $r6 0x0026f0
 	imm32($r7, 0x00000001)
 	nv_rd32($r8, $r6)
 	or $r8 $r7
 	nv_wr32($r6, $r8)
 
-	movw $r6 0x001620
+	mov $r6 0x001620
 	nv_rd32($r8, $r6)
 	or $r8 $r7
 	nv_wr32($r6, $r8)
@@ -177,11 +177,11 @@ memx_func_wait_vblank:
 	bra #memx_func_wait_vblank_fini
 
 	memx_func_wait_vblank_head1:
-	movw $r7 0x20
+	mov $r7 0x20
 	bra #memx_func_wait_vblank_0
 
 	memx_func_wait_vblank_head0:
-	movw $r7 0x8
+	mov $r7 0x8
 
 	memx_func_wait_vblank_0:
 		nv_iord($r6, NV_PPWR_INPUT)
@@ -273,13 +273,13 @@ memx_func_train:
 // $r5 - outer loop counter
 // $r6 - inner loop counter
 // $r7 - entry counter (#memx_train_head + $r7)
-	movw $r5 0x3
-	movw $r7 0x0
+	mov $r5 0x3
+	mov $r7 0x0
 
 // Read random memory to wake up... things
 	imm32($r9, 0x700000)
 	nv_rd32($r8,$r9)
-	movw $r14 0x2710
+	mov $r14 0x2710
 	call(nsec)
 
 	memx_func_train_loop_outer:
@@ -289,9 +289,9 @@ memx_func_train:
 		nv_wr32($r9, $r8)
 		push $r5
 
-		movw $r6 0x0
+		mov $r6 0x0
 		memx_func_train_loop_inner:
-			movw $r8 0x1111
+			mov $r8 0x1111
 			mulu $r9 $r6 $r8
 			shl b32 $r8 $r9 0x10
 			or $r8 $r9
@@ -315,7 +315,7 @@ memx_func_train:
 
 			// $r5 - inner inner loop counter
 			// $r9 - result
-			movw $r5 0
+			mov $r5 0
 			imm32($r9, 0x8300ffff)
 			memx_func_train_loop_4x:
 				imm32($r10, 0x100080)

@@ -84,6 +84,7 @@ static struct xt_match xt_statistic_mt_reg __read_mostly = {
 	.checkentry = statistic_mt_check,
 	.destroy    = statistic_mt_destroy,
 	.matchsize  = sizeof(struct xt_statistic_info),
+	.usersize   = offsetof(struct xt_statistic_info, master),
 	.me         = THIS_MODULE,
 };
 

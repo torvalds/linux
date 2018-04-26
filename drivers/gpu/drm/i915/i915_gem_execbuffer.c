@@ -722,7 +722,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		err = radix_tree_insert(handles_vma, handle, vma);
 		if (unlikely(err)) {
-			kfree(lut);
+			kmem_cache_free(eb->i915->luts, lut);
 			goto err_obj;
 		}
 

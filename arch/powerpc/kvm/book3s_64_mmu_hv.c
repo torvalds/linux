@@ -1348,12 +1348,8 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 	}
 
 	new_pteg = hash & new_hash_mask;
-	if (vpte & HPTE_V_SECONDARY) {
-		BUG_ON(~pteg != (hash & old_hash_mask));
-		new_pteg = ~new_pteg;
-	} else {
-		BUG_ON(pteg != (hash & old_hash_mask));
-	}
+	if (vpte & HPTE_V_SECONDARY)
+		new_pteg = ~hash & new_hash_mask;
 
 	new_idx = new_pteg * HPTES_PER_GROUP + (idx % HPTES_PER_GROUP);
 	new_hptep = (__be64 *)(new->virt + (new_idx << 4));
