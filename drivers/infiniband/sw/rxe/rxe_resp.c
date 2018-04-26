@@ -742,7 +742,6 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	err = rxe_xmit_packet(rxe, qp, &ack_pkt, skb);
 	if (err) {
 		pr_err("Failed sending RDMA reply.\n");
-		kfree_skb(skb);
 		return RESPST_ERR_RNR;
 	}
 
@@ -954,10 +953,8 @@ static int send_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	}
 
 	err = rxe_xmit_packet(rxe, qp, &ack_pkt, skb);
-	if (err) {
+	if (err)
 		pr_err_ratelimited("Failed sending ack\n");
-		kfree_skb(skb);
-	}
 
 err1:
 	return err;
@@ -1141,7 +1138,6 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 			if (rc) {
 				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
 				rxe_drop_ref(qp);
-				kfree_skb(skb_copy);
 				rc = RESPST_CLEANUP;
 				goto out;
 			}
