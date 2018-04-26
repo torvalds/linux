@@ -274,8 +274,7 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		struct net_bridge_port *port, *lport, *rport;
 
 		lport = p ? p->port : NULL;
-		rport = rp ? hlist_entry(rp, struct net_bridge_port, rlist) :
-			     NULL;
+		rport = hlist_entry_safe(rp, struct net_bridge_port, rlist);
 
 		if ((unsigned long)lport > (unsigned long)rport) {
 			port = lport;
