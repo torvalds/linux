@@ -470,8 +470,6 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 	writel(rising_threshold, data->base + EXYNOS_THD_TEMP_RISE);
 	writel(get_th_reg(data, 0, true), data->base + EXYNOS_THD_TEMP_FALL);
 
-	data->tmu_clear_irqs(data);
-
 	/* if last threshold limit is also present */
 	for (i = 0; i < of_thermal_get_ntrips(data->tzd); i++) {
 		if (trips[i].type == THERMAL_TRIP_CRITICAL) {
@@ -488,6 +486,8 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
 	con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
+
+	data->tmu_clear_irqs(data);
 }
 
 static void exynos5433_tmu_initialize(struct platform_device *pdev)
