@@ -31,6 +31,7 @@ struct bpf_map_ops {
 	void (*map_release)(struct bpf_map *map, struct file *map_file);
 	void (*map_free)(struct bpf_map *map);
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
+	void (*map_release_uref)(struct bpf_map *map);
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
@@ -351,6 +352,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		struct bpf_prog **_prog, *__prog;	\
 		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
+		preempt_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
 		if (unlikely(check_non_null && !_array))\
@@ -362,6 +364,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		}					\
 _out:							\
 		rcu_read_unlock();			\
+		preempt_enable_no_resched();		\
 		_ret;					\
 	 })
 
@@ -434,7 +437,6 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags);
 int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
-void bpf_fd_array_map_clear(struct bpf_map *map);
 int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 				void *key, void *value, u64 map_flags);
 int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
