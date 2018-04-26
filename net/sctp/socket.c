@@ -1893,6 +1893,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 				struct sctp_sndrcvinfo *sinfo)
 {
 	struct sock *sk = asoc->base.sk;
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct net *net = sock_net(sk);
 	struct sctp_datamsg *datamsg;
 	bool wait_connect = false;
@@ -1911,13 +1912,14 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 			goto err;
 	}
 
-	if (sctp_sk(sk)->disable_fragments && msg_len > asoc->frag_point) {
+	if (sp->disable_fragments && msg_len > asoc->frag_point) {
 		err = -EMSGSIZE;
 		goto err;
 	}
 
 	if (asoc->pmtu_pending) {
-		sctp_assoc_sync_pmtu(asoc);
+		if (sp->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
 		asoc->pmtu_pending = 0;
 	}
 
@@ -1936,7 +1938,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		if (err)
 			goto err;
 
-		if (sctp_sk(sk)->strm_interleave) {
+		if (sp->strm_interleave) {
 			timeo = sock_sndtimeo(sk, 0);
 			err = sctp_wait_for_connect(asoc, &timeo);
 			if (err)
