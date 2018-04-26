@@ -467,16 +467,15 @@ locked:
 	 * Otherwise, we only need to grab the lock.
 	 */
 
-	/* In the PV case we might already have _Q_LOCKED_VAL set */
-	if ((val & _Q_TAIL_MASK) == tail) {
-		/*
-		 * The atomic_cond_read_acquire() call above has provided the
-		 * necessary acquire semantics required for locking.
-		 */
-		old = atomic_cmpxchg_relaxed(&lock->val, val, _Q_LOCKED_VAL);
-		if (old == val)
-			goto release; /* No contention */
-	}
+	/*
+	 * In the PV case we might already have _Q_LOCKED_VAL set.
+	 *
+	 * The atomic_cond_read_acquire() call above has provided the
+	 * necessary acquire semantics required for locking.
+	 */
+	if (((val & _Q_TAIL_MASK) == tail) &&
+	    atomic_try_cmpxchg_relaxed(&lock->val, &val, _Q_LOCKED_VAL))
+		goto release; /* No contention */
 
 	/* Either somebody is queued behind us or _Q_PENDING_VAL is set */
 	set_locked(lock);
