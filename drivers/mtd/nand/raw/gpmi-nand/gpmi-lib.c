@@ -544,19 +544,13 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 	return reg & mask;
 }
 
-static inline void set_dma_type(struct gpmi_nand_data *this,
-					enum dma_ops_type type)
-{
-	this->last_dma_type = this->dma_type;
-	this->dma_type = type;
-}
-
 int gpmi_send_command(struct gpmi_nand_data *this)
 {
 	struct dma_chan *channel = get_dma_chan(this);
 	struct dma_async_tx_descriptor *desc;
 	struct scatterlist *sgl;
 	int chip = this->current_chip;
+	int ret;
 	u32 pio[3];
 
 	/* [1] send out the PIO words */
@@ -586,8 +580,11 @@ int gpmi_send_command(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] submit the DMA */
-	set_dma_type(this, DMA_FOR_COMMAND);
-	return start_dma_without_bch_irq(this, desc);
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, sgl, 1, DMA_TO_DEVICE);
+
+	return ret;
 }
 
 int gpmi_send_data(struct gpmi_nand_data *this)
@@ -595,6 +592,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
 	int chip = this->current_chip;
+	int ret;
 	uint32_t command_mode;
 	uint32_t address;
 	u32 pio[2];
@@ -624,8 +622,11 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] submit the DMA */
-	set_dma_type(this, DMA_FOR_WRITE_DATA);
-	return start_dma_without_bch_irq(this, desc);
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_TO_DEVICE);
+
+	return ret;
 }
 
 int gpmi_read_data(struct gpmi_nand_data *this)
@@ -633,6 +634,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
 	int chip = this->current_chip;
+	int ret;
 	u32 pio[2];
 
 	/* [1] : send PIO */
@@ -658,8 +660,14 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] : submit the DMA */
-	set_dma_type(this, DMA_FOR_READ_DATA);
-	return start_dma_without_bch_irq(this, desc);
+
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_FROM_DEVICE);
+	if (this->direct_dma_map_ok == false)
+		memcpy(this->upper_buf, this->data_buffer_dma, this->upper_len);
+
+	return ret;
 }
 
 int gpmi_send_page(struct gpmi_nand_data *this,
@@ -703,7 +711,6 @@ int gpmi_send_page(struct gpmi_nand_data *this,
 	if (!desc)
 		return -EINVAL;
 
-	set_dma_type(this, DMA_FOR_WRITE_ECC_PAGE);
 	return start_dma_with_bch_irq(this, desc);
 }
 
@@ -785,7 +792,6 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 		return -EINVAL;
 
 	/* [4] submit the DMA */
-	set_dma_type(this, DMA_FOR_READ_ECC_PAGE);
 	return start_dma_with_bch_irq(this, desc);
 }
 

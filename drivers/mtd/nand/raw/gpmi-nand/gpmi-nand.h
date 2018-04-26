@@ -77,15 +77,6 @@ struct boot_rom_geometry {
 	unsigned int  search_area_stride_exponent;
 };
 
-/* DMA operations types */
-enum dma_ops_type {
-	DMA_FOR_COMMAND = 1,
-	DMA_FOR_READ_DATA,
-	DMA_FOR_WRITE_DATA,
-	DMA_FOR_READ_ECC_PAGE,
-	DMA_FOR_WRITE_ECC_PAGE
-};
-
 enum gpmi_type {
 	IS_MX23,
 	IS_MX28,
@@ -178,8 +169,6 @@ struct gpmi_nand_data {
 	/* DMA channels */
 #define DMA_CHANS		8
 	struct dma_chan		*dma_chans[DMA_CHANS];
-	enum dma_ops_type	last_dma_type;
-	enum dma_ops_type	dma_type;
 	struct completion	dma_done;
 
 	/* private */

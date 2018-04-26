@@ -482,31 +482,6 @@ static void dma_irq_callback(void *param)
 	struct gpmi_nand_data *this = param;
 	struct completion *dma_c = &this->dma_done;
 
-	switch (this->dma_type) {
-	case DMA_FOR_COMMAND:
-		dma_unmap_sg(this->dev, &this->cmd_sgl, 1, DMA_TO_DEVICE);
-		break;
-
-	case DMA_FOR_READ_DATA:
-		dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_FROM_DEVICE);
-		if (this->direct_dma_map_ok == false)
-			memcpy(this->upper_buf, this->data_buffer_dma,
-				this->upper_len);
-		break;
-
-	case DMA_FOR_WRITE_DATA:
-		dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_TO_DEVICE);
-		break;
-
-	case DMA_FOR_READ_ECC_PAGE:
-	case DMA_FOR_WRITE_ECC_PAGE:
-		/* We have to wait the BCH interrupt to finish. */
-		break;
-
-	default:
-		dev_err(this->dev, "in wrong DMA operation.\n");
-	}
-
 	complete(dma_c);
 }
 
@@ -526,8 +501,7 @@ int start_dma_without_bch_irq(struct gpmi_nand_data *this,
 	/* Wait for the interrupt from the DMA block. */
 	timeout = wait_for_completion_timeout(dma_c, msecs_to_jiffies(1000));
 	if (!timeout) {
-		dev_err(this->dev, "DMA timeout, last DMA :%d\n",
-			this->last_dma_type);
+		dev_err(this->dev, "DMA timeout, last DMA\n");
 		gpmi_dump_info(this);
 		return -ETIMEDOUT;
 	}
@@ -556,8 +530,7 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 	/* Wait for the interrupt from the BCH block. */
 	timeout = wait_for_completion_timeout(bch_c, msecs_to_jiffies(1000));
 	if (!timeout) {
-		dev_err(this->dev, "BCH timeout, last DMA :%d\n",
-			this->last_dma_type);
+		dev_err(this->dev, "BCH timeout\n");
 		gpmi_dump_info(this);
 		return -ETIMEDOUT;
 	}
