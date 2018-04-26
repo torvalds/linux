@@ -186,7 +186,7 @@ static void stm32_exti_free(struct irq_domain *d, unsigned int virq,
 	irq_domain_reset_irq_data(data);
 }
 
-struct irq_domain_ops irq_exti_domain_ops = {
+static const struct irq_domain_ops irq_exti_domain_ops = {
 	.map	= irq_map_generic_chip,
 	.alloc  = stm32_exti_alloc,
 	.free	= stm32_exti_free,
@@ -221,7 +221,7 @@ __init stm32_exti_init(const struct stm32_exti_bank **stm32_exti_banks,
 					     handle_edge_irq, clr, 0, 0);
 	if (ret) {
 		pr_err("%pOF: Could not allocate generic interrupt chip.\n",
-			node);
+		       node);
 		goto out_free_domain;
 	}
 
