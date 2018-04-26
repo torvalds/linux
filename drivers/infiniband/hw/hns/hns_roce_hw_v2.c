@@ -2850,7 +2850,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 			       V2_QPC_BYTE_24_MTU_S, IB_MTU_4096);
-	else
+	else if (attr_mask & IB_QP_PATH_MTU)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 			       V2_QPC_BYTE_24_MTU_S, attr->path_mtu);
 
