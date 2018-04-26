@@ -138,7 +138,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 			struct fake_sym *fsym = &fake_symbols[i].syms[k];
 
 			sym = symbol__new(fsym->start, fsym->length,
-					  STB_GLOBAL, fsym->name);
+					  STB_GLOBAL, STT_FUNC, fsym->name);
 			if (sym == NULL) {
 				dso__put(dso);
 				goto out;

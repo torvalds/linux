@@ -256,7 +256,7 @@ out_unlock:
 	up_write(&maps->lock);
 }
 
-struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
+struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
 	struct symbol *sym = calloc(1, (symbol_conf.priv_size +
@@ -274,6 +274,7 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
 
 	sym->start   = start;
 	sym->end     = len ? start + len : start;
+	sym->type    = type;
 	sym->binding = binding;
 	sym->namelen = namelen - 1;
 
@@ -682,7 +683,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	 * symbols, setting length to 0, and rely on
 	 * symbols__fixup_end() to fix it up.
 	 */
-	sym = symbol__new(start, 0, kallsyms2elf_binding(type), name);
+	sym = symbol__new(start, 0, kallsyms2elf_binding(type), kallsyms2elf_type(type), name);
 	if (sym == NULL)
 		return -ENOMEM;
 	/*
@@ -1395,7 +1396,7 @@ static int dso__load_perf_map(const char *map_path, struct dso *dso,
 		if (len + 2 >= line_len)
 			continue;
 
-		sym = symbol__new(start, size, STB_GLOBAL, line + len);
+		sym = symbol__new(start, size, STB_GLOBAL, STT_FUNC, line + len);
 
 		if (sym == NULL)
 			goto out_delete_line;

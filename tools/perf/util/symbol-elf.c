@@ -364,7 +364,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, sympltname);
+					STB_GLOBAL, STT_FUNC, sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -390,7 +390,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, sympltname);
+					STB_GLOBAL, STT_FUNC, sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -1102,7 +1102,8 @@ new_symbol:
 			elf_name = demangled;
 
 		f = symbol__new(sym.st_value, sym.st_size,
-				GELF_ST_BIND(sym.st_info), elf_name);
+				GELF_ST_BIND(sym.st_info),
+				GELF_ST_TYPE(sym.st_info), elf_name);
 		free(demangled);
 		if (!f)
 			goto out_elf_end;

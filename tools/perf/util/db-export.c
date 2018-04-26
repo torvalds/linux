@@ -247,7 +247,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		*dso_db_id = dso->db_id;
 
 		if (!al->sym) {
-			al->sym = symbol__new(al->addr, 0, 0, "unknown");
+			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");
 			if (al->sym)
 				dso__insert_symbol(dso, al->map->type, al->sym);
 		}

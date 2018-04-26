@@ -57,7 +57,8 @@ struct symbol {
 	u64		start;
 	u64		end;
 	u16		namelen;
-	u8		binding;
+	u8		type:4;
+	u8		binding:4;
 	u8		idle:1;
 	u8		ignore:1;
 	u8		inlined:1;
@@ -292,7 +293,7 @@ void symbol__exit(void);
 void symbol__elf_init(void);
 int symbol__annotation_init(void);
 
-struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
+struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
 				      bool unknown_as_addr,
