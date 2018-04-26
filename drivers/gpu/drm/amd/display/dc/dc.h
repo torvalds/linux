@@ -503,18 +503,18 @@ struct dc_surface_update {
 	struct dc_plane_state *surface;
 
 	/* isr safe update parameters.  null means no updates */
-	struct dc_flip_addrs *flip_addr;
-	struct dc_plane_info *plane_info;
-	struct dc_scaling_info *scaling_info;
+	const struct dc_flip_addrs *flip_addr;
+	const struct dc_plane_info *plane_info;
+	const struct dc_scaling_info *scaling_info;
 
 	/* following updates require alloc/sleep/spin that is not isr safe,
 	 * null means no updates
 	 */
-	struct dc_gamma *gamma;
-	struct dc_transfer_func *in_transfer_func;
+	const struct dc_gamma *gamma;
+	const struct dc_transfer_func *in_transfer_func;
 
-	struct dc_csc_transform *input_csc_color_matrix;
-	struct fixed31_32 *coeff_reduction_factor;
+	const struct dc_csc_transform *input_csc_color_matrix;
+	const struct fixed31_32 *coeff_reduction_factor;
 };
 
 /*
