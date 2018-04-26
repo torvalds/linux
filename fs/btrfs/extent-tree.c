@@ -7651,7 +7651,7 @@ have_block_group:
 			if (offset) {
 				/* we have a block, we're done */
 				spin_unlock(&last_ptr->refill_lock);
-				trace_btrfs_reserve_extent_cluster(fs_info,
+				trace_btrfs_reserve_extent_cluster(
 						used_block_group,
 						search_start, num_bytes);
 				if (used_block_group != block_group) {
@@ -7724,7 +7724,7 @@ refill_cluster:
 				if (offset) {
 					/* we found one, proceed */
 					spin_unlock(&last_ptr->refill_lock);
-					trace_btrfs_reserve_extent_cluster(fs_info,
+					trace_btrfs_reserve_extent_cluster(
 						block_group, search_start,
 						num_bytes);
 					goto checks;
@@ -7824,8 +7824,7 @@ checks:
 		ins->objectid = search_start;
 		ins->offset = num_bytes;
 
-		trace_btrfs_reserve_extent(fs_info, block_group,
-					   search_start, num_bytes);
+		trace_btrfs_reserve_extent(block_group, search_start, num_bytes);
 		btrfs_release_block_group(block_group, delalloc);
 		break;
 loop:

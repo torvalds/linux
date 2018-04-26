@@ -1146,11 +1146,10 @@ TRACE_EVENT(find_free_extent,
 
 DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(fs_info, block_group, start, len),
+	TP_ARGS(block_group, start, len),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	bg_objectid		)
@@ -1159,7 +1158,7 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 		__field(	u64,	len			)
 	),
 
-	TP_fast_assign_btrfs(fs_info,
+	TP_fast_assign_btrfs(block_group->fs_info,
 		__entry->bg_objectid	= block_group->key.objectid;
 		__entry->flags		= block_group->flags;
 		__entry->start		= start;
@@ -1177,20 +1176,18 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(fs_info, block_group, start, len)
+	TP_ARGS(block_group, start, len)
 );
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent_cluster,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(fs_info, block_group, start, len)
+	TP_ARGS(block_group, start, len)
 );
 
 TRACE_EVENT(btrfs_find_cluster,
@@ -1807,6 +1804,7 @@ TRACE_EVENT(btrfs_inode_mod_outstanding_extents,
 			show_root_type(__entry->root_objectid),
 			__entry->ino, __entry->mod)
 );
+
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */
