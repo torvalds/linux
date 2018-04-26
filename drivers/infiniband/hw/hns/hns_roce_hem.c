@@ -912,7 +912,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		obj_per_chunk = buf_chunk_size / obj_size;
 		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
 		bt_chunk_num = bt_chunk_size / 8;
-		if (table->type >= HEM_TYPE_MTT)
+		if (type >= HEM_TYPE_MTT)
 			num_bt_l0 = bt_chunk_num;
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem),
@@ -920,7 +920,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		if (!table->hem)
 			goto err_kcalloc_hem_buf;
 
-		if (check_whether_bt_num_3(table->type, hop_num)) {
+		if (check_whether_bt_num_3(type, hop_num)) {
 			unsigned long num_bt_l1;
 
 			num_bt_l1 = (num_hem + bt_chunk_num - 1) /
@@ -939,8 +939,8 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 				goto err_kcalloc_l1_dma;
 		}
 
-		if (check_whether_bt_num_2(table->type, hop_num) ||
-			check_whether_bt_num_3(table->type, hop_num)) {
+		if (check_whether_bt_num_2(type, hop_num) ||
+			check_whether_bt_num_3(type, hop_num)) {
 			table->bt_l0 = kcalloc(num_bt_l0, sizeof(*table->bt_l0),
 					       GFP_KERNEL);
 			if (!table->bt_l0)
