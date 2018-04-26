@@ -205,8 +205,19 @@ static const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 
 static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
 {
-	if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
-		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
+	uint32_t reg;
+
+	reg = RREG32_SOC15(NBIO, 0, mmRCC_IOV_FUNC_IDENTIFIER);
+	if (reg & 1)
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+
+	if (reg & 0x80000000)
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+
+	if (!reg) {
+		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
+			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
+	}
 }
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
