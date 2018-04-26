@@ -14,6 +14,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/syscore_ops.h>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -58,6 +59,8 @@ struct stm32_exti_host_data {
 	struct stm32_exti_chip_data *chips_data;
 	const struct stm32_exti_drv_data *drv_data;
 };
+
+static struct stm32_exti_host_data *stm32_host_data;
 
 static const struct stm32_exti_bank stm32f4xx_exti_b1 = {
 	.imr_ofst	= 0x00,
@@ -498,6 +501,48 @@ static int stm32_exti_h_set_affinity(struct irq_data *d,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_PM
+static int stm32_exti_h_suspend(void)
+{
+	struct stm32_exti_chip_data *chip_data;
+	int i;
+
+	for (i = 0; i < stm32_host_data->drv_data->bank_nr; i++) {
+		chip_data = &stm32_host_data->chips_data[i];
+		raw_spin_lock(&chip_data->rlock);
+		stm32_chip_suspend(chip_data, chip_data->wake_active);
+		raw_spin_unlock(&chip_data->rlock);
+	}
+
+	return 0;
+}
+
+static void stm32_exti_h_resume(void)
+{
+	struct stm32_exti_chip_data *chip_data;
+	int i;
+
+	for (i = 0; i < stm32_host_data->drv_data->bank_nr; i++) {
+		chip_data = &stm32_host_data->chips_data[i];
+		raw_spin_lock(&chip_data->rlock);
+		stm32_chip_resume(chip_data, chip_data->mask_cache);
+		raw_spin_unlock(&chip_data->rlock);
+	}
+}
+
+static struct syscore_ops stm32_exti_h_syscore_ops = {
+	.suspend	= stm32_exti_h_suspend,
+	.resume		= stm32_exti_h_resume,
+};
+
+static void stm32_exti_h_syscore_init(void)
+{
+	register_syscore_ops(&stm32_exti_h_syscore_ops);
+}
+#else
+static inline void stm32_exti_h_syscore_init(void) {}
+#endif
+
 static struct irq_chip stm32_exti_h_chip = {
 	.name			= "stm32-exti-h",
 	.irq_eoi		= stm32_exti_h_eoi,
@@ -566,6 +611,8 @@ stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
 		pr_err("%pOF: Unable to map registers\n", node);
 		return NULL;
 	}
+
+	stm32_host_data = host_data;
 
 	return host_data;
 }
@@ -724,6 +771,8 @@ __init stm32_exti_hierarchy_init(const struct stm32_exti_drv_data *drv_data,
 		ret = -ENOMEM;
 		goto out_unmap;
 	}
+
+	stm32_exti_h_syscore_init();
 
 	return 0;
 
