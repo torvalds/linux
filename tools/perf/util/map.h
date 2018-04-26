@@ -222,7 +222,8 @@ static inline struct map *__map_groups__find(struct map_groups *mg,
 
 static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 {
-	return __map_groups__find(mg, MAP__FUNCTION, addr);
+	struct map *map = __map_groups__find(mg, MAP__FUNCTION, addr);
+	return map ?: __map_groups__find(mg, MAP__VARIABLE, addr);
 }
 
 struct map *map_groups__first(struct map_groups *mg);
