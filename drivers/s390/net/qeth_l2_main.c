@@ -660,7 +660,8 @@ out:
 }
 
 static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
-			    struct qeth_qdio_out_q *queue, int cast_type)
+			    struct qeth_qdio_out_q *queue, int cast_type,
+			    int ipv)
 {
 	int push_len = sizeof(struct qeth_hdr);
 	unsigned int elements, nr_frags;
@@ -699,7 +700,7 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 	}
 	qeth_l2_fill_header(hdr, skb, cast_type, skb->len - push_len);
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1]);
+		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
 		if (card->options.performance_stats)
 			card->perf_stats.tx_csum++;
 	}
@@ -754,6 +755,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 {
 	struct qeth_card *card = dev->ml_priv;
 	int cast_type = qeth_l2_get_cast_type(card, skb);
+	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	int rc;
@@ -761,7 +763,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (card->qdio.do_prio_queueing || (cast_type &&
 					card->info.is_multicast_different))
 		queue = card->qdio.out_qs[qeth_get_priority_queue(card, skb,
-					qeth_get_ip_version(skb), cast_type)];
+					ipv, cast_type)];
 	else
 		queue = card->qdio.out_qs[card->qdio.default_out_queue];
 
@@ -784,7 +786,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_l2_xmit_iqd(card, skb, queue, cast_type);
 		break;
 	default:
-		rc = qeth_l2_xmit_osa(card, skb, queue, cast_type);
+		rc = qeth_l2_xmit_osa(card, skb, queue, cast_type, ipv);
 	}
 
 	if (!rc) {
@@ -994,6 +996,10 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_RXCSUM;
 			card->dev->vlan_features |= NETIF_F_RXCSUM;
 		}
+	}
+	if (qeth_is_supported6(card, IPA_OUTBOUND_CHECKSUM_V6)) {
+		card->dev->hw_features |= NETIF_F_IPV6_CSUM;
+		card->dev->vlan_features |= NETIF_F_IPV6_CSUM;
 	}
 
 	card->info.broadcast_capable = 1;

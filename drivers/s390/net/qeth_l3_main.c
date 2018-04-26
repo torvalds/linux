@@ -2281,7 +2281,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 		}
 
 		if (new_skb->ip_summed == CHECKSUM_PARTIAL) {
-			qeth_tx_csum(new_skb, &hdr->hdr.l3.ext_flags);
+			qeth_tx_csum(new_skb, &hdr->hdr.l3.ext_flags, ipv);
 			if (card->options.performance_stats)
 				card->perf_stats.tx_csum++;
 		}
@@ -2506,6 +2506,11 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
 			card->dev->vlan_features |= NETIF_F_TSO |
 				NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
+		}
+
+		if (qeth_is_supported6(card, IPA_OUTBOUND_CHECKSUM_V6)) {
+			card->dev->hw_features |= NETIF_F_IPV6_CSUM;
+			card->dev->vlan_features |= NETIF_F_IPV6_CSUM;
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
 		card->dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN,
