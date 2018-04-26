@@ -34,6 +34,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
+#include "eswitch.h"
 
 enum {
 	MLX5_LAG_FLAG_BONDED = 1 << 0,
@@ -257,12 +258,14 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
 	struct mlx5_core_dev *dev1 = ldev->pf[1].dev;
+	bool do_bond, sriov_enabled;
 	struct lag_tracker tracker;
 	int i;
-	bool do_bond;
 
 	if (!dev0 || !dev1)
 		return;
+
+	sriov_enabled = mlx5_sriov_is_enabled(dev0) || mlx5_sriov_is_enabled(dev1);
 
 	mutex_lock(&lag_mutex);
 	tracker = ldev->tracker;
@@ -271,26 +274,32 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	do_bond = tracker.is_bonded && ldev->allowed;
 
 	if (do_bond && !mlx5_lag_is_bonded(ldev)) {
-		for (i = 0; i < MLX5_MAX_PORTS; i++)
-			mlx5_remove_dev_by_protocol(ldev->pf[i].dev,
-						    MLX5_INTERFACE_PROTOCOL_IB);
+		if (!sriov_enabled)
+			for (i = 0; i < MLX5_MAX_PORTS; i++)
+				mlx5_remove_dev_by_protocol(ldev->pf[i].dev,
+							    MLX5_INTERFACE_PROTOCOL_IB);
 
 		mlx5_activate_lag(ldev, &tracker);
 
-		mlx5_add_dev_by_protocol(dev0, MLX5_INTERFACE_PROTOCOL_IB);
-		mlx5_nic_vport_enable_roce(dev1);
+		if (!sriov_enabled) {
+			mlx5_add_dev_by_protocol(dev0, MLX5_INTERFACE_PROTOCOL_IB);
+			mlx5_nic_vport_enable_roce(dev1);
+		}
 	} else if (do_bond && mlx5_lag_is_bonded(ldev)) {
 		mlx5_modify_lag(ldev, &tracker);
 	} else if (!do_bond && mlx5_lag_is_bonded(ldev)) {
-		mlx5_remove_dev_by_protocol(dev0, MLX5_INTERFACE_PROTOCOL_IB);
-		mlx5_nic_vport_disable_roce(dev1);
+		if (!sriov_enabled) {
+			mlx5_remove_dev_by_protocol(dev0, MLX5_INTERFACE_PROTOCOL_IB);
+			mlx5_nic_vport_disable_roce(dev1);
+		}
 
 		mlx5_deactivate_lag(ldev);
 
-		for (i = 0; i < MLX5_MAX_PORTS; i++)
-			if (ldev->pf[i].dev)
-				mlx5_add_dev_by_protocol(ldev->pf[i].dev,
-							 MLX5_INTERFACE_PROTOCOL_IB);
+		if (!sriov_enabled)
+			for (i = 0; i < MLX5_MAX_PORTS; i++)
+				if (ldev->pf[i].dev)
+					mlx5_add_dev_by_protocol(ldev->pf[i].dev,
+								 MLX5_INTERFACE_PROTOCOL_IB);
 	}
 }
 
