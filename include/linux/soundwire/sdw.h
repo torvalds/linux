@@ -61,6 +61,30 @@ enum sdw_command_response {
 	SDW_CMD_FAIL_OTHER = 4,
 };
 
+/**
+ * enum sdw_stream_type: data stream type
+ *
+ * @SDW_STREAM_PCM: PCM data stream
+ * @SDW_STREAM_PDM: PDM data stream
+ *
+ * spec doesn't define this, but is used in implementation
+ */
+enum sdw_stream_type {
+	SDW_STREAM_PCM = 0,
+	SDW_STREAM_PDM = 1,
+};
+
+/**
+ * enum sdw_data_direction: Data direction
+ *
+ * @SDW_DATA_DIR_RX: Data into Port
+ * @SDW_DATA_DIR_TX: Data out of Port
+ */
+enum sdw_data_direction {
+	SDW_DATA_DIR_RX = 0,
+	SDW_DATA_DIR_TX = 1,
+};
+
 /*
  * SDW properties, defined in MIPI DisCo spec v1.0
  */
@@ -450,6 +474,9 @@ struct sdw_master_ops {
  * @msg_lock: message lock
  * @ops: Master callback ops
  * @prop: Master properties
+ * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
+ * is used to compute and program bus bandwidth, clock, frame shape,
+ * transport and port parameters
  * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
  */
@@ -462,12 +489,94 @@ struct sdw_bus {
 	struct mutex msg_lock;
 	const struct sdw_master_ops *ops;
 	struct sdw_master_prop prop;
+	struct list_head m_rt_list;
 	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
 };
 
 int sdw_add_bus_master(struct sdw_bus *bus);
 void sdw_delete_bus_master(struct sdw_bus *bus);
+
+/**
+ * sdw_stream_config: Master or Slave stream configuration
+ *
+ * @frame_rate: Audio frame rate of the stream, in Hz
+ * @ch_count: Channel count of the stream
+ * @bps: Number of bits per audio sample
+ * @direction: Data direction
+ * @type: Stream type PCM or PDM
+ */
+struct sdw_stream_config {
+	unsigned int frame_rate;
+	unsigned int ch_count;
+	unsigned int bps;
+	enum sdw_data_direction direction;
+	enum sdw_stream_type type;
+};
+
+/**
+ * sdw_stream_state: Stream states
+ *
+ * @SDW_STREAM_ALLOCATED: New stream allocated.
+ * @SDW_STREAM_CONFIGURED: Stream configured
+ * @SDW_STREAM_PREPARED: Stream prepared
+ * @SDW_STREAM_ENABLED: Stream enabled
+ * @SDW_STREAM_DISABLED: Stream disabled
+ * @SDW_STREAM_DEPREPARED: Stream de-prepared
+ * @SDW_STREAM_RELEASED: Stream released
+ */
+enum sdw_stream_state {
+	SDW_STREAM_ALLOCATED = 0,
+	SDW_STREAM_CONFIGURED = 1,
+	SDW_STREAM_PREPARED = 2,
+	SDW_STREAM_ENABLED = 3,
+	SDW_STREAM_DISABLED = 4,
+	SDW_STREAM_DEPREPARED = 5,
+	SDW_STREAM_RELEASED = 6,
+};
+
+/**
+ * sdw_stream_params: Stream parameters
+ *
+ * @rate: Sampling frequency, in Hz
+ * @ch_count: Number of channels
+ * @bps: bits per channel sample
+ */
+struct sdw_stream_params {
+	unsigned int rate;
+	unsigned int ch_count;
+	unsigned int bps;
+};
+
+/**
+ * sdw_stream_runtime: Runtime stream parameters
+ *
+ * @name: SoundWire stream name
+ * @params: Stream parameters
+ * @state: Current state of the stream
+ * @type: Stream type PCM or PDM
+ * @m_rt: Master runtime
+ */
+struct sdw_stream_runtime {
+	char *name;
+	struct sdw_stream_params params;
+	enum sdw_stream_state state;
+	enum sdw_stream_type type;
+	struct sdw_master_runtime *m_rt;
+};
+
+struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name);
+void sdw_release_stream(struct sdw_stream_runtime *stream);
+int sdw_stream_add_master(struct sdw_bus *bus,
+		struct sdw_stream_config *stream_config,
+		struct sdw_stream_runtime *stream);
+int sdw_stream_add_slave(struct sdw_slave *slave,
+		struct sdw_stream_config *stream_config,
+		struct sdw_stream_runtime *stream);
+int sdw_stream_remove_master(struct sdw_bus *bus,
+		struct sdw_stream_runtime *stream);
+int sdw_stream_remove_slave(struct sdw_slave *slave,
+		struct sdw_stream_runtime *stream);
 
 /* messaging and data APIs */
 

@@ -32,6 +32,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	mutex_init(&bus->msg_lock);
 	mutex_init(&bus->bus_lock);
 	INIT_LIST_HEAD(&bus->slaves);
+	INIT_LIST_HEAD(&bus->m_rt_list);
 
 	if (bus->ops->read_prop) {
 		ret = bus->ops->read_prop(bus);
