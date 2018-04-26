@@ -1467,13 +1467,13 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->lan_online = 0;
 	card->read_or_write_problem = 0;
 	card->dev = NULL;
-	spin_lock_init(&card->vlanlock);
 	spin_lock_init(&card->mclock);
 	spin_lock_init(&card->lock);
 	spin_lock_init(&card->ip_lock);
 	spin_lock_init(&card->thread_mask_lock);
 	mutex_init(&card->conf_mutex);
 	mutex_init(&card->discipline_mutex);
+	mutex_init(&card->vid_list_mutex);
 	card->thread_start_mask = 0;
 	card->thread_allowed_mask = 0;
 	card->thread_running_mask = 0;

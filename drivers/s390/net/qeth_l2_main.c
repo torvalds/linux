@@ -297,12 +297,13 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 static void qeth_l2_process_vlans(struct qeth_card *card)
 {
 	struct qeth_vlan_vid *id;
+
 	QETH_CARD_TEXT(card, 3, "L2prcvln");
-	spin_lock_bh(&card->vlanlock);
+	mutex_lock(&card->vid_list_mutex);
 	list_for_each_entry(id, &card->vid_list, list) {
 		qeth_l2_send_setdelvlan(card, id->vid, IPA_CMD_SETVLAN);
 	}
-	spin_unlock_bh(&card->vlanlock);
+	mutex_unlock(&card->vid_list_mutex);
 }
 
 static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
@@ -319,7 +320,7 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 		QETH_CARD_TEXT(card, 3, "aidREC");
 		return 0;
 	}
-	id = kmalloc(sizeof(struct qeth_vlan_vid), GFP_ATOMIC);
+	id = kmalloc(sizeof(*id), GFP_KERNEL);
 	if (id) {
 		id->vid = vid;
 		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_SETVLAN);
@@ -327,9 +328,9 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 			kfree(id);
 			return rc;
 		}
-		spin_lock_bh(&card->vlanlock);
+		mutex_lock(&card->vid_list_mutex);
 		list_add_tail(&id->list, &card->vid_list);
-		spin_unlock_bh(&card->vlanlock);
+		mutex_unlock(&card->vid_list_mutex);
 	} else {
 		return -ENOMEM;
 	}
@@ -348,7 +349,7 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 		QETH_CARD_TEXT(card, 3, "kidREC");
 		return 0;
 	}
-	spin_lock_bh(&card->vlanlock);
+	mutex_lock(&card->vid_list_mutex);
 	list_for_each_entry(id, &card->vid_list, list) {
 		if (id->vid == vid) {
 			list_del(&id->list);
@@ -356,7 +357,7 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 			break;
 		}
 	}
-	spin_unlock_bh(&card->vlanlock);
+	mutex_unlock(&card->vid_list_mutex);
 	if (tmpid) {
 		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
 		kfree(tmpid);

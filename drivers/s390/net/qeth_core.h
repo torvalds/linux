@@ -777,9 +777,9 @@ struct qeth_card {
 	struct qeth_card_options options;
 
 	wait_queue_head_t wait_q;
-	spinlock_t vlanlock;
 	spinlock_t mclock;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	struct mutex vid_list_mutex;		/* vid_list */
 	struct list_head vid_list;
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
