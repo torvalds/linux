@@ -4487,7 +4487,7 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, eq->eqn, 0,
 				eq_cmd, HNS_ROCE_CMD_TIMEOUT_MSECS);
 	if (ret) {
-		dev_err(dev, "[mailbox cmd] creat eqc failed.\n");
+		dev_err(dev, "[mailbox cmd] create eqc failed.\n");
 		goto err_cmd_mbox;
 	}
 
