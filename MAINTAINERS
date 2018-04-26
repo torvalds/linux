@@ -13095,7 +13095,7 @@ F:	include/uapi/sound/
 F:	sound/
 
 SOUND - COMPRESSED AUDIO
-M:	Vinod Koul <vinod.koul@intel.com>
+M:	Vinod Koul <vkoul@kernel.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 S:	Supported
