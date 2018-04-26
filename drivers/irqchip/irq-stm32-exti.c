@@ -145,35 +145,48 @@ static void stm32_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int stm32_irq_set_type(struct irq_data *data, unsigned int type)
+static int stm32_exti_set_type(struct irq_data *d,
+			       unsigned int type, u32 *rtsr, u32 *ftsr)
 {
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+	u32 mask = BIT(d->hwirq % IRQS_PER_BANK);
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		*rtsr |= mask;
+		*ftsr &= ~mask;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		*rtsr &= ~mask;
+		*ftsr |= mask;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		*rtsr |= mask;
+		*ftsr |= mask;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int stm32_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct stm32_exti_chip_data *chip_data = gc->private;
 	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
-	int pin = data->hwirq % IRQS_PER_BANK;
 	u32 rtsr, ftsr;
+	int err;
 
 	irq_gc_lock(gc);
 
 	rtsr = irq_reg_readl(gc, stm32_bank->rtsr_ofst);
 	ftsr = irq_reg_readl(gc, stm32_bank->ftsr_ofst);
 
-	switch (type) {
-	case IRQ_TYPE_EDGE_RISING:
-		rtsr |= BIT(pin);
-		ftsr &= ~BIT(pin);
-		break;
-	case IRQ_TYPE_EDGE_FALLING:
-		rtsr &= ~BIT(pin);
-		ftsr |= BIT(pin);
-		break;
-	case IRQ_TYPE_EDGE_BOTH:
-		rtsr |= BIT(pin);
-		ftsr |= BIT(pin);
-		break;
-	default:
+	err = stm32_exti_set_type(d, type, &rtsr, &ftsr);
+	if (err) {
 		irq_gc_unlock(gc);
-		return -EINVAL;
+		return err;
 	}
 
 	irq_reg_writel(gc, rtsr, stm32_bank->rtsr_ofst);
@@ -184,35 +197,47 @@ static int stm32_irq_set_type(struct irq_data *data, unsigned int type)
 	return 0;
 }
 
+static void stm32_chip_suspend(struct stm32_exti_chip_data *chip_data,
+			       u32 wake_active)
+{
+	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
+	void __iomem *base = chip_data->host_data->base;
+
+	/* save rtsr, ftsr registers */
+	chip_data->rtsr_cache = readl_relaxed(base + stm32_bank->rtsr_ofst);
+	chip_data->ftsr_cache = readl_relaxed(base + stm32_bank->ftsr_ofst);
+
+	writel_relaxed(wake_active, base + stm32_bank->imr_ofst);
+}
+
+static void stm32_chip_resume(struct stm32_exti_chip_data *chip_data,
+			      u32 mask_cache)
+{
+	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
+	void __iomem *base = chip_data->host_data->base;
+
+	/* restore rtsr, ftsr, registers */
+	writel_relaxed(chip_data->rtsr_cache, base + stm32_bank->rtsr_ofst);
+	writel_relaxed(chip_data->ftsr_cache, base + stm32_bank->ftsr_ofst);
+
+	writel_relaxed(mask_cache, base + stm32_bank->imr_ofst);
+}
+
 static void stm32_irq_suspend(struct irq_chip_generic *gc)
 {
 	struct stm32_exti_chip_data *chip_data = gc->private;
-	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
 
 	irq_gc_lock(gc);
-
-	/* save rtsr, ftsr registers */
-	chip_data->rtsr_cache = irq_reg_readl(gc, stm32_bank->rtsr_ofst);
-	chip_data->ftsr_cache = irq_reg_readl(gc, stm32_bank->ftsr_ofst);
-
-	irq_reg_writel(gc, gc->wake_active, stm32_bank->imr_ofst);
-
+	stm32_chip_suspend(chip_data, gc->wake_active);
 	irq_gc_unlock(gc);
 }
 
 static void stm32_irq_resume(struct irq_chip_generic *gc)
 {
 	struct stm32_exti_chip_data *chip_data = gc->private;
-	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
 
 	irq_gc_lock(gc);
-
-	/* restore rtsr, ftsr registers */
-	irq_reg_writel(gc, chip_data->rtsr_cache, stm32_bank->rtsr_ofst);
-	irq_reg_writel(gc, chip_data->ftsr_cache, stm32_bank->ftsr_ofst);
-
-	irq_reg_writel(gc, gc->mask_cache, stm32_bank->imr_ofst);
-
+	stm32_chip_resume(chip_data, gc->mask_cache);
 	irq_gc_unlock(gc);
 }
 
