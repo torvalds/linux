@@ -298,6 +298,7 @@ struct ipcm6_cookie {
 	__s16 tclass;
 	__s8  dontfrag;
 	struct ipv6_txoptions *opt;
+	__u16 gso_size;
 };
 
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
