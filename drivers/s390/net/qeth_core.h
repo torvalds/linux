@@ -864,6 +864,27 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
+static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
+				u8 flags)
+{
+	if ((card->dev->features & NETIF_F_RXCSUM) &&
+	    (flags & QETH_HDR_EXT_CSUM_HDR_REQ) &&
+	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	else
+		skb->ip_summed = CHECKSUM_NONE;
+}
+
+static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags)
+{
+	*flags |= QETH_HDR_EXT_CSUM_TRANSP_REQ;
+	if (ip_hdr(skb)->protocol == IPPROTO_UDP)
+		*flags |= QETH_HDR_EXT_UDP;
+	/* some HW requires combined L3+L4 csum offload: */
+	*flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
+	ip_hdr(skb)->check = 0;
+}
+
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 		struct qeth_buffer_pool_entry *entry)
 {
