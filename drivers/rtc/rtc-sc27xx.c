@@ -631,6 +631,8 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtc->ops = &sprd_rtc_ops;
+	rtc->rtc->range_min = 0;
+	rtc->rtc->range_max = 5662310399LL;
 	ret = rtc_register_device(rtc->rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register rtc device\n");
