@@ -1555,6 +1555,7 @@ static const struct ceu_data ceu_data_sh4 = {
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ceu_of_match[] = {
 	{ .compatible = "renesas,r7s72100-ceu", .data = &ceu_data_rz },
+	{ .compatible = "renesas,r8a7740-ceu", .data = &ceu_data_rz },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ceu_of_match);
