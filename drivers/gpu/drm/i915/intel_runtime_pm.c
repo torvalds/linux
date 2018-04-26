@@ -2656,6 +2656,8 @@ static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 	if (!(I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
 	    !(I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
 		DRM_ERROR("DBuf power enable timeout\n");
+	else
+		dev_priv->wm.skl_hw.ddb.enabled_slices = 2;
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
@@ -2669,6 +2671,8 @@ static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 	if ((I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
 	    (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
 		DRM_ERROR("DBuf power disable timeout!\n");
+	else
+		dev_priv->wm.skl_hw.ddb.enabled_slices = 0;
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)

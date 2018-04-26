@@ -3567,6 +3567,23 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
+static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
+{
+	u8 enabled_slices;
+
+	/* Slice 1 will always be enabled */
+	enabled_slices = 1;
+
+	/* Gen prior to GEN11 have only one DBuf slice */
+	if (INTEL_GEN(dev_priv) < 11)
+		return enabled_slices;
+
+	if (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
+		enabled_slices++;
+
+	return enabled_slices;
+}
+
 /*
  * FIXME: We still don't have the proper code detect if we need to apply the WA,
  * so assume we'll always need it in order to avoid underruns.
@@ -3869,6 +3886,8 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 
 	memset(ddb, 0, sizeof(*ddb));
+
+	ddb->enabled_slices = intel_enabled_dbuf_slices_num(dev_priv);
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		enum intel_display_power_domain power_domain;
@@ -5088,6 +5107,7 @@ skl_copy_ddb_for_pipe(struct skl_ddb_values *dst,
 	       sizeof(dst->ddb.uv_plane[pipe]));
 	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
 	       sizeof(dst->ddb.plane[pipe]));
+	dst->ddb.enabled_slices = src->ddb.enabled_slices;
 }
 
 static void
