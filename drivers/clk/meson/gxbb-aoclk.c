@@ -191,7 +191,7 @@ static int gxbb_aoclkc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 			&gxbb_aoclk_onecell_data);
 }
 
