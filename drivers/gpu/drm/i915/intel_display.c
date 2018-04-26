@@ -15307,6 +15307,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
 		if (crtc_state->base.active) {
 			intel_mode_from_pipe_config(&crtc->base.mode, crtc_state);
+			crtc->base.mode.hdisplay = crtc_state->pipe_src_w;
+			crtc->base.mode.vdisplay = crtc_state->pipe_src_h;
 			intel_mode_from_pipe_config(&crtc_state->base.adjusted_mode, crtc_state);
 			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
 
