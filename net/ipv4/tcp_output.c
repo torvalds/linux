@@ -229,11 +229,9 @@ void tcp_select_initial_window(const struct sock *sk, int __space, __u32 mss,
 		}
 	}
 
-	if (mss > (1 << *rcv_wscale)) {
-		if (!init_rcv_wnd) /* Use default unless specified otherwise */
-			init_rcv_wnd = tcp_default_init_rwnd(mss);
-		*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
-	}
+	if (!init_rcv_wnd) /* Use default unless specified otherwise */
+		init_rcv_wnd = tcp_default_init_rwnd(mss);
+	*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
 
 	/* Set the clamp no higher than max representable value */
 	(*window_clamp) = min_t(__u32, U16_MAX << (*rcv_wscale), *window_clamp);
