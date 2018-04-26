@@ -276,7 +276,7 @@ static void cpu_idle_loop(void)
 		smp_mb__after_atomic();
 
 		sched_ttwu_pending();
-		schedule_preempt_disabled();
+		schedule_idle();
 	}
 }
 
