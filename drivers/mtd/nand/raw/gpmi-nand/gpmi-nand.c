@@ -959,8 +959,6 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	void          *payload_virt;
 	dma_addr_t    payload_phys;
-	void          *auxiliary_virt;
-	dma_addr_t    auxiliary_phys;
 	unsigned int  i;
 	unsigned char *status;
 	unsigned int  max_bitflips = 0;
@@ -984,11 +982,8 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 		}
 	}
 
-	auxiliary_virt = this->auxiliary_virt;
-	auxiliary_phys = this->auxiliary_phys;
-
 	/* go! */
-	ret = gpmi_read_page(this, payload_phys, auxiliary_phys);
+	ret = gpmi_read_page(this, payload_phys, this->auxiliary_phys);
 
 	if (direct)
 		dma_unmap_single(this->dev, payload_phys, nfc_geo->payload_size,
@@ -1000,7 +995,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	}
 
 	/* Loop over status bytes, accumulating ECC status. */
-	status = auxiliary_virt + nfc_geo->auxiliary_status_offset;
+	status = this->auxiliary_virt + nfc_geo->auxiliary_status_offset;
 
 	if (!direct)
 		memcpy(buf, this->payload_virt, nfc_geo->payload_size);
@@ -1058,7 +1053,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 						buf + i * nfc_geo->ecc_chunk_size,
 						nfc_geo->ecc_chunk_size,
 						eccbuf, eccbytes,
-						auxiliary_virt,
+						this->auxiliary_virt,
 						nfc_geo->metadata_size,
 						nfc_geo->ecc_strength);
 			} else {
@@ -1086,7 +1081,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	}
 
 	/* handle the block mark swapping */
-	block_mark_swapping(this, buf, auxiliary_virt);
+	block_mark_swapping(this, buf, this->auxiliary_virt);
 
 	if (oob_required) {
 		/*
@@ -1100,7 +1095,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 		 * the block mark.
 		 */
 		memset(chip->oob_poi, ~0, mtd->oobsize);
-		chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
+		chip->oob_poi[0] = ((uint8_t *)this->auxiliary_virt)[0];
 	}
 
 	return max_bitflips;
