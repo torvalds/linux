@@ -911,14 +911,14 @@ static int rsi_hal_key_config(struct ieee80211_hw *hw,
 		}
 	}
 
-	return rsi_hal_load_key(adapter->priv,
-				key->key,
-				key->keylen,
-				key_type,
-				key->keyidx,
-				key->cipher,
-				sta_id,
-				vif);
+	status = rsi_hal_load_key(adapter->priv,
+				  key->key,
+				  key->keylen,
+				  key_type,
+				  key->keyidx,
+				  key->cipher,
+				  sta_id,
+				  vif);
 	if (status)
 		return status;
 
