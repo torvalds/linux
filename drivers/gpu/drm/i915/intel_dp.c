@@ -1704,6 +1704,42 @@ static bool intel_edp_compare_alt_mode(struct drm_display_mode *m1,
 	return bres;
 }
 
+/* Optimize link config in order: max bpp, min clock, min lanes */
+static bool
+intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  const struct link_config_limits *limits)
+{
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int bpp, clock, lane_count;
+	int mode_rate, link_clock, link_avail;
+
+	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
+						   bpp);
+
+		for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
+			for (lane_count = limits->min_lane_count;
+			     lane_count <= limits->max_lane_count;
+			     lane_count <<= 1) {
+				link_clock = intel_dp->common_rates[clock];
+				link_avail = intel_dp_max_data_rate(link_clock,
+								    lane_count);
+
+				if (mode_rate <= link_avail) {
+					pipe_config->lane_count = lane_count;
+					pipe_config->pipe_bpp = bpp;
+					pipe_config->port_clock = link_clock;
+
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 static bool
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
@@ -1711,8 +1747,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct link_config_limits limits;
-	int bpp, clock, lane_count;
-	int mode_rate, link_avail, link_clock;
 	int common_len;
 
 	common_len = intel_dp_common_len_rate_limit(intel_dp,
@@ -1766,37 +1800,22 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		      intel_dp->common_rates[limits.max_clock],
 		      limits.max_bpp, adjusted_mode->crtc_clock);
 
-	for (bpp = limits.max_bpp; bpp >= limits.min_bpp; bpp -= 2 * 3) {
-		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   bpp);
-
-		for (clock = limits.min_clock; clock <= limits.max_clock; clock++) {
-			for (lane_count = limits.min_lane_count;
-			     lane_count <= limits.max_lane_count;
-			     lane_count <<= 1) {
-
-				link_clock = intel_dp->common_rates[clock];
-				link_avail = intel_dp_max_data_rate(link_clock,
-								    lane_count);
-
-				if (mode_rate <= link_avail) {
-					goto found;
-				}
-			}
-		}
-	}
-
-	return false;
-
-found:
-	pipe_config->lane_count = lane_count;
-	pipe_config->pipe_bpp = bpp;
-	pipe_config->port_clock = intel_dp->common_rates[clock];
+	/*
+	 * Optimize for slow and wide. This is the place to add alternative
+	 * optimization policy.
+	 */
+	if (!intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits))
+		return false;
 
 	DRM_DEBUG_KMS("DP lane count %d clock %d bpp %d\n",
-		      pipe_config->lane_count, pipe_config->port_clock, bpp);
-	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
-		      mode_rate, link_avail);
+		      pipe_config->lane_count, pipe_config->port_clock,
+		      pipe_config->pipe_bpp);
+
+	DRM_DEBUG_KMS("DP link rate required %i available %i\n",
+		      intel_dp_link_required(adjusted_mode->crtc_clock,
+					     pipe_config->pipe_bpp),
+		      intel_dp_max_data_rate(pipe_config->port_clock,
+					     pipe_config->lane_count));
 
 	return true;
 }
