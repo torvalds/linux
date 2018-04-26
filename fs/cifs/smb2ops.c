@@ -322,6 +322,40 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 }
 #endif /* STATS2 */
 
+/*
+ * Open the directory at the root of a share
+ */
+int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
+{
+	struct cifs_open_parms oparams;
+	int rc;
+	__le16 srch_path = 0; /* Null - since an open of top of share */
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+
+	mutex_lock(&tcon->prfid_mutex);
+	if (tcon->valid_root_fid) {
+		cifs_dbg(FYI, "found a cached root file handle\n");
+		memcpy(pfid, tcon->prfid, sizeof(struct cifs_fid));
+		mutex_unlock(&tcon->prfid_mutex);
+		return 0;
+	}
+
+	oparams.tcon = tcon;
+	oparams.create_options = 0;
+	oparams.desired_access = FILE_READ_ATTRIBUTES;
+	oparams.disposition = FILE_OPEN;
+	oparams.fid = pfid;
+	oparams.reconnect = false;
+
+	rc = SMB2_open(xid, &oparams, &srch_path, &oplock, NULL, NULL);
+	if (rc == 0) {
+		memcpy(tcon->prfid, pfid, sizeof(struct cifs_fid));
+		tcon->valid_root_fid = true;
+	}
+	mutex_unlock(&tcon->prfid_mutex);
+	return rc;
+}
+
 static void
 smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 {
@@ -330,6 +364,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
+	bool no_cached_open = tcon->nohandlecache;
 
 	oparms.tcon = tcon;
 	oparms.desired_access = FILE_READ_ATTRIBUTES;
@@ -338,7 +373,11 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	if (no_cached_open)
+		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	else
+		rc = open_shroot(xid, tcon, &fid);
+
 	if (rc)
 		return;
 
@@ -352,7 +391,8 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 			FS_DEVICE_INFORMATION);
 	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
 			FS_SECTOR_SIZE_INFORMATION); /* SMB3 specific */
-	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	if (no_cached_open)
+		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	return;
 }
 
@@ -393,6 +433,9 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
+
+	if ((*full_path == 0) && tcon->valid_root_fid)
+		return 0;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)

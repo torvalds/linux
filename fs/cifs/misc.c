@@ -117,6 +117,8 @@ tconInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->openFileList);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		spin_lock_init(&ret_buf->open_file_lock);
+		mutex_init(&ret_buf->prfid_mutex);
+		ret_buf->prfid = kzalloc(sizeof(struct cifs_fid), GFP_KERNEL);
 #ifdef CONFIG_CIFS_STATS
 		spin_lock_init(&ret_buf->stat_lock);
 #endif
@@ -134,6 +136,7 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	atomic_dec(&tconInfoAllocCount);
 	kfree(buf_to_free->nativeFileSystem);
 	kzfree(buf_to_free->password);
+	kfree(buf_to_free->prfid);
 	kfree(buf_to_free);
 }
 

@@ -525,6 +525,7 @@ struct smb_vol {
 	bool nullauth:1;   /* attempt to authenticate with null user */
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
+	bool nohandlecache:1; /* disable caching dir handles if srvr probs */
 	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
 	bool seal:1;       /* request transport encryption on share */
 	bool nodfs:1;      /* Do not request DFS, even if available */
@@ -953,6 +954,7 @@ struct cifs_tcon {
 	bool print:1; /* set if connection to printer share */
 	bool retry:1;
 	bool nocase:1;
+	bool nohandlecache:1; /* if strange server resource prob can turn off */
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
@@ -979,6 +981,9 @@ struct cifs_tcon {
 	struct fscache_cookie *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
+	bool valid_root_fid:1;	/* Do we have a useable root fid */
+	struct mutex prfid_mutex; /* prevents reopen race after dead ses*/
+	struct cifs_fid *prfid;	/* handle to the directory at top of share */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 

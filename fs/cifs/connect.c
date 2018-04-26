@@ -79,6 +79,7 @@ enum {
 	Opt_noposixpaths, Opt_nounix,
 	Opt_nocase,
 	Opt_brl, Opt_nobrl,
+	Opt_handlecache, Opt_nohandlecache,
 	Opt_forcemandatorylock, Opt_setuidfromacl, Opt_setuids,
 	Opt_nosetuids, Opt_dynperm, Opt_nodynperm,
 	Opt_nohard, Opt_nosoft,
@@ -148,6 +149,8 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_nocase, "ignorecase" },
 	{ Opt_brl, "brl" },
 	{ Opt_nobrl, "nobrl" },
+	{ Opt_handlecache, "handlecache" },
+	{ Opt_nohandlecache, "nohandlecache" },
 	{ Opt_nobrl, "nolock" },
 	{ Opt_forcemandatorylock, "forcemandatorylock" },
 	{ Opt_forcemandatorylock, "forcemand" },
@@ -1444,6 +1447,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (vol->file_mode ==
 				(S_IALLUGO & ~(S_ISUID | S_IXGRP)))
 				vol->file_mode = S_IALLUGO;
+			break;
+		case Opt_nohandlecache:
+			vol->nohandlecache = 1;
+			break;
+		case Opt_handlecache:
+			vol->nohandlecache = 0;
 			break;
 		case Opt_forcemandatorylock:
 			vol->mand_lock = 1;
@@ -3022,6 +3031,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	 */
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
+	tcon->nohandlecache = volume_info->nohandlecache;
 	tcon->local_lease = volume_info->local_lease;
 	INIT_LIST_HEAD(&tcon->pending_opens);
 
@@ -3580,6 +3590,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->nohandlecache)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_HANDLE_CACHE;
 	if (pvolume_info->nostrictsync)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
 	if (pvolume_info->mand_lock)
@@ -4353,6 +4365,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	vol_info->UNC = master_tcon->treeName;
 	vol_info->retry = master_tcon->retry;
 	vol_info->nocase = master_tcon->nocase;
+	vol_info->nohandlecache = master_tcon->nohandlecache;
 	vol_info->local_lease = master_tcon->local_lease;
 	vol_info->no_linux_ext = !master_tcon->unix_ext;
 	vol_info->sectype = master_tcon->ses->sectype;
