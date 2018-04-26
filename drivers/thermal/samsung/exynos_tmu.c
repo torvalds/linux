@@ -357,19 +357,23 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		/* Write temperature code for rising and falling threshold */
 		for (i = 0; i < ntrips; i++) {
 			/* Write temperature code for rising threshold */
-			tzd->ops->get_trip_temp(tzd, i, &temp);
+			ret = tzd->ops->get_trip_temp(tzd, i, &temp);
+			if (ret)
+				goto err;
 			temp /= MCELSIUS;
 			data->tmu_set_trip_temp(data, i, temp);
 
 			/* Write temperature code for falling threshold */
-			tzd->ops->get_trip_hyst(tzd, i, &hyst);
+			ret = tzd->ops->get_trip_hyst(tzd, i, &hyst);
+			if (ret)
+				goto err;
 			hyst /= MCELSIUS;
 			data->tmu_set_trip_hyst(data, i, temp, hyst);
 		}
 
 		data->tmu_clear_irqs(data);
 	}
-
+err:
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 	if (!IS_ERR(data->clk_sec))
