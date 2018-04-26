@@ -531,44 +531,6 @@ static void ti_qspi_setup_mmap_read(struct spi_device *spi, u8 opcode,
 		      QSPI_SPI_SETUP_REG(spi->chip_select));
 }
 
-static bool ti_qspi_spi_flash_can_dma(struct spi_device *spi,
-				      struct spi_flash_read_message *msg)
-{
-	return virt_addr_valid(msg->buf);
-}
-
-static int ti_qspi_spi_flash_read(struct spi_device *spi,
-				  struct spi_flash_read_message *msg)
-{
-	struct ti_qspi *qspi = spi_master_get_devdata(spi->master);
-	int ret = 0;
-
-	mutex_lock(&qspi->list_lock);
-
-	if (!qspi->mmap_enabled)
-		ti_qspi_enable_memory_map(spi);
-	ti_qspi_setup_mmap_read(spi, msg->read_opcode, msg->data_nbits,
-				msg->addr_width, msg->dummy_bytes);
-
-	if (qspi->rx_chan) {
-		if (msg->cur_msg_mapped)
-			ret = ti_qspi_dma_xfer_sg(qspi, msg->rx_sg, msg->from);
-		else
-			ret = ti_qspi_dma_bounce_buffer(qspi, msg->from,
-							msg->buf, msg->len);
-		if (ret)
-			goto err_unlock;
-	} else {
-		memcpy_fromio(msg->buf, qspi->mmap_base + msg->from, msg->len);
-	}
-	msg->retlen = msg->len;
-
-err_unlock:
-	mutex_unlock(&qspi->list_lock);
-
-	return ret;
-}
-
 static int ti_qspi_exec_mem_op(struct spi_mem *mem,
 			       const struct spi_mem_op *op)
 {
@@ -727,7 +689,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	master->dev.of_node = pdev->dev.of_node;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
 				     SPI_BPW_MASK(8);
-	master->spi_flash_read = ti_qspi_spi_flash_read;
 	master->mem_ops = &ti_qspi_mem_ops;
 
 	if (!of_property_read_u32(np, "num-cs", &num_cs))
@@ -827,7 +788,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		dma_release_channel(qspi->rx_chan);
 		goto no_dma;
 	}
-	master->spi_flash_can_dma = ti_qspi_spi_flash_can_dma;
 	master->dma_rx = qspi->rx_chan;
 	init_completion(&qspi->transfer_complete);
 	if (res_mmap)
@@ -841,7 +801,6 @@ no_dma:
 				 "mmap failed with error %ld using PIO mode\n",
 				 PTR_ERR(qspi->mmap_base));
 			qspi->mmap_base = NULL;
-			master->spi_flash_read = NULL;
 			master->mem_ops = NULL;
 		}
 	}
