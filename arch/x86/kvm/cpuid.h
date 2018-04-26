@@ -170,7 +170,7 @@ static inline bool guest_cpuid_has_ibpb(struct kvm_vcpu *vcpu)
 	return best && (best->edx & bit(X86_FEATURE_SPEC_CTRL));
 }
 
-static inline bool guest_cpuid_has_ibrs(struct kvm_vcpu *vcpu)
+static inline bool guest_cpuid_has_spec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
 
@@ -178,7 +178,7 @@ static inline bool guest_cpuid_has_ibrs(struct kvm_vcpu *vcpu)
 	if (best && (best->ebx & bit(X86_FEATURE_IBRS)))
 		return true;
 	best = kvm_find_cpuid_entry(vcpu, 7, 0);
-	return best && (best->edx & bit(X86_FEATURE_SPEC_CTRL));
+	return best && (best->edx & (bit(X86_FEATURE_SPEC_CTRL) | bit(X86_FEATURE_SPEC_CTRL_SSBD)));
 }
 
 static inline bool guest_cpuid_has_arch_capabilities(struct kvm_vcpu *vcpu)
