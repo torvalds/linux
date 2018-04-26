@@ -3234,11 +3234,8 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 	if (val) {
 		int min_len, max_len;
 
-		min_len = SCTP_DEFAULT_MINSEGMENT - af->net_header_len;
-		min_len -= af->ip_options_len(sk);
-		min_len -= sizeof(struct sctphdr) +
-			   sizeof(struct sctp_data_chunk);
-
+		min_len = sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT,
+					   sizeof(struct sctp_data_chunk));
 		max_len = SCTP_MAX_CHUNK_LEN - sizeof(struct sctp_data_chunk);
 
 		if (val < min_len || val > max_len)

@@ -607,6 +607,25 @@ static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *
 	return t->dst;
 }
 
+/* Calculate max payload size given a MTU, or the total overhead if
+ * given MTU is zero
+ */
+static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
+				     __u32 mtu, __u32 extra)
+{
+	__u32 overhead = sizeof(struct sctphdr) + extra;
+
+	if (sp)
+		overhead += sp->pf->af->net_header_len;
+	else
+		overhead += sizeof(struct ipv6hdr);
+
+	if (WARN_ON_ONCE(mtu && mtu <= overhead))
+		mtu = overhead;
+
+	return mtu ? mtu - overhead : overhead;
+}
+
 static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
 {
 	__u32 pmtu = max_t(size_t, SCTP_TRUNC4(dst_mtu(t->dst)),
