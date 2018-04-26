@@ -47,20 +47,20 @@ bindings specified in Documentation/devicetree/bindings/graph.txt.
 The following table lists for each supported model the port number
 corresponding to each DU output.
 
-                      Port0          Port1          Port2          Port3
+                        Port0          Port1          Port2          Port3
 -----------------------------------------------------------------------------
- R8A7743 (RZ/G1M)     DPAD 0         LVDS 0         -              -
- R8A7745 (RZ/G1E)     DPAD 0         DPAD 1         -              -
- R8A7779 (R-Car H1)   DPAD 0         DPAD 1         -              -
- R8A7790 (R-Car H2)   DPAD 0         LVDS 0         LVDS 1         -
- R8A7791 (R-Car M2-W) DPAD 0         LVDS 0         -              -
- R8A7792 (R-Car V2H)  DPAD 0         DPAD 1         -              -
- R8A7793 (R-Car M2-N) DPAD 0         LVDS 0         -              -
- R8A7794 (R-Car E2)   DPAD 0         DPAD 1         -              -
- R8A7795 (R-Car H3)   DPAD 0         HDMI 0         HDMI 1         LVDS 0
- R8A7796 (R-Car M3-W) DPAD 0         HDMI 0         LVDS 0         -
- R8A77970 (R-Car V3M) DPAD 0         LVDS 0         -              -
- R8A77995 (R-Car D3)  DPAD 0         LVDS 0         LVDS 1         -
+ R8A7743 (RZ/G1M)       DPAD 0         LVDS 0         -              -
+ R8A7745 (RZ/G1E)       DPAD 0         DPAD 1         -              -
+ R8A7779 (R-Car H1)     DPAD 0         DPAD 1         -              -
+ R8A7790 (R-Car H2)     DPAD 0         LVDS 0         LVDS 1         -
+ R8A7791 (R-Car M2-W)   DPAD 0         LVDS 0         -              -
+ R8A7792 (R-Car V2H)    DPAD 0         DPAD 1         -              -
+ R8A7793 (R-Car M2-N)   DPAD 0         LVDS 0         -              -
+ R8A7794 (R-Car E2)     DPAD 0         DPAD 1         -              -
+ R8A7795 (R-Car H3)     DPAD 0         HDMI 0         HDMI 1         LVDS 0
+ R8A7796 (R-Car M3-W)   DPAD 0         HDMI 0         LVDS 0         -
+ R8A77970 (R-Car V3M)   DPAD 0         LVDS 0         -              -
+ R8A77995 (R-Car D3)    DPAD 0         LVDS 0         LVDS 1         -
 
 
 Example: R8A7795 (R-Car H3) ES2.0 DU
