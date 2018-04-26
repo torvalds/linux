@@ -3312,7 +3312,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 
 	GEM_TRACE("start\n");
 
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		for_each_engine(engine, i915, id)

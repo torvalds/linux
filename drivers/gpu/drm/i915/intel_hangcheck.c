@@ -356,7 +356,7 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 		break;
 
 	case ENGINE_DEAD:
-		if (drm_debug & DRM_UT_DRIVER) {
+		if (GEM_SHOW_DEBUG()) {
 			struct drm_printer p = drm_debug_printer("hangcheck");
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 		}

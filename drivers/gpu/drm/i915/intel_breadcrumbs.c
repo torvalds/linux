@@ -82,7 +82,7 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		intel_engine_dump(engine, &p,
