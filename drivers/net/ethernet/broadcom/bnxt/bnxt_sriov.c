@@ -462,13 +462,13 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
 	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
-	req.min_rsscos_ctx = cpu_to_le16(1);
-	req.max_rsscos_ctx = cpu_to_le16(1);
+	req.min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
+	req.max_rsscos_ctx = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
 	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL) {
 		req.min_cmpl_rings = cpu_to_le16(1);
 		req.min_tx_rings = cpu_to_le16(1);
 		req.min_rx_rings = cpu_to_le16(1);
-		req.min_l2_ctxs = cpu_to_le16(1);
+		req.min_l2_ctxs = cpu_to_le16(BNXT_VF_MIN_L2_CTX);
 		req.min_vnics = cpu_to_le16(1);
 		req.min_stat_ctx = cpu_to_le16(1);
 		req.min_hw_ring_grps = cpu_to_le16(1);
@@ -483,7 +483,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 		req.min_cmpl_rings = cpu_to_le16(vf_cp_rings);
 		req.min_tx_rings = cpu_to_le16(vf_tx_rings);
 		req.min_rx_rings = cpu_to_le16(vf_rx_rings);
-		req.min_l2_ctxs = cpu_to_le16(4);
+		req.min_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 		req.min_vnics = cpu_to_le16(vf_vnics);
 		req.min_stat_ctx = cpu_to_le16(vf_stat_ctx);
 		req.min_hw_ring_grps = cpu_to_le16(vf_ring_grps);
@@ -491,7 +491,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	req.max_cmpl_rings = cpu_to_le16(vf_cp_rings);
 	req.max_tx_rings = cpu_to_le16(vf_tx_rings);
 	req.max_rx_rings = cpu_to_le16(vf_rx_rings);
-	req.max_l2_ctxs = cpu_to_le16(4);
+	req.max_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	req.max_vnics = cpu_to_le16(vf_vnics);
 	req.max_stat_ctx = cpu_to_le16(vf_stat_ctx);
 	req.max_hw_ring_grps = cpu_to_le16(vf_ring_grps);

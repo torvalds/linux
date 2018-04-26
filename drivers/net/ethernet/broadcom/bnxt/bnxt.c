@@ -4713,6 +4713,10 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 
 	__bnxt_hwrm_reserve_vf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, vnics);
+	req.enables |= cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS |
+				   FUNC_VF_CFG_REQ_ENABLES_NUM_L2_CTXS);
+	req.num_rsscos_ctxs = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
+	req.num_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return -ENOMEM;
