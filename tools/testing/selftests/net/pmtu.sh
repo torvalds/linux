@@ -368,7 +368,7 @@ test_pmtu_vti6_link_add_mtu() {
 
 	fail=0
 
-	min=1280
+	min=68			# vti6 can carry IPv4 packets too
 	max=$((65535 - 40))
 	# Check invalid values first
 	for v in $((min - 1)) $((max + 1)); do
@@ -384,7 +384,7 @@ test_pmtu_vti6_link_add_mtu() {
 	done
 
 	# Now check valid values
-	for v in 1280 1300 $((65535 - 40)); do
+	for v in 68 1280 1300 $((65535 - 40)); do
 		${ns_a} ip link add vti6_a mtu ${v} type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
 		mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 		${ns_a} ip link del vti6_a
