@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-mem.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
@@ -2071,12 +2072,19 @@ static int of_spi_register_master(struct spi_controller *ctlr)
 static int spi_controller_check_ops(struct spi_controller *ctlr)
 {
 	/*
-	 * The controller must at least implement one of the ->transfer()
-	 * hooks.
+	 * The controller may implement only the high-level SPI-memory like
+	 * operations if it does not support regular SPI transfers, and this is
+	 * valid use case.
+	 * If ->mem_ops is NULL, we request that at least one of the
+	 * ->transfer_xxx() method be implemented.
 	 */
-	if (!ctlr->transfer && !ctlr->transfer_one &&
-	    !ctlr->transfer_one_message)
+	if (ctlr->mem_ops) {
+		if (!ctlr->mem_ops->exec_op)
+			return -EINVAL;
+	} else if (!ctlr->transfer && !ctlr->transfer_one &&
+		   !ctlr->transfer_one_message) {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -2187,10 +2195,14 @@ int spi_register_controller(struct spi_controller *ctlr)
 			spi_controller_is_slave(ctlr) ? "slave" : "master",
 			dev_name(&ctlr->dev));
 
-	/* If we're using a queued driver, start the queue */
-	if (ctlr->transfer)
+	/*
+	 * If we're using a queued driver, start the queue. Note that we don't
+	 * need the queueing logic if the driver is only supporting high-level
+	 * memory operations.
+	 */
+	if (ctlr->transfer) {
 		dev_info(dev, "controller is unqueued, this is deprecated\n");
-	else {
+	} else if (ctlr->transfer_one || ctlr->transfer_one_message) {
 		status = spi_controller_initialize_queue(ctlr);
 		if (status) {
 			device_del(&ctlr->dev);
@@ -2919,6 +2931,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 static int __spi_async(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_controller *ctlr = spi->controller;
+
+	/*
+	 * Some controllers do not support doing regular SPI transfers. Return
+	 * ENOTSUPP when this is the case.
+	 */
+	if (!ctlr->transfer)
+		return -ENOTSUPP;
 
 	message->spi = spi;
 
