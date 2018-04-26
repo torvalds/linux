@@ -1647,6 +1647,12 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 	}
 }
 
+struct link_config_limits {
+	int min_clock, max_clock;
+	int min_lane_count, max_lane_count;
+	int min_bpp, max_bpp;
+};
+
 static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
@@ -1704,21 +1710,25 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 {
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	int lane_count, clock;
-	int min_lane_count = 1;
-	int max_lane_count = intel_dp_max_lane_count(intel_dp);
-	int min_clock = 0;
-	int max_clock;
-	int bpp, mode_rate;
-	int link_avail, link_clock;
+	struct link_config_limits limits;
+	int bpp, clock, lane_count;
+	int mode_rate, link_avail, link_clock;
 	int common_len;
+
 	common_len = intel_dp_common_len_rate_limit(intel_dp,
 						    intel_dp->max_link_rate);
 
 	/* No common link rates between source and sink */
 	WARN_ON(common_len <= 0);
 
-	max_clock = common_len - 1;
+	limits.min_clock = 0;
+	limits.max_clock = common_len - 1;
+
+	limits.min_lane_count = 1;
+	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
+
+	limits.min_bpp = 6 * 3;
+	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
 	/* Use values requested by Compliance Test Request */
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
@@ -1733,18 +1743,11 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 						    intel_dp->num_common_rates,
 						    intel_dp->compliance.test_link_rate);
 			if (index >= 0)
-				min_clock = max_clock = index;
-			min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
+				limits.min_clock = limits.max_clock = index;
+			limits.min_lane_count = limits.max_lane_count = intel_dp->compliance.test_lane_count;
 		}
 	}
-	DRM_DEBUG_KMS("DP link computation with max lane count %i "
-		      "max bw %d pixel clock %iKHz\n",
-		      max_lane_count, intel_dp->common_rates[max_clock],
-		      adjusted_mode->crtc_clock);
 
-	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
-	 * bpc in between. */
-	bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 	if (intel_dp_is_edp(intel_dp)) {
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
@@ -1753,18 +1756,24 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		 * configuration, and typically these values correspond to the
 		 * native resolution of the panel.
 		 */
-		min_lane_count = max_lane_count;
-		min_clock = max_clock;
+		limits.min_lane_count = limits.max_lane_count;
+		limits.min_clock = limits.max_clock;
 	}
 
-	for (; bpp >= 6*3; bpp -= 2*3) {
+	DRM_DEBUG_KMS("DP link computation with max lane count %i "
+		      "max rate %d max bpp %d pixel clock %iKHz\n",
+		      limits.max_lane_count,
+		      intel_dp->common_rates[limits.max_clock],
+		      limits.max_bpp, adjusted_mode->crtc_clock);
+
+	for (bpp = limits.max_bpp; bpp >= limits.min_bpp; bpp -= 2 * 3) {
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   bpp);
 
-		for (clock = min_clock; clock <= max_clock; clock++) {
-			for (lane_count = min_lane_count;
-				lane_count <= max_lane_count;
-				lane_count <<= 1) {
+		for (clock = limits.min_clock; clock <= limits.max_clock; clock++) {
+			for (lane_count = limits.min_lane_count;
+			     lane_count <= limits.max_lane_count;
+			     lane_count <<= 1) {
 
 				link_clock = intel_dp->common_rates[clock];
 				link_avail = intel_dp_max_data_rate(link_clock,
