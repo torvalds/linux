@@ -12258,6 +12258,8 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 	bool progress;
 	enum pipe pipe;
 	int i;
+	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
+	u8 required_slices = intel_state->wm_results.ddb.enabled_slices;
 
 	const struct skl_ddb_entry *entries[I915_MAX_PIPES] = {};
 
@@ -12265,6 +12267,10 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 		/* ignore allocations for crtc's that have been turned off. */
 		if (new_crtc_state->active)
 			entries[i] = &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
+
+	/* If 2nd DBuf slice required, enable it here */
+	if (INTEL_GEN(dev_priv) >= 11 && required_slices > hw_enabled_slices)
+		icl_dbuf_slices_update(dev_priv, required_slices);
 
 	/*
 	 * Whenever the number of active pipes changes, we need to make sure we
@@ -12316,6 +12322,10 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 			progress = true;
 		}
 	} while (progress);
+
+	/* If 2nd DBuf slice is no more required disable it */
+	if (INTEL_GEN(dev_priv) >= 11 && required_slices < hw_enabled_slices)
+		icl_dbuf_slices_update(dev_priv, required_slices);
 }
 
 static void intel_atomic_helper_free_state(struct drm_i915_private *dev_priv)

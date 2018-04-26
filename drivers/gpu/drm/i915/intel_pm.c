@@ -3771,9 +3771,42 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	return true;
 }
 
+static unsigned int intel_get_ddb_size(struct drm_i915_private *dev_priv,
+				       const struct intel_crtc_state *cstate,
+				       const unsigned int total_data_rate,
+				       const int num_active,
+				       struct skl_ddb_allocation *ddb)
+{
+	const struct drm_display_mode *adjusted_mode;
+	u64 total_data_bw;
+	u16 ddb_size = INTEL_INFO(dev_priv)->ddb_size;
+
+	WARN_ON(ddb_size == 0);
+
+	if (INTEL_GEN(dev_priv) < 11)
+		return ddb_size - 4; /* 4 blocks for bypass path allocation */
+
+	adjusted_mode = &cstate->base.adjusted_mode;
+	total_data_bw = (u64)total_data_rate * drm_mode_vrefresh(adjusted_mode);
+
+	/*
+	 * 12GB/s is maximum BW supported by single DBuf slice.
+	 */
+	if (total_data_bw >= GBps(12) || num_active > 1) {
+		ddb->enabled_slices = 2;
+	} else {
+		ddb->enabled_slices = 1;
+		ddb_size /= 2;
+	}
+
+	return ddb_size;
+}
+
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 				   const struct intel_crtc_state *cstate,
+				   const unsigned int total_data_rate,
+				   struct skl_ddb_allocation *ddb,
 				   struct skl_ddb_entry *alloc, /* out */
 				   int *num_active /* out */)
 {
@@ -3796,11 +3829,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	else
 		*num_active = hweight32(dev_priv->active_crtcs);
 
-	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
-	WARN_ON(ddb_size == 0);
-
-	if (INTEL_GEN(dev_priv) < 11)
-		ddb_size -= 4; /* 4 blocks for bypass path allocation */
+	ddb_size = intel_get_ddb_size(dev_priv, cstate, total_data_rate,
+				      *num_active, ddb);
 
 	/*
 	 * If the state doesn't change the active CRTC's, then there's
@@ -4261,7 +4291,11 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 	}
 
-	skl_ddb_get_pipe_allocation_limits(dev, cstate, alloc, &num_active);
+	total_data_rate = skl_get_total_relative_data_rate(cstate,
+							   plane_data_rate,
+							   uv_plane_data_rate);
+	skl_ddb_get_pipe_allocation_limits(dev, cstate, total_data_rate, ddb,
+					   alloc, &num_active);
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0)
 		return 0;
@@ -4296,9 +4330,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 *
 	 * FIXME: we may not allocate every single block here.
 	 */
-	total_data_rate = skl_get_total_relative_data_rate(cstate,
-							   plane_data_rate,
-							   uv_plane_data_rate);
 	if (total_data_rate == 0)
 		return 0;
 
@@ -5492,8 +5523,12 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 		/* Fully recompute DDB on first atomic commit */
 		dev_priv->wm.distrust_bios_wm = true;
 	} else {
-		/* Easy/common case; just sanitize DDB now if everything off */
-		memset(ddb, 0, sizeof(*ddb));
+		/*
+		 * Easy/common case; just sanitize DDB now if everything off
+		 * Keep dbuf slice info intact
+		 */
+		memset(ddb->plane, 0, sizeof(ddb->plane));
+		memset(ddb->uv_plane, 0, sizeof(ddb->uv_plane));
 	}
 }
 

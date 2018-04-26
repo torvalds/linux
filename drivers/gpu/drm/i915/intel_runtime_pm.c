@@ -2619,32 +2619,69 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
-static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
+static inline
+bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
+			  i915_reg_t reg, bool enable)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
+	u32 val, status;
 
+	val = I915_READ(reg);
+	val = enable ? (val | DBUF_POWER_REQUEST) : (val & ~DBUF_POWER_REQUEST);
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
 	udelay(10);
 
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout\n");
+	status = I915_READ(reg) & DBUF_POWER_STATE;
+	if ((enable && !status) || (!enable && status)) {
+		DRM_ERROR("DBus power %s timeout!\n",
+			  enable ? "enable" : "disable");
+		return false;
+	}
+	return true;
+}
+
+static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
+{
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL, true);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout!\n");
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL, false);
 }
 
-/*
- * TODO: we shouldn't always enable DBUF_CTL_S2, we should only enable it when
- * needed and keep it disabled as much as possible.
- */
+static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) < 11)
+		return 1;
+	return 2;
+}
+
+void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			    u8 req_slices)
+{
+	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
+	u32 val;
+	bool ret;
+
+	if (req_slices > intel_dbuf_max_slices(dev_priv)) {
+		DRM_ERROR("Invalid number of dbuf slices requested\n");
+		return;
+	}
+
+	if (req_slices == hw_enabled_slices || req_slices == 0)
+		return;
+
+	val = I915_READ(DBUF_CTL_S2);
+	if (req_slices > hw_enabled_slices)
+		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, true);
+	else
+		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, false);
+
+	if (ret)
+		dev_priv->wm.skl_hw.ddb.enabled_slices = req_slices;
+}
+
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) | DBUF_POWER_REQUEST);

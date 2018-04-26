@@ -144,6 +144,10 @@
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
 
+#define KBps(x) (1000 * (x))
+#define MBps(x) KBps(1000 * (x))
+#define GBps(x) ((u64)1000 * MBps((x)))
+
 /*
  * Display related stuff
  */
@@ -1931,6 +1935,8 @@ bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 					enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
+void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			    u8 req_slices);
 
 static inline void
 assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
