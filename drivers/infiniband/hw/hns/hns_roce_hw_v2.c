@@ -71,6 +71,11 @@ static int set_rwqe_data_seg(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			return -EINVAL;
 		}
 
+		if (wr->opcode == IB_WR_RDMA_READ) {
+			dev_err(hr_dev->dev, "Not support inline data!\n");
+			return -EINVAL;
+		}
+
 		for (i = 0; i < wr->num_sge; i++) {
 			memcpy(wqe, ((void *)wr->sg_list[i].addr),
 			       wr->sg_list[i].length);
