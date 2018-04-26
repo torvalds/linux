@@ -173,7 +173,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
 
-		if ((anon || no_dso) && nsi && type == MAP__FUNCTION) {
+		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
 				 "/tmp/perf-%d.map", nsi->pid);
 			filename = newfilename;
@@ -213,7 +213,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			 * functions still return NULL, and we avoid the
 			 * unnecessary map__load warning.
 			 */
-			if (type != MAP__FUNCTION)
+			if (!(prot & PROT_EXEC))
 				dso__set_loaded(dso, map->type);
 		}
 		dso->nsinfo = nsi;
