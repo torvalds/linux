@@ -88,9 +88,11 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 
 	if (skb->encapsulation &&
 	    skb_shinfo(skb)->gso_type & (SKB_GSO_IPXIP4 | SKB_GSO_IPXIP6))
-		udpfrag = proto == IPPROTO_UDP && encap;
+		udpfrag = proto == IPPROTO_UDP && encap &&
+			  (skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 	else
-		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation;
+		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation &&
+			  (skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 
 	ops = rcu_dereference(inet6_offloads[proto]);
 	if (likely(ops && ops->callbacks.gso_segment)) {

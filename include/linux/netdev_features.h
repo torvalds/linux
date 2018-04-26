@@ -55,8 +55,9 @@ enum {
 	NETIF_F_GSO_SCTP_BIT,		/* ... SCTP fragmentation */
 	NETIF_F_GSO_ESP_BIT,		/* ... ESP with TSO */
 	NETIF_F_GSO_UDP_BIT,		/* ... UFO, deprecated except tuntap */
+	NETIF_F_GSO_UDP_L4_BIT,		/* ... UDP payload GSO (not UFO) */
 	/**/NETIF_F_GSO_LAST =		/* last bit, see GSO_MASK */
-		NETIF_F_GSO_UDP_BIT,
+		NETIF_F_GSO_UDP_L4_BIT,
 
 	NETIF_F_FCOE_CRC_BIT,		/* FCoE CRC32 */
 	NETIF_F_SCTP_CRC_BIT,		/* SCTP checksum offload */
@@ -147,6 +148,7 @@ enum {
 #define NETIF_F_HW_ESP_TX_CSUM	__NETIF_F(HW_ESP_TX_CSUM)
 #define	NETIF_F_RX_UDP_TUNNEL_PORT  __NETIF_F(RX_UDP_TUNNEL_PORT)
 #define NETIF_F_HW_TLS_RECORD	__NETIF_F(HW_TLS_RECORD)
+#define NETIF_F_GSO_UDP_L4	__NETIF_F(GSO_UDP_L4)
 
 #define for_each_netdev_feature(mask_addr, bit)	\
 	for_each_set_bit(bit, (unsigned long *)mask_addr, NETDEV_FEATURE_COUNT)
@@ -216,6 +218,7 @@ enum {
 				 NETIF_F_GSO_GRE_CSUM |			\
 				 NETIF_F_GSO_IPXIP4 |			\
 				 NETIF_F_GSO_IPXIP6 |			\
+				 NETIF_F_GSO_UDP_L4 |			\
 				 NETIF_F_GSO_UDP_TUNNEL |		\
 				 NETIF_F_GSO_UDP_TUNNEL_CSUM)
 

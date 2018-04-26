@@ -187,6 +187,68 @@ out_unlock:
 }
 EXPORT_SYMBOL(skb_udp_tunnel_segment);
 
+struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
+				  netdev_features_t features,
+				  unsigned int mss, __sum16 check)
+{
+	struct sock *sk = gso_skb->sk;
+	unsigned int sum_truesize = 0;
+	struct sk_buff *segs, *seg;
+	unsigned int hdrlen;
+	struct udphdr *uh;
+
+	if (gso_skb->len <= sizeof(*uh) + mss)
+		return ERR_PTR(-EINVAL);
+
+	hdrlen = gso_skb->data - skb_mac_header(gso_skb);
+	skb_pull(gso_skb, sizeof(*uh));
+
+	/* clear destructor to avoid skb_segment assigning it to tail */
+	WARN_ON_ONCE(gso_skb->destructor != sock_wfree);
+	gso_skb->destructor = NULL;
+
+	segs = skb_segment(gso_skb, features);
+	if (unlikely(IS_ERR_OR_NULL(segs))) {
+		gso_skb->destructor = sock_wfree;
+		return segs;
+	}
+
+	for (seg = segs; seg; seg = seg->next) {
+		uh = udp_hdr(seg);
+		uh->len = htons(seg->len - hdrlen);
+		uh->check = check;
+
+		/* last packet can be partial gso_size */
+		if (!seg->next)
+			csum_replace2(&uh->check, htons(mss),
+				      htons(seg->len - hdrlen - sizeof(*uh)));
+
+		seg->destructor = sock_wfree;
+		seg->sk = sk;
+		sum_truesize += seg->truesize;
+	}
+
+	refcount_add(sum_truesize - gso_skb->truesize, &sk->sk_wmem_alloc);
+
+	return segs;
+}
+EXPORT_SYMBOL_GPL(__udp_gso_segment);
+
+static struct sk_buff *__udp4_gso_segment(struct sk_buff *gso_skb,
+					  netdev_features_t features)
+{
+	const struct iphdr *iph = ip_hdr(gso_skb);
+	unsigned int mss = skb_shinfo(gso_skb)->gso_size;
+
+	if (!can_checksum_protocol(features, htons(ETH_P_IP)))
+		return ERR_PTR(-EIO);
+
+	return __udp_gso_segment(gso_skb, features, mss,
+				 udp_v4_check(sizeof(struct udphdr) + mss,
+					      iph->saddr, iph->daddr, 0));
+}
+EXPORT_SYMBOL_GPL(__udp4_gso_segment);
+
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
 {
@@ -203,11 +265,14 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		goto out;
 	}
 
-	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP))
+	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_UDP | SKB_GSO_UDP_L4)))
 		goto out;
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto out;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		return __udp4_gso_segment(skb, features);
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
