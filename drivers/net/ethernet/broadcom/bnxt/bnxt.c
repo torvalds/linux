@@ -4336,26 +4336,9 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc || err) {
-		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
-			netdev_err(bp->dev, "hwrm_ring_alloc cp failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		case RING_FREE_REQ_RING_TYPE_RX:
-			netdev_err(bp->dev, "hwrm_ring_alloc rx failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		case RING_FREE_REQ_RING_TYPE_TX:
-			netdev_err(bp->dev, "hwrm_ring_alloc tx failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		default:
-			netdev_err(bp->dev, "Invalid ring\n");
-			return -1;
-		}
+		netdev_err(bp->dev, "hwrm_ring_alloc type %d failed. rc:%x err:%x\n",
+			   ring_type, rc, err);
+		return -EIO;
 	}
 	ring->fw_ring_id = ring_id;
 	return rc;
@@ -4479,23 +4462,9 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc || error_code) {
-		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
-			netdev_err(bp->dev, "hwrm_ring_free cp failed. rc:%d\n",
-				   rc);
-			return rc;
-		case RING_FREE_REQ_RING_TYPE_RX:
-			netdev_err(bp->dev, "hwrm_ring_free rx failed. rc:%d\n",
-				   rc);
-			return rc;
-		case RING_FREE_REQ_RING_TYPE_TX:
-			netdev_err(bp->dev, "hwrm_ring_free tx failed. rc:%d\n",
-				   rc);
-			return rc;
-		default:
-			netdev_err(bp->dev, "Invalid ring\n");
-			return -1;
-		}
+		netdev_err(bp->dev, "hwrm_ring_free type %d failed. rc:%x err:%x\n",
+			   ring_type, rc, error_code);
+		return -EIO;
 	}
 	return 0;
 }
