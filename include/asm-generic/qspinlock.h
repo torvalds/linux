@@ -100,7 +100,7 @@ static __always_inline void queued_spin_unlock(struct qspinlock *lock)
 	/*
 	 * unlock() needs release semantics:
 	 */
-	(void)atomic_sub_return_release(_Q_LOCKED_VAL, &lock->val);
+	smp_store_release(&lock->locked, 0);
 }
 #endif
 
