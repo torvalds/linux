@@ -423,10 +423,6 @@ static int exynos4210_tmu_initialize(struct platform_device *pdev)
 	/* Write temperature code for threshold */
 	reference = trips[0].temperature / MCELSIUS;
 	threshold_code = temp_to_code(data, reference);
-	if (threshold_code < 0) {
-		ret = threshold_code;
-		goto out;
-	}
 	writeb(threshold_code, data->base + EXYNOS4210_TMU_REG_THRESHOLD_TEMP);
 
 	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
@@ -436,7 +432,7 @@ static int exynos4210_tmu_initialize(struct platform_device *pdev)
 	}
 
 	data->tmu_clear_irqs(data);
-out:
+
 	return ret;
 }
 
