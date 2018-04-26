@@ -309,7 +309,6 @@ void drop_inmem_pages(struct inode *inode)
 	mutex_unlock(&fi->inmem_lock);
 
 	clear_inode_flag(inode, FI_ATOMIC_FILE);
-	clear_inode_flag(inode, FI_HOT_DATA);
 	stat_dec_atomic_write(inode);
 }
 
@@ -2693,7 +2692,9 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 		if (is_cold_data(fio->page) || file_is_cold(inode))
 			return CURSEG_COLD_DATA;
 		if (file_is_hot(inode) ||
-				is_inode_flag_set(inode, FI_HOT_DATA))
+				is_inode_flag_set(inode, FI_HOT_DATA) ||
+				is_inode_flag_set(inode, FI_ATOMIC_FILE) ||
+				is_inode_flag_set(inode, FI_VOLATILE_FILE))
 			return CURSEG_HOT_DATA;
 		/* rw_hint_to_seg_type(inode->i_write_hint); */
 		return CURSEG_WARM_DATA;
