@@ -3166,7 +3166,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_SQD && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_SQE && new_state == IB_QPS_ERR)) {
+		   (cur_state == IB_QPS_SQE && new_state == IB_QPS_ERR) ||
+		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR)) {
 		/* Nothing */
 		;
 	} else {
