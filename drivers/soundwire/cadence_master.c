@@ -13,6 +13,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
 #include "bus.h"
 #include "cadence_master.h"
 
@@ -984,6 +986,199 @@ int sdw_cdns_probe(struct sdw_cdns *cdns)
 	return 0;
 }
 EXPORT_SYMBOL(sdw_cdns_probe);
+
+int cdns_set_sdw_stream(struct snd_soc_dai *dai,
+		void *stream, bool pcm, int direction)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_cdns_dma_data *dma;
+
+	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	if (!dma)
+		return -ENOMEM;
+
+	if (pcm)
+		dma->stream_type = SDW_STREAM_PCM;
+	else
+		dma->stream_type = SDW_STREAM_PDM;
+
+	dma->bus = &cdns->bus;
+	dma->link_id = cdns->instance;
+
+	dma->stream = stream;
+
+	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
+		dai->playback_dma_data = dma;
+	else
+		dai->capture_dma_data = dma;
+
+	return 0;
+}
+EXPORT_SYMBOL(cdns_set_sdw_stream);
+
+/**
+ * cdns_find_pdi() - Find a free PDI
+ *
+ * @cdns: Cadence instance
+ * @num: Number of PDIs
+ * @pdi: PDI instances
+ *
+ * Find and return a free PDI for a given PDI array
+ */
+static struct sdw_cdns_pdi *cdns_find_pdi(struct sdw_cdns *cdns,
+		unsigned int num, struct sdw_cdns_pdi *pdi)
+{
+	int i;
+
+	for (i = 0; i < num; i++) {
+		if (pdi[i].assigned == true)
+			continue;
+		pdi[i].assigned = true;
+		return &pdi[i];
+	}
+
+	return NULL;
+}
+
+/**
+ * sdw_cdns_config_stream: Configure a stream
+ *
+ * @cdns: Cadence instance
+ * @port: Cadence data port
+ * @ch: Channel count
+ * @dir: Data direction
+ * @pdi: PDI to be used
+ */
+void sdw_cdns_config_stream(struct sdw_cdns *cdns,
+				struct sdw_cdns_port *port,
+				u32 ch, u32 dir, struct sdw_cdns_pdi *pdi)
+{
+	u32 offset, val = 0;
+
+	if (dir == SDW_DATA_DIR_RX)
+		val = CDNS_PORTCTRL_DIRN;
+
+	offset = CDNS_PORTCTRL + port->num * CDNS_PORT_OFFSET;
+	cdns_updatel(cdns, offset, CDNS_PORTCTRL_DIRN, val);
+
+	val = port->num;
+	val |= ((1 << ch) - 1) << SDW_REG_SHIFT(CDNS_PDI_CONFIG_CHANNEL);
+	cdns_writel(cdns, CDNS_PDI_CONFIG(pdi->num), val);
+}
+EXPORT_SYMBOL(sdw_cdns_config_stream);
+
+/**
+ * cdns_get_num_pdi() - Get number of PDIs required
+ *
+ * @cdns: Cadence instance
+ * @pdi: PDI to be used
+ * @num: Number of PDIs
+ * @ch_count: Channel count
+ */
+static int cdns_get_num_pdi(struct sdw_cdns *cdns,
+		struct sdw_cdns_pdi *pdi,
+		unsigned int num, u32 ch_count)
+{
+	int i, pdis = 0;
+
+	for (i = 0; i < num; i++) {
+		if (pdi[i].assigned == true)
+			continue;
+
+		if (pdi[i].ch_count < ch_count)
+			ch_count -= pdi[i].ch_count;
+		else
+			ch_count = 0;
+
+		pdis++;
+
+		if (!ch_count)
+			break;
+	}
+
+	if (ch_count)
+		return 0;
+
+	return pdis;
+}
+
+/**
+ * sdw_cdns_get_stream() - Get stream information
+ *
+ * @cdns: Cadence instance
+ * @stream: Stream to be allocated
+ * @ch: Channel count
+ * @dir: Data direction
+ */
+int sdw_cdns_get_stream(struct sdw_cdns *cdns,
+			struct sdw_cdns_streams *stream,
+			u32 ch, u32 dir)
+{
+	int pdis = 0;
+
+	if (dir == SDW_DATA_DIR_RX)
+		pdis = cdns_get_num_pdi(cdns, stream->in, stream->num_in, ch);
+	else
+		pdis = cdns_get_num_pdi(cdns, stream->out, stream->num_out, ch);
+
+	/* check if we found PDI, else find in bi-directional */
+	if (!pdis)
+		pdis = cdns_get_num_pdi(cdns, stream->bd, stream->num_bd, ch);
+
+	return pdis;
+}
+EXPORT_SYMBOL(sdw_cdns_get_stream);
+
+/**
+ * sdw_cdns_alloc_stream() - Allocate a stream
+ *
+ * @cdns: Cadence instance
+ * @stream: Stream to be allocated
+ * @port: Cadence data port
+ * @ch: Channel count
+ * @dir: Data direction
+ */
+int sdw_cdns_alloc_stream(struct sdw_cdns *cdns,
+			struct sdw_cdns_streams *stream,
+			struct sdw_cdns_port *port, u32 ch, u32 dir)
+{
+	struct sdw_cdns_pdi *pdi = NULL;
+
+	if (dir == SDW_DATA_DIR_RX)
+		pdi = cdns_find_pdi(cdns, stream->num_in, stream->in);
+	else
+		pdi = cdns_find_pdi(cdns, stream->num_out, stream->out);
+
+	/* check if we found a PDI, else find in bi-directional */
+	if (!pdi)
+		pdi = cdns_find_pdi(cdns, stream->num_bd, stream->bd);
+
+	if (!pdi)
+		return -EIO;
+
+	port->pdi = pdi;
+	pdi->l_ch_num = 0;
+	pdi->h_ch_num = ch - 1;
+	pdi->dir = dir;
+	pdi->ch_count = ch;
+
+	return 0;
+}
+EXPORT_SYMBOL(sdw_cdns_alloc_stream);
+
+void sdw_cdns_shutdown(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai)
+{
+	struct sdw_cdns_dma_data *dma;
+
+	dma = snd_soc_dai_get_dma_data(dai, substream);
+	if (!dma)
+		return;
+
+	snd_soc_dai_set_dma_data(dai, substream, NULL);
+	kfree(dma);
+}
+EXPORT_SYMBOL(sdw_cdns_shutdown);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Cadence Soundwire Library");
