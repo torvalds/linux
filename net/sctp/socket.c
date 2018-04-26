@@ -3233,18 +3233,21 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 		return -EINVAL;
 	}
 
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+
 	if (val) {
 		int min_len, max_len;
+		__u16 datasize = asoc ? sctp_datachk_len(&asoc->stream) :
+				 sizeof(struct sctp_data_chunk);
 
 		min_len = sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT,
-					   sizeof(struct sctp_data_chunk));
-		max_len = SCTP_MAX_CHUNK_LEN - sizeof(struct sctp_data_chunk);
+					   datasize);
+		max_len = SCTP_MAX_CHUNK_LEN - datasize;
 
 		if (val < min_len || val > max_len)
 			return -EINVAL;
 	}
 
-	asoc = sctp_id2assoc(sk, params.assoc_id);
 	if (asoc) {
 		if (val == 0) {
 			val = asoc->pathmtu - af->net_header_len;
