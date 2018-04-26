@@ -1685,19 +1685,14 @@ static bool intel_edp_compare_alt_mode(struct drm_display_mode *m1,
 	return bres;
 }
 
-bool
-intel_dp_compute_config(struct intel_encoder *encoder,
-			struct intel_crtc_state *pipe_config,
-			struct drm_connector_state *conn_state)
+static bool
+intel_dp_compute_link_config(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = encoder->port;
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	struct intel_digital_connector_state *intel_conn_state =
-		to_intel_digital_connector_state(conn_state);
 	int lane_count, clock;
 	int min_lane_count = 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
@@ -1706,9 +1701,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int bpp, mode_rate;
 	int link_avail, link_clock;
 	int common_len;
-	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
-					   DP_DPCD_QUIRK_LIMITED_M_N);
-
 	common_len = intel_dp_common_len_rate_limit(intel_dp,
 						    intel_dp->max_link_rate);
 
@@ -1716,51 +1708,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	WARN_ON(common_len <= 0);
 
 	max_clock = common_len - 1;
-
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
-		pipe_config->has_pch_encoder = true;
-
-	pipe_config->has_drrs = false;
-	if (IS_G4X(dev_priv) || port == PORT_A)
-		pipe_config->has_audio = false;
-	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		pipe_config->has_audio = intel_dp->has_audio;
-	else
-		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
-
-	if (intel_dp_is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
-		struct drm_display_mode *panel_mode =
-			intel_connector->panel.alt_fixed_mode;
-		struct drm_display_mode *req_mode = &pipe_config->base.mode;
-
-		if (!intel_edp_compare_alt_mode(req_mode, panel_mode))
-			panel_mode = intel_connector->panel.fixed_mode;
-
-		drm_mode_debug_printmodeline(panel_mode);
-
-		intel_fixed_panel_mode(panel_mode, adjusted_mode);
-
-		if (INTEL_GEN(dev_priv) >= 9) {
-			int ret;
-			ret = skl_update_scaler_crtc(pipe_config);
-			if (ret)
-				return ret;
-		}
-
-		if (HAS_GMCH_DISPLAY(dev_priv))
-			intel_gmch_panel_fitting(intel_crtc, pipe_config,
-						 conn_state->scaling_mode);
-		else
-			intel_pch_panel_fitting(intel_crtc, pipe_config,
-						conn_state->scaling_mode);
-	}
-
-	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return false;
 
 	/* Use values requested by Compliance Test Request */
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
@@ -1831,23 +1778,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	return false;
 
 found:
-	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
-		/*
-		 * See:
-		 * CEA-861-E - 5.1 Default Encoding Parameters
-		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
-		 */
-		pipe_config->limited_color_range =
-			bpp != 18 &&
-			drm_default_rgb_quant_range(adjusted_mode) ==
-			HDMI_QUANTIZATION_RANGE_LIMITED;
-	} else {
-		pipe_config->limited_color_range =
-			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
-	}
-
 	pipe_config->lane_count = lane_count;
-
 	pipe_config->pipe_bpp = bpp;
 	pipe_config->port_clock = intel_dp->common_rates[clock];
 
@@ -1856,7 +1787,90 @@ found:
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
 
-	intel_link_compute_m_n(bpp, lane_count,
+	return true;
+}
+
+bool
+intel_dp_compute_config(struct intel_encoder *encoder,
+			struct intel_crtc_state *pipe_config,
+			struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = encoder->port;
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
+					   DP_DPCD_QUIRK_LIMITED_M_N);
+
+	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
+		pipe_config->has_pch_encoder = true;
+
+	pipe_config->has_drrs = false;
+	if (IS_G4X(dev_priv) || port == PORT_A)
+		pipe_config->has_audio = false;
+	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		pipe_config->has_audio = intel_dp->has_audio;
+	else
+		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
+
+	if (intel_dp_is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
+		struct drm_display_mode *panel_mode =
+			intel_connector->panel.alt_fixed_mode;
+		struct drm_display_mode *req_mode = &pipe_config->base.mode;
+
+		if (!intel_edp_compare_alt_mode(req_mode, panel_mode))
+			panel_mode = intel_connector->panel.fixed_mode;
+
+		drm_mode_debug_printmodeline(panel_mode);
+
+		intel_fixed_panel_mode(panel_mode, adjusted_mode);
+
+		if (INTEL_GEN(dev_priv) >= 9) {
+			int ret;
+
+			ret = skl_update_scaler_crtc(pipe_config);
+			if (ret)
+				return ret;
+		}
+
+		if (HAS_GMCH_DISPLAY(dev_priv))
+			intel_gmch_panel_fitting(intel_crtc, pipe_config,
+						 conn_state->scaling_mode);
+		else
+			intel_pch_panel_fitting(intel_crtc, pipe_config,
+						conn_state->scaling_mode);
+	}
+
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return false;
+
+	if (!intel_dp_compute_link_config(encoder, pipe_config))
+		return false;
+
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
+		/*
+		 * See:
+		 * CEA-861-E - 5.1 Default Encoding Parameters
+		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
+		 */
+		pipe_config->limited_color_range =
+			pipe_config->pipe_bpp != 18 &&
+			drm_default_rgb_quant_range(adjusted_mode) ==
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+	} else {
+		pipe_config->limited_color_range =
+			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
+	}
+
+	intel_link_compute_m_n(pipe_config->pipe_bpp, pipe_config->lane_count,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
@@ -1865,11 +1879,12 @@ found:
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
 			pipe_config->has_drrs = true;
-			intel_link_compute_m_n(bpp, lane_count,
-				intel_connector->panel.downclock_mode->clock,
-				pipe_config->port_clock,
-				&pipe_config->dp_m2_n2,
-				reduce_m_n);
+			intel_link_compute_m_n(pipe_config->pipe_bpp,
+					       pipe_config->lane_count,
+					       intel_connector->panel.downclock_mode->clock,
+					       pipe_config->port_clock,
+					       &pipe_config->dp_m2_n2,
+					       reduce_m_n);
 	}
 
 	/*
