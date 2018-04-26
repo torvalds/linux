@@ -1039,14 +1039,14 @@ void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev)
 {
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cq_table.table);
-	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
 	if (hr_dev->caps.trrl_entry_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.trrl_table);
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.qp_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
-	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->mr_table.mtt_cqe_table);
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 }
