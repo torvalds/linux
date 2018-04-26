@@ -203,7 +203,6 @@ int cgroup_task_count(const struct cgroup *cgrp);
 /*
  * rstat.c
  */
-void cgroup_rstat_flush(struct cgroup *cgrp);
 int cgroup_rstat_init(struct cgroup *cgrp);
 void cgroup_rstat_exit(struct cgroup *cgrp);
 void cgroup_rstat_boot(void);
