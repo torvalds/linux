@@ -28,6 +28,12 @@
 
 static void __init spectre_v2_select_mitigation(void);
 
+/*
+ * Our boot-time value of the SPEC_CTRL MSR. We read it once so that any
+ * writes to SPEC_CTRL contain whatever reserved bits have been set.
+ */
+static u64 __ro_after_init x86_spec_ctrl_base;
+
 void __init check_bugs(void)
 {
 	identify_boot_cpu();
@@ -36,6 +42,13 @@ void __init check_bugs(void)
 		pr_info("CPU: ");
 		print_cpu_info(&boot_cpu_data);
 	}
+
+	/*
+	 * Read the SPEC_CTRL MSR to account for reserved bits which may
+	 * have unknown values.
+	 */
+	if (boot_cpu_has(X86_FEATURE_IBRS))
+		rdmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
 
 	/* Select the proper spectre mitigation before patching alternatives */
 	spectre_v2_select_mitigation();
@@ -94,6 +107,21 @@ static const char *spectre_v2_strings[] = {
 #define pr_fmt(fmt)     "Spectre V2 : " fmt
 
 static enum spectre_v2_mitigation spectre_v2_enabled = SPECTRE_V2_NONE;
+
+void x86_spec_ctrl_set(u64 val)
+{
+	if (val & ~SPEC_CTRL_IBRS)
+		WARN_ONCE(1, "SPEC_CTRL MSR value 0x%16llx is unknown.\n", val);
+	else
+		wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base | val);
+}
+EXPORT_SYMBOL_GPL(x86_spec_ctrl_set);
+
+u64 x86_spec_ctrl_get_default(void)
+{
+	return x86_spec_ctrl_base;
+}
+EXPORT_SYMBOL_GPL(x86_spec_ctrl_get_default);
 
 #ifdef RETPOLINE
 static bool spectre_v2_bad_module;
