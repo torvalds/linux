@@ -6430,6 +6430,29 @@ static int qeth_set_ipa_tso(struct qeth_card *card, int on)
 	return rc;
 }
 
+static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
+{
+	int rc_ipv4 = (on) ? -EOPNOTSUPP : 0;
+	int rc_ipv6;
+
+	if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+		rc_ipv4 = qeth_set_ipa_csum(card, on, IPA_INBOUND_CHECKSUM,
+					    QETH_PROT_IPV4);
+	if (!qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6))
+		/* no/one Offload Assist available, so the rc is trivial */
+		return rc_ipv4;
+
+	rc_ipv6 = qeth_set_ipa_csum(card, on, IPA_INBOUND_CHECKSUM,
+				    QETH_PROT_IPV6);
+
+	if (on)
+		/* enable: success if any Assist is active */
+		return (rc_ipv6) ? rc_ipv4 : 0;
+
+	/* disable: failure if any Assist is still active */
+	return (rc_ipv6) ? rc_ipv6 : rc_ipv4;
+}
+
 #define QETH_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_TSO | \
 			  NETIF_F_IPV6_CSUM)
 /**
@@ -6477,9 +6500,8 @@ int qeth_set_features(struct net_device *dev, netdev_features_t features)
 		if (rc)
 			changed ^= NETIF_F_IPV6_CSUM;
 	}
-	if ((changed & NETIF_F_RXCSUM)) {
-		rc = qeth_set_ipa_csum(card, features & NETIF_F_RXCSUM,
-				       IPA_INBOUND_CHECKSUM, QETH_PROT_IPV4);
+	if (changed & NETIF_F_RXCSUM) {
+		rc = qeth_set_ipa_rx_csum(card, features & NETIF_F_RXCSUM);
 		if (rc)
 			changed ^= NETIF_F_RXCSUM;
 	}
@@ -6508,7 +6530,8 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_IP_CSUM;
 	if (!qeth_is_supported6(card, IPA_OUTBOUND_CHECKSUM_V6))
 		features &= ~NETIF_F_IPV6_CSUM;
-	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM) &&
+	    !qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6))
 		features &= ~NETIF_F_RXCSUM;
 	if (!qeth_is_supported(card, IPA_OUTBOUND_TSO))
 		features &= ~NETIF_F_TSO;

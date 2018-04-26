@@ -992,14 +992,15 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
 			card->dev->vlan_features |= NETIF_F_IP_CSUM;
 		}
-		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
-			card->dev->hw_features |= NETIF_F_RXCSUM;
-			card->dev->vlan_features |= NETIF_F_RXCSUM;
-		}
 	}
 	if (qeth_is_supported6(card, IPA_OUTBOUND_CHECKSUM_V6)) {
 		card->dev->hw_features |= NETIF_F_IPV6_CSUM;
 		card->dev->vlan_features |= NETIF_F_IPV6_CSUM;
+	}
+	if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM) ||
+	    qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6)) {
+		card->dev->hw_features |= NETIF_F_RXCSUM;
+		card->dev->vlan_features |= NETIF_F_RXCSUM;
 	}
 
 	card->info.broadcast_capable = 1;
