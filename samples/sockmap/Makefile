@@ -65,11 +65,14 @@ $(src)/*.c: verify_target_bpf
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
+#
+# -target bpf option required with SK_MSG programs, this is to ensure
+#  reading 'void *' data types for data and data_end are __u64 reads.
 $(obj)/%.o: $(src)/%.c
 	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
 		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option \
-		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@
+		-Wno-unknown-warning-option -O2 -target bpf \
+		-emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@

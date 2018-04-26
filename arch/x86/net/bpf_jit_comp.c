@@ -1027,7 +1027,17 @@ emit_cond_jmp:		/* convert BPF opcode to x86 */
 			break;
 
 		case BPF_JMP | BPF_JA:
-			jmp_offset = addrs[i + insn->off] - addrs[i];
+			if (insn->off == -1)
+				/* -1 jmp instructions will always jump
+				 * backwards two bytes. Explicitly handling
+				 * this case avoids wasting too many passes
+				 * when there are long sequences of replaced
+				 * dead code.
+				 */
+				jmp_offset = -2;
+			else
+				jmp_offset = addrs[i + insn->off] - addrs[i];
+
 			if (!jmp_offset)
 				/* optimize out nop jumps */
 				break;
