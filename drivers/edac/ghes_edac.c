@@ -517,6 +517,9 @@ void ghes_edac_unregister(struct ghes *ghes)
 {
 	struct mem_ctl_info *mci;
 
+	if (!ghes_pvt)
+		return;
+
 	mci = ghes_pvt->mci;
 	edac_mc_del_mc(mci->pdev);
 	edac_mc_free(mci);
