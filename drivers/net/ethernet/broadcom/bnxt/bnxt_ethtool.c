@@ -1818,6 +1818,11 @@ static int nvm_get_dir_info(struct net_device *dev, u32 *entries, u32 *length)
 
 static int bnxt_get_eeprom_len(struct net_device *dev)
 {
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (BNXT_VF(bp))
+		return 0;
+
 	/* The -1 return value allows the entire 32-bit range of offsets to be
 	 * passed via the ethtool command-line utility.
 	 */
