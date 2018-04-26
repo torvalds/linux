@@ -38,6 +38,9 @@ struct sdw_slave;
 
 #define SDW_VALID_PORT_RANGE(n)		(n <= 14 && n >= 1)
 
+#define SDW_DAI_ID_RANGE_START		100
+#define SDW_DAI_ID_RANGE_END		200
+
 /**
  * enum sdw_slave_status - Slave status
  * @SDW_SLAVE_UNATTACHED: Slave is not attached with the bus.
