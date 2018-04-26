@@ -83,16 +83,15 @@ static int sdw_drv_probe(struct device *dev)
 	 * attach to power domain but don't turn on (last arg)
 	 */
 	ret = dev_pm_domain_attach(dev, false);
-	if (ret != -EPROBE_DEFER) {
-		ret = drv->probe(slave, id);
-		if (ret) {
-			dev_err(dev, "Probe of %s failed: %d\n", drv->name, ret);
-			dev_pm_domain_detach(dev, false);
-		}
-	}
-
 	if (ret)
 		return ret;
+
+	ret = drv->probe(slave, id);
+	if (ret) {
+		dev_err(dev, "Probe of %s failed: %d\n", drv->name, ret);
+		dev_pm_domain_detach(dev, false);
+		return ret;
+	}
 
 	/* device is probed so let's read the properties now */
 	if (slave->ops && slave->ops->read_prop)
