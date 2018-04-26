@@ -258,8 +258,9 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	unsigned int gf_len;
 	int ret;
 
-	if (common_nfc_set_geometry(this))
-		return !0;
+	ret = common_nfc_set_geometry(this);
+	if (ret)
+		return ret;
 
 	block_count   = bch_geo->ecc_chunk_count - 1;
 	block_size    = bch_geo->ecc_chunk_size;
