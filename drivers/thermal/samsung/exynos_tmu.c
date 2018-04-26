@@ -311,9 +311,9 @@ static u32 get_th_reg(struct exynos_tmu_data *data, u32 threshold, bool falling)
 	const struct thermal_trip * const trips =
 		of_thermal_get_trip_points(tz);
 	unsigned long temp;
-	int i;
+	int i, ntrips = min_t(int, of_thermal_get_ntrips(tz), data->ntrip);
 
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
+	for (i = 0; i < ntrips; i++) {
 		if (trips[i].type == THERMAL_TRIP_CRITICAL)
 			continue;
 
