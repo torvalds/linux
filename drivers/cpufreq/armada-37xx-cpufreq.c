@@ -23,6 +23,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include "cpufreq-dt.h"
+
 /* Power management in North Bridge register set */
 #define ARMADA_37XX_NB_L0L1	0x18
 #define ARMADA_37XX_NB_L2L3	0x1C
@@ -55,6 +57,16 @@
  * divider, a VDD level, etc...
  */
 #define LOAD_LEVEL_NR	4
+
+struct armada37xx_cpufreq_state {
+	struct regmap *regmap;
+	u32 nb_l0l1;
+	u32 nb_l2l3;
+	u32 nb_dyn_mod;
+	u32 nb_cpu_load;
+};
+
+static struct armada37xx_cpufreq_state *armada37xx_cpufreq_state;
 
 struct armada_37xx_dvfs {
 	u32 cpu_freq_max;
@@ -136,7 +148,7 @@ static void __init armada37xx_cpufreq_dvfs_setup(struct regmap *base,
 	clk_set_parent(clk, parent);
 }
 
-static void __init armada37xx_cpufreq_disable_dvfs(struct regmap *base)
+static void armada37xx_cpufreq_disable_dvfs(struct regmap *base)
 {
 	unsigned int reg = ARMADA_37XX_NB_DYN_MOD,
 		mask = ARMADA_37XX_NB_DFS_EN;
@@ -162,8 +174,44 @@ static void __init armada37xx_cpufreq_enable_dvfs(struct regmap *base)
 	regmap_update_bits(base, reg, mask, mask);
 }
 
+static int armada37xx_cpufreq_suspend(struct cpufreq_policy *policy)
+{
+	struct armada37xx_cpufreq_state *state = armada37xx_cpufreq_state;
+
+	regmap_read(state->regmap, ARMADA_37XX_NB_L0L1, &state->nb_l0l1);
+	regmap_read(state->regmap, ARMADA_37XX_NB_L2L3, &state->nb_l2l3);
+	regmap_read(state->regmap, ARMADA_37XX_NB_CPU_LOAD,
+		    &state->nb_cpu_load);
+	regmap_read(state->regmap, ARMADA_37XX_NB_DYN_MOD, &state->nb_dyn_mod);
+
+	return 0;
+}
+
+static int armada37xx_cpufreq_resume(struct cpufreq_policy *policy)
+{
+	struct armada37xx_cpufreq_state *state = armada37xx_cpufreq_state;
+
+	/* Ensure DVFS is disabled otherwise the following registers are RO */
+	armada37xx_cpufreq_disable_dvfs(state->regmap);
+
+	regmap_write(state->regmap, ARMADA_37XX_NB_L0L1, state->nb_l0l1);
+	regmap_write(state->regmap, ARMADA_37XX_NB_L2L3, state->nb_l2l3);
+	regmap_write(state->regmap, ARMADA_37XX_NB_CPU_LOAD,
+		     state->nb_cpu_load);
+
+	/*
+	 * NB_DYN_MOD register is the one that actually enable back DVFS if it
+	 * was enabled before the suspend operation. This must be done last
+	 * otherwise other registers are not writable.
+	 */
+	regmap_write(state->regmap, ARMADA_37XX_NB_DYN_MOD, state->nb_dyn_mod);
+
+	return 0;
+}
+
 static int __init armada37xx_cpufreq_driver_init(void)
 {
+	struct cpufreq_dt_platform_data pdata;
 	struct armada_37xx_dvfs *dvfs;
 	struct platform_device *pdev;
 	unsigned long freq;
@@ -213,6 +261,15 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return -EINVAL;
 	}
 
+	armada37xx_cpufreq_state = kmalloc(sizeof(*armada37xx_cpufreq_state),
+					   GFP_KERNEL);
+	if (!armada37xx_cpufreq_state) {
+		clk_put(clk);
+		return -ENOMEM;
+	}
+
+	armada37xx_cpufreq_state->regmap = nb_pm_base;
+
 	armada37xx_cpufreq_dvfs_setup(nb_pm_base, clk, dvfs->divider);
 	clk_put(clk);
 
@@ -228,7 +285,11 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	/* Now that everything is setup, enable the DVFS at hardware level */
 	armada37xx_cpufreq_enable_dvfs(nb_pm_base);
 
-	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	pdata.suspend = armada37xx_cpufreq_suspend;
+	pdata.resume = armada37xx_cpufreq_resume;
+
+	pdev = platform_device_register_data(NULL, "cpufreq-dt", -1, &pdata,
+					     sizeof(pdata));
 	ret = PTR_ERR_OR_ZERO(pdev);
 	if (ret)
 		goto disable_dvfs;
@@ -243,6 +304,8 @@ remove_opp:
 		freq = cur_frequency / dvfs->divider[load_lvl];
 		dev_pm_opp_remove(cpu_dev, freq);
 	}
+
+	kfree(armada37xx_cpufreq_state);
 
 	return ret;
 }
