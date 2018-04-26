@@ -3864,10 +3864,18 @@ static unsigned int skl_cursor_allocation(int num_active)
 	return 8;
 }
 
-static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
+static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
+				       struct skl_ddb_entry *entry, u32 reg)
 {
-	entry->start = reg & 0x3ff;
-	entry->end = (reg >> 16) & 0x3ff;
+	u16 mask;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		mask = ICL_DDB_ENTRY_MASK;
+	else
+		mask = SKL_DDB_ENTRY_MASK;
+	entry->start = reg & mask;
+	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & mask;
+
 	if (entry->end)
 		entry->end += 1;
 }
@@ -3884,7 +3892,8 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = I915_READ(CUR_BUF_CFG(pipe));
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val);
 		return;
 	}
 
@@ -3903,10 +3912,13 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
 
 	if (fourcc == DRM_FORMAT_NV12) {
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val2);
-		skl_ddb_entry_init_from_hw(&ddb->uv_plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val2);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->uv_plane[pipe][plane_id], val);
 	} else {
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val);
 	}
 }
 
