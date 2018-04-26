@@ -257,6 +257,7 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.xfer_msg = cdns_xfer_msg,
 	.xfer_msg_defer = cdns_xfer_msg_defer,
 	.reset_page_addr = cdns_reset_page_addr,
+	.set_bus_conf = cdns_bus_conf,
 };
 
 /*
