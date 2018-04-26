@@ -2149,10 +2149,8 @@ sh_mobile_lcdc_channel_fb_register(struct sh_mobile_lcdc_chan *ch)
 	if (info->fbdefio) {
 		ch->sglist = vmalloc(sizeof(struct scatterlist) *
 				     ch->fb_size >> PAGE_SHIFT);
-		if (!ch->sglist) {
-			dev_err(ch->lcdc->dev, "cannot allocate sglist\n");
+		if (!ch->sglist)
 			return -ENOMEM;
-		}
 	}
 
 	info->bl_dev = ch->bl;
@@ -2716,10 +2714,8 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "cannot allocate device data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->dev = &pdev->dev;
 	priv->meram_dev = pdata->meram_dev;
