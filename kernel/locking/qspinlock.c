@@ -164,10 +164,10 @@ static __always_inline void clear_pending_set_locked(struct qspinlock *lock)
 static __always_inline u32 xchg_tail(struct qspinlock *lock, u32 tail)
 {
 	/*
-	 * Use release semantics to make sure that the MCS node is properly
-	 * initialized before changing the tail code.
+	 * We can use relaxed semantics since the caller ensures that the
+	 * MCS node is properly initialized before updating the tail.
 	 */
-	return (u32)xchg_release(&lock->tail,
+	return (u32)xchg_relaxed(&lock->tail,
 				 tail >> _Q_TAIL_OFFSET) << _Q_TAIL_OFFSET;
 }
 
@@ -212,10 +212,11 @@ static __always_inline u32 xchg_tail(struct qspinlock *lock, u32 tail)
 	for (;;) {
 		new = (val & _Q_LOCKED_PENDING_MASK) | tail;
 		/*
-		 * Use release semantics to make sure that the MCS node is
-		 * properly initialized before changing the tail code.
+		 * We can use relaxed semantics since the caller ensures that
+		 * the MCS node is properly initialized before updating the
+		 * tail.
 		 */
-		old = atomic_cmpxchg_release(&lock->val, val, new);
+		old = atomic_cmpxchg_relaxed(&lock->val, val, new);
 		if (old == val)
 			break;
 
@@ -388,12 +389,18 @@ queue:
 		goto release;
 
 	/*
+	 * Ensure that the initialisation of @node is complete before we
+	 * publish the updated tail via xchg_tail() and potentially link
+	 * @node into the waitqueue via WRITE_ONCE(prev->next, node) below.
+	 */
+	smp_wmb();
+
+	/*
+	 * Publish the updated tail.
 	 * We have already touched the queueing cacheline; don't bother with
 	 * pending stuff.
 	 *
 	 * p,*,* -> n,*,*
-	 *
-	 * RELEASE, such that the stores to @node must be complete.
 	 */
 	old = xchg_tail(lock, tail);
 	next = NULL;
@@ -405,14 +412,8 @@ queue:
 	if (old & _Q_TAIL_MASK) {
 		prev = decode_tail(old);
 
-		/*
-		 * We must ensure that the stores to @node are observed before
-		 * the write to prev->next. The address dependency from
-		 * xchg_tail is not sufficient to ensure this because the read
-		 * component of xchg_tail is unordered with respect to the
-		 * initialisation of @node.
-		 */
-		smp_store_release(&prev->next, node);
+		/* Link @node into the waitqueue. */
+		WRITE_ONCE(prev->next, node);
 
 		pv_wait_node(node, prev);
 		arch_mcs_spin_lock_contended(&node->locked);
