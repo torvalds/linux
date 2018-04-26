@@ -14,3 +14,10 @@ echo "ipv6 cmsg"
 
 echo "ipv6 setsockopt"
 ./in_netns.sh ./udpgso -6 -C -s
+
+echo "ipv4 connected"
+./in_netns.sh ./udpgso -4 -c
+
+# blocked on 2nd loopback address
+# echo "ipv6 connected"
+# ./in_netns.sh ./udpgso -6 -c

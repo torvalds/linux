@@ -47,6 +47,7 @@
 
 static bool		cfg_do_ipv4;
 static bool		cfg_do_ipv6;
+static bool		cfg_do_connected;
 static bool		cfg_do_connectionless;
 static bool		cfg_do_setsockopt;
 static int		cfg_specific_test_id = -1;
@@ -273,6 +274,101 @@ static void set_pmtu_discover(int fd, bool is_ipv4)
 		error(1, errno, "setsockopt path mtu");
 }
 
+static unsigned int get_path_mtu(int fd, bool is_ipv4)
+{
+	socklen_t vallen;
+	unsigned int mtu;
+	int ret;
+
+	vallen = sizeof(mtu);
+	if (is_ipv4)
+		ret = getsockopt(fd, SOL_IP, IP_MTU, &mtu, &vallen);
+	else
+		ret = getsockopt(fd, SOL_IPV6, IPV6_MTU, &mtu, &vallen);
+
+	if (ret)
+		error(1, errno, "getsockopt mtu");
+
+
+	fprintf(stderr, "path mtu (read):  %u\n", mtu);
+	return mtu;
+}
+
+/* very wordy version of system("ip route add dev lo mtu 1500 127.0.0.3/32") */
+static void set_route_mtu(int mtu, bool is_ipv4)
+{
+	struct sockaddr_nl nladdr = { .nl_family = AF_NETLINK };
+	struct nlmsghdr *nh;
+	struct rtattr *rta;
+	struct rtmsg *rt;
+	char data[NLMSG_ALIGN(sizeof(*nh)) +
+		  NLMSG_ALIGN(sizeof(*rt)) +
+		  NLMSG_ALIGN(RTA_LENGTH(sizeof(addr6))) +
+		  NLMSG_ALIGN(RTA_LENGTH(sizeof(int))) +
+		  NLMSG_ALIGN(RTA_LENGTH(0) + RTA_LENGTH(sizeof(int)))];
+	int fd, ret, alen, off = 0;
+
+	alen = is_ipv4 ? sizeof(addr4) : sizeof(addr6);
+
+	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (fd == -1)
+		error(1, errno, "socket netlink");
+
+	memset(data, 0, sizeof(data));
+
+	nh = (void *)data;
+	nh->nlmsg_type = RTM_NEWROUTE;
+	nh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
+	off += NLMSG_ALIGN(sizeof(*nh));
+
+	rt = (void *)(data + off);
+	rt->rtm_family = is_ipv4 ? AF_INET : AF_INET6;
+	rt->rtm_table = RT_TABLE_MAIN;
+	rt->rtm_dst_len = alen << 3;
+	rt->rtm_protocol = RTPROT_BOOT;
+	rt->rtm_scope = RT_SCOPE_UNIVERSE;
+	rt->rtm_type = RTN_UNICAST;
+	off += NLMSG_ALIGN(sizeof(*rt));
+
+	rta = (void *)(data + off);
+	rta->rta_type = RTA_DST;
+	rta->rta_len = RTA_LENGTH(alen);
+	if (is_ipv4)
+		memcpy(RTA_DATA(rta), &addr4, alen);
+	else
+		memcpy(RTA_DATA(rta), &addr6, alen);
+	off += NLMSG_ALIGN(rta->rta_len);
+
+	rta = (void *)(data + off);
+	rta->rta_type = RTA_OIF;
+	rta->rta_len = RTA_LENGTH(sizeof(int));
+	*((int *)(RTA_DATA(rta))) = 1; //if_nametoindex("lo");
+	off += NLMSG_ALIGN(rta->rta_len);
+
+	/* MTU is a subtype in a metrics type */
+	rta = (void *)(data + off);
+	rta->rta_type = RTA_METRICS;
+	rta->rta_len = RTA_LENGTH(0) + RTA_LENGTH(sizeof(int));
+	off += NLMSG_ALIGN(rta->rta_len);
+
+	/* now fill MTU subtype. Note that it fits within above rta_len */
+	rta = (void *)(((char *) rta) + RTA_LENGTH(0));
+	rta->rta_type = RTAX_MTU;
+	rta->rta_len = RTA_LENGTH(sizeof(int));
+	*((int *)(RTA_DATA(rta))) = mtu;
+
+	nh->nlmsg_len = off;
+
+	ret = sendto(fd, data, off, 0, (void *)&nladdr, sizeof(nladdr));
+	if (ret != off)
+		error(1, errno, "send netlink: %uB != %uB\n", ret, off);
+
+	if (close(fd))
+		error(1, errno, "close netlink");
+
+	fprintf(stderr, "route mtu (test): %u\n", mtu);
+}
+
 static bool send_one(int fd, int len, int gso_len,
 		     struct sockaddr *addr, socklen_t alen)
 {
@@ -391,7 +487,7 @@ static void run_all(int fdt, int fdr, struct sockaddr *addr, socklen_t alen)
 static void run_test(struct sockaddr *addr, socklen_t alen)
 {
 	struct timeval tv = { .tv_usec = 100 * 1000 };
-	int fdr, fdt;
+	int fdr, fdt, val;
 
 	fdr = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fdr == -1)
@@ -414,6 +510,20 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 	if (cfg_do_connectionless) {
 		set_device_mtu(fdt, CONST_MTU_TEST);
 		run_all(fdt, fdr, addr, alen);
+	}
+
+	if (cfg_do_connected) {
+		set_device_mtu(fdt, CONST_MTU_TEST + 100);
+		set_route_mtu(CONST_MTU_TEST, addr->sa_family == AF_INET);
+
+		if (connect(fdt, addr, alen))
+			error(1, errno, "connect");
+
+		val = get_path_mtu(fdt, addr->sa_family == AF_INET);
+		if (val != CONST_MTU_TEST)
+			error(1, 0, "bad path mtu %u\n", val);
+
+		run_all(fdt, fdr, addr, 0 /* use connected addr */);
 	}
 
 	if (close(fdt))
@@ -448,13 +558,16 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "46Cst:")) != -1) {
+	while ((c = getopt(argc, argv, "46cCst:")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_do_ipv4 = true;
 			break;
 		case '6':
 			cfg_do_ipv6 = true;
+			break;
+		case 'c':
+			cfg_do_connected = true;
 			break;
 		case 'C':
 			cfg_do_connectionless = true;
