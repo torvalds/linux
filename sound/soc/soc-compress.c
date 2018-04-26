@@ -287,8 +287,8 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
 		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
 			snd_soc_dapm_stream_event(rtd,
-					SNDRV_PCM_STREAM_PLAYBACK,
-					SND_SOC_DAPM_STREAM_STOP);
+						  SNDRV_PCM_STREAM_PLAYBACK,
+						  SND_SOC_DAPM_STREAM_STOP);
 		} else {
 			rtd->pop_wait = 1;
 			queue_delayed_work(system_power_efficient_wq,
@@ -298,8 +298,8 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	} else {
 		/* capture streams can be powered down now */
 		snd_soc_dapm_stream_event(rtd,
-			SNDRV_PCM_STREAM_CAPTURE,
-			SND_SOC_DAPM_STREAM_STOP);
+					  SNDRV_PCM_STREAM_CAPTURE,
+					  SND_SOC_DAPM_STREAM_STOP);
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);
@@ -428,7 +428,6 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 	else
 		stream = SNDRV_PCM_STREAM_CAPTURE;
 
-
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger) {
@@ -522,10 +521,10 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
-					SND_SOC_DAPM_STREAM_START);
+					  SND_SOC_DAPM_STREAM_START);
 	else
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
-					SND_SOC_DAPM_STREAM_START);
+					  SND_SOC_DAPM_STREAM_START);
 
 	/* cancel any delayed stream shutdown that is pending */
 	rtd->pop_wait = 0;
@@ -541,7 +540,7 @@ err:
 }
 
 static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
-					struct snd_compr_params *params)
+				   struct snd_compr_params *params)
 {
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_pcm_substream *fe_substream =
@@ -612,7 +611,7 @@ out:
 }
 
 static int soc_compr_get_params(struct snd_compr_stream *cstream,
-					struct snd_codec *params)
+				struct snd_codec *params)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -646,7 +645,7 @@ err:
 }
 
 static int soc_compr_get_caps(struct snd_compr_stream *cstream,
-				struct snd_compr_caps *caps)
+			      struct snd_compr_caps *caps)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -672,7 +671,7 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 }
 
 static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
-				struct snd_compr_codec_caps *codec)
+				    struct snd_compr_codec_caps *codec)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -731,7 +730,7 @@ err:
 }
 
 static int soc_compr_pointer(struct snd_compr_stream *cstream,
-			struct snd_compr_tstamp *tstamp)
+			     struct snd_compr_tstamp *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -786,7 +785,7 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 }
 
 static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
-				struct snd_compr_metadata *metadata)
+				  struct snd_compr_metadata *metadata)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -816,7 +815,7 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 }
 
 static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
-				struct snd_compr_metadata *metadata)
+				  struct snd_compr_metadata *metadata)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -975,7 +974,6 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		compr->ops->copy = soc_compr_copy;
 		break;
 	}
-
 
 	mutex_init(&compr->lock);
 	ret = snd_compress_new(rtd->card->snd_card, num, direction,
