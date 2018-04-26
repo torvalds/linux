@@ -27,6 +27,10 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	struct cgroup *parent;
 	unsigned long flags;
 
+	/* nothing to do for root */
+	if (!cgroup_parent(cgrp))
+		return;
+
 	/*
 	 * Paired with the one in cgroup_rstat_cpu_pop_upated().  Either we
 	 * see NULL updated_next or they see our updated stat.
