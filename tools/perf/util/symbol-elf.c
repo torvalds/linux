@@ -921,10 +921,10 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
-	 * Initial kernel and module mappings do not map to the dso.  For
-	 * function mappings, flag the fixups.
+	 * Initial kernel and module mappings do not map to the dso.
+	 * Flag the fixups.
 	 */
-	if (map->type == MAP__FUNCTION && (dso->kernel || kmodule)) {
+	if (dso->kernel || kmodule) {
 		remap_kernel = true;
 		adjust_kernel_syms = dso->adjust_symbols;
 	}
