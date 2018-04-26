@@ -600,6 +600,10 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 		return rtc->irq;
 	}
 
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc))
+		return PTR_ERR(rtc->rtc);
+
 	rtc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, rtc);
 
@@ -626,10 +630,12 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					    &sprd_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc))
-		return PTR_ERR(rtc->rtc);
+	rtc->rtc->ops = &sprd_rtc_ops;
+	ret = rtc_register_device(rtc->rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register rtc device\n");
+		return ret;
+	}
 
 	device_init_wakeup(&pdev->dev, 1);
 	return 0;
