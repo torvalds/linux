@@ -5,6 +5,8 @@
 static DEFINE_MUTEX(cgroup_rstat_mutex);
 static DEFINE_PER_CPU(raw_spinlock_t, cgroup_rstat_cpu_lock);
 
+static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu);
+
 static struct cgroup_rstat_cpu *cgroup_rstat_cpu(struct cgroup *cgrp, int cpu)
 {
 	return per_cpu_ptr(cgrp->rstat_cpu, cpu);
@@ -128,6 +130,98 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 	return pos;
 }
 
+/* see cgroup_rstat_flush() */
+static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
+{
+	int cpu;
+
+	lockdep_assert_held(&cgroup_rstat_mutex);
+
+	for_each_possible_cpu(cpu) {
+		raw_spinlock_t *cpu_lock = per_cpu_ptr(&cgroup_rstat_cpu_lock,
+						       cpu);
+		struct cgroup *pos = NULL;
+
+		raw_spin_lock_irq(cpu_lock);
+		while ((pos = cgroup_rstat_cpu_pop_updated(pos, cgrp, cpu)))
+			cgroup_base_stat_flush(pos, cpu);
+		raw_spin_unlock_irq(cpu_lock);
+	}
+}
+
+/**
+ * cgroup_rstat_flush - flush stats in @cgrp's subtree
+ * @cgrp: target cgroup
+ *
+ * Collect all per-cpu stats in @cgrp's subtree into the global counters
+ * and propagate them upwards.  After this function returns, all cgroups in
+ * the subtree have up-to-date ->stat.
+ *
+ * This also gets all cgroups in the subtree including @cgrp off the
+ * ->updated_children lists.
+ */
+void cgroup_rstat_flush(struct cgroup *cgrp)
+{
+	mutex_lock(&cgroup_rstat_mutex);
+	cgroup_rstat_flush_locked(cgrp);
+	mutex_unlock(&cgroup_rstat_mutex);
+}
+
+int cgroup_rstat_init(struct cgroup *cgrp)
+{
+	int cpu;
+
+	/* the root cgrp has rstat_cpu preallocated */
+	if (!cgrp->rstat_cpu) {
+		cgrp->rstat_cpu = alloc_percpu(struct cgroup_rstat_cpu);
+		if (!cgrp->rstat_cpu)
+			return -ENOMEM;
+	}
+
+	/* ->updated_children list is self terminated */
+	for_each_possible_cpu(cpu) {
+		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
+
+		rstatc->updated_children = cgrp;
+		u64_stats_init(&rstatc->bsync);
+	}
+
+	return 0;
+}
+
+void cgroup_rstat_exit(struct cgroup *cgrp)
+{
+	int cpu;
+
+	cgroup_rstat_flush(cgrp);
+
+	/* sanity check */
+	for_each_possible_cpu(cpu) {
+		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
+
+		if (WARN_ON_ONCE(rstatc->updated_children != cgrp) ||
+		    WARN_ON_ONCE(rstatc->updated_next))
+			return;
+	}
+
+	free_percpu(cgrp->rstat_cpu);
+	cgrp->rstat_cpu = NULL;
+}
+
+void __init cgroup_rstat_boot(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		raw_spin_lock_init(per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu));
+
+	BUG_ON(cgroup_rstat_init(&cgrp_dfl_root.cgrp));
+}
+
+/*
+ * Functions for cgroup basic resource statistics implemented on top of
+ * rstat.
+ */
 static void cgroup_base_stat_accumulate(struct cgroup_base_stat *dst_bstat,
 					struct cgroup_base_stat *src_bstat)
 {
@@ -168,43 +262,6 @@ static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu)
 	cgroup_base_stat_accumulate(&cgrp->bstat, &delta);
 	if (parent)
 		cgroup_base_stat_accumulate(&parent->pending_bstat, &delta);
-}
-
-/* see cgroup_rstat_flush() */
-static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
-{
-	int cpu;
-
-	lockdep_assert_held(&cgroup_rstat_mutex);
-
-	for_each_possible_cpu(cpu) {
-		raw_spinlock_t *cpu_lock = per_cpu_ptr(&cgroup_rstat_cpu_lock,
-						       cpu);
-		struct cgroup *pos = NULL;
-
-		raw_spin_lock_irq(cpu_lock);
-		while ((pos = cgroup_rstat_cpu_pop_updated(pos, cgrp, cpu)))
-			cgroup_base_stat_flush(pos, cpu);
-		raw_spin_unlock_irq(cpu_lock);
-	}
-}
-
-/**
- * cgroup_rstat_flush - flush stats in @cgrp's subtree
- * @cgrp: target cgroup
- *
- * Collect all per-cpu stats in @cgrp's subtree into the global counters
- * and propagate them upwards.  After this function returns, all cgroups in
- * the subtree have up-to-date ->stat.
- *
- * This also gets all cgroups in the subtree including @cgrp off the
- * ->updated_children lists.
- */
-void cgroup_rstat_flush(struct cgroup *cgrp)
-{
-	mutex_lock(&cgroup_rstat_mutex);
-	cgroup_rstat_flush_locked(cgrp);
-	mutex_unlock(&cgroup_rstat_mutex);
 }
 
 static struct cgroup_rstat_cpu *
@@ -283,55 +340,4 @@ void cgroup_base_stat_cputime_show(struct seq_file *seq)
 		   "user_usec %llu\n"
 		   "system_usec %llu\n",
 		   usage, utime, stime);
-}
-
-int cgroup_rstat_init(struct cgroup *cgrp)
-{
-	int cpu;
-
-	/* the root cgrp has rstat_cpu preallocated */
-	if (!cgrp->rstat_cpu) {
-		cgrp->rstat_cpu = alloc_percpu(struct cgroup_rstat_cpu);
-		if (!cgrp->rstat_cpu)
-			return -ENOMEM;
-	}
-
-	/* ->updated_children list is self terminated */
-	for_each_possible_cpu(cpu) {
-		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
-
-		rstatc->updated_children = cgrp;
-		u64_stats_init(&rstatc->bsync);
-	}
-
-	return 0;
-}
-
-void cgroup_rstat_exit(struct cgroup *cgrp)
-{
-	int cpu;
-
-	cgroup_rstat_flush(cgrp);
-
-	/* sanity check */
-	for_each_possible_cpu(cpu) {
-		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
-
-		if (WARN_ON_ONCE(rstatc->updated_children != cgrp) ||
-		    WARN_ON_ONCE(rstatc->updated_next))
-			return;
-	}
-
-	free_percpu(cgrp->rstat_cpu);
-	cgrp->rstat_cpu = NULL;
-}
-
-void __init cgroup_rstat_boot(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		raw_spin_lock_init(per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu));
-
-	BUG_ON(cgroup_rstat_init(&cgrp_dfl_root.cgrp));
 }
