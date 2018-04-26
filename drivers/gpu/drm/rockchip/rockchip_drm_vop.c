@@ -480,7 +480,10 @@ static void vop_disable_allwin(struct vop *vop)
 
 static bool vop_fs_irq_is_active(struct vop *vop)
 {
-	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
+	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 7)
+		return VOP_INTR_GET_TYPE(vop, status, FS_FIELD_INTR);
+	else
+		return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
 }
 
 static bool vop_line_flag_is_active(struct vop *vop)
@@ -1342,7 +1345,6 @@ static void vop_initial(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, dsp_blank, 0);
 	VOP_CTRL_SET(vop, axi_outstanding_max_num, 30);
 	VOP_CTRL_SET(vop, axi_max_outstanding_en, 1);
-	VOP_CTRL_SET(vop, reg_done_frm, 1);
 
 	/*
 	 * We need to make sure that all windows are disabled before resume
@@ -1366,6 +1368,8 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	mutex_lock(&vop->vop_lock);
+	VOP_CTRL_SET(vop, reg_done_frm, 1);
+	VOP_CTRL_SET(vop, dsp_interlace, 0);
 	drm_crtc_vblank_off(crtc);
 	vop_disable_all_planes(vop);
 
@@ -1954,8 +1958,13 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
-	VOP_INTR_SET_TYPE(vop, clear, FS_INTR, 1);
-	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 1);
+	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 7) {
+		VOP_INTR_SET_TYPE(vop, clear, FS_FIELD_INTR, 1);
+		VOP_INTR_SET_TYPE(vop, enable, FS_FIELD_INTR, 1);
+	} else {
+		VOP_INTR_SET_TYPE(vop, clear, FS_INTR, 1);
+		VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 1);
+	}
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
@@ -1972,7 +1981,10 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
-	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 0);
+	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 7)
+		VOP_INTR_SET_TYPE(vop, enable, FS_FIELD_INTR, 0);
+	else
+		VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 0);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
@@ -3272,7 +3284,10 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 
 static bool vop_fs_irq_is_pending(struct vop *vop)
 {
-	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
+	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 7)
+		return VOP_INTR_GET_TYPE(vop, status, FS_FIELD_INTR);
+	else
+		return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
 }
 
 static void vop_wait_for_irq_handler(struct vop *vop)
@@ -3369,6 +3384,19 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop->pre_overlay = s->hdr.pre_overlay;
 	vop_cfg_done(vop);
+	/*
+	 * rk322x and rk332x odd-even field will mistake when in interlace mode.
+	 * we must switch to frame effect before switch screen and switch to
+	 * field effect after switch screen complete.
+	 */
+	if (VOP_MAJOR(vop->version) == 3 &&
+	    (VOP_MINOR(vop->version) == 7 || VOP_MINOR(vop->version) == 8)) {
+		if (!vop->mode_update && VOP_CTRL_GET(vop, reg_done_frm))
+			VOP_CTRL_SET(vop, reg_done_frm, 0);
+	} else {
+		VOP_CTRL_SET(vop, reg_done_frm, 0);
+	}
+
 	vop->mode_update = false;
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
@@ -3716,7 +3744,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
-	if (active_irqs & FS_INTR) {
+	if ((active_irqs & FS_INTR) || (active_irqs & FS_FIELD_INTR)) {
 		/* This is IC design not reasonable, this two register bit need
 		 * frame effective, but actually it's effective immediately, so
 		 * we config this register at frame start.
@@ -3727,7 +3755,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 		spin_unlock_irqrestore(&vop->irq_lock, flags);
 		drm_crtc_handle_vblank(crtc);
 		vop_handle_vblank(vop);
-		active_irqs &= ~FS_INTR;
+		active_irqs &= ~(FS_INTR | FS_FIELD_INTR);
 		ret = IRQ_HANDLED;
 	}
 

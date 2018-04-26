@@ -49,12 +49,13 @@
 #define DRIVER_DATE	"20140818"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
-#define DRIVER_VERSION	"v1.0.0"
+#define DRIVER_VERSION	"v1.0.1"
 
 /***********************************************************************
  *  Rockchip DRM driver version
  *
  *  v1.0.0	: add basic version for rockchip drm driver(hjc)
+ *  v1.0.1	: set frame start to field start for interlace mode(hjc)
  *
  **********************************************************************/
 

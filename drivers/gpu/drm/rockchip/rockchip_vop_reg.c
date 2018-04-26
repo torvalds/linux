@@ -367,7 +367,7 @@ static const int rk3368_vop_intrs[] = {
 	WIN3_EMPTY_INTR,
 	HWC_EMPTY_INTR,
 	POST_BUF_EMPTY_INTR,
-	PWM_GEN_INTR,
+	FS_FIELD_INTR,
 	DSP_HOLD_VALID_INTR,
 };
 
