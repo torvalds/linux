@@ -2383,6 +2383,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 	for (i = 0, j = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring;
+		u8 qidx;
 
 		ring = &txr->tx_ring_struct;
 
@@ -2411,7 +2412,8 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 			memset(txr->tx_push, 0, sizeof(struct tx_push_bd));
 		}
-		ring->queue_id = bp->q_info[j].queue_id;
+		qidx = bp->tc_to_qidx[j];
+		ring->queue_id = bp->q_info[qidx].queue_id;
 		if (i < bp->tx_nr_rings_xdp)
 			continue;
 		if (i % bp->tx_nr_rings_per_tc == (bp->tx_nr_rings_per_tc - 1))
@@ -5309,6 +5311,7 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	for (i = 0; i < bp->max_tc; i++) {
 		bp->q_info[i].queue_id = *qptr++;
 		bp->q_info[i].queue_profile = *qptr++;
+		bp->tc_to_qidx[i] = i;
 	}
 
 qportcfg_exit:
