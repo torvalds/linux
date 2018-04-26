@@ -5286,7 +5286,7 @@ void ath10k_wmi_event_service_available(struct ath10k *ar, struct sk_buff *skb)
 
 	ret = ath10k_wmi_pull_svc_avail(ar, skb, &arg);
 	if (ret) {
-		ath10k_warn(ar, "failed to parse servive available event: %d\n",
+		ath10k_warn(ar, "failed to parse service available event: %d\n",
 			    ret);
 	}
 
