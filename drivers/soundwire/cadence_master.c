@@ -396,7 +396,7 @@ static int cdns_prep_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int *cmd)
 	return 0;
 }
 
-static enum sdw_command_response
+enum sdw_command_response
 cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
@@ -422,8 +422,9 @@ cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg)
 exit:
 	return ret;
 }
+EXPORT_SYMBOL(cdns_xfer_msg);
 
-static enum sdw_command_response
+enum sdw_command_response
 cdns_xfer_msg_defer(struct sdw_bus *bus,
 		struct sdw_msg *msg, struct sdw_defer *defer)
 {
@@ -443,8 +444,9 @@ cdns_xfer_msg_defer(struct sdw_bus *bus,
 
 	return _cdns_xfer_msg(cdns, msg, cmd, 0, msg->len, true);
 }
+EXPORT_SYMBOL(cdns_xfer_msg_defer);
 
-static enum sdw_command_response
+enum sdw_command_response
 cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
@@ -456,6 +458,7 @@ cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num)
 
 	return cdns_program_scp_addr(cdns, &msg);
 }
+EXPORT_SYMBOL(cdns_reset_page_addr);
 
 /*
  * IRQ handling
@@ -726,14 +729,6 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	return 0;
 }
 EXPORT_SYMBOL(sdw_cdns_init);
-
-struct sdw_master_ops sdw_cdns_master_ops = {
-	.read_prop = sdw_master_read_prop,
-	.xfer_msg = cdns_xfer_msg,
-	.xfer_msg_defer = cdns_xfer_msg_defer,
-	.reset_page_addr = cdns_reset_page_addr,
-};
-EXPORT_SYMBOL(sdw_cdns_master_ops);
 
 /**
  * sdw_cdns_probe() - Cadence probe routine

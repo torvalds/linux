@@ -252,6 +252,13 @@ static int intel_prop_read(struct sdw_bus *bus)
 	return 0;
 }
 
+static struct sdw_master_ops sdw_intel_ops = {
+	.read_prop = sdw_master_read_prop,
+	.xfer_msg = cdns_xfer_msg,
+	.xfer_msg_defer = cdns_xfer_msg_defer,
+	.reset_page_addr = cdns_reset_page_addr,
+};
+
 /*
  * probe and init
  */
@@ -276,8 +283,8 @@ static int intel_probe(struct platform_device *pdev)
 	sdw_cdns_probe(&sdw->cdns);
 
 	/* Set property read ops */
-	sdw_cdns_master_ops.read_prop = intel_prop_read;
-	sdw->cdns.bus.ops = &sdw_cdns_master_ops;
+	sdw_intel_ops.read_prop = intel_prop_read;
+	sdw->cdns.bus.ops = &sdw_intel_ops;
 
 	platform_set_drvdata(pdev, sdw);
 

@@ -44,5 +44,13 @@ irqreturn_t sdw_cdns_thread(int irq, void *dev_id);
 int sdw_cdns_init(struct sdw_cdns *cdns);
 int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns);
 
+enum sdw_command_response
+cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg);
 
+enum sdw_command_response
+cdns_xfer_msg_defer(struct sdw_bus *bus,
+		struct sdw_msg *msg, struct sdw_defer *defer);
+
+enum sdw_command_response
+cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num);
 #endif /* __SDW_CADENCE_H */
