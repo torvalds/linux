@@ -363,7 +363,7 @@ static int i2c_device_probe(struct device *dev)
 		goto err_clear_wakeup_irq;
 
 	status = dev_pm_domain_attach(&client->dev, true);
-	if (status == -EPROBE_DEFER)
+	if (status)
 		goto err_clear_wakeup_irq;
 
 	/*
