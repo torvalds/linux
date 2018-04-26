@@ -126,7 +126,7 @@ EOF
     fakeroot dpkg-deb --build bananapi-r2-image ../debian
     cd ..
     ls -lh debian/*.deb
-    dpkg -c debian/bananapi-r2-image-4.14-main_4.14.36-1_armhf.deb
+    dpkg -c debian/bananapi-r2-image-${kernbranch}_${kernver}-1_armhf.deb
   else
     echo "First build kernel ${ver}"
     echo "eg: ./build"
