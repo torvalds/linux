@@ -1397,10 +1397,8 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 			pmtu = t->pathmtu;
 	}
 
-	if (pmtu) {
-		asoc->pathmtu = pmtu;
-		asoc->frag_point = sctp_frag_point(asoc, pmtu);
-	}
+	asoc->pathmtu = pmtu;
+	asoc->frag_point = sctp_frag_point(asoc, pmtu);
 
 	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
 		 asoc->pathmtu, asoc->frag_point);
