@@ -286,7 +286,11 @@ static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
 
 static void sanitize_temp_error(struct exynos_tmu_data *data, u32 trim_info)
 {
-	data->temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
+	u16 tmu_temp_mask =
+		(data->soc == SOC_ARCH_EXYNOS7) ? EXYNOS7_TMU_TEMP_MASK
+						: EXYNOS_TMU_TEMP_MASK;
+
+	data->temp_error1 = trim_info & tmu_temp_mask;
 	data->temp_error2 = ((trim_info >> EXYNOS_TRIMINFO_85_SHIFT) &
 				EXYNOS_TMU_TEMP_MASK);
 
@@ -592,12 +596,7 @@ static int exynos7_tmu_initialize(struct platform_device *pdev)
 	unsigned int reg_off, bit_off;
 
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
-
-	data->temp_error1 = trim_info & EXYNOS7_TMU_TEMP_MASK;
-	if (!data->temp_error1 ||
-	    (data->min_efuse_value > data->temp_error1) ||
-	    (data->temp_error1 > data->max_efuse_value))
-		data->temp_error1 = data->efuse_value & EXYNOS_TMU_TEMP_MASK;
+	sanitize_temp_error(data, trim_info);
 
 	/* Write temperature code for rising and falling threshold */
 	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
