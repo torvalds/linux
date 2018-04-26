@@ -366,10 +366,12 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		clk_enable(data->clk_sec);
 
 	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
-	if (!status)
+	if (!status) {
 		ret = -EBUSY;
-	else
+	} else {
 		data->tmu_initialize(pdev);
+		data->tmu_clear_irqs(data);
+	}
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
@@ -430,8 +432,6 @@ static void exynos4210_tmu_initialize(struct platform_device *pdev)
 		writeb(temp - reference, data->base +
 		       EXYNOS4210_TMU_REG_TRIG_LEVEL0 + i * 4);
 	}
-
-	data->tmu_clear_irqs(data);
 }
 
 static void exynos4412_tmu_initialize(struct platform_device *pdev)
@@ -486,8 +486,6 @@ static void exynos4412_tmu_initialize(struct platform_device *pdev)
 	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
 	con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
-
-	data->tmu_clear_irqs(data);
 }
 
 static void exynos5433_tmu_initialize(struct platform_device *pdev)
@@ -571,8 +569,6 @@ static void exynos5433_tmu_initialize(struct platform_device *pdev)
 		falling_threshold |= (threshold_code << j * 8);
 		writel(falling_threshold, data->base + falling_reg_offset);
 	}
-
-	data->tmu_clear_irqs(data);
 }
 
 static void exynos7_tmu_initialize(struct platform_device *pdev)
@@ -635,8 +631,6 @@ static void exynos7_tmu_initialize(struct platform_device *pdev)
 		writel(falling_threshold,
 		       data->base + EXYNOS7_THD_TEMP_FALL7_6 + reg_off);
 	}
-
-	data->tmu_clear_irqs(data);
 }
 
 static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
