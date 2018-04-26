@@ -54,6 +54,7 @@
 #include <linux/proc_ns.h>
 #include <linux/nsproxy.h>
 #include <linux/file.h>
+#include <linux/sched/cputime.h>
 #include <net/sock.h>
 
 #define CREATE_TRACE_POINTS
@@ -1859,6 +1860,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	cgrp->dom_cgrp = cgrp;
 	cgrp->max_descendants = INT_MAX;
 	cgrp->max_depth = INT_MAX;
+	prev_cputime_init(&cgrp->prev_cputime);
 
 	for_each_subsys(ss, ssid)
 		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
@@ -3396,7 +3398,7 @@ static int cpu_stat_show(struct seq_file *seq, void *v)
 	struct cgroup __maybe_unused *cgrp = seq_css(seq)->cgroup;
 	int ret = 0;
 
-	cgroup_stat_show_cputime(seq);
+	cgroup_base_stat_cputime_show(seq);
 #ifdef CONFIG_CGROUP_SCHED
 	ret = cgroup_extra_stat_show(seq, cgrp, cpu_cgrp_id);
 #endif

@@ -258,6 +258,10 @@ struct css_set {
 	struct rcu_head rcu_head;
 };
 
+struct cgroup_base_stat {
+	struct task_cputime cputime;
+};
+
 /*
  * rstat - cgroup scalable recursive statistics.  Accounting is done
  * per-cpu in cgroup_rstat_cpu which is then lazily propagated up the
@@ -273,20 +277,24 @@ struct css_set {
  * aren't active and stat may be read frequently.  The combination can
  * become very expensive.  By propagating selectively, increasing reading
  * frequency decreases the cost of each read.
+ *
+ * This struct hosts both the fields which implement the above -
+ * updated_children and updated_next - and the fields which track basic
+ * resource statistics on top of it - bsync, bstat and last_bstat.
  */
 struct cgroup_rstat_cpu {
 	/*
-	 * ->sync protects all the current counters.  These are the only
-	 * fields which get updated in the hot path.
+	 * ->bsync protects ->bstat.  These are the only fields which get
+	 * updated in the hot path.
 	 */
-	struct u64_stats_sync sync;
-	struct task_cputime cputime;
+	struct u64_stats_sync bsync;
+	struct cgroup_base_stat bstat;
 
 	/*
 	 * Snapshots at the last reading.  These are used to calculate the
 	 * deltas to propagate to the global counters.
 	 */
-	struct task_cputime last_cputime;
+	struct cgroup_base_stat last_bstat;
 
 	/*
 	 * Child cgroups with stat updates on this cpu since the last read
@@ -301,12 +309,6 @@ struct cgroup_rstat_cpu {
 	 */
 	struct cgroup *updated_children;	/* terminated by self cgroup */
 	struct cgroup *updated_next;		/* NULL iff not on the list */
-};
-
-struct cgroup_stat {
-	/* per-cpu statistics are collected into the folowing global counters */
-	struct task_cputime cputime;
-	struct prev_cputime prev_cputime;
 };
 
 struct cgroup {
@@ -412,8 +414,9 @@ struct cgroup {
 	struct cgroup_rstat_cpu __percpu *rstat_cpu;
 
 	/* cgroup basic resource statistics */
-	struct cgroup_stat pending_stat;	/* pending from children */
-	struct cgroup_stat stat;
+	struct cgroup_base_stat pending_bstat;	/* pending from children */
+	struct cgroup_base_stat bstat;
+	struct prev_cputime prev_cputime;	/* for printing out cputime */
 
 	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
