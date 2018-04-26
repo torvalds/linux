@@ -41,6 +41,13 @@ static u64 __ro_after_init x86_spec_ctrl_base;
  */
 static u64 __ro_after_init x86_spec_ctrl_mask = ~SPEC_CTRL_IBRS;
 
+/*
+ * AMD specific MSR info for Speculative Store Bypass control.
+ * x86_amd_ls_cfg_rds_mask is initialized in identify_boot_cpu().
+ */
+u64 __ro_after_init x86_amd_ls_cfg_base;
+u64 __ro_after_init x86_amd_ls_cfg_rds_mask;
+
 void __init check_bugs(void)
 {
 	identify_boot_cpu();
@@ -52,7 +59,8 @@ void __init check_bugs(void)
 
 	/*
 	 * Read the SPEC_CTRL MSR to account for reserved bits which may
-	 * have unknown values.
+	 * have unknown values. AMD64_LS_CFG MSR is cached in the early AMD
+	 * init code as it is not enumerated and depends on the family.
 	 */
 	if (boot_cpu_has(X86_FEATURE_IBRS))
 		rdmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
@@ -153,6 +161,14 @@ void x86_spec_ctrl_restore_host(u64 guest_spec_ctrl)
 		wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_restore_host);
+
+static void x86_amd_rds_enable(void)
+{
+	u64 msrval = x86_amd_ls_cfg_base | x86_amd_ls_cfg_rds_mask;
+
+	if (boot_cpu_has(X86_FEATURE_AMD_RDS))
+		wrmsrl(MSR_AMD64_LS_CFG, msrval);
+}
 
 #ifdef RETPOLINE
 static bool spectre_v2_bad_module;
@@ -443,6 +459,11 @@ static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
 
 	switch (cmd) {
 	case SPEC_STORE_BYPASS_CMD_AUTO:
+		/*
+		 * AMD platforms by default don't need SSB mitigation.
+		 */
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+			break;
 	case SPEC_STORE_BYPASS_CMD_ON:
 		mode = SPEC_STORE_BYPASS_DISABLE;
 		break;
@@ -469,6 +490,7 @@ static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
 			x86_spec_ctrl_set(SPEC_CTRL_RDS);
 			break;
 		case X86_VENDOR_AMD:
+			x86_amd_rds_enable();
 			break;
 		}
 	}
@@ -490,6 +512,9 @@ void x86_spec_ctrl_setup_ap(void)
 {
 	if (boot_cpu_has(X86_FEATURE_IBRS))
 		x86_spec_ctrl_set(x86_spec_ctrl_base & ~x86_spec_ctrl_mask);
+
+	if (ssb_mode == SPEC_STORE_BYPASS_DISABLE)
+		x86_amd_rds_enable();
 }
 
 #ifdef CONFIG_SYSFS
