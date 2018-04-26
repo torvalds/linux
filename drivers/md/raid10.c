@@ -255,9 +255,11 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 	for (j = conf->copies; j--; ) {
 		struct bio *bio = r10bio->devs[j].bio;
 
-		rp = get_resync_pages(bio);
-		resync_free_pages(rp);
-		bio_put(bio);
+		if (bio) {
+			rp = get_resync_pages(bio);
+			resync_free_pages(rp);
+			bio_put(bio);
+		}
 
 		bio = r10bio->devs[j].repl_bio;
 		if (bio)
