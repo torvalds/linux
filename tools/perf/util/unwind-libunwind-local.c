@@ -366,17 +366,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 {
 	struct addr_location al;
-
-	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al)) {
-		/*
-		 * We've seen cases (softice) where DWARF unwinder went
-		 * through non executable mmaps, which we need to lookup
-		 * in MAP__VARIABLE tree.
-		 */
-		__thread__find_map(ui->thread, PERF_RECORD_MISC_USER,
-				   MAP__VARIABLE, ip, &al);
-	}
-	return al.map;
+	return thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al);
 }
 
 static int

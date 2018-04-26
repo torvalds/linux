@@ -927,8 +927,8 @@ static int ip__fprintf_sym(uint64_t addr, struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	if (!thread__find_map(thread, cpumode, addr, &al))
-		__thread__find_map(thread, cpumode, MAP__VARIABLE, addr, &al);
+	thread__find_map(thread, cpumode, addr, &al);
+
 	if ((*lastsym) && al.addr >= (*lastsym)->start && al.addr < (*lastsym)->end)
 		return 0;
 

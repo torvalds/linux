@@ -92,14 +92,8 @@ size_t thread__fprintf(struct thread *thread, FILE *fp);
 
 struct thread *thread__main_thread(struct machine *machine, struct thread *thread);
 
-struct map *__thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
-			       u64 addr, struct addr_location *al);
-
-static inline struct map *thread__find_map(struct thread *thread, u8 cpumode,
-					   u64 addr, struct addr_location *al)
-{
-	return __thread__find_map(thread, cpumode, MAP__FUNCTION, addr, al);
-}
+struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
+			     struct addr_location *al);
 
 struct symbol *thread__find_symbol(struct thread *thread, u8 cpumode,
 				   u64 addr, struct addr_location *al);
