@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
+#include <drm/drm_device.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_panel.h>
 
@@ -104,6 +105,13 @@ int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 	if (panel->connector)
 		return -EBUSY;
 
+	panel->link = device_link_add(connector->dev->dev, panel->dev, 0);
+	if (!panel->link) {
+		dev_err(panel->dev, "failed to link panel to %s\n",
+			dev_name(connector->dev->dev));
+		return -EINVAL;
+	}
+
 	panel->connector = connector;
 	panel->drm = connector->dev;
 
@@ -125,6 +133,8 @@ EXPORT_SYMBOL(drm_panel_attach);
  */
 int drm_panel_detach(struct drm_panel *panel)
 {
+	device_link_del(panel->link);
+
 	panel->connector = NULL;
 	panel->drm = NULL;
 
