@@ -428,12 +428,6 @@ static inline int sctp_list_single_entry(struct list_head *head)
 	return (head->next != head) && (head->next == head->prev);
 }
 
-static inline void sctp_assoc_pending_pmtu(struct sctp_association *asoc)
-{
-	sctp_assoc_sync_pmtu(asoc);
-	asoc->pmtu_pending = 0;
-}
-
 static inline bool sctp_chunk_pending(const struct sctp_chunk *chunk)
 {
 	return !list_empty(&chunk->list);
