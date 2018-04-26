@@ -5952,6 +5952,9 @@ static int bnxt_init_msix(struct bnxt *bp)
 	if (total_vecs > max)
 		total_vecs = max;
 
+	if (!total_vecs)
+		return 0;
+
 	msix_ent = kcalloc(total_vecs, sizeof(struct msix_entry), GFP_KERNEL);
 	if (!msix_ent)
 		return -ENOMEM;
@@ -7276,6 +7279,25 @@ skip_uc:
 	return rc;
 }
 
+static bool bnxt_can_reserve_rings(struct bnxt *bp)
+{
+#ifdef CONFIG_BNXT_SRIOV
+	if ((bp->flags & BNXT_FLAG_NEW_RM) && BNXT_VF(bp)) {
+		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+		/* No minimum rings were provisioned by the PF.  Don't
+		 * reserve rings by default when device is down.
+		 */
+		if (hw_resc->min_tx_rings || hw_resc->resv_tx_rings)
+			return true;
+
+		if (!netif_running(bp->dev))
+			return false;
+	}
+#endif
+	return true;
+}
+
 /* If the chip and firmware supports RFS */
 static bool bnxt_rfs_supported(struct bnxt *bp)
 {
@@ -7292,7 +7314,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int vnics, max_vnics, max_rss_ctxs;
 
-	if (!(bp->flags & BNXT_FLAG_MSIX_CAP))
+	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
@@ -8525,6 +8547,9 @@ static void bnxt_trim_dflt_sh_rings(struct bnxt *bp)
 static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
+
+	if (!bnxt_can_reserve_rings(bp))
+		return 0;
 
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
