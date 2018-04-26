@@ -257,8 +257,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
 	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
-					const struct nf_hook_state *state,
-					struct nf_conn *ct))
+					const struct nf_hook_state *state))
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -303,7 +302,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			ret = do_chain(priv, skb, state, ct);
+			ret = do_chain(priv, skb, state);
 			if (ret != NF_ACCEPT)
 				return ret;
 
@@ -343,8 +342,7 @@ nf_nat_ipv6_in(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
 	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
-					const struct nf_hook_state *state,
-					struct nf_conn *ct))
+					const struct nf_hook_state *state))
 {
 	unsigned int ret;
 	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
@@ -363,8 +361,7 @@ nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
 		const struct nf_hook_state *state,
 		unsigned int (*do_chain)(void *priv,
 					 struct sk_buff *skb,
-					 const struct nf_hook_state *state,
-					 struct nf_conn *ct))
+					 const struct nf_hook_state *state))
 {
 #ifdef CONFIG_XFRM
 	const struct nf_conn *ct;
@@ -400,8 +397,7 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state,
 		     unsigned int (*do_chain)(void *priv,
 					      struct sk_buff *skb,
-					      const struct nf_hook_state *state,
-					      struct nf_conn *ct))
+					      const struct nf_hook_state *state))
 {
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
