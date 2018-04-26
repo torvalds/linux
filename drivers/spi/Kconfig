@@ -47,6 +47,13 @@ config SPI_MASTER
 
 if SPI_MASTER
 
+config SPI_MEM
+	bool "SPI memory extension"
+	help
+	  Enable this option if you want to enable the SPI memory extension.
+	  This extension is meant to simplify interaction with SPI memories
+	  by providing an high-level interface to send memory-like commands.
+
 comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
