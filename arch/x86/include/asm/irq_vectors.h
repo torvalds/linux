@@ -114,8 +114,6 @@
 #define FIRST_SYSTEM_VECTOR		NR_VECTORS
 #endif
 
-#define FPU_IRQ				  13
-
 /*
  * Size the maximum number of interrupts.
  *
