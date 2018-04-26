@@ -1377,7 +1377,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 			    struct gpd_timing_data *td)
 {
 	struct generic_pm_domain_data *gpd_data;
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1389,11 +1389,6 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		return PTR_ERR(gpd_data);
 
 	genpd_lock(genpd);
-
-	if (genpd->prepared_count > 0) {
-		ret = -EAGAIN;
-		goto out;
-	}
 
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
@@ -2194,7 +2189,6 @@ int genpd_dev_pm_attach(struct device *dev)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
-	unsigned int i;
 	int ret;
 
 	if (!dev->of_node)
@@ -2220,14 +2214,7 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
 
-	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
-		ret = genpd_add_device(pd, dev, NULL);
-		if (ret != -EAGAIN)
-			break;
-
-		mdelay(i);
-		cond_resched();
-	}
+	ret = genpd_add_device(pd, dev, NULL);
 	mutex_unlock(&gpd_list_lock);
 
 	if (ret < 0) {
