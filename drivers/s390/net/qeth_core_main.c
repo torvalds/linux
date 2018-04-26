@@ -5201,6 +5201,11 @@ retriable:
 	rc = qeth_query_ipassists(card, QETH_PROT_IPV4);
 	if (rc == -ENOMEM)
 		goto out;
+	if (qeth_is_supported(card, IPA_IPV6)) {
+		rc = qeth_query_ipassists(card, QETH_PROT_IPV6);
+		if (rc == -ENOMEM)
+			goto out;
+	}
 	if (qeth_is_supported(card, IPA_SETADAPTERPARMS)) {
 		rc = qeth_query_setadapterparms(card);
 		if (rc < 0) {

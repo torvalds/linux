@@ -851,14 +851,6 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "softipv6");
 
-	rc = qeth_query_ipassists(card, QETH_PROT_IPV6);
-	if (rc) {
-		dev_err(&card->gdev->dev,
-			"Activating IPv6 support for %s failed\n",
-			QETH_CARD_IFNAME(card));
-		return rc;
-	}
-
 	if (card->info.type == QETH_CARD_TYPE_IQD)
 		goto out;
 
