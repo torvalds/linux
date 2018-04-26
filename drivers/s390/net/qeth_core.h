@@ -148,6 +148,7 @@ struct qeth_perf_stats {
 	unsigned int tx_csum;
 	unsigned int tx_lin;
 	unsigned int tx_linfail;
+	unsigned int rx_csum;
 };
 
 /* Routing stuff */
@@ -868,10 +869,13 @@ static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
 				u8 flags)
 {
 	if ((card->dev->features & NETIF_F_RXCSUM) &&
-	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ))
+	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	else
+		if (card->options.performance_stats)
+			card->perf_stats.rx_csum++;
+	} else {
 		skb->ip_summed = CHECKSUM_NONE;
+	}
 }
 
 static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags)

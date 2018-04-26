@@ -6005,7 +6005,8 @@ static struct {
 	{"tx lin"},
 	{"tx linfail"},
 	{"cq handler count"},
-	{"cq handler time"}
+	{"cq handler time"},
+	{"rx csum"}
 };
 
 int qeth_core_get_sset_count(struct net_device *dev, int stringset)
@@ -6067,6 +6068,7 @@ void qeth_core_get_ethtool_stats(struct net_device *dev,
 	data[35] = card->perf_stats.tx_linfail;
 	data[36] = card->perf_stats.cq_cnt;
 	data[37] = card->perf_stats.cq_time;
+	data[38] = card->perf_stats.rx_csum;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_ethtool_stats);
 
