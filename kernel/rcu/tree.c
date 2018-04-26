@@ -1879,7 +1879,8 @@ static void note_gp_changes(struct rcu_state *rsp, struct rcu_data *rdp)
 static void rcu_gp_slow(struct rcu_state *rsp, int delay)
 {
 	if (delay > 0 &&
-	    !(rsp->gpnum % (rcu_num_nodes * PER_RCU_NODE_PERIOD * delay)))
+	    !(rcu_seq_ctr(rsp->gp_seq) %
+	      (rcu_num_nodes * PER_RCU_NODE_PERIOD * delay)))
 		schedule_timeout_uninterruptible(delay);
 }
 
