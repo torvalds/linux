@@ -36,9 +36,14 @@
 #define DAL_STATS_ENTRIES_REGKEY_DEFAULT	0x00350000
 #define DAL_STATS_ENTRIES_REGKEY_MAX		0x01000000
 
+#define DAL_STATS_EVENT_ENTRIES_DEFAULT		0x00000100
+
 #define MOD_STATS_NUM_VSYNCS			5
+#define MOD_STATS_EVENT_STRING_MAX		512
 
 struct stats_time_cache {
+	unsigned int entry_id;
+
 	unsigned long flip_timestamp_in_ns;
 	unsigned long vupdate_timestamp_in_ns;
 
@@ -63,15 +68,26 @@ struct stats_time_cache {
 	unsigned int flags;
 };
 
+struct stats_event_cache {
+	unsigned int entry_id;
+	char event_string[MOD_STATS_EVENT_STRING_MAX];
+};
+
 struct core_stats {
 	struct mod_stats public;
 	struct dc *dc;
 
+	bool enabled;
+	unsigned int entries;
+	unsigned int event_entries;
+	unsigned int entry_id;
+
 	struct stats_time_cache *time;
 	unsigned int index;
 
-	bool enabled;
-	unsigned int entries;
+	struct stats_event_cache *events;
+	unsigned int event_index;
+
 };
 
 #define MOD_STATS_TO_CORE(mod_stats)\
@@ -125,9 +141,18 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 			else
 				core_stats->entries = reg_data;
 		}
-
-		core_stats->time = kzalloc(sizeof(struct stats_time_cache) * core_stats->entries,
+		core_stats->time = kzalloc(
+			sizeof(struct stats_time_cache) *
+				core_stats->entries,
 						GFP_KERNEL);
+
+
+		core_stats->event_entries = DAL_STATS_EVENT_ENTRIES_DEFAULT;
+		core_stats->events = kzalloc(
+			sizeof(struct stats_event_cache) *
+				core_stats->event_entries,
+						GFP_KERNEL);
+
 	} else {
 		core_stats->entries = 0;
 	}
@@ -139,6 +164,10 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 	 * handle calculation cases that depend on previous flip data.
 	 */
 	core_stats->index = 1;
+	core_stats->event_index = 0;
+
+	// Keeps track of ordering within the different stats structures
+	core_stats->entry_id = 0;
 
 	return &core_stats->public;
 
@@ -167,6 +196,9 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	struct dal_logger *logger = NULL;
 	struct core_stats *core_stats = NULL;
 	struct stats_time_cache *time = NULL;
+	struct stats_event_cache *events = NULL;
+	unsigned int time_index = 1;
+	unsigned int event_index = 0;
 	unsigned int index = 0;
 	struct log_entry log_entry;
 
@@ -177,6 +209,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	dc = core_stats->dc;
 	logger = dc->ctx->logger;
 	time = core_stats->time;
+	events = core_stats->events;
 
 	DISPLAY_STATS_BEGIN(log_entry);
 
@@ -196,30 +229,39 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 		"vSyncTime1", "vSyncTime2", "vSyncTime3",
 		"vSyncTime4", "vSyncTime5", "flags");
 
-	for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
-		DISPLAY_STATS("%10u %10u %10u %10u %10u"
-				" %11u %11u %17u %10u %14u"
-				" %10u %10u %10u %10u %10u"
-				" %10u %10u %10u %10u\n",
-			time[i].render_time_in_us,
-			time[i].avg_render_time_in_us_last_ten,
-			time[i].min_window,
-			time[i].lfc_mid_point_in_us,
-			time[i].max_window,
-			time[i].vsync_to_flip_time_in_us,
-			time[i].flip_to_vsync_time_in_us,
-			time[i].num_vsync_between_flips,
-			time[i].num_frames_inserted,
-			time[i].inserted_duration_in_us,
-			time[i].v_total_min,
-			time[i].v_total_max,
-			time[i].event_triggers,
-			time[i].v_sync_time_in_us[0],
-			time[i].v_sync_time_in_us[1],
-			time[i].v_sync_time_in_us[2],
-			time[i].v_sync_time_in_us[3],
-			time[i].v_sync_time_in_us[4],
-			time[i].flags);
+	for (int i = 0; i < core_stats->entry_id; i++) {
+		if (event_index < core_stats->event_index &&
+				i == events[event_index].entry_id) {
+			DISPLAY_STATS("%s\n", events[event_index].event_string);
+			event_index++;
+		} else if (time_index < core_stats->index &&
+				i == time[time_index].entry_id) {
+			DISPLAY_STATS("%10u %10u %10u %10u %10u"
+					" %11u %11u %17u %10u %14u"
+					" %10u %10u %10u %10u %10u"
+					" %10u %10u %10u %10u\n",
+				time[time_index].render_time_in_us,
+				time[time_index].avg_render_time_in_us_last_ten,
+				time[time_index].min_window,
+				time[time_index].lfc_mid_point_in_us,
+				time[time_index].max_window,
+				time[time_index].vsync_to_flip_time_in_us,
+				time[time_index].flip_to_vsync_time_in_us,
+				time[time_index].num_vsync_between_flips,
+				time[time_index].num_frames_inserted,
+				time[time_index].inserted_duration_in_us,
+				time[time_index].v_total_min,
+				time[time_index].v_total_max,
+				time[time_index].event_triggers,
+				time[time_index].v_sync_time_in_us[0],
+				time[time_index].v_sync_time_in_us[1],
+				time[time_index].v_sync_time_in_us[2],
+				time[time_index].v_sync_time_in_us[3],
+				time[time_index].v_sync_time_in_us[4],
+				time[time_index].flags);
+
+			time_index++;
+		}
 	}
 
 	DISPLAY_STATS_END(log_entry);
@@ -239,7 +281,46 @@ void mod_stats_reset_data(struct mod_stats *mod_stats)
 	memset(core_stats->time, 0,
 		sizeof(struct stats_time_cache) * core_stats->entries);
 
+	memset(core_stats->events, 0,
+		sizeof(struct stats_event_cache) * core_stats->event_entries);
+
 	core_stats->index = 1;
+	core_stats->event_index = 0;
+
+	// Keeps track of ordering within the different stats structures
+	core_stats->entry_id = 0;
+}
+
+void mod_stats_update_event(struct mod_stats *mod_stats,
+		char *event_string,
+		unsigned int length)
+{
+	struct core_stats *core_stats = NULL;
+	struct stats_event_cache *events = NULL;
+	unsigned int index = 0;
+	unsigned int copy_length = 0;
+
+	if (mod_stats == NULL)
+		return;
+
+	core_stats = MOD_STATS_TO_CORE(mod_stats);
+
+	if (core_stats->index >= core_stats->entries)
+		return;
+
+	events = core_stats->events;
+	index = core_stats->event_index;
+
+	copy_length = length;
+	if (length > MOD_STATS_EVENT_STRING_MAX)
+		copy_length = MOD_STATS_EVENT_STRING_MAX;
+
+	memcpy(&events[index].event_string, event_string, copy_length);
+	events[index].event_string[copy_length - 1] = '\0';
+
+	events[index].entry_id = core_stats->entry_id;
+	core_stats->event_index++;
+	core_stats->entry_id++;
 }
 
 void mod_stats_update_flip(struct mod_stats *mod_stats,
@@ -280,7 +361,9 @@ void mod_stats_update_flip(struct mod_stats *mod_stats,
 			(timestamp_in_ns -
 				time[index - 1].vupdate_timestamp_in_ns) / 1000;
 
+	time[index].entry_id = core_stats->entry_id;
 	core_stats->index++;
+	core_stats->entry_id++;
 }
 
 void mod_stats_update_vupdate(struct mod_stats *mod_stats,
