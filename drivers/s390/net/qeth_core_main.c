@@ -3588,15 +3588,14 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	}
 }
 
-void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
-		unsigned long card_ptr)
+static void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
+				 unsigned long card_ptr)
 {
 	struct qeth_card *card = (struct qeth_card *)card_ptr;
 
 	if (card->dev && (card->dev->flags & IFF_UP))
 		napi_schedule(&card->napi);
 }
-EXPORT_SYMBOL_GPL(qeth_qdio_start_poll);
 
 int qeth_configure_cq(struct qeth_card *card, enum qeth_cq cq)
 {
@@ -3698,9 +3697,10 @@ out:
 	return;
 }
 
-void qeth_qdio_input_handler(struct ccw_device *ccwdev, unsigned int qdio_err,
-		unsigned int queue, int first_elem, int count,
-		unsigned long card_ptr)
+static void qeth_qdio_input_handler(struct ccw_device *ccwdev,
+				    unsigned int qdio_err, int queue,
+				    int first_elem, int count,
+				    unsigned long card_ptr)
 {
 	struct qeth_card *card = (struct qeth_card *)card_ptr;
 
@@ -3711,14 +3711,12 @@ void qeth_qdio_input_handler(struct ccw_device *ccwdev, unsigned int qdio_err,
 		qeth_qdio_cq_handler(card, qdio_err, queue, first_elem, count);
 	else if (qdio_err)
 		qeth_schedule_recovery(card);
-
-
 }
-EXPORT_SYMBOL_GPL(qeth_qdio_input_handler);
 
-void qeth_qdio_output_handler(struct ccw_device *ccwdev,
-		unsigned int qdio_error, int __queue, int first_element,
-		int count, unsigned long card_ptr)
+static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
+				     unsigned int qdio_error, int __queue,
+				     int first_element, int count,
+				     unsigned long card_ptr)
 {
 	struct qeth_card *card        = (struct qeth_card *) card_ptr;
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
@@ -3787,7 +3785,6 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 		card->perf_stats.outbound_handler_time += qeth_get_micros() -
 			card->perf_stats.outbound_handler_start_time;
 }
-EXPORT_SYMBOL_GPL(qeth_qdio_output_handler);
 
 /* We cannot use outbound queue 3 for unicast packets on HiperSockets */
 static inline int qeth_cut_iqd_prio(struct qeth_card *card, int queue_num)
@@ -4995,7 +4992,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		goto out_free_in_sbals;
 	}
 	for (i = 0; i < card->qdio.no_in_queues; ++i)
-		queue_start_poll[i] = card->discipline->start_poll;
+		queue_start_poll[i] = qeth_qdio_start_poll;
 
 	qeth_qdio_establish_cq(card, in_sbal_ptrs, queue_start_poll);
 
@@ -5019,8 +5016,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.qib_param_field        = qib_param_field;
 	init_data.no_input_qs            = card->qdio.no_in_queues;
 	init_data.no_output_qs           = card->qdio.no_out_queues;
-	init_data.input_handler 	 = card->discipline->input_handler;
-	init_data.output_handler	 = card->discipline->output_handler;
+	init_data.input_handler		 = qeth_qdio_input_handler;
+	init_data.output_handler	 = qeth_qdio_output_handler;
 	init_data.queue_start_poll_array = queue_start_poll;
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;

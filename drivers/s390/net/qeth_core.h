@@ -712,9 +712,6 @@ enum qeth_discipline_id {
 
 struct qeth_discipline {
 	const struct device_type *devtype;
-	void (*start_poll)(struct ccw_device *, int, unsigned long);
-	qdio_handler_t *input_handler;
-	qdio_handler_t *output_handler;
 	int (*process_rx_buffer)(struct qeth_card *card, int budget, int *done);
 	int (*recover)(void *ptr);
 	int (*setup) (struct ccwgroup_device *);
@@ -921,13 +918,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
-void qeth_qdio_start_poll(struct ccw_device *, int, unsigned long);
 int qeth_poll(struct napi_struct *napi, int budget);
-void qeth_qdio_input_handler(struct ccw_device *,
-		unsigned int, unsigned int, int,
-		int, unsigned long);
-void qeth_qdio_output_handler(struct ccw_device *, unsigned int,
-			int, int, int, unsigned long);
 void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
 void qeth_clear_working_pool_list(struct qeth_card *);
