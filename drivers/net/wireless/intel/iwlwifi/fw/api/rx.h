@@ -373,7 +373,33 @@ enum iwl_rx_he_phy {
 	/* 1 bit reserved */
 	IWL_RX_HE_PHY_SIGB_DCM			= BIT_ULL(32 + 21),
 	IWL_RX_HE_PHY_PREAMBLE_PUNC_TYPE_MASK	= 0xc0000000000000ULL,
-	/* 8 bits reserved */
+	/* 4 bits reserved */
+	IWL_RX_HE_PHY_INFO_TYPE_MASK		= 0xf000000000000000ULL,
+	IWL_RX_HE_PHY_INFO_TYPE_SU		= 0x0,
+	IWL_RX_HE_PHY_INFO_TYPE_MU		= 0x1,
+	IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO	= 0x2,
+};
+
+enum iwl_rx_he_sigb_common0 {
+	/* the a1/a2/... is what the PHY/firmware calls the values */
+	IWL_RX_HE_SIGB_COMMON0_CH1_RU0		= 0x000000ff, /* a1 */
+	IWL_RX_HE_SIGB_COMMON0_CH1_RU2		= 0x0000ff00, /* a2 */
+	IWL_RX_HE_SIGB_COMMON0_CH2_RU0		= 0x00ff0000, /* b1 */
+	IWL_RX_HE_SIGB_COMMON0_CH2_RU2		= 0xff000000, /* b2 */
+};
+
+enum iwl_rx_he_sigb_common1 {
+	IWL_RX_HE_SIGB_COMMON1_CH1_RU1		= 0x000000ff, /* c1 */
+	IWL_RX_HE_SIGB_COMMON1_CH1_RU3		= 0x0000ff00, /* c2 */
+	IWL_RX_HE_SIGB_COMMON1_CH2_RU1		= 0x00ff0000, /* d1 */
+	IWL_RX_HE_SIGB_COMMON1_CH2_RU3		= 0xff000000, /* d2 */
+};
+
+enum iwl_rx_he_sigb_common2 {
+	IWL_RX_HE_SIGB_COMMON2_CH1_CTR_RU	= 0x0001,
+	IWL_RX_HE_SIGB_COMMON2_CH2_CTR_RU	= 0x0002,
+	IWL_RX_HE_SIGB_COMMON2_CH1_CRC_OK	= 0x0004,
+	IWL_RX_HE_SIGB_COMMON2_CH2_CRC_OK	= 0x0008,
 };
 
 /**
@@ -381,15 +407,31 @@ enum iwl_rx_he_phy {
  */
 struct iwl_rx_mpdu_desc_v1 {
 	/* DW7 - carries rss_hash only when rpa_en == 1 */
-	/**
-	 * @rss_hash: RSS hash value
-	 */
-	__le32 rss_hash;
+	union {
+		/**
+		 * @rss_hash: RSS hash value
+		 */
+		__le32 rss_hash;
+
+		/**
+		 * @sigb_common0: for HE sniffer, HE-SIG-B common part 0
+		 */
+		__le32 sigb_common0;
+	};
+
 	/* DW8 - carries filter_match only when rpa_en == 1 */
-	/**
-	 * @filter_match: filter match value
-	 */
-	__le32 filter_match;
+	union {
+		/**
+		 * @filter_match: filter match value
+		 */
+		__le32 filter_match;
+
+		/**
+		 * @sigb_common1: for HE sniffer, HE-SIG-B common part 1
+		 */
+		__le32 sigb_common1;
+	};
+
 	/* DW9 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
@@ -439,15 +481,30 @@ struct iwl_rx_mpdu_desc_v1 {
  */
 struct iwl_rx_mpdu_desc_v3 {
 	/* DW7 - carries filter_match only when rpa_en == 1 */
-	/**
-	 * @filter_match: filter match value
-	 */
-	__le32 filter_match;
+	union {
+		/**
+		 * @filter_match: filter match value
+		 */
+		__le32 filter_match;
+
+		/**
+		 * @sigb_common0: for HE sniffer, HE-SIG-B common part 0
+		 */
+		__le32 sigb_common0;
+	};
+
 	/* DW8 - carries rss_hash only when rpa_en == 1 */
-	/**
-	 * @rss_hash: RSS hash value
-	 */
-	__le32 rss_hash;
+	union {
+		/**
+		 * @rss_hash: RSS hash value
+		 */
+		__le32 rss_hash;
+
+		/**
+		 * @sigb_common1: for HE sniffer, HE-SIG-B common part 1
+		 */
+		__le32 sigb_common1;
+	};
 	/* DW9 */
 	/**
 	 * @partial_hash: 31:0 ip/tcp header hash
@@ -539,14 +596,24 @@ struct iwl_rx_mpdu_desc {
 	 */
 	u8 mac_phy_idx;
 	/* DW4 - carries csum data only when rpa_en == 1 */
-	/**
-	 * @raw_csum: raw checksum (alledgedly unreliable)
-	 */
-	__le16 raw_csum;
-	/**
-	 * @l3l4_flags: &enum iwl_rx_l3l4_flags
-	 */
-	__le16 l3l4_flags;
+	struct {
+		/**
+		 * @raw_csum: raw checksum (alledgedly unreliable)
+		 */
+		__le16 raw_csum;
+
+		union {
+			/**
+			 * @l3l4_flags: &enum iwl_rx_l3l4_flags
+			 */
+			__le16 l3l4_flags;
+
+			/**
+			 * @sigb_common2: for HE sniffer, HE-SIG-B common part 2
+			 */
+			__le16 sigb_common2;
+		};
+	};
 	/* DW5 */
 	/**
 	 * @status: &enum iwl_rx_mpdu_status
