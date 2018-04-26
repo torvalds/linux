@@ -367,7 +367,30 @@ struct sdw_slave_intr_status {
 };
 
 /**
- * struct sdw_slave_ops - Slave driver callback ops
+ * sdw_reg_bank - SoundWire register banks
+ * @SDW_BANK0: Soundwire register bank 0
+ * @SDW_BANK1: Soundwire register bank 1
+ */
+enum sdw_reg_bank {
+	SDW_BANK0,
+	SDW_BANK1,
+};
+
+/**
+ * struct sdw_bus_params: Structure holding bus configuration
+ *
+ * @curr_bank: Current bank in use (BANK0/BANK1)
+ * @next_bank: Next bank to use (BANK0/BANK1). next_bank will always be
+ * set to !curr_bank
+ */
+struct sdw_bus_params {
+	enum sdw_reg_bank curr_bank;
+	enum sdw_reg_bank next_bank;
+};
+
+/**
+ * struct sdw_slave_ops: Slave driver callback ops
+ *
  * @read_prop: Read Slave properties
  * @interrupt_callback: Device interrupt notification (invoked in thread
  * context)
@@ -482,6 +505,24 @@ struct sdw_transport_params {
 	unsigned int lane_ctrl;
 };
 
+/**
+ * struct sdw_master_port_ops: Callback functions from bus to Master
+ * driver to set Master Data ports.
+ *
+ * @dpn_set_port_params: Set the Port parameters for the Master Port.
+ * Mandatory callback
+ * @dpn_set_port_transport_params: Set transport parameters for the Master
+ * Port. Mandatory callback
+ */
+struct sdw_master_port_ops {
+	int (*dpn_set_port_params)(struct sdw_bus *bus,
+			struct sdw_port_params *port_params,
+			unsigned int bank);
+	int (*dpn_set_port_transport_params)(struct sdw_bus *bus,
+			struct sdw_transport_params *transport_params,
+			enum sdw_reg_bank bank);
+};
+
 struct sdw_msg;
 
 /**
@@ -525,6 +566,8 @@ struct sdw_master_ops {
  * @bus_lock: bus lock
  * @msg_lock: message lock
  * @ops: Master callback ops
+ * @port_ops: Master port callback ops
+ * @params: Current bus parameters
  * @prop: Master properties
  * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
  * is used to compute and program bus bandwidth, clock, frame shape,
@@ -540,6 +583,8 @@ struct sdw_bus {
 	struct mutex bus_lock;
 	struct mutex msg_lock;
 	const struct sdw_master_ops *ops;
+	const struct sdw_master_port_ops *port_ops;
+	struct sdw_bus_params params;
 	struct sdw_master_prop prop;
 	struct list_head m_rt_list;
 	struct sdw_defer defer_msg;

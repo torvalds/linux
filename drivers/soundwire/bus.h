@@ -106,6 +106,10 @@ struct sdw_master_runtime {
 	struct list_head bus_node;
 };
 
+struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
+				enum sdw_data_direction direction,
+				unsigned int port_num);
+
 int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
 int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
 				struct sdw_defer *defer);
