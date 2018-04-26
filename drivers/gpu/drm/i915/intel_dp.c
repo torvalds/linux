@@ -1706,7 +1706,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int bpp, mode_rate;
 	int link_avail, link_clock;
 	int common_len;
-	uint8_t link_bw, rate_select;
 	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_LIMITED_M_N);
 
@@ -1852,12 +1851,8 @@ found:
 	pipe_config->pipe_bpp = bpp;
 	pipe_config->port_clock = intel_dp->common_rates[clock];
 
-	intel_dp_compute_rate(intel_dp, pipe_config->port_clock,
-			      &link_bw, &rate_select);
-
-	DRM_DEBUG_KMS("DP link bw %02x rate select %02x lane count %d clock %d bpp %d\n",
-		      link_bw, rate_select, pipe_config->lane_count,
-		      pipe_config->port_clock, bpp);
+	DRM_DEBUG_KMS("DP lane count %d clock %d bpp %d\n",
+		      pipe_config->lane_count, pipe_config->port_clock, bpp);
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
 
