@@ -46,10 +46,10 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 
 static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
 {
-	u32 defr6 = DEFR6_CODE | DEFR6_ODPM12_DISP;
+	u32 defr6 = DEFR6_CODE | DEFR6_ODPM02_DISP;
 
 	if (rgrp->num_crtcs > 1)
-		defr6 |= DEFR6_ODPM22_DISP;
+		defr6 |= DEFR6_ODPM12_DISP;
 
 	rcar_du_group_write(rgrp, DEFR6, defr6);
 }
