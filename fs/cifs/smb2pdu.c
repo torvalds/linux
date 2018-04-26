@@ -2164,8 +2164,8 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
-SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
-	   u64 persistent_fid, u64 volatile_fid)
+SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
+		 u64 persistent_fid, u64 volatile_fid, int flags)
 {
 	struct smb2_close_req *req;
 	struct smb2_close_rsp *rsp;
@@ -2174,7 +2174,6 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov;
 	int resp_buftype;
 	int rc = 0;
-	int flags = 0;
 	unsigned int total_len;
 
 	cifs_dbg(FYI, "Close\n");
@@ -2209,6 +2208,13 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 close_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
+}
+
+int
+SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+	   u64 persistent_fid, u64 volatile_fid)
+{
+	return SMB2_close_flags(xid, tcon, persistent_fid, volatile_fid, 0);
 }
 
 static int
