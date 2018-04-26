@@ -691,6 +691,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
+	mr->dm	    = NULL;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
