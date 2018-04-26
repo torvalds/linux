@@ -191,6 +191,8 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 				  netdev_features_t features,
 				  unsigned int mss, __sum16 check)
 {
+	struct sock *sk = gso_skb->sk;
+	unsigned int sum_truesize = 0;
 	struct sk_buff *segs, *seg;
 	unsigned int hdrlen;
 	struct udphdr *uh;
@@ -201,9 +203,15 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	hdrlen = gso_skb->data - skb_mac_header(gso_skb);
 	skb_pull(gso_skb, sizeof(*uh));
 
+	/* clear destructor to avoid skb_segment assigning it to tail */
+	WARN_ON_ONCE(gso_skb->destructor != sock_wfree);
+	gso_skb->destructor = NULL;
+
 	segs = skb_segment(gso_skb, features);
-	if (unlikely(IS_ERR_OR_NULL(segs)))
+	if (unlikely(IS_ERR_OR_NULL(segs))) {
+		gso_skb->destructor = sock_wfree;
 		return segs;
+	}
 
 	for (seg = segs; seg; seg = seg->next) {
 		uh = udp_hdr(seg);
@@ -214,7 +222,13 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		if (!seg->next)
 			csum_replace2(&uh->check, htons(mss),
 				      htons(seg->len - hdrlen - sizeof(*uh)));
+
+		seg->destructor = sock_wfree;
+		seg->sk = sk;
+		sum_truesize += seg->truesize;
 	}
+
+	refcount_add(sum_truesize - gso_skb->truesize, &sk->sk_wmem_alloc);
 
 	return segs;
 }
