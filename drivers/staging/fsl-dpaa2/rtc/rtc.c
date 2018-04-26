@@ -9,14 +9,12 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/fsl/mc.h>
 
-#include "dprtc.h"
-#include "dprtc-cmd.h"
+#include "rtc.h"
 
 struct ptp_dpaa2_priv {
 	struct fsl_mc_device *rtc_mc_dev;
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
-	int phc_index;
 	u32 freq_comp;
 };
 
@@ -173,7 +171,7 @@ static int rtc_probe(struct fsl_mc_device *mc_dev)
 		goto err_close;
 	}
 
-	ptp_dpaa2->phc_index = ptp_clock_index(ptp_dpaa2->clock);
+	dpaa2_phc_index = ptp_clock_index(ptp_dpaa2->clock);
 
 	dev_set_drvdata(dev, ptp_dpaa2);
 
