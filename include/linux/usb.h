@@ -551,6 +551,8 @@ struct usb3_lpm_parameters {
  * @route: tree topology hex string for use with xHCI
  * @state: device state: configured, not attached, etc.
  * @speed: device speed: high/full/low (or error)
+ * @rx_lanes: number of rx lanes in use, USB 3.2 adds dual-lane support
+ * @tx_lanes: number of tx lanes in use, USB 3.2 adds dual-lane support
  * @tt: Transaction Translator info; used with low/full speed dev, highspeed hub
  * @ttport: device port on that tt hub
  * @toggle: one bit for each endpoint, with ([0] = IN, [1] = OUT) endpoints
@@ -624,6 +626,8 @@ struct usb_device {
 	u32		route;
 	enum usb_device_state	state;
 	enum usb_device_speed	speed;
+	unsigned int		rx_lanes;
+	unsigned int		tx_lanes;
 
 	struct usb_tt	*tt;
 	int		ttport;

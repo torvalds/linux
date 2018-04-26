@@ -2746,6 +2746,14 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 	if (!udev)
 		return 0;
 
+	if (hub_is_superspeedplus(hub->hdev)) {
+		/* extended portstatus Rx and Tx lane count are zero based */
+		udev->rx_lanes = USB_EXT_PORT_RX_LANES(ext_portstatus) + 1;
+		udev->tx_lanes = USB_EXT_PORT_TX_LANES(ext_portstatus) + 1;
+	} else {
+		udev->rx_lanes = 1;
+		udev->tx_lanes = 1;
+	}
 	if (hub_is_wusb(hub))
 		udev->speed = USB_SPEED_WIRELESS;
 	else if (hub_is_superspeedplus(hub->hdev) &&
@@ -3371,6 +3379,10 @@ static int wait_for_connected(struct usb_device *udev,
 	while (delay_ms < 2000) {
 		if (status || *portstatus & USB_PORT_STAT_CONNECTION)
 			break;
+		if (!port_is_power_on(hub, *portstatus)) {
+			status = -ENODEV;
+			break;
+		}
 		msleep(20);
 		delay_ms += 20;
 		status = hub_port_status(hub, *port1, portstatus, portchange);
@@ -4543,7 +4555,9 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 				 * reset. But only on the first attempt,
 				 * lest we get into a time out/reset loop
 				 */
-				if (r == 0  || (r == -ETIMEDOUT && retries == 0))
+				if (r == 0 || (r == -ETIMEDOUT &&
+						retries == 0 &&
+						udev->speed > USB_SPEED_FULL))
 					break;
 			}
 			udev->descriptor.bMaxPacketSize0 =
@@ -4590,9 +4604,12 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 			if (udev->speed >= USB_SPEED_SUPER) {
 				devnum = udev->devnum;
 				dev_info(&udev->dev,
-						"%s SuperSpeed%s USB device number %d using %s\n",
+						"%s SuperSpeed%s%s USB device number %d using %s\n",
 						(udev->config) ? "reset" : "new",
-					 (udev->speed == USB_SPEED_SUPER_PLUS) ? "Plus" : "",
+					 (udev->speed == USB_SPEED_SUPER_PLUS) ?
+							"Plus Gen 2" : " Gen 1",
+					 (udev->rx_lanes == 2 && udev->tx_lanes == 2) ?
+							"x2" : "",
 					 devnum, driver_name);
 			}
 

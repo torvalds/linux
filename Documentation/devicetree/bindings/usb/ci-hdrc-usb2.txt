@@ -76,6 +76,10 @@ Optional properties:
   needs to make sure it does not send more than 90%
   maximum_periodic_data_per_frame. The use case is multiple transactions, but
   less frame rate.
+- mux-controls: The mux control for toggling host/device output of this
+  controller. It's expected that a mux state of 0 indicates device mode and a
+  mux state of 1 indicates host mode.
+- mux-control-names: Shall be "usb_switch" if mux-controls is specified.
 
 i.mx specific properties
 - fsl,usbmisc: phandler of non-core register device, with one
@@ -102,4 +106,6 @@ Example:
 		rx-burst-size-dword = <0x10>;
 		extcon = <0>, <&usb_id>;
 		phy-clkgate-delay-us = <400>;
+		mux-controls = <&usb_switch>;
+		mux-control-names = "usb_switch";
 	};

@@ -236,3 +236,21 @@ Description:
 		Supported values are 0 - 15.
 		More information on how besl values map to microseconds can be found in
 		USB 2.0 ECN Errata for Link Power Management, section 4.10)
+
+What:		/sys/bus/usb/devices/.../rx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of rx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (rx_lanes = 1)
+
+What:		/sys/bus/usb/devices/.../tx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of tx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx -lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)
