@@ -170,6 +170,8 @@ struct snd_soc_dai_ops {
 		unsigned int rx_num, unsigned int *rx_slot);
 	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
 
+	int (*set_sdw_stream)(struct snd_soc_dai *dai,
+			void *stream, int direction);
 	/*
 	 * DAI digital mute - optional.
 	 * Called by soc-core to minimise any pops.
@@ -356,6 +358,27 @@ static inline void snd_soc_dai_set_drvdata(struct snd_soc_dai *dai,
 static inline void *snd_soc_dai_get_drvdata(struct snd_soc_dai *dai)
 {
 	return dev_get_drvdata(dai->dev);
+}
+
+/**
+ * snd_soc_dai_set_sdw_stream() - Configures a DAI for SDW stream operation
+ * @dai: DAI
+ * @stream: STREAM
+ * @direction: Stream direction(Playback/Capture)
+ * SoundWire subsystem doesn't have a notion of direction and we reuse
+ * the ASoC stream direction to configure sink/source ports.
+ * Playback maps to source ports and Capture for sink ports.
+ *
+ * This should be invoked with NULL to clear the stream set previously.
+ * Returns 0 on success, a negative error code otherwise.
+ */
+static inline int snd_soc_dai_set_sdw_stream(struct snd_soc_dai *dai,
+				void *stream, int direction)
+{
+	if (dai->driver->ops->set_sdw_stream)
+		return dai->driver->ops->set_sdw_stream(dai, stream, direction);
+	else
+		return -ENOTSUPP;
 }
 
 #endif
