@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * udc.c - Core UDC Framework
  *
  * Copyright (C) 2010 Texas Instruments
  * Author: Felipe Balbi <balbi@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -28,6 +17,8 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb.h>
+
+#include "trace.h"
 
 /**
  * struct usb_udc - describes one usb device controller
@@ -64,10 +55,12 @@ static DEFINE_MUTEX(udc_lock);
  * (usually in probe function).
  */
 void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
-				unsigned maxpacket_limit)
+				unsigned int maxpacket_limit)
 {
 	ep->maxpacket_limit = maxpacket_limit;
 	ep->maxpacket = maxpacket_limit;
+
+	trace_usb_ep_set_maxpacket_limit(ep, 0);
 }
 EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
 
@@ -93,18 +86,23 @@ EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
  */
 int usb_ep_enable(struct usb_ep *ep)
 {
-	int ret;
+	int ret = 0;
 
 	if (ep->enabled)
-		return 0;
+		goto out;
 
 	ret = ep->ops->enable(ep, ep->desc);
-	if (ret)
-		return ret;
+	if (ret) {
+		ret = ret;
+		goto out;
+	}
 
 	ep->enabled = true;
 
-	return 0;
+out:
+	trace_usb_ep_enable(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_enable);
 
@@ -122,18 +120,23 @@ EXPORT_SYMBOL_GPL(usb_ep_enable);
  */
 int usb_ep_disable(struct usb_ep *ep)
 {
-	int ret;
+	int ret = 0;
 
 	if (!ep->enabled)
-		return 0;
+		goto out;
 
 	ret = ep->ops->disable(ep);
-	if (ret)
-		return ret;
+	if (ret) {
+		ret = ret;
+		goto out;
+	}
 
 	ep->enabled = false;
 
-	return 0;
+out:
+	trace_usb_ep_disable(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_disable);
 
@@ -154,7 +157,13 @@ EXPORT_SYMBOL_GPL(usb_ep_disable);
 struct usb_request *usb_ep_alloc_request(struct usb_ep *ep,
 					 gfp_t gfp_flags)
 {
-	return ep->ops->alloc_request(ep, gfp_flags);
+	struct usb_request *req = NULL;
+
+	req = ep->ops->alloc_request(ep, gfp_flags);
+
+	trace_usb_ep_alloc_request(ep, req, req ? 0 : -ENOMEM);
+
+	return req;
 }
 EXPORT_SYMBOL_GPL(usb_ep_alloc_request);
 
@@ -171,6 +180,7 @@ void usb_ep_free_request(struct usb_ep *ep,
 			 struct usb_request *req)
 {
 	ep->ops->free_request(ep, req);
+	trace_usb_ep_free_request(ep, req, 0);
 }
 EXPORT_SYMBOL_GPL(usb_ep_free_request);
 
@@ -234,10 +244,19 @@ EXPORT_SYMBOL_GPL(usb_ep_free_request);
 int usb_ep_queue(struct usb_ep *ep,
 		 struct usb_request *req, gfp_t gfp_flags)
 {
-	if (WARN_ON_ONCE(!ep->enabled && ep->address))
-		return -ESHUTDOWN;
+	int ret = 0;
 
-	return ep->ops->queue(ep, req, gfp_flags);
+	if (WARN_ON_ONCE(!ep->enabled && ep->address)) {
+		ret = -ESHUTDOWN;
+		goto out;
+	}
+
+	ret = ep->ops->queue(ep, req, gfp_flags);
+
+out:
+	trace_usb_ep_queue(ep, req, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_queue);
 
@@ -258,7 +277,12 @@ EXPORT_SYMBOL_GPL(usb_ep_queue);
  */
 int usb_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 {
-	return ep->ops->dequeue(ep, req);
+	int ret;
+
+	ret = ep->ops->dequeue(ep, req);
+	trace_usb_ep_dequeue(ep, req, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_dequeue);
 
@@ -285,7 +309,12 @@ EXPORT_SYMBOL_GPL(usb_ep_dequeue);
  */
 int usb_ep_set_halt(struct usb_ep *ep)
 {
-	return ep->ops->set_halt(ep, 1);
+	int ret;
+
+	ret = ep->ops->set_halt(ep, 1);
+	trace_usb_ep_set_halt(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_set_halt);
 
@@ -304,7 +333,12 @@ EXPORT_SYMBOL_GPL(usb_ep_set_halt);
  */
 int usb_ep_clear_halt(struct usb_ep *ep)
 {
-	return ep->ops->set_halt(ep, 0);
+	int ret;
+
+	ret = ep->ops->set_halt(ep, 0);
+	trace_usb_ep_clear_halt(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_clear_halt);
 
@@ -320,10 +354,16 @@ EXPORT_SYMBOL_GPL(usb_ep_clear_halt);
  */
 int usb_ep_set_wedge(struct usb_ep *ep)
 {
+	int ret;
+
 	if (ep->ops->set_wedge)
-		return ep->ops->set_wedge(ep);
+		ret = ep->ops->set_wedge(ep);
 	else
-		return ep->ops->set_halt(ep, 1);
+		ret = ep->ops->set_halt(ep, 1);
+
+	trace_usb_ep_set_wedge(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_set_wedge);
 
@@ -344,10 +384,16 @@ EXPORT_SYMBOL_GPL(usb_ep_set_wedge);
  */
 int usb_ep_fifo_status(struct usb_ep *ep)
 {
+	int ret;
+
 	if (ep->ops->fifo_status)
-		return ep->ops->fifo_status(ep);
+		ret = ep->ops->fifo_status(ep);
 	else
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+
+	trace_usb_ep_fifo_status(ep, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_ep_fifo_status);
 
@@ -364,6 +410,8 @@ void usb_ep_fifo_flush(struct usb_ep *ep)
 {
 	if (ep->ops->fifo_flush)
 		ep->ops->fifo_flush(ep);
+
+	trace_usb_ep_fifo_flush(ep, 0);
 }
 EXPORT_SYMBOL_GPL(usb_ep_fifo_flush);
 
@@ -378,7 +426,13 @@ EXPORT_SYMBOL_GPL(usb_ep_fifo_flush);
  */
 int usb_gadget_frame_number(struct usb_gadget *gadget)
 {
-	return gadget->ops->get_frame(gadget);
+	int ret;
+
+	ret = gadget->ops->get_frame(gadget);
+
+	trace_usb_gadget_frame_number(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_frame_number);
 
@@ -397,9 +451,19 @@ EXPORT_SYMBOL_GPL(usb_gadget_frame_number);
  */
 int usb_gadget_wakeup(struct usb_gadget *gadget)
 {
-	if (!gadget->ops->wakeup)
-		return -EOPNOTSUPP;
-	return gadget->ops->wakeup(gadget);
+	int ret = 0;
+
+	if (!gadget->ops->wakeup) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->wakeup(gadget);
+
+out:
+	trace_usb_gadget_wakeup(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_wakeup);
 
@@ -414,9 +478,19 @@ EXPORT_SYMBOL_GPL(usb_gadget_wakeup);
  */
 int usb_gadget_set_selfpowered(struct usb_gadget *gadget)
 {
-	if (!gadget->ops->set_selfpowered)
-		return -EOPNOTSUPP;
-	return gadget->ops->set_selfpowered(gadget, 1);
+	int ret = 0;
+
+	if (!gadget->ops->set_selfpowered) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->set_selfpowered(gadget, 1);
+
+out:
+	trace_usb_gadget_set_selfpowered(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_set_selfpowered);
 
@@ -432,9 +506,19 @@ EXPORT_SYMBOL_GPL(usb_gadget_set_selfpowered);
  */
 int usb_gadget_clear_selfpowered(struct usb_gadget *gadget)
 {
-	if (!gadget->ops->set_selfpowered)
-		return -EOPNOTSUPP;
-	return gadget->ops->set_selfpowered(gadget, 0);
+	int ret = 0;
+
+	if (!gadget->ops->set_selfpowered) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->set_selfpowered(gadget, 0);
+
+out:
+	trace_usb_gadget_clear_selfpowered(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_clear_selfpowered);
 
@@ -453,9 +537,19 @@ EXPORT_SYMBOL_GPL(usb_gadget_clear_selfpowered);
  */
 int usb_gadget_vbus_connect(struct usb_gadget *gadget)
 {
-	if (!gadget->ops->vbus_session)
-		return -EOPNOTSUPP;
-	return gadget->ops->vbus_session(gadget, 1);
+	int ret = 0;
+
+	if (!gadget->ops->vbus_session) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->vbus_session(gadget, 1);
+
+out:
+	trace_usb_gadget_vbus_connect(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_vbus_connect);
 
@@ -471,11 +565,23 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_connect);
  *
  * Returns zero on success, else negative errno.
  */
-int usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+int usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 {
-	if (!gadget->ops->vbus_draw)
-		return -EOPNOTSUPP;
-	return gadget->ops->vbus_draw(gadget, mA);
+	int ret = 0;
+
+	if (!gadget->ops->vbus_draw) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->vbus_draw(gadget, mA);
+	if (!ret)
+		gadget->mA = mA;
+
+out:
+	trace_usb_gadget_vbus_draw(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_vbus_draw);
 
@@ -492,9 +598,19 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_draw);
  */
 int usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
 {
-	if (!gadget->ops->vbus_session)
-		return -EOPNOTSUPP;
-	return gadget->ops->vbus_session(gadget, 0);
+	int ret = 0;
+
+	if (!gadget->ops->vbus_session) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = gadget->ops->vbus_session(gadget, 0);
+
+out:
+	trace_usb_gadget_vbus_disconnect(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_vbus_disconnect);
 
@@ -511,10 +627,12 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_disconnect);
  */
 int usb_gadget_connect(struct usb_gadget *gadget)
 {
-	int ret;
+	int ret = 0;
 
-	if (!gadget->ops->pullup)
-		return -EOPNOTSUPP;
+	if (!gadget->ops->pullup) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	if (gadget->deactivated) {
 		/*
@@ -522,12 +640,16 @@ int usb_gadget_connect(struct usb_gadget *gadget)
 		 * Gadget will be connected automatically after activation.
 		 */
 		gadget->connected = true;
-		return 0;
+		goto out;
 	}
 
 	ret = gadget->ops->pullup(gadget, 1);
 	if (!ret)
 		gadget->connected = 1;
+
+out:
+	trace_usb_gadget_connect(gadget, ret);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_connect);
@@ -544,10 +666,12 @@ EXPORT_SYMBOL_GPL(usb_gadget_connect);
  */
 int usb_gadget_disconnect(struct usb_gadget *gadget)
 {
-	int ret;
+	int ret = 0;
 
-	if (!gadget->ops->pullup)
-		return -EOPNOTSUPP;
+	if (!gadget->ops->pullup) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	if (gadget->deactivated) {
 		/*
@@ -555,12 +679,16 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 		 * Gadget will stay disconnected after activation.
 		 */
 		gadget->connected = false;
-		return 0;
+		goto out;
 	}
 
 	ret = gadget->ops->pullup(gadget, 0);
 	if (!ret)
 		gadget->connected = 0;
+
+out:
+	trace_usb_gadget_disconnect(gadget, ret);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_disconnect);
@@ -578,15 +706,16 @@ EXPORT_SYMBOL_GPL(usb_gadget_disconnect);
  */
 int usb_gadget_deactivate(struct usb_gadget *gadget)
 {
-	int ret;
+	int ret = 0;
 
 	if (gadget->deactivated)
-		return 0;
+		goto out;
 
 	if (gadget->connected) {
 		ret = usb_gadget_disconnect(gadget);
 		if (ret)
-			return ret;
+			goto out;
+
 		/*
 		 * If gadget was being connected before deactivation, we want
 		 * to reconnect it in usb_gadget_activate().
@@ -595,7 +724,10 @@ int usb_gadget_deactivate(struct usb_gadget *gadget)
 	}
 	gadget->deactivated = true;
 
-	return 0;
+out:
+	trace_usb_gadget_deactivate(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_deactivate);
 
@@ -610,8 +742,10 @@ EXPORT_SYMBOL_GPL(usb_gadget_deactivate);
  */
 int usb_gadget_activate(struct usb_gadget *gadget)
 {
+	int ret = 0;
+
 	if (!gadget->deactivated)
-		return 0;
+		goto out;
 
 	gadget->deactivated = false;
 
@@ -620,9 +754,12 @@ int usb_gadget_activate(struct usb_gadget *gadget)
 	 * while it was being deactivated, we call usb_gadget_connect().
 	 */
 	if (gadget->connected)
-		return usb_gadget_connect(gadget);
+		ret = usb_gadget_connect(gadget);
 
-	return 0;
+out:
+	trace_usb_gadget_activate(gadget, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_activate);
 
@@ -631,7 +768,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_activate);
 #ifdef	CONFIG_HAS_DMA
 
 int usb_gadget_map_request(struct usb_gadget *gadget,
-		struct usb_request *req, int is_in)
+			   struct usb_request *req, int is_in)
 {
 	struct device *dev = gadget->dev.parent;
 
@@ -642,7 +779,7 @@ int usb_gadget_map_request(struct usb_gadget *gadget,
 		int     mapped;
 
 		mapped = dma_map_sg(dev, req->sg, req->num_sgs,
-				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+				    is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		if (mapped == 0) {
 			dev_err(dev, "failed to map SGs\n");
 			return -EFAULT;
@@ -664,19 +801,19 @@ int usb_gadget_map_request(struct usb_gadget *gadget,
 EXPORT_SYMBOL_GPL(usb_gadget_map_request);
 
 void usb_gadget_unmap_request(struct usb_gadget *gadget,
-		struct usb_request *req, int is_in)
+			      struct usb_request *req, int is_in)
 {
 	if (req->length == 0)
 		return;
 
 	if (req->num_mapped_sgs) {
 		dma_unmap_sg(gadget->dev.parent, req->sg, req->num_mapped_sgs,
-				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			     is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 		req->num_mapped_sgs = 0;
 	} else {
 		dma_unmap_single(gadget->dev.parent, req->dma, req->length,
-				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+				 is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
 }
 EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
@@ -693,10 +830,12 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
  * completed request back to the gadget layer.
  */
 void usb_gadget_giveback_request(struct usb_ep *ep,
-		struct usb_request *req)
+				 struct usb_request *req)
 {
 	if (likely(req->status == 0))
 		usb_led_activity(USB_LED_EVENT_GADGET);
+
+	trace_usb_gadget_giveback_request(ep, req, 0);
 
 	req->complete(ep, req);
 }
@@ -725,9 +864,9 @@ EXPORT_SYMBOL_GPL(gadget_find_ep_by_name);
 
 /* ------------------------------------------------------------------------- */
 
-int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
-		struct usb_ep *ep, struct usb_endpoint_descriptor *desc,
-		struct usb_ss_ep_comp_descriptor *ep_comp)
+int usb_gadget_ep_match_desc(struct usb_gadget *gadget, struct usb_ep *ep,
+			     struct usb_endpoint_descriptor *desc,
+			     struct usb_ss_ep_comp_descriptor *ep_comp)
 {
 	u8		type;
 	u16		max;
@@ -749,7 +888,7 @@ int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
 		return 0;
 
 	/* "high bandwidth" works only at high speed */
-	if (!gadget_is_dualspeed(gadget) && usb_endpoint_maxp(desc) & (3<<11))
+	if (!gadget_is_dualspeed(gadget) && usb_endpoint_maxp(desc) & (3 << 11))
 		return 0;
 
 	switch (type) {
@@ -804,7 +943,7 @@ static void usb_gadget_state_work(struct work_struct *work)
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
-		enum usb_device_state state)
+			  enum usb_device_state state)
 {
 	gadget->state = state;
 	schedule_work(&gadget->work);
@@ -851,7 +990,7 @@ EXPORT_SYMBOL_GPL(usb_udc_vbus_handler);
  * well as updates gadget state.
  */
 void usb_gadget_udc_reset(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+			  struct usb_gadget_driver *driver)
 {
 	driver->reset(gadget);
 	usb_gadget_set_state(gadget, USB_STATE_DEFAULT);
@@ -926,7 +1065,7 @@ static void usb_udc_nop_release(struct device *dev)
  * Returns zero on success, negative errno otherwise.
  */
 int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
-		void (*release)(struct device *dev))
+			       void (*release)(struct device *dev))
 {
 	struct usb_udc		*udc;
 	int			ret = -ENOMEM;
@@ -1014,7 +1153,7 @@ EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 static void usb_gadget_remove_driver(struct usb_udc *udc)
 {
 	dev_dbg(&udc->dev, "unregistering UDC driver [%s]\n",
-			udc->driver->function);
+		udc->driver->function);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
@@ -1060,12 +1199,13 @@ EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 
 /* ------------------------------------------------------------------------- */
 
-static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *driver)
+static int udc_bind_to_driver(struct usb_udc *udc,
+			      struct usb_gadget_driver *driver)
 {
 	int ret;
 
 	dev_dbg(&udc->dev, "registering UDC driver [%s]\n",
-			driver->function);
+		driver->function);
 
 	udc->driver = driver;
 	udc->dev.driver = &driver->driver;
@@ -1157,7 +1297,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		if (udc->driver == driver) {
 			usb_gadget_remove_driver(udc);
 			usb_gadget_set_state(udc->gadget,
-					USB_STATE_NOTATTACHED);
+					     USB_STATE_NOTATTACHED);
 			ret = 0;
 			break;
 		}
@@ -1170,7 +1310,8 @@ EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
 /* ------------------------------------------------------------------------- */
 
 static ssize_t usb_udc_srp_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t n)
+				 struct device_attribute *attr,
+				 const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 
@@ -1182,7 +1323,8 @@ static ssize_t usb_udc_srp_store(struct device *dev,
 static DEVICE_ATTR(srp, S_IWUSR, NULL, usb_udc_srp_store);
 
 static ssize_t usb_udc_softconn_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t n)
+				      struct device_attribute *attr,
+				      const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 
@@ -1286,7 +1428,7 @@ static int usb_udc_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (udc->driver) {
 		ret = add_uevent_var(env, "USB_UDC_DRIVER=%s",
-				udc->driver->function);
+				     udc->driver->function);
 		if (ret) {
 			dev_err(dev, "failed to add uevent USB_UDC_DRIVER\n");
 			return ret;
@@ -1301,7 +1443,7 @@ static int __init usb_udc_init(void)
 	udc_class = class_create(THIS_MODULE, "udc");
 	if (IS_ERR(udc_class)) {
 		pr_err("failed to create udc class --> %ld\n",
-				PTR_ERR(udc_class));
+		       PTR_ERR(udc_class));
 		return PTR_ERR(udc_class);
 	}
 
