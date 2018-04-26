@@ -2729,7 +2729,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
 	struct cfg80211_bss *bss;
-	struct ieee80211_supported_band *band;
+	enum nl80211_band band;
 	struct brcmu_chan ch;
 	u16 channel;
 	u32 freq;
@@ -2752,11 +2752,11 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 	channel = bi->ctl_ch;
 
 	if (channel <= CH_MAX_2G_CHANNEL)
-		band = wiphy->bands[NL80211_BAND_2GHZ];
+		band = NL80211_BAND_2GHZ;
 	else
-		band = wiphy->bands[NL80211_BAND_5GHZ];
+		band = NL80211_BAND_5GHZ;
 
-	freq = ieee80211_channel_to_frequency(channel, band->band);
+	freq = ieee80211_channel_to_frequency(channel, band);
 	bss_data.chan = ieee80211_get_channel(wiphy, freq);
 	bss_data.scan_width = NL80211_BSS_CHAN_WIDTH_20;
 	bss_data.boottime_ns = ktime_to_ns(ktime_get_boottime());
