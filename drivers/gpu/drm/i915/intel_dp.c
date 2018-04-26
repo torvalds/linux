@@ -1701,7 +1701,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int lane_count, clock;
 	int min_lane_count = 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
-	/* Conveniently, the link BW constants become indices with a shift...*/
 	int min_clock = 0;
 	int max_clock;
 	int bpp, mode_rate;
