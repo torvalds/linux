@@ -244,6 +244,10 @@ enum ssb_mitigation {
 	SPEC_STORE_BYPASS_DISABLE,
 };
 
+/* AMD specific Speculative Store Bypass MSR data */
+extern u64 x86_amd_ls_cfg_base;
+extern u64 x86_amd_ls_cfg_rds_mask;
+
 extern char __indirect_thunk_start[];
 extern char __indirect_thunk_end[];
 
