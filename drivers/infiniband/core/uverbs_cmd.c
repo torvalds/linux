@@ -765,6 +765,11 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 
 	mr = uobj->object;
 
+	if (mr->dm) {
+		ret = -EINVAL;
+		goto put_uobjs;
+	}
+
 	if (cmd.flags & IB_MR_REREG_ACCESS) {
 		ret = ib_check_mr_access(cmd.access_flags);
 		if (ret)
