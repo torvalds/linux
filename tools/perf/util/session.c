@@ -1973,12 +1973,11 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 	return false;
 }
 
-int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
-				     const char *symbol_name, u64 addr)
+int map__set_kallsyms_ref_reloc_sym(struct map *map, const char *symbol_name, u64 addr)
 {
 	char *bracket;
-	int i;
 	struct ref_reloc_sym *ref;
+	struct kmap *kmap;
 
 	ref = zalloc(sizeof(struct ref_reloc_sym));
 	if (ref == NULL)
@@ -1996,13 +1995,9 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 
 	ref->addr = addr;
 
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct kmap *kmap = map__kmap(maps[i]);
-
-		if (!kmap)
-			continue;
+	kmap = map__kmap(map);
+	if (kmap)
 		kmap->ref_reloc_sym = ref;
-	}
 
 	return 0;
 }

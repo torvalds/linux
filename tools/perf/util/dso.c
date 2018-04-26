@@ -1014,7 +1014,7 @@ struct map *dso__new_map(const char *name)
 	struct dso *dso = dso__new(name);
 
 	if (dso)
-		map = map__new2(0, dso, MAP__FUNCTION);
+		map = map__new2(0, dso);
 
 	return map;
 }
@@ -1176,19 +1176,19 @@ int dso__name_len(const struct dso *dso)
 	return dso->short_name_len;
 }
 
-bool dso__loaded(const struct dso *dso, enum map_type type)
+bool dso__loaded(const struct dso *dso)
 {
-	return dso->loaded & (1 << type);
+	return dso->loaded;
 }
 
-bool dso__sorted_by_name(const struct dso *dso, enum map_type type)
+bool dso__sorted_by_name(const struct dso *dso)
 {
-	return dso->sorted_by_name & (1 << type);
+	return dso->sorted_by_name;
 }
 
-void dso__set_sorted_by_name(struct dso *dso, enum map_type type)
+void dso__set_sorted_by_name(struct dso *dso)
 {
-	dso->sorted_by_name |= (1 << type);
+	dso->sorted_by_name = true;
 }
 
 struct dso *dso__new(const char *name)
@@ -1196,12 +1196,10 @@ struct dso *dso__new(const char *name)
 	struct dso *dso = calloc(1, sizeof(*dso) + strlen(name) + 1);
 
 	if (dso != NULL) {
-		int i;
 		strcpy(dso->name, name);
 		dso__set_long_name(dso, dso->name, false);
 		dso__set_short_name(dso, dso->name, false);
-		for (i = 0; i < MAP__NR_TYPES; ++i)
-			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
+		dso->symbols = dso->symbol_names = RB_ROOT;
 		dso->data.cache = RB_ROOT;
 		dso->inlined_nodes = RB_ROOT;
 		dso->srclines = RB_ROOT;
@@ -1231,8 +1229,6 @@ struct dso *dso__new(const char *name)
 
 void dso__delete(struct dso *dso)
 {
-	int i;
-
 	if (!RB_EMPTY_NODE(&dso->rb_node))
 		pr_err("DSO %s is still in rbtree when being deleted!\n",
 		       dso->long_name);
@@ -1240,8 +1236,7 @@ void dso__delete(struct dso *dso)
 	/* free inlines first, as they reference symbols */
 	inlines__tree_delete(&dso->inlined_nodes);
 	srcline__tree_delete(&dso->srclines);
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		symbols__delete(&dso->symbols[i]);
+	symbols__delete(&dso->symbols);
 
 	if (dso->short_name_allocated) {
 		zfree((char **)&dso->short_name);
@@ -1451,9 +1446,7 @@ size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
-		int i;
-		for (i = 0; i < MAP__NR_TYPES; ++i)
-			ret += dso__fprintf(pos, i, fp);
+		ret += dso__fprintf(pos, fp);
 	}
 
 	return ret;
@@ -1467,18 +1460,17 @@ size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 	return fprintf(fp, "%s", sbuild_id);
 }
 
-size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
+size_t dso__fprintf(struct dso *dso, FILE *fp)
 {
 	struct rb_node *nd;
 	size_t ret = fprintf(fp, "dso: %s (", dso->short_name);
 
 	if (dso->short_name != dso->long_name)
 		ret += fprintf(fp, "%s, ", dso->long_name);
-	ret += fprintf(fp, "%s, %sloaded, ", map_type__name[type],
-		       dso__loaded(dso, type) ? "" : "NOT ");
+	ret += fprintf(fp, "%sloaded, ", dso__loaded(dso) ? "" : "NOT ");
 	ret += dso__fprintf_buildid(dso, fp);
 	ret += fprintf(fp, ")\n");
-	for (nd = rb_first(&dso->symbols[type]); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&dso->symbols); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		ret += symbol__fprintf(pos, fp);
 	}

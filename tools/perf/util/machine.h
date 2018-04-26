@@ -49,7 +49,7 @@ struct machine {
 	struct perf_env   *env;
 	struct dsos	  dsos;
 	struct map_groups kmaps;
-	struct map	  *vmlinux_maps[MAP__NR_TYPES];
+	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
 	union { /* Tool specific area */
@@ -64,19 +64,13 @@ static inline struct threads *machine__threads(struct machine *machine, pid_t ti
 	return &machine->threads[(unsigned int)tid % THREADS__TABLE_SIZE];
 }
 
-static inline
-struct map *__machine__kernel_map(struct machine *machine, enum map_type type)
-{
-	return machine->vmlinux_maps[type];
-}
-
 /*
  * The main kernel (vmlinux) map
  */
 static inline
 struct map *machine__kernel_map(struct machine *machine)
 {
-	return __machine__kernel_map(machine, MAP__FUNCTION);
+	return machine->vmlinux_map;
 }
 
 /*
@@ -85,7 +79,7 @@ struct map *machine__kernel_map(struct machine *machine)
 static inline
 struct maps *machine__kernel_maps(struct machine *machine)
 {
-	return &machine->kmaps.maps[MAP__FUNCTION];
+	return &machine->kmaps.maps;
 }
 
 int machine__get_kernel_start(struct machine *machine);
@@ -202,27 +196,25 @@ struct dso *machine__findnew_dso(struct machine *machine, const char *filename);
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 
 static inline
-struct symbol *machine__find_kernel_symbol(struct machine *machine,
-					   enum map_type type, u64 addr,
+struct symbol *machine__find_kernel_symbol(struct machine *machine, u64 addr,
 					   struct map **mapp)
 {
-	return map_groups__find_symbol(&machine->kmaps, type, addr, mapp);
+	return map_groups__find_symbol(&machine->kmaps, addr, mapp);
 }
 
 static inline
 struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
-						   enum map_type type, const char *name,
+						   const char *name,
 						   struct map **mapp)
 {
-	return map_groups__find_symbol_by_name(&machine->kmaps, type, name, mapp);
+	return map_groups__find_symbol_by_name(&machine->kmaps, name, mapp);
 }
 
 static inline
 struct symbol *machine__find_kernel_function(struct machine *machine, u64 addr,
 					     struct map **mapp)
 {
-	return machine__find_kernel_symbol(machine, MAP__FUNCTION, addr,
-					   mapp);
+	return machine__find_kernel_symbol(machine,  addr, mapp);
 }
 
 static inline
@@ -237,13 +229,7 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
 int arch__fix_module_text_start(u64 *start, const char *name);
 
-int __machine__load_kallsyms(struct machine *machine, const char *filename,
-			     enum map_type type);
-
-static inline int machine__load_kallsyms(struct machine *machine, const char *filename)
-{
-	return __machine__load_kallsyms(machine, filename, MAP__FUNCTION);
-}
+int machine__load_kallsyms(struct machine *machine, const char *filename);
 
 int machine__load_vmlinux_path(struct machine *machine);
 

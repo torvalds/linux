@@ -131,7 +131,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 			goto out;
 
 		/* emulate dso__load() */
-		dso__set_loaded(dso, MAP__FUNCTION);
+		dso__set_loaded(dso);
 
 		for (k = 0; k < fake_symbols[i].nr_syms; k++) {
 			struct symbol *sym;
@@ -144,7 +144,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 				goto out;
 			}
 
-			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
+			symbols__insert(&dso->symbols, sym);
 		}
 
 		dso__put(dso);

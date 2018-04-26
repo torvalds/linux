@@ -715,10 +715,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 
 static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
 {
-	int printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += maps__fprintf_task(&mg->maps[i], indent, fp);
-	return printed;
+	return maps__fprintf_task(&mg->maps, indent, fp);
 }
 
 static void task__print_level(struct task *task, FILE *fp, int level)

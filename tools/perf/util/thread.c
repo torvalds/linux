@@ -302,22 +302,19 @@ int thread__insert_map(struct thread *thread, struct map *map)
 static int __thread__prepare_access(struct thread *thread)
 {
 	bool initialized = false;
-	int i, err = 0;
+	int err = 0;
+	struct maps *maps = &thread->mg->maps;
+	struct map *map;
 
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct maps *maps = &thread->mg->maps[i];
-		struct map *map;
+	down_read(&maps->lock);
 
-		down_read(&maps->lock);
-
-		for (map = maps__first(maps); map; map = map__next(map)) {
-			err = unwind__prepare_access(thread, map, &initialized);
-			if (err || initialized)
-				break;
-		}
-
-		up_read(&maps->lock);
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		err = unwind__prepare_access(thread, map, &initialized);
+		if (err || initialized)
+			break;
 	}
+
+	up_read(&maps->lock);
 
 	return err;
 }
@@ -335,8 +332,6 @@ static int thread__prepare_access(struct thread *thread)
 static int thread__clone_map_groups(struct thread *thread,
 				    struct thread *parent)
 {
-	int i;
-
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
 		return thread__prepare_access(thread);
@@ -348,9 +343,8 @@ static int thread__clone_map_groups(struct thread *thread,
 	}
 
 	/* But this one is new process, copy maps. */
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(thread, parent->mg, i) < 0)
-			return -ENOMEM;
+	if (map_groups__clone(thread, parent->mg) < 0)
+		return -ENOMEM;
 
 	return 0;
 }

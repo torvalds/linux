@@ -71,18 +71,10 @@ static enum dso_binary_type binary_type_symtab[] = {
 
 #define DSO_BINARY_TYPE__SYMTAB_CNT ARRAY_SIZE(binary_type_symtab)
 
-static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
+static bool symbol_type__filter(char symbol_type)
 {
 	symbol_type = toupper(symbol_type);
-
-	switch (map_type) {
-	case MAP__FUNCTION:
-		return symbol_type == 'T' || symbol_type == 'W';
-	case MAP__VARIABLE:
-		return symbol_type == 'D';
-	default:
-		return false;
-	}
+	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D';
 }
 
 static int prefix_underscores_count(const char *str)
@@ -229,9 +221,9 @@ void symbols__fixup_end(struct rb_root *symbols)
 		curr->end = roundup(curr->start, 4096) + 4096;
 }
 
-void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
+void map_groups__fixup_end(struct map_groups *mg)
 {
-	struct maps *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps;
 	struct map *next, *curr;
 
 	down_write(&maps->lock);
@@ -486,55 +478,40 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 
 void dso__reset_find_symbol_cache(struct dso *dso)
 {
-	enum map_type type;
-
-	for (type = MAP__FUNCTION; type <= MAP__VARIABLE; ++type) {
-		dso->last_find_result[type].addr   = 0;
-		dso->last_find_result[type].symbol = NULL;
-	}
+	dso->last_find_result.addr   = 0;
+	dso->last_find_result.symbol = NULL;
 }
 
-void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
+void dso__insert_symbol(struct dso *dso, struct symbol *sym)
 {
-	__symbols__insert(&dso->symbols[type], sym, dso->kernel);
+	__symbols__insert(&dso->symbols, sym, dso->kernel);
 
 	/* update the symbol cache if necessary */
-	if (dso->last_find_result[type].addr >= sym->start &&
-	    (dso->last_find_result[type].addr < sym->end ||
+	if (dso->last_find_result.addr >= sym->start &&
+	    (dso->last_find_result.addr < sym->end ||
 	    sym->start == sym->end)) {
-		dso->last_find_result[type].symbol = sym;
+		dso->last_find_result.symbol = sym;
 	}
 }
 
-struct symbol *__dso__find_symbol(struct dso *dso,
-				  enum map_type type, u64 addr)
+struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
 {
-	if (dso->last_find_result[type].addr != addr || dso->last_find_result[type].symbol == NULL) {
-		dso->last_find_result[type].addr   = addr;
-		dso->last_find_result[type].symbol = symbols__find(&dso->symbols[type], addr);
+	if (dso->last_find_result.addr != addr || dso->last_find_result.symbol == NULL) {
+		dso->last_find_result.addr   = addr;
+		dso->last_find_result.symbol = symbols__find(&dso->symbols, addr);
 	}
 
-	return dso->last_find_result[type].symbol;
-}
-
-static struct symbol *__dso__first_symbol(struct dso *dso, enum map_type type)
-{
-	return symbols__first(&dso->symbols[type]);
+	return dso->last_find_result.symbol;
 }
 
 struct symbol *dso__first_symbol(struct dso *dso)
 {
-	return __dso__first_symbol(dso, MAP__FUNCTION);
-}
-
-static struct symbol *__dso__last_symbol(struct dso *dso, enum map_type type)
-{
-	return symbols__last(&dso->symbols[type]);
+	return symbols__first(&dso->symbols);
 }
 
 struct symbol *dso__last_symbol(struct dso *dso)
 {
-	return __dso__last_symbol(dso, MAP__FUNCTION);
+	return symbols__last(&dso->symbols);
 }
 
 struct symbol *dso__next_symbol(struct symbol *sym)
@@ -553,22 +530,20 @@ struct symbol *symbol__next_by_name(struct symbol *sym)
  /*
   * Returns first symbol that matched with @name.
   */
-struct symbol *__dso__find_symbol_by_name(struct dso *dso, enum map_type type,
-					  const char *name)
+struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name)
 {
-	struct symbol *s = symbols__find_by_name(&dso->symbol_names[type], name,
+	struct symbol *s = symbols__find_by_name(&dso->symbol_names, name,
 						 SYMBOL_TAG_INCLUDE__NONE);
 	if (!s)
-		s = symbols__find_by_name(&dso->symbol_names[type], name,
+		s = symbols__find_by_name(&dso->symbol_names, name,
 					  SYMBOL_TAG_INCLUDE__DEFAULT_ONLY);
 	return s;
 }
 
-void dso__sort_by_name(struct dso *dso, enum map_type type)
+void dso__sort_by_name(struct dso *dso)
 {
-	dso__set_sorted_by_name(dso, type);
-	return symbols__sort_by_name(&dso->symbol_names[type],
-				     &dso->symbols[type]);
+	dso__set_sorted_by_name(dso);
+	return symbols__sort_by_name(&dso->symbol_names, &dso->symbols);
 }
 
 int modules__parse(const char *filename, void *arg,
@@ -674,9 +649,9 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 {
 	struct symbol *sym;
 	struct process_kallsyms_args *a = arg;
-	struct rb_root *root = &a->dso->symbols[a->map->type];
+	struct rb_root *root = &a->dso->symbols;
 
-	if (!symbol_type__is_a(type, a->map->type))
+	if (!symbol_type__filter(type))
 		return 0;
 
 	/*
@@ -714,8 +689,8 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map)
 	struct map *curr_map;
 	struct symbol *pos;
 	int count = 0;
-	struct rb_root old_root = dso->symbols[map->type];
-	struct rb_root *root = &dso->symbols[map->type];
+	struct rb_root old_root = dso->symbols;
+	struct rb_root *root = &dso->symbols;
 	struct rb_node *next = rb_first(root);
 
 	if (!kmaps)
@@ -735,7 +710,7 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map)
 		if (module)
 			*module = '\0';
 
-		curr_map = __map_groups__find(kmaps, map->type, pos->start);
+		curr_map = map_groups__find(kmaps, pos->start);
 
 		if (!curr_map) {
 			symbol__delete(pos);
@@ -745,7 +720,7 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map)
 		pos->start -= curr_map->start - curr_map->pgoff;
 		if (pos->end)
 			pos->end -= curr_map->start - curr_map->pgoff;
-		symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
+		symbols__insert(&curr_map->dso->symbols, pos);
 		++count;
 	}
 
@@ -767,7 +742,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta)
 	struct map *curr_map = map;
 	struct symbol *pos;
 	int count = 0, moved = 0;
-	struct rb_root *root = &dso->symbols[map->type];
+	struct rb_root *root = &dso->symbols;
 	struct rb_node *next = rb_first(root);
 	int kernel_range = 0;
 
@@ -800,11 +775,10 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta)
 					 * symbols are in its kmap. Mark it as
 					 * loaded.
 					 */
-					dso__set_loaded(curr_map->dso,
-							curr_map->type);
+					dso__set_loaded(curr_map->dso);
 				}
 
-				curr_map = __map_groups__find_by_name(kmaps, map->type, module);
+				curr_map = map_groups__find_by_name(kmaps, module);
 				if (curr_map == NULL) {
 					pr_debug("%s/proc/{kallsyms,modules} "
 					         "inconsistency while looking "
@@ -854,7 +828,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta)
 
 			ndso->kernel = dso->kernel;
 
-			curr_map = map__new2(pos->start, ndso, map->type);
+			curr_map = map__new2(pos->start, ndso);
 			if (curr_map == NULL) {
 				dso__put(ndso);
 				return -1;
@@ -871,7 +845,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta)
 add_symbol:
 		if (curr_map != map) {
 			rb_erase(&pos->rb_node, root);
-			symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
+			symbols__insert(&curr_map->dso->symbols, pos);
 			++moved;
 		} else
 			++count;
@@ -885,7 +859,7 @@ discard_symbol:
 	if (curr_map != map &&
 	    dso->kernel == DSO_TYPE_GUEST_KERNEL &&
 	    machine__is_default_guest(kmaps->machine)) {
-		dso__set_loaded(curr_map->dso, curr_map->type);
+		dso__set_loaded(curr_map->dso);
 	}
 
 	return count + moved;
@@ -1046,14 +1020,9 @@ out_delete_from:
 	return ret;
 }
 
-static struct map *__map_groups__first(struct map_groups *mg, enum map_type type)
-{
-	return maps__first(&mg->maps[type]);
-}
-
 struct map *map_groups__first(struct map_groups *mg)
 {
-	return __map_groups__first(mg, MAP__FUNCTION);
+	return maps__first(&mg->maps);
 }
 
 static int do_validate_kcore_modules(const char *filename, struct map *map,
@@ -1067,7 +1036,7 @@ static int do_validate_kcore_modules(const char *filename, struct map *map,
 	if (err)
 		return err;
 
-	old_map = __map_groups__first(kmaps, map->type);
+	old_map = map_groups__first(kmaps);
 	while (old_map) {
 		struct map *next = map_groups__next(old_map);
 		struct module_info *mi;
@@ -1159,7 +1128,6 @@ static int validate_kcore_addresses(const char *kallsyms_filename,
 
 struct kcore_mapfn_data {
 	struct dso *dso;
-	enum map_type type;
 	struct list_head maps;
 };
 
@@ -1168,7 +1136,7 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 	struct kcore_mapfn_data *md = data;
 	struct map *map;
 
-	map = map__new2(start, md->dso, md->type);
+	map = map__new2(start, md->dso);
 	if (map == NULL)
 		return -ENOMEM;
 
@@ -1207,7 +1175,6 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		return -EINVAL;
 
 	md.dso = dso;
-	md.type = map->type;
 	INIT_LIST_HEAD(&md.maps);
 
 	fd = open(kcore_filename, O_RDONLY);
@@ -1230,7 +1197,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Remove old maps */
-	old_map = __map_groups__first(kmaps, map->type);
+	old_map = map_groups__first(kmaps);
 	while (old_map) {
 		struct map *next = map_groups__next(old_map);
 
@@ -1240,7 +1207,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Find the kernel map using the first symbol */
-	sym = __dso__first_symbol(dso, map->type);
+	sym = dso__first_symbol(dso);
 	list_for_each_entry(new_map, &md.maps, node) {
 		if (sym && sym->start >= new_map->start &&
 		    sym->start < new_map->end) {
@@ -1339,8 +1306,8 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 	if (kallsyms__delta(map, filename, &delta))
 		return -1;
 
-	symbols__fixup_end(&dso->symbols[map->type]);
-	symbols__fixup_duplicate(&dso->symbols[map->type]);
+	symbols__fixup_end(&dso->symbols);
+	symbols__fixup_duplicate(&dso->symbols);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
@@ -1359,8 +1326,7 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	return __dso__load_kallsyms(dso, filename, map, false);
 }
 
-static int dso__load_perf_map(const char *map_path, struct dso *dso,
-			      struct map *map)
+static int dso__load_perf_map(const char *map_path, struct dso *dso)
 {
 	char *line = NULL;
 	size_t n;
@@ -1402,7 +1368,7 @@ static int dso__load_perf_map(const char *map_path, struct dso *dso,
 		if (sym == NULL)
 			goto out_delete_line;
 
-		symbols__insert(&dso->symbols[map->type], sym);
+		symbols__insert(&dso->symbols, sym);
 		nr_syms++;
 	}
 
@@ -1527,7 +1493,7 @@ int dso__load(struct dso *dso, struct map *map)
 	pthread_mutex_lock(&dso->lock);
 
 	/* check again under the dso->lock */
-	if (dso__loaded(dso, map->type)) {
+	if (dso__loaded(dso)) {
 		ret = 1;
 		goto out;
 	}
@@ -1560,7 +1526,7 @@ int dso__load(struct dso *dso, struct map *map)
 			goto out;
 		}
 
-		ret = dso__load_perf_map(map_path, dso, map);
+		ret = dso__load_perf_map(map_path, dso);
 		dso->symtab_type = ret > 0 ? DSO_BINARY_TYPE__JAVA_JIT :
 					     DSO_BINARY_TYPE__NOT_FOUND;
 		goto out;
@@ -1669,7 +1635,7 @@ int dso__load(struct dso *dso, struct map *map)
 	if (ret > 0) {
 		int nr_plt;
 
-		nr_plt = dso__synthesize_plt_symbols(dso, runtime_ss, map);
+		nr_plt = dso__synthesize_plt_symbols(dso, runtime_ss);
 		if (nr_plt > 0)
 			ret += nr_plt;
 	}
@@ -1681,16 +1647,16 @@ out_free:
 	if (ret < 0 && strstr(dso->name, " (deleted)") != NULL)
 		ret = 0;
 out:
-	dso__set_loaded(dso, map->type);
+	dso__set_loaded(dso);
 	pthread_mutex_unlock(&dso->lock);
 	nsinfo__mountns_exit(&nsc);
 
 	return ret;
 }
 
-struct map *__map_groups__find_by_name(struct map_groups *mg, enum map_type type, const char *name)
+struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 {
-	struct maps *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps;
 	struct map *map;
 
 	down_read(&maps->lock);
@@ -1737,7 +1703,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		else
 			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
 		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
-		dso__set_loaded(dso, map->type);
+		dso__set_loaded(dso);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 	}
 

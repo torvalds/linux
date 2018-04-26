@@ -1488,8 +1488,8 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 	return machine__process_event(machine, event, sample);
 }
 
-static struct map *__thread__find_map(struct thread *thread, u8 cpumode, enum map_type type,
-				      u64 addr, struct addr_location *al)
+struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
+			     struct addr_location *al)
 {
 	struct map_groups *mg = thread->mg;
 	struct machine *machine = mg->machine;
@@ -1534,7 +1534,7 @@ static struct map *__thread__find_map(struct thread *thread, u8 cpumode, enum ma
 		return NULL;
 	}
 try_again:
-	al->map = __map_groups__find(mg, type, al->addr);
+	al->map = map_groups__find(mg, al->addr);
 	if (al->map == NULL) {
 		/*
 		 * If this is outside of all known maps, and is a negative
@@ -1563,13 +1563,6 @@ try_again:
 	}
 
 	return al->map;
-}
-
-struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
-			     struct addr_location *al)
-{
-	struct map *map = __thread__find_map(thread, cpumode, MAP__FUNCTION, addr, al);
-	return map ?: __thread__find_map(thread, cpumode, MAP__VARIABLE, addr, al);
 }
 
 struct symbol *thread__find_symbol(struct thread *thread, u8 cpumode,
