@@ -49,6 +49,7 @@ static bool		cfg_do_ipv4;
 static bool		cfg_do_ipv6;
 static bool		cfg_do_connected;
 static bool		cfg_do_connectionless;
+static bool		cfg_do_msgmore;
 static bool		cfg_do_setsockopt;
 static int		cfg_specific_test_id = -1;
 
@@ -369,6 +370,23 @@ static void set_route_mtu(int mtu, bool is_ipv4)
 	fprintf(stderr, "route mtu (test): %u\n", mtu);
 }
 
+static bool __send_one(int fd, struct msghdr *msg, int flags)
+{
+	int ret;
+
+	ret = sendmsg(fd, msg, flags);
+	if (ret == -1 && (errno == EMSGSIZE || errno == ENOMEM))
+		return false;
+	if (ret == -1)
+		error(1, errno, "sendmsg");
+	if (ret != msg->msg_iov->iov_len)
+		error(1, 0, "sendto: %d != %lu", ret, msg->msg_iov->iov_len);
+	if (msg->msg_flags)
+		error(1, 0, "sendmsg: return flags 0x%x\n", msg->msg_flags);
+
+	return true;
+}
+
 static bool send_one(int fd, int len, int gso_len,
 		     struct sockaddr *addr, socklen_t alen)
 {
@@ -376,7 +394,6 @@ static bool send_one(int fd, int len, int gso_len,
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 	struct cmsghdr *cm;
-	int ret;
 
 	iov.iov_base = buf;
 	iov.iov_len = len;
@@ -398,15 +415,17 @@ static bool send_one(int fd, int len, int gso_len,
 		*((uint16_t *) CMSG_DATA(cm)) = gso_len;
 	}
 
-	ret = sendmsg(fd, &msg, 0);
-	if (ret == -1 && (errno == EMSGSIZE || errno == ENOMEM))
-		return false;
-	if (ret == -1)
-		error(1, errno, "sendmsg");
-	if (ret != len)
-		error(1, 0, "sendto: %d != %u", ret, len);
+	/* If MSG_MORE, send 1 byte followed by remainder */
+	if (cfg_do_msgmore && len > 1) {
+		iov.iov_len = 1;
+		if (!__send_one(fd, &msg, MSG_MORE))
+			error(1, 0, "send 1B failed");
 
-	return true;
+		iov.iov_base++;
+		iov.iov_len = len - 1;
+	}
+
+	return __send_one(fd, &msg, 0);
 }
 
 static int recv_one(int fd, int flags)
@@ -558,7 +577,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "46cCst:")) != -1) {
+	while ((c = getopt(argc, argv, "46cCmst:")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_do_ipv4 = true;
@@ -571,6 +590,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'C':
 			cfg_do_connectionless = true;
+			break;
+		case 'm':
+			cfg_do_msgmore = true;
 			break;
 		case 's':
 			cfg_do_setsockopt = true;
