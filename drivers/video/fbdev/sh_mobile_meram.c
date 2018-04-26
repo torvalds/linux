@@ -642,10 +642,8 @@ static int sh_mobile_meram_probe(struct platform_device *pdev)
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "cannot allocate device data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	/* Initialize private data. */
 	mutex_init(&priv->lock);
