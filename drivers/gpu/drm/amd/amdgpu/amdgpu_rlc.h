@@ -85,6 +85,11 @@ struct amdgpu_rlc {
 	u8 *save_restore_list_srm;
 
 	bool is_rlc_v2_1;
+
+	/* for rlc autoload */
+	struct amdgpu_bo	*rlc_autoload_bo;
+	u64			rlc_autoload_gpu_addr;
+	void			*rlc_autoload_ptr;
 };
 
 void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev);
