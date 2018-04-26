@@ -38,7 +38,7 @@
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn10/dcn10_opp.h"
-#include "dce/dce_link_encoder.h"
+#include "dcn10/dcn10_link_encoder.h"
 #include "dcn10/dcn10_stream_encoder.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
@@ -214,13 +214,11 @@ static const struct dce_aduio_mask audio_mask = {
 	AUX_REG_LIST(id)\
 }
 
-static const struct dce110_link_enc_aux_registers link_enc_aux_regs[] = {
+static const struct dcn10_link_enc_aux_registers link_enc_aux_regs[] = {
 		aux_regs(0),
 		aux_regs(1),
 		aux_regs(2),
-		aux_regs(3),
-		aux_regs(4),
-		aux_regs(5)
+		aux_regs(3)
 };
 
 #define hpd_regs(id)\
@@ -228,13 +226,11 @@ static const struct dce110_link_enc_aux_registers link_enc_aux_regs[] = {
 	HPD_REG_LIST(id)\
 }
 
-static const struct dce110_link_enc_hpd_registers link_enc_hpd_regs[] = {
+static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 		hpd_regs(0),
 		hpd_regs(1),
 		hpd_regs(2),
-		hpd_regs(3),
-		hpd_regs(4),
-		hpd_regs(5)
+		hpd_regs(3)
 };
 
 #define link_regs(id)\
@@ -243,14 +239,19 @@ static const struct dce110_link_enc_hpd_registers link_enc_hpd_regs[] = {
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
-static const struct dce110_link_enc_registers link_enc_regs[] = {
+static const struct dcn10_link_enc_registers link_enc_regs[] = {
 	link_regs(0),
 	link_regs(1),
 	link_regs(2),
-	link_regs(3),
-	link_regs(4),
-	link_regs(5),
-	link_regs(6),
+	link_regs(3)
+};
+
+static const struct dcn10_link_enc_shift le_shift = {
+		LINK_ENCODER_MASK_SH_LIST_DCN10(__SHIFT)
+};
+
+static const struct dcn10_link_enc_mask le_mask = {
+		LINK_ENCODER_MASK_SH_LIST_DCN10(_MASK)
 };
 
 #define ipp_regs(id)\
@@ -583,20 +584,22 @@ static const struct encoder_feature_support link_enc_feature = {
 struct link_encoder *dcn10_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
-	struct dce110_link_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+	struct dcn10_link_encoder *enc10 =
+		kzalloc(sizeof(struct dcn10_link_encoder), GFP_KERNEL);
 
-	if (!enc110)
+	if (!enc10)
 		return NULL;
 
-	dce110_link_encoder_construct(enc110,
+	dcn10_link_encoder_construct(enc10,
 				      enc_init_data,
 				      &link_enc_feature,
 				      &link_enc_regs[enc_init_data->transmitter],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
-				      &link_enc_hpd_regs[enc_init_data->hpd_source]);
+				      &link_enc_hpd_regs[enc_init_data->hpd_source],
+				      &le_shift,
+				      &le_mask);
 
-	return &enc110->base;
+	return &enc10->base;
 }
 
 struct clock_source *dcn10_clock_source_create(
