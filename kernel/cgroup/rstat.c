@@ -28,9 +28,12 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	unsigned long flags;
 
 	/*
-	 * Speculative already-on-list test.  This may race leading to
-	 * temporary inaccuracies, which is fine.
-	 *
+	 * Paired with the one in cgroup_rstat_cpu_pop_upated().  Either we
+	 * see NULL updated_next or they see our updated stat.
+	 */
+	smp_mb();
+
+	/*
 	 * Because @parent's updated_children is terminated with @parent
 	 * instead of NULL, we can tell whether @cgrp is on the list by
 	 * testing the next pointer for NULL.
@@ -126,6 +129,13 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 
 		*nextp = rstatc->updated_next;
 		rstatc->updated_next = NULL;
+
+		/*
+		 * Paired with the one in cgroup_rstat_cpu_updated().
+		 * Either they see NULL updated_next or we see their
+		 * updated stat.
+		 */
+		smp_mb();
 	}
 
 	return pos;
