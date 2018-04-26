@@ -259,11 +259,11 @@ struct css_set {
 };
 
 /*
- * cgroup basic resource usage statistics.  Accounting is done per-cpu in
- * cgroup_cpu_stat which is then lazily propagated up the hierarchy on
- * reads.
+ * rstat - cgroup scalable recursive statistics.  Accounting is done
+ * per-cpu in cgroup_rstat_cpu which is then lazily propagated up the
+ * hierarchy on reads.
  *
- * When a stat gets updated, the cgroup_cpu_stat and its ancestors are
+ * When a stat gets updated, the cgroup_rstat_cpu and its ancestors are
  * linked into the updated tree.  On the following read, propagation only
  * considers and consumes the updated tree.  This makes reading O(the
  * number of descendants which have been active since last read) instead of
@@ -274,7 +274,7 @@ struct css_set {
  * become very expensive.  By propagating selectively, increasing reading
  * frequency decreases the cost of each read.
  */
-struct cgroup_cpu_stat {
+struct cgroup_rstat_cpu {
 	/*
 	 * ->sync protects all the current counters.  These are the only
 	 * fields which get updated in the hot path.
@@ -297,7 +297,7 @@ struct cgroup_cpu_stat {
 	 * to the cgroup makes it unnecessary for each per-cpu struct to
 	 * point back to the associated cgroup.
 	 *
-	 * Protected by per-cpu cgroup_cpu_stat_lock.
+	 * Protected by per-cpu cgroup_rstat_cpu_lock.
 	 */
 	struct cgroup *updated_children;	/* terminated by self cgroup */
 	struct cgroup *updated_next;		/* NULL iff not on the list */
@@ -408,8 +408,10 @@ struct cgroup {
 	 */
 	struct cgroup *dom_cgrp;
 
+	/* per-cpu recursive resource statistics */
+	struct cgroup_rstat_cpu __percpu *rstat_cpu;
+
 	/* cgroup basic resource statistics */
-	struct cgroup_cpu_stat __percpu *cpu_stat;
 	struct cgroup_stat pending_stat;	/* pending from children */
 	struct cgroup_stat stat;
 
