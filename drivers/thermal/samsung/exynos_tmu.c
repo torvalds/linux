@@ -618,7 +618,7 @@ static void exynos7_tmu_initialize(struct platform_device *pdev)
 	sanitize_temp_error(data, trim_info);
 
 	/* Write temperature code for rising and falling threshold */
-	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
+	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
 		tz->ops->get_trip_temp(tz, i, &temp);
 		temp /= MCELSIUS;
 		exynos7_tmu_set_trip_temp(data, i, temp);
