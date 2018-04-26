@@ -216,33 +216,6 @@ struct exynos_tmu_data {
 	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
 
-static void exynos_report_trigger(struct exynos_tmu_data *p)
-{
-	char data[10], *envp[] = { data, NULL };
-	struct thermal_zone_device *tz = p->tzd;
-	int temp;
-	unsigned int i;
-
-	if (!tz) {
-		pr_err("No thermal zone device defined\n");
-		return;
-	}
-
-	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-
-	mutex_lock(&tz->lock);
-	/* Find the level for which trip happened */
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
-		tz->ops->get_trip_temp(tz, i, &temp);
-		if (tz->last_temperature < temp)
-			break;
-	}
-
-	snprintf(data, sizeof(data), "%u", i);
-	kobject_uevent_env(&tz->device.kobj, KOBJ_CHANGE, envp);
-	mutex_unlock(&tz->lock);
-}
-
 /*
  * TMU treats temperature as a mapped temperature code.
  * The temperature is converted differently depending on the calibration type.
@@ -815,7 +788,8 @@ static void exynos_tmu_work(struct work_struct *work)
 	if (!IS_ERR(data->clk_sec))
 		clk_disable(data->clk_sec);
 
-	exynos_report_trigger(data);
+	thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED);
+
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
