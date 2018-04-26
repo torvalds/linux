@@ -584,6 +584,8 @@ static int bnxt_set_channels(struct net_device *dev,
 			 * to renable
 			 */
 		}
+	} else {
+		rc = bnxt_reserve_rings(bp);
 	}
 
 	return rc;
