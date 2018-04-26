@@ -1337,7 +1337,7 @@ static const struct mipi_dsi_host_ops cdns_dsi_ops = {
 	.transfer = cdns_dsi_transfer,
 };
 
-static int cdns_dsi_resume(struct device *dev)
+static int __maybe_unused cdns_dsi_resume(struct device *dev)
 {
 	struct cdns_dsi *dsi = dev_get_drvdata(dev);
 
@@ -1350,7 +1350,7 @@ static int cdns_dsi_resume(struct device *dev)
 	return 0;
 }
 
-static int cdns_dsi_suspend(struct device *dev)
+static int __maybe_unused cdns_dsi_suspend(struct device *dev)
 {
 	struct cdns_dsi *dsi = dev_get_drvdata(dev);
 
