@@ -4379,6 +4379,70 @@ out:
 	return ret;
 }
 
+/* Delete all dentries for inodes belonging to the root */
+static void btrfs_prune_dentries(struct btrfs_root *root)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct rb_node *node;
+	struct rb_node *prev;
+	struct btrfs_inode *entry;
+	struct inode *inode;
+	u64 objectid = 0;
+
+	if (!test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
+		WARN_ON(btrfs_root_refs(&root->root_item) != 0);
+
+	spin_lock(&root->inode_lock);
+again:
+	node = root->inode_tree.rb_node;
+	prev = NULL;
+	while (node) {
+		prev = node;
+		entry = rb_entry(node, struct btrfs_inode, rb_node);
+
+		if (objectid < btrfs_ino(BTRFS_I(&entry->vfs_inode)))
+			node = node->rb_left;
+		else if (objectid > btrfs_ino(BTRFS_I(&entry->vfs_inode)))
+			node = node->rb_right;
+		else
+			break;
+	}
+	if (!node) {
+		while (prev) {
+			entry = rb_entry(prev, struct btrfs_inode, rb_node);
+			if (objectid <= btrfs_ino(BTRFS_I(&entry->vfs_inode))) {
+				node = prev;
+				break;
+			}
+			prev = rb_next(prev);
+		}
+	}
+	while (node) {
+		entry = rb_entry(node, struct btrfs_inode, rb_node);
+		objectid = btrfs_ino(BTRFS_I(&entry->vfs_inode)) + 1;
+		inode = igrab(&entry->vfs_inode);
+		if (inode) {
+			spin_unlock(&root->inode_lock);
+			if (atomic_read(&inode->i_count) > 1)
+				d_prune_aliases(inode);
+			/*
+			 * btrfs_drop_inode will have it removed from the inode
+			 * cache when its usage count hits zero.
+			 */
+			iput(inode);
+			cond_resched();
+			spin_lock(&root->inode_lock);
+			goto again;
+		}
+
+		if (cond_resched_lock(&root->inode_lock))
+			goto again;
+
+		node = rb_next(node);
+	}
+	spin_unlock(&root->inode_lock);
+}
+
 int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dentry->d_sb);
@@ -4505,7 +4569,7 @@ out_up_write:
 		spin_unlock(&dest->root_item_lock);
 	} else {
 		d_invalidate(dentry);
-		btrfs_invalidate_inodes(dest);
+		btrfs_prune_dentries(dest);
 		ASSERT(dest->send_in_progress == 0);
 
 		/* the last ref */
@@ -5818,69 +5882,6 @@ static void inode_tree_del(struct inode *inode)
 	}
 }
 
-void btrfs_invalidate_inodes(struct btrfs_root *root)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct rb_node *node;
-	struct rb_node *prev;
-	struct btrfs_inode *entry;
-	struct inode *inode;
-	u64 objectid = 0;
-
-	if (!test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
-		WARN_ON(btrfs_root_refs(&root->root_item) != 0);
-
-	spin_lock(&root->inode_lock);
-again:
-	node = root->inode_tree.rb_node;
-	prev = NULL;
-	while (node) {
-		prev = node;
-		entry = rb_entry(node, struct btrfs_inode, rb_node);
-
-		if (objectid < btrfs_ino(BTRFS_I(&entry->vfs_inode)))
-			node = node->rb_left;
-		else if (objectid > btrfs_ino(BTRFS_I(&entry->vfs_inode)))
-			node = node->rb_right;
-		else
-			break;
-	}
-	if (!node) {
-		while (prev) {
-			entry = rb_entry(prev, struct btrfs_inode, rb_node);
-			if (objectid <= btrfs_ino(BTRFS_I(&entry->vfs_inode))) {
-				node = prev;
-				break;
-			}
-			prev = rb_next(prev);
-		}
-	}
-	while (node) {
-		entry = rb_entry(node, struct btrfs_inode, rb_node);
-		objectid = btrfs_ino(BTRFS_I(&entry->vfs_inode)) + 1;
-		inode = igrab(&entry->vfs_inode);
-		if (inode) {
-			spin_unlock(&root->inode_lock);
-			if (atomic_read(&inode->i_count) > 1)
-				d_prune_aliases(inode);
-			/*
-			 * btrfs_drop_inode will have it removed from
-			 * the inode cache when its usage count
-			 * hits zero.
-			 */
-			iput(inode);
-			cond_resched();
-			spin_lock(&root->inode_lock);
-			goto again;
-		}
-
-		if (cond_resched_lock(&root->inode_lock))
-			goto again;
-
-		node = rb_next(node);
-	}
-	spin_unlock(&root->inode_lock);
-}
 
 static int btrfs_init_locked_inode(struct inode *inode, void *p)
 {
