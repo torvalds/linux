@@ -797,6 +797,110 @@ static u64 ref_reloc(struct kmap *kmap)
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
+static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
+				      GElf_Sym *sym, GElf_Shdr *shdr,
+				      struct map_groups *kmaps, struct kmap *kmap,
+				      struct dso **curr_dsop, struct map **curr_mapp,
+				      const char *section_name,
+				      bool adjust_kernel_syms, bool kmodule, bool *remap_kernel)
+{
+	struct dso *curr_dso = *curr_dsop;
+	struct map *curr_map;
+	char dso_name[PATH_MAX];
+
+	/* Adjust symbol to map to file offset */
+	if (adjust_kernel_syms)
+		sym->st_value -= shdr->sh_addr - shdr->sh_offset;
+
+	if (strcmp(section_name, (curr_dso->short_name + dso->short_name_len)) == 0)
+		return 0;
+
+	if (strcmp(section_name, ".text") == 0) {
+		/*
+		 * The initial kernel mapping is based on
+		 * kallsyms and identity maps.  Overwrite it to
+		 * map to the kernel dso.
+		 */
+		if (*remap_kernel && dso->kernel) {
+			*remap_kernel = false;
+			map->start = shdr->sh_addr + ref_reloc(kmap);
+			map->end = map->start + shdr->sh_size;
+			map->pgoff = shdr->sh_offset;
+			map->map_ip = map__map_ip;
+			map->unmap_ip = map__unmap_ip;
+			/* Ensure maps are correctly ordered */
+			if (kmaps) {
+				map__get(map);
+				map_groups__remove(kmaps, map);
+				map_groups__insert(kmaps, map);
+				map__put(map);
+			}
+		}
+
+		/*
+		 * The initial module mapping is based on
+		 * /proc/modules mapped to offset zero.
+		 * Overwrite it to map to the module dso.
+		 */
+		if (*remap_kernel && kmodule) {
+			*remap_kernel = false;
+			map->pgoff = shdr->sh_offset;
+		}
+
+		*curr_mapp = map;
+		*curr_dsop = dso;
+		return 0;
+	}
+
+	if (!kmap)
+		return 0;
+
+	snprintf(dso_name, sizeof(dso_name), "%s%s", dso->short_name, section_name);
+
+	curr_map = map_groups__find_by_name(kmaps, dso_name);
+	if (curr_map == NULL) {
+		u64 start = sym->st_value;
+
+		if (kmodule)
+			start += map->start + shdr->sh_offset;
+
+		curr_dso = dso__new(dso_name);
+		if (curr_dso == NULL)
+			return -1;
+		curr_dso->kernel = dso->kernel;
+		curr_dso->long_name = dso->long_name;
+		curr_dso->long_name_len = dso->long_name_len;
+		curr_map = map__new2(start, curr_dso);
+		dso__put(curr_dso);
+		if (curr_map == NULL)
+			return -1;
+
+		if (adjust_kernel_syms) {
+			curr_map->start  = shdr->sh_addr + ref_reloc(kmap);
+			curr_map->end	 = curr_map->start + shdr->sh_size;
+			curr_map->pgoff	 = shdr->sh_offset;
+		} else {
+			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
+		}
+		curr_dso->symtab_type = dso->symtab_type;
+		map_groups__insert(kmaps, curr_map);
+		/*
+		 * Add it before we drop the referece to curr_map, i.e. while
+		 * we still are sure to have a reference to this DSO via
+		 * *curr_map->dso.
+		 */
+		dsos__add(&map->groups->machine->dsos, curr_dso);
+		/* kmaps already got it */
+		map__put(curr_map);
+		dso__set_loaded(curr_dso);
+		*curr_mapp = curr_map;
+		*curr_dsop = curr_dso;
+	} else
+		*curr_dsop = curr_map->dso;
+
+	return 0;
+}
+
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule)
 {
@@ -973,102 +1077,9 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			--sym.st_value;
 
 		if (dso->kernel || kmodule) {
-			char dso_name[PATH_MAX];
-
-			/* Adjust symbol to map to file offset */
-			if (adjust_kernel_syms)
-				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
-
-			if (strcmp(section_name,
-				   (curr_dso->short_name +
-				    dso->short_name_len)) == 0)
-				goto new_symbol;
-
-			if (strcmp(section_name, ".text") == 0) {
-				/*
-				 * The initial kernel mapping is based on
-				 * kallsyms and identity maps.  Overwrite it to
-				 * map to the kernel dso.
-				 */
-				if (remap_kernel && dso->kernel) {
-					remap_kernel = false;
-					map->start = shdr.sh_addr +
-						     ref_reloc(kmap);
-					map->end = map->start + shdr.sh_size;
-					map->pgoff = shdr.sh_offset;
-					map->map_ip = map__map_ip;
-					map->unmap_ip = map__unmap_ip;
-					/* Ensure maps are correctly ordered */
-					if (kmaps) {
-						map__get(map);
-						map_groups__remove(kmaps, map);
-						map_groups__insert(kmaps, map);
-						map__put(map);
-					}
-				}
-
-				/*
-				 * The initial module mapping is based on
-				 * /proc/modules mapped to offset zero.
-				 * Overwrite it to map to the module dso.
-				 */
-				if (remap_kernel && kmodule) {
-					remap_kernel = false;
-					map->pgoff = shdr.sh_offset;
-				}
-
-				curr_map = map;
-				curr_dso = dso;
-				goto new_symbol;
-			}
-
-			if (!kmap)
-				goto new_symbol;
-
-			snprintf(dso_name, sizeof(dso_name),
-				 "%s%s", dso->short_name, section_name);
-
-			curr_map = map_groups__find_by_name(kmaps, dso_name);
-			if (curr_map == NULL) {
-				u64 start = sym.st_value;
-
-				if (kmodule)
-					start += map->start + shdr.sh_offset;
-
-				curr_dso = dso__new(dso_name);
-				if (curr_dso == NULL)
-					goto out_elf_end;
-				curr_dso->kernel = dso->kernel;
-				curr_dso->long_name = dso->long_name;
-				curr_dso->long_name_len = dso->long_name_len;
-				curr_map = map__new2(start, curr_dso);
-				dso__put(curr_dso);
-				if (curr_map == NULL) {
-					goto out_elf_end;
-				}
-				if (adjust_kernel_syms) {
-					curr_map->start = shdr.sh_addr +
-							  ref_reloc(kmap);
-					curr_map->end = curr_map->start +
-							shdr.sh_size;
-					curr_map->pgoff = shdr.sh_offset;
-				} else {
-					curr_map->map_ip = identity__map_ip;
-					curr_map->unmap_ip = identity__map_ip;
-				}
-				curr_dso->symtab_type = dso->symtab_type;
-				map_groups__insert(kmaps, curr_map);
-				/*
-				 * Add it before we drop the referece to curr_map,
-				 * i.e. while we still are sure to have a reference
-				 * to this DSO via curr_map->dso.
-				 */
-				dsos__add(&map->groups->machine->dsos, curr_dso);
-				/* kmaps already got it */
-				map__put(curr_map);
-				dso__set_loaded(curr_dso);
-			} else
-				curr_dso = curr_map->dso;
+			if (dso__process_kernel_symbol(dso, map, &sym, &shdr, kmaps, kmap, &curr_dso, &curr_map,
+						       section_name, adjust_kernel_syms, kmodule, &remap_kernel))
+				goto out_elf_end;
 		} else if ((used_opd && runtime_ss->adjust_symbols) ||
 			   (!used_opd && syms_ss->adjust_symbols)) {
 			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
@@ -1077,7 +1088,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				  (u64)shdr.sh_offset);
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
-new_symbol:
+
 		demangled = demangle_sym(dso, kmodule, elf_name);
 		if (demangled != NULL)
 			elf_name = demangled;
