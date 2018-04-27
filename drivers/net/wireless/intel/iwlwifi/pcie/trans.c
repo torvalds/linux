@@ -3318,6 +3318,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	iwl_disable_interrupts(trans);
 
 	trans->hw_rev = iwl_read32(trans, CSR_HW_REV);
+	if (trans->hw_rev == 0xffffffff) {
+		dev_err(&pdev->dev, "HW_REV=0xFFFFFFFF, PCI issues?\n");
+		ret = -EIO;
+		goto out_no_pci;
+	}
+
 	/*
 	 * In the 8000 HW family the format of the 4 bytes of CSR_HW_REV have
 	 * changed, and now the revision step also includes bit 0-1 (no more
