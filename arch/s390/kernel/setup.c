@@ -339,7 +339,9 @@ static void __init setup_lowcore(void)
 	lc->preempt_count = S390_lowcore.preempt_count;
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       MAX_FACILITY_BIT/8);
+	       sizeof(lc->stfle_fac_list));
+	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
+	       sizeof(lc->alt_stfle_fac_list));
 	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
 		unsigned long bits, size;
 
