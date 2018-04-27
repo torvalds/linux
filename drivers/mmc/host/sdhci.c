@@ -3672,6 +3672,16 @@ int sdhci_setup_host(struct sdhci_host *host)
 	if (host->quirks2 & SDHCI_QUIRK2_NO_1_8_V) {
 		host->caps1 &= ~(SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
 				 SDHCI_SUPPORT_DDR50);
+		/*
+		 * The SDHCI controller in a SoC might support HS200/HS400
+		 * (indicated using mmc-hs200-1_8v/mmc-hs400-1_8v dt property),
+		 * but if the board is modeled such that the IO lines are not
+		 * connected to 1.8v then HS200/HS400 cannot be supported.
+		 * Disable HS200/HS400 if the board does not have 1.8v connected
+		 * to the IO lines. (Applicable for other modes in 1.8v)
+		 */
+		mmc->caps2 &= ~(MMC_CAP2_HSX00_1_8V | MMC_CAP2_HS400_ES);
+		mmc->caps &= ~(MMC_CAP_1_8V_DDR | MMC_CAP_UHS);
 	}
 
 	/* Any UHS-I mode in caps implies SDR12 and SDR25 support. */
