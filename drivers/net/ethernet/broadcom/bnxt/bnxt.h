@@ -532,6 +532,12 @@ struct rx_tpa_end_cmp_ext {
 #define BNXT_HWRM_REQ_MAX_SIZE		128
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
+#define HWRM_SHORT_MIN_TIMEOUT		3
+#define HWRM_SHORT_MAX_TIMEOUT		10
+#define HWRM_SHORT_TIMEOUT_COUNTER	5
+
+#define HWRM_MIN_TIMEOUT		25
+#define HWRM_MAX_TIMEOUT		40
 
 #define BNXT_RX_EVENT	1
 #define BNXT_AGG_EVENT	2
@@ -1242,6 +1248,7 @@ struct bnxt {
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
+	u8			tc_to_qidx[BNXT_MAX_QUEUE];
 
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
@@ -1384,6 +1391,8 @@ struct bnxt {
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
 	u8			switch_id[8];
 	struct bnxt_tc_info	*tc_info;
+	struct dentry		*debugfs_pdev;
+	struct dentry		*debugfs_dim;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\

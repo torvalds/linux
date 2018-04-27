@@ -140,6 +140,19 @@ reset_coalesce:
 #define BNXT_RX_STATS_EXT_ENTRY(counter)	\
 	{ BNXT_RX_STATS_EXT_OFFSET(counter), __stringify(counter) }
 
+enum {
+	RX_TOTAL_DISCARDS,
+	TX_TOTAL_DISCARDS,
+};
+
+static struct {
+	u64			counter;
+	char			string[ETH_GSTRING_LEN];
+} bnxt_sw_func_stats[] = {
+	{0, "rx_total_discard_pkts"},
+	{0, "tx_total_discard_pkts"},
+};
+
 static const struct {
 	long offset;
 	char string[ETH_GSTRING_LEN];
@@ -237,12 +250,15 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
 };
 
+#define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
 #define BNXT_NUM_PORT_STATS_EXT ARRAY_SIZE(bnxt_port_stats_ext_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
 	int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+
+	num_stats += BNXT_NUM_SW_FUNC_STATS;
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS)
 		num_stats += BNXT_NUM_PORT_STATS;
@@ -279,6 +295,9 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	if (!bp->bnapi)
 		return;
 
+	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++)
+		bnxt_sw_func_stats[i].counter = 0;
+
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
@@ -288,7 +307,16 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+
+		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
+			le64_to_cpu(cpr->hw_stats->rx_discard_pkts);
+		bnxt_sw_func_stats[TX_TOTAL_DISCARDS].counter +=
+			le64_to_cpu(cpr->hw_stats->tx_discard_pkts);
 	}
+
+	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++, j++)
+		buf[j] = bnxt_sw_func_stats[i].counter;
+
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
 		__le64 *port_stats = (__le64 *)bp->hw_rx_port_stats;
 
@@ -359,6 +387,11 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			sprintf(buf, "[%d]: rx_l4_csum_errors", i);
 			buf += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++) {
+			strcpy(buf, bnxt_sw_func_stats[i].string);
+			buf += ETH_GSTRING_LEN;
+		}
+
 		if (bp->flags & BNXT_FLAG_PORT_STATS) {
 			for (i = 0; i < BNXT_NUM_PORT_STATS; i++) {
 				strcpy(buf, bnxt_port_stats_arr[i].string);
@@ -551,6 +584,8 @@ static int bnxt_set_channels(struct net_device *dev,
 			 * to renable
 			 */
 		}
+	} else {
+		rc = bnxt_reserve_rings(bp);
 	}
 
 	return rc;
@@ -1785,6 +1820,11 @@ static int nvm_get_dir_info(struct net_device *dev, u32 *entries, u32 *length)
 
 static int bnxt_get_eeprom_len(struct net_device *dev)
 {
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (BNXT_VF(bp))
+		return 0;
+
 	/* The -1 return value allows the entire 32-bit range of offsets to be
 	 * passed via the ethtool command-line utility.
 	 */
