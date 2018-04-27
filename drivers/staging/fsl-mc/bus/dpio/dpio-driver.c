@@ -150,14 +150,16 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	desc.regs_cena = devm_memremap(dev, dpio_dev->regions[1].start,
 				       resource_size(&dpio_dev->regions[1]),
 				       MEMREMAP_WC);
-	if (!desc.regs_cena) {
+	if (IS_ERR(desc.regs_cena)) {
 		dev_err(dev, "devm_memremap failed\n");
+		err = PTR_ERR(desc.regs_cena);
 		goto err_allocate_irqs;
 	}
 
 	desc.regs_cinh = devm_ioremap(dev, dpio_dev->regions[1].start,
 				      resource_size(&dpio_dev->regions[1]));
 	if (!desc.regs_cinh) {
+		err = -ENOMEM;
 		dev_err(dev, "devm_ioremap failed\n");
 		goto err_allocate_irqs;
 	}
@@ -175,6 +177,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	priv->io = dpaa2_io_create(&desc);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
+		err = -ENOMEM;
 		goto err_dpaa2_io_create;
 	}
 
