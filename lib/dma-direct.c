@@ -172,6 +172,12 @@ int dma_direct_supported(struct device *dev, u64 mask)
 	if (mask < DMA_BIT_MASK(32))
 		return 0;
 #endif
+	/*
+	 * Various PCI/PCIe bridges have broken support for > 32bit DMA even
+	 * if the device itself might support it.
+	 */
+	if (dev->dma_32bit_limit && mask > DMA_BIT_MASK(32))
+		return 0;
 	return 1;
 }
 
