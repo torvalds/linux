@@ -4414,7 +4414,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = READA_FORWARD;
+	path->reada = READA_BACK;
 
 	mutex_lock(&fs_info->chunk_mutex);
 
