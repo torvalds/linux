@@ -911,6 +911,7 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 		drm_mode_connector_update_edid_property(connector, NULL);
 		aconnector->num_modes = 0;
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
