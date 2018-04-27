@@ -3,8 +3,8 @@
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>
 
-int nospec_call_disable = IS_ENABLED(EXPOLINE_OFF);
-int nospec_return_disable = !IS_ENABLED(EXPOLINE_FULL);
+int nospec_call_disable = IS_ENABLED(CONFIG_EXPOLINE_OFF);
+int nospec_return_disable = !IS_ENABLED(CONFIG_EXPOLINE_FULL);
 
 static int __init nospectre_v2_setup_early(char *str)
 {
