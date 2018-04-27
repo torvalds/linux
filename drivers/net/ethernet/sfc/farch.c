@@ -2912,7 +2912,7 @@ bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 	if (test_bit(index, table->used_bitmap) &&
 	    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
 	    rps_may_expire_flow(efx->net_dev, table->spec[index].dmaq_id,
-				flow_id, index)) {
+				flow_id, 0)) {
 		efx_farch_filter_table_clear_entry(efx, table, index);
 		ret = true;
 	}
