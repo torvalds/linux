@@ -131,6 +131,7 @@ lenovo	Lenovo Group Ltd.
 lg	LG Corporation
 linaro	Linaro Limited
 linux	Linux-specific binding
+lontium	Lontium Semiconductor Corporation
 lsi	LSI Corp. (LSI Logic)
 lltc	Linear Technology Corporation
 marvell	Marvell Technology Group Ltd.
