@@ -122,9 +122,9 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "forcesac", 8))
 			pr_warn("forcesac option ignored.\n");
 		if (!strncmp(p, "allowdac", 8))
-			forbid_dac = 0;
+			pr_warn("allowdac option ignored.\n");
 		if (!strncmp(p, "nodac", 5))
-			forbid_dac = 1;
+			pr_warn("nodac option ignored.\n");
 		if (!strncmp(p, "usedac", 6)) {
 			forbid_dac = -1;
 			return 1;

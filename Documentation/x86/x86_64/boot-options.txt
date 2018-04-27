@@ -236,11 +236,6 @@ IOMMU (input/output memory management unit)
     nomerge            Don't do scatter-gather (SG) merging.
     noaperture         Ask the IOMMU not to touch the aperture for AGP.
     noagp              Don't initialize the AGP driver and use full aperture.
-    allowdac           Allow double-address cycle (DAC) mode, i.e. DMA >4GB.
-                       DAC is used with 32-bit PCI to push a 64-bit address in
-                       two cycles. When off all DMA over >4GB is forced through
-                       an IOMMU or software bounce buffering.
-    nodac              Forbid DAC mode, i.e. DMA >4GB.
     panic              Always panic when IOMMU overflows.
     calgary            Use the Calgary IOMMU if it is available
 
