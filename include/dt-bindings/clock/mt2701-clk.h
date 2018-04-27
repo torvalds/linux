@@ -431,6 +431,10 @@
 #define CLK_ETHSYS_CRYPTO			8
 #define CLK_ETHSYS_NR				9
 
+/* G3DSYS */
+#define CLK_G3DSYS_CORE				1
+#define CLK_G3DSYS_NR				2
+
 /* BDP */
 
 #define CLK_BDP_BRG_BA				1
