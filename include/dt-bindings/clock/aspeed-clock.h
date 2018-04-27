@@ -48,5 +48,6 @@
 #define ASPEED_RESET_PCIVGA		6
 #define ASPEED_RESET_I2C		7
 #define ASPEED_RESET_AHB		8
+#define ASPEED_RESET_CRT1		9
 
 #endif
