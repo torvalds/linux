@@ -6,12 +6,10 @@
 
 #include <linux/types.h>
 
-extern int nospec_call_disable;
-extern int nospec_return_disable;
+extern int nospec_disable;
 
 void nospec_init_branches(void);
-void nospec_call_revert(s32 *start, s32 *end);
-void nospec_return_revert(s32 *start, s32 *end);
+void nospec_revert(s32 *start, s32 *end);
 
 #endif /* __ASSEMBLY__ */
 
