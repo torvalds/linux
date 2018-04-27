@@ -1053,7 +1053,7 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
-void c4iw_flush_hw_cq(struct c4iw_cq *chp);
+void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
