@@ -1878,26 +1878,26 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
-	if (!amdgpu_device_has_dc_support(adev)) {
-		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_get_active_displays(adev);
-		adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtcs;
-		adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
-		adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
-		/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
-		if (adev->pm.pm_display_cfg.vrefresh > 120)
-			adev->pm.pm_display_cfg.min_vblank_time = 0;
-		if (adev->powerplay.pp_funcs->display_configuration_change)
-			adev->powerplay.pp_funcs->display_configuration_change(
-							adev->powerplay.pp_handle,
-							&adev->pm.pm_display_cfg);
-		mutex_unlock(&adev->pm.mutex);
-	}
-
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
+		if (!amdgpu_device_has_dc_support(adev)) {
+			mutex_lock(&adev->pm.mutex);
+			amdgpu_dpm_get_active_displays(adev);
+			adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtcs;
+			adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
+			adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
+			/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
+			if (adev->pm.pm_display_cfg.vrefresh > 120)
+				adev->pm.pm_display_cfg.min_vblank_time = 0;
+			if (adev->powerplay.pp_funcs->display_configuration_change)
+				adev->powerplay.pp_funcs->display_configuration_change(
+								adev->powerplay.pp_handle,
+								&adev->pm.pm_display_cfg);
+			mutex_unlock(&adev->pm.mutex);
+		}
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
 	} else {
 		mutex_lock(&adev->pm.mutex);
+		amdgpu_dpm_get_active_displays(adev);
 		/* update battery/ac status */
 		if (power_supply_is_system_supplied() > 0)
 			adev->pm.dpm.ac_power = true;
