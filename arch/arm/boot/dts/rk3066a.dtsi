@@ -40,25 +40,25 @@
 
 		opp-312000000 {
 			opp-hz = /bits/ 64 <312000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <1075000 1075000 1125000>;
 			clock-latency-ns = <40000>;
 			status = "disabled";
 		};
 		opp-504000000 {
 			opp-hz = /bits/ 64 <504000000>;
-			opp-microvolt = <1100000>;
+			opp-microvolt = <1100000 1100000 1125000>;
 			clock-latency-ns = <40000>;
 			status = "disabled";
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1125000>;
+			opp-microvolt = <1125000 1125000 1125000>;
 			clock-latency-ns = <40000>;
 			status = "disabled";
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1125000>;
+			opp-microvolt = <1125000 1125000 1125000>;
 			clock-latency-ns = <40000>;
 			status = "disabled";
 		};
