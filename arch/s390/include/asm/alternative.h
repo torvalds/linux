@@ -15,14 +15,9 @@ struct alt_instr {
 	u8  replacementlen;	/* length of new instruction */
 } __packed;
 
-#ifdef CONFIG_ALTERNATIVES
-extern void apply_alternative_instructions(void);
-extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
-#else
-static inline void apply_alternative_instructions(void) {};
-static inline void apply_alternatives(struct alt_instr *start,
-				      struct alt_instr *end) {};
-#endif
+void apply_alternative_instructions(void);
+void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
+
 /*
  * |661:       |662:	  |6620      |663:
  * +-----------+---------------------+
@@ -109,7 +104,6 @@ static inline void apply_alternatives(struct alt_instr *start,
 	b_altinstr(num)":\n\t" altinstr "\n" e_altinstr(num) ":\n"	\
 	INSTR_LEN_SANITY_CHECK(altinstr_len(num))
 
-#ifdef CONFIG_ALTERNATIVES
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, altinstr, facility) \
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
@@ -130,14 +124,6 @@ static inline void apply_alternatives(struct alt_instr *start,
 	ALTINSTR_ENTRY(facility1, 1)					\
 	ALTINSTR_ENTRY(facility2, 2)					\
 	".popsection\n"
-#else
-/* Alternative instructions are disabled, let's put just oldinstr in */
-#define ALTERNATIVE(oldinstr, altinstr, facility) \
-	oldinstr "\n"
-
-#define ALTERNATIVE_2(oldinstr, altinstr1, facility1, altinstr2, facility2) \
-	oldinstr "\n"
-#endif
 
 /*
  * Alternative instructions for different CPU types or capabilities.
