@@ -326,6 +326,12 @@ void dcn10_log_hw_state(struct dc *dc)
 				s.h_total,
 				s.v_total,
 				s.underflow_occurred_status);
+
+		// Clear underflow for debug purposes
+		// We want to keep underflow sticky bit on for the longevity tests outside of test environment.
+		// This function is called only from Windows or Diags test environment, hence it's safe to clear
+		// it from here without affecting the original intent.
+		tg->funcs->clear_optc_underflow(tg);
 	}
 	DTN_INFO("\n");
 
