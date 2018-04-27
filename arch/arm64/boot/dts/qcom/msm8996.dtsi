@@ -447,7 +447,7 @@
 		blsp2_i2c0: i2c@75b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b5000 0x1000>;
-			interrupts = <GIC_SPI 101 0>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
 				<&gcc GCC_BLSP2_QUP1_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -478,7 +478,7 @@
 		blsp2_i2c1: i2c@75b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b6000 0x1000>;
-			interrupts = <GIC_SPI 102 0>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
 				<&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -503,7 +503,7 @@
 		blsp1_i2c2: i2c@7577000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07577000 0x1000>;
-			interrupts = <GIC_SPI 97 0>;
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
 				<&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -536,7 +536,8 @@
 			 reg = <0x74a4900 0x314>, <0x74a4000 0x800>;
 			 reg-names = "hc_mem", "core_mem";
 
-			 interrupts = <0 125 0>, <0 221 0>;
+			 interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>,
+				      <0 221 IRQ_TYPE_LEVEL_HIGH>;
 			 interrupt-names = "hc_irq", "pwr_irq";
 
 			 clock-names = "iface", "core", "xo";
@@ -819,7 +820,7 @@
 			dwc3@7600000 {
 				compatible = "snps,dwc3";
 				reg = <0x7600000 0xcc00>;
-				interrupts = <0 138 0>;
+				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy2>;
 				phy-names = "usb2-phy";
 			};
@@ -848,7 +849,7 @@
 			dwc3@6a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x6a00000 0xcc00>;
-				interrupts = <0 131 0>;
+				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy1>, <&ssusb_phy_0>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
@@ -882,7 +883,7 @@
 				ranges = <0x01000000 0x0 0x0c200000 0x0c200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
 
-				interrupts = <GIC_SPI 405 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
@@ -937,7 +938,7 @@
 				ranges = <0x01000000 0x0 0x0d200000 0x0d200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
 
-				interrupts = <GIC_SPI 413 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
@@ -990,7 +991,7 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 421 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
