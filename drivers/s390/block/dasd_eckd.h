@@ -109,6 +109,12 @@
 #define DASD_ECKD_PATH_THRHLD		 256
 #define DASD_ECKD_PATH_INTERVAL		 300
 
+/*
+ * Maximum number of blocks to be chained
+ */
+#define DASD_ECKD_MAX_BLOCKS		 190
+#define DASD_ECKD_MAX_BLOCKS_RAW	 256
+
 /*****************************************************************************
  * SECTION: Type Definitions
  ****************************************************************************/

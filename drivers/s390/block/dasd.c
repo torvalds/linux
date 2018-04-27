@@ -70,7 +70,6 @@ MODULE_LICENSE("GPL");
  * SECTION: prototypes for static functions of dasd.c
  */
 static int  dasd_alloc_queue(struct dasd_block *);
-static void dasd_setup_queue(struct dasd_block *);
 static void dasd_free_queue(struct dasd_block *);
 static int dasd_flush_block_queue(struct dasd_block *);
 static void dasd_device_tasklet(unsigned long);
@@ -358,7 +357,8 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 			}
 			return rc;
 		}
-		dasd_setup_queue(block);
+		if (device->discipline->setup_blk_queue)
+			device->discipline->setup_blk_queue(block);
 		set_capacity(block->gdp,
 			     block->blocks << block->s2b_shift);
 		device->state = DASD_STATE_READY;
@@ -3247,55 +3247,6 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	block->request_queue->queuedata = block;
 
 	return 0;
-}
-
-/*
- * Allocate and initialize request queue.
- */
-static void dasd_setup_queue(struct dasd_block *block)
-{
-	unsigned int logical_block_size = block->bp_block;
-	struct request_queue *q = block->request_queue;
-	unsigned int max_bytes, max_discard_sectors;
-	int max;
-
-	if (block->base->features & DASD_FEATURE_USERAW) {
-		/*
-		 * the max_blocks value for raw_track access is 256
-		 * it is higher than the native ECKD value because we
-		 * only need one ccw per track
-		 * so the max_hw_sectors are
-		 * 2048 x 512B = 1024kB = 16 tracks
-		 */
-		max = 2048;
-	} else {
-		max = block->base->discipline->max_blocks << block->s2b_shift;
-	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-	q->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(q, logical_block_size);
-	blk_queue_max_hw_sectors(q, max);
-	blk_queue_max_segments(q, USHRT_MAX);
-	/* with page sized segments we can translate each segement into
-	 * one idaw/tidaw
-	 */
-	blk_queue_max_segment_size(q, PAGE_SIZE);
-	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
-
-	/* Only activate blocklayer discard support for devices that support it */
-	if (block->base->features & DASD_FEATURE_DISCARD) {
-		q->limits.discard_granularity = logical_block_size;
-		q->limits.discard_alignment = PAGE_SIZE;
-
-		/* Calculate max_discard_sectors and make it PAGE aligned */
-		max_bytes = USHRT_MAX * logical_block_size;
-		max_bytes = ALIGN(max_bytes, PAGE_SIZE) - PAGE_SIZE;
-		max_discard_sectors = max_bytes / logical_block_size;
-
-		blk_queue_max_discard_sectors(q, max_discard_sectors);
-		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-	}
 }
 
 /*

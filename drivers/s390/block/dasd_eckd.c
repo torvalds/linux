@@ -6349,6 +6349,38 @@ static void dasd_eckd_handle_hpf_error(struct dasd_device *device,
 	dasd_schedule_requeue(device);
 }
 
+/*
+ * Initialize block layer request queue.
+ */
+static void dasd_eckd_setup_blk_queue(struct dasd_block *block)
+{
+	unsigned int logical_block_size = block->bp_block;
+	struct request_queue *q = block->request_queue;
+	struct dasd_device *device = block->base;
+	int max;
+
+	if (device->features & DASD_FEATURE_USERAW) {
+		/*
+		 * the max_blocks value for raw_track access is 256
+		 * it is higher than the native ECKD value because we
+		 * only need one ccw per track
+		 * so the max_hw_sectors are
+		 * 2048 x 512B = 1024kB = 16 tracks
+		 */
+		max = DASD_ECKD_MAX_BLOCKS_RAW << block->s2b_shift;
+	} else {
+		max = DASD_ECKD_MAX_BLOCKS << block->s2b_shift;
+	}
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	q->limits.max_dev_sectors = max;
+	blk_queue_logical_block_size(q, logical_block_size);
+	blk_queue_max_hw_sectors(q, max);
+	blk_queue_max_segments(q, USHRT_MAX);
+	/* With page sized segments each segment can be translated into one idaw/tidaw */
+	blk_queue_max_segment_size(q, PAGE_SIZE);
+	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+}
+
 static struct ccw_driver dasd_eckd_driver = {
 	.driver = {
 		.name	= "dasd-eckd",
@@ -6369,24 +6401,10 @@ static struct ccw_driver dasd_eckd_driver = {
 	.int_class   = IRQIO_DAS,
 };
 
-/*
- * max_blocks is dependent on the amount of storage that is available
- * in the static io buffer for each device. Currently each device has
- * 8192 bytes (=2 pages). For 64 bit one dasd_mchunkt_t structure has
- * 24 bytes, the struct dasd_ccw_req has 136 bytes and each block can use
- * up to 16 bytes (8 for the ccw and 8 for the idal pointer). In
- * addition we have one define extent ccw + 16 bytes of data and one
- * locate record ccw + 16 bytes of data. That makes:
- * (8192 - 24 - 136 - 8 - 16 - 8 - 16) / 16 = 499 blocks at maximum.
- * We want to fit two into the available memory so that we can immediately
- * start the next request if one finishes off. That makes 249.5 blocks
- * for one request. Give a little safety and the result is 240.
- */
 static struct dasd_discipline dasd_eckd_discipline = {
 	.owner = THIS_MODULE,
 	.name = "ECKD",
 	.ebcname = "ECKD",
-	.max_blocks = 190,
 	.check_device = dasd_eckd_check_characteristics,
 	.uncheck_device = dasd_eckd_uncheck_device,
 	.do_analysis = dasd_eckd_do_analysis,
@@ -6394,6 +6412,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.basic_to_ready = dasd_eckd_basic_to_ready,
 	.online_to_ready = dasd_eckd_online_to_ready,
 	.basic_to_known = dasd_eckd_basic_to_known,
+	.setup_blk_queue = dasd_eckd_setup_blk_queue,
 	.fill_geometry = dasd_eckd_fill_geometry,
 	.start_IO = dasd_start_IO,
 	.term_IO = dasd_term_IO,
