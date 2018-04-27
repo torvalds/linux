@@ -44,6 +44,16 @@
 		regulator-boot-on;
 	};
 
+	evm_3v6: fixedregulator-evm_3v6 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_3v6";
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+		vin-supply = <&evm_5v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vsys_3v3: fixedregulator-vsys3v3 {
 		/* Output 2 of TPS43351QDAPRQ1 on dra72-evm */
 		/* Output 2 of LM5140QRWGTQ1 on dra71-evm */
@@ -170,6 +180,15 @@
 			sound-dai = <&tlv320aic3106>;
 			clocks = <&atl_clkin2_ck>;
 		};
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
@@ -396,6 +415,29 @@
 	bus-width = <8>;
 	ti,non-removable;
 	max-frequency = <192000000>;
+};
+
+&mmc4 {
+	status = "okay";
+	vmmc-supply = <&evm_3v6>;
+	vqmmc-supply = <&vmmcwl_fixed>;
+	bus-width = <4>;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	non-removable;
+	pinctrl-names = "default", "hs", "sdr12", "sdr25";
+	pinctrl-0 = <&mmc4_pins_default>;
+	pinctrl-1 = <&mmc4_pins_default>;
+	pinctrl-2 = <&mmc4_pins_default>;
+	pinctrl-3 = <&mmc4_pins_default>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wifi@2 {
+		compatible = "ti,wl1835";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+	};
 };
 
 &mac {
