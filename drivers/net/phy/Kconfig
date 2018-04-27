@@ -9,6 +9,7 @@ menuconfig MDIO_DEVICE
 
 config MDIO_BUS
 	tristate
+	default m if PHYLIB=m
 	default MDIO_DEVICE
 	help
 	  This internal symbol is used for link time dependencies and it
@@ -170,7 +171,7 @@ config PHYLINK
 	  autonegotiation modes.
 
 menuconfig PHYLIB
-	bool "PHY Device support and infrastructure"
+	tristate "PHY Device support and infrastructure"
 	depends on NETDEVICES
 	select MDIO_DEVICE
 	help

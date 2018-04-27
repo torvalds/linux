@@ -1066,27 +1066,53 @@ int phy_ethtool_nway_reset(struct net_device *ndev);
 #if IS_ENABLED(CONFIG_PHYLIB)
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
-int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data);
-int phy_ethtool_get_sset_count(struct phy_device *phydev);
-int phy_ethtool_get_stats(struct phy_device *phydev,
-			  struct ethtool_stats *stats, u64 *data);
-#else
-int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
-{
-	return -EOPNOTSUPP;
-}
-
-int phy_ethtool_get_sset_count(struct phy_device *phydev)
-{
-	return -EOPNOTSUPP;
-}
-
-int phy_ethtool_get_stats(struct phy_device *phydev,
-			  struct ethtool_stats *stats, u64 *data)
-{
-	return -EOPNOTSUPP;
-}
 #endif
+
+/* Inline function for use within net/core/ethtool.c (built-in) */
+static inline int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_strings(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+
+static inline int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static inline int phy_ethtool_get_stats(struct phy_device *phydev,
+					struct ethtool_stats *stats, u64 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, stats, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 
 extern struct bus_type mdio_bus_type;
 
