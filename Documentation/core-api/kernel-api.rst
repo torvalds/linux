@@ -39,16 +39,16 @@ String Manipulation
 .. kernel-doc:: lib/string.c
    :export:
 
+Basic Kernel Library Functions
+==============================
+
+The Linux kernel provides more basic utility functions.
+
 Bit Operations
 --------------
 
 .. kernel-doc:: arch/x86/include/asm/bitops.h
    :internal:
-
-Basic Kernel Library Functions
-==============================
-
-The Linux kernel provides more basic utility functions.
 
 Bitmap Operations
 -----------------
@@ -80,6 +80,31 @@ Command-line Parsing
 .. kernel-doc:: lib/cmdline.c
    :export:
 
+Sorting
+-------
+
+.. kernel-doc:: lib/sort.c
+   :export:
+
+.. kernel-doc:: lib/list_sort.c
+   :export:
+
+Text Searching
+--------------
+
+.. kernel-doc:: lib/textsearch.c
+   :doc: ts_intro
+
+.. kernel-doc:: lib/textsearch.c
+   :export:
+
+.. kernel-doc:: include/linux/textsearch.h
+   :functions: textsearch_find textsearch_next \
+               textsearch_get_pattern textsearch_get_pattern_len
+
+CRC and Math Functions in Linux
+===============================
+
 CRC Functions
 -------------
 
@@ -103,9 +128,6 @@ CRC Functions
 .. kernel-doc:: lib/crc-itu-t.c
    :export:
 
-Math Functions in Linux
-=======================
-
 Base 2 log and power Functions
 ------------------------------
 
@@ -126,28 +148,6 @@ Division Functions
 
 .. kernel-doc:: lib/gcd.c
    :export:
-
-Sorting
--------
-
-.. kernel-doc:: lib/sort.c
-   :export:
-
-.. kernel-doc:: lib/list_sort.c
-   :export:
-
-Text Searching
---------------
-
-.. kernel-doc:: lib/textsearch.c
-   :doc: ts_intro
-
-.. kernel-doc:: lib/textsearch.c
-   :export:
-
-.. kernel-doc:: include/linux/textsearch.h
-   :functions: textsearch_find textsearch_next \
-               textsearch_get_pattern textsearch_get_pattern_len
 
 UUID/GUID
 ---------
