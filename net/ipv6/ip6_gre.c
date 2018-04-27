@@ -896,6 +896,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	struct flowi6 fl6;
 	int err = -EINVAL;
 	__u32 mtu;
+	int nhoff;
 
 	if (!ip6_tnl_xmit_ctl(t, &t->parms.laddr, &t->parms.raddr))
 		goto tx_err;
@@ -907,6 +908,11 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		pskb_trim(skb, dev->mtu + dev->hard_header_len);
 		truncate = true;
 	}
+
+	nhoff = skb_network_header(skb) - skb_mac_header(skb);
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    (ntohs(ip_hdr(skb)->tot_len) > skb->len - nhoff))
+		truncate = true;
 
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto tx_err;
