@@ -590,7 +590,7 @@ static void afs_i_init_once(void *_vnode)
 	memset(vnode, 0, sizeof(*vnode));
 	inode_init_once(&vnode->vfs_inode);
 	mutex_init(&vnode->io_lock);
-	mutex_init(&vnode->validate_lock);
+	init_rwsem(&vnode->validate_lock);
 	spin_lock_init(&vnode->wb_lock);
 	spin_lock_init(&vnode->lock);
 	INIT_LIST_HEAD(&vnode->wb_keys);

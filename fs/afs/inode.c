@@ -415,7 +415,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	if (valid)
 		goto valid;
 
-	mutex_lock(&vnode->validate_lock);
+	down_write(&vnode->validate_lock);
 
 	/* if the promise has expired, we need to check the server again to get
 	 * a new promise - note that if the (parent) directory's metadata was
@@ -444,13 +444,13 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * different */
 	if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags))
 		afs_zap_data(vnode);
-	mutex_unlock(&vnode->validate_lock);
+	up_write(&vnode->validate_lock);
 valid:
 	_leave(" = 0");
 	return 0;
 
 error_unlock:
-	mutex_unlock(&vnode->validate_lock);
+	up_write(&vnode->validate_lock);
 	_leave(" = %d", ret);
 	return ret;
 }

@@ -494,7 +494,7 @@ struct afs_vnode {
 #endif
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
-	struct mutex		validate_lock;	/* lock for validating this vnode */
+	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
