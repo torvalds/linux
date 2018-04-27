@@ -4104,7 +4104,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
-		if (!pflip_needed) {
+		if (!pflip_needed || plane->type == DRM_PLANE_TYPE_OVERLAY) {
 			WARN_ON(!dm_new_plane_state->dc_state);
 
 			plane_states_constructed[planes_count] = dm_new_plane_state->dc_state;
@@ -4827,7 +4827,8 @@ static int dm_update_planes_state(struct dc *dc,
 
 		/* Remove any changed/removed planes */
 		if (!enable) {
-			if (pflip_needed)
+			if (pflip_needed &&
+			    plane->type != DRM_PLANE_TYPE_OVERLAY)
 				continue;
 
 			if (!old_plane_crtc)
@@ -4874,7 +4875,8 @@ static int dm_update_planes_state(struct dc *dc,
 			if (!dm_new_crtc_state->stream)
 				continue;
 
-			if (pflip_needed)
+			if (pflip_needed &&
+			    plane->type != DRM_PLANE_TYPE_OVERLAY)
 				continue;
 
 			WARN_ON(dm_new_plane_state->dc_state);
