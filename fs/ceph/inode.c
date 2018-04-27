@@ -739,7 +739,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_mds_reply_inode *info = iinfo->in;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int issued = 0, implemented, new_issued;
+	int issued, new_issued, info_caps;
 	struct timespec mtime, atime, ctime;
 	struct ceph_buffer *xattr_blob = NULL;
 	struct ceph_string *pool_ns = NULL;
@@ -754,8 +754,10 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	     inode, ceph_vinop(inode), le64_to_cpu(info->version),
 	     ci->i_version);
 
+	info_caps = le32_to_cpu(info->cap.caps);
+
 	/* prealloc new cap struct */
-	if (info->cap.caps && ceph_snap(inode) == CEPH_NOSNAP)
+	if (info_caps && ceph_snap(inode) == CEPH_NOSNAP)
 		new_cap = ceph_get_cap(mdsc, caps_reservation);
 
 	/*
@@ -792,9 +794,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	     le64_to_cpu(info->version) > (ci->i_version & ~1)))
 		new_version = true;
 
-	issued = __ceph_caps_issued(ci, &implemented);
-	issued |= implemented | __ceph_caps_dirty(ci);
-	new_issued = ~issued & le32_to_cpu(info->cap.caps);
+	__ceph_caps_issued(ci, &issued);
+	issued |= __ceph_caps_dirty(ci);
+	new_issued = ~issued & info_caps;
 
 	/* update inode */
 	inode->i_rdev = le32_to_cpu(info->rdev);
@@ -824,6 +826,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		ceph_fill_file_time(inode, issued,
 				le32_to_cpu(info->time_warp_seq),
 				&ctime, &mtime, &atime);
+	}
+
+	if (new_version || (info_caps & CEPH_CAP_FILE_SHARED)) {
+		ci->i_files = le64_to_cpu(info->files);
+		ci->i_subdirs = le64_to_cpu(info->subdirs);
 	}
 
 	if (new_version ||
@@ -930,10 +937,6 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	case S_IFDIR:
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
-
-
-		ci->i_files = le64_to_cpu(info->files);
-		ci->i_subdirs = le64_to_cpu(info->subdirs);
 		break;
 	default:
 		pr_err("fill_inode %llx.%llx BAD mode 0%o\n",
@@ -941,12 +944,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	}
 
 	/* were we issued a capability? */
-	if (info->cap.caps) {
+	if (info_caps) {
 		if (ceph_snap(inode) == CEPH_NOSNAP) {
-			unsigned caps = le32_to_cpu(info->cap.caps);
 			ceph_add_cap(inode, session,
 				     le64_to_cpu(info->cap.cap_id),
-				     cap_fmode, caps,
+				     cap_fmode, info_caps,
 				     le32_to_cpu(info->cap.wanted),
 				     le32_to_cpu(info->cap.seq),
 				     le32_to_cpu(info->cap.mseq),
@@ -956,7 +958,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			/* set dir completion flag? */
 			if (S_ISDIR(inode->i_mode) &&
 			    ci->i_files == 0 && ci->i_subdirs == 0 &&
-			    (caps & CEPH_CAP_FILE_SHARED) &&
+			    (info_caps & CEPH_CAP_FILE_SHARED) &&
 			    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 			    !__ceph_dir_is_complete(ci)) {
 				dout(" marking %p complete (empty)\n", inode);
@@ -969,8 +971,8 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			wake = true;
 		} else {
 			dout(" %p got snap_caps %s\n", inode,
-			     ceph_cap_string(le32_to_cpu(info->cap.caps)));
-			ci->i_snap_caps |= le32_to_cpu(info->cap.caps);
+			     ceph_cap_string(info_caps));
+			ci->i_snap_caps |= info_caps;
 			if (cap_fmode >= 0)
 				__ceph_get_fmode(ci, cap_fmode);
 		}
@@ -985,8 +987,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 		ci->i_inline_version = iinfo->inline_version;
 		if (ci->i_inline_version != CEPH_INLINE_NONE &&
-		    (locked_page ||
-		     (le32_to_cpu(info->cap.caps) & cache_caps)))
+		    (locked_page || (info_caps & cache_caps)))
 			fill_inline = true;
 	}
 
