@@ -255,6 +255,7 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 	if (spi->controller_state) {
 		int err = pm_runtime_get_sync(mcspi->dev);
 		if (err < 0) {
+			pm_runtime_put_noidle(mcspi->dev);
 			dev_err(mcspi->dev, "failed to get sync: %d\n", err);
 			return;
 		}
@@ -1051,8 +1052,11 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	}
 
 	ret = pm_runtime_get_sync(mcspi->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(mcspi->dev);
+
 		return ret;
+	}
 
 	ret = omap2_mcspi_setup_transfer(spi, NULL);
 	pm_runtime_mark_last_busy(mcspi->dev);
@@ -1270,8 +1274,11 @@ static int omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
 	int			ret = 0;
 
 	ret = pm_runtime_get_sync(mcspi->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(mcspi->dev);
+
 		return ret;
+	}
 
 	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE,
 			OMAP2_MCSPI_WAKEUPENABLE_WKEN);
@@ -1458,24 +1465,55 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:omap2_mcspi");
 
 #ifdef	CONFIG_SUSPEND
-static int omap2_mcspi_resume(struct device *dev)
+static int omap2_mcspi_suspend_noirq(struct device *dev)
 {
-	return pinctrl_pm_select_default_state(dev);
-}
+	int error;
 
-static int omap2_mcspi_suspend(struct device *dev)
-{
+	/*
+	 * Make sure device gets idled if other drivers call SPI
+	 * functions between device_prepare() and device_complete()
+	 */
+	error = pm_runtime_force_suspend(dev);
+	if (error < 0) {
+		dev_err(dev, "%s: force suspend failed: %i\n",
+			__func__, error);
+
+		return error;
+	}
+
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
+static int omap2_mcspi_resume_noirq(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
+	int error;
+
+	error = pinctrl_pm_select_default_state(dev);
+	if (error)
+		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
+			 __func__, error);
+
+	error = pm_runtime_force_resume(mcspi->dev);
+	if (error < 0) {
+		dev_warn(mcspi->dev, "%s: force resume failed: %i\n",
+			 __func__, error);
+
+		return error;
+	}
+
+	return 0;
+}
+
 #else
-#define omap2_mcspi_suspend	NULL
-#define	omap2_mcspi_resume	NULL
+#define omap2_mcspi_suspend_noirq	NULL
+#define omap2_mcspi_resume_noirq	NULL
 #endif
 
 static const struct dev_pm_ops omap2_mcspi_pm_ops = {
-	.resume = omap2_mcspi_resume,
-	.suspend = omap2_mcspi_suspend,
+	.suspend_noirq = omap2_mcspi_suspend_noirq,
+	.resume_noirq = omap2_mcspi_resume_noirq,
 	.runtime_resume	= omap_mcspi_runtime_resume,
 };
 
