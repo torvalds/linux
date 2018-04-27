@@ -32,7 +32,6 @@
 #include "cn23xx_vf_device.h"
 
 static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs);
-static int octnet_get_link_stats(struct net_device *netdev);
 
 struct oct_intrmod_context {
 	int octeon_id;
@@ -113,6 +112,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tso_err",
 	"tx_vxlan",
 
+	"tx_mcast",
+	"tx_bcast",
+
 	"mac_tx_total_pkts",
 	"mac_tx_total_bytes",
 	"mac_tx_mcast_pkts",
@@ -128,6 +130,8 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 
 	"rx_total_rcvd",
 	"rx_total_fwd",
+	"rx_mcast",
+	"rx_bcast",
 	"rx_jabber_err",
 	"rx_l2_err",
 	"rx_frame_err",
@@ -172,6 +176,10 @@ static const char oct_vf_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_errors",
 	"rx_dropped",
 	"tx_dropped",
+	"rx_mcast",
+	"tx_mcast",
+	"rx_bcast",
+	"tx_bcast",
 	"link_state_changes",
 };
 
@@ -1057,50 +1065,48 @@ lio_get_ethtool_stats(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	int i = 0, j;
 
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
-	octnet_get_link_stats(netdev);
-
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/*sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/*sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors +
-			       oct_dev->link_stats.fromwire.fcs_err +
-			       oct_dev->link_stats.fromwire.jabber_err +
-			       oct_dev->link_stats.fromwire.l2_err +
-			       oct_dev->link_stats.fromwire.frame_err);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors +
+			oct_dev->link_stats.fromwire.fcs_err +
+			oct_dev->link_stats.fromwire.jabber_err +
+			oct_dev->link_stats.fromwire.l2_err +
+			oct_dev->link_stats.fromwire.frame_err;
+	data[i++] = lstats.tx_errors;
 	/*sum of oct->droq[oq_no]->stats->rx_dropped +
 	 *oct->droq[oq_no]->stats->dropped_nodispatch +
 	 *oct->droq[oq_no]->stats->dropped_toomany +
 	 *oct->droq[oq_no]->stats->dropped_nomem
 	 */
-	data[i++] = CVM_CAST64(netstats->rx_dropped +
-			       oct_dev->link_stats.fromwire.fifo_err +
-			       oct_dev->link_stats.fromwire.dmac_drop +
-			       oct_dev->link_stats.fromwire.red_drops +
-			       oct_dev->link_stats.fromwire.fw_err_pko +
-			       oct_dev->link_stats.fromwire.fw_err_link +
-			       oct_dev->link_stats.fromwire.fw_err_drop);
+	data[i++] = lstats.rx_dropped +
+			oct_dev->link_stats.fromwire.fifo_err +
+			oct_dev->link_stats.fromwire.dmac_drop +
+			oct_dev->link_stats.fromwire.red_drops +
+			oct_dev->link_stats.fromwire.fw_err_pko +
+			oct_dev->link_stats.fromwire.fw_err_link +
+			oct_dev->link_stats.fromwire.fw_err_drop;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped +
-			       oct_dev->link_stats.fromhost.max_collision_fail +
-			       oct_dev->link_stats.fromhost.max_deferral_fail +
-			       oct_dev->link_stats.fromhost.total_collisions +
-			       oct_dev->link_stats.fromhost.fw_err_pko +
-			       oct_dev->link_stats.fromhost.fw_err_link +
-			       oct_dev->link_stats.fromhost.fw_err_drop +
-			       oct_dev->link_stats.fromhost.fw_err_pki);
+	data[i++] = lstats.tx_dropped +
+			oct_dev->link_stats.fromhost.max_collision_fail +
+			oct_dev->link_stats.fromhost.max_deferral_fail +
+			oct_dev->link_stats.fromhost.total_collisions +
+			oct_dev->link_stats.fromhost.fw_err_pko +
+			oct_dev->link_stats.fromhost.fw_err_link +
+			oct_dev->link_stats.fromhost.fw_err_drop +
+			oct_dev->link_stats.fromhost.fw_err_pki;
 
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
@@ -1134,6 +1140,10 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_tx_vxlan
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_tx_vxlan);
+
+	/* Multicast packets sent by this port */
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
 
 	/* mac tx statistics */
 	/*CVMX_BGXX_CMRX_TX_STAT5 */
@@ -1171,6 +1181,9 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_total_fwd
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_total_fwd);
+	/* Multicast packets received on this port */
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.jabber_err */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.jabber_err);
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.l2_err */
@@ -1339,7 +1352,7 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 				     __attribute__((unused)),
 				     u64 *data)
 {
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
 	int i = 0, j, vj;
@@ -1347,25 +1360,31 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/* sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/* sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors;
+	data[i++] = lstats.tx_errors;
 	 /* sum of oct->droq[oq_no]->stats->rx_dropped +
 	  * oct->droq[oq_no]->stats->dropped_nodispatch +
 	  * oct->droq[oq_no]->stats->dropped_toomany +
 	  * oct->droq[oq_no]->stats->dropped_nomem
 	  */
-	data[i++] = CVM_CAST64(netstats->rx_dropped);
+	data[i++] = lstats.rx_dropped;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped);
+	data[i++] = lstats.tx_dropped;
+
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
+
 	/* lio->link_changes */
 	data[i++] = CVM_CAST64(lio->link_changes);
 
@@ -1774,162 +1793,6 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 	dev_err(&oct_dev->pci_dev->dev, "iq/oq config failed\n");
 
 	return -EINTR;
-}
-
-static void
-octnet_nic_stats_callback(struct octeon_device *oct_dev,
-			  u32 status, void *ptr)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
-	struct oct_nic_stats_resp *resp =
-	    (struct oct_nic_stats_resp *)sc->virtrptr;
-	struct oct_nic_stats_ctrl *ctrl =
-	    (struct oct_nic_stats_ctrl *)sc->ctxptr;
-	struct nic_rx_stats *rsp_rstats = &resp->stats.fromwire;
-	struct nic_tx_stats *rsp_tstats = &resp->stats.fromhost;
-
-	struct nic_rx_stats *rstats = &oct_dev->link_stats.fromwire;
-	struct nic_tx_stats *tstats = &oct_dev->link_stats.fromhost;
-
-	if ((status != OCTEON_REQUEST_TIMEOUT) && !resp->status) {
-		octeon_swap_8B_data((u64 *)&resp->stats,
-				    (sizeof(struct oct_link_stats)) >> 3);
-
-		/* RX link-level stats */
-		rstats->total_rcvd = rsp_rstats->total_rcvd;
-		rstats->bytes_rcvd = rsp_rstats->bytes_rcvd;
-		rstats->total_bcst = rsp_rstats->total_bcst;
-		rstats->total_mcst = rsp_rstats->total_mcst;
-		rstats->runts      = rsp_rstats->runts;
-		rstats->ctl_rcvd   = rsp_rstats->ctl_rcvd;
-		/* Accounts for over/under-run of buffers */
-		rstats->fifo_err  = rsp_rstats->fifo_err;
-		rstats->dmac_drop = rsp_rstats->dmac_drop;
-		rstats->fcs_err   = rsp_rstats->fcs_err;
-		rstats->jabber_err = rsp_rstats->jabber_err;
-		rstats->l2_err    = rsp_rstats->l2_err;
-		rstats->frame_err = rsp_rstats->frame_err;
-		rstats->red_drops = rsp_rstats->red_drops;
-
-		/* RX firmware stats */
-		rstats->fw_total_rcvd = rsp_rstats->fw_total_rcvd;
-		rstats->fw_total_fwd = rsp_rstats->fw_total_fwd;
-		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
-		rstats->fw_err_link = rsp_rstats->fw_err_link;
-		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
-		rstats->fw_rx_vxlan = rsp_rstats->fw_rx_vxlan;
-		rstats->fw_rx_vxlan_err = rsp_rstats->fw_rx_vxlan_err;
-
-		/* Number of packets that are LROed      */
-		rstats->fw_lro_pkts = rsp_rstats->fw_lro_pkts;
-		/* Number of octets that are LROed       */
-		rstats->fw_lro_octs = rsp_rstats->fw_lro_octs;
-		/* Number of LRO packets formed          */
-		rstats->fw_total_lro = rsp_rstats->fw_total_lro;
-		/* Number of times lRO of packet aborted */
-		rstats->fw_lro_aborts = rsp_rstats->fw_lro_aborts;
-		rstats->fw_lro_aborts_port = rsp_rstats->fw_lro_aborts_port;
-		rstats->fw_lro_aborts_seq = rsp_rstats->fw_lro_aborts_seq;
-		rstats->fw_lro_aborts_tsval = rsp_rstats->fw_lro_aborts_tsval;
-		rstats->fw_lro_aborts_timer = rsp_rstats->fw_lro_aborts_timer;
-		/* intrmod: packet forward rate */
-		rstats->fwd_rate = rsp_rstats->fwd_rate;
-
-		/* TX link-level stats */
-		tstats->total_pkts_sent = rsp_tstats->total_pkts_sent;
-		tstats->total_bytes_sent = rsp_tstats->total_bytes_sent;
-		tstats->mcast_pkts_sent = rsp_tstats->mcast_pkts_sent;
-		tstats->bcast_pkts_sent = rsp_tstats->bcast_pkts_sent;
-		tstats->ctl_sent = rsp_tstats->ctl_sent;
-		/* Packets sent after one collision*/
-		tstats->one_collision_sent = rsp_tstats->one_collision_sent;
-		/* Packets sent after multiple collision*/
-		tstats->multi_collision_sent = rsp_tstats->multi_collision_sent;
-		/* Packets not sent due to max collisions */
-		tstats->max_collision_fail = rsp_tstats->max_collision_fail;
-		/* Packets not sent due to max deferrals */
-		tstats->max_deferral_fail = rsp_tstats->max_deferral_fail;
-		/* Accounts for over/under-run of buffers */
-		tstats->fifo_err = rsp_tstats->fifo_err;
-		tstats->runts = rsp_tstats->runts;
-		/* Total number of collisions detected */
-		tstats->total_collisions = rsp_tstats->total_collisions;
-
-		/* firmware stats */
-		tstats->fw_total_sent = rsp_tstats->fw_total_sent;
-		tstats->fw_total_fwd = rsp_tstats->fw_total_fwd;
-		tstats->fw_err_pko = rsp_tstats->fw_err_pko;
-		tstats->fw_err_pki = rsp_tstats->fw_err_pki;
-		tstats->fw_err_link = rsp_tstats->fw_err_link;
-		tstats->fw_err_drop = rsp_tstats->fw_err_drop;
-		tstats->fw_tso = rsp_tstats->fw_tso;
-		tstats->fw_tso_fwd = rsp_tstats->fw_tso_fwd;
-		tstats->fw_err_tso = rsp_tstats->fw_err_tso;
-		tstats->fw_tx_vxlan = rsp_tstats->fw_tx_vxlan;
-
-		resp->status = 1;
-	} else {
-		resp->status = -1;
-	}
-	complete(&ctrl->complete);
-}
-
-/*  Configure interrupt moderation parameters */
-static int octnet_get_link_stats(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct_dev = lio->oct_dev;
-
-	struct octeon_soft_command *sc;
-	struct oct_nic_stats_ctrl *ctrl;
-	struct oct_nic_stats_resp *resp;
-
-	int retval;
-
-	/* Alloc soft command */
-	sc = (struct octeon_soft_command *)
-		octeon_alloc_soft_command(oct_dev,
-					  0,
-					  sizeof(struct oct_nic_stats_resp),
-					  sizeof(struct octnic_ctrl_pkt));
-
-	if (!sc)
-		return -ENOMEM;
-
-	resp = (struct oct_nic_stats_resp *)sc->virtrptr;
-	memset(resp, 0, sizeof(struct oct_nic_stats_resp));
-
-	ctrl = (struct oct_nic_stats_ctrl *)sc->ctxptr;
-	memset(ctrl, 0, sizeof(struct oct_nic_stats_ctrl));
-	ctrl->netdev = netdev;
-	init_completion(&ctrl->complete);
-
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
-
-	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
-				    OPCODE_NIC_PORT_STATS, 0, 0, 0);
-
-	sc->callback = octnet_nic_stats_callback;
-	sc->callback_arg = sc;
-	sc->wait_time = 500;	/*in milli seconds*/
-
-	retval = octeon_send_soft_command(oct_dev, sc);
-	if (retval == IQ_SEND_FAILED) {
-		octeon_free_soft_command(oct_dev, sc);
-		return -EINVAL;
-	}
-
-	wait_for_completion_timeout(&ctrl->complete, msecs_to_jiffies(1000));
-
-	if (resp->status != 1) {
-		octeon_free_soft_command(oct_dev, sc);
-
-		return -EINVAL;
-	}
-
-	octeon_free_soft_command(oct_dev, sc);
-
-	return 0;
 }
 
 static int lio_get_intr_coalesce(struct net_device *netdev,
