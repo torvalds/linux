@@ -665,13 +665,13 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 	case STATS_TYPE_PORT:
 		err = mv88e6xxx_port_read(chip, port, s->reg, &reg);
 		if (err)
-			return UINT64_MAX;
+			return U64_MAX;
 
 		low = reg;
 		if (s->size == 4) {
 			err = mv88e6xxx_port_read(chip, port, s->reg + 1, &reg);
 			if (err)
-				return UINT64_MAX;
+				return U64_MAX;
 			high = reg;
 		}
 		break;
@@ -685,7 +685,7 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 			mv88e6xxx_g1_stats_read(chip, reg + 1, &high);
 		break;
 	default:
-		return UINT64_MAX;
+		return U64_MAX;
 	}
 	value = (((u64)high) << 16) | low;
 	return value;

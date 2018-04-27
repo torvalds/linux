@@ -1482,9 +1482,6 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	}
 }
 
-#ifndef UINT64_MAX
-#define UINT64_MAX		(u64)(~((u64)0))
-#endif
 static u64 marvell_get_stat(struct phy_device *phydev, int i)
 {
 	struct marvell_hw_stat stat = marvell_hw_stats[i];
@@ -1494,7 +1491,7 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 
 	val = phy_read_paged(phydev, stat.page, stat.reg);
 	if (val < 0) {
-		ret = UINT64_MAX;
+		ret = U64_MAX;
 	} else {
 		val = val & ((1 << stat.bits) - 1);
 		priv->stats[i] += val;
