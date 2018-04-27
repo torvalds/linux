@@ -66,7 +66,7 @@ static void rsa_priv_f2_unmap(struct device *dev, struct rsa_edesc *edesc,
 	struct caam_rsa_key *key = &ctx->key;
 	struct rsa_priv_f2_pdb *pdb = &edesc->pdb.priv_f2;
 	size_t p_sz = key->p_sz;
-	size_t q_sz = key->p_sz;
+	size_t q_sz = key->q_sz;
 
 	dma_unmap_single(dev, pdb->d_dma, key->d_sz, DMA_TO_DEVICE);
 	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
@@ -83,7 +83,7 @@ static void rsa_priv_f3_unmap(struct device *dev, struct rsa_edesc *edesc,
 	struct caam_rsa_key *key = &ctx->key;
 	struct rsa_priv_f3_pdb *pdb = &edesc->pdb.priv_f3;
 	size_t p_sz = key->p_sz;
-	size_t q_sz = key->p_sz;
+	size_t q_sz = key->q_sz;
 
 	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
 	dma_unmap_single(dev, pdb->q_dma, q_sz, DMA_TO_DEVICE);
@@ -397,7 +397,7 @@ static int set_rsa_priv_f2_pdb(struct akcipher_request *req,
 	struct rsa_priv_f2_pdb *pdb = &edesc->pdb.priv_f2;
 	int sec4_sg_index = 0;
 	size_t p_sz = key->p_sz;
-	size_t q_sz = key->p_sz;
+	size_t q_sz = key->q_sz;
 
 	pdb->d_dma = dma_map_single(dev, key->d, key->d_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->d_dma)) {
@@ -472,7 +472,7 @@ static int set_rsa_priv_f3_pdb(struct akcipher_request *req,
 	struct rsa_priv_f3_pdb *pdb = &edesc->pdb.priv_f3;
 	int sec4_sg_index = 0;
 	size_t p_sz = key->p_sz;
-	size_t q_sz = key->p_sz;
+	size_t q_sz = key->q_sz;
 
 	pdb->p_dma = dma_map_single(dev, key->p, p_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->p_dma)) {
