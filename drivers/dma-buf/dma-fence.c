@@ -181,6 +181,13 @@ void dma_fence_release(struct kref *kref)
 }
 EXPORT_SYMBOL(dma_fence_release);
 
+/**
+ * dma_fence_free - default release function for &dma_fence.
+ * @fence: fence to release
+ *
+ * This is the default implementation for &dma_fence_ops.release. It calls
+ * kfree_rcu() on @fence.
+ */
 void dma_fence_free(struct dma_fence *fence)
 {
 	kfree_rcu(fence, rcu);
@@ -560,7 +567,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	       spinlock_t *lock, u64 context, unsigned seqno)
 {
 	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->wait || !ops->enable_signaling ||
+	BUG_ON(!ops || !ops->wait ||
 	       !ops->get_driver_name || !ops->get_timeline_name);
 
 	kref_init(&fence->refcount);
@@ -571,6 +578,10 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	fence->seqno = seqno;
 	fence->flags = 0UL;
 	fence->error = 0;
+
+	if (!ops->enable_signaling)
+		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			&fence->flags);
 
 	trace_dma_fence_init(fence);
 }
