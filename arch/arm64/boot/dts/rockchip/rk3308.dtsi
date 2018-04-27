@@ -818,8 +818,7 @@
 		clock-names = "hclk";
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,audio-src = <0>;
-		rockchip,audio-chnl-num = <8>;
-		rockchip,audio-chnl = <0>;
+		rockchip,det-channel = <0>;
 		rockchip,mode = <0>;
 		status = "disabled";
 	};
