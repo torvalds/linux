@@ -842,8 +842,15 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 
 	state = sdhci_omap_iodelay_pinctrl_state(omap_host, "ddr_1_8v", caps,
 						 MMC_CAP_1_8V_DDR);
-	if (!IS_ERR(state))
+	if (!IS_ERR(state)) {
 		pinctrl_state[MMC_TIMING_MMC_DDR52] = state;
+	} else {
+		state = sdhci_omap_iodelay_pinctrl_state(omap_host, "ddr_3_3v",
+							 caps,
+							 MMC_CAP_3_3V_DDR);
+		if (!IS_ERR(state))
+			pinctrl_state[MMC_TIMING_MMC_DDR52] = state;
+	}
 
 	state = sdhci_omap_iodelay_pinctrl_state(omap_host, "hs", caps,
 						 MMC_CAP_SD_HIGHSPEED);
