@@ -1364,19 +1364,14 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
-	/* handle non-powerplay limitations */
-	if (!adev->powerplay.pp_handle) {
-		/* Skip fan attributes if fan is not present */
-		if (adev->pm.no_fan &&
-		    (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
-		     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
-		     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
-		     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
-			return 0;
-		/* requires powerplay */
-		if (attr == &sensor_dev_attr_fan1_input.dev_attr.attr)
-			return 0;
-	}
+
+	/* Skip fan attributes if fan is not present */
+	if (adev->pm.no_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
+	    attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
+	    attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
+	    attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
+	    attr == &sensor_dev_attr_fan1_input.dev_attr.attr))
+		return 0;
 
 	/* Skip limit attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&

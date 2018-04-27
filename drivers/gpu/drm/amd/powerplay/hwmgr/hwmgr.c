@@ -229,6 +229,9 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err;
 
+	((struct amdgpu_device *)hwmgr->adev)->pm.no_fan =
+				hwmgr->thermal_controller.fanInfo.bNoFan;
+
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 	if (ret)
 		goto err1;
