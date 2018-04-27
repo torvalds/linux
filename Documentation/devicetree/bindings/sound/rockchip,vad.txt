@@ -1,0 +1,31 @@
+* Rockchip VAD controller
+
+Required properties:
+
+- compatible: "rockchip,vad"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: should contain following:
+- interrupts: should contain the vad interrupt.
+- rockchip,audio-src: the audio src for vad.
+- rockchip,det-channel: the channel(0~7) is used for detection.
+- rockchip,mode: vad work mode.
+  - 0: begin to store the data after voice detected.
+  - 1: begin to store the data after vad is enabled.
+  - 2: don't store the data.
+
+Example for rk3308 VAD controller:
+
+vad: vad@ff3c0000 {
+	compatible = "rockchip,rk3308-vad", "rockchip,vad";
+	reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
+	reg-names = "vad", "vad-memory";
+	clocks = <&cru HCLK_VAD>;
+	clock-names = "hclk";
+	interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+	rockchip,audio-src = <0>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <0>;
+	status = "disabled";
+};

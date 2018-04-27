@@ -1399,6 +1399,25 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 	return 1ULL << (__force int) pcm_format;
 }
 
+#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
+snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
+				   void __user *buf, snd_pcm_uframes_t frames);
+/**
+ * snd_pcm_vad_avail - Get the available (readable) space for vad
+ * @runtime: PCM substream instance
+ *
+ * Result is between 0 ... (boundary - 1)
+ */
+snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream);
+/**
+ * snd_pcm_vad_attached - Check whether vad is attached to substream or not
+ * @substream: PCM substream instance
+ *
+ * Result is true for attached or false for detached
+ */
+bool snd_pcm_vad_attached(struct snd_pcm_substream *substream);
+#endif
+
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \
 	dev_err((pcm)->card->dev, fmt, ##args)
