@@ -168,12 +168,6 @@ static char tag_keepalive2 = CEPH_MSGR_TAG_KEEPALIVE2;
 static struct lock_class_key socket_class;
 #endif
 
-/*
- * When skipping (ignoring) a block of input we read it into a "skip
- * buffer," which is this many bytes in size.
- */
-#define SKIP_BUF_SIZE	1024
-
 static void queue_con(struct ceph_connection *con);
 static void cancel_con(struct ceph_connection *con);
 static void ceph_con_workfn(struct work_struct *);
@@ -520,11 +514,17 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	return 0;
 }
 
+/*
+ * If @buf is NULL, discard up to @len bytes.
+ */
 static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 {
 	struct kvec iov = {buf, len};
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
 	int r;
+
+	if (!buf)
+		msg.msg_flags |= MSG_TRUNC;
 
 	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, len);
 	r = sock_recvmsg(sock, &msg, msg.msg_flags);
@@ -2717,16 +2717,11 @@ more:
 	if (con->in_base_pos < 0) {
 		/*
 		 * skipping + discarding content.
-		 *
-		 * FIXME: there must be a better way to do this!
 		 */
-		static char buf[SKIP_BUF_SIZE];
-		int skip = min((int) sizeof (buf), -con->in_base_pos);
-
-		dout("skipping %d / %d bytes\n", skip, -con->in_base_pos);
-		ret = ceph_tcp_recvmsg(con->sock, buf, skip);
+		ret = ceph_tcp_recvmsg(con->sock, NULL, -con->in_base_pos);
 		if (ret <= 0)
 			goto out;
+		dout("skipped %d / %d bytes\n", ret, -con->in_base_pos);
 		con->in_base_pos += ret;
 		if (con->in_base_pos)
 			goto more;
