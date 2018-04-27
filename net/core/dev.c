@@ -7879,6 +7879,7 @@ int register_netdevice(struct net_device *dev)
 	int ret;
 	struct net *net = dev_net(dev);
 
+	netdev_features_size_check();
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
