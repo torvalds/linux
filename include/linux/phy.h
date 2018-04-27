@@ -1066,6 +1066,26 @@ int phy_ethtool_nway_reset(struct net_device *ndev);
 #if IS_ENABLED(CONFIG_PHYLIB)
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
+int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data);
+int phy_ethtool_get_sset_count(struct phy_device *phydev);
+int phy_ethtool_get_stats(struct phy_device *phydev,
+			  struct ethtool_stats *stats, u64 *data);
+#else
+int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	return -EOPNOTSUPP;
+}
+
+int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	return -EOPNOTSUPP;
+}
+
+int phy_ethtool_get_stats(struct phy_device *phydev,
+			  struct ethtool_stats *stats, u64 *data)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 extern struct bus_type mdio_bus_type;

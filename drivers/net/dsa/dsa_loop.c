@@ -86,15 +86,22 @@ static int dsa_loop_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port)
+static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS && sset != ETH_SS_PHY_STATS)
+		return 0;
+
 	return __DSA_LOOP_CNT_MAX;
 }
 
-static void dsa_loop_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static void dsa_loop_get_strings(struct dsa_switch *ds, int port,
+				 u32 stringset, uint8_t *data)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	unsigned int i;
+
+	if (stringset != ETH_SS_STATS && stringset != ETH_SS_PHY_STATS)
+		return;
 
 	for (i = 0; i < __DSA_LOOP_CNT_MAX; i++)
 		memcpy(data + i * ETH_GSTRING_LEN,
@@ -256,6 +263,7 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.get_strings		= dsa_loop_get_strings,
 	.get_ethtool_stats	= dsa_loop_get_ethtool_stats,
 	.get_sset_count		= dsa_loop_get_sset_count,
+	.get_ethtool_phy_stats	= dsa_loop_get_ethtool_stats,
 	.phy_read		= dsa_loop_phy_read,
 	.phy_write		= dsa_loop_phy_write,
 	.port_bridge_join	= dsa_loop_port_bridge_join,

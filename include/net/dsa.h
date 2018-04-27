@@ -356,10 +356,13 @@ struct dsa_switch_ops {
 	/*
 	 * ethtool hardware statistics.
 	 */
-	void	(*get_strings)(struct dsa_switch *ds, int port, uint8_t *data);
+	void	(*get_strings)(struct dsa_switch *ds, int port,
+			       u32 stringset, uint8_t *data);
 	void	(*get_ethtool_stats)(struct dsa_switch *ds,
 				     int port, uint64_t *data);
-	int	(*get_sset_count)(struct dsa_switch *ds, int port);
+	int	(*get_sset_count)(struct dsa_switch *ds, int port, int sset);
+	void	(*get_ethtool_phy_stats)(struct dsa_switch *ds,
+					 int port, uint64_t *data);
 
 	/*
 	 * ethtool Wake-on-LAN
@@ -587,5 +590,10 @@ static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 #define BRCM_TAG_SET_PORT_QUEUE(p, q)	((p) << 8 | q)
 #define BRCM_TAG_GET_PORT(v)		((v) >> 8)
 #define BRCM_TAG_GET_QUEUE(v)		((v) & 0xff)
+
+
+int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data);
+int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data);
+int dsa_port_get_phy_sset_count(struct dsa_port *dp);
 
 #endif

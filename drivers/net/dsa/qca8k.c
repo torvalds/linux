@@ -600,9 +600,12 @@ qca8k_phy_write(struct dsa_switch *ds, int phy, int regnum, u16 val)
 }
 
 static void
-qca8k_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+qca8k_get_strings(struct dsa_switch *ds, int port, u32 stringset, uint8_t *data)
 {
 	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(ar8327_mib); i++)
 		strncpy(data + i * ETH_GSTRING_LEN, ar8327_mib[i].name,
@@ -631,8 +634,11 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 }
 
 static int
-qca8k_get_sset_count(struct dsa_switch *ds, int port)
+qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return ARRAY_SIZE(ar8327_mib);
 }
 
