@@ -787,6 +787,7 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 	struct v4l2_format f_cap;
+	struct vb2_queue *dst_vq;
 	int ret;
 
 	ret = coda_try_fmt_vid_out(file, priv, f);
@@ -801,6 +802,19 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	ctx->xfer_func = f->fmt.pix.xfer_func;
 	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
 	ctx->quantization = f->fmt.pix.quantization;
+
+	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (!dst_vq)
+		return -EINVAL;
+
+	/*
+	 * Setting the capture queue format is not possible while the capture
+	 * queue is still busy. This is not an error, but the user will have to
+	 * make sure themselves that the capture format is set correctly before
+	 * starting the output queue again.
+	 */
+	if (vb2_is_busy(dst_vq))
+		return 0;
 
 	memset(&f_cap, 0, sizeof(f_cap));
 	f_cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
