@@ -3,6 +3,12 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
+config 64BIT
+	bool
+
+config 32BIT
+	bool
+
 config RISCV
 	def_bool y
 	# even on 32-bit, physical (and DMA) addresses are > 32-bits
@@ -95,7 +101,6 @@ choice
 
 config ARCH_RV32I
 	bool "RV32I"
-	select CPU_SUPPORTS_32BIT_KERNEL
 	select 32BIT
 	select GENERIC_ASHLDI3
 	select GENERIC_ASHRDI3
@@ -103,7 +108,6 @@ config ARCH_RV32I
 
 config ARCH_RV64I
 	bool "RV64I"
-	select CPU_SUPPORTS_64BIT_KERNEL
 	select 64BIT
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -165,11 +169,6 @@ config NR_CPUS
 	depends on SMP
 	default "8"
 
-config CPU_SUPPORTS_32BIT_KERNEL
-	bool
-config CPU_SUPPORTS_64BIT_KERNEL
-	bool
-
 choice
 	prompt "CPU Tuning"
 	default TUNE_GENERIC
@@ -195,24 +194,6 @@ config RISCV_ISA_A
 endmenu
 
 menu "Kernel type"
-
-choice
-	prompt "Kernel code model"
-	default 64BIT
-
-config 32BIT
-	bool "32-bit kernel"
-	depends on CPU_SUPPORTS_32BIT_KERNEL
-	help
-	  Select this option to build a 32-bit kernel.
-
-config 64BIT
-	bool "64-bit kernel"
-	depends on CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  Select this option to build a 64-bit kernel.
-
-endchoice
 
 source "mm/Kconfig"
 
