@@ -68,6 +68,7 @@ struct vhost_iotlb_msg {
 
 struct vhost_msg {
 	int type;
+	int padding0;
 	union {
 		struct vhost_iotlb_msg iotlb;
 		__u8 padding[64];
