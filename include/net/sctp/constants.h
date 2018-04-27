@@ -254,11 +254,10 @@ enum { SCTP_ARBITRARY_COOKIE_ECHO_LEN = 200 };
 #define SCTP_TSN_MAP_SIZE 4096
 
 /* We will not record more than this many duplicate TSNs between two
- * SACKs.  The minimum PMTU is 576.  Remove all the headers and there
- * is enough room for 131 duplicate reports.  Round down to the
+ * SACKs.  The minimum PMTU is 512.  Remove all the headers and there
+ * is enough room for 117 duplicate reports.  Round down to the
  * nearest power of 2.
  */
-enum { SCTP_MIN_PMTU = 576 };
 enum { SCTP_MAX_DUP_TSNS = 16 };
 enum { SCTP_MAX_GABS = 16 };
 

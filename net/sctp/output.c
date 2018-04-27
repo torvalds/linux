@@ -90,8 +90,8 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
+	struct sctp_sock *sp = NULL;
 	struct sock *sk;
-	size_t overhead = sizeof(struct ipv6hdr) + sizeof(struct sctphdr);
 
 	pr_debug("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
 	packet->vtag = vtag;
@@ -102,28 +102,20 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 
 	/* set packet max_size with pathmtu, then calculate overhead */
 	packet->max_size = tp->pathmtu;
-	if (asoc) {
-		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-		struct sctp_af *af = sp->pf->af;
 
-		overhead = af->net_header_len +
-			   af->ip_options_len(asoc->base.sk);
-		overhead += sizeof(struct sctphdr);
-		packet->overhead = overhead;
-		packet->size = overhead;
-	} else {
-		packet->overhead = overhead;
-		packet->size = overhead;
-		return;
+	if (asoc) {
+		sk = asoc->base.sk;
+		sp = sctp_sk(sk);
 	}
+	packet->overhead = sctp_mtu_payload(sp, 0, 0);
+	packet->size = packet->overhead;
+
+	if (!asoc)
+		return;
 
 	/* update dst or transport pathmtu if in need */
-	sk = asoc->base.sk;
 	if (!sctp_transport_dst_check(tp)) {
-		sctp_transport_route(tp, NULL, sctp_sk(sk));
-		if (asoc->param_flags & SPP_PMTUD_ENABLE)
-			sctp_assoc_sync_pmtu(asoc);
-	} else if (!sctp_transport_pmtu_check(tp)) {
+		sctp_transport_route(tp, NULL, sp);
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
 			sctp_assoc_sync_pmtu(asoc);
 	}

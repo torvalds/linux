@@ -2097,6 +2097,8 @@ int sctp_assoc_update(struct sctp_association *old,
 
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
+void sctp_assoc_update_frag_point(struct sctp_association *asoc);
+void sctp_assoc_set_pmtu(struct sctp_association *asoc, __u32 pmtu);
 void sctp_assoc_sync_pmtu(struct sctp_association *asoc);
 void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
 void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);

@@ -242,9 +242,18 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 						&transport->fl, sk);
 	}
 
-	if (transport->dst) {
-		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
-	} else
+	if (transport->param_flags & SPP_PMTUD_DISABLE) {
+		struct sctp_association *asoc = transport->asoc;
+
+		if (!transport->pathmtu && asoc && asoc->pathmtu)
+			transport->pathmtu = asoc->pathmtu;
+		if (transport->pathmtu)
+			return;
+	}
+
+	if (transport->dst)
+		transport->pathmtu = sctp_dst_mtu(transport->dst);
+	else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
@@ -290,6 +299,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
 
+	sctp_transport_dst_release(transport);
 	af->get_dst(transport, saddr, &transport->fl, sctp_opt2sk(opt));
 
 	if (saddr)
@@ -297,21 +307,14 @@ void sctp_transport_route(struct sctp_transport *transport,
 	else
 		af->get_saddr(opt, transport, &transport->fl);
 
-	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
-		return;
-	}
-	if (transport->dst) {
-		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
+	sctp_transport_pmtu(transport, sctp_opt2sk(opt));
 
-		/* Initialize sk->sk_rcv_saddr, if the transport is the
-		 * association's active path for getsockname().
-		 */
-		if (asoc && (!asoc->peer.primary_path ||
-				(transport == asoc->peer.active_path)))
-			opt->pf->to_sk_saddr(&transport->saddr,
-					     asoc->base.sk);
-	} else
-		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
+	/* Initialize sk->sk_rcv_saddr, if the transport is the
+	 * association's active path for getsockname().
+	 */
+	if (transport->dst && asoc &&
+	    (!asoc->peer.primary_path || transport == asoc->peer.active_path))
+		opt->pf->to_sk_saddr(&transport->saddr, asoc->base.sk);
 }
 
 /* Hold a reference to a transport.  */
