@@ -4913,6 +4913,16 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 		seq_printf(m, "%s", field_name);
 	} else if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP)
 		seq_puts(m, "common_timestamp");
+
+	if (hist_field->flags) {
+		if (!(hist_field->flags & HIST_FIELD_FL_VAR_REF) &&
+		    !(hist_field->flags & HIST_FIELD_FL_EXPR)) {
+			const char *flags = get_hist_field_flags(hist_field);
+
+			if (flags)
+				seq_printf(m, ".%s", flags);
+		}
+	}
 }
 
 static int event_hist_trigger_print(struct seq_file *m,
