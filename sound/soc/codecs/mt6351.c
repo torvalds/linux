@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * mt6351.c  --  mt6351 ALSA SoC audio codec driver
- *
- * Copyright (c) 2018 MediaTek Inc.
- * Author: KaiChieh Chuang <kaichieh.chuang@mediatek.com>
- */
+//
+// mt6351.c  --  mt6351 ALSA SoC audio codec driver
+//
+// Copyright (c) 2018 MediaTek Inc.
+// Author: KaiChieh Chuang <kaichieh.chuang@mediatek.com>
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
