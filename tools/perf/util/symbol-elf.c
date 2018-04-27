@@ -1069,12 +1069,8 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				dso__set_loaded(curr_dso);
 			} else
 				curr_dso = curr_map->dso;
-
-			goto new_symbol;
-		}
-
-		if ((used_opd && runtime_ss->adjust_symbols)
-				|| (!used_opd && syms_ss->adjust_symbols)) {
+		} else if ((used_opd && runtime_ss->adjust_symbols) ||
+			   (!used_opd && syms_ss->adjust_symbols)) {
 			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
 				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
 				  (u64)sym.st_value, (u64)shdr.sh_addr,
