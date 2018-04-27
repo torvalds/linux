@@ -530,58 +530,31 @@ static void force_quiescent_state(struct rcu_state *rsp);
 static int rcu_pending(void);
 
 /*
- * Return the number of RCU batches started thus far for debug & stats.
+ * Return the number of RCU GPs completed thus far for debug & stats.
  */
-unsigned long rcu_batches_started(void)
+unsigned long rcu_get_gp_seq(void)
 {
-	return rcu_state_p->gpnum;
+	return rcu_seq_ctr(READ_ONCE(rcu_state_p->gp_seq));
 }
-EXPORT_SYMBOL_GPL(rcu_batches_started);
+EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
 
 /*
- * Return the number of RCU-sched batches started thus far for debug & stats.
+ * Return the number of RCU-sched GPs completed thus far for debug & stats.
  */
-unsigned long rcu_batches_started_sched(void)
+unsigned long rcu_sched_get_gp_seq(void)
 {
-	return rcu_sched_state.gpnum;
+	return rcu_seq_ctr(READ_ONCE(rcu_sched_state.gp_seq));
 }
-EXPORT_SYMBOL_GPL(rcu_batches_started_sched);
+EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
 
 /*
- * Return the number of RCU BH batches started thus far for debug & stats.
+ * Return the number of RCU-bh GPs completed thus far for debug & stats.
  */
-unsigned long rcu_batches_started_bh(void)
+unsigned long rcu_bh_get_gp_seq(void)
 {
-	return rcu_bh_state.gpnum;
+	return rcu_seq_ctr(READ_ONCE(rcu_bh_state.gp_seq));
 }
-EXPORT_SYMBOL_GPL(rcu_batches_started_bh);
-
-/*
- * Return the number of RCU batches completed thus far for debug & stats.
- */
-unsigned long rcu_batches_completed(void)
-{
-	return rcu_state_p->completed;
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed);
-
-/*
- * Return the number of RCU-sched batches completed thus far for debug & stats.
- */
-unsigned long rcu_batches_completed_sched(void)
-{
-	return rcu_sched_state.completed;
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed_sched);
-
-/*
- * Return the number of RCU BH batches completed thus far for debug & stats.
- */
-unsigned long rcu_batches_completed_bh(void)
-{
-	return rcu_bh_state.completed;
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed_bh);
+EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
 
 /*
  * Return the number of RCU expedited batches completed thus far for

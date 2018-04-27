@@ -264,8 +264,7 @@ struct rcu_torture_ops {
 	int (*readlock)(void);
 	void (*read_delay)(struct torture_random_state *rrsp);
 	void (*readunlock)(int idx);
-	unsigned long (*started)(void);
-	unsigned long (*completed)(void);
+	unsigned long (*get_gp_seq)(void);
 	void (*deferred_free)(struct rcu_torture *p);
 	void (*sync)(void);
 	void (*exp_sync)(void);
@@ -305,10 +304,10 @@ static void rcu_read_delay(struct torture_random_state *rrsp)
 	 * force_quiescent_state. */
 
 	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
-		started = cur_ops->completed();
+		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
 		mdelay(longdelay_ms);
-		completed = cur_ops->completed();
+		completed = cur_ops->get_gp_seq();
 		do_trace_rcu_torture_read(cur_ops->name, NULL, ts,
 					  started, completed);
 	}
@@ -400,8 +399,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
-	.started	= rcu_batches_started,
-	.completed	= rcu_batches_completed,
+	.get_gp_seq	= rcu_get_gp_seq,
 	.deferred_free	= rcu_torture_deferred_free,
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
@@ -442,8 +440,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
-	.started	= rcu_batches_started_bh,
-	.completed	= rcu_batches_completed_bh,
+	.get_gp_seq	= rcu_bh_get_gp_seq,
 	.deferred_free	= rcu_bh_torture_deferred_free,
 	.sync		= synchronize_rcu_bh,
 	.exp_sync	= synchronize_rcu_bh_expedited,
@@ -486,8 +483,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock,
-	.started	= rcu_no_completed,
-	.completed	= rcu_no_completed,
+	.get_gp_seq	= rcu_no_completed,
 	.deferred_free	= rcu_busted_torture_deferred_free,
 	.sync		= synchronize_rcu_busted,
 	.exp_sync	= synchronize_rcu_busted,
@@ -575,8 +571,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
-	.started	= NULL,
-	.completed	= srcu_torture_completed,
+	.get_gp_seq	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
 	.exp_sync	= srcu_torture_synchronize_expedited,
@@ -613,8 +608,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
-	.started	= NULL,
-	.completed	= srcu_torture_completed,
+	.get_gp_seq	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
 	.exp_sync	= srcu_torture_synchronize_expedited,
@@ -651,8 +645,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.started	= rcu_batches_started_sched,
-	.completed	= rcu_batches_completed_sched,
+	.get_gp_seq	= rcu_sched_get_gp_seq,
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= synchronize_sched,
 	.exp_sync	= synchronize_sched_expedited,
@@ -690,8 +683,7 @@ static struct rcu_torture_ops tasks_ops = {
 	.readlock	= tasks_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= tasks_torture_read_unlock,
-	.started	= rcu_no_completed,
-	.completed	= rcu_no_completed,
+	.get_gp_seq	= rcu_no_completed,
 	.deferred_free	= rcu_tasks_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
@@ -1104,10 +1096,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 	unsigned long long ts;
 
 	idx = cur_ops->readlock();
-	if (cur_ops->started)
-		started = cur_ops->started();
-	else
-		started = cur_ops->completed();
+	started = cur_ops->get_gp_seq();
 	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
 				  rcu_read_lock_bh_held() ||
@@ -1131,7 +1120,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 		/* Should not happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
-	completed = cur_ops->completed();
+	completed = cur_ops->get_gp_seq();
 	if (pipe_count > 1) {
 		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu, ts,
 					  started, completed);
@@ -1139,8 +1128,8 @@ static void rcu_torture_timer(struct timer_list *unused)
 	}
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = completed - started;
-	if (cur_ops->started)
-		completed++;
+	if (completed > ULONG_MAX >> 1)
+		completed = 0; /* Not all gp_seq have full range. */
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
@@ -1187,10 +1176,7 @@ rcu_torture_reader(void *arg)
 				mod_timer(&t, jiffies + 1);
 		}
 		idx = cur_ops->readlock();
-		if (cur_ops->started)
-			started = cur_ops->started();
-		else
-			started = cur_ops->completed();
+		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
 		p = rcu_dereference_check(rcu_torture_current,
 					  rcu_read_lock_bh_held() ||
@@ -1212,7 +1198,7 @@ rcu_torture_reader(void *arg)
 			/* Should not happen, but... */
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
-		completed = cur_ops->completed();
+		completed = cur_ops->get_gp_seq();
 		if (pipe_count > 1) {
 			do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu,
 						  ts, started, completed);
@@ -1220,8 +1206,8 @@ rcu_torture_reader(void *arg)
 		}
 		__this_cpu_inc(rcu_torture_count[pipe_count]);
 		completed = completed - started;
-		if (cur_ops->started)
-			completed++;
+		if (completed > ULONG_MAX >> 1)
+			completed = 0; /* Not all gp_seq have full range. */
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;

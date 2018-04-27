@@ -463,12 +463,9 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 #endif
 
 #ifdef CONFIG_TINY_RCU
-static inline unsigned long rcu_batches_started(void) { return 0; }
-static inline unsigned long rcu_batches_started_bh(void) { return 0; }
-static inline unsigned long rcu_batches_started_sched(void) { return 0; }
-static inline unsigned long rcu_batches_completed(void) { return 0; }
-static inline unsigned long rcu_batches_completed_bh(void) { return 0; }
-static inline unsigned long rcu_batches_completed_sched(void) { return 0; }
+static inline unsigned long rcu_get_gp_seq(void) { return 0; }
+static inline unsigned long rcu_bh_get_gp_seq(void) { return 0; }
+static inline unsigned long rcu_sched_get_gp_seq(void) { return 0; }
 static inline unsigned long rcu_exp_batches_completed(void) { return 0; }
 static inline unsigned long rcu_exp_batches_completed_sched(void) { return 0; }
 static inline unsigned long
@@ -480,12 +477,9 @@ static inline void show_rcu_gp_kthreads(void) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 extern unsigned long rcutorture_testseq;
 extern unsigned long rcutorture_vernum;
-unsigned long rcu_batches_started(void);
-unsigned long rcu_batches_started_bh(void);
-unsigned long rcu_batches_started_sched(void);
-unsigned long rcu_batches_completed(void);
-unsigned long rcu_batches_completed_bh(void);
-unsigned long rcu_batches_completed_sched(void);
+unsigned long rcu_get_gp_seq(void);
+unsigned long rcu_bh_get_gp_seq(void);
+unsigned long rcu_sched_get_gp_seq(void);
 unsigned long rcu_exp_batches_completed(void);
 unsigned long rcu_exp_batches_completed_sched(void);
 unsigned long srcu_batches_completed(struct srcu_struct *sp);
