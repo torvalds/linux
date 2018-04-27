@@ -8,9 +8,26 @@
 	compatible = "nokia,n810", "nokia,n8x0", "ti,omap2420", "ti,omap2";
 };
 
+&omap2420_pmx {
+	mcbsp2_pins: mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP2420_CORE_IOPAD(0x0124, PIN_INPUT | MUX_MODE1)	/* eac_ac_sclk.mcbsp2_clkx */
+			OMAP2420_CORE_IOPAD(0x0125, PIN_INPUT | MUX_MODE1)	/* eac_ac_fs.mcbsp2_fsx */
+			OMAP2420_CORE_IOPAD(0x0126, PIN_INPUT | MUX_MODE1)	/* eac_ac_din.mcbsp2_dr */
+			OMAP2420_CORE_IOPAD(0x0127, PIN_OUTPUT | MUX_MODE1)	/* eac_ac_dout.mcbsp2_dx */
+		>;
+	};
+};
+
 &i2c2 {
 	aic3x@18 {
 		compatible = "tlv320aic3x";
 		reg = <0x18>;
 	};
+};
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+
+	status = "okay";
 };
