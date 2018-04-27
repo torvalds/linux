@@ -2308,8 +2308,10 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 	struct rcu_node *rnp_p;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
-	if (rcu_state_p == &rcu_sched_state || rsp != rcu_state_p ||
-	    rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
+	if (WARN_ON_ONCE(rcu_state_p == &rcu_sched_state) ||
+	    WARN_ON_ONCE(rsp != rcu_state_p) ||
+	    WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)) ||
+	    rnp->qsmask != 0) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;  /* Still need more quiescent states! */
 	}
