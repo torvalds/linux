@@ -503,11 +503,6 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	for (i = 0; i < count; ++i) {
 		struct dma_fence *fence = fences[i];
 
-		if (fence->ops->wait != dma_fence_default_wait) {
-			ret = -EINVAL;
-			goto fence_rm_cb;
-		}
-
 		cb[i].task = current;
 		if (dma_fence_add_callback(fence, &cb[i].base,
 					   dma_fence_default_wait_cb)) {
