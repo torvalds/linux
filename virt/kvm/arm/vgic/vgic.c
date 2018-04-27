@@ -14,11 +14,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/list_sort.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
+#include <linux/nospec.h>
+
 #include <asm/kvm_hyp.h>
 
 #include "vgic.h"
@@ -101,12 +103,16 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid)
 {
 	/* SGIs and PPIs */
-	if (intid <= VGIC_MAX_PRIVATE)
+	if (intid <= VGIC_MAX_PRIVATE) {
+		intid = array_index_nospec(intid, VGIC_MAX_PRIVATE);
 		return &vcpu->arch.vgic_cpu.private_irqs[intid];
+	}
 
 	/* SPIs */
-	if (intid <= VGIC_MAX_SPI)
+	if (intid <= VGIC_MAX_SPI) {
+		intid = array_index_nospec(intid, VGIC_MAX_SPI);
 		return &kvm->arch.vgic.spis[intid - VGIC_NR_PRIVATE_IRQS];
+	}
 
 	/* LPIs */
 	if (intid >= VGIC_MIN_LPI)
