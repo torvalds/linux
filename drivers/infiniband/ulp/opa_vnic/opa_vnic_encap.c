@@ -443,17 +443,16 @@ static u8 opa_vnic_get_rc(struct __opa_veswport_info *info,
 }
 
 /* opa_vnic_calc_entropy - calculate the packet entropy */
-u8 opa_vnic_calc_entropy(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
+u8 opa_vnic_calc_entropy(struct sk_buff *skb)
 {
-	u16 hash16;
+	u32 hash = skb_get_hash(skb);
 
-	/*
-	 * Get flow based 16-bit hash and then XOR the upper and lower bytes
-	 * to get the entropy.
-	 * __skb_tx_hash limits qcount to 16 bits. Hence, get 15-bit hash.
-	 */
-	hash16 = __skb_tx_hash(adapter->netdev, skb, BIT(15));
-	return (u8)((hash16 >> 8) ^ (hash16 & 0xff));
+	/* store XOR of all bytes in lower 8 bits */
+	hash ^= hash >> 8;
+	hash ^= hash >> 16;
+
+	/* return lower 8 bits as entropy */
+	return (u8)(hash & 0xFF);
 }
 
 /* opa_vnic_get_def_port - get default port based on entropy */
@@ -490,7 +489,7 @@ void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 
 	hdr = skb_push(skb, OPA_VNIC_HDR_LEN);
 
-	entropy = opa_vnic_calc_entropy(adapter, skb);
+	entropy = opa_vnic_calc_entropy(skb);
 	def_port = opa_vnic_get_def_port(adapter, entropy);
 	len = opa_vnic_wire_length(skb);
 	dlid = opa_vnic_get_dlid(adapter, skb, def_port);
