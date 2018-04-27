@@ -779,7 +779,19 @@ static int coda_s_fmt_vid_cap(struct file *file, void *priv,
 	r.width = q_data_src->width;
 	r.height = q_data_src->height;
 
-	return coda_s_fmt(ctx, f, &r);
+	ret = coda_s_fmt(ctx, f, &r);
+	if (ret)
+		return ret;
+
+	if (ctx->inst_type != CODA_INST_ENCODER)
+		return 0;
+
+	ctx->colorspace = f->fmt.pix.colorspace;
+	ctx->xfer_func = f->fmt.pix.xfer_func;
+	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
+	ctx->quantization = f->fmt.pix.quantization;
+
+	return 0;
 }
 
 static int coda_s_fmt_vid_out(struct file *file, void *priv,
@@ -797,6 +809,9 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	ret = coda_s_fmt(ctx, f, NULL);
 	if (ret)
 		return ret;
+
+	if (ctx->inst_type != CODA_INST_DECODER)
+		return 0;
 
 	ctx->colorspace = f->fmt.pix.colorspace;
 	ctx->xfer_func = f->fmt.pix.xfer_func;
