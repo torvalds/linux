@@ -2242,7 +2242,7 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
  * must be represented by the same rcu_node structure (which need not be a
  * leaf rcu_node structure, though it often will be).  The gps parameter
  * is the grace-period snapshot, which means that the quiescent states
- * are valid only if rnp->gpnum is equal to gps.  That structure's lock
+ * are valid only if rnp->gp_seq is equal to gps.  That structure's lock
  * must be held upon entry, and it is released before return.
  */
 static void
@@ -2257,7 +2257,7 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 
 	/* Walk up the rcu_node hierarchy. */
 	for (;;) {
-		if (!(rnp->qsmask & mask) || rnp->gpnum != gps) {
+		if (!(rnp->qsmask & mask) || rnp->gp_seq != gps) {
 
 			/*
 			 * Our bit has already been cleared, or the
@@ -2335,8 +2335,8 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 		return;
 	}
 
-	/* Report up the rest of the hierarchy, tracking current ->gpnum. */
-	gps = rnp->gpnum;
+	/* Report up the rest of the hierarchy, tracking current ->gp_seq. */
+	gps = rnp->gp_seq;
 	mask = rnp->grpmask;
 	raw_spin_unlock_rcu_node(rnp);	/* irqs remain disabled. */
 	raw_spin_lock_rcu_node(rnp_p);	/* irqs already disabled. */
@@ -2357,8 +2357,8 @@ rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp)
 
 	rnp = rdp->mynode;
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	if (rdp->cpu_no_qs.b.norm || rdp->gpnum != rnp->gpnum ||
-	    rnp->completed == rnp->gpnum || rdp->gpwrap) {
+	if (rdp->cpu_no_qs.b.norm || rdp->gp_seq != rnp->gp_seq ||
+	    rdp->gpwrap) {
 
 		/*
 		 * The grace period in which this quiescent state was
@@ -2383,7 +2383,7 @@ rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp)
 		 */
 		needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
 
-		rcu_report_qs_rnp(mask, rsp, rnp, rnp->gpnum, flags);
+		rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
 		/* ^^^ Released rnp->lock */
 		if (needwake)
 			rcu_gp_kthread_wake(rsp);
@@ -2688,8 +2688,8 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 			}
 		}
 		if (mask != 0) {
-			/* Idle/offline CPUs, report (releases rnp->lock. */
-			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gpnum, flags);
+			/* Idle/offline CPUs, report (releases rnp->lock). */
+			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
 		} else {
 			/* Nothing to do here, so just drop the lock. */
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
