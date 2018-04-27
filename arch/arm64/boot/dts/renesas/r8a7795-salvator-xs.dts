@@ -56,6 +56,11 @@
 	status = "okay";
 };
 
+&ehci3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &hsusb3 {
 	dr_mode = "otg";
 	status = "okay";
@@ -114,6 +119,11 @@
 };
 
 &ohci2 {
+	status = "okay";
+};
+
+&ohci3 {
+	dr_mode = "otg";
 	status = "okay";
 };
 
