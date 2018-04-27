@@ -1026,6 +1026,15 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 		dev_err(ds->dev, "p%d: failed to update state\n", port);
 }
 
+static int mv88e6xxx_trunk_setup(struct mv88e6xxx_chip *chip)
+{
+	/* Clear all trunk masks and mapping */
+	if (chip->info->global2_addr)
+		return mv88e6xxx_g2_trunk_clear(chip);
+
+	return 0;
+}
+
 static int mv88e6xxx_pot_setup(struct mv88e6xxx_chip *chip)
 {
 	if (chip->info->ops->pot_clear)
@@ -2236,6 +2245,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 	err = mv88e6xxx_rsvd2cpu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_trunk_setup(chip);
 	if (err)
 		goto unlock;
 

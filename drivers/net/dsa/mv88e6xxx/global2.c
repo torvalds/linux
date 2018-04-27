@@ -174,7 +174,7 @@ static int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
 	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_TRUNK_MAPPING, val);
 }
 
-static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
+int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
 {
 	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	int i, err;
@@ -1156,11 +1156,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 
 	/* Program the DSA routing table. */
 	err = mv88e6xxx_g2_set_device_mapping(chip);
-	if (err)
-		return err;
-
-	/* Clear all trunk masks and mapping. */
-	err = mv88e6xxx_g2_clear_trunk(chip);
 	if (err)
 		return err;
 
