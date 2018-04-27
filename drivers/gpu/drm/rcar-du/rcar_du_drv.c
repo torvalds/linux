@@ -40,7 +40,7 @@ static const struct rcar_du_device_info rzg1_du_r8a7743_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7743 has one RGB output and one LVDS output
@@ -61,7 +61,7 @@ static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7745 has two RGB outputs
@@ -80,7 +80,7 @@ static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.gen = 2,
 	.features = 0,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7779 has two RGB outputs and one (currently unsupported)
@@ -102,7 +102,7 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B,
-	.num_crtcs = 3,
+	.channels_mask = BIT(2) | BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7790 has one RGB output, two LVDS outputs and one
@@ -129,7 +129,7 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A779[13] has one RGB output, one LVDS output and one
@@ -151,7 +151,7 @@ static const struct rcar_du_device_info rcar_du_r8a7792_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/* R8A7792 has two RGB outputs. */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -169,7 +169,7 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.num_crtcs = 2,
+	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7794 has two RGB outputs and one (currently unsupported)
@@ -191,7 +191,7 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
-	.num_crtcs = 4,
+	.channels_mask = BIT(3) | BIT(2) | BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7795 has one RGB output, two HDMI outputs and one
@@ -215,7 +215,7 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 		},
 	},
 	.num_lvds = 1,
-	.dpll_ch =  BIT(1) | BIT(2),
+	.dpll_ch =  BIT(2) | BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7796_info = {
@@ -223,7 +223,7 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
-	.num_crtcs = 3,
+	.channels_mask = BIT(2) | BIT(1) | BIT(0),
 	.routes = {
 		/*
 		 * R8A7796 has one RGB output, one LVDS output and one HDMI
@@ -251,7 +251,7 @@ static const struct rcar_du_device_info rcar_du_r8a77970_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
-	.num_crtcs = 1,
+	.channels_mask = BIT(0),
 	.routes = {
 		/* R8A77970 has one RGB output and one LVDS output. */
 		[RCAR_DU_OUTPUT_DPAD0] = {
