@@ -559,7 +559,10 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
-		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
+		/* Extract the channel mask for this group only. */
+		rgrp->channels_mask = (rcdu->info->channels_mask >> (2 * i))
+				   & GENMASK(1, 0);
+		rgrp->num_crtcs = hweight8(rgrp->channels_mask);
 
 		/*
 		 * If we have more than one CRTCs in this group pre-associate
