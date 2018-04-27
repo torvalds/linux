@@ -1754,6 +1754,7 @@ void __btrfs_del_delalloc_inode(struct btrfs_root *root,
 			  &inode->runtime_flags);
 		root->nr_delalloc_inodes--;
 		if (!root->nr_delalloc_inodes) {
+			ASSERT(list_empty(&root->delalloc_inodes));
 			spin_lock(&fs_info->delalloc_root_lock);
 			BUG_ON(list_empty(&root->delalloc_root));
 			list_del_init(&root->delalloc_root);
