@@ -48,7 +48,7 @@ config MMU
 
 config ZONE_DMA32
 	bool
-	default y
+	default y if 64BIT
 
 config PAGE_OFFSET
 	hex
