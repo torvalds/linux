@@ -1790,24 +1790,23 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 
+	if (rdp->gp_seq == rnp->gp_seq)
+		return false; /* Nothing to do. */
+
 	/* Handle the ends of any preceding grace periods first. */
-	if (rdp->completed == rnp->completed &&
-	    !unlikely(READ_ONCE(rdp->gpwrap))) {
-
-		/* No grace period end, so just accelerate recent callbacks. */
-		ret = rcu_accelerate_cbs(rsp, rnp, rdp);
-
-	} else {
-
-		/* Advance callbacks. */
-		ret = rcu_advance_cbs(rsp, rnp, rdp);
-
+	if (rcu_seq_completed_gp(rdp->gp_seq, rnp->gp_seq) ||
+	    unlikely(READ_ONCE(rdp->gpwrap))) {
+		ret = rcu_advance_cbs(rsp, rnp, rdp); /* Advance callbacks. */
 		/* Remember that we saw this grace-period completion. */
 		rdp->completed = rnp->completed;
-		trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpuend"));
+		trace_rcu_grace_period(rsp->name, rdp->gp_seq, TPS("cpuend"));
+	} else {
+		ret = rcu_accelerate_cbs(rsp, rnp, rdp); /* Recent callbacks. */
 	}
 
-	if (rdp->gpnum != rnp->gpnum || unlikely(READ_ONCE(rdp->gpwrap))) {
+	/* Now handle the beginnings of any new-to-this-CPU grace periods. */
+	if (rcu_seq_new_gp(rdp->gp_seq, rnp->gp_seq) ||
+	    unlikely(READ_ONCE(rdp->gpwrap))) {
 		/*
 		 * If the current grace period is waiting for this CPU,
 		 * set up to detect a quiescent state, otherwise don't
@@ -1823,8 +1822,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		WRITE_ONCE(rdp->gpwrap, false);
 		rcu_gpnum_ovf(rnp, rdp);
 	}
-	if (rdp->gp_seq != rnp->gp_seq)
-		rdp->gp_seq = rnp->gp_seq;
+	rdp->gp_seq = rnp->gp_seq;  /* Remember new grace-period state. */
 	return ret;
 }
 
@@ -1836,8 +1834,7 @@ static void note_gp_changes(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	local_irq_save(flags);
 	rnp = rdp->mynode;
-	if ((rdp->gpnum == READ_ONCE(rnp->gpnum) &&
-	     rdp->completed == READ_ONCE(rnp->completed) &&
+	if ((rdp->gp_seq == rcu_seq_current(&rnp->gp_seq) &&
 	     !unlikely(READ_ONCE(rdp->gpwrap))) || /* w/out lock. */
 	    !raw_spin_trylock_rcu_node(rnp)) { /* irqs already off, so later. */
 		local_irq_restore(flags);
@@ -3286,12 +3283,8 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	    !rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
 		return 1;
 
-	/* Has another RCU grace period completed?  */
-	if (READ_ONCE(rnp->completed) != rdp->completed) /* outside lock */
-		return 1;
-
-	/* Has a new RCU grace period started? */
-	if (READ_ONCE(rnp->gpnum) != rdp->gpnum ||
+	/* Have RCU grace period completed or started?  */
+	if (rcu_seq_current(&rnp->gp_seq) != rdp->gp_seq ||
 	    unlikely(READ_ONCE(rdp->gpwrap))) /* outside lock */
 		return 1;
 

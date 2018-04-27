@@ -117,6 +117,23 @@ static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 }
 
 /*
+ * Has a grace period completed since the time the old gp_seq was collected?
+ */
+static inline bool rcu_seq_completed_gp(unsigned long old, unsigned long new)
+{
+	return ULONG_CMP_LT(old, new & ~RCU_SEQ_STATE_MASK);
+}
+
+/*
+ * Has a grace period started since the time the old gp_seq was collected?
+ */
+static inline bool rcu_seq_new_gp(unsigned long old, unsigned long new)
+{
+	return ULONG_CMP_LT((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK,
+			    new);
+}
+
+/*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
  * by call_rcu() and rcu callback execution, and are therefore not part of the
  * RCU API. Leaving in rcupdate.h because they are used by all RCU flavors.
