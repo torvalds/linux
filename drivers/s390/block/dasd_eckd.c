@@ -2335,8 +2335,7 @@ dasd_eckd_build_check_tcw(struct dasd_device *base, struct format_data_t *fdata,
 	 */
 	itcw_size = itcw_calc_size(0, count, 0);
 
-	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 0, itcw_size, startdev,
-				   NULL);
+	cqr = dasd_fmalloc_request(DASD_ECKD_MAGIC, 0, itcw_size, startdev);
 	if (IS_ERR(cqr))
 		return cqr;
 
@@ -2429,8 +2428,7 @@ dasd_eckd_build_check(struct dasd_device *base, struct format_data_t *fdata,
 	}
 	cplength += count;
 
-	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength, datasize,
-				   startdev, NULL);
+	cqr = dasd_fmalloc_request(DASD_ECKD_MAGIC, cplength, datasize, startdev);
 	if (IS_ERR(cqr))
 		return cqr;
 
@@ -2477,13 +2475,11 @@ dasd_eckd_build_check(struct dasd_device *base, struct format_data_t *fdata,
 }
 
 static struct dasd_ccw_req *
-dasd_eckd_build_format(struct dasd_device *base,
-		       struct format_data_t *fdata,
-		       int enable_pav)
+dasd_eckd_build_format(struct dasd_device *base, struct dasd_device *startdev,
+		       struct format_data_t *fdata, int enable_pav)
 {
 	struct dasd_eckd_private *base_priv;
 	struct dasd_eckd_private *start_priv;
-	struct dasd_device *startdev = NULL;
 	struct dasd_ccw_req *fcp;
 	struct eckd_count *ect;
 	struct ch_t address;
@@ -2574,9 +2570,8 @@ dasd_eckd_build_format(struct dasd_device *base,
 			 fdata->intensity);
 		return ERR_PTR(-EINVAL);
 	}
-	/* Allocate the format ccw request. */
-	fcp = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength,
-				   datasize, startdev, NULL);
+
+	fcp = dasd_fmalloc_request(DASD_ECKD_MAGIC, cplength, datasize, startdev);
 	if (IS_ERR(fcp))
 		return fcp;
 
@@ -2749,7 +2744,7 @@ dasd_eckd_format_build_ccw_req(struct dasd_device *base,
 	struct dasd_ccw_req *ccw_req;
 
 	if (!fmt_buffer) {
-		ccw_req = dasd_eckd_build_format(base, fdata, enable_pav);
+		ccw_req = dasd_eckd_build_format(base, NULL, fdata, enable_pav);
 	} else {
 		if (tpm)
 			ccw_req = dasd_eckd_build_check_tcw(base, fdata,
@@ -2895,7 +2890,7 @@ out_err:
 				rc = -EIO;
 			}
 			list_del_init(&cqr->blocklist);
-			dasd_sfree_request(cqr, device);
+			dasd_ffree_request(cqr, device);
 			private->count--;
 		}
 
@@ -2932,6 +2927,96 @@ static int dasd_eckd_format_device(struct dasd_device *base,
 {
 	return dasd_eckd_format_process_data(base, fdata, enable_pav, 0, NULL,
 					     0, NULL);
+}
+
+/*
+ * Callback function to free ESE format requests.
+ */
+static void dasd_eckd_ese_format_cb(struct dasd_ccw_req *cqr, void *data)
+{
+	struct dasd_device *device = cqr->startdev;
+	struct dasd_eckd_private *private = device->private;
+
+	private->count--;
+	dasd_ffree_request(cqr, device);
+}
+
+static struct dasd_ccw_req *
+dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_req *cqr)
+{
+	struct dasd_eckd_private *private;
+	struct format_data_t fdata;
+	unsigned int recs_per_trk;
+	struct dasd_ccw_req *fcqr;
+	struct dasd_device *base;
+	struct dasd_block *block;
+	unsigned int blksize;
+	struct request *req;
+	sector_t first_trk;
+	sector_t last_trk;
+	int rc;
+
+	req = cqr->callback_data;
+	base = cqr->block->base;
+	private = base->private;
+	block = base->block;
+	blksize = block->bp_block;
+	recs_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
+
+	first_trk = blk_rq_pos(req) >> block->s2b_shift;
+	sector_div(first_trk, recs_per_trk);
+	last_trk =
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
+	sector_div(last_trk, recs_per_trk);
+
+	fdata.start_unit = first_trk;
+	fdata.stop_unit = last_trk;
+	fdata.blksize = blksize;
+	fdata.intensity = private->uses_cdl ? DASD_FMT_INT_COMPAT : 0;
+
+	rc = dasd_eckd_format_sanity_checks(base, &fdata);
+	if (rc)
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * We're building the request with PAV disabled as we're reusing
+	 * the former startdev.
+	 */
+	fcqr = dasd_eckd_build_format(base, startdev, &fdata, 0);
+	if (IS_ERR(fcqr))
+		return fcqr;
+
+	fcqr->callback = dasd_eckd_ese_format_cb;
+
+	return fcqr;
+}
+
+/*
+ * When data is read from an unformatted area of an ESE volume, this function
+ * returns zeroed data and thereby mimics a read of zero data.
+ */
+static void dasd_eckd_ese_read(struct dasd_ccw_req *cqr)
+{
+	unsigned int blksize, off;
+	struct dasd_device *base;
+	struct req_iterator iter;
+	struct request *req;
+	struct bio_vec bv;
+	char *dst;
+
+	req = (struct request *) cqr->callback_data;
+	base = cqr->block->base;
+	blksize = base->block->bp_block;
+
+	rq_for_each_segment(bv, req, iter) {
+		dst = page_address(bv.bv_page) + bv.bv_offset;
+		for (off = 0; off < bv.bv_len; off += blksize) {
+			if (dst && rq_data_dir(req) == READ) {
+				dst += off;
+				memset(dst, 0, blksize);
+			}
+		}
+	}
 }
 
 /*
@@ -3450,6 +3535,14 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	cqr->retries = startdev->default_retries;
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
+
+	/* Set flags to suppress output for expected errors */
+	if (dasd_eckd_is_ese(basedev)) {
+		set_bit(DASD_CQR_SUPPRESS_FP, &cqr->flags);
+		set_bit(DASD_CQR_SUPPRESS_IL, &cqr->flags);
+		set_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+	}
+
 	return cqr;
 }
 
@@ -3621,6 +3714,11 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	cqr->retries = startdev->default_retries;
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
+
+	/* Set flags to suppress output for expected errors */
+	if (dasd_eckd_is_ese(basedev))
+		set_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+
 	return cqr;
 }
 
@@ -3940,6 +4038,14 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	cqr->retries = startdev->default_retries;
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
+
+	/* Set flags to suppress output for expected errors */
+	if (dasd_eckd_is_ese(basedev)) {
+		set_bit(DASD_CQR_SUPPRESS_FP, &cqr->flags);
+		set_bit(DASD_CQR_SUPPRESS_IL, &cqr->flags);
+		set_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+	}
+
 	return cqr;
 out_error:
 	dasd_sfree_request(cqr, startdev);
@@ -6061,6 +6167,8 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.ext_pool_cap_at_warnlevel = dasd_eckd_ext_pool_cap_at_warnlevel,
 	.ext_pool_warn_thrshld = dasd_eckd_ext_pool_warn_thrshld,
 	.ext_pool_oos = dasd_eckd_ext_pool_oos,
+	.ese_format = dasd_eckd_ese_format,
+	.ese_read = dasd_eckd_ese_read,
 };
 
 static int __init

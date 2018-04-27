@@ -382,6 +382,8 @@ struct dasd_discipline {
 	int (*ext_pool_cap_at_warnlevel)(struct dasd_device *);
 	int (*ext_pool_warn_thrshld)(struct dasd_device *);
 	int (*ext_pool_oos)(struct dasd_device *);
+	struct dasd_ccw_req *(*ese_format)(struct dasd_device *, struct dasd_ccw_req *);
+	void (*ese_read)(struct dasd_ccw_req *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -497,8 +499,10 @@ struct dasd_device {
 	spinlock_t mem_lock;
 	void *ccw_mem;
 	void *erp_mem;
+	void *ese_mem;
 	struct list_head ccw_chunks;
 	struct list_head erp_chunks;
+	struct list_head ese_chunks;
 
 	atomic_t tasklet_scheduled;
         struct tasklet_struct tasklet;
@@ -715,7 +719,9 @@ extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
 dasd_smalloc_request(int, int, int, struct dasd_device *, struct dasd_ccw_req *);
+struct dasd_ccw_req *dasd_fmalloc_request(int, int, int, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
+void dasd_ffree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
 
 struct dasd_device *dasd_alloc_device(void);
