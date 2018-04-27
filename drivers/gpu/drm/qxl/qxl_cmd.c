@@ -179,10 +179,9 @@ qxl_push_command_ring_release(struct qxl_device *qdev, struct qxl_release *relea
 			      uint32_t type, bool interruptible)
 {
 	struct qxl_command cmd;
-	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
 
 	cmd.type = type;
-	cmd.data = qxl_bo_physical_address(qdev, to_qxl_bo(entry->tv.bo), release->release_offset);
+	cmd.data = qxl_bo_physical_address(qdev, release->release_bo, release->release_offset);
 
 	return qxl_ring_push(qdev->command_ring, &cmd, interruptible);
 }
@@ -192,10 +191,9 @@ qxl_push_cursor_ring_release(struct qxl_device *qdev, struct qxl_release *releas
 			     uint32_t type, bool interruptible)
 {
 	struct qxl_command cmd;
-	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
 
 	cmd.type = type;
-	cmd.data = qxl_bo_physical_address(qdev, to_qxl_bo(entry->tv.bo), release->release_offset);
+	cmd.data = qxl_bo_physical_address(qdev, release->release_bo, release->release_offset);
 
 	return qxl_ring_push(qdev->cursor_ring, &cmd, interruptible);
 }
