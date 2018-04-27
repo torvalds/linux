@@ -2186,7 +2186,7 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 
 	if (priv->per_port_num_tx_queues &&
 	    priv->per_port_num_tx_queues != num_tx_queues)
-		netdev_warn(slave_dev, "asymetric number of per-port queues\n");
+		netdev_warn(slave_dev, "asymmetric number of per-port queues\n");
 
 	priv->per_port_num_tx_queues = num_tx_queues;
 
