@@ -247,7 +247,6 @@ static struct sk_buff *__udp4_gso_segment(struct sk_buff *gso_skb,
 				 udp_v4_check(sizeof(struct udphdr) + mss,
 					      iph->saddr, iph->daddr, 0));
 }
-EXPORT_SYMBOL_GPL(__udp4_gso_segment);
 
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
