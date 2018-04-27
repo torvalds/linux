@@ -608,11 +608,6 @@ out:
 	return err;
 }
 
-struct process_kallsyms_args {
-	struct map *map;
-	struct dso *dso;
-};
-
 /*
  * These are symbols in the kernel image, so make sure that
  * sym is from a kernel DSO.
@@ -648,8 +643,8 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 				       char type, u64 start)
 {
 	struct symbol *sym;
-	struct process_kallsyms_args *a = arg;
-	struct rb_root *root = &a->dso->symbols;
+	struct dso *dso = arg;
+	struct rb_root *root = &dso->symbols;
 
 	if (!symbol_type__filter(type))
 		return 0;
@@ -676,11 +671,9 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
  * so that we can in the next step set the symbol ->end address and then
  * call kernel_maps__split_kallsyms.
  */
-static int dso__load_all_kallsyms(struct dso *dso, const char *filename,
-				  struct map *map)
+static int dso__load_all_kallsyms(struct dso *dso, const char *filename)
 {
-	struct process_kallsyms_args args = { .map = map, .dso = dso, };
-	return kallsyms__parse(filename, &args, map__process_kallsym_symbol);
+	return kallsyms__parse(filename, dso, map__process_kallsym_symbol);
 }
 
 static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map)
@@ -1300,7 +1293,7 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
 		return -1;
 
-	if (dso__load_all_kallsyms(dso, filename, map) < 0)
+	if (dso__load_all_kallsyms(dso, filename) < 0)
 		return -1;
 
 	if (kallsyms__delta(map, filename, &delta))
