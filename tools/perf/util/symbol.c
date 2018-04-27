@@ -1267,13 +1267,9 @@ out_err:
  * If the kernel is relocated at boot time, kallsyms won't match.  Compute the
  * delta based on the relocation reference symbol.
  */
-static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
+static int kallsyms__delta(struct kmap *kmap, const char *filename, u64 *delta)
 {
-	struct kmap *kmap = map__kmap(map);
 	u64 addr;
-
-	if (!kmap)
-		return -1;
 
 	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->name)
 		return 0;
@@ -1288,15 +1284,19 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 int __dso__load_kallsyms(struct dso *dso, const char *filename,
 			 struct map *map, bool no_kcore)
 {
+	struct kmap *kmap = map__kmap(map);
 	u64 delta = 0;
 
 	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
 		return -1;
 
+	if (!kmap || !kmap->kmaps)
+		return -1;
+
 	if (dso__load_all_kallsyms(dso, filename) < 0)
 		return -1;
 
-	if (kallsyms__delta(map, filename, &delta))
+	if (kallsyms__delta(kmap, filename, &delta))
 		return -1;
 
 	symbols__fixup_end(&dso->symbols);
