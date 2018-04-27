@@ -42,6 +42,16 @@
 		regulator-boot-on;
 	};
 
+	vio_3v6: fixedregulator-vio_3v6 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_3v6";
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+		vin-supply = <&vsys_5v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vsys_3v3: fixedregulator-vsys3v3 {
 		/* Output of Cntlr A of TPS43351-Q1 on dra76-evm */
 		compatible = "regulator-fixed";
@@ -79,6 +89,16 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&smps5_reg>;
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 8 0>;	/* gpio5_8 */
+		startup-delay-us = <70000>;
+		enable-active-high;
 	};
 
 	vtt_fixed: fixedregulator-vtt {
@@ -329,6 +349,17 @@
 	pinctrl-1 = <&mmc2_pins_default>;
 	pinctrl-2 = <&mmc2_pins_default>;
 	pinctrl-3 = <&mmc2_pins_hs200 &mmc2_iodelay_hs200_conf>;
+};
+
+&mmc4 {
+	status = "okay";
+	vmmc-supply = <&vio_3v6>;
+	vqmmc-supply = <&vmmcwl_fixed>;
+	pinctrl-names = "default", "hs", "sdr12", "sdr25";
+	pinctrl-0 = <&mmc4_pins_hs &mmc4_iodelay_default_conf>;
+	pinctrl-1 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
+	pinctrl-2 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
+	pinctrl-3 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
 };
 
 /* No RTC on this device */
