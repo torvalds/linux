@@ -62,6 +62,16 @@
 	};
 };
 
+&canfd {
+	pinctrl-0 = <&canfd0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+};
+
 &extal_clk {
 	clock-frequency = <16666666>;
 };
@@ -87,6 +97,11 @@
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_rgmii";
 		function = "avb";
+	};
+
+	canfd0_pins: canfd0 {
+		groups = "canfd0_data_a";
+		function = "canfd0";
 	};
 
 	mmc_pins: mmc {
