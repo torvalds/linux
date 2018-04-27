@@ -200,6 +200,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->panic_stack = panic_stack + PANIC_FRAME_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
+	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	if (MACHINE_HAS_VX)
 		lc->vector_save_area_addr =
 			(unsigned long) &lc->vector_save_area;

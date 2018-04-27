@@ -722,6 +722,34 @@ config KERNEL_NOBP
 
 	  If unsure, say N.
 
+config EXPOLINE
+	def_bool n
+	prompt "Avoid speculative indirect branches in the kernel"
+	help
+	  Compile the kernel with the expoline compiler options to guard
+	  against kernel-to-user data leaks by avoiding speculative indirect
+	  branches.
+	  Requires a compiler with -mindirect-branch=thunk support for full
+	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+choice
+	prompt "Expoline default"
+	depends on EXPOLINE
+	default EXPOLINE_FULL
+
+config EXPOLINE_OFF
+	bool "spectre_v2=off"
+
+config EXPOLINE_MEDIUM
+	bool "spectre_v2=auto"
+
+config EXPOLINE_FULL
+	bool "spectre_v2=on"
+
+endchoice
+
 endmenu
 
 menu "Power Management"

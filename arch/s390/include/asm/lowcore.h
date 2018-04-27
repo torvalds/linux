@@ -155,7 +155,9 @@ struct _lowcore {
 	/* Per cpu primary space access list */
 	__u32	paste[16];			/* 0x0400 */
 
-	__u8	pad_0x04c0[0x0e00-0x0440];	/* 0x0440 */
+	/* br %r1 trampoline */
+	__u16	br_r1_trampoline;		/* 0x0440 */
+	__u8	pad_0x0442[0x0e00-0x0442];	/* 0x0442 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
