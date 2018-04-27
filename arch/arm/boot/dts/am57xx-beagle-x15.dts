@@ -25,6 +25,7 @@
 	pinctrl-1 = <&mmc1_pins_hs>;
 
 	vmmc-supply = <&ldo1_reg>;
+	no-1-8-v;
 };
 
 &mmc2 {
