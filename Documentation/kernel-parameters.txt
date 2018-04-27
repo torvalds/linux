@@ -2402,6 +2402,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	noalign		[KNL,ARM]
 
+	noaltinstr	[S390] Disables alternative instructions patching
+			(CPU alternatives feature).
+
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 

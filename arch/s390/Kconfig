@@ -705,6 +705,22 @@ config SECCOMP
 
 	  If unsure, say Y.
 
+config ALTERNATIVES
+	def_bool y
+	prompt "Patch optimized instructions for running CPU type"
+	help
+	  When enabled the kernel code is compiled with additional
+	  alternative instructions blocks optimized for newer CPU types.
+	  These alternative instructions blocks are patched at kernel boot
+	  time when running CPU supports them. This mechanism is used to
+	  optimize some critical code paths (i.e. spinlocks) for newer CPUs
+	  even if kernel is build to support older machine generations.
+
+	  This mechanism could be disabled by appending "noaltinstr"
+	  option to the kernel command line.
+
+	  If unsure, say Y.
+
 endmenu
 
 menu "Power Management"
@@ -754,6 +770,7 @@ config PFAULT
 config SHARED_KERNEL
 	bool "VM shared kernel support"
 	depends on !JUMP_LABEL
+	depends on !ALTERNATIVES
 	help
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory
