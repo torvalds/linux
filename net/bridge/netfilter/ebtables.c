@@ -1954,7 +1954,8 @@ static int compat_mtw_from_user(struct compat_ebt_entry_mwt *mwt,
 	int off, pad = 0;
 	unsigned int size_kern, match_size = mwt->match_size;
 
-	strlcpy(name, mwt->u.name, sizeof(name));
+	if (strscpy(name, mwt->u.name, sizeof(name)) < 0)
+		return -EINVAL;
 
 	if (state->buf_kern_start)
 		dst = state->buf_kern_start + state->buf_kern_offset;
