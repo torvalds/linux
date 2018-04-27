@@ -45,7 +45,9 @@
 #define RAVE_SP_DLE			0x10
 
 #define RAVE_SP_MAX_DATA_SIZE		64
-#define RAVE_SP_CHECKSUM_SIZE		2  /* Worst case scenario on RDU2 */
+#define RAVE_SP_CHECKSUM_8B2C		1
+#define RAVE_SP_CHECKSUM_CCITT		2
+#define RAVE_SP_CHECKSUM_SIZE		RAVE_SP_CHECKSUM_CCITT
 /*
  * We don't store STX, ETX and unescaped bytes, so Rx is only
  * DATA + CSUM
@@ -449,7 +451,12 @@ static void rave_sp_receive_frame(struct rave_sp *sp,
 	const size_t payload_length  = length - checksum_length;
 	const u8 *crc_reported       = &data[payload_length];
 	struct device *dev           = &sp->serdev->dev;
-	u8 crc_calculated[checksum_length];
+	u8 crc_calculated[RAVE_SP_CHECKSUM_SIZE];
+
+	if (unlikely(checksum_length > sizeof(crc_calculated))) {
+		dev_warn(dev, "Checksum too long, dropping\n");
+		return;
+	}
 
 	print_hex_dump_debug("rave-sp rx: ", DUMP_PREFIX_NONE,
 			     16, 1, data, length, false);
