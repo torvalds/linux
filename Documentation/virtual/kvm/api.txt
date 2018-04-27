@@ -1960,6 +1960,9 @@ ARM 32-bit VFP control registers have the following id bit patterns:
 ARM 64-bit FP registers have the following id bit patterns:
   0x4030 0000 0012 0 <regno:12>
 
+ARM firmware pseudo-registers have the following bit pattern:
+  0x4030 0000 0014 <regno:16>
+
 
 arm64 registers are mapped using the lower 32 bits. The upper 16 of
 that is the register group type, or coprocessor number:
@@ -1975,6 +1978,9 @@ arm64 CCSIDR registers are demultiplexed by CSSELR value:
 
 arm64 system registers have the following id bit patterns:
   0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
+
+arm64 firmware pseudo-registers have the following bit pattern:
+  0x6030 0000 0014 <regno:16>
 
 
 MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
@@ -2510,7 +2516,8 @@ Possible features:
 	  and execute guest code when KVM_RUN is called.
 	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
-	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
+	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 (or a future revision
+          backward compatible with v0.2) for the CPU.
 	  Depends on KVM_CAP_ARM_PSCI_0_2.
 	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
 	  Depends on KVM_CAP_ARM_PMU_V3.
