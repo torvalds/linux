@@ -13,6 +13,7 @@
 #include <linux/cpu.h>
 #include <asm/diag.h>
 #include <asm/elf.h>
+#include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
 #include <asm/smp.h>
@@ -113,3 +114,20 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
+int s390_isolate_bp(void)
+{
+	if (!test_facility(82))
+		return -EOPNOTSUPP;
+	set_thread_flag(TIF_ISOLATE_BP);
+	return 0;
+}
+EXPORT_SYMBOL(s390_isolate_bp);
+
+int s390_isolate_bp_guest(void)
+{
+	if (!test_facility(82))
+		return -EOPNOTSUPP;
+	set_thread_flag(TIF_ISOLATE_BP_GUEST);
+	return 0;
+}
+EXPORT_SYMBOL(s390_isolate_bp_guest);
