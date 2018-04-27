@@ -208,7 +208,7 @@ IOMMU (input/output memory management unit)
       Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
 
  iommu=[<size>][,noagp][,off][,force][,noforce][,leak[=<nr_of_leak_pages>]
-	[,memaper[=<order>]][,merge][,forcesac][,fullflush][,nomerge]
+	[,memaper[=<order>]][,merge][,fullflush][,nomerge]
 	[,noaperture][,calgary]
 
   General iommu options:
@@ -235,8 +235,6 @@ IOMMU (input/output memory management unit)
                        (experimental).
     nomerge            Don't do scatter-gather (SG) merging.
     noaperture         Ask the IOMMU not to touch the aperture for AGP.
-    forcesac           Force single-address cycle (SAC) mode for masks <40bits
-                       (experimental).
     noagp              Don't initialize the AGP driver and use full aperture.
     allowdac           Allow double-address cycle (DAC) mode, i.e. DMA >4GB.
                        DAC is used with 32-bit PCI to push a 64-bit address in
