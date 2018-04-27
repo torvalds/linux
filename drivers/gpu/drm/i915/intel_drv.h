@@ -1409,6 +1409,12 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
+void icl_map_plls_to_ports(struct drm_crtc *crtc,
+			   struct intel_crtc_state *crtc_state,
+			   struct drm_atomic_state *old_state);
+void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
+			     struct intel_crtc_state *crtc_state,
+			     struct drm_atomic_state *old_state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int plane, unsigned int height);

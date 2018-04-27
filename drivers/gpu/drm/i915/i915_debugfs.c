@@ -3368,6 +3368,28 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 		seq_printf(m, " fp0:     0x%08x\n", pll->state.hw_state.fp0);
 		seq_printf(m, " fp1:     0x%08x\n", pll->state.hw_state.fp1);
 		seq_printf(m, " wrpll:   0x%08x\n", pll->state.hw_state.wrpll);
+		seq_printf(m, " cfgcr0:  0x%08x\n", pll->state.hw_state.cfgcr0);
+		seq_printf(m, " cfgcr1:  0x%08x\n", pll->state.hw_state.cfgcr1);
+		seq_printf(m, " mg_refclkin_ctl:        0x%08x\n",
+			   pll->state.hw_state.mg_refclkin_ctl);
+		seq_printf(m, " mg_clktop2_coreclkctl1: 0x%08x\n",
+			   pll->state.hw_state.mg_clktop2_coreclkctl1);
+		seq_printf(m, " mg_clktop2_hsclkctl:    0x%08x\n",
+			   pll->state.hw_state.mg_clktop2_hsclkctl);
+		seq_printf(m, " mg_pll_div0:  0x%08x\n",
+			   pll->state.hw_state.mg_pll_div0);
+		seq_printf(m, " mg_pll_div1:  0x%08x\n",
+			   pll->state.hw_state.mg_pll_div1);
+		seq_printf(m, " mg_pll_lf:    0x%08x\n",
+			   pll->state.hw_state.mg_pll_lf);
+		seq_printf(m, " mg_pll_frac_lock: 0x%08x\n",
+			   pll->state.hw_state.mg_pll_frac_lock);
+		seq_printf(m, " mg_pll_ssc:   0x%08x\n",
+			   pll->state.hw_state.mg_pll_ssc);
+		seq_printf(m, " mg_pll_bias:  0x%08x\n",
+			   pll->state.hw_state.mg_pll_bias);
+		seq_printf(m, " mg_pll_tdc_coldst_bias: 0x%08x\n",
+			   pll->state.hw_state.mg_pll_tdc_coldst_bias);
 	}
 	drm_modeset_unlock_all(dev);
 

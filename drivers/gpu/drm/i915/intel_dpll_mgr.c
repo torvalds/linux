@@ -2399,6 +2399,315 @@ static const struct intel_dpll_mgr cnl_pll_mgr = {
 	.dump_hw_state = cnl_dump_hw_state,
 };
 
+static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
+				struct intel_encoder *encoder, int clock,
+				struct intel_dpll_hw_state *pll_state)
+{
+	/* TODO */
+	return true;
+}
+
+static enum port icl_mg_pll_id_to_port(enum intel_dpll_id id)
+{
+	return id - DPLL_ID_ICL_MGPLL1 + PORT_C;
+}
+
+static enum intel_dpll_id icl_port_to_mg_pll_id(enum port port)
+{
+	return port - PORT_C + DPLL_ID_ICL_MGPLL1;
+}
+
+static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
+				  struct intel_encoder *encoder, int clock,
+				  struct intel_dpll_hw_state *pll_state)
+{
+	/* TODO */
+	return true;
+}
+
+static struct intel_shared_dpll *
+icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
+	     struct intel_encoder *encoder)
+{
+	struct intel_shared_dpll *pll;
+	struct intel_dpll_hw_state pll_state = {};
+	enum port port = encoder->port;
+	enum intel_dpll_id min, max;
+	int clock = crtc_state->port_clock;
+	bool ret;
+
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+		min = DPLL_ID_ICL_DPLL0;
+		max = DPLL_ID_ICL_DPLL1;
+		ret = icl_calc_dpll_state(crtc_state, encoder, clock,
+					  &pll_state);
+		break;
+	case PORT_C:
+	case PORT_D:
+	case PORT_E:
+	case PORT_F:
+		min = icl_port_to_mg_pll_id(port);
+		max = min;
+		ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
+					    &pll_state);
+		break;
+	default:
+		MISSING_CASE(port);
+		return NULL;
+	}
+
+	if (!ret) {
+		DRM_DEBUG_KMS("Could not calculate PLL state.\n");
+		return NULL;
+	}
+
+	crtc_state->dpll_hw_state = pll_state;
+
+	pll = intel_find_shared_dpll(crtc, crtc_state, min, max);
+	if (!pll) {
+		DRM_DEBUG_KMS("No PLL selected\n");
+		return NULL;
+	}
+
+	intel_reference_shared_dpll(pll, crtc_state);
+
+	return pll;
+}
+
+static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
+{
+	switch (id) {
+	default:
+		MISSING_CASE(id);
+	case DPLL_ID_ICL_DPLL0:
+	case DPLL_ID_ICL_DPLL1:
+		return CNL_DPLL_ENABLE(id);
+	case DPLL_ID_ICL_MGPLL1:
+	case DPLL_ID_ICL_MGPLL2:
+	case DPLL_ID_ICL_MGPLL3:
+	case DPLL_ID_ICL_MGPLL4:
+		return MG_PLL_ENABLE(icl_mg_pll_id_to_port(id));
+	}
+}
+
+static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll,
+				 struct intel_dpll_hw_state *hw_state)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	uint32_t val;
+	enum port port;
+	bool ret = false;
+
+	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	val = I915_READ(icl_pll_id_to_enable_reg(id));
+	if (!(val & PLL_ENABLE))
+		goto out;
+
+	switch (id) {
+	case DPLL_ID_ICL_DPLL0:
+	case DPLL_ID_ICL_DPLL1:
+		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
+		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
+		break;
+	case DPLL_ID_ICL_MGPLL1:
+	case DPLL_ID_ICL_MGPLL2:
+	case DPLL_ID_ICL_MGPLL3:
+	case DPLL_ID_ICL_MGPLL4:
+		port = icl_mg_pll_id_to_port(id);
+		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(port));
+		hw_state->mg_clktop2_coreclkctl1 =
+			I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+		hw_state->mg_clktop2_hsclkctl =
+			I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
+		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(port));
+		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(port));
+		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(port));
+		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(port));
+		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(port));
+		hw_state->mg_pll_tdc_coldst_bias =
+			I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+		break;
+	default:
+		MISSING_CASE(id);
+	}
+
+	ret = true;
+out:
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	return ret;
+}
+
+static void icl_dpll_write(struct drm_i915_private *dev_priv,
+			   struct intel_shared_dpll *pll)
+{
+	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
+	const enum intel_dpll_id id = pll->info->id;
+
+	I915_WRITE(ICL_DPLL_CFGCR0(id), hw_state->cfgcr0);
+	I915_WRITE(ICL_DPLL_CFGCR1(id), hw_state->cfgcr1);
+	POSTING_READ(ICL_DPLL_CFGCR1(id));
+}
+
+static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
+			     struct intel_shared_dpll *pll)
+{
+	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
+	enum port port = icl_mg_pll_id_to_port(pll->info->id);
+
+	I915_WRITE(MG_REFCLKIN_CTL(port), hw_state->mg_refclkin_ctl);
+	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port),
+		   hw_state->mg_clktop2_coreclkctl1);
+	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), hw_state->mg_clktop2_hsclkctl);
+	I915_WRITE(MG_PLL_DIV0(port), hw_state->mg_pll_div0);
+	I915_WRITE(MG_PLL_DIV1(port), hw_state->mg_pll_div1);
+	I915_WRITE(MG_PLL_LF(port), hw_state->mg_pll_lf);
+	I915_WRITE(MG_PLL_FRAC_LOCK(port), hw_state->mg_pll_frac_lock);
+	I915_WRITE(MG_PLL_SSC(port), hw_state->mg_pll_ssc);
+	I915_WRITE(MG_PLL_BIAS(port), hw_state->mg_pll_bias);
+	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port),
+		   hw_state->mg_pll_tdc_coldst_bias);
+	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(port));
+}
+
+static void icl_pll_enable(struct drm_i915_private *dev_priv,
+			   struct intel_shared_dpll *pll)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(id);
+	uint32_t val;
+
+	val = I915_READ(enable_reg);
+	val |= PLL_POWER_ENABLE;
+	I915_WRITE(enable_reg, val);
+
+	/*
+	 * The spec says we need to "wait" but it also says it should be
+	 * immediate.
+	 */
+	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE,
+				    PLL_POWER_STATE, 1))
+		DRM_ERROR("PLL %d Power not enabled\n", id);
+
+	switch (id) {
+	case DPLL_ID_ICL_DPLL0:
+	case DPLL_ID_ICL_DPLL1:
+		icl_dpll_write(dev_priv, pll);
+		break;
+	case DPLL_ID_ICL_MGPLL1:
+	case DPLL_ID_ICL_MGPLL2:
+	case DPLL_ID_ICL_MGPLL3:
+	case DPLL_ID_ICL_MGPLL4:
+		icl_mg_pll_write(dev_priv, pll);
+		break;
+	default:
+		MISSING_CASE(id);
+	}
+
+	/*
+	 * DVFS pre sequence would be here, but in our driver the cdclk code
+	 * paths should already be setting the appropriate voltage, hence we do
+	 * nothign here.
+	 */
+
+	val = I915_READ(enable_reg);
+	val |= PLL_ENABLE;
+	I915_WRITE(enable_reg, val);
+
+	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, PLL_LOCK,
+				    1)) /* 600us actually. */
+		DRM_ERROR("PLL %d not locked\n", id);
+
+	/* DVFS post sequence would be here. See the comment above. */
+}
+
+static void icl_pll_disable(struct drm_i915_private *dev_priv,
+			    struct intel_shared_dpll *pll)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(id);
+	uint32_t val;
+
+	/* The first steps are done by intel_ddi_post_disable(). */
+
+	/*
+	 * DVFS pre sequence would be here, but in our driver the cdclk code
+	 * paths should already be setting the appropriate voltage, hence we do
+	 * nothign here.
+	 */
+
+	val = I915_READ(enable_reg);
+	val &= ~PLL_ENABLE;
+	I915_WRITE(enable_reg, val);
+
+	/* Timeout is actually 1us. */
+	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, 0, 1))
+		DRM_ERROR("PLL %d locked\n", id);
+
+	/* DVFS post sequence would be here. See the comment above. */
+
+	val = I915_READ(enable_reg);
+	val &= ~PLL_POWER_ENABLE;
+	I915_WRITE(enable_reg, val);
+
+	/*
+	 * The spec says we need to "wait" but it also says it should be
+	 * immediate.
+	 */
+	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE, 0,
+				    1))
+		DRM_ERROR("PLL %d Power not disabled\n", id);
+}
+
+static void icl_dump_hw_state(struct drm_i915_private *dev_priv,
+			      struct intel_dpll_hw_state *hw_state)
+{
+	DRM_DEBUG_KMS("dpll_hw_state: cfgcr0: 0x%x, cfgcr1: 0x%x, "
+		      "mg_refclkin_ctl: 0x%x, hg_clktop2_coreclkctl1: 0x%x, "
+		      "mg_clktop2_hsclkctl: 0x%x, mg_pll_div0: 0x%x, "
+		      "mg_pll_div2: 0x%x, mg_pll_lf: 0x%x, "
+		      "mg_pll_frac_lock: 0x%x, mg_pll_ssc: 0x%x, "
+		      "mg_pll_bias: 0x%x, mg_pll_tdc_coldst_bias: 0x%x\n",
+		      hw_state->cfgcr0, hw_state->cfgcr1,
+		      hw_state->mg_refclkin_ctl,
+		      hw_state->mg_clktop2_coreclkctl1,
+		      hw_state->mg_clktop2_hsclkctl,
+		      hw_state->mg_pll_div0,
+		      hw_state->mg_pll_div1,
+		      hw_state->mg_pll_lf,
+		      hw_state->mg_pll_frac_lock,
+		      hw_state->mg_pll_ssc,
+		      hw_state->mg_pll_bias,
+		      hw_state->mg_pll_tdc_coldst_bias);
+}
+
+static const struct intel_shared_dpll_funcs icl_pll_funcs = {
+	.enable = icl_pll_enable,
+	.disable = icl_pll_disable,
+	.get_hw_state = icl_pll_get_hw_state,
+};
+
+static const struct dpll_info icl_plls[] = {
+	{ "DPLL 0",   &icl_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
+	{ "DPLL 1",   &icl_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
+	{ "MG PLL 1", &icl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
+	{ "MG PLL 2", &icl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
+	{ "MG PLL 3", &icl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
+	{ "MG PLL 4", &icl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr icl_pll_mgr = {
+	.dpll_info = icl_plls,
+	.get_dpll = icl_get_dpll,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -2412,7 +2721,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		dpll_mgr = &icl_pll_mgr;
+	else if (IS_CANNONLAKE(dev_priv))
 		dpll_mgr = &cnl_pll_mgr;
 	else if (IS_GEN9_BC(dev_priv))
 		dpll_mgr = &skl_pll_mgr;
