@@ -191,11 +191,14 @@ struct dma_fence_ops {
 	/**
 	 * @wait:
 	 *
-	 * Custom wait implementation, or dma_fence_default_wait.
+	 * Custom wait implementation, defaults to dma_fence_default_wait() if
+	 * not set.
 	 *
-	 * Must not be NULL, set to dma_fence_default_wait for default implementation.
-	 * the dma_fence_default_wait implementation should work for any fence, as long
-	 * as enable_signaling works correctly.
+	 * The dma_fence_default_wait implementation should work for any fence, as long
+	 * as @enable_signaling works correctly. This hook allows drivers to
+	 * have an optimized version for the case where a process context is
+	 * already available, e.g. if @enable_signaling for the general case
+	 * needs to set up a worker thread.
 	 *
 	 * Must return -ERESTARTSYS if the wait is intr = true and the wait was
 	 * interrupted, and remaining jiffies if fence has signaled, or 0 if wait
@@ -203,7 +206,7 @@ struct dma_fence_ops {
 	 * which should be treated as if the fence is signaled. For example a hardware
 	 * lockup could be reported like that.
 	 *
-	 * This callback is mandatory.
+	 * This callback is optional.
 	 */
 	signed long (*wait)(struct dma_fence *fence,
 			    bool intr, signed long timeout);
