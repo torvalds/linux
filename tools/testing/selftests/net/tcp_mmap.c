@@ -76,9 +76,10 @@
 #include <time.h>
 #include <sys/time.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <poll.h>
+#include <linux/tcp.h>
+#include <assert.h>
 
 #ifndef MSG_ZEROCOPY
 #define MSG_ZEROCOPY    0x4000000
@@ -134,11 +135,12 @@ void hash_zone(void *zone, unsigned int length)
 void *child_thread(void *arg)
 {
 	unsigned long total_mmap = 0, total = 0;
+	struct tcp_zerocopy_receive zc;
 	unsigned long delta_usec;
 	int flags = MAP_SHARED;
 	struct timeval t0, t1;
 	char *buffer = NULL;
-	void *oaddr = NULL;
+	void *addr = NULL;
 	double throughput;
 	struct rusage ru;
 	int lu, fd;
@@ -153,41 +155,46 @@ void *child_thread(void *arg)
 		perror("malloc");
 		goto error;
 	}
+	if (zflg) {
+		addr = mmap(NULL, chunk_size, PROT_READ, flags, fd, 0);
+		if (addr == (void *)-1)
+			zflg = 0;
+	}
 	while (1) {
 		struct pollfd pfd = { .fd = fd, .events = POLLIN, };
 		int sub;
 
 		poll(&pfd, 1, 10000);
 		if (zflg) {
-			void *naddr;
+			socklen_t zc_len = sizeof(zc);
+			int res;
 
-			naddr = mmap(oaddr, chunk_size, PROT_READ, flags, fd, 0);
-			if (naddr == (void *)-1) {
-				if (errno == EAGAIN) {
-					/* That is if SO_RCVLOWAT is buggy */
-					usleep(1000);
-					continue;
-				}
-				if (errno == EINVAL) {
-					flags = MAP_SHARED;
-					oaddr = NULL;
-					goto fallback;
-				}
-				if (errno != EIO)
-					perror("mmap()");
+			zc.address = (__u64)addr;
+			zc.length = chunk_size;
+			zc.recv_skip_hint = 0;
+			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
+					 &zc, &zc_len);
+			if (res == -1)
 				break;
+
+			if (zc.length) {
+				assert(zc.length <= chunk_size);
+				total_mmap += zc.length;
+				if (xflg)
+					hash_zone(addr, zc.length);
+				total += zc.length;
 			}
-			total_mmap += chunk_size;
-			if (xflg)
-				hash_zone(naddr, chunk_size);
-			total += chunk_size;
-			if (!keepflag) {
-				flags |= MAP_FIXED;
-				oaddr = naddr;
+			if (zc.recv_skip_hint) {
+				assert(zc.recv_skip_hint <= chunk_size);
+				lu = read(fd, buffer, zc.recv_skip_hint);
+				if (lu > 0) {
+					if (xflg)
+						hash_zone(buffer, lu);
+					total += lu;
+				}
 			}
 			continue;
 		}
-fallback:
 		sub = 0;
 		while (sub < chunk_size) {
 			lu = read(fd, buffer + sub, chunk_size - sub);
@@ -228,6 +235,8 @@ end:
 error:
 	free(buffer);
 	close(fd);
+	if (zflg)
+		munmap(addr, chunk_size);
 	pthread_exit(0);
 }
 
@@ -371,7 +380,8 @@ int main(int argc, char *argv[])
 		setup_sockaddr(cfg_family, host, &listenaddr);
 
 		if (mss &&
-		    setsockopt(fdlisten, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
+		    setsockopt(fdlisten, IPPROTO_TCP, TCP_MAXSEG,
+			       &mss, sizeof(mss)) == -1) {
 			perror("setsockopt TCP_MAXSEG");
 			exit(1);
 		}
@@ -402,7 +412,7 @@ int main(int argc, char *argv[])
 	setup_sockaddr(cfg_family, host, &addr);
 
 	if (mss &&
-	    setsockopt(fd, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
+	    setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
 		perror("setsockopt TCP_MAXSEG");
 		exit(1);
 	}
