@@ -11,4 +11,18 @@
 / {
 	model = "Rockchip RK3308 evb analog mic board";
 	compatible = "rockchip,rk3308-evb-amic-v10", "rockchip,rk3308";
+
+	vad_acodec_sound: vad-acodec-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&vad {
+	status = "disabled";
+	rockchip,audio-src = <2>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
 };
