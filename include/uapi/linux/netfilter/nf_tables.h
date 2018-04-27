@@ -831,7 +831,9 @@ enum nft_rt_keys {
 	NFT_RT_NEXTHOP4,
 	NFT_RT_NEXTHOP6,
 	NFT_RT_TCPMSS,
+	__NFT_RT_MAX
 };
+#define NFT_RT_MAX		(__NFT_RT_MAX - 1)
 
 /**
  * enum nft_hash_types - nf_tables hash expression types
@@ -949,7 +951,9 @@ enum nft_ct_keys {
 	NFT_CT_DST_IP,
 	NFT_CT_SRC_IP6,
 	NFT_CT_DST_IP6,
+	__NFT_CT_MAX
 };
+#define NFT_CT_MAX		(__NFT_CT_MAX - 1)
 
 /**
  * enum nft_ct_attributes - nf_tables ct expression netlink attributes
