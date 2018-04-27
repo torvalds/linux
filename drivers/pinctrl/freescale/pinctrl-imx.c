@@ -414,11 +414,18 @@ static const struct pinconf_ops imx_pinconf_ops = {
 };
 
 /*
- * Each pin represented in fsl,pins consists of 5 u32 PIN_FUNC_ID and
- * 1 u32 CONFIG, so 24 types in total for each pin.
+ * Each pin represented in fsl,pins consists of a number of u32 PIN_FUNC_ID
+ * and 1 u32 CONFIG, the total size is PIN_FUNC_ID + CONFIG for each pin.
+ * For generic_pinconf case, there's no extra u32 CONFIG.
+ *
+ * PIN_FUNC_ID format:
+ * Default:
+ *     <mux_reg conf_reg input_reg mux_mode input_val>
+ * SHARE_MUX_CONF_REG:
+ *     <mux_conf_reg input_reg mux_mode input_val>
  */
 #define FSL_PIN_SIZE 24
-#define SHARE_FSL_PIN_SIZE 20
+#define FSL_PIN_SHARE_SIZE 20
 
 static int imx_pinctrl_parse_groups(struct device_node *np,
 				    struct group_desc *grp,
@@ -434,7 +441,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	dev_dbg(ipctl->dev, "group(%d): %s\n", index, np->name);
 
 	if (info->flags & SHARE_MUX_CONF_REG)
-		pin_size = SHARE_FSL_PIN_SIZE;
+		pin_size = FSL_PIN_SHARE_SIZE;
 	else
 		pin_size = FSL_PIN_SIZE;
 
