@@ -2948,6 +2948,8 @@ int snd_usb_mixer_resume(struct usb_mixer_interface *mixer, bool reset_resume)
 		}
 	}
 
+	snd_usb_mixer_resume_quirk(mixer);
+
 	return snd_usb_mixer_activate(mixer);
 }
 #endif
