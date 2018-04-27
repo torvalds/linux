@@ -20,5 +20,6 @@
 void smc_rx_init(struct smc_sock *smc);
 int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg, size_t len,
 		   int flags);
+int smc_rx_wait_data(struct smc_sock *smc, long *timeo);
 
 #endif /* SMC_RX_H */

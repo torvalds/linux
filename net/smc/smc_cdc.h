@@ -48,7 +48,7 @@ struct smc_cdc_msg {
 	struct smc_cdc_producer_flags	prod_flags;
 	struct smc_cdc_conn_state_flags	conn_state_flags;
 	u8				reserved[18];
-} __aligned(8);
+} __packed;					/* format defined in RFC7609 */
 
 static inline bool smc_cdc_rxed_any_close(struct smc_connection *conn)
 {

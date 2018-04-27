@@ -180,6 +180,10 @@ struct smc_sock {				/* smc sock container */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
 	bool			use_fallback;	/* fallback to tcp */
+	int			sockopt_defer_accept;
+						/* sockopt TCP_DEFER_ACCEPT
+						 * value
+						 */
 	u8			wait_close_tx_prepared : 1;
 						/* shutdown wr or close
 						 * started, waiting for unsent

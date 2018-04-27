@@ -19,6 +19,7 @@
 #include <linux/sched/signal.h>
 
 #include <net/sock.h>
+#include <net/tcp.h>
 
 #include "smc.h"
 #include "smc_wr.h"
@@ -26,6 +27,7 @@
 #include "smc_tx.h"
 
 #define SMC_TX_WORK_DELAY	HZ
+#define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
 
 /***************************** sndbuf producer *******************************/
 
@@ -113,6 +115,13 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
+}
+
+static bool smc_tx_is_corked(struct smc_sock *smc)
+{
+	struct tcp_sock *tp = tcp_sk(smc->clcsock->sk);
+
+	return (tp->nonagle & TCP_NAGLE_CORK) ? true : false;
 }
 
 /* sndbuf producer: main API called by socket layer.
@@ -209,7 +218,16 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		/* since we just produced more new data into sndbuf,
 		 * trigger sndbuf consumer: RDMA write into peer RMBE and CDC
 		 */
-		smc_tx_sndbuf_nonempty(conn);
+		if ((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc)) &&
+		    (atomic_read(&conn->sndbuf_space) >
+						(conn->sndbuf_size >> 1)))
+			/* for a corked socket defer the RDMA writes if there
+			 * is still sufficient sndbuf_space available
+			 */
+			schedule_delayed_work(&conn->tx_work,
+					      SMC_TX_CORK_DELAY);
+		else
+			smc_tx_sndbuf_nonempty(conn);
 	} /* while (msg_data_left(msg)) */
 
 	return send_done;
@@ -409,8 +427,8 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 			}
 			rc = 0;
 			if (conn->alert_token_local) /* connection healthy */
-				schedule_delayed_work(&conn->tx_work,
-						      SMC_TX_WORK_DELAY);
+				mod_delayed_work(system_wq, &conn->tx_work,
+						 SMC_TX_WORK_DELAY);
 		}
 		goto out_unlock;
 	}
