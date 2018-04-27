@@ -126,6 +126,49 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 				cpu->perf_caps.lowest_perf, cpu_num, ret);
 }
 
+/*
+ * The PCC subspace describes the rate at which platform can accept commands
+ * on the shared PCC channel (including READs which do not count towards freq
+ * trasition requests), so ideally we need to use the PCC values as a fallback
+ * if we don't have a platform specific transition_delay_us
+ */
+#ifdef CONFIG_ARM64
+#include <asm/cputype.h>
+
+static unsigned int cppc_cpufreq_get_transition_delay_us(int cpu)
+{
+	unsigned long implementor = read_cpuid_implementor();
+	unsigned long part_num = read_cpuid_part_number();
+	unsigned int delay_us = 0;
+
+	switch (implementor) {
+	case ARM_CPU_IMP_QCOM:
+		switch (part_num) {
+		case QCOM_CPU_PART_FALKOR_V1:
+		case QCOM_CPU_PART_FALKOR:
+			delay_us = 10000;
+			break;
+		default:
+			delay_us = cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
+			break;
+		}
+		break;
+	default:
+		delay_us = cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
+		break;
+	}
+
+	return delay_us;
+}
+
+#else
+
+static unsigned int cppc_cpufreq_get_transition_delay_us(int cpu)
+{
+	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
+}
+#endif
+
 static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cppc_cpudata *cpu;
@@ -162,8 +205,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpu->perf_caps.highest_perf;
 	policy->cpuinfo.max_freq = cppc_dmi_max_khz;
 
-	policy->transition_delay_us = cppc_get_transition_latency(cpu_num) /
-		NSEC_PER_USEC;
+	policy->transition_delay_us = cppc_cpufreq_get_transition_delay_us(cpu_num);
 	policy->shared_type = cpu->shared_type;
 
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
