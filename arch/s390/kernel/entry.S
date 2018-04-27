@@ -221,6 +221,68 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.popsection
 	.endm
 
+#ifdef CONFIG_EXPOLINE
+
+	.macro GEN_BR_THUNK name,reg,tmp
+	.section .text.\name,"axG",@progbits,\name,comdat
+	.globl \name
+	.hidden \name
+	.type \name,@function
+\name:
+	.cfi_startproc
+#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
+	exrl	0,0f
+#else
+	larl	\tmp,0f
+	ex	0,0(\tmp)
+#endif
+	j	.
+0:	br	\reg
+	.cfi_endproc
+	.endm
+
+	GEN_BR_THUNK __s390x_indirect_jump_r1use_r9,%r9,%r1
+	GEN_BR_THUNK __s390x_indirect_jump_r1use_r14,%r14,%r1
+	GEN_BR_THUNK __s390x_indirect_jump_r11use_r14,%r14,%r11
+
+	.macro BASR_R14_R9
+0:	brasl	%r14,__s390x_indirect_jump_r1use_r9
+	.pushsection .s390_indirect_branches,"a",@progbits
+	.long	0b-.
+	.popsection
+	.endm
+
+	.macro BR_R1USE_R14
+0:	jg	__s390x_indirect_jump_r1use_r14
+	.pushsection .s390_indirect_branches,"a",@progbits
+	.long	0b-.
+	.popsection
+	.endm
+
+	.macro BR_R11USE_R14
+0:	jg	__s390x_indirect_jump_r11use_r14
+	.pushsection .s390_indirect_branches,"a",@progbits
+	.long	0b-.
+	.popsection
+	.endm
+
+#else	/* CONFIG_EXPOLINE */
+
+	.macro BASR_R14_R9
+	basr	%r14,%r9
+	.endm
+
+	.macro BR_R1USE_R14
+	br	%r14
+	.endm
+
+	.macro BR_R11USE_R14
+	br	%r14
+	.endm
+
+#endif /* CONFIG_EXPOLINE */
+
+
 	.section .kprobes.text, "ax"
 .Ldummy:
 	/*
@@ -236,7 +298,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 ENTRY(__bpon)
 	.globl __bpon
 	BPON
-	br	%r14
+	BR_R1USE_R14
 
 /*
  * Scheduler resume function, called by switch_to
@@ -261,9 +323,9 @@ ENTRY(__switch_to)
 	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	bzr	%r14
+	jz	0f
 	.insn	s,0xb2800000,__LC_LPP		# set program parameter
-	br	%r14
+0:	BR_R1USE_R14
 
 .L__critical_start:
 
@@ -330,7 +392,7 @@ sie_exit:
 	xgr	%r5,%r5
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
 	lg	%r2,__SF_EMPTY+16(%r15)		# return exit reason code
-	br	%r14
+	BR_R1USE_R14
 .Lsie_fault:
 	lghi	%r14,-EFAULT
 	stg	%r14,__SF_EMPTY+16(%r15)	# set exit reason code
@@ -389,7 +451,7 @@ ENTRY(system_call)
 	lgf	%r9,0(%r8,%r10)			# get system call add.
 	TSTMSK	__TI_flags(%r12),_TIF_TRACE
 	jnz	.Lsysc_tracesys
-	basr	%r14,%r9			# call sys_xxxx
+	BASR_R14_R9				# call sys_xxxx
 	stg	%r2,__PT_R2(%r11)		# store return value
 
 .Lsysc_return:
@@ -566,7 +628,7 @@ ENTRY(system_call)
 	lmg	%r3,%r7,__PT_R3(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
 	lg	%r2,__PT_ORIG_GPR2(%r11)
-	basr	%r14,%r9		# call sys_xxx
+	BASR_R14_R9			# call sys_xxx
 	stg	%r2,__PT_R2(%r11)	# store return value
 .Lsysc_tracenogo:
 	TSTMSK	__TI_flags(%r12),_TIF_TRACE
@@ -590,7 +652,7 @@ ENTRY(ret_from_fork)
 	lmg	%r9,%r10,__PT_R9(%r11)	# load gprs
 ENTRY(kernel_thread_starter)
 	la	%r2,0(%r10)
-	basr	%r14,%r9
+	BASR_R14_R9
 	j	.Lsysc_tracenogo
 
 /*
@@ -667,9 +729,9 @@ ENTRY(pgm_check_handler)
 	nill	%r10,0x007f
 	sll	%r10,2
 	je	.Lpgm_return
-	lgf	%r1,0(%r10,%r1)		# load address of handler routine
+	lgf	%r9,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	basr	%r14,%r1		# branch to interrupt-handler
+	BASR_R14_R9			# branch to interrupt-handler
 .Lpgm_return:
 	LOCKDEP_SYS_EXIT
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
@@ -979,7 +1041,7 @@ ENTRY(psw_idle)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 .Lpsw_idle_lpsw:
 	lpswe	__SF_EMPTY(%r15)
-	br	%r14
+	BR_R1USE_R14
 .Lpsw_idle_end:
 
 /*
@@ -993,7 +1055,7 @@ ENTRY(save_fpu_regs)
 	lg	%r2,__LC_CURRENT
 	aghi	%r2,__TASK_thread
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	bor	%r14
+	jo	.Lsave_fpu_regs_exit
 	stfpc	__THREAD_FPU_fpc(%r2)
 	lg	%r3,__THREAD_FPU_regs(%r2)
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
@@ -1020,7 +1082,8 @@ ENTRY(save_fpu_regs)
 	std	15,120(%r3)
 .Lsave_fpu_regs_done:
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
-	br	%r14
+.Lsave_fpu_regs_exit:
+	BR_R1USE_R14
 .Lsave_fpu_regs_end:
 EXPORT_SYMBOL(save_fpu_regs)
 
@@ -1038,7 +1101,7 @@ load_fpu_regs:
 	lg	%r4,__LC_CURRENT
 	aghi	%r4,__TASK_thread
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	bnor	%r14
+	jno	.Lload_fpu_regs_exit
 	lfpc	__THREAD_FPU_fpc(%r4)
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
@@ -1065,7 +1128,8 @@ load_fpu_regs:
 	ld	15,120(%r4)
 .Lload_fpu_regs_done:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
-	br	%r14
+.Lload_fpu_regs_exit:
+	BR_R1USE_R14
 .Lload_fpu_regs_end:
 
 .L__critical_end:
@@ -1237,7 +1301,7 @@ cleanup_critical:
 	jl	0f
 	clg	%r9,BASED(.Lcleanup_table+104)	# .Lload_fpu_regs_end
 	jl	.Lcleanup_load_fpu_regs
-0:	br	%r14
+0:	BR_R11USE_R14
 
 	.align	8
 .Lcleanup_table:
@@ -1273,7 +1337,7 @@ cleanup_critical:
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
-	br	%r14
+	BR_R11USE_R14
 #endif
 
 .Lcleanup_system_call:
@@ -1326,7 +1390,7 @@ cleanup_critical:
 	stg	%r15,56(%r11)		# r15 stack pointer
 	# set new psw address and exit
 	larl	%r9,.Lsysc_do_svc
-	br	%r14
+	BR_R11USE_R14
 .Lcleanup_system_call_insn:
 	.quad	system_call
 	.quad	.Lsysc_stmg
@@ -1338,7 +1402,7 @@ cleanup_critical:
 
 .Lcleanup_sysc_tif:
 	larl	%r9,.Lsysc_tif
-	br	%r14
+	BR_R11USE_R14
 
 .Lcleanup_sysc_restore:
 	# check if stpt has been executed
@@ -1355,14 +1419,14 @@ cleanup_critical:
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
 1:	lmg	%r8,%r9,__LC_RETURN_PSW
-	br	%r14
+	BR_R11USE_R14
 .Lcleanup_sysc_restore_insn:
 	.quad	.Lsysc_exit_timer
 	.quad	.Lsysc_done - 4
 
 .Lcleanup_io_tif:
 	larl	%r9,.Lio_tif
-	br	%r14
+	BR_R11USE_R14
 
 .Lcleanup_io_restore:
 	# check if stpt has been executed
@@ -1376,7 +1440,7 @@ cleanup_critical:
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
 1:	lmg	%r8,%r9,__LC_RETURN_PSW
-	br	%r14
+	BR_R11USE_R14
 .Lcleanup_io_restore_insn:
 	.quad	.Lio_exit_timer
 	.quad	.Lio_done - 4
@@ -1429,17 +1493,17 @@ cleanup_critical:
 	# prepare return psw
 	nihh	%r8,0xfcfd		# clear irq & wait state bits
 	lg	%r9,48(%r11)		# return from psw_idle
-	br	%r14
+	BR_R11USE_R14
 .Lcleanup_idle_insn:
 	.quad	.Lpsw_idle_lpsw
 
 .Lcleanup_save_fpu_regs:
 	larl	%r9,save_fpu_regs
-	br	%r14
+	BR_R11USE_R14
 
 .Lcleanup_load_fpu_regs:
 	larl	%r9,load_fpu_regs
-	br	%r14
+	BR_R11USE_R14
 
 /*
  * Integer constants
@@ -1459,7 +1523,6 @@ cleanup_critical:
 .Lsie_crit_mcck_length:
 	.quad   .Lsie_skip - .Lsie_entry
 #endif
-
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.long esame
 	.globl	sys_call_table
