@@ -3183,16 +3183,10 @@ unsigned long get_state_synchronize_rcu(void)
 {
 	/*
 	 * Any prior manipulation of RCU-protected data must happen
-	 * before the load from ->gpnum.
+	 * before the load from ->gp_seq.
 	 */
 	smp_mb();  /* ^^^ */
-
-	/*
-	 * Make sure this load happens before the purportedly
-	 * time-consuming work between get_state_synchronize_rcu()
-	 * and cond_synchronize_rcu().
-	 */
-	return smp_load_acquire(&rcu_state_p->gpnum);
+	return rcu_seq_snap(&rcu_state_p->gp_seq);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
 
@@ -3212,15 +3206,10 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
  */
 void cond_synchronize_rcu(unsigned long oldstate)
 {
-	unsigned long newstate;
-
-	/*
-	 * Ensure that this load happens before any RCU-destructive
-	 * actions the caller might carry out after we return.
-	 */
-	newstate = smp_load_acquire(&rcu_state_p->completed);
-	if (ULONG_CMP_GE(oldstate, newstate))
+	if (!rcu_seq_done(&rcu_state_p->gp_seq, oldstate))
 		synchronize_rcu();
+	else
+		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 
@@ -3235,16 +3224,10 @@ unsigned long get_state_synchronize_sched(void)
 {
 	/*
 	 * Any prior manipulation of RCU-protected data must happen
-	 * before the load from ->gpnum.
+	 * before the load from ->gp_seq.
 	 */
 	smp_mb();  /* ^^^ */
-
-	/*
-	 * Make sure this load happens before the purportedly
-	 * time-consuming work between get_state_synchronize_sched()
-	 * and cond_synchronize_sched().
-	 */
-	return smp_load_acquire(&rcu_sched_state.gpnum);
+	return rcu_seq_snap(&rcu_sched_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_sched);
 
@@ -3264,15 +3247,10 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_sched);
  */
 void cond_synchronize_sched(unsigned long oldstate)
 {
-	unsigned long newstate;
-
-	/*
-	 * Ensure that this load happens before any RCU-destructive
-	 * actions the caller might carry out after we return.
-	 */
-	newstate = smp_load_acquire(&rcu_sched_state.completed);
-	if (ULONG_CMP_GE(oldstate, newstate))
+	if (!rcu_seq_done(&rcu_sched_state.gp_seq, oldstate))
 		synchronize_sched();
+	else
+		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_sched);
 
