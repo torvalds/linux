@@ -236,6 +236,7 @@ struct nfp_bpf_reg_state {
  * @xadd_over_16bit: 16bit immediate is not guaranteed
  * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
+ * @jump_neg_op: jump instruction has inverted immediate, use ADD instead of SUB
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
@@ -264,7 +265,10 @@ struct nfp_insn_meta {
 			bool xadd_maybe_16bit;
 		};
 		/* jump */
-		struct nfp_insn_meta *jmp_dst;
+		struct {
+			struct nfp_insn_meta *jmp_dst;
+			bool jump_neg_op;
+		};
 		/* function calls */
 		struct {
 			u32 func_id;

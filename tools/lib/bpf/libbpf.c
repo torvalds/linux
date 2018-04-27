@@ -1961,8 +1961,8 @@ BPF_PROG_TYPE_FNS(raw_tracepoint, BPF_PROG_TYPE_RAW_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
-static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
-						 enum bpf_attach_type type)
+void bpf_program__set_expected_attach_type(struct bpf_program *prog,
+					   enum bpf_attach_type type)
 {
 	prog->expected_attach_type = type;
 }

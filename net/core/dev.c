@@ -4057,8 +4057,10 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	 * pckt.
 	 */
 	off = orig_data_end - xdp.data_end;
-	if (off != 0)
+	if (off != 0) {
 		skb_set_tail_pointer(skb, xdp.data_end - xdp.data);
+		skb->len -= off;
+	}
 
 	switch (act) {
 	case XDP_REDIRECT:

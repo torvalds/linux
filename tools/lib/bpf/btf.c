@@ -281,7 +281,7 @@ int32_t btf__find_by_name(const struct btf *btf, const char *type_name)
 
 	for (i = 1; i <= btf->nr_types; i++) {
 		const struct btf_type *t = btf->types[i];
-		const char *name = btf_name_by_offset(btf, t->name);
+		const char *name = btf_name_by_offset(btf, t->name_off);
 
 		if (name && !strcmp(type_name, name))
 			return i;

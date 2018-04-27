@@ -1,20 +1,19 @@
-/* Copyright (c) 2017 Covalent IO, Inc. http://covalent.io
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- */
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/if_ether.h>
-#include <uapi/linux/if_packet.h>
-#include <uapi/linux/ip.h>
-#include "../../tools/testing/selftests/bpf/bpf_helpers.h"
-#include "../../tools/testing/selftests/bpf/bpf_endian.h"
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2017-2018 Covalent IO, Inc. http://covalent.io
+#include <stddef.h>
+#include <string.h>
+#include <linux/bpf.h>
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/in.h>
+#include <linux/udp.h>
+#include <linux/tcp.h>
+#include <linux/pkt_cls.h>
+#include <sys/socket.h>
+#include "bpf_helpers.h"
+#include "bpf_endian.h"
 
 /* Sockmap sample program connects a client and a backend together
  * using cgroups.
@@ -337,5 +336,5 @@ int bpf_prog10(struct sk_msg_md *msg)
 	return SK_DROP;
 }
 
-
+int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
