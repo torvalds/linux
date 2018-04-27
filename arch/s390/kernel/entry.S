@@ -1299,7 +1299,8 @@ cleanup_critical:
 	srag	%r9,%r9,23
 	jz	0f
 	mvc	__TI_last_break(8,%r12),16(%r11)
-0:	# set up saved register r11
+0:	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
+	# set up saved register r11
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r9,STACK_FRAME_OVERHEAD(%r15)
 	stg	%r9,24(%r11)		# r11 pt_regs pointer
