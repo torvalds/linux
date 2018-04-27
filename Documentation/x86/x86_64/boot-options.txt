@@ -187,9 +187,9 @@ PCI
 
 IOMMU (input/output memory management unit)
 
- Currently four x86-64 PCI-DMA mapping implementations exist:
+ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
-   1. <arch/x86_64/kernel/pci-nommu.c>: use no hardware/software IOMMU at all
+   1. <lib/dma-direct.c>: use no hardware/software IOMMU at all
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
