@@ -305,7 +305,7 @@ void mod_stats_update_event(struct mod_stats *mod_stats,
 
 	core_stats = MOD_STATS_TO_CORE(mod_stats);
 
-	if (core_stats->index >= core_stats->entries)
+	if (core_stats->event_index >= core_stats->event_entries)
 		return;
 
 	events = core_stats->events;
