@@ -599,6 +599,7 @@ enum rtl_register_content {
 	RxChkSum	= (1 << 5),
 	PCIDAC		= (1 << 4),
 	PCIMulRW	= (1 << 3),
+#define INTT_MASK	GENMASK(1, 0)
 	INTT_0		= 0x0000,	// 8168
 	INTT_1		= 0x0001,	// 8168
 	INTT_2		= 0x0002,	// 8168
@@ -2344,7 +2345,7 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	if (IS_ERR(ci))
 		return PTR_ERR(ci);
 
-	scale = &ci->scalev[RTL_R16(tp, CPlusCmd) & 3];
+	scale = &ci->scalev[RTL_R16(tp, CPlusCmd) & INTT_MASK];
 
 	/* read IntrMitigate and adjust according to scale */
 	for (w = RTL_R16(tp, IntrMitigate); w; w >>= RTL_COALESCE_SHIFT, p++) {
@@ -2443,7 +2444,7 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 
 	RTL_W16(tp, IntrMitigate, swab16(w));
 
-	tp->cp_cmd = (tp->cp_cmd & ~3) | cp01;
+	tp->cp_cmd = (tp->cp_cmd & ~INTT_MASK) | cp01;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 	RTL_R16(tp, CPlusCmd);
 
