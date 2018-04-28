@@ -1852,7 +1852,7 @@ static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
 
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp)
 {
-	return &rnp->nocb_gp_wq[rnp->completed & 0x1];
+	return &rnp->nocb_gp_wq[rcu_seq_ctr(rnp->gp_seq) & 0x1];
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
