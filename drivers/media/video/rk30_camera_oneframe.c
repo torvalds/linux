@@ -55,6 +55,8 @@
 #include <linux/of_irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/dma-iommu.h>
+#include <soc/rockchip/rockchip-system-status.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -1649,6 +1651,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 
 	/* spin_lock(&clk->lock); */
 	if (on && !clk->on) {
+		rockchip_set_system_status(SYS_STATUS_ISP);
 		if (CHIP_NAME == 3368)
 			clk_prepare_enable(clk->pclk_cif);
 
@@ -1671,6 +1674,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 		clk_disable_unprepare(clk->cif_clk_out);
 		if (CHIP_NAME == 3368)
 			clk_disable_unprepare(clk->pclk_cif);
+		rockchip_clear_system_status(SYS_STATUS_ISP);
 		clk->on = false;
 	}
 	/* spin_unlock(&clk->lock); */
