@@ -5301,10 +5301,10 @@ static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
 		(InterFrameGap << TxInterFrameGapShift));
 }
 
-static void rtl_hw_start(struct  rtl8169_private *tp)
+static void rtl_set_rx_max_size(struct rtl8169_private *tp)
 {
-	tp->hw_start(tp);
-	rtl_irq_enable_all(tp);
+	/* Low hurts. Let's disable the filtering. */
+	RTL_W16(tp, RxMaxSize, R8169_RX_BUF_SIZE + 1);
 }
 
 static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp)
@@ -5320,10 +5320,23 @@ static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp)
 	RTL_W32(tp, RxDescAddrLow, ((u64) tp->RxPhyAddr) & DMA_BIT_MASK(32));
 }
 
-static void rtl_set_rx_max_size(struct rtl8169_private *tp)
+static void rtl_hw_start(struct  rtl8169_private *tp)
 {
-	/* Low hurts. Let's disable the filtering. */
-	RTL_W16(tp, RxMaxSize, R8169_RX_BUF_SIZE + 1);
+	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
+
+	tp->hw_start(tp);
+
+	rtl_set_rx_max_size(tp);
+	rtl_set_rx_tx_desc_registers(tp);
+	rtl_set_rx_tx_config_registers(tp);
+	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+
+	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
+	RTL_R8(tp, IntrMask);
+	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
+	/* no early-rx interrupts */
+	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
+	rtl_irq_enable_all(tp);
 }
 
 static void rtl8169_set_magic_reg(struct rtl8169_private *tp, unsigned mac_version)
@@ -5408,11 +5421,7 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
 		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-
 	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
-
-	rtl_set_rx_max_size(tp);
 
 	tp->cp_cmd |= PCIMulRW;
 
@@ -5433,20 +5442,7 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 	 */
 	RTL_W16(tp, IntrMitigate, 0x0000);
 
-	rtl_set_rx_tx_desc_registers(tp);
-	rtl_set_rx_tx_config_registers(tp);
-
-	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
-
-	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
-	RTL_R8(tp, IntrMask);
-
 	RTL_W32(tp, RxMissed, 0);
-
-	/* no early-rx interrupts */
-	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
 }
 
 static void rtl_csi_write(struct rtl8169_private *tp, int addr, int value)
@@ -6227,11 +6223,7 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
-	rtl_set_rx_max_size(tp);
 
 	tp->cp_cmd &= ~INTT_MASK;
 	tp->cp_cmd |= PktCntrDisable | INTT_1;
@@ -6244,12 +6236,6 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 		tp->event_slow |= RxFIFOOver | PCSTimeout;
 		tp->event_slow &= ~RxOverflow;
 	}
-
-	rtl_set_rx_tx_desc_registers(tp);
-
-	rtl_set_rx_tx_config_registers(tp);
-
-	RTL_R8(tp, IntrMask);
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_11:
@@ -6354,12 +6340,6 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 		       tp->dev->name, tp->mac_version);
 		break;
 	}
-
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
-
-	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-
-	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
 }
 
 static void rtl_hw_start_8102e_1(struct rtl8169_private *tp)
@@ -6495,18 +6475,10 @@ static void rtl_hw_start_8101(struct rtl8169_private *tp)
 		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_NOSNOOP_EN);
 
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
-	rtl_set_rx_max_size(tp);
 
 	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
-
-	rtl_set_rx_tx_desc_registers(tp);
-
-	rtl_set_rx_tx_config_registers(tp);
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_07:
@@ -6544,15 +6516,7 @@ static void rtl_hw_start_8101(struct rtl8169_private *tp)
 		break;
 	}
 
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
-
 	RTL_W16(tp, IntrMitigate, 0x0000);
-
-	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-
-	RTL_R8(tp, IntrMask);
-
-	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
