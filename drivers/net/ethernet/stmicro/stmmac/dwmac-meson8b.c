@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
@@ -28,6 +29,10 @@
 #define PRG_ETH0			0x0
 
 #define PRG_ETH0_RGMII_MODE		BIT(0)
+
+#define PRG_ETH0_EXT_PHY_MODE_MASK	GENMASK(2, 0)
+#define PRG_ETH0_EXT_RGMII_MODE		1
+#define PRG_ETH0_EXT_RMII_MODE		4
 
 /* mux to choose between fclk_div2 (bit unset) and mpll2 (bit set) */
 #define PRG_ETH0_CLK_M250_SEL_SHIFT	4
@@ -47,12 +52,20 @@
 
 #define MUX_CLK_NUM_PARENTS		2
 
+struct meson8b_dwmac;
+
+struct meson8b_dwmac_data {
+	int (*set_phy_mode)(struct meson8b_dwmac *dwmac);
+};
+
 struct meson8b_dwmac {
-	struct device		*dev;
-	void __iomem		*regs;
-	phy_interface_t		phy_mode;
-	struct clk		*rgmii_tx_clk;
-	u32			tx_delay_ns;
+	struct device			*dev;
+	void __iomem			*regs;
+
+	const struct meson8b_dwmac_data	*data;
+	phy_interface_t			phy_mode;
+	struct clk			*rgmii_tx_clk;
+	u32				tx_delay_ns;
 };
 
 struct meson8b_dwmac_clk_configs {
@@ -171,6 +184,59 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	return 0;
 }
 
+static int meson8b_set_phy_mode(struct meson8b_dwmac *dwmac)
+{
+	switch (dwmac->phy_mode) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		/* enable RGMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_RGMII_MODE,
+					PRG_ETH0_RGMII_MODE);
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		/* disable RGMII mode -> enables RMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_RGMII_MODE, 0);
+		break;
+	default:
+		dev_err(dwmac->dev, "fail to set phy-mode %s\n",
+			phy_modes(dwmac->phy_mode));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int meson_axg_set_phy_mode(struct meson8b_dwmac *dwmac)
+{
+	switch (dwmac->phy_mode) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		/* enable RGMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_EXT_PHY_MODE_MASK,
+					PRG_ETH0_EXT_RGMII_MODE);
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		/* disable RGMII mode -> enables RMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_EXT_PHY_MODE_MASK,
+					PRG_ETH0_EXT_RMII_MODE);
+		break;
+	default:
+		dev_err(dwmac->dev, "fail to set phy-mode %s\n",
+			phy_modes(dwmac->phy_mode));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 {
 	int ret;
@@ -188,10 +254,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		/* enable RGMII mode */
-		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
-					PRG_ETH0_RGMII_MODE);
-
 		/* only relevant for RMII mode -> disable in RGMII mode */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
 					PRG_ETH0_INVERTED_RMII_CLK, 0);
@@ -224,10 +286,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		break;
 
 	case PHY_INTERFACE_MODE_RMII:
-		/* disable RGMII mode -> enables RMII mode */
-		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
-					0);
-
 		/* invert internal clk_rmii_i to generate 25/2.5 tx_rx_clk */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
 					PRG_ETH0_INVERTED_RMII_CLK,
@@ -274,6 +332,11 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
+	dwmac->data = (const struct meson8b_dwmac_data *)
+		of_device_get_match_data(&pdev->dev);
+	if (!dwmac->data)
+		return -EINVAL;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	dwmac->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dwmac->regs)) {
@@ -298,6 +361,10 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_remove_config_dt;
 
+	ret = dwmac->data->set_phy_mode(dwmac);
+	if (ret)
+		goto err_remove_config_dt;
+
 	ret = meson8b_init_prg_eth(dwmac);
 	if (ret)
 		goto err_remove_config_dt;
@@ -316,10 +383,31 @@ err_remove_config_dt:
 	return ret;
 }
 
+static const struct meson8b_dwmac_data meson8b_dwmac_data = {
+	.set_phy_mode = meson8b_set_phy_mode,
+};
+
+static const struct meson8b_dwmac_data meson_axg_dwmac_data = {
+	.set_phy_mode = meson_axg_set_phy_mode,
+};
+
 static const struct of_device_id meson8b_dwmac_match[] = {
-	{ .compatible = "amlogic,meson8b-dwmac" },
-	{ .compatible = "amlogic,meson8m2-dwmac" },
-	{ .compatible = "amlogic,meson-gxbb-dwmac" },
+	{
+		.compatible = "amlogic,meson8b-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxbb-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson-axg-dwmac",
+		.data = &meson_axg_dwmac_data,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, meson8b_dwmac_match);
