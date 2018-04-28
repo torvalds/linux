@@ -1803,8 +1803,8 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct i915_request *request)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct intel_context *ce;
 	unsigned long flags;
+	u32 *regs;
 
 	GEM_TRACE("%s request global=%x, current=%d\n",
 		  engine->name, request ? request->global_seqno : 0,
@@ -1854,14 +1854,24 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	ce = &request->ctx->engine[engine->id];
-	execlists_init_reg_state(ce->lrc_reg_state,
-				 request->ctx, engine, ce->ring);
+	regs = request->ctx->engine[engine->id].lrc_reg_state;
+	if (engine->default_state) {
+		void *defaults;
+
+		defaults = i915_gem_object_pin_map(engine->default_state,
+						   I915_MAP_WB);
+		if (!IS_ERR(defaults)) {
+			memcpy(regs, /* skip restoring the vanilla PPHWSP */
+			       defaults + LRC_STATE_PN * PAGE_SIZE,
+			       engine->context_size - PAGE_SIZE);
+			i915_gem_object_unpin_map(engine->default_state);
+		}
+	}
+	execlists_init_reg_state(regs, request->ctx, engine, request->ring);
 
 	/* Move the RING_HEAD onto the breadcrumb, past the hanging batch */
-	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
-		i915_ggtt_offset(ce->ring->vma);
-	ce->lrc_reg_state[CTX_RING_HEAD+1] = request->postfix;
+	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(request->ring->vma);
+	regs[CTX_RING_HEAD + 1] = request->postfix;
 
 	request->ring->head = request->postfix;
 	intel_ring_update_space(request->ring);
