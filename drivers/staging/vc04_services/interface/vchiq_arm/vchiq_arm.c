@@ -3426,7 +3426,7 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
 	struct service_data_struct *service_data;
-	int i, j = 0;
+	int i, found = 0;
 	/* If there's more than 64 services, only dump ones with
 	 * non-zero counts */
 	int only_nonzero = 0;
@@ -3467,11 +3467,11 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		if (service_ptr->srvstate == VCHIQ_SRVSTATE_FREE)
 			continue;
 
-		service_data[j].fourcc = service_ptr->base.fourcc;
-		service_data[j].clientid = service_ptr->client_id;
-		service_data[j].use_count = service_ptr->service_use_count;
-		j++;
-		if (j >= MAX_SERVICES)
+		service_data[found].fourcc = service_ptr->base.fourcc;
+		service_data[found].clientid = service_ptr->client_id;
+		service_data[found].use_count = service_ptr->service_use_count;
+		found++;
+		if (found >= MAX_SERVICES)
 			break;
 	}
 
@@ -3487,9 +3487,9 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	if (only_nonzero)
 		vchiq_log_warning(vchiq_susp_log_level, "Too many active "
 			"services (%d).  Only dumping up to first %d services "
-			"with non-zero use-count", active_services, j);
+			"with non-zero use-count", active_services, found);
 
-	for (i = 0; i < j; i++) {
+	for (i = 0; i < found; i++) {
 		vchiq_log_warning(vchiq_susp_log_level,
 			"----- %c%c%c%c:%d service count %d %s",
 			VCHIQ_FOURCC_AS_4CHARS(service_data[i].fourcc),
