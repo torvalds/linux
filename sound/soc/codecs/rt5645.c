@@ -3652,6 +3652,11 @@ static const struct rt5645_platform_data asus_t100ha_platform_data = {
 	.inv_jd1_1 = true,
 };
 
+static const struct rt5645_platform_data lenovo_ideapad_miix_310_pdata = {
+	.jd_mode = 3,
+	.in2_diff = true,
+};
+
 static const struct rt5645_platform_data jd_mode3_platform_data = {
 	.jd_mode = 3,
 };
@@ -3734,6 +3739,15 @@ static const struct dmi_system_id dmi_platform_data[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "X80 Pro"),
 		},
 		.driver_data = (void *)&jd_mode3_platform_data,
+	},
+	{
+		.ident = "Lenovo Ideapad Miix 310",
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80SG"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10ICR"),
+		},
+		.driver_data = (void *)&lenovo_ideapad_miix_310_pdata,
 	},
 	{ }
 };
