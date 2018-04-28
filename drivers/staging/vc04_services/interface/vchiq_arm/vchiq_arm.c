@@ -3415,13 +3415,18 @@ vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle)
 	return ret;
 }
 
+struct service_data_struct {
+	int fourcc;
+	int clientid;
+	int use_count;
+};
+
 void
 vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
+	struct service_data_struct *service_data;
 	int i, j = 0;
-	/* Only dump 64 services */
-	static const int local_max_services = 64;
 	/* If there's more than 64 services, only dump ones with
 	 * non-zero counts */
 	int only_nonzero = 0;
@@ -3432,13 +3437,13 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	int peer_count;
 	int vc_use_count;
 	int active_services;
-	struct service_data_struct {
-		int fourcc;
-		int clientid;
-		int use_count;
-	} service_data[local_max_services];
 
 	if (!arm_state)
+		return;
+
+	service_data = kmalloc_array(MAX_SERVICES, sizeof(*service_data),
+				     GFP_KERNEL);
+	if (!service_data)
 		return;
 
 	read_lock_bh(&arm_state->susp_res_lock);
@@ -3447,10 +3452,10 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	peer_count = arm_state->peer_use_count;
 	vc_use_count = arm_state->videocore_use_count;
 	active_services = state->unused_service;
-	if (active_services > local_max_services)
+	if (active_services > MAX_SERVICES)
 		only_nonzero = 1;
 
-	for (i = 0; (i < active_services) && (j < local_max_services); i++) {
+	for (i = 0; (i < active_services) && (j < MAX_SERVICES); i++) {
 		VCHIQ_SERVICE_T *service_ptr = state->services[i];
 
 		if (!service_ptr)
@@ -3493,6 +3498,8 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		"----- VCHIQ use count count %d", peer_count);
 	vchiq_log_warning(vchiq_susp_log_level,
 		"--- Overall vchiq instance use count %d", vc_use_count);
+
+	kfree(service_data);
 
 	vchiq_dump_platform_use_state(state);
 }
