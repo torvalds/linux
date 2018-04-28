@@ -7637,8 +7637,6 @@ static int rtl_open(struct net_device *dev)
 
 	rtl8169_init_phy(dev, tp);
 
-	__rtl8169_set_features(dev, dev->features);
-
 	rtl_pll_power_up(tp);
 
 	rtl_hw_start(tp);
