@@ -564,8 +564,9 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/af9033*
 
 AFFS FILE SYSTEM
+M:	David Sterba <dsterba@suse.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
