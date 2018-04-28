@@ -25,25 +25,25 @@
 
 #include <asm/unaligned.h>
 
-#define PCA953X_INPUT		0
-#define PCA953X_OUTPUT		1
-#define PCA953X_INVERT		2
-#define PCA953X_DIRECTION	3
+#define PCA953X_INPUT		0x00
+#define PCA953X_OUTPUT		0x01
+#define PCA953X_INVERT		0x02
+#define PCA953X_DIRECTION	0x03
 
 #define REG_ADDR_AI		0x80
 
-#define PCA957X_IN		0
-#define PCA957X_INVRT		1
-#define PCA957X_BKEN		2
-#define PCA957X_PUPD		3
-#define PCA957X_CFG		4
-#define PCA957X_OUT		5
-#define PCA957X_MSK		6
-#define PCA957X_INTS		7
+#define PCA957X_IN		0x00
+#define PCA957X_INVRT		0x01
+#define PCA957X_BKEN		0x02
+#define PCA957X_PUPD		0x03
+#define PCA957X_CFG		0x04
+#define PCA957X_OUT		0x05
+#define PCA957X_MSK		0x06
+#define PCA957X_INTS		0x07
 
-#define PCAL953X_IN_LATCH	34
-#define PCAL953X_INT_MASK	37
-#define PCAL953X_INT_STAT	38
+#define PCAL953X_IN_LATCH	0x22
+#define PCAL953X_INT_MASK	0x25
+#define PCAL953X_INT_STAT	0x26
 
 #define PCA_GPIO_MASK		0x00FF
 #define PCA_INT			0x0100
