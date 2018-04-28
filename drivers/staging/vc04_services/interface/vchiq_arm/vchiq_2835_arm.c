@@ -475,7 +475,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 		/* do not try and release vmalloc pages */
 	} else {
 		actual_pages = get_user_pages_fast(
-				          (unsigned long)buf & PAGE_MASK,
+					  (unsigned long)buf & PAGE_MASK,
 					  num_pages,
 					  type == PAGELIST_READ,
 					  pages);
