@@ -98,7 +98,6 @@ static inline unsigned ep93xx_i2s_read_reg(struct ep93xx_i2s_info *info,
 static void ep93xx_i2s_enable(struct ep93xx_i2s_info *info, int stream)
 {
 	unsigned base_reg;
-	int i;
 
 	if ((ep93xx_i2s_read_reg(info, EP93XX_I2S_TX0EN) & 0x1) == 0 &&
 	    (ep93xx_i2s_read_reg(info, EP93XX_I2S_RX0EN) & 0x1) == 0) {
@@ -111,27 +110,24 @@ static void ep93xx_i2s_enable(struct ep93xx_i2s_info *info, int stream)
 		ep93xx_i2s_write_reg(info, EP93XX_I2S_GLCTRL, 1);
 	}
 
-	/* Enable fifos */
+	/* Enable fifo */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		base_reg = EP93XX_I2S_TX0EN;
 	else
 		base_reg = EP93XX_I2S_RX0EN;
-	for (i = 0; i < 3; i++)
-		ep93xx_i2s_write_reg(info, base_reg + (i * 4), 1);
+	ep93xx_i2s_write_reg(info, base_reg, 1);
 }
 
 static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 {
 	unsigned base_reg;
-	int i;
 
-	/* Disable fifos */
+	/* Disable fifo */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		base_reg = EP93XX_I2S_TX0EN;
 	else
 		base_reg = EP93XX_I2S_RX0EN;
-	for (i = 0; i < 3; i++)
-		ep93xx_i2s_write_reg(info, base_reg + (i * 4), 0);
+	ep93xx_i2s_write_reg(info, base_reg, 0);
 
 	if ((ep93xx_i2s_read_reg(info, EP93XX_I2S_TX0EN) & 0x1) == 0 &&
 	    (ep93xx_i2s_read_reg(info, EP93XX_I2S_RX0EN) & 0x1) == 0) {
