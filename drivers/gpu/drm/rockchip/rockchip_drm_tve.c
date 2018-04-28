@@ -22,8 +22,7 @@
 #define RK322X_VDAC_STANDARD 0x15
 
 static const struct drm_display_mode cvbs_mode[] = {
-	{ DRM_MODE("720x576i", DRM_MODE_TYPE_DRIVER |
-		   DRM_MODE_TYPE_PREFERRED, 13500, 720, 753,
+	{ DRM_MODE("720x576i", DRM_MODE_TYPE_DRIVER, 13500, 720, 753,
 		   816, 864, 0, 576, 580, 586, 625, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
@@ -49,11 +48,15 @@ static int
 rockchip_tve_get_modes(struct drm_connector *connector)
 {
 	int count;
+	struct rockchip_tve *tve = connector_to_tve(connector);
 
 	for (count = 0; count < ARRAY_SIZE(cvbs_mode); count++) {
 		struct drm_display_mode *mode_ptr;
 
-		mode_ptr = drm_mode_duplicate(connector->dev, &cvbs_mode[count]);
+		mode_ptr = drm_mode_duplicate(connector->dev,
+					      &cvbs_mode[count]);
+		if (tve->preferred_mode == count)
+			mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
 		drm_mode_probed_add(connector, mode_ptr);
 	}
 
@@ -328,6 +331,15 @@ static int tve_parse_dt(struct device_node *np,
 	size_t len;
 	struct nvmem_cell *cell;
 	unsigned char *efuse_buf;
+
+	ret = of_property_read_u32(np, "rockchip,tvemode", &val);
+	if (ret < 0) {
+		tve->preferred_mode = 0;
+	} else if (val > 1) {
+		dev_err(tve->dev, "tve mode value invalid\n");
+		return -EINVAL;
+	}
+	tve->preferred_mode = val;
 
 	ret = of_property_read_u32(np, "rockchip,saturation", &val);
 	if (val == 0 || ret < 0)

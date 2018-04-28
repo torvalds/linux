@@ -14,6 +14,8 @@ Required properties:
 - rockchip,lumafilter2: the value for TVE_LUMA_FILTER3(0x1c)
 - rockchip,daclevel: the value is used to adjust the voltage amplitude of the CVBS
 - rockchip,dac1level: only for rv1108 rk322x and rk3328
+Optional properties:
+- rockchip,tvemode: tve preferred mode, 0 for PAL, 1 for NTSC
 
 Example:
 	tve: tve@ff373e00 {
@@ -28,6 +30,7 @@ Example:
 		rockchip,lumafilter2 = <0xf332d70c>;
 		rockchip,daclevel = <0x22>;
 		rockchip,dac1level = <0x7>;
+		rockchip,tvemode = <0>;
 		status = "disabled";
 
 		ports {
