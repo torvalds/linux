@@ -447,7 +447,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->svc_reset_gpio = of_get_named_gpio(np,
 							"svc,reset-gpio",
 							0);
-	if (arche_pdata->svc_reset_gpio < 0) {
+	if (!gpio_is_valid(arche_pdata->svc_reset_gpio)) {
 		dev_err(dev, "failed to get reset-gpio\n");
 		return arche_pdata->svc_reset_gpio;
 	}
@@ -467,7 +467,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->svc_sysboot_gpio = of_get_named_gpio(np,
 							  "svc,sysboot-gpio",
 							  0);
-	if (arche_pdata->svc_sysboot_gpio < 0) {
+	if (!gpio_is_valid(arche_pdata->svc_sysboot_gpio)) {
 		dev_err(dev, "failed to get sysboot gpio\n");
 		return arche_pdata->svc_sysboot_gpio;
 	}
@@ -486,7 +486,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->svc_refclk_req = of_get_named_gpio(np,
 							"svc,refclk-req-gpio",
 							0);
-	if (arche_pdata->svc_refclk_req < 0) {
+	if (!gpio_is_valid(arche_pdata->svc_refclk_req)) {
 		dev_err(dev, "failed to get svc clock-req gpio\n");
 		return arche_pdata->svc_refclk_req;
 	}
