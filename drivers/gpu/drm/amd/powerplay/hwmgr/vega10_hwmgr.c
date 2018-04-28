@@ -2860,7 +2860,7 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	tmp_result = vega10_construct_voltage_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to contruct voltage tables!",
+			"Failed to construct voltage tables!",
 			result = tmp_result);
 
 	tmp_result = vega10_init_smc_table(hwmgr);

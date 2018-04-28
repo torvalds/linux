@@ -1270,7 +1270,7 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 		tmp_result = smu7_construct_voltage_tables(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
-				"Failed to contruct voltage tables!",
+				"Failed to construct voltage tables!",
 				result = tmp_result);
 	}
 	smum_initialize_mc_reg_table(hwmgr);
