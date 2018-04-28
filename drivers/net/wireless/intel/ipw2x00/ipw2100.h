@@ -1009,7 +1009,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_PERCENT_RETRIES,	// current calculation of % missed tx retries
 	IPW_ORD_ASSOCIATED_AP_PTR,	// If associated, this is ptr to the associated
 	// AP table entry. set to 0 if not associated
-	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's decsribed in the AP table
+	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's described in the AP table
 	IPW_ORD_AP_LIST_PTR,	// Ptr to list of available APs
 	IPW_ORD_STAT_AP_ASSNS,	// # of associations
 	IPW_ORD_STAT_ASSN_FAIL,	// # of association failures
