@@ -286,7 +286,7 @@ struct rcu_data {
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
-	unsigned long rcu_iw_gpnum;	/* ->gpnum associated with ->rcu_iw. */
+	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
 
 	int cpu;
 	struct rcu_state *rsp;

@@ -1099,8 +1099,8 @@ static void rcu_gpnum_ovf(struct rcu_node *rnp, struct rcu_data *rdp)
 	if (ULONG_CMP_LT(rcu_seq_current(&rdp->gp_seq) + ULONG_MAX / 4,
 			 rnp->gp_seq))
 		WRITE_ONCE(rdp->gpwrap, true);
-	if (ULONG_CMP_LT(rdp->rcu_iw_gpnum + ULONG_MAX / 4, rnp->gpnum))
-		rdp->rcu_iw_gpnum = rnp->gpnum + ULONG_MAX / 4;
+	if (ULONG_CMP_LT(rdp->rcu_iw_gp_seq + ULONG_MAX / 4, rnp->gp_seq))
+		rdp->rcu_iw_gp_seq = rnp->gp_seq + ULONG_MAX / 4;
 }
 
 /*
@@ -1134,7 +1134,7 @@ static void rcu_iw_handler(struct irq_work *iwp)
 	rnp = rdp->mynode;
 	raw_spin_lock_rcu_node(rnp);
 	if (!WARN_ON_ONCE(!rdp->rcu_iw_pending)) {
-		rdp->rcu_iw_gpnum = rnp->gpnum;
+		rdp->rcu_iw_gp_seq = rnp->gp_seq;
 		rdp->rcu_iw_pending = false;
 	}
 	raw_spin_unlock_rcu_node(rnp);
@@ -1231,11 +1231,11 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	if (jiffies - rdp->rsp->gp_start > rcu_jiffies_till_stall_check() / 2) {
 		resched_cpu(rdp->cpu);
 		if (IS_ENABLED(CONFIG_IRQ_WORK) &&
-		    !rdp->rcu_iw_pending && rdp->rcu_iw_gpnum != rnp->gpnum &&
+		    !rdp->rcu_iw_pending && rdp->rcu_iw_gp_seq != rnp->gp_seq &&
 		    (rnp->ffmask & rdp->grpmask)) {
 			init_irq_work(&rdp->rcu_iw, rcu_iw_handler);
 			rdp->rcu_iw_pending = true;
-			rdp->rcu_iw_gpnum = rnp->gpnum;
+			rdp->rcu_iw_gp_seq = rnp->gp_seq;
 			irq_work_queue_on(&rdp->rcu_iw, rdp->cpu);
 		}
 	}
@@ -3575,7 +3575,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->rcu_qs_ctr_snap = per_cpu(rcu_dynticks.rcu_qs_ctr, cpu);
 	rdp->core_needs_qs = false;
 	rdp->rcu_iw_pending = false;
-	rdp->rcu_iw_gpnum = rnp->gpnum - 1;
+	rdp->rcu_iw_gp_seq = rnp->gp_seq - 1;
 	trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 }
