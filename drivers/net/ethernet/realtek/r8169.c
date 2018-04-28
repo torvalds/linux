@@ -1935,11 +1935,13 @@ static netdev_features_t rtl8169_fix_features(struct net_device *dev,
 	return features;
 }
 
-static void __rtl8169_set_features(struct net_device *dev,
-				   netdev_features_t features)
+static int rtl8169_set_features(struct net_device *dev,
+				netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	u32 rx_config;
+
+	rtl_lock_work(tp);
 
 	rx_config = RTL_R32(tp, RxConfig);
 	if (features & NETIF_F_RXALL)
@@ -1963,23 +1965,11 @@ static void __rtl8169_set_features(struct net_device *dev,
 
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 	RTL_R16(tp, CPlusCmd);
-}
 
-static int rtl8169_set_features(struct net_device *dev,
-				netdev_features_t features)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	features &= NETIF_F_RXALL | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX;
-
-	rtl_lock_work(tp);
-	if (features ^ dev->features)
-		__rtl8169_set_features(dev, features);
 	rtl_unlock_work(tp);
 
 	return 0;
 }
-
 
 static inline u32 rtl8169_tx_vlan_tag(struct sk_buff *skb)
 {
