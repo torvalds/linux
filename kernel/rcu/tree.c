@@ -219,7 +219,7 @@ unsigned long rcu_rnp_online_cpus(struct rcu_node *rnp)
  */
 static int rcu_gp_in_progress(struct rcu_state *rsp)
 {
-	return READ_ONCE(rsp->completed) != READ_ONCE(rsp->gpnum);
+	return rcu_seq_state(rcu_seq_current(&rsp->gp_seq));
 }
 
 /*
