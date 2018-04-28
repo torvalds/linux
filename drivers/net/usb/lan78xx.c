@@ -2100,14 +2100,14 @@ static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
 		ret = phy_register_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0,
 						 ksz9031rnx_fixup);
 		if (ret < 0) {
-			netdev_err(dev->net, "fail to register fixup\n");
+			netdev_err(dev->net, "Failed to register fixup for PHY_KSZ9031RNX\n");
 			return NULL;
 		}
 		/* external PHY fixup for LAN8835 */
 		ret = phy_register_fixup_for_uid(PHY_LAN8835, 0xfffffff0,
 						 lan8835_fixup);
 		if (ret < 0) {
-			netdev_err(dev->net, "fail to register fixup\n");
+			netdev_err(dev->net, "Failed to register fixup for PHY_LAN8835\n");
 			return NULL;
 		}
 		/* add more external PHY fixup here if needed */
