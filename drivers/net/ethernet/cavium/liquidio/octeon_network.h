@@ -565,4 +565,23 @@ static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
 	return skb->queue_mapping % lio->linfo.num_txpciq;
 }
 
+/**
+ * Remove the node at the head of the list. The list would be empty at
+ * the end of this call if there are no more nodes in the list.
+ */
+static inline struct list_head *lio_list_delete_head(struct list_head *root)
+{
+	struct list_head *node;
+
+	if (root->prev == root && root->next == root)
+		node = NULL;
+	else
+		node = root->next;
+
+	if (node)
+		list_del(node);
+
+	return node;
+}
+
 #endif

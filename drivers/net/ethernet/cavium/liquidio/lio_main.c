@@ -542,25 +542,6 @@ static inline int check_txq_status(struct lio *lio)
 }
 
 /**
- * Remove the node at the head of the list. The list would be empty at
- * the end of this call if there are no more nodes in the list.
- */
-static inline struct list_head *list_delete_head(struct list_head *root)
-{
-	struct list_head *node;
-
-	if ((root->prev == root) && (root->next == root))
-		node = NULL;
-	else
-		node = root->next;
-
-	if (node)
-		list_del(node);
-
-	return node;
-}
-
-/**
  * \brief Delete gather lists
  * @param lio per-network private data
  */
@@ -578,7 +559,7 @@ static void delete_glists(struct lio *lio)
 	for (i = 0; i < lio->linfo.num_txpciq; i++) {
 		do {
 			g = (struct octnic_gather *)
-				list_delete_head(&lio->glist[i]);
+				lio_list_delete_head(&lio->glist[i]);
 			if (g)
 				kfree(g);
 		} while (g);
@@ -2590,7 +2571,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		spin_lock(&lio->glist_lock[q_idx]);
 		g = (struct octnic_gather *)
-			list_delete_head(&lio->glist[q_idx]);
+			lio_list_delete_head(&lio->glist[q_idx]);
 		spin_unlock(&lio->glist_lock[q_idx]);
 
 		if (!g) {
