@@ -690,6 +690,7 @@ enum rtl_rx_desc_bit {
 };
 
 #define RsvdMask	0x3fffc000
+#define CPCMD_QUIRK_MASK	(Normal_mode | RxVlan | RxChkSum | INTT_MASK)
 
 struct TxDesc {
 	__le32 opts1;
@@ -5643,22 +5644,11 @@ static void rtl_pcie_state_l2l3_enable(struct rtl8169_private *tp, bool enable)
 	RTL_W8(tp, Config3, data);
 }
 
-#define R8168_CPCMD_QUIRK_MASK (\
-	EnableBist | \
-	Mac_dbgo_oe | \
-	Force_half_dup | \
-	Force_rxflow_en | \
-	Force_txflow_en | \
-	Cxpl_dbg_sel | \
-	ASF | \
-	PktCntrDisable | \
-	Mac_dbgo_sel)
-
 static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
 
-	tp->cp_cmd &= ~R8168_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
 	if (tp->dev->mtu <= ETH_DATA_LEN) {
@@ -5687,7 +5677,7 @@ static void __rtl_hw_start_8168cp(struct rtl8169_private *tp)
 
 	rtl_disable_clock_request(tp);
 
-	tp->cp_cmd &= ~R8168_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
@@ -5717,7 +5707,7 @@ static void rtl_hw_start_8168cp_2(struct rtl8169_private *tp)
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	tp->cp_cmd &= ~R8168_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
@@ -5735,7 +5725,7 @@ static void rtl_hw_start_8168cp_3(struct rtl8169_private *tp)
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	tp->cp_cmd &= ~R8168_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
@@ -5793,7 +5783,7 @@ static void rtl_hw_start_8168d(struct rtl8169_private *tp)
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	tp->cp_cmd &= ~R8168_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
@@ -6394,17 +6384,6 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
 }
 
-#define R810X_CPCMD_QUIRK_MASK (\
-	EnableBist | \
-	Mac_dbgo_oe | \
-	Force_half_dup | \
-	Force_rxflow_en | \
-	Force_txflow_en | \
-	Cxpl_dbg_sel | \
-	ASF | \
-	PktCntrDisable | \
-	Mac_dbgo_sel)
-
 static void rtl_hw_start_8102e_1(struct rtl8169_private *tp)
 {
 	static const struct ephy_info e_info_8102e_1[] = {
@@ -6544,7 +6523,7 @@ static void rtl_hw_start_8101(struct rtl8169_private *tp)
 
 	rtl_set_rx_max_size(tp);
 
-	tp->cp_cmd &= ~R810X_CPCMD_QUIRK_MASK;
+	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
 	rtl_set_rx_tx_desc_registers(tp);
