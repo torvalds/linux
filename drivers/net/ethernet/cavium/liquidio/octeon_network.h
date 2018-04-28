@@ -203,6 +203,8 @@ void lio_if_cfg_callback(struct octeon_device *oct,
 			 u32 status __attribute__((unused)),
 			 void *buf);
 
+void lio_delete_glists(struct lio *lio);
+
 /**
  * \brief Net device change_mtu
  * @param netdev network device

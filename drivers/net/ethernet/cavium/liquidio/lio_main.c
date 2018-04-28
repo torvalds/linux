@@ -542,48 +542,6 @@ static inline int check_txq_status(struct lio *lio)
 }
 
 /**
- * \brief Delete gather lists
- * @param lio per-network private data
- */
-static void delete_glists(struct lio *lio)
-{
-	struct octnic_gather *g;
-	int i;
-
-	kfree(lio->glist_lock);
-	lio->glist_lock = NULL;
-
-	if (!lio->glist)
-		return;
-
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
-		do {
-			g = (struct octnic_gather *)
-				lio_list_delete_head(&lio->glist[i]);
-			if (g)
-				kfree(g);
-		} while (g);
-
-		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
-		    lio->glists_dma_base && lio->glists_dma_base[i]) {
-			lio_dma_free(lio->oct_dev,
-				     lio->glist_entry_size * lio->tx_qsize,
-				     lio->glists_virt_base[i],
-				     lio->glists_dma_base[i]);
-		}
-	}
-
-	kfree(lio->glists_virt_base);
-	lio->glists_virt_base = NULL;
-
-	kfree(lio->glists_dma_base);
-	lio->glists_dma_base = NULL;
-
-	kfree(lio->glist);
-	lio->glist = NULL;
-}
-
-/**
  * \brief Setup gather lists
  * @param lio per-network private data
  */
@@ -617,7 +575,7 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 				       GFP_KERNEL);
 
 	if (!lio->glists_virt_base || !lio->glists_dma_base) {
-		delete_glists(lio);
+		lio_delete_glists(lio);
 		return -ENOMEM;
 	}
 
@@ -634,7 +592,7 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 				      &lio->glists_dma_base[i]);
 
 		if (!lio->glists_virt_base[i]) {
-			delete_glists(lio);
+			lio_delete_glists(lio);
 			return -ENOMEM;
 		}
 
@@ -656,7 +614,7 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 		}
 
 		if (j != lio->tx_qsize) {
-			delete_glists(lio);
+			lio_delete_glists(lio);
 			return -ENOMEM;
 		}
 	}
@@ -1452,7 +1410,7 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	cleanup_rx_oom_poll_fn(netdev);
 
-	delete_glists(lio);
+	lio_delete_glists(lio);
 
 	free_netdev(netdev);
 
