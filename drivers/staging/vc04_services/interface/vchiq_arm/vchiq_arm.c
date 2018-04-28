@@ -3455,7 +3455,7 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	if (active_services > MAX_SERVICES)
 		only_nonzero = 1;
 
-	for (i = 0; (i < active_services) && (j < MAX_SERVICES); i++) {
+	for (i = 0; i < active_services; i++) {
 		VCHIQ_SERVICE_T *service_ptr = state->services[i];
 
 		if (!service_ptr)
@@ -3469,7 +3469,10 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 
 		service_data[j].fourcc = service_ptr->base.fourcc;
 		service_data[j].clientid = service_ptr->client_id;
-		service_data[j++].use_count = service_ptr->service_use_count;
+		service_data[j].use_count = service_ptr->service_use_count;
+		j++;
+		if (j >= MAX_SERVICES)
+			break;
 	}
 
 	read_unlock_bh(&arm_state->susp_res_lock);
