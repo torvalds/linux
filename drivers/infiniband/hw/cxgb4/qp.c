@@ -1297,8 +1297,7 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
-	wqe = __skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof *wqe);
+	wqe = __skb_put_zero(skb, sizeof(*wqe));
 	wqe->op_compl = cpu_to_be32(FW_WR_OP_V(FW_RI_INIT_WR));
 	wqe->flowid_len16 = cpu_to_be32(
 		FW_WR_FLOWID_V(qhp->ep->hwtid) |
@@ -1421,8 +1420,7 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	wqe = __skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof *wqe);
+	wqe = __skb_put_zero(skb, sizeof(*wqe));
 	wqe->op_compl = cpu_to_be32(
 		FW_WR_OP_V(FW_RI_INIT_WR) |
 		FW_WR_COMPL_F);
@@ -1487,8 +1485,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
-	wqe = __skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof *wqe);
+	wqe = __skb_put_zero(skb, sizeof(*wqe));
 	wqe->op_compl = cpu_to_be32(
 		FW_WR_OP_V(FW_RI_INIT_WR) |
 		FW_WR_COMPL_F);

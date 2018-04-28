@@ -565,10 +565,8 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 
 	pkt->rxe	= rxe;
 	pkt->port_num	= port_num;
-	pkt->hdr	= skb_put(skb, paylen);
+	pkt->hdr	= skb_put_zero(skb, paylen);
 	pkt->mask	|= RXE_GRH_MASK;
-
-	memset(pkt->hdr, 0, paylen);
 
 	dev_put(ndev);
 	return skb;
