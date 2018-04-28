@@ -497,7 +497,7 @@ static void liquidio_deinit_pci(void)
  */
 static inline int check_txq_status(struct lio *lio)
 {
-	int numqs = lio->netdev->num_tx_queues;
+	int numqs = lio->netdev->real_num_tx_queues;
 	int ret_val = 0;
 	int q, iq;
 
@@ -1521,7 +1521,7 @@ static void free_netsgbuf(void *buf)
 		i++;
 	}
 
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
 	spin_unlock(&lio->glist_lock[iq]);
@@ -1564,7 +1564,7 @@ static void free_netsgbuf_with_resp(void *buf)
 		i++;
 	}
 
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
@@ -1851,11 +1851,6 @@ static int liquidio_open(struct net_device *netdev)
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
 
-	/* Ready for link status updates */
-	lio->intf_open = 1;
-
-	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-
 	if (OCTEON_CN23XX_PF(oct)) {
 		if (!oct->msix_on)
 			if (setup_tx_poll_fn(netdev))
@@ -1865,7 +1860,12 @@ static int liquidio_open(struct net_device *netdev)
 			return -1;
 	}
 
-	start_txqs(netdev);
+	netif_tx_start_all_queues(netdev);
+
+	/* Ready for link status updates */
+	lio->intf_open = 1;
+
+	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
@@ -1888,11 +1888,15 @@ static int liquidio_stop(struct net_device *netdev)
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
-	netif_tx_disable(netdev);
+	/* Stop any link updates */
+	lio->intf_open = 0;
+
+	stop_txqs(netdev);
 
 	/* Inform that netif carrier is down */
 	netif_carrier_off(netdev);
-	lio->intf_open = 0;
+	netif_tx_disable(netdev);
+
 	lio->linfo.link.s.link_up = 0;
 	lio->link_changes++;
 
@@ -2332,7 +2336,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	q_idx = skb_iq(lio, skb);
+	q_idx = skb_iq(oct, skb);
 	tag = q_idx;
 	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
@@ -3298,6 +3302,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	struct liquidio_if_cfg_resp *resp;
 	struct octdev_props *props;
 	int retval, num_iqueues, num_oqueues;
+	int max_num_queues = 0;
 	union oct_nic_if_cfg if_cfg;
 	unsigned int base_queue;
 	unsigned int gmx_port_id;
@@ -3380,7 +3385,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		sc->callback = lio_if_cfg_callback;
 		sc->callback_arg = sc;
-		sc->wait_time = 3000;
+		sc->wait_time = LIO_IFCFG_WAIT_TIME;
 
 		retval = octeon_send_soft_command(octeon_dev, sc);
 		if (retval == IQ_SEND_FAILED) {
@@ -3434,11 +3439,20 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				resp->cfg_info.oqmask);
 			goto setup_nic_dev_fail;
 		}
+
+		if (OCTEON_CN6XXX(octeon_dev)) {
+			max_num_queues = CFG_GET_IQ_MAX_Q(CHIP_CONF(octeon_dev,
+								    cn6xxx));
+		} else if (OCTEON_CN23XX_PF(octeon_dev)) {
+			max_num_queues = CFG_GET_IQ_MAX_Q(CHIP_CONF(octeon_dev,
+								    cn23xx_pf));
+		}
+
 		dev_dbg(&octeon_dev->pci_dev->dev,
-			"interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d\n",
+			"interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d max_num_queues: %d\n",
 			i, resp->cfg_info.iqmask, resp->cfg_info.oqmask,
-			num_iqueues, num_oqueues);
-		netdev = alloc_etherdev_mq(LIO_SIZE, num_iqueues);
+			num_iqueues, num_oqueues, max_num_queues);
+		netdev = alloc_etherdev_mq(LIO_SIZE, max_num_queues);
 
 		if (!netdev) {
 			dev_err(&octeon_dev->pci_dev->dev, "Device allocation failed\n");
@@ -3452,6 +3466,20 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 */
 		netdev->netdev_ops = &lionetdevops;
 		SWITCHDEV_SET_OPS(netdev, &lio_pf_switchdev_ops);
+
+		retval = netif_set_real_num_rx_queues(netdev, num_oqueues);
+		if (retval) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"setting real number rx failed\n");
+			goto setup_nic_dev_fail;
+		}
+
+		retval = netif_set_real_num_tx_queues(netdev, num_iqueues);
+		if (retval) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"setting real number tx failed\n");
+			goto setup_nic_dev_fail;
+		}
 
 		lio = GET_LIO(netdev);
 
@@ -4073,7 +4101,9 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 		}
 		atomic_set(&octeon_dev->status, OCT_DEV_MBOX_SETUP_DONE);
 
-		if (octeon_allocate_ioq_vector(octeon_dev)) {
+		if (octeon_allocate_ioq_vector
+				(octeon_dev,
+				 octeon_dev->sriov_info.num_pf_rings)) {
 			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
 			return 1;
 		}

@@ -78,7 +78,7 @@ void lio_delete_glists(struct lio *lio)
 	if (!lio->glist)
 		return;
 
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
+	for (i = 0; i < lio->oct_dev->num_iqs; i++) {
 		do {
 			g = (struct octnic_gather *)
 			    lio_list_delete_head(&lio->glist[i]);
@@ -1036,8 +1036,8 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 	int num_ioq_vectors;
 	int irqret, err;
 
-	oct->num_msix_irqs = num_ioqs;
 	if (oct->msix_on) {
+		oct->num_msix_irqs = num_ioqs;
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_PF + 1;
 

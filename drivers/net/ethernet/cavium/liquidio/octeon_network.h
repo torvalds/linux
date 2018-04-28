@@ -47,6 +47,8 @@ struct liquidio_if_cfg_resp {
 	u64 status;
 };
 
+#define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
+
 /* Structure of a node in list of gather components maintained by
  * NIC driver for each network device.
  */
@@ -546,7 +548,7 @@ static inline void stop_txqs(struct net_device *netdev)
 {
 	int i;
 
-	for (i = 0; i < netdev->num_tx_queues; i++)
+	for (i = 0; i < netdev->real_num_tx_queues; i++)
 		netif_stop_subqueue(netdev, i);
 }
 
@@ -559,7 +561,7 @@ static inline void wake_txqs(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	int i, qno;
 
-	for (i = 0; i < netdev->num_tx_queues; i++) {
+	for (i = 0; i < netdev->real_num_tx_queues; i++) {
 		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
 
 		if (__netif_subqueue_stopped(netdev, i)) {
@@ -580,14 +582,14 @@ static inline void start_txqs(struct net_device *netdev)
 	int i;
 
 	if (lio->linfo.link.s.link_up) {
-		for (i = 0; i < netdev->num_tx_queues; i++)
+		for (i = 0; i < netdev->real_num_tx_queues; i++)
 			netif_start_subqueue(netdev, i);
 	}
 }
 
-static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
+static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
 {
-	return skb->queue_mapping % lio->linfo.num_txpciq;
+	return skb->queue_mapping % oct->num_iqs;
 }
 
 /**
