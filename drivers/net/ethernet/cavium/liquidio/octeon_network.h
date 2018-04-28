@@ -199,6 +199,10 @@ int lio_wait_for_clean_oq(struct octeon_device *oct);
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
 
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)),
+			 void *buf);
+
 /**
  * \brief Net device change_mtu
  * @param netdev network device

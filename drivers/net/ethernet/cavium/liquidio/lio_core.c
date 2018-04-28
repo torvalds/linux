@@ -29,6 +29,38 @@
 /* OOM task polling interval */
 #define LIO_OOM_POLL_INTERVAL_MS 250
 
+/**
+ * \brief Callback for getting interface configuration
+ * @param status status of request
+ * @param buf pointer to resp structure
+ */
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)), void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+	struct liquidio_if_cfg_context *ctx;
+	struct liquidio_if_cfg_resp *resp;
+
+	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
+	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
+
+	oct = lio_get_device(ctx->octeon_id);
+	if (resp->status)
+		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
+			CVM_CAST64(resp->status));
+	WRITE_ONCE(ctx->cond, 1);
+
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
+		 resp->cfg_info.liquidio_firmware_version);
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
 	struct lio *lio = GET_LIO(netdev);
