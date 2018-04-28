@@ -20,6 +20,7 @@
 #include <linux/sizes.h>
 #include <linux/limits.h>
 #include <linux/clk/clk-conf.h>
+#include <linux/platform_device.h>
 
 #include <asm/irq.h>
 
@@ -193,12 +194,15 @@ static const struct dev_pm_ops amba_pm = {
 /*
  * Primecells are part of the Advanced Microcontroller Bus Architecture,
  * so we call the bus "amba".
+ * DMA configuration for platform and AMBA bus is same. So here we reuse
+ * platform's DMA config routine.
  */
 struct bus_type amba_bustype = {
 	.name		= "amba",
 	.dev_groups	= amba_dev_groups,
 	.match		= amba_match,
 	.uevent		= amba_uevent,
+	.dma_configure	= platform_dma_configure,
 	.pm		= &amba_pm,
 	.force_dma	= true,
 };

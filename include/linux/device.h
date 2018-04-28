@@ -88,6 +88,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @num_vf:	Called to find out how many virtual functions a device on this
  *		bus supports.
+ * @dma_configure:	Called to setup DMA configuration on a device on
+			this bus.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
@@ -129,6 +131,8 @@ struct bus_type {
 	int (*resume)(struct device *dev);
 
 	int (*num_vf)(struct device *dev);
+
+	int (*dma_configure)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
 
