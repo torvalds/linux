@@ -5409,23 +5409,10 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 
 	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-	if (tp->mac_version == RTL_GIGA_MAC_VER_01 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_02 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_03 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_04)
-		RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-
-	rtl_init_rxcfg(tp);
 
 	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
 
 	rtl_set_rx_max_size(tp);
-
-	if (tp->mac_version == RTL_GIGA_MAC_VER_01 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_02 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_03 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_04)
-		rtl_set_rx_tx_config_registers(tp);
 
 	tp->cp_cmd |= PCIMulRW;
 
@@ -5447,14 +5434,9 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 	RTL_W16(tp, IntrMitigate, 0x0000);
 
 	rtl_set_rx_tx_desc_registers(tp);
+	rtl_set_rx_tx_config_registers(tp);
 
-	if (tp->mac_version != RTL_GIGA_MAC_VER_01 &&
-	    tp->mac_version != RTL_GIGA_MAC_VER_02 &&
-	    tp->mac_version != RTL_GIGA_MAC_VER_03 &&
-	    tp->mac_version != RTL_GIGA_MAC_VER_04) {
-		RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-		rtl_set_rx_tx_config_registers(tp);
-	}
+	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
 
 	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
 
