@@ -4854,8 +4854,9 @@ unlock:
 
 static void __init regulator_release_early_min_volt(void)
 {
-	struct regulator *regulator, *n;
+	struct regulator *regulator, *n, *reg;
 	struct regulator_dev *rdev;
+	int min_uV = 0, max_uV = 0, ret = 0;
 
 	if (list_empty(&regulator_early_min_volt_list))
 		return;
@@ -4863,13 +4864,27 @@ static void __init regulator_release_early_min_volt(void)
 	list_for_each_entry_safe(regulator, n, &regulator_early_min_volt_list,
 				 early_min_list) {
 		rdev = regulator->rdev;
+
+		regulator_lock_supply(rdev);
+
 		regulator->min_uV = 0;
 		regulator->max_uV = 0;
-		if (regulator_set_voltage(regulator, rdev->constraints->min_uV,
-					  rdev->constraints->max_uV))
-			rdev_err(regulator->rdev, "set voltage(%d, %d) failed\n",
-				 rdev->constraints->min_uV,
-				 rdev->constraints->max_uV);
+		min_uV = rdev->constraints->min_uV;
+		max_uV = rdev->constraints->max_uV;
+
+		list_for_each_entry(reg, &rdev->consumer_list, list) {
+			if (!reg->min_uV && !reg->max_uV)
+				continue;
+			ret = regulator_set_voltage_unlocked(regulator, min_uV,
+							     max_uV);
+			if (ret)
+				rdev_err(rdev, "set voltage(%d, %d) failed\n",
+					 min_uV, max_uV);
+			break;
+		}
+
+		regulator_unlock_supply(rdev);
+
 		list_del(&regulator->early_min_list);
 		regulator_put(regulator);
 	}
