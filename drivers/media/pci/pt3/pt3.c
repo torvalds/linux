@@ -444,7 +444,7 @@ static int pt3_fetch_thread(void *data)
 
 		pt3_proc_dma(adap);
 
-		delay = PT3_FETCH_DELAY * NSEC_PER_MSEC;
+		delay = ktime_set(0, PT3_FETCH_DELAY * NSEC_PER_MSEC);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		freezable_schedule_hrtimeout_range(&delay,
 					PT3_FETCH_DELAY_DELTA * NSEC_PER_MSEC,
