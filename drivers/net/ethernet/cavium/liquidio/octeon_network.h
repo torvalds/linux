@@ -47,6 +47,27 @@ struct liquidio_if_cfg_resp {
 	u64 status;
 };
 
+/* Structure of a node in list of gather components maintained by
+ * NIC driver for each network device.
+ */
+struct octnic_gather {
+	/* List manipulation. Next and prev pointers. */
+	struct list_head list;
+
+	/* Size of the gather component at sg in bytes. */
+	int sg_size;
+
+	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
+	int adjust;
+
+	/* Gather component that can accommodate max sized fragment list
+	 * received from the IP layer.
+	 */
+	struct octeon_sg_entry *sg;
+
+	dma_addr_t sg_dma_ptr;
+};
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;

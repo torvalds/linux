@@ -75,24 +75,6 @@ union tx_info {
 #define OCTNIC_GSO_MAX_SIZE \
 		(CN23XX_DEFAULT_INPUT_JABBER - OCTNIC_GSO_MAX_HEADER_SIZE)
 
-struct octnic_gather {
-	/* List manipulation. Next and prev pointers. */
-	struct list_head list;
-
-	/* Size of the gather component at sg in bytes. */
-	int sg_size;
-
-	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
-	int adjust;
-
-	/* Gather component that can accommodate max sized fragment list
-	 * received from the IP layer.
-	 */
-	struct octeon_sg_entry *sg;
-
-	dma_addr_t sg_dma_ptr;
-};
-
 static int
 liquidio_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void liquidio_vf_remove(struct pci_dev *pdev);
