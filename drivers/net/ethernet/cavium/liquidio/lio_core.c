@@ -29,6 +29,8 @@
 /* OOM task polling interval */
 #define LIO_OOM_POLL_INTERVAL_MS 250
 
+#define OCTNIC_MAX_SG  MAX_SKB_FRAGS
+
 /**
  * \brief Callback for getting interface configuration
  * @param status status of request
@@ -100,6 +102,87 @@ void lio_delete_glists(struct lio *lio)
 
 	kfree(lio->glist);
 	lio->glist = NULL;
+}
+
+/**
+ * \brief Setup gather lists
+ * @param lio per-network private data
+ */
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
+{
+	struct octnic_gather *g;
+	int i, j;
+
+	lio->glist_lock =
+	    kcalloc(num_iqs, sizeof(*lio->glist_lock), GFP_KERNEL);
+	if (!lio->glist_lock)
+		return -ENOMEM;
+
+	lio->glist =
+	    kcalloc(num_iqs, sizeof(*lio->glist), GFP_KERNEL);
+	if (!lio->glist) {
+		kfree(lio->glist_lock);
+		lio->glist_lock = NULL;
+		return -ENOMEM;
+	}
+
+	lio->glist_entry_size =
+		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
+
+	/* allocate memory to store virtual and dma base address of
+	 * per glist consistent memory
+	 */
+	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
+					GFP_KERNEL);
+	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
+				       GFP_KERNEL);
+
+	if (!lio->glists_virt_base || !lio->glists_dma_base) {
+		lio_delete_glists(lio);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_iqs; i++) {
+		int numa_node = dev_to_node(&oct->pci_dev->dev);
+
+		spin_lock_init(&lio->glist_lock[i]);
+
+		INIT_LIST_HEAD(&lio->glist[i]);
+
+		lio->glists_virt_base[i] =
+			lio_dma_alloc(oct,
+				      lio->glist_entry_size * lio->tx_qsize,
+				      &lio->glists_dma_base[i]);
+
+		if (!lio->glists_virt_base[i]) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+
+		for (j = 0; j < lio->tx_qsize; j++) {
+			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
+					 numa_node);
+			if (!g)
+				g = kzalloc(sizeof(*g), GFP_KERNEL);
+			if (!g)
+				break;
+
+			g->sg = lio->glists_virt_base[i] +
+				(j * lio->glist_entry_size);
+
+			g->sg_dma_ptr = lio->glists_dma_base[i] +
+					(j * lio->glist_entry_size);
+
+			list_add_tail(&g->list, &lio->glist[i]);
+		}
+
+		if (j != lio->tx_qsize) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
 }
 
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)

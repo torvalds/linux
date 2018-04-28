@@ -69,8 +69,6 @@ union tx_info {
 	} s;
 };
 
-#define OCTNIC_MAX_SG  (MAX_SKB_FRAGS)
-
 #define OCTNIC_GSO_MAX_HEADER_SIZE 128
 #define OCTNIC_GSO_MAX_SIZE \
 		(CN23XX_DEFAULT_INPUT_JABBER - OCTNIC_GSO_MAX_HEADER_SIZE)
@@ -265,82 +263,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 	.remove		= liquidio_vf_remove,
 	.err_handler	= &liquidio_vf_err_handler,    /* For AER */
 };
-
-/**
- * \brief Setup gather lists
- * @param lio per-network private data
- */
-static int setup_glists(struct lio *lio, int num_iqs)
-{
-	struct octnic_gather *g;
-	int i, j;
-
-	lio->glist_lock =
-	    kzalloc(sizeof(*lio->glist_lock) * num_iqs, GFP_KERNEL);
-	if (!lio->glist_lock)
-		return -ENOMEM;
-
-	lio->glist =
-	    kzalloc(sizeof(*lio->glist) * num_iqs, GFP_KERNEL);
-	if (!lio->glist) {
-		kfree(lio->glist_lock);
-		lio->glist_lock = NULL;
-		return -ENOMEM;
-	}
-
-	lio->glist_entry_size =
-		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
-
-	/* allocate memory to store virtual and dma base address of
-	 * per glist consistent memory
-	 */
-	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
-					GFP_KERNEL);
-	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
-				       GFP_KERNEL);
-
-	if (!lio->glists_virt_base || !lio->glists_dma_base) {
-		lio_delete_glists(lio);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < num_iqs; i++) {
-		spin_lock_init(&lio->glist_lock[i]);
-
-		INIT_LIST_HEAD(&lio->glist[i]);
-
-		lio->glists_virt_base[i] =
-			lio_dma_alloc(lio->oct_dev,
-				      lio->glist_entry_size * lio->tx_qsize,
-				      &lio->glists_dma_base[i]);
-
-		if (!lio->glists_virt_base[i]) {
-			lio_delete_glists(lio);
-			return -ENOMEM;
-		}
-
-		for (j = 0; j < lio->tx_qsize; j++) {
-			g = kzalloc(sizeof(*g), GFP_KERNEL);
-			if (!g)
-				break;
-
-			g->sg = lio->glists_virt_base[i] +
-				(j * lio->glist_entry_size);
-
-			g->sg_dma_ptr = lio->glists_dma_base[i] +
-					(j * lio->glist_entry_size);
-
-			list_add_tail(&g->list, &lio->glist[i]);
-		}
-
-		if (j != lio->tx_qsize) {
-			lio_delete_glists(lio);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
 
 /**
  * \brief Print link information
@@ -2226,7 +2148,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->tx_qsize = octeon_get_tx_qsize(octeon_dev, lio->txq);
 		lio->rx_qsize = octeon_get_rx_qsize(octeon_dev, lio->rxq);
 
-		if (setup_glists(lio, num_iqueues)) {
+		if (lio_setup_glists(octeon_dev, lio, num_iqueues)) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"Gather list allocation failed\n");
 			goto setup_nic_dev_fail;

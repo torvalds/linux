@@ -226,6 +226,8 @@ void lio_if_cfg_callback(struct octeon_device *oct,
 
 void lio_delete_glists(struct lio *lio);
 
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
+
 /**
  * \brief Net device change_mtu
  * @param netdev network device
