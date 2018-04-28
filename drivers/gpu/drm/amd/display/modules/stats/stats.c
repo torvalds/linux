@@ -115,12 +115,12 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 	unsigned int reg_data;
 	int i = 0;
 
+	if (dc == NULL)
+		goto fail_construct;
+
 	core_stats = kzalloc(sizeof(struct core_stats), GFP_KERNEL);
 
 	if (core_stats == NULL)
-		goto fail_alloc_context;
-
-	if (dc == NULL)
 		goto fail_construct;
 
 	core_stats->dc = dc;
@@ -146,6 +146,8 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 				core_stats->entries,
 						GFP_KERNEL);
 
+		if (core_stats->time == NULL)
+			goto fail_construct_time;
 
 		core_stats->event_entries = DAL_STATS_EVENT_ENTRIES_DEFAULT;
 		core_stats->events = kzalloc(
@@ -153,12 +155,12 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 				core_stats->event_entries,
 						GFP_KERNEL);
 
+		if (core_stats->events == NULL)
+			goto fail_construct_events;
+
 	} else {
 		core_stats->entries = 0;
 	}
-
-	if (core_stats->time == NULL)
-		goto fail_construct;
 
 	/* Purposely leave index 0 unused so we don't need special logic to
 	 * handle calculation cases that depend on previous flip data.
@@ -171,10 +173,13 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 
 	return &core_stats->public;
 
-fail_construct:
+fail_construct_events:
+	kfree(core_stats->time);
+
+fail_construct_time:
 	kfree(core_stats);
 
-fail_alloc_context:
+fail_construct:
 	return NULL;
 }
 
@@ -185,6 +190,9 @@ void mod_stats_destroy(struct mod_stats *mod_stats)
 
 		if (core_stats->time != NULL)
 			kfree(core_stats->time);
+
+		if (core_stats->events != NULL)
+			kfree(core_stats->events);
 
 		kfree(core_stats);
 	}
