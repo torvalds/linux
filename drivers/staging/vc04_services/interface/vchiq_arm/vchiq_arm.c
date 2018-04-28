@@ -3479,8 +3479,7 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	if (only_nonzero)
 		vchiq_log_warning(vchiq_susp_log_level, "Too many active "
 			"services (%d).  Only dumping up to first %d services "
-			"with non-zero use-count", active_services,
-			local_max_services);
+			"with non-zero use-count", active_services, j);
 
 	for (i = 0; i < j; i++) {
 		vchiq_log_warning(vchiq_susp_log_level,
