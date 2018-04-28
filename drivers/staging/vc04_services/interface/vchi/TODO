@@ -40,17 +40,12 @@ should properly handle a module unload. This also includes that all
 resouces must be freed (kthreads, debugfs entries, ...) and global
 variables avoided.
 
-5) Fix stack hog
-
-Running make checkstack shows that vchiq_dump_service_use_state() has
-an extensive stack usage. Maybe other functions are also affected.
-
-6) Cleanup logging mechanism
+5) Cleanup logging mechanism
 
 The driver should probably be using the standard kernel logging mechanisms
 such as dev_info, dev_dbg, and friends.
 
-7) Documentation
+6) Documentation
 
 A short top-down description of this driver's architecture (function of
 kthreads, userspace, limitations) could be very helpful for reviewers.
