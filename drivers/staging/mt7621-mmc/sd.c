@@ -1032,145 +1032,6 @@ end:
 	return cmd->error;
 }
 
-/* The abort condition when PIO read/write
-   tmo:
-*/
-static int msdc_pio_abort(struct msdc_host *host, struct mmc_data *data, unsigned long tmo)
-{
-	int  ret = 0;
-	void __iomem *base = host->base;
-
-	if (atomic_read(&host->abort))
-		ret = 1;
-
-	if (time_after(jiffies, tmo)) {
-		data->error = (unsigned int)-ETIMEDOUT;
-		ERR_MSG("XXX PIO Data Timeout: CMD<%d>", host->mrq->cmd->opcode);
-		ret = 1;
-	}
-
-	if (ret) {
-		msdc_reset_hw(host);
-		msdc_clr_fifo();
-		msdc_clr_int();
-		ERR_MSG("msdc pio find abort");
-	}
-	return ret;
-}
-
-/*
-   Need to add a timeout, or WDT timeout, system reboot.
-*/
-// pio mode data read/write
-static int msdc_pio_read(struct msdc_host *host, struct mmc_data *data)
-{
-	struct scatterlist *sg = data->sg;
-	void __iomem *base = host->base;
-	u32  num = data->sg_len;
-	u32 *ptr;
-	u8  *u8ptr;
-	u32  left = 0;
-	u32  count, size = 0;
-	u32  wints = MSDC_INTEN_DATTMO | MSDC_INTEN_DATCRCERR;
-	unsigned long tmo = jiffies + DAT_TIMEOUT;
-
-	sdr_set_bits(MSDC_INTEN, wints);
-	while (num) {
-		left = sg_dma_len(sg);
-		ptr = sg_virt(sg);
-		while (left) {
-			if ((left >=  MSDC_FIFO_THD) && (msdc_rxfifocnt() >= MSDC_FIFO_THD)) {
-				count = MSDC_FIFO_THD >> 2;
-				do {
-					*ptr++ = msdc_fifo_read32();
-				} while (--count);
-				left -= MSDC_FIFO_THD;
-			} else if ((left < MSDC_FIFO_THD) && msdc_rxfifocnt() >= left) {
-				while (left > 3) {
-					*ptr++ = msdc_fifo_read32();
-					left -= 4;
-				}
-
-				u8ptr = (u8 *)ptr;
-				while (left) {
-					*u8ptr++ = msdc_fifo_read8();
-					left--;
-				}
-			}
-
-			if (msdc_pio_abort(host, data, tmo))
-				goto end;
-		}
-		size += sg_dma_len(sg);
-		sg = sg_next(sg); num--;
-	}
-end:
-	data->bytes_xfered += size;
-	N_MSG(FIO, "        PIO Read<%d>bytes", size);
-
-	sdr_clr_bits(MSDC_INTEN, wints);
-	if (data->error)
-		ERR_MSG("read pio data->error<%d> left<%d> size<%d>", data->error, left, size);
-	return data->error;
-}
-
-/* please make sure won't using PIO when size >= 512
-   which means, memory card block read/write won't using pio
-   then don't need to handle the CMD12 when data error.
-*/
-static int msdc_pio_write(struct msdc_host *host, struct mmc_data *data)
-{
-	void __iomem *base = host->base;
-	struct scatterlist *sg = data->sg;
-	u32  num = data->sg_len;
-	u32 *ptr;
-	u8  *u8ptr;
-	u32  left;
-	u32  count, size = 0;
-	u32  wints = MSDC_INTEN_DATTMO | MSDC_INTEN_DATCRCERR;
-	unsigned long tmo = jiffies + DAT_TIMEOUT;
-
-	sdr_set_bits(MSDC_INTEN, wints);
-	while (num) {
-		left = sg_dma_len(sg);
-		ptr = sg_virt(sg);
-
-		while (left) {
-			if (left >= MSDC_FIFO_SZ && msdc_txfifocnt() == 0) {
-				count = MSDC_FIFO_SZ >> 2;
-				do {
-					msdc_fifo_write32(*ptr); ptr++;
-				} while (--count);
-				left -= MSDC_FIFO_SZ;
-			} else if (left < MSDC_FIFO_SZ && msdc_txfifocnt() == 0) {
-				while (left > 3) {
-					msdc_fifo_write32(*ptr); ptr++;
-					left -= 4;
-				}
-
-				u8ptr = (u8 *)ptr;
-				while (left) {
-					msdc_fifo_write8(*u8ptr);	u8ptr++;
-					left--;
-				}
-			}
-
-			if (msdc_pio_abort(host, data, tmo))
-				goto end;
-		}
-		size += sg_dma_len(sg);
-		sg = sg_next(sg); num--;
-	}
-end:
-	data->bytes_xfered += size;
-	N_MSG(FIO, "        PIO Write<%d>bytes", size);
-	if (data->error)
-		ERR_MSG("write pio data->error<%d>", data->error);
-
-	sdr_clr_bits(MSDC_INTEN, wints);
-	return data->error;
-}
-
 #if 0 /* --- by chhung */
 // DMA resume / start / stop
 static void msdc_dma_resume(struct msdc_host *host)
@@ -1337,8 +1198,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_data *data;
 	void __iomem *base = host->base;
 	//u32 intsts = 0;
-	unsigned int left = 0;
-	int dma = 0, read = 1, send_type = 0;
+	int read = 1, send_type = 0;
 
 #define SND_DAT 0
 #define SND_CMD 1
@@ -1373,10 +1233,6 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		host->xfer_size = data->blocks * data->blksz;
 		host->blksz = data->blksz;
 
-		/* deside the transfer mode */
-		host->dma_xfer = 1;
-		dma = host->dma_xfer;
-
 		if (read) {
 			if ((host->timeout_ns != data->timeout_ns) ||
 				(host->timeout_clks != data->timeout_clks)) {
@@ -1387,83 +1243,43 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		msdc_set_blknum(host, data->blocks);
 		//msdc_clr_fifo();  /* no need */
 
-		if (dma) {
-			msdc_dma_on();  /* enable DMA mode first!! */
-			init_completion(&host->xfer_done);
+		msdc_dma_on();  /* enable DMA mode first!! */
+		init_completion(&host->xfer_done);
 
-			/* start the command first*/
-			if (msdc_command_start(host, cmd, 1, CMD_TIMEOUT) != 0)
-				goto done;
+		/* start the command first*/
+		if (msdc_command_start(host, cmd, 1, CMD_TIMEOUT) != 0)
+			goto done;
 
-			data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
-						    data->sg_len,
-						    mmc_get_dma_dir(data));
-			msdc_dma_setup(host, &host->dma, data->sg,
-				       data->sg_count);
+		data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
+					    data->sg_len,
+					    mmc_get_dma_dir(data));
+		msdc_dma_setup(host, &host->dma, data->sg,
+			       data->sg_count);
 
-			/* then wait command done */
-			if (msdc_command_resp(host, cmd, 1, CMD_TIMEOUT) != 0)
-				goto done;
+		/* then wait command done */
+		if (msdc_command_resp(host, cmd, 1, CMD_TIMEOUT) != 0)
+			goto done;
 
-			/* for read, the data coming too fast, then CRC error
-			   start DMA no business with CRC. */
-			//init_completion(&host->xfer_done);
-			msdc_dma_start(host);
+		/* for read, the data coming too fast, then CRC error
+		   start DMA no business with CRC. */
+		//init_completion(&host->xfer_done);
+		msdc_dma_start(host);
 
-			spin_unlock(&host->lock);
-			if (!wait_for_completion_timeout(&host->xfer_done, DAT_TIMEOUT)) {
-				ERR_MSG("XXX CMD<%d> wait xfer_done<%d> timeout!!", cmd->opcode, data->blocks * data->blksz);
-				ERR_MSG("    DMA_SA   = 0x%x", sdr_read32(MSDC_DMA_SA));
-				ERR_MSG("    DMA_CA   = 0x%x", sdr_read32(MSDC_DMA_CA));
-				ERR_MSG("    DMA_CTRL = 0x%x", sdr_read32(MSDC_DMA_CTRL));
-				ERR_MSG("    DMA_CFG  = 0x%x", sdr_read32(MSDC_DMA_CFG));
-				data->error = (unsigned int)-ETIMEDOUT;
+		spin_unlock(&host->lock);
+		if (!wait_for_completion_timeout(&host->xfer_done, DAT_TIMEOUT)) {
+			ERR_MSG("XXX CMD<%d> wait xfer_done<%d> timeout!!", cmd->opcode, data->blocks * data->blksz);
+			ERR_MSG("    DMA_SA   = 0x%x", sdr_read32(MSDC_DMA_SA));
+			ERR_MSG("    DMA_CA   = 0x%x", sdr_read32(MSDC_DMA_CA));
+			ERR_MSG("    DMA_CTRL = 0x%x", sdr_read32(MSDC_DMA_CTRL));
+			ERR_MSG("    DMA_CFG  = 0x%x", sdr_read32(MSDC_DMA_CFG));
+			data->error = (unsigned int)-ETIMEDOUT;
 
-				msdc_reset_hw(host);
-				msdc_clr_fifo();
-				msdc_clr_int();
-			}
-			spin_lock(&host->lock);
-			msdc_dma_stop(host);
-		} else {
-			/* Firstly: send command */
-			if (msdc_do_command(host, cmd, 1, CMD_TIMEOUT) != 0)
-				goto done;
-
-			/* Secondly: pio data phase */
-			if (read) {
-				if (msdc_pio_read(host, data))
-					goto done;
-			} else {
-				if (msdc_pio_write(host, data))
-					goto done;
-			}
-
-			/* For write case: make sure contents in fifo flushed to device */
-			if (!read) {
-				while (1) {
-					left = msdc_txfifocnt();
-					if (left == 0)
-						break;
-					if (msdc_pio_abort(host, data, jiffies + DAT_TIMEOUT)) {
-						break;
-						/* Fix me: what about if data error, when stop ? how to? */
-					}
-				}
-			} else {
-				/* Fix me: read case: need to check CRC error */
-			}
-
-			/* For write case: SDCBUSY and Xfer_Comp will assert when DAT0 not busy.
-			   For read case : SDCBUSY and Xfer_Comp will assert when last byte read out from FIFO.
-			*/
-
-			/* try not to wait xfer_comp interrupt.
-			   the next command will check SDC_BUSY.
-			   SDC_BUSY means xfer_comp assert
-			*/
-
-		} // PIO mode
+			msdc_reset_hw(host);
+			msdc_clr_fifo();
+			msdc_clr_int();
+		}
+		spin_lock(&host->lock);
+		msdc_dma_stop(host);
 
 		/* Last: stop transfer */
 		if (data->stop) {
@@ -1475,12 +1291,9 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 done:
 	if (data != NULL) {
 		host->data = NULL;
-		host->dma_xfer = 0;
-		if (dma != 0) {
-			msdc_dma_off();
-			dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
-				     mmc_get_dma_dir(data));
-		}
+		msdc_dma_off();
+		dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
+			     mmc_get_dma_dir(data));
 		host->blksz = 0;
 
 #if 0 // don't stop twice!
@@ -2217,9 +2030,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 			}
 
 			//if(sdr_read32(MSDC_INTEN) & MSDC_INT_XFER_COMPL) {
-			if (host->dma_xfer)
-				complete(&host->xfer_done); /* Read CRC come fast, XFER_COMPL not enabled */
-			/* PIO mode can't do complete, because not init */
+			complete(&host->xfer_done); /* Read CRC come fast, XFER_COMPL not enabled */
 		}
 	}
 
