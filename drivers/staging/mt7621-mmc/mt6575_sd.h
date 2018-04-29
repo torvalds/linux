@@ -971,13 +971,15 @@ static inline void sdr_clr_bits(void __iomem *reg, u32 bs)
 	writel(val, reg);
 }
 
-#define sdr_set_field(reg, field, val)					\
-do {								\
-	volatile unsigned int tv = sdr_read32(reg);			\
-	tv &= ~(field);							\
-	tv |= ((val) << (ffs((unsigned int)field) - 1));		\
-	sdr_write32(reg, tv);						\
-} while (0)
+static inline void sdr_set_field(void __iomem *reg, u32 field, u32 val)
+{
+	unsigned int tv = readl(reg);
+
+	tv &= ~field;
+	tv |= ((val) << (ffs((unsigned int)field) - 1));
+	writel(tv, reg);
+}
+
 #define sdr_get_field(reg, field, val)					\
 do {								\
 	volatile unsigned int tv = sdr_read32(reg);			\
