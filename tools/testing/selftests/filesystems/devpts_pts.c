@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 	if (!isatty(STDIN_FILENO)) {
-		fprintf(stderr, "Standard input file desciptor is not attached "
+		fprintf(stderr, "Standard input file descriptor is not attached "
 				"to a terminal. Skipping test\n");
 		exit(EXIT_FAILURE);
 	}
