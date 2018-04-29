@@ -49,6 +49,7 @@
 #include <linux/netlink.h>
 #include <net/switchdev.h>
 
+#include "spectrum_span.h"
 #include "spectrum_router.h"
 #include "spectrum_switchdev.h"
 #include "spectrum.h"
@@ -923,6 +924,9 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 		break;
 	}
 
+	if (switchdev_trans_ph_commit(trans))
+		mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
+
 	return err;
 }
 
@@ -1647,18 +1651,57 @@ mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+struct mlxsw_sp_span_respin_work {
+	struct work_struct work;
+	struct mlxsw_sp *mlxsw_sp;
+};
+
+static void mlxsw_sp_span_respin_work(struct work_struct *work)
+{
+	struct mlxsw_sp_span_respin_work *respin_work =
+		container_of(work, struct mlxsw_sp_span_respin_work, work);
+
+	rtnl_lock();
+	mlxsw_sp_span_respin(respin_work->mlxsw_sp);
+	rtnl_unlock();
+	kfree(respin_work);
+}
+
+static void mlxsw_sp_span_respin_schedule(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_span_respin_work *respin_work;
+
+	respin_work = kzalloc(sizeof(*respin_work), GFP_ATOMIC);
+	if (!respin_work)
+		return;
+
+	INIT_WORK(&respin_work->work, mlxsw_sp_span_respin_work);
+	respin_work->mlxsw_sp = mlxsw_sp;
+
+	mlxsw_core_schedule_work(&respin_work->work);
+}
+
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
 				 const struct switchdev_obj *obj,
 				 struct switchdev_trans *trans)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	const struct switchdev_obj_port_vlan *vlan;
 	int err = 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port,
-					      SWITCHDEV_OBJ_PORT_VLAN(obj),
-					      trans);
+		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
+		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, trans);
+
+		if (switchdev_trans_ph_commit(trans)) {
+			/* The event is emitted before the changes are actually
+			 * applied to the bridge. Therefore schedule the respin
+			 * call for later, so that the respin logic sees the
+			 * updated bridge state.
+			 */
+			mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
+		}
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = mlxsw_sp_port_mdb_add(mlxsw_sp_port,
@@ -1808,6 +1851,8 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 		err = -EOPNOTSUPP;
 		break;
 	}
+
+	mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
 
 	return err;
 }
@@ -2236,7 +2281,15 @@ static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
 		fdb_info = &switchdev_work->fdb_info;
 		mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, false);
 		break;
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		/* These events are only used to potentially update an existing
+		 * SPAN mirror.
+		 */
+		break;
 	}
+
+	mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
 
 out:
 	rtnl_unlock();
@@ -2266,7 +2319,9 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
-	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+	case SWITCHDEV_FDB_DEL_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
