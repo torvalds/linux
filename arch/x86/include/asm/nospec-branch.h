@@ -232,6 +232,7 @@ extern u64 x86_spec_ctrl_get_default(void);
 enum ssb_mitigation {
 	SPEC_STORE_BYPASS_NONE,
 	SPEC_STORE_BYPASS_DISABLE,
+	SPEC_STORE_BYPASS_PRCTL,
 };
 
 extern char __indirect_thunk_start[];
