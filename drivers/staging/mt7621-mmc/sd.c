@@ -34,31 +34,21 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/timer.h>
-#include <linux/ioport.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/blkdev.h>
-#include <linux/slab.h>
+#include <linux/dma-mapping.h>
+#include <linux/spinlock.h>
+#include <linux/platform_device.h>
+
 #include <linux/mmc/host.h>
-#include <linux/mmc/card.h>
-#include <linux/mmc/core.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
-#include <linux/dma-mapping.h>
 
-/* +++ by chhung */
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/version.h>
-#include <linux/pm.h>
-#include <linux/of.h>
+#include <asm/mach-ralink/ralink_regs.h>
+
+#include "board.h"
+#include "dbg.h"
+#include "mt6575_sd.h"
 
 //#define IRQ_SDC 14	//MT7620 /*FIXME*/
 #ifdef CONFIG_SOC_MT7621
@@ -69,31 +59,6 @@
 #define RALINK_MSDC_BASE		0xb0130000
 #endif
 #define IRQ_SDC			22	/*FIXME*/
-
-#include <asm/dma.h>
-/* end of +++ */
-
-#include <asm/mach-ralink/ralink_regs.h>
-
-#if 0 /* --- by chhung */
-#include <mach/board.h>
-#include <mach/mt6575_devs.h>
-#include <mach/mt6575_typedefs.h>
-#include <mach/mt6575_clock_manager.h>
-#include <mach/mt6575_pm_ldo.h>
-//#include <mach/mt6575_pll.h>
-//#include <mach/mt6575_gpio.h>
-//#include <mach/mt6575_gpt_sw.h>
-#include <asm/tcm.h>
-// #include <mach/mt6575_gpt.h>
-#endif /* end of --- */
-
-#include "mt6575_sd.h"
-#include "dbg.h"
-
-/* +++ by chhung */
-#include "board.h"
-/* end of +++ */
 
 #if 0 /* --- by chhung */
 #define isb() __asm__ __volatile__ ("" : : : "memory")
