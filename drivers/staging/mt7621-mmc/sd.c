@@ -1182,14 +1182,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	msdc_dma_config(host, dma);
 }
 
-/* set block number before send command */
-static void msdc_set_blknum(struct msdc_host *host, u32 blknum)
-{
-	void __iomem *base = host->base;
-
-	sdr_write32(SDC_BLK_NUM, blknum);
-}
-
 static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	__must_hold(&host->lock)
 {
@@ -1239,7 +1231,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 		}
 
-		msdc_set_blknum(host, data->blocks);
+		sdr_write32(SDC_BLK_NUM, data->blocks);
 		//msdc_clr_fifo();  /* no need */
 
 		msdc_dma_on();  /* enable DMA mode first!! */
