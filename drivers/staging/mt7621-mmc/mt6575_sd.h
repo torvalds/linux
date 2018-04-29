@@ -980,10 +980,8 @@ static inline unsigned int uffs(unsigned int x)
 }
 
 #define sdr_read8(reg)            readb(reg)
-#define sdr_read16(reg)           readw(reg)
 #define sdr_read32(reg)           readl(reg)
 #define sdr_write8(reg, val)      writeb(val, reg)
-#define sdr_write16(reg, val)     writew(val, reg)
 #define sdr_write32(reg, val)     writel(val, reg)
 
 static inline void sdr_set_bits(void __iomem *reg, u32 bs)
