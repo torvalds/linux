@@ -980,10 +980,10 @@ static inline void sdr_set_field(void __iomem *reg, u32 field, u32 val)
 	writel(tv, reg);
 }
 
-#define sdr_get_field(reg, field, val)					\
-do {								\
-	volatile unsigned int tv = sdr_read32(reg);			\
-	val = ((tv & (field)) >> (ffs((unsigned int)field) - 1));	\
-} while (0)
+static inline void sdr_get_field(void __iomem *reg, u32 field, u32 *val)
+{
+	unsigned int tv = readl(reg);
+	*val = ((tv & field) >> (ffs((unsigned int)field) - 1));
+}
 
 #endif

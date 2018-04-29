@@ -1577,8 +1577,8 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 	   ==========================*/
 
 	// save the previous tune result
-	sdr_get_field(MSDC_IOCON,    MSDC_IOCON_RSPL,        orig_rsmpl);
-	sdr_get_field(MSDC_PAD_TUNE, MSDC_PAD_TUNE_CMDRRDLY, orig_rrdly);
+	sdr_get_field(MSDC_IOCON,    MSDC_IOCON_RSPL,        &orig_rsmpl);
+	sdr_get_field(MSDC_PAD_TUNE, MSDC_PAD_TUNE_CMDRRDLY, &orig_rrdly);
 
 	rrdly = 0;
 	do {
@@ -1640,7 +1640,7 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 	int result = -1;
 	u32 skip = 1;
 
-	sdr_get_field(MSDC_IOCON, MSDC_IOCON_DSPL, orig_dsmpl);
+	sdr_get_field(MSDC_IOCON, MSDC_IOCON_DSPL, &orig_dsmpl);
 
 	/* Tune Method 2. */
 	sdr_set_field(MSDC_IOCON, MSDC_IOCON_DDLSEL, 1);
@@ -1664,7 +1664,9 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 			result = msdc_do_request(mmc, mrq);
 
-			sdr_get_field(SDC_DCRC_STS, SDC_DCRC_STS_POS | SDC_DCRC_STS_NEG, dcrc); /* RO */
+			sdr_get_field(SDC_DCRC_STS,
+				      SDC_DCRC_STS_POS | SDC_DCRC_STS_NEG,
+				      &dcrc); /* RO */
 			if (!ddr)
 				dcrc &= ~SDC_DCRC_STS_NEG;
 			ERR_MSG("TUNE_BREAD<%s> dcrc<0x%x> DATRDDLY0/1<0x%x><0x%x> dsmpl<0x%x>",
@@ -1751,8 +1753,8 @@ static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	// MSDC_IOCON_DDR50CKD need to check. [Fix me]
 
-	sdr_get_field(MSDC_PAD_TUNE, MSDC_PAD_TUNE_DATWRDLY, orig_wrrdly);
-	sdr_get_field(MSDC_IOCON,    MSDC_IOCON_DSPL,        orig_dsmpl);
+	sdr_get_field(MSDC_PAD_TUNE, MSDC_PAD_TUNE_DATWRDLY, &orig_wrrdly);
+	sdr_get_field(MSDC_IOCON,    MSDC_IOCON_DSPL,        &orig_dsmpl);
 
 	/* Tune Method 2. just DAT0 */
 	sdr_set_field(MSDC_IOCON, MSDC_IOCON_DDLSEL, 1);
