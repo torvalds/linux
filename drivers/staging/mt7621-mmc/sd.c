@@ -2689,7 +2689,7 @@ static int msdc_drv_remove(struct platform_device *pdev)
 /* Fix me: Power Flow */
 #ifdef CONFIG_PM
 
-static void msdc_drv_pm(struct platform_device *pdev, pm_message state)
+static void msdc_drv_pm(struct platform_device *pdev, pm_message_t state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	if (mmc) {
