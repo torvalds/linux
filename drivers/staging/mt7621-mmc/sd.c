@@ -1085,7 +1085,7 @@ static u8 msdc_dma_calcs(u8 *buf, u32 len)
 }
 
 /* gpd bd setup + dma registers */
-static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
+static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 {
 	void __iomem *base = host->base;
 	//u32 i, j, num, bdlen, arg, xfersz;
@@ -1159,7 +1159,6 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	N_MSG(DMA, "DMA_CFG  = 0x%x", sdr_read32(MSDC_DMA_CFG));
 	N_MSG(DMA, "DMA_SA   = 0x%x", sdr_read32(MSDC_DMA_SA));
 
-	return 0;
 }
 
 static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
