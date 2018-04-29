@@ -79,7 +79,6 @@ enum msdc_mode {
 	MODE_SIZE_DEP = 2,
 };
 
-extern enum msdc_mode drv_mode[4];
 extern u32 dma_size[4];
 
 /* Debug message event */
