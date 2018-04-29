@@ -142,10 +142,6 @@
 #define MAX_SGMT_SZ         (MAX_DMA_CNT)
 #define MAX_REQ_SZ          (MAX_SGMT_SZ * 8)
 
-#ifdef MT6575_SD_DEBUG
-static struct msdc_regs *msdc_reg[HOST_MAX_NUM];
-#endif
-
 static int cd_active_low = 1;
 
 //=================================
@@ -2363,10 +2359,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 static void msdc_init_hw(struct msdc_host *host)
 {
 	void __iomem *base = host->base;
-
-#ifdef MT6575_SD_DEBUG
-	msdc_reg[host->id] = (struct msdc_regs *)host->base;
-#endif
 
 	/* Power on */
 #if 0 /* --- by chhung */
