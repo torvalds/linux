@@ -177,7 +177,6 @@ void msdc_clk_status(int *status)
 /* +++ by chhung */
 struct msdc_hw msdc0_hw = {
 	.clk_src        = 0,
-	.data_edge      = MSDC_SMPL_FALLING,
 	.clk_drv        = 4,
 	.cmd_drv        = 4,
 	.dat_drv        = 4,
@@ -2027,7 +2026,6 @@ static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	struct msdc_hw *hw = host->hw;
 	void __iomem *base = host->base;
 	u32 ddr = 0;
 
@@ -2073,10 +2071,11 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->mclk != ios->clock) {
 		if (ios->clock > 25000000) {
 			//if (!(host->hw->flags & MSDC_REMOVABLE)) {
-			INIT_MSG("SD data latch edge<%d>", hw->data_edge);
+			INIT_MSG("SD data latch edge<%d>", MSDC_SMPL_FALLING);
 			sdr_set_field(MSDC_IOCON, MSDC_IOCON_RSPL,
 				      MSDC_SMPL_FALLING);
-			sdr_set_field(MSDC_IOCON, MSDC_IOCON_DSPL, hw->data_edge);
+			sdr_set_field(MSDC_IOCON, MSDC_IOCON_DSPL,
+				      MSDC_SMPL_FALLING);
 			//} /* for tuning debug */
 		} else { /* default value */
 			sdr_write32(MSDC_IOCON,      0x00000000);

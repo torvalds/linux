@@ -54,7 +54,6 @@
 
 struct msdc_hw {
 	unsigned char  clk_src;          /* host clock source */
-	unsigned char  data_edge;        /* data latch edge */
 	unsigned char  clk_drv;          /* clock pad driving */
 	unsigned char  cmd_drv;          /* command pad driving */
 	unsigned char  dat_drv;          /* data pad driving */
