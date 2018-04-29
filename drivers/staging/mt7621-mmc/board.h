@@ -54,7 +54,6 @@
 
 struct msdc_hw {
 	unsigned char  clk_src;          /* host clock source */
-	unsigned char  clk_drv;          /* clock pad driving */
 	unsigned long  flags;            /* hardware capability flags */
 
 	/* config gpio pull mode */

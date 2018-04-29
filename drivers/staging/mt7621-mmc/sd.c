@@ -177,7 +177,6 @@ void msdc_clk_status(int *status)
 /* +++ by chhung */
 struct msdc_hw msdc0_hw = {
 	.clk_src        = 0,
-	.clk_drv        = 4,
 	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 //	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
@@ -2371,7 +2370,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 static void msdc_init_hw(struct msdc_host *host)
 {
 	void __iomem *base = host->base;
-	struct msdc_hw *hw = host->hw;
 
 #ifdef MT6575_SD_DEBUG
 	msdc_reg[host->id] = (struct msdc_regs *)host->base;
@@ -2441,8 +2439,8 @@ static void msdc_init_hw(struct msdc_host *host)
 
 #if 1
 	/* set clk, cmd, dat pad driving */
-	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVN, hw->clk_drv);
-	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVP, hw->clk_drv);
+	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVN, 4);
+	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVP, 4);
 	sdr_set_field(MSDC_PAD_CTL1, MSDC_PAD_CTL1_CMDDRVN, 4);
 	sdr_set_field(MSDC_PAD_CTL1, MSDC_PAD_CTL1_CMDDRVP, 4);
 	sdr_set_field(MSDC_PAD_CTL2, MSDC_PAD_CTL2_DATDRVN, 4);
