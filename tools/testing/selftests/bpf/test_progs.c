@@ -906,11 +906,47 @@ static int compare_map_keys(int map1_fd, int map2_fd)
 	return 0;
 }
 
+static int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len)
+{
+	__u32 key, next_key, *cur_key_p, *next_key_p;
+	char *val_buf1, *val_buf2;
+	int i, err = 0;
+
+	val_buf1 = malloc(stack_trace_len);
+	val_buf2 = malloc(stack_trace_len);
+	cur_key_p = NULL;
+	next_key_p = &key;
+	while (bpf_map_get_next_key(smap_fd, cur_key_p, next_key_p) == 0) {
+		err = bpf_map_lookup_elem(smap_fd, next_key_p, val_buf1);
+		if (err)
+			goto out;
+		err = bpf_map_lookup_elem(amap_fd, next_key_p, val_buf2);
+		if (err)
+			goto out;
+		for (i = 0; i < stack_trace_len; i++) {
+			if (val_buf1[i] != val_buf2[i]) {
+				err = -1;
+				goto out;
+			}
+		}
+		key = *next_key_p;
+		cur_key_p = &key;
+		next_key_p = &next_key;
+	}
+	if (errno != ENOENT)
+		err = -1;
+
+out:
+	free(val_buf1);
+	free(val_buf2);
+	return err;
+}
+
 static void test_stacktrace_map()
 {
-	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	const char *file = "./test_stacktrace_map.o";
-	int bytes, efd, err, pmu_fd, prog_fd;
+	int bytes, efd, err, pmu_fd, prog_fd, stack_trace_len;
 	struct perf_event_attr attr = {};
 	__u32 key, val, duration = 0;
 	struct bpf_object *obj;
@@ -966,6 +1002,10 @@ static void test_stacktrace_map()
 	if (stackmap_fd < 0)
 		goto disable_pmu;
 
+	stack_amap_fd = bpf_find_map(__func__, obj, "stack_amap");
+	if (stack_amap_fd < 0)
+		goto disable_pmu;
+
 	/* give some time for bpf program run */
 	sleep(1);
 
@@ -984,6 +1024,12 @@ static void test_stacktrace_map()
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu_noerr;
+
+	stack_trace_len = PERF_MAX_STACK_DEPTH * sizeof(__u64);
+	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
+	if (CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
 		  "err %d errno %d\n", err, errno))
 		goto disable_pmu_noerr;
 
@@ -1080,9 +1126,9 @@ err:
 
 static void test_stacktrace_build_id(void)
 {
-	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	const char *file = "./test_stacktrace_build_id.o";
-	int bytes, efd, err, pmu_fd, prog_fd;
+	int bytes, efd, err, pmu_fd, prog_fd, stack_trace_len;
 	struct perf_event_attr attr = {};
 	__u32 key, previous_key, val, duration = 0;
 	struct bpf_object *obj;
@@ -1147,6 +1193,11 @@ static void test_stacktrace_build_id(void)
 		  err, errno))
 		goto disable_pmu;
 
+	stack_amap_fd = bpf_find_map(__func__, obj, "stack_amap");
+	if (CHECK(stack_amap_fd < 0, "bpf_find_map stack_amap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu;
+
 	assert(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")
 	       == 0);
 	assert(system("./urandom_read if=/dev/urandom of=/dev/zero count=4 2> /dev/null") == 0);
@@ -1198,8 +1249,15 @@ static void test_stacktrace_build_id(void)
 		previous_key = key;
 	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
 
-	CHECK(build_id_matches < 1, "build id match",
-	      "Didn't find expected build ID from the map");
+	if (CHECK(build_id_matches < 1, "build id match",
+		  "Didn't find expected build ID from the map"))
+		goto disable_pmu;
+
+	stack_trace_len = PERF_MAX_STACK_DEPTH
+		* sizeof(struct bpf_stack_build_id);
+	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
+	CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
+	      "err %d errno %d\n", err, errno);
 
 disable_pmu:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
