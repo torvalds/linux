@@ -773,8 +773,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	u32 cycle;
 	unsigned int packets;
 
-	s->max_payload_length = amdtp_stream_get_max_payload(s);
-
 	/*
 	 * For in-stream, first packet has come.
 	 * For out-stream, prepared to transmit first packet
@@ -878,6 +876,9 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	}
 
 	amdtp_stream_update(s);
+
+	if (s->direction == AMDTP_IN_STREAM)
+		s->max_payload_length = amdtp_stream_get_max_payload(s);
 
 	if (s->flags & CIP_NO_HEADER)
 		s->tag = TAG_NO_CIP_HEADER;
