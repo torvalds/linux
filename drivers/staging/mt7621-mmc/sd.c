@@ -179,7 +179,6 @@ struct msdc_hw msdc0_hw = {
 	.clk_src        = 0,
 	.clk_drv        = 4,
 	.cmd_drv        = 4,
-	.dat_drv        = 4,
 	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 //	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
@@ -2447,8 +2446,8 @@ static void msdc_init_hw(struct msdc_host *host)
 	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVP, hw->clk_drv);
 	sdr_set_field(MSDC_PAD_CTL1, MSDC_PAD_CTL1_CMDDRVN, hw->cmd_drv);
 	sdr_set_field(MSDC_PAD_CTL1, MSDC_PAD_CTL1_CMDDRVP, hw->cmd_drv);
-	sdr_set_field(MSDC_PAD_CTL2, MSDC_PAD_CTL2_DATDRVN, hw->dat_drv);
-	sdr_set_field(MSDC_PAD_CTL2, MSDC_PAD_CTL2_DATDRVP, hw->dat_drv);
+	sdr_set_field(MSDC_PAD_CTL2, MSDC_PAD_CTL2_DATDRVN, 4);
+	sdr_set_field(MSDC_PAD_CTL2, MSDC_PAD_CTL2_DATDRVP, 4);
 #else
 	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVN, 0);
 	sdr_set_field(MSDC_PAD_CTL0, MSDC_PAD_CTL0_CLKDRVP, 0);
