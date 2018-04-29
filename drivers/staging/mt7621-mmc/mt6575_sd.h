@@ -950,35 +950,6 @@ struct msdc_host {
 	u32                         app_cmd_arg;
 };
 
-static inline unsigned int uffs(unsigned int x)
-{
-	unsigned int r = 1;
-
-	if (!x)
-		return 0;
-	if (!(x & 0xffff)) {
-		x >>= 16;
-		r += 16;
-	}
-	if (!(x & 0xff)) {
-		x >>= 8;
-		r += 8;
-	}
-	if (!(x & 0xf)) {
-		x >>= 4;
-		r += 4;
-	}
-	if (!(x & 3)) {
-		x >>= 2;
-		r += 2;
-	}
-	if (!(x & 1)) {
-		x >>= 1;
-		r += 1;
-	}
-	return r;
-}
-
 #define sdr_read8(reg)            readb(reg)
 #define sdr_read32(reg)           readl(reg)
 #define sdr_write8(reg, val)      writeb(val, reg)
@@ -1004,13 +975,13 @@ static inline void sdr_clr_bits(void __iomem *reg, u32 bs)
 do {								\
 	volatile unsigned int tv = sdr_read32(reg);			\
 	tv &= ~(field);							\
-	tv |= ((val) << (uffs((unsigned int)field) - 1));		\
+	tv |= ((val) << (ffs((unsigned int)field) - 1));		\
 	sdr_write32(reg, tv);						\
 } while (0)
 #define sdr_get_field(reg, field, val)					\
 do {								\
 	volatile unsigned int tv = sdr_read32(reg);			\
-	val = ((tv & (field)) >> (uffs((unsigned int)field) - 1));	\
+	val = ((tv & (field)) >> (ffs((unsigned int)field) - 1));	\
 } while (0)
 
 #endif
