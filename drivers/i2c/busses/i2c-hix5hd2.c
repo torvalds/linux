@@ -471,7 +471,6 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_set_autosuspend_delay(priv->dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(priv->dev);
 	pm_runtime_set_active(priv->dev);
