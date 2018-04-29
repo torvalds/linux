@@ -475,8 +475,6 @@ BPF_CALL_2(bpf_current_task_under_cgroup, struct bpf_map *, map, u32, idx)
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	struct cgroup *cgrp;
 
-	if (unlikely(in_interrupt()))
-		return -EINVAL;
 	if (unlikely(idx >= array->map.max_entries))
 		return -E2BIG;
 
