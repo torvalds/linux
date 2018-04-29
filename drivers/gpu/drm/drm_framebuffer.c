@@ -468,28 +468,30 @@ int drm_mode_getfb(struct drm_device *dev,
 		goto out;
 	}
 
+	if (!fb->funcs->create_handle) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
 	r->bpp = fb->format->cpp[0] * 8;
 	r->pitch = fb->pitches[0];
-	if (fb->funcs->create_handle) {
-		if (drm_is_current_master(file_priv) || capable(CAP_SYS_ADMIN) ||
-		    drm_is_control_client(file_priv)) {
-			ret = fb->funcs->create_handle(fb, file_priv,
-						       &r->handle);
-		} else {
-			/* GET_FB() is an unprivileged ioctl so we must not
-			 * return a buffer-handle to non-master processes! For
-			 * backwards-compatibility reasons, we cannot make
-			 * GET_FB() privileged, so just return an invalid handle
-			 * for non-masters. */
-			r->handle = 0;
-			ret = 0;
-		}
-	} else {
-		ret = -ENODEV;
+
+	/* GET_FB() is an unprivileged ioctl so we must not return a
+	 * buffer-handle to non-master processes! For
+	 * backwards-compatibility reasons, we cannot make GET_FB() privileged,
+	 * so just return an invalid handle for non-masters.
+	 */
+	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN) &&
+	    !drm_is_control_client(file_priv)) {
+		r->handle = 0;
+		ret = 0;
+		goto out;
 	}
+
+	ret = fb->funcs->create_handle(fb, file_priv, &r->handle);
 
 out:
 	drm_framebuffer_put(fb);

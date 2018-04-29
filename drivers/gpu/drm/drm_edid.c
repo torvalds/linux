@@ -4455,7 +4455,6 @@ drm_reset_display_info(struct drm_connector *connector)
 
 	info->non_desktop = 0;
 }
-EXPORT_SYMBOL_GPL(drm_reset_display_info);
 
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
 {
@@ -4533,7 +4532,6 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 	return quirks;
 }
-EXPORT_SYMBOL_GPL(drm_add_display_info);
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {

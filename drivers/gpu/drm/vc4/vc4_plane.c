@@ -201,6 +201,7 @@ static void vc4_plane_reset(struct drm_plane *plane)
 		return;
 
 	plane->state = &vc4_state->base;
+	plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
 	vc4_state->base.plane = plane;
 }
 
@@ -467,6 +468,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	int num_planes = drm_format_num_planes(format->drm);
+	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
 	u32 lbm_size, tiling;
@@ -552,7 +554,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 0: Image Positions and Alpha Value */
 	vc4_state->pos0_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
-			VC4_SET_FIELD(0xff, SCALER_POS0_FIXED_ALPHA) |
+			VC4_SET_FIELD(state->alpha >> 8, SCALER_POS0_FIXED_ALPHA) |
 			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
 			VC4_SET_FIELD(vc4_state->crtc_y, SCALER_POS0_START_Y));
 
@@ -565,6 +567,13 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 					      SCALER_POS1_SCL_HEIGHT));
 	}
 
+	/* Don't waste cycles mixing with plane alpha if the set alpha
+	 * is opaque or there is no per-pixel alpha information.
+	 * In any case we use the alpha property value as the fixed alpha.
+	 */
+	mix_plane_alpha = state->alpha != DRM_BLEND_ALPHA_OPAQUE &&
+			  fb->format->has_alpha;
+
 	/* Position Word 2: Source Image Size, Alpha */
 	vc4_state->pos2_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
@@ -572,6 +581,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
+			(mix_plane_alpha ? SCALER_POS2_ALPHA_MIX : 0) |
 			(fb->format->has_alpha ? SCALER_POS2_ALPHA_PREMULT : 0) |
 			VC4_SET_FIELD(vc4_state->src_w[0], SCALER_POS2_WIDTH) |
 			VC4_SET_FIELD(vc4_state->src_h[0], SCALER_POS2_HEIGHT));
@@ -653,10 +663,11 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			vc4_state->crtc_w == state->crtc->mode.hdisplay &&
 			vc4_state->crtc_h == state->crtc->mode.vdisplay;
 	/* Background fill might be necessary when the plane has per-pixel
-	 * alpha content and blends from the background or does not cover
-	 * the entire screen.
+	 * alpha content or a non-opaque plane alpha and could blend from the
+	 * background or does not cover the entire screen.
 	 */
-	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen;
+	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
+				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
 
 	return 0;
 }
@@ -741,6 +752,57 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	vc4_state->dlist[vc4_state->ptr0_offset] = addr;
 }
 
+static void vc4_plane_atomic_async_update(struct drm_plane *plane,
+					  struct drm_plane_state *state)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
+
+	if (plane->state->fb != state->fb) {
+		vc4_plane_async_set_fb(plane, state->fb);
+		drm_atomic_set_fb_for_plane(plane->state, state->fb);
+	}
+
+	/* Set the cursor's position on the screen.  This is the
+	 * expected change from the drm_mode_cursor_universal()
+	 * helper.
+	 */
+	plane->state->crtc_x = state->crtc_x;
+	plane->state->crtc_y = state->crtc_y;
+
+	/* Allow changing the start position within the cursor BO, if
+	 * that matters.
+	 */
+	plane->state->src_x = state->src_x;
+	plane->state->src_y = state->src_y;
+
+	/* Update the display list based on the new crtc_x/y. */
+	vc4_plane_atomic_check(plane, plane->state);
+
+	/* Note that we can't just call vc4_plane_write_dlist()
+	 * because that would smash the context data that the HVS is
+	 * currently using.
+	 */
+	writel(vc4_state->dlist[vc4_state->pos0_offset],
+	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
+	writel(vc4_state->dlist[vc4_state->pos2_offset],
+	       &vc4_state->hw_dlist[vc4_state->pos2_offset]);
+	writel(vc4_state->dlist[vc4_state->ptr0_offset],
+	       &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+}
+
+static int vc4_plane_atomic_async_check(struct drm_plane *plane,
+					struct drm_plane_state *state)
+{
+	/* No configuring new scaling in the fast path. */
+	if (plane->state->crtc_w != state->crtc_w ||
+	    plane->state->crtc_h != state->crtc_h ||
+	    plane->state->src_w != state->src_w ||
+	    plane->state->src_h != state->src_h)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vc4_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
@@ -780,88 +842,14 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_update = vc4_plane_atomic_update,
 	.prepare_fb = vc4_prepare_fb,
 	.cleanup_fb = vc4_cleanup_fb,
+	.atomic_async_check = vc4_plane_atomic_async_check,
+	.atomic_async_update = vc4_plane_atomic_async_update,
 };
 
 static void vc4_plane_destroy(struct drm_plane *plane)
 {
 	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
-}
-
-/* Implements immediate (non-vblank-synced) updates of the cursor
- * position, or falls back to the atomic helper otherwise.
- */
-static int
-vc4_update_plane(struct drm_plane *plane,
-		 struct drm_crtc *crtc,
-		 struct drm_framebuffer *fb,
-		 int crtc_x, int crtc_y,
-		 unsigned int crtc_w, unsigned int crtc_h,
-		 uint32_t src_x, uint32_t src_y,
-		 uint32_t src_w, uint32_t src_h,
-		 struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_plane_state *plane_state;
-	struct vc4_plane_state *vc4_state;
-
-	if (plane != crtc->cursor)
-		goto out;
-
-	plane_state = plane->state;
-	vc4_state = to_vc4_plane_state(plane_state);
-
-	if (!plane_state)
-		goto out;
-
-	/* No configuring new scaling in the fast path. */
-	if (crtc_w != plane_state->crtc_w ||
-	    crtc_h != plane_state->crtc_h ||
-	    src_w != plane_state->src_w ||
-	    src_h != plane_state->src_h) {
-		goto out;
-	}
-
-	if (fb != plane_state->fb) {
-		drm_atomic_set_fb_for_plane(plane->state, fb);
-		vc4_plane_async_set_fb(plane, fb);
-	}
-
-	/* Set the cursor's position on the screen.  This is the
-	 * expected change from the drm_mode_cursor_universal()
-	 * helper.
-	 */
-	plane_state->crtc_x = crtc_x;
-	plane_state->crtc_y = crtc_y;
-
-	/* Allow changing the start position within the cursor BO, if
-	 * that matters.
-	 */
-	plane_state->src_x = src_x;
-	plane_state->src_y = src_y;
-
-	/* Update the display list based on the new crtc_x/y. */
-	vc4_plane_atomic_check(plane, plane_state);
-
-	/* Note that we can't just call vc4_plane_write_dlist()
-	 * because that would smash the context data that the HVS is
-	 * currently using.
-	 */
-	writel(vc4_state->dlist[vc4_state->pos0_offset],
-	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
-	writel(vc4_state->dlist[vc4_state->pos2_offset],
-	       &vc4_state->hw_dlist[vc4_state->pos2_offset]);
-	writel(vc4_state->dlist[vc4_state->ptr0_offset],
-	       &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
-
-	return 0;
-
-out:
-	return drm_atomic_helper_update_plane(plane, crtc, fb,
-					      crtc_x, crtc_y,
-					      crtc_w, crtc_h,
-					      src_x, src_y,
-					      src_w, src_h,
-					      ctx);
 }
 
 static bool vc4_format_mod_supported(struct drm_plane *plane,
@@ -891,7 +879,7 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs vc4_plane_funcs = {
-	.update_plane = vc4_update_plane,
+	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vc4_plane_destroy,
 	.set_property = NULL,
@@ -938,6 +926,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				       modifiers, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
+
+	drm_plane_create_alpha_property(plane);
 
 	return plane;
 }

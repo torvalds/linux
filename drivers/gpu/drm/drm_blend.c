@@ -88,6 +88,13 @@
  * On top of this basic transformation additional properties can be exposed by
  * the driver:
  *
+ * alpha:
+ * 	Alpha is setup with drm_plane_create_alpha_property(). It controls the
+ * 	plane-wide opacity, from transparent (0) to opaque (0xffff). It can be
+ * 	combined with pixel alpha.
+ *	The pixel values in the framebuffers are expected to not be
+ *	pre-multiplied by the global alpha associated to the plane.
+ *
  * rotation:
  *	Rotation is set up with drm_plane_create_rotation_property(). It adds a
  *	rotation and reflection step between the source and destination rectangles.
@@ -104,6 +111,38 @@
  * plane or the CRTC (e.g. for the background color, which currently is not
  * exposed and assumed to be black).
  */
+
+/**
+ * drm_plane_create_alpha_property - create a new alpha property
+ * @plane: drm plane
+ *
+ * This function creates a generic, mutable, alpha property and enables support
+ * for it in the DRM core. It is attached to @plane.
+ *
+ * The alpha property will be allowed to be within the bounds of 0
+ * (transparent) to 0xffff (opaque).
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
+ */
+int drm_plane_create_alpha_property(struct drm_plane *plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "alpha",
+					 0, DRM_BLEND_ALPHA_OPAQUE);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, DRM_BLEND_ALPHA_OPAQUE);
+	plane->alpha_property = prop;
+
+	if (plane->state)
+		plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_create_alpha_property);
 
 /**
  * drm_plane_create_rotation_property - create a new rotation property

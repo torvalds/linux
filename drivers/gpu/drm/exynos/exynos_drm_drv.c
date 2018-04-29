@@ -37,26 +37,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-int exynos_atomic_check(struct drm_device *dev,
-			struct drm_atomic_state *state)
-{
-	int ret;
-
-	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_check_planes(dev, state);
-	if (ret)
-		return ret;
-
-	return ret;
-}
-
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;

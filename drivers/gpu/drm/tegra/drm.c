@@ -38,26 +38,11 @@ static int tegra_atomic_check(struct drm_device *drm,
 {
 	int err;
 
-	err = drm_atomic_helper_check_modeset(drm, state);
+	err = drm_atomic_helper_check(drm, state);
 	if (err < 0)
 		return err;
 
-	err = tegra_display_hub_atomic_check(drm, state);
-	if (err < 0)
-		return err;
-
-	err = drm_atomic_normalize_zpos(drm, state);
-	if (err < 0)
-		return err;
-
-	err = drm_atomic_helper_check_planes(drm, state);
-	if (err < 0)
-		return err;
-
-	if (state->legacy_cursor_update)
-		state->async_update = !drm_atomic_helper_async_check(drm, state);
-
-	return 0;
+	return tegra_display_hub_atomic_check(drm, state);
 }
 
 static const struct drm_mode_config_funcs tegra_drm_mode_config_funcs = {
@@ -150,6 +135,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	drm->mode_config.max_height = 4096;
 
 	drm->mode_config.allow_fb_modifiers = true;
+
+	drm->mode_config.normalize_zpos = true;
 
 	drm->mode_config.funcs = &tegra_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &tegra_drm_mode_config_helpers;

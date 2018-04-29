@@ -91,7 +91,7 @@ EXPORT_SYMBOL(tinydrm_gem_cma_prime_import_sg_table);
  * GEM object state and frees the memory used to store the object itself using
  * drm_gem_cma_free_object(). It also handles PRIME buffers which has the kernel
  * virtual address set by tinydrm_gem_cma_prime_import_sg_table(). Drivers
- * can use this as their &drm_driver->gem_free_object callback.
+ * can use this as their &drm_driver->gem_free_object_unlocked callback.
  */
 void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {

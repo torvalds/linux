@@ -2824,7 +2824,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (intel_plane_ggtt_offset(state) == plane_config->base) {
-			fb = c->primary->fb;
+			fb = state->base.fb;
 			drm_framebuffer_get(fb);
 			goto valid_fb;
 		}
@@ -9974,6 +9974,8 @@ found:
 	ret = PTR_ERR_OR_ZERO(drm_atomic_get_connector_state(restore_state, connector));
 	if (!ret)
 		ret = PTR_ERR_OR_ZERO(drm_atomic_get_crtc_state(restore_state, crtc));
+	if (!ret)
+		ret = drm_atomic_add_affected_planes(restore_state, crtc);
 	if (ret) {
 		DRM_DEBUG_KMS("Failed to create a copy of old state to restore: %i\n", ret);
 		goto fail;
