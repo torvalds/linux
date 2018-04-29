@@ -603,7 +603,7 @@ static void msdc_abort_data(struct msdc_host *host)
 	void __iomem *base = host->base;
 	struct mmc_command *stop = host->mrq->stop;
 
-	ERR_MSG("Need to Abort. dma<%d>", host->dma_xfer);
+	ERR_MSG("Need to Abort.");
 
 	msdc_reset_hw(host);
 	msdc_clr_fifo();
