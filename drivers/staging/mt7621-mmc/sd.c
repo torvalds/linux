@@ -1716,10 +1716,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	u32 ticks = 0, opcode = 0, sizes = 0, bRx = 0;
 #endif /* end of --- */
 
-	if (host->mrq) {
-		ERR_MSG("XXX host->mrq<0x%.8x>", (int)host->mrq);
-		BUG();
-	}
+	WARN_ON(host->mrq);
 
 	if (!is_card_present(host) || host->power_mode == MMC_POWER_OFF) {
 		ERR_MSG("cmd<%d> card<%d> power<%d>", mrq->cmd->opcode, is_card_present(host), host->power_mode);
