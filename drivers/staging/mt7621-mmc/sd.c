@@ -1091,7 +1091,7 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	void __iomem *base = host->base;
 	//u32 i, j, num, bdlen, arg, xfersz;
 	u32 j, num;
-	struct scatterlist *sg = dma->sg;
+	struct scatterlist *sg;
 	struct gpd *gpd;
 	struct bd *bd;
 
