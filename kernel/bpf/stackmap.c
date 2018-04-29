@@ -262,16 +262,11 @@ out:
 	return ret;
 }
 
-static void stack_map_get_build_id_offset(struct bpf_map *map,
-					  struct stack_map_bucket *bucket,
+static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 					  u64 *ips, u32 trace_nr, bool user)
 {
 	int i;
 	struct vm_area_struct *vma;
-	struct bpf_stack_build_id *id_offs;
-
-	bucket->nr = trace_nr;
-	id_offs = (struct bpf_stack_build_id *)bucket->data;
 
 	/*
 	 * We cannot do up_read() in nmi context, so build_id lookup is
@@ -361,8 +356,10 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 			pcpu_freelist_pop(&smap->freelist);
 		if (unlikely(!new_bucket))
 			return -ENOMEM;
-		stack_map_get_build_id_offset(map, new_bucket, ips,
-					      trace_nr, user);
+		new_bucket->nr = trace_nr;
+		stack_map_get_build_id_offset(
+			(struct bpf_stack_build_id *)new_bucket->data,
+			ips, trace_nr, user);
 		trace_len = trace_nr * sizeof(struct bpf_stack_build_id);
 		if (hash_matches && bucket->nr == trace_nr &&
 		    memcmp(bucket->data, new_bucket->data, trace_len) == 0) {
