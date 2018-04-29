@@ -286,21 +286,6 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		} else {
 			printk("msdc host_id error when set debug zone\n");
 		}
-	} else if (cmd == SD_TOOL_DMA_SIZE) {
-		id = p1 >> 4;
-		mode = (p1 & 0xf);
-		size = p2;
-		if (id >= 0 && id <= 3) {
-			drv_mode[id] = mode;
-			dma_size[id] = p2;
-		} else if (id == 4) {
-			drv_mode[0] = drv_mode[1] = mode;
-			drv_mode[2] = drv_mode[3] = mode;
-			dma_size[0] = dma_size[1] = p2;
-			dma_size[2] = dma_size[3] = p2;
-		} else {
-			printk("msdc host_id error when select mode\n");
-		}
 	} else if (cmd == SD_TOOL_SDIO_PROFILE) {
 		if (p1 == 1) { /* enable profile */
 			if (gpt_enable == 0) {
