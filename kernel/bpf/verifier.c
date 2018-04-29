@@ -22,6 +22,7 @@
 #include <linux/stringify.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
+#include <linux/perf_event.h>
 
 #include "disasm.h"
 
@@ -164,6 +165,8 @@ struct bpf_call_arg_meta {
 	bool pkt_access;
 	int regno;
 	int access_size;
+	s64 msize_smax_value;
+	u64 msize_umax_value;
 };
 
 static DEFINE_MUTEX(bpf_verifier_lock);
@@ -1984,6 +1987,12 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 	} else if (arg_type_is_mem_size(arg_type)) {
 		bool zero_size_allowed = (arg_type == ARG_CONST_SIZE_OR_ZERO);
 
+		/* remember the mem_size which may be used later
+		 * to refine return values.
+		 */
+		meta->msize_smax_value = reg->smax_value;
+		meta->msize_umax_value = reg->umax_value;
+
 		/* The register is SCALAR_VALUE; the access check
 		 * happens using its boundaries.
 		 */
@@ -2323,6 +2332,23 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 	return 0;
 }
 
+static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
+				   int func_id,
+				   struct bpf_call_arg_meta *meta)
+{
+	struct bpf_reg_state *ret_reg = &regs[BPF_REG_0];
+
+	if (ret_type != RET_INTEGER ||
+	    (func_id != BPF_FUNC_get_stack &&
+	     func_id != BPF_FUNC_probe_read_str))
+		return;
+
+	ret_reg->smax_value = meta->msize_smax_value;
+	ret_reg->umax_value = meta->msize_umax_value;
+	__reg_deduce_bounds(ret_reg);
+	__reg_bound_offset(ret_reg);
+}
+
 static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 {
 	const struct bpf_func_proto *fn = NULL;
@@ -2446,9 +2472,29 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		return -EINVAL;
 	}
 
+	do_refine_retval_range(regs, fn->ret_type, func_id, &meta);
+
 	err = check_map_func_compatibility(env, meta.map_ptr, func_id);
 	if (err)
 		return err;
+
+	if (func_id == BPF_FUNC_get_stack && !env->prog->has_callchain_buf) {
+		const char *err_str;
+
+#ifdef CONFIG_PERF_EVENTS
+		err = get_callchain_buffers(sysctl_perf_event_max_stack);
+		err_str = "cannot get callchain buffer for func %s#%d\n";
+#else
+		err = -ENOTSUPP;
+		err_str = "func %s#%d not supported without CONFIG_PERF_EVENTS\n";
+#endif
+		if (err) {
+			verbose(env, err_str, func_id_name(func_id), func_id);
+			return err;
+		}
+
+		env->prog->has_callchain_buf = true;
+	}
 
 	if (changes_data)
 		clear_all_pkt_pointers(env);
@@ -2894,10 +2940,7 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->umin_value <<= umin_val;
 			dst_reg->umax_value <<= umax_val;
 		}
-		if (src_known)
-			dst_reg->var_off = tnum_lshift(dst_reg->var_off, umin_val);
-		else
-			dst_reg->var_off = tnum_lshift(tnum_unknown, umin_val);
+		dst_reg->var_off = tnum_lshift(dst_reg->var_off, umin_val);
 		/* We may learn something more from the var_off */
 		__update_reg_bounds(dst_reg);
 		break;
@@ -2925,14 +2968,33 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 		 */
 		dst_reg->smin_value = S64_MIN;
 		dst_reg->smax_value = S64_MAX;
-		if (src_known)
-			dst_reg->var_off = tnum_rshift(dst_reg->var_off,
-						       umin_val);
-		else
-			dst_reg->var_off = tnum_rshift(tnum_unknown, umin_val);
+		dst_reg->var_off = tnum_rshift(dst_reg->var_off, umin_val);
 		dst_reg->umin_value >>= umax_val;
 		dst_reg->umax_value >>= umin_val;
 		/* We may learn something more from the var_off */
+		__update_reg_bounds(dst_reg);
+		break;
+	case BPF_ARSH:
+		if (umax_val >= insn_bitness) {
+			/* Shifts greater than 31 or 63 are undefined.
+			 * This includes shifts by a negative number.
+			 */
+			mark_reg_unknown(env, regs, insn->dst_reg);
+			break;
+		}
+
+		/* Upon reaching here, src_known is true and
+		 * umax_val is equal to umin_val.
+		 */
+		dst_reg->smin_value >>= umin_val;
+		dst_reg->smax_value >>= umin_val;
+		dst_reg->var_off = tnum_arshift(dst_reg->var_off, umin_val);
+
+		/* blow away the dst_reg umin_value/umax_value and rely on
+		 * dst_reg var_off to refine the result.
+		 */
+		dst_reg->umin_value = 0;
+		dst_reg->umax_value = U64_MAX;
 		__update_reg_bounds(dst_reg);
 		break;
 	default:

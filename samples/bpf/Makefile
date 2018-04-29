@@ -49,6 +49,7 @@ hostprogs-y += xdp_adjust_tail
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
 CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
+TRACE_HELPERS := ../../tools/testing/selftests/bpf/trace_helpers.o
 
 test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
 sock_example-objs := sock_example.o $(LIBBPF)
@@ -65,10 +66,10 @@ tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
 tracex7-objs := bpf_load.o $(LIBBPF) tracex7_user.o
 load_sock_ops-objs := bpf_load.o $(LIBBPF) load_sock_ops.o
 test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
-trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
+trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o $(TRACE_HELPERS)
 lathist-objs := bpf_load.o $(LIBBPF) lathist_user.o
-offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o
-spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o
+offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o $(TRACE_HELPERS)
+spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o $(TRACE_HELPERS)
 map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
 test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
 test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
@@ -82,8 +83,8 @@ xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
 xdp_router_ipv4-objs := bpf_load.o $(LIBBPF) xdp_router_ipv4_user.o
 test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
-trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
-sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
+trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o $(TRACE_HELPERS)
+sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o $(TRACE_HELPERS)
 tc_l2_redirect-objs := bpf_load.o $(LIBBPF) tc_l2_redirect_user.o
 lwt_len_hist-objs := bpf_load.o $(LIBBPF) lwt_len_hist_user.o
 xdp_tx_iptunnel-objs := bpf_load.o $(LIBBPF) xdp_tx_iptunnel_user.o
