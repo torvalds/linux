@@ -891,7 +891,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 
 			if (time_after(jiffies, tmo)) {
 				ERR_MSG("XXX cmd_busy timeout: before CMD<%d>", opcode);
-				cmd->error = (unsigned int)-ETIMEDOUT;
+				cmd->error = -ETIMEDOUT;
 				msdc_reset_hw(host);
 				goto end;
 			}
@@ -902,7 +902,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 				break;
 			if (time_after(jiffies, tmo)) {
 				ERR_MSG("XXX sdc_busy timeout: before CMD<%d>", opcode);
-				cmd->error = (unsigned int)-ETIMEDOUT;
+				cmd->error = -ETIMEDOUT;
 				msdc_reset_hw(host);
 				goto end;
 			}
@@ -945,7 +945,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 	spin_unlock(&host->lock);
 	if (!wait_for_completion_timeout(&host->cmd_done, 10 * timeout)) {
 		ERR_MSG("XXX CMD<%d> wait_for_completion timeout ARG<0x%.8x>", opcode, cmd->arg);
-		cmd->error = (unsigned int)-ETIMEDOUT;
+		cmd->error = -ETIMEDOUT;
 		msdc_reset_hw(host);
 	}
 	spin_lock(&host->lock);
@@ -994,7 +994,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 		return cmd->error;
 
 	/* memory card CRC */
-	if (host->hw->flags & MSDC_REMOVABLE && cmd->error == (unsigned int)(-EIO)) {
+	if (host->hw->flags & MSDC_REMOVABLE && cmd->error == -EIO) {
 		if (sdr_read32(SDC_CMD) & 0x1800) { /* check if has data phase */
 			msdc_abort_data(host);
 		} else {
@@ -1272,7 +1272,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			ERR_MSG("    DMA_CA   = 0x%x", sdr_read32(MSDC_DMA_CA));
 			ERR_MSG("    DMA_CTRL = 0x%x", sdr_read32(MSDC_DMA_CTRL));
 			ERR_MSG("    DMA_CFG  = 0x%x", sdr_read32(MSDC_DMA_CFG));
-			data->error = (unsigned int)-ETIMEDOUT;
+			data->error = -ETIMEDOUT;
 
 			msdc_reset_hw(host);
 			msdc_clr_fifo();
@@ -1409,7 +1409,7 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 
 			if (result == 0)
 				return 0;
-			if (result != (unsigned int)(-EIO)) {
+			if (result != -EIO) {
 				ERR_MSG("TUNE_CMD<%d> Error<%d> not -EIO", cmd->opcode, result);
 				return result;
 			}
@@ -1482,7 +1482,8 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 				goto done;
 			} else {
 				/* there is a case: command timeout, and data phase not processed */
-				if (mrq->data->error != 0 && mrq->data->error != (unsigned int)(-EIO)) {
+				if (mrq->data->error != 0 &&
+				    mrq->data->error != -EIO) {
 					ERR_MSG("TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>",
 						result, mrq->cmd->error, mrq->data->error);
 					goto done;
@@ -1606,7 +1607,7 @@ static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 					goto done;
 				} else {
 					/* there is a case: command timeout, and data phase not processed */
-					if (mrq->data->error != (unsigned int)(-EIO)) {
+					if (mrq->data->error != -EIO) {
 						ERR_MSG("TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>",
 							result, mrq->cmd->error, mrq->data->error);
 						goto done;
@@ -1689,7 +1690,7 @@ static int msdc_tune_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	read = data->flags & MMC_DATA_READ ? 1 : 0;
 
 	if (read) {
-		if (data->error == (unsigned int)(-EIO))
+		if (data->error == -EIO)
 			ret = msdc_tune_bread(mmc, mrq);
 	} else {
 		ret = msdc_check_busy(mmc, host);
@@ -1723,7 +1724,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (!is_card_present(host) || host->power_mode == MMC_POWER_OFF) {
 		ERR_MSG("cmd<%d> card<%d> power<%d>", mrq->cmd->opcode, is_card_present(host), host->power_mode);
-		mrq->cmd->error = (unsigned int)-ENOMEDIUM;
+		mrq->cmd->error = -ENOMEDIUM;
 
 #if 1
 		mrq->done(mrq);         // call done directly.
@@ -2023,10 +2024,10 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 
 			if (intsts & MSDC_INT_DATTMO) {
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_DATTMO", host->mrq->cmd->opcode);
-				data->error = (unsigned int)-ETIMEDOUT;
+				data->error = -ETIMEDOUT;
 			} else if (intsts & MSDC_INT_DATCRCERR) {
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_DATCRCERR, SDC_DCRC_STS<0x%x>", host->mrq->cmd->opcode, sdr_read32(SDC_DCRC_STS));
-				data->error = (unsigned int)-EIO;
+				data->error = -EIO;
 			}
 
 			//if(sdr_read32(MSDC_INTEN) & MSDC_INT_XFER_COMPL) {
@@ -2059,13 +2060,13 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_ACMDCRCERR", cmd->opcode);
 			else
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_RSPCRCERR", cmd->opcode);
-			cmd->error = (unsigned int)-EIO;
+			cmd->error = -EIO;
 		} else if ((intsts & MSDC_INT_CMDTMO) || (intsts & MSDC_INT_ACMDTMO)) {
 			if (intsts & MSDC_INT_ACMDTMO)
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_ACMDTMO", cmd->opcode);
 			else
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_CMDTMO", cmd->opcode);
-			cmd->error = (unsigned int)-ETIMEDOUT;
+			cmd->error = -ETIMEDOUT;
 			msdc_reset_hw(host);
 			msdc_clr_fifo();
 			msdc_clr_int();
