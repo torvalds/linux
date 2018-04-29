@@ -1767,6 +1767,40 @@ union bpf_attr {
  * 		**CONFIG_XFRM** configuration option.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_get_stack(struct pt_regs *regs, void *buf, u32 size, u64 flags)
+ * 	Description
+ *		Return a user or a kernel stack in bpf program provided buffer.
+ *		To achieve this, the helper needs *ctx*, which is a pointer
+ *		to the context on which the tracing program is executed.
+ *		To store the stacktrace, the bpf program provides *buf* with
+ *		a nonnegative *size*.
+ *
+ *		The last argument, *flags*, holds the number of stack frames to
+ *		skip (from 0 to 255), masked with
+ *		**BPF_F_SKIP_FIELD_MASK**. The next bits can be used to set
+ *		the following flags:
+ *
+ *		**BPF_F_USER_STACK**
+ *			Collect a user space stack instead of a kernel stack.
+ *		**BPF_F_USER_BUILD_ID**
+ *			Collect buildid+offset instead of ips for user stack,
+ *			only valid if **BPF_F_USER_STACK** is also specified.
+ *
+ *		**bpf_get_stack**\ () can collect up to
+ *		**PERF_MAX_STACK_DEPTH** both kernel and user frames, subject
+ *		to sufficient large buffer size. Note that
+ *		this limit can be controlled with the **sysctl** program, and
+ *		that it should be manually increased in order to profile long
+ *		user stacks (such as stacks for Java programs). To do so, use:
+ *
+ *	::
+ *
+ *		# sysctl kernel.perf_event_max_stack=<new value>
+ *
+ * 	Return
+ * 		a non-negative value equal to or less than size on success, or
+ * 		a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -1835,7 +1869,8 @@ union bpf_attr {
 	FN(msg_pull_data),		\
 	FN(bind),			\
 	FN(xdp_adjust_tail),		\
-	FN(skb_get_xfrm_state),
+	FN(skb_get_xfrm_state),		\
+	FN(get_stack),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -1869,11 +1904,14 @@ enum bpf_func_id {
 /* BPF_FUNC_skb_set_tunnel_key and BPF_FUNC_skb_get_tunnel_key flags. */
 #define BPF_F_TUNINFO_IPV6		(1ULL << 0)
 
-/* BPF_FUNC_get_stackid flags. */
+/* flags for both BPF_FUNC_get_stackid and BPF_FUNC_get_stack. */
 #define BPF_F_SKIP_FIELD_MASK		0xffULL
 #define BPF_F_USER_STACK		(1ULL << 8)
+/* flags used by BPF_FUNC_get_stackid only. */
 #define BPF_F_FAST_STACK_CMP		(1ULL << 9)
 #define BPF_F_REUSE_STACKID		(1ULL << 10)
+/* flags used by BPF_FUNC_get_stack only. */
+#define BPF_F_USER_BUILD_ID		(1ULL << 11)
 
 /* BPF_FUNC_skb_set_tunnel_key flags. */
 #define BPF_F_ZERO_CSUM_TX		(1ULL << 1)
