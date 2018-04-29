@@ -1718,20 +1718,6 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq);
 
-	if (!is_card_present(host) || host->power_mode == MMC_POWER_OFF) {
-		ERR_MSG("cmd<%d> card<%d> power<%d>", mrq->cmd->opcode, is_card_present(host), host->power_mode);
-		mrq->cmd->error = -ENOMEDIUM;
-
-#if 1
-		mrq->done(mrq);         // call done directly.
-#else
-		mrq->cmd->retries = 0;  // please don't retry.
-		mmc_request_done(mmc, mrq);
-#endif
-
-		return;
-	}
-
 	/* start to process */
 	spin_lock(&host->lock);
 #if 0 /* --- by chhung */
