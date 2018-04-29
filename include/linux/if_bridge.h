@@ -93,10 +93,38 @@ static inline bool br_multicast_router(const struct net_device *dev)
 
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_VLAN_FILTERING)
 bool br_vlan_enabled(const struct net_device *dev);
+int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid);
+int br_vlan_get_info(const struct net_device *dev, u16 vid,
+		     struct bridge_vlan_info *p_vinfo);
 #else
 static inline bool br_vlan_enabled(const struct net_device *dev)
 {
 	return false;
+}
+
+static inline int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
+{
+	return -1;
+}
+
+static inline int br_vlan_get_info(const struct net_device *dev, u16 vid,
+				   struct bridge_vlan_info *p_vinfo)
+{
+	return -1;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_BRIDGE)
+struct net_device *br_fdb_find_port(const struct net_device *br_dev,
+				    const unsigned char *addr,
+				    __u16 vid);
+#else
+static inline struct net_device *
+br_fdb_find_port(const struct net_device *br_dev,
+		 const unsigned char *addr,
+		 __u16 vid)
+{
+	return NULL;
 }
 #endif
 

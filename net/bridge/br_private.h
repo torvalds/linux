@@ -594,9 +594,20 @@ static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
 	return rcu_dereference(dev->rx_handler) == br_handle_frame;
 }
 
+static inline bool br_rx_handler_check_rtnl(const struct net_device *dev)
+{
+	return rcu_dereference_rtnl(dev->rx_handler) == br_handle_frame;
+}
+
 static inline struct net_bridge_port *br_port_get_check_rcu(const struct net_device *dev)
 {
 	return br_rx_handler_check_rcu(dev) ? br_port_get_rcu(dev) : NULL;
+}
+
+static inline struct net_bridge_port *
+br_port_get_check_rtnl(const struct net_device *dev)
+{
+	return br_rx_handler_check_rtnl(dev) ? br_port_get_rtnl_rcu(dev) : NULL;
 }
 
 /* br_ioctl.c */
