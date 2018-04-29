@@ -5,6 +5,7 @@
  * Copyright (c) 2009 Clemens Ladisch <clemens@ladisch.de>
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -31,22 +32,22 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #endif
 
 /* CPUID function 0x80000001, ebx */
-#define CPUID_PKGTYPE_MASK	0xf0000000
+#define CPUID_PKGTYPE_MASK	GENMASK(31, 28)
 #define CPUID_PKGTYPE_F		0x00000000
 #define CPUID_PKGTYPE_AM2R2_AM3	0x10000000
 
 /* DRAM controller (PCI function 2) */
 #define REG_DCT0_CONFIG_HIGH		0x094
-#define  DDR3_MODE			0x00000100
+#define  DDR3_MODE			BIT(8)
 
 /* miscellaneous (PCI function 3) */
 #define REG_HARDWARE_THERMAL_CONTROL	0x64
-#define  HTC_ENABLE			0x00000001
+#define  HTC_ENABLE			BIT(0)
 
 #define REG_REPORTED_TEMPERATURE	0xa4
 
 #define REG_NORTHBRIDGE_CAPABILITIES	0xe8
-#define  NB_CAP_HTC			0x00000400
+#define  NB_CAP_HTC			BIT(10)
 
 /*
  * For F15h M60h and M70h, REG_HARDWARE_THERMAL_CONTROL
@@ -59,6 +60,9 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 
 /* F17h M01h Access througn SMN */
 #define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
+
+#define CUR_TEMP_SHIFT				21
+#define CUR_TEMP_RANGE_SEL_MASK			BIT(19)
 
 struct k10temp_data {
 	struct pci_dev *pdev;
@@ -129,7 +133,7 @@ static unsigned int get_raw_temp(struct k10temp_data *data)
 	u32 regval;
 
 	data->read_tempreg(data->pdev, &regval);
-	temp = (regval >> 21) * 125;
+	temp = (regval >> CUR_TEMP_SHIFT) * 125;
 	if (regval & data->temp_adjust_mask)
 		temp -= 49000;
 	return temp;
@@ -312,7 +316,7 @@ static int k10temp_probe(struct pci_dev *pdev,
 		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
-		data->temp_adjust_mask = 0x80000;
+		data->temp_adjust_mask = CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_f17;
 		data->show_tdie = true;
 	} else {
