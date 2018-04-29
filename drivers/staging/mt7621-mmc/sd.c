@@ -177,7 +177,6 @@ void msdc_clk_status(int *status)
 /* +++ by chhung */
 struct msdc_hw msdc0_hw = {
 	.clk_src        = 0,
-	.cmd_edge       = MSDC_SMPL_FALLING,
 	.data_edge      = MSDC_SMPL_FALLING,
 	.clk_drv        = 4,
 	.cmd_drv        = 4,
@@ -2075,7 +2074,8 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (ios->clock > 25000000) {
 			//if (!(host->hw->flags & MSDC_REMOVABLE)) {
 			INIT_MSG("SD data latch edge<%d>", hw->data_edge);
-			sdr_set_field(MSDC_IOCON, MSDC_IOCON_RSPL, hw->cmd_edge);
+			sdr_set_field(MSDC_IOCON, MSDC_IOCON_RSPL,
+				      MSDC_SMPL_FALLING);
 			sdr_set_field(MSDC_IOCON, MSDC_IOCON_DSPL, hw->data_edge);
 			//} /* for tuning debug */
 		} else { /* default value */
