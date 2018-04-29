@@ -199,7 +199,6 @@ static int msdc_rsp[] = {
 #define msdc_fifo_read8()    sdr_read8(MSDC_RXDATA)
 
 #define msdc_dma_on()        sdr_clr_bits(MSDC_CFG, MSDC_CFG_PIO)
-#define msdc_dma_off()       sdr_set_bits(MSDC_CFG, MSDC_CFG_PIO)
 
 #define msdc_retry(expr, retry, cnt) \
 	do {								\
@@ -1282,7 +1281,6 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 done:
 	if (data != NULL) {
 		host->data = NULL;
-		msdc_dma_off();
 		dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
 			     mmc_get_dma_dir(data));
 		host->blksz = 0;
