@@ -58,14 +58,6 @@ unsigned int sd_debug_zone[4] = {
 	0
 };
 
-/* mode select */
-u32 dma_size[4] = {
-	512,
-	512,
-	512,
-	512
-};
-
 #if defined(MT6575_SD_DEBUG)
 /* for driver profile */
 #define TICKS_ONE_MS  (13000)
