@@ -158,8 +158,8 @@ static const struct sctp_paramhdr prsctp_param = {
  * provided chunk, as most cause codes will be embedded inside an
  * abort chunk.
  */
-void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
-		     size_t paylen)
+int sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
+		    size_t paylen)
 {
 	struct sctp_errhdr err;
 	__u16 len;
@@ -167,8 +167,14 @@ void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
 	len = sizeof(err) + paylen;
-	err.length  = htons(len);
+	err.length = htons(len);
+
+	if (skb_tailroom(chunk->skb) < len)
+		return -ENOSPC;
+
 	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(err), &err);
+
+	return 0;
 }
 
 /* A helper to initialize an op error inside a
