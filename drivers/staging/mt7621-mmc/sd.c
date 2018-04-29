@@ -1942,33 +1942,11 @@ static int msdc_ops_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
-/* ops.enable_sdio_irq */
-static void msdc_ops_enable_sdio_irq(struct mmc_host *mmc, int enable)
-{
-	struct msdc_host *host = mmc_priv(mmc);
-	struct msdc_hw *hw = host->hw;
-	void __iomem *base = host->base;
-	u32 tmp;
-
-	if (hw->flags & MSDC_EXT_SDIO_IRQ) { /* yes for sdio */
-	} else {
-		ERR_MSG("XXX ");  /* so never enter here */
-		tmp = sdr_read32(SDC_CFG);
-		/* FIXME. Need to interrupt gap detection */
-		if (enable)
-			tmp |= (SDC_CFG_SDIOIDE | SDC_CFG_SDIOINTWKUP);
-		else
-			tmp &= ~(SDC_CFG_SDIOIDE | SDC_CFG_SDIOINTWKUP);
-		sdr_write32(SDC_CFG, tmp);
-	}
-}
-
 static struct mmc_host_ops mt_msdc_ops = {
 	.request         = msdc_ops_request,
 	.set_ios         = msdc_ops_set_ios,
 	.get_ro          = msdc_ops_get_ro,
 	.get_cd          = msdc_ops_get_cd,
-	.enable_sdio_irq = msdc_ops_enable_sdio_irq,
 };
 
 /*--------------------------------------------------------------------------*/
@@ -2329,9 +2307,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 
 	//TODO: read this as bus-width from dt (via mmc_of_parse)
 	mmc->caps  |= MMC_CAP_4_BIT_DATA;
-
-	if ((hw->flags & MSDC_SDIO_IRQ) || (hw->flags & MSDC_EXT_SDIO_IRQ))
-		mmc->caps |= MMC_CAP_SDIO_IRQ;  /* yes for sdio */
 
 	cd_active_low = !of_property_read_bool(pdev->dev.of_node, "mediatek,cd-high");
 

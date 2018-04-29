@@ -39,8 +39,6 @@
 #define MSDC_CD_PIN_EN      (1 << 0)  /* card detection pin is wired   */
 #define MSDC_WP_PIN_EN      (1 << 1)  /* write protection pin is wired */
 #define MSDC_RST_PIN_EN     (1 << 2)  /* emmc reset pin is wired       */
-#define MSDC_SDIO_IRQ       (1 << 3)  /* use internal sdio irq (bus)   */
-#define MSDC_EXT_SDIO_IRQ   (1 << 4)  /* use external sdio irq         */
 #define MSDC_REMOVABLE      (1 << 5)  /* removable slot                */
 
 #define MSDC_SMPL_RISING    (0)
