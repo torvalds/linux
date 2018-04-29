@@ -195,15 +195,6 @@ static int msdc_rsp[] = {
 	7,  /* RESP_R1b */
 };
 
-/* For Inhanced DMA */
-#define msdc_init_gpd_ex(_gpd, extlen, cmd, arg, blknum) \
-	do {					    \
-		((struct gpd *)_gpd)->extlen = extlen;	    \
-		((struct gpd *)_gpd)->cmd    = cmd;	    \
-		((struct gpd *)_gpd)->arg    = arg;	    \
-		((struct gpd *)_gpd)->blknum = blknum;	    \
-	} while (0)
-
 #define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
 #define msdc_rxfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) >> 0)
 #define msdc_fifo_write32(v)   sdr_write32(MSDC_TXDATA, (v))
