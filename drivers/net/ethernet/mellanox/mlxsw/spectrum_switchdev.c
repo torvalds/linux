@@ -50,6 +50,7 @@
 #include <net/switchdev.h>
 
 #include "spectrum_router.h"
+#include "spectrum_switchdev.h"
 #include "spectrum.h"
 #include "core.h"
 #include "reg.h"
@@ -239,7 +240,7 @@ __mlxsw_sp_bridge_port_find(const struct mlxsw_sp_bridge_device *bridge_device,
 	return NULL;
 }
 
-static struct mlxsw_sp_bridge_port *
+struct mlxsw_sp_bridge_port *
 mlxsw_sp_bridge_port_find(struct mlxsw_sp_bridge *bridge,
 			  struct net_device *brport_dev)
 {
@@ -2296,6 +2297,12 @@ err_addr_alloc:
 static struct notifier_block mlxsw_sp_switchdev_notifier = {
 	.notifier_call = mlxsw_sp_switchdev_event,
 };
+
+u8
+mlxsw_sp_bridge_port_stp_state(struct mlxsw_sp_bridge_port *bridge_port)
+{
+	return bridge_port->stp_state;
+}
 
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {
