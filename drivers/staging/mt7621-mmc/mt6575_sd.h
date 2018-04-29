@@ -926,8 +926,6 @@ struct msdc_host {
 	u32                         timeout_ns;     /* data timeout ns */
 	u32                         timeout_clks;   /* data timeout clks */
 
-	atomic_t                    abort;          /* abort transfer */
-
 	int                         irq;            /* host interrupt */
 
 	struct delayed_work		card_delaywork;

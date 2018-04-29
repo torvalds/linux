@@ -1207,7 +1207,6 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	BUG_ON(mrq == NULL);
 
 	host->error = 0;
-	atomic_set(&host->abort, 0);
 
 	cmd  = mrq->cmd;
 	data = mrq->cmd->data;
@@ -2020,7 +2019,6 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 			msdc_reset_hw(host);
 			msdc_clr_fifo();
 			msdc_clr_int();
-			atomic_set(&host->abort, 1);  /* For PIO mode exit */
 
 			if (intsts & MSDC_INT_DATTMO) {
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_DATTMO", host->mrq->cmd->opcode);
