@@ -429,13 +429,6 @@ int bpf_obj_pin_user(u32 ufd, const char __user *pathname)
 	ret = bpf_obj_do_pin(pname, raw, type);
 	if (ret != 0)
 		bpf_any_put(raw, type);
-	if ((trace_bpf_obj_pin_prog_enabled() ||
-	     trace_bpf_obj_pin_map_enabled()) && !ret) {
-		if (type == BPF_TYPE_PROG)
-			trace_bpf_obj_pin_prog(raw, ufd, pname);
-		if (type == BPF_TYPE_MAP)
-			trace_bpf_obj_pin_map(raw, ufd, pname);
-	}
 out:
 	putname(pname);
 	return ret;
@@ -502,15 +495,8 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 	else
 		goto out;
 
-	if (ret < 0) {
+	if (ret < 0)
 		bpf_any_put(raw, type);
-	} else if (trace_bpf_obj_get_prog_enabled() ||
-		   trace_bpf_obj_get_map_enabled()) {
-		if (type == BPF_TYPE_PROG)
-			trace_bpf_obj_get_prog(raw, ret, pname);
-		if (type == BPF_TYPE_MAP)
-			trace_bpf_obj_get_map(raw, ret, pname);
-	}
 out:
 	putname(pname);
 	return ret;
