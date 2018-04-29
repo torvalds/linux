@@ -33,7 +33,7 @@ static void __init ssb_select_mitigation(void);
  * Our boot-time value of the SPEC_CTRL MSR. We read it once so that any
  * writes to SPEC_CTRL contain whatever reserved bits have been set.
  */
-static u64 __ro_after_init x86_spec_ctrl_base;
+u64 __ro_after_init x86_spec_ctrl_base;
 
 /*
  * The vendor and possibly platform specific bits which can be modified in
@@ -140,25 +140,41 @@ EXPORT_SYMBOL_GPL(x86_spec_ctrl_set);
 
 u64 x86_spec_ctrl_get_default(void)
 {
-	return x86_spec_ctrl_base;
+	u64 msrval = x86_spec_ctrl_base;
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		msrval |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+	return msrval;
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_get_default);
 
 void x86_spec_ctrl_set_guest(u64 guest_spec_ctrl)
 {
+	u64 host = x86_spec_ctrl_base;
+
 	if (!boot_cpu_has(X86_FEATURE_IBRS))
 		return;
-	if (x86_spec_ctrl_base != guest_spec_ctrl)
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		host |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+
+	if (host != guest_spec_ctrl)
 		wrmsrl(MSR_IA32_SPEC_CTRL, guest_spec_ctrl);
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_set_guest);
 
 void x86_spec_ctrl_restore_host(u64 guest_spec_ctrl)
 {
+	u64 host = x86_spec_ctrl_base;
+
 	if (!boot_cpu_has(X86_FEATURE_IBRS))
 		return;
-	if (x86_spec_ctrl_base != guest_spec_ctrl)
-		wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		host |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+
+	if (host != guest_spec_ctrl)
+		wrmsrl(MSR_IA32_SPEC_CTRL, host);
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_restore_host);
 
