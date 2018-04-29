@@ -60,13 +60,6 @@
 #endif
 #define IRQ_SDC			22	/*FIXME*/
 
-#if 0 /* --- by chhung */
-#define isb() __asm__ __volatile__ ("" : : : "memory")
-#define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
-				    : : "r" (0) : "memory")
-#define dmb() __asm__ __volatile__ ("" : : : "memory")
-#endif /* end of --- */
-
 #define DRV_NAME            "mtk-sd"
 
 #if defined(CONFIG_SOC_MT7620)
