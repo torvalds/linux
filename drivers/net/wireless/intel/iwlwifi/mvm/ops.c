@@ -739,6 +739,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	       sizeof(trans->dbg_conf_tlv));
 	trans->dbg_trigger_tlv = mvm->fw->dbg_trigger_tlv;
 
+	trans->iml = mvm->fw->iml;
+	trans->iml_len = mvm->fw->iml_len;
+
 	/* set up notification wait support */
 	iwl_notification_wait_init(&mvm->notif_wait);
 

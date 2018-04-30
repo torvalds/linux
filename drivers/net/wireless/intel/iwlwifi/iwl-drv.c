@@ -179,6 +179,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
 		kfree(drv->fw.dbg_trigger_tlv[i]);
 	kfree(drv->fw.dbg_mem_tlv);
+	kfree(drv->fw.iml);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -1126,6 +1127,13 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			pieces->n_dbg_mem_tlv++;
 			break;
 			}
+		case IWL_UCODE_TLV_IML: {
+			drv->fw.iml_len = tlv_len;
+			drv->fw.iml = kmemdup(tlv_data, tlv_len, GFP_KERNEL);
+			if (!drv->fw.iml)
+				return -ENOMEM;
+			break;
+			}
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1842,3 +1850,9 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool, 0444);
 MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");
+
+module_param_named(remove_when_gone,
+		   iwlwifi_mod_params.remove_when_gone, bool,
+		   0444);
+MODULE_PARM_DESC(remove_when_gone,
+		 "Remove dev from PCIe bus if it is deemed inaccessible (default: false)");

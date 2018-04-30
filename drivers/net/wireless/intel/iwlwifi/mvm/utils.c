@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -520,15 +522,15 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 		/* set INIT_DONE flag */
 		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+			    BIT(trans->cfg->csr->flag_init_done));
 
 		/* and wait for clock stabilization */
 		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
 			udelay(2);
 
 		err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
 				   25000);
 		if (err < 0) {
 			IWL_DEBUG_INFO(trans,
