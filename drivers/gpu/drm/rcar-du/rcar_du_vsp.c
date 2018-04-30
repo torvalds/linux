@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include <linux/bitops.h>
@@ -236,6 +237,10 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 			goto fail;
 		}
 	}
+
+	ret = drm_gem_fb_prepare_fb(plane, state);
+	if (ret)
+		goto fail;
 
 	return 0;
 
