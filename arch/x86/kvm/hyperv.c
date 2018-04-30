@@ -1265,7 +1265,7 @@ static int kvm_hv_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 
 	kvm_hv_hypercall_set_result(vcpu, run->hyperv.u.hcall.result);
-	return 1;
+	return kvm_skip_emulated_instruction(vcpu);
 }
 
 static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
