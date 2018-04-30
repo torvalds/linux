@@ -28,7 +28,7 @@ struct fscrypt_operations {
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	bool (*dummy_context)(struct inode *);
 	bool (*empty_dir)(struct inode *);
-	unsigned (*max_namelen)(struct inode *);
+	unsigned int max_namelen;
 };
 
 struct fscrypt_ctx {
