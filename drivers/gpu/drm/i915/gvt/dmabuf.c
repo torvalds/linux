@@ -323,6 +323,7 @@ static void update_fb_info(struct vfio_device_gfx_plane_info *gvt_dmabuf,
 		      struct intel_vgpu_fb_info *fb_info)
 {
 	gvt_dmabuf->drm_format = fb_info->drm_format;
+	gvt_dmabuf->drm_format_mod = fb_info->drm_format_mod;
 	gvt_dmabuf->width = fb_info->width;
 	gvt_dmabuf->height = fb_info->height;
 	gvt_dmabuf->stride = fb_info->stride;

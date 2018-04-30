@@ -277,7 +277,8 @@ void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
 	 * If we were single stepping, we want to get the step exception after
 	 * we return from the trap.
 	 */
-	user_fastforward_single_step(current);
+	if (user_mode(regs))
+		user_fastforward_single_step(current);
 }
 
 static LIST_HEAD(undef_hook);
@@ -366,7 +367,7 @@ void force_signal_inject(int signal, int code, unsigned long address)
 	}
 
 	/* Force signals we don't understand to SIGKILL */
-	if (WARN_ON(signal != SIGKILL ||
+	if (WARN_ON(signal != SIGKILL &&
 		    siginfo_layout(signal, code) != SIL_FAULT)) {
 		signal = SIGKILL;
 	}

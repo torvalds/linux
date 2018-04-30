@@ -1442,9 +1442,6 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	    attr->value_size != 4 || attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
-	if (attr->value_size > KMALLOC_MAX_SIZE)
-		return ERR_PTR(-E2BIG);
-
 	err = bpf_tcp_ulp_register();
 	if (err && err != -EEXIST)
 		return ERR_PTR(err);

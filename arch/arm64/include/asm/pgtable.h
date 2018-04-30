@@ -230,7 +230,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	}
 }
 
-extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
+extern void __sync_icache_dcache(pte_t pteval);
 
 /*
  * PTE bits configuration in the presence of hardware Dirty Bit Management
@@ -253,7 +253,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pte_t old_pte;
 
 	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
-		__sync_icache_dcache(pte, addr);
+		__sync_icache_dcache(pte);
 
 	/*
 	 * If the existing pte is valid, check for potential race with

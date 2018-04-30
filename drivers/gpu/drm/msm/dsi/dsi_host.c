@@ -173,6 +173,7 @@ struct msm_dsi_host {
 
 	bool registered;
 	bool power_on;
+	bool enabled;
 	int irq;
 };
 
@@ -775,7 +776,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 	switch (mipi_fmt) {
 	case MIPI_DSI_FMT_RGB888:	return CMD_DST_FORMAT_RGB888;
 	case MIPI_DSI_FMT_RGB666_PACKED:
-	case MIPI_DSI_FMT_RGB666:	return VID_DST_FORMAT_RGB666;
+	case MIPI_DSI_FMT_RGB666:	return CMD_DST_FORMAT_RGB666;
 	case MIPI_DSI_FMT_RGB565:	return CMD_DST_FORMAT_RGB565;
 	default:			return CMD_DST_FORMAT_RGB888;
 	}
@@ -986,12 +987,18 @@ static void dsi_set_tx_power_mode(int mode, struct msm_dsi_host *msm_host)
 
 static void dsi_wait4video_done(struct msm_dsi_host *msm_host)
 {
+	u32 ret = 0;
+	struct device *dev = &msm_host->pdev->dev;
+
 	dsi_intr_ctrl(msm_host, DSI_IRQ_MASK_VIDEO_DONE, 1);
 
 	reinit_completion(&msm_host->video_comp);
 
-	wait_for_completion_timeout(&msm_host->video_comp,
+	ret = wait_for_completion_timeout(&msm_host->video_comp,
 			msecs_to_jiffies(70));
+
+	if (ret <= 0)
+		dev_err(dev, "wait for video done timed out\n");
 
 	dsi_intr_ctrl(msm_host, DSI_IRQ_MASK_VIDEO_DONE, 0);
 }
@@ -1001,7 +1008,7 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 	if (!(msm_host->mode_flags & MIPI_DSI_MODE_VIDEO))
 		return;
 
-	if (msm_host->power_on) {
+	if (msm_host->power_on && msm_host->enabled) {
 		dsi_wait4video_done(msm_host);
 		/* delay 4 ms to skip BLLP */
 		usleep_range(2000, 4000);
@@ -2203,7 +2210,7 @@ int msm_dsi_host_enable(struct mipi_dsi_host *host)
 	 *	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
 	 * }
 	 */
-
+	msm_host->enabled = true;
 	return 0;
 }
 
@@ -2211,6 +2218,7 @@ int msm_dsi_host_disable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
+	msm_host->enabled = false;
 	dsi_op_mode_config(msm_host,
 		!!(msm_host->mode_flags & MIPI_DSI_MODE_VIDEO), false);
 
