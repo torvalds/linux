@@ -828,12 +828,12 @@ union bpf_attr {
  *
  * 		Also, be aware that the newer helper
  * 		**bpf_perf_event_read_value**\ () is recommended over
- * 		**bpf_perf_event_read*\ () in general. The latter has some ABI
+ * 		**bpf_perf_event_read**\ () in general. The latter has some ABI
  * 		quirks where error and counter value are used as a return code
  * 		(which is wrong to do since ranges may overlap). This issue is
- * 		fixed with bpf_perf_event_read_value(), which at the same time
- * 		provides more features over the **bpf_perf_event_read**\ ()
- * 		interface. Please refer to the description of
+ * 		fixed with **bpf_perf_event_read_value**\ (), which at the same
+ * 		time provides more features over the **bpf_perf_event_read**\
+ * 		() interface. Please refer to the description of
  * 		**bpf_perf_event_read_value**\ () for details.
  * 	Return
  * 		The value of the perf event counter read from the map, or a
