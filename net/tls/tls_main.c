@@ -54,6 +54,9 @@ enum {
 enum {
 	TLS_BASE,
 	TLS_SW,
+#ifdef CONFIG_TLS_DEVICE
+	TLS_HW,
+#endif
 	TLS_HW_RECORD,
 	TLS_NUM_CONFIG,
 };
@@ -280,6 +283,15 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		tls_sw_free_resources_rx(sk);
 	}
 
+#ifdef CONFIG_TLS_DEVICE
+	if (ctx->tx_conf != TLS_HW) {
+#else
+	{
+#endif
+		kfree(ctx);
+		ctx = NULL;
+	}
+
 skip_tx_cleanup:
 	release_sock(sk);
 	sk_proto_close(sk, timeout);
@@ -442,8 +454,16 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	}
 
 	if (tx) {
-		rc = tls_set_sw_offload(sk, ctx, 1);
-		conf = TLS_SW;
+#ifdef CONFIG_TLS_DEVICE
+		rc = tls_set_device_offload(sk, ctx);
+		conf = TLS_HW;
+		if (rc) {
+#else
+		{
+#endif
+			rc = tls_set_sw_offload(sk, ctx, 1);
+			conf = TLS_SW;
+		}
 	} else {
 		rc = tls_set_sw_offload(sk, ctx, 0);
 		conf = TLS_SW;
@@ -596,6 +616,16 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 	prot[TLS_SW][TLS_SW].recvmsg	= tls_sw_recvmsg;
 	prot[TLS_SW][TLS_SW].close	= tls_sk_proto_close;
 
+#ifdef CONFIG_TLS_DEVICE
+	prot[TLS_HW][TLS_BASE] = prot[TLS_BASE][TLS_BASE];
+	prot[TLS_HW][TLS_BASE].sendmsg		= tls_device_sendmsg;
+	prot[TLS_HW][TLS_BASE].sendpage		= tls_device_sendpage;
+
+	prot[TLS_HW][TLS_SW] = prot[TLS_BASE][TLS_SW];
+	prot[TLS_HW][TLS_SW].sendmsg		= tls_device_sendmsg;
+	prot[TLS_HW][TLS_SW].sendpage		= tls_device_sendpage;
+#endif
+
 	prot[TLS_HW_RECORD][TLS_HW_RECORD] = *base;
 	prot[TLS_HW_RECORD][TLS_HW_RECORD].hash		= tls_hw_hash;
 	prot[TLS_HW_RECORD][TLS_HW_RECORD].unhash	= tls_hw_unhash;
@@ -630,7 +660,7 @@ static int tls_init(struct sock *sk)
 	ctx->getsockopt = sk->sk_prot->getsockopt;
 	ctx->sk_proto_close = sk->sk_prot->close;
 
-	/* Build IPv6 TLS whenever the address of tcpv6_prot changes */
+	/* Build IPv6 TLS whenever the address of tcpv6	_prot changes */
 	if (ip_ver == TLSV6 &&
 	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
 		mutex_lock(&tcpv6_prot_mutex);
@@ -680,6 +710,9 @@ static int __init tls_register(void)
 	tls_sw_proto_ops.poll = tls_sw_poll;
 	tls_sw_proto_ops.splice_read = tls_sw_splice_read;
 
+#ifdef CONFIG_TLS_DEVICE
+	tls_device_init();
+#endif
 	tcp_register_ulp(&tcp_tls_ulp_ops);
 
 	return 0;
@@ -688,6 +721,9 @@ static int __init tls_register(void)
 static void __exit tls_unregister(void)
 {
 	tcp_unregister_ulp(&tcp_tls_ulp_ops);
+#ifdef CONFIG_TLS_DEVICE
+	tls_device_cleanup();
+#endif
 }
 
 module_init(tls_register);

@@ -116,6 +116,37 @@ struct tls_sw_context_rx {
 	bool decrypted;
 };
 
+struct tls_record_info {
+	struct list_head list;
+	u32 end_seq;
+	int len;
+	int num_frags;
+	skb_frag_t frags[MAX_SKB_FRAGS];
+};
+
+struct tls_offload_context {
+	struct crypto_aead *aead_send;
+	spinlock_t lock;	/* protects records list */
+	struct list_head records_list;
+	struct tls_record_info *open_record;
+	struct tls_record_info *retransmit_hint;
+	u64 hint_record_sn;
+	u64 unacked_record_sn;
+
+	struct scatterlist sg_tx_data[MAX_SKB_FRAGS];
+	void (*sk_destruct)(struct sock *sk);
+	u8 driver_state[];
+	/* The TLS layer reserves room for driver specific state
+	 * Currently the belief is that there is not enough
+	 * driver specific state to justify another layer of indirection
+	 */
+#define TLS_DRIVER_STATE_SIZE (max_t(size_t, 8, sizeof(void *)))
+};
+
+#define TLS_OFFLOAD_CONTEXT_SIZE                                               \
+	(ALIGN(sizeof(struct tls_offload_context), sizeof(void *)) +           \
+	 TLS_DRIVER_STATE_SIZE)
+
 enum {
 	TLS_PENDING_CLOSED_RECORD
 };
@@ -195,9 +226,28 @@ ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   struct pipe_inode_info *pipe,
 			   size_t len, unsigned int flags);
 
-void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
-void tls_icsk_clean_acked(struct sock *sk);
+int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
+int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
+int tls_device_sendpage(struct sock *sk, struct page *page,
+			int offset, size_t size, int flags);
+void tls_device_sk_destruct(struct sock *sk);
+void tls_device_init(void);
+void tls_device_cleanup(void);
 
+struct tls_record_info *tls_get_record(struct tls_offload_context *context,
+				       u32 seq, u64 *p_record_sn);
+
+static inline bool tls_record_is_start_marker(struct tls_record_info *rec)
+{
+	return rec->len == 0;
+}
+
+static inline u32 tls_record_start_seq(struct tls_record_info *rec)
+{
+	return rec->end_seq - rec->len;
+}
+
+void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 		struct scatterlist *sg, u16 first_offset,
 		int flags);
@@ -232,6 +282,13 @@ static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
 static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 {
 	return tls_ctx->pending_open_record_frags;
+}
+
+static inline bool tls_is_sk_tx_device_offloaded(struct sock *sk)
+{
+	return sk_fullsock(sk) &&
+	       /* matches smp_store_release in tls_set_device_offload */
+	       smp_load_acquire(&sk->sk_destruct) == &tls_device_sk_destruct;
 }
 
 static inline void tls_err_abort(struct sock *sk, int err)
@@ -328,5 +385,13 @@ int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
 void tls_register_device(struct tls_device *device);
 void tls_unregister_device(struct tls_device *device);
+
+struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
+				      struct net_device *dev,
+				      struct sk_buff *skb);
+
+int tls_sw_fallback_init(struct sock *sk,
+			 struct tls_offload_context *offload_ctx,
+			 struct tls_crypto_info *crypto_info);
 
 #endif /* _TLS_OFFLOAD_H */
