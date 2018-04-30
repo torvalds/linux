@@ -145,6 +145,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	}
 
 	if (is_kprobe || is_kretprobe) {
+		bool need_normal_check = true;
+		const char *event_prefix = "";
+
 		if (is_kprobe)
 			event += 7;
 		else
@@ -158,18 +161,33 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		if (isdigit(*event))
 			return populate_prog_array(event, fd);
 
-		snprintf(buf, sizeof(buf),
-			 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
-			 is_kprobe ? 'p' : 'r', event, event);
-		err = system(buf);
-		if (err < 0) {
-			printf("failed to create kprobe '%s' error '%s'\n",
-			       event, strerror(errno));
-			return -1;
+#ifdef __x86_64__
+		if (strncmp(event, "sys_", 4) == 0) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:__x64_%s __x64_%s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err >= 0) {
+				need_normal_check = false;
+				event_prefix = "__x64_";
+			}
+		}
+#endif
+		if (need_normal_check) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err < 0) {
+				printf("failed to create kprobe '%s' error '%s'\n",
+				       event, strerror(errno));
+				return -1;
+			}
 		}
 
 		strcpy(buf, DEBUGFS);
 		strcat(buf, "events/kprobes/");
+		strcat(buf, event_prefix);
 		strcat(buf, event);
 		strcat(buf, "/id");
 	} else if (is_tracepoint) {
