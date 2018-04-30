@@ -31,8 +31,9 @@ static int inv_mpu_i2c_disable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->map, INV_MPU6050_REG_USER_CTRL,
-			   INV_MPU6050_BIT_I2C_IF_DIS);
+	st->chip_config.user_ctrl |= INV_MPU6050_BIT_I2C_IF_DIS;
+	ret = regmap_write(st->map, st->reg->user_ctrl,
+			   st->chip_config.user_ctrl);
 	if (ret) {
 		inv_mpu6050_set_power_itg(st, false);
 		return ret;

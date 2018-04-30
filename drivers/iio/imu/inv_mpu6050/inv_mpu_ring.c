@@ -51,13 +51,14 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 	if (result)
 		goto reset_fifo_fail;
 	/* disable fifo reading */
-	result = regmap_write(st->map, st->reg->user_ctrl, 0);
+	result = regmap_write(st->map, st->reg->user_ctrl,
+			      st->chip_config.user_ctrl);
 	if (result)
 		goto reset_fifo_fail;
 
 	/* reset FIFO*/
-	result = regmap_write(st->map, st->reg->user_ctrl,
-			      INV_MPU6050_BIT_FIFO_RST);
+	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
+	result = regmap_write(st->map, st->reg->user_ctrl, d);
 	if (result)
 		goto reset_fifo_fail;
 
@@ -72,9 +73,9 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 		if (result)
 			return result;
 	}
-	/* enable FIFO reading and I2C master interface*/
-	result = regmap_write(st->map, st->reg->user_ctrl,
-			      INV_MPU6050_BIT_FIFO_EN);
+	/* enable FIFO reading */
+	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
+	result = regmap_write(st->map, st->reg->user_ctrl, d);
 	if (result)
 		goto reset_fifo_fail;
 	/* enable sensor output to FIFO */

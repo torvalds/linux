@@ -88,6 +88,7 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
 	.accl_fs = INV_MPU6050_FS_02G,
+	.user_ctrl = 0,
 };
 
 /* Indexed by enum inv_devices */
@@ -972,14 +973,14 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (result)
 		return result;
 
-	if (inv_mpu_bus_setup)
-		inv_mpu_bus_setup(indio_dev);
-
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {
 		dev_err(dev, "Could not initialize device.\n");
 		return result;
 	}
+
+	if (inv_mpu_bus_setup)
+		inv_mpu_bus_setup(indio_dev);
 
 	dev_set_drvdata(dev, indio_dev);
 	indio_dev->dev.parent = dev;

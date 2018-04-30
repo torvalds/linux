@@ -76,7 +76,8 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			goto error_accl_off;
 
-		result = regmap_write(st->map, st->reg->user_ctrl, 0);
+		result = regmap_write(st->map, st->reg->user_ctrl,
+				      st->chip_config.user_ctrl);
 		if (result)
 			goto error_accl_off;
 
