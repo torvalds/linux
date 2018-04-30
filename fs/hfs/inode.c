@@ -544,8 +544,7 @@ static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
 	hlist_add_fake(&inode->i_hash);
 	mark_inode_dirty(inode);
 out:
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 void hfs_evict_inode(struct inode *inode)
