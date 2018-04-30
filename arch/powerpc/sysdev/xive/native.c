@@ -389,6 +389,10 @@ static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 	if (xive_pool_vps == XIVE_INVALID_VP)
 		return;
 
+	/* Check if pool VP already active, if it is, pull it */
+	if (in_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD2) & TM_QW2W2_VP)
+		in_be64(xive_tima + TM_SPC_PULL_POOL_CTX);
+
 	/* Enable the pool VP */
 	vp = xive_pool_vps + cpu;
 	pr_debug("CPU %d setting up pool VP 0x%x\n", cpu, vp);

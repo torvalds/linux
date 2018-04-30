@@ -2263,7 +2263,8 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 		hcd->state = HC_STATE_SUSPENDED;
 
 		if (!PMSG_IS_AUTO(msg))
-			usb_phy_roothub_power_off(hcd->phy_roothub);
+			usb_phy_roothub_suspend(hcd->self.sysdev,
+						hcd->phy_roothub);
 
 		/* Did we race with a root-hub wakeup event? */
 		if (rhdev->do_remote_wakeup) {
@@ -2303,7 +2304,8 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	}
 
 	if (!PMSG_IS_AUTO(msg)) {
-		status = usb_phy_roothub_power_on(hcd->phy_roothub);
+		status = usb_phy_roothub_resume(hcd->self.sysdev,
+						hcd->phy_roothub);
 		if (status)
 			return status;
 	}
@@ -2345,7 +2347,7 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 		}
 	} else {
 		hcd->state = old_state;
-		usb_phy_roothub_power_off(hcd->phy_roothub);
+		usb_phy_roothub_suspend(hcd->self.sysdev, hcd->phy_roothub);
 		dev_dbg(&rhdev->dev, "bus %s fail, err %d\n",
 				"resume", status);
 		if (status != -ESHUTDOWN)
@@ -2378,6 +2380,7 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered) {
+		pm_wakeup_event(&hcd->self.root_hub->dev, 0);
 		set_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 		queue_work(pm_wq, &hcd->wakeup_work);
 	}
@@ -2741,9 +2744,13 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	struct usb_device *rhdev;
 
 	if (!hcd->skip_phy_initialization && usb_hcd_is_primary_hcd(hcd)) {
-		hcd->phy_roothub = usb_phy_roothub_init(hcd->self.sysdev);
+		hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
 		if (IS_ERR(hcd->phy_roothub))
 			return PTR_ERR(hcd->phy_roothub);
+
+		retval = usb_phy_roothub_init(hcd->phy_roothub);
+		if (retval)
+			return retval;
 
 		retval = usb_phy_roothub_power_on(hcd->phy_roothub);
 		if (retval)

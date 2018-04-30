@@ -4557,12 +4557,20 @@ static int dm_update_crtcs_state(struct dc *dc,
 		struct amdgpu_dm_connector *aconnector = NULL;
 		struct drm_connector_state *new_con_state = NULL;
 		struct dm_connector_state *dm_conn_state = NULL;
+		struct drm_plane_state *new_plane_state = NULL;
 
 		new_stream = NULL;
 
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		acrtc = to_amdgpu_crtc(crtc);
+
+		new_plane_state = drm_atomic_get_new_plane_state(state, new_crtc_state->crtc->primary);
+
+		if (new_crtc_state->enable && new_plane_state && !new_plane_state->fb) {
+			ret = -EINVAL;
+			goto fail;
+		}
 
 		aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
 
@@ -4760,7 +4768,7 @@ static int dm_update_planes_state(struct dc *dc,
 			if (!dm_old_crtc_state->stream)
 				continue;
 
-			DRM_DEBUG_DRIVER("Disabling DRM plane: %d on DRM crtc %d\n",
+			DRM_DEBUG_ATOMIC("Disabling DRM plane: %d on DRM crtc %d\n",
 					plane->base.id, old_plane_crtc->base.id);
 
 			if (!dc_remove_plane_from_context(

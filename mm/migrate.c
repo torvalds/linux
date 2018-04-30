@@ -472,7 +472,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	pslot = radix_tree_lookup_slot(&mapping->i_pages,
  					page_index(page));
 
-	expected_count += 1 + page_has_private(page);
+	expected_count += hpage_nr_pages(page) + page_has_private(page);
 	if (page_count(page) != expected_count ||
 		radix_tree_deref_slot_protected(pslot,
 					&mapping->i_pages.xa_lock) != page) {
@@ -505,7 +505,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	 */
 	newpage->index = page->index;
 	newpage->mapping = page->mapping;
-	get_page(newpage);	/* add cache reference */
+	page_ref_add(newpage, hpage_nr_pages(page)); /* add cache reference */
 	if (PageSwapBacked(page)) {
 		__SetPageSwapBacked(newpage);
 		if (PageSwapCache(page)) {
@@ -524,13 +524,26 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	}
 
 	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+	if (PageTransHuge(page)) {
+		int i;
+		int index = page_index(page);
+
+		for (i = 0; i < HPAGE_PMD_NR; i++) {
+			pslot = radix_tree_lookup_slot(&mapping->i_pages,
+						       index + i);
+			radix_tree_replace_slot(&mapping->i_pages, pslot,
+						newpage + i);
+		}
+	} else {
+		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+	}
 
 	/*
 	 * Drop cache reference from old page by unfreezing
 	 * to one less reference.
 	 * We know this isn't the last reference.
 	 */
-	page_ref_unfreeze(page, expected_count - 1);
+	page_ref_unfreeze(page, expected_count - hpage_nr_pages(page));
 
 	xa_unlock(&mapping->i_pages);
 	/* Leave irq disabled to prevent preemption while updating stats */
@@ -1622,6 +1635,9 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		current_node = NUMA_NO_NODE;
 	}
 out_flush:
+	if (list_empty(&pagelist))
+		return err;
+
 	/* Make sure we do not overwrite the existing error */
 	err1 = do_move_pages_to_node(mm, &pagelist, current_node);
 	if (!err1)

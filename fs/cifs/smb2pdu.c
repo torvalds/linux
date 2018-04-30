@@ -383,10 +383,10 @@ static void
 build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_ENCRYPTION_CAPABILITIES;
-	pneg_ctxt->DataLength = cpu_to_le16(6);
-	pneg_ctxt->CipherCount = cpu_to_le16(2);
-	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;
-	pneg_ctxt->Ciphers[1] = SMB2_ENCRYPTION_AES128_CCM;
+	pneg_ctxt->DataLength = cpu_to_le16(4); /* Cipher Count + le16 cipher */
+	pneg_ctxt->CipherCount = cpu_to_le16(1);
+/* pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;*/ /* not supported yet */
+	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_CCM;
 }
 
 static void
@@ -444,6 +444,7 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 		return -EINVAL;
 	}
 	server->cipher_type = ctxt->Ciphers[0];
+	server->capabilities |= SMB2_GLOBAL_CAP_ENCRYPTION;
 	return 0;
 }
 
@@ -2590,7 +2591,7 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	 * If we want to do a RDMA write, fill in and append
 	 * smbd_buffer_descriptor_v1 to the end of read request
 	 */
-	if (server->rdma && rdata &&
+	if (server->rdma && rdata && !server->sign &&
 		rdata->bytes >= server->smbd_conn->rdma_readwrite_threshold) {
 
 		struct smbd_buffer_descriptor_v1 *v1;
@@ -2968,7 +2969,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	 * If we want to do a server RDMA read, fill in and append
 	 * smbd_buffer_descriptor_v1 to the end of write request
 	 */
-	if (server->rdma && wdata->bytes >=
+	if (server->rdma && !server->sign && wdata->bytes >=
 		server->smbd_conn->rdma_readwrite_threshold) {
 
 		struct smbd_buffer_descriptor_v1 *v1;

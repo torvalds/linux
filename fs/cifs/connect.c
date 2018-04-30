@@ -2959,6 +2959,22 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
+	if (volume_info->seal) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+				 "SMB3 or later required for encryption\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else if (tcon->ses->server->capabilities &
+					SMB2_GLOBAL_CAP_ENCRYPTION)
+			tcon->seal = true;
+		else {
+			cifs_dbg(VFS, "Encryption is not supported on share\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		}
+	}
+
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
@@ -3005,22 +3021,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			goto out_fail;
 		}
 		tcon->use_resilient = true;
-	}
-
-	if (volume_info->seal) {
-		if (ses->server->vals->protocol_id == 0) {
-			cifs_dbg(VFS,
-				 "SMB3 or later required for encryption\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		} else if (tcon->ses->server->capabilities &
-					SMB2_GLOBAL_CAP_ENCRYPTION)
-			tcon->seal = true;
-		else {
-			cifs_dbg(VFS, "Encryption is not supported on share\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		}
 	}
 
 	/*

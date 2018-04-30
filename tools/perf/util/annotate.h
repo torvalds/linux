@@ -70,7 +70,16 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_nr_samples,
 	     show_total_period;
+	u8   offset_level;
 };
+
+enum {
+	ANNOTATION__OFFSET_JUMP_TARGETS = 1,
+	ANNOTATION__OFFSET_CALL,
+	ANNOTATION__MAX_OFFSET_LEVEL,
+};
+
+#define ANNOTATION__MIN_OFFSET_LEVEL ANNOTATION__OFFSET_JUMP_TARGETS
 
 extern struct annotation_options annotation__default_options;
 
