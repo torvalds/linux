@@ -224,9 +224,10 @@ struct drm_i915_private *mock_gem_device(void)
 	if (!i915->priorities)
 		goto err_dependencies;
 
-	mutex_lock(&i915->drm.struct_mutex);
-	INIT_LIST_HEAD(&i915->gt.rings);
 	INIT_LIST_HEAD(&i915->gt.timelines);
+	INIT_LIST_HEAD(&i915->gt.active_rings);
+
+	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_gem_timeline_init__global(i915);
 	if (err) {
 		mutex_unlock(&i915->drm.struct_mutex);

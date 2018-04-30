@@ -1150,8 +1150,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	}
 	ring->vma = vma;
 
-	list_add(&ring->link, &engine->i915->gt.rings);
-
 	return ring;
 }
 
@@ -1162,8 +1160,6 @@ intel_ring_free(struct intel_ring *ring)
 
 	i915_vma_close(ring->vma);
 	__i915_gem_object_release_unless_active(obj);
-
-	list_del(&ring->link);
 
 	kfree(ring);
 }

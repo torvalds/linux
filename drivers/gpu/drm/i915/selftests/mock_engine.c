@@ -147,15 +147,11 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	INIT_LIST_HEAD(&ring->request_list);
 	intel_ring_update_space(ring);
 
-	list_add(&ring->link, &engine->i915->gt.rings);
-
 	return ring;
 }
 
 static void mock_ring_free(struct intel_ring *ring)
 {
-	list_del(&ring->link);
-
 	kfree(ring);
 }
 

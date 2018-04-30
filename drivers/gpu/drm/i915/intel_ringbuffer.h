@@ -130,7 +130,7 @@ struct intel_ring {
 	void *vaddr;
 
 	struct list_head request_list;
-	struct list_head link;
+	struct list_head active_link;
 
 	u32 head;
 	u32 tail;

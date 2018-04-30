@@ -141,6 +141,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(i915->gt.active_requests);
+	GEM_BUG_ON(!list_empty(&i915->gt.active_rings));
 
 	if (!i915->gt.awake)
 		return I915_EPOCH_INVALID;
@@ -5599,9 +5600,10 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	if (!dev_priv->priorities)
 		goto err_dependencies;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	INIT_LIST_HEAD(&dev_priv->gt.rings);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
+	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (err)

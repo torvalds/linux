@@ -322,6 +322,7 @@ static void advance_ring(struct i915_request *request)
 		 * noops - they are safe to be replayed on a reset.
 		 */
 		tail = READ_ONCE(request->tail);
+		list_del(&ring->active_link);
 	} else {
 		tail = request->postfix;
 	}
@@ -1096,6 +1097,8 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	i915_gem_active_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
+	if (list_is_first(&request->ring_link, &ring->request_list))
+		list_add(&ring->active_link, &request->i915->gt.active_rings);
 	request->emitted_jiffies = jiffies;
 
 	/*
@@ -1418,14 +1421,17 @@ static void ring_retire_requests(struct intel_ring *ring)
 
 void i915_retire_requests(struct drm_i915_private *i915)
 {
-	struct intel_ring *ring, *next;
+	struct intel_ring *ring, *tmp;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	if (!i915->gt.active_requests)
 		return;
 
-	list_for_each_entry_safe(ring, next, &i915->gt.rings, link)
+	/* An outstanding request must be on a still active ring somewhere */
+	GEM_BUG_ON(list_empty(&i915->gt.active_rings));
+
+	list_for_each_entry_safe(ring, tmp, &i915->gt.active_rings, active_link)
 		ring_retire_requests(ring);
 }
 
