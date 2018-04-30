@@ -29,6 +29,162 @@
 /* OOM task polling interval */
 #define LIO_OOM_POLL_INTERVAL_MS 250
 
+#define OCTNIC_MAX_SG  MAX_SKB_FRAGS
+
+/**
+ * \brief Callback for getting interface configuration
+ * @param status status of request
+ * @param buf pointer to resp structure
+ */
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)), void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+	struct liquidio_if_cfg_context *ctx;
+	struct liquidio_if_cfg_resp *resp;
+
+	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
+	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
+
+	oct = lio_get_device(ctx->octeon_id);
+	if (resp->status)
+		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
+			CVM_CAST64(resp->status));
+	WRITE_ONCE(ctx->cond, 1);
+
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
+		 resp->cfg_info.liquidio_firmware_version);
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
+/**
+ * \brief Delete gather lists
+ * @param lio per-network private data
+ */
+void lio_delete_glists(struct lio *lio)
+{
+	struct octnic_gather *g;
+	int i;
+
+	kfree(lio->glist_lock);
+	lio->glist_lock = NULL;
+
+	if (!lio->glist)
+		return;
+
+	for (i = 0; i < lio->oct_dev->num_iqs; i++) {
+		do {
+			g = (struct octnic_gather *)
+			    lio_list_delete_head(&lio->glist[i]);
+			kfree(g);
+		} while (g);
+
+		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
+		    lio->glists_dma_base && lio->glists_dma_base[i]) {
+			lio_dma_free(lio->oct_dev,
+				     lio->glist_entry_size * lio->tx_qsize,
+				     lio->glists_virt_base[i],
+				     lio->glists_dma_base[i]);
+		}
+	}
+
+	kfree(lio->glists_virt_base);
+	lio->glists_virt_base = NULL;
+
+	kfree(lio->glists_dma_base);
+	lio->glists_dma_base = NULL;
+
+	kfree(lio->glist);
+	lio->glist = NULL;
+}
+
+/**
+ * \brief Setup gather lists
+ * @param lio per-network private data
+ */
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
+{
+	struct octnic_gather *g;
+	int i, j;
+
+	lio->glist_lock =
+	    kcalloc(num_iqs, sizeof(*lio->glist_lock), GFP_KERNEL);
+	if (!lio->glist_lock)
+		return -ENOMEM;
+
+	lio->glist =
+	    kcalloc(num_iqs, sizeof(*lio->glist), GFP_KERNEL);
+	if (!lio->glist) {
+		kfree(lio->glist_lock);
+		lio->glist_lock = NULL;
+		return -ENOMEM;
+	}
+
+	lio->glist_entry_size =
+		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
+
+	/* allocate memory to store virtual and dma base address of
+	 * per glist consistent memory
+	 */
+	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
+					GFP_KERNEL);
+	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
+				       GFP_KERNEL);
+
+	if (!lio->glists_virt_base || !lio->glists_dma_base) {
+		lio_delete_glists(lio);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_iqs; i++) {
+		int numa_node = dev_to_node(&oct->pci_dev->dev);
+
+		spin_lock_init(&lio->glist_lock[i]);
+
+		INIT_LIST_HEAD(&lio->glist[i]);
+
+		lio->glists_virt_base[i] =
+			lio_dma_alloc(oct,
+				      lio->glist_entry_size * lio->tx_qsize,
+				      &lio->glists_dma_base[i]);
+
+		if (!lio->glists_virt_base[i]) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+
+		for (j = 0; j < lio->tx_qsize; j++) {
+			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
+					 numa_node);
+			if (!g)
+				g = kzalloc(sizeof(*g), GFP_KERNEL);
+			if (!g)
+				break;
+
+			g->sg = lio->glists_virt_base[i] +
+				(j * lio->glist_entry_size);
+
+			g->sg_dma_ptr = lio->glists_dma_base[i] +
+					(j * lio->glist_entry_size);
+
+			list_add_tail(&g->list, &lio->glist[i]);
+		}
+
+		if (j != lio->tx_qsize) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
 	struct lio *lio = GET_LIO(netdev);
@@ -880,8 +1036,8 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 	int num_ioq_vectors;
 	int irqret, err;
 
-	oct->num_msix_irqs = num_ioqs;
 	if (oct->msix_on) {
+		oct->num_msix_irqs = num_ioqs;
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_PF + 1;
 

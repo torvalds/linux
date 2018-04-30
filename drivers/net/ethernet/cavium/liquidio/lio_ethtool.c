@@ -361,7 +361,14 @@ lio_ethtool_get_channels(struct net_device *dev,
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		max_combined = lio->linfo.num_txpciq;
+		if (oct->sriov_info.sriov_enabled) {
+			max_combined = lio->linfo.num_txpciq;
+		} else {
+			struct octeon_config *conf23_pf =
+				CHIP_CONF(oct, cn23xx_pf);
+
+			max_combined = CFG_GET_IQ_MAX_Q(conf23_pf);
+		}
 		combined_count = oct->num_iqs;
 	} else if (OCTEON_CN23XX_VF(oct)) {
 		u64 reg_val = 0ULL;
@@ -425,9 +432,15 @@ lio_irq_reallocate_irqs(struct octeon_device *oct, uint32_t num_ioqs)
 
 	kfree(oct->irq_name_storage);
 	oct->irq_name_storage = NULL;
+
+	if (octeon_allocate_ioq_vector(oct, num_ioqs)) {
+		dev_err(&oct->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
+		return -1;
+	}
+
 	if (octeon_setup_interrupt(oct, num_ioqs)) {
 		dev_info(&oct->pci_dev->dev, "Setup interrupt failed\n");
-		return 1;
+		return -1;
 	}
 
 	/* Enable Octeon device interrupts */
@@ -457,7 +470,16 @@ lio_ethtool_set_channels(struct net_device *dev,
 	combined_count = channel->combined_count;
 
 	if (OCTEON_CN23XX_PF(oct)) {
-		max_combined = channel->max_combined;
+		if (oct->sriov_info.sriov_enabled) {
+			max_combined = lio->linfo.num_txpciq;
+		} else {
+			struct octeon_config *conf23_pf =
+				CHIP_CONF(oct,
+					  cn23xx_pf);
+
+			max_combined =
+				CFG_GET_IQ_MAX_Q(conf23_pf);
+		}
 	} else if (OCTEON_CN23XX_VF(oct)) {
 		u64 reg_val = 0ULL;
 		u64 ctrl = CN23XX_VF_SLI_IQ_PKT_CONTROL64(0);
@@ -485,7 +507,6 @@ lio_ethtool_set_channels(struct net_device *dev,
 	if (lio_reset_queues(dev, combined_count))
 		return -EINVAL;
 
-	lio_irq_reallocate_irqs(oct, combined_count);
 	if (stopped)
 		dev->netdev_ops->ndo_open(dev);
 
@@ -824,12 +845,120 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_jumbo_max_pending = 0;
 }
 
+static int lio_23xx_reconfigure_queue_count(struct lio *lio)
+{
+	struct octeon_device *oct = lio->oct_dev;
+	struct liquidio_if_cfg_context *ctx;
+	u32 resp_size, ctx_size, data_size;
+	struct liquidio_if_cfg_resp *resp;
+	struct octeon_soft_command *sc;
+	union oct_nic_if_cfg if_cfg;
+	struct lio_version *vdata;
+	u32 ifidx_or_pfnum;
+	int retval;
+	int j;
+
+	resp_size = sizeof(struct liquidio_if_cfg_resp);
+	ctx_size = sizeof(struct liquidio_if_cfg_context);
+	data_size = sizeof(struct lio_version);
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct, data_size,
+					  resp_size, ctx_size);
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev, "%s: Failed to allocate soft command\n",
+			__func__);
+		return -1;
+	}
+
+	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
+	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
+	vdata = (struct lio_version *)sc->virtdptr;
+
+	vdata->major = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MAJOR_VERSION);
+	vdata->minor = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MINOR_VERSION);
+	vdata->micro = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MICRO_VERSION);
+
+	ifidx_or_pfnum = oct->pf_num;
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct);
+	init_waitqueue_head(&ctx->wc);
+
+	if_cfg.u64 = 0;
+	if_cfg.s.num_iqueues = oct->sriov_info.num_pf_rings;
+	if_cfg.s.num_oqueues = oct->sriov_info.num_pf_rings;
+	if_cfg.s.base_queue = oct->sriov_info.pf_srn;
+	if_cfg.s.gmx_port_id = oct->pf_num;
+
+	sc->iq_no = 0;
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_QCOUNT_UPDATE, 0,
+				    if_cfg.u64, 0);
+	sc->callback = lio_if_cfg_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = LIO_IFCFG_WAIT_TIME;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_err(&oct->pci_dev->dev,
+			"iq/oq config failed status: %x\n",
+			retval);
+		goto qcount_update_fail;
+	}
+
+	if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
+		dev_err(&oct->pci_dev->dev, "Wait interrupted\n");
+		return -1;
+	}
+
+	retval = resp->status;
+	if (retval) {
+		dev_err(&oct->pci_dev->dev, "iq/oq config failed\n");
+		goto qcount_update_fail;
+	}
+
+	octeon_swap_8B_data((u64 *)(&resp->cfg_info),
+			    (sizeof(struct liquidio_if_cfg_info)) >> 3);
+
+	lio->ifidx = ifidx_or_pfnum;
+	lio->linfo.num_rxpciq = hweight64(resp->cfg_info.iqmask);
+	lio->linfo.num_txpciq = hweight64(resp->cfg_info.iqmask);
+	for (j = 0; j < lio->linfo.num_rxpciq; j++) {
+		lio->linfo.rxpciq[j].u64 =
+			resp->cfg_info.linfo.rxpciq[j].u64;
+	}
+
+	for (j = 0; j < lio->linfo.num_txpciq; j++) {
+		lio->linfo.txpciq[j].u64 =
+			resp->cfg_info.linfo.txpciq[j].u64;
+	}
+
+	lio->linfo.hw_addr = resp->cfg_info.linfo.hw_addr;
+	lio->linfo.gmxport = resp->cfg_info.linfo.gmxport;
+	lio->linfo.link.u64 = resp->cfg_info.linfo.link.u64;
+	lio->txq = lio->linfo.txpciq[0].s.q_no;
+	lio->rxq = lio->linfo.rxpciq[0].s.q_no;
+
+	octeon_free_soft_command(oct, sc);
+	dev_info(&oct->pci_dev->dev, "Queue count updated to %d\n",
+		 lio->linfo.num_rxpciq);
+
+	return 0;
+
+qcount_update_fail:
+	octeon_free_soft_command(oct, sc);
+
+	return -1;
+}
+
 static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	int i, queue_count_update = 0;
 	struct napi_struct *napi, *n;
-	int i, update = 0;
+	int ret;
+
+	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 
 	if (wait_for_pending_requests(oct))
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
@@ -838,7 +967,7 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
 
 	if (octeon_set_io_queues_off(oct)) {
-		dev_err(&oct->pci_dev->dev, "setting io queues off failed\n");
+		dev_err(&oct->pci_dev->dev, "Setting io queues off failed\n");
 		return -1;
 	}
 
@@ -851,9 +980,40 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		netif_napi_del(napi);
 
 	if (num_qs != oct->num_iqs) {
-		netif_set_real_num_rx_queues(netdev, num_qs);
-		netif_set_real_num_tx_queues(netdev, num_qs);
-		update = 1;
+		ret = netif_set_real_num_rx_queues(netdev, num_qs);
+		if (ret) {
+			dev_err(&oct->pci_dev->dev,
+				"Setting real number rx failed\n");
+			return ret;
+		}
+
+		ret = netif_set_real_num_tx_queues(netdev, num_qs);
+		if (ret) {
+			dev_err(&oct->pci_dev->dev,
+				"Setting real number tx failed\n");
+			return ret;
+		}
+
+		/* The value of queue_count_update decides whether it is the
+		 * queue count or the descriptor count that is being
+		 * re-configured.
+		 */
+		queue_count_update = 1;
+	}
+
+	/* Re-configuration of queues can happen in two scenarios, SRIOV enabled
+	 * and SRIOV disabled. Few things like recreating queue zero, resetting
+	 * glists and IRQs are required for both. For the latter, some more
+	 * steps like updating sriov_info for the octeon device need to be done.
+	 */
+	if (queue_count_update) {
+		lio_delete_glists(lio);
+
+		/* Delete mbox for PF which is SRIOV disabled because sriov_info
+		 * will be now changed.
+		 */
+		if ((OCTEON_CN23XX_PF(oct)) && !oct->sriov_info.sriov_enabled)
+			oct->fn_list.free_mbox(oct);
 	}
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
@@ -868,24 +1028,91 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		octeon_delete_instr_queue(oct, i);
 	}
 
+	if (queue_count_update) {
+		/* For PF re-configure sriov related information */
+		if ((OCTEON_CN23XX_PF(oct)) &&
+		    !oct->sriov_info.sriov_enabled) {
+			oct->sriov_info.num_pf_rings = num_qs;
+			if (cn23xx_sriov_config(oct)) {
+				dev_err(&oct->pci_dev->dev,
+					"Queue reset aborted: SRIOV config failed\n");
+				return -1;
+			}
+
+			num_qs = oct->sriov_info.num_pf_rings;
+		}
+	}
+
 	if (oct->fn_list.setup_device_regs(oct)) {
 		dev_err(&oct->pci_dev->dev, "Failed to configure device registers\n");
 		return -1;
 	}
 
+	/* The following are needed in case of queue count re-configuration and
+	 * not for descriptor count re-configuration.
+	 */
+	if (queue_count_update) {
+		if (octeon_setup_instr_queues(oct))
+			return -1;
+
+		if (octeon_setup_output_queues(oct))
+			return -1;
+
+		/* Recreating mbox for PF that is SRIOV disabled */
+		if (OCTEON_CN23XX_PF(oct) && !oct->sriov_info.sriov_enabled) {
+			if (oct->fn_list.setup_mbox(oct)) {
+				dev_err(&oct->pci_dev->dev, "Mailbox setup failed\n");
+				return -1;
+			}
+		}
+
+		/* Deleting and recreating IRQs whether the interface is SRIOV
+		 * enabled or disabled.
+		 */
+		if (lio_irq_reallocate_irqs(oct, num_qs)) {
+			dev_err(&oct->pci_dev->dev, "IRQs could not be allocated\n");
+			return -1;
+		}
+
+		/* Enable the input and output queues for this Octeon device */
+		if (oct->fn_list.enable_io_queues(oct)) {
+			dev_err(&oct->pci_dev->dev, "Failed to enable input/output queues\n");
+			return -1;
+		}
+
+		for (i = 0; i < oct->num_oqs; i++)
+			writel(oct->droq[i]->max_count,
+			       oct->droq[i]->pkts_credit_reg);
+
+		/* Informing firmware about the new queue count. It is required
+		 * for firmware to allocate more number of queues than those at
+		 * load time.
+		 */
+		if (OCTEON_CN23XX_PF(oct) && !oct->sriov_info.sriov_enabled) {
+			if (lio_23xx_reconfigure_queue_count(lio))
+				return -1;
+		}
+	}
+
+	/* Once firmware is aware of the new value, queues can be recreated */
 	if (liquidio_setup_io_queues(oct, 0, num_qs, num_qs)) {
-		dev_err(&oct->pci_dev->dev, "IO queues initialization failed\n");
+		dev_err(&oct->pci_dev->dev, "I/O queues creation failed\n");
 		return -1;
 	}
 
-	/* Enable the input and output queues for this Octeon device */
-	if (oct->fn_list.enable_io_queues(oct)) {
-		dev_err(&oct->pci_dev->dev, "Failed to enable input/output queues");
-		return -1;
-	}
+	if (queue_count_update) {
+		if (lio_setup_glists(oct, lio, num_qs)) {
+			dev_err(&oct->pci_dev->dev, "Gather list allocation failed\n");
+			return -1;
+		}
 
-	if (update && lio_send_queue_count_update(netdev, num_qs))
-		return -1;
+		/* Send firmware the information about new number of queues
+		 * if the interface is a VF or a PF that is SRIOV enabled.
+		 */
+		if (oct->sriov_info.sriov_enabled || OCTEON_CN23XX_VF(oct))
+			if (lio_send_queue_count_update(netdev, num_qs))
+				return -1;
+	}
 
 	return 0;
 }
@@ -930,7 +1157,7 @@ static int lio_ethtool_set_ringparam(struct net_device *netdev,
 		CFG_SET_NUM_RX_DESCS_NIC_IF(octeon_get_conf(oct), lio->ifidx,
 					    rx_count);
 
-	if (lio_reset_queues(netdev, lio->linfo.num_txpciq))
+	if (lio_reset_queues(netdev, oct->num_iqs))
 		goto err_lio_reset_queues;
 
 	if (stopped)

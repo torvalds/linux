@@ -47,6 +47,29 @@ struct liquidio_if_cfg_resp {
 	u64 status;
 };
 
+#define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
+
+/* Structure of a node in list of gather components maintained by
+ * NIC driver for each network device.
+ */
+struct octnic_gather {
+	/* List manipulation. Next and prev pointers. */
+	struct list_head list;
+
+	/* Size of the gather component at sg in bytes. */
+	int sg_size;
+
+	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
+	int adjust;
+
+	/* Gather component that can accommodate max sized fragment list
+	 * received from the IP layer.
+	 */
+	struct octeon_sg_entry *sg;
+
+	dma_addr_t sg_dma_ptr;
+};
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;
@@ -198,6 +221,14 @@ int lio_wait_for_clean_oq(struct octeon_device *oct);
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
+
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)),
+			 void *buf);
+
+void lio_delete_glists(struct lio *lio);
+
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
 
 /**
  * \brief Net device change_mtu
@@ -517,7 +548,7 @@ static inline void stop_txqs(struct net_device *netdev)
 {
 	int i;
 
-	for (i = 0; i < netdev->num_tx_queues; i++)
+	for (i = 0; i < netdev->real_num_tx_queues; i++)
 		netif_stop_subqueue(netdev, i);
 }
 
@@ -530,7 +561,7 @@ static inline void wake_txqs(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	int i, qno;
 
-	for (i = 0; i < netdev->num_tx_queues; i++) {
+	for (i = 0; i < netdev->real_num_tx_queues; i++) {
 		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
 
 		if (__netif_subqueue_stopped(netdev, i)) {
@@ -551,14 +582,33 @@ static inline void start_txqs(struct net_device *netdev)
 	int i;
 
 	if (lio->linfo.link.s.link_up) {
-		for (i = 0; i < netdev->num_tx_queues; i++)
+		for (i = 0; i < netdev->real_num_tx_queues; i++)
 			netif_start_subqueue(netdev, i);
 	}
 }
 
-static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
+static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
 {
-	return skb->queue_mapping % lio->linfo.num_txpciq;
+	return skb->queue_mapping % oct->num_iqs;
+}
+
+/**
+ * Remove the node at the head of the list. The list would be empty at
+ * the end of this call if there are no more nodes in the list.
+ */
+static inline struct list_head *lio_list_delete_head(struct list_head *root)
+{
+	struct list_head *node;
+
+	if (root->prev == root && root->next == root)
+		node = NULL;
+	else
+		node = root->next;
+
+	if (node)
+		list_del(node);
+
+	return node;
 }
 
 #endif

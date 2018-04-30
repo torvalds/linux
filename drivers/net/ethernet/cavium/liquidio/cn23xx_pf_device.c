@@ -1245,7 +1245,7 @@ static void cn23xx_setup_reg_address(struct octeon_device *oct)
 	    CN23XX_SLI_MAC_PF_INT_ENB64(oct->pcie_port, oct->pf_num);
 }
 
-static int cn23xx_sriov_config(struct octeon_device *oct)
+int cn23xx_sriov_config(struct octeon_device *oct)
 {
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
 	u32 max_rings, total_rings, max_vfs, rings_per_vf;
@@ -1269,8 +1269,8 @@ static int cn23xx_sriov_config(struct octeon_device *oct)
 		break;
 	}
 
-	if (max_rings <= num_present_cpus())
-		num_pf_rings = 1;
+	if (oct->sriov_info.num_pf_rings)
+		num_pf_rings = oct->sriov_info.num_pf_rings;
 	else
 		num_pf_rings = num_present_cpus();
 

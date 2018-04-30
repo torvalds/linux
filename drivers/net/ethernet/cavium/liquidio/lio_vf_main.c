@@ -69,29 +69,9 @@ union tx_info {
 	} s;
 };
 
-#define OCTNIC_MAX_SG  (MAX_SKB_FRAGS)
-
 #define OCTNIC_GSO_MAX_HEADER_SIZE 128
 #define OCTNIC_GSO_MAX_SIZE \
 		(CN23XX_DEFAULT_INPUT_JABBER - OCTNIC_GSO_MAX_HEADER_SIZE)
-
-struct octnic_gather {
-	/* List manipulation. Next and prev pointers. */
-	struct list_head list;
-
-	/* Size of the gather component at sg in bytes. */
-	int sg_size;
-
-	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
-	int adjust;
-
-	/* Gather component that can accommodate max sized fragment list
-	 * received from the IP layer.
-	 */
-	struct octeon_sg_entry *sg;
-
-	dma_addr_t sg_dma_ptr;
-};
 
 static int
 liquidio_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -283,142 +263,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 	.remove		= liquidio_vf_remove,
 	.err_handler	= &liquidio_vf_err_handler,    /* For AER */
 };
-
-/**
- * Remove the node at the head of the list. The list would be empty at
- * the end of this call if there are no more nodes in the list.
- */
-static struct list_head *list_delete_head(struct list_head *root)
-{
-	struct list_head *node;
-
-	if ((root->prev == root) && (root->next == root))
-		node = NULL;
-	else
-		node = root->next;
-
-	if (node)
-		list_del(node);
-
-	return node;
-}
-
-/**
- * \brief Delete gather lists
- * @param lio per-network private data
- */
-static void delete_glists(struct lio *lio)
-{
-	struct octnic_gather *g;
-	int i;
-
-	kfree(lio->glist_lock);
-	lio->glist_lock = NULL;
-
-	if (!lio->glist)
-		return;
-
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
-		do {
-			g = (struct octnic_gather *)
-			    list_delete_head(&lio->glist[i]);
-			kfree(g);
-		} while (g);
-
-		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
-		    lio->glists_dma_base && lio->glists_dma_base[i]) {
-			lio_dma_free(lio->oct_dev,
-				     lio->glist_entry_size * lio->tx_qsize,
-				     lio->glists_virt_base[i],
-				     lio->glists_dma_base[i]);
-		}
-	}
-
-	kfree(lio->glists_virt_base);
-	lio->glists_virt_base = NULL;
-
-	kfree(lio->glists_dma_base);
-	lio->glists_dma_base = NULL;
-
-	kfree(lio->glist);
-	lio->glist = NULL;
-}
-
-/**
- * \brief Setup gather lists
- * @param lio per-network private data
- */
-static int setup_glists(struct lio *lio, int num_iqs)
-{
-	struct octnic_gather *g;
-	int i, j;
-
-	lio->glist_lock =
-	    kzalloc(sizeof(*lio->glist_lock) * num_iqs, GFP_KERNEL);
-	if (!lio->glist_lock)
-		return -ENOMEM;
-
-	lio->glist =
-	    kzalloc(sizeof(*lio->glist) * num_iqs, GFP_KERNEL);
-	if (!lio->glist) {
-		kfree(lio->glist_lock);
-		lio->glist_lock = NULL;
-		return -ENOMEM;
-	}
-
-	lio->glist_entry_size =
-		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
-
-	/* allocate memory to store virtual and dma base address of
-	 * per glist consistent memory
-	 */
-	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
-					GFP_KERNEL);
-	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
-				       GFP_KERNEL);
-
-	if (!lio->glists_virt_base || !lio->glists_dma_base) {
-		delete_glists(lio);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < num_iqs; i++) {
-		spin_lock_init(&lio->glist_lock[i]);
-
-		INIT_LIST_HEAD(&lio->glist[i]);
-
-		lio->glists_virt_base[i] =
-			lio_dma_alloc(lio->oct_dev,
-				      lio->glist_entry_size * lio->tx_qsize,
-				      &lio->glists_dma_base[i]);
-
-		if (!lio->glists_virt_base[i]) {
-			delete_glists(lio);
-			return -ENOMEM;
-		}
-
-		for (j = 0; j < lio->tx_qsize; j++) {
-			g = kzalloc(sizeof(*g), GFP_KERNEL);
-			if (!g)
-				break;
-
-			g->sg = lio->glists_virt_base[i] +
-				(j * lio->glist_entry_size);
-
-			g->sg_dma_ptr = lio->glists_dma_base[i] +
-					(j * lio->glist_entry_size);
-
-			list_add_tail(&g->list, &lio->glist[i]);
-		}
-
-		if (j != lio->tx_qsize) {
-			delete_glists(lio);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
 
 /**
  * \brief Print link information
@@ -856,7 +700,7 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	cleanup_link_status_change_wq(netdev);
 
-	delete_glists(lio);
+	lio_delete_glists(lio);
 
 	free_netdev(netdev);
 
@@ -1005,7 +849,7 @@ static void free_netsgbuf(void *buf)
 		i++;
 	}
 
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
@@ -1049,45 +893,13 @@ static void free_netsgbuf_with_resp(void *buf)
 		i++;
 	}
 
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
 	spin_unlock(&lio->glist_lock[iq]);
 
 	/* Don't free the skb yet */
-}
-
-/**
- * \brief Callback for getting interface configuration
- * @param status status of request
- * @param buf pointer to resp structure
- */
-static void if_cfg_callback(struct octeon_device *oct,
-			    u32 status __attribute__((unused)), void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_if_cfg_context *ctx;
-	struct liquidio_if_cfg_resp *resp;
-
-	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
-
-	oct = lio_get_device(ctx->octeon_id);
-	if (resp->status)
-		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
-			CVM_CAST64(resp->status));
-	WRITE_ONCE(ctx->cond, 1);
-
-	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
-		 resp->cfg_info.liquidio_firmware_version);
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
 }
 
 /**
@@ -1595,7 +1407,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	q_idx = skb_iq(lio, skb);
+	q_idx = skb_iq(lio->oct_dev, skb);
 	tag = q_idx;
 	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
@@ -1676,8 +1488,8 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		int i, frags;
 
 		spin_lock(&lio->glist_lock[q_idx]);
-		g = (struct octnic_gather *)list_delete_head(
-		    &lio->glist[q_idx]);
+		g = (struct octnic_gather *)
+			lio_list_delete_head(&lio->glist[q_idx]);
 		spin_unlock(&lio->glist_lock[q_idx]);
 
 		if (!g) {
@@ -2171,7 +1983,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					    OPCODE_NIC_IF_CFG, 0, if_cfg.u64,
 					    0);
 
-		sc->callback = if_cfg_callback;
+		sc->callback = lio_if_cfg_callback;
 		sc->callback_arg = sc;
 		sc->wait_time = 5000;
 
@@ -2336,7 +2148,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->tx_qsize = octeon_get_tx_qsize(octeon_dev, lio->txq);
 		lio->rx_qsize = octeon_get_rx_qsize(octeon_dev, lio->rxq);
 
-		if (setup_glists(lio, num_iqueues)) {
+		if (lio_setup_glists(octeon_dev, lio, num_iqueues)) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"Gather list allocation failed\n");
 			goto setup_nic_dev_fail;
@@ -2527,7 +2339,7 @@ static int octeon_device_init(struct octeon_device *oct)
 	}
 	atomic_set(&oct->status, OCT_DEV_MBOX_SETUP_DONE);
 
-	if (octeon_allocate_ioq_vector(oct)) {
+	if (octeon_allocate_ioq_vector(oct, oct->sriov_info.rings_per_vf)) {
 		dev_err(&oct->pci_dev->dev, "ioq vector allocation failed\n");
 		return 1;
 	}

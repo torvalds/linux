@@ -867,7 +867,7 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
 void octeon_free_ioq_vector(struct octeon_device *oct);
-int octeon_allocate_ioq_vector(struct octeon_device  *oct);
+int octeon_allocate_ioq_vector(struct octeon_device  *oct, u32 num_ioqs);
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq);
 
 /* LiquidIO driver pivate flags */
