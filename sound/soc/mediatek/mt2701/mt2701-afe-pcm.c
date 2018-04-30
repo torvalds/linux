@@ -958,7 +958,17 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{ "O31", "I35 Switch", "I35" },
 };
 
+static int mt2701_afe_pcm_probe(struct snd_soc_component *component)
+{
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_init_regmap(component, afe->regmap);
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver mt2701_afe_pcm_dai_component = {
+	.probe = mt2701_afe_pcm_probe,
 	.name = "mt2701-afe-pcm-dai",
 	.dapm_widgets = mt2701_afe_pcm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(mt2701_afe_pcm_widgets),
@@ -1316,22 +1326,6 @@ static int mt2701_afe_runtime_resume(struct device *dev)
 	return mt2701_afe_enable_clock(afe);
 }
 
-static int mt2701_afe_add_component(struct mtk_base_afe *afe)
-{
-	struct snd_soc_component *component;
-
-	component = kzalloc(sizeof(*component), GFP_KERNEL);
-	if (!component)
-		return -ENOMEM;
-
-	component->regmap = afe->regmap;
-
-	return snd_soc_add_component(afe->dev, component,
-				     &mt2701_afe_pcm_dai_component,
-				     mt2701_afe_pcm_dais,
-				     ARRAY_SIZE(mt2701_afe_pcm_dais));
-}
-
 static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
@@ -1442,7 +1436,10 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		goto err_platform;
 	}
 
-	ret = mt2701_afe_add_component(afe);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					 &mt2701_afe_pcm_dai_component,
+					 mt2701_afe_pcm_dais,
+					 ARRAY_SIZE(mt2701_afe_pcm_dais));
 	if (ret) {
 		dev_warn(dev, "err_dai_component\n");
 		goto err_platform;
