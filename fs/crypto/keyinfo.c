@@ -102,9 +102,8 @@ static int validate_user_key(struct fscrypt_info *crypt_info,
 
 	if (master_key->size < min_keysize || master_key->size > FS_MAX_KEY_SIZE
 	    || master_key->size % AES_BLOCK_SIZE != 0) {
-		printk_once(KERN_WARNING
-				"%s: key size incorrect: %d\n",
-				__func__, master_key->size);
+		fscrypt_warn(NULL, "key size incorrect: %u",
+			     master_key->size);
 		res = -ENOKEY;
 		goto out;
 	}
@@ -131,9 +130,10 @@ static int determine_cipher_type(struct fscrypt_info *ci, struct inode *inode,
 	u32 mode;
 
 	if (!fscrypt_valid_enc_modes(ci->ci_data_mode, ci->ci_filename_mode)) {
-		pr_warn_ratelimited("fscrypt: inode %lu uses unsupported encryption modes (contents mode %d, filenames mode %d)\n",
-				    inode->i_ino,
-				    ci->ci_data_mode, ci->ci_filename_mode);
+		fscrypt_warn(inode->i_sb,
+			     "inode %lu uses unsupported encryption modes (contents mode %d, filenames mode %d)",
+			     inode->i_ino, ci->ci_data_mode,
+			     ci->ci_filename_mode);
 		return -EINVAL;
 	}
 
@@ -172,8 +172,9 @@ static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
 
 		tfm = crypto_alloc_shash("sha256", 0, 0);
 		if (IS_ERR(tfm)) {
-			pr_warn_ratelimited("fscrypt: error allocating SHA-256 transform: %ld\n",
-					    PTR_ERR(tfm));
+			fscrypt_warn(NULL,
+				     "error allocating SHA-256 transform: %ld",
+				     PTR_ERR(tfm));
 			return PTR_ERR(tfm);
 		}
 		prev_tfm = cmpxchg(&essiv_hash_tfm, NULL, tfm);
@@ -308,8 +309,9 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
 	if (IS_ERR(ctfm)) {
 		res = PTR_ERR(ctfm);
-		pr_debug("%s: error %d (inode %lu) allocating crypto tfm\n",
-			 __func__, res, inode->i_ino);
+		fscrypt_warn(inode->i_sb,
+			     "error allocating '%s' transform for inode %lu: %d",
+			     cipher_str, inode->i_ino, res);
 		goto out;
 	}
 	crypt_info->ci_ctfm = ctfm;
@@ -326,8 +328,9 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	    crypt_info->ci_data_mode == FS_ENCRYPTION_MODE_AES_128_CBC) {
 		res = init_essiv_generator(crypt_info, raw_key, keysize);
 		if (res) {
-			pr_debug("%s: error %d (inode %lu) allocating essiv tfm\n",
-				 __func__, res, inode->i_ino);
+			fscrypt_warn(inode->i_sb,
+				     "error initializing ESSIV generator for inode %lu: %d",
+				     inode->i_ino, res);
 			goto out;
 		}
 	}
