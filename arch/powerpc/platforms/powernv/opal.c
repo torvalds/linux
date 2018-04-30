@@ -378,33 +378,41 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	/* We still try to handle partial completions, though they
 	 * should no longer happen.
 	 */
-	rc = OPAL_BUSY;
-	while(total_len > 0 && (rc == OPAL_BUSY ||
-				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
+
+	while (total_len > 0) {
 		olen = cpu_to_be64(total_len);
-		rc = opal_console_write(vtermno, &olen, data);
+
+		rc = OPAL_BUSY;
+		while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+			rc = opal_console_write(vtermno, &olen, data);
+			if (rc == OPAL_BUSY_EVENT) {
+				mdelay(OPAL_BUSY_DELAY_MS);
+				opal_poll_events(NULL);
+			} else if (rc == OPAL_BUSY) {
+				mdelay(OPAL_BUSY_DELAY_MS);
+			}
+		}
+
 		len = be64_to_cpu(olen);
 
 		/* Closed or other error drop */
-		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
-		    rc != OPAL_BUSY_EVENT) {
-			written += total_len;
+		if (rc != OPAL_SUCCESS) {
+			written += total_len; /* drop remaining chars */
 			break;
 		}
-		if (rc == OPAL_SUCCESS) {
-			total_len -= len;
-			data += len;
-			written += len;
-		}
+
+		total_len -= len;
+		data += len;
+		written += len;
+
 		/* This is a bit nasty but we need that for the console to
 		 * flush when there aren't any interrupts. We will clean
 		 * things a bit later to limit that to synchronous path
 		 * such as the kernel console and xmon/udbg
 		 */
-		do
+		do {
 			opal_poll_events(&evt);
-		while(rc == OPAL_SUCCESS &&
-			(be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT));
+		} while (be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT);
 	}
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 	return written;
