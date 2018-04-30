@@ -1132,6 +1132,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (args->pad2 != 0) {
+		DRM_DEBUG("Invalid pad: 0x%08x\n", args->pad2);
+		return -EINVAL;
+	}
+
 	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
 	if (!exec) {
 		DRM_ERROR("malloc failure on exec struct\n");

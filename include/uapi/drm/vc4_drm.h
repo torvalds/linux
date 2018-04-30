@@ -193,6 +193,8 @@ struct drm_vc4_submit_cl {
 	 * render job. 0 means ignore.
 	 */
 	__u32 out_sync;
+
+	__u32 pad2;
 };
 
 /**
