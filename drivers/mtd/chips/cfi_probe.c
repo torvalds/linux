@@ -63,6 +63,30 @@ do { \
 
 #endif
 
+/*
+ * This fixup occurs immediately after reading the CFI structure and can affect
+ * the number of chips detected, unlike cfi_fixup, which occurs after an
+ * mtd_info structure has been created for the chip.
+ */
+struct cfi_early_fixup {
+	uint16_t mfr;
+	uint16_t id;
+	void (*fixup)(struct cfi_private *cfi);
+};
+
+static void cfi_early_fixup(struct cfi_private *cfi,
+			    const struct cfi_early_fixup *fixups)
+{
+	const struct cfi_early_fixup *f;
+
+	for (f = fixups; f->fixup; f++) {
+		if (((f->mfr == CFI_MFR_ANY) || (f->mfr == cfi->mfr)) &&
+		    ((f->id == CFI_ID_ANY) || (f->id == cfi->id))) {
+			f->fixup(cfi);
+		}
+	}
+}
+
 /* check for QRY.
    in: interleave,type,mode
    ret: table index, <0 for error
@@ -151,6 +175,10 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 	return 1;
 }
 
+static const struct cfi_early_fixup cfi_early_fixup_table[] = {
+	{ },
+};
+
 static int __xipram cfi_chip_setup(struct map_info *map,
 				   struct cfi_private *cfi)
 {
@@ -234,6 +262,8 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	/* Put it back into Read Mode */
 	cfi_qry_mode_off(base, map, cfi);
 	xip_allowed(base, map);
+
+	cfi_early_fixup(cfi, cfi_early_fixup_table);
 
 	printk(KERN_INFO "%s: Found %d x%d devices at 0x%x in %d-bit bank. Manufacturer ID %#08x Chip ID %#08x\n",
 	       map->name, cfi->interleave, cfi->device_type*8, base,
