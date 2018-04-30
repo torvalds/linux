@@ -712,13 +712,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 
 	gpio->flags = 0;
 	if (dev->of_node) {
-		const struct of_device_id *of_devid;
-
-		of_devid = of_match_device(dwapb_of_match, dev);
-		if (of_devid) {
-			if (of_devid->data)
-				gpio->flags = (uintptr_t)of_devid->data;
-		}
+		gpio->flags = (uintptr_t)of_device_get_match_data(dev);
 	} else if (has_acpi_companion(dev)) {
 		const struct acpi_device_id *acpi_id;
 
