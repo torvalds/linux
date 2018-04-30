@@ -786,11 +786,14 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4,
 			return -EINVAL;
 		if (skb->len > cork->gso_size * UDP_MAX_SEGMENTS)
 			return -EINVAL;
+		if (sk->sk_no_check_tx)
+			return -EINVAL;
 		if (skb->ip_summed != CHECKSUM_PARTIAL || is_udplite)
 			return -EIO;
 
 		skb_shinfo(skb)->gso_size = cork->gso_size;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP_L4;
+		goto csum_partial;
 	}
 
 	if (is_udplite)  				 /*     UDP-Lite      */
@@ -802,6 +805,7 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4,
 		goto send;
 
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
+csum_partial:
 
 		udp4_hwcsum(skb, fl4->saddr, fl4->daddr);
 		goto send;
