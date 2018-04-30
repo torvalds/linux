@@ -141,14 +141,9 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
 		inode = bfs_iget(dir->i_sb, ino);
-		if (IS_ERR(inode)) {
-			mutex_unlock(&info->bfs_lock);
-			return ERR_CAST(inode);
-		}
 	}
 	mutex_unlock(&info->bfs_lock);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int bfs_link(struct dentry *old, struct inode *dir,
