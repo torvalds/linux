@@ -1557,12 +1557,13 @@ static void rt2800_set_max_psdu_len(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, MAX_LEN_CFG, reg);
 }
 
-int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
+int rt2800_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
-	int wcid;
-	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+	int wcid;
 
 	/*
 	 * Limit global maximum TX AMPDU length to smallest value of all
@@ -1608,8 +1609,10 @@ int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(rt2800_sta_add);
 
-int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, struct ieee80211_sta *sta)
+int rt2800_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
 {
+	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 	int wcid = sta_priv->wcid;
