@@ -225,13 +225,6 @@ struct addr_map_symbol;
 
 int map_groups__find_ams(struct addr_map_symbol *ams);
 
-static inline
-struct symbol *map_groups__find_function_by_name(struct map_groups *mg,
-						 const char *name, struct map **mapp)
-{
-	return map_groups__find_symbol_by_name(mg, name, mapp);
-}
-
 int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 				   FILE *fp);
 

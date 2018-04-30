@@ -111,17 +111,6 @@ void exit_probe_symbol_maps(void)
 	symbol__exit();
 }
 
-static struct symbol *__find_kernel_function_by_name(const char *name,
-						     struct map **mapp)
-{
-	return machine__find_kernel_function_by_name(host_machine, name, mapp);
-}
-
-static struct symbol *__find_kernel_function(u64 addr, struct map **mapp)
-{
-	return machine__find_kernel_function(host_machine, addr, mapp);
-}
-
 static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 {
 	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
@@ -149,7 +138,7 @@ static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
 	if (reloc_sym && strcmp(name, reloc_sym->name) == 0)
 		*addr = (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
 	else {
-		sym = __find_kernel_function_by_name(name, &map);
+		sym = machine__find_kernel_symbol_by_name(host_machine, name, &map);
 		if (!sym)
 			return -ENOENT;
 		*addr = map->unmap_ip(map, sym->start) -
@@ -2097,7 +2086,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 		}
 		if (addr) {
 			addr += tp->offset;
-			sym = __find_kernel_function(addr, &map);
+			sym = machine__find_kernel_symbol(host_machine, addr, &map);
 		}
 	}
 

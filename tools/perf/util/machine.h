@@ -210,21 +210,6 @@ struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
 	return map_groups__find_symbol_by_name(&machine->kmaps, name, mapp);
 }
 
-static inline
-struct symbol *machine__find_kernel_function(struct machine *machine, u64 addr,
-					     struct map **mapp)
-{
-	return machine__find_kernel_symbol(machine,  addr, mapp);
-}
-
-static inline
-struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
-						     const char *name,
-						     struct map **mapp)
-{
-	return map_groups__find_function_by_name(&machine->kmaps, name, mapp);
-}
-
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
 int arch__fix_module_text_start(u64 *start, const char *name);
