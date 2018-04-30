@@ -344,9 +344,9 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 	return 0;
 }
 
-int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
+static int __opal_put_chars(uint32_t vtermno, const char *data, int total_len, bool atomic)
 {
-	unsigned long flags;
+	unsigned long flags = 0 /* shut up gcc */;
 	int written;
 	__be64 olen;
 	s64 rc;
@@ -354,11 +354,8 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	if (!opal.entry)
 		return -ENODEV;
 
-	/* We want put_chars to be atomic to avoid mangling of hvsi
-	 * packets. To do that, we first test for room and return
-	 * -EAGAIN if there isn't enough.
-	 */
-	spin_lock_irqsave(&opal_write_lock, flags);
+	if (atomic)
+		spin_lock_irqsave(&opal_write_lock, flags);
 	rc = opal_console_write_buffer_space(vtermno, &olen);
 	if (rc || be64_to_cpu(olen) < total_len) {
 		/* Closed -> drop characters */
@@ -391,14 +388,18 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 
 	written = be64_to_cpu(olen);
 	if (written < total_len) {
-		/* Should not happen */
-		pr_warn("atomic console write returned partial len=%d written=%d\n", total_len, written);
+		if (atomic) {
+			/* Should not happen */
+			pr_warn("atomic console write returned partial "
+				"len=%d written=%d\n", total_len, written);
+		}
 		if (!written)
 			written = -EAGAIN;
 	}
 
 out:
-	spin_unlock_irqrestore(&opal_write_lock, flags);
+	if (atomic)
+		spin_unlock_irqrestore(&opal_write_lock, flags);
 
 	/* In the -EAGAIN case, callers loop, so we have to flush the console
 	 * here in case they have interrupts off (and we don't want to wait
@@ -410,6 +411,22 @@ out:
 		opal_flush_console(vtermno);
 
 	return written;
+}
+
+int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
+{
+	return __opal_put_chars(vtermno, data, total_len, false);
+}
+
+/*
+ * opal_put_chars_atomic will not perform partial-writes. Data will be
+ * atomically written to the terminal or not at all. This is not strictly
+ * true at the moment because console space can race with OPAL's console
+ * writes.
+ */
+int opal_put_chars_atomic(uint32_t vtermno, const char *data, int total_len)
+{
+	return __opal_put_chars(vtermno, data, total_len, true);
 }
 
 int opal_flush_console(uint32_t vtermno)

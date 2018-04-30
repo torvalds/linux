@@ -183,9 +183,15 @@ static int hvc_opal_probe(struct platform_device *dev)
 			return -ENOMEM;
 		pv->proto = proto;
 		hvc_opal_privs[termno] = pv;
-		if (proto == HV_PROTOCOL_HVSI)
-			hvsilib_init(&pv->hvsi, opal_get_chars, opal_put_chars,
+		if (proto == HV_PROTOCOL_HVSI) {
+			/*
+			 * We want put_chars to be atomic to avoid mangling of
+			 * hvsi packets.
+			 */
+			hvsilib_init(&pv->hvsi,
+				     opal_get_chars, opal_put_chars_atomic,
 				     termno, 0);
+		}
 
 		/* Instanciate now to establish a mapping index==vtermno */
 		hvc_instantiate(termno, termno, ops);
@@ -375,8 +381,9 @@ void __init hvc_opal_init_early(void)
 	else if (of_device_is_compatible(stdout_node,"ibm,opal-console-hvsi")) {
 		hvc_opal_boot_priv.proto = HV_PROTOCOL_HVSI;
 		ops = &hvc_opal_hvsi_ops;
-		hvsilib_init(&hvc_opal_boot_priv.hvsi, opal_get_chars,
-			     opal_put_chars, index, 1);
+		hvsilib_init(&hvc_opal_boot_priv.hvsi,
+			     opal_get_chars, opal_put_chars_atomic,
+			     index, 1);
 		/* HVSI, perform the handshake now */
 		hvsilib_establish(&hvc_opal_boot_priv.hvsi);
 		pr_devel("hvc_opal: Found HVSI console\n");
@@ -408,7 +415,8 @@ void __init udbg_init_debug_opal_hvsi(void)
 	hvc_opal_privs[index] = &hvc_opal_boot_priv;
 	hvc_opal_boot_termno = index;
 	udbg_init_opal_common();
-	hvsilib_init(&hvc_opal_boot_priv.hvsi, opal_get_chars, opal_put_chars,
+	hvsilib_init(&hvc_opal_boot_priv.hvsi,
+		     opal_get_chars, opal_put_chars_atomic,
 		     index, 1);
 	hvsilib_establish(&hvc_opal_boot_priv.hvsi);
 }
