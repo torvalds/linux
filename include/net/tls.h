@@ -83,21 +83,10 @@ struct tls_device {
 	void (*unhash)(struct tls_device *device, struct sock *sk);
 };
 
-struct tls_sw_context {
+struct tls_sw_context_tx {
 	struct crypto_aead *aead_send;
-	struct crypto_aead *aead_recv;
 	struct crypto_wait async_wait;
 
-	/* Receive context */
-	struct strparser strp;
-	void (*saved_data_ready)(struct sock *sk);
-	unsigned int (*sk_poll)(struct file *file, struct socket *sock,
-				struct poll_table_struct *wait);
-	struct sk_buff *recv_pkt;
-	u8 control;
-	bool decrypted;
-
-	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
 
 	unsigned int sg_plaintext_size;
@@ -112,6 +101,19 @@ struct tls_sw_context {
 	struct scatterlist sg_aead_in[2];
 	/* AAD | sg_encrypted_data (data contain overhead for hdr&iv&tag) */
 	struct scatterlist sg_aead_out[2];
+};
+
+struct tls_sw_context_rx {
+	struct crypto_aead *aead_recv;
+	struct crypto_wait async_wait;
+
+	struct strparser strp;
+	void (*saved_data_ready)(struct sock *sk);
+	unsigned int (*sk_poll)(struct file *file, struct socket *sock,
+				struct poll_table_struct *wait);
+	struct sk_buff *recv_pkt;
+	u8 control;
+	bool decrypted;
 };
 
 enum {
@@ -138,9 +140,15 @@ struct tls_context {
 		struct tls12_crypto_info_aes_gcm_128 crypto_recv_aes_gcm_128;
 	};
 
-	void *priv_ctx;
+	struct list_head list;
+	struct net_device *netdev;
+	refcount_t refcount;
 
-	u8 conf:3;
+	void *priv_ctx_tx;
+	void *priv_ctx_rx;
+
+	u8 tx_conf:3;
+	u8 rx_conf:3;
 
 	struct cipher_context tx;
 	struct cipher_context rx;
@@ -177,7 +185,8 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
 void tls_sw_close(struct sock *sk, long timeout);
-void tls_sw_free_resources(struct sock *sk);
+void tls_sw_free_resources_tx(struct sock *sk);
+void tls_sw_free_resources_rx(struct sock *sk);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int nonblock, int flags, int *addr_len);
 unsigned int tls_sw_poll(struct file *file, struct socket *sock,
@@ -297,16 +306,22 @@ static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 	return icsk->icsk_ulp_data;
 }
 
-static inline struct tls_sw_context *tls_sw_ctx(
+static inline struct tls_sw_context_rx *tls_sw_ctx_rx(
 		const struct tls_context *tls_ctx)
 {
-	return (struct tls_sw_context *)tls_ctx->priv_ctx;
+	return (struct tls_sw_context_rx *)tls_ctx->priv_ctx_rx;
+}
+
+static inline struct tls_sw_context_tx *tls_sw_ctx_tx(
+		const struct tls_context *tls_ctx)
+{
+	return (struct tls_sw_context_tx *)tls_ctx->priv_ctx_tx;
 }
 
 static inline struct tls_offload_context *tls_offload_ctx(
 		const struct tls_context *tls_ctx)
 {
-	return (struct tls_offload_context *)tls_ctx->priv_ctx;
+	return (struct tls_offload_context *)tls_ctx->priv_ctx_tx;
 }
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
