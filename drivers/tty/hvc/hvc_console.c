@@ -493,23 +493,29 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 	if (hp->port.count <= 0)
 		return -EIO;
 
-	spin_lock_irqsave(&hp->lock, flags);
+	while (count > 0) {
+		spin_lock_irqsave(&hp->lock, flags);
 
-	/* Push pending writes */
-	if (hp->n_outbuf > 0)
-		hvc_push(hp);
+		rsize = hp->outbuf_size - hp->n_outbuf;
 
-	while (count > 0 && (rsize = hp->outbuf_size - hp->n_outbuf) > 0) {
-		if (rsize > count)
-			rsize = count;
-		memcpy(hp->outbuf + hp->n_outbuf, buf, rsize);
-		count -= rsize;
-		buf += rsize;
-		hp->n_outbuf += rsize;
-		written += rsize;
-		hvc_push(hp);
+		if (rsize) {
+			if (rsize > count)
+				rsize = count;
+			memcpy(hp->outbuf + hp->n_outbuf, buf, rsize);
+			count -= rsize;
+			buf += rsize;
+			hp->n_outbuf += rsize;
+			written += rsize;
+		}
+
+		if (hp->n_outbuf > 0)
+			hvc_push(hp);
+
+		spin_unlock_irqrestore(&hp->lock, flags);
+
+		if (count)
+			cond_resched();
 	}
-	spin_unlock_irqrestore(&hp->lock, flags);
 
 	/*
 	 * Racy, but harmless, kick thread if there is still pending data.
