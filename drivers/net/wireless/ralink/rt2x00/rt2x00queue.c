@@ -1000,6 +1000,8 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 		(queue->qid == QID_AC_BE) ||
 		(queue->qid == QID_AC_BK);
 
+	if (rt2x00queue_empty(queue))
+		return;
 
 	/*
 	 * If we are not supposed to drop any pending
