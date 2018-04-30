@@ -110,6 +110,29 @@ static struct hvc_struct *hvc_get_by_index(int index)
 	return hp;
 }
 
+static int __hvc_flush(const struct hv_ops *ops, uint32_t vtermno, bool wait)
+{
+	if (wait)
+		might_sleep();
+
+	if (ops->flush)
+		return ops->flush(vtermno, wait);
+	return 0;
+}
+
+static int hvc_console_flush(const struct hv_ops *ops, uint32_t vtermno)
+{
+	return __hvc_flush(ops, vtermno, false);
+}
+
+/*
+ * Wait for the console to flush before writing more to it. This sleeps.
+ */
+static int hvc_flush(struct hvc_struct *hp)
+{
+	return __hvc_flush(hp->ops, hp->vtermno, true);
+}
+
 /*
  * Initial console vtermnos for console API usage prior to full console
  * initialization.  Any vty adapter outside this range will not have usable
@@ -155,8 +178,12 @@ static void hvc_console_print(struct console *co, const char *b,
 			if (r <= 0) {
 				/* throw away characters on error
 				 * but spin in case of -EAGAIN */
-				if (r != -EAGAIN)
+				if (r != -EAGAIN) {
 					i = 0;
+				} else {
+					hvc_console_flush(cons_ops[index],
+						      vtermnos[index]);
+				}
 			} else if (r > 0) {
 				i -= r;
 				if (i > 0)
@@ -164,6 +191,7 @@ static void hvc_console_print(struct console *co, const char *b,
 			}
 		}
 	}
+	hvc_console_flush(cons_ops[index], vtermnos[index]);
 }
 
 static struct tty_driver *hvc_console_device(struct console *c, int *index)
@@ -513,8 +541,11 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 
 		spin_unlock_irqrestore(&hp->lock, flags);
 
-		if (count)
+		if (count) {
+			if (hp->n_outbuf > 0)
+				hvc_flush(hp);
 			cond_resched();
+		}
 	}
 
 	/*
