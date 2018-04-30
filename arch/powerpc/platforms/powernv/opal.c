@@ -350,7 +350,6 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	__be64 olen;
 	s64 len, rc;
 	unsigned long flags;
-	__be64 evt;
 
 	if (!opal.entry)
 		return -ENODEV;
@@ -371,7 +370,7 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 		/* Closed -> drop characters */
 		if (rc)
 			return total_len;
-		opal_poll_events(NULL);
+		opal_flush_console(vtermno);
 		return -EAGAIN;
 	}
 
@@ -410,12 +409,47 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 		 * things a bit later to limit that to synchronous path
 		 * such as the kernel console and xmon/udbg
 		 */
+		opal_flush_console(vtermno);
+	}
+	spin_unlock_irqrestore(&opal_write_lock, flags);
+
+	return written;
+}
+
+int opal_flush_console(uint32_t vtermno)
+{
+	s64 rc;
+
+	if (!opal_check_token(OPAL_CONSOLE_FLUSH)) {
+		__be64 evt;
+
+		WARN_ONCE(1, "opal: OPAL_CONSOLE_FLUSH missing.\n");
+		/*
+		 * If OPAL_CONSOLE_FLUSH is not implemented in the firmware,
+		 * the console can still be flushed by calling the polling
+		 * function while it has OPAL_EVENT_CONSOLE_OUTPUT events.
+		 */
 		do {
 			opal_poll_events(&evt);
 		} while (be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT);
+
+		return OPAL_SUCCESS;
 	}
-	spin_unlock_irqrestore(&opal_write_lock, flags);
-	return written;
+
+	do  {
+		rc = OPAL_BUSY;
+		while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+			rc = opal_console_flush(vtermno);
+			if (rc == OPAL_BUSY_EVENT) {
+				mdelay(OPAL_BUSY_DELAY_MS);
+				opal_poll_events(NULL);
+			} else if (rc == OPAL_BUSY) {
+				mdelay(OPAL_BUSY_DELAY_MS);
+			}
+		}
+	} while (rc == OPAL_PARTIAL); /* More to flush */
+
+	return opal_error_code(rc);
 }
 
 static int opal_recover_mce(struct pt_regs *regs,

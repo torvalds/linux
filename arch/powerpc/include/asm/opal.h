@@ -305,6 +305,7 @@ extern void opal_configure_cores(void);
 
 extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
 extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
+extern int opal_flush_console(uint32_t vtermno);
 
 extern void hvc_opal_init_early(void);
 
