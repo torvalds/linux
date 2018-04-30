@@ -578,7 +578,9 @@ const struct proto_ops inet6_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet_sendmsg,		/* ok		*/
 	.recvmsg	   = inet_recvmsg,		/* ok		*/
+#ifdef CONFIG_MMU
 	.mmap		   = tcp_mmap,
+#endif
 	.sendpage	   = inet_sendpage,
 	.sendmsg_locked    = tcp_sendmsg_locked,
 	.sendpage_locked   = tcp_sendpage_locked,
