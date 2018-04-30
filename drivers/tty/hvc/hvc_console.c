@@ -73,7 +73,7 @@ static LIST_HEAD(hvc_structs);
  * Protect the list of hvc_struct instances from inserts and removals during
  * list traversal.
  */
-static DEFINE_SPINLOCK(hvc_structs_lock);
+static DEFINE_MUTEX(hvc_structs_mutex);
 
 /*
  * This value is used to assign a tty->index value to a hvc_struct based
@@ -83,7 +83,7 @@ static DEFINE_SPINLOCK(hvc_structs_lock);
 static int last_hvc = -1;
 
 /*
- * Do not call this function with either the hvc_structs_lock or the hvc_struct
+ * Do not call this function with either the hvc_structs_mutex or the hvc_struct
  * lock held.  If successful, this function increments the kref reference
  * count against the target hvc_struct so it should be released when finished.
  */
@@ -92,24 +92,23 @@ static struct hvc_struct *hvc_get_by_index(int index)
 	struct hvc_struct *hp;
 	unsigned long flags;
 
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	list_for_each_entry(hp, &hvc_structs, next) {
 		spin_lock_irqsave(&hp->lock, flags);
 		if (hp->index == index) {
 			tty_port_get(&hp->port);
 			spin_unlock_irqrestore(&hp->lock, flags);
-			spin_unlock(&hvc_structs_lock);
+			mutex_unlock(&hvc_structs_mutex);
 			return hp;
 		}
 		spin_unlock_irqrestore(&hp->lock, flags);
 	}
 	hp = NULL;
+	mutex_unlock(&hvc_structs_mutex);
 
-	spin_unlock(&hvc_structs_lock);
 	return hp;
 }
-
 
 /*
  * Initial console vtermnos for console API usage prior to full console
@@ -224,13 +223,13 @@ static void hvc_port_destruct(struct tty_port *port)
 	struct hvc_struct *hp = container_of(port, struct hvc_struct, port);
 	unsigned long flags;
 
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	spin_lock_irqsave(&hp->lock, flags);
 	list_del(&(hp->next));
 	spin_unlock_irqrestore(&hp->lock, flags);
 
-	spin_unlock(&hvc_structs_lock);
+	mutex_unlock(&hvc_structs_mutex);
 
 	kfree(hp);
 }
@@ -733,11 +732,11 @@ static int khvcd(void *unused)
 		try_to_freeze();
 		wmb();
 		if (!cpus_are_in_xmon()) {
-			spin_lock(&hvc_structs_lock);
+			mutex_lock(&hvc_structs_mutex);
 			list_for_each_entry(hp, &hvc_structs, next) {
 				poll_mask |= hvc_poll(hp);
 			}
-			spin_unlock(&hvc_structs_lock);
+			mutex_unlock(&hvc_structs_mutex);
 		} else
 			poll_mask |= HVC_POLL_READ;
 		if (hvc_kicked)
@@ -871,7 +870,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 
 	INIT_WORK(&hp->tty_resize, hvc_set_winsz);
 	spin_lock_init(&hp->lock);
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	/*
 	 * find index to use:
@@ -891,7 +890,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 	vtermnos[i] = vtermno;
 
 	list_add_tail(&(hp->next), &hvc_structs);
-	spin_unlock(&hvc_structs_lock);
+	mutex_unlock(&hvc_structs_mutex);
 
 	/* check if we need to re-register the kernel console */
 	hvc_check_console(i);
