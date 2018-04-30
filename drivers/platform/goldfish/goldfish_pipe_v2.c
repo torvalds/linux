@@ -83,9 +83,9 @@ enum PipeErrors {
 
 /* Bit-flags used to signal events from the emulator */
 enum PipeWakeFlags {
-	PIPE_WAKE_CLOSED = 1 << 0,  /* emulator closed pipe */
-	PIPE_WAKE_READ   = 1 << 1,  /* pipe can now be read from */
-	PIPE_WAKE_WRITE  = 1 << 2  /* pipe can now be written to */
+	PIPE_WAKE_CLOSED = BIT(0),  /* emulator closed pipe */
+	PIPE_WAKE_READ   = BIT(1),  /* pipe can now be read from */
+	PIPE_WAKE_WRITE  = BIT(2),  /* pipe can now be written to */
 };
 
 /* Bit flags for the 'flags' field */
