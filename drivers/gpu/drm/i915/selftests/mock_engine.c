@@ -147,7 +147,16 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	INIT_LIST_HEAD(&ring->request_list);
 	intel_ring_update_space(ring);
 
+	list_add(&ring->link, &engine->i915->gt.rings);
+
 	return ring;
+}
+
+static void mock_ring_free(struct intel_ring *ring)
+{
+	list_del(&ring->link);
+
+	kfree(ring);
 }
 
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
@@ -161,12 +170,6 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
 		return NULL;
-
-	engine->base.buffer = mock_ring(&engine->base);
-	if (!engine->base.buffer) {
-		kfree(engine);
-		return NULL;
-	}
 
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
@@ -192,7 +195,16 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
+	engine->base.buffer = mock_ring(&engine->base);
+	if (!engine->base.buffer)
+		goto err_breadcrumbs;
+
 	return &engine->base;
+
+err_breadcrumbs:
+	intel_engine_fini_breadcrumbs(&engine->base);
+	kfree(engine);
+	return NULL;
 }
 
 void mock_engine_flush(struct intel_engine_cs *engine)
@@ -226,8 +238,9 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	if (engine->last_retired_context)
 		intel_context_unpin(engine->last_retired_context, engine);
 
+	mock_ring_free(engine->buffer);
+
 	intel_engine_fini_breadcrumbs(engine);
 
-	kfree(engine->buffer);
 	kfree(engine);
 }

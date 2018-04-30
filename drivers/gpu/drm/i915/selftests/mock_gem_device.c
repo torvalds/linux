@@ -44,6 +44,7 @@ void mock_device_flush(struct drm_i915_private *i915)
 		mock_engine_flush(engine);
 
 	i915_retire_requests(i915);
+	GEM_BUG_ON(i915->gt.active_requests);
 }
 
 static void mock_device_release(struct drm_device *dev)
@@ -224,6 +225,7 @@ struct drm_i915_private *mock_gem_device(void)
 		goto err_dependencies;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	INIT_LIST_HEAD(&i915->gt.rings);
 	INIT_LIST_HEAD(&i915->gt.timelines);
 	err = i915_gem_timeline_init__global(i915);
 	if (err) {

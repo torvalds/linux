@@ -5600,6 +5600,7 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 		goto err_dependencies;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	INIT_LIST_HEAD(&dev_priv->gt.rings);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);

@@ -1066,7 +1066,6 @@ err:
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
 {
-	GEM_BUG_ON(!list_empty(&ring->request_list));
 	ring->tail = tail;
 	ring->head = tail;
 	ring->emit = tail;
@@ -1125,6 +1124,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 
 	GEM_BUG_ON(!is_power_of_2(size));
 	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
@@ -1150,6 +1150,8 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	}
 	ring->vma = vma;
 
+	list_add(&ring->link, &engine->i915->gt.rings);
+
 	return ring;
 }
 
@@ -1160,6 +1162,8 @@ intel_ring_free(struct intel_ring *ring)
 
 	i915_vma_close(ring->vma);
 	__i915_gem_object_release_unless_active(obj);
+
+	list_del(&ring->link);
 
 	kfree(ring);
 }
