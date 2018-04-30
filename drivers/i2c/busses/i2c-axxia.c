@@ -532,23 +532,23 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	if (idev->bus_clk_rate == 0)
 		idev->bus_clk_rate = 100000;	/* default clock rate */
 
+	ret = clk_prepare_enable(idev->i2c_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		return ret;
+	}
+
 	ret = axxia_i2c_init(idev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize\n");
-		return ret;
+		goto error_disable_clk;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, axxia_i2c_isr, 0,
 			       pdev->name, idev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to claim IRQ%d\n", irq);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(idev->i2c_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		return ret;
+		goto error_disable_clk;
 	}
 
 	i2c_set_adapdata(&idev->adapter, idev);
@@ -563,12 +563,14 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, idev);
 
 	ret = i2c_add_adapter(&idev->adapter);
-	if (ret) {
-		clk_disable_unprepare(idev->i2c_clk);
-		return ret;
-	}
+	if (ret)
+		goto error_disable_clk;
 
 	return 0;
+
+error_disable_clk:
+	clk_disable_unprepare(idev->i2c_clk);
+	return ret;
 }
 
 static int axxia_i2c_remove(struct platform_device *pdev)
