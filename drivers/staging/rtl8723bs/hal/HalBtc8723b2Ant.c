@@ -2198,7 +2198,7 @@ static void halbtc8723b2ant_TdmaDurationAdjust(
 			BTC_MSG_ALGORITHM,
 			ALGO_TRACE_FW_DETAIL,
 			(
-				"[BTCoex], PsTdma type dismatch!!!, curPsTdma =%d, recordPsTdma =%d\n",
+				"[BTCoex], PsTdma type mismatch!!!, curPsTdma =%d, recordPsTdma =%d\n",
 				pCoexDm->curPsTdma,
 				pCoexDm->psTdmaDuAdjType
 			)

@@ -976,7 +976,7 @@ enum HT_CAP_AMPDU_FACTOR {
 #define	P2P_STATUS_FAIL_INCOMPATIBLE_PROVSION	0x0A
 #define	P2P_STATUS_FAIL_USER_REJECT				0x0B
 
-/* 	Value of Inviation Flags Attribute */
+/* 	Value of Invitation Flags Attribute */
 #define	P2P_INVITATION_FLAGS_PERSISTENT			BIT(0)
 
 #define	DMP_P2P_DEVCAP_SUPPORT	(P2P_DEVCAP_SERVICE_DISCOVERY | \
@@ -1082,15 +1082,15 @@ enum P2P_STATE {
 	P2P_STATE_GONEGO_ING = 9,						/* 	Doing the group owner negoitation handshake */
 	P2P_STATE_GONEGO_OK = 10,						/* 	finish the group negoitation handshake with success */
 	P2P_STATE_GONEGO_FAIL = 11,					/* 	finish the group negoitation handshake with failure */
-	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,		/* 	receiving the P2P Inviation request and match with the profile. */
+	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,		/* 	receiving the P2P Invitation request and match with the profile. */
 	P2P_STATE_PROVISIONING_ING = 13,				/* 	Doing the P2P WPS */
 	P2P_STATE_PROVISIONING_DONE = 14,			/* 	Finish the P2P WPS */
 	P2P_STATE_TX_INVITE_REQ = 15,					/* 	Transmit the P2P Invitation request */
 	P2P_STATE_RX_INVITE_RESP_OK = 16,				/* 	Receiving the P2P Invitation response */
-	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,	/* 	receiving the P2P Inviation request and dismatch with the profile. */
-	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Inviation request and this wifi is GO. */
-	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Inviation request to join an existing P2P Group. */
-	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Inviation response with failure */
+	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,	/* 	receiving the P2P Invitation request and mismatch with the profile. */
+	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Invitation request and this wifi is GO. */
+	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Invitation request to join an existing P2P Group. */
+	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Invitation response with failure */
 	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negoitation response with information is not available */
 	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negoitation response with information is not available */
 };
