@@ -21,8 +21,7 @@
 #define dprintf(x...)
 #endif
 
-static int bfs_add_entry(struct inode *dir, const unsigned char *name,
-						int namelen, int ino);
+static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino);
 static struct buffer_head *bfs_find_entry(struct inode *dir,
 				const struct qstr *child,
 				struct bfs_dirent **res_dir);
@@ -111,8 +110,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
         mark_inode_dirty(inode);
 	bfs_dump_imap("create", s);
 
-	err = bfs_add_entry(dir, dentry->d_name.name, dentry->d_name.len,
-							inode->i_ino);
+	err = bfs_add_entry(dir, &dentry->d_name, inode->i_ino);
 	if (err) {
 		inode_dec_link_count(inode);
 		mutex_unlock(&info->bfs_lock);
@@ -154,8 +152,7 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 	int err;
 
 	mutex_lock(&info->bfs_lock);
-	err = bfs_add_entry(dir, new->d_name.name, new->d_name.len,
-							inode->i_ino);
+	err = bfs_add_entry(dir, &new->d_name, inode->i_ino);
 	if (err) {
 		mutex_unlock(&info->bfs_lock);
 		return err;
@@ -237,9 +234,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_bh = NULL;
 	}
 	if (!new_bh) {
-		error = bfs_add_entry(new_dir, 
-					new_dentry->d_name.name,
-					new_dentry->d_name.len,
+		error = bfs_add_entry(new_dir, &new_dentry->d_name,
 					old_inode->i_ino);
 		if (error)
 			goto end_rename;
@@ -269,9 +264,10 @@ const struct inode_operations bfs_dir_inops = {
 	.rename			= bfs_rename,
 };
 
-static int bfs_add_entry(struct inode *dir, const unsigned char *name,
-							int namelen, int ino)
+static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino)
 {
+	const unsigned char *name = child->name;
+	int namelen = child->len;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	int block, sblock, eblock, off, pos;
