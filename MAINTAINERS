@@ -4795,6 +4795,14 @@ S:	Maintained
 F:	drivers/gpu/drm/omapdrm/
 F:	Documentation/devicetree/bindings/display/ti/
 
+DRM DRIVERS FOR V3D
+M:	Eric Anholt <eric@anholt.net>
+S:	Supported
+F:	drivers/gpu/drm/v3d/
+F:	include/uapi/drm/v3d_drm.h
+F:	Documentation/devicetree/bindings/display/brcm,bcm-v3d.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+
 DRM DRIVERS FOR VC4
 M:	Eric Anholt <eric@anholt.net>
 T:	git git://github.com/anholt/linux

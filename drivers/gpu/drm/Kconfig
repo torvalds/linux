@@ -267,6 +267,8 @@ source "drivers/gpu/drm/amd/amdkfd/Kconfig"
 
 source "drivers/gpu/drm/imx/Kconfig"
 
+source "drivers/gpu/drm/v3d/Kconfig"
+
 source "drivers/gpu/drm/vc4/Kconfig"
 
 source "drivers/gpu/drm/etnaviv/Kconfig"
