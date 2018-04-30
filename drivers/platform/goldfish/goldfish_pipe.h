@@ -86,6 +86,6 @@ struct goldfish_pipe_dev {
 	struct access_params *aps;
 };
 
-extern struct goldfish_pipe_dev pipe_dev[1];
+extern struct goldfish_pipe_dev goldfish_pipe_dev;
 
 #endif /* GOLDFISH_PIPE_H */

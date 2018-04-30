@@ -213,7 +213,7 @@ struct goldfish_pipe {
 	struct goldfish_pipe_dev *dev;
 };
 
-struct goldfish_pipe_dev pipe_dev[1] = {};
+struct goldfish_pipe_dev goldfish_pipe_dev;
 
 static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
@@ -572,11 +572,12 @@ static struct goldfish_pipe *signalled_pipes_pop_front(
 
 static void goldfish_interrupt_task(unsigned long unused)
 {
-	struct goldfish_pipe_dev *dev = pipe_dev;
 	/* Iterate over the signalled pipes and wake them one by one */
 	struct goldfish_pipe *pipe;
 	int wakes;
-	while ((pipe = signalled_pipes_pop_front(dev, &wakes)) != NULL) {
+
+	while ((pipe = signalled_pipes_pop_front(&goldfish_pipe_dev, &wakes)) !=
+			NULL) {
 		if (wakes & PIPE_WAKE_CLOSED) {
 			pipe->flags = 1 << BIT_CLOSED_ON_HOST;
 		} else {
@@ -613,7 +614,8 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 	u32 i;
 	unsigned long flags;
 	struct goldfish_pipe_dev *dev = dev_id;
-	if (dev != pipe_dev)
+
+	if (dev != &goldfish_pipe_dev)
 		return IRQ_NONE;
 
 	/* Request the signalled pipes from the device */
@@ -676,7 +678,7 @@ static int get_free_pipe_id_locked(struct goldfish_pipe_dev *dev)
  */
 static int goldfish_pipe_open(struct inode *inode, struct file *file)
 {
-	struct goldfish_pipe_dev *dev = pipe_dev;
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 	unsigned long flags;
 	int id;
 	int status;
@@ -773,7 +775,7 @@ static const struct file_operations goldfish_pipe_fops = {
 	.release = goldfish_pipe_release,
 };
 
-static struct miscdevice goldfish_pipe_dev = {
+static struct miscdevice goldfish_pipe_miscdev = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "goldfish_pipe",
 	.fops = &goldfish_pipe_fops,
@@ -782,7 +784,7 @@ static struct miscdevice goldfish_pipe_dev = {
 static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 {
 	char *page;
-	struct goldfish_pipe_dev *dev = pipe_dev;
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 	int err = devm_request_irq(&pdev->dev, dev->irq, goldfish_pipe_interrupt,
 				IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
@@ -790,7 +792,7 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 		return err;
 	}
 
-	err = misc_register(&goldfish_pipe_dev);
+	err = misc_register(&goldfish_pipe_miscdev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to register v2 device\n");
 		return err;
@@ -839,17 +841,16 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 }
 
 static void goldfish_pipe_device_deinit_v2(struct platform_device *pdev) {
-	struct goldfish_pipe_dev *dev = pipe_dev;
-	misc_deregister(&goldfish_pipe_dev);
-	kfree(dev->pipes);
-	free_page((unsigned long)dev->buffers);
+	misc_deregister(&goldfish_pipe_miscdev);
+	kfree(goldfish_pipe_dev.pipes);
+	free_page((unsigned long)goldfish_pipe_dev.buffers);
 }
 
 static int goldfish_pipe_probe(struct platform_device *pdev)
 {
 	int err;
 	struct resource *r;
-	struct goldfish_pipe_dev *dev = pipe_dev;
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 
 	BUILD_BUG_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE);
 
@@ -902,7 +903,7 @@ error:
 
 static int goldfish_pipe_remove(struct platform_device *pdev)
 {
-	struct goldfish_pipe_dev *dev = pipe_dev;
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 
 	if (dev->version < PIPE_CURRENT_DEVICE_VERSION)
 		goldfish_pipe_device_deinit_v1(pdev);
