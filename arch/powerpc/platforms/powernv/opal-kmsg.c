@@ -51,20 +51,17 @@ static void force_opal_console_flush(struct kmsg_dumper *dumper,
 		} while (rc == OPAL_PARTIAL); /* More to flush */
 
 	} else {
-		int i;
+		__be64 evt;
 
+		WARN_ONCE(1, "opal: OPAL_CONSOLE_FLUSH missing.\n");
 		/*
 		 * If OPAL_CONSOLE_FLUSH is not implemented in the firmware,
 		 * the console can still be flushed by calling the polling
-		 * function enough times to flush the buffer.  We don't know
-		 * how much output still needs to be flushed, but we can be
-		 * generous since the kernel is in panic and doesn't need
-		 * to do much else.
+		 * function while it has OPAL_EVENT_CONSOLE_OUTPUT events.
 		 */
-		printk(KERN_NOTICE "opal: OPAL_CONSOLE_FLUSH missing.\n");
-		for (i = 0; i < 1024; i++) {
-			opal_poll_events(NULL);
-		}
+		do {
+			opal_poll_events(&evt);
+		} while (be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT);
 	}
 }
 
