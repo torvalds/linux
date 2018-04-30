@@ -175,7 +175,19 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 	return 1;
 }
 
+static void fixup_s70gl02gs_chips(struct cfi_private *cfi)
+{
+	/*
+	 * S70GL02GS flash reports a single 256 MiB chip, but is really made up
+	 * of two 128 MiB chips with 1024 sectors each.
+	 */
+	cfi->cfiq->DevSize = 27;
+	cfi->cfiq->EraseRegionInfo[0] = 0x20003ff;
+	pr_warn("Bad S70GL02GS CFI data; adjust to detect 2 chips\n");
+}
+
 static const struct cfi_early_fixup cfi_early_fixup_table[] = {
+	{ CFI_MFR_AMD, 0x4801, fixup_s70gl02gs_chips },
 	{ },
 };
 
