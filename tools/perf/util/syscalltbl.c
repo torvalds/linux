@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <linux/compiler.h>
 
-#ifdef HAVE_SYSCALL_TABLE
+#ifdef HAVE_SYSCALL_TABLE_SUPPORT
 #include <string.h>
 #include "string2.h"
 #include "util.h"
@@ -139,7 +139,7 @@ int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_g
 	return syscalltbl__strglobmatch_next(tbl, syscall_glob, idx);
 }
 
-#else /* HAVE_SYSCALL_TABLE */
+#else /* HAVE_SYSCALL_TABLE_SUPPORT */
 
 #include <libaudit.h>
 
@@ -176,4 +176,4 @@ int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_g
 {
 	return syscalltbl__strglobmatch_next(tbl, syscall_glob, idx);
 }
-#endif /* HAVE_SYSCALL_TABLE */
+#endif /* HAVE_SYSCALL_TABLE_SUPPORT */

@@ -193,7 +193,7 @@ struct intel_vgpu_gtt {
 
 extern int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
 extern void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu);
-void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu);
+void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old);
 void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu);
 
 extern int intel_gvt_init_gtt(struct intel_gvt *gvt);

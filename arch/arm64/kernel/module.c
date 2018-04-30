@@ -215,7 +215,7 @@ static int reloc_insn_adrp(struct module *mod, __le32 *place, u64 val)
 		insn &= ~BIT(31);
 	} else {
 		/* out of range for ADR -> emit a veneer */
-		val = module_emit_adrp_veneer(mod, place, val & ~0xfff);
+		val = module_emit_veneer_for_adrp(mod, place, val & ~0xfff);
 		if (!val)
 			return -ENOEXEC;
 		insn = aarch64_insn_gen_branch_imm((u64)place, val,

@@ -43,7 +43,7 @@ u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 }
 
 #ifdef CONFIG_ARM64_ERRATUM_843419
-u64 module_emit_adrp_veneer(struct module *mod, void *loc, u64 val)
+u64 module_emit_veneer_for_adrp(struct module *mod, void *loc, u64 val)
 {
 	struct mod_plt_sec *pltsec = !in_init(mod, loc) ? &mod->arch.core :
 							  &mod->arch.init;

@@ -107,7 +107,10 @@ struct nfp_mtu_conf {
  * @mask_table:		Hash table used to store masks
  * @flow_table:		Hash table used to store flower rules
  * @cmsg_work:		Workqueue for control messages processing
- * @cmsg_skbs:		List of skbs for control message processing
+ * @cmsg_skbs_high:	List of higher priority skbs for control message
+ *			processing
+ * @cmsg_skbs_low:	List of lower priority skbs for control message
+ *			processing
  * @nfp_mac_off_list:	List of MAC addresses to offload
  * @nfp_mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
  * @nfp_ipv4_off_list:	List of IPv4 addresses to offload
@@ -136,7 +139,8 @@ struct nfp_flower_priv {
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
 	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
 	struct work_struct cmsg_work;
-	struct sk_buff_head cmsg_skbs;
+	struct sk_buff_head cmsg_skbs_high;
+	struct sk_buff_head cmsg_skbs_low;
 	struct list_head nfp_mac_off_list;
 	struct list_head nfp_mac_index_list;
 	struct list_head nfp_ipv4_off_list;

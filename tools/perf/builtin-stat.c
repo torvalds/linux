@@ -172,6 +172,7 @@ static bool			interval_count;
 static const char		*output_name;
 static int			output_fd;
 static int			print_free_counters_hint;
+static int			print_mixed_hw_group_error;
 
 struct perf_stat {
 	bool			 record;
@@ -1126,6 +1127,30 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
 }
 
+static bool is_mixed_hw_group(struct perf_evsel *counter)
+{
+	struct perf_evlist *evlist = counter->evlist;
+	u32 pmu_type = counter->attr.type;
+	struct perf_evsel *pos;
+
+	if (counter->nr_members < 2)
+		return false;
+
+	evlist__for_each_entry(evlist, pos) {
+		/* software events can be part of any hardware group */
+		if (pos->attr.type == PERF_TYPE_SOFTWARE)
+			continue;
+		if (pmu_type == PERF_TYPE_SOFTWARE) {
+			pmu_type = pos->attr.type;
+			continue;
+		}
+		if (pmu_type != pos->attr.type)
+			return true;
+	}
+
+	return false;
+}
+
 static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 		     char *prefix, u64 run, u64 ena, double noise,
 		     struct runtime_stat *st)
@@ -1178,8 +1203,11 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 			csv_sep);
 
-		if (counter->supported)
+		if (counter->supported) {
 			print_free_counters_hint = 1;
+			if (is_mixed_hw_group(counter))
+				print_mixed_hw_group_error = 1;
+		}
 
 		fprintf(stat_config.output, "%-*s%s",
 			csv_output ? 0 : unit_width,
@@ -1256,7 +1284,8 @@ static void uniquify_event_name(struct perf_evsel *counter)
 	char *new_name;
 	char *config;
 
-	if (!counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
+	if (counter->uniquified_name ||
+	    !counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
 					   strlen(counter->pmu_name)))
 		return;
 
@@ -1274,6 +1303,8 @@ static void uniquify_event_name(struct perf_evsel *counter)
 			counter->name = new_name;
 		}
 	}
+
+	counter->uniquified_name = true;
 }
 
 static void collect_all_aliases(struct perf_evsel *counter,
@@ -1757,6 +1788,11 @@ static void print_footer(void)
 "	echo 0 > /proc/sys/kernel/nmi_watchdog\n"
 "	perf stat ...\n"
 "	echo 1 > /proc/sys/kernel/nmi_watchdog\n");
+
+	if (print_mixed_hw_group_error)
+		fprintf(output,
+			"The events in group usually have to be from "
+			"the same PMU. Try reorganizing the group.\n");
 }
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
@@ -1943,7 +1979,8 @@ static const struct option stat_options[] = {
 	OPT_STRING(0, "post", &post_cmd, "command",
 			"command to run after to the measured command"),
 	OPT_UINTEGER('I', "interval-print", &stat_config.interval,
-		    "print counts at regular interval in ms (>= 10)"),
+		    "print counts at regular interval in ms "
+		    "(overhead is possible for values <= 100ms)"),
 	OPT_INTEGER(0, "interval-count", &stat_config.times,
 		    "print counts for fixed number of times"),
 	OPT_UINTEGER(0, "timeout", &stat_config.timeout,
@@ -2921,17 +2958,6 @@ int cmd_stat(int argc, const char **argv)
 				goto out;
 			}
 		}
-	}
-
-	if (interval && interval < 100) {
-		if (interval < 10) {
-			pr_err("print interval must be >= 10ms\n");
-			parse_options_usage(stat_usage, stat_options, "I", 1);
-			goto out;
-		} else
-			pr_warning("print interval < 100ms. "
-				   "The overhead percentage could be high in some cases. "
-				   "Please proceed with caution.\n");
 	}
 
 	if (stat_config.times && interval)
