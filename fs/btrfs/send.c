@@ -5236,6 +5236,10 @@ static int send_write_or_clone(struct send_ctx *sctx,
 		len = btrfs_file_extent_num_bytes(path->nodes[0], ei);
 	}
 
+	if (offset >= sctx->cur_inode_size) {
+		ret = 0;
+		goto out;
+	}
 	if (offset + len > sctx->cur_inode_size)
 		len = sctx->cur_inode_size - offset;
 	if (len == 0) {
