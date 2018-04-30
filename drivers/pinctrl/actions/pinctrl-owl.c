@@ -406,6 +406,7 @@ static int owl_group_pinconf_arg2val(const struct owl_pingroup *g,
 		default:
 			return -EINVAL;
 		}
+		break;
 	case PIN_CONFIG_SLEW_RATE:
 		if (*arg)
 			*arg = OWL_PINCONF_SLEW_FAST;
@@ -441,6 +442,7 @@ static int owl_group_pinconf_val2arg(const struct owl_pingroup *g,
 		default:
 			return -EINVAL;
 		}
+		break;
 	case PIN_CONFIG_SLEW_RATE:
 		if (*arg)
 			*arg = 1;
