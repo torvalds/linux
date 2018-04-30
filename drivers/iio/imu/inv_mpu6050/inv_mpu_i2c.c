@@ -125,20 +125,27 @@ static int inv_mpu_probe(struct i2c_client *client,
 		return result;
 
 	st = iio_priv(dev_get_drvdata(&client->dev));
-	st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
-				 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
-				 inv_mpu6050_select_bypass,
-				 inv_mpu6050_deselect_bypass);
-	if (!st->muxc)
-		return -ENOMEM;
-	st->muxc->priv = dev_get_drvdata(&client->dev);
-	result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
-	if (result)
-		return result;
-
-	result = inv_mpu_acpi_create_mux_client(client);
-	if (result)
-		goto out_del_mux;
+	switch (st->chip_type) {
+	case INV_ICM20608:
+		/* no i2c auxiliary bus on the chip */
+		break;
+	default:
+		/* declare i2c auxiliary bus */
+		st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
+					 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
+					 inv_mpu6050_select_bypass,
+					 inv_mpu6050_deselect_bypass);
+		if (!st->muxc)
+			return -ENOMEM;
+		st->muxc->priv = dev_get_drvdata(&client->dev);
+		result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
+		if (result)
+			return result;
+		result = inv_mpu_acpi_create_mux_client(client);
+		if (result)
+			goto out_del_mux;
+		break;
+	}
 
 	return 0;
 
@@ -152,8 +159,10 @@ static int inv_mpu_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
-	inv_mpu_acpi_delete_mux_client(client);
-	i2c_mux_del_adapters(st->muxc);
+	if (st->muxc) {
+		inv_mpu_acpi_delete_mux_client(client);
+		i2c_mux_del_adapters(st->muxc);
+	}
 
 	return 0;
 }
