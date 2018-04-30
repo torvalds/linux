@@ -309,6 +309,13 @@ static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memsl
 	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 }
 
+static inline unsigned long *kvm_second_dirty_bitmap(struct kvm_memory_slot *memslot)
+{
+	unsigned long len = kvm_dirty_bitmap_bytes(memslot);
+
+	return memslot->dirty_bitmap + len / sizeof(*memslot->dirty_bitmap);
+}
+
 struct kvm_s390_adapter_int {
 	u64 ind_addr;
 	u64 summary_addr;
