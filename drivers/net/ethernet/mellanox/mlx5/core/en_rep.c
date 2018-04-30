@@ -66,18 +66,36 @@ static const struct counter_desc sw_rep_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_bytes) },
 };
 
-#define NUM_VPORT_REP_COUNTERS	ARRAY_SIZE(sw_rep_stats_desc)
+struct vport_stats {
+	u64 vport_rx_packets;
+	u64 vport_tx_packets;
+	u64 vport_rx_bytes;
+	u64 vport_tx_bytes;
+};
+
+static const struct counter_desc vport_rep_stats_desc[] = {
+	{ MLX5E_DECLARE_STAT(struct vport_stats, vport_rx_packets) },
+	{ MLX5E_DECLARE_STAT(struct vport_stats, vport_rx_bytes) },
+	{ MLX5E_DECLARE_STAT(struct vport_stats, vport_tx_packets) },
+	{ MLX5E_DECLARE_STAT(struct vport_stats, vport_tx_bytes) },
+};
+
+#define NUM_VPORT_REP_SW_COUNTERS ARRAY_SIZE(sw_rep_stats_desc)
+#define NUM_VPORT_REP_HW_COUNTERS ARRAY_SIZE(vport_rep_stats_desc)
 
 static void mlx5e_rep_get_strings(struct net_device *dev,
 				  u32 stringset, uint8_t *data)
 {
-	int i;
+	int i, j;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < NUM_VPORT_REP_COUNTERS; i++)
+		for (i = 0; i < NUM_VPORT_REP_SW_COUNTERS; i++)
 			strcpy(data + (i * ETH_GSTRING_LEN),
 			       sw_rep_stats_desc[i].format);
+		for (j = 0; j < NUM_VPORT_REP_HW_COUNTERS; j++, i++)
+			strcpy(data + (i * ETH_GSTRING_LEN),
+			       vport_rep_stats_desc[j].format);
 		break;
 	}
 }
@@ -140,7 +158,7 @@ static void mlx5e_rep_get_ethtool_stats(struct net_device *dev,
 					struct ethtool_stats *stats, u64 *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int i;
+	int i, j;
 
 	if (!data)
 		return;
@@ -148,18 +166,23 @@ static void mlx5e_rep_get_ethtool_stats(struct net_device *dev,
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_rep_update_sw_counters(priv);
+	mlx5e_rep_update_hw_counters(priv);
 	mutex_unlock(&priv->state_lock);
 
-	for (i = 0; i < NUM_VPORT_REP_COUNTERS; i++)
+	for (i = 0; i < NUM_VPORT_REP_SW_COUNTERS; i++)
 		data[i] = MLX5E_READ_CTR64_CPU(&priv->stats.sw,
 					       sw_rep_stats_desc, i);
+
+	for (j = 0; j < NUM_VPORT_REP_HW_COUNTERS; j++, i++)
+		data[i] = MLX5E_READ_CTR64_CPU(&priv->stats.vf_vport,
+					       vport_rep_stats_desc, j);
 }
 
 static int mlx5e_rep_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NUM_VPORT_REP_COUNTERS;
+		return NUM_VPORT_REP_SW_COUNTERS + NUM_VPORT_REP_HW_COUNTERS;
 	default:
 		return -EOPNOTSUPP;
 	}
