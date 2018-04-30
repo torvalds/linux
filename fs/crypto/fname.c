@@ -96,9 +96,6 @@ static int fname_decrypt(struct inode *inode,
 	int res = 0;
 	char iv[FS_CRYPTO_BLOCK_SIZE];
 
-	if (iname->len <= 0)
-		return -EIO;
-
 	/* Allocate request */
 	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req)
