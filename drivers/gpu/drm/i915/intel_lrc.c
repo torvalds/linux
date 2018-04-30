@@ -223,7 +223,7 @@ static void
 intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 				   struct intel_engine_cs *engine)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	u64 desc;
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
@@ -414,7 +414,7 @@ execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 
 static u64 execlists_update_context(struct i915_request *rq)
 {
-	struct intel_context *ce = &rq->ctx->engine[rq->engine->id];
+	struct intel_context *ce = to_intel_context(rq->ctx, rq->engine);
 	struct i915_hw_ppgtt *ppgtt =
 		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
@@ -523,7 +523,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
 	struct intel_context *ce =
-		&engine->i915->preempt_context->engine[engine->id];
+		to_intel_context(engine->i915->preempt_context, engine);
 	unsigned int n;
 
 	GEM_BUG_ON(execlists->preempt_complete_status !=
@@ -1327,7 +1327,7 @@ static struct intel_ring *
 execlists_context_pin(struct intel_engine_cs *engine,
 		      struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	void *vaddr;
 	int ret;
 
@@ -1380,7 +1380,7 @@ err:
 static void execlists_context_unpin(struct intel_engine_cs *engine,
 				    struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(ce->pin_count == 0);
@@ -1399,8 +1399,8 @@ static void execlists_context_unpin(struct intel_engine_cs *engine,
 
 static int execlists_request_alloc(struct i915_request *request)
 {
-	struct intel_engine_cs *engine = request->engine;
-	struct intel_context *ce = &request->ctx->engine[engine->id];
+	struct intel_context *ce =
+		to_intel_context(request->ctx, request->engine);
 	int ret;
 
 	GEM_BUG_ON(!ce->pin_count);
@@ -1854,7 +1854,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	regs = request->ctx->engine[engine->id].lrc_reg_state;
+	regs = to_intel_context(request->ctx, engine)->lrc_reg_state;
 	if (engine->default_state) {
 		void *defaults;
 
@@ -2305,9 +2305,13 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	}
 
 	engine->execlists.preempt_complete_status = ~0u;
-	if (engine->i915->preempt_context)
+	if (engine->i915->preempt_context) {
+		struct intel_context *ce =
+			to_intel_context(engine->i915->preempt_context, engine);
+
 		engine->execlists.preempt_complete_status =
-			upper_32_bits(engine->i915->preempt_context->engine[engine->id].lrc_desc);
+			upper_32_bits(ce->lrc_desc);
+	}
 
 	return 0;
 
@@ -2589,7 +2593,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	struct i915_vma *vma;
 	uint32_t context_size;
 	struct intel_ring *ring;
@@ -2660,7 +2664,8 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 	 */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
 		for_each_engine(engine, dev_priv, id) {
-			struct intel_context *ce = &ctx->engine[engine->id];
+			struct intel_context *ce =
+				to_intel_context(ctx, engine);
 			u32 *reg;
 
 			if (!ce->state)

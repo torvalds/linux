@@ -71,14 +71,21 @@ static struct intel_ring *
 mock_context_pin(struct intel_engine_cs *engine,
 		 struct i915_gem_context *ctx)
 {
-	i915_gem_context_get(ctx);
+	struct intel_context *ce = to_intel_context(ctx, engine);
+
+	if (!ce->pin_count++)
+		i915_gem_context_get(ctx);
+
 	return engine->buffer;
 }
 
 static void mock_context_unpin(struct intel_engine_cs *engine,
 			       struct i915_gem_context *ctx)
 {
-	i915_gem_context_put(ctx);
+	struct intel_context *ce = to_intel_context(ctx, engine);
+
+	if (!--ce->pin_count)
+		i915_gem_context_put(ctx);
 }
 
 static int mock_request_alloc(struct i915_request *request)
@@ -217,7 +224,7 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	GEM_BUG_ON(timer_pending(&mock->hw_delay));
 
 	if (engine->last_retired_context)
-		engine->context_unpin(engine, engine->last_retired_context);
+		intel_context_unpin(engine->last_retired_context, engine);
 
 	intel_engine_fini_breadcrumbs(engine);
 

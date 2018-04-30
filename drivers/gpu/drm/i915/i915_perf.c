@@ -1234,7 +1234,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		 *
 		 * NB: implied RCS engine...
 		 */
-		ring = engine->context_pin(engine, stream->ctx);
+		ring = intel_context_pin(stream->ctx, engine);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 		if (IS_ERR(ring))
 			return PTR_ERR(ring);
@@ -1246,7 +1246,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		 * with gen8+ and execlists
 		 */
 		dev_priv->perf.oa.specific_ctx_id =
-			i915_ggtt_offset(stream->ctx->engine[engine->id].state);
+			i915_ggtt_offset(to_intel_context(stream->ctx, engine)->state);
 	}
 
 	return 0;
@@ -1271,7 +1271,7 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 		mutex_lock(&dev_priv->drm.struct_mutex);
 
 		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-		engine->context_unpin(engine, stream->ctx);
+		intel_context_unpin(stream->ctx, engine);
 
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
@@ -1759,6 +1759,7 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	struct i915_gem_context *ctx;
 	int ret;
 	unsigned int wait_flags = I915_WAIT_LOCKED;
@@ -1789,7 +1790,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = &ctx->engine[RCS];
+		struct intel_context *ce = to_intel_context(ctx, engine);
 		u32 *regs;
 
 		/* OA settings will be set upon first use */

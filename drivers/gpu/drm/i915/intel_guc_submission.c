@@ -362,7 +362,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	desc->db_id = client->doorbell_id;
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = &ctx->engine[engine->id];
+		struct intel_context *ce = to_intel_context(ctx, engine);
 		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
@@ -990,7 +990,8 @@ static void guc_fill_preempt_context(struct intel_guc *guc)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_context *ce = &client->owner->engine[id];
+		struct intel_context *ce =
+			to_intel_context(client->owner, engine);
 		u32 addr = intel_hws_preempt_done_address(engine);
 		u32 *cs;
 

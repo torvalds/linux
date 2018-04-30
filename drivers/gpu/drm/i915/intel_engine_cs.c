@@ -685,7 +685,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ring = engine->context_pin(engine, engine->i915->kernel_context);
+	ring = intel_context_pin(engine->i915->kernel_context, engine);
 	if (IS_ERR(ring))
 		return PTR_ERR(ring);
 
@@ -694,8 +694,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * we can interrupt the engine at any time.
 	 */
 	if (engine->i915->preempt_context) {
-		ring = engine->context_pin(engine,
-					   engine->i915->preempt_context);
+		ring = intel_context_pin(engine->i915->preempt_context, engine);
 		if (IS_ERR(ring)) {
 			ret = PTR_ERR(ring);
 			goto err_unpin_kernel;
@@ -719,9 +718,9 @@ err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
 	if (engine->i915->preempt_context)
-		engine->context_unpin(engine, engine->i915->preempt_context);
+		intel_context_unpin(engine->i915->preempt_context, engine);
 err_unpin_kernel:
-	engine->context_unpin(engine, engine->i915->kernel_context);
+	intel_context_unpin(engine->i915->kernel_context, engine);
 	return ret;
 }
 
@@ -749,8 +748,8 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 		i915_gem_object_put(engine->default_state);
 
 	if (engine->i915->preempt_context)
-		engine->context_unpin(engine, engine->i915->preempt_context);
-	engine->context_unpin(engine, engine->i915->kernel_context);
+		intel_context_unpin(engine->i915->preempt_context, engine);
+	intel_context_unpin(engine->i915->kernel_context, engine);
 }
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)

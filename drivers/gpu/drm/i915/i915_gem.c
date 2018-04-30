@@ -3234,7 +3234,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 				      stalled_mask & ENGINE_MASK(id));
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
-			engine->context_unpin(engine, ctx);
+			intel_context_unpin(ctx, engine);
 
 		/*
 		 * Ostensibily, we always want a context loaded for powersaving,
@@ -5291,7 +5291,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		struct i915_vma *state;
 
-		state = ctx->engine[id].state;
+		state = to_intel_context(ctx, engine)->state;
 		if (!state)
 			continue;
 

@@ -558,7 +558,8 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 	 */
 	if (request) {
 		struct drm_i915_private *dev_priv = request->i915;
-		struct intel_context *ce = &request->ctx->engine[engine->id];
+		struct intel_context *ce = to_intel_context(request->ctx,
+							    engine);
 		struct i915_hw_ppgtt *ppgtt;
 
 		if (ce->state) {
@@ -1163,9 +1164,9 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
-static int context_pin(struct i915_gem_context *ctx)
+static int context_pin(struct intel_context *ce)
 {
-	struct i915_vma *vma = ctx->engine[RCS].state;
+	struct i915_vma *vma = ce->state;
 	int ret;
 
 	/*
@@ -1256,7 +1257,7 @@ static struct intel_ring *
 intel_ring_context_pin(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	int ret;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
@@ -1278,7 +1279,7 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 	}
 
 	if (ce->state) {
-		ret = context_pin(ctx);
+		ret = context_pin(ce);
 		if (ret)
 			goto err;
 
@@ -1299,7 +1300,7 @@ err:
 static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 				     struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(ce->pin_count == 0);
@@ -1427,7 +1428,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	*cs++ = MI_NOOP;
 	*cs++ = MI_SET_CONTEXT;
-	*cs++ = i915_ggtt_offset(rq->ctx->engine[RCS].state) | flags;
+	*cs++ = i915_ggtt_offset(to_intel_context(rq->ctx, engine)->state) | flags;
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -1518,7 +1519,7 @@ static int switch_context(struct i915_request *rq)
 		hw_flags = MI_FORCE_RESTORE;
 	}
 
-	if (to_ctx->engine[engine->id].state &&
+	if (to_intel_context(to_ctx, engine)->state &&
 	    (to_ctx != from_ctx || hw_flags & MI_FORCE_RESTORE)) {
 		GEM_BUG_ON(engine->id != RCS);
 
@@ -1566,7 +1567,7 @@ static int ring_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!request->ctx->engine[request->engine->id].pin_count);
+	GEM_BUG_ON(!to_intel_context(request->ctx, request->engine)->pin_count);
 
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just

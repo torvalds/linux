@@ -409,7 +409,7 @@ static void i915_request_retire(struct i915_request *request)
 	 * the subsequent request.
 	 */
 	if (engine->last_retired_context)
-		engine->context_unpin(engine, engine->last_retired_context);
+		intel_context_unpin(engine->last_retired_context, engine);
 	engine->last_retired_context = request->ctx;
 
 	spin_lock_irq(&request->lock);
@@ -638,7 +638,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ring = engine->context_pin(engine, ctx);
+	ring = intel_context_pin(ctx, engine);
 	if (IS_ERR(ring))
 		return ERR_CAST(ring);
 	GEM_BUG_ON(!ring);
@@ -787,7 +787,7 @@ err_unwind:
 err_unreserve:
 	unreserve_gt(i915);
 err_unpin:
-	engine->context_unpin(engine, ctx);
+	intel_context_unpin(ctx, engine);
 	return ERR_PTR(ret);
 }
 

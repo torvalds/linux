@@ -377,16 +377,19 @@ static void print_batch_pool_stats(struct seq_file *m,
 	print_file_stats(m, "[k]batch pool", stats);
 }
 
-static int per_file_ctx_stats(int id, void *ptr, void *data)
+static int per_file_ctx_stats(int idx, void *ptr, void *data)
 {
 	struct i915_gem_context *ctx = ptr;
-	int n;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for (n = 0; n < ARRAY_SIZE(ctx->engine); n++) {
-		if (ctx->engine[n].state)
-			per_file_stats(0, ctx->engine[n].state->obj, data);
-		if (ctx->engine[n].ring)
-			per_file_stats(0, ctx->engine[n].ring->vma->obj, data);
+	for_each_engine(engine, ctx->i915, id) {
+		struct intel_context *ce = to_intel_context(ctx, engine);
+
+		if (ce->state)
+			per_file_stats(0, ce->state->obj, data);
+		if (ce->ring)
+			per_file_stats(0, ce->ring->vma->obj, data);
 	}
 
 	return 0;
@@ -1959,7 +1962,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 
 		for_each_engine(engine, dev_priv, id) {
-			struct intel_context *ce = &ctx->engine[engine->id];
+			struct intel_context *ce =
+				to_intel_context(ctx, engine);
 
 			seq_printf(m, "%s: ", engine->name);
 			if (ce->state)

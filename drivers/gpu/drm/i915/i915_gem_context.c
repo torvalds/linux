@@ -117,15 +117,15 @@ static void lut_close(struct i915_gem_context *ctx)
 
 static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
-	int i;
+	unsigned int n;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	i915_ppgtt_put(ctx->ppgtt);
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct intel_context *ce = &ctx->engine[i];
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
+		struct intel_context *ce = &ctx->__engine[n];
 
 		if (!ce->state)
 			continue;
@@ -521,7 +521,7 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 		if (!engine->last_retired_context)
 			continue;
 
-		engine->context_unpin(engine, engine->last_retired_context);
+		intel_context_unpin(engine->last_retired_context, engine);
 		engine->last_retired_context = NULL;
 	}
 }
