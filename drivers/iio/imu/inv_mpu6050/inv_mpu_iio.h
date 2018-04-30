@@ -148,6 +148,7 @@ struct inv_mpu6050_state {
 	struct regmap *map;
 	int irq;
 	u8 irq_mask;
+	unsigned skip_samples;
 };
 
 /*register and associated bit definition*/

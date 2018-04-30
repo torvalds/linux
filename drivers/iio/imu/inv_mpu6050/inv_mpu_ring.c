@@ -185,7 +185,12 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		if (result == 0)
 			timestamp = 0;
 
-		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
+		/* skip first samples if needed */
+		if (st->skip_samples)
+			st->skip_samples--;
+		else
+			iio_push_to_buffers_with_timestamp(indio_dev, data,
+							   timestamp);
 
 		fifo_count -= bytes_per_datum;
 	}
