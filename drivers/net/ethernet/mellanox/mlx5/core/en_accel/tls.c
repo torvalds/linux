@@ -169,5 +169,7 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 	if (!mlx5_accel_is_tls_device(priv->mdev))
 		return;
 
+	netdev->features |= NETIF_F_HW_TLS_TX;
+	netdev->hw_features |= NETIF_F_HW_TLS_TX;
 	netdev->tlsdev_ops = &mlx5e_tls_ops;
 }
