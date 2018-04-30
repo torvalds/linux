@@ -592,7 +592,7 @@ static u32 timeout = MIN_TIMEOUT;
 int hvc_poll(struct hvc_struct *hp)
 {
 	struct tty_struct *tty;
-	int i, n, poll_mask = 0;
+	int i, n, count, poll_mask = 0;
 	char buf[N_INBUF] __ALIGNED__;
 	unsigned long flags;
 	int read_total = 0;
@@ -618,7 +618,7 @@ int hvc_poll(struct hvc_struct *hp)
 
 	/* Now check if we can get data (are we throttled ?) */
 	if (tty_throttled(tty))
-		goto throttled;
+		goto out;
 
 	/* If we aren't notifier driven and aren't throttled, we always
 	 * request a reschedule
@@ -627,56 +627,58 @@ int hvc_poll(struct hvc_struct *hp)
 		poll_mask |= HVC_POLL_READ;
 
 	/* Read data if any */
-	for (;;) {
-		int count = tty_buffer_request_room(&hp->port, N_INBUF);
 
-		/* If flip is full, just reschedule a later read */
-		if (count == 0) {
-			poll_mask |= HVC_POLL_READ;
-			break;
-		}
+	count = tty_buffer_request_room(&hp->port, N_INBUF);
 
-		n = hp->ops->get_chars(hp->vtermno, buf, count);
-		if (n <= 0) {
-			/* Hangup the tty when disconnected from host */
-			if (n == -EPIPE) {
-				spin_unlock_irqrestore(&hp->lock, flags);
-				tty_hangup(tty);
-				spin_lock_irqsave(&hp->lock, flags);
-			} else if ( n == -EAGAIN ) {
-				/*
-				 * Some back-ends can only ensure a certain min
-				 * num of bytes read, which may be > 'count'.
-				 * Let the tty clear the flip buff to make room.
-				 */
-				poll_mask |= HVC_POLL_READ;
-			}
-			break;
-		}
-		for (i = 0; i < n; ++i) {
-#ifdef CONFIG_MAGIC_SYSRQ
-			if (hp->index == hvc_console.index) {
-				/* Handle the SysRq Hack */
-				/* XXX should support a sequence */
-				if (buf[i] == '\x0f') {	/* ^O */
-					/* if ^O is pressed again, reset
-					 * sysrq_pressed and flip ^O char */
-					sysrq_pressed = !sysrq_pressed;
-					if (sysrq_pressed)
-						continue;
-				} else if (sysrq_pressed) {
-					handle_sysrq(buf[i]);
-					sysrq_pressed = 0;
-					continue;
-				}
-			}
-#endif /* CONFIG_MAGIC_SYSRQ */
-			tty_insert_flip_char(&hp->port, buf[i], 0);
-		}
-
-		read_total += n;
+	/* If flip is full, just reschedule a later read */
+	if (count == 0) {
+		poll_mask |= HVC_POLL_READ;
+		goto out;
 	}
- throttled:
+
+	n = hp->ops->get_chars(hp->vtermno, buf, count);
+	if (n <= 0) {
+		/* Hangup the tty when disconnected from host */
+		if (n == -EPIPE) {
+			spin_unlock_irqrestore(&hp->lock, flags);
+			tty_hangup(tty);
+			spin_lock_irqsave(&hp->lock, flags);
+		} else if ( n == -EAGAIN ) {
+			/*
+			 * Some back-ends can only ensure a certain min
+			 * num of bytes read, which may be > 'count'.
+			 * Let the tty clear the flip buff to make room.
+			 */
+			poll_mask |= HVC_POLL_READ;
+		}
+		goto out;
+	}
+
+	for (i = 0; i < n; ++i) {
+#ifdef CONFIG_MAGIC_SYSRQ
+		if (hp->index == hvc_console.index) {
+			/* Handle the SysRq Hack */
+			/* XXX should support a sequence */
+			if (buf[i] == '\x0f') {	/* ^O */
+				/* if ^O is pressed again, reset
+				 * sysrq_pressed and flip ^O char */
+				sysrq_pressed = !sysrq_pressed;
+				if (sysrq_pressed)
+					continue;
+			} else if (sysrq_pressed) {
+				handle_sysrq(buf[i]);
+				sysrq_pressed = 0;
+				continue;
+			}
+		}
+#endif /* CONFIG_MAGIC_SYSRQ */
+		tty_insert_flip_char(&hp->port, buf[i], 0);
+	}
+	if (n == count)
+		poll_mask |= HVC_POLL_READ;
+	read_total = n;
+
+ out:
 	/* Wakeup write queue if necessary */
 	if (hp->do_wakeup) {
 		hp->do_wakeup = 0;
