@@ -275,6 +275,11 @@ static void udbg_opal_putc(char c)
 			count = hvc_opal_hvsi_put_chars(termno, &c, 1);
 			break;
 		}
+
+		/* This is needed for the cosole to flush
+		 * when there aren't any interrupts.
+		 */
+		opal_flush_console(termno);
 	} while(count == 0 || count == -EAGAIN);
 }
 

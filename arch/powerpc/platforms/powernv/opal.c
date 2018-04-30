@@ -400,12 +400,14 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 out:
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 
-	/* This is a bit nasty but we need that for the console to
-	 * flush when there aren't any interrupts. We will clean
-	 * things a bit later to limit that to synchronous path
-	 * such as the kernel console and xmon/udbg
+	/* In the -EAGAIN case, callers loop, so we have to flush the console
+	 * here in case they have interrupts off (and we don't want to wait
+	 * for async flushing if we can make immediate progress here). If
+	 * necessary the API could be made entirely non-flushing if the
+	 * callers had a ->flush API to use.
 	 */
-	opal_flush_console(vtermno);
+	if (written == -EAGAIN)
+		opal_flush_console(vtermno);
 
 	return written;
 }
