@@ -340,12 +340,9 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 	int result;
 	int ret;
 
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		return result;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto error_release;
+		return result;
 
 	switch (chan->type) {
 	case IIO_ANGL_VEL:
@@ -386,14 +383,11 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 	result = inv_mpu6050_set_power_itg(st, false);
 	if (result)
 		goto error_power_off;
-	iio_device_release_direct_mode(indio_dev);
 
 	return ret;
 
 error_power_off:
 	inv_mpu6050_set_power_itg(st, false);
-error_release:
-	iio_device_release_direct_mode(indio_dev);
 	return result;
 }
 
@@ -407,9 +401,13 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		mutex_lock(&st->lock);
 		ret = inv_mpu6050_read_channel_data(indio_dev, chan, val);
 		mutex_unlock(&st->lock);
+		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
@@ -532,17 +530,18 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 	int result;
 
-	mutex_lock(&st->lock);
 	/*
 	 * we should only update scale when the chip is disabled, i.e.
 	 * not running
 	 */
 	result = iio_device_claim_direct_mode(indio_dev);
 	if (result)
-		goto error_write_raw_unlock;
+		return result;
+
+	mutex_lock(&st->lock);
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto error_write_raw_release;
+		goto error_write_raw_unlock;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -581,10 +580,9 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	}
 
 	result |= inv_mpu6050_set_power_itg(st, false);
-error_write_raw_release:
-	iio_device_release_direct_mode(indio_dev);
 error_write_raw_unlock:
 	mutex_unlock(&st->lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return result;
 }
@@ -643,17 +641,18 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;
 
+	result = iio_device_claim_direct_mode(indio_dev);
+	if (result)
+		return result;
+
 	mutex_lock(&st->lock);
 	if (fifo_rate == st->chip_config.fifo_rate) {
 		result = 0;
 		goto fifo_rate_fail_unlock;
 	}
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		goto fifo_rate_fail_unlock;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto fifo_rate_fail_release;
+		goto fifo_rate_fail_unlock;
 
 	d = INV_MPU6050_ONE_K_HZ / fifo_rate - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
@@ -667,10 +666,9 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 
 fifo_rate_fail_power_off:
 	result |= inv_mpu6050_set_power_itg(st, false);
-fifo_rate_fail_release:
-	iio_device_release_direct_mode(indio_dev);
 fifo_rate_fail_unlock:
 	mutex_unlock(&st->lock);
+	iio_device_release_direct_mode(indio_dev);
 	if (result)
 		return result;
 
