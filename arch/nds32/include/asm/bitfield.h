@@ -336,7 +336,7 @@
 #define INT_MASK_mskIDIVZE	( 0x1  << INT_MASK_offIDIVZE )
 #define INT_MASK_mskDSSIM	( 0x1  << INT_MASK_offDSSIM )
 
-#define INT_MASK_INITAIAL_VAL	0x10003
+#define INT_MASK_INITAIAL_VAL	(INT_MASK_mskDSSIM|INT_MASK_mskIDIVZE)
 
 /******************************************************************************
  * ir15: INT_PEND (Interrupt Pending Register)
