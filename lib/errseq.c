@@ -111,27 +111,22 @@ EXPORT_SYMBOL(errseq_set);
  * errseq_sample() - Grab current errseq_t value.
  * @eseq: Pointer to errseq_t to be sampled.
  *
- * This function allows callers to sample an errseq_t value, marking it as
- * "seen" if required.
+ * This function allows callers to initialise their errseq_t variable.
+ * If the error has been "seen", new callers will not see an old error.
+ * If there is an unseen error in @eseq, the caller of this function will
+ * see it the next time it checks for an error.
  *
+ * Context: Any context.
  * Return: The current errseq value.
  */
 errseq_t errseq_sample(errseq_t *eseq)
 {
 	errseq_t old = READ_ONCE(*eseq);
-	errseq_t new = old;
 
-	/*
-	 * For the common case of no errors ever having been set, we can skip
-	 * marking the SEEN bit. Once an error has been set, the value will
-	 * never go back to zero.
-	 */
-	if (old != 0) {
-		new |= ERRSEQ_SEEN;
-		if (old != new)
-			cmpxchg(eseq, old, new);
-	}
-	return new;
+	/* If nobody has seen this error yet, then we can be the first. */
+	if (!(old & ERRSEQ_SEEN))
+		old = 0;
+	return old;
 }
 EXPORT_SYMBOL(errseq_sample);
 
