@@ -331,7 +331,7 @@ static void populate_rw_params(
 	command->rw_params.buffers_count = buffer_idx + 1;
 }
 
-static int transfer_max_buffers(struct goldfish_pipe* pipe,
+static int transfer_max_buffers(struct goldfish_pipe *pipe,
 	unsigned long address, unsigned long address_end, int is_write,
 	unsigned long last_page, unsigned int last_page_size,
 	s32 *consumed_size, int *status)
@@ -685,6 +685,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	/* Allocate new pipe kernel object */
 	struct goldfish_pipe *pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
+
 	if (pipe == NULL)
 		return -ENOMEM;
 
@@ -812,12 +813,12 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	 * is to just allocate a page and place the buffers in it.
 	 */
 	BUILD_BUG_ON(sizeof(*dev->buffers) > PAGE_SIZE);
-	page = (char*)__get_free_page(GFP_KERNEL);
+	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page) {
 		kfree(dev->pipes);
 		return -ENOMEM;
 	}
-	dev->buffers = (struct goldfish_pipe_dev_buffers*)page;
+	dev->buffers = (struct goldfish_pipe_dev_buffers *)page;
 
 	/* Send the buffer addresses to the host */
 	{
@@ -840,7 +841,8 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	return 0;
 }
 
-static void goldfish_pipe_device_deinit_v2(struct platform_device *pdev) {
+static void goldfish_pipe_device_deinit_v2(struct platform_device *pdev)
+{
 	misc_deregister(&goldfish_pipe_miscdev);
 	kfree(goldfish_pipe_dev.pipes);
 	free_page((unsigned long)goldfish_pipe_dev.buffers);
