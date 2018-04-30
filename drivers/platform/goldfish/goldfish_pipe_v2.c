@@ -510,26 +510,30 @@ static unsigned int goldfish_pipe_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static void signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
+static int signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
 	u32 id, u32 flags)
 {
 	struct goldfish_pipe *pipe;
 
-	BUG_ON(id >= dev->pipes_capacity);
+	if (id >= dev->pipes_capacity)
+		return -EINVAL;
 
 	pipe = dev->pipes[id];
 	if (!pipe)
-		return;
+		return -ENXIO;
+
 	pipe->signalled_flags |= flags;
 
 	if (pipe->prev_signalled || pipe->next_signalled
 		|| dev->first_signalled_pipe == pipe)
-		return;	/* already in the list */
+		return 0;  /* already in the list */
+
 	pipe->next_signalled = dev->first_signalled_pipe;
 	if (dev->first_signalled_pipe)
 		dev->first_signalled_pipe->prev_signalled = pipe;
-
 	dev->first_signalled_pipe = pipe;
+
+	return 0;
 }
 
 static void signalled_pipes_remove_locked(struct goldfish_pipe_dev *dev,
