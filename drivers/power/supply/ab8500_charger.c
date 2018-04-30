@@ -3066,7 +3066,7 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		AB8500_SYS_CTRL2_BLOCK,
 		AB8500_MAIN_WDOG_CTRL_REG, MAIN_WDOG_ENA);
 	if (ret) {
-		dev_err(di->dev, "faile to enable main watchdog\n");
+		dev_err(di->dev, "failed to enable main watchdog\n");
 		goto out;
 	}
 
