@@ -723,7 +723,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	dev->buffers->open_command_params.rw_params_max_count =
 			MAX_BUFFERS_PER_COMMAND;
 	dev->buffers->open_command_params.command_buffer_ptr =
-			(u64)(unsigned long)__pa(pipe->command_buffer);
+			(u64)__pa(pipe->command_buffer);
 	status = goldfish_pipe_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (status < 0) {
