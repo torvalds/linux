@@ -170,7 +170,10 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 	scmi_chip_info.info = ptr_scmi_ci;
 	chip_info = &scmi_chip_info;
 
-	for (type = 0; type < hwmon_max && nr_count[type]; type++) {
+	for (type = 0; type < hwmon_max; type++) {
+		if (!nr_count[type])
+			continue;
+
 		scmi_hwmon_add_chan_info(scmi_hwmon_chan, dev, nr_count[type],
 					 type, hwmon_attributes[type]);
 		*ptr_scmi_ci++ = scmi_hwmon_chan++;

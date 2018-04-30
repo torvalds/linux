@@ -3999,29 +3999,6 @@ static void efx_ef10_prepare_flr(struct efx_nic *efx)
 	atomic_set(&efx->active_queues, 0);
 }
 
-static bool efx_ef10_filter_equal(const struct efx_filter_spec *left,
-				  const struct efx_filter_spec *right)
-{
-	if ((left->match_flags ^ right->match_flags) |
-	    ((left->flags ^ right->flags) &
-	     (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)))
-		return false;
-
-	return memcmp(&left->outer_vid, &right->outer_vid,
-		      sizeof(struct efx_filter_spec) -
-		      offsetof(struct efx_filter_spec, outer_vid)) == 0;
-}
-
-static unsigned int efx_ef10_filter_hash(const struct efx_filter_spec *spec)
-{
-	BUILD_BUG_ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
-	return jhash2((const u32 *)&spec->outer_vid,
-		      (sizeof(struct efx_filter_spec) -
-		       offsetof(struct efx_filter_spec, outer_vid)) / 4,
-		      0);
-	/* XXX should we randomise the initval? */
-}
-
 /* Decide whether a filter should be exclusive or else should allow
  * delivery to additional recipients.  Currently we decide that
  * filters for specific local unicast MAC and IP addresses are
@@ -4346,7 +4323,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 		goto out_unlock;
 	match_pri = rc;
 
-	hash = efx_ef10_filter_hash(spec);
+	hash = efx_filter_spec_hash(spec);
 	is_mc_recip = efx_filter_is_mc_recipient(spec);
 	if (is_mc_recip)
 		bitmap_zero(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
@@ -4378,7 +4355,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 		if (!saved_spec) {
 			if (ins_index < 0)
 				ins_index = i;
-		} else if (efx_ef10_filter_equal(spec, saved_spec)) {
+		} else if (efx_filter_spec_equal(spec, saved_spec)) {
 			if (spec->priority < saved_spec->priority &&
 			    spec->priority != EFX_FILTER_PRI_AUTO) {
 				rc = -EPERM;
@@ -4762,27 +4739,62 @@ static s32 efx_ef10_filter_get_rx_ids(struct efx_nic *efx,
 static bool efx_ef10_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 					   unsigned int filter_idx)
 {
+	struct efx_filter_spec *spec, saved_spec;
 	struct efx_ef10_filter_table *table;
-	struct efx_filter_spec *spec;
-	bool ret;
+	struct efx_arfs_rule *rule = NULL;
+	bool ret = true, force = false;
+	u16 arfs_id;
 
 	down_read(&efx->filter_sem);
 	table = efx->filter_state;
 	down_write(&table->lock);
 	spec = efx_ef10_filter_entry_spec(table, filter_idx);
 
-	if (!spec || spec->priority != EFX_FILTER_PRI_HINT) {
-		ret = true;
+	if (!spec || spec->priority != EFX_FILTER_PRI_HINT)
 		goto out_unlock;
-	}
 
-	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id, flow_id, 0)) {
+	spin_lock_bh(&efx->rps_hash_lock);
+	if (!efx->rps_hash_table) {
+		/* In the absence of the table, we always return 0 to ARFS. */
+		arfs_id = 0;
+	} else {
+		rule = efx_rps_hash_find(efx, spec);
+		if (!rule)
+			/* ARFS table doesn't know of this filter, so remove it */
+			goto expire;
+		arfs_id = rule->arfs_id;
+		ret = efx_rps_check_rule(rule, filter_idx, &force);
+		if (force)
+			goto expire;
+		if (!ret) {
+			spin_unlock_bh(&efx->rps_hash_lock);
+			goto out_unlock;
+		}
+	}
+	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id, flow_id, arfs_id))
 		ret = false;
-		goto out_unlock;
-	}
-
+	else if (rule)
+		rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+expire:
+	saved_spec = *spec; /* remove operation will kfree spec */
+	spin_unlock_bh(&efx->rps_hash_lock);
+	/* At this point (since we dropped the lock), another thread might queue
+	 * up a fresh insertion request (but the actual insertion will be held
+	 * up by our possession of the filter table lock).  In that case, it
+	 * will set rule->filter_id to EFX_ARFS_FILTER_ID_PENDING, meaning that
+	 * the rule is not removed by efx_rps_hash_del() below.
+	 */
 	ret = efx_ef10_filter_remove_internal(efx, 1U << spec->priority,
 					      filter_idx, true) == 0;
+	/* While we can't safely dereference rule (we dropped the lock), we can
+	 * still test it for NULL.
+	 */
+	if (ret && rule) {
+		/* Expiring, so remove entry from ARFS table */
+		spin_lock_bh(&efx->rps_hash_lock);
+		efx_rps_hash_del(efx, &saved_spec);
+		spin_unlock_bh(&efx->rps_hash_lock);
+	}
 out_unlock:
 	up_write(&table->lock);
 	up_read(&efx->filter_sem);

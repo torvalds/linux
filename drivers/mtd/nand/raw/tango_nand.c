@@ -645,7 +645,7 @@ static int tango_nand_probe(struct platform_device *pdev)
 
 	writel_relaxed(MODE_RAW, nfc->pbus_base + PBUS_PAD_MODE);
 
-	clk = clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 

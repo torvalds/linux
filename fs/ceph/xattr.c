@@ -228,7 +228,15 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 
 static bool ceph_vxattrcb_quota_exists(struct ceph_inode_info *ci)
 {
-	return (ci->i_max_files || ci->i_max_bytes);
+	bool ret = false;
+	spin_lock(&ci->i_ceph_lock);
+	if ((ci->i_max_files || ci->i_max_bytes) &&
+	    ci->i_vino.snap == CEPH_NOSNAP &&
+	    ci->i_snap_realm &&
+	    ci->i_snap_realm->ino == ci->i_vino.ino)
+		ret = true;
+	spin_unlock(&ci->i_ceph_lock);
+	return ret;
 }
 
 static size_t ceph_vxattrcb_quota(struct ceph_inode_info *ci, char *val,
@@ -1008,14 +1016,19 @@ int __ceph_setxattr(struct inode *inode, const char *name,
 	char *newval = NULL;
 	struct ceph_inode_xattr *xattr = NULL;
 	int required_blob_size;
+	bool check_realm = false;
 	bool lock_snap_rwsem = false;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
 	vxattr = ceph_match_vxattr(inode, name);
-	if (vxattr && vxattr->readonly)
-		return -EOPNOTSUPP;
+	if (vxattr) {
+		if (vxattr->readonly)
+			return -EOPNOTSUPP;
+		if (value && !strncmp(vxattr->name, "ceph.quota", 10))
+			check_realm = true;
+	}
 
 	/* pass any unhandled ceph.* xattrs through to the MDS */
 	if (!strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN))
@@ -1109,6 +1122,15 @@ do_sync_unlocked:
 		err = -EBUSY;
 	} else {
 		err = ceph_sync_setxattr(inode, name, value, size, flags);
+		if (err >= 0 && check_realm) {
+			/* check if snaprealm was created for quota inode */
+			spin_lock(&ci->i_ceph_lock);
+			if ((ci->i_max_files || ci->i_max_bytes) &&
+			    !(ci->i_snap_realm &&
+			      ci->i_snap_realm->ino == ci->i_vino.ino))
+				err = -EOPNOTSUPP;
+			spin_unlock(&ci->i_ceph_lock);
+		}
 	}
 out:
 	ceph_free_cap_flush(prealloc_cf);
