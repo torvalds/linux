@@ -804,7 +804,7 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	 * needs to be contained in a single physical page. The easiest choice
 	 * is to just allocate a page and place the buffers in it.
 	 */
-	BUG_ON(sizeof(*dev->buffers) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(*dev->buffers) > PAGE_SIZE);
 	page = (char*)__get_free_page(GFP_KERNEL);
 	if (!page) {
 		kfree(dev->pipes);
@@ -845,7 +845,7 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct goldfish_pipe_dev *dev = pipe_dev;
 
-	BUG_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE);
 
 	/* not thread safe, but this should not happen */
 	WARN_ON(dev->base != NULL);
