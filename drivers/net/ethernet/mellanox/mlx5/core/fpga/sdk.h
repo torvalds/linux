@@ -41,6 +41,8 @@
  * DOC: Innova SDK
  * This header defines the in-kernel API for Innova FPGA client drivers.
  */
+#define SBU_QP_QUEUE_SIZE 8
+#define MLX5_FPGA_CMD_TIMEOUT_MSEC (60 * 1000)
 
 enum mlx5_fpga_access_type {
 	MLX5_FPGA_ACCESS_TYPE_I2C = 0x0,

@@ -43,9 +43,6 @@
 #include "fpga/sdk.h"
 #include "fpga/core.h"
 
-#define SBU_QP_QUEUE_SIZE 8
-#define MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC	(60 * 1000)
-
 enum mlx5_fpga_ipsec_cmd_status {
 	MLX5_FPGA_IPSEC_CMD_PENDING,
 	MLX5_FPGA_IPSEC_CMD_SEND_FAIL,
@@ -258,7 +255,7 @@ static int mlx5_fpga_ipsec_cmd_wait(void *ctx)
 {
 	struct mlx5_fpga_ipsec_cmd_context *context = ctx;
 	unsigned long timeout =
-		msecs_to_jiffies(MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC);
+		msecs_to_jiffies(MLX5_FPGA_CMD_TIMEOUT_MSEC);
 	int res;
 
 	res = wait_for_completion_timeout(&context->complete, timeout);
