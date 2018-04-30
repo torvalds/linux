@@ -49,7 +49,6 @@
 #include <linux/printk.h>
 #include "goldfish_pipe.h"
 
-
 /*
  * Update this when something changes in the driver's behavior so the host
  * can benefit from knowing it
@@ -228,9 +227,12 @@ static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 static int goldfish_cmd(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
 	int status;
+
 	if (mutex_lock_interruptible(&pipe->lock))
 		return PIPE_ERROR_IO;
+
 	status = goldfish_cmd_locked(pipe, cmd);
+
 	mutex_unlock(&pipe->lock);
 	return status;
 }
@@ -361,7 +363,6 @@ static int transfer_max_buffers(struct goldfish_pipe* pipe,
 	mutex_unlock(&pipe->lock);
 
 	release_user_pages(pages, pages_count, is_write, *consumed_size);
-
 	return 0;
 }
 
@@ -414,6 +415,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 	while (address < address_end) {
 		s32 consumed_size;
 		int status;
+
 		ret = transfer_max_buffers(pipe, address, address_end, is_write,
 			last_page, last_page_size, &consumed_size, &status);
 		if (ret < 0)
@@ -724,6 +726,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 		pr_err("Could not tell host of new pipe! status=%d\n", status);
 		goto err_cmd;
 	}
+
 	/* All is done, save the pipe into the file's private data field */
 	file->private_data = pipe;
 	return 0;
@@ -754,8 +757,10 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	filp->private_data = NULL;
+
 	free_page((unsigned long)pipe->command_buffer);
 	kfree(pipe);
+
 	return 0;
 }
 
@@ -829,6 +834,7 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 		writel((u32)(unsigned long)paddr,
 			dev->base + PIPE_REG_OPEN_BUFFER);
 	}
+
 	return 0;
 }
 
@@ -897,6 +903,7 @@ error:
 static int goldfish_pipe_remove(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = pipe_dev;
+
 	if (dev->version < PIPE_CURRENT_DEVICE_VERSION)
 		goldfish_pipe_device_deinit_v1(pdev);
 	else
