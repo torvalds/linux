@@ -346,10 +346,10 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 
 int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 {
-	int written = 0;
-	__be64 olen;
-	s64 len, rc;
 	unsigned long flags;
+	int written;
+	__be64 olen;
+	s64 rc;
 
 	if (!opal.entry)
 		return -ENODEV;
@@ -357,61 +357,55 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	/* We want put_chars to be atomic to avoid mangling of hvsi
 	 * packets. To do that, we first test for room and return
 	 * -EAGAIN if there isn't enough.
-	 *
-	 * Unfortunately, opal_console_write_buffer_space() doesn't
-	 * appear to work on opal v1, so we just assume there is
-	 * enough room and be done with it
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
 	rc = opal_console_write_buffer_space(vtermno, &olen);
-	len = be64_to_cpu(olen);
-	if (rc || len < total_len) {
-		spin_unlock_irqrestore(&opal_write_lock, flags);
+	if (rc || be64_to_cpu(olen) < total_len) {
 		/* Closed -> drop characters */
 		if (rc)
-			return total_len;
-		opal_flush_console(vtermno);
-		return -EAGAIN;
+			written = total_len;
+		else
+			written = -EAGAIN;
+		goto out;
 	}
 
-	/* We still try to handle partial completions, though they
-	 * should no longer happen.
-	 */
-
-	while (total_len > 0) {
-		olen = cpu_to_be64(total_len);
-
-		rc = OPAL_BUSY;
-		while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-			rc = opal_console_write(vtermno, &olen, data);
-			if (rc == OPAL_BUSY_EVENT) {
-				mdelay(OPAL_BUSY_DELAY_MS);
-				opal_poll_events(NULL);
-			} else if (rc == OPAL_BUSY) {
-				mdelay(OPAL_BUSY_DELAY_MS);
-			}
+	/* Should not get a partial write here because space is available. */
+	olen = cpu_to_be64(total_len);
+	rc = opal_console_write(vtermno, &olen, data);
+	if (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+		if (rc == OPAL_BUSY_EVENT) {
+			mdelay(OPAL_BUSY_DELAY_MS);
+			opal_poll_events(NULL);
+		} else if (rc == OPAL_BUSY_EVENT) {
+			mdelay(OPAL_BUSY_DELAY_MS);
 		}
-
-		len = be64_to_cpu(olen);
-
-		/* Closed or other error drop */
-		if (rc != OPAL_SUCCESS) {
-			written += total_len; /* drop remaining chars */
-			break;
-		}
-
-		total_len -= len;
-		data += len;
-		written += len;
-
-		/* This is a bit nasty but we need that for the console to
-		 * flush when there aren't any interrupts. We will clean
-		 * things a bit later to limit that to synchronous path
-		 * such as the kernel console and xmon/udbg
-		 */
-		opal_flush_console(vtermno);
+		written = -EAGAIN;
+		goto out;
 	}
+
+	/* Closed or other error drop */
+	if (rc != OPAL_SUCCESS) {
+		written = opal_error_code(rc);
+		goto out;
+	}
+
+	written = be64_to_cpu(olen);
+	if (written < total_len) {
+		/* Should not happen */
+		pr_warn("atomic console write returned partial len=%d written=%d\n", total_len, written);
+		if (!written)
+			written = -EAGAIN;
+	}
+
+out:
 	spin_unlock_irqrestore(&opal_write_lock, flags);
+
+	/* This is a bit nasty but we need that for the console to
+	 * flush when there aren't any interrupts. We will clean
+	 * things a bit later to limit that to synchronous path
+	 * such as the kernel console and xmon/udbg
+	 */
+	opal_flush_console(vtermno);
 
 	return written;
 }
