@@ -31,6 +31,8 @@ struct i915_gpu_state {
 	ktime_t time;
 	ktime_t boottime;
 	ktime_t uptime;
+	unsigned long capture;
+	unsigned long epoch;
 
 	struct drm_i915_private *i915;
 

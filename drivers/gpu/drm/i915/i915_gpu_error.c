@@ -404,15 +404,16 @@ static const char *bannable(const struct drm_i915_error_context *ctx)
 
 static void error_print_request(struct drm_i915_error_state_buf *m,
 				const char *prefix,
-				const struct drm_i915_error_request *erq)
+				const struct drm_i915_error_request *erq,
+				const unsigned long epoch)
 {
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms ago, head %08x, tail %08x\n",
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms, head %08x, tail %08x\n",
 		   prefix, erq->pid, erq->ban_score,
 		   erq->context, erq->seqno, erq->sched_attr.priority,
-		   jiffies_to_msecs(jiffies - erq->jiffies),
+		   jiffies_to_msecs(erq->jiffies - epoch),
 		   erq->head, erq->tail);
 }
 
@@ -427,7 +428,8 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
-			       const struct drm_i915_error_engine *ee)
+			       const struct drm_i915_error_engine *ee,
+			       const unsigned long epoch)
 {
 	int n;
 
@@ -497,14 +499,15 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  hangcheck stall: %s\n", yesno(ee->hangcheck_stalled));
 	err_printf(m, "  hangcheck action: %s\n",
 		   hangcheck_action_to_str(ee->hangcheck_action));
-	err_printf(m, "  hangcheck action timestamp: %lu, %u ms ago\n",
+	err_printf(m, "  hangcheck action timestamp: %dms (%lu%s)\n",
+		   jiffies_to_msecs(ee->hangcheck_timestamp - epoch),
 		   ee->hangcheck_timestamp,
-		   jiffies_to_msecs(jiffies - ee->hangcheck_timestamp));
+		   ee->hangcheck_timestamp == epoch ? "; epoch" : "");
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	for (n = 0; n < ee->num_ports; n++) {
 		err_printf(m, "  ELSP[%d]:", n);
-		error_print_request(m, " ", &ee->execlist[n]);
+		error_print_request(m, " ", &ee->execlist[n], epoch);
 	}
 
 	error_print_context(m, "  Active context: ", &ee->context);
@@ -650,6 +653,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	ts = ktime_to_timespec64(error->uptime);
 	err_printf(m, "Uptime: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
+	err_printf(m, "Epoch: %lu jiffies (%u HZ)\n", error->epoch, HZ);
+	err_printf(m, "Capture: %lu jiffies; %d ms ago, %d ms after epoch\n",
+		   error->capture,
+		   jiffies_to_msecs(jiffies - error->capture),
+		   jiffies_to_msecs(error->capture - error->epoch));
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
@@ -710,7 +718,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].engine_id != -1)
-			error_print_engine(m, &error->engine[i]);
+			error_print_engine(m, &error->engine[i], error->epoch);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(error->active_vm); i++) {
@@ -769,7 +777,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->engine[i]->name,
 				   ee->num_requests);
 			for (j = 0; j < ee->num_requests; j++)
-				error_print_request(m, " ", &ee->requests[j]);
+				error_print_request(m, " ",
+						    &ee->requests[j],
+						    error->epoch);
 		}
 
 		if (IS_ERR(ee->waiters)) {
@@ -1736,6 +1746,22 @@ static void capture_params(struct i915_gpu_state *error)
 #undef DUP
 }
 
+static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
+{
+	unsigned long epoch = error->capture;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
+		const struct drm_i915_error_engine *ee = &error->engine[i];
+
+		if (ee->hangcheck_stalled &&
+		    time_before(ee->hangcheck_timestamp, epoch))
+			epoch = ee->hangcheck_timestamp;
+	}
+
+	return epoch;
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1744,6 +1770,7 @@ static int capture(void *data)
 	error->boottime = ktime_get_boottime();
 	error->uptime = ktime_sub(ktime_get(),
 				  error->i915->gt.last_init_time);
+	error->capture = jiffies;
 
 	capture_params(error);
 	capture_gen_state(error);
@@ -1756,6 +1783,8 @@ static int capture(void *data)
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);
+
+	error->epoch = capture_find_epoch(error);
 
 	return 0;
 }
