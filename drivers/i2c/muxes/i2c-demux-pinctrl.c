@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -253,6 +254,8 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 
 	platform_set_drvdata(pdev, priv);
+
+	pm_runtime_no_callbacks(&pdev->dev);
 
 	/* switch to first parent as active master */
 	i2c_demux_activate_master(priv, 0);
