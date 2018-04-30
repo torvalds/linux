@@ -174,7 +174,7 @@ struct rcu_node {
 #define need_future_gp_mask() \
 	(ARRAY_SIZE(((struct rcu_node *)NULL)->need_future_gp) - 1)
 #define need_future_gp_element(rnp, c) \
-	((rnp)->need_future_gp[(c) & need_future_gp_mask()])
+	((rnp)->need_future_gp[(c >> RCU_SEQ_CTR_SHIFT) & need_future_gp_mask()])
 #define need_any_future_gp(rnp)						\
 ({									\
 	int __i;							\

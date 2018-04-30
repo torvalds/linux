@@ -1548,52 +1548,6 @@ void rcu_cpu_stall_reset(void)
 		WRITE_ONCE(rsp->jiffies_stall, jiffies + ULONG_MAX / 2);
 }
 
-/*
- * Determine the value that ->completed will have at the end of the
- * next subsequent grace period.  This is used to tag callbacks so that
- * a CPU can invoke callbacks in a timely fashion even if that CPU has
- * been dyntick-idle for an extended period with callbacks under the
- * influence of RCU_FAST_NO_HZ.
- *
- * The caller must hold rnp->lock with interrupts disabled.
- */
-static unsigned long rcu_cbs_completed(struct rcu_state *rsp,
-				       struct rcu_node *rnp)
-{
-	raw_lockdep_assert_held_rcu_node(rnp);
-
-	/*
-	 * If RCU is idle, we just wait for the next grace period.
-	 * But we can only be sure that RCU is idle if we are looking
-	 * at the root rcu_node structure -- otherwise, a new grace
-	 * period might have started, but just not yet gotten around
-	 * to initializing the current non-root rcu_node structure.
-	 */
-	if (rcu_get_root(rsp) == rnp && rnp->gpnum == rnp->completed)
-		return rnp->completed + 1;
-
-	/*
-	 * If the current rcu_node structure believes that RCU is
-	 * idle, and if the rcu_state structure does not yet reflect
-	 * the start of a new grace period, then the next grace period
-	 * will suffice.  The memory barrier is needed to accurately
-	 * sample the rsp->gpnum, and pairs with the second lock
-	 * acquisition in rcu_gp_init(), which is augmented with
-	 * smp_mb__after_unlock_lock() for this purpose.
-	 */
-	if (rnp->gpnum == rnp->completed) {
-		smp_mb(); /* See above block comment. */
-		if (READ_ONCE(rsp->gpnum) == rnp->completed)
-			return rnp->completed + 1;
-	}
-
-	/*
-	 * Otherwise, wait for a possible partial grace period and
-	 * then the subsequent full grace period.
-	 */
-	return rnp->completed + 2;
-}
-
 /* Trace-event wrapper function for trace_rcu_future_grace_period.  */
 static void trace_rcu_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 			      unsigned long c, const char *s)
@@ -1629,16 +1583,16 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * not be released.
 	 */
 	raw_lockdep_assert_held_rcu_node(rnp);
+	WARN_ON_ONCE(c & 0x2); /* Catch any lingering use of ->gpnum. */
+	WARN_ON_ONCE(((rnp->completed << RCU_SEQ_CTR_SHIFT) >> RCU_SEQ_CTR_SHIFT) != rcu_seq_ctr(rnp->gp_seq)); /* Catch any ->completed/->gp_seq mismatches. */
 	trace_rcu_this_gp(rnp, rdp, c, TPS("Startleaf"));
 	for (rnp_root = rnp; 1; rnp_root = rnp_root->parent) {
 		if (rnp_root != rnp)
 			raw_spin_lock_rcu_node(rnp_root);
-		WARN_ON_ONCE(ULONG_CMP_LT(rnp_root->gpnum +
-					  need_future_gp_mask(), c));
 		if (need_future_gp_element(rnp_root, c) ||
-		    ULONG_CMP_GE(rnp_root->gpnum, c) ||
+		    rcu_seq_done(&rnp_root->gp_seq, c) ||
 		    (rnp != rnp_root &&
-		     rnp_root->gpnum != rnp_root->completed)) {
+		     rcu_seq_state(rcu_seq_current(&rnp_root->gp_seq)))) {
 			trace_rcu_this_gp(rnp_root, rdp, c, TPS("Prestarted"));
 			goto unlock_out;
 		}
@@ -1650,7 +1604,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	}
 
 	/* If GP already in progress, just leave, otherwise start one. */
-	if (rnp_root->gpnum != rnp_root->completed) {
+	if (rcu_gp_in_progress(rsp)) {
 		trace_rcu_this_gp(rnp_root, rdp, c, TPS("Startedleafroot"));
 		goto unlock_out;
 	}
@@ -1675,7 +1629,7 @@ unlock_out:
  */
 static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
-	unsigned long c = rnp->completed;
+	unsigned long c = rnp->gp_seq;
 	bool needmore;
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
@@ -1703,14 +1657,14 @@ static void rcu_gp_kthread_wake(struct rcu_state *rsp)
 }
 
 /*
- * If there is room, assign a ->completed number to any callbacks on
- * this CPU that have not already been assigned.  Also accelerate any
- * callbacks that were previously assigned a ->completed number that has
- * since proven to be too conservative, which can happen if callbacks get
- * assigned a ->completed number while RCU is idle, but with reference to
- * a non-root rcu_node structure.  This function is idempotent, so it does
- * not hurt to call it repeatedly.  Returns an flag saying that we should
- * awaken the RCU grace-period kthread.
+ * If there is room, assign a ->gp_seq number to any callbacks on this
+ * CPU that have not already been assigned.  Also accelerate any callbacks
+ * that were previously assigned a ->gp_seq number that has since proven
+ * to be too conservative, which can happen if callbacks get assigned a
+ * ->gp_seq number while RCU is idle, but with reference to a non-root
+ * rcu_node structure.  This function is idempotent, so it does not hurt
+ * to call it repeatedly.  Returns an flag saying that we should awaken
+ * the RCU grace-period kthread.
  *
  * The caller must hold rnp->lock with interrupts disabled.
  */
@@ -1736,7 +1690,7 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 	 * accelerating callback invocation to an earlier grace-period
 	 * number.
 	 */
-	c = rcu_cbs_completed(rsp, rnp);
+	c = rcu_seq_snap(&rsp->gp_seq);
 	if (rcu_segcblist_accelerate(&rdp->cblist, c))
 		ret = rcu_start_this_gp(rnp, rdp, c);
 
@@ -1751,7 +1705,7 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 /*
  * Move any callbacks whose grace period has completed to the
  * RCU_DONE_TAIL sublist, then compact the remaining sublists and
- * assign ->completed numbers to any callbacks in the RCU_NEXT_TAIL
+ * assign ->gp_seq numbers to any callbacks in the RCU_NEXT_TAIL
  * sublist.  This function is idempotent, so it does not hurt to
  * invoke it repeatedly.  As long as it is not invoked -too- often...
  * Returns true if the RCU grace-period kthread needs to be awakened.
@@ -1768,10 +1722,10 @@ static bool rcu_advance_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 		return false;
 
 	/*
-	 * Find all callbacks whose ->completed numbers indicate that they
+	 * Find all callbacks whose ->gp_seq numbers indicate that they
 	 * are ready to invoke, and put them into the RCU_DONE_TAIL sublist.
 	 */
-	rcu_segcblist_advance(&rdp->cblist, rnp->completed);
+	rcu_segcblist_advance(&rdp->cblist, rnp->gp_seq);
 
 	/* Classify any remaining callbacks. */
 	return rcu_accelerate_cbs(rsp, rnp, rdp);
@@ -1889,6 +1843,8 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	smp_store_release(&rsp->gpnum, rsp->gpnum + 1);
 	smp_mb(); /* Pairs with barriers in stall-warning code. */
 	rcu_seq_start(&rsp->gp_seq);
+	if (WARN_ON_ONCE(((rnp->completed << RCU_SEQ_CTR_SHIFT) >> RCU_SEQ_CTR_SHIFT) != rcu_seq_ctr(rnp->gp_seq))) /* Catch any ->completed/->gp_seq mismatches. */
+		pr_info("%s ->completed: %#lx (%#lx) ->gp_seq %#lx (%#lx)\n", __func__, rnp->completed, (rnp->completed << RCU_SEQ_CTR_SHIFT) >> RCU_SEQ_CTR_SHIFT, rnp->gp_seq, rcu_seq_ctr(rnp->gp_seq));
 	trace_rcu_grace_period(rsp->name, rsp->gpnum, TPS("start"));
 	raw_spin_unlock_irq_rcu_node(rnp);
 

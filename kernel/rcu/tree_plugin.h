@@ -2105,7 +2105,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	struct rcu_node *rnp = rdp->mynode;
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	c = rcu_cbs_completed(rdp->rsp, rnp);
+	c = rcu_seq_snap(&rdp->rsp->gp_seq);
 	needwake = rcu_start_this_gp(rnp, rdp, c);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	if (needwake)
@@ -2118,8 +2118,8 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	trace_rcu_this_gp(rnp, rdp, c, TPS("StartWait"));
 	for (;;) {
 		swait_event_interruptible(
-			rnp->nocb_gp_wq[c & 0x1],
-			(d = ULONG_CMP_GE(READ_ONCE(rnp->completed), c)));
+			rnp->nocb_gp_wq[rcu_seq_ctr(c) & 0x1],
+			(d = rcu_seq_done(&rnp->gp_seq, c)));
 		if (likely(d))
 			break;
 		WARN_ON(signal_pending(current));
