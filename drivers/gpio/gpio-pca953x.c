@@ -810,13 +810,11 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->driver_data = i2c_id->driver_data;
 	} else {
 		const struct acpi_device_id *acpi_id;
-		const struct of_device_id *match;
+		struct device *dev = &client->dev;
 
-		match = of_match_device(pca953x_dt_ids, &client->dev);
-		if (match) {
-			chip->driver_data = (int)(uintptr_t)match->data;
-		} else {
-			acpi_id = acpi_match_device(pca953x_acpi_ids, &client->dev);
+		chip->driver_data = (uintptr_t)of_device_get_match_data(dev);
+		if (!chip->driver_data) {
+			acpi_id = acpi_match_device(pca953x_acpi_ids, dev);
 			if (!acpi_id) {
 				ret = -ENODEV;
 				goto err_exit;
