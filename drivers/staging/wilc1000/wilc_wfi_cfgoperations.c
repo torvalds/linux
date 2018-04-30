@@ -608,7 +608,7 @@ wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
 
 out_free:
 
-	for (i = 0; i < slot_id ; i--)
+	for (i = 0; i < slot_id; i++)
 		kfree(ntwk->net_info[i].ssid);
 
 	kfree(ntwk->net_info);
