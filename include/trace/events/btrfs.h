@@ -1607,27 +1607,31 @@ TRACE_EVENT(btrfs_qgroup_account_extent,
 
 TRACE_EVENT(qgroup_update_counters,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 qgid,
+	TP_PROTO(const struct btrfs_fs_info *fs_info,
+		 struct btrfs_qgroup *qgroup,
 		 u64 cur_old_count, u64 cur_new_count),
 
-	TP_ARGS(fs_info, qgid, cur_old_count, cur_new_count),
+	TP_ARGS(fs_info, qgroup, cur_old_count, cur_new_count),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  qgid			)
+		__field(	u64,  old_rfer			)
+		__field(	u64,  old_excl			)
 		__field(	u64,  cur_old_count		)
 		__field(	u64,  cur_new_count		)
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__entry->qgid		= qgid;
+		__entry->qgid		= qgroup->qgroupid;
+		__entry->old_rfer	= qgroup->rfer;
+		__entry->old_excl	= qgroup->excl;
 		__entry->cur_old_count	= cur_old_count;
 		__entry->cur_new_count	= cur_new_count;
 	),
 
-	TP_printk_btrfs("qgid=%llu cur_old_count=%llu cur_new_count=%llu",
-		  __entry->qgid,
-		  __entry->cur_old_count,
-		  __entry->cur_new_count)
+	TP_printk_btrfs("qgid=%llu old_rfer=%llu old_excl=%llu cur_old_count=%llu cur_new_count=%llu",
+		  __entry->qgid, __entry->old_rfer, __entry->old_excl,
+		  __entry->cur_old_count, __entry->cur_new_count)
 );
 
 TRACE_EVENT(qgroup_update_reserve,
