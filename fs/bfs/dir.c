@@ -24,7 +24,7 @@
 static int bfs_add_entry(struct inode *dir, const unsigned char *name,
 						int namelen, int ino);
 static struct buffer_head *bfs_find_entry(struct inode *dir,
-				const unsigned char *name, int namelen,
+				const struct qstr *child,
 				struct bfs_dirent **res_dir);
 
 static int bfs_readdir(struct file *f, struct dir_context *ctx)
@@ -136,7 +136,7 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	mutex_lock(&info->bfs_lock);
-	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
+	bh = bfs_find_entry(dir, &dentry->d_name, &de);
 	if (bh) {
 		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
@@ -178,7 +178,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 
 	mutex_lock(&info->bfs_lock);
-	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
+	bh = bfs_find_entry(dir, &dentry->d_name, &de);
 	if (!bh || (le16_to_cpu(de->ino) != inode->i_ino))
 		goto out_brelse;
 
@@ -223,18 +223,14 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	info = BFS_SB(old_inode->i_sb);
 
 	mutex_lock(&info->bfs_lock);
-	old_bh = bfs_find_entry(old_dir, 
-				old_dentry->d_name.name, 
-				old_dentry->d_name.len, &old_de);
+	old_bh = bfs_find_entry(old_dir, &old_dentry->d_name, &old_de);
 
 	if (!old_bh || (le16_to_cpu(old_de->ino) != old_inode->i_ino))
 		goto end_rename;
 
 	error = -EPERM;
 	new_inode = d_inode(new_dentry);
-	new_bh = bfs_find_entry(new_dir, 
-				new_dentry->d_name.name, 
-				new_dentry->d_name.len, &new_de);
+	new_bh = bfs_find_entry(new_dir, &new_dentry->d_name, &new_de);
 
 	if (new_bh && !new_inode) {
 		brelse(new_bh);
@@ -327,12 +323,14 @@ static inline int bfs_namecmp(int len, const unsigned char *name,
 }
 
 static struct buffer_head *bfs_find_entry(struct inode *dir,
-			const unsigned char *name, int namelen,
+			const struct qstr *child,
 			struct bfs_dirent **res_dir)
 {
 	unsigned long block = 0, offset = 0;
 	struct buffer_head *bh = NULL;
 	struct bfs_dirent *de;
+	const unsigned char *name = child->name;
+	int namelen = child->len;
 
 	*res_dir = NULL;
 	if (namelen > BFS_NAMELEN)
