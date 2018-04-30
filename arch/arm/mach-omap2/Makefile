@@ -243,8 +243,4 @@ arch/arm/mach-omap2/pm-asm-offsets.s: arch/arm/mach-omap2/pm-asm-offsets.c
 include/generated/ti-pm-asm-offsets.h: arch/arm/mach-omap2/pm-asm-offsets.s FORCE
 	$(call filechk,offsets,__TI_PM_ASM_OFFSETS_H__)
 
-# For rule to generate ti-emif-asm-offsets.h dependency
-include drivers/memory/Makefile.asm-offsets
-
-arch/arm/mach-omap2/sleep33xx.o: include/generated/ti-pm-asm-offsets.h include/generated/ti-emif-asm-offsets.h
-arch/arm/mach-omap2/sleep43xx.o: include/generated/ti-pm-asm-offsets.h include/generated/ti-emif-asm-offsets.h
+$(obj)/sleep33xx.o $(obj)/sleep43xx.o: include/generated/ti-pm-asm-offsets.h

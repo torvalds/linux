@@ -47,10 +47,6 @@ config PGSTE
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config KEXEC
-	def_bool y
-	select KEXEC_CORE
-
 config AUDIT_ARCH
 	def_bool y
 
@@ -290,12 +286,12 @@ config MARCH_Z13
 	  older machines.
 
 config MARCH_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
 	select HAVE_MARCH_Z14_FEATURES
 	help
-	  Select this to enable optimizations for IBM z14 (3906 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
+	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
 
 endchoice
 
@@ -524,6 +520,26 @@ config SCHED_TOPOLOGY
 source kernel/Kconfig.preempt
 
 source kernel/Kconfig.hz
+
+config KEXEC
+	def_bool y
+	select KEXEC_CORE
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select BUILD_BIN2C
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	help
+	  Enable the kexec file based system call. In contrast to the normal
+	  kexec system call this system call takes file descriptors for the
+	  kernel and initramfs as arguments.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool y
+	depends on KEXEC_FILE
 
 config ARCH_RANDOM
 	def_bool y

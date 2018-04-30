@@ -312,8 +312,9 @@ static int __dma_mmap_from_coherent(struct dma_coherent_mem *mem,
  * This checks whether the memory was allocated from the per-device
  * coherent memory pool and if so, maps that memory to the provided vma.
  *
- * Returns 1 if we correctly mapped the memory, or 0 if the caller should
- * proceed with mapping memory from generic pools.
+ * Returns 1 if @vaddr belongs to the device coherent pool and the caller
+ * should return @ret, or 0 if they should proceed with mapping memory from
+ * generic areas.
  */
 int dma_mmap_from_dev_coherent(struct device *dev, struct vm_area_struct *vma,
 			   void *vaddr, size_t size, int *ret)

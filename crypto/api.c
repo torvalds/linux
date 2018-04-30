@@ -204,9 +204,14 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 
 	down_read(&crypto_alg_sem);
 	alg = __crypto_alg_lookup(name, type | test, mask | test);
-	if (!alg && test)
-		alg = __crypto_alg_lookup(name, type, mask) ?
-		      ERR_PTR(-ELIBBAD) : NULL;
+	if (!alg && test) {
+		alg = __crypto_alg_lookup(name, type, mask);
+		if (alg && !crypto_is_larval(alg)) {
+			/* Test failed */
+			crypto_mod_put(alg);
+			alg = ERR_PTR(-ELIBBAD);
+		}
+	}
 	up_read(&crypto_alg_sem);
 
 	return alg;

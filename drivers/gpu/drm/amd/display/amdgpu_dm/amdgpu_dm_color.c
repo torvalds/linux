@@ -138,13 +138,6 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	lut = (struct drm_color_lut *)blob->data;
 	lut_size = blob->length / sizeof(struct drm_color_lut);
 
-	if (__is_lut_linear(lut, lut_size)) {
-		/* Set to bypass if lut is set to linear */
-		stream->out_transfer_func->type = TF_TYPE_BYPASS;
-		stream->out_transfer_func->tf = TRANSFER_FUNCTION_LINEAR;
-		return 0;
-	}
-
 	gamma = dc_create_gamma();
 	if (!gamma)
 		return -ENOMEM;

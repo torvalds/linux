@@ -412,8 +412,10 @@ typedef struct {
   QuadraticInt_t    ReservedEquation2;
   QuadraticInt_t    ReservedEquation3;
 
+	uint16_t     MinVoltageUlvGfx;
+	uint16_t     MinVoltageUlvSoc;
 
-  uint32_t     Reserved[15];
+	uint32_t     Reserved[14];
 
 
 

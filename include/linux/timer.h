@@ -8,8 +8,6 @@
 #include <linux/debugobjects.h>
 #include <linux/stringify.h>
 
-struct tvec_base;
-
 struct timer_list {
 	/*
 	 * All fields that change during normal runtime grouped to the
