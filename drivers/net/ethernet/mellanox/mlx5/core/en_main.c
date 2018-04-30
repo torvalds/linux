@@ -42,7 +42,9 @@
 #include "en_rep.h"
 #include "en_accel/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
+#include "en_accel/tls.h"
 #include "accel/ipsec.h"
+#include "accel/tls.h"
 #include "vxlan.h"
 
 struct mlx5e_rq_param {
@@ -4376,6 +4378,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 #endif
 
 	mlx5e_ipsec_build_netdev(priv);
+	mlx5e_tls_build_netdev(priv);
 }
 
 static void mlx5e_create_q_counters(struct mlx5e_priv *priv)

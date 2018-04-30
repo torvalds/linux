@@ -28,4 +28,6 @@ mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o ipoib/ipoib
 mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
 		en_accel/ipsec_stats.o
 
+mlx5_core-$(CONFIG_MLX5_EN_TLS) +=  en_accel/tls.o
+
 CFLAGS_tracepoint.o := -I$(src)
