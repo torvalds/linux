@@ -1772,7 +1772,7 @@ static void tcpm_pd_ext_msg_request(struct tcpm_port *port,
 	enum pd_ext_msg_type type = pd_header_type_le(msg->header);
 	unsigned int data_size = pd_ext_header_data_size_le(msg->ext_msg.header);
 
-	if (!(msg->ext_msg.header && PD_EXT_HDR_CHUNKED)) {
+	if (!(msg->ext_msg.header & PD_EXT_HDR_CHUNKED)) {
 		tcpm_log(port, "Unchunked extended messages unsupported");
 		return;
 	}
