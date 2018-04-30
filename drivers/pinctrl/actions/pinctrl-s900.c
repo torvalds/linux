@@ -204,7 +204,7 @@
 #define NUM_PADS		(_PIN(3) + 1)
 
 /* Pad names as specified in datasheet */
-const struct pinctrl_pin_desc s900_pads[] = {
+static const struct pinctrl_pin_desc s900_pads[] = {
 	PINCTRL_PIN(ETH_TXD0, "eth_txd0"),
 	PINCTRL_PIN(ETH_TXD1, "eth_txd1"),
 	PINCTRL_PIN(ETH_TXEN, "eth_txen"),
@@ -1442,7 +1442,7 @@ static const char * const sirq2_groups[] = {
 		.ngroups = ARRAY_SIZE(fname##_groups),	\
 	}
 
-const struct owl_pinmux_func s900_functions[] = {
+static const struct owl_pinmux_func s900_functions[] = {
 	[S900_MUX_ERAM] = FUNCTION(eram),
 	[S900_MUX_ETH_RMII] = FUNCTION(eth_rmii),
 	[S900_MUX_ETH_SMII] = FUNCTION(eth_smii),
@@ -1661,7 +1661,7 @@ static PAD_ST_CONF(I2S_MCLK0, 1, 0, 1);
 	}
 
 /* Pad info table */
-struct owl_padinfo s900_padinfo[NUM_PADS] = {
+static struct owl_padinfo s900_padinfo[NUM_PADS] = {
 	[ETH_TXD0] = PAD_INFO_ST(ETH_TXD0),
 	[ETH_TXD1] = PAD_INFO_ST(ETH_TXD1),
 	[ETH_TXEN] = PAD_INFO_ST(ETH_TXEN),
