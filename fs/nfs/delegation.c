@@ -508,6 +508,7 @@ restart:
 			err = nfs_end_delegation_return(inode, delegation, 0);
 			iput(inode);
 			nfs_sb_deactive(server->super);
+			cond_resched();
 			if (!err)
 				goto restart;
 			set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
@@ -904,6 +905,7 @@ restart:
 			}
 			iput(inode);
 			nfs_sb_deactive(server->super);
+			cond_resched();
 			goto restart;
 		}
 	}
@@ -1020,6 +1022,7 @@ restart:
 			}
 			iput(inode);
 			nfs_sb_deactive(server->super);
+			cond_resched();
 			goto restart;
 		}
 	}
