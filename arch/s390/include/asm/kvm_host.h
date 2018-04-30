@@ -793,12 +793,6 @@ struct kvm_s390_vsie {
 	struct page *pages[KVM_MAX_VCPUS];
 };
 
-struct kvm_s390_migration_state {
-	unsigned long bitmap_size;	/* in bits (number of guest pages) */
-	atomic64_t dirty_pages;		/* number of dirty pages */
-	unsigned long *pgste_bitmap;
-};
-
 struct kvm_arch{
 	void *sca;
 	int use_esca;
@@ -828,7 +822,8 @@ struct kvm_arch{
 	struct kvm_s390_vsie vsie;
 	u8 epdx;
 	u64 epoch;
-	struct kvm_s390_migration_state *migration_state;
+	int migration_mode;
+	atomic64_t cmma_dirty_pages;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 	struct kvm_s390_gisa *gisa;

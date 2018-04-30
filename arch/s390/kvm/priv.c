@@ -987,9 +987,11 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
+/*
+ * Must be called with relevant read locks held (kvm->mm->mmap_sem, kvm->srcu)
+ */
+static inline int __do_essa(struct kvm_vcpu *vcpu, const int orc)
 {
-	struct kvm_s390_migration_state *ms = vcpu->kvm->arch.migration_state;
 	int r1, r2, nappended, entries;
 	unsigned long gfn, hva, res, pgstev, ptev;
 	unsigned long *cbrlo;
@@ -1039,10 +1041,12 @@ static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
 		cbrlo[entries] = gfn << PAGE_SHIFT;
 	}
 
-	if (orc && gfn < ms->bitmap_size) {
-		/* increment only if we are really flipping the bit to 1 */
-		if (!test_and_set_bit(gfn, ms->pgste_bitmap))
-			atomic64_inc(&ms->dirty_pages);
+	if (orc) {
+		struct kvm_memory_slot *ms = gfn_to_memslot(vcpu->kvm, gfn);
+
+		/* Increment only if we are really flipping the bit */
+		if (ms && !test_and_set_bit(gfn - ms->base_gfn, kvm_second_dirty_bitmap(ms)))
+			atomic64_inc(&vcpu->kvm->arch.cmma_dirty_pages);
 	}
 
 	return nappended;
@@ -1071,7 +1075,7 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 						: ESSA_SET_STABLE_IF_RESIDENT))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	if (likely(!vcpu->kvm->arch.migration_state)) {
+	if (!vcpu->kvm->arch.migration_mode) {
 		/*
 		 * CMMA is enabled in the KVM settings, but is disabled in
 		 * the SIE block and in the mm_context, and we are not doing
@@ -1099,10 +1103,16 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 		/* Retry the ESSA instruction */
 		kvm_s390_retry_instr(vcpu);
 	} else {
-		/* Account for the possible extra cbrl entry */
-		i = do_essa(vcpu, orc);
+		int srcu_idx;
+
+		down_read(&vcpu->kvm->mm->mmap_sem);
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		i = __do_essa(vcpu, orc);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		up_read(&vcpu->kvm->mm->mmap_sem);
 		if (i < 0)
 			return i;
+		/* Account for the possible extra cbrl entry */
 		entries += i;
 	}
 	vcpu->arch.sie_block->cbrlo &= PAGE_MASK;	/* reset nceo */
