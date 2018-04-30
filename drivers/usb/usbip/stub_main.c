@@ -201,6 +201,9 @@ static ssize_t rebind_store(struct device_driver *dev, const char *buf,
 	if (!bid)
 		return -ENODEV;
 
+	/* mark the device for deletion so probe ignores it during rescan */
+	bid->status = STUB_BUSID_OTHER;
+
 	/* device_attach() callers should hold parent lock for USB */
 	if (bid->udev->dev.parent)
 		device_lock(bid->udev->dev.parent);
@@ -211,6 +214,9 @@ static ssize_t rebind_store(struct device_driver *dev, const char *buf,
 		dev_err(&bid->udev->dev, "rebind failed\n");
 		return ret;
 	}
+
+	/* delete device from busid_table */
+	del_match_busid((char *) buf);
 
 	return count;
 }
