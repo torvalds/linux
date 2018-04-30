@@ -32,6 +32,7 @@
 
 #include "en.h"
 #include "en_accel/ipsec.h"
+#include "en_accel/tls.h"
 
 static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_packets) },
@@ -1075,6 +1076,22 @@ static void mlx5e_grp_ipsec_update_stats(struct mlx5e_priv *priv)
 	mlx5e_ipsec_update_stats(priv);
 }
 
+static int mlx5e_grp_tls_get_num_stats(struct mlx5e_priv *priv)
+{
+	return mlx5e_tls_get_count(priv);
+}
+
+static int mlx5e_grp_tls_fill_strings(struct mlx5e_priv *priv, u8 *data,
+				      int idx)
+{
+	return idx + mlx5e_tls_get_strings(priv, data + idx * ETH_GSTRING_LEN);
+}
+
+static int mlx5e_grp_tls_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
+{
+	return idx + mlx5e_tls_get_stats(priv, data + idx);
+}
+
 static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, packets) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, bytes) },
@@ -1276,6 +1293,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.fill_strings = mlx5e_grp_ipsec_fill_strings,
 		.fill_stats = mlx5e_grp_ipsec_fill_stats,
 		.update_stats = mlx5e_grp_ipsec_update_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_tls_get_num_stats,
+		.fill_strings = mlx5e_grp_tls_fill_strings,
+		.fill_stats = mlx5e_grp_tls_fill_stats,
 	},
 	{
 		.get_num_stats = mlx5e_grp_channels_get_num_stats,

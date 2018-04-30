@@ -173,3 +173,25 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 	netdev->hw_features |= NETIF_F_HW_TLS_TX;
 	netdev->tlsdev_ops = &mlx5e_tls_ops;
 }
+
+int mlx5e_tls_init(struct mlx5e_priv *priv)
+{
+	struct mlx5e_tls *tls = kzalloc(sizeof(*tls), GFP_KERNEL);
+
+	if (!tls)
+		return -ENOMEM;
+
+	priv->tls = tls;
+	return 0;
+}
+
+void mlx5e_tls_cleanup(struct mlx5e_priv *priv)
+{
+	struct mlx5e_tls *tls = priv->tls;
+
+	if (!tls)
+		return;
+
+	kfree(tls);
+	priv->tls = NULL;
+}
