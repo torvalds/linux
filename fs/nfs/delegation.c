@@ -483,27 +483,72 @@ out:
 int nfs_client_return_marked_delegations(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation;
+	struct nfs_delegation *prev;
 	struct nfs_server *server;
 	struct inode *inode;
+	struct inode *place_holder = NULL;
+	struct nfs_delegation *place_holder_deleg = NULL;
 	int err = 0;
 
 restart:
+	/*
+	 * To avoid quadratic looping we hold a reference
+	 * to an inode place_holder.  Each time we restart, we
+	 * list nfs_servers from the server of that inode, and
+	 * delegation in the server from the delegations of that
+	 * inode.
+	 * prev is an RCU-protected pointer to a delegation which
+	 * wasn't marked for return and might be a good choice for
+	 * the next place_holder.
+	 */
 	rcu_read_lock();
-	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		list_for_each_entry_rcu(delegation, &server->delegations,
-								super_list) {
-			if (!nfs_delegation_need_return(delegation))
+	prev = NULL;
+	if (place_holder)
+		server = NFS_SERVER(place_holder);
+	else
+		server = list_entry_rcu(clp->cl_superblocks.next,
+					struct nfs_server, client_link);
+	list_for_each_entry_from_rcu(server, &clp->cl_superblocks, client_link) {
+		delegation = NULL;
+		if (place_holder && server == NFS_SERVER(place_holder))
+			delegation = rcu_dereference(NFS_I(place_holder)->delegation);
+		if (!delegation || delegation != place_holder_deleg)
+			delegation = list_entry_rcu(server->delegations.next,
+						    struct nfs_delegation, super_list);
+		list_for_each_entry_from_rcu(delegation, &server->delegations, super_list) {
+			struct inode *to_put = NULL;
+
+			if (!nfs_delegation_need_return(delegation)) {
+				prev = delegation;
 				continue;
+			}
 			if (!nfs_sb_active(server->super))
 				break; /* continue in outer loop */
+
+			if (prev) {
+				struct inode *tmp;
+
+				tmp = nfs_delegation_grab_inode(prev);
+				if (tmp) {
+					to_put = place_holder;
+					place_holder = tmp;
+					place_holder_deleg = prev;
+				}
+			}
+
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL) {
 				rcu_read_unlock();
+				if (to_put)
+					iput(to_put);
 				nfs_sb_deactive(server->super);
 				goto restart;
 			}
 			delegation = nfs_start_delegation_return_locked(NFS_I(inode));
 			rcu_read_unlock();
+
+			if (to_put)
+				iput(to_put);
 
 			err = nfs_end_delegation_return(inode, delegation, 0);
 			iput(inode);
@@ -512,10 +557,14 @@ restart:
 			if (!err)
 				goto restart;
 			set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
+			if (place_holder)
+				iput(place_holder);
 			return err;
 		}
 	}
 	rcu_read_unlock();
+	if (place_holder)
+		iput(place_holder);
 	return 0;
 }
 
