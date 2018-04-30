@@ -1340,10 +1340,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		struct rb_node *rb;
 
 		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x, last %x], inflight %d\n",
+		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
 			   engine->hangcheck.seqno, seqno[id],
-			   intel_engine_last_submit(engine),
-			   engine->timeline->inflight_seqnos);
+			   intel_engine_last_submit(engine));
 		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,

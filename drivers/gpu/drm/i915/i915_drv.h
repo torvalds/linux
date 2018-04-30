@@ -2062,6 +2062,7 @@ struct drm_i915_private {
 		struct list_head timelines;
 		struct i915_gem_timeline global_timeline;
 		u32 active_requests;
+		u32 request_serial;
 
 		/**
 		 * Is the GPU currently considered idle, or busy executing

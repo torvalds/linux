@@ -1321,12 +1321,11 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (i915_terminally_wedged(&engine->i915->gpu_error))
 		drm_printf(m, "*** WEDGED ***\n");
 
-	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
+	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms]\n",
 		   intel_engine_get_seqno(engine),
 		   intel_engine_last_submit(engine),
 		   engine->hangcheck.seqno,
-		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
-		   engine->timeline->inflight_seqnos);
+		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));

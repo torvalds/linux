@@ -241,6 +241,7 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 			       sizeof(timeline->engine[id].global_sync));
 	}
 
+	i915->gt.request_serial = seqno;
 	return 0;
 }
 
@@ -257,18 +258,22 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 	return reset_all_global_seqno(i915, seqno - 1);
 }
 
-static int reserve_engine(struct intel_engine_cs *engine)
+static int reserve_gt(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = engine->i915;
-	u32 active = ++engine->timeline->inflight_seqnos;
-	u32 seqno = engine->timeline->seqno;
 	int ret;
 
-	/* Reservation is fine until we need to wrap around */
-	if (unlikely(add_overflows(seqno, active))) {
+	/*
+	 * Reservation is fine until we may need to wrap around
+	 *
+	 * By incrementing the serial for every request, we know that no
+	 * individual engine may exceed that serial (as each is reset to 0
+	 * on any wrap). This protects even the most pessimistic of migrations
+	 * of every request from all engines onto just one.
+	 */
+	while (unlikely(++i915->gt.request_serial == 0)) {
 		ret = reset_all_global_seqno(i915, 0);
 		if (ret) {
-			engine->timeline->inflight_seqnos--;
+			i915->gt.request_serial--;
 			return ret;
 		}
 	}
@@ -279,15 +284,10 @@ static int reserve_engine(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static void unreserve_engine(struct intel_engine_cs *engine)
+static void unreserve_gt(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = engine->i915;
-
 	if (!--i915->gt.active_requests)
 		i915_gem_park(i915);
-
-	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
-	engine->timeline->inflight_seqnos--;
 }
 
 void i915_gem_retire_noop(struct i915_gem_active *active,
@@ -362,7 +362,6 @@ static void i915_request_retire(struct i915_request *request)
 	list_del_init(&request->link);
 	spin_unlock_irq(&engine->timeline->lock);
 
-	unreserve_engine(request->engine);
 	advance_ring(request);
 
 	free_capture_list(request);
@@ -423,6 +422,8 @@ static void i915_request_retire(struct i915_request *request)
 		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
 	}
 	spin_unlock_irq(&request->lock);
+
+	unreserve_gt(request->i915);
 
 	i915_sched_node_fini(request->i915, &request->sched);
 	i915_request_put(request);
@@ -642,7 +643,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		return ERR_CAST(ring);
 	GEM_BUG_ON(!ring);
 
-	ret = reserve_engine(engine);
+	ret = reserve_gt(i915);
 	if (ret)
 		goto err_unpin;
 
@@ -784,7 +785,7 @@ err_unwind:
 
 	kmem_cache_free(i915->requests, rq);
 err_unreserve:
-	unreserve_engine(engine);
+	unreserve_gt(i915);
 err_unpin:
 	engine->context_unpin(engine, ctx);
 	return ERR_PTR(ret);

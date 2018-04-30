@@ -37,12 +37,6 @@ struct intel_timeline {
 	u64 fence_context;
 	u32 seqno;
 
-	/**
-	 * Count of outstanding requests, from the time they are constructed
-	 * to the moment they are retired. Loosely coupled to hardware.
-	 */
-	u32 inflight_seqnos;
-
 	spinlock_t lock;
 
 	/**
