@@ -370,12 +370,8 @@ static int __opal_put_chars(uint32_t vtermno, const char *data, int total_len, b
 	olen = cpu_to_be64(total_len);
 	rc = opal_console_write(vtermno, &olen, data);
 	if (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		if (rc == OPAL_BUSY_EVENT) {
-			mdelay(OPAL_BUSY_DELAY_MS);
+		if (rc == OPAL_BUSY_EVENT)
 			opal_poll_events(NULL);
-		} else if (rc == OPAL_BUSY_EVENT) {
-			mdelay(OPAL_BUSY_DELAY_MS);
-		}
 		written = -EAGAIN;
 		goto out;
 	}
@@ -401,15 +397,6 @@ out:
 	if (atomic)
 		spin_unlock_irqrestore(&opal_write_lock, flags);
 
-	/* In the -EAGAIN case, callers loop, so we have to flush the console
-	 * here in case they have interrupts off (and we don't want to wait
-	 * for async flushing if we can make immediate progress here). If
-	 * necessary the API could be made entirely non-flushing if the
-	 * callers had a ->flush API to use.
-	 */
-	if (written == -EAGAIN)
-		opal_flush_console(vtermno);
-
 	return written;
 }
 
@@ -429,40 +416,74 @@ int opal_put_chars_atomic(uint32_t vtermno, const char *data, int total_len)
 	return __opal_put_chars(vtermno, data, total_len, true);
 }
 
-int opal_flush_console(uint32_t vtermno)
+static s64 __opal_flush_console(uint32_t vtermno)
 {
 	s64 rc;
 
 	if (!opal_check_token(OPAL_CONSOLE_FLUSH)) {
 		__be64 evt;
 
-		WARN_ONCE(1, "opal: OPAL_CONSOLE_FLUSH missing.\n");
 		/*
 		 * If OPAL_CONSOLE_FLUSH is not implemented in the firmware,
 		 * the console can still be flushed by calling the polling
 		 * function while it has OPAL_EVENT_CONSOLE_OUTPUT events.
 		 */
-		do {
-			opal_poll_events(&evt);
-		} while (be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT);
+		WARN_ONCE(1, "opal: OPAL_CONSOLE_FLUSH missing.\n");
 
-		return OPAL_SUCCESS;
+		opal_poll_events(&evt);
+		if (!(be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT))
+			return OPAL_SUCCESS;
+		return OPAL_BUSY;
+
+	} else {
+		rc = opal_console_flush(vtermno);
+		if (rc == OPAL_BUSY_EVENT) {
+			opal_poll_events(NULL);
+			rc = OPAL_BUSY;
+		}
+		return rc;
 	}
 
-	do  {
-		rc = OPAL_BUSY;
-		while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-			rc = opal_console_flush(vtermno);
-			if (rc == OPAL_BUSY_EVENT) {
-				mdelay(OPAL_BUSY_DELAY_MS);
-				opal_poll_events(NULL);
-			} else if (rc == OPAL_BUSY) {
-				mdelay(OPAL_BUSY_DELAY_MS);
-			}
-		}
-	} while (rc == OPAL_PARTIAL); /* More to flush */
+}
 
-	return opal_error_code(rc);
+/*
+ * opal_flush_console spins until the console is flushed
+ */
+int opal_flush_console(uint32_t vtermno)
+{
+	for (;;) {
+		s64 rc = __opal_flush_console(vtermno);
+
+		if (rc == OPAL_BUSY || rc == OPAL_PARTIAL) {
+			mdelay(1);
+			continue;
+		}
+
+		return opal_error_code(rc);
+	}
+}
+
+/*
+ * opal_flush_chars is an hvc interface that sleeps until the console is
+ * flushed if wait, otherwise it will return -EBUSY if the console has data,
+ * -EAGAIN if it has data and some of it was flushed.
+ */
+int opal_flush_chars(uint32_t vtermno, bool wait)
+{
+	for (;;) {
+		s64 rc = __opal_flush_console(vtermno);
+
+		if (rc == OPAL_BUSY || rc == OPAL_PARTIAL) {
+			if (wait) {
+				msleep(OPAL_BUSY_DELAY_MS);
+				continue;
+			}
+			if (rc == OPAL_PARTIAL)
+				return -EAGAIN;
+		}
+
+		return opal_error_code(rc);
+	}
 }
 
 static int opal_recover_mce(struct pt_regs *regs,
