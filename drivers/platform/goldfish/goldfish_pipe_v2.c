@@ -215,7 +215,8 @@ struct goldfish_pipe {
 
 struct goldfish_pipe_dev goldfish_pipe_dev;
 
-static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
+static int goldfish_pipe_cmd_locked(
+	struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
 	pipe->command_buffer->cmd = cmd;
 	/* failure by default */
@@ -224,14 +225,14 @@ static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 	return pipe->command_buffer->status;
 }
 
-static int goldfish_cmd(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
+static int goldfish_pipe_cmd(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
 	int status;
 
 	if (mutex_lock_interruptible(&pipe->lock))
 		return PIPE_ERROR_IO;
 
-	status = goldfish_cmd_locked(pipe, cmd);
+	status = goldfish_pipe_cmd_locked(pipe, cmd);
 
 	mutex_unlock(&pipe->lock);
 	return status;
@@ -354,7 +355,7 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 		pipe->command_buffer);
 
 	/* Transfer the data */
-	*status = goldfish_cmd_locked(
+	*status = goldfish_pipe_cmd_locked(
 		pipe,
 		is_write ? PIPE_CMD_WRITE : PIPE_CMD_READ);
 
@@ -372,7 +373,7 @@ static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 	set_bit(wakeBit, &pipe->flags);
 
 	/* Tell the emulator we're going to wait for a wake event */
-	(void)goldfish_cmd(pipe,
+	goldfish_pipe_cmd(pipe,
 			is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ);
 
 	while (test_bit(wakeBit, &pipe->flags)) {
@@ -493,7 +494,7 @@ static unsigned int goldfish_pipe_poll(struct file *filp, poll_table *wait)
 
 	poll_wait(filp, &pipe->wake_queue, wait);
 
-	status = goldfish_cmd(pipe, PIPE_CMD_POLL);
+	status = goldfish_pipe_cmd(pipe, PIPE_CMD_POLL);
 	if (status < 0)
 		return -ERESTARTSYS;
 
@@ -723,7 +724,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 			MAX_BUFFERS_PER_COMMAND;
 	dev->buffers->open_command_params.command_buffer_ptr =
 			(u64)(unsigned long)__pa(pipe->command_buffer);
-	status = goldfish_cmd_locked(pipe, PIPE_CMD_OPEN);
+	status = goldfish_pipe_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (status < 0) {
 		pr_err("Could not tell host of new pipe! status=%d\n", status);
@@ -752,7 +753,7 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 	struct goldfish_pipe_dev *dev = pipe->dev;
 
 	/* The guest is closing the channel, so tell the emulator right now */
-	(void)goldfish_cmd(pipe, PIPE_CMD_CLOSE);
+	goldfish_pipe_cmd(pipe, PIPE_CMD_CLOSE);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->pipes[pipe->id] = NULL;
