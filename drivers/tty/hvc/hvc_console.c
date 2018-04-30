@@ -589,7 +589,7 @@ static u32 timeout = MIN_TIMEOUT;
 #define HVC_POLL_READ	0x00000001
 #define HVC_POLL_WRITE	0x00000002
 
-int hvc_poll(struct hvc_struct *hp)
+static int __hvc_poll(struct hvc_struct *hp, bool may_sleep)
 {
 	struct tty_struct *tty;
 	int i, n, count, poll_mask = 0;
@@ -609,6 +609,12 @@ int hvc_poll(struct hvc_struct *hp)
 		poll_mask |= HVC_POLL_WRITE;
 		/* If hvc_push() was not able to write, sleep a few msecs */
 		timeout = (written_total) ? 0 : MIN_TIMEOUT;
+	}
+
+	if (may_sleep) {
+		spin_unlock_irqrestore(&hp->lock, flags);
+		cond_resched();
+		spin_lock_irqsave(&hp->lock, flags);
 	}
 
 	/* No tty attached, just skip */
@@ -698,6 +704,11 @@ int hvc_poll(struct hvc_struct *hp)
 
 	return poll_mask;
 }
+
+int hvc_poll(struct hvc_struct *hp)
+{
+	return __hvc_poll(hp, false);
+}
 EXPORT_SYMBOL_GPL(hvc_poll);
 
 /**
@@ -736,7 +747,8 @@ static int khvcd(void *unused)
 		if (!cpus_are_in_xmon()) {
 			mutex_lock(&hvc_structs_mutex);
 			list_for_each_entry(hp, &hvc_structs, next) {
-				poll_mask |= hvc_poll(hp);
+				poll_mask |= __hvc_poll(hp, true);
+				cond_resched();
 			}
 			mutex_unlock(&hvc_structs_mutex);
 		} else
