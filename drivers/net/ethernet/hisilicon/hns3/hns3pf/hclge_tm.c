@@ -134,11 +134,8 @@ static int hclge_pfc_stats_get(struct hclge_dev *hdev,
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_TM_PFC_PKT_GET_CMD_NUM);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Get pfc pause stats fail, ret = %d.\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	for (i = 0; i < HCLGE_TM_PFC_PKT_GET_CMD_NUM; i++) {
 		struct hclge_pfc_stats_cmd *pfc_stats =
