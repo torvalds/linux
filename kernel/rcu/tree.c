@@ -1552,9 +1552,8 @@ void rcu_cpu_stall_reset(void)
 static void trace_rcu_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 			      unsigned long c, const char *s)
 {
-	trace_rcu_future_grace_period(rdp->rsp->name, rnp->gpnum,
-				      rnp->completed, c, rnp->level,
-				      rnp->grplo, rnp->grphi, s);
+	trace_rcu_future_grace_period(rdp->rsp->name, rnp->gp_seq, c,
+				      rnp->level, rnp->grplo, rnp->grphi, s);
 }
 
 /*
@@ -2053,7 +2052,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(rsp->rda);
 	if (ULONG_CMP_LT(rnp->gp_seq, rnp->gp_seq_needed)) {
-		trace_rcu_this_gp(rnp, rdp, rsp->completed - 1,
+		trace_rcu_this_gp(rnp, rdp, rnp->gp_seq_needed,
 				  TPS("CleanupMore"));
 		needgp = true;
 	}
