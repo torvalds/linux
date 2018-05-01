@@ -10365,7 +10365,11 @@ static void ssd_init_trim(ssd_device_t *dev)
 	if (dev->protocol_info.ver <= SSD_PROTOCOL_V3) {
 		return;
 	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0))
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, dev->rq);
+#else
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, dev->rq);
+#endif
 
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)) || (defined RHEL_MAJOR && RHEL_MAJOR >= 6))
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4,12,0))
@@ -10427,7 +10431,11 @@ static int ssd_init_queue(struct ssd_device *dev)
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0))
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, dev->rq);
+#else
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, dev->rq);
+#endif
 #endif
 
 	ssd_init_trim(dev);
