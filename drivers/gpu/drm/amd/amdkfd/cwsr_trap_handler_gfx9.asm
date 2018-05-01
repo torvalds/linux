@@ -1067,8 +1067,6 @@ end
 
     s_waitcnt	    lgkmcnt(0)											    //from now on, it is safe to restore STATUS and IB_STS
 
-    s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order not to affect STATUS
-
     //for normal save & restore, the saved PC points to the next inst to execute, no adjustment needs to be made, otherwise:
     if ((EMU_RUN_HACK) && (!EMU_RUN_HACK_RESTORE_NORMAL))
 	s_add_u32 s_restore_pc_lo, s_restore_pc_lo, 8		 //pc[31:0]+8	  //two back-to-back s_trap are used (first for save and second for restore)
@@ -1119,6 +1117,7 @@ end
     s_lshr_b32	    s_restore_m0, s_restore_m0, SQ_WAVE_STATUS_INST_ATC_SHIFT
     s_setreg_b32    hwreg(HW_REG_IB_STS),   s_restore_tmp
 
+    s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order not to affect STATUS
     s_and_b64	 exec, exec, exec  // Restore STATUS.EXECZ, not writable by s_setreg_b32
     s_and_b64	 vcc, vcc, vcc	// Restore STATUS.VCCZ, not writable by s_setreg_b32
     s_setreg_b32    hwreg(HW_REG_STATUS),   s_restore_status	 // SCC is included, which is changed by previous salu
