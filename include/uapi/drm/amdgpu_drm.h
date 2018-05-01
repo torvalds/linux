@@ -506,7 +506,8 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_HW_IP_UVD_ENC      5
 #define AMDGPU_HW_IP_VCN_DEC      6
 #define AMDGPU_HW_IP_VCN_ENC      7
-#define AMDGPU_HW_IP_NUM          8
+#define AMDGPU_HW_IP_VCN_JPEG     8
+#define AMDGPU_HW_IP_NUM          9
 
 #define AMDGPU_HW_IP_INSTANCE_MAX_COUNT 1
 
