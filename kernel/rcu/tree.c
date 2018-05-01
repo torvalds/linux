@@ -1246,9 +1246,9 @@ static void record_gp_stall_check_time(struct rcu_state *rsp)
 	unsigned long j1;
 
 	rsp->gp_start = j;
-	smp_wmb(); /* Record start time before stall time. */
 	j1 = rcu_jiffies_till_stall_check();
-	WRITE_ONCE(rsp->jiffies_stall, j + j1);
+	/* Record ->gp_start before ->jiffies_stall. */
+	smp_store_release(&rsp->jiffies_stall, j + j1); /* ^^^ */
 	rsp->jiffies_resched = j + j1 / 2;
 	rsp->n_force_qs_gpstart = READ_ONCE(rsp->n_force_qs);
 }
