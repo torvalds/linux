@@ -3550,13 +3550,6 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	ctio24->u.status1.ox_id = cpu_to_le16(temp);
 
-	/* Most likely, it isn't needed */
-	ctio24->u.status1.residual = get_unaligned((uint32_t *)
-	    &atio->u.isp24.fcp_cmnd.add_cdb[
-	    atio->u.isp24.fcp_cmnd.add_cdb_len]);
-	if (ctio24->u.status1.residual != 0)
-		ctio24->u.status1.scsi_status |= SS_RESIDUAL_UNDER;
-
 	/* Memory Barrier */
 	wmb();
 	if (qpair->reqq_start_iocbs)
@@ -4051,9 +4044,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 
 	fcp_task_attr = qlt_get_fcp_task_attr(vha,
 	    atio->u.isp24.fcp_cmnd.task_attr);
-	data_length = be32_to_cpu(get_unaligned((uint32_t *)
-	    &atio->u.isp24.fcp_cmnd.add_cdb[
-	    atio->u.isp24.fcp_cmnd.add_cdb_len]));
+	data_length = get_datalen_for_atio(atio);
 
 	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cdb, data_length,
 				          fcp_task_attr, data_dir, bidi);
@@ -5187,6 +5178,12 @@ static int __qlt_send_busy(struct qla_qpair *qpair,
 	 */
 	ctio24->u.status1.ox_id = swab16(atio->u.isp24.fcp_hdr.ox_id);
 	ctio24->u.status1.scsi_status = cpu_to_le16(status);
+
+	ctio24->u.status1.residual = get_datalen_for_atio(atio);
+
+	if (ctio24->u.status1.residual != 0)
+		ctio24->u.status1.scsi_status |= SS_RESIDUAL_UNDER;
+
 	/* Memory Barrier */
 	wmb();
 	if (qpair->reqq_start_iocbs)
