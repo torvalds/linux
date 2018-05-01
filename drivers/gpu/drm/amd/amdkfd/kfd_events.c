@@ -496,7 +496,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
 					     partial_id, valid_id_bits);
 
-		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT/2) {
+		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT / 64) {
 			/* With relatively few events, it's faster to
 			 * iterate over the event IDR
 			 */
