@@ -856,8 +856,14 @@ static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 	struct list_head *lhp;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
-	pr_info("%s: grp: %d-%d level: %d ->qamask %#lx ->gp_tasks %p ->boost_tasks %p ->exp_tasks %p &->blkd_tasks: %p offset: %u\n", __func__, rnp->grplo, rnp->grphi, rnp->level, rnp->qsmask, rnp->gp_tasks, rnp->boost_tasks, rnp->exp_tasks, &rnp->blkd_tasks, (unsigned int)offsetof(typeof(*rnp), blkd_tasks));
-	pr_cont("\t->blkd_tasks");
+	pr_info("%s: grp: %d-%d level: %d ->gp_seq %#lx ->completedqs %#lx\n",
+		__func__, rnp->grplo, rnp->grphi, rnp->level,
+		rnp->gp_seq, rnp->completedqs);
+	pr_info("%s: ->qsmask %#lx ->qsmaskinit %#lx ->qsmaskinitnext %#lx\n",
+		__func__, rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext);
+	pr_info("%s: ->gp_tasks %p ->boost_tasks %p ->exp_tasks %p\n",
+		__func__, rnp->gp_tasks, rnp->boost_tasks, rnp->exp_tasks);
+	pr_info("%s: ->blkd_tasks", __func__);
 	i = 0;
 	list_for_each(lhp, &rnp->blkd_tasks) {
 		pr_cont(" %p", lhp);

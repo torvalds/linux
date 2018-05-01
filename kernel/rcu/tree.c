@@ -2316,6 +2316,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 		return;  /* Still need more quiescent states! */
 	}
 
+	rnp->completedqs = rnp->gp_seq;
 	rnp_p = rnp->parent;
 	if (rnp_p == NULL) {
 		/*
