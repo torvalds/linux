@@ -2100,6 +2100,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		netdev->features = (lio->dev_capability & ~NETIF_F_LRO);
 
 		netdev->hw_features = lio->dev_capability;
+		netdev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
 		/* MTU range: 68 - 16000 */
 		netdev->min_mtu = LIO_MIN_MTU_SIZE;
