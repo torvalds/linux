@@ -1254,7 +1254,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
 	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
-		   mvm->hw_registered) {
+		   mvm->hw_registered &&
+		   !test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
@@ -1269,7 +1270,8 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	iwl_mvm_dump_nic_error_log(mvm);
+	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status))
+		iwl_mvm_dump_nic_error_log(mvm);
 
 	iwl_mvm_nic_restart(mvm, true);
 }

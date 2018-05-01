@@ -1189,8 +1189,8 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	lockdep_assert_held(&trans_pcie->reg_lock);
 
 	/* Make sure the NIC is still alive in the bus */
-	if (trans_pcie->scheduled_for_removal)
-		return -EIO;
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
 
 	if (!(cmd->flags & CMD_SEND_IN_IDLE) &&
 	    !trans_pcie->ref_cmd_in_flight) {
@@ -1961,11 +1961,9 @@ cancel:
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
 	/* Make sure the NIC is still alive in the bus */
-	if (trans_pcie->scheduled_for_removal)
-		return -EIO;
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {

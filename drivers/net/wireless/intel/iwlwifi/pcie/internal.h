@@ -480,7 +480,6 @@ struct iwl_self_init_dram {
  * @fh_mask: current unmasked fh causes
  * @hw_mask: current unmasked hw causes
  * @in_rescan: true if we have triggered a device rescan
- * @scheduled_for_removal: true if we have scheduled a device removal
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -573,7 +572,6 @@ struct iwl_trans_pcie {
 	cpumask_t affinity_mask[IWL_MAX_RX_HW_QUEUES];
 	u16 tx_cmd_queue_size;
 	bool in_rescan;
-	bool scheduled_for_removal;
 };
 
 static inline struct iwl_trans_pcie *

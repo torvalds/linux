@@ -2013,7 +2013,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U) {
 			struct iwl_trans_pcie_removal *removal;
 
-			if (trans_pcie->scheduled_for_removal)
+			if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 				goto err;
 
 			IWL_ERR(trans, "Device gone - scheduling removal!\n");
@@ -2039,7 +2039,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 			 * we don't need to clear this flag, because
 			 * the trans will be freed and reallocated.
 			*/
-			trans_pcie->scheduled_for_removal = true;
+			set_bit(STATUS_TRANS_DEAD, &trans->status);
 
 			removal->pdev = to_pci_dev(trans->dev);
 			INIT_WORK(&removal->work, iwl_trans_pcie_removal_wk);
@@ -2267,8 +2267,8 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx)
 	u8 wr_ptr;
 
 	/* Make sure the NIC is still alive in the bus */
-	if (trans_pcie->scheduled_for_removal)
-		return -EIO;
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
 
 	if (!test_bit(txq_idx, trans_pcie->queue_used))
 		return -EINVAL;
