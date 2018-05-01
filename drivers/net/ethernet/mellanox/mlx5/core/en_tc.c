@@ -1235,6 +1235,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 				       outer_headers);
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
+	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 
@@ -1245,6 +1249,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
@@ -1325,15 +1330,59 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_VLAN,
 						  f->mask);
-		if (mask->vlan_id || mask->vlan_priority) {
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, cvlan_tag, 1);
+		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
+			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+				MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+					 svlan_tag, 1);
+				MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+					 svlan_tag, 1);
+			} else {
+				MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+					 cvlan_tag, 1);
+				MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+					 cvlan_tag, 1);
+			}
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio, mask->vlan_priority);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio, key->vlan_priority);
+
+			*match_level = MLX5_MATCH_L2;
+		}
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_CVLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_CVLAN,
+						  f->mask);
+		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
+			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+				MLX5_SET(fte_match_set_misc, misc_c,
+					 outer_second_svlan_tag, 1);
+				MLX5_SET(fte_match_set_misc, misc_v,
+					 outer_second_svlan_tag, 1);
+			} else {
+				MLX5_SET(fte_match_set_misc, misc_c,
+					 outer_second_cvlan_tag, 1);
+				MLX5_SET(fte_match_set_misc, misc_v,
+					 outer_second_cvlan_tag, 1);
+			}
+
+			MLX5_SET(fte_match_set_misc, misc_c, outer_second_vid,
+				 mask->vlan_id);
+			MLX5_SET(fte_match_set_misc, misc_v, outer_second_vid,
+				 key->vlan_id);
+			MLX5_SET(fte_match_set_misc, misc_c, outer_second_prio,
+				 mask->vlan_priority);
+			MLX5_SET(fte_match_set_misc, misc_v, outer_second_prio,
+				 key->vlan_priority);
 
 			*match_level = MLX5_MATCH_L2;
 		}
