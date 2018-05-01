@@ -53,7 +53,7 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 
 	mutex_lock(&st->lock);
 
-	/* It doesn't really mattter, if any of the calls fails */
+	/* It doesn't really matter if any of the calls fail */
 	regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	inv_mpu6050_set_power_itg(st, false);
 

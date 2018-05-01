@@ -156,7 +156,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		bytes_per_datum += INV_MPU6050_BYTES_PER_3AXIS_SENSOR;
 
 	/*
-	 * read fifo_count register to know how many bytes inside FIFO
+	 * read fifo_count register to know how many bytes are inside the FIFO
 	 * right now
 	 */
 	result = regmap_bulk_read(st->map, st->reg->fifo_count_h, data,
@@ -166,7 +166,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	fifo_count = be16_to_cpup((__be16 *)(&data[0]));
 	if (fifo_count < bytes_per_datum)
 		goto end_session;
-	/* fifo count can't be odd number, if it is odd, reset fifo*/
+	/* fifo count can't be an odd number. If it is odd, reset the FIFO. */
 	if (fifo_count & 1)
 		goto flush_fifo;
 	if (fifo_count >  INV_MPU6050_FIFO_THRESHOLD)

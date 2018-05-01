@@ -177,7 +177,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		return result;
 
 	if (en) {
-		/* Wait for output stabilize */
+		/* Wait for output to stabilize */
 		msleep(INV_MPU6050_TEMP_UP_TIME);
 		if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
 			/* switch internal clock to PLL */
