@@ -398,26 +398,26 @@ TRACE_EVENT(rcu_quiescent_state_report,
  */
 TRACE_EVENT(rcu_fqs,
 
-	TP_PROTO(const char *rcuname, unsigned long gpnum, int cpu, const char *qsevent),
+	TP_PROTO(const char *rcuname, unsigned long gp_seq, int cpu, const char *qsevent),
 
-	TP_ARGS(rcuname, gpnum, cpu, qsevent),
+	TP_ARGS(rcuname, gp_seq, cpu, qsevent),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gpnum)
+		__field(unsigned long, gp_seq)
 		__field(int, cpu)
 		__field(const char *, qsevent)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gpnum = gpnum;
+		__entry->gp_seq = gp_seq;
 		__entry->cpu = cpu;
 		__entry->qsevent = qsevent;
 	),
 
 	TP_printk("%s %lu %d %s",
-		  __entry->rcuname, __entry->gpnum,
+		  __entry->rcuname, __entry->gp_seq,
 		  __entry->cpu, __entry->qsevent)
 );
 
@@ -766,7 +766,7 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_quiescent_state_report(rcuname, gp_seq, mask, qsmask, level, \
 					 grplo, grphi, gp_tasks) do { } \
 	while (0)
-#define trace_rcu_fqs(rcuname, gpnum, cpu, qsevent) do { } while (0)
+#define trace_rcu_fqs(rcuname, gp_seq, cpu, qsevent) do { } while (0)
 #define trace_rcu_dyntick(polarity, oldnesting, newnesting, dyntick) do { } while (0)
 #define trace_rcu_callback(rcuname, rhp, qlen_lazy, qlen) do { } while (0)
 #define trace_rcu_kfree_callback(rcuname, rhp, offset, qlen_lazy, qlen) \
