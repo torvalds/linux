@@ -839,22 +839,16 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	dev->buffers = (struct goldfish_pipe_dev_buffers *)page;
 
 	/* Send the buffer addresses to the host */
-	{
-		u64 paddr = __pa(&dev->buffers->signalled_pipe_buffers);
+	gf_write_ptr(&dev->buffers->signalled_pipe_buffers,
+		dev->base + PIPE_REG_SIGNAL_BUFFER,
+		dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
 
-		writel((u32)(unsigned long)(paddr >> 32),
-			dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
-		writel((u32)(unsigned long)paddr,
-			dev->base + PIPE_REG_SIGNAL_BUFFER);
-		writel((u32)MAX_SIGNALLED_PIPES,
-			dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
+	writel((u32)MAX_SIGNALLED_PIPES,
+		dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
 
-		paddr = __pa(&dev->buffers->open_command_params);
-		writel((u32)(unsigned long)(paddr >> 32),
-			dev->base + PIPE_REG_OPEN_BUFFER_HIGH);
-		writel((u32)(unsigned long)paddr,
-			dev->base + PIPE_REG_OPEN_BUFFER);
-	}
+	gf_write_ptr(&dev->buffers->open_command_params,
+		dev->base + PIPE_REG_OPEN_BUFFER,
+		dev->base + PIPE_REG_OPEN_BUFFER_HIGH);
 
 	return 0;
 }
