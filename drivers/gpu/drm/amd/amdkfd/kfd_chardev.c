@@ -233,7 +233,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	pr_debug("Queue Size: 0x%llX, %u\n",
 			q_properties->queue_size, args->ring_size);
 
-	pr_debug("Queue r/w Pointers: %p, %p\n",
+	pr_debug("Queue r/w Pointers: %px, %px\n",
 			q_properties->read_ptr,
 			q_properties->write_ptr);
 
