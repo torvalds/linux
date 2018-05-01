@@ -502,7 +502,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 
 	/* find outer header point */
 	l3.hdr = skb_network_header(skb);
-	l4_hdr = skb_inner_transport_header(skb);
+	l4_hdr = skb_transport_header(skb);
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
 		exthdr = l3.hdr + sizeof(*l3.v6);
