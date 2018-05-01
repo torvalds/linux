@@ -1348,6 +1348,7 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	fc_port_t *f, *tf;
 	uint32_t id = 0, mask, rid;
 	unsigned long flags;
+	fc_port_t *fcport;
 
 	switch (ea->event) {
 	case FCME_RSCN:
@@ -1375,6 +1376,11 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 			return;
 		switch (ea->id.b.rsvd_1) {
 		case RSCN_PORT_ADDR:
+			fcport = qla2x00_find_fcport_by_nportid
+				(vha, &ea->id, 1);
+			if (fcport)
+				fcport->rscn_rcvd = 1;
+
 			spin_lock_irqsave(&vha->work_lock, flags);
 			if (vha->scan.scan_flags == 0) {
 				ql_dbg(ql_dbg_disc, vha, 0xffff,
