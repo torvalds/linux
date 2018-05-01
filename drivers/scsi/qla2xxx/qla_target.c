@@ -1924,13 +1924,84 @@ static void abort_cmds_for_lun(struct scsi_qla_host *vha,
 	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 }
 
+static struct qla_qpair_hint *qlt_find_qphint(struct scsi_qla_host *vha,
+    uint64_t unpacked_lun)
+{
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_qpair_hint *h = NULL;
+
+	if (vha->flags.qpairs_available) {
+		h = btree_lookup64(&tgt->lun_qpair_map, unpacked_lun);
+		if (!h)
+			h = &tgt->qphints[0];
+	} else {
+		h = &tgt->qphints[0];
+	}
+
+	return h;
+}
+
+static void qlt_do_tmr_work(struct work_struct *work)
+{
+	struct qla_tgt_mgmt_cmd *mcmd =
+		container_of(work, struct qla_tgt_mgmt_cmd, work);
+	struct qla_hw_data *ha = mcmd->vha->hw;
+	int rc = EIO;
+	uint32_t tag;
+	unsigned long flags;
+
+	switch (mcmd->tmr_func) {
+	case QLA_TGT_ABTS:
+		tag = mcmd->orig_iocb.abts.exchange_addr_to_abort;
+		break;
+	default:
+		tag = 0;
+		break;
+	}
+
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, mcmd->unpacked_lun,
+	    mcmd->tmr_func, tag);
+
+	if (rc != 0) {
+		spin_lock_irqsave(mcmd->qpair->qp_lock_ptr, flags);
+		switch (mcmd->tmr_func) {
+		case QLA_TGT_ABTS:
+			qlt_24xx_send_abts_resp(mcmd->qpair,
+			    &mcmd->orig_iocb.abts,
+			    FCP_TMF_REJECTED, false);
+			break;
+		case QLA_TGT_LUN_RESET:
+		case QLA_TGT_CLEAR_TS:
+		case QLA_TGT_ABORT_TS:
+		case QLA_TGT_CLEAR_ACA:
+		case QLA_TGT_TARGET_RESET:
+			qlt_send_busy(mcmd->qpair, &mcmd->orig_iocb.atio,
+			    qla_sam_status);
+			break;
+
+		case QLA_TGT_ABORT_ALL:
+		case QLA_TGT_NEXUS_LOSS_SESS:
+		case QLA_TGT_NEXUS_LOSS:
+			qlt_send_notify_ack(mcmd->qpair,
+			    &mcmd->orig_iocb.imm_ntfy, 0, 0, 0, 0, 0, 0);
+			break;
+		}
+		spin_unlock_irqrestore(mcmd->qpair->qp_lock_ptr, flags);
+
+		ql_dbg(ql_dbg_tgt_mgt, mcmd->vha, 0xf052,
+		    "qla_target(%d):  tgt_ops->handle_tmr() failed: %d\n",
+		    mcmd->vha->vp_idx, rc);
+		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
+	}
+}
+
 /* ha->hardware_lock supposed to be held on entry */
 static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct fc_port *sess)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_mgmt_cmd *mcmd;
-	int rc;
+	struct qla_qpair_hint *h = &vha->vha_tgt.qla_tgt->qphints[0];
 
 	if (abort_cmd_for_tag(vha, abts->exchange_addr_to_abort)) {
 		/* send TASK_ABORT response immediately */
@@ -1955,22 +2026,28 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 	mcmd->reset_count = ha->base_qpair->chip_reset;
 	mcmd->tmr_func = QLA_TGT_ABTS;
-	mcmd->qpair = ha->base_qpair;
+	mcmd->qpair = h->qpair;
 	mcmd->vha = vha;
 
 	/*
 	 * LUN is looked up by target-core internally based on the passed
 	 * abts->exchange_addr_to_abort tag.
 	 */
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, 0, mcmd->tmr_func,
-	    abts->exchange_addr_to_abort);
-	if (rc != 0) {
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,
-		    "qla_target(%d):  tgt_ops->handle_tmr()"
-		    " failed: %d", vha->vp_idx, rc);
-		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
-		return -EFAULT;
+	mcmd->se_cmd.cpuid = h->cpuid;
+
+	if (ha->tgt.tgt_ops->find_cmd_by_tag) {
+		struct qla_tgt_cmd *abort_cmd;
+
+		abort_cmd = ha->tgt.tgt_ops->find_cmd_by_tag(sess,
+		    abts->exchange_addr_to_abort);
+		if (abort_cmd && abort_cmd->qpair) {
+			mcmd->qpair = abort_cmd->qpair;
+			mcmd->se_cmd.cpuid = abort_cmd->se_cmd.cpuid;
+		}
 	}
+
+	INIT_WORK(&mcmd->work, qlt_do_tmr_work);
+	queue_work_on(mcmd->se_cmd.cpuid, qla_tgt_wq, &mcmd->work);
 
 	return 0;
 }
@@ -4320,7 +4397,7 @@ static int qlt_issue_task_mgmt(struct fc_port *sess, u64 lun,
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct atio_from_isp *a = (struct atio_from_isp *)iocb;
-	int res;
+	struct qla_qpair_hint *h = &vha->vha_tgt.qla_tgt->qphints[0];
 
 	mcmd = mempool_alloc(qla_tgt_mgmt_cmd_mempool, GFP_ATOMIC);
 	if (!mcmd) {
@@ -4340,23 +4417,35 @@ static int qlt_issue_task_mgmt(struct fc_port *sess, u64 lun,
 	mcmd->tmr_func = fn;
 	mcmd->flags = flags;
 	mcmd->reset_count = ha->base_qpair->chip_reset;
-	mcmd->qpair = ha->base_qpair;
+	mcmd->qpair = h->qpair;
 	mcmd->vha = vha;
+	mcmd->se_cmd.cpuid = h->cpuid;
+	mcmd->unpacked_lun = lun;
 
 	switch (fn) {
 	case QLA_TGT_LUN_RESET:
-	    abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
-	    break;
+	case QLA_TGT_CLEAR_TS:
+	case QLA_TGT_ABORT_TS:
+		abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
+		/* drop through */
+	case QLA_TGT_CLEAR_ACA:
+		h = qlt_find_qphint(vha, mcmd->unpacked_lun);
+		mcmd->qpair = h->qpair;
+		mcmd->se_cmd.cpuid = h->cpuid;
+		break;
+
+	case QLA_TGT_TARGET_RESET:
+	case QLA_TGT_NEXUS_LOSS_SESS:
+	case QLA_TGT_NEXUS_LOSS:
+	case QLA_TGT_ABORT_ALL:
+	default:
+		/* no-op */
+		break;
 	}
 
-	res = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, mcmd->tmr_func, 0);
-	if (res != 0) {
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x1000b,
-		    "qla_target(%d): tgt.tgt_ops->handle_tmr() failed: %d\n",
-		    sess->vha->vp_idx, res);
-		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
-		return -EFAULT;
-	}
+	INIT_WORK(&mcmd->work, qlt_do_tmr_work);
+	queue_work_on(mcmd->se_cmd.cpuid, qla_tgt_wq,
+	    &mcmd->work);
 
 	return 0;
 }
@@ -5097,8 +5186,6 @@ static void qlt_handle_imm_notify(struct scsi_qla_host *vha,
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf038,
 		    "qla_target(%d): Immediate notify task %x\n",
 		    vha->vp_idx, iocb->u.isp2x.task_flags);
-		if (qlt_handle_task_mgmt(vha, iocb) == 0)
-			send_notify_ack = 0;
 		break;
 
 	case IMM_NTFY_ELS:

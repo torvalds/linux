@@ -630,6 +630,32 @@ static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, u64 lun,
 	    transl_tmr_func, GFP_ATOMIC, tag, flags);
 }
 
+static struct qla_tgt_cmd *tcm_qla2xxx_find_cmd_by_tag(struct fc_port *sess,
+    uint64_t tag)
+{
+	struct qla_tgt_cmd *cmd = NULL;
+	struct se_cmd *secmd;
+	unsigned long flags;
+
+	if (!sess->se_sess)
+		return NULL;
+
+	spin_lock_irqsave(&sess->se_sess->sess_cmd_lock, flags);
+	list_for_each_entry(secmd, &sess->se_sess->sess_cmd_list, se_cmd_list) {
+		/* skip task management functions, including tmr->task_cmd */
+		if (secmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+			continue;
+
+		if (secmd->tag == tag) {
+			cmd = container_of(secmd, struct qla_tgt_cmd, se_cmd);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&sess->se_sess->sess_cmd_lock, flags);
+
+	return cmd;
+}
+
 static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct qla_tgt_cmd *cmd = container_of(se_cmd,
@@ -1608,6 +1634,7 @@ static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
  * Calls into tcm_qla2xxx used by qla2xxx LLD I/O path.
  */
 static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
+	.find_cmd_by_tag	= tcm_qla2xxx_find_cmd_by_tag,
 	.handle_cmd		= tcm_qla2xxx_handle_cmd,
 	.handle_data		= tcm_qla2xxx_handle_data,
 	.handle_tmr		= tcm_qla2xxx_handle_tmr,
