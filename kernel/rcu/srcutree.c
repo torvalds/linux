@@ -1249,13 +1249,12 @@ static void process_srcu(struct work_struct *work)
 
 void srcutorture_get_gp_data(enum rcutorture_type test_type,
 			     struct srcu_struct *sp, int *flags,
-			     unsigned long *gpnum, unsigned long *completed)
+			     unsigned long *gp_seq)
 {
 	if (test_type != SRCU_FLAVOR)
 		return;
 	*flags = 0;
-	*completed = rcu_seq_ctr(sp->srcu_gp_seq);
-	*gpnum = rcu_seq_ctr(sp->srcu_gp_seq_needed);
+	*gp_seq = rcu_seq_current(&sp->srcu_gp_seq);
 }
 EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
 

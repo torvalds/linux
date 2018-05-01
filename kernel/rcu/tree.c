@@ -638,7 +638,7 @@ EXPORT_SYMBOL_GPL(rcutorture_record_test_transition);
  * Send along grace-period-related data for rcutorture diagnostics.
  */
 void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gpnum, unsigned long *completed)
+			    unsigned long *gp_seq)
 {
 	struct rcu_state *rsp = NULL;
 
@@ -658,8 +658,7 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	if (rsp == NULL)
 		return;
 	*flags = READ_ONCE(rsp->gp_flags);
-	*gpnum = READ_ONCE(rsp->gpnum);
-	*completed = READ_ONCE(rsp->completed);
+	*gp_seq = rcu_seq_current(&rsp->gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 

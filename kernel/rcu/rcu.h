@@ -425,7 +425,7 @@ enum rcutorture_type {
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
 void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gpnum, unsigned long *completed);
+			    unsigned long *gp_seq);
 void rcutorture_record_test_transition(void);
 void rcutorture_record_progress(unsigned long vernum);
 void do_trace_rcu_torture_read(const char *rcutorturename,
@@ -435,13 +435,10 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 			       unsigned long c);
 #else
 static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
-					  int *flags,
-					  unsigned long *gpnum,
-					  unsigned long *completed)
+					  int *flags, unsigned long *gp_seq)
 {
 	*flags = 0;
-	*gpnum = 0;
-	*completed = 0;
+	*gp_seq = 0;
 }
 static inline void rcutorture_record_test_transition(void) { }
 static inline void rcutorture_record_progress(unsigned long vernum) { }
@@ -461,21 +458,19 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 
 static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 					   struct srcu_struct *sp, int *flags,
-					   unsigned long *gpnum,
-					   unsigned long *completed)
+					   unsigned long *gp_seq)
 {
 	if (test_type != SRCU_FLAVOR)
 		return;
 	*flags = 0;
-	*completed = sp->srcu_idx;
-	*gpnum = *completed;
+	*gp_seq = sp->srcu_idx;
 }
 
 #elif defined(CONFIG_TREE_SRCU)
 
 void srcutorture_get_gp_data(enum rcutorture_type test_type,
 			     struct srcu_struct *sp, int *flags,
-			     unsigned long *gpnum, unsigned long *completed);
+			     unsigned long *gp_seq);
 
 #endif
 

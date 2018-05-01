@@ -1313,18 +1313,16 @@ rcu_torture_stats_print(void)
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_torture_current != NULL) {
 		int __maybe_unused flags = 0;
-		unsigned long __maybe_unused gpnum = 0;
-		unsigned long __maybe_unused completed = 0;
+		unsigned long __maybe_unused gp_seq = 0;
 
 		rcutorture_get_gp_data(cur_ops->ttype,
-				       &flags, &gpnum, &completed);
+				       &flags, &gp_seq);
 		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
-					&flags, &gpnum, &completed);
+					&flags, &gp_seq);
 		wtp = READ_ONCE(writer_task);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx cpu %d\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu f%#x ->state %#lx cpu %d\n",
 			 rcu_torture_writer_state_getname(),
-			 rcu_torture_writer_state,
-			 gpnum, completed, flags,
+			 rcu_torture_writer_state, gp_seq, flags,
 			 wtp == NULL ? ~0UL : wtp->state,
 			 wtp == NULL ? -1 : (int)task_cpu(wtp));
 		if (!splatted && wtp) {
@@ -1605,8 +1603,7 @@ static void
 rcu_torture_cleanup(void)
 {
 	int flags = 0;
-	unsigned long gpnum = 0;
-	unsigned long completed = 0;
+	unsigned long gp_seq = 0;
 	int i;
 
 	rcutorture_record_test_transition();
@@ -1637,11 +1634,10 @@ rcu_torture_cleanup(void)
 		fakewriter_tasks = NULL;
 	}
 
-	rcutorture_get_gp_data(cur_ops->ttype, &flags, &gpnum, &completed);
-	srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
-				&flags, &gpnum, &completed);
-	pr_alert("%s:  End-test grace-period state: g%lu c%lu f%#x\n",
-		 cur_ops->name, gpnum, completed, flags);
+	rcutorture_get_gp_data(cur_ops->ttype, &flags, &gp_seq);
+	srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp, &flags, &gp_seq);
+	pr_alert("%s:  End-test grace-period state: g%lu f%#x\n",
+		 cur_ops->name, gp_seq, flags);
 	torture_stop_kthread(rcu_torture_stats, stats_task);
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
 	for (i = 0; i < ncbflooders; i++)
