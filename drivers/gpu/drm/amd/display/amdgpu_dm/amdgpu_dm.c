@@ -2310,27 +2310,22 @@ decide_crtc_timing_for_drm_display_mode(struct drm_display_mode *drm_mode,
 	}
 }
 
-static int create_fake_sink(struct amdgpu_dm_connector *aconnector)
+static struct dc_sink *
+create_fake_sink(struct amdgpu_dm_connector *aconnector)
 {
-	struct dc_sink *sink = NULL;
 	struct dc_sink_init_data sink_init_data = { 0 };
-
+	struct dc_sink *sink = NULL;
 	sink_init_data.link = aconnector->dc_link;
 	sink_init_data.sink_signal = aconnector->dc_link->connector_signal;
 
 	sink = dc_sink_create(&sink_init_data);
 	if (!sink) {
 		DRM_ERROR("Failed to create sink!\n");
-		return -ENOMEM;
+		return NULL;
 	}
-
 	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
-	aconnector->fake_enable = true;
 
-	aconnector->dc_sink = sink;
-	aconnector->dc_link->local_sink = sink;
-
-	return 0;
+	return sink;
 }
 
 static void set_multisync_trigger_params(
@@ -2393,7 +2388,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
-
+	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
 		return stream;
@@ -2411,15 +2406,18 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			return stream;
 		}
 
-		if (create_fake_sink(aconnector))
+		sink = create_fake_sink(aconnector);
+		if (!sink)
 			return stream;
+	} else {
+		sink = aconnector->dc_sink;
 	}
 
-	stream = dc_create_stream_for_sink(aconnector->dc_sink);
+	stream = dc_create_stream_for_sink(sink);
 
 	if (stream == NULL) {
 		DRM_ERROR("Failed to create stream for sink!\n");
-		return stream;
+		goto finish;
 	}
 
 	list_for_each_entry(preferred_mode, &aconnector->base.modes, head) {
@@ -2458,12 +2456,15 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	fill_audio_info(
 		&stream->audio_info,
 		drm_connector,
-		aconnector->dc_sink);
+		sink);
 
 	update_stream_signal(stream);
 
 	if (dm_state && dm_state->freesync_capable)
 		stream->ignore_msa_timing_param = true;
+finish:
+	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL)
+		dc_sink_release(sink);
 
 	return stream;
 }
