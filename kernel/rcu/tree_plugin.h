@@ -350,8 +350,8 @@ static void rcu_preempt_note_context_switch(bool preempt)
 		trace_rcu_preempt_task(rdp->rsp->name,
 				       t->pid,
 				       (rnp->qsmask & rdp->grpmask)
-				       ? rnp->gpnum
-				       : rnp->gpnum + 1);
+				       ? rnp->gp_seq
+				       : rcu_seq_snap(&rnp->gp_seq));
 		rcu_preempt_ctxt_queue(rnp, rdp);
 	} else if (t->rcu_read_lock_nesting < 0 &&
 		   t->rcu_read_unlock_special.s) {
