@@ -160,8 +160,7 @@ struct hw_sequencer_funcs {
 				bool lock);
 	void (*blank_pixel_data)(
 			struct dc *dc,
-			struct stream_resource *stream_res,
-			struct dc_stream_state *stream,
+			struct pipe_ctx *pipe_ctx,
 			bool blank);
 
 	void (*set_bandwidth)(

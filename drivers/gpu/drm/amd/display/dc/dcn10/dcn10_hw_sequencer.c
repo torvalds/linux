@@ -2063,12 +2063,13 @@ static void update_dchubp_dpp(
 
 static void dcn10_blank_pixel_data(
 		struct dc *dc,
-		struct stream_resource *stream_res,
-		struct dc_stream_state *stream,
+		struct pipe_ctx *pipe_ctx,
 		bool blank)
 {
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
+	struct stream_resource *stream_res = &pipe_ctx->stream_res;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	/* program otg blank color */
 	color_space = stream->output_color_space;
@@ -2127,8 +2128,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		dc->hwss.blank_pixel_data(dc, &pipe_ctx->stream_res,
-				pipe_ctx->stream, blank);
+		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -2247,7 +2247,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
-		dc->hwss.blank_pixel_data(dc, &top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
+		dc->hwss.blank_pixel_data(dc, top_pipe_to_program, true);
 	}
 
 	/* Disconnect unused mpcc */
