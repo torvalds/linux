@@ -601,24 +601,18 @@ void qla2x00_async_nack_sp_done(void *s, int res)
 
 			vha->fcport_count++;
 
-			if (!IS_IIDMA_CAPABLE(vha->hw) ||
-			    !vha->hw->flags.gpsc_supported) {
-				ql_dbg(ql_dbg_disc, vha, 0x20f3,
-				    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
-				    __func__, __LINE__,
-				    sp->fcport->port_name,
-				    vha->fcport_count);
-				sp->fcport->disc_state = DSC_UPD_FCPORT;
-				qla24xx_post_upd_fcport_work(vha, sp->fcport);
-			} else {
-				ql_dbg(ql_dbg_disc, vha, 0x20f5,
-				    "%s %d %8phC post gpsc fcp_cnt %d\n",
-				    __func__, __LINE__,
-				    sp->fcport->port_name,
-				    vha->fcport_count);
-
-				qla24xx_post_gpsc_work(vha, sp->fcport);
-			}
+			ql_dbg(ql_dbg_disc, vha, 0x20f3,
+			    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
+			    __func__, __LINE__,
+			    sp->fcport->port_name,
+			    vha->fcport_count);
+			sp->fcport->disc_state = DSC_UPD_FCPORT;
+			qla24xx_post_upd_fcport_work(vha, sp->fcport);
+		} else {
+			sp->fcport->login_retry = 0;
+			sp->fcport->disc_state = DSC_LOGIN_COMPLETE;
+			sp->fcport->deleted = 0;
+			sp->fcport->logout_on_delete = 1;
 		}
 		break;
 
