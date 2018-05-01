@@ -5503,11 +5503,13 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_sriov_disable;
 	}
 
-	ret = hclge_mac_mdio_config(hdev);
-	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "mdio config fail ret=%d\n", ret);
-		goto err_sriov_disable;
+	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER) {
+		ret = hclge_mac_mdio_config(hdev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"mdio config fail ret=%d\n", ret);
+			goto err_sriov_disable;
+		}
 	}
 
 	ret = hclge_mac_init(hdev);
