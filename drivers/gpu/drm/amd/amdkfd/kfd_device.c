@@ -20,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#if defined(CONFIG_AMD_IOMMU_V2_MODULE) || defined(CONFIG_AMD_IOMMU_V2)
-#include <linux/amd-iommu.h>
-#endif
 #include <linux/bsearch.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
