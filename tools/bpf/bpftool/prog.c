@@ -96,7 +96,10 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 		return;
 	}
 
-	strftime(buf, size, "%b %d/%H:%M", &load_tm);
+	if (json_output)
+		strftime(buf, size, "%s", &load_tm);
+	else
+		strftime(buf, size, "%FT%T%z", &load_tm);
 }
 
 static int prog_fd_by_tag(unsigned char *tag)
@@ -245,7 +248,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		print_boot_time(info->load_time, buf, sizeof(buf));
 
 		/* Piggy back on load_time, since 0 uid is a valid one */
-		jsonw_string_field(json_wtr, "loaded_at", buf);
+		jsonw_name(json_wtr, "loaded_at");
+		jsonw_printf(json_wtr, "%s", buf);
 		jsonw_uint_field(json_wtr, "uid", info->created_by_uid);
 	}
 
