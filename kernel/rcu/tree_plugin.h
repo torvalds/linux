@@ -301,7 +301,7 @@ static void rcu_preempt_qs(void)
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_preempt_qs() invoked with preemption enabled!!!\n");
 	if (__this_cpu_read(rcu_data_p->cpu_no_qs.s)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
-				       __this_cpu_read(rcu_data_p->gpnum),
+				       __this_cpu_read(rcu_data_p->gp_seq),
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_data_p->cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_preempt_check_callbacks(). */

@@ -52,6 +52,7 @@ TRACE_EVENT(rcu_utilization,
  *	"cpuqs": CPU passes through a quiescent state.
  *	"cpuonl": CPU comes online.
  *	"cpuofl": CPU goes offline.
+ *	"cpuofl-bgp": CPU goes offline while blocking a grace period.
  *	"reqwait": GP kthread sleeps waiting for grace-period request.
  *	"reqwaitsig": GP kthread awakened by signal from reqwait state.
  *	"fqswait": GP kthread waiting until time to force quiescent states.
@@ -63,24 +64,24 @@ TRACE_EVENT(rcu_utilization,
  */
 TRACE_EVENT(rcu_grace_period,
 
-	TP_PROTO(const char *rcuname, unsigned long gpnum, const char *gpevent),
+	TP_PROTO(const char *rcuname, unsigned long gp_seq, const char *gpevent),
 
-	TP_ARGS(rcuname, gpnum, gpevent),
+	TP_ARGS(rcuname, gp_seq, gpevent),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gpnum)
+		__field(unsigned long, gp_seq)
 		__field(const char *, gpevent)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gpnum = gpnum;
+		__entry->gp_seq = gp_seq;
 		__entry->gpevent = gpevent;
 	),
 
 	TP_printk("%s %lu %s",
-		  __entry->rcuname, __entry->gpnum, __entry->gpevent)
+		  __entry->rcuname, __entry->gp_seq, __entry->gpevent)
 );
 
 /*
@@ -753,7 +754,7 @@ TRACE_EVENT(rcu_barrier,
 
 #else /* #ifdef CONFIG_RCU_TRACE */
 
-#define trace_rcu_grace_period(rcuname, gpnum, gpevent) do { } while (0)
+#define trace_rcu_grace_period(rcuname, gp_seq, gpevent) do { } while (0)
 #define trace_rcu_future_grace_period(rcuname, gpnum, completed, c, \
 				      level, grplo, grphi, event) \
 				      do { } while (0)
