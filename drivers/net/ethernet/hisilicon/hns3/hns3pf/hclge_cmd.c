@@ -31,6 +31,17 @@ static int hclge_ring_space(struct hclge_cmq_ring *ring)
 	return ring->desc_num - used - 1;
 }
 
+static int is_valid_csq_clean_head(struct hclge_cmq_ring *ring, int h)
+{
+	int u = ring->next_to_use;
+	int c = ring->next_to_clean;
+
+	if (unlikely(h >= ring->desc_num))
+		return 0;
+
+	return u > c ? (h > c && h <= u) : (h > c || h <= u);
+}
+
 static int hclge_alloc_cmd_desc(struct hclge_cmq_ring *ring)
 {
 	int size  = ring->desc_num * sizeof(struct hclge_desc);
@@ -141,6 +152,7 @@ static void hclge_cmd_init_regs(struct hclge_hw *hw)
 
 static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 {
+	struct hclge_dev *hdev = (struct hclge_dev *)hw->back;
 	struct hclge_cmq_ring *csq = &hw->cmq.csq;
 	u16 ntc = csq->next_to_clean;
 	struct hclge_desc *desc;
@@ -149,6 +161,13 @@ static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 
 	desc = &csq->desc[ntc];
 	head = hclge_read_dev(hw, HCLGE_NIC_CSQ_HEAD_REG);
+	rmb(); /* Make sure head is ready before touch any data */
+
+	if (!is_valid_csq_clean_head(csq, head)) {
+		dev_warn(&hdev->pdev->dev, "wrong head (%d, %d-%d)\n", head,
+			   csq->next_to_use, csq->next_to_clean);
+		return 0;
+	}
 
 	while (head != ntc) {
 		memset(desc, 0, sizeof(*desc));
