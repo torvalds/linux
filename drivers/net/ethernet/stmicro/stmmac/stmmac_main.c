@@ -2022,7 +2022,11 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 				tx_channel_count : rx_channel_count;
 	u32 chan;
 	bool poll_scheduled = false;
-	int status[channels_to_check];
+	int status[max_t(u32, MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES)];
+
+	/* Make sure we never check beyond our status buffer. */
+	if (WARN_ON_ONCE(channels_to_check > ARRAY_SIZE(status)))
+		channels_to_check = ARRAY_SIZE(status);
 
 	/* Each DMA channel can be used for rx and tx simultaneously, yet
 	 * napi_struct is embedded in struct stmmac_rx_queue rather than in a
