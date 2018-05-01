@@ -242,7 +242,11 @@ struct shared_msr_entry {
  * underlying hardware which will be used to run L2.
  * This structure is packed to ensure that its layout is identical across
  * machines (necessary for live migration).
- * If there are changes in this struct, VMCS12_REVISION must be changed.
+ *
+ * IMPORTANT: Changing the layout of existing fields in this structure
+ * will break save/restore compatibility with older kvm releases. When
+ * adding new fields, either use space in the reserved padding* arrays
+ * or add the new fields to the end of the structure.
  */
 typedef u64 natural_width;
 struct __packed vmcs12 {
@@ -265,17 +269,14 @@ struct __packed vmcs12 {
 	u64 virtual_apic_page_addr;
 	u64 apic_access_addr;
 	u64 posted_intr_desc_addr;
-	u64 vm_function_control;
 	u64 ept_pointer;
 	u64 eoi_exit_bitmap0;
 	u64 eoi_exit_bitmap1;
 	u64 eoi_exit_bitmap2;
 	u64 eoi_exit_bitmap3;
-	u64 eptp_list_address;
 	u64 xss_exit_bitmap;
 	u64 guest_physical_address;
 	u64 vmcs_link_pointer;
-	u64 pml_address;
 	u64 guest_ia32_debugctl;
 	u64 guest_ia32_pat;
 	u64 guest_ia32_efer;
@@ -288,7 +289,12 @@ struct __packed vmcs12 {
 	u64 host_ia32_pat;
 	u64 host_ia32_efer;
 	u64 host_ia32_perf_global_ctrl;
-	u64 padding64[8]; /* room for future expansion */
+	u64 vmread_bitmap;
+	u64 vmwrite_bitmap;
+	u64 vm_function_control;
+	u64 eptp_list_address;
+	u64 pml_address;
+	u64 padding64[3]; /* room for future expansion */
 	/*
 	 * To allow migration of L1 (complete with its L2 guests) between
 	 * machines of different natural widths (32 or 64 bit), we cannot have
@@ -397,7 +403,6 @@ struct __packed vmcs12 {
 	u16 guest_ldtr_selector;
 	u16 guest_tr_selector;
 	u16 guest_intr_status;
-	u16 guest_pml_index;
 	u16 host_es_selector;
 	u16 host_cs_selector;
 	u16 host_ss_selector;
@@ -405,12 +410,16 @@ struct __packed vmcs12 {
 	u16 host_fs_selector;
 	u16 host_gs_selector;
 	u16 host_tr_selector;
+	u16 guest_pml_index;
 };
 
 /*
  * VMCS12_REVISION is an arbitrary id that should be changed if the content or
  * layout of struct vmcs12 is changed. MSR_IA32_VMX_BASIC returns this id, and
  * VMPTRLD verifies that the VMCS region that L1 is loading contains this id.
+ *
+ * IMPORTANT: Changing this value will break save/restore compatibility with
+ * older kvm releases.
  */
 #define VMCS12_REVISION 0x11e57ed0
 
@@ -762,6 +771,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(VM_EXIT_MSR_STORE_ADDR, vm_exit_msr_store_addr),
 	FIELD64(VM_EXIT_MSR_LOAD_ADDR, vm_exit_msr_load_addr),
 	FIELD64(VM_ENTRY_MSR_LOAD_ADDR, vm_entry_msr_load_addr),
+	FIELD64(PML_ADDRESS, pml_address),
 	FIELD64(TSC_OFFSET, tsc_offset),
 	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
 	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
@@ -773,10 +783,11 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(EOI_EXIT_BITMAP2, eoi_exit_bitmap2),
 	FIELD64(EOI_EXIT_BITMAP3, eoi_exit_bitmap3),
 	FIELD64(EPTP_LIST_ADDRESS, eptp_list_address),
+	FIELD64(VMREAD_BITMAP, vmread_bitmap),
+	FIELD64(VMWRITE_BITMAP, vmwrite_bitmap),
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
-	FIELD64(PML_ADDRESS, pml_address),
 	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
 	FIELD64(GUEST_IA32_PAT, guest_ia32_pat),
 	FIELD64(GUEST_IA32_EFER, guest_ia32_efer),
