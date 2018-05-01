@@ -29,27 +29,35 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 					const uint32_t *ih_ring_entry)
 {
 	uint16_t source_id, client_id, pasid, vmid;
+	const uint32_t *data = ih_ring_entry;
+
+	/* Only handle interrupts from KFD VMIDs */
+	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+	if (vmid < dev->vm_info.first_vmid_kfd ||
+	    vmid > dev->vm_info.last_vmid_kfd)
+		return 0;
+
+	/* If there is no valid PASID, it's likely a firmware bug */
+	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
+	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
+		return 0;
 
 	source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
 	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
-	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
-	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
 
-	if (pasid) {
-		const uint32_t *data = ih_ring_entry;
+	pr_debug("client id 0x%x, source id %d, pasid 0x%x. raw data:\n",
+		 client_id, source_id, pasid);
+	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+		 data[0], data[1], data[2], data[3],
+		 data[4], data[5], data[6], data[7]);
 
-		pr_debug("client id 0x%x, source id %d, pasid 0x%x. raw data:\n",
-			 client_id, source_id, pasid);
-		pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
-			 data[0], data[1], data[2], data[3],
-			 data[4], data[5], data[6], data[7]);
-	}
-
-	return (pasid != 0) &&
-		(source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
-		 source_id == SOC15_INTSRC_SDMA_TRAP ||
-		 source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
-		 source_id == SOC15_INTSRC_CP_BAD_OPCODE);
+	/* Interrupt types we care about: various signals and faults.
+	 * They will be forwarded to a work queue (see below).
+	 */
+	return source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
+		source_id == SOC15_INTSRC_SDMA_TRAP ||
+		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
+		source_id == SOC15_INTSRC_CP_BAD_OPCODE;
 }
 
 static void event_interrupt_wq_v9(struct kfd_dev *dev,
