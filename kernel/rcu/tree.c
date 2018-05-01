@@ -1618,6 +1618,11 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum), TPS("newreq"));
 	ret = true;  /* Caller must wake GP kthread. */
 unlock_out:
+	/* Push furthest requested GP to leaf node and rcu_data structure. */
+	if (ULONG_CMP_LT(c, rnp_root->gp_seq_needed)) {
+		rnp->gp_seq_needed = rnp_root->gp_seq_needed;
+		rdp->gp_seq_needed = rnp_root->gp_seq_needed;
+	}
 	if (rnp != rnp_root)
 		raw_spin_unlock_rcu_node(rnp_root);
 	return ret;
