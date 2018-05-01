@@ -223,6 +223,7 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 			csum_replace2(&uh->check, htons(mss),
 				      htons(seg->len - hdrlen - sizeof(*uh)));
 
+		uh->check = ~uh->check;
 		seg->destructor = sock_wfree;
 		seg->sk = sk;
 		sum_truesize += seg->truesize;
