@@ -88,6 +88,7 @@ struct rcu_node {
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
 	unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
+	unsigned long gp_seq_needed; /* Track rsp->rcu_gp_seq_needed. */
 	unsigned long completedqs; /* All QSes done for this node. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
@@ -160,7 +161,6 @@ struct rcu_node {
 	struct swait_queue_head nocb_gp_wq[2];
 				/* Place for rcu_nocb_kthread() to wait GP. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-	u8 need_future_gp[4];	/* Counts of upcoming GP requests. */
 	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 
 	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
@@ -169,22 +169,6 @@ struct rcu_node {
 	struct rcu_exp_work rew;
 	bool exp_need_flush;	/* Need to flush workitem? */
 } ____cacheline_internodealigned_in_smp;
-
-/* Accessors for ->need_future_gp[] array. */
-#define need_future_gp_mask() \
-	(ARRAY_SIZE(((struct rcu_node *)NULL)->need_future_gp) - 1)
-#define need_future_gp_element(rnp, c) \
-	((rnp)->need_future_gp[(c >> RCU_SEQ_CTR_SHIFT) & need_future_gp_mask()])
-#define need_any_future_gp(rnp)						\
-({									\
-	int __i;							\
-	bool __nonzero = false;						\
-									\
-	for (__i = 0; __i < ARRAY_SIZE((rnp)->need_future_gp); __i++)	\
-		__nonzero = __nonzero ||				\
-			    READ_ONCE((rnp)->need_future_gp[__i]);	\
-	__nonzero;							\
-})
 
 /*
  * Bitmasks in an rcu_node cover the interval [grplo, grphi] of CPU IDs, and
@@ -213,6 +197,7 @@ struct rcu_data {
 	unsigned long	gpnum;		/* Highest gp number that this CPU */
 					/*  is aware of having started. */
 	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
+	unsigned long	gp_seq_needed;	/* Track rsp->rcu_gp_seq_needed ctr. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
