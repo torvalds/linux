@@ -110,6 +110,7 @@ frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	if (!mr->mr_sg)
 		goto out_list_err;
 
+	INIT_LIST_HEAD(&mr->mr_list);
 	sg_init_table(mr->mr_sg, depth);
 	init_completion(&frwr->fr_linv_done);
 	return 0;
@@ -132,10 +133,6 @@ static void
 frwr_op_release_mr(struct rpcrdma_mr *mr)
 {
 	int rc;
-
-	/* Ensure MR is not on any rl_registered list */
-	if (!list_empty(&mr->mr_list))
-		list_del(&mr->mr_list);
 
 	rc = ib_dereg_mr(mr->frwr.fr_mr);
 	if (rc)
@@ -195,7 +192,7 @@ frwr_op_recover_mr(struct rpcrdma_mr *mr)
 	return;
 
 out_release:
-	pr_err("rpcrdma: FRWR reset failed %d, %p release\n", rc, mr);
+	pr_err("rpcrdma: FRWR reset failed %d, %p released\n", rc, mr);
 	r_xprt->rx_stats.mrs_orphaned++;
 
 	spin_lock(&r_xprt->rx_buf.rb_mrlock);
@@ -476,7 +473,7 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
-			list_del(&mr->mr_list);
+			list_del_init(&mr->mr_list);
 			trace_xprtrdma_remoteinv(mr);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
 			rpcrdma_mr_unmap_and_put(mr);
