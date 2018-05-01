@@ -737,7 +737,7 @@ out_unmap:
 	swiotlb_tbl_unmap_single(dev, phys_addr, size, DMA_TO_DEVICE,
 			DMA_ATTR_SKIP_CPU_SYNC);
 out_warn:
-	if ((attrs & DMA_ATTR_NO_WARN) && printk_ratelimit()) {
+	if (!(attrs & DMA_ATTR_NO_WARN) && printk_ratelimit()) {
 		dev_warn(dev,
 			"swiotlb: coherent allocation failed, size=%zu\n",
 			size);
