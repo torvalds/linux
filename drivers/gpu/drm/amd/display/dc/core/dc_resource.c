@@ -1615,6 +1615,9 @@ static bool are_stream_backends_same(
 	if (is_hdr_static_meta_changed(stream_a, stream_b))
 		return false;
 
+	if (stream_a->dpms_off != stream_b->dpms_off)
+		return false;
+
 	return true;
 }
 
@@ -2714,6 +2717,9 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
+
+	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
 		return true;
 
 	return false;

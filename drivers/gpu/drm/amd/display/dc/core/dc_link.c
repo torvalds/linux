@@ -2458,8 +2458,42 @@ void core_link_enable_stream(
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
+
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL) {
+		stream->sink->link->link_enc->funcs->setup(
+			stream->sink->link->link_enc,
+			pipe_ctx->stream->signal);
+		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
+			pipe_ctx->stream_res.stream_enc,
+			pipe_ctx->stream_res.tg->inst,
+			stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
+	}
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
+			&stream->timing,
+			stream->output_color_space);
+
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
+			&stream->timing,
+			stream->phy_pix_clk,
+			pipe_ctx->stream_res.audio != NULL);
+
+	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
+			&stream->timing,
+			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
+			true : false);
+
+	resource_build_info_frame(pipe_ctx);
+	core_dc->hwss.update_info_frame(pipe_ctx);
 
 	/* eDP lit up by bios already, no need to enable again. */
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&

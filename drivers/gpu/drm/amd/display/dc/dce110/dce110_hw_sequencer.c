@@ -1349,8 +1349,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
-			pipe_ctx[pipe_ctx->pipe_idx];
 
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
@@ -1405,46 +1403,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			stream->timing.display_color_depth,
 			pipe_ctx->stream->signal);
 
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		stream->sink->link->link_enc->funcs->setup(
-			stream->sink->link->link_enc,
-			pipe_ctx->stream->signal);
-
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
-		pipe_ctx->stream_res.stream_enc,
-		pipe_ctx->stream_res.tg->inst,
-		stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
-
-
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 		pipe_ctx->stream_res.opp,
 		&stream->bit_depth_params,
 		&stream->clamping);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			stream->output_color_space);
-
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			stream->phy_pix_clk,
-			pipe_ctx->stream_res.audio != NULL);
-
-	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
-			true : false);
-
-	resource_build_info_frame(pipe_ctx);
-	dce110_update_info_frame(pipe_ctx);
-	if (!pipe_ctx_old->stream)
+	if (!stream->dpms_off)
 		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
