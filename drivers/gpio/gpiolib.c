@@ -1186,7 +1186,7 @@ static void gpiochip_machine_hog(struct gpio_chip *chip, struct gpiod_hog *hog)
 		return;
 	}
 
-	if (desc->flags & FLAG_IS_HOGGED)
+	if (test_bit(FLAG_IS_HOGGED, &desc->flags))
 		return;
 
 	rv = gpiod_hog(desc, hog->line_name, hog->lflags, hog->dflags);
