@@ -12,8 +12,8 @@ static struct dentry *i40e_dbg_root;
 
 /**
  * i40e_dbg_find_vsi - searches for the vsi with the given seid
- * @pf - the PF structure to search for the vsi
- * @seid - seid of the vsi it is searching for
+ * @pf: the PF structure to search for the vsi
+ * @seid: seid of the vsi it is searching for
  **/
 static struct i40e_vsi *i40e_dbg_find_vsi(struct i40e_pf *pf, int seid)
 {
@@ -31,8 +31,8 @@ static struct i40e_vsi *i40e_dbg_find_vsi(struct i40e_pf *pf, int seid)
 
 /**
  * i40e_dbg_find_veb - searches for the veb with the given seid
- * @pf - the PF structure to search for the veb
- * @seid - seid of the veb it is searching for
+ * @pf: the PF structure to search for the veb
+ * @seid: seid of the veb it is searching for
  **/
 static struct i40e_veb *i40e_dbg_find_veb(struct i40e_pf *pf, int seid)
 {

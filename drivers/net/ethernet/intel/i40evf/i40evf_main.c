@@ -449,6 +449,7 @@ static void i40evf_irq_affinity_release(struct kref *ref) {}
 /**
  * i40evf_request_traffic_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
+ * @basename: device basename
  *
  * Allocates MSI-X vectors for tx and rx handling, and requests
  * interrupts from the kernel.
@@ -681,7 +682,7 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (!f) {
-		f = kzalloc(sizeof(*f), GFP_ATOMIC);
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto clearout;
 
@@ -721,6 +722,7 @@ static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
 /**
  * i40evf_vlan_rx_add_vid - Add a VLAN filter to a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
@@ -738,6 +740,7 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
 /**
  * i40evf_vlan_rx_kill_vid - Remove a VLAN filter from a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
@@ -3136,7 +3139,7 @@ static int i40evf_set_features(struct net_device *netdev,
 /**
  * i40evf_features_check - Validate encapsulated packet conforms to limits
  * @skb: skb buff
- * @netdev: This physical port's netdev
+ * @dev: This physical port's netdev
  * @features: Offload features that the stack believes apply
  **/
 static netdev_features_t i40evf_features_check(struct sk_buff *skb,
@@ -3353,6 +3356,24 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 
 	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	/* Do not turn on offloads when they are requested to be turned off.
+	 * TSO needs minimum 576 bytes to work correctly.
+	 */
+	if (netdev->wanted_features) {
+		if (!(netdev->wanted_features & NETIF_F_TSO) ||
+		    netdev->mtu < 576)
+			netdev->features &= ~NETIF_F_TSO;
+		if (!(netdev->wanted_features & NETIF_F_TSO6) ||
+		    netdev->mtu < 576)
+			netdev->features &= ~NETIF_F_TSO6;
+		if (!(netdev->wanted_features & NETIF_F_TSO_ECN))
+			netdev->features &= ~NETIF_F_TSO_ECN;
+		if (!(netdev->wanted_features & NETIF_F_GRO))
+			netdev->features &= ~NETIF_F_GRO;
+		if (!(netdev->wanted_features & NETIF_F_GSO))
+			netdev->features &= ~NETIF_F_GSO;
+	}
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 

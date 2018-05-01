@@ -174,7 +174,6 @@ exit:
  * @hw: pointer to our HW structure
  * @hmc_info: pointer to the HMC configuration information structure
  * @idx: the page index
- * @is_pf: distinguishes a VF from a PF
  *
  * This function:
  *	1. Marks the entry in pd tabe (for paged address mode) or in sd table

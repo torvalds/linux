@@ -471,7 +471,7 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 /**
  * i40e_add_del_fdir - Build raw packets to add/del fdir filter
  * @vsi: pointer to the targeted VSI
- * @cmd: command to get or set RX flow classification rules
+ * @input: filter to add or delete
  * @add: true adds a filter, false removes it
  *
  **/
@@ -689,7 +689,7 @@ void i40e_free_tx_resources(struct i40e_ring *tx_ring)
 
 /**
  * i40e_get_tx_pending - how many tx descriptors not processed
- * @tx_ring: the ring of descriptors
+ * @ring: the ring of descriptors
  * @in_sw: use SW variables
  *
  * Since there is no access to the ring head register
@@ -1771,6 +1771,8 @@ static inline int i40e_ptype_to_htype(u8 ptype)
  * i40e_rx_hash - set the hash value in the skb
  * @ring: descriptor ring
  * @rx_desc: specific descriptor
+ * @skb: skb currently being received and modified
+ * @rx_ptype: Rx packet type
  **/
 static inline void i40e_rx_hash(struct i40e_ring *ring,
 				union i40e_rx_desc *rx_desc,

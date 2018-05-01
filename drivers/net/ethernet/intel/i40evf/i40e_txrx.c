@@ -105,7 +105,7 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
 
 /**
  * i40evf_get_tx_pending - how many Tx descriptors not processed
- * @tx_ring: the ring of descriptors
+ * @ring: the ring of descriptors
  * @in_sw: is tx_pending being checked in SW or HW
  *
  * Since there is no access to the ring head register
@@ -1046,6 +1046,8 @@ static inline int i40e_ptype_to_htype(u8 ptype)
  * i40e_rx_hash - set the hash value in the skb
  * @ring: descriptor ring
  * @rx_desc: specific descriptor
+ * @skb: skb currently being received and modified
+ * @rx_ptype: Rx packet type
  **/
 static inline void i40e_rx_hash(struct i40e_ring *ring,
 				union i40e_rx_desc *rx_desc,

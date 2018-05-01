@@ -178,7 +178,6 @@ void i40evf_notify_client_close(struct i40e_vsi *vsi, bool reset)
 /**
  * i40evf_client_add_instance - add a client instance to the instance list
  * @adapter: pointer to the board struct
- * @client: pointer to a client struct in the client list.
  *
  * Returns cinst ptr on success, NULL on failure
  **/
@@ -236,7 +235,6 @@ out:
 /**
  * i40evf_client_del_instance - removes a client instance from the list
  * @adapter: pointer to the board struct
- * @client: pointer to the client struct
  *
  **/
 static
@@ -440,7 +438,7 @@ static u32 i40evf_client_virtchnl_send(struct i40e_info *ldev,
  * i40evf_client_setup_qvlist - send a message to the PF to setup iwarp qv map
  * @ldev: pointer to L2 context.
  * @client: Client pointer.
- * @qv_info: queue and vector list
+ * @qvlist_info: queue and vector list
  *
  * Return 0 on success or < 0 on error
  **/
