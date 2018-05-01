@@ -4517,7 +4517,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	fcport->deleted = QLA_SESS_DELETED;
 	fcport->login_retry = vha->hw->login_retry_count;
-	fcport->login_retry = 5;
 	fcport->logout_on_delete = 1;
 
 	if (!fcport->ct_desc.ct_sns) {
