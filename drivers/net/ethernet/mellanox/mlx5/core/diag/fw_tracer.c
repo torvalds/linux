@@ -169,6 +169,48 @@ static void mlx5_fw_tracer_destroy_log_buf(struct mlx5_fw_tracer *tracer)
 	free_pages((unsigned long)tracer->buff.log_buf, get_order(tracer->buff.size));
 }
 
+static int mlx5_fw_tracer_create_mkey(struct mlx5_fw_tracer *tracer)
+{
+	struct mlx5_core_dev *dev = tracer->dev;
+	int err, inlen, i;
+	__be64 *mtt;
+	void *mkc;
+	u32 *in;
+
+	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) +
+			sizeof(*mtt) * round_up(TRACER_BUFFER_PAGE_NUM, 2);
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
+		 DIV_ROUND_UP(TRACER_BUFFER_PAGE_NUM, 2));
+	mtt = (u64 *)MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
+	for (i = 0 ; i < TRACER_BUFFER_PAGE_NUM ; i++)
+		mtt[i] = cpu_to_be64(tracer->buff.dma + i * PAGE_SIZE);
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_MTT);
+	MLX5_SET(mkc, mkc, lr, 1);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, pd, tracer->buff.pdn);
+	MLX5_SET(mkc, mkc, bsf_octword_size, 0);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
+	MLX5_SET(mkc, mkc, translations_octword_size,
+		 DIV_ROUND_UP(TRACER_BUFFER_PAGE_NUM, 2));
+	MLX5_SET64(mkc, mkc, start_addr, tracer->buff.dma);
+	MLX5_SET64(mkc, mkc, len, tracer->buff.size);
+	err = mlx5_core_create_mkey(dev, &tracer->buff.mkey, in, inlen);
+	if (err)
+		mlx5_core_warn(dev, "FWTracer: Failed to create mkey, %d\n", err);
+
+	kvfree(in);
+
+	return err;
+}
+
 static void mlx5_fw_tracer_free_strings_db(struct mlx5_fw_tracer *tracer)
 {
 	u32 num_string_db = tracer->str_db.num_string_db;
@@ -363,13 +405,26 @@ int mlx5_fw_tracer_init(struct mlx5_fw_tracer *tracer)
 	if (!tracer->str_db.loaded)
 		queue_work(tracer->work_queue, &tracer->read_fw_strings_work);
 
-	err = mlx5_fw_tracer_ownership_acquire(tracer);
+	err = mlx5_core_alloc_pd(dev, &tracer->buff.pdn);
 	if (err) {
-		mlx5_core_dbg(dev, "FWTracer: Ownership was not granted %d\n", err);
-		return 0; /* return 0 since ownership can be acquired on a later FW event */
+		mlx5_core_warn(dev, "FWTracer: Failed to allocate PD %d\n", err);
+		return err;
 	}
 
+	err = mlx5_fw_tracer_create_mkey(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "FWTracer: Failed to create mkey %d\n", err);
+		goto err_dealloc_pd;
+	}
+
+	err = mlx5_fw_tracer_ownership_acquire(tracer);
+	if (err) /* Don't fail since ownership can be acquired on a later FW event */
+		mlx5_core_dbg(dev, "FWTracer: Ownership was not granted %d\n", err);
+
 	return 0;
+err_dealloc_pd:
+	mlx5_core_dealloc_pd(dev, tracer->buff.pdn);
+	return err;
 }
 
 void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer)
@@ -381,6 +436,9 @@ void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer)
 
 	if (tracer->owner)
 		mlx5_fw_tracer_ownership_release(tracer);
+
+	mlx5_core_destroy_mkey(tracer->dev, &tracer->buff.mkey);
+	mlx5_core_dealloc_pd(tracer->dev, tracer->buff.pdn);
 }
 
 void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
