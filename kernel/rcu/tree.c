@@ -1702,6 +1702,34 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 }
 
 /*
+ * Similar to rcu_accelerate_cbs(), but does not require that the leaf
+ * rcu_node structure's ->lock be held.  It consults the cached value
+ * of ->gp_seq_needed in the rcu_data structure, and if that indicates
+ * that a new grace-period request be made, invokes rcu_accelerate_cbs()
+ * while holding the leaf rcu_node structure's ->lock.
+ */
+static void rcu_accelerate_cbs_unlocked(struct rcu_state *rsp,
+					struct rcu_node *rnp,
+					struct rcu_data *rdp)
+{
+	unsigned long c;
+	bool needwake;
+
+	lockdep_assert_irqs_disabled();
+	c = rcu_seq_snap(&rsp->gp_seq);
+	if (!rdp->gpwrap && ULONG_CMP_GE(rdp->gp_seq_needed, c)) {
+		/* Old request still live, so mark recent callbacks. */
+		(void)rcu_segcblist_accelerate(&rdp->cblist, c);
+		return;
+	}
+	raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
+	needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
+	raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
+	if (needwake)
+		rcu_gp_kthread_wake(rsp);
+}
+
+/*
  * Move any callbacks whose grace period has completed to the
  * RCU_DONE_TAIL sublist, then compact the remaining sublists and
  * assign ->gp_seq numbers to any callbacks in the RCU_NEXT_TAIL
@@ -2739,7 +2767,6 @@ static void
 __rcu_process_callbacks(struct rcu_state *rsp)
 {
 	unsigned long flags;
-	bool needwake;
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
 	struct rcu_node *rnp = rdp->mynode;
 
@@ -2752,15 +2779,9 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	if (!rcu_gp_in_progress(rsp) &&
 	    rcu_segcblist_is_enabled(&rdp->cblist)) {
 		local_irq_save(flags);
-		if (rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL)) {
-			local_irq_restore(flags);
-		} else {
-			raw_spin_lock_rcu_node(rnp); /* irqs disabled. */
-			needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
-			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-			if (needwake)
-				rcu_gp_kthread_wake(rsp);
-		}
+		if (!rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
+			rcu_accelerate_cbs_unlocked(rsp, rnp, rdp);
+		local_irq_restore(flags);
 	}
 
 	rcu_check_gp_start_stall(rsp, rnp, rdp);
@@ -2818,8 +2839,6 @@ static void invoke_rcu_core(void)
 static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 			    struct rcu_head *head, unsigned long flags)
 {
-	bool needwake;
-
 	/*
 	 * If called from an extended quiescent state, invoke the RCU
 	 * core in order to force a re-evaluation of RCU's idleness.
@@ -2846,13 +2865,7 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 
 		/* Start a new grace period if one not already started. */
 		if (!rcu_gp_in_progress(rsp)) {
-			struct rcu_node *rnp = rdp->mynode;
-
-			raw_spin_lock_rcu_node(rnp);
-			needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
-			raw_spin_unlock_rcu_node(rnp);
-			if (needwake)
-				rcu_gp_kthread_wake(rsp);
+			rcu_accelerate_cbs_unlocked(rsp, rdp->mynode, rdp);
 		} else {
 			/* Give the grace period a kick. */
 			rdp->blimit = LONG_MAX;
