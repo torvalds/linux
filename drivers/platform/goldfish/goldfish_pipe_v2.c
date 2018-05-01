@@ -370,11 +370,12 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 {
 	u32 wakeBit = is_write ? BIT_WAKE_ON_WRITE : BIT_WAKE_ON_READ;
+	u32 cmdBit = is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ;
+
 	set_bit(wakeBit, &pipe->flags);
 
 	/* Tell the emulator we're going to wait for a wake event */
-	goldfish_pipe_cmd(pipe,
-			is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ);
+	goldfish_pipe_cmd(pipe, cmdBit);
 
 	while (test_bit(wakeBit, &pipe->flags)) {
 		if (wait_event_interruptible(
@@ -789,9 +790,12 @@ static struct miscdevice goldfish_pipe_miscdev = {
 
 static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 {
-	char *page;
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
-	int err = devm_request_irq(&pdev->dev, dev->irq, goldfish_pipe_interrupt,
+	struct device *pdev_dev = &pdev->dev;
+	char *page;
+	int err;
+
+	err = devm_request_irq(pdev_dev, dev->irq, goldfish_pipe_interrupt,
 				IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to allocate IRQ for v2\n");
