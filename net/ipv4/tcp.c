@@ -1889,6 +1889,22 @@ static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 	}
 }
 
+static int tcp_inq_hint(struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 copied_seq = READ_ONCE(tp->copied_seq);
+	u32 rcv_nxt = READ_ONCE(tp->rcv_nxt);
+	int inq;
+
+	inq = rcv_nxt - copied_seq;
+	if (unlikely(inq < 0 || copied_seq != READ_ONCE(tp->copied_seq))) {
+		lock_sock(sk);
+		inq = tp->rcv_nxt - tp->copied_seq;
+		release_sock(sk);
+	}
+	return inq;
+}
+
 /*
  *	This routine copies from a sock struct into the user buffer.
  *
@@ -1905,13 +1921,14 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	u32 peek_seq;
 	u32 *seq;
 	unsigned long used;
-	int err;
+	int err, inq;
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct sk_buff *skb, *last;
 	u32 urg_hole = 0;
 	struct scm_timestamping tss;
 	bool has_tss = false;
+	bool has_cmsg;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
@@ -1926,6 +1943,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	if (sk->sk_state == TCP_LISTEN)
 		goto out;
 
+	has_cmsg = tp->recvmsg_inq;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -2112,6 +2130,7 @@ skip_copy:
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
 			tcp_update_recv_tstamps(skb, &tss);
 			has_tss = true;
+			has_cmsg = true;
 		}
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			goto found_fin_ok;
@@ -2131,13 +2150,20 @@ skip_copy:
 	 * on connected socket. I was just happy when found this 8) --ANK
 	 */
 
-	if (has_tss)
-		tcp_recv_timestamp(msg, sk, &tss);
-
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
 
 	release_sock(sk);
+
+	if (has_cmsg) {
+		if (has_tss)
+			tcp_recv_timestamp(msg, sk, &tss);
+		if (tp->recvmsg_inq) {
+			inq = tcp_inq_hint(sk);
+			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
+		}
+	}
+
 	return copied;
 
 out:
@@ -3006,6 +3032,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		tp->notsent_lowat = val;
 		sk->sk_write_space(sk);
 		break;
+	case TCP_INQ:
+		if (val > 1 || val < 0)
+			err = -EINVAL;
+		else
+			tp->recvmsg_inq = val;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -3430,6 +3462,9 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;
+		break;
+	case TCP_INQ:
+		val = tp->recvmsg_inq;
 		break;
 	case TCP_SAVE_SYN:
 		val = tp->save_syn;
