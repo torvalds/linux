@@ -175,7 +175,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (kfifo_len(&st->timestamps) >
 	    fifo_count / bytes_per_datum + INV_MPU6050_TIME_STAMP_TOR)
 		goto flush_fifo;
-	while (fifo_count >= bytes_per_datum) {
+	do {
 		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
 					  data, bytes_per_datum);
 		if (result)
@@ -194,7 +194,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 							   timestamp);
 
 		fifo_count -= bytes_per_datum;
-	}
+	} while (fifo_count >= bytes_per_datum);
 
 end_session:
 	mutex_unlock(&st->lock);
