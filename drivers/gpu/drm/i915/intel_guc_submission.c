@@ -124,9 +124,17 @@ static int reserve_doorbell(struct intel_guc_client *client)
 	return 0;
 }
 
+static bool has_doorbell(struct intel_guc_client *client)
+{
+	if (client->doorbell_id == GUC_DOORBELL_INVALID)
+		return false;
+
+	return test_bit(client->doorbell_id, client->guc->doorbell_bitmap);
+}
+
 static void unreserve_doorbell(struct intel_guc_client *client)
 {
-	GEM_BUG_ON(client->doorbell_id == GUC_DOORBELL_INVALID);
+	GEM_BUG_ON(!has_doorbell(client));
 
 	__clear_bit(client->doorbell_id, client->guc->doorbell_bitmap);
 	client->doorbell_id = GUC_DOORBELL_INVALID;
@@ -184,14 +192,6 @@ static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 	return client->vaddr + client->doorbell_offset;
 }
 
-static bool has_doorbell(struct intel_guc_client *client)
-{
-	if (client->doorbell_id == GUC_DOORBELL_INVALID)
-		return false;
-
-	return test_bit(client->doorbell_id, client->guc->doorbell_bitmap);
-}
-
 static void __create_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
@@ -206,7 +206,6 @@ static void __destroy_doorbell(struct intel_guc_client *client)
 	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
 	u16 db_id = client->doorbell_id;
-
 
 	doorbell = __get_doorbell(client);
 	doorbell->db_status = GUC_DOORBELL_DISABLED;
@@ -223,6 +222,9 @@ static void __destroy_doorbell(struct intel_guc_client *client)
 static int create_doorbell(struct intel_guc_client *client)
 {
 	int ret;
+
+	if (WARN_ON(!has_doorbell(client)))
+		return -ENODEV; /* internal setup error, should never happen */
 
 	__update_doorbell_desc(client, client->doorbell_id);
 	__create_doorbell(client);
