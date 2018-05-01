@@ -215,7 +215,7 @@ struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
 struct sctp_chunk *sctp_make_shutdown_complete(
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *chunk);
-void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
+int sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
 struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
 				   const struct sctp_chunk *chunk,
 				   const size_t hint);
