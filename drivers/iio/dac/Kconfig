@@ -335,6 +335,16 @@ config TI_DAC082S085
 
 	  If compiled as a module, it will be called ti-dac082s085.
 
+config TI_DAC5571
+	tristate "Texas Instruments 8/10/12/16-bit 1/2/4-channel DAC driver"
+	depends on I2C
+	help
+	  Driver for the Texas Instruments
+	  DAC5571, DAC6571, DAC7571, DAC5574, DAC6574, DAC7574, DAC5573,
+	  DAC6573, DAC7573, DAC8571, DAC8574.
+
+	  If compiled as a module, it will be called ti-dac5571.
+
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
 	depends on OF
