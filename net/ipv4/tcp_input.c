@@ -111,6 +111,25 @@ int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 #define REXMIT_LOST	1 /* retransmit packets marked lost */
 #define REXMIT_NEW	2 /* FRTO-style transmit of unsent/new packets */
 
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+static DEFINE_STATIC_KEY_FALSE(clean_acked_data_enabled);
+
+void clean_acked_data_enable(struct inet_connection_sock *icsk,
+			     void (*cad)(struct sock *sk, u32 ack_seq))
+{
+	icsk->icsk_clean_acked = cad;
+	static_branch_inc(&clean_acked_data_enabled);
+}
+EXPORT_SYMBOL_GPL(clean_acked_data_enable);
+
+void clean_acked_data_disable(struct inet_connection_sock *icsk)
+{
+	static_branch_dec(&clean_acked_data_enabled);
+	icsk->icsk_clean_acked = NULL;
+}
+EXPORT_SYMBOL_GPL(clean_acked_data_disable);
+#endif
+
 static void tcp_gro_dev_warn(struct sock *sk, const struct sk_buff *skb,
 			     unsigned int len)
 {
@@ -3560,6 +3579,12 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (after(ack, prior_snd_una)) {
 		flag |= FLAG_SND_UNA_ADVANCED;
 		icsk->icsk_retransmits = 0;
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+		if (static_branch_unlikely(&clean_acked_data_enabled))
+			if (icsk->icsk_clean_acked)
+				icsk->icsk_clean_acked(sk, ack);
+#endif
 	}
 
 	prior_fack = tcp_is_sack(tp) ? tcp_highest_sack_seq(tp) : tp->snd_una;
