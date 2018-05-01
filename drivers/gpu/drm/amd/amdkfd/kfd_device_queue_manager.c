@@ -1713,6 +1713,18 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	int pipe, queue;
 	int r = 0;
 
+	r = dqm->dev->kfd2kgd->hqd_dump(dqm->dev->kgd,
+		KFD_CIK_HIQ_PIPE, KFD_CIK_HIQ_QUEUE, &dump, &n_regs);
+	if (!r) {
+		seq_printf(m, "  HIQ on MEC %d Pipe %d Queue %d\n",
+				KFD_CIK_HIQ_PIPE/get_pipes_per_mec(dqm)+1,
+				KFD_CIK_HIQ_PIPE%get_pipes_per_mec(dqm),
+				KFD_CIK_HIQ_QUEUE);
+		seq_reg_dump(m, dump, n_regs);
+
+		kfree(dump);
+	}
+
 	for (pipe = 0; pipe < get_pipes_per_mec(dqm); pipe++) {
 		int pipe_offset = pipe * get_queues_per_pipe(dqm);
 
