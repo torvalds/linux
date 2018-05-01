@@ -1004,9 +1004,9 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		/*don't free audio if it is from retrain or internal disable stream*/
 		if (option == FREE_ACQUIRED_RESOURCE && dc->caps.dynamic_audio == true) {
 			/*we have to dynamic arbitrate the audio endpoints*/
-			pipe_ctx->stream_res.audio = NULL;
 			/*we free the resource, need reset is_audio_acquired*/
 			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
+			pipe_ctx->stream_res.audio = NULL;
 		}
 
 		/* TODO: notify audio driver for if audio modes list changed
