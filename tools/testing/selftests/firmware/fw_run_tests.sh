@@ -66,5 +66,5 @@ if [ -f $FW_FORCE_SYSFS_FALLBACK ]; then
 	run_test_config_0003
 else
 	echo "Running basic kernel configuration, working with your config"
-	run_test
+	run_tests
 fi

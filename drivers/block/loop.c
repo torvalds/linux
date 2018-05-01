@@ -451,25 +451,47 @@ static int lo_req_flush(struct loop_device *lo, struct request *rq)
 static void lo_complete_rq(struct request *rq)
 {
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	blk_status_t ret = BLK_STS_OK;
 
-	if (unlikely(req_op(cmd->rq) == REQ_OP_READ && cmd->use_aio &&
-		     cmd->ret >= 0 && cmd->ret < blk_rq_bytes(cmd->rq))) {
-		struct bio *bio = cmd->rq->bio;
-
-		bio_advance(bio, cmd->ret);
-		zero_fill_bio(bio);
+	if (!cmd->use_aio || cmd->ret < 0 || cmd->ret == blk_rq_bytes(rq) ||
+	    req_op(rq) != REQ_OP_READ) {
+		if (cmd->ret < 0)
+			ret = BLK_STS_IOERR;
+		goto end_io;
 	}
 
-	blk_mq_end_request(rq, cmd->ret < 0 ? BLK_STS_IOERR : BLK_STS_OK);
+	/*
+	 * Short READ - if we got some data, advance our request and
+	 * retry it. If we got no data, end the rest with EIO.
+	 */
+	if (cmd->ret) {
+		blk_update_request(rq, BLK_STS_OK, cmd->ret);
+		cmd->ret = 0;
+		blk_mq_requeue_request(rq, true);
+	} else {
+		if (cmd->use_aio) {
+			struct bio *bio = rq->bio;
+
+			while (bio) {
+				zero_fill_bio(bio);
+				bio = bio->bi_next;
+			}
+		}
+		ret = BLK_STS_IOERR;
+end_io:
+		blk_mq_end_request(rq, ret);
+	}
 }
 
 static void lo_rw_aio_do_completion(struct loop_cmd *cmd)
 {
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+
 	if (!atomic_dec_and_test(&cmd->ref))
 		return;
 	kfree(cmd->bvec);
 	cmd->bvec = NULL;
-	blk_mq_complete_request(cmd->rq);
+	blk_mq_complete_request(rq);
 }
 
 static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
@@ -487,7 +509,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 {
 	struct iov_iter iter;
 	struct bio_vec *bvec;
-	struct request *rq = cmd->rq;
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct bio *bio = rq->bio;
 	struct file *file = lo->lo_backing_file;
 	unsigned int offset;
@@ -1702,15 +1724,16 @@ EXPORT_SYMBOL(loop_unregister_transfer);
 static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
-	struct loop_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
-	struct loop_device *lo = cmd->rq->q->queuedata;
+	struct request *rq = bd->rq;
+	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct loop_device *lo = rq->q->queuedata;
 
-	blk_mq_start_request(bd->rq);
+	blk_mq_start_request(rq);
 
 	if (lo->lo_state != Lo_bound)
 		return BLK_STS_IOERR;
 
-	switch (req_op(cmd->rq)) {
+	switch (req_op(rq)) {
 	case REQ_OP_FLUSH:
 	case REQ_OP_DISCARD:
 	case REQ_OP_WRITE_ZEROES:
@@ -1723,8 +1746,8 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	/* always use the first bio's css */
 #ifdef CONFIG_BLK_CGROUP
-	if (cmd->use_aio && cmd->rq->bio && cmd->rq->bio->bi_css) {
-		cmd->css = cmd->rq->bio->bi_css;
+	if (cmd->use_aio && rq->bio && rq->bio->bi_css) {
+		cmd->css = rq->bio->bi_css;
 		css_get(cmd->css);
 	} else
 #endif
@@ -1736,8 +1759,9 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static void loop_handle_cmd(struct loop_cmd *cmd)
 {
-	const bool write = op_is_write(req_op(cmd->rq));
-	struct loop_device *lo = cmd->rq->q->queuedata;
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	const bool write = op_is_write(req_op(rq));
+	struct loop_device *lo = rq->q->queuedata;
 	int ret = 0;
 
 	if (write && (lo->lo_flags & LO_FLAGS_READ_ONLY)) {
@@ -1745,12 +1769,12 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 		goto failed;
 	}
 
-	ret = do_req_filebacked(lo, cmd->rq);
+	ret = do_req_filebacked(lo, rq);
  failed:
 	/* complete non-aio request */
 	if (!cmd->use_aio || ret) {
 		cmd->ret = ret ? -EIO : 0;
-		blk_mq_complete_request(cmd->rq);
+		blk_mq_complete_request(rq);
 	}
 }
 
@@ -1767,9 +1791,7 @@ static int loop_init_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	cmd->rq = rq;
 	kthread_init_work(&cmd->work, loop_queue_work);
-
 	return 0;
 }
 

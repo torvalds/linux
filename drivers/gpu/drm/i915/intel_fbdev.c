@@ -806,7 +806,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (ifbdev->vma)
+	if (ifbdev->vma || ifbdev->helper.deferred_setup)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 

@@ -419,19 +419,6 @@ void tick_suspend_local(void)
 	clockevents_shutdown(td->evtdev);
 }
 
-static void tick_forward_next_period(void)
-{
-	ktime_t delta, now = ktime_get();
-	u64 n;
-
-	delta = ktime_sub(now, tick_next_period);
-	n = ktime_divns(delta, tick_period);
-	tick_next_period += n * tick_period;
-	if (tick_next_period < now)
-		tick_next_period += tick_period;
-	tick_sched_forward_next_period();
-}
-
 /**
  * tick_resume_local - Resume the local tick device
  *
@@ -443,8 +430,6 @@ void tick_resume_local(void)
 {
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	bool broadcast = tick_resume_check_broadcast();
-
-	tick_forward_next_period();
 
 	clockevents_tick_resume(td->evtdev);
 	if (!broadcast) {

@@ -427,9 +427,9 @@ static struct gpiod_lookup_table jive_wm8750_gpiod_table = {
 	.dev_id         = "spi_gpio",
 	.table          = {
 		GPIO_LOOKUP("GPIOB", 4,
-			    "gpio-sck", GPIO_ACTIVE_HIGH),
+			    "sck", GPIO_ACTIVE_HIGH),
 		GPIO_LOOKUP("GPIOB", 9,
-			    "gpio-mosi", GPIO_ACTIVE_HIGH),
+			    "mosi", GPIO_ACTIVE_HIGH),
 		GPIO_LOOKUP("GPIOH", 10,
 			    "cs", GPIO_ACTIVE_HIGH),
 		{ },

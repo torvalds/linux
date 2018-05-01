@@ -753,7 +753,7 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		goto out;
 
 #ifdef CONFIG_CIFS_SMB311
-	if (ses->status == CifsNew)
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
 		smb311_update_preauth_hash(ses, rqst->rq_iov+1,
 					   rqst->rq_nvec-1);
 #endif
@@ -798,7 +798,7 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		*resp_buf_type = CIFS_SMALL_BUFFER;
 
 #ifdef CONFIG_CIFS_SMB311
-	if (ses->status == CifsNew) {
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
 		struct kvec iov = {
 			.iov_base = buf + 4,
 			.iov_len = get_rfc1002_length(buf)
@@ -834,8 +834,11 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
 		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
 				  GFP_KERNEL);
-		if (!new_iov)
+		if (!new_iov) {
+			/* otherwise cifs_send_recv below sets resp_buf_type */
+			*resp_buf_type = CIFS_NO_BUFFER;
 			return -ENOMEM;
+		}
 	} else
 		new_iov = s_iov;
 
