@@ -1332,20 +1332,6 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	fc_port_t *fcport;
 
 	switch (ea->event) {
-	case FCME_RSCN:
-	case FCME_GIDPN_DONE:
-	case FCME_GPSC_DONE:
-	case FCME_GPNID_DONE:
-	case FCME_GNNID_DONE:
-		if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) ||
-		    test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags))
-			return;
-		break;
-	default:
-		break;
-	}
-
-	switch (ea->event) {
 	case FCME_RELOGIN:
 		if (test_bit(UNLOADING, &vha->dpc_flags))
 			return;
