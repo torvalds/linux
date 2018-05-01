@@ -690,7 +690,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  * Check that the list of blocked tasks for the newly completed grace
  * period is in fact empty.  It is a serious bug to complete a grace
  * period that still has RCU readers blocked!  This function must be
- * invoked -before- updating this rnp's ->gpnum, and the rnp's ->lock
+ * invoked -before- updating this rnp's ->gp_seq, and the rnp's ->lock
  * must be held by the caller.
  *
  * Also, if there are blocked tasks on the list, they automatically
