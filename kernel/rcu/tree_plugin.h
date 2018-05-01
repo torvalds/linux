@@ -566,7 +566,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		empty_exp_now = sync_rcu_preempt_exp_done(rnp);
 		if (!empty_norm && !rcu_preempt_blocked_readers_cgp(rnp)) {
 			trace_rcu_quiescent_state_report(TPS("preempt_rcu"),
-							 rnp->gpnum,
+							 rnp->gp_seq,
 							 0, rnp->qsmask,
 							 rnp->level,
 							 rnp->grplo,

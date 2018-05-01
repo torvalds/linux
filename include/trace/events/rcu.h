@@ -354,15 +354,15 @@ TRACE_EVENT(rcu_unlock_preempted_task,
  */
 TRACE_EVENT(rcu_quiescent_state_report,
 
-	TP_PROTO(const char *rcuname, unsigned long gpnum,
+	TP_PROTO(const char *rcuname, unsigned long gp_seq,
 		 unsigned long mask, unsigned long qsmask,
 		 u8 level, int grplo, int grphi, int gp_tasks),
 
-	TP_ARGS(rcuname, gpnum, mask, qsmask, level, grplo, grphi, gp_tasks),
+	TP_ARGS(rcuname, gp_seq, mask, qsmask, level, grplo, grphi, gp_tasks),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gpnum)
+		__field(unsigned long, gp_seq)
 		__field(unsigned long, mask)
 		__field(unsigned long, qsmask)
 		__field(u8, level)
@@ -373,7 +373,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gpnum = gpnum;
+		__entry->gp_seq = gp_seq;
 		__entry->mask = mask;
 		__entry->qsmask = qsmask;
 		__entry->level = level;
@@ -383,7 +383,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
 	),
 
 	TP_printk("%s %lu %lx>%lx %u %d %d %u",
-		  __entry->rcuname, __entry->gpnum,
+		  __entry->rcuname, __entry->gp_seq,
 		  __entry->mask, __entry->qsmask, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->gp_tasks)
 );
@@ -763,7 +763,7 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_nocb_wake(rcuname, cpu, reason) do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gp_seq) do { } while (0)
 #define trace_rcu_unlock_preempted_task(rcuname, gp_seq, pid) do { } while (0)
-#define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, \
+#define trace_rcu_quiescent_state_report(rcuname, gp_seq, mask, qsmask, level, \
 					 grplo, grphi, gp_tasks) do { } \
 	while (0)
 #define trace_rcu_fqs(rcuname, gpnum, cpu, qsevent) do { } while (0)
