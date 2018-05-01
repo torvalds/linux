@@ -185,7 +185,8 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 				int prio)
 {
 	return (intel_engine_has_preemption(engine) &&
-		__execlists_need_preempt(prio, rq_prio(last)));
+		__execlists_need_preempt(prio, rq_prio(last)) &&
+		!i915_request_completed(last));
 }
 
 /**
