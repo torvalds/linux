@@ -117,14 +117,26 @@ static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 	bool vht_ena = vht_cap && vht_cap->vht_supported;
 	u16 flags = 0;
 
 	if (mvm->cfg->ht_params->stbc &&
-	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
-	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)) ||
-	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1)) {
+		if (he_cap && he_cap->has_he) {
+			if (he_cap->he_cap_elem.phy_cap_info[2] &
+			    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+
+			if (he_cap->he_cap_elem.phy_cap_info[7] &
+			    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_HE_STBC_160MHZ_MSK;
+		} else if ((ht_cap &&
+			    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)) ||
+			   (vht_ena &&
+			    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)))
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	}
 
 	if (mvm->cfg->ht_params->ldpc &&
 	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING)) ||
