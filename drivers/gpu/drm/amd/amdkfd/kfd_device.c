@@ -26,8 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
-#include "cwsr_trap_handler_gfx8.asm"
-#include "cwsr_trap_handler_gfx9.asm"
+#include "cwsr_trap_handler.h"
 #include "kfd_iommu.h"
 
 #define MQD_SIZE_ALIGNED 768
