@@ -1251,9 +1251,37 @@ static struct ccu_mux_nb sun8i_r40_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
+/*
+ * Add a regmap for the GMAC driver (dwmac-sun8i) to access the
+ * GMAC configuration register.
+ * Only this register is allowed to be written, in order to
+ * prevent overriding critical clock configuration.
+ */
+
+#define SUN8I_R40_GMAC_CFG_REG 0x164
+static bool sun8i_r40_ccu_regmap_accessible_reg(struct device *dev,
+						unsigned int reg)
+{
+	if (reg == SUN8I_R40_GMAC_CFG_REG)
+		return true;
+	return false;
+}
+
+static struct regmap_config sun8i_r40_ccu_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.max_register	= 0x320, /* PLL_LOCK_CTRL_REG */
+
+	/* other devices have no business accessing other registers */
+	.readable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
+	.writeable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
+};
+
 static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	struct regmap *regmap;
 	void __iomem *reg;
 	u32 val;
 	int ret;
@@ -1277,6 +1305,11 @@ static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 	val = readl(reg + SUN8I_R40_USB_CLK_REG);
 	val &= ~GENMASK(25, 20);
 	writel(val, reg + SUN8I_R40_USB_CLK_REG);
+
+	regmap = devm_regmap_init_mmio(&pdev->dev, reg,
+				       &sun8i_r40_ccu_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_r40_ccu_desc);
 	if (ret)
