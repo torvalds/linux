@@ -414,6 +414,162 @@ struct __packed vmcs12 {
 };
 
 /*
+ * For save/restore compatibility, the vmcs12 field offsets must not change.
+ */
+#define CHECK_OFFSET(field, loc)				\
+	BUILD_BUG_ON_MSG(offsetof(struct vmcs12, field) != (loc),	\
+		"Offset of " #field " in struct vmcs12 has changed.")
+
+static inline void vmx_check_vmcs12_offsets(void) {
+	CHECK_OFFSET(revision_id, 0);
+	CHECK_OFFSET(abort, 4);
+	CHECK_OFFSET(launch_state, 8);
+	CHECK_OFFSET(io_bitmap_a, 40);
+	CHECK_OFFSET(io_bitmap_b, 48);
+	CHECK_OFFSET(msr_bitmap, 56);
+	CHECK_OFFSET(vm_exit_msr_store_addr, 64);
+	CHECK_OFFSET(vm_exit_msr_load_addr, 72);
+	CHECK_OFFSET(vm_entry_msr_load_addr, 80);
+	CHECK_OFFSET(tsc_offset, 88);
+	CHECK_OFFSET(virtual_apic_page_addr, 96);
+	CHECK_OFFSET(apic_access_addr, 104);
+	CHECK_OFFSET(posted_intr_desc_addr, 112);
+	CHECK_OFFSET(ept_pointer, 120);
+	CHECK_OFFSET(eoi_exit_bitmap0, 128);
+	CHECK_OFFSET(eoi_exit_bitmap1, 136);
+	CHECK_OFFSET(eoi_exit_bitmap2, 144);
+	CHECK_OFFSET(eoi_exit_bitmap3, 152);
+	CHECK_OFFSET(xss_exit_bitmap, 160);
+	CHECK_OFFSET(guest_physical_address, 168);
+	CHECK_OFFSET(vmcs_link_pointer, 176);
+	CHECK_OFFSET(guest_ia32_debugctl, 184);
+	CHECK_OFFSET(guest_ia32_pat, 192);
+	CHECK_OFFSET(guest_ia32_efer, 200);
+	CHECK_OFFSET(guest_ia32_perf_global_ctrl, 208);
+	CHECK_OFFSET(guest_pdptr0, 216);
+	CHECK_OFFSET(guest_pdptr1, 224);
+	CHECK_OFFSET(guest_pdptr2, 232);
+	CHECK_OFFSET(guest_pdptr3, 240);
+	CHECK_OFFSET(guest_bndcfgs, 248);
+	CHECK_OFFSET(host_ia32_pat, 256);
+	CHECK_OFFSET(host_ia32_efer, 264);
+	CHECK_OFFSET(host_ia32_perf_global_ctrl, 272);
+	CHECK_OFFSET(vmread_bitmap, 280);
+	CHECK_OFFSET(vmwrite_bitmap, 288);
+	CHECK_OFFSET(vm_function_control, 296);
+	CHECK_OFFSET(eptp_list_address, 304);
+	CHECK_OFFSET(pml_address, 312);
+	CHECK_OFFSET(cr0_guest_host_mask, 344);
+	CHECK_OFFSET(cr4_guest_host_mask, 352);
+	CHECK_OFFSET(cr0_read_shadow, 360);
+	CHECK_OFFSET(cr4_read_shadow, 368);
+	CHECK_OFFSET(cr3_target_value0, 376);
+	CHECK_OFFSET(cr3_target_value1, 384);
+	CHECK_OFFSET(cr3_target_value2, 392);
+	CHECK_OFFSET(cr3_target_value3, 400);
+	CHECK_OFFSET(exit_qualification, 408);
+	CHECK_OFFSET(guest_linear_address, 416);
+	CHECK_OFFSET(guest_cr0, 424);
+	CHECK_OFFSET(guest_cr3, 432);
+	CHECK_OFFSET(guest_cr4, 440);
+	CHECK_OFFSET(guest_es_base, 448);
+	CHECK_OFFSET(guest_cs_base, 456);
+	CHECK_OFFSET(guest_ss_base, 464);
+	CHECK_OFFSET(guest_ds_base, 472);
+	CHECK_OFFSET(guest_fs_base, 480);
+	CHECK_OFFSET(guest_gs_base, 488);
+	CHECK_OFFSET(guest_ldtr_base, 496);
+	CHECK_OFFSET(guest_tr_base, 504);
+	CHECK_OFFSET(guest_gdtr_base, 512);
+	CHECK_OFFSET(guest_idtr_base, 520);
+	CHECK_OFFSET(guest_dr7, 528);
+	CHECK_OFFSET(guest_rsp, 536);
+	CHECK_OFFSET(guest_rip, 544);
+	CHECK_OFFSET(guest_rflags, 552);
+	CHECK_OFFSET(guest_pending_dbg_exceptions, 560);
+	CHECK_OFFSET(guest_sysenter_esp, 568);
+	CHECK_OFFSET(guest_sysenter_eip, 576);
+	CHECK_OFFSET(host_cr0, 584);
+	CHECK_OFFSET(host_cr3, 592);
+	CHECK_OFFSET(host_cr4, 600);
+	CHECK_OFFSET(host_fs_base, 608);
+	CHECK_OFFSET(host_gs_base, 616);
+	CHECK_OFFSET(host_tr_base, 624);
+	CHECK_OFFSET(host_gdtr_base, 632);
+	CHECK_OFFSET(host_idtr_base, 640);
+	CHECK_OFFSET(host_ia32_sysenter_esp, 648);
+	CHECK_OFFSET(host_ia32_sysenter_eip, 656);
+	CHECK_OFFSET(host_rsp, 664);
+	CHECK_OFFSET(host_rip, 672);
+	CHECK_OFFSET(pin_based_vm_exec_control, 744);
+	CHECK_OFFSET(cpu_based_vm_exec_control, 748);
+	CHECK_OFFSET(exception_bitmap, 752);
+	CHECK_OFFSET(page_fault_error_code_mask, 756);
+	CHECK_OFFSET(page_fault_error_code_match, 760);
+	CHECK_OFFSET(cr3_target_count, 764);
+	CHECK_OFFSET(vm_exit_controls, 768);
+	CHECK_OFFSET(vm_exit_msr_store_count, 772);
+	CHECK_OFFSET(vm_exit_msr_load_count, 776);
+	CHECK_OFFSET(vm_entry_controls, 780);
+	CHECK_OFFSET(vm_entry_msr_load_count, 784);
+	CHECK_OFFSET(vm_entry_intr_info_field, 788);
+	CHECK_OFFSET(vm_entry_exception_error_code, 792);
+	CHECK_OFFSET(vm_entry_instruction_len, 796);
+	CHECK_OFFSET(tpr_threshold, 800);
+	CHECK_OFFSET(secondary_vm_exec_control, 804);
+	CHECK_OFFSET(vm_instruction_error, 808);
+	CHECK_OFFSET(vm_exit_reason, 812);
+	CHECK_OFFSET(vm_exit_intr_info, 816);
+	CHECK_OFFSET(vm_exit_intr_error_code, 820);
+	CHECK_OFFSET(idt_vectoring_info_field, 824);
+	CHECK_OFFSET(idt_vectoring_error_code, 828);
+	CHECK_OFFSET(vm_exit_instruction_len, 832);
+	CHECK_OFFSET(vmx_instruction_info, 836);
+	CHECK_OFFSET(guest_es_limit, 840);
+	CHECK_OFFSET(guest_cs_limit, 844);
+	CHECK_OFFSET(guest_ss_limit, 848);
+	CHECK_OFFSET(guest_ds_limit, 852);
+	CHECK_OFFSET(guest_fs_limit, 856);
+	CHECK_OFFSET(guest_gs_limit, 860);
+	CHECK_OFFSET(guest_ldtr_limit, 864);
+	CHECK_OFFSET(guest_tr_limit, 868);
+	CHECK_OFFSET(guest_gdtr_limit, 872);
+	CHECK_OFFSET(guest_idtr_limit, 876);
+	CHECK_OFFSET(guest_es_ar_bytes, 880);
+	CHECK_OFFSET(guest_cs_ar_bytes, 884);
+	CHECK_OFFSET(guest_ss_ar_bytes, 888);
+	CHECK_OFFSET(guest_ds_ar_bytes, 892);
+	CHECK_OFFSET(guest_fs_ar_bytes, 896);
+	CHECK_OFFSET(guest_gs_ar_bytes, 900);
+	CHECK_OFFSET(guest_ldtr_ar_bytes, 904);
+	CHECK_OFFSET(guest_tr_ar_bytes, 908);
+	CHECK_OFFSET(guest_interruptibility_info, 912);
+	CHECK_OFFSET(guest_activity_state, 916);
+	CHECK_OFFSET(guest_sysenter_cs, 920);
+	CHECK_OFFSET(host_ia32_sysenter_cs, 924);
+	CHECK_OFFSET(vmx_preemption_timer_value, 928);
+	CHECK_OFFSET(virtual_processor_id, 960);
+	CHECK_OFFSET(posted_intr_nv, 962);
+	CHECK_OFFSET(guest_es_selector, 964);
+	CHECK_OFFSET(guest_cs_selector, 966);
+	CHECK_OFFSET(guest_ss_selector, 968);
+	CHECK_OFFSET(guest_ds_selector, 970);
+	CHECK_OFFSET(guest_fs_selector, 972);
+	CHECK_OFFSET(guest_gs_selector, 974);
+	CHECK_OFFSET(guest_ldtr_selector, 976);
+	CHECK_OFFSET(guest_tr_selector, 978);
+	CHECK_OFFSET(guest_intr_status, 980);
+	CHECK_OFFSET(host_es_selector, 982);
+	CHECK_OFFSET(host_cs_selector, 984);
+	CHECK_OFFSET(host_ss_selector, 986);
+	CHECK_OFFSET(host_ds_selector, 988);
+	CHECK_OFFSET(host_fs_selector, 990);
+	CHECK_OFFSET(host_gs_selector, 992);
+	CHECK_OFFSET(host_tr_selector, 994);
+	CHECK_OFFSET(guest_pml_index, 996);
+}
+
+/*
  * VMCS12_REVISION is an arbitrary id that should be changed if the content or
  * layout of struct vmcs12 is changed. MSR_IA32_VMX_BASIC returns this id, and
  * VMPTRLD verifies that the VMCS region that L1 is loading contains this id.
@@ -12834,6 +12990,7 @@ static int __init vmx_init(void)
 	rcu_assign_pointer(crash_vmclear_loaded_vmcss,
 			   crash_vmclear_local_loaded_vmcss);
 #endif
+	vmx_check_vmcs12_offsets();
 
 	return 0;
 }
