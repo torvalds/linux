@@ -241,7 +241,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	if (retval != 0) {
-		pr_err("DQM create queue failed\n");
+		pr_err("Pasid %d DQM create queue %d failed. ret %d\n",
+			pqm->process->pasid, type, retval);
 		goto err_create_queue;
 	}
 
@@ -319,8 +320,11 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {
-			pr_debug("Destroy queue failed, returned %d\n", retval);
-			goto err_destroy_queue;
+			pr_err("Pasid %d destroy queue %d failed, ret %d\n",
+				pqm->process->pasid,
+				pqn->q->properties.queue_id, retval);
+			if (retval != -ETIME)
+				goto err_destroy_queue;
 		}
 		uninit_queue(pqn->q);
 	}
