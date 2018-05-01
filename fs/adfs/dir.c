@@ -252,17 +252,17 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 
 	error = adfs_dir_lookup_byname(dir, &dentry->d_name, &obj);
 	if (error == 0) {
-		error = -EACCES;
 		/*
 		 * This only returns NULL if get_empty_inode
 		 * fails.
 		 */
 		inode = adfs_iget(dir->i_sb, &obj);
-		if (inode)
-			error = 0;
+		if (!inode)
+			inode = ERR_PTR(-EACCES);
+	} else if (error != -ENOENT) {
+		inode = ERR_PTR(error);
 	}
-	d_add(dentry, inode);
-	return ERR_PTR(error);
+	return d_splice_alias(inode, dentry);
 }
 
 /*
