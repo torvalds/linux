@@ -2365,22 +2365,23 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	/* Mark MU EDCA as enabled, unless none detected on some AC */
 	flags |= STA_CTXT_HE_MU_EDCA_CW;
-	for (i = 0; i < AC_NUM; i++) {
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		struct ieee80211_he_mu_edca_param_ac_rec *mu_edca =
 			&mvmvif->queue_params[i].mu_edca_param_rec;
+		u8 ac = iwl_mvm_mac80211_ac_to_ucode_ac(i);
 
 		if (!mvmvif->queue_params[i].mu_edca) {
 			flags &= ~STA_CTXT_HE_MU_EDCA_CW;
 			break;
 		}
 
-		sta_ctxt_cmd.trig_based_txf[i].cwmin =
+		sta_ctxt_cmd.trig_based_txf[ac].cwmin =
 			cpu_to_le16(mu_edca->ecw_min_max & 0xf);
-		sta_ctxt_cmd.trig_based_txf[i].cwmax =
+		sta_ctxt_cmd.trig_based_txf[ac].cwmax =
 			cpu_to_le16((mu_edca->ecw_min_max & 0xf0) >> 4);
-		sta_ctxt_cmd.trig_based_txf[i].aifsn =
+		sta_ctxt_cmd.trig_based_txf[ac].aifsn =
 			cpu_to_le16(mu_edca->aifsn);
-		sta_ctxt_cmd.trig_based_txf[i].mu_time =
+		sta_ctxt_cmd.trig_based_txf[ac].mu_time =
 			cpu_to_le16(mu_edca->mu_edca_timer);
 	}
 
