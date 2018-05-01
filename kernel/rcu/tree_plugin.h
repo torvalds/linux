@@ -545,7 +545,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		list_del_init(&t->rcu_node_entry);
 		t->rcu_blocked_node = NULL;
 		trace_rcu_unlock_preempted_task(TPS("rcu_preempt"),
-						rnp->gpnum, t->pid);
+						rnp->gp_seq, t->pid);
 		if (&t->rcu_node_entry == rnp->gp_tasks)
 			rnp->gp_tasks = np;
 		if (&t->rcu_node_entry == rnp->exp_tasks)
@@ -708,7 +708,7 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 		t = container_of(rnp->gp_tasks, struct task_struct,
 				 rcu_node_entry);
 		trace_rcu_unlock_preempted_task(TPS("rcu_preempt-GPS"),
-						rnp->gpnum, t->pid);
+						rnp->gp_seq, t->pid);
 	}
 	WARN_ON_ONCE(rnp->qsmask);
 }

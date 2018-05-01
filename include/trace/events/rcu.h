@@ -325,23 +325,23 @@ TRACE_EVENT(rcu_preempt_task,
  */
 TRACE_EVENT(rcu_unlock_preempted_task,
 
-	TP_PROTO(const char *rcuname, unsigned long gpnum, int pid),
+	TP_PROTO(const char *rcuname, unsigned long gp_seq, int pid),
 
-	TP_ARGS(rcuname, gpnum, pid),
+	TP_ARGS(rcuname, gp_seq, pid),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gpnum)
+		__field(unsigned long, gp_seq)
 		__field(int, pid)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gpnum = gpnum;
+		__entry->gp_seq = gp_seq;
 		__entry->pid = pid;
 	),
 
-	TP_printk("%s %lu %d", __entry->rcuname, __entry->gpnum, __entry->pid)
+	TP_printk("%s %lu %d", __entry->rcuname, __entry->gp_seq, __entry->pid)
 );
 
 /*
@@ -762,7 +762,7 @@ TRACE_EVENT(rcu_barrier,
 	do { } while (0)
 #define trace_rcu_nocb_wake(rcuname, cpu, reason) do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gp_seq) do { } while (0)
-#define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
+#define trace_rcu_unlock_preempted_task(rcuname, gp_seq, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, \
 					 grplo, grphi, gp_tasks) do { } \
 	while (0)
