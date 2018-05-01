@@ -100,7 +100,12 @@ define EMIT_TESTS
 		test_num=`echo $$test_num+1 | bc`;	\
 		TEST_HDR_MSG="selftests: "`basename $$PWD`:" $$BASENAME_TEST";	\
 		echo "echo $$TEST_HDR_MSG";	\
-		echo "(./$$BASENAME_TEST >> \$$OUTPUT 2>&1 && echo \"ok 1..$$test_num $$TEST_HDR_MSG [PASS]\") || (if [ \$$? -eq \$$skip ]; then echo \"not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]\"; else echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\"; fi;)"; \
+		if [ ! -x $$TEST ]; then	\
+			echo "echo \"$$TEST_HDR_MSG: Warning: file $$BASENAME_TEST is not executable, correct this.\"";		\
+			echo "echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\""; \
+		else
+			echo "(./$$BASENAME_TEST >> \$$OUTPUT 2>&1 && echo \"ok 1..$$test_num $$TEST_HDR_MSG [PASS]\") || (if [ \$$? -eq \$$skip ]; then echo \"not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]\"; else echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\"; fi;)"; \
+		fi;		\
 	done;
 endef
 
