@@ -88,9 +88,9 @@
  * pio buffers per ctxt, etc.)  Zero means use one user context per CPU.
  */
 int num_user_contexts = -1;
-module_param_named(num_user_contexts, num_user_contexts, uint, S_IRUGO);
+module_param_named(num_user_contexts, num_user_contexts, int, 0444);
 MODULE_PARM_DESC(
-	num_user_contexts, "Set max number of user contexts to use");
+	num_user_contexts, "Set max number of user contexts to use (default: -1 will use the real (non-HT) CPU count)");
 
 uint krcvqs[RXE_NUM_DATA_VL];
 int krcvqsset;
