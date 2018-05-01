@@ -146,20 +146,6 @@ adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct obje
 
 	obj->parent_id = inode->i_ino;
 
-	/*
-	 * '.' is handled by reserved_lookup() in fs/namei.c
-	 */
-	if (name->len == 2 && name->name[0] == '.' && name->name[1] == '.') {
-		/*
-		 * Currently unable to fill in the rest of 'obj',
-		 * but this is better than nothing.  We need to
-		 * ascend one level to find it's parent.
-		 */
-		obj->name_len = 0;
-		obj->file_id  = obj->parent_id;
-		goto free_out;
-	}
-
 	read_lock(&adfs_dir_lock);
 
 	ret = ops->setpos(&dir, 0);
