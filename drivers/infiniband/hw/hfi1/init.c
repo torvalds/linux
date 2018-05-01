@@ -1209,28 +1209,47 @@ static void finalize_asic_data(struct hfi1_devdata *dd,
 	kfree(ad);
 }
 
-static void __hfi1_free_devdata(struct kobject *kobj)
+/**
+ * hfi1_clean_devdata - cleans up per-unit data structure
+ * @dd: pointer to a valid devdata structure
+ *
+ * It cleans up all data structures set up by
+ * by hfi1_alloc_devdata().
+ */
+static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 {
-	struct hfi1_devdata *dd =
-		container_of(kobj, struct hfi1_devdata, kobj);
 	struct hfi1_asic_data *ad;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	idr_remove(&hfi1_unit_table, dd->unit);
-	list_del(&dd->list);
+	if (!list_empty(&dd->list)) {
+		idr_remove(&hfi1_unit_table, dd->unit);
+		list_del_init(&dd->list);
+	}
 	ad = release_asic_data(dd);
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
-	if (ad)
-		finalize_asic_data(dd, ad);
+
+	finalize_asic_data(dd, ad);
 	free_platform_config(dd);
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
 	free_percpu(dd->send_schedule);
 	free_percpu(dd->tx_opstats);
+	dd->int_counter   = NULL;
+	dd->rcv_limit     = NULL;
+	dd->send_schedule = NULL;
+	dd->tx_opstats    = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
+}
+
+static void __hfi1_free_devdata(struct kobject *kobj)
+{
+	struct hfi1_devdata *dd =
+		container_of(kobj, struct hfi1_devdata, kobj);
+
+	hfi1_clean_devdata(dd);
 }
 
 static struct kobj_type hfi1_devdata_type = {
@@ -1333,9 +1352,7 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	return dd;
 
 bail:
-	if (!list_empty(&dd->list))
-		list_del_init(&dd->list);
-	rvt_dealloc_device(&dd->verbs_dev.rdi);
+	hfi1_clean_devdata(dd);
 	return ERR_PTR(ret);
 }
 
