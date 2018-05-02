@@ -468,6 +468,49 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 	return -ENOPROTOOPT;
 }
 
+static int xsk_getsockopt(struct socket *sock, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	struct xdp_sock *xs = xdp_sk(sk);
+	int len;
+
+	if (level != SOL_XDP)
+		return -ENOPROTOOPT;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+	if (len < 0)
+		return -EINVAL;
+
+	switch (optname) {
+	case XDP_STATISTICS:
+	{
+		struct xdp_statistics stats;
+
+		if (len < sizeof(stats))
+			return -EINVAL;
+
+		mutex_lock(&xs->mutex);
+		stats.rx_dropped = xs->rx_dropped;
+		stats.rx_invalid_descs = xskq_nb_invalid_descs(xs->rx);
+		stats.tx_invalid_descs = xskq_nb_invalid_descs(xs->tx);
+		mutex_unlock(&xs->mutex);
+
+		if (copy_to_user(optval, &stats, sizeof(stats)))
+			return -EFAULT;
+		if (put_user(sizeof(stats), optlen))
+			return -EFAULT;
+
+		return 0;
+	}
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int xsk_mmap(struct file *file, struct socket *sock,
 		    struct vm_area_struct *vma)
 {
@@ -524,7 +567,7 @@ static const struct proto_ops xsk_proto_ops = {
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	xsk_setsockopt,
-	.getsockopt =	sock_no_getsockopt,
+	.getsockopt =	xsk_getsockopt,
 	.sendmsg =	xsk_sendmsg,
 	.recvmsg =	sock_no_recvmsg,
 	.mmap =		xsk_mmap,

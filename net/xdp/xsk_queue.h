@@ -36,6 +36,11 @@ struct xsk_queue {
 
 /* Common functions operating for both RXTX and umem queues */
 
+static inline u64 xskq_nb_invalid_descs(struct xsk_queue *q)
+{
+	return q ? q->invalid_descs : 0;
+}
+
 static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 {
 	u32 entries = q->prod_tail - q->cons_tail;

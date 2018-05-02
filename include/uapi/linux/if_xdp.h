@@ -38,12 +38,19 @@ struct sockaddr_xdp {
 #define XDP_UMEM_REG			3
 #define XDP_UMEM_FILL_RING		4
 #define XDP_UMEM_COMPLETION_RING	5
+#define XDP_STATISTICS			6
 
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
 	__u64 len; /* Length of packet data area */
 	__u32 frame_size; /* Frame size */
 	__u32 frame_headroom; /* Frame head room */
+};
+
+struct xdp_statistics {
+	__u64 rx_dropped; /* Dropped for reasons other than invalid desc */
+	__u64 rx_invalid_descs; /* Dropped due to invalid descriptor */
+	__u64 tx_invalid_descs; /* Dropped due to invalid descriptor */
 };
 
 /* Pgoff for mmaping the rings */
