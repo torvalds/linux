@@ -7767,14 +7767,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Get MAC address */
 	switch (tp->mac_version) {
-		u16 mac_addr[3];
+		u8 mac_addr[ETH_ALEN] __aligned(4);
 	case RTL_GIGA_MAC_VER_35 ... RTL_GIGA_MAC_VER_38:
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		*(u32 *)&mac_addr[0] = rtl_eri_read(tp, 0xe0, ERIAR_EXGMAC);
-		*(u16 *)&mac_addr[2] = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
+		*(u16 *)&mac_addr[4] = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
 
-		if (is_valid_ether_addr((u8 *)mac_addr))
-			rtl_rar_set(tp, (u8 *)mac_addr);
+		if (is_valid_ether_addr(mac_addr))
+			rtl_rar_set(tp, mac_addr);
 		break;
 	default:
 		break;
