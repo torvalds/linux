@@ -428,40 +428,18 @@ int snd_dice_create_pcm(struct snd_dice *dice)
 		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	struct snd_pcm *pcm;
-	unsigned int i, max_capture, max_playback, capture, playback;
+	unsigned int capture, playback;
+	int i, j;
 	int err;
-
-	/* Check whether PCM substreams are required. */
-	if (dice->force_two_pcms) {
-		max_capture = max_playback = 2;
-	} else {
-		int j;
-		max_capture = max_playback = 0;
-		for (i = 0; i < MAX_STREAMS; ++i) {
-			for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j) {
-				if (dice->tx_pcm_chs[i][j] > 0) {
-					++max_capture;
-					break;
-				}
-			}
-
-			for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j) {
-				if (dice->rx_pcm_chs[i][j] > 0) {
-					++max_playback;
-					break;
-				}
-			}
-		}
-	}
 
 	for (i = 0; i < MAX_STREAMS; i++) {
 		capture = playback = 0;
-		if (i < max_capture)
-			capture = 1;
-		if (i < max_playback)
-			playback = 1;
-		if (capture == 0 && playback == 0)
-			break;
+		for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j) {
+			if (dice->tx_pcm_chs[i][j] > 0)
+				capture = 1;
+			if (dice->rx_pcm_chs[i][j] > 0)
+				playback = 1;
+		}
 
 		err = snd_pcm_new(dice->card, "DICE", i, playback, capture,
 				  &pcm);

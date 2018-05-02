@@ -24,36 +24,6 @@ MODULE_LICENSE("GPL v2");
 
 #define MODEL_ALESIS_IO_BOTH	0x000001
 
-/*
- * Some models support several isochronous channels, while these streams are not
- * always available. In this case, add the model name to this list.
- */
-static bool force_two_pcm_support(struct fw_unit *unit)
-{
-	static const char *const models[] = {
-		/* TC Electronic models. */
-		"StudioKonnekt48",
-		/* Focusrite models. */
-		"SAFFIRE_PRO_40",
-		"LIQUID_SAFFIRE_56",
-		"SAFFIRE_PRO_40_1",
-	};
-	char model[32];
-	unsigned int i;
-	int err;
-
-	err = fw_csr_string(unit->directory, CSR_MODEL, model, sizeof(model));
-	if (err < 0)
-		return false;
-
-	for (i = 0; i < ARRAY_SIZE(models); i++) {
-		if (strcmp(models[i], model) == 0)
-			break;
-	}
-
-	return i < ARRAY_SIZE(models);
-}
-
 static int check_dice_category(struct fw_unit *unit)
 {
 	struct fw_device *device = fw_parent_device(unit);
@@ -77,11 +47,6 @@ static int check_dice_category(struct fw_unit *unit)
 			model = val;
 			break;
 		}
-	}
-
-	if (vendor == OUI_FOCUSRITE || vendor == OUI_TCELECTRONIC) {
-		if (force_two_pcm_support(unit))
-			return 0;
 	}
 
 	if (vendor == OUI_WEISS)
@@ -189,9 +154,6 @@ static void do_registration(struct work_struct *work)
 			   &dice->card);
 	if (err < 0)
 		return;
-
-	if (force_two_pcm_support(dice->unit))
-		dice->force_two_pcms = true;
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
