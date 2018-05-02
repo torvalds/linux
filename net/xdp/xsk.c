@@ -206,7 +206,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		goto out_release;
 	}
 
-	if (!xs->rx) {
+	if (!xs->rx && !xs->tx) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -291,6 +291,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case XDP_RX_RING:
+	case XDP_TX_RING:
 	{
 		struct xsk_queue **q;
 		int entries;
@@ -301,7 +302,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
-		q = &xs->rx;
+		q = (optname == XDP_TX_RING) ? &xs->tx : &xs->rx;
 		err = xsk_init_queue(entries, q, false);
 		mutex_unlock(&xs->mutex);
 		return err;
@@ -372,6 +373,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 
 	if (offset == XDP_PGOFF_RX_RING) {
 		q = xs->rx;
+	} else if (offset == XDP_PGOFF_TX_RING) {
+		q = xs->tx;
 	} else {
 		if (!xs->umem)
 			return -EINVAL;
@@ -431,6 +434,7 @@ static void xsk_destruct(struct sock *sk)
 		return;
 
 	xskq_destroy(xs->rx);
+	xskq_destroy(xs->tx);
 	xdp_put_umem(xs->umem);
 
 	sk_refcnt_debug_dec(sk);

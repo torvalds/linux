@@ -30,6 +30,7 @@ struct xdp_sock {
 	struct xdp_umem *umem;
 	struct list_head flush_node;
 	u16 queue_id;
+	struct xsk_queue *tx ____cacheline_aligned_in_smp;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
 	u64 rx_dropped;
