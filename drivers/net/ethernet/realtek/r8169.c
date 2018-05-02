@@ -410,13 +410,8 @@ enum rtl8168_8101_registers {
 	CSIAR			= 0x68,
 #define	CSIAR_FLAG			0x80000000
 #define	CSIAR_WRITE_CMD			0x80000000
-#define	CSIAR_BYTE_ENABLE		0x0f
-#define	CSIAR_BYTE_ENABLE_SHIFT		12
-#define	CSIAR_ADDR_MASK			0x0fff
-#define CSIAR_FUNC_CARD			0x00000000
-#define CSIAR_FUNC_SDIO			0x00010000
-#define CSIAR_FUNC_NIC			0x00020000
-#define CSIAR_FUNC_NIC2			0x00010000
+#define	CSIAR_BYTE_ENABLE		0x0000f000
+#define	CSIAR_ADDR_MASK			0x00000fff
 	PMCH			= 0x6f,
 	EPHYAR			= 0x80,
 #define	EPHYAR_FLAG			0x80000000
@@ -780,11 +775,6 @@ struct rtl8169_private {
 		void (*enable)(struct rtl8169_private *);
 		void (*disable)(struct rtl8169_private *);
 	} jumbo_ops;
-
-	struct csi_ops {
-		void (*write)(struct rtl8169_private *, int, int);
-		u32 (*read)(struct rtl8169_private *, int);
-	} csi_ops;
 
 	int (*set_speed)(struct net_device *, u8 aneg, u16 sp, u8 dpx, u32 adv);
 	int (*get_link_ksettings)(struct net_device *,
@@ -5196,123 +5186,60 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 	RTL_W32(tp, RxMissed, 0);
 }
 
-static void rtl_csi_write(struct rtl8169_private *tp, int addr, int value)
-{
-	if (tp->csi_ops.write)
-		tp->csi_ops.write(tp, addr, value);
-}
-
-static u32 rtl_csi_read(struct rtl8169_private *tp, int addr)
-{
-	return tp->csi_ops.read ? tp->csi_ops.read(tp, addr) : ~0;
-}
-
-static void rtl_csi_access_enable(struct rtl8169_private *tp, u32 bits)
-{
-	u32 csi;
-
-	csi = rtl_csi_read(tp, 0x070c) & 0x00ffffff;
-	rtl_csi_write(tp, 0x070c, csi | bits);
-}
-
-static void rtl_csi_access_enable_1(struct rtl8169_private *tp)
-{
-	rtl_csi_access_enable(tp, 0x17000000);
-}
-
-static void rtl_csi_access_enable_2(struct rtl8169_private *tp)
-{
-	rtl_csi_access_enable(tp, 0x27000000);
-}
-
 DECLARE_RTL_COND(rtl_csiar_cond)
 {
 	return RTL_R32(tp, CSIAR) & CSIAR_FLAG;
 }
 
-static void r8169_csi_write(struct rtl8169_private *tp, int addr, int value)
+static void rtl_csi_write(struct rtl8169_private *tp, int addr, int value)
 {
+	u32 func = PCI_FUNC(tp->pci_dev->devfn);
+
 	RTL_W32(tp, CSIDR, value);
 	RTL_W32(tp, CSIAR, CSIAR_WRITE_CMD | (addr & CSIAR_ADDR_MASK) |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT);
+		CSIAR_BYTE_ENABLE | func << 16);
 
 	rtl_udelay_loop_wait_low(tp, &rtl_csiar_cond, 10, 100);
 }
 
-static u32 r8169_csi_read(struct rtl8169_private *tp, int addr)
+static u32 rtl_csi_read(struct rtl8169_private *tp, int addr)
 {
-	RTL_W32(tp, CSIAR, (addr & CSIAR_ADDR_MASK) |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT);
+	u32 func = PCI_FUNC(tp->pci_dev->devfn);
+
+	RTL_W32(tp, CSIAR, (addr & CSIAR_ADDR_MASK) | func << 16 |
+		CSIAR_BYTE_ENABLE);
 
 	return rtl_udelay_loop_wait_high(tp, &rtl_csiar_cond, 10, 100) ?
 		RTL_R32(tp, CSIDR) : ~0;
 }
 
-static void r8402_csi_write(struct rtl8169_private *tp, int addr, int value)
+static void rtl_csi_access_enable(struct rtl8169_private *tp, u8 val)
 {
-	RTL_W32(tp, CSIDR, value);
-	RTL_W32(tp, CSIAR, CSIAR_WRITE_CMD | (addr & CSIAR_ADDR_MASK) |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT |
-		CSIAR_FUNC_NIC);
+	struct pci_dev *pdev = tp->pci_dev;
+	u32 csi;
 
-	rtl_udelay_loop_wait_low(tp, &rtl_csiar_cond, 10, 100);
+	/* According to Realtek the value at config space address 0x070f
+	 * controls the L0s/L1 entrance latency. We try standard ECAM access
+	 * first and if it fails fall back to CSI.
+	 */
+	if (pdev->cfg_size > 0x070f &&
+	    pci_write_config_byte(pdev, 0x070f, val) == PCIBIOS_SUCCESSFUL)
+		return;
+
+	netdev_notice_once(tp->dev,
+		"No native access to PCI extended config space, falling back to CSI\n");
+	csi = rtl_csi_read(tp, 0x070c) & 0x00ffffff;
+	rtl_csi_write(tp, 0x070c, csi | val << 24);
 }
 
-static u32 r8402_csi_read(struct rtl8169_private *tp, int addr)
+static void rtl_csi_access_enable_1(struct rtl8169_private *tp)
 {
-	RTL_W32(tp, CSIAR, (addr & CSIAR_ADDR_MASK) | CSIAR_FUNC_NIC |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT);
-
-	return rtl_udelay_loop_wait_high(tp, &rtl_csiar_cond, 10, 100) ?
-		RTL_R32(tp, CSIDR) : ~0;
+	rtl_csi_access_enable(tp, 0x17);
 }
 
-static void r8411_csi_write(struct rtl8169_private *tp, int addr, int value)
+static void rtl_csi_access_enable_2(struct rtl8169_private *tp)
 {
-	RTL_W32(tp, CSIDR, value);
-	RTL_W32(tp, CSIAR, CSIAR_WRITE_CMD | (addr & CSIAR_ADDR_MASK) |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT |
-		CSIAR_FUNC_NIC2);
-
-	rtl_udelay_loop_wait_low(tp, &rtl_csiar_cond, 10, 100);
-}
-
-static u32 r8411_csi_read(struct rtl8169_private *tp, int addr)
-{
-	RTL_W32(tp, CSIAR, (addr & CSIAR_ADDR_MASK) | CSIAR_FUNC_NIC2 |
-		CSIAR_BYTE_ENABLE << CSIAR_BYTE_ENABLE_SHIFT);
-
-	return rtl_udelay_loop_wait_high(tp, &rtl_csiar_cond, 10, 100) ?
-		RTL_R32(tp, CSIDR) : ~0;
-}
-
-static void rtl_init_csi_ops(struct rtl8169_private *tp)
-{
-	struct csi_ops *ops = &tp->csi_ops;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_01 ... RTL_GIGA_MAC_VER_06:
-	case RTL_GIGA_MAC_VER_10 ... RTL_GIGA_MAC_VER_17:
-		ops->write	= NULL;
-		ops->read	= NULL;
-		break;
-
-	case RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_38:
-		ops->write	= r8402_csi_write;
-		ops->read	= r8402_csi_read;
-		break;
-
-	case RTL_GIGA_MAC_VER_44:
-		ops->write	= r8411_csi_write;
-		ops->read	= r8411_csi_read;
-		break;
-
-	default:
-		ops->write	= r8169_csi_write;
-		ops->read	= r8169_csi_read;
-		break;
-	}
+	rtl_csi_access_enable(tp, 0x27);
 }
 
 struct ephy_info {
@@ -7804,7 +7731,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl_init_mdio_ops(tp);
 	rtl_init_jumbo_ops(tp);
-	rtl_init_csi_ops(tp);
 
 	rtl8169_print_mac_version(tp);
 
