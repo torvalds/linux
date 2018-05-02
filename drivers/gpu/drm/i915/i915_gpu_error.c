@@ -410,11 +410,11 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms, head %08x, tail %08x\n",
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
 		   prefix, erq->pid, erq->ban_score,
 		   erq->context, erq->seqno, erq->sched_attr.priority,
 		   jiffies_to_msecs(erq->jiffies - epoch),
-		   erq->head, erq->tail);
+		   erq->start, erq->head, erq->tail);
 }
 
 static void error_print_context(struct drm_i915_error_state_buf *m,
@@ -1292,6 +1292,7 @@ static void record_request(struct i915_request *request,
 	erq->ban_score = atomic_read(&request->ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
+	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
 	erq->tail = request->tail;
 

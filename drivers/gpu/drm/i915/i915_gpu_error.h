@@ -152,6 +152,7 @@ struct i915_gpu_state {
 			u32 context;
 			int ban_score;
 			u32 seqno;
+			u32 start;
 			u32 head;
 			u32 tail;
 			struct i915_sched_attr sched_attr;

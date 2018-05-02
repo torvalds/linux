@@ -1278,8 +1278,9 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 				char hdr[80];
 
 				snprintf(hdr, sizeof(hdr),
-					 "\t\tELSP[%d] count=%d, rq: ",
-					 idx, count);
+					 "\t\tELSP[%d] count=%d, ring->start=%08x, rq: ",
+					 idx, count,
+					 i915_ggtt_offset(rq->ring->vma));
 				print_request(m, rq, hdr);
 			} else {
 				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
