@@ -156,7 +156,7 @@ static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
 };
 
 #define AGING_TIME	(9 * 1000)
-#define during_ip_time	15000
+#define DURING_IP_TIME_OUT	15000
 
 static void clear_shadow_scan(void)
 {
@@ -1863,7 +1863,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_P2P_GO:
 		wilc_optaining_ip = true;
 		mod_timer(&wilc_during_ip_timer,
-			  jiffies + msecs_to_jiffies(during_ip_time));
+			  jiffies + msecs_to_jiffies(DURING_IP_TIME_OUT));
 		wilc_set_operation_mode(vif, AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
