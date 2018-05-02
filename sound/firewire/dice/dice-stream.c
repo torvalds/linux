@@ -62,9 +62,11 @@ int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
  * This operation has an effect to synchronize GLOBAL_STATUS/GLOBAL_SAMPLE_RATE
  * to GLOBAL_STATUS. Especially, just after powering on, these are different.
  */
-static int ensure_phase_lock(struct snd_dice *dice)
+static int ensure_phase_lock(struct snd_dice *dice, unsigned int rate)
 {
 	__be32 reg, nominal;
+	u32 data;
+	int i;
 	int err;
 
 	err = snd_dice_transaction_read_global(dice, GLOBAL_CLOCK_SELECT,
@@ -72,9 +74,21 @@ static int ensure_phase_lock(struct snd_dice *dice)
 	if (err < 0)
 		return err;
 
+	data = be32_to_cpu(reg);
+
+	data &= ~CLOCK_RATE_MASK;
+	for (i = 0; i < ARRAY_SIZE(snd_dice_rates); ++i) {
+		if (snd_dice_rates[i] == rate)
+			break;
+	}
+	if (i == ARRAY_SIZE(snd_dice_rates))
+		return -EINVAL;
+	data |= i << CLOCK_RATE_SHIFT;
+
 	if (completion_done(&dice->clock_accepted))
 		reinit_completion(&dice->clock_accepted);
 
+	reg = cpu_to_be32(data);
 	err = snd_dice_transaction_write_global(dice, GLOBAL_CLOCK_SELECT,
 						&reg, sizeof(reg));
 	if (err < 0)
@@ -220,6 +234,7 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			 unsigned int rate, struct reg_params *params)
 {
 	__be32 reg[2];
+	enum snd_dice_rate_mode mode;
 	unsigned int i, pcm_chs, midi_ports;
 	struct amdtp_stream *streams;
 	struct fw_iso_resources *resources;
@@ -234,12 +249,23 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 		resources = dice->rx_resources;
 	}
 
+	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
+	if (err < 0)
+		return err;
+
 	for (i = 0; i < params->count; i++) {
+		unsigned int pcm_cache;
+		unsigned int midi_cache;
+
 		if (dir == AMDTP_IN_STREAM) {
+			pcm_cache = dice->tx_pcm_chs[i][mode];
+			midi_cache = dice->tx_midi_ports[i];
 			err = snd_dice_transaction_read_tx(dice,
 					params->size * i + TX_NUMBER_AUDIO,
 					reg, sizeof(reg));
 		} else {
+			pcm_cache = dice->rx_pcm_chs[i][mode];
+			midi_cache = dice->rx_midi_ports[i];
 			err = snd_dice_transaction_read_rx(dice,
 					params->size * i + RX_NUMBER_AUDIO,
 					reg, sizeof(reg));
@@ -248,6 +274,14 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			return err;
 		pcm_chs = be32_to_cpu(reg[0]);
 		midi_ports = be32_to_cpu(reg[1]);
+
+		/* These are important for developer of this driver. */
+		if (pcm_chs != pcm_cache || midi_ports != midi_cache) {
+			dev_info(&dice->unit->device,
+				 "cache mismatch: pcm: %u:%u, midi: %u:%u\n",
+				 pcm_chs, pcm_cache, midi_ports, midi_cache);
+			return -EPROTO;
+		}
 
 		err = keep_resources(dice, dir, i, rate, pcm_chs, midi_ports);
 		if (err < 0)
@@ -300,11 +334,16 @@ static int start_duplex_streams(struct snd_dice *dice, unsigned int rate)
 	snd_dice_transaction_clear_enable(dice);
 	release_resources(dice);
 
-	err = ensure_phase_lock(dice);
+	err = ensure_phase_lock(dice, rate);
 	if (err < 0) {
 		dev_err(&dice->unit->device, "fail to ensure phase lock\n");
 		return err;
 	}
+
+	/* Likely to have changed stream formats. */
+	err = get_register_params(dice, &tx_params, &rx_params);
+	if (err < 0)
+		return err;
 
 	/* Start both streams. */
 	err = start_streams(dice, AMDTP_IN_STREAM, rate, &tx_params);
@@ -366,7 +405,7 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 	if (rate == 0)
 		rate = curr_rate;
 	if (rate != curr_rate)
-		return -EINVAL;
+		goto restart;
 
 	/* Check error of packet streaming. */
 	for (i = 0; i < MAX_STREAMS; ++i) {
@@ -560,7 +599,7 @@ int snd_dice_stream_detect_current_formats(struct snd_dice *dice)
 	 * invalid stream formats. Selecting clock parameters have an effect
 	 * for the unit to refine it.
 	 */
-	err = ensure_phase_lock(dice);
+	err = ensure_phase_lock(dice, rate);
 	if (err < 0)
 		return err;
 
