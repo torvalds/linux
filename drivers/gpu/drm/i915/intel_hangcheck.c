@@ -452,6 +452,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 {
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+	engine->hangcheck.action_timestamp = jiffies;
 }
 
 void intel_hangcheck_init(struct drm_i915_private *i915)

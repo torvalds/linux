@@ -223,6 +223,7 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {
 			/* Flush any waiters before we reuse the seqno */
 			intel_engine_disarm_breadcrumbs(engine);
+			intel_engine_init_hangcheck(engine);
 			GEM_BUG_ON(!list_empty(&engine->breadcrumbs.signals));
 		}
 
