@@ -154,12 +154,6 @@ lists).
 .. kernel-doc:: drivers/scsi/scsi_lib_dma.c
    :export:
 
-drivers/scsi/scsi_module.c
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The file drivers/scsi/scsi_module.c contains legacy support for
-old-style host templates. It should never be used by any new driver.
-
 drivers/scsi/scsi_proc.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -392,9 +392,6 @@ static void ltdc_crtc_update_clut(struct drm_crtc *crtc)
 	u32 val;
 	int i;
 
-	if (!crtc || !crtc->state)
-		return;
-
 	if (!crtc->state->color_mgmt_changed || !crtc->state->gamma_lut)
 		return;
 
@@ -569,9 +566,9 @@ static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.atomic_disable = ltdc_crtc_atomic_disable,
 };
 
-int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
+static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_set(ldev->regs, LTDC_IER, IER_LIE);
@@ -579,9 +576,9 @@ int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
 	return 0;
 }
 
-void ltdc_crtc_disable_vblank(struct drm_device *ddev, unsigned int pipe)
+static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
@@ -594,6 +591,8 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = ltdc_crtc_enable_vblank,
+	.disable_vblank = ltdc_crtc_disable_vblank,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
@@ -727,6 +726,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	reg_update_bits(ldev->regs, LTDC_L1CR + lofs,
 			LXCR_LEN | LXCR_CLUTEN, val);
 
+	ldev->plane_fpsi[plane->index].counter++;
+
 	mutex_lock(&ldev->err_lock);
 	if (ldev->error_status & ISR_FUIF) {
 		DRM_DEBUG_DRIVER("Fifo underrun\n");
@@ -752,6 +753,25 @@ static void ltdc_plane_atomic_disable(struct drm_plane *plane,
 			 oldstate->crtc->base.id, plane->base.id);
 }
 
+static void ltdc_plane_atomic_print_state(struct drm_printer *p,
+					  const struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	struct fps_info *fpsi = &ldev->plane_fpsi[plane->index];
+	int ms_since_last;
+	ktime_t now;
+
+	now = ktime_get();
+	ms_since_last = ktime_to_ms(ktime_sub(now, fpsi->last_timestamp));
+
+	drm_printf(p, "\tuser_updates=%dfps\n",
+		   DIV_ROUND_CLOSEST(fpsi->counter * 1000, ms_since_last));
+
+	fpsi->last_timestamp = now;
+	fpsi->counter = 0;
+}
+
 static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -759,6 +779,7 @@ static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_print_state = ltdc_plane_atomic_print_state,
 };
 
 static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {

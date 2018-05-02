@@ -49,9 +49,9 @@ struct inet_connection_sock_af_ops {
 	u16	    net_header_len;
 	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
-	int	    (*setsockopt)(struct sock *sk, int level, int optname, 
+	int	    (*setsockopt)(struct sock *sk, int level, int optname,
 				  char __user *optval, unsigned int optlen);
-	int	    (*getsockopt)(struct sock *sk, int level, int optname, 
+	int	    (*getsockopt)(struct sock *sk, int level, int optname,
 				  char __user *optval, int __user *optlen);
 #ifdef CONFIG_COMPAT
 	int	    (*compat_setsockopt)(struct sock *sk,
@@ -67,7 +67,7 @@ struct inet_connection_sock_af_ops {
 
 /** inet_connection_sock - INET connection oriented sock
  *
- * @icsk_accept_queue:	   FIFO of established children 
+ * @icsk_accept_queue:	   FIFO of established children
  * @icsk_bind_hash:	   Bind node
  * @icsk_timeout:	   Timeout
  * @icsk_retransmit_timer: Resend (no ack)
@@ -122,7 +122,7 @@ struct inet_connection_sock {
 		unsigned long	  timeout;	 /* Currently scheduled timeout		   */
 		__u32		  lrcvtime;	 /* timestamp of last received data packet */
 		__u16		  last_seg_size; /* Size of last incoming segment	   */
-		__u16		  rcv_mss;	 /* MSS used for delayed ACK decisions	   */ 
+		__u16		  rcv_mss;	 /* MSS used for delayed ACK decisions	   */
 	} icsk_ack;
 	struct {
 		int		  enabled;
@@ -201,7 +201,7 @@ extern const char inet_csk_timer_bug_msg[];
 static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	
+
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
 		icsk->icsk_pending = 0;
 #ifdef INET_CSK_CLEAR_TIMERS

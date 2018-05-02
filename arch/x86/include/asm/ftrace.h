@@ -46,7 +46,21 @@ int ftrace_int3_handler(struct pt_regs *regs);
 #endif /* CONFIG_FUNCTION_TRACER */
 
 
-#if !defined(__ASSEMBLY__) && !defined(COMPILE_OFFSETS)
+#ifndef __ASSEMBLY__
+
+#define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
+{
+	/*
+	 * Compare the symbol name with the system call name. Skip the
+	 * "__x64_sys", "__ia32_sys" or simple "sys" prefix.
+	 */
+	return !strcmp(sym + 3, name + 3) ||
+		(!strncmp(sym, "__x64_", 6) && !strcmp(sym + 9, name + 3)) ||
+		(!strncmp(sym, "__ia32_", 7) && !strcmp(sym + 10, name + 3));
+}
+
+#ifndef COMPILE_OFFSETS
 
 #if defined(CONFIG_FTRACE_SYSCALLS) && defined(CONFIG_IA32_EMULATION)
 #include <asm/compat.h>
@@ -67,6 +81,7 @@ static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 	return false;
 }
 #endif /* CONFIG_FTRACE_SYSCALLS && CONFIG_IA32_EMULATION */
-#endif /* !__ASSEMBLY__  && !COMPILE_OFFSETS */
+#endif /* !COMPILE_OFFSETS */
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_X86_FTRACE_H */

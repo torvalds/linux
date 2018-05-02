@@ -223,7 +223,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "PCIE-MSI: Setting up MSI support...\n");
 
-	msi = kzalloc(sizeof(struct ppc4xx_msi), GFP_KERNEL);
+	msi = kzalloc(sizeof(*msi), GFP_KERNEL);
 	if (!msi) {
 		dev_err(&dev->dev, "No memory for MSI structure\n");
 		return -ENOMEM;
@@ -241,7 +241,8 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	if (!msi_irqs)
 		return -ENODEV;
 
-	if (ppc4xx_setup_pcieh_hw(dev, res, msi))
+	err = ppc4xx_setup_pcieh_hw(dev, res, msi);
+	if (err)
 		goto error_out;
 
 	err = ppc4xx_msi_init_allocator(dev, msi);

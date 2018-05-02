@@ -539,7 +539,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
  * i40iw_send_reset - Send RST packet
  * @cm_node: connection's node
  */
-static int i40iw_send_reset(struct i40iw_cm_node *cm_node)
+int i40iw_send_reset(struct i40iw_cm_node *cm_node)
 {
 	struct i40iw_puda_buf *sqbuf;
 	int flags = SET_RST | SET_ACK;
@@ -1183,6 +1183,26 @@ static void i40iw_handle_close_entry(struct i40iw_cm_node *cm_node, u32 rem_node
 }
 
 /**
+ * i40iw_build_timer_list - Add cm_nodes to timer list
+ * @timer_list: ptr to timer list
+ * @hte: ptr to accelerated or non-accelerated list
+ */
+static void i40iw_build_timer_list(struct list_head *timer_list,
+				   struct list_head *hte)
+{
+	struct i40iw_cm_node *cm_node;
+	struct list_head *list_core_temp, *list_node;
+
+	list_for_each_safe(list_node, list_core_temp, hte) {
+		cm_node = container_of(list_node, struct i40iw_cm_node, list);
+		if (cm_node->close_entry || cm_node->send_entry) {
+			atomic_inc(&cm_node->ref_count);
+			list_add(&cm_node->timer_entry, timer_list);
+		}
+	}
+}
+
+/**
  * i40iw_cm_timer_tick - system's timer expired callback
  * @pass: Pointing to cm_core
  */
@@ -1202,15 +1222,10 @@ static void i40iw_cm_timer_tick(struct timer_list *t)
 	struct list_head timer_list;
 
 	INIT_LIST_HEAD(&timer_list);
-	spin_lock_irqsave(&cm_core->ht_lock, flags);
 
-	list_for_each_safe(list_node, list_core_temp, &cm_core->connected_nodes) {
-		cm_node = container_of(list_node, struct i40iw_cm_node, list);
-		if (cm_node->close_entry || cm_node->send_entry) {
-			atomic_inc(&cm_node->ref_count);
-			list_add(&cm_node->timer_entry, &timer_list);
-		}
-	}
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	i40iw_build_timer_list(&timer_list, &cm_core->non_accelerated_list);
+	i40iw_build_timer_list(&timer_list, &cm_core->accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
 	list_for_each_safe(list_node, list_core_temp, &timer_list) {
@@ -1406,19 +1421,22 @@ static int i40iw_send_fin(struct i40iw_cm_node *cm_node)
  * @loc_port: local tcp port num
  * @loc_addr: loc ip addr
  * @add_refcnt: flag to increment refcount of cm_node
+ * @accelerated_list: flag for accelerated vs non-accelerated list to search
  */
 struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
 				      u16 rem_port,
 				      u32 *rem_addr,
 				      u16 loc_port,
 				      u32 *loc_addr,
-				      bool add_refcnt)
+				      bool add_refcnt,
+				      bool accelerated_list)
 {
 	struct list_head *hte;
 	struct i40iw_cm_node *cm_node;
 	unsigned long flags;
 
-	hte = &cm_core->connected_nodes;
+	hte = accelerated_list ?
+	      &cm_core->accelerated_list : &cm_core->non_accelerated_list;
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
@@ -1487,19 +1505,37 @@ static struct i40iw_cm_listener *i40iw_find_listener(
 static void i40iw_add_hte_node(struct i40iw_cm_core *cm_core,
 			       struct i40iw_cm_node *cm_node)
 {
-	struct list_head *hte;
 	unsigned long flags;
 
 	if (!cm_node || !cm_core) {
 		i40iw_pr_err("cm_node or cm_core == NULL\n");
 		return;
 	}
-	spin_lock_irqsave(&cm_core->ht_lock, flags);
 
-	/* get a handle on the hash table element (list head for this slot) */
-	hte = &cm_core->connected_nodes;
-	list_add_tail(&cm_node->list, hte);
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	list_add_tail(&cm_node->list, &cm_core->non_accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+}
+
+/**
+ * i40iw_find_port - find port that matches reference port
+ * @port: port number
+ * @accelerated_list: flag for accelerated vs non-accelerated list
+ */
+static bool i40iw_find_port(struct i40iw_cm_core *cm_core, u16 port,
+			    bool accelerated_list)
+{
+	struct list_head *hte;
+	struct i40iw_cm_node *cm_node;
+
+	hte = accelerated_list ?
+	      &cm_core->accelerated_list : &cm_core->non_accelerated_list;
+
+	list_for_each_entry(cm_node, hte, list) {
+		if (cm_node->loc_port == port)
+			return true;
+	}
+	return false;
 }
 
 /**
@@ -1510,19 +1546,14 @@ static void i40iw_add_hte_node(struct i40iw_cm_core *cm_core,
 static bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port, bool active_side)
 {
 	struct i40iw_cm_listener *listen_node;
-	struct i40iw_cm_node *cm_node;
 	unsigned long flags;
 	bool ret = false;
 
 	if (active_side) {
-		/* search connected node list */
 		spin_lock_irqsave(&cm_core->ht_lock, flags);
-		list_for_each_entry(cm_node, &cm_core->connected_nodes, list) {
-			if (cm_node->loc_port == port) {
-				ret = true;
-				break;
-			}
-		}
+		ret = i40iw_find_port(cm_core, port, true);
+		if (!ret)
+			ret = i40iw_find_port(cm_core, port, false);
 		if (!ret)
 			clear_bit(port, cm_core->active_side_ports);
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
@@ -1829,9 +1860,11 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 	INIT_LIST_HEAD(&reset_list);
 	if (free_hanging_nodes) {
 		spin_lock_irqsave(&cm_core->ht_lock, flags);
-		list_for_each_safe(list_pos, list_temp, &cm_core->connected_nodes) {
+		list_for_each_safe(list_pos,
+				   list_temp, &cm_core->non_accelerated_list) {
 			cm_node = container_of(list_pos, struct i40iw_cm_node, list);
-			if ((cm_node->listener == listener) && !cm_node->accelerated) {
+			if ((cm_node->listener == listener) &&
+			    !cm_node->accelerated) {
 				atomic_inc(&cm_node->ref_count);
 				list_add(&cm_node->reset_entry, &reset_list);
 			}
@@ -3144,7 +3177,8 @@ void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 				  cm_info.rem_addr,
 				  cm_info.loc_port,
 				  cm_info.loc_addr,
-				  true);
+				  true,
+				  false);
 
 	if (!cm_node) {
 		/* Only type of packet accepted are for */
@@ -3202,7 +3236,8 @@ void i40iw_setup_cm_core(struct i40iw_device *iwdev)
 	cm_core->iwdev = iwdev;
 	cm_core->dev = &iwdev->sc_dev;
 
-	INIT_LIST_HEAD(&cm_core->connected_nodes);
+	INIT_LIST_HEAD(&cm_core->accelerated_list);
+	INIT_LIST_HEAD(&cm_core->non_accelerated_list);
 	INIT_LIST_HEAD(&cm_core->listen_nodes);
 
 	timer_setup(&cm_core->tcp_timer, i40iw_cm_timer_tick, 0);
@@ -3585,6 +3620,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct i40iw_qp *iwqp;
 	struct i40iw_device *iwdev;
 	struct i40iw_sc_dev *dev;
+	struct i40iw_cm_core *cm_core;
 	struct i40iw_cm_node *cm_node;
 	struct ib_qp_attr attr;
 	int passive_state;
@@ -3594,6 +3630,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct i40iw_kmem_info accept;
 	enum i40iw_status_code status;
 	u64 tagged_offset;
+	unsigned long flags;
 
 	memset(&attr, 0, sizeof(attr));
 	ibqp = i40iw_get_qp(cm_id->device, conn_param->qpn);
@@ -3603,6 +3640,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	iwqp = to_iwqp(ibqp);
 	iwdev = iwqp->iwdev;
 	dev = &iwdev->sc_dev;
+	cm_core = &iwdev->cm_core;
 	cm_node = (struct i40iw_cm_node *)cm_id->provider_data;
 
 	if (((struct sockaddr_in *)&cm_id->local_addr)->sin_family == AF_INET) {
@@ -3697,6 +3735,10 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
 	cm_node->accelerated = true;
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	list_move_tail(&cm_node->list, &cm_core->accelerated_list);
+	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+
 	status =
 		i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_ESTABLISHED, 0);
 	if (status)
@@ -4026,10 +4068,12 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_device *iwdev;
+	struct i40iw_cm_core *cm_core;
 	struct i40iw_cm_node *cm_node;
 	struct i40iw_sc_dev *dev;
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
+	unsigned long flags;
 	int status;
 	bool read0;
 
@@ -4038,6 +4082,7 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	iwqp = (struct i40iw_qp *)cm_id->provider_data;
 	iwdev = to_iwdev(iwqp->ibqp.device);
 	dev = &iwdev->sc_dev;
+	cm_core = &iwdev->cm_core;
 
 	if (iwqp->destroyed) {
 		status = -ETIMEDOUT;
@@ -4057,6 +4102,9 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
 	cm_node->accelerated = true;
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	list_move_tail(&cm_node->list, &cm_core->accelerated_list);
+	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 	status = i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_CONNECT_REPLY,
 				     0);
 	if (status)
@@ -4256,25 +4304,38 @@ void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
 	struct list_head *list_node;
 	struct i40iw_cm_node *cm_node;
 	unsigned long flags;
-	struct list_head connected_list;
+	struct list_head teardown_list;
 	struct ib_qp_attr attr;
 
-	INIT_LIST_HEAD(&connected_list);
+	INIT_LIST_HEAD(&teardown_list);
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_for_each_safe(list_node, list_core_temp, &cm_core->connected_nodes) {
+	list_for_each_safe(list_node, list_core_temp,
+			   &cm_core->accelerated_list) {
 		cm_node = container_of(list_node, struct i40iw_cm_node, list);
 		if (disconnect_all ||
 		    (nfo->vlan_id == cm_node->vlan_id &&
 		    (!memcmp(cm_node->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
 		     !memcmp(cm_node->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
 			atomic_inc(&cm_node->ref_count);
-			list_add(&cm_node->connected_entry, &connected_list);
+			list_add(&cm_node->teardown_entry, &teardown_list);
+		}
+	}
+	list_for_each_safe(list_node, list_core_temp,
+			   &cm_core->non_accelerated_list) {
+		cm_node = container_of(list_node, struct i40iw_cm_node, list);
+		if (disconnect_all ||
+		    (nfo->vlan_id == cm_node->vlan_id &&
+		    (!memcmp(cm_node->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
+		     !memcmp(cm_node->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
+			atomic_inc(&cm_node->ref_count);
+			list_add(&cm_node->teardown_entry, &teardown_list);
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	list_for_each_safe(list_node, list_core_temp, &connected_list) {
-		cm_node = container_of(list_node, struct i40iw_cm_node, connected_entry);
+	list_for_each_safe(list_node, list_core_temp, &teardown_list) {
+		cm_node = container_of(list_node, struct i40iw_cm_node,
+				       teardown_entry);
 		attr.qp_state = IB_QPS_ERR;
 		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 		if (iwdev->reset)

@@ -112,10 +112,10 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
-static bool mid_spi_can_dma(struct spi_master *master, struct spi_device *spi,
-		struct spi_transfer *xfer)
+static bool mid_spi_can_dma(struct spi_controller *master,
+		struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct dw_spi *dws = spi_master_get_devdata(master);
+	struct dw_spi *dws = spi_controller_get_devdata(master);
 
 	if (!dws->dma_inited)
 		return false;

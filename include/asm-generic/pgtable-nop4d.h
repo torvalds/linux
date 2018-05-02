@@ -8,10 +8,11 @@
 
 typedef struct { pgd_t pgd; } p4d_t;
 
-#define P4D_SHIFT	PGDIR_SHIFT
-#define PTRS_PER_P4D	1
-#define P4D_SIZE	(1UL << P4D_SHIFT)
-#define P4D_MASK	(~(P4D_SIZE-1))
+#define P4D_SHIFT		PGDIR_SHIFT
+#define MAX_PTRS_PER_P4D	1
+#define PTRS_PER_P4D		1
+#define P4D_SIZE		(1UL << P4D_SHIFT)
+#define P4D_MASK		(~(P4D_SIZE-1))
 
 /*
  * The "pgd_xxx()" functions here are trivial for a folded two-level

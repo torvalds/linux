@@ -85,7 +85,7 @@ struct mt9t112_format {
 
 struct mt9t112_priv {
 	struct v4l2_subdev		 subdev;
-	struct mt9t112_camera_info	*info;
+	struct mt9t112_platform_data	*info;
 	struct i2c_client		*client;
 	struct v4l2_rect		 frame;
 	struct v4l2_clk			*clk;

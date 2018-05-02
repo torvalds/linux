@@ -32,6 +32,7 @@ struct atmel_pdmic {
 	struct regmap *regmap;
 	struct clk *pclk;
 	struct clk *gclk;
+	struct device *dev;
 	int irq;
 	struct snd_pcm_substream *substream;
 	const struct atmel_pdmic_pdata *pdata;
@@ -206,7 +207,7 @@ atmel_pdmic_platform_configure_dma(struct snd_pcm_substream *substream,
 	ret = snd_hwparams_to_dma_slave_config(substream, params,
 					       slave_config);
 	if (ret) {
-		dev_err(rtd->platform->dev,
+		dev_err(dd->dev,
 			"hw params to dma slave configure failed\n");
 		return ret;
 	}
@@ -288,14 +289,14 @@ static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 static int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int dgain_val, scale_val;
 	int i;
 
-	dgain_val = (snd_soc_read(codec, PDMIC_DSPR1) & PDMIC_DSPR1_DGAIN_MASK)
+	dgain_val = (snd_soc_component_read32(component, PDMIC_DSPR1) & PDMIC_DSPR1_DGAIN_MASK)
 		    >> PDMIC_DSPR1_DGAIN_SHIFT;
 
-	scale_val = (snd_soc_read(codec, PDMIC_DSPR0) & PDMIC_DSPR0_SCALE_MASK)
+	scale_val = (snd_soc_component_read32(component, PDMIC_DSPR0) & PDMIC_DSPR0_SCALE_MASK)
 		    >> PDMIC_DSPR0_SCALE_SHIFT;
 
 	for (i = 0; i < ARRAY_SIZE(mic_gain_table); i++) {
@@ -312,7 +313,7 @@ static int pdmic_put_mic_volsw(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int max = mc->max;
 	unsigned int val;
 	int ret;
@@ -322,12 +323,12 @@ static int pdmic_put_mic_volsw(struct snd_kcontrol *kcontrol,
 	if (val > max)
 		return -EINVAL;
 
-	ret = snd_soc_update_bits(codec, PDMIC_DSPR1, PDMIC_DSPR1_DGAIN_MASK,
+	ret = snd_soc_component_update_bits(component, PDMIC_DSPR1, PDMIC_DSPR1_DGAIN_MASK,
 			 mic_gain_table[val].dgain << PDMIC_DSPR1_DGAIN_SHIFT);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_update_bits(codec, PDMIC_DSPR0, PDMIC_DSPR0_SCALE_MASK,
+	ret = snd_soc_component_update_bits(component, PDMIC_DSPR0, PDMIC_DSPR0_SCALE_MASK,
 			 mic_gain_table[val].scale << PDMIC_DSPR0_SCALE_SHIFT);
 	if (ret < 0)
 		return ret;
@@ -346,23 +347,25 @@ SOC_SINGLE("High Pass Filter Switch", PDMIC_DSPR0,
 SOC_SINGLE("SINCC Filter Switch", PDMIC_DSPR0, PDMIC_DSPR0_SINBYP_SHIFT, 1, 1),
 };
 
-static int atmel_pdmic_codec_probe(struct snd_soc_codec *codec)
+static int atmel_pdmic_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_card *card = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_card *card = snd_soc_component_get_drvdata(component);
 	struct atmel_pdmic *dd = snd_soc_card_get_drvdata(card);
 
-	snd_soc_update_bits(codec, PDMIC_DSPR1, PDMIC_DSPR1_OFFSET_MASK,
+	snd_soc_component_update_bits(component, PDMIC_DSPR1, PDMIC_DSPR1_OFFSET_MASK,
 		     (u32)(dd->pdata->mic_offset << PDMIC_DSPR1_OFFSET_SHIFT));
 
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_pdmic = {
-	.probe		= atmel_pdmic_codec_probe,
-	.component_driver = {
-		.controls		= atmel_pdmic_snd_controls,
-		.num_controls		= ARRAY_SIZE(atmel_pdmic_snd_controls),
-	},
+static struct snd_soc_component_driver soc_component_dev_pdmic = {
+	.probe			= atmel_pdmic_component_probe,
+	.controls		= atmel_pdmic_snd_controls,
+	.num_controls		= ARRAY_SIZE(atmel_pdmic_snd_controls),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /* codec dai component */
@@ -375,7 +378,7 @@ atmel_pdmic_codec_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct atmel_pdmic *dd = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	unsigned int rate_min = substream->runtime->hw.rate_min;
 	unsigned int rate_max = substream->runtime->hw.rate_max;
 	int fs = params_rate(params);
@@ -385,13 +388,13 @@ atmel_pdmic_codec_dai_hw_params(struct snd_pcm_substream *substream,
 	u32 mr_val, dspr0_val, pclk_prescal, gclk_prescal;
 
 	if (params_channels(params) != 1) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"only supports one channel\n");
 		return -EINVAL;
 	}
 
 	if ((fs < rate_min) || (fs > rate_max)) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"sample rate is %dHz, min rate is %dHz, max rate is %dHz\n",
 			fs, rate_min, rate_max);
 
@@ -436,10 +439,10 @@ atmel_pdmic_codec_dai_hw_params(struct snd_pcm_substream *substream,
 		mr_val |= PDMIC_MR_CLKS_PCK << PDMIC_MR_CLKS_SHIFT;
 	}
 
-	snd_soc_update_bits(codec, PDMIC_MR,
+	snd_soc_component_update_bits(component, PDMIC_MR,
 		PDMIC_MR_PRESCAL_MASK | PDMIC_MR_CLKS_MASK, mr_val);
 
-	snd_soc_update_bits(codec, PDMIC_DSPR0,
+	snd_soc_component_update_bits(component, PDMIC_DSPR0,
 		PDMIC_DSPR0_OSR_MASK | PDMIC_DSPR0_SIZE_MASK, dspr0_val);
 
 	return 0;
@@ -448,9 +451,9 @@ atmel_pdmic_codec_dai_hw_params(struct snd_pcm_substream *substream,
 static int atmel_pdmic_codec_dai_prepare(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *codec_dai)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 
-	snd_soc_update_bits(codec, PDMIC_CR, PDMIC_CR_ENPDM_MASK,
+	snd_soc_component_update_bits(component, PDMIC_CR, PDMIC_CR_ENPDM_MASK,
 			    PDMIC_CR_ENPDM_DIS << PDMIC_CR_ENPDM_SHIFT);
 
 	return 0;
@@ -459,7 +462,7 @@ static int atmel_pdmic_codec_dai_prepare(struct snd_pcm_substream *substream,
 static int atmel_pdmic_codec_dai_trigger(struct snd_pcm_substream *substream,
 					int cmd, struct snd_soc_dai *codec_dai)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u32 val;
 
 	switch (cmd) {
@@ -477,7 +480,7 @@ static int atmel_pdmic_codec_dai_trigger(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, PDMIC_CR, PDMIC_CR_ENPDM_MASK, val);
+	snd_soc_component_update_bits(component, PDMIC_CR, PDMIC_CR_ENPDM_MASK, val);
 
 	return 0;
 }
@@ -596,6 +599,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dd->pdata = pdata;
+	dd->dev = dev;
 
 	dd->irq = platform_get_irq(pdev, 0);
 	if (dd->irq < 0) {
@@ -629,11 +633,8 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	io_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(io_base)) {
-		ret = PTR_ERR(io_base);
-		dev_err(dev, "failed to remap register memory: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	dd->phy_base = res->start;
 
@@ -679,10 +680,10 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	/* register codec and codec dai */
 	atmel_pdmic_codec_dai.capture.rate_min = rate_min;
 	atmel_pdmic_codec_dai.capture.rate_max = rate_max;
-	ret = snd_soc_register_codec(dev, &soc_codec_dev_pdmic,
+	ret = devm_snd_soc_register_component(dev, &soc_component_dev_pdmic,
 				     &atmel_pdmic_codec_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register codec: %d\n", ret);
+		dev_err(dev, "could not register component: %d\n", ret);
 		return ret;
 	}
 
@@ -710,13 +711,11 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_codec:
-	snd_soc_unregister_codec(dev);
 	return ret;
 }
 
 static int atmel_pdmic_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

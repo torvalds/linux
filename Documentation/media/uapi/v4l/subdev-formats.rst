@@ -16,10 +16,14 @@ Media Bus Formats
 
     * - __u32
       - ``width``
-      - Image width, in pixels.
+      - Image width in pixels.
     * - __u32
       - ``height``
-      - Image height, in pixels.
+      - Image height in pixels. If ``field`` is one of ``V4L2_FIELD_TOP``,
+	``V4L2_FIELD_BOTTOM`` or ``V4L2_FIELD_ALTERNATE`` then height
+	refers to the number of lines in the field, otherwise it refers to
+	the number of lines in the frame (which is twice the field height
+	for interlaced formats).
     * - __u32
       - ``code``
       - Format code, from enum

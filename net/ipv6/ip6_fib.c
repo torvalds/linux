@@ -299,11 +299,12 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 }
 
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
+				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup)
 {
 	struct rt6_info *rt;
 
-	rt = lookup(net, net->ipv6.fib6_main_tbl, fl6, flags);
+	rt = lookup(net, net->ipv6.fib6_main_tbl, fl6, skb, flags);
 	if (rt->dst.error == -EAGAIN) {
 		ip6_rt_put(rt);
 		rt = net->ipv6.ip6_null_entry;
@@ -1006,12 +1007,16 @@ add:
 		if (err)
 			return err;
 
+		err = call_fib6_entry_notifiers(info->nl_net,
+						FIB_EVENT_ENTRY_ADD,
+						rt, extack);
+		if (err)
+			return err;
+
 		rcu_assign_pointer(rt->rt6_next, iter);
 		atomic_inc(&rt->rt6i_ref);
 		rcu_assign_pointer(rt->rt6i_node, fn);
 		rcu_assign_pointer(*ins, rt);
-		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_ADD,
-					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
@@ -1035,12 +1040,16 @@ add:
 		if (err)
 			return err;
 
+		err = call_fib6_entry_notifiers(info->nl_net,
+						FIB_EVENT_ENTRY_REPLACE,
+						rt, extack);
+		if (err)
+			return err;
+
 		atomic_inc(&rt->rt6i_ref);
 		rcu_assign_pointer(rt->rt6i_node, fn);
 		rt->rt6_next = iter->rt6_next;
 		rcu_assign_pointer(*ins, rt);
-		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_REPLACE,
-					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {

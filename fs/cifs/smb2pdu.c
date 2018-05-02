@@ -268,8 +268,11 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	mutex_unlock(&tcon->ses->session_mutex);
 
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
-	if (rc)
+	if (rc) {
+		/* If sess reconnected but tcon didn't, something strange ... */
+		printk_once(KERN_WARNING "reconnect tcon failed rc = %d\n", rc);
 		goto out;
+	}
 
 	if (smb2_command != SMB2_INTERNAL_CMD)
 		queue_delayed_work(cifsiod_wq, &server->reconnect, 0);
@@ -380,10 +383,10 @@ static void
 build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_ENCRYPTION_CAPABILITIES;
-	pneg_ctxt->DataLength = cpu_to_le16(6);
-	pneg_ctxt->CipherCount = cpu_to_le16(2);
-	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;
-	pneg_ctxt->Ciphers[1] = SMB2_ENCRYPTION_AES128_CCM;
+	pneg_ctxt->DataLength = cpu_to_le16(4); /* Cipher Count + le16 cipher */
+	pneg_ctxt->CipherCount = cpu_to_le16(1);
+/* pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;*/ /* not supported yet */
+	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_CCM;
 }
 
 static void
@@ -403,6 +406,101 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += 4 + sizeof(struct smb2_preauth_neg_context)
 		+ sizeof(struct smb2_encryption_neg_context);
 }
+
+static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
+{
+	unsigned int len = le16_to_cpu(ctxt->DataLength);
+
+	/* If invalid preauth context warn but use what we requested, SHA-512 */
+	if (len < MIN_PREAUTH_CTXT_DATA_LEN) {
+		printk_once(KERN_WARNING "server sent bad preauth context\n");
+		return;
+	}
+	if (le16_to_cpu(ctxt->HashAlgorithmCount) != 1)
+		printk_once(KERN_WARNING "illegal SMB3 hash algorithm count\n");
+	if (ctxt->HashAlgorithms != SMB2_PREAUTH_INTEGRITY_SHA512)
+		printk_once(KERN_WARNING "unknown SMB3 hash algorithm\n");
+}
+
+static int decode_encrypt_ctx(struct TCP_Server_Info *server,
+			      struct smb2_encryption_neg_context *ctxt)
+{
+	unsigned int len = le16_to_cpu(ctxt->DataLength);
+
+	cifs_dbg(FYI, "decode SMB3.11 encryption neg context of len %d\n", len);
+	if (len < MIN_ENCRYPT_CTXT_DATA_LEN) {
+		printk_once(KERN_WARNING "server sent bad crypto ctxt len\n");
+		return -EINVAL;
+	}
+
+	if (le16_to_cpu(ctxt->CipherCount) != 1) {
+		printk_once(KERN_WARNING "illegal SMB3.11 cipher count\n");
+		return -EINVAL;
+	}
+	cifs_dbg(FYI, "SMB311 cipher type:%d\n", le16_to_cpu(ctxt->Ciphers[0]));
+	if ((ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_CCM) &&
+	    (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_GCM)) {
+		printk_once(KERN_WARNING "invalid SMB3.11 cipher returned\n");
+		return -EINVAL;
+	}
+	server->cipher_type = ctxt->Ciphers[0];
+	server->capabilities |= SMB2_GLOBAL_CAP_ENCRYPTION;
+	return 0;
+}
+
+static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
+				     struct TCP_Server_Info *server)
+{
+	struct smb2_neg_context *pctx;
+	unsigned int offset = le32_to_cpu(rsp->NegotiateContextOffset);
+	unsigned int ctxt_cnt = le16_to_cpu(rsp->NegotiateContextCount);
+	unsigned int len_of_smb = be32_to_cpu(rsp->hdr.smb2_buf_length);
+	unsigned int len_of_ctxts, i;
+	int rc = 0;
+
+	cifs_dbg(FYI, "decoding %d negotiate contexts\n", ctxt_cnt);
+	if (len_of_smb <= offset) {
+		cifs_dbg(VFS, "Invalid response: negotiate context offset\n");
+		return -EINVAL;
+	}
+
+	len_of_ctxts = len_of_smb - offset;
+
+	for (i = 0; i < ctxt_cnt; i++) {
+		int clen;
+		/* check that offset is not beyond end of SMB */
+		if (len_of_ctxts == 0)
+			break;
+
+		if (len_of_ctxts < sizeof(struct smb2_neg_context))
+			break;
+
+		pctx = (struct smb2_neg_context *)(offset +
+			server->vals->header_preamble_size + (char *)rsp);
+		clen = le16_to_cpu(pctx->DataLength);
+		if (clen > len_of_ctxts)
+			break;
+
+		if (pctx->ContextType == SMB2_PREAUTH_INTEGRITY_CAPABILITIES)
+			decode_preauth_context(
+				(struct smb2_preauth_neg_context *)pctx);
+		else if (pctx->ContextType == SMB2_ENCRYPTION_CAPABILITIES)
+			rc = decode_encrypt_ctx(server,
+				(struct smb2_encryption_neg_context *)pctx);
+		else
+			cifs_dbg(VFS, "unknown negcontext of type %d ignored\n",
+				le16_to_cpu(pctx->ContextType));
+
+		if (rc)
+			break;
+		/* offsets must be 8 byte aligned */
+		clen = (clen + 7) & ~0x7;
+		offset += clen + sizeof(struct smb2_neg_context);
+		len_of_ctxts -= clen;
+	}
+	return rc;
+}
+
 #else
 static void assemble_neg_contexts(struct smb2_negotiate_req *req,
 				  unsigned int *total_len)
@@ -453,6 +551,10 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		return rc;
 
 	req->sync_hdr.SessionId = 0;
+#ifdef CONFIG_CIFS_SMB311
+	memset(server->preauth_sha_hash, 0, SMB2_PREAUTH_HASH_SIZE);
+	memset(ses->preauth_sha_hash, 0, SMB2_PREAUTH_HASH_SIZE);
+#endif
 
 	if (strcmp(ses->server->vals->version_string,
 		   SMB3ANY_VERSION_STRING) == 0) {
@@ -564,6 +666,15 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	/* BB: add check that dialect was valid given dialect(s) we asked for */
 
+#ifdef CONFIG_CIFS_SMB311
+	/*
+	 * Keep a copy of the hash after negprot. This hash will be
+	 * the starting hash value for all sessions made from this
+	 * server.
+	 */
+	memcpy(server->preauth_sha_hash, ses->preauth_sha_hash,
+	       SMB2_PREAUTH_HASH_SIZE);
+#endif
 	/* SMB2 only has an extended negflavor */
 	server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
 	/* set it to the maximum buffer size value we can send with 1 credit */
@@ -571,8 +682,10 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 			       SMB2_MAX_BUFFER_SIZE);
 	server->max_read = le32_to_cpu(rsp->MaxReadSize);
 	server->max_write = le32_to_cpu(rsp->MaxWriteSize);
-	/* BB Do we need to validate the SecurityMode? */
 	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
+	if ((server->sec_mode & SMB2_SEC_MODE_FLAGS_ALL) != server->sec_mode)
+		cifs_dbg(FYI, "Server returned unexpected security mode 0x%x\n",
+				server->sec_mode);
 	server->capabilities = le32_to_cpu(rsp->Capabilities);
 	/* Internal types */
 	server->capabilities |= SMB2_NT_FIND | SMB2_LARGE_FILES;
@@ -601,6 +714,15 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		else if (rc == 0)
 			rc = -EIO;
 	}
+
+#ifdef CONFIG_CIFS_SMB311
+	if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
+		if (rsp->NegotiateContextCount)
+			rc = smb311_decode_neg_context(rsp, server);
+		else
+			cifs_dbg(VFS, "Missing expected negotiate contexts\n");
+	}
+#endif /* CONFIG_CIFS_SMB311 */
 neg_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
@@ -620,6 +742,10 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	if (tcon->ses->server->rdma)
 		return 0;
 #endif
+
+	/* In SMB3.11 preauth integrity supersedes validate negotiate */
+	if (tcon->ses->server->dialect == SMB311_PROT_ID)
+		return 0;
 
 	/*
 	 * validation ioctl must be signed, so no point sending this if we
@@ -1007,7 +1133,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out;
 
-	if (offsetof(struct smb2_sess_setup_rsp, Buffer) - 4 !=
+	if (offsetof(struct smb2_sess_setup_rsp, Buffer) - ses->server->vals->header_preamble_size !=
 			le16_to_cpu(rsp->SecurityBufferOffset)) {
 		cifs_dbg(VFS, "Invalid security buffer offset %d\n",
 			le16_to_cpu(rsp->SecurityBufferOffset));
@@ -1148,6 +1274,14 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	sess_data->buf0_type = CIFS_NO_BUFFER;
 	sess_data->nls_cp = (struct nls_table *) nls_cp;
 
+#ifdef CONFIG_CIFS_SMB311
+	/*
+	 * Initialize the session hash with the server one.
+	 */
+	memcpy(ses->preauth_sha_hash, ses->server->preauth_sha_hash,
+	       SMB2_PREAUTH_HASH_SIZE);
+#endif
+
 	while (sess_data->func)
 		sess_data->func(sess_data);
 
@@ -1279,6 +1413,11 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	req->PathLength = cpu_to_le16(unc_path_len - 2);
 	iov[1].iov_base = unc_path;
 	iov[1].iov_len = unc_path_len;
+
+	/* 3.11 tcon req must be signed if not encrypted. See MS-SMB2 3.2.4.1.1 */
+	if ((ses->server->dialect == SMB311_PROT_ID) &&
+	    !encryption_required(tcon))
+		req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
 
 	rc = smb2_send_recv(xid, ses, iov, 2, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
@@ -1441,7 +1580,7 @@ parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp,
 	unsigned int remaining;
 	char *name;
 
-	data_offset = (char *)rsp + 4 + le32_to_cpu(rsp->CreateContextsOffset);
+	data_offset = (char *)rsp + server->vals->header_preamble_size + le32_to_cpu(rsp->CreateContextsOffset);
 	remaining = le32_to_cpu(rsp->CreateContextsLength);
 	cc = (struct create_context *)data_offset;
 	while (remaining >= sizeof(struct create_context)) {
@@ -1669,7 +1808,7 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	  __u8 *oplock, struct smb2_file_all_info *buf,
-	  struct smb2_err_rsp **err_buf)
+	  struct kvec *err_iov)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -1738,8 +1877,10 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		rc = alloc_path_with_tree_prefix(&copy_path, &copy_size,
 						 &name_len,
 						 tcon->treeName, path);
-		if (rc)
+		if (rc) {
+			cifs_small_buf_release(req);
 			return rc;
+		}
 		req->NameLength = cpu_to_le16(name_len * 2);
 		uni_path_len = copy_size;
 		path = copy_path;
@@ -1750,8 +1891,10 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		if (uni_path_len % 8 != 0) {
 			copy_size = roundup(uni_path_len, 8);
 			copy_path = kzalloc(copy_size, GFP_KERNEL);
-			if (!copy_path)
+			if (!copy_path) {
+				cifs_small_buf_release(req);
 				return -ENOMEM;
+			}
 			memcpy((char *)copy_path, (const char *)path,
 			       uni_path_len);
 			uni_path_len = copy_size;
@@ -1805,9 +1948,11 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
-		if (err_buf && rsp)
-			*err_buf = kmemdup(rsp, get_rfc1002_length(rsp) + 4,
-					   GFP_KERNEL);
+		if (err_iov && rsp) {
+			*err_iov = rsp_iov;
+			resp_buftype = CIFS_NO_BUFFER;
+			rsp = NULL;
+		}
 		goto creat_exit;
 	}
 
@@ -2062,13 +2207,13 @@ close_exit:
 }
 
 static int
-validate_buf(unsigned int offset, unsigned int buffer_length,
-	     struct smb2_hdr *hdr, unsigned int min_buf_size)
-
+validate_iov(struct TCP_Server_Info *server,
+	     unsigned int offset, unsigned int buffer_length,
+	     struct kvec *iov, unsigned int min_buf_size)
 {
-	unsigned int smb_len = be32_to_cpu(hdr->smb2_buf_length);
-	char *end_of_smb = smb_len + 4 /* RFC1001 length field */ + (char *)hdr;
-	char *begin_of_buf = 4 /* RFC1001 len field */ + offset + (char *)hdr;
+	unsigned int smb_len = iov->iov_len;
+	char *end_of_smb = smb_len + server->vals->header_preamble_size + (char *)iov->iov_base;
+	char *begin_of_buf = server->vals->header_preamble_size + offset + (char *)iov->iov_base;
 	char *end_of_buf = begin_of_buf + buffer_length;
 
 
@@ -2098,18 +2243,18 @@ validate_buf(unsigned int offset, unsigned int buffer_length,
  * Caller must free buffer.
  */
 static int
-validate_and_copy_buf(unsigned int offset, unsigned int buffer_length,
-		      struct smb2_hdr *hdr, unsigned int minbufsize,
+validate_and_copy_iov(struct TCP_Server_Info *server,
+		      unsigned int offset, unsigned int buffer_length,
+		      struct kvec *iov, unsigned int minbufsize,
 		      char *data)
-
 {
-	char *begin_of_buf = 4 /* RFC1001 len field */ + offset + (char *)hdr;
+	char *begin_of_buf = server->vals->header_preamble_size + offset + (char *)(iov->iov_base);
 	int rc;
 
 	if (!data)
 		return -EINVAL;
 
-	rc = validate_buf(offset, buffer_length, hdr, minbufsize);
+	rc = validate_iov(server, offset, buffer_length, iov, minbufsize);
 	if (rc)
 		return rc;
 
@@ -2187,9 +2332,10 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 	}
 
-	rc = validate_and_copy_buf(le16_to_cpu(rsp->OutputBufferOffset),
+	rc = validate_and_copy_iov(ses->server,
+				   le16_to_cpu(rsp->OutputBufferOffset),
 				   le32_to_cpu(rsp->OutputBufferLength),
-				   &rsp->hdr, min_len, *data);
+				   &rsp_iov, min_len, *data);
 
 qinf_exit:
 	free_rsp_buf(resp_buftype, rsp);
@@ -2445,7 +2591,7 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	 * If we want to do a RDMA write, fill in and append
 	 * smbd_buffer_descriptor_v1 to the end of read request
 	 */
-	if (server->rdma && rdata &&
+	if (server->rdma && rdata && !server->sign &&
 		rdata->bytes >= server->smbd_conn->rdma_readwrite_threshold) {
 
 		struct smbd_buffer_descriptor_v1 *v1;
@@ -2823,7 +2969,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	 * If we want to do a server RDMA read, fill in and append
 	 * smbd_buffer_descriptor_v1 to the end of write request
 	 */
-	if (server->rdma && wdata->bytes >=
+	if (server->rdma && !server->sign && wdata->bytes >=
 		server->smbd_conn->rdma_readwrite_threshold) {
 
 		struct smbd_buffer_descriptor_v1 *v1;
@@ -3110,8 +3256,9 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qdir_exit;
 	}
 
-	rc = validate_buf(le16_to_cpu(rsp->OutputBufferOffset),
-			  le32_to_cpu(rsp->OutputBufferLength), &rsp->hdr,
+	rc = validate_iov(server,
+			  le16_to_cpu(rsp->OutputBufferOffset),
+			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
 			  info_buf_size);
 	if (rc)
 		goto qdir_exit;
@@ -3418,6 +3565,7 @@ static int
 build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 		   int outbuf_len, u64 persistent_fid, u64 volatile_fid)
 {
+	struct TCP_Server_Info *server;
 	int rc;
 	struct smb2_query_info_req *req;
 	unsigned int total_len;
@@ -3426,6 +3574,8 @@ build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 
 	if ((tcon->ses == NULL) || (tcon->ses->server == NULL))
 		return -EIO;
+
+	server = tcon->ses->server;
 
 	rc = smb2_plain_req_init(SMB2_QUERY_INFO, tcon, (void **) &req,
 			     &total_len);
@@ -3440,7 +3590,7 @@ build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 	req->InputBufferOffset =
 			cpu_to_le16(sizeof(struct smb2_query_info_req) - 1);
 	req->OutputBufferLength = cpu_to_le32(
-		outbuf_len + sizeof(struct smb2_query_info_rsp) - 1 - 4);
+		outbuf_len + sizeof(struct smb2_query_info_rsp) - 1 - server->vals->header_preamble_size);
 
 	iov->iov_base = (char *)req;
 	iov->iov_len = total_len;
@@ -3457,6 +3607,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	struct smb2_fs_full_size_info *info = NULL;
 	int flags = 0;
 
@@ -3477,10 +3628,11 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
 
-	info = (struct smb2_fs_full_size_info *)(4 /* RFC1001 len */ +
+	info = (struct smb2_fs_full_size_info *)(server->vals->header_preamble_size +
 		le16_to_cpu(rsp->OutputBufferOffset) + (char *)&rsp->hdr);
-	rc = validate_buf(le16_to_cpu(rsp->OutputBufferOffset),
-			  le32_to_cpu(rsp->OutputBufferLength), &rsp->hdr,
+	rc = validate_iov(server,
+			  le16_to_cpu(rsp->OutputBufferOffset),
+			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
 			  sizeof(struct smb2_fs_full_size_info));
 	if (!rc)
 		copy_fs_info_to_kstatfs(info, fsdata);
@@ -3500,6 +3652,7 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype, max_len, min_len;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	unsigned int rsp_len, offset;
 	int flags = 0;
 
@@ -3535,20 +3688,20 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rsp_len = le32_to_cpu(rsp->OutputBufferLength);
 	offset = le16_to_cpu(rsp->OutputBufferOffset);
-	rc = validate_buf(offset, rsp_len, &rsp->hdr, min_len);
+	rc = validate_iov(server, offset, rsp_len, &rsp_iov, min_len);
 	if (rc)
 		goto qfsattr_exit;
 
 	if (level == FS_ATTRIBUTE_INFORMATION)
-		memcpy(&tcon->fsAttrInfo, 4 /* RFC1001 len */ + offset
+		memcpy(&tcon->fsAttrInfo, server->vals->header_preamble_size + offset
 			+ (char *)&rsp->hdr, min_t(unsigned int,
 			rsp_len, max_len));
 	else if (level == FS_DEVICE_INFORMATION)
-		memcpy(&tcon->fsDevInfo, 4 /* RFC1001 len */ + offset
+		memcpy(&tcon->fsDevInfo, server->vals->header_preamble_size + offset
 			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
 	else if (level == FS_SECTOR_SIZE_INFORMATION) {
 		struct smb3_fs_ss_info *ss_info = (struct smb3_fs_ss_info *)
-			(4 /* RFC1001 len */ + offset + (char *)&rsp->hdr);
+			(server->vals->header_preamble_size + offset + (char *)&rsp->hdr);
 		tcon->ss_flags = le32_to_cpu(ss_info->Flags);
 		tcon->perf_sector_size =
 			le32_to_cpu(ss_info->PhysicalBytesPerSectorForPerf);

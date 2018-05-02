@@ -171,6 +171,8 @@ source "drivers/usb/gadget/Kconfig"
 
 source "drivers/usb/typec/Kconfig"
 
+source "drivers/usb/roles/Kconfig"
+
 config USB_LED_TRIG
 	bool "USB LED Triggers"
 	depends on LEDS_CLASS && LEDS_TRIGGERS
@@ -202,5 +204,9 @@ config USB_ULPI_BUS
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ulpi.
+
+config USB_ROLE_SWITCH
+	tristate
+	select USB_COMMON
 
 endif # USB_SUPPORT

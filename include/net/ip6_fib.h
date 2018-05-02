@@ -350,7 +350,8 @@ struct fib6_table {
 
 typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 					 struct fib6_table *,
-					 struct flowi6 *, int);
+					 struct flowi6 *,
+					 const struct sk_buff *, int);
 
 struct fib6_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
@@ -364,6 +365,7 @@ struct fib6_entry_notifier_info {
 struct fib6_table *fib6_get_table(struct net *net, u32 id);
 struct fib6_table *fib6_new_table(struct net *net, u32 id);
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
+				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
 struct fib6_node *fib6_lookup(struct fib6_node *root,
@@ -415,6 +417,24 @@ void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
 int fib6_rules_dump(struct net *net, struct notifier_block *nb);
 unsigned int fib6_rules_seq_read(struct net *net);
+
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	unsigned int flag = FLOW_DISSECTOR_F_STOP_AT_ENCAP;
+
+	if (!net->ipv6.fib6_rules_require_fldissect)
+		return false;
+
+	skb_flow_dissect_flow_keys(skb, flkeys, flag);
+	fl6->fl6_sport = flkeys->ports.src;
+	fl6->fl6_dport = flkeys->ports.dst;
+	fl6->flowi6_proto = flkeys->basic.ip_proto;
+
+	return true;
+}
 #else
 static inline int               fib6_rules_init(void)
 {
@@ -435,6 +455,13 @@ static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb)
 static inline unsigned int fib6_rules_seq_read(struct net *net)
 {
 	return 0;
+}
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	return false;
 }
 #endif
 #endif

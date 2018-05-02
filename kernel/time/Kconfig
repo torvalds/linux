@@ -113,16 +113,6 @@ config NO_HZ_FULL
 
 endchoice
 
-config NO_HZ_FULL_ALL
-       bool "Full dynticks system on all CPUs by default (except CPU 0)"
-       depends on NO_HZ_FULL
-       help
-         If the user doesn't pass the nohz_full boot option to
-	 define the range of full dynticks CPUs, consider that all
-	 CPUs in the system are full dynticks by default.
-	 Note the boot CPU will still be kept outside the range to
-	 handle the timekeeping duty.
-
 config NO_HZ
 	bool "Old Idle dynticks config"
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS

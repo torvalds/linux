@@ -53,6 +53,8 @@ struct power_pmu {
 			       [PERF_COUNT_HW_CACHE_OP_MAX]
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 
+	int		n_blacklist_ev;
+	int 		*blacklist_ev;
 	/* BHRB entries in the PMU */
 	int		bhrb_nr;
 };

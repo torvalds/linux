@@ -379,8 +379,8 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
 	return error;
 }
 
-SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
-		char __user *, buf, int, bufsiz)
+static int do_readlinkat(int dfd, const char __user *pathname,
+			 char __user *buf, int bufsiz)
 {
 	struct path path;
 	int error;
@@ -415,10 +415,16 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
+		char __user *, buf, int, bufsiz)
+{
+	return do_readlinkat(dfd, pathname, buf, bufsiz);
+}
+
 SYSCALL_DEFINE3(readlink, const char __user *, path, char __user *, buf,
 		int, bufsiz)
 {
-	return sys_readlinkat(AT_FDCWD, path, buf, bufsiz);
+	return do_readlinkat(AT_FDCWD, path, buf, bufsiz);
 }
 
 

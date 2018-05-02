@@ -15,6 +15,7 @@
  */
 
 #include <linux/firmware.h>
+#include <net/bluetooth/bluetooth.h>
 #include "rsi_mgmt.h"
 #include "rsi_hal.h"
 #include "rsi_sdio.h"
@@ -24,6 +25,7 @@
 static struct ta_metadata metadata_flash_content[] = {
 	{"flash_content", 0x00010000},
 	{"rsi/rs9113_wlan_qspi.rps", 0x00010000},
+	{"rsi/rs9113_wlan_bt_dual_mode.rps", 0x00010000},
 };
 
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
@@ -31,8 +33,15 @@ int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	int status;
 
+	if (common->coex_mode > 1)
+		mutex_lock(&common->tx_bus_mutex);
+
 	status = adapter->host_intf_ops->write_pkt(common->priv,
 						   skb->data, skb->len);
+
+	if (common->coex_mode > 1)
+		mutex_unlock(&common->tx_bus_mutex);
+
 	return status;
 }
 
@@ -296,8 +305,7 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	if (status)
 		goto err;
 
-	status = adapter->host_intf_ops->write_pkt(common->priv, skb->data,
-						   skb->len);
+	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write pkt\n", __func__);
 
@@ -342,13 +350,49 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		goto err;
 
 	rsi_prepare_mgmt_desc(common, skb);
-	status = adapter->host_intf_ops->write_pkt(common->priv,
-						   (u8 *)skb->data, skb->len);
+	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 
 err:
 	rsi_indicate_tx_status(common->priv, skb, status);
+	return status;
+}
+
+int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb)
+{
+	int status = -EINVAL;
+	u8 header_size = 0;
+	struct rsi_bt_desc *bt_desc;
+	u8 queueno = ((skb->data[1] >> 4) & 0xf);
+
+	if (queueno == RSI_BT_MGMT_Q) {
+		status = rsi_send_pkt_to_bus(common, skb);
+		if (status)
+			rsi_dbg(ERR_ZONE, "%s: Failed to write bt mgmt pkt\n",
+				__func__);
+		goto out;
+	}
+	header_size = FRAME_DESC_SZ;
+	if (header_size > skb_headroom(skb)) {
+		rsi_dbg(ERR_ZONE, "%s: Not enough headroom\n", __func__);
+		status = -ENOSPC;
+		goto out;
+	}
+	skb_push(skb, header_size);
+	memset(skb->data, 0, header_size);
+	bt_desc = (struct rsi_bt_desc *)skb->data;
+
+	rsi_set_len_qno(&bt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+			RSI_BT_DATA_Q);
+	bt_desc->bt_pkt_type = cpu_to_le16(bt_cb(skb)->pkt_type);
+
+	status = rsi_send_pkt_to_bus(common, skb);
+	if (status)
+		rsi_dbg(ERR_ZONE, "%s: Failed to write bt pkt\n", __func__);
+
+out:
+	dev_kfree_skb(skb);
 	return status;
 }
 
@@ -925,10 +969,6 @@ fail:
 int rsi_hal_device_init(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
-
-	common->coex_mode = RSI_DEV_COEX_MODE_WIFI_ALONE;
-	common->oper_mode = RSI_DEV_OPMODE_WIFI_ALONE;
-	adapter->device_model = RSI_DEV_9113;
 
 	switch (adapter->device_model) {
 	case RSI_DEV_9113:

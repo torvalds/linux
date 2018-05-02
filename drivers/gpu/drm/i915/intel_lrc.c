@@ -785,6 +785,7 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 		port++;
 	}
 
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
 	execlists_user_end(execlists);
 }
 

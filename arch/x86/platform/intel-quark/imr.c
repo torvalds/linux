@@ -224,25 +224,7 @@ static int imr_dbgfs_state_show(struct seq_file *s, void *unused)
 	mutex_unlock(&idev->lock);
 	return ret;
 }
-
-/**
- * imr_state_open - debugfs open callback.
- *
- * @inode:	pointer to struct inode.
- * @file:	pointer to struct file.
- * @return:	result of single open.
- */
-static int imr_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, imr_dbgfs_state_show, inode->i_private);
-}
-
-static const struct file_operations imr_state_ops = {
-	.open		= imr_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(imr_dbgfs_state);
 
 /**
  * imr_debugfs_register - register debugfs hooks.
@@ -252,8 +234,8 @@ static const struct file_operations imr_state_ops = {
  */
 static int imr_debugfs_register(struct imr_device *idev)
 {
-	idev->file = debugfs_create_file("imr_state", S_IFREG | S_IRUGO, NULL,
-					 idev, &imr_state_ops);
+	idev->file = debugfs_create_file("imr_state", 0444, NULL, idev,
+					 &imr_dbgfs_state_fops);
 	return PTR_ERR_OR_ZERO(idev->file);
 }
 

@@ -22,6 +22,7 @@ struct clk_omap_divider {
 	u8			shift;
 	u8			width;
 	u8			flags;
+	s8			latch;
 	const struct clk_div_table	*table;
 };
 
@@ -33,6 +34,7 @@ struct clk_omap_mux {
 	u32			*table;
 	u32			mask;
 	u8			shift;
+	s8			latch;
 	u8			flags;
 };
 
@@ -73,6 +75,11 @@ enum {
 #define CLKF_PER			(1 << 8)
 #define CLKF_CORE			(1 << 9)
 #define CLKF_J_TYPE			(1 << 10)
+
+/* CLKCTRL flags */
+#define CLKF_SW_SUP			BIT(5)
+#define CLKF_HW_SUP			BIT(6)
+#define CLKF_NO_IDLEST			BIT(7)
 
 #define CLK(dev, con, ck)		\
 	{				\
@@ -183,16 +190,14 @@ extern const struct omap_clkctrl_data am438x_clkctrl_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
 
-#define CLKF_SW_SUP	BIT(0)
-#define CLKF_HW_SUP	BIT(1)
-#define CLKF_NO_IDLEST	BIT(2)
-
 typedef void (*ti_of_clk_init_cb_t)(void *, struct device_node *);
 
 struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 			    const char *con);
 int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con);
 void ti_clk_add_aliases(void);
+
+void ti_clk_latch(struct clk_omap_reg *reg, s8 shift);
 
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 

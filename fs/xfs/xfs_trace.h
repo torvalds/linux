@@ -506,8 +506,8 @@ DEFINE_BUF_ITEM_EVENT(xfs_trans_bhold_release);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_binval);
 
 DECLARE_EVENT_CLASS(xfs_filestream_class,
-	TP_PROTO(struct xfs_inode *ip, xfs_agnumber_t agno),
-	TP_ARGS(ip, agno),
+	TP_PROTO(struct xfs_mount *mp, xfs_ino_t ino, xfs_agnumber_t agno),
+	TP_ARGS(mp, ino, agno),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
@@ -515,10 +515,10 @@ DECLARE_EVENT_CLASS(xfs_filestream_class,
 		__field(int, streams)
 	),
 	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->dev = mp->m_super->s_dev;
+		__entry->ino = ino;
 		__entry->agno = agno;
-		__entry->streams = xfs_filestream_peek_ag(ip->i_mount, agno);
+		__entry->streams = xfs_filestream_peek_ag(mp, agno);
 	),
 	TP_printk("dev %d:%d ino 0x%llx agno %u streams %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -528,8 +528,8 @@ DECLARE_EVENT_CLASS(xfs_filestream_class,
 )
 #define DEFINE_FILESTREAM_EVENT(name) \
 DEFINE_EVENT(xfs_filestream_class, name, \
-	TP_PROTO(struct xfs_inode *ip, xfs_agnumber_t agno), \
-	TP_ARGS(ip, agno))
+	TP_PROTO(struct xfs_mount *mp, xfs_ino_t ino, xfs_agnumber_t agno), \
+	TP_ARGS(mp, ino, agno))
 DEFINE_FILESTREAM_EVENT(xfs_filestream_free);
 DEFINE_FILESTREAM_EVENT(xfs_filestream_lookup);
 DEFINE_FILESTREAM_EVENT(xfs_filestream_scan);
@@ -1477,7 +1477,7 @@ TRACE_EVENT(xfs_extent_busy_trim,
 		  __entry->tlen)
 );
 
-TRACE_EVENT(xfs_agf,
+DECLARE_EVENT_CLASS(xfs_agf_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_agf *agf, int flags,
 		 unsigned long caller_ip),
 	TP_ARGS(mp, agf, flags, caller_ip),
@@ -1533,6 +1533,13 @@ TRACE_EVENT(xfs_agf,
 		  __entry->longest,
 		  (void *)__entry->caller_ip)
 );
+#define DEFINE_AGF_EVENT(name) \
+DEFINE_EVENT(xfs_agf_class, name, \
+	TP_PROTO(struct xfs_mount *mp, struct xfs_agf *agf, int flags, \
+		 unsigned long caller_ip), \
+	TP_ARGS(mp, agf, flags, caller_ip))
+DEFINE_AGF_EVENT(xfs_agf);
+DEFINE_AGF_EVENT(xfs_agfl_reset);
 
 TRACE_EVENT(xfs_free_extent,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,

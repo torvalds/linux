@@ -19,7 +19,7 @@ static struct dentry *qedi_dbg_root;
 
 void
 qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
-		   struct qedi_debugfs_ops *dops,
+		   const struct qedi_debugfs_ops *dops,
 		   const struct file_operations *fops)
 {
 	char host_dirname[32];
@@ -99,7 +99,7 @@ static struct qedi_list_of_funcs qedi_dbg_do_not_recover_ops[] = {
 	{ NULL, NULL }
 };
 
-struct qedi_debugfs_ops qedi_debugfs_ops[] = {
+const struct qedi_debugfs_ops qedi_debugfs_ops[] = {
 	{ "gbl_ctx", NULL },
 	{ "do_not_recover", qedi_dbg_do_not_recover_ops},
 	{ "io_trace", NULL },

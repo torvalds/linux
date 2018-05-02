@@ -66,7 +66,6 @@ struct loop_device {
 
 struct loop_cmd {
 	struct kthread_work work;
-	struct request *rq;
 	bool use_aio; /* use AIO interface to handle I/O */
 	atomic_t ref; /* only for aio */
 	long ret;

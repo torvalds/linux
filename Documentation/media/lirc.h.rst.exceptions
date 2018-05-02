@@ -57,6 +57,7 @@ ignore symbol RC_PROTO_RC6_MCE
 ignore symbol RC_PROTO_SHARP
 ignore symbol RC_PROTO_XMP
 ignore symbol RC_PROTO_CEC
+ignore symbol RC_PROTO_IMON
 
 # Undocumented macros
 

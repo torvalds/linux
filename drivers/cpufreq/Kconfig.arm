@@ -45,6 +45,7 @@ config ARM_DT_BL_CPUFREQ
 config ARM_SCPI_CPUFREQ
 	tristate "SCPI based CPUfreq driver"
 	depends on ARM_SCPI_PROTOCOL && COMMON_CLK_SCPI
+	depends on !CPU_THERMAL || THERMAL
 	help
 	  This adds the CPUfreq driver support for ARM platforms using SCPI
 	  protocol for CPU power management.
@@ -69,16 +70,6 @@ config ARM_BRCMSTB_AVS_CPUFREQ
 	  a standard CPUfreq interface to to the firmware.
 
 	  Say Y, if you have a Broadcom SoC with AVS support for DFS or DVFS.
-
-config ARM_BRCMSTB_AVS_CPUFREQ_DEBUG
-	bool "Broadcom STB AVS CPUfreq driver sysfs debug capability"
-	depends on ARM_BRCMSTB_AVS_CPUFREQ
-	help
-	  Enabling this option turns on debug support via sysfs under
-	  /sys/kernel/debug/brcmstb-avs-cpufreq. It is possible to read all and
-	  write some AVS mailbox registers through sysfs entries.
-
-	  If in doubt, say N.
 
 config ARM_EXYNOS5440_CPUFREQ
 	tristate "SAMSUNG EXYNOS5440"
@@ -237,6 +228,18 @@ config ARM_SA1100_CPUFREQ
 
 config ARM_SA1110_CPUFREQ
 	bool
+
+config ARM_SCMI_CPUFREQ
+	tristate "SCMI based CPUfreq driver"
+	depends on ARM_SCMI_PROTOCOL || COMPILE_TEST
+	depends on !CPU_THERMAL || THERMAL
+	select PM_OPP
+	help
+	  This adds the CPUfreq driver support for ARM platforms using SCMI
+	  protocol for CPU power management.
+
+	  This driver uses SCMI Message Protocol driver to interact with the
+	  firmware providing the CPU DVFS functionality.
 
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"

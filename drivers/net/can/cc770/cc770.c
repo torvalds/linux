@@ -67,12 +67,12 @@ MODULE_DESCRIPTION(KBUILD_MODNAME "CAN netdevice driver");
  * otherwise 11 bit SFF messages.
  */
 static int msgobj15_eff;
-module_param(msgobj15_eff, int, S_IRUGO);
+module_param(msgobj15_eff, int, 0444);
 MODULE_PARM_DESC(msgobj15_eff, "Extended 29-bit frames for message object 15 "
 		 "(default: 11-bit standard frames)");
 
 static int i82527_compat;
-module_param(i82527_compat, int, S_IRUGO);
+module_param(i82527_compat, int, 0444);
 MODULE_PARM_DESC(i82527_compat, "Strict Intel 82527 comptibility mode "
 		 "without using additional functions");
 

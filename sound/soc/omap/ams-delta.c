@@ -93,7 +93,7 @@ static unsigned short ams_delta_audio_agc;
  * Used for passing a codec structure pointer
  * from the board initialization code to the tty line discipline.
  */
-static struct snd_soc_codec *cx20442_codec;
+static struct snd_soc_component *cx20442_codec;
 
 static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -105,7 +105,7 @@ static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 	int pin, changed = 0;
 
 	/* Refuse any mode changes if we are not able to control the codec. */
-	if (!cx20442_codec->component.card->pop_time)
+	if (!cx20442_codec->card->pop_time)
 		return -EUNATCH;
 
 	if (ucontrol->value.enumerated.item[0] >= control->items)
@@ -300,15 +300,15 @@ static int cx81801_open(struct tty_struct *tty)
 /* Line discipline .close() */
 static void cx81801_close(struct tty_struct *tty)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
-	struct snd_soc_dapm_context *dapm = &codec->component.card->dapm;
+	struct snd_soc_component *component = tty->disc_data;
+	struct snd_soc_dapm_context *dapm = &component->card->dapm;
 
 	del_timer_sync(&cx81801_timer);
 
 	/* Prevent the hook switch from further changing the DAPM pins */
 	INIT_LIST_HEAD(&ams_delta_hook_switch.pins);
 
-	if (!codec)
+	if (!component)
 		return;
 
 	v253_ops.close(tty);
@@ -338,14 +338,14 @@ static int cx81801_hangup(struct tty_struct *tty)
 static void cx81801_receive(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
+	struct snd_soc_component *component = tty->disc_data;
 	const unsigned char *c;
 	int apply, ret;
 
-	if (!codec)
+	if (!component)
 		return;
 
-	if (!codec->component.card->pop_time) {
+	if (!component->card->pop_time) {
 		/* First modem response, complete setup procedure */
 
 		/* Initialize timer used for config pulse generation */
@@ -358,7 +358,7 @@ static void cx81801_receive(struct tty_struct *tty,
 					ARRAY_SIZE(ams_delta_hook_switch_pins),
 					ams_delta_hook_switch_pins);
 		if (ret)
-			dev_warn(codec->dev,
+			dev_warn(component->dev,
 				"Failed to link hook switch to DAPM pins, "
 				"will continue with hook switch unlinked.\n");
 
@@ -467,7 +467,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	/* Codec is ready, now add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
-	cx20442_codec = rtd->codec;
+	cx20442_codec = rtd->codec_dai->component;
 
 	/* Set up digital mute if not provided by the codec */
 	if (!codec_dai->driver->ops) {

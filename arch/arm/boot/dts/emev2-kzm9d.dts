@@ -38,28 +38,28 @@
 		#size-cells = <0>;
 
 		one {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-1";
 			linux,code = <KEY_1>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
 		two {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-2";
 			linux,code = <KEY_2>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 		three {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-3";
 			linux,code = <KEY_3>;
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		};
 		four {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-4";
 			linux,code = <KEY_4>;

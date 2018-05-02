@@ -14,7 +14,7 @@ passing pointers to structures via a void * pointer.  The tty code,
 for example, does this frequently to pass driver-specific and line
 discipline-specific structures back and forth.
 
-The way to use magic numbers is to declare then at the beginning of
+The way to use magic numbers is to declare them at the beginning of
 the structure, like so::
 
 	struct tty_ldisc {
@@ -156,9 +156,6 @@ Note that there are also defined special per-driver magic numbers in sound
 memory management. See ``include/sound/sndmagic.h`` for complete list of them. Many
 OSS sound drivers have their magic numbers constructed from the soundcard PCI
 ID - these are not listed here as well.
-
-IrDA subsystem also uses large number of own magic numbers, see
-``include/net/irda/irda.h`` for a complete list of them.
 
 HFS is another larger user of magic numbers - you can find them in
 ``fs/hfs/hfs.h``.

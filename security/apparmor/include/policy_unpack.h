@@ -70,7 +70,7 @@ struct aa_loaddata {
 	int abi;
 	unsigned char *hash;
 
-	char data[];
+	char *data;
 };
 
 int aa_unpack(struct aa_loaddata *udata, struct list_head *lh, const char **ns);

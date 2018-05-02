@@ -99,6 +99,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RECVRCVINFO	32
 #define SCTP_RECVNXTINFO	33
 #define SCTP_DEFAULT_SNDINFO	34
+#define SCTP_AUTH_DEACTIVATE_KEY	35
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.
@@ -126,6 +127,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_STREAM_SCHEDULER	123
 #define SCTP_STREAM_SCHEDULER_VALUE	124
 #define SCTP_INTERLEAVING_SUPPORTED	125
+#define SCTP_SENDMSG_CONNECT	126
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -260,6 +262,31 @@ struct sctp_nxtinfo {
 	sctp_assoc_t nxt_assoc_id;
 };
 
+/* 5.3.7 SCTP PR-SCTP Information Structure (SCTP_PRINFO)
+ *
+ *   This cmsghdr structure specifies SCTP options for sendmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_PRINFO    struct sctp_prinfo
+ */
+struct sctp_prinfo {
+	__u16 pr_policy;
+	__u32 pr_value;
+};
+
+/* 5.3.8 SCTP AUTH Information Structure (SCTP_AUTHINFO)
+ *
+ *   This cmsghdr structure specifies SCTP options for sendmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_AUTHINFO  struct sctp_authinfo
+ */
+struct sctp_authinfo {
+	__u16 auth_keynumber;
+};
+
 /*
  *  sinfo_flags: 16 bits (unsigned integer)
  *
@@ -271,6 +298,8 @@ enum sctp_sinfo_flags {
 	SCTP_ADDR_OVER		= (1 << 1), /* Override the primary destination. */
 	SCTP_ABORT		= (1 << 2), /* Send an ABORT message to the peer. */
 	SCTP_SACK_IMMEDIATELY	= (1 << 3), /* SACK should be sent without delay. */
+	/* 2 bits here have been used by SCTP_PR_SCTP_MASK */
+	SCTP_SENDALL		= (1 << 6),
 	SCTP_NOTIFICATION	= MSG_NOTIFICATION, /* Next message is not user msg but notification. */
 	SCTP_EOF		= MSG_FIN,  /* Initiate graceful shutdown process. */
 };
@@ -293,6 +322,14 @@ typedef enum sctp_cmsg_type {
 #define SCTP_RCVINFO	SCTP_RCVINFO
 	SCTP_NXTINFO,		/* 5.3.6 SCTP Next Receive Information Structure */
 #define SCTP_NXTINFO	SCTP_NXTINFO
+	SCTP_PRINFO,		/* 5.3.7 SCTP PR-SCTP Information Structure */
+#define SCTP_PRINFO	SCTP_PRINFO
+	SCTP_AUTHINFO,		/* 5.3.8 SCTP AUTH Information Structure */
+#define SCTP_AUTHINFO	SCTP_AUTHINFO
+	SCTP_DSTADDRV4,		/* 5.3.9 SCTP Destination IPv4 Address Structure */
+#define SCTP_DSTADDRV4	SCTP_DSTADDRV4
+	SCTP_DSTADDRV6,		/* 5.3.10 SCTP Destination IPv6 Address Structure */
+#define SCTP_DSTADDRV6	SCTP_DSTADDRV6
 } sctp_cmsg_t;
 
 /*
@@ -482,7 +519,12 @@ struct sctp_authkey_event {
 	sctp_assoc_t auth_assoc_id;
 };
 
-enum { SCTP_AUTH_NEWKEY = 0, };
+enum {
+	SCTP_AUTH_NEW_KEY,
+#define	SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY /* compatible with before */
+	SCTP_AUTH_FREE_KEY,
+	SCTP_AUTH_NO_AUTH,
+};
 
 /*
  * 6.1.9. SCTP_SENDER_DRY_EVENT

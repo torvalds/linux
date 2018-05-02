@@ -332,7 +332,6 @@ enum {
 	EF10_STAT_fec_corrected_symbols_lane1,
 	EF10_STAT_fec_corrected_symbols_lane2,
 	EF10_STAT_fec_corrected_symbols_lane3,
-	EF10_STAT_ctpio_dmabuf_start,
 	EF10_STAT_ctpio_vi_busy_fallback,
 	EF10_STAT_ctpio_long_write_success,
 	EF10_STAT_ctpio_missing_dbell_fail,
@@ -365,6 +364,8 @@ enum {
  * @vi_base: Absolute index of first VI in this function
  * @n_allocated_vis: Number of VIs allocated to this function
  * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
+ * @must_restore_rss_contexts: Flag: RSS contexts have yet to be restored after
+ *	MC reboot
  * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
  * @n_piobufs: Number of PIO buffers allocated to this function
  * @wc_membase: Base address of write-combining mapping of the memory BAR
@@ -374,7 +375,6 @@ enum {
  * @piobuf_size: size of a single PIO buffer
  * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
  *	reboot
- * @rx_rss_context: Firmware handle for our RSS context
  * @rx_rss_context_exclusive: Whether our RSS context is exclusive or shared
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
@@ -408,6 +408,7 @@ struct efx_ef10_nic_data {
 	unsigned int vi_base;
 	unsigned int n_allocated_vis;
 	bool must_realloc_vis;
+	bool must_restore_rss_contexts;
 	bool must_restore_filters;
 	unsigned int n_piobufs;
 	void __iomem *wc_membase, *pio_write_base;
@@ -415,7 +416,6 @@ struct efx_ef10_nic_data {
 	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
 	u16 piobuf_size;
 	bool must_restore_piobufs;
-	u32 rx_rss_context;
 	bool rx_rss_context_exclusive;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
@@ -603,8 +603,6 @@ s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
 				enum efx_filter_priority priority, u32 *buf,
 				u32 size);
 #ifdef CONFIG_RFS_ACCEL
-s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
-				struct efx_filter_spec *spec);
 bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 				     unsigned int index);
 #endif

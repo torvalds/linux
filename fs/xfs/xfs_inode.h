@@ -393,8 +393,8 @@ int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
 			   umode_t mode, dev_t rdev, struct xfs_inode **ipp);
-int		xfs_create_tmpfile(struct xfs_inode *dp, struct dentry *dentry,
-			   umode_t mode, struct xfs_inode **ipp);
+int		xfs_create_tmpfile(struct xfs_inode *dp, umode_t mode,
+			   struct xfs_inode **ipp);
 int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode *ip);
 int		xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
@@ -431,7 +431,7 @@ xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
 int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
 			       xfs_nlink_t, dev_t, prid_t,
-			       struct xfs_inode **, int *);
+			       struct xfs_inode **);
 
 /* from xfs_file.c */
 enum xfs_prealloc_flags {
@@ -443,10 +443,6 @@ enum xfs_prealloc_flags {
 
 int	xfs_update_prealloc_flags(struct xfs_inode *ip,
 				  enum xfs_prealloc_flags flags);
-int	xfs_zero_eof(struct xfs_inode *ip, xfs_off_t offset,
-		     xfs_fsize_t isize, bool *did_zeroing);
-int	xfs_zero_range(struct xfs_inode *ip, xfs_off_t pos, xfs_off_t count,
-		bool *did_zero);
 
 /* from xfs_iops.c */
 extern void xfs_setup_inode(struct xfs_inode *ip);

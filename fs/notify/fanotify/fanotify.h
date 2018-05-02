@@ -52,5 +52,6 @@ static inline struct fanotify_event_info *FANOTIFY_E(struct fsnotify_event *fse)
 	return container_of(fse, struct fanotify_event_info, fse);
 }
 
-struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+						 struct inode *inode, u32 mask,
 						 const struct path *path);

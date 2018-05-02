@@ -11,6 +11,7 @@ Required properies:
    "st,stm32f429-pinctrl"
    "st,stm32f469-pinctrl"
    "st,stm32f746-pinctrl"
+   "st,stm32f769-pinctrl"
    "st,stm32h743-pinctrl"
    "st,stm32mp157-pinctrl"
    "st,stm32mp157-z-pinctrl"

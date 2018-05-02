@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pci-driver.c
- *
  * (C) Copyright 2002-2004, 2007 Greg Kroah-Hartman <greg@kroah.com>
  * (C) Copyright 2007 Novell Inc.
  */
@@ -19,6 +17,7 @@
 #include <linux/suspend.h>
 #include <linux/kexec.h>
 #include "pci.h"
+#include "pcie/portdrv.h"
 
 struct pci_dynid {
 	struct list_head node;
@@ -714,6 +713,18 @@ static void pci_pm_complete(struct device *dev)
 #endif /* !CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
+static void pcie_pme_root_status_cleanup(struct pci_dev *pci_dev)
+{
+	/*
+	 * Some BIOSes forget to clear Root PME Status bits after system
+	 * wakeup, which breaks ACPI-based runtime wakeup on PCI Express.
+	 * Clear those bits now just in case (shouldn't hurt).
+	 */
+	if (pci_is_pcie(pci_dev) &&
+	    (pci_pcie_type(pci_dev) == PCI_EXP_TYPE_ROOT_PORT ||
+	     pci_pcie_type(pci_dev) == PCI_EXP_TYPE_RC_EC))
+		pcie_clear_root_pme_status(pci_dev);
+}
 
 static int pci_pm_suspend(struct device *dev)
 {
@@ -873,6 +884,8 @@ static int pci_pm_resume_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
 
+	pcie_pme_root_status_cleanup(pci_dev);
+
 	if (drv && drv->pm && drv->pm->resume_noirq)
 		error = drv->pm->resume_noirq(dev);
 
@@ -945,10 +958,11 @@ static int pci_pm_freeze(struct device *dev)
 	 * devices should not be touched during freeze/thaw transitions,
 	 * however.
 	 */
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+	if (!dev_pm_smart_suspend_and_suspended(dev)) {
 		pm_runtime_resume(dev);
+		pci_dev->state_saved = false;
+	}
 
-	pci_dev->state_saved = false;
 	if (pm->freeze) {
 		int error;
 
@@ -1522,6 +1536,42 @@ static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+#if defined(CONFIG_PCIEAER) || defined(CONFIG_EEH)
+/**
+ * pci_uevent_ers - emit a uevent during recovery path of PCI device
+ * @pdev: PCI device undergoing error recovery
+ * @err_type: type of error event
+ */
+void pci_uevent_ers(struct pci_dev *pdev, enum pci_ers_result err_type)
+{
+	int idx = 0;
+	char *envp[3];
+
+	switch (err_type) {
+	case PCI_ERS_RESULT_NONE:
+	case PCI_ERS_RESULT_CAN_RECOVER:
+		envp[idx++] = "ERROR_EVENT=BEGIN_RECOVERY";
+		envp[idx++] = "DEVICE_ONLINE=0";
+		break;
+	case PCI_ERS_RESULT_RECOVERED:
+		envp[idx++] = "ERROR_EVENT=SUCCESSFUL_RECOVERY";
+		envp[idx++] = "DEVICE_ONLINE=1";
+		break;
+	case PCI_ERS_RESULT_DISCONNECT:
+		envp[idx++] = "ERROR_EVENT=FAILED_RECOVERY";
+		envp[idx++] = "DEVICE_ONLINE=0";
+		break;
+	default:
+		break;
+	}
+
+	if (idx > 0) {
+		envp[idx++] = NULL;
+		kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, envp);
+	}
+}
+#endif
+
 static int pci_bus_num_vf(struct device *dev)
 {
 	return pci_num_vf(to_pci_dev(dev));
@@ -1543,8 +1593,49 @@ struct bus_type pci_bus_type = {
 };
 EXPORT_SYMBOL(pci_bus_type);
 
+#ifdef CONFIG_PCIEPORTBUS
+static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct pcie_device *pciedev;
+	struct pcie_port_service_driver *driver;
+
+	if (drv->bus != &pcie_port_bus_type || dev->bus != &pcie_port_bus_type)
+		return 0;
+
+	pciedev = to_pcie_device(dev);
+	driver = to_service_driver(drv);
+
+	if (driver->service != pciedev->service)
+		return 0;
+
+	if (driver->port_type != PCIE_ANY_PORT &&
+	    driver->port_type != pci_pcie_type(pciedev->port))
+		return 0;
+
+	return 1;
+}
+
+struct bus_type pcie_port_bus_type = {
+	.name		= "pci_express",
+	.match		= pcie_port_bus_match,
+};
+EXPORT_SYMBOL_GPL(pcie_port_bus_type);
+#endif
+
 static int __init pci_driver_init(void)
 {
-	return bus_register(&pci_bus_type);
+	int ret;
+
+	ret = bus_register(&pci_bus_type);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_PCIEPORTBUS
+	ret = bus_register(&pcie_port_bus_type);
+	if (ret)
+		return ret;
+#endif
+
+	return 0;
 }
 postcore_initcall(pci_driver_init);

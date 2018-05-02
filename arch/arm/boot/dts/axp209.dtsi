@@ -58,6 +58,11 @@
 		status = "disabled";
 	};
 
+	axp_adc: adc {
+		compatible = "x-powers,axp209-adc";
+		#io-channel-cells = <1>;
+	};
+
 	axp_gpio: gpio {
 		compatible = "x-powers,axp209-gpio";
 		gpio-controller;

@@ -1768,41 +1768,36 @@ static void __exit iwl_drv_exit(void)
 module_exit(iwl_drv_exit);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug, iwlwifi_mod_params.debug_level, uint,
-		   S_IRUGO | S_IWUSR);
+module_param_named(debug, iwlwifi_mod_params.debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, S_IRUGO);
+module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
+module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, 0444);
 MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
-module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
-		   int, S_IRUGO);
+module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
 		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
-module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, S_IRUGO);
+module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
 module_param_named(antenna_coupling, iwlwifi_mod_params.antenna_coupling,
-		   int, S_IRUGO);
+		   int, 0444);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (default: 0 dB)");
 
-module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
+module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, 0444);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
 
-module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
-		   bool, S_IRUGO);
+module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable, bool, 0444);
 MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
 
-module_param_named(lar_disable, iwlwifi_mod_params.lar_disable,
-		   bool, S_IRUGO);
+module_param_named(lar_disable, iwlwifi_mod_params.lar_disable, bool, 0444);
 MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
-module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
-		   uint, S_IRUGO | S_IWUSR);
+module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
 
@@ -1823,31 +1818,27 @@ MODULE_PARM_DESC(uapsd_disable,
  * default: bt_coex_active = true (BT_COEX_ENABLE)
  */
 module_param_named(bt_coex_active, iwlwifi_mod_params.bt_coex_active,
-		bool, S_IRUGO);
+		   bool, 0444);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
 
-module_param_named(led_mode, iwlwifi_mod_params.led_mode, int, S_IRUGO);
+module_param_named(led_mode, iwlwifi_mod_params.led_mode, int, 0444);
 MODULE_PARM_DESC(led_mode, "0=system default, "
 		"1=On(RF On)/Off(RF Off), 2=blinking, 3=Off (default: 0)");
 
-module_param_named(power_save, iwlwifi_mod_params.power_save,
-		bool, S_IRUGO);
+module_param_named(power_save, iwlwifi_mod_params.power_save, bool, 0444);
 MODULE_PARM_DESC(power_save,
 		 "enable WiFi power management (default: disable)");
 
-module_param_named(power_level, iwlwifi_mod_params.power_level,
-		int, S_IRUGO);
+module_param_named(power_level, iwlwifi_mod_params.power_level, int, 0444);
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
 
-module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
+module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, 0444);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
 
-module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout,
-		   uint, S_IRUGO);
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout, uint, 0444);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
-module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
-		   S_IRUGO);
+module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool, 0444);
 MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");

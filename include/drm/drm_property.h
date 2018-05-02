@@ -281,32 +281,6 @@ struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
 
 /**
- * drm_property_reference_blob - acquire a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_get() and should not be
- * used by new code.
- */
-static inline struct drm_property_blob *
-drm_property_reference_blob(struct drm_property_blob *blob)
-{
-	return drm_property_blob_get(blob);
-}
-
-/**
- * drm_property_unreference_blob - release a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_put() and should not be
- * used by new code.
- */
-static inline void
-drm_property_unreference_blob(struct drm_property_blob *blob)
-{
-	drm_property_blob_put(blob);
-}
-
-/**
  * drm_property_find - find property object
  * @dev: DRM device
  * @file_priv: drm file to check for lease against.

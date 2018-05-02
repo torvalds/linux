@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -649,7 +649,6 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 				rm->rdma.op_notifier = NULL;
 			}
 			was_on_sock = 1;
-			rm->m_rs = NULL;
 		}
 		spin_unlock(&rs->rs_lock);
 
@@ -756,9 +755,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		 */
 		if (!test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags)) {
 			spin_unlock_irqrestore(&cp->cp_lock, flags);
-			spin_lock_irqsave(&rm->m_rs_lock, flags);
-			rm->m_rs = NULL;
-			spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 			continue;
 		}
 		list_del_init(&rm->m_conn_item);
@@ -774,7 +770,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -798,7 +793,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -849,6 +843,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		list_add_tail(&rm->m_sock_item, &rs->rs_send_queue);
 		set_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
 		rds_message_addref(rm);
+		sock_hold(rds_rs_to_sk(rs));
 		rm->m_rs = rs;
 
 		/* The code ordering is a little weird, but we're
@@ -880,12 +875,13 @@ out:
  * rds_message is getting to be quite complicated, and we'd like to allocate
  * it all in one go. This figures out how big it needs to be up front.
  */
-static int rds_rm_size(struct msghdr *msg, int data_len)
+static int rds_rm_size(struct msghdr *msg, int num_sgs)
 {
 	struct cmsghdr *cmsg;
 	int size = 0;
 	int cmsg_groups = 0;
 	int retval;
+	bool zcopy_cookie = false;
 
 	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
@@ -903,6 +899,10 @@ static int rds_rm_size(struct msghdr *msg, int data_len)
 			size += retval;
 
 			break;
+
+		case RDS_CMSG_ZCOPY_COOKIE:
+			zcopy_cookie = true;
+			/* fall through */
 
 		case RDS_CMSG_RDMA_DEST:
 		case RDS_CMSG_RDMA_MAP:
@@ -924,13 +924,29 @@ static int rds_rm_size(struct msghdr *msg, int data_len)
 
 	}
 
-	size += ceil(data_len, PAGE_SIZE) * sizeof(struct scatterlist);
+	if ((msg->msg_flags & MSG_ZEROCOPY) && !zcopy_cookie)
+		return -EINVAL;
+
+	size += num_sgs * sizeof(struct scatterlist);
 
 	/* Ensure (DEST, MAP) are never used with (ARGS, ATOMIC) */
 	if (cmsg_groups == 3)
 		return -EINVAL;
 
 	return size;
+}
+
+static int rds_cmsg_zcopy(struct rds_sock *rs, struct rds_message *rm,
+			  struct cmsghdr *cmsg)
+{
+	u32 *cookie;
+
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(*cookie)) ||
+	    !rm->data.op_mmp_znotifier)
+		return -EINVAL;
+	cookie = CMSG_DATA(cmsg);
+	rm->data.op_mmp_znotifier->z_cookie = *cookie;
+	return 0;
 }
 
 static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
@@ -975,6 +991,10 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 			ret = rds_cmsg_atomic(rs, rm, cmsg);
 			break;
 
+		case RDS_CMSG_ZCOPY_COOKIE:
+			ret = rds_cmsg_zcopy(rs, rm, cmsg);
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -997,10 +1017,15 @@ static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
 	if (conn->c_npaths == 0 && hash != 0) {
 		rds_send_ping(conn, 0);
 
-		if (conn->c_npaths == 0) {
-			wait_event_interruptible(conn->c_hs_waitq,
-						 (conn->c_npaths != 0));
-		}
+		/* The underlying connection is not up yet.  Need to wait
+		 * until it is up to be sure that the non-zero c_path can be
+		 * used.  But if we are interrupted, we have to use the zero
+		 * c_path in case the connection ends up being non-MP capable.
+		 */
+		if (conn->c_npaths == 0)
+			if (wait_event_interruptible(conn->c_hs_waitq,
+						     conn->c_npaths != 0))
+				hash = 0;
 		if (conn->c_npaths == 1)
 			hash = 0;
 	}
@@ -1045,10 +1070,13 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	long timeo = sock_sndtimeo(sk, nonblock);
 	struct rds_conn_path *cpath;
 	size_t total_payload_len = payload_len, rdma_payload_len = 0;
+	bool zcopy = ((msg->msg_flags & MSG_ZEROCOPY) &&
+		      sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY));
+	int num_sgs = ceil(payload_len, PAGE_SIZE);
 
 	/* Mirror Linux UDP mirror of BSD error message compatibility */
 	/* XXX: Perhaps MSG_MORE someday */
-	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_CMSG_COMPAT)) {
+	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_CMSG_COMPAT | MSG_ZEROCOPY)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1092,8 +1120,15 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
+	if (zcopy) {
+		if (rs->rs_transport->t_type != RDS_TRANS_TCP) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+		num_sgs = iov_iter_npages(&msg->msg_iter, INT_MAX);
+	}
 	/* size of rm including all sgs */
-	ret = rds_rm_size(msg, payload_len);
+	ret = rds_rm_size(msg, num_sgs);
 	if (ret < 0)
 		goto out;
 
@@ -1105,12 +1140,12 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	/* Attach data to the rm */
 	if (payload_len) {
-		rm->data.op_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
+		rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
 		if (!rm->data.op_sg) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		ret = rds_message_copy_from_user(rm, &msg->msg_iter);
+		ret = rds_message_copy_from_user(rm, &msg->msg_iter, zcopy);
 		if (ret)
 			goto out;
 	}

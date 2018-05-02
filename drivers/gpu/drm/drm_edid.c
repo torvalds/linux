@@ -4451,10 +4451,10 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 	info->has_hdmi_infoframe = false;
+	memset(&info->hdmi, 0, sizeof(info->hdmi));
 
 	info->non_desktop = 0;
 }
-EXPORT_SYMBOL_GPL(drm_reset_display_info);
 
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
 {
@@ -4462,16 +4462,10 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 
 	u32 quirks = edid_get_quirks(edid);
 
+	drm_reset_display_info(connector);
+
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
-
-	/* driver figures it out in this case */
-	info->bpc = 0;
-	info->color_formats = 0;
-	info->cea_rev = 0;
-	info->max_tmds_clock = 0;
-	info->dvi_dual = false;
-	info->has_hdmi_infoframe = false;
 
 	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
@@ -4538,7 +4532,6 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 	return quirks;
 }
-EXPORT_SYMBOL_GPL(drm_add_display_info);
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {

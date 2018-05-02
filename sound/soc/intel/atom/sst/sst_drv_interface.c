@@ -238,16 +238,7 @@ static int sst_cdev_close(struct device *dev, unsigned int str_id)
 		return -EINVAL;
 	}
 
-	if (stream->status == STREAM_RESET) {
-		dev_dbg(dev, "stream in reset state...\n");
-		stream->status = STREAM_UN_INIT;
-
-		retval = 0;
-		goto put;
-	}
-
 	retval = sst_free_stream(ctx, str_id);
-put:
 	stream->compr_cb_param = NULL;
 	stream->compr_cb = NULL;
 
@@ -256,7 +247,6 @@ put:
 
 	dev_dbg(dev, "End\n");
 	return retval;
-
 }
 
 static int sst_cdev_ack(struct device *dev, unsigned int str_id,
@@ -486,16 +476,7 @@ static int sst_close_pcm_stream(struct device *dev, unsigned int str_id)
 		return -EINVAL;
 	}
 
-	if (stream->status == STREAM_RESET) {
-		/* silently fail here as we have cleaned the stream earlier */
-		dev_dbg(ctx->dev, "stream in reset state...\n");
-
-		retval = 0;
-		goto put;
-	}
-
 	retval = free_stream_context(ctx, str_id);
-put:
 	stream->pcm_substream = NULL;
 	stream->status = STREAM_UN_INIT;
 	stream->period_elapsed = NULL;

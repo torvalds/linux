@@ -660,7 +660,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d",
 			   ldlm_it2str(it->it_op), lvb_len);
 
-		lmm = libcfs_kvzalloc(lvb_len, GFP_NOFS);
+		lmm = kvzalloc(lvb_len, GFP_NOFS);
 		if (!lmm) {
 			LDLM_LOCK_PUT(lock);
 			return -ENOMEM;

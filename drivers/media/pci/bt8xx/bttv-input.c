@@ -332,11 +332,15 @@ static void bttv_ir_stop(struct bttv *btv)
 static int get_key_pv951(struct IR_i2c *ir, enum rc_proto *protocol,
 			 u32 *scancode, u8 *toggle)
 {
+	int rc;
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+	rc = i2c_master_recv(ir->c, &b, 1);
+	if (rc != 1) {
 		dprintk("read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 

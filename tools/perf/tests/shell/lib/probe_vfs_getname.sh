@@ -5,7 +5,7 @@ had_vfs_getname=$?
 
 cleanup_probe_vfs_getname() {
 	if [ $had_vfs_getname -eq 1 ] ; then
-		perf probe -q -d probe:vfs_getname
+		perf probe -q -d probe:vfs_getname*
 	fi
 }
 

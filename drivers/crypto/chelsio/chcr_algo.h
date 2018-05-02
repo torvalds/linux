@@ -86,6 +86,39 @@
 	 KEY_CONTEXT_OPAD_PRESENT_M)
 #define KEY_CONTEXT_OPAD_PRESENT_F      KEY_CONTEXT_OPAD_PRESENT_V(1U)
 
+#define TLS_KEYCTX_RXFLIT_CNT_S 24
+#define TLS_KEYCTX_RXFLIT_CNT_V(x) ((x) << TLS_KEYCTX_RXFLIT_CNT_S)
+
+#define TLS_KEYCTX_RXPROT_VER_S 20
+#define TLS_KEYCTX_RXPROT_VER_M 0xf
+#define TLS_KEYCTX_RXPROT_VER_V(x) ((x) << TLS_KEYCTX_RXPROT_VER_S)
+
+#define TLS_KEYCTX_RXCIPH_MODE_S 16
+#define TLS_KEYCTX_RXCIPH_MODE_M 0xf
+#define TLS_KEYCTX_RXCIPH_MODE_V(x) ((x) << TLS_KEYCTX_RXCIPH_MODE_S)
+
+#define TLS_KEYCTX_RXAUTH_MODE_S 12
+#define TLS_KEYCTX_RXAUTH_MODE_M 0xf
+#define TLS_KEYCTX_RXAUTH_MODE_V(x) ((x) << TLS_KEYCTX_RXAUTH_MODE_S)
+
+#define TLS_KEYCTX_RXCIAU_CTRL_S 11
+#define TLS_KEYCTX_RXCIAU_CTRL_V(x) ((x) << TLS_KEYCTX_RXCIAU_CTRL_S)
+
+#define TLS_KEYCTX_RX_SEQCTR_S 9
+#define TLS_KEYCTX_RX_SEQCTR_M 0x3
+#define TLS_KEYCTX_RX_SEQCTR_V(x) ((x) << TLS_KEYCTX_RX_SEQCTR_S)
+
+#define TLS_KEYCTX_RX_VALID_S 8
+#define TLS_KEYCTX_RX_VALID_V(x) ((x) << TLS_KEYCTX_RX_VALID_S)
+
+#define TLS_KEYCTX_RXCK_SIZE_S 3
+#define TLS_KEYCTX_RXCK_SIZE_M 0x7
+#define TLS_KEYCTX_RXCK_SIZE_V(x) ((x) << TLS_KEYCTX_RXCK_SIZE_S)
+
+#define TLS_KEYCTX_RXMK_SIZE_S 0
+#define TLS_KEYCTX_RXMK_SIZE_M 0x7
+#define TLS_KEYCTX_RXMK_SIZE_V(x) ((x) << TLS_KEYCTX_RXMK_SIZE_S)
+
 #define CHCR_HASH_MAX_DIGEST_SIZE 64
 #define CHCR_MAX_SHA_DIGEST_SIZE 64
 
@@ -176,6 +209,15 @@
 		      KEY_CONTEXT_SALT_PRESENT_V(1) | \
 		      KEY_CONTEXT_CTX_LEN_V((ctx_len)))
 
+#define  FILL_KEY_CRX_HDR(ck_size, mk_size, d_ck, opad, ctx_len) \
+		htonl(TLS_KEYCTX_RXMK_SIZE_V(mk_size) | \
+		      TLS_KEYCTX_RXCK_SIZE_V(ck_size) | \
+		      TLS_KEYCTX_RX_VALID_V(1) | \
+		      TLS_KEYCTX_RX_SEQCTR_V(3) | \
+		      TLS_KEYCTX_RXAUTH_MODE_V(4) | \
+		      TLS_KEYCTX_RXCIPH_MODE_V(2) | \
+		      TLS_KEYCTX_RXFLIT_CNT_V((ctx_len)))
+
 #define FILL_WR_OP_CCTX_SIZE \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_OPCODE_V( \
@@ -216,15 +258,16 @@
 #define FILL_CMD_MORE(immdatalen) htonl(ULPTX_CMD_V(ULP_TX_SC_IMM) |\
 					ULP_TX_SC_MORE_V((immdatalen)))
 #define MAX_NK 8
-#define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
 #define MAX_DSGL_ENT			32
 #define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			1 /* IV */
 #define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
 #define MIN_CCM_SG			2 /*IV+B0*/
-#define SPACE_LEFT(len) \
-	((SGE_MAX_WR_LEN - WR_MIN_LEN - (len)))
+#define CIP_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - CIP_WR_MIN_LEN - (len)))
+#define HASH_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - HASH_WR_MIN_LEN - (len)))
 
 struct algo_param {
 	unsigned int auth_mode;
@@ -233,12 +276,14 @@ struct algo_param {
 };
 
 struct hash_wr_param {
+	struct algo_param alg_prm;
 	unsigned int opad_needed;
 	unsigned int more;
 	unsigned int last;
-	struct algo_param alg_prm;
+	unsigned int kctx_len;
 	unsigned int sg_len;
 	unsigned int bfr_len;
+	unsigned int hash_size;
 	u64 scmd1;
 };
 

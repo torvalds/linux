@@ -600,7 +600,7 @@ struct mgmt_rp_read_ext_info {
 
 #define MGMT_OP_SET_APPEARANCE		0x0043
 struct mgmt_cp_set_appearance {
-	__u16	appearance;
+	__le16	appearance;
 } __packed;
 #define MGMT_SET_APPEARANCE_SIZE	2
 

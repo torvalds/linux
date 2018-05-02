@@ -28,6 +28,7 @@ void bdi_put(struct backing_dev_info *bdi);
 
 __printf(2, 3)
 int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...);
+__printf(2, 0)
 int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
 		    va_list args);
 int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
@@ -175,7 +176,7 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 }
 
 long congestion_wait(int sync, long timeout);
-long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
+long wait_iff_congested(int sync, long timeout);
 
 static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
 {
@@ -329,7 +330,7 @@ static inline bool inode_to_wb_is_valid(struct inode *inode)
  * @inode: inode of interest
  *
  * Returns the wb @inode is currently associated with.  The caller must be
- * holding either @inode->i_lock, @inode->i_mapping->tree_lock, or the
+ * holding either @inode->i_lock, the i_pages lock, or the
  * associated wb's list_lock.
  */
 static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
@@ -337,7 +338,7 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
 #ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(debug_locks &&
 		     (!lockdep_is_held(&inode->i_lock) &&
-		      !lockdep_is_held(&inode->i_mapping->tree_lock) &&
+		      !lockdep_is_held(&inode->i_mapping->i_pages.xa_lock) &&
 		      !lockdep_is_held(&inode->i_wb->list_lock)));
 #endif
 	return inode->i_wb;
@@ -346,20 +347,20 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
 /**
  * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
  * @inode: target inode
- * @lockedp: temp bool output param, to be passed to the end function
+ * @cookie: output param, to be passed to the end function
  *
  * The caller wants to access the wb associated with @inode but isn't
- * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
+ * holding inode->i_lock, the i_pages lock or wb->list_lock.  This
  * function determines the wb associated with @inode and ensures that the
  * association doesn't change until the transaction is finished with
  * unlocked_inode_to_wb_end().
  *
- * The caller must call unlocked_inode_to_wb_end() with *@lockdep
- * afterwards and can't sleep during transaction.  IRQ may or may not be
- * disabled on return.
+ * The caller must call unlocked_inode_to_wb_end() with *@cookie afterwards and
+ * can't sleep during the transaction.  IRQs may or may not be disabled on
+ * return.
  */
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
 {
 	rcu_read_lock();
 
@@ -367,14 +368,14 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 	 * Paired with store_release in inode_switch_wb_work_fn() and
 	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
 	 */
-	*lockedp = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+	cookie->locked = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
 
-	if (unlikely(*lockedp))
-		spin_lock_irq(&inode->i_mapping->tree_lock);
+	if (unlikely(cookie->locked))
+		xa_lock_irqsave(&inode->i_mapping->i_pages, cookie->flags);
 
 	/*
-	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or tree_lock.
-	 * inode_to_wb() will bark.  Deref directly.
+	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or the i_pages
+	 * lock.  inode_to_wb() will bark.  Deref directly.
 	 */
 	return inode->i_wb;
 }
@@ -382,12 +383,13 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 /**
  * unlocked_inode_to_wb_end - end inode wb access transaction
  * @inode: target inode
- * @locked: *@lockedp from unlocked_inode_to_wb_begin()
+ * @cookie: @cookie from unlocked_inode_to_wb_begin()
  */
-static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
+static inline void unlocked_inode_to_wb_end(struct inode *inode,
+					    struct wb_lock_cookie *cookie)
 {
-	if (unlikely(locked))
-		spin_unlock_irq(&inode->i_mapping->tree_lock);
+	if (unlikely(cookie->locked))
+		xa_unlock_irqrestore(&inode->i_mapping->i_pages, cookie->flags);
 
 	rcu_read_unlock();
 }
@@ -434,12 +436,13 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 }
 
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
 {
 	return inode_to_wb(inode);
 }
 
-static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
+static inline void unlocked_inode_to_wb_end(struct inode *inode,
+					    struct wb_lock_cookie *cookie)
 {
 }
 

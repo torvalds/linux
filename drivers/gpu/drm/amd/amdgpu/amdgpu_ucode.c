@@ -277,7 +277,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	default:
-		DRM_ERROR("Unknow firmware load type\n");
+		DRM_ERROR("Unknown firmware load type\n");
 	}
 
 	return AMDGPU_FW_LOAD_DIRECT;

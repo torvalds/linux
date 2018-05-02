@@ -1,6 +1,6 @@
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
-	depends on MMU && (BROKEN || !FRV)
+	depends on MMU
 	select ELFCORE
 	default y
 	---help---
@@ -35,7 +35,7 @@ config ARCH_BINFMT_ELF_STATE
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	depends on (ARM || (SUPERH32 && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -90,7 +90,6 @@ config BINFMT_SCRIPT
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
 	depends on !MMU || ARM || M68K
-	depends on !FRV || BROKEN
 	help
 	  Support uClinux FLAT format binaries.
 

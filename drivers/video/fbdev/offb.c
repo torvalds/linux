@@ -280,6 +280,7 @@ static void offb_destroy(struct fb_info *info)
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
 
@@ -518,6 +519,7 @@ static void __init offb_init_fb(const char *name,
 	return;
 
 out_err:
+	fb_dealloc_cmap(&info->cmap);
 	iounmap(info->screen_base);
 out_aper:
 	iounmap(par->cmap_adr);

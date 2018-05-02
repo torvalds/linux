@@ -161,9 +161,9 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-				, (mipi_port_ID_t) 0
+				, (enum mipi_port_id) 0
 #else
-				(mipi_port_ID_t) 0,
+				(enum mipi_port_id) 0,
 #endif
 #endif
 #ifndef ISP2401
@@ -574,7 +574,7 @@ static void pipeline_map_num_to_sp_thread(unsigned int pipe_num)
 
 		But the below is more descriptive.
 	*/
-	assert(found_sp_thread != false);
+	assert(found_sp_thread);
 }
 
 static void pipeline_unmap_num_to_sp_thread(unsigned int pipe_num)
@@ -692,17 +692,16 @@ static void pipeline_init_defaults(
 	unsigned int pipe_num,
 	unsigned int dvs_frame_delay)
 {
-	struct ia_css_frame init_frame = DEFAULT_FRAME;
 	unsigned int i;
 
 	pipeline->pipe_id = pipe_id;
 	pipeline->stages = NULL;
 	pipeline->stop_requested = false;
 	pipeline->current_stage = NULL;
-	pipeline->in_frame = init_frame;
+	pipeline->in_frame = DEFAULT_FRAME;
 	for (i = 0; i < IA_CSS_PIPE_MAX_OUTPUT_STAGE; i++) {
-		pipeline->out_frame[i] = init_frame;
-		pipeline->vf_frame[i] = init_frame;
+		pipeline->out_frame[i] = DEFAULT_FRAME;
+		pipeline->vf_frame[i] = DEFAULT_FRAME;
 	}
 	pipeline->num_execs = -1;
 	pipeline->acquire_isp_each_stage = true;

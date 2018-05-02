@@ -449,6 +449,13 @@ static int intel_sst_suspend(struct device *dev)
 			dev_err(dev, "stream %d is running, can't suspend, abort\n", i);
 			return -EBUSY;
 		}
+
+		if (ctx->pdata->streams_lost_on_suspend) {
+			stream->resume_status = stream->status;
+			stream->resume_prev = stream->prev;
+			if (stream->status != STREAM_UN_INIT)
+				sst_free_stream(ctx, i);
+		}
 	}
 	synchronize_irq(ctx->irq_num);
 	flush_workqueue(ctx->post_msg_wq);
@@ -509,8 +516,8 @@ static int intel_sst_resume(struct device *dev)
 {
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 	struct sst_fw_save *fw_save = ctx->fw_save;
-	int ret = 0;
 	struct sst_block *block;
+	int i, ret = 0;
 
 	if (!fw_save)
 		return 0;
@@ -548,6 +555,21 @@ static int intel_sst_resume(struct device *dev)
 
 	} else {
 		sst_set_fw_state_locked(ctx, SST_FW_RUNNING);
+	}
+
+	if (ctx->pdata->streams_lost_on_suspend) {
+		for (i = 1; i <= ctx->info.max_streams; i++) {
+			struct stream_info *stream = &ctx->streams[i];
+
+			if (stream->resume_status != STREAM_UN_INIT) {
+				dev_dbg(ctx->dev, "Re-allocing stream %d status %d prev %d\n",
+					i, stream->resume_status,
+					stream->resume_prev);
+				sst_realloc_stream(ctx, i);
+				stream->status = stream->resume_status;
+				stream->prev = stream->resume_prev;
+			}
+		}
 	}
 
 	sst_free_block(ctx, block);

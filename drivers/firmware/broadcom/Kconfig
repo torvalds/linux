@@ -13,6 +13,7 @@ config BCM47XX_NVRAM
 config BCM47XX_SPROM
 	bool "Broadcom SPROM driver"
 	depends on BCM47XX_NVRAM
+	select GENERIC_NET_UTILS
 	help
 	  Broadcom devices store configuration data in SPROM. Accessing it is
 	  specific to the bus host type, e.g. PCI(e) devices have it mapped in

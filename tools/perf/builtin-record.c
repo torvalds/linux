@@ -45,6 +45,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <locale.h>
 #include <poll.h>
 #include <unistd.h>
 #include <sched.h>
@@ -70,7 +71,6 @@ struct record {
 	struct auxtrace_record	*itr;
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
-	const char		*progname;
 	int			realtime_prio;
 	bool			no_buildid;
 	bool			no_buildid_set;
@@ -273,6 +273,24 @@ static void record__read_auxtrace_snapshot(struct record *rec)
 	}
 }
 
+static int record__auxtrace_init(struct record *rec)
+{
+	int err;
+
+	if (!rec->itr) {
+		rec->itr = auxtrace_record__init(rec->evlist, &err);
+		if (err)
+			return err;
+	}
+
+	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
+					      rec->opts.auxtrace_snapshot_opts);
+	if (err)
+		return err;
+
+	return auxtrace_parse_filters(rec->evlist);
+}
+
 #else
 
 static inline
@@ -289,6 +307,11 @@ void record__read_auxtrace_snapshot(struct record *rec __maybe_unused)
 
 static inline
 int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
+{
+	return 0;
+}
+
+static int record__auxtrace_init(struct record *rec __maybe_unused)
 {
 	return 0;
 }
@@ -509,7 +532,7 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 		struct auxtrace_mmap *mm = &maps[i].auxtrace_mmap;
 
 		if (maps[i].base) {
-			if (perf_mmap__push(&maps[i], overwrite, rec, record__pushfn) != 0) {
+			if (perf_mmap__push(&maps[i], rec, record__pushfn) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -731,18 +754,22 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (data->is_pipe) {
-		err = perf_event__synthesize_features(
-			tool, session, rec->evlist, process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize features.\n");
-			return err;
-		}
-
+		/*
+		 * We need to synthesize events first, because some
+		 * features works on top of them (on report side).
+		 */
 		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
 			goto out;
+		}
+
+		err = perf_event__synthesize_features(tool, session, rec->evlist,
+						      process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize features.\n");
+			return err;
 		}
 
 		if (have_tracepoints(&rec->evlist->entries)) {
@@ -830,15 +857,12 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	int status = 0;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
-	struct machine *machine;
 	struct perf_tool *tool = &rec->tool;
 	struct record_opts *opts = &rec->opts;
 	struct perf_data *data = &rec->data;
 	struct perf_session *session;
 	bool disabled = false, draining = false;
 	int fd;
-
-	rec->progname = argv[0];
 
 	atexit(record__sig_exit);
 	signal(SIGCHLD, sig_handler);
@@ -935,8 +959,6 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		goto out_child;
 	}
 
-	machine = &session->machines.host;
-
 	err = record__synthesize(rec, false);
 	if (err < 0)
 		goto out_child;
@@ -964,6 +986,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * Let the child rip
 	 */
 	if (forks) {
+		struct machine *machine = &session->machines.host;
 		union perf_event *event;
 		pid_t tgid;
 
@@ -1260,10 +1283,12 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(var, "record.call-graph"))
-		var = "call-graph.record-mode"; /* fall-through */
+	if (!strcmp(var, "record.call-graph")) {
+		var = "call-graph.record-mode";
+		return perf_default_config(var, value, cb);
+	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 struct clockid_map {
@@ -1551,7 +1576,11 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "tail-synthesize", &record.opts.tail_synthesize,
 		    "synthesize non-sample events at the end of output"),
 	OPT_BOOLEAN(0, "overwrite", &record.opts.overwrite, "use overwrite mode"),
-	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
+	OPT_BOOLEAN(0, "strict-freq", &record.opts.strict_freq,
+		    "Fail if the specified frequency can't be used"),
+	OPT_CALLBACK('F', "freq", &record.opts, "freq or 'max'",
+		     "profile at this frequency",
+		      record__parse_freq),
 	OPT_CALLBACK('m', "mmap-pages", &record.opts, "pages[,pages]",
 		     "number of mmap data pages and AUX area tracing mmap pages",
 		     record__parse_mmap_pages),
@@ -1660,6 +1689,8 @@ int cmd_record(int argc, const char **argv)
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
 
+	setlocale(LC_ALL, "");
+
 #ifndef HAVE_LIBBPF_SUPPORT
 # define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)
 	set_nobuild('\0', "clang-path", true);
@@ -1720,17 +1751,6 @@ int cmd_record(int argc, const char **argv)
 		alarm(rec->switch_output.time);
 	}
 
-	if (!rec->itr) {
-		rec->itr = auxtrace_record__init(rec->evlist, &err);
-		if (err)
-			goto out;
-	}
-
-	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
-					      rec->opts.auxtrace_snapshot_opts);
-	if (err)
-		goto out;
-
 	/*
 	 * Allow aliases to facilitate the lookup of symbols for address
 	 * filters. Refer to auxtrace_parse_filters().
@@ -1739,7 +1759,7 @@ int cmd_record(int argc, const char **argv)
 
 	symbol__init(NULL);
 
-	err = auxtrace_parse_filters(rec->evlist);
+	err = record__auxtrace_init(rec);
 	if (err)
 		goto out;
 
@@ -1812,7 +1832,7 @@ int cmd_record(int argc, const char **argv)
 	err = target__validate(&rec->opts.target);
 	if (err) {
 		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
-		ui__warning("%s", errbuf);
+		ui__warning("%s\n", errbuf);
 	}
 
 	err = target__parse_uid(&rec->opts.target);

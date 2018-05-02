@@ -398,7 +398,7 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 
 static int ocfs2_control_do_setversion_msg(struct file *file,
 					   struct ocfs2_control_message_setv *msg)
- {
+{
 	long major, minor;
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;

@@ -374,22 +374,22 @@
 
 #define STB0899_OFF0_IF_AGC_GAIN		0xf30c
 #define STB0899_BASE_IF_AGC_GAIN		0x00000000
-#define STB0899_IF_AGC_GAIN			(0x3fff < 0)
+#define STB0899_IF_AGC_GAIN			(0x3fff << 0)
 #define STB0899_OFFST_IF_AGC_GAIN		0
 #define STB0899_WIDTH_IF_AGC_GAIN		14
 
 #define STB0899_OFF0_BB_AGC_GAIN		0xf310
 #define STB0899_BASE_BB_AGC_GAIN		0x00000000
-#define STB0899_BB_AGC_GAIN			(0x3fff < 0)
+#define STB0899_BB_AGC_GAIN			(0x3fff << 0)
 #define STB0899_OFFST_BB_AGC_GAIN		0
 #define STB0899_WIDTH_BB_AGC_GAIN		14
 
 #define STB0899_OFF0_DC_OFFSET			0xf314
 #define STB0899_BASE_DC_OFFSET			0x00000000
-#define STB0899_I				(0xff < 8)
+#define STB0899_I				(0xff << 8)
 #define STB0899_OFFST_I				8
 #define STB0899_WIDTH_I				8
-#define STB0899_Q				(0xff < 0)
+#define STB0899_Q				(0xff << 0)
 #define STB0899_OFFST_Q				8
 #define STB0899_WIDTH_Q				8
 

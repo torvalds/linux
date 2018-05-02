@@ -214,7 +214,7 @@ brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
 	entry->read = read_fn;
 	entry->drvr = drvr;
 
-	dentry = debugfs_create_file(fn, S_IRUGO, dentry, entry,
+	dentry = debugfs_create_file(fn, 0444, dentry, entry,
 				     &brcms_debugfs_def_ops);
 
 	return PTR_ERR_OR_ZERO(dentry);

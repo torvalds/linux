@@ -21,7 +21,7 @@
 /*
  * Initialise a filesystem server cursor for iterating over FS servers.
  */
-void afs_init_fs_cursor(struct afs_fs_cursor *fc, struct afs_vnode *vnode)
+static void afs_init_fs_cursor(struct afs_fs_cursor *fc, struct afs_vnode *vnode)
 {
 	memset(fc, 0, sizeof(*fc));
 }

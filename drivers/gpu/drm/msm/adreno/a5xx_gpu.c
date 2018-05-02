@@ -89,14 +89,14 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 	 */
 	if (to_adreno_gpu(gpu)->fwloc == FW_LOCATION_LEGACY) {
 		ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID,
-				mem_region, mem_phys, mem_size);
+				mem_region, mem_phys, mem_size, NULL);
 	} else {
 		char newname[strlen("qcom/") + strlen(fwname) + 1];
 
 		sprintf(newname, "qcom/%s", fwname);
 
 		ret = qcom_mdt_load(dev, fw, newname, GPU_PAS_ID,
-				mem_region, mem_phys, mem_size);
+				mem_region, mem_phys, mem_size, NULL);
 	}
 	if (ret)
 		goto out;

@@ -748,13 +748,11 @@ edd_init(void)
 	int rc=0;
 	struct edd_device *edev;
 
+	if (!edd_num_devices())
+		return -ENODEV;
+
 	printk(KERN_INFO "BIOS EDD facility v%s %s, %d devices found\n",
 	       EDD_VERSION, EDD_DATE, edd_num_devices());
-
-	if (!edd_num_devices()) {
-		printk(KERN_INFO "EDD information not available.\n");
-		return -ENODEV;
-	}
 
 	edd_kset = kset_create_and_add("edd", NULL, firmware_kobj);
 	if (!edd_kset)

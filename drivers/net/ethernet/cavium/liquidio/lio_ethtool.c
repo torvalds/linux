@@ -232,10 +232,16 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 
 	linfo = &lio->linfo;
 
-	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
+	switch (linfo->link.s.phy_type) {
+	case LIO_PHY_PORT_TP:
+		ecmd->base.port = PORT_TP;
+		supported = (SUPPORTED_10000baseT_Full |
+			     SUPPORTED_TP | SUPPORTED_Pause);
+		advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Pause);
+		ecmd->base.autoneg = AUTONEG_DISABLE;
+		break;
+
+	case LIO_PHY_PORT_FIBRE:
 		ecmd->base.port = PORT_FIBRE;
 
 		if (linfo->link.s.speed == SPEED_10000) {
@@ -245,12 +251,18 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 
 		supported |= SUPPORTED_FIBRE | SUPPORTED_Pause;
 		advertising |= ADVERTISED_Pause;
+		ecmd->base.autoneg = AUTONEG_DISABLE;
+		break;
+	}
+
+	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
 		ethtool_convert_legacy_u32_to_link_mode(
 			ecmd->link_modes.supported, supported);
 		ethtool_convert_legacy_u32_to_link_mode(
 			ecmd->link_modes.advertising, advertising);
-		ecmd->base.autoneg = AUTONEG_DISABLE;
-
 	} else {
 		dev_err(&oct->pci_dev->dev, "Unknown link interface reported %d\n",
 			linfo->link.s.if_mode);

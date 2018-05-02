@@ -74,6 +74,7 @@ struct ipvl_dev {
 	DECLARE_BITMAP(mac_filters, IPVLAN_MAC_FILTER_SIZE);
 	netdev_features_t	sfeatures;
 	u32			msg_enable;
+	spinlock_t		addrs_lock;
 };
 
 struct ipvl_addr {
@@ -176,4 +177,10 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 void ipvlan_link_delete(struct net_device *dev, struct list_head *head);
 void ipvlan_link_setup(struct net_device *dev);
 int ipvlan_link_register(struct rtnl_link_ops *ops);
+
+static inline bool netif_is_ipvlan_port(const struct net_device *dev)
+{
+	return rcu_access_pointer(dev->rx_handler) == ipvlan_handle_frame;
+}
+
 #endif /* __IPVLAN_H */

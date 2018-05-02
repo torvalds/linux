@@ -65,11 +65,7 @@
 #define ORANGEFS_REQDEVICE_NAME          "pvfs2-req"
 
 #define ORANGEFS_DEVREQ_MAGIC             0x20030529
-#define ORANGEFS_LINK_MAX                 0x000000FF
 #define ORANGEFS_PURGE_RETRY_COUNT     0x00000005
-#define ORANGEFS_MAX_NUM_OPTIONS          0x00000004
-#define ORANGEFS_MAX_MOUNT_OPT_LEN        0x00000080
-#define ORANGEFS_MAX_FSKEY_LEN            64
 
 #define MAX_DEV_REQ_UPSIZE (2 * sizeof(__s32) +   \
 sizeof(__u64) + sizeof(struct orangefs_upcall_s))
@@ -111,15 +107,6 @@ extern const struct xattr_handler *orangefs_xattr_handlers[];
 
 extern struct posix_acl *orangefs_get_acl(struct inode *inode, int type);
 extern int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-
-/*
- * Redefine xtvec structure so that we could move helper functions out of
- * the define
- */
-struct xtvec {
-	__kernel_off_t xtv_off;		/* must be off_t */
-	__kernel_size_t xtv_len;	/* must be size_t */
-};
 
 /*
  * orangefs data structures
@@ -224,39 +211,6 @@ struct orangefs_sb_info_s {
 	struct list_head list;
 };
 
-/*
- * structure that holds the state of any async I/O operation issued
- * through the VFS. Needed especially to handle cancellation requests
- * or even completion notification so that the VFS client-side daemon
- * can free up its vfs_request slots.
- */
-struct orangefs_kiocb_s {
-	/* the pointer to the task that initiated the AIO */
-	struct task_struct *tsk;
-
-	/* pointer to the kiocb that kicked this operation */
-	struct kiocb *kiocb;
-
-	/* buffer index that was used for the I/O */
-	struct orangefs_bufmap *bufmap;
-	int buffer_index;
-
-	/* orangefs kernel operation type */
-	struct orangefs_kernel_op_s *op;
-
-	/* set to indicate the type of the operation */
-	int rw;
-
-	/* file offset */
-	loff_t offset;
-
-	/* and the count in bytes */
-	size_t bytes_to_be_copied;
-
-	ssize_t bytes_copied;
-	int needs_cleanup;
-};
-
 struct orangefs_stats {
 	unsigned long cache_hits;
 	unsigned long cache_misses;
@@ -303,21 +257,6 @@ static inline ino_t orangefs_khandle_to_ino(struct orangefs_khandle *khandle)
 static inline struct orangefs_khandle *get_khandle_from_ino(struct inode *inode)
 {
 	return &(ORANGEFS_I(inode)->refn.khandle);
-}
-
-static inline ino_t get_ino_from_khandle(struct inode *inode)
-{
-	struct orangefs_khandle *khandle;
-	ino_t ino;
-
-	khandle = get_khandle_from_ino(inode);
-	ino = orangefs_khandle_to_ino(khandle);
-	return ino;
-}
-
-static inline ino_t get_parent_ino_from_dentry(struct dentry *dentry)
-{
-	return get_ino_from_khandle(dentry->d_parent->d_inode);
 }
 
 static inline int is_root_handle(struct inode *inode)
@@ -391,7 +330,6 @@ void fsid_key_table_finalize(void);
 /*
  * defined in inode.c
  */
-__u32 convert_to_orangefs_mask(unsigned long lite_mask);
 struct inode *orangefs_new_inode(struct super_block *sb,
 			      struct inode *dir,
 			      int mode,
@@ -410,17 +348,6 @@ int orangefs_update_time(struct inode *, struct timespec *, int);
 /*
  * defined in xattr.c
  */
-int orangefs_setxattr(struct dentry *dentry,
-		   const char *name,
-		   const void *value,
-		   size_t size,
-		   int flags);
-
-ssize_t orangefs_getxattr(struct dentry *dentry,
-		       const char *name,
-		       void *buffer,
-		       size_t size);
-
 ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 /*
@@ -467,8 +394,6 @@ int orangefs_inode_check_changed(struct inode *inode);
 
 int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-int orangefs_unmount_sb(struct super_block *sb);
-
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 int orangefs_normalize_to_errno(__s32 error_code);
@@ -487,16 +412,11 @@ extern struct list_head *orangefs_htable_ops_in_progress;
 extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
-extern const struct address_space_operations orangefs_address_operations;
-extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
 extern const struct inode_operations orangefs_symlink_inode_operations;
 extern const struct inode_operations orangefs_dir_inode_operations;
 extern const struct file_operations orangefs_dir_operations;
 extern const struct dentry_operations orangefs_dentry_operations;
-extern const struct file_operations orangefs_devreq_file_operations;
-
-extern wait_queue_head_t orangefs_bufmap_init_waitq;
 
 /*
  * misc convenience macros

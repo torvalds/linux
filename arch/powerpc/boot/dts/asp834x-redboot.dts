@@ -304,7 +304,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,38400 root=/dev/mtdblock3 rootfstype=jffs2";
-		linux,stdout-path = &serial0;
+		stdout-path = &serial0;
 	};
 
 };
