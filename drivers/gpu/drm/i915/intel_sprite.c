@@ -131,7 +131,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 		if (scanline < min || scanline > max)
 			break;
 
-		if (timeout <= 0) {
+		if (!timeout) {
 			DRM_ERROR("Potential atomic update failure on pipe %c\n",
 				  pipe_name(crtc->pipe));
 			break;
