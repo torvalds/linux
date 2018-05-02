@@ -328,8 +328,7 @@ static bool __hyp_text __skip_instr(struct kvm_vcpu *vcpu)
 	}
 }
 
-void __hyp_text __hyp_switch_fpsimd(u64 esr __always_unused,
-				    struct kvm_vcpu *vcpu)
+static bool __hyp_text __hyp_switch_fpsimd(struct kvm_vcpu *vcpu)
 {
 	struct user_fpsimd_state *host_fpsimd = vcpu->arch.host_fpsimd_state;
 
@@ -369,6 +368,8 @@ void __hyp_text __hyp_switch_fpsimd(u64 esr __always_unused,
 			     fpexc32_el2);
 
 	vcpu->arch.flags |= KVM_ARM64_FP_ENABLED;
+
+	return true;
 }
 
 /*
@@ -389,6 +390,16 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	 */
 	if (*exit_code != ARM_EXCEPTION_TRAP)
 		goto exit;
+
+	/*
+	 * We trap the first access to the FP/SIMD to save the host context
+	 * and restore the guest context lazily.
+	 * If FP/SIMD is not implemented, handle the trap and inject an
+	 * undefined instruction exception to the guest.
+	 */
+	if (system_supports_fpsimd() &&
+	    kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_FP_ASIMD)
+		return __hyp_switch_fpsimd(vcpu);
 
 	if (!__populate_fault_info(vcpu))
 		return true;
