@@ -7540,6 +7540,27 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 	return em;
 }
 
+
+static int btrfs_get_blocks_direct_read(struct extent_map *em,
+					struct buffer_head *bh_result,
+					struct inode *inode,
+					u64 start, u64 len)
+{
+	if (em->block_start == EXTENT_MAP_HOLE ||
+			test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		return -ENOENT;
+
+	len = min(len, em->len - (start - em->start));
+
+	bh_result->b_blocknr = (em->block_start + (start - em->start)) >>
+		inode->i_blkbits;
+	bh_result->b_size = len;
+	bh_result->b_bdev = em->bdev;
+	set_buffer_mapped(bh_result);
+
+	return 0;
+}
+
 static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
 {
@@ -7608,11 +7629,29 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		goto unlock_err;
 	}
 
-	/* Just a good old fashioned hole, return */
-	if (!create && (em->block_start == EXTENT_MAP_HOLE ||
-			test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
+	if (!create) {
+		ret = btrfs_get_blocks_direct_read(em, bh_result, inode,
+						   start, len);
+		/* Can be negative only if we read from a hole */
+		if (ret < 0) {
+			ret = 0;
+			free_extent_map(em);
+			goto unlock_err;
+		}
+		/*
+		 * We need to unlock only the end area that we aren't using.
+		 * The rest is going to be unlocked by the endio routine.
+		 */
+		lockstart = start + bh_result->b_size;
+		if (lockstart < lockend) {
+			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+					 lockend, unlock_bits, 1, 0,
+					 &cached_state);
+		} else {
+			free_extent_state(cached_state);
+		}
 		free_extent_map(em);
-		goto unlock_err;
+		return 0;
 	}
 
 	/*
@@ -7624,12 +7663,6 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	 * just use the extent.
 	 *
 	 */
-	if (!create) {
-		len = min(len, em->len - (start - em->start));
-		lockstart = start + len;
-		goto unlock;
-	}
-
 	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) ||
 	    ((BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW) &&
 	     em->block_start != EXTENT_MAP_HOLE)) {
@@ -7716,10 +7749,7 @@ unlock:
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
 				 lockend, unlock_bits, 1, 0,
 				 &cached_state);
-	} else {
-		free_extent_state(cached_state);
 	}
-
 	free_extent_map(em);
 
 	return 0;
