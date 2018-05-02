@@ -527,6 +527,95 @@
 		status = "disabled";
 	};
 
+	audsys: clock-controller@11220000 {
+		compatible = "mediatek,mt7622-audsys", "syscon";
+		reg = <0 0x11220000 0 0x2000>;
+		#clock-cells = <1>;
+
+		afe: audio-controller {
+			compatible = "mediatek,mt7622-audio";
+			interrupts =  <GIC_SPI 144 IRQ_TYPE_LEVEL_LOW>,
+				      <GIC_SPI 145 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names	= "afe", "asys";
+
+			clocks = <&infracfg CLK_INFRA_AUDIO_PD>,
+				 <&topckgen CLK_TOP_AUD1_SEL>,
+				 <&topckgen CLK_TOP_AUD2_SEL>,
+				 <&topckgen CLK_TOP_A1SYS_HP_DIV_PD>,
+				 <&topckgen CLK_TOP_A2SYS_HP_DIV_PD>,
+				 <&topckgen CLK_TOP_I2S0_MCK_SEL>,
+				 <&topckgen CLK_TOP_I2S1_MCK_SEL>,
+				 <&topckgen CLK_TOP_I2S2_MCK_SEL>,
+				 <&topckgen CLK_TOP_I2S3_MCK_SEL>,
+				 <&topckgen CLK_TOP_I2S0_MCK_DIV>,
+				 <&topckgen CLK_TOP_I2S1_MCK_DIV>,
+				 <&topckgen CLK_TOP_I2S2_MCK_DIV>,
+				 <&topckgen CLK_TOP_I2S3_MCK_DIV>,
+				 <&topckgen CLK_TOP_I2S0_MCK_DIV_PD>,
+				 <&topckgen CLK_TOP_I2S1_MCK_DIV_PD>,
+				 <&topckgen CLK_TOP_I2S2_MCK_DIV_PD>,
+				 <&topckgen CLK_TOP_I2S3_MCK_DIV_PD>,
+				 <&audsys CLK_AUDIO_I2SO1>,
+				 <&audsys CLK_AUDIO_I2SO2>,
+				 <&audsys CLK_AUDIO_I2SO3>,
+				 <&audsys CLK_AUDIO_I2SO4>,
+				 <&audsys CLK_AUDIO_I2SIN1>,
+				 <&audsys CLK_AUDIO_I2SIN2>,
+				 <&audsys CLK_AUDIO_I2SIN3>,
+				 <&audsys CLK_AUDIO_I2SIN4>,
+				 <&audsys CLK_AUDIO_ASRCO1>,
+				 <&audsys CLK_AUDIO_ASRCO2>,
+				 <&audsys CLK_AUDIO_ASRCO3>,
+				 <&audsys CLK_AUDIO_ASRCO4>,
+				 <&audsys CLK_AUDIO_AFE>,
+				 <&audsys CLK_AUDIO_AFE_CONN>,
+				 <&audsys CLK_AUDIO_A1SYS>,
+				 <&audsys CLK_AUDIO_A2SYS>;
+
+			clock-names = "infra_sys_audio_clk",
+				      "top_audio_mux1_sel",
+				      "top_audio_mux2_sel",
+				      "top_audio_a1sys_hp",
+				      "top_audio_a2sys_hp",
+				      "i2s0_src_sel",
+				      "i2s1_src_sel",
+				      "i2s2_src_sel",
+				      "i2s3_src_sel",
+				      "i2s0_src_div",
+				      "i2s1_src_div",
+				      "i2s2_src_div",
+				      "i2s3_src_div",
+				      "i2s0_mclk_en",
+				      "i2s1_mclk_en",
+				      "i2s2_mclk_en",
+				      "i2s3_mclk_en",
+				      "i2so0_hop_ck",
+				      "i2so1_hop_ck",
+				      "i2so2_hop_ck",
+				      "i2so3_hop_ck",
+				      "i2si0_hop_ck",
+				      "i2si1_hop_ck",
+				      "i2si2_hop_ck",
+				      "i2si3_hop_ck",
+				      "asrc0_out_ck",
+				      "asrc1_out_ck",
+				      "asrc2_out_ck",
+				      "asrc3_out_ck",
+				      "audio_afe_pd",
+				      "audio_afe_conn_pd",
+				      "audio_a1sys_pd",
+				      "audio_a2sys_pd";
+
+			assigned-clocks = <&topckgen CLK_TOP_A1SYS_HP_SEL>,
+					  <&topckgen CLK_TOP_A2SYS_HP_SEL>,
+					  <&topckgen CLK_TOP_A1SYS_HP_DIV>,
+					  <&topckgen CLK_TOP_A2SYS_HP_DIV>;
+			assigned-clock-parents = <&topckgen CLK_TOP_AUD1PLL>,
+						 <&topckgen CLK_TOP_AUD2PLL>;
+			assigned-clock-rates = <0>, <0>, <49152000>, <45158400>;
+		};
+	};
+
 	mmc0: mmc@11230000 {
 		compatible = "mediatek,mt7622-mmc";
 		reg = <0 0x11230000 0 0x1000>;
