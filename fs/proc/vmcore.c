@@ -39,6 +39,8 @@ static size_t elfcorebuf_sz_orig;
 
 static char *elfnotes_buf;
 static size_t elfnotes_sz;
+/* Size of all notes minus the device dump notes */
+static size_t elfnotes_orig_sz;
 
 /* Total size of vmcore file. */
 static u64 vmcore_size;
@@ -50,6 +52,9 @@ static struct proc_dir_entry *proc_vmcore;
 static LIST_HEAD(vmcoredd_list);
 static DEFINE_MUTEX(vmcoredd_mutex);
 #endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+
+/* Device Dump Size */
+static size_t vmcoredd_orig_sz;
 
 /*
  * Returns > 0 for RAM pages, 0 for non-RAM pages, < 0 on error
@@ -185,6 +190,77 @@ static int copy_to(void *target, void *src, size_t size, int userbuf)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+static int vmcoredd_copy_dumps(void *dst, u64 start, size_t size, int userbuf)
+{
+	struct vmcoredd_node *dump;
+	u64 offset = 0;
+	int ret = 0;
+	size_t tsz;
+	char *buf;
+
+	mutex_lock(&vmcoredd_mutex);
+	list_for_each_entry(dump, &vmcoredd_list, list) {
+		if (start < offset + dump->size) {
+			tsz = min(offset + (u64)dump->size - start, (u64)size);
+			buf = dump->buf + start - offset;
+			if (copy_to(dst, buf, tsz, userbuf)) {
+				ret = -EFAULT;
+				goto out_unlock;
+			}
+
+			size -= tsz;
+			start += tsz;
+			dst += tsz;
+
+			/* Leave now if buffer filled already */
+			if (!size)
+				goto out_unlock;
+		}
+		offset += dump->size;
+	}
+
+out_unlock:
+	mutex_unlock(&vmcoredd_mutex);
+	return ret;
+}
+
+static int vmcoredd_mmap_dumps(struct vm_area_struct *vma, unsigned long dst,
+			       u64 start, size_t size)
+{
+	struct vmcoredd_node *dump;
+	u64 offset = 0;
+	int ret = 0;
+	size_t tsz;
+	char *buf;
+
+	mutex_lock(&vmcoredd_mutex);
+	list_for_each_entry(dump, &vmcoredd_list, list) {
+		if (start < offset + dump->size) {
+			tsz = min(offset + (u64)dump->size - start, (u64)size);
+			buf = dump->buf + start - offset;
+			if (remap_vmalloc_range_partial(vma, dst, buf, tsz)) {
+				ret = -EFAULT;
+				goto out_unlock;
+			}
+
+			size -= tsz;
+			start += tsz;
+			dst += tsz;
+
+			/* Leave now if buffer filled already */
+			if (!size)
+				goto out_unlock;
+		}
+		offset += dump->size;
+	}
+
+out_unlock:
+	mutex_unlock(&vmcoredd_mutex);
+	return ret;
+}
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+
 /* Read from the ELF header and then the crash dump. On error, negative value is
  * returned otherwise number of bytes read are returned.
  */
@@ -222,10 +298,41 @@ static ssize_t __read_vmcore(char *buffer, size_t buflen, loff_t *fpos,
 	if (*fpos < elfcorebuf_sz + elfnotes_sz) {
 		void *kaddr;
 
+		/* We add device dumps before other elf notes because the
+		 * other elf notes may not fill the elf notes buffer
+		 * completely and we will end up with zero-filled data
+		 * between the elf notes and the device dumps. Tools will
+		 * then try to decode this zero-filled data as valid notes
+		 * and we don't want that. Hence, adding device dumps before
+		 * the other elf notes ensure that zero-filled data can be
+		 * avoided.
+		 */
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+		/* Read device dumps */
+		if (*fpos < elfcorebuf_sz + vmcoredd_orig_sz) {
+			tsz = min(elfcorebuf_sz + vmcoredd_orig_sz -
+				  (size_t)*fpos, buflen);
+			start = *fpos - elfcorebuf_sz;
+			if (vmcoredd_copy_dumps(buffer, start, tsz, userbuf))
+				return -EFAULT;
+
+			buflen -= tsz;
+			*fpos += tsz;
+			buffer += tsz;
+			acc += tsz;
+
+			/* leave now if filled buffer already */
+			if (!buflen)
+				return acc;
+		}
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+
+		/* Read remaining elf notes */
 		tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)*fpos, buflen);
-		kaddr = elfnotes_buf + *fpos - elfcorebuf_sz;
+		kaddr = elfnotes_buf + *fpos - elfcorebuf_sz - vmcoredd_orig_sz;
 		if (copy_to(buffer, kaddr, tsz, userbuf))
 			return -EFAULT;
+
 		buflen -= tsz;
 		*fpos += tsz;
 		buffer += tsz;
@@ -451,11 +558,46 @@ static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 	if (start < elfcorebuf_sz + elfnotes_sz) {
 		void *kaddr;
 
+		/* We add device dumps before other elf notes because the
+		 * other elf notes may not fill the elf notes buffer
+		 * completely and we will end up with zero-filled data
+		 * between the elf notes and the device dumps. Tools will
+		 * then try to decode this zero-filled data as valid notes
+		 * and we don't want that. Hence, adding device dumps before
+		 * the other elf notes ensure that zero-filled data can be
+		 * avoided. This also ensures that the device dumps and
+		 * other elf notes can be properly mmaped at page aligned
+		 * address.
+		 */
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+		/* Read device dumps */
+		if (start < elfcorebuf_sz + vmcoredd_orig_sz) {
+			u64 start_off;
+
+			tsz = min(elfcorebuf_sz + vmcoredd_orig_sz -
+				  (size_t)start, size);
+			start_off = start - elfcorebuf_sz;
+			if (vmcoredd_mmap_dumps(vma, vma->vm_start + len,
+						start_off, tsz))
+				goto fail;
+
+			size -= tsz;
+			start += tsz;
+			len += tsz;
+
+			/* leave now if filled buffer already */
+			if (!size)
+				return 0;
+		}
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+
+		/* Read remaining elf notes */
 		tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)start, size);
-		kaddr = elfnotes_buf + start - elfcorebuf_sz;
+		kaddr = elfnotes_buf + start - elfcorebuf_sz - vmcoredd_orig_sz;
 		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
 						kaddr, tsz))
 			goto fail;
+
 		size -= tsz;
 		start += tsz;
 		len += tsz;
@@ -703,6 +845,11 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	/* Modify e_phnum to reflect merged headers. */
 	ehdr_ptr->e_phnum = ehdr_ptr->e_phnum - nr_ptnote + 1;
 
+	/* Store the size of all notes.  We need this to update the note
+	 * header when the device dumps will be added.
+	 */
+	elfnotes_orig_sz = phdr.p_memsz;
+
 	return 0;
 }
 
@@ -889,6 +1036,11 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	/* Modify e_phnum to reflect merged headers. */
 	ehdr_ptr->e_phnum = ehdr_ptr->e_phnum - nr_ptnote + 1;
 
+	/* Store the size of all notes.  We need this to update the note
+	 * header when the device dumps will be added.
+	 */
+	elfnotes_orig_sz = phdr.p_memsz;
+
 	return 0;
 }
 
@@ -981,8 +1133,8 @@ static int __init process_ptload_program_headers_elf32(char *elfptr,
 }
 
 /* Sets offset fields of vmcore elements. */
-static void __init set_vmcore_list_offsets(size_t elfsz, size_t elfnotes_sz,
-					   struct list_head *vc_list)
+static void set_vmcore_list_offsets(size_t elfsz, size_t elfnotes_sz,
+				    struct list_head *vc_list)
 {
 	loff_t vmcore_off;
 	struct vmcore *m;
@@ -1175,6 +1327,92 @@ static void vmcoredd_write_header(void *buf, struct vmcoredd_data *data,
 }
 
 /**
+ * vmcoredd_update_program_headers - Update all Elf program headers
+ * @elfptr: Pointer to elf header
+ * @elfnotesz: Size of elf notes aligned to page size
+ * @vmcoreddsz: Size of device dumps to be added to elf note header
+ *
+ * Determine type of Elf header (Elf64 or Elf32) and update the elf note size.
+ * Also update the offsets of all the program headers after the elf note header.
+ */
+static void vmcoredd_update_program_headers(char *elfptr, size_t elfnotesz,
+					    size_t vmcoreddsz)
+{
+	unsigned char *e_ident = (unsigned char *)elfptr;
+	u64 start, end, size;
+	loff_t vmcore_off;
+	u32 i;
+
+	vmcore_off = elfcorebuf_sz + elfnotesz;
+
+	if (e_ident[EI_CLASS] == ELFCLASS64) {
+		Elf64_Ehdr *ehdr = (Elf64_Ehdr *)elfptr;
+		Elf64_Phdr *phdr = (Elf64_Phdr *)(elfptr + sizeof(Elf64_Ehdr));
+
+		/* Update all program headers */
+		for (i = 0; i < ehdr->e_phnum; i++, phdr++) {
+			if (phdr->p_type == PT_NOTE) {
+				/* Update note size */
+				phdr->p_memsz = elfnotes_orig_sz + vmcoreddsz;
+				phdr->p_filesz = phdr->p_memsz;
+				continue;
+			}
+
+			start = rounddown(phdr->p_offset, PAGE_SIZE);
+			end = roundup(phdr->p_offset + phdr->p_memsz,
+				      PAGE_SIZE);
+			size = end - start;
+			phdr->p_offset = vmcore_off + (phdr->p_offset - start);
+			vmcore_off += size;
+		}
+	} else {
+		Elf32_Ehdr *ehdr = (Elf32_Ehdr *)elfptr;
+		Elf32_Phdr *phdr = (Elf32_Phdr *)(elfptr + sizeof(Elf32_Ehdr));
+
+		/* Update all program headers */
+		for (i = 0; i < ehdr->e_phnum; i++, phdr++) {
+			if (phdr->p_type == PT_NOTE) {
+				/* Update note size */
+				phdr->p_memsz = elfnotes_orig_sz + vmcoreddsz;
+				phdr->p_filesz = phdr->p_memsz;
+				continue;
+			}
+
+			start = rounddown(phdr->p_offset, PAGE_SIZE);
+			end = roundup(phdr->p_offset + phdr->p_memsz,
+				      PAGE_SIZE);
+			size = end - start;
+			phdr->p_offset = vmcore_off + (phdr->p_offset - start);
+			vmcore_off += size;
+		}
+	}
+}
+
+/**
+ * vmcoredd_update_size - Update the total size of the device dumps and update
+ * Elf header
+ * @dump_size: Size of the current device dump to be added to total size
+ *
+ * Update the total size of all the device dumps and update the Elf program
+ * headers. Calculate the new offsets for the vmcore list and update the
+ * total vmcore size.
+ */
+static void vmcoredd_update_size(size_t dump_size)
+{
+	vmcoredd_orig_sz += dump_size;
+	elfnotes_sz = roundup(elfnotes_orig_sz, PAGE_SIZE) + vmcoredd_orig_sz;
+	vmcoredd_update_program_headers(elfcorebuf, elfnotes_sz,
+					vmcoredd_orig_sz);
+
+	/* Update vmcore list offsets */
+	set_vmcore_list_offsets(elfcorebuf_sz, elfnotes_sz, &vmcore_list);
+
+	vmcore_size = get_vmcore_size(elfcorebuf_sz, elfnotes_sz,
+				      &vmcore_list);
+	proc_vmcore->size = vmcore_size;
+}
+
+/**
  * vmcore_add_device_dump - Add a buffer containing device dump to vmcore
  * @data: dump info.
  *
@@ -1227,6 +1465,7 @@ int vmcore_add_device_dump(struct vmcoredd_data *data)
 	list_add_tail(&dump->list, &vmcoredd_list);
 	mutex_unlock(&vmcoredd_mutex);
 
+	vmcoredd_update_size(data_size);
 	return 0;
 
 out_err:
