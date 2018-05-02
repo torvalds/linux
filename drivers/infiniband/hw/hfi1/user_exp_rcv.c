@@ -437,7 +437,6 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 				hfi1_cdbg(TID,
 					  "Failed to program RcvArray entries %d",
 					  ret);
-				ret = -EFAULT;
 				goto unlock;
 			} else if (ret > 0) {
 				if (grp->used == grp->size)
