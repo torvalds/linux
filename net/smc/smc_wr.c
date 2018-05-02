@@ -376,6 +376,7 @@ static inline void smc_wr_rx_process_cqes(struct ib_wc wc[], int num)
 	for (i = 0; i < num; i++) {
 		link = wc[i].qp->qp_context;
 		if (wc[i].status == IB_WC_SUCCESS) {
+			link->wr_rx_tstamp = jiffies;
 			smc_wr_rx_demultiplex(&wc[i]);
 			smc_wr_rx_post(link); /* refill WR RX */
 		} else {

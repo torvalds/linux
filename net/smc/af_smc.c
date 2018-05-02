@@ -29,6 +29,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/smc.h>
+#include <asm/ioctls.h>
 
 #include "smc.h"
 #include "smc_clc.h"
@@ -294,6 +295,7 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 
 static int smc_clnt_conf_first_link(struct smc_sock *smc)
 {
+	struct net *net = sock_net(smc->clcsock->sk);
 	struct smc_link_group *lgr = smc->conn.lgr;
 	struct smc_link *link;
 	int rest;
@@ -353,7 +355,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
-	link->state = SMC_LNK_ACTIVE;
+	smc_llc_link_active(link, net->ipv4.sysctl_tcp_keepalive_time);
 
 	return 0;
 }
@@ -715,6 +717,7 @@ void smc_close_non_accepted(struct sock *sk)
 
 static int smc_serv_conf_first_link(struct smc_sock *smc)
 {
+	struct net *net = sock_net(smc->clcsock->sk);
 	struct smc_link_group *lgr = smc->conn.lgr;
 	struct smc_link *link;
 	int rest;
@@ -769,7 +772,7 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 		return rc;
 	}
 
-	link->state = SMC_LNK_ACTIVE;
+	smc_llc_link_active(link, net->ipv4.sysctl_tcp_keepalive_time);
 
 	return 0;
 }
@@ -1387,12 +1390,38 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		     unsigned long arg)
 {
 	struct smc_sock *smc;
+	int answ;
 
 	smc = smc_sk(sock->sk);
-	if (smc->use_fallback)
+	if (smc->use_fallback) {
+		if (!smc->clcsock)
+			return -EBADF;
 		return smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
-	else
-		return sock_no_ioctl(sock, cmd, arg);
+	}
+	switch (cmd) {
+	case SIOCINQ: /* same as FIONREAD */
+		if (smc->sk.sk_state == SMC_LISTEN)
+			return -EINVAL;
+		answ = atomic_read(&smc->conn.bytes_to_rcv);
+		break;
+	case SIOCOUTQ:
+		/* output queue size (not send + not acked) */
+		if (smc->sk.sk_state == SMC_LISTEN)
+			return -EINVAL;
+		answ = smc->conn.sndbuf_size -
+					atomic_read(&smc->conn.sndbuf_space);
+		break;
+	case SIOCOUTQNSD:
+		/* output queue size (not send only) */
+		if (smc->sk.sk_state == SMC_LISTEN)
+			return -EINVAL;
+		answ = smc_tx_prepared_sends(&smc->conn);
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return put_user(answ, (int __user *)arg);
 }
 
 static ssize_t smc_sendpage(struct socket *sock, struct page *page,

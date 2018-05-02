@@ -397,7 +397,8 @@ static void smc_llc_rx_test_link(struct smc_link *link,
 				 struct smc_llc_msg_test_link *llc)
 {
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
-		/* unused as long as we don't send this type of msg */
+		if (link->state == SMC_LNK_ACTIVE)
+			complete(&link->llc_testlink_resp);
 	} else {
 		smc_llc_send_test_link(link, llc->user_data, SMC_LLC_RESP);
 	}
@@ -500,6 +501,65 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 		smc_llc_rx_delete_rkey(link, &llc->delete_rkey);
 		break;
 	}
+}
+
+/***************************** worker ****************************************/
+
+static void smc_llc_testlink_work(struct work_struct *work)
+{
+	struct smc_link *link = container_of(to_delayed_work(work),
+					     struct smc_link, llc_testlink_wrk);
+	unsigned long next_interval;
+	struct smc_link_group *lgr;
+	unsigned long expire_time;
+	u8 user_data[16] = { 0 };
+	int rc;
+
+	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	if (link->state != SMC_LNK_ACTIVE)
+		return;		/* don't reschedule worker */
+	expire_time = link->wr_rx_tstamp + link->llc_testlink_time;
+	if (time_is_after_jiffies(expire_time)) {
+		next_interval = expire_time - jiffies;
+		goto out;
+	}
+	reinit_completion(&link->llc_testlink_resp);
+	smc_llc_send_test_link(link, user_data, SMC_LLC_REQ);
+	/* receive TEST LINK response over RoCE fabric */
+	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
+						       SMC_LLC_WAIT_TIME);
+	if (rc <= 0) {
+		smc_lgr_terminate(lgr);
+		return;
+	}
+	next_interval = link->llc_testlink_time;
+out:
+	schedule_delayed_work(&link->llc_testlink_wrk, next_interval);
+}
+
+void smc_llc_link_active(struct smc_link *link, int testlink_time)
+{
+	init_completion(&link->llc_testlink_resp);
+	INIT_DELAYED_WORK(&link->llc_testlink_wrk, smc_llc_testlink_work);
+	link->state = SMC_LNK_ACTIVE;
+	if (testlink_time) {
+		link->llc_testlink_time = testlink_time * HZ;
+		schedule_delayed_work(&link->llc_testlink_wrk,
+				      link->llc_testlink_time);
+	}
+}
+
+/* called in tasklet context */
+void smc_llc_link_inactive(struct smc_link *link)
+{
+	link->state = SMC_LNK_INACTIVE;
+	cancel_delayed_work(&link->llc_testlink_wrk);
+}
+
+/* called in worker context */
+void smc_llc_link_flush(struct smc_link *link)
+{
+	cancel_delayed_work_sync(&link->llc_testlink_wrk);
 }
 
 /***************************** init, exit, misc ******************************/
