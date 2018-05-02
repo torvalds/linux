@@ -397,7 +397,7 @@ send_first:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			qp->r_sge = qp->s_rdma_read_sge;
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 0);
+			ret = rvt_get_rwqe(qp, false);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -542,7 +542,7 @@ rdma_last_imm:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			rvt_put_ss(&qp->s_rdma_read_sge);
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 1);
+			ret = rvt_get_rwqe(qp, true);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)

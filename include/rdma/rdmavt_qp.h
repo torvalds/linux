@@ -663,6 +663,7 @@ static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
+int rvt_get_rwqe(struct rvt_qp *qp, bool wr_id_only);
 void rvt_comm_est(struct rvt_qp *qp);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);

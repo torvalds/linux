@@ -328,8 +328,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet);
 
 int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey);
 
-int hfi1_rvt_get_rwqe(struct rvt_qp *qp, int wr_id_only);
-
 void hfi1_migrate_qp(struct rvt_qp *qp);
 
 int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,

@@ -321,8 +321,6 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 
 void mr_rcu_callback(struct rcu_head *list);
 
-int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
-
 void qib_migrate_qp(struct rvt_qp *qp);
 
 int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,

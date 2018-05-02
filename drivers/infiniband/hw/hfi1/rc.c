@@ -2123,7 +2123,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	/* OK, process the packet. */
 	switch (opcode) {
 	case OP(SEND_FIRST):
-		ret = hfi1_rvt_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2149,7 +2149,7 @@ send_middle:
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
 		/* consume RWQE */
-		ret = hfi1_rvt_get_rwqe(qp, 1);
+		ret = rvt_get_rwqe(qp, true);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2159,7 +2159,7 @@ send_middle:
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
 	case OP(SEND_ONLY_WITH_INVALIDATE):
-		ret = hfi1_rvt_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret)
@@ -2271,7 +2271,7 @@ send_last:
 			goto send_middle;
 		else if (opcode == OP(RDMA_WRITE_ONLY))
 			goto no_immediate_data;
-		ret = hfi1_rvt_get_rwqe(qp, 1);
+		ret = rvt_get_rwqe(qp, true);
 		if (ret < 0)
 			goto nack_op_err;
 		if (!ret) {
