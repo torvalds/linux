@@ -1102,7 +1102,7 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 		   size_t *start)
 {
 	struct page **p;
-	size_t n;
+	ssize_t n;
 	int idx;
 	int npages;
 
