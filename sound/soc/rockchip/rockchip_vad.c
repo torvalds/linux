@@ -107,10 +107,9 @@ static int rockchip_vad_setup(struct rockchip_vad *vad)
 	val |= SRC_ADDR_MODE_INC | SRC_BURST_INCR8;
 	val |= VAD_EN;
 
-	mask = VAD_DET_CHNL_MASK | AUDIO_CHNL_NUM_MASK |
-	       AUDIO_SRC_SEL_MASK | VAD_MODE_MASK |
-	       SRC_ADDR_MODE_MASK | SRC_BURST_MASK |
-	       VAD_EN_MASK;
+	mask = VAD_DET_CHNL_MASK | AUDIO_SRC_SEL_MASK |
+	       VAD_MODE_MASK | SRC_ADDR_MODE_MASK |
+	       SRC_BURST_MASK | VAD_EN_MASK;
 
 	regmap_update_bits(regmap, VAD_CTRL, mask, val);
 
