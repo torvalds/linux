@@ -1657,6 +1657,65 @@ free_skb:
 	return ret;
 }
 
+static int tcmu_netlink_event_init(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
+{
+	struct sk_buff *skb;
+	void *msg_header;
+	int ret = -ENOMEM;
+
+	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return ret;
+
+	msg_header = genlmsg_put(skb, 0, 0, &tcmu_genl_family, 0, cmd);
+	if (!msg_header)
+		goto free_skb;
+
+	ret = nla_put_string(skb, TCMU_ATTR_DEVICE, udev->uio_info.name);
+	if (ret < 0)
+		goto free_skb;
+
+	ret = nla_put_u32(skb, TCMU_ATTR_MINOR, udev->uio_info.uio_dev->minor);
+	if (ret < 0)
+		goto free_skb;
+
+	ret = nla_put_u32(skb, TCMU_ATTR_DEVICE_ID, udev->se_dev.dev_index);
+	if (ret < 0)
+		goto free_skb;
+
+	*buf = skb;
+	*hdr = msg_header;
+	return ret;
+
+free_skb:
+	nlmsg_free(skb);
+	return ret;
+}
+
+static int tcmu_netlink_event_send(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
+{
+	int ret = 0;
+	struct sk_buff *skb = *buf;
+	void *msg_header = *hdr;
+
+	genlmsg_end(skb, msg_header);
+
+	tcmu_init_genl_cmd_reply(udev, cmd);
+
+	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
+				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
+       /* We don't care if no one is listening */
+	if (ret == -ESRCH)
+		ret = 0;
+	if (!ret)
+		ret = tcmu_wait_genl_cmd_reply(udev);
+	return ret;
+}
+
 static int tcmu_update_uio_info(struct tcmu_dev *udev)
 {
 	struct tcmu_hba *hba = udev->hba->hba_ptr;
