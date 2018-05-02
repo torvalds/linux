@@ -1172,6 +1172,10 @@ static int cpu_cmd(void)
 	/* try to switch to cpu specified */
 	if (!cpumask_test_cpu(cpu, &cpus_in_xmon)) {
 		printf("cpu 0x%lx isn't in xmon\n", cpu);
+#ifdef CONFIG_PPC64
+		printf("backtrace of paca[0x%lx].saved_r1 (possibly stale):\n", cpu);
+		xmon_show_stack(paca_ptrs[cpu]->saved_r1, 0, 0);
+#endif
 		return 0;
 	}
 	xmon_taken = 0;

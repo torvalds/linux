@@ -238,8 +238,12 @@ static inline bool arch_irqs_disabled(void)
 	__hard_irq_disable();						\
 	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
-	if (!arch_irqs_disabled_flags(flags))				\
+	if (!arch_irqs_disabled_flags(flags)) {				\
+		asm ("stdx %%r1, 0, %1 ;"				\
+		     : "=m" (local_paca->saved_r1)			\
+		     : "b" (&local_paca->saved_r1));			\
 		trace_hardirqs_off();					\
+	}								\
 } while(0)
 
 static inline bool lazy_irq_pending(void)
