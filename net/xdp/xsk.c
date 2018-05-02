@@ -255,6 +255,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	} else {
 		/* This xsk has its own umem. */
 		xskq_set_umem(xs->umem->fq, &xs->umem->props);
+		xskq_set_umem(xs->umem->cq, &xs->umem->props);
 	}
 
 	/* Rebind? */
@@ -334,6 +335,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		return 0;
 	}
 	case XDP_UMEM_FILL_RING:
+	case XDP_UMEM_COMPLETION_RING:
 	{
 		struct xsk_queue **q;
 		int entries;
@@ -345,7 +347,8 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
-		q = &xs->umem->fq;
+		q = (optname == XDP_UMEM_FILL_RING) ? &xs->umem->fq :
+			&xs->umem->cq;
 		err = xsk_init_queue(entries, q, true);
 		mutex_unlock(&xs->mutex);
 		return err;
@@ -375,6 +378,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 
 		if (offset == XDP_UMEM_PGOFF_FILL_RING)
 			q = xs->umem->fq;
+		else if (offset == XDP_UMEM_PGOFF_COMPLETION_RING)
+			q = xs->umem->cq;
 		else
 			return -EINVAL;
 	}

@@ -70,6 +70,11 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		umem->fq = NULL;
 	}
 
+	if (umem->cq) {
+		xskq_destroy(umem->cq);
+		umem->cq = NULL;
+	}
+
 	if (umem->pgs) {
 		xdp_umem_unpin_pages(umem);
 
@@ -251,5 +256,5 @@ out:
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem)
 {
-	return umem->fq;
+	return (umem->fq && umem->cq);
 }

@@ -36,6 +36,7 @@ struct sockaddr_xdp {
 #define XDP_RX_RING			1
 #define XDP_UMEM_REG			3
 #define XDP_UMEM_FILL_RING		4
+#define XDP_UMEM_COMPLETION_RING	5
 
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
@@ -47,6 +48,7 @@ struct xdp_umem_reg {
 /* Pgoff for mmaping the rings */
 #define XDP_PGOFF_RX_RING			  0
 #define XDP_UMEM_PGOFF_FILL_RING	0x100000000
+#define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000
 
 struct xdp_desc {
 	__u32 idx;

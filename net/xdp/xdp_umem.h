@@ -24,6 +24,7 @@
 
 struct xdp_umem {
 	struct xsk_queue *fq;
+	struct xsk_queue *cq;
 	struct page **pgs;
 	struct xdp_umem_props props;
 	u32 npgs;
