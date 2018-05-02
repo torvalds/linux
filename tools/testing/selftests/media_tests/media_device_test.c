@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	       "other Oops in the dmesg. Enable KaSan kernel\n"
 	       "config option for use-after-free error detection.\n\n");
 
-	printf("Running test for %d iternations\n", count);
+	printf("Running test for %d iterations\n", count);
 
 	while (count > 0) {
 		ret = ioctl(fd, MEDIA_IOC_DEVICE_INFO, &mdi);
