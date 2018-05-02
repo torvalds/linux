@@ -349,6 +349,90 @@ static int snd_usb_audio_dev_free(struct snd_device *device)
 	return snd_usb_audio_free(chip);
 }
 
+static void usb_audio_make_shortname(struct usb_device *dev,
+				     struct snd_usb_audio *chip,
+				     const struct snd_usb_audio_quirk *quirk)
+{
+	struct snd_card *card = chip->card;
+
+	if (quirk && quirk->product_name && *quirk->product_name) {
+		strlcpy(card->shortname, quirk->product_name,
+			sizeof(card->shortname));
+		return;
+	}
+
+	/* retrieve the device string as shortname */
+	if (!dev->descriptor.iProduct ||
+	    usb_string(dev, dev->descriptor.iProduct,
+		       card->shortname, sizeof(card->shortname)) <= 0) {
+		/* no name available from anywhere, so use ID */
+		sprintf(card->shortname, "USB Device %#04x:%#04x",
+			USB_ID_VENDOR(chip->usb_id),
+			USB_ID_PRODUCT(chip->usb_id));
+	}
+
+	strim(card->shortname);
+}
+
+static void usb_audio_make_longname(struct usb_device *dev,
+				    struct snd_usb_audio *chip,
+				    const struct snd_usb_audio_quirk *quirk)
+{
+	struct snd_card *card = chip->card;
+	int len;
+
+	/* shortcut - if any pre-defined string is given, use it */
+	if (quirk && quirk->profile_name && *quirk->profile_name) {
+		strlcpy(card->longname, quirk->profile_name,
+			sizeof(card->longname));
+		return;
+	}
+
+	if (quirk && quirk->vendor_name && *quirk->vendor_name) {
+		len = strlcpy(card->longname, quirk->vendor_name, sizeof(card->longname));
+	} else {
+		/* retrieve the vendor and device strings as longname */
+		if (dev->descriptor.iManufacturer)
+			len = usb_string(dev, dev->descriptor.iManufacturer,
+					 card->longname, sizeof(card->longname));
+		else
+			len = 0;
+		/* we don't really care if there isn't any vendor string */
+	}
+	if (len > 0) {
+		strim(card->longname);
+		if (*card->longname)
+			strlcat(card->longname, " ", sizeof(card->longname));
+	}
+
+	strlcat(card->longname, card->shortname, sizeof(card->longname));
+
+	len = strlcat(card->longname, " at ", sizeof(card->longname));
+
+	if (len < sizeof(card->longname))
+		usb_make_path(dev, card->longname + len, sizeof(card->longname) - len);
+
+	switch (snd_usb_get_speed(dev)) {
+	case USB_SPEED_LOW:
+		strlcat(card->longname, ", low speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_FULL:
+		strlcat(card->longname, ", full speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_HIGH:
+		strlcat(card->longname, ", high speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_SUPER:
+		strlcat(card->longname, ", super speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_SUPER_PLUS:
+		strlcat(card->longname, ", super speed plus", sizeof(card->longname));
+		break;
+	default:
+		break;
+	}
+}
+
 /*
  * create a chip instance and set its names.
  */
@@ -360,7 +444,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 {
 	struct snd_card *card;
 	struct snd_usb_audio *chip;
-	int err, len;
+	int err;
 	char component[14];
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_usb_audio_dev_free,
@@ -422,64 +506,8 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 		USB_ID_VENDOR(chip->usb_id), USB_ID_PRODUCT(chip->usb_id));
 	snd_component_add(card, component);
 
-	/* retrieve the device string as shortname */
-	if (quirk && quirk->product_name && *quirk->product_name) {
-		strlcpy(card->shortname, quirk->product_name, sizeof(card->shortname));
-	} else {
-		if (!dev->descriptor.iProduct ||
-		    usb_string(dev, dev->descriptor.iProduct,
-		    card->shortname, sizeof(card->shortname)) <= 0) {
-			/* no name available from anywhere, so use ID */
-			sprintf(card->shortname, "USB Device %#04x:%#04x",
-				USB_ID_VENDOR(chip->usb_id),
-				USB_ID_PRODUCT(chip->usb_id));
-		}
-	}
-	strim(card->shortname);
-
-	/* retrieve the vendor and device strings as longname */
-	if (quirk && quirk->vendor_name && *quirk->vendor_name) {
-		len = strlcpy(card->longname, quirk->vendor_name, sizeof(card->longname));
-	} else {
-		if (dev->descriptor.iManufacturer)
-			len = usb_string(dev, dev->descriptor.iManufacturer,
-					 card->longname, sizeof(card->longname));
-		else
-			len = 0;
-		/* we don't really care if there isn't any vendor string */
-	}
-	if (len > 0) {
-		strim(card->longname);
-		if (*card->longname)
-			strlcat(card->longname, " ", sizeof(card->longname));
-	}
-
-	strlcat(card->longname, card->shortname, sizeof(card->longname));
-
-	len = strlcat(card->longname, " at ", sizeof(card->longname));
-
-	if (len < sizeof(card->longname))
-		usb_make_path(dev, card->longname + len, sizeof(card->longname) - len);
-
-	switch (snd_usb_get_speed(dev)) {
-	case USB_SPEED_LOW:
-		strlcat(card->longname, ", low speed", sizeof(card->longname));
-		break;
-	case USB_SPEED_FULL:
-		strlcat(card->longname, ", full speed", sizeof(card->longname));
-		break;
-	case USB_SPEED_HIGH:
-		strlcat(card->longname, ", high speed", sizeof(card->longname));
-		break;
-	case USB_SPEED_SUPER:
-		strlcat(card->longname, ", super speed", sizeof(card->longname));
-		break;
-	case USB_SPEED_SUPER_PLUS:
-		strlcat(card->longname, ", super speed plus", sizeof(card->longname));
-		break;
-	default:
-		break;
-	}
+	usb_audio_make_shortname(dev, chip, quirk);
+	usb_audio_make_longname(dev, chip, quirk);
 
 	snd_usb_audio_create_proc(chip);
 

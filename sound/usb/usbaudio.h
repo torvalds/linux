@@ -59,6 +59,9 @@ struct snd_usb_audio {
 
 	int setup;			/* from the 'device_setup' module param */
 	bool autoclock;			/* from the 'autoclock' module param */
+	bool keep_iface;		/* keep interface/altset after closing
+					 * or parameter change
+					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 };
@@ -109,6 +112,7 @@ enum quirk_type {
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
+	const char *profile_name;	/* override the card->longname */
 	int16_t ifnum;
 	uint16_t type;
 	const void *data;
