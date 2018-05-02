@@ -218,17 +218,6 @@ struct dma_fence_ops {
 	void (*release)(struct dma_fence *fence);
 
 	/**
-	 * @fill_driver_data:
-	 *
-	 * Callback to fill in free-form debug info.
-	 *
-	 * Returns amount of bytes filled, or negative error on failure.
-	 *
-	 * This callback is optional.
-	 */
-	int (*fill_driver_data)(struct dma_fence *fence, void *data, int size);
-
-	/**
 	 * @fence_value_str:
 	 *
 	 * Callback to fill in free-form debug info specific to this fence, like
@@ -242,8 +231,9 @@ struct dma_fence_ops {
 	 * @timeline_value_str:
 	 *
 	 * Fills in the current value of the timeline as a string, like the
-	 * sequence number. This should match what @fill_driver_data prints for
-	 * the most recently signalled fence (assuming no delayed signalling).
+	 * sequence number. Note that the specific fence passed to this function
+	 * should not matter, drivers should only use it to look up the
+	 * corresponding timeline structures.
 	 */
 	void (*timeline_value_str)(struct dma_fence *fence,
 				   char *str, int size);
