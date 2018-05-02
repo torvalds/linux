@@ -47,6 +47,7 @@ auvidea Auvidea GmbH
 avago	Avago Technologies
 avia	avia semiconductor
 avic	Shanghai AVIC Optoelectronics Co., Ltd.
+avnet	Avnet, Inc.
 axentia	Axentia Technologies AB
 axis	Axis Communications AB
 bananapi BIPAI KEJI LIMITED
