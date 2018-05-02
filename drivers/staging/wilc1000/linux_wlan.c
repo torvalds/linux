@@ -1141,6 +1141,8 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	register_inetaddr_notifier(&g_dev_notifier);
 
 	for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
+		struct wireless_dev *wdev;
+
 		ndev = alloc_etherdev(sizeof(struct wilc_vif));
 		if (!ndev)
 			return -ENOMEM;
@@ -1163,27 +1165,23 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 		ndev->netdev_ops = &wilc_netdev_ops;
 
-		{
-			struct wireless_dev *wdev;
+		wdev = wilc_create_wiphy(ndev, dev);
 
-			wdev = wilc_create_wiphy(ndev, dev);
+		if (dev)
+			SET_NETDEV_DEV(ndev, dev);
 
-			if (dev)
-				SET_NETDEV_DEV(ndev, dev);
-
-			if (!wdev) {
-				netdev_err(ndev, "Can't register WILC Wiphy\n");
-				return -1;
-			}
-
-			vif->ndev->ieee80211_ptr = wdev;
-			vif->ndev->ml_priv = vif;
-			wdev->netdev = vif->ndev;
-			vif->netstats.rx_packets = 0;
-			vif->netstats.tx_packets = 0;
-			vif->netstats.rx_bytes = 0;
-			vif->netstats.tx_bytes = 0;
+		if (!wdev) {
+			netdev_err(ndev, "Can't register WILC Wiphy\n");
+			return -1;
 		}
+
+		vif->ndev->ieee80211_ptr = wdev;
+		vif->ndev->ml_priv = vif;
+		wdev->netdev = vif->ndev;
+		vif->netstats.rx_packets = 0;
+		vif->netstats.tx_packets = 0;
+		vif->netstats.rx_bytes = 0;
+		vif->netstats.tx_bytes = 0;
 
 		ret = register_netdev(ndev);
 		if (ret)
