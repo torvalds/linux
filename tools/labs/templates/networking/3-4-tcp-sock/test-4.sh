@@ -19,7 +19,7 @@ netstat -tuan
 
 # connect to localhost, port 60000, starting a connection using local
 # port number 600001;
-echo "Should connect." | nc 127.0.0.1 60000 -p 60001 &
+echo "Should connect." | ../netcat -q 4 127.0.0.1 60000 -p 60001 &
 
 # wait for connection to be established then remove module
 # (and close connection)
