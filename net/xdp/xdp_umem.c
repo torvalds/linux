@@ -65,6 +65,11 @@ static void xdp_umem_release(struct xdp_umem *umem)
 	struct task_struct *task;
 	struct mm_struct *mm;
 
+	if (umem->fq) {
+		xskq_destroy(umem->fq);
+		umem->fq = NULL;
+	}
+
 	if (umem->pgs) {
 		xdp_umem_unpin_pages(umem);
 

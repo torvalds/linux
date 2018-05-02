@@ -19,9 +19,11 @@
 #include <linux/if_xdp.h>
 #include <linux/workqueue.h>
 
+#include "xsk_queue.h"
 #include "xdp_umem_props.h"
 
 struct xdp_umem {
+	struct xsk_queue *fq;
 	struct page **pgs;
 	struct xdp_umem_props props;
 	u32 npgs;

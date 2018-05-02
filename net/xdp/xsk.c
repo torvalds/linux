@@ -32,11 +32,27 @@
 #include <linux/netdevice.h>
 #include <net/xdp_sock.h>
 
+#include "xsk_queue.h"
 #include "xdp_umem.h"
 
 static struct xdp_sock *xdp_sk(struct sock *sk)
 {
 	return (struct xdp_sock *)sk;
+}
+
+static int xsk_init_queue(u32 entries, struct xsk_queue **queue)
+{
+	struct xsk_queue *q;
+
+	if (entries == 0 || *queue || !is_power_of_2(entries))
+		return -EINVAL;
+
+	q = xskq_create(entries);
+	if (!q)
+		return -ENOMEM;
+
+	*queue = q;
+	return 0;
 }
 
 static int xsk_release(struct socket *sock)
@@ -101,11 +117,58 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		mutex_unlock(&xs->mutex);
 		return 0;
 	}
+	case XDP_UMEM_FILL_RING:
+	{
+		struct xsk_queue **q;
+		int entries;
+
+		if (!xs->umem)
+			return -EINVAL;
+
+		if (copy_from_user(&entries, optval, sizeof(entries)))
+			return -EFAULT;
+
+		mutex_lock(&xs->mutex);
+		q = &xs->umem->fq;
+		err = xsk_init_queue(entries, q);
+		mutex_unlock(&xs->mutex);
+		return err;
+	}
 	default:
 		break;
 	}
 
 	return -ENOPROTOOPT;
+}
+
+static int xsk_mmap(struct file *file, struct socket *sock,
+		    struct vm_area_struct *vma)
+{
+	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long size = vma->vm_end - vma->vm_start;
+	struct xdp_sock *xs = xdp_sk(sock->sk);
+	struct xsk_queue *q = NULL;
+	unsigned long pfn;
+	struct page *qpg;
+
+	if (!xs->umem)
+		return -EINVAL;
+
+	if (offset == XDP_UMEM_PGOFF_FILL_RING)
+		q = xs->umem->fq;
+	else
+		return -EINVAL;
+
+	if (!q)
+		return -EINVAL;
+
+	qpg = virt_to_head_page(q->ring);
+	if (size > (PAGE_SIZE << compound_order(qpg)))
+		return -EINVAL;
+
+	pfn = virt_to_phys(q->ring) >> PAGE_SHIFT;
+	return remap_pfn_range(vma, vma->vm_start, pfn,
+			       size, vma->vm_page_prot);
 }
 
 static struct proto xsk_proto = {
@@ -131,7 +194,7 @@ static const struct proto_ops xsk_proto_ops = {
 	.getsockopt =	sock_no_getsockopt,
 	.sendmsg =	sock_no_sendmsg,
 	.recvmsg =	sock_no_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		xsk_mmap,
 	.sendpage =	sock_no_sendpage,
 };
 

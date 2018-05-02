@@ -23,12 +23,27 @@
 
 /* XDP socket options */
 #define XDP_UMEM_REG			3
+#define XDP_UMEM_FILL_RING		4
 
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
 	__u64 len; /* Length of packet data area */
 	__u32 frame_size; /* Frame size */
 	__u32 frame_headroom; /* Frame head room */
+};
+
+/* Pgoff for mmaping the rings */
+#define XDP_UMEM_PGOFF_FILL_RING	0x100000000
+
+struct xdp_ring {
+	__u32 producer __attribute__((aligned(64)));
+	__u32 consumer __attribute__((aligned(64)));
+};
+
+/* Used for the fill and completion queues for buffers */
+struct xdp_umem_ring {
+	struct xdp_ring ptrs;
+	__u32 desc[0] __attribute__((aligned(64)));
 };
 
 #endif /* _LINUX_IF_XDP_H */
