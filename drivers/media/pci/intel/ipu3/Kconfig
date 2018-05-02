@@ -9,10 +9,10 @@ config VIDEO_IPU3_CIO2
 	select VIDEOBUF2_DMA_SG
 
 	---help---
-	This is the Intel IPU3 CIO2 CSI-2 receiver unit, found in Intel
-	Skylake and Kaby Lake SoCs and used for capturing images and
-	video from a camera sensor.
+	  This is the Intel IPU3 CIO2 CSI-2 receiver unit, found in Intel
+	  Skylake and Kaby Lake SoCs and used for capturing images and
+	  video from a camera sensor.
 
-	Say Y or M here if you have a Skylake/Kaby Lake SoC with MIPI CSI-2
-	connected camera.
-	The module will be called ipu3-cio2.
+	  Say Y or M here if you have a Skylake/Kaby Lake SoC with MIPI CSI-2
+	  connected camera.
+	  The module will be called ipu3-cio2.
