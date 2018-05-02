@@ -202,7 +202,7 @@ static void unlocked_usbctlx_complete(struct hfa384x *hw,
 				      struct hfa384x_usbctlx *ctlx);
 
 struct usbctlx_completor {
-	int (*complete)(struct usbctlx_completor *);
+	int (*complete)(struct usbctlx_completor *completor);
 };
 
 static int
