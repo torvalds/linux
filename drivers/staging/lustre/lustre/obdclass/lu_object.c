@@ -1396,8 +1396,8 @@ void lu_context_key_degister(struct lu_context_key *key)
 
 	lu_context_key_quiesce(key);
 
-	++key_set_version;
 	write_lock(&lu_keys_guard);
+	++key_set_version;
 	key_fini(&lu_shrink_env.le_ctx, key->lct_index);
 
 	/**
@@ -1556,15 +1556,18 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 
 		list_for_each_entry(ctx, &lu_context_remembered, lc_remember)
 			key_fini(ctx, key->lct_index);
-		write_unlock(&lu_keys_guard);
+
 		++key_set_version;
+		write_unlock(&lu_keys_guard);
 	}
 }
 
 void lu_context_key_revive(struct lu_context_key *key)
 {
+	write_lock(&lu_keys_guard);
 	key->lct_tags &= ~LCT_QUIESCENT;
 	++key_set_version;
+	write_unlock(&lu_keys_guard);
 }
 
 static void keys_fini(struct lu_context *ctx)
@@ -1583,6 +1586,7 @@ static void keys_fini(struct lu_context *ctx)
 
 static int keys_fill(struct lu_context *ctx)
 {
+	unsigned int pre_version;
 	unsigned int i;
 
 	/*
@@ -1596,8 +1600,10 @@ static int keys_fill(struct lu_context *ctx)
 	 */
 	read_lock(&lu_keys_guard);
 	atomic_inc(&lu_key_initing_cnt);
+	pre_version = key_set_version;
 	read_unlock(&lu_keys_guard);
 
+refill:
 	LINVRNT(ctx->lc_value);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
 		struct lu_context_key *key;
@@ -1638,9 +1644,17 @@ static int keys_fill(struct lu_context *ctx)
 			if (key->lct_exit)
 				ctx->lc_tags |= LCT_HAS_EXIT;
 		}
-		ctx->lc_version = key_set_version;
 	}
+
+	read_lock(&lu_keys_guard);
+	if (pre_version != key_set_version) {
+		pre_version = key_set_version;
+		read_unlock(&lu_keys_guard);
+		goto refill;
+	}
+	ctx->lc_version = key_set_version;
 	atomic_dec(&lu_key_initing_cnt);
+	read_unlock(&lu_keys_guard);
 	return 0;
 }
 
@@ -1749,7 +1763,14 @@ EXPORT_SYMBOL(lu_context_exit);
  */
 int lu_context_refill(struct lu_context *ctx)
 {
-	return likely(ctx->lc_version == key_set_version) ? 0 : keys_fill(ctx);
+	read_lock(&lu_keys_guard);
+	if (likely(ctx->lc_version == key_set_version)) {
+		read_unlock(&lu_keys_guard);
+		return 0;
+	}
+
+	read_unlock(&lu_keys_guard);
+	return keys_fill(ctx);
 }
 
 /**
