@@ -243,10 +243,39 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-void snd_dice_create_proc(struct snd_dice *dice)
+static void add_node(struct snd_dice *dice, struct snd_info_entry *root,
+		     const char *name,
+		     void (*op)(struct snd_info_entry *entry,
+				struct snd_info_buffer *buffer))
 {
 	struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(dice->card, "dice", &entry))
-		snd_info_set_text_ops(entry, dice, dice_proc_read);
+	entry = snd_info_create_card_entry(dice->card, name, root);
+	if (!entry)
+		return;
+
+	snd_info_set_text_ops(entry, dice, op);
+	if (snd_info_register(entry) < 0)
+		snd_info_free_entry(entry);
+}
+
+void snd_dice_create_proc(struct snd_dice *dice)
+{
+	struct snd_info_entry *root;
+
+	/*
+	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * by following to link list.
+	 */
+	root = snd_info_create_card_entry(dice->card, "firewire",
+					  dice->card->proc_root);
+	if (!root)
+		return;
+	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (snd_info_register(root) < 0) {
+		snd_info_free_entry(root);
+		return;
+	}
+
+	add_node(dice, root, "dice", dice_proc_read);
 }
