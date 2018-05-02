@@ -51,6 +51,7 @@
 struct mlx5e_rq_param {
 	u32			rqc[MLX5_ST_SZ_DW(rqc)];
 	struct mlx5_wq_param	wq;
+	struct mlx5e_rq_frags_info frags_info;
 };
 
 struct mlx5e_sq_param {
@@ -93,7 +94,7 @@ bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 	return true;
 }
 
-static u32 mlx5e_mpwqe_get_linear_frag_sz(struct mlx5e_params *params)
+static u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params)
 {
 	if (!params->xdp_prog) {
 		u16 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
@@ -107,19 +108,27 @@ static u32 mlx5e_mpwqe_get_linear_frag_sz(struct mlx5e_params *params)
 
 static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params)
 {
-	u32 linear_frag_sz = mlx5e_mpwqe_get_linear_frag_sz(params);
+	u32 linear_frag_sz = mlx5e_rx_get_linear_frag_sz(params);
 
 	return MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_frag_sz);
+}
+
+static bool mlx5e_rx_is_linear_skb(struct mlx5_core_dev *mdev,
+				   struct mlx5e_params *params)
+{
+	u32 frag_sz = mlx5e_rx_get_linear_frag_sz(params);
+
+	return !params->lro_en && frag_sz <= PAGE_SIZE;
 }
 
 static bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 					 struct mlx5e_params *params)
 {
-	u32 frag_sz = mlx5e_mpwqe_get_linear_frag_sz(params);
+	u32 frag_sz = mlx5e_rx_get_linear_frag_sz(params);
 	s8 signed_log_num_strides_param;
 	u8 log_num_strides;
 
-	if (params->lro_en || frag_sz > PAGE_SIZE)
+	if (!mlx5e_rx_is_linear_skb(mdev, params))
 		return false;
 
 	if (MLX5_CAP_GEN(mdev, ext_stride_num_range))
@@ -145,7 +154,7 @@ static u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 					  struct mlx5e_params *params)
 {
 	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
-		return order_base_2(mlx5e_mpwqe_get_linear_frag_sz(params));
+		return order_base_2(mlx5e_rx_get_linear_frag_sz(params));
 
 	return MLX5E_MPWQE_STRIDE_SZ(mdev,
 		MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS));
@@ -163,16 +172,15 @@ static u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 {
 	u16 linear_rq_headroom = params->xdp_prog ?
 		XDP_PACKET_HEADROOM : MLX5_RX_HEADROOM;
+	bool is_linear_skb;
 
 	linear_rq_headroom += NET_IP_ALIGN;
 
-	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
-		return linear_rq_headroom;
+	is_linear_skb = (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC) ?
+		mlx5e_rx_is_linear_skb(mdev, params) :
+		mlx5e_rx_mpwqe_is_linear_skb(mdev, params);
 
-	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
-		return linear_rq_headroom;
-
-	return 0;
+	return is_linear_skb ? linear_rq_headroom : 0;
 }
 
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
@@ -400,6 +408,61 @@ static inline u64 mlx5e_get_mpwqe_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 	return (wqe_ix << MLX5E_LOG_ALIGNED_MPWQE_PPW) << PAGE_SHIFT;
 }
 
+static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
+{
+	struct mlx5e_wqe_frag_info next_frag, *prev;
+	int i;
+
+	next_frag.di = &rq->wqe.di[0];
+	next_frag.offset = 0;
+	prev = NULL;
+
+	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
+		struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
+		struct mlx5e_wqe_frag_info *frag =
+			&rq->wqe.frags[i << rq->wqe.info.log_num_frags];
+		int f;
+
+		for (f = 0; f < rq->wqe.info.num_frags; f++, frag++) {
+			if (next_frag.offset + frag_info[f].frag_stride > PAGE_SIZE) {
+				next_frag.di++;
+				next_frag.offset = 0;
+				if (prev)
+					prev->last_in_page = true;
+			}
+			*frag = next_frag;
+
+			/* prepare next */
+			next_frag.offset += frag_info[f].frag_stride;
+			prev = frag;
+		}
+	}
+
+	if (prev)
+		prev->last_in_page = true;
+}
+
+static int mlx5e_init_di_list(struct mlx5e_rq *rq,
+			      struct mlx5e_params *params,
+			      int wq_sz, int cpu)
+{
+	int len = wq_sz << rq->wqe.info.log_num_frags;
+
+	rq->wqe.di = kvzalloc_node(len * sizeof(*rq->wqe.di),
+				   GFP_KERNEL, cpu_to_node(cpu));
+	if (!rq->wqe.di)
+		return -ENOMEM;
+
+	mlx5e_init_frags_partition(rq);
+
+	return 0;
+}
+
+static void mlx5e_free_di_list(struct mlx5e_rq *rq)
+{
+	kvfree(rq->wqe.di);
+}
+
 static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			  struct mlx5e_params *params,
 			  struct mlx5e_rq_param *rqp,
@@ -409,8 +472,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	struct mlx5_core_dev *mdev = c->mdev;
 	void *rqc = rqp->rqc;
 	void *rqc_wq = MLX5_ADDR_OF(rqc, rqc, wq);
-	u32 byte_count, pool_size;
-	int npages;
+	u32 pool_size;
 	int wq_sz;
 	int err;
 	int i;
@@ -480,8 +542,6 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params);
 		rq->mpwqe.num_strides = BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params));
 
-		byte_count = rq->mpwqe.num_strides << rq->mpwqe.log_stride_sz;
-
 		err = mlx5e_create_rq_umr_mkey(mdev, rq);
 		if (err)
 			goto err_rq_wq_destroy;
@@ -489,7 +549,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
 		if (err)
-			goto err_destroy_umr_mkey;
+			goto err_free;
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		err = mlx5_wq_cyc_create(mdev, &rqp->wq, rqc_wq, &rq->wqe.wq,
@@ -501,13 +561,17 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		wq_sz = mlx5_wq_cyc_get_size(&rq->wqe.wq);
 
-		rq->wqe.frag_info =
-			kzalloc_node(wq_sz * sizeof(*rq->wqe.frag_info),
-				     GFP_KERNEL, cpu_to_node(c->cpu));
-		if (!rq->wqe.frag_info) {
-			err = -ENOMEM;
-			goto err_rq_wq_destroy;
-		}
+		rq->wqe.info = rqp->frags_info;
+		rq->wqe.frags =
+			kvzalloc_node((wq_sz << rq->wqe.info.log_num_frags) *
+				      sizeof(*rq->wqe.frags),
+				      GFP_KERNEL, cpu_to_node(c->cpu));
+		if (!rq->wqe.frags)
+			goto err_free;
+
+		err = mlx5e_init_di_list(rq, params, wq_sz, c->cpu);
+		if (err)
+			goto err_free;
 		rq->post_wqes = mlx5e_post_rx_wqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
@@ -518,30 +582,19 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 #endif
 			rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
-			kfree(rq->wqe.frag_info);
 			err = -EINVAL;
 			netdev_err(c->netdev, "RX handler of RQ is not set, err %d\n", err);
-			goto err_rq_wq_destroy;
+			goto err_free;
 		}
 
-		byte_count = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if (MLX5_IPSEC_DEV(mdev))
-			byte_count += MLX5E_METADATA_ETHER_LEN;
-#endif
-		rq->wqe.page_reuse = !params->xdp_prog;
-
-		/* calc the required page order */
-		rq->wqe.frag_sz = MLX5_SKB_FRAG_SZ(rq->buff.headroom + byte_count);
-		npages = DIV_ROUND_UP(rq->wqe.frag_sz, PAGE_SIZE);
-		rq->buff.page_order = order_base_2(npages);
-
-		byte_count |= MLX5_HW_START_PADDING;
+		rq->wqe.skb_from_cqe = mlx5e_rx_is_linear_skb(mdev, params) ?
+			mlx5e_skb_from_cqe_linear :
+			mlx5e_skb_from_cqe_nonlinear;
 		rq->mkey_be = c->mkey_be;
 	}
 
 	/* Create a page_pool and register it with rxq */
-	pp_params.order     = rq->buff.page_order;
+	pp_params.order     = 0;
 	pp_params.flags     = 0; /* No-internal DMA mapping in page_pool */
 	pp_params.pool_size = pool_size;
 	pp_params.nid       = cpu_to_node(c->cpu);
@@ -555,21 +608,21 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	 */
 	rq->page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(rq->page_pool)) {
-		if (rq->wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
-			kfree(rq->wqe.frag_info);
 		err = PTR_ERR(rq->page_pool);
 		rq->page_pool = NULL;
-		goto err_rq_wq_destroy;
+		goto err_free;
 	}
 	err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 					 MEM_TYPE_PAGE_POOL, rq->page_pool);
 	if (err)
-		goto err_rq_wq_destroy;
+		goto err_free;
 
 	for (i = 0; i < wq_sz; i++) {
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 			struct mlx5e_rx_wqe_ll *wqe =
 				mlx5_wq_ll_get_wqe(&rq->mpwqe.wq, i);
+			u32 byte_count =
+				rq->mpwqe.num_strides << rq->mpwqe.log_stride_sz;
 			u64 dma_offset = mlx5e_get_mpwqe_offset(rq, i);
 
 			wqe->data[0].addr = cpu_to_be64(dma_offset + rq->buff.headroom);
@@ -578,9 +631,21 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		} else {
 			struct mlx5e_rx_wqe_cyc *wqe =
 				mlx5_wq_cyc_get_wqe(&rq->wqe.wq, i);
+			int f;
 
-			wqe->data[0].byte_count = cpu_to_be32(byte_count);
-			wqe->data[0].lkey = rq->mkey_be;
+			for (f = 0; f < rq->wqe.info.num_frags; f++) {
+				u32 frag_size = rq->wqe.info.arr[f].frag_size |
+					MLX5_HW_START_PADDING;
+
+				wqe->data[f].byte_count = cpu_to_be32(frag_size);
+				wqe->data[f].lkey = rq->mkey_be;
+			}
+			/* check if num_frags is not a pow of two */
+			if (rq->wqe.info.num_frags < (1 << rq->wqe.info.log_num_frags)) {
+				wqe->data[f].byte_count = 0;
+				wqe->data[f].lkey = cpu_to_be32(MLX5_INVALID_LKEY);
+				wqe->data[f].addr = 0;
+			}
 		}
 	}
 
@@ -600,8 +665,16 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	return 0;
 
-err_destroy_umr_mkey:
-	mlx5_core_destroy_mkey(mdev, &rq->umr_mkey);
+err_free:
+	switch (rq->wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		kfree(rq->mpwqe.info);
+		mlx5_core_destroy_mkey(mdev, &rq->umr_mkey);
+		break;
+	default: /* MLX5_WQ_TYPE_CYCLIC */
+		kvfree(rq->wqe.frags);
+		mlx5e_free_di_list(rq);
+	}
 
 err_rq_wq_destroy:
 	if (rq->xdp_prog)
@@ -631,7 +704,8 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 		mlx5_core_destroy_mkey(rq->mdev, &rq->umr_mkey);
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
-		kfree(rq->wqe.frag_info);
+		kvfree(rq->wqe.frags);
+		mlx5e_free_di_list(rq);
 	}
 
 	for (i = rq->page_cache.head; i != rq->page_cache.tail;
@@ -823,17 +897,8 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 			rq->dealloc_wqe(rq, wqe_ix);
 			mlx5_wq_cyc_pop(wq);
 		}
-
-		/* Clean outstanding pages on handled WQEs that decided to do page-reuse,
-		 * but yet to be re-posted.
-		 */
-		if (rq->wqe.page_reuse) {
-			int wq_sz = mlx5_wq_cyc_get_size(wq);
-
-			for (wqe_ix = 0; wqe_ix < wq_sz; wqe_ix++)
-				rq->dealloc_wqe(rq, wqe_ix);
-		}
 	}
+
 }
 
 static int mlx5e_open_rq(struct mlx5e_channel *c,
@@ -1954,6 +2019,61 @@ static void mlx5e_close_channel(struct mlx5e_channel *c)
 	kfree(c);
 }
 
+#define DEFAULT_FRAG_SIZE (2048)
+
+static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
+				      struct mlx5e_params *params,
+				      struct mlx5e_rq_frags_info *info)
+{
+	u32 byte_count = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	int frag_size_max = DEFAULT_FRAG_SIZE;
+	u32 buf_size = 0;
+	int i;
+
+#ifdef CONFIG_MLX5_EN_IPSEC
+	if (MLX5_IPSEC_DEV(mdev))
+		byte_count += MLX5E_METADATA_ETHER_LEN;
+#endif
+
+	if (mlx5e_rx_is_linear_skb(mdev, params)) {
+		int frag_stride;
+
+		frag_stride = mlx5e_rx_get_linear_frag_sz(params);
+		frag_stride = roundup_pow_of_two(frag_stride);
+
+		info->arr[0].frag_size = byte_count;
+		info->arr[0].frag_stride = frag_stride;
+		info->num_frags = 1;
+		info->wqe_bulk = PAGE_SIZE / frag_stride;
+		goto out;
+	}
+
+	if (byte_count > PAGE_SIZE +
+	    (MLX5E_MAX_RX_FRAGS - 1) * frag_size_max)
+		frag_size_max = PAGE_SIZE;
+
+	i = 0;
+	while (buf_size < byte_count) {
+		int frag_size = byte_count - buf_size;
+
+		if (i < MLX5E_MAX_RX_FRAGS - 1)
+			frag_size = min(frag_size, frag_size_max);
+
+		info->arr[i].frag_size = frag_size;
+		info->arr[i].frag_stride = roundup_pow_of_two(frag_size);
+
+		buf_size += frag_size;
+		i++;
+	}
+	info->num_frags = i;
+	/* number of different wqes sharing a page */
+	info->wqe_bulk = 1 + (info->num_frags % 2);
+
+out:
+	info->wqe_bulk = max_t(u8, info->wqe_bulk, 8);
+	info->log_num_frags = order_base_2(info->num_frags);
+}
+
 static inline u8 mlx5e_get_rqwq_log_stride(u8 wq_type, int ndsegs)
 {
 	int sz = sizeof(struct mlx5_wqe_data_seg) * ndsegs;
@@ -1990,6 +2110,8 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		MLX5_SET(wq, wq, log_wq_sz, params->log_rq_mtu_frames);
+		mlx5e_build_rq_frags_info(mdev, params, &param->frags_info);
+		ndsegs = param->frags_info.num_frags;
 	}
 
 	MLX5_SET(wq, wq, wq_type,          params->rq_wq_type);
