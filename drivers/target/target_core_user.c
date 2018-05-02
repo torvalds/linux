@@ -1731,6 +1731,20 @@ static int tcmu_send_dev_add_event(struct tcmu_dev *udev)
 
 }
 
+static int tcmu_send_dev_remove_event(struct tcmu_dev *udev)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_REMOVED_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	return tcmu_netlink_event_send(udev, TCMU_CMD_REMOVED_DEVICE,
+				       &skb, &msg_header);
+}
+
 static int tcmu_update_uio_info(struct tcmu_dev *udev)
 {
 	struct tcmu_hba *hba = udev->hba->hba_ptr;
@@ -1890,7 +1904,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 	list_del(&udev->node);
 	mutex_unlock(&root_udev_mutex);
 
-	tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
+	tcmu_send_dev_remove_event(udev);
 
 	uio_unregister_device(&udev->uio_info);
 
