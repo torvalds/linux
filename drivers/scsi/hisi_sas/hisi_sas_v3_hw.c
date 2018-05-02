@@ -1331,13 +1331,8 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	struct device *dev = hisi_hba->dev;
-	u32 ent_msk, ent_tmp, irq_msk;
+	u32 irq_msk;
 	int phy_no = 0;
-
-	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
-	ent_tmp = ent_msk;
-	ent_msk |= ENT_INT_SRC_MSK3_ENT95_MSK_MSK;
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_msk);
 
 	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
 				& 0xeeeeeeee;
@@ -1414,8 +1409,6 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 		irq_msk &= ~(0xe << (phy_no * 4));
 		phy_no++;
 	}
-
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_tmp);
 
 	return IRQ_HANDLED;
 }
