@@ -451,12 +451,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
 }
 
-static void intel_engine_init_timeline(struct intel_engine_cs *engine)
-{
-	engine->timeline =
-		&engine->i915->gt.execution_timeline.engine[engine->id];
-}
-
 static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
 {
 	i915_gem_batch_pool_init(&engine->batch_pool, engine);
@@ -508,8 +502,9 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
+	i915_timeline_init(engine->i915, &engine->timeline, engine->name);
+
 	intel_engine_init_execlist(engine);
-	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);
 	intel_engine_init_batch_pool(engine);
 	intel_engine_init_cmd_parser(engine);
@@ -751,6 +746,8 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->i915->preempt_context)
 		intel_context_unpin(engine->i915->preempt_context, engine);
 	intel_context_unpin(engine->i915->kernel_context, engine);
+
+	i915_timeline_fini(&engine->timeline);
 }
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
@@ -1003,7 +1000,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 	 * the last request that remains in the timeline. When idle, it is
 	 * the last executed context as tracked by retirement.
 	 */
-	rq = __i915_gem_active_peek(&engine->timeline->last_request);
+	rq = __i915_gem_active_peek(&engine->timeline.last_request);
 	if (rq)
 		return rq->ctx == kernel_context;
 	else
@@ -1335,14 +1332,14 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	drm_printf(m, "\tRequests:\n");
 
-	rq = list_first_entry(&engine->timeline->requests,
+	rq = list_first_entry(&engine->timeline.requests,
 			      struct i915_request, link);
-	if (&rq->link != &engine->timeline->requests)
+	if (&rq->link != &engine->timeline.requests)
 		print_request(m, rq, "\t\tfirst  ");
 
-	rq = list_last_entry(&engine->timeline->requests,
+	rq = list_last_entry(&engine->timeline.requests,
 			     struct i915_request, link);
-	if (&rq->link != &engine->timeline->requests)
+	if (&rq->link != &engine->timeline.requests)
 		print_request(m, rq, "\t\tlast   ");
 
 	rq = i915_gem_find_active_request(engine);
@@ -1374,11 +1371,11 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
-	spin_lock_irq(&engine->timeline->lock);
+	spin_lock_irq(&engine->timeline.lock);
 
 	last = NULL;
 	count = 0;
-	list_for_each_entry(rq, &engine->timeline->requests, link) {
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
 		if (count++ < MAX_REQUESTS_TO_SHOW - 1)
 			print_request(m, rq, "\t\tE ");
 		else
@@ -1416,7 +1413,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		print_request(m, last, "\t\tQ ");
 	}
 
-	spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline.lock);
 
 	spin_lock_irq(&b->rb_lock);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {

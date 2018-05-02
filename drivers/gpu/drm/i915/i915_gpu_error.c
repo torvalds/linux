@@ -1310,7 +1310,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline->requests, link)
+	list_for_each_entry_from(request, &engine->timeline.requests, link)
 		count++;
 	if (!count)
 		return;
@@ -1323,7 +1323,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline->requests, link) {
+	list_for_each_entry_from(request, &engine->timeline.requests, link) {
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in

@@ -72,10 +72,10 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
-#include "i915_gem_timeline.h"
 #include "i915_gpu_error.h"
 #include "i915_request.h"
 #include "i915_scheduler.h"
+#include "i915_timeline.h"
 #include "i915_vma.h"
 
 #include "intel_gvt.h"
@@ -2059,8 +2059,6 @@ struct drm_i915_private {
 		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
-		struct i915_gem_timeline execution_timeline;
-		struct i915_gem_timeline legacy_timeline;
 		struct list_head timelines;
 
 		struct list_head active_rings;

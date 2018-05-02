@@ -1695,7 +1695,7 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 						 const struct i915_oa_config *oa_config)
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
-	struct i915_gem_timeline *timeline;
+	struct i915_timeline *timeline;
 	struct i915_request *rq;
 	int ret;
 
@@ -1716,15 +1716,11 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 	/* Queue this switch after all other activity */
 	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
 		struct i915_request *prev;
-		struct intel_timeline *tl;
 
-		tl = &timeline->engine[engine->id];
-		prev = i915_gem_active_raw(&tl->last_request,
+		prev = i915_gem_active_raw(&timeline->last_request,
 					   &dev_priv->drm.struct_mutex);
 		if (prev)
-			i915_sw_fence_await_sw_fence_gfp(&rq->submit,
-							 &prev->submit,
-							 GFP_KERNEL);
+			i915_request_await_dma_fence(rq, &prev->fence);
 	}
 
 	i915_request_add(rq);

@@ -71,11 +71,11 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
-	  i915_gem_timeline.o \
 	  i915_gem_userptr.o \
 	  i915_gemfs.o \
 	  i915_query.o \
 	  i915_request.o \
+	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_breadcrumbs.o \

@@ -331,10 +331,10 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	struct i915_priolist *uninitialized_var(p);
 	int last_prio = I915_PRIORITY_INVALID;
 
-	lockdep_assert_held(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline.lock);
 
 	list_for_each_entry_safe_reverse(rq, rn,
-					 &engine->timeline->requests,
+					 &engine->timeline.requests,
 					 link) {
 		if (i915_request_completed(rq))
 			return;
@@ -358,9 +358,9 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
 
-	spin_lock_irq(&engine->timeline->lock);
+	spin_lock_irq(&engine->timeline.lock);
 	__unwind_incomplete_requests(engine);
-	spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline.lock);
 }
 
 static inline void
@@ -584,7 +584,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
-	spin_lock_irq(&engine->timeline->lock);
+	spin_lock_irq(&engine->timeline.lock);
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
@@ -744,7 +744,7 @@ done:
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
 unlock:
-	spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline.lock);
 
 	if (submit) {
 		execlists_user_begin(execlists, execlists->port);
@@ -894,10 +894,10 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	execlists_cancel_port_requests(execlists);
 	reset_irq(engine);
 
-	spin_lock(&engine->timeline->lock);
+	spin_lock(&engine->timeline.lock);
 
 	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->timeline->requests, link) {
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!rq->global_seqno);
 		if (!i915_request_completed(rq))
 			dma_fence_set_error(&rq->fence, -EIO);
@@ -929,7 +929,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	execlists->first = NULL;
 	GEM_BUG_ON(port_isset(execlists->port));
 
-	spin_unlock(&engine->timeline->lock);
+	spin_unlock(&engine->timeline.lock);
 
 	local_irq_restore(flags);
 }
@@ -1167,7 +1167,7 @@ static void execlists_submit_request(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	queue_request(engine, &request->sched, rq_prio(request));
 	submit_queue(engine, rq_prio(request));
@@ -1175,7 +1175,7 @@ static void execlists_submit_request(struct i915_request *request)
 	GEM_BUG_ON(!engine->execlists.first);
 	GEM_BUG_ON(list_empty(&request->sched.link));
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static struct i915_request *sched_to_request(struct i915_sched_node *node)
@@ -1191,8 +1191,8 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 	GEM_BUG_ON(!locked);
 
 	if (engine != locked) {
-		spin_unlock(&locked->timeline->lock);
-		spin_lock(&engine->timeline->lock);
+		spin_unlock(&locked->timeline.lock);
+		spin_lock(&engine->timeline.lock);
 	}
 
 	return engine;
@@ -1275,7 +1275,7 @@ static void execlists_schedule(struct i915_request *request,
 	}
 
 	engine = request->engine;
-	spin_lock_irq(&engine->timeline->lock);
+	spin_lock_irq(&engine->timeline.lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
@@ -1299,7 +1299,7 @@ static void execlists_schedule(struct i915_request *request,
 			__submit_queue(engine, prio);
 	}
 
-	spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline.lock);
 }
 
 static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
@@ -1828,9 +1828,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	reset_irq(engine);
 
 	/* Push back any incomplete requests for replay after the reset. */
-	spin_lock(&engine->timeline->lock);
+	spin_lock(&engine->timeline.lock);
 	__unwind_incomplete_requests(engine);
-	spin_unlock(&engine->timeline->lock);
+	spin_unlock(&engine->timeline.lock);
 
 	local_irq_restore(flags);
 
@@ -2599,6 +2599,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	struct i915_vma *vma;
 	uint32_t context_size;
 	struct intel_ring *ring;
+	struct i915_timeline *timeline;
 	int ret;
 
 	if (ce->state)
@@ -2614,8 +2615,8 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	ctx_obj = i915_gem_object_create(ctx->i915, context_size);
 	if (IS_ERR(ctx_obj)) {
-		DRM_DEBUG_DRIVER("Alloc LRC backing obj failed.\n");
-		return PTR_ERR(ctx_obj);
+		ret = PTR_ERR(ctx_obj);
+		goto error_deref_obj;
 	}
 
 	vma = i915_vma_instance(ctx_obj, &ctx->i915->ggtt.base, NULL);
@@ -2624,7 +2625,14 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		goto error_deref_obj;
 	}
 
-	ring = intel_engine_create_ring(engine, ctx->timeline, ctx->ring_size);
+	timeline = i915_timeline_create(ctx->i915, ctx->name);
+	if (IS_ERR(timeline)) {
+		ret = PTR_ERR(timeline);
+		goto error_deref_obj;
+	}
+
+	ring = intel_engine_create_ring(engine, timeline, ctx->ring_size);
+	i915_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		goto error_deref_obj;

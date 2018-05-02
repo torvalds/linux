@@ -6,12 +6,12 @@
 #include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
-#include "i915_gem_timeline.h"
 
 #include "i915_reg.h"
 #include "i915_pmu.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "i915_timeline.h"
 #include "intel_gpu_commands.h"
 
 struct drm_printer;
@@ -129,7 +129,7 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
-	struct intel_timeline *timeline;
+	struct i915_timeline *timeline;
 	struct list_head request_list;
 	struct list_head active_link;
 
@@ -338,7 +338,8 @@ struct intel_engine_cs {
 	u32 mmio_base;
 
 	struct intel_ring *buffer;
-	struct intel_timeline *timeline;
+
+	struct i915_timeline timeline;
 
 	struct drm_i915_gem_object *default_state;
 
@@ -770,7 +771,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct i915_gem_timeline *timeline,
+			 struct i915_timeline *timeline,
 			 int size);
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
@@ -889,7 +890,7 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * wtih serialising this hint with anything, so document it as
 	 * a hint and nothing more.
 	 */
-	return READ_ONCE(engine->timeline->seqno);
+	return READ_ONCE(engine->timeline.seqno);
 }
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,

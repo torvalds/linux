@@ -49,7 +49,7 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	return to_request(fence)->timeline->common->name;
+	return to_request(fence)->timeline->name;
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
@@ -199,6 +199,7 @@ i915_sched_node_init(struct i915_sched_node *node)
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
 	struct intel_engine_cs *engine;
+	struct i915_timeline *timeline;
 	enum intel_engine_id id;
 	int ret;
 
@@ -213,16 +214,13 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	for_each_engine(engine, i915, id) {
-		struct i915_gem_timeline *timeline;
-		struct intel_timeline *tl = engine->timeline;
-
 		GEM_TRACE("%s seqno %d (current %d) -> %d\n",
 			  engine->name,
-			  tl->seqno,
+			  engine->timeline.seqno,
 			  intel_engine_get_seqno(engine),
 			  seqno);
 
-		if (!i915_seqno_passed(seqno, tl->seqno)) {
+		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {
 			/* Flush any waiters before we reuse the seqno */
 			intel_engine_disarm_breadcrumbs(engine);
 			GEM_BUG_ON(!list_empty(&engine->breadcrumbs.signals));
@@ -230,18 +228,18 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 
 		/* Check we are idle before we fiddle with hw state! */
 		GEM_BUG_ON(!intel_engine_is_idle(engine));
-		GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
+		GEM_BUG_ON(i915_gem_active_isset(&engine->timeline.last_request));
 
 		/* Finally reset hw state */
 		intel_engine_init_global_seqno(engine, seqno);
-		tl->seqno = seqno;
-
-		list_for_each_entry(timeline, &i915->gt.timelines, link)
-			memset(timeline->engine[id].global_sync, 0,
-			       sizeof(timeline->engine[id].global_sync));
+		engine->timeline.seqno = seqno;
 	}
 
+	list_for_each_entry(timeline, &i915->gt.timelines, link)
+		memset(timeline->global_sync, 0, sizeof(timeline->global_sync));
+
 	i915->gt.request_serial = seqno;
+
 	return 0;
 }
 
@@ -357,10 +355,10 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 
 	local_irq_disable();
 
-	spin_lock(&engine->timeline->lock);
-	GEM_BUG_ON(!list_is_first(&rq->link, &engine->timeline->requests));
+	spin_lock(&engine->timeline.lock);
+	GEM_BUG_ON(!list_is_first(&rq->link, &engine->timeline.requests));
 	list_del_init(&rq->link);
-	spin_unlock(&engine->timeline->lock);
+	spin_unlock(&engine->timeline.lock);
 
 	spin_lock(&rq->lock);
 	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
@@ -397,7 +395,7 @@ static void __retire_engine_upto(struct intel_engine_cs *engine,
 		return;
 
 	do {
-		tmp = list_first_entry(&engine->timeline->requests,
+		tmp = list_first_entry(&engine->timeline.requests,
 				       typeof(*tmp), link);
 
 		GEM_BUG_ON(tmp->engine != engine);
@@ -492,16 +490,16 @@ void i915_request_retire_upto(struct i915_request *rq)
 	} while (tmp != rq);
 }
 
-static u32 timeline_get_seqno(struct intel_timeline *tl)
+static u32 timeline_get_seqno(struct i915_timeline *tl)
 {
 	return ++tl->seqno;
 }
 
 static void move_to_timeline(struct i915_request *request,
-			     struct intel_timeline *timeline)
+			     struct i915_timeline *timeline)
 {
-	GEM_BUG_ON(request->timeline == request->engine->timeline);
-	lockdep_assert_held(&request->engine->timeline->lock);
+	GEM_BUG_ON(request->timeline == &request->engine->timeline);
+	lockdep_assert_held(&request->engine->timeline.lock);
 
 	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
@@ -516,15 +514,15 @@ void __i915_request_submit(struct i915_request *request)
 	GEM_TRACE("%s fence %llx:%d -> global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  engine->timeline->seqno + 1,
+		  engine->timeline.seqno + 1,
 		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
-	lockdep_assert_held(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline.lock);
 
 	GEM_BUG_ON(request->global_seqno);
 
-	seqno = timeline_get_seqno(engine->timeline);
+	seqno = timeline_get_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
 
@@ -539,7 +537,7 @@ void __i915_request_submit(struct i915_request *request)
 				request->ring->vaddr + request->postfix);
 
 	/* Transfer from per-context onto the global per-engine timeline */
-	move_to_timeline(request, engine->timeline);
+	move_to_timeline(request, &engine->timeline);
 
 	trace_i915_request_execute(request);
 
@@ -552,11 +550,11 @@ void i915_request_submit(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	__i915_request_submit(request);
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 void __i915_request_unsubmit(struct i915_request *request)
@@ -570,17 +568,17 @@ void __i915_request_unsubmit(struct i915_request *request)
 		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
-	lockdep_assert_held(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline.lock);
 
 	/*
 	 * Only unwind in reverse order, required so that the per-context list
 	 * is kept in seqno/ring order.
 	 */
 	GEM_BUG_ON(!request->global_seqno);
-	GEM_BUG_ON(request->global_seqno != engine->timeline->seqno);
+	GEM_BUG_ON(request->global_seqno != engine->timeline.seqno);
 	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine),
 				     request->global_seqno));
-	engine->timeline->seqno--;
+	engine->timeline.seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -607,11 +605,11 @@ void i915_request_unsubmit(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	__i915_request_unsubmit(request);
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static int __i915_sw_fence_call
@@ -764,7 +762,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq->ctx = ctx;
 	rq->ring = ring;
 	rq->timeline = ring->timeline;
-	GEM_BUG_ON(rq->timeline == engine->timeline);
+	GEM_BUG_ON(rq->timeline == &engine->timeline);
 
 	spin_lock_init(&rq->lock);
 	dma_fence_init(&rq->fence,
@@ -929,7 +927,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Squash repeated waits to the same timelines */
 		if (fence->context != rq->i915->mm.unordered_timeline &&
-		    intel_timeline_sync_is_later(rq->timeline, fence))
+		    i915_timeline_sync_is_later(rq->timeline, fence))
 			continue;
 
 		if (dma_fence_is_i915(fence))
@@ -943,7 +941,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Record the latest fence used against each timeline */
 		if (fence->context != rq->i915->mm.unordered_timeline)
-			intel_timeline_sync_set(rq->timeline, fence);
+			i915_timeline_sync_set(rq->timeline, fence);
 	} while (--nchild);
 
 	return 0;
@@ -1020,7 +1018,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_ring *ring = request->ring;
-	struct intel_timeline *timeline = request->timeline;
+	struct i915_timeline *timeline = request->timeline;
 	struct i915_request *prev;
 	u32 *cs;
 	int err;

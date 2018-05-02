@@ -37,6 +37,7 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
+struct i915_timeline;
 
 struct intel_wait {
 	struct rb_node node;
@@ -95,7 +96,7 @@ struct i915_request {
 	struct i915_gem_context *ctx;
 	struct intel_engine_cs *engine;
 	struct intel_ring *ring;
-	struct intel_timeline *timeline;
+	struct i915_timeline *timeline;
 	struct intel_signal_node signaling;
 
 	/*

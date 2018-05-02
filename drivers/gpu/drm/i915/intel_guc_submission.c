@@ -679,7 +679,7 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	bool submit = false;
 	struct rb_node *rb;
 
-	spin_lock_irq(&engine->timeline->lock);
+	spin_lock_irq(&engine->timeline.lock);
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
@@ -750,7 +750,7 @@ done:
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
 unlock:
-	spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline.lock);
 }
 
 static void guc_submission_tasklet(unsigned long data)

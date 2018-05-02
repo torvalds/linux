@@ -25,6 +25,11 @@
 #include "mock_engine.h"
 #include "mock_request.h"
 
+struct mock_ring {
+	struct intel_ring base;
+	struct i915_timeline timeline;
+};
+
 static struct mock_request *first_request(struct mock_engine *engine)
 {
 	return list_first_entry_or_null(&engine->hw_queue,
@@ -132,7 +137,7 @@ static void mock_submit_request(struct i915_request *request)
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 {
 	const unsigned long sz = PAGE_SIZE / 2;
-	struct intel_ring *ring;
+	struct mock_ring *ring;
 
 	BUILD_BUG_ON(MIN_SPACE_FOR_ADD_REQUEST > sz);
 
@@ -140,20 +145,24 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	ring->timeline = &engine->i915->gt.legacy_timeline.engine[engine->id];
+	i915_timeline_init(engine->i915, &ring->timeline, engine->name);
 
-	ring->size = sz;
-	ring->effective_size = sz;
-	ring->vaddr = (void *)(ring + 1);
+	ring->base.size = sz;
+	ring->base.effective_size = sz;
+	ring->base.vaddr = (void *)(ring + 1);
+	ring->base.timeline = &ring->timeline;
 
-	INIT_LIST_HEAD(&ring->request_list);
-	intel_ring_update_space(ring);
+	INIT_LIST_HEAD(&ring->base.request_list);
+	intel_ring_update_space(&ring->base);
 
-	return ring;
+	return &ring->base;
 }
 
-static void mock_ring_free(struct intel_ring *ring)
+static void mock_ring_free(struct intel_ring *base)
 {
+	struct mock_ring *ring = container_of(base, typeof(*ring), base);
+
+	i915_timeline_fini(&ring->timeline);
 	kfree(ring);
 }
 
@@ -182,8 +191,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.emit_breadcrumb = mock_emit_breadcrumb;
 	engine->base.submit_request = mock_submit_request;
 
-	intel_engine_init_timeline(&engine->base);
-
+	i915_timeline_init(i915, &engine->base.timeline, engine->base.name);
 	intel_engine_init_breadcrumbs(&engine->base);
 	engine->base.breadcrumbs.mock = true; /* prevent touching HW for irqs */
 
@@ -200,6 +208,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(&engine->base);
+	i915_timeline_fini(&engine->base.timeline);
 	kfree(engine);
 	return NULL;
 }
@@ -238,6 +247,7 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	mock_ring_free(engine->buffer);
 
 	intel_engine_fini_breadcrumbs(engine);
+	i915_timeline_fini(&engine->timeline);
 
 	kfree(engine);
 }

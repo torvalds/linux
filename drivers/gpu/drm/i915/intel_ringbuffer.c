@@ -697,17 +697,17 @@ static void cancel_requests(struct intel_engine_cs *engine)
 	struct i915_request *request;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	/* Mark all submitted requests as skipped. */
-	list_for_each_entry(request, &engine->timeline->requests, link) {
+	list_for_each_entry(request, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!request->global_seqno);
 		if (!i915_request_completed(request))
 			dma_fence_set_error(&request->fence, -EIO);
 	}
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static void i9xx_submit_request(struct i915_request *request)
@@ -1118,7 +1118,7 @@ err:
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct i915_gem_timeline *timeline,
+			 struct i915_timeline *timeline,
 			 int size)
 {
 	struct intel_ring *ring;
@@ -1126,7 +1126,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(!is_power_of_2(size));
 	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
-	GEM_BUG_ON(&timeline->engine[engine->id] == engine->timeline);
+	GEM_BUG_ON(timeline == &engine->timeline);
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
@@ -1134,7 +1134,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&ring->request_list);
-	ring->timeline = &timeline->engine[engine->id];
+	ring->timeline = i915_timeline_get(timeline);
 
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1165,6 +1165,7 @@ intel_ring_free(struct intel_ring *ring)
 	i915_vma_close(ring->vma);
 	__i915_gem_object_release_unless_active(obj);
 
+	i915_timeline_put(ring->timeline);
 	kfree(ring);
 }
 
@@ -1323,6 +1324,7 @@ static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct intel_ring *ring;
+	struct i915_timeline *timeline;
 	int err;
 
 	intel_engine_setup_common(engine);
@@ -1331,9 +1333,14 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (err)
 		goto err;
 
-	ring = intel_engine_create_ring(engine,
-					&engine->i915->gt.legacy_timeline,
-					32 * PAGE_SIZE);
+	timeline = i915_timeline_create(engine->i915, engine->name);
+	if (IS_ERR(timeline)) {
+		err = PTR_ERR(timeline);
+		goto err;
+	}
+
+	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
+	i915_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);
 		goto err;
