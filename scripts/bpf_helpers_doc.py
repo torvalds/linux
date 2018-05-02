@@ -39,9 +39,9 @@ class Helper(object):
         Break down helper function protocol into smaller chunks: return type,
         name, distincts arguments.
         """
-        arg_re = re.compile('^((const )?(struct )?(\w+|...))( (\**)(\w+))?$')
+        arg_re = re.compile('((const )?(struct )?(\w+|...))( (\**)(\w+))?$')
         res = {}
-        proto_re = re.compile('^(.+) (\**)(\w+)\(((([^,]+)(, )?){1,5})\)$')
+        proto_re = re.compile('(.+) (\**)(\w+)\(((([^,]+)(, )?){1,5})\)$')
 
         capture = proto_re.match(self.proto)
         res['ret_type'] = capture.group(1)
@@ -87,7 +87,7 @@ class HeaderParser(object):
         #   - Same as above, with "const" and/or "struct" in front of type
         #   - "..." (undefined number of arguments, for bpf_trace_printk())
         # There is at least one term ("void"), and at most five arguments.
-        p = re.compile('^ \* ((.+) \**\w+\((((const )?(struct )?(\w+|\.\.\.)( \**\w+)?)(, )?){1,5}\))$')
+        p = re.compile(' \* ?((.+) \**\w+\((((const )?(struct )?(\w+|\.\.\.)( \**\w+)?)(, )?){1,5}\))$')
         capture = p.match(self.line)
         if not capture:
             raise NoHelperFound
@@ -95,7 +95,7 @@ class HeaderParser(object):
         return capture.group(1)
 
     def parse_desc(self):
-        p = re.compile('^ \* \tDescription$')
+        p = re.compile(' \* ?(?:\t| {6,8})Description$')
         capture = p.match(self.line)
         if not capture:
             # Helper can have empty description and we might be parsing another
@@ -109,7 +109,7 @@ class HeaderParser(object):
             if self.line == ' *\n':
                 desc += '\n'
             else:
-                p = re.compile('^ \* \t\t(.*)')
+                p = re.compile(' \* ?(?:\t| {6,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
                     desc += capture.group(1) + '\n'
@@ -118,7 +118,7 @@ class HeaderParser(object):
         return desc
 
     def parse_ret(self):
-        p = re.compile('^ \* \tReturn$')
+        p = re.compile(' \* ?(?:\t| {6,8})Return$')
         capture = p.match(self.line)
         if not capture:
             # Helper can have empty retval and we might be parsing another
@@ -132,7 +132,7 @@ class HeaderParser(object):
             if self.line == ' *\n':
                 ret += '\n'
             else:
-                p = re.compile('^ \* \t\t(.*)')
+                p = re.compile(' \* ?(?:\t| {6,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
                     ret += capture.group(1) + '\n'
