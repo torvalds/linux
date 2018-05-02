@@ -264,9 +264,16 @@ static size_t pmem_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
 	return copy_from_iter_flushcache(addr, bytes, i);
 }
 
+static size_t pmem_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_to_iter(addr, bytes, i);
+}
+
 static const struct dax_operations pmem_dax_ops = {
 	.direct_access = pmem_dax_direct_access,
 	.copy_from_iter = pmem_copy_from_iter,
+	.copy_to_iter = pmem_copy_to_iter,
 };
 
 static const struct attribute_group *pmem_attribute_groups[] = {
