@@ -3128,11 +3128,14 @@ again:
 	return ret;
 }
 
+#define BTRFS_MAX_DEDUPE_LEN	SZ_16M
+
 static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
 	int ret;
 	bool same_inode = (src == dst);
+	u64 i, tail_len, chunk_count;
 
 	if (olen == 0)
 		return 0;
@@ -3149,7 +3152,21 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		goto out_unlock;
 	}
 
-	ret = btrfs_extent_same_range(src, loff, olen, dst, dst_loff);
+	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
+	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
+
+	for (i = 0; i < chunk_count; i++) {
+		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
+					      dst, dst_loff);
+		if (ret)
+			goto out_unlock;
+
+		loff += BTRFS_MAX_DEDUPE_LEN;
+		dst_loff += BTRFS_MAX_DEDUPE_LEN;
+	}
+
+	if (tail_len > 0)
+		ret = btrfs_extent_same_range(src, loff, tail_len, dst, dst_loff);
 
 out_unlock:
 	if (same_inode)
@@ -3160,8 +3177,6 @@ out_unlock:
 	return ret;
 }
 
-#define BTRFS_MAX_DEDUPE_LEN	SZ_16M
-
 ssize_t btrfs_dedupe_file_range(struct file *src_file, u64 loff, u64 olen,
 				struct file *dst_file, u64 dst_loff)
 {
@@ -3169,9 +3184,6 @@ ssize_t btrfs_dedupe_file_range(struct file *src_file, u64 loff, u64 olen,
 	struct inode *dst = file_inode(dst_file);
 	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
 	ssize_t res;
-
-	if (olen > BTRFS_MAX_DEDUPE_LEN)
-		olen = BTRFS_MAX_DEDUPE_LEN;
 
 	if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
 		/*
