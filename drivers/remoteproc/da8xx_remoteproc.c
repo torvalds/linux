@@ -149,9 +149,9 @@ static int da8xx_rproc_start(struct rproc *rproc)
 
 	writel(rproc->bootaddr, drproc->bootreg);
 
-	ret = clk_enable(dsp_clk);
+	ret = clk_prepare_enable(dsp_clk);
 	if (ret) {
-		dev_err(dev, "clk_enable() failed: %d\n", ret);
+		dev_err(dev, "clk_prepare_enable() failed: %d\n", ret);
 		return ret;
 	}
 
@@ -165,7 +165,7 @@ static int da8xx_rproc_stop(struct rproc *rproc)
 	struct da8xx_rproc *drproc = rproc->priv;
 
 	davinci_clk_reset_assert(drproc->dsp_clk);
-	clk_disable(drproc->dsp_clk);
+	clk_disable_unprepare(drproc->dsp_clk);
 
 	return 0;
 }
