@@ -1283,7 +1283,7 @@ out_image:
 		prog = orig_prog;
 	}
 
-	if (!prog->is_func || extra_pass) {
+	if (!image || !prog->is_func || extra_pass) {
 out_addrs:
 		kfree(addrs);
 		kfree(jit_data);
