@@ -4764,13 +4764,6 @@ static void r8168_pll_power_up(struct rtl8169_private *tp)
 	r8168_phy_power_up(tp);
 }
 
-static void rtl_generic_op(struct rtl8169_private *tp,
-			   void (*op)(struct rtl8169_private *))
-{
-	if (op)
-		op(tp);
-}
-
 static void rtl_pll_power_down(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
@@ -4821,16 +4814,20 @@ static void rtl8169_init_ring_indexes(struct rtl8169_private *tp)
 
 static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-	rtl_generic_op(tp, tp->jumbo_ops.enable);
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+	if (tp->jumbo_ops.enable) {
+		RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
+		tp->jumbo_ops.enable(tp);
+		RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+	}
 }
 
 static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-	rtl_generic_op(tp, tp->jumbo_ops.disable);
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+	if (tp->jumbo_ops.disable) {
+		RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
+		tp->jumbo_ops.disable(tp);
+		RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+	}
 }
 
 static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
