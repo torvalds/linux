@@ -1073,6 +1073,8 @@ void intel_engines_unpark(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		if (engine->unpark)
 			engine->unpark(engine);
+
+		intel_engine_init_hangcheck(engine);
 	}
 }
 
