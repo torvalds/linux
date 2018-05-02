@@ -20,8 +20,25 @@
 
 	leds {
 		act {
-			gpios = <&gpio 47 0>;
+			gpios = <&gpio 47 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&firmware {
+	expgpio: gpio {
+		compatible = "raspberrypi,firmware-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "BT_ON",
+				  "WL_ON",
+				  "STATUS_LED",
+				  "LAN_RUN",
+				  "HPD_N",
+				  "CAM_GPIO0",
+				  "CAM_GPIO1",
+				  "PWR_LOW_N";
+		status = "okay";
 	};
 };
 

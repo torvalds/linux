@@ -141,8 +141,8 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 
 	irq_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (irq_server == -1) {
-		pr_warning("%s: No online cpus in the mask %*pb for irq %d\n",
-			   __func__, cpumask_pr_args(cpumask), d->irq);
+		pr_warn("%s: No online cpus in the mask %*pb for irq %d\n",
+			__func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
 

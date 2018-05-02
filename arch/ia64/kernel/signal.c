@@ -105,58 +105,6 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 	return err;
 }
 
-int
-copy_siginfo_to_user (siginfo_t __user *to, const siginfo_t *from)
-{
-	if (!access_ok(VERIFY_WRITE, to, sizeof(siginfo_t)))
-		return -EFAULT;
-	if (from->si_code < 0) {
-		if (__copy_to_user(to, from, sizeof(siginfo_t)))
-			return -EFAULT;
-		return 0;
-	} else {
-		int err;
-
-		/*
-		 * If you change siginfo_t structure, please be sure this code is fixed
-		 * accordingly.  It should never copy any pad contained in the structure
-		 * to avoid security leaks, but must copy the generic 3 ints plus the
-		 * relevant union member.
-		 */
-		err = __put_user(from->si_signo, &to->si_signo);
-		err |= __put_user(from->si_errno, &to->si_errno);
-		err |= __put_user(from->si_code, &to->si_code);
-		switch (siginfo_layout(from->si_signo, from->si_code)) {
-		      case SIL_FAULT:
-			err |= __put_user(from->si_flags, &to->si_flags);
-			err |= __put_user(from->si_isr, &to->si_isr);
-		      case SIL_POLL:
-			err |= __put_user(from->si_addr, &to->si_addr);
-			err |= __put_user(from->si_imm, &to->si_imm);
-			break;
-		      case SIL_TIMER:
-			err |= __put_user(from->si_tid, &to->si_tid);
-			err |= __put_user(from->si_overrun, &to->si_overrun);
-			err |= __put_user(from->si_ptr, &to->si_ptr);
-			break;
-		      case SIL_RT:
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_ptr, &to->si_ptr);
-			break;
-		      case SIL_CHLD:
-			err |= __put_user(from->si_utime, &to->si_utime);
-			err |= __put_user(from->si_stime, &to->si_stime);
-			err |= __put_user(from->si_status, &to->si_status);
-		      case SIL_KILL:
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_pid, &to->si_pid);
-			break;
-		}
-		return err;
-	}
-}
-
 long
 ia64_rt_sigreturn (struct sigscratch *scr)
 {

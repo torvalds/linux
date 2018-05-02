@@ -271,12 +271,13 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 			return AMDGPU_FW_LOAD_SMU;
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
+	case CHIP_VEGA12:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	default:
-		DRM_ERROR("Unknow firmware load type\n");
+		DRM_ERROR("Unknown firmware load type\n");
 	}
 
 	return AMDGPU_FW_LOAD_DIRECT;
@@ -359,7 +360,6 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
-	struct amdgpu_bo **bo = &adev->firmware.fw_buf;
 	uint64_t fw_offset = 0;
 	int i, err;
 	struct amdgpu_firmware_info *ucode = NULL;
@@ -370,36 +370,16 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
-		err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
+	if (!adev->in_gpu_reset) {
+		err = amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
 					amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-					AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					NULL, NULL, 0, bo);
+					&adev->firmware.fw_buf,
+					&adev->firmware.fw_buf_mc,
+					&adev->firmware.fw_buf_ptr);
 		if (err) {
-			dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
+			dev_err(adev->dev, "failed to create kernel buffer for firmware.fw_buf\n");
 			goto failed;
 		}
-
-		err = amdgpu_bo_reserve(*bo, false);
-		if (err) {
-			dev_err(adev->dev, "(%d) Firmware buffer reserve failed\n", err);
-			goto failed_reserve;
-		}
-
-		err = amdgpu_bo_pin(*bo, amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-					&adev->firmware.fw_buf_mc);
-		if (err) {
-			dev_err(adev->dev, "(%d) Firmware buffer pin failed\n", err);
-			goto failed_pin;
-		}
-
-		err = amdgpu_bo_kmap(*bo, &adev->firmware.fw_buf_ptr);
-		if (err) {
-			dev_err(adev->dev, "(%d) Firmware buffer kmap failed\n", err);
-			goto failed_kmap;
-		}
-
-		amdgpu_bo_unreserve(*bo);
 	}
 
 	memset(adev->firmware.fw_buf_ptr, 0, adev->firmware.fw_size);
@@ -436,12 +416,6 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	}
 	return 0;
 
-failed_kmap:
-	amdgpu_bo_unpin(*bo);
-failed_pin:
-	amdgpu_bo_unreserve(*bo);
-failed_reserve:
-	amdgpu_bo_unref(bo);
 failed:
 	if (err)
 		adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
@@ -464,8 +438,10 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 			ucode->kaddr = NULL;
 		}
 	}
-	amdgpu_bo_unref(&adev->firmware.fw_buf);
-	adev->firmware.fw_buf = NULL;
+
+	amdgpu_bo_free_kernel(&adev->firmware.fw_buf,
+				&adev->firmware.fw_buf_mc,
+				&adev->firmware.fw_buf_ptr);
 
 	return 0;
 }

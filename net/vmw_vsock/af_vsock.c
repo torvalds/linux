@@ -759,7 +759,7 @@ vsock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 }
 
 static int vsock_getname(struct socket *sock,
-			 struct sockaddr *addr, int *addr_len, int peer)
+			 struct sockaddr *addr, int peer)
 {
 	int err;
 	struct sock *sk;
@@ -794,7 +794,7 @@ static int vsock_getname(struct socket *sock,
 	 */
 	BUILD_BUG_ON(sizeof(*vm_addr) > 128);
 	memcpy(addr, vm_addr, sizeof(*vm_addr));
-	*addr_len = sizeof(*vm_addr);
+	err = sizeof(*vm_addr);
 
 out:
 	release_sock(sk);
@@ -850,11 +850,11 @@ static int vsock_shutdown(struct socket *sock, int mode)
 	return err;
 }
 
-static unsigned int vsock_poll(struct file *file, struct socket *sock,
+static __poll_t vsock_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct sock *sk;
-	unsigned int mask;
+	__poll_t mask;
 	struct vsock_sock *vsk;
 
 	sk = sock->sk;
@@ -865,20 +865,20 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 
 	if (sk->sk_err)
 		/* Signify that there has been an error on this socket. */
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 
 	/* INET sockets treat local write shutdown and peer write shutdown as a
-	 * case of POLLHUP set.
+	 * case of EPOLLHUP set.
 	 */
 	if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 	    ((sk->sk_shutdown & SEND_SHUTDOWN) &&
 	     (vsk->peer_shutdown & SEND_SHUTDOWN))) {
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	}
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN ||
 	    vsk->peer_shutdown & SEND_SHUTDOWN) {
-		mask |= POLLRDHUP;
+		mask |= EPOLLRDHUP;
 	}
 
 	if (sock->type == SOCK_DGRAM) {
@@ -888,11 +888,11 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 */
 		if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		    (sk->sk_shutdown & RCV_SHUTDOWN)) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN))
-			mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+			mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	} else if (sock->type == SOCK_STREAM) {
 		lock_sock(sk);
@@ -902,7 +902,7 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 */
 		if (sk->sk_state == TCP_LISTEN
 		    && !vsock_is_accept_queue_empty(sk))
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 
 		/* If there is something in the queue then we can read. */
 		if (transport->stream_is_active(vsk) &&
@@ -911,10 +911,10 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 			int ret = transport->notify_poll_in(
 					vsk, 1, &data_ready_now);
 			if (ret < 0) {
-				mask |= POLLERR;
+				mask |= EPOLLERR;
 			} else {
 				if (data_ready_now)
-					mask |= POLLIN | POLLRDNORM;
+					mask |= EPOLLIN | EPOLLRDNORM;
 
 			}
 		}
@@ -925,7 +925,7 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 */
 		if (sk->sk_shutdown & RCV_SHUTDOWN ||
 		    vsk->peer_shutdown & SEND_SHUTDOWN) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 
 		/* Connected sockets that can produce data can be written. */
@@ -935,25 +935,25 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 				int ret = transport->notify_poll_out(
 						vsk, 1, &space_avail_now);
 				if (ret < 0) {
-					mask |= POLLERR;
+					mask |= EPOLLERR;
 				} else {
 					if (space_avail_now)
-						/* Remove POLLWRBAND since INET
+						/* Remove EPOLLWRBAND since INET
 						 * sockets are not setting it.
 						 */
-						mask |= POLLOUT | POLLWRNORM;
+						mask |= EPOLLOUT | EPOLLWRNORM;
 
 				}
 			}
 		}
 
 		/* Simulate INET socket poll behaviors, which sets
-		 * POLLOUT|POLLWRNORM when peer is closed and nothing to read,
+		 * EPOLLOUT|EPOLLWRNORM when peer is closed and nothing to read,
 		 * but local send is not shutdown.
 		 */
 		if (sk->sk_state == TCP_CLOSE || sk->sk_state == TCP_CLOSING) {
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN))
-				mask |= POLLOUT | POLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRNORM;
 
 		}
 
@@ -2018,7 +2018,13 @@ const struct vsock_transport *vsock_core_get_transport(void)
 }
 EXPORT_SYMBOL_GPL(vsock_core_get_transport);
 
+static void __exit vsock_exit(void)
+{
+	/* Do nothing.  This function makes this module removable. */
+}
+
 module_init(vsock_init_tables);
+module_exit(vsock_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");

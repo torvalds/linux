@@ -62,40 +62,6 @@ int ocrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	return 0;
 }
 
-int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
-		     int index, union ib_gid *sgid)
-{
-	int ret;
-
-	memset(sgid, 0, sizeof(*sgid));
-	if (index >= OCRDMA_MAX_SGID)
-		return -EINVAL;
-
-	ret = ib_get_cached_gid(ibdev, port, index, sgid, NULL);
-	if (ret == -EAGAIN) {
-		memcpy(sgid, &zgid, sizeof(*sgid));
-		return 0;
-	}
-
-	return ret;
-}
-
-int ocrdma_add_gid(struct ib_device *device,
-		   u8 port_num,
-		   unsigned int index,
-		   const union ib_gid *gid,
-		   const struct ib_gid_attr *attr,
-		   void **context) {
-	return  0;
-}
-
-int  ocrdma_del_gid(struct ib_device *device,
-		    u8 port_num,
-		    unsigned int index,
-		    void **context) {
-	return 0;
-}
-
 int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 			struct ib_udata *uhw)
 {
@@ -461,7 +427,7 @@ retry:
 static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
 				 struct ocrdma_pd *pd)
 {
-	return (uctx->cntxt_pd == pd ? true : false);
+	return (uctx->cntxt_pd == pd);
 }
 
 static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
@@ -550,13 +516,12 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&ctx->mm_head);
 	mutex_init(&ctx->mm_list_lock);
 
-	ctx->ah_tbl.va = dma_alloc_coherent(&pdev->dev, map_len,
-					    &ctx->ah_tbl.pa, GFP_KERNEL);
+	ctx->ah_tbl.va = dma_zalloc_coherent(&pdev->dev, map_len,
+					     &ctx->ah_tbl.pa, GFP_KERNEL);
 	if (!ctx->ah_tbl.va) {
 		kfree(ctx);
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(ctx->ah_tbl.va, 0, map_len);
 	ctx->ah_tbl.len = map_len;
 
 	memset(&resp, 0, sizeof(resp));
@@ -885,13 +850,12 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
 		return -ENOMEM;
 
 	for (i = 0; i < mr->num_pbls; i++) {
-		va = dma_alloc_coherent(&pdev->dev, dma_len, &pa, GFP_KERNEL);
+		va = dma_zalloc_coherent(&pdev->dev, dma_len, &pa, GFP_KERNEL);
 		if (!va) {
 			ocrdma_free_mr_pbl_tbl(dev, mr);
 			status = -ENOMEM;
 			break;
 		}
-		memset(va, 0, dma_len);
 		mr->pbl_table[i].va = va;
 		mr->pbl_table[i].pa = pa;
 	}

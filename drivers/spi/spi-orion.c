@@ -90,13 +90,19 @@ struct orion_direct_acc {
 	u32			size;
 };
 
+struct orion_child_options {
+	struct orion_direct_acc direct_access;
+};
+
 struct orion_spi {
 	struct spi_master	*master;
 	void __iomem		*base;
 	struct clk              *clk;
+	struct clk              *axi_clk;
 	const struct orion_spi_dev *devdata;
+	int			unused_hw_gpio;
 
-	struct orion_direct_acc	direct_access[ORION_NUM_CHIPSELECTS];
+	struct orion_child_options	child[ORION_NUM_CHIPSELECTS];
 };
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
@@ -323,12 +329,12 @@ static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 	struct orion_spi *orion_spi;
 	int cs;
 
+	orion_spi = spi_master_get_devdata(spi->master);
+
 	if (gpio_is_valid(spi->cs_gpio))
-		cs = 0;
+		cs = orion_spi->unused_hw_gpio;
 	else
 		cs = spi->chip_select;
-
-	orion_spi = spi_master_get_devdata(spi->master);
 
 	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
 	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
@@ -434,7 +440,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	 * Use SPI direct write mode if base address is available. Otherwise
 	 * fall back to PIO mode for this transfer.
 	 */
-	if ((orion_spi->direct_access[cs].vaddr) && (xfer->tx_buf) &&
+	if ((orion_spi->child[cs].direct_access.vaddr) && (xfer->tx_buf) &&
 	    (word_len == 8)) {
 		unsigned int cnt = count / 4;
 		unsigned int rem = count % 4;
@@ -443,12 +449,12 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 		 * Send the TX-data to the SPI device via the direct
 		 * mapped address window
 		 */
-		iowrite32_rep(orion_spi->direct_access[cs].vaddr,
+		iowrite32_rep(orion_spi->child[cs].direct_access.vaddr,
 			      xfer->tx_buf, cnt);
 		if (rem) {
 			u32 *buf = (u32 *)xfer->tx_buf;
 
-			iowrite8_rep(orion_spi->direct_access[cs].vaddr,
+			iowrite8_rep(orion_spi->child[cs].direct_access.vaddr,
 				     &buf[cnt], rem);
 		}
 
@@ -497,6 +503,9 @@ static int orion_spi_transfer_one(struct spi_master *master,
 
 static int orion_spi_setup(struct spi_device *spi)
 {
+	if (gpio_is_valid(spi->cs_gpio)) {
+		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+	}
 	return orion_spi_setup_transfer(spi, NULL);
 }
 
@@ -619,6 +628,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
+	spi->unused_hw_gpio = -1;
 
 	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
 	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
@@ -633,6 +643,16 @@ static int orion_spi_probe(struct platform_device *pdev)
 	status = clk_prepare_enable(spi->clk);
 	if (status)
 		goto out;
+
+	/* The following clock is only used by some SoCs */
+	spi->axi_clk = devm_clk_get(&pdev->dev, "axi");
+	if (IS_ERR(spi->axi_clk) &&
+	    PTR_ERR(spi->axi_clk) == -EPROBE_DEFER) {
+		status = -EPROBE_DEFER;
+		goto out_rel_clk;
+	}
+	if (!IS_ERR(spi->axi_clk))
+		clk_prepare_enable(spi->axi_clk);
 
 	tclk_hz = clk_get_rate(spi->clk);
 
@@ -658,7 +678,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
-		goto out_rel_clk;
+		goto out_rel_axi_clk;
 	}
 
 	/* Scan all SPI devices of this controller for direct mapped devices */
@@ -691,14 +711,14 @@ static int orion_spi_probe(struct platform_device *pdev)
 		 * This needs to get extended for the direct SPI-NOR / SPI-NAND
 		 * support, once this gets implemented.
 		 */
-		spi->direct_access[cs].vaddr = devm_ioremap(&pdev->dev,
+		spi->child[cs].direct_access.vaddr = devm_ioremap(&pdev->dev,
 							    r->start,
 							    PAGE_SIZE);
-		if (!spi->direct_access[cs].vaddr) {
+		if (!spi->child[cs].direct_access.vaddr) {
 			status = -ENOMEM;
-			goto out_rel_clk;
+			goto out_rel_axi_clk;
 		}
-		spi->direct_access[cs].size = PAGE_SIZE;
+		spi->child[cs].direct_access.size = PAGE_SIZE;
 
 		dev_info(&pdev->dev, "CS%d configured for direct access\n", cs);
 	}
@@ -720,10 +740,48 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
+	if (master->cs_gpios) {
+		int i;
+		for (i = 0; i < master->num_chipselect; ++i) {
+			char *gpio_name;
+
+			if (!gpio_is_valid(master->cs_gpios[i])) {
+				continue;
+			}
+
+			gpio_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					"%s-CS%d", dev_name(&pdev->dev), i);
+			if (!gpio_name) {
+				status = -ENOMEM;
+				goto out_rel_master;
+			}
+
+			status = devm_gpio_request(&pdev->dev,
+					master->cs_gpios[i], gpio_name);
+			if (status) {
+				dev_err(&pdev->dev,
+					"Can't request GPIO for CS %d\n",
+					master->cs_gpios[i]);
+				goto out_rel_master;
+			}
+			if (spi->unused_hw_gpio == -1) {
+				dev_info(&pdev->dev,
+					"Selected unused HW CS#%d for any GPIO CSes\n",
+					i);
+				spi->unused_hw_gpio = i;
+			}
+		}
+	}
+
+
 	return status;
 
+out_rel_master:
+	spi_unregister_master(master);
 out_rel_pm:
 	pm_runtime_disable(&pdev->dev);
+out_rel_axi_clk:
+	clk_disable_unprepare(spi->axi_clk);
 out_rel_clk:
 	clk_disable_unprepare(spi->clk);
 out:
@@ -738,6 +796,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
 	pm_runtime_get_sync(&pdev->dev);
+	clk_disable_unprepare(spi->axi_clk);
 	clk_disable_unprepare(spi->clk);
 
 	spi_unregister_master(master);
@@ -754,6 +813,7 @@ static int orion_spi_runtime_suspend(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
+	clk_disable_unprepare(spi->axi_clk);
 	clk_disable_unprepare(spi->clk);
 	return 0;
 }
@@ -763,6 +823,8 @@ static int orion_spi_runtime_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
+	if (!IS_ERR(spi->axi_clk))
+		clk_prepare_enable(spi->axi_clk);
 	return clk_prepare_enable(spi->clk);
 }
 #endif

@@ -37,6 +37,7 @@
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/iversion.h>
 
 /*
  * Allocate and initialise an xfs_inode.
@@ -293,15 +294,17 @@ xfs_reinit_inode(
 	int		error;
 	uint32_t	nlink = inode->i_nlink;
 	uint32_t	generation = inode->i_generation;
-	uint64_t	version = inode->i_version;
+	uint64_t	version = inode_peek_iversion(inode);
 	umode_t		mode = inode->i_mode;
+	dev_t		dev = inode->i_rdev;
 
 	error = inode_init_always(mp->m_super, inode);
 
 	set_nlink(inode, nlink);
 	inode->i_generation = generation;
-	inode->i_version = version;
+	inode_set_iversion_queried(inode, version);
 	inode->i_mode = mode;
+	inode->i_rdev = dev;
 	return error;
 }
 
@@ -473,9 +476,35 @@ xfs_iget_cache_miss(
 	if (error)
 		goto out_destroy;
 
+	if (!xfs_inode_verify_forks(ip)) {
+		error = -EFSCORRUPTED;
+		goto out_destroy;
+	}
+
 	trace_xfs_iget_miss(ip);
 
-	if ((VFS_I(ip)->i_mode == 0) && !(flags & XFS_IGET_CREATE)) {
+
+	/*
+	 * If we are allocating a new inode, then check what was returned is
+	 * actually a free, empty inode. If we are not allocating an inode,
+	 * the check we didn't find a free inode.
+	 */
+	if (flags & XFS_IGET_CREATE) {
+		if (VFS_I(ip)->i_mode != 0) {
+			xfs_warn(mp,
+"Corruption detected! Free inode 0x%llx not marked free on disk",
+				ino);
+			error = -EFSCORRUPTED;
+			goto out_destroy;
+		}
+		if (ip->i_d.di_nblocks != 0) {
+			xfs_warn(mp,
+"Corruption detected! Free inode 0x%llx has blocks allocated!",
+				ino);
+			error = -EFSCORRUPTED;
+			goto out_destroy;
+		}
+	} else if (VFS_I(ip)->i_mode == 0) {
 		error = -ENOENT;
 		goto out_destroy;
 	}
@@ -1650,6 +1679,39 @@ xfs_inode_clear_eofblocks_tag(
 }
 
 /*
+ * Set ourselves up to free CoW blocks from this file.  If it's already clean
+ * then we can bail out quickly, but otherwise we must back off if the file
+ * is undergoing some kind of write.
+ */
+static bool
+xfs_prep_free_cowblocks(
+	struct xfs_inode	*ip,
+	struct xfs_ifork	*ifp)
+{
+	/*
+	 * Just clear the tag if we have an empty cow fork or none at all. It's
+	 * possible the inode was fully unshared since it was originally tagged.
+	 */
+	if (!xfs_is_reflink_inode(ip) || !ifp->if_bytes) {
+		trace_xfs_inode_free_cowblocks_invalid(ip);
+		xfs_inode_clear_cowblocks_tag(ip);
+		return false;
+	}
+
+	/*
+	 * If the mapping is dirty or under writeback we cannot touch the
+	 * CoW fork.  Leave it alone if we're in the midst of a directio.
+	 */
+	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
+	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
+	    atomic_read(&VFS_I(ip)->i_dio_count))
+		return false;
+
+	return true;
+}
+
+/*
  * Automatic CoW Reservation Freeing
  *
  * These functions automatically garbage collect leftover CoW reservations
@@ -1667,29 +1729,12 @@ xfs_inode_free_cowblocks(
 	int			flags,
 	void			*args)
 {
-	int ret;
-	struct xfs_eofblocks *eofb = args;
-	int match;
+	struct xfs_eofblocks	*eofb = args;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	int			match;
+	int			ret = 0;
 
-	/*
-	 * Just clear the tag if we have an empty cow fork or none at all. It's
-	 * possible the inode was fully unshared since it was originally tagged.
-	 */
-	if (!xfs_is_reflink_inode(ip) || !ifp->if_bytes) {
-		trace_xfs_inode_free_cowblocks_invalid(ip);
-		xfs_inode_clear_cowblocks_tag(ip);
-		return 0;
-	}
-
-	/*
-	 * If the mapping is dirty or under writeback we cannot touch the
-	 * CoW fork.  Leave it alone if we're in the midst of a directio.
-	 */
-	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
-	    atomic_read(&VFS_I(ip)->i_dio_count))
+	if (!xfs_prep_free_cowblocks(ip, ifp))
 		return 0;
 
 	if (eofb) {
@@ -1710,7 +1755,12 @@ xfs_inode_free_cowblocks(
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
 
-	ret = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, false);
+	/*
+	 * Check again, nobody else should be able to dirty blocks or change
+	 * the reflink iflag now that we have the first two locks held.
+	 */
+	if (xfs_prep_free_cowblocks(ip, ifp))
+		ret = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, false);
 
 	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);

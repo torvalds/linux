@@ -36,16 +36,21 @@ endif
 CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_DIV) += -mno-xl-soft-div
 CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_BARREL) += -mxl-barrel-shift
 CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_PCMP_INSTR) += -mxl-pattern-compare
-CPUFLAGS-$(CONFIG_BIG_ENDIAN) += -mbig-endian
-CPUFLAGS-$(CONFIG_LITTLE_ENDIAN) += -mlittle-endian
+
+ifdef CONFIG_CPU_BIG_ENDIAN
+KBUILD_CFLAGS += -mbig-endian
+KBUILD_AFLAGS += -mbig-endian
+LD += -EB
+else
+KBUILD_CFLAGS += -mlittle-endian
+KBUILD_AFLAGS += -mlittle-endian
+LD += -EL
+endif
 
 CPUFLAGS-1 += $(call cc-option,-mcpu=v$(CPU_VER))
 
 # r31 holds current when in kernel mode
-KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
-
-LDFLAGS		:=
-LDFLAGS_vmlinux	:=
+KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-y) $(CPUFLAGS-1) $(CPUFLAGS-2)
 
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/

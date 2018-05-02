@@ -124,7 +124,7 @@ dsp {
 };
 
 /* AM33xx */
-mailbox: mailbox@480C8000 {
+mailbox: mailbox@480c8000 {
 	compatible = "ti,omap4-mailbox";
 	reg = <0x480C8000 0x200>;
 	interrupts = <77>;

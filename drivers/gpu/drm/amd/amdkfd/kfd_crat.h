@@ -44,6 +44,10 @@
 
 #define CRAT_OEMID_64BIT_MASK ((1ULL << (CRAT_OEMID_LENGTH * 8)) - 1)
 
+/* Compute Unit flags */
+#define COMPUTE_UNIT_CPU	(1 << 0)  /* Create Virtual CRAT for CPU */
+#define COMPUTE_UNIT_GPU	(1 << 1)  /* Create Virtual CRAT for GPU */
+
 struct crat_header {
 	uint32_t	signature;
 	uint32_t	length;
@@ -105,7 +109,7 @@ struct crat_subtype_computeunit {
 	uint8_t		wave_front_size;
 	uint8_t		num_banks;
 	uint16_t	micro_engine_id;
-	uint8_t		num_arrays;
+	uint8_t		array_count;
 	uint8_t		num_cu_per_array;
 	uint8_t		num_simd_per_cu;
 	uint8_t		max_slots_scatch_cu;
@@ -127,13 +131,14 @@ struct crat_subtype_memory {
 	uint8_t		length;
 	uint16_t	reserved;
 	uint32_t	flags;
-	uint32_t	promixity_domain;
+	uint32_t	proximity_domain;
 	uint32_t	base_addr_low;
 	uint32_t	base_addr_high;
 	uint32_t	length_low;
 	uint32_t	length_high;
 	uint32_t	width;
-	uint8_t		reserved2[CRAT_MEMORY_RESERVED_LENGTH];
+	uint8_t		visibility_type; /* for virtual (dGPU) CRAT */
+	uint8_t		reserved2[CRAT_MEMORY_RESERVED_LENGTH - 1];
 };
 
 /*
@@ -222,9 +227,12 @@ struct crat_subtype_ccompute {
 /*
  * HSA IO Link Affinity structure and definitions
  */
-#define CRAT_IOLINK_FLAGS_ENABLED	0x00000001
-#define CRAT_IOLINK_FLAGS_COHERENCY	0x00000002
-#define CRAT_IOLINK_FLAGS_RESERVED	0xfffffffc
+#define CRAT_IOLINK_FLAGS_ENABLED		(1 << 0)
+#define CRAT_IOLINK_FLAGS_NON_COHERENT		(1 << 1)
+#define CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT	(1 << 2)
+#define CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT	(1 << 3)
+#define CRAT_IOLINK_FLAGS_NO_PEER_TO_PEER_DMA	(1 << 4)
+#define CRAT_IOLINK_FLAGS_RESERVED_MASK		0xffffffe0
 
 /*
  * IO interface types
@@ -232,10 +240,18 @@ struct crat_subtype_ccompute {
 #define CRAT_IOLINK_TYPE_UNDEFINED	0
 #define CRAT_IOLINK_TYPE_HYPERTRANSPORT	1
 #define CRAT_IOLINK_TYPE_PCIEXPRESS	2
-#define CRAT_IOLINK_TYPE_OTHER		3
+#define CRAT_IOLINK_TYPE_AMBA		3
+#define CRAT_IOLINK_TYPE_MIPI		4
+#define CRAT_IOLINK_TYPE_QPI_1_1	5
+#define CRAT_IOLINK_TYPE_RESERVED1	6
+#define CRAT_IOLINK_TYPE_RESERVED2	7
+#define CRAT_IOLINK_TYPE_RAPID_IO	8
+#define CRAT_IOLINK_TYPE_INFINIBAND	9
+#define CRAT_IOLINK_TYPE_RESERVED3	10
+#define CRAT_IOLINK_TYPE_OTHER		11
 #define CRAT_IOLINK_TYPE_MAX		255
 
-#define CRAT_IOLINK_RESERVED_LENGTH 24
+#define CRAT_IOLINK_RESERVED_LENGTH	24
 
 struct crat_subtype_iolink {
 	uint8_t		type;
@@ -290,5 +306,15 @@ struct cdit_header {
 };
 
 #pragma pack()
+
+struct kfd_dev;
+
+int kfd_create_crat_image_acpi(void **crat_image, size_t *size);
+void kfd_destroy_crat_image(void *crat_image);
+int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
+			 uint32_t proximity_domain);
+int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
+				  int flags, struct kfd_dev *kdev,
+				  uint32_t proximity_domain);
 
 #endif /* KFD_CRAT_H_INCLUDED */

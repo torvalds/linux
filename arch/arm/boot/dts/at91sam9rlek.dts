@@ -1,7 +1,8 @@
 /*
  * at91sam9rlek.dts - Device Tree file for Atmel at91sam9rl reference board
  *
- *  Copyright (C) 2014  Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *  Copyright (C) 2014 Microchip
+ *  Alexandre Belloni <alexandre.belloni@free-electrons.com>
  *
  * Licensed under GPLv2 only
  */
@@ -124,6 +125,18 @@
 		};
 
 		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			mmc0: mmc@fffa4000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0

@@ -100,6 +100,7 @@ int lpit_read_residency_count_address(u64 *address)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lpit_read_residency_count_address);
 
 static void lpit_update_residency(struct lpit_residency_info *info,
 				 struct acpi_lpit_native *lpit_native)

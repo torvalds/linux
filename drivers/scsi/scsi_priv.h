@@ -45,7 +45,7 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 /* scsi_devinfo.c */
 
 /* list of keys for the lists */
-enum {
+enum scsi_devinfo_key {
 	SCSI_DEVINFO_GLOBAL = 0,
 	SCSI_DEVINFO_SPI,
 };
@@ -56,13 +56,15 @@ extern blist_flags_t scsi_get_device_flags(struct scsi_device *sdev,
 extern blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 						 const unsigned char *vendor,
 						 const unsigned char *model,
-						 int key);
+						 enum scsi_devinfo_key key);
 extern int scsi_dev_info_list_add_keyed(int compatible, char *vendor,
 					char *model, char *strflags,
-					blist_flags_t flags, int key);
-extern int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key);
-extern int scsi_dev_info_add_list(int key, const char *name);
-extern int scsi_dev_info_remove_list(int key);
+					blist_flags_t flags,
+					enum scsi_devinfo_key key);
+extern int scsi_dev_info_list_del_keyed(char *vendor, char *model,
+					enum scsi_devinfo_key key);
+extern int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name);
+extern int scsi_dev_info_remove_list(enum scsi_devinfo_key key);
 
 extern int __init scsi_init_devinfo(void);
 extern void scsi_exit_devinfo(void);
@@ -184,7 +186,6 @@ void scsi_dh_release_device(struct scsi_device *sdev);
 static inline void scsi_dh_add_device(struct scsi_device *sdev) { }
 static inline void scsi_dh_release_device(struct scsi_device *sdev) { }
 #endif
-static inline void scsi_dh_remove_device(struct scsi_device *sdev) { }
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport

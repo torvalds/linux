@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/jiffies.h>
 
 #include "thermal_core.h"
 
@@ -317,7 +318,7 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
+static DEVICE_ATTR_WO(emul_temp);
 #endif
 
 static ssize_t
@@ -396,16 +397,15 @@ create_s32_tzp_attr(offset);
  * All the attributes created for tzp (create_s32_tzp_attr) also are always
  * present on the sysfs interface.
  */
-static DEVICE_ATTR(type, 0444, type_show, NULL);
-static DEVICE_ATTR(temp, 0444, temp_show, NULL);
-static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
-static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
-static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
-		   sustainable_power_store);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(temp);
+static DEVICE_ATTR_RW(policy);
+static DEVICE_ATTR_RO(available_policies);
+static DEVICE_ATTR_RW(sustainable_power);
 
 /* These thermal zone device attributes are created based on conditions */
-static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
-static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
+static DEVICE_ATTR_RW(mode);
+static DEVICE_ATTR_RW(passive);
 
 /* These attributes are unconditionally added to a thermal zone */
 static struct attribute *thermal_zone_dev_attrs[] = {
@@ -722,6 +722,7 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 	result = cdev->ops->set_cur_state(cdev, state);
 	if (result)
 		return result;
+	thermal_cooling_device_stats_update(cdev, state);
 	return count;
 }
 
@@ -746,12 +747,235 @@ static const struct attribute_group cooling_device_attr_group = {
 
 static const struct attribute_group *cooling_device_attr_groups[] = {
 	&cooling_device_attr_group,
+	NULL, /* Space allocated for cooling_device_stats_attr_group */
 	NULL,
 };
 
+#ifdef CONFIG_THERMAL_STATISTICS
+struct cooling_dev_stats {
+	spinlock_t lock;
+	unsigned int total_trans;
+	unsigned long state;
+	unsigned long max_states;
+	ktime_t last_time;
+	ktime_t *time_in_state;
+	unsigned int *trans_table;
+};
+
+static void update_time_in_state(struct cooling_dev_stats *stats)
+{
+	ktime_t now = ktime_get(), delta;
+
+	delta = ktime_sub(now, stats->last_time);
+	stats->time_in_state[stats->state] =
+		ktime_add(stats->time_in_state[stats->state], delta);
+	stats->last_time = now;
+}
+
+void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
+					 unsigned long new_state)
+{
+	struct cooling_dev_stats *stats = cdev->stats;
+
+	spin_lock(&stats->lock);
+
+	if (stats->state == new_state)
+		goto unlock;
+
+	update_time_in_state(stats);
+	stats->trans_table[stats->state * stats->max_states + new_state]++;
+	stats->state = new_state;
+	stats->total_trans++;
+
+unlock:
+	spin_unlock(&stats->lock);
+}
+
+static ssize_t
+thermal_cooling_device_total_trans_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct cooling_dev_stats *stats = cdev->stats;
+	int ret;
+
+	spin_lock(&stats->lock);
+	ret = sprintf(buf, "%u\n", stats->total_trans);
+	spin_unlock(&stats->lock);
+
+	return ret;
+}
+
+static ssize_t
+thermal_cooling_device_time_in_state_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct cooling_dev_stats *stats = cdev->stats;
+	ssize_t len = 0;
+	int i;
+
+	spin_lock(&stats->lock);
+	update_time_in_state(stats);
+
+	for (i = 0; i < stats->max_states; i++) {
+		len += sprintf(buf + len, "state%u\t%llu\n", i,
+			       ktime_to_ms(stats->time_in_state[i]));
+	}
+	spin_unlock(&stats->lock);
+
+	return len;
+}
+
+static ssize_t
+thermal_cooling_device_reset_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct cooling_dev_stats *stats = cdev->stats;
+	int i, states = stats->max_states;
+
+	spin_lock(&stats->lock);
+
+	stats->total_trans = 0;
+	stats->last_time = ktime_get();
+	memset(stats->trans_table, 0,
+	       states * states * sizeof(*stats->trans_table));
+
+	for (i = 0; i < stats->max_states; i++)
+		stats->time_in_state[i] = ktime_set(0, 0);
+
+	spin_unlock(&stats->lock);
+
+	return count;
+}
+
+static ssize_t
+thermal_cooling_device_trans_table_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct cooling_dev_stats *stats = cdev->stats;
+	ssize_t len = 0;
+	int i, j;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, " From  :    To\n");
+	len += snprintf(buf + len, PAGE_SIZE - len, "       : ");
+	for (i = 0; i < stats->max_states; i++) {
+		if (len >= PAGE_SIZE)
+			break;
+		len += snprintf(buf + len, PAGE_SIZE - len, "state%2u  ", i);
+	}
+	if (len >= PAGE_SIZE)
+		return PAGE_SIZE;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+
+	for (i = 0; i < stats->max_states; i++) {
+		if (len >= PAGE_SIZE)
+			break;
+
+		len += snprintf(buf + len, PAGE_SIZE - len, "state%2u:", i);
+
+		for (j = 0; j < stats->max_states; j++) {
+			if (len >= PAGE_SIZE)
+				break;
+			len += snprintf(buf + len, PAGE_SIZE - len, "%8u ",
+				stats->trans_table[i * stats->max_states + j]);
+		}
+		if (len >= PAGE_SIZE)
+			break;
+		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	}
+
+	if (len >= PAGE_SIZE) {
+		pr_warn_once("Thermal transition table exceeds PAGE_SIZE. Disabling\n");
+		return -EFBIG;
+	}
+	return len;
+}
+
+static DEVICE_ATTR(total_trans, 0444, thermal_cooling_device_total_trans_show,
+		   NULL);
+static DEVICE_ATTR(time_in_state_ms, 0444,
+		   thermal_cooling_device_time_in_state_show, NULL);
+static DEVICE_ATTR(reset, 0200, NULL, thermal_cooling_device_reset_store);
+static DEVICE_ATTR(trans_table, 0444,
+		   thermal_cooling_device_trans_table_show, NULL);
+
+static struct attribute *cooling_device_stats_attrs[] = {
+	&dev_attr_total_trans.attr,
+	&dev_attr_time_in_state_ms.attr,
+	&dev_attr_reset.attr,
+	&dev_attr_trans_table.attr,
+	NULL
+};
+
+static const struct attribute_group cooling_device_stats_attr_group = {
+	.attrs = cooling_device_stats_attrs,
+	.name = "stats"
+};
+
+static void cooling_device_stats_setup(struct thermal_cooling_device *cdev)
+{
+	struct cooling_dev_stats *stats;
+	unsigned long states;
+	int var;
+
+	if (cdev->ops->get_max_state(cdev, &states))
+		return;
+
+	states++; /* Total number of states is highest state + 1 */
+
+	var = sizeof(*stats);
+	var += sizeof(*stats->time_in_state) * states;
+	var += sizeof(*stats->trans_table) * states * states;
+
+	stats = kzalloc(var, GFP_KERNEL);
+	if (!stats)
+		return;
+
+	stats->time_in_state = (ktime_t *)(stats + 1);
+	stats->trans_table = (unsigned int *)(stats->time_in_state + states);
+	cdev->stats = stats;
+	stats->last_time = ktime_get();
+	stats->max_states = states;
+
+	spin_lock_init(&stats->lock);
+
+	/* Fill the empty slot left in cooling_device_attr_groups */
+	var = ARRAY_SIZE(cooling_device_attr_groups) - 2;
+	cooling_device_attr_groups[var] = &cooling_device_stats_attr_group;
+}
+
+static void cooling_device_stats_destroy(struct thermal_cooling_device *cdev)
+{
+	kfree(cdev->stats);
+	cdev->stats = NULL;
+}
+
+#else
+
+static inline void
+cooling_device_stats_setup(struct thermal_cooling_device *cdev) {}
+static inline void
+cooling_device_stats_destroy(struct thermal_cooling_device *cdev) {}
+
+#endif /* CONFIG_THERMAL_STATISTICS */
+
 void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *cdev)
 {
+	cooling_device_stats_setup(cdev);
 	cdev->device.groups = cooling_device_attr_groups;
+}
+
+void thermal_cooling_device_destroy_sysfs(struct thermal_cooling_device *cdev)
+{
+	cooling_device_stats_destroy(cdev);
 }
 
 /* these helper will be used only at the time of bindig */

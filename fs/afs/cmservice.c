@@ -178,8 +178,8 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
  */
 static int afs_deliver_cb_callback(struct afs_call *call)
 {
+	struct afs_callback_break *cb;
 	struct sockaddr_rxrpc srx;
-	struct afs_callback *cb;
 	struct afs_server *server;
 	__be32 *bp;
 	int ret, loop;
@@ -201,7 +201,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->count = ntohl(call->tmp);
 		_debug("FID count: %u", call->count);
 		if (call->count > AFSCBMAX)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		call->buffer = kmalloc(call->count * 3 * 4, GFP_KERNEL);
 		if (!call->buffer)
@@ -218,7 +218,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 		_debug("unmarshall FID array");
 		call->request = kcalloc(call->count,
-					sizeof(struct afs_callback),
+					sizeof(struct afs_callback_break),
 					GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
@@ -229,7 +229,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 			cb->fid.vid	= ntohl(*bp++);
 			cb->fid.vnode	= ntohl(*bp++);
 			cb->fid.unique	= ntohl(*bp++);
-			cb->type	= AFSCM_CB_UNTYPED;
+			cb->cb.type	= AFSCM_CB_UNTYPED;
 		}
 
 		call->offset = 0;
@@ -245,7 +245,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->count2 = ntohl(call->tmp);
 		_debug("CB count: %u", call->count2);
 		if (call->count2 != call->count && call->count2 != 0)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -260,9 +260,9 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		cb = call->request;
 		bp = call->buffer;
 		for (loop = call->count2; loop > 0; loop--, cb++) {
-			cb->version	= ntohl(*bp++);
-			cb->expiry	= ntohl(*bp++);
-			cb->type	= ntohl(*bp++);
+			cb->cb.version	= ntohl(*bp++);
+			cb->cb.expiry	= ntohl(*bp++);
+			cb->cb.type	= ntohl(*bp++);
 		}
 
 		call->offset = 0;
@@ -500,9 +500,9 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 
 		b = call->buffer;
 		r = call->request;
-		r->time_low			= ntohl(b[0]);
-		r->time_mid			= ntohl(b[1]);
-		r->time_hi_and_version		= ntohl(b[2]);
+		r->time_low			= b[0];
+		r->time_mid			= htons(ntohl(b[1]));
+		r->time_hi_and_version		= htons(ntohl(b[2]));
 		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
 		r->clock_seq_low		= ntohl(b[4]);
 

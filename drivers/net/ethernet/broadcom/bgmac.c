@@ -128,8 +128,6 @@ bgmac_dma_tx_add_buf(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 	dma_desc->ctl1 = cpu_to_le32(ctl1);
 }
 
-#define ENET_BRCM_TAG_LEN	4
-
 static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 				    struct bgmac_dma_ring *ring,
 				    struct sk_buff *skb)
@@ -141,18 +139,6 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	int nr_frags;
 	u32 flags;
 	int i;
-
-	/* The Ethernet switch we are interfaced with needs packets to be at
-	 * least 64 bytes (including FCS) otherwise they will be discarded when
-	 * they enter the switch port logic. When Broadcom tags are enabled, we
-	 * need to make sure that packets are at least 68 bytes
-	 * (including FCS and tag) because the length verification is done after
-	 * the Broadcom tag is stripped off the ingress packet.
-	 */
-	if (netdev_uses_dsa(net_dev)) {
-		if (skb_put_padto(skb, ETH_ZLEN + ENET_BRCM_TAG_LEN))
-			goto err_stats;
-	}
 
 	if (skb->len > BGMAC_DESC_CTL1_LEN) {
 		netdev_err(bgmac->net_dev, "Too long skb (%d)\n", skb->len);
@@ -240,7 +226,6 @@ err_dma_head:
 
 err_drop:
 	dev_kfree_skb(skb);
-err_stats:
 	net_dev->stats.tx_dropped++;
 	net_dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
@@ -548,7 +533,8 @@ static void bgmac_dma_tx_ring_free(struct bgmac *bgmac,
 	int i;
 
 	for (i = 0; i < BGMAC_TX_RING_SLOTS; i++) {
-		int len = dma_desc[i].ctl1 & BGMAC_DESC_CTL1_LEN;
+		u32 ctl1 = le32_to_cpu(dma_desc[i].ctl1);
+		unsigned int len = ctl1 & BGMAC_DESC_CTL1_LEN;
 
 		slot = &ring->slots[i];
 		dev_kfree_skb(slot->skb);
@@ -1205,7 +1191,7 @@ static int bgmac_open(struct net_device *net_dev)
 	bgmac_chip_init(bgmac);
 
 	err = request_irq(bgmac->irq, bgmac_interrupt, IRQF_SHARED,
-			  KBUILD_MODNAME, net_dev);
+			  net_dev->name, net_dev);
 	if (err < 0) {
 		dev_err(bgmac->dev, "IRQ request error: %d!\n", err);
 		bgmac_dma_cleanup(bgmac);
@@ -1506,6 +1492,8 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 {
 	struct net_device *net_dev = bgmac->net_dev;
 	int err;
+
+	bgmac_chip_intrs_off(bgmac);
 
 	net_dev->irq = bgmac->irq;
 	SET_NETDEV_DEV(net_dev, bgmac->dev);

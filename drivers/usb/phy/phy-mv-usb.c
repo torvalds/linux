@@ -519,7 +519,7 @@ static irqreturn_t mv_otg_inputs_irq(int irq, void *dev)
 }
 
 static ssize_t
-get_a_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
+a_bus_req_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
@@ -527,7 +527,7 @@ get_a_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-set_a_bus_req(struct device *dev, struct device_attribute *attr,
+a_bus_req_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
@@ -559,11 +559,10 @@ set_a_bus_req(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(a_bus_req, S_IRUGO | S_IWUSR, get_a_bus_req,
-		   set_a_bus_req);
+static DEVICE_ATTR_RW(a_bus_req);
 
 static ssize_t
-set_a_clr_err(struct device *dev, struct device_attribute *attr,
+a_clr_err_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
@@ -587,10 +586,10 @@ set_a_clr_err(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(a_clr_err, S_IWUSR, NULL, set_a_clr_err);
+static DEVICE_ATTR_WO(a_clr_err);
 
 static ssize_t
-get_a_bus_drop(struct device *dev, struct device_attribute *attr,
+a_bus_drop_show(struct device *dev, struct device_attribute *attr,
 	       char *buf)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
@@ -599,7 +598,7 @@ get_a_bus_drop(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-set_a_bus_drop(struct device *dev, struct device_attribute *attr,
+a_bus_drop_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
@@ -630,8 +629,7 @@ set_a_bus_drop(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(a_bus_drop, S_IRUGO | S_IWUSR,
-		   get_a_bus_drop, set_a_bus_drop);
+static DEVICE_ATTR_RW(a_bus_drop);
 
 static struct attribute *inputs_attrs[] = {
 	&dev_attr_a_bus_req.attr,

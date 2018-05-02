@@ -1259,10 +1259,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
-	/* Work out if we support NX */
-	get_cpu_cap(&boot_cpu_data);
-	x86_configure_nx();
-
 	/* Get mfn list */
 	xen_build_dynamic_phys_to_machine();
 
@@ -1271,6 +1267,10 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * -fstack-protector code can be executed.
 	 */
 	xen_setup_gdt(0);
+
+	/* Work out if we support NX */
+	get_cpu_cap(&boot_cpu_data);
+	x86_configure_nx();
 
 	xen_init_irq_ops();
 
@@ -1376,8 +1376,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	if (!xen_initial_domain()) {
 		add_preferred_console("xenboot", 0, NULL);
-		add_preferred_console("tty", 0, NULL);
-		add_preferred_console("hvc", 0, NULL);
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 	} else {
@@ -1410,6 +1408,10 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 		xen_boot_params_init_edd();
 	}
+
+	add_preferred_console("tty", 0, NULL);
+	add_preferred_console("hvc", 0, NULL);
+
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */
 	pci_probe &= ~PCI_PROBE_BIOS;

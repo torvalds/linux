@@ -59,7 +59,11 @@ enum w1_netlink_message_types {
  * @type: one of enum w1_netlink_message_types
  * @status: kernel feedback for success 0 or errno failure value
  * @len: length of data following w1_netlink_msg
- * @id: union holding master bus id (msg.id) and slave device id (id[8]).
+ * @id: union holding bus master id (msg.id) and slave device id (id[8]).
+ * @id.id: Slave ID (8 bytes)
+ * @id.mst: bus master identification
+ * @id.mst.id: bus master ID
+ * @id.mst.res: bus master reserved
  * @data: start address of any following data
  *
  * The base message structure for w1 messages over netlink.

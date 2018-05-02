@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/device.h>
-#include <asm/poll.h>
+#include <linux/poll.h>
 
 #include "internal.h"
 
@@ -206,15 +206,15 @@ FULL_PROXY_FUNC(unlocked_ioctl, long, filp,
 		PROTO(struct file *filp, unsigned int cmd, unsigned long arg),
 		ARGS(filp, cmd, arg));
 
-static unsigned int full_proxy_poll(struct file *filp,
+static __poll_t full_proxy_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	struct dentry *dentry = F_DENTRY(filp);
-	unsigned int r = 0;
+	__poll_t r = 0;
 	const struct file_operations *real_fops;
 
 	if (debugfs_file_get(dentry))
-		return POLLHUP;
+		return EPOLLHUP;
 
 	real_fops = debugfs_real_fops(filp);
 	r = real_fops->poll(filp, wait);

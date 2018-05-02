@@ -335,7 +335,7 @@ static struct isc_format formats_list[] = {
 	},
 };
 
-struct fmt_config fmt_configs_list[] = {
+static struct fmt_config fmt_configs_list[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
@@ -1417,20 +1417,14 @@ static int isc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	return v4l2_subdev_call(isc->current_subdev->sd, video, g_parm, a);
+	return v4l2_g_parm_cap(video_devdata(file), isc->current_subdev->sd, a);
 }
 
 static int isc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	return v4l2_subdev_call(isc->current_subdev->sd, video, s_parm, a);
+	return v4l2_s_parm_cap(video_devdata(file), isc->current_subdev->sd, a);
 }
 
 static int isc_enum_framesizes(struct file *file, void *fh,
@@ -2039,10 +2033,10 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
-	for (; ;) {
+	while (1) {
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
-			break;
+			return 0;
 
 		rem = of_graph_get_remote_port_parent(epn);
 		if (!rem) {
@@ -2088,7 +2082,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_PPOL_LOW;
 
 		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode.fwnode =
+		subdev_entity->asd->match.fwnode =
 			of_fwnode_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}

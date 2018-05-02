@@ -1,13 +1,9 @@
-/*
- * SAMSUNG EXYNOS Flattened Device Tree enabled machine
- *
- * Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// SAMSUNG EXYNOS Flattened Device Tree enabled machine
+//
+// Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
 
 #include <linux/init.h>
 #include <linux/io.h>
@@ -196,7 +192,8 @@ static void __init exynos_dt_machine_init(void)
 #endif
 	if (of_machine_is_compatible("samsung,exynos4210") ||
 	    (of_machine_is_compatible("samsung,exynos4412") &&
-	     of_machine_is_compatible("samsung,trats2")) ||
+	     (of_machine_is_compatible("samsung,trats2") ||
+		  of_machine_is_compatible("samsung,midas"))) ||
 	    of_machine_is_compatible("samsung,exynos3250") ||
 	    of_machine_is_compatible("samsung,exynos5250"))
 		platform_device_register(&exynos_cpuidle);

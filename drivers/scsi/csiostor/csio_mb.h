@@ -88,12 +88,6 @@ enum csio_dev_state {
 	 FW_PARAMS_PARAM_Y_V(0) | \
 	 FW_PARAMS_PARAM_Z_V(0))
 
-enum {
-	PAUSE_RX      = 1 << 0,
-	PAUSE_TX      = 1 << 1,
-	PAUSE_AUTONEG = 1 << 2
-};
-
 #define CSIO_INIT_MBP(__mbp, __cp,  __tmo, __priv, __fn, __clear)	\
 do {									\
 	if (__clear)							\
@@ -189,7 +183,8 @@ void csio_mb_port(struct csio_hw *, struct csio_mb *, uint32_t,
 		  void (*) (struct csio_hw *, struct csio_mb *));
 
 void csio_mb_process_read_port_rsp(struct csio_hw *, struct csio_mb *,
-				   enum fw_retval *, uint16_t *);
+				   enum fw_retval *, uint16_t,
+				   uint32_t *, uint32_t *);
 
 void csio_mb_initialize(struct csio_hw *, struct csio_mb *, uint32_t,
 			void (*)(struct csio_hw *, struct csio_mb *));

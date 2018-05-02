@@ -41,6 +41,7 @@
 enum mlxsw_sp_l3proto {
 	MLXSW_SP_L3_PROTO_IPV4,
 	MLXSW_SP_L3_PROTO_IPV6,
+#define MLXSW_SP_L3_PROTO_MAX	(MLXSW_SP_L3_PROTO_IPV6 + 1)
 };
 
 union mlxsw_sp_l3addr {

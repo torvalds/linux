@@ -19,7 +19,7 @@
 #define DRX39XXJ_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drx_driver.h"
 
 struct drx39xxj_state {

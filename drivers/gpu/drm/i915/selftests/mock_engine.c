@@ -32,6 +32,13 @@ static struct mock_request *first_request(struct mock_engine *engine)
 					link);
 }
 
+static void advance(struct mock_engine *engine,
+		    struct mock_request *request)
+{
+	list_del_init(&request->link);
+	mock_seqno_advance(&engine->base, request->base.global_seqno);
+}
+
 static void hw_delay_complete(struct timer_list *t)
 {
 	struct mock_engine *engine = from_timer(engine, t, hw_delay);
@@ -39,15 +46,23 @@ static void hw_delay_complete(struct timer_list *t)
 
 	spin_lock(&engine->hw_lock);
 
-	request = first_request(engine);
-	if (request) {
-		list_del_init(&request->link);
-		mock_seqno_advance(&engine->base, request->base.global_seqno);
-	}
-
+	/* Timer fired, first request is complete */
 	request = first_request(engine);
 	if (request)
-		mod_timer(&engine->hw_delay, jiffies + request->delay);
+		advance(engine, request);
+
+	/*
+	 * Also immediately signal any subsequent 0-delay requests, but
+	 * requeue the timer for the next delayed request.
+	 */
+	while ((request = first_request(engine))) {
+		if (request->delay) {
+			mod_timer(&engine->hw_delay, jiffies + request->delay);
+			break;
+		}
+
+		advance(engine, request);
+	}
 
 	spin_unlock(&engine->hw_lock);
 }
@@ -66,7 +81,7 @@ static void mock_context_unpin(struct intel_engine_cs *engine,
 	i915_gem_context_put(ctx);
 }
 
-static int mock_request_alloc(struct drm_i915_gem_request *request)
+static int mock_request_alloc(struct i915_request *request)
 {
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 
@@ -76,37 +91,43 @@ static int mock_request_alloc(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-static int mock_emit_flush(struct drm_i915_gem_request *request,
+static int mock_emit_flush(struct i915_request *request,
 			   unsigned int flags)
 {
 	return 0;
 }
 
-static void mock_emit_breadcrumb(struct drm_i915_gem_request *request,
+static void mock_emit_breadcrumb(struct i915_request *request,
 				 u32 *flags)
 {
 }
 
-static void mock_submit_request(struct drm_i915_gem_request *request)
+static void mock_submit_request(struct i915_request *request)
 {
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
 
-	i915_gem_request_submit(request);
+	i915_request_submit(request);
 	GEM_BUG_ON(!request->global_seqno);
 
 	spin_lock_irq(&engine->hw_lock);
 	list_add_tail(&mock->link, &engine->hw_queue);
-	if (mock->link.prev == &engine->hw_queue)
-		mod_timer(&engine->hw_delay, jiffies + mock->delay);
+	if (mock->link.prev == &engine->hw_queue) {
+		if (mock->delay)
+			mod_timer(&engine->hw_delay, jiffies + mock->delay);
+		else
+			advance(engine, mock);
+	}
 	spin_unlock_irq(&engine->hw_lock);
 }
 
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 {
-	const unsigned long sz = roundup_pow_of_two(sizeof(struct intel_ring));
+	const unsigned long sz = PAGE_SIZE / 2;
 	struct intel_ring *ring;
+
+	BUILD_BUG_ON(MIN_SPACE_FOR_ADD_REQUEST > sz);
 
 	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
 	if (!ring)

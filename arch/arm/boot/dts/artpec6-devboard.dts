@@ -26,7 +26,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x10000000>;
+		reg = <0x0 0x40000000>;
 	};
 };
 
@@ -59,6 +59,7 @@
 	mdio {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
+		compatible = "snps,dwmac-mdio";
 		phy1: phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			device_type = "ethernet-phy";

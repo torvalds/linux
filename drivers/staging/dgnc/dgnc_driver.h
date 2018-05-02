@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2003 Digi International (www.digi.com)
  *      Scott H Kilau <Scott_Kilau at digi dot com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- * PURPOSE.  See the GNU General Public License for more details.
  */
 
 #ifndef _DGNC_DRIVER_H
@@ -82,23 +73,18 @@ struct board_ops {
 	void (*uart_off)(struct channel_t *ch);
 	int  (*drain)(struct tty_struct *tty, uint seconds);
 	void (*param)(struct tty_struct *tty);
-	void (*vpd)(struct dgnc_board *brd);
 	void (*assert_modem_signals)(struct channel_t *ch);
 	void (*flush_uart_write)(struct channel_t *ch);
 	void (*flush_uart_read)(struct channel_t *ch);
 	void (*disable_receiver)(struct channel_t *ch);
 	void (*enable_receiver)(struct channel_t *ch);
-	void (*send_break)(struct channel_t *ch, int);
+	void (*send_break)(struct channel_t *ch, int msec);
 	void (*send_start_character)(struct channel_t *ch);
 	void (*send_stop_character)(struct channel_t *ch);
 	void (*copy_data_from_queue_to_uart)(struct channel_t *ch);
 	uint (*get_uart_bytes_left)(struct channel_t *ch);
-	void (*send_immediate_char)(struct channel_t *ch, unsigned char);
+	void (*send_immediate_char)(struct channel_t *ch, unsigned char c);
 };
-
-/* Device flag definitions for bd_flags. */
-
-#define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
 
 /**
  * struct dgnc_board - Per board information.
@@ -106,18 +92,8 @@ struct board_ops {
  *
  * @name: Product name.
  * @pdev: Pointer to the pci_dev structure.
- * @bd_flags: Board flags.
- * @vendor: PCI vendor ID.
  * @device: PCI device ID.
- * @subvendor: PCI subsystem vendor ID.
- * @subdevice: PCI subsystem device ID.
- * @rev: PCI revision ID.
- * @pci_bus: PCI bus value.
- * @pci_slot: PCI slot value.
  * @maxports: Maximum ports this board can handle.
- * @dvid: Board specific device ID.
- * @vpd: VPD of this board, if found.
- * @serial_num: Serial number of this board, if found in VPD.
  * @bd_lock: Used to protect board.
  * @bd_intr_lock: Protect poller tasklet and interrupt routine from each other.
  * @state: State of the card.
@@ -135,8 +111,6 @@ struct board_ops {
  * @serial_name: Serial driver name.
  * @print_dirver: Pointer to the print driver.
  * @print_name: Print driver name.
- * @dpatype: Board type as defined by DPA.
- * @dpastatus: Board status as defined by DPA.
  * @bd_dividend: Board/UART's specific dividend.
  * @bd_ops: Pointer to board operations structure.
  */
@@ -144,18 +118,8 @@ struct dgnc_board {
 	int		boardnum;
 	char		*name;
 	struct pci_dev	*pdev;
-	unsigned long	bd_flags;
-	u16		vendor;
 	u16		device;
-	u16		subvendor;
-	u16		subdevice;
-	unsigned char	rev;
-	uint		pci_bus;
-	uint		pci_slot;
 	uint		maxports;
-	unsigned char	dvid;
-	unsigned char	vpd[128];
-	unsigned char	serial_num[20];
 
 	/* used to protect the board */
 	spinlock_t	bd_lock;
@@ -188,9 +152,6 @@ struct dgnc_board {
 	char		serial_name[200];
 	struct tty_driver *print_driver;
 	char		print_name[200];
-
-	u16		dpatype;
-	u16		dpastatus;
 
 	uint		bd_dividend;
 
@@ -285,7 +246,6 @@ struct un_t {
  * @ch_wopen: Waiting for open process count.
  * @ch_mostat: FEP output modem status.
  * @ch_mistat: FEP input modem status.
- * @chc_neo_uart: Pointer to the mapped neo UART struct
  * @ch_cls_uart:  Pointer to the mapped cls UART struct
  * @ch_cached_lsr: Cached value of the LSR register.
  * @ch_rqueue: Read queue buffer, malloc'ed.
@@ -344,7 +304,6 @@ struct channel_t {
 	unsigned char	ch_mostat;
 	unsigned char	ch_mistat;
 
-	struct neo_uart_struct __iomem *ch_neo_uart;
 	struct cls_uart_struct __iomem *ch_cls_uart;
 
 	unsigned char	ch_cached_lsr;
@@ -381,11 +340,6 @@ struct channel_t {
 	ulong		ch_xoff_sends;
 };
 
-extern uint		dgnc_major;		/* Our driver/mgmt major */
-extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
-extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
-extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
-extern uint		dgnc_num_boards;	/* Total number of boards */
 extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of boards */
 
 #endif	/* _DGNC_DRIVER_H */

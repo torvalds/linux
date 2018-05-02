@@ -381,8 +381,6 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 	if (buf) {
 		/* If @buf is %NULL we are supposed to return the length */
 		if (ui->data_len > size) {
-			ubifs_err(c, "buffer size %zd, xattr len %d",
-				  size, ui->data_len);
 			err = -ERANGE;
 			goto out_iput;
 		}

@@ -15,6 +15,9 @@ config XTENSA
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select GENERIC_STRNCPY_FROM_USER if KASAN
+	select HAVE_ARCH_KASAN if MMU
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
@@ -78,6 +81,10 @@ config VARIANT_IRQ_SWITCH
 
 config HAVE_XTENSA_GPIO32
 	def_bool n
+
+config KASAN_SHADOW_OFFSET
+	hex
+	default 0x6e400000
 
 menu "Processor type and features"
 

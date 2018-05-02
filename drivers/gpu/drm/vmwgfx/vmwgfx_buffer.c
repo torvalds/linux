@@ -185,6 +185,22 @@ static const struct ttm_place evictable_placement_flags[] = {
 	}
 };
 
+static const struct ttm_place nonfixed_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
+	}
+};
+
 struct ttm_placement vmw_evictable_placement = {
 	.num_placement = 4,
 	.placement = evictable_placement_flags,
@@ -211,6 +227,13 @@ struct ttm_placement vmw_mob_ne_placement = {
 	.num_busy_placement = 1,
 	.placement = &mob_ne_placement_flags,
 	.busy_placement = &mob_ne_placement_flags
+};
+
+struct ttm_placement vmw_nonfixed_placement = {
+	.num_placement = 3,
+	.placement = nonfixed_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
 };
 
 struct vmw_ttm_tt {
@@ -394,6 +417,10 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	struct vmw_piter iter;
 	dma_addr_t old;
 	int ret = 0;
@@ -417,8 +444,7 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 			sgt_size = ttm_round_pot(sizeof(struct sg_table));
 		}
 		vmw_tt->sg_alloc_size = sgt_size + sgl_size * vsgt->num_pages;
-		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, false,
-					   true);
+		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, &ctx);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -632,7 +658,7 @@ static void vmw_ttm_destroy(struct ttm_tt *ttm)
 }
 
 
-static int vmw_ttm_populate(struct ttm_tt *ttm)
+static int vmw_ttm_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct vmw_ttm_tt *vmw_tt =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
@@ -646,15 +672,16 @@ static int vmw_ttm_populate(struct ttm_tt *ttm)
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
 		size_t size =
 			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
-		ret = ttm_mem_global_alloc(glob, size, false, true);
+		ret = ttm_mem_global_alloc(glob, size, ctx);
 		if (unlikely(ret != 0))
 			return ret;
 
-		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev);
+		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev,
+					ctx);
 		if (unlikely(ret != 0))
 			ttm_mem_global_free(glob, size);
 	} else
-		ret = ttm_pool_populate(ttm);
+		ret = ttm_pool_populate(ttm, ctx);
 
 	return ret;
 }
@@ -689,9 +716,8 @@ static struct ttm_backend_func vmw_ttm_func = {
 	.destroy = vmw_ttm_destroy,
 };
 
-static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
+					uint32_t page_flags)
 {
 	struct vmw_ttm_tt *vmw_be;
 	int ret;
@@ -701,15 +727,13 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	vmw_be->dma_ttm.ttm.func = &vmw_ttm_func;
-	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
+	vmw_be->dev_priv = container_of(bo->bdev, struct vmw_private, bdev);
 	vmw_be->mob = NULL;
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
-		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bdev, size, page_flags,
-				      dummy_read_page);
+		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bo, page_flags);
 	else
-		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bdev, size, page_flags,
-				  dummy_read_page);
+		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bo, page_flags);
 	if (unlikely(ret != 0))
 		goto out_no_init;
 
@@ -840,6 +864,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
+	vmw_resource_swap_notify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 
@@ -859,5 +884,4 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 	.io_mem_free = &vmw_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };

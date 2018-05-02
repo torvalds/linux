@@ -22,7 +22,7 @@
 #define __MB86A16_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 
 struct mb86a16_config {

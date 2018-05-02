@@ -7,13 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
- *
- *
- * TODO
- *  1. DMA
- *  2. Power management
- *  3. Handle MMC errors better
- *
  */
 
 /*
@@ -67,7 +60,6 @@
 #include <linux/module.h>
 
 #define DRIVER_NAME	"sh_mmcif"
-#define DRIVER_VERSION	"2010-04-28"
 
 /* CE_CMD_SET */
 #define CMD_MASK		0x3f000000
@@ -916,7 +908,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 			       struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
-	u32 opc = cmd->opcode;
+	u32 opc;
 	u32 mask = 0;
 	unsigned long flags;
 

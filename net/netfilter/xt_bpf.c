@@ -7,6 +7,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/skbuff.h>
@@ -34,7 +36,7 @@ static int __bpf_mt_check_bytecode(struct sock_filter *insns, __u16 len,
 	program.filter = insns;
 
 	if (bpf_prog_create(ret, &program)) {
-		pr_info("bpf: check failed: parse error\n");
+		pr_info_ratelimited("check failed: parse error\n");
 		return -EINVAL;
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_msghandler.c
  *
@@ -8,27 +9,6 @@
  *         source@mvista.com
  *
  * Copyright 2002 MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; either version 2 of the License, or (at your
- *  option) any later version.
- *
- *
- *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- *  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
- *  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -84,7 +64,7 @@ static int panic_op_write_handler(const char *val,
 	char valcp[16];
 	char *s;
 
-	strncpy(valcp, val, 16);
+	strncpy(valcp, val, 15);
 	valcp[15] = '\0';
 
 	s = strstrip(valcp);
@@ -2588,7 +2568,7 @@ static ssize_t device_id_show(struct device *dev,
 
 	return snprintf(buf, 10, "%u\n", id.device_id);
 }
-static DEVICE_ATTR(device_id, S_IRUGO, device_id_show, NULL);
+static DEVICE_ATTR_RO(device_id);
 
 static ssize_t provides_device_sdrs_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -2604,8 +2584,7 @@ static ssize_t provides_device_sdrs_show(struct device *dev,
 
 	return snprintf(buf, 10, "%u\n", (id.device_revision & 0x80) >> 7);
 }
-static DEVICE_ATTR(provides_device_sdrs, S_IRUGO, provides_device_sdrs_show,
-		   NULL);
+static DEVICE_ATTR_RO(provides_device_sdrs);
 
 static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -2620,7 +2599,7 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, 20, "%u\n", id.device_revision & 0x0F);
 }
-static DEVICE_ATTR(revision, S_IRUGO, revision_show, NULL);
+static DEVICE_ATTR_RO(revision);
 
 static ssize_t firmware_revision_show(struct device *dev,
 				      struct device_attribute *attr,
@@ -2637,7 +2616,7 @@ static ssize_t firmware_revision_show(struct device *dev,
 	return snprintf(buf, 20, "%u.%x\n", id.firmware_revision_1,
 			id.firmware_revision_2);
 }
-static DEVICE_ATTR(firmware_revision, S_IRUGO, firmware_revision_show, NULL);
+static DEVICE_ATTR_RO(firmware_revision);
 
 static ssize_t ipmi_version_show(struct device *dev,
 				 struct device_attribute *attr,
@@ -2655,7 +2634,7 @@ static ssize_t ipmi_version_show(struct device *dev,
 			ipmi_version_major(&id),
 			ipmi_version_minor(&id));
 }
-static DEVICE_ATTR(ipmi_version, S_IRUGO, ipmi_version_show, NULL);
+static DEVICE_ATTR_RO(ipmi_version);
 
 static ssize_t add_dev_support_show(struct device *dev,
 				    struct device_attribute *attr,
@@ -2688,7 +2667,7 @@ static ssize_t manufacturer_id_show(struct device *dev,
 
 	return snprintf(buf, 20, "0x%6.6x\n", id.manufacturer_id);
 }
-static DEVICE_ATTR(manufacturer_id, S_IRUGO, manufacturer_id_show, NULL);
+static DEVICE_ATTR_RO(manufacturer_id);
 
 static ssize_t product_id_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -2704,7 +2683,7 @@ static ssize_t product_id_show(struct device *dev,
 
 	return snprintf(buf, 10, "0x%4.4x\n", id.product_id);
 }
-static DEVICE_ATTR(product_id, S_IRUGO, product_id_show, NULL);
+static DEVICE_ATTR_RO(product_id);
 
 static ssize_t aux_firmware_rev_show(struct device *dev,
 				     struct device_attribute *attr,
@@ -2742,7 +2721,7 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, 38, "%pUl\n", guid.b);
 }
-static DEVICE_ATTR(guid, S_IRUGO, guid_show, NULL);
+static DEVICE_ATTR_RO(guid);
 
 static struct attribute *bmc_dev_attrs[] = {
 	&dev_attr_device_id.attr,

@@ -31,7 +31,7 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
@@ -414,6 +414,6 @@ static void __exit it87_gpio_exit(void)
 module_init(it87_gpio_init);
 module_exit(it87_gpio_exit);
 
-MODULE_AUTHOR("Diego Elio PettenÃ² <flameeyes@flameeyes.eu>");
+MODULE_AUTHOR("Diego Elio Pettenò <flameeyes@flameeyes.eu>");
 MODULE_DESCRIPTION("GPIO interface for IT87xx Super I/O chips");
 MODULE_LICENSE("GPL");

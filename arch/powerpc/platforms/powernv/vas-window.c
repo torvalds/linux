@@ -21,6 +21,9 @@
 #include "vas.h"
 #include "copy-paste.h"
 
+#define CREATE_TRACE_POINTS
+#include "vas-trace.h"
+
 /*
  * Compute the paste address region for the window @window using the
  * ->paste_base_addr and ->paste_win_id_shift we got from device tree.
@@ -880,6 +883,8 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 	struct vas_winctx winctx;
 	struct vas_instance *vinst;
 
+	trace_vas_rx_win_open(current, vasid, cop, rxattr);
+
 	if (!rx_win_args_valid(cop, rxattr))
 		return ERR_PTR(-EINVAL);
 
@@ -1008,6 +1013,8 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 	struct vas_winctx winctx;
 	struct vas_instance *vinst;
 
+	trace_vas_tx_win_open(current, vasid, cop, attr);
+
 	if (!tx_win_args_valid(cop, attr))
 		return ERR_PTR(-EINVAL);
 
@@ -1063,15 +1070,15 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			rc = PTR_ERR(txwin->paste_kaddr);
 			goto free_window;
 		}
+	} else {
+		/*
+		 * A user mapping must ensure that context switch issues
+		 * CP_ABORT for this thread.
+		 */
+		rc = set_thread_uses_vas();
+		if (rc)
+			goto free_window;
 	}
-
-	/*
-	 * Now that we have a send window, ensure context switch issues
-	 * CP_ABORT for this thread.
-	 */
-	rc = -EINVAL;
-	if (set_thread_uses_vas() < 0)
-		goto free_window;
 
 	set_vinst_win(vinst, txwin);
 
@@ -1099,6 +1106,8 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	int rc;
 	void *addr;
 	uint64_t val;
+
+	trace_vas_paste_crb(current, txwin);
 
 	/*
 	 * Only NX windows are supported for now and hardware assumes

@@ -386,7 +386,7 @@ int drm_mm_insert_node_in_range(struct drm_mm *mm,
  * @color: opaque tag value to use for this node
  * @mode: fine-tune the allocation search and placement
  *
- * This is a simplified version of drm_mm_insert_node_in_range_generic() with no
+ * This is a simplified version of drm_mm_insert_node_in_range() with no
  * range restrictions applied.
  *
  * The preallocated node must be cleared to 0.

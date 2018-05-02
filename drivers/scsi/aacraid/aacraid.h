@@ -41,6 +41,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <scsi/scsi_host.h>
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -97,7 +98,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 50834
+# define AAC_DRIVER_BUILD 50877
 # define AAC_DRIVER_BRANCH "-custom"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -117,8 +118,12 @@ enum {
 /* Thor: 5 phys. buses: #0: empty, 1-4: 256 targets each */
 #define AAC_MAX_BUSES			5
 #define AAC_MAX_TARGETS		256
+#define AAC_BUS_TARGET_LOOP		(AAC_MAX_BUSES * AAC_MAX_TARGETS)
 #define AAC_MAX_NATIVE_SIZE		2048
 #define FW_ERROR_BUFFER_SIZE		512
+
+#define get_bus_number(x)	(x/AAC_MAX_TARGETS)
+#define get_target_number(x)	(x%AAC_MAX_TARGETS)
 
 /* Thor AIF events */
 #define SA_AIF_HOTPLUG			(1<<1)
@@ -1226,6 +1231,7 @@ struct src_registers {
 
 #define SRC_ODR_SHIFT		12
 #define SRC_IDR_SHIFT		9
+#define SRC_MSI_READ_MASK	0x1000
 
 typedef void (*fib_callback)(void *ctxt, struct fib *fibctx);
 
@@ -1334,17 +1340,17 @@ struct fib {
 #define AAC_DEVTYPE_RAID_MEMBER	1
 #define AAC_DEVTYPE_ARC_RAW		2
 #define AAC_DEVTYPE_NATIVE_RAW		3
-#define AAC_EXPOSE_DISK		0
-#define AAC_HIDE_DISK			3
+
+#define AAC_SAFW_RESCAN_DELAY		(10 * HZ)
 
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
 	u8		devtype;	/* device type */
-	u8		new_devtype;
 	u8		reset_state;	/* 0 - no reset, 1..x - */
 					/* after xth TM LUN reset */
 	u16		qd_limit;
-	u8		expose;		/*checks if to expose or not*/
+	u32		scan_counter;
+	struct aac_ciss_identify_pd  *safw_identify_resp;
 };
 
 /*
@@ -1523,6 +1529,7 @@ struct aac_bus_info_response {
 #define AAC_COMM_MESSAGE_TYPE3		5
 
 #define AAC_EXTOPT_SA_FIRMWARE		cpu_to_le32(1<<1)
+#define AAC_EXTOPT_SOFT_RESET		cpu_to_le32(1<<16)
 
 /* MSIX context */
 struct aac_msix_ctx {
@@ -1560,6 +1567,7 @@ struct aac_dev
 	spinlock_t		fib_lock;
 
 	struct mutex		ioctl_mutex;
+	struct mutex		scan_mutex;
 	struct aac_queue_block *queues;
 	/*
 	 *	The user API will use an IOCTL to register itself to receive
@@ -1605,6 +1613,7 @@ struct aac_dev
 	int			maximum_num_channels;
 	struct fsa_dev_info	*fsa_dev;
 	struct task_struct	*thread;
+	struct delayed_work	safw_rescan_work;
 	int			cardtype;
 	/*
 	 *This lock will protect the two 32-bit
@@ -1655,6 +1664,7 @@ struct aac_dev
 	u8			raw_io_64;
 	u8			printf_enabled;
 	u8			in_reset;
+	u8			in_soft_reset;
 	u8			msi;
 	u8			sa_firmware;
 	int			management_fib_count;
@@ -1668,9 +1678,11 @@ struct aac_dev
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
 	atomic_t		msix_counter;
+	u32			scan_counter;
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
+	struct aac_ciss_phys_luns_resp *safw_phys_luns;
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
 	bool			init_reset;
@@ -2023,6 +2035,12 @@ struct aac_srb_reply
 	__le32		sense_data_size;
 	u8		sense_data[AAC_SENSE_BUFFERSIZE]; // Can this be SCSI_SENSE_BUFFERSIZE
 };
+
+struct aac_srb_unit {
+	struct aac_srb		srb;
+	struct aac_srb_reply	srb_reply;
+};
+
 /*
  * SRB Flags
  */
@@ -2489,6 +2507,7 @@ struct aac_hba_info {
 #define RCV_TEMP_READINGS		0x00000025
 #define GET_COMM_PREFERRED_SETTINGS	0x00000026
 #define IOP_RESET_FW_FIB_DUMP		0x00000034
+#define DROP_IO			0x00000035
 #define IOP_RESET			0x00001000
 #define IOP_RESET_ALWAYS		0x00001001
 #define RE_INIT_ADAPTER		0x000000ee
@@ -2524,6 +2543,7 @@ struct aac_hba_info {
 #define	FLASH_UPD_PENDING		0x00002000
 #define	FLASH_UPD_SUCCESS		0x00004000
 #define	FLASH_UPD_FAILED		0x00008000
+#define	INVALID_OMR			0xffffffff
 #define	FWUPD_TIMEOUT			(5 * 60)
 
 /*
@@ -2627,16 +2647,41 @@ static inline int aac_adapter_check_health(struct aac_dev *dev)
 	return (dev)->a_ops.adapter_check_health(dev);
 }
 
+
+int aac_scan_host(struct aac_dev *dev);
+
+static inline void aac_schedule_safw_scan_worker(struct aac_dev *dev)
+{
+	schedule_delayed_work(&dev->safw_rescan_work, AAC_SAFW_RESCAN_DELAY);
+}
+
+static inline void aac_safw_rescan_worker(struct work_struct *work)
+{
+	struct aac_dev *dev = container_of(to_delayed_work(work),
+		struct aac_dev, safw_rescan_work);
+
+	wait_event(dev->scsi_host_ptr->host_wait,
+		!scsi_host_in_recovery(dev->scsi_host_ptr));
+
+	aac_scan_host(dev);
+}
+
+static inline void aac_cancel_safw_rescan_worker(struct aac_dev *dev)
+{
+	if (dev->sa_firmware)
+		cancel_delayed_work_sync(&dev->safw_rescan_work);
+}
+
 /* SCp.phase values */
 #define AAC_OWNER_MIDLEVEL	0x101
 #define AAC_OWNER_LOWLEVEL	0x102
 #define AAC_OWNER_ERROR_HANDLER	0x103
 #define AAC_OWNER_FIRMWARE	0x106
 
+void aac_safw_rescan_worker(struct work_struct *work);
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
-int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan);
-int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target);
+int aac_setup_safw_adapter(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);

@@ -76,7 +76,7 @@ static u16 rio_destid_alloc(struct rio_net *net)
 }
 
 /**
- * rio_destid_reserve - Reserve the specivied destID
+ * rio_destid_reserve - Reserve the specified destID
  * @net: RIO network
  * @destid: destID to reserve
  *
@@ -885,7 +885,7 @@ static struct rio_net *rio_scan_alloc_net(struct rio_mport *mport,
  *
  * For each enumerated device, ensure that each switch in a system
  * has correct routing entries. Add routes for devices that where
- * unknown dirung the first enumeration pass through the switch.
+ * unknown during the first enumeration pass through the switch.
  */
 static void rio_update_route_tables(struct rio_net *net)
 {
@@ -983,7 +983,7 @@ static int rio_enum_mport(struct rio_mport *mport, u32 flags)
 		/* reserve mport destID in new net */
 		rio_destid_reserve(net, mport->host_deviceid);
 
-		/* Enable Input Output Port (transmitter reviever) */
+		/* Enable Input Output Port (transmitter receiver) */
 		rio_enable_rx_tx_port(mport, 1, 0, 0, 0);
 
 		/* Set component tag for host */

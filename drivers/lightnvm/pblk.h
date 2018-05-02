@@ -51,17 +51,16 @@
 
 #define NR_PHY_IN_LOG (PBLK_EXPOSED_PAGE_SIZE / PBLK_SECTOR)
 
-#define pblk_for_each_lun(pblk, rlun, i) \
-		for ((i) = 0, rlun = &(pblk)->luns[0]; \
-			(i) < (pblk)->nr_luns; (i)++, rlun = &(pblk)->luns[(i)])
-
 /* Static pool sizes */
 #define PBLK_GEN_WS_POOL_SIZE (2)
+
+#define PBLK_DEFAULT_OP (11)
 
 enum {
 	PBLK_READ		= READ,
 	PBLK_WRITE		= WRITE,/* Write from write buffer */
 	PBLK_WRITE_INT,			/* Internal write - no write buffer */
+	PBLK_READ_RECOV,		/* Recovery read - errors allowed */
 	PBLK_ERASE,
 };
 
@@ -114,6 +113,7 @@ struct pblk_c_ctx {
 /* read context */
 struct pblk_g_ctx {
 	void *private;
+	unsigned long start_time;
 	u64 lba;
 };
 
@@ -170,7 +170,7 @@ struct pblk_rb {
 					 * the last submitted entry that has
 					 * been successfully persisted to media
 					 */
-	unsigned int sync_point;	/* Sync point - last entry that must be
+	unsigned int flush_point;	/* Sync point - last entry that must be
 					 * flushed to the media. Used with
 					 * REQ_FLUSH and REQ_FUA
 					 */
@@ -193,7 +193,7 @@ struct pblk_rb {
 	spinlock_t s_lock;		/* Sync lock */
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_t inflight_sync_point;	/* Not served REQ_FLUSH | REQ_FUA */
+	atomic_t inflight_flush_point;	/* Not served REQ_FLUSH | REQ_FUA */
 #endif
 };
 
@@ -201,12 +201,6 @@ struct pblk_rb {
 
 struct pblk_lun {
 	struct ppa_addr bppa;
-
-	u8 *bb_list;			/* Bad block list for LUN. Only used on
-					 * bring up. Bad blocks are managed
-					 * within lines on run-time.
-					 */
-
 	struct semaphore wr_sem;
 };
 
@@ -256,9 +250,6 @@ struct pblk_rl {
 	unsigned int high;	/* Upper threshold for rate limiter (free run -
 				 * user I/O rate limiter
 				 */
-	unsigned int low;	/* Lower threshold for rate limiter (user I/O
-				 * rate limiter - stall)
-				 */
 	unsigned int high_pw;	/* High rounded up as a power of 2 */
 
 #define PBLK_USER_HIGH_THRS 8	/* Begin write limit at 12% available blks */
@@ -292,7 +283,9 @@ struct pblk_rl {
 
 	unsigned long long nr_secs;
 	unsigned long total_blocks;
-	atomic_t free_blocks;
+
+	atomic_t free_blocks;		/* Total number of free blocks (+ OP) */
+	atomic_t free_user_blocks;	/* Number of user free blocks (no OP) */
 };
 
 #define PBLK_LINE_EMPTY (~0U)
@@ -304,6 +297,7 @@ enum {
 	PBLK_LINETYPE_DATA = 2,
 
 	/* Line state */
+	PBLK_LINESTATE_NEW = 9,
 	PBLK_LINESTATE_FREE = 10,
 	PBLK_LINESTATE_OPEN = 11,
 	PBLK_LINESTATE_CLOSED = 12,
@@ -321,14 +315,26 @@ enum {
 };
 
 #define PBLK_MAGIC 0x70626c6b /*pblk*/
-#define SMETA_VERSION cpu_to_le16(1)
+
+/* emeta/smeta persistent storage format versions:
+ * Changes in major version requires offline migration.
+ * Changes in minor version are handled automatically during
+ * recovery.
+ */
+
+#define SMETA_VERSION_MAJOR (0)
+#define SMETA_VERSION_MINOR (1)
+
+#define EMETA_VERSION_MAJOR (0)
+#define EMETA_VERSION_MINOR (2)
 
 struct line_header {
 	__le32 crc;
 	__le32 identifier;	/* pblk identifier */
 	__u8 uuid[16];		/* instance uuid */
 	__le16 type;		/* line type */
-	__le16 version;		/* type version */
+	__u8 version_major;	/* version major */
+	__u8 version_minor;	/* version minor */
 	__le32 id;		/* line id for current line */
 };
 
@@ -350,11 +356,13 @@ struct line_smeta {
 	__le64 lun_bitmap[];
 };
 
+
 /*
  * Metadata layout in media:
  *	First sector:
  *		1. struct line_emeta
  *		2. bad block bitmap (u64 * window_wr_lun)
+ *		3. write amplification counters
  *	Mid sectors (start at lbas_sector):
  *		3. nr_lbas (u64) forming lba list
  *	Last sectors (start at vsc_sector):
@@ -378,7 +386,15 @@ struct line_emeta {
 	__le32 next_id;		/* Line id for next line */
 	__le64 nr_lbas;		/* Number of lbas mapped in line */
 	__le64 nr_valid_lbas;	/* Number of valid lbas mapped in line */
-	__le64 bb_bitmap[];	/* Updated bad block bitmap for line */
+	__le64 bb_bitmap[];     /* Updated bad block bitmap for line */
+};
+
+
+/* Write amplification counters stored on media */
+struct wa_counters {
+	__le64 user;		/* Number of user written sectors */
+	__le64 gc;		/* Number of sectors written by GC*/
+	__le64 pad;		/* Number of padded sectors */
 };
 
 struct pblk_emeta {
@@ -410,6 +426,8 @@ struct pblk_line {
 	struct list_head list;		/* Free, GC lists */
 
 	unsigned long *lun_bitmap;	/* Bitmap for LUNs mapped in line */
+
+	struct nvm_chk_meta *chks;	/* Chunks forming line */
 
 	struct pblk_smeta *smeta;	/* Start metadata */
 	struct pblk_emeta *emeta;	/* End medatada */
@@ -508,10 +526,11 @@ struct pblk_line_meta {
 	unsigned int smeta_sec;		/* Sectors needed for smeta */
 
 	unsigned int emeta_len[4];	/* Lengths for emeta:
-					 *  [0]: Total length
-					 *  [1]: struct line_emeta length
-					 *  [2]: L2P portion length
-					 *  [3]: vsc list length
+					 *  [0]: Total
+					 *  [1]: struct line_emeta +
+					 *       bb_bitmap + struct wa_counters
+					 *  [2]: L2P portion
+					 *  [3]: vsc
 					 */
 	unsigned int emeta_sec[4];	/* Sectors needed for emeta. Same layout
 					 * as emeta_len
@@ -535,26 +554,23 @@ struct pblk_line_meta {
 	unsigned int meta_distance;	/* Distance between data and metadata */
 };
 
-struct pblk_addr_format {
-	u64	ch_mask;
-	u64	lun_mask;
-	u64	pln_mask;
-	u64	blk_mask;
-	u64	pg_mask;
-	u64	sec_mask;
-	u8	ch_offset;
-	u8	lun_offset;
-	u8	pln_offset;
-	u8	blk_offset;
-	u8	pg_offset;
-	u8	sec_offset;
-};
-
 enum {
 	PBLK_STATE_RUNNING = 0,
 	PBLK_STATE_STOPPING = 1,
 	PBLK_STATE_RECOVERING = 2,
 	PBLK_STATE_STOPPED = 3,
+};
+
+/* Internal format to support not power-of-2 device formats */
+struct pblk_addrf {
+	/* gen to dev */
+	int sec_stripe;
+	int ch_stripe;
+	int lun_stripe;
+
+	/* dev to gen */
+	int sec_lun_stripe;
+	int sec_ws_stripe;
 };
 
 struct pblk {
@@ -569,8 +585,9 @@ struct pblk {
 	struct pblk_line_mgmt l_mg;		/* Line management */
 	struct pblk_line_meta lm;		/* Line metadata */
 
-	int ppaf_bitsize;
-	struct pblk_addr_format ppaf;
+	struct nvm_addrf addrf;		/* Aligned address format */
+	struct pblk_addrf uaddrf;	/* Unaligned address format */
+	int addrf_len;
 
 	struct pblk_rb rwb;
 
@@ -583,7 +600,9 @@ struct pblk {
 			    */
 
 	sector_t capacity; /* Device capacity when bad blocks are subtracted */
-	int over_pct;      /* Percentage of device used for over-provisioning */
+
+	int op;      /* Percentage of device used for over-provisioning */
+	int op_blks; /* Number of blocks used for over-provisioning */
 
 	/* pblk provisioning values. Used by rate limiter */
 	struct pblk_rl rl;
@@ -591,12 +610,27 @@ struct pblk {
 	int sec_per_write;
 
 	unsigned char instance_uuid[16];
+
+	/* Persistent write amplification counters, 4kb sector I/Os */
+	atomic64_t user_wa;		/* Sectors written by user */
+	atomic64_t gc_wa;		/* Sectors written by GC */
+	atomic64_t pad_wa;		/* Padded sectors written */
+
+	/* Reset values for delta write amplification measurements */
+	u64 user_rst_wa;
+	u64 gc_rst_wa;
+	u64 pad_rst_wa;
+
+	/* Counters used for calculating padding distribution */
+	atomic64_t *pad_dist;		/* Padding distribution buckets */
+	u64 nr_flush_rst;		/* Flushes reset value for pad dist.*/
+	atomic64_t nr_flush;		/* Number of flush/fua I/O */
+
 #ifdef CONFIG_NVM_DEBUG
-	/* All debug counters apply to 4kb sector I/Os */
+	/* Non-persistent debug counters, 4kb sector I/Os */
 	atomic_long_t inflight_writes;	/* Inflight writes (user and gc) */
 	atomic_long_t padded_writes;	/* Sectors padded due to flush/fua */
 	atomic_long_t padded_wb;	/* Sectors padded in write buffer */
-	atomic_long_t nr_flush;		/* Number of flush/fua I/O */
 	atomic_long_t req_writes;	/* Sectors stored on write buffer */
 	atomic_long_t sub_writes;	/* Sectors submitted from buffer */
 	atomic_long_t sync_writes;	/* Sectors synced to media */
@@ -691,7 +725,7 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries);
 struct pblk_rb_entry *pblk_rb_sync_scan_entry(struct pblk_rb *rb,
 					      struct ppa_addr *ppa);
 void pblk_rb_sync_end(struct pblk_rb *rb, unsigned long *flags);
-unsigned int pblk_rb_sync_point_count(struct pblk_rb *rb);
+unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb);
 
 unsigned int pblk_rb_read_count(struct pblk_rb *rb);
 unsigned int pblk_rb_sync_count(struct pblk_rb *rb);
@@ -711,6 +745,10 @@ void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
+struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk);
+struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
+					      struct nvm_chk_meta *lp,
+					      struct ppa_addr ppa);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
@@ -812,7 +850,7 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 void pblk_submit_rec(struct work_struct *work);
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk);
 int pblk_recov_pad(struct pblk *pblk);
-__le64 *pblk_recov_get_lba_list(struct pblk *pblk, struct line_emeta *emeta);
+int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta);
 int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 			struct pblk_rec_ctx *recovery, u64 *comp_bits,
 			unsigned int comp);
@@ -843,6 +881,7 @@ void pblk_rl_free(struct pblk_rl *rl);
 void pblk_rl_update_rates(struct pblk_rl *rl);
 int pblk_rl_high_thrs(struct pblk_rl *rl);
 unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl);
+unsigned long pblk_rl_nr_user_free_blks(struct pblk_rl *rl);
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries);
@@ -851,7 +890,8 @@ void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_out(struct pblk_rl *rl, int nr_user, int nr_gc);
 int pblk_rl_max_io(struct pblk_rl *rl);
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
-void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line);
+void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line,
+			    bool used);
 int pblk_rl_is_limit(struct pblk_rl *rl);
 
 /*
@@ -885,6 +925,12 @@ static inline void *emeta_to_bb(struct line_emeta *emeta)
 	return emeta->bb_bitmap;
 }
 
+static inline void *emeta_to_wa(struct pblk_line_meta *lm,
+				struct line_emeta *emeta)
+{
+	return emeta->bb_bitmap + lm->blk_bitmap_len;
+}
+
 static inline void *emeta_to_lbas(struct pblk *pblk, struct line_emeta *emeta)
 {
 	return ((void *)emeta + pblk->lm.emeta_len[1]);
@@ -900,35 +946,93 @@ static inline int pblk_line_vsc(struct pblk_line *line)
 	return le32_to_cpu(*line->vsc);
 }
 
-#define NVM_MEM_PAGE_WRITE (8)
-
 static inline int pblk_pad_distance(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 
-	return NVM_MEM_PAGE_WRITE * geo->nr_luns * geo->sec_per_pl;
+	return geo->mw_cunits * geo->all_luns * geo->ws_opt;
 }
 
-static inline int pblk_dev_ppa_to_line(struct ppa_addr p)
+static inline int pblk_ppa_to_line(struct ppa_addr p)
 {
-	return p.g.blk;
-}
-
-static inline int pblk_tgt_ppa_to_line(struct ppa_addr p)
-{
-	return p.g.blk;
+	return p.a.blk;
 }
 
 static inline int pblk_ppa_to_pos(struct nvm_geo *geo, struct ppa_addr p)
 {
-	return p.g.lun * geo->nr_chnls + p.g.ch;
+	return p.a.lun * geo->num_ch + p.a.ch;
 }
 
-/* A block within a line corresponds to the lun */
-static inline int pblk_dev_ppa_to_pos(struct nvm_geo *geo, struct ppa_addr p)
+static inline struct ppa_addr addr_to_gen_ppa(struct pblk *pblk, u64 paddr,
+					      u64 line_id)
 {
-	return p.g.lun * geo->nr_chnls + p.g.ch;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct ppa_addr ppa;
+
+	if (geo->version == NVM_OCSSD_SPEC_12) {
+		struct nvm_addrf_12 *ppaf = (struct nvm_addrf_12 *)&pblk->addrf;
+
+		ppa.ppa = 0;
+		ppa.g.blk = line_id;
+		ppa.g.pg = (paddr & ppaf->pg_mask) >> ppaf->pg_offset;
+		ppa.g.lun = (paddr & ppaf->lun_mask) >> ppaf->lun_offset;
+		ppa.g.ch = (paddr & ppaf->ch_mask) >> ppaf->ch_offset;
+		ppa.g.pl = (paddr & ppaf->pln_mask) >> ppaf->pln_offset;
+		ppa.g.sec = (paddr & ppaf->sec_mask) >> ppaf->sec_offset;
+	} else {
+		struct pblk_addrf *uaddrf = &pblk->uaddrf;
+		int secs, chnls, luns;
+
+		ppa.ppa = 0;
+
+		ppa.m.chk = line_id;
+
+		paddr = div_u64_rem(paddr, uaddrf->sec_stripe, &secs);
+		ppa.m.sec = secs;
+
+		paddr = div_u64_rem(paddr, uaddrf->ch_stripe, &chnls);
+		ppa.m.grp = chnls;
+
+		paddr = div_u64_rem(paddr, uaddrf->lun_stripe, &luns);
+		ppa.m.pu = luns;
+
+		ppa.m.sec += uaddrf->sec_stripe * paddr;
+	}
+
+	return ppa;
+}
+
+static inline u64 pblk_dev_ppa_to_line_addr(struct pblk *pblk,
+							struct ppa_addr p)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	u64 paddr;
+
+	if (geo->version == NVM_OCSSD_SPEC_12) {
+		struct nvm_addrf_12 *ppaf = (struct nvm_addrf_12 *)&pblk->addrf;
+
+		paddr = (u64)p.g.ch << ppaf->ch_offset;
+		paddr |= (u64)p.g.lun << ppaf->lun_offset;
+		paddr |= (u64)p.g.pg << ppaf->pg_offset;
+		paddr |= (u64)p.g.pl << ppaf->pln_offset;
+		paddr |= (u64)p.g.sec << ppaf->sec_offset;
+	} else {
+		struct pblk_addrf *uaddrf = &pblk->uaddrf;
+		u64 secs = p.m.sec;
+		int sec_stripe;
+
+		paddr = (u64)p.m.grp * uaddrf->sec_stripe;
+		paddr += (u64)p.m.pu * uaddrf->sec_lun_stripe;
+
+		secs = div_u64_rem(secs, uaddrf->sec_stripe, &sec_stripe);
+		paddr += secs * uaddrf->sec_ws_stripe;
+		paddr += sec_stripe;
+	}
+
+	return paddr;
 }
 
 static inline struct ppa_addr pblk_ppa32_to_ppa64(struct pblk *pblk, u32 ppa32)
@@ -943,39 +1047,40 @@ static inline struct ppa_addr pblk_ppa32_to_ppa64(struct pblk *pblk, u32 ppa32)
 		ppa64.c.line = ppa32 & ((~0U) >> 1);
 		ppa64.c.is_cached = 1;
 	} else {
-		ppa64.g.blk = (ppa32 & pblk->ppaf.blk_mask) >>
-							pblk->ppaf.blk_offset;
-		ppa64.g.pg = (ppa32 & pblk->ppaf.pg_mask) >>
-							pblk->ppaf.pg_offset;
-		ppa64.g.lun = (ppa32 & pblk->ppaf.lun_mask) >>
-							pblk->ppaf.lun_offset;
-		ppa64.g.ch = (ppa32 & pblk->ppaf.ch_mask) >>
-							pblk->ppaf.ch_offset;
-		ppa64.g.pl = (ppa32 & pblk->ppaf.pln_mask) >>
-							pblk->ppaf.pln_offset;
-		ppa64.g.sec = (ppa32 & pblk->ppaf.sec_mask) >>
-							pblk->ppaf.sec_offset;
+		struct nvm_tgt_dev *dev = pblk->dev;
+		struct nvm_geo *geo = &dev->geo;
+
+		if (geo->version == NVM_OCSSD_SPEC_12) {
+			struct nvm_addrf_12 *ppaf =
+					(struct nvm_addrf_12 *)&pblk->addrf;
+
+			ppa64.g.ch = (ppa32 & ppaf->ch_mask) >>
+							ppaf->ch_offset;
+			ppa64.g.lun = (ppa32 & ppaf->lun_mask) >>
+							ppaf->lun_offset;
+			ppa64.g.blk = (ppa32 & ppaf->blk_mask) >>
+							ppaf->blk_offset;
+			ppa64.g.pg = (ppa32 & ppaf->pg_mask) >>
+							ppaf->pg_offset;
+			ppa64.g.pl = (ppa32 & ppaf->pln_mask) >>
+							ppaf->pln_offset;
+			ppa64.g.sec = (ppa32 & ppaf->sec_mask) >>
+							ppaf->sec_offset;
+		} else {
+			struct nvm_addrf *lbaf = &pblk->addrf;
+
+			ppa64.m.grp = (ppa32 & lbaf->ch_mask) >>
+							lbaf->ch_offset;
+			ppa64.m.pu = (ppa32 & lbaf->lun_mask) >>
+							lbaf->lun_offset;
+			ppa64.m.chk = (ppa32 & lbaf->chk_mask) >>
+							lbaf->chk_offset;
+			ppa64.m.sec = (ppa32 & lbaf->sec_mask) >>
+							lbaf->sec_offset;
+		}
 	}
 
 	return ppa64;
-}
-
-static inline struct ppa_addr pblk_trans_map_get(struct pblk *pblk,
-								sector_t lba)
-{
-	struct ppa_addr ppa;
-
-	if (pblk->ppaf_bitsize < 32) {
-		u32 *map = (u32 *)pblk->trans_map;
-
-		ppa = pblk_ppa32_to_ppa64(pblk, map[lba]);
-	} else {
-		struct ppa_addr *map = (struct ppa_addr *)pblk->trans_map;
-
-		ppa = map[lba];
-	}
-
-	return ppa;
 }
 
 static inline u32 pblk_ppa64_to_ppa32(struct pblk *pblk, struct ppa_addr ppa64)
@@ -988,21 +1093,54 @@ static inline u32 pblk_ppa64_to_ppa32(struct pblk *pblk, struct ppa_addr ppa64)
 		ppa32 |= ppa64.c.line;
 		ppa32 |= 1U << 31;
 	} else {
-		ppa32 |= ppa64.g.blk << pblk->ppaf.blk_offset;
-		ppa32 |= ppa64.g.pg << pblk->ppaf.pg_offset;
-		ppa32 |= ppa64.g.lun << pblk->ppaf.lun_offset;
-		ppa32 |= ppa64.g.ch << pblk->ppaf.ch_offset;
-		ppa32 |= ppa64.g.pl << pblk->ppaf.pln_offset;
-		ppa32 |= ppa64.g.sec << pblk->ppaf.sec_offset;
+		struct nvm_tgt_dev *dev = pblk->dev;
+		struct nvm_geo *geo = &dev->geo;
+
+		if (geo->version == NVM_OCSSD_SPEC_12) {
+			struct nvm_addrf_12 *ppaf =
+					(struct nvm_addrf_12 *)&pblk->addrf;
+
+			ppa32 |= ppa64.g.ch << ppaf->ch_offset;
+			ppa32 |= ppa64.g.lun << ppaf->lun_offset;
+			ppa32 |= ppa64.g.blk << ppaf->blk_offset;
+			ppa32 |= ppa64.g.pg << ppaf->pg_offset;
+			ppa32 |= ppa64.g.pl << ppaf->pln_offset;
+			ppa32 |= ppa64.g.sec << ppaf->sec_offset;
+		} else {
+			struct nvm_addrf *lbaf = &pblk->addrf;
+
+			ppa32 |= ppa64.m.grp << lbaf->ch_offset;
+			ppa32 |= ppa64.m.pu << lbaf->lun_offset;
+			ppa32 |= ppa64.m.chk << lbaf->chk_offset;
+			ppa32 |= ppa64.m.sec << lbaf->sec_offset;
+		}
 	}
 
 	return ppa32;
 }
 
+static inline struct ppa_addr pblk_trans_map_get(struct pblk *pblk,
+								sector_t lba)
+{
+	struct ppa_addr ppa;
+
+	if (pblk->addrf_len < 32) {
+		u32 *map = (u32 *)pblk->trans_map;
+
+		ppa = pblk_ppa32_to_ppa64(pblk, map[lba]);
+	} else {
+		struct ppa_addr *map = (struct ppa_addr *)pblk->trans_map;
+
+		ppa = map[lba];
+	}
+
+	return ppa;
+}
+
 static inline void pblk_trans_map_set(struct pblk *pblk, sector_t lba,
 						struct ppa_addr ppa)
 {
-	if (pblk->ppaf_bitsize < 32) {
+	if (pblk->addrf_len < 32) {
 		u32 *map = (u32 *)pblk->trans_map;
 
 		map[lba] = pblk_ppa64_to_ppa32(pblk, ppa);
@@ -1011,21 +1149,6 @@ static inline void pblk_trans_map_set(struct pblk *pblk, sector_t lba,
 
 		map[lba] = ppa.ppa;
 	}
-}
-
-static inline u64 pblk_dev_ppa_to_line_addr(struct pblk *pblk,
-							struct ppa_addr p)
-{
-	u64 paddr;
-
-	paddr = 0;
-	paddr |= (u64)p.g.pg << pblk->ppaf.pg_offset;
-	paddr |= (u64)p.g.lun << pblk->ppaf.lun_offset;
-	paddr |= (u64)p.g.ch << pblk->ppaf.ch_offset;
-	paddr |= (u64)p.g.pl << pblk->ppaf.pln_offset;
-	paddr |= (u64)p.g.sec << pblk->ppaf.sec_offset;
-
-	return paddr;
 }
 
 static inline int pblk_ppa_empty(struct ppa_addr ppa_addr)
@@ -1040,10 +1163,7 @@ static inline void pblk_ppa_set_empty(struct ppa_addr *ppa_addr)
 
 static inline bool pblk_ppa_comp(struct ppa_addr lppa, struct ppa_addr rppa)
 {
-	if (lppa.ppa == rppa.ppa)
-		return true;
-
-	return false;
+	return (lppa.ppa == rppa.ppa);
 }
 
 static inline int pblk_addr_in_cache(struct ppa_addr ppa)
@@ -1064,32 +1184,6 @@ static inline struct ppa_addr pblk_cacheline_to_addr(int addr)
 	p.c.is_cached = 1;
 
 	return p;
-}
-
-static inline struct ppa_addr addr_to_gen_ppa(struct pblk *pblk, u64 paddr,
-					      u64 line_id)
-{
-	struct ppa_addr ppa;
-
-	ppa.ppa = 0;
-	ppa.g.blk = line_id;
-	ppa.g.pg = (paddr & pblk->ppaf.pg_mask) >> pblk->ppaf.pg_offset;
-	ppa.g.lun = (paddr & pblk->ppaf.lun_mask) >> pblk->ppaf.lun_offset;
-	ppa.g.ch = (paddr & pblk->ppaf.ch_mask) >> pblk->ppaf.ch_offset;
-	ppa.g.pl = (paddr & pblk->ppaf.pln_mask) >> pblk->ppaf.pln_offset;
-	ppa.g.sec = (paddr & pblk->ppaf.sec_mask) >> pblk->ppaf.sec_offset;
-
-	return ppa;
-}
-
-static inline struct ppa_addr addr_to_pblk_ppa(struct pblk *pblk, u64 paddr,
-					 u64 line_id)
-{
-	struct ppa_addr ppa;
-
-	ppa = addr_to_gen_ppa(pblk, paddr, line_id);
-
-	return ppa;
 }
 
 static inline u32 pblk_calc_meta_header_crc(struct pblk *pblk,
@@ -1137,7 +1231,10 @@ static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
 	struct nvm_geo *geo = &dev->geo;
 	int flags;
 
-	flags = geo->plane_mode >> 1;
+	if (geo->version == NVM_OCSSD_SPEC_20)
+		return 0;
+
+	flags = geo->pln_mode >> 1;
 
 	if (type == PBLK_WRITE)
 		flags |= NVM_IO_SCRAMBLE_ENABLE;
@@ -1156,9 +1253,12 @@ static inline int pblk_set_read_mode(struct pblk *pblk, int type)
 	struct nvm_geo *geo = &dev->geo;
 	int flags;
 
+	if (geo->version == NVM_OCSSD_SPEC_20)
+		return 0;
+
 	flags = NVM_IO_SUSPEND | NVM_IO_SCRAMBLE_ENABLE;
 	if (type == PBLK_READ_SEQUENTIAL)
-		flags |= geo->plane_mode >> 1;
+		flags |= geo->pln_mode >> 1;
 
 	return flags;
 }
@@ -1169,16 +1269,21 @@ static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
 }
 
 #ifdef CONFIG_NVM_DEBUG
-static inline void print_ppa(struct ppa_addr *p, char *msg, int error)
+static inline void print_ppa(struct nvm_geo *geo, struct ppa_addr *p,
+			     char *msg, int error)
 {
 	if (p->c.is_cached) {
 		pr_err("ppa: (%s: %x) cache line: %llu\n",
 				msg, error, (u64)p->c.line);
-	} else {
+	} else if (geo->version == NVM_OCSSD_SPEC_12) {
 		pr_err("ppa: (%s: %x):ch:%d,lun:%d,blk:%d,pg:%d,pl:%d,sec:%d\n",
 			msg, error,
 			p->g.ch, p->g.lun, p->g.blk,
 			p->g.pg, p->g.pl, p->g.sec);
+	} else {
+		pr_err("ppa: (%s: %x):ch:%d,lun:%d,chk:%d,sec:%d\n",
+			msg, error,
+			p->m.grp, p->m.pu, p->m.chk, p->m.sec);
 	}
 }
 
@@ -1188,13 +1293,13 @@ static inline void pblk_print_failed_rqd(struct pblk *pblk, struct nvm_rq *rqd,
 	int bit = -1;
 
 	if (rqd->nr_ppas ==  1) {
-		print_ppa(&rqd->ppa_addr, "rqd", error);
+		print_ppa(&pblk->dev->geo, &rqd->ppa_addr, "rqd", error);
 		return;
 	}
 
 	while ((bit = find_next_bit((void *)&rqd->ppa_status, rqd->nr_ppas,
 						bit + 1)) < rqd->nr_ppas) {
-		print_ppa(&rqd->ppa_list[bit], "rqd", error);
+		print_ppa(&pblk->dev->geo, &rqd->ppa_list[bit], "rqd", error);
 	}
 
 	pr_err("error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
@@ -1210,16 +1315,25 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 	for (i = 0; i < nr_ppas; i++) {
 		ppa = &ppas[i];
 
-		if (!ppa->c.is_cached &&
-				ppa->g.ch < geo->nr_chnls &&
-				ppa->g.lun < geo->luns_per_chnl &&
-				ppa->g.pl < geo->nr_planes &&
-				ppa->g.blk < geo->blks_per_lun &&
-				ppa->g.pg < geo->pgs_per_blk &&
-				ppa->g.sec < geo->sec_per_pg)
-			continue;
+		if (geo->version == NVM_OCSSD_SPEC_12) {
+			if (!ppa->c.is_cached &&
+					ppa->g.ch < geo->num_ch &&
+					ppa->g.lun < geo->num_lun &&
+					ppa->g.pl < geo->num_pln &&
+					ppa->g.blk < geo->num_chk &&
+					ppa->g.pg < geo->num_pg &&
+					ppa->g.sec < geo->ws_min)
+				continue;
+		} else {
+			if (!ppa->c.is_cached &&
+					ppa->m.grp < geo->num_ch &&
+					ppa->m.pu < geo->num_lun &&
+					ppa->m.chk < geo->num_chk &&
+					ppa->m.sec < geo->clba)
+				continue;
+		}
 
-		print_ppa(ppa, "boundary", i);
+		print_ppa(geo, ppa, "boundary", i);
 
 		return 1;
 	}
@@ -1245,7 +1359,7 @@ static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 		for (i = 0; i < rqd->nr_ppas; i++) {
 			ppa = ppa_list[i];
-			line = &pblk->lines[pblk_dev_ppa_to_line(ppa)];
+			line = &pblk->lines[pblk_ppa_to_line(ppa)];
 
 			spin_lock(&line->lock);
 			if (line->state != PBLK_LINESTATE_OPEN) {
@@ -1286,11 +1400,6 @@ static inline sector_t pblk_get_lba(struct bio *bio)
 static inline unsigned int pblk_get_secs(struct bio *bio)
 {
 	return  bio->bi_iter.bi_size / PBLK_EXPOSED_PAGE_SIZE;
-}
-
-static inline sector_t pblk_get_sector(sector_t lba)
-{
-	return lba * NR_PHY_IN_LOG;
 }
 
 static inline void pblk_setup_uuid(struct pblk *pblk)

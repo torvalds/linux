@@ -17,7 +17,7 @@
 #ifndef MXL301RF_H
 #define MXL301RF_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct mxl301rf_config {
 	struct dvb_frontend *fe;

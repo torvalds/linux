@@ -1595,7 +1595,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 		DMWARN("Target message sector outside device.");
 		r = -EINVAL;
 	} else if (ti->type->message)
-		r = ti->type->message(ti, argc, argv);
+		r = ti->type->message(ti, argc, argv, result, maxlen);
 	else {
 		DMWARN("Target type does not support messages");
 		r = -EINVAL;
@@ -1929,15 +1929,15 @@ static int dm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static unsigned dm_poll(struct file *filp, poll_table *wait)
+static __poll_t dm_poll(struct file *filp, poll_table *wait)
 {
 	struct dm_file *priv = filp->private_data;
-	unsigned mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &dm_global_eventq, wait);
 
 	if ((int)(atomic_read(&dm_global_event_nr) - priv->global_event_nr) > 0)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	return mask;
 }

@@ -54,23 +54,49 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 	uint64_t modifier = fb->base.modifier;
 
-	switch (fourcc_mod_tegra_mod(modifier)) {
-	case NV_FORMAT_MOD_TEGRA_TILED:
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		tiling->mode = TEGRA_BO_TILING_MODE_PITCH;
+		tiling->value = 0;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED:
 		tiling->mode = TEGRA_BO_TILING_MODE_TILED;
 		tiling->value = 0;
 		break;
 
-	case NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(0):
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
-		tiling->value = fourcc_mod_tegra_param(modifier);
-		if (tiling->value > 5)
-			return -EINVAL;
+		tiling->value = 0;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 1;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 2;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 3;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 4;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 5;
 		break;
 
 	default:
-		/* TODO: handle YUV formats? */
-		*tiling = fb->planes[0]->tiling;
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -201,12 +227,28 @@ unreference:
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
+static int tegra_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct tegra_bo *bo;
+	int err;
+
+	bo = tegra_fb_get_plane(helper->fb, 0);
+
+	err = drm_gem_mmap_obj(&bo->gem, bo->gem.size, vma);
+	if (err < 0)
+		return err;
+
+	return __tegra_gem_mmap(&bo->gem, vma);
+}
+
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
+	.fb_mmap = tegra_fb_mmap,
 };
 
 static int tegra_fbdev_probe(struct drm_fb_helper *helper,
@@ -230,6 +272,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	cmd.height = sizes->surface_height;
 	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
 				  tegra->pitch_align);
+
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 
@@ -360,20 +403,6 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);
-}
-
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
-{
-	if (fbdev)
-		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
-}
-
-void tegra_fb_output_poll_changed(struct drm_device *drm)
-{
-	struct tegra_drm *tegra = drm->dev_private;
-
-	if (tegra->fbdev)
-		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
 }
 #endif
 

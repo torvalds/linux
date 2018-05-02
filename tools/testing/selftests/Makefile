@@ -7,6 +7,7 @@ TARGETS += cpufreq
 TARGETS += cpu-hotplug
 TARGETS += efivarfs
 TARGETS += exec
+TARGETS += filesystems
 TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
@@ -14,6 +15,7 @@ TARGETS += gpio
 TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += kcmp
+TARGETS += kvm
 TARGETS += lib
 TARGETS += membarrier
 TARGETS += memfd
@@ -23,6 +25,7 @@ TARGETS += mqueue
 TARGETS += net
 TARGETS += nsfs
 TARGETS += powerpc
+TARGETS += proc
 TARGETS += pstore
 TARGETS += ptrace
 TARGETS += seccomp
@@ -65,6 +68,12 @@ endif
 ifndef BUILD
   BUILD := $(shell pwd)
 endif
+
+# KSFT_TAP_LEVEL is used from KSFT framework to prevent nested TAP header
+# printing from tests. Applicable to run_tests case where run_tests adds
+# TAP header prior running tests and when a test program invokes another
+# with system() call. Export it here to cover override RUN_TESTS defines.
+export KSFT_TAP_LEVEL=`echo 1`
 
 export BUILD
 all:
@@ -116,13 +125,23 @@ ifdef INSTALL_PATH
 
 	@# Ask all targets to emit their test scripts
 	echo "#!/bin/sh" > $(ALL_SCRIPT)
-	echo "cd \$$(dirname \$$0)" >> $(ALL_SCRIPT)
+	echo "BASE_DIR=\$$(realpath \$$(dirname \$$0))" >> $(ALL_SCRIPT)
+	echo "cd \$$BASE_DIR" >> $(ALL_SCRIPT)
 	echo "ROOT=\$$PWD" >> $(ALL_SCRIPT)
+	echo "if [ \"\$$1\" = \"--summary\" ]; then" >> $(ALL_SCRIPT)
+	echo "  OUTPUT=\$$BASE_DIR/output.log" >> $(ALL_SCRIPT)
+	echo "  cat /dev/null > \$$OUTPUT" >> $(ALL_SCRIPT)
+	echo "else" >> $(ALL_SCRIPT)
+	echo "  OUTPUT=/dev/stdout" >> $(ALL_SCRIPT)
+	echo "fi" >> $(ALL_SCRIPT)
+	echo "export KSFT_TAP_LEVEL=`echo 1`" >> $(ALL_SCRIPT)
 
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
-		echo "echo ; echo Running tests in $$TARGET" >> $(ALL_SCRIPT); \
+		echo "echo ; echo TAP version 13" >> $(ALL_SCRIPT);	\
+		echo "echo Running tests in $$TARGET" >> $(ALL_SCRIPT); \
 		echo "echo ========================================" >> $(ALL_SCRIPT); \
+		echo "[ -w /dev/kmsg ] && echo \"kselftest: Running tests in $$TARGET\" >> /dev/kmsg" >> $(ALL_SCRIPT); \
 		echo "cd $$TARGET" >> $(ALL_SCRIPT); \
 		make -s --no-print-directory OUTPUT=$$BUILD_TARGET -C $$TARGET emit_tests >> $(ALL_SCRIPT); \
 		echo "cd \$$ROOT" >> $(ALL_SCRIPT); \

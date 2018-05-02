@@ -17,10 +17,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/pm_opp.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
-
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
@@ -140,25 +140,45 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 
 static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
 {
-	const struct firmware *fw;
+	int i;
 
-	if (adreno_gpu->pm4)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++) {
+		const struct firmware *fw;
 
-	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pm4fw);
-	if (IS_ERR(fw))
-		return PTR_ERR(fw);
-	adreno_gpu->pm4 = fw;
+		if (!adreno_gpu->info->fw[i])
+			continue;
 
-	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pfpfw);
-	if (IS_ERR(fw)) {
-		release_firmware(adreno_gpu->pm4);
-		adreno_gpu->pm4 = NULL;
-		return PTR_ERR(fw);
+		/* Skip if the firmware has already been loaded */
+		if (adreno_gpu->fw[i])
+			continue;
+
+		fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->fw[i]);
+		if (IS_ERR(fw))
+			return PTR_ERR(fw);
+
+		adreno_gpu->fw[i] = fw;
 	}
-	adreno_gpu->pfp = fw;
 
 	return 0;
+}
+
+struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
+		const struct firmware *fw, u64 *iova)
+{
+	struct drm_gem_object *bo;
+	void *ptr;
+
+	ptr = msm_gem_kernel_new_locked(gpu->dev, fw->size - 4,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
+
+	if (IS_ERR(ptr))
+		return ERR_CAST(ptr);
+
+	memcpy(ptr, &fw->data[4], fw->size - 4);
+
+	msm_gem_put_vaddr(bo);
+
+	return bo;
 }
 
 int adreno_hw_init(struct msm_gpu *gpu)
@@ -293,25 +313,11 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		OUT_RING(ring, 0x00000000);
 	}
 
+	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-	OUT_RING(ring, CACHE_FLUSH_TS);
+	OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
 	OUT_RING(ring, rbmemptr(ring, fence));
 	OUT_RING(ring, submit->seqno);
-
-	/* we could maybe be clever and only CP_COND_EXEC the interrupt: */
-	OUT_PKT3(ring, CP_INTERRUPT, 1);
-	OUT_RING(ring, 0x80000000);
-
-	/* Workaround for missing irq issue on 8x16/a306.  Unsure if the
-	 * root cause is a platform issue or some a306 quirk, but this
-	 * keeps things humming along:
-	 */
-	if (adreno_is_a306(adreno_gpu)) {
-		OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
-		OUT_RING(ring, 0x00000000);
-		OUT_PKT3(ring, CP_INTERRUPT, 1);
-		OUT_RING(ring, 0x80000000);
-	}
 
 #if 0
 	if (adreno_is_a3xx(adreno_gpu)) {
@@ -461,8 +467,78 @@ void adreno_wait_ring(struct msm_ringbuffer *ring, uint32_t ndwords)
 {
 	if (spin_until(ring_freewords(ring) >= ndwords))
 		DRM_DEV_ERROR(ring->gpu->dev->dev,
-			"timeout waiting for space in ringubffer %d\n",
+			"timeout waiting for space in ringbuffer %d\n",
 			ring->id);
+}
+
+/* Get legacy powerlevels from qcom,gpu-pwrlevels and populate the opp table */
+static int adreno_get_legacy_pwrlevels(struct device *dev)
+{
+	struct device_node *child, *node;
+	int ret;
+
+	node = of_find_compatible_node(dev->of_node, NULL,
+		"qcom,gpu-pwrlevels");
+	if (!node) {
+		dev_err(dev, "Could not find the GPU powerlevels\n");
+		return -ENXIO;
+	}
+
+	for_each_child_of_node(node, child) {
+		unsigned int val;
+
+		ret = of_property_read_u32(child, "qcom,gpu-freq", &val);
+		if (ret)
+			continue;
+
+		/*
+		 * Skip the intentionally bogus clock value found at the bottom
+		 * of most legacy frequency tables
+		 */
+		if (val != 27000000)
+			dev_pm_opp_add(dev, val, 0);
+	}
+
+	return 0;
+}
+
+static int adreno_get_pwrlevels(struct device *dev,
+		struct msm_gpu *gpu)
+{
+	unsigned long freq = ULONG_MAX;
+	struct dev_pm_opp *opp;
+	int ret;
+
+	gpu->fast_rate = 0;
+
+	/* You down with OPP? */
+	if (!of_find_property(dev->of_node, "operating-points-v2", NULL))
+		ret = adreno_get_legacy_pwrlevels(dev);
+	else {
+		ret = dev_pm_opp_of_add_table(dev);
+		if (ret)
+			dev_err(dev, "Unable to set the OPP table\n");
+	}
+
+	if (!ret) {
+		/* Find the fastest defined rate */
+		opp = dev_pm_opp_find_freq_floor(dev, &freq);
+		if (!IS_ERR(opp)) {
+			gpu->fast_rate = freq;
+			dev_pm_opp_put(opp);
+		}
+	}
+
+	if (!gpu->fast_rate) {
+		dev_warn(dev,
+			"Could not find a clock rate. Using a reasonable default\n");
+		/* Pick a suitably safe clock speed for any target */
+		gpu->fast_rate = 200000000;
+	}
+
+	DBG("fast_rate=%u, slow_rate=27000000", gpu->fast_rate);
+
+	return 0;
 }
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
@@ -479,15 +555,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->revn = adreno_gpu->info->revn;
 	adreno_gpu->rev = config->rev;
 
-	gpu->fast_rate = config->fast_rate;
-	gpu->bus_freq  = config->bus_freq;
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-	gpu->bus_scale_table = config->bus_scale_table;
-#endif
-
-	DBG("fast_rate=%u, slow_rate=27000000, bus_freq=%u",
-			gpu->fast_rate, gpu->bus_freq);
-
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
 	adreno_gpu_config.irqname = "kgsl_3d0_irq";
 
@@ -495,6 +562,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu_config.va_end = 0xffffffff;
 
 	adreno_gpu_config.nr_rings = nr_rings;
+
+	adreno_get_pwrlevels(&pdev->dev, gpu);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, DRM_MSM_INACTIVE_PERIOD);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -506,8 +575,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 {
-	release_firmware(adreno_gpu->pm4);
-	release_firmware(adreno_gpu->pfp);
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
+		release_firmware(adreno_gpu->fw[i]);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }

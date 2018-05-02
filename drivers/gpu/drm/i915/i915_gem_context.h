@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 
+#include "i915_gem.h"
+
 struct pid;
 
 struct drm_device;
@@ -37,6 +39,7 @@ struct drm_file;
 struct drm_i915_private;
 struct drm_i915_file_private;
 struct i915_hw_ppgtt;
+struct i915_request;
 struct i915_vma;
 struct intel_ring;
 
@@ -157,7 +160,6 @@ struct i915_gem_context {
 		u32 *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
-		bool initialised;
 	} engine[I915_NUM_ENGINES];
 
 	/** ring_size: size for allocating the per-engine ring buffer */
@@ -274,7 +276,7 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file);
 void i915_gem_context_close(struct drm_file *file);
 
-int i915_switch_context(struct drm_i915_gem_request *req);
+int i915_switch_context(struct i915_request *rq);
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
 
 void i915_gem_context_release(struct kref *ctx_ref);
@@ -291,6 +293,9 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
+
+struct i915_gem_context *
+i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio);
 
 static inline struct i915_gem_context *
 i915_gem_context_get(struct i915_gem_context *ctx)

@@ -294,14 +294,22 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	/* Reset the chip and stop data read out */
 	ret = regmap_write(map, MT9V032_RESET, 1);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	ret = regmap_write(map, MT9V032_RESET, 0);
 	if (ret < 0)
-		return ret;
+		goto err;
 
-	return regmap_write(map, MT9V032_CHIP_CONTROL,
-			    MT9V032_CHIP_CONTROL_MASTER_MODE);
+	ret = regmap_write(map, MT9V032_CHIP_CONTROL,
+			   MT9V032_CHIP_CONTROL_MASTER_MODE);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	clk_disable_unprepare(mt9v032->clk);
+	return ret;
 }
 
 static void mt9v032_power_off(struct mt9v032 *mt9v032)
@@ -876,6 +884,9 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 
 	/* Read and check the sensor version */
 	ret = regmap_read(mt9v032->regmap, MT9V032_CHIP_VERSION, &version);
+
+	mt9v032_power_off(mt9v032);
+
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed reading chip version\n");
 		return ret;
@@ -893,8 +904,6 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 			version);
 		return -ENODEV;
 	}
-
-	mt9v032_power_off(mt9v032);
 
 	dev_info(&client->dev, "%s detected at address 0x%02x\n",
 		 mt9v032->version->name, client->addr);

@@ -1096,7 +1096,7 @@ static struct ov2722_reg const ov2722_720p_30fps[] = {
 	{OV2722_TOK_TERM, 0, 0},
 };
 
-struct ov2722_resolution ov2722_res_preview[] = {
+static struct ov2722_resolution ov2722_res_preview[] = {
 	{
 		.desc = "ov2722_1632_1092_30fps",
 		.width = 1632,
@@ -1148,6 +1148,11 @@ struct ov2722_resolution ov2722_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(ov2722_res_preview))
 
+/*
+ * Disable non-preview configurations until the configuration selection is
+ * improved.
+ */
+#if 0
 struct ov2722_resolution ov2722_res_still[] = {
 	{
 		.desc = "ov2722_480P_30fps",
@@ -1250,6 +1255,7 @@ struct ov2722_resolution ov2722_res_video[] = {
 	},
 };
 #define N_RES_VIDEO (ARRAY_SIZE(ov2722_res_video))
+#endif
 
 static struct ov2722_resolution *ov2722_res = ov2722_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;

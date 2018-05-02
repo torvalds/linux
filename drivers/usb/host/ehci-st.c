@@ -23,6 +23,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "ehci.h"
 

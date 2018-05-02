@@ -29,7 +29,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/firmware.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24120.h"
 
 #define CX24120_SEARCH_RANGE_KHZ 5000

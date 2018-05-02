@@ -69,6 +69,14 @@ struct intel_secure_send_result {
 	__u8     status;
 } __packed;
 
+struct intel_reset {
+	__u8     reset_type;
+	__u8     patch_enable;
+	__u8     ddc_reload;
+	__u8     boot_option;
+	__le32   boot_param;
+} __packed;
+
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
@@ -89,7 +97,11 @@ int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
 
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 				   u16 opcode_write);
-
+int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param);
+int btintel_read_boot_params(struct hci_dev *hdev,
+			     struct intel_boot_params *params);
+int btintel_download_firmware(struct hci_dev *dev, const struct firmware *fw,
+			      u32 *boot_param);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -164,5 +176,24 @@ static inline struct regmap *btintel_regmap_init(struct hci_dev *hdev,
 						 u16 opcode_write)
 {
 	return ERR_PTR(-EINVAL);
+}
+
+static inline int btintel_send_intel_reset(struct hci_dev *hdev,
+					   u32 reset_param)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_read_boot_params(struct hci_dev *hdev,
+					   struct intel_boot_params *params)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_download_firmware(struct hci_dev *dev,
+					    const struct firmware *fw,
+					    u32 *boot_param)
+{
+	return -EOPNOTSUPP;
 }
 #endif

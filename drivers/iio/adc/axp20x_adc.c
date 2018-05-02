@@ -35,8 +35,13 @@
 #define AXP20X_GPIO10_IN_RANGE_GPIO1_VAL(x)	(((x) & BIT(0)) << 1)
 
 #define AXP20X_ADC_RATE_MASK			GENMASK(7, 6)
+#define AXP813_V_I_ADC_RATE_MASK		GENMASK(5, 4)
+#define AXP813_ADC_RATE_MASK			(AXP20X_ADC_RATE_MASK | AXP813_V_I_ADC_RATE_MASK)
 #define AXP20X_ADC_RATE_HZ(x)			((ilog2((x) / 25) << 6) & AXP20X_ADC_RATE_MASK)
 #define AXP22X_ADC_RATE_HZ(x)			((ilog2((x) / 100) << 6) & AXP20X_ADC_RATE_MASK)
+#define AXP813_TS_GPIO0_ADC_RATE_HZ(x)		AXP20X_ADC_RATE_HZ(x)
+#define AXP813_V_I_ADC_RATE_HZ(x)		((ilog2((x) / 100) << 4) & AXP813_V_I_ADC_RATE_MASK)
+#define AXP813_ADC_RATE_HZ(x)			(AXP20X_ADC_RATE_HZ(x) | AXP813_V_I_ADC_RATE_HZ(x))
 
 #define AXP20X_ADC_CHANNEL(_channel, _name, _type, _reg)	\
 	{							\
@@ -93,6 +98,12 @@ enum axp22x_adc_channel_v {
 enum axp22x_adc_channel_i {
 	AXP22X_BATT_CHRG_I = 1,
 	AXP22X_BATT_DISCHRG_I,
+};
+
+enum axp813_adc_channel_v {
+	AXP813_TS_IN = 0,
+	AXP813_GPIO0_V,
+	AXP813_BATT_V,
 };
 
 static struct iio_map axp20x_maps[] = {
@@ -197,6 +208,25 @@ static const struct iio_chan_spec axp22x_adc_channels[] = {
 			   AXP20X_BATT_DISCHRG_I_H),
 };
 
+static const struct iio_chan_spec axp813_adc_channels[] = {
+	{
+		.type = IIO_TEMP,
+		.address = AXP22X_PMIC_TEMP_H,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SCALE) |
+				      BIT(IIO_CHAN_INFO_OFFSET),
+		.datasheet_name = "pmic_temp",
+	},
+	AXP20X_ADC_CHANNEL(AXP813_GPIO0_V, "gpio0_v", IIO_VOLTAGE,
+			   AXP288_GP_ADC_H),
+	AXP20X_ADC_CHANNEL(AXP813_BATT_V, "batt_v", IIO_VOLTAGE,
+			   AXP20X_BATT_V_H),
+	AXP20X_ADC_CHANNEL(AXP22X_BATT_CHRG_I, "batt_chrg_i", IIO_CURRENT,
+			   AXP20X_BATT_CHRG_I_H),
+	AXP20X_ADC_CHANNEL(AXP22X_BATT_DISCHRG_I, "batt_dischrg_i", IIO_CURRENT,
+			   AXP20X_BATT_DISCHRG_I_H),
+};
+
 static int axp20x_adc_raw(struct iio_dev *indio_dev,
 			  struct iio_chan_spec const *chan, int *val)
 {
@@ -243,6 +273,18 @@ static int axp22x_adc_raw(struct iio_dev *indio_dev,
 	return IIO_VAL_INT;
 }
 
+static int axp813_adc_raw(struct iio_dev *indio_dev,
+			  struct iio_chan_spec const *chan, int *val)
+{
+	struct axp20x_adc_iio *info = iio_priv(indio_dev);
+
+	*val = axp20x_read_variable_width(info->regmap, chan->address, 12);
+	if (*val < 0)
+		return *val;
+
+	return IIO_VAL_INT;
+}
+
 static int axp20x_adc_scale_voltage(int channel, int *val, int *val2)
 {
 	switch (channel) {
@@ -266,6 +308,24 @@ static int axp20x_adc_scale_voltage(int channel, int *val, int *val2)
 	case AXP20X_IPSOUT_V:
 		*val = 1;
 		*val2 = 400000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int axp813_adc_scale_voltage(int channel, int *val, int *val2)
+{
+	switch (channel) {
+	case AXP813_GPIO0_V:
+		*val = 0;
+		*val2 = 800000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+	case AXP813_BATT_V:
+		*val = 1;
+		*val2 = 100000;
 		return IIO_VAL_INT_PLUS_MICRO;
 
 	default:
@@ -342,6 +402,26 @@ static int axp22x_adc_scale(struct iio_chan_spec const *chan, int *val,
 	}
 }
 
+static int axp813_adc_scale(struct iio_chan_spec const *chan, int *val,
+			    int *val2)
+{
+	switch (chan->type) {
+	case IIO_VOLTAGE:
+		return axp813_adc_scale_voltage(chan->channel, val, val2);
+
+	case IIO_CURRENT:
+		*val = 1;
+		return IIO_VAL_INT;
+
+	case IIO_TEMP:
+		*val = 100;
+		return IIO_VAL_INT;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static int axp20x_adc_offset_voltage(struct iio_dev *indio_dev, int channel,
 				     int *val)
 {
@@ -365,7 +445,7 @@ static int axp20x_adc_offset_voltage(struct iio_dev *indio_dev, int channel,
 		return -EINVAL;
 	}
 
-	*val = !!(*val) * 700000;
+	*val = *val ? 700000 : 0;
 
 	return IIO_VAL_INT;
 }
@@ -425,6 +505,26 @@ static int axp22x_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int axp813_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan, int *val,
+			   int *val2, long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_OFFSET:
+		*val = -2667;
+		return IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		return axp813_adc_scale(chan, val, val2);
+
+	case IIO_CHAN_INFO_RAW:
+		return axp813_adc_raw(indio_dev, chan, val);
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static int axp20x_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int val, int val2,
 			    long mask)
@@ -442,15 +542,17 @@ static int axp20x_write_raw(struct iio_dev *indio_dev,
 	if (val != 0 && val != 700000)
 		return -EINVAL;
 
+	val = val ? 1 : 0;
+
 	switch (chan->channel) {
 	case AXP20X_GPIO0_V:
 		reg = AXP20X_GPIO10_IN_RANGE_GPIO0;
-		regval = AXP20X_GPIO10_IN_RANGE_GPIO0_VAL(!!val);
+		regval = AXP20X_GPIO10_IN_RANGE_GPIO0_VAL(val);
 		break;
 
 	case AXP20X_GPIO1_V:
 		reg = AXP20X_GPIO10_IN_RANGE_GPIO1;
-		regval = AXP20X_GPIO10_IN_RANGE_GPIO1_VAL(!!val);
+		regval = AXP20X_GPIO10_IN_RANGE_GPIO1_VAL(val);
 		break;
 
 	default:
@@ -470,14 +572,29 @@ static const struct iio_info axp22x_adc_iio_info = {
 	.read_raw = axp22x_read_raw,
 };
 
-static int axp20x_adc_rate(int rate)
+static const struct iio_info axp813_adc_iio_info = {
+	.read_raw = axp813_read_raw,
+};
+
+static int axp20x_adc_rate(struct axp20x_adc_iio *info, int rate)
 {
-	return AXP20X_ADC_RATE_HZ(rate);
+	return regmap_update_bits(info->regmap, AXP20X_ADC_RATE,
+				  AXP20X_ADC_RATE_MASK,
+				  AXP20X_ADC_RATE_HZ(rate));
 }
 
-static int axp22x_adc_rate(int rate)
+static int axp22x_adc_rate(struct axp20x_adc_iio *info, int rate)
 {
-	return AXP22X_ADC_RATE_HZ(rate);
+	return regmap_update_bits(info->regmap, AXP20X_ADC_RATE,
+				  AXP20X_ADC_RATE_MASK,
+				  AXP22X_ADC_RATE_HZ(rate));
+}
+
+static int axp813_adc_rate(struct axp20x_adc_iio *info, int rate)
+{
+	return regmap_update_bits(info->regmap, AXP813_ADC_RATE,
+				 AXP813_ADC_RATE_MASK,
+				 AXP813_ADC_RATE_HZ(rate));
 }
 
 struct axp_data {
@@ -485,7 +602,8 @@ struct axp_data {
 	int				num_channels;
 	struct iio_chan_spec const	*channels;
 	unsigned long			adc_en1_mask;
-	int				(*adc_rate)(int rate);
+	int				(*adc_rate)(struct axp20x_adc_iio *info,
+						    int rate);
 	bool				adc_en2;
 	struct iio_map			*maps;
 };
@@ -510,9 +628,28 @@ static const struct axp_data axp22x_data = {
 	.maps = axp22x_maps,
 };
 
+static const struct axp_data axp813_data = {
+	.iio_info = &axp813_adc_iio_info,
+	.num_channels = ARRAY_SIZE(axp813_adc_channels),
+	.channels = axp813_adc_channels,
+	.adc_en1_mask = AXP22X_ADC_EN1_MASK,
+	.adc_rate = axp813_adc_rate,
+	.adc_en2 = false,
+	.maps = axp22x_maps,
+};
+
+static const struct of_device_id axp20x_adc_of_match[] = {
+	{ .compatible = "x-powers,axp209-adc", .data = (void *)&axp20x_data, },
+	{ .compatible = "x-powers,axp221-adc", .data = (void *)&axp22x_data, },
+	{ .compatible = "x-powers,axp813-adc", .data = (void *)&axp813_data, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, axp20x_adc_of_match);
+
 static const struct platform_device_id axp20x_adc_id_match[] = {
 	{ .name = "axp20x-adc", .driver_data = (kernel_ulong_t)&axp20x_data, },
 	{ .name = "axp22x-adc", .driver_data = (kernel_ulong_t)&axp22x_data, },
+	{ .name = "axp813-adc", .driver_data = (kernel_ulong_t)&axp813_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(platform, axp20x_adc_id_match);
@@ -538,7 +675,16 @@ static int axp20x_probe(struct platform_device *pdev)
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	info->data = (struct axp_data *)platform_get_device_id(pdev)->driver_data;
+	if (!pdev->dev.of_node) {
+		const struct platform_device_id *id;
+
+		id = platform_get_device_id(pdev);
+		info->data = (struct axp_data *)id->driver_data;
+	} else {
+		struct device *dev = &pdev->dev;
+
+		info->data = (struct axp_data *)of_device_get_match_data(dev);
+	}
 
 	indio_dev->name = platform_get_device_id(pdev)->name;
 	indio_dev->info = info->data->iio_info;
@@ -554,8 +700,7 @@ static int axp20x_probe(struct platform_device *pdev)
 				   AXP20X_ADC_EN2_MASK, AXP20X_ADC_EN2_MASK);
 
 	/* Configure ADCs rate */
-	regmap_update_bits(info->regmap, AXP20X_ADC_RATE, AXP20X_ADC_RATE_MASK,
-			   info->data->adc_rate(100));
+	info->data->adc_rate(info, 100);
 
 	ret = iio_map_array_register(indio_dev, info->data->maps);
 	if (ret < 0) {
@@ -602,6 +747,7 @@ static int axp20x_remove(struct platform_device *pdev)
 static struct platform_driver axp20x_adc_driver = {
 	.driver = {
 		.name = "axp20x-adc",
+		.of_match_table = of_match_ptr(axp20x_adc_of_match),
 	},
 	.id_table = axp20x_adc_id_match,
 	.probe = axp20x_probe,

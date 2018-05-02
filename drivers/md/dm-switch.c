@@ -466,7 +466,8 @@ static int process_set_region_mappings(struct switch_ctx *sctx,
  *
  * Only set_region_mappings is supported.
  */
-static int switch_message(struct dm_target *ti, unsigned argc, char **argv)
+static int switch_message(struct dm_target *ti, unsigned argc, char **argv,
+			  char *result, unsigned maxlen)
 {
 	static DEFINE_MUTEX(message_mutex);
 
@@ -511,8 +512,7 @@ static void switch_status(struct dm_target *ti, status_type_t type,
  *
  * Passthrough all ioctls to the path for sector 0
  */
-static int switch_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+static int switch_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct switch_ctx *sctx = ti->private;
 	unsigned path_nr;
@@ -520,7 +520,6 @@ static int switch_prepare_ioctl(struct dm_target *ti,
 	path_nr = switch_get_path_nr(sctx, 0);
 
 	*bdev = sctx->path_list[path_nr].dmdev->bdev;
-	*mode = sctx->path_list[path_nr].dmdev->mode;
 
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.

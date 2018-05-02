@@ -134,6 +134,7 @@ struct smscore_buffer_t {
 
 struct smsdevice_params_t {
 	struct device	*device;
+	struct usb_device	*usb_device;
 
 	int				buffer_size;
 	int				num_buffers;
@@ -176,6 +177,7 @@ struct smscore_device_t {
 
 	void *context;
 	struct device *device;
+	struct usb_device *usb_device;
 
 	char devpath[32];
 	unsigned long device_flags;

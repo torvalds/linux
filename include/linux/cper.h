@@ -275,6 +275,50 @@ enum {
 #define CPER_ARM_INFO_FLAGS_PROPAGATED		BIT(2)
 #define CPER_ARM_INFO_FLAGS_OVERFLOW		BIT(3)
 
+#define CPER_ARM_CACHE_ERROR			0
+#define CPER_ARM_TLB_ERROR			1
+#define CPER_ARM_BUS_ERROR			2
+#define CPER_ARM_VENDOR_ERROR			3
+#define CPER_ARM_MAX_TYPE			CPER_ARM_VENDOR_ERROR
+
+#define CPER_ARM_ERR_VALID_TRANSACTION_TYPE	BIT(0)
+#define CPER_ARM_ERR_VALID_OPERATION_TYPE	BIT(1)
+#define CPER_ARM_ERR_VALID_LEVEL		BIT(2)
+#define CPER_ARM_ERR_VALID_PROC_CONTEXT_CORRUPT	BIT(3)
+#define CPER_ARM_ERR_VALID_CORRECTED		BIT(4)
+#define CPER_ARM_ERR_VALID_PRECISE_PC		BIT(5)
+#define CPER_ARM_ERR_VALID_RESTARTABLE_PC	BIT(6)
+#define CPER_ARM_ERR_VALID_PARTICIPATION_TYPE	BIT(7)
+#define CPER_ARM_ERR_VALID_TIME_OUT		BIT(8)
+#define CPER_ARM_ERR_VALID_ADDRESS_SPACE	BIT(9)
+#define CPER_ARM_ERR_VALID_MEM_ATTRIBUTES	BIT(10)
+#define CPER_ARM_ERR_VALID_ACCESS_MODE		BIT(11)
+
+#define CPER_ARM_ERR_TRANSACTION_SHIFT		16
+#define CPER_ARM_ERR_TRANSACTION_MASK		GENMASK(1,0)
+#define CPER_ARM_ERR_OPERATION_SHIFT		18
+#define CPER_ARM_ERR_OPERATION_MASK		GENMASK(3,0)
+#define CPER_ARM_ERR_LEVEL_SHIFT		22
+#define CPER_ARM_ERR_LEVEL_MASK			GENMASK(2,0)
+#define CPER_ARM_ERR_PC_CORRUPT_SHIFT		25
+#define CPER_ARM_ERR_PC_CORRUPT_MASK		GENMASK(0,0)
+#define CPER_ARM_ERR_CORRECTED_SHIFT		26
+#define CPER_ARM_ERR_CORRECTED_MASK		GENMASK(0,0)
+#define CPER_ARM_ERR_PRECISE_PC_SHIFT		27
+#define CPER_ARM_ERR_PRECISE_PC_MASK		GENMASK(0,0)
+#define CPER_ARM_ERR_RESTARTABLE_PC_SHIFT	28
+#define CPER_ARM_ERR_RESTARTABLE_PC_MASK	GENMASK(0,0)
+#define CPER_ARM_ERR_PARTICIPATION_TYPE_SHIFT	29
+#define CPER_ARM_ERR_PARTICIPATION_TYPE_MASK	GENMASK(1,0)
+#define CPER_ARM_ERR_TIME_OUT_SHIFT		31
+#define CPER_ARM_ERR_TIME_OUT_MASK		GENMASK(0,0)
+#define CPER_ARM_ERR_ADDRESS_SPACE_SHIFT	32
+#define CPER_ARM_ERR_ADDRESS_SPACE_MASK		GENMASK(1,0)
+#define CPER_ARM_ERR_MEM_ATTRIBUTES_SHIFT	34
+#define CPER_ARM_ERR_MEM_ATTRIBUTES_MASK	GENMASK(8,0)
+#define CPER_ARM_ERR_ACCESS_MODE_SHIFT		43
+#define CPER_ARM_ERR_ACCESS_MODE_MASK		GENMASK(0,0)
+
 /*
  * All tables and structs must be byte-packed to match CPER
  * specification, since the tables are provided by the system BIOS
@@ -494,6 +538,8 @@ struct cper_sec_pcie {
 /* Reset to default packing */
 #pragma pack()
 
+extern const char * const cper_proc_error_type_strs[4];
+
 u64 cper_next_record_id(void);
 const char *cper_severity_str(unsigned int);
 const char *cper_mem_err_type_str(unsigned int);
@@ -503,5 +549,7 @@ void cper_mem_err_pack(const struct cper_sec_mem_err *,
 		       struct cper_mem_err_compact *);
 const char *cper_mem_err_unpack(struct trace_seq *,
 				struct cper_mem_err_compact *);
+void cper_print_proc_arm(const char *pfx,
+			 const struct cper_sec_proc_arm *proc);
 
 #endif

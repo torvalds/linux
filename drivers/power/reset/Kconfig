@@ -98,20 +98,18 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
-config POWER_RESET_IMX
-	bool "IMX6 power-off driver"
-	depends on POWER_RESET && SOC_IMX6
-	help
-	  This driver support power off external PMIC by PMIC_ON_REQ on i.mx6
-	  boards.If you want to use other pin to control external power,please
-	  say N here or disable in dts to make sure pm_power_off never be
-	  overwrote wrongly by this driver.
-
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
+
+config POWER_RESET_OCELOT_RESET
+	bool "Microsemi Ocelot reset driver"
+	depends on MSCC_OCELOT || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  This driver supports restart for Microsemi Ocelot SoC.
 
 config POWER_RESET_PIIX4_POWEROFF
 	tristate "Intel PIIX4 power-off driver"
@@ -226,6 +224,15 @@ config SYSCON_REBOOT_MODE
 	  get reboot mode arguments and store it in SYSCON mapped
 	  register, then the bootloader can read it to take different
 	  action according to the mode.
+
+config POWER_RESET_SC27XX
+	bool "Spreadtrum SC27xx PMIC power-off driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  This driver supports powering off a system through
+	  Spreadtrum SC27xx series PMICs. The SC27xx series
+	  PMICs includes the SC2720, SC2721, SC2723, SC2730
+	  and SC2731 chips.
 
 endif
 

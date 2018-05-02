@@ -16,7 +16,7 @@
 	model = "Freescale i.MX27 Product Development Kit";
 	compatible = "fsl,imx27-pdk", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x08000000>;
 	};
 
@@ -30,6 +30,7 @@
 			reg = <0>;
 			clocks = <&clks IMX27_CLK_DUMMY>;
 			clock-names = "main_clk";
+			#phy-cells = <0>;
 		};
 	};
 };

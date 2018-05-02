@@ -107,8 +107,16 @@
 #define CRYPTO_ALG_INTERNAL		0x00002000
 
 /*
+ * Set if the algorithm has a ->setkey() method but can be used without
+ * calling it first, i.e. there is a default key.
+ */
+#define CRYPTO_ALG_OPTIONAL_KEY		0x00004000
+
+/*
  * Transform masks and values (for crt_flags).
  */
+#define CRYPTO_TFM_NEED_KEY		0x00000001
+
 #define CRYPTO_TFM_REQ_MASK		0x000fff00
 #define CRYPTO_TFM_RES_MASK		0xfff00000
 
@@ -427,6 +435,14 @@ struct compress_alg {
  * @cra_exit: Deinitialize the cryptographic transformation object. This is a
  *	      counterpart to @cra_init, used to remove various changes set in
  *	      @cra_init.
+ * @cra_u.ablkcipher: Union member which contains an asynchronous block cipher
+ *		      definition. See @struct @ablkcipher_alg.
+ * @cra_u.blkcipher: Union member which contains a synchronous block cipher
+ * 		     definition See @struct @blkcipher_alg.
+ * @cra_u.cipher: Union member which contains a single-block symmetric cipher
+ *		  definition. See @struct @cipher_alg.
+ * @cra_u.compress: Union member which contains a (de)compression algorithm.
+ *		    See @struct @compress_alg.
  * @cra_module: Owner of this transformation implementation. Set to THIS_MODULE
  * @cra_list: internally used
  * @cra_users: internally used
@@ -447,7 +463,7 @@ struct crypto_alg {
 	unsigned int cra_alignmask;
 
 	int cra_priority;
-	atomic_t cra_refcnt;
+	refcount_t cra_refcnt;
 
 	char cra_name[CRYPTO_MAX_ALG_NAME];
 	char cra_driver_name[CRYPTO_MAX_ALG_NAME];

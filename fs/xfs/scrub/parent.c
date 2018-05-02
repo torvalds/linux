@@ -167,11 +167,21 @@ xfs_scrub_parent_validate(
 	 * if the parent pointer erroneously points to a file, we
 	 * can't use DONTCACHE here because DONTCACHE inodes can trigger
 	 * immediate inactive cleanup of the inode.
+	 *
+	 * If _iget returns -EINVAL then the parent inode number is garbage
+	 * and the directory is corrupt.  If the _iget returns -EFSCORRUPTED
+	 * or -EFSBADCRC then the parent is corrupt which is a cross
+	 * referencing error.  Any other error is an operational error.
 	 */
-	error = xfs_iget(mp, sc->tp, dnum, 0, 0, &dp);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	error = xfs_iget(mp, sc->tp, dnum, XFS_IGET_UNTRUSTED, 0, &dp);
+	if (error == -EINVAL) {
+		error = -EFSCORRUPTED;
+		xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
 		goto out;
-	if (dp == sc->ip) {
+	}
+	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
+		goto out;
+	if (dp == sc->ip || !S_ISDIR(VFS_I(dp)->i_mode)) {
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_rele;
 	}
@@ -185,7 +195,7 @@ xfs_scrub_parent_validate(
 	 */
 	if (xfs_ilock_nowait(dp, XFS_IOLOCK_SHARED)) {
 		error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0,
+		if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			goto out_unlock;
 		if (nlink != expected_nlink)
@@ -205,7 +215,7 @@ xfs_scrub_parent_validate(
 
 	/* Go looking for our dentry. */
 	error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_unlock;
 
 	/* Drop the parent lock, relock this inode. */

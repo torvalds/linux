@@ -16049,8 +16049,7 @@ static void wlc_phy_workarounds_nphy_gainctrl(struct brcms_phy *pi)
 		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_UPDATEGAINU,
 				       rfseq_updategainu_events,
 				       rfseq_updategainu_dlys,
-				       sizeof(rfseq_updategainu_events) /
-				       sizeof(rfseq_updategainu_events[0]));
+				       ARRAY_SIZE(rfseq_updategainu_events));
 
 		mod_phy_reg(pi, 0x153, (0xff << 8), (90 << 8));
 

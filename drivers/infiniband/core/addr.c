@@ -207,6 +207,22 @@ int rdma_addr_size(struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size);
 
+int rdma_addr_size_in6(struct sockaddr_in6 *addr)
+{
+	int ret = rdma_addr_size((struct sockaddr *) addr);
+
+	return ret <= sizeof(*addr) ? ret : 0;
+}
+EXPORT_SYMBOL(rdma_addr_size_in6);
+
+int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
+{
+	int ret = rdma_addr_size((struct sockaddr *) addr);
+
+	return ret <= sizeof(*addr) ? ret : 0;
+}
+EXPORT_SYMBOL(rdma_addr_size_kss);
+
 static struct rdma_addr_client self;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
@@ -243,8 +259,7 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr,
-		      u16 *vlan_id)
+		      struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
 
@@ -266,9 +281,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 			return -EADDRNOTAVAIL;
 
 		rdma_copy_addr(dev_addr, dev, NULL);
-		dev_addr->bound_dev_if = dev->ifindex;
-		if (vlan_id)
-			*vlan_id = rdma_vlan_dev_vlan_id(dev);
 		dev_put(dev);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -279,9 +291,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 					  &((const struct sockaddr_in6 *)addr)->sin6_addr,
 					  dev, 1)) {
 				rdma_copy_addr(dev_addr, dev, NULL);
-				dev_addr->bound_dev_if = dev->ifindex;
-				if (vlan_id)
-					*vlan_id = rdma_vlan_dev_vlan_id(dev);
 				break;
 			}
 		}
@@ -320,7 +329,8 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
-static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int ib_nl_fetch_ha(const struct dst_entry *dst,
+			  struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
 	if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
@@ -331,7 +341,8 @@ static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 	return ib_nl_ip_send_msg(dev_addr, daddr, seq, family);
 }
 
-static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int dst_fetch_ha(const struct dst_entry *dst,
+			struct rdma_dev_addr *dev_addr,
 			const void *daddr)
 {
 	struct neighbour *n;
@@ -355,7 +366,7 @@ static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 	return ret;
 }
 
-static bool has_gateway(struct dst_entry *dst, sa_family_t family)
+static bool has_gateway(const struct dst_entry *dst, sa_family_t family)
 {
 	struct rtable *rt;
 	struct rt6_info *rt6;
@@ -369,7 +380,7 @@ static bool has_gateway(struct dst_entry *dst, sa_family_t family)
 	return rt6->rt6i_flags & RTF_GATEWAY;
 }
 
-static int fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int fetch_ha(const struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 		    const struct sockaddr *dst_in, u32 seq)
 {
 	const struct sockaddr_in *dst_in4 =
@@ -473,7 +484,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 }
 #endif
 
-static int addr_resolve_neigh(struct dst_entry *dst,
+static int addr_resolve_neigh(const struct dst_entry *dst,
 			      const struct sockaddr *dst_in,
 			      struct rdma_dev_addr *addr,
 			      u32 seq)
@@ -481,7 +492,7 @@ static int addr_resolve_neigh(struct dst_entry *dst,
 	if (dst->dev->flags & IFF_LOOPBACK) {
 		int ret;
 
-		ret = rdma_translate_ip(dst_in, addr, NULL);
+		ret = rdma_translate_ip(dst_in, addr);
 		if (!ret)
 			memcpy(addr->dst_dev_addr, addr->src_dev_addr,
 			       MAX_ADDR_LEN);
@@ -557,18 +568,13 @@ static int addr_resolve(struct sockaddr *src_in,
 		dst_release(dst);
 	}
 
-	if (ndev->flags & IFF_LOOPBACK) {
-		ret = rdma_translate_ip(dst_in, addr, NULL);
-		/*
-		 * Put the loopback device and get the translated
-		 * device instead.
-		 */
+	if (ndev) {
+		if (ndev->flags & IFF_LOOPBACK)
+			ret = rdma_translate_ip(dst_in, addr);
+		else
+			addr->bound_dev_if = ndev->ifindex;
 		dev_put(ndev);
-		ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
-	} else {
-		addr->bound_dev_if = ndev->ifindex;
 	}
-	dev_put(ndev);
 
 	return ret;
 }
@@ -597,6 +603,15 @@ static void process_one_req(struct work_struct *_work)
 	}
 	list_del(&req->list);
 	mutex_unlock(&lock);
+
+	/*
+	 * Although the work will normally have been canceled by the
+	 * workqueue, it can still be requeued as long as it is on the
+	 * req_list, so it could have been requeued before we grabbed &lock.
+	 * We need to cancel it after it is removed from req_list to really be
+	 * sure it is safe to free.
+	 */
+	cancel_delayed_work(&req->work);
 
 	req->callback(req->status, (struct sockaddr *)&req->src_addr,
 		req->addr, req->context);
@@ -723,7 +738,6 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 	return addr_resolve(src_in, dst_addr, addr, false, 0);
 }
-EXPORT_SYMBOL(rdma_resolve_ip_route);
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
@@ -744,7 +758,6 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 EXPORT_SYMBOL(rdma_addr_cancel);
 
 struct resolve_cb_context {
-	struct rdma_dev_addr *addr;
 	struct completion comp;
 	int status;
 };
@@ -752,39 +765,31 @@ struct resolve_cb_context {
 static void resolve_cb(int status, struct sockaddr *src_addr,
 	     struct rdma_dev_addr *addr, void *context)
 {
-	if (!status)
-		memcpy(((struct resolve_cb_context *)context)->addr,
-		       addr, sizeof(struct rdma_dev_addr));
 	((struct resolve_cb_context *)context)->status = status;
 	complete(&((struct resolve_cb_context *)context)->comp);
 }
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, u16 *vlan_id, int *if_index,
+				 u8 *dmac, const struct net_device *ndev,
 				 int *hoplimit)
 {
-	int ret = 0;
 	struct rdma_dev_addr dev_addr;
 	struct resolve_cb_context ctx;
-	struct net_device *dev;
-
 	union {
 		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
-
+	int ret;
 
 	rdma_gid2ip(&sgid_addr._sockaddr, sgid);
 	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
-	if (if_index)
-		dev_addr.bound_dev_if = *if_index;
+	dev_addr.bound_dev_if = ndev->ifindex;
 	dev_addr.net = &init_net;
 
-	ctx.addr = &dev_addr;
 	init_completion(&ctx.comp);
 	ret = rdma_resolve_ip(&self, &sgid_addr._sockaddr, &dgid_addr._sockaddr,
 			&dev_addr, 1000, resolve_cb, &ctx);
@@ -798,42 +803,9 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 		return ret;
 
 	memcpy(dmac, dev_addr.dst_dev_addr, ETH_ALEN);
-	dev = dev_get_by_index(&init_net, dev_addr.bound_dev_if);
-	if (!dev)
-		return -ENODEV;
-	if (if_index)
-		*if_index = dev_addr.bound_dev_if;
-	if (vlan_id)
-		*vlan_id = rdma_vlan_dev_vlan_id(dev);
-	if (hoplimit)
-		*hoplimit = dev_addr.hoplimit;
-	dev_put(dev);
-	return ret;
+	*hoplimit = dev_addr.hoplimit;
+	return 0;
 }
-EXPORT_SYMBOL(rdma_addr_find_l2_eth_by_grh);
-
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
-{
-	int ret = 0;
-	struct rdma_dev_addr dev_addr;
-	union {
-		struct sockaddr     _sockaddr;
-		struct sockaddr_in  _sockaddr_in;
-		struct sockaddr_in6 _sockaddr_in6;
-	} gid_addr;
-
-	rdma_gid2ip(&gid_addr._sockaddr, sgid);
-
-	memset(&dev_addr, 0, sizeof(dev_addr));
-	dev_addr.net = &init_net;
-	ret = rdma_translate_ip(&gid_addr._sockaddr, &dev_addr, vlan_id);
-	if (ret)
-		return ret;
-
-	memcpy(smac, dev_addr.src_dev_addr, ETH_ALEN);
-	return ret;
-}
-EXPORT_SYMBOL(rdma_addr_find_smac_by_sgid);
 
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)

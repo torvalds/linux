@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/prism2/driver/hfa384x_usb.c
  *
  * Functions that talk to the USB variantof the Intersil hfa384x MAC
@@ -2457,7 +2458,8 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 	 * ok
 	 */
 	result =
-	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_in, &status);
+	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_in,
+			       &status);
 	if (result < 0) {
 		netdev_err(hw->wlandev->netdev, "Cannot get bulk in endpoint status.\n");
 		goto done;
@@ -2466,7 +2468,8 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 		netdev_err(hw->wlandev->netdev, "Failed to reset bulk in endpoint.\n");
 
 	result =
-	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_out, &status);
+	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_out,
+			       &status);
 	if (result < 0) {
 		netdev_err(hw->wlandev->netdev, "Cannot get bulk out endpoint status.\n");
 		goto done;

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG EXYNOS7 SoC device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/exynos7-clk.h>
@@ -103,7 +100,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			pdma0: pdma@10E10000 {
+			pdma0: pdma@10e10000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x10E10000 0x1000>;
 				interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
@@ -114,7 +111,7 @@
 				#dma-requests = <32>;
 			};
 
-			pdma1: pdma@10EB0000 {
+			pdma1: pdma@10eb0000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x10EB0000 0x1000>;
 				interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;

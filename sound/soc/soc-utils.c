@@ -284,11 +284,16 @@ static const struct snd_pcm_ops dummy_dma_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 };
 
-static const struct snd_soc_platform_driver dummy_platform = {
+static const struct snd_soc_component_driver dummy_platform = {
 	.ops = &dummy_dma_ops,
 };
 
-static struct snd_soc_codec_driver dummy_codec;
+static const struct snd_soc_component_driver dummy_codec = {
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
@@ -338,25 +343,15 @@ static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = snd_soc_register_codec(&pdev->dev, &dummy_codec, &dummy_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &dummy_codec, &dummy_dai, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_register_platform(&pdev->dev, &dummy_platform);
-	if (ret < 0) {
-		snd_soc_unregister_codec(&pdev->dev);
-		return ret;
-	}
+	ret = devm_snd_soc_register_component(&pdev->dev, &dummy_platform,
+					      NULL, 0);
 
 	return ret;
-}
-
-static int snd_soc_dummy_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_codec(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver soc_dummy_driver = {
@@ -364,7 +359,6 @@ static struct platform_driver soc_dummy_driver = {
 		.name = "snd-soc-dummy",
 	},
 	.probe = snd_soc_dummy_probe,
-	.remove = snd_soc_dummy_remove,
 };
 
 static struct platform_device *soc_dummy_dev;

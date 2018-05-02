@@ -789,7 +789,6 @@ static int ofdpa_flow_tbl_add(struct ofdpa_port *ofdpa_port,
 			       ofdpa_flags_nowait(flags),
 			       ofdpa_cmd_flow_tbl_add,
 			       found, NULL, NULL);
-	return 0;
 }
 
 static int ofdpa_flow_tbl_del(struct ofdpa_port *ofdpa_port,

@@ -1,18 +1,25 @@
-/* Copyright (C) 2016-2017  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: MIT */
+/* Copyright (C) 2016-2018  B.A.T.M.A.N. contributors:
  *
  * Matthias Schiffer
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef _UAPI_LINUX_BATMAN_ADV_H_
@@ -82,6 +89,53 @@ enum batadv_tt_client_flags {
 	 * part of the network but no nnode has already announced it
 	 */
 	BATADV_TT_CLIENT_TEMP	 = (1 << 11),
+};
+
+/**
+ * enum batadv_mcast_flags_priv - Private, own multicast flags
+ *
+ * These are internal, multicast related flags. Currently they describe certain
+ * multicast related attributes of the segment this originator bridges into the
+ * mesh.
+ *
+ * Those attributes are used to determine the public multicast flags this
+ * originator is going to announce via TT.
+ *
+ * For netlink, if BATADV_MCAST_FLAGS_BRIDGED is unset then all querier
+ * related flags are undefined.
+ */
+enum batadv_mcast_flags_priv {
+	/**
+	 * @BATADV_MCAST_FLAGS_BRIDGED: There is a bridge on top of the mesh
+	 * interface.
+	 */
+	BATADV_MCAST_FLAGS_BRIDGED			= (1 << 0),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV4_EXISTS: Whether an IGMP querier
+	 * exists in the mesh
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV4_EXISTS		= (1 << 1),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV6_EXISTS: Whether an MLD querier
+	 * exists in the mesh
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV6_EXISTS		= (1 << 2),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV4_SHADOWING: If an IGMP querier
+	 * exists, whether it is potentially shadowing multicast listeners
+	 * (i.e. querier is behind our own bridge segment)
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV4_SHADOWING	= (1 << 3),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING: If an MLD querier
+	 * exists, whether it is potentially shadowing multicast listeners
+	 * (i.e. querier is behind our own bridge segment)
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING	= (1 << 4),
 };
 
 /**
@@ -265,6 +319,31 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_BLA_CRC,
 
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_IP4ADDRESS: Client IPv4 address
+	 */
+	BATADV_ATTR_DAT_CACHE_IP4ADDRESS,
+
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_HWADDRESS: Client MAC address
+	 */
+	BATADV_ATTR_DAT_CACHE_HWADDRESS,
+
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_VID: VLAN ID
+	 */
+	BATADV_ATTR_DAT_CACHE_VID,
+
+	/**
+	 * @BATADV_ATTR_MCAST_FLAGS: Per originator multicast flags
+	 */
+	BATADV_ATTR_MCAST_FLAGS,
+
+	/**
+	 * @BATADV_ATTR_MCAST_FLAGS_PRIV: Private, own multicast flags
+	 */
+	BATADV_ATTR_MCAST_FLAGS_PRIV,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
@@ -353,6 +432,16 @@ enum batadv_nl_commands {
 	 * backbones
 	 */
 	BATADV_CMD_GET_BLA_BACKBONE,
+
+	/**
+	 * @BATADV_CMD_GET_DAT_CACHE: Query list of DAT cache entries
+	 */
+	BATADV_CMD_GET_DAT_CACHE,
+
+	/**
+	 * @BATADV_CMD_GET_MCAST_FLAGS: Query list of multicast flags
+	 */
+	BATADV_CMD_GET_MCAST_FLAGS,
 
 	/* add new commands above here */
 

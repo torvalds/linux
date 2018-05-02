@@ -72,8 +72,8 @@ struct saa6752hs_mpeg_params {
 	/* video */
 	enum v4l2_mpeg_video_aspect	vi_aspect;
 	enum v4l2_mpeg_video_bitrate_mode vi_bitrate_mode;
-	__u32 				vi_bitrate;
-	__u32 				vi_bitrate_peak;
+	__u32				vi_bitrate;
+	__u32				vi_bitrate_peak;
 };
 
 static const struct v4l2_format v4l2_format_table[] =
@@ -98,8 +98,8 @@ struct saa6752hs_state {
 		struct v4l2_ctrl *video_bitrate;
 		struct v4l2_ctrl *video_bitrate_peak;
 	};
-	u32 			      revision;
-	int 			      has_ac3;
+	u32			      revision;
+	int			      has_ac3;
 	struct saa6752hs_mpeg_params  params;
 	enum saa6752hs_videoformat    video_format;
 	v4l2_std_id                   standard;

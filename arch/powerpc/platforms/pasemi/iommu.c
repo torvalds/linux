@@ -186,7 +186,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	 */
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
-		dev->dev.dma_ops = &dma_direct_ops;
+		dev->dev.dma_ops = &dma_nommu_ops;
 		/*
 		 * Set the coherent DMA mask to prevent the iommu
 		 * being used unnecessarily

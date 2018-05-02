@@ -541,7 +541,7 @@ void r8712_SetSingleCarrierTx(struct _adapter *pAdapter, u8 bStart)
 
 void r8712_SetSingleToneTx(struct _adapter *pAdapter, u8 bStart)
 {
-	u8 rfPath = pAdapter->mppriv.curr_rfpath;
+	u8 rfPath;
 
 	switch (pAdapter->mppriv.antenna_tx) {
 	case ANTENNA_B:

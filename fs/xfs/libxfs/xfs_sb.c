@@ -40,6 +40,8 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_refcount_btree.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 
 /*
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.
@@ -116,6 +118,9 @@ xfs_mount_validate_sb(
 	bool		check_inprogress,
 	bool		check_version)
 {
+	uint32_t	agcount = 0;
+	uint32_t	rem;
+
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
@@ -226,6 +231,13 @@ xfs_mount_validate_sb(
 		return -EINVAL;
 	}
 
+	/* Compute agcount for this number of dblocks and agblocks */
+	if (sbp->sb_agblocks) {
+		agcount = div_u64_rem(sbp->sb_dblocks, sbp->sb_agblocks, &rem);
+		if (rem)
+			agcount++;
+	}
+
 	/*
 	 * More sanity checking.  Most of these were stolen directly from
 	 * xfs_repair.
@@ -250,6 +262,10 @@ xfs_mount_validate_sb(
 	    sbp->sb_inodesize != (1 << sbp->sb_inodelog)		||
 	    sbp->sb_logsunit > XLOG_MAX_RECORD_BSIZE			||
 	    sbp->sb_inopblock != howmany(sbp->sb_blocksize,sbp->sb_inodesize) ||
+	    XFS_FSB_TO_B(mp, sbp->sb_agblocks) < XFS_MIN_AG_BYTES	||
+	    XFS_FSB_TO_B(mp, sbp->sb_agblocks) > XFS_MAX_AG_BYTES	||
+	    sbp->sb_agblklog != xfs_highbit32(sbp->sb_agblocks - 1) + 1	||
+	    agcount == 0 || agcount != sbp->sb_agcount			||
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
@@ -640,11 +656,10 @@ xfs_sb_read_verify(
 	error = xfs_sb_verify(bp, true);
 
 out_error:
-	if (error) {
+	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
+		xfs_verifier_error(bp, error, __this_address);
+	else if (error)
 		xfs_buf_ioerror(bp, error);
-		if (error == -EFSCORRUPTED || error == -EFSBADCRC)
-			xfs_verifier_error(bp);
-	}
 }
 
 /*
@@ -673,13 +688,12 @@ xfs_sb_write_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	int			error;
 
 	error = xfs_sb_verify(bp, false);
 	if (error) {
-		xfs_buf_ioerror(bp, error);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, error, __this_address);
 		return;
 	}
 
@@ -717,7 +731,6 @@ xfs_sb_mount_common(
 	struct xfs_sb	*sbp)
 {
 	mp->m_agfrotor = mp->m_agirotor = 0;
-	spin_lock_init(&mp->m_agirotor_lock);
 	mp->m_maxagi = mp->m_sb.sb_agcount;
 	mp->m_blkbit_log = sbp->sb_blocklog + XFS_NBBYLOG;
 	mp->m_blkbb_log = sbp->sb_blocklog - BBSHIFT;
@@ -743,15 +756,13 @@ xfs_sb_mount_common(
 	mp->m_bmap_dmnr[0] = mp->m_bmap_dmxr[0] / 2;
 	mp->m_bmap_dmnr[1] = mp->m_bmap_dmxr[1] / 2;
 
-	mp->m_rmap_mxr[0] = xfs_rmapbt_maxrecs(mp, sbp->sb_blocksize, 1);
-	mp->m_rmap_mxr[1] = xfs_rmapbt_maxrecs(mp, sbp->sb_blocksize, 0);
+	mp->m_rmap_mxr[0] = xfs_rmapbt_maxrecs(sbp->sb_blocksize, 1);
+	mp->m_rmap_mxr[1] = xfs_rmapbt_maxrecs(sbp->sb_blocksize, 0);
 	mp->m_rmap_mnr[0] = mp->m_rmap_mxr[0] / 2;
 	mp->m_rmap_mnr[1] = mp->m_rmap_mxr[1] / 2;
 
-	mp->m_refc_mxr[0] = xfs_refcountbt_maxrecs(mp, sbp->sb_blocksize,
-			true);
-	mp->m_refc_mxr[1] = xfs_refcountbt_maxrecs(mp, sbp->sb_blocksize,
-			false);
+	mp->m_refc_mxr[0] = xfs_refcountbt_maxrecs(sbp->sb_blocksize, true);
+	mp->m_refc_mxr[1] = xfs_refcountbt_maxrecs(sbp->sb_blocksize, false);
 	mp->m_refc_mnr[0] = mp->m_refc_mxr[0] / 2;
 	mp->m_refc_mnr[1] = mp->m_refc_mxr[1] / 2;
 
@@ -875,4 +886,89 @@ xfs_sync_sb(
 	if (wait)
 		xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp);
+}
+
+int
+xfs_fs_geometry(
+	struct xfs_sb		*sbp,
+	struct xfs_fsop_geom	*geo,
+	int			struct_version)
+{
+	memset(geo, 0, sizeof(struct xfs_fsop_geom));
+
+	geo->blocksize = sbp->sb_blocksize;
+	geo->rtextsize = sbp->sb_rextsize;
+	geo->agblocks = sbp->sb_agblocks;
+	geo->agcount = sbp->sb_agcount;
+	geo->logblocks = sbp->sb_logblocks;
+	geo->sectsize = sbp->sb_sectsize;
+	geo->inodesize = sbp->sb_inodesize;
+	geo->imaxpct = sbp->sb_imax_pct;
+	geo->datablocks = sbp->sb_dblocks;
+	geo->rtblocks = sbp->sb_rblocks;
+	geo->rtextents = sbp->sb_rextents;
+	geo->logstart = sbp->sb_logstart;
+	BUILD_BUG_ON(sizeof(geo->uuid) != sizeof(sbp->sb_uuid));
+	memcpy(geo->uuid, &sbp->sb_uuid, sizeof(sbp->sb_uuid));
+
+	if (struct_version < 2)
+		return 0;
+
+	geo->sunit = sbp->sb_unit;
+	geo->swidth = sbp->sb_width;
+
+	if (struct_version < 3)
+		return 0;
+
+	geo->version = XFS_FSOP_GEOM_VERSION;
+	geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
+		     XFS_FSOP_GEOM_FLAGS_DIRV2;
+	if (xfs_sb_version_hasattr(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR;
+	if (xfs_sb_version_hasquota(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_QUOTA;
+	if (xfs_sb_version_hasalign(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_IALIGN;
+	if (xfs_sb_version_hasdalign(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_DALIGN;
+	if (xfs_sb_version_hasextflgbit(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_EXTFLG;
+	if (xfs_sb_version_hassector(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_SECTOR;
+	if (xfs_sb_version_hasasciici(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_DIRV2CI;
+	if (xfs_sb_version_haslazysbcount(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_LAZYSB;
+	if (xfs_sb_version_hasattr2(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR2;
+	if (xfs_sb_version_hasprojid32bit(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_PROJID32;
+	if (xfs_sb_version_hascrc(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_V5SB;
+	if (xfs_sb_version_hasftype(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_FTYPE;
+	if (xfs_sb_version_hasfinobt(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_FINOBT;
+	if (xfs_sb_version_hassparseinodes(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_SPINODES;
+	if (xfs_sb_version_hasrmapbt(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_RMAPBT;
+	if (xfs_sb_version_hasreflink(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_REFLINK;
+	if (xfs_sb_version_hassector(sbp))
+		geo->logsectsize = sbp->sb_logsectsize;
+	else
+		geo->logsectsize = BBSIZE;
+	geo->rtsectsize = sbp->sb_blocksize;
+	geo->dirblocksize = xfs_dir2_dirblock_bytes(sbp);
+
+	if (struct_version < 4)
+		return 0;
+
+	if (xfs_sb_version_haslogv2(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_LOGV2;
+
+	geo->logsunit = sbp->sb_logsunit;
+
+	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/dir.c - sysfs core and dir operation implementation
  *
@@ -5,12 +6,10 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * This file is released under the GPLv2.
- *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#undef DEBUG
+#define pr_fmt(fmt)	"sysfs: " fmt
 
 #include <linux/fs.h>
 #include <linux/kobject.h>
@@ -27,8 +26,8 @@ void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
 	if (buf)
 		kernfs_path(parent, buf, PATH_MAX);
 
-	WARN(1, KERN_WARNING "sysfs: cannot create duplicate filename '%s/%s'\n",
-	     buf, name);
+	pr_warn("cannot create duplicate filename '%s/%s'\n", buf, name);
+	dump_stack();
 
 	kfree(buf);
 }

@@ -62,6 +62,7 @@ static int get_exported_devices(char *host, int sockfd)
 	struct usbip_usb_interface uintf;
 	unsigned int i;
 	int rc, j;
+	int status;
 
 	rc = usbip_net_send_op_common(sockfd, OP_REQ_DEVLIST, 0);
 	if (rc < 0) {
@@ -69,9 +70,10 @@ static int get_exported_devices(char *host, int sockfd)
 		return -1;
 	}
 
-	rc = usbip_net_recv_op_common(sockfd, &code);
+	rc = usbip_net_recv_op_common(sockfd, &code, &status);
 	if (rc < 0) {
-		dbg("usbip_net_recv_op_common failed");
+		err("Exported Device List Request failed - %s\n",
+		    usbip_op_common_status_string(status));
 		return -1;
 	}
 
@@ -187,6 +189,7 @@ static int list_devices(bool parsable)
 	const char *busid;
 	char product_name[128];
 	int ret = -1;
+	const char *devpath;
 
 	/* Create libudev context. */
 	udev = udev_new();
@@ -208,6 +211,14 @@ static int list_devices(bool parsable)
 	udev_list_entry_foreach(dev_list_entry, devices) {
 		path = udev_list_entry_get_name(dev_list_entry);
 		dev = udev_device_new_from_syspath(udev, path);
+
+		/* Ignore devices attached to vhci_hcd */
+		devpath = udev_device_get_devpath(dev);
+		if (strstr(devpath, USBIP_VHCI_DRV_NAME)) {
+			dbg("Skip the device %s already attached to %s\n",
+			    devpath, USBIP_VHCI_DRV_NAME);
+			continue;
+		}
 
 		/* Get device information. */
 		idVendor = udev_device_get_sysattr_value(dev, "idVendor");

@@ -45,7 +45,7 @@ static const struct snd_kcontrol_new cq93vc_snd_controls[] = {
 
 static int cq93vc_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u8 reg;
 
 	if (mute)
@@ -53,7 +53,7 @@ static int cq93vc_mute(struct snd_soc_dai *dai, int mute)
 	else
 		reg = 0;
 
-	snd_soc_update_bits(codec, DAVINCI_VC_REG09, DAVINCI_VC_REG09_MUTE,
+	snd_soc_component_update_bits(component, DAVINCI_VC_REG09, DAVINCI_VC_REG09_MUTE,
 			    reg);
 
 	return 0;
@@ -72,23 +72,23 @@ static int cq93vc_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return -EINVAL;
 }
 
-static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
+static int cq93vc_set_bias_level(struct snd_soc_component *component,
 				enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		snd_soc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_component_write(component, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_ON);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_component_write(component, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* force all power off */
-		snd_soc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_component_write(component, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	}
@@ -121,31 +121,34 @@ static struct snd_soc_dai_driver cq93vc_dai = {
 	.ops = &cq93vc_dai_ops,
 };
 
-static struct regmap *cq93vc_get_regmap(struct device *dev)
+static int cq93vc_probe(struct snd_soc_component *component)
 {
-	struct davinci_vc *davinci_vc = dev->platform_data;
+	struct davinci_vc *davinci_vc = component->dev->platform_data;
 
-	return davinci_vc->regmap;
+	snd_soc_component_init_regmap(component, davinci_vc->regmap);
+
+	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
-	.set_bias_level = cq93vc_set_bias_level,
-	.get_regmap = cq93vc_get_regmap,
-	.component_driver = {
-		.controls = cq93vc_snd_controls,
-		.num_controls = ARRAY_SIZE(cq93vc_snd_controls),
-	},
+static const struct snd_soc_component_driver soc_component_dev_cq93vc = {
+	.set_bias_level		= cq93vc_set_bias_level,
+	.probe			= cq93vc_probe,
+	.controls		= cq93vc_snd_controls,
+	.num_controls		= ARRAY_SIZE(cq93vc_snd_controls),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cq93vc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_cq93vc, &cq93vc_dai, 1);
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_cq93vc, &cq93vc_dai, 1);
 }
 
 static int cq93vc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

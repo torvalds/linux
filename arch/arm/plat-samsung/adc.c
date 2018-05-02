@@ -1,15 +1,10 @@
-/* arch/arm/plat-samsung/adc.c
- *
- * Copyright (c) 2008 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>, <ben-linux@fluff.org>
- *
- * Samsung ADC device core
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
-*/
+// SPDX-License-Identifier: GPL-1.0+
+//
+// Copyright (c) 2008 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>, <ben-linux@fluff.org>
+//
+// Samsung ADC device core
 
 #include <linux/module.h>
 #include <linux/kernel.h>

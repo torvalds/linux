@@ -992,7 +992,6 @@ static int lec_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations lec_seq_fops = {
-	.owner = THIS_MODULE,
 	.open = lec_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -1043,7 +1042,7 @@ static int __init lane_module_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
 
-	p = proc_create("lec", S_IRUGO, atm_proc_root, &lec_seq_fops);
+	p = proc_create("lec", 0444, atm_proc_root, &lec_seq_fops);
 	if (!p) {
 		pr_err("Unable to initialize /proc/net/atm/lec\n");
 		return -ENOMEM;

@@ -108,4 +108,6 @@ void zpool_register_driver(struct zpool_driver *driver);
 
 int zpool_unregister_driver(struct zpool_driver *driver);
 
+bool zpool_evictable(struct zpool *pool);
+
 #endif

@@ -58,6 +58,7 @@ struct meson_cvbs_enci_mode {
 };
 
 /* HDMI Clock parameters */
+bool meson_venc_hdmi_supported_mode(const struct drm_display_mode *mode);
 bool meson_venc_hdmi_supported_vic(int vic);
 bool meson_venc_hdmi_venc_repeat(int vic);
 

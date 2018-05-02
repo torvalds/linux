@@ -26,7 +26,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 i="$1"
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 
 if test "`grep -c 'rcu_exp_grace_period.*start' < $i/console.log`" -lt 100
 then
@@ -39,30 +39,31 @@ sed -e 's/us : / : /' |
 tr -d '\015' |
 awk '
 $8 == "start" {
-	if (starttask != "")
+	if (startseq != "")
 		nlost++;
 	starttask = $1;
 	starttime = $3;
 	startseq = $7;
+	seqtask[startseq] = starttask;
 }
 
 $8 == "end" {
-	if (starttask == $1 && startseq == $7) {
+	if (startseq == $7) {
 		curgpdur = $3 - starttime;
 		gptimes[++n] = curgpdur;
 		gptaskcnt[starttask]++;
 		sum += curgpdur;
 		if (curgpdur > 1000)
 			print "Long GP " starttime "us to " $3 "us (" curgpdur "us)";
-		starttask = "";
+		startseq = "";
 	} else {
 		# Lost a message or some such, reset.
-		starttask = "";
+		startseq = "";
 		nlost++;
 	}
 }
 
-$8 == "done" {
+$8 == "done" && seqtask[$7] != $1 {
 	piggybackcnt[$1]++;
 }
 

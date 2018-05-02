@@ -123,8 +123,7 @@ struct link_encoder_funcs {
 	void (*enable_tmds_output)(struct link_encoder *enc,
 		enum clock_source_id clock_source,
 		enum dc_color_depth color_depth,
-		bool hdmi,
-		bool dual_link,
+		enum signal_type signal,
 		uint32_t pixel_clock);
 	void (*enable_dp_output)(struct link_encoder *enc,
 		const struct dc_link_settings *link_settings,
@@ -133,7 +132,7 @@ struct link_encoder_funcs {
 		const struct dc_link_settings *link_settings,
 		enum clock_source_id clock_source);
 	void (*disable_output)(struct link_encoder *link_enc,
-		enum signal_type signal, struct dc_link *link);
+		enum signal_type signal);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,
 		const struct link_training_settings *link_settings);
 	void (*dp_set_phy_pattern)(struct link_encoder *enc,

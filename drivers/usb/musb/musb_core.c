@@ -126,7 +126,6 @@ EXPORT_SYMBOL_GPL(musb_get_mode);
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef CONFIG_BLACKFIN
 static int musb_ulpi_read(struct usb_phy *phy, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
@@ -208,10 +207,6 @@ out:
 
 	return ret;
 }
-#else
-#define musb_ulpi_read		NULL
-#define musb_ulpi_write		NULL
-#endif
 
 static struct usb_phy_io_ops musb_ulpi_access = {
 	.read = musb_ulpi_read,
@@ -1687,7 +1682,7 @@ EXPORT_SYMBOL_GPL(musb_mailbox);
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
-musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb *musb = dev_to_musb(dev);
 	unsigned long flags;
@@ -1701,7 +1696,7 @@ musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-musb_mode_store(struct device *dev, struct device_attribute *attr,
+mode_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1721,10 +1716,10 @@ musb_mode_store(struct device *dev, struct device_attribute *attr,
 
 	return (status == 0) ? n : status;
 }
-static DEVICE_ATTR(mode, 0644, musb_mode_show, musb_mode_store);
+static DEVICE_ATTR_RW(mode);
 
 static ssize_t
-musb_vbus_store(struct device *dev, struct device_attribute *attr,
+vbus_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1748,7 +1743,7 @@ musb_vbus_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
+vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
@@ -1756,6 +1751,7 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int		vbus;
 	u8		devctl;
 
+	pm_runtime_get_sync(dev);
 	spin_lock_irqsave(&musb->lock, flags);
 	val = musb->a_wait_bcon;
 	vbus = musb_platform_get_vbus_status(musb);
@@ -1769,17 +1765,17 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 			vbus = 0;
 	}
 	spin_unlock_irqrestore(&musb->lock, flags);
+	pm_runtime_put_sync(dev);
 
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
 			vbus ? "on" : "off", val);
 }
-static DEVICE_ATTR(vbus, 0644, musb_vbus_show, musb_vbus_store);
+static DEVICE_ATTR_RW(vbus);
 
 /* Gadget drivers can't know that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
-static ssize_t
-musb_srp_store(struct device *dev, struct device_attribute *attr,
+static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1796,7 +1792,7 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR(srp, 0644, NULL, musb_srp_store);
+static DEVICE_ATTR_WO(srp);
 
 static struct attribute *musb_attributes[] = {
 	&dev_attr_mode.attr,
@@ -2172,7 +2168,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 *   - initializes musb->xceiv, usually by otg_get_phy()
 	 *   - stops powering VBUS
 	 *
-	 * There are various transceiver configurations.  Blackfin,
+	 * There are various transceiver configurations.
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses
 	 * external/discrete ones in various flavors (twl4030 family,
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
@@ -2472,11 +2468,11 @@ static int musb_remove(struct platform_device *pdev)
 	musb_disable_interrupts(musb);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
+	musb_platform_exit(musb);
 
 	pm_runtime_dont_use_autosuspend(musb->controller);
 	pm_runtime_put_sync(musb->controller);
 	pm_runtime_disable(musb->controller);
-	musb_platform_exit(musb);
 	musb_phy_callback = NULL;
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
@@ -2709,7 +2705,8 @@ static int musb_resume(struct device *dev)
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
 
-	musb_start(musb);
+	musb_enable_interrupts(musb);
+	musb_platform_enable(musb);
 
 	spin_lock_irqsave(&musb->lock, flags);
 	error = musb_run_resume_work(musb);

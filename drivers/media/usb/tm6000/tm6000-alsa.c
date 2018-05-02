@@ -1,14 +1,8 @@
-/*
- *
- *  Support for audio capture for tm5600/6000/6010
- *    (c) 2007-2008 Mauro Carvalho Chehab
- *
- *  Based on cx88-alsa.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Support for audio capture for tm5600/6000/6010
+// Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// Based on cx88-alsa.c
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -57,7 +51,7 @@ MODULE_PARM_DESC(index, "Index value for tm6000x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},{{Trident,tm6000},{{Trident,tm6010}");
 static unsigned int debug;
 module_param(debug, int, 0644);

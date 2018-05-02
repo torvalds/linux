@@ -2649,6 +2649,79 @@ static void a0_portstatus(struct hfi1_pportdata *ppd,
 	}
 }
 
+/**
+ * tx_link_width - convert link width bitmask to integer
+ * value representing actual link width.
+ * @link_width: width of active link
+ * @return: return index of the bit set in link_width var
+ *
+ * The function convert and return the index of bit set
+ * that indicate the current link width.
+ */
+u16 tx_link_width(u16 link_width)
+{
+	int n = LINK_WIDTH_DEFAULT;
+	u16 tx_width = n;
+
+	while (link_width && n) {
+		if (link_width & (1 << (n - 1))) {
+			tx_width = n;
+			break;
+		}
+		n--;
+	}
+
+	return tx_width;
+}
+
+/**
+ * get_xmit_wait_counters - Convert HFI 's SendWaitCnt/SendWaitVlCnt
+ * counter in unit of TXE cycle times to flit times.
+ * @ppd: info of physical Hfi port
+ * @link_width: width of active link
+ * @link_speed: speed of active link
+ * @vl: represent VL0-VL7, VL15 for PortVLXmitWait counters request
+ * and if vl value is C_VL_COUNT, it represent SendWaitCnt
+ * counter request
+ * @return: return SendWaitCnt/SendWaitVlCnt counter value per vl.
+ *
+ * Convert SendWaitCnt/SendWaitVlCnt counter from TXE cycle times to
+ * flit times. Call this function to samples these counters. This
+ * function will calculate for previous state transition and update
+ * current state at end of function using ppd->prev_link_width and
+ * ppd->port_vl_xmit_wait_last to port_vl_xmit_wait_curr and link_width.
+ */
+u64 get_xmit_wait_counters(struct hfi1_pportdata *ppd,
+			   u16 link_width, u16 link_speed, int vl)
+{
+	u64 port_vl_xmit_wait_curr;
+	u64 delta_vl_xmit_wait;
+	u64 xmit_wait_val;
+
+	if (vl > C_VL_COUNT)
+		return  0;
+	if (vl < C_VL_COUNT)
+		port_vl_xmit_wait_curr =
+			read_port_cntr(ppd, C_TX_WAIT_VL, vl);
+	else
+		port_vl_xmit_wait_curr =
+			read_port_cntr(ppd, C_TX_WAIT, CNTR_INVALID_VL);
+
+	xmit_wait_val =
+		port_vl_xmit_wait_curr -
+		ppd->port_vl_xmit_wait_last[vl];
+	delta_vl_xmit_wait =
+		convert_xmit_counter(xmit_wait_val,
+				     ppd->prev_link_width,
+				     link_speed);
+
+	ppd->vl_xmit_flit_cnt[vl] += delta_vl_xmit_wait;
+	ppd->port_vl_xmit_wait_last[vl] = port_vl_xmit_wait_curr;
+	ppd->prev_link_width = link_width;
+
+	return ppd->vl_xmit_flit_cnt[vl];
+}
+
 static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 				  struct ib_device *ibdev,
 				  u8 port, u32 *resp_len)
@@ -2668,6 +2741,8 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	int vfi;
 	u64 tmp, tmp2;
+	u16 link_width;
+	u16 link_speed;
 
 	response_data_size = sizeof(struct opa_port_status_rsp) +
 				num_vls * sizeof(struct _vls_pctrs);
@@ -2711,8 +2786,16 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 	rsp->port_multicast_rcv_pkts =
 		cpu_to_be64(read_dev_cntr(dd, C_DC_MC_RCV_PKTS,
 					  CNTR_INVALID_VL));
+	/*
+	 * Convert PortXmitWait counter from TXE cycle times
+	 * to flit times.
+	 */
+	link_width =
+		tx_link_width(ppd->link_width_downgrade_tx_active);
+	link_speed = get_link_speed(ppd->link_speed_active);
 	rsp->port_xmit_wait =
-		cpu_to_be64(read_port_cntr(ppd, C_TX_WAIT, CNTR_INVALID_VL));
+		cpu_to_be64(get_xmit_wait_counters(ppd, link_width,
+						   link_speed, C_VL_COUNT));
 	rsp->port_rcv_fecn =
 		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FCN, CNTR_INVALID_VL));
 	rsp->port_rcv_becn =
@@ -2777,10 +2860,14 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 		rsp->vls[vfi].port_vl_xmit_pkts =
 			cpu_to_be64(read_port_cntr(ppd, C_TX_PKT_VL,
 						   idx_from_vl(vl)));
-
+		/*
+		 * Convert PortVlXmitWait counter from TXE cycle
+		 * times to flit times.
+		 */
 		rsp->vls[vfi].port_vl_xmit_wait =
-			cpu_to_be64(read_port_cntr(ppd, C_TX_WAIT_VL,
-						   idx_from_vl(vl)));
+			cpu_to_be64(get_xmit_wait_counters(ppd, link_width,
+							   link_speed,
+							   idx_from_vl(vl)));
 
 		rsp->vls[vfi].port_vl_rcv_fecn =
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FCN_VL,
@@ -2910,6 +2997,8 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	unsigned long vl;
 	u32 vl_select_mask;
 	int vfi;
+	u16 link_width;
+	u16 link_speed;
 
 	num_ports = be32_to_cpu(pmp->mad_hdr.attr_mod) >> 24;
 	num_vls = hweight32(be32_to_cpu(req->vl_select_mask));
@@ -2959,8 +3048,16 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	rsp->link_quality_indicator = cpu_to_be32((u32)lq);
 	pma_get_opa_port_dctrs(ibdev, rsp);
 
+	/*
+	 * Convert PortXmitWait counter from TXE
+	 * cycle times to flit times.
+	 */
+	link_width =
+		tx_link_width(ppd->link_width_downgrade_tx_active);
+	link_speed = get_link_speed(ppd->link_speed_active);
 	rsp->port_xmit_wait =
-		cpu_to_be64(read_port_cntr(ppd, C_TX_WAIT, CNTR_INVALID_VL));
+		cpu_to_be64(get_xmit_wait_counters(ppd, link_width,
+						   link_speed, C_VL_COUNT));
 	rsp->port_rcv_fecn =
 		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FCN, CNTR_INVALID_VL));
 	rsp->port_rcv_becn =
@@ -2996,9 +3093,14 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RX_PKT_VL,
 						  idx_from_vl(vl)));
 
+		/*
+		 * Convert PortVlXmitWait counter from TXE
+		 * cycle times to flit times.
+		 */
 		rsp->vls[vfi].port_vl_xmit_wait =
-			cpu_to_be64(read_port_cntr(ppd, C_TX_WAIT_VL,
-						   idx_from_vl(vl)));
+			cpu_to_be64(get_xmit_wait_counters(ppd, link_width,
+							   link_speed,
+							   idx_from_vl(vl)));
 
 		rsp->vls[vfi].port_vl_rcv_fecn =
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FCN_VL,
@@ -3416,9 +3518,11 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 	if (counter_select & CS_PORT_MCAST_RCV_PKTS)
 		write_dev_cntr(dd, C_DC_MC_RCV_PKTS, CNTR_INVALID_VL, 0);
 
-	if (counter_select & CS_PORT_XMIT_WAIT)
+	if (counter_select & CS_PORT_XMIT_WAIT) {
 		write_port_cntr(ppd, C_TX_WAIT, CNTR_INVALID_VL, 0);
-
+		ppd->port_vl_xmit_wait_last[C_VL_COUNT] = 0;
+		ppd->vl_xmit_flit_cnt[C_VL_COUNT] = 0;
+	}
 	/* ignore cs_sw_portCongestion for HFIs */
 
 	if (counter_select & CS_PORT_RCV_FECN)
@@ -3491,8 +3595,11 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		if (counter_select & CS_PORT_RCV_PKTS)
 			write_dev_cntr(dd, C_DC_RX_PKT_VL, idx_from_vl(vl), 0);
 
-		if (counter_select & CS_PORT_XMIT_WAIT)
+		if (counter_select & CS_PORT_XMIT_WAIT) {
 			write_port_cntr(ppd, C_TX_WAIT_VL, idx_from_vl(vl), 0);
+			ppd->port_vl_xmit_wait_last[idx_from_vl(vl)] = 0;
+			ppd->vl_xmit_flit_cnt[idx_from_vl(vl)] = 0;
+		}
 
 		/* sw_port_vl_congestion is 0 for HFIs */
 		if (counter_select & CS_PORT_RCV_FECN)
@@ -4348,11 +4455,7 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 	 */
 	if (pkey == LIM_MGMT_P_KEY || pkey == FULL_MGMT_P_KEY)
 		return 0;
-	/*
-	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
-	 * information is obtained elsewhere. Mask off the upper 16 bits.
-	 */
-	ingress_pkey_table_fail(ppd, pkey, ib_lid_cpu16(0xFFFF & in_wc->slid));
+	ingress_pkey_table_fail(ppd, pkey, in_wc->slid);
 	return 1;
 }
 

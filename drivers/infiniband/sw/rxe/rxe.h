@@ -57,8 +57,13 @@
 #include "rxe_hdr.h"
 #include "rxe_param.h"
 #include "rxe_verbs.h"
+#include "rxe_loc.h"
 
-#define RXE_UVERBS_ABI_VERSION		(1)
+/*
+ * Version 1 and Version 2 are identical on 64 bit machines, but on 32 bit
+ * machines Version 2 has a different struct layout.
+ */
+#define RXE_UVERBS_ABI_VERSION		2
 
 #define IB_PHYS_STATE_LINK_UP		(5)
 #define IB_PHYS_STATE_LINK_DOWN		(3)
@@ -95,7 +100,10 @@ void rxe_remove_all(void);
 
 int rxe_rcv(struct sk_buff *skb);
 
-void rxe_dev_put(struct rxe_dev *rxe);
+static inline void rxe_dev_put(struct rxe_dev *rxe)
+{
+	kref_put(&rxe->ref_cnt, rxe_release);
+}
 struct rxe_dev *net_to_rxe(struct net_device *ndev);
 struct rxe_dev *get_rxe_by_name(const char *name);
 

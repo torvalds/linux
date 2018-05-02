@@ -23,8 +23,8 @@
 
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include "dvbdev.h"
-#include "dvb_net.h"
+#include <media/dvbdev.h>
+#include <media/dvb_net.h>
 #include "bttv.h"
 #include "mt352.h"
 #include "sp887x.h"

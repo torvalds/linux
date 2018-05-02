@@ -508,7 +508,7 @@ static void slc_sync(void)
 }
 
 /* Find a free SLCAN channel, and link in this `tty' line. */
-static struct slcan *slc_alloc(dev_t line)
+static struct slcan *slc_alloc(void)
 {
 	int i;
 	char name[IFNAMSIZ];
@@ -583,7 +583,7 @@ static int slcan_open(struct tty_struct *tty)
 
 	/* OK.  Find a free SLCAN channel to use. */
 	err = -ENFILE;
-	sl = slc_alloc(tty_devnum(tty));
+	sl = slc_alloc();
 	if (sl == NULL)
 		goto err_exit;
 

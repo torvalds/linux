@@ -22,12 +22,13 @@
 
 #include <asm/memory.h>
 #include <asm/ptrace.h>
+#include <asm/sdei.h>
 
 struct stackframe {
 	unsigned long fp;
 	unsigned long pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	unsigned int graph;
+	int graph;
 #endif
 };
 
@@ -84,6 +85,8 @@ static inline bool on_accessible_stack(struct task_struct *tsk, unsigned long sp
 	if (on_irq_stack(sp))
 		return true;
 	if (on_overflow_stack(sp))
+		return true;
+	if (on_sdei_stack(sp))
 		return true;
 
 	return false;

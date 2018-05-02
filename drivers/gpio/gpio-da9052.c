@@ -15,7 +15,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/syscalls.h>
 #include <linux/seq_file.h>
 

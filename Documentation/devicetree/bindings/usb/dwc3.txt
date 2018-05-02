@@ -47,6 +47,8 @@ Optional properties:
 			from P0 to P1/P2/P3 without delay.
  - snps,dis-tx-ipgap-linecheck-quirk: when set, disable u2mac linestate check
 			during HS transmit.
+ - snps,dis_metastability_quirk: when set, disable metastability workaround.
+			CAUTION: use only if you are absolutely sure of it.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
@@ -55,6 +57,22 @@ Optional properties:
  - snps,quirk-frame-length-adjustment: Value for GFLADJ_30MHZ field of GFLADJ
 	register for post-silicon frame length adjustment when the
 	fladj_30mhz_sdbnd signal is invalid or incorrect.
+ - snps,rx-thr-num-pkt-prd: periodic ESS RX packet threshold count - host mode
+			only. Set this and rx-max-burst-prd to a valid,
+			non-zero value 1-16 (DWC_usb31 programming guide
+			section 1.2.4) to enable periodic ESS RX threshold.
+ - snps,rx-max-burst-prd: max periodic ESS RX burst size - host mode only. Set
+			this and rx-thr-num-pkt-prd to a valid, non-zero value
+			1-16 (DWC_usb31 programming guide section 1.2.4) to
+			enable periodic ESS RX threshold.
+ - snps,tx-thr-num-pkt-prd: periodic ESS TX packet threshold count - host mode
+			only. Set this and tx-max-burst-prd to a valid,
+			non-zero value 1-16 (DWC_usb31 programming guide
+			section 1.2.3) to enable periodic ESS TX threshold.
+ - snps,tx-max-burst-prd: max periodic ESS TX burst size - host mode only. Set
+			this and tx-thr-num-pkt-prd to a valid, non-zero value
+			1-16 (DWC_usb31 programming guide section 1.2.3) to
+			enable periodic ESS TX threshold.
 
  - <DEPRECATED> tx-fifo-resize: determines if the FIFO *has* to be reallocated.
 

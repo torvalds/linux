@@ -66,6 +66,6 @@ Example:
 				tpg1_out: endpoint {
 					remote-endpoint = <&switch_in0>;
 				};
-			}:
+			};
 		};
 	};

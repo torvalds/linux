@@ -49,6 +49,8 @@
 struct nfp_hwinfo;
 struct nfp_hwinfo *nfp_hwinfo_read(struct nfp_cpp *cpp);
 const char *nfp_hwinfo_lookup(struct nfp_hwinfo *hwinfo, const char *lookup);
+char *nfp_hwinfo_get_packed_strings(struct nfp_hwinfo *hwinfo);
+u32 nfp_hwinfo_get_packed_str_size(struct nfp_hwinfo *hwinfo);
 
 /* Implemented in nfp_nsp.c, low level functions */
 

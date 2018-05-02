@@ -33,11 +33,8 @@ static void __intel_timeline_init(struct intel_timeline *tl,
 {
 	tl->fence_context = context;
 	tl->common = parent;
-#ifdef CONFIG_DEBUG_SPINLOCK
-	__raw_spin_lock_init(&tl->lock.rlock, lockname, lockclass);
-#else
 	spin_lock_init(&tl->lock);
-#endif
+	lockdep_set_class_and_name(&tl->lock, lockclass, lockname);
 	init_request_active(&tl->last_request, NULL);
 	INIT_LIST_HEAD(&tl->requests);
 	i915_syncmap_init(&tl->sync);
@@ -107,8 +104,8 @@ int i915_gem_timeline_init__global(struct drm_i915_private *i915)
 }
 
 /**
- * i915_gem_timelines_mark_idle -- called when the driver idles
- * @i915 - the drm_i915_private device
+ * i915_gem_timelines_park - called when the driver idles
+ * @i915: the drm_i915_private device
  *
  * When the driver is completely idle, we know that all of our sync points
  * have been signaled and our tracking is then entirely redundant. Any request
@@ -116,7 +113,7 @@ int i915_gem_timeline_init__global(struct drm_i915_private *i915)
  * the fence is signaled and therefore we will not even look them up in the
  * sync point map.
  */
-void i915_gem_timelines_mark_idle(struct drm_i915_private *i915)
+void i915_gem_timelines_park(struct drm_i915_private *i915)
 {
 	struct i915_gem_timeline *timeline;
 	int i;

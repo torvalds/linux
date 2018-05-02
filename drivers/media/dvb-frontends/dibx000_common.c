@@ -288,8 +288,8 @@ static int dibx000_i2c_gated_gpio67_xfer(struct i2c_adapter *i2c_adap,
 	int ret;
 
 	if (num > 32) {
-		dprintk("%s: too much I2C message to be transmitted (%i).\
-				Maximum is 32", __func__, num);
+		dprintk("%s: too much I2C message to be transmitted (%i). Maximum is 32",
+			__func__, num);
 		return -ENOMEM;
 	}
 
@@ -335,8 +335,8 @@ static int dibx000_i2c_gated_tuner_xfer(struct i2c_adapter *i2c_adap,
 	int ret;
 
 	if (num > 32) {
-		dprintk("%s: too much I2C message to be transmitted (%i).\
-				Maximum is 32", __func__, num);
+		dprintk("%s: too much I2C message to be transmitted (%i). Maximum is 32",
+			__func__, num);
 		return -ENOMEM;
 	}
 
@@ -424,7 +424,7 @@ static int i2c_adapter_init(struct i2c_adapter *i2c_adap,
 				struct i2c_algorithm *algo, const char *name,
 				struct dibx000_i2c_master *mst)
 {
-	strncpy(i2c_adap->name, name, sizeof(i2c_adap->name));
+	strlcpy(i2c_adap->name, name, sizeof(i2c_adap->name));
 	i2c_adap->algo = algo;
 	i2c_adap->algo_data = NULL;
 	i2c_set_adapdata(i2c_adap, mst);

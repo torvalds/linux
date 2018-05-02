@@ -122,8 +122,12 @@ struct xhci_hcd_mtk {
 	struct regmap *pericfg;
 	struct phy **phys;
 	int num_phys;
-	int wakeup_src;
 	bool lpm_support;
+	/* usb remote wakeup */
+	bool uwk_en;
+	struct regmap *uwk;
+	u32 uwk_reg_base;
+	u32 uwk_vers;
 };
 
 static inline struct xhci_hcd_mtk *hcd_to_mtk(struct usb_hcd *hcd)

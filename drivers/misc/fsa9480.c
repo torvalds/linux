@@ -465,6 +465,7 @@ fail1:
 static int fsa9480_remove(struct i2c_client *client)
 {
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
+
 	if (client->irq)
 		free_irq(client->irq, usbsw);
 

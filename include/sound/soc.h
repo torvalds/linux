@@ -494,6 +494,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
 #endif
 
+void snd_soc_disconnect_sync(struct device *dev);
+
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream);
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
@@ -584,10 +586,17 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
-struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec);
-struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
+#define snd_soc_alloc_ac97_codec(codec) \
+	snd_soc_alloc_ac97_component(&codec->component)
+#define snd_soc_new_ac97_codec(codec, id, id_mask) \
+	snd_soc_new_ac97_component(&codec->component, id, id_mask)
+#define snd_soc_free_ac97_codec(ac97) \
+	snd_soc_free_ac97_component(ac97)
+
+struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *component);
+struct snd_ac97 *snd_soc_new_ac97_component(struct snd_soc_component *component,
 	unsigned int id, unsigned int id_mask);
-void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
+void snd_soc_free_ac97_component(struct snd_ac97 *ac97);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
@@ -802,6 +811,9 @@ struct snd_soc_component_driver {
 	int (*suspend)(struct snd_soc_component *);
 	int (*resume)(struct snd_soc_component *);
 
+	unsigned int (*read)(struct snd_soc_component *, unsigned int);
+	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
+
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_soc_pcm_runtime *);
 	void (*pcm_free)(struct snd_pcm *);
@@ -836,7 +848,7 @@ struct snd_soc_component_driver {
 	/* bits */
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
-	unsigned int pmdown_time:1; /* care pmdown_time at stop */
+	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
 	unsigned int endianness:1;
 	unsigned int non_legacy_dai_naming:1;
 };
@@ -858,12 +870,10 @@ struct snd_soc_component {
 	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
 
-	struct snd_soc_dai_driver *dai_drv;
-	int num_dai;
-
 	const struct snd_soc_component_driver *driver;
 
 	struct list_head dai_list;
+	int num_dai;
 
 	int (*read)(struct snd_soc_component *, unsigned int, unsigned int *);
 	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
@@ -1804,6 +1814,7 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
 				   struct device_node *of_node,
 				   struct snd_soc_dai_link *dai_link);
+void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link);
 
 int snd_soc_add_dai_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);

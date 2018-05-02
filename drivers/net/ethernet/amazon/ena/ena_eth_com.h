@@ -88,6 +88,8 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id);
 
+bool ena_com_cq_empty(struct ena_com_io_cq *io_cq);
+
 static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 				       struct ena_eth_io_intr_reg *intr_reg)
 {
@@ -105,7 +107,8 @@ static inline int ena_com_sq_empty_space(struct ena_com_io_sq *io_sq)
 	return io_sq->q_depth - 1 - cnt;
 }
 
-static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
+static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq,
+					    bool relaxed)
 {
 	u16 tail;
 
@@ -114,7 +117,10 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
 		 io_sq->qid, tail);
 
-	writel(tail, io_sq->db_addr);
+	if (relaxed)
+		writel_relaxed(tail, io_sq->db_addr);
+	else
+		writel(tail, io_sq->db_addr);
 
 	return 0;
 }

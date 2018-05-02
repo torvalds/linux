@@ -50,6 +50,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/of_dma.h>
+#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
@@ -104,6 +105,10 @@ static unsigned int nr_desc_prm;
 module_param(nr_desc_prm, uint, 0644);
 MODULE_PARM_DESC(nr_desc_prm, "number of descriptors (default: 0)");
 
+enum hidma_cap {
+	HIDMA_MSI_CAP = 1,
+	HIDMA_IDENTITY_CAP,
+};
 
 /* process completed descriptors */
 static void hidma_process_completed(struct hidma_chan *mchan)
@@ -736,25 +741,12 @@ static int hidma_request_msi(struct hidma_dev *dmadev,
 #endif
 }
 
-static bool hidma_msi_capable(struct device *dev)
+static bool hidma_test_capability(struct device *dev, enum hidma_cap test_cap)
 {
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	const char *of_compat;
-	int ret = -EINVAL;
+	enum hidma_cap cap;
 
-	if (!adev || acpi_disabled) {
-		ret = device_property_read_string(dev, "compatible",
-						  &of_compat);
-		if (ret)
-			return false;
-
-		ret = strcmp(of_compat, "qcom,hidma-1.1");
-	} else {
-#ifdef CONFIG_ACPI
-		ret = strcmp(acpi_device_hid(adev), "QCOM8062");
-#endif
-	}
-	return ret == 0;
+	cap = (enum hidma_cap) device_get_match_data(dev);
+	return cap ? ((cap & test_cap) > 0) : 0;
 }
 
 static int hidma_probe(struct platform_device *pdev)
@@ -834,8 +826,7 @@ static int hidma_probe(struct platform_device *pdev)
 	 * Determine the MSI capability of the platform. Old HW doesn't
 	 * support MSI.
 	 */
-	msi = hidma_msi_capable(&pdev->dev);
-
+	msi = hidma_test_capability(&pdev->dev, HIDMA_MSI_CAP);
 	device_property_read_u32(&pdev->dev, "desc-count",
 				 &dmadev->nr_descriptors);
 
@@ -848,7 +839,10 @@ static int hidma_probe(struct platform_device *pdev)
 	if (!dmadev->nr_descriptors)
 		dmadev->nr_descriptors = HIDMA_NR_DEFAULT_DESC;
 
-	dmadev->chidx = readl(dmadev->dev_trca + 0x28);
+	if (hidma_test_capability(&pdev->dev, HIDMA_IDENTITY_CAP))
+		dmadev->chidx = readl(dmadev->dev_trca + 0x40);
+	else
+		dmadev->chidx = readl(dmadev->dev_trca + 0x28);
 
 	/* Set DMA mask to 64 bits. */
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -953,7 +947,8 @@ static int hidma_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_ACPI)
 static const struct acpi_device_id hidma_acpi_ids[] = {
 	{"QCOM8061"},
-	{"QCOM8062"},
+	{"QCOM8062", HIDMA_MSI_CAP},
+	{"QCOM8063", (HIDMA_MSI_CAP | HIDMA_IDENTITY_CAP)},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
@@ -961,7 +956,9 @@ MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
 
 static const struct of_device_id hidma_match[] = {
 	{.compatible = "qcom,hidma-1.0",},
-	{.compatible = "qcom,hidma-1.1",},
+	{.compatible = "qcom,hidma-1.1", .data = (void *)(HIDMA_MSI_CAP),},
+	{.compatible = "qcom,hidma-1.2",
+	 .data = (void *)(HIDMA_MSI_CAP | HIDMA_IDENTITY_CAP),},
 	{},
 };
 MODULE_DEVICE_TABLE(of, hidma_match);

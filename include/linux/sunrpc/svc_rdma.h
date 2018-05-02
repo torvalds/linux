@@ -132,9 +132,6 @@ struct svcxprt_rdma {
 #define RDMAXPRT_CONN_PENDING	3
 
 #define RPCRDMA_LISTEN_BACKLOG  10
-/* The default ORD value is based on two outstanding full-size writes with a
- * page size of 4k, or 32k * 2 ops / 4k = 16 outstanding RDMA_READ.  */
-#define RPCRDMA_ORD             (64/4)
 #define RPCRDMA_MAX_REQUESTS    32
 
 /* Typical ULP usage of BC requests is NFSv4.1 backchannel. Our
@@ -185,8 +182,6 @@ extern void svc_rdma_wc_reg(struct ib_cq *, struct ib_wc *);
 extern void svc_rdma_wc_read(struct ib_cq *, struct ib_wc *);
 extern void svc_rdma_wc_inv(struct ib_cq *, struct ib_wc *);
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
-extern int svc_rdma_post_recv(struct svcxprt_rdma *, gfp_t);
-extern int svc_rdma_repost_recv(struct svcxprt_rdma *, gfp_t);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);

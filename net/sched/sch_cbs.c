@@ -219,14 +219,17 @@ static void cbs_disable_offload(struct net_device *dev,
 }
 
 static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
-			      const struct tc_cbs_qopt *opt)
+			      const struct tc_cbs_qopt *opt,
+			      struct netlink_ext_ack *extack)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	struct tc_cbs_qopt_offload cbs = { };
 	int err;
 
-	if (!ops->ndo_setup_tc)
+	if (!ops->ndo_setup_tc) {
+		NL_SET_ERR_MSG(extack, "Specified device does not support cbs offload");
 		return -EOPNOTSUPP;
+	}
 
 	cbs.queue = q->queue;
 
@@ -237,8 +240,10 @@ static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
 	cbs.sendslope = opt->sendslope;
 
 	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_CBS, &cbs);
-	if (err < 0)
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Specified device failed to setup cbs hardware offload");
 		return err;
+	}
 
 	q->enqueue = cbs_enqueue_offload;
 	q->dequeue = cbs_dequeue_offload;
@@ -246,7 +251,8 @@ static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
 	return 0;
 }
 
-static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
+static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
@@ -254,12 +260,14 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_cbs_qopt *qopt;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_CBS_MAX, opt, cbs_policy, NULL);
+	err = nla_parse_nested(tb, TCA_CBS_MAX, opt, cbs_policy, extack);
 	if (err < 0)
 		return err;
 
-	if (!tb[TCA_CBS_PARMS])
+	if (!tb[TCA_CBS_PARMS]) {
+		NL_SET_ERR_MSG(extack, "Missing CBS parameter which are mandatory");
 		return -EINVAL;
+	}
 
 	qopt = nla_data(tb[TCA_CBS_PARMS]);
 
@@ -276,7 +284,7 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 
 		cbs_disable_offload(dev, q);
 	} else {
-		err = cbs_enable_offload(dev, q, qopt);
+		err = cbs_enable_offload(dev, q, qopt, extack);
 		if (err < 0)
 			return err;
 	}
@@ -291,13 +299,16 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int cbs_init(struct Qdisc *sch, struct nlattr *opt)
+static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 
-	if (!opt)
+	if (!opt) {
+		NL_SET_ERR_MSG(extack, "Missing CBS qdisc options  which are mandatory");
 		return -EINVAL;
+	}
 
 	q->queue = sch->dev_queue - netdev_get_tx_queue(dev, 0);
 
@@ -306,7 +317,7 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
-	return cbs_change(sch, opt);
+	return cbs_change(sch, opt, extack);
 }
 
 static void cbs_destroy(struct Qdisc *sch)

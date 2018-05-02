@@ -1,7 +1,7 @@
 /*
  * LCD panel driver for Sharp LS037V7DW01
  *
- * Copyright (C) 2013 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -61,16 +61,25 @@ static const struct videomode sharp_ls_vm = {
 static int sharp_ls_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.dpi->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -83,6 +92,9 @@ static void sharp_ls_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.dpi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int sharp_ls_enable(struct omap_dss_device *dssdev)
@@ -210,8 +222,6 @@ static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
 static int sharp_ls_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
-	struct omap_dss_device *in;
 	int r;
 
 	ddata->vcc = devm_regulator_get(&pdev->dev, "envdd");
@@ -245,14 +255,6 @@ static int sharp_ls_probe_of(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
 	return 0;
 }
 
@@ -267,9 +269,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ddata);
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	r = sharp_ls_probe_of(pdev);
 	if (r)
@@ -287,28 +286,21 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&pdev->dev, "Failed to register panel\n");
-		goto err_reg;
+		return r;
 	}
 
 	return 0;
-
-err_reg:
-	omap_dss_put_device(ddata->in);
-	return r;
 }
 
 static int __exit sharp_ls_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	omapdss_unregister_display(dssdev);
 
 	sharp_ls_disable(dssdev);
 	sharp_ls_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	return 0;
 }

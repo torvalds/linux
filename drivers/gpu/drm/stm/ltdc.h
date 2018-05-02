@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
@@ -5,8 +6,6 @@
  *          Yannick Fertre <yannick.fertre@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          Mickael Reulier <mickael.reulier@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _LTDC_H_
@@ -18,10 +17,10 @@ struct ltdc_caps {
 	u32 reg_ofs;		/* register offset for applicable regs */
 	u32 bus_width;		/* bus width (32 or 64 bits) */
 	const u32 *pix_fmt_hw;	/* supported pixel formats */
+	bool non_alpha_only_l1; /* non-native no-alpha formats on layer 1 */
 };
 
 struct ltdc_device {
-	struct drm_fbdev_cma *fbdev;
 	void __iomem *regs;
 	struct clk *pixel_clk;	/* lcd pixel clock */
 	struct mutex err_lock;	/* protecting error_status */

@@ -48,7 +48,6 @@ static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid);
 static void i40iw_ilq_putback_rcvbuf(struct i40iw_sc_qp *qp, u32 wqe_idx);
 static enum i40iw_status_code i40iw_puda_replenish_rq(struct i40iw_puda_rsrc
 						      *rsrc, bool initial);
-static void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp);
 /**
  * i40iw_puda_get_listbuf - get buffer from puda list
  * @list: list to use for buffers (ILQ or IEQ)
@@ -349,8 +348,8 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 		spin_lock_irqsave(&rsrc->bufpool_lock, flags);
 		rsrc->tx_wqe_avail_cnt++;
 		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
-		if (!list_empty(&rsrc->vsi->ilq->txpend))
-			i40iw_puda_send_buf(rsrc->vsi->ilq, NULL);
+		if (!list_empty(&rsrc->txpend))
+			i40iw_puda_send_buf(rsrc, NULL);
 	}
 
 done:
@@ -1378,7 +1377,7 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 	u32 *hw_host_ctx = (u32 *)qp->hw_host_ctx;
 	u32 rcv_wnd = hw_host_ctx[23];
 	/* first partial seq # in q2 */
-	u32 fps = qp->q2_buf[16];
+	u32 fps = *(u32 *)(qp->q2_buf + Q2_FPSN_OFFSET);
 	struct list_head *rxlist = &pfpdu->rxlist;
 	struct list_head *plist;
 
@@ -1472,10 +1471,6 @@ static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid)
 	struct i40iw_puda_buf *buf = (struct i40iw_puda_buf *)sqwrid;
 
 	i40iw_puda_ret_bufpool(ieq, buf);
-	if (!list_empty(&ieq->txpend)) {
-		buf = i40iw_puda_get_listbuf(&ieq->txpend);
-		i40iw_puda_send_buf(ieq, buf);
-	}
 }
 
 /**
@@ -1483,7 +1478,7 @@ static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid)
  * @ieq: ieq resource
  * @qp: all pending fpdu buffers
  */
-static void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp)
+void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp)
 {
 	struct i40iw_puda_buf *buf;
 	struct i40iw_pfpdu *pfpdu = &qp->pfpdu;

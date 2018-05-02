@@ -93,7 +93,8 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	opcode = req->opcode;
 	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &rcfw->flags) &&
 	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
-	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW)) {
+	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
+	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
 		dev_err(&rcfw->pdev->dev,
 			"QPLIB: RCFW not initialized, reject opcode 0x%x",
 			opcode);
@@ -304,9 +305,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			err_event->res_err_state_reason);
 		if (!qp)
 			break;
-		bnxt_qplib_acquire_cq_locks(qp, &flags);
 		bnxt_qplib_mark_qp_error(qp);
-		bnxt_qplib_release_cq_locks(qp, &flags);
+		rcfw->aeq_handler(rcfw, qp_event, qp);
 		break;
 	default:
 		/* Command Response */
@@ -459,7 +459,11 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	int rc;
 
 	RCFW_CMD_PREP(req, INITIALIZE_FW, cmd_flags);
-
+	/* Supply (log-base-2-of-host-page-size - base-page-shift)
+	 * to bono to adjust the doorbell page sizes.
+	 */
+	req.log2_dbr_pg_size = cpu_to_le16(PAGE_SHIFT -
+					   RCFW_DBR_BASE_PAGE_SHIFT);
 	/*
 	 * VFs need not setup the HW context area, PF
 	 * shall setup this area for VF. Skipping the
@@ -615,7 +619,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 				   int msix_vector,
 				   int cp_bar_reg_off, int virt_fn,
 				   int (*aeq_handler)(struct bnxt_qplib_rcfw *,
-						      struct creq_func_event *))
+						      void *, void *))
 {
 	resource_size_t res_base;
 	struct cmdq_init init;

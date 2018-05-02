@@ -117,6 +117,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 			  &conn->c_laddr, &conn->c_faddr,
 			  RDS_PROTOCOL_MAJOR(conn->c_version),
 			  RDS_PROTOCOL_MINOR(conn->c_version));
+		set_bit(RDS_DESTROY_PENDING, &conn->c_path[0].cp_flags);
 		rds_conn_destroy(conn);
 		return;
 	} else {

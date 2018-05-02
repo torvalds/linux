@@ -29,9 +29,10 @@
 #include <linux/math64.h>
 #include <linux/log2.h>
 #include <linux/dynamic_debug.h>
+#include <linux/kernel.h>
 
-#include "dvb_math.h"
-#include "dvb_frontend.h"
+#include <media/dvb_math.h>
+#include <media/dvb_frontend.h>
 #include "cxd2841er.h"
 #include "cxd2841er_priv.h"
 
@@ -257,7 +258,9 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
 			       u8 addr, u8 reg, u8 val)
 {
-	return cxd2841er_write_regs(priv, addr, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return cxd2841er_write_regs(priv, addr, reg, &tmp, 1);
 }
 
 static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
@@ -1696,12 +1699,10 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 		min_index = 0;
 		if (delsys == SYS_DVBS) {
 			cn_data = s_cn_data;
-			max_index = sizeof(s_cn_data) /
-				sizeof(s_cn_data[0]) - 1;
+			max_index = ARRAY_SIZE(s_cn_data) - 1;
 		} else {
 			cn_data = s2_cn_data;
-			max_index = sizeof(s2_cn_data) /
-				sizeof(s2_cn_data[0]) - 1;
+			max_index = ARRAY_SIZE(s2_cn_data) - 1;
 		}
 		if (value >= cn_data[min_index].value) {
 			res = cn_data[min_index].cnr_x1000;
@@ -3340,13 +3341,17 @@ static int cxd2841er_set_frontend_s(struct dvb_frontend *fe)
 
 	cxd2841er_tune_done(priv);
 	timeout = ((3000000 + (symbol_rate - 1)) / symbol_rate) + 150;
-	for (i = 0; i < timeout / CXD2841ER_DVBS_POLLING_INVL; i++) {
+
+	i = 0;
+	do {
 		usleep_range(CXD2841ER_DVBS_POLLING_INVL*1000,
 			(CXD2841ER_DVBS_POLLING_INVL + 2) * 1000);
 		cxd2841er_read_status_s(fe, &status);
 		if (status & FE_HAS_LOCK)
 			break;
-	}
+		i++;
+	} while (i < timeout / CXD2841ER_DVBS_POLLING_INVL);
+
 	if (status & FE_HAS_LOCK) {
 		if (cxd2841er_get_carrier_offset_s_s2(
 				priv, &carr_offset)) {

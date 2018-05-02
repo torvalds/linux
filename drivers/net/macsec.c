@@ -393,7 +393,10 @@ static struct macsec_cb *macsec_skb_cb(struct sk_buff *skb)
 #define MACSEC_PORT_SCB (0x0000)
 #define MACSEC_UNDEF_SCI ((__force sci_t)0xffffffffffffffffULL)
 
-#define DEFAULT_SAK_LEN 16
+#define MACSEC_GCM_AES_128_SAK_LEN 16
+#define MACSEC_GCM_AES_256_SAK_LEN 32
+
+#define DEFAULT_SAK_LEN MACSEC_GCM_AES_128_SAK_LEN
 #define DEFAULT_SEND_SCI true
 #define DEFAULT_ENCRYPT false
 #define DEFAULT_ENCODING_SA 0
@@ -2362,15 +2365,26 @@ static int nla_put_secy(struct macsec_secy *secy, struct sk_buff *skb)
 {
 	struct macsec_tx_sc *tx_sc = &secy->tx_sc;
 	struct nlattr *secy_nest = nla_nest_start(skb, MACSEC_ATTR_SECY);
+	u64 csid;
 
 	if (!secy_nest)
 		return 1;
 
+	switch (secy->key_len) {
+	case MACSEC_GCM_AES_128_SAK_LEN:
+		csid = MACSEC_DEFAULT_CIPHER_ID;
+		break;
+	case MACSEC_GCM_AES_256_SAK_LEN:
+		csid = MACSEC_CIPHER_ID_GCM_AES_256;
+		break;
+	default:
+		goto cancel;
+	}
+
 	if (nla_put_sci(skb, MACSEC_SECY_ATTR_SCI, secy->sci,
 			MACSEC_SECY_ATTR_PAD) ||
 	    nla_put_u64_64bit(skb, MACSEC_SECY_ATTR_CIPHER_SUITE,
-			      MACSEC_DEFAULT_CIPHER_ID,
-			      MACSEC_SECY_ATTR_PAD) ||
+			      csid, MACSEC_SECY_ATTR_PAD) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_ICV_LEN, secy->icv_len) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_OPER, secy->operational) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_PROTECT, secy->protect_frames) ||
@@ -3015,8 +3029,8 @@ static void macsec_setup(struct net_device *dev)
 	eth_zero_addr(dev->broadcast);
 }
 
-static void macsec_changelink_common(struct net_device *dev,
-				     struct nlattr *data[])
+static int macsec_changelink_common(struct net_device *dev,
+				    struct nlattr *data[])
 {
 	struct macsec_secy *secy;
 	struct macsec_tx_sc *tx_sc;
@@ -3056,6 +3070,22 @@ static void macsec_changelink_common(struct net_device *dev,
 
 	if (data[IFLA_MACSEC_VALIDATION])
 		secy->validate_frames = nla_get_u8(data[IFLA_MACSEC_VALIDATION]);
+
+	if (data[IFLA_MACSEC_CIPHER_SUITE]) {
+		switch (nla_get_u64(data[IFLA_MACSEC_CIPHER_SUITE])) {
+		case MACSEC_CIPHER_ID_GCM_AES_128:
+		case MACSEC_DEFAULT_CIPHER_ID:
+			secy->key_len = MACSEC_GCM_AES_128_SAK_LEN;
+			break;
+		case MACSEC_CIPHER_ID_GCM_AES_256:
+			secy->key_len = MACSEC_GCM_AES_256_SAK_LEN;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 static int macsec_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -3071,9 +3101,7 @@ static int macsec_changelink(struct net_device *dev, struct nlattr *tb[],
 	    data[IFLA_MACSEC_PORT])
 		return -EINVAL;
 
-	macsec_changelink_common(dev, data);
-
-	return 0;
+	return macsec_changelink_common(dev, data);
 }
 
 static void macsec_del_dev(struct macsec_dev *macsec)
@@ -3270,8 +3298,11 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (err)
 		goto unlink;
 
-	if (data)
-		macsec_changelink_common(dev, data);
+	if (data) {
+		err = macsec_changelink_common(dev, data);
+		if (err)
+			goto del_dev;
+	}
 
 	err = register_macsec_dev(real_dev, dev);
 	if (err < 0)
@@ -3320,8 +3351,9 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	switch (csid) {
+	case MACSEC_CIPHER_ID_GCM_AES_128:
+	case MACSEC_CIPHER_ID_GCM_AES_256:
 	case MACSEC_DEFAULT_CIPHER_ID:
-	case MACSEC_DEFAULT_CIPHER_ALT:
 		if (icv_len < MACSEC_MIN_ICV_LEN ||
 		    icv_len > MACSEC_STD_ICV_LEN)
 			return -EINVAL;
@@ -3390,12 +3422,24 @@ static int macsec_fill_info(struct sk_buff *skb,
 {
 	struct macsec_secy *secy = &macsec_priv(dev)->secy;
 	struct macsec_tx_sc *tx_sc = &secy->tx_sc;
+	u64 csid;
+
+	switch (secy->key_len) {
+	case MACSEC_GCM_AES_128_SAK_LEN:
+		csid = MACSEC_DEFAULT_CIPHER_ID;
+		break;
+	case MACSEC_GCM_AES_256_SAK_LEN:
+		csid = MACSEC_CIPHER_ID_GCM_AES_256;
+		break;
+	default:
+		goto nla_put_failure;
+	}
 
 	if (nla_put_sci(skb, IFLA_MACSEC_SCI, secy->sci,
 			IFLA_MACSEC_PAD) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ICV_LEN, secy->icv_len) ||
 	    nla_put_u64_64bit(skb, IFLA_MACSEC_CIPHER_SUITE,
-			      MACSEC_DEFAULT_CIPHER_ID, IFLA_MACSEC_PAD) ||
+			      csid, IFLA_MACSEC_PAD) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCODING_SA, tx_sc->encoding_sa) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCRYPT, tx_sc->encrypt) ||
 	    nla_put_u8(skb, IFLA_MACSEC_PROTECT, secy->protect_frames) ||

@@ -11,6 +11,7 @@
 /dts-v1/;
 
 #include "omap3-n950-n9.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Nokia N9";
@@ -35,6 +36,13 @@
 				remote-endpoint = <&csi2a_ep>;
 			};
 		};
+	};
+};
+
+&i2c3 {
+	ak8975@0f {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0f>;
 	};
 };
 
@@ -71,4 +79,10 @@
 	st,max-limit-x = <(-3)>;
 	st,max-limit-y = <46>;
 	st,max-limit-z = <46>;
+};
+
+&twl_keypad {
+	linux,keymap = < MATRIX_KEY(6, 8, KEY_VOLUMEUP)
+			 MATRIX_KEY(7, 8, KEY_VOLUMEDOWN)
+			 >;
 };

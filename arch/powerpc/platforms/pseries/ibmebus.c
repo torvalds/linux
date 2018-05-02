@@ -298,7 +298,7 @@ out:
 		return rc;
 	return count;
 }
-static BUS_ATTR(probe, S_IWUSR, NULL, ibmebus_store_probe);
+static BUS_ATTR(probe, 0200, NULL, ibmebus_store_probe);
 
 static ssize_t ibmebus_store_remove(struct bus_type *bus,
 				    const char *buf, size_t count)
@@ -325,7 +325,7 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 		return -ENODEV;
 	}
 }
-static BUS_ATTR(remove, S_IWUSR, NULL, ibmebus_store_remove);
+static BUS_ATTR(remove, 0200, NULL, ibmebus_store_remove);
 
 static struct attribute *ibmbus_bus_attrs[] = {
 	&bus_attr_probe.attr,

@@ -217,7 +217,6 @@ Code  Seq#(hex)	Include File		Comments
 'd'	02-40	pcmcia/ds.h		conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
-'e'	00-1F	drivers/net/irda/irtty-sir.h	conflict!
 'f'	00-1F	linux/ext2_fs.h		conflict!
 'f'	00-1F	linux/ext3_fs.h		conflict!
 'f'	00-0F	fs/jfs/jfs_dinode.h	conflict!
@@ -247,7 +246,6 @@ Code  Seq#(hex)	Include File		Comments
 'm'	all	linux/synclink.h	conflict!
 'm'	00-19	drivers/message/fusion/mptctl.h	conflict!
 'm'	00	drivers/scsi/megaraid/megaraid_ioctl.h	conflict!
-'m'	00-1F	net/irda/irmod.h	conflict!
 'n'	00-7F	linux/ncp_fs.h and fs/ncpfs/ioctl.c
 'n'	80-8F	uapi/linux/nilfs2_api.h	NILFS2
 'n'	E0-FF	linux/matroxfb.h	matroxfb
@@ -305,7 +303,6 @@ Code  Seq#(hex)	Include File		Comments
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
 					<mailto:kenji@bitgate.com>
 0xA1	0	linux/vtpm_proxy.h	TPM Emulator Proxy Driver
-0xA2	00-0F	arch/tile/include/asm/hardwall.h
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
@@ -326,6 +323,7 @@ Code  Seq#(hex)	Include File		Comments
 0xB5	00-0F	uapi/linux/rpmsg.h	<mailto:linux-remoteproc@vger.kernel.org>
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCA	00-0F	uapi/misc/cxl.h
+0xCA	10-2F	uapi/misc/ocxl.h
 0xCA	80-BF	uapi/scsi/cxlflash_ioctl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>

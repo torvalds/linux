@@ -55,7 +55,7 @@ Note: child nodes can be added for auto probing from device tree.
 
 Example: adding device info in dtsi file
 
-adc: adc@12D10000 {
+adc: adc@12d10000 {
 	compatible = "samsung,exynos-adc-v1";
 	reg = <0x12D10000 0x100>;
 	interrupts = <0 106 0>;
@@ -71,7 +71,7 @@ adc: adc@12D10000 {
 
 Example: adding device info in dtsi file for Exynos3250 with additional sclk
 
-adc: adc@126C0000 {
+adc: adc@126c0000 {
 	compatible = "samsung,exynos3250-adc", "samsung,exynos-adc-v2;
 	reg = <0x126C0000 0x100>;
 	interrupts = <0 137 0>;
@@ -87,7 +87,7 @@ adc: adc@126C0000 {
 
 Example: Adding child nodes in dts file
 
-adc@12D10000 {
+adc@12d10000 {
 
 	/* NTC thermistor is a hwmon device */
 	ncp15wb473@0 {

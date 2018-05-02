@@ -195,7 +195,8 @@ void ex_btc8723b2ant_bt_info_notify(struct btc_coexist *btcoexist,
 				    u8 *tmpbuf, u8 length);
 void ex_btc8723b2ant_halt_notify(struct btc_coexist *btcoexist);
 void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist);
-void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist);
+void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist,
+				       struct seq_file *m);
 void ex_btc8723b2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
 void ex_btc8723b2ant_pre_load_firmware(struct btc_coexist *btcoexist);
 void ex_btc8723b2ant_power_on_setting(struct btc_coexist *btcoexist);

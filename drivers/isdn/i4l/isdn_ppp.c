@@ -685,10 +685,10 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-unsigned int
+__poll_t
 isdn_ppp_poll(struct file *file, poll_table *wait)
 {
-	u_int mask;
+	__poll_t mask;
 	struct ippp_buf_queue *bf, *bl;
 	u_long flags;
 	struct ippp_struct *is;
@@ -704,12 +704,12 @@ isdn_ppp_poll(struct file *file, poll_table *wait)
 
 	if (!(is->state & IPPP_OPEN)) {
 		if (is->state == IPPP_CLOSEWAIT)
-			return POLLHUP;
+			return EPOLLHUP;
 		printk(KERN_DEBUG "isdn_ppp: device not open\n");
-		return POLLERR;
+		return EPOLLERR;
 	}
 	/* we're always ready to send .. */
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 
 	spin_lock_irqsave(&is->buflock, flags);
 	bl = is->last;
@@ -719,7 +719,7 @@ isdn_ppp_poll(struct file *file, poll_table *wait)
 	 */
 	if (bf->next != bl || (is->state & IPPP_NOBLOCK)) {
 		is->state &= ~IPPP_NOBLOCK;
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 	spin_unlock_irqrestore(&is->buflock, flags);
 	return mask;

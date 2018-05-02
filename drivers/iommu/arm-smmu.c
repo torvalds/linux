@@ -2211,12 +2211,12 @@ static struct platform_driver arm_smmu_driver = {
 };
 module_platform_driver(arm_smmu_driver);
 
-IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1", NULL);
-IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2", NULL);
-IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400", NULL);
-IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401", NULL);
-IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500", NULL);
-IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2", NULL);
+IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1");
+IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2");
+IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400");
+IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401");
+IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500");
+IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2");
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
@@ -29,6 +28,7 @@
 
 	aliases {
 		serial2 = &uart_AO_B;
+		ethernet0 = &ethmac;
 	};
 
 	gpio-keys-polled {

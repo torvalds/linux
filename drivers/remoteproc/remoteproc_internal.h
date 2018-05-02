@@ -25,26 +25,6 @@
 
 struct rproc;
 
-/**
- * struct rproc_fw_ops - firmware format specific operations.
- * @find_rsc_table:	find the resource table inside the firmware image
- * @find_loaded_rsc_table: find the loaded resouce table
- * @load:		load firmeware to memory, where the remote processor
- *			expects to find it
- * @sanity_check:	sanity check the fw image
- * @get_boot_addr:	get boot address to entry point specified in firmware
- */
-struct rproc_fw_ops {
-	struct resource_table *(*find_rsc_table)(struct rproc *rproc,
-						 const struct firmware *fw,
-						 int *tablesz);
-	struct resource_table *(*find_loaded_rsc_table)(
-				struct rproc *rproc, const struct firmware *fw);
-	int (*load)(struct rproc *rproc, const struct firmware *fw);
-	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
-	u32 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
-};
-
 /* from remoteproc_core.c */
 void rproc_release(struct kref *kref);
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
@@ -74,11 +54,18 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
 void *rproc_da_to_va(struct rproc *rproc, u64 da, int len);
 int rproc_trigger_recovery(struct rproc *rproc);
 
+int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw);
+u32 rproc_elf_get_boot_addr(struct rproc *rproc, const struct firmware *fw);
+int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw);
+int rproc_elf_load_rsc_table(struct rproc *rproc, const struct firmware *fw);
+struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
+						       const struct firmware *fw);
+
 static inline
 int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc->fw_ops->sanity_check)
-		return rproc->fw_ops->sanity_check(rproc, fw);
+	if (rproc->ops->sanity_check)
+		return rproc->ops->sanity_check(rproc, fw);
 
 	return 0;
 }
@@ -86,8 +73,8 @@ int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 static inline
 u32 rproc_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc->fw_ops->get_boot_addr)
-		return rproc->fw_ops->get_boot_addr(rproc, fw);
+	if (rproc->ops->get_boot_addr)
+		return rproc->ops->get_boot_addr(rproc, fw);
 
 	return 0;
 }
@@ -95,33 +82,28 @@ u32 rproc_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
 static inline
 int rproc_load_segments(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc->fw_ops->load)
-		return rproc->fw_ops->load(rproc, fw);
+	if (rproc->ops->load)
+		return rproc->ops->load(rproc, fw);
 
 	return -EINVAL;
 }
 
-static inline
-struct resource_table *rproc_find_rsc_table(struct rproc *rproc,
-					    const struct firmware *fw,
-					    int *tablesz)
+static inline int rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc->fw_ops->find_rsc_table)
-		return rproc->fw_ops->find_rsc_table(rproc, fw, tablesz);
+	if (rproc->ops->parse_fw)
+		return rproc->ops->parse_fw(rproc, fw);
 
-	return NULL;
+	return 0;
 }
 
 static inline
 struct resource_table *rproc_find_loaded_rsc_table(struct rproc *rproc,
 						   const struct firmware *fw)
 {
-	if (rproc->fw_ops->find_loaded_rsc_table)
-		return rproc->fw_ops->find_loaded_rsc_table(rproc, fw);
+	if (rproc->ops->find_loaded_rsc_table)
+		return rproc->ops->find_loaded_rsc_table(rproc, fw);
 
 	return NULL;
 }
-
-extern const struct rproc_fw_ops rproc_elf_fw_ops;
 
 #endif /* REMOTEPROC_INTERNAL_H */

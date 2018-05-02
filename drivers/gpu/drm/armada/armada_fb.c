@@ -154,16 +154,7 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	return ERR_PTR(ret);
 }
 
-static void armada_output_poll_changed(struct drm_device *dev)
-{
-	struct armada_private *priv = dev->dev_private;
-	struct drm_fb_helper *fbh = priv->fbdev;
-
-	if (fbh)
-		drm_fb_helper_hotplug_event(fbh);
-}
-
 const struct drm_mode_config_funcs armada_drm_mode_config_funcs = {
 	.fb_create		= armada_fb_create,
-	.output_poll_changed	= armada_output_poll_changed,
+	.output_poll_changed	= drm_fb_helper_output_poll_changed,
 };

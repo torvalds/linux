@@ -16,7 +16,7 @@ Optional properties:
 Example:
 
 
-spi: spi@E100800 {
+spi: spi@e100800 {
 	compatible = "lantiq,xrx200-spi", "lantiq,xrx100-spi";
 	reg = <0xE100800 0x100>;
 	interrupt-parent = <&icu0>;

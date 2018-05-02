@@ -221,7 +221,7 @@ struct ov5693_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct camera_sensor_platform_data *platform_data;
-	struct timespec timestamp_t_focus_abs;
+	ktime_t timestamp_t_focus_abs;
 	int vt_pix_clk_freq_mhz;
 	int fmt_idx;
 	int run_mode;
@@ -1087,7 +1087,7 @@ static struct ov5693_reg const ov5693_2576x1936_30fps[] = {
 	{OV5693_TOK_TERM, 0, 0}
 };
 
-struct ov5693_resolution ov5693_res_preview[] = {
+static struct ov5693_resolution ov5693_res_preview[] = {
 	{
 		.desc = "ov5693_736x496_30fps",
 		.width = 736,
@@ -1147,6 +1147,11 @@ struct ov5693_resolution ov5693_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(ov5693_res_preview))
 
+/*
+ * Disable non-preview configurations until the configuration selection is
+ * improved.
+ */
+#if 0
 struct ov5693_resolution ov5693_res_still[] = {
 	{
 		.desc = "ov5693_736x496_30fps",
@@ -1364,6 +1369,7 @@ struct ov5693_resolution ov5693_res_video[] = {
 	},
 };
 #define N_RES_VIDEO (ARRAY_SIZE(ov5693_res_video))
+#endif
 
 static struct ov5693_resolution *ov5693_res = ov5693_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;

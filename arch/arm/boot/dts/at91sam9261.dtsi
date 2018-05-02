@@ -80,7 +80,7 @@
 			status = "disabled";
 		};
 
-		fb0: fb@0x00600000 {
+		fb0: fb@600000 {
 			compatible = "atmel,at91sam9261-lcdc";
 			reg = <0x00600000 0x1000>;
 			interrupts = <21 IRQ_TYPE_LEVEL_HIGH 3>;
@@ -125,7 +125,9 @@
 			ranges;
 
 			tcb0: timer@fffa0000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfffa0000 0x100>;
 				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 0>,
 					     <18 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -326,8 +328,8 @@
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
-							<AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
-							<AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_NONE>,
+							<AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart0_rts: usart0_rts-0 {
@@ -344,8 +346,8 @@
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<AT91_PIOC 12 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
-							<AT91_PIOC 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOC 12 AT91_PERIPH_A AT91_PINCTRL_NONE>,
+							<AT91_PIOC 13 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart1_rts: usart1_rts-0 {
@@ -362,8 +364,8 @@
 				usart2 {
 					pinctrl_usart2: usart2-0 {
 						atmel,pins =
-							<AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
-							<AT91_PIOC 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_NONE>,
+							<AT91_PIOC 15 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart2_rts: usart2_rts-0 {

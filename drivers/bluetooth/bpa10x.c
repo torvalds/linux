@@ -35,7 +35,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#include "hci_uart.h"
+#include "h4_recv.h"
 
 #define VERSION "0.11"
 
@@ -259,7 +259,7 @@ static int bpa10x_flush(struct hci_dev *hdev)
 
 static int bpa10x_setup(struct hci_dev *hdev)
 {
-	const u8 req[] = { 0x07 };
+	static const u8 req[] = { 0x07 };
 	struct sk_buff *skb;
 
 	BT_DBG("%s", hdev->name);

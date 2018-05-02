@@ -76,22 +76,22 @@
 
 #define IVTV_CS53L32A_I2C_ADDR		0x11
 #define IVTV_M52790_I2C_ADDR		0x48
-#define IVTV_CX25840_I2C_ADDR 		0x44
-#define IVTV_SAA7115_I2C_ADDR 		0x21
-#define IVTV_SAA7127_I2C_ADDR 		0x44
-#define IVTV_SAA717x_I2C_ADDR 		0x21
-#define IVTV_MSP3400_I2C_ADDR 		0x40
-#define IVTV_HAUPPAUGE_I2C_ADDR 	0x50
-#define IVTV_WM8739_I2C_ADDR 		0x1a
+#define IVTV_CX25840_I2C_ADDR		0x44
+#define IVTV_SAA7115_I2C_ADDR		0x21
+#define IVTV_SAA7127_I2C_ADDR		0x44
+#define IVTV_SAA717x_I2C_ADDR		0x21
+#define IVTV_MSP3400_I2C_ADDR		0x40
+#define IVTV_HAUPPAUGE_I2C_ADDR		0x50
+#define IVTV_WM8739_I2C_ADDR		0x1a
 #define IVTV_WM8775_I2C_ADDR		0x1b
 #define IVTV_TEA5767_I2C_ADDR		0x60
-#define IVTV_UPD64031A_I2C_ADDR 	0x12
-#define IVTV_UPD64083_I2C_ADDR 		0x5c
-#define IVTV_VP27SMPX_I2C_ADDR      	0x5b
-#define IVTV_M52790_I2C_ADDR      	0x48
+#define IVTV_UPD64031A_I2C_ADDR		0x12
+#define IVTV_UPD64083_I2C_ADDR		0x5c
+#define IVTV_VP27SMPX_I2C_ADDR		0x5b
+#define IVTV_M52790_I2C_ADDR		0x48
 #define IVTV_AVERMEDIA_IR_RX_I2C_ADDR	0x40
-#define IVTV_HAUP_EXT_IR_RX_I2C_ADDR 	0x1a
-#define IVTV_HAUP_INT_IR_RX_I2C_ADDR 	0x18
+#define IVTV_HAUP_EXT_IR_RX_I2C_ADDR	0x1a
+#define IVTV_HAUP_INT_IR_RX_I2C_ADDR	0x18
 #define IVTV_Z8F0811_IR_TX_I2C_ADDR	0x70
 #define IVTV_Z8F0811_IR_RX_I2C_ADDR	0x71
 #define IVTV_ADAPTEC_IR_ADDR		0x6b
@@ -117,8 +117,7 @@ static const u8 hw_addrs[] = {
 	IVTV_AVERMEDIA_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_AVER */
 	IVTV_HAUP_EXT_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
 	IVTV_HAUP_INT_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_HAUP_INT */
-	IVTV_Z8F0811_IR_TX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
-	IVTV_Z8F0811_IR_RX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
+	IVTV_Z8F0811_IR_RX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_HAUP */
 	IVTV_ADAPTEC_IR_ADDR,		/* IVTV_HW_I2C_IR_RX_ADAPTEC */
 };
 
@@ -143,8 +142,7 @@ static const char * const hw_devicenames[] = {
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_AVER */
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_HAUP_INT */
-	"ir_tx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
-	"ir_rx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
+	"ir_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_HAUP */
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_ADAPTEC */
 };
 
@@ -181,18 +179,8 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 	struct IR_i2c_init_data *init_data = &itv->ir_i2c_init_data;
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
-	/* Only allow one IR transmitter to be registered per board */
-	if (hw & IVTV_HW_IR_TX_ANY) {
-		if (itv->hw_flags & IVTV_HW_IR_TX_ANY)
-			return -1;
-		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, type, I2C_NAME_SIZE);
-		return i2c_new_probed_device(adap, &info, addr_list, NULL)
-							   == NULL ? -1 : 0;
-	}
-
 	/* Only allow one IR receiver to be registered per board */
-	if (itv->hw_flags & IVTV_HW_IR_RX_ANY)
+	if (itv->hw_flags & IVTV_HW_IR_ANY)
 		return -1;
 
 	/* Our default information for ir-kbd-i2c.c to use */
@@ -211,7 +199,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		init_data->type = RC_PROTO_BIT_RC5;
 		init_data->name = itv->card_name;
 		break;
-	case IVTV_HW_Z8F0811_IR_RX_HAUP:
+	case IVTV_HW_Z8F0811_IR_HAUP:
 		/* Default to grey remote */
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;

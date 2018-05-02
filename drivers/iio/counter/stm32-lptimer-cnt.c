@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * STM32 Low-Power Timer Encoder and Counter driver
  *
@@ -7,7 +8,6 @@
  *
  * Inspired by 104-quad-8 and stm32-timer-trigger drivers.
  *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/bitfield.h>

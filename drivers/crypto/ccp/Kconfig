@@ -1,5 +1,6 @@
 config CRYPTO_DEV_CCP_DD
 	tristate "Secure Processor device driver"
+	depends on CPU_SUP_AMD || ARM64
 	default m
 	help
 	  Provides AMD Secure Processor device driver.
@@ -32,3 +33,14 @@ config CRYPTO_DEV_CCP_CRYPTO
 	  Support for using the cryptographic API with the AMD Cryptographic
 	  Coprocessor. This module supports offload of SHA and AES algorithms.
 	  If you choose 'M' here, this module will be called ccp_crypto.
+
+config CRYPTO_DEV_SP_PSP
+	bool "Platform Security Processor (PSP) device"
+	default y
+	depends on CRYPTO_DEV_CCP_DD && X86_64
+	help
+	 Provide support for the AMD Platform Security Processor (PSP).
+	 The PSP is a dedicated processor that provides support for key
+	 management commands in Secure Encrypted Virtualization (SEV) mode,
+	 along with software-based Trusted Execution Environment (TEE) to
+	 enable third-party trusted applications.

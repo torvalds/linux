@@ -26,7 +26,6 @@
 #include <linux/sched.h>
 #include <linux/sched/stat.h>
 #include <linux/slab.h>
-#include <linux/hardirq.h>
 
 #define MCRYPTD_MAX_CPU_QLEN 100
 #define MCRYPTD_BATCH 9
@@ -368,7 +367,7 @@ static void mcryptd_hash_update(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_update(&rctx->areq);
+	err = crypto_ahash_update(&rctx->areq);
 	if (err) {
 		req->base.complete = rctx->complete;
 		goto out;
@@ -395,7 +394,7 @@ static void mcryptd_hash_final(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_final(&rctx->areq);
+	err = crypto_ahash_final(&rctx->areq);
 	if (err) {
 		req->base.complete = rctx->complete;
 		goto out;
@@ -421,7 +420,7 @@ static void mcryptd_hash_finup(struct crypto_async_request *req_async, int err)
 	if (unlikely(err == -EINPROGRESS))
 		goto out;
 	rctx->out = req->result;
-	err = ahash_mcryptd_finup(&rctx->areq);
+	err = crypto_ahash_finup(&rctx->areq);
 
 	if (err) {
 		req->base.complete = rctx->complete;
@@ -456,7 +455,7 @@ static void mcryptd_hash_digest(struct crypto_async_request *req_async, int err)
 						rctx->complete, req_async);
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_digest(desc);
+	err = crypto_ahash_init(desc) ?: crypto_ahash_finup(desc);
 
 out:
 	local_bh_disable();
@@ -517,10 +516,9 @@ static int mcryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	if (err)
 		goto out_free_inst;
 
-	type = CRYPTO_ALG_ASYNC;
-	if (alg->cra_flags & CRYPTO_ALG_INTERNAL)
-		type |= CRYPTO_ALG_INTERNAL;
-	inst->alg.halg.base.cra_flags = type;
+	inst->alg.halg.base.cra_flags = CRYPTO_ALG_ASYNC |
+		(alg->cra_flags & (CRYPTO_ALG_INTERNAL |
+				   CRYPTO_ALG_OPTIONAL_KEY));
 
 	inst->alg.halg.digestsize = halg->digestsize;
 	inst->alg.halg.statesize = halg->statesize;
@@ -535,7 +533,8 @@ static int mcryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.finup  = mcryptd_hash_finup_enqueue;
 	inst->alg.export = mcryptd_hash_export;
 	inst->alg.import = mcryptd_hash_import;
-	inst->alg.setkey = mcryptd_hash_setkey;
+	if (crypto_hash_alg_has_setkey(halg))
+		inst->alg.setkey = mcryptd_hash_setkey;
 	inst->alg.digest = mcryptd_hash_digest_enqueue;
 
 	err = ahash_register_instance(tmpl, inst);
@@ -612,32 +611,6 @@ struct mcryptd_ahash *mcryptd_alloc_ahash(const char *alg_name,
 	return __mcryptd_ahash_cast(tfm);
 }
 EXPORT_SYMBOL_GPL(mcryptd_alloc_ahash);
-
-int ahash_mcryptd_digest(struct ahash_request *desc)
-{
-	return crypto_ahash_init(desc) ?: ahash_mcryptd_finup(desc);
-}
-
-int ahash_mcryptd_update(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_update(desc);
-}
-
-int ahash_mcryptd_finup(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_finup(desc);
-}
-
-int ahash_mcryptd_final(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_final(desc);
-}
 
 struct crypto_ahash *mcryptd_ahash_child(struct mcryptd_ahash *tfm)
 {

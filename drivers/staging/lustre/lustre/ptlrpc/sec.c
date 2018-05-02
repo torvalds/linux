@@ -339,11 +339,9 @@ static int import_sec_validate_get(struct obd_import *imp,
 	}
 
 	*sec = sptlrpc_import_sec_ref(imp);
-	/* Only output an error when the import is still active */
 	if (!*sec) {
-		if (list_empty(&imp->imp_zombie_chain))
-			CERROR("import %p (%s) with no sec\n",
-			       imp, ptlrpc_import_state_name(imp->imp_state));
+		CERROR("import %p (%s) with no sec\n",
+		       imp, ptlrpc_import_state_name(imp->imp_state));
 		return -EACCES;
 	}
 
@@ -442,7 +440,7 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 	/* save request message */
 	reqmsg_size = req->rq_reqlen;
 	if (reqmsg_size != 0) {
-		reqmsg = libcfs_kvzalloc(reqmsg_size, GFP_NOFS);
+		reqmsg = kvzalloc(reqmsg_size, GFP_NOFS);
 		if (!reqmsg)
 			return -ENOMEM;
 		memcpy(reqmsg, req->rq_reqmsg, reqmsg_size);
@@ -554,9 +552,8 @@ int ctx_check_refresh(struct ptlrpc_cli_ctx *ctx)
 }
 
 static
-int ctx_refresh_timeout(void *data)
+int ctx_refresh_timeout(struct ptlrpc_request *req)
 {
-	struct ptlrpc_request *req = data;
 	int rc;
 
 	/* conn_cnt is needed in expire_one_request */
@@ -575,10 +572,8 @@ int ctx_refresh_timeout(void *data)
 }
 
 static
-void ctx_refresh_interrupt(void *data)
+void ctx_refresh_interrupt(struct ptlrpc_request *req)
 {
-	struct ptlrpc_request *req = data;
-
 	spin_lock(&req->rq_lock);
 	req->rq_intr = 1;
 	spin_unlock(&req->rq_lock);
@@ -611,7 +606,6 @@ int sptlrpc_req_refresh_ctx(struct ptlrpc_request *req, long timeout)
 {
 	struct ptlrpc_cli_ctx *ctx = req->rq_cli_ctx;
 	struct ptlrpc_sec *sec;
-	struct l_wait_info lwi;
 	int rc;
 
 	LASSERT(ctx);
@@ -743,10 +737,28 @@ again:
 	req->rq_restart = 0;
 	spin_unlock(&req->rq_lock);
 
-	lwi = LWI_TIMEOUT_INTR(msecs_to_jiffies(timeout * MSEC_PER_SEC),
-			       ctx_refresh_timeout, ctx_refresh_interrupt,
-			       req);
-	rc = l_wait_event(req->rq_reply_waitq, ctx_check_refresh(ctx), &lwi);
+	rc = wait_event_idle_timeout(req->rq_reply_waitq,
+				     ctx_check_refresh(ctx),
+				     timeout * HZ);
+	if (rc == 0 && ctx_refresh_timeout(req) == 0) {
+		/* Keep waiting, but enable some signals */
+		rc = l_wait_event_abortable(req->rq_reply_waitq,
+					    ctx_check_refresh(ctx));
+		if (rc == 0)
+			rc = 1;
+	}
+
+	if (rc > 0)
+		/* condition is true */
+		rc = 0;
+	else if (rc == 0)
+		/* Timed out */
+		rc = -ETIMEDOUT;
+	else {
+		/* Aborted by signal */
+		rc = -EINTR;
+		ctx_refresh_interrupt(req);
+	}
 
 	/*
 	 * following cases could lead us here:
@@ -1075,7 +1087,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 
 	early_size = req->rq_nob_received;
 	early_bufsz = size_roundup_power2(early_size);
-	early_buf = libcfs_kvzalloc(early_bufsz, GFP_NOFS);
+	early_buf = kvzalloc(early_bufsz, GFP_NOFS);
 	if (!early_buf) {
 		rc = -ENOMEM;
 		goto err_req;

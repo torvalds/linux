@@ -196,7 +196,6 @@ struct fsl_dcu_drm_device {
 	struct drm_encoder encoder;
 	struct fsl_dcu_drm_connector connector;
 	const struct fsl_dcu_soc_data *soc;
-	struct drm_atomic_state *state;
 };
 
 int fsl_dcu_drm_modeset_init(struct fsl_dcu_drm_device *fsl_dev);

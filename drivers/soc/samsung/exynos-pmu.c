@@ -1,13 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
- *
- * EXYNOS - CPU PMU(Power Management Unit) support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com/
+//
+// EXYNOS - CPU PMU(Power Management Unit) support
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -89,10 +85,14 @@ static const struct of_device_id exynos_pmu_of_device_ids[] = {
 		.compatible = "samsung,exynos5250-pmu",
 		.data = exynos_pmu_data_arm_ptr(exynos5250_pmu_data),
 	}, {
+		.compatible = "samsung,exynos5410-pmu",
+	}, {
 		.compatible = "samsung,exynos5420-pmu",
 		.data = exynos_pmu_data_arm_ptr(exynos5420_pmu_data),
 	}, {
 		.compatible = "samsung,exynos5433-pmu",
+	}, {
+		.compatible = "samsung,exynos7-pmu",
 	},
 	{ /*sentinel*/ },
 };
@@ -129,6 +129,9 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 		pmu_context->pmu_data->pmu_init();
 
 	platform_set_drvdata(pdev, pmu_context);
+
+	if (devm_of_platform_populate(dev))
+		dev_err(dev, "Error populating children, reboot and poweroff might not work properly\n");
 
 	dev_dbg(dev, "Exynos PMU Driver probe done\n");
 	return 0;

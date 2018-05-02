@@ -332,7 +332,7 @@ static const struct block_device_operations z2_fops =
 static struct kobject *z2_find(dev_t dev, int *part, void *data)
 {
 	*part = 0;
-	return get_disk(z2ram_gendisk);
+	return get_disk_and_module(z2ram_gendisk);
 }
 
 static struct request_queue *z2_queue;

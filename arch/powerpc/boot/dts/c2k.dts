@@ -276,14 +276,14 @@
 			>;
 		};
 
-		cpu-error@0070 {
+		cpu-error@70 {
 			compatible = "marvell,mv64360-cpu-error";
 			reg = <0x0070 0x10 0x0128 0x28>;
 			interrupts = <3>;
 			interrupt-parent = <&PIC>;
 		};
 
-		sram-ctrl@0380 {
+		sram-ctrl@380 {
 			compatible = "marvell,mv64360-sram-ctrl";
 			reg = <0x0380 0x80>;
 			interrupts = <13>;
@@ -311,7 +311,7 @@
 			interrupt-parent = <&PIC>;
 		};
 		/* Devices attached to the device controller */
-		devicebus@045c {
+		devicebus@45c {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "marvell,mv64306-devctrl";
@@ -361,6 +361,6 @@
 		};
 	};
 	chosen {
-		linux,stdout-path = &MPSC0;
+		stdout-path = &MPSC0;
 	};
 };

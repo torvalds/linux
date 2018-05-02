@@ -277,12 +277,6 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 	nfp_net_irqs_assign(nn, vf->irq_entries, num_irqs);
 
-	/* Get ME clock frequency from ctrl BAR
-	 * XXX for now frequency is hardcoded until we figure out how
-	 * to get the value from nfp-hwinfo into ctrl bar
-	 */
-	nn->me_freq_mhz = 1200;
-
 	err = nfp_net_init(nn);
 	if (err)
 		goto err_irqs_disable;

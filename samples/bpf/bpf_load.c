@@ -61,12 +61,14 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_kprobe = strncmp(event, "kprobe/", 7) == 0;
 	bool is_kretprobe = strncmp(event, "kretprobe/", 10) == 0;
 	bool is_tracepoint = strncmp(event, "tracepoint/", 11) == 0;
+	bool is_raw_tracepoint = strncmp(event, "raw_tracepoint/", 15) == 0;
 	bool is_xdp = strncmp(event, "xdp", 3) == 0;
 	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
 	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
 	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
 	bool is_sockops = strncmp(event, "sockops", 7) == 0;
 	bool is_sk_skb = strncmp(event, "sk_skb", 6) == 0;
+	bool is_sk_msg = strncmp(event, "sk_msg", 6) == 0;
 	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
@@ -84,6 +86,8 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_KPROBE;
 	} else if (is_tracepoint) {
 		prog_type = BPF_PROG_TYPE_TRACEPOINT;
+	} else if (is_raw_tracepoint) {
+		prog_type = BPF_PROG_TYPE_RAW_TRACEPOINT;
 	} else if (is_xdp) {
 		prog_type = BPF_PROG_TYPE_XDP;
 	} else if (is_perf_event) {
@@ -96,6 +100,8 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_SOCK_OPS;
 	} else if (is_sk_skb) {
 		prog_type = BPF_PROG_TYPE_SK_SKB;
+	} else if (is_sk_msg) {
+		prog_type = BPF_PROG_TYPE_SK_MSG;
 	} else {
 		printf("Unknown event '%s'\n", event);
 		return -1;
@@ -113,7 +119,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	if (is_xdp || is_perf_event || is_cgroup_skb || is_cgroup_sk)
 		return 0;
 
-	if (is_socket || is_sockops || is_sk_skb) {
+	if (is_socket || is_sockops || is_sk_skb || is_sk_msg) {
 		if (is_socket)
 			event += 6;
 		else
@@ -126,6 +132,16 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			return -1;
 		}
 		return populate_prog_array(event, fd);
+	}
+
+	if (is_raw_tracepoint) {
+		efd = bpf_raw_tracepoint_open(event + 15, fd);
+		if (efd < 0) {
+			printf("tracepoint %s %s\n", event + 15, strerror(errno));
+			return -1;
+		}
+		event_fd[prog_cnt - 1] = efd;
+		return 0;
 	}
 
 	if (is_kprobe || is_kretprobe) {
@@ -584,12 +600,14 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		if (memcmp(shname, "kprobe/", 7) == 0 ||
 		    memcmp(shname, "kretprobe/", 10) == 0 ||
 		    memcmp(shname, "tracepoint/", 11) == 0 ||
+		    memcmp(shname, "raw_tracepoint/", 15) == 0 ||
 		    memcmp(shname, "xdp", 3) == 0 ||
 		    memcmp(shname, "perf_event", 10) == 0 ||
 		    memcmp(shname, "socket", 6) == 0 ||
 		    memcmp(shname, "cgroup/", 7) == 0 ||
 		    memcmp(shname, "sockops", 7) == 0 ||
-		    memcmp(shname, "sk_skb", 6) == 0) {
+		    memcmp(shname, "sk_skb", 6) == 0 ||
+		    memcmp(shname, "sk_msg", 6) == 0) {
 			ret = load_and_attach(shname, data->d_buf,
 					      data->d_size);
 			if (ret != 0)
@@ -695,105 +713,3 @@ struct ksym *ksym_search(long key)
 	return &syms[0];
 }
 
-int set_link_xdp_fd(int ifindex, int fd, __u32 flags)
-{
-	struct sockaddr_nl sa;
-	int sock, seq = 0, len, ret = -1;
-	char buf[4096];
-	struct nlattr *nla, *nla_xdp;
-	struct {
-		struct nlmsghdr  nh;
-		struct ifinfomsg ifinfo;
-		char             attrbuf[64];
-	} req;
-	struct nlmsghdr *nh;
-	struct nlmsgerr *err;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.nl_family = AF_NETLINK;
-
-	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
-	if (sock < 0) {
-		printf("open netlink socket: %s\n", strerror(errno));
-		return -1;
-	}
-
-	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		printf("bind to netlink: %s\n", strerror(errno));
-		goto cleanup;
-	}
-
-	memset(&req, 0, sizeof(req));
-	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
-	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-	req.nh.nlmsg_type = RTM_SETLINK;
-	req.nh.nlmsg_pid = 0;
-	req.nh.nlmsg_seq = ++seq;
-	req.ifinfo.ifi_family = AF_UNSPEC;
-	req.ifinfo.ifi_index = ifindex;
-
-	/* started nested attribute for XDP */
-	nla = (struct nlattr *)(((char *)&req)
-				+ NLMSG_ALIGN(req.nh.nlmsg_len));
-	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
-	nla->nla_len = NLA_HDRLEN;
-
-	/* add XDP fd */
-	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
-	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
-	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
-	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
-	nla->nla_len += nla_xdp->nla_len;
-
-	/* if user passed in any flags, add those too */
-	if (flags) {
-		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
-		nla_xdp->nla_type = 3/*IFLA_XDP_FLAGS*/;
-		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
-		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
-		nla->nla_len += nla_xdp->nla_len;
-	}
-
-	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
-
-	if (send(sock, &req, req.nh.nlmsg_len, 0) < 0) {
-		printf("send to netlink: %s\n", strerror(errno));
-		goto cleanup;
-	}
-
-	len = recv(sock, buf, sizeof(buf), 0);
-	if (len < 0) {
-		printf("recv from netlink: %s\n", strerror(errno));
-		goto cleanup;
-	}
-
-	for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
-	     nh = NLMSG_NEXT(nh, len)) {
-		if (nh->nlmsg_pid != getpid()) {
-			printf("Wrong pid %d, expected %d\n",
-			       nh->nlmsg_pid, getpid());
-			goto cleanup;
-		}
-		if (nh->nlmsg_seq != seq) {
-			printf("Wrong seq %d, expected %d\n",
-			       nh->nlmsg_seq, seq);
-			goto cleanup;
-		}
-		switch (nh->nlmsg_type) {
-		case NLMSG_ERROR:
-			err = (struct nlmsgerr *)NLMSG_DATA(nh);
-			if (!err->error)
-				continue;
-			printf("nlmsg error %s\n", strerror(-err->error));
-			goto cleanup;
-		case NLMSG_DONE:
-			break;
-		}
-	}
-
-	ret = 0;
-
-cleanup:
-	close(sock);
-	return ret;
-}

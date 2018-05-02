@@ -4,7 +4,7 @@
 #
 # This script assumes that the dtc and the linux git trees are in the
 # same directory. After building dtc in the dtc directory, it copies the
-# source files and generated source files into the scripts/dtc directory
+# source files and generated source file(s) into the scripts/dtc directory
 # in the kernel and creates a git commit updating them to the new
 # version.
 #
@@ -34,7 +34,6 @@ DTC_LINUX_PATH=`pwd`/scripts/dtc
 DTC_SOURCE="checks.c data.c dtc.c dtc.h flattree.c fstree.c livetree.c srcpos.c \
 		srcpos.h treesource.c util.c util.h version_gen.h Makefile.dtc \
 		dtc-lexer.l dtc-parser.y"
-DTC_GENERATED="dtc-lexer.lex.c dtc-parser.tab.c dtc-parser.tab.h"
 LIBFDT_SOURCE="Makefile.libfdt fdt.c fdt.h fdt_addresses.c fdt_empty_tree.c \
 		fdt_overlay.c fdt_ro.c fdt_rw.c fdt_strerror.c fdt_sw.c \
 		fdt_wip.c libfdt.h libfdt_env.h libfdt_internal.h"
@@ -58,10 +57,6 @@ cd $DTC_LINUX_PATH
 for f in $DTC_SOURCE; do
 	cp ${DTC_UPSTREAM_PATH}/${f} ${f}
 	git add ${f}
-done
-for f in $DTC_GENERATED; do
-	cp ${DTC_UPSTREAM_PATH}/$f ${f}_shipped
-	git add ${f}_shipped
 done
 for f in $LIBFDT_SOURCE; do
        cp ${DTC_UPSTREAM_PATH}/libfdt/${f} libfdt/${f}

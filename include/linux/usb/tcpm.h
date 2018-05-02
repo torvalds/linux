@@ -91,15 +91,11 @@ struct tcpc_config {
 	unsigned int operating_snk_mw;
 
 	enum typec_port_type type;
+	enum typec_port_data data;
 	enum typec_role default_role;
 	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
 
 	const struct typec_altmode_desc *alt_modes;
-};
-
-enum tcpc_usb_switch {
-	TCPC_USB_SWITCH_CONNECT,
-	TCPC_USB_SWITCH_DISCONNECT,
 };
 
 /* Mux state attributes */
@@ -114,14 +110,6 @@ enum tcpc_mux_mode {
 	TYPEC_MUX_DP	= TCPC_MUX_DP_ENABLED,		/* DP only */
 	TYPEC_MUX_DOCK	= TCPC_MUX_USB_ENABLED |	/* Both USB and DP */
 			  TCPC_MUX_DP_ENABLED,
-};
-
-struct tcpc_mux_dev {
-	int (*set)(struct tcpc_mux_dev *dev, enum tcpc_mux_mode mux_mode,
-		   enum tcpc_usb_switch usb_config,
-		   enum typec_cc_polarity polarity);
-	bool dfp_only;
-	void *priv_data;
 };
 
 /**
@@ -175,7 +163,6 @@ struct tcpc_dev {
 	int (*try_role)(struct tcpc_dev *dev, int role);
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg);
-	struct tcpc_mux_dev *mux;
 };
 
 struct tcpm_port;
@@ -183,14 +170,14 @@ struct tcpm_port;
 struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc);
 void tcpm_unregister_port(struct tcpm_port *port);
 
-void tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
-				     unsigned int nr_pdo);
-void tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
-				   unsigned int nr_pdo,
-				   unsigned int max_snk_mv,
-				   unsigned int max_snk_ma,
-				   unsigned int max_snk_mw,
-				   unsigned int operating_snk_mw);
+int tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
+				    unsigned int nr_pdo);
+int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
+				  unsigned int nr_pdo,
+				  unsigned int max_snk_mv,
+				  unsigned int max_snk_ma,
+				  unsigned int max_snk_mw,
+				  unsigned int operating_snk_mw);
 
 void tcpm_vbus_change(struct tcpm_port *port);
 void tcpm_cc_change(struct tcpm_port *port);

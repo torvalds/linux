@@ -4,6 +4,7 @@
 
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/clk.h>
 
 #define usb_packetid(pipe)	(usb_pipein(pipe) ? USB_PID_IN : USB_PID_OUT)
 #define PIPE_DEVEP_MASK		0x0007ff00
@@ -446,6 +447,8 @@ struct uhci_hcd {
 
 	int total_load;				/* Sum of array values */
 	short load[MAX_PHASE];			/* Periodic allocations */
+
+	struct clk *clk;			/* (optional) clock source */
 
 	/* Reset host controller */
 	void	(*reset_hc) (struct uhci_hcd *uhci);

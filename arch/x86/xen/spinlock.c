@@ -23,8 +23,6 @@ static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(char *, irq_name);
 static bool xen_pvspin = true;
 
-#include <asm/qspinlock.h>
-
 static void xen_qlock_kick(int cpu)
 {
 	int irq = per_cpu(lock_kicker_irq, cpu);

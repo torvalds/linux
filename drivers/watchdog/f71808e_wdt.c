@@ -496,7 +496,7 @@ static bool watchdog_is_running(void)
 
 	is_running = (superio_inb(watchdog.sioaddr, SIO_REG_ENABLE) & BIT(0))
 		&& (superio_inb(watchdog.sioaddr, F71808FG_REG_WDT_CONF)
-			& F71808FG_FLAG_WD_EN);
+			& BIT(F71808FG_FLAG_WD_EN));
 
 	superio_exit(watchdog.sioaddr);
 
@@ -566,7 +566,8 @@ static ssize_t watchdog_write(struct file *file, const char __user *buf,
 				char c;
 				if (get_user(c, buf + i))
 					return -EFAULT;
-				expect_close = (c == 'V');
+				if (c == 'V')
+					expect_close = true;
 			}
 
 			/* Properly order writes across fork()ed processes */
@@ -627,7 +628,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 
 		if (new_options & WDIOS_ENABLECARD)
 			return watchdog_start();
-
+		/* fall through */
 
 	case WDIOC_KEEPALIVE:
 		watchdog_keepalive();
@@ -641,7 +642,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		watchdog_keepalive();
-		/* Fall */
+		/* fall through */
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(watchdog.timeout, uarg.i);

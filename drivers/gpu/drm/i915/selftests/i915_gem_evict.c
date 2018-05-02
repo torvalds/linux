@@ -355,6 +355,7 @@ static int igt_evict_contexts(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	/* Reserve a block so that we know we have enough to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
@@ -406,7 +407,7 @@ static int igt_evict_contexts(void *arg)
 		mutex_lock(&i915->drm.struct_mutex);
 		onstack_fence_init(&fence);
 		do {
-			struct drm_i915_gem_request *rq;
+			struct i915_request *rq;
 			struct i915_gem_context *ctx;
 
 			ctx = live_context(i915, file);
@@ -415,7 +416,7 @@ static int igt_evict_contexts(void *arg)
 
 			/* We will need some GGTT space for the rq's context */
 			igt_evict_ctl.fail_if_busy = true;
-			rq = i915_gem_request_alloc(engine, ctx);
+			rq = i915_request_alloc(engine, ctx);
 			igt_evict_ctl.fail_if_busy = false;
 
 			if (IS_ERR(rq)) {
@@ -436,7 +437,7 @@ static int igt_evict_contexts(void *arg)
 			if (err < 0)
 				break;
 
-			i915_add_request(rq);
+			i915_request_add(rq);
 			count++;
 			err = 0;
 		} while(1);
@@ -463,6 +464,7 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;

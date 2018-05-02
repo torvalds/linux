@@ -107,7 +107,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 int sctp_inet_listen(struct socket *sock, int backlog);
 void sctp_write_space(struct sock *sk);
 void sctp_data_ready(struct sock *sk);
-unsigned int sctp_poll(struct file *file, struct socket *sock,
+__poll_t sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
 void sctp_sock_rfree(struct sk_buff *skb);
 void sctp_copy_sock(struct sock *newsk, struct sock *sk,
@@ -116,7 +116,7 @@ extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
 
-int sctp_transport_walk_start(struct rhashtable_iter *iter);
+void sctp_transport_walk_start(struct rhashtable_iter *iter);
 void sctp_transport_walk_stop(struct rhashtable_iter *iter);
 struct sctp_transport *sctp_transport_get_next(struct net *net,
 			struct rhashtable_iter *iter);
@@ -180,14 +180,7 @@ struct sctp_transport *sctp_epaddr_lookup_transport(
 /*
  * sctp/proc.c
  */
-int sctp_snmp_proc_init(struct net *net);
-void sctp_snmp_proc_exit(struct net *net);
-int sctp_eps_proc_init(struct net *net);
-void sctp_eps_proc_exit(struct net *net);
-int sctp_assocs_proc_init(struct net *net);
-void sctp_assocs_proc_exit(struct net *net);
-int sctp_remaddr_proc_init(struct net *net);
-void sctp_remaddr_proc_exit(struct net *net);
+int __net_init sctp_proc_init(struct net *net);
 
 /*
  * sctp/offload.c
@@ -318,7 +311,6 @@ atomic_t sctp_dbg_objcnt_## name = ATOMIC_INIT(0)
 {.label= #name, .counter= &sctp_dbg_objcnt_## name}
 
 void sctp_dbg_objcnt_init(struct net *);
-void sctp_dbg_objcnt_exit(struct net *);
 
 #else
 
@@ -326,7 +318,6 @@ void sctp_dbg_objcnt_exit(struct net *);
 #define SCTP_DBG_OBJCNT_DEC(name)
 
 static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
-static inline void sctp_dbg_objcnt_exit(struct net *net) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
@@ -441,16 +432,18 @@ static inline int sctp_list_single_entry(struct list_head *head)
 static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
 	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
+	struct sctp_af *af = sp->pf->af;
 	int frag = pmtu;
 
-	frag -= sp->pf->af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
+	frag -= af->ip_options_len(asoc->base.sk);
+	frag -= af->net_header_len;
+	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
 
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
 	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN -
-					    sizeof(struct sctp_data_chunk)));
+					    sctp_datachk_len(&asoc->stream)));
 
 	return frag;
 }

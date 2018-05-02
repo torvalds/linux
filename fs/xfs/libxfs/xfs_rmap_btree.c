@@ -104,20 +104,15 @@ xfs_rmapbt_alloc_block(
 	int			error;
 	xfs_agblock_t		bno;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	/* Allocate the new block from the freelist. If we can't, give up.  */
 	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_private.a.agbp,
 				       &bno, 1);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
 
 	trace_xfs_rmapbt_alloc_block(cur->bc_mp, cur->bc_private.a.agno,
 			bno, 1);
 	if (bno == NULLAGBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -130,7 +125,8 @@ xfs_rmapbt_alloc_block(
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	xfs_ag_resv_rmapbt_alloc(cur->bc_mp, cur->bc_private.a.agno);
+
 	*stat = 1;
 	return 0;
 }
@@ -157,6 +153,8 @@ xfs_rmapbt_free_block(
 	xfs_extent_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
+
+	xfs_ag_resv_rmapbt_free(cur->bc_mp, cur->bc_private.a.agno);
 
 	return 0;
 }
@@ -303,13 +301,14 @@ xfs_rmapbt_diff_two_keys(
 	return 0;
 }
 
-static bool
+static xfs_failaddr_t
 xfs_rmapbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	struct xfs_perag	*pag = bp->b_pag;
+	xfs_failaddr_t		fa;
 	unsigned int		level;
 
 	/*
@@ -325,19 +324,20 @@ xfs_rmapbt_verify(
 	 * in this case.
 	 */
 	if (block->bb_magic != cpu_to_be32(XFS_RMAP_CRC_MAGIC))
-		return false;
+		return __this_address;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
-		return false;
-	if (!xfs_btree_sblock_v5hdr_verify(bp))
-		return false;
+		return __this_address;
+	fa = xfs_btree_sblock_v5hdr_verify(bp);
+	if (fa)
+		return fa;
 
 	level = be16_to_cpu(block->bb_level);
 	if (pag && pag->pagf_init) {
 		if (level >= pag->pagf_levels[XFS_BTNUM_RMAPi])
-			return false;
+			return __this_address;
 	} else if (level >= mp->m_rmap_maxlevels)
-		return false;
+		return __this_address;
 
 	return xfs_btree_sblock_verify(bp, mp->m_rmap_mxr[level != 0]);
 }
@@ -346,25 +346,30 @@ static void
 xfs_rmapbt_read_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_btree_sblock_verify_crc(bp))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
-	else if (!xfs_rmapbt_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
+	xfs_failaddr_t	fa;
 
-	if (bp->b_error) {
-		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_verifier_error(bp);
+	if (!xfs_btree_sblock_verify_crc(bp))
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_rmapbt_verify(bp);
+		if (fa)
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 	}
+
+	if (bp->b_error)
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
 }
 
 static void
 xfs_rmapbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_rmapbt_verify(bp)) {
+	xfs_failaddr_t	fa;
+
+	fa = xfs_rmapbt_verify(bp);
+	if (fa) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 	xfs_btree_sblock_calc_crc(bp);
@@ -375,6 +380,7 @@ const struct xfs_buf_ops xfs_rmapbt_buf_ops = {
 	.name			= "xfs_rmapbt",
 	.verify_read		= xfs_rmapbt_read_verify,
 	.verify_write		= xfs_rmapbt_write_verify,
+	.verify_struct		= xfs_rmapbt_verify,
 };
 
 STATIC int
@@ -493,7 +499,6 @@ xfs_rmapbt_init_cursor(
  */
 int
 xfs_rmapbt_maxrecs(
-	struct xfs_mount	*mp,
 	int			blocklen,
 	int			leaf)
 {
@@ -528,7 +533,7 @@ xfs_rmapbt_compute_maxlevels(
 	if (xfs_sb_version_hasreflink(&mp->m_sb))
 		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
 	else
-		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
+		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
 				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
 }
 
@@ -538,7 +543,7 @@ xfs_rmapbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp, mp->m_rmap_mnr, len);
+	return xfs_btree_calc_size(mp->m_rmap_mnr, len);
 }
 
 /*

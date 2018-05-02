@@ -23,16 +23,30 @@
 #define DRVNAME					PMUNAME "_pmu"
 #define pr_fmt(fmt)				DRVNAME ": " fmt
 
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/capability.h>
 #include <linux/cpuhotplug.h>
+#include <linux/cpumask.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/vmalloc.h>
 
+#include <asm/barrier.h>
+#include <asm/cpufeature.h>
+#include <asm/mmu.h>
 #include <asm/sysreg.h>
 
 #define ARM_SPE_BUF_PAD_BYTE			0
@@ -1163,6 +1177,15 @@ static int arm_spe_pmu_device_dt_probe(struct platform_device *pdev)
 	int ret;
 	struct arm_spe_pmu *spe_pmu;
 	struct device *dev = &pdev->dev;
+
+	/*
+	 * If kernelspace is unmapped when running at EL0, then the SPE
+	 * buffer will fault and prematurely terminate the AUX session.
+	 */
+	if (arm64_kernel_unmapped_at_el0()) {
+		dev_warn_once(dev, "profiling buffer inaccessible. Try passing \"kpti=off\" on the kernel command line\n");
+		return -EPERM;
+	}
 
 	spe_pmu = devm_kzalloc(dev, sizeof(*spe_pmu), GFP_KERNEL);
 	if (!spe_pmu) {

@@ -31,7 +31,7 @@ static struct kset *nilfs_kset;
 #define NILFS_SHOW_TIME(time_t_val, buf) ({ \
 		struct tm res; \
 		int count = 0; \
-		time_to_tm(time_t_val, 0, &res); \
+		time64_to_tm(time_t_val, 0, &res); \
 		res.tm_year += 1900; \
 		res.tm_mon += 1; \
 		count = scnprintf(buf, PAGE_SIZE, \
@@ -579,7 +579,7 @@ nilfs_segctor_last_seg_write_time_show(struct nilfs_segctor_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	time_t ctime;
+	time64_t ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
 	ctime = nilfs->ns_ctime;
@@ -593,13 +593,13 @@ nilfs_segctor_last_seg_write_time_secs_show(struct nilfs_segctor_attr *attr,
 					    struct the_nilfs *nilfs,
 					    char *buf)
 {
-	time_t ctime;
+	time64_t ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
 	ctime = nilfs->ns_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", (unsigned long long)ctime);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", ctime);
 }
 
 static ssize_t
@@ -607,7 +607,7 @@ nilfs_segctor_last_nongc_write_time_show(struct nilfs_segctor_attr *attr,
 					 struct the_nilfs *nilfs,
 					 char *buf)
 {
-	time_t nongc_ctime;
+	time64_t nongc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
 	nongc_ctime = nilfs->ns_nongc_ctime;
@@ -621,14 +621,13 @@ nilfs_segctor_last_nongc_write_time_secs_show(struct nilfs_segctor_attr *attr,
 						struct the_nilfs *nilfs,
 						char *buf)
 {
-	time_t nongc_ctime;
+	time64_t nongc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
 	nongc_ctime = nilfs->ns_nongc_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-			(unsigned long long)nongc_ctime);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", nongc_ctime);
 }
 
 static ssize_t
@@ -728,7 +727,7 @@ nilfs_superblock_sb_write_time_show(struct nilfs_superblock_attr *attr,
 				     struct the_nilfs *nilfs,
 				     char *buf)
 {
-	time_t sbwtime;
+	time64_t sbwtime;
 
 	down_read(&nilfs->ns_sem);
 	sbwtime = nilfs->ns_sbwtime;
@@ -742,13 +741,13 @@ nilfs_superblock_sb_write_time_secs_show(struct nilfs_superblock_attr *attr,
 					 struct the_nilfs *nilfs,
 					 char *buf)
 {
-	time_t sbwtime;
+	time64_t sbwtime;
 
 	down_read(&nilfs->ns_sem);
 	sbwtime = nilfs->ns_sbwtime;
 	up_read(&nilfs->ns_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", (unsigned long long)sbwtime);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", sbwtime);
 }
 
 static ssize_t

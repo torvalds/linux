@@ -183,13 +183,6 @@ static void vbox_ttm_io_mem_free(struct ttm_bo_device *bdev,
 {
 }
 
-static int vbox_bo_move(struct ttm_buffer_object *bo,
-			bool evict, bool interruptible,
-			bool no_wait_gpu, struct ttm_mem_reg *new_mem)
-{
-	return ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu, new_mem);
-}
-
 static void vbox_ttm_backend_destroy(struct ttm_tt *tt)
 {
 	ttm_tt_fini(tt);
@@ -200,10 +193,8 @@ static struct ttm_backend_func vbox_tt_backend_func = {
 	.destroy = &vbox_ttm_backend_destroy,
 };
 
-static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
-					 unsigned long size,
-					 u32 page_flags,
-					 struct page *dummy_read_page)
+static struct ttm_tt *vbox_ttm_tt_create(struct ttm_buffer_object *bo,
+					 u32 page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -212,7 +203,7 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	tt->func = &vbox_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(tt, bo, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}
@@ -220,28 +211,14 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int vbox_ttm_tt_populate(struct ttm_tt *ttm)
-{
-	return ttm_pool_populate(ttm);
-}
-
-static void vbox_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 static struct ttm_bo_driver vbox_bo_driver = {
 	.ttm_tt_create = vbox_ttm_tt_create,
-	.ttm_tt_populate = vbox_ttm_tt_populate,
-	.ttm_tt_unpopulate = vbox_ttm_tt_unpopulate,
 	.init_mem_type = vbox_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vbox_bo_evict_flags,
-	.move = vbox_bo_move,
 	.verify_access = vbox_bo_verify_access,
 	.io_mem_reserve = &vbox_ttm_io_mem_reserve,
 	.io_mem_free = &vbox_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int vbox_mm_init(struct vbox_private *vbox)
@@ -353,7 +330,7 @@ int vbox_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&vbox->ttm.bdev, &vboxbo->bo, size,
 			  ttm_bo_type_device, &vboxbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, acc_size,
 			  NULL, NULL, vbox_bo_ttm_destroy);
 	if (ret)
 		goto err_free_vboxbo;
@@ -374,6 +351,7 @@ static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
 
 int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
@@ -389,7 +367,7 @@ int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret)
 		return ret;
 
@@ -403,6 +381,7 @@ int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 
 int vbox_bo_unpin(struct vbox_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (!bo->pin_count) {
@@ -416,7 +395,7 @@ int vbox_bo_unpin(struct vbox_bo *bo)
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret)
 		return ret;
 
@@ -430,6 +409,7 @@ int vbox_bo_unpin(struct vbox_bo *bo)
  */
 int vbox_bo_push_sysram(struct vbox_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (!bo->pin_count) {
@@ -448,7 +428,7 @@ int vbox_bo_push_sysram(struct vbox_bo *bo)
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret) {
 		DRM_ERROR("pushing to VRAM failed\n");
 		return ret;

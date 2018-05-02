@@ -827,6 +827,7 @@ err_fwq:
 err_cwq:
 	destroy_workqueue(dmz->chunk_wq);
 err_bio:
+	mutex_destroy(&dmz->chunk_lock);
 	bioset_free(dmz->bio_set);
 err_meta:
 	dmz_dtr_metadata(dmz->metadata);
@@ -860,6 +861,8 @@ static void dmz_dtr(struct dm_target *ti)
 	bioset_free(dmz->bio_set);
 
 	dmz_put_zoned_device(ti);
+
+	mutex_destroy(&dmz->chunk_lock);
 
 	kfree(dmz);
 }
@@ -895,8 +898,7 @@ static void dmz_io_hints(struct dm_target *ti, struct queue_limits *limits)
 /*
  * Pass on ioctl to the backend device.
  */
-static int dmz_prepare_ioctl(struct dm_target *ti,
-			     struct block_device **bdev, fmode_t *mode)
+static int dmz_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct dmz_target *dmz = ti->private;
 

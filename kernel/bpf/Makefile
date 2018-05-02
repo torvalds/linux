@@ -9,7 +9,9 @@ obj-$(CONFIG_BPF_SYSCALL) += devmap.o
 obj-$(CONFIG_BPF_SYSCALL) += cpumap.o
 obj-$(CONFIG_BPF_SYSCALL) += offload.o
 ifeq ($(CONFIG_STREAM_PARSER),y)
+ifeq ($(CONFIG_INET),y)
 obj-$(CONFIG_BPF_SYSCALL) += sockmap.o
+endif
 endif
 endif
 ifeq ($(CONFIG_PERF_EVENTS),y)

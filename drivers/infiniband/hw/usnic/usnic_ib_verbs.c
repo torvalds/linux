@@ -47,7 +47,6 @@
 #include "usnic_log.h"
 #include "usnic_uiom.h"
 #include "usnic_transport.h"
-#include "usnic_ib_verbs.h"
 
 #define USNIC_DEFAULT_TRANSPORT USNIC_TRANSPORT_ROCE_CUSTOM
 

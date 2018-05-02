@@ -47,6 +47,7 @@ int vmw_dmabuf_pin_in_placement(struct vmw_private *dev_priv,
 				struct ttm_placement *placement,
 				bool interruptible)
 {
+	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 	uint32_t new_flags;
@@ -65,7 +66,7 @@ int vmw_dmabuf_pin_in_placement(struct vmw_private *dev_priv,
 		ret = ttm_bo_mem_compat(placement, &bo->mem,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
-		ret = ttm_bo_validate(bo, placement, interruptible, false);
+		ret = ttm_bo_validate(bo, placement, &ctx);
 
 	if (!ret)
 		vmw_bo_pin_reserved(buf, true);
@@ -95,6 +96,7 @@ int vmw_dmabuf_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 				  struct vmw_dma_buffer *buf,
 				  bool interruptible)
 {
+	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 	uint32_t new_flags;
@@ -115,12 +117,11 @@ int vmw_dmabuf_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 		goto out_unreserve;
 	}
 
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, interruptible,
-			      false);
+	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, &ctx);
 	if (likely(ret == 0) || ret == -ERESTARTSYS)
 		goto out_unreserve;
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, interruptible, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, &ctx);
 
 out_unreserve:
 	if (!ret)
@@ -170,6 +171,7 @@ int vmw_dmabuf_pin_in_start_of_vram(struct vmw_private *dev_priv,
 				    struct vmw_dma_buffer *buf,
 				    bool interruptible)
 {
+	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
 	struct ttm_placement placement;
 	struct ttm_place place;
@@ -200,14 +202,16 @@ int vmw_dmabuf_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	if (bo->mem.mem_type == TTM_PL_VRAM &&
 	    bo->mem.start < bo->num_pages &&
 	    bo->mem.start > 0 &&
-	    buf->pin_count == 0)
-		(void) ttm_bo_validate(bo, &vmw_sys_placement, false, false);
+	    buf->pin_count == 0) {
+		ctx.interruptible = false;
+		(void) ttm_bo_validate(bo, &vmw_sys_placement, &ctx);
+	}
 
 	if (buf->pin_count > 0)
 		ret = ttm_bo_mem_compat(&placement, &bo->mem,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
-		ret = ttm_bo_validate(bo, &placement, interruptible, false);
+		ret = ttm_bo_validate(bo, &placement, &ctx);
 
 	/* For some reason we didn't end up at the start of vram */
 	WARN_ON(ret == 0 && bo->offset != 0);
@@ -286,6 +290,7 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
  */
 void vmw_bo_pin_reserved(struct vmw_dma_buffer *vbo, bool pin)
 {
+	struct ttm_operation_ctx ctx = { false, true };
 	struct ttm_place pl;
 	struct ttm_placement placement;
 	struct ttm_buffer_object *bo = &vbo->base;
@@ -314,7 +319,58 @@ void vmw_bo_pin_reserved(struct vmw_dma_buffer *vbo, bool pin)
 	placement.num_placement = 1;
 	placement.placement = &pl;
 
-	ret = ttm_bo_validate(bo, &placement, false, true);
+	ret = ttm_bo_validate(bo, &placement, &ctx);
 
 	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
+}
+
+
+/*
+ * vmw_dma_buffer_unmap - Tear down a cached buffer object map.
+ *
+ * @vbo: The buffer object whose map we are tearing down.
+ *
+ * This function tears down a cached map set up using
+ * vmw_dma_buffer_map_and_cache().
+ */
+void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo)
+{
+	if (vbo->map.bo == NULL)
+		return;
+
+	ttm_bo_kunmap(&vbo->map);
+}
+
+
+/*
+ * vmw_dma_buffer_map_and_cache - Map a buffer object and cache the map
+ *
+ * @vbo: The buffer object to map
+ * Return: A kernel virtual address or NULL if mapping failed.
+ *
+ * This function maps a buffer object into the kernel address space, or
+ * returns the virtual kernel address of an already existing map. The virtual
+ * address remains valid as long as the buffer object is pinned or reserved.
+ * The cached map is torn down on either
+ * 1) Buffer object move
+ * 2) Buffer object swapout
+ * 3) Buffer object destruction
+ *
+ */
+void *vmw_dma_buffer_map_and_cache(struct vmw_dma_buffer *vbo)
+{
+	struct ttm_buffer_object *bo = &vbo->base;
+	bool not_used;
+	void *virtual;
+	int ret;
+
+	virtual = ttm_kmap_obj_virtual(&vbo->map, &not_used);
+	if (virtual)
+		return virtual;
+
+	ret = ttm_bo_kmap(bo, 0, bo->num_pages, &vbo->map);
+	if (ret)
+		DRM_ERROR("Buffer object map failed: %d.\n", ret);
+
+	return ttm_kmap_obj_virtual(&vbo->map, &not_used);
 }

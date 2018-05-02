@@ -15,6 +15,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
@@ -95,6 +96,9 @@ struct ak4613_priv {
 	struct mutex lock;
 	const struct ak4613_interface *iface;
 	struct snd_pcm_hw_constraint_list constraint;
+	struct work_struct dummy_write_work;
+	struct snd_soc_component *component;
+	unsigned int rate;
 	unsigned int sysclk;
 
 	unsigned int fmt;
@@ -239,9 +243,9 @@ static const struct snd_soc_dapm_route ak4613_intercon[] = {
 static void ak4613_dai_shutdown(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct device *dev = codec->dev;
+	struct snd_soc_component *component = dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
+	struct device *dev = component->dev;
 
 	mutex_lock(&priv->lock);
 	priv->cnt--;
@@ -301,8 +305,8 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 static int ak4613_dai_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 
 	priv->cnt++;
 
@@ -314,8 +318,8 @@ static int ak4613_dai_startup(struct snd_pcm_substream *substream,
 static int ak4613_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 
 	priv->sysclk = freq;
 
@@ -324,8 +328,8 @@ static int ak4613_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 
 static int ak4613_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 
 	fmt &= SND_SOC_DAIFMT_FORMAT_MASK;
 
@@ -362,10 +366,10 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 	const struct ak4613_interface *iface;
-	struct device *dev = codec->dev;
+	struct device *dev = component->dev;
 	unsigned int width = params_width(params);
 	unsigned int fmt = priv->fmt;
 	unsigned int rate;
@@ -392,6 +396,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
+	priv->rate = rate;
 
 	/*
 	 * FIXME
@@ -429,11 +434,11 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 
 	fmt_ctrl = AUDIO_IFACE_TO_VAL(iface);
 
-	snd_soc_update_bits(codec, CTRL1, FMT_MASK, fmt_ctrl);
-	snd_soc_update_bits(codec, CTRL2, DFS_MASK, ctrl2);
+	snd_soc_component_update_bits(component, CTRL1, FMT_MASK, fmt_ctrl);
+	snd_soc_component_update_bits(component, CTRL2, DFS_MASK, ctrl2);
 
-	snd_soc_update_bits(codec, ICTRL, ICTRL_MASK, priv->ic);
-	snd_soc_update_bits(codec, OCTRL, OCTRL_MASK, priv->oc);
+	snd_soc_component_update_bits(component, ICTRL, ICTRL_MASK, priv->ic);
+	snd_soc_component_update_bits(component, OCTRL, OCTRL_MASK, priv->oc);
 
 hw_params_end:
 	if (ret < 0)
@@ -442,7 +447,7 @@ hw_params_end:
 	return ret;
 }
 
-static int ak4613_set_bias_level(struct snd_soc_codec *codec,
+static int ak4613_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	u8 mgmt1 = 0;
@@ -462,7 +467,78 @@ static int ak4613_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	snd_soc_write(codec, PW_MGMT1, mgmt1);
+	snd_soc_component_write(component, PW_MGMT1, mgmt1);
+
+	return 0;
+}
+
+static void ak4613_dummy_write(struct work_struct *work)
+{
+	struct ak4613_priv *priv = container_of(work,
+						struct ak4613_priv,
+						dummy_write_work);
+	struct snd_soc_component *component = priv->component;
+	unsigned int mgmt1;
+	unsigned int mgmt3;
+
+	/*
+	 * PW_MGMT1 / PW_MGMT3 needs dummy write at least after 5 LR clocks
+	 *
+	 * Note
+	 *
+	 * To avoid extra delay, we want to avoid preemption here,
+	 * but we can't. Because it uses I2C access which is using IRQ
+	 * and sleep. Thus, delay might be more than 5 LR clocks
+	 * see also
+	 *	ak4613_dai_trigger()
+	 */
+	udelay(5000000 / priv->rate);
+
+	snd_soc_component_read(component, PW_MGMT1, &mgmt1);
+	snd_soc_component_read(component, PW_MGMT3, &mgmt3);
+
+	snd_soc_component_write(component, PW_MGMT1, mgmt1);
+	snd_soc_component_write(component, PW_MGMT3, mgmt3);
+}
+
+static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+			      struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
+
+	/*
+	 * FIXME
+	 *
+	 * PW_MGMT1 / PW_MGMT3 needs dummy write at least after 5 LR clocks
+	 * from Power Down Release. Otherwise, Playback volume will be 0dB.
+	 * To avoid complex multiple delay/dummy_write method from
+	 * ak4613_set_bias_level() / SND_SOC_DAPM_DAC_E("DACx", ...),
+	 * call it once here.
+	 *
+	 * But, unfortunately, we can't "write" here because here is atomic
+	 * context (It uses I2C access for writing).
+	 * Thus, use schedule_work() to switching to normal context
+	 * immediately.
+	 *
+	 * Note
+	 *
+	 * Calling ak4613_dummy_write() function might be delayed.
+	 * In such case, ak4613 volume might be temporarily 0dB when
+	 * beggining of playback.
+	 * see also
+	 *	ak4613_dummy_write()
+	 */
+
+	if ((cmd != SNDRV_PCM_TRIGGER_START) &&
+	    (cmd != SNDRV_PCM_TRIGGER_RESUME))
+		return 0;
+
+	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return  0;
+
+	priv->component = component;
+	schedule_work(&priv->dummy_write_work);
 
 	return 0;
 }
@@ -472,6 +548,7 @@ static const struct snd_soc_dai_ops ak4613_dai_ops = {
 	.shutdown	= ak4613_dai_shutdown,
 	.set_sysclk	= ak4613_dai_set_sysclk,
 	.set_fmt	= ak4613_dai_set_fmt,
+	.trigger	= ak4613_dai_trigger,
 	.hw_params	= ak4613_dai_hw_params,
 };
 
@@ -505,35 +582,36 @@ static struct snd_soc_dai_driver ak4613_dai = {
 	.symmetric_rates = 1,
 };
 
-static int ak4613_suspend(struct snd_soc_codec *codec)
+static int ak4613_suspend(struct snd_soc_component *component)
 {
-	struct regmap *regmap = dev_get_regmap(codec->dev, NULL);
+	struct regmap *regmap = dev_get_regmap(component->dev, NULL);
 
 	regcache_cache_only(regmap, true);
 	regcache_mark_dirty(regmap);
 	return 0;
 }
 
-static int ak4613_resume(struct snd_soc_codec *codec)
+static int ak4613_resume(struct snd_soc_component *component)
 {
-	struct regmap *regmap = dev_get_regmap(codec->dev, NULL);
+	struct regmap *regmap = dev_get_regmap(component->dev, NULL);
 
 	regcache_cache_only(regmap, false);
 	return regcache_sync(regmap);
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_ak4613 = {
+static const struct snd_soc_component_driver soc_component_dev_ak4613 = {
 	.suspend		= ak4613_suspend,
 	.resume			= ak4613_resume,
 	.set_bias_level		= ak4613_set_bias_level,
-	.component_driver = {
-		.controls		= ak4613_snd_controls,
-		.num_controls		= ARRAY_SIZE(ak4613_snd_controls),
-		.dapm_widgets		= ak4613_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ak4613_dapm_widgets),
-		.dapm_routes		= ak4613_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(ak4613_intercon),
-	},
+	.controls		= ak4613_snd_controls,
+	.num_controls		= ARRAY_SIZE(ak4613_snd_controls),
+	.dapm_widgets		= ak4613_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4613_dapm_widgets),
+	.dapm_routes		= ak4613_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ak4613_intercon),
+	.idle_bias_on		= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static void ak4613_parse_of(struct ak4613_priv *priv,
@@ -590,6 +668,7 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 	priv->iface		= NULL;
 	priv->cnt		= 0;
 	priv->sysclk		= 0;
+	INIT_WORK(&priv->dummy_write_work, ak4613_dummy_write);
 
 	mutex_init(&priv->lock);
 
@@ -599,13 +678,12 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return snd_soc_register_codec(dev, &soc_codec_dev_ak4613,
+	return devm_snd_soc_register_component(dev, &soc_component_dev_ak4613,
 				      &ak4613_dai, 1);
 }
 
 static int ak4613_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 

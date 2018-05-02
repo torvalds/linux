@@ -221,6 +221,7 @@ static int symbol_valid(struct sym_entry *s)
 
 	static char *special_prefixes[] = {
 		"__crc_",		/* modversions */
+		"__efistub_",		/* arm64 EFI stub namespace */
 		NULL };
 
 	static char *special_suffixes[] = {
@@ -595,7 +596,7 @@ static void optimize_result(void)
 		 * original char code */
 		if (!best_table_len[i]) {
 
-			/* find the token with the breates profit value */
+			/* find the token with the best profit value */
 			best = find_best_token();
 			if (token_profit[best] == 0)
 				break;

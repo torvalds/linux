@@ -44,7 +44,6 @@ struct gfs2_log_header_host {
 	u32 lh_flags;		/* GFS2_LOG_HEAD_... */
 	u32 lh_tail;		/* Block number of log tail */
 	u32 lh_blkno;
-	u32 lh_hash;
 };
 
 /*
@@ -131,15 +130,12 @@ static inline bool gfs2_rbm_eq(const struct gfs2_rbm *rbm1,
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
 	BH_Escaped = BH_PrivateStart + 1,
-	BH_Zeronew = BH_PrivateStart + 2,
 };
 
 BUFFER_FNS(Pinned, pinned)
 TAS_BUFFER_FNS(Pinned, pinned)
 BUFFER_FNS(Escaped, escaped)
 TAS_BUFFER_FNS(Escaped, escaped)
-BUFFER_FNS(Zeronew, zeronew)
-TAS_BUFFER_FNS(Zeronew, zeronew)
 
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
@@ -860,6 +856,11 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 }
 
 extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
+
+static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
+{
+	return GFS2_SB(&ip->i_inode)->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+}
 
 #endif /* __INCORE_DOT_H__ */
 

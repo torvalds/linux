@@ -1072,7 +1072,7 @@ EXPORT_SYMBOL(bch_btree_iter_init);
 static inline struct bkey *__bch_btree_iter_next(struct btree_iter *iter,
 						 btree_iter_cmp_fn *cmp)
 {
-	struct btree_iter_set unused;
+	struct btree_iter_set b __maybe_unused;
 	struct bkey *ret = NULL;
 
 	if (!btree_iter_end(iter)) {
@@ -1087,7 +1087,7 @@ static inline struct bkey *__bch_btree_iter_next(struct btree_iter *iter,
 		}
 
 		if (iter->data->k == iter->data->end)
-			heap_pop(iter, unused, cmp);
+			heap_pop(iter, b, cmp);
 		else
 			heap_sift(iter, 0, cmp);
 	}

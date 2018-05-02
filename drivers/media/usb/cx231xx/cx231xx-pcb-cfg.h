@@ -144,7 +144,7 @@ enum AVDEC_STATUS{
 #define SOURCE_EXTERNAL         0x8
 #define SOURCE_TS_BDA			0x10
 #define SOURCE_TS_ENCODE		0x20
-#define SOURCE_TS_EXTERNAL   	0x40
+#define SOURCE_TS_EXTERNAL	0x40
 
 /***************************************************************************
 				* interface information define *

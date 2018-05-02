@@ -7,6 +7,7 @@
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
+	select DRM_PANEL_ORIENTATION_QUIRKS
 	select HDMI
 	select FB_CMDLINE
 	select I2C
@@ -149,6 +150,10 @@ config DRM_VM
 	bool
 	depends on DRM && MMU
 
+config DRM_SCHED
+	tristate
+	depends on DRM
+
 source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
@@ -178,6 +183,7 @@ config DRM_AMDGPU
 	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
+	select DRM_SCHED
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
@@ -361,6 +367,10 @@ config DRM_SAVAGE
 	  chipset. If M is selected the module will be called savage.
 
 endif # DRM_LEGACY
+
+# Separate option because drm_panel_orientation_quirks.c is shared with fbdev
+config DRM_PANEL_ORIENTATION_QUIRKS
+	tristate
 
 config DRM_LIB_RANDOM
 	bool

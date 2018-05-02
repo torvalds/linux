@@ -56,6 +56,10 @@ static unsigned int hid_jspoll_interval;
 module_param_named(jspoll, hid_jspoll_interval, uint, 0644);
 MODULE_PARM_DESC(jspoll, "Polling interval of joysticks");
 
+static unsigned int hid_kbpoll_interval;
+module_param_named(kbpoll, hid_kbpoll_interval, uint, 0644);
+MODULE_PARM_DESC(kbpoll, "Polling interval of keyboards");
+
 static unsigned int ignoreled;
 module_param_named(ignoreled, ignoreled, uint, 0644);
 MODULE_PARM_DESC(ignoreled, "Autosuspend with active leds");
@@ -978,8 +982,7 @@ static int usbhid_parse(struct hid_device *hid)
 	int num_descriptors;
 	size_t offset = offsetof(struct hid_descriptor, desc);
 
-	quirks = usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
-			le16_to_cpu(dev->descriptor.idProduct));
+	quirks = hid_lookup_quirk(hid);
 
 	if (quirks & HID_QUIRK_IGNORE)
 		return -ENODEV;
@@ -1095,7 +1098,9 @@ static int usbhid_start(struct hid_device *hid)
 				hid->name, endpoint->bInterval, interval);
 		}
 
-		/* Change the polling interval of mice and joysticks. */
+		/* Change the polling interval of mice, joysticks
+		 * and keyboards.
+		 */
 		switch (hid->collection->usage) {
 		case HID_GD_MOUSE:
 			if (hid_mousepoll_interval > 0)
@@ -1104,6 +1109,10 @@ static int usbhid_start(struct hid_device *hid)
 		case HID_GD_JOYSTICK:
 			if (hid_jspoll_interval > 0)
 				interval = hid_jspoll_interval;
+			break;
+		case HID_GD_KEYBOARD:
+			if (hid_kbpoll_interval > 0)
+				interval = hid_kbpoll_interval;
 			break;
 		}
 
@@ -1328,8 +1337,8 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	hid->bus = BUS_USB;
 	hid->vendor = le16_to_cpu(dev->descriptor.idVendor);
 	hid->product = le16_to_cpu(dev->descriptor.idProduct);
+	hid->version = le16_to_cpu(dev->descriptor.bcdDevice);
 	hid->name[0] = 0;
-	hid->quirks = usbhid_lookup_quirk(hid->vendor, hid->product);
 	if (intf->cur_altsetting->desc.bInterfaceProtocol ==
 			USB_INTERFACE_PROTOCOL_MOUSE)
 		hid->type = HID_TYPE_USBMOUSE;
@@ -1641,7 +1650,7 @@ static int __init hid_init(void)
 {
 	int retval = -ENOMEM;
 
-	retval = usbhid_quirks_init(quirks_param);
+	retval = hid_quirks_init(quirks_param, BUS_USB, MAX_USBHID_BOOT_QUIRKS);
 	if (retval)
 		goto usbhid_quirks_init_fail;
 	retval = usb_register(&hid_driver);
@@ -1651,7 +1660,7 @@ static int __init hid_init(void)
 
 	return 0;
 usb_register_fail:
-	usbhid_quirks_exit();
+	hid_quirks_exit(BUS_USB);
 usbhid_quirks_init_fail:
 	return retval;
 }
@@ -1659,7 +1668,7 @@ usbhid_quirks_init_fail:
 static void __exit hid_exit(void)
 {
 	usb_deregister(&hid_driver);
-	usbhid_quirks_exit();
+	hid_quirks_exit(BUS_USB);
 }
 
 module_init(hid_init);

@@ -159,7 +159,7 @@ struct tipc_bearer {
 	u32 tolerance;
 	u32 domain;
 	u32 identity;
-	struct tipc_link_req *link_req;
+	struct tipc_discoverer *disc;
 	char net_plane;
 	unsigned long up;
 };
@@ -188,15 +188,19 @@ extern struct tipc_media udp_media_info;
 #endif
 
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_nl_media_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);

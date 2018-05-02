@@ -1,16 +1,8 @@
 /*
- *  tm6000-buf.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+ * SPDX-License-Identifier: GPL-2.0
+ * tm6000-buf.c - driver for TM5600/TM6000/TM6010 USB video capture devices
  *
- *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
 #include <linux/videodev2.h>

@@ -413,12 +413,14 @@ struct dc_cursor_mi_param {
 enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
-	GAMMA_MAX_ENTRIES = 1024
+	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_MAX_ENTRIES = 4096
 };
 
 enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
-	GAMMA_RGB_FLOAT_1024 = 2
+	GAMMA_RGB_FLOAT_1024 = 2,
+	GAMMA_CS_TFM_1D = 3,
 };
 
 struct dc_gamma {
@@ -434,6 +436,8 @@ struct dc_gamma {
 
 	/* private to DC core */
 	struct dc_context *ctx;
+
+	bool is_identity;
 };
 
 /* Used by both ipp amd opp functions*/
@@ -492,15 +496,24 @@ struct dc_cursor_attributes {
 enum dc_color_space {
 	COLOR_SPACE_UNKNOWN,
 	COLOR_SPACE_SRGB,
+	COLOR_SPACE_XR_RGB,
 	COLOR_SPACE_SRGB_LIMITED,
+	COLOR_SPACE_MSREF_SCRGB,
 	COLOR_SPACE_YCBCR601,
 	COLOR_SPACE_YCBCR709,
+	COLOR_SPACE_XV_YCC_709,
+	COLOR_SPACE_XV_YCC_601,
 	COLOR_SPACE_YCBCR601_LIMITED,
 	COLOR_SPACE_YCBCR709_LIMITED,
 	COLOR_SPACE_2020_RGB_FULLRANGE,
 	COLOR_SPACE_2020_RGB_LIMITEDRANGE,
 	COLOR_SPACE_2020_YCBCR,
 	COLOR_SPACE_ADOBERGB,
+	COLOR_SPACE_DCIP3,
+	COLOR_SPACE_DISPLAYNATIVE,
+	COLOR_SPACE_DOLBYVISION,
+	COLOR_SPACE_APPCTRL,
+	COLOR_SPACE_CUSTOMPOINTS,
 };
 
 enum dc_dither_option {
@@ -569,8 +582,6 @@ enum dc_timing_standard {
 	/*!< For mode timing override by user*/
 	TIMING_STANDARD_MAX
 };
-
-
 
 enum dc_color_depth {
 	COLOR_DEPTH_UNDEFINED,
@@ -664,9 +675,35 @@ enum dc_timing_3d_format {
 	TIMING_3D_FORMAT_MAX,
 };
 
+enum trigger_delay {
+	TRIGGER_DELAY_NEXT_PIXEL = 0,
+	TRIGGER_DELAY_NEXT_LINE,
+};
+
+enum crtc_event {
+	CRTC_EVENT_VSYNC_RISING = 0,
+	CRTC_EVENT_VSYNC_FALLING
+};
+
+struct crtc_trigger_info {
+	bool enabled;
+	struct dc_stream_state *event_source;
+	enum crtc_event event;
+	enum trigger_delay delay;
+};
+
+enum vrr_state {
+	VRR_STATE_OFF = 0,
+	VRR_STATE_VARIABLE,
+	VRR_STATE_FIXED,
+};
+
+struct dc_crtc_timing_adjust {
+	uint32_t v_total_min;
+	uint32_t v_total_max;
+};
 
 struct dc_crtc_timing {
-
 	uint32_t h_total;
 	uint32_t h_border_left;
 	uint32_t h_addressable;

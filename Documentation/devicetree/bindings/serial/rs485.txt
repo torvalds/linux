@@ -12,6 +12,7 @@ Optional properties:
   * b is the delay between end of data sent and rts signal in milliseconds
       it corresponds to the delay after sending data and actual release of the line.
   If this property is not specified, <0 0> is assumed.
+- rs485-rts-active-low: drive RTS low when sending (default is high).
 - linux,rs485-enabled-at-boot-time: empty property telling to enable the rs485
   feature at boot time. It can be disabled later with proper ioctl.
 - rs485-rx-during-tx: empty property that enables the receiving of data even

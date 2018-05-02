@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
+#include <linux/syscalls.h>
 #include <asm/machvec.h>
 
 #include "proto.h"
@@ -409,8 +410,8 @@ alloc_resource(void)
 /* Provide information on locations of various I/O regions in physical
    memory.  Do this on a per-card basis so that we choose the right hose.  */
 
-asmlinkage long
-sys_pciconfig_iobase(long which, unsigned long bus, unsigned long dfn)
+SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
+		unsigned long, dfn)
 {
 	struct pci_controller *hose;
 	struct pci_dev *dev;
@@ -425,7 +426,7 @@ sys_pciconfig_iobase(long which, unsigned long bus, unsigned long dfn)
 		if (bus == 0 && dfn == 0) {
 			hose = pci_isa_hose;
 		} else {
-			dev = pci_get_bus_and_slot(bus, dfn);
+			dev = pci_get_domain_bus_and_slot(0, bus, dfn);
 			if (!dev)
 				return -ENODEV;
 			hose = dev->sysdata;

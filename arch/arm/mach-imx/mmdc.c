@@ -269,7 +269,7 @@ static bool mmdc_pmu_group_is_valid(struct perf_event *event)
 			return false;
 	}
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(sibling, leader) {
 		if (!mmdc_pmu_group_event_is_valid(sibling, pmu, &counter_mask))
 			return false;
 	}
@@ -547,7 +547,6 @@ static int imx_mmdc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	void __iomem *mmdc_base, *reg;
 	u32 val;
-	int timeout = 0x400;
 
 	mmdc_base = of_iomap(np, 0);
 	WARN_ON(!mmdc_base);
@@ -564,16 +563,6 @@ static int imx_mmdc_probe(struct platform_device *pdev)
 	val = readl_relaxed(reg);
 	val &= ~(1 << BP_MMDC_MAPSR_PSD);
 	writel_relaxed(val, reg);
-
-	/* Ensure it's successfully enabled */
-	while (!(readl_relaxed(reg) & 1 << BP_MMDC_MAPSR_PSS) && --timeout)
-		cpu_relax();
-
-	if (unlikely(!timeout)) {
-		pr_warn("%s: failed to enable automatic power saving\n",
-			__func__);
-		return -EBUSY;
-	}
 
 	return imx_mmdc_perf_init(pdev, mmdc_base);
 }

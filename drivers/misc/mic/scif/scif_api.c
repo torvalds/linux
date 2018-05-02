@@ -1311,10 +1311,10 @@ static inline void _scif_poll_wait(struct file *f, wait_queue_head_t *wq,
 	spin_lock(&ep->lock);
 }
 
-unsigned int
+__poll_t
 __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	dev_dbg(scif_info.mdev.this_device,
 		"SCIFAPI pollfd: ep %p %s\n", ep, scif_ep_states[ep->state]);
@@ -1328,7 +1328,7 @@ __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 			if (ep->state == SCIFEP_CONNECTED ||
 			    ep->state == SCIFEP_DISCONNECTED ||
 			    ep->conn_err)
-				mask |= POLLOUT;
+				mask |= EPOLLOUT;
 			goto exit;
 		}
 	}
@@ -1338,34 +1338,34 @@ __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 		_scif_poll_wait(f, &ep->conwq, wait, ep);
 		if (ep->state == SCIFEP_LISTENING) {
 			if (ep->conreqcnt)
-				mask |= POLLIN;
+				mask |= EPOLLIN;
 			goto exit;
 		}
 	}
 
 	/* Endpoint is connected or disconnected */
 	if (ep->state == SCIFEP_CONNECTED || ep->state == SCIFEP_DISCONNECTED) {
-		if (poll_requested_events(wait) & POLLIN)
+		if (poll_requested_events(wait) & EPOLLIN)
 			_scif_poll_wait(f, &ep->recvwq, wait, ep);
-		if (poll_requested_events(wait) & POLLOUT)
+		if (poll_requested_events(wait) & EPOLLOUT)
 			_scif_poll_wait(f, &ep->sendwq, wait, ep);
 		if (ep->state == SCIFEP_CONNECTED ||
 		    ep->state == SCIFEP_DISCONNECTED) {
 			/* Data can be read without blocking */
 			if (scif_rb_count(&ep->qp_info.qp->inbound_q, 1))
-				mask |= POLLIN;
+				mask |= EPOLLIN;
 			/* Data can be written without blocking */
 			if (scif_rb_space(&ep->qp_info.qp->outbound_q))
-				mask |= POLLOUT;
-			/* Return POLLHUP if endpoint is disconnected */
+				mask |= EPOLLOUT;
+			/* Return EPOLLHUP if endpoint is disconnected */
 			if (ep->state == SCIFEP_DISCONNECTED)
-				mask |= POLLHUP;
+				mask |= EPOLLHUP;
 			goto exit;
 		}
 	}
 
-	/* Return POLLERR if the endpoint is in none of the above states */
-	mask |= POLLERR;
+	/* Return EPOLLERR if the endpoint is in none of the above states */
+	mask |= EPOLLERR;
 exit:
 	spin_unlock(&ep->lock);
 	return mask;
@@ -1389,7 +1389,8 @@ scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
 {
 	struct poll_wqueues table;
 	poll_table *pt;
-	int i, mask, count = 0, timed_out = timeout_msecs == 0;
+	int i, count = 0, timed_out = timeout_msecs == 0;
+	__poll_t mask;
 	u64 timeout = timeout_msecs < 0 ? MAX_SCHEDULE_TIMEOUT
 		: msecs_to_jiffies(timeout_msecs);
 
@@ -1397,10 +1398,10 @@ scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
 	pt = &table.pt;
 	while (1) {
 		for (i = 0; i < nfds; i++) {
-			pt->_key = ufds[i].events | POLLERR | POLLHUP;
+			pt->_key = ufds[i].events | EPOLLERR | EPOLLHUP;
 			mask = __scif_pollfd(ufds[i].epd->anon,
 					     pt, ufds[i].epd);
-			mask &= ufds[i].events | POLLERR | POLLHUP;
+			mask &= ufds[i].events | EPOLLERR | EPOLLHUP;
 			if (mask) {
 				count++;
 				pt->_qproc = NULL;

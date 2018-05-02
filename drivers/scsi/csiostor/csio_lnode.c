@@ -114,7 +114,7 @@ static enum csio_ln_ev fwevt_to_lnevt[] = {
 static struct csio_lnode *
 csio_ln_lookup_by_portid(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln = hw->rln;
+	struct csio_lnode *ln;
 	struct list_head *tmp;
 
 	/* Match siblings lnode with portid */
@@ -352,6 +352,14 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 		val = htonl(FC_PORTSPEED_1GBIT);
 	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP_SPEED_10G)
 		val = htonl(FC_PORTSPEED_10GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_25G)
+		val = htonl(FC_PORTSPEED_25GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_40G)
+		val = htonl(FC_PORTSPEED_40GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_50G)
+		val = htonl(FC_PORTSPEED_50GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_100G)
+		val = htonl(FC_PORTSPEED_100GBIT);
 	else
 		val = htonl(CSIO_HBA_PORTSPEED_UNKNOWN);
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_CURRENTPORTSPEED,

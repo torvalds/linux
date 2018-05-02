@@ -45,16 +45,16 @@ static inline void append_dec_op1(u32 *desc, u32 type)
  * cnstr_shdsc_aead_null_encap - IPSec ESP encapsulation shared descriptor
  *                               (non-protocol) with no (null) encryption.
  * @desc: pointer to buffer used for descriptor construction
- * @adata: pointer to authentication transform definitions. Note that since a
- *         split key is to be used, the size of the split key itself is
- *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
- *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @adata: pointer to authentication transform definitions.
+ *         A split key is required for SEC Era < 6; the size of the split key
+ *         is specified in this case. Valid algorithm values - one of
+ *         OP_ALG_ALGSEL_{MD5, SHA1, SHA224, SHA256, SHA384, SHA512} ANDed
+ *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @icvsize: integrity check value (ICV) size (truncated or full)
- *
- * Note: Requires an MDHA split key.
+ * @era: SEC Era
  */
 void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
-				 unsigned int icvsize)
+				 unsigned int icvsize, int era)
 {
 	u32 *key_jump_cmd, *read_move_cmd, *write_move_cmd;
 
@@ -63,13 +63,18 @@ void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (adata->key_inline)
-		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
-				  adata->keylen, CLASS_2 | KEY_DEST_MDHA_SPLIT |
-				  KEY_ENC);
-	else
-		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	if (era < 6) {
+		if (adata->key_inline)
+			append_key_as_imm(desc, adata->key_virt,
+					  adata->keylen_pad, adata->keylen,
+					  CLASS_2 | KEY_DEST_MDHA_SPLIT |
+					  KEY_ENC);
+		else
+			append_key(desc, adata->key_dma, adata->keylen,
+				   CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	} else {
+		append_proto_dkp(desc, adata);
+	}
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* assoclen + cryptlen = seqinlen */
@@ -121,16 +126,16 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_null_encap);
  * cnstr_shdsc_aead_null_decap - IPSec ESP decapsulation shared descriptor
  *                               (non-protocol) with no (null) decryption.
  * @desc: pointer to buffer used for descriptor construction
- * @adata: pointer to authentication transform definitions. Note that since a
- *         split key is to be used, the size of the split key itself is
- *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
- *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @adata: pointer to authentication transform definitions.
+ *         A split key is required for SEC Era < 6; the size of the split key
+ *         is specified in this case. Valid algorithm values - one of
+ *         OP_ALG_ALGSEL_{MD5, SHA1, SHA224, SHA256, SHA384, SHA512} ANDed
+ *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @icvsize: integrity check value (ICV) size (truncated or full)
- *
- * Note: Requires an MDHA split key.
+ * @era: SEC Era
  */
 void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
-				 unsigned int icvsize)
+				 unsigned int icvsize, int era)
 {
 	u32 *key_jump_cmd, *read_move_cmd, *write_move_cmd, *jump_cmd;
 
@@ -139,13 +144,18 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	if (adata->key_inline)
-		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
-				  adata->keylen, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	else
-		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	if (era < 6) {
+		if (adata->key_inline)
+			append_key_as_imm(desc, adata->key_virt,
+					  adata->keylen_pad, adata->keylen,
+					  CLASS_2 | KEY_DEST_MDHA_SPLIT |
+					  KEY_ENC);
+		else
+			append_key(desc, adata->key_dma, adata->keylen,
+				   CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	} else {
+		append_proto_dkp(desc, adata);
+	}
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Class 2 operation */
@@ -204,7 +214,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_null_decap);
 static void init_sh_desc_key_aead(u32 * const desc,
 				  struct alginfo * const cdata,
 				  struct alginfo * const adata,
-				  const bool is_rfc3686, u32 *nonce)
+				  const bool is_rfc3686, u32 *nonce, int era)
 {
 	u32 *key_jump_cmd;
 	unsigned int enckeylen = cdata->keylen;
@@ -224,13 +234,18 @@ static void init_sh_desc_key_aead(u32 * const desc,
 	if (is_rfc3686)
 		enckeylen -= CTR_RFC3686_NONCE_SIZE;
 
-	if (adata->key_inline)
-		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
-				  adata->keylen, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	else
-		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	if (era < 6) {
+		if (adata->key_inline)
+			append_key_as_imm(desc, adata->key_virt,
+					  adata->keylen_pad, adata->keylen,
+					  CLASS_2 | KEY_DEST_MDHA_SPLIT |
+					  KEY_ENC);
+		else
+			append_key(desc, adata->key_dma, adata->keylen,
+				   CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	} else {
+		append_proto_dkp(desc, adata);
+	}
 
 	if (cdata->key_inline)
 		append_key_as_imm(desc, cdata->key_virt, enckeylen,
@@ -261,26 +276,27 @@ static void init_sh_desc_key_aead(u32 * const desc,
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
  *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
- * @adata: pointer to authentication transform definitions. Note that since a
- *         split key is to be used, the size of the split key itself is
- *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
- *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @adata: pointer to authentication transform definitions.
+ *         A split key is required for SEC Era < 6; the size of the split key
+ *         is specified in this case. Valid algorithm values - one of
+ *         OP_ALG_ALGSEL_{MD5, SHA1, SHA224, SHA256, SHA384, SHA512} ANDed
+ *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
- *
- * Note: Requires an MDHA split key.
+ * @era: SEC Era
  */
 void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool is_rfc3686,
-			    u32 *nonce, const u32 ctx1_iv_off, const bool is_qi)
+			    u32 *nonce, const u32 ctx1_iv_off, const bool is_qi,
+			    int era)
 {
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
 
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
@@ -306,8 +322,13 @@ void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 	}
 
 	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	if (is_qi || era < 3) {
+		append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	} else {
+		append_math_add(desc, VARSEQINLEN, ZERO, DPOVRD, CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, ZERO, DPOVRD, CAAM_CMD_SZ);
+	}
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
@@ -350,27 +371,27 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
  *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
- * @adata: pointer to authentication transform definitions. Note that since a
- *         split key is to be used, the size of the split key itself is
- *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
- *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @adata: pointer to authentication transform definitions.
+ *         A split key is required for SEC Era < 6; the size of the split key
+ *         is specified in this case. Valid algorithm values - one of
+ *         OP_ALG_ALGSEL_{MD5, SHA1, SHA224, SHA256, SHA384, SHA512} ANDed
+ *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
- *
- * Note: Requires an MDHA split key.
+ * @era: SEC Era
  */
 void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool geniv,
 			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off, const bool is_qi)
+			    const u32 ctx1_iv_off, const bool is_qi, int era)
 {
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
 
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
@@ -397,11 +418,23 @@ void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 	}
 
 	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	if (geniv)
-		append_math_add_imm_u32(desc, VARSEQOUTLEN, REG3, IMM, ivsize);
-	else
-		append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	if (is_qi || era < 3) {
+		append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+		if (geniv)
+			append_math_add_imm_u32(desc, VARSEQOUTLEN, REG3, IMM,
+						ivsize);
+		else
+			append_math_add(desc, VARSEQOUTLEN, ZERO, REG3,
+					CAAM_CMD_SZ);
+	} else {
+		append_math_add(desc, VARSEQINLEN, ZERO, DPOVRD, CAAM_CMD_SZ);
+		if (geniv)
+			append_math_add_imm_u32(desc, VARSEQOUTLEN, DPOVRD, IMM,
+						ivsize);
+		else
+			append_math_add(desc, VARSEQOUTLEN, ZERO, DPOVRD,
+					CAAM_CMD_SZ);
+	}
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
@@ -456,29 +489,29 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_decap);
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
  *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
- * @adata: pointer to authentication transform definitions. Note that since a
- *         split key is to be used, the size of the split key itself is
- *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
- *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @adata: pointer to authentication transform definitions.
+ *         A split key is required for SEC Era < 6; the size of the split key
+ *         is specified in this case. Valid algorithm values - one of
+ *         OP_ALG_ALGSEL_{MD5, SHA1, SHA224, SHA256, SHA384, SHA512} ANDed
+ *         with OP_ALG_AAI_HMAC_PRECOMP.
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
- *
- * Note: Requires an MDHA split key.
+ * @era: SEC Era
  */
 void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       struct alginfo *adata, unsigned int ivsize,
 			       unsigned int icvsize, const bool is_rfc3686,
 			       u32 *nonce, const u32 ctx1_iv_off,
-			       const bool is_qi)
+			       const bool is_qi, int era)
 {
 	u32 geniv, moveiv;
 
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
 
 	if (is_qi) {
 		u32 *wait_load_cmd;
@@ -528,8 +561,13 @@ copy_iv:
 			 OP_ALG_ENCRYPT);
 
 	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	if (is_qi || era < 3) {
+		append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	} else {
+		append_math_add(desc, VARSEQINLEN, ZERO, DPOVRD, CAAM_CMD_SZ);
+		append_math_add(desc, VARSEQOUTLEN, ZERO, DPOVRD, CAAM_CMD_SZ);
+	}
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
@@ -587,10 +625,13 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_givencap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
-			   unsigned int icvsize)
+			   unsigned int ivsize, unsigned int icvsize,
+			   const bool is_qi)
 {
 	u32 *key_jump_cmd, *zero_payload_jump_cmd, *zero_assoc_jump_cmd1,
 	    *zero_assoc_jump_cmd2;
@@ -612,10 +653,34 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_ENCRYPT);
 
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		append_math_sub_imm_u32(desc, VARSEQOUTLEN, SEQINLEN, IMM,
+					ivsize);
+	} else {
+		append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0,
+				CAAM_CMD_SZ);
+	}
+
 	/* if assoclen + cryptlen is ZERO, skip to ICV write */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
 	zero_assoc_jump_cmd2 = append_jump(desc, JUMP_TEST_ALL |
 						 JUMP_COND_MATH_Z);
+
+	if (is_qi)
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
 
 	/* if assoclen is ZERO, skip reading the assoc data */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -648,8 +713,11 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
 
-	/* jump the zero-payload commands */
-	append_jump(desc, JUMP_TEST_ALL | 2);
+	/* jump to ICV writing */
+	if (is_qi)
+		append_jump(desc, JUMP_TEST_ALL | 4);
+	else
+		append_jump(desc, JUMP_TEST_ALL | 2);
 
 	/* zero-payload commands */
 	set_jump_tgt_here(desc, zero_payload_jump_cmd);
@@ -657,9 +725,17 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 	/* read assoc data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_LAST1);
+	if (is_qi)
+		/* jump to ICV writing */
+		append_jump(desc, JUMP_TEST_ALL | 2);
 
 	/* There is no input data */
 	set_jump_tgt_here(desc, zero_assoc_jump_cmd2);
+
+	if (is_qi)
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1 |
+				     FIFOLD_TYPE_LAST1);
 
 	/* write ICV */
 	append_seq_store(desc, icvsize, LDST_CLASS_1_CCB |
@@ -677,10 +753,13 @@ EXPORT_SYMBOL(cnstr_shdsc_gcm_encap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
-			   unsigned int icvsize)
+			   unsigned int ivsize, unsigned int icvsize,
+			   const bool is_qi)
 {
 	u32 *key_jump_cmd, *zero_payload_jump_cmd, *zero_assoc_jump_cmd1;
 
@@ -700,6 +779,24 @@ void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
 	/* class 1 operation */
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
+	}
 
 	/* if assoclen is ZERO, skip reading the assoc data */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -753,10 +850,13 @@ EXPORT_SYMBOL(cnstr_shdsc_gcm_decap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
-			       unsigned int icvsize)
+			       unsigned int ivsize, unsigned int icvsize,
+			       const bool is_qi)
 {
 	u32 *key_jump_cmd;
 
@@ -777,7 +877,29 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_ENCRYPT);
 
-	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		/* Read salt and IV */
+		append_fifo_load_as_imm(desc, (void *)(cdata->key_virt +
+					cdata->keylen), 4, FIFOLD_CLASS_CLASS1 |
+					FIFOLD_TYPE_IV);
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
+	}
+
+	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, ivsize);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
 
 	/* Read assoc data */
@@ -785,7 +907,7 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
 
 	/* Skip IV */
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
+	append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_SKIP);
 
 	/* Will read cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -824,10 +946,13 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4106_encap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
-			       unsigned int icvsize)
+			       unsigned int ivsize, unsigned int icvsize,
+			       const bool is_qi)
 {
 	u32 *key_jump_cmd;
 
@@ -849,7 +974,29 @@ void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
-	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		/* Read salt and IV */
+		append_fifo_load_as_imm(desc, (void *)(cdata->key_virt +
+					cdata->keylen), 4, FIFOLD_CLASS_CLASS1 |
+					FIFOLD_TYPE_IV);
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
+	}
+
+	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, ivsize);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
 
 	/* Read assoc data */
@@ -857,7 +1004,7 @@ void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
 
 	/* Skip IV */
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
+	append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_SKIP);
 
 	/* Will read cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG3, CAAM_CMD_SZ);
@@ -896,10 +1043,13 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4106_decap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
-			       unsigned int icvsize)
+			       unsigned int ivsize, unsigned int icvsize,
+			       const bool is_qi)
 {
 	u32 *key_jump_cmd, *read_move_cmd, *write_move_cmd;
 
@@ -919,6 +1069,18 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 	/* Class 1 operation */
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_ENCRYPT);
+
+	if (is_qi) {
+		/* assoclen is not needed, skip it */
+		append_seq_fifo_load(desc, 4, FIFOLD_CLASS_SKIP);
+
+		/* Read salt and IV */
+		append_fifo_load_as_imm(desc, (void *)(cdata->key_virt +
+					cdata->keylen), 4, FIFOLD_CLASS_CLASS1 |
+					FIFOLD_TYPE_IV);
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
+	}
 
 	/* assoclen + cryptlen = seqinlen */
 	append_math_sub(desc, REG3, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -966,10 +1128,13 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4543_encap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
-			       unsigned int icvsize)
+			       unsigned int ivsize, unsigned int icvsize,
+			       const bool is_qi)
 {
 	u32 *key_jump_cmd, *read_move_cmd, *write_move_cmd;
 
@@ -989,6 +1154,18 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	/* Class 1 operation */
 	append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+
+	if (is_qi) {
+		/* assoclen is not needed, skip it */
+		append_seq_fifo_load(desc, 4, FIFOLD_CLASS_SKIP);
+
+		/* Read salt and IV */
+		append_fifo_load_as_imm(desc, (void *)(cdata->key_virt +
+					cdata->keylen), 4, FIFOLD_CLASS_CLASS1 |
+					FIFOLD_TYPE_IV);
+		append_seq_fifo_load(desc, ivsize, FIFOLD_CLASS_CLASS1 |
+				     FIFOLD_TYPE_IV | FIFOLD_TYPE_FLUSH1);
+	}
 
 	/* assoclen + cryptlen = seqoutlen */
 	append_math_sub(desc, REG3, SEQOUTLEN, REG0, CAAM_CMD_SZ);
@@ -1075,7 +1252,7 @@ void cnstr_shdsc_ablkcipher_encap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1140,7 +1317,7 @@ void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1209,7 +1386,7 @@ void cnstr_shdsc_ablkcipher_givencap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load Nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |

@@ -125,7 +125,7 @@
 #define		CODA9_MODE_ENCODE_H264		8
 #define		CODA9_MODE_ENCODE_MP4		11
 #define		CODA9_MODE_ENCODE_MJPG		13
-#define 	CODA_MODE_INVALID		0xffff
+#define		CODA_MODE_INVALID		0xffff
 #define CODA_REG_BIT_INT_ENABLE		0x170
 #define		CODA_INT_INTERRUPT_ENABLE	(1 << 3)
 #define CODA_REG_BIT_INT_REASON			0x174
@@ -254,7 +254,6 @@
 #define		CODA9_STD_H264					0
 #define		CODA_STD_H263					1
 #define		CODA_STD_H264					2
-#define		CODA_STD_MJPG					3
 #define		CODA9_STD_MPEG4					3
 
 #define CODA_CMD_ENC_SEQ_SRC_SIZE				0x190

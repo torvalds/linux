@@ -36,6 +36,18 @@
 				status = "okay";
 			};
 
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usart0: serial@fffb0000 {
 				status = "okay";
 			};

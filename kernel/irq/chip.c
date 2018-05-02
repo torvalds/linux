@@ -1,13 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/irq/chip.c
- *
  * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
  * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
  *
- * This file contains the core interrupt handling code, for irq-chip
- * based architectures.
- *
- * Detailed information is available in Documentation/core-api/genericirq.rst
+ * This file contains the core interrupt handling code, for irq-chip based
+ * architectures. Detailed information is available in
+ * Documentation/core-api/genericirq.rst
  */
 
 #include <linux/irq.h>
@@ -294,11 +292,11 @@ int irq_activate(struct irq_desc *desc)
 	return 0;
 }
 
-void irq_activate_and_startup(struct irq_desc *desc, bool resend)
+int irq_activate_and_startup(struct irq_desc *desc, bool resend)
 {
 	if (WARN_ON(irq_activate(desc)))
-		return;
-	irq_startup(desc, resend, IRQ_START_FORCE);
+		return 0;
+	return irq_startup(desc, resend, IRQ_START_FORCE);
 }
 
 static void __irq_disable(struct irq_desc *desc, bool mask);

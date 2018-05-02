@@ -1,21 +1,6 @@
-/***********************************************************************
- *
- * Copyright(c) 2013 Mauro Carvalho Chehab
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- ***********************************************************************/
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright(c) 2013 Mauro Carvalho Chehab
 
 #include "smscoreapi.h"
 
@@ -26,10 +11,10 @@
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 
 #include "smsdvb.h"
 
@@ -374,7 +359,7 @@ exit:
 	return rc;
 }
 
-static unsigned int smsdvb_stats_poll(struct file *file, poll_table *wait)
+static __poll_t smsdvb_stats_poll(struct file *file, poll_table *wait)
 {
 	struct smsdvb_debugfs *debug_data = file->private_data;
 	int rc;
@@ -384,12 +369,9 @@ static unsigned int smsdvb_stats_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &debug_data->stats_queue, wait);
 
 	rc = smsdvb_stats_wait_read(debug_data);
-	if (rc > 0)
-		rc = POLLIN | POLLRDNORM;
-
 	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
 
-	return rc;
+	return rc > 0 ? EPOLLIN | EPOLLRDNORM : 0;
 }
 
 static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,

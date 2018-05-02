@@ -15,6 +15,7 @@
  */
 
 #define _GNU_SOURCE
+#include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,6 +34,11 @@
 #define VSX_UNA_EXCEPTION	2
 
 #define NUM_EXCEPTIONS		3
+#define err_at_line(status, errnum, format, ...) \
+	error_at_line(status, errnum,  __FILE__, __LINE__, format ##__VA_ARGS__)
+
+#define pr_warn(code, format, ...) err_at_line(0, code, format, ##__VA_ARGS__)
+#define pr_err(code, format, ...) err_at_line(1, code, format, ##__VA_ARGS__)
 
 struct Flags {
 	int touch_fp;
@@ -74,7 +80,7 @@ bool is_failure(uint64_t condition_reg)
 	return ((condition_reg >> 28) & 0xa) == 0xa;
 }
 
-void *ping(void *input)
+void *tm_una_ping(void *input)
 {
 
 	/*
@@ -274,7 +280,7 @@ void *ping(void *input)
 }
 
 /* Thread to force context switch */
-void *pong(void *not_used)
+void *tm_una_pong(void *not_used)
 {
 	/* Wait thread get its name "pong". */
 	if (DEBUG)
@@ -303,10 +309,19 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	 * checking if the failure cause is the one we expect.
 	 */
 	do {
-		/* Bind 'ping' to CPU 0, as specified in 'attr'. */
-		pthread_create(&t0, attr, ping, (void *) &flags);
-		pthread_setname_np(t0, "ping");
-		pthread_join(t0, &ret_value);
+		int rc;
+
+		/* Bind to CPU 0, as specified in 'attr'. */
+		rc = pthread_create(&t0, attr, tm_una_ping, (void *) &flags);
+		if (rc)
+			pr_err(rc, "pthread_create()");
+		rc = pthread_setname_np(t0, "tm_una_ping");
+		if (rc)
+			pr_warn(rc, "pthread_setname_np");
+		rc = pthread_join(t0, &ret_value);
+		if (rc)
+			pr_err(rc, "pthread_join");
+
 		retries--;
 	} while (ret_value != NULL && retries);
 
@@ -318,25 +333,37 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	}
 }
 
-int main(int argc, char **argv)
+int tm_unavailable_test(void)
 {
-	int exception; /* FP = 0, VEC = 1, VSX = 2 */
+	int rc, exception; /* FP = 0, VEC = 1, VSX = 2 */
 	pthread_t t1;
 	pthread_attr_t attr;
 	cpu_set_t cpuset;
+
+	SKIP_IF(!have_htm());
 
 	/* Set only CPU 0 in the mask. Both threads will be bound to CPU 0. */
 	CPU_ZERO(&cpuset);
 	CPU_SET(0, &cpuset);
 
 	/* Init pthread attribute. */
-	pthread_attr_init(&attr);
+	rc = pthread_attr_init(&attr);
+	if (rc)
+		pr_err(rc, "pthread_attr_init()");
 
 	/* Set CPU 0 mask into the pthread attribute. */
-	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+	rc = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+	if (rc)
+		pr_err(rc, "pthread_attr_setaffinity_np()");
 
-	pthread_create(&t1, &attr /* Bind 'pong' to CPU 0 */, pong, NULL);
-	pthread_setname_np(t1, "pong"); /* Name it for systemtap convenience */
+	rc = pthread_create(&t1, &attr /* Bind to CPU 0 */, tm_una_pong, NULL);
+	if (rc)
+		pr_err(rc, "pthread_create()");
+
+	/* Name it for systemtap convenience */
+	rc = pthread_setname_np(t1, "tm_una_pong");
+	if (rc)
+		pr_warn(rc, "pthread_create()");
 
 	flags.result = 0;
 
@@ -368,4 +395,10 @@ int main(int argc, char **argv)
 		printf("result: success\n");
 		exit(0);
 	}
+}
+
+int main(int argc, char **argv)
+{
+	test_harness_set_timeout(220);
+	return test_harness(tm_unavailable_test, "tm_unavailable_test");
 }

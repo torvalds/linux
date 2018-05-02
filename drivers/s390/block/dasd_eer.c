@@ -661,9 +661,9 @@ static ssize_t dasd_eer_read(struct file *filp, char __user *buf,
 	return effective_count;
 }
 
-static unsigned int dasd_eer_poll(struct file *filp, poll_table *ptable)
+static __poll_t dasd_eer_poll(struct file *filp, poll_table *ptable)
 {
-	unsigned int mask;
+	__poll_t mask;
 	unsigned long flags;
 	struct eerbuffer *eerb;
 
@@ -671,7 +671,7 @@ static unsigned int dasd_eer_poll(struct file *filp, poll_table *ptable)
 	poll_wait(filp, &dasd_eer_read_wait_queue, ptable);
 	spin_lock_irqsave(&bufferlock, flags);
 	if (eerb->head != eerb->tail)
-		mask = POLLIN | POLLRDNORM ;
+		mask = EPOLLIN | EPOLLRDNORM ;
 	else
 		mask = 0;
 	spin_unlock_irqrestore(&bufferlock, flags);

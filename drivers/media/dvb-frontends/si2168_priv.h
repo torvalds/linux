@@ -18,7 +18,7 @@
 #define SI2168_PRIV_H
 
 #include "si2168.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include <linux/firmware.h>
 #include <linux/i2c-mux.h>
 #include <linux/kernel.h>
@@ -48,6 +48,7 @@ struct si2168_dev {
 	u8 ts_mode;
 	bool ts_clock_inv;
 	bool ts_clock_gapped;
+	bool spectral_inversion;
 };
 
 /* firmware command struct */

@@ -84,6 +84,16 @@ config OMAP_GPMC_DEBUG
 	  bootloader or else the GPMC timings won't be identical with the
 	  bootloader timings.
 
+config TI_EMIF_SRAM
+	tristate "Texas Instruments EMIF SRAM driver"
+	depends on (SOC_AM33XX || SOC_AM43XX) && SRAM
+	help
+	  This driver is for the EMIF module available on Texas Instruments
+	  AM33XX and AM43XX SoCs and is required for PM. Certain parts of
+	  the EMIF PM code must run from on-chip SRAM late in the suspend
+	  sequence so this driver provides several relocatable PM functions
+	  for the SoC PM code to use.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y

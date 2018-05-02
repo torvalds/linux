@@ -45,6 +45,8 @@ qla4_8xxx_pci_base_offsetfset(struct scsi_qla_host *ha, unsigned long off)
 	return NULL;
 }
 
+static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8,
+				0x410000AC, 0x410000B8, 0x410000BC };
 #define MAX_CRB_XFORM 60
 static unsigned long crb_addr_xform[MAX_CRB_XFORM];
 static int qla4_8xxx_crb_table_initialized;
@@ -4050,15 +4052,14 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	dma_addr_t sys_info_dma;
 	int status = QLA_ERROR;
 
-	sys_info = dma_alloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
-				      &sys_info_dma, GFP_KERNEL);
+	sys_info = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
+				       &sys_info_dma, GFP_KERNEL);
 	if (sys_info == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 		    ha->host_no, __func__));
 		return status;
 	}
 
-	memset(sys_info, 0, sizeof(*sys_info));
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
 

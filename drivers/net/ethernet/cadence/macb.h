@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
+#include <linux/interrupt.h>
 
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
 #define MACB_EXT_DESC
@@ -164,14 +165,38 @@
 #define GEM_DCFG5		0x0290 /* Design Config 5 */
 #define GEM_DCFG6		0x0294 /* Design Config 6 */
 #define GEM_DCFG7		0x0298 /* Design Config 7 */
+#define GEM_DCFG8		0x029C /* Design Config 8 */
 
 #define GEM_TXBDCTRL	0x04cc /* TX Buffer Descriptor control register */
 #define GEM_RXBDCTRL	0x04d0 /* RX Buffer Descriptor control register */
+
+/* Screener Type 2 match registers */
+#define GEM_SCRT2		0x540
+
+/* EtherType registers */
+#define GEM_ETHT		0x06E0
+
+/* Type 2 compare registers */
+#define GEM_T2CMPW0		0x0700
+#define GEM_T2CMPW1		0x0704
+#define T2CMP_OFST(t2idx)	(t2idx * 2)
+
+/* type 2 compare registers
+ * each location requires 3 compare regs
+ */
+#define GEM_IP4SRC_CMP(idx)		(idx * 3)
+#define GEM_IP4DST_CMP(idx)		(idx * 3 + 1)
+#define GEM_PORT_CMP(idx)		(idx * 3 + 2)
+
+/* Which screening type 2 EtherType register will be used (0 - 7) */
+#define SCRT2_ETHT		0
 
 #define GEM_ISR(hw_q)		(0x0400 + ((hw_q) << 2))
 #define GEM_TBQP(hw_q)		(0x0440 + ((hw_q) << 2))
 #define GEM_TBQPH(hw_q)		(0x04C8)
 #define GEM_RBQP(hw_q)		(0x0480 + ((hw_q) << 2))
+#define GEM_RBQS(hw_q)		(0x04A0 + ((hw_q) << 2))
+#define GEM_RBQPH(hw_q)		(0x04D4)
 #define GEM_IER(hw_q)		(0x0600 + ((hw_q) << 2))
 #define GEM_IDR(hw_q)		(0x0620 + ((hw_q) << 2))
 #define GEM_IMR(hw_q)		(0x0640 + ((hw_q) << 2))
@@ -455,6 +480,16 @@
 #define GEM_DAW64_OFFSET			23
 #define GEM_DAW64_SIZE				1
 
+/* Bitfields in DCFG8. */
+#define GEM_T1SCR_OFFSET			24
+#define GEM_T1SCR_SIZE				8
+#define GEM_T2SCR_OFFSET			16
+#define GEM_T2SCR_SIZE				8
+#define GEM_SCR2ETH_OFFSET			8
+#define GEM_SCR2ETH_SIZE			8
+#define GEM_SCR2CMP_OFFSET			0
+#define GEM_SCR2CMP_SIZE			8
+
 /* Bitfields in TISUBN */
 #define GEM_SUBNSINCR_OFFSET			0
 #define GEM_SUBNSINCR_SIZE			16
@@ -482,6 +517,66 @@
 /* Bitfields in RXBDCTRL */
 #define GEM_RXTSMODE_OFFSET			4 /* RX Descriptor Timestamp Insertion mode */
 #define GEM_RXTSMODE_SIZE			2
+
+/* Bitfields in SCRT2 */
+#define GEM_QUEUE_OFFSET			0 /* Queue Number */
+#define GEM_QUEUE_SIZE				4
+#define GEM_VLANPR_OFFSET			4 /* VLAN Priority */
+#define GEM_VLANPR_SIZE				3
+#define GEM_VLANEN_OFFSET			8 /* VLAN Enable */
+#define GEM_VLANEN_SIZE				1
+#define GEM_ETHT2IDX_OFFSET			9 /* Index to screener type 2 EtherType register */
+#define GEM_ETHT2IDX_SIZE			3
+#define GEM_ETHTEN_OFFSET			12 /* EtherType Enable */
+#define GEM_ETHTEN_SIZE				1
+#define GEM_CMPA_OFFSET				13 /* Compare A - Index to screener type 2 Compare register */
+#define GEM_CMPA_SIZE				5
+#define GEM_CMPAEN_OFFSET			18 /* Compare A Enable */
+#define GEM_CMPAEN_SIZE				1
+#define GEM_CMPB_OFFSET				19 /* Compare B - Index to screener type 2 Compare register */
+#define GEM_CMPB_SIZE				5
+#define GEM_CMPBEN_OFFSET			24 /* Compare B Enable */
+#define GEM_CMPBEN_SIZE				1
+#define GEM_CMPC_OFFSET				25 /* Compare C - Index to screener type 2 Compare register */
+#define GEM_CMPC_SIZE				5
+#define GEM_CMPCEN_OFFSET			30 /* Compare C Enable */
+#define GEM_CMPCEN_SIZE				1
+
+/* Bitfields in ETHT */
+#define GEM_ETHTCMP_OFFSET			0 /* EtherType compare value */
+#define GEM_ETHTCMP_SIZE			16
+
+/* Bitfields in T2CMPW0 */
+#define GEM_T2CMP_OFFSET			16 /* 0xFFFF0000 compare value */
+#define GEM_T2CMP_SIZE				16
+#define GEM_T2MASK_OFFSET			0 /* 0x0000FFFF compare value or mask */
+#define GEM_T2MASK_SIZE				16
+
+/* Bitfields in T2CMPW1 */
+#define GEM_T2DISMSK_OFFSET			9 /* disable mask */
+#define GEM_T2DISMSK_SIZE			1
+#define GEM_T2CMPOFST_OFFSET			7 /* compare offset */
+#define GEM_T2CMPOFST_SIZE			2
+#define GEM_T2OFST_OFFSET			0 /* offset value */
+#define GEM_T2OFST_SIZE				7
+
+/* Offset for screener type 2 compare values (T2CMPOFST).
+ * Note the offset is applied after the specified point,
+ * e.g. GEM_T2COMPOFST_ETYPE denotes the EtherType field, so an offset
+ * of 12 bytes from this would be the source IP address in an IP header
+ */
+#define GEM_T2COMPOFST_SOF		0
+#define GEM_T2COMPOFST_ETYPE	1
+#define GEM_T2COMPOFST_IPHDR	2
+#define GEM_T2COMPOFST_TCPUDP	3
+
+/* offset from EtherType to IP address */
+#define ETYPE_SRCIP_OFFSET			12
+#define ETYPE_DSTIP_OFFSET			16
+
+/* offset from IP header to port */
+#define IPHDR_SRCPORT_OFFSET		0
+#define IPHDR_DSTPORT_OFFSET		2
 
 /* Transmit DMA buffer descriptor Word 1 */
 #define GEM_DMA_TXVALID_OFFSET		23 /* timestamp has been captured in the Buffer Descriptor */
@@ -583,6 +678,8 @@
 #define gem_writel(port, reg, value)	(port)->macb_reg_writel((port), GEM_##reg, (value))
 #define queue_readl(queue, reg)		(queue)->bp->macb_reg_readl((queue)->bp, (queue)->reg)
 #define queue_writel(queue, reg, value)	(queue)->bp->macb_reg_writel((queue)->bp, (queue)->reg, (value))
+#define gem_readl_n(port, reg, idx)		(port)->macb_reg_readl((port), GEM_##reg + idx * 4)
+#define gem_writel_n(port, reg, idx, value)	(port)->macb_reg_writel((port), GEM_##reg + idx * 4, (value))
 
 #define PTP_TS_BUFFER_SIZE		128 /* must be power of 2 */
 
@@ -920,13 +1017,42 @@ static const struct gem_statistic gem_statistics[] = {
 
 #define GEM_STATS_LEN ARRAY_SIZE(gem_statistics)
 
+#define QUEUE_STAT_TITLE(title) {	\
+	.stat_string = title,			\
+}
+
+/* per queue statistics, each should be unsigned long type */
+struct queue_stats {
+	union {
+		unsigned long first;
+		unsigned long rx_packets;
+	};
+	unsigned long rx_bytes;
+	unsigned long rx_dropped;
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+	unsigned long tx_dropped;
+};
+
+static const struct gem_statistic queue_statistics[] = {
+		QUEUE_STAT_TITLE("rx_packets"),
+		QUEUE_STAT_TITLE("rx_bytes"),
+		QUEUE_STAT_TITLE("rx_dropped"),
+		QUEUE_STAT_TITLE("tx_packets"),
+		QUEUE_STAT_TITLE("tx_bytes"),
+		QUEUE_STAT_TITLE("tx_dropped"),
+};
+
+#define QUEUE_STATS_LEN ARRAY_SIZE(queue_statistics)
+
 struct macb;
+struct macb_queue;
 
 struct macb_or_gem_ops {
 	int	(*mog_alloc_rx_buffers)(struct macb *bp);
 	void	(*mog_free_rx_buffers)(struct macb *bp);
 	void	(*mog_init_rings)(struct macb *bp);
-	int	(*mog_rx)(struct macb *bp, int budget);
+	int	(*mog_rx)(struct macb_queue *queue, int budget);
 };
 
 /* MACB-PTP interface: adapt to platform needs. */
@@ -968,6 +1094,9 @@ struct macb_queue {
 	unsigned int		IMR;
 	unsigned int		TBQP;
 	unsigned int		TBQPH;
+	unsigned int		RBQS;
+	unsigned int		RBQP;
+	unsigned int		RBQPH;
 
 	unsigned int		tx_head, tx_tail;
 	struct macb_dma_desc	*tx_ring;
@@ -975,11 +1104,31 @@ struct macb_queue {
 	dma_addr_t		tx_ring_dma;
 	struct work_struct	tx_error_task;
 
+	dma_addr_t		rx_ring_dma;
+	dma_addr_t		rx_buffers_dma;
+	unsigned int		rx_tail;
+	unsigned int		rx_prepared_head;
+	struct macb_dma_desc	*rx_ring;
+	struct sk_buff		**rx_skbuff;
+	void			*rx_buffers;
+	struct napi_struct	napi;
+	struct queue_stats stats;
+
 #ifdef CONFIG_MACB_USE_HWSTAMP
 	struct work_struct	tx_ts_task;
 	unsigned int		tx_ts_head, tx_ts_tail;
 	struct gem_tx_ts	tx_timestamps[PTP_TS_BUFFER_SIZE];
 #endif
+};
+
+struct ethtool_rx_fs_item {
+	struct ethtool_rx_flow_spec fs;
+	struct list_head list;
+};
+
+struct ethtool_rx_fs_list {
+	struct list_head list;
+	unsigned int count;
 };
 
 struct macb {
@@ -990,11 +1139,6 @@ struct macb {
 	u32	(*macb_reg_readl)(struct macb *bp, int offset);
 	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
-	unsigned int		rx_tail;
-	unsigned int		rx_prepared_head;
-	struct macb_dma_desc	*rx_ring;
-	struct sk_buff		**rx_skbuff;
-	void			*rx_buffers;
 	size_t			rx_buffer_size;
 
 	unsigned int		rx_ring_size;
@@ -1011,14 +1155,10 @@ struct macb {
 	struct clk		*tx_clk;
 	struct clk		*rx_clk;
 	struct net_device	*dev;
-	struct napi_struct	napi;
 	union {
 		struct macb_stats	macb;
 		struct gem_stats	gem;
 	}			hw_stats;
-
-	dma_addr_t		rx_ring_dma;
-	dma_addr_t		rx_buffers_dma;
 
 	struct macb_or_gem_ops	macbgem_ops;
 
@@ -1032,7 +1172,6 @@ struct macb {
 	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
-	struct gpio_desc	*reset_gpio;
 
 	/* AT91RM9200 transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
@@ -1040,7 +1179,7 @@ struct macb {
 	int skb_length;				/* saved skb length for pci_unmap_single */
 	unsigned int		max_tx_length;
 
-	u64			ethtool_stats[GEM_STATS_LEN];
+	u64			ethtool_stats[GEM_STATS_LEN + QUEUE_STATS_LEN * MACB_MAX_QUEUES];
 
 	unsigned int		rx_frm_len_mask;
 	unsigned int		jumbo_max_len;
@@ -1057,6 +1196,13 @@ struct macb {
 	struct ptp_clock_info ptp_clock_info;
 	struct tsu_incr tsu_incr;
 	struct hwtstamp_config tstamp_config;
+
+	/* RX queue filer rule set*/
+	struct ethtool_rx_fs_list rx_fs_list;
+	spinlock_t rx_fs_lock;
+	unsigned int max_tuples;
+
+	struct tasklet_struct	hresp_err_tasklet;
 };
 
 #ifdef CONFIG_MACB_USE_HWSTAMP

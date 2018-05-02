@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/s626.c
  * Sensoray s626 Comedi driver
@@ -7,16 +8,6 @@
  *
  * Based on Sensoray Model 626 Linux driver Version 0.2
  * Copyright (C) 2002-2004 Sensoray Co., Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -1385,8 +1376,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 		jmp_adrs =
 			(u32)devpriv->rps_buf.physical_base +
 			(u32)((unsigned long)rps -
-				   (unsigned long)devpriv->
-						  rps_buf.logical_base);
+			      (unsigned long)devpriv->rps_buf.logical_base);
 		for (i = 0; i < (10 * S626_RPSCLK_PER_US / 2); i++) {
 			jmp_adrs += 8;	/* Repeat to implement time delay: */
 			/* Jump to next RPS instruction. */
@@ -1710,7 +1700,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"s626_ai_cmd: Another ai_cmd is running\n");
+			"%s: Another ai_cmd is running\n", __func__);
 		return -EBUSY;
 	}
 	/* disable interrupt */
@@ -1903,9 +1893,9 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg,
+				arg);
 		}
 	}
 
@@ -2278,10 +2268,10 @@ static int s626_initialize(struct comedi_device *dev)
 	 */
 	{
 		struct comedi_subdevice *s = dev->read_subdev;
-		uint8_t poll_list;
-		uint16_t adc_data;
-		uint16_t start_val;
-		uint16_t index;
+		u8 poll_list;
+		u16 adc_data;
+		u16 start_val;
+		u16 index;
 		unsigned int data[16];
 
 		/* Create a simple polling list for analog input channel 0 */

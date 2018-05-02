@@ -116,6 +116,7 @@ struct tipc_sock {
 	struct tipc_mc_method mc_method;
 	struct rcu_head rcu;
 	struct tipc_group *group;
+	bool group_is_open;
 };
 
 static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
@@ -288,10 +289,9 @@ static bool tipc_sk_type_connectionless(struct sock *sk)
 static bool tsk_peer_msg(struct tipc_sock *tsk, struct tipc_msg *msg)
 {
 	struct sock *sk = &tsk->sk;
-	struct tipc_net *tn = net_generic(sock_net(sk), tipc_net_id);
+	u32 self = tipc_own_addr(sock_net(sk));
 	u32 peer_port = tsk_peer_port(tsk);
-	u32 orig_node;
-	u32 peer_node;
+	u32 orig_node, peer_node;
 
 	if (unlikely(!tipc_sk_connected(sk)))
 		return false;
@@ -305,10 +305,10 @@ static bool tsk_peer_msg(struct tipc_sock *tsk, struct tipc_msg *msg)
 	if (likely(orig_node == peer_node))
 		return true;
 
-	if (!orig_node && (peer_node == tn->own_addr))
+	if (!orig_node && peer_node == self)
 		return true;
 
-	if (!peer_node && (orig_node == tn->own_addr))
+	if (!peer_node && orig_node == self)
 		return true;
 
 	return false;
@@ -460,8 +460,8 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	/* Ensure tsk is visible before we read own_addr. */
 	smp_mb();
 
-	tipc_msg_init(tn->own_addr, msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
-		      NAMED_H_SIZE, 0);
+	tipc_msg_init(tipc_own_addr(net), msg, TIPC_LOW_IMPORTANCE,
+		      TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
 
 	msg_set_origport(msg, tsk->portid);
 	timer_setup(&sk->sk_timer, tipc_sk_timeout, 0);
@@ -472,6 +472,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sk->sk_write_space = tipc_write_space;
 	sk->sk_destruct = tipc_sock_destruct;
 	tsk->conn_timeout = CONN_TIMEOUT_DEFAULT;
+	tsk->group_is_open = true;
 	atomic_set(&tsk->dupl_rcvcnt, 0);
 
 	/* Start out with safe limits until we receive an advertised window */
@@ -642,7 +643,7 @@ static int tipc_bind(struct socket *sock, struct sockaddr *uaddr,
 		goto exit;
 	}
 
-	res = (addr->scope > 0) ?
+	res = (addr->scope >= 0) ?
 		tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq) :
 		tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
 exit:
@@ -664,12 +665,11 @@ exit:
  *       a completely predictable manner).
  */
 static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
-			int *uaddr_len, int peer)
+			int peer)
 {
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_net *tn = net_generic(sock_net(sock->sk), tipc_net_id);
 
 	memset(addr, 0, sizeof(*addr));
 	if (peer) {
@@ -680,16 +680,15 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 		addr->addr.id.node = tsk_peer_node(tsk);
 	} else {
 		addr->addr.id.ref = tsk->portid;
-		addr->addr.id.node = tn->own_addr;
+		addr->addr.id.node = tipc_own_addr(sock_net(sk));
 	}
 
-	*uaddr_len = sizeof(*addr);
 	addr->addrtype = TIPC_ADDR_ID;
 	addr->family = AF_TIPC;
 	addr->scope = 0;
 	addr->addr.name.domain = 0;
 
-	return 0;
+	return sizeof(*addr);
 }
 
 /**
@@ -710,43 +709,41 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
  * imply that the operation will succeed, merely that it should be performed
  * and will not block.
  */
-static unsigned int tipc_poll(struct file *file, struct socket *sock,
+static __poll_t tipc_poll(struct file *file, struct socket *sock,
 			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_group *grp = tsk->group;
-	u32 revents = 0;
+	__poll_t revents = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		revents |= POLLRDHUP | POLLIN | POLLRDNORM;
+		revents |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
-		revents |= POLLHUP;
+		revents |= EPOLLHUP;
 
 	switch (sk->sk_state) {
 	case TIPC_ESTABLISHED:
 	case TIPC_CONNECTING:
 		if (!tsk->cong_link_cnt && !tsk_conn_cong(tsk))
-			revents |= POLLOUT;
+			revents |= EPOLLOUT;
 		/* fall thru' */
 	case TIPC_LISTEN:
 		if (!skb_queue_empty(&sk->sk_receive_queue))
-			revents |= POLLIN | POLLRDNORM;
+			revents |= EPOLLIN | EPOLLRDNORM;
 		break;
 	case TIPC_OPEN:
-		if (!grp || tipc_group_size(grp))
-			if (!tsk->cong_link_cnt)
-				revents |= POLLOUT;
+		if (tsk->group_is_open && !tsk->cong_link_cnt)
+			revents |= EPOLLOUT;
 		if (!tipc_sk_type_connectionless(sk))
 			break;
 		if (skb_queue_empty(&sk->sk_receive_queue))
 			break;
-		revents |= POLLIN | POLLRDNORM;
+		revents |= EPOLLIN | EPOLLRDNORM;
 		break;
 	case TIPC_DISCONNECTING:
-		revents = POLLIN | POLLRDNORM | POLLHUP;
+		revents = EPOLLIN | EPOLLRDNORM | EPOLLHUP;
 		break;
 	}
 	return revents;
@@ -772,7 +769,6 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct net *net = sock_net(sk);
 	int mtu = tipc_bcast_get_mtu(net);
 	struct tipc_mc_method *method = &tsk->mc_method;
-	u32 domain = addr_domain(net, TIPC_CLUSTER_SCOPE);
 	struct sk_buff_head pkts;
 	struct tipc_nlist dsts;
 	int rc;
@@ -788,7 +784,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	/* Lookup destination nodes */
 	tipc_nlist_init(&dsts, tipc_own_addr(net));
 	tipc_nametbl_lookup_dst_nodes(net, seq->type, seq->lower,
-				      seq->upper, domain, &dsts);
+				      seq->upper, &dsts);
 	if (!dsts.local && !dsts.remote)
 		return -EHOSTUNREACH;
 
@@ -928,21 +924,22 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 	struct list_head *cong_links = &tsk->cong_links;
 	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
 	struct tipc_group *grp = tsk->group;
+	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_member *first = NULL;
 	struct tipc_member *mbr = NULL;
 	struct net *net = sock_net(sk);
 	u32 node, port, exclude;
-	u32 type, inst, domain;
 	struct list_head dsts;
+	u32 type, inst, scope;
 	int lookups = 0;
 	int dstcnt, rc;
 	bool cong;
 
 	INIT_LIST_HEAD(&dsts);
 
-	type = dest->addr.name.name.type;
+	type = msg_nametype(hdr);
 	inst = dest->addr.name.name.instance;
-	domain = addr_domain(net, dest->scope);
+	scope = msg_lookup_scope(hdr);
 	exclude = tipc_group_exclude(grp);
 
 	while (++lookups < 4) {
@@ -950,7 +947,7 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 
 		/* Look for a non-congested destination member, if any */
 		while (1) {
-			if (!tipc_nametbl_lookup(net, type, inst, domain, &dsts,
+			if (!tipc_nametbl_lookup(net, type, inst, scope, &dsts,
 						 &dstcnt, exclude, false))
 				return -EHOSTUNREACH;
 			tipc_dest_pop(&dsts, &node, &port);
@@ -1079,22 +1076,23 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 {
 	struct sock *sk = sock->sk;
 	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
-	struct tipc_name_seq *seq = &dest->addr.nameseq;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_group *grp = tsk->group;
+	struct tipc_msg *hdr = &tsk->phdr;
 	struct net *net = sock_net(sk);
-	u32 domain, exclude, dstcnt;
+	u32 type, inst, scope, exclude;
 	struct list_head dsts;
+	u32 dstcnt;
 
 	INIT_LIST_HEAD(&dsts);
 
-	if (seq->lower != seq->upper)
-		return -ENOTSUPP;
-
-	domain = addr_domain(net, dest->scope);
+	type = msg_nametype(hdr);
+	inst = dest->addr.name.name.instance;
+	scope = msg_lookup_scope(hdr);
 	exclude = tipc_group_exclude(grp);
-	if (!tipc_nametbl_lookup(net, seq->type, seq->lower, domain,
-				 &dsts, &dstcnt, exclude, true))
+
+	if (!tipc_nametbl_lookup(net, type, inst, scope, &dsts,
+				 &dstcnt, exclude, true))
 		return -EHOSTUNREACH;
 
 	if (dstcnt == 1) {
@@ -1116,24 +1114,29 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 		       struct sk_buff_head *inputq)
 {
-	u32 scope = TIPC_CLUSTER_SCOPE;
 	u32 self = tipc_own_addr(net);
+	u32 type, lower, upper, scope;
 	struct sk_buff *skb, *_skb;
-	u32 lower = 0, upper = ~0;
-	struct sk_buff_head tmpq;
 	u32 portid, oport, onode;
+	struct sk_buff_head tmpq;
 	struct list_head dports;
-	struct tipc_msg *msg;
-	int user, mtyp, hsz;
+	struct tipc_msg *hdr;
+	int user, mtyp, hlen;
+	bool exact;
 
 	__skb_queue_head_init(&tmpq);
 	INIT_LIST_HEAD(&dports);
 
 	skb = tipc_skb_peek(arrvq, &inputq->lock);
 	for (; skb; skb = tipc_skb_peek(arrvq, &inputq->lock)) {
-		msg = buf_msg(skb);
-		user = msg_user(msg);
-		mtyp = msg_type(msg);
+		hdr = buf_msg(skb);
+		user = msg_user(hdr);
+		mtyp = msg_type(hdr);
+		hlen = skb_headroom(skb) + msg_hdr_sz(hdr);
+		oport = msg_origport(hdr);
+		onode = msg_orignode(hdr);
+		type = msg_nametype(hdr);
+
 		if (mtyp == TIPC_GRP_UCAST_MSG || user == GROUP_PROTOCOL) {
 			spin_lock_bh(&inputq->lock);
 			if (skb_peek(arrvq) == skb) {
@@ -1144,21 +1147,31 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 			spin_unlock_bh(&inputq->lock);
 			continue;
 		}
-		hsz = skb_headroom(skb) + msg_hdr_sz(msg);
-		oport = msg_origport(msg);
-		onode = msg_orignode(msg);
-		if (onode == self)
-			scope = TIPC_NODE_SCOPE;
 
-		/* Create destination port list and message clones: */
-		if (!msg_in_group(msg)) {
-			lower = msg_namelower(msg);
-			upper = msg_nameupper(msg);
+		/* Group messages require exact scope match */
+		if (msg_in_group(hdr)) {
+			lower = 0;
+			upper = ~0;
+			scope = msg_lookup_scope(hdr);
+			exact = true;
+		} else {
+			/* TIPC_NODE_SCOPE means "any scope" in this context */
+			if (onode == self)
+				scope = TIPC_NODE_SCOPE;
+			else
+				scope = TIPC_CLUSTER_SCOPE;
+			exact = false;
+			lower = msg_namelower(hdr);
+			upper = msg_nameupper(hdr);
 		}
-		tipc_nametbl_mc_translate(net, msg_nametype(msg), lower, upper,
-					  scope, &dports);
+
+		/* Create destination port list: */
+		tipc_nametbl_mc_lookup(net, type, lower, upper,
+				       scope, exact, &dports);
+
+		/* Clone message per destination */
 		while (tipc_dest_pop(&dports, NULL, &portid)) {
-			_skb = __pskb_copy(skb, hsz, GFP_ATOMIC);
+			_skb = __pskb_copy(skb, hlen, GFP_ATOMIC);
 			if (_skb) {
 				msg_set_destport(buf_msg(_skb), portid);
 				__skb_queue_tail(&tmpq, _skb);
@@ -1265,8 +1278,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_name_seq *seq;
 	struct sk_buff_head pkts;
-	u32 type, inst, domain;
-	u32 dnode, dport;
+	u32 dport, dnode = 0;
+	u32 type, inst;
 	int mtu, rc;
 
 	if (unlikely(dlen > TIPC_MAX_USER_MSG_SIZE))
@@ -1317,13 +1330,12 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	if (dest->addrtype == TIPC_ADDR_NAME) {
 		type = dest->addr.name.name.type;
 		inst = dest->addr.name.name.instance;
-		domain = dest->addr.name.domain;
-		dnode = domain;
+		dnode = dest->addr.name.domain;
 		msg_set_type(hdr, TIPC_NAMED_MSG);
 		msg_set_hdr_sz(hdr, NAMED_H_SIZE);
 		msg_set_nametype(hdr, type);
 		msg_set_nameinst(hdr, inst);
-		msg_set_lookup_scope(hdr, tipc_addr_scope(domain));
+		msg_set_lookup_scope(hdr, tipc_node2scope(dnode));
 		dport = tipc_nametbl_translate(net, type, inst, &dnode);
 		msg_set_destnode(hdr, dnode);
 		msg_set_destport(hdr, dport);
@@ -1336,6 +1348,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 		msg_set_destnode(hdr, dnode);
 		msg_set_destport(hdr, dest->addr.id.ref);
 		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
+	} else {
+		return -EINVAL;
 	}
 
 	/* Block or return if destination link is congested */
@@ -1882,8 +1896,8 @@ static void tipc_write_space(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-						POLLWRNORM | POLLWRBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
 	rcu_read_unlock();
 }
 
@@ -1899,8 +1913,8 @@ static void tipc_data_ready(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
-						POLLRDNORM | POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
+						EPOLLRDNORM | EPOLLRDBAND);
 	rcu_read_unlock();
 }
 
@@ -1933,8 +1947,7 @@ static void tipc_sk_proto_rcv(struct sock *sk,
 		break;
 	case TOP_SRV:
 		tipc_group_member_evt(tsk->group, &wakeup, &sk->sk_rcvbuf,
-				      skb, inputq, xmitq);
-		skb = NULL;
+				      hdr, inputq, xmitq);
 		break;
 	default:
 		break;
@@ -2109,8 +2122,10 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 		    (!sk_conn && msg_connected(hdr)) ||
 		    (!grp && msg_in_group(hdr)))
 			err = TIPC_ERR_NO_PORT;
-		else if (sk_rmem_alloc_get(sk) + skb->truesize >= limit)
+		else if (sk_rmem_alloc_get(sk) + skb->truesize >= limit) {
+			atomic_inc(&sk->sk_drops);
 			err = TIPC_ERR_OVERLOAD;
+		}
 
 		if (unlikely(err)) {
 			tipc_skb_reject(net, err, skb, xmitq);
@@ -2189,6 +2204,7 @@ static void tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 
 		/* Overload => reject message back to sender */
 		onode = tipc_own_addr(sock_net(sk));
+		atomic_inc(&sk->sk_drops);
 		if (tipc_msg_reverse(onode, &skb, TIPC_ERR_OVERLOAD))
 			__skb_queue_tail(xmitq, skb);
 		break;
@@ -2578,6 +2594,9 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	struct publication *publ;
 	u32 key;
 
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
+
 	if (tipc_sk_connected(sk))
 		return -EINVAL;
 	key = tsk->portid + tsk->pub_count + 1;
@@ -2589,7 +2608,7 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	if (unlikely(!publ))
 		return -EINVAL;
 
-	list_add(&publ->pport_list, &tsk->publications);
+	list_add(&publ->binding_sock, &tsk->publications);
 	tsk->pub_count++;
 	tsk->published = 1;
 	return 0;
@@ -2603,7 +2622,10 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 	struct publication *safe;
 	int rc = -EINVAL;
 
-	list_for_each_entry_safe(publ, safe, &tsk->publications, pport_list) {
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
+
+	list_for_each_entry_safe(publ, safe, &tsk->publications, binding_sock) {
 		if (seq) {
 			if (publ->scope != scope)
 				continue;
@@ -2614,12 +2636,12 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			if (publ->upper != seq->upper)
 				break;
 			tipc_nametbl_withdraw(net, publ->type, publ->lower,
-					      publ->ref, publ->key);
+					      publ->upper, publ->key);
 			rc = 0;
 			break;
 		}
 		tipc_nametbl_withdraw(net, publ->type, publ->lower,
-				      publ->ref, publ->key);
+				      publ->upper, publ->key);
 		rc = 0;
 	}
 	if (list_empty(&tsk->publications))
@@ -2640,18 +2662,16 @@ void tipc_sk_reinit(struct net *net)
 	rhashtable_walk_enter(&tn->sk_rht, &iter);
 
 	do {
-		tsk = ERR_PTR(rhashtable_walk_start(&iter));
-		if (IS_ERR(tsk))
-			goto walk_stop;
+		rhashtable_walk_start(&iter);
 
 		while ((tsk = rhashtable_walk_next(&iter)) && !IS_ERR(tsk)) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
 			msg = &tsk->phdr;
-			msg_set_prevnode(msg, tn->own_addr);
-			msg_set_orignode(msg, tn->own_addr);
+			msg_set_prevnode(msg, tipc_own_addr(net));
+			msg_set_orignode(msg, tipc_own_addr(net));
 			spin_unlock_bh(&tsk->sk.sk_lock.slock);
 		}
-walk_stop:
+
 		rhashtable_walk_stop(&iter);
 	} while (tsk == ERR_PTR(-EAGAIN));
 }
@@ -2734,7 +2754,6 @@ void tipc_sk_rht_destroy(struct net *net)
 static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 {
 	struct net *net = sock_net(&tsk->sk);
-	u32 domain = addr_domain(net, mreq->scope);
 	struct tipc_group *grp = tsk->group;
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_name_seq seq;
@@ -2742,9 +2761,11 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 
 	if (mreq->type < TIPC_RESERVED_TYPES)
 		return -EACCES;
+	if (mreq->scope > TIPC_NODE_SCOPE)
+		return -EINVAL;
 	if (grp)
 		return -EACCES;
-	grp = tipc_group_create(net, tsk->portid, mreq);
+	grp = tipc_group_create(net, tsk->portid, mreq, &tsk->group_is_open);
 	if (!grp)
 		return -ENOMEM;
 	tsk->group = grp;
@@ -2754,16 +2775,17 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	seq.type = mreq->type;
 	seq.lower = mreq->instance;
 	seq.upper = seq.lower;
-	tipc_nametbl_build_group(net, grp, mreq->type, domain);
+	tipc_nametbl_build_group(net, grp, mreq->type, mreq->scope);
 	rc = tipc_sk_publish(tsk, mreq->scope, &seq);
 	if (rc) {
 		tipc_group_delete(net, grp);
 		tsk->group = NULL;
+		return rc;
 	}
-
-	/* Eliminate any risk that a broadcast overtakes the sent JOIN */
+	/* Eliminate any risk that a broadcast overtakes sent JOINs */
 	tsk->mc_method.rcast = true;
 	tsk->mc_method.mandatory = true;
+	tipc_group_join(net, grp, &tsk->sk.sk_rcvbuf);
 	return rc;
 }
 
@@ -3141,16 +3163,32 @@ msg_full:
 	return -EMSGSIZE;
 }
 
+static int __tipc_nl_add_sk_info(struct sk_buff *skb, struct tipc_sock
+			  *tsk)
+{
+	struct net *net = sock_net(skb->sk);
+	struct sock *sk = &tsk->sk;
+
+	if (nla_put_u32(skb, TIPC_NLA_SOCK_REF, tsk->portid) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_ADDR, tipc_own_addr(net)))
+		return -EMSGSIZE;
+
+	if (tipc_sk_connected(sk)) {
+		if (__tipc_nl_add_sk_con(skb, tsk))
+			return -EMSGSIZE;
+	} else if (!list_empty(&tsk->publications)) {
+		if (nla_put_flag(skb, TIPC_NLA_SOCK_HAS_PUBL))
+			return -EMSGSIZE;
+	}
+	return 0;
+}
+
 /* Caller should hold socket lock for the passed tipc socket. */
 static int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct tipc_sock *tsk)
 {
-	int err;
-	void *hdr;
 	struct nlattr *attrs;
-	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sock *sk = &tsk->sk;
+	void *hdr;
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &tipc_genl_family, NLM_F_MULTI, TIPC_NL_SOCK_GET);
@@ -3160,19 +3198,10 @@ static int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
 	attrs = nla_nest_start(skb, TIPC_NLA_SOCK);
 	if (!attrs)
 		goto genlmsg_cancel;
-	if (nla_put_u32(skb, TIPC_NLA_SOCK_REF, tsk->portid))
-		goto attr_msg_cancel;
-	if (nla_put_u32(skb, TIPC_NLA_SOCK_ADDR, tn->own_addr))
+
+	if (__tipc_nl_add_sk_info(skb, tsk))
 		goto attr_msg_cancel;
 
-	if (tipc_sk_connected(sk)) {
-		err = __tipc_nl_add_sk_con(skb, tsk);
-		if (err)
-			goto attr_msg_cancel;
-	} else if (!list_empty(&tsk->publications)) {
-		if (nla_put_flag(skb, TIPC_NLA_SOCK_HAS_PUBL))
-			goto attr_msg_cancel;
-	}
 	nla_nest_end(skb, attrs);
 	genlmsg_end(skb, hdr);
 
@@ -3186,16 +3215,19 @@ msg_cancel:
 	return -EMSGSIZE;
 }
 
-int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb)
+int tipc_nl_sk_walk(struct sk_buff *skb, struct netlink_callback *cb,
+		    int (*skb_handler)(struct sk_buff *skb,
+				       struct netlink_callback *cb,
+				       struct tipc_sock *tsk))
 {
-	int err;
-	struct tipc_sock *tsk;
-	const struct bucket_table *tbl;
-	struct rhash_head *pos;
 	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 tbl_id = cb->args[0];
+	struct tipc_net *tn = tipc_net(net);
+	const struct bucket_table *tbl;
 	u32 prev_portid = cb->args[1];
+	u32 tbl_id = cb->args[0];
+	struct rhash_head *pos;
+	struct tipc_sock *tsk;
+	int err;
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
@@ -3207,12 +3239,13 @@ int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				continue;
 			}
 
-			err = __tipc_nl_add_sk(skb, cb, tsk);
+			err = skb_handler(skb, cb, tsk);
 			if (err) {
 				prev_portid = tsk->portid;
 				spin_unlock_bh(&tsk->sk.sk_lock.slock);
 				goto out;
 			}
+
 			prev_portid = 0;
 			spin_unlock_bh(&tsk->sk.sk_lock.slock);
 		}
@@ -3223,6 +3256,76 @@ out:
 	cb->args[1] = prev_portid;
 
 	return skb->len;
+}
+EXPORT_SYMBOL(tipc_nl_sk_walk);
+
+int tipc_sk_fill_sock_diag(struct sk_buff *skb, struct netlink_callback *cb,
+			   struct tipc_sock *tsk, u32 sk_filter_state,
+			   u64 (*tipc_diag_gen_cookie)(struct sock *sk))
+{
+	struct sock *sk = &tsk->sk;
+	struct nlattr *attrs;
+	struct nlattr *stat;
+
+	/*filter response w.r.t sk_state*/
+	if (!(sk_filter_state & (1 << sk->sk_state)))
+		return 0;
+
+	attrs = nla_nest_start(skb, TIPC_NLA_SOCK);
+	if (!attrs)
+		goto msg_cancel;
+
+	if (__tipc_nl_add_sk_info(skb, tsk))
+		goto attr_msg_cancel;
+
+	if (nla_put_u32(skb, TIPC_NLA_SOCK_TYPE, (u32)sk->sk_type) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_TIPC_STATE, (u32)sk->sk_state) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_INO, sock_i_ino(sk)) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_UID,
+			from_kuid_munged(sk_user_ns(NETLINK_CB(cb->skb).sk),
+					 sock_i_uid(sk))) ||
+	    nla_put_u64_64bit(skb, TIPC_NLA_SOCK_COOKIE,
+			      tipc_diag_gen_cookie(sk),
+			      TIPC_NLA_SOCK_PAD))
+		goto attr_msg_cancel;
+
+	stat = nla_nest_start(skb, TIPC_NLA_SOCK_STAT);
+	if (!stat)
+		goto attr_msg_cancel;
+
+	if (nla_put_u32(skb, TIPC_NLA_SOCK_STAT_RCVQ,
+			skb_queue_len(&sk->sk_receive_queue)) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_STAT_SENDQ,
+			skb_queue_len(&sk->sk_write_queue)) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_STAT_DROP,
+			atomic_read(&sk->sk_drops)))
+		goto stat_msg_cancel;
+
+	if (tsk->cong_link_cnt &&
+	    nla_put_flag(skb, TIPC_NLA_SOCK_STAT_LINK_CONG))
+		goto stat_msg_cancel;
+
+	if (tsk_conn_cong(tsk) &&
+	    nla_put_flag(skb, TIPC_NLA_SOCK_STAT_CONN_CONG))
+		goto stat_msg_cancel;
+
+	nla_nest_end(skb, stat);
+	nla_nest_end(skb, attrs);
+
+	return 0;
+
+stat_msg_cancel:
+	nla_nest_cancel(skb, stat);
+attr_msg_cancel:
+	nla_nest_cancel(skb, attrs);
+msg_cancel:
+	return -EMSGSIZE;
+}
+EXPORT_SYMBOL(tipc_sk_fill_sock_diag);
+
+int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	return tipc_nl_sk_walk(skb, cb, __tipc_nl_add_sk);
 }
 
 /* Caller should hold socket lock for the passed tipc socket. */
@@ -3273,7 +3376,7 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 	struct publication *p;
 
 	if (*last_publ) {
-		list_for_each_entry(p, &tsk->publications, pport_list) {
+		list_for_each_entry(p, &tsk->publications, binding_sock) {
 			if (p->key == *last_publ)
 				break;
 		}
@@ -3290,10 +3393,10 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 		}
 	} else {
 		p = list_first_entry(&tsk->publications, struct publication,
-				     pport_list);
+				     binding_sock);
 	}
 
-	list_for_each_entry_from(p, &tsk->publications, pport_list) {
+	list_for_each_entry_from(p, &tsk->publications, binding_sock) {
 		err = __tipc_nl_add_sk_publ(skb, cb, p);
 		if (err) {
 			*last_publ = p->key;

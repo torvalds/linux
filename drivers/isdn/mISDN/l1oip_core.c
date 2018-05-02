@@ -279,7 +279,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 		  u16 timebase, u8 *buf, int len)
 {
 	u8 *p;
-	u8 frame[len + 32];
+	u8 frame[MAX_DFRAME_LEN_L1 + 32];
 	struct socket *socket = NULL;
 
 	if (debug & DEBUG_L1OIP_MSG)
@@ -645,8 +645,10 @@ l1oip_socket_thread(void *data)
 {
 	struct l1oip *hc = (struct l1oip *)data;
 	int ret = 0;
-	struct msghdr msg;
 	struct sockaddr_in sin_rx;
+	struct kvec iov;
+	struct msghdr msg = {.msg_name = &sin_rx,
+			     .msg_namelen = sizeof(sin_rx)};
 	unsigned char *recvbuf;
 	size_t recvbuf_size = 1500;
 	int recvlen;
@@ -660,6 +662,9 @@ l1oip_socket_thread(void *data)
 		ret = -ENOMEM;
 		goto fail;
 	}
+
+	iov.iov_base = recvbuf;
+	iov.iov_len = recvbuf_size;
 
 	/* make daemon */
 	allow_signal(SIGTERM);
@@ -697,12 +702,6 @@ l1oip_socket_thread(void *data)
 		goto fail;
 	}
 
-	/* build receive message */
-	msg.msg_name = &sin_rx;
-	msg.msg_namelen = sizeof(sin_rx);
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-
 	/* build send message */
 	hc->sendmsg.msg_name = &hc->sin_remote;
 	hc->sendmsg.msg_namelen = sizeof(hc->sin_remote);
@@ -719,12 +718,9 @@ l1oip_socket_thread(void *data)
 		printk(KERN_DEBUG "%s: socket created and open\n",
 		       __func__);
 	while (!signal_pending(current)) {
-		struct kvec iov = {
-			.iov_base = recvbuf,
-			.iov_len = recvbuf_size,
-		};
-		recvlen = kernel_recvmsg(socket, &msg, &iov, 1,
-					 recvbuf_size, 0);
+		iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1,
+				recvbuf_size);
+		recvlen = sock_recvmsg(socket, &msg, 0);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
 		} else {
@@ -906,7 +902,11 @@ handle_dmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		p = skb->data;
 		l = skb->len;
 		while (l) {
-			ll = (l < L1OIP_MAX_PERFRAME) ? l : L1OIP_MAX_PERFRAME;
+			/*
+			 * This is technically bounded by L1OIP_MAX_PERFRAME but
+			 * MAX_DFRAME_LEN_L1 < L1OIP_MAX_PERFRAME
+			 */
+			ll = (l < MAX_DFRAME_LEN_L1) ? l : MAX_DFRAME_LEN_L1;
 			l1oip_socket_send(hc, 0, dch->slot, 0,
 					  hc->chan[dch->slot].tx_counter++, p, ll);
 			p += ll;
@@ -1144,7 +1144,11 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		p = skb->data;
 		l = skb->len;
 		while (l) {
-			ll = (l < L1OIP_MAX_PERFRAME) ? l : L1OIP_MAX_PERFRAME;
+			/*
+			 * This is technically bounded by L1OIP_MAX_PERFRAME but
+			 * MAX_DFRAME_LEN_L1 < L1OIP_MAX_PERFRAME
+			 */
+			ll = (l < MAX_DFRAME_LEN_L1) ? l : MAX_DFRAME_LEN_L1;
 			l1oip_socket_send(hc, hc->codec, bch->slot, 0,
 					  hc->chan[bch->slot].tx_counter, p, ll);
 			hc->chan[bch->slot].tx_counter += ll;

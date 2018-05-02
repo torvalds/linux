@@ -1,12 +1,28 @@
+/*
+ * OMAP Display Subsystem Base
+ *
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/list.h>
+
+#include "dss.h"
 #include "omapdss.h"
 
-static bool dss_initialized;
-static const struct dispc_ops *ops;
+static struct dss_device *dss_device;
 
 static struct list_head omapdss_comp_list;
 
@@ -16,27 +32,27 @@ struct omapdss_comp_node {
 	bool dss_core_component;
 };
 
-void omapdss_set_is_initialized(bool set)
+struct dss_device *omapdss_get_dss(void)
 {
-	dss_initialized = set;
+	return dss_device;
 }
-EXPORT_SYMBOL(omapdss_set_is_initialized);
+EXPORT_SYMBOL(omapdss_get_dss);
 
-bool omapdss_is_initialized(void)
+void omapdss_set_dss(struct dss_device *dss)
 {
-	return dss_initialized;
+	dss_device = dss;
 }
-EXPORT_SYMBOL(omapdss_is_initialized);
+EXPORT_SYMBOL(omapdss_set_dss);
 
-void dispc_set_ops(const struct dispc_ops *o)
+struct dispc_device *dispc_get_dispc(struct dss_device *dss)
 {
-	ops = o;
+	return dss->dispc;
 }
-EXPORT_SYMBOL(dispc_set_ops);
+EXPORT_SYMBOL(dispc_get_dispc);
 
-const struct dispc_ops *dispc_get_ops(void)
+const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
 {
-	return ops;
+	return dss->dispc_ops;
 }
 EXPORT_SYMBOL(dispc_get_ops);
 

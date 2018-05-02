@@ -47,6 +47,17 @@ enum {
 
 	/* region flag indicating to direct-map persistent memory by default */
 	ND_REGION_PAGEMAP = 0,
+	/*
+	 * Platform ensures entire CPU store data path is flushed to pmem on
+	 * system power loss.
+	 */
+	ND_REGION_PERSIST_CACHE = 1,
+	/*
+	 * Platform provides mechanisms to automatically flush outstanding
+	 * write data from memory controler to pmem on system power loss.
+	 * (ADR)
+	 */
+	ND_REGION_PERSIST_MEMCTRL = 2,
 
 	/* mark newly adjusted resources as requiring a label update */
 	DPA_RESOURCE_ADJUSTED = 1 << 0,
@@ -65,12 +76,14 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
+struct device_node;
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long bus_dsm_mask;
 	unsigned long cmd_mask;
 	struct module *module;
 	char *provider_name;
+	struct device_node *of_node;
 	ndctl_fn ndctl;
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
@@ -112,6 +125,7 @@ struct nd_region_desc {
 	int num_lanes;
 	int numa_node;
 	unsigned long flags;
+	struct device_node *of_node;
 };
 
 struct device;
@@ -153,6 +167,7 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
 struct nvdimm *to_nvdimm(struct device *dev);
 struct nd_region *to_nd_region(struct device *dev);
+struct device *nd_region_dev(struct nd_region *nd_region);
 struct nd_blk_region *to_nd_blk_region(struct device *dev);
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus);
 struct device *to_nvdimm_bus_dev(struct nvdimm_bus *nvdimm_bus);

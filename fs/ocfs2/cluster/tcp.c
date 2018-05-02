@@ -918,7 +918,8 @@ static int o2net_recv_tcp_msg(struct socket *sock, void *data, size_t len)
 {
 	struct kvec vec = { .iov_len = len, .iov_base = data, };
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
-	return kernel_recvmsg(sock, &msg, &vec, 1, len, msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1, len);
+	return sock_recvmsg(sock, &msg, MSG_DONTWAIT);
 }
 
 static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
@@ -1818,7 +1819,7 @@ int o2net_register_hb_callbacks(void)
 
 static int o2net_accept_one(struct socket *sock, int *more)
 {
-	int ret, slen;
+	int ret;
 	struct sockaddr_in sin;
 	struct socket *new_sock = NULL;
 	struct o2nm_node *node = NULL;
@@ -1863,9 +1864,7 @@ static int o2net_accept_one(struct socket *sock, int *more)
 		goto out;
 	}
 
-	slen = sizeof(sin);
-	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin,
-				       &slen, 1);
+	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin, 1);
 	if (ret < 0)
 		goto out;
 

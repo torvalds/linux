@@ -212,7 +212,7 @@ else S3
 // The following three rules are duplicates of ifm, pr1 and pr2 respectively.
 // It is need because the previous rule as already made a "change".
 
-@ifm1@
+@ifm1 depends on context && !org && !report@
 expression *E;
 statement S1,S2;
 position p1;
@@ -220,7 +220,7 @@ position p1;
 
 if@p1 ((E == NULL && ...) || ...) S1 else S2
 
-@pr11 expression@
+@pr11 depends on context && !org && !report expression@
 expression *ifm1.E;
 identifier f;
 position p1;
@@ -228,7 +228,7 @@ position p1;
 
  (E != NULL && ...) ? <+...E->f@p1...+> : ...
 
-@pr12 expression@
+@pr12 depends on context && !org && !report expression@
 expression *ifm1.E;
 identifier f;
 position p2;

@@ -120,18 +120,19 @@ find_format_by_index(struct venus_inst *inst, unsigned int index, u32 type)
 		return NULL;
 
 	for (i = 0; i < size; i++) {
+		bool valid;
+
 		if (fmt[i].type != type)
 			continue;
-		if (k == index)
+		valid = type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
+			venus_helper_check_codec(inst, fmt[i].pixfmt);
+		if (k == index && valid)
 			break;
-		k++;
+		if (valid)
+			k++;
 	}
 
 	if (i == size)
-		return NULL;
-
-	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
-	    !venus_helper_check_codec(inst, fmt[i].pixfmt))
 		return NULL;
 
 	return &fmt[i];
@@ -233,6 +234,16 @@ static int venc_v4l2_to_hfi(int id, int value)
 			return HFI_VPX_PROFILE_VERSION_2;
 		case 3:
 			return HFI_VPX_PROFILE_VERSION_3;
+		}
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:
+		switch (value) {
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED:
+		default:
+			return HFI_H264_DB_MODE_ALL_BOUNDARY;
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED:
+			return HFI_H264_DB_MODE_DISABLE;
+		case V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY:
+			return HFI_H264_DB_MODE_SKIP_SLICE_BOUNDARY;
 		}
 	}
 
@@ -641,6 +652,8 @@ static int venc_set_properties(struct venus_inst *inst)
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		struct hfi_h264_vui_timing_info info;
+		struct hfi_h264_entropy_control entropy;
+		struct hfi_h264_db_control deblock;
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
 		info.enable = 1;
@@ -650,10 +663,36 @@ static int venc_set_properties(struct venus_inst *inst)
 		ret = hfi_session_set_property(inst, ptype, &info);
 		if (ret)
 			return ret;
+
+		ptype = HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL;
+		entropy.entropy_mode = venc_v4l2_to_hfi(
+					  V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE,
+					  ctr->h264_entropy_mode);
+		entropy.cabac_model = HFI_H264_CABAC_MODEL_0;
+
+		ret = hfi_session_set_property(inst, ptype, &entropy);
+		if (ret)
+			return ret;
+
+		ptype = HFI_PROPERTY_PARAM_VENC_H264_DEBLOCK_CONTROL;
+		deblock.mode = venc_v4l2_to_hfi(
+				      V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE,
+				      ctr->h264_loop_filter_mode);
+		deblock.slice_alpha_offset = ctr->h264_loop_filter_alpha;
+		deblock.slice_beta_offset = ctr->h264_loop_filter_beta;
+
+		ret = hfi_session_set_property(inst, ptype, &deblock);
+		if (ret)
+			return ret;
 	}
 
+	/* IDR periodicity, n:
+	 * n = 0 - only the first I-frame is IDR frame
+	 * n = 1 - all I-frames will be IDR frames
+	 * n > 1 - every n-th I-frame will be IDR frame
+	 */
 	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
-	idrp.idr_period = ctr->gop_size;
+	idrp.idr_period = 0;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
 	if (ret)
 		return ret;
@@ -666,10 +705,6 @@ static int venc_set_properties(struct venus_inst *inst)
 		if (ret)
 			return ret;
 	}
-
-	/* intra_period = pframes + bframes + 1 */
-	if (!ctr->num_p_frames)
-		ctr->num_p_frames = 2 * 15 - 1,
 
 	ptype = HFI_PROPERTY_CONFIG_VENC_INTRA_PERIOD;
 	intra_period.pframes = ctr->num_p_frames;
@@ -764,6 +799,10 @@ static int venc_init_session(struct venus_inst *inst)
 		goto deinit;
 
 	ret = venus_helper_set_color_format(inst, inst->fmt_out->pixfmt);
+	if (ret)
+		goto deinit;
+
+	ret = venc_set_properties(inst);
 	if (ret)
 		goto deinit;
 

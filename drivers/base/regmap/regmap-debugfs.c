@@ -25,6 +25,7 @@ struct regmap_debugfs_node {
 	struct list_head link;
 };
 
+static unsigned int dummy_index;
 static struct dentry *regmap_debugfs_root;
 static LIST_HEAD(regmap_debugfs_early_list);
 static DEFINE_MUTEX(regmap_debugfs_early_lock);
@@ -40,6 +41,7 @@ static ssize_t regmap_name_read_file(struct file *file,
 				     loff_t *ppos)
 {
 	struct regmap *map = file->private_data;
+	const char *name = "nodev";
 	int ret;
 	char *buf;
 
@@ -47,7 +49,10 @@ static ssize_t regmap_name_read_file(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", map->dev->driver->name);
+	if (map->dev && map->dev->driver)
+		name = map->dev->driver->name;
+
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", name);
 	if (ret < 0) {
 		kfree(buf);
 		return ret;
@@ -529,6 +534,18 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	struct regmap_range_node *range_node;
 	const char *devname = "dummy";
 
+	/*
+	 * Userspace can initiate reads from the hardware over debugfs.
+	 * Normally internal regmap structures and buffers are protected with
+	 * a mutex or a spinlock, but if the regmap owner decided to disable
+	 * all locking mechanisms, this is no longer the case. For safety:
+	 * don't create the debugfs entries if locking is disabled.
+	 */
+	if (map->debugfs_disable) {
+		dev_dbg(map->dev, "regmap locking disabled - not creating debugfs entries\n");
+		return;
+	}
+
 	/* If we don't have the debugfs root yet, postpone init */
 	if (!regmap_debugfs_root) {
 		struct regmap_debugfs_node *node;
@@ -557,9 +574,20 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 		name = devname;
 	}
 
+	if (!strcmp(name, "dummy")) {
+		map->debugfs_name = kasprintf(GFP_KERNEL, "dummy%d",
+						dummy_index);
+		name = map->debugfs_name;
+		dummy_index++;
+	}
+
 	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
 	if (!map->debugfs) {
-		dev_warn(map->dev, "Failed to create debugfs directory\n");
+		dev_warn(map->dev,
+			 "Failed to create %s debugfs directory\n", name);
+
+		kfree(map->debugfs_name);
+		map->debugfs_name = NULL;
 		return;
 	}
 

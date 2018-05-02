@@ -235,7 +235,7 @@ kfree_err:
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 mbox_test_message_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct mbox_test_device *tdev = filp->private_data;
@@ -243,7 +243,7 @@ mbox_test_message_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &tdev->waitq, wait);
 
 	if (mbox_test_message_data_ready(tdev))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

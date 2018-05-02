@@ -109,6 +109,11 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 	return regs->ax;
 }
 
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->ax = rc;
+}
+
 /*
  * user_mode(regs) determines whether a register set came from user
  * mode.  On x86_32, this is true if V8086 mode was enabled OR if the

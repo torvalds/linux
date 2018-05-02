@@ -12,6 +12,27 @@ config COMMON_CLK_QCOM
 	select REGMAP_MMIO
 	select RESET_CONTROLLER
 
+config QCOM_A53PLL
+	tristate "MSM8916 A53 PLL"
+	depends on COMMON_CLK_QCOM
+	default ARCH_QCOM
+	help
+	  Support for the A53 PLL on MSM8916 devices. It provides
+	  the CPU with frequencies above 1GHz.
+	  Say Y if you want to support higher CPU frequencies on MSM8916
+	  devices.
+
+config QCOM_CLK_APCS_MSM8916
+	tristate "MSM8916 APCS Clock Controller"
+	depends on COMMON_CLK_QCOM
+	depends on QCOM_APCS_IPC || COMPILE_TEST
+	default ARCH_QCOM
+	help
+	  Support for the APCS Clock Controller on msm8916 devices. The
+	  APCS is managing the mux and divider which feeds the CPUs.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as msm8916.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on COMMON_CLK_QCOM && MFD_QCOM_RPM
@@ -196,3 +217,12 @@ config MSM_MMCC_8996
 	  Support for the multimedia clock controller on msm8996 devices.
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
+
+config SPMI_PMIC_CLKDIV
+	tristate "SPMI PMIC clkdiv Support"
+	depends on (COMMON_CLK_QCOM && SPMI) || COMPILE_TEST
+	help
+	  This driver supports the clkdiv functionality on the Qualcomm
+	  Technologies, Inc. SPMI PMIC. It configures the frequency of
+	  clkdiv outputs of the PMIC. These clocks are typically wired
+	  through alternate functions on GPIO pins.

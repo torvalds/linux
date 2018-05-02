@@ -67,11 +67,32 @@
 #define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
- * The temporary shared memory object is not physically contigous and this
- * temp memref is followed by another fragment until the last temp memref
- * that doesn't have this bit set.
+ * Pointer to a list of pages used to register user-defined SHM buffer.
+ * Used with OPTEE_MSG_ATTR_TYPE_TMEM_*.
+ * buf_ptr should point to the beginning of the buffer. Buffer will contain
+ * list of page addresses. OP-TEE core can reconstruct contiguous buffer from
+ * that page addresses list. Page addresses are stored as 64 bit values.
+ * Last entry on a page should point to the next page of buffer.
+ * Every entry in buffer should point to a 4k page beginning (12 least
+ * significant bits must be equal to zero).
+ *
+ * 12 least significant bints of optee_msg_param.u.tmem.buf_ptr should hold page
+ * offset of the user buffer.
+ *
+ * So, entries should be placed like members of this structure:
+ *
+ * struct page_data {
+ *   uint64_t pages_array[OPTEE_MSG_NONCONTIG_PAGE_SIZE/sizeof(uint64_t) - 1];
+ *   uint64_t next_page_data;
+ * };
+ *
+ * Structure is designed to exactly fit into the page size
+ * OPTEE_MSG_NONCONTIG_PAGE_SIZE which is a standard 4KB page.
+ *
+ * The size of 4KB is chosen because this is the smallest page size for ARM
+ * architectures. If REE uses larger pages, it should divide them to 4KB ones.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			BIT(9)
+#define OPTEE_MSG_ATTR_NONCONTIG		BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -93,6 +114,11 @@
 #define OPTEE_MSG_LOGIN_APPLICATION		0x00000004
 #define OPTEE_MSG_LOGIN_APPLICATION_USER	0x00000005
 #define OPTEE_MSG_LOGIN_APPLICATION_GROUP	0x00000006
+
+/*
+ * Page size used in non-contiguous buffer entries
+ */
+#define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
 
 /**
  * struct optee_msg_param_tmem - temporary memory reference parameter
@@ -145,8 +171,8 @@ struct optee_msg_param_value {
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
- * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates tmem and
- * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates rmem.
+ * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
+ * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates @rmem,
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
  */
 struct optee_msg_param {

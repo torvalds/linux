@@ -1,14 +1,10 @@
-/*
- * Copyright (c) 2009 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * S3C24XX CPU Frequency scaling - utils for S3C2410/S3C2440/S3C2442
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2009 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// S3C24XX CPU Frequency scaling - utils for S3C2410/S3C2440/S3C2442
 
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -201,7 +201,7 @@ config BLK_DEV_DM_BUILTIN
 config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLK_DEV_DM_BUILTIN
-	select DAX
+	depends on DAX || DAX=n
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -268,6 +268,13 @@ config DM_BIO_PRISON
 	 including thin provisioning.
 
 source "drivers/md/persistent-data/Kconfig"
+
+config DM_UNSTRIPED
+       tristate "Unstriped target"
+       depends on BLK_DEV_DM
+       ---help---
+	  Unstripes I/O so it is issued solely on a single drive in a HW
+	  RAID0 or dm-striped target.
 
 config DM_CRYPT
 	tristate "Crypt target support"

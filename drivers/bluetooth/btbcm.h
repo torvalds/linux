@@ -44,8 +44,8 @@ struct bcm_set_sleep_mode {
 	__u8 tristate_control;
 	__u8 usb_auto_sleep;
 	__u8 usb_resume_timeout;
-	__u8 pulsed_host_wake;
 	__u8 break_to_host;
+	__u8 pulsed_host_wake;
 } __packed;
 
 struct bcm_set_pcm_int_params {

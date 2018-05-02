@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/power_supply.h>
@@ -200,7 +199,7 @@ static void fusb302_log(struct fusb302_chip *chip, const char *fmt, ...)
 	va_end(args);
 }
 
-static int fusb302_seq_show(struct seq_file *s, void *v)
+static int fusb302_debug_show(struct seq_file *s, void *v)
 {
 	struct fusb302_chip *chip = (struct fusb302_chip *)s->private;
 	int tail;
@@ -217,18 +216,7 @@ static int fusb302_seq_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int fusb302_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fusb302_seq_show, inode->i_private);
-}
-
-static const struct file_operations fusb302_debug_operations = {
-	.open		= fusb302_debug_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
 
 static struct dentry *rootdir;
 
@@ -243,7 +231,7 @@ static int fusb302_debugfs_init(struct fusb302_chip *chip)
 
 	chip->dentry = debugfs_create_file(dev_name(chip->dev),
 					   S_IFREG | 0444, rootdir,
-					   chip, &fusb302_debug_operations);
+					   chip, &fusb302_debug_fops);
 
 	return 0;
 }
@@ -1231,6 +1219,7 @@ static const struct tcpc_config fusb302_tcpc_config = {
 	.max_snk_mw = 15000,
 	.operating_snk_mw = 2500,
 	.type = TYPEC_PORT_DRP,
+	.data = TYPEC_PORT_DRD,
 	.default_role = TYPEC_SINK,
 	.alt_modes = NULL,
 };
@@ -1250,7 +1239,6 @@ static void init_tcpc_dev(struct tcpc_dev *fusb302_tcpc_dev)
 	fusb302_tcpc_dev->set_roles = tcpm_set_roles;
 	fusb302_tcpc_dev->start_drp_toggling = tcpm_start_drp_toggling;
 	fusb302_tcpc_dev->pd_transmit = tcpm_pd_transmit;
-	fusb302_tcpc_dev->mux = NULL;
 }
 
 static const char * const cc_polarity_name[] = {
@@ -1543,6 +1531,21 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 	fusb302_log(chip, "PD message header: %x", msg->header);
 	fusb302_log(chip, "PD message len: %d", len);
 
+	/*
+	 * Check if we've read off a GoodCRC message. If so then indicate to
+	 * TCPM that the previous transmission has completed. Otherwise we pass
+	 * the received message over to TCPM for processing.
+	 *
+	 * We make this check here instead of basing the reporting decision on
+	 * the IRQ event type, as it's possible for the chip to report the
+	 * TX_SUCCESS and GCRCSENT events out of order on occasion, so we need
+	 * to check the message type to ensure correct reporting to TCPM.
+	 */
+	if ((!len) && (pd_header_type_le(msg->header) == PD_CTRL_GOOD_CRC))
+		tcpm_pd_transmit_complete(chip->tcpm_port, TCPC_TX_SUCCESS);
+	else
+		tcpm_pd_receive(chip->tcpm_port, msg);
+
 	return ret;
 }
 
@@ -1650,13 +1653,12 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 
 	if (interrupta & FUSB_REG_INTERRUPTA_TX_SUCCESS) {
 		fusb302_log(chip, "IRQ: PD tx success");
-		/* read out the received good CRC */
 		ret = fusb302_pd_read_message(chip, &pd_msg);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot read in GCRC, ret=%d", ret);
+			fusb302_log(chip,
+				    "cannot read in PD message, ret=%d", ret);
 			goto done;
 		}
-		tcpm_pd_transmit_complete(chip->tcpm_port, TCPC_TX_SUCCESS);
 	}
 
 	if (interrupta & FUSB_REG_INTERRUPTA_HARDRESET) {
@@ -1677,7 +1679,6 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 				    "cannot read in PD message, ret=%d", ret);
 			goto done;
 		}
-		tcpm_pd_receive(chip->tcpm_port, &pd_msg);
 	}
 done:
 	mutex_unlock(&chip->lock);
@@ -1731,24 +1732,24 @@ static int init_gpio(struct fusb302_chip *chip)
 	chip->gpio_int_n = of_get_named_gpio(node, "fcs,int_n", 0);
 	if (!gpio_is_valid(chip->gpio_int_n)) {
 		ret = chip->gpio_int_n;
-		fusb302_log(chip, "cannot get named GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev, "cannot get named GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	ret = devm_gpio_request(chip->dev, chip->gpio_int_n, "fcs,int_n");
 	if (ret < 0) {
-		fusb302_log(chip, "cannot request GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev, "cannot request GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	ret = gpio_direction_input(chip->gpio_int_n);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot set GPIO Int_N to input, ret=%d", ret);
+		dev_err(chip->dev,
+			"cannot set GPIO Int_N to input, ret=%d", ret);
 		return ret;
 	}
 	ret = gpio_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
+		dev_err(chip->dev,
+			"cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		return ret;
 	}
 	chip->gpio_int_n_irq = ret;
@@ -1845,7 +1846,8 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
 		ret = PTR_ERR(chip->tcpm_port);
-		fusb302_log(chip, "cannot register tcpm port, ret=%d", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "cannot register tcpm port, ret=%d", ret);
 		goto destroy_workqueue;
 	}
 
@@ -1854,8 +1856,7 @@ static int fusb302_probe(struct i2c_client *client,
 					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 					"fsc_interrupt_int_n", chip);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
+		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);

@@ -39,7 +39,34 @@
 		};
 	};
 
-	gpio_keys {
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_pins_a>;
@@ -120,7 +147,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-			pinctrl-names = "default";
 			reset-gpios = <&pio 33 0>;
 			core-supply = <&mt6323_vpa_reg>;
 			io-supply = <&mt6323_vemc3v3_reg>;
@@ -191,8 +217,8 @@
 	bus-width = <8>;
 	max-frequency = <50000000>;
 	cap-mmc-highspeed;
-	vmmc-supply = <&mt6323_vemc3v3_reg>;
-	vqmmc-supply = <&mt6323_vio18_reg>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
 	non-removable;
 };
 
@@ -204,21 +230,43 @@
 	bus-width = <4>;
 	max-frequency = <50000000>;
 	cap-sd-highspeed;
-	cd-gpios = <&pio 261 0>;
-	vmmc-supply = <&mt6323_vmch_reg>;
-	vqmmc-supply = <&mt6323_vio18_reg>;
+	cd-gpios = <&pio 261 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_default>;
+	status = "okay";
+
+	pcie@0,0 {
+		status = "okay";
+	};
+
+	pcie@1,0 {
+		status = "okay";
+	};
+};
+
+&pcie0_phy {
+	status = "okay";
+};
+
+&pcie1_phy {
+	status = "okay";
 };
 
 &pio {
 	cir_pins_a:cir@0 {
-		pins_cir {
+		pins-cir {
 			pinmux = <MT7623_PIN_46_IR_FUNC_IR>;
 			bias-disable;
 		};
 	};
 
 	i2c0_pins_a: i2c@0 {
-		pins_i2c0 {
+		pins-i2c0 {
 			pinmux = <MT7623_PIN_75_SDA0_FUNC_SDA0>,
 				 <MT7623_PIN_76_SCL0_FUNC_SCL0>;
 			bias-disable;
@@ -226,7 +274,7 @@
 	};
 
 	i2c1_pins_a: i2c@1 {
-		pin_i2c1 {
+		pin-i2c1 {
 			pinmux = <MT7623_PIN_57_SDA1_FUNC_SDA1>,
 				 <MT7623_PIN_58_SCL1_FUNC_SCL1>;
 			bias-disable;
@@ -234,7 +282,7 @@
 	};
 
 	i2s0_pins_a: i2s@0 {
-		pin_i2s0 {
+		pin-i2s0 {
 			pinmux = <MT7623_PIN_49_I2S0_DATA_FUNC_I2S0_DATA>,
 				 <MT7623_PIN_72_I2S0_DATA_IN_FUNC_I2S0_DATA_IN>,
 				 <MT7623_PIN_73_I2S0_LRCK_FUNC_I2S0_LRCK>,
@@ -246,7 +294,7 @@
 	};
 
 	i2s1_pins_a: i2s@1 {
-		pin_i2s1 {
+		pin-i2s1 {
 			pinmux = <MT7623_PIN_33_I2S1_DATA_FUNC_I2S1_DATA>,
 				 <MT7623_PIN_34_I2S1_DATA_IN_FUNC_I2S1_DATA_IN>,
 				 <MT7623_PIN_35_I2S1_BCK_FUNC_I2S1_BCK>,
@@ -258,7 +306,7 @@
 	};
 
 	key_pins_a: keys@0 {
-		pins_keys {
+		pins-keys {
 			pinmux = <MT7623_PIN_256_GPIO256_FUNC_GPIO256>,
 				 <MT7623_PIN_257_GPIO257_FUNC_GPIO257> ;
 			input-enable;
@@ -266,7 +314,7 @@
 	};
 
 	led_pins_a: leds@0 {
-		pins_leds {
+		pins-leds {
 			pinmux = <MT7623_PIN_239_EXT_SDIO0_FUNC_GPIO239>,
 				 <MT7623_PIN_240_EXT_XCS_FUNC_GPIO240>,
 				 <MT7623_PIN_241_EXT_SCK_FUNC_GPIO241>;
@@ -274,7 +322,7 @@
 	};
 
 	mmc0_pins_default: mmc0default {
-		pins_cmd_dat {
+		pins-cmd-dat {
 			pinmux = <MT7623_PIN_111_MSDC0_DAT7_FUNC_MSDC0_DAT7>,
 				 <MT7623_PIN_112_MSDC0_DAT6_FUNC_MSDC0_DAT6>,
 				 <MT7623_PIN_113_MSDC0_DAT5_FUNC_MSDC0_DAT5>,
@@ -288,19 +336,19 @@
 			bias-pull-up;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT7623_PIN_117_MSDC0_CLK_FUNC_MSDC0_CLK>;
 			bias-pull-down;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT7623_PIN_115_MSDC0_RSTB_FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
 	mmc0_pins_uhs: mmc0 {
-		pins_cmd_dat {
+		pins-cmd-dat {
 			pinmux = <MT7623_PIN_111_MSDC0_DAT7_FUNC_MSDC0_DAT7>,
 				 <MT7623_PIN_112_MSDC0_DAT6_FUNC_MSDC0_DAT6>,
 				 <MT7623_PIN_113_MSDC0_DAT5_FUNC_MSDC0_DAT5>,
@@ -315,20 +363,20 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT7623_PIN_117_MSDC0_CLK_FUNC_MSDC0_CLK>;
 			drive-strength = <MTK_DRIVE_2mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT7623_PIN_115_MSDC0_RSTB_FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
 	mmc1_pins_default: mmc1default {
-		pins_cmd_dat {
+		pins-cmd-dat {
 			pinmux = <MT7623_PIN_107_MSDC1_DAT0_FUNC_MSDC1_DAT0>,
 				 <MT7623_PIN_108_MSDC1_DAT1_FUNC_MSDC1_DAT1>,
 				 <MT7623_PIN_109_MSDC1_DAT2_FUNC_MSDC1_DAT2>,
@@ -339,26 +387,26 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT7623_PIN_106_MSDC1_CLK_FUNC_MSDC1_CLK>;
 			bias-pull-down;
 			drive-strength = <MTK_DRIVE_4mA>;
 		};
 
-		pins_wp {
+		pins-wp {
 			pinmux = <MT7623_PIN_29_EINT7_FUNC_MSDC1_WP>;
 			input-enable;
 			bias-pull-up;
 		};
 
-		pins_insert {
+		pins-insert {
 			pinmux = <MT7623_PIN_261_MSDC1_INS_FUNC_GPIO261>;
 			bias-pull-up;
 		};
 	};
 
 	mmc1_pins_uhs: mmc1 {
-		pins_cmd_dat {
+		pins-cmd-dat {
 			pinmux = <MT7623_PIN_107_MSDC1_DAT0_FUNC_MSDC1_DAT0>,
 				 <MT7623_PIN_108_MSDC1_DAT1_FUNC_MSDC1_DAT1>,
 				 <MT7623_PIN_109_MSDC1_DAT2_FUNC_MSDC1_DAT2>,
@@ -369,15 +417,23 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT7623_PIN_106_MSDC1_CLK_FUNC_MSDC1_CLK>;
 			drive-strength = <MTK_DRIVE_4mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
 
+	pcie_default: pcie_pin_default {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_208_AUD_EXT_CK1_FUNC_PCIE0_PERST_N>,
+				 <MT7623_PIN_209_AUD_EXT_CK2_FUNC_PCIE1_PERST_N>;
+			bias-disable;
+		};
+	};
+
 	pwm_pins_a: pwm@0 {
-		pins_pwm {
+		pins-pwm {
 			pinmux = <MT7623_PIN_203_PWM0_FUNC_PWM0>,
 				 <MT7623_PIN_204_PWM1_FUNC_PWM1>,
 				 <MT7623_PIN_205_PWM2_FUNC_PWM2>,
@@ -387,7 +443,7 @@
 	};
 
 	spi0_pins_a: spi@0 {
-		pins_spi {
+		pins-spi {
 			pinmux = <MT7623_PIN_53_SPI0_CSN_FUNC_SPI0_CS>,
 				<MT7623_PIN_54_SPI0_CK_FUNC_SPI0_CK>,
 				<MT7623_PIN_55_SPI0_MI_FUNC_SPI0_MI>,
@@ -397,16 +453,23 @@
 	};
 
 	uart0_pins_a: uart@0 {
-		pins_dat {
+		pins-dat {
 			pinmux = <MT7623_PIN_79_URXD0_FUNC_URXD0>,
 				 <MT7623_PIN_80_UTXD0_FUNC_UTXD0>;
 		};
 	};
 
 	uart1_pins_a: uart@1 {
-		pins_dat {
+		pins-dat {
 			pinmux = <MT7623_PIN_81_URXD1_FUNC_URXD1>,
 				 <MT7623_PIN_82_UTXD1_FUNC_UTXD1>;
+		};
+	};
+
+	uart2_pins_a: uart@2 {
+		pins-dat {
+			pinmux = <MT7623_PIN_14_GPIO14_FUNC_URXD2>,
+				 <MT7623_PIN_15_GPIO15_FUNC_UTXD2>;
 		};
 	};
 };
@@ -454,26 +517,30 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins_a>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins_a>;
 	status = "okay";
 };
 
 &usb1 {
-	vusb33-supply = <&mt6323_vusb_reg>;
+	vusb33-supply = <&reg_3p3v>;
+	vbus-supply = <&reg_5v>;
 	status = "okay";
 };
 
 &usb2 {
-	vusb33-supply = <&mt6323_vusb_reg>;
+	vusb33-supply = <&reg_3p3v>;
+	vbus-supply = <&reg_5v>;
 	status = "okay";
 };
 

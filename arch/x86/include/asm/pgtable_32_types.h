@@ -15,6 +15,8 @@
 # include <asm/pgtable-2level_types.h>
 #endif
 
+#define pgtable_l5_enabled 0
+
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
@@ -44,8 +46,9 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
  */
 #define CPU_ENTRY_AREA_PAGES	(NR_CPUS * 40)
 
-#define CPU_ENTRY_AREA_BASE				\
-	((FIXADDR_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1)) & PMD_MASK)
+#define CPU_ENTRY_AREA_BASE						\
+	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
+	 & PMD_MASK)
 
 #define PKMAP_BASE		\
 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)

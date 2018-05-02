@@ -251,6 +251,34 @@ encode_wcc_data(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 }
 
 /*
+ * Fill in the pre_op attr for the wcc data
+ */
+void fill_pre_wcc(struct svc_fh *fhp)
+{
+	struct inode    *inode;
+	struct kstat	stat;
+	__be32 err;
+
+	if (fhp->fh_pre_saved)
+		return;
+
+	inode = d_inode(fhp->fh_dentry);
+	err = fh_getattr(fhp, &stat);
+	if (err) {
+		/* Grab the times from inode anyway */
+		stat.mtime = inode->i_mtime;
+		stat.ctime = inode->i_ctime;
+		stat.size  = inode->i_size;
+	}
+
+	fhp->fh_pre_mtime = stat.mtime;
+	fhp->fh_pre_ctime = stat.ctime;
+	fhp->fh_pre_size  = stat.size;
+	fhp->fh_pre_change = nfsd4_change_attribute(&stat, inode);
+	fhp->fh_pre_saved = true;
+}
+
+/*
  * Fill in the post_op attr for the wcc data
  */
 void fill_post_wcc(struct svc_fh *fhp)
@@ -261,7 +289,8 @@ void fill_post_wcc(struct svc_fh *fhp)
 		printk("nfsd: inode locked twice during operation.\n");
 
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
-	fhp->fh_post_change = nfsd4_change_attribute(d_inode(fhp->fh_dentry));
+	fhp->fh_post_change = nfsd4_change_attribute(&fhp->fh_post_attr,
+						     d_inode(fhp->fh_dentry));
 	if (err) {
 		fhp->fh_post_saved = false;
 		/* Grab the ctime anyway - set_change_info might use it */
@@ -362,7 +391,7 @@ int
 nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_writeargs *args = rqstp->rq_argp;
-	unsigned int len, v, hdr, dlen;
+	unsigned int len, hdr, dlen;
 	u32 max_blocksize = svc_max_payload(rqstp);
 	struct kvec *head = rqstp->rq_arg.head;
 	struct kvec *tail = rqstp->rq_arg.tail;
@@ -404,17 +433,9 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 		args->count = max_blocksize;
 		len = args->len = max_blocksize;
 	}
-	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = head->iov_len - hdr;
-	v = 0;
-	while (len > rqstp->rq_vec[v].iov_len) {
-		len -= rqstp->rq_vec[v].iov_len;
-		v++;
-		rqstp->rq_vec[v].iov_base = page_address(rqstp->rq_pages[v]);
-		rqstp->rq_vec[v].iov_len = PAGE_SIZE;
-	}
-	rqstp->rq_vec[v].iov_len = len;
-	args->vlen = v + 1;
+
+	args->first.iov_base = (void *)p;
+	args->first.iov_len = head->iov_len - hdr;
 	return 1;
 }
 
@@ -460,51 +481,24 @@ int
 nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_symlinkargs *args = rqstp->rq_argp;
-	unsigned int len, avail;
-	char *old, *new;
-	struct kvec *vec;
+	char *base = (char *)p;
+	size_t dlen;
 
 	if (!(p = decode_fh(p, &args->ffh)) ||
-	    !(p = decode_filename(p, &args->fname, &args->flen))
-		)
+	    !(p = decode_filename(p, &args->fname, &args->flen)))
 		return 0;
 	p = decode_sattr3(p, &args->attrs);
 
-	/* now decode the pathname, which might be larger than the first page.
-	 * As we have to check for nul's anyway, we copy it into a new page
-	 * This page appears in the rq_res.pages list, but as pages_len is always
-	 * 0, it won't get in the way
-	 */
-	len = ntohl(*p++);
-	if (len == 0 || len > NFS3_MAXPATHLEN || len >= PAGE_SIZE)
-		return 0;
-	args->tname = new = page_address(*(rqstp->rq_next_page++));
-	args->tlen = len;
-	/* first copy and check from the first page */
-	old = (char*)p;
-	vec = &rqstp->rq_arg.head[0];
-	if ((void *)old > vec->iov_base + vec->iov_len)
-		return 0;
-	avail = vec->iov_len - (old - (char*)vec->iov_base);
-	while (len && avail && *old) {
-		*new++ = *old++;
-		len--;
-		avail--;
-	}
-	/* now copy next page if there is one */
-	if (len && !avail && rqstp->rq_arg.page_len) {
-		avail = min_t(unsigned int, rqstp->rq_arg.page_len, PAGE_SIZE);
-		old = page_address(rqstp->rq_arg.pages[0]);
-	}
-	while (len && avail && *old) {
-		*new++ = *old++;
-		len--;
-		avail--;
-	}
-	*new = '\0';
-	if (len)
-		return 0;
+	args->tlen = ntohl(*p++);
 
+	args->first.iov_base = p;
+	args->first.iov_len = rqstp->rq_arg.head[0].iov_len;
+	args->first.iov_len -= (char *)p - base;
+
+	dlen = args->first.iov_len + rqstp->rq_arg.page_len +
+	       rqstp->rq_arg.tail[0].iov_len;
+	if (dlen < XDR_QUADLEN(args->tlen) << 2)
+		return 0;
 	return 1;
 }
 

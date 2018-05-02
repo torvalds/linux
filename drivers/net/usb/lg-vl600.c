@@ -157,12 +157,8 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		s->current_rx_buf = skb_copy_expand(skb, 0,
 				le32_to_cpup(&frame->len), GFP_ATOMIC);
-		if (!s->current_rx_buf) {
-			netif_err(dev, ifup, dev->net, "Reserving %i bytes "
-					"for packet assembly failed.\n",
-					le32_to_cpup(&frame->len));
+		if (!s->current_rx_buf)
 			dev->net->stats.rx_errors++;
-		}
 
 		return 0;
 	}

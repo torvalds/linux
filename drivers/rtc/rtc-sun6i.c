@@ -201,8 +201,10 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 
 	clk_data = kzalloc(sizeof(*clk_data) + (sizeof(*clk_data->hws) * 2),
 			   GFP_KERNEL);
-	if (!clk_data)
+	if (!clk_data) {
+		kfree(rtc);
 		return;
+	}
 
 	spin_lock_init(&rtc->lock);
 
@@ -347,7 +349,7 @@ static int sun6i_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	 */
 	rtc_tm->tm_year += SUN6I_YEAR_OFF;
 
-	return rtc_valid_tm(rtc_tm);
+	return 0;
 }
 
 static int sun6i_rtc_getalarm(struct device *dev, struct rtc_wkalrm *wkalrm)

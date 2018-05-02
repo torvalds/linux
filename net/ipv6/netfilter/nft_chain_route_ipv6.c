@@ -33,7 +33,8 @@ static unsigned int nf_route_table_hook(void *priv,
 	u32 mark, flowlabel;
 	int err;
 
-	nft_set_pktinfo_ipv6(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_ipv6(&pkt, skb);
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */
 	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));
@@ -59,7 +60,7 @@ static unsigned int nf_route_table_hook(void *priv,
 	return ret;
 }
 
-static const struct nf_chain_type nft_chain_route_ipv6 = {
+static const struct nft_chain_type nft_chain_route_ipv6 = {
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
 	.family		= NFPROTO_IPV6,
@@ -72,7 +73,9 @@ static const struct nf_chain_type nft_chain_route_ipv6 = {
 
 static int __init nft_chain_route_init(void)
 {
-	return nft_register_chain_type(&nft_chain_route_ipv6);
+	nft_register_chain_type(&nft_chain_route_ipv6);
+
+	return 0;
 }
 
 static void __exit nft_chain_route_exit(void)

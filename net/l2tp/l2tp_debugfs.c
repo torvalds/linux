@@ -47,7 +47,11 @@ struct l2tp_dfs_seq_data {
 
 static void l2tp_dfs_next_tunnel(struct l2tp_dfs_seq_data *pd)
 {
-	pd->tunnel = l2tp_tunnel_find_nth(pd->net, pd->tunnel_idx);
+	/* Drop reference taken during previous invocation */
+	if (pd->tunnel)
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+
+	pd->tunnel = l2tp_tunnel_get_nth(pd->net, pd->tunnel_idx);
 	pd->tunnel_idx++;
 }
 
@@ -96,7 +100,17 @@ static void *l2tp_dfs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void l2tp_dfs_seq_stop(struct seq_file *p, void *v)
 {
-	/* nothing to do */
+	struct l2tp_dfs_seq_data *pd = v;
+
+	if (!pd || pd == SEQ_START_TOKEN)
+		return;
+
+	/* Drop reference taken by last invocation of l2tp_dfs_next_tunnel() */
+	if (pd->tunnel) {
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+		pd->tunnel = NULL;
+		pd->session = NULL;
+	}
 }
 
 static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
@@ -180,8 +194,8 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset %hu l2specific %hu/%hu\n",
-		   session->offset, session->l2specific_type, session->l2specific_len);
+	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
+		   session->l2specific_type, l2tp_get_l2specific_len(session));
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
 			   session->cookie[0], session->cookie[1],

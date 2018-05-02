@@ -49,6 +49,9 @@
 
 #define LAST_RECORD_TYPE 0xff
 
+#define DC_LOGGER \
+	bp->base.ctx->logger
+
 /* GUID to validate external display connection info table (aka OPM module) */
 static const uint8_t ext_display_connection_guid[NUMBER_OF_UCHAR_FOR_GUID] = {
 	0x91, 0x6E, 0x57, 0x09,
@@ -190,6 +193,7 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct graphics_object_id object_id = dal_graphics_object_id_init(
 		0, ENUM_ID_UNKNOWN, OBJECT_TYPE_UNKNOWN);
+	uint16_t id;
 
 	uint32_t connector_table_offset = bp->object_info_tbl_offset
 		+ le16_to_cpu(bp->object_info_tbl.v1_1->usConnectorObjectTableOffset);
@@ -197,12 +201,19 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	ATOM_OBJECT_TABLE *tbl =
 		GET_IMAGE(ATOM_OBJECT_TABLE, connector_table_offset);
 
-	if (tbl && tbl->ucNumberOfObjects > i) {
-		const uint16_t id = le16_to_cpu(tbl->asObjects[i].usObjectID);
-
-		object_id = object_id_from_bios_object_id(id);
+	if (!tbl) {
+		dm_error("Can't get connector table from atom bios.\n");
+		return object_id;
 	}
 
+	if (tbl->ucNumberOfObjects <= i) {
+		dm_error("Can't find connector id %d in connector table of size %d.\n",
+			 i, tbl->ucNumberOfObjects);
+		return object_id;
+	}
+
+	id = le16_to_cpu(tbl->asObjects[i].usObjectID);
+	object_id = object_id_from_bios_object_id(id);
 	return object_id;
 }
 
@@ -2254,6 +2265,52 @@ static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
 	return BP_RESULT_OK;
 }
 
+static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
+{
+	bool rc = true;
+
+	switch (id.type) {
+	case OBJECT_TYPE_UNKNOWN:
+		rc = false;
+		break;
+	case OBJECT_TYPE_GPU:
+	case OBJECT_TYPE_ENGINE:
+		/* do NOT check for id.id == 0 */
+		if (id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	default:
+		if (id.id == 0 || id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	}
+
+	return rc;
+}
+
+static bool dal_graphics_object_id_is_equal(
+	struct graphics_object_id id1,
+	struct graphics_object_id id2)
+{
+	if (false == dal_graphics_object_id_is_valid(id1)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id1'!\n", __func__);
+		return false;
+	}
+
+	if (false == dal_graphics_object_id_is_valid(id2)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id2'!\n", __func__);
+		return false;
+	}
+
+	if (id1.id == id2.id && id1.enum_id == id2.enum_id
+		&& id1.type == id2.type)
+		return true;
+
+	return false;
+}
+
 static ATOM_OBJECT *get_bios_object(struct bios_parser *bp,
 	struct graphics_object_id id)
 {
@@ -3025,8 +3082,7 @@ static enum bp_result patch_bios_image_from_ext_display_connection_info(
 					    opm_object,
 					    &ext_display_connection_info_tbl) != BP_RESULT_OK) {
 
-		dm_logger_write(bp->base.ctx->logger, LOG_WARNING,
-				"%s: Failed to read Connection Info Table", __func__);
+		DC_LOG_WARNING("%s: Failed to read Connection Info Table", __func__);
 		return BP_RESULT_UNSUPPORTED;
 	}
 
@@ -3741,14 +3797,11 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
 
-	.get_embedded_panel_info = bios_parser_get_embedded_panel_info,
-
-	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
-
 	.get_encoder_cap_info = bios_parser_get_encoder_cap_info,
 
 	/* bios scratch register communication */
 	.is_accelerated_mode = bios_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

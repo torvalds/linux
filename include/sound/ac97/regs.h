@@ -31,7 +31,7 @@
 #define AC97_HEADPHONE		0x04	/* Headphone Volume (optional) */
 #define AC97_MASTER_MONO	0x06	/* Master Volume Mono (optional) */
 #define AC97_MASTER_TONE	0x08	/* Master Tone (Bass & Treble) (optional) */
-#define AC97_PC_BEEP		0x0a	/* PC Beep Volume (optinal) */
+#define AC97_PC_BEEP		0x0a	/* PC Beep Volume (optional) */
 #define AC97_PHONE		0x0c	/* Phone Volume (optional) */
 #define AC97_MIC		0x0e	/* MIC Volume */
 #define AC97_LINE		0x10	/* Line In Volume */

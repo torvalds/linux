@@ -66,8 +66,7 @@ struct vchiq_openack_payload {
 	short version;
 };
 
-enum
-{
+enum {
 	QMFLAGS_IS_BLOCKING     = (1 << 0),
 	QMFLAGS_NO_MUTEX_LOCK   = (1 << 1),
 	QMFLAGS_NO_MUTEX_UNLOCK = (1 << 2)
@@ -212,7 +211,8 @@ find_service_by_port(VCHIQ_STATE_T *state, int localport)
 
 VCHIQ_SERVICE_T *
 find_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);
@@ -235,7 +235,8 @@ find_service_for_instance(VCHIQ_INSTANCE_T instance,
 
 VCHIQ_SERVICE_T *
 find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);

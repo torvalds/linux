@@ -32,6 +32,7 @@ struct atmel_classd {
 	struct regmap *regmap;
 	struct clk *pclk;
 	struct clk *gclk;
+	struct device *dev;
 	int irq;
 	const struct atmel_classd_pdata *pdata;
 };
@@ -165,7 +166,7 @@ atmel_classd_platform_configure_dma(struct snd_pcm_substream *substream,
 	struct atmel_classd *dd = snd_soc_card_get_drvdata(rtd->card);
 
 	if (params_physical_width(params) != 16) {
-		dev_err(rtd->platform->dev,
+		dev_err(dd->dev,
 			"only supports 16-bit audio data\n");
 		return -EINVAL;
 	}
@@ -247,9 +248,9 @@ static const char * const pwm_type[] = {
 	"Single ended", "Differential"
 };
 
-static int atmel_classd_codec_probe(struct snd_soc_codec *codec)
+static int atmel_classd_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_card *card = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_card *card = snd_soc_component_get_drvdata(component);
 	struct atmel_classd *dd = snd_soc_card_get_drvdata(card);
 	const struct atmel_classd_pdata *pdata = dd->pdata;
 	u32 mask, val;
@@ -283,16 +284,16 @@ static int atmel_classd_codec_probe(struct snd_soc_codec *codec)
 		default:
 			val |= (CLASSD_MR_NOVR_VAL_10NS
 				<< CLASSD_MR_NOVR_VAL_SHIFT);
-			dev_warn(codec->dev,
+			dev_warn(component->dev,
 				"non-overlapping value %d is invalid, the default value 10 is specified\n",
 				pdata->non_overlap_time);
 			break;
 		}
 	}
 
-	snd_soc_update_bits(codec, CLASSD_MR, mask, val);
+	snd_soc_component_update_bits(component, CLASSD_MR, mask, val);
 
-	dev_info(codec->dev,
+	dev_info(component->dev,
 		"PWM modulation type is %s, non-overlapping is %s\n",
 		pwm_type[pdata->pwm_type],
 		pdata->non_overlap_enable?"enabled":"disabled");
@@ -300,27 +301,23 @@ static int atmel_classd_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int atmel_classd_codec_resume(struct snd_soc_codec *codec)
+static int atmel_classd_component_resume(struct snd_soc_component *component)
 {
-	struct snd_soc_card *card = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_card *card = snd_soc_component_get_drvdata(component);
 	struct atmel_classd *dd = snd_soc_card_get_drvdata(card);
 
 	return regcache_sync(dd->regmap);
 }
 
-static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
-{
-	return dev_get_regmap(dev, NULL);
-}
-
-static struct snd_soc_codec_driver soc_codec_dev_classd = {
-	.probe		= atmel_classd_codec_probe,
-	.resume		= atmel_classd_codec_resume,
-	.get_regmap	= atmel_classd_codec_get_remap,
-	.component_driver = {
-		.controls		= atmel_classd_snd_controls,
-		.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),
-	},
+static struct snd_soc_component_driver soc_component_dev_classd = {
+	.probe			= atmel_classd_component_probe,
+	.resume			= atmel_classd_component_resume,
+	.controls		= atmel_classd_snd_controls,
+	.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /* codec dai component */
@@ -336,7 +333,7 @@ static int atmel_classd_codec_dai_startup(struct snd_pcm_substream *substream,
 static int atmel_classd_codec_dai_digital_mute(struct snd_soc_dai *codec_dai,
 	int mute)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u32 mask, val;
 
 	mask = CLASSD_MR_LMUTE_MASK | CLASSD_MR_RMUTE_MASK;
@@ -346,7 +343,7 @@ static int atmel_classd_codec_dai_digital_mute(struct snd_soc_dai *codec_dai,
 	else
 		val = 0;
 
-	snd_soc_update_bits(codec, CLASSD_MR, mask, val);
+	snd_soc_component_update_bits(component, CLASSD_MR, mask, val);
 
 	return 0;
 }
@@ -385,7 +382,7 @@ atmel_classd_codec_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct atmel_classd *dd = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	int fs;
 	int i, best, best_val, cur_val, ret;
 	u32 mask, val;
@@ -403,7 +400,7 @@ atmel_classd_codec_dai_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	dev_dbg(codec->dev,
+	dev_dbg(component->dev,
 		"Selected SAMPLE_RATE of %dHz, GCLK_RATE of %ldHz\n",
 		sample_rates[best].rate, sample_rates[best].gclk_rate);
 
@@ -417,7 +414,7 @@ atmel_classd_codec_dai_hw_params(struct snd_pcm_substream *substream,
 	val = (sample_rates[best].dsp_clk << CLASSD_INTPMR_DSP_CLK_FREQ_SHIFT)
 	| (sample_rates[best].sample_rate << CLASSD_INTPMR_FRAME_SHIFT);
 
-	snd_soc_update_bits(codec, CLASSD_INTPMR, mask, val);
+	snd_soc_component_update_bits(component, CLASSD_INTPMR, mask, val);
 
 	return clk_prepare_enable(dd->gclk);
 }
@@ -435,9 +432,9 @@ atmel_classd_codec_dai_shutdown(struct snd_pcm_substream *substream,
 static int atmel_classd_codec_dai_prepare(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *codec_dai)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 
-	snd_soc_update_bits(codec, CLASSD_MR,
+	snd_soc_component_update_bits(component, CLASSD_MR,
 				CLASSD_MR_LEN_MASK | CLASSD_MR_REN_MASK,
 				(CLASSD_MR_LEN_DIS << CLASSD_MR_LEN_SHIFT)
 				|(CLASSD_MR_REN_DIS << CLASSD_MR_REN_SHIFT));
@@ -448,7 +445,7 @@ static int atmel_classd_codec_dai_prepare(struct snd_pcm_substream *substream,
 static int atmel_classd_codec_dai_trigger(struct snd_pcm_substream *substream,
 					int cmd, struct snd_soc_dai *codec_dai)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u32 mask, val;
 
 	mask = CLASSD_MR_LEN_MASK | CLASSD_MR_REN_MASK;
@@ -469,7 +466,7 @@ static int atmel_classd_codec_dai_trigger(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, CLASSD_MR, mask, val);
+	snd_soc_component_update_bits(component, CLASSD_MR, mask, val);
 
 	return 0;
 }
@@ -586,13 +583,11 @@ static int atmel_classd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	io_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(io_base)) {
-		ret =  PTR_ERR(io_base);
-		dev_err(dev, "failed to remap register memory: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	dd->phy_base = res->start;
+	dd->dev = dev;
 
 	dd->regmap = devm_regmap_init_mmio(dev, io_base,
 					&atmel_classd_regmap_config);
@@ -618,10 +613,10 @@ static int atmel_classd_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(dev, &soc_codec_dev_classd,
+	ret = devm_snd_soc_register_component(dev, &soc_component_dev_classd,
 					&atmel_classd_codec_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register codec: %d\n", ret);
+		dev_err(dev, "could not register component: %d\n", ret);
 		return ret;
 	}
 
@@ -649,13 +644,11 @@ static int atmel_classd_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_codec:
-	snd_soc_unregister_codec(dev);
 	return ret;
 }
 
 static int atmel_classd_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

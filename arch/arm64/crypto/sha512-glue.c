@@ -27,6 +27,7 @@ MODULE_ALIAS_CRYPTO("sha512");
 
 asmlinkage void sha512_block_data_order(u32 *digest, const void *data,
 					unsigned int num_blks);
+EXPORT_SYMBOL(sha512_block_data_order);
 
 static int sha512_update(struct shash_desc *desc, const u8 *data,
 			 unsigned int len)

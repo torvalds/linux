@@ -66,7 +66,7 @@ static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
 
 static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 			    struct nlattr *est, struct tc_action **a,
-			    int ovr, int bind)
+			    int ovr, int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
@@ -208,14 +208,16 @@ nla_put_failure:
 
 static int tcf_skbedit_walker(struct net *net, struct sk_buff *skb,
 			      struct netlink_callback *cb, int type,
-			      const struct tc_action_ops *ops)
+			      const struct tc_action_ops *ops,
+			      struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index,
+			      struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 
@@ -241,16 +243,14 @@ static __net_init int skbedit_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_skbedit_ops);
 }
 
-static void __net_exit skbedit_exit_net(struct net *net)
+static void __net_exit skbedit_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, skbedit_net_id);
 }
 
 static struct pernet_operations skbedit_net_ops = {
 	.init = skbedit_init_net,
-	.exit = skbedit_exit_net,
+	.exit_batch = skbedit_exit_net,
 	.id   = &skbedit_net_id,
 	.size = sizeof(struct tc_action_net),
 };

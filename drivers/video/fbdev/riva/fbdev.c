@@ -780,7 +780,7 @@ static int riva_load_video_mode(struct fb_info *info)
 	else
 		newmode.misc_output |= 0x80;	
 
-	rc = CalcStateExt(&par->riva, &newmode.ext, bpp, width,
+	rc = CalcStateExt(&par->riva, &newmode.ext, par->pdev, bpp, width,
 			  hDisplaySize, height, dotClock);
 	if (rc)
 		goto out;

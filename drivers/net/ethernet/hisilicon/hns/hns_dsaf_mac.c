@@ -369,7 +369,6 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
-	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
 	/* directy return ok in debug network mode */
@@ -377,7 +376,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 		return 0;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
-		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+		eth_broadcast_addr(mac_entry.addr);
 		mac_entry.in_vlan_id = vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
 		mac_entry.port_num = port_num;
@@ -404,7 +403,6 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	u8 port_num;
-	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mac_entry_idx *uc_mac_entry;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
@@ -414,7 +412,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	uc_mac_entry = &mac_cb->addr_entry_idx[vmid];
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))  {
-		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+		eth_broadcast_addr(mac_entry.addr);
 		mac_entry.in_vlan_id = uc_mac_entry->vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
 		ret = hns_mac_get_inner_port_num(mac_cb, vmid, &port_num);
@@ -1168,7 +1166,7 @@ void hns_set_led_opt(struct hns_mac_cb *mac_cb)
 int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 			enum hnae_led_state status)
 {
-	if (!mac_cb || !mac_cb->cpld_ctrl)
+	if (!mac_cb)
 		return 0;
 
 	return mac_cb->dsaf_dev->misc_op->cpld_set_led_id(mac_cb, status);

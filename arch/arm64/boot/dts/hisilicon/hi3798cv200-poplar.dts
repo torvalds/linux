@@ -146,6 +146,12 @@
 	status = "okay";
 };
 
+&sd0 {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	status = "okay";
+};
+
 &spi0 {
 	status = "okay";
 	label = "LS-SPI0";

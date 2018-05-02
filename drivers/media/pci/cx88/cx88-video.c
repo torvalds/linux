@@ -806,8 +806,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-void cx88_querycap(struct file *file, struct cx88_core *core,
-		   struct v4l2_capability *cap)
+int cx88_querycap(struct file *file, struct cx88_core *core,
+		  struct v4l2_capability *cap)
 {
 	struct video_device *vdev = video_devdata(file);
 
@@ -825,11 +825,14 @@ void cx88_querycap(struct file *file, struct cx88_core *core,
 	case VFL_TYPE_VBI:
 		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
 		break;
+	default:
+		return -EINVAL;
 	}
 	cap->capabilities = cap->device_caps | V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_DEVICE_CAPS;
 	if (core->board.radio.type == CX88_RADIO)
 		cap->capabilities |= V4L2_CAP_RADIO;
+	return 0;
 }
 EXPORT_SYMBOL(cx88_querycap);
 
@@ -841,8 +844,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	strcpy(cap->driver, "cx8800");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cx88_querycap(file, core, cap);
-	return 0;
+	return cx88_querycap(file, core, cap);
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,

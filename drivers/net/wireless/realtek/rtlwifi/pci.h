@@ -173,7 +173,6 @@ struct rtl8192_tx_ring {
 	/*add for new trx flow*/
 	struct rtl_tx_buffer_desc *buffer_desc; /*tx buffer descriptor*/
 	dma_addr_t buffer_desc_dma; /*tx bufferd desc dma memory*/
-	u16 avl_desc; /* available_desc_to_write */
 	u16 cur_tx_wp; /* current_tx_write_point */
 	u16 cur_tx_rp; /* current_tx_read_point */
 };
@@ -320,10 +319,10 @@ static inline void pci_write32_async(struct rtl_priv *rtlpriv,
 	writel(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
-static inline u16 calc_fifo_space(u16 rp, u16 wp)
+static inline u16 calc_fifo_space(u16 rp, u16 wp, u16 size)
 {
 	if (rp <= wp)
-		return RTL_PCI_MAX_RX_COUNT - 1 + rp - wp;
+		return size - 1 + rp - wp;
 	return rp - wp - 1;
 }
 

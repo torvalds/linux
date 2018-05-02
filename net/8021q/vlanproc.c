@@ -80,7 +80,6 @@ static int vlan_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vlan_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = vlan_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -97,7 +96,6 @@ static int vlandev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vlandev_fops = {
-	.owner = THIS_MODULE,
 	.open    = vlandev_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -150,8 +148,8 @@ int __net_init vlan_proc_init(struct net *net)
 	if (!vn->proc_vlan_dir)
 		goto err;
 
-	vn->proc_vlan_conf = proc_create(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
-				     vn->proc_vlan_dir, &vlan_fops);
+	vn->proc_vlan_conf = proc_create(name_conf, S_IFREG | 0600,
+					 vn->proc_vlan_dir, &vlan_fops);
 	if (!vn->proc_vlan_conf)
 		goto err;
 	return 0;
@@ -174,7 +172,7 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 	if (!strcmp(vlandev->name, name_conf))
 		return -EINVAL;
 	vlan->dent =
-		proc_create_data(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
+		proc_create_data(vlandev->name, S_IFREG | 0600,
 				 vn->proc_vlan_dir, &vlandev_fops, vlandev);
 	if (!vlan->dent)
 		return -ENOBUFS;

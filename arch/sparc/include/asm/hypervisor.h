@@ -76,6 +76,10 @@
 #define HV_ETOOMANY			15 /* Too many items specified     */
 #define HV_ECHANNEL			16 /* Invalid LDC channel          */
 #define HV_EBUSY			17 /* Resource busy                */
+#define HV_EUNAVAILABLE			23 /* Resource or operation not
+					    * currently available, but may
+					    * become available in the future
+					    */
 
 /* mach_exit()
  * TRAP:	HV_FAST_TRAP
@@ -566,6 +570,8 @@ struct hv_fault_status {
 #define HV_FAULT_TYPE_RESV1	13
 #define HV_FAULT_TYPE_UNALIGNED	14
 #define HV_FAULT_TYPE_INV_PGSZ	15
+#define HV_FAULT_TYPE_MCD	17
+#define HV_FAULT_TYPE_MCD_DIS	18
 /* Values 16 --> -2 are reserved.  */
 #define HV_FAULT_TYPE_MULTIPLE	-1
 
@@ -940,6 +946,139 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * an 8K boundary.
  */
 #define HV_FAST_MEM_SYNC		0x32
+
+/* Coprocessor services
+ *
+ * M7 and later processors provide an on-chip coprocessor which
+ * accelerates database operations, and is known internally as
+ * DAX.
+ */
+
+/* ccb_submit()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_SUBMIT
+ * ARG0:	address of CCB array
+ * ARG1:	size (in bytes) of CCB array being submitted
+ * ARG2:	flags
+ * ARG3:	reserved
+ * RET0:	status (success or error code)
+ * RET1:	size (in bytes) of CCB array that was accepted (might be less
+ *		than arg1)
+ * RET2:	status data
+ *		if status == ENOMAP or ENOACCESS, identifies the VA in question
+ *		if status == EUNAVAILBLE, unavailable code
+ * RET3:	reserved
+ *
+ * ERRORS:	EOK		successful submission (check size)
+ *		EWOULDBLOCK	could not finish submissions, try again
+ *		EBADALIGN	array not 64B aligned or size not 64B multiple
+ *		ENORADDR	invalid RA for array or in CCB
+ *		ENOMAP		could not translate address (see status data)
+ *		EINVAL		invalid ccb or arguments
+ *		ETOOMANY	too many ccbs with all-or-nothing flag
+ *		ENOACCESS	guest has no access to submit ccbs or address
+ *				in CCB does not have correct permissions (check
+ *				status data)
+ *		EUNAVAILABLE	ccb operation could not be performed at this
+ *				time (check status data)
+ *				Status data codes:
+ *					0 - exact CCB could not be executed
+ *					1 - CCB opcode cannot be executed
+ *					2 - CCB version cannot be executed
+ *					3 - vcpu cannot execute CCBs
+ *					4 - no CCBs can be executed
+ */
+
+#define HV_CCB_SUBMIT               0x34
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_submit(unsigned long ccb_buf,
+			       unsigned long len,
+			       unsigned long flags,
+			       unsigned long reserved,
+			       void *submitted_len,
+			       void *status_data);
+#endif
+
+/* flags (ARG2) */
+#define HV_CCB_QUERY_CMD		BIT(1)
+#define HV_CCB_ARG0_TYPE_REAL		0UL
+#define HV_CCB_ARG0_TYPE_PRIMARY	BIT(4)
+#define HV_CCB_ARG0_TYPE_SECONDARY	BIT(5)
+#define HV_CCB_ARG0_TYPE_NUCLEUS	GENMASK(5, 4)
+#define HV_CCB_ARG0_PRIVILEGED		BIT(6)
+#define HV_CCB_ALL_OR_NOTHING		BIT(7)
+#define HV_CCB_QUEUE_INFO		BIT(8)
+#define HV_CCB_VA_REJECT		0UL
+#define HV_CCB_VA_SECONDARY		BIT(13)
+#define HV_CCB_VA_NUCLEUS		GENMASK(13, 12)
+#define HV_CCB_VA_PRIVILEGED		BIT(14)
+#define HV_CCB_VA_READ_ADI_DISABLE	BIT(15)	/* DAX2 only */
+
+/* ccb_info()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_INFO
+ * ARG0:	real address of CCB completion area
+ * RET0:	status (success or error code)
+ * RET1:	info array
+ *			- RET1[0]: CCB state
+ *			- RET1[1]: dax unit
+ *			- RET1[2]: queue number
+ *			- RET1[3]: queue position
+ *
+ * ERRORS:	EOK		operation successful
+ *		EBADALIGN	address not 64B aligned
+ *		ENORADDR	RA in address not valid
+ *		EINVAL		CA not valid
+ *		EWOULDBLOCK	info not available for this CCB currently, try
+ *				again
+ *		ENOACCESS	guest cannot use dax
+ */
+
+#define HV_CCB_INFO                 0x35
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_info(unsigned long ca,
+			     void *info_arr);
+#endif
+
+/* info array byte offsets (RET1) */
+#define CCB_INFO_OFFSET_CCB_STATE	0
+#define CCB_INFO_OFFSET_DAX_UNIT	2
+#define CCB_INFO_OFFSET_QUEUE_NUM	4
+#define CCB_INFO_OFFSET_QUEUE_POS	6
+
+/* CCB state (RET1[0]) */
+#define HV_CCB_STATE_COMPLETED      0
+#define HV_CCB_STATE_ENQUEUED       1
+#define HV_CCB_STATE_INPROGRESS     2
+#define HV_CCB_STATE_NOTFOUND       3
+
+/* ccb_kill()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_KILL
+ * ARG0:	real address of CCB completion area
+ * RET0:	status (success or error code)
+ * RET1:	CCB kill status
+ *
+ * ERRORS:	EOK		operation successful
+ *		EBADALIGN	address not 64B aligned
+ *		ENORADDR	RA in address not valid
+ *		EINVAL		CA not valid
+ *		EWOULDBLOCK	kill not available for this CCB currently, try
+ *				again
+ *		ENOACCESS	guest cannot use dax
+ */
+
+#define HV_CCB_KILL                 0x36
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_kill(unsigned long ca,
+			     void *kill_status);
+#endif
+
+/* CCB kill status (RET1) */
+#define HV_CCB_KILL_COMPLETED       0
+#define HV_CCB_KILL_DEQUEUED        1
+#define HV_CCB_KILL_KILLED          2
+#define HV_CCB_KILL_NOTFOUND        3
 
 /* Time of day services.
  *
@@ -3355,6 +3494,7 @@ unsigned long sun4v_m7_set_perfreg(unsigned long reg_num,
 #define HV_GRP_SDIO_ERR			0x0109
 #define HV_GRP_REBOOT_DATA		0x0110
 #define HV_GRP_ATU			0x0111
+#define HV_GRP_DAX			0x0113
 #define HV_GRP_M7_PERF			0x0114
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201

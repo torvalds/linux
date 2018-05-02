@@ -275,6 +275,16 @@ config LTR501
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
 
+config LV0104CS
+	tristate "LV0104CS Ambient Light Sensor"
+	depends on I2C
+	help
+	 Say Y here if you want to build support for the On Semiconductor
+	 LV0104CS ambient light sensor.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called lv0104cs.
+
 config MAX44000
 	tristate "MAX44000 Ambient and Infrared Proximity Sensor"
 	depends on I2C
@@ -333,6 +343,30 @@ config STK3310
 
 	 Choosing M will build the driver as a module. If so, the module
 	 will be called stk3310.
+
+config ST_UVIS25
+	tristate "STMicroelectronics UVIS25 sensor driver"
+	depends on (I2C || SPI)
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select ST_UVIS25_I2C if (I2C)
+	select ST_UVIS25_SPI if (SPI_MASTER)
+	help
+	  Say yes here to build support for STMicroelectronics UVIS25
+	  uv sensor
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called st_uvis25.
+
+config ST_UVIS25_I2C
+	tristate
+	depends on ST_UVIS25
+	select REGMAP_I2C
+
+config ST_UVIS25_SPI
+	tristate
+	depends on ST_UVIS25
+	select REGMAP_SPI
 
 config TCS3414
 	tristate "TAOS TCS3414 digital color sensor"
@@ -424,5 +458,15 @@ config VL6180
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called vl6180.
+
+config ZOPT2201
+	tristate "ZOPT2201 ALS and UV B sensor"
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the IDT
+	 ZOPT2201 ambient light and UV B sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called zopt2201.
 
 endmenu

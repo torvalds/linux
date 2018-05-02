@@ -1,3 +1,9 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
+/*
+ * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
+ * Author: Torgue Alexandre <alexandre.torgue@st.com> for STMicroelectronics.
+ */
+
 #ifndef _DT_BINDINGS_STM32_PINFUNC_H
 #define _DT_BINDINGS_STM32_PINFUNC_H
 

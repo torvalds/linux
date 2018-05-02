@@ -526,7 +526,8 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 {
 	ql_dbg(ql_dbg_misc, vha, 0xd20c,
 	    "%s: gethb(%x) [%lx]\n", __func__, ent->t268.buf_type, *len);
-	if (ent->t268.buf_type == T268_BUF_TYPE_EXTD_TRACE) {
+	switch (ent->t268.buf_type) {
+	case T268_BUF_TYPE_EXTD_TRACE:
 		if (vha->hw->eft) {
 			if (buf) {
 				ent->t268.buf_size = EFT_SIZE;
@@ -538,10 +539,43 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 			    "%s: missing eft\n", __func__);
 			qla27xx_skip_entry(ent, buf);
 		}
-	} else {
-		ql_dbg(ql_dbg_misc, vha, 0xd02b,
+		break;
+	case T268_BUF_TYPE_EXCH_BUFOFF:
+		if (vha->hw->exchoffld_buf) {
+			if (buf) {
+				ent->t268.buf_size = vha->hw->exchoffld_size;
+				ent->t268.start_addr =
+					vha->hw->exchoffld_buf_dma;
+			}
+			qla27xx_insertbuf(vha->hw->exchoffld_buf,
+			    vha->hw->exchoffld_size, buf, len);
+		} else {
+			ql_dbg(ql_dbg_misc, vha, 0xd028,
+			    "%s: missing exch offld\n", __func__);
+			qla27xx_skip_entry(ent, buf);
+		}
+		break;
+	case T268_BUF_TYPE_EXTD_LOGIN:
+		if (vha->hw->exlogin_buf) {
+			if (buf) {
+				ent->t268.buf_size = vha->hw->exlogin_size;
+				ent->t268.start_addr =
+					vha->hw->exlogin_buf_dma;
+			}
+			qla27xx_insertbuf(vha->hw->exlogin_buf,
+			    vha->hw->exlogin_size, buf, len);
+		} else {
+			ql_dbg(ql_dbg_misc, vha, 0xd028,
+			    "%s: missing ext login\n", __func__);
+			qla27xx_skip_entry(ent, buf);
+		}
+		break;
+
+	default:
+		ql_dbg(ql_dbg_async, vha, 0xd02b,
 		    "%s: unknown buffer %x\n", __func__, ent->t268.buf_type);
 		qla27xx_skip_entry(ent, buf);
+		break;
 	}
 
 	return false;

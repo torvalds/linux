@@ -68,12 +68,12 @@ static bool match_i2c(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 static bool match_devname(struct v4l2_subdev *sd,
 			  struct v4l2_async_subdev *asd)
 {
-	return !strcmp(asd->match.device_name.name, dev_name(sd->dev));
+	return !strcmp(asd->match.device_name, dev_name(sd->dev));
 }
 
 static bool match_fwnode(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 {
-	return sd->fwnode == asd->match.fwnode.fwnode;
+	return sd->fwnode == asd->match.fwnode;
 }
 
 static bool match_custom(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
@@ -319,7 +319,7 @@ static bool __v4l2_async_notifier_fwnode_has_async_subdev(
 		if (asd->match_type != V4L2_ASYNC_MATCH_FWNODE)
 			continue;
 
-		if (asd->match.fwnode.fwnode == fwnode)
+		if (asd->match.fwnode == fwnode)
 			return true;
 	}
 
@@ -330,7 +330,7 @@ static bool __v4l2_async_notifier_fwnode_has_async_subdev(
 		if (sd->asd->match_type != V4L2_ASYNC_MATCH_FWNODE)
 			continue;
 
-		if (sd->asd->match.fwnode.fwnode == fwnode)
+		if (sd->asd->match.fwnode == fwnode)
 			return true;
 	}
 
@@ -355,8 +355,8 @@ static bool v4l2_async_notifier_fwnode_has_async_subdev(
 		struct v4l2_async_subdev *other_asd = notifier->subdevs[j];
 
 		if (other_asd->match_type == V4L2_ASYNC_MATCH_FWNODE &&
-		    asd->match.fwnode.fwnode ==
-		    other_asd->match.fwnode.fwnode)
+		    asd->match.fwnode ==
+		    other_asd->match.fwnode)
 			return true;
 	}
 
@@ -395,7 +395,7 @@ static int __v4l2_async_notifier_register(struct v4l2_async_notifier *notifier)
 			break;
 		case V4L2_ASYNC_MATCH_FWNODE:
 			if (v4l2_async_notifier_fwnode_has_async_subdev(
-				    notifier, asd->match.fwnode.fwnode, i)) {
+				    notifier, asd->match.fwnode, i)) {
 				dev_err(dev,
 					"fwnode has already been registered or in notifier's subdev list\n");
 				ret = -EEXIST;
@@ -510,7 +510,7 @@ void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier)
 
 		switch (asd->match_type) {
 		case V4L2_ASYNC_MATCH_FWNODE:
-			fwnode_handle_put(asd->match.fwnode.fwnode);
+			fwnode_handle_put(asd->match.fwnode);
 			break;
 		default:
 			WARN_ON_ONCE(true);

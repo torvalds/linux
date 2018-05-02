@@ -1431,13 +1431,9 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 {
 	u8 macaddr[ETH_ALEN];
 	u8 *mac;
-	int i;
 
 	if (newval->string) {
-		i = sscanf(newval->string, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			   &macaddr[0], &macaddr[1], &macaddr[2],
-			   &macaddr[3], &macaddr[4], &macaddr[5]);
-		if (i != ETH_ALEN)
+		if (!mac_pton(newval->string, macaddr))
 			goto err;
 		mac = macaddr;
 	} else {

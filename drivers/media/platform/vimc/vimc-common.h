@@ -22,6 +22,11 @@
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 
+/* VIMC-specific controls */
+#define VIMC_CID_VIMC_BASE		(0x00f00000 | 0xf000)
+#define VIMC_CID_VIMC_CLASS		(0x00f00000 | 1)
+#define VIMC_CID_TEST_PATTERN		(VIMC_CID_VIMC_BASE + 0)
+
 #define VIMC_FRAME_MAX_WIDTH 4096
 #define VIMC_FRAME_MAX_HEIGHT 2160
 #define VIMC_FRAME_MIN_WIDTH 16

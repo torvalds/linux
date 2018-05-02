@@ -4,6 +4,8 @@
 
 config HSA_AMD
 	tristate "HSA kernel driver for AMD GPU devices"
-	depends on DRM_AMDGPU && AMD_IOMMU_V2 && X86_64
+	depends on DRM_AMDGPU && X86_64
+	imply AMD_IOMMU_V2
+	select MMU_NOTIFIER
 	help
 	  Enable this if you want to use HSA features on AMD GPU devices.

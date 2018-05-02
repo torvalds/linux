@@ -1091,8 +1091,8 @@ static int au0828_v4l2_close(struct file *filp)
 		*/
 		ret = v4l_enable_media_source(vdev);
 		if (ret == 0)
-			v4l2_device_call_all(&dev->v4l2_dev, 0, core,
-					     s_power, 0);
+			v4l2_device_call_all(&dev->v4l2_dev, 0, tuner,
+					     standby);
 		dev->std_set_in_tuner_core = 0;
 
 		/* When close the device, set the usb intf0 into alt0 to free
@@ -1797,7 +1797,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release_empty,
-	.ioctl_ops 		    = &video_ioctl_ops,
+	.ioctl_ops		    = &video_ioctl_ops,
 	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
 

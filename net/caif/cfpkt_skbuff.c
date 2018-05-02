@@ -8,7 +8,6 @@
 
 #include <linux/string.h>
 #include <linux/skbuff.h>
-#include <linux/hardirq.h>
 #include <linux/export.h>
 #include <net/caif/cfpkt.h>
 

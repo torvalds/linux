@@ -370,6 +370,8 @@ struct octeon_sriov_info {
 
 	u32	sriov_enabled;
 
+	struct lio_trusted_vf	trusted_vf;
+
 	/*lookup table that maps DPI ring number to VF pci_dev struct pointer*/
 	struct pci_dev *dpiring_to_vfpcidev_lut[MAX_POSSIBLE_VFS];
 

@@ -6,6 +6,9 @@
  *
  * This uses code from arch/sparc/kernel/nmi.c and kernel/watchdog.c
  */
+
+#define pr_fmt(fmt) "watchdog: " fmt
+
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
@@ -26,15 +29,45 @@
 #include <asm/paca.h>
 
 /*
- * The watchdog has a simple timer that runs on each CPU, once per timer
- * period. This is the heartbeat.
+ * The powerpc watchdog ensures that each CPU is able to service timers.
+ * The watchdog sets up a simple timer on each CPU to run once per timer
+ * period, and updates a per-cpu timestamp and a "pending" cpumask. This is
+ * the heartbeat.
  *
- * Then there are checks to see if the heartbeat has not triggered on a CPU
- * for the panic timeout period. Currently the watchdog only supports an
- * SMP check, so the heartbeat only turns on when we have 2 or more CPUs.
+ * Then there are two systems to check that the heartbeat is still running.
+ * The local soft-NMI, and the SMP checker.
  *
- * This is not an NMI watchdog, but Linux uses that name for a generic
- * watchdog in some cases, so NMI gets used in some places.
+ * The soft-NMI checker can detect lockups on the local CPU. When interrupts
+ * are disabled with local_irq_disable(), platforms that use soft-masking
+ * can leave hardware interrupts enabled and handle them with a masked
+ * interrupt handler. The masked handler can send the timer interrupt to the
+ * watchdog's soft_nmi_interrupt(), which appears to Linux as an NMI
+ * interrupt, and can be used to detect CPUs stuck with IRQs disabled.
+ *
+ * The soft-NMI checker will compare the heartbeat timestamp for this CPU
+ * with the current time, and take action if the difference exceeds the
+ * watchdog threshold.
+ *
+ * The limitation of the soft-NMI watchdog is that it does not work when
+ * interrupts are hard disabled or otherwise not being serviced. This is
+ * solved by also having a SMP watchdog where all CPUs check all other
+ * CPUs heartbeat.
+ *
+ * The SMP checker can detect lockups on other CPUs. A gobal "pending"
+ * cpumask is kept, containing all CPUs which enable the watchdog. Each
+ * CPU clears their pending bit in their heartbeat timer. When the bitmask
+ * becomes empty, the last CPU to clear its pending bit updates a global
+ * timestamp and refills the pending bitmask.
+ *
+ * In the heartbeat timer, if any CPU notices that the global timestamp has
+ * not been updated for a period exceeding the watchdog threshold, then it
+ * means the CPU(s) with their bit still set in the pending mask have had
+ * their heartbeat stop, and action is taken.
+ *
+ * Some platforms implement true NMI IPIs, which can by used by the SMP
+ * watchdog to detect an unresponsive CPU and pull it out of its stuck
+ * state with the NMI IPI, to get crash/debug data from it. This way the
+ * SMP watchdog can detect hardware interrupts off lockups.
  */
 
 static cpumask_t wd_cpus_enabled __read_mostly;
@@ -47,19 +80,7 @@ static u64 wd_timer_period_ms __read_mostly;  /* interval between heartbeat */
 static DEFINE_PER_CPU(struct timer_list, wd_timer);
 static DEFINE_PER_CPU(u64, wd_timer_tb);
 
-/*
- * These are for the SMP checker. CPUs clear their pending bit in their
- * heartbeat. If the bitmask becomes empty, the time is noted and the
- * bitmask is refilled.
- *
- * All CPUs clear their bit in the pending mask every timer period.
- * Once all have cleared, the time is noted and the bits are reset.
- * If the time since all clear was greater than the panic timeout,
- * we can panic with the list of stuck CPUs.
- *
- * This will work best with NMI IPIs for crash code so the stuck CPUs
- * can be pulled out to get their backtraces.
- */
+/* SMP checker bits */
 static unsigned long __wd_smp_lock;
 static cpumask_t wd_smp_cpus_pending;
 static cpumask_t wd_smp_cpus_stuck;
@@ -90,7 +111,7 @@ static inline void wd_smp_unlock(unsigned long *flags)
 
 static void wd_lockup_ipi(struct pt_regs *regs)
 {
-	pr_emerg("Watchdog CPU:%d Hard LOCKUP\n", raw_smp_processor_id());
+	pr_emerg("CPU %d Hard LOCKUP\n", raw_smp_processor_id());
 	print_modules();
 	print_irqtrace_events(current);
 	if (regs)
@@ -131,8 +152,8 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	if (cpumask_weight(&wd_smp_cpus_pending) == 0)
 		goto out;
 
-	pr_emerg("Watchdog CPU:%d detected Hard LOCKUP other CPUS:%*pbl\n",
-			cpu, cpumask_pr_args(&wd_smp_cpus_pending));
+	pr_emerg("CPU %d detected hard LOCKUP on other CPUs %*pbl\n",
+		 cpu, cpumask_pr_args(&wd_smp_cpus_pending));
 
 	if (!sysctl_hardlockup_all_cpu_backtrace) {
 		/*
@@ -175,7 +196,7 @@ static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
 		if (unlikely(cpumask_test_cpu(cpu, &wd_smp_cpus_stuck))) {
 			unsigned long flags;
 
-			pr_emerg("Watchdog CPU:%d became unstuck\n", cpu);
+			pr_emerg("CPU %d became unstuck\n", cpu);
 			wd_smp_lock(&flags);
 			cpumask_clear_cpu(cpu, &wd_smp_cpus_stuck);
 			wd_smp_unlock(&flags);
@@ -233,13 +254,10 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		}
 		set_cpu_stuck(cpu, tb);
 
-		pr_emerg("Watchdog CPU:%d Hard LOCKUP\n", cpu);
+		pr_emerg("CPU %d self-detected hard LOCKUP @ %pS\n", cpu, (void *)regs->nip);
 		print_modules();
 		print_irqtrace_events(current);
-		if (regs)
-			show_regs(regs);
-		else
-			dump_stack();
+		show_regs(regs);
 
 		wd_smp_unlock(&flags);
 
@@ -388,30 +406,8 @@ int __init watchdog_nmi_probe(void)
 					"powerpc/watchdog:online",
 					start_wd_on_cpu, stop_wd_on_cpu);
 	if (err < 0) {
-		pr_warn("Watchdog could not be initialized");
+		pr_warn("could not be initialized");
 		return err;
 	}
 	return 0;
-}
-
-static void handle_backtrace_ipi(struct pt_regs *regs)
-{
-	nmi_cpu_backtrace(regs);
-}
-
-static void raise_backtrace_ipi(cpumask_t *mask)
-{
-	unsigned int cpu;
-
-	for_each_cpu(cpu, mask) {
-		if (cpu == smp_processor_id())
-			handle_backtrace_ipi(NULL);
-		else
-			smp_send_nmi_ipi(cpu, handle_backtrace_ipi, 1000000);
-	}
-}
-
-void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
-{
-	nmi_trigger_cpumask_backtrace(mask, exclude_self, raise_backtrace_ipi);
 }

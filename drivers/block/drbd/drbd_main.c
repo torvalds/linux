@@ -1847,19 +1847,13 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 	      void *buf, size_t size, unsigned msg_flags)
 {
 	struct kvec iov = {.iov_base = buf, .iov_len = size};
-	struct msghdr msg;
+	struct msghdr msg = {.msg_flags = msg_flags | MSG_NOSIGNAL};
 	int rv, sent = 0;
 
 	if (!sock)
 		return -EBADR;
 
 	/* THINK  if (signal_pending) return ... ? */
-
-	msg.msg_name       = NULL;
-	msg.msg_namelen    = 0;
-	msg.msg_control    = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
 	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iov, 1, size);
 
@@ -2822,7 +2816,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 
 	drbd_init_set_defaults(device);
 
-	q = blk_alloc_queue(GFP_KERNEL);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE, &resource->req_lock);
 	if (!q)
 		goto out_no_q;
 	device->rq_queue = q;
@@ -2854,7 +2848,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
 	   This triggers a max_bio_size message upon first attach or connect */
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
-	q->queue_lock = &resource->req_lock;
 
 	device->md_io.page = alloc_page(GFP_KERNEL);
 	if (!device->md_io.page)

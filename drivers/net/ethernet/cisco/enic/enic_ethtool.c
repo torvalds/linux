@@ -18,6 +18,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/net_tstamp.h>
 
 #include "enic_res.h"
 #include "enic.h"
@@ -473,6 +474,39 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 	return 0;
 }
 
+static int enic_get_rx_flow_hash(struct enic *enic, struct ethtool_rxnfc *cmd)
+{
+	cmd->data = 0;
+
+	switch (cmd->flow_type) {
+	case TCP_V6_FLOW:
+	case TCP_V4_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case UDP_V6_FLOW:
+	case UDP_V4_FLOW:
+		if (vnic_dev_capable_udp_rss(enic->vdev))
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
@@ -498,6 +532,9 @@ static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		spin_lock_bh(&enic->rfs_h.lock);
 		ret = enic_grxclsrule(enic, cmd);
 		spin_unlock_bh(&enic->rfs_h.lock);
+		break;
+	case ETHTOOL_GRXFH:
+		ret = enic_get_rx_flow_hash(enic, cmd);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -578,6 +615,16 @@ static int enic_set_rxfh(struct net_device *netdev, const u32 *indir,
 	return __enic_set_rsskey(enic);
 }
 
+static int enic_get_ts_info(struct net_device *netdev,
+			    struct ethtool_ts_info *info)
+{
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE;
+
+	return 0;
+}
+
 static const struct ethtool_ops enic_ethtool_ops = {
 	.get_drvinfo = enic_get_drvinfo,
 	.get_msglevel = enic_get_msglevel,
@@ -597,6 +644,7 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_rxfh = enic_get_rxfh,
 	.set_rxfh = enic_set_rxfh,
 	.get_link_ksettings = enic_get_ksettings,
+	.get_ts_info = enic_get_ts_info,
 };
 
 void enic_set_ethtool_ops(struct net_device *netdev)

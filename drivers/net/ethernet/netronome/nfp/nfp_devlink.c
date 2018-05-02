@@ -152,18 +152,8 @@ out:
 static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
-	int ret;
 
-	mutex_lock(&pf->lock);
-	if (!pf->app) {
-		ret = -EBUSY;
-		goto out;
-	}
-	ret = nfp_app_eswitch_mode_get(pf->app, mode);
-out:
-	mutex_unlock(&pf->lock);
-
-	return ret;
+	return nfp_app_eswitch_mode_get(pf->app, mode);
 }
 
 const struct devlink_ops nfp_devlink_ops = {

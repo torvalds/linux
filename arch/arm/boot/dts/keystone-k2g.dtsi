@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for K2G SOC
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -28,6 +20,8 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -75,7 +69,25 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
 	};
 
-	soc {
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usb0_phy: usb-phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			status = "disabled";
+		};
+
+		usb1_phy: usb-phy@1 {
+			compatible = "usb-nop-xceiv";
+			reg = <1>;
+			status = "disabled";
+		};
+	};
+
+	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		#pinctrl-cells = <1>;
@@ -103,8 +115,28 @@
 		};
 
 		devctrl: device-state-control@2620000 {
-			compatible = "ti,keystone-devctrl", "syscon";
+			compatible = "ti,keystone-devctrl", "syscon", "simple-mfd";
 			reg = <0x02620000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x02620000 0x1000>;
+
+			kirq0: keystone_irq@2a0 {
+				compatible = "ti,keystone-irq";
+				reg = <0x2a0 0x10>;
+				interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ti,syscon-dev = <&devctrl 0x2a0>;
+			};
+
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 		};
 
 		uart0: serial@2530c00 {
@@ -114,7 +146,32 @@
 			reg-io-width = <4>;
 			reg = <0x02530c00 0x100>;
 			interrupts = <GIC_SPI 164 IRQ_TYPE_EDGE_RISING>;
-			clock-frequency = <200000000>;
+			clocks = <&k2g_clks 0x2c 0>;
+			power-domains = <&k2g_pds 0x2c>;
+			status = "disabled";
+		};
+
+		uart1: serial@2531000 {
+			compatible = "ti,da830-uart", "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02531000 0x100>;
+			interrupts = <GIC_SPI 165 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&k2g_clks 0x2d 0>;
+			power-domains = <&k2g_pds 0x2d>;
+			status = "disabled";
+		};
+
+		uart2: serial@2531400 {
+			compatible = "ti,da830-uart", "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02531400 0x100>;
+			interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&k2g_clks 0x2e 0>;
+			power-domains = <&k2g_pds 0x2e>;
 			status = "disabled";
 		};
 
@@ -167,21 +224,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		kirq0: keystone_irq@26202a0 {
-			compatible = "ti,keystone-irq";
-			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			ti,syscon-dev = <&devctrl 0x2a0>;
-		};
-
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
 		};
 
 		dsp0: dsp@10800000 {
@@ -372,11 +414,24 @@
 			dma-names = "tx", "rx";
 			bus-width = <8>;
 			ti,needs-special-reset;
-			ti,non-removable;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xc>;
 			clocks = <&k2g_clks 0xc 1>, <&k2g_clks 0xc 2>;
 			clock-names = "fck", "mmchsdb_fck";
+		};
+
+		qspi: qspi@2940000 {
+			compatible = "ti,k2g-qspi", "cdns,qspi-nor";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02940000 0x1000>,
+			      <0x24000000 0x4000000>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_EDGE_RISING>;
+			cdns,fifo-depth = <256>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x24000000>;
+			clocks = <&k2g_clks 0x43 0x0>;
+			power-domains = <&k2g_pds 0x43>;
 			status = "disabled";
 		};
 
@@ -428,11 +483,6 @@
 			status = "disabled";
 		};
 
-		usb0_phy: usb-phy@0 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
-		};
-
 		keystone_usb0: keystone-dwc3@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
@@ -454,11 +504,6 @@
 				usb-phy = <&usb0_phy>;
 				status = "disabled";
 			};
-		};
-
-		usb1_phy: usb-phy@1 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
 		};
 
 		keystone_usb1: keystone-dwc3@2580000 {
@@ -550,6 +595,19 @@
 			#size-cells = <0>;
 			power-domains = <&k2g_pds 0x0013>;
 			clocks = <&k2g_clks 0x0013 0>;
+		};
+
+		wdt: wdt@02250000 {
+			compatible = "ti,keystone-wdt", "ti,davinci-wdt";
+			reg = <0x02250000 0x80>;
+			power-domains = <&k2g_pds 0x22>;
+			clocks = <&k2g_clks 0x22 0>;
+		};
+
+		emif: emif@21010000 {
+			compatible = "ti,emif-keystone";
+			reg = <0x21010000 0x200>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_EDGE_RISING>;
 		};
 	};
 };

@@ -29,9 +29,10 @@
 
 #include "../dce110/irq_service_dce110.h"
 
-#include "raven1/DCN/dcn_1_0_offset.h"
-#include "raven1/DCN/dcn_1_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "dcn/dcn_1_0_offset.h"
+#include "dcn/dcn_1_0_sh_mask.h"
+#include "soc15_hw_ip.h"
+#include "vega10_ip_offset.h"
 
 #include "irq_service_dcn10.h"
 

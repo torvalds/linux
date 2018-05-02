@@ -129,6 +129,8 @@ struct rt6_exception {
 
 struct rt6_info {
 	struct dst_entry		dst;
+	struct rt6_info __rcu		*rt6_next;
+	struct rt6_info			*from;
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
@@ -147,6 +149,7 @@ struct rt6_info {
 	 */
 	struct list_head		rt6i_siblings;
 	unsigned int			rt6i_nsiblings;
+	atomic_t			rt6i_nh_upper_bound;
 
 	atomic_t			rt6i_ref;
 
@@ -168,19 +171,21 @@ struct rt6_info {
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
+	int				rt6i_nh_weight;
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 	u8				exception_bucket_flushed:1,
-					unused:7;
+					should_flush:1,
+					unused:6;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
-	     rt = rcu_dereference(rt->dst.rt6_next))
+	     rt = rcu_dereference(rt->rt6_next))
 
 #define for_each_fib6_walker_rt(w)					\
 	for (rt = (w)->leaf; rt;					\
-	     rt = rcu_dereference_protected(rt->dst.rt6_next, 1))
+	     rt = rcu_dereference_protected(rt->rt6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
@@ -203,11 +208,9 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 {
 	struct rt6_info *rt;
 
-	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES);
-	     rt = (struct rt6_info *)rt->dst.from);
+	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES); rt = rt->from);
 	if (rt && rt != rt0)
 		rt0->dst.expires = rt->dst.expires;
-
 	dst_set_expires(&rt0->dst, timeout);
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
@@ -242,8 +245,8 @@ static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 	u32 cookie = 0;
 
 	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->dst.from))
-		rt = (struct rt6_info *)(rt->dst.from);
+	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
+		rt = rt->from;
 
 	rt6_get_cookie_safe(rt, &cookie);
 
@@ -347,7 +350,8 @@ struct fib6_table {
 
 typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 					 struct fib6_table *,
-					 struct flowi6 *, int);
+					 struct flowi6 *,
+					 const struct sk_buff *, int);
 
 struct fib6_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
@@ -361,6 +365,7 @@ struct fib6_entry_notifier_info {
 struct fib6_table *fib6_get_table(struct net *net, u32 id);
 struct fib6_table *fib6_new_table(struct net *net, u32 id);
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
+				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
 struct fib6_node *fib6_lookup(struct fib6_node *root,
@@ -404,6 +409,7 @@ unsigned int fib6_tables_seq_read(struct net *net);
 int fib6_tables_dump(struct net *net, struct notifier_block *nb);
 
 void fib6_update_sernum(struct rt6_info *rt);
+void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);
@@ -411,6 +417,24 @@ void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
 int fib6_rules_dump(struct net *net, struct notifier_block *nb);
 unsigned int fib6_rules_seq_read(struct net *net);
+
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	unsigned int flag = FLOW_DISSECTOR_F_STOP_AT_ENCAP;
+
+	if (!net->ipv6.fib6_rules_require_fldissect)
+		return false;
+
+	skb_flow_dissect_flow_keys(skb, flkeys, flag);
+	fl6->fl6_sport = flkeys->ports.src;
+	fl6->fl6_dport = flkeys->ports.dst;
+	fl6->flowi6_proto = flkeys->basic.ip_proto;
+
+	return true;
+}
 #else
 static inline int               fib6_rules_init(void)
 {
@@ -431,6 +455,13 @@ static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb)
 static inline unsigned int fib6_rules_seq_read(struct net *net)
 {
 	return 0;
+}
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	return false;
 }
 #endif
 #endif

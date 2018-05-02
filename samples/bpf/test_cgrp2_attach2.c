@@ -78,7 +78,8 @@ static int test_foo_bar(void)
 	if (join_cgroup(FOO))
 		goto err;
 
-	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to /foo");
 		goto err;
 	}
@@ -97,7 +98,8 @@ static int test_foo_bar(void)
 	printf("Attached DROP prog. This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
-	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to /foo/bar");
 		goto err;
 	}
@@ -114,7 +116,8 @@ static int test_foo_bar(void)
 	       "This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
-	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to /foo/bar");
 		goto err;
 	}
@@ -128,7 +131,8 @@ static int test_foo_bar(void)
 	       "This ping in cgroup /foo/bar should pass...\n");
 	assert(system(PING_CMD) == 0);
 
-	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to /foo/bar");
 		goto err;
 	}
@@ -161,13 +165,15 @@ static int test_foo_bar(void)
 		goto err;
 	}
 
-	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
+			     BPF_F_ALLOW_OVERRIDE)) {
 		errno = 0;
 		log_err("Unexpected success attaching overridable prog to /foo/bar");
 		goto err;
 	}
 
-	if (!bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (!bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS,
+			     BPF_F_ALLOW_OVERRIDE)) {
 		errno = 0;
 		log_err("Unexpected success attaching overridable prog to /foo");
 		goto err;
@@ -273,27 +279,33 @@ static int test_multiprog(void)
 	if (join_cgroup("/cg1/cg2/cg3/cg4/cg5"))
 		goto err;
 
-	if (bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS, 2)) {
+	if (bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_MULTI)) {
 		log_err("Attaching prog to cg1");
 		goto err;
 	}
-	if (!bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS, 2)) {
+	if (!bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS,
+			     BPF_F_ALLOW_MULTI)) {
 		log_err("Unexpected success attaching the same prog to cg1");
 		goto err;
 	}
-	if (bpf_prog_attach(allow_prog[1], cg1, BPF_CGROUP_INET_EGRESS, 2)) {
+	if (bpf_prog_attach(allow_prog[1], cg1, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_MULTI)) {
 		log_err("Attaching prog2 to cg1");
 		goto err;
 	}
-	if (bpf_prog_attach(allow_prog[2], cg2, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(allow_prog[2], cg2, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to cg2");
 		goto err;
 	}
-	if (bpf_prog_attach(allow_prog[3], cg3, BPF_CGROUP_INET_EGRESS, 2)) {
+	if (bpf_prog_attach(allow_prog[3], cg3, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_MULTI)) {
 		log_err("Attaching prog to cg3");
 		goto err;
 	}
-	if (bpf_prog_attach(allow_prog[4], cg4, BPF_CGROUP_INET_EGRESS, 1)) {
+	if (bpf_prog_attach(allow_prog[4], cg4, BPF_CGROUP_INET_EGRESS,
+			    BPF_F_ALLOW_OVERRIDE)) {
 		log_err("Attaching prog to cg4");
 		goto err;
 	}

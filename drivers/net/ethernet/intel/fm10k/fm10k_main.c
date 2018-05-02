@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Intel(R) Ethernet Switch Host Interface Driver
  * Copyright(c) 2013 - 2017 Intel Corporation.
  *
@@ -28,13 +29,13 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.22.1-k"
+#define DRV_VERSION	"0.23.4-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
 static const char fm10k_driver_string[] = DRV_SUMMARY;
 static const char fm10k_copyright[] =
-	"Copyright(c) 2013 - 2017 Intel Corporation.";
+	"Copyright(c) 2013 - 2018 Intel Corporation.";
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
@@ -446,13 +447,13 @@ static void fm10k_type_trans(struct fm10k_ring *rx_ring,
 
 	skb->protocol = eth_type_trans(skb, dev);
 
+	/* Record Rx queue, or update macvlan statistics */
 	if (!l2_accel)
-		return;
-
-	/* update MACVLAN statistics */
-	macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, 1,
-			 !!(rx_desc->w.hdr_info &
-			    cpu_to_le16(FM10K_RXD_HDR_INFO_XC_MASK)));
+		skb_record_rx_queue(skb, rx_ring->queue_index);
+	else
+		macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, true,
+				 (skb->pkt_type == PACKET_BROADCAST) ||
+				 (skb->pkt_type == PACKET_MULTICAST));
 }
 
 /**
@@ -478,8 +479,6 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	FM10K_CB(skb)->tstamp = rx_desc->q.timestamp;
 
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
-
-	skb_record_rx_queue(skb, rx_ring->queue_index);
 
 	FM10K_CB(skb)->fi.d.glort = rx_desc->d.glort;
 

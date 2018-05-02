@@ -10,6 +10,8 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_bridge.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
@@ -96,20 +98,46 @@ void nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
-unsigned int nf_queue_nf_hook_drop(struct net *net)
+void nf_queue_nf_hook_drop(struct net *net)
 {
 	const struct nf_queue_handler *qh;
-	unsigned int count = 0;
 
 	rcu_read_lock();
 	qh = rcu_dereference(net->nf.queue_handler);
 	if (qh)
-		count = qh->nf_hook_drop(net);
+		qh->nf_hook_drop(net);
 	rcu_read_unlock();
-
-	return count;
 }
 EXPORT_SYMBOL_GPL(nf_queue_nf_hook_drop);
+
+static void nf_ip_saveroute(const struct sk_buff *skb,
+			    struct nf_queue_entry *entry)
+{
+	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
+
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
+		const struct iphdr *iph = ip_hdr(skb);
+
+		rt_info->tos = iph->tos;
+		rt_info->daddr = iph->daddr;
+		rt_info->saddr = iph->saddr;
+		rt_info->mark = skb->mark;
+	}
+}
+
+static void nf_ip6_saveroute(const struct sk_buff *skb,
+			     struct nf_queue_entry *entry)
+{
+	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
+
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
+		const struct ipv6hdr *iph = ipv6_hdr(skb);
+
+		rt_info->daddr = iph->daddr;
+		rt_info->saddr = iph->saddr;
+		rt_info->mark = skb->mark;
+	}
+}
 
 static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 		      const struct nf_hook_entries *entries,
@@ -117,9 +145,9 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 {
 	int status = -ENOENT;
 	struct nf_queue_entry *entry = NULL;
-	const struct nf_afinfo *afinfo;
 	const struct nf_queue_handler *qh;
 	struct net *net = state->net;
+	unsigned int route_key_size;
 
 	/* QUEUE == DROP if no one is waiting, to be safe. */
 	qh = rcu_dereference(net->nf.queue_handler);
@@ -128,11 +156,19 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 		goto err;
 	}
 
-	afinfo = nf_get_afinfo(state->pf);
-	if (!afinfo)
-		goto err;
+	switch (state->pf) {
+	case AF_INET:
+		route_key_size = sizeof(struct ip_rt_info);
+		break;
+	case AF_INET6:
+		route_key_size = sizeof(struct ip6_rt_info);
+		break;
+	default:
+		route_key_size = 0;
+		break;
+	}
 
-	entry = kmalloc(sizeof(*entry) + afinfo->route_key_size, GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry) + route_key_size, GFP_ATOMIC);
 	if (!entry) {
 		status = -ENOMEM;
 		goto err;
@@ -142,12 +178,21 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 		.skb	= skb,
 		.state	= *state,
 		.hook_index = index,
-		.size	= sizeof(*entry) + afinfo->route_key_size,
+		.size	= sizeof(*entry) + route_key_size,
 	};
 
 	nf_queue_entry_get_refs(entry);
 	skb_dst_force(skb);
-	afinfo->saveroute(skb, entry);
+
+	switch (entry->state.pf) {
+	case AF_INET:
+		nf_ip_saveroute(skb, entry);
+		break;
+	case AF_INET6:
+		nf_ip6_saveroute(skb, entry);
+		break;
+	}
+
 	status = qh->outfn(entry, queuenum);
 
 	if (status < 0) {
@@ -204,13 +249,31 @@ repeat:
 	return NF_ACCEPT;
 }
 
+static struct nf_hook_entries *nf_hook_entries_head(const struct net *net, u8 pf, u8 hooknum)
+{
+	switch (pf) {
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
+	case NFPROTO_BRIDGE:
+		return rcu_dereference(net->nf.hooks_bridge[hooknum]);
+#endif
+	case NFPROTO_IPV4:
+		return rcu_dereference(net->nf.hooks_ipv4[hooknum]);
+	case NFPROTO_IPV6:
+		return rcu_dereference(net->nf.hooks_ipv6[hooknum]);
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
+
+	return NULL;
+}
+
 /* Caller must hold rcu read-side lock */
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	const struct nf_hook_entry *hook_entry;
 	const struct nf_hook_entries *hooks;
 	struct sk_buff *skb = entry->skb;
-	const struct nf_afinfo *afinfo;
 	const struct net *net;
 	unsigned int i;
 	int err;
@@ -219,12 +282,12 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	net = entry->state.net;
 	pf = entry->state.pf;
 
-	hooks = rcu_dereference(net->nf.hooks[pf][entry->state.hook]);
+	hooks = nf_hook_entries_head(net, pf, entry->state.hook);
 
 	nf_queue_entry_release_refs(entry);
 
 	i = entry->hook_index;
-	if (WARN_ON_ONCE(i >= hooks->num_hook_entries)) {
+	if (WARN_ON_ONCE(!hooks || i >= hooks->num_hook_entries)) {
 		kfree_skb(skb);
 		kfree(entry);
 		return;
@@ -237,8 +300,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		verdict = nf_hook_entry_hookfn(hook_entry, skb, &entry->state);
 
 	if (verdict == NF_ACCEPT) {
-		afinfo = nf_get_afinfo(entry->state.pf);
-		if (!afinfo || afinfo->reroute(entry->state.net, skb, entry) < 0)
+		if (nf_reroute(skb, entry) < 0)
 			verdict = NF_DROP;
 	}
 

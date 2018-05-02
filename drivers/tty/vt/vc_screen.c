@@ -559,11 +559,11 @@ unlock_out:
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 vcs_poll(struct file *file, poll_table *wait)
 {
 	struct vcs_poll_data *poll = vcs_poll_data_get(file);
-	int ret = DEFAULT_POLLMASK|POLLERR|POLLPRI;
+	__poll_t ret = DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
 
 	if (poll) {
 		poll_wait(file, &poll->waitq, wait);

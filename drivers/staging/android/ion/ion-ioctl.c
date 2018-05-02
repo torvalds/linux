@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
  * Copyright (C) 2011 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -70,8 +60,10 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	ret = validate_ioctl_arg(cmd, &data);
-	if (WARN_ON_ONCE(ret))
+	if (ret) {
+		pr_warn_once("%s: ioctl validate failed\n", __func__);
 		return ret;
+	}
 
 	if (!(dir & _IOC_WRITE))
 		memset(&data, 0, sizeof(data));

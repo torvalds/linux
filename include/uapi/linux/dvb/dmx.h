@@ -211,6 +211,96 @@ struct dmx_stc {
 	__u64 stc;
 };
 
+/**
+ * enum dmx_buffer_flags - DMX memory-mapped buffer flags
+ *
+ * @DMX_BUFFER_FLAG_HAD_CRC32_DISCARD:
+ *	Indicates that the Kernel discarded one or more frames due to wrong
+ *	CRC32 checksum.
+ * @DMX_BUFFER_FLAG_TEI:
+ *	Indicates that the Kernel has detected a Transport Error indicator
+ *	(TEI) on a filtered pid.
+ * @DMX_BUFFER_PKT_COUNTER_MISMATCH:
+ *	Indicates that the Kernel has detected a packet counter mismatch
+ *	on a filtered pid.
+ * @DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED:
+ *	Indicates that the Kernel has detected one or more frame discontinuity.
+ * @DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR:
+ *	Received at least one packet with a frame discontinuity indicator.
+ */
+
+enum dmx_buffer_flags {
+	DMX_BUFFER_FLAG_HAD_CRC32_DISCARD		= 1 << 0,
+	DMX_BUFFER_FLAG_TEI				= 1 << 1,
+	DMX_BUFFER_PKT_COUNTER_MISMATCH			= 1 << 2,
+	DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED		= 1 << 3,
+	DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR		= 1 << 4,
+};
+
+/**
+ * struct dmx_buffer - dmx buffer info
+ *
+ * @index:	id number of the buffer
+ * @bytesused:	number of bytes occupied by data in the buffer (payload);
+ * @offset:	for buffers with memory == DMX_MEMORY_MMAP;
+ *		offset from the start of the device memory for this plane,
+ *		(or a "cookie" that should be passed to mmap() as offset)
+ * @length:	size in bytes of the buffer
+ * @flags:	bit array of buffer flags as defined by &enum dmx_buffer_flags.
+ *		Filled only at &DMX_DQBUF.
+ * @count:	monotonic counter for filled buffers. Helps to identify
+ *		data stream loses. Filled only at &DMX_DQBUF.
+ *
+ * Contains data exchanged by application and driver using one of the streaming
+ * I/O methods.
+ *
+ * Please notice that, for &DMX_QBUF, only @index should be filled.
+ * On &DMX_DQBUF calls, all fields will be filled by the Kernel.
+ */
+struct dmx_buffer {
+	__u32			index;
+	__u32			bytesused;
+	__u32			offset;
+	__u32			length;
+	__u32			flags;
+	__u32			count;
+};
+
+/**
+ * struct dmx_requestbuffers - request dmx buffer information
+ *
+ * @count:	number of requested buffers,
+ * @size:	size in bytes of the requested buffer
+ *
+ * Contains data used for requesting a dmx buffer.
+ * All reserved fields must be set to zero.
+ */
+struct dmx_requestbuffers {
+	__u32			count;
+	__u32			size;
+};
+
+/**
+ * struct dmx_exportbuffer - export of dmx buffer as DMABUF file descriptor
+ *
+ * @index:	id number of the buffer
+ * @flags:	flags for newly created file, currently only O_CLOEXEC is
+ *		supported, refer to manual of open syscall for more details
+ * @fd:		file descriptor associated with DMABUF (set by driver)
+ *
+ * Contains data used for exporting a dmx buffer as DMABUF file descriptor.
+ * The buffer is identified by a 'cookie' returned by DMX_QUERYBUF
+ * (identical to the cookie used to mmap() the buffer to userspace). All
+ * reserved fields must be set to zero. The field reserved0 is expected to
+ * become a structure 'type' allowing an alternative layout of the structure
+ * content. Therefore this field should not be used for any other extensions.
+ */
+struct dmx_exportbuffer {
+	__u32		index;
+	__u32		flags;
+	__s32		fd;
+};
+
 #define DMX_START                _IO('o', 41)
 #define DMX_STOP                 _IO('o', 42)
 #define DMX_SET_FILTER           _IOW('o', 43, struct dmx_sct_filter_params)
@@ -231,4 +321,10 @@ typedef struct dmx_filter dmx_filter_t;
 
 #endif
 
-#endif /* _UAPI_DVBDMX_H_ */
+#define DMX_REQBUFS              _IOWR('o', 60, struct dmx_requestbuffers)
+#define DMX_QUERYBUF             _IOWR('o', 61, struct dmx_buffer)
+#define DMX_EXPBUF               _IOWR('o', 62, struct dmx_exportbuffer)
+#define DMX_QBUF                 _IOWR('o', 63, struct dmx_buffer)
+#define DMX_DQBUF                _IOWR('o', 64, struct dmx_buffer)
+
+#endif /* _DVBDMX_H_ */

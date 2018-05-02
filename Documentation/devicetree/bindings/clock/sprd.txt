@@ -1,0 +1,63 @@
+Spreadtrum Clock Binding
+------------------------
+
+Required properties:
+- compatible: should contain the following compatible strings:
+	- "sprd,sc9860-pmu-gate"
+	- "sprd,sc9860-pll"
+	- "sprd,sc9860-ap-clk"
+	- "sprd,sc9860-aon-prediv"
+	- "sprd,sc9860-apahb-gate"
+	- "sprd,sc9860-aon-gate"
+	- "sprd,sc9860-aonsecure-clk"
+	- "sprd,sc9860-agcp-gate"
+	- "sprd,sc9860-gpu-clk"
+	- "sprd,sc9860-vsp-clk"
+	- "sprd,sc9860-vsp-gate"
+	- "sprd,sc9860-cam-clk"
+	- "sprd,sc9860-cam-gate"
+	- "sprd,sc9860-disp-clk"
+	- "sprd,sc9860-disp-gate"
+	- "sprd,sc9860-apapb-gate"
+
+- #clock-cells: must be 1
+
+- clocks : Should be the input parent clock(s) phandle for the clock, this
+	   property here just simply shows which clock group the clocks'
+	   parents are in, since each clk node would represent many clocks
+	   which are defined in the driver.  The detailed dependency
+	   relationship (i.e. how many parents and which are the parents)
+	   are implemented in driver code.
+
+Optional properties:
+
+- reg:	Contain the registers base address and length. It must be configured
+	only if no 'sprd,syscon' under the node.
+
+- sprd,syscon: phandle to the syscon which is in the same address area with
+	       the clock, and so we can get regmap for the clocks from the
+	       syscon device.
+
+Example:
+
+	pmu_gate: pmu-gate {
+		compatible = "sprd,sc9860-pmu-gate";
+		sprd,syscon = <&pmu_regs>;
+		clocks = <&ext_26m>;
+		#clock-cells = <1>;
+	};
+
+	pll: pll {
+		compatible = "sprd,sc9860-pll";
+		sprd,syscon = <&ana_regs>;
+		clocks = <&pmu_gate 0>;
+		#clock-cells = <1>;
+	};
+
+	ap_clk: clock-controller@20000000 {
+		compatible = "sprd,sc9860-ap-clk";
+		reg = <0 0x20000000 0 0x400>;
+		clocks = <&ext_26m>, <&pll 0>,
+			 <&pmu_gate 0>;
+		#clock-cells = <1>;
+	};

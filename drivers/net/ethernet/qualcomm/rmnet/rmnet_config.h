@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, 2016-2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -32,8 +32,7 @@ struct rmnet_endpoint {
  */
 struct rmnet_port {
 	struct net_device *dev;
-	u32 ingress_data_format;
-	u32 egress_data_format;
+	u32 data_format;
 	u8 nr_rmnet_devs;
 	u8 rmnet_mode;
 	struct hlist_head muxed_ep[RMNET_MAX_LOGICAL_EP];

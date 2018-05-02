@@ -60,7 +60,7 @@ static void handle_memory_error_event(struct OpalMemoryErrorData *merr_evt)
 	}
 
 	for (; paddr_start < paddr_end; paddr_start += PAGE_SIZE) {
-		memory_failure(paddr_start >> PAGE_SHIFT, 0, 0);
+		memory_failure(paddr_start >> PAGE_SHIFT, 0);
 	}
 }
 
@@ -112,7 +112,7 @@ static int opal_memory_err_event(struct notifier_block *nb,
 		       "handled\n");
 		return -ENOMEM;
 	}
-	memcpy(&msg_node->msg, msg, sizeof(struct opal_msg));
+	memcpy(&msg_node->msg, msg, sizeof(msg_node->msg));
 
 	spin_lock_irqsave(&opal_mem_err_lock, flags);
 	list_add(&msg_node->list, &opal_memory_err_list);

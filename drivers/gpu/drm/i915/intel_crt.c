@@ -119,6 +119,8 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 static void intel_crt_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
+
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
@@ -217,11 +219,9 @@ static void hsw_disable_crt(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *old_crtc_state,
 			    const struct drm_connector_state *old_conn_state)
 {
-	struct drm_crtc *crtc = old_crtc_state->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!old_crtc_state->has_pch_encoder);
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
@@ -245,46 +245,42 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 }
 
 static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *pipe_config,
+				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
 
 static void hsw_pre_enable_crt(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *pipe_config,
+			       const struct intel_crtc_state *crtc_state,
 			       const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum pipe pipe = crtc->pipe;
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	dev_priv->display.fdi_link_train(intel_crtc, pipe_config);
+	dev_priv->display.fdi_link_train(crtc, crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *pipe_config,
+			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum pipe pipe = crtc->pipe;
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
-	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
 	intel_wait_for_vblank(dev_priv, pipe);
 	intel_wait_for_vblank(dev_priv, pipe);
@@ -293,10 +289,10 @@ static void hsw_enable_crt(struct intel_encoder *encoder,
 }
 
 static void intel_enable_crt(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *pipe_config,
+			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
-	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
@@ -307,9 +303,6 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
 
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
@@ -481,14 +474,6 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-/**
- * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
- *
- * Not for i915G/i915GM
- *
- * \return true if CRT is connected.
- * \return false if CRT is disconnected.
- */
 static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -814,10 +799,11 @@ intel_crt_detect(struct drm_connector *connector,
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, ctx);
-	} else if (ret == 0)
+	} else if (ret == 0) {
 		status = connector_status_unknown;
-	else if (ret < 0)
+	} else {
 		status = ret;
+	}
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain);
@@ -970,8 +956,10 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	crt->base.power_domain = POWER_DOMAIN_PORT_CRT;
 
 	if (I915_HAS_HOTPLUG(dev_priv) &&
-	    !dmi_check_system(intel_spurious_crt_detect))
+	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
+		crt->base.hotplug = intel_encoder_hotplug;
+	}
 
 	if (HAS_DDI(dev_priv)) {
 		crt->base.port = PORT_E;

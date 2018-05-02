@@ -1006,11 +1006,11 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 static const struct of_device_id armada_37xx_pinctrl_of_match[] = {
 	{
 		.compatible = "marvell,armada3710-sb-pinctrl",
-		.data = (void *)&armada_37xx_pin_sb,
+		.data = &armada_37xx_pin_sb,
 	},
 	{
 		.compatible = "marvell,armada3710-nb-pinctrl",
-		.data = (void *)&armada_37xx_pin_nb,
+		.data = &armada_37xx_pin_nb,
 	},
 	{ },
 };

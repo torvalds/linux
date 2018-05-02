@@ -7,8 +7,6 @@ Required properties:
 - reg: Physical base address and length of the registers of controller
 - reg-names: The names of register regions. The following regions are required:
   * "dsi_ctrl"
-- qcom,dsi-host-index: The ID of DSI controller hardware instance. This should
-  be 0 or 1, since we have 2 DSI controllers at most for now.
 - interrupts: The interrupt signal from the DSI block.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks.
@@ -22,6 +20,8 @@ Required properties:
   * "core"
   For DSIv2, we need an additional clock:
    * "src"
+  For DSI6G v2.0 onwards, we need also need the clock:
+   * "byte_intf"
 - assigned-clocks: Parents of "byte" and "pixel" for the given platform.
 - assigned-clock-parents: The Byte clock and Pixel clock PLL outputs provided
   by a DSI PHY block. See [1] for details on clock bindings.
@@ -88,21 +88,35 @@ Required properties:
   * "qcom,dsi-phy-28nm-lp"
   * "qcom,dsi-phy-20nm"
   * "qcom,dsi-phy-28nm-8960"
-- reg: Physical base address and length of the registers of PLL, PHY and PHY
-  regulator
+  * "qcom,dsi-phy-14nm"
+  * "qcom,dsi-phy-10nm"
+- reg: Physical base address and length of the registers of PLL, PHY. Some
+  revisions require the PHY regulator base address, whereas others require the
+  PHY lane base address. See below for each PHY revision.
 - reg-names: The names of register regions. The following regions are required:
+  For DSI 28nm HPM/LP/8960 PHYs and 20nm PHY:
   * "dsi_pll"
   * "dsi_phy"
   * "dsi_phy_regulator"
+  For DSI 14nm and 10nm PHYs:
+  * "dsi_pll"
+  * "dsi_phy"
+  * "dsi_phy_lane"
 - clock-cells: Must be 1. The DSI PHY block acts as a clock provider, creating
   2 clocks: A byte clock (index 0), and a pixel clock (index 1).
-- qcom,dsi-phy-index: The ID of DSI PHY hardware instance. This should
-  be 0 or 1, since we have 2 DSI PHYs at most for now.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
   * "iface"
+  For 28nm HPM/LP, 28nm 8960 PHYs:
 - vddio-supply: phandle to vdd-io regulator device node
+  For 20nm PHY:
+- vddio-supply: phandle to vdd-io regulator device node
+- vcca-supply: phandle to vcca regulator device node
+  For 14nm PHY:
+- vcca-supply: phandle to vcca regulator device node
+  For 10nm PHY:
+- vdds-supply: phandle to vdds regulator device node
 
 Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY

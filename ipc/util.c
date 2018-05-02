@@ -23,9 +23,12 @@
  *	    tree.
  *	    - perform initial checks (capabilities, auditing and permission,
  *	      etc).
- *	    - perform read-only operations, such as STAT, INFO commands.
+ *	    - perform read-only operations, such as INFO command, that
+ *	      do not demand atomicity
  *	      acquire the ipc lock (kern_ipc_perm.lock) through
  *	      ipc_lock_object()
+ *		- perform read-only operations that demand atomicity,
+ *		  such as STAT command.
  *		- perform data updates, such as SET, RMID commands and
  *		  mechanism-specific operations (semop/semtimedop,
  *		  msgsnd/msgrcv, shmat/shmdt).
@@ -86,6 +89,7 @@ static int __init ipc_init(void)
 {
 	int err_sem, err_msg;
 
+	proc_mkdir("sysvipc", NULL);
 	err_sem = sem_init();
 	WARN(err_sem, "ipc: sysv sem_init failed: %d\n", err_sem);
 	err_msg = msg_init();
@@ -744,8 +748,15 @@ int ipc_parse_version(int *cmd)
 #ifdef CONFIG_PROC_FS
 struct ipc_proc_iter {
 	struct ipc_namespace *ns;
+	struct pid_namespace *pid_ns;
 	struct ipc_proc_iface *iface;
 };
+
+struct pid_namespace *ipc_seq_pid_ns(struct seq_file *s)
+{
+	struct ipc_proc_iter *iter = s->private;
+	return iter->pid_ns;
+}
 
 /*
  * This routine locks the ipc structure found at least at position pos.
@@ -869,6 +880,7 @@ static int sysvipc_proc_open(struct inode *inode, struct file *file)
 
 	iter->iface = PDE_DATA(inode);
 	iter->ns    = get_ipc_ns(current->nsproxy->ipc_ns);
+	iter->pid_ns = get_pid_ns(task_active_pid_ns(current));
 
 	return 0;
 }
@@ -878,6 +890,7 @@ static int sysvipc_proc_release(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 	struct ipc_proc_iter *iter = seq->private;
 	put_ipc_ns(iter->ns);
+	put_pid_ns(iter->pid_ns);
 	return seq_release_private(inode, file);
 }
 

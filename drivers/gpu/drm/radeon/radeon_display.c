@@ -32,6 +32,7 @@
 
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
 
@@ -569,7 +570,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 		base &= ~7;
 	}
 	work->base = base;
-	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
+	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 		dev->driver->get_vblank_counter(dev, work->crtc_id);
 
 	/* We borrow the event spin lock for protecting flip_work */
@@ -1362,15 +1363,9 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	return &radeon_fb->base;
 }
 
-static void radeon_output_poll_changed(struct drm_device *dev)
-{
-	struct radeon_device *rdev = dev->dev_private;
-	radeon_fb_output_poll_changed(rdev);
-}
-
 static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_create = radeon_user_framebuffer_create,
-	.output_poll_changed = radeon_output_poll_changed
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 static const struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =

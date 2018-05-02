@@ -268,7 +268,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%01x\n", sch->st);
 }
 
-static DEVICE_ATTR(type, 0444, type_show, NULL);
+static DEVICE_ATTR_RO(type);
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -278,7 +278,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "css:t%01X\n", sch->st);
 }
 
-static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
+static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *subch_attrs[] = {
 	&dev_attr_type.attr,
@@ -315,7 +315,7 @@ static ssize_t chpids_show(struct device *dev,
 	ret += sprintf(buf + ret, "\n");
 	return ret;
 }
-static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
+static DEVICE_ATTR_RO(chpids);
 
 static ssize_t pimpampom_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -327,7 +327,7 @@ static ssize_t pimpampom_show(struct device *dev,
 	return sprintf(buf, "%02x %02x %02x\n",
 		       pmcw->pim, pmcw->pam, pmcw->pom);
 }
-static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
+static DEVICE_ATTR_RO(pimpampom);
 
 static struct attribute *io_subchannel_type_attrs[] = {
 	&dev_attr_chpids.attr,

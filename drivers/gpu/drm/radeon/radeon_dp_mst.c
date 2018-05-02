@@ -197,7 +197,6 @@ static int radeon_dp_mst_get_ddc_modes(struct drm_connector *connector)
 	if (radeon_connector->edid) {
 		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
-		drm_edid_to_eld(&radeon_connector->base, radeon_connector->edid);
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
@@ -329,7 +328,7 @@ static void radeon_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 	drm_kms_helper_hotplug_event(dev);
 }
 
-const struct drm_dp_mst_topology_cbs mst_cbs = {
+static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = radeon_dp_add_mst_connector,
 	.register_connector = radeon_dp_register_mst_connector,
 	.destroy_connector = radeon_dp_destroy_mst_connector,
@@ -719,7 +718,7 @@ radeon_dp_mst_check_status(struct radeon_connector *radeon_connector)
 				       DP_SINK_COUNT_ESI, esi, 8);
 go_again:
 		if (dret == 8) {
-			DRM_DEBUG_KMS("got esi %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+			DRM_DEBUG_KMS("got esi %3ph\n", esi);
 			ret = drm_dp_mst_hpd_irq(&radeon_connector->mst_mgr, esi, &handled);
 
 			if (handled) {
@@ -734,7 +733,7 @@ go_again:
 				dret = drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux,
 							DP_SINK_COUNT_ESI, esi, 8);
 				if (dret == 8) {
-					DRM_DEBUG_KMS("got esi2 %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+					DRM_DEBUG_KMS("got esi2 %3ph\n", esi);
 					goto go_again;
 				}
 			} else

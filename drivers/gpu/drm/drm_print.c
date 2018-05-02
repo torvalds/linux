@@ -23,6 +23,8 @@
  * Rob Clark <robdclark@gmail.com>
  */
 
+#define DEBUG /* for pr_debug() */
+
 #include <stdarg.h>
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
@@ -53,13 +55,90 @@ EXPORT_SYMBOL(__drm_printfn_debug);
  */
 void drm_printf(struct drm_printer *p, const char *f, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	va_start(args, f);
-	vaf.fmt = f;
-	vaf.va = &args;
-	p->printfn(p, &vaf);
+	drm_vprintf(p, f, &args);
 	va_end(args);
 }
 EXPORT_SYMBOL(drm_printf);
+
+void drm_dev_printk(const struct device *dev, const char *level,
+		    const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+		dev_printk(level, dev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+	else
+		printk("%s" "[" DRM_NAME ":%ps] %pV",
+		       level, __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dev_printk);
+
+void drm_dev_dbg(const struct device *dev, unsigned int category,
+		 const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+		dev_printk(KERN_DEBUG, dev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+	else
+		printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+		       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dev_dbg);
+
+void drm_dbg(unsigned int category, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+	       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dbg);
+
+void drm_err(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
+	       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_err);

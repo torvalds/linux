@@ -13,10 +13,10 @@
 
 #include "flexcop-reg.h"
 
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dvb_frontend.h>
 
 #define FC_MAX_FEED 256
 

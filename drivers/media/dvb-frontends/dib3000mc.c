@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "dib3000mc.h"
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  * Intel PRO/1000 Linux driver
  * Copyright(c) 1999 - 2006 Intel Corporation.
@@ -1838,8 +1839,8 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 			p = (char *)adapter + stat->stat_offset;
 			break;
 		default:
-			WARN_ONCE(1, "Invalid E1000 stat type: %u index %d\n",
-				  stat->type, i);
+			netdev_WARN_ONCE(netdev, "Invalid E1000 stat type: %u index %d\n",
+					 stat->type, i);
 			continue;
 		}
 

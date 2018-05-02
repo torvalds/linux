@@ -265,6 +265,28 @@
 				bias-pull-up;
 			};
 		};
+
+		sdhc2_cd_pin_a: sdhc2-cd-pin-active {
+			pins = "gpio62";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <10>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
 	};
 
 	sdhci@f9824900 {
@@ -278,6 +300,18 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhci@f98a4900 {
+		status = "ok";
+
+		vmmc-supply = <&pm8941_l21>;
+		vqmmc-supply = <&pm8941_l13>;
+
+		bus-width = <4>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
 	};
 
 	usb@f9a55000 {

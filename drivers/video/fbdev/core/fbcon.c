@@ -964,10 +964,13 @@ static const char *fbcon_startup(void)
 	ops->cur_blink_jiffies = HZ / 5;
 	ops->info = info;
 	info->fbcon_par = ops;
-	if (initial_rotation != -1)
-		p->con_rotate = initial_rotation;
-	else
-		p->con_rotate = fbcon_platform_get_rotate(info);
+
+	p->con_rotate = initial_rotation;
+	if (p->con_rotate == -1)
+		p->con_rotate = info->fbcon_rotate_hint;
+	if (p->con_rotate == -1)
+		p->con_rotate = FB_ROTATE_UR;
+
 	set_blitting_type(vc, info);
 
 	if (info->fix.type != FB_TYPE_TEXT) {
@@ -1104,10 +1107,13 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops = info->fbcon_par;
 	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
-	if (initial_rotation != -1)
-		p->con_rotate = initial_rotation;
-	else
-		p->con_rotate = fbcon_platform_get_rotate(info);
+
+	p->con_rotate = initial_rotation;
+	if (p->con_rotate == -1)
+		p->con_rotate = info->fbcon_rotate_hint;
+	if (p->con_rotate == -1)
+		p->con_rotate = FB_ROTATE_UR;
+
 	set_blitting_type(vc, info);
 
 	cols = vc->vc_cols;
@@ -2589,7 +2595,8 @@ static int fbcon_copy_font(struct vc_data *vc, int con)
  *  is ever implemented.
  */
 
-static int fbcon_set_font(struct vc_data *vc, struct console_font *font, unsigned flags)
+static int fbcon_set_font(struct vc_data *vc, struct console_font *font,
+			  unsigned int flags)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	unsigned charcount = font->charcount;

@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_gem.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -41,13 +39,13 @@ struct omap_gem_object {
 
 	struct list_head mm_list;
 
-	uint32_t flags;
+	u32 flags;
 
 	/** width/height for tiled formats (rounded up to slot boundaries) */
-	uint16_t width, height;
+	u16 width, height;
 
 	/** roll applied when mapping to DMM */
-	uint32_t roll;
+	u32 roll;
 
 	/**
 	 * dma_addr contains the buffer DMA address. It is valid for
@@ -75,7 +73,7 @@ struct omap_gem_object {
 	/**
 	 * # of users of dma_addr
 	 */
-	uint32_t dma_addr_cnt;
+	u32 dma_addr_cnt;
 
 	/**
 	 * If the buffer has been imported from a dmabuf the OMAP_DB_DMABUF flag
@@ -139,7 +137,7 @@ struct omap_drm_usergart {
  */
 
 /** get mmap offset */
-static uint64_t mmap_offset(struct drm_gem_object *obj)
+static u64 mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	int ret;
@@ -333,14 +331,15 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 }
 
 /* get buffer flags */
-uint32_t omap_gem_flags(struct drm_gem_object *obj)
+u32 omap_gem_flags(struct drm_gem_object *obj)
 {
 	return to_omap_bo(obj)->flags;
 }
 
-uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
+u64 omap_gem_mmap_offset(struct drm_gem_object *obj)
 {
-	uint64_t offset;
+	u64 offset;
+
 	mutex_lock(&obj->dev->struct_mutex);
 	offset = mmap_offset(obj);
 	mutex_unlock(&obj->dev->struct_mutex);
@@ -651,7 +650,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  * into user memory. We don't have to do much here at the moment.
  */
 int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle, uint64_t *offset)
+		u32 handle, u64 *offset)
 {
 	struct drm_gem_object *obj;
 	int ret = 0;
@@ -677,10 +676,10 @@ fail:
  *
  * Call only from non-atomic contexts.
  */
-int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll)
+int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	uint32_t npages = obj->size >> PAGE_SHIFT;
+	u32 npages = obj->size >> PAGE_SHIFT;
 	int ret = 0;
 
 	if (roll > npages) {
@@ -810,7 +809,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 	if (!is_contiguous(omap_obj) && priv->has_dmm) {
 		if (omap_obj->dma_addr_cnt == 0) {
 			struct page **pages;
-			uint32_t npages = obj->size >> PAGE_SHIFT;
+			u32 npages = obj->size >> PAGE_SHIFT;
 			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 			struct tiler_block *block;
 
@@ -906,7 +905,7 @@ void omap_gem_unpin(struct drm_gem_object *obj)
  * specified orientation and x,y offset from top-left corner of buffer
  * (only valid for tiled 2d buffers)
  */
-int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, uint32_t orient,
+int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
 		int x, int y, dma_addr_t *dma_addr)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -923,7 +922,7 @@ int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, uint32_t orient,
 }
 
 /* Get tiler stride for the buffer (only valid for 2d tiled buffers) */
-int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient)
+int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = -EINVAL;
@@ -996,23 +995,23 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 
 #ifdef CONFIG_PM
 /* re-pin objects in DMM in resume path: */
-int omap_gem_resume(struct device *dev)
+int omap_gem_resume(struct drm_device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct omap_drm_private *priv = drm_dev->dev_private;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
 	int ret = 0;
 
 	list_for_each_entry(omap_obj, &priv->obj_list, mm_list) {
 		if (omap_obj->block) {
 			struct drm_gem_object *obj = &omap_obj->base;
-			uint32_t npages = obj->size >> PAGE_SHIFT;
+			u32 npages = obj->size >> PAGE_SHIFT;
+
 			WARN_ON(!omap_obj->pages);  /* this can't happen */
 			ret = tiler_pin(omap_obj->block,
 					omap_obj->pages, npages,
 					omap_obj->roll, true);
 			if (ret) {
-				dev_err(dev, "could not repin: %d\n", ret);
+				dev_err(dev->dev, "could not repin: %d\n", ret);
 				return ret;
 			}
 		}
@@ -1030,7 +1029,7 @@ int omap_gem_resume(struct device *dev)
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	uint64_t off;
+	u64 off;
 
 	off = drm_vma_node_start(&obj->vma_node);
 
@@ -1118,7 +1117,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 /* GEM buffer object constructor */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
-		union omap_gem_size gsize, uint32_t flags)
+		union omap_gem_size gsize, u32 flags)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
@@ -1283,7 +1282,7 @@ done:
 
 /* convenience method to construct a GEM buffer object, and userspace handle */
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		union omap_gem_size gsize, uint32_t flags, uint32_t *handle)
+		union omap_gem_size gsize, u32 flags, u32 *handle)
 {
 	struct drm_gem_object *obj;
 	int ret;
@@ -1330,7 +1329,8 @@ void omap_gem_init(struct drm_device *dev)
 
 	/* reserve 4k aligned/wide regions for userspace mappings: */
 	for (i = 0; i < ARRAY_SIZE(fmts); i++) {
-		uint16_t h = 1, w = PAGE_SIZE >> i;
+		u16 h = 1, w = PAGE_SIZE >> i;
+
 		tiler_align(fmts[i], &w, &h);
 		/* note: since each region is 1 4kb page wide, and minimum
 		 * number of rows, the height ends up being the same as the

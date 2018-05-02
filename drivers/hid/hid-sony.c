@@ -9,6 +9,7 @@
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
  *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
+ *  Copyright (c) 2018 Todd Kelner
  */
 
 /*
@@ -55,6 +56,8 @@
 #define NAVIGATION_CONTROLLER_BT  BIT(11)
 #define SINO_LITE_CONTROLLER      BIT(12)
 #define FUTUREMAX_DANCE_MAT       BIT(13)
+#define NSG_MR5U_REMOTE_BT        BIT(14)
+#define NSG_MR7U_REMOTE_BT        BIT(15)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -72,8 +75,11 @@
 				MOTION_CONTROLLER)
 #define SONY_BT_DEVICE (SIXAXIS_CONTROLLER_BT | DUALSHOCK4_CONTROLLER_BT |\
 			MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER_BT)
+#define NSG_MRXU_REMOTE (NSG_MR5U_REMOTE_BT | NSG_MR7U_REMOTE_BT)
 
 #define MAX_LEDS 4
+#define NSG_MRXU_MAX_X 1667
+#define NSG_MRXU_MAX_Y 1868
 
 
 /* PS/3 Motion controller */
@@ -473,6 +479,7 @@ struct motion_output_report_02 {
 #define DS4_FEATURE_REPORT_0x02_SIZE 37
 #define DS4_FEATURE_REPORT_0x05_SIZE 41
 #define DS4_FEATURE_REPORT_0x81_SIZE 7
+#define DS4_FEATURE_REPORT_0xA3_SIZE 49
 #define DS4_INPUT_REPORT_0x11_SIZE 78
 #define DS4_OUTPUT_REPORT_0x05_SIZE 32
 #define DS4_OUTPUT_REPORT_0x11_SIZE 78
@@ -544,6 +551,8 @@ struct sony_sc {
 	struct power_supply *battery;
 	struct power_supply_desc battery_desc;
 	int device_id;
+	unsigned fw_version;
+	unsigned hw_version;
 	u8 *output_report_dmabuf;
 
 #ifdef CONFIG_SONY_FF
@@ -627,6 +636,29 @@ static ssize_t ds4_store_poll_interval(struct device *dev,
 static DEVICE_ATTR(bt_poll_interval, 0644, ds4_show_poll_interval,
 		ds4_store_poll_interval);
 
+static ssize_t sony_show_firmware_version(struct device *dev,
+				struct device_attribute
+				*attr, char *buf)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", sc->fw_version);
+}
+
+static DEVICE_ATTR(firmware_version, 0444, sony_show_firmware_version, NULL);
+
+static ssize_t sony_show_hardware_version(struct device *dev,
+				struct device_attribute
+				*attr, char *buf)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", sc->hw_version);
+}
+
+static DEVICE_ATTR(hardware_version, 0444, sony_show_hardware_version, NULL);
 
 static u8 *motion_fixup(struct hid_device *hdev, u8 *rdesc,
 			     unsigned int *rsize)
@@ -1072,6 +1104,80 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	}
 }
 
+static void nsg_mrxu_parse_report(struct sony_sc *sc, u8 *rd, int size)
+{
+	int n, offset, relx, rely;
+	u8 active;
+
+	/*
+	 * The NSG-MRxU multi-touch trackpad data starts at offset 1 and
+	 *   the touch-related data starts at offset 2.
+	 * For the first byte, bit 0 is set when touchpad button is pressed.
+	 * Bit 2 is set when a touch is active and the drag (Fn) key is pressed.
+	 * This drag key is mapped to BTN_LEFT.  It is operational only when a 
+	 *   touch point is active.
+	 * Bit 4 is set when only the first touch point is active.
+	 * Bit 6 is set when only the second touch point is active.
+	 * Bits 5 and 7 are set when both touch points are active.
+	 * The next 3 bytes are two 12 bit X/Y coordinates for the first touch.
+	 * The following byte, offset 5, has the touch width and length.
+	 *   Bits 0-4=X (width), bits 5-7=Y (length).
+	 * A signed relative X coordinate is at offset 6.
+	 * The bytes at offset 7-9 are the second touch X/Y coordinates.
+	 * Offset 10 has the second touch width and length.
+	 * Offset 11 has the relative Y coordinate.
+	 */
+	offset = 1;
+
+	input_report_key(sc->touchpad, BTN_LEFT, rd[offset] & 0x0F);
+	active = (rd[offset] >> 4);
+	relx = (s8) rd[offset+5];
+	rely = ((s8) rd[offset+10]) * -1;
+
+	offset++;
+
+	for (n = 0; n < 2; n++) {
+		u16 x, y;
+		u8 contactx, contacty;
+
+		x = rd[offset] | ((rd[offset+1] & 0x0F) << 8);
+		y = ((rd[offset+1] & 0xF0) >> 4) | (rd[offset+2] << 4);
+
+		input_mt_slot(sc->touchpad, n);
+		input_mt_report_slot_state(sc->touchpad, MT_TOOL_FINGER, active & 0x03);
+
+		if (active & 0x03) {
+			contactx = rd[offset+3] & 0x0F;
+			contacty = rd[offset+3] >> 4;
+			input_report_abs(sc->touchpad, ABS_MT_TOUCH_MAJOR,
+				max(contactx, contacty));
+			input_report_abs(sc->touchpad, ABS_MT_TOUCH_MINOR,
+				min(contactx, contacty));
+			input_report_abs(sc->touchpad, ABS_MT_ORIENTATION,
+				(bool) (contactx > contacty));
+			input_report_abs(sc->touchpad, ABS_MT_POSITION_X, x);
+			input_report_abs(sc->touchpad, ABS_MT_POSITION_Y,
+				NSG_MRXU_MAX_Y - y);
+			/*
+			 * The relative coordinates belong to the first touch
+			 * point, when present, or to the second touch point
+			 * when the first is not active.
+			 */
+			if ((n == 0) || ((n == 1) && (active & 0x01))) {
+				input_report_rel(sc->touchpad, REL_X, relx);
+				input_report_rel(sc->touchpad, REL_Y, rely);
+			}
+		}
+
+		offset += 5;
+		active >>= 2;
+	}
+
+	input_mt_sync_frame(sc->touchpad);
+
+	input_sync(sc->touchpad);
+}
+
 static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *rd, int size)
 {
@@ -1180,6 +1286,10 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		}
 
 		dualshock4_parse_report(sc, rd, size);
+
+	} else if ((sc->quirks & NSG_MRXU_REMOTE) && rd[0] == 0x02) {
+		nsg_mrxu_parse_report(sc, rd, size);
+		return 1;
 	}
 
 	if (sc->defer_initialization) {
@@ -1237,7 +1347,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
-					int w, int h)
+		int w, int h, int touch_major, int touch_minor, int orientation)
 {
 	size_t name_sz;
 	char *name;
@@ -1268,10 +1378,6 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	snprintf(name, name_sz, "%s" DS4_TOUCHPAD_SUFFIX, sc->hdev->name);
 	sc->touchpad->name = name;
 
-	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
-	if (ret < 0)
-		goto err;
-
 	/* We map the button underneath the touchpad to BTN_LEFT. */
 	__set_bit(EV_KEY, sc->touchpad->evbit);
 	__set_bit(BTN_LEFT, sc->touchpad->keybit);
@@ -1279,6 +1385,25 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 
 	input_set_abs_params(sc->touchpad, ABS_MT_POSITION_X, 0, w, 0, 0);
 	input_set_abs_params(sc->touchpad, ABS_MT_POSITION_Y, 0, h, 0, 0);
+
+	if (touch_major > 0) {
+		input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MAJOR, 
+			0, touch_major, 0, 0);
+		if (touch_minor > 0)
+			input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MINOR, 
+				0, touch_minor, 0, 0);
+		if (orientation > 0)
+			input_set_abs_params(sc->touchpad, ABS_MT_ORIENTATION, 
+				0, orientation, 0, 0);
+	}
+
+	if (sc->quirks & NSG_MRXU_REMOTE) {
+		__set_bit(EV_REL, sc->touchpad->evbit);
+	}
+
+	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
+	if (ret < 0)
+		goto err;
 
 	ret = input_register_device(sc->touchpad);
 	if (ret < 0)
@@ -1644,6 +1769,31 @@ static void dualshock4_calibration_work(struct work_struct *work)
 	spin_lock_irqsave(&sc->lock, flags);
 	sc->ds4_dongle_state = dongle_state;
 	spin_unlock_irqrestore(&sc->lock, flags);
+}
+
+static int dualshock4_get_version_info(struct sony_sc *sc)
+{
+	u8 *buf;
+	int ret;
+
+	buf = kmalloc(DS4_FEATURE_REPORT_0xA3_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(sc->hdev, 0xA3, buf,
+				 DS4_FEATURE_REPORT_0xA3_SIZE,
+				 HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	sc->hw_version = get_unaligned_le16(&buf[35]);
+	sc->fw_version = get_unaligned_le16(&buf[41]);
+
+	kfree(buf);
+	return 0;
 }
 
 static void sixaxis_set_leds_from_id(struct sony_sc *sc)
@@ -2399,10 +2549,7 @@ static int sony_check_add(struct sony_sc *sc)
 		memcpy(sc->mac_address, &buf[1], sizeof(sc->mac_address));
 
 		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
-			"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			sc->mac_address[5], sc->mac_address[4],
-			sc->mac_address[3], sc->mac_address[2],
-			sc->mac_address[1], sc->mac_address[0]);
+			 "%pMR", sc->mac_address);
 	} else if ((sc->quirks & SIXAXIS_CONTROLLER_USB) ||
 			(sc->quirks & NAVIGATION_CONTROLLER_USB)) {
 		buf = kmalloc(SIXAXIS_REPORT_0xF2_SIZE, GFP_KERNEL);
@@ -2432,10 +2579,7 @@ static int sony_check_add(struct sony_sc *sc)
 			sc->mac_address[5-n] = buf[4+n];
 
 		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
-			"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			sc->mac_address[5], sc->mac_address[4],
-			sc->mac_address[3], sc->mac_address[2],
-			sc->mac_address[1], sc->mac_address[0]);
+			 "%pMR", sc->mac_address);
 	} else {
 		return 0;
 	}
@@ -2619,11 +2763,33 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		ret = dualshock4_get_version_info(sc);
+		if (ret < 0) {
+			hid_err(sc->hdev, "Failed to get version data from Dualshock 4\n");
+			goto err_stop;
+		}
+
+		ret = device_create_file(&sc->hdev->dev, &dev_attr_firmware_version);
+		if (ret) {
+			/* Make zero for cleanup reasons of sysfs entries. */
+			sc->fw_version = 0;
+			sc->hw_version = 0;
+			hid_err(sc->hdev, "can't create sysfs firmware_version attribute err: %d\n", ret);
+			goto err_stop;
+		}
+
+		ret = device_create_file(&sc->hdev->dev, &dev_attr_hardware_version);
+		if (ret) {
+			sc->hw_version = 0;
+			hid_err(sc->hdev, "can't create sysfs hardware_version attribute err: %d\n", ret);
+			goto err_stop;
+		}
+
 		/*
 		 * The Dualshock 4 touchpad supports 2 touches and has a
 		 * resolution of 1920x942 (44.86 dots/mm).
 		 */
-		ret = sony_register_touchpad(sc, 2, 1920, 942);
+		ret = sony_register_touchpad(sc, 2, 1920, 942, 0, 0, 0);
 		if (ret) {
 			hid_err(sc->hdev,
 			"Unable to initialize multi-touch slots: %d\n",
@@ -2654,6 +2820,20 @@ static int sony_input_configured(struct hid_device *hdev,
 		}
 
 		sony_init_output_report(sc, dualshock4_send_output_report);
+	} else if (sc->quirks & NSG_MRXU_REMOTE) {
+		/*
+		 * The NSG-MRxU touchpad supports 2 touches and has a
+		 * resolution of 1667x1868
+		 */
+		ret = sony_register_touchpad(sc, 2,
+			NSG_MRXU_MAX_X, NSG_MRXU_MAX_Y, 15, 15, 1);
+		if (ret) {
+			hid_err(sc->hdev,
+			"Unable to initialize multi-touch slots: %d\n",
+			ret);
+			goto err_stop;
+		}
+
 	} else if (sc->quirks & MOTION_CONTROLLER) {
 		sony_init_output_report(sc, motion_send_output_report);
 	} else {
@@ -2695,6 +2875,10 @@ err_stop:
 	 */
 	if (sc->ds4_bt_poll_interval)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
+	if (sc->fw_version)
+		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
+	if (sc->hw_version)
+		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
 	if (sc->quirks & SONY_LED_SUPPORT)
 		sony_leds_remove(sc);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
@@ -2796,6 +2980,12 @@ static void sony_remove(struct hid_device *hdev)
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
 
+	if (sc->fw_version)
+		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
+
+	if (sc->hw_version)
+		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
+
 	sony_cancel_work_sync(sc);
 
 	kfree(sc->output_report_dmabuf);
@@ -2892,6 +3082,12 @@ static const struct hid_device_id sony_devices[] = {
 	/* Nyko Core Controller for PS3 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SINO_LITE, USB_DEVICE_ID_SINO_LITE_CONTROLLER),
 		.driver_data = SIXAXIS_CONTROLLER_USB | SINO_LITE_CONTROLLER },
+	/* SMK-Link NSG-MR5U Remote Control */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR5U_REMOTE),
+		.driver_data = NSG_MR5U_REMOTE_BT },
+	/* SMK-Link NSG-MR7U Remote Control */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR7U_REMOTE),
+		.driver_data = NSG_MR7U_REMOTE_BT },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);

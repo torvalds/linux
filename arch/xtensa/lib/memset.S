@@ -11,7 +11,9 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
+#include <asm/asmmacro.h>
 
 /*
  * void *memset(void *dst, int c, size_t length)
@@ -28,20 +30,10 @@
  *     the alignment labels).
  */
 
-/* Load or store instructions that may cause exceptions use the EX macro. */
-
-#define EX(insn,reg1,reg2,offset,handler)	\
-9:	insn	reg1, reg2, offset;		\
-	.section __ex_table, "a";		\
-	.word	9b, handler;			\
-	.previous
-
-
 .text
-.align	4
-.global	memset
-.type	memset,@function
-memset:
+ENTRY(__memset)
+WEAK(memset)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ c, a4/ length
 	extui	a3, a3, 0, 8	# mask to just 8 bits
@@ -73,10 +65,10 @@ memset:
 	add	a6, a6, a5	# a6 = end of last 16B chunk
 #endif /* !XCHAL_HAVE_LOOPS */
 .Loop1:
-	EX(s32i, a3, a5,  0, memset_fixup)
-	EX(s32i, a3, a5,  4, memset_fixup)
-	EX(s32i, a3, a5,  8, memset_fixup)
-	EX(s32i, a3, a5, 12, memset_fixup)
+EX(10f) s32i	a3, a5,  0
+EX(10f) s32i	a3, a5,  4
+EX(10f) s32i	a3, a5,  8
+EX(10f) s32i	a3, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
 	blt	a5, a6, .Loop1
@@ -84,23 +76,23 @@ memset:
 .Loop1done:
 	bbci.l	a4, 3, .L2
 	# set 8 bytes
-	EX(s32i, a3, a5,  0, memset_fixup)
-	EX(s32i, a3, a5,  4, memset_fixup)
+EX(10f) s32i	a3, a5,  0
+EX(10f) s32i	a3, a5,  4
 	addi	a5, a5,  8
 .L2:
 	bbci.l	a4, 2, .L3
 	# set 4 bytes
-	EX(s32i, a3, a5,  0, memset_fixup)
+EX(10f) s32i	a3, a5,  0
 	addi	a5, a5,  4
 .L3:
 	bbci.l	a4, 1, .L4
 	# set 2 bytes
-	EX(s16i, a3, a5,  0, memset_fixup)
+EX(10f) s16i	a3, a5,  0
 	addi	a5, a5,  2
 .L4:
 	bbci.l	a4, 0, .L5
 	# set 1 byte
-	EX(s8i, a3, a5,  0, memset_fixup)
+EX(10f) s8i	a3, a5,  0
 .L5:
 .Lret1:
 	retw
@@ -114,7 +106,7 @@ memset:
 	bbci.l	a5, 0, .L20		# branch if dst alignment half-aligned
 	# dst is only byte aligned
 	# set 1 byte
-	EX(s8i, a3, a5,  0, memset_fixup)
+EX(10f) s8i	a3, a5,  0
 	addi	a5, a5,  1
 	addi	a4, a4, -1
 	# now retest if dst aligned
@@ -122,7 +114,7 @@ memset:
 .L20:
 	# dst half-aligned
 	# set 2 bytes
-	EX(s16i, a3, a5,  0, memset_fixup)
+EX(10f) s16i	a3, a5,  0
 	addi	a5, a5,  2
 	addi	a4, a4, -2
 	j	.L0		# dst is now aligned, return to main algorithm
@@ -141,7 +133,7 @@ memset:
 	add	a6, a5, a4	# a6 = ending address
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbyteloop:
-	EX(s8i, a3, a5, 0, memset_fixup)
+EX(10f) s8i	a3, a5, 0
 	addi	a5, a5, 1
 #if !XCHAL_HAVE_LOOPS
 	blt	a5, a6, .Lbyteloop
@@ -149,12 +141,13 @@ memset:
 .Lbytesetdone:
 	retw
 
+ENDPROC(__memset)
 
 	.section .fixup, "ax"
 	.align	4
 
 /* We return zero if a failure occurred. */
 
-memset_fixup:
+10:
 	movi	a2, 0
 	retw

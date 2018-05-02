@@ -249,7 +249,7 @@ void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_dbg_adapter_exit - clear out the adapter's debugfs entries
- * @pf: the pf that is stopping
+ * @adapter: the adapter that is exiting
  **/
 void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter)
 {

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * File: card.h
  *
@@ -47,19 +38,6 @@
 #define CB_MAX_CHANNEL_24G      14
 #define CB_MAX_CHANNEL_5G       42
 #define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
-
-typedef enum _CARD_PKT_TYPE {
-	PKT_TYPE_802_11_BCN,
-	PKT_TYPE_802_11_MNG,
-	PKT_TYPE_802_11_DATA,
-	PKT_TYPE_802_11_ALL
-} CARD_PKT_TYPE, *PCARD_PKT_TYPE;
-
-typedef enum _CARD_STATUS_TYPE {
-	CARD_STATUS_MEDIA_CONNECT,
-	CARD_STATUS_MEDIA_DISCONNECT,
-	CARD_STATUS_PMKID
-} CARD_STATUS_TYPE, *PCARD_STATUS_TYPE;
 
 struct vnt_private;
 

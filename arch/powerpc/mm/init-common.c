@@ -100,6 +100,6 @@ void pgtable_cache_init(void)
 	 * same size as either the pgd or pmd index except with THP enabled
 	 * on book3s 64
 	 */
-	if (PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE))
-		pgtable_cache_add(PUD_INDEX_SIZE, pud_ctor);
+	if (PUD_CACHE_INDEX && !PGT_CACHE(PUD_CACHE_INDEX))
+		pgtable_cache_add(PUD_CACHE_INDEX, pud_ctor);
 }

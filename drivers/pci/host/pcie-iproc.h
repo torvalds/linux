@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2014-2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _PCIE_IPROC_H
@@ -62,7 +54,6 @@ struct iproc_msi;
  * @reg_offsets: register offsets
  * @base: PCIe host controller I/O register base
  * @base_addr: PCIe host controller register base physical address
- * @sysdata: Per PCI controller data (ARM-specific)
  * @root_bus: pointer to root bus
  * @phy: optional PHY device that controls the Serdes
  * @map_irq: function callback to map interrupts
@@ -74,6 +65,7 @@ struct iproc_msi;
  * @ob: outbound mapping related parameters
  * @ob_map: outbound mapping related parameters specific to the controller
  *
+ * @need_ib_cfg: indicates SW needs to configure the inbound mapping window
  * @ib: inbound mapping related parameters
  * @ib_map: outbound mapping region related parameters
  *
@@ -87,9 +79,6 @@ struct iproc_pcie {
 	u16 *reg_offsets;
 	void __iomem *base;
 	phys_addr_t base_addr;
-#ifdef CONFIG_ARM
-	struct pci_sys_data sysdata;
-#endif
 	struct resource mem;
 	struct pci_bus *root_bus;
 	struct phy *phy;
@@ -101,6 +90,7 @@ struct iproc_pcie {
 	struct iproc_pcie_ob ob;
 	const struct iproc_pcie_ob_map *ob_map;
 
+	bool need_ib_cfg;
 	struct iproc_pcie_ib ib;
 	const struct iproc_pcie_ib_map *ib_map;
 

@@ -3,13 +3,13 @@
 #ifndef __BUDGET_DVB__
 #define __BUDGET_DVB__
 
-#include "dvb_frontend.h"
-#include "dvbdev.h"
-#include "demux.h"
-#include "dvb_demux.h"
-#include "dmxdev.h"
+#include <media/dvb_frontend.h>
+#include <media/dvbdev.h>
+#include <media/demux.h>
+#include <media/dvb_demux.h>
+#include <media/dmxdev.h>
 #include "dvb_filter.h"
-#include "dvb_net.h"
+#include <media/dvb_net.h>
 
 #include <linux/module.h>
 #include <linux/mutex.h>

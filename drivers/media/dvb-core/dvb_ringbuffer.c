@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
-#include "dvb_ringbuffer.h"
+#include <media/dvb_ringbuffer.h>
 
 #define PKT_READY 0
 #define PKT_DISPOSED 1

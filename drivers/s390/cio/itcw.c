@@ -15,7 +15,7 @@
 #include <asm/fcx.h>
 #include <asm/itcw.h>
 
-/**
+/*
  * struct itcw - incremental tcw helper data type
  *
  * This structure serves as a handle for the incremental construction of a

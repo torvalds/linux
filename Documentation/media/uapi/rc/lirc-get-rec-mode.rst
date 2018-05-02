@@ -10,15 +10,15 @@ ioctls LIRC_GET_REC_MODE and LIRC_SET_REC_MODE
 Name
 ====
 
-LIRC_GET_REC_MODE/LIRC_SET_REC_MODE - Get/set supported receive modes.
+LIRC_GET_REC_MODE/LIRC_SET_REC_MODE - Get/set current receive mode.
 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_GET_REC_MODE, __u32 rx_modes)
+.. c:function:: int ioctl( int fd, LIRC_GET_REC_MODE, __u32 *mode)
 	:name: LIRC_GET_REC_MODE
 
-.. c:function:: int ioctl( int fd, LIRC_SET_REC_MODE, __u32 rx_modes)
+.. c:function:: int ioctl( int fd, LIRC_SET_REC_MODE, __u32 *mode)
 	:name: LIRC_SET_REC_MODE
 
 Arguments
@@ -27,20 +27,41 @@ Arguments
 ``fd``
     File descriptor returned by open().
 
-``rx_modes``
-    Bitmask with the supported transmit modes.
+``mode``
+    Mode used for receive.
 
 Description
 ===========
 
-Get/set supported receive modes. Only :ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>`
-and :ref:`LIRC_MODE_LIRCCODE <lirc-mode-lirccode>` are supported for IR
-receive. Use :ref:`lirc_get_features` to find out which modes the driver
-supports.
+Get and set the current receive mode. Only
+:ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>` and
+:ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` are supported.
+Use :ref:`lirc_get_features` to find out which modes the driver supports.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
-:ref:`Generic Error Codes <gen-errors>` chapter.
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+
+    -  .. row 1
+
+       -  ``ENODEV``
+
+       -  Device not available.
+
+    -  .. row 2
+
+       -  ``ENOTTY``
+
+       -  Device does not support receiving.
+
+    -  .. row 3
+
+       -  ``EINVAL``
+
+       -  Invalid mode or invalid mode for this device.

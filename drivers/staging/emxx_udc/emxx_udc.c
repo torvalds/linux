@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  drivers/usb/gadget/emxx_udc.c
  *     EMXX FCD (Function Controller Driver) for USB.
  *
  *  Copyright (C) 2010 Renesas Electronics Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -1680,9 +1672,6 @@ static int std_req_set_configuration(struct nbu2ss_udc *udc)
 /*-------------------------------------------------------------------------*/
 static inline void _nbu2ss_read_request_data(struct nbu2ss_udc *udc, u32 *pdata)
 {
-	if ((!udc) && (!pdata))
-		return;
-
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA0);
 	pdata++;
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA1);
@@ -2694,7 +2683,7 @@ static int nbu2ss_ep_queue(
 
 	if (req->unaligned) {
 		if (!ep->virt_buf)
-			ep->virt_buf = (u8 *)dma_alloc_coherent(
+			ep->virt_buf = dma_alloc_coherent(
 				NULL, PAGE_SIZE,
 				&ep->phys_buf, GFP_ATOMIC | GFP_DMA);
 		if (ep->epnum > 0)  {
@@ -2949,11 +2938,6 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	if (!udc) {
-		dev_err(&pgadget->dev, "%s, udc == NULL\n", __func__);
-		return -EINVAL;
-	}
-
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0)
 		return -EINVAL;

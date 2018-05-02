@@ -1001,7 +1001,7 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 
 	while (amsdu_len > mac_hdr_len) {
 		hdr = (struct ethhdr *) framep;
-		payload_8023_len = ntohs(hdr->h_proto);
+		payload_8023_len = be16_to_cpu(hdr->h_proto);
 
 		if (payload_8023_len < MIN_MSDU_SUBFRAME_PAYLOAD_LEN ||
 		    payload_8023_len > MAX_MSDU_SUBFRAME_PAYLOAD_LEN) {

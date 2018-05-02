@@ -55,7 +55,7 @@ xfs_log_calc_max_attrsetm_res(
  * the maximum one in terms of the pre-calculated values which were done
  * at mount time.
  */
-STATIC void
+void
 xfs_log_get_max_trans_res(
 	struct xfs_mount	*mp,
 	struct xfs_trans_res	*max_resp)

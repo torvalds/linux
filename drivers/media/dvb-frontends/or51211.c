@@ -36,8 +36,8 @@
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 
-#include "dvb_math.h"
-#include "dvb_frontend.h"
+#include <media/dvb_math.h>
+#include <media/dvb_frontend.h>
 #include "or51211.h"
 
 static int debug;

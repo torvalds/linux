@@ -555,6 +555,9 @@
 #define READ_LATENCY_SHDW_SHIFT				0
 #define READ_LATENCY_SHDW_MASK				(0x1f << 0)
 
+#define EMIF_SRAM_AM33_REG_LAYOUT			0x00000000
+#define EMIF_SRAM_AM43_REG_LAYOUT			0x00000001
+
 #ifndef __ASSEMBLY__
 /*
  * Structure containing shadow of important registers in EMIF
@@ -585,5 +588,19 @@ struct emif_regs {
 	u32 ext_phy_ctrl_3_shdw;
 	u32 ext_phy_ctrl_4_shdw;
 };
+
+struct ti_emif_pm_functions;
+
+extern unsigned int ti_emif_sram;
+extern unsigned int ti_emif_sram_sz;
+extern struct ti_emif_pm_data ti_emif_pm_sram_data;
+extern struct emif_regs_amx3 ti_emif_regs_amx3;
+
+void ti_emif_save_context(void);
+void ti_emif_restore_context(void);
+void ti_emif_enter_sr(void);
+void ti_emif_exit_sr(void);
+void ti_emif_abort_sr(void);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __EMIF_H */

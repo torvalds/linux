@@ -49,6 +49,11 @@
 	model = "Ka-Ro electronics TX53 module";
 	compatible = "karo,tx53", "fsl,imx53";
 
+	/* Will be filled by the bootloader */
+	memory@70000000 {
+		reg = <0x70000000 0>;
+	};
+
 	aliases {
 		can0 = &can2; /* Make the can interface indices consistent with TX28/TX48 modules */
 		can1 = &can1;
@@ -225,10 +230,16 @@
 	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		interrupt-parent = <&gpio2>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-		device_type = "ethernet-phy";
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+			device_type = "ethernet-phy";
+		};
 	};
 };
 

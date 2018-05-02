@@ -141,7 +141,7 @@ struct bttv_ir {
 	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
-	ktime_t          				base_time;  /* time of last seen code */
+	ktime_t						base_time;  /* time of last seen code */
 	bool                    active;     /* building raw code */
 };
 
@@ -400,8 +400,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
-	struct v4l2_subdev 	  *sd_msp34xx;
-	struct v4l2_subdev 	  *sd_tvaudio;
+	struct v4l2_subdev	  *sd_msp34xx;
+	struct v4l2_subdev	  *sd_tvaudio;
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */

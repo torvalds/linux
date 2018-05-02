@@ -473,35 +473,16 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 #define	XFS_FILBLKS_MIN(a,b)	min_t(xfs_filblks_t, (a), (b))
 #define	XFS_FILBLKS_MAX(a,b)	max_t(xfs_filblks_t, (a), (b))
 
-#define	XFS_FSB_SANITY_CHECK(mp,fsb)	\
-	(fsb && XFS_FSB_TO_AGNO(mp, fsb) < mp->m_sb.sb_agcount && \
-		XFS_FSB_TO_AGBNO(mp, fsb) < mp->m_sb.sb_agblocks)
+xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
+xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
+xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
+		uint64_t owner);
+xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
 
-/*
- * Trace hooks.  Currently not implemented as they need to be ported
- * over to the generic tracing functionality, which is some effort.
- *
- * i,j = integer (32 bit)
- * b = btree block buffer (xfs_buf_t)
- * p = btree ptr
- * r = btree record
- * k = btree key
- */
-#define	XFS_BTREE_TRACE_ARGBI(c, b, i)
-#define	XFS_BTREE_TRACE_ARGBII(c, b, i, j)
-#define	XFS_BTREE_TRACE_ARGI(c, i)
-#define	XFS_BTREE_TRACE_ARGIPK(c, i, p, s)
-#define	XFS_BTREE_TRACE_ARGIPR(c, i, p, r)
-#define	XFS_BTREE_TRACE_ARGIK(c, i, k)
-#define XFS_BTREE_TRACE_ARGR(c, r)
-#define	XFS_BTREE_TRACE_CURSOR(c, t)
-
-bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
-bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
-uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
-				 unsigned long len);
-xfs_extlen_t xfs_btree_calc_size(struct xfs_mount *mp, uint *limits,
-		unsigned long long len);
+uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
+xfs_extlen_t xfs_btree_calc_size(uint *limits, unsigned long long len);
 
 /* return codes */
 #define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
@@ -545,5 +526,7 @@ void xfs_btree_get_keys(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, union xfs_btree_key *key);
 union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
 		union xfs_btree_key *key);
+int xfs_btree_has_record(struct xfs_btree_cur *cur, union xfs_btree_irec *low,
+		union xfs_btree_irec *high, bool *exists);
 
 #endif	/* __XFS_BTREE_H__ */

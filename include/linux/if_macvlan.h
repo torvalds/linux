@@ -30,10 +30,10 @@ struct macvlan_dev {
 	enum macvlan_mode	mode;
 	u16			flags;
 	int			nest_level;
+	unsigned int		macaddr_count;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
-	unsigned int		macaddr_count;
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "wilc_wfi_cfgoperations.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
@@ -627,8 +628,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			wl->hif_func->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
-		if (&wl->txq_event)
-			complete(&wl->txq_event);
+		complete(&wl->txq_event);
 
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);
@@ -676,11 +676,9 @@ static int wlan_deinit_locks(struct net_device *dev)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	if (&wilc->hif_cs)
-		mutex_destroy(&wilc->hif_cs);
-
-	if (&wilc->rxq_cs)
-		mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->hif_cs);
+	mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->txq_add_to_head_cs);
 
 	return 0;
 }
@@ -694,7 +692,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 	wilc = vif->wilc;
 
 	wilc->txq_thread = kthread_run(linux_wlan_txq_task, (void *)dev,
-				     "K_TXQ_TASK");
+				       "K_TXQ_TASK");
 	if (IS_ERR(wilc->txq_thread)) {
 		netdev_err(dev, "couldn't create TXQ thread\n");
 		wilc->close = 0;
@@ -715,8 +713,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 
 	wl->close = 1;
 
-	if (&wl->txq_event)
-		complete(&wl->txq_event);
+	complete(&wl->txq_event);
 
 	if (wl->txq_thread) {
 		kthread_stop(wl->txq_thread);
@@ -865,10 +862,10 @@ static int wilc_mac_open(struct net_device *ndev)
 			break;
 		}
 	}
-			wilc_get_mac_address(vif, mac_add);
-			netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 
+	wilc_get_mac_address(vif, mac_add);
+	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
+	memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 	memcpy(ndev->dev_addr, wl->vif[i]->src_addr, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -910,13 +907,13 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		return;
 
-	if ((dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
+	if (dev->flags & IFF_ALLMULTI ||
+	    dev->mc.count > WILC_MULTICAST_TABLE_SIZE) {
 		wilc_setup_multicast_filter(vif, false, 0);
 		return;
 	}
 
-	if ((dev->mc.count) == 0) {
+	if (dev->mc.count == 0) {
 		wilc_setup_multicast_filter(vif, true, 0);
 		return;
 	}
@@ -1029,7 +1026,7 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (!hif_drv)
 		return 0;
 
-	if ((wl->open_ifcs) > 0)
+	if (wl->open_ifcs > 0)
 		wl->open_ifcs--;
 	else
 		return 0;
@@ -1153,7 +1150,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 	}
 }
 
-void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
+void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 {
 	int i = 0;
 	struct wilc_vif *vif;

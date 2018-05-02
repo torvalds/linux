@@ -6,6 +6,7 @@ config VIDEO_COBALT
 	depends on SND
 	depends on MTD
 	select I2C_ALGOBIT
+	select SND_PCM
 	select VIDEO_ADV7604
 	select VIDEO_ADV7511
 	select VIDEO_ADV7842

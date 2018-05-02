@@ -89,6 +89,7 @@ struct sctp_stream;
 #include <net/sctp/tsnmap.h>
 #include <net/sctp/ulpevent.h>
 #include <net/sctp/ulpqueue.h>
+#include <net/sctp/stream_interleave.h>
 
 /* Structures useful for managing bind/connect. */
 
@@ -202,11 +203,16 @@ struct sctp_sock {
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
 
-	struct sctp_initmsg initmsg;
 	struct sctp_rtoinfo rtoinfo;
 	struct sctp_paddrparams paddrparam;
-	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
+	/*
+	 * These two structures must be grouped together for the usercopy
+	 * whitelist region.
+	 */
+	struct sctp_event_subscribe subscribe;
+	struct sctp_initmsg initmsg;
 
 	int user_frag;
 
@@ -217,6 +223,7 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
+		strm_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
 		data_ready_signalled:1;
@@ -397,6 +404,28 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 #define sctp_ssn_skip(stream, type, sid, ssn) \
 	((stream)->type[sid].ssn = ssn + 1)
 
+/* What is the current MID number for this stream? */
+#define sctp_mid_peek(stream, type, sid) \
+	((stream)->type[sid].mid)
+
+/* Return the next MID number for this stream.  */
+#define sctp_mid_next(stream, type, sid) \
+	((stream)->type[sid].mid++)
+
+/* Skip over this mid and all below. */
+#define sctp_mid_skip(stream, type, sid, mid) \
+	((stream)->type[sid].mid = mid + 1)
+
+#define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
+
+/* What is the current MID_uo number for this stream? */
+#define sctp_mid_uo_peek(stream, type, sid) \
+	((stream)->type[sid].mid_uo)
+
+/* Return the next MID_uo number for this stream.  */
+#define sctp_mid_uo_next(stream, type, sid) \
+	((stream)->type[sid].mid_uo++)
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -462,6 +491,7 @@ struct sctp_af {
 	void		(*ecn_capable)(struct sock *sk);
 	__u16		net_header_len;
 	int		sockaddr_len;
+	int		(*ip_options_len)(struct sock *sk);
 	sa_family_t	sa_family;
 	struct list_head list;
 };
@@ -486,6 +516,7 @@ struct sctp_pf {
 	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
 	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
 	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
+	void (*copy_ip_options)(struct sock *sk, struct sock *newsk);
 	struct sctp_af *af;
 };
 
@@ -548,8 +579,12 @@ struct sctp_chunk {
 	/* This points to the sk_buff containing the actual data.  */
 	struct sk_buff *skb;
 
-	/* In case of GSO packets, this will store the head one */
-	struct sk_buff *head_skb;
+	union {
+		/* In case of GSO packets, this will store the head one */
+		struct sk_buff *head_skb;
+		/* In case of auth enabled, this will point to the shkey */
+		struct sctp_shared_key *shkey;
+	};
 
 	/* These are the SCTP headers by reverse order in a packet.
 	 * Note that some of these may happen more than once.  In that
@@ -574,6 +609,8 @@ struct sctp_chunk {
 		struct sctp_addiphdr *addip_hdr;
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 		struct sctp_authhdr *auth_hdr;
+		struct sctp_idatahdr *idata_hdr;
+		struct sctp_ifwdtsn_hdr *ifwdtsn_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -620,6 +657,7 @@ struct sctp_chunk {
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
+#define has_mid has_ssn
 		singleton:1,		/* Only chunk in the packet? */
 		end_of_packet:1,	/* Last chunk in the packet? */
 		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
@@ -1073,6 +1111,7 @@ void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 /* Uncork and flush an outqueue.  */
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {
@@ -1283,6 +1322,16 @@ struct sctp_endpoint {
 	      reconf_enable:1;
 
 	__u8  strreset_enable;
+
+	/* Security identifiers from incoming (INIT). These are set by
+	 * security_sctp_assoc_request(). These will only be used by
+	 * SCTP TCP type sockets and peeled off connections as they
+	 * cause a new socket to be generated. security_sctp_sk_clone()
+	 * will then plug these into the new socket.
+	 */
+
+	u32 secid;
+	u32 peer_secid;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1304,12 +1353,12 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **);
-int sctp_endpoint_is_peeled_off(struct sctp_endpoint *,
-				const union sctp_addr *);
+bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
+				 const union sctp_addr *paddr);
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
 					struct net *, const union sctp_addr *);
-int sctp_has_association(struct net *net, const union sctp_addr *laddr,
-			 const union sctp_addr *paddr);
+bool sctp_has_association(struct net *net, const union sctp_addr *laddr,
+			  const union sctp_addr *paddr);
 
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc,
@@ -1357,13 +1406,25 @@ struct sctp_stream_out_ext {
 };
 
 struct sctp_stream_out {
-	__u16	ssn;
-	__u8	state;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
 	struct sctp_stream_out_ext *ext;
+	__u8 state;
 };
 
 struct sctp_stream_in {
-	__u16	ssn;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
+	__u32 fsn;
+	__u32 fsn_uo;
+	char pd_mode;
+	char pd_mode_uo;
 };
 
 struct sctp_stream {
@@ -1387,10 +1448,31 @@ struct sctp_stream {
 			struct sctp_stream_out_ext *rr_next;
 		};
 	};
+	struct sctp_stream_interleave *si;
 };
 
 #define SCTP_STREAM_CLOSED		0x00
 #define SCTP_STREAM_OPEN		0x01
+
+static inline __u16 sctp_datachk_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len;
+}
+
+static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
+}
+
+static inline __u16 sctp_ftsnchk_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len;
+}
+
+static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len - sizeof(struct sctp_chunkhdr);
+}
 
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
@@ -1929,6 +2011,7 @@ struct sctp_association {
 	 * The current generated assocaition shared key (secret)
 	 */
 	struct sctp_auth_bytes *asoc_shared_key;
+	struct sctp_shared_key *shkey;
 
 	/* SCTP AUTH: hmac id of the first peer requested algorithm
 	 * that we support.
@@ -1940,6 +2023,7 @@ struct sctp_association {
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
 	     force_delay:1,
+	     intl_enable:1,
 	     prsctp_enable:1,
 	     reconf_enable:1;
 
@@ -2045,6 +2129,9 @@ struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
+	struct sctp_prinfo *prinfo;
+	struct sctp_authinfo *authinfo;
+	struct msghdr *addrs_msg;
 };
 
 /* Structure for tracking memory objects */

@@ -587,10 +587,9 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
  * Handle IP routing ioctl calls.
  * These are used to manipulate the routing tables
  */
-int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
+int ip_rt_ioctl(struct net *net, unsigned int cmd, struct rtentry *rt)
 {
 	struct fib_config cfg;
-	struct rtentry rt;
 	int err;
 
 	switch (cmd) {
@@ -599,11 +598,8 @@ int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
 
-		if (copy_from_user(&rt, arg, sizeof(rt)))
-			return -EFAULT;
-
 		rtnl_lock();
-		err = rtentry_to_fib_config(net, cmd, &rt, &cfg);
+		err = rtentry_to_fib_config(net, cmd, rt, &cfg);
 		if (err == 0) {
 			struct fib_table *tb;
 

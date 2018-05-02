@@ -143,8 +143,7 @@ static int kvmppc_exit_timing_show(struct seq_file *m, void *private)
 	int i;
 	u64 min, max, sum, sum_quad;
 
-	seq_printf(m, "%s", "type	count	min	max	sum	sum_squared\n");
-
+	seq_puts(m, "type	count	min	max	sum	sum_squared\n");
 
 	for (i = 0; i < __NUMBER_OF_KVM_EXIT_TYPES; i++) {
 

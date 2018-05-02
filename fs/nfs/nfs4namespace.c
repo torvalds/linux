@@ -270,8 +270,6 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 		if (mountdata->addrlen == 0)
 			continue;
 
-		rpc_set_port(mountdata->addr, NFS_PORT);
-
 		memcpy(page2, buf->data, buf->len);
 		page2[buf->len] = '\0';
 		mountdata->hostname = page2;

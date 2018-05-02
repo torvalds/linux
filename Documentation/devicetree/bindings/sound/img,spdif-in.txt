@@ -29,7 +29,7 @@ Optional Properties:
 
 Example:
 
-spdif_in: spdif-in@18100E00 {
+spdif_in: spdif-in@18100e00 {
 	compatible = "img,spdif-in";
 	reg = <0x18100E00 0x100>;
 	interrupts = <GIC_SHARED 20 IRQ_TYPE_LEVEL_HIGH>;

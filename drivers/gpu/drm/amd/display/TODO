@@ -105,3 +105,6 @@ useless with filtering output. dynamic debug printing might be an option.
 20. Use kernel i2c device to program HDMI retimer. Some boards have an HDMI
 retimer that we need to program to pass PHY compliance. Currently that's
 bypassing the i2c device and goes directly to HW. This should be changed.
+
+21. Remove vector.c from dc/basics. It's used in DDC code which can probably
+be simplified enough to no longer need a vector implementation.

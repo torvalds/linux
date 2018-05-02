@@ -177,6 +177,7 @@
 
 	phy0: ethernet-phy@0 {
 		reg = <0>;
+		reset-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
 	};
 };
 

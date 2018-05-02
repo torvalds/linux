@@ -56,10 +56,13 @@ static const struct scsi_dh_blist scsi_dh_blist[] = {
 	{"IBM", "1815",			"rdac", },
 	{"IBM", "1818",			"rdac", },
 	{"IBM", "3526",			"rdac", },
+	{"IBM", "3542",			"rdac", },
+	{"IBM", "3552",			"rdac", },
 	{"SGI", "TP9",			"rdac", },
 	{"SGI", "IS",			"rdac", },
-	{"STK", "OPENstorage D280",	"rdac", },
+	{"STK", "OPENstorage",		"rdac", },
 	{"STK", "FLEXLINE 380",		"rdac", },
+	{"STK", "BladeCtlr",		"rdac", },
 	{"SUN", "CSM",			"rdac", },
 	{"SUN", "LCSM100",		"rdac", },
 	{"SUN", "STK6580_6780",		"rdac", },
@@ -108,6 +111,9 @@ static struct scsi_device_handler *__scsi_dh_lookup(const char *name)
 static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 {
 	struct scsi_device_handler *dh;
+
+	if (!name || strlen(name) == 0)
+		return NULL;
 
 	dh = __scsi_dh_lookup(name);
 	if (!dh) {

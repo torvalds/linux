@@ -218,7 +218,7 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	rptr = *kq->rptr_kernel;
 	wptr = *kq->wptr_kernel;
 	queue_address = (unsigned int *)kq->pq_kernel_addr;
-	queue_size_dwords = kq->queue->properties.queue_size / sizeof(uint32_t);
+	queue_size_dwords = kq->queue->properties.queue_size / 4;
 
 	pr_debug("rptr: %d\n", rptr);
 	pr_debug("wptr: %d\n", wptr);
@@ -297,10 +297,15 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
 		break;
 
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		kernel_queue_init_cik(&kq->ops_asic_specific);
 		break;
 	default:

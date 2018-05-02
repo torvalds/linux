@@ -24,7 +24,7 @@
 #define __DVB_TDA826X_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * Attach a tda826x tuner to the supplied frontend structure.

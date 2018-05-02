@@ -523,8 +523,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 		for (i = 0; i < pcie_count; i++) {
@@ -563,8 +562,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 
@@ -838,10 +836,10 @@ static int init_over_drive_limits(
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
 
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock > 0 \
-		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock > 0) {
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ACOverdriveSupport);
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0 \
+		|| hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0) {
+		hwmgr->od_enabled = false;
+		pr_debug("OverDrive feature not support by VBIOS\n");
 	}
 
 	return 0;

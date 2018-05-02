@@ -39,16 +39,6 @@ static inline void destroy_context(struct mm_struct *mm)
 {
 }
 
-static inline pgd_t *current_pgdir(void)
-{
-	return pfn_to_virt(csr_read(sptbr) & SPTBR_PPN);
-}
-
-static inline void set_pgdir(pgd_t *pgd)
-{
-	csr_write(sptbr, virt_to_pfn(pgd) | SPTBR_MODE);
-}
-
 /*
  * When necessary, performs a deferred icache flush for the given MM context,
  * on the local CPU.  RISC-V has no direct mechanism for instruction cache
@@ -93,7 +83,12 @@ static inline void switch_mm(struct mm_struct *prev,
 		cpumask_clear_cpu(cpu, mm_cpumask(prev));
 		cpumask_set_cpu(cpu, mm_cpumask(next));
 
-		set_pgdir(next->pgd);
+		/*
+		 * Use the old spbtr name instead of using the current satp
+		 * name to support binutils 2.29 which doesn't know about the
+		 * privileged ISA 1.10 yet.
+		 */
+		csr_write(sptbr, virt_to_pfn(next->pgd) | SATP_MODE);
 		local_flush_tlb_all();
 
 		flush_icache_deferred(next);

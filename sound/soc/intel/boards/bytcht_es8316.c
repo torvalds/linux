@@ -232,14 +232,38 @@ static struct snd_soc_card byt_cht_es8316_card = {
 	.fully_routed = true,
 };
 
+static char codec_name[SND_ACPI_I2C_ID_LEN];
+
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct byt_cht_es8316_private *priv;
+	struct snd_soc_acpi_mach *mach;
+	const char *i2c_name = NULL;
+	int dai_index = 0;
+	int i;
+	int ret = 0;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_ATOMIC);
 	if (!priv)
 		return -ENOMEM;
+
+	mach = (&pdev->dev)->platform_data;
+	/* fix index of codec dai */
+	for (i = 0; i < ARRAY_SIZE(byt_cht_es8316_dais); i++) {
+		if (!strcmp(byt_cht_es8316_dais[i].codec_name,
+			    "i2c-ESSX8316:00")) {
+			dai_index = i;
+			break;
+		}
+	}
+
+	/* fixup codec name based on HID */
+	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
+	if (i2c_name) {
+		snprintf(codec_name, sizeof(codec_name),
+			"%s%s", "i2c-", i2c_name);
+		byt_cht_es8316_dais[dai_index].codec_name = codec_name;
+	}
 
 	/* register the soc card */
 	byt_cht_es8316_card.dev = &pdev->dev;

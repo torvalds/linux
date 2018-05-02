@@ -272,7 +272,7 @@ bail:
 /**
  * rvt_attach_mcast - attach a qp to a multicast group
  * @ibqp: Infiniband qp
- * @igd: multicast guid
+ * @gid: multicast guid
  * @lid: multicast lid
  *
  * Return: 0 on success
@@ -335,7 +335,7 @@ bail_mcast:
 /**
  * rvt_detach_mcast - remove a qp from a multicast group
  * @ibqp: Infiniband qp
- * @igd: multicast guid
+ * @gid: multicast guid
  * @lid: multicast lid
  *
  * Return: 0 on success

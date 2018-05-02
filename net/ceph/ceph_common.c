@@ -54,7 +54,7 @@ static const struct kernel_param_ops param_ops_supported_features = {
 	.get = param_get_supported_features,
 };
 module_param_cb(supported_features, &param_ops_supported_features, NULL,
-		S_IRUGO);
+		0444);
 
 const char *ceph_msg_type_name(int type)
 {
@@ -72,6 +72,7 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_MON_GET_VERSION: return "mon_get_version";
 	case CEPH_MSG_MON_GET_VERSION_REPLY: return "mon_get_version_reply";
 	case CEPH_MSG_MDS_MAP: return "mds_map";
+	case CEPH_MSG_FS_MAP_USER: return "fs_map_user";
 	case CEPH_MSG_CLIENT_SESSION: return "client_session";
 	case CEPH_MSG_CLIENT_RECONNECT: return "client_reconnect";
 	case CEPH_MSG_CLIENT_REQUEST: return "client_request";
@@ -79,8 +80,13 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_CLIENT_REPLY: return "client_reply";
 	case CEPH_MSG_CLIENT_CAPS: return "client_caps";
 	case CEPH_MSG_CLIENT_CAPRELEASE: return "client_cap_release";
+	case CEPH_MSG_CLIENT_QUOTA: return "client_quota";
 	case CEPH_MSG_CLIENT_SNAP: return "client_snap";
 	case CEPH_MSG_CLIENT_LEASE: return "client_lease";
+	case CEPH_MSG_POOLOP_REPLY: return "poolop_reply";
+	case CEPH_MSG_POOLOP: return "poolop";
+	case CEPH_MSG_MON_COMMAND: return "mon_command";
+	case CEPH_MSG_MON_COMMAND_ACK: return "mon_command_ack";
 	case CEPH_MSG_OSD_MAP: return "osd_map";
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
@@ -217,7 +223,7 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 
 	if (i == 16)
 		err = 0;
-	dout("parse_fsid ret %d got fsid %pU", err, fsid);
+	dout("parse_fsid ret %d got fsid %pU\n", err, fsid);
 	return err;
 }
 
@@ -418,11 +424,19 @@ ceph_parse_options(char *options, const char *dev_name,
 				opt->flags |= CEPH_OPT_FSID;
 			break;
 		case Opt_name:
+			kfree(opt->name);
 			opt->name = kstrndup(argstr[0].from,
 					      argstr[0].to-argstr[0].from,
 					      GFP_KERNEL);
+			if (!opt->name) {
+				err = -ENOMEM;
+				goto out;
+			}
 			break;
 		case Opt_secret:
+			ceph_crypto_key_destroy(opt->key);
+			kfree(opt->key);
+
 		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 			if (!opt->key) {
 				err = -ENOMEM;
@@ -433,6 +447,9 @@ ceph_parse_options(char *options, const char *dev_name,
 				goto out;
 			break;
 		case Opt_key:
+			ceph_crypto_key_destroy(opt->key);
+			kfree(opt->key);
+
 		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 			if (!opt->key) {
 				err = -ENOMEM;

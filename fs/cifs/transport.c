@@ -37,6 +37,11 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smb2proto.h"
+#include "smbdirect.h"
+
+/* Max number of iovectors we can use off the stack when sending requests. */
+#define CIFS_MAX_IOV_SIZE 8
 
 void
 cifs_wake_up_task(struct mid_q_entry *mid)
@@ -229,7 +234,10 @@ __smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	struct socket *ssocket = server->ssocket;
 	struct msghdr smb_msg;
 	int val = 1;
-
+	if (cifs_rdma_enabled(server) && server->smbd_conn) {
+		rc = smbd_send(server->smbd_conn, rqst);
+		goto smbd_done;
+	}
 	if (ssocket == NULL)
 		return -ENOTSOCK;
 
@@ -298,7 +306,7 @@ uncork:
 		 */
 		server->tcpStatus = CifsNeedReconnect;
 	}
-
+smbd_done:
 	if (rc < 0 && rc != -EINTR)
 		cifs_dbg(VFS, "Error %d sending data on socket to server\n",
 			 rc);
@@ -744,6 +752,12 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		goto out;
 
+#ifdef CONFIG_CIFS_SMB311
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
+		smb311_update_preauth_hash(ses, rqst->rq_iov+1,
+					   rqst->rq_nvec-1);
+#endif
+
 	if (timeout == CIFS_ASYNC_OP)
 		goto out;
 
@@ -776,11 +790,22 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	buf = (char *)midQ->resp_buf;
 	resp_iov->iov_base = buf;
-	resp_iov->iov_len = get_rfc1002_length(buf) + 4;
+	resp_iov->iov_len = midQ->resp_buf_size +
+		ses->server->vals->header_preamble_size;
 	if (midQ->large_buf)
 		*resp_buf_type = CIFS_LARGE_BUFFER;
 	else
 		*resp_buf_type = CIFS_SMALL_BUFFER;
+
+#ifdef CONFIG_CIFS_SMB311
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
+		struct kvec iov = {
+			.iov_base = buf + 4,
+			.iov_len = get_rfc1002_length(buf)
+		};
+		smb311_update_preauth_hash(ses, &iov, 1);
+	}
+#endif
 
 	credits = ses->server->ops->get_credits(midQ);
 
@@ -803,12 +828,19 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	     const int flags, struct kvec *resp_iov)
 {
 	struct smb_rqst rqst;
-	struct kvec *new_iov;
+	struct kvec s_iov[CIFS_MAX_IOV_SIZE], *new_iov;
 	int rc;
 
-	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
-	if (!new_iov)
-		return -ENOMEM;
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
+		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
+				  GFP_KERNEL);
+		if (!new_iov) {
+			/* otherwise cifs_send_recv below sets resp_buf_type */
+			*resp_buf_type = CIFS_NO_BUFFER;
+			return -ENOMEM;
+		}
+	} else
+		new_iov = s_iov;
 
 	/* 1st iov is a RFC1001 length followed by the rest of the packet */
 	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
@@ -823,7 +855,51 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	rqst.rq_nvec = n_vec + 1;
 
 	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
-	kfree(new_iov);
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE)
+		kfree(new_iov);
+	return rc;
+}
+
+/* Like SendReceive2 but iov[0] does not contain an rfc1002 header */
+int
+smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
+	       struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
+	       const int flags, struct kvec *resp_iov)
+{
+	struct smb_rqst rqst;
+	struct kvec s_iov[CIFS_MAX_IOV_SIZE], *new_iov;
+	int rc;
+	int i;
+	__u32 count;
+	__be32 rfc1002_marker;
+
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
+		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
+				  GFP_KERNEL);
+		if (!new_iov)
+			return -ENOMEM;
+	} else
+		new_iov = s_iov;
+
+	/* 1st iov is an RFC1002 Session Message length */
+	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
+
+	count = 0;
+	for (i = 1; i < n_vec + 1; i++)
+		count += new_iov[i].iov_len;
+
+	rfc1002_marker = cpu_to_be32(count);
+
+	new_iov[0].iov_base = &rfc1002_marker;
+	new_iov[0].iov_len = 4;
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	rqst.rq_iov = new_iov;
+	rqst.rq_nvec = n_vec + 1;
+
+	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
+	if (n_vec + 1 > CIFS_MAX_IOV_SIZE)
+		kfree(new_iov);
 	return rc;
 }
 

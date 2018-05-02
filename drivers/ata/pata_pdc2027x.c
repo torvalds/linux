@@ -580,7 +580,7 @@ static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int b
 	ioread16(mmio_base + PDC_PLL_CTL); /* flush */
 
 	/* Wait the PLL circuit to be stable */
-	mdelay(30);
+	msleep(30);
 
 #ifdef PDC_DEBUG
 	/*
@@ -620,7 +620,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	start_time = ktime_get();
 
 	/* Let the counter run for 100 ms. */
-	mdelay(100);
+	msleep(100);
 
 	/* Read the counter values again */
 	end_count = pdc_read_counter(host);

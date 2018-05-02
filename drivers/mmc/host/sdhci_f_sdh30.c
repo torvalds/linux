@@ -10,9 +10,11 @@
  * the Free Software Foundation, version 2 of the License.
  */
 
+#include <linux/acpi.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/clk.h>
 
@@ -146,7 +148,6 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	sdhci_get_of_property(pdev);
 	host->hw_name = "f_sdh30";
 	host->ops = &sdhci_f_sdh30_ops;
 	host->irq = irq;
@@ -158,25 +159,29 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	priv->clk_iface = devm_clk_get(&pdev->dev, "iface");
-	if (IS_ERR(priv->clk_iface)) {
-		ret = PTR_ERR(priv->clk_iface);
-		goto err;
+	if (dev_of_node(dev)) {
+		sdhci_get_of_property(pdev);
+
+		priv->clk_iface = devm_clk_get(&pdev->dev, "iface");
+		if (IS_ERR(priv->clk_iface)) {
+			ret = PTR_ERR(priv->clk_iface);
+			goto err;
+		}
+
+		ret = clk_prepare_enable(priv->clk_iface);
+		if (ret)
+			goto err;
+
+		priv->clk = devm_clk_get(&pdev->dev, "core");
+		if (IS_ERR(priv->clk)) {
+			ret = PTR_ERR(priv->clk);
+			goto err_clk;
+		}
+
+		ret = clk_prepare_enable(priv->clk);
+		if (ret)
+			goto err_clk;
 	}
-
-	ret = clk_prepare_enable(priv->clk_iface);
-	if (ret)
-		goto err;
-
-	priv->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		goto err_clk;
-	}
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		goto err_clk;
 
 	/* init vendor specific regs */
 	ctrl = sdhci_readw(host, F_SDH30_AHB_CONFIG);
@@ -226,16 +231,27 @@ static int sdhci_f_sdh30_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id f_sdh30_dt_ids[] = {
 	{ .compatible = "fujitsu,mb86s70-sdhci-3.0" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, f_sdh30_dt_ids);
+#endif
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id f_sdh30_acpi_ids[] = {
+	{ "SCX0002" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(acpi, f_sdh30_acpi_ids);
+#endif
 
 static struct platform_driver sdhci_f_sdh30_driver = {
 	.driver = {
 		.name = "f_sdh30",
-		.of_match_table = f_sdh30_dt_ids,
+		.of_match_table = of_match_ptr(f_sdh30_dt_ids),
+		.acpi_match_table = ACPI_PTR(f_sdh30_acpi_ids),
 		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe	= sdhci_f_sdh30_probe,

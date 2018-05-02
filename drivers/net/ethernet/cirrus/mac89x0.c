@@ -56,21 +56,11 @@
   local_irq_{dis,en}able()
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 static const char version[] =
 "cs89x0.c:v1.02 11/26/96 Russell Nelson <nelson@crynwr.com>\n";
 
-/* ======================= configure the driver here ======================= */
-
-/* use 0 for production, 1 for verification, >2 for debug */
-#ifndef NET_DEBUG
-#define NET_DEBUG 0
-#endif
-
-/* ======================= end of configuration ======================= */
-
-
-/* Always include 'config.h' first in case the user wants to turn on
-   or override something. */
 #include <linux/module.h>
 
 /*
@@ -93,6 +83,7 @@ static const char version[] =
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
@@ -105,24 +96,22 @@ static const char version[] =
 
 #include "cs89x0.h"
 
-static unsigned int net_debug = NET_DEBUG;
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "debug message level");
 
 /* Information that need to be kept for each board. */
 struct net_local {
+	int msg_enable;
 	int chip_type;		/* one of: CS8900, CS8920, CS8920M */
 	char chip_revision;	/* revision letter of the chip ('A'...) */
 	int send_cmd;		/* the propercommand used to send a packet. */
 	int rx_mode;
 	int curr_rx_cfg;
         int send_underrun;      /* keep track of how many underruns in a row we get */
-	struct sk_buff *skb;
 };
 
 /* Index to functions, as function prototypes. */
-
-#if 0
-extern void reset_chip(struct net_device *dev);
-#endif
 static int net_open(struct net_device *dev);
 static int net_send_packet(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t net_interrupt(int irq, void *dev_id);
@@ -131,10 +120,6 @@ static void net_rx(struct net_device *dev);
 static int net_close(struct net_device *dev);
 static struct net_device_stats *net_get_stats(struct net_device *dev);
 static int set_mac_address(struct net_device *dev, void *addr);
-
-
-/* Example routines you must write ;->. */
-#define tx_done(dev) 1
 
 /* For reading/writing registers ISA-style */
 static inline int
@@ -176,39 +161,27 @@ static const struct net_device_ops mac89x0_netdev_ops = {
 
 /* Probe for the CS8900 card in slot E.  We won't bother looking
    anywhere else until we have a really good reason to do so. */
-struct net_device * __init mac89x0_probe(int unit)
+static int mac89x0_device_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
-	static int once_is_enough;
 	struct net_local *lp;
-	static unsigned version_printed;
 	int i, slot;
 	unsigned rev_type = 0;
 	unsigned long ioaddr;
 	unsigned short sig;
 	int err = -ENODEV;
-
-	if (!MACH_IS_MAC)
-		return ERR_PTR(-ENODEV);
+	struct nubus_rsrc *fres;
 
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
-
-	if (once_is_enough)
-		goto out;
-	once_is_enough = 1;
+		return -ENOMEM;
 
 	/* We might have to parameterize this later */
 	slot = 0xE;
 	/* Get out now if there's a real NuBus card in slot E */
-	if (nubus_find_slot(slot, NULL) != NULL)
-		goto out;
+	for_each_func_rsrc(fres)
+		if (fres->board->slot == slot)
+			goto out;
 
 	/* The pseudo-ISA bits always live at offset 0x300 (gee,
            wonder why...) */
@@ -228,8 +201,12 @@ struct net_device * __init mac89x0_probe(int unit)
 	if (sig != swab16(CHIP_EISA_ID_SIG))
 		goto out;
 
+	SET_NETDEV_DEV(dev, &pdev->dev);
+
 	/* Initialize the net_device structure. */
 	lp = netdev_priv(dev);
+
+	lp->msg_enable = netif_msg_init(debug, 0);
 
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = ioaddr;
@@ -253,19 +230,16 @@ struct net_device * __init mac89x0_probe(int unit)
 	if (lp->chip_type != CS8900 && lp->chip_revision >= 'C')
 		lp->send_cmd = TX_NOW;
 
-	if (net_debug && version_printed++ == 0)
-		printk(version);
+	netif_dbg(lp, drv, dev, "%s", version);
 
-	printk(KERN_INFO "%s: cs89%c0%s rev %c found at %#8lx",
-	       dev->name,
-	       lp->chip_type==CS8900?'0':'2',
-	       lp->chip_type==CS8920M?"M":"",
-	       lp->chip_revision,
-	       dev->base_addr);
+	pr_info("cs89%c0%s rev %c found at %#8lx\n",
+		lp->chip_type == CS8900 ? '0' : '2',
+		lp->chip_type == CS8920M ? "M" : "",
+		lp->chip_revision, dev->base_addr);
 
 	/* Try to read the MAC address */
 	if ((readreg(dev, PP_SelfST) & (EEPROM_PRESENT | EEPROM_OK)) == 0) {
-		printk("\nmac89x0: No EEPROM, giving up now.\n");
+		pr_info("No EEPROM, giving up now.\n");
 		goto out1;
         } else {
                 for (i = 0; i < ETH_ALEN; i += 2) {
@@ -280,38 +254,22 @@ struct net_device * __init mac89x0_probe(int unit)
 
 	/* print the IRQ and ethernet address. */
 
-	printk(" IRQ %d ADDR %pM\n", dev->irq, dev->dev_addr);
+	pr_info("MAC %pM, IRQ %d\n", dev->dev_addr, dev->irq);
 
 	dev->netdev_ops		= &mac89x0_netdev_ops;
 
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
-	return NULL;
+
+	platform_set_drvdata(pdev, dev);
+	return 0;
 out1:
 	nubus_writew(0, dev->base_addr + ADD_PORT);
 out:
 	free_netdev(dev);
-	return ERR_PTR(err);
+	return err;
 }
-
-#if 0
-/* This is useful for something, but I don't know what yet. */
-void __init reset_chip(struct net_device *dev)
-{
-	int reset_start_time;
-
-	writereg(dev, PP_SelfCTL, readreg(dev, PP_SelfCTL) | POWER_ON_RESET);
-
-	/* wait 30 ms */
-	msleep_interruptible(30);
-
-	/* Wait until the chip is reset */
-	reset_start_time = jiffies;
-	while( (readreg(dev, PP_SelfST) & INIT_DONE) == 0 && jiffies - reset_start_time < 2)
-		;
-}
-#endif
 
 /* Open/initialize the board.  This is called (in the current kernel)
    sometime after booting when the 'ifconfig' program is run.
@@ -372,11 +330,9 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct net_local *lp = netdev_priv(dev);
 	unsigned long flags;
 
-	if (net_debug > 3)
-		printk("%s: sent %d byte packet of type %x\n",
-		       dev->name, skb->len,
-		       (skb->data[ETH_ALEN+ETH_ALEN] << 8)
-		       | skb->data[ETH_ALEN+ETH_ALEN+1]);
+	netif_dbg(lp, tx_queued, dev, "sent %d byte packet of type %x\n",
+		  skb->len, skb->data[ETH_ALEN + ETH_ALEN] << 8 |
+		  skb->data[ETH_ALEN + ETH_ALEN + 1]);
 
 	/* keep the upload from being interrupted, since we
 	   ask the chip to start transmitting before the
@@ -414,11 +370,6 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 	struct net_local *lp;
 	int ioaddr, status;
 
-	if (dev == NULL) {
-		printk ("net_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
 
@@ -430,7 +381,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
            faster than you can read them off, you're screwed.  Hasta la
            vista, baby!  */
 	while ((status = swab16(nubus_readw(dev->base_addr + ISQ_PORT)))) {
-		if (net_debug > 4)printk("%s: event=%04x\n", dev->name, status);
+		netif_dbg(lp, intr, dev, "status=%04x\n", status);
 		switch(status & ISQ_EVENT_MASK) {
 		case ISQ_RECEIVER_EVENT:
 			/* Got a packet(s). */
@@ -460,7 +411,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 				netif_wake_queue(dev);
 			}
 			if (status & TX_UNDERRUN) {
-				if (net_debug > 0) printk("%s: transmit underrun\n", dev->name);
+				netif_dbg(lp, tx_err, dev, "transmit underrun\n");
                                 lp->send_underrun++;
                                 if (lp->send_underrun == 3) lp->send_cmd = TX_AFTER_381;
                                 else if (lp->send_underrun == 6) lp->send_cmd = TX_AFTER_ALL;
@@ -481,6 +432,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 static void
 net_rx(struct net_device *dev)
 {
+	struct net_local *lp = netdev_priv(dev);
 	struct sk_buff *skb;
 	int status, length;
 
@@ -504,7 +456,6 @@ net_rx(struct net_device *dev)
 	/* Malloc up new buffer. */
 	skb = alloc_skb(length, GFP_ATOMIC);
 	if (skb == NULL) {
-		printk("%s: Memory squeeze, dropping packet.\n", dev->name);
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -513,10 +464,9 @@ net_rx(struct net_device *dev)
 	skb_copy_to_linear_data(skb, (void *)(dev->mem_start + PP_RxFrame),
 				length);
 
-	if (net_debug > 3)printk("%s: received %d byte packet of type %x\n",
-                                 dev->name, length,
-                                 (skb->data[ETH_ALEN+ETH_ALEN] << 8)
-				 | skb->data[ETH_ALEN+ETH_ALEN+1]);
+	netif_dbg(lp, rx_status, dev, "received %d byte packet of type %x\n",
+		  length, skb->data[ETH_ALEN + ETH_ALEN] << 8 |
+		  skb->data[ETH_ALEN + ETH_ALEN + 1]);
 
         skb->protocol=eth_type_trans(skb,dev);
 	netif_rx(skb);
@@ -592,7 +542,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
-	printk("%s: Setting MAC address to %pM\n", dev->name, dev->dev_addr);
+	netdev_info(dev, "Setting MAC address to %pM\n", dev->dev_addr);
 
 	/* set the Ethernet address */
 	for (i=0; i < ETH_ALEN/2; i++)
@@ -601,32 +551,24 @@ static int set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
-#ifdef MODULE
-
-static struct net_device *dev_cs89x0;
-static int debug;
-
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "CS89[02]0 debug level (0-5)");
 MODULE_LICENSE("GPL");
 
-int __init
-init_module(void)
+static int mac89x0_device_remove(struct platform_device *pdev)
 {
-	net_debug = debug;
-        dev_cs89x0 = mac89x0_probe(-1);
-	if (IS_ERR(dev_cs89x0)) {
-                printk(KERN_WARNING "mac89x0.c: No card found\n");
-		return PTR_ERR(dev_cs89x0);
-	}
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	unregister_netdev(dev);
+	nubus_writew(0, dev->base_addr + ADD_PORT);
+	free_netdev(dev);
 	return 0;
 }
 
-void
-cleanup_module(void)
-{
-	unregister_netdev(dev_cs89x0);
-	nubus_writew(0, dev_cs89x0->base_addr + ADD_PORT);
-	free_netdev(dev_cs89x0);
-}
-#endif /* MODULE */
+static struct platform_driver mac89x0_platform_driver = {
+	.probe = mac89x0_device_probe,
+	.remove = mac89x0_device_remove,
+	.driver = {
+		.name = "mac89x0",
+	},
+};
+
+module_platform_driver(mac89x0_platform_driver);

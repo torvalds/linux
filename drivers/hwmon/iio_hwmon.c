@@ -23,7 +23,8 @@
  * @channels:		filled with array of channels from iio
  * @num_channels:	number of channels in channels (saves counting twice)
  * @hwmon_dev:		associated hwmon device
- * @attr_group:	the group of attributes
+ * @attr_group:		the group of attributes
+ * @groups:		null terminated array of attribute groups
  * @attrs:		null terminated array of attribute pointers.
  */
 struct iio_hwmon_state {

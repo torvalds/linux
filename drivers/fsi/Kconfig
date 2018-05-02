@@ -2,10 +2,9 @@
 # FSI subsystem
 #
 
-menu "FSI support"
-
-config FSI
+menuconfig FSI
 	tristate "FSI support"
+	depends on OF
 	select CRC4
 	---help---
 	  FSI - the FRU Support Interface - is a simple bus for low-level
@@ -34,5 +33,3 @@ config FSI_SCOM
 	This option enables an FSI based SCOM device driver.
 
 endif
-
-endmenu

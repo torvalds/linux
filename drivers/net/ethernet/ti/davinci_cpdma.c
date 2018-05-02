@@ -893,7 +893,7 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	chan_num = rx_type ? rx_chan_num(chan_num) : tx_chan_num(chan_num);
 
 	if (__chan_linear(chan_num) >= ctlr->num_chan)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	chan = devm_kzalloc(ctlr->dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
@@ -1164,7 +1164,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		outlen -= CPDMA_DESC_CRC_LEN;
 
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
-			    CPDMA_DESC_PORT_MASK);
+			    CPDMA_DESC_PORT_MASK | CPDMA_RX_VLAN_ENCAP);
 
 	chan->head = desc_from_phys(pool, desc_read(desc, hw_next));
 	chan_write(chan, cp, desc_dma);

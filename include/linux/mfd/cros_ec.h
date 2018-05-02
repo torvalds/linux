@@ -183,6 +183,7 @@ struct cros_ec_debugfs;
  * @ec_dev: cros_ec_device structure to talk to the physical device
  * @dev: pointer to the platform device
  * @debug_info: cros_ec_debugfs structure for debugging information
+ * @has_kb_wake_angle: true if at least 2 accelerometer are connected to the EC.
  * @cmd_offset: offset to apply for each command.
  */
 struct cros_ec_dev {
@@ -191,6 +192,7 @@ struct cros_ec_dev {
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
 	struct cros_ec_debugfs *debug_info;
+	bool has_kb_wake_angle;
 	u16 cmd_offset;
 	u32 features[2];
 };
@@ -321,6 +323,10 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;
 extern struct attribute_group cros_ec_vbc_attr_group;
+
+/* debugfs stuff */
+int cros_ec_debugfs_init(struct cros_ec_dev *ec);
+void cros_ec_debugfs_remove(struct cros_ec_dev *ec);
 
 /* ACPI GPE handler */
 #ifdef CONFIG_ACPI

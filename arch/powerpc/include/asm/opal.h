@@ -21,6 +21,9 @@
 /* We calculate number of sg entries based on PAGE_SIZE */
 #define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
 
+/* Default time to sleep or delay between OPAL_BUSY/OPAL_BUSY_EVENT loops */
+#define OPAL_BUSY_DELAY_MS	10
+
 /* /sys/firmware/opal */
 extern struct kobject *opal_kobj;
 
@@ -34,6 +37,12 @@ int64_t opal_npu_init_context(uint64_t phb_id, int pasid, uint64_t msr,
 			uint64_t bdf);
 int64_t opal_npu_map_lpar(uint64_t phb_id, uint64_t bdf, uint64_t lparid,
 			uint64_t lpcr);
+int64_t opal_npu_spa_setup(uint64_t phb_id, uint32_t bdfn,
+			uint64_t addr, uint64_t PE_mask);
+int64_t opal_npu_spa_clear_cache(uint64_t phb_id, uint32_t bdfn,
+				uint64_t PE_handle);
+int64_t opal_npu_tl_set(uint64_t phb_id, uint32_t bdfn, long cap,
+			uint64_t rate_phys, uint32_t size);
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
 int64_t opal_console_read(int64_t term_number, __be64 *length,
@@ -198,6 +207,8 @@ int64_t opal_unregister_dump_region(uint32_t id);
 int64_t opal_slw_set_reg(uint64_t cpu_pir, uint64_t sprn, uint64_t val);
 int64_t opal_config_cpu_idle_state(uint64_t state, uint64_t flag);
 int64_t opal_pci_set_phb_cxl_mode(uint64_t phb_id, uint64_t mode, uint64_t pe_number);
+int64_t opal_pci_get_pbcq_tunnel_bar(uint64_t phb_id, uint64_t *addr);
+int64_t opal_pci_set_pbcq_tunnel_bar(uint64_t phb_id, uint64_t addr);
 int64_t opal_ipmi_send(uint64_t interface, struct opal_ipmi_msg *msg,
 		uint64_t msg_len);
 int64_t opal_ipmi_recv(uint64_t interface, struct opal_ipmi_msg *msg,
@@ -317,7 +328,7 @@ struct rtc_time;
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
 extern void opal_flash_update_init(void);
-extern void opal_flash_term_callback(void);
+extern void opal_flash_update_print_message(void);
 extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);

@@ -58,12 +58,11 @@
 	sha1su1		v\s0\().4s, v\s3\().4s
 	.endm
 
-	/*
-	 * The SHA1 round constants
-	 */
-	.align		4
-.Lsha1_rcon:
-	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
+	.macro		loadrc, k, val, tmp
+	movz		\tmp, :abs_g0_nc:\val
+	movk		\tmp, :abs_g1:\val
+	dup		\k, \tmp
+	.endm
 
 	/*
 	 * void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
@@ -71,11 +70,10 @@
 	 */
 ENTRY(sha1_ce_transform)
 	/* load round constants */
-	adr		x6, .Lsha1_rcon
-	ld1r		{k0.4s}, [x6], #4
-	ld1r		{k1.4s}, [x6], #4
-	ld1r		{k2.4s}, [x6], #4
-	ld1r		{k3.4s}, [x6]
+	loadrc		k0.4s, 0x5a827999, w6
+	loadrc		k1.4s, 0x6ed9eba1, w6
+	loadrc		k2.4s, 0x8f1bbcdc, w6
+	loadrc		k3.4s, 0xca62c1d6, w6
 
 	/* load state */
 	ld1		{dgav.4s}, [x0]

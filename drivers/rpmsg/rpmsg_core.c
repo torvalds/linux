@@ -247,7 +247,7 @@ EXPORT_SYMBOL(rpmsg_trysendto);
  *
  * Returns mask representing the current state of the endpoint's send buffers
  */
-unsigned int rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
+__poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 			poll_table *wait)
 {
 	if (WARN_ON(!ept))
@@ -442,7 +442,7 @@ static int rpmsg_dev_probe(struct device *dev)
 		goto out;
 	}
 
-	if (rpdev->ops->announce_create)
+	if (ept && rpdev->ops->announce_create)
 		err = rpdev->ops->announce_create(rpdev);
 out:
 	return err;

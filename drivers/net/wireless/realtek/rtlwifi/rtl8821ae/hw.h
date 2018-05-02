@@ -30,8 +30,7 @@ void rtl8821ae_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
 void rtl8821ae_read_eeprom_info(struct ieee80211_hw *hw);
 
 void rtl8821ae_interrupt_recognized(struct ieee80211_hw *hw,
-				    u32 *p_inta, u32 *p_intb,
-				    u32 *p_intc, u32 *p_intd);
+				    struct rtl_int *int_vec);
 int rtl8821ae_hw_init(struct ieee80211_hw *hw);
 void rtl8821ae_card_disable(struct ieee80211_hw *hw);
 void rtl8821ae_enable_interrupt(struct ieee80211_hw *hw);

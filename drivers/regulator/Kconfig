@@ -54,6 +54,15 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_88PG86X
+	tristate "Marvell 88PG86X voltage regulators"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Marvell 88PG867 and 88PG868 voltage regulators.
+	  They provide two I2C-controlled DC/DC step-down converters with
+	  sleep mode and separate enable pins.
+
 config REGULATOR_88PM800
 	tristate "Marvell 88PM800 Power regulators"
 	depends on MFD_88PM800
@@ -743,6 +752,13 @@ config REGULATOR_S5M8767
 	 This driver supports a Samsung S5M8767A voltage output regulator
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
+
+config REGULATOR_SC2731
+	tristate "Spreadtrum SC2731 power regulator driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  This driver provides support for the voltage regulators on the
+	  SC2731 PMIC.
 
 config REGULATOR_SKY81452
 	tristate "Skyworks Solutions SKY81452 voltage regulator"

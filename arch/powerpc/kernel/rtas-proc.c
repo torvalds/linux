@@ -261,19 +261,19 @@ static int __init proc_rtas_init(void)
 	if (rtas_node == NULL)
 		return -ENODEV;
 
-	proc_create("powerpc/rtas/progress", S_IRUGO|S_IWUSR, NULL,
+	proc_create("powerpc/rtas/progress", 0644, NULL,
 		    &ppc_rtas_progress_operations);
-	proc_create("powerpc/rtas/clock", S_IRUGO|S_IWUSR, NULL,
+	proc_create("powerpc/rtas/clock", 0644, NULL,
 		    &ppc_rtas_clock_operations);
-	proc_create("powerpc/rtas/poweron", S_IWUSR|S_IRUGO, NULL,
+	proc_create("powerpc/rtas/poweron", 0644, NULL,
 		    &ppc_rtas_poweron_operations);
-	proc_create("powerpc/rtas/sensors", S_IRUGO, NULL,
+	proc_create("powerpc/rtas/sensors", 0444, NULL,
 		    &ppc_rtas_sensors_operations);
-	proc_create("powerpc/rtas/frequency", S_IWUSR|S_IRUGO, NULL,
+	proc_create("powerpc/rtas/frequency", 0644, NULL,
 		    &ppc_rtas_tone_freq_operations);
-	proc_create("powerpc/rtas/volume", S_IWUSR|S_IRUGO, NULL,
+	proc_create("powerpc/rtas/volume", 0644, NULL,
 		    &ppc_rtas_tone_volume_operations);
-	proc_create("powerpc/rtas/rmo_buffer", S_IRUSR, NULL,
+	proc_create("powerpc/rtas/rmo_buffer", 0400, NULL,
 		    &ppc_rtas_rmo_buf_ops);
 	return 0;
 }

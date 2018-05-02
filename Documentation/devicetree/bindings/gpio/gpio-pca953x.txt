@@ -16,6 +16,8 @@ Required properties:
 	nxp,pca9574
 	nxp,pca9575
 	nxp,pca9698
+	nxp,pcal6524
+	nxp,pcal9555a
 	maxim,max7310
 	maxim,max7312
 	maxim,max7313

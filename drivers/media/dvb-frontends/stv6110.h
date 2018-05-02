@@ -22,7 +22,7 @@
 #define __DVB_STV6110_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* registers */
 #define RSTV6110_CTRL1		0

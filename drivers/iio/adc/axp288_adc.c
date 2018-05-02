@@ -92,22 +92,14 @@ static const struct iio_chan_spec axp288_adc_channels[] = {
 	},
 };
 
-#define AXP288_ADC_MAP(_adc_channel_label, _consumer_dev_name,	\
-		_consumer_channel)				\
-	{							\
-		.adc_channel_label = _adc_channel_label,	\
-		.consumer_dev_name = _consumer_dev_name,	\
-		.consumer_channel = _consumer_channel,		\
-	}
-
 /* for consumer drivers */
 static struct iio_map axp288_adc_default_maps[] = {
-	AXP288_ADC_MAP("TS_PIN", "axp288-batt", "axp288-batt-temp"),
-	AXP288_ADC_MAP("PMIC_TEMP", "axp288-pmic", "axp288-pmic-temp"),
-	AXP288_ADC_MAP("GPADC", "axp288-gpadc", "axp288-system-temp"),
-	AXP288_ADC_MAP("BATT_CHG_I", "axp288-chrg", "axp288-chrg-curr"),
-	AXP288_ADC_MAP("BATT_DISCHRG_I", "axp288-chrg", "axp288-chrg-d-curr"),
-	AXP288_ADC_MAP("BATT_V", "axp288-batt", "axp288-batt-volt"),
+	IIO_MAP("TS_PIN", "axp288-batt", "axp288-batt-temp"),
+	IIO_MAP("PMIC_TEMP", "axp288-pmic", "axp288-pmic-temp"),
+	IIO_MAP("GPADC", "axp288-gpadc", "axp288-system-temp"),
+	IIO_MAP("BATT_CHG_I", "axp288-chrg", "axp288-chrg-curr"),
+	IIO_MAP("BATT_DISCHRG_I", "axp288-chrg", "axp288-chrg-d-curr"),
+	IIO_MAP("BATT_V", "axp288-batt", "axp288-batt-volt"),
 	{},
 };
 

@@ -50,7 +50,15 @@ replace typedef dmx_filter_t :c:type:`dmx_filter`
 replace typedef dmx_pes_type_t :c:type:`dmx_pes_type`
 replace typedef dmx_input_t :c:type:`dmx_input`
 
-ignore symbol DMX_OUT_DECODER
-ignore symbol DMX_OUT_TAP
-ignore symbol DMX_OUT_TS_TAP
-ignore symbol DMX_OUT_TSDEMUX_TAP
+replace symbol DMX_BUFFER_FLAG_HAD_CRC32_DISCARD :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_TEI :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_PKT_COUNTER_MISMATCH :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR :c:type:`dmx_buffer_flags`
+
+replace symbol DMX_OUT_DECODER :c:type:`dmx_output`
+replace symbol DMX_OUT_TAP :c:type:`dmx_output`
+replace symbol DMX_OUT_TS_TAP :c:type:`dmx_output`
+replace symbol DMX_OUT_TSDEMUX_TAP :c:type:`dmx_output`
+
+replace ioctl DMX_DQBUF dmx_qbuf

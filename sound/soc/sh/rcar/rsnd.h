@@ -399,9 +399,18 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct device_node *playback,
 		struct device_node *capture);
 
-int rsnd_runtime_channel_original(struct rsnd_dai_stream *io);
-int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io);
-int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io);
+#define rsnd_runtime_channel_original(io) \
+	rsnd_runtime_channel_original_with_params(io, NULL)
+int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
+				struct snd_pcm_hw_params *params);
+#define rsnd_runtime_channel_after_ctu(io)			\
+	rsnd_runtime_channel_after_ctu_with_params(io, NULL)
+int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
+				struct snd_pcm_hw_params *params);
+#define rsnd_runtime_channel_for_ssi(io) \
+	rsnd_runtime_channel_for_ssi_with_params(io, NULL)
+int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
+				 struct snd_pcm_hw_params *params);
 int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io);
 int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io);
 
@@ -778,5 +787,25 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 #define rsnd_mod_confirm_src(msrc)
 #define rsnd_mod_confirm_dvc(mdvc)
 #endif
+
+/*
+ * If you don't need interrupt status debug message,
+ * define RSND_DEBUG_NO_IRQ_STATUS as 1 on top of src.c/ssi.c
+ *
+ * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ */
+#define rsnd_dbg_irq_status(dev, param...)		\
+	if (!IS_BUILTIN(RSND_DEBUG_NO_IRQ_STATUS))	\
+		dev_dbg(dev, param)
+
+/*
+ * If you don't need rsnd_dai_call debug message,
+ * define RSND_DEBUG_NO_DAI_CALL as 1 on top of core.c
+ *
+ * #define RSND_DEBUG_NO_DAI_CALL 1
+ */
+#define rsnd_dbg_dai_call(dev, param...)		\
+	if (!IS_BUILTIN(RSND_DEBUG_NO_DAI_CALL))	\
+		dev_dbg(dev, param)
 
 #endif

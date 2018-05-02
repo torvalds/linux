@@ -108,7 +108,7 @@ The topology of a system is described in the units of:
 
     The number of online threads is also printed in /proc/cpuinfo "siblings."
 
-  - topology_sibling_mask():
+  - topology_sibling_cpumask():
 
     The cpumask contains all online threads in the core to which a thread
     belongs.

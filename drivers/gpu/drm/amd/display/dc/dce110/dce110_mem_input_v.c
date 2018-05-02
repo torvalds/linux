@@ -237,26 +237,14 @@ static void program_size_and_rotation(
 	if (rotation == ROTATION_ANGLE_90 ||
 		rotation == ROTATION_ANGLE_270) {
 
-		uint32_t swap;
-		swap = local_size.video.luma_size.x;
-		local_size.video.luma_size.x =
-			local_size.video.luma_size.y;
-		local_size.video.luma_size.y  = swap;
-
-		swap = local_size.video.luma_size.width;
-		local_size.video.luma_size.width =
-			local_size.video.luma_size.height;
-		local_size.video.luma_size.height = swap;
-
-		swap = local_size.video.chroma_size.x;
-		local_size.video.chroma_size.x =
-			local_size.video.chroma_size.y;
-		local_size.video.chroma_size.y  = swap;
-
-		swap = local_size.video.chroma_size.width;
-		local_size.video.chroma_size.width =
-			local_size.video.chroma_size.height;
-		local_size.video.chroma_size.height = swap;
+		swap(local_size.video.luma_size.x,
+		     local_size.video.luma_size.y);
+		swap(local_size.video.luma_size.width,
+		     local_size.video.luma_size.height);
+		swap(local_size.video.chroma_size.x,
+		     local_size.video.chroma_size.y);
+		swap(local_size.video.chroma_size.width,
+		     local_size.video.chroma_size.height);
 	}
 
 	value = 0;

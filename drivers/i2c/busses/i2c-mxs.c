@@ -181,7 +181,7 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
 
 	if (msg->flags & I2C_M_RD) {
-		i2c->dma_read = 1;
+		i2c->dma_read = true;
 		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_READ;
 
 		/*
@@ -239,7 +239,7 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 			goto read_init_dma_fail;
 		}
 	} else {
-		i2c->dma_read = 0;
+		i2c->dma_read = false;
 		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_WRITE;
 
 		/*

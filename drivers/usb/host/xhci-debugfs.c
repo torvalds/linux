@@ -211,7 +211,7 @@ static void xhci_ring_dump_segment(struct seq_file *s,
 static int xhci_ring_trb_show(struct seq_file *s, void *unused)
 {
 	int			i;
-	struct xhci_ring	*ring = s->private;
+	struct xhci_ring	*ring = *(struct xhci_ring **)s->private;
 	struct xhci_segment	*seg = ring->first_seg;
 
 	for (i = 0; i < ring->num_segs; i++) {
@@ -387,7 +387,7 @@ void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
 
 	snprintf(epriv->name, sizeof(epriv->name), "ep%02d", ep_index);
 	epriv->root = xhci_debugfs_create_ring_dir(xhci,
-						   &dev->eps[ep_index].new_ring,
+						   &dev->eps[ep_index].ring,
 						   epriv->name,
 						   spriv->root);
 	spriv->eps[ep_index] = epriv;

@@ -697,7 +697,15 @@ u64 wbt_default_latency_nsec(struct request_queue *q)
 
 static int wbt_data_dir(const struct request *rq)
 {
-	return rq_data_dir(rq);
+	const int op = req_op(rq);
+
+	if (op == REQ_OP_READ)
+		return READ;
+	else if (op == REQ_OP_WRITE || op == REQ_OP_FLUSH)
+		return WRITE;
+
+	/* don't account */
+	return -1;
 }
 
 int wbt_init(struct request_queue *q)

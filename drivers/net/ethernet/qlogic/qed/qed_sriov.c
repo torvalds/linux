@@ -153,9 +153,9 @@ static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-static bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-				  int rel_vf_id,
-				  bool b_enabled_only, bool b_non_malicious)
+bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
+			   int rel_vf_id,
+			   bool b_enabled_only, bool b_non_malicious)
 {
 	if (!p_hwfn->pf_iov_info) {
 		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
@@ -1621,7 +1621,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	/* fill in pfdev info */
 	pfdev_info->chip_num = p_hwfn->cdev->chip_num;
 	pfdev_info->db_size = 0;
-	pfdev_info->indices_per_sb = PIS_PER_SB;
+	pfdev_info->indices_per_sb = PIS_PER_SB_E4;
 
 	pfdev_info->capabilities = PFVF_ACQUIRE_CAP_DEFAULT_UNTAGGED |
 				   PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE;
@@ -3582,11 +3582,11 @@ static int
 qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
 			struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
 {
-	u32 cons[MAX_NUM_VOQS], distance[MAX_NUM_VOQS];
+	u32 cons[MAX_NUM_VOQS_E4], distance[MAX_NUM_VOQS_E4];
 	int i, cnt;
 
 	/* Read initial consumers & producers */
-	for (i = 0; i < MAX_NUM_VOQS; i++) {
+	for (i = 0; i < MAX_NUM_VOQS_E4; i++) {
 		u32 prod;
 
 		cons[i] = qed_rd(p_hwfn, p_ptt,
@@ -3601,7 +3601,7 @@ qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
 	/* Wait for consumers to pass the producers */
 	i = 0;
 	for (cnt = 0; cnt < 50; cnt++) {
-		for (; i < MAX_NUM_VOQS; i++) {
+		for (; i < MAX_NUM_VOQS_E4; i++) {
 			u32 tmp;
 
 			tmp = qed_rd(p_hwfn, p_ptt,
@@ -3611,7 +3611,7 @@ qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
 				break;
 		}
 
-		if (i == MAX_NUM_VOQS)
+		if (i == MAX_NUM_VOQS_E4)
 			break;
 
 		msleep(20);
@@ -4237,6 +4237,7 @@ qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt, int vfid, int val)
 {
+	struct qed_mcp_link_state *p_link;
 	struct qed_vf_info *vf;
 	u8 abs_vp_id = 0;
 	int rc;
@@ -4249,7 +4250,10 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val);
+	p_link = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
+
+	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val,
+				 p_link->speed);
 }
 
 static int

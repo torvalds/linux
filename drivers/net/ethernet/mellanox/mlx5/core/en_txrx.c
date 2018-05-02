@@ -78,8 +78,14 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
 
-	if (MLX5E_TEST_BIT(c->rq.state, MLX5E_RQ_STATE_AM))
-		mlx5e_rx_am(&c->rq);
+	if (MLX5E_TEST_BIT(c->rq.state, MLX5E_RQ_STATE_AM)) {
+		struct net_dim_sample dim_sample;
+		net_dim_sample(c->rq.cq.event_ctr,
+			       c->rq.stats.packets,
+			       c->rq.stats.bytes,
+			       &dim_sample);
+		net_dim(&c->rq.dim, dim_sample);
+	}
 
 	mlx5e_cq_arm(&c->rq.cq);
 	mlx5e_cq_arm(&c->icosq.cq);

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cec-api.c - HDMI Consumer Electronics Control framework - API
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -43,24 +31,23 @@ static inline struct cec_devnode *cec_devnode_data(struct file *filp)
 
 /* CEC file operations */
 
-static unsigned int cec_poll(struct file *filp,
+static __poll_t cec_poll(struct file *filp,
 			     struct poll_table_struct *poll)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
-	unsigned int res = 0;
+	__poll_t res = 0;
 
-	if (!devnode->registered)
-		return POLLERR | POLLHUP;
+	if (!cec_is_registered(adap))
+		return EPOLLERR | EPOLLHUP;
 	mutex_lock(&adap->lock);
 	if (adap->is_configured &&
 	    adap->transmit_queue_sz < CEC_MAX_MSG_TX_QUEUE_SZ)
-		res |= POLLOUT | POLLWRNORM;
+		res |= EPOLLOUT | EPOLLWRNORM;
 	if (fh->queued_msgs)
-		res |= POLLIN | POLLRDNORM;
+		res |= EPOLLIN | EPOLLRDNORM;
 	if (fh->total_queued_events)
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	poll_wait(filp, &fh->wait, poll);
 	mutex_unlock(&adap->lock);
 	return res;
@@ -354,6 +341,7 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 	u32 mode;
 	u8 mode_initiator;
 	u8 mode_follower;
+	bool send_pin_event = false;
 	long err = 0;
 
 	if (copy_from_user(&mode, parg, sizeof(mode)))
@@ -433,6 +421,19 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 		}
 	}
 
+	if (!err) {
+		bool old_mon_pin = fh->mode_follower == CEC_MODE_MONITOR_PIN;
+		bool new_mon_pin = mode_follower == CEC_MODE_MONITOR_PIN;
+
+		if (old_mon_pin != new_mon_pin) {
+			send_pin_event = new_mon_pin;
+			if (new_mon_pin)
+				err = cec_monitor_pin_cnt_inc(adap);
+			else
+				cec_monitor_pin_cnt_dec(adap);
+		}
+	}
+
 	if (err) {
 		mutex_unlock(&adap->lock);
 		return err;
@@ -440,11 +441,9 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 	if (fh->mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt--;
-	if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
-		adap->monitor_pin_cnt--;
 	if (mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt++;
-	if (mode_follower == CEC_MODE_MONITOR_PIN) {
+	if (send_pin_event) {
 		struct cec_event ev = {
 			.flags = CEC_EVENT_FL_INITIAL_STATE,
 		};
@@ -452,7 +451,6 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 		ev.event = adap->cec_pin_is_high ? CEC_EVENT_PIN_CEC_HIGH :
 						   CEC_EVENT_PIN_CEC_LOW;
 		cec_queue_event_fh(fh, &ev, 0);
-		adap->monitor_pin_cnt++;
 	}
 	if (mode_follower == CEC_MODE_EXCL_FOLLOWER ||
 	    mode_follower == CEC_MODE_EXCL_FOLLOWER_PASSTHRU) {
@@ -475,13 +473,12 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
 	bool block = !(filp->f_flags & O_NONBLOCK);
 	void __user *parg = (void __user *)arg;
 
-	if (!devnode->registered)
+	if (!cec_is_registered(adap))
 		return -ENODEV;
 
 	switch (cmd) {
@@ -608,16 +605,15 @@ static int cec_release(struct inode *inode, struct file *filp)
 	if (fh->mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt--;
 	if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
-		adap->monitor_pin_cnt--;
+		cec_monitor_pin_cnt_dec(adap);
 	if (fh->mode_follower == CEC_MODE_MONITOR_ALL)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);
 
 	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
-	if (list_empty(&devnode->fhs) &&
-	    !adap->needs_hpd &&
-	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
+	if (cec_is_registered(adap) && list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd && adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		WARN_ON(adap->ops->adap_enable(adap, false));
 	}
 	mutex_unlock(&devnode->lock);

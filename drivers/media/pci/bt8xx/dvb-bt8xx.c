@@ -26,10 +26,10 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 #include "dvb-bt8xx.h"
 #include "bt878.h"
 

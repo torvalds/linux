@@ -106,7 +106,8 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	} else
 		return ret;
 
-	if (IS_ERR((memory = nvkm_umem_search(client, handle)))) {
+	memory = nvkm_umem_search(client, handle);
+	if (IS_ERR(memory)) {
 		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
 		return PTR_ERR(memory);
 	}

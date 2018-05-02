@@ -1,4 +1,5 @@
-/* Copyright (C) 2011-2017  B.A.T.M.A.N. contributors:
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2011-2018  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -24,7 +25,7 @@
 #include <linux/crc16.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
@@ -49,6 +50,7 @@
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <net/sock.h>
+#include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
 #include "hard-interface.h"
@@ -56,7 +58,6 @@
 #include "log.h"
 #include "netlink.h"
 #include "originator.h"
-#include "packet.h"
 #include "soft-interface.h"
 #include "sysfs.h"
 #include "translation-table.h"
@@ -69,7 +70,7 @@ batadv_bla_send_announce(struct batadv_priv *bat_priv,
 			 struct batadv_bla_backbone_gw *backbone_gw);
 
 /**
- * batadv_choose_claim - choose the right bucket for a claim.
+ * batadv_choose_claim() - choose the right bucket for a claim.
  * @data: data to hash
  * @size: size of the hash table
  *
@@ -87,7 +88,7 @@ static inline u32 batadv_choose_claim(const void *data, u32 size)
 }
 
 /**
- * batadv_choose_backbone_gw - choose the right bucket for a backbone gateway.
+ * batadv_choose_backbone_gw() - choose the right bucket for a backbone gateway.
  * @data: data to hash
  * @size: size of the hash table
  *
@@ -105,7 +106,7 @@ static inline u32 batadv_choose_backbone_gw(const void *data, u32 size)
 }
 
 /**
- * batadv_compare_backbone_gw - compare address and vid of two backbone gws
+ * batadv_compare_backbone_gw() - compare address and vid of two backbone gws
  * @node: list node of the first entry to compare
  * @data2: pointer to the second backbone gateway
  *
@@ -129,7 +130,7 @@ static bool batadv_compare_backbone_gw(const struct hlist_node *node,
 }
 
 /**
- * batadv_compare_claim - compare address and vid of two claims
+ * batadv_compare_claim() - compare address and vid of two claims
  * @node: list node of the first entry to compare
  * @data2: pointer to the second claims
  *
@@ -153,7 +154,7 @@ static bool batadv_compare_claim(const struct hlist_node *node,
 }
 
 /**
- * batadv_backbone_gw_release - release backbone gw from lists and queue for
+ * batadv_backbone_gw_release() - release backbone gw from lists and queue for
  *  free after rcu grace period
  * @ref: kref pointer of the backbone gw
  */
@@ -168,7 +169,7 @@ static void batadv_backbone_gw_release(struct kref *ref)
 }
 
 /**
- * batadv_backbone_gw_put - decrement the backbone gw refcounter and possibly
+ * batadv_backbone_gw_put() - decrement the backbone gw refcounter and possibly
  *  release it
  * @backbone_gw: backbone gateway to be free'd
  */
@@ -178,8 +179,8 @@ static void batadv_backbone_gw_put(struct batadv_bla_backbone_gw *backbone_gw)
 }
 
 /**
- * batadv_claim_release - release claim from lists and queue for free after rcu
- *  grace period
+ * batadv_claim_release() - release claim from lists and queue for free after
+ *  rcu grace period
  * @ref: kref pointer of the claim
  */
 static void batadv_claim_release(struct kref *ref)
@@ -204,8 +205,7 @@ static void batadv_claim_release(struct kref *ref)
 }
 
 /**
- * batadv_claim_put - decrement the claim refcounter and possibly
- *  release it
+ * batadv_claim_put() - decrement the claim refcounter and possibly release it
  * @claim: claim to be free'd
  */
 static void batadv_claim_put(struct batadv_bla_claim *claim)
@@ -214,7 +214,7 @@ static void batadv_claim_put(struct batadv_bla_claim *claim)
 }
 
 /**
- * batadv_claim_hash_find - looks for a claim in the claim hash
+ * batadv_claim_hash_find() - looks for a claim in the claim hash
  * @bat_priv: the bat priv with all the soft interface information
  * @data: search data (may be local/static data)
  *
@@ -253,7 +253,7 @@ batadv_claim_hash_find(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_backbone_hash_find - looks for a backbone gateway in the hash
+ * batadv_backbone_hash_find() - looks for a backbone gateway in the hash
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address of the originator
  * @vid: the VLAN ID
@@ -297,7 +297,7 @@ batadv_backbone_hash_find(struct batadv_priv *bat_priv, u8 *addr,
 }
 
 /**
- * batadv_bla_del_backbone_claims - delete all claims for a backbone
+ * batadv_bla_del_backbone_claims() - delete all claims for a backbone
  * @backbone_gw: backbone gateway where the claims should be removed
  */
 static void
@@ -337,7 +337,7 @@ batadv_bla_del_backbone_claims(struct batadv_bla_backbone_gw *backbone_gw)
 }
 
 /**
- * batadv_bla_send_claim - sends a claim frame according to the provided info
+ * batadv_bla_send_claim() - sends a claim frame according to the provided info
  * @bat_priv: the bat priv with all the soft interface information
  * @mac: the mac address to be announced within the claim
  * @vid: the VLAN ID
@@ -457,7 +457,7 @@ out:
 }
 
 /**
- * batadv_bla_loopdetect_report - worker for reporting the loop
+ * batadv_bla_loopdetect_report() - worker for reporting the loop
  * @work: work queue item
  *
  * Throws an uevent, as the loopdetect check function can't do that itself
@@ -487,7 +487,7 @@ static void batadv_bla_loopdetect_report(struct work_struct *work)
 }
 
 /**
- * batadv_bla_get_backbone_gw - finds or creates a backbone gateway
+ * batadv_bla_get_backbone_gw() - finds or creates a backbone gateway
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address of the originator
  * @vid: the VLAN ID
@@ -560,7 +560,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
 }
 
 /**
- * batadv_bla_update_own_backbone_gw - updates the own backbone gw for a VLAN
+ * batadv_bla_update_own_backbone_gw() - updates the own backbone gw for a VLAN
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the selected primary interface
  * @vid: VLAN identifier
@@ -586,7 +586,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_answer_request - answer a bla request by sending own claims
+ * batadv_bla_answer_request() - answer a bla request by sending own claims
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: interface where the request came on
  * @vid: the vid where the request came on
@@ -636,7 +636,7 @@ static void batadv_bla_answer_request(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_send_request - send a request to repeat claims
+ * batadv_bla_send_request() - send a request to repeat claims
  * @backbone_gw: the backbone gateway from whom we are out of sync
  *
  * When the crc is wrong, ask the backbone gateway for a full table update.
@@ -663,7 +663,7 @@ static void batadv_bla_send_request(struct batadv_bla_backbone_gw *backbone_gw)
 }
 
 /**
- * batadv_bla_send_announce - Send an announcement frame
+ * batadv_bla_send_announce() - Send an announcement frame
  * @bat_priv: the bat priv with all the soft interface information
  * @backbone_gw: our backbone gateway which should be announced
  */
@@ -684,7 +684,7 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_add_claim - Adds a claim in the claim hash
+ * batadv_bla_add_claim() - Adds a claim in the claim hash
  * @bat_priv: the bat priv with all the soft interface information
  * @mac: the mac address of the claim
  * @vid: the VLAN ID of the frame
@@ -774,7 +774,7 @@ claim_free_ref:
 }
 
 /**
- * batadv_bla_claim_get_backbone_gw - Get valid reference for backbone_gw of
+ * batadv_bla_claim_get_backbone_gw() - Get valid reference for backbone_gw of
  *  claim
  * @claim: claim whose backbone_gw should be returned
  *
@@ -794,7 +794,7 @@ batadv_bla_claim_get_backbone_gw(struct batadv_bla_claim *claim)
 }
 
 /**
- * batadv_bla_del_claim - delete a claim from the claim hash
+ * batadv_bla_del_claim() - delete a claim from the claim hash
  * @bat_priv: the bat priv with all the soft interface information
  * @mac: mac address of the claim to be removed
  * @vid: VLAN id for the claim to be removed
@@ -822,7 +822,7 @@ static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_handle_announce - check for ANNOUNCE frame
+ * batadv_handle_announce() - check for ANNOUNCE frame
  * @bat_priv: the bat priv with all the soft interface information
  * @an_addr: announcement mac address (ARP Sender HW address)
  * @backbone_addr: originator address of the sender (Ethernet source MAC)
@@ -880,7 +880,7 @@ static bool batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
 }
 
 /**
- * batadv_handle_request - check for REQUEST frame
+ * batadv_handle_request() - check for REQUEST frame
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the primary hard interface of this batman soft interface
  * @backbone_addr: backbone address to be requested (ARP sender HW MAC)
@@ -913,7 +913,7 @@ static bool batadv_handle_request(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_handle_unclaim - check for UNCLAIM frame
+ * batadv_handle_unclaim() - check for UNCLAIM frame
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the primary hard interface of this batman soft interface
  * @backbone_addr: originator address of the backbone (Ethernet source)
@@ -951,7 +951,7 @@ static bool batadv_handle_unclaim(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_handle_claim - check for CLAIM frame
+ * batadv_handle_claim() - check for CLAIM frame
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the primary hard interface of this batman soft interface
  * @backbone_addr: originator address of the backbone (Ethernet Source)
@@ -988,7 +988,7 @@ static bool batadv_handle_claim(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_check_claim_group - check for claim group membership
+ * batadv_check_claim_group() - check for claim group membership
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the primary interface of this batman interface
  * @hw_src: the Hardware source in the ARP Header
@@ -1063,7 +1063,7 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_process_claim - Check if this is a claim frame, and process it
+ * batadv_bla_process_claim() - Check if this is a claim frame, and process it
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the primary hard interface of this batman soft interface
  * @skb: the frame to be checked
@@ -1205,7 +1205,7 @@ static bool batadv_bla_process_claim(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_purge_backbone_gw - Remove backbone gateways after a timeout or
+ * batadv_bla_purge_backbone_gw() - Remove backbone gateways after a timeout or
  *  immediately
  * @bat_priv: the bat priv with all the soft interface information
  * @now: whether the whole hash shall be wiped now
@@ -1258,7 +1258,7 @@ purge_now:
 }
 
 /**
- * batadv_bla_purge_claims - Remove claims after a timeout or immediately
+ * batadv_bla_purge_claims() - Remove claims after a timeout or immediately
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the selected primary interface, may be NULL if now is set
  * @now: whether the whole hash shall be wiped now
@@ -1316,7 +1316,7 @@ skip:
 }
 
 /**
- * batadv_bla_update_orig_address - Update the backbone gateways when the own
+ * batadv_bla_update_orig_address() - Update the backbone gateways when the own
  *  originator address changes
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the new selected primary_if
@@ -1372,7 +1372,7 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_send_loopdetect - send a loopdetect frame
+ * batadv_bla_send_loopdetect() - send a loopdetect frame
  * @bat_priv: the bat priv with all the soft interface information
  * @backbone_gw: the backbone gateway for which a loop should be detected
  *
@@ -1392,7 +1392,7 @@ batadv_bla_send_loopdetect(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_bla_status_update - purge bla interfaces if necessary
+ * batadv_bla_status_update() - purge bla interfaces if necessary
  * @net_dev: the soft interface net device
  */
 void batadv_bla_status_update(struct net_device *net_dev)
@@ -1412,7 +1412,7 @@ void batadv_bla_status_update(struct net_device *net_dev)
 }
 
 /**
- * batadv_bla_periodic_work - performs periodic bla work
+ * batadv_bla_periodic_work() - performs periodic bla work
  * @work: kernel work struct
  *
  * periodic work to do:
@@ -1517,7 +1517,7 @@ static struct lock_class_key batadv_claim_hash_lock_class_key;
 static struct lock_class_key batadv_backbone_hash_lock_class_key;
 
 /**
- * batadv_bla_init - initialize all bla structures
+ * batadv_bla_init() - initialize all bla structures
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success, < 0 on error.
@@ -1579,7 +1579,7 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_bla_check_bcast_duplist - Check if a frame is in the broadcast dup.
+ * batadv_bla_check_bcast_duplist() - Check if a frame is in the broadcast dup.
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: contains the bcast_packet to be checked
  *
@@ -1652,7 +1652,7 @@ out:
 }
 
 /**
- * batadv_bla_is_backbone_gw_orig - Check if the originator is a gateway for
+ * batadv_bla_is_backbone_gw_orig() - Check if the originator is a gateway for
  *  the VLAN identified by vid.
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: originator mac address
@@ -1692,7 +1692,7 @@ bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
 }
 
 /**
- * batadv_bla_is_backbone_gw - check if originator is a backbone gw for a VLAN.
+ * batadv_bla_is_backbone_gw() - check if originator is a backbone gw for a VLAN
  * @skb: the frame to be checked
  * @orig_node: the orig_node of the frame
  * @hdr_size: maximum length of the frame
@@ -1726,7 +1726,7 @@ bool batadv_bla_is_backbone_gw(struct sk_buff *skb,
 }
 
 /**
- * batadv_bla_free - free all bla structures
+ * batadv_bla_free() - free all bla structures
  * @bat_priv: the bat priv with all the soft interface information
  *
  * for softinterface free or module unload
@@ -1753,7 +1753,7 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_bla_loopdetect_check - check and handle a detected loop
+ * batadv_bla_loopdetect_check() - check and handle a detected loop
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the packet to check
  * @primary_if: interface where the request came on
@@ -1802,7 +1802,7 @@ batadv_bla_loopdetect_check(struct batadv_priv *bat_priv, struct sk_buff *skb,
 }
 
 /**
- * batadv_bla_rx - check packets coming from the mesh.
+ * batadv_bla_rx() - check packets coming from the mesh.
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
@@ -1914,7 +1914,7 @@ out:
 }
 
 /**
- * batadv_bla_tx - check packets going into the mesh
+ * batadv_bla_tx() - check packets going into the mesh
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
@@ -2022,7 +2022,7 @@ out:
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
- * batadv_bla_claim_table_seq_print_text - print the claim table in a seq file
+ * batadv_bla_claim_table_seq_print_text() - print the claim table in a seq file
  * @seq: seq file to print on
  * @offset: not used
  *
@@ -2084,7 +2084,7 @@ out:
 #endif
 
 /**
- * batadv_bla_claim_dump_entry - dump one entry of the claim table
+ * batadv_bla_claim_dump_entry() - dump one entry of the claim table
  * to a netlink socket
  * @msg: buffer for the message
  * @portid: netlink port
@@ -2143,7 +2143,7 @@ out:
 }
 
 /**
- * batadv_bla_claim_dump_bucket - dump one bucket of the claim table
+ * batadv_bla_claim_dump_bucket() - dump one bucket of the claim table
  * to a netlink socket
  * @msg: buffer for the message
  * @portid: netlink port
@@ -2161,26 +2161,29 @@ batadv_bla_claim_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
 {
 	struct batadv_bla_claim *claim;
 	int idx = 0;
+	int ret = 0;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(claim, head, hash_entry) {
 		if (idx++ < *idx_skip)
 			continue;
-		if (batadv_bla_claim_dump_entry(msg, portid, seq,
-						primary_if, claim)) {
+
+		ret = batadv_bla_claim_dump_entry(msg, portid, seq,
+						  primary_if, claim);
+		if (ret) {
 			*idx_skip = idx - 1;
 			goto unlock;
 		}
 	}
 
-	*idx_skip = idx;
+	*idx_skip = 0;
 unlock:
 	rcu_read_unlock();
-	return 0;
+	return ret;
 }
 
 /**
- * batadv_bla_claim_dump - dump claim table to a netlink socket
+ * batadv_bla_claim_dump() - dump claim table to a netlink socket
  * @msg: buffer for the message
  * @cb: callback structure containing arguments
  *
@@ -2247,8 +2250,8 @@ out:
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
- * batadv_bla_backbone_table_seq_print_text - print the backbone table in a seq
- *  file
+ * batadv_bla_backbone_table_seq_print_text() - print the backbone table in a
+ *  seq file
  * @seq: seq file to print on
  * @offset: not used
  *
@@ -2312,8 +2315,8 @@ out:
 #endif
 
 /**
- * batadv_bla_backbone_dump_entry - dump one entry of the backbone table
- * to a netlink socket
+ * batadv_bla_backbone_dump_entry() - dump one entry of the backbone table to a
+ *  netlink socket
  * @msg: buffer for the message
  * @portid: netlink port
  * @seq: Sequence number of netlink message
@@ -2373,8 +2376,8 @@ out:
 }
 
 /**
- * batadv_bla_backbone_dump_bucket - dump one bucket of the backbone table
- * to a netlink socket
+ * batadv_bla_backbone_dump_bucket() - dump one bucket of the backbone table to
+ *  a netlink socket
  * @msg: buffer for the message
  * @portid: netlink port
  * @seq: Sequence number of netlink message
@@ -2391,26 +2394,29 @@ batadv_bla_backbone_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
 	int idx = 0;
+	int ret = 0;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 		if (idx++ < *idx_skip)
 			continue;
-		if (batadv_bla_backbone_dump_entry(msg, portid, seq,
-						   primary_if, backbone_gw)) {
+
+		ret = batadv_bla_backbone_dump_entry(msg, portid, seq,
+						     primary_if, backbone_gw);
+		if (ret) {
 			*idx_skip = idx - 1;
 			goto unlock;
 		}
 	}
 
-	*idx_skip = idx;
+	*idx_skip = 0;
 unlock:
 	rcu_read_unlock();
-	return 0;
+	return ret;
 }
 
 /**
- * batadv_bla_backbone_dump - dump backbone table to a netlink socket
+ * batadv_bla_backbone_dump() - dump backbone table to a netlink socket
  * @msg: buffer for the message
  * @cb: callback structure containing arguments
  *
@@ -2477,7 +2483,7 @@ out:
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 /**
- * batadv_bla_check_claim - check if address is claimed
+ * batadv_bla_check_claim() - check if address is claimed
  *
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: mac address of which the claim status is checked

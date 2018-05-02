@@ -1,0 +1,410 @@
+[
+    {
+        "id": "6d84",
+        "name": "Add csum iph action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum iph index 800",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 800",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*index 800 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "1862",
+        "name": "Add csum ip4h action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum ip4h index 7",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 7",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*index 7 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "15c6",
+        "name": "Add csum ipv4h action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum ipv4h index 1122",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 1122",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*index 1122 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "bf47",
+        "name": "Add csum icmp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum icmp index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 1",
+        "matchPattern": "action order [0-9]*: csum \\(icmp\\) action pass.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "cc1d",
+        "name": "Add csum igmp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum igmp index 999",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 999",
+        "matchPattern": "action order [0-9]*: csum \\(igmp\\) action pass.*index 999 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "bccc",
+        "name": "Add csum foobar action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum foobar index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action csum",
+        "matchPattern": "action order [0-9]*: csum \\(foobar\\) action pass.*index 1 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "3bb4",
+        "name": "Add csum tcp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum tcp index 9999",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 9999",
+        "matchPattern": "action order [0-9]*: csum \\(tcp\\) action pass.*index 9999 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "759c",
+        "name": "Add csum udp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum udp index 334455",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 334455",
+        "matchPattern": "action order [0-9]*: csum \\(udp\\) action pass.*index 334455 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "bdb6",
+        "name": "Add csum udp xor iph action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum udp xor iph index 3",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action csum",
+        "matchPattern": "action order [0-9]*: csum \\(udp xor iph\\) action pass.*index 3 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "c220",
+        "name": "Add csum udplite action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum udplite continue index 3",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 3",
+        "matchPattern": "action order [0-9]*: csum \\(udplite\\) action continue.*index 3 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "8993",
+        "name": "Add csum sctp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum sctp index 777",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 777",
+        "matchPattern": "action order [0-9]*: csum \\(sctp\\) action pass.*index 777 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "b138",
+        "name": "Add csum ip & icmp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum ip and icmp pipe index 123",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 123",
+        "matchPattern": "action order [0-9]*: csum \\(iph, icmp\\) action pipe.*index 123 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "eeda",
+        "name": "Add csum ip & sctp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum ipv4h sctp continue index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 2",
+        "matchPattern": "action order [0-9]*: csum \\(iph, sctp\\) action continue.*index 2 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "0017",
+        "name": "Add csum udp or tcp action",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum udp or tcp continue index 27",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 27",
+        "matchPattern": "action order [0-9]*: csum \\(tcp, udp\\) action continue.*index 27 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "ce92",
+        "name": "Add csum udp action with cookie",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum udp pipe index 7 cookie 12345678",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 7",
+        "matchPattern": "action order [0-9]*: csum \\(udp\\) action pipe.*index 7.*cookie 12345678",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "912f",
+        "name": "Add csum icmp action with large cookie",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum icmp pipe index 17 cookie aabbccddeeff1122",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 17",
+        "matchPattern": "action order [0-9]*: csum \\(icmp\\) action pipe.*index 17.*cookie aabbccddeeff1122",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "879b",
+        "name": "Add batch of 32 csum tcp actions",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "for i in `seq 1 32`; do cmd=\"action csum tcp continue index $i \"; args=\"$args$cmd\"; done && $TC actions add $args",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action csum",
+        "matchPattern": "^[ \t]+index [0-9]* ref",
+        "matchCount": "32",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    }
+]

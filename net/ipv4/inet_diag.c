@@ -53,8 +53,7 @@ static DEFINE_MUTEX(inet_diag_table_mutex);
 static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 {
 	if (!inet_diag_table[proto])
-		request_module("net-pf-%d-proto-%d-type-%d-%d", PF_NETLINK,
-			       NETLINK_SOCK_DIAG, AF_INET, proto);
+		sock_load_diag_module(AF_INET, proto);
 
 	mutex_lock(&inet_diag_table_mutex);
 	if (!inet_diag_table[proto])
@@ -564,11 +563,17 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 		case INET_DIAG_BC_JMP:
 			yes = 0;
 			break;
+		case INET_DIAG_BC_S_EQ:
+			yes = entry->sport == op[1].no;
+			break;
 		case INET_DIAG_BC_S_GE:
 			yes = entry->sport >= op[1].no;
 			break;
 		case INET_DIAG_BC_S_LE:
 			yes = entry->sport <= op[1].no;
+			break;
+		case INET_DIAG_BC_D_EQ:
+			yes = entry->dport == op[1].no;
 			break;
 		case INET_DIAG_BC_D_GE:
 			yes = entry->dport >= op[1].no;
@@ -802,8 +807,10 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 			if (!valid_devcond(bc, len, &min_len))
 				return -EINVAL;
 			break;
+		case INET_DIAG_BC_S_EQ:
 		case INET_DIAG_BC_S_GE:
 		case INET_DIAG_BC_S_LE:
+		case INET_DIAG_BC_D_EQ:
 		case INET_DIAG_BC_D_GE:
 		case INET_DIAG_BC_D_LE:
 			if (!valid_port_comparison(bc, len, &min_len))

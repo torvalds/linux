@@ -95,7 +95,6 @@ static struct phy_driver upd60620_driver[1] = { {
 	.features       = PHY_BASIC_FEATURES,
 	.flags          = 0,
 	.config_init    = upd60620_config_init,
-	.config_aneg    = genphy_config_aneg,
 	.read_status    = upd60620_read_status,
 } };
 

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/iov.c
- *
- * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
- *
- * PCI Express I/O Virtualization (IOV) support.
+ * PCI Express I/O Virtualization (IOV) support
  *   Single Root IOV 1.0
  *   Address Translation Service 1.0
+ *
+ * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
  */
 
 #include <linux/pci.h>
@@ -113,6 +112,29 @@ resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno)
 	return dev->sriov->barsz[resno - PCI_IOV_RESOURCES];
 }
 
+static void pci_read_vf_config_common(struct pci_dev *virtfn)
+{
+	struct pci_dev *physfn = virtfn->physfn;
+
+	/*
+	 * Some config registers are the same across all associated VFs.
+	 * Read them once from VF0 so we can skip reading them from the
+	 * other VFs.
+	 *
+	 * PCIe r4.0, sec 9.3.4.1, technically doesn't require all VFs to
+	 * have the same Revision ID and Subsystem ID, but we assume they
+	 * do.
+	 */
+	pci_read_config_dword(virtfn, PCI_CLASS_REVISION,
+			      &physfn->sriov->class);
+	pci_read_config_byte(virtfn, PCI_HEADER_TYPE,
+			     &physfn->sriov->hdr_type);
+	pci_read_config_word(virtfn, PCI_SUBSYSTEM_VENDOR_ID,
+			     &physfn->sriov->subsystem_vendor);
+	pci_read_config_word(virtfn, PCI_SUBSYSTEM_ID,
+			     &physfn->sriov->subsystem_device);
+}
+
 int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 {
 	int i;
@@ -135,13 +157,17 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 	virtfn->devfn = pci_iov_virtfn_devfn(dev, id);
 	virtfn->vendor = dev->vendor;
 	virtfn->device = iov->vf_device;
+	virtfn->is_virtfn = 1;
+	virtfn->physfn = pci_dev_get(dev);
+
+	if (id == 0)
+		pci_read_vf_config_common(virtfn);
+
 	rc = pci_setup_device(virtfn);
 	if (rc)
-		goto failed0;
+		goto failed1;
 
 	virtfn->dev.parent = dev->dev.parent;
-	virtfn->physfn = pci_dev_get(dev);
-	virtfn->is_virtfn = 1;
 	virtfn->multifunction = 0;
 
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
@@ -162,10 +188,10 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 	sprintf(buf, "virtfn%u", id);
 	rc = sysfs_create_link(&dev->dev.kobj, &virtfn->dev.kobj, buf);
 	if (rc)
-		goto failed1;
+		goto failed2;
 	rc = sysfs_create_link(&virtfn->dev.kobj, &dev->dev.kobj, "physfn");
 	if (rc)
-		goto failed2;
+		goto failed3;
 
 	kobject_uevent(&virtfn->dev.kobj, KOBJ_CHANGE);
 
@@ -173,11 +199,12 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 
 	return 0;
 
-failed2:
+failed3:
 	sysfs_remove_link(&dev->dev.kobj, buf);
+failed2:
+	pci_stop_and_remove_bus_device(virtfn);
 failed1:
 	pci_dev_put(dev);
-	pci_stop_and_remove_bus_device(virtfn);
 failed0:
 	virtfn_remove_bus(dev->bus, bus);
 failed:
@@ -259,19 +286,19 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			nres++;
 	}
 	if (nres != iov->nres) {
-		dev_err(&dev->dev, "not enough MMIO resources for SR-IOV\n");
+		pci_err(dev, "not enough MMIO resources for SR-IOV\n");
 		return -ENOMEM;
 	}
 
 	bus = pci_iov_virtfn_bus(dev, nr_virtfn - 1);
 	if (bus > dev->bus->busn_res.end) {
-		dev_err(&dev->dev, "can't enable %d VFs (bus %02x out of range of %pR)\n",
+		pci_err(dev, "can't enable %d VFs (bus %02x out of range of %pR)\n",
 			nr_virtfn, bus, &dev->bus->busn_res);
 		return -ENOMEM;
 	}
 
 	if (pci_enable_resources(dev, bars)) {
-		dev_err(&dev->dev, "SR-IOV: IOV BARS not allocated\n");
+		pci_err(dev, "SR-IOV: IOV BARS not allocated\n");
 		return -ENOMEM;
 	}
 
@@ -298,7 +325,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 	rc = pcibios_sriov_enable(dev, initial);
 	if (rc) {
-		dev_err(&dev->dev, "failure %d from pcibios_sriov_enable()\n", rc);
+		pci_err(dev, "failure %d from pcibios_sriov_enable()\n", rc);
 		goto err_pcibios;
 	}
 
@@ -432,7 +459,7 @@ found:
 		}
 		iov->barsz[i] = resource_size(res);
 		res->end = res->start + resource_size(res) * total - 1;
-		dev_info(&dev->dev, "VF(n) BAR%d space: %pR (contains BAR%d for %d VFs)\n",
+		pci_info(dev, "VF(n) BAR%d space: %pR (contains BAR%d for %d VFs)\n",
 			 i, res, i, total);
 		i += bar64;
 		nres++;
@@ -633,6 +660,17 @@ void pci_restore_iov_state(struct pci_dev *dev)
 {
 	if (dev->is_physfn)
 		sriov_restore_state(dev);
+}
+
+/**
+ * pci_vf_drivers_autoprobe - set PF property drivers_autoprobe for VFs
+ * @dev: the PCI device
+ * @auto_probe: set VF drivers auto probe flag
+ */
+void pci_vf_drivers_autoprobe(struct pci_dev *dev, bool auto_probe)
+{
+	if (dev->is_physfn)
+		dev->sriov->drivers_autoprobe = auto_probe;
 }
 
 /**

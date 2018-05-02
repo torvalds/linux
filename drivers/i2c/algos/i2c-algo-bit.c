@@ -649,6 +649,11 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	if (bit_adap->getscl == NULL)
 		adap->quirks = &i2c_bit_quirk_no_clk_stretch;
 
+	/* Bring bus to a known state. Looks like STOP if bus is not free yet */
+	setscl(bit_adap, 1);
+	udelay(bit_adap->udelay);
+	setsda(bit_adap, 1);
+
 	ret = add_adapter(adap);
 	if (ret < 0)
 		return ret;

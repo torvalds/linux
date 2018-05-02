@@ -40,6 +40,7 @@ config MACH_PXA3XX_DT
 
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform (aka Lubbock)"
+	select GPIO_REG
 	select PXA25x
 	select SA1111
 

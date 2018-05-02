@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common definition for Hardkernel's Exynos4412 based ODROID-X/X2/U2/U3 boards
  * device tree source
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <dt-bindings/sound/samsung-i2s.h>
@@ -62,12 +59,6 @@
 		pinctrl-names = "default";
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpk1 2 GPIO_ACTIVE_LOW>;
-	};
-
-	camera {
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <>;
 	};
 
 	fixed-rate-clocks {
@@ -143,6 +134,12 @@
 &bus_mfc {
 	devfreq = <&bus_leftbus>;
 	status = "okay";
+};
+
+&camera {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
 };
 
 &clock_audss {

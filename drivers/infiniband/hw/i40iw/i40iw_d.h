@@ -97,6 +97,7 @@
 #define RDMA_OPCODE_MASK        0x0f
 #define RDMA_READ_REQ_OPCODE    1
 #define Q2_BAD_FRAME_OFFSET     72
+#define Q2_FPSN_OFFSET          64
 #define CQE_MAJOR_DRV           0x8000
 
 #define I40IW_TERM_SENT 0x01
@@ -417,6 +418,8 @@
 #define I40IW_CQP_OP_QUERY_FPM_VALUES           0x20
 #define I40IW_CQP_OP_COMMIT_FPM_VALUES          0x21
 #define I40IW_CQP_OP_FLUSH_WQES                 0x22
+/* I40IW_CQP_OP_GEN_AE is the same value as I40IW_CQP_OP_FLUSH_WQES */
+#define I40IW_CQP_OP_GEN_AE                     0x22
 #define I40IW_CQP_OP_MANAGE_APBVT               0x23
 #define I40IW_CQP_OP_NOP                        0x24
 #define I40IW_CQP_OP_MANAGE_QUAD_HASH_TABLE_ENTRY 0x25
@@ -1728,6 +1731,7 @@ enum i40iw_alignment {
 #define OP_COMMIT_FPM_VALUES                    30
 #define OP_REQUESTED_COMMANDS                   31
 #define OP_COMPLETED_COMMANDS                   32
-#define OP_SIZE_CQP_STAT_ARRAY                  33
+#define OP_GEN_AE                               33
+#define OP_SIZE_CQP_STAT_ARRAY                  34
 
 #endif

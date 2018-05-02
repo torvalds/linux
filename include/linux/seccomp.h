@@ -95,9 +95,17 @@ static inline void get_seccomp_filter(struct task_struct *tsk)
 #if defined(CONFIG_SECCOMP_FILTER) && defined(CONFIG_CHECKPOINT_RESTORE)
 extern long seccomp_get_filter(struct task_struct *task,
 			       unsigned long filter_off, void __user *data);
+extern long seccomp_get_metadata(struct task_struct *task,
+				 unsigned long filter_off, void __user *data);
 #else
 static inline long seccomp_get_filter(struct task_struct *task,
 				      unsigned long n, void __user *data)
+{
+	return -EINVAL;
+}
+static inline long seccomp_get_metadata(struct task_struct *task,
+					unsigned long filter_off,
+					void __user *data)
 {
 	return -EINVAL;
 }

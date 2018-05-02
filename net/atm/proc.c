@@ -37,7 +37,6 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *pos);
 
 static const struct file_operations proc_atm_dev_ops = {
-	.owner =	THIS_MODULE,
 	.read =		proc_dev_atm_read,
 	.llseek =	noop_llseek,
 };
@@ -475,7 +474,7 @@ int __init atm_proc_init(void)
 	for (e = atm_proc_ents; e->name; e++) {
 		struct proc_dir_entry *dirent;
 
-		dirent = proc_create(e->name, S_IRUGO,
+		dirent = proc_create(e->name, 0444,
 				     atm_proc_root, e->proc_fops);
 		if (!dirent)
 			goto err_out_remove;

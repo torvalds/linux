@@ -71,7 +71,6 @@ static int xfrm_statistics_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xfrm_statistics_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xfrm_statistics_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -80,7 +79,7 @@ static const struct file_operations xfrm_statistics_seq_fops = {
 
 int __net_init xfrm_proc_init(struct net *net)
 {
-	if (!proc_create("xfrm_stat", S_IRUGO, net->proc_net,
+	if (!proc_create("xfrm_stat", 0444, net->proc_net,
 			 &xfrm_statistics_seq_fops))
 		return -ENOMEM;
 	return 0;

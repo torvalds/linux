@@ -416,7 +416,7 @@ static int pvcalls_back_connect(struct xenbus_device *dev,
 					sock);
 	if (!map) {
 		ret = -EFAULT;
-		sock_release(map->sock);
+		sock_release(sock);
 	}
 
 out:
@@ -548,7 +548,7 @@ static void __pvcalls_back_accept(struct work_struct *work)
 	ret = inet_accept(mappass->sock, sock, O_NONBLOCK, true);
 	if (ret == -EAGAIN) {
 		sock_release(sock);
-		goto out_error;
+		return;
 	}
 
 	map = pvcalls_new_active_socket(fedata,

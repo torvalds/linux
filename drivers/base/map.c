@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/drivers/base/map.c
  *
  * (C) Copyright Al Viro 2002,2003
- *	Released under GPL v2.
  *
  * NOTE: data structure needs to be changed.  It works, but for large dev_t
  * it will be too slow.  It is isolated, though, so these changes will be

@@ -35,6 +35,7 @@
 #define RXE_VERBS_H
 
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <rdma/rdma_user_rxe.h>
 #include "rxe_pool.h"
 #include "rxe_task.h"
@@ -137,8 +138,6 @@ enum rxe_qp_state {
 	QP_STATE_DRAINED,	/* req only */
 	QP_STATE_ERROR
 };
-
-extern char *rxe_qp_state_name[];
 
 struct rxe_req_info {
 	enum rxe_qp_state	state;
@@ -281,6 +280,8 @@ struct rxe_qp {
 	struct timer_list rnr_nak_timer;
 
 	spinlock_t		state_lock; /* guard requester and completer */
+
+	struct execute_work	cleanup_work;
 };
 
 enum rxe_mem_state {

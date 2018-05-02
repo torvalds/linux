@@ -477,7 +477,7 @@ static void brcmf_msgbuf_ioctl_resp_wake(struct brcmf_msgbuf *msgbuf)
 
 
 static int brcmf_msgbuf_query_dcmd(struct brcmf_pub *drvr, int ifidx,
-				   uint cmd, void *buf, uint len)
+				   uint cmd, void *buf, uint len, int *fwerr)
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 	struct sk_buff *skb = NULL;
@@ -485,6 +485,7 @@ static int brcmf_msgbuf_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 	int err;
 
 	brcmf_dbg(MSGBUF, "ifidx=%d, cmd=%d, len=%d\n", ifidx, cmd, len);
+	*fwerr = 0;
 	msgbuf->ctl_completed = false;
 	err = brcmf_msgbuf_tx_ioctl(drvr, ifidx, cmd, buf, len);
 	if (err)
@@ -508,14 +509,15 @@ static int brcmf_msgbuf_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 	}
 	brcmu_pkt_buf_free_skb(skb);
 
-	return msgbuf->ioctl_resp_status;
+	*fwerr = msgbuf->ioctl_resp_status;
+	return 0;
 }
 
 
 static int brcmf_msgbuf_set_dcmd(struct brcmf_pub *drvr, int ifidx,
-				 uint cmd, void *buf, uint len)
+				 uint cmd, void *buf, uint len, int *fwerr)
 {
-	return brcmf_msgbuf_query_dcmd(drvr, ifidx, cmd, buf, len);
+	return brcmf_msgbuf_query_dcmd(drvr, ifidx, cmd, buf, len, fwerr);
 }
 
 
@@ -1416,6 +1418,11 @@ static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 }
 #endif
 
+static void brcmf_msgbuf_debugfs_create(struct brcmf_pub *drvr)
+{
+	brcmf_debugfs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
+}
+
 int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bus_msgbuf *if_msgbuf;
@@ -1470,6 +1477,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
 	drvr->proto->rxreorder = brcmf_msgbuf_rxreorder;
+	drvr->proto->debugfs_create = brcmf_msgbuf_debugfs_create;
 	drvr->proto->pd = msgbuf;
 
 	init_waitqueue_head(&msgbuf->ioctl_resp_wait);
@@ -1522,8 +1530,6 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	INIT_WORK(&msgbuf->flowring_work, brcmf_msgbuf_flowring_worker);
 	spin_lock_init(&msgbuf->flowring_work_lock);
 	INIT_LIST_HEAD(&msgbuf->work_queue);
-
-	brcmf_debugfs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
 
 	return 0;
 

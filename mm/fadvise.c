@@ -26,7 +26,8 @@
  * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
  * deactivate the pages and clear PG_Referenced.
  */
-SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+
+int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 {
 	struct fd f = fdget(fd);
 	struct inode *inode;
@@ -127,7 +128,15 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		 */
 		start_index = (offset+(PAGE_SIZE-1)) >> PAGE_SHIFT;
 		end_index = (endbyte >> PAGE_SHIFT);
-		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK) {
+		/*
+		 * The page at end_index will be inclusively discarded according
+		 * by invalidate_mapping_pages(), so subtracting 1 from
+		 * end_index means we will skip the last page.  But if endbyte
+		 * is page aligned or is at the end of file, we should not skip
+		 * that page - discarding the last page is safe enough.
+		 */
+		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK &&
+				endbyte != inode->i_size - 1) {
 			/* First page is tricky as 0 - 1 = -1, but pgoff_t
 			 * is unsigned, so the end_index >= start_index
 			 * check below would be true and we'll discard the whole
@@ -177,11 +186,16 @@ out:
 	return ret;
 }
 
+SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+{
+	return ksys_fadvise64_64(fd, offset, len, advice);
+}
+
 #ifdef __ARCH_WANT_SYS_FADVISE64
 
 SYSCALL_DEFINE4(fadvise64, int, fd, loff_t, offset, size_t, len, int, advice)
 {
-	return sys_fadvise64_64(fd, offset, len, advice);
+	return ksys_fadvise64_64(fd, offset, len, advice);
 }
 
 #endif

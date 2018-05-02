@@ -746,6 +746,10 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	struct vmw_resource *tmp;
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct ttm_operation_ctx ttm_opt_ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	int ret;
 
 	if (!dev_priv->has_dx && dx) {
@@ -768,7 +772,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_context_size,
-				   false, true);
+				   &ttm_opt_ctx);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for context"

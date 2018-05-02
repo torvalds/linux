@@ -10,6 +10,8 @@ frontswap.txt
 	- Outline frontswap, part of the transcendent memory frontend.
 highmem.txt
 	- Outline of highmem and common issues.
+hmm.txt
+	- Documentation of heterogeneous memory management
 hugetlbpage.txt
 	- a brief summary of hugetlbpage support in the Linux kernel.
 hugetlbfs_reserv.txt
@@ -20,25 +22,41 @@ idle_page_tracking.txt
 	- description of the idle page tracking feature.
 ksm.txt
 	- how to use the Kernel Samepage Merging feature.
+mmu_notifier.txt
+	- a note about clearing pte/pmd and mmu notifications
 numa
 	- information about NUMA specific code in the Linux vm.
 numa_memory_policy.txt
 	- documentation of concepts and APIs of the 2.6 memory policy support.
 overcommit-accounting
 	- description of the Linux kernels overcommit handling modes.
+page_frags
+	- description of page fragments allocator
 page_migration
 	- description of page migration in NUMA systems.
 pagemap.txt
 	- pagemap, from the userspace perspective
+page_owner.txt
+	- tracking about who allocated each page
+remap_file_pages.txt
+	- a note about remap_file_pages() system call
 slub.txt
 	- a short users guide for SLUB.
 soft-dirty.txt
 	- short explanation for soft-dirty PTEs
 split_page_table_lock
 	- Separate per-table lock to improve scalability of the old page_table_lock.
+swap_numa.txt
+	- automatic binding of swap device to numa node
 transhuge.txt
 	- Transparent Hugepage Support, alternative way of using hugepages.
 unevictable-lru.txt
 	- Unevictable LRU infrastructure
+userfaultfd.txt
+	- description of userfaultfd system call
+z3fold.txt
+	- outline of z3fold allocator for storing compressed pages
+zsmalloc.txt
+	- outline of zsmalloc allocator for storing compressed pages
 zswap.txt
 	- Intro to compressed cache for swap pages

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,8 +48,13 @@ static int wil_ethtoolops_get_coalesce(struct net_device *ndev,
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	u32 tx_itr_en, tx_itr_val = 0;
 	u32 rx_itr_en, rx_itr_val = 0;
+	int ret;
 
 	wil_dbg_misc(wil, "ethtoolops_get_coalesce\n");
+
+	ret = wil_pm_runtime_get(wil);
+	if (ret < 0)
+		return ret;
 
 	tx_itr_en = wil_r(wil, RGF_DMA_ITR_TX_CNT_CTL);
 	if (tx_itr_en & BIT_DMA_ITR_TX_CNT_CTL_EN)
@@ -57,6 +63,8 @@ static int wil_ethtoolops_get_coalesce(struct net_device *ndev,
 	rx_itr_en = wil_r(wil, RGF_DMA_ITR_RX_CNT_CTL);
 	if (rx_itr_en & BIT_DMA_ITR_RX_CNT_CTL_EN)
 		rx_itr_val = wil_r(wil, RGF_DMA_ITR_RX_CNT_TRSH);
+
+	wil_pm_runtime_put(wil);
 
 	cp->tx_coalesce_usecs = tx_itr_val;
 	cp->rx_coalesce_usecs = rx_itr_val;
@@ -67,11 +75,13 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 				       struct ethtool_coalesce *cp)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	int ret;
 
 	wil_dbg_misc(wil, "ethtoolops_set_coalesce: rx %d usec, tx %d usec\n",
 		     cp->rx_coalesce_usecs, cp->tx_coalesce_usecs);
 
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
+	if (wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		wil_dbg_misc(wil, "No IRQ coalescing in monitor mode\n");
 		return -EINVAL;
 	}
@@ -86,7 +96,14 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 
 	wil->tx_max_burst_duration = cp->tx_coalesce_usecs;
 	wil->rx_max_burst_duration = cp->rx_coalesce_usecs;
+
+	ret = wil_pm_runtime_get(wil);
+	if (ret < 0)
+		return ret;
+
 	wil_configure_interrupt_moderation(wil);
+
+	wil_pm_runtime_put(wil);
 
 	return 0;
 

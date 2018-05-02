@@ -114,9 +114,16 @@
 					};
 				};
 				gmii_default_pins: pinctrl-gmii {
+					/*
+					 * Only activate GMAC0 by default since
+					 * GMAC1 will overlap with 8 GPIO lines
+					 * gpio2a, gpio2b. Overlay groups with
+					 * "gmii_gmac0_grp", "gmii_gmac1_grp" for
+					 * both ethernet interfaces.
+					 */
 					mux {
 						function = "gmii";
-						groups = "gmiigrp";
+						groups = "gmii_gmac0_grp";
 					};
 				};
 				pci_default_pins: pinctrl-pci {
@@ -313,6 +320,41 @@
 				interrupt-controller;
 				#address-cells = <0>;
 				#interrupt-cells = <1>;
+			};
+		};
+
+		ethernet@60000000 {
+			compatible = "cortina,gemini-ethernet";
+			reg = <0x60000000 0x4000>, /* Global registers, queue */
+			      <0x60004000 0x2000>, /* V-bit */
+			      <0x60006000 0x2000>; /* A-bit */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmii_default_pins>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gmac0: ethernet-port@0 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x60008000 0x2000>, /* Port 0 DMA/TOE */
+				      <0x6000a000 0x2000>; /* Port 0 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC0>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC0>;
+				clock-names = "PCLK";
+			};
+
+			gmac1: ethernet-port@1 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x6000c000 0x2000>, /* Port 1 DMA/TOE */
+				      <0x6000e000 0x2000>; /* Port 1 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC1>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC1>;
+				clock-names = "PCLK";
 			};
 		};
 

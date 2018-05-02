@@ -835,7 +835,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 
 /**
  * cp_iova_pinned() - check if an iova is pinned for a ccw chain.
- * @cmd: ccwchain command on which to perform the operation
+ * @cp: channel_program on which to perform the operation
  * @iova: the iova to check
  *
  * If the @iova is currently pinned for the ccw chain, return true;

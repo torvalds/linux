@@ -16,6 +16,15 @@ config NET_DSA
 
 if NET_DSA
 
+config NET_DSA_LEGACY
+	bool "Support for older platform device and Device Tree registration"
+	default y
+	---help---
+	  Say Y if you want to enable support for the older platform device and
+	  deprecated Device Tree binding registration.
+
+	  This feature is scheduled for removal in 4.17.
+
 # tagging formats
 config NET_DSA_TAG_BRCM
 	bool

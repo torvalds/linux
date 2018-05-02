@@ -321,8 +321,8 @@ int main(int argc, char **argv)
 	struct gen_opcode *desc = &_desc;
 
 	read_instructions(desc);
-	printf("#ifndef __S390_GENERATED_DIS_H__\n");
-	printf("#define __S390_GENERATED_DIS_H__\n");
+	printf("#ifndef __S390_GENERATED_DIS_DEFS_H__\n");
+	printf("#define __S390_GENERATED_DIS_DEFS_H__\n");
 	printf("/*\n");
 	printf(" * DO NOT MODIFY.\n");
 	printf(" *\n");

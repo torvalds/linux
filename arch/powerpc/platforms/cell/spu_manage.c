@@ -292,12 +292,12 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 	unsigned int n = 0;
 
 	ret = -ENODEV;
-	for (node = of_find_node_by_type(NULL, "spe");
-			node; node = of_find_node_by_type(node, "spe")) {
+	for_each_node_by_type(node, "spe") {
 		ret = fn(node);
 		if (ret) {
 			printk(KERN_WARNING "%s: Error initializing %s\n",
 				__func__, node->name);
+			of_node_put(node);
 			break;
 		}
 		n++;

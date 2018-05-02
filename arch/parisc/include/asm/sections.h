@@ -6,8 +6,14 @@
 #include <asm-generic/sections.h>
 
 #ifdef CONFIG_64BIT
+
+#define HAVE_DEREFERENCE_FUNCTION_DESCRIPTOR 1
+
 #undef dereference_function_descriptor
 void *dereference_function_descriptor(void *);
+
+#undef dereference_kernel_function_descriptor
+void *dereference_kernel_function_descriptor(void *);
 #endif
 
 #endif

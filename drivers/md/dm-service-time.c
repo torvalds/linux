@@ -282,15 +282,15 @@ static struct dm_path *st_select_path(struct path_selector *ps, size_t nr_bytes)
 	if (list_empty(&s->valid_paths))
 		goto out;
 
-	/* Change preferred (first in list) path to evenly balance. */
-	list_move_tail(s->valid_paths.next, &s->valid_paths);
-
 	list_for_each_entry(pi, &s->valid_paths, list)
 		if (!best || (st_compare_load(pi, best, nr_bytes) < 0))
 			best = pi;
 
 	if (!best)
 		goto out;
+
+	/* Move most recently used to least preferred to evenly balance. */
+	list_move_tail(&best->list, &s->valid_paths);
 
 	ret = best->path;
 out:

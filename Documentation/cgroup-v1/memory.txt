@@ -262,7 +262,7 @@ When oom event notifier is registered, event will be delivered.
 2.6 Locking
 
    lock_page_cgroup()/unlock_page_cgroup() should not be called under
-   mapping->tree_lock.
+   the i_pages lock.
 
    Other lock order is following:
    PG_locked.
@@ -524,9 +524,9 @@ Note:
 	Only anonymous and swap cache memory is listed as part of 'rss' stat.
 	This should not be confused with the true 'resident set size' or the
 	amount of physical memory used by the cgroup.
-	'rss + file_mapped" will give you resident set size of cgroup.
+	'rss + mapped_file" will give you resident set size of cgroup.
 	(Note: file and shmem may be shared among other cgroups. In that case,
-	 file_mapped is accounted only when the memory cgroup is owner of page
+	 mapped_file is accounted only when the memory cgroup is owner of page
 	 cache.)
 
 5.3 swappiness

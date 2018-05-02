@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dspkginit - Completion of deferred package initialization
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -47,6 +13,7 @@
 #include "amlcode.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("dspkginit")
@@ -94,11 +61,18 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *parent;
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_status status = AE_OK;
+	u8 module_level_code = FALSE;
 	u16 reference_count;
 	u32 index;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(ds_build_internal_package_obj);
+
+	/* Check if we are executing module level code */
+
+	if (walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL) {
+		module_level_code = TRUE;
+	}
 
 	/* Find the parent of a possibly nested package */
 
@@ -130,24 +104,44 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 
 	/*
 	 * Allocate the element array (array of pointers to the individual
-	 * objects) based on the num_elements parameter. Add an extra pointer slot
-	 * so that the list is always null terminated.
+	 * objects) if necessary. the count is based on the num_elements
+	 * parameter. Add an extra pointer slot so that the list is always
+	 * null terminated.
 	 */
-	obj_desc->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size)
-							   element_count +
-							   1) * sizeof(void *));
-
 	if (!obj_desc->package.elements) {
-		acpi_ut_delete_object_desc(obj_desc);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		obj_desc->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size)
+								   element_count
+								   +
+								   1) *
+								  sizeof(void
+									 *));
+
+		if (!obj_desc->package.elements) {
+			acpi_ut_delete_object_desc(obj_desc);
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		obj_desc->package.count = element_count;
 	}
 
-	obj_desc->package.count = element_count;
+	/* First arg is element count. Second arg begins the initializer list */
+
 	arg = op->common.value.arg;
 	arg = arg->common.next;
 
-	if (arg) {
-		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+	/*
+	 * If we are executing module-level code, we will defer the
+	 * full resolution of the package elements in order to support
+	 * forward references from the elements. This provides
+	 * compatibility with other ACPI implementations.
+	 */
+	if (module_level_code) {
+		obj_desc->package.aml_start = walk_state->aml;
+		obj_desc->package.aml_length = 0;
+
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+				      "%s: Deferring resolution of Package elements\n",
+				      ACPI_GET_FUNCTION_NAME));
 	}
 
 	/*
@@ -187,15 +181,19 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 					    "****DS namepath not found"));
 			}
 
-			/*
-			 * Initialize this package element. This function handles the
-			 * resolution of named references within the package.
-			 */
-			acpi_ds_init_package_element(0,
-						     obj_desc->package.
-						     elements[i], NULL,
-						     &obj_desc->package.
-						     elements[i]);
+			if (!module_level_code) {
+				/*
+				 * Initialize this package element. This function handles the
+				 * resolution of named references within the package.
+				 * Forward references from module-level code are deferred
+				 * until all ACPI tables are loaded.
+				 */
+				acpi_ds_init_package_element(0,
+							     obj_desc->package.
+							     elements[i], NULL,
+							     &obj_desc->package.
+							     elements[i]);
+			}
 		}
 
 		if (*obj_desc_ptr) {
@@ -265,15 +263,21 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 * num_elements count.
 		 *
 		 * Note: this is not an error, the package is padded out
-		 * with NULLs.
+		 * with NULLs as per the ACPI specification.
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length (%u) smaller than NumElements "
-				  "count (%u), padded with null elements\n",
-				  i, element_count));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
+				      "%s: Package List length (%u) smaller than NumElements "
+				      "count (%u), padded with null elements\n",
+				      ACPI_GET_FUNCTION_NAME, i,
+				      element_count));
 	}
 
-	obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+	/* Module-level packages will be resolved later */
+
+	if (!module_level_code) {
+		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+	}
+
 	op->common.node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_desc);
 	return_ACPI_STATUS(status);
 }
@@ -297,8 +301,10 @@ acpi_ds_init_package_element(u8 object_type,
 {
 	union acpi_operand_object **element_ptr;
 
+	ACPI_FUNCTION_TRACE(ds_init_package_element);
+
 	if (!source_object) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -329,7 +335,7 @@ acpi_ds_init_package_element(u8 object_type,
 		source_object->package.flags |= AOPOBJ_DATA_VALID;
 	}
 
-	return (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -349,10 +355,12 @@ static void
 acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 {
 	acpi_status status;
+	acpi_status status2;
 	union acpi_generic_state scope_info;
 	union acpi_operand_object *element = *element_ptr;
 	struct acpi_namespace_node *resolved_node;
-	char *external_path = NULL;
+	struct acpi_namespace_node *original_node;
+	char *external_path = "";
 	acpi_object_type type;
 
 	ACPI_FUNCTION_TRACE(ds_resolve_package_element);
@@ -360,6 +368,10 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	/* Check if reference element is already resolved */
 
 	if (element->reference.resolved) {
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+				      "%s: Package element is already resolved\n",
+				      ACPI_GET_FUNCTION_NAME));
+
 		return_VOID;
 	}
 
@@ -367,20 +379,46 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 
 	scope_info.scope.node = element->reference.node;	/* Prefix node */
 
-	status = acpi_ns_lookup(&scope_info, (char *)element->reference.aml,	/* Pointer to AML path */
+	status = acpi_ns_lookup(&scope_info, (char *)element->reference.aml,
 				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
 				NULL, &resolved_node);
 	if (ACPI_FAILURE(status)) {
-		status = acpi_ns_externalize_name(ACPI_UINT32_MAX,
-						  (char *)element->reference.
-						  aml, NULL, &external_path);
+		if ((status == AE_NOT_FOUND)
+		    && acpi_gbl_ignore_package_resolution_errors) {
+			/*
+			 * Optionally be silent about the NOT_FOUND case for the referenced
+			 * name. Although this is potentially a serious problem,
+			 * it can generate a lot of noise/errors on platforms whose
+			 * firmware carries around a bunch of unused Package objects.
+			 * To disable these errors, set this global to TRUE:
+			 *     acpi_gbl_ignore_package_resolution_errors
+			 *
+			 * If the AML actually tries to use such a package, the unresolved
+			 * element(s) will be replaced with NULL elements.
+			 */
+
+			/* Referenced name not found, set the element to NULL */
+
+			acpi_ut_remove_reference(*element_ptr);
+			*element_ptr = NULL;
+			return_VOID;
+		}
+
+		status2 = acpi_ns_externalize_name(ACPI_UINT32_MAX,
+						   (char *)element->reference.
+						   aml, NULL, &external_path);
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not find/resolve named package element: %s",
+				"While resolving a named reference package element - %s",
 				external_path));
+		if (ACPI_SUCCESS(status2)) {
+			ACPI_FREE(external_path);
+		}
 
-		ACPI_FREE(external_path);
+		/* Could not resolve name, set the element to NULL */
+
+		acpi_ut_remove_reference(*element_ptr);
 		*element_ptr = NULL;
 		return_VOID;
 	} else if (resolved_node->type == ACPI_TYPE_ANY) {
@@ -394,23 +432,6 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 		*element_ptr = NULL;
 		return_VOID;
 	}
-#if 0
-	else if (resolved_node->flags & ANOBJ_TEMPORARY) {
-		/*
-		 * A temporary node found here indicates that the reference is
-		 * to a node that was created within this method. We are not
-		 * going to allow it (especially if the package is returned
-		 * from the method) -- the temporary node will be deleted out
-		 * from under the method. (05/2017).
-		 */
-		ACPI_ERROR((AE_INFO,
-			    "Package element refers to a temporary name [%4.4s], "
-			    "inserting a NULL element",
-			    resolved_node->name.ascii));
-		*element_ptr = NULL;
-		return_VOID;
-	}
-#endif
 
 	/*
 	 * Special handling for Alias objects. We need resolved_node to point
@@ -441,24 +462,11 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	 * will remain as named references. This behavior is not described
 	 * in the ACPI spec, but it appears to be an oversight.
 	 */
+	original_node = resolved_node;
 	status = acpi_ex_resolve_node_to_value(&resolved_node, NULL);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
-#if 0
-/* TBD - alias support */
-	/*
-	 * Special handling for Alias objects. We need to setup the type
-	 * and the Op->Common.Node to point to the Alias target. Note,
-	 * Alias has at most one level of indirection internally.
-	 */
-	type = op->common.node->type;
-	if (type == ACPI_TYPE_LOCAL_ALIAS) {
-		type = obj_desc->common.type;
-		op->common.node = ACPI_CAST_PTR(struct acpi_namespace_node,
-						op->common.node->object);
-	}
-#endif
 
 	switch (type) {
 		/*
@@ -468,26 +476,27 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 		 */
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_THERMAL:
-
-		/* TBD: This may not be necesssary */
-
-		acpi_ut_add_reference(resolved_node->object);
+	case ACPI_TYPE_METHOD:
 		break;
 
 	case ACPI_TYPE_MUTEX:
-	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_REGION:
 
+		/* acpi_ex_resolve_node_to_value gave these an extra reference */
+
+		acpi_ut_remove_reference(original_node->object);
 		break;
 
 	default:
 		/*
 		 * For all other types - the node was resolved to an actual
-		 * operand object with a value, return the object
+		 * operand object with a value, return the object. Remove
+		 * a reference on the existing object.
 		 */
+		acpi_ut_remove_reference(element);
 		*element_ptr = (union acpi_operand_object *)resolved_node;
 		break;
 	}

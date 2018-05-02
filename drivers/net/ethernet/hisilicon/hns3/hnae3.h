@@ -118,6 +118,8 @@ enum hnae3_reset_notify_type {
 };
 
 enum hnae3_reset_type {
+	HNAE3_VF_RESET,
+	HNAE3_VF_FULL_RESET,
 	HNAE3_FUNC_RESET,
 	HNAE3_CORE_RESET,
 	HNAE3_GLOBAL_RESET,
@@ -133,11 +135,16 @@ struct hnae3_vector_info {
 #define HNAE3_RING_TYPE_B 0
 #define HNAE3_RING_TYPE_TX 0
 #define HNAE3_RING_TYPE_RX 1
+#define HNAE3_RING_GL_IDX_S 0
+#define HNAE3_RING_GL_IDX_M GENMASK(1, 0)
+#define HNAE3_RING_GL_RX 0
+#define HNAE3_RING_GL_TX 1
 
 struct hnae3_ring_chain_node {
 	struct hnae3_ring_chain_node *next;
 	u32 tqp_index;
 	u32 flag;
+	u32 int_gl_idx;
 };
 
 #define HNAE3_IS_TX_RING(node) \
@@ -260,6 +267,8 @@ struct hnae3_ae_dev {
  *   Get tc size of handle
  * get_vector()
  *   Get vector number and vector information
+ * put_vector()
+ *   Put the vector in hdev
  * map_ring_to_vector()
  *   Map rings to vector
  * unmap_ring_from_vector()
@@ -274,10 +283,14 @@ struct hnae3_ae_dev {
  *   Get firmware version
  * get_mdix_mode()
  *   Get media typr of phy
+ * enable_vlan_filter()
+ *   Enable vlan filter
  * set_vlan_filter()
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
  *   Set vlan filter config of vf
+ * enable_hw_strip_rxvtag()
+ *   Enable/disable hardware strip vlan tag of packets received
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -327,7 +340,8 @@ struct hnae3_ae_ops {
 				   u32 *tx_usecs_high, u32 *rx_usecs_high);
 
 	void (*get_mac_addr)(struct hnae3_handle *handle, u8 *p);
-	int (*set_mac_addr)(struct hnae3_handle *handle, void *p);
+	int (*set_mac_addr)(struct hnae3_handle *handle, void *p,
+			    bool is_first);
 	int (*add_uc_addr)(struct hnae3_handle *handle,
 			   const unsigned char *addr);
 	int (*rm_uc_addr)(struct hnae3_handle *handle,
@@ -347,7 +361,8 @@ struct hnae3_ae_ops {
 			    u32 stringset, u8 *data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
 
-	void (*get_regs)(struct hnae3_handle *handle, void *data);
+	void (*get_regs)(struct hnae3_handle *handle, u32 *version,
+			 void *data);
 	int (*get_regs_len)(struct hnae3_handle *handle);
 
 	u32 (*get_rss_key_size)(struct hnae3_handle *handle);
@@ -365,6 +380,7 @@ struct hnae3_ae_ops {
 
 	int (*get_vector)(struct hnae3_handle *handle, u16 vector_num,
 			  struct hnae3_vector_info *vector_info);
+	int (*put_vector)(struct hnae3_handle *handle, int vector_num);
 	int (*map_ring_to_vector)(struct hnae3_handle *handle,
 				  int vector_num,
 				  struct hnae3_ring_chain_node *vr_chain);
@@ -380,12 +396,26 @@ struct hnae3_ae_ops {
 	void (*get_mdix_mode)(struct hnae3_handle *handle,
 			      u8 *tp_mdix_ctrl, u8 *tp_mdix);
 
+	void (*enable_vlan_filter)(struct hnae3_handle *handle, bool enable);
 	int (*set_vlan_filter)(struct hnae3_handle *handle, __be16 proto,
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
-	void (*reset_event)(struct hnae3_handle *handle,
-			    enum hnae3_reset_type reset);
+	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
+	void (*reset_event)(struct hnae3_handle *handle);
+	void (*get_channels)(struct hnae3_handle *handle,
+			     struct ethtool_channels *ch);
+	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
+				      u16 *free_tqps, u16 *max_rss_size);
+	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num);
+	void (*get_flowctrl_adv)(struct hnae3_handle *handle,
+				 u32 *flowctrl_adv);
+	int (*set_led_id)(struct hnae3_handle *handle,
+			  enum ethtool_phys_id_state status);
+	void (*get_link_mode)(struct hnae3_handle *handle,
+			      unsigned long *supported,
+			      unsigned long *advertising);
+	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
 };
 
 struct hnae3_dcb_ops {
@@ -435,6 +465,8 @@ struct hnae3_knic_private_info {
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
 	const struct hnae3_dcb_ops *dcb_ops;
+
+	u16 int_rl_setting;
 };
 
 struct hnae3_roce_private_info {
@@ -452,9 +484,10 @@ struct hnae3_unic_private_info {
 	struct hnae3_queue **tqp;  /* array base of all TQPs of this instance */
 };
 
-#define HNAE3_SUPPORT_MAC_LOOPBACK    1
-#define HNAE3_SUPPORT_PHY_LOOPBACK    2
-#define HNAE3_SUPPORT_SERDES_LOOPBACK 4
+#define HNAE3_SUPPORT_MAC_LOOPBACK    BIT(0)
+#define HNAE3_SUPPORT_PHY_LOOPBACK    BIT(1)
+#define HNAE3_SUPPORT_SERDES_LOOPBACK BIT(2)
+#define HNAE3_SUPPORT_VF	      BIT(3)
 
 struct hnae3_handle {
 	struct hnae3_client *client;
@@ -462,6 +495,9 @@ struct hnae3_handle {
 	void *priv;
 	struct hnae3_ae_algo *ae_algo;  /* the class who provides this handle */
 	u64 flags; /* Indicate the capabilities for this handle*/
+
+	unsigned long last_reset_time;
+	enum hnae3_reset_type reset_level;
 
 	union {
 		struct net_device *netdev; /* first member */

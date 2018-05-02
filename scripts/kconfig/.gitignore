@@ -1,10 +1,6 @@
 #
 # Generated files
 #
-config*
-*.lex.c
-*.tab.c
-*.tab.h
 *.moc
 gconf.glade.h
 *.pot

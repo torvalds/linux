@@ -33,7 +33,7 @@ config NET_DSA_MT7530
 
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
-	depends on NET_DSA
+	depends on NET_DSA && NET_DSA_LEGACY
 	select NET_DSA_TAG_TRAILER
 	---help---
 	  This enables support for the Marvell 88E6060 ethernet switch

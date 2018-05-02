@@ -97,8 +97,17 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
+#else
+static inline int dsa_legacy_register(void)
+{
+	return 0;
+}
+
+static inline void dsa_legacy_unregister(void) { }
+#endif
 int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid,
@@ -117,6 +126,7 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch_tree *dst = cpu_dp->dst;
 	struct dsa_switch *ds;
+	struct dsa_port *slave_port;
 
 	if (device < 0 || device >= DSA_MAX_SWITCHES)
 		return NULL;
@@ -128,7 +138,12 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 	if (port < 0 || port >= ds->num_ports)
 		return NULL;
 
-	return ds->ports[port].slave;
+	slave_port = &ds->ports[port];
+
+	if (unlikely(slave_port->type != DSA_PORT_TYPE_USER))
+		return NULL;
+
+	return slave_port->slave;
 }
 
 /* port.c */
@@ -157,8 +172,8 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      struct switchdev_trans *trans);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
-int dsa_port_fixed_link_register_of(struct dsa_port *dp);
-void dsa_port_fixed_link_unregister_of(struct dsa_port *dp);
+int dsa_port_link_register_of(struct dsa_port *dp);
+void dsa_port_link_unregister_of(struct dsa_port *dp);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;

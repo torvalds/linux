@@ -230,6 +230,12 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (!dev->master)
 		goto out_unlock;
 
+	if (file_priv->master->lessor != NULL) {
+		DRM_DEBUG_LEASE("Attempt to drop lessee %d as master\n", file_priv->master->lessee_id);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	ret = 0;
 	drm_drop_master(dev, file_priv);
 out_unlock:

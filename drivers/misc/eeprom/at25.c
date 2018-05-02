@@ -102,7 +102,7 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	}
 
 	spi_message_init(&m);
-	memset(t, 0, sizeof t);
+	memset(t, 0, sizeof(t));
 
 	t[0].tx_buf = command;
 	t[0].len = at25->addrlen + 1;
@@ -276,6 +276,9 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 			return -ENODEV;
 		}
 		switch (val) {
+		case 9:
+			chip->flags |= EE_INSTR_BIT3_IS_ADDR;
+			/* fall through */
 		case 8:
 			chip->flags |= EE_ADDR1;
 			break;

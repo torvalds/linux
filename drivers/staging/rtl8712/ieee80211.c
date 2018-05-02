@@ -107,7 +107,7 @@ u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen)
  * index: the information element id index, limit is the limit for search
  * ---------------------------------------------------------------------------
  */
-u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
+u8 *r8712_get_ie(u8 *pbuf, sint index, uint *len, sint limit)
 {
 	sint tmp, i;
 	u8 *p;
@@ -166,15 +166,17 @@ static uint r8712_get_rateset_len(u8 *rateset)
 
 int r8712_generate_ie(struct registry_priv *pregistrypriv)
 {
-	int sz = 0, rate_len;
+	int rate_len;
+	uint sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
+	u16 beaconPeriod = (u16)pdev_network->Configuration.BeaconPeriod;
 
 	/*timestamp will be inserted by hardware*/
 	sz += 8;
 	ie += sz;
 	/*beacon interval : 2bytes*/
-	*(__le16 *)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);
+	*(__le16 *)ie = cpu_to_le16(beaconPeriod);
 	sz += 2;
 	ie += 2;
 	/*capability info*/
@@ -210,9 +212,9 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 	return sz;
 }
 
-unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
+unsigned char *r8712_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit)
 {
-	int len;
+	u32 len;
 	u16 val16;
 	unsigned char wpa_oui_type[] = {0x00, 0x50, 0xf2, 0x01};
 	u8 *pbuf = pie;
@@ -221,7 +223,8 @@ unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 		pbuf = r8712_get_ie(pbuf, _WPA_IE_ID_, &len, limit);
 		if (pbuf) {
 			/*check if oui matches...*/
-			if (memcmp((pbuf + 2), wpa_oui_type, sizeof(wpa_oui_type)))
+			if (memcmp((pbuf + 2), wpa_oui_type,
+				   sizeof(wpa_oui_type)))
 				goto check_next_ie;
 			/*check version...*/
 			memcpy((u8 *)&val16, (pbuf + 6), sizeof(val16));
@@ -243,7 +246,7 @@ check_next_ie:
 	return NULL;
 }
 
-unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit)
+unsigned char *r8712_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit)
 {
 	return r8712_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
 }

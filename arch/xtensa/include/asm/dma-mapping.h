@@ -23,14 +23,4 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return &xtensa_dma_map_ops;
 }
 
-static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
-{
-	return (dma_addr_t)paddr;
-}
-
-static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
-{
-	return (phys_addr_t)daddr;
-}
-
 #endif	/* _XTENSA_DMA_MAPPING_H */

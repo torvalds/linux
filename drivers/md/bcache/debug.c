@@ -17,7 +17,7 @@
 #include <linux/random.h>
 #include <linux/seq_file.h>
 
-static struct dentry *debug;
+struct dentry *bcache_debug;
 
 #ifdef CONFIG_BCACHE_DEBUG
 
@@ -116,7 +116,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 		return;
 	check->bi_opf = REQ_OP_READ;
 
-	if (bio_alloc_pages(check, GFP_NOIO))
+	if (bch_bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
 	submit_bio_wait(check);
@@ -232,11 +232,11 @@ static const struct file_operations cache_set_debug_ops = {
 
 void bch_debug_init_cache_set(struct cache_set *c)
 {
-	if (!IS_ERR_OR_NULL(debug)) {
+	if (!IS_ERR_OR_NULL(bcache_debug)) {
 		char name[50];
 		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
 
-		c->debug = debugfs_create_file(name, 0400, debug, c,
+		c->debug = debugfs_create_file(name, 0400, bcache_debug, c,
 					       &cache_set_debug_ops);
 	}
 }
@@ -245,14 +245,13 @@ void bch_debug_init_cache_set(struct cache_set *c)
 
 void bch_debug_exit(void)
 {
-	if (!IS_ERR_OR_NULL(debug))
-		debugfs_remove_recursive(debug);
+	if (!IS_ERR_OR_NULL(bcache_debug))
+		debugfs_remove_recursive(bcache_debug);
 }
 
 int __init bch_debug_init(struct kobject *kobj)
 {
-	int ret = 0;
+	bcache_debug = debugfs_create_dir("bcache", NULL);
 
-	debug = debugfs_create_dir("bcache", NULL);
-	return ret;
+	return IS_ERR_OR_NULL(bcache_debug);
 }

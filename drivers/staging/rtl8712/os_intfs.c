@@ -230,7 +230,7 @@ struct net_device *r8712_init_netdev(void)
 static u32 start_drv_threads(struct _adapter *padapter)
 {
 	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
-			      padapter->pnetdev->name);
+					  padapter->pnetdev->name);
 	if (IS_ERR(padapter->cmdThread))
 		return _FAIL;
 	return _SUCCESS;
@@ -238,10 +238,13 @@ static u32 start_drv_threads(struct _adapter *padapter)
 
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
+	struct completion *completion =
+		&padapter->cmdpriv.terminate_cmdthread_comp;
+
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
+		wait_for_completion_interruptible(completion);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 
@@ -343,7 +346,6 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 		free_netdev(pnetdev);
 	return _SUCCESS;
 }
-
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 {

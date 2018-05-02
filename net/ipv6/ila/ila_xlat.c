@@ -512,9 +512,7 @@ static int ila_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ila_map *ila;
 	int ret;
 
-	ret = rhashtable_walk_start(rhiter);
-	if (ret && ret != -EAGAIN)
-		goto done;
+	rhashtable_walk_start(rhiter);
 
 	for (;;) {
 		ila = rhashtable_walk_next(rhiter);

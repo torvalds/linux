@@ -41,6 +41,11 @@ static inline int mmc_host_cmd23(struct mmc_host *host)
 	return host->caps & MMC_CAP_CMD23;
 }
 
+static inline bool mmc_host_done_complete(struct mmc_host *host)
+{
+	return host->caps & MMC_CAP_DONE_COMPLETE;
+}
+
 static inline int mmc_boot_partition_access(struct mmc_host *host)
 {
 	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
@@ -51,7 +56,8 @@ static inline int mmc_host_uhs(struct mmc_host *host)
 	return host->caps &
 		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 		 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
-		 MMC_CAP_UHS_DDR50);
+		 MMC_CAP_UHS_DDR50) &&
+	       host->caps & MMC_CAP_4_BIT_DATA;
 }
 
 static inline bool mmc_card_hs200(struct mmc_card *card)
@@ -73,7 +79,6 @@ static inline bool mmc_card_hs400es(struct mmc_card *card)
 {
 	return card->host->ios.enhanced_strobe;
 }
-
 
 #endif
 

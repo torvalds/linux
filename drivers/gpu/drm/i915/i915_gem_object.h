@@ -33,7 +33,7 @@
 
 #include <drm/i915_drm.h>
 
-#include "i915_gem_request.h"
+#include "i915_request.h"
 #include "i915_selftest.h"
 
 struct drm_i915_gem_object;
@@ -53,8 +53,9 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_HAS_STRUCT_PAGE BIT(0)
-#define I915_GEM_OBJECT_IS_SHRINKABLE   BIT(1)
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
+#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
+#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -146,6 +147,21 @@ struct drm_i915_gem_object {
 #define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
 #define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
 	unsigned int cache_dirty:1;
+
+	/**
+	 * @read_domains: Read memory domains.
+	 *
+	 * These monitor which caches contain read/write data related to the
+	 * object. When transitioning from one set of domains to another,
+	 * the driver is called to ensure that caches are suitably flushed and
+	 * invalidated.
+	 */
+	u16 read_domains;
+
+	/**
+	 * @write_domain: Corresponding unique write memory domain.
+	 */
+	u16 write_domain;
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
@@ -260,6 +276,8 @@ struct drm_i915_gem_object {
 		} userptr;
 
 		unsigned long scratch;
+
+		void *gvt_info;
 	};
 
 	/** for phys allocated objects */
@@ -359,6 +377,12 @@ static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
+}
+
+static inline bool
+i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
 }
 
 static inline bool

@@ -32,6 +32,8 @@
  */
 
 #include <linux/bug.h>
+#include <linux/lockdep.h>
+#include <linux/rcupdate.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 
@@ -99,13 +101,19 @@ nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size, gfp_t priority)
 }
 
 struct nfp_reprs *
+nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type)
+{
+	return rcu_dereference_protected(app->reprs[type],
+					 lockdep_is_held(&app->pf->lock));
+}
+
+struct nfp_reprs *
 nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 		  struct nfp_reprs *reprs)
 {
 	struct nfp_reprs *old;
 
-	old = rcu_dereference_protected(app->reprs[type],
-					lockdep_is_held(&app->pf->lock));
+	old = nfp_reprs_get_locked(app, type);
 	rcu_assign_pointer(app->reprs[type], reprs);
 
 	return old;
@@ -116,7 +124,7 @@ struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 	struct nfp_app *app;
 
 	if (id >= ARRAY_SIZE(apps) || !apps[id]) {
-		nfp_err(pf->cpp, "failed to find app with ID 0x%02hhx\n", id);
+		nfp_err(pf->cpp, "unknown FW app ID 0x%02hhx, driver too old or support for FW not built in\n", id);
 		return ERR_PTR(-EINVAL);
 	}
 

@@ -319,12 +319,12 @@ static struct tda829x_config tda829x_no_probe = {
 };
 
 static struct tda18271_std_map hauppauge_tda18271_dvbt_std_map = {
-        .dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
-        .dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
-        .dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
 };
 
 static struct tda18271_config hauppauge_tda18271_dvb_config = {

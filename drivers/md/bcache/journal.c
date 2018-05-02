@@ -62,7 +62,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bch_bio_map(bio, data);
 
-		closure_bio_submit(bio, &cl);
+		closure_bio_submit(ca->set, bio, &cl);
 		closure_sync(&cl);
 
 		/* This function could be simpler now since we no longer write
@@ -368,6 +368,12 @@ err:
 }
 
 /* Journalling */
+#define journal_max_cmp(l, r) \
+	(fifo_idx(&c->journal.pin, btree_current_write(l)->journal) < \
+	 fifo_idx(&(c)->journal.pin, btree_current_write(r)->journal))
+#define journal_min_cmp(l, r) \
+	(fifo_idx(&c->journal.pin, btree_current_write(l)->journal) > \
+	 fifo_idx(&(c)->journal.pin, btree_current_write(r)->journal))
 
 static void btree_flush_write(struct cache_set *c)
 {
@@ -375,28 +381,41 @@ static void btree_flush_write(struct cache_set *c)
 	 * Try to find the btree node with that references the oldest journal
 	 * entry, best is our current candidate and is locked if non NULL:
 	 */
-	struct btree *b, *best;
-	unsigned i;
+	struct btree *b;
+	int i;
+
+	atomic_long_inc(&c->flush_write);
+
 retry:
-	best = NULL;
-
-	for_each_cached_btree(b, c, i)
-		if (btree_current_write(b)->journal) {
-			if (!best)
-				best = b;
-			else if (journal_pin_cmp(c,
-					btree_current_write(best)->journal,
-					btree_current_write(b)->journal)) {
-				best = b;
+	spin_lock(&c->journal.lock);
+	if (heap_empty(&c->flush_btree)) {
+		for_each_cached_btree(b, c, i)
+			if (btree_current_write(b)->journal) {
+				if (!heap_full(&c->flush_btree))
+					heap_add(&c->flush_btree, b,
+						 journal_max_cmp);
+				else if (journal_max_cmp(b,
+					 heap_peek(&c->flush_btree))) {
+					c->flush_btree.data[0] = b;
+					heap_sift(&c->flush_btree, 0,
+						  journal_max_cmp);
+				}
 			}
-		}
 
-	b = best;
+		for (i = c->flush_btree.used / 2 - 1; i >= 0; --i)
+			heap_sift(&c->flush_btree, i, journal_min_cmp);
+	}
+
+	b = NULL;
+	heap_pop(&c->flush_btree, b, journal_min_cmp);
+	spin_unlock(&c->journal.lock);
+
 	if (b) {
 		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
 			mutex_unlock(&b->write_lock);
 			/* We raced */
+			atomic_long_inc(&c->retry_flush_write);
 			goto retry;
 		}
 
@@ -474,7 +493,9 @@ static void journal_reclaim(struct cache_set *c)
 	struct cache *ca;
 	uint64_t last_seq;
 	unsigned iter, n = 0;
-	atomic_t p;
+	atomic_t p __maybe_unused;
+
+	atomic_long_inc(&c->reclaim);
 
 	while (!atomic_read(&fifo_front(&c->journal.pin)))
 		fifo_pop(&c->journal.pin, p);
@@ -573,6 +594,7 @@ static void journal_write_done(struct closure *cl)
 }
 
 static void journal_write_unlock(struct closure *cl)
+	__releases(&c->journal.lock)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
 
@@ -653,7 +675,7 @@ static void journal_write_unlocked(struct closure *cl)
 	spin_unlock(&c->journal.lock);
 
 	while ((bio = bio_list_pop(&list)))
-		closure_bio_submit(bio, cl);
+		closure_bio_submit(c, bio, cl);
 
 	continue_at(cl, journal_write_done, NULL);
 }
@@ -684,6 +706,7 @@ static void journal_try_write(struct cache_set *c)
 
 static struct journal_write *journal_wait_for_write(struct cache_set *c,
 						    unsigned nkeys)
+	__acquires(&c->journal.lock)
 {
 	size_t sectors;
 	struct closure cl;
@@ -819,7 +842,8 @@ int bch_journal_alloc(struct cache_set *c)
 	j->w[0].c = c;
 	j->w[1].c = c;
 
-	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
+	if (!(init_heap(&c->flush_btree, 128, GFP_KERNEL)) ||
+	    !(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
 	    !(j->w[0].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)) ||
 	    !(j->w[1].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)))
 		return -ENOMEM;

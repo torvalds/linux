@@ -44,6 +44,14 @@
 #define REAL_MODE_TIMEOUT	10000
 
 static int time_to_dump;
+/*
+ * crash_wake_offline should be set to 1 by platforms that intend to wake
+ * up offline cpus prior to jumping to a kdump kernel. Currently powernv
+ * sets it to 1, since we want to avoid things from happening when an
+ * offline CPU wakes up due to something like an HMI (malfunction error),
+ * which propagates to all threads.
+ */
+int crash_wake_offline;
 
 #define CRASH_HANDLER_MAX 3
 /* List of shutdown handles */
@@ -63,14 +71,11 @@ static int handle_fault(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 
 static atomic_t cpus_in_crash;
-static void crash_ipi_callback(struct pt_regs *regs)
+void crash_ipi_callback(struct pt_regs *regs)
 {
 	static cpumask_t cpus_state_saved = CPU_MASK_NONE;
 
 	int cpu = smp_processor_id();
-
-	if (!cpu_online(cpu))
-		return;
 
 	hard_irq_disable();
 	if (!cpumask_test_cpu(cpu, &cpus_state_saved)) {
@@ -108,6 +113,9 @@ static void crash_kexec_prepare_cpus(int cpu)
 	int (*old_handler)(struct pt_regs *regs);
 
 	printk(KERN_EMERG "Sending IPI to other CPUs\n");
+
+	if (crash_wake_offline)
+		ncpus = num_present_cpus() - 1;
 
 	crash_send_ipi(crash_ipi_callback);
 	smp_wmb();
@@ -230,7 +238,7 @@ static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 		if (i == cpu)
 			continue;
 
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+		while (paca_ptrs[i]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
 			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
 				break;

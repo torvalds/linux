@@ -69,7 +69,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	gpio_direction_input(OLPC_GPIO_DCON_IRQ);
 	gpio_direction_input(OLPC_GPIO_DCON_BLANK);
 	gpio_direction_output(OLPC_GPIO_DCON_LOAD,
-			dcon->curr_src == DCON_SOURCE_CPU);
+			      dcon->curr_src == DCON_SOURCE_CPU);
 
 	/* Set up the interrupt mappings */
 

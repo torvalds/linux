@@ -165,7 +165,7 @@ static int benchmark_event_kthread(void *arg)
 		 * this thread will never voluntarily schedule which would
 		 * block synchronize_rcu_tasks() indefinitely.
 		 */
-		cond_resched_rcu_qs();
+		cond_resched();
 	}
 
 	return 0;

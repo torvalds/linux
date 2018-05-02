@@ -20,7 +20,6 @@
 #include <linux/ftrace.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
-#include <linux/uaccess.h>
 #include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
@@ -282,7 +281,7 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 		 * is a BUG. The code path resides in the .kprobes.text
 		 * section and is executed with interrupts disabled.
 		 */
-		printk(KERN_EMERG "Invalid kprobe detected at %p.\n", p->addr);
+		pr_err("Invalid kprobe detected.\n");
 		dump_kprobe(p);
 		BUG();
 	}

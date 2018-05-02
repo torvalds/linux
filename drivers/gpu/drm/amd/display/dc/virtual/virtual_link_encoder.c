@@ -42,8 +42,7 @@ static void virtual_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
-	bool hdmi,
-	bool dual_link,
+	enum signal_type signal,
 	uint32_t pixel_clock) {}
 
 static void virtual_link_encoder_enable_dp_output(
@@ -58,8 +57,7 @@ static void virtual_link_encoder_enable_dp_mst_output(
 
 static void virtual_link_encoder_disable_output(
 	struct link_encoder *link_enc,
-	enum signal_type signal,
-	struct dc_link *link) {}
+	enum signal_type signal) {}
 
 static void virtual_link_encoder_dp_set_lane_settings(
 	struct link_encoder *enc,

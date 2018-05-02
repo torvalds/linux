@@ -68,6 +68,7 @@
 #define FIRMWARE_POLARIS12	"amdgpu/polaris12_uvd.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_uvd.bin"
+#define FIRMWARE_VEGA12		"amdgpu/vega12_uvd.bin"
 
 #define mmUVD_GPCOM_VCPU_DATA0_VEGA10 (0x03c4 + 0x7e00)
 #define mmUVD_GPCOM_VCPU_DATA1_VEGA10 (0x03c5 + 0x7e00)
@@ -110,13 +111,14 @@ MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
+MODULE_FIRMWARE(FIRMWARE_VEGA12);
 
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
@@ -161,11 +163,14 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
 		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
+		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
 		break;
-	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
+	case CHIP_VEGA12:
+		fw_name = FIRMWARE_VEGA12;
 		break;
 	default:
 		return -EINVAL;
@@ -230,9 +235,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	}
 
 	ring = &adev->uvd.ring;
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-	r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity,
-				  rq, amdgpu_sched_jobs);
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity,
+				  rq, amdgpu_sched_jobs, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up UVD run queue.\n");
 		return r;
@@ -244,7 +249,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	}
 
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
-	if (!amdgpu_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
+	if (!amdgpu_device_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
 
 	switch (adev->asic_type) {
@@ -272,7 +277,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 	int i;
 	kfree(adev->uvd.saved_bo);
 
-	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
+	drm_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
 
 	amdgpu_bo_free_kernel(&adev->uvd.vcpu_bo,
 			      &adev->uvd.gpu_addr,
@@ -297,14 +302,17 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	if (adev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < adev->uvd.max_handles; ++i)
-		if (atomic_read(&adev->uvd.handles[i]))
-			break;
-
-	if (i == AMDGPU_MAX_UVD_HANDLES)
-		return 0;
-
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
+
+	/* only valid for physical mode */
+	if (adev->asic_type < CHIP_POLARIS10) {
+		for (i = 0; i < adev->uvd.max_handles; ++i)
+			if (atomic_read(&adev->uvd.handles[i]))
+				break;
+
+		if (i == adev->uvd.max_handles)
+			return 0;
+	}
 
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
 	ptr = adev->uvd.cpu_addr;
@@ -346,6 +354,8 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 			ptr += le32_to_cpu(hdr->ucode_size_bytes);
 		}
 		memset_io(ptr, 0, size);
+		/* to restore uvd fence seq */
+		amdgpu_fence_driver_force_completion(&adev->uvd.ring);
 	}
 
 	return 0;
@@ -408,6 +418,7 @@ static u64 amdgpu_uvd_get_addr_from_ctx(struct amdgpu_uvd_cs_ctx *ctx)
  */
 static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 {
+	struct ttm_operation_ctx tctx = { false, false };
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
 	uint32_t cmd;
@@ -430,7 +441,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 		}
 		amdgpu_uvd_force_into_uvd_segment(bo);
 
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &tctx);
 	}
 
 	return r;
@@ -949,35 +960,27 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			       bool direct, struct dma_fence **fence)
 {
-	struct ttm_validate_buffer tv;
-	struct ww_acquire_ctx ticket;
-	struct list_head head;
+	struct amdgpu_device *adev = ring->adev;
+	struct dma_fence *f = NULL;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	struct dma_fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
-	uint64_t addr;
 	uint32_t data[4];
-	int i, r;
+	uint64_t addr;
+	long r;
+	int i;
 
-	memset(&tv, 0, sizeof(tv));
-	tv.bo = &bo->tbo;
-
-	INIT_LIST_HEAD(&head);
-	list_add(&tv.head, &head);
-
-	r = ttm_eu_reserve_buffers(&ticket, &head, true, NULL);
-	if (r)
-		return r;
+	amdgpu_bo_kunmap(bo);
+	amdgpu_bo_unpin(bo);
 
 	if (!ring->adev->uvd.address_64_bit) {
+		struct ttm_operation_ctx ctx = { true, false };
+
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
 		amdgpu_uvd_force_into_uvd_segment(bo);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+		if (r)
+			goto err;
 	}
-
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	if (r)
-		goto err;
 
 	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
 	if (r)
@@ -1010,6 +1013,14 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
+		r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+							true, false,
+							msecs_to_jiffies(10));
+		if (r == 0)
+			r = -ETIMEDOUT;
+		if (r < 0)
+			goto err_free;
+
 		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 		job->fence = dma_fence_get(f);
 		if (r)
@@ -1017,17 +1028,23 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 		amdgpu_job_free(job);
 	} else {
+		r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
+				     AMDGPU_FENCE_OWNER_UNDEFINED, false);
+		if (r)
+			goto err_free;
+
 		r = amdgpu_job_submit(job, ring, &adev->uvd.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;
 	}
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, f);
+	amdgpu_bo_fence(bo, f, false);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 
 	if (fence)
 		*fence = dma_fence_get(f);
-	amdgpu_bo_unref(&bo);
 	dma_fence_put(f);
 
 	return 0;
@@ -1036,7 +1053,8 @@ err_free:
 	amdgpu_job_free(job);
 
 err:
-	ttm_eu_backoff_reservation(&ticket, &head);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 	return r;
 }
 
@@ -1047,30 +1065,15 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo;
+	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
-	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, 0, &bo);
+	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
-
-	r = amdgpu_bo_reserve(bo, false);
-	if (r) {
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		amdgpu_bo_unreserve(bo);
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
 
 	/* stitch together an UVD create msg */
 	msg[0] = cpu_to_le32(0x00000de4);
@@ -1087,9 +1090,6 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = 11; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	amdgpu_bo_kunmap(bo);
-	amdgpu_bo_unreserve(bo);
-
 	return amdgpu_uvd_send_msg(ring, bo, true, fence);
 }
 
@@ -1097,30 +1097,15 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       bool direct, struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo;
+	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
-	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, 0, &bo);
+	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
-
-	r = amdgpu_bo_reserve(bo, false);
-	if (r) {
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		amdgpu_bo_unreserve(bo);
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
 
 	/* stitch together an UVD destroy msg */
 	msg[0] = cpu_to_le32(0x00000de4);
@@ -1129,9 +1114,6 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	msg[3] = cpu_to_le32(0x00000000);
 	for (i = 4; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
-
-	amdgpu_bo_kunmap(bo);
-	amdgpu_bo_unreserve(bo);
 
 	return amdgpu_uvd_send_msg(ring, bo, direct, fence);
 }
@@ -1142,19 +1124,16 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, uvd.idle_work.work);
 	unsigned fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
 
-	if (amdgpu_sriov_vf(adev))
-		return;
-
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, false);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 			/* shutdown the UVD block */
-			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_PG_STATE_GATE);
-			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_GATE);
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							       AMD_PG_STATE_GATE);
+			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							       AMD_CG_STATE_GATE);
 		}
 	} else {
 		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
@@ -1164,27 +1143,29 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
+	bool set_clocks;
 
 	if (amdgpu_sriov_vf(adev))
 		return;
 
+	set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, true);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_UNGATE);
-			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_PG_STATE_UNGATE);
+			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							       AMD_CG_STATE_UNGATE);
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							       AMD_PG_STATE_UNGATE);
 		}
 	}
 }
 
 void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
 {
-	schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
+	if (!amdgpu_sriov_vf(ring->adev))
+		schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 }
 
 /**
@@ -1218,7 +1199,7 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else if (r < 0) {
 		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 	} else {
-		DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n",  ring->idx);
 		r = 0;
 	}
 

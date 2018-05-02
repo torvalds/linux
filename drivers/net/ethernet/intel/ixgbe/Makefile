@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ################################################################################
 #
 # Intel 10 Gigabit PCI Express Linux driver
@@ -42,3 +43,4 @@ ixgbe-$(CONFIG_IXGBE_DCB) +=  ixgbe_dcb.o ixgbe_dcb_82598.o \
 ixgbe-$(CONFIG_IXGBE_HWMON) += ixgbe_sysfs.o
 ixgbe-$(CONFIG_DEBUG_FS) += ixgbe_debugfs.o
 ixgbe-$(CONFIG_FCOE:m=y) += ixgbe_fcoe.o
+ixgbe-$(CONFIG_XFRM_OFFLOAD) += ixgbe_ipsec.o

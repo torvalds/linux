@@ -125,14 +125,55 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 	unsigned int m;
 	unsigned int n;
 
-	for (n = 39; n < 120; n++) {
-		for (m = 0; m < 4; m++) {
+	/*
+	 *   fin                                 fvco        fout       fclkout
+	 * in --> [1/M] --> |PD| -> [LPF] -> [VCO] -> [1/P] -+-> [1/FDPLL] -> out
+	 *              +-> |  |                             |
+	 *              |                                    |
+	 *              +---------------- [1/N] <------------+
+	 *
+	 *	fclkout = fvco / P / FDPLL -- (1)
+	 *
+	 * fin/M = fvco/P/N
+	 *
+	 *	fvco = fin * P *  N / M -- (2)
+	 *
+	 * (1) + (2) indicates
+	 *
+	 *	fclkout = fin * N / M / FDPLL
+	 *
+	 * NOTES
+	 *	N	: (n + 1)
+	 *	M	: (m + 1)
+	 *	FDPLL	: (fdpll + 1)
+	 *	P	: 2
+	 *	2kHz < fvco < 4096MHz
+	 *
+	 * To minimize the jitter,
+	 * N : as large as possible
+	 * M : as small as possible
+	 */
+	for (m = 0; m < 4; m++) {
+		for (n = 119; n > 38; n--) {
+			/*
+			 * This code only runs on 64-bit architectures, the
+			 * unsigned long type can thus be used for 64-bit
+			 * computation. It will still compile without any
+			 * warning on 32-bit architectures.
+			 *
+			 * To optimize calculations, use fout instead of fvco
+			 * to verify the VCO frequency constraint.
+			 */
+			unsigned long fout = input * (n + 1) / (m + 1);
+
+			if (fout < 1000 || fout > 2048 * 1000 * 1000U)
+				continue;
+
 			for (fdpll = 1; fdpll < 32; fdpll++) {
 				unsigned long output;
 
-				output = input * (n + 1) / (m + 1)
-				       / (fdpll + 1);
-				if (output >= 400000000)
+				output = fout / (fdpll + 1);
+				if (output >= 400 * 1000 * 1000)
 					continue;
 
 				diff = abs((long)output - (long)target);
@@ -319,7 +360,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
-		if (plane->plane.state->crtc != &rcrtc->crtc)
+		if (plane->plane.state->crtc != &rcrtc->crtc ||
+		    !plane->plane.state->visible)
 			continue;
 
 		/* Insert the plane in the sorted planes array. */
@@ -555,41 +597,6 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
 
 	rcar_du_group_start_stop(rcrtc->group, false);
-}
-
-void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
-{
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
-		rcar_du_vsp_disable(rcrtc);
-
-	rcar_du_crtc_stop(rcrtc);
-	rcar_du_crtc_put(rcrtc);
-}
-
-void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
-{
-	unsigned int i;
-
-	if (!rcrtc->crtc.state->active)
-		return;
-
-	rcar_du_crtc_get(rcrtc);
-	rcar_du_crtc_setup(rcrtc);
-
-	/* Commit the planes state. */
-	if (!rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE)) {
-		for (i = 0; i < rcrtc->group->num_planes; ++i) {
-			struct rcar_du_plane *plane = &rcrtc->group->planes[i];
-
-			if (plane->plane.state->crtc != &rcrtc->crtc)
-				continue;
-
-			rcar_du_plane_setup(plane);
-		}
-	}
-
-	rcar_du_crtc_update_planes(rcrtc);
-	rcar_du_crtc_start(rcrtc);
 }
 
 /* -----------------------------------------------------------------------------

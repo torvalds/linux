@@ -135,36 +135,34 @@ static void dce_ipp_cursor_set_attributes(
 }
 
 
-static void dce_ipp_program_prescale(
-	struct input_pixel_processor *ipp,
-	struct ipp_prescale_params *params)
+static void dce_ipp_program_prescale(struct input_pixel_processor *ipp,
+				     struct ipp_prescale_params *params)
 {
 	struct dce_ipp *ipp_dce = TO_DCE_IPP(ipp);
 
 	/* set to bypass mode first before change */
 	REG_UPDATE(PRESCALE_GRPH_CONTROL,
-		GRPH_PRESCALE_BYPASS,
-		1);
+		   GRPH_PRESCALE_BYPASS, 1);
 
 	REG_SET_2(PRESCALE_VALUES_GRPH_R, 0,
-		GRPH_PRESCALE_SCALE_R, params->scale,
-		GRPH_PRESCALE_BIAS_R, params->bias);
+		  GRPH_PRESCALE_SCALE_R, params->scale,
+		  GRPH_PRESCALE_BIAS_R, params->bias);
 
 	REG_SET_2(PRESCALE_VALUES_GRPH_G, 0,
-		GRPH_PRESCALE_SCALE_G, params->scale,
-		GRPH_PRESCALE_BIAS_G, params->bias);
+		  GRPH_PRESCALE_SCALE_G, params->scale,
+		  GRPH_PRESCALE_BIAS_G, params->bias);
 
 	REG_SET_2(PRESCALE_VALUES_GRPH_B, 0,
-		GRPH_PRESCALE_SCALE_B, params->scale,
-		GRPH_PRESCALE_BIAS_B, params->bias);
+		  GRPH_PRESCALE_SCALE_B, params->scale,
+		  GRPH_PRESCALE_BIAS_B, params->bias);
 
 	if (params->mode != IPP_PRESCALE_MODE_BYPASS) {
 		REG_UPDATE(PRESCALE_GRPH_CONTROL,
-				GRPH_PRESCALE_BYPASS, 0);
+			   GRPH_PRESCALE_BYPASS, 0);
 
 		/* If prescale is in use, then legacy lut should be bypassed */
 		REG_UPDATE(INPUT_GAMMA_CONTROL,
-				GRPH_INPUT_GAMMA_MODE, 1);
+			   GRPH_INPUT_GAMMA_MODE, 1);
 	}
 }
 
@@ -223,13 +221,12 @@ static void dce_ipp_set_degamma(
 	struct dce_ipp *ipp_dce = TO_DCE_IPP(ipp);
 	uint32_t degamma_type = (mode == IPP_DEGAMMA_MODE_HW_sRGB) ? 1 : 0;
 
-	ASSERT(mode == IPP_DEGAMMA_MODE_BYPASS ||
-			mode == IPP_DEGAMMA_MODE_HW_sRGB);
+	ASSERT(mode == IPP_DEGAMMA_MODE_BYPASS || mode == IPP_DEGAMMA_MODE_HW_sRGB);
 
 	REG_SET_3(DEGAMMA_CONTROL, 0,
-		GRPH_DEGAMMA_MODE, degamma_type,
-		CURSOR_DEGAMMA_MODE, degamma_type,
-		CURSOR2_DEGAMMA_MODE, degamma_type);
+		  GRPH_DEGAMMA_MODE, degamma_type,
+		  CURSOR_DEGAMMA_MODE, degamma_type,
+		  CURSOR2_DEGAMMA_MODE, degamma_type);
 }
 
 static const struct ipp_funcs dce_ipp_funcs = {

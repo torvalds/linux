@@ -12,7 +12,8 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
@@ -25,8 +26,7 @@ enum {
 };
 
 struct gpio_wdt_priv {
-	int			gpio;
-	bool			active_low;
+	struct gpio_desc	*gpiod;
 	bool			state;
 	bool			always_running;
 	unsigned int		hw_algo;
@@ -35,11 +35,12 @@ struct gpio_wdt_priv {
 
 static void gpio_wdt_disable(struct gpio_wdt_priv *priv)
 {
-	gpio_set_value_cansleep(priv->gpio, !priv->active_low);
+	/* Eternal ping */
+	gpiod_set_value_cansleep(priv->gpiod, 1);
 
 	/* Put GPIO back to tristate */
 	if (priv->hw_algo == HW_ALGO_TOGGLE)
-		gpio_direction_input(priv->gpio);
+		gpiod_direction_input(priv->gpiod);
 }
 
 static int gpio_wdt_ping(struct watchdog_device *wdd)
@@ -50,13 +51,13 @@ static int gpio_wdt_ping(struct watchdog_device *wdd)
 	case HW_ALGO_TOGGLE:
 		/* Toggle output pin */
 		priv->state = !priv->state;
-		gpio_set_value_cansleep(priv->gpio, priv->state);
+		gpiod_set_value_cansleep(priv->gpiod, priv->state);
 		break;
 	case HW_ALGO_LEVEL:
 		/* Pulse */
-		gpio_set_value_cansleep(priv->gpio, !priv->active_low);
+		gpiod_set_value_cansleep(priv->gpiod, 1);
 		udelay(1);
-		gpio_set_value_cansleep(priv->gpio, priv->active_low);
+		gpiod_set_value_cansleep(priv->gpiod, 0);
 		break;
 	}
 	return 0;
@@ -66,8 +67,8 @@ static int gpio_wdt_start(struct watchdog_device *wdd)
 {
 	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
 
-	priv->state = priv->active_low;
-	gpio_direction_output(priv->gpio, priv->state);
+	priv->state = 0;
+	gpiod_direction_output(priv->gpiod, priv->state);
 
 	set_bit(WDOG_HW_RUNNING, &wdd->status);
 
@@ -80,7 +81,8 @@ static int gpio_wdt_stop(struct watchdog_device *wdd)
 
 	if (!priv->always_running) {
 		gpio_wdt_disable(priv);
-		clear_bit(WDOG_HW_RUNNING, &wdd->status);
+	} else {
+		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
 	return 0;
@@ -101,44 +103,38 @@ static const struct watchdog_ops gpio_wdt_ops = {
 
 static int gpio_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct gpio_wdt_priv *priv;
-	enum of_gpio_flags flags;
+	enum gpiod_flags gflags;
 	unsigned int hw_margin;
-	unsigned long f = 0;
 	const char *algo;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
 
-	priv->gpio = of_get_gpio_flags(pdev->dev.of_node, 0, &flags);
-	if (!gpio_is_valid(priv->gpio))
-		return priv->gpio;
-
-	priv->active_low = flags & OF_GPIO_ACTIVE_LOW;
-
-	ret = of_property_read_string(pdev->dev.of_node, "hw_algo", &algo);
+	ret = of_property_read_string(np, "hw_algo", &algo);
 	if (ret)
 		return ret;
 	if (!strcmp(algo, "toggle")) {
 		priv->hw_algo = HW_ALGO_TOGGLE;
-		f = GPIOF_IN;
+		gflags = GPIOD_IN;
 	} else if (!strcmp(algo, "level")) {
 		priv->hw_algo = HW_ALGO_LEVEL;
-		f = priv->active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		gflags = GPIOD_OUT_LOW;
 	} else {
 		return -EINVAL;
 	}
 
-	ret = devm_gpio_request_one(&pdev->dev, priv->gpio, f,
-				    dev_name(&pdev->dev));
-	if (ret)
-		return ret;
+	priv->gpiod = devm_gpiod_get(dev, NULL, gflags);
+	if (IS_ERR(priv->gpiod))
+		return PTR_ERR(priv->gpiod);
 
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u32(np,
 				   "hw_margin_ms", &hw_margin);
 	if (ret)
 		return ret;
@@ -146,7 +142,7 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	if (hw_margin < 2 || hw_margin > 65535)
 		return -EINVAL;
 
-	priv->always_running = of_property_read_bool(pdev->dev.of_node,
+	priv->always_running = of_property_read_bool(np,
 						     "always-running");
 
 	watchdog_set_drvdata(&priv->wdd, priv);
@@ -155,10 +151,10 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	priv->wdd.ops		= &gpio_wdt_ops;
 	priv->wdd.min_timeout	= SOFT_TIMEOUT_MIN;
 	priv->wdd.max_hw_heartbeat_ms = hw_margin;
-	priv->wdd.parent	= &pdev->dev;
+	priv->wdd.parent	= dev;
+	priv->wdd.timeout	= SOFT_TIMEOUT_DEF;
 
-	if (watchdog_init_timeout(&priv->wdd, 0, &pdev->dev) < 0)
-		priv->wdd.timeout = SOFT_TIMEOUT_DEF;
+	watchdog_init_timeout(&priv->wdd, 0, &pdev->dev);
 
 	watchdog_stop_on_reboot(&priv->wdd);
 

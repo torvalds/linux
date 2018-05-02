@@ -9,14 +9,17 @@
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_gettimeofday
 	.type  __kernel_gettimeofday,@function
 __kernel_gettimeofday:
-	.cfi_startproc
+	CFI_STARTPROC
 	aghi	%r15,-16
+	CFI_ADJUST_CFA_OFFSET 16
+	CFI_VAL_OFFSET 15, -160
 	larl	%r5,_vdso_data
 0:	ltgr	%r3,%r3				/* check if tz is NULL */
 	je	1f
@@ -58,8 +61,10 @@ __kernel_gettimeofday:
 	stg	%r0,8(%r2)			/* store tv->tv_usec */
 4:	lghi	%r2,0
 	aghi	%r15,16
+	CFI_ADJUST_CFA_OFFSET -16
+	CFI_RESTORE 15
 	br	%r14
+	CFI_ENDPROC
 5:	.quad	1000000000
 	.long	274877907
-	.cfi_endproc
 	.size	__kernel_gettimeofday,.-__kernel_gettimeofday

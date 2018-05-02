@@ -83,8 +83,11 @@
 	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_pack_bits(ptr, bits, n)					\
-	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+#define ptr_pack_bits(ptr, bits, n) ({					\
+	unsigned long __bits = (bits);					\
+	GEM_BUG_ON(__bits & -BIT(n));					\
+	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
+})
 
 #define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
 #define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)
@@ -135,6 +138,21 @@ static inline void drain_delayed_work(struct delayed_work *dw)
 		while (flush_delayed_work(dw))
 			;
 	} while (delayed_work_pending(dw));
+}
+
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
+
+static inline const char *onoff(bool v)
+{
+	return v ? "on" : "off";
+}
+
+static inline const char *enableddisabled(bool v)
+{
+	return v ? "enabled" : "disabled";
 }
 
 #endif /* !__I915_UTILS_H */

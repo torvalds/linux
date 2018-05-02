@@ -232,9 +232,12 @@ config EDAC_SBRIDGE
 config EDAC_SKX
 	tristate "Intel Skylake server Integrated MC"
 	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
+	select DMI
 	help
 	  Support for error detection and correction the Intel
-	  Skylake server Integrated Memory Controllers.
+	  Skylake server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
 
 config EDAC_PND2
 	tristate "Intel Pondicherry2"
@@ -254,7 +257,7 @@ config EDAC_MPC85XX
 
 config EDAC_LAYERSCAPE
 	tristate "Freescale Layerscape DDR"
-	depends on ARCH_LAYERSCAPE
+	depends on ARCH_LAYERSCAPE || SOC_LS1021A
 	help
 	  Support for error detection and correction on Freescale memory
 	  controllers on Layerscape SoCs.
@@ -316,14 +319,6 @@ config EDAC_CPC925
 	  IBM CPC925 Bridge and Memory Controller, which is
 	  a companion chip to the PowerPC 970 family of
 	  processors.
-
-config EDAC_TILE
-	tristate "Tilera Memory Controller"
-	depends on TILE
-	default y
-	help
-	  Support for error detection and correction on the
-	  Tilera memory controller.
 
 config EDAC_HIGHBANK_MC
 	tristate "Highbank Memory Controller"
@@ -456,5 +451,12 @@ config EDAC_XGENE
 	help
 	  Support for error detection and correction on the
 	  APM X-Gene family of SOCs.
+
+config EDAC_TI
+	tristate "Texas Instruments DDR3 ECC Controller"
+	depends on ARCH_KEYSTONE || SOC_DRA7XX
+	help
+	  Support for error detection and correction on the
+          TI SoCs.
 
 endif # EDAC

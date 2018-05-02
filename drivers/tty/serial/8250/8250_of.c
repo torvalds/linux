@@ -136,8 +136,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	}
 
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
-	if (IS_ERR(info->rst))
+	if (IS_ERR(info->rst)) {
+		ret = PTR_ERR(info->rst);
 		goto err_dispose;
+	}
+
 	ret = reset_control_deassert(info->rst);
 	if (ret)
 		goto err_dispose;
@@ -313,6 +316,7 @@ static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "mrvl,mmp-uart",
 		.data = (void *)PORT_XSCALE, },
 	{ .compatible = "ti,da830-uart", .data = (void *)PORT_DA830, },
+	{ .compatible = "nuvoton,npcm750-uart", .data = (void *)PORT_NPCM, },
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, of_platform_serial_table);

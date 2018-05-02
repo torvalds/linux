@@ -439,10 +439,9 @@ struct sk_buff *iwpm_create_nlmsg(u32 nl_op, struct nlmsghdr **nlh,
 	struct sk_buff *skb = NULL;
 
 	skb = dev_alloc_skb(IWPM_MSG_SIZE);
-	if (!skb) {
-		pr_err("%s Unable to allocate skb\n", __func__);
+	if (!skb)
 		goto create_nlmsg_exit;
-	}
+
 	if (!(ibnl_put_msg(skb, nlh, 0, 0, nl_client, nl_op,
 			   NLM_F_REQUEST))) {
 		pr_warn("%s: Unable to put the nlmsg header\n", __func__);
@@ -654,6 +653,7 @@ int iwpm_send_mapinfo(u8 nl_client, int iwpm_pid)
 	}
 	skb_num++;
 	spin_lock_irqsave(&iwpm_mapinfo_lock, flags);
+	ret = -EINVAL;
 	for (i = 0; i < IWPM_MAPINFO_HASH_SIZE; i++) {
 		hlist_for_each_entry(map_info, &iwpm_hash_bucket[i],
 				     hlist_node) {

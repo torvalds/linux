@@ -70,9 +70,8 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < PT_ENTRIES; i++)
-		etnaviv_domain->pgtable_cpu[i] =
-				etnaviv_domain->base.bad_page_dma;
+	memset32(etnaviv_domain->pgtable_cpu, etnaviv_domain->base.bad_page_dma,
+		 PT_ENTRIES);
 
 	return 0;
 }
@@ -159,7 +158,7 @@ void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MC_MMU_RA_PAGE_TABLE, pgtable);
 }
 
-const struct etnaviv_iommu_domain_ops etnaviv_iommuv1_ops = {
+static const struct etnaviv_iommu_domain_ops etnaviv_iommuv1_ops = {
 	.free = etnaviv_iommuv1_domain_free,
 	.map = etnaviv_iommuv1_map,
 	.unmap = etnaviv_iommuv1_unmap,

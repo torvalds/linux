@@ -43,7 +43,6 @@ enum tv_margin {
 	TV_MARGIN_RIGHT, TV_MARGIN_BOTTOM
 };
 
-/** Private structure for the integrated TV support */
 struct intel_tv {
 	struct intel_encoder base;
 
@@ -370,12 +369,11 @@ struct tv_mode {
  * The constants below were all computed using a 107.520MHz clock
  */
 
-/**
+/*
  * Register programming values for TV modes.
  *
  * These values account for -1s required.
  */
-
 static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-M",
@@ -822,7 +820,7 @@ intel_enable_tv(struct intel_encoder *encoder,
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_wait_for_vblank(dev_priv,
-			      to_intel_crtc(encoder->base.crtc)->pipe);
+			      to_intel_crtc(pipe_config->base.crtc)->pipe);
 
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
 }
@@ -868,6 +866,8 @@ static void
 intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_TVOUT);
+
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
@@ -980,7 +980,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 				const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	u32 tv_ctl;
@@ -1124,14 +1124,6 @@ static const struct drm_display_mode reported_modes[] = {
 	},
 };
 
-/**
- * Detects TV presence by checking for load.
- *
- * Requires that the current pipe's DPLL is active.
-
- * \return true if TV is connected.
- * \return false if TV is disconnected.
- */
 static int
 intel_tv_detect_type(struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
@@ -1257,12 +1249,6 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 	connector->state->tv.mode = i;
 }
 
-/**
- * Detect the TV connection.
- *
- * Currently this always returns CONNECTOR_STATUS_UNKNOWN, as we need to be sure
- * we have a pipe programmed in order to probe the TV.
- */
 static int
 intel_tv_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
@@ -1336,13 +1322,6 @@ intel_tv_choose_preferred_modes(const struct tv_mode *tv_mode,
 				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 }
-
-/**
- * Stub get_modes function.
- *
- * This should probably return a set of fixed modes, unless we can figure out
- * how to probe modes off of TV connections.
- */
 
 static int
 intel_tv_get_modes(struct drm_connector *connector)
@@ -1510,7 +1489,8 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	connector = &intel_connector->base;
 	state = connector->state;
 
-	/* The documentation, for the older chipsets at least, recommend
+	/*
+	 * The documentation, for the older chipsets at least, recommend
 	 * using a polling method rather than hotplug detection for TVs.
 	 * This is because in order to perform the hotplug detection, the PLLs
 	 * for the TV must be kept alive increasing power drain and starving

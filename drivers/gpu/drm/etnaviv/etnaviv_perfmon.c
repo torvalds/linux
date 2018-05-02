@@ -479,9 +479,9 @@ int etnaviv_pm_req_validate(const struct drm_etnaviv_gem_submit_pmr *r,
 }
 
 void etnaviv_perfmon_process(struct etnaviv_gpu *gpu,
-	const struct etnaviv_perfmon_request *pmr)
+	const struct etnaviv_perfmon_request *pmr, u32 exec_state)
 {
-	const struct etnaviv_pm_domain_meta *meta = &doms_meta[gpu->exec_state];
+	const struct etnaviv_pm_domain_meta *meta = &doms_meta[exec_state];
 	const struct etnaviv_pm_domain *dom;
 	const struct etnaviv_pm_signal *sig;
 	u32 *bo = pmr->bo_vma;

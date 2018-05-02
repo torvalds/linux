@@ -23,6 +23,21 @@ static inline struct clk_regmap_div *to_clk_regmap_div(struct clk_hw *hw)
 	return container_of(to_clk_regmap(hw), struct clk_regmap_div, clkr);
 }
 
+static long div_round_ro_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long *prate)
+{
+	struct clk_regmap_div *divider = to_clk_regmap_div(hw);
+	struct clk_regmap *clkr = &divider->clkr;
+	u32 val;
+
+	regmap_read(clkr->regmap, divider->reg, &val);
+	val >>= divider->shift;
+	val &= BIT(divider->width) - 1;
+
+	return divider_ro_round_rate(hw, rate, prate, NULL, divider->width,
+				     CLK_DIVIDER_ROUND_CLOSEST, val);
+}
+
 static long div_round_rate(struct clk_hw *hw, unsigned long rate,
 			   unsigned long *prate)
 {
@@ -59,7 +74,7 @@ static unsigned long div_recalc_rate(struct clk_hw *hw,
 	div &= BIT(divider->width) - 1;
 
 	return divider_recalc_rate(hw, parent_rate, div, NULL,
-				   CLK_DIVIDER_ROUND_CLOSEST);
+				   CLK_DIVIDER_ROUND_CLOSEST, divider->width);
 }
 
 const struct clk_ops clk_regmap_div_ops = {
@@ -68,3 +83,9 @@ const struct clk_ops clk_regmap_div_ops = {
 	.recalc_rate = div_recalc_rate,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_div_ops);
+
+const struct clk_ops clk_regmap_div_ro_ops = {
+	.round_rate = div_round_ro_rate,
+	.recalc_rate = div_recalc_rate,
+};
+EXPORT_SYMBOL_GPL(clk_regmap_div_ro_ops);

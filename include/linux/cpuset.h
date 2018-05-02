@@ -112,7 +112,7 @@ static inline int cpuset_do_slab_mem_spread(void)
 	return task_spread_slab(current);
 }
 
-extern int current_cpuset_is_being_rebound(void);
+extern bool current_cpuset_is_being_rebound(void);
 
 extern void rebuild_sched_domains(void);
 
@@ -247,9 +247,9 @@ static inline int cpuset_do_slab_mem_spread(void)
 	return 0;
 }
 
-static inline int current_cpuset_is_being_rebound(void)
+static inline bool current_cpuset_is_being_rebound(void)
 {
-	return 0;
+	return false;
 }
 
 static inline void rebuild_sched_domains(void)

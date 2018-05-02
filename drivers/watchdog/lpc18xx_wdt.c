@@ -265,7 +265,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	lpc18xx_wdt->wdt_dev.parent = dev;
 	watchdog_set_drvdata(&lpc18xx_wdt->wdt_dev, lpc18xx_wdt);
 
-	ret = watchdog_init_timeout(&lpc18xx_wdt->wdt_dev, heartbeat, dev);
+	watchdog_init_timeout(&lpc18xx_wdt->wdt_dev, heartbeat, dev);
 
 	__lpc18xx_wdt_set_timeout(lpc18xx_wdt);
 

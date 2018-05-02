@@ -96,7 +96,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			*hpdp = __hugepd(__pa(new) |
 					 (shift_to_mmu_psize(pshift) << 2));
 #elif defined(CONFIG_PPC_8xx)
-			*hpdp = __hugepd(__pa(new) |
+			*hpdp = __hugepd(__pa(new) | _PMD_USER |
 					 (pshift == PAGE_SHIFT_8M ? _PMD_PAGE_8M :
 					  _PMD_PAGE_512K) | _PMD_PRESENT);
 #else
@@ -122,9 +122,6 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
 #define HUGEPD_PGD_SHIFT PGDIR_SHIFT
 #define HUGEPD_PUD_SHIFT PUD_SHIFT
-#else
-#define HUGEPD_PGD_SHIFT PUD_SHIFT
-#define HUGEPD_PUD_SHIFT PMD_SHIFT
 #endif
 
 /*
@@ -553,9 +550,11 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	struct hstate *hstate = hstate_file(file);
 	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
 
+#ifdef CONFIG_PPC_RADIX_MMU
 	if (radix_enabled())
 		return radix__hugetlb_get_unmapped_area(file, addr, len,
 						       pgoff, flags);
+#endif
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1);
 }
 #endif
@@ -563,15 +562,14 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
 {
 #ifdef CONFIG_PPC_MM_SLICES
-	unsigned int psize = get_slice_psize(vma->vm_mm, vma->vm_start);
 	/* With radix we don't use slice, so derive it from vma*/
-	if (!radix_enabled())
-		return 1UL << mmu_psize_to_shift(psize);
-#endif
-	if (!is_vm_hugetlb_page(vma))
-		return PAGE_SIZE;
+	if (!radix_enabled()) {
+		unsigned int psize = get_slice_psize(vma->vm_mm, vma->vm_start);
 
-	return huge_page_size(hstate_vma(vma));
+		return 1UL << mmu_psize_to_shift(psize);
+	}
+#endif
+	return vma_kernel_pagesize(vma);
 }
 
 static inline bool is_power_of_4(unsigned long x)
@@ -666,15 +664,26 @@ static int __init hugetlbpage_init(void)
 
 		shift = mmu_psize_to_shift(psize);
 
-		if (add_huge_page_size(1ULL << shift) < 0)
+#ifdef CONFIG_PPC_BOOK3S_64
+		if (shift > PGDIR_SHIFT)
 			continue;
-
+		else if (shift > PUD_SHIFT)
+			pdshift = PGDIR_SHIFT;
+		else if (shift > PMD_SHIFT)
+			pdshift = PUD_SHIFT;
+		else
+			pdshift = PMD_SHIFT;
+#else
 		if (shift < HUGEPD_PUD_SHIFT)
 			pdshift = PMD_SHIFT;
 		else if (shift < HUGEPD_PGD_SHIFT)
 			pdshift = PUD_SHIFT;
 		else
 			pdshift = PGDIR_SHIFT;
+#endif
+
+		if (add_huge_page_size(1ULL << shift) < 0)
+			continue;
 		/*
 		 * if we have pdshift and shift value same, we don't
 		 * use pgt cache for hugepd.
@@ -752,7 +761,7 @@ void flush_dcache_icache_hugepage(struct page *page)
  * So long as we atomically load page table pointers we are safe against teardown,
  * we can follow the address down to the the page and take a ref on it.
  * This function need to be called with interrupts disabled. We use this variant
- * when we have MSR[EE] = 0 but the paca->soft_enabled = 1
+ * when we have MSR[EE] = 0 but the paca->irq_soft_mask = IRQS_ENABLED
  */
 pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 			bool *is_thp, unsigned *hpage_shift)
@@ -855,9 +864,7 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 
 	pte = READ_ONCE(*ptep);
 
-	if (!pte_present(pte) || !pte_read(pte))
-		return 0;
-	if (write && !pte_write(pte))
+	if (!pte_access_permitted(pte, write))
 		return 0;
 
 	/* hugepages are never "special" */

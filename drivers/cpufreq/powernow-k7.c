@@ -131,7 +131,7 @@ static int check_powernow(void)
 		return 0;
 	}
 
-	if ((c->x86_model == 6) && (c->x86_mask == 0)) {
+	if ((c->x86_model == 6) && (c->x86_stepping == 0)) {
 		pr_info("K7 660[A0] core detected, enabling errata workarounds\n");
 		have_a0 = 1;
 	}
@@ -639,8 +639,9 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency =
 		cpufreq_scale(2000000UL, fsb, latency);
+	policy->freq_table = powernow_table;
 
-	return cpufreq_table_validate_and_show(policy, powernow_table);
+	return 0;
 }
 
 static int powernow_cpu_exit(struct cpufreq_policy *policy)

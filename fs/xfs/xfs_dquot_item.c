@@ -150,18 +150,16 @@ xfs_dquot_item_error(
 	struct xfs_log_item	*lip,
 	struct xfs_buf		*bp)
 {
-	struct xfs_dquot	*dqp;
-
-	dqp = DQUOT_ITEM(lip)->qli_dquot;
-	ASSERT(!completion_done(&dqp->q_flush));
+	ASSERT(!completion_done(&DQUOT_ITEM(lip)->qli_dquot->q_flush));
 	xfs_set_li_failed(lip, bp);
 }
 
 STATIC uint
 xfs_qm_dquot_logitem_push(
 	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list) __releases(&lip->li_ailp->xa_lock)
-					      __acquires(&lip->li_ailp->xa_lock)
+	struct list_head	*buffer_list)
+		__releases(&lip->li_ailp->ail_lock)
+		__acquires(&lip->li_ailp->ail_lock)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
 	struct xfs_buf		*bp = lip->li_buf;
@@ -179,7 +177,7 @@ xfs_qm_dquot_logitem_push(
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
-		if (!xfs_buf_resubmit_failed_buffers(bp, lip, buffer_list))
+		if (!xfs_buf_resubmit_failed_buffers(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 
 		xfs_buf_unlock(bp);
@@ -208,11 +206,11 @@ xfs_qm_dquot_logitem_push(
 		goto out_unlock;
 	}
 
-	spin_unlock(&lip->li_ailp->xa_lock);
+	spin_unlock(&lip->li_ailp->ail_lock);
 
 	error = xfs_qm_dqflush(dqp, &bp);
 	if (error) {
-		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
+		xfs_warn(dqp->q_mount, "%s: push error %d on dqp "PTR_FMT,
 			__func__, error, dqp);
 	} else {
 		if (!xfs_buf_delwri_queue(bp, buffer_list))
@@ -220,7 +218,7 @@ xfs_qm_dquot_logitem_push(
 		xfs_buf_relse(bp);
 	}
 
-	spin_lock(&lip->li_ailp->xa_lock);
+	spin_lock(&lip->li_ailp->ail_lock);
 out_unlock:
 	xfs_dqunlock(dqp);
 	return rval;
@@ -403,7 +401,7 @@ xfs_qm_qoffend_logitem_committed(
 	 * Delete the qoff-start logitem from the AIL.
 	 * xfs_trans_ail_delete() drops the AIL lock.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	xfs_trans_ail_delete(ailp, &qfs->qql_item, SHUTDOWN_LOG_IO_ERROR);
 
 	kmem_free(qfs->qql_item.li_lv_shadow);

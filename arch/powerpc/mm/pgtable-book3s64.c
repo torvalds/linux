@@ -90,16 +90,19 @@ void serialize_against_pte_lookup(struct mm_struct *mm)
  * We use this to invalidate a pmdp entry before switching from a
  * hugepte to regular pmd entry.
  */
-void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 		     pmd_t *pmdp)
 {
-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
+	unsigned long old_pmd;
+
+	old_pmd = pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	/*
 	 * This ensures that generic code that rely on IRQ disabling
 	 * to prevent a parallel THP split work as expected.
 	 */
 	serialize_against_pte_lookup(vma->vm_mm);
+	return __pmd(old_pmd);
 }
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
@@ -152,15 +155,15 @@ void mmu_cleanup_all(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int create_section_mapping(unsigned long start, unsigned long end)
+int __meminit create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
 	if (radix_enabled())
-		return radix__create_section_mapping(start, end);
+		return radix__create_section_mapping(start, end, nid);
 
-	return hash__create_section_mapping(start, end);
+	return hash__create_section_mapping(start, end, nid);
 }
 
-int remove_section_mapping(unsigned long start, unsigned long end)
+int __meminit remove_section_mapping(unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
 		return radix__remove_section_mapping(start, end);

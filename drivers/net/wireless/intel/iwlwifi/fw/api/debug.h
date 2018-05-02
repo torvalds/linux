@@ -250,10 +250,12 @@ struct iwl_mfu_assert_dump_notif {
  * The ids for different type of markers to insert into the usniffer logs
  *
  * @MARKER_ID_TX_FRAME_LATENCY: TX latency marker
+ * @MARKER_ID_SYNC_CLOCK: sync FW time and systime
  */
 enum iwl_mvm_marker_id {
 	MARKER_ID_TX_FRAME_LATENCY = 1,
-}; /* MARKER_ID_API_E_VER_1 */
+	MARKER_ID_SYNC_CLOCK = 2,
+}; /* MARKER_ID_API_E_VER_2 */
 
 /**
  * struct iwl_mvm_marker - mark info into the usniffer logs

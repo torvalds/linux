@@ -11,6 +11,7 @@
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/poll.h>
+#include <uapi/linux/eventpoll.h>
 
 extern struct ctl_table epoll_table[]; /* for sysctl */
 /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
@@ -22,7 +23,7 @@ extern struct ctl_table epoll_table[]; /* for sysctl */
 #define WQUEUES_STACK_ALLOC	(MAX_STACK_ALLOC - FRONTEND_STACK_ALLOC)
 #define N_INLINE_POLL_ENTRIES	(WQUEUES_STACK_ALLOC / sizeof(struct poll_table_entry))
 
-#define DEFAULT_POLLMASK (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM)
+#define DEFAULT_POLLMASK (EPOLLIN | EPOLLOUT | EPOLLRDNORM | EPOLLWRNORM)
 
 struct poll_table_struct;
 
@@ -37,7 +38,7 @@ typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_
  */
 typedef struct poll_table_struct {
 	poll_queue_proc _qproc;
-	unsigned long _key;
+	__poll_t _key;
 } poll_table;
 
 static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
@@ -62,20 +63,20 @@ static inline bool poll_does_not_wait(const poll_table *p)
  * to be started implicitly on poll(). You typically only want to do that
  * if the application is actually polling for POLLIN and/or POLLOUT.
  */
-static inline unsigned long poll_requested_events(const poll_table *p)
+static inline __poll_t poll_requested_events(const poll_table *p)
 {
-	return p ? p->_key : ~0UL;
+	return p ? p->_key : ~(__poll_t)0;
 }
 
 static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 {
 	pt->_qproc = qproc;
-	pt->_key   = ~0UL; /* all events enabled */
+	pt->_key   = ~(__poll_t)0; /* all events enabled */
 }
 
 struct poll_table_entry {
 	struct file *filp;
-	unsigned long key;
+	__poll_t key;
 	wait_queue_entry_t wait;
 	wait_queue_head_t *wait_address;
 };
@@ -106,5 +107,29 @@ extern int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 extern int poll_select_set_timeout(struct timespec64 *to, time64_t sec,
 				   long nsec);
+
+#define __MAP(v, from, to) \
+	(from < to ? (v & from) * (to/from) : (v & from) / (from/to))
+
+static inline __u16 mangle_poll(__poll_t val)
+{
+	__u16 v = (__force __u16)val;
+#define M(X) __MAP(v, (__force __u16)EPOLL##X, POLL##X)
+	return M(IN) | M(OUT) | M(PRI) | M(ERR) | M(NVAL) |
+		M(RDNORM) | M(RDBAND) | M(WRNORM) | M(WRBAND) |
+		M(HUP) | M(RDHUP) | M(MSG);
+#undef M
+}
+
+static inline __poll_t demangle_poll(u16 val)
+{
+#define M(X) (__force __poll_t)__MAP(val, POLL##X, (__force __u16)EPOLL##X)
+	return M(IN) | M(OUT) | M(PRI) | M(ERR) | M(NVAL) |
+		M(RDNORM) | M(RDBAND) | M(WRNORM) | M(WRBAND) |
+		M(HUP) | M(RDHUP) | M(MSG);
+#undef M
+}
+#undef __MAP
+
 
 #endif /* _LINUX_POLL_H */

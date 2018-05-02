@@ -113,7 +113,7 @@ config EFI_CAPSULE_LOADER
 	  Most users should say N.
 
 config EFI_CAPSULE_QUIRK_QUARK_CSH
-	boolean "Add support for Quark capsules with non-standard headers"
+	bool "Add support for Quark capsules with non-standard headers"
 	depends on X86 && !64BIT
 	select EFI_CAPSULE_LOADER
 	default y
@@ -159,12 +159,20 @@ config RESET_ATTACK_MITIGATION
 	  using the TCG Platform Reset Attack Mitigation specification. This
 	  protects against an attacker forcibly rebooting the system while it
 	  still contains secrets in RAM, booting another OS and extracting the
-	  secrets.
+	  secrets. This should only be enabled when userland is configured to
+	  clear the MemoryOverwriteRequest flag on clean shutdown after secrets
+	  have been evicted, since otherwise it will trigger even on clean
+	  reboots.
 
 endmenu
 
 config UEFI_CPER
 	bool
+
+config UEFI_CPER_ARM
+	bool
+	depends on UEFI_CPER && ( ARM || ARM64 )
+	default y
 
 config EFI_DEV_PATH_PARSER
 	bool

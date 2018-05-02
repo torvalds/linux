@@ -79,6 +79,9 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_FCNTL_ARG syscall_arg__scnprintf_fcntl_arg
 
+size_t syscall_arg__scnprintf_flock(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_FLOCK syscall_arg__scnprintf_flock
+
 size_t syscall_arg__scnprintf_ioctl_cmd(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_IOCTL_CMD syscall_arg__scnprintf_ioctl_cmd
 
@@ -113,5 +116,7 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size);
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));
+
+const char *arch_syscalls__strerrno(const char *arch, int err);
 
 #endif /* _PERF_TRACE_BEAUTY_H */

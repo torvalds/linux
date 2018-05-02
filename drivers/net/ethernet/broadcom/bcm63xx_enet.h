@@ -193,9 +193,6 @@ struct bcm_enet_mib_counters {
 
 struct bcm_enet_priv {
 
-	/* mac id (from platform device id) */
-	int mac_id;
-
 	/* base remapped address of device */
 	void __iomem *base;
 

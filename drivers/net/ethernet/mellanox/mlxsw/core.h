@@ -66,8 +66,9 @@ void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
 int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				   const struct mlxsw_bus *mlxsw_bus,
-				   void *bus_priv);
-void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core);
+				   void *bus_priv, bool reload,
+				   struct devlink *devlink);
+void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core, bool reload);
 
 struct mlxsw_tx_info {
 	u8 local_port;
@@ -234,8 +235,7 @@ struct mlxsw_config_profile {
 		used_max_pkey:1,
 		used_ar_sec:1,
 		used_adaptive_routing_group_cap:1,
-		used_kvd_split_data:1; /* indicate for the kvd's values */
-
+		used_kvd_sizes:1;
 	u8	max_vepa_channels;
 	u16	max_mid;
 	u16	max_pgt;
@@ -255,10 +255,8 @@ struct mlxsw_config_profile {
 	u16	adaptive_routing_group_cap;
 	u8	arn;
 	u32	kvd_linear_size;
-	u16	kvd_hash_granularity;
 	u8	kvd_hash_single_parts;
 	u8	kvd_hash_double_parts;
-	u8	resource_query_enable;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
@@ -308,21 +306,32 @@ struct mlxsw_driver {
 				       u32 *p_cur, u32 *p_max);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
+	int (*resources_register)(struct mlxsw_core *mlxsw_core);
+	int (*kvd_sizes_get)(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_config_profile *profile,
+			     u64 *p_single_size, u64 *p_double_size,
+			     u64 *p_linear_size);
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
+	bool res_query_enabled;
 };
+
+int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_config_profile *profile,
+			     u64 *p_single_size, u64 *p_double_size,
+			     u64 *p_linear_size);
 
 bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
 			  enum mlxsw_res_id res_id);
 
-#define MLXSW_CORE_RES_VALID(res, short_res_id)			\
-	mlxsw_core_res_valid(res, MLXSW_RES_ID_##short_res_id)
+#define MLXSW_CORE_RES_VALID(mlxsw_core, short_res_id)			\
+	mlxsw_core_res_valid(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 		       enum mlxsw_res_id res_id);
 
-#define MLXSW_CORE_RES_GET(res, short_res_id)			\
-	mlxsw_core_res_get(res, MLXSW_RES_ID_##short_res_id)
+#define MLXSW_CORE_RES_GET(mlxsw_core, short_res_id)			\
+	mlxsw_core_res_get(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 #define MLXSW_BUS_F_TXRX	BIT(0)
 
@@ -332,6 +341,7 @@ struct mlxsw_bus {
 		    const struct mlxsw_config_profile *profile,
 		    struct mlxsw_res *res);
 	void (*fini)(void *bus_priv);
+	void (*reset)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,

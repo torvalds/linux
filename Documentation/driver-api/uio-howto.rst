@@ -667,27 +667,28 @@ Making the driver recognize the device
 Since the driver does not declare any device GUID's, it will not get
 loaded automatically and will not automatically bind to any devices, you
 must load it and allocate id to the driver yourself. For example, to use
-the network device GUID::
+the network device class GUID::
 
      modprobe uio_hv_generic
      echo "f8615163-df3e-46c5-913f-f2d2f965ed0e" > /sys/bus/vmbus/drivers/uio_hv_generic/new_id
 
 If there already is a hardware specific kernel driver for the device,
 the generic driver still won't bind to it, in this case if you want to
-use the generic driver (why would you?) you'll have to manually unbind
-the hardware specific driver and bind the generic driver, like this::
+use the generic driver for a userspace library you'll have to manually unbind
+the hardware specific driver and bind the generic driver, using the device specific GUID
+like this::
 
-          echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 > /sys/bus/vmbus/drivers/hv_netvsc/unbind
-          echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 > /sys/bus/vmbus/drivers/uio_hv_generic/bind
+          echo -n ed963694-e847-4b2a-85af-bc9cfc11d6f3 > /sys/bus/vmbus/drivers/hv_netvsc/unbind
+          echo -n ed963694-e847-4b2a-85af-bc9cfc11d6f3 > /sys/bus/vmbus/drivers/uio_hv_generic/bind
 
 You can verify that the device has been bound to the driver by looking
 for it in sysfs, for example like the following::
 
-        ls -l /sys/bus/vmbus/devices/vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver
+        ls -l /sys/bus/vmbus/devices/ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver
 
 Which if successful should print::
 
-      .../vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver -> ../../../bus/vmbus/drivers/uio_hv_generic
+      .../ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver -> ../../../bus/vmbus/drivers/uio_hv_generic
 
 Things to know about uio_hv_generic
 -----------------------------------
@@ -696,6 +697,22 @@ On each interrupt, uio_hv_generic sets the Interrupt Disable bit. This
 prevents the device from generating further interrupts until the bit is
 cleared. The userspace driver should clear this bit before blocking and
 waiting for more interrupts.
+
+When host rescinds a device, the interrupt file descriptor is marked down
+and any reads of the interrupt file descriptor will return -EIO. Similar
+to a closed socket or disconnected serial device.
+
+The vmbus device regions are mapped into uio device resources:
+    0) Channel ring buffers: guest to host and host to guest
+    1) Guest to host interrupt signalling pages
+    2) Guest to host monitor page
+    3) Network receive buffer region
+    4) Network send buffer region
+
+If a subchannel is created by a request to host, then the uio_hv_generic
+device driver will create a sysfs binary file for the per-channel ring buffer.
+For example:
+	/sys/bus/vmbus/devices/3811fe4d-0fa0-4b62-981a-74fc1084c757/channels/21/ring
 
 Further information
 ===================

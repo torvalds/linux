@@ -552,14 +552,12 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 
 	req->rq_interpret_reply = osc_destroy_interpret;
 	if (!osc_can_send_destroy(cli)) {
-		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-
 		/*
 		 * Wait until the number of on-going destroy RPCs drops
 		 * under max_rpc_in_flight
 		 */
-		l_wait_event_exclusive(cli->cl_destroy_waitq,
-				       osc_can_send_destroy(cli), &lwi);
+		l_wait_event_abortable_exclusive(cli->cl_destroy_waitq,
+					       osc_can_send_destroy(cli));
 	}
 
 	/* Do not wait for response */
@@ -933,7 +931,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 {
 	__u32 cksum;
 	int i = 0;
-	struct cfs_crypto_hash_desc *hdesc;
+	struct ahash_request *hdesc;
 	unsigned int bufsize;
 	unsigned char cfs_alg = cksum_obd2cfs(cksum_type);
 
@@ -2844,7 +2842,9 @@ static int __init osc_init(void)
 	if (rc)
 		goto out_kmem;
 
-	register_shrinker(&osc_cache_shrinker);
+	rc = register_shrinker(&osc_cache_shrinker);
+	if (rc)
+		goto out_type;
 
 	/* This is obviously too much memory, only prevent overflow here */
 	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {

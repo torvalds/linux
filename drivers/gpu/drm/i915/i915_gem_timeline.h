@@ -27,9 +27,9 @@
 
 #include <linux/list.h>
 
-#include "i915_utils.h"
-#include "i915_gem_request.h"
+#include "i915_request.h"
 #include "i915_syncmap.h"
+#include "i915_utils.h"
 
 struct i915_gem_timeline;
 
@@ -93,7 +93,7 @@ int i915_gem_timeline_init(struct drm_i915_private *i915,
 			   struct i915_gem_timeline *tl,
 			   const char *name);
 int i915_gem_timeline_init__global(struct drm_i915_private *i915);
-void i915_gem_timelines_mark_idle(struct drm_i915_private *i915);
+void i915_gem_timelines_park(struct drm_i915_private *i915);
 void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
 
 static inline int __intel_timeline_sync_set(struct intel_timeline *tl,

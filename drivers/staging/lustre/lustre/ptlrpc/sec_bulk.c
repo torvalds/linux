@@ -375,9 +375,9 @@ static inline void enc_pools_alloc(void)
 {
 	LASSERT(page_pools.epp_max_pools);
 	page_pools.epp_pools =
-		libcfs_kvzalloc(page_pools.epp_max_pools *
+		kvzalloc(page_pools.epp_max_pools *
 				sizeof(*page_pools.epp_pools),
-				GFP_NOFS);
+				GFP_KERNEL);
 }
 
 static inline void enc_pools_free(void)
@@ -396,6 +396,8 @@ static struct shrinker pools_shrinker = {
 
 int sptlrpc_enc_pool_init(void)
 {
+	int rc;
+
 	/*
 	 * maximum capacity is 1/8 of total physical memory.
 	 * is the 1/8 a good number?
@@ -432,9 +434,11 @@ int sptlrpc_enc_pool_init(void)
 	if (!page_pools.epp_pools)
 		return -ENOMEM;
 
-	register_shrinker(&pools_shrinker);
+	rc = register_shrinker(&pools_shrinker);
+	if (rc)
+		enc_pools_free();
 
-	return 0;
+	return rc;
 }
 
 void sptlrpc_enc_pool_fini(void)
@@ -526,7 +530,7 @@ EXPORT_SYMBOL(bulk_sec_desc_unpack);
 int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 			      void *buf, int buflen)
 {
-	struct cfs_crypto_hash_desc *hdesc;
+	struct ahash_request *hdesc;
 	int hashsize;
 	unsigned int bufsize;
 	int i, err;

@@ -7,7 +7,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/slab.h>
 #include <linux/ioport.h>	/* request_region		*/

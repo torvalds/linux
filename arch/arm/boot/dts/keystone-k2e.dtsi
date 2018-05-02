@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Edison soc device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/reset/ti-syscon.h>
@@ -48,8 +45,9 @@
 	aliases {
 		rproc0 = &dsp0;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2e-clocks.dtsi"
 
 		usb: usb@2680000 {
@@ -111,11 +109,14 @@
 			};
 		};
 
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 		};
 
 		dsp0: dsp@10800000 {
@@ -194,5 +195,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2e-netcp.dtsi"
-	};
 };

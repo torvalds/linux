@@ -26,7 +26,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/compat.h>
 
-#include <asm/poll.h>
+#include <linux/poll.h>
 #include <asm/siginfo.h>
 #include <linux/uaccess.h>
 
@@ -418,7 +418,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_ADD_SEALS:
 	case F_GET_SEALS:
-		err = shmem_fcntl(filp, cmd, arg);
+		err = memfd_fcntl(filp, cmd, arg);
 		break;
 	case F_GET_RW_HINT:
 	case F_SET_RW_HINT:
@@ -607,8 +607,8 @@ static int fixup_compat_flock(struct flock *flock)
 	return 0;
 }
 
-COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
-		       compat_ulong_t, arg)
+static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
+			     compat_ulong_t arg)
 {
 	struct fd f = fdget_raw(fd);
 	struct flock flock;
@@ -672,6 +672,12 @@ out_put:
 	return err;
 }
 
+COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	return do_compat_fcntl64(fd, cmd, arg);
+}
+
 COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 		       compat_ulong_t, arg)
 {
@@ -684,19 +690,19 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 	case F_OFD_SETLKW:
 		return -EINVAL;
 	}
-	return compat_sys_fcntl64(fd, cmd, arg);
+	return do_compat_fcntl64(fd, cmd, arg);
 }
 #endif
 
 /* Table to convert sigio signal codes into poll band bitmaps */
 
-static const long band_table[NSIGPOLL] = {
-	POLLIN | POLLRDNORM,			/* POLL_IN */
-	POLLOUT | POLLWRNORM | POLLWRBAND,	/* POLL_OUT */
-	POLLIN | POLLRDNORM | POLLMSG,		/* POLL_MSG */
-	POLLERR,				/* POLL_ERR */
-	POLLPRI | POLLRDBAND,			/* POLL_PRI */
-	POLLHUP | POLLERR			/* POLL_HUP */
+static const __poll_t band_table[NSIGPOLL] = {
+	EPOLLIN | EPOLLRDNORM,			/* POLL_IN */
+	EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND,	/* POLL_OUT */
+	EPOLLIN | EPOLLRDNORM | EPOLLMSG,		/* POLL_MSG */
+	EPOLLERR,				/* POLL_ERR */
+	EPOLLPRI | EPOLLRDBAND,			/* POLL_PRI */
+	EPOLLHUP | EPOLLERR			/* POLL_HUP */
 };
 
 static inline int sigio_perm(struct task_struct *p,
@@ -737,6 +743,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
+			clear_siginfo(&si);
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
@@ -758,7 +765,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else
-				si.si_band = band_table[reason - POLL_IN];
+				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
 			if (!do_send_sig_info(signum, &si, p, group))
 				break;

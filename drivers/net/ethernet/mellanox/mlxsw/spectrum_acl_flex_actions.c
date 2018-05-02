@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_flex_actions.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, 2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
  *
@@ -35,6 +35,7 @@
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
+#include "spectrum_span.h"
 
 #define MLXSW_SP_KVDL_ACT_EXT_SIZE 1
 
@@ -108,11 +109,60 @@ static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
 	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
 }
 
+static int
+mlxsw_sp_act_counter_index_get(void *priv, unsigned int *p_counter_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	return mlxsw_sp_flow_counter_alloc(mlxsw_sp, p_counter_index);
+}
+
+static void
+mlxsw_sp_act_counter_index_put(void *priv, unsigned int counter_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp_flow_counter_free(mlxsw_sp, counter_index);
+}
+
+static int
+mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
+			const struct net_device *out_dev,
+			bool ingress, int *p_span_id)
+{
+	struct mlxsw_sp_port *in_port;
+	struct mlxsw_sp *mlxsw_sp = priv;
+	enum mlxsw_sp_span_type type;
+
+	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
+	in_port = mlxsw_sp->ports[local_in_port];
+
+	return mlxsw_sp_span_mirror_add(in_port, out_dev, type,
+					false, p_span_id);
+}
+
+static void
+mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp_port *in_port;
+	enum mlxsw_sp_span_type type;
+
+	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
+	in_port = mlxsw_sp->ports[local_in_port];
+
+	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
+}
+
 static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
 	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
+	.counter_index_get	= mlxsw_sp_act_counter_index_get,
+	.counter_index_put	= mlxsw_sp_act_counter_index_put,
+	.mirror_add		= mlxsw_sp_act_mirror_add,
+	.mirror_del		= mlxsw_sp_act_mirror_del,
 };
 
 int mlxsw_sp_afa_init(struct mlxsw_sp *mlxsw_sp)

@@ -1,4 +1,5 @@
-/* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2010-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -21,9 +22,11 @@
 #include <linux/compiler.h>
 #include <linux/debugfs.h>
 #include <linux/errno.h>
+#include <linux/eventpoll.h>
 #include <linux/export.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -86,6 +89,13 @@ static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
 	return 0;
 }
 
+/**
+ * batadv_debug_log() - Add debug log entry
+ * @bat_priv: the bat priv with all the soft interface information
+ * @fmt: format string
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
@@ -176,7 +186,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	return error;
 }
 
-static unsigned int batadv_log_poll(struct file *file, poll_table *wait)
+static __poll_t batadv_log_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_priv *bat_priv = file->private_data;
 	struct batadv_priv_debug_log *debug_log = bat_priv->debug_log;
@@ -184,7 +194,7 @@ static unsigned int batadv_log_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &debug_log->queue_wait, wait);
 
 	if (!batadv_log_empty(debug_log))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }
@@ -197,6 +207,12 @@ static const struct file_operations batadv_log_fops = {
 	.llseek         = no_llseek,
 };
 
+/**
+ * batadv_debug_log_setup() - Initialize debug log
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;
@@ -222,6 +238,10 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_debug_log_cleanup() - Destroy debug log
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
 	kfree(bat_priv->debug_log);

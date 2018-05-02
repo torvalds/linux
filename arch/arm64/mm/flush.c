@@ -58,7 +58,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 	flush_ptrace_access(vma, page, uaddr, dst, len);
 }
 
-void __sync_icache_dcache(pte_t pte, unsigned long addr)
+void __sync_icache_dcache(pte_t pte)
 {
 	struct page *page = pte_page(pte);
 

@@ -37,22 +37,33 @@ reset_ftrace_filter() { # reset all triggers in set_ftrace_filter
 	if [ "$tr" = "" ]; then
 	    continue
 	fi
+	if ! grep -q "$t" set_ftrace_filter; then
+		continue;
+	fi
+	name=`echo $t | cut -d: -f1 | cut -d' ' -f1`
 	if [ $tr = "enable_event" -o $tr = "disable_event" ]; then
-	    tr=`echo $t | cut -d: -f1-4`
+	    tr=`echo $t | cut -d: -f2-4`
 	    limit=`echo $t | cut -d: -f5`
 	else
-	    tr=`echo $t | cut -d: -f1-2`
+	    tr=`echo $t | cut -d: -f2`
 	    limit=`echo $t | cut -d: -f3`
 	fi
 	if [ "$limit" != "unlimited" ]; then
 	    tr="$tr:$limit"
 	fi
-	echo "!$tr" > set_ftrace_filter
+	echo "!$name:$tr" > set_ftrace_filter
     done
 }
 
 disable_events() {
     echo 0 > events/enable
+}
+
+clear_synthetic_events() { # reset all current synthetic events
+    grep -v ^# synthetic_events |
+    while read line; do
+        echo "!$line" >> synthetic_events
+    done
 }
 
 initialize_ftrace() { # Reset ftrace to initial-state

@@ -6,7 +6,7 @@
 #include <asm/xor.h>
 #include <asm/checksum.h>
 #include <asm/trap_block.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/ftrace.h>
 #include <asm/cacheflush.h>

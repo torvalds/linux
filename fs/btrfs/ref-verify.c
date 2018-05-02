@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Facebook.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -579,11 +566,16 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 
 	while (level >= 0) {
 		if (level) {
+			struct btrfs_key first_key;
+
 			block_bytenr = btrfs_node_blockptr(path->nodes[level],
 							   path->slots[level]);
 			gen = btrfs_node_ptr_generation(path->nodes[level],
 							path->slots[level]);
-			eb = read_tree_block(fs_info, block_bytenr, gen);
+			btrfs_node_key_to_cpu(path->nodes[level], &first_key,
+					      path->slots[level]);
+			eb = read_tree_block(fs_info, block_bytenr, gen,
+					     level - 1, &first_key);
 			if (IS_ERR(eb))
 				return PTR_ERR(eb);
 			if (!extent_buffer_uptodate(eb)) {
@@ -606,8 +598,7 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 }
 
 /* Walk up to the next node that needs to be processed */
-static int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path,
-			int *level)
+static int walk_up_tree(struct btrfs_path *path, int *level)
 {
 	int l;
 
@@ -984,7 +975,6 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_path *path;
-	struct btrfs_root *root;
 	struct extent_buffer *eb;
 	u64 bytenr = 0, num_bytes = 0;
 	int ret, level;
@@ -1014,7 +1004,7 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 				     &bytenr, &num_bytes);
 		if (ret)
 			break;
-		ret = walk_up_tree(root, path, &level);
+		ret = walk_up_tree(path, &level);
 		if (ret < 0)
 			break;
 		if (ret > 0) {

@@ -82,11 +82,7 @@
 #endif
 	.endm
 
-#ifdef CONFIG_KPROBES
-	.section	.kprobes.text,"ax",%progbits
-#else
-	.text
-#endif
+	.section	.entry.text,"ax",%progbits
 
 /*
  * Invalid mode handlers

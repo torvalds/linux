@@ -920,7 +920,7 @@ static void isp_pipeline_suspend(struct isp_pipeline *pipe)
 
 /*
  * isp_pipeline_is_last - Verify if entity has an enabled link to the output
- * 			  video node
+ *			  video node
  * @me: ISP module's media entity
  *
  * Returns 1 if the entity has an enabled link to the output video node or 0

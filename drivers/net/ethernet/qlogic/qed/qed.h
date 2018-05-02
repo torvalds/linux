@@ -52,10 +52,10 @@
 
 extern const struct qed_common_ops qed_common_ops_pass;
 
-#define QED_MAJOR_VERSION               8
-#define QED_MINOR_VERSION               10
-#define QED_REVISION_VERSION            11
-#define QED_ENGINEERING_VERSION 21
+#define QED_MAJOR_VERSION		8
+#define QED_MINOR_VERSION		33
+#define QED_REVISION_VERSION		0
+#define QED_ENGINEERING_VERSION		20
 
 #define QED_VERSION						 \
 	((QED_MAJOR_VERSION << 24) | (QED_MINOR_VERSION << 16) | \
@@ -79,6 +79,13 @@ extern const struct qed_common_ops qed_common_ops_pass;
 enum qed_coalescing_mode {
 	QED_COAL_MODE_DISABLE,
 	QED_COAL_MODE_ENABLE
+};
+
+enum qed_nvm_cmd {
+	QED_PUT_FILE_BEGIN = DRV_MSG_CODE_NVM_PUT_FILE_BEGIN,
+	QED_PUT_FILE_DATA = DRV_MSG_CODE_NVM_PUT_FILE_DATA,
+	QED_NVM_WRITE_NVRAM = DRV_MSG_CODE_NVM_WRITE_NVRAM,
+	QED_GET_MCP_NVM_RESP = 0xFFFFFF00
 };
 
 struct qed_eth_cb_ops;
@@ -437,6 +444,11 @@ enum BAR_ID {
 	BAR_ID_1		/* Used for doorbells */
 };
 
+struct qed_nvm_image_info {
+	u32 num_images;
+	struct bist_nvm_image_att *image_att;
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \
@@ -560,6 +572,9 @@ struct qed_hwfn {
 
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;
+
+	/* Nvm images number and attributes */
+	struct qed_nvm_image_info nvm_info;
 
 	struct qed_ptt *p_arfs_ptt;
 
@@ -778,8 +793,8 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 	return sw_fid;
 }
 
-#define PURE_LB_TC 8
-#define PKT_LB_TC 9
+#define PKT_LB_TC	9
+#define MAX_NUM_VOQS_E4	20
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,

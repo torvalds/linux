@@ -290,12 +290,15 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	adapter->dbg.last_cmd_act[adapter->dbg.last_cmd_index] =
 			get_unaligned_le16((u8 *)host_cmd + S_DS_GEN);
 
+	/* Setup the timer after transmit command, except that specific
+	 * command might not have command response.
+	 */
+	if (cmd_code != HostCmd_CMD_FW_DUMP_EVENT)
+		mod_timer(&adapter->cmd_timer,
+			  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
+
 	/* Clear BSS_NO_BITS from HostCmd */
 	cmd_code &= HostCmd_CMD_ID_MASK;
-
-	/* Setup the timer after transmit command */
-	mod_timer(&adapter->cmd_timer,
-		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
 
 	return 0;
 }
@@ -1526,7 +1529,8 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	adapter->fw_release_number = le32_to_cpu(hw_spec->fw_release_number);
 	adapter->fw_api_ver = (adapter->fw_release_number >> 16) & 0xff;
-	adapter->number_of_antenna = le16_to_cpu(hw_spec->number_of_antenna);
+	adapter->number_of_antenna =
+			le16_to_cpu(hw_spec->number_of_antenna) & 0xf;
 
 	if (le32_to_cpu(hw_spec->dot_11ac_dev_cap)) {
 		adapter->is_hw_11ac_capable = true;

@@ -23,7 +23,6 @@
 #include <linux/sysctl.h>
 #include <linux/audit.h>
 #include <linux/user_namespace.h>
-#include <linux/kmemleak.h>
 #include <net/sock.h>
 
 #include "include/apparmor.h"
@@ -725,16 +724,23 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 }
 
 static int apparmor_task_kill(struct task_struct *target, struct siginfo *info,
-			      int sig, u32 secid)
+			      int sig, const struct cred *cred)
 {
 	struct aa_label *cl, *tl;
 	int error;
 
-	if (secid)
-		/* TODO: after secid to label mapping is done.
-		 *  Dealing with USB IO specific behavior
+	if (cred) {
+		/*
+		 * Dealing with USB IO specific behavior
 		 */
-		return 0;
+		cl = aa_get_newest_cred_label(cred);
+		tl = aa_get_task_label(target);
+		error = aa_may_signal(cl, tl, sig);
+		aa_put_label(cl);
+		aa_put_label(tl);
+		return error;
+	}
+
 	cl = __begin_current_label_crit_section();
 	tl = aa_get_task_label(target);
 	error = aa_may_signal(cl, tl, sig);

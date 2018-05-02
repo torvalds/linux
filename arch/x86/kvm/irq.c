@@ -73,13 +73,24 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
-	if (kvm_vcpu_apicv_active(v))
+	if (!is_guest_mode(v) && kvm_vcpu_apicv_active(v))
 		return 0;
 
 	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */
@@ -91,8 +102,19 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;

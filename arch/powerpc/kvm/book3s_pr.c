@@ -121,7 +121,7 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
 	if (svcpu->in_use) {
-		kvmppc_copy_from_svcpu(vcpu, svcpu);
+		kvmppc_copy_from_svcpu(vcpu);
 	}
 	memcpy(to_book3s(vcpu)->slb_shadow, svcpu->slb, sizeof(svcpu->slb));
 	to_book3s(vcpu)->slb_shadow_max = svcpu->slb_max;
@@ -143,9 +143,10 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 }
 
 /* Copy data needed by real-mode code from vcpu to shadow vcpu */
-void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
-			  struct kvm_vcpu *vcpu)
+void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu)
 {
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+
 	svcpu->gpr[0] = vcpu->arch.gpr[0];
 	svcpu->gpr[1] = vcpu->arch.gpr[1];
 	svcpu->gpr[2] = vcpu->arch.gpr[2];
@@ -177,17 +178,14 @@ void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		vcpu->arch.entry_ic = mfspr(SPRN_IC);
 	svcpu->in_use = true;
+
+	svcpu_put(svcpu);
 }
 
 /* Copy data touched by real-mode code from shadow vcpu back to vcpu */
-void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
-			    struct kvmppc_book3s_shadow_vcpu *svcpu)
+void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * vcpu_put would just call us again because in_use hasn't
-	 * been updated yet.
-	 */
-	preempt_disable();
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
 
 	/*
 	 * Maybe we were already preempted and synced the svcpu from
@@ -233,7 +231,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 	svcpu->in_use = false;
 
 out:
-	preempt_enable();
+	svcpu_put(svcpu);
 }
 
 static int kvmppc_core_check_requests_pr(struct kvm_vcpu *vcpu)
@@ -277,15 +275,6 @@ static void do_kvm_unmap_hva(struct kvm *kvm, unsigned long start,
 			kvmppc_mmu_pte_pflush(vcpu, gfn << PAGE_SHIFT,
 					      gfn_end << PAGE_SHIFT);
 	}
-}
-
-static int kvm_unmap_hva_pr(struct kvm *kvm, unsigned long hva)
-{
-	trace_kvm_unmap_hva(hva);
-
-	do_kvm_unmap_hva(kvm, hva, hva + PAGE_SIZE);
-
-	return 0;
 }
 
 static int kvm_unmap_hva_range_pr(struct kvm *kvm, unsigned long start,
@@ -1775,7 +1764,6 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.flush_memslot = kvmppc_core_flush_memslot_pr,
 	.prepare_memory_region = kvmppc_core_prepare_memory_region_pr,
 	.commit_memory_region = kvmppc_core_commit_memory_region_pr,
-	.unmap_hva = kvm_unmap_hva_pr,
 	.unmap_hva_range = kvm_unmap_hva_range_pr,
 	.age_hva  = kvm_age_hva_pr,
 	.test_age_hva = kvm_test_age_hva_pr,

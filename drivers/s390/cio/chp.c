@@ -384,6 +384,28 @@ static ssize_t chp_chid_external_show(struct device *dev,
 }
 static DEVICE_ATTR(chid_external, 0444, chp_chid_external_show, NULL);
 
+static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *attr, char *buf,
+				loff_t off, size_t count)
+{
+	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	rc = memory_read_from_buffer(buf, count, &off, chp->desc_fmt3.util_str,
+				     sizeof(chp->desc_fmt3.util_str));
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static BIN_ATTR_RO(util_string,
+		   sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
+
+static struct bin_attribute *chp_bin_attrs[] = {
+	&bin_attr_util_string,
+	NULL,
+};
+
 static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
@@ -396,6 +418,7 @@ static struct attribute *chp_attrs[] = {
 };
 static struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
+	.bin_attrs = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,
@@ -412,7 +435,7 @@ static void chp_release(struct device *dev)
 
 /**
  * chp_update_desc - update channel-path description
- * @chp - channel-path
+ * @chp: channel-path
  *
  * Update the channel-path description of the specified channel-path
  * including channel measurement related information.
@@ -422,7 +445,7 @@ int chp_update_desc(struct channel_path *chp)
 {
 	int rc;
 
-	rc = chsc_determine_base_channel_path_desc(chp->chpid, &chp->desc);
+	rc = chsc_determine_fmt0_channel_path_desc(chp->chpid, &chp->desc);
 	if (rc)
 		return rc;
 
@@ -431,6 +454,7 @@ int chp_update_desc(struct channel_path *chp)
 	 * hypervisors implement the required chsc commands.
 	 */
 	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	chsc_determine_fmt3_channel_path_desc(chp->chpid, &chp->desc_fmt3);
 	chsc_get_channel_measurement_chars(chp);
 
 	return 0;
@@ -438,7 +462,7 @@ int chp_update_desc(struct channel_path *chp)
 
 /**
  * chp_new - register a new channel-path
- * @chpid - channel-path ID
+ * @chpid: channel-path ID
  *
  * Create and register data structure representing new channel-path. Return
  * zero on success, non-zero otherwise.
@@ -506,20 +530,20 @@ out:
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel-path ID. Return %NULL on error.
  */
-struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid)
+struct channel_path_desc_fmt0 *chp_get_chp_desc(struct chp_id chpid)
 {
 	struct channel_path *chp;
-	struct channel_path_desc *desc;
+	struct channel_path_desc_fmt0 *desc;
 
 	chp = chpid_to_chp(chpid);
 	if (!chp)
 		return NULL;
-	desc = kmalloc(sizeof(struct channel_path_desc), GFP_KERNEL);
+	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return NULL;
 
 	mutex_lock(&chp->lock);
-	memcpy(desc, &chp->desc, sizeof(struct channel_path_desc));
+	memcpy(desc, &chp->desc, sizeof(*desc));
 	mutex_unlock(&chp->lock);
 	return desc;
 }
@@ -730,8 +754,8 @@ static void cfg_func(struct work_struct *work)
 
 /**
  * chp_cfg_schedule - schedule chpid configuration request
- * @chpid - channel-path ID
- * @configure - Non-zero for configure, zero for deconfigure
+ * @chpid: channel-path ID
+ * @configure: Non-zero for configure, zero for deconfigure
  *
  * Schedule a channel-path configuration/deconfiguration request.
  */
@@ -747,7 +771,7 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 
 /**
  * chp_cfg_cancel_deconfigure - cancel chpid deconfiguration request
- * @chpid - channel-path ID
+ * @chpid: channel-path ID
  *
  * Cancel an active channel-path deconfiguration request if it has not yet
  * been performed.

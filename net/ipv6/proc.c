@@ -38,7 +38,6 @@
 static int sockstat6_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq->private;
-	unsigned int frag_mem = ip6_frag_mem(net);
 
 	seq_printf(seq, "TCP6: inuse %d\n",
 		       sock_prot_inuse_get(net, &tcpv6_prot));
@@ -48,7 +47,9 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 			sock_prot_inuse_get(net, &udplitev6_prot));
 	seq_printf(seq, "RAW6: inuse %d\n",
 		       sock_prot_inuse_get(net, &rawv6_prot));
-	seq_printf(seq, "FRAG6: inuse %u memory %u\n", !!frag_mem, frag_mem);
+	seq_printf(seq, "FRAG6: inuse %u memory %lu\n",
+		   atomic_read(&net->ipv6.frags.rhashtable.nelems),
+		   frag_mem_limit(&net->ipv6.frags));
 	return 0;
 }
 
@@ -58,7 +59,6 @@ static int sockstat6_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations sockstat6_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -248,7 +248,6 @@ static int snmp6_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations snmp6_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = snmp6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -274,7 +273,6 @@ static int snmp6_dev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations snmp6_dev_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = snmp6_dev_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -293,7 +291,7 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
 
-	p = proc_create_data(idev->dev->name, S_IRUGO,
+	p = proc_create_data(idev->dev->name, 0444,
 			     net->mib.proc_net_devsnmp6,
 			     &snmp6_dev_seq_fops, idev);
 	if (!p)
@@ -317,11 +315,11 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 
 static int __net_init ipv6_proc_init_net(struct net *net)
 {
-	if (!proc_create("sockstat6", S_IRUGO, net->proc_net,
+	if (!proc_create("sockstat6", 0444, net->proc_net,
 			 &sockstat6_seq_fops))
 		return -ENOMEM;
 
-	if (!proc_create("snmp6", S_IRUGO, net->proc_net, &snmp6_seq_fops))
+	if (!proc_create("snmp6", 0444, net->proc_net, &snmp6_seq_fops))
 		goto proc_snmp6_fail;
 
 	net->mib.proc_net_devsnmp6 = proc_mkdir("dev_snmp6", net->proc_net);
@@ -357,4 +355,3 @@ void ipv6_misc_proc_exit(void)
 {
 	unregister_pernet_subsys(&ipv6_proc_ops);
 }
-

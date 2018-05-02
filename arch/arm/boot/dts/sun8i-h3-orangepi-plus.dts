@@ -85,7 +85,6 @@
 	phy-handle = <&ext_rgmii_phy>;
 	phy-mode = "rgmii";
 
-	allwinner,leds-active-low;
 	status = "okay";
 };
 

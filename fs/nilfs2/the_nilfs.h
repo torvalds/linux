@@ -116,7 +116,7 @@ struct the_nilfs {
 	 */
 	struct buffer_head     *ns_sbh[2];
 	struct nilfs_super_block *ns_sbp[2];
-	time_t			ns_sbwtime;
+	time64_t		ns_sbwtime;
 	unsigned int		ns_sbwcount;
 	unsigned int		ns_sbsize;
 	unsigned int		ns_mount_state;
@@ -131,8 +131,8 @@ struct the_nilfs {
 	__u64			ns_nextnum;
 	unsigned long		ns_pseg_offset;
 	__u64			ns_cno;
-	time_t			ns_ctime;
-	time_t			ns_nongc_ctime;
+	time64_t		ns_ctime;
+	time64_t		ns_nongc_ctime;
 	atomic_t		ns_ndirtyblks;
 
 	/*
@@ -267,7 +267,7 @@ struct nilfs_root {
 
 static inline int nilfs_sb_need_update(struct the_nilfs *nilfs)
 {
-	u64 t = get_seconds();
+	u64 t = ktime_get_real_seconds();
 
 	return t < nilfs->ns_sbwtime ||
 		t > nilfs->ns_sbwtime + nilfs->ns_sb_update_freq;

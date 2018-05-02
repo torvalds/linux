@@ -18,11 +18,13 @@
 
 #include "smc_ib.h"
 
-#define SMCPROTO_SMC		0	/* SMC protocol */
+#define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
+#define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
 #define SMC_MAX_PORTS		2	/* Max # of ports */
 
 extern struct proto smc_proto;
+extern struct proto smc_proto6;
 
 #ifdef ATOMIC64_INIT
 #define KERNEL_HAS_ATOMIC64
@@ -172,13 +174,11 @@ struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
 	struct smc_connection	conn;		/* smc connection */
-	struct sockaddr		*addr;		/* inet connect address */
 	struct smc_sock		*listen_smc;	/* listen parent */
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
-	struct delayed_work	sock_put_work;	/* final socket freeing */
 	bool			use_fallback;	/* fallback to tcp */
 	u8			wait_close_tx_prepared : 1;
 						/* shutdown wr or close
@@ -253,21 +253,19 @@ static inline int smc_uncompress_bufsize(u8 compressed)
 static inline bool using_ipsec(struct smc_sock *smc)
 {
 	return (smc->clcsock->sk->sk_policy[0] ||
-		smc->clcsock->sk->sk_policy[1]) ? 1 : 0;
+		smc->clcsock->sk->sk_policy[1]) ? true : false;
 }
 #else
 static inline bool using_ipsec(struct smc_sock *smc)
 {
-	return 0;
+	return false;
 }
 #endif
 
 struct smc_clc_msg_local;
 
-int smc_netinfo_by_tcpsk(struct socket *clcsock, __be32 *subnet,
-			 u8 *prefix_len);
 void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
+int smc_conn_create(struct smc_sock *smc,
 		    struct smc_ib_device *smcibdev, u8 ibport,
 		    struct smc_clc_msg_local *lcl, int srv_first_contact);
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);

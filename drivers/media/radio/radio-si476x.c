@@ -759,7 +759,7 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 {
 	int err;
 	enum si476x_func func;
-	u32 rangelow, rangehigh;
+	u32 rangelow = seek->rangelow, rangehigh = seek->rangehigh;
 	struct si476x_radio *radio = video_drvdata(file);
 
 	if (file->f_flags & O_NONBLOCK)
@@ -771,23 +771,21 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 
 	si476x_core_lock(radio->core);
 
-	if (!seek->rangelow) {
+	if (!rangelow) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_BOTTOM,
 				  &rangelow);
-		if (!err)
-			rangelow = si476x_to_v4l2(radio->core, rangelow);
-		else
+		if (err)
 			goto unlock;
+		rangelow = si476x_to_v4l2(radio->core, rangelow);
 	}
-	if (!seek->rangehigh) {
+	if (!rangehigh) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_TOP,
 				  &rangehigh);
-		if (!err)
-			rangehigh = si476x_to_v4l2(radio->core, rangehigh);
-		else
+		if (err)
 			goto unlock;
+		rangehigh = si476x_to_v4l2(radio->core, rangehigh);
 	}
 
 	if (rangelow > rangehigh) {
@@ -1153,22 +1151,22 @@ static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,
 	return rval;
 }
 
-static unsigned int si476x_radio_fops_poll(struct file *file,
+static __poll_t si476x_radio_fops_poll(struct file *file,
 				struct poll_table_struct *pts)
 {
 	struct si476x_radio *radio = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(pts);
-	unsigned int err = v4l2_ctrl_poll(file, pts);
+	__poll_t req_events = poll_requested_events(pts);
+	__poll_t err = v4l2_ctrl_poll(file, pts);
 
-	if (req_events & (POLLIN | POLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		if (atomic_read(&radio->core->is_alive))
 			poll_wait(file, &radio->core->rds_read_queue, pts);
 
 		if (!atomic_read(&radio->core->is_alive))
-			err = POLLHUP;
+			err = EPOLLHUP;
 
 		if (!kfifo_is_empty(&radio->core->rds_fifo))
-			err = POLLIN | POLLRDNORM;
+			err = EPOLLIN | EPOLLRDNORM;
 	}
 
 	return err;

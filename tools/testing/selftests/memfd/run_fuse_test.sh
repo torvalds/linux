@@ -10,6 +10,6 @@ set -e
 
 mkdir mnt
 ./fuse_mnt ./mnt
-./fuse_test ./mnt/memfd
+./fuse_test ./mnt/memfd $@
 fusermount -u ./mnt
 rmdir ./mnt

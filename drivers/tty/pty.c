@@ -344,7 +344,7 @@ static void pty_start(struct tty_struct *tty)
 		tty->ctrl_status &= ~TIOCPKT_STOP;
 		tty->ctrl_status |= TIOCPKT_START;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }
 
@@ -357,7 +357,7 @@ static void pty_stop(struct tty_struct *tty)
 		tty->ctrl_status &= ~TIOCPKT_START;
 		tty->ctrl_status |= TIOCPKT_STOP;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }
 

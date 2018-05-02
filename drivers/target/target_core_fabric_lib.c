@@ -273,7 +273,7 @@ static int iscsi_get_pr_transport_id_len(
 
 static char *iscsi_parse_pr_out_transport_id(
 	struct se_portal_group *se_tpg,
-	const char *buf,
+	char *buf,
 	u32 *out_tid_len,
 	char **port_nexus_ptr)
 {
@@ -356,7 +356,7 @@ static char *iscsi_parse_pr_out_transport_id(
 		}
 	}
 
-	return (char *)&buf[4];
+	return &buf[4];
 }
 
 int target_get_pr_transport_id_len(struct se_node_acl *nacl,
@@ -405,7 +405,7 @@ int target_get_pr_transport_id(struct se_node_acl *nacl,
 }
 
 const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
-		const char *buf, u32 *out_tid_len, char **port_nexus_ptr)
+		char *buf, u32 *out_tid_len, char **port_nexus_ptr)
 {
 	u32 offset;
 

@@ -225,6 +225,7 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__field(unsigned, short_not_ok)
 		__field(int, status)
 		__field(int, ret)
+		__field(struct usb_request *, req)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), UDC_TRACE_STR_MAX, "%s", ep->name);
@@ -238,9 +239,10 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__entry->short_not_ok = req->short_not_ok;
 		__entry->status = req->status;
 		__entry->ret = ret;
+		__entry->req = req;
 	),
-	TP_printk("%s: length %d/%d sgs %d/%d stream %d %s%s%s status %d --> %d",
-		__get_str(name), __entry->actual, __entry->length,
+	TP_printk("%s: req %p length %d/%d sgs %d/%d stream %d %s%s%s status %d --> %d",
+		__get_str(name),__entry->req,  __entry->actual, __entry->length,
 		__entry->num_mapped_sgs, __entry->num_sgs, __entry->stream_id,
 		__entry->zero ? "Z" : "z",
 		__entry->short_not_ok ? "S" : "s",

@@ -595,7 +595,6 @@ static int ip_vs_app_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip_vs_app_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = ip_vs_app_open,
 	.read	 = seq_read,
 	.llseek  = seq_lseek,

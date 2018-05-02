@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <acpi/button.h>
 
 #define PREFIX "ACPI: "
@@ -75,6 +76,22 @@ static const struct acpi_device_id button_device_ids[] = {
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, button_device_ids);
+
+/*
+ * Some devices which don't even have a lid in anyway have a broken _LID
+ * method (e.g. pointing to a floating gpio pin) causing spurious LID events.
+ */
+static const struct dmi_system_id lid_blacklst[] = {
+	{
+		/* GP-electronic T701 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T701"),
+			DMI_MATCH(DMI_BIOS_VERSION, "BYT70A.YNCHENG.WIN.007"),
+		},
+	},
+	{}
+};
 
 static int acpi_button_add(struct acpi_device *device);
 static int acpi_button_remove(struct acpi_device *device);
@@ -210,6 +227,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 	/* Send the platform triggered reliable event */
 	if (do_update) {
+		acpi_handle_debug(device->handle, "ACPI LID %s\n",
+				  state ? "open" : "closed");
 		input_report_switch(button->input, SW_LID, !state);
 		input_sync(button->input);
 		button->last_state = !!state;
@@ -473,6 +492,9 @@ static int acpi_button_add(struct acpi_device *device)
 	char *name, *class;
 	int error;
 
+	if (!strcmp(hid, ACPI_BUTTON_HID_LID) && dmi_check_system(lid_blacklst))
+		return -ENODEV;
+
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
 		return -ENOMEM;
@@ -613,4 +635,26 @@ module_param_call(lid_init_state,
 		  NULL, 0644);
 MODULE_PARM_DESC(lid_init_state, "Behavior for reporting LID initial state");
 
-module_acpi_driver(acpi_button_driver);
+static int acpi_button_register_driver(struct acpi_driver *driver)
+{
+	/*
+	 * Modules such as nouveau.ko and i915.ko have a link time dependency
+	 * on acpi_lid_open(), and would therefore not be loadable on ACPI
+	 * capable kernels booted in non-ACPI mode if the return value of
+	 * acpi_bus_register_driver() is returned from here with ACPI disabled
+	 * when this driver is built as a module.
+	 */
+	if (acpi_disabled)
+		return 0;
+
+	return acpi_bus_register_driver(driver);
+}
+
+static void acpi_button_unregister_driver(struct acpi_driver *driver)
+{
+	if (!acpi_disabled)
+		acpi_bus_unregister_driver(driver);
+}
+
+module_driver(acpi_button_driver, acpi_button_register_driver,
+	       acpi_button_unregister_driver);

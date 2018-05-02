@@ -52,6 +52,12 @@
  *		- start  - virtual start address
  *		- end    - virtual end address
  *
+ *	invalidate_icache_range(start, end)
+ *
+ *		Invalidate the I-cache in the region described by start, end.
+ *		- start  - virtual start address
+ *		- end    - virtual end address
+ *
  *	__flush_cache_user_range(start, end)
  *
  *		Ensure coherency between the I-cache and the D-cache in the
@@ -66,6 +72,7 @@
  *		- size   - region size
  */
 extern void flush_icache_range(unsigned long start, unsigned long end);
+extern int  invalidate_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);
 extern void __inval_dcache_area(void *addr, size_t len);
 extern void __clean_dcache_area_poc(void *addr, size_t len);
@@ -126,14 +133,15 @@ extern void flush_dcache_page(struct page *);
 
 static inline void __flush_icache_all(void)
 {
+	if (cpus_have_const_cap(ARM64_HAS_CACHE_DIC))
+		return;
+
 	asm("ic	ialluis");
 	dsb(ish);
 }
 
-#define flush_dcache_mmap_lock(mapping) \
-	spin_lock_irq(&(mapping)->tree_lock)
-#define flush_dcache_mmap_unlock(mapping) \
-	spin_unlock_irq(&(mapping)->tree_lock)
+#define flush_dcache_mmap_lock(mapping)		do { } while (0)
+#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 /*
  * We don't appear to need to do anything here.  In fact, if we did, we'd

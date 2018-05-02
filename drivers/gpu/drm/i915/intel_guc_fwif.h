@@ -544,9 +544,37 @@ union guc_log_control {
 	u32 value;
 } __packed;
 
+struct guc_ctx_report {
+	u32 report_return_status;
+	u32 reserved1[64];
+	u32 affected_count;
+	u32 reserved2[2];
+} __packed;
+
+/* GuC Shared Context Data Struct */
+struct guc_shared_ctx_data {
+	u32 addr_of_last_preempted_data_low;
+	u32 addr_of_last_preempted_data_high;
+	u32 addr_of_last_preempted_data_high_tmp;
+	u32 padding;
+	u32 is_mapped_to_proxy;
+	u32 proxy_ctx_id;
+	u32 engine_reset_ctx_id;
+	u32 media_reset_count;
+	u32 reserved1[8];
+	u32 uk_last_ctx_switch_reason;
+	u32 was_reset;
+	u32 lrca_gpu_addr;
+	u64 execlist_ctx;
+	u32 reserved2[66];
+	struct guc_ctx_report preempt_ctx_report[GUC_MAX_ENGINES_NUM];
+} __packed;
+
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
 enum intel_guc_action {
 	INTEL_GUC_ACTION_DEFAULT = 0x0,
+	INTEL_GUC_ACTION_REQUEST_PREEMPTION = 0x2,
+	INTEL_GUC_ACTION_REQUEST_ENGINE_RESET = 0x3,
 	INTEL_GUC_ACTION_SAMPLE_FORCEWAKE = 0x6,
 	INTEL_GUC_ACTION_ALLOCATE_DOORBELL = 0x10,
 	INTEL_GUC_ACTION_DEALLOCATE_DOORBELL = 0x20,
@@ -560,6 +588,18 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER = 0x4506,
 	INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING = 0x0E000,
 	INTEL_GUC_ACTION_LIMIT
+};
+
+enum intel_guc_preempt_options {
+	INTEL_GUC_PREEMPT_OPTION_DROP_WORK_Q = 0x4,
+	INTEL_GUC_PREEMPT_OPTION_DROP_SUBMIT_Q = 0x8,
+};
+
+enum intel_guc_report_status {
+	INTEL_GUC_REPORT_STATUS_UNKNOWN = 0x0,
+	INTEL_GUC_REPORT_STATUS_ACKED = 0x1,
+	INTEL_GUC_REPORT_STATUS_ERROR = 0x2,
+	INTEL_GUC_REPORT_STATUS_COMPLETE = 0x4,
 };
 
 /*

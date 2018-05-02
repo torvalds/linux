@@ -25,9 +25,9 @@
 #include <linux/sched/task_stack.h>
 #include <linux/tick.h>
 #include <linux/ptrace.h>
+#include <linux/uaccess.h>
 
 #include <asm/unistd.h>
-#include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/csr.h>
 #include <asm/string.h>

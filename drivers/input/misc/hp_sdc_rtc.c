@@ -408,13 +408,13 @@ static ssize_t hp_sdc_rtc_read(struct file *file, char __user *buf,
 	return retval;
 }
 
-static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait)
+static __poll_t hp_sdc_rtc_poll(struct file *file, poll_table *wait)
 {
         unsigned long l;
 
 	l = 0;
         if (l != 0)
-                return POLLIN | POLLRDNORM;
+                return EPOLLIN | EPOLLRDNORM;
         return 0;
 }
 

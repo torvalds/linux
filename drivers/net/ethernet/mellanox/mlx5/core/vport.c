@@ -36,6 +36,9 @@
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 
+/* Mutex to hold while enabling or disabling RoCE */
+static DEFINE_MUTEX(mlx5_roce_en_lock);
+
 static int _mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod,
 				   u16 vport, u32 *out, int outlen)
 {
@@ -998,17 +1001,35 @@ static int mlx5_nic_vport_update_roce_state(struct mlx5_core_dev *mdev,
 
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev)
 {
-	if (atomic_inc_return(&mdev->roce.roce_en) != 1)
-		return 0;
-	return mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_ENABLED);
+	int err = 0;
+
+	mutex_lock(&mlx5_roce_en_lock);
+	if (!mdev->roce.roce_en)
+		err = mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_ENABLED);
+
+	if (!err)
+		mdev->roce.roce_en++;
+	mutex_unlock(&mlx5_roce_en_lock);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_enable_roce);
 
 int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev)
 {
-	if (atomic_dec_return(&mdev->roce.roce_en) != 0)
-		return 0;
-	return mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_DISABLED);
+	int err = 0;
+
+	mutex_lock(&mlx5_roce_en_lock);
+	if (mdev->roce.roce_en) {
+		mdev->roce.roce_en--;
+		if (mdev->roce.roce_en == 0)
+			err = mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_DISABLED);
+
+		if (err)
+			mdev->roce.roce_en++;
+	}
+	mutex_unlock(&mlx5_roce_en_lock);
+	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_disable_roce);
 
@@ -1048,6 +1069,32 @@ free:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_vport_counter);
+
+int mlx5_query_vport_down_stats(struct mlx5_core_dev *mdev, u16 vport,
+				u64 *rx_discard_vport_down,
+				u64 *tx_discard_vport_down)
+{
+	u32 out[MLX5_ST_SZ_DW(query_vnic_env_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {0};
+	int err;
+
+	MLX5_SET(query_vnic_env_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VNIC_ENV);
+	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
+	MLX5_SET(query_vnic_env_in, in, vport_number, vport);
+	if (vport)
+		MLX5_SET(query_vnic_env_in, in, other_vport, 1);
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*rx_discard_vport_down = MLX5_GET64(query_vnic_env_out, out,
+					    vport_env.receive_discard_vport_down);
+	*tx_discard_vport_down = MLX5_GET64(query_vnic_env_out, out,
+					    vport_env.transmit_discard_vport_down);
+	return 0;
+}
 
 int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
 				       u8 other_vport, u8 port_num,
@@ -1110,3 +1157,61 @@ ex:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_modify_hca_vport_context);
+
+int mlx5_nic_vport_affiliate_multiport(struct mlx5_core_dev *master_mdev,
+				       struct mlx5_core_dev *port_mdev)
+{
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	void *in;
+	int err;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	err = mlx5_nic_vport_enable_roce(port_mdev);
+	if (err)
+		goto free;
+
+	MLX5_SET(modify_nic_vport_context_in, in, field_select.affiliation, 1);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliated_vhca_id,
+		 MLX5_CAP_GEN(master_mdev, vhca_id));
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliation_criteria,
+		 MLX5_CAP_GEN(port_mdev, affiliate_nic_vport_criteria));
+
+	err = mlx5_modify_nic_vport_context(port_mdev, in, inlen);
+	if (err)
+		mlx5_nic_vport_disable_roce(port_mdev);
+
+free:
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_affiliate_multiport);
+
+int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev)
+{
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	void *in;
+	int err;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_nic_vport_context_in, in, field_select.affiliation, 1);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliated_vhca_id, 0);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliation_criteria, 0);
+
+	err = mlx5_modify_nic_vport_context(port_mdev, in, inlen);
+	if (!err)
+		mlx5_nic_vport_disable_roce(port_mdev);
+
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_unaffiliate_multiport);

@@ -21,6 +21,27 @@
 		status = "disabled";
 	};
 
+	/delete-node/ mmu@febe0000;
+	/delete-node/ mmu@fe980000;
+	/delete-node/ mmu@fd950000;
+	/delete-node/ mmu@fd960000;
+	/delete-node/ mmu@fd970000;
+
+	ipmmu_mp1: mmu@ec680000 {
+		compatible = "renesas,ipmmu-r8a7795";
+		reg = <0 0xec680000 0 0x1000>;
+		renesas,ipmmu-main = <&ipmmu_mm 5>;
+		#iommu-cells = <1>;
+	};
+
+	ipmmu_sy: mmu@e7730000 {
+		compatible = "renesas,ipmmu-r8a7795";
+		reg = <0 0xe7730000 0 0x1000>;
+		renesas,ipmmu-main = <&ipmmu_mm 8>;
+		#iommu-cells = <1>;
+		status = "disabled";
+	};
+
 	/delete-node/ usb-phy@ee0e0200;
 	/delete-node/ usb@ee0e0100;
 	/delete-node/ usb@ee0e0000;
@@ -35,6 +56,7 @@
 		clocks = <&cpg CPG_MOD 613>;
 		power-domains = <&sysc R8A7795_PD_A3VP>;
 		resets = <&cpg 613>;
+		iommus = <&ipmmu_vp0 2>;
 	};
 
 	vspi2: vsp@fe9c0000 {
@@ -54,11 +76,12 @@
 		clocks = <&cpg CPG_MOD 609>;
 		power-domains = <&sysc R8A7795_PD_A3VP>;
 		resets = <&cpg 609>;
+		iommus = <&ipmmu_vp0 10>;
 	};
 
 	vspd3: vsp@fea38000 {
 		compatible = "renesas,vsp2";
-		reg = <0 0xfea38000 0 0x4000>;
+		reg = <0 0xfea38000 0 0x8000>;
 		interrupts = <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 620>;
 		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
@@ -73,6 +96,7 @@
 		clocks = <&cpg CPG_MOD 600>;
 		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 		resets = <&cpg 600>;
+		iommus = <&ipmmu_vi0 11>;
 	};
 
 	fdp1@fe948000 {
@@ -84,6 +108,68 @@
 		resets = <&cpg 117>;
 		renesas,fcp = <&fcpf2>;
 	};
+};
+
+&gpio1 {
+	gpio-ranges = <&pfc 0 32 28>;
+};
+
+&ipmmu_vi0 {
+	renesas,ipmmu-main = <&ipmmu_mm 11>;
+};
+
+&ipmmu_vp0 {
+	renesas,ipmmu-main = <&ipmmu_mm 12>;
+};
+
+&ipmmu_vc0 {
+	renesas,ipmmu-main = <&ipmmu_mm 9>;
+};
+
+&ipmmu_vc1 {
+	renesas,ipmmu-main = <&ipmmu_mm 10>;
+};
+
+&ipmmu_rt {
+	renesas,ipmmu-main = <&ipmmu_mm 7>;
+};
+
+&audma0 {
+	iommus = <&ipmmu_mp1 0>, <&ipmmu_mp1 1>,
+	       <&ipmmu_mp1 2>, <&ipmmu_mp1 3>,
+	       <&ipmmu_mp1 4>, <&ipmmu_mp1 5>,
+	       <&ipmmu_mp1 6>, <&ipmmu_mp1 7>,
+	       <&ipmmu_mp1 8>, <&ipmmu_mp1 9>,
+	       <&ipmmu_mp1 10>, <&ipmmu_mp1 11>,
+	       <&ipmmu_mp1 12>, <&ipmmu_mp1 13>,
+	       <&ipmmu_mp1 14>, <&ipmmu_mp1 15>;
+};
+
+&audma1 {
+	iommus = <&ipmmu_mp1 16>, <&ipmmu_mp1 17>,
+	       <&ipmmu_mp1 18>, <&ipmmu_mp1 19>,
+	       <&ipmmu_mp1 20>, <&ipmmu_mp1 21>,
+	       <&ipmmu_mp1 22>, <&ipmmu_mp1 23>,
+	       <&ipmmu_mp1 24>, <&ipmmu_mp1 25>,
+	       <&ipmmu_mp1 26>, <&ipmmu_mp1 27>,
+	       <&ipmmu_mp1 28>, <&ipmmu_mp1 29>,
+	       <&ipmmu_mp1 30>, <&ipmmu_mp1 31>;
+};
+
+&fcpvb1 {
+	iommus = <&ipmmu_vp0 7>;
+};
+
+&fcpf1 {
+	iommus = <&ipmmu_vp0 1>;
+};
+
+&fcpvi1 {
+	iommus = <&ipmmu_vp0 9>;
+};
+
+&fcpvd2 {
+	iommus = <&ipmmu_vi0 10>;
 };
 
 &du {

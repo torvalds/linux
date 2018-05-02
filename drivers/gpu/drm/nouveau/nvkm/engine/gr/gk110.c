@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "gf100.h"
+#include "gk104.h"
 #include "ctxgf100.h"
 
 #include <subdev/timer.h>
@@ -156,6 +157,159 @@ gk110_gr_pack_mmio[] = {
 	{}
 };
 
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_sked_0[] = {
+	{ 0x407000, 1, 0x00004041 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_gcc_0[] = {
+	{ 0x419020, 1, 0x00000042 },
+	{ 0x419038, 1, 0x00000042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_l1c_0[] = {
+	{ 0x419cd4, 2, 0x00004042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_mp_0[] = {
+	{ 0x419fd0, 1, 0x00004043 },
+	{ 0x419fd8, 1, 0x00004049 },
+	{ 0x419fe0, 2, 0x00004042 },
+	{ 0x419ff0, 1, 0x00000046 },
+	{ 0x419ff8, 1, 0x00004042 },
+	{ 0x419f90, 1, 0x00004042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_main_0[] = {
+	{ 0x4041f4, 1, 0x00000000 },
+	{ 0x409894, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_unk_0[] = {
+	{ 0x406004, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_sked_0[] = {
+	{ 0x407004, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_ctxctl_0[] = {
+	{ 0x41a894, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_unk_0[] = {
+	{ 0x418504, 1, 0x00000000 },
+	{ 0x41860c, 1, 0x00000000 },
+	{ 0x41868c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_esetup_0[] = {
+	{ 0x41882c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_zcull_0[] = {
+	{ 0x418974, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_l1c_0[] = {
+	{ 0x419cd8, 2, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_unk_1[] = {
+	{ 0x419c74, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_mp_0[] = {
+	{ 0x419fd4, 1, 0x00004a4a },
+	{ 0x419fdc, 1, 0x00000014 },
+	{ 0x419fe4, 1, 0x00000000 },
+	{ 0x419ff4, 1, 0x00001724 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_ppc_0[] = {
+	{ 0x41be2c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_pcounter_0[] = {
+	{ 0x1be018, 1, 0x000001ff },
+	{ 0x1bc018, 1, 0x000001ff },
+	{ 0x1b8018, 1, 0x000001ff },
+	{ 0x1b4124, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_pack
+gk110_clkgate_pack[] = {
+	{ gk104_clkgate_blcg_init_main_0 },
+	{ gk104_clkgate_blcg_init_rstr2d_0 },
+	{ gk104_clkgate_blcg_init_unk_0 },
+	{ gk104_clkgate_blcg_init_gcc_0 },
+	{ gk110_clkgate_blcg_init_sked_0 },
+	{ gk104_clkgate_blcg_init_unk_1 },
+	{ gk104_clkgate_blcg_init_gpc_ctxctl_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_0 },
+	{ gk104_clkgate_blcg_init_gpc_esetup_0 },
+	{ gk104_clkgate_blcg_init_gpc_tpbus_0 },
+	{ gk104_clkgate_blcg_init_gpc_zcull_0 },
+	{ gk104_clkgate_blcg_init_gpc_tpconf_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_1 },
+	{ gk110_clkgate_blcg_init_gpc_gcc_0 },
+	{ gk104_clkgate_blcg_init_gpc_ffb_0 },
+	{ gk104_clkgate_blcg_init_gpc_tex_0 },
+	{ gk104_clkgate_blcg_init_gpc_poly_0 },
+	{ gk110_clkgate_blcg_init_gpc_l1c_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_2 },
+	{ gk110_clkgate_blcg_init_gpc_mp_0 },
+	{ gk104_clkgate_blcg_init_gpc_ppc_0 },
+	{ gk104_clkgate_blcg_init_rop_zrop_0 },
+	{ gk104_clkgate_blcg_init_rop_0 },
+	{ gk104_clkgate_blcg_init_rop_crop_0 },
+	{ gk104_clkgate_blcg_init_pxbar_0 },
+	{ gk110_clkgate_slcg_init_main_0 },
+	{ gk110_clkgate_slcg_init_unk_0 },
+	{ gk110_clkgate_slcg_init_sked_0 },
+	{ gk110_clkgate_slcg_init_gpc_ctxctl_0 },
+	{ gk110_clkgate_slcg_init_gpc_unk_0 },
+	{ gk110_clkgate_slcg_init_gpc_esetup_0 },
+	{ gk110_clkgate_slcg_init_gpc_zcull_0 },
+	{ gk110_clkgate_slcg_init_gpc_l1c_0 },
+	{ gk110_clkgate_slcg_init_gpc_unk_1 },
+	{ gk110_clkgate_slcg_init_gpc_mp_0 },
+	{ gk110_clkgate_slcg_init_gpc_ppc_0 },
+	{ gk110_clkgate_slcg_init_pcounter_0 },
+	{}
+};
+
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
@@ -192,6 +346,7 @@ gk110_gr = {
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gk110_grctx,
+	.clkgate_pack = gk110_clkgate_pack,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

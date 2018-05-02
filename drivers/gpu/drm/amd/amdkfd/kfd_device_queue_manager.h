@@ -79,13 +79,16 @@ struct device_process_node {
  *
  * @process_termination: Clears all process queues belongs to that device.
  *
+ * @evict_process_queues: Evict all active queues of a process
+ *
+ * @restore_process_queues: Restore all evicted queues queues of a process
+ *
  */
 
 struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
-				struct qcm_process_device *qpd,
-				int *allocate_vmid);
+				struct qcm_process_device *qpd);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -123,8 +126,18 @@ struct device_queue_manager_ops {
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
 
+	int	(*set_trap_handler)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd,
+				    uint64_t tba_addr,
+				    uint64_t tma_addr);
+
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);
+
+	int (*evict_process_queues)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd);
+	int (*restore_process_queues)(struct device_queue_manager *dqm,
+				      struct qcm_process_device *qpd);
 };
 
 struct device_queue_manager_asic_ops {
@@ -176,11 +189,16 @@ struct device_queue_manager {
 	unsigned int		*fence_addr;
 	struct kfd_mem_obj	*fence_mem;
 	bool			active_runlist;
+	int			sched_policy;
 };
 
 void device_queue_manager_init_cik(
 		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_cik_hawaii(
+		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_vi(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_vi_tonga(
 		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);

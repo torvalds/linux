@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include "event.h"
 #include "env.h"
+#include "pmu.h"
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
@@ -34,6 +35,8 @@ enum {
 	HEADER_AUXTRACE,
 	HEADER_STAT,
 	HEADER_CACHE,
+	HEADER_SAMPLE_TIME,
+	HEADER_MEM_TOPOLOGY,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -107,6 +110,11 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 				    struct perf_evlist *evlist,
 				    perf_event__handler_t process);
 
+int perf_event__synthesize_extra_attr(struct perf_tool *tool,
+				      struct perf_evlist *evsel_list,
+				      perf_event__handler_t process,
+				      bool is_pipe);
+
 int perf_event__process_feature(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_session *session);
@@ -166,5 +174,6 @@ int write_padded(struct feat_fd *fd, const void *bf,
  */
 int get_cpuid(char *buffer, size_t sz);
 
-char *get_cpuid_str(void);
+char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused);
+int strcmp_cpuid_str(const char *s1, const char *s2);
 #endif /* __PERF_HEADER_H */

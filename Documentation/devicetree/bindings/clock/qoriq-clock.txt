@@ -78,6 +78,7 @@ second cell is the clock index for the specified type.
 	2	hwaccel		index (n in CLKCGnHWACSR)
 	3	fman		0 for fm1, 1 for fm2
 	4	platform pll	0=pll, 1=pll/2, 2=pll/3, 3=pll/4
+				4=pll/5, 5=pll/6, 6=pll/7, 7=pll/8
 	5	coreclk		must be 0
 
 3. Example

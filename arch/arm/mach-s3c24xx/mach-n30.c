@@ -1,18 +1,15 @@
-/* Machine specific code for the Acer n30, Acer N35, Navman PiN 570,
- * Yakumo AlphaX and Airis NC05 PDAs.
- *
- * Copyright (c) 2003-2005 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * Copyright (c) 2005-2008 Christer Weinigel <christer@weinigel.se>
- *
- * There is a wiki with more information about the n30 port at
- * http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Machine specific code for the Acer n30, Acer N35, Navman PiN 570,
+// Yakumo AlphaX and Airis NC05 PDAs.
+//
+// Copyright (c) 2003-2005 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// Copyright (c) 2005-2008 Christer Weinigel <christer@weinigel.se>
+//
+// There is a wiki with more information about the n30 port at
+// http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
 
 #include <linux/kernel.h>
 #include <linux/types.h>

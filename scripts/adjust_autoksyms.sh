@@ -48,9 +48,6 @@ case "${KCONFIG_CONFIG}" in
 	. "./${KCONFIG_CONFIG}"
 esac
 
-# In case it doesn't exist yet...
-if [ -e "$cur_ksyms_file" ]; then touch "$cur_ksyms_file"; fi
-
 # Generate a new ksym list file with symbols needed by the current
 # set of modules.
 cat > "$new_ksyms_file" << EOT
@@ -60,7 +57,9 @@ cat > "$new_ksyms_file" << EOT
 
 EOT
 [ "$(ls -A "$MODVERDIR")" ] &&
-sed -ns -e '3{s/ /\n/g;/^$/!p;}' "$MODVERDIR"/*.mod | sort -u |
+for mod in "$MODVERDIR"/*.mod; do
+	sed -n -e '3{s/ /\n/g;/^$/!p;}' "$mod"
+done | sort -u |
 while read sym; do
 	if [ -n "$CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX" ]; then
 		sym="${sym#_}"
@@ -81,9 +80,16 @@ sort "$cur_ksyms_file" "$new_ksyms_file" | uniq -u |
 sed -n 's/^#define __KSYM_\(.*\) 1/\1/p' | tr "A-Z_" "a-z/" |
 while read sympath; do
 	if [ -z "$sympath" ]; then continue; fi
-	depfile="include/config/ksym/${sympath}.h"
+	depfile="include/ksym/${sympath}.h"
 	mkdir -p "$(dirname "$depfile")"
 	touch "$depfile"
+	# Filesystems with coarse time precision may create timestamps
+	# equal to the one from a file that was very recently built and that
+	# needs to be rebuild. Let's guard against that by making sure our
+	# dep files are always newer than the first file we created here.
+	while [ ! "$depfile" -nt "$new_ksyms_file" ]; do
+		touch "$depfile"
+	done
 	echo $((count += 1))
 done | tail -1 )
 changed=${changed:-0}

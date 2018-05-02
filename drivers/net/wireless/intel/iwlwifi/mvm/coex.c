@@ -7,7 +7,6 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2017        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +33,6 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2017        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -514,36 +512,17 @@ void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 
-	if (!iwl_mvm_has_new_ats_coex_api(mvm)) {
-		struct iwl_bt_coex_profile_notif_v4 *v4 = (void *)pkt->data;
-
-		mvm->last_bt_notif.mbox_msg[0] = v4->mbox_msg[0];
-		mvm->last_bt_notif.mbox_msg[1] = v4->mbox_msg[1];
-		mvm->last_bt_notif.mbox_msg[2] = v4->mbox_msg[2];
-		mvm->last_bt_notif.mbox_msg[3] = v4->mbox_msg[3];
-		mvm->last_bt_notif.msg_idx = v4->msg_idx;
-		mvm->last_bt_notif.bt_ci_compliance = v4->bt_ci_compliance;
-		mvm->last_bt_notif.primary_ch_lut = v4->primary_ch_lut;
-		mvm->last_bt_notif.secondary_ch_lut = v4->secondary_ch_lut;
-		mvm->last_bt_notif.bt_activity_grading =
-			v4->bt_activity_grading;
-		mvm->last_bt_notif.ttc_status = v4->ttc_status;
-		mvm->last_bt_notif.rrc_status = v4->rrc_status;
-	} else {
-		/* save this notification for future use: rssi fluctuations */
-		memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
-	}
-
 	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n",
-		       mvm->last_bt_notif.bt_ci_compliance);
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
 	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
-		       le32_to_cpu(mvm->last_bt_notif.primary_ch_lut));
+		       le32_to_cpu(notif->primary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
-		       le32_to_cpu(mvm->last_bt_notif.secondary_ch_lut));
+		       le32_to_cpu(notif->secondary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
-		       le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
+		       le32_to_cpu(notif->bt_activity_grading));
 
+	/* remember this notification for future use: rssi fluctuations */
+	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }

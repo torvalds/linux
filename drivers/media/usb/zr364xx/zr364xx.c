@@ -517,8 +517,7 @@ static void zr364xx_fillbuff(struct zr364xx_camera *cam,
 		printk(KERN_ERR KBUILD_MODNAME ": =======no frame\n");
 		return;
 	}
-	DBG("%s: Buffer 0x%08lx size= %d\n", __func__,
-		(unsigned long)vbuf, pos);
+	DBG("%s: Buffer %p size= %d\n", __func__, vbuf, pos);
 	/* tell v4l buffer was filled */
 
 	buf->vb.field_count = cam->frame_count * 2;
@@ -1277,7 +1276,7 @@ static int zr364xx_mmap(struct file *file, struct vm_area_struct *vma)
 		DBG("%s: cam == NULL\n", __func__);
 		return -ENODEV;
 	}
-	DBG("mmap called, vma=0x%08lx\n", (unsigned long)vma);
+	DBG("mmap called, vma=%p\n", vma);
 
 	ret = videobuf_mmap_mapper(&cam->vb_vidq, vma);
 
@@ -1287,12 +1286,12 @@ static int zr364xx_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
-static unsigned int zr364xx_poll(struct file *file,
+static __poll_t zr364xx_poll(struct file *file,
 			       struct poll_table_struct *wait)
 {
 	struct zr364xx_camera *cam = video_drvdata(file);
 	struct videobuf_queue *q = &cam->vb_vidq;
-	unsigned res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	_DBG("%s\n", __func__);
 

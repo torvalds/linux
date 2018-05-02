@@ -40,7 +40,6 @@ obj-$(CONFIG_ARCNET) += arcnet/
 obj-$(CONFIG_DEV_APPLETALK) += appletalk/
 obj-$(CONFIG_CAIF) += caif/
 obj-$(CONFIG_CAN) += can/
-obj-$(CONFIG_ETRAX_ETHERNET) += cris/
 obj-$(CONFIG_NET_DSA) += dsa/
 obj-$(CONFIG_ETHERNET) += ethernet/
 obj-$(CONFIG_FDDI) += fddi/
@@ -78,3 +77,4 @@ obj-$(CONFIG_FUJITSU_ES) += fjes/
 
 thunderbolt-net-y += thunderbolt.o
 obj-$(CONFIG_THUNDERBOLT_NET) += thunderbolt-net.o
+obj-$(CONFIG_NETDEVSIM) += netdevsim/

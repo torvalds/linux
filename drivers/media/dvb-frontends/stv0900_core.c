@@ -1929,7 +1929,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 	switch (demod) {
 	case 0:
 	case 1:
-		init_params.dmd_ref_clk  	= config->xtal;
+		init_params.dmd_ref_clk		= config->xtal;
 		init_params.demod_mode		= config->demod_mode;
 		init_params.rolloff		= STV0900_35;
 		init_params.path1_ts_clock	= config->path1_mode;

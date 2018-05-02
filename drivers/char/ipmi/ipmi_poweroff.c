@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_poweroff.c
  *
@@ -9,27 +10,6 @@
  *         source@mvista.com
  *
  * Copyright 2002,2004 MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; either version 2 of the License, or (at your
- *  option) any later version.
- *
- *
- *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- *  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
- *  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -457,6 +437,24 @@ static int ipmi_dell_chassis_detect(ipmi_user_t user)
 }
 
 /*
+ * ipmi_hp_chassis_detect()
+ * HP PA-RISC servers rp3410/rp3440, the C8000 workstation and the rx2600 and
+ * zx6000 machines support IPMI vers 1 and don't set the chassis capability bit
+ * but they can handle a chassis poweroff or powercycle command.
+ */
+
+#define HP_IANA_MFR_ID 0x0b
+#define HP_BMC_PROD_ID 0x8201
+static int ipmi_hp_chassis_detect(ipmi_user_t user)
+{
+	if (mfg_id == HP_IANA_MFR_ID
+		&& prod_id == HP_BMC_PROD_ID
+		&& ipmi_version == 1)
+		return 1;
+	return 0;
+}
+
+/*
  * Standard chassis support
  */
 
@@ -533,14 +531,16 @@ static struct poweroff_function poweroff_functions[] = {
 	{ .platform_type	= "chassis",
 	  .detect		= ipmi_dell_chassis_detect,
 	  .poweroff_func	= ipmi_poweroff_chassis },
+	{ .platform_type	= "chassis",
+	  .detect		= ipmi_hp_chassis_detect,
+	  .poweroff_func	= ipmi_poweroff_chassis },
 	/* Chassis should generally be last, other things should override
 	   it. */
 	{ .platform_type	= "chassis",
 	  .detect		= ipmi_chassis_detect,
 	  .poweroff_func	= ipmi_poweroff_chassis },
 };
-#define NUM_PO_FUNCS (sizeof(poweroff_functions) \
-		      / sizeof(struct poweroff_function))
+#define NUM_PO_FUNCS ARRAY_SIZE(poweroff_functions)
 
 
 /* Called on a powerdown request. */

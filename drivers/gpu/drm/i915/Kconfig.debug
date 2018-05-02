@@ -18,6 +18,7 @@ config DRM_I915_WERROR
 config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
+        select DEBUG_FS
         select PREEMPT_COUNT
         select I2C_CHARDEV
         select DRM_DP_AUX_CHARDEV
@@ -48,6 +49,20 @@ config DRM_I915_DEBUG_GEM
           Recommended for driver developers only.
 
           If in doubt, say "N".
+
+config DRM_I915_TRACE_GEM
+	bool "Insert extra ftrace output from the GEM internals"
+	depends on DRM_I915_DEBUG_GEM
+	select TRACING
+	default n
+	help
+	  Enable additional and verbose debugging output that will spam
+	  ordinary tests, but may be vital for post-mortem debugging when
+	  used with /proc/sys/kernel/ftrace_dump_on_oops
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
 
 config DRM_I915_SW_FENCE_DEBUG_OBJECTS
         bool "Enable additional driver debugging for fence objects"
@@ -87,6 +102,20 @@ config DRM_I915_SELFTEST
 	  module initialisation afterwards) use i915.selftest=-1.
 
 	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_I915_SELFTEST_BROKEN
+	bool "Enable broken and dangerous selftests"
+	depends on DRM_I915_SELFTEST
+	depends on BROKEN
+	default n
+	help
+	  This option enables the execution of selftests that are "dangerous"
+	  and may trigger unintended HW side-effects as they break strict
+	  rules given in the HW specification. For science.
+
+	  Recommended for masochistic driver developers only.
 
 	  If in doubt, say "N".
 

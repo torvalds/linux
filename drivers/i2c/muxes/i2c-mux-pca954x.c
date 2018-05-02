@@ -4,11 +4,11 @@
  * Copyright (c) 2008-2009 Rodolfo Giometti <giometti@linux.it>
  * Copyright (c) 2008-2009 Eurotech S.p.A. <info@eurotech.it>
  *
- * This module supports the PCA954x series of I2C multiplexer/switch chips
- * made by Philips Semiconductors.
+ * This module supports the PCA954x and PCA954x series of I2C multiplexer/switch
+ * chips made by NXP Semiconductors.
  * This includes the:
- *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547
- *	 and PCA9548.
+ *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547,
+ *	 PCA9548, PCA9846, PCA9847, PCA9848 and PCA9849.
  *
  * These chips are all controlled via the I2C bus itself, and all have a
  * single 8-bit register. The upstream "parent" bus fans out to two,
@@ -63,6 +63,10 @@ enum pca_type {
 	pca_9546,
 	pca_9547,
 	pca_9548,
+	pca_9846,
+	pca_9847,
+	pca_9848,
+	pca_9849,
 };
 
 struct chip_desc {
@@ -73,6 +77,7 @@ struct chip_desc {
 		pca954x_ismux = 0,
 		pca954x_isswi
 	} muxtype;
+	struct i2c_device_identity id;
 };
 
 struct pca954x {
@@ -93,41 +98,83 @@ static const struct chip_desc chips[] = {
 		.nchans = 2,
 		.enable = 0x4,
 		.muxtype = pca954x_ismux,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9542] = {
 		.nchans = 2,
 		.enable = 0x4,
 		.has_irq = 1,
 		.muxtype = pca954x_ismux,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9543] = {
 		.nchans = 2,
 		.has_irq = 1,
 		.muxtype = pca954x_isswi,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9544] = {
 		.nchans = 4,
 		.enable = 0x4,
 		.has_irq = 1,
 		.muxtype = pca954x_ismux,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9545] = {
 		.nchans = 4,
 		.has_irq = 1,
 		.muxtype = pca954x_isswi,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9546] = {
 		.nchans = 4,
 		.muxtype = pca954x_isswi,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9547] = {
 		.nchans = 8,
 		.enable = 0x8,
 		.muxtype = pca954x_ismux,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
 	},
 	[pca_9548] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
+		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+	},
+	[pca_9846] = {
+		.nchans = 4,
+		.muxtype = pca954x_isswi,
+		.id = {
+			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+			.part_id = 0x10b,
+		},
+	},
+	[pca_9847] = {
+		.nchans = 8,
+		.enable = 0x8,
+		.muxtype = pca954x_ismux,
+		.id = {
+			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+			.part_id = 0x108,
+		},
+	},
+	[pca_9848] = {
+		.nchans = 8,
+		.muxtype = pca954x_isswi,
+		.id = {
+			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+			.part_id = 0x10a,
+		},
+	},
+	[pca_9849] = {
+		.nchans = 4,
+		.enable = 0x4,
+		.muxtype = pca954x_ismux,
+		.id = {
+			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+			.part_id = 0x109,
+		},
 	},
 };
 
@@ -140,6 +187,10 @@ static const struct i2c_device_id pca954x_id[] = {
 	{ "pca9546", pca_9546 },
 	{ "pca9547", pca_9547 },
 	{ "pca9548", pca_9548 },
+	{ "pca9846", pca_9846 },
+	{ "pca9847", pca_9847 },
+	{ "pca9848", pca_9848 },
+	{ "pca9849", pca_9849 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca954x_id);
@@ -154,6 +205,10 @@ static const struct of_device_id pca954x_of_match[] = {
 	{ .compatible = "nxp,pca9546", .data = &chips[pca_9546] },
 	{ .compatible = "nxp,pca9547", .data = &chips[pca_9547] },
 	{ .compatible = "nxp,pca9548", .data = &chips[pca_9548] },
+	{ .compatible = "nxp,pca9846", .data = &chips[pca_9846] },
+	{ .compatible = "nxp,pca9847", .data = &chips[pca_9847] },
+	{ .compatible = "nxp,pca9848", .data = &chips[pca_9848] },
+	{ .compatible = "nxp,pca9849", .data = &chips[pca_9849] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pca954x_of_match);
@@ -339,6 +394,30 @@ static int pca954x_probe(struct i2c_client *client,
 	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
 
+	match = of_match_device(of_match_ptr(pca954x_of_match), &client->dev);
+	if (match)
+		data->chip = of_device_get_match_data(&client->dev);
+	else
+		data->chip = &chips[id->driver_data];
+
+	if (data->chip->id.manufacturer_id != I2C_DEVICE_ID_NONE) {
+		struct i2c_device_identity id;
+
+		ret = i2c_get_device_id(client, &id);
+		if (ret && ret != -EOPNOTSUPP)
+			return ret;
+
+		if (!ret &&
+		    (id.manufacturer_id != data->chip->id.manufacturer_id ||
+		     id.part_id != data->chip->id.part_id)) {
+			dev_warn(&client->dev,
+				 "unexpected device id %03x-%03x-%x\n",
+				 id.manufacturer_id, id.part_id,
+				 id.die_revision);
+			return -ENODEV;
+		}
+	}
+
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also
 	 * initializes the mux to disconnected state.
@@ -347,12 +426,6 @@ static int pca954x_probe(struct i2c_client *client,
 		dev_warn(&client->dev, "probe failed\n");
 		return -ENODEV;
 	}
-
-	match = of_match_device(of_match_ptr(pca954x_of_match), &client->dev);
-	if (match)
-		data->chip = of_device_get_match_data(&client->dev);
-	else
-		data->chip = &chips[id->driver_data];
 
 	data->last_chan = 0;		   /* force the first selection */
 

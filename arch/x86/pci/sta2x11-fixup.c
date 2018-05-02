@@ -26,6 +26,7 @@
 #include <linux/pci_ids.h>
 #include <linux/export.h>
 #include <linux/list.h>
+#include <linux/dma-direct.h>
 #include <asm/iommu.h>
 
 #define STA2X11_SWIOTLB_SIZE (4*1024*1024)
@@ -158,43 +159,6 @@ static dma_addr_t a2p(dma_addr_t a, struct pci_dev *pdev)
 	return p;
 }
 
-/**
- * sta2x11_swiotlb_alloc_coherent - Allocate swiotlb bounce buffers
- *     returns virtual address. This is the only "special" function here.
- * @dev: PCI device
- * @size: Size of the buffer
- * @dma_handle: DMA address
- * @flags: memory flags
- */
-static void *sta2x11_swiotlb_alloc_coherent(struct device *dev,
-					    size_t size,
-					    dma_addr_t *dma_handle,
-					    gfp_t flags,
-					    unsigned long attrs)
-{
-	void *vaddr;
-
-	vaddr = x86_swiotlb_alloc_coherent(dev, size, dma_handle, flags, attrs);
-	*dma_handle = p2a(*dma_handle, to_pci_dev(dev));
-	return vaddr;
-}
-
-/* We have our own dma_ops: the same as swiotlb but from alloc (above) */
-static const struct dma_map_ops sta2x11_dma_ops = {
-	.alloc = sta2x11_swiotlb_alloc_coherent,
-	.free = x86_swiotlb_free_coherent,
-	.map_page = swiotlb_map_page,
-	.unmap_page = swiotlb_unmap_page,
-	.map_sg = swiotlb_map_sg_attrs,
-	.unmap_sg = swiotlb_unmap_sg_attrs,
-	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
-	.sync_single_for_device = swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = swiotlb_sync_sg_for_device,
-	.mapping_error = swiotlb_dma_mapping_error,
-	.dma_supported = x86_dma_supported,
-};
-
 /* At setup time, we use our own ops if the device is a ConneXt one */
 static void sta2x11_setup_pdev(struct pci_dev *pdev)
 {
@@ -204,7 +168,8 @@ static void sta2x11_setup_pdev(struct pci_dev *pdev)
 		return;
 	pci_set_consistent_dma_mask(pdev, STA2X11_AMBA_SIZE - 1);
 	pci_set_dma_mask(pdev, STA2X11_AMBA_SIZE - 1);
-	pdev->dev.dma_ops = &sta2x11_dma_ops;
+	pdev->dev.dma_ops = &swiotlb_dma_ops;
+	pdev->dev.archdata.is_sta2x11 = true;
 
 	/* We must enable all devices as master, for audio DMA to work */
 	pci_set_master(pdev);
@@ -224,7 +189,7 @@ bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	struct sta2x11_mapping *map;
 
-	if (dev->dma_ops != &sta2x11_dma_ops) {
+	if (!dev->archdata.is_sta2x11) {
 		if (!dev->dma_mask)
 			return false;
 		return addr + size - 1 <= *dev->dma_mask;
@@ -242,13 +207,13 @@ bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 /**
- * phys_to_dma - Return the DMA AMBA address used for this STA2x11 device
+ * __phys_to_dma - Return the DMA AMBA address used for this STA2x11 device
  * @dev: device for a PCI device
  * @paddr: Physical address
  */
-dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
+dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	if (dev->dma_ops != &sta2x11_dma_ops)
+	if (!dev->archdata.is_sta2x11)
 		return paddr;
 	return p2a(paddr, to_pci_dev(dev));
 }
@@ -258,9 +223,9 @@ dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
  * @dev: device for a PCI device
  * @daddr: STA2x11 AMBA DMA address
  */
-phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
+phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	if (dev->dma_ops != &sta2x11_dma_ops)
+	if (!dev->archdata.is_sta2x11)
 		return daddr;
 	return a2p(daddr, to_pci_dev(dev));
 }

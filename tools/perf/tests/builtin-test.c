@@ -116,6 +116,11 @@ static struct test generic_tests[] = {
 		.is_supported = test__bp_signal_is_supported,
 	},
 	{
+		.desc = "Breakpoint accounting",
+		.func = test__bp_accounting,
+		.is_supported = test__bp_signal_is_supported,
+	},
+	{
 		.desc = "Number of exit events of a simple workload",
 		.func = test__task_exit,
 	},
@@ -271,6 +276,10 @@ static struct test generic_tests[] = {
 		.func = test__unit_number__scnprint,
 	},
 	{
+		.desc = "mem2node",
+		.func = test__mem2node,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -411,9 +420,9 @@ static const char *shell_test__description(char *description, size_t size,
 	return description ? trim(description + 1) : NULL;
 }
 
-#define for_each_shell_test(dir, ent)		\
+#define for_each_shell_test(dir, base, ent)	\
 	while ((ent = readdir(dir)) != NULL)	\
-		if (ent->d_type == DT_REG && ent->d_name[0] != '.')
+		if (!is_directory(base, ent))
 
 static const char *shell_tests__dir(char *path, size_t size)
 {
@@ -452,7 +461,7 @@ static int shell_tests__max_desc_width(void)
 	if (!dir)
 		return -1;
 
-	for_each_shell_test(dir, ent) {
+	for_each_shell_test(dir, path, ent) {
 		char bf[256];
 		const char *desc = shell_test__description(bf, sizeof(bf), path, ent->d_name);
 
@@ -504,7 +513,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 	if (!dir)
 		return -1;
 
-	for_each_shell_test(dir, ent) {
+	for_each_shell_test(dir, st.dir, ent) {
 		int curr = i++;
 		char desc[256];
 		struct test test = {
@@ -614,7 +623,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 	if (!dir)
 		return -1;
 
-	for_each_shell_test(dir, ent) {
+	for_each_shell_test(dir, path, ent) {
 		int curr = i++;
 		char bf[256];
 		struct test t = {

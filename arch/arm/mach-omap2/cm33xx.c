@@ -333,6 +333,11 @@ static int am33xx_clkdm_clk_disable(struct clockdomain *clkdm)
 	return 0;
 }
 
+static u32 am33xx_cm_xlate_clkctrl(u8 part, u16 inst, u16 offset)
+{
+	return cm_base.pa + inst + offset;
+}
+
 struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_sleep		= am33xx_clkdm_sleep,
 	.clkdm_wakeup		= am33xx_clkdm_wakeup,
@@ -342,11 +347,12 @@ struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_clk_disable	= am33xx_clkdm_clk_disable,
 };
 
-static struct cm_ll_data am33xx_cm_ll_data = {
+static const struct cm_ll_data am33xx_cm_ll_data = {
 	.wait_module_ready	= &am33xx_cm_wait_module_ready,
 	.wait_module_idle	= &am33xx_cm_wait_module_idle,
 	.module_enable		= &am33xx_cm_module_enable,
 	.module_disable		= &am33xx_cm_module_disable,
+	.xlate_clkctrl		= &am33xx_cm_xlate_clkctrl,
 };
 
 int __init am33xx_cm_init(const struct omap_prcm_init_data *data)

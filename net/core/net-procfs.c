@@ -182,7 +182,6 @@ static int dev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dev_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = dev_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -202,7 +201,6 @@ static int softnet_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations softnet_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = softnet_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -306,7 +304,6 @@ static int ptype_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ptype_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = ptype_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -318,12 +315,12 @@ static int __net_init dev_proc_net_init(struct net *net)
 {
 	int rc = -ENOMEM;
 
-	if (!proc_create("dev", S_IRUGO, net->proc_net, &dev_seq_fops))
+	if (!proc_create("dev", 0444, net->proc_net, &dev_seq_fops))
 		goto out;
-	if (!proc_create("softnet_stat", S_IRUGO, net->proc_net,
+	if (!proc_create("softnet_stat", 0444, net->proc_net,
 			 &softnet_seq_fops))
 		goto out_dev;
-	if (!proc_create("ptype", S_IRUGO, net->proc_net, &ptype_seq_fops))
+	if (!proc_create("ptype", 0444, net->proc_net, &ptype_seq_fops))
 		goto out_softnet;
 
 	if (wext_proc_init(net))
@@ -387,7 +384,6 @@ static int dev_mc_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dev_mc_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = dev_mc_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

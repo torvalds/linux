@@ -16,7 +16,7 @@
  */
 
 #include <asm/div64.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "atbm8830.h"
 #include "atbm8830_priv.h"

@@ -16,7 +16,6 @@
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/i2c.h>

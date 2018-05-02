@@ -15,6 +15,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/irqflags.h>
+#include <asm/hw_irq.h>
 
 #undef DEBUG
 
@@ -53,8 +54,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	mfmsr	r7
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	li	r0,1
-	stb	r0,PACASOFTIRQEN(r13)	/* we'll hard-enable shortly */
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13)	/* we'll hard-enable shortly */
 BEGIN_FTR_SECTION
 	DSSALL
 	sync

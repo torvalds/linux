@@ -327,7 +327,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 /* No kernel lock - fine */
-static unsigned int
+static __poll_t
 ppp_sync_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 {
 	return 0;

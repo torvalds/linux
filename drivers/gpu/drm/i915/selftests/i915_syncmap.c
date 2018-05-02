@@ -333,7 +333,7 @@ static int igt_syncmap_join_below(void *arg)
 {
 	struct i915_syncmap *sync;
 	unsigned int step, order, idx;
-	int err;
+	int err = -ENODEV;
 
 	i915_syncmap_init(&sync);
 
@@ -402,7 +402,7 @@ static int igt_syncmap_neighbours(void *arg)
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
 	struct i915_syncmap *sync;
-	int err;
+	int err = -ENODEV;
 
 	/*
 	 * Each leaf holds KSYNCMAP seqno. Check that when we create KSYNCMAP
@@ -447,7 +447,7 @@ static int igt_syncmap_compact(void *arg)
 {
 	struct i915_syncmap *sync;
 	unsigned int idx, order;
-	int err;
+	int err = -ENODEV;
 
 	i915_syncmap_init(&sync);
 

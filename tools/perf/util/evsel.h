@@ -30,7 +30,7 @@ struct perf_sample_id {
 	u64			period;
 };
 
-struct cgroup_sel;
+struct cgroup;
 
 /*
  * The 'struct perf_evsel_config_term' is used to pass event
@@ -38,7 +38,7 @@ struct cgroup_sel;
  * It is allocated within event parsing and attached to
  * perf_evsel::config_terms list head.
 */
-enum {
+enum term_type {
 	PERF_EVSEL__CONFIG_TERM_PERIOD,
 	PERF_EVSEL__CONFIG_TERM_FREQ,
 	PERF_EVSEL__CONFIG_TERM_TIME,
@@ -49,12 +49,11 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
 	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
 	PERF_EVSEL__CONFIG_TERM_BRANCH,
-	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
 struct perf_evsel_config_term {
 	struct list_head	list;
-	int	type;
+	enum term_type	type;
 	union {
 		u64	period;
 		u64	freq;
@@ -108,7 +107,7 @@ struct perf_evsel {
 	struct perf_stat_evsel  *stats;
 	void			*priv;
 	u64			db_id;
-	struct cgroup_sel	*cgrp;
+	struct cgroup		*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
 	struct cpu_map		*own_cpus;
@@ -116,6 +115,7 @@ struct perf_evsel {
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
+	bool			uniquified_name;
 	bool			snapshot;
 	bool 			supported;
 	bool 			needs_swap;
@@ -126,6 +126,7 @@ struct perf_evsel {
 	bool			per_pkg;
 	bool			precise_max;
 	bool			ignore_missing_thread;
+	bool			forced_leader;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -143,12 +144,27 @@ struct perf_evsel {
 	struct perf_evsel	**metric_events;
 	bool			collect_stat;
 	bool			weak_group;
+	const char		*pmu_name;
 };
 
 union u64_swap {
 	u64 val64;
 	u32 val32[2];
 };
+
+struct perf_missing_features {
+	bool sample_id_all;
+	bool exclude_guest;
+	bool mmap2;
+	bool cloexec;
+	bool clockid;
+	bool clockid_wrong;
+	bool lbr_flags;
+	bool write_backward;
+	bool group_read;
+};
+
+extern struct perf_missing_features perf_missing_features;
 
 struct cpu_map;
 struct target;
@@ -339,6 +355,10 @@ static inline int perf_evsel__read_on_cpu_scaled(struct perf_evsel *evsel,
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *sample);
 
+int perf_evsel__parse_sample_timestamp(struct perf_evsel *evsel,
+				       union perf_event *event,
+				       u64 *timestamp);
+
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {
 	return list_entry(evsel->node.next, struct perf_evsel, node);
@@ -443,7 +463,6 @@ typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
 int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 			     attr__fprintf_f attr__fprintf, void *priv);
 
-char *perf_evsel__env_arch(struct perf_evsel *evsel);
-char *perf_evsel__env_cpuid(struct perf_evsel *evsel);
+struct perf_env *perf_evsel__env(struct perf_evsel *evsel);
 
 #endif /* __PERF_EVSEL_H */

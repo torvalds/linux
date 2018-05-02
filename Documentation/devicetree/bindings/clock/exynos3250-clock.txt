@@ -32,7 +32,7 @@ Example 1: Examples of clock controller nodes are listed below.
 		#clock-cells = <1>;
 	};
 
-	cmu_dmc: clock-controller@105C0000 {
+	cmu_dmc: clock-controller@105c0000 {
 		compatible = "samsung,exynos3250-cmu-dmc";
 		reg = <0x105C0000 0x2000>;
 		#clock-cells = <1>;

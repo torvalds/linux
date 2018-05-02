@@ -25,8 +25,8 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/dvb/ca.h>
-#include "dvbdev.h"
-#include "dvb_frontend.h"
+#include <media/dvbdev.h>
+#include <media/dvb_frontend.h>
 #include "dst_ca.h"
 #include "dst_common.h"
 

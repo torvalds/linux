@@ -4,6 +4,9 @@
 
 #include <linux/remoteproc.h>
 #include "remoteproc_internal.h"
+#include <linux/soc/qcom/qmi.h>
+
+struct qcom_sysmon;
 
 struct qcom_rproc_glink {
 	struct rproc_subdev subdev;
@@ -27,12 +30,10 @@ struct qcom_rproc_ssr {
 	const char *name;
 };
 
-struct resource_table *qcom_mdt_find_rsc_table(struct rproc *rproc,
-					       const struct firmware *fw,
-					       int *tablesz);
-
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
 void qcom_remove_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
+
+int qcom_register_dump_segments(struct rproc *rproc, const struct firmware *fw);
 
 void qcom_add_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd);
 void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd);
@@ -40,5 +41,23 @@ void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd);
 void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
 			 const char *ssr_name);
 void qcom_remove_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr);
+
+#if IS_ENABLED(CONFIG_QCOM_SYSMON)
+struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
+					   const char *name,
+					   int ssctl_instance);
+void qcom_remove_sysmon_subdev(struct qcom_sysmon *sysmon);
+#else
+static inline struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
+							 const char *name,
+							 int ssctl_instance)
+{
+	return NULL;
+}
+
+static inline void qcom_remove_sysmon_subdev(struct qcom_sysmon *sysmon)
+{
+}
+#endif
 
 #endif

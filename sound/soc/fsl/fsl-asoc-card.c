@@ -91,9 +91,9 @@ struct fsl_asoc_card_priv {
 	struct cpu_priv cpu_priv;
 	struct snd_soc_card card;
 	u32 sample_rate;
-	u32 sample_format;
+	snd_pcm_format_t sample_format;
 	u32 asrc_rate;
-	u32 asrc_format;
+	snd_pcm_format_t asrc_format;
 	u32 dai_fmt;
 	char name[32];
 };
@@ -199,7 +199,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	snd_mask_none(mask);
-	snd_mask_set(mask, priv->asrc_format);
+	snd_mask_set(mask, (__force int)priv->asrc_format);
 
 	return 0;
 }
@@ -442,8 +442,8 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 
 	if (fsl_asoc_card_is_ac97(priv)) {
 #if IS_ENABLED(CONFIG_SND_AC97_CODEC)
-		struct snd_soc_codec *codec = rtd->codec;
-		struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+		struct snd_soc_component *component = rtd->codec_dai->component;
+		struct snd_ac97 *ac97 = snd_soc_component_get_drvdata(component);
 
 		/*
 		 * Use slots 3/4 for S/PDIF so SSI won't try to enable

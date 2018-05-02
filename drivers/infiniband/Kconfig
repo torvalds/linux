@@ -4,6 +4,7 @@ menuconfig INFINIBAND
 	depends on NET
 	depends on INET
 	depends on m || IPV6 != m
+	depends on !ALPHA
 	select IRQ_POLL
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select
@@ -19,7 +20,8 @@ config INFINIBAND_USER_MAD
 	  Userspace InfiniBand Management Datagram (MAD) support.  This
 	  is the kernel side of the userspace MAD support, which allows
 	  userspace processes to send and receive MADs. You will also
-	  need libibumad from <http://www.openfabrics.org/downloads/management/>.
+	  need libibumad from rdma-core
+	  <https://github.com/linux-rdma/rdma-core>.
 
 config INFINIBAND_USER_ACCESS
 	tristate "InfiniBand userspace access (verbs and CM)"
@@ -31,16 +33,15 @@ config INFINIBAND_USER_ACCESS
 	  to set up connections and directly access InfiniBand
 	  hardware for fast-path operations.  You will also need
 	  libibverbs, libibcm and a hardware driver library from
-	  <http://www.openfabrics.org/git/>.
+	  rdma-core <https://github.com/linux-rdma/rdma-core>.
 
-config INFINIBAND_EXP_USER_ACCESS
-	bool "Allow experimental support for Infiniband ABI"
+config INFINIBAND_EXP_LEGACY_VERBS_NEW_UAPI
+	bool "Allow experimental legacy verbs in new ioctl uAPI  (EXPERIMENTAL)"
 	depends on INFINIBAND_USER_ACCESS
 	---help---
-	  IOCTL based ABI support for Infiniband. This allows userspace
-	  to invoke the experimental IOCTL based ABI.
-	  These commands are parsed via per-device parsing tree and
-	  enables per-device features.
+	  IOCTL based uAPI support for Infiniband is enabled by default for
+	  new verbs only. This allows userspace to invoke the IOCTL based uAPI
+	  for current legacy verbs too.
 
 config INFINIBAND_USER_MEM
 	bool

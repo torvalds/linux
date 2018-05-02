@@ -439,7 +439,7 @@ static void ksz_disable_port(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, true);
 }
 
-static int ksz_sset_count(struct dsa_switch *ds)
+static int ksz_sset_count(struct dsa_switch *ds, int port)
 {
 	return TOTAL_SWITCH_COUNTER_NUM;
 }
@@ -559,8 +559,7 @@ static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port, bool flag)
 }
 
 static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan,
-				 struct switchdev_trans *trans)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	/* nothing needed */
 
@@ -568,8 +567,7 @@ static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static void ksz_port_vlan_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan,
-			      struct switchdev_trans *trans)
+			      const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];
@@ -858,16 +856,14 @@ exit:
 }
 
 static int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct switchdev_trans *trans)
+				const struct switchdev_obj_port_mdb *mdb)
 {
 	/* nothing to do */
 	return 0;
 }
 
 static void ksz_port_mdb_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_mdb *mdb,
-			     struct switchdev_trans *trans)
+			     const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 static_table[4];

@@ -1188,10 +1188,10 @@ static int submit_single_step_set_feature(
 	 * 15 secs after the setup
 	 */
 	if (is_setup) {
-		/* SETUP pid */
+		/* SETUP pid, and interrupt after SETUP completion */
 		qtd_fill(ehci, qtd, urb->setup_dma,
 				sizeof(struct usb_ctrlrequest),
-				token | (2 /* "setup" */ << 8), 8);
+				QTD_IOC | token | (2 /* "setup" */ << 8), 8);
 
 		submit_async(ehci, urb, &qtd_list, GFP_ATOMIC);
 		return 0; /*Return now; we shall come back after 15 seconds*/
@@ -1228,12 +1228,8 @@ static int submit_single_step_set_feature(
 	qtd_prev->hw_next = QTD_NEXT(ehci, qtd->qtd_dma);
 	list_add_tail(&qtd->qtd_list, head);
 
-	/* dont fill any data in such packets */
-	qtd_fill(ehci, qtd, 0, 0, token, 0);
-
-	/* by default, enable interrupt on urb completion */
-	if (likely(!(urb->transfer_flags & URB_NO_INTERRUPT)))
-		qtd->hw_token |= cpu_to_hc32(ehci, QTD_IOC);
+	/* Interrupt after STATUS completion */
+	qtd_fill(ehci, qtd, 0, 0, token | QTD_IOC, 0);
 
 	submit_async(ehci, urb, &qtd_list, GFP_KERNEL);
 

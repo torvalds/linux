@@ -115,7 +115,7 @@ static int vic_boot(struct vic *vic)
 }
 
 static void *vic_falcon_alloc(struct falcon *falcon, size_t size,
-			       dma_addr_t *iova)
+			      dma_addr_t *iova)
 {
 	struct tegra_drm *tegra = falcon->data;
 
@@ -138,13 +138,14 @@ static const struct falcon_ops vic_falcon_ops = {
 static int vic_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
 
-	if (tegra->domain) {
-		err = iommu_attach_device(tegra->domain, vic->dev);
+	if (group && tegra->domain) {
+		err = iommu_attach_group(tegra->domain, group);
 		if (err < 0) {
 			dev_err(vic->dev, "failed to attach to domain: %d\n",
 				err);
@@ -158,13 +159,13 @@ static int vic_init(struct host1x_client *client)
 		vic->falcon.data = tegra;
 		err = falcon_load_firmware(&vic->falcon);
 		if (err < 0)
-			goto detach_device;
+			goto detach;
 	}
 
 	vic->channel = host1x_channel_request(client->dev);
 	if (!vic->channel) {
 		err = -ENOMEM;
-		goto detach_device;
+		goto detach;
 	}
 
 	client->syncpts[0] = host1x_syncpt_request(client, 0);
@@ -183,9 +184,9 @@ free_syncpt:
 	host1x_syncpt_free(client->syncpts[0]);
 free_channel:
 	host1x_channel_put(vic->channel);
-detach_device:
-	if (tegra->domain)
-		iommu_detach_device(tegra->domain, vic->dev);
+detach:
+	if (group && tegra->domain)
+		iommu_detach_group(tegra->domain, group);
 
 	return err;
 }
@@ -193,6 +194,7 @@ detach_device:
 static int vic_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
@@ -206,7 +208,7 @@ static int vic_exit(struct host1x_client *client)
 	host1x_channel_put(vic->channel);
 
 	if (vic->domain) {
-		iommu_detach_device(vic->domain, vic->dev);
+		iommu_detach_group(vic->domain, group);
 		vic->domain = NULL;
 	}
 

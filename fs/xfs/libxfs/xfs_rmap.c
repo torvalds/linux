@@ -376,7 +376,6 @@ xfs_rmap_free_check_owner(
 	struct xfs_mount	*mp,
 	uint64_t		ltoff,
 	struct xfs_rmap_irec	*rec,
-	xfs_fsblock_t		bno,
 	xfs_filblks_t		len,
 	uint64_t		owner,
 	uint64_t		offset,
@@ -519,7 +518,7 @@ xfs_rmap_unmap(
 			bno + len, out_error);
 
 	/* Check owner information. */
-	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, bno, len, owner,
+	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, len, owner,
 			offset, flags);
 	if (error)
 		goto out_error;
@@ -2386,4 +2385,71 @@ xfs_rmap_compare(
 		return 1;
 	else
 		return 0;
+}
+
+/* Is there a record covering a given extent? */
+int
+xfs_rmap_has_record(
+	struct xfs_btree_cur	*cur,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	bool			*exists)
+{
+	union xfs_btree_irec	low;
+	union xfs_btree_irec	high;
+
+	memset(&low, 0, sizeof(low));
+	low.r.rm_startblock = bno;
+	memset(&high, 0xFF, sizeof(high));
+	high.r.rm_startblock = bno + len - 1;
+
+	return xfs_btree_has_record(cur, &low, &high, exists);
+}
+
+/*
+ * Is there a record for this owner completely covering a given physical
+ * extent?  If so, *has_rmap will be set to true.  If there is no record
+ * or the record only covers part of the range, we set *has_rmap to false.
+ * This function doesn't perform range lookups or offset checks, so it is
+ * not suitable for checking data fork blocks.
+ */
+int
+xfs_rmap_record_exists(
+	struct xfs_btree_cur	*cur,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	struct xfs_owner_info	*oinfo,
+	bool			*has_rmap)
+{
+	uint64_t		owner;
+	uint64_t		offset;
+	unsigned int		flags;
+	int			has_record;
+	struct xfs_rmap_irec	irec;
+	int			error;
+
+	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
+	ASSERT(XFS_RMAP_NON_INODE_OWNER(owner) ||
+	       (flags & XFS_RMAP_BMBT_BLOCK));
+
+	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, flags,
+			&has_record);
+	if (error)
+		return error;
+	if (!has_record) {
+		*has_rmap = false;
+		return 0;
+	}
+
+	error = xfs_rmap_get_rec(cur, &irec, &has_record);
+	if (error)
+		return error;
+	if (!has_record) {
+		*has_rmap = false;
+		return 0;
+	}
+
+	*has_rmap = (irec.rm_owner == owner && irec.rm_startblock <= bno &&
+		     irec.rm_startblock + irec.rm_blockcount >= bno + len);
+	return 0;
 }

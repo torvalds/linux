@@ -153,8 +153,8 @@ struct c4iw_hw_queue {
 };
 
 struct wr_log_entry {
-	struct timespec post_host_ts;
-	struct timespec poll_host_ts;
+	ktime_t post_host_time;
+	ktime_t poll_host_time;
 	u64 post_sge_ts;
 	u64 cqe_sge_ts;
 	u64 poll_sge_ts;

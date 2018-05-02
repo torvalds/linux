@@ -122,13 +122,13 @@ static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
 	lphi = (l >> 16) & 0xf;
 	switch ((l >> 12) & 0xf) {
 	case 0:
-		return !lphi ? 24 : -1;		/* 16MB */
+		return !lphi ? 24 : 0;		/* 16MB */
 		break;
 	case 1:
 		return 16;			/* 64kB */
 		break;
 	case 3:
-		return !lphi ? 34 : -1;		/* 16GB */
+		return !lphi ? 34 : 0;		/* 16GB */
 		break;
 	case 7:
 		return (16 << 8) + 12;		/* 64kB in 4kB */
@@ -140,7 +140,7 @@ static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
 			return (24 << 8) + 12;	/* 16MB in 4kB */
 		break;
 	}
-	return -1;
+	return 0;
 }
 
 static inline int kvmppc_hpte_base_page_shift(unsigned long h, unsigned long l)
@@ -159,7 +159,11 @@ static inline int kvmppc_hpte_actual_page_shift(unsigned long h, unsigned long l
 
 static inline unsigned long kvmppc_actual_pgsz(unsigned long v, unsigned long r)
 {
-	return 1ul << kvmppc_hpte_actual_page_shift(v, r);
+	int shift = kvmppc_hpte_actual_page_shift(v, r);
+
+	if (shift)
+		return 1ul << shift;
+	return 0;
 }
 
 static inline int kvmppc_pgsize_lp_encoding(int base_shift, int actual_shift)
@@ -232,7 +236,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		va_low ^= v >> (SID_SHIFT_1T - 16);
 	va_low &= 0x7ff;
 
-	if (b_pgshift == 12) {
+	if (b_pgshift <= 12) {
 		if (a_pgshift > 12) {
 			sllp = (a_pgshift == 16) ? 5 : 4;
 			rb |= sllp << 5;	/*  AP field */
@@ -467,6 +471,49 @@ static inline void set_dirty_bits_atomic(unsigned long *map, unsigned long i,
 		for (; npages; ++i, --npages)
 			set_bit_le(i, map);
 }
+
+static inline u64 sanitize_msr(u64 msr)
+{
+	msr &= ~MSR_HV;
+	msr |= MSR_ME;
+	return msr;
+}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr  = vcpu->arch.cr_tm;
+	vcpu->arch.xer = vcpu->arch.xer_tm;
+	vcpu->arch.lr  = vcpu->arch.lr_tm;
+	vcpu->arch.ctr = vcpu->arch.ctr_tm;
+	vcpu->arch.amr = vcpu->arch.amr_tm;
+	vcpu->arch.ppr = vcpu->arch.ppr_tm;
+	vcpu->arch.dscr = vcpu->arch.dscr_tm;
+	vcpu->arch.tar = vcpu->arch.tar_tm;
+	memcpy(vcpu->arch.gpr, vcpu->arch.gpr_tm,
+	       sizeof(vcpu->arch.gpr));
+	vcpu->arch.fp  = vcpu->arch.fp_tm;
+	vcpu->arch.vr  = vcpu->arch.vr_tm;
+	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
+}
+
+static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr_tm  = vcpu->arch.cr;
+	vcpu->arch.xer_tm = vcpu->arch.xer;
+	vcpu->arch.lr_tm  = vcpu->arch.lr;
+	vcpu->arch.ctr_tm = vcpu->arch.ctr;
+	vcpu->arch.amr_tm = vcpu->arch.amr;
+	vcpu->arch.ppr_tm = vcpu->arch.ppr;
+	vcpu->arch.dscr_tm = vcpu->arch.dscr;
+	vcpu->arch.tar_tm = vcpu->arch.tar;
+	memcpy(vcpu->arch.gpr_tm, vcpu->arch.gpr,
+	       sizeof(vcpu->arch.gpr));
+	vcpu->arch.fp_tm  = vcpu->arch.fp;
+	vcpu->arch.vr_tm  = vcpu->arch.vr;
+	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

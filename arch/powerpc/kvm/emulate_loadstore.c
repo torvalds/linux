@@ -58,6 +58,18 @@ static bool kvmppc_check_vsx_disabled(struct kvm_vcpu *vcpu)
 }
 #endif /* CONFIG_VSX */
 
+#ifdef CONFIG_ALTIVEC
+static bool kvmppc_check_altivec_disabled(struct kvm_vcpu *vcpu)
+{
+	if (!(kvmppc_get_msr(vcpu) & MSR_VEC)) {
+		kvmppc_core_queue_vec_unavail(vcpu);
+		return true;
+	}
+
+	return false;
+}
+#endif /* CONFIG_ALTIVEC */
+
 /*
  * XXX to do:
  * lfiwax, lfiwzx
@@ -98,6 +110,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_NONE;
 	vcpu->arch.mmio_sp64_extend = 0;
 	vcpu->arch.mmio_sign_extend = 0;
+	vcpu->arch.mmio_vmx_copy_nums = 0;
 
 	switch (get_op(inst)) {
 	case 31:
@@ -459,6 +472,29 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 							 rs, 4, 1);
 			break;
 #endif /* CONFIG_VSX */
+
+#ifdef CONFIG_ALTIVEC
+		case OP_31_XOP_LVX:
+			if (kvmppc_check_altivec_disabled(vcpu))
+				return EMULATE_DONE;
+			vcpu->arch.vaddr_accessed &= ~0xFULL;
+			vcpu->arch.paddr_accessed &= ~0xFULL;
+			vcpu->arch.mmio_vmx_copy_nums = 2;
+			emulated = kvmppc_handle_load128_by2x64(run, vcpu,
+					KVM_MMIO_REG_VMX|rt, 1);
+			break;
+
+		case OP_31_XOP_STVX:
+			if (kvmppc_check_altivec_disabled(vcpu))
+				return EMULATE_DONE;
+			vcpu->arch.vaddr_accessed &= ~0xFULL;
+			vcpu->arch.paddr_accessed &= ~0xFULL;
+			vcpu->arch.mmio_vmx_copy_nums = 2;
+			emulated = kvmppc_handle_store128_by2x64(run, vcpu,
+					rs, 1);
+			break;
+#endif /* CONFIG_ALTIVEC */
+
 		default:
 			emulated = EMULATE_FAIL;
 			break;

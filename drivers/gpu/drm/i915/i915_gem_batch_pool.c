@@ -119,7 +119,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			if (!reservation_object_test_signaled_rcu(resv, true))
 				break;
 
-			i915_gem_retire_requests(pool->engine->i915);
+			i915_retire_requests(pool->engine->i915);
 			GEM_BUG_ON(i915_gem_object_is_active(obj));
 
 			/*

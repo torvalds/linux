@@ -341,7 +341,7 @@ static int camss_of_parse_ports(struct device *dev,
 		}
 
 		csd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		csd->asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		csd->asd.match.fwnode = of_fwnode_handle(remote);
 	}
 
 	return notifier->num_subdevs;

@@ -505,4 +505,4 @@ module_platform_driver(uniphier_gpio_driver);
 
 MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
 MODULE_DESCRIPTION("UniPhier GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

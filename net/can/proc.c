@@ -276,7 +276,6 @@ static int can_stats_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_stats_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_stats_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -310,7 +309,6 @@ static int can_reset_stats_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_reset_stats_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_reset_stats_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -329,7 +327,6 @@ static int can_version_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_version_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_version_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -338,7 +335,7 @@ static const struct file_operations can_version_proc_fops = {
 
 static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 					     struct net_device *dev,
-					     struct dev_rcv_lists *d)
+					     struct can_dev_rcv_lists *d)
 {
 	if (!hlist_empty(&d->rx[idx])) {
 		can_print_recv_banner(m);
@@ -353,7 +350,7 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 	/* double cast to prevent GCC warning */
 	int idx = (int)(long)PDE_DATA(m->file->f_inode);
 	struct net_device *dev;
-	struct dev_rcv_lists *d;
+	struct can_dev_rcv_lists *d;
 	struct net *net = m->private;
 
 	seq_printf(m, "\nreceive list '%s':\n", rx_list_name[idx]);
@@ -382,7 +379,6 @@ static int can_rcvlist_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_rcvlist_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_rcvlist_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -417,7 +413,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct dev_rcv_lists *d;
+	struct can_dev_rcv_lists *d;
 	struct net *net = m->private;
 
 	/* RX_SFF */
@@ -450,7 +446,6 @@ static int can_rcvlist_sff_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_rcvlist_sff_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_rcvlist_sff_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -461,7 +456,7 @@ static const struct file_operations can_rcvlist_sff_proc_fops = {
 static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct dev_rcv_lists *d;
+	struct can_dev_rcv_lists *d;
 	struct net *net = m->private;
 
 	/* RX_EFF */
@@ -494,7 +489,6 @@ static int can_rcvlist_eff_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations can_rcvlist_eff_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= can_rcvlist_eff_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

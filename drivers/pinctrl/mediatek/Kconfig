@@ -1,4 +1,5 @@
-if ARCH_MEDIATEK || COMPILE_TEST
+menu "MediaTek pinctrl drivers"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 
 config PINCTRL_MTK
 	bool
@@ -31,6 +32,23 @@ config PINCTRL_MT8127
 	select PINCTRL_MTK
 
 # For ARMv8 SoCs
+config PINCTRL_MT2712
+	bool "MediaTek MT2712 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+config PINCTRL_MT7622
+	bool "MediaTek MT7622 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select OF_GPIO
+
 config PINCTRL_MT8173
 	bool "Mediatek MT8173 pin control"
 	depends on OF
@@ -46,4 +64,4 @@ config PINCTRL_MT6397
 	default MFD_MT6397
 	select PINCTRL_MTK
 
-endif
+endmenu

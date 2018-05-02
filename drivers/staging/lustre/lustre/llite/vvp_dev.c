@@ -384,7 +384,7 @@ int cl_sb_fini(struct super_block *sb)
 struct vvp_pgcache_id {
 	unsigned int		 vpi_bucket;
 	unsigned int		 vpi_depth;
-	uint32_t		 vpi_index;
+	u32			 vpi_index;
 
 	unsigned int		 vpi_curdep;
 	struct lu_object_header *vpi_obj;

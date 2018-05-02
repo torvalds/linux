@@ -75,6 +75,7 @@ config NEED_SG_DMA_LENGTH
 
 config SWIOTLB
 	def_bool y
+	select DMA_DIRECT_OPS
 	select IOMMU_HELPER
 	select NEED_SG_DMA_LENGTH
 

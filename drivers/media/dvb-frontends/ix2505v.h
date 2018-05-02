@@ -17,7 +17,7 @@
 #define DVB_IX2505V_H
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * struct ix2505v_config - ix2505 attachment configuration

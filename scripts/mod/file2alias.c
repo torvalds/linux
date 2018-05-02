@@ -1289,6 +1289,21 @@ static int do_hda_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
 
+/* Looks like: sdw:mNpN */
+static int do_sdw_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, sdw_device_id, mfg_id);
+	DEF_FIELD(symval, sdw_device_id, part_id);
+
+	strcpy(alias, "sdw:");
+	ADD(alias, "m", mfg_id != 0, mfg_id);
+	ADD(alias, "p", part_id != 0, part_id);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("sdw", sdw_device_id, do_sdw_entry);
+
 /* Looks like: fsl-mc:vNdN */
 static int do_fsl_mc_entry(const char *filename, void *symval,
 			   char *alias)

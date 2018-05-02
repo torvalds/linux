@@ -97,26 +97,6 @@ again:
 }
 
 /*
- * Set a vnode's interest on a server.
- */
-void afs_set_cb_interest(struct afs_vnode *vnode, struct afs_cb_interest *cbi)
-{
-	struct afs_cb_interest *old_cbi = NULL;
-
-	if (vnode->cb_interest == cbi)
-		return;
-
-	write_seqlock(&vnode->cb_lock);
-	if (vnode->cb_interest != cbi) {
-		afs_get_cb_interest(cbi);
-		old_cbi = vnode->cb_interest;
-		vnode->cb_interest = cbi;
-	}
-	write_sequnlock(&vnode->cb_lock);
-	afs_put_cb_interest(afs_v2net(vnode), cbi);
-}
-
-/*
  * Remove an interest on a server.
  */
 void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
@@ -150,6 +130,7 @@ void afs_break_callback(struct afs_vnode *vnode)
 
 	write_seqlock(&vnode->cb_lock);
 
+	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		vnode->cb_break++;
 		afs_clear_permits(vnode);
@@ -207,7 +188,7 @@ static void afs_break_one_callback(struct afs_server *server,
  * allow the fileserver to break callback promises
  */
 void afs_break_callbacks(struct afs_server *server, size_t count,
-			 struct afs_callback callbacks[])
+			 struct afs_callback_break *callbacks)
 {
 	_enter("%p,%zu,", server, count);
 
@@ -219,9 +200,9 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 		       callbacks->fid.vid,
 		       callbacks->fid.vnode,
 		       callbacks->fid.unique,
-		       callbacks->version,
-		       callbacks->expiry,
-		       callbacks->type
+		       callbacks->cb.version,
+		       callbacks->cb.expiry,
+		       callbacks->cb.type
 		       );
 		afs_break_one_callback(server, &callbacks->fid);
 	}

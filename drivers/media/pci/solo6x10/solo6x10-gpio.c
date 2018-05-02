@@ -162,7 +162,9 @@ static void solo_gpiochip_set(struct gpio_chip *chip,
 
 int solo_gpio_init(struct solo_dev *solo_dev)
 {
+#ifdef CONFIG_GPIOLIB
 	int ret;
+#endif
 
 	solo_gpio_config(solo_dev);
 #ifdef CONFIG_GPIOLIB

@@ -406,8 +406,9 @@
 	wlan_pd_n: wlan-pd-n {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_pd_n";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_module_reset_l>;
 
-		/* Note the wlan_module_reset_l pinctrl */
 		enable-active-high;
 		gpio = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 
@@ -515,8 +516,13 @@
 		compatible = "rockchip,rk3399-gru-sound";
 		rockchip,cpu = <&i2s0 &i2s2>;
 		rockchip,codec = <&max98357a &headsetcodec
-				  &codec &wacky_spi_audio>;
+				  &codec &wacky_spi_audio &cdn_dp>;
 	};
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&usbc_extcon0>, <&usbc_extcon1>;
 };
 
 /*
@@ -581,7 +587,8 @@
 		<&cru PCLK_PERIHP>,
 		<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
 		<&cru PCLK_PERILP0>, <&cru ACLK_CCI>,
-		<&cru HCLK_PERILP1>, <&cru PCLK_PERILP1>;
+		<&cru HCLK_PERILP1>, <&cru PCLK_PERILP1>,
+		<&cru ACLK_VIO>;
 	assigned-clock-rates =
 		<600000000>, <800000000>,
 		<1000000000>,
@@ -589,7 +596,8 @@
 		<37500000>,
 		<100000000>, <100000000>,
 		<50000000>, <800000000>,
-		<100000000>, <50000000>;
+		<100000000>, <50000000>,
+		<400000000>;
 };
 
 &emmc_phy {
@@ -855,6 +863,20 @@ ap_i2c_audio: &i2c8 {
 			compatible = "google,cros-ec-pwm";
 			#pwm-cells = <1>;
 		};
+
+		usbc_extcon0: extcon@0 {
+			compatible = "google,extcon-usbc-cros-ec";
+			google,usb-port-id = <0>;
+
+			#extcon-cells = <0>;
+		};
+
+		usbc_extcon1: extcon@1 {
+			compatible = "google,extcon-usbc-cros-ec";
+			google,usb-port-id = <1>;
+
+			#extcon-cells = <0>;
+		};
 	};
 };
 
@@ -863,6 +885,16 @@ ap_i2c_audio: &i2c8 {
 
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
+};
+
+&tcphy0 {
+	status = "okay";
+	extcon = <&usbc_extcon0>;
+};
+
+&tcphy1 {
+	status = "okay";
+	extcon = <&usbc_extcon1>;
 };
 
 &u2phy0 {
@@ -911,6 +943,7 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd3_0 {
 	status = "okay";
+	extcon = <&usbc_extcon0>;
 };
 
 &usbdrd_dwc3_0 {
@@ -920,11 +953,28 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd3_1 {
 	status = "okay";
+	extcon = <&usbc_extcon1>;
 };
 
 &usbdrd_dwc3_1 {
 	status = "okay";
 	dr_mode = "host";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
 };
 
 #include <arm/cros-ec-keyboard.dtsi>
@@ -941,12 +991,6 @@ ap_i2c_audio: &i2c8 {
 	pinctrl-0 = <
 		&ap_pwroff	/* AP will auto-assert this when in S3 */
 		&clk_32k	/* This pin is always 32k on gru boards */
-
-		/*
-		 * We want this driven low ASAP; firmware should help us, but
-		 * we can help ourselves too.
-		 */
-		&wlan_module_reset_l
 	>;
 
 	pcfg_output_low: pcfg-output-low {
@@ -1126,12 +1170,7 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		wlan_module_reset_l: wlan-module-reset-l {
-			/*
-			 * We want this driven low ASAP (As {Soon,Strongly} As
-			 * Possible), to avoid leakage through the powered-down
-			 * WiFi.
-			 */
-			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {

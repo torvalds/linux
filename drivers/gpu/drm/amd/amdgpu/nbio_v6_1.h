@@ -26,30 +26,6 @@
 
 #include "soc15_common.h"
 
-extern const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg;
-extern const struct nbio_pcie_index_data nbio_v6_1_pcie_index_data;
-int nbio_v6_1_init(struct amdgpu_device *adev);
-u32 nbio_v6_1_get_atombios_scratch_regs(struct amdgpu_device *adev,
-                                        uint32_t idx);
-void nbio_v6_1_set_atombios_scratch_regs(struct amdgpu_device *adev,
-                                         uint32_t idx, uint32_t val);
-void nbio_v6_1_mc_access_enable(struct amdgpu_device *adev, bool enable);
-void nbio_v6_1_hdp_flush(struct amdgpu_device *adev);
-u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev);
-void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index);
-void nbio_v6_1_enable_doorbell_aperture(struct amdgpu_device *adev,
-					bool enable);
-void nbio_v6_1_enable_doorbell_selfring_aperture(struct amdgpu_device *adev,
-					bool enable);
-void nbio_v6_1_ih_doorbell_range(struct amdgpu_device *adev,
-				bool use_doorbell, int doorbell_index);
-void nbio_v6_1_ih_control(struct amdgpu_device *adev);
-u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev);
-void nbio_v6_1_update_medium_grain_clock_gating(struct amdgpu_device *adev, bool enable);
-void nbio_v6_1_update_medium_grain_light_sleep(struct amdgpu_device *adev, bool enable);
-void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev, u32 *flags);
-void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev);
-void nbio_v6_1_init_registers(struct amdgpu_device *adev);
+extern const struct amdgpu_nbio_funcs nbio_v6_1_funcs;
 
 #endif

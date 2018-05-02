@@ -91,7 +91,7 @@ static int ams_input_enable(void)
 		return error;
 	}
 
-	joystick = 1;
+	joystick = true;
 
 	return 0;
 }
@@ -104,7 +104,7 @@ static void ams_input_disable(void)
 		ams_info.idev = NULL;
 	}
 
-	joystick = 0;
+	joystick = false;
 }
 
 static ssize_t ams_input_show_joystick(struct device *dev,

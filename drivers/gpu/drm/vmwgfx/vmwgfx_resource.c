@@ -354,6 +354,7 @@ void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 
+	vmw_dma_buffer_unmap(vmw_bo);
 	kfree(vmw_bo);
 }
 
@@ -361,6 +362,7 @@ static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 {
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
 
+	vmw_dma_buffer_unmap(&vmw_user_bo->dma);
 	ttm_prime_object_kfree(vmw_user_bo, prime);
 }
 
@@ -384,8 +386,8 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
-			  0, interruptible,
-			  NULL, acc_size, NULL, NULL, bo_free);
+			  0, interruptible, acc_size,
+			  NULL, NULL, bo_free);
 	return ret;
 }
 
@@ -968,6 +970,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 			  bool interruptible,
 			  struct ttm_validate_buffer *val_buf)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct list_head val_list;
 	bool backup_dirty = false;
 	int ret;
@@ -992,7 +995,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	backup_dirty = res->backup_dirty;
 	ret = ttm_bo_validate(&res->backup->base,
 			      res->func->backup_placement,
-			      true, false);
+			      &ctx);
 
 	if (unlikely(ret != 0))
 		goto out_no_validate;
@@ -1238,6 +1241,12 @@ void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 
 	dma_buf = container_of(bo, struct vmw_dma_buffer, base);
 
+	/*
+	 * Kill any cached kernel maps before move. An optimization could
+	 * be to do this iff source or destination memory type is VRAM.
+	 */
+	vmw_dma_buffer_unmap(dma_buf);
+
 	if (mem->mem_type != VMW_PL_MOB) {
 		struct vmw_resource *res, *n;
 		struct ttm_validate_buffer val_buf;
@@ -1260,6 +1269,21 @@ void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 	}
 }
 
+
+/**
+ * vmw_resource_swap_notify - swapout notify callback.
+ *
+ * @bo: The buffer object to be swapped out.
+ */
+void vmw_resource_swap_notify(struct ttm_buffer_object *bo)
+{
+	if (bo->destroy != vmw_dmabuf_bo_free &&
+	    bo->destroy != vmw_user_dmabuf_destroy)
+		return;
+
+	/* Kill any cached kernel maps before swapout */
+	vmw_dma_buffer_unmap(vmw_dma_buffer(bo));
+}
 
 
 /**
@@ -1446,6 +1470,7 @@ void vmw_resource_evict_all(struct vmw_private *dev_priv)
  */
 int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 {
+	struct ttm_operation_ctx ctx = { interruptible, false };
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
 
@@ -1466,7 +1491,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 				ret = ttm_bo_validate
 					(&vbo->base,
 					 res->func->backup_placement,
-					 interruptible, false);
+					 &ctx);
 				if (ret) {
 					ttm_bo_unreserve(&vbo->base);
 					goto out_no_validate;

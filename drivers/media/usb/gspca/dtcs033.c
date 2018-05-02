@@ -71,18 +71,16 @@ static int reg_reqs(struct gspca_dev *gspca_dev,
 
 		if (gspca_dev->usb_err < 0) {
 
-			PERR("usb error request no: %d / %d\n",
-				i, n_reqs);
+			gspca_err(gspca_dev, "usb error request no: %d / %d\n",
+				  i, n_reqs);
 		} else if (preq->bRequestType & USB_DIR_IN) {
 
-			PDEBUG(D_STREAM,
-			"USB IN (%d) returned[%d] %02X %02X %02X %s",
-				i,
-				preq->wLength,
-				gspca_dev->usb_buf[0],
-				gspca_dev->usb_buf[1],
-				gspca_dev->usb_buf[2],
-				preq->wLength > 3 ? "...\n" : "\n");
+			gspca_dbg(gspca_dev, D_STREAM,
+				  "USB IN (%d) returned[%d] %3ph %s",
+				  i,
+				  preq->wLength,
+				  gspca_dev->usb_buf,
+				  preq->wLength > 3 ? "...\n" : "\n");
 		}
 
 		i++;
@@ -176,12 +174,12 @@ static void dtcs033_setexposure(struct gspca_dev *gspca_dev,
 	reg_rw(gspca_dev,
 		bRequestType, bRequest, wValue, wIndex, 0);
 	if (gspca_dev->usb_err < 0)
-		PERR("usb error in setexposure(gain) sequence.\n");
+		gspca_err(gspca_dev, "usb error in setexposure(gain) sequence\n");
 
 	reg_rw(gspca_dev,
 		bRequestType, bRequest, (xtimeVal<<4), 0x6300, 0);
 	if (gspca_dev->usb_err < 0)
-		PERR("usb error in setexposure(time) sequence.\n");
+		gspca_err(gspca_dev, "usb error in setexposure(time) sequence\n");
 }
 
 /* specific webcam descriptor */
@@ -239,8 +237,8 @@ static int dtcs033_init_controls(struct gspca_dev *gspca_dev)
 				V4L2_CID_GAIN,
 				14,  33,  1,  24);/* [dB] */
 	if (hdl->error) {
-		PERR("Could not initialize controls: %d\n",
-			hdl->error);
+		gspca_err(gspca_dev, "Could not initialize controls: %d\n",
+			  hdl->error);
 		return hdl->error;
 	}
 

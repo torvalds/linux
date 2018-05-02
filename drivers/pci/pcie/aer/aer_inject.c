@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe AER software error injection support.
  *
@@ -9,12 +10,6 @@
  *
  * Copyright 2009 Intel Corporation.
  *     Huang Ying <ying.huang@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
- *
  */
 
 #include <linux/module.h>
@@ -344,14 +339,14 @@ static int aer_inject(struct aer_error_inj *einj)
 		return -ENODEV;
 	rpdev = pcie_find_root_port(dev);
 	if (!rpdev) {
-		dev_err(&dev->dev, "aer_inject: Root port not found\n");
+		pci_err(dev, "aer_inject: Root port not found\n");
 		ret = -ENODEV;
 		goto out_put;
 	}
 
-	pos_cap_err = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos_cap_err = dev->aer_cap;
 	if (!pos_cap_err) {
-		dev_err(&dev->dev, "aer_inject: Device doesn't support AER\n");
+		pci_err(dev, "aer_inject: Device doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -360,10 +355,9 @@ static int aer_inject(struct aer_error_inj *einj)
 	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_MASK,
 			      &uncor_mask);
 
-	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
+	rp_pos_cap_err = rpdev->aer_cap;
 	if (!rp_pos_cap_err) {
-		dev_err(&rpdev->dev,
-			"aer_inject: Root port doesn't support AER\n");
+		pci_err(rpdev, "aer_inject: Root port doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -411,16 +405,14 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (!aer_mask_override && einj->cor_status &&
 	    !(einj->cor_status & ~cor_mask)) {
 		ret = -EINVAL;
-		dev_warn(&dev->dev,
-			 "aer_inject: The correctable error(s) is masked by device\n");
+		pci_warn(dev, "aer_inject: The correctable error(s) is masked by device\n");
 		spin_unlock_irqrestore(&inject_lock, flags);
 		goto out_put;
 	}
 	if (!aer_mask_override && einj->uncor_status &&
 	    !(einj->uncor_status & ~uncor_mask)) {
 		ret = -EINVAL;
-		dev_warn(&dev->dev,
-			 "aer_inject: The uncorrectable error(s) is masked by device\n");
+		pci_warn(dev, "aer_inject: The uncorrectable error(s) is masked by device\n");
 		spin_unlock_irqrestore(&inject_lock, flags);
 		goto out_put;
 	}
@@ -483,7 +475,7 @@ static int aer_inject(struct aer_error_inj *einj)
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
 		aer_irq(-1, edev);
 	} else {
-		dev_err(&rpdev->dev, "aer_inject: AER device not found\n");
+		pci_err(rpdev, "aer_inject: AER device not found\n");
 		ret = -ENODEV;
 	}
 out_put:

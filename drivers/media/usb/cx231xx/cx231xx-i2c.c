@@ -51,7 +51,7 @@ do {							\
 	if (i2c_debug >= lvl) {				\
 		printk(KERN_DEBUG "%s at %s: " fmt,	\
 		       dev->name, __func__ , ##args);	\
-      } 						\
+      }							\
 } while (0)
 
 static inline int get_real_i2c_port(struct cx231xx *dev, int bus_nr)

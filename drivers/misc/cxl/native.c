@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <asm/synch.h>
+#include <asm/switch_to.h>
 #include <misc/cxl-base.h>
 
 #include "cxl.h"
@@ -352,8 +353,17 @@ int cxl_data_cache_flush(struct cxl *adapter)
 	u64 reg;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
-	pr_devel("Flushing data cache\n");
+	/*
+	 * Do a datacache flush only if datacache is available.
+	 * In case of PSL9D datacache absent hence flush operation.
+	 * would timeout.
+	 */
+	if (adapter->native->no_data_cache) {
+		pr_devel("No PSL data cache. Ignoring cache flush req.\n");
+		return 0;
+	}
 
+	pr_devel("Flushing data cache\n");
 	reg = cxl_p1_read(adapter, CXL_PSL_Control);
 	reg |= CXL_PSL_Control_Fr;
 	cxl_p1_write(adapter, CXL_PSL_Control, reg);
@@ -655,6 +665,7 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
+	int rc;
 
 	cxl_assign_psn_space(ctx);
 
@@ -673,7 +684,16 @@ static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 		pid = ctx->mm->context.id;
 	}
 
-	ctx->elem->common.tid = 0;
+	/* Assign a unique TIDR (thread id) for the current thread */
+	if (!(ctx->tidr) && (ctx->assign_tidr)) {
+		rc = set_thread_tidr(current);
+		if (rc)
+			return -ENODEV;
+		ctx->tidr = current->thread.tidr;
+		pr_devel("%s: current tidr: %d\n", __func__, ctx->tidr);
+	}
+
+	ctx->elem->common.tid = cpu_to_be32(ctx->tidr);
 	ctx->elem->common.pid = cpu_to_be32(pid);
 
 	ctx->elem->sr = cpu_to_be64(calculate_sr(ctx));

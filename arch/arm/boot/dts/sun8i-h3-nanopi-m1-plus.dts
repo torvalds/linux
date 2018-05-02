@@ -48,6 +48,7 @@
 
 	aliases {
 		serial1 = &uart3;
+		ethernet0 = &emac;
 		ethernet1 = &sdio_wifi;
 	};
 
@@ -83,8 +84,6 @@
 	phy-handle = <&ext_rgmii_phy>;
 	phy-mode = "rgmii";
 
-	allwinner,leds-active-low;
-
 	status = "okay";
 };
 
@@ -102,8 +101,6 @@
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
@@ -118,6 +115,16 @@
 		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
 		interrupt-names = "host-wake";
 	};
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
 };
 
 &ohci1 {

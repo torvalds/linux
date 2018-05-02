@@ -829,7 +829,7 @@ core99_ata100_enable(struct device_node *node, long value)
 
 	if (value) {
 		if (pci_device_from_OF_node(node, &pbus, &pid) == 0)
-			pdev = pci_get_bus_and_slot(pbus, pid);
+			pdev = pci_get_domain_bus_and_slot(0, pbus, pid);
 		if (pdev == NULL)
 			return 0;
 		rc = pci_enable_device(pdev);
@@ -2641,7 +2641,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	phys_addr_t		addr;
 	u64			size;
 
-	for (node = NULL; (node = of_find_node_by_name(node, name)) != NULL;) {
+	for_each_node_by_name(node, name) {
 		if (!compat)
 			break;
 		if (of_device_is_compatible(node, compat))
@@ -2853,7 +2853,6 @@ set_initial_features(void)
 		}
 
 		/* Enable ATA-100 before PCI probe. */
-		np = of_find_node_by_name(NULL, "ata-6");
 		for_each_node_by_name(np, "ata-6") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")

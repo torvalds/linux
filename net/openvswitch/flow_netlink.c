@@ -49,6 +49,7 @@
 #include <net/mpls.h>
 #include <net/vxlan.h>
 #include <net/tun_proto.h>
+#include <net/erspan.h>
 
 #include "flow_netlink.h"
 
@@ -329,7 +330,8 @@ size_t ovs_tun_key_attr_size(void)
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_CSUM */
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_OAM */
 		+ nla_total_size(256)  /* OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS */
-		/* OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS is mutually exclusive with
+		/* OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS and
+		 * OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS is mutually exclusive with
 		 * OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS and covered by it.
 		 */
 		+ nla_total_size(2)    /* OVS_TUNNEL_KEY_ATTR_TP_SRC */
@@ -400,6 +402,7 @@ static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1]
 						.next = ovs_vxlan_ext_key_lens },
 	[OVS_TUNNEL_KEY_ATTR_IPV6_SRC]      = { .len = sizeof(struct in6_addr) },
 	[OVS_TUNNEL_KEY_ATTR_IPV6_DST]      = { .len = sizeof(struct in6_addr) },
+	[OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS]   = { .len = OVS_ATTR_VARIABLE },
 };
 
 static const struct ovs_len_tbl
@@ -631,6 +634,33 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *attr,
 	return 0;
 }
 
+static int erspan_tun_opt_from_nlattr(const struct nlattr *a,
+				      struct sw_flow_match *match, bool is_mask,
+				      bool log)
+{
+	unsigned long opt_key_offset;
+
+	BUILD_BUG_ON(sizeof(struct erspan_metadata) >
+		     sizeof(match->key->tun_opts));
+
+	if (nla_len(a) > sizeof(match->key->tun_opts)) {
+		OVS_NLERR(log, "ERSPAN option length err (len %d, max %zu).",
+			  nla_len(a), sizeof(match->key->tun_opts));
+		return -EINVAL;
+	}
+
+	if (!is_mask)
+		SW_FLOW_KEY_PUT(match, tun_opts_len,
+				sizeof(struct erspan_metadata), false);
+	else
+		SW_FLOW_KEY_PUT(match, tun_opts_len, 0xff, true);
+
+	opt_key_offset = TUN_METADATA_OFFSET(nla_len(a));
+	SW_FLOW_KEY_MEMCPY_OFFSET(match, opt_key_offset, nla_data(a),
+				  nla_len(a), is_mask);
+	return 0;
+}
+
 static int ip_tun_from_nlattr(const struct nlattr *attr,
 			      struct sw_flow_match *match, bool is_mask,
 			      bool log)
@@ -737,6 +767,20 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			opts_type = type;
 			break;
 		case OVS_TUNNEL_KEY_ATTR_PAD:
+			break;
+		case OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS:
+			if (opts_type) {
+				OVS_NLERR(log, "Multiple metadata blocks provided");
+				return -EINVAL;
+			}
+
+			err = erspan_tun_opt_from_nlattr(a, match, is_mask,
+							 log);
+			if (err)
+				return err;
+
+			tun_flags |= TUNNEL_ERSPAN_OPT;
+			opts_type = type;
 			break;
 		default:
 			OVS_NLERR(log, "Unknown IP tunnel attribute %d",
@@ -861,6 +905,10 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 			return -EMSGSIZE;
 		else if (output->tun_flags & TUNNEL_VXLAN_OPT &&
 			 vxlan_opt_to_nlattr(skb, tun_opts, swkey_tun_opts_len))
+			return -EMSGSIZE;
+		else if (output->tun_flags & TUNNEL_ERSPAN_OPT &&
+			 nla_put(skb, OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
+				 swkey_tun_opts_len, tun_opts))
 			return -EMSGSIZE;
 	}
 
@@ -2454,7 +2502,7 @@ static int validate_geneve_opts(struct sw_flow_key *key)
 
 		option = (struct geneve_opt *)((u8 *)option + len);
 		opts_len -= len;
-	};
+	}
 
 	key->tun_key.tun_flags |= crit_opt ? TUNNEL_CRIT_OPT : 0;
 
@@ -2486,8 +2534,10 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 			break;
 		case OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS:
 			break;
+		case OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS:
+			break;
 		}
-	};
+	}
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET, log);
 	if (start < 0)

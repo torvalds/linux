@@ -1224,26 +1224,46 @@ void dce110_timing_generator_setup_global_swap_lock(
 
 	/* This pipe will belong to GSL Group zero. */
 	set_reg_field_value(value,
-			1,
-			DCP_GSL_CONTROL,
-			DCP_GSL0_EN);
+			    1,
+			    DCP_GSL_CONTROL,
+			    DCP_GSL0_EN);
 
 	set_reg_field_value(value,
-			gsl_params->gsl_master == tg->inst,
-			DCP_GSL_CONTROL,
-			DCP_GSL_MASTER_EN);
+			    gsl_params->gsl_master == tg->inst,
+			    DCP_GSL_CONTROL,
+			    DCP_GSL_MASTER_EN);
 
 	set_reg_field_value(value,
-			HFLIP_READY_DELAY,
-			DCP_GSL_CONTROL,
-			DCP_GSL_HSYNC_FLIP_FORCE_DELAY);
+			    HFLIP_READY_DELAY,
+			    DCP_GSL_CONTROL,
+			    DCP_GSL_HSYNC_FLIP_FORCE_DELAY);
 
 	/* Keep signal low (pending high) during 6 lines.
 	 * Also defines minimum interval before re-checking signal. */
 	set_reg_field_value(value,
-			HFLIP_CHECK_DELAY,
-			DCP_GSL_CONTROL,
-			DCP_GSL_HSYNC_FLIP_CHECK_DELAY);
+			    HFLIP_CHECK_DELAY,
+			    DCP_GSL_CONTROL,
+			    DCP_GSL_HSYNC_FLIP_CHECK_DELAY);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmDCP_GSL_CONTROL), value);
+	value = 0;
+
+	set_reg_field_value(value,
+			    gsl_params->gsl_master,
+			    DCIO_GSL0_CNTL,
+			    DCIO_GSL0_VSYNC_SEL);
+
+	set_reg_field_value(value,
+			    0,
+			    DCIO_GSL0_CNTL,
+			    DCIO_GSL0_TIMING_SYNC_SEL);
+
+	set_reg_field_value(value,
+			    0,
+			    DCIO_GSL0_CNTL,
+			    DCIO_GSL0_GLOBAL_UNLOCK_SEL);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmDCIO_GSL0_CNTL), value);
 
 
 	{
@@ -1253,38 +1273,38 @@ void dce110_timing_generator_setup_global_swap_lock(
 				CRTC_REG(mmCRTC_V_TOTAL));
 
 		set_reg_field_value(value,
-				0,/* DCP_GSL_PURPOSE_SURFACE_FLIP */
-				DCP_GSL_CONTROL,
-				DCP_GSL_SYNC_SOURCE);
+				    0,/* DCP_GSL_PURPOSE_SURFACE_FLIP */
+				    DCP_GSL_CONTROL,
+				    DCP_GSL_SYNC_SOURCE);
 
 		/* Checkpoint relative to end of frame */
 		check_point = get_reg_field_value(value_crtc_vtotal,
-				CRTC_V_TOTAL,
-				CRTC_V_TOTAL);
+						  CRTC_V_TOTAL,
+						  CRTC_V_TOTAL);
 
 		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_GSL_WINDOW), 0);
 	}
 
 	set_reg_field_value(value,
-			1,
-			DCP_GSL_CONTROL,
-			DCP_GSL_DELAY_SURFACE_UPDATE_PENDING);
+			    1,
+			    DCP_GSL_CONTROL,
+			    DCP_GSL_DELAY_SURFACE_UPDATE_PENDING);
 
 	dm_write_reg(tg->ctx, address, value);
 
 	/********************************************************************/
 	address = CRTC_REG(mmCRTC_GSL_CONTROL);
 
-	value = 0;
+	value = dm_read_reg(tg->ctx, address);
 	set_reg_field_value(value,
-			check_point - FLIP_READY_BACK_LOOKUP,
-			CRTC_GSL_CONTROL,
-			CRTC_GSL_CHECK_LINE_NUM);
+			    check_point - FLIP_READY_BACK_LOOKUP,
+			    CRTC_GSL_CONTROL,
+			    CRTC_GSL_CHECK_LINE_NUM);
 
 	set_reg_field_value(value,
-			VFLIP_READY_DELAY,
-			CRTC_GSL_CONTROL,
-			CRTC_GSL_FORCE_DELAY);
+			    VFLIP_READY_DELAY,
+			    CRTC_GSL_CONTROL,
+			    CRTC_GSL_FORCE_DELAY);
 
 	dm_write_reg(tg->ctx, address, value);
 }
@@ -1555,6 +1575,138 @@ void dce110_timing_generator_enable_reset_trigger(
 	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
 }
 
+void dce110_timing_generator_enable_crtc_reset(
+		struct timing_generator *tg,
+		int source_tg_inst,
+		struct crtc_trigger_info *crtc_tp)
+{
+	uint32_t value = 0;
+	uint32_t rising_edge = 0;
+	uint32_t falling_edge = 0;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	/* Setup trigger edge */
+	switch (crtc_tp->event) {
+	case CRTC_EVENT_VSYNC_RISING:
+			rising_edge = 1;
+			break;
+
+	case CRTC_EVENT_VSYNC_FALLING:
+		falling_edge = 1;
+		break;
+	}
+
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_TRIGB_CNTL));
+
+	set_reg_field_value(value,
+			    source_tg_inst,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_SOURCE_SELECT);
+
+	set_reg_field_value(value,
+			    TRIGGER_POLARITY_SELECT_LOGIC_ZERO,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_POLARITY_SELECT);
+
+	set_reg_field_value(value,
+			    rising_edge,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_RISING_EDGE_DETECT_CNTL);
+
+	set_reg_field_value(value,
+			    falling_edge,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_FALLING_EDGE_DETECT_CNTL);
+
+	set_reg_field_value(value,
+			    1, /* clear trigger status */
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_CLEAR);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_TRIGB_CNTL), value);
+
+	/**************************************************************/
+
+	switch (crtc_tp->delay) {
+	case TRIGGER_DELAY_NEXT_LINE:
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+
+		set_reg_field_value(value,
+				    0, /* force H count to H_TOTAL and V count to V_TOTAL */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_MODE);
+
+		set_reg_field_value(value,
+				    0, /* TriggerB - we never use TriggerA */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_TRIG_SEL);
+
+		set_reg_field_value(value,
+				    1, /* clear trigger status */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_CLEAR);
+
+		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
+
+		set_reg_field_value(value,
+				    1,
+				    CRTC_VERT_SYNC_CONTROL,
+				    CRTC_FORCE_VSYNC_NEXT_LINE_CLEAR);
+
+		set_reg_field_value(value,
+				    2,
+				    CRTC_VERT_SYNC_CONTROL,
+				    CRTC_AUTO_FORCE_VSYNC_MODE);
+
+		break;
+
+	case TRIGGER_DELAY_NEXT_PIXEL:
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
+
+		set_reg_field_value(value,
+				    1,
+				    CRTC_VERT_SYNC_CONTROL,
+				    CRTC_FORCE_VSYNC_NEXT_LINE_CLEAR);
+
+		set_reg_field_value(value,
+				    0,
+				    CRTC_VERT_SYNC_CONTROL,
+				    CRTC_AUTO_FORCE_VSYNC_MODE);
+
+		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL), value);
+
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+
+		set_reg_field_value(value,
+				    2, /* force H count to H_TOTAL and V count to V_TOTAL */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_MODE);
+
+		set_reg_field_value(value,
+				    1, /* TriggerB - we never use TriggerA */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_TRIG_SEL);
+
+		set_reg_field_value(value,
+				    1, /* clear trigger status */
+				    CRTC_FORCE_COUNT_NOW_CNTL,
+				    CRTC_FORCE_COUNT_NOW_CLEAR);
+
+		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+		break;
+	}
+
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_MASTER_UPDATE_MODE));
+
+	set_reg_field_value(value,
+			    2,
+			    CRTC_MASTER_UPDATE_MODE,
+			    MASTER_UPDATE_MODE);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_MASTER_UPDATE_MODE), value);
+}
 void dce110_timing_generator_disable_reset_trigger(
 	struct timing_generator *tg)
 {
@@ -1564,34 +1716,48 @@ void dce110_timing_generator_disable_reset_trigger(
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
 
 	set_reg_field_value(value,
-			0, /* force counter now mode is disabled */
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_MODE);
+			    0, /* force counter now mode is disabled */
+			    CRTC_FORCE_COUNT_NOW_CNTL,
+			    CRTC_FORCE_COUNT_NOW_MODE);
 
 	set_reg_field_value(value,
-			1, /* clear trigger status */
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_CLEAR);
+			    1, /* clear trigger status */
+			    CRTC_FORCE_COUNT_NOW_CNTL,
+			    CRTC_FORCE_COUNT_NOW_CLEAR);
 
 	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
+
+	set_reg_field_value(value,
+			    1,
+			    CRTC_VERT_SYNC_CONTROL,
+			    CRTC_FORCE_VSYNC_NEXT_LINE_CLEAR);
+
+	set_reg_field_value(value,
+			    0,
+			    CRTC_VERT_SYNC_CONTROL,
+			    CRTC_AUTO_FORCE_VSYNC_MODE);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL), value);
 
 	/********************************************************************/
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_TRIGB_CNTL));
 
 	set_reg_field_value(value,
-			TRIGGER_SOURCE_SELECT_LOGIC_ZERO,
-			CRTC_TRIGB_CNTL,
-			CRTC_TRIGB_SOURCE_SELECT);
+			    TRIGGER_SOURCE_SELECT_LOGIC_ZERO,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_SOURCE_SELECT);
 
 	set_reg_field_value(value,
-			TRIGGER_POLARITY_SELECT_LOGIC_ZERO,
-			CRTC_TRIGB_CNTL,
-			CRTC_TRIGB_POLARITY_SELECT);
+			    TRIGGER_POLARITY_SELECT_LOGIC_ZERO,
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_POLARITY_SELECT);
 
 	set_reg_field_value(value,
-			1, /* clear trigger status */
-			CRTC_TRIGB_CNTL,
-			CRTC_TRIGB_CLEAR);
+			    1, /* clear trigger status */
+			    CRTC_TRIGB_CNTL,
+			    CRTC_TRIGB_CLEAR);
 
 	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_TRIGB_CNTL), value);
 }
@@ -1611,10 +1777,16 @@ bool dce110_timing_generator_did_triggered_reset_occur(
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value = dm_read_reg(tg->ctx,
 			CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+	uint32_t value1 = dm_read_reg(tg->ctx,
+			CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
+	bool force = get_reg_field_value(value,
+					 CRTC_FORCE_COUNT_NOW_CNTL,
+					 CRTC_FORCE_COUNT_NOW_OCCURRED) != 0;
+	bool vert_sync = get_reg_field_value(value1,
+					     CRTC_VERT_SYNC_CONTROL,
+					     CRTC_FORCE_VSYNC_NEXT_LINE_OCCURRED) != 0;
 
-	return get_reg_field_value(value,
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_OCCURRED) != 0;
+	return (force || vert_sync);
 }
 
 /**
@@ -1905,6 +2077,125 @@ bool dce110_arm_vert_intr(struct timing_generator *tg, uint8_t width)
 	return true;
 }
 
+static bool dce110_is_tg_enabled(struct timing_generator *tg)
+{
+	uint32_t addr = 0;
+	uint32_t value = 0;
+	uint32_t field = 0;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	addr = CRTC_REG(mmCRTC_CONTROL);
+	value = dm_read_reg(tg->ctx, addr);
+	field = get_reg_field_value(value, CRTC_CONTROL,
+				    CRTC_CURRENT_MASTER_EN_STATE);
+	return field == 1;
+}
+
+bool dce110_configure_crc(struct timing_generator *tg,
+			  const struct crc_params *params)
+{
+	uint32_t cntl_addr = 0;
+	uint32_t addr = 0;
+	uint32_t value;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	/* Cannot configure crc on a CRTC that is disabled */
+	if (!dce110_is_tg_enabled(tg))
+		return false;
+
+	cntl_addr = CRTC_REG(mmCRTC_CRC_CNTL);
+
+	/* First, disable CRC before we configure it. */
+	dm_write_reg(tg->ctx, cntl_addr, 0);
+
+	if (!params->enable)
+		return true;
+
+	/* Program frame boundaries */
+	/* Window A x axis start and end. */
+	value = 0;
+	addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_X_CONTROL);
+	set_reg_field_value(value, params->windowa_x_start,
+			    CRTC_CRC0_WINDOWA_X_CONTROL,
+			    CRTC_CRC0_WINDOWA_X_START);
+	set_reg_field_value(value, params->windowa_x_end,
+			    CRTC_CRC0_WINDOWA_X_CONTROL,
+			    CRTC_CRC0_WINDOWA_X_END);
+	dm_write_reg(tg->ctx, addr, value);
+
+	/* Window A y axis start and end. */
+	value = 0;
+	addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_Y_CONTROL);
+	set_reg_field_value(value, params->windowa_y_start,
+			    CRTC_CRC0_WINDOWA_Y_CONTROL,
+			    CRTC_CRC0_WINDOWA_Y_START);
+	set_reg_field_value(value, params->windowa_y_end,
+			    CRTC_CRC0_WINDOWA_Y_CONTROL,
+			    CRTC_CRC0_WINDOWA_Y_END);
+	dm_write_reg(tg->ctx, addr, value);
+
+	/* Window B x axis start and end. */
+	value = 0;
+	addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_X_CONTROL);
+	set_reg_field_value(value, params->windowb_x_start,
+			    CRTC_CRC0_WINDOWB_X_CONTROL,
+			    CRTC_CRC0_WINDOWB_X_START);
+	set_reg_field_value(value, params->windowb_x_end,
+			    CRTC_CRC0_WINDOWB_X_CONTROL,
+			    CRTC_CRC0_WINDOWB_X_END);
+	dm_write_reg(tg->ctx, addr, value);
+
+	/* Window B y axis start and end. */
+	value = 0;
+	addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_Y_CONTROL);
+	set_reg_field_value(value, params->windowb_y_start,
+			    CRTC_CRC0_WINDOWB_Y_CONTROL,
+			    CRTC_CRC0_WINDOWB_Y_START);
+	set_reg_field_value(value, params->windowb_y_end,
+			    CRTC_CRC0_WINDOWB_Y_CONTROL,
+			    CRTC_CRC0_WINDOWB_Y_END);
+	dm_write_reg(tg->ctx, addr, value);
+
+	/* Set crc mode and selection, and enable. Only using CRC0*/
+	value = 0;
+	set_reg_field_value(value, params->continuous_mode ? 1 : 0,
+			    CRTC_CRC_CNTL, CRTC_CRC_CONT_EN);
+	set_reg_field_value(value, params->selection,
+			    CRTC_CRC_CNTL, CRTC_CRC0_SELECT);
+	set_reg_field_value(value, 1, CRTC_CRC_CNTL, CRTC_CRC_EN);
+	dm_write_reg(tg->ctx, cntl_addr, value);
+
+	return true;
+}
+
+bool dce110_get_crc(struct timing_generator *tg,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	uint32_t addr = 0;
+	uint32_t value = 0;
+	uint32_t field = 0;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	addr = CRTC_REG(mmCRTC_CRC_CNTL);
+	value = dm_read_reg(tg->ctx, addr);
+	field = get_reg_field_value(value, CRTC_CRC_CNTL, CRTC_CRC_EN);
+
+	/* Early return if CRC is not enabled for this CRTC */
+	if (!field)
+		return false;
+
+	addr = CRTC_REG(mmCRTC_CRC0_DATA_RG);
+	value = dm_read_reg(tg->ctx, addr);
+	*r_cr = get_reg_field_value(value, CRTC_CRC0_DATA_RG, CRC0_R_CR);
+	*g_y = get_reg_field_value(value, CRTC_CRC0_DATA_RG, CRC0_G_Y);
+
+	addr = CRTC_REG(mmCRTC_CRC0_DATA_B);
+	value = dm_read_reg(tg->ctx, addr);
+	*b_cb = get_reg_field_value(value, CRTC_CRC0_DATA_B, CRC0_B_CB);
+
+	return true;
+}
+
 static const struct timing_generator_funcs dce110_tg_funcs = {
 		.validate_timing = dce110_tg_validate_timing,
 		.program_timing = dce110_tg_program_timing,
@@ -1928,6 +2219,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 		.setup_global_swap_lock =
 				dce110_timing_generator_setup_global_swap_lock,
 		.enable_reset_trigger = dce110_timing_generator_enable_reset_trigger,
+		.enable_crtc_reset = dce110_timing_generator_enable_crtc_reset,
 		.disable_reset_trigger = dce110_timing_generator_disable_reset_trigger,
 		.tear_down_global_swap_lock =
 				dce110_timing_generator_tear_down_global_swap_lock,
@@ -1939,6 +2231,9 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 			dce110_timing_generator_set_static_screen_control,
 		.set_test_pattern = dce110_timing_generator_set_test_pattern,
 		.arm_vert_intr = dce110_arm_vert_intr,
+		.is_tg_enabled = dce110_is_tg_enabled,
+		.configure_crc = dce110_configure_crc,
+		.get_crc = dce110_get_crc,
 };
 
 void dce110_timing_generator_construct(

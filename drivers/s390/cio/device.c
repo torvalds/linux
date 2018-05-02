@@ -597,13 +597,13 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%02x\n", sch->vpm);
 }
 
-static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
-static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
-static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
-static DEVICE_ATTR(online, 0644, online_show, online_store);
+static DEVICE_ATTR_RO(devtype);
+static DEVICE_ATTR_RO(cutype);
+static DEVICE_ATTR_RO(modalias);
+static DEVICE_ATTR_RW(online);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
-static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
+static DEVICE_ATTR_RO(vpm);
 
 static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_logging.attr,
@@ -1073,8 +1073,7 @@ out_schedule:
 	return 0;
 }
 
-static int
-io_subchannel_remove (struct subchannel *sch)
+static int io_subchannel_remove(struct subchannel *sch)
 {
 	struct io_subchannel_private *io_priv = to_io_private(sch);
 	struct ccw_device *cdev;
@@ -1082,14 +1081,12 @@ io_subchannel_remove (struct subchannel *sch)
 	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		goto out_free;
-	io_subchannel_quiesce(sch);
-	/* Set ccw device to not operational and drop reference. */
-	spin_lock_irq(cdev->ccwlock);
+
+	ccw_device_unregister(cdev);
+	spin_lock_irq(sch->lock);
 	sch_set_cdev(sch, NULL);
 	set_io_private(sch, NULL);
-	cdev->private->state = DEV_STATE_NOT_OPER;
-	spin_unlock_irq(cdev->ccwlock);
-	ccw_device_unregister(cdev);
+	spin_unlock_irq(sch->lock);
 out_free:
 	kfree(io_priv);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
@@ -1721,6 +1718,7 @@ static int ccw_device_remove(struct device *dev)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_driver *cdrv = cdev->drv;
+	struct subchannel *sch;
 	int ret;
 
 	if (cdrv->remove)
@@ -1746,7 +1744,9 @@ static int ccw_device_remove(struct device *dev)
 	ccw_device_set_timeout(cdev, 0);
 	cdev->drv = NULL;
 	cdev->private->int_class = IRQIO_CIO;
+	sch = to_subchannel(cdev->dev.parent);
 	spin_unlock_irq(cdev->ccwlock);
+	io_subchannel_quiesce(sch);
 	__disable_cmf(cdev);
 
 	return 0;
