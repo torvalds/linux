@@ -5918,14 +5918,18 @@ static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 {
 	int ret;
 	int buff_len = hba->desc_size.pwr_desc;
-	u8 desc_buf[hba->desc_size.pwr_desc];
+	u8 *desc_buf;
+
+	desc_buf = kmalloc(buff_len, GFP_KERNEL);
+	if (!desc_buf)
+		return;
 
 	ret = ufshcd_read_power_desc(hba, desc_buf, buff_len);
 	if (ret) {
 		dev_err(hba->dev,
 			"%s: Failed reading power descriptor.len = %d ret = %d",
 			__func__, buff_len, ret);
-		return;
+		goto out;
 	}
 
 	hba->init_prefetch_data.icc_level =
@@ -5943,6 +5947,8 @@ static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 			"%s: Failed configuring bActiveICCLevel = %d ret = %d",
 			__func__, hba->init_prefetch_data.icc_level , ret);
 
+out:
+	kfree(desc_buf);
 }
 
 /**
@@ -6012,9 +6018,17 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 			       struct ufs_dev_desc *dev_desc)
 {
 	int err;
+	size_t buff_len;
 	u8 model_index;
-	u8 str_desc_buf[QUERY_DESC_MAX_SIZE + 1] = {0};
-	u8 desc_buf[hba->desc_size.dev_desc];
+	u8 *desc_buf;
+
+	buff_len = max_t(size_t, hba->desc_size.dev_desc,
+			 QUERY_DESC_MAX_SIZE + 1);
+	desc_buf = kmalloc(buff_len, GFP_KERNEL);
+	if (!desc_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	err = ufshcd_read_device_desc(hba, desc_buf, hba->desc_size.dev_desc);
 	if (err) {
@@ -6032,7 +6046,10 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
 
-	err = ufshcd_read_string_desc(hba, model_index, str_desc_buf,
+	/* Zero-pad entire buffer for string termination. */
+	memset(desc_buf, 0, buff_len);
+
+	err = ufshcd_read_string_desc(hba, model_index, desc_buf,
 				      QUERY_DESC_MAX_SIZE, true/*ASCII*/);
 	if (err) {
 		dev_err(hba->dev, "%s: Failed reading Product Name. err = %d\n",
@@ -6040,15 +6057,16 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 		goto out;
 	}
 
-	str_desc_buf[QUERY_DESC_MAX_SIZE] = '\0';
-	strlcpy(dev_desc->model, (str_desc_buf + QUERY_DESC_HDR_SIZE),
-		min_t(u8, str_desc_buf[QUERY_DESC_LENGTH_OFFSET],
+	desc_buf[QUERY_DESC_MAX_SIZE] = '\0';
+	strlcpy(dev_desc->model, (desc_buf + QUERY_DESC_HDR_SIZE),
+		min_t(u8, desc_buf[QUERY_DESC_LENGTH_OFFSET],
 		      MAX_MODEL_LEN));
 
 	/* Null terminate the model string */
 	dev_desc->model[MAX_MODEL_LEN] = '\0';
 
 out:
+	kfree(desc_buf);
 	return err;
 }
 
