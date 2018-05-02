@@ -701,15 +701,22 @@ more_data:
 		err = bpf_tcp_sendmsg_do_redirect(redir, send, m, flags);
 		lock_sock(sk);
 
+		if (unlikely(err < 0)) {
+			free_start_sg(sk, m);
+			psock->sg_size = 0;
+			if (!cork)
+				*copied -= send;
+		} else {
+			psock->sg_size -= send;
+		}
+
 		if (cork) {
 			free_start_sg(sk, m);
+			psock->sg_size = 0;
 			kfree(m);
 			m = NULL;
+			err = 0;
 		}
-		if (unlikely(err))
-			*copied -= err;
-		else
-			psock->sg_size -= send;
 		break;
 	case __SK_DROP:
 	default:
