@@ -28,6 +28,7 @@ struct xdp_sock {
 	struct xsk_queue *rx;
 	struct net_device *dev;
 	struct xdp_umem *umem;
+	struct list_head flush_node;
 	u16 queue_id;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
@@ -39,6 +40,7 @@ struct xdp_buff;
 int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 void xsk_flush(struct xdp_sock *xs);
+bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
 #else
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
@@ -52,6 +54,11 @@ static inline int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 
 static inline void xsk_flush(struct xdp_sock *xs)
 {
+}
+
+static inline bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
+{
+	return false;
 }
 #endif /* CONFIG_XDP_SOCKETS */
 

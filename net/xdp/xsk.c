@@ -41,6 +41,11 @@ static struct xdp_sock *xdp_sk(struct sock *sk)
 	return (struct xdp_sock *)sk;
 }
 
+bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
+{
+	return !!xs->rx;
+}
+
 static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	u32 *id, len = xdp->data_end - xdp->data;
