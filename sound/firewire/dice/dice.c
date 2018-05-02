@@ -15,10 +15,13 @@ MODULE_LICENSE("GPL v2");
 #define OUI_LOUD		0x000ff2
 #define OUI_FOCUSRITE		0x00130e
 #define OUI_TCELECTRONIC	0x000166
+#define OUI_ALESIS		0x000595
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
+
+#define MODEL_ALESIS_IO_BOTH	0x000001
 
 /*
  * Some models support several isochronous channels, while these streams are not
@@ -381,6 +384,14 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.vendor_id	= OUI_TCELECTRONIC,
 		.model_id	= 0x000027,
 		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* Alesis iO14/iO26. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_ALESIS,
+		.model_id	= MODEL_ALESIS_IO_BOTH,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_formats,
 	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
