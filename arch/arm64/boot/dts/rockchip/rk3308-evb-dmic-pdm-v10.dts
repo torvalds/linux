@@ -13,6 +13,7 @@
 	compatible = "rockchip,rk3308-evb-dmic-pdm-v10", "rockchip,rk3308";
 
 	pdm-mic-array {
+		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,pdm-mic-array";
 		simple-audio-card,cpu {
@@ -22,6 +23,17 @@
 			sound-dai = <&dummy_codec>;
 		};
 	};
+
+	vad-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,cpu = <&pdm_8ch>;
+		rockchip,codec = <&dummy_codec>, <&vad>;
+	};
+};
+
+&acodec_sound {
+	status = "disabled";
 };
 
 &dummy_codec {
@@ -39,4 +51,12 @@
 		     &pdm_m2_sdi1
 		     &pdm_m2_sdi2
 		     &pdm_m2_sdi3>;
+};
+
+&vad {
+	status = "disabled";
+	rockchip,audio-src = <4>;
+	rockchip,det-channel = <2>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
 };
