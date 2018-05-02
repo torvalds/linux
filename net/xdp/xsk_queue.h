@@ -111,7 +111,93 @@ static inline void xskq_discard_id(struct xsk_queue *q)
 	(void)xskq_validate_id(q);
 }
 
-/* Rx queue */
+static inline int xskq_produce_id(struct xsk_queue *q, u32 id)
+{
+	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+
+	ring->desc[q->prod_tail++ & q->ring_mask] = id;
+
+	/* Order producer and data */
+	smp_wmb();
+
+	WRITE_ONCE(q->ring->producer, q->prod_tail);
+	return 0;
+}
+
+static inline int xskq_reserve_id(struct xsk_queue *q)
+{
+	if (xskq_nb_free(q, q->prod_head, 1) == 0)
+		return -ENOSPC;
+
+	q->prod_head++;
+	return 0;
+}
+
+/* Rx/Tx queue */
+
+static inline bool xskq_is_valid_desc(struct xsk_queue *q, struct xdp_desc *d)
+{
+	u32 buff_len;
+
+	if (unlikely(d->idx >= q->umem_props.nframes)) {
+		q->invalid_descs++;
+		return false;
+	}
+
+	buff_len = q->umem_props.frame_size;
+	if (unlikely(d->len > buff_len || d->len == 0 ||
+		     d->offset > buff_len || d->offset + d->len > buff_len)) {
+		q->invalid_descs++;
+		return false;
+	}
+
+	return true;
+}
+
+static inline struct xdp_desc *xskq_validate_desc(struct xsk_queue *q,
+						  struct xdp_desc *desc)
+{
+	while (q->cons_tail != q->cons_head) {
+		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
+		unsigned int idx = q->cons_tail & q->ring_mask;
+
+		if (xskq_is_valid_desc(q, &ring->desc[idx])) {
+			if (desc)
+				*desc = ring->desc[idx];
+			return desc;
+		}
+
+		q->cons_tail++;
+	}
+
+	return NULL;
+}
+
+static inline struct xdp_desc *xskq_peek_desc(struct xsk_queue *q,
+					      struct xdp_desc *desc)
+{
+	struct xdp_rxtx_ring *ring;
+
+	if (q->cons_tail == q->cons_head) {
+		WRITE_ONCE(q->ring->consumer, q->cons_tail);
+		q->cons_head = q->cons_tail + xskq_nb_avail(q, RX_BATCH_SIZE);
+
+		/* Order consumer and data */
+		smp_rmb();
+
+		return xskq_validate_desc(q, desc);
+	}
+
+	ring = (struct xdp_rxtx_ring *)q->ring;
+	*desc = ring->desc[q->cons_tail & q->ring_mask];
+	return desc;
+}
+
+static inline void xskq_discard_desc(struct xsk_queue *q)
+{
+	q->cons_tail++;
+	(void)xskq_validate_desc(q, NULL);
+}
 
 static inline int xskq_produce_batch_desc(struct xsk_queue *q,
 					  u32 id, u32 len, u16 offset)
@@ -137,6 +223,11 @@ static inline void xskq_produce_flush_desc(struct xsk_queue *q)
 
 	q->prod_tail = q->prod_head,
 	WRITE_ONCE(q->ring->producer, q->prod_tail);
+}
+
+static inline bool xskq_full_desc(struct xsk_queue *q)
+{
+	return (xskq_nb_avail(q, q->nentries) == q->nentries);
 }
 
 static inline bool xskq_empty_desc(struct xsk_queue *q)
