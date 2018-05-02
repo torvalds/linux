@@ -1150,25 +1150,35 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	switch ((rate_n_flags & RATE_MCS_HE_GI_LTF_MSK) >>
 		RATE_MCS_HE_GI_LTF_POS) {
 	case 0:
-		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+		if (he_type == RATE_MCS_HE_TYPE_TRIG)
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
+		else
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 		if (he_type == RATE_MCS_HE_TYPE_MU)
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		else
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_1X;
 		break;
 	case 1:
-		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+		if (he_type == RATE_MCS_HE_TYPE_TRIG)
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
+		else
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 		break;
 	case 2:
-		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
-		if (he_type == RATE_MCS_HE_TYPE_TRIG)
+		if (he_type == RATE_MCS_HE_TYPE_TRIG) {
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
-		else
+		} else {
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
 			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
+		}
 		break;
 	case 3:
-		if (rate_n_flags & RATE_MCS_SGI_MSK)
+		if ((he_type == RATE_MCS_HE_TYPE_SU ||
+		     he_type == RATE_MCS_HE_TYPE_EXT_SU) &&
+		    rate_n_flags & RATE_MCS_SGI_MSK)
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 		else
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
