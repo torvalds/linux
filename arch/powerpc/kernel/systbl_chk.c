@@ -31,6 +31,7 @@
 
 #define SYSCALL_SPU(func)	SYSCALL(func)
 #define COMPAT_SYS_SPU(func)	COMPAT_SYS(func)
+#define COMPAT_SPU_NEW(func)	COMPAT_SYS(_new##func)
 #define SYSX_SPU(f, f3264, f32)	SYSX(f, f3264, f32)
 
 /* Just insert a marker for ni_syscalls */
