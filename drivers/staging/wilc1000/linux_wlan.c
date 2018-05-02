@@ -1012,7 +1012,7 @@ static int wilc_mac_close(struct net_device *ndev)
 		netdev_dbg(ndev, "Deinitializing wilc1000\n");
 		wl->close = 1;
 		wilc_wlan_deinitialize(ndev);
-		WILC_WFI_deinit_mon_interface();
+		wilc_wfi_deinit_mon_interface();
 	}
 
 	vif->mac_opened = 0;

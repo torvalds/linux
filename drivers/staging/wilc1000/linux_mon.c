@@ -252,7 +252,7 @@ struct net_device *wilc_wfi_init_mon_interface(const char *name,
 	return wilc_wfi_mon;
 }
 
-int WILC_WFI_deinit_mon_interface(void)
+int wilc_wfi_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;
 
