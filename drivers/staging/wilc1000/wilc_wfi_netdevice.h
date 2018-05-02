@@ -196,7 +196,7 @@ struct wilc {
 	struct rf_info dummy_statistics;
 };
 
-struct WILC_WFI_mon_priv {
+struct wilc_wfi_mon_priv {
 	struct net_device *real_ndev;
 };
 
