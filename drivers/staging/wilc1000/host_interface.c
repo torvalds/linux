@@ -58,6 +58,8 @@
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
 
+#define REAL_JOIN_REQ				0
+
 struct host_if_wpa_attr {
 	u8 *key;
 	const u8 *mac_addr;
@@ -247,10 +249,6 @@ static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
 static u32 clients_count;
-
-#define REAL_JOIN_REQ 0
-#define FLUSHED_JOIN_REQ 1
-#define FLUSHED_BYTE_POS 79
 
 static void *host_int_parse_join_bss_param(struct network_info *info);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
