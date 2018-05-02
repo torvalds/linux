@@ -3479,9 +3479,10 @@ EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 static void rcu_init_new_rnp(struct rcu_node *rnp_leaf)
 {
 	long mask;
+	long oldmask;
 	struct rcu_node *rnp = rnp_leaf;
 
-	raw_lockdep_assert_held_rcu_node(rnp);
+	raw_lockdep_assert_held_rcu_node(rnp_leaf);
 	WARN_ON_ONCE(rnp->wait_blkd_tasks);
 	for (;;) {
 		mask = rnp->grpmask;
@@ -3489,8 +3490,11 @@ static void rcu_init_new_rnp(struct rcu_node *rnp_leaf)
 		if (rnp == NULL)
 			return;
 		raw_spin_lock_rcu_node(rnp); /* Interrupts already disabled. */
+		oldmask = rnp->qsmaskinit;
 		rnp->qsmaskinit |= mask;
 		raw_spin_unlock_rcu_node(rnp); /* Interrupts remain disabled. */
+		if (oldmask)
+			return;
 	}
 }
 
