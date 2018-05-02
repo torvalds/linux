@@ -2672,6 +2672,8 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 				/* rcu_report_unblock_qs_rnp() rlses ->lock */
 				continue;
 			}
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+			continue;
 		}
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			unsigned long bit = leaf_node_cpu_bit(rnp, cpu);
