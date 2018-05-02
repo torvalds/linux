@@ -257,7 +257,6 @@ struct i915_pml4 {
 
 struct i915_address_space {
 	struct drm_mm mm;
-	struct i915_gem_timeline timeline;
 	struct drm_i915_private *i915;
 	struct device *dma;
 	/* Every address space belongs to a struct file - except for the global

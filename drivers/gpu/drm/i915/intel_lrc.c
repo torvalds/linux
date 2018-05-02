@@ -2624,7 +2624,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		goto error_deref_obj;
 	}
 
-	ring = intel_engine_create_ring(engine, ctx->ring_size);
+	ring = intel_engine_create_ring(engine, ctx->timeline, ctx->ring_size);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		goto error_deref_obj;

@@ -355,6 +355,18 @@ static int igt_ctx_exec(void *arg)
 
 		if (first_shared_gtt) {
 			ctx = __create_hw_context(i915, file->driver_priv);
+			if (!IS_ERR(ctx) && HAS_EXECLISTS(i915)) {
+				struct i915_gem_timeline *timeline;
+
+				timeline = i915_gem_timeline_create(i915, ctx->name);
+				if (IS_ERR(timeline)) {
+					__destroy_hw_context(ctx, file->driver_priv);
+					ctx = ERR_CAST(timeline);
+				} else {
+					ctx->timeline = timeline;
+				}
+			}
+
 			first_shared_gtt = false;
 		} else {
 			ctx = i915_gem_create_context(i915, file->driver_priv);

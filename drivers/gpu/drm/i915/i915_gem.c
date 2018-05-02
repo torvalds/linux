@@ -3110,10 +3110,10 @@ static void engine_skip_context(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_context *hung_ctx = request->ctx;
-	struct intel_timeline *timeline;
+	struct intel_timeline *timeline = request->timeline;
 	unsigned long flags;
 
-	timeline = i915_gem_context_lookup_timeline(hung_ctx, engine);
+	GEM_BUG_ON(timeline == engine->timeline);
 
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 	spin_lock(&timeline->lock);
@@ -3782,7 +3782,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 
 		ret = wait_for_engines(i915);
 	} else {
-		ret = wait_for_timeline(&i915->gt.global_timeline, flags);
+		ret = wait_for_timeline(&i915->gt.execution_timeline, flags);
 	}
 
 	return ret;
@@ -5652,7 +5652,8 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	WARN_ON(dev_priv->mm.object_count);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_gem_timeline_fini(&dev_priv->gt.global_timeline);
+	i915_gem_timeline_fini(&dev_priv->gt.legacy_timeline);
+	i915_gem_timeline_fini(&dev_priv->gt.execution_timeline);
 	WARN_ON(!list_empty(&dev_priv->gt.timelines));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 

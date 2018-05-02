@@ -129,6 +129,7 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
+	struct intel_timeline *timeline;
 	struct list_head request_list;
 	struct list_head active_link;
 
@@ -768,7 +769,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size);
+intel_engine_create_ring(struct intel_engine_cs *engine,
+			 struct i915_gem_timeline *timeline,
+			 int size);
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
 		   unsigned int offset_bias);

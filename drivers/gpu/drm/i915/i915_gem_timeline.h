@@ -90,6 +90,10 @@ int i915_gem_timeline_init__global(struct drm_i915_private *i915);
 void i915_gem_timelines_park(struct drm_i915_private *i915);
 void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
 
+struct i915_gem_timeline *
+i915_gem_timeline_create(struct drm_i915_private *i915, const char *name);
+void i915_gem_timeline_free(struct i915_gem_timeline *timeline);
+
 static inline int __intel_timeline_sync_set(struct intel_timeline *tl,
 					    u64 context, u32 seqno)
 {

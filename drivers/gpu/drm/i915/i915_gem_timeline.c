@@ -95,12 +95,28 @@ int i915_gem_timeline_init(struct drm_i915_private *i915,
 
 int i915_gem_timeline_init__global(struct drm_i915_private *i915)
 {
-	static struct lock_class_key class;
+	static struct lock_class_key class1, class2;
+	int err;
 
-	return __i915_gem_timeline_init(i915,
-					&i915->gt.global_timeline,
-					"[execution]",
-					&class, "&global_timeline->lock");
+	err = __i915_gem_timeline_init(i915,
+				       &i915->gt.execution_timeline,
+				       "[execution]", &class1,
+				       "i915_execution_timeline");
+	if (err)
+		return err;
+
+	err = __i915_gem_timeline_init(i915,
+				       &i915->gt.legacy_timeline,
+				       "[global]", &class2,
+				       "i915_global_timeline");
+	if (err)
+		goto err_exec_timeline;
+
+	return 0;
+
+err_exec_timeline:
+	i915_gem_timeline_fini(&i915->gt.execution_timeline);
+	return err;
 }
 
 /**
@@ -146,6 +162,34 @@ void i915_gem_timeline_fini(struct i915_gem_timeline *timeline)
 
 	list_del(&timeline->link);
 	kfree(timeline->name);
+}
+
+struct i915_gem_timeline *
+i915_gem_timeline_create(struct drm_i915_private *i915, const char *name)
+{
+	struct i915_gem_timeline *timeline;
+	int err;
+
+	timeline = kzalloc(sizeof(*timeline), GFP_KERNEL);
+	if (!timeline)
+		return ERR_PTR(-ENOMEM);
+
+	err = i915_gem_timeline_init(i915, timeline, name);
+	if (err) {
+		kfree(timeline);
+		return ERR_PTR(err);
+	}
+
+	return timeline;
+}
+
+void i915_gem_timeline_free(struct i915_gem_timeline *timeline)
+{
+	if (!timeline)
+		return;
+
+	i915_gem_timeline_fini(timeline);
+	kfree(timeline);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

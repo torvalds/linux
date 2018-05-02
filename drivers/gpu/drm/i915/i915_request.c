@@ -758,7 +758,12 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		}
 	}
 
-	rq->timeline = i915_gem_context_lookup_timeline(ctx, engine);
+	INIT_LIST_HEAD(&rq->active_list);
+	rq->i915 = i915;
+	rq->engine = engine;
+	rq->ctx = ctx;
+	rq->ring = ring;
+	rq->timeline = ring->timeline;
 	GEM_BUG_ON(rq->timeline == engine->timeline);
 
 	spin_lock_init(&rq->lock);
@@ -773,12 +778,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	init_waitqueue_head(&rq->execute);
 
 	i915_sched_node_init(&rq->sched);
-
-	INIT_LIST_HEAD(&rq->active_list);
-	rq->i915 = i915;
-	rq->engine = engine;
-	rq->ctx = ctx;
-	rq->ring = ring;
 
 	/* No zalloc, must clear what we need by hand */
 	rq->global_seqno = 0;

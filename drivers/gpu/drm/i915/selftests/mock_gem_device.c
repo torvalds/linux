@@ -73,7 +73,9 @@ static void mock_device_release(struct drm_device *dev)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	mock_fini_ggtt(i915);
-	i915_gem_timeline_fini(&i915->gt.global_timeline);
+	i915_gem_timeline_fini(&i915->gt.legacy_timeline);
+	i915_gem_timeline_fini(&i915->gt.execution_timeline);
+	WARN_ON(!list_empty(&i915->gt.timelines));
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	destroy_workqueue(i915->wq);

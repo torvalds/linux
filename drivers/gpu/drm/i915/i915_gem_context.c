@@ -122,6 +122,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
+	i915_gem_timeline_free(ctx->timeline);
 	i915_ppgtt_put(ctx->ppgtt);
 
 	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
@@ -376,6 +377,18 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 		ctx->desc_template = default_desc_template(dev_priv, ppgtt);
 	}
 
+	if (HAS_EXECLISTS(dev_priv)) {
+		struct i915_gem_timeline *timeline;
+
+		timeline = i915_gem_timeline_create(dev_priv, ctx->name);
+		if (IS_ERR(timeline)) {
+			__destroy_hw_context(ctx, file_priv);
+			return ERR_CAST(timeline);
+		}
+
+		ctx->timeline = timeline;
+	}
+
 	trace_i915_context_create(ctx);
 
 	return ctx;
@@ -584,7 +597,7 @@ static bool engine_has_idle_kernel_context(struct intel_engine_cs *engine)
 	list_for_each_entry(timeline, &engine->i915->gt.timelines, link) {
 		struct intel_timeline *tl;
 
-		if (timeline == &engine->i915->gt.global_timeline)
+		if (timeline == &engine->i915->gt.execution_timeline)
 			continue;
 
 		tl = &timeline->engine[engine->id];

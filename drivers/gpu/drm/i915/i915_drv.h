@@ -2059,7 +2059,8 @@ struct drm_i915_private {
 		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
-		struct i915_gem_timeline global_timeline;
+		struct i915_gem_timeline execution_timeline;
+		struct i915_gem_timeline legacy_timeline;
 		struct list_head timelines;
 
 		struct list_head active_rings;
@@ -3233,16 +3234,6 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 	rcu_read_unlock();
 
 	return ctx;
-}
-
-static inline struct intel_timeline *
-i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
-				 struct intel_engine_cs *engine)
-{
-	struct i915_address_space *vm;
-
-	vm = ctx->ppgtt ? &ctx->ppgtt->base : &ctx->i915->ggtt.base;
-	return &vm->timeline.engine[engine->id];
 }
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
