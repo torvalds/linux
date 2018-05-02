@@ -2017,15 +2017,12 @@ static void handle_del_beacon(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *cur_byte;
 	u8 del_beacon = 0;
 
 	wid.id = (u16)WID_DEL_BEACON;
 	wid.type = WID_CHAR;
 	wid.size = sizeof(char);
 	wid.val = &del_beacon;
-
-	cur_byte = wid.val;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2136,7 +2133,6 @@ static void handle_del_station(struct wilc_vif *vif, struct del_sta *param)
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *cur_byte;
 
 	wid.id = (u16)WID_REMOVE_STA;
 	wid.type = WID_BIN;
@@ -2146,9 +2142,7 @@ static void handle_del_station(struct wilc_vif *vif, struct del_sta *param)
 	if (!wid.val)
 		goto error;
 
-	cur_byte = wid.val;
-
-	ether_addr_copy(cur_byte, param->mac_addr);
+	ether_addr_copy(wid.val, param->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
