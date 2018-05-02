@@ -26,7 +26,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
-#include <linux/mmc/sdio.h>
 #include <linux/mmc/card.h>
 #include <linux/scatterlist.h>
 #include <linux/pm_runtime.h>
@@ -839,17 +838,6 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto finish_detect_card;
 	}
 
-	/*
-	 * Reject SDIO CMDs to speed up card identification
-	 * since unsupported
-	 */
-	if (cmd->opcode == SD_IO_SEND_OP_COND ||
-	    cmd->opcode == SD_IO_RW_DIRECT ||
-	    cmd->opcode == SD_IO_RW_EXTENDED) {
-		cmd->error = -EINVAL;
-		goto finish;
-	}
-
 	mutex_lock(&ucr->dev_mutex);
 
 	mutex_lock(&host->host_mutex);
@@ -1333,7 +1321,8 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
 		MMC_CAP_NEEDS_POLL;
-	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE;
+	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
+		MMC_CAP2_NO_SDIO;
 
 	mmc->max_current_330 = 400;
 	mmc->max_current_180 = 800;
