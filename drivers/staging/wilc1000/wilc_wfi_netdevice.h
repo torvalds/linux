@@ -2,11 +2,6 @@
 #ifndef WILC_WFI_NETDEVICE
 #define WILC_WFI_NETDEVICE
 
-#define WILC_MAX_NUM_PMKIDS  16
-#define PMKID_LEN  16
-#define PMKID_FOUND 1
- #define NUM_STA_ASSOCIATED 8
-
 #include <linux/tcp.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -16,8 +11,15 @@
 #include "host_interface.h"
 #include "wilc_wlan.h"
 
-#define FLOW_CONTROL_LOWER_THRESHOLD	128
-#define FLOW_CONTROL_UPPER_THRESHOLD	256
+#define FLOW_CONTROL_LOWER_THRESHOLD		128
+#define FLOW_CONTROL_UPPER_THRESHOLD		256
+
+#define WILC_MAX_NUM_PMKIDS			16
+#define PMKID_LEN				16
+#define PMKID_FOUND				1
+#define NUM_STA_ASSOCIATED			8
+
+#define NUM_REG_FRAME				2
 
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
@@ -33,8 +35,6 @@ struct wilc_wfi_stats {
  * This structure is private to each device. It is used to pass
  * packets in and out, so there is place for a packet
  */
-
-#define NUM_REG_FRAME 2
 
 struct wilc_wfi_key {
 	u8 *key;
