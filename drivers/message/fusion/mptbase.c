@@ -7635,7 +7635,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 
 		snprintf(evStr, EVENT_DESCR_STR_SZ,
 		    "SAS Initiator Device Table Overflow: max initiators=%02d "
-		    "current initators=%02d",
+		    "current initiators=%02d",
 		    max_init, current_init);
 		break;
 	}
