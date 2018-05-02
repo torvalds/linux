@@ -769,7 +769,7 @@ static int add_subprog(struct bpf_verifier_env *env, int off)
 	ret = find_subprog(env, off);
 	if (ret >= 0)
 		return 0;
-	if (env->subprog_cnt > BPF_MAX_SUBPROGS) {
+	if (env->subprog_cnt >= BPF_MAX_SUBPROGS) {
 		verbose(env, "too many subprograms\n");
 		return -E2BIG;
 	}
@@ -810,16 +810,18 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			return ret;
 	}
 
+	/* Add a fake 'exit' subprog which could simplify subprog iteration
+	 * logic. 'subprog_cnt' should not be increased.
+	 */
+	subprog[env->subprog_cnt].start = insn_cnt;
+
 	if (env->log.level > 1)
 		for (i = 0; i < env->subprog_cnt; i++)
 			verbose(env, "func#%d @%d\n", i, subprog[i].start);
 
 	/* now check that all jumps are within the same subprog */
-	subprog_start = 0;
-	if (env->subprog_cnt == cur_subprog + 1)
-		subprog_end = insn_cnt;
-	else
-		subprog_end = subprog[cur_subprog + 1].start;
+	subprog_start = subprog[cur_subprog].start;
+	subprog_end = subprog[cur_subprog + 1].start;
 	for (i = 0; i < insn_cnt; i++) {
 		u8 code = insn[i].code;
 
@@ -843,11 +845,9 @@ next:
 				verbose(env, "last insn is not an exit or jmp\n");
 				return -EINVAL;
 			}
-			cur_subprog++;
 			subprog_start = subprog_end;
-			if (env->subprog_cnt == cur_subprog + 1)
-				subprog_end = insn_cnt;
-			else
+			cur_subprog++;
+			if (cur_subprog < env->subprog_cnt)
 				subprog_end = subprog[cur_subprog + 1].start;
 		}
 	}
@@ -1502,7 +1502,6 @@ static int check_max_stack_depth(struct bpf_verifier_env *env)
 	int depth = 0, frame = 0, idx = 0, i = 0, subprog_end;
 	struct bpf_subprog_info *subprog = env->subprog_info;
 	struct bpf_insn *insn = env->prog->insnsi;
-	int insn_cnt = env->prog->len;
 	int ret_insn[MAX_CALL_FRAMES];
 	int ret_prog[MAX_CALL_FRAMES];
 
@@ -1517,10 +1516,7 @@ process_func:
 		return -EACCES;
 	}
 continue_func:
-	if (env->subprog_cnt == idx + 1)
-		subprog_end = insn_cnt;
-	else
-		subprog_end = subprog[idx + 1].start;
+	subprog_end = subprog[idx + 1].start;
 	for (; i < subprog_end; i++) {
 		if (insn[i].code != (BPF_JMP | BPF_CALL))
 			continue;
@@ -5141,7 +5137,8 @@ static void adjust_subprog_starts(struct bpf_verifier_env *env, u32 off, u32 len
 
 	if (len == 1)
 		return;
-	for (i = 0; i < env->subprog_cnt; i++) {
+	/* NOTE: fake 'exit' subprog should be updated as well. */
+	for (i = 0; i <= env->subprog_cnt; i++) {
 		if (env->subprog_info[i].start < off)
 			continue;
 		env->subprog_info[i].start += len - 1;
@@ -5339,10 +5336,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 
 	for (i = 0; i < env->subprog_cnt; i++) {
 		subprog_start = subprog_end;
-		if (env->subprog_cnt == i + 1)
-			subprog_end = prog->len;
-		else
-			subprog_end = env->subprog_info[i + 1].start;
+		subprog_end = env->subprog_info[i + 1].start;
 
 		len = subprog_end - subprog_start;
 		func[i] = bpf_prog_alloc(bpf_prog_size(len), GFP_USER);
