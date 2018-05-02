@@ -247,6 +247,12 @@ static int mbus_code_to_bus_cfg(struct ipu_csi_bus_config *cfg, u32 mbus_code)
 		cfg->mipi_dt = MIPI_DT_RGB555;
 		cfg->data_width = IPU_CSI_DATA_WIDTH_8;
 		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_RGB_YUV444;
+		cfg->mipi_dt = MIPI_DT_RGB888;
+		cfg->data_width = IPU_CSI_DATA_WIDTH_8;
+		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_YUV422_UYVY;
 		cfg->mipi_dt = MIPI_DT_YUV422;
