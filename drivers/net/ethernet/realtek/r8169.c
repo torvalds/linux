@@ -4778,49 +4778,6 @@ static void r8168_phy_power_down(struct rtl8169_private *tp)
 	}
 }
 
-static void r810x_pll_power_down(struct rtl8169_private *tp)
-{
-	if (rtl_wol_pll_power_down(tp))
-		return;
-
-	r8168_phy_power_down(tp);
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_07:
-	case RTL_GIGA_MAC_VER_08:
-	case RTL_GIGA_MAC_VER_09:
-	case RTL_GIGA_MAC_VER_10:
-	case RTL_GIGA_MAC_VER_13:
-	case RTL_GIGA_MAC_VER_16:
-		break;
-	default:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
-		break;
-	}
-}
-
-static void r810x_pll_power_up(struct rtl8169_private *tp)
-{
-	r8168_phy_power_up(tp);
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_07:
-	case RTL_GIGA_MAC_VER_08:
-	case RTL_GIGA_MAC_VER_09:
-	case RTL_GIGA_MAC_VER_10:
-	case RTL_GIGA_MAC_VER_13:
-	case RTL_GIGA_MAC_VER_16:
-		break;
-	case RTL_GIGA_MAC_VER_47:
-	case RTL_GIGA_MAC_VER_48:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0xc0);
-		break;
-	default:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0x80);
-		break;
-	}
-}
-
 static void r8168_pll_power_down(struct rtl8169_private *tp)
 {
 	if (r8168_check_dash(tp))
@@ -4840,12 +4797,19 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_26:
 	case RTL_GIGA_MAC_VER_27:
 	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_29:
+	case RTL_GIGA_MAC_VER_30:
 	case RTL_GIGA_MAC_VER_31:
 	case RTL_GIGA_MAC_VER_32:
 	case RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_37:
+	case RTL_GIGA_MAC_VER_39:
+	case RTL_GIGA_MAC_VER_43:
 	case RTL_GIGA_MAC_VER_44:
 	case RTL_GIGA_MAC_VER_45:
 	case RTL_GIGA_MAC_VER_46:
+	case RTL_GIGA_MAC_VER_47:
+	case RTL_GIGA_MAC_VER_48:
 	case RTL_GIGA_MAC_VER_50:
 	case RTL_GIGA_MAC_VER_51:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
@@ -4867,14 +4831,21 @@ static void r8168_pll_power_up(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_26:
 	case RTL_GIGA_MAC_VER_27:
 	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_29:
+	case RTL_GIGA_MAC_VER_30:
 	case RTL_GIGA_MAC_VER_31:
 	case RTL_GIGA_MAC_VER_32:
 	case RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_37:
+	case RTL_GIGA_MAC_VER_39:
+	case RTL_GIGA_MAC_VER_43:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0x80);
 		break;
 	case RTL_GIGA_MAC_VER_44:
 	case RTL_GIGA_MAC_VER_45:
 	case RTL_GIGA_MAC_VER_46:
+	case RTL_GIGA_MAC_VER_47:
+	case RTL_GIGA_MAC_VER_48:
 	case RTL_GIGA_MAC_VER_50:
 	case RTL_GIGA_MAC_VER_51:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0xc0);
@@ -4925,8 +4896,8 @@ static void rtl_init_pll_power_ops(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_43:
 	case RTL_GIGA_MAC_VER_47:
 	case RTL_GIGA_MAC_VER_48:
-		ops->down	= r810x_pll_power_down;
-		ops->up		= r810x_pll_power_up;
+		ops->down	= r8168_pll_power_down;
+		ops->up		= r8168_pll_power_up;
 		break;
 
 	case RTL_GIGA_MAC_VER_11:
