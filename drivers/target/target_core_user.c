@@ -2303,6 +2303,26 @@ static ssize_t tcmu_dev_size_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%zu\n", udev->dev_size);
 }
 
+static int tcmu_send_dev_size_event(struct tcmu_dev *udev, u64 size)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_u64_64bit(skb, TCMU_ATTR_DEV_SIZE,
+				size, TCMU_ATTR_PAD);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
 static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 				   size_t count)
 {
@@ -2318,8 +2338,7 @@ static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_DEV_SIZE, &val);
+		ret = tcmu_send_dev_size_event(udev, val);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
