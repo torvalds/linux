@@ -84,6 +84,7 @@
 #define STM32H7_ADC_CALFACT2		0xC8
 
 /* STM32H7_ADC_ISR - bit fields */
+#define STM32MP1_VREGREADY		BIT(12)
 #define STM32H7_EOC			BIT(2)
 #define STM32H7_ADRDY			BIT(0)
 
@@ -249,6 +250,7 @@ struct stm32_adc;
  * @adc_info:		per instance input channels definitions
  * @trigs:		external trigger sources
  * @clk_required:	clock is required
+ * @has_vregready:	vregready status flag presence
  * @selfcalib:		optional routine for self-calibration
  * @prepare:		optional prepare routine (power-up, enable)
  * @start_conv:		routine to start conversions
@@ -261,6 +263,7 @@ struct stm32_adc_cfg {
 	const struct stm32_adc_info	*adc_info;
 	struct stm32_adc_trig_info	*trigs;
 	bool clk_required;
+	bool has_vregready;
 	int (*selfcalib)(struct stm32_adc *);
 	int (*prepare)(struct stm32_adc *);
 	void (*start_conv)(struct stm32_adc *, bool dma);
@@ -695,8 +698,12 @@ static void stm32h7_adc_stop_conv(struct stm32_adc *adc)
 	stm32_adc_clr_bits(adc, STM32H7_ADC_CFGR, STM32H7_DMNGT_MASK);
 }
 
-static void stm32h7_adc_exit_pwr_down(struct stm32_adc *adc)
+static int stm32h7_adc_exit_pwr_down(struct stm32_adc *adc)
 {
+	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	int ret;
+	u32 val;
+
 	/* Exit deep power down, then enable ADC voltage regulator */
 	stm32_adc_clr_bits(adc, STM32H7_ADC_CR, STM32H7_DEEPPWD);
 	stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_ADVREGEN);
@@ -705,7 +712,20 @@ static void stm32h7_adc_exit_pwr_down(struct stm32_adc *adc)
 		stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_BOOST);
 
 	/* Wait for startup time */
-	usleep_range(10, 20);
+	if (!adc->cfg->has_vregready) {
+		usleep_range(10, 20);
+		return 0;
+	}
+
+	ret = stm32_adc_readl_poll_timeout(STM32H7_ADC_ISR, val,
+					   val & STM32MP1_VREGREADY, 100,
+					   STM32_ADC_TIMEOUT_US);
+	if (ret) {
+		stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_DEEPPWD);
+		dev_err(&indio_dev->dev, "Failed to exit power down\n");
+	}
+
+	return ret;
 }
 
 static void stm32h7_adc_enter_pwr_down(struct stm32_adc *adc)
@@ -888,7 +908,9 @@ static int stm32h7_adc_selfcalib(struct stm32_adc *adc)
 	int ret;
 	u32 val;
 
-	stm32h7_adc_exit_pwr_down(adc);
+	ret = stm32h7_adc_exit_pwr_down(adc);
+	if (ret)
+		return ret;
 
 	/*
 	 * Select calibration mode:
@@ -952,7 +974,10 @@ static int stm32h7_adc_prepare(struct stm32_adc *adc)
 {
 	int ret;
 
-	stm32h7_adc_exit_pwr_down(adc);
+	ret = stm32h7_adc_exit_pwr_down(adc);
+	if (ret)
+		return ret;
+
 	stm32_adc_writel(adc, STM32H7_ADC_DIFSEL, adc->difsel);
 
 	ret = stm32h7_adc_enable(adc);
@@ -1944,9 +1969,23 @@ static const struct stm32_adc_cfg stm32h7_adc_cfg = {
 	.smp_cycles = stm32h7_adc_smp_cycles,
 };
 
+static const struct stm32_adc_cfg stm32mp1_adc_cfg = {
+	.regs = &stm32h7_adc_regspec,
+	.adc_info = &stm32h7_adc_info,
+	.trigs = stm32h7_adc_trigs,
+	.has_vregready = true,
+	.selfcalib = stm32h7_adc_selfcalib,
+	.start_conv = stm32h7_adc_start_conv,
+	.stop_conv = stm32h7_adc_stop_conv,
+	.prepare = stm32h7_adc_prepare,
+	.unprepare = stm32h7_adc_unprepare,
+	.smp_cycles = stm32h7_adc_smp_cycles,
+};
+
 static const struct of_device_id stm32_adc_of_match[] = {
 	{ .compatible = "st,stm32f4-adc", .data = (void *)&stm32f4_adc_cfg },
 	{ .compatible = "st,stm32h7-adc", .data = (void *)&stm32h7_adc_cfg },
+	{ .compatible = "st,stm32mp1-adc", .data = (void *)&stm32mp1_adc_cfg },
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32_adc_of_match);
