@@ -397,6 +397,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 	int count = 0, ret = -EINVAL;
 	unsigned long address, address_end, last_page;
 	unsigned int last_page_size;
+	struct device *pdev_dev;
 
 	/* If the emulator already closed the pipe, no need to go further */
 	if (unlikely(test_bit(BIT_CLOSED_ON_HOST, &pipe->flags)))
@@ -413,6 +414,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 	address_end = address + bufflen;
 	last_page = (address_end - 1) & PAGE_MASK;
 	last_page_size = ((address_end - 1) & ~PAGE_MASK) + 1;
+
+	pdev_dev = pipe->dev->pdev_dev;
 
 	while (address < address_end) {
 		s32 consumed_size;
@@ -445,7 +448,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 			 * err.
 			 */
 			if (status != PIPE_ERROR_AGAIN)
-				pr_err_ratelimited(
+				dev_err_ratelimited(pdev_dev,
 					"goldfish_pipe: backend error %d on %s\n",
 					status, is_write ? "write" : "read");
 			break;
@@ -685,6 +688,7 @@ static int get_free_pipe_id_locked(struct goldfish_pipe_dev *dev)
 static int goldfish_pipe_open(struct inode *inode, struct file *file)
 {
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
+	struct device *pdev_dev;
 	unsigned long flags;
 	int id;
 	int status;
@@ -699,6 +703,8 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	mutex_init(&pipe->lock);
 	init_waitqueue_head(&pipe->wake_queue);
 
+	pdev_dev = dev->pdev_dev;
+
 	/*
 	 * Command buffer needs to be allocated on its own page to make sure it
 	 * is physically contiguous in host's address space.
@@ -706,7 +712,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	pipe->command_buffer =
 		(struct goldfish_pipe_command *)__get_free_page(GFP_KERNEL);
 	if (!pipe->command_buffer) {
-		pr_err("Could not alloc pipe command buffer!\n");
+		dev_err(pdev_dev, "Could not alloc pipe command buffer!\n");
 		status = -ENOMEM;
 		goto err_pipe;
 	}
@@ -715,7 +721,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	id = get_free_pipe_id_locked(dev);
 	if (id < 0) {
-		pr_err("Could not get free pipe id!\n");
+		dev_err(pdev_dev, "Could not get free pipe id!\n");
 		status = id;
 		goto err_id_locked;
 	}
@@ -732,7 +738,9 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	status = goldfish_pipe_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (status < 0) {
-		pr_err("Could not tell host of new pipe! status=%d\n", status);
+		dev_err(pdev_dev,
+			"Could not tell host of new pipe! status=%d\n",
+			status);
 		goto err_cmd;
 	}
 
@@ -798,16 +806,17 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	err = devm_request_irq(pdev_dev, dev->irq, goldfish_pipe_interrupt,
 				IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
-		dev_err(&pdev->dev, "unable to allocate IRQ for v2\n");
+		dev_err(pdev_dev, "unable to allocate IRQ for v2\n");
 		return err;
 	}
 
 	err = misc_register(&goldfish_pipe_miscdev);
 	if (err) {
-		dev_err(&pdev->dev, "unable to register v2 device\n");
+		dev_err(pdev_dev, "unable to register v2 device\n");
 		return err;
 	}
 
+	dev->pdev_dev = pdev_dev;
 	dev->first_signalled_pipe = NULL;
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
 	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes),
@@ -862,6 +871,7 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	int err;
 	struct resource *r;
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
+	struct device *pdev_dev = &pdev->dev;
 
 	BUILD_BUG_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE);
 
@@ -872,12 +882,12 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL || resource_size(r) < PAGE_SIZE) {
-		dev_err(&pdev->dev, "can't allocate i/o page\n");
+		dev_err(pdev_dev, "can't allocate i/o page\n");
 		return -EINVAL;
 	}
-	dev->base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
+	dev->base = devm_ioremap(pdev_dev, r->start, PAGE_SIZE);
 	if (dev->base == NULL) {
-		dev_err(&pdev->dev, "ioremap failed\n");
+		dev_err(pdev_dev, "ioremap failed\n");
 		return -EINVAL;
 	}
 
