@@ -13070,6 +13070,13 @@ S:	Maintained
 F:	drivers/ssb/
 F:	include/linux/ssb/
 
+SONY IMX258 SENSOR DRIVER
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/imx258.c
+
 SONY IMX274 SENSOR DRIVER
 M:	Leon Luo <leonl@leopardimaging.com>
 L:	linux-media@vger.kernel.org
