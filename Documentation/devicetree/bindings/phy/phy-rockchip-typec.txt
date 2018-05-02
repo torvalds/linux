@@ -20,6 +20,13 @@ Required properties:
 		<&tcphy0 1> and <&tcphy1 1> for USB3 PHY.
    See ./phy-bindings.txt for details.
 
+Optional properties:
+ - rockchip,phy-config : A list of voltage swing(mV) and pre-emphasis
+			(dB) pairs. They are 3 blocks of 4 entries and
+			correspond to s0p0 ~ s0p3, s1p0 ~ s1p3,
+			s2p0 ~ s2p3, s3p0 ~ s2p3 swing and pre-emphasis
+			values.
+
 Note, there are 2 type-c phys for RK3399, and they are almost identical, except
 these registers(description below), every register node contains 3 sections:
 offset, enable bit, write mask bit.
@@ -62,6 +69,21 @@ Example:
 		rockchip,external-psm = <0xe588 14 30>;
 		rockchip,pipe-status = <0xe5c0 0 0>;
 		rockchip,uphy-dp-sel = <0x6268 19 19>;
+
+		rockchip,phy-config = <0x2a 0x00>,
+			<0x1f 0x15>,
+			<0x14 0x22>,
+			<0x02 0x2b>,
+
+			<0x21 0x00>,
+			<0x12 0x15>,
+			<0x02 0x22>,
+			<0 0>,
+
+			<0x15 0x00>,
+			<0x00 0x15>,
+			<0 0>,
+			<0 0>;
 	};
 
 	tcphy1: phy@ff800000 {
@@ -84,4 +106,19 @@ Example:
 		rockchip,external-psm = <0xe594 14 30>;
 		rockchip,pipe-status = <0xe5c0 16 16>;
 		rockchip,uphy-dp-sel = <0x6268 3 19>;
+
+		rockchip,phy-config = <0x2a 0x00>,
+			<0x1f 0x15>,
+			<0x14 0x22>,
+			<0x02 0x2b>,
+
+			<0x21 0x00>,
+			<0x12 0x15>,
+			<0x02 0x22>,
+			<0 0>,
+
+			<0x15 0x00>,
+			<0x00 0x15>,
+			<0 0>,
+			<0 0>;
 	};
