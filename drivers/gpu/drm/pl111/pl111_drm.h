@@ -79,6 +79,7 @@ struct pl111_drm_dev_private {
 	const struct pl111_variant_data *variant;
 	void (*variant_display_enable) (struct drm_device *drm, u32 format);
 	void (*variant_display_disable) (struct drm_device *drm);
+	bool use_device_memory;
 };
 
 int pl111_display_init(struct drm_device *dev);
