@@ -68,7 +68,8 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 
 static inline bool rt6_qualify_for_ecmp(const struct rt6_info *rt)
 {
-	return (rt->rt6i_flags & (RTF_ADDRCONF | RTF_DYNAMIC)) == 0;
+	return (rt->rt6i_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
+	       RTF_GATEWAY;
 }
 
 void ip6_route_input(struct sk_buff *skb);

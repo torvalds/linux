@@ -934,6 +934,9 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			 * list.
 			 * Only static routes (which don't have flag
 			 * RTF_EXPIRES) are used for ECMPv6.
+			 *
+			 * To avoid long list, we only had siblings if the
+			 * route have a gateway.
 			 */
 			if (rt_can_ecmp &&
 			    rt6_qualify_for_ecmp(iter))
