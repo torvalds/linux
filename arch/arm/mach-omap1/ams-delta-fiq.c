@@ -58,22 +58,24 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 		irq_num = gpio_to_irq(gpio);
 		fiq_count = fiq_buffer[FIQ_CNT_INT_00 + gpio];
 
-		while (irq_counter[gpio] < fiq_count) {
-			if (gpio != AMS_DELTA_GPIO_PIN_KEYBRD_CLK) {
-				struct irq_data *d = irq_get_irq_data(irq_num);
+		if (irq_counter[gpio] < fiq_count &&
+				gpio != AMS_DELTA_GPIO_PIN_KEYBRD_CLK) {
+			struct irq_data *d = irq_get_irq_data(irq_num);
 
-				/*
-				 * It looks like handle_edge_irq() that
-				 * OMAP GPIO edge interrupts default to,
-				 * expects interrupt already unmasked.
-				 */
-				if (irq_chip && irq_chip->irq_unmask)
+			/*
+			 * handle_simple_irq() that OMAP GPIO edge
+			 * interrupts default to since commit 80ac93c27441
+			 * requires interrupt already acked and unmasked.
+			 */
+			if (irq_chip) {
+				if (irq_chip->irq_ack)
+					irq_chip->irq_ack(d);
+				if (irq_chip->irq_unmask)
 					irq_chip->irq_unmask(d);
 			}
-			generic_handle_irq(irq_num);
-
-			irq_counter[gpio]++;
 		}
+		for (; irq_counter[gpio] < fiq_count; irq_counter[gpio]++)
+			generic_handle_irq(irq_num);
 	}
 	return IRQ_HANDLED;
 }
