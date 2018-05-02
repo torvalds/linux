@@ -1038,7 +1038,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	wl = vif->wilc;
 
 	if (netdev == wl->vif[0]->ndev) {
-		if (priv->wilc_gtk[key_index] != NULL) {
+		if (priv->wilc_gtk[key_index]) {
 			kfree(priv->wilc_gtk[key_index]->key);
 			priv->wilc_gtk[key_index]->key = NULL;
 			kfree(priv->wilc_gtk[key_index]->seq);
@@ -1048,7 +1048,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 			priv->wilc_gtk[key_index] = NULL;
 		}
 
-		if (priv->wilc_ptk[key_index] != NULL) {
+		if (priv->wilc_ptk[key_index]) {
 			kfree(priv->wilc_ptk[key_index]->key);
 			priv->wilc_ptk[key_index]->key = NULL;
 			kfree(priv->wilc_ptk[key_index]->seq);
