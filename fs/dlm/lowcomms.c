@@ -1080,7 +1080,7 @@ static void sctp_connect_to_sock(struct connection *con)
 	log_print("connecting to %d", con->nodeid);
 
 	/* Turn off Nagle's algorithm */
-	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (char *)&one,
+	kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
 			  sizeof(one));
 
 	result = sock->ops->connect(sock, (struct sockaddr *)&daddr, addr_len,
