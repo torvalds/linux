@@ -613,7 +613,7 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	 */
 
 	COMPOSITE_NODIV(0, "clk_audio_src", mux_vpll0_vpll1_xin24m_p, 0,
-			RK3308_CLKSEL_CON(45), 6, 1, MFLAGS,
+			RK3308_CLKSEL_CON(45), 6, 2, MFLAGS,
 			RK3308_CLKGATE_CON(10), 0, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_AUDIO, "hclk_audio", "clk_audio_src", 0,
 			RK3308_CLKSEL_CON(45), 0, 5, DFLAGS,
