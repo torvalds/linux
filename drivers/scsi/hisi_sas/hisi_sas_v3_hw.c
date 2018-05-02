@@ -1571,18 +1571,21 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	struct device *dev = hisi_hba->dev;
 	struct task_status_struct *ts;
 	struct domain_device *device;
+	struct sas_ha_struct *ha;
 	enum exec_status sts;
 	struct hisi_sas_complete_v3_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v3_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
+	bool is_internal = slot->is_internal;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -EINVAL;
 
 	ts = &task->task_status;
 	device = task->dev;
+	ha = device->port->ha;
 	sas_dev = device->lldd_dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -1699,6 +1702,17 @@ out:
 	}
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
+		spin_lock_irqsave(&device->done_lock, flags);
+		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
+			spin_unlock_irqrestore(&device->done_lock, flags);
+			dev_info(dev, "slot complete: task(%p) ignored\n ",
+				 task);
+			return sts;
+		}
+		spin_unlock_irqrestore(&device->done_lock, flags);
+	}
 
 	if (task->task_done)
 		task->task_done(task);
