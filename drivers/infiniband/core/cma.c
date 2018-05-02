@@ -868,7 +868,6 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 {
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
-	union ib_gid sgid;
 
 	mutex_lock(&id_priv->qp_mutex);
 	if (!id_priv->id.qp) {
@@ -888,12 +887,6 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 
 	qp_attr.qp_state = IB_QPS_RTR;
 	ret = rdma_init_qp_attr(&id_priv->id, &qp_attr, &qp_attr_mask);
-	if (ret)
-		goto out;
-
-	ret = ib_query_gid(id_priv->id.device, id_priv->id.port_num,
-			   rdma_ah_read_grh(&qp_attr.ah_attr)->sgid_index,
-			   &sgid, NULL);
 	if (ret)
 		goto out;
 
