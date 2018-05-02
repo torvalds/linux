@@ -442,12 +442,22 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 			     int enum_index)
 {
-	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->tsu_addr + offset);
 }
 
 static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
-	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->tsu_addr + offset);
 }
 
 static void sh_eth_select_mii(struct net_device *ndev)
