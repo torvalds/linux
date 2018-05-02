@@ -5028,32 +5028,21 @@ static void rtl8169_hw_reset(struct rtl8169_private *tp)
 
 	rtl_rx_close(tp);
 
-	if (tp->mac_version == RTL_GIGA_MAC_VER_27 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_28 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_31) {
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
 		rtl_udelay_loop_wait_low(tp, &rtl_npq_cond, 20, 42*42);
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_34 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_35 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_36 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_37 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_38 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_40 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_41 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_42 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_43 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_44 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_45 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_46 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_47 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_48 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_49 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_50 ||
-		   tp->mac_version == RTL_GIGA_MAC_VER_51) {
+		break;
+	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
 		rtl_udelay_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 666);
-	} else {
+		break;
+	default:
 		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
 		udelay(100);
+		break;
 	}
 
 	rtl_hw_reset(tp);
@@ -7854,29 +7843,18 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u64_stats_init(&tp->tx_stats.syncp);
 
 	/* Get MAC address */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_36 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_37 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_38 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_40 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_41 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_42 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_43 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_44 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_45 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_46 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_47 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_48 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_49 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_50 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_51) {
+	switch (tp->mac_version) {
 		u16 mac_addr[3];
-
+	case RTL_GIGA_MAC_VER_35 ... RTL_GIGA_MAC_VER_38:
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		*(u32 *)&mac_addr[0] = rtl_eri_read(tp, 0xe0, ERIAR_EXGMAC);
 		*(u16 *)&mac_addr[2] = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
 
 		if (is_valid_ether_addr((u8 *)mac_addr))
 			rtl_rar_set(tp, (u8 *)mac_addr);
+		break;
+	default:
+		break;
 	}
 	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(tp, MAC0 + i);
