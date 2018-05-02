@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/crash_dump.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
@@ -43,6 +44,12 @@ static size_t elfnotes_sz;
 static u64 vmcore_size;
 
 static struct proc_dir_entry *proc_vmcore;
+
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+/* Device Dump list and mutex to synchronize access to list */
+static LIST_HEAD(vmcoredd_list);
+static DEFINE_MUTEX(vmcoredd_mutex);
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 
 /*
  * Returns > 0 for RAM pages, 0 for non-RAM pages, < 0 on error
@@ -302,10 +309,8 @@ static const struct vm_operations_struct vmcore_mmap_ops = {
 };
 
 /**
- * alloc_elfnotes_buf - allocate buffer for ELF note segment in
- *                      vmalloc memory
- *
- * @notes_sz: size of buffer
+ * vmcore_alloc_buf - allocate buffer in vmalloc memory
+ * @sizez: size of buffer
  *
  * If CONFIG_MMU is defined, use vmalloc_user() to allow users to mmap
  * the buffer to user-space by means of remap_vmalloc_range().
@@ -313,12 +318,12 @@ static const struct vm_operations_struct vmcore_mmap_ops = {
  * If CONFIG_MMU is not defined, use vzalloc() since mmap_vmcore() is
  * disabled and there's no need to allow users to mmap the buffer.
  */
-static inline char *alloc_elfnotes_buf(size_t notes_sz)
+static inline char *vmcore_alloc_buf(size_t size)
 {
 #ifdef CONFIG_MMU
-	return vmalloc_user(notes_sz);
+	return vmalloc_user(size);
 #else
-	return vzalloc(notes_sz);
+	return vzalloc(size);
 #endif
 }
 
@@ -665,7 +670,7 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 		return rc;
 
 	*notes_sz = roundup(phdr_sz, PAGE_SIZE);
-	*notes_buf = alloc_elfnotes_buf(*notes_sz);
+	*notes_buf = vmcore_alloc_buf(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
 
@@ -851,7 +856,7 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 		return rc;
 
 	*notes_sz = roundup(phdr_sz, PAGE_SIZE);
-	*notes_buf = alloc_elfnotes_buf(*notes_sz);
+	*notes_buf = vmcore_alloc_buf(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
 
@@ -1145,6 +1150,115 @@ static int __init parse_crash_elf_headers(void)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+/**
+ * vmcoredd_write_header - Write vmcore device dump header at the
+ * beginning of the dump's buffer.
+ * @buf: Output buffer where the note is written
+ * @data: Dump info
+ * @size: Size of the dump
+ *
+ * Fills beginning of the dump's buffer with vmcore device dump header.
+ */
+static void vmcoredd_write_header(void *buf, struct vmcoredd_data *data,
+				  u32 size)
+{
+	struct vmcoredd_header *vdd_hdr = (struct vmcoredd_header *)buf;
+
+	vdd_hdr->n_namesz = sizeof(vdd_hdr->name);
+	vdd_hdr->n_descsz = size + sizeof(vdd_hdr->dump_name);
+	vdd_hdr->n_type = NT_VMCOREDD;
+
+	strncpy((char *)vdd_hdr->name, VMCOREDD_NOTE_NAME,
+		sizeof(vdd_hdr->name));
+	memcpy(vdd_hdr->dump_name, data->dump_name, sizeof(vdd_hdr->dump_name));
+}
+
+/**
+ * vmcore_add_device_dump - Add a buffer containing device dump to vmcore
+ * @data: dump info.
+ *
+ * Allocate a buffer and invoke the calling driver's dump collect routine.
+ * Write Elf note at the beginning of the buffer to indicate vmcore device
+ * dump and add the dump to global list.
+ */
+int vmcore_add_device_dump(struct vmcoredd_data *data)
+{
+	struct vmcoredd_node *dump;
+	void *buf = NULL;
+	size_t data_size;
+	int ret;
+
+	if (!data || !strlen(data->dump_name) ||
+	    !data->vmcoredd_callback || !data->size)
+		return -EINVAL;
+
+	dump = vzalloc(sizeof(*dump));
+	if (!dump) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	/* Keep size of the buffer page aligned so that it can be mmaped */
+	data_size = roundup(sizeof(struct vmcoredd_header) + data->size,
+			    PAGE_SIZE);
+
+	/* Allocate buffer for driver's to write their dumps */
+	buf = vmcore_alloc_buf(data_size);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	vmcoredd_write_header(buf, data, data_size -
+			      sizeof(struct vmcoredd_header));
+
+	/* Invoke the driver's dump collection routing */
+	ret = data->vmcoredd_callback(data, buf +
+				      sizeof(struct vmcoredd_header));
+	if (ret)
+		goto out_err;
+
+	dump->buf = buf;
+	dump->size = data_size;
+
+	/* Add the dump to driver sysfs list */
+	mutex_lock(&vmcoredd_mutex);
+	list_add_tail(&dump->list, &vmcoredd_list);
+	mutex_unlock(&vmcoredd_mutex);
+
+	return 0;
+
+out_err:
+	if (buf)
+		vfree(buf);
+
+	if (dump)
+		vfree(dump);
+
+	return ret;
+}
+EXPORT_SYMBOL(vmcore_add_device_dump);
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+
+/* Free all dumps in vmcore device dump list */
+static void vmcore_free_device_dumps(void)
+{
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+	mutex_lock(&vmcoredd_mutex);
+	while (!list_empty(&vmcoredd_list)) {
+		struct vmcoredd_node *dump;
+
+		dump = list_first_entry(&vmcoredd_list, struct vmcoredd_node,
+					list);
+		list_del(&dump->list);
+		vfree(dump->buf);
+		vfree(dump);
+	}
+	mutex_unlock(&vmcoredd_mutex);
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
+}
+
 /* Init function for vmcore module. */
 static int __init vmcore_init(void)
 {
@@ -1192,4 +1306,7 @@ void vmcore_cleanup(void)
 		kfree(m);
 	}
 	free_elfcorebuf();
+
+	/* clear vmcore device dump list */
+	vmcore_free_device_dumps();
 }

@@ -5,6 +5,7 @@
 #include <linux/kexec.h>
 #include <linux/proc_fs.h>
 #include <linux/elf.h>
+#include <uapi/linux/vmcore.h>
 
 #include <asm/pgtable.h> /* for pgprot_t */
 
@@ -93,4 +94,21 @@ static inline bool is_kdump_kernel(void) { return 0; }
 #endif /* CONFIG_CRASH_DUMP */
 
 extern unsigned long saved_max_pfn;
+
+/* Device Dump information to be filled by drivers */
+struct vmcoredd_data {
+	char dump_name[VMCOREDD_MAX_NAME_BYTES]; /* Unique name of the dump */
+	unsigned int size;                       /* Size of the dump */
+	/* Driver's registered callback to be invoked to collect dump */
+	int (*vmcoredd_callback)(struct vmcoredd_data *data, void *buf);
+};
+
+#ifdef CONFIG_PROC_VMCORE_DEVICE_DUMP
+int vmcore_add_device_dump(struct vmcoredd_data *data);
+#else
+static inline int vmcore_add_device_dump(struct vmcoredd_data *data)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 #endif /* LINUX_CRASHDUMP_H */
