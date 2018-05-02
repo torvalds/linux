@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -1244,6 +1244,8 @@ static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 	dd->rcv_limit     = NULL;
 	dd->send_schedule = NULL;
 	dd->tx_opstats    = NULL;
+	kfree(dd->comp_vect);
+	dd->comp_vect = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
@@ -1300,6 +1302,7 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 		dd->unit = ret;
 		list_add(&dd->list, &hfi1_dev_list);
 	}
+	dd->node = -1;
 
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
 	idr_preload_end();
@@ -1348,6 +1351,12 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 
 	dd->tx_opstats = alloc_percpu(struct hfi1_opcode_stats_perctx);
 	if (!dd->tx_opstats) {
+		ret = -ENOMEM;
+		goto bail;
+	}
+
+	dd->comp_vect = kzalloc(sizeof(*dd->comp_vect), GFP_KERNEL);
+	if (!dd->comp_vect) {
 		ret = -ENOMEM;
 		goto bail;
 	}
@@ -1521,7 +1530,7 @@ module_init(hfi1_mod_init);
 static void __exit hfi1_mod_cleanup(void)
 {
 	pci_unregister_driver(&hfi1_pci_driver);
-	node_affinity_destroy();
+	node_affinity_destroy_all();
 	hfi1_wss_exit();
 	hfi1_dbg_exit();
 
@@ -1605,6 +1614,8 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 static void postinit_cleanup(struct hfi1_devdata *dd)
 {
 	hfi1_start_cleanup(dd);
+	hfi1_comp_vectors_clean_up(dd);
+	hfi1_dev_affinity_clean_up(dd);
 
 	hfi1_pcie_ddcleanup(dd);
 	hfi1_pcie_cleanup(dd->pcidev);

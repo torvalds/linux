@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -374,6 +374,7 @@ const char *print_u32_array(
 	return ret;
 }
 
+__hfi1_trace_fn(AFFINITY);
 __hfi1_trace_fn(PKT);
 __hfi1_trace_fn(PROC);
 __hfi1_trace_fn(SDMA);

@@ -64,6 +64,7 @@
 #include "debugfs.h"
 #include "vnic.h"
 #include "fault.h"
+#include "affinity.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -1934,11 +1935,11 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
 	dd->verbs_dev.rdi.driver_f.notify_restart_rc = hfi1_restart_rc;
 	dd->verbs_dev.rdi.driver_f.check_send_wqe = hfi1_check_send_wqe;
+	dd->verbs_dev.rdi.driver_f.comp_vect_cpu_lookup =
+						hfi1_comp_vect_mappings_lookup;
 
 	/* completeion queue */
-	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
-		 sizeof(dd->verbs_dev.rdi.dparms.cq_name),
-		 "hfi1_cq%d", dd->unit);
+	dd->verbs_dev.rdi.ibdev.num_comp_vectors = dd->comp_vect_possible_cpus;
 	dd->verbs_dev.rdi.dparms.node = dd->node;
 
 	/* misc settings */
