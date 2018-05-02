@@ -398,10 +398,11 @@ execlists_context_schedule_in(struct i915_request *rq)
 }
 
 static inline void
-execlists_context_schedule_out(struct i915_request *rq)
+execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
 {
 	intel_engine_context_out(rq->engine);
-	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+	execlists_context_status_change(rq, status);
+	trace_i915_request_out(rq);
 }
 
 static void
@@ -772,12 +773,10 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 			  intel_engine_get_seqno(rq->engine));
 
 		GEM_BUG_ON(!execlists->active);
-		intel_engine_context_out(rq->engine);
-
-		execlists_context_status_change(rq,
-						i915_request_completed(rq) ?
-						INTEL_CONTEXT_SCHEDULE_OUT :
-						INTEL_CONTEXT_SCHEDULE_PREEMPTED);
+		execlists_context_schedule_out(rq,
+					       i915_request_completed(rq) ?
+					       INTEL_CONTEXT_SCHEDULE_OUT :
+					       INTEL_CONTEXT_SCHEDULE_PREEMPTED);
 
 		i915_request_put(rq);
 
@@ -1105,8 +1104,8 @@ static void execlists_submission_tasklet(unsigned long data)
 				 */
 				GEM_BUG_ON(!i915_request_completed(rq));
 
-				execlists_context_schedule_out(rq);
-				trace_i915_request_out(rq);
+				execlists_context_schedule_out(rq,
+							       INTEL_CONTEXT_SCHEDULE_OUT);
 				i915_request_put(rq);
 
 				GEM_TRACE("%s completed ctx=%d\n",
