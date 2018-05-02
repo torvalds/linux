@@ -85,6 +85,10 @@ Optional properties
 
 - lens-focus: A phandle to the node of the focus lens controller.
 
+- rotation: The device, typically an image sensor, is not mounted upright,
+  but a number of degrees counter clockwise. Typical values are 0 and 180
+  (upside down).
+
 
 Optional endpoint properties
 ----------------------------
