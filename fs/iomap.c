@@ -685,6 +685,7 @@ EXPORT_SYMBOL_GPL(iomap_seek_data);
  * Private flags for iomap_dio, must not overlap with the public ones in
  * iomap.h:
  */
+#define IOMAP_DIO_NEED_SYNC	(1 << 29)
 #define IOMAP_DIO_WRITE		(1 << 30)
 #define IOMAP_DIO_DIRTY		(1 << 31)
 
@@ -759,6 +760,13 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 			dio_warn_stale_pagecache(iocb->ki_filp);
 	}
 
+	/*
+	 * If this is a DSYNC write, make sure we push it to stable storage now
+	 * that we've written data.
+	 */
+	if (ret > 0 && (dio->flags & IOMAP_DIO_NEED_SYNC))
+		ret = generic_write_sync(iocb, ret);
+
 	inode_dio_end(file_inode(iocb->ki_filp));
 	kfree(dio);
 
@@ -769,13 +777,8 @@ static void iomap_dio_complete_work(struct work_struct *work)
 {
 	struct iomap_dio *dio = container_of(work, struct iomap_dio, aio.work);
 	struct kiocb *iocb = dio->iocb;
-	bool is_write = (dio->flags & IOMAP_DIO_WRITE);
-	ssize_t ret;
 
-	ret = iomap_dio_complete(dio);
-	if (is_write && ret > 0)
-		ret = generic_write_sync(iocb, ret);
-	iocb->ki_complete(iocb, ret, 0);
+	iocb->ki_complete(iocb, iomap_dio_complete(dio), 0);
 }
 
 /*
@@ -961,6 +964,10 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 	return copied;
 }
 
+/*
+ * iomap_dio_rw() always completes O_[D]SYNC writes regardless of whether the IO
+ * is being issued as AIO or not.
+ */
 ssize_t
 iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, iomap_dio_end_io_t end_io)
@@ -1006,6 +1013,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			dio->flags |= IOMAP_DIO_DIRTY;
 	} else {
 		dio->flags |= IOMAP_DIO_WRITE;
+		if (iocb->ki_flags & IOCB_DSYNC)
+			dio->flags |= IOMAP_DIO_NEED_SYNC;
 		flags |= IOMAP_WRITE;
 	}
 

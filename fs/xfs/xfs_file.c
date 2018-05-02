@@ -568,11 +568,6 @@ out:
 	 * complete fully or fail.
 	 */
 	ASSERT(ret < 0 || ret == count);
-
-	if (ret > 0) {
-		/* Handle various SYNC-type writes */
-		ret = generic_write_sync(iocb, ret);
-	}
 	return ret;
 }
 
