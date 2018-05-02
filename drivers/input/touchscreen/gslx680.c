@@ -29,6 +29,7 @@
 #include "gslx680.h"
 #include <linux/of_gpio.h>
 #include <linux/wakelock.h>
+#include <linux/of_platform.h>
 
 #define GSL_DEBUG
 
@@ -129,17 +130,17 @@ const u16 key_array[] = {
 
 #define MAX_KEY_NUM     (sizeof(key_array)/sizeof(key_array[0]))
 //add by yuandan
-int key_x[512];
-int key_y[512];
-int key_count = 0;
-int key_repeat;
-struct key_data gsl_key_data[MAX_KEY_NUM] = {
+static int key_x[512];
+static int key_y[512];
+static int key_count;
+#ifdef SLEEP_CLEAR_POINT
+static const struct key_data gsl_key_data[MAX_KEY_NUM] = {
 	{KEY_BACK, 550, 650, 1400, 1600},
 	{KEY_HOMEPAGE, 350, 450, 1400, 1600},
 	{KEY_MENU, 150, 250, 1400, 1600},
 	{KEY_SEARCH, 2048, 2048, 2048, 2048},
 };
-
+#endif
 #endif
 
 struct gsl_ts_data {
@@ -172,6 +173,17 @@ static struct gsl_ts_data devices[] = {
 	 },
 };
 
+struct gsl_ts_cfg {
+	struct fw_data *fw_ptr;
+	unsigned int fw_size;
+	enum gsl_quirk quirks;
+	unsigned int *cfg_id;
+	int max_x;
+	int max_y;
+	bool x_pol;
+	bool y_pol;
+};
+
 struct gsl_ts {
 	struct i2c_client *client;
 	struct input_dev *input;
@@ -198,6 +210,7 @@ struct gsl_ts {
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_sleep;
 	struct pinctrl_state *pins_inactive;
+	const struct gsl_ts_cfg *ts_cfg;
 };
 
 #ifdef GSL_DEBUG
@@ -213,6 +226,28 @@ static u16 x_old[MAX_CONTACTS + 1] = { 0 };
 static u16 y_old[MAX_CONTACTS + 1] = { 0 };
 static u16 x_new = 0;
 static u16 y_new = 0;
+
+static const struct gsl_ts_cfg gslx680_vr_cfg = {
+	.fw_ptr		= GSLX680_FW,
+	.fw_size	= ARRAY_SIZE(GSLX680_FW),
+	.quirks		= GSL_QUIRK_VR,
+	.cfg_id		= gsl_config_data_id,
+	.max_x		= SCREEN_MAX_X,
+	.max_y		= SCREEN_MAX_Y,
+	.x_pol		= false,
+	.y_pol		= false,
+};
+
+static const struct gsl_ts_cfg gslx680_tve_cfg = {
+	.fw_ptr		= GSLX680_FW_TVE,
+	.fw_size	= ARRAY_SIZE(GSLX680_FW_TVE),
+	.quirks		= GSL_QUIRK_TVE,
+	.cfg_id		= gsl_tve_cfg_id,
+	.max_x		= SCREEN_MAX_X_TVE,
+	.max_y		= SCREEN_MAX_Y_TVE,
+	.x_pol		= true,
+	.y_pol		= true,
+};
 
 int gslx680_set_pinctrl_state(struct gsl_ts *ts, struct pinctrl_state *state)
 {
@@ -408,10 +443,11 @@ static void gsl_load_fw(struct i2c_client *client)
 	u32 source_line = 0;
 	u32 source_len;
 	//u8 read_buf[4] = {0};
-	struct fw_data const *ptr_fw;
+	struct gsl_ts *ts =
+		(struct gsl_ts *)i2c_get_clientdata(client);
+	struct fw_data const *ptr_fw = ts->ts_cfg->fw_ptr;
 
-	ptr_fw = GSLX680_FW;
-	source_len = ARRAY_SIZE(GSLX680_FW);
+	source_len = ts->ts_cfg->fw_size;
 
 	for (source_line = 0; source_line < source_len; source_line++) {
 		/* init page trans, set the page val */
@@ -469,12 +505,14 @@ static int test_i2c(struct i2c_client *client)
 }
 static void startup_chip(struct i2c_client *client)
 {
+	struct gsl_ts *ts =
+		(struct gsl_ts *)i2c_get_clientdata(client);
 	u8 tmp = 0x00;
 
 	printk("gsl  startup_chip\n");
 
 #ifdef GSL_NOID_VERSION
-	gsl_DataInit(gsl_config_data_id);
+	gsl_DataInit(ts->ts_cfg->cfg_id);
 #endif
 	gsl_ts_write(client, 0xe0, &tmp, 1);
 	mdelay(10);
@@ -564,6 +602,8 @@ static int gsl_config_read_proc(struct seq_file *m, void *v)
 	char temp_data[5] = { 0 };
 	unsigned int tmp = 0;
 	//unsigned int *ptr_fw;
+	struct gsl_ts *ts =
+		(struct gsl_ts *)i2c_get_clientdata(i2c_client);
 
 	if ('v' == gsl_read[0] && 's' == gsl_read[1]) {
 #ifdef GSL_NOID_VERSION
@@ -583,7 +623,7 @@ static int gsl_config_read_proc(struct seq_file *m, void *v)
 			tmp = (gsl_data_proc[5] << 8) | gsl_data_proc[4];
 			seq_printf(m, "gsl_config_data_id[%d] = ", tmp);
 			if (tmp >= 0 && tmp < 512)
-				seq_printf(m, "%d\n", gsl_config_data_id[tmp]);
+				seq_printf(m, "%d\n", ts->ts_cfg->cfg_id[tmp]);
 #endif
 		} else {
 			i2c_smbus_write_i2c_block_data(i2c_client, 0xf0, 4,
@@ -613,6 +653,8 @@ static ssize_t gsl_config_write_proc(struct file *file, const char *buffer,
 	char *path_buf;
 	int tmp = 0;
 	int tmp1 = 0;
+	struct gsl_ts *ts =
+		(struct gsl_ts *)i2c_get_clientdata(i2c_client);
 
 	print_info("[tp-gsl][%s] \n", __func__);
 	if (count > 512) {
@@ -668,7 +710,7 @@ static ssize_t gsl_config_write_proc(struct file *file, const char *buffer,
 		tmp = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
 		if (tmp1 >= 0 && tmp1 < 512) {
-			gsl_config_data_id[tmp1] = tmp;
+			ts->ts_cfg->cfg_id[tmp1] = tmp;
 		}
 	}
 #endif
@@ -827,12 +869,15 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 	int delt_x,delt_y;
 	static int old_x=0, old_y=0;
 #endif
+	int max_x = ts->ts_cfg->max_x;
+	int max_y = ts->ts_cfg->max_y;
+
 	//#ifndef SWAP_XY
 	//      swap(x, y);
 	//#endif
 	//printk("#####id=%d,x=%d,y=%d######\n",id,x,y);
 
-	if (x > SCREEN_MAX_X || y > SCREEN_MAX_Y) {
+	if (x > max_x || y > max_y) {
 #ifdef HAVE_TOUCH_KEY
 		//report_key(ts, x, y);
 		//printk("#####report_key x=%d,y=%d######\n",x,y);
@@ -848,23 +893,26 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 	   input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, w);
 	   input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
 	 */
+
 #ifdef RK_GEAR_TOUCH
-	if (g_istouch == 0){
-		g_istouch = 1;
-		input_event(ts->input, EV_MSC, MSC_SCAN, 0x90001);
-		input_report_key(ts->input, 0x110, 1);
+	if (ts->ts_cfg->quirks == GSL_QUIRK_VR) {
+		if (g_istouch == 0) {
+			g_istouch = 1;
+			input_event(ts->input, EV_MSC, MSC_SCAN, 0x90001);
+			input_report_key(ts->input, 0x110, 1);
+			input_sync(ts->input);
+		}
+		delt_x = (int)x - old_x;
+		delt_y = (int)y - old_y;
+		delt_x /= 10;
+		delt_y /= 10;
+		input_report_rel(ts->input, REL_Y, -delt_x);
+		input_report_rel(ts->input, REL_X, -delt_y);
 		input_sync(ts->input);
+		old_x = x;
+		old_y = y;
+		return;
 	}
-	delt_x = (int)x - old_x;
-	delt_y = (int)y - old_y;
-	delt_x /= 10;
-	delt_y /= 10;
-	input_report_rel(ts->input, REL_Y, -delt_x);
-    input_report_rel(ts->input, REL_X, -delt_y);
-	input_sync(ts->input);
-	old_x = x;
-	old_y = y;
-	return;
 #endif
 
 #ifdef REPORT_DATA_ANDROID_4_0
@@ -873,16 +921,14 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 	//input_report_abs(ts->input, ABS_MT_TRACKING_ID, id);
 	input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, 1);
 	input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, pressure);
-#ifdef X_POL
-	input_report_abs(ts->input, ABS_MT_POSITION_X, SCREEN_MAX_X - x);
-#else
-	input_report_abs(ts->input, ABS_MT_POSITION_X, x);
-#endif
-#ifdef Y_POL
-	input_report_abs(ts->input, ABS_MT_POSITION_Y, (SCREEN_MAX_Y - y));
-#else
-	input_report_abs(ts->input, ABS_MT_POSITION_Y, (y));
-#endif
+	if (ts->ts_cfg->x_pol)
+		input_report_abs(ts->input, ABS_MT_POSITION_X, max_x - x);
+	else
+		input_report_abs(ts->input, ABS_MT_POSITION_X, x);
+	if (ts->ts_cfg->y_pol)
+		input_report_abs(ts->input, ABS_MT_POSITION_Y, (max_y - y));
+	else
+		input_report_abs(ts->input, ABS_MT_POSITION_Y, (y));
 	input_report_abs(ts->input, ABS_MT_WIDTH_MAJOR, 1);
 #else
 	//printk("#####nonono REPORT_DATA_ANDROID_4_0######\n");
@@ -1021,7 +1067,7 @@ static void gslX680_ts_worker(struct work_struct *work)
 #ifdef RK_GEAR_TOUCH
 			report_data(ts, x_new, y_new, 10, id);
 #endif
-			if (key_count <= 512) {
+			if (key_count < 512) {
 				key_x[key_count] = x_new;
 				key_y[key_count] = y_new;
 				key_count++;
@@ -1346,6 +1392,8 @@ static int gslX680_ts_init(struct i2c_client *client, struct gsl_ts *ts)
 	struct input_dev *input_device;
 	int rc = 0;
 	int i = 0;
+	int max_x = ts->ts_cfg->max_x;
+	int max_y = ts->ts_cfg->max_y;
 
 	printk("[GSLX680] Enter %s\n", __func__);
 
@@ -1414,9 +1462,9 @@ static int gslX680_ts_init(struct i2c_client *client, struct gsl_ts *ts)
 	set_bit(ABS_MT_TOUCH_MAJOR, input_device->absbit);
 	set_bit(ABS_MT_WIDTH_MAJOR, input_device->absbit);
 
-	input_set_abs_params(input_device, ABS_MT_POSITION_X, 0, SCREEN_MAX_X,
+	input_set_abs_params(input_device, ABS_MT_POSITION_X, 0, max_x,
 			     0, 0);
-	input_set_abs_params(input_device, ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y,
+	input_set_abs_params(input_device, ABS_MT_POSITION_Y, 0, max_y,
 			     0, 0);
 	input_set_abs_params(input_device, ABS_MT_TOUCH_MAJOR, 0, PRESS_MAX, 0,
 			     0);
@@ -1672,9 +1720,16 @@ static void gsl_ts_late_resume(struct early_suspend *h)
 
 //static struct wake_lock touch_wakelock;
 
+static const struct of_device_id gsl_ts_ids[] = {
+	{ .compatible = "gslX680", .data = &gslx680_vr_cfg },
+	{ .compatible = "gslX680_tve", .data = &gslx680_tve_cfg },
+	{}
+};
+
 static int gsl_ts_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	const struct of_device_id *match;
 	struct gsl_ts *ts;
 	int rc;
 
@@ -1689,6 +1744,12 @@ static int gsl_ts_probe(struct i2c_client *client,
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
+
+	match = of_match_device(of_match_ptr(gsl_ts_ids), &client->dev);
+	if (!match)
+		return -EINVAL;
+
+	ts->ts_cfg  = (const struct gsl_ts_cfg *)match->data;
 
 	ts->tp.tp_suspend = gsl_ts_early_suspend;
 	ts->tp.tp_resume = gsl_ts_late_resume;
@@ -1799,11 +1860,6 @@ static int gsl_ts_remove(struct i2c_client *client)
 
 	return 0;
 }
-
-static struct of_device_id gsl_ts_ids[] = {
-	{.compatible = "gslX680"},
-	{}
-};
 
 static const struct i2c_device_id gsl_ts_id[] = {
 	{GSLX680_I2C_NAME, 0},
