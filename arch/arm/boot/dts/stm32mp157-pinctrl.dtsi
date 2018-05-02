@@ -7,7 +7,7 @@
 
 / {
 	soc {
-		pinctrl: pin-controller {
+		pinctrl: pin-controller@50002000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32mp157-pinctrl";
@@ -257,7 +257,7 @@
 				};
 			};
 
-			uart4_pins_a: uart4@0 {
+			uart4_pins_a: uart4-0 {
 				pins1 {
 					pinmux = <STM32_PINMUX('G', 11, AF6)>; /* UART4_TX */
 					bias-disable;
@@ -271,7 +271,7 @@
 			};
 		};
 
-		pinctrl_z: pin-controller-z {
+		pinctrl_z: pin-controller-z@54004000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32mp157-z-pinctrl";
