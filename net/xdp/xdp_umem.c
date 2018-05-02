@@ -248,3 +248,8 @@ out:
 	put_pid(umem->pid);
 	return err;
 }
+
+bool xdp_umem_validate_queues(struct xdp_umem *umem)
+{
+	return umem->fq;
+}

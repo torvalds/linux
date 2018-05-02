@@ -28,6 +28,7 @@ struct xdp_sock {
 	struct xsk_queue *rx;
 	struct net_device *dev;
 	struct xdp_umem *umem;
+	u16 queue_id;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
 };

@@ -16,6 +16,14 @@
 
 #include "xsk_queue.h"
 
+void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props)
+{
+	if (!q)
+		return;
+
+	q->umem_props = *umem_props;
+}
+
 static u32 xskq_umem_get_ring_size(struct xsk_queue *q)
 {
 	return sizeof(struct xdp_umem_ring) + q->nentries * sizeof(u32);

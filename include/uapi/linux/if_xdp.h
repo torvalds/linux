@@ -21,6 +21,17 @@
 
 #include <linux/types.h>
 
+/* Options for the sxdp_flags field */
+#define XDP_SHARED_UMEM 1
+
+struct sockaddr_xdp {
+	__u16 sxdp_family;
+	__u32 sxdp_ifindex;
+	__u32 sxdp_queue_id;
+	__u32 sxdp_shared_umem_fd;
+	__u16 sxdp_flags;
+};
+
 /* XDP socket options */
 #define XDP_RX_RING			1
 #define XDP_UMEM_REG			3

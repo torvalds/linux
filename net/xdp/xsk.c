@@ -57,9 +57,18 @@ static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 	return 0;
 }
 
+static void __xsk_release(struct xdp_sock *xs)
+{
+	/* Wait for driver to stop using the xdp socket. */
+	synchronize_net();
+
+	dev_put(xs->dev);
+}
+
 static int xsk_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
+	struct xdp_sock *xs = xdp_sk(sk);
 	struct net *net;
 
 	if (!sk)
@@ -71,6 +80,11 @@ static int xsk_release(struct socket *sock)
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
 	local_bh_enable();
 
+	if (xs->dev) {
+		__xsk_release(xs);
+		xs->dev = NULL;
+	}
+
 	sock_orphan(sk);
 	sock->sk = NULL;
 
@@ -78,6 +92,114 @@ static int xsk_release(struct socket *sock)
 	sock_put(sk);
 
 	return 0;
+}
+
+static struct socket *xsk_lookup_xsk_from_fd(int fd)
+{
+	struct socket *sock;
+	int err;
+
+	sock = sockfd_lookup(fd, &err);
+	if (!sock)
+		return ERR_PTR(-ENOTSOCK);
+
+	if (sock->sk->sk_family != PF_XDP) {
+		sockfd_put(sock);
+		return ERR_PTR(-ENOPROTOOPT);
+	}
+
+	return sock;
+}
+
+static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+{
+	struct sockaddr_xdp *sxdp = (struct sockaddr_xdp *)addr;
+	struct sock *sk = sock->sk;
+	struct net_device *dev, *dev_curr;
+	struct xdp_sock *xs = xdp_sk(sk);
+	struct xdp_umem *old_umem = NULL;
+	int err = 0;
+
+	if (addr_len < sizeof(struct sockaddr_xdp))
+		return -EINVAL;
+	if (sxdp->sxdp_family != AF_XDP)
+		return -EINVAL;
+
+	mutex_lock(&xs->mutex);
+	dev_curr = xs->dev;
+	dev = dev_get_by_index(sock_net(sk), sxdp->sxdp_ifindex);
+	if (!dev) {
+		err = -ENODEV;
+		goto out_release;
+	}
+
+	if (!xs->rx) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (sxdp->sxdp_queue_id >= dev->num_rx_queues) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (sxdp->sxdp_flags & XDP_SHARED_UMEM) {
+		struct xdp_sock *umem_xs;
+		struct socket *sock;
+
+		if (xs->umem) {
+			/* We have already our own. */
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
+		sock = xsk_lookup_xsk_from_fd(sxdp->sxdp_shared_umem_fd);
+		if (IS_ERR(sock)) {
+			err = PTR_ERR(sock);
+			goto out_unlock;
+		}
+
+		umem_xs = xdp_sk(sock->sk);
+		if (!umem_xs->umem) {
+			/* No umem to inherit. */
+			err = -EBADF;
+			sockfd_put(sock);
+			goto out_unlock;
+		} else if (umem_xs->dev != dev ||
+			   umem_xs->queue_id != sxdp->sxdp_queue_id) {
+			err = -EINVAL;
+			sockfd_put(sock);
+			goto out_unlock;
+		}
+
+		xdp_get_umem(umem_xs->umem);
+		old_umem = xs->umem;
+		xs->umem = umem_xs->umem;
+		sockfd_put(sock);
+	} else if (!xs->umem || !xdp_umem_validate_queues(xs->umem)) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* Rebind? */
+	if (dev_curr && (dev_curr != dev ||
+			 xs->queue_id != sxdp->sxdp_queue_id)) {
+		__xsk_release(xs);
+		if (old_umem)
+			xdp_put_umem(old_umem);
+	}
+
+	xs->dev = dev;
+	xs->queue_id = sxdp->sxdp_queue_id;
+
+	xskq_set_umem(xs->rx, &xs->umem->props);
+
+out_unlock:
+	if (err)
+		dev_put(dev);
+out_release:
+	mutex_unlock(&xs->mutex);
+	return err;
 }
 
 static int xsk_setsockopt(struct socket *sock, int level, int optname,
@@ -203,7 +325,7 @@ static const struct proto_ops xsk_proto_ops = {
 	.family =	PF_XDP,
 	.owner =	THIS_MODULE,
 	.release =	xsk_release,
-	.bind =		sock_no_bind,
+	.bind =		xsk_bind,
 	.connect =	sock_no_connect,
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,

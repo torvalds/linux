@@ -32,6 +32,7 @@ struct xsk_queue {
 	u64 invalid_descs;
 };
 
+void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props);
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue);
 void xskq_destroy(struct xsk_queue *q);
 
