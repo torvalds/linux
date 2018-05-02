@@ -1216,7 +1216,22 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE, 0x855);
+		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+		u32 prog_phy_link_rate = 0x800;
+
+		if (!sas_phy->phy || (sas_phy->phy->maximum_linkrate <
+				SAS_LINK_RATE_1_5_GBPS)) {
+			prog_phy_link_rate = 0x855;
+		} else {
+			enum sas_linkrate max = sas_phy->phy->maximum_linkrate;
+
+			prog_phy_link_rate =
+				hisi_sas_get_prog_phy_linkrate_mask(max) |
+				0x800;
+		}
+		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE,
+			prog_phy_link_rate);
 		hisi_sas_phy_write32(hisi_hba, i, SAS_PHY_CTRL, sas_phy_ctrl);
 		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG, 0x7d7d7d7d);
 		hisi_sas_phy_write32(hisi_hba, i, SL_CONTROL, 0x0);
@@ -1585,13 +1600,10 @@ static enum sas_linkrate phy_get_max_linkrate_v2_hw(void)
 static void phy_set_linkrate_v2_hw(struct hisi_hba *hisi_hba, int phy_no,
 		struct sas_phy_linkrates *r)
 {
-	u32 prog_phy_link_rate =
-		hisi_sas_phy_read32(hisi_hba, phy_no, PROG_PHY_LINK_RATE);
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	int i;
 	enum sas_linkrate min, max;
-	u32 rate_mask = 0;
+	u32 prog_phy_link_rate = 0x800;
 
 	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
 		max = sas_phy->phy->maximum_linkrate;
@@ -1604,14 +1616,7 @@ static void phy_set_linkrate_v2_hw(struct hisi_hba *hisi_hba, int phy_no,
 
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
-
-	max -= SAS_LINK_RATE_1_5_GBPS;
-
-	for (i = 0; i <= max; i++)
-		rate_mask |= 1 << (i * 2);
-
-	prog_phy_link_rate &= ~0xff;
-	prog_phy_link_rate |= rate_mask;
+	prog_phy_link_rate |= hisi_sas_get_prog_phy_linkrate_mask(max);
 
 	disable_phy_v2_hw(hisi_hba, phy_no);
 	msleep(100);

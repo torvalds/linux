@@ -135,6 +135,22 @@ int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *tag)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_get_ncq_tag);
 
+/*
+ * This function assumes linkrate mask fits in 8 bits, which it
+ * does for all HW versions supported.
+ */
+u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max)
+{
+	u16 rate = 0;
+	int i;
+
+	max -= SAS_LINK_RATE_1_5_GBPS;
+	for (i = 0; i <= max; i++)
+		rate |= 1 << (i * 2);
+	return rate;
+}
+EXPORT_SYMBOL_GPL(hisi_sas_get_prog_phy_linkrate_mask);
+
 static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 {
 	return device->port->ha->lldd_ha;
