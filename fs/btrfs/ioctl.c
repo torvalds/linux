@@ -2914,8 +2914,6 @@ static void btrfs_cmp_data_free(struct cmp_pages *cmp)
 			put_page(pg);
 		}
 	}
-	kfree(cmp->src_pages);
-	kfree(cmp->dst_pages);
 }
 
 static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
@@ -2924,40 +2922,14 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 {
 	int ret;
 	int num_pages = PAGE_ALIGN(len) >> PAGE_SHIFT;
-	struct page **src_pgarr, **dst_pgarr;
 
-	/*
-	 * We must gather up all the pages before we initiate our
-	 * extent locking. We use an array for the page pointers. Size
-	 * of the array is bounded by len, which is in turn bounded by
-	 * BTRFS_MAX_DEDUPE_LEN.
-	 */
-	src_pgarr = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
-	dst_pgarr = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
-	if (!src_pgarr || !dst_pgarr) {
-		kfree(src_pgarr);
-		kfree(dst_pgarr);
-		return -ENOMEM;
-	}
 	cmp->num_pages = num_pages;
-	cmp->src_pages = src_pgarr;
-	cmp->dst_pages = dst_pgarr;
 
-	/*
-	 * If deduping ranges in the same inode, locking rules make it mandatory
-	 * to always lock pages in ascending order to avoid deadlocks with
-	 * concurrent tasks (such as starting writeback/delalloc).
-	 */
-	if (src == dst && dst_loff < loff) {
-		swap(src_pgarr, dst_pgarr);
-		swap(loff, dst_loff);
-	}
-
-	ret = gather_extent_pages(src, src_pgarr, cmp->num_pages, loff);
+	ret = gather_extent_pages(src, cmp->src_pages, num_pages, loff);
 	if (ret)
 		goto out;
 
-	ret = gather_extent_pages(dst, dst_pgarr, cmp->num_pages, dst_loff);
+	ret = gather_extent_pages(dst, cmp->dst_pages, num_pages, dst_loff);
 
 out:
 	if (ret)
@@ -3028,11 +3000,11 @@ static int extent_same_check_offsets(struct inode *inode, u64 off, u64 *plen,
 }
 
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
-			       struct inode *dst, u64 dst_loff)
+				   struct inode *dst, u64 dst_loff,
+				   struct cmp_pages *cmp)
 {
 	int ret;
 	u64 len = olen;
-	struct cmp_pages cmp;
 	bool same_inode = (src == dst);
 	u64 same_lock_start = 0;
 	u64 same_lock_len = 0;
@@ -3072,7 +3044,7 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
 	}
 
 again:
-	ret = btrfs_cmp_data_prepare(src, loff, dst, dst_loff, olen, &cmp);
+	ret = btrfs_cmp_data_prepare(src, loff, dst, dst_loff, olen, cmp);
 	if (ret)
 		return ret;
 
@@ -3095,7 +3067,7 @@ again:
 		 * Ranges in the io trees already unlocked. Now unlock all
 		 * pages before waiting for all IO to complete.
 		 */
-		btrfs_cmp_data_free(&cmp);
+		btrfs_cmp_data_free(cmp);
 		if (same_inode) {
 			btrfs_wait_ordered_range(src, same_lock_start,
 						 same_lock_len);
@@ -3108,12 +3080,12 @@ again:
 	ASSERT(ret == 0);
 	if (WARN_ON(ret)) {
 		/* ranges in the io trees already unlocked */
-		btrfs_cmp_data_free(&cmp);
+		btrfs_cmp_data_free(cmp);
 		return ret;
 	}
 
 	/* pass original length for comparison so we stay within i_size */
-	ret = btrfs_cmp_data(olen, &cmp);
+	ret = btrfs_cmp_data(olen, cmp);
 	if (ret == 0)
 		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff, 1);
 
@@ -3123,7 +3095,7 @@ again:
 	else
 		btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
 
-	btrfs_cmp_data_free(&cmp);
+	btrfs_cmp_data_free(cmp);
 
 	return ret;
 }
@@ -3134,6 +3106,8 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
 	int ret;
+	struct cmp_pages cmp;
+	int num_pages = PAGE_ALIGN(BTRFS_MAX_DEDUPE_LEN) >> PAGE_SHIFT;
 	bool same_inode = (src == dst);
 	u64 i, tail_len, chunk_count;
 
@@ -3154,10 +3128,33 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 
 	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
+	if (chunk_count == 0)
+		num_pages = PAGE_ALIGN(tail_len) >> PAGE_SHIFT;
+
+	/*
+	 * If deduping ranges in the same inode, locking rules make it
+	 * mandatory to always lock pages in ascending order to avoid deadlocks
+	 * with concurrent tasks (such as starting writeback/delalloc).
+	 */
+	if (same_inode && dst_loff < loff)
+		swap(loff, dst_loff);
+
+	/*
+	 * We must gather up all the pages before we initiate our extent
+	 * locking. We use an array for the page pointers. Size of the array is
+	 * bounded by len, which is in turn bounded by BTRFS_MAX_DEDUPE_LEN.
+	 */
+	cmp.src_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	cmp.dst_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!cmp.src_pages || !cmp.dst_pages) {
+		kfree(cmp.src_pages);
+		kfree(cmp.dst_pages);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < chunk_count; i++) {
 		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
-					      dst, dst_loff);
+					      dst, dst_loff, &cmp);
 		if (ret)
 			goto out_unlock;
 
@@ -3166,13 +3163,17 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	}
 
 	if (tail_len > 0)
-		ret = btrfs_extent_same_range(src, loff, tail_len, dst, dst_loff);
+		ret = btrfs_extent_same_range(src, loff, tail_len, dst,
+					      dst_loff, &cmp);
 
 out_unlock:
 	if (same_inode)
 		inode_unlock(src);
 	else
 		btrfs_double_inode_unlock(src, dst);
+
+	kfree(cmp.src_pages);
+	kfree(cmp.dst_pages);
 
 	return ret;
 }
