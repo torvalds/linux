@@ -1959,7 +1959,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(struct net *net,
 		}
 	}
 
-	repl = sctp_make_cookie_ack(new_asoc, chunk);
+	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
 		goto nomem;
 
