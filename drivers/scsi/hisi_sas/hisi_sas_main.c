@@ -1166,15 +1166,16 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	struct hisi_sas_tmf_task tmf_task;
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
-	struct device *dev = hisi_hba->dev;
+	struct hisi_hba *hisi_hba;
+	struct device *dev;
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 
-	if (!sas_dev) {
-		dev_warn(dev, "Device has been removed\n");
+	if (!sas_dev)
 		return TMF_RESP_FUNC_FAILED;
-	}
+
+	hisi_hba = dev_to_hisi_hba(task->dev);
+	dev = hisi_hba->dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
