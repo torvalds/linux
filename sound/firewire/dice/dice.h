@@ -70,6 +70,9 @@ enum snd_dice_rate_mode {
 	SND_DICE_RATE_MODE_COUNT,
 };
 
+struct snd_dice;
+typedef int (*snd_dice_detect_formats_t)(struct snd_dice *dice);
+
 struct snd_dice {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -91,6 +94,7 @@ struct snd_dice {
 	unsigned int rx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
 	unsigned int tx_midi_ports[MAX_STREAMS];
 	unsigned int rx_midi_ports[MAX_STREAMS];
+	snd_dice_detect_formats_t detect_formats;
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;
@@ -220,5 +224,7 @@ int snd_dice_create_hwdep(struct snd_dice *dice);
 void snd_dice_create_proc(struct snd_dice *dice);
 
 int snd_dice_create_midi(struct snd_dice *dice);
+
+int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice);
 
 #endif

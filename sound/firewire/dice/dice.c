@@ -199,7 +199,7 @@ static void do_registration(struct work_struct *work)
 
 	dice_card_strings(dice);
 
-	err = snd_dice_stream_detect_current_formats(dice);
+	err = dice->detect_formats(dice);
 	if (err < 0)
 		goto error;
 
@@ -243,14 +243,17 @@ error:
 		 "Sound card registration failed: %d\n", err);
 }
 
-static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+static int dice_probe(struct fw_unit *unit,
+		      const struct ieee1394_device_id *entry)
 {
 	struct snd_dice *dice;
 	int err;
 
-	err = check_dice_category(unit);
-	if (err < 0)
-		return -ENODEV;
+	if (!entry->driver_data) {
+		err = check_dice_category(unit);
+		if (err < 0)
+			return -ENODEV;
+	}
 
 	/* Allocate this independent of sound card instance. */
 	dice = kzalloc(sizeof(struct snd_dice), GFP_KERNEL);
@@ -259,6 +262,13 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	dice->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, dice);
+
+	if (!entry->driver_data) {
+		dice->detect_formats = snd_dice_stream_detect_current_formats;
+	} else {
+		dice->detect_formats =
+				(snd_dice_detect_formats_t)entry->driver_data;
+	}
 
 	spin_lock_init(&dice->lock);
 	mutex_init(&dice->mutex);
@@ -317,16 +327,64 @@ static void dice_bus_reset(struct fw_unit *unit)
 #define DICE_INTERFACE	0x000001
 
 static const struct ieee1394_device_id dice_id_table[] = {
-	{
-		.match_flags = IEEE1394_MATCH_VERSION,
-		.version     = DICE_INTERFACE,
-	},
 	/* M-Audio Profire 610/2626 has a different value in version field. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
 				  IEEE1394_MATCH_SPECIFIER_ID,
 		.vendor_id	= 0x000d6c,
 		.specifier_id	= 0x000d6c,
+	},
+	/* TC Electronic Konnekt 24D. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000020,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Konnekt 8. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000021,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Studio Konnekt 48. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000022,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Konnekt Live. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000023,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Desktop Konnekt 6. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000024,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Impact Twin. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000027,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	{
+		.match_flags = IEEE1394_MATCH_VERSION,
+		.version     = DICE_INTERFACE,
 	},
 	{ }
 };
