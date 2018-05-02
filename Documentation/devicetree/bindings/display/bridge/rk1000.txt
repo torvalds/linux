@@ -12,6 +12,9 @@ Required properties:
 - rockchip,output: This describes the output face
 - rockchip,ctl: phandle to the rk1000 core controller
 
+Optional properties:
+
+- rockchip,tvemode: tve preferred mode, 0 for PAL, 1 for NTSC
 
 Required node:
 
@@ -31,6 +34,7 @@ Example
 		rockchip,data-width = <24>;
 		rockchip,output = "rgb";
 		rockchip,ctl = <&rk1000_ctl>;
+		rockchip,tvemode = <0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;

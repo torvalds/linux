@@ -25,8 +25,7 @@
 #define TVE_ON 0x03
 
 static const struct drm_display_mode rk1000_cvbs_mode[2] = {
-	{ DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER |
-		   DRM_MODE_TYPE_PREFERRED, 27000, 720, 732,
+	{ DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 27000, 720, 732,
 		   738, 864, 0, 576, 582, 588, 625, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 		   .vrefresh = 50, 0, },
@@ -45,6 +44,7 @@ struct rk1000_tve {
 	int mode;
 	struct regmap *ctlmap;
 	struct regmap *tvemap;
+	u32 preferred_mode;
 };
 
 enum {
@@ -215,6 +215,8 @@ rk1000_get_modes(struct drm_connector *connector)
 			dev_err(rk1000->dev, "mode duplicate failed\n");
 			return -ENOMEM;
 		}
+		if (rk1000->preferred_mode == count)
+			mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
 		drm_mode_probed_add(connector, mode_ptr);
 	}
 
@@ -369,6 +371,15 @@ static int rk1000_probe(struct i2c_client *client,
 		dev_err(rk1000->dev, "Failed to initialize ctl regmap: %d\n",
 			ret);
 		return ret;
+	}
+
+	ret = of_property_read_u32(np, "rockchip,tvemode",
+				   &rk1000->preferred_mode);
+	if (ret < 0) {
+		rk1000->preferred_mode = 0;
+	} else if (rk1000->preferred_mode > 1) {
+		dev_err(rk1000->dev, "rk1000 tve mode value invalid\n");
+		return -EINVAL;
 	}
 
 	rk1000->bridge.funcs = &rk1000_bridge_funcs;
