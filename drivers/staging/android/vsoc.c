@@ -802,9 +802,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "shared memory @ DMA %p size=0x%zx\n",
 		 (void *)vsoc_dev.shm_phys_start, vsoc_dev.shm_size);
-	/* TODO(ghartman): ioremap_wc should work here */
-	vsoc_dev.kernel_mapped_shm = ioremap_nocache(
-			vsoc_dev.shm_phys_start, vsoc_dev.shm_size);
+	vsoc_dev.kernel_mapped_shm = pci_iomap_wc(pdev, SHARED_MEMORY_BAR, 0);
 	if (!vsoc_dev.kernel_mapped_shm) {
 		dev_err(&vsoc_dev.dev->dev, "cannot iomap region\n");
 		vsoc_remove_device(pdev);
