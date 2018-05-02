@@ -228,7 +228,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		 */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
-				 &al->map->dso->symbols[al->map->type]);
+				 &al->map->dso->symbols);
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(al->map->dso);
 		}

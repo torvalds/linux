@@ -247,9 +247,9 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		*dso_db_id = dso->db_id;
 
 		if (!al->sym) {
-			al->sym = symbol__new(al->addr, 0, 0, "unknown");
+			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");
 			if (al->sym)
-				dso__insert_symbol(dso, al->map->type, al->sym);
+				dso__insert_symbol(dso, al->sym);
 		}
 
 		if (al->sym) {
@@ -315,8 +315,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
-			al.sym = dso__find_symbol(al.map->dso, MAP__FUNCTION,
-						  al.addr);
+			al.sym = dso__find_symbol(al.map->dso, al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 

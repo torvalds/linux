@@ -523,12 +523,9 @@ static void report__warn_kptr_restrict(const struct report *rep)
 		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
 		    "can't be resolved.";
 
-		if (kernel_map) {
-			const struct dso *kdso = kernel_map->dso;
-			if (!RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION])) {
-				desc = "If some relocation was applied (e.g. "
-				       "kexec) symbols may be misresolved.";
-			}
+		if (kernel_map && map__has_symbols(kernel_map)) {
+			desc = "If some relocation was applied (e.g. "
+			       "kexec) symbols may be misresolved.";
 		}
 
 		ui__warning(
@@ -718,10 +715,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 
 static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
 {
-	int printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += maps__fprintf_task(&mg->maps[i], indent, fp);
-	return printed;
+	return maps__fprintf_task(&mg->maps, indent, fp);
 }
 
 static void task__print_level(struct task *task, FILE *fp, int level)
