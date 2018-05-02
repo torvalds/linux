@@ -1,28 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
-
-#include <linux/slab.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-
 #include <linux/kthread.h>
 #include <linux/firmware.h>
-
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/skbuff.h>
-#include <linux/mutex.h>
-#include <linux/completion.h>
+
+#include "wilc_wfi_cfgoperations.h"
 
 bool wilc_enable_ps = true;
 

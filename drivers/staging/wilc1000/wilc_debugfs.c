@@ -13,8 +13,6 @@
 #if defined(WILC_DEBUGFS)
 #include <linux/module.h>
 #include <linux/debugfs.h>
-#include <linux/poll.h>
-#include <linux/sched.h>
 
 #include "wilc_wlan_if.h"
 

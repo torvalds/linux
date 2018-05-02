@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;

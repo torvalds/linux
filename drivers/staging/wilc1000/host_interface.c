@@ -1,18 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/kthread.h>
-#include <linux/delay.h>
-#include <linux/completion.h>
-#include <linux/list.h>
-#include <linux/workqueue.h>
-#include "host_interface.h"
-#include <linux/spinlock.h>
-#include <linux/errno.h>
-#include "coreconfigurator.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_if.h"
-#include <linux/etherdevice.h>
 #include "wilc_wfi_netdevice.h"
 
 #define HOST_IF_MSG_SCAN                        0

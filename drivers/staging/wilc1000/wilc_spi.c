@@ -5,21 +5,9 @@
  * Module Name:  wilc_spi.c
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/cdev.h>
-#include <linux/uaccess.h>
-#include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/of_gpio.h>
 
-#include <linux/string.h>
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
 #include "wilc_wfi_netdevice.h"
 
 struct wilc_spi {

@@ -5,16 +5,10 @@
  * Module Name:  wilc_sdio.c
  */
 
-#include <linux/string.h>
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
-#include "wilc_wfi_netdevice.h"
 #include <linux/mmc/sdio_func.h>
-#include <linux/mmc/card.h>
-#include <linux/mmc/sdio_ids.h>
-#include <linux/mmc/sdio.h>
-#include <linux/mmc/host.h>
 #include <linux/of_gpio.h>
+
+#include "wilc_wfi_netdevice.h"
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 

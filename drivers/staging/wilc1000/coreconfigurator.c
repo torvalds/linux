@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "coreconfigurator.h"
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
-#include <linux/errno.h>
-#include <linux/slab.h>
+
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 				 BEACON_INTERVAL_LEN + CAP_INFO_LEN)
 

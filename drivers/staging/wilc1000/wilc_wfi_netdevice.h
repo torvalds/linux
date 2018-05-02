@@ -7,33 +7,14 @@
 #define PMKID_FOUND 1
  #define NUM_STA_ASSOCIATED 8
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/moduleparam.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/time.h>
-#include <linux/in.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/ip.h>
 #include <linux/tcp.h>
-#include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
-#include <linux/in6.h>
-#include <asm/checksum.h>
+
 #include "host_interface.h"
 #include "wilc_wlan.h"
-#include <linux/wireless.h>
-#include <linux/completion.h>
-#include <linux/mutex.h>
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
