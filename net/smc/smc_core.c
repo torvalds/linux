@@ -310,6 +310,7 @@ static void smc_lgr_free_bufs(struct smc_link_group *lgr)
 /* remove a link group */
 void smc_lgr_free(struct smc_link_group *lgr)
 {
+	smc_llc_link_flush(&lgr->lnk[SMC_SINGLE_LINK]);
 	smc_lgr_free_bufs(lgr);
 	smc_link_clear(&lgr->lnk[SMC_SINGLE_LINK]);
 	kfree(lgr);
@@ -332,6 +333,7 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	struct rb_node *node;
 
 	smc_lgr_forget(lgr);
+	smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 
 	write_lock_bh(&lgr->conns_lock);
 	node = rb_first(&lgr->conns_all);
