@@ -351,10 +351,11 @@ struct hisi_sas_err_record_v3 {
 #define DIR_TO_DEVICE 2
 #define DIR_RESERVED 3
 
-#define CMD_IS_UNCONSTRAINT(cmd) \
-	((cmd == ATA_CMD_READ_LOG_EXT) || \
-	(cmd == ATA_CMD_READ_LOG_DMA_EXT) || \
-	(cmd == ATA_CMD_DEV_RESET))
+#define FIS_CMD_IS_UNCONSTRAINED(fis) \
+	((fis.command == ATA_CMD_READ_LOG_EXT) || \
+	(fis.command == ATA_CMD_READ_LOG_DMA_EXT) || \
+	((fis.command == ATA_CMD_DEV_RESET) && \
+	((fis.control & ATA_SRST) != 0)))
 
 static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1075,7 +1076,7 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 		<< CMD_HDR_FRAME_TYPE_OFF;
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 
-	if (CMD_IS_UNCONSTRAINT(task->ata_task.fis.command))
+	if (FIS_CMD_IS_UNCONSTRAINED(task->ata_task.fis))
 		dw1 |= 1 << CMD_HDR_UNCON_CMD_OFF;
 
 	hdr->dw1 = cpu_to_le32(dw1);
