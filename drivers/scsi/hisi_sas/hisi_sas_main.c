@@ -1174,10 +1174,14 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		return TMF_RESP_FUNC_FAILED;
 	}
 
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		rc = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}
+	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	sas_dev->dev_status = HISI_SAS_DEV_EH;
 	if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SSP) {
