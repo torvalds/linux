@@ -63,6 +63,13 @@
  */
 #define MAX_STREAMS	2
 
+enum snd_dice_rate_mode {
+	SND_DICE_RATE_MODE_LOW = 0,
+	SND_DICE_RATE_MODE_MIDDLE,
+	SND_DICE_RATE_MODE_HIGH,
+	SND_DICE_RATE_MODE_COUNT,
+};
+
 struct snd_dice {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -80,6 +87,10 @@ struct snd_dice {
 	unsigned int rsrv_offset;
 
 	unsigned int clock_caps;
+	unsigned int tx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
+	unsigned int rx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
+	unsigned int tx_midi_ports[MAX_STREAMS];
+	unsigned int rx_midi_ports[MAX_STREAMS];
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;
