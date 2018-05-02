@@ -1,12 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*!
- *  @file	linux_mon.c
- *  @brief	File Operations OS wrapper functionality
- *  @author	mdaftedar
- *  @sa		wilc_wfi_netdevice.h
- *  @date	01 MAR 2012
- *  @version	1.0
- */
 #include "wilc_wfi_cfgoperations.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
@@ -28,15 +20,6 @@ static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 static u8 srcadd[6];
 static u8 bssid[6];
 static u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-/**
- *  @brief      WILC_WFI_monitor_rx
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
 
 #define IEEE80211_RADIOTAP_F_TX_RTS	0x0004  /* used rts/cts handshake */
 #define IEEE80211_RADIOTAP_F_TX_FAIL	0x0001  /* failed due to excessive*/
@@ -162,15 +145,6 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	return 0;
 }
 
-/**
- *  @brief      WILC_WFI_mon_xmit
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
 static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
@@ -248,15 +222,6 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
 
 };
 
-/**
- *  @brief      WILC_WFI_init_mon_interface
- *  @details
- *  @param[in]
- *  @return     Pointer to net_device
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
 struct net_device *WILC_WFI_init_mon_interface(const char *name,
 					       struct net_device *real_dev)
 {
@@ -287,15 +252,6 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name,
 	return wilc_wfi_mon;
 }
 
-/**
- *  @brief      WILC_WFI_deinit_mon_interface
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
 int WILC_WFI_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;

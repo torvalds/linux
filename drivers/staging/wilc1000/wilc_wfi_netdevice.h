@@ -1,11 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*!
- *  @file	wilc_wfi_netdevice.h
- *  @brief	Definitions for the network module
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
 #ifndef WILC_WFI_NETDEVICE
 #define WILC_WFI_NETDEVICE
 

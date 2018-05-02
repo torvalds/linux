@@ -1,12 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*!
- *  @file	wilc_wfi_cfgoperations.h
- *  @brief	Definitions for the network module
- *  @author	syounan
- *  @sa		wilc_oswrapper.h top level OS wrapper file
- *  @date	31 Aug 2010
- *  @version	1.0
- */
 #ifndef NM_WFI_CFGOPERATIONS
 #define NM_WFI_CFGOPERATIONS
 #include "wilc_wfi_netdevice.h"

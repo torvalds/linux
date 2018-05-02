@@ -1,14 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
-/*!
- *  @file	coreconfigurator.h
- *  @brief
- *  @author
- *  @sa		coreconfigurator.c
- *  @date	1 Mar 2012
- *  @version	1.0
- */
-
 #ifndef CORECONFIGURATOR_H
 #define CORECONFIGURATOR_H
 
