@@ -20,7 +20,8 @@
 	};
 
 	chosen {
-		stdout-path = "uart0:115200n8";
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait";
+		stdout-path = "uart0:19200n8";
 	};
 
 	gpio_keys {
