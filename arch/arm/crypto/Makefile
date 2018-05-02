@@ -26,7 +26,7 @@ endif
 endif
 
 aes-arm-y	:= aes-armv4.o aes_glue.o
-aes-arm-bs-y	:= aesbs-core.o aesbs-glue.o
+aes-arm-bs-y	:= aes-neonbs-core.o aesbs-core.o aesbs-glue.o
 sha1-arm-y	:= sha1-armv4-large.o sha1_glue.o
 sha1-arm-neon-y	:= sha1-armv7-neon.o sha1_neon_glue.o
 sha256-arm-neon-$(CONFIG_KERNEL_MODE_NEON) := sha256_neon_glue.o
