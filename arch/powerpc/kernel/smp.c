@@ -430,9 +430,9 @@ out:
 	return ret;
 }
 
-static void do_smp_send_nmi_ipi(int cpu)
+static void do_smp_send_nmi_ipi(int cpu, bool safe)
 {
-	if (smp_ops->cause_nmi_ipi && smp_ops->cause_nmi_ipi(cpu))
+	if (!safe && smp_ops->cause_nmi_ipi && smp_ops->cause_nmi_ipi(cpu))
 		return;
 
 	if (cpu >= 0) {
@@ -472,7 +472,7 @@ void smp_flush_nmi_ipi(u64 delay_us)
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   enter the handler, == 0 specifies indefinite delay.
  */
-int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool safe)
 {
 	unsigned long flags;
 	int me = raw_smp_processor_id();
@@ -505,7 +505,7 @@ int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 	nmi_ipi_busy_count++;
 	nmi_ipi_unlock();
 
-	do_smp_send_nmi_ipi(cpu);
+	do_smp_send_nmi_ipi(cpu, safe);
 
 	while (!cpumask_empty(&nmi_ipi_pending_mask)) {
 		udelay(1);
@@ -526,6 +526,16 @@ int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 	nmi_ipi_unlock_end(&flags);
 
 	return ret;
+}
+
+int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+{
+	return __smp_send_nmi_ipi(cpu, fn, delay_us, false);
+}
+
+int smp_send_safe_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+{
+	return __smp_send_nmi_ipi(cpu, fn, delay_us, true);
 }
 #endif /* CONFIG_NMI_IPI */
 
@@ -570,7 +580,7 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 			 * entire NMI dance and waiting for
 			 * cpus to clear pending mask, etc.
 			 */
-			do_smp_send_nmi_ipi(cpu);
+			do_smp_send_nmi_ipi(cpu, false);
 		}
 	}
 }
