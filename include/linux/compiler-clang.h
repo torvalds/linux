@@ -57,3 +57,9 @@
 
 #define __nocfi		__attribute__((no_sanitize("cfi")))
 #endif
+
+#if __has_feature(shadow_call_stack)
+# define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))
+#else
+# define __noscs
+#endif

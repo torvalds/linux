@@ -144,6 +144,10 @@ struct ftrace_likely_data {
 #define __visible
 #endif
 
+#ifndef __noscs
+# define __noscs
+#endif
+
 /*
  * Assume alignment of return value.
  */
