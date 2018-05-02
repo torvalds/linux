@@ -1327,7 +1327,7 @@ enum {
 
 static struct lu_context_key *lu_keys[LU_CONTEXT_KEY_NR] = { NULL, };
 
-static DEFINE_SPINLOCK(lu_keys_guard);
+static DEFINE_RWLOCK(lu_keys_guard);
 static atomic_t lu_key_initing_cnt = ATOMIC_INIT(0);
 
 /**
@@ -1351,7 +1351,7 @@ int lu_context_key_register(struct lu_context_key *key)
 	LASSERT(key->lct_tags != 0);
 
 	result = -ENFILE;
-	spin_lock(&lu_keys_guard);
+	write_lock(&lu_keys_guard);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
 		if (!lu_keys[i]) {
 			key->lct_index = i;
@@ -1363,7 +1363,7 @@ int lu_context_key_register(struct lu_context_key *key)
 			break;
 		}
 	}
-	spin_unlock(&lu_keys_guard);
+	write_unlock(&lu_keys_guard);
 	return result;
 }
 EXPORT_SYMBOL(lu_context_key_register);
@@ -1397,7 +1397,7 @@ void lu_context_key_degister(struct lu_context_key *key)
 	lu_context_key_quiesce(key);
 
 	++key_set_version;
-	spin_lock(&lu_keys_guard);
+	write_lock(&lu_keys_guard);
 	key_fini(&lu_shrink_env.le_ctx, key->lct_index);
 
 	/**
@@ -1405,18 +1405,18 @@ void lu_context_key_degister(struct lu_context_key *key)
 	 * run lu_context_key::lct_fini() method.
 	 */
 	while (atomic_read(&key->lct_used) > 1) {
-		spin_unlock(&lu_keys_guard);
+		write_unlock(&lu_keys_guard);
 		CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
 		       __func__, module_name(key->lct_owner),
 		       key, atomic_read(&key->lct_used));
 		schedule();
-		spin_lock(&lu_keys_guard);
+		write_lock(&lu_keys_guard);
 	}
 	if (lu_keys[key->lct_index]) {
 		lu_keys[key->lct_index] = NULL;
 		lu_ref_fini(&key->lct_reference);
 	}
-	spin_unlock(&lu_keys_guard);
+	write_unlock(&lu_keys_guard);
 
 	LASSERTF(atomic_read(&key->lct_used) == 1,
 		 "key has instances: %d\n",
@@ -1536,7 +1536,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		/*
 		 * XXX memory barrier has to go here.
 		 */
-		spin_lock(&lu_keys_guard);
+		write_lock(&lu_keys_guard);
 		key->lct_tags |= LCT_QUIESCENT;
 
 		/**
@@ -1544,19 +1544,19 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		 * have completed.
 		 */
 		while (atomic_read(&lu_key_initing_cnt) > 0) {
-			spin_unlock(&lu_keys_guard);
+			write_unlock(&lu_keys_guard);
 			CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
 			       __func__,
 			       module_name(key->lct_owner),
 			       key, atomic_read(&key->lct_used),
 			atomic_read(&lu_key_initing_cnt));
 			schedule();
-			spin_lock(&lu_keys_guard);
+			write_lock(&lu_keys_guard);
 		}
 
 		list_for_each_entry(ctx, &lu_context_remembered, lc_remember)
 			key_fini(ctx, key->lct_index);
-		spin_unlock(&lu_keys_guard);
+		write_unlock(&lu_keys_guard);
 		++key_set_version;
 	}
 }
@@ -1594,9 +1594,9 @@ static int keys_fill(struct lu_context *ctx)
 	 * An atomic_t variable is still used, in order not to reacquire the
 	 * lock when decrementing the counter.
 	 */
-	spin_lock(&lu_keys_guard);
+	read_lock(&lu_keys_guard);
 	atomic_inc(&lu_key_initing_cnt);
-	spin_unlock(&lu_keys_guard);
+	read_unlock(&lu_keys_guard);
 
 	LINVRNT(ctx->lc_value);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
@@ -1665,9 +1665,9 @@ int lu_context_init(struct lu_context *ctx, __u32 tags)
 	ctx->lc_state = LCS_INITIALIZED;
 	ctx->lc_tags = tags;
 	if (tags & LCT_REMEMBER) {
-		spin_lock(&lu_keys_guard);
+		write_lock(&lu_keys_guard);
 		list_add(&ctx->lc_remember, &lu_context_remembered);
-		spin_unlock(&lu_keys_guard);
+		write_unlock(&lu_keys_guard);
 	} else {
 		INIT_LIST_HEAD(&ctx->lc_remember);
 	}
@@ -1693,10 +1693,10 @@ void lu_context_fini(struct lu_context *ctx)
 		keys_fini(ctx);
 
 	} else { /* could race with key degister */
-		spin_lock(&lu_keys_guard);
+		write_lock(&lu_keys_guard);
 		keys_fini(ctx);
 		list_del_init(&ctx->lc_remember);
-		spin_unlock(&lu_keys_guard);
+		write_unlock(&lu_keys_guard);
 	}
 }
 EXPORT_SYMBOL(lu_context_fini);
@@ -1724,7 +1724,7 @@ void lu_context_exit(struct lu_context *ctx)
 		for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
 			/* could race with key quiescency */
 			if (ctx->lc_tags & LCT_REMEMBER)
-				spin_lock(&lu_keys_guard);
+				read_lock(&lu_keys_guard);
 			if (ctx->lc_value[i]) {
 				struct lu_context_key *key;
 
@@ -1734,7 +1734,7 @@ void lu_context_exit(struct lu_context *ctx)
 						      key, ctx->lc_value[i]);
 			}
 			if (ctx->lc_tags & LCT_REMEMBER)
-				spin_unlock(&lu_keys_guard);
+				read_unlock(&lu_keys_guard);
 		}
 	}
 }
