@@ -519,7 +519,8 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	app->priv = app_priv;
 	app_priv->app = app;
-	skb_queue_head_init(&app_priv->cmsg_skbs);
+	skb_queue_head_init(&app_priv->cmsg_skbs_high);
+	skb_queue_head_init(&app_priv->cmsg_skbs_low);
 	INIT_WORK(&app_priv->cmsg_work, nfp_flower_cmsg_process_rx);
 	init_waitqueue_head(&app_priv->reify_wait_queue);
 
@@ -549,7 +550,8 @@ static void nfp_flower_clean(struct nfp_app *app)
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 
-	skb_queue_purge(&app_priv->cmsg_skbs);
+	skb_queue_purge(&app_priv->cmsg_skbs_high);
+	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
 
 	nfp_flower_metadata_cleanup(app);

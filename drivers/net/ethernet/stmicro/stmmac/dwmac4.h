@@ -347,7 +347,7 @@ enum power_event {
 #define MTL_RX_OVERFLOW_INT		BIT(16)
 
 /* Default operating mode of the MAC */
-#define GMAC_CORE_INIT (GMAC_CONFIG_JD | GMAC_CONFIG_PS | GMAC_CONFIG_ACS | \
+#define GMAC_CORE_INIT (GMAC_CONFIG_JD | GMAC_CONFIG_PS | \
 			GMAC_CONFIG_BE | GMAC_CONFIG_DCRS)
 
 /* To dump the core regs excluding  the Address Registers */

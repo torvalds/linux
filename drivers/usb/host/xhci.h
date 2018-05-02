@@ -1729,8 +1729,9 @@ struct xhci_hcd {
 	int		page_shift;
 	/* msi-x vectors */
 	int		msix_count;
-	/* optional clock */
+	/* optional clocks */
 	struct clk		*clk;
+	struct clk		*reg_clk;
 	/* data structures */
 	struct xhci_device_context_array *dcbaa;
 	struct xhci_ring	*cmd_ring;

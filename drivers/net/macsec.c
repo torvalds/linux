@@ -3277,7 +3277,7 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	err = netdev_upper_dev_link(real_dev, dev, extack);
 	if (err < 0)
-		goto put_dev;
+		goto unregister;
 
 	/* need to be already registered so that ->init has run and
 	 * the MAC addr is set
@@ -3316,8 +3316,7 @@ del_dev:
 	macsec_del_dev(macsec);
 unlink:
 	netdev_upper_dev_unlink(real_dev, dev);
-put_dev:
-	dev_put(real_dev);
+unregister:
 	unregister_netdevice(dev);
 	return err;
 }

@@ -350,15 +350,16 @@ static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	real_dev = priv->real_dev;
 
-	if (!rmnet_is_real_dev_registered(real_dev))
-		return -ENODEV;
-
 	if (nla_put_u16(skb, IFLA_RMNET_MUX_ID, priv->mux_id))
 		goto nla_put_failure;
 
-	port = rmnet_get_port_rtnl(real_dev);
+	if (rmnet_is_real_dev_registered(real_dev)) {
+		port = rmnet_get_port_rtnl(real_dev);
+		f.flags = port->data_format;
+	} else {
+		f.flags = 0;
+	}
 
-	f.flags = port->data_format;
 	f.mask  = ~0;
 
 	if (nla_put(skb, IFLA_RMNET_FLAGS, sizeof(f), &f))

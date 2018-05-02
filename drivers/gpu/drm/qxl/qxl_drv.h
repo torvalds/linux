@@ -167,6 +167,7 @@ struct qxl_release {
 
 	int id;
 	int type;
+	struct qxl_bo *release_bo;
 	uint32_t release_offset;
 	uint32_t surface_release_id;
 	struct ww_acquire_ctx ticket;

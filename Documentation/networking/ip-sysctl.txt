@@ -1390,26 +1390,26 @@ mld_qrv - INTEGER
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
 
-max_dst_opts_cnt - INTEGER
+max_dst_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Destination
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max_hbh_opts_cnt - INTEGER
+max_hbh_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max dst_opts_len - INTEGER
+max_dst_opts_length - INTEGER
 	Maximum length allowed for a Destination options extension
 	header.
 	Default: INT_MAX (unlimited)
 
-max hbh_opts_len - INTEGER
+max_hbh_length - INTEGER
 	Maximum length allowed for a Hop-by-Hop options extension
 	header.
 	Default: INT_MAX (unlimited)
@@ -2126,18 +2126,3 @@ max_dgram_qlen - INTEGER
 
 	Default: 10
 
-
-UNDOCUMENTED:
-
-/proc/sys/net/irda/*
-	fast_poll_increase FIXME
-	warn_noreply_time FIXME
-	discovery_slots FIXME
-	slot_timeout FIXME
-	max_baud_rate FIXME
-	discovery_timeout FIXME
-	lap_keepalive_time FIXME
-	max_noreply_time FIXME
-	max_tx_data_size FIXME
-	max_tx_window FIXME
-	min_tx_turn_time FIXME

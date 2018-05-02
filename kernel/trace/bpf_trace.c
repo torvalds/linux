@@ -977,6 +977,7 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 {
 	struct perf_event_query_bpf __user *uquery = info;
 	struct perf_event_query_bpf query = {};
+	u32 *ids, prog_cnt, ids_len;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -985,16 +986,32 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 		return -EINVAL;
 	if (copy_from_user(&query, uquery, sizeof(query)))
 		return -EFAULT;
-	if (query.ids_len > BPF_TRACE_MAX_PROGS)
+
+	ids_len = query.ids_len;
+	if (ids_len > BPF_TRACE_MAX_PROGS)
 		return -E2BIG;
+	ids = kcalloc(ids_len, sizeof(u32), GFP_USER | __GFP_NOWARN);
+	if (!ids)
+		return -ENOMEM;
+	/*
+	 * The above kcalloc returns ZERO_SIZE_PTR when ids_len = 0, which
+	 * is required when user only wants to check for uquery->prog_cnt.
+	 * There is no need to check for it since the case is handled
+	 * gracefully in bpf_prog_array_copy_info.
+	 */
 
 	mutex_lock(&bpf_event_mutex);
 	ret = bpf_prog_array_copy_info(event->tp_event->prog_array,
-				       uquery->ids,
-				       query.ids_len,
-				       &uquery->prog_cnt);
+				       ids,
+				       ids_len,
+				       &prog_cnt);
 	mutex_unlock(&bpf_event_mutex);
 
+	if (copy_to_user(&uquery->prog_cnt, &prog_cnt, sizeof(prog_cnt)) ||
+	    copy_to_user(uquery->ids, ids, ids_len * sizeof(u32)))
+		ret = -EFAULT;
+
+	kfree(ids);
 	return ret;
 }
 

@@ -9,6 +9,9 @@
 struct blk_mq_tags;
 struct blk_flush_queue;
 
+/**
+ * struct blk_mq_hw_ctx - State for a hardware queue facing the hardware block device
+ */
 struct blk_mq_hw_ctx {
 	struct {
 		spinlock_t		lock;

@@ -564,8 +564,9 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/af9033*
 
 AFFS FILE SYSTEM
+M:	David Sterba <dsterba@suse.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
@@ -905,6 +906,8 @@ ANDROID ION DRIVER
 M:	Laura Abbott <labbott@redhat.com>
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 L:	devel@driverdev.osuosl.org
+L:	dri-devel@lists.freedesktop.org
+L:	linaro-mm-sig@lists.linaro.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/staging/android/ion
 F:	drivers/staging/android/uapi/ion.h
@@ -1208,7 +1211,6 @@ F:	drivers/*/*alpine*
 ARM/ARTPEC MACHINE SUPPORT
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
 M:	Lars Persson <lars.persson@axis.com>
-M:	Niklas Cassel <niklas.cassel@axis.com>
 S:	Maintained
 L:	linux-arm-kernel@axis.com
 F:	arch/arm/mach-artpec
@@ -1373,7 +1375,8 @@ F:	arch/arm/mach-ebsa110/
 F:	drivers/net/ethernet/amd/am79c961a.*
 
 ARM/ENERGY MICRO (SILICON LABS) EFM32 SUPPORT
-M:	Uwe Kleine-König <kernel@pengutronix.de>
+M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	efm32
@@ -1401,7 +1404,8 @@ F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Fabio Estevam <fabio.estevam@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -1416,7 +1420,8 @@ F:	include/soc/imx/
 
 ARM/FREESCALE VYBRID ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Stefan Agner <stefan@agner.ch>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2614,7 +2619,7 @@ S:	Maintained
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Michael Lyle <mlyle@lyle.org>
+M:	Coly Li <colyli@suse.de>
 M:	Kent Overstreet <kent.overstreet@gmail.com>
 L:	linux-bcache@vger.kernel.org
 W:	http://bcache.evilpiepirate.org
@@ -4245,6 +4250,9 @@ F:	include/trace/events/fs_dax.h
 
 DEVICE DIRECT ACCESS (DAX)
 M:	Dan Williams <dan.j.williams@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
 L:	linux-nvdimm@lists.01.org
 S:	Supported
 F:	drivers/dax/
@@ -5652,7 +5660,8 @@ F:	drivers/net/ethernet/freescale/fec.h
 F:	Documentation/devicetree/bindings/net/fsl-fec.txt
 
 FREESCALE IMX / MXC FRAMEBUFFER DRIVER
-M:	Sascha Hauer <kernel@pengutronix.de>
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -5783,6 +5792,14 @@ S:	Supported
 F:	fs/crypto/
 F:	include/linux/fscrypt*.h
 F:	Documentation/filesystems/fscrypt.rst
+
+FSNOTIFY: FILESYSTEM NOTIFICATION INFRASTRUCTURE
+M:	Jan Kara <jack@suse.cz>
+R:	Amir Goldstein <amir73il@gmail.com>
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	fs/notify/
+F:	include/linux/fsnotify*.h
 
 FUJITSU LAPTOP EXTRAS
 M:	Jonathan Woithe <jwoithe@just42.net>
@@ -6256,7 +6273,7 @@ S:	Odd Fixes
 F:	drivers/media/usb/hdpvr/
 
 HEWLETT PACKARD ENTERPRISE ILO NMI WATCHDOG DRIVER
-M:	Jimmy Vance <jimmy.vance@hpe.com>
+M:	Jerry Hoemann <jerry.hoemann@hpe.com>
 S:	Supported
 F:	Documentation/watchdog/hpwdt.txt
 F:	drivers/watchdog/hpwdt.c
@@ -7396,16 +7413,6 @@ S:	Obsolete
 F:	include/uapi/linux/ipx.h
 F:	drivers/staging/ipx/
 
-IRDA SUBSYSTEM
-M:	Samuel Ortiz <samuel@sortiz.org>
-L:	irda-users@lists.sourceforge.net (subscribers-only)
-L:	netdev@vger.kernel.org
-W:	http://irda.sourceforge.net/
-S:	Obsolete
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/irda-2.6.git
-F:	Documentation/networking/irda.txt
-F:	drivers/staging/irda/
-
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Marc Zyngier <marc.zyngier@arm.com>
 S:	Maintained
@@ -7738,7 +7745,7 @@ F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE FOR ARM (KVM/arm)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -7752,7 +7759,7 @@ F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -8048,6 +8055,9 @@ F:	tools/lib/lockdep/
 
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8056,6 +8066,9 @@ F:	drivers/nvdimm/region_devs.c
 
 LIBNVDIMM BTT: BLOCK TRANSLATION TABLE
 M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8063,6 +8076,9 @@ F:	drivers/nvdimm/btt*
 
 LIBNVDIMM PMEM: PERSISTENT MEMORY DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8078,6 +8094,9 @@ F:	Documentation/devicetree/bindings/pmem/pmem-region.txt
 
 LIBNVDIMM: NON-VOLATILE MEMORY DEVICE SUBSYSTEM
 M:	Dan Williams <dan.j.williams@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git
@@ -9765,6 +9784,7 @@ F:	include/uapi/linux/net_namespace.h
 F:	tools/testing/selftests/net/
 F:	lib/net_utils.c
 F:	lib/random32.c
+F:	Documentation/networking/
 
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>
@@ -10881,7 +10901,6 @@ F:	drivers/pci/host/
 F:	drivers/pci/dwc/
 
 PCIE DRIVER FOR AXIS ARTPEC
-M:	Niklas Cassel <niklas.cassel@axis.com>
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
 L:	linux-arm-kernel@axis.com
 L:	linux-pci@vger.kernel.org
@@ -12816,7 +12835,8 @@ F:	include/linux/siphash.h
 
 SIOX
 M:	Gavin Schenk <g.schenk@eckelmann.de>
-M:	Uwe Kleine-König <kernel@pengutronix.de>
+M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 S:	Supported
 F:	drivers/siox/*
 F:	include/trace/events/siox.h
@@ -13936,7 +13956,7 @@ THUNDERBOLT DRIVER
 M:	Andreas Noever <andreas.noever@gmail.com>
 M:	Michael Jamet <michael.jamet@intel.com>
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
-M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
+M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/westeri/thunderbolt.git
 S:	Maintained
 F:	Documentation/admin-guide/thunderbolt.rst
@@ -13946,7 +13966,7 @@ F:	include/linux/thunderbolt.h
 THUNDERBOLT NETWORK DRIVER
 M:	Michael Jamet <michael.jamet@intel.com>
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
-M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
+M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/thunderbolt.c

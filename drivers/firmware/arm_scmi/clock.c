@@ -284,7 +284,7 @@ scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
 	struct clock_info *ci = handle->clk_priv;
 	struct scmi_clock_info *clk = ci->clk + clk_id;
 
-	if (!clk->name || !clk->name[0])
+	if (!clk->name[0])
 		return NULL;
 
 	return clk;
