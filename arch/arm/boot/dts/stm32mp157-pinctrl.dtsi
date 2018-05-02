@@ -146,6 +146,33 @@
 				gpio-ranges = <&pinctrl 0 160 8>;
 			};
 
+			pwm2_pins_a: pwm2-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 3, AF1)>; /* TIM2_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm8_pins_a: pwm8-0 {
+				pins {
+					pinmux = <STM32_PINMUX('I', 2, AF3)>; /* TIM8_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm12_pins_a: pwm12-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 6, AF2)>; /* TIM12_CH1 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
 			uart4_pins_a: uart4@0 {
 				pins1 {
 					pinmux = <STM32_PINMUX('G', 11, AF6)>; /* UART4_TX */
