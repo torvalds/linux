@@ -4838,12 +4838,6 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 	if (r8168_check_dash(tp))
 		return;
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_23 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_24) &&
-	    (tp->cp_cmd & ASF)) {
-		return;
-	}
-
 	if (tp->mac_version == RTL_GIGA_MAC_VER_32 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_33)
 		rtl_ephy_write(tp, 0x19, 0xff64);
