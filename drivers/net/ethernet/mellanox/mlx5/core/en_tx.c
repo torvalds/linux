@@ -331,7 +331,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 
 	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
+	while ((pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc)) > sq->edge) {
 		sq->db.wqe_info[pi].skb = NULL;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 		sq->stats.nop++;
@@ -496,7 +496,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 			last_wqe = (sqcc == wqe_counter);
 
-			ci = sqcc & sq->wq.sz_m1;
+			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 			wi = &sq->db.wqe_info[ci];
 			skb = wi->skb;
 
@@ -559,7 +559,7 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 	int i;
 
 	while (sq->cc != sq->pc) {
-		ci = sq->cc & sq->wq.sz_m1;
+		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->cc);
 		wi = &sq->db.wqe_info[ci];
 		skb = wi->skb;
 
@@ -606,7 +606,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey)
 {
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
-	u16                       pi   = sq->pc & wq->sz_m1;
+	u16                       pi   = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	struct mlx5i_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
 	struct mlx5e_tx_wqe_info *wi   = &sq->db.wqe_info[pi];
 

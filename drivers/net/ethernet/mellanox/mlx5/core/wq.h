@@ -123,9 +123,14 @@ static inline int mlx5_wq_cyc_cc_bigger(u16 cc1, u16 cc2)
 	return !equal && !smaller;
 }
 
+static inline u32 mlx5_cqwq_ctr2ix(struct mlx5_cqwq *wq, u32 ctr)
+{
+	return ctr & wq->fbc.sz_m1;
+}
+
 static inline u32 mlx5_cqwq_get_ci(struct mlx5_cqwq *wq)
 {
-	return wq->cc & wq->fbc.sz_m1;
+	return mlx5_cqwq_ctr2ix(wq, wq->cc);
 }
 
 static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
@@ -133,9 +138,14 @@ static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
 	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
 }
 
+static inline u32 mlx5_cqwq_get_ctr_wrap_cnt(struct mlx5_cqwq *wq, u32 ctr)
+{
+	return ctr >> wq->fbc.log_sz;
+}
+
 static inline u32 mlx5_cqwq_get_wrap_cnt(struct mlx5_cqwq *wq)
 {
-	return wq->cc >> wq->fbc.log_sz;
+	return mlx5_cqwq_get_ctr_wrap_cnt(wq, wq->cc);
 }
 
 static inline void mlx5_cqwq_pop(struct mlx5_cqwq *wq)
@@ -172,6 +182,11 @@ static inline int mlx5_wq_ll_is_full(struct mlx5_wq_ll *wq)
 static inline int mlx5_wq_ll_is_empty(struct mlx5_wq_ll *wq)
 {
 	return !wq->cur_sz;
+}
+
+static inline u16 mlx5_wq_ll_ctr2ix(struct mlx5_wq_ll *wq, u16 ctr)
+{
+	return ctr & wq->sz_m1;
 }
 
 static inline void *mlx5_wq_ll_get_wqe(struct mlx5_wq_ll *wq, u16 ix)
