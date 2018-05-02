@@ -2009,7 +2009,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 		}
 	}
 
-	repl = sctp_make_cookie_ack(new_asoc, chunk);
+	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
 		goto nomem;
 
