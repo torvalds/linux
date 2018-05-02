@@ -110,11 +110,7 @@ config GENERIC_TRACER
 #
 config TRACING_SUPPORT
 	bool
-	# PPC32 has no irqflags tracing support, but it can use most of the
-	# tracers anyway, they were tested to build and work. Note that new
-	# exceptions to this list aren't welcomed, better implement the
-	# irqflags tracing for your architecture.
-	depends on TRACE_IRQFLAGS_SUPPORT || PPC32
+	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on STACKTRACE_SUPPORT
 	default y
 
