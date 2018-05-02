@@ -508,8 +508,10 @@ mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 	u8 gain_delta;
 	int low_gain;
 
-	dev->cal.avg_rssi[0] = (dev->cal.avg_rssi[0] * 15) / 16 + (rssi0 << 8);
-	dev->cal.avg_rssi[1] = (dev->cal.avg_rssi[1] * 15) / 16 + (rssi1 << 8);
+	dev->cal.avg_rssi[0] = (dev->cal.avg_rssi[0] * 15) / 16 +
+			       (rssi0 << 8) / 16;
+	dev->cal.avg_rssi[1] = (dev->cal.avg_rssi[1] * 15) / 16 +
+			       (rssi1 << 8) / 16;
 	dev->cal.avg_rssi_all = (dev->cal.avg_rssi[0] +
 				 dev->cal.avg_rssi[1]) / 512;
 
