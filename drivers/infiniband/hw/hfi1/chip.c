@@ -1032,8 +1032,8 @@ static void read_vc_remote_fabric(struct hfi1_devdata *dd, u8 *vau, u8 *z,
 				  u8 *vcu, u16 *vl15buf, u8 *crc_sizes);
 static void read_vc_remote_link_width(struct hfi1_devdata *dd,
 				      u8 *remote_tx_rate, u16 *link_widths);
-static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
-				     u8 *flag_bits, u16 *link_widths);
+static void read_vc_local_link_mode(struct hfi1_devdata *dd, u8 *misc_bits,
+				    u8 *flag_bits, u16 *link_widths);
 static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 				  u8 *device_rev);
 static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx);
@@ -6351,6 +6351,18 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 			    type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
 		break;
+	case HREQ_LCB_RESET:
+		/* Put the LCB, RX FPE and TX FPE into reset */
+		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_INTO_RESET);
+		/* Make sure the write completed */
+		(void)read_csr(dd, DCC_CFG_RESET);
+		/* Hold the reset long enough to take effect */
+		udelay(1);
+		/* Take the LCB, RX FPE and TX FPE out of reset */
+		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
+		hreq_response(dd, HREQ_SUCCESS, 0);
+
+		break;
 	case HREQ_CONFIG_DONE:
 		hreq_response(dd, HREQ_SUCCESS, 0);
 		break;
@@ -6461,8 +6473,7 @@ static void lcb_shutdown(struct hfi1_devdata *dd, int abort)
 	dd->lcb_err_en = read_csr(dd, DC_LCB_ERR_EN);
 	reg = read_csr(dd, DCC_CFG_RESET);
 	write_csr(dd, DCC_CFG_RESET, reg |
-		  (1ull << DCC_CFG_RESET_RESET_LCB_SHIFT) |
-		  (1ull << DCC_CFG_RESET_RESET_RX_FPE_SHIFT));
+		  DCC_CFG_RESET_RESET_LCB | DCC_CFG_RESET_RESET_RX_FPE);
 	(void)read_csr(dd, DCC_CFG_RESET); /* make sure the write completed */
 	if (!abort) {
 		udelay(1);    /* must hold for the longer of 16cclks or 20ns */
@@ -6527,7 +6538,7 @@ static void _dc_start(struct hfi1_devdata *dd)
 			   __func__);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
-	write_csr(dd, DCC_CFG_RESET, 0x10);
+	write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
 	/* lcb_shutdown() with abort=1 does not restore these */
 	write_csr(dd, DC_LCB_ERR_EN, dd->lcb_err_en);
 	dd->dc_shutdown = 0;
@@ -7348,7 +7359,7 @@ static void get_linkup_widths(struct hfi1_devdata *dd, u16 *tx_width,
 	u8 misc_bits, local_flags;
 	u16 active_tx, active_rx;
 
-	read_vc_local_link_width(dd, &misc_bits, &local_flags, &widths);
+	read_vc_local_link_mode(dd, &misc_bits, &local_flags, &widths);
 	tx = widths >> 12;
 	rx = (widths >> 8) & 0xf;
 
@@ -8820,29 +8831,29 @@ static int write_vc_local_fabric(struct hfi1_devdata *dd, u8 vau, u8 z, u8 vcu,
 				GENERAL_CONFIG, frame);
 }
 
-static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
-				     u8 *flag_bits, u16 *link_widths)
+static void read_vc_local_link_mode(struct hfi1_devdata *dd, u8 *misc_bits,
+				    u8 *flag_bits, u16 *link_widths)
 {
 	u32 frame;
 
-	read_8051_config(dd, VERIFY_CAP_LOCAL_LINK_WIDTH, GENERAL_CONFIG,
+	read_8051_config(dd, VERIFY_CAP_LOCAL_LINK_MODE, GENERAL_CONFIG,
 			 &frame);
 	*misc_bits = (frame >> MISC_CONFIG_BITS_SHIFT) & MISC_CONFIG_BITS_MASK;
 	*flag_bits = (frame >> LOCAL_FLAG_BITS_SHIFT) & LOCAL_FLAG_BITS_MASK;
 	*link_widths = (frame >> LINK_WIDTH_SHIFT) & LINK_WIDTH_MASK;
 }
 
-static int write_vc_local_link_width(struct hfi1_devdata *dd,
-				     u8 misc_bits,
-				     u8 flag_bits,
-				     u16 link_widths)
+static int write_vc_local_link_mode(struct hfi1_devdata *dd,
+				    u8 misc_bits,
+				    u8 flag_bits,
+				    u16 link_widths)
 {
 	u32 frame;
 
 	frame = (u32)misc_bits << MISC_CONFIG_BITS_SHIFT
 		| (u32)flag_bits << LOCAL_FLAG_BITS_SHIFT
 		| (u32)link_widths << LINK_WIDTH_SHIFT;
-	return load_8051_config(dd, VERIFY_CAP_LOCAL_LINK_WIDTH, GENERAL_CONFIG,
+	return load_8051_config(dd, VERIFY_CAP_LOCAL_LINK_MODE, GENERAL_CONFIG,
 		     frame);
 }
 
@@ -9312,8 +9323,16 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (loopback == LOOPBACK_SERDES)
 		misc_bits |= 1 << LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT;
 
-	ret = write_vc_local_link_width(dd, misc_bits, 0,
-					opa_to_vc_link_widths(
+	/*
+	 * An external device configuration request is used to reset the LCB
+	 * to retry to obtain operational lanes when the first attempt is
+	 * unsuccesful.
+	 */
+	if (dd->dc8051_ver >= dc8051_ver(1, 25, 0))
+		misc_bits |= 1 << EXT_CFG_LCB_RESET_SUPPORTED_SHIFT;
+
+	ret = write_vc_local_link_mode(dd, misc_bits, 0,
+				       opa_to_vc_link_widths(
 						ppd->link_width_enabled));
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
