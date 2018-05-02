@@ -145,7 +145,7 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	return 0;
 }
 
-static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
+static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	u32 rtap_len, ret = 0;
@@ -218,7 +218,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 }
 
 static const struct net_device_ops wilc_wfi_netdev_ops = {
-	.ndo_start_xmit         = WILC_WFI_mon_xmit,
+	.ndo_start_xmit         = wilc_wfi_mon_xmit,
 
 };
 
