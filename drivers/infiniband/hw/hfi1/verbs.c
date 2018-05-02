@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -63,6 +63,7 @@
 #include "verbs_txreq.h"
 #include "debugfs.h"
 #include "vnic.h"
+#include "fault.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -624,10 +625,6 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 		if (hfi1_do_pkey_check(packet))
 			goto unlock_drop;
 
-		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, packet->opcode,
-						   true)))
-			goto unlock_drop;
-
 		spin_lock_irqsave(&packet->qp->r_lock, flags);
 		packet_handler = qp_ok(packet);
 		if (likely(packet_handler))
@@ -934,8 +931,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			else
 				pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 
-			if (unlikely(hfi1_dbg_fault_opcode(qp, ps->opcode,
-							   false)))
+			if (unlikely(hfi1_dbg_should_fault_tx(qp, ps->opcode)))
 				pbc = hfi1_fault_tx(qp, ps->opcode, pbc);
 			pbc = create_pbc(ppd,
 					 pbc,
@@ -1088,7 +1084,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			pbc |= PBC_PACKET_BYPASS | PBC_INSERT_BYPASS_ICRC;
 		else
 			pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
-		if (unlikely(hfi1_dbg_fault_opcode(qp, ps->opcode, false)))
+
+		if (unlikely(hfi1_dbg_should_fault_tx(qp, ps->opcode)))
 			pbc = hfi1_fault_tx(qp, ps->opcode, pbc);
 		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);
 	}
