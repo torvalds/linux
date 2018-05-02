@@ -925,7 +925,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct ieee80211_radiotap_he *he = NULL;
 	struct ieee80211_radiotap_he_mu *he_mu = NULL;
 	u32 he_type = 0xffffffff;
-	u8 stbc;
+	u8 stbc, ltf;
 
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
@@ -1151,20 +1151,32 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		RATE_MCS_HE_GI_LTF_POS) {
 	case 0:
 		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+		if (he_type == RATE_MCS_HE_TYPE_MU)
+			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
+		else
+			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_1X;
 		break;
 	case 1:
 		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 		break;
 	case 2:
 		rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
+		if (he_type == RATE_MCS_HE_TYPE_TRIG)
+			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
+		else
+			ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_2X;
 		break;
 	case 3:
 		if (rate_n_flags & RATE_MCS_SGI_MSK)
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
 		else
 			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
+		ltf = IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE_4X;
 		break;
 	}
+
+	he->data5 |= le16_encode_bits(ltf, IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE);
 
 	switch (he_type) {
 	case RATE_MCS_HE_TYPE_SU: {
