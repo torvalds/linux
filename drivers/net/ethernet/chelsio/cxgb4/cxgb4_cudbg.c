@@ -488,3 +488,28 @@ void cxgb4_init_ethtool_dump(struct adapter *adapter)
 	adapter->eth_dump.version = adapter->params.fw_vers;
 	adapter->eth_dump.len = 0;
 }
+
+static int cxgb4_cudbg_vmcoredd_collect(struct vmcoredd_data *data, void *buf)
+{
+	struct adapter *adap = container_of(data, struct adapter, vmcoredd);
+	u32 len = data->size;
+
+	return cxgb4_cudbg_collect(adap, buf, &len, CXGB4_ETH_DUMP_ALL);
+}
+
+int cxgb4_cudbg_vmcore_add_dump(struct adapter *adap)
+{
+	struct vmcoredd_data *data = &adap->vmcoredd;
+	u32 len;
+
+	len = sizeof(struct cudbg_hdr) +
+	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
+	len += CUDBG_DUMP_BUFF_SIZE;
+
+	data->size = len;
+	snprintf(data->dump_name, sizeof(data->dump_name), "%s_%s",
+		 cxgb4_driver_name, adap->name);
+	data->vmcoredd_callback = cxgb4_cudbg_vmcoredd_collect;
+
+	return vmcore_add_device_dump(data);
+}
