@@ -5581,6 +5581,11 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_map_plls_to_ports(crtc, pipe_config, old_state);
 
+	intel_encoders_pre_enable(crtc, pipe_config, old_state);
+
+	if (!transcoder_is_dsi(cpu_transcoder))
+		intel_ddi_enable_pipe_clock(pipe_config);
+
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
@@ -5608,11 +5613,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_color_set_csc(&pipe_config->base);
 
 	intel_crtc->active = true;
-
-	intel_encoders_pre_enable(crtc, pipe_config, old_state);
-
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_pipe_clock(pipe_config);
 
 	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
 	psl_clkgate_wa = (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
