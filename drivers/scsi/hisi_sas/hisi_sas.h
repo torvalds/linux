@@ -410,7 +410,7 @@ struct hisi_sas_command_table_ssp {
 	union {
 		struct {
 			struct ssp_command_iu task;
-			u32 prot[6];
+			u32 prot[7];
 		};
 		struct ssp_tmf_iu ssp_task;
 		struct xfer_rdy_iu xfer_rdy;
