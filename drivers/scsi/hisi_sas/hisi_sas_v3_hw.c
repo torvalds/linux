@@ -106,6 +106,7 @@
 #define COMPL_Q_0_RD_PTR		0x4f0
 #define AWQOS_AWCACHE_CFG	0xc84
 #define ARQOS_ARCACHE_CFG	0xc88
+#define HILINK_ERR_DFX		0xe04
 
 /* phy registers requiring init */
 #define PORT_BASE			(0x2000)
@@ -167,6 +168,7 @@
 #define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
 #define CHL_INT2_SL_IDAF_TOUT_CONF_OFF	0
+#define CHL_INT2_RX_INVLD_DW_OFF	30
 #define CHL_INT2_STP_LINK_TIMEOUT_OFF	31
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
@@ -1345,6 +1347,7 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	struct device *dev = hisi_hba->dev;
+	struct pci_dev *pci_dev = hisi_hba->pci_dev;
 	u32 irq_msk;
 	int phy_no = 0;
 
@@ -1410,8 +1413,28 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					     CHL_INT2, irq_value2);
-		}
 
+			if ((irq_value2 & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
+			    (pci_dev->revision == 0x20)) {
+				u32 reg_value;
+				int rc;
+
+				rc = hisi_sas_read32_poll_timeout_atomic(
+					HILINK_ERR_DFX, reg_value,
+					!((reg_value >> 8) & BIT(phy_no)),
+					1000, 10000);
+				if (rc) {
+					disable_phy_v3_hw(hisi_hba, phy_no);
+					hisi_sas_phy_write32(hisi_hba, phy_no,
+						CHL_INT2,
+						BIT(CHL_INT2_RX_INVLD_DW_OFF));
+					hisi_sas_phy_read32(hisi_hba, phy_no,
+						ERR_CNT_INVLD_DW);
+					mdelay(1);
+					enable_phy_v3_hw(hisi_hba, phy_no);
+				}
+			}
+		}
 
 		if (irq_msk & (2 << (phy_no * 4)) && irq_value0) {
 			hisi_sas_phy_write32(hisi_hba, phy_no,
