@@ -243,6 +243,40 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+static void dice_proc_read_formation(struct snd_info_entry *entry,
+				     struct snd_info_buffer *buffer)
+{
+	static const char *const rate_labels[] = {
+		[SND_DICE_RATE_MODE_LOW]	= "low",
+		[SND_DICE_RATE_MODE_MIDDLE]	= "middle",
+		[SND_DICE_RATE_MODE_HIGH]	= "high",
+	};
+	struct snd_dice *dice = entry->private_data;
+	int i, j;
+
+	snd_iprintf(buffer, "Output stream from unit:\n");
+	for (i = 0; i < SND_DICE_RATE_MODE_COUNT; ++i)
+		snd_iprintf(buffer, "\t%s", rate_labels[i]);
+	snd_iprintf(buffer, "\tMIDI\n");
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		snd_iprintf(buffer, "Tx %u:", i);
+		for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j)
+			snd_iprintf(buffer, "\t%u", dice->tx_pcm_chs[i][j]);
+		snd_iprintf(buffer, "\t%u\n", dice->tx_midi_ports[i]);
+	}
+
+	snd_iprintf(buffer, "Input stream to unit:\n");
+	for (i = 0; i < SND_DICE_RATE_MODE_COUNT; ++i)
+		snd_iprintf(buffer, "\t%s", rate_labels[i]);
+	snd_iprintf(buffer, "\n");
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		snd_iprintf(buffer, "Rx %u:", i);
+		for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j)
+			snd_iprintf(buffer, "\t%u", dice->rx_pcm_chs[i][j]);
+		snd_iprintf(buffer, "\t%u\n", dice->rx_midi_ports[i]);
+	}
+}
+
 static void add_node(struct snd_dice *dice, struct snd_info_entry *root,
 		     const char *name,
 		     void (*op)(struct snd_info_entry *entry,
@@ -278,4 +312,5 @@ void snd_dice_create_proc(struct snd_dice *dice)
 	}
 
 	add_node(dice, root, "dice", dice_proc_read);
+	add_node(dice, root, "formation", dice_proc_read_formation);
 }
