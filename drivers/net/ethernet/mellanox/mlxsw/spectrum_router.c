@@ -5928,6 +5928,13 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 						     router->mlxsw_sp);
 		if (!err || info->extack)
 			return notifier_from_errno(err);
+		break;
+	case FIB_EVENT_ENTRY_ADD:
+		if (router->aborted) {
+			NL_SET_ERR_MSG_MOD(info->extack, "FIB offload was aborted. Not configuring route");
+			return notifier_from_errno(-EINVAL);
+		}
+		break;
 	}
 
 	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
