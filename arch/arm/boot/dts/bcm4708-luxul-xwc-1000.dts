@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Luxul XWC-1000
  *
  * Copyright 2014 Luxul Inc.
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
