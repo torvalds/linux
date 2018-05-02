@@ -223,6 +223,7 @@ struct rk3x_i2c {
 	enum rk3x_i2c_state state;
 	unsigned int processed;
 	int error;
+	unsigned int suspended:1;
 
 	struct notifier_block i2c_restart_nb;
 };
@@ -1058,6 +1059,9 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	int ret = 0;
 	int i;
 
+	if (i2c->suspended)
+		return -EACCES;
+
 	spin_lock_irqsave(&i2c->lock, flags);
 
 	clk_enable(i2c->clk);
@@ -1152,11 +1156,34 @@ static int rk3x_i2c_restart_notify(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static __maybe_unused int rk3x_i2c_resume(struct device *dev)
+static __maybe_unused int rk3x_i2c_suspend_noirq(struct device *dev)
+{
+	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
+
+	/*
+	 * Below code is needed only to ensure that there are no
+	 * activities on I2C bus. if at this moment any driver
+	 * is trying to use I2C bus - this may cause i2c timeout.
+	 *
+	 * So forbid access to I2C device using i2c->suspended flag.
+	 */
+	i2c_lock_adapter(&i2c->adap);
+	i2c->suspended = 1;
+	i2c_unlock_adapter(&i2c->adap);
+
+	return 0;
+}
+
+static __maybe_unused int rk3x_i2c_resume_noirq(struct device *dev)
 {
 	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
 
 	rk3x_i2c_adapt_div(i2c, clk_get_rate(i2c->clk));
+
+	/* Allow access to I2C bus */
+	i2c_lock_adapter(&i2c->adap);
+	i2c->suspended = 0;
+	i2c_unlock_adapter(&i2c->adap);
 
 	return 0;
 }
@@ -1398,7 +1425,10 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rk3x_i2c_pm_ops, NULL, rk3x_i2c_resume);
+const static struct dev_pm_ops rk3x_i2c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rk3x_i2c_suspend_noirq,
+				      rk3x_i2c_resume_noirq)
+};
 
 static struct platform_driver rk3x_i2c_driver = {
 	.probe   = rk3x_i2c_probe,
