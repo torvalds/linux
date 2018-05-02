@@ -1471,7 +1471,9 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_QIPCRTR_SOCKET;
 		case PF_SMC:
 			return SECCLASS_SMC_SOCKET;
-#if PF_MAX > 44
+		case PF_XDP:
+			return SECCLASS_XDP_SOCKET;
+#if PF_MAX > 45
 #error New address family defined, please update this function.
 #endif
 		}
