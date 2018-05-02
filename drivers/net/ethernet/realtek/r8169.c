@@ -6510,18 +6510,6 @@ static int msdn_giant_send_check(struct sk_buff *skb)
 	return ret;
 }
 
-static inline __be16 get_protocol(struct sk_buff *skb)
-{
-	__be16 protocol;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		protocol = vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
-	else
-		protocol = skb->protocol;
-
-	return protocol;
-}
-
 static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
 				struct sk_buff *skb, u32 *opts)
 {
@@ -6558,7 +6546,7 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 			return false;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts[0] |= TD1_GTSENV4;
 			break;
@@ -6590,7 +6578,7 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 			return false;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts[1] |= TD1_IPv4_CS;
 			ip_protocol = ip_hdr(skb)->protocol;
