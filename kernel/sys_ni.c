@@ -365,7 +365,7 @@ COND_SYSCALL(s390_pci_mmio_write);
 COND_SYSCALL_COMPAT(s390_ipc);
 
 /* powerpc */
-cond_syscall(ppc_rtas);
+COND_SYSCALL(rtas);
 COND_SYSCALL(spu_run);
 COND_SYSCALL(spu_create);
 COND_SYSCALL(subpage_prot);
