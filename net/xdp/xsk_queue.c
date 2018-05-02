@@ -21,7 +21,13 @@ static u32 xskq_umem_get_ring_size(struct xsk_queue *q)
 	return sizeof(struct xdp_umem_ring) + q->nentries * sizeof(u32);
 }
 
-struct xsk_queue *xskq_create(u32 nentries)
+static u32 xskq_rxtx_get_ring_size(struct xsk_queue *q)
+{
+	return (sizeof(struct xdp_ring) +
+		q->nentries * sizeof(struct xdp_desc));
+}
+
+struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 {
 	struct xsk_queue *q;
 	gfp_t gfp_flags;
@@ -36,7 +42,8 @@ struct xsk_queue *xskq_create(u32 nentries)
 
 	gfp_flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN |
 		    __GFP_COMP  | __GFP_NORETRY;
-	size = xskq_umem_get_ring_size(q);
+	size = umem_queue ? xskq_umem_get_ring_size(q) :
+	       xskq_rxtx_get_ring_size(q);
 
 	q->ring = (struct xdp_ring *)__get_free_pages(gfp_flags,
 						      get_order(size));

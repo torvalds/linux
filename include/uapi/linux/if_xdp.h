@@ -22,6 +22,7 @@
 #include <linux/types.h>
 
 /* XDP socket options */
+#define XDP_RX_RING			1
 #define XDP_UMEM_REG			3
 #define XDP_UMEM_FILL_RING		4
 
@@ -33,11 +34,26 @@ struct xdp_umem_reg {
 };
 
 /* Pgoff for mmaping the rings */
+#define XDP_PGOFF_RX_RING			  0
 #define XDP_UMEM_PGOFF_FILL_RING	0x100000000
+
+struct xdp_desc {
+	__u32 idx;
+	__u32 len;
+	__u16 offset;
+	__u8 flags;
+	__u8 padding[5];
+};
 
 struct xdp_ring {
 	__u32 producer __attribute__((aligned(64)));
 	__u32 consumer __attribute__((aligned(64)));
+};
+
+/* Used for the RX and TX queues for packets */
+struct xdp_rxtx_ring {
+	struct xdp_ring ptrs;
+	struct xdp_desc desc[0] __attribute__((aligned(64)));
 };
 
 /* Used for the fill and completion queues for buffers */

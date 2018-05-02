@@ -32,7 +32,7 @@ struct xsk_queue {
 	u64 invalid_descs;
 };
 
-struct xsk_queue *xskq_create(u32 nentries);
+struct xsk_queue *xskq_create(u32 nentries, bool umem_queue);
 void xskq_destroy(struct xsk_queue *q);
 
 #endif /* _LINUX_XSK_QUEUE_H */

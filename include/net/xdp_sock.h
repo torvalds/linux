@@ -18,11 +18,15 @@
 #include <linux/mutex.h>
 #include <net/sock.h>
 
+struct net_device;
+struct xsk_queue;
 struct xdp_umem;
 
 struct xdp_sock {
 	/* struct sock must be the first member of struct xdp_sock */
 	struct sock sk;
+	struct xsk_queue *rx;
+	struct net_device *dev;
 	struct xdp_umem *umem;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
