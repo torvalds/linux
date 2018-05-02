@@ -222,7 +222,7 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
 
 };
 
-struct net_device *WILC_WFI_init_mon_interface(const char *name,
+struct net_device *wilc_wfi_init_mon_interface(const char *name,
 					       struct net_device *real_dev)
 {
 	struct wilc_wfi_mon_priv *priv;

@@ -2065,7 +2065,7 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 	vif = netdev_priv(priv->wdev->netdev);
 
 	if (type == NL80211_IFTYPE_MONITOR) {
-		new_ifc = WILC_WFI_init_mon_interface(name, vif->ndev);
+		new_ifc = wilc_wfi_init_mon_interface(name, vif->ndev);
 		if (new_ifc) {
 			vif = netdev_priv(priv->wdev->netdev);
 			vif->monitor_flag = 1;
