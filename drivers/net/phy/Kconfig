@@ -360,6 +360,11 @@ config MICROCHIP_PHY
 	help
 	  Supports the LAN88XX PHYs.
 
+config MICROCHIP_T1_PHY
+	tristate "Microchip T1 PHYs"
+	---help---
+	  Supports the LAN87XX PHYs.
+
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
