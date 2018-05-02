@@ -15038,13 +15038,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret < 0)
 		goto bail_cleanup;
 
-	/* verify that reads actually work, save revision for reset check */
-	dd->revision = read_csr(dd, CCE_REVISION);
-	if (dd->revision == ~(u64)0) {
-		dd_dev_err(dd, "cannot read chip CSRs\n");
-		ret = -EINVAL;
-		goto bail_cleanup;
-	}
 	dd->majrev = (dd->revision >> CCE_REVISION_CHIP_REV_MAJOR_SHIFT)
 			& CCE_REVISION_CHIP_REV_MAJOR_MASK;
 	dd->minrev = (dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT)
