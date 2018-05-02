@@ -342,7 +342,7 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 	}
 
 	if (rsp_type == SD_RSP_TYPE_R1b)
-		timeout = 3000;
+		timeout = cmd->busy_timeout ? cmd->busy_timeout : 3000;
 
 	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
 		err = rtsx_usb_write_register(ucr, SD_BUS_STAT,
