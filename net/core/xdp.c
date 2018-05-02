@@ -308,11 +308,9 @@ err:
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
 
-void xdp_return_frame(struct xdp_frame *xdpf)
+static void xdp_return(void *data, struct xdp_mem_info *mem)
 {
-	struct xdp_mem_info *mem = &xdpf->mem;
 	struct xdp_mem_allocator *xa;
-	void *data = xdpf->data;
 	struct page *page;
 
 	switch (mem->type) {
@@ -339,4 +337,15 @@ void xdp_return_frame(struct xdp_frame *xdpf)
 		break;
 	}
 }
+
+void xdp_return_frame(struct xdp_frame *xdpf)
+{
+	xdp_return(xdpf->data, &xdpf->mem);
+}
 EXPORT_SYMBOL_GPL(xdp_return_frame);
+
+void xdp_return_buff(struct xdp_buff *xdp)
+{
+	xdp_return(xdp->data, &xdp->rxq->mem);
+}
+EXPORT_SYMBOL_GPL(xdp_return_buff);

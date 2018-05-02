@@ -41,6 +41,74 @@ static struct xdp_sock *xdp_sk(struct sock *sk)
 	return (struct xdp_sock *)sk;
 }
 
+static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
+{
+	u32 *id, len = xdp->data_end - xdp->data;
+	void *buffer;
+	int err = 0;
+
+	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
+		return -EINVAL;
+
+	id = xskq_peek_id(xs->umem->fq);
+	if (!id)
+		return -ENOSPC;
+
+	buffer = xdp_umem_get_data_with_headroom(xs->umem, *id);
+	memcpy(buffer, xdp->data, len);
+	err = xskq_produce_batch_desc(xs->rx, *id, len,
+				      xs->umem->frame_headroom);
+	if (!err)
+		xskq_discard_id(xs->umem->fq);
+
+	return err;
+}
+
+int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
+{
+	int err;
+
+	err = __xsk_rcv(xs, xdp);
+	if (likely(!err))
+		xdp_return_buff(xdp);
+	else
+		xs->rx_dropped++;
+
+	return err;
+}
+
+void xsk_flush(struct xdp_sock *xs)
+{
+	xskq_produce_flush_desc(xs->rx);
+	xs->sk.sk_data_ready(&xs->sk);
+}
+
+int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
+{
+	int err;
+
+	err = __xsk_rcv(xs, xdp);
+	if (!err)
+		xsk_flush(xs);
+	else
+		xs->rx_dropped++;
+
+	return err;
+}
+
+static unsigned int xsk_poll(struct file *file, struct socket *sock,
+			     struct poll_table_struct *wait)
+{
+	unsigned int mask = datagram_poll(file, sock, wait);
+	struct sock *sk = sock->sk;
+	struct xdp_sock *xs = xdp_sk(sk);
+
+	if (xs->rx && !xskq_empty_desc(xs->rx))
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
+}
+
 static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 			  bool umem_queue)
 {
@@ -179,6 +247,9 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	} else if (!xs->umem || !xdp_umem_validate_queues(xs->umem)) {
 		err = -EINVAL;
 		goto out_unlock;
+	} else {
+		/* This xsk has its own umem. */
+		xskq_set_umem(xs->umem->fq, &xs->umem->props);
 	}
 
 	/* Rebind? */
@@ -330,7 +401,7 @@ static const struct proto_ops xsk_proto_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	sock_no_getname,
-	.poll =		sock_no_poll,
+	.poll =		xsk_poll,
 	.ioctl =	sock_no_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,

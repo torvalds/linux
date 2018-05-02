@@ -39,6 +39,24 @@ struct xdp_umem {
 	struct work_struct work;
 };
 
+static inline char *xdp_umem_get_data(struct xdp_umem *umem, u32 idx)
+{
+	u64 pg, off;
+	char *data;
+
+	pg = idx >> umem->nfpplog2;
+	off = (idx & umem->nfpp_mask) << umem->frame_size_log2;
+
+	data = page_address(umem->pgs[pg]);
+	return data + off;
+}
+
+static inline char *xdp_umem_get_data_with_headroom(struct xdp_umem *umem,
+						    u32 idx)
+{
+	return xdp_umem_get_data(umem, idx) + umem->frame_headroom;
+}
+
 bool xdp_umem_validate_queues(struct xdp_umem *umem);
 int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr);
 void xdp_get_umem(struct xdp_umem *umem);
