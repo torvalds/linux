@@ -87,6 +87,7 @@ static struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
 };
 
 static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
+	.core_chipsel	= 0,
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,

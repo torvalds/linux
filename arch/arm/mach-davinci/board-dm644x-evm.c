@@ -152,6 +152,7 @@ static struct davinci_aemif_timing davinci_evm_nandflash_timing = {
 };
 
 static struct davinci_nand_pdata davinci_evm_nandflash_data = {
+	.core_chipsel	= 0,
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
