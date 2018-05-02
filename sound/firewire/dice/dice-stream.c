@@ -30,6 +30,34 @@ const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	[6] = 192000,
 };
 
+int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
+				  enum snd_dice_rate_mode *mode)
+{
+	/* Corresponding to each entry in snd_dice_rates. */
+	static const enum snd_dice_rate_mode modes[] = {
+		[0] = SND_DICE_RATE_MODE_LOW,
+		[1] = SND_DICE_RATE_MODE_LOW,
+		[2] = SND_DICE_RATE_MODE_LOW,
+		[3] = SND_DICE_RATE_MODE_MIDDLE,
+		[4] = SND_DICE_RATE_MODE_MIDDLE,
+		[5] = SND_DICE_RATE_MODE_HIGH,
+		[6] = SND_DICE_RATE_MODE_HIGH,
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(snd_dice_rates); i++) {
+		if (!(dice->clock_caps & BIT(i)))
+			continue;
+		if (snd_dice_rates[i] != rate)
+			continue;
+
+		*mode = modes[i];
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 /*
  * This operation has an effect to synchronize GLOBAL_STATUS/GLOBAL_SAMPLE_RATE
  * to GLOBAL_STATUS. Especially, just after powering on, these are different.
@@ -482,6 +510,64 @@ void snd_dice_stream_update_duplex(struct snd_dice *dice)
 		stop_streams(dice, AMDTP_IN_STREAM, &tx_params);
 		stop_streams(dice, AMDTP_OUT_STREAM, &rx_params);
 	}
+}
+
+int snd_dice_stream_detect_current_formats(struct snd_dice *dice)
+{
+	unsigned int rate;
+	enum snd_dice_rate_mode mode;
+	__be32 reg[2];
+	struct reg_params tx_params, rx_params;
+	int i;
+	int err;
+
+	/*
+	 * Available stream format is restricted at current mode of sampling
+	 * clock.
+	 */
+	err = snd_dice_transaction_get_rate(dice, &rate);
+	if (err < 0)
+		return err;
+
+	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
+	if (err < 0)
+		return err;
+
+	/*
+	 * Just after owning the unit (GLOBAL_OWNER), the unit can return
+	 * invalid stream formats. Selecting clock parameters have an effect
+	 * for the unit to refine it.
+	 */
+	err = ensure_phase_lock(dice);
+	if (err < 0)
+		return err;
+
+	err = get_register_params(dice, &tx_params, &rx_params);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < tx_params.count; ++i) {
+		err = snd_dice_transaction_read_tx(dice,
+				tx_params.size * i + TX_NUMBER_AUDIO,
+				reg, sizeof(reg));
+		if (err < 0)
+			return err;
+		dice->tx_pcm_chs[i][mode] = be32_to_cpu(reg[0]);
+		dice->tx_midi_ports[i] = max_t(unsigned int,
+				be32_to_cpu(reg[1]), dice->tx_midi_ports[i]);
+	}
+	for (i = 0; i < rx_params.count; ++i) {
+		err = snd_dice_transaction_read_rx(dice,
+				rx_params.size * i + RX_NUMBER_AUDIO,
+				reg, sizeof(reg));
+		if (err < 0)
+			return err;
+		dice->rx_pcm_chs[i][mode] = be32_to_cpu(reg[0]);
+		dice->rx_midi_ports[i] = max_t(unsigned int,
+				be32_to_cpu(reg[1]), dice->rx_midi_ports[i]);
+	}
+
+	return 0;
 }
 
 static void dice_lock_changed(struct snd_dice *dice)
