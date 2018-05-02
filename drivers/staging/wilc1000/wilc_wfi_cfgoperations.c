@@ -1143,9 +1143,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 		wilc_get_inactive_time(vif, mac, &inactive_time);
 		sinfo->inactive_time = 1000 * inactive_time;
-	}
-
-	if (vif->iftype == STATION_MODE) {
+	} else if (vif->iftype == STATION_MODE) {
 		struct rf_info stats;
 
 		wilc_get_statistics(vif, &stats);
