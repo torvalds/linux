@@ -77,6 +77,58 @@ static inline void init_cpu_mask_set(struct cpu_mask_set *set)
 	set->gen = 0;
 }
 
+/* Increment generation of CPU set if needed */
+static void _cpu_mask_set_gen_inc(struct cpu_mask_set *set)
+{
+	if (cpumask_equal(&set->mask, &set->used)) {
+		/*
+		 * We've used up all the CPUs, bump up the generation
+		 * and reset the 'used' map
+		 */
+		set->gen++;
+		cpumask_clear(&set->used);
+	}
+}
+
+static void _cpu_mask_set_gen_dec(struct cpu_mask_set *set)
+{
+	if (cpumask_empty(&set->used) && set->gen) {
+		set->gen--;
+		cpumask_copy(&set->used, &set->mask);
+	}
+}
+
+/* Get the first CPU from the list of unused CPUs in a CPU set data structure */
+static int cpu_mask_set_get_first(struct cpu_mask_set *set, cpumask_var_t diff)
+{
+	int cpu;
+
+	if (!diff || !set)
+		return -EINVAL;
+
+	_cpu_mask_set_gen_inc(set);
+
+	/* Find out CPUs left in CPU mask */
+	cpumask_andnot(diff, &set->mask, &set->used);
+
+	cpu = cpumask_first(diff);
+	if (cpu >= nr_cpu_ids) /* empty */
+		cpu = -EINVAL;
+	else
+		cpumask_set_cpu(cpu, &set->used);
+
+	return cpu;
+}
+
+static void cpu_mask_set_put(struct cpu_mask_set *set, int cpu)
+{
+	if (!set)
+		return;
+
+	cpumask_clear_cpu(cpu, &set->used);
+	_cpu_mask_set_gen_dec(set);
+}
+
 /* Initialize non-HT cpu cores mask */
 void init_real_cpu_mask(void)
 {
@@ -456,17 +508,12 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 		if (!zalloc_cpumask_var(&diff, GFP_KERNEL))
 			return -ENOMEM;
 
-		if (cpumask_equal(&set->mask, &set->used)) {
-			/*
-			 * We've used up all the CPUs, bump up the generation
-			 * and reset the 'used' map
-			 */
-			set->gen++;
-			cpumask_clear(&set->used);
+		cpu = cpu_mask_set_get_first(set, diff);
+		if (cpu < 0) {
+			free_cpumask_var(diff);
+			dd_dev_err(dd, "Failure to obtain CPU for IRQ\n");
+			return cpu;
 		}
-		cpumask_andnot(diff, &set->mask, &set->used);
-		cpu = cpumask_first(diff);
-		cpumask_set_cpu(cpu, &set->used);
 
 		free_cpumask_var(diff);
 	}
@@ -526,10 +573,7 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 
 	if (set) {
 		cpumask_andnot(&set->used, &set->used, &msix->mask);
-		if (cpumask_empty(&set->used) && set->gen) {
-			set->gen--;
-			cpumask_copy(&set->used, &set->mask);
-		}
+		_cpu_mask_set_gen_dec(set);
 	}
 
 	irq_set_affinity_hint(msix->irq, NULL);
@@ -640,10 +684,7 @@ int hfi1_get_proc_affinity(int node)
 	 * If we've used all available HW threads, clear the mask and start
 	 * overloading.
 	 */
-	if (cpumask_equal(&set->mask, &set->used)) {
-		set->gen++;
-		cpumask_clear(&set->used);
-	}
+	_cpu_mask_set_gen_inc(set);
 
 	/*
 	 * If NUMA node has CPUs used by interrupt handlers, include them in the
@@ -767,11 +808,7 @@ void hfi1_put_proc_affinity(int cpu)
 		return;
 
 	mutex_lock(&affinity->lock);
-	cpumask_clear_cpu(cpu, &set->used);
+	cpu_mask_set_put(set, cpu);
 	hfi1_cdbg(PROC, "Returning CPU %d for future process assignment", cpu);
-	if (cpumask_empty(&set->used) && set->gen) {
-		set->gen--;
-		cpumask_copy(&set->used, &set->mask);
-	}
 	mutex_unlock(&affinity->lock);
 }
