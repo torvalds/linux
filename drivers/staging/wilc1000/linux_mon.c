@@ -25,7 +25,7 @@ static u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define IEEE80211_RADIOTAP_F_TX_FAIL	0x0001  /* failed due to excessive*/
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
-void WILC_WFI_monitor_rx(u8 *buff, u32 size)
+void wilc_wfi_monitor_rx(u8 *buff, u32 size)
 {
 	u32 header, pkt_offset;
 	struct sk_buff *skb = NULL;

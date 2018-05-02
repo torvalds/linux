@@ -1068,7 +1068,7 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	for (i = 0; i < wilc->vif_num; i++) {
 		vif = netdev_priv(wilc->vif[i]->ndev);
 		if (vif->monitor_flag) {
-			WILC_WFI_monitor_rx(buff, size);
+			wilc_wfi_monitor_rx(buff, size);
 			return;
 		}
 	}
