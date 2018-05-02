@@ -878,7 +878,7 @@
 			#iommu-cells = <0>;
 		};
 
-		sysmmu_fimc_dis1: sysmmu@132E0000{
+		sysmmu_fimc_dis1: sysmmu@132e0000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x132E0000 0x1000>;
 			interrupt-parent = <&combiner>;
