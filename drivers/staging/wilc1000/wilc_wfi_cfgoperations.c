@@ -253,18 +253,18 @@ static void remove_network_from_shadow(struct timer_list *unused)
 	int i, j;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		if (time_after(now, last_scanned_shadow[i].time_scan +
-			       (unsigned long)(SCAN_RESULT_EXPIRE))) {
-			kfree(last_scanned_shadow[i].ies);
-			last_scanned_shadow[i].ies = NULL;
+		if (!time_after(now, last_scanned_shadow[i].time_scan +
+				(unsigned long)(SCAN_RESULT_EXPIRE)))
+			continue;
+		kfree(last_scanned_shadow[i].ies);
+		last_scanned_shadow[i].ies = NULL;
 
-			kfree(last_scanned_shadow[i].join_params);
+		kfree(last_scanned_shadow[i].join_params);
 
-			for (j = i; (j < last_scanned_cnt - 1); j++)
-				last_scanned_shadow[j] = last_scanned_shadow[j + 1];
+		for (j = i; (j < last_scanned_cnt - 1); j++)
+			last_scanned_shadow[j] = last_scanned_shadow[j + 1];
 
-			last_scanned_cnt--;
-		}
+		last_scanned_cnt--;
 	}
 
 	if (last_scanned_cnt != 0)
