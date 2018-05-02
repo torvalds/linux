@@ -3748,7 +3748,7 @@ static void remove_stream(struct amdgpu_device *adev,
 static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 			       struct dc_cursor_position *position)
 {
-	struct amdgpu_crtc *amdgpu_crtc = amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
