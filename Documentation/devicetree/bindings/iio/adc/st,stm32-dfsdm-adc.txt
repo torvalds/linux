@@ -8,14 +8,16 @@ It is mainly targeted for:
 - PDM microphones (audio digital microphone)
 
 It features up to 8 serial digital interfaces (SPI or Manchester) and
-up to 4 filters on stm32h7.
+up to 4 filters on stm32h7 or 6 filters on stm32mp1.
 
 Each child node match with a filter instance.
 
 Contents of a STM32 DFSDM root node:
 ------------------------------------
 Required properties:
-- compatible: Should be "st,stm32h7-dfsdm".
+- compatible: Should be one of:
+  "st,stm32h7-dfsdm"
+  "st,stm32mp1-dfsdm"
 - reg: Offset and length of the DFSDM block register set.
 - clocks: IP and serial interfaces clocking. Should be set according
 		to rcc clock ID and "clock-names".
@@ -45,6 +47,7 @@ Required properties:
 	"st,stm32-dfsdm-adc" for sigma delta ADCs
 	"st,stm32-dfsdm-dmic" for audio digital microphone.
 - reg: Specifies the DFSDM filter instance used.
+	Valid values are from 0 to 3 on stm32h7, 0 to 5 on stm32mp1.
 - interrupts: IRQ lines connected to each DFSDM filter instance.
 - st,adc-channels:	List of single-ended channels muxed for this ADC.
 			valid values:
