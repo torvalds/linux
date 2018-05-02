@@ -3027,8 +3027,8 @@ static int extent_same_check_offsets(struct inode *inode, u64 off, u64 *plen,
 	return 0;
 }
 
-static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
-			     struct inode *dst, u64 dst_loff)
+static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
+			       struct inode *dst, u64 dst_loff)
 {
 	int ret;
 	u64 len = olen;
@@ -3037,21 +3037,13 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	u64 same_lock_start = 0;
 	u64 same_lock_len = 0;
 
-	if (len == 0)
-		return 0;
-
-	if (same_inode)
-		inode_lock(src);
-	else
-		btrfs_double_inode_lock(src, dst);
-
 	ret = extent_same_check_offsets(src, loff, &len, olen);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	ret = extent_same_check_offsets(dst, dst_loff, &len, olen);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	if (same_inode) {
 		/*
@@ -3068,32 +3060,21 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		 * allow an unaligned length so long as it ends at
 		 * i_size.
 		 */
-		if (len != olen) {
-			ret = -EINVAL;
-			goto out_unlock;
-		}
+		if (len != olen)
+			return -EINVAL;
 
 		/* Check for overlapping ranges */
-		if (dst_loff + len > loff && dst_loff < loff + len) {
-			ret = -EINVAL;
-			goto out_unlock;
-		}
+		if (dst_loff + len > loff && dst_loff < loff + len)
+			return -EINVAL;
 
 		same_lock_start = min_t(u64, loff, dst_loff);
 		same_lock_len = max_t(u64, loff, dst_loff) + len - same_lock_start;
 	}
 
-	/* don't make the dst file partly checksummed */
-	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(dst)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
 again:
 	ret = btrfs_cmp_data_prepare(src, loff, dst, dst_loff, olen, &cmp);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	if (same_inode)
 		ret = lock_extent_range(src, same_lock_start, same_lock_len,
@@ -3143,6 +3124,33 @@ again:
 		btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
 
 	btrfs_cmp_data_free(&cmp);
+
+	return ret;
+}
+
+static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
+			     struct inode *dst, u64 dst_loff)
+{
+	int ret;
+	bool same_inode = (src == dst);
+
+	if (olen == 0)
+		return 0;
+
+	if (same_inode)
+		inode_lock(src);
+	else
+		btrfs_double_inode_lock(src, dst);
+
+	/* don't make the dst file partly checksummed */
+	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
+	    (BTRFS_I(dst)->flags & BTRFS_INODE_NODATASUM)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	ret = btrfs_extent_same_range(src, loff, olen, dst, dst_loff);
+
 out_unlock:
 	if (same_inode)
 		inode_unlock(src);
