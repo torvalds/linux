@@ -1393,7 +1393,7 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_01595(struct em28xx *dev)
 
 	dvb->i2c_client_tuner = dvb_module_probe("si2157", NULL,
 						 adapter,
-						 0x60, &si2157_config);
+						 addr, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
 		dvb_module_release(dvb->i2c_client_demod);
 		return -ENODEV;
