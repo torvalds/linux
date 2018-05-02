@@ -1909,12 +1909,14 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 
 		/* If zero-ness of ->qsmaskinit changed, propagate up tree. */
 		if (!oldmask != !rnp->qsmaskinit) {
-			if (!oldmask) /* First online CPU for this rcu_node. */
-				rcu_init_new_rnp(rnp);
-			else if (rcu_preempt_has_tasks(rnp)) /* blocked tasks */
-				rnp->wait_blkd_tasks = true;
-			else /* Last offline CPU and can propagate. */
+			if (!oldmask) { /* First online CPU for rcu_node. */
+				if (!rnp->wait_blkd_tasks) /* Ever offline? */
+					rcu_init_new_rnp(rnp);
+			} else if (rcu_preempt_has_tasks(rnp)) {
+				rnp->wait_blkd_tasks = true; /* blocked tasks */
+			} else { /* Last offline CPU and can propagate. */
 				rcu_cleanup_dead_rnp(rnp);
+			}
 		}
 
 		/*
@@ -1923,14 +1925,13 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 		 * still offline, propagate up the rcu_node tree and
 		 * clear ->wait_blkd_tasks.  Otherwise, if one of this
 		 * rcu_node structure's CPUs has since come back online,
-		 * simply clear ->wait_blkd_tasks (but rcu_cleanup_dead_rnp()
-		 * checks for this, so just call it unconditionally).
+		 * simply clear ->wait_blkd_tasks.
 		 */
 		if (rnp->wait_blkd_tasks &&
-		    (!rcu_preempt_has_tasks(rnp) ||
-		     rnp->qsmaskinit)) {
+		    (!rcu_preempt_has_tasks(rnp) || rnp->qsmaskinit)) {
 			rnp->wait_blkd_tasks = false;
-			rcu_cleanup_dead_rnp(rnp);
+			if (!rnp->qsmaskinit)
+				rcu_cleanup_dead_rnp(rnp);
 		}
 
 		raw_spin_unlock_irq_rcu_node(rnp);
@@ -2450,9 +2451,10 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 	long mask;
 	struct rcu_node *rnp = rnp_leaf;
 
-	raw_lockdep_assert_held_rcu_node(rnp);
+	raw_lockdep_assert_held_rcu_node(rnp_leaf);
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
-	    rnp->qsmaskinit || rcu_preempt_has_tasks(rnp))
+	    WARN_ON_ONCE(rnp_leaf->qsmaskinit) ||
+	    WARN_ON_ONCE(rcu_preempt_has_tasks(rnp_leaf)))
 		return;
 	for (;;) {
 		mask = rnp->grpmask;
@@ -2461,7 +2463,8 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 			break;
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 		rnp->qsmaskinit &= ~mask;
-		rnp->qsmask &= ~mask;
+		/* Between grace periods, so better already be zero! */
+		WARN_ON_ONCE(rnp->qsmask);
 		if (rnp->qsmaskinit) {
 			raw_spin_unlock_rcu_node(rnp);
 			/* irqs remain disabled. */
@@ -3479,6 +3482,7 @@ static void rcu_init_new_rnp(struct rcu_node *rnp_leaf)
 	struct rcu_node *rnp = rnp_leaf;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
+	WARN_ON_ONCE(rnp->wait_blkd_tasks);
 	for (;;) {
 		mask = rnp->grpmask;
 		rnp = rnp->parent;
