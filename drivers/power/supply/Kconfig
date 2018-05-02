@@ -624,4 +624,14 @@ config CHARGER_RT9455
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
 
+config CHARGER_CROS_USBPD
+	tristate "ChromeOS EC based USBPD charger"
+	depends on MFD_CROS_EC
+	default n
+	help
+	  Say Y here to enable ChromeOS EC based USBPD charger
+	  driver. This driver gets various bits of information about
+	  what is connected to USB PD ports from the EC and converts
+	  that into power_supply properties.
+
 endif # POWER_SUPPLY
