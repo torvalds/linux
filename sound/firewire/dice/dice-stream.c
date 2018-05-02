@@ -521,6 +521,11 @@ int snd_dice_stream_detect_current_formats(struct snd_dice *dice)
 	int i;
 	int err;
 
+	/* If extended protocol is available, detect detail spec. */
+	err = snd_dice_detect_extension_formats(dice);
+	if (err >= 0)
+		return err;
+
 	/*
 	 * Available stream format is restricted at current mode of sampling
 	 * clock.

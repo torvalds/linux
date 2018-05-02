@@ -16,6 +16,7 @@ MODULE_LICENSE("GPL v2");
 #define OUI_FOCUSRITE		0x00130e
 #define OUI_TCELECTRONIC	0x000166
 #define OUI_ALESIS		0x000595
+#define OUI_MAUDIO		0x000d6c
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
@@ -330,12 +331,21 @@ static void dice_bus_reset(struct fw_unit *unit)
 #define DICE_INTERFACE	0x000001
 
 static const struct ieee1394_device_id dice_id_table[] = {
-	/* M-Audio Profire 610/2626 has a different value in version field. */
+	/* M-Audio Profire 2626 has a different value in version field. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
-				  IEEE1394_MATCH_SPECIFIER_ID,
-		.vendor_id	= 0x000d6c,
-		.specifier_id	= 0x000d6c,
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_MAUDIO,
+		.model_id	= 0x000010,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_extension_formats,
+	},
+	/* M-Audio Profire 610 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_MAUDIO,
+		.model_id	= 0x000011,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_extension_formats,
 	},
 	/* TC Electronic Konnekt 24D. */
 	{
