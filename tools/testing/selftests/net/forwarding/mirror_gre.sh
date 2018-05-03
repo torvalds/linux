@@ -10,6 +10,14 @@
 # traffic. Test that the payload is what is expected (ICMP ping request or
 # reply, depending on test).
 
+ALL_TESTS="
+	test_gretap
+	test_ip6gretap
+	test_gretap_mac
+	test_ip6gretap_mac
+	test_two_spans
+"
+
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
@@ -100,22 +108,36 @@ test_two_spans()
 	log_test "two simultaneously configured mirrors ($tcflags)"
 }
 
+test_gretap()
+{
+	full_test_span_gre_dir gt4 ingress 8 0 "mirror to gretap"
+	full_test_span_gre_dir gt4 egress 0 8 "mirror to gretap"
+}
+
+test_ip6gretap()
+{
+	full_test_span_gre_dir gt6 ingress 8 0 "mirror to ip6gretap"
+	full_test_span_gre_dir gt6 egress 0 8 "mirror to ip6gretap"
+}
+
+test_gretap_mac()
+{
+	test_span_gre_mac gt4 ingress ip "mirror to gretap"
+	test_span_gre_mac gt4 egress ip "mirror to gretap"
+}
+
+test_ip6gretap_mac()
+{
+	test_span_gre_mac gt6 ingress ipv6 "mirror to ip6gretap"
+	test_span_gre_mac gt6 egress ipv6 "mirror to ip6gretap"
+}
+
 test_all()
 {
 	slow_path_trap_install $swp1 ingress
 	slow_path_trap_install $swp1 egress
 
-	full_test_span_gre_dir gt4 ingress 8 0 "mirror to gretap"
-	full_test_span_gre_dir gt6 ingress 8 0 "mirror to ip6gretap"
-	full_test_span_gre_dir gt4 egress 0 8 "mirror to gretap"
-	full_test_span_gre_dir gt6 egress 0 8 "mirror to ip6gretap"
-
-	test_span_gre_mac gt4 ingress ip "mirror to gretap"
-	test_span_gre_mac gt6 ingress ipv6 "mirror to ip6gretap"
-	test_span_gre_mac gt4 egress ip "mirror to gretap"
-	test_span_gre_mac gt6 egress ipv6 "mirror to ip6gretap"
-
-	test_two_spans
+	tests_run
 
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress
