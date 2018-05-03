@@ -109,6 +109,72 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DRIVER_U64]		= { .type = NLA_U64 },
 };
 
+static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
+				      enum rdma_nldev_print_type print_type)
+{
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DRIVER_STRING, name))
+		return -EMSGSIZE;
+	if (print_type != RDMA_NLDEV_PRINT_TYPE_UNSPEC &&
+	    nla_put_u8(msg, RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE, print_type))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int _rdma_nl_put_driver_u32(struct sk_buff *msg, const char *name,
+				   enum rdma_nldev_print_type print_type,
+				   u32 value)
+{
+	if (put_driver_name_print_type(msg, name, print_type))
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DRIVER_U32, value))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int _rdma_nl_put_driver_u64(struct sk_buff *msg, const char *name,
+				   enum rdma_nldev_print_type print_type,
+				   u64 value)
+{
+	if (put_driver_name_print_type(msg, name, print_type))
+		return -EMSGSIZE;
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_DRIVER_U64, value,
+			      RDMA_NLDEV_ATTR_PAD))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+int rdma_nl_put_driver_u32(struct sk_buff *msg, const char *name, u32 value)
+{
+	return _rdma_nl_put_driver_u32(msg, name, RDMA_NLDEV_PRINT_TYPE_UNSPEC,
+				       value);
+}
+EXPORT_SYMBOL(rdma_nl_put_driver_u32);
+
+int rdma_nl_put_driver_u32_hex(struct sk_buff *msg, const char *name,
+			       u32 value)
+{
+	return _rdma_nl_put_driver_u32(msg, name, RDMA_NLDEV_PRINT_TYPE_HEX,
+				       value);
+}
+EXPORT_SYMBOL(rdma_nl_put_driver_u32_hex);
+
+int rdma_nl_put_driver_u64(struct sk_buff *msg, const char *name, u64 value)
+{
+	return _rdma_nl_put_driver_u64(msg, name, RDMA_NLDEV_PRINT_TYPE_UNSPEC,
+				       value);
+}
+EXPORT_SYMBOL(rdma_nl_put_driver_u64);
+
+int rdma_nl_put_driver_u64_hex(struct sk_buff *msg, const char *name, u64 value)
+{
+	return _rdma_nl_put_driver_u64(msg, name, RDMA_NLDEV_PRINT_TYPE_HEX,
+				       value);
+}
+EXPORT_SYMBOL(rdma_nl_put_driver_u64_hex);
+
 static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
 {
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
