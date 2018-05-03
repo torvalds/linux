@@ -1066,9 +1066,10 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 {
 	struct drm_device *dev = msm_host->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 
 	if (msm_host->tx_gem_obj) {
-		msm_gem_put_iova(msm_host->tx_gem_obj, 0);
+		msm_gem_put_iova(msm_host->tx_gem_obj, priv->kms->aspace);
 		drm_gem_object_put_unlocked(msm_host->tx_gem_obj);
 		msm_host->tx_gem_obj = NULL;
 	}
