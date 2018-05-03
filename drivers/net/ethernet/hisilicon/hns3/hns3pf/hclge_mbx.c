@@ -276,6 +276,11 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		memcpy(&proto, &mbx_req->msg[5], sizeof(proto));
 		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
 					       vlan, is_kill);
+	} else if (mbx_req->msg[1] == HCLGE_MBX_VLAN_RX_OFF_CFG) {
+		struct hnae3_handle *handle = &vport->nic;
+		bool en = mbx_req->msg[2] ? true : false;
+
+		status = hclge_en_hw_strip_rxvtag(handle, en);
 	}
 
 	if (gen_resp)

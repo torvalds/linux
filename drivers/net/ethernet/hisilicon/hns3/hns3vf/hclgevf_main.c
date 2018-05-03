@@ -830,6 +830,17 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 				    HCLGEVF_VLAN_MBX_MSG_LEN, false, NULL, 0);
 }
 
+static int hclgevf_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u8 msg_data;
+
+	msg_data = enable ? 1 : 0;
+	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				    HCLGE_MBX_VLAN_RX_OFF_CFG, &msg_data,
+				    1, false, NULL, 0);
+}
+
 static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -1825,6 +1836,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,

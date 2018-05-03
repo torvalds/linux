@@ -652,6 +652,7 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
+int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
