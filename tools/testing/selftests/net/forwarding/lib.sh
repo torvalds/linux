@@ -381,6 +381,23 @@ bridge_ageing_time_get()
 	echo $((ageing_time / 100))
 }
 
+declare -A SYSCTL_ORIG
+sysctl_set()
+{
+	local key=$1; shift
+	local value=$1; shift
+
+	SYSCTL_ORIG[$key]=$(sysctl -n $key)
+	sysctl -qw $key=$value
+}
+
+sysctl_restore()
+{
+	local key=$1; shift
+
+	sysctl -qw $key=${SYSCTL_ORIG["$key"]}
+}
+
 forwarding_enable()
 {
        ipv4_fwd=$(sysctl -n net.ipv4.conf.all.forwarding)
