@@ -117,6 +117,7 @@ struct mlxsw_pci_queue {
 		struct {
 			u32 comp_sdq_count;
 			u32 comp_rdq_count;
+			enum mlxsw_pci_cqe_v v;
 		} cq;
 		struct {
 			u32 ev_cmd_count;
@@ -200,24 +201,6 @@ static char *mlxsw_pci_queue_elem_get(struct mlxsw_pci_queue *q, int elem_index)
 static bool mlxsw_pci_elem_hw_owned(struct mlxsw_pci_queue *q, bool owner_bit)
 {
 	return owner_bit != !!(q->consumer_counter & q->count);
-}
-
-static char *
-mlxsw_pci_queue_sw_elem_get(struct mlxsw_pci_queue *q,
-			    u32 (*get_elem_owner_func)(const char *))
-{
-	struct mlxsw_pci_queue_elem_info *elem_info;
-	char *elem;
-	bool owner_bit;
-
-	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
-	elem = elem_info->elem;
-	owner_bit = get_elem_owner_func(elem);
-	if (mlxsw_pci_elem_hw_owned(q, owner_bit))
-		return NULL;
-	q->consumer_counter++;
-	rmb(); /* make sure we read owned bit before the rest of elem */
-	return elem;
 }
 
 static struct mlxsw_pci_queue_type_group *
@@ -505,7 +488,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	for (i = 0; i < q->count; i++) {
 		char *elem = mlxsw_pci_queue_elem_get(q, i);
 
-		mlxsw_pci_cqe_owner_set(elem, 1);
+		mlxsw_pci_cqe_owner_set(q->u.cq.v, elem, 1);
 	}
 
 	mlxsw_cmd_mbox_sw2hw_cq_cv_set(mbox, 0); /* CQE ver 0 */
@@ -559,7 +542,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
-				     char *cqe)
+				     enum mlxsw_pci_cqe_v cqe_v, char *cqe)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	struct mlxsw_pci_queue_elem_info *elem_info;
@@ -579,10 +562,11 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	if (mlxsw_pci_cqe_lag_get(cqe)) {
+	if (mlxsw_pci_cqe_lag_get(cqe_v, cqe)) {
 		rx_info.is_lag = true;
-		rx_info.u.lag_id = mlxsw_pci_cqe_lag_id_get(cqe);
-		rx_info.lag_port_index = mlxsw_pci_cqe_lag_port_index_get(cqe);
+		rx_info.u.lag_id = mlxsw_pci_cqe_lag_id_get(cqe_v, cqe);
+		rx_info.lag_port_index =
+			mlxsw_pci_cqe_lag_subport_get(cqe_v, cqe);
 	} else {
 		rx_info.is_lag = false;
 		rx_info.u.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
@@ -591,7 +575,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
-	if (mlxsw_pci_cqe_crc_get(cqe))
+	if (mlxsw_pci_cqe_crc_get(cqe_v, cqe))
 		byte_count -= ETH_FCS_LEN;
 	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
@@ -608,7 +592,18 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 {
-	return mlxsw_pci_queue_sw_elem_get(q, mlxsw_pci_cqe_owner_get);
+	struct mlxsw_pci_queue_elem_info *elem_info;
+	char *elem;
+	bool owner_bit;
+
+	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
+	elem = elem_info->elem;
+	owner_bit = mlxsw_pci_cqe_owner_get(q->u.cq.v, elem);
+	if (mlxsw_pci_elem_hw_owned(q, owner_bit))
+		return NULL;
+	q->consumer_counter++;
+	rmb(); /* make sure we read owned bit before the rest of elem */
+	return elem;
 }
 
 static void mlxsw_pci_cq_tasklet(unsigned long data)
@@ -621,8 +616,8 @@ static void mlxsw_pci_cq_tasklet(unsigned long data)
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
-		u8 sendq = mlxsw_pci_cqe_sr_get(cqe);
-		u8 dqn = mlxsw_pci_cqe_dqn_get(cqe);
+		u8 sendq = mlxsw_pci_cqe_sr_get(q->u.cq.v, cqe);
+		u8 dqn = mlxsw_pci_cqe_dqn_get(q->u.cq.v, cqe);
 
 		if (sendq) {
 			struct mlxsw_pci_queue *sdq;
@@ -636,7 +631,7 @@ static void mlxsw_pci_cq_tasklet(unsigned long data)
 
 			rdq = mlxsw_pci_rdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-						 wqe_counter, cqe);
+						 wqe_counter, q->u.cq.v, cqe);
 			q->u.cq.comp_rdq_count++;
 		}
 		if (++items == credits)
@@ -696,7 +691,18 @@ static void mlxsw_pci_eq_cmd_event(struct mlxsw_pci *mlxsw_pci, char *eqe)
 
 static char *mlxsw_pci_eq_sw_eqe_get(struct mlxsw_pci_queue *q)
 {
-	return mlxsw_pci_queue_sw_elem_get(q, mlxsw_pci_eqe_owner_get);
+	struct mlxsw_pci_queue_elem_info *elem_info;
+	char *elem;
+	bool owner_bit;
+
+	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
+	elem = elem_info->elem;
+	owner_bit = mlxsw_pci_eqe_owner_get(elem);
+	if (mlxsw_pci_elem_hw_owned(q, owner_bit))
+		return NULL;
+	q->consumer_counter++;
+	rmb(); /* make sure we read owned bit before the rest of elem */
+	return elem;
 }
 
 static void mlxsw_pci_eq_tasklet(unsigned long data)
@@ -779,8 +785,8 @@ static const struct mlxsw_pci_queue_ops mlxsw_pci_cq_ops = {
 	.init		= mlxsw_pci_cq_init,
 	.fini		= mlxsw_pci_cq_fini,
 	.tasklet	= mlxsw_pci_cq_tasklet,
-	.elem_count	= MLXSW_PCI_CQE_COUNT,
-	.elem_size	= MLXSW_PCI_CQE_SIZE
+	.elem_count	= MLXSW_PCI_CQE01_COUNT,
+	.elem_size	= MLXSW_PCI_CQE01_SIZE
 };
 
 static const struct mlxsw_pci_queue_ops mlxsw_pci_eq_ops = {
@@ -799,6 +805,8 @@ static int mlxsw_pci_queue_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	struct mlxsw_pci_mem_item *mem_item = &q->mem_item;
 	int i;
 	int err;
+
+	q->u.cq.v = MLXSW_PCI_CQE_V0;
 
 	spin_lock_init(&q->lock);
 	q->num = q_num;
@@ -938,7 +946,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 
 	if ((1 << sdq_log2sz != MLXSW_PCI_WQE_COUNT) ||
 	    (1 << rdq_log2sz != MLXSW_PCI_WQE_COUNT) ||
-	    (1 << cq_log2sz != MLXSW_PCI_CQE_COUNT) ||
+	    (1 << cq_log2sz != MLXSW_PCI_CQE01_COUNT) ||
 	    (1 << eq_log2sz != MLXSW_PCI_EQE_COUNT)) {
 		dev_err(&pdev->dev, "Unsupported number of async queue descriptors\n");
 		return -EINVAL;
