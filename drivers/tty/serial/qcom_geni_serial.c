@@ -586,11 +586,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport)
 
 	avail = (port->tx_fifo_depth - port->tx_wm) * port->tx_bytes_pw;
 	tail = (xmit->tail + port->xmit_size) & (UART_XMIT_SIZE - 1);
-	if (chunk > (UART_XMIT_SIZE - tail))
-		chunk = UART_XMIT_SIZE - tail;
-	if (chunk > avail)
-		chunk = avail;
-
+	chunk = min3((size_t)chunk, (size_t)(UART_XMIT_SIZE - tail), avail);
 	if (!chunk)
 		goto out_write_wakeup;
 
