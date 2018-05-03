@@ -402,6 +402,10 @@ static struct brd_device *brd_alloc(int i)
 	set_capacity(disk, rd_size * 2);
 	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
 
+	/* Tell the block layer that this is not a rotational device */
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, disk->queue);
+
 	return brd;
 
 out_free_queue:
