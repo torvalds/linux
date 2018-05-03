@@ -533,21 +533,37 @@ static void ssb_select_mitigation()
 
 static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 {
-	bool rds = !!test_tsk_thread_flag(task, TIF_RDS);
+	bool update;
 
 	if (ssb_mode != SPEC_STORE_BYPASS_PRCTL)
 		return -ENXIO;
 
-	if (ctrl == PR_SPEC_ENABLE)
-		clear_tsk_thread_flag(task, TIF_RDS);
-	else
-		set_tsk_thread_flag(task, TIF_RDS);
+	switch (ctrl) {
+	case PR_SPEC_ENABLE:
+		/* If speculation is force disabled, enable is not allowed */
+		if (task_spec_ssb_force_disable(task))
+			return -EPERM;
+		task_clear_spec_ssb_disable(task);
+		update = test_and_clear_tsk_thread_flag(task, TIF_RDS);
+		break;
+	case PR_SPEC_DISABLE:
+		task_set_spec_ssb_disable(task);
+		update = !test_and_set_tsk_thread_flag(task, TIF_RDS);
+		break;
+	case PR_SPEC_FORCE_DISABLE:
+		task_set_spec_ssb_disable(task);
+		task_set_spec_ssb_force_disable(task);
+		update = !test_and_set_tsk_thread_flag(task, TIF_RDS);
+		break;
+	default:
+		return -ERANGE;
+	}
 
 	/*
 	 * If being set on non-current task, delay setting the CPU
 	 * mitigation until it is next scheduled.
 	 */
-	if (task == current && rds != !!test_tsk_thread_flag(task, TIF_RDS))
+	if (task == current && update)
 		speculative_store_bypass_update();
 
 	return 0;
@@ -559,7 +575,9 @@ static int ssb_prctl_get(struct task_struct *task)
 	case SPEC_STORE_BYPASS_DISABLE:
 		return PR_SPEC_DISABLE;
 	case SPEC_STORE_BYPASS_PRCTL:
-		if (test_tsk_thread_flag(task, TIF_RDS))
+		if (task_spec_ssb_force_disable(task))
+			return PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE;
+		if (task_spec_ssb_disable(task))
 			return PR_SPEC_PRCTL | PR_SPEC_DISABLE;
 		return PR_SPEC_PRCTL | PR_SPEC_ENABLE;
 	default:
@@ -572,9 +590,6 @@ static int ssb_prctl_get(struct task_struct *task)
 int arch_prctl_spec_ctrl_set(struct task_struct *task, unsigned long which,
 			     unsigned long ctrl)
 {
-	if (ctrl != PR_SPEC_ENABLE && ctrl != PR_SPEC_DISABLE)
-		return -ERANGE;
-
 	switch (which) {
 	case PR_SPEC_STORE_BYPASS:
 		return ssb_prctl_set(task, ctrl);
