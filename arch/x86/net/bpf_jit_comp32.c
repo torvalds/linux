@@ -175,18 +175,12 @@ static const u8 bpf2ia32[][2] = {
 #define SCRATCH_SIZE 96
 
 /* Total stack size used in JITed code */
-#define _STACK_SIZE \
-	(stack_depth + \
-	 + SCRATCH_SIZE + \
-	 + 4 /* Extra space for skb_copy_bits buffer */)
+#define _STACK_SIZE	(stack_depth + SCRATCH_SIZE)
 
 #define STACK_SIZE ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
 
 /* Get the offset of eBPF REGISTERs stored on scratch space. */
 #define STACK_VAR(off) (off)
-
-/* Offset of skb_copy_bits buffer */
-#define SKB_BUFFER STACK_VAR(SCRATCH_SIZE)
 
 /* Encode 'dst_reg' register into IA32 opcode 'byte' */
 static u8 add_1reg(u8 byte, u32 dst_reg)
@@ -2276,134 +2270,6 @@ emit_jmp:
 				return -EFAULT;
 			}
 			break;
-
-		case BPF_LD | BPF_ABS | BPF_W:
-		case BPF_LD | BPF_ABS | BPF_H:
-		case BPF_LD | BPF_ABS | BPF_B:
-		case BPF_LD | BPF_IND | BPF_W:
-		case BPF_LD | BPF_IND | BPF_H:
-		case BPF_LD | BPF_IND | BPF_B:
-		{
-			int size;
-			const u8 *r6 = bpf2ia32[BPF_REG_6];
-
-			/* Setting up first argument */
-			/* mov eax,dword ptr [ebp+off] */
-			EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX),
-			      STACK_VAR(r6[0]));
-
-			/* Setting up second argument */
-			if (BPF_MODE(code) == BPF_ABS) {
-				/* mov %edx, imm32 */
-				EMIT1_off32(0xBA, imm32);
-			} else {
-				if (sstk)
-					/* mov edx,dword ptr [ebp+off] */
-					EMIT3(0x8B, add_2reg(0x40, IA32_EBP,
-							     IA32_EDX),
-					      STACK_VAR(src_lo));
-				else
-					/* mov edx,src_lo */
-					EMIT2(0x8B, add_2reg(0xC0, src_lo,
-							     IA32_EDX));
-				if (imm32) {
-					if (is_imm8(imm32))
-						/* add %edx,imm8 */
-						EMIT3(0x83, 0xC2, imm32);
-					else
-						/* add %edx,imm32 */
-						EMIT2_off32(0x81, 0xC2, imm32);
-				}
-			}
-
-			/* Setting up third argument */
-			switch (BPF_SIZE(code)) {
-			case BPF_W:
-				size = 4;
-				break;
-			case BPF_H:
-				size = 2;
-				break;
-			case BPF_B:
-				size = 1;
-				break;
-			default:
-				return -EINVAL;
-			}
-			/* mov ecx,val */
-			EMIT2(0xB1, size);
-			/* movzx ecx,ecx */
-			EMIT3(0x0F, 0xB6, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-
-			/* mov ebx,ebp */
-			EMIT2(0x8B, add_2reg(0xC0, IA32_EBP, IA32_EBX));
-			/* add %ebx,imm8 */
-			EMIT3(0x83, add_1reg(0xC0, IA32_EBX), SKB_BUFFER);
-			/* push ebx */
-			EMIT1(0x53);
-
-			/* Setting up function pointer to call */
-			/* mov ebx,imm32*/
-			EMIT2_off32(0xC7, add_1reg(0xC0, IA32_EBX),
-				    (unsigned int)bpf_load_pointer);
-
-			EMIT2(0xFF, add_1reg(0xD0, IA32_EBX));
-			/* add %esp,4 */
-			EMIT3(0x83, add_1reg(0xC0, IA32_ESP), 4);
-			/* xor edx,edx */
-			EMIT2(0x33, add_2reg(0xC0, IA32_EDX, IA32_EDX));
-
-			/* mov dword ptr [ebp+off],eax */
-			EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EDX),
-			      STACK_VAR(r0[0]));
-			/* mov dword ptr [ebp+off],edx */
-			EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EDX),
-			      STACK_VAR(r0[1]));
-
-			/*
-			 * Check if return address is NULL or not.
-			 * If NULL then jump to epilogue else continue
-			 * to load the value from retn address
-			 */
-			EMIT3(0x83, add_1reg(0xF8, IA32_EAX), 0);
-			jmp_offset = ctx->cleanup_addr - addrs[i];
-
-			switch (BPF_SIZE(code)) {
-			case BPF_W:
-				jmp_offset += 7;
-				break;
-			case BPF_H:
-				jmp_offset += 10;
-				break;
-			case BPF_B:
-				jmp_offset += 6;
-				break;
-			}
-
-			EMIT2_off32(0x0F, IA32_JE + 0x10, jmp_offset);
-			/* Load value from the address */
-			switch (BPF_SIZE(code)) {
-			case BPF_W:
-				/* mov eax,[eax] */
-				EMIT2(0x8B, 0x0);
-				/* Emit 'bswap eax' */
-				EMIT2(0x0F, add_1reg(0xC8, IA32_EAX));
-				break;
-			case BPF_H:
-				EMIT3(0x0F, 0xB7, 0x0);
-				EMIT1(0x66);
-				EMIT3(0xC1, add_1reg(0xC8, IA32_EAX), 8);
-				break;
-			case BPF_B:
-				EMIT3(0x0F, 0xB6, 0x0);
-				break;
-			}
-
-			/* mov dword ptr [ebp+off],eax */
-			EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EAX),
-			      STACK_VAR(r0[0]));
-			break;
-		}
 		/* STX XADD: lock *(u32 *)(dst + off) += src */
 		case BPF_STX | BPF_XADD | BPF_W:
 		/* STX XADD: lock *(u64 *)(dst + off) += src */
