@@ -17,7 +17,6 @@ vsoc.c, uapi/vsoc_shm.h
    waiting threads. We should eventually use multiple queues and select the
    queue based on the region.
  - Add debugfs support for examining the permissions of regions.
- - Use ioremap_wc instead of ioremap_nocache.
  - Remove VSOC_WAIT_FOR_INCOMING_INTERRUPT ioctl. This functionality has been
    superseded by the futex and is there for legacy reasons.
 
