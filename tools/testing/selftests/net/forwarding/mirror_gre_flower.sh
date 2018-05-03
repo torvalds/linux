@@ -10,6 +10,11 @@
 # this address, mirroring takes place, whereas when pinging the other one,
 # there's no mirroring.
 
+ALL_TESTS="
+	test_gretap
+	test_ip6gretap
+"
+
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
@@ -81,6 +86,18 @@ full_test_span_gre_dir_acl()
 	log_test "$direction $what ($tcflags)"
 }
 
+test_gretap()
+{
+	full_test_span_gre_dir_acl gt4 ingress 8 0 192.0.2.4 "ACL mirror to gretap"
+	full_test_span_gre_dir_acl gt4 egress 0 8 192.0.2.3 "ACL mirror to gretap"
+}
+
+test_ip6gretap()
+{
+	full_test_span_gre_dir_acl gt6 ingress 8 0 192.0.2.4 "ACL mirror to ip6gretap"
+	full_test_span_gre_dir_acl gt6 egress 0 8 192.0.2.3 "ACL mirror to ip6gretap"
+}
+
 test_all()
 {
 	RET=0
@@ -88,11 +105,7 @@ test_all()
 	slow_path_trap_install $swp1 ingress
 	slow_path_trap_install $swp1 egress
 
-	full_test_span_gre_dir_acl gt4 ingress 8 0 192.0.2.4 "ACL mirror to gretap"
-	full_test_span_gre_dir_acl gt6 ingress 8 0 192.0.2.4 "ACL mirror to ip6gretap"
-
-	full_test_span_gre_dir_acl gt4 egress 0 8 192.0.2.3 "ACL mirror to gretap"
-	full_test_span_gre_dir_acl gt6 egress 0 8 192.0.2.3 "ACL mirror to ip6gretap"
+	tests_run
 
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress

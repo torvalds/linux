@@ -9,6 +9,11 @@
 # is set up. Later on, the neighbor is deleted and it is expected to be
 # reinitialized using the usual ARP process, and the mirroring offload updated.
 
+ALL_TESTS="
+	test_gretap
+	test_ip6gretap
+"
+
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
@@ -69,15 +74,24 @@ test_span_gre_neigh()
 	log_test "$direction $what: neighbor change ($tcflags)"
 }
 
+test_gretap()
+{
+	test_span_gre_neigh 192.0.2.130 gt4 ingress "mirror to gretap"
+	test_span_gre_neigh 192.0.2.130 gt4 egress "mirror to gretap"
+}
+
+test_ip6gretap()
+{
+	test_span_gre_neigh 2001:db8:2::2 gt6 ingress "mirror to ip6gretap"
+	test_span_gre_neigh 2001:db8:2::2 gt6 egress "mirror to ip6gretap"
+}
+
 test_all()
 {
 	slow_path_trap_install $swp1 ingress
 	slow_path_trap_install $swp1 egress
 
-	test_span_gre_neigh 192.0.2.130 gt4 ingress "mirror to gretap"
-	test_span_gre_neigh 192.0.2.130 gt4 egress "mirror to gretap"
-	test_span_gre_neigh 2001:db8:2::2 gt6 ingress "mirror to ip6gretap"
-	test_span_gre_neigh 2001:db8:2::2 gt6 egress "mirror to ip6gretap"
+	tests_run
 
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress

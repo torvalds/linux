@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+ALL_TESTS="ping_ipv4 ping_ipv6 multipath_test"
 NUM_NETIFS=8
 source lib.sh
 
@@ -364,13 +365,21 @@ cleanup()
 	vrf_cleanup
 }
 
+ping_ipv4()
+{
+	ping_test $h1 198.51.100.2
+}
+
+ping_ipv6()
+{
+	ping6_test $h1 2001:db8:2::2
+}
+
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-ping_test $h1 198.51.100.2
-ping6_test $h1 2001:db8:2::2
-multipath_test
+tests_run
 
 exit $EXIT_STATUS

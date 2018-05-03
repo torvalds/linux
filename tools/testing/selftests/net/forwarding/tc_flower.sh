@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
+	match_src_ip_test match_ip_flags_test"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -245,22 +247,14 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-match_dst_mac_test
-match_src_mac_test
-match_dst_ip_test
-match_src_ip_test
-match_ip_flags_test
+tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
 	log_info "Could not test offloaded functionality"
 else
 	tcflags="skip_sw"
-	match_dst_mac_test
-	match_src_mac_test
-	match_dst_ip_test
-	match_src_ip_test
-	match_ip_flags_test
+	tests_run
 fi
 
 exit $EXIT_STATUS

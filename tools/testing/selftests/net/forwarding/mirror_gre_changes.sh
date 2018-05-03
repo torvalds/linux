@@ -7,6 +7,13 @@
 # Test how mirrors to gretap and ip6gretap react to changes to relevant
 # configuration.
 
+ALL_TESTS="
+	test_ttl
+	test_tun_up
+	test_egress_up
+	test_remote_ip
+"
+
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
@@ -155,22 +162,36 @@ test_span_gre_remote_ip()
 	log_test "$what: remote address change ($tcflags)"
 }
 
+test_ttl()
+{
+	test_span_gre_ttl gt4 gretap ip "mirror to gretap"
+	test_span_gre_ttl gt6 ip6gretap ipv6 "mirror to ip6gretap"
+}
+
+test_tun_up()
+{
+	test_span_gre_tun_up gt4 "mirror to gretap"
+	test_span_gre_tun_up gt6 "mirror to ip6gretap"
+}
+
+test_egress_up()
+{
+	test_span_gre_egress_up gt4 192.0.2.130 "mirror to gretap"
+	test_span_gre_egress_up gt6 2001:db8:2::2 "mirror to ip6gretap"
+}
+
+test_remote_ip()
+{
+	test_span_gre_remote_ip gt4 gretap 192.0.2.130 192.0.2.132 "mirror to gretap"
+	test_span_gre_remote_ip gt6 ip6gretap 2001:db8:2::2 2001:db8:2::4 "mirror to ip6gretap"
+}
+
 test_all()
 {
 	slow_path_trap_install $swp1 ingress
 	slow_path_trap_install $swp1 egress
 
-	test_span_gre_ttl gt4 gretap ip "mirror to gretap"
-	test_span_gre_ttl gt6 ip6gretap ipv6 "mirror to ip6gretap"
-
-	test_span_gre_tun_up gt4 "mirror to gretap"
-	test_span_gre_tun_up gt6 "mirror to ip6gretap"
-
-	test_span_gre_egress_up gt4 192.0.2.130 "mirror to gretap"
-	test_span_gre_egress_up gt6 2001:db8:2::2 "mirror to ip6gretap"
-
-	test_span_gre_remote_ip gt4 gretap 192.0.2.130 192.0.2.132 "mirror to gretap"
-	test_span_gre_remote_ip gt6 ip6gretap 2001:db8:2::2 2001:db8:2::4 "mirror to ip6gretap"
+	tests_run
 
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress

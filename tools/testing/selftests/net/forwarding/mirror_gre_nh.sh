@@ -7,6 +7,11 @@
 # Test that gretap and ip6gretap mirroring works when the other tunnel endpoint
 # is reachable through a next-hop route (as opposed to directly-attached route).
 
+ALL_TESTS="
+	test_gretap
+	test_ip6gretap
+"
+
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
@@ -92,8 +97,7 @@ test_all()
 	slow_path_trap_install $swp1 ingress
 	slow_path_trap_install $swp1 egress
 
-	test_gretap
-	test_ip6gretap
+	tests_run
 
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress
