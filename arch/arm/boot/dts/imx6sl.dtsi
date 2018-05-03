@@ -86,9 +86,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ckil {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
