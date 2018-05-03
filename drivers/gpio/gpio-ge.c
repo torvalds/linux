@@ -80,7 +80,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	}
 
 	gc->base = -1;
-	gc->ngpio = (u16)of_device_get_match_data(&pdev->dev);
+	gc->ngpio = (u16)(uintptr_t)of_device_get_match_data(&pdev->dev);
 	gc->of_gpio_n_cells = 2;
 	gc->of_node = pdev->dev.of_node;
 
