@@ -326,6 +326,13 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
 		struct platform_device *pdev;
 
+		/* Registers a driver for the muxfpga */
+		ret = vexpress_muxfpga_init();
+		if (ret) {
+			dev_err(dev, "unable to initialize muxfpga driver\n");
+			return ret;
+		}
+
 		/* Call into deep Vexpress configuration API */
 		pdev = of_find_device_by_node(np);
 		if (!pdev) {

@@ -122,4 +122,13 @@ static struct platform_driver vexpress_muxfpga_driver = {
 	.probe = vexpress_muxfpga_probe,
 };
 
-builtin_platform_driver(vexpress_muxfpga_driver);
+int vexpress_muxfpga_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&vexpress_muxfpga_driver);
+	/* -EBUSY just means this driver is already registered */
+	if (ret == -EBUSY)
+		ret = 0;
+	return ret;
+}
