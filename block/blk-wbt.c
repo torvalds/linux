@@ -701,7 +701,7 @@ static int wbt_data_dir(const struct request *rq)
 
 	if (op == REQ_OP_READ)
 		return READ;
-	else if (op == REQ_OP_WRITE || op == REQ_OP_FLUSH)
+	else if (op_is_write(op))
 		return WRITE;
 
 	/* don't account */
