@@ -600,14 +600,15 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport)
 	remaining = chunk;
 	for (i = 0; i < chunk; ) {
 		unsigned int tx_bytes;
-		unsigned int buf = 0;
+		u8 buf[sizeof(u32)];
 		int c;
 
+		memset(buf, 0, ARRAY_SIZE(buf));
 		tx_bytes = min_t(size_t, remaining, port->tx_bytes_pw);
 		for (c = 0; c < tx_bytes ; c++)
-			buf |= (xmit->buf[tail + c] << (c * BITS_PER_BYTE));
+			buf[c] = xmit->buf[tail + c];
 
-		writel_relaxed(buf, uport->membase + SE_GENI_TX_FIFOn);
+		iowrite32_rep(uport->membase + SE_GENI_TX_FIFOn, buf, 1);
 
 		i += tx_bytes;
 		tail = (tail + tx_bytes) & (UART_XMIT_SIZE - 1);
