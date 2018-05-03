@@ -691,7 +691,7 @@ void init_amd_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
-unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c)
+void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0;
@@ -843,7 +843,8 @@ unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 
-	return l2;
+	if (!l2)
+		cpu_detect_cache_sizes(c);
 }
 
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
