@@ -55,6 +55,7 @@ config DRM_DEBUG_SELFTEST
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
+	select DRM_KMS_HELPER
 	default n
 	help
 	  This option provides kernel modules that can be used to run
