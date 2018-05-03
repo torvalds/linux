@@ -711,34 +711,6 @@ static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
 	.trigger = rockchip_i2s_tdm_trigger,
 };
 
-static struct snd_soc_dai_driver rockchip_i2s_tdm_dai = {
-	.probe = rockchip_i2s_tdm_dai_probe,
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 2,
-		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.ops = &rockchip_i2s_tdm_dai_ops,
-	.symmetric_rates = 1,
-};
-
 static const struct snd_soc_component_driver rockchip_i2s_tdm_component = {
 	.name = DRV_NAME,
 };
@@ -856,16 +828,61 @@ static int of_i2s_resetid_get(struct device_node *node,
 	return args.args[0];
 }
 
+static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
+					struct snd_soc_dai_driver **soc_dai)
+{
+	struct snd_soc_dai_driver rockchip_i2s_tdm_dai = {
+		.probe = rockchip_i2s_tdm_dai_probe,
+		.playback = {
+			.stream_name = "Playback",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S8 |
+				    SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S20_3LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+		.capture = {
+			.stream_name = "Capture",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S8 |
+				    SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S20_3LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+		.ops = &rockchip_i2s_tdm_dai_ops,
+	};
+
+	*soc_dai = devm_kmemdup(&pdev->dev, &rockchip_i2s_tdm_dai,
+				sizeof(rockchip_i2s_tdm_dai), GFP_KERNEL);
+	if (!(*soc_dai)) {
+		dev_err(&pdev->dev, "Failed to duplicate i2s_tdm_dai\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *cru_node;
 	const struct of_device_id *of_id;
 	struct rk_i2s_tdm_dev *i2s_tdm;
+	struct snd_soc_dai_driver *soc_dai;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
 	int val;
+
+	ret = rockchip_i2s_tdm_dai_prepare(pdev, &soc_dai);
+	if (ret < 0)
+		return ret;
 
 	i2s_tdm = devm_kzalloc(&pdev->dev, sizeof(*i2s_tdm), GFP_KERNEL);
 	if (!i2s_tdm)
@@ -882,8 +899,11 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->clk_trcm = I2S_CKR_TRCM_TXRX;
 	if (!of_property_read_u32(node, "rockchip,clk-trcm", &val)) {
-		if (val >= 0 && val <= 2)
+		if (val >= 0 && val <= 2) {
 			i2s_tdm->clk_trcm = val << I2S_CKR_TRCM_SHIFT;
+			if (i2s_tdm->clk_trcm)
+				soc_dai->symmetric_rates = 1;
+		}
 	}
 
 	if (i2s_tdm->clk_trcm) {
@@ -967,7 +987,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_tdm_component,
-					      &rockchip_i2s_tdm_dai, 1);
+					      soc_dai, 1);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
