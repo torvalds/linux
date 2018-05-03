@@ -1197,7 +1197,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 
 	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/* stop recording */
-		iwl_fw_dbg_stop_recording(fwrt);
+		iwl_fw_dbg_stop_recording(fwrt->trans);
 
 		iwl_fw_error_dump(fwrt);
 
@@ -1215,7 +1215,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		u32 in_sample = iwl_read_prph(fwrt->trans, DBGC_IN_SAMPLE);
 		u32 out_ctrl = iwl_read_prph(fwrt->trans, DBGC_OUT_CTRL);
 
-		iwl_fw_dbg_stop_recording(fwrt);
+		iwl_fw_dbg_stop_recording(fwrt->trans);
 		/* wait before we collect the data till the DBGC stop */
 		udelay(500);
 

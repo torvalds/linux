@@ -55,6 +55,7 @@
 #include "iwl-context-info.h"
 #include "iwl-context-info-gen3.h"
 #include "internal.h"
+#include "fw/dbg.h"
 
 /*
  * Start up NIC's basic functionality after it has been reset
@@ -164,9 +165,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	trans_pcie->is_down = true;
 
 	/* Stop dbgc before stopping device */
-	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
-	udelay(100);
-	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+	iwl_fw_dbg_stop_recording(trans);
 
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);

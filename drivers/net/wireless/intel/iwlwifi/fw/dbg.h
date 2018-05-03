@@ -196,14 +196,14 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline void iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_dbg_stop_recording(struct iwl_trans *trans)
 {
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(fwrt->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 	} else {
-		iwl_write_prph(fwrt->trans, DBGC_IN_SAMPLE, 0);
+		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
 		udelay(100);
-		iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, 0);
+		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
 	}
 }
 

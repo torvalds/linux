@@ -1042,7 +1042,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 * the recording automatically before entering D3.  This can
 	 * be removed once the FW starts doing that.
 	 */
-	iwl_fw_dbg_stop_recording(&mvm->fwrt);
+	iwl_fw_dbg_stop_recording(mvm->fwrt.trans);
 
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
