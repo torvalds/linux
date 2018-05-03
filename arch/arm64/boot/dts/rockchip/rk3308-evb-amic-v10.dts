@@ -20,6 +20,10 @@
 	};
 };
 
+&is31fl3236 {
+	reg = <0x3f>;
+};
+
 &vad {
 	status = "disabled";
 	rockchip,audio-src = <2>;
