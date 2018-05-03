@@ -13853,7 +13853,6 @@ S:	Supported
 F:	drivers/iommu/tegra*
 
 TEGRA KBC DRIVER
-M:	Rakesh Iyer <riyer@nvidia.com>
 M:	Laxman Dewangan <ldewangan@nvidia.com>
 S:	Supported
 F:	drivers/input/keyboard/tegra-kbc.c
