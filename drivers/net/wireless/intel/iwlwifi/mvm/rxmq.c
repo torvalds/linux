@@ -1189,7 +1189,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	he->data5 |= le16_encode_bits(ltf, IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE);
 
 	switch (he_type) {
-	case RATE_MCS_HE_TYPE_SU: {
+	case RATE_MCS_HE_TYPE_SU:
+	case RATE_MCS_HE_TYPE_EXT_SU: {
 		u16 val;
 
 		/* LTF syms correspond to streams */
@@ -1241,7 +1242,6 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				val));
 		}
 		break;
-	case RATE_MCS_HE_TYPE_EXT_SU:
 	case RATE_MCS_HE_TYPE_TRIG:
 		/* not supported */
 		break;
