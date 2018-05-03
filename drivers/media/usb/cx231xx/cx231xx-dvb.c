@@ -160,10 +160,8 @@ static struct tda18271_config pv_tda18271_config = {
 };
 
 static struct lgdt3306a_config hauppauge_955q_lgdt3306a_config = {
-	.i2c_addr           = 0x59,
 	.qam_if_khz         = 4000,
 	.vsb_if_khz         = 3250,
-	.deny_i2c_rptr      = 1,
 	.spectral_inversion = 1,
 	.mpeg_mode          = LGDT3306A_MPEG_SERIAL,
 	.tpclk_edge         = LGDT3306A_TPCLK_RISING_EDGE,
@@ -861,18 +859,21 @@ static int dvb_init(struct cx231xx *dev)
 	case CX231XX_BOARD_HAUPPAUGE_955Q:
 	{
 		struct si2157_config si2157_config = {};
+		struct lgdt3306a_config lgdt3306a_config = {};
 
-		dev->dvb->frontend[0] = dvb_attach(lgdt3306a_attach,
-			&hauppauge_955q_lgdt3306a_config,
-			demod_i2c
-			);
+		lgdt3306a_config = hauppauge_955q_lgdt3306a_config;
+		lgdt3306a_config.fe = &dev->dvb->frontend[0];
+		lgdt3306a_config.i2c_adapter = &adapter;
 
-		if (!dev->dvb->frontend[0]) {
-			dev_err(dev->dev,
-				"Failed to attach LGDT3306A frontend.\n");
-			result = -EINVAL;
+		/* perform probe/init/attach */
+		client = dvb_module_probe("lgdt3306a", NULL, demod_i2c,
+						dev->board.demod_addr,
+						&lgdt3306a_config);
+		if (!client) {
+			result = -ENODEV;
 			goto out_free;
 		}
+		dvb->i2c_client_demod[0] = client;
 
 		dev->dvb->frontend[0]->ops.i2c_gate_ctrl = NULL;
 
