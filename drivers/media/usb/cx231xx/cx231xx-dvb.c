@@ -732,7 +732,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend[0],
-			       0x60, tuner_i2c,
+			       dev->board.tuner_addr, tuner_i2c,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -756,7 +756,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend[0],
-			       0x60, tuner_i2c,
+			       dev->board.tuner_addr, tuner_i2c,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -783,7 +783,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend[0],
-			   0x60, tuner_i2c,
+			   dev->board.tuner_addr, tuner_i2c,
 			   &hcw_tda18271_config);
 		break;
 
@@ -801,7 +801,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "si2165", I2C_NAME_SIZE);
-		info.addr = 0x64;
+		info.addr = dev->board.demod_addr;
 		info.platform_data = &si2165_pdata;
 		request_module(info.type);
 		client = i2c_new_device(demod_i2c, &info);
@@ -826,8 +826,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend[0],
-			0x60,
-			tuner_i2c,
+			dev->board.tuner_addr, tuner_i2c,
 			&hcw_tda18271_config);
 
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -848,7 +847,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "si2165", I2C_NAME_SIZE);
-		info.addr = 0x64;
+		info.addr = dev->board.demod_addr;
 		info.platform_data = &si2165_pdata;
 		request_module(info.type);
 		client = i2c_new_device(demod_i2c, &info);
@@ -883,7 +882,7 @@ static int dvb_init(struct cx231xx *dev)
 		si2157_config.if_port = 1;
 		si2157_config.inversion = true;
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
-		info.addr = 0x60;
+		info.addr = dev->board.tuner_addr;
 		info.platform_data = &si2157_config;
 		request_module("si2157");
 
@@ -942,7 +941,7 @@ static int dvb_init(struct cx231xx *dev)
 		si2157_config.if_port = 1;
 		si2157_config.inversion = true;
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
-		info.addr = 0x60;
+		info.addr = dev->board.tuner_addr;
 		info.platform_data = &si2157_config;
 		request_module("si2157");
 
@@ -989,7 +988,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend[0],
-			   0x60, tuner_i2c,
+			   dev->board.tuner_addr, tuner_i2c,
 			   &pv_tda18271_config);
 		break;
 
