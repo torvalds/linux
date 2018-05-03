@@ -64,8 +64,6 @@ static int p8_ghash_init_tfm(struct crypto_tfm *tfm)
 		       alg, PTR_ERR(fallback));
 		return PTR_ERR(fallback);
 	}
-	printk(KERN_INFO "Using '%s' as fallback implementation.\n",
-	       crypto_tfm_alg_driver_name(crypto_shash_tfm(fallback)));
 
 	crypto_shash_set_flags(fallback,
 			       crypto_shash_get_flags((struct crypto_shash
