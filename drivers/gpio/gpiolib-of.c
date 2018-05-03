@@ -210,11 +210,8 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 	if (!con_id)
 		return ERR_PTR(-ENOENT);
 
-	for (i = 0; i < ARRAY_SIZE(whitelist); i++)
-		if (!strcmp(con_id, whitelist[i]))
-			break;
-
-	if (i == ARRAY_SIZE(whitelist))
+	i = match_string(whitelist, ARRAY_SIZE(whitelist), con_id);
+	if (i < 0)
 		return ERR_PTR(-ENOENT);
 
 	desc = of_get_named_gpiod_flags(np, con_id, 0, of_flags);
