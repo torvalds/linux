@@ -629,14 +629,14 @@ static void mlx5_fw_tracer_handle_traces(struct work_struct *work)
 	u64 block_timestamp, last_block_timestamp, tmp_trace_block[TRACES_PER_BLOCK];
 	u32 block_count, start_offset, prev_start_offset, prev_consumer_index;
 	u32 trace_event_size = MLX5_ST_SZ_BYTES(tracer_event);
+	struct mlx5_core_dev *dev = tracer->dev;
 	struct tracer_event tracer_event;
-	struct mlx5_core_dev *dev;
 	int i;
 
+	mlx5_core_dbg(dev, "FWTracer: Handle Trace event, owner=(%d)\n", tracer->owner);
 	if (!tracer->owner)
 		return;
 
-	dev = tracer->dev;
 	block_count = tracer->buff.size / TRACER_BLOCK_SIZE_BYTE;
 	start_offset = tracer->buff.consumer_index * TRACER_BLOCK_SIZE_BYTE;
 
@@ -762,6 +762,7 @@ static int mlx5_fw_tracer_start(struct mlx5_fw_tracer *tracer)
 		goto release_ownership;
 	}
 
+	mlx5_core_dbg(dev, "FWTracer: Ownership granted and active\n");
 	return 0;
 
 release_ownership:
@@ -774,6 +775,7 @@ static void mlx5_fw_tracer_ownership_change(struct work_struct *work)
 	struct mlx5_fw_tracer *tracer =
 		container_of(work, struct mlx5_fw_tracer, ownership_change_work);
 
+	mlx5_core_dbg(tracer->dev, "FWTracer: ownership changed, current=(%d)\n", tracer->owner);
 	if (tracer->owner) {
 		tracer->owner = false;
 		tracer->buff.consumer_index = 0;
@@ -829,6 +831,8 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev)
 		mlx5_core_warn(dev, "FWTracer: Allocate strings database failed %d\n", err);
 		goto free_log_buf;
 	}
+
+	mlx5_core_dbg(dev, "FWTracer: Tracer created\n");
 
 	return tracer;
 
@@ -887,6 +891,9 @@ void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer)
 	if (IS_ERR_OR_NULL(tracer))
 		return;
 
+	mlx5_core_dbg(tracer->dev, "FWTracer: Cleanup, is owner ? (%d)\n",
+		      tracer->owner);
+
 	cancel_work_sync(&tracer->ownership_change_work);
 	cancel_work_sync(&tracer->handle_traces_work);
 
@@ -902,6 +909,8 @@ void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
 {
 	if (IS_ERR_OR_NULL(tracer))
 		return;
+
+	mlx5_core_dbg(tracer->dev, "FWTracer: Destroy\n");
 
 	cancel_work_sync(&tracer->read_fw_strings_work);
 	mlx5_fw_tracer_clean_ready_list(tracer);
