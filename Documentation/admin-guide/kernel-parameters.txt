@@ -1025,6 +1025,12 @@
 			address. The serial port must already be setup
 			and configured. Options are not yet supported.
 
+		qcom_geni,<addr>
+			Start an early, polled-mode console on a Qualcomm
+			Generic Interface (GENI) based serial port at the
+			specified address. The serial port must already be
+			setup and configured. Options are not yet supported.
+
 	earlyprintk=	[X86,SH,ARM,M68k,S390]
 			earlyprintk=vga
 			earlyprintk=efi

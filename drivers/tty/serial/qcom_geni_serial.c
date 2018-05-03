@@ -196,8 +196,19 @@ static bool qcom_geni_serial_poll_bit(struct uart_port *uport,
 		timeout_us = ((fifo_bits * USEC_PER_SEC) / baud) + 500;
 	}
 
-	return !readl_poll_timeout_atomic(uport->membase + offset, reg,
-			 (bool)(reg & field) == set, 10, timeout_us);
+	/*
+	 * Use custom implementation instead of readl_poll_atomic since ktimer
+	 * is not ready at the time of early console.
+	 */
+	timeout_us = DIV_ROUND_UP(timeout_us, 10) * 10;
+	while (timeout_us) {
+		reg = readl_relaxed(uport->membase + offset);
+		if ((bool)(reg & field) == set)
+			return true;
+		udelay(10);
+		timeout_us -= 10;
+	}
+	return false;
 }
 
 static void qcom_geni_serial_setup_tx(struct uart_port *uport, u32 xmit_size)
@@ -942,6 +953,65 @@ static int __init qcom_geni_console_setup(struct console *co, char *options)
 
 	return uart_set_options(uport, co, baud, parity, bits, flow);
 }
+
+static void qcom_geni_serial_earlycon_write(struct console *con,
+					const char *s, unsigned int n)
+{
+	struct earlycon_device *dev = con->data;
+
+	__qcom_geni_serial_console_write(&dev->port, s, n);
+}
+
+static int __init qcom_geni_serial_earlycon_setup(struct earlycon_device *dev,
+								const char *opt)
+{
+	struct uart_port *uport = &dev->port;
+	u32 tx_trans_cfg;
+	u32 tx_parity_cfg = 0;	/* Disable Tx Parity */
+	u32 rx_trans_cfg = 0;
+	u32 rx_parity_cfg = 0;	/* Disable Rx Parity */
+	u32 stop_bit_len = 0;	/* Default stop bit length - 1 bit */
+	u32 bits_per_char;
+	struct geni_se se;
+
+	if (!uport->membase)
+		return -EINVAL;
+
+	memset(&se, 0, sizeof(se));
+	se.base = uport->membase;
+	if (geni_se_read_proto(&se) != GENI_SE_UART)
+		return -ENXIO;
+	/*
+	 * Ignore Flow control.
+	 * n = 8.
+	 */
+	tx_trans_cfg = UART_CTS_MASK;
+	bits_per_char = BITS_PER_BYTE;
+
+	/*
+	 * Make an unconditional cancel on the main sequencer to reset
+	 * it else we could end up in data loss scenarios.
+	 */
+	qcom_geni_serial_poll_tx_done(uport);
+	qcom_geni_serial_abort_rx(uport);
+	geni_se_config_packing(&se, BITS_PER_BYTE, 1, false, true, false);
+	geni_se_init(&se, DEF_FIFO_DEPTH_WORDS / 2, DEF_FIFO_DEPTH_WORDS - 2);
+	geni_se_select_mode(&se, GENI_SE_FIFO);
+
+	writel_relaxed(tx_trans_cfg, uport->membase + SE_UART_TX_TRANS_CFG);
+	writel_relaxed(tx_parity_cfg, uport->membase + SE_UART_TX_PARITY_CFG);
+	writel_relaxed(rx_trans_cfg, uport->membase + SE_UART_RX_TRANS_CFG);
+	writel_relaxed(rx_parity_cfg, uport->membase + SE_UART_RX_PARITY_CFG);
+	writel_relaxed(bits_per_char, uport->membase + SE_UART_TX_WORD_LEN);
+	writel_relaxed(bits_per_char, uport->membase + SE_UART_RX_WORD_LEN);
+	writel_relaxed(stop_bit_len, uport->membase + SE_UART_TX_STOP_BIT_LEN);
+
+	dev->con->write = qcom_geni_serial_earlycon_write;
+	dev->con->setup = NULL;
+	return 0;
+}
+OF_EARLYCON_DECLARE(qcom_geni, "qcom,geni-debug-uart",
+				qcom_geni_serial_earlycon_setup);
 
 static int __init console_register(struct uart_driver *drv)
 {
