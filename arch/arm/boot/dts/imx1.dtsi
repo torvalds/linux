@@ -62,6 +62,14 @@
 		};
 	};
 
+	clocks {
+		clk32 {
+			compatible = "fsl,imx-clk32", "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32000>;
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
