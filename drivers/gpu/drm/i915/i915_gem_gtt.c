@@ -3326,14 +3326,10 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-
-	if (INTEL_GEN(dev_priv) >= 9) {
-		size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	} else if (IS_CHERRYVIEW(dev_priv)) {
+	if (IS_CHERRYVIEW(dev_priv))
 		size = chv_get_total_gtt_size(snb_gmch_ctl);
-	} else {
+	else
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	}
 
 	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 	ggtt->base.cleanup = gen6_gmch_remove;
