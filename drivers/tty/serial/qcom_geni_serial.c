@@ -417,19 +417,17 @@ static void qcom_geni_serial_start_tx(struct uart_port *uport)
 	u32 status;
 
 	if (port->xfer_mode == GENI_SE_FIFO) {
-		status = readl_relaxed(uport->membase + SE_GENI_STATUS);
+		/*
+		 * readl ensures reading & writing of IRQ_EN register
+		 * is not re-ordered before checking the status of the
+		 * Serial Engine.
+		 */
+		status = readl(uport->membase + SE_GENI_STATUS);
 		if (status & M_GENI_CMD_ACTIVE)
 			return;
 
 		if (!qcom_geni_serial_tx_empty(uport))
 			return;
-
-		/*
-		 * Ensure writing to IRQ_EN & watermark registers are not
-		 * re-ordered before checking the status of the Serial
-		 * Engine and TX FIFO
-		 */
-		mb();
 
 		irq_en = readl_relaxed(uport->membase +	SE_GENI_M_IRQ_EN);
 		irq_en |= M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN;
@@ -894,7 +892,7 @@ out_restart_rx:
 
 static unsigned int qcom_geni_serial_tx_empty(struct uart_port *uport)
 {
-	return !readl_relaxed(uport->membase + SE_GENI_TX_FIFO_STATUS);
+	return !readl(uport->membase + SE_GENI_TX_FIFO_STATUS);
 }
 
 #ifdef CONFIG_SERIAL_QCOM_GENI_CONSOLE
