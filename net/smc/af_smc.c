@@ -296,8 +296,10 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
 {
 	/* register memory region for new rmb */
-	if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK]))
+	if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
+		rmb_desc->regerr = 1;
 		return -EFAULT;
+	}
 	return 0;
 }
 
