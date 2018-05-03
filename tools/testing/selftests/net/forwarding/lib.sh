@@ -381,19 +381,33 @@ bridge_ageing_time_get()
 	echo $((ageing_time / 100))
 }
 
+declare -A SYSCTL_ORIG
+sysctl_set()
+{
+	local key=$1; shift
+	local value=$1; shift
+
+	SYSCTL_ORIG[$key]=$(sysctl -n $key)
+	sysctl -qw $key=$value
+}
+
+sysctl_restore()
+{
+	local key=$1; shift
+
+	sysctl -qw $key=${SYSCTL_ORIG["$key"]}
+}
+
 forwarding_enable()
 {
-       ipv4_fwd=$(sysctl -n net.ipv4.conf.all.forwarding)
-       ipv6_fwd=$(sysctl -n net.ipv6.conf.all.forwarding)
-
-       sysctl -q -w net.ipv4.conf.all.forwarding=1
-       sysctl -q -w net.ipv6.conf.all.forwarding=1
+	sysctl_set net.ipv4.conf.all.forwarding 1
+	sysctl_set net.ipv6.conf.all.forwarding 1
 }
 
 forwarding_restore()
 {
-       sysctl -q -w net.ipv6.conf.all.forwarding=$ipv6_fwd
-       sysctl -q -w net.ipv4.conf.all.forwarding=$ipv4_fwd
+	sysctl_restore net.ipv6.conf.all.forwarding
+	sysctl_restore net.ipv4.conf.all.forwarding
 }
 
 tc_offload_check()
