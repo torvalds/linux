@@ -183,6 +183,9 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 	raw_lockdep_assert_held_rcu_node(rnp);
 	WARN_ON_ONCE(rdp->mynode != rnp);
 	WARN_ON_ONCE(!rcu_is_leaf_node(rnp));
+	/* RCU better not be waiting on newly onlined CPUs! */
+	WARN_ON_ONCE(rnp->qsmaskinitnext & ~rnp->qsmaskinit & rnp->qsmask &
+		     rdp->grpmask);
 
 	/*
 	 * Decide where to queue the newly blocked task.  In theory,
