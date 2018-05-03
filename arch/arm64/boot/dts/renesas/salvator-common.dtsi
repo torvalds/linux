@@ -374,6 +374,8 @@
 		#interrupt-cells = <2>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		rohm,ddr-backup-power = <0xf>;
+		rohm,rstbmode-level;
 
 		regulators {
 			dvfs: dvfs {
