@@ -2062,6 +2062,7 @@ struct drm_i915_private {
 		struct list_head timelines;
 
 		struct list_head active_rings;
+		struct list_head closed_vma;
 		u32 active_requests;
 		u32 request_serial;
 

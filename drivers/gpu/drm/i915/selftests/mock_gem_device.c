@@ -226,6 +226,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	INIT_LIST_HEAD(&i915->gt.timelines);
 	INIT_LIST_HEAD(&i915->gt.active_rings);
+	INIT_LIST_HEAD(&i915->gt.closed_vma);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	mock_init_ggtt(i915);

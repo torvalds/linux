@@ -165,6 +165,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 	i915_timelines_park(i915);
 
 	i915_pmu_gt_parked(i915);
+	i915_vma_parked(i915);
 
 	i915->gt.awake = false;
 
@@ -4795,7 +4796,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 					 &obj->vma_list, obj_link) {
 			GEM_BUG_ON(i915_vma_is_active(vma));
 			vma->flags &= ~I915_VMA_PIN_MASK;
-			i915_vma_close(vma);
+			i915_vma_destroy(vma);
 		}
 		GEM_BUG_ON(!list_empty(&obj->vma_list));
 		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma_tree));
@@ -5598,6 +5599,7 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
+	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);
 
 	i915_gem_init__mm(dev_priv);
 

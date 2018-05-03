@@ -1091,7 +1091,7 @@ static int __igt_write_huge(struct i915_gem_context *ctx,
 out_vma_unpin:
 	i915_vma_unpin(vma);
 out_vma_close:
-	i915_vma_close(vma);
+	i915_vma_destroy(vma);
 
 	return err;
 }

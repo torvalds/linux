@@ -2219,6 +2219,12 @@ i915_ppgtt_create(struct drm_i915_private *dev_priv,
 
 void i915_ppgtt_close(struct i915_address_space *vm)
 {
+	GEM_BUG_ON(vm->closed);
+	vm->closed = true;
+}
+
+static void ppgtt_destroy_vma(struct i915_address_space *vm)
+{
 	struct list_head *phases[] = {
 		&vm->active_list,
 		&vm->inactive_list,
@@ -2226,15 +2232,12 @@ void i915_ppgtt_close(struct i915_address_space *vm)
 		NULL,
 	}, **phase;
 
-	GEM_BUG_ON(vm->closed);
 	vm->closed = true;
-
 	for (phase = phases; *phase; phase++) {
 		struct i915_vma *vma, *vn;
 
 		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			if (!i915_vma_is_closed(vma))
-				i915_vma_close(vma);
+			i915_vma_destroy(vma);
 	}
 }
 
@@ -2245,7 +2248,8 @@ void i915_ppgtt_release(struct kref *kref)
 
 	trace_i915_ppgtt_release(&ppgtt->base);
 
-	/* vmas should already be unbound and destroyed */
+	ppgtt_destroy_vma(&ppgtt->base);
+
 	GEM_BUG_ON(!list_empty(&ppgtt->base.active_list));
 	GEM_BUG_ON(!list_empty(&ppgtt->base.inactive_list));
 	GEM_BUG_ON(!list_empty(&ppgtt->base.unbound_list));
