@@ -191,7 +191,7 @@ multipath_eval()
        diff=$(echo $weights_ratio - $packets_ratio | bc -l)
        diff=${diff#-}
 
-       test "$(echo "$diff / $weights_ratio > 0.1" | bc -l)" -eq 0
+       test "$(echo "$diff / $weights_ratio > 0.15" | bc -l)" -eq 0
        check_err $? "Too large discrepancy between expected and measured ratios"
        log_test "$desc"
        log_info "Expected ratio $weights_ratio Measured ratio $packets_ratio"
