@@ -3297,8 +3297,10 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		hsotg->regs + DOEPMSK);
 
 	/* Enable BNA interrupt for DDMA */
-	if (using_desc_dma(hsotg))
+	if (using_desc_dma(hsotg)) {
 		dwc2_set_bit(hsotg->regs + DOEPMSK, DOEPMSK_BNAMSK);
+		dwc2_set_bit(hsotg->regs + DIEPMSK, DIEPMSK_BNAININTRMSK);
+	}
 
 	dwc2_writel(0, hsotg->regs + DAINTMSK);
 
