@@ -2181,7 +2181,7 @@ BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
 	return ret;
 }
 
-const struct bpf_func_proto bpf_skb_vlan_push_proto = {
+static const struct bpf_func_proto bpf_skb_vlan_push_proto = {
 	.func           = bpf_skb_vlan_push,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
@@ -2189,7 +2189,6 @@ const struct bpf_func_proto bpf_skb_vlan_push_proto = {
 	.arg2_type      = ARG_ANYTHING,
 	.arg3_type      = ARG_ANYTHING,
 };
-EXPORT_SYMBOL_GPL(bpf_skb_vlan_push_proto);
 
 BPF_CALL_1(bpf_skb_vlan_pop, struct sk_buff *, skb)
 {
@@ -2203,13 +2202,12 @@ BPF_CALL_1(bpf_skb_vlan_pop, struct sk_buff *, skb)
 	return ret;
 }
 
-const struct bpf_func_proto bpf_skb_vlan_pop_proto = {
+static const struct bpf_func_proto bpf_skb_vlan_pop_proto = {
 	.func           = bpf_skb_vlan_pop,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
-EXPORT_SYMBOL_GPL(bpf_skb_vlan_pop_proto);
 
 static int bpf_skb_generic_push(struct sk_buff *skb, u32 off, u32 len)
 {
