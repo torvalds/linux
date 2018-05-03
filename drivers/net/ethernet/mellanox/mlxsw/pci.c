@@ -959,6 +959,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	u8 rdq_log2sz;
 	u8 num_cqs;
 	u8 cq_log2sz;
+	u8 cqv2_log2sz;
 	u8 num_eqs;
 	u8 eq_log2sz;
 	int err;
@@ -974,6 +975,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	rdq_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_rdq_sz_get(mbox);
 	num_cqs = mlxsw_cmd_mbox_query_aq_cap_max_num_cqs_get(mbox);
 	cq_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_cq_sz_get(mbox);
+	cqv2_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_cqv2_sz_get(mbox);
 	num_eqs = mlxsw_cmd_mbox_query_aq_cap_max_num_eqs_get(mbox);
 	eq_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_eq_sz_get(mbox);
 
@@ -986,6 +988,8 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	if ((1 << sdq_log2sz != MLXSW_PCI_WQE_COUNT) ||
 	    (1 << rdq_log2sz != MLXSW_PCI_WQE_COUNT) ||
 	    (1 << cq_log2sz != MLXSW_PCI_CQE01_COUNT) ||
+	    (mlxsw_pci->max_cqe_ver == MLXSW_PCI_CQE_V2 &&
+	     (1 << cqv2_log2sz != MLXSW_PCI_CQE2_COUNT)) ||
 	    (1 << eq_log2sz != MLXSW_PCI_EQE_COUNT)) {
 		dev_err(&pdev->dev, "Unsupported number of async queue descriptors\n");
 		return -EINVAL;

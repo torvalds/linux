@@ -424,9 +424,14 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_rdq_sz, 0x04, 24, 8);
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_num_rdqs, 0x04, 0, 8);
 
 /* cmd_mbox_query_aq_cap_log_max_cq_sz
- * Log (base 2) of max CQEs allowed on CQ.
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv0 and CQEv1.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cq_sz, 0x08, 24, 8);
+
+/* cmd_mbox_query_aq_cap_log_max_cqv2_sz
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv2.
+ */
+MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cqv2_sz, 0x08, 16, 8);
 
 /* cmd_mbox_query_aq_cap_max_num_cqs
  * Maximum number of CQs.
