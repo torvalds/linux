@@ -3710,7 +3710,12 @@ void rcu_cpu_starting(unsigned int cpu)
 		nbits = bitmap_weight(&oldmask, BITS_PER_LONG);
 		/* Allow lockless access for expedited grace periods. */
 		smp_store_release(&rsp->ncpus, rsp->ncpus + nbits); /* ^^^ */
-		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		if (rnp->qsmask & mask) { /* RCU waiting on incoming CPU? */
+			/* Report QS -after- changing ->qsmaskinitnext! */
+			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
+		} else {
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		}
 	}
 	smp_mb(); /* Ensure RCU read-side usage follows above initialization. */
 }
