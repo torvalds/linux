@@ -1408,6 +1408,7 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
+	u32 xtype;
 	int ret;
 	struct marvell_nfc_op nfc_op = {
 		.ndcb[0] = NDCB0_CMD_TYPE(TYPE_WRITE) | NDCB0_LEN_OVRD,
@@ -1423,7 +1424,12 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	 * last naked write.
 	 */
 	if (chunk == 0) {
-		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_WRITE_DISPATCH) |
+		if (lt->nchunks == 1)
+			xtype = XTYPE_MONOLITHIC_RW;
+		else
+			xtype = XTYPE_WRITE_DISPATCH;
+
+		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(xtype) |
 				  NDCB0_ADDR_CYC(marvell_nand->addr_cyc) |
 				  NDCB0_CMD1(NAND_CMD_SEQIN);
 		nfc_op.ndcb[1] |= NDCB1_ADDRS_PAGE(page);
