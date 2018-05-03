@@ -5114,7 +5114,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 					LOG_DISCOVERY,
-					"2772 Issue FCF rediscover mabilbox "
+					"2772 Issue FCF rediscover mailbox "
 					"command failed, fail through to FCF "
 					"dead event\n");
 			spin_lock_irq(&phba->hbalock);
@@ -5206,7 +5206,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 						LOG_DISCOVERY,
 						"2774 Issue FCF rediscover "
-						"mabilbox command failed, "
+						"mailbox command failed, "
 						"through to CVL event\n");
 				spin_lock_irq(&phba->hbalock);
 				phba->fcf.fcf_flag &= ~FCF_ACVL_DISC;
