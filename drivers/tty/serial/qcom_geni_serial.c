@@ -633,7 +633,7 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 
 	if (uport->suspended)
-		return IRQ_HANDLED;
+		return IRQ_NONE;
 
 	spin_lock_irqsave(&uport->lock, flags);
 	m_irq_status = readl_relaxed(uport->membase + SE_GENI_M_IRQ_STATUS);
