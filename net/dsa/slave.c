@@ -1441,6 +1441,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct dsa_switchdev_event_work *switchdev_work;
 
 	if (!dsa_slave_dev_check(dev))
@@ -1458,8 +1459,10 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
 		if (dsa_slave_switchdev_fdb_work_init(switchdev_work,
-						      ptr))
+						      fdb_info))
 			goto err_fdb_work_init;
 		dev_hold(dev);
 		break;
