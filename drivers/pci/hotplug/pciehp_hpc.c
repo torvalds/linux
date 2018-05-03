@@ -10,7 +10,6 @@
  * All rights reserved.
  *
  * Send feedback to <greg@kroah.com>,<kristen.c.accardi@intel.com>
- *
  */
 
 #include <linux/kernel.h>
@@ -147,25 +146,22 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	else
 		rc = pcie_poll_cmd(ctrl, jiffies_to_msecs(timeout));
 
-	/*
-	 * Controllers with errata like Intel CF118 don't generate
-	 * completion notifications unless the power/indicator/interlock
-	 * control bits are changed.  On such controllers, we'll emit this
-	 * timeout message when we wait for completion of commands that
-	 * don't change those bits, e.g., commands that merely enable
-	 * interrupts.
-	 */
 	if (!rc)
 		ctrl_info(ctrl, "Timeout on hotplug command %#06x (issued %u msec ago)\n",
 			  ctrl->slot_ctrl,
 			  jiffies_to_msecs(jiffies - ctrl->cmd_started));
 }
 
+#define CC_ERRATUM_MASK		(PCI_EXP_SLTCTL_PCC |	\
+				 PCI_EXP_SLTCTL_PIC |	\
+				 PCI_EXP_SLTCTL_AIC |	\
+				 PCI_EXP_SLTCTL_EIC)
+
 static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 			      u16 mask, bool wait)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
-	u16 slot_ctrl;
+	u16 slot_ctrl_orig, slot_ctrl;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
@@ -180,6 +176,7 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 		goto out;
 	}
 
+	slot_ctrl_orig = slot_ctrl;
 	slot_ctrl &= ~mask;
 	slot_ctrl |= (cmd & mask);
 	ctrl->cmd_busy = 1;
@@ -187,6 +184,17 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
 	ctrl->cmd_started = jiffies;
 	ctrl->slot_ctrl = slot_ctrl;
+
+	/*
+	 * Controllers with the Intel CF118 and similar errata advertise
+	 * Command Completed support, but they only set Command Completed
+	 * if we change the "Control" bits for power, power indicator,
+	 * attention indicator, or interlock.  If we only change the
+	 * "Enable" bits, they never set the Command Completed bit.
+	 */
+	if (pdev->broken_cmd_compl &&
+	    (slot_ctrl_orig & CC_ERRATUM_MASK) == (slot_ctrl & CC_ERRATUM_MASK))
+		ctrl->cmd_busy = 0;
 
 	/*
 	 * Optionally wait for the hardware to be ready for a new command,
@@ -861,7 +869,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_CC |
 		PCI_EXP_SLTSTA_DLLSC);
 
-	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c LLActRep%c\n",
+	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c LLActRep%c%s\n",
 		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,
 		FLAG(slot_cap, PCI_EXP_SLTCAP_ABP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_PCP),
@@ -872,7 +880,8 @@ struct controller *pcie_init(struct pcie_device *dev)
 		FLAG(slot_cap, PCI_EXP_SLTCAP_HPS),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_EIP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_NCCS),
-		FLAG(link_cap, PCI_EXP_LNKCAP_DLLLARC));
+		FLAG(link_cap, PCI_EXP_LNKCAP_DLLLARC),
+		pdev->broken_cmd_compl ? " (with Cmd Compl erratum)" : "");
 
 	if (pcie_init_slot(ctrl))
 		goto abort_ctrl;
@@ -891,3 +900,21 @@ void pciehp_release_ctrl(struct controller *ctrl)
 	pcie_cleanup_slot(ctrl);
 	kfree(ctrl);
 }
+
+static void quirk_cmd_compl(struct pci_dev *pdev)
+{
+	u32 slot_cap;
+
+	if (pci_is_pcie(pdev)) {
+		pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &slot_cap);
+		if (slot_cap & PCI_EXP_SLTCAP_HPC &&
+		    !(slot_cap & PCI_EXP_SLTCAP_NCCS))
+			pdev->broken_cmd_compl = 1;
+	}
+}
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_QCOM, 0x0400,
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_QCOM, 0x0401,
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);

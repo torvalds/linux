@@ -406,6 +406,9 @@ struct pci_dev {
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
 
+#ifdef CONFIG_HOTPLUG_PCI_PCIE
+	unsigned int	broken_cmd_compl:1;	/* No compl for some cmds */
+#endif
 #ifdef CONFIG_PCIE_PTM
 	unsigned int	ptm_root:1;
 	unsigned int	ptm_enabled:1;
