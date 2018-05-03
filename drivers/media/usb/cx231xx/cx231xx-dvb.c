@@ -1150,7 +1150,7 @@ static int dvb_init(struct cx231xx *dev)
 		info.platform_data = &si2157_config;
 		request_module("si2157");
 
-		client = i2c_new_device(adapter, &info);
+		client = i2c_new_device(tuner_i2c, &info);
 		if (client == NULL || client->dev.driver == NULL) {
 			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
 			i2c_unregister_device(dvb->i2c_client_demod[0]);
