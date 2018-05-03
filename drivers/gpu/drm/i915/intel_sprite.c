@@ -1003,7 +1003,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		drm_mode_get_hv_timing(&crtc_state->base.mode,
 				       &clip.x2, &clip.y2);
 
-	state->base.visible = drm_rect_clip_scaled(src, dst, &clip, hscale, vscale);
+	state->base.visible = drm_rect_clip_scaled(src, dst, &clip);
 
 	crtc_x = dst->x1;
 	crtc_y = dst->y1;
