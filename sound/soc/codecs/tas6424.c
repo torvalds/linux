@@ -64,6 +64,8 @@ static const struct snd_kcontrol_new tas6424_snd_controls[] = {
 		       TAS6424_CH3_VOL_CTRL, 0, 0xff, 0, dac_tlv),
 	SOC_SINGLE_TLV("Speaker Driver CH4 Playback Volume",
 		       TAS6424_CH4_VOL_CTRL, 0, 0xff, 0, dac_tlv),
+	SOC_SINGLE_STROBE("Auto Diagnostics Switch", TAS6424_DC_DIAG_CTRL1,
+			  TAS6424_LDGBYPASS_SHIFT, 1),
 };
 
 static int tas6424_dac_event(struct snd_soc_dapm_widget *w,
@@ -297,6 +299,11 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	struct tas6424_data *tas6424 = snd_soc_component_get_drvdata(component);
 	int ret;
 	u8 chan_states;
+	int no_auto_diags = 0;
+	unsigned int reg_val;
+
+	if (!regmap_read(tas6424->regmap, TAS6424_DC_DIAG_CTRL1, &reg_val))
+		no_auto_diags = reg_val & TAS6424_LDGBYPASS_MASK;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(tas6424->supplies),
 				    tas6424->supplies);
@@ -327,9 +334,11 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	snd_soc_component_write(component, TAS6424_CH_STATE_CTRL, chan_states);
 
 	/* any time we come out of HIZ, the output channels automatically run DC
-	 * load diagnostics, wait here until this completes
+	 * load diagnostics if autodiagnotics are enabled. wait here until this
+	 * completes.
 	 */
-	msleep(230);
+	if (!no_auto_diags)
+		msleep(230);
 
 	return 0;
 }
