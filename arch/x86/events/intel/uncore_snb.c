@@ -450,6 +450,35 @@ static void snb_uncore_imc_event_start(struct perf_event *event, int flags)
 		uncore_pmu_start_hrtimer(box);
 }
 
+static void snb_uncore_imc_event_read(struct perf_event *event)
+{
+	struct intel_uncore_box *box = uncore_event_to_box(event);
+	u64 prev_count, new_count, delta;
+	int shift;
+
+	/*
+	 * There are two free running counters in IMC.
+	 * The index for the second one is hardcoded to
+	 * UNCORE_PMC_IDX_FIXED + 1.
+	 */
+	if (event->hw.idx >= UNCORE_PMC_IDX_FIXED)
+		shift = 64 - uncore_fixed_ctr_bits(box);
+	else
+		shift = 64 - uncore_perf_ctr_bits(box);
+
+	/* the hrtimer might modify the previous event value */
+again:
+	prev_count = local64_read(&event->hw.prev_count);
+	new_count = uncore_read_counter(box, event);
+	if (local64_xchg(&event->hw.prev_count, new_count) != prev_count)
+		goto again;
+
+	delta = (new_count << shift) - (prev_count << shift);
+	delta >>= shift;
+
+	local64_add(delta, &event->count);
+}
+
 static void snb_uncore_imc_event_stop(struct perf_event *event, int flags)
 {
 	struct intel_uncore_box *box = uncore_event_to_box(event);
@@ -472,7 +501,7 @@ static void snb_uncore_imc_event_stop(struct perf_event *event, int flags)
 		 * Drain the remaining delta count out of a event
 		 * that we are disabling:
 		 */
-		uncore_perf_event_update(box, event);
+		snb_uncore_imc_event_read(event);
 		hwc->state |= PERF_HES_UPTODATE;
 	}
 }
@@ -534,7 +563,7 @@ static struct pmu snb_uncore_imc_pmu = {
 	.del		= snb_uncore_imc_event_del,
 	.start		= snb_uncore_imc_event_start,
 	.stop		= snb_uncore_imc_event_stop,
-	.read		= uncore_pmu_event_read,
+	.read		= snb_uncore_imc_event_read,
 };
 
 static struct intel_uncore_ops snb_uncore_imc_ops = {
