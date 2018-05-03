@@ -11,6 +11,7 @@
 #include <asm/ioctls.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+#include "../kselftest.h"
 
 static bool terminal_dup2(int duplicate, int original)
 {
@@ -125,10 +126,12 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 		if (errno == EINVAL) {
 			fprintf(stderr, "TIOCGPTPEER is not supported. "
 					"Skipping test.\n");
-			fret = EXIT_SUCCESS;
+			fret = KSFT_SKIP;
+		} else {
+			fprintf(stderr,
+				"Failed to perform TIOCGPTPEER ioctl\n");
+			fret = EXIT_FAILURE;
 		}
-
-		fprintf(stderr, "Failed to perform TIOCGPTPEER ioctl\n");
 		goto do_cleanup;
 	}
 
@@ -281,7 +284,7 @@ int main(int argc, char *argv[])
 	if (!isatty(STDIN_FILENO)) {
 		fprintf(stderr, "Standard input file descriptor is not attached "
 				"to a terminal. Skipping test\n");
-		exit(EXIT_FAILURE);
+		exit(KSFT_SKIP);
 	}
 
 	ret = unshare(CLONE_NEWNS);
