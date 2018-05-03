@@ -551,6 +551,13 @@ static struct net_device *get_netdev(struct ib_device *dev, u8 port)
 	return ndev;
 }
 
+static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
+{
+	return (res->type < ARRAY_SIZE(c4iw_restrack_funcs) &&
+		c4iw_restrack_funcs[res->type]) ?
+		c4iw_restrack_funcs[res->type](msg, res) : 0;
+}
+
 void c4iw_register_device(struct work_struct *work)
 {
 	int ret;
@@ -645,6 +652,7 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.iwcm->add_ref = c4iw_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = c4iw_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = c4iw_get_qp;
+	dev->ibdev.res.fill_res_entry = fill_res_entry;
 	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.lldi.ports[0]->name,
 	       sizeof(dev->ibdev.iwcm->ifname));
 
