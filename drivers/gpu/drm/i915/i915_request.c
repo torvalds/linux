@@ -695,9 +695,9 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		goto err_unreserve;
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
-	rq = list_first_entry_or_null(&ring->request_list,
-				      typeof(*rq), ring_link);
-	if (rq && i915_request_completed(rq))
+	rq = list_first_entry(&ring->request_list, typeof(*rq), ring_link);
+	if (!list_is_last(&rq->ring_link, &ring->request_list) &&
+	    i915_request_completed(rq))
 		i915_request_retire(rq);
 
 	/*
