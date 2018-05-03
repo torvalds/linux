@@ -930,6 +930,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	unsigned long old_clk_rate = dmcfreq->rate;
 	unsigned long target_volt, target_rate;
 	unsigned int cpu_cur, cpufreq_cur;
+	bool is_cpufreq_changed = false;
 	int err = 0;
 
 	rcu_read_lock();
@@ -987,12 +988,14 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	/* If we're thermally throttled; don't change; */
 	if (dmcfreq->min_cpu_freq && cpufreq_cur < dmcfreq->min_cpu_freq) {
-		if (policy->max >= dmcfreq->min_cpu_freq)
+		if (policy->max >= dmcfreq->min_cpu_freq) {
 			__cpufreq_driver_target(policy, dmcfreq->min_cpu_freq,
 						CPUFREQ_RELATION_L);
-		else
+			is_cpufreq_changed = true;
+		} else {
 			dev_dbg(dev, "CPU may too slow for DMC (%d MHz)\n",
 				policy->max);
+		}
 	}
 
 	/*
@@ -1048,7 +1051,9 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	dmcfreq->volt = target_volt;
 out:
-	__cpufreq_driver_target(policy, cpufreq_cur, CPUFREQ_RELATION_L);
+	if (is_cpufreq_changed)
+		__cpufreq_driver_target(policy, cpufreq_cur,
+					CPUFREQ_RELATION_L);
 	up_write(&policy->rwsem);
 	cpufreq_cpu_put(policy);
 cpufreq:
