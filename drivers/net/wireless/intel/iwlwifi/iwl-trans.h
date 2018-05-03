@@ -536,6 +536,8 @@ struct iwl_trans_rxq_dma_data {
  * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
+ * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
+ *	of the trans debugfs
  */
 struct iwl_trans_ops {
 
@@ -605,6 +607,7 @@ struct iwl_trans_ops {
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 u32 dump_mask);
+	void (*debugfs_cleanup)(struct iwl_trans *trans);
 };
 
 /**
@@ -734,6 +737,7 @@ struct iwl_dram_data {
  * @runtime_pm_mode: the runtime power management mode in use.  This
  *	mode is set during the initialization phase and is not
  *	supposed to change during runtime.
+ * @dbg_rec_on: true iff there is a fw debug recording currently active
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -790,6 +794,7 @@ struct iwl_trans {
 	enum iwl_plat_pm_mode system_pm_mode;
 	enum iwl_plat_pm_mode runtime_pm_mode;
 	bool suspending;
+	bool dbg_rec_on;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
