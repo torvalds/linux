@@ -30,6 +30,8 @@ static struct sk_buff *nsh_gso_segment(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, NSH_BASE_HDR_LEN)))
 		goto out;
 	nsh_len = nsh_hdr_len(nsh_hdr(skb));
+	if (nsh_len < NSH_BASE_HDR_LEN)
+		goto out;
 	if (unlikely(!pskb_may_pull(skb, nsh_len)))
 		goto out;
 
