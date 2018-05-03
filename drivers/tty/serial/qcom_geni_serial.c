@@ -309,7 +309,7 @@ __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 		if (!qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
 						M_TX_FIFO_WATERMARK_EN, true))
 			break;
-		chars_to_write = min_t(size_t, (size_t)(count - i), avail / 2);
+		chars_to_write = min_t(size_t, count - i, avail / 2);
 		uart_console_write(uport, s + i, chars_to_write,
 						qcom_geni_serial_wr_char);
 		writel_relaxed(M_TX_FIFO_WATERMARK_EN, uport->membase +
@@ -602,7 +602,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport)
 		unsigned int buf = 0;
 		int c;
 
-		tx_bytes = min_t(size_t, remaining, (size_t)port->tx_bytes_pw);
+		tx_bytes = min_t(size_t, remaining, port->tx_bytes_pw);
 		for (c = 0; c < tx_bytes ; c++)
 			buf |= (xmit->buf[tail + c] << (c * BITS_PER_BYTE));
 
@@ -671,12 +671,9 @@ out_unlock:
 	return IRQ_HANDLED;
 }
 
-static int get_tx_fifo_size(struct qcom_geni_serial_port *port)
+static void get_tx_fifo_size(struct qcom_geni_serial_port *port)
 {
 	struct uart_port *uport;
-
-	if (!port)
-		return -ENODEV;
 
 	uport = &port->uport;
 	port->tx_fifo_depth = geni_se_get_tx_fifo_depth(&port->se);
@@ -684,7 +681,6 @@ static int get_tx_fifo_size(struct qcom_geni_serial_port *port)
 	port->rx_fifo_depth = geni_se_get_rx_fifo_depth(&port->se);
 	uport->fifosize =
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
-	return 0;
 }
 
 static void set_rfr_wm(struct qcom_geni_serial_port *port)
@@ -706,7 +702,6 @@ static void qcom_geni_serial_shutdown(struct uart_port *uport)
 	/* Stop the console before stopping the current tx */
 	console_stop(uport->cons);
 
-	disable_irq(uport->irq);
 	free_irq(uport->irq, uport);
 	spin_lock_irqsave(&uport->lock, flags);
 	qcom_geni_serial_stop_tx(uport);
@@ -914,7 +909,7 @@ static int __init qcom_geni_console_setup(struct console *co, char *options)
 
 	port = get_port_from_line(co->index);
 	if (IS_ERR(port)) {
-		pr_err("Invalid line %d(%d)\n", co->index, (int)PTR_ERR(port));
+		pr_err("Invalid line %d\n", co->index);
 		return PTR_ERR(port);
 	}
 
@@ -1030,16 +1025,13 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
-	else
-		line = pdev->id;
 
 	if (line < 0 || line >= GENI_UART_CONS_PORTS)
 		return -ENXIO;
 	port = get_port_from_line(line);
 	if (IS_ERR(port)) {
-		ret = PTR_ERR(port);
-		dev_err(&pdev->dev, "Invalid line %d(%d)\n", line, ret);
-		return ret;
+		dev_err(&pdev->dev, "Invalid line %d\n", line);
+		return PTR_ERR(port);
 	}
 
 	uport = &port->uport;
@@ -1076,7 +1068,6 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	uport->private_data = &qcom_geni_console_driver;
 	platform_set_drvdata(pdev, port);
 	port->handle_rx = handle_rx_console;
-	port->setup = false;
 	return uart_add_one_port(&qcom_geni_console_driver, uport);
 }
 
