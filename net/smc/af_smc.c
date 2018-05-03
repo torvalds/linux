@@ -1163,10 +1163,12 @@ static int smc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	if (smc->use_fallback)
+	if (smc->use_fallback) {
 		rc = smc->clcsock->ops->recvmsg(smc->clcsock, msg, len, flags);
-	else
-		rc = smc_rx_recvmsg(smc, msg, len, flags);
+	} else {
+		msg->msg_namelen = 0;
+		rc = smc_rx_recvmsg(smc, msg, NULL, len, flags);
+	}
 
 out:
 	release_sock(sk);
@@ -1447,9 +1449,15 @@ out:
 	return rc;
 }
 
+/* Map the affected portions of the rmbe into an spd, note the number of bytes
+ * to splice in conn->splice_pending, and press 'go'. Delays consumer cursor
+ * updates till whenever a respective page has been fully processed.
+ * Note that subsequent recv() calls have to wait till all splice() processing
+ * completed.
+ */
 static ssize_t smc_splice_read(struct socket *sock, loff_t *ppos,
 			       struct pipe_inode_info *pipe, size_t len,
-				    unsigned int flags)
+			       unsigned int flags)
 {
 	struct sock *sk = sock->sk;
 	struct smc_sock *smc;
@@ -1457,16 +1465,34 @@ static ssize_t smc_splice_read(struct socket *sock, loff_t *ppos,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
-	if ((sk->sk_state != SMC_ACTIVE) && (sk->sk_state != SMC_CLOSED))
+
+	if (sk->sk_state == SMC_INIT ||
+	    sk->sk_state == SMC_LISTEN ||
+	    sk->sk_state == SMC_CLOSED)
 		goto out;
+
+	if (sk->sk_state == SMC_PEERFINCLOSEWAIT) {
+		rc = 0;
+		goto out;
+	}
+
 	if (smc->use_fallback) {
 		rc = smc->clcsock->ops->splice_read(smc->clcsock, ppos,
 						    pipe, len, flags);
 	} else {
-		rc = -EOPNOTSUPP;
+		if (*ppos) {
+			rc = -ESPIPE;
+			goto out;
+		}
+		if (flags & SPLICE_F_NONBLOCK)
+			flags = MSG_DONTWAIT;
+		else
+			flags = 0;
+		rc = smc_rx_recvmsg(smc, NULL, pipe, len, flags);
 	}
 out:
 	release_sock(sk);
+
 	return rc;
 }
 
