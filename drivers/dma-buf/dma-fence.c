@@ -158,10 +158,7 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 		return -EINVAL;
 
 	trace_dma_fence_wait_start(fence);
-	if (fence->ops->wait)
-		ret = fence->ops->wait(fence, intr, timeout);
-	else
-		ret = dma_fence_default_wait(fence, intr, timeout);
+	ret = fence->ops->wait(fence, intr, timeout);
 	trace_dma_fence_wait_end(fence);
 	return ret;
 }
@@ -184,13 +181,6 @@ void dma_fence_release(struct kref *kref)
 }
 EXPORT_SYMBOL(dma_fence_release);
 
-/**
- * dma_fence_free - default release function for &dma_fence.
- * @fence: fence to release
- *
- * This is the default implementation for &dma_fence_ops.release. It calls
- * kfree_rcu() on @fence.
- */
 void dma_fence_free(struct dma_fence *fence)
 {
 	kfree_rcu(fence, rcu);
@@ -506,6 +496,11 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	for (i = 0; i < count; ++i) {
 		struct dma_fence *fence = fences[i];
 
+		if (fence->ops->wait != dma_fence_default_wait) {
+			ret = -EINVAL;
+			goto fence_rm_cb;
+		}
+
 		cb[i].task = current;
 		if (dma_fence_add_callback(fence, &cb[i].base,
 					   dma_fence_default_wait_cb)) {
@@ -565,7 +560,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	       spinlock_t *lock, u64 context, unsigned seqno)
 {
 	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->wait ||
+	BUG_ON(!ops || !ops->wait || !ops->enable_signaling ||
 	       !ops->get_driver_name || !ops->get_timeline_name);
 
 	kref_init(&fence->refcount);
@@ -576,10 +571,6 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	fence->seqno = seqno;
 	fence->flags = 0UL;
 	fence->error = 0;
-
-	if (!ops->enable_signaling)
-		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			&fence->flags);
 
 	trace_dma_fence_init(fence);
 }

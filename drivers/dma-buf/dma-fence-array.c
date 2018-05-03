@@ -104,6 +104,7 @@ const struct dma_fence_ops dma_fence_array_ops = {
 	.get_timeline_name = dma_fence_array_get_timeline_name,
 	.enable_signaling = dma_fence_array_enable_signaling,
 	.signaled = dma_fence_array_signaled,
+	.wait = dma_fence_default_wait,
 	.release = dma_fence_array_release,
 };
 EXPORT_SYMBOL(dma_fence_array_ops);

@@ -207,6 +207,7 @@ static const struct dma_fence_ops drm_syncobj_null_fence_ops = {
 	.get_driver_name = drm_syncobj_null_fence_get_name,
 	.get_timeline_name = drm_syncobj_null_fence_get_name,
 	.enable_signaling = drm_syncobj_null_fence_enable_signaling,
+	.wait = dma_fence_default_wait,
 	.release = NULL,
 };
 
