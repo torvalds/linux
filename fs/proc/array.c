@@ -344,6 +344,9 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 	case PR_SPEC_NOT_AFFECTED:
 		seq_printf(m, "not vulnerable");
 		break;
+	case PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE:
+		seq_printf(m, "thread force mitigated");
+		break;
 	case PR_SPEC_PRCTL | PR_SPEC_DISABLE:
 		seq_printf(m, "thread mitigated");
 		break;
