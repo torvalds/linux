@@ -444,6 +444,9 @@ config NETFILTER_SYNPROXY
 
 endif # NF_CONNTRACK
 
+config NF_OSF
+	tristate 'Passive OS fingerprint infrastructure'
+
 config NF_TABLES
 	select NETFILTER_NETLINK
 	tristate "Netfilter nf_tables support"
@@ -1358,6 +1361,7 @@ config NETFILTER_XT_MATCH_NFACCT
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
 	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	select NF_OSF
 	help
 	  This option selects the Passive OS Fingerprinting match module
 	  that allows to passively match the remote operating system by
