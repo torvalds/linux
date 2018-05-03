@@ -37,6 +37,8 @@
 #define PCIECDR			0x000020
 #define PCIEMSR			0x000028
 #define PCIEINTXR		0x000400
+#define PCIEPHYSR		0x0007f0
+#define  PHYRDY			BIT(0)
 #define PCIEMSITXR		0x000840
 
 /* Transfer control */
@@ -527,6 +529,20 @@ static void phy_write_reg(struct rcar_pcie *pcie,
 	phy_wait_for_ack(pcie);
 }
 
+static int rcar_pcie_wait_for_phyrdy(struct rcar_pcie *pcie)
+{
+	unsigned int timeout = 10;
+
+	while (timeout--) {
+		if (rcar_pci_read_reg(pcie, PCIEPHYSR) & PHYRDY)
+			return 0;
+
+		msleep(5);
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int rcar_pcie_wait_for_dl(struct rcar_pcie *pcie)
 {
 	unsigned int timeout = 10;
@@ -550,6 +566,10 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 
 	/* Set mode */
 	rcar_pci_write_reg(pcie, 1, PCIEMSR);
+
+	err = rcar_pcie_wait_for_phyrdy(pcie);
+	if (err)
+		return err;
 
 	/*
 	 * Initial header for port config space is type 1, set the device
