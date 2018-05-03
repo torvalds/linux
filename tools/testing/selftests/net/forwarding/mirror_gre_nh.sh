@@ -29,6 +29,9 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.$h3.rp_filter 0
+
 	vrf_prepare
 	mirror_gre_topo_create
 
@@ -60,6 +63,9 @@ cleanup()
 
 	mirror_gre_topo_destroy
 	vrf_cleanup
+
+	sysctl_restore net.ipv4.conf.$h3.rp_filter
+	sysctl_restore net.ipv4.conf.all.rp_filter
 }
 
 test_gretap()
