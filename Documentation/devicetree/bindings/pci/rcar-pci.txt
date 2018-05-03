@@ -32,6 +32,11 @@ compatible: "renesas,pcie-r8a7743" for the R8A7743 SoC;
 	and PCIe bus clocks.
 - clock-names: from common clock binding: should be "pcie" and "pcie_bus".
 
+Optional properties:
+- phys: from common PHY binding: PHY phandle and specifier (only make sense
+	for R-Car gen3 SoCs where the PCIe PHYs have their own register blocks).
+- phy-names: from common PHY binding: should be "pcie".
+
 Example:
 
 SoC-specific DT Entry:

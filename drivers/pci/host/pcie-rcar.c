@@ -25,6 +25,7 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -141,6 +142,7 @@ static inline struct rcar_msi *to_rcar_msi(struct msi_controller *chip)
 /* Structure representing the PCIe interface */
 struct rcar_pcie {
 	struct device		*dev;
+	struct phy		*phy;
 	void __iomem		*base;
 	struct list_head	resources;
 	int			root_bus_nr;
@@ -667,6 +669,21 @@ static int rcar_pcie_hw_init_gen2(struct rcar_pcie *pcie)
 	return rcar_pcie_hw_init(pcie);
 }
 
+static int rcar_pcie_hw_init_gen3(struct rcar_pcie *pcie)
+{
+	int err;
+
+	err = phy_init(pcie->phy);
+	if (err)
+		return err;
+
+	err = phy_power_on(pcie->phy);
+	if (err)
+		return err;
+
+	return rcar_pcie_hw_init(pcie);
+}
+
 static int rcar_msi_alloc(struct rcar_msi *chip)
 {
 	int msi;
@@ -916,6 +933,10 @@ static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 	struct resource res;
 	int err, i;
 
+	pcie->phy = devm_phy_optional_get(dev, "pcie");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
+
 	err = of_address_to_resource(dev->of_node, 0, &res);
 	if (err)
 		return err;
@@ -1056,8 +1077,10 @@ static const struct of_device_id rcar_pcie_of_match[] = {
 	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-rcar-gen2",
 	  .data = rcar_pcie_hw_init_gen2 },
-	{ .compatible = "renesas,pcie-r8a7795", .data = rcar_pcie_hw_init },
-	{ .compatible = "renesas,pcie-rcar-gen3", .data = rcar_pcie_hw_init },
+	{ .compatible = "renesas,pcie-r8a7795",
+	  .data = rcar_pcie_hw_init_gen3 },
+	{ .compatible = "renesas,pcie-rcar-gen3",
+	  .data = rcar_pcie_hw_init_gen3 },
 	{},
 };
 
