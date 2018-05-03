@@ -92,7 +92,7 @@ struct tegra_dc {
 
 	const struct tegra_dc_soc_info *soc;
 
-	struct iommu_domain *domain;
+	struct iommu_group *group;
 };
 
 static inline struct tegra_dc *
