@@ -1556,6 +1556,20 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 		 */
 		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is dirty, stop it to avoid potential data corruption.",
 			d->disk->disk_name);
+			/*
+			 * There might be a small time gap that cache set is
+			 * released but bcache device is not. Inside this time
+			 * gap, regular I/O requests will directly go into
+			 * backing device as no cache set attached to. This
+			 * behavior may also introduce potential inconsistence
+			 * data in writeback mode while cache is dirty.
+			 * Therefore before calling bcache_device_stop() due
+			 * to a broken cache device, dc->io_disable should be
+			 * explicitly set to true.
+			 */
+			dc->io_disable = true;
+			/* make others know io_disable is true earlier */
+			smp_mb();
 			bcache_device_stop(d);
 	} else {
 		/*
