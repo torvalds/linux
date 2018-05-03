@@ -103,7 +103,6 @@
 #define  LANE_POS		8
 #define  ADR_POS		0
 #define H1_PCIEPHYDOUTR		0x040014
-#define H1_PCIEPHYSR		0x040018
 
 /* R-Car Gen2 PHY */
 #define GEN2_PCIEPHYADDR	0x780
@@ -627,8 +626,6 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 
 static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie)
 {
-	unsigned int timeout = 10;
-
 	/* Initialize the phy */
 	phy_write_reg(pcie, 0, 0x42, 0x1, 0x0EC34191);
 	phy_write_reg(pcie, 1, 0x42, 0x1, 0x0EC34180);
@@ -647,14 +644,7 @@ static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie)
 	phy_write_reg(pcie, 0, 0x64, 0x1, 0x3F0F1F0F);
 	phy_write_reg(pcie, 0, 0x66, 0x1, 0x00008000);
 
-	while (timeout--) {
-		if (rcar_pci_read_reg(pcie, H1_PCIEPHYSR))
-			return rcar_pcie_hw_init(pcie);
-
-		msleep(5);
-	}
-
-	return -ETIMEDOUT;
+	return rcar_pcie_hw_init(pcie);
 }
 
 static int rcar_pcie_hw_init_gen2(struct rcar_pcie *pcie)
