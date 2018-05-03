@@ -1578,12 +1578,14 @@ DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_trace_extent,
 
 TRACE_EVENT(btrfs_qgroup_account_extent,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 bytenr,
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 transid, u64 bytenr,
 		 u64 num_bytes, u64 nr_old_roots, u64 nr_new_roots),
 
-	TP_ARGS(fs_info, bytenr, num_bytes, nr_old_roots, nr_new_roots),
+	TP_ARGS(fs_info, transid, bytenr, num_bytes, nr_old_roots,
+		nr_new_roots),
 
 	TP_STRUCT__entry_btrfs(
+		__field(	u64,  transid			)
 		__field(	u64,  bytenr			)
 		__field(	u64,  num_bytes			)
 		__field(	u64,  nr_old_roots		)
@@ -1591,18 +1593,20 @@ TRACE_EVENT(btrfs_qgroup_account_extent,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
+		__entry->transid	= transid;
 		__entry->bytenr		= bytenr;
 		__entry->num_bytes	= num_bytes;
 		__entry->nr_old_roots	= nr_old_roots;
 		__entry->nr_new_roots	= nr_new_roots;
 	),
 
-	TP_printk_btrfs("bytenr=%llu num_bytes=%llu nr_old_roots=%llu "
-		  "nr_new_roots=%llu",
-		  __entry->bytenr,
-		  __entry->num_bytes,
-		  __entry->nr_old_roots,
-		  __entry->nr_new_roots)
+	TP_printk_btrfs(
+"transid=%llu bytenr=%llu num_bytes=%llu nr_old_roots=%llu nr_new_roots=%llu",
+		__entry->transid,
+		__entry->bytenr,
+		__entry->num_bytes,
+		__entry->nr_old_roots,
+		__entry->nr_new_roots)
 );
 
 TRACE_EVENT(qgroup_update_counters,
