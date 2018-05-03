@@ -49,16 +49,16 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_DEBUG_MM_SELFTEST
-	tristate "kselftests for DRM range manager (struct drm_mm)"
+config DRM_DEBUG_SELFTEST
+	tristate "kselftests for DRM"
 	depends on DRM
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
 	default n
 	help
-	  This option provides a kernel module that can be used to test
-	  the DRM range manager (drm_mm) and its API. This option is not
+	  This option provides kernel modules that can be used to run
+	  various selftests on parts of the DRM api. This option is not
 	  useful for distributions or general kernels, but only for kernel
 	  developers working on DRM and associated drivers.
 
