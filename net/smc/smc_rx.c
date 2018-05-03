@@ -112,26 +112,22 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg, size_t len,
 		if (atomic_read(&conn->bytes_to_rcv))
 			goto copy;
 
+		if (sk->sk_shutdown & RCV_SHUTDOWN ||
+		    smc_cdc_rxed_any_close_or_senddone(conn) ||
+		    conn->local_tx_ctrl.conn_state_flags.peer_conn_abort)
+			break;
+
 		if (read_done) {
 			if (sk->sk_err ||
 			    sk->sk_state == SMC_CLOSED ||
-			    sk->sk_shutdown & RCV_SHUTDOWN ||
 			    !timeo ||
-			    signal_pending(current) ||
-			    smc_cdc_rxed_any_close_or_senddone(conn) ||
-			    conn->local_tx_ctrl.conn_state_flags.
-			    peer_conn_abort)
+			    signal_pending(current))
 				break;
 		} else {
 			if (sk->sk_err) {
 				read_done = sock_error(sk);
 				break;
 			}
-			if (sk->sk_shutdown & RCV_SHUTDOWN ||
-			    smc_cdc_rxed_any_close_or_senddone(conn) ||
-			    conn->local_tx_ctrl.conn_state_flags.
-			    peer_conn_abort)
-				break;
 			if (sk->sk_state == SMC_CLOSED) {
 				if (!sock_flag(sk, SOCK_DONE)) {
 					/* This occurs when user tries to read
