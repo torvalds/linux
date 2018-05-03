@@ -113,12 +113,12 @@ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap)
 }
 EXPORT_SYMBOL(sk_filter_trim_cap);
 
-BPF_CALL_1(__skb_get_pay_offset, struct sk_buff *, skb)
+BPF_CALL_1(bpf_skb_get_pay_offset, struct sk_buff *, skb)
 {
 	return skb_get_poff(skb);
 }
 
-BPF_CALL_3(__skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
+BPF_CALL_3(bpf_skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
 
@@ -138,7 +138,7 @@ BPF_CALL_3(__skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
 	return 0;
 }
 
-BPF_CALL_3(__skb_get_nlattr_nest, struct sk_buff *, skb, u32, a, u32, x)
+BPF_CALL_3(bpf_skb_get_nlattr_nest, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
 
@@ -162,13 +162,13 @@ BPF_CALL_3(__skb_get_nlattr_nest, struct sk_buff *, skb, u32, a, u32, x)
 	return 0;
 }
 
-BPF_CALL_0(__get_raw_cpu_id)
+BPF_CALL_0(bpf_get_raw_cpu_id)
 {
 	return raw_smp_processor_id();
 }
 
 static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
-	.func		= __get_raw_cpu_id,
+	.func		= bpf_get_raw_cpu_id,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
@@ -318,16 +318,16 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		/* Emit call(arg1=CTX, arg2=A, arg3=X) */
 		switch (fp->k) {
 		case SKF_AD_OFF + SKF_AD_PAY_OFFSET:
-			*insn = BPF_EMIT_CALL(__skb_get_pay_offset);
+			*insn = BPF_EMIT_CALL(bpf_skb_get_pay_offset);
 			break;
 		case SKF_AD_OFF + SKF_AD_NLATTR:
-			*insn = BPF_EMIT_CALL(__skb_get_nlattr);
+			*insn = BPF_EMIT_CALL(bpf_skb_get_nlattr);
 			break;
 		case SKF_AD_OFF + SKF_AD_NLATTR_NEST:
-			*insn = BPF_EMIT_CALL(__skb_get_nlattr_nest);
+			*insn = BPF_EMIT_CALL(bpf_skb_get_nlattr_nest);
 			break;
 		case SKF_AD_OFF + SKF_AD_CPU:
-			*insn = BPF_EMIT_CALL(__get_raw_cpu_id);
+			*insn = BPF_EMIT_CALL(bpf_get_raw_cpu_id);
 			break;
 		case SKF_AD_OFF + SKF_AD_RANDOM:
 			*insn = BPF_EMIT_CALL(bpf_user_rnd_u32);
