@@ -179,17 +179,16 @@ struct fd_data {
 	unsigned fd;
 };
 
-static int
-proc_fd_instantiate(struct inode *dir, struct dentry *dentry,
-		    struct task_struct *task, const void *ptr)
+static struct dentry *proc_fd_instantiate(struct dentry *dentry,
+	struct task_struct *task, const void *ptr)
 {
 	const struct fd_data *data = ptr;
 	struct proc_inode *ei;
 	struct inode *inode;
 
-	inode = proc_pid_make_inode(dir->i_sb, task, S_IFLNK);
+	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFLNK);
 	if (!inode)
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
 	ei = PROC_I(inode);
 	ei->fd = data->fd;
@@ -201,8 +200,7 @@ proc_fd_instantiate(struct inode *dir, struct dentry *dentry,
 	tid_fd_update_inode(task, inode, data->mode);
 
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
-	d_add(dentry, inode);
-	return 0;
+	return d_splice_alias(inode, dentry);
 }
 
 static struct dentry *proc_lookupfd_common(struct inode *dir,
@@ -210,8 +208,8 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 					   instantiate_t instantiate)
 {
 	struct task_struct *task = get_proc_task(dir);
-	int result = -ENOENT;
 	struct fd_data data = {.fd = name_to_int(&dentry->d_name)};
+	struct dentry *result = ERR_PTR(-ENOENT);
 
 	if (!task)
 		goto out_no_task;
@@ -220,11 +218,11 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 	if (!tid_fd_mode(task, data.fd, &data.mode))
 		goto out;
 
-	result = instantiate(dir, dentry, task, &data);
+	result = instantiate(dentry, task, &data);
 out:
 	put_task_struct(task);
 out_no_task:
-	return ERR_PTR(result);
+	return result;
 }
 
 static int proc_readfd_common(struct file *file, struct dir_context *ctx,
@@ -320,17 +318,16 @@ const struct inode_operations proc_fd_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-static int
-proc_fdinfo_instantiate(struct inode *dir, struct dentry *dentry,
-			struct task_struct *task, const void *ptr)
+static struct dentry *proc_fdinfo_instantiate(struct dentry *dentry,
+	struct task_struct *task, const void *ptr)
 {
 	const struct fd_data *data = ptr;
 	struct proc_inode *ei;
 	struct inode *inode;
 
-	inode = proc_pid_make_inode(dir->i_sb, task, S_IFREG | S_IRUSR);
+	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFREG | S_IRUSR);
 	if (!inode)
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
 	ei = PROC_I(inode);
 	ei->fd = data->fd;
@@ -339,8 +336,7 @@ proc_fdinfo_instantiate(struct inode *dir, struct dentry *dentry,
 	tid_fd_update_inode(task, inode, 0);
 
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
-	d_add(dentry, inode);
-	return 0;
+	return d_splice_alias(inode, dentry);
 }
 
 static struct dentry *
