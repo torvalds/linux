@@ -44,6 +44,8 @@ enum rdma_restrack_type {
 };
 
 #define RDMA_RESTRACK_HASH_BITS	8
+struct rdma_restrack_entry;
+
 /**
  * struct rdma_restrack_root - main resource tracking management
  * entity, per-device
@@ -57,6 +59,13 @@ struct rdma_restrack_root {
 	 * @hash: global database for all resources per-device
 	 */
 	DECLARE_HASHTABLE(hash, RDMA_RESTRACK_HASH_BITS);
+	/**
+	 * @fill_res_entry: driver-specific fill function
+	 *
+	 * Allows rdma drivers to add their own restrack attributes.
+	 */
+	int (*fill_res_entry)(struct sk_buff *msg,
+			      struct rdma_restrack_entry *entry);
 };
 
 /**
