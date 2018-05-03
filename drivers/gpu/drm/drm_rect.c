@@ -106,7 +106,10 @@ static int drm_calc_scale(int src, int dst)
 	if (dst == 0)
 		return 0;
 
-	scale = src / dst;
+	if (src > (dst << 16))
+		return DIV_ROUND_UP(src, dst);
+	else
+		scale = src / dst;
 
 	return scale;
 }
@@ -120,6 +123,10 @@ static int drm_calc_scale(int src, int dst)
  *
  * Calculate the horizontal scaling factor as
  * (@src width) / (@dst width).
+ *
+ * If the scale is below 1 << 16, round down. If the scale is above
+ * 1 << 16, round up. This will calculate the scale with the most
+ * pessimistic limit calculation.
  *
  * RETURNS:
  * The horizontal scaling factor, or errno of out of limits.
@@ -151,6 +158,10 @@ EXPORT_SYMBOL(drm_rect_calc_hscale);
  *
  * Calculate the vertical scaling factor as
  * (@src height) / (@dst height).
+ *
+ * If the scale is below 1 << 16, round down. If the scale is above
+ * 1 << 16, round up. This will calculate the scale with the most
+ * pessimistic limit calculation.
  *
  * RETURNS:
  * The vertical scaling factor, or errno of out of limits.
@@ -188,6 +199,10 @@ EXPORT_SYMBOL(drm_rect_calc_vscale);
  *
  * If the calculated scaling factor is above @max_vscale,
  * decrease the height of rectangle @src to compensate.
+ *
+ * If the scale is below 1 << 16, round down. If the scale is above
+ * 1 << 16, round up. This will calculate the scale with the most
+ * pessimistic limit calculation.
  *
  * RETURNS:
  * The horizontal scaling factor.
@@ -238,6 +253,10 @@ EXPORT_SYMBOL(drm_rect_calc_hscale_relaxed);
  *
  * If the calculated scaling factor is above @max_vscale,
  * decrease the height of rectangle @src to compensate.
+ *
+ * If the scale is below 1 << 16, round down. If the scale is above
+ * 1 << 16, round up. This will calculate the scale with the most
+ * pessimistic limit calculation.
  *
  * RETURNS:
  * The vertical scaling factor.
