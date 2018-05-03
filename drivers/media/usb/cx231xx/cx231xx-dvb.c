@@ -1052,7 +1052,6 @@ static int dvb_init(struct cx231xx *dev)
 		lgdt3306a_config = hauppauge_955q_lgdt3306a_config;
 		lgdt3306a_config.fe = &dev->dvb->frontend[0];
 		lgdt3306a_config.i2c_adapter = &adapter;
-		lgdt3306a_config.deny_i2c_rptr = 0;
 
 		/* perform probe/init/attach */
 		client = dvb_module_probe("lgdt3306a", NULL, demod_i2c,
