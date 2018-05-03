@@ -81,8 +81,8 @@ struct vsoc_region_data {
 	atomic_t *incoming_signalled;
 	/* Flag indicating the guest has signalled the host. */
 	atomic_t *outgoing_signalled;
-	int irq_requested;
-	int device_created;
+	bool irq_requested;
+	bool device_created;
 };
 
 struct vsoc_device {
@@ -91,7 +91,7 @@ struct vsoc_device {
 	/* Physical address of SHARED_MEMORY_BAR. */
 	phys_addr_t shm_phys_start;
 	/* Kernel virtual address of SHARED_MEMORY_BAR. */
-	void *kernel_mapped_shm;
+	void __iomem *kernel_mapped_shm;
 	/* Size of the entire shared memory window in bytes. */
 	size_t shm_size;
 	/*
@@ -116,22 +116,23 @@ struct vsoc_device {
 	 * vsoc_region_data because the kernel deals with them as an array.
 	 */
 	struct msix_entry *msix_entries;
-	/*
-	 * Flags that indicate what we've initialzied. These are used to do an
-	 * orderly cleanup of the device.
-	 */
-	char enabled_device;
-	char requested_regions;
-	char cdev_added;
-	char class_added;
-	char msix_enabled;
 	/* Mutex that protectes the permission list */
 	struct mutex mtx;
 	/* Major number assigned by the kernel */
 	int major;
-
+	/* Character device assigned by the kernel */
 	struct cdev cdev;
+	/* Device class assigned by the kernel */
 	struct class *class;
+	/*
+	 * Flags that indicate what we've initialized. These are used to do an
+	 * orderly cleanup of the device.
+	 */
+	bool enabled_device;
+	bool requested_regions;
+	bool cdev_added;
+	bool class_added;
+	bool msix_enabled;
 };
 
 static struct vsoc_device vsoc_dev;
@@ -153,13 +154,13 @@ static long vsoc_ioctl(struct file *, unsigned int, unsigned long);
 static int vsoc_mmap(struct file *, struct vm_area_struct *);
 static int vsoc_open(struct inode *, struct file *);
 static int vsoc_release(struct inode *, struct file *);
-static ssize_t vsoc_read(struct file *, char *, size_t, loff_t *);
-static ssize_t vsoc_write(struct file *, const char *, size_t, loff_t *);
+static ssize_t vsoc_read(struct file *, char __user *, size_t, loff_t *);
+static ssize_t vsoc_write(struct file *, const char __user *, size_t, loff_t *);
 static loff_t vsoc_lseek(struct file *filp, loff_t offset, int origin);
 static int do_create_fd_scoped_permission(
 	struct vsoc_device_region *region_p,
 	struct fd_scoped_permission_node *np,
-	struct fd_scoped_permission_arg *__user arg);
+	struct fd_scoped_permission_arg __user *arg);
 static void do_destroy_fd_scoped_permission(
 	struct vsoc_device_region *owner_region_p,
 	struct fd_scoped_permission *perm);
@@ -198,7 +199,7 @@ inline int vsoc_validate_filep(struct file *filp)
 /* Converts from shared memory offset to virtual address */
 static inline void *shm_off_to_virtual_addr(__u32 offset)
 {
-	return vsoc_dev.kernel_mapped_shm + offset;
+	return (void __force *)vsoc_dev.kernel_mapped_shm + offset;
 }
 
 /* Converts from shared memory offset to physical address */
@@ -261,7 +262,7 @@ static struct pci_driver vsoc_pci_driver = {
 static int do_create_fd_scoped_permission(
 	struct vsoc_device_region *region_p,
 	struct fd_scoped_permission_node *np,
-	struct fd_scoped_permission_arg *__user arg)
+	struct fd_scoped_permission_arg __user *arg)
 {
 	struct file *managed_filp;
 	s32 managed_fd;
@@ -632,11 +633,11 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static ssize_t vsoc_read(struct file *filp, char *buffer, size_t len,
+static ssize_t vsoc_read(struct file *filp, char __user *buffer, size_t len,
 			 loff_t *poffset)
 {
 	__u32 area_off;
-	void *area_p;
+	const void *area_p;
 	ssize_t area_len;
 	int retval = vsoc_validate_filep(filp);
 
@@ -706,7 +707,7 @@ static loff_t vsoc_lseek(struct file *filp, loff_t offset, int origin)
 	return offset;
 }
 
-static ssize_t vsoc_write(struct file *filp, const char *buffer,
+static ssize_t vsoc_write(struct file *filp, const char __user *buffer,
 			  size_t len, loff_t *poffset)
 {
 	__u32 area_off;
@@ -772,14 +773,14 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 			pci_name(pdev), result);
 		return result;
 	}
-	vsoc_dev.enabled_device = 1;
+	vsoc_dev.enabled_device = true;
 	result = pci_request_regions(pdev, "vsoc");
 	if (result < 0) {
 		dev_err(&pdev->dev, "pci_request_regions failed\n");
 		vsoc_remove_device(pdev);
 		return -EBUSY;
 	}
-	vsoc_dev.requested_regions = 1;
+	vsoc_dev.requested_regions = true;
 	/* Set up the control registers in BAR 0 */
 	reg_size = pci_resource_len(pdev, REGISTER_BAR);
 	if (reg_size > MAX_REGISTER_BAR_LEN)
@@ -790,7 +791,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 
 	if (!vsoc_dev.regs) {
 		dev_err(&pdev->dev,
-			"cannot ioremap registers of size %zu\n",
+			"cannot map registers of size %zu\n",
 		       (size_t)reg_size);
 		vsoc_remove_device(pdev);
 		return -EBUSY;
@@ -809,8 +810,8 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		return -EBUSY;
 	}
 
-	vsoc_dev.layout =
-	    (struct vsoc_shm_layout_descriptor *)vsoc_dev.kernel_mapped_shm;
+	vsoc_dev.layout = (struct vsoc_shm_layout_descriptor __force *)
+				vsoc_dev.kernel_mapped_shm;
 	dev_info(&pdev->dev, "major_version: %d\n",
 		 vsoc_dev.layout->major_version);
 	dev_info(&pdev->dev, "minor_version: %d\n",
@@ -841,16 +842,16 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		vsoc_remove_device(pdev);
 		return -EBUSY;
 	}
-	vsoc_dev.cdev_added = 1;
+	vsoc_dev.cdev_added = true;
 	vsoc_dev.class = class_create(THIS_MODULE, VSOC_DEV_NAME);
 	if (IS_ERR(vsoc_dev.class)) {
 		dev_err(&vsoc_dev.dev->dev, "class_create failed\n");
 		vsoc_remove_device(pdev);
 		return PTR_ERR(vsoc_dev.class);
 	}
-	vsoc_dev.class_added = 1;
-	vsoc_dev.regions = (struct vsoc_device_region *)
-		(vsoc_dev.kernel_mapped_shm +
+	vsoc_dev.class_added = true;
+	vsoc_dev.regions = (struct vsoc_device_region __force *)
+		((void *)vsoc_dev.layout +
 		 vsoc_dev.layout->vsoc_region_desc_offset);
 	vsoc_dev.msix_entries = kcalloc(
 			vsoc_dev.layout->region_count,
@@ -910,7 +911,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 			return -EFAULT;
 		}
 	}
-	vsoc_dev.msix_enabled = 1;
+	vsoc_dev.msix_enabled = true;
 	for (i = 0; i < vsoc_dev.layout->region_count; ++i) {
 		const struct vsoc_device_region *region = vsoc_dev.regions + i;
 		size_t name_sz = sizeof(vsoc_dev.regions_data[i].name) - 1;
@@ -928,14 +929,11 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 				&vsoc_dev.regions_data[i].interrupt_wait_queue);
 		init_waitqueue_head(&vsoc_dev.regions_data[i].futex_wait_queue);
 		vsoc_dev.regions_data[i].incoming_signalled =
-			vsoc_dev.kernel_mapped_shm +
-			region->region_begin_offset +
+			shm_off_to_virtual_addr(region->region_begin_offset) +
 			h_to_g_signal_table->interrupt_signalled_offset;
 		vsoc_dev.regions_data[i].outgoing_signalled =
-			vsoc_dev.kernel_mapped_shm +
-			region->region_begin_offset +
+			shm_off_to_virtual_addr(region->region_begin_offset) +
 			g_to_h_signal_table->interrupt_signalled_offset;
-
 		result = request_irq(
 				vsoc_dev.msix_entries[i].vector,
 				vsoc_interrupt, 0,
@@ -948,7 +946,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 			vsoc_remove_device(pdev);
 			return -ENOSPC;
 		}
-		vsoc_dev.regions_data[i].irq_requested = 1;
+		vsoc_dev.regions_data[i].irq_requested = true;
 		if (!device_create(vsoc_dev.class, NULL,
 				   MKDEV(vsoc_dev.major, i),
 				   NULL, vsoc_dev.regions_data[i].name)) {
@@ -956,7 +954,7 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 			vsoc_remove_device(pdev);
 			return -EBUSY;
 		}
-		vsoc_dev.regions_data[i].device_created = 1;
+		vsoc_dev.regions_data[i].device_created = true;
 	}
 	return 0;
 }
@@ -988,51 +986,51 @@ static void vsoc_remove_device(struct pci_dev *pdev)
 			if (vsoc_dev.regions_data[i].device_created) {
 				device_destroy(vsoc_dev.class,
 					       MKDEV(vsoc_dev.major, i));
-				vsoc_dev.regions_data[i].device_created = 0;
+				vsoc_dev.regions_data[i].device_created = false;
 			}
 			if (vsoc_dev.regions_data[i].irq_requested)
 				free_irq(vsoc_dev.msix_entries[i].vector, NULL);
-			vsoc_dev.regions_data[i].irq_requested = 0;
+			vsoc_dev.regions_data[i].irq_requested = false;
 		}
 		kfree(vsoc_dev.regions_data);
-		vsoc_dev.regions_data = 0;
+		vsoc_dev.regions_data = NULL;
 	}
 	if (vsoc_dev.msix_enabled) {
 		pci_disable_msix(pdev);
-		vsoc_dev.msix_enabled = 0;
+		vsoc_dev.msix_enabled = false;
 	}
 	kfree(vsoc_dev.msix_entries);
-	vsoc_dev.msix_entries = 0;
-	vsoc_dev.regions = 0;
+	vsoc_dev.msix_entries = NULL;
+	vsoc_dev.regions = NULL;
 	if (vsoc_dev.class_added) {
 		class_destroy(vsoc_dev.class);
-		vsoc_dev.class_added = 0;
+		vsoc_dev.class_added = false;
 	}
 	if (vsoc_dev.cdev_added) {
 		cdev_del(&vsoc_dev.cdev);
-		vsoc_dev.cdev_added = 0;
+		vsoc_dev.cdev_added = false;
 	}
 	if (vsoc_dev.major && vsoc_dev.layout) {
 		unregister_chrdev_region(MKDEV(vsoc_dev.major, 0),
 					 vsoc_dev.layout->region_count);
 		vsoc_dev.major = 0;
 	}
-	vsoc_dev.layout = 0;
+	vsoc_dev.layout = NULL;
 	if (vsoc_dev.kernel_mapped_shm) {
 		pci_iounmap(pdev, vsoc_dev.kernel_mapped_shm);
-		vsoc_dev.kernel_mapped_shm = 0;
+		vsoc_dev.kernel_mapped_shm = NULL;
 	}
 	if (vsoc_dev.regs) {
 		pci_iounmap(pdev, vsoc_dev.regs);
-		vsoc_dev.regs = 0;
+		vsoc_dev.regs = NULL;
 	}
 	if (vsoc_dev.requested_regions) {
 		pci_release_regions(pdev);
-		vsoc_dev.requested_regions = 0;
+		vsoc_dev.requested_regions = false;
 	}
 	if (vsoc_dev.enabled_device) {
 		pci_disable_device(pdev);
-		vsoc_dev.enabled_device = 0;
+		vsoc_dev.enabled_device = false;
 	}
 	/* Do this last: it indicates that the device is not initialized. */
 	vsoc_dev.dev = NULL;
