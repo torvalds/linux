@@ -45,6 +45,7 @@ hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 hostprogs-y += cpustat
 hostprogs-y += xdp_adjust_tail
+hostprogs-y += xdpsock
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
@@ -98,6 +99,7 @@ xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 cpustat-objs := bpf_load.o $(LIBBPF) cpustat_user.o
 xdp_adjust_tail-objs := bpf_load.o $(LIBBPF) xdp_adjust_tail_user.o
+xdpsock-objs := bpf_load.o $(LIBBPF) xdpsock_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -151,6 +153,7 @@ always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 always += cpustat_kern.o
 always += xdp_adjust_tail_kern.o
+always += xdpsock_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -197,6 +200,7 @@ HOSTLOADLIBES_xdp_rxq_info += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
 HOSTLOADLIBES_cpustat += -lelf
 HOSTLOADLIBES_xdp_adjust_tail += -lelf
+HOSTLOADLIBES_xdpsock += -lelf -pthread
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang

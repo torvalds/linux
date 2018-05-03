@@ -15424,6 +15424,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/tuner-xc2028.*
 
+XDP SOCKETS (AF_XDP)
+M:	Björn Töpel <bjorn.topel@intel.com>
+M:	Magnus Karlsson <magnus.karlsson@intel.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	kernel/bpf/xskmap.c
+F:	net/xdp/
+
 XEN BLOCK SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 M:	Roger Pau Monné <roger.pau@citrix.com>
