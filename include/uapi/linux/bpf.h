@@ -1802,6 +1802,30 @@ union bpf_attr {
  * 	Return
  * 		a non-negative value equal to or less than size on success, or
  * 		a negative error in case of failure.
+ *
+ * int skb_load_bytes_relative(const struct sk_buff *skb, u32 offset, void *to, u32 len, u32 start_header)
+ * 	Description
+ * 		This helper is similar to **bpf_skb_load_bytes**\ () in that
+ * 		it provides an easy way to load *len* bytes from *offset*
+ * 		from the packet associated to *skb*, into the buffer pointed
+ * 		by *to*. The difference to **bpf_skb_load_bytes**\ () is that
+ * 		a fifth argument *start_header* exists in order to select a
+ * 		base offset to start from. *start_header* can be one of:
+ *
+ * 		**BPF_HDR_START_MAC**
+ * 			Base offset to load data from is *skb*'s mac header.
+ * 		**BPF_HDR_START_NET**
+ * 			Base offset to load data from is *skb*'s network header.
+ *
+ * 		In general, "direct packet access" is the preferred method to
+ * 		access packet data, however, this helper is in particular useful
+ * 		in socket filters where *skb*\ **->data** does not always point
+ * 		to the start of the mac header and where "direct packet access"
+ * 		is not available.
+ *
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -1871,7 +1895,8 @@ union bpf_attr {
 	FN(bind),			\
 	FN(xdp_adjust_tail),		\
 	FN(skb_get_xfrm_state),		\
-	FN(get_stack),
+	FN(get_stack),			\
+	FN(skb_load_bytes_relative),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -1930,6 +1955,12 @@ enum bpf_func_id {
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
 	BPF_ADJ_ROOM_NET,
+};
+
+/* Mode for BPF_FUNC_skb_load_bytes_relative helper. */
+enum bpf_hdr_start_off {
+	BPF_HDR_START_MAC,
+	BPF_HDR_START_NET,
 };
 
 /* user accessible mirror of in-kernel sk_buff.
