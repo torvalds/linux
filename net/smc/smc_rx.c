@@ -22,11 +22,10 @@
 #include "smc_tx.h" /* smc_tx_consumer_update() */
 #include "smc_rx.h"
 
-/* callback implementation for sk.sk_data_ready()
- * to wakeup rcvbuf consumers that blocked with smc_rx_wait_data().
+/* callback implementation to wakeup consumers blocked with smc_rx_wait().
  * indirectly called by smc_cdc_msg_recv_action().
  */
-static void smc_rx_data_ready(struct sock *sk)
+static void smc_rx_wake_up(struct sock *sk)
 {
 	struct socket_wq *wq;
 
@@ -47,25 +46,27 @@ static void smc_rx_data_ready(struct sock *sk)
 /* blocks rcvbuf consumer until >=len bytes available or timeout or interrupted
  *   @smc    smc socket
  *   @timeo  pointer to max seconds to wait, pointer to value 0 for no timeout
+ *   @fcrit  add'l criterion to evaluate as function pointer
  * Returns:
  * 1 if at least 1 byte available in rcvbuf or if socket error/shutdown.
  * 0 otherwise (nothing in rcvbuf nor timeout, e.g. interrupted).
  */
-int smc_rx_wait_data(struct smc_sock *smc, long *timeo)
+int smc_rx_wait(struct smc_sock *smc, long *timeo,
+		int (*fcrit)(struct smc_connection *conn))
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct smc_connection *conn = &smc->conn;
 	struct sock *sk = &smc->sk;
 	int rc;
 
-	if (atomic_read(&conn->bytes_to_rcv))
+	if (fcrit(conn))
 		return 1;
 	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	add_wait_queue(sk_sleep(sk), &wait);
 	rc = sk_wait_event(sk, timeo,
 			   sk->sk_err ||
 			   sk->sk_shutdown & RCV_SHUTDOWN ||
-			   atomic_read(&conn->bytes_to_rcv) ||
+			   fcrit(conn) ||
 			   smc_cdc_rxed_any_close_or_senddone(conn),
 			   &wait);
 	remove_wait_queue(sk_sleep(sk), &wait);
@@ -146,14 +147,14 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg, size_t len,
 				return -EAGAIN;
 		}
 
-		if (!atomic_read(&conn->bytes_to_rcv)) {
-			smc_rx_wait_data(smc, &timeo);
+		if (!smc_rx_data_available(conn)) {
+			smc_rx_wait(smc, &timeo, smc_rx_data_available);
 			continue;
 		}
 
 copy:
 		/* initialize variables for 1st iteration of subsequent loop */
-		/* could be just 1 byte, even after smc_rx_wait_data above */
+		/* could be just 1 byte, even after waiting on data above */
 		readable = atomic_read(&conn->bytes_to_rcv);
 		/* not more than what user space asked for */
 		copylen = min_t(size_t, read_remaining, readable);
@@ -213,5 +214,5 @@ out:
 /* Initialize receive properties on connection establishment. NB: not __init! */
 void smc_rx_init(struct smc_sock *smc)
 {
-	smc->sk.sk_data_ready = smc_rx_data_ready;
+	smc->sk.sk_data_ready = smc_rx_wake_up;
 }
