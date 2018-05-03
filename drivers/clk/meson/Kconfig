@@ -38,6 +38,7 @@ config COMMON_CLK_AXG
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_MESON_AO
 	select COMMON_CLK_REGMAP_MESON
 	select MFD_SYSCON
 	help
