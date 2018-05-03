@@ -1803,15 +1803,22 @@ int pid_getattr(const struct path *path, struct kstat *stat,
 /* dentry stuff */
 
 /*
- *	Exceptional case: normally we are not allowed to unhash a busy
- * directory. In this case, however, we can do it - no aliasing problems
- * due to the way we treat inodes.
- *
+ * Set <pid>/... inode ownership (can change due to setuid(), etc.)
+ */
+void pid_update_inode(struct task_struct *task, struct inode *inode)
+{
+	task_dump_owner(task, inode->i_mode, &inode->i_uid, &inode->i_gid);
+
+	inode->i_mode &= ~(S_ISUID | S_ISGID);
+	security_task_to_inode(task, inode);
+}
+
+/*
  * Rewrite the inode's ownerships here because the owning task may have
  * performed a setuid(), etc.
  *
  */
-int pid_revalidate(struct dentry *dentry, unsigned int flags)
+static int pid_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	struct task_struct *task;
@@ -1823,10 +1830,7 @@ int pid_revalidate(struct dentry *dentry, unsigned int flags)
 	task = get_proc_task(inode);
 
 	if (task) {
-		task_dump_owner(task, inode->i_mode, &inode->i_uid, &inode->i_gid);
-
-		inode->i_mode &= ~(S_ISUID | S_ISGID);
-		security_task_to_inode(task, inode);
+		pid_update_inode(task, inode);
 		put_task_struct(task);
 		return 1;
 	}
@@ -2438,7 +2442,7 @@ static int proc_pident_instantiate(struct inode *dir,
 
 	inode = proc_pid_make_inode(dir->i_sb, task, p->mode);
 	if (!inode)
-		goto out;
+		return -ENOENT;
 
 	ei = PROC_I(inode);
 	if (S_ISDIR(inode->i_mode))
@@ -2448,13 +2452,10 @@ static int proc_pident_instantiate(struct inode *dir,
 	if (p->fop)
 		inode->i_fop = p->fop;
 	ei->op = p->op;
+	pid_update_inode(task, inode);
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
-	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, 0))
-		return 0;
-out:
-	return -ENOENT;
+	return 0;
 }
 
 static struct dentry *proc_pident_lookup(struct inode *dir, 
@@ -3140,22 +3141,18 @@ static int proc_pid_instantiate(struct inode *dir,
 
 	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR | S_IRUGO | S_IXUGO);
 	if (!inode)
-		goto out;
+		return -ENOENT;
 
 	inode->i_op = &proc_tgid_base_inode_operations;
 	inode->i_fop = &proc_tgid_base_operations;
 	inode->i_flags|=S_IMMUTABLE;
 
 	set_nlink(inode, nlink_tgid);
+	pid_update_inode(task, inode);
 
 	d_set_d_op(dentry, &pid_dentry_operations);
-
 	d_add(dentry, inode);
-	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, 0))
-		return 0;
-out:
-	return -ENOENT;
+	return 0;
 }
 
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)
@@ -3434,23 +3431,19 @@ static int proc_task_instantiate(struct inode *dir,
 {
 	struct inode *inode;
 	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR | S_IRUGO | S_IXUGO);
-
 	if (!inode)
-		goto out;
+		return -ENOENT;
+
 	inode->i_op = &proc_tid_base_inode_operations;
 	inode->i_fop = &proc_tid_base_operations;
-	inode->i_flags|=S_IMMUTABLE;
+	inode->i_flags |= S_IMMUTABLE;
 
 	set_nlink(inode, nlink_tid);
+	pid_update_inode(task, inode);
 
 	d_set_d_op(dentry, &pid_dentry_operations);
-
 	d_add(dentry, inode);
-	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, 0))
-		return 0;
-out:
-	return -ENOENT;
+	return 0;
 }
 
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)

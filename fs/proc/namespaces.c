@@ -96,19 +96,16 @@ static int proc_ns_instantiate(struct inode *dir,
 
 	inode = proc_pid_make_inode(dir->i_sb, task, S_IFLNK | S_IRWXUGO);
 	if (!inode)
-		goto out;
+		return -ENOENT;
 
 	ei = PROC_I(inode);
 	inode->i_op = &proc_ns_link_inode_operations;
 	ei->ns_ops = ns_ops;
+	pid_update_inode(task, inode);
 
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
-	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, 0))
-		return 0;
-out:
-	return -ENOENT;
+	return 0;
 }
 
 static int proc_ns_dir_readdir(struct file *file, struct dir_context *ctx)
