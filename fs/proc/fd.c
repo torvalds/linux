@@ -81,12 +81,29 @@ static const struct file_operations proc_fdinfo_file_operations = {
 	.release	= single_release,
 };
 
+static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
+{
+	struct files_struct *files = get_files_struct(task);
+	struct file *file;
+
+	if (!files)
+		return false;
+
+	rcu_read_lock();
+	file = fcheck_files(files, fd);
+	if (file)
+		*mode = file->f_mode;
+	rcu_read_unlock();
+	put_files_struct(files);
+	return !!file;
+}
+
 static int tid_fd_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct files_struct *files;
 	struct task_struct *task;
 	struct inode *inode;
 	unsigned int fd;
+	fmode_t f_mode;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -96,35 +113,20 @@ static int tid_fd_revalidate(struct dentry *dentry, unsigned int flags)
 	fd = proc_fd(inode);
 
 	if (task) {
-		files = get_files_struct(task);
-		if (files) {
-			struct file *file;
+		if (tid_fd_mode(task, fd, &f_mode)) {
+			task_dump_owner(task, 0, &inode->i_uid, &inode->i_gid);
 
-			rcu_read_lock();
-			file = fcheck_files(files, fd);
-			if (file) {
-				unsigned f_mode = file->f_mode;
-
-				rcu_read_unlock();
-				put_files_struct(files);
-
-				task_dump_owner(task, 0, &inode->i_uid, &inode->i_gid);
-
-				if (S_ISLNK(inode->i_mode)) {
-					unsigned i_mode = S_IFLNK;
-					if (f_mode & FMODE_READ)
-						i_mode |= S_IRUSR | S_IXUSR;
-					if (f_mode & FMODE_WRITE)
-						i_mode |= S_IWUSR | S_IXUSR;
-					inode->i_mode = i_mode;
-				}
-
-				security_task_to_inode(task, inode);
-				put_task_struct(task);
-				return 1;
+			if (S_ISLNK(inode->i_mode)) {
+				unsigned i_mode = S_IFLNK;
+				if (f_mode & FMODE_READ)
+					i_mode |= S_IRUSR | S_IXUSR;
+				if (f_mode & FMODE_WRITE)
+					i_mode |= S_IWUSR | S_IXUSR;
+				inode->i_mode = i_mode;
 			}
-			rcu_read_unlock();
-			put_files_struct(files);
+			security_task_to_inode(task, inode);
+			put_task_struct(task);
+			return 1;
 		}
 		put_task_struct(task);
 	}
@@ -203,10 +205,13 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 	struct task_struct *task = get_proc_task(dir);
 	int result = -ENOENT;
 	unsigned fd = name_to_int(&dentry->d_name);
+	fmode_t f_mode;
 
 	if (!task)
 		goto out_no_task;
 	if (fd == ~0U)
+		goto out;
+	if (!tid_fd_mode(task, fd, &f_mode))
 		goto out;
 
 	result = instantiate(dir, dentry, task, (void *)(unsigned long)fd);
