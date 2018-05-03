@@ -791,10 +791,9 @@ static int dvb_init(struct cx231xx *dev)
 	{
 		struct i2c_client *client;
 		struct i2c_board_info info;
-		struct si2165_platform_data si2165_pdata;
+		struct si2165_platform_data si2165_pdata = {};
 
 		/* attach demod */
-		memset(&si2165_pdata, 0, sizeof(si2165_pdata));
 		si2165_pdata.fe = &dev->dvb->frontend[0];
 		si2165_pdata.chip_mode = SI2165_MODE_PLL_XTAL;
 		si2165_pdata.ref_freq_hz = 16000000;
@@ -836,11 +835,10 @@ static int dvb_init(struct cx231xx *dev)
 	{
 		struct i2c_client *client;
 		struct i2c_board_info info;
-		struct si2165_platform_data si2165_pdata;
-		struct si2157_config si2157_config;
+		struct si2165_platform_data si2165_pdata = {};
+		struct si2157_config si2157_config = {};
 
 		/* attach demod */
-		memset(&si2165_pdata, 0, sizeof(si2165_pdata));
 		si2165_pdata.fe = &dev->dvb->frontend[0];
 		si2165_pdata.chip_mode = SI2165_MODE_PLL_EXT;
 		si2165_pdata.ref_freq_hz = 24000000;
@@ -874,7 +872,6 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		/* attach tuner */
-		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = dev->dvb->frontend[0];
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 		si2157_config.mdev = dev->media_dev;
@@ -911,7 +908,7 @@ static int dvb_init(struct cx231xx *dev)
 	{
 		struct i2c_client *client;
 		struct i2c_board_info info;
-		struct si2157_config si2157_config;
+		struct si2157_config si2157_config = {};
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 
@@ -933,7 +930,6 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
 
 		/* attach tuner */
-		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = dev->dvb->frontend[0];
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 		si2157_config.mdev = dev->media_dev;
