@@ -224,14 +224,18 @@ static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
  * Find the CSI data format and data width for the given V4L2 media
  * bus pixel format code.
  */
-static int mbus_code_to_bus_cfg(struct ipu_csi_bus_config *cfg, u32 mbus_code)
+static int mbus_code_to_bus_cfg(struct ipu_csi_bus_config *cfg, u32 mbus_code,
+				enum v4l2_mbus_type mbus_type)
 {
 	switch (mbus_code) {
 	case MEDIA_BUS_FMT_BGR565_2X8_BE:
 	case MEDIA_BUS_FMT_BGR565_2X8_LE:
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_RGB565;
+		if (mbus_type == V4L2_MBUS_CSI2)
+			cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_RGB565;
+		else
+			cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_BAYER;
 		cfg->mipi_dt = MIPI_DT_RGB565;
 		cfg->data_width = IPU_CSI_DATA_WIDTH_8;
 		break;
@@ -332,7 +336,7 @@ static int fill_csi_bus_cfg(struct ipu_csi_bus_config *csicfg,
 
 	memset(csicfg, 0, sizeof(*csicfg));
 
-	ret = mbus_code_to_bus_cfg(csicfg, mbus_fmt->code);
+	ret = mbus_code_to_bus_cfg(csicfg, mbus_fmt->code, mbus_cfg->type);
 	if (ret < 0)
 		return ret;
 
@@ -607,7 +611,7 @@ int ipu_csi_set_mipi_datatype(struct ipu_csi *csi, u32 vc,
 	if (vc > 3)
 		return -EINVAL;
 
-	ret = mbus_code_to_bus_cfg(&cfg, mbus_fmt->code);
+	ret = mbus_code_to_bus_cfg(&cfg, mbus_fmt->code, V4L2_MBUS_CSI2);
 	if (ret < 0)
 		return ret;
 
