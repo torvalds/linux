@@ -858,6 +858,7 @@ static void iwl_mvm_flip_address(u8 *addr)
 
 static void iwl_mvm_decode_he_sigb(struct iwl_mvm *mvm,
 				   struct iwl_rx_mpdu_desc *desc,
+				   u32 rate_n_flags,
 				   struct ieee80211_radiotap_he_mu *he_mu)
 {
 	u32 sigb0, sigb1;
@@ -893,7 +894,8 @@ static void iwl_mvm_decode_he_sigb(struct iwl_mvm *mvm,
 					     sigb1);
 	}
 
-	if (FIELD_GET(IWL_RX_HE_SIGB_COMMON2_CH2_CRC_OK, sigb2)) {
+	if (FIELD_GET(IWL_RX_HE_SIGB_COMMON2_CH2_CRC_OK, sigb2) &&
+	    (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) != RATE_MCS_CHAN_WIDTH_20) {
 		he_mu->flags1 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH2_RU_KNOWN |
 				    IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH2_CTR_26T_RU_KNOWN);
@@ -1010,7 +1012,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				      he_phy_data) ==
 				IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO;
 		if (sigb_data)
-			iwl_mvm_decode_he_sigb(mvm, desc, he_mu);
+			iwl_mvm_decode_he_sigb(mvm, desc, rate_n_flags, he_mu);
 	}
 	if (he_phy_data != HE_PHY_DATA_INVAL &&
 	    (he_type == RATE_MCS_HE_TYPE_SU ||
