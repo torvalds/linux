@@ -467,6 +467,10 @@ struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu
 u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event);
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box);
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box);
+void uncore_pmu_event_start(struct perf_event *event, int flags);
+void uncore_pmu_event_stop(struct perf_event *event, int flags);
+int uncore_pmu_event_add(struct perf_event *event, int flags);
+void uncore_pmu_event_del(struct perf_event *event, int flags);
 void uncore_pmu_event_read(struct perf_event *event);
 void uncore_perf_event_update(struct intel_uncore_box *box, struct perf_event *event);
 struct event_constraint *
