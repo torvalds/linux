@@ -2317,8 +2317,9 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
  * irqs disabled, and this lock is released upon return, but irqs remain
  * disabled.
  */
-static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
-				      struct rcu_node *rnp, unsigned long flags)
+static void __maybe_unused
+rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
+			  struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
 	unsigned long gps;
@@ -2677,17 +2678,6 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 				 */
 				rcu_initiate_boost(rnp, flags);
 				/* rcu_initiate_boost() releases rnp->lock */
-				continue;
-			}
-			if (rnp->parent &&
-			    (rnp->parent->qsmask & rnp->grpmask)) {
-				/*
-				 * Race between grace-period
-				 * initialization and task exiting RCU
-				 * read-side critical section: Report.
-				 */
-				rcu_report_unblock_qs_rnp(rsp, rnp, flags);
-				/* rcu_report_unblock_qs_rnp() rlses ->lock */
 				continue;
 			}
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
