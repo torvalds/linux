@@ -36,9 +36,7 @@ setup_prepare()
 
 	# This test downs $swp3, which deletes the configured IPv6 address
 	# unless this sysctl is set.
-	local key=net.ipv6.conf.$swp3.keep_addr_on_down
-	SWP3_KEEP_ADDR_ON_DOWN=$(sysctl -n $key)
-	sysctl -qw $key=1
+	sysctl_set net.ipv6.conf.$swp3.keep_addr_on_down 1
 
 	ip address add dev $swp3 192.0.2.129/28
 	ip address add dev $h3 192.0.2.130/28
@@ -57,8 +55,7 @@ cleanup()
 	ip address del dev $h3 192.0.2.130/28
 	ip address del dev $swp3 192.0.2.129/28
 
-	local key=net.ipv6.conf.$swp3.keep_addr_on_down
-	sysctl -qw $key=$SWP3_KEEP_ADDR_ON_DOWN
+	sysctl_restore net.ipv6.conf.$swp3.keep_addr_on_down
 
 	mirror_gre_topo_destroy
 	vrf_cleanup

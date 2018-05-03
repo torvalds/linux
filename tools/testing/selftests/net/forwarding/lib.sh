@@ -400,17 +400,14 @@ sysctl_restore()
 
 forwarding_enable()
 {
-       ipv4_fwd=$(sysctl -n net.ipv4.conf.all.forwarding)
-       ipv6_fwd=$(sysctl -n net.ipv6.conf.all.forwarding)
-
-       sysctl -q -w net.ipv4.conf.all.forwarding=1
-       sysctl -q -w net.ipv6.conf.all.forwarding=1
+	sysctl_set net.ipv4.conf.all.forwarding 1
+	sysctl_set net.ipv6.conf.all.forwarding 1
 }
 
 forwarding_restore()
 {
-       sysctl -q -w net.ipv6.conf.all.forwarding=$ipv6_fwd
-       sysctl -q -w net.ipv4.conf.all.forwarding=$ipv4_fwd
+	sysctl_restore net.ipv6.conf.all.forwarding
+	sysctl_restore net.ipv4.conf.all.forwarding
 }
 
 tc_offload_check()
