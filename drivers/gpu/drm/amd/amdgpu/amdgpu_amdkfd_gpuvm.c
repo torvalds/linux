@@ -1409,7 +1409,8 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 * the queues are still stopped and we can leave mapping for
 	 * the next restore worker
 	 */
-	if (bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) &&
+	    bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
 		is_invalid_userptr = true;
 
 	if (check_if_add_bo_to_vm(avm, mem)) {
