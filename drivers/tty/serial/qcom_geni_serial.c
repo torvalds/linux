@@ -105,7 +105,7 @@ struct qcom_geni_serial_port {
 	bool brk;
 };
 
-static const struct uart_ops qcom_geni_serial_pops;
+static const struct uart_ops qcom_geni_console_pops;
 static struct uart_driver qcom_geni_console_driver;
 static int handle_rx_console(struct uart_port *uport, u32 bytes, bool drop);
 static unsigned int qcom_geni_serial_tx_empty(struct uart_port *port);
@@ -118,7 +118,14 @@ static const unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
 #define to_dev_port(ptr, member) \
 		container_of(ptr, struct qcom_geni_serial_port, member)
 
-static struct qcom_geni_serial_port qcom_geni_console_port;
+static struct qcom_geni_serial_port qcom_geni_console_port = {
+	.uport = {
+		.iotype = UPIO_MEM,
+		.ops = &qcom_geni_console_pops,
+		.flags = UPF_BOOT_AUTOCONF,
+		.line = 0,
+	},
+};
 
 static int qcom_geni_serial_request_port(struct uart_port *uport)
 {
@@ -1129,11 +1136,6 @@ static struct platform_driver qcom_geni_serial_platform_driver = {
 static int __init qcom_geni_serial_init(void)
 {
 	int ret;
-
-	qcom_geni_console_port.uport.iotype = UPIO_MEM;
-	qcom_geni_console_port.uport.ops = &qcom_geni_console_pops;
-	qcom_geni_console_port.uport.flags = UPF_BOOT_AUTOCONF;
-	qcom_geni_console_port.uport.line = 0;
 
 	ret = console_register(&qcom_geni_console_driver);
 	if (ret)
