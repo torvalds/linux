@@ -464,7 +464,7 @@ struct iwl_self_init_dram {
  * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
  * @fw_mon_phys: physical address of the buffer for the firmware monitor
- * @fw_mon_page: points to the first page of the buffer for the firmware monitor
+ * @fw_mon_cpu_addr: address of the buffer for the firmware monitor
  * @fw_mon_size: size of the buffer for the firmware monitor
  * @msix_entries: array of MSI-X entries
  * @msix_enabled: true if managed to enable MSI-X
@@ -554,7 +554,7 @@ struct iwl_trans_pcie {
 	bool ref_cmd_in_flight;
 
 	dma_addr_t fw_mon_phys;
-	struct page *fw_mon_page;
+	void *fw_mon_cpu_addr;
 	u32 fw_mon_size;
 
 	struct msix_entry msix_entries[IWL_MAX_RX_HW_QUEUES];
