@@ -3675,6 +3675,9 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
+
+	virt_dev->udev = NULL;
+
 	/* Don't disable the slot if the host controller is dead. */
 	state = readl(&xhci->op_regs->status);
 	if (state == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING) ||
