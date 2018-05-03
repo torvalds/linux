@@ -206,12 +206,14 @@ enum rk817_charge_fields {
 	USB_EXS, USB_EFF,
 	BAT_DIS_ILIM_STS, BAT_SYS_CMP_DLY, BAT_DIS_ILIM_EN,
 	BAT_DISCHRG_ILIM,
-	PLUG_IN_STS, SOC_REG,
+	PLUG_IN_STS, SOC_REG0, SOC_REG1, SOC_REG2,
 	F_MAX_FIELDS
 };
 
 static const struct reg_field rk817_charge_reg_fields[] = {
-	[SOC_REG] = REG_FIELD(0xA5, 0, 6),
+	[SOC_REG0] = REG_FIELD(0x9A, 0, 7),
+	[SOC_REG1] = REG_FIELD(0x9B, 0, 7),
+	[SOC_REG2] = REG_FIELD(0x9C, 0, 7),
 	[BOOST_EN] = REG_FIELD(0xB4, 1, 5),
 	[OTG_EN] = REG_FIELD(0xB4, 2, 6),
 	[OTG_SLP_EN] = REG_FIELD(0xB5, 5, 6),
@@ -764,7 +766,13 @@ static int rk817_charge_online(struct rk817_charger *charge)
 
 static int rk817_charge_get_dsoc(struct rk817_charger *charge)
 {
-	return rk817_charge_field_read(charge, SOC_REG);
+	int soc_save;
+
+	soc_save = rk817_charge_field_read(charge, SOC_REG0);
+	soc_save |= (rk817_charge_field_read(charge, SOC_REG1) << 8);
+	soc_save |= (rk817_charge_field_read(charge, SOC_REG2) << 16);
+
+	return soc_save / 1000;
 }
 
 static void rk817_charge_set_chrg_param(struct rk817_charger *charge,
