@@ -843,7 +843,10 @@ EXPORT_SYMBOL_GPL(kvm_set_cr4);
 int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 #ifdef CONFIG_X86_64
-	cr3 &= ~CR3_PCID_INVD;
+	bool pcid_enabled = kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE);
+
+	if (pcid_enabled)
+		cr3 &= ~CR3_PCID_INVD;
 #endif
 
 	if (cr3 == kvm_read_cr3(vcpu) && !pdptrs_changed(vcpu)) {
