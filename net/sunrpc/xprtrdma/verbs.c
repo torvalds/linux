@@ -232,7 +232,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
-		ia->ri_async_rc = -EHOSTUNREACH;
+		ia->ri_async_rc = -EPROTO;
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_ROUTE_ERROR:
@@ -263,7 +263,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		connstate = -ENOTCONN;
 		goto connected;
 	case RDMA_CM_EVENT_UNREACHABLE:
-		connstate = -ENETDOWN;
+		connstate = -ENETUNREACH;
 		goto connected;
 	case RDMA_CM_EVENT_REJECTED:
 		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
