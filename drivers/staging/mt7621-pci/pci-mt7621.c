@@ -56,9 +56,6 @@
 
 #include <ralink_regs.h>
 
-extern void pcie_phy_init(void);
-extern void chk_phy_pll(void);
-
 /*
  * These functions and structures provide the BIOS scan and mapping of the PCI
  * devices.
@@ -364,11 +361,8 @@ pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 void
 set_pcie_phy(u32 *addr, int start_b, int bits, int val)
 {
-//	printk("0x%p:", addr);
-//	printk(" %x", *addr);
 	*(unsigned int *)(addr) &= ~(((1<<bits) - 1)<<start_b);
 	*(unsigned int *)(addr) |= val << start_b;
-//	printk(" -> %x\n", *addr);
 }
 
 void
@@ -497,7 +491,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	val |= RALINK_PCIE2_RST;
 
 	ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIE2_RST);
-	printk("pull PCIe RST: RALINK_RSTCTRL = %x\n", RALINK_RSTCTRL);
 
 	*(unsigned int *)(0xbe000060) &= ~(0x3<<10 | 0x3<<3);
 	*(unsigned int *)(0xbe000060) |= 0x1<<10 | 0x1<<3;
@@ -513,12 +506,10 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	val |= RALINK_PCIE2_RST;
 
 	DEASSERT_SYSRST_PCIE(val);
-	printk("release PCIe RST: RALINK_RSTCTRL = %x\n", RALINK_RSTCTRL);
 
 	if ((*(unsigned int *)(0xbe00000c)&0xFFFF) == 0x0101) // MT7621 E2
 		bypass_pipe_rst();
 	set_phy_for_ssc();
-	printk("release PCIe RST: RALINK_RSTCTRL = %x\n", RALINK_RSTCTRL);
 
 	read_config(0, 0, 0, 0x70c, &val);
 	printk("Port 0 N_FTS = %x\n", (unsigned int)val);
@@ -614,8 +605,6 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 		RALINK_PCI_PCICFG_ADDR |= 0x1 << 24;	//port2
 		break;
 	}
-	printk(" -> %x\n", RALINK_PCI_PCICFG_ADDR);
-	//printk(" RALINK_PCI_ARBCTL = %x\n", RALINK_PCI_ARBCTL);
 
 /*
 	ioport_resource.start = mt7621_res_pci_io1.start;
@@ -653,7 +642,6 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	case 7:
 		read_config(0, 2, 0, 0x4, &val);
 		write_config(0, 2, 0, 0x4, val|0x4);
-		// write_config(0, 1, 0, 0x4, val|0x7);
 		read_config(0, 2, 0, 0x70c, &val);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
@@ -663,7 +651,6 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	case 6:
 		read_config(0, 1, 0, 0x4, &val);
 		write_config(0, 1, 0, 0x4, val|0x4);
-		// write_config(0, 1, 0, 0x4, val|0x7);
 		read_config(0, 1, 0, 0x70c, &val);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
@@ -671,7 +658,6 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	default:
 		read_config(0, 0, 0, 0x4, &val);
 		write_config(0, 0, 0, 0x4, val|0x4); //bus master enable
-		// write_config(0, 0, 0, 0x4, val|0x7); //bus master enable
 		read_config(0, 0, 0, 0x70c, &val);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
