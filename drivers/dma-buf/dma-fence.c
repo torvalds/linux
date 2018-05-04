@@ -200,7 +200,8 @@ void dma_fence_enable_sw_signaling(struct dma_fence *fence)
 
 	if (!test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 			      &fence->flags) &&
-	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) &&
+	    fence->ops->enable_signaling) {
 		trace_dma_fence_enable_signal(fence);
 
 		spin_lock_irqsave(fence->lock, flags);
@@ -260,7 +261,7 @@ int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		ret = -ENOENT;
-	else if (!was_set) {
+	else if (!was_set && fence->ops->enable_signaling) {
 		trace_dma_fence_enable_signal(fence);
 
 		if (!fence->ops->enable_signaling(fence)) {
@@ -388,7 +389,7 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		goto out;
 
-	if (!was_set) {
+	if (!was_set && fence->ops->enable_signaling) {
 		trace_dma_fence_enable_signal(fence);
 
 		if (!fence->ops->enable_signaling(fence)) {
@@ -560,7 +561,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	       spinlock_t *lock, u64 context, unsigned seqno)
 {
 	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->wait || !ops->enable_signaling ||
+	BUG_ON(!ops || !ops->wait ||
 	       !ops->get_driver_name || !ops->get_timeline_name);
 
 	kref_init(&fence->refcount);
