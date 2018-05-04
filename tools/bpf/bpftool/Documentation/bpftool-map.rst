@@ -22,12 +22,13 @@ MAP COMMANDS
 =============
 
 |	**bpftool** **map { show | list }**   [*MAP*]
-|	**bpftool** **map dump**    *MAP*
-|	**bpftool** **map update**  *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
-|	**bpftool** **map lookup**  *MAP*  **key** *DATA*
-|	**bpftool** **map getnext** *MAP* [**key** *DATA*]
-|	**bpftool** **map delete**  *MAP*  **key** *DATA*
-|	**bpftool** **map pin**     *MAP*  *FILE*
+|	**bpftool** **map dump**       *MAP*
+|	**bpftool** **map update**     *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
+|	**bpftool** **map lookup**     *MAP*  **key** *DATA*
+|	**bpftool** **map getnext**    *MAP* [**key** *DATA*]
+|	**bpftool** **map delete**     *MAP*  **key** *DATA*
+|	**bpftool** **map pin**        *MAP*  *FILE*
+|	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -75,6 +76,22 @@ DESCRIPTION
 		  Pin map *MAP* as *FILE*.
 
 		  Note: *FILE* must be located in *bpffs* mount.
+
+	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
+		  Read events from a BPF_MAP_TYPE_PERF_EVENT_ARRAY map.
+
+		  Install perf rings into a perf event array map and dump
+		  output of any bpf_perf_event_output() call in the kernel.
+		  By default read the number of CPUs on the system and
+		  install perf ring for each CPU in the corresponding index
+		  in the array.
+
+		  If **cpu** and **index** are specified, install perf ring
+		  for given **cpu** at **index** in the array (single ring).
+
+		  Note that installing a perf ring into an array will silently
+		  replace any existing ring.  Any other application will stop
+		  receiving events if it installed its rings earlier.
 
 	**bpftool map help**
 		  Print short help message.

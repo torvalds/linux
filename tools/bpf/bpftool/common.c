@@ -331,6 +331,16 @@ char *get_fdinfo(int fd, const char *key)
 	return NULL;
 }
 
+void print_data_json(uint8_t *data, size_t len)
+{
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len; i++)
+		jsonw_printf(json_wtr, "%d", data[i]);
+	jsonw_end_array(json_wtr);
+}
+
 void print_hex_data_json(uint8_t *data, size_t len)
 {
 	unsigned int i;
@@ -419,6 +429,15 @@ void delete_pinned_obj_table(struct pinned_obj_table *tab)
 		free(obj->path);
 		free(obj);
 	}
+}
+
+unsigned int get_page_size(void)
+{
+	static int result;
+
+	if (!result)
+		result = getpagesize();
+	return result;
 }
 
 unsigned int get_possible_cpus(void)

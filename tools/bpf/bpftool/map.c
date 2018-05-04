@@ -130,8 +130,7 @@ static int map_parse_fd(int *argc, char ***argv)
 	return -1;
 }
 
-static int
-map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 {
 	int err;
 	int fd;
@@ -817,12 +816,13 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %s %s { show | list }   [MAP]\n"
-		"       %s %s dump    MAP\n"
-		"       %s %s update  MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
-		"       %s %s lookup  MAP  key DATA\n"
-		"       %s %s getnext MAP [key DATA]\n"
-		"       %s %s delete  MAP  key DATA\n"
-		"       %s %s pin     MAP  FILE\n"
+		"       %s %s dump       MAP\n"
+		"       %s %s update     MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
+		"       %s %s lookup     MAP  key DATA\n"
+		"       %s %s getnext    MAP [key DATA]\n"
+		"       %s %s delete     MAP  key DATA\n"
+		"       %s %s pin        MAP  FILE\n"
+		"       %s %s event_pipe MAP [cpu N index M]\n"
 		"       %s %s help\n"
 		"\n"
 		"       MAP := { id MAP_ID | pinned FILE }\n"
@@ -834,7 +834,7 @@ static int do_help(int argc, char **argv)
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -849,6 +849,7 @@ static const struct cmd cmds[] = {
 	{ "getnext",	do_getnext },
 	{ "delete",	do_delete },
 	{ "pin",	do_pin },
+	{ "event_pipe",	do_event_pipe },
 	{ 0 }
 };
 
