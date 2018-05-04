@@ -34,32 +34,6 @@
 static void __init setup_boot_command_line(void);
 
 /*
- * Get the TOD clock running.
- */
-static void __init reset_tod_clock(void)
-{
-	u64 time;
-
-	if (store_tod_clock(&time) == 0)
-		return;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
-		disabled_wait(0);
-
-	memset(tod_clock_base, 0, 16);
-	*(__u64 *) &tod_clock_base[1] = TOD_UNIX_EPOCH;
-	S390_lowcore.last_update_clock = TOD_UNIX_EPOCH;
-}
-
-/*
- * Clear bss memory
- */
-static noinline __init void clear_bss_section(void)
-{
-	memset(__bss_start, 0, __bss_stop - __bss_start);
-}
-
-/*
  * Initialize storage key for kernel pages
  */
 static noinline __init void init_kernel_storage_key(void)
@@ -310,26 +284,6 @@ static int __init cad_setup(char *str)
 }
 early_param("cad", cad_setup);
 
-static __init noinline void rescue_initrd(void)
-{
-	unsigned long min_initrd_addr = (unsigned long) _end + (4UL << 20);
-
-	/*
-	 * Just like in case of IPL from VM reader we make sure there is a
-	 * gap of 4MB between end of kernel and start of initrd.
-	 * That way we can also be sure that saving an NSS will succeed,
-	 * which however only requires different segments.
-	 */
-	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD))
-		return;
-	if (!INITRD_START || !INITRD_SIZE)
-		return;
-	if (INITRD_START >= min_initrd_addr)
-		return;
-	memmove((void *) min_initrd_addr, (void *) INITRD_START, INITRD_SIZE);
-	INITRD_START = min_initrd_addr;
-}
-
 /* Set up boot command line */
 static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
 {
@@ -379,9 +333,6 @@ static void __init setup_boot_command_line(void)
 
 void __init startup_init(void)
 {
-	reset_tod_clock();
-	rescue_initrd();
-	clear_bss_section();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
