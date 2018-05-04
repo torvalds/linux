@@ -442,12 +442,22 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 			     int enum_index)
 {
-	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->tsu_addr + offset);
 }
 
 static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
-	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->tsu_addr + offset);
 }
 
 static void sh_eth_select_mii(struct net_device *ndev)
@@ -2610,12 +2620,6 @@ static int sh_eth_change_mtu(struct net_device *ndev, int new_mtu)
 }
 
 /* For TSU_POSTn. Please refer to the manual about this (strange) bitfields */
-static void *sh_eth_tsu_get_post_reg_offset(struct sh_eth_private *mdp,
-					    int entry)
-{
-	return sh_eth_tsu_get_offset(mdp, TSU_POST1) + (entry / 8 * 4);
-}
-
 static u32 sh_eth_tsu_get_post_mask(int entry)
 {
 	return 0x0f << (28 - ((entry % 8) * 4));
@@ -2630,27 +2634,25 @@ static void sh_eth_tsu_enable_cam_entry_post(struct net_device *ndev,
 					     int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int reg = TSU_POST1 + entry / 8;
 	u32 tmp;
-	void *reg_offset;
 
-	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
-	tmp = ioread32(reg_offset);
-	iowrite32(tmp | sh_eth_tsu_get_post_bit(mdp, entry), reg_offset);
+	tmp = sh_eth_tsu_read(mdp, reg);
+	sh_eth_tsu_write(mdp, tmp | sh_eth_tsu_get_post_bit(mdp, entry), reg);
 }
 
 static bool sh_eth_tsu_disable_cam_entry_post(struct net_device *ndev,
 					      int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int reg = TSU_POST1 + entry / 8;
 	u32 post_mask, ref_mask, tmp;
-	void *reg_offset;
 
-	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
 	post_mask = sh_eth_tsu_get_post_mask(entry);
 	ref_mask = sh_eth_tsu_get_post_bit(mdp, entry) & ~post_mask;
 
-	tmp = ioread32(reg_offset);
-	iowrite32(tmp & ~post_mask, reg_offset);
+	tmp = sh_eth_tsu_read(mdp, reg);
+	sh_eth_tsu_write(mdp, tmp & ~post_mask, reg);
 
 	/* If other port enables, the function returns "true" */
 	return tmp & ref_mask;
