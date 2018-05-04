@@ -72,6 +72,7 @@
 /*
  * internal functions
  */
+static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
 static int rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt, bool temp);
@@ -949,7 +950,8 @@ out_emptyq:
  *
  * The caller serializes calls to this function (per rpcrdma_buffer).
  */
-void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
+static void
+rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 {
 	struct rpcrdma_buffer *buf = &sc->sc_xprt->rx_buf;
 	unsigned long next_tail;
