@@ -46,6 +46,9 @@ if ARCH_MULTI_V7
 
 config MACH_STM32MP157
 	bool "STMicroelectronics STM32MP157"
+	select STM32_DMA
+	select STM32_DMAMUX
+	select STM32_MDMA
 	default y
 
 endif # ARMv7-A
