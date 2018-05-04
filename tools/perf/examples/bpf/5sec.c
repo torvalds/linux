@@ -15,6 +15,13 @@
 
     . While this is running, run something like "sleep 5s".
 
+    . If we decide to add tv_nsec as well, then it becomes:
+
+      int probe(hrtimer_nanosleep, rqtp->tv_sec rqtp->tv_nsec)(void *ctx, int err, long sec, long nsec)
+
+      I.e. add where it comes from (rqtp->tv_nsec) and where it will be
+      accessible in the function body (nsec)
+
     # perf trace --no-syscalls -e tools/perf/examples/bpf/5sec.c/call-graph=dwarf/
          0.000 perf_bpf_probe:func:(ffffffff9811b5f0) tv_sec=5
                                            hrtimer_nanosleep ([kernel.kallsyms])
@@ -34,8 +41,7 @@
 
 #include <bpf.h>
 
-SEC("func=hrtimer_nanosleep rqtp->tv_sec")
-int func(void *ctx, int err, long sec)
+int probe(hrtimer_nanosleep, rqtp->tv_sec)(void *ctx, int err, long sec)
 {
 	return sec == 5;
 }
