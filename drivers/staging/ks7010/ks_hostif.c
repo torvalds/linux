@@ -1192,10 +1192,10 @@ void hostif_mib_get_request(struct ks_wlan_private *priv,
 	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
 }
 
-static
-void hostif_mib_set_request(struct ks_wlan_private *priv,
-			    unsigned long mib_attribute, unsigned short size,
-			    unsigned short type, void *vp)
+static void hostif_mib_set_request(struct ks_wlan_private *priv,
+				   enum mib_attribute attr,
+				   enum mib_data_type type,
+				   void *data, size_t size)
 {
 	struct hostif_mib_set_request_t *pp;
 
@@ -1206,10 +1206,10 @@ void hostif_mib_set_request(struct ks_wlan_private *priv,
 	if (!pp)
 		return;
 
-	pp->mib_attribute = cpu_to_le32((uint32_t)mib_attribute);
-	pp->mib_value.size = cpu_to_le16((uint16_t)size);
-	pp->mib_value.type = cpu_to_le16((uint16_t)type);
-	memcpy(&pp->mib_value.body, vp, size);
+	pp->mib_attribute = cpu_to_le32(attr);
+	pp->mib_value.size = cpu_to_le16((u16)size);
+	pp->mib_value.type = cpu_to_le16(type);
+	memcpy(&pp->mib_value.body, data, size);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -1557,44 +1557,44 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 	case SME_WEP_INDEX_REQUEST:
 		val = cpu_to_le32((uint32_t)(priv->reg.wep_index));
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_ID,
-				       sizeof(val), MIB_VALUE_TYPE_INT, &val);
+				       MIB_VALUE_TYPE_INT, &val, sizeof(val));
 		break;
 	case SME_WEP_KEY1_REQUEST:
 		if (!priv->wpa.wpa_enabled)
 			hostif_mib_set_request(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE1,
-					       priv->reg.wep_key[0].size,
 					       MIB_VALUE_TYPE_OSTRING,
-					       &priv->reg.wep_key[0].val[0]);
+					       &priv->reg.wep_key[0].val[0],
+					       priv->reg.wep_key[0].size);
 		break;
 	case SME_WEP_KEY2_REQUEST:
 		if (!priv->wpa.wpa_enabled)
 			hostif_mib_set_request(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE2,
-					       priv->reg.wep_key[1].size,
 					       MIB_VALUE_TYPE_OSTRING,
-					       &priv->reg.wep_key[1].val[0]);
+					       &priv->reg.wep_key[1].val[0],
+					       priv->reg.wep_key[1].size);
 		break;
 	case SME_WEP_KEY3_REQUEST:
 		if (!priv->wpa.wpa_enabled)
 			hostif_mib_set_request(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE3,
-					       priv->reg.wep_key[2].size,
 					       MIB_VALUE_TYPE_OSTRING,
-					       &priv->reg.wep_key[2].val[0]);
+					       &priv->reg.wep_key[2].val[0],
+					       priv->reg.wep_key[2].size);
 		break;
 	case SME_WEP_KEY4_REQUEST:
 		if (!priv->wpa.wpa_enabled)
 			hostif_mib_set_request(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE4,
-					       priv->reg.wep_key[3].size,
 					       MIB_VALUE_TYPE_OSTRING,
-					       &priv->reg.wep_key[3].val[0]);
+					       &priv->reg.wep_key[3].val[0],
+					       priv->reg.wep_key[3].size);
 		break;
 	case SME_WEP_FLAG_REQUEST:
 		val = cpu_to_le32((uint32_t)(priv->reg.privacy_invoked));
 		hostif_mib_set_request(priv, DOT11_PRIVACY_INVOKED,
-				       sizeof(val), MIB_VALUE_TYPE_BOOL, &val);
+				       MIB_VALUE_TYPE_BOOL, &val, sizeof(val));
 		break;
 	}
 }
@@ -1615,6 +1615,7 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 	struct wpa_suite wpa_suite;
 	struct rsn_mode rsn_mode;
 	__le32 val;
+	size_t size;
 
 	memset(&wpa_suite, 0, sizeof(wpa_suite));
 
@@ -1664,11 +1665,11 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 			break;
 		}
 
+		size = sizeof(wpa_suite.size) +
+		       (CIPHER_ID_LEN * le16_to_cpu(wpa_suite.size));
 		hostif_mib_set_request(priv, DOT11_RSN_CONFIG_UNICAST_CIPHER,
-				       sizeof(wpa_suite.size) +
-				       CIPHER_ID_LEN *
-				       le16_to_cpu(wpa_suite.size),
-				       MIB_VALUE_TYPE_OSTRING, &wpa_suite);
+				       MIB_VALUE_TYPE_OSTRING,
+				       &wpa_suite, size);
 		break;
 	case SME_RSN_MCAST_REQUEST:
 		switch (priv->wpa.group_suite) {
@@ -1715,8 +1716,8 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 		}
 
 		hostif_mib_set_request(priv, DOT11_RSN_CONFIG_MULTICAST_CIPHER,
-				       CIPHER_ID_LEN, MIB_VALUE_TYPE_OSTRING,
-				       &wpa_suite.suite[0][0]);
+				       MIB_VALUE_TYPE_OSTRING,
+				       &wpa_suite.suite[0][0], CIPHER_ID_LEN);
 		break;
 	case SME_RSN_AUTH_REQUEST:
 		wpa_suite.size = cpu_to_le16((uint16_t)1);
@@ -1757,16 +1758,16 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 			break;
 		}
 
+		size = sizeof(wpa_suite.size) +
+		       (KEY_MGMT_ID_LEN * le16_to_cpu(wpa_suite.size));
 		hostif_mib_set_request(priv, DOT11_RSN_CONFIG_AUTH_SUITE,
-				       sizeof(wpa_suite.size) +
-				       KEY_MGMT_ID_LEN *
-				       le16_to_cpu(wpa_suite.size),
-				       MIB_VALUE_TYPE_OSTRING, &wpa_suite);
+				       MIB_VALUE_TYPE_OSTRING, &wpa_suite,
+				       size);
 		break;
 	case SME_RSN_ENABLED_REQUEST:
 		val = cpu_to_le32((uint32_t)(priv->wpa.rsn_enabled));
 		hostif_mib_set_request(priv, DOT11_RSN_ENABLED,
-				       sizeof(val), MIB_VALUE_TYPE_BOOL, &val);
+				       MIB_VALUE_TYPE_BOOL, &val, sizeof(val));
 		break;
 	case SME_RSN_MODE_REQUEST:
 		if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) {
@@ -1782,8 +1783,9 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 			    cpu_to_le32((uint32_t)RSN_MODE_NONE);
 			rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
 		}
-		hostif_mib_set_request(priv, LOCAL_RSN_MODE, sizeof(rsn_mode),
-				       MIB_VALUE_TYPE_OSTRING, &rsn_mode);
+		hostif_mib_set_request(priv, LOCAL_RSN_MODE,
+				       MIB_VALUE_TYPE_OSTRING, &rsn_mode,
+				       sizeof(rsn_mode));
 		break;
 	}
 }
@@ -1904,8 +1906,8 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	if (dev->flags & IFF_PROMISC) {
 		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_PROMISC);
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
-				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
-				       &filter_type);
+				       MIB_VALUE_TYPE_BOOL,
+				       &filter_type, sizeof(filter_type));
 		goto spin_unlock;
 	}
 
@@ -1913,8 +1915,8 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	    (dev->flags & IFF_ALLMULTI)) {
 		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_MCASTALL);
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
-				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
-				       &filter_type);
+				       MIB_VALUE_TYPE_BOOL,
+				       &filter_type, sizeof(filter_type));
 		goto spin_unlock;
 	}
 
@@ -1926,15 +1928,14 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 		}
 		priv->sme_i.sme_flag &= ~SME_MULTICAST;
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_ADDRESS,
-				       ETH_ALEN * mc_count,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &set_address[0]);
+				       &set_address[0], ETH_ALEN * mc_count);
 	} else {
 		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_MCAST);
 		priv->sme_i.sme_flag |= SME_MULTICAST;
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
-				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
-				       &filter_type);
+				       MIB_VALUE_TYPE_BOOL,
+				       &filter_type, sizeof(filter_type));
 	}
 
 spin_unlock:
@@ -1992,51 +1993,54 @@ void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 	case SME_SET_FLAG:
 		val = cpu_to_le32((uint32_t)(priv->reg.privacy_invoked));
 		hostif_mib_set_request(priv, DOT11_PRIVACY_INVOKED,
-				       sizeof(val), MIB_VALUE_TYPE_BOOL, &val);
+				       MIB_VALUE_TYPE_BOOL, &val, sizeof(val));
 		break;
 	case SME_SET_TXKEY:
 		val = cpu_to_le32((uint32_t)(priv->wpa.txkey));
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_ID,
-				       sizeof(val), MIB_VALUE_TYPE_INT, &val);
+				       MIB_VALUE_TYPE_INT, &val, sizeof(val));
 		break;
 	case SME_SET_KEY1:
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_VALUE1,
-				       priv->wpa.key[0].key_len,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[0].key_val[0]);
+				       &priv->wpa.key[0].key_val[0],
+				       priv->wpa.key[0].key_len);
 		break;
 	case SME_SET_KEY2:
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_VALUE2,
-				       priv->wpa.key[1].key_len,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[1].key_val[0]);
+				       &priv->wpa.key[1].key_val[0],
+				       priv->wpa.key[1].key_len);
 		break;
 	case SME_SET_KEY3:
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_VALUE3,
-				       priv->wpa.key[2].key_len,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[2].key_val[0]);
+				       &priv->wpa.key[2].key_val[0],
+				       priv->wpa.key[2].key_len);
 		break;
 	case SME_SET_KEY4:
 		hostif_mib_set_request(priv, DOT11_WEP_DEFAULT_KEY_VALUE4,
-				       priv->wpa.key[3].key_len,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[3].key_val[0]);
+				       &priv->wpa.key[3].key_val[0],
+				       priv->wpa.key[3].key_len);
 		break;
 	case SME_SET_PMK_TSC:
 		hostif_mib_set_request(priv, DOT11_PMK_TSC,
-				       WPA_RX_SEQ_LEN, MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[0].rx_seq[0]);
+				       MIB_VALUE_TYPE_OSTRING,
+				       &priv->wpa.key[0].rx_seq[0],
+				       WPA_RX_SEQ_LEN);
 		break;
 	case SME_SET_GMK1_TSC:
 		hostif_mib_set_request(priv, DOT11_GMK1_TSC,
-				       WPA_RX_SEQ_LEN, MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[1].rx_seq[0]);
+				       MIB_VALUE_TYPE_OSTRING,
+				       &priv->wpa.key[1].rx_seq[0],
+				       WPA_RX_SEQ_LEN);
 		break;
 	case SME_SET_GMK2_TSC:
 		hostif_mib_set_request(priv, DOT11_GMK2_TSC,
-				       WPA_RX_SEQ_LEN, MIB_VALUE_TYPE_OSTRING,
-				       &priv->wpa.key[2].rx_seq[0]);
+				       MIB_VALUE_TYPE_OSTRING,
+				       &priv->wpa.key[2].rx_seq[0],
+				       WPA_RX_SEQ_LEN);
 		break;
 	}
 }
@@ -2052,6 +2056,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		} __packed list[PMK_LIST_MAX];
 	} __packed pmkcache;
 	struct pmk *pmk;
+	size_t size;
 	int i = 0;
 
 	list_for_each_entry(pmk, &priv->pmklist.head, list) {
@@ -2062,11 +2067,10 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		i++;
 	}
 	pmkcache.size = cpu_to_le16((uint16_t)(priv->pmklist.size));
+	size = sizeof(priv->pmklist.size) +
+	       ((ETH_ALEN + IW_PMKID_LEN) * priv->pmklist.size);
 	hostif_mib_set_request(priv, LOCAL_PMK,
-			       sizeof(priv->pmklist.size) + (ETH_ALEN +
-							     IW_PMKID_LEN) *
-			       (priv->pmklist.size), MIB_VALUE_TYPE_OSTRING,
-			       &pmkcache);
+			       MIB_VALUE_TYPE_OSTRING, &pmkcache, size);
 }
 
 /* execute sme */
@@ -2084,9 +2088,9 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		hostif_sme_multicast_set(priv);
 		break;
 	case SME_MACADDRESS_SET_REQUEST:
-		hostif_mib_set_request(priv, LOCAL_CURRENTADDRESS, ETH_ALEN,
+		hostif_mib_set_request(priv, LOCAL_CURRENTADDRESS,
 				       MIB_VALUE_TYPE_OSTRING,
-				       &priv->eth_addr[0]);
+				       &priv->eth_addr[0], ETH_ALEN);
 		break;
 	case SME_BSS_SCAN_REQUEST:
 		hostif_bss_scan_request(priv, priv->reg.scan_type,
@@ -2131,12 +2135,12 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 	case SME_RTS_THRESHOLD_REQUEST:
 		val = cpu_to_le32((uint32_t)(priv->reg.rts));
 		hostif_mib_set_request(priv, DOT11_RTS_THRESHOLD,
-				       sizeof(val), MIB_VALUE_TYPE_INT, &val);
+				       MIB_VALUE_TYPE_INT, &val, sizeof(val));
 		break;
 	case SME_FRAGMENTATION_THRESHOLD_REQUEST:
 		val = cpu_to_le32((uint32_t)(priv->reg.fragment));
 		hostif_mib_set_request(priv, DOT11_FRAGMENTATION_THRESHOLD,
-				       sizeof(val), MIB_VALUE_TYPE_INT, &val);
+				       MIB_VALUE_TYPE_INT, &val, sizeof(val));
 		break;
 	case SME_WEP_INDEX_REQUEST:
 	case SME_WEP_KEY1_REQUEST:
@@ -2169,22 +2173,22 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		break;
 	case SME_WPS_ENABLE_REQUEST:
 		hostif_mib_set_request(priv, LOCAL_WPS_ENABLE,
-				       sizeof(priv->wps.wps_enabled),
 				       MIB_VALUE_TYPE_INT,
-				       &priv->wps.wps_enabled);
+				       &priv->wps.wps_enabled,
+				       sizeof(priv->wps.wps_enabled));
 		break;
 	case SME_WPS_PROBE_REQUEST:
 		hostif_mib_set_request(priv, LOCAL_WPS_PROBE_REQ,
-				       priv->wps.ielen,
-				       MIB_VALUE_TYPE_OSTRING, priv->wps.ie);
+				       MIB_VALUE_TYPE_OSTRING, priv->wps.ie,
+				       priv->wps.ielen);
 		break;
 	case SME_MODE_SET_REQUEST:
 		hostif_sme_mode_setup(priv);
 		break;
 	case SME_SET_GAIN:
 		hostif_mib_set_request(priv, LOCAL_GAIN,
-				       sizeof(priv->gain),
-				       MIB_VALUE_TYPE_OSTRING, &priv->gain);
+				       MIB_VALUE_TYPE_OSTRING, &priv->gain,
+				       sizeof(priv->gain));
 		break;
 	case SME_GET_GAIN:
 		hostif_mib_get_request(priv, LOCAL_GAIN);
@@ -2211,7 +2215,7 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 	case SME_SET_REGION:
 		val = cpu_to_le32((uint32_t)(priv->region));
 		hostif_mib_set_request(priv, LOCAL_REGION,
-				       sizeof(val), MIB_VALUE_TYPE_INT, &val);
+				       MIB_VALUE_TYPE_INT, &val, sizeof(val));
 		break;
 	case SME_MULTICAST_CONFIRM:
 	case SME_BSS_SCAN_CONFIRM:
