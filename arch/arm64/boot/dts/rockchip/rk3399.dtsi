@@ -2876,12 +2876,22 @@
 				rockchip,pins =
 					<0 RK_PA6 1 &pcfg_pull_none>;
 			};
+
+			pwm3a_pin_pull_down: pwm3a-pin-pull-down {
+				rockchip,pins =
+					<0 RK_PA6 1 &pcfg_pull_down>;
+			};
 		};
 
 		pwm3b {
 			pwm3b_pin: pwm3b-pin {
 				rockchip,pins =
 					<1 RK_PB6 1 &pcfg_pull_none>;
+			};
+
+			pwm3b_pin_pull_down: pwm3b-pin-pull-down {
+				rockchip,pins =
+					<1 RK_PB6 1 &pcfg_pull_down>;
 			};
 		};
 

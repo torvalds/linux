@@ -1953,11 +1953,20 @@
 			pwm0_pin: pwm0-pin {
 				rockchip,pins = <7 RK_PA0 1 &pcfg_pull_none>;
 			};
+
+			pwm0_pin_pull_down: pwm0-pin-pull-down {
+				rockchip,pins = <7 RK_PA0 1 &pcfg_pull_down>;
+			};
+
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
 				rockchip,pins = <7 RK_PA1 1 &pcfg_pull_none>;
+			};
+
+			pwm1_pin_pull_down: pwm1-pin-pull-down {
+				rockchip,pins = <7 RK_PA1 1 &pcfg_pull_down>;
 			};
 		};
 
@@ -1965,11 +1974,19 @@
 			pwm2_pin: pwm2-pin {
 				rockchip,pins = <7 RK_PC6 3 &pcfg_pull_none>;
 			};
+
+			pwm2_pin_pull_down: pwm2-pin-pull-down {
+				rockchip,pins = <7 RK_PC6 3 &pcfg_pull_down>;
+			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
 				rockchip,pins = <7 RK_PC7 3 &pcfg_pull_none>;
+			};
+
+			pwm3_pin_pull_down: pwm3-pin-pull-down {
+				rockchip,pins = <7 RK_PC7 3 &pcfg_pull_down>;
 			};
 		};
 
