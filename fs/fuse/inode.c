@@ -1100,6 +1100,13 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	    file->f_cred->user_ns != sb->s_user_ns)
 		goto err_fput;
 
+	/*
+	 * If we are not in the initial user namespace posix
+	 * acls must be translated.
+	 */
+	if (sb->s_user_ns != &init_user_ns)
+		sb->s_xattr = fuse_no_acl_xattr_handlers;
+
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!fc)
