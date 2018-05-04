@@ -1188,11 +1188,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
-		long unsigned start_tb, current_tb;
-		start_tb = old_thread->start_tb;
-		cu->current_tb = current_tb = mfspr(SPRN_PURR);
-		old_thread->accum_tb += (current_tb - start_tb);
-		new_thread->start_tb = current_tb;
+		cu->current_tb = mfspr(SPRN_PURR);
 	}
 #endif /* CONFIG_PPC64 */
 
