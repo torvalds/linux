@@ -405,7 +405,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 		return startstop;
 	}
 
-	if ((drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
+	if (!force_irqthreads && (drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
 		local_irq_disable();
 
 	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE);
