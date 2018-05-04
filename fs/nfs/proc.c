@@ -632,7 +632,8 @@ static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit
 }
 
 static void
-nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
+nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
+			struct rpc_clnt **clnt)
 {
 	BUG();
 }

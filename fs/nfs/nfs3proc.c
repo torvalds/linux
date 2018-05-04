@@ -845,7 +845,8 @@ static int nfs3_commit_done(struct rpc_task *task, struct nfs_commit_data *data)
 	return 0;
 }
 
-static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
+static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
+				   struct rpc_clnt **clnt)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_COMMIT];
 }
