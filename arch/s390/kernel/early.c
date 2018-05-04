@@ -310,38 +310,6 @@ static int __init cad_setup(char *str)
 }
 early_param("cad", cad_setup);
 
-static __init void memmove_early(void *dst, const void *src, size_t n)
-{
-	unsigned long addr;
-	long incr;
-	psw_t old;
-
-	if (!n)
-		return;
-	incr = 1;
-	if (dst > src) {
-		incr = -incr;
-		dst += n - 1;
-		src += n - 1;
-	}
-	old = S390_lowcore.program_new_psw;
-	S390_lowcore.program_new_psw.mask = __extract_psw();
-	asm volatile(
-		"	larl	%[addr],1f\n"
-		"	stg	%[addr],%[psw_pgm_addr]\n"
-		"0:     mvc	0(1,%[dst]),0(%[src])\n"
-		"	agr	%[dst],%[incr]\n"
-		"	agr	%[src],%[incr]\n"
-		"	brctg	%[n],0b\n"
-		"1:\n"
-		: [addr] "=&d" (addr),
-		  [psw_pgm_addr] "=Q" (S390_lowcore.program_new_psw.addr),
-		  [dst] "+&a" (dst), [src] "+&a" (src),  [n] "+d" (n)
-		: [incr] "d" (incr)
-		: "cc", "memory");
-	S390_lowcore.program_new_psw = old;
-}
-
 static __init noinline void rescue_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -356,7 +324,7 @@ static __init noinline void rescue_initrd(void)
 		return;
 	if (INITRD_START >= min_initrd_addr)
 		return;
-	memmove_early((void *) min_initrd_addr, (void *) INITRD_START, INITRD_SIZE);
+	memmove((void *) min_initrd_addr, (void *) INITRD_START, INITRD_SIZE);
 	INITRD_START = min_initrd_addr;
 #endif
 }
