@@ -235,7 +235,12 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE)
 		return;
 
-	netdev_dbg(priv->net_dev, "\npsstatus.status=%d\npsstatus.confirm_wait=%d\npsstatus.snooze_guard=%d\ncnt_txqbody=%d\n",
+	netdev_dbg(priv->net_dev,
+		   "STATUS:\n"
+		   "- psstatus.status = %d\n"
+		   "- psstatus.confirm_wait = %d\n"
+		   "- psstatus.snooze_guard = %d\n"
+		   "- txq_count = %d\n",
 		   atomic_read(&priv->psstatus.status),
 		   atomic_read(&priv->psstatus.confirm_wait),
 		   atomic_read(&priv->psstatus.snooze_guard),
