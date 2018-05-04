@@ -351,7 +351,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 {
 	unsigned int rx_ind_size;	/* indicate data size */
 	struct sk_buff *skb;
-	unsigned short auth_type;
+	u16 auth_type;
 	unsigned char temp[256];
 	struct ether_hdr *eth_hdr;
 	unsigned short eth_proto;
