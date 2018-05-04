@@ -318,7 +318,7 @@ err_complete:
 }
 
 /* write data */
-static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
+static int write_to_device(struct ks_wlan_private *priv, u8 *buffer,
 			   unsigned long size)
 {
 	struct hostif_hdr *hdr;
@@ -1071,8 +1071,7 @@ static int send_stop_request(struct sdio_func *func)
 	pp->header.event = cpu_to_le16((uint16_t)HIF_STOP_REQ);
 
 	sdio_claim_host(func);
-	write_to_device(card->priv, (unsigned char *)pp,
-			hif_align_size(sizeof(*pp)));
+	write_to_device(card->priv, (u8 *)pp, hif_align_size(sizeof(*pp)));
 	sdio_release_host(func);
 
 	kfree(pp);
