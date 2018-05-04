@@ -58,7 +58,7 @@
 		can0 = &can2; /* Make the can interface indices consistent with TX28/TX48 modules */
 		can1 = &can1;
 		ipu = &ipu;
-		reg_can_xcvr = &reg_can_xcvr;
+		reg-can-xcvr = &reg_can_xcvr;
 		usbh1 = &usbh1;
 		usbotg = &usbotg;
 	};
