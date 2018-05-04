@@ -151,8 +151,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 	wrqu.data.flags = 0;
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	if (is_connect_status(priv->connect_status)) {
-		memcpy(wrqu.ap_addr.sa_data,
-		       priv->current_ap.bssid, ETH_ALEN);
+		ether_addr_copy(wrqu.ap_addr.sa_data, priv->current_ap.bssid);
 		netdev_dbg(priv->net_dev,
 			   "IWEVENT: connect bssid=%pM\n", wrqu.ap_addr.sa_data);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
