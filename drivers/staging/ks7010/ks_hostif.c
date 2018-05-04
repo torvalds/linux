@@ -1419,8 +1419,7 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 
 static
 void hostif_power_mgmt_request(struct ks_wlan_private *priv,
-			       unsigned long mode, unsigned long wake_up,
-			       unsigned long receive_dtims)
+			       u32 mode, u32 wake_up, u32 receive_dtims)
 {
 	struct hostif_power_mgmt_request *pp;
 
@@ -1428,9 +1427,9 @@ void hostif_power_mgmt_request(struct ks_wlan_private *priv,
 	if (!pp)
 		return;
 
-	pp->mode = cpu_to_le32((uint32_t)mode);
-	pp->wake_up = cpu_to_le32((uint32_t)wake_up);
-	pp->receive_dtims = cpu_to_le32((uint32_t)receive_dtims);
+	pp->mode = cpu_to_le32(mode);
+	pp->wake_up = cpu_to_le32(wake_up);
+	pp->receive_dtims = cpu_to_le32(receive_dtims);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
@@ -1884,7 +1883,7 @@ spin_unlock:
 static
 void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 {
-	unsigned long mode, wake_up, receive_dtims;
+	u32 mode, wake_up, receive_dtims;
 
 	switch (priv->reg.power_mgmt) {
 	case POWER_MGMT_SAVE1:
