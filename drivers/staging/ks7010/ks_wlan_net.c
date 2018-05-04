@@ -1743,14 +1743,11 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_statistics *wstats = &priv->wstats;
 
-	if (!atomic_read(&update_phyinfo)) {
-		if (priv->dev_state < DEVICE_STATE_READY)
-			return NULL;	/* not finished initialize */
-		else
-			return wstats;
-	}
+	if (!atomic_read(&update_phyinfo))
+		return (priv->dev_state < DEVICE_STATE_READY) ? NULL : wstats;
 
-	/* Packets discarded in the wireless adapter due to wireless
+	/*
+	 * Packets discarded in the wireless adapter due to wireless
 	 * specific problems
 	 */
 	wstats->discard.nwid = 0;	/* Rx invalid nwid      */
