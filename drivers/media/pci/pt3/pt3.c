@@ -619,10 +619,8 @@ static void pt3_cleanup_adapter(struct pt3_board *pt3, int index)
 		adap->fe->callback = NULL;
 		if (adap->fe->frontend_priv)
 			dvb_unregister_frontend(adap->fe);
-		if (adap->i2c_tuner)
-			dvb_module_release(adap->i2c_tuner);
-		if (adap->i2c_demod)
-			dvb_module_release(adap->i2c_demod);
+		dvb_module_release(adap->i2c_tuner);
+		dvb_module_release(adap->i2c_demod);
 	}
 	pt3_free_dmabuf(adap);
 	dvb_dmxdev_release(&adap->dmxdev);
