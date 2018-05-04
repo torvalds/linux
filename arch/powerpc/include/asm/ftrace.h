@@ -73,13 +73,9 @@ struct dyn_arch_ftrace {
 #define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
 static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
 {
-	/*
-	 * Compare the symbol name with the system call name. Skip the .sys or .SyS
-	 * prefix from the symbol name and the sys prefix from the system call name and
-	 * just match the rest. This is only needed on ppc64 since symbol names on
-	 * 32bit do not start with a period so the generic function will work.
-	 */
-	return !strcmp(sym + 4, name + 3);
+	/* We need to skip past the initial dot, and the __se_sys alias */
+	return !strcmp(sym + 1, name) ||
+		(!strncmp(sym, ".__se_sys", 9) && !strcmp(sym + 6, name));
 }
 #endif
 #endif /* CONFIG_FTRACE_SYSCALLS && !__ASSEMBLY__ */
