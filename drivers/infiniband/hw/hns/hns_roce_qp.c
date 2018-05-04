@@ -660,6 +660,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				goto err_rq_sge_list;
 			}
 			*hr_qp->rdb.db_record = 0;
+			hr_qp->rdb_en = 1;
 		}
 
 		/* Allocate QP buf */
