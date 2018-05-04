@@ -81,6 +81,18 @@ struct oct_nic_stats_ctrl {
 	struct net_device *netdev;
 };
 
+struct oct_nic_seapi_resp {
+	u64 rh;
+	u32 speed;
+	u64 status;
+};
+
+struct liquidio_nic_seapi_ctl_context {
+	int octeon_id;
+	u32 status;
+	struct completion complete;
+};
+
 /** LiquidIO per-interface network private data */
 struct lio {
 	/** State of the interface. Rx/Tx happens only in the RUNNING state.  */
@@ -229,6 +241,9 @@ void lio_if_cfg_callback(struct octeon_device *oct,
 void lio_delete_glists(struct lio *lio);
 
 int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
+
+int liquidio_get_speed(struct lio *lio);
+int liquidio_set_speed(struct lio *lio, int speed);
 
 /**
  * \brief Net device change_mtu

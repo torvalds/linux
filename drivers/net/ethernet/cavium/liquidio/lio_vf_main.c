@@ -411,6 +411,9 @@ liquidio_vf_probe(struct pci_dev *pdev,
 	/* set linux specific device pointer */
 	oct_dev->pci_dev = pdev;
 
+	oct_dev->subsystem_id = pdev->subsystem_vendor |
+		(pdev->subsystem_device << 16);
+
 	if (octeon_device_init(oct_dev)) {
 		liquidio_vf_remove(pdev);
 		return -ENOMEM;
@@ -2199,6 +2202,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			"NIC ifidx:%d Setup successful\n", i);
 
 		octeon_free_soft_command(octeon_dev, sc);
+
+		octeon_dev->no_speed_setting = 1;
 	}
 
 	return 0;

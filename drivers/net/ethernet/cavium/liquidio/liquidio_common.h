@@ -93,6 +93,7 @@ enum octeon_tag_type {
 
 #define OPCODE_NIC_VF_REP_PKT          0x15
 #define OPCODE_NIC_VF_REP_CMD          0x16
+#define OPCODE_NIC_UBOOT_CTL           0x17
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -248,6 +249,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   SEAPI_CMD_SPEED_SET           0x2
+#define   SEAPI_CMD_SPEED_GET           0x3
 
 #define   LIO_CMD_WAIT_TM 100
 

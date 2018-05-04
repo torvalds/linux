@@ -912,6 +912,9 @@ liquidio_probe(struct pci_dev *pdev,
 	/* set linux specific device pointer */
 	oct_dev->pci_dev = (void *)pdev;
 
+	oct_dev->subsystem_id = pdev->subsystem_vendor |
+		(pdev->subsystem_device << 16);
+
 	hs = &handshake[oct_dev->octeon_id];
 	init_completion(&hs->init);
 	init_completion(&hs->started);
@@ -3664,6 +3667,23 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			"NIC ifidx:%d Setup successful\n", i);
 
 		octeon_free_soft_command(octeon_dev, sc);
+
+		if (octeon_dev->subsystem_id ==
+			OCTEON_CN2350_25GB_SUBSYS_ID ||
+		    octeon_dev->subsystem_id ==
+			OCTEON_CN2360_25GB_SUBSYS_ID) {
+			liquidio_get_speed(lio);
+
+			if (octeon_dev->speed_setting == 0) {
+				octeon_dev->speed_setting = 25;
+				octeon_dev->no_speed_setting = 1;
+			}
+		} else {
+			octeon_dev->no_speed_setting = 1;
+			octeon_dev->speed_setting = 10;
+		}
+		octeon_dev->speed_boot = octeon_dev->speed_setting;
+
 	}
 
 	devlink = devlink_alloc(&liquidio_devlink_ops,
