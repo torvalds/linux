@@ -20,4 +20,15 @@ config VIDEO_CADENCE_CSI2RX
 	  To compile this driver as a module, choose M here: the module will be
 	  called cdns-csi2rx.
 
+config VIDEO_CADENCE_CSI2TX
+	tristate "Cadence MIPI-CSI2 TX Controller"
+	depends on MEDIA_CONTROLLER
+	depends on VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the Cadence MIPI CSI2 Transceiver controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cdns-csi2tx.
+
 endif
