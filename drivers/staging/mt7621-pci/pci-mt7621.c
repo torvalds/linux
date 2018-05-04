@@ -302,27 +302,12 @@ struct pci_ops mt7621_pci_ops= {
 	.write		= pci_config_write,
 };
 
-static struct resource mt7621_res_pci_mem1 = {
-	.name		= "PCI MEM1",
-	.start		= RALINK_PCI_MM_MAP_BASE,
-	.end		= (u32)((RALINK_PCI_MM_MAP_BASE + (unsigned char *)0x0fffffff)),
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct resource mt7621_res_pci_io1 = {
-	.name		= "PCI I/O1",
-	.start		= RALINK_PCI_IO_MAP_BASE,
-	.end		= (u32)((RALINK_PCI_IO_MAP_BASE + (unsigned char *)0x0ffff)),
-	.flags		= IORESOURCE_IO,
-};
-
+static struct resource mt7621_res_pci_mem1;
+static struct resource mt7621_res_pci_io1;
 static struct pci_controller mt7621_controller = {
 	.pci_ops	= &mt7621_pci_ops,
 	.mem_resource	= &mt7621_res_pci_mem1,
 	.io_resource	= &mt7621_res_pci_io1,
-	.mem_offset	= 0x00000000UL,
-	.io_offset	= 0x00000000UL,
-	.io_map_base	= 0xa0000000,
 };
 
 static void
