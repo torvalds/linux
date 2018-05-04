@@ -161,10 +161,7 @@ xfs_qm_dqpurge(
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
 		error = xfs_qm_dqflush(dqp, &bp);
-		if (error) {
-			xfs_warn(mp, "%s: dquot "PTR_FMT" flush failed",
-				__func__, dqp);
-		} else {
+		if (!error) {
 			error = xfs_bwrite(bp);
 			xfs_buf_relse(bp);
 		}
@@ -479,11 +476,8 @@ xfs_qm_dquot_isolate(
 		spin_unlock(lru_lock);
 
 		error = xfs_qm_dqflush(dqp, &bp);
-		if (error) {
-			xfs_warn(dqp->q_mount, "%s: dquot "PTR_FMT" flush failed",
-				 __func__, dqp);
+		if (error)
 			goto out_unlock_dirty;
-		}
 
 		xfs_buf_delwri_queue(bp, &isol->buffers);
 		xfs_buf_relse(bp);
