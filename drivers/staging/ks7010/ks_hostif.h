@@ -124,10 +124,8 @@ struct channel_list {
 
 #define LOCAL_REGION                      0xF10A0100	/* Region setting */
 
-#ifdef WPS
 #define LOCAL_WPS_ENABLE                  0xF10B0100	/* WiFi Protected Setup */
 #define LOCAL_WPS_PROBE_REQ               0xF10C0100	/* WPS Probe Request */
-#endif /* WPS */
 
 #define LOCAL_GAIN                        0xF10D0100	/* Carrer sense threshold for demo ato show */
 #define LOCAL_EEPROM_SUM                  0xF10E0100	/* EEPROM checksum information */

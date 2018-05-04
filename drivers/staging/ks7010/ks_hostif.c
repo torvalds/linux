@@ -611,10 +611,8 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 	case DOT11_PMK_TSC:
 	case LOCAL_PMK:
 	case LOCAL_GAIN:
-#ifdef WPS
 	case LOCAL_WPS_ENABLE:
 	case LOCAL_WPS_PROBE_REQ:
-#endif /* WPS */
 	case LOCAL_REGION:
 	default:
 		break;
@@ -644,7 +642,6 @@ void hostif_sleep_confirm(struct ks_wlan_private *priv)
 static
 void hostif_start_confirm(struct ks_wlan_private *priv)
 {
-#ifdef WPS
 	union iwreq_data wrqu;
 
 	wrqu.data.length = 0;
@@ -654,7 +651,6 @@ void hostif_start_confirm(struct ks_wlan_private *priv)
 		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
-#endif
 	netdev_dbg(priv->net_dev, " scan_ind_count=%d\n", priv->scan_ind_count);
 	hostif_sme_enqueue(priv, SME_START_CONFIRM);
 }
@@ -2174,7 +2170,6 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 	case SME_SET_PMKSA:
 		hostif_sme_set_pmksa(priv);
 		break;
-#ifdef WPS
 	case SME_WPS_ENABLE_REQUEST:
 		hostif_mib_set_request(priv, LOCAL_WPS_ENABLE,
 				       sizeof(priv->wps.wps_enabled),
@@ -2186,7 +2181,6 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 				       priv->wps.ielen,
 				       MIB_VALUE_TYPE_OSTRING, priv->wps.ie);
 		break;
-#endif /* WPS */
 	case SME_MODE_SET_REQUEST:
 		hostif_sme_mode_setup(priv);
 		break;
