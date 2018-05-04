@@ -643,6 +643,7 @@ void timer_interrupt(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(timer_interrupt);
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 void timer_broadcast_interrupt(void)
 {
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
@@ -654,6 +655,7 @@ void timer_broadcast_interrupt(void)
 	__this_cpu_inc(irq_stat.timer_irqs_event);
 	trace_timer_interrupt_exit(regs);
 }
+#endif
 
 /*
  * Hypervisor decrementer interrupts shouldn't occur but are sometimes

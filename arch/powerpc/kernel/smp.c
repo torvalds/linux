@@ -156,11 +156,13 @@ static irqreturn_t reschedule_action(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static irqreturn_t tick_broadcast_ipi_action(int irq, void *data)
 {
 	timer_broadcast_interrupt();
 	return IRQ_HANDLED;
 }
+#endif
 
 #ifdef CONFIG_NMI_IPI
 static irqreturn_t nmi_ipi_action(int irq, void *data)
@@ -173,7 +175,9 @@ static irqreturn_t nmi_ipi_action(int irq, void *data)
 static irq_handler_t smp_ipi_action[] = {
 	[PPC_MSG_CALL_FUNCTION] =  call_function_action,
 	[PPC_MSG_RESCHEDULE] = reschedule_action,
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	[PPC_MSG_TICK_BROADCAST] = tick_broadcast_ipi_action,
+#endif
 #ifdef CONFIG_NMI_IPI
 	[PPC_MSG_NMI_IPI] = nmi_ipi_action,
 #endif
@@ -187,7 +191,9 @@ static irq_handler_t smp_ipi_action[] = {
 const char *smp_ipi_name[] = {
 	[PPC_MSG_CALL_FUNCTION] =  "ipi call function",
 	[PPC_MSG_RESCHEDULE] = "ipi reschedule",
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	[PPC_MSG_TICK_BROADCAST] = "ipi tick-broadcast",
+#endif
 	[PPC_MSG_NMI_IPI] = "nmi ipi",
 };
 
@@ -278,8 +284,10 @@ irqreturn_t smp_ipi_demux_relaxed(void)
 			generic_smp_call_function_interrupt();
 		if (all & IPI_MESSAGE(PPC_MSG_RESCHEDULE))
 			scheduler_ipi();
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 		if (all & IPI_MESSAGE(PPC_MSG_TICK_BROADCAST))
 			timer_broadcast_interrupt();
+#endif
 #ifdef CONFIG_NMI_IPI
 		if (all & IPI_MESSAGE(PPC_MSG_NMI_IPI))
 			nmi_ipi_action(0, NULL);
