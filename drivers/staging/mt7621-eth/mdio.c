@@ -57,6 +57,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 			}
 		}
 	}
+	spin_unlock_irqrestore(&eth->phy->lock, flags);
 }
 
 int mtk_connect_phy_node(struct mtk_eth *eth, struct mtk_mac *mac,
