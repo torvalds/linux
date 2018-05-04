@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -55,6 +55,126 @@
 #include "../nfp_app.h"
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
+
+static int
+nfp_map_ptr_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
+		   struct bpf_map *map)
+{
+	struct nfp_bpf_neutral_map *record;
+	int err;
+
+	/* Map record paths are entered via ndo, update side is protected. */
+	ASSERT_RTNL();
+
+	/* Reuse path - other offloaded program is already tracking this map. */
+	record = rhashtable_lookup_fast(&bpf->maps_neutral, &map,
+					nfp_bpf_maps_neutral_params);
+	if (record) {
+		nfp_prog->map_records[nfp_prog->map_records_cnt++] = record;
+		record->count++;
+		return 0;
+	}
+
+	/* Grab a single ref to the map for our record.  The prog destroy ndo
+	 * happens after free_used_maps().
+	 */
+	map = bpf_map_inc(map, false);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	record = kmalloc(sizeof(*record), GFP_KERNEL);
+	if (!record) {
+		err = -ENOMEM;
+		goto err_map_put;
+	}
+
+	record->ptr = map;
+	record->count = 1;
+
+	err = rhashtable_insert_fast(&bpf->maps_neutral, &record->l,
+				     nfp_bpf_maps_neutral_params);
+	if (err)
+		goto err_free_rec;
+
+	nfp_prog->map_records[nfp_prog->map_records_cnt++] = record;
+
+	return 0;
+
+err_free_rec:
+	kfree(record);
+err_map_put:
+	bpf_map_put(map);
+	return err;
+}
+
+static void
+nfp_map_ptrs_forget(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog)
+{
+	bool freed = false;
+	int i;
+
+	ASSERT_RTNL();
+
+	for (i = 0; i < nfp_prog->map_records_cnt; i++) {
+		if (--nfp_prog->map_records[i]->count) {
+			nfp_prog->map_records[i] = NULL;
+			continue;
+		}
+
+		WARN_ON(rhashtable_remove_fast(&bpf->maps_neutral,
+					       &nfp_prog->map_records[i]->l,
+					       nfp_bpf_maps_neutral_params));
+		freed = true;
+	}
+
+	if (freed) {
+		synchronize_rcu();
+
+		for (i = 0; i < nfp_prog->map_records_cnt; i++)
+			if (nfp_prog->map_records[i]) {
+				bpf_map_put(nfp_prog->map_records[i]->ptr);
+				kfree(nfp_prog->map_records[i]);
+			}
+	}
+
+	kfree(nfp_prog->map_records);
+	nfp_prog->map_records = NULL;
+	nfp_prog->map_records_cnt = 0;
+}
+
+static int
+nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
+		    struct bpf_prog *prog)
+{
+	int i, cnt, err;
+
+	/* Quickly count the maps we will have to remember */
+	cnt = 0;
+	for (i = 0; i < prog->aux->used_map_cnt; i++)
+		if (bpf_map_offload_neutral(prog->aux->used_maps[i]))
+			cnt++;
+	if (!cnt)
+		return 0;
+
+	nfp_prog->map_records = kmalloc_array(cnt,
+					      sizeof(nfp_prog->map_records[0]),
+					      GFP_KERNEL);
+	if (!nfp_prog->map_records)
+		return -ENOMEM;
+
+	for (i = 0; i < prog->aux->used_map_cnt; i++)
+		if (bpf_map_offload_neutral(prog->aux->used_maps[i])) {
+			err = nfp_map_ptr_record(bpf, nfp_prog,
+						 prog->aux->used_maps[i]);
+			if (err) {
+				nfp_map_ptrs_forget(bpf, nfp_prog);
+				return err;
+			}
+		}
+	WARN_ON(cnt != nfp_prog->map_records_cnt);
+
+	return 0;
+}
 
 static int
 nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
@@ -151,7 +271,7 @@ static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 	prog->aux->offload->jited_len = nfp_prog->prog_len * sizeof(u64);
 	prog->aux->offload->jited_image = nfp_prog->prog;
 
-	return 0;
+	return nfp_map_ptrs_record(nfp_prog->bpf, nfp_prog, prog);
 }
 
 static int nfp_bpf_destroy(struct nfp_net *nn, struct bpf_prog *prog)
@@ -159,6 +279,7 @@ static int nfp_bpf_destroy(struct nfp_net *nn, struct bpf_prog *prog)
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 
 	kvfree(nfp_prog->prog);
+	nfp_map_ptrs_forget(nfp_prog->bpf, nfp_prog);
 	nfp_prog_free(nfp_prog);
 
 	return 0;
