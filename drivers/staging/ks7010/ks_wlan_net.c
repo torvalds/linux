@@ -2633,7 +2633,7 @@ int ks_wlan_net_start(struct net_device *dev)
 	timer_setup(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout, 0);
 
 	/* dummy address set */
-	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);
+	ether_addr_copy(priv->eth_addr, dummy_addr);
 	ether_addr_copy(dev->dev_addr, priv->eth_addr);
 
 	/* The ks_wlan-specific entries in the device structure. */
