@@ -558,7 +558,6 @@ void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
 int rpcrdma_ep_post(struct rpcrdma_ia *, struct rpcrdma_ep *,
 				struct rpcrdma_req *);
-int rpcrdma_ep_post_recv(struct rpcrdma_ia *, struct rpcrdma_rep *);
 void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
 /*
@@ -598,8 +597,6 @@ rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 		return true;
 	return __rpcrdma_dma_map_regbuf(ia, rb);
 }
-
-int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
 
 int rpcrdma_alloc_wq(void);
 void rpcrdma_destroy_wq(void);

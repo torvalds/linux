@@ -1515,65 +1515,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	return 0;
 }
 
-int
-rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
-		     struct rpcrdma_rep *rep)
-{
-	struct ib_recv_wr *recv_wr_fail;
-	int rc;
-
-	if (!rpcrdma_dma_map_regbuf(ia, rep->rr_rdmabuf))
-		goto out_map;
-	rc = ib_post_recv(ia->ri_id->qp, &rep->rr_recv_wr, &recv_wr_fail);
-	trace_xprtrdma_post_recv(rep->rr_recv_wr.wr_cqe);
-	if (rc)
-		return -ENOTCONN;
-	return 0;
-
-out_map:
-	pr_err("rpcrdma: failed to DMA map the Receive buffer\n");
-	return -EIO;
-}
-
-/**
- * rpcrdma_ep_post_extra_recv - Post buffers for incoming backchannel requests
- * @r_xprt: transport associated with these backchannel resources
- * @count: minimum number of incoming requests expected
- *
- * Returns zero if all requested buffers were posted, or a negative errno.
- */
-int
-rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *r_xprt, unsigned int count)
-{
-	struct rpcrdma_buffer *buffers = &r_xprt->rx_buf;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_rep *rep;
-	int rc;
-
-	while (count--) {
-		spin_lock(&buffers->rb_lock);
-		if (list_empty(&buffers->rb_recv_bufs))
-			goto out_reqbuf;
-		rep = rpcrdma_buffer_get_rep_locked(buffers);
-		spin_unlock(&buffers->rb_lock);
-
-		rc = rpcrdma_ep_post_recv(ia, rep);
-		if (rc)
-			goto out_rc;
-	}
-
-	return 0;
-
-out_reqbuf:
-	spin_unlock(&buffers->rb_lock);
-	trace_xprtrdma_noreps(r_xprt);
-	return -ENOMEM;
-
-out_rc:
-	rpcrdma_recv_buffer_put(rep);
-	return rc;
-}
-
 /**
  * rpcrdma_post_recvs - Maybe post some Receive buffers
  * @r_xprt: controlling transport

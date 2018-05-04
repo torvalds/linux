@@ -879,8 +879,6 @@ TRACE_EVENT(xprtrdma_rpc_done,
 	)
 );
 
-DEFINE_RXPRT_EVENT(xprtrdma_noreps);
-
 /**
  ** Callback events
  **/
