@@ -84,6 +84,17 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 	return plane_state;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_plane_get_status
+ *
+ *  @brief
+ *     Looks up the pipe context of plane_state and updates the pending status
+ *     of the pipe context. Then returns plane_state->status
+ *
+ *  @param [in] plane_state: pointer to the plane_state to get the status of
+ *****************************************************************************
+ */
 const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state)
 {

@@ -2433,6 +2433,22 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_link_enable_hpd_filter
+ *
+ *  @brief
+ *     If enable is true, programs HPD filter on associated HPD line using
+ *     delay_on_disconnect/delay_on_connect values dependent on
+ *     link->connector_signal
+ *
+ *     If enable is false, programs HPD filter on associated HPD line with no
+ *     delays on connect or disconnect
+ *
+ *  @param [in] link: pointer to the dc link
+ *  @param [in] enable: boolean specifying whether to enable hbd
+ *****************************************************************************
+ */
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
 	struct gpio *hpd;

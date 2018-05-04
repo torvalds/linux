@@ -169,6 +169,22 @@ failed_alloc:
 	return false;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_stream_adjust_vmin_vmax
+ *
+ *  @brief
+ *     Looks up the pipe context of dc_stream_state and updates the
+ *     vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
+ *     Rate, which is a power-saving feature that targets reducing panel
+ *     refresh rate while the screen is static
+ *
+ *  @param [in] dc: dc reference
+ *  @param [in] stream: Initial dc stream state
+ *  @param [in] adjust: Updated parameters for vertical_total_min and
+ *  vertical_total_max
+ *****************************************************************************
+ */
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		int vmin, int vmax)
