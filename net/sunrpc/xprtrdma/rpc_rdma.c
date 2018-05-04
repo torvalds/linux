@@ -366,7 +366,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   false, &mr);
 		if (IS_ERR(seg))
-			goto out_maperr;
+			return PTR_ERR(seg);
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_read_segment(xdr, mr, pos) < 0)
@@ -378,11 +378,6 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	} while (nsegs);
 
 	return 0;
-
-out_maperr:
-	if (PTR_ERR(seg) == -EAGAIN)
-		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
-	return PTR_ERR(seg);
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -429,7 +424,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   true, &mr);
 		if (IS_ERR(seg))
-			goto out_maperr;
+			return PTR_ERR(seg);
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mr) < 0)
@@ -446,11 +441,6 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	*segcount = cpu_to_be32(nchunks);
 
 	return 0;
-
-out_maperr:
-	if (PTR_ERR(seg) == -EAGAIN)
-		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
-	return PTR_ERR(seg);
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -492,7 +482,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   true, &mr);
 		if (IS_ERR(seg))
-			goto out_maperr;
+			return PTR_ERR(seg);
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mr) < 0)
@@ -509,11 +499,6 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	*segcount = cpu_to_be32(nchunks);
 
 	return 0;
-
-out_maperr:
-	if (PTR_ERR(seg) == -EAGAIN)
-		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
-	return PTR_ERR(seg);
 }
 
 /**
@@ -884,7 +869,15 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	return 0;
 
 out_err:
-	r_xprt->rx_stats.failed_marshal_count++;
+	switch (ret) {
+	case -EAGAIN:
+		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
+		break;
+	case -ENOBUFS:
+		break;
+	default:
+		r_xprt->rx_stats.failed_marshal_count++;
+	}
 	return ret;
 }
 
