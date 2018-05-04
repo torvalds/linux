@@ -441,6 +441,53 @@ int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
 	}
 }
 
+static unsigned long
+nfp_bpf_perf_event_copy(void *dst, const void *src,
+			unsigned long off, unsigned long len)
+{
+	memcpy(dst, src + off, len);
+	return 0;
+}
+
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb)
+{
+	struct cmsg_bpf_event *cbe = (void *)skb->data;
+	u32 pkt_size, data_size;
+	struct bpf_map *map;
+
+	if (skb->len < sizeof(struct cmsg_bpf_event))
+		goto err_drop;
+
+	pkt_size = be32_to_cpu(cbe->pkt_size);
+	data_size = be32_to_cpu(cbe->data_size);
+	map = (void *)(unsigned long)be64_to_cpu(cbe->map_ptr);
+
+	if (skb->len < sizeof(struct cmsg_bpf_event) + pkt_size + data_size)
+		goto err_drop;
+	if (cbe->hdr.ver != CMSG_MAP_ABI_VERSION)
+		goto err_drop;
+
+	rcu_read_lock();
+	if (!rhashtable_lookup_fast(&bpf->maps_neutral, &map,
+				    nfp_bpf_maps_neutral_params)) {
+		rcu_read_unlock();
+		pr_warn("perf event: dest map pointer %px not recognized, dropping event\n",
+			map);
+		goto err_drop;
+	}
+
+	bpf_event_output(map, be32_to_cpu(cbe->cpu_id),
+			 &cbe->data[round_up(pkt_size, 4)], data_size,
+			 cbe->data, pkt_size, nfp_bpf_perf_event_copy);
+	rcu_read_unlock();
+
+	dev_consume_skb_any(skb);
+	return 0;
+err_drop:
+	dev_kfree_skb_any(skb);
+	return -EINVAL;
+}
+
 static int
 nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 		 struct netlink_ext_ack *extack)

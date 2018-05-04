@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -1456,6 +1456,31 @@ nfp_get_prandom_u32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int
+nfp_perf_event_output(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	swreg ptr_type;
+	u32 ret_tgt;
+
+	ptr_type = ur_load_imm_any(nfp_prog, meta->arg1.type, imm_a(nfp_prog));
+
+	ret_tgt = nfp_prog_current_offset(nfp_prog) + 3;
+
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + meta->func_id,
+		     2, RELO_BR_HELPER);
+
+	/* Load ptr type into A1 */
+	wrp_mov(nfp_prog, reg_a(1), ptr_type);
+
+	/* Load the return address into B0 */
+	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
+	return 0;
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -2411,6 +2436,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return map_call_stack_common(nfp_prog, meta);
 	case BPF_FUNC_get_prandom_u32:
 		return nfp_get_prandom_u32(nfp_prog, meta);
+	case BPF_FUNC_perf_event_output:
+		return nfp_perf_event_output(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;
@@ -3352,6 +3379,9 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				break;
 			case BPF_FUNC_map_delete_elem:
 				val = nfp_prog->bpf->helpers.map_delete;
+				break;
+			case BPF_FUNC_perf_event_output:
+				val = nfp_prog->bpf->helpers.perf_event_output;
 				break;
 			default:
 				pr_err("relocation of unknown helper %d\n",

@@ -136,6 +136,7 @@ enum pkt_vec {
  * @helpers.map_lookup:		map lookup helper address
  * @helpers.map_update:		map update helper address
  * @helpers.map_delete:		map delete helper address
+ * @helpers.perf_event_output:	output perf event to a ring buffer
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  */
@@ -176,6 +177,7 @@ struct nfp_app_bpf {
 		u32 map_lookup;
 		u32 map_update;
 		u32 map_delete;
+		u32 perf_event_output;
 	} helpers;
 
 	bool pseudo_random;
@@ -457,6 +459,8 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 			      void *key, void *value);
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
+
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif
