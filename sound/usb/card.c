@@ -307,6 +307,20 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 			return -EINVAL;
 		}
 
+		if (protocol == UAC_VERSION_3) {
+			int badd = assoc->bFunctionSubClass;
+
+			if (badd != UAC3_FUNCTION_SUBCLASS_FULL_ADC_3_0 &&
+			    (badd < UAC3_FUNCTION_SUBCLASS_GENERIC_IO ||
+			     badd > UAC3_FUNCTION_SUBCLASS_SPEAKERPHONE)) {
+				dev_err(&dev->dev,
+					"Unsupported UAC3 BADD profile\n");
+				return -EINVAL;
+			}
+
+			chip->badd_profile = badd;
+		}
+
 		for (i = 0; i < assoc->bInterfaceCount; i++) {
 			int intf = assoc->bFirstInterface + i;
 

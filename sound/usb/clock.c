@@ -587,8 +587,15 @@ int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 	default:
 		return set_sample_rate_v1(chip, iface, alts, fmt, rate);
 
-	case UAC_VERSION_2:
 	case UAC_VERSION_3:
+		if (chip->badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
+			if (rate != UAC3_BADD_SAMPLING_RATE)
+				return -ENXIO;
+			else
+				return 0;
+		}
+	/* fall through */
+	case UAC_VERSION_2:
 		return set_sample_rate_v2v3(chip, iface, alts, fmt, rate);
 	}
 }
