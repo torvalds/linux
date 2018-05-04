@@ -778,7 +778,7 @@ struct omap_dss_driver {
 
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 
-#ifdef CONFIG_FB_OMAP2
+#if IS_ENABLED(CONFIG_FB_OMAP2)
 
 enum omapdss_version omapdss_get_version(void);
 bool omapdss_is_initialized(void);
