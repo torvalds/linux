@@ -20,6 +20,30 @@
 
 #include "bpf_rlimit.h"
 
+static uint32_t pass_cnt;
+static uint32_t error_cnt;
+static uint32_t skip_cnt;
+
+#define CHECK(condition, format...) ({					\
+	int __ret = !!(condition);					\
+	if (__ret) {							\
+		fprintf(stderr, "%s:%d:FAIL ", __func__, __LINE__);	\
+		fprintf(stderr, format);				\
+	}								\
+	__ret;								\
+})
+
+static int count_result(int err)
+{
+	if (err)
+		error_cnt++;
+	else
+		pass_cnt++;
+
+	fprintf(stderr, "\n");
+	return err;
+}
+
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
@@ -894,17 +918,13 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	void *raw_btf;
 
 	type_sec_size = get_type_sec_size(raw_types);
-	if (type_sec_size < 0) {
-		fprintf(stderr, "Cannot get nr_raw_types\n");
+	if (CHECK(type_sec_size < 0, "Cannot get nr_raw_types"))
 		return NULL;
-	}
 
 	size_needed = sizeof(*hdr) + type_sec_size + str_sec_size;
 	raw_btf = malloc(size_needed);
-	if (!raw_btf) {
-		fprintf(stderr, "Cannot allocate memory for raw_btf\n");
+	if (CHECK(!raw_btf, "Cannot allocate memory for raw_btf"))
 		return NULL;
-	}
 
 	/* Copy header */
 	memcpy(raw_btf, hdr, sizeof(*hdr));
@@ -915,8 +935,7 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	for (i = 0; i < type_sec_size / sizeof(raw_types[0]); i++) {
 		if (raw_types[i] == NAME_TBD) {
 			next_str = get_next_str(next_str, end_str);
-			if (!next_str) {
-				fprintf(stderr, "Error in getting next_str\n");
+			if (CHECK(!next_str, "Error in getting next_str")) {
 				free(raw_btf);
 				return NULL;
 			}
@@ -973,9 +992,8 @@ static int do_test_raw(unsigned int test_num)
 	free(raw_btf);
 
 	err = ((btf_fd == -1) != test->btf_load_err);
-	if (err)
-		fprintf(stderr, "btf_load_err:%d btf_fd:%d\n",
-			test->btf_load_err, btf_fd);
+	CHECK(err, "btf_fd:%d test->btf_load_err:%u",
+	      btf_fd, test->btf_load_err);
 
 	if (err || btf_fd == -1)
 		goto done;
@@ -992,16 +1010,15 @@ static int do_test_raw(unsigned int test_num)
 	map_fd = bpf_create_map_xattr(&create_attr);
 
 	err = ((map_fd == -1) != test->map_create_err);
-	if (err)
-		fprintf(stderr, "map_create_err:%d map_fd:%d\n",
-			test->map_create_err, map_fd);
+	CHECK(err, "map_fd:%d test->map_create_err:%u",
+	      map_fd, test->map_create_err);
 
 done:
 	if (!err)
-		fprintf(stderr, "OK\n");
+		fprintf(stderr, "OK");
 
 	if (*btf_log_buf && (err || args.always_log))
-		fprintf(stderr, "%s\n", btf_log_buf);
+		fprintf(stderr, "\n%s", btf_log_buf);
 
 	if (btf_fd != -1)
 		close(btf_fd);
@@ -1017,10 +1034,10 @@ static int test_raw(void)
 	int err = 0;
 
 	if (args.raw_test_num)
-		return do_test_raw(args.raw_test_num);
+		return count_result(do_test_raw(args.raw_test_num));
 
 	for (i = 1; i <= ARRAY_SIZE(raw_tests); i++)
-		err |= do_test_raw(i);
+		err |= count_result(do_test_raw(i));
 
 	return err;
 }
@@ -1080,8 +1097,7 @@ static int do_test_get_info(unsigned int test_num)
 	*btf_log_buf = '\0';
 
 	user_btf = malloc(raw_btf_size);
-	if (!user_btf) {
-		fprintf(stderr, "Cannot allocate memory for user_btf\n");
+	if (CHECK(!user_btf, "!user_btf")) {
 		err = -1;
 		goto done;
 	}
@@ -1089,9 +1105,7 @@ static int do_test_get_info(unsigned int test_num)
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
 			      args.always_log);
-	if (btf_fd == -1) {
-		fprintf(stderr, "bpf_load_btf:%s(%d)\n",
-			strerror(errno), errno);
+	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -1103,31 +1117,31 @@ static int do_test_get_info(unsigned int test_num)
 		       raw_btf_size - expected_nbytes);
 
 	err = bpf_obj_get_info_by_fd(btf_fd, user_btf, &user_btf_size);
-	if (err || user_btf_size != raw_btf_size ||
-	    memcmp(raw_btf, user_btf, expected_nbytes)) {
-		fprintf(stderr,
-			"err:%d(errno:%d) raw_btf_size:%u user_btf_size:%u expected_nbytes:%u memcmp:%d\n",
-			err, errno,
-			raw_btf_size, user_btf_size, expected_nbytes,
-			memcmp(raw_btf, user_btf, expected_nbytes));
+	if (CHECK(err || user_btf_size != raw_btf_size ||
+		  memcmp(raw_btf, user_btf, expected_nbytes),
+		  "err:%d(errno:%d) raw_btf_size:%u user_btf_size:%u expected_nbytes:%u memcmp:%d",
+		  err, errno,
+		  raw_btf_size, user_btf_size, expected_nbytes,
+		  memcmp(raw_btf, user_btf, expected_nbytes))) {
 		err = -1;
 		goto done;
 	}
 
 	while (expected_nbytes < raw_btf_size) {
 		fprintf(stderr, "%u...", expected_nbytes);
-		if (user_btf[expected_nbytes++] != 0xff) {
-			fprintf(stderr, "!= 0xff\n");
+		if (CHECK(user_btf[expected_nbytes++] != 0xff,
+			  "user_btf[%u]:%x != 0xff", expected_nbytes - 1,
+			  user_btf[expected_nbytes - 1])) {
 			err = -1;
 			goto done;
 		}
 	}
 
-	fprintf(stderr, "OK\n");
+	fprintf(stderr, "OK");
 
 done:
 	if (*btf_log_buf && (err || args.always_log))
-		fprintf(stderr, "%s\n", btf_log_buf);
+		fprintf(stderr, "\n%s", btf_log_buf);
 
 	free(raw_btf);
 	free(user_btf);
@@ -1144,10 +1158,10 @@ static int test_get_info(void)
 	int err = 0;
 
 	if (args.get_info_test_num)
-		return do_test_get_info(args.get_info_test_num);
+		return count_result(do_test_get_info(args.get_info_test_num));
 
 	for (i = 1; i <= ARRAY_SIZE(get_info_tests); i++)
-		err |= do_test_get_info(i);
+		err |= count_result(do_test_get_info(i));
 
 	return err;
 }
@@ -1175,28 +1189,21 @@ static int file_has_btf_elf(const char *fn)
 	Elf *elf;
 	int ret;
 
-	if (elf_version(EV_CURRENT) == EV_NONE) {
-		fprintf(stderr, "Failed to init libelf\n");
+	if (CHECK(elf_version(EV_CURRENT) == EV_NONE,
+		  "elf_version(EV_CURRENT) == EV_NONE"))
 		return -1;
-	}
 
 	elf_fd = open(fn, O_RDONLY);
-	if (elf_fd == -1) {
-		fprintf(stderr, "Cannot open file %s: %s(%d)\n",
-			fn, strerror(errno), errno);
+	if (CHECK(elf_fd == -1, "open(%s): errno:%d", fn, errno))
 		return -1;
-	}
 
 	elf = elf_begin(elf_fd, ELF_C_READ, NULL);
-	if (!elf) {
-		fprintf(stderr, "Failed to read ELF from %s. %s\n", fn,
-			elf_errmsg(elf_errno()));
+	if (CHECK(!elf, "elf_begin(%s): %s", fn, elf_errmsg(elf_errno()))) {
 		ret = -1;
 		goto done;
 	}
 
-	if (!gelf_getehdr(elf, &ehdr)) {
-		fprintf(stderr, "Failed to get EHDR from %s\n", fn);
+	if (CHECK(!gelf_getehdr(elf, &ehdr), "!gelf_getehdr(%s)", fn)) {
 		ret = -1;
 		goto done;
 	}
@@ -1205,9 +1212,8 @@ static int file_has_btf_elf(const char *fn)
 		const char *sh_name;
 		GElf_Shdr sh;
 
-		if (gelf_getshdr(scn, &sh) != &sh) {
-			fprintf(stderr,
-				"Failed to get section header from %s\n", fn);
+		if (CHECK(gelf_getshdr(scn, &sh) != &sh,
+			  "file:%s gelf_getshdr != &sh", fn)) {
 			ret = -1;
 			goto done;
 		}
@@ -1243,53 +1249,44 @@ static int do_test_file(unsigned int test_num)
 		return err;
 
 	if (err == 0) {
-		fprintf(stderr, "SKIP. No ELF %s found\n", BTF_ELF_SEC);
+		fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
+		skip_cnt++;
 		return 0;
 	}
 
 	obj = bpf_object__open(test->file);
-	if (IS_ERR(obj))
+	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))
 		return PTR_ERR(obj);
 
 	err = bpf_object__btf_fd(obj);
-	if (err == -1) {
-		fprintf(stderr, "bpf_object__btf_fd: -1\n");
+	if (CHECK(err == -1, "bpf_object__btf_fd: -1"))
 		goto done;
-	}
 
 	prog = bpf_program__next(NULL, obj);
-	if (!prog) {
-		fprintf(stderr, "Cannot find bpf_prog\n");
+	if (CHECK(!prog, "Cannot find bpf_prog")) {
 		err = -1;
 		goto done;
 	}
 
 	bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
 	err = bpf_object__load(obj);
-	if (err < 0) {
-		fprintf(stderr, "bpf_object__load: %d\n", err);
+	if (CHECK(err < 0, "bpf_object__load: %d", err))
 		goto done;
-	}
 
 	map = bpf_object__find_map_by_name(obj, "btf_map");
-	if (!map) {
-		fprintf(stderr, "btf_map not found\n");
+	if (CHECK(!map, "btf_map not found")) {
 		err = -1;
 		goto done;
 	}
 
 	err = (bpf_map__btf_key_id(map) == 0 || bpf_map__btf_value_id(map) == 0)
 		!= test->btf_kv_notfound;
-	if (err) {
-		fprintf(stderr,
-			"btf_kv_notfound:%u btf_key_id:%u btf_value_id:%u\n",
-			test->btf_kv_notfound,
-			bpf_map__btf_key_id(map),
-			bpf_map__btf_value_id(map));
+	if (CHECK(err, "btf_key_id:%u btf_value_id:%u test->btf_kv_notfound:%u",
+		  bpf_map__btf_key_id(map), bpf_map__btf_value_id(map),
+		  test->btf_kv_notfound))
 		goto done;
-	}
 
-	fprintf(stderr, "OK\n");
+	fprintf(stderr, "OK");
 
 done:
 	bpf_object__close(obj);
@@ -1302,10 +1299,10 @@ static int test_file(void)
 	int err = 0;
 
 	if (args.file_test_num)
-		return do_test_file(args.file_test_num);
+		return count_result(do_test_file(args.file_test_num));
 
 	for (i = 1; i <= ARRAY_SIZE(file_tests); i++)
-		err |= do_test_file(i);
+		err |= count_result(do_test_file(i));
 
 	return err;
 }
@@ -1425,7 +1422,7 @@ static int test_pprint(void)
 	unsigned int key;
 	uint8_t *raw_btf;
 	ssize_t nread;
-	int err;
+	int err, ret;
 
 	fprintf(stderr, "%s......", test->descr);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
@@ -1441,10 +1438,8 @@ static int test_pprint(void)
 			      args.always_log);
 	free(raw_btf);
 
-	if (btf_fd == -1) {
+	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
 		err = -1;
-		fprintf(stderr, "bpf_load_btf: %s(%d)\n",
-			strerror(errno), errno);
 		goto done;
 	}
 
@@ -1458,26 +1453,23 @@ static int test_pprint(void)
 	create_attr.btf_value_id = test->value_id;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
-	if (map_fd == -1) {
+	if (CHECK(map_fd == -1, "errno:%d", errno)) {
 		err = -1;
-		fprintf(stderr, "bpf_creat_map_btf: %s(%d)\n",
-			strerror(errno), errno);
 		goto done;
 	}
 
-	if (snprintf(pin_path, sizeof(pin_path), "%s/%s",
-		     "/sys/fs/bpf", test->map_name) == sizeof(pin_path)) {
+	ret = snprintf(pin_path, sizeof(pin_path), "%s/%s",
+		       "/sys/fs/bpf", test->map_name);
+
+	if (CHECK(ret == sizeof(pin_path), "pin_path %s/%s is too long",
+		  "/sys/fs/bpf", test->map_name)) {
 		err = -1;
-		fprintf(stderr, "pin_path is too long\n");
 		goto done;
 	}
 
 	err = bpf_obj_pin(map_fd, pin_path);
-	if (err) {
-		fprintf(stderr, "Cannot pin to %s. %s(%d).\n", pin_path,
-			strerror(errno), errno);
+	if (CHECK(err, "bpf_obj_pin(%s): errno:%d.", pin_path, errno))
 		goto done;
-	}
 
 	for (key = 0; key < test->max_entries; key++) {
 		set_pprint_mapv(&mapv, key);
@@ -1485,10 +1477,8 @@ static int test_pprint(void)
 	}
 
 	pin_file = fopen(pin_path, "r");
-	if (!pin_file) {
+	if (CHECK(!pin_file, "fopen(%s): errno:%d", pin_path, errno)) {
 		err = -1;
-		fprintf(stderr, "fopen(%s): %s(%d)\n", pin_path,
-			strerror(errno), errno);
 		goto done;
 	}
 
@@ -1497,9 +1487,8 @@ static int test_pprint(void)
 	       *line == '#')
 		;
 
-	if (nread <= 0) {
+	if (CHECK(nread <= 0, "Unexpected EOF")) {
 		err = -1;
-		fprintf(stderr, "Unexpected EOF\n");
 		goto done;
 	}
 
@@ -1518,9 +1507,9 @@ static int test_pprint(void)
 					  mapv.ui8a[4], mapv.ui8a[5], mapv.ui8a[6], mapv.ui8a[7],
 					  pprint_enum_str[mapv.aenum]);
 
-		if (nexpected_line == sizeof(expected_line)) {
+		if (CHECK(nexpected_line == sizeof(expected_line),
+			  "expected_line is too long")) {
 			err = -1;
-			fprintf(stderr, "expected_line is too long\n");
 			goto done;
 		}
 
@@ -1535,15 +1524,15 @@ static int test_pprint(void)
 		nread = getline(&line, &line_len, pin_file);
 	} while (++key < test->max_entries && nread > 0);
 
-	if (key < test->max_entries) {
+	if (CHECK(key < test->max_entries,
+		  "Unexpected EOF. key:%u test->max_entries:%u",
+		  key, test->max_entries)) {
 		err = -1;
-		fprintf(stderr, "Unexpected EOF\n");
 		goto done;
 	}
 
-	if (nread > 0) {
+	if (CHECK(nread > 0, "Unexpected extra pprint output: %s", line)) {
 		err = -1;
-		fprintf(stderr, "Unexpected extra pprint output: %s\n", line);
 		goto done;
 	}
 
@@ -1551,9 +1540,9 @@ static int test_pprint(void)
 
 done:
 	if (!err)
-		fprintf(stderr, "OK\n");
+		fprintf(stderr, "OK");
 	if (*btf_log_buf && (err || args.always_log))
-		fprintf(stderr, "%s\n", btf_log_buf);
+		fprintf(stderr, "\n%s", btf_log_buf);
 	if (btf_fd != -1)
 		close(btf_fd);
 	if (map_fd != -1)
@@ -1634,6 +1623,12 @@ static int parse_args(int argc, char **argv)
 	return 0;
 }
 
+static void print_summary(void)
+{
+	fprintf(stderr, "PASS:%u SKIP:%u FAIL:%u\n",
+		pass_cnt - skip_cnt, skip_cnt, error_cnt);
+}
+
 int main(int argc, char **argv)
 {
 	int err = 0;
@@ -1655,15 +1650,17 @@ int main(int argc, char **argv)
 		err |= test_file();
 
 	if (args.pprint_test)
-		err |= test_pprint();
+		err |= count_result(test_pprint());
 
 	if (args.raw_test || args.get_info_test || args.file_test ||
 	    args.pprint_test)
-		return err;
+		goto done;
 
 	err |= test_raw();
 	err |= test_get_info();
 	err |= test_file();
 
+done:
+	print_summary();
 	return err;
 }
