@@ -679,45 +679,68 @@ DEFINE_EVENT(i915_request, i915_request_execute,
 	     TP_ARGS(rq)
 );
 
-DECLARE_EVENT_CLASS(i915_request_hw,
-		    TP_PROTO(struct i915_request *rq, unsigned int port),
-		    TP_ARGS(rq, port),
+TRACE_EVENT(i915_request_in,
+	    TP_PROTO(struct i915_request *rq, unsigned int port),
+	    TP_ARGS(rq, port),
 
-		    TP_STRUCT__entry(
-				     __field(u32, dev)
-				     __field(u32, hw_id)
-				     __field(u32, ring)
-				     __field(u32, ctx)
-				     __field(u32, seqno)
-				     __field(u32, global_seqno)
-				     __field(u32, port)
-				    ),
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, hw_id)
+			     __field(u32, ring)
+			     __field(u32, ctx)
+			     __field(u32, seqno)
+			     __field(u32, global_seqno)
+			     __field(u32, port)
+			     __field(u32, prio)
+			    ),
 
-		    TP_fast_assign(
-				   __entry->dev = rq->i915->drm.primary->index;
-				   __entry->hw_id = rq->ctx->hw_id;
-				   __entry->ring = rq->engine->id;
-				   __entry->ctx = rq->fence.context;
-				   __entry->seqno = rq->fence.seqno;
-				   __entry->global_seqno = rq->global_seqno;
-				   __entry->port = port;
-				  ),
+	    TP_fast_assign(
+			   __entry->dev = rq->i915->drm.primary->index;
+			   __entry->hw_id = rq->ctx->hw_id;
+			   __entry->ring = rq->engine->id;
+			   __entry->ctx = rq->fence.context;
+			   __entry->seqno = rq->fence.seqno;
+			   __entry->global_seqno = rq->global_seqno;
+			   __entry->prio = rq->sched.attr.priority;
+			   __entry->port = port;
+			   ),
 
-		    TP_printk("dev=%u, hw_id=%u, ring=%u, ctx=%u, seqno=%u, global=%u, port=%u",
+	    TP_printk("dev=%u, hw_id=%u, ring=%u, ctx=%u, seqno=%u, prio=%u, global=%u, port=%u",
+		      __entry->dev, __entry->hw_id, __entry->ring, __entry->ctx,
+		      __entry->seqno, __entry->prio, __entry->global_seqno,
+		      __entry->port)
+);
+
+TRACE_EVENT(i915_request_out,
+	    TP_PROTO(struct i915_request *rq),
+	    TP_ARGS(rq),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, hw_id)
+			     __field(u32, ring)
+			     __field(u32, ctx)
+			     __field(u32, seqno)
+			     __field(u32, global_seqno)
+			     __field(u32, completed)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->dev = rq->i915->drm.primary->index;
+			   __entry->hw_id = rq->ctx->hw_id;
+			   __entry->ring = rq->engine->id;
+			   __entry->ctx = rq->fence.context;
+			   __entry->seqno = rq->fence.seqno;
+			   __entry->global_seqno = rq->global_seqno;
+			   __entry->completed = i915_request_completed(rq);
+			   ),
+
+		    TP_printk("dev=%u, hw_id=%u, ring=%u, ctx=%u, seqno=%u, global=%u, completed?=%u",
 			      __entry->dev, __entry->hw_id, __entry->ring,
 			      __entry->ctx, __entry->seqno,
-			      __entry->global_seqno, __entry->port)
+			      __entry->global_seqno, __entry->completed)
 );
 
-DEFINE_EVENT(i915_request_hw, i915_request_in,
-	     TP_PROTO(struct i915_request *rq, unsigned int port),
-	     TP_ARGS(rq, port)
-);
-
-DEFINE_EVENT(i915_request, i915_request_out,
-	     TP_PROTO(struct i915_request *rq),
-	     TP_ARGS(rq)
-);
 #else
 #if !defined(TRACE_HEADER_MULTI_READ)
 static inline void
