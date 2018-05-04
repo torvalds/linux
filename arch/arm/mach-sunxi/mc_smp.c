@@ -72,6 +72,9 @@ static void __iomem *cpucfg_base;
 static void __iomem *prcm_base;
 static void __iomem *sram_b_smp_base;
 
+extern void sunxi_mc_smp_secondary_startup(void);
+extern void sunxi_mc_smp_resume(void);
+
 static bool sunxi_core_is_cortex_a15(unsigned int core, unsigned int cluster)
 {
 	struct device_node *node;
@@ -300,74 +303,7 @@ static void sunxi_cluster_cache_disable_without_axi(void)
 }
 
 static int sunxi_mc_smp_cpu_table[SUNXI_NR_CLUSTERS][SUNXI_CPUS_PER_CLUSTER];
-static int sunxi_mc_smp_first_comer;
-
-/*
- * Enable cluster-level coherency, in preparation for turning on the MMU.
- *
- * Also enable regional clock gating and L2 data latency settings for
- * Cortex-A15. These settings are from the vendor kernel.
- */
-static void __naked sunxi_mc_smp_cluster_cache_enable(void)
-{
-	asm volatile (
-		"mrc	p15, 0, r1, c0, c0, 0\n"
-		"movw	r2, #" __stringify(ARM_CPU_PART_MASK & 0xffff) "\n"
-		"movt	r2, #" __stringify(ARM_CPU_PART_MASK >> 16) "\n"
-		"and	r1, r1, r2\n"
-		"movw	r2, #" __stringify(ARM_CPU_PART_CORTEX_A15 & 0xffff) "\n"
-		"movt	r2, #" __stringify(ARM_CPU_PART_CORTEX_A15 >> 16) "\n"
-		"cmp	r1, r2\n"
-		"bne	not_a15\n"
-
-		/* The following is Cortex-A15 specific */
-
-		/* ACTLR2: Enable CPU regional clock gates */
-		"mrc p15, 1, r1, c15, c0, 4\n"
-		"orr r1, r1, #(0x1<<31)\n"
-		"mcr p15, 1, r1, c15, c0, 4\n"
-
-		/* L2ACTLR */
-		"mrc p15, 1, r1, c15, c0, 0\n"
-		/* Enable L2, GIC, and Timer regional clock gates */
-		"orr r1, r1, #(0x1<<26)\n"
-		/* Disable clean/evict from being pushed to external */
-		"orr r1, r1, #(0x1<<3)\n"
-		"mcr p15, 1, r1, c15, c0, 0\n"
-
-		/* L2CTRL: L2 data RAM latency */
-		"mrc p15, 1, r1, c9, c0, 2\n"
-		"bic r1, r1, #(0x7<<0)\n"
-		"orr r1, r1, #(0x3<<0)\n"
-		"mcr p15, 1, r1, c9, c0, 2\n"
-
-		/* End of Cortex-A15 specific setup */
-		"not_a15:\n"
-
-		/* Get value of sunxi_mc_smp_first_comer */
-		"adr	r1, first\n"
-		"ldr	r0, [r1]\n"
-		"ldr	r0, [r1, r0]\n"
-
-		/* Skip cci_enable_port_for_self if not first comer */
-		"cmp	r0, #0\n"
-		"bxeq	lr\n"
-		"b	cci_enable_port_for_self\n"
-
-		".align 2\n"
-		"first: .word sunxi_mc_smp_first_comer - .\n"
-	);
-}
-
-static void __naked sunxi_mc_smp_secondary_startup(void)
-{
-	asm volatile(
-		"bl	sunxi_mc_smp_cluster_cache_enable\n"
-		"b	secondary_startup"
-		/* Let compiler know about sunxi_mc_smp_cluster_cache_enable */
-		:: "i" (sunxi_mc_smp_cluster_cache_enable)
-	);
-}
+int sunxi_mc_smp_first_comer;
 
 static DEFINE_SPINLOCK(boot_lock);
 
@@ -636,16 +572,6 @@ static bool __init sunxi_mc_smp_cpu_table_init(void)
  * We need the trampoline code to enable CCI-400 on the first cluster
  */
 typedef typeof(cpu_reset) phys_reset_t;
-
-static void __init __naked sunxi_mc_smp_resume(void)
-{
-	asm volatile(
-		"bl	sunxi_mc_smp_cluster_cache_enable\n"
-		"b	cpu_resume"
-		/* Let compiler know about sunxi_mc_smp_cluster_cache_enable */
-		:: "i" (sunxi_mc_smp_cluster_cache_enable)
-	);
-}
 
 static int __init nocache_trampoline(unsigned long __unused)
 {
