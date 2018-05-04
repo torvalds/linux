@@ -153,7 +153,8 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 	if (is_connect_status(priv->connect_status)) {
 		ether_addr_copy(wrqu.ap_addr.sa_data, priv->current_ap.bssid);
 		netdev_dbg(priv->net_dev,
-			   "IWEVENT: connect bssid=%pM\n", wrqu.ap_addr.sa_data);
+			   "IWEVENT: connect bssid=%pM\n",
+			   wrqu.ap_addr.sa_data);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
 	}
 	netdev_dbg(priv->net_dev, "Link AP\n"
@@ -254,7 +255,8 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 		case WLAN_EID_ERP_INFO:
 			break;
 		default:
-			netdev_err(priv->net_dev, "unknown Element ID=%d\n", *bp);
+			netdev_err(priv->net_dev,
+				   "unknown Element ID=%d\n", *bp);
 			break;
 		}
 
@@ -322,7 +324,8 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 				mic_failure->failure = 2;
 				mic_failure->counter =
 					(uint16_t)((now - mic_failure->last_failure_time) / HZ);
-				if (!mic_failure->counter)	/*  range 1-60 */
+				/*  range 1-60 */
+				if (!mic_failure->counter)
 					mic_failure->counter = 1;
 			}
 			priv->wpa.mic_failure.last_failure_time = now;
@@ -712,7 +715,8 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	int i;
 	struct ap_info *ap_info;
 
-	netdev_dbg(priv->net_dev, "scan_ind_count = %d\n", priv->scan_ind_count);
+	netdev_dbg(priv->net_dev,
+		   "scan_ind_count = %d\n", priv->scan_ind_count);
 	ap_info = (struct ap_info *)(priv->rxp);
 
 	if (priv->scan_ind_count) {
@@ -849,8 +853,8 @@ void hostif_bss_scan_confirm(struct ks_wlan_private *priv)
 	union iwreq_data wrqu;
 
 	result_code = get_dword(priv);
-	netdev_dbg(priv->net_dev, "result=%d :: scan_ind_count=%d\n", result_code,
-		   priv->scan_ind_count);
+	netdev_dbg(priv->net_dev, "result=%d :: scan_ind_count=%d\n",
+		   result_code, priv->scan_ind_count);
 
 	priv->sme_i.sme_flag &= ~SME_AP_SCAN;
 	hostif_sme_enqueue(priv, SME_BSS_SCAN_CONFIRM);
@@ -903,7 +907,8 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 static
 void hostif_mic_failure_confirm(struct ks_wlan_private *priv)
 {
-	netdev_dbg(priv->net_dev, "mic_failure=%u\n", priv->wpa.mic_failure.failure);
+	netdev_dbg(priv->net_dev, "mic_failure=%u\n",
+		   priv->wpa.mic_failure.failure);
 	hostif_sme_enqueue(priv, SME_MIC_FAILURE_CONFIRM);
 }
 
@@ -1050,8 +1055,9 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	/* skb check */
 	eth = (struct ethhdr *)skb->data;
 	if (!ether_addr_equal(&priv->eth_addr[0], eth->h_source)) {
-		netdev_err(priv->net_dev, "invalid mac address !!\n");
-		netdev_err(priv->net_dev, "ethernet->h_source=%pM\n", eth->h_source);
+		netdev_err(priv->net_dev,
+			   "Invalid mac address: ethernet->h_source=%pM\n",
+			   eth->h_source);
 		ret = -ENXIO;
 		goto err_kfree;
 	}
@@ -1066,7 +1072,6 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	/* EtherType/Length check */
 	if (*(buffer + 1) + (*buffer << 8) > 1500) {
 		/* ProtocolEAP = *(buffer+1) + (*buffer << 8); */
-		/* netdev_dbg(priv->net_dev, "Send [SNAP]Type %x\n",ProtocolEAP); */
 		/* SAP/CTL/OUI(6 byte) add */
 		*p++ = 0xAA;	/* DSAP */
 		*p++ = 0xAA;	/* SSAP */
@@ -1149,7 +1154,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	    priv->wpa.mic_failure.failure > 0) {
 		if (keyinfo & WPA_KEY_INFO_ERROR &&
 		    keyinfo & WPA_KEY_INFO_REQUEST) {
-			netdev_err(priv->net_dev, " MIC ERROR Report SET : %04X\n", keyinfo);
+			netdev_err(priv->net_dev,
+				   "MIC ERROR Report SET : %04X\n", keyinfo);
 			hostif_sme_enqueue(priv, SME_MIC_FAILURE_REQUEST);
 		}
 		if (priv->wpa.mic_failure.failure == 2)
@@ -1592,7 +1598,7 @@ static void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 		break;
 	case SME_WEP_FLAG_REQUEST:
 		hostif_mib_set_request_bool(priv, DOT11_PRIVACY_INVOKED,
-				            priv->reg.privacy_invoked);
+					    priv->reg.privacy_invoked);
 		break;
 	}
 }
@@ -1995,29 +2001,29 @@ void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 	case SME_SET_KEY2:
 		hostif_mib_set_request_ostring(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE2,
-				               &priv->wpa.key[1].key_val[0],
-				               priv->wpa.key[1].key_len);
+					       &priv->wpa.key[1].key_val[0],
+					       priv->wpa.key[1].key_len);
 		break;
 	case SME_SET_KEY3:
 		hostif_mib_set_request_ostring(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE3,
 					       &priv->wpa.key[2].key_val[0],
-				               priv->wpa.key[2].key_len);
+					       priv->wpa.key[2].key_len);
 		break;
 	case SME_SET_KEY4:
 		hostif_mib_set_request_ostring(priv,
 					       DOT11_WEP_DEFAULT_KEY_VALUE4,
 					       &priv->wpa.key[3].key_val[0],
-				               priv->wpa.key[3].key_len);
+					       priv->wpa.key[3].key_len);
 		break;
 	case SME_SET_PMK_TSC:
 		hostif_mib_set_request_ostring(priv, DOT11_PMK_TSC,
-				               &priv->wpa.key[0].rx_seq[0],
-				               WPA_RX_SEQ_LEN);
+					       &priv->wpa.key[0].rx_seq[0],
+					       WPA_RX_SEQ_LEN);
 		break;
 	case SME_SET_GMK1_TSC:
 		hostif_mib_set_request_ostring(priv, DOT11_GMK1_TSC,
-				               &priv->wpa.key[1].rx_seq[0],
+					       &priv->wpa.key[1].rx_seq[0],
 					       WPA_RX_SEQ_LEN);
 		break;
 	case SME_SET_GMK2_TSC:
@@ -2151,7 +2157,7 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		break;
 	case SME_WPS_ENABLE_REQUEST:
 		hostif_mib_set_request_int(priv, LOCAL_WPS_ENABLE,
-				           priv->wps.wps_enabled);
+					   priv->wps.wps_enabled);
 		break;
 	case SME_WPS_PROBE_REQUEST:
 		hostif_mib_set_request_ostring(priv, LOCAL_WPS_PROBE_REQ,
