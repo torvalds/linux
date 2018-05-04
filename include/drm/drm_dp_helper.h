@@ -64,6 +64,11 @@
 /* AUX CH addresses */
 /* DPCD */
 #define DP_DPCD_REV                         0x000
+# define DP_DPCD_REV_10                     0x10
+# define DP_DPCD_REV_11                     0x11
+# define DP_DPCD_REV_12                     0x12
+# define DP_DPCD_REV_13                     0x13
+# define DP_DPCD_REV_14                     0x14
 
 #define DP_MAX_LINK_RATE                    0x001
 
