@@ -1183,7 +1183,7 @@ static int nixge_probe(struct platform_device *pdev)
 	struct nixge_priv *priv;
 	struct net_device *ndev;
 	struct resource *dmares;
-	const char *mac_addr;
+	const u8 *mac_addr;
 	int err;
 
 	ndev = alloc_etherdev(sizeof(*priv));
