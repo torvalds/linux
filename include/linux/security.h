@@ -1177,6 +1177,7 @@ int security_unix_may_send(struct socket *sock,  struct socket *other);
 int security_socket_create(int family, int type, int protocol, int kern);
 int security_socket_post_create(struct socket *sock, int family,
 				int type, int protocol, int kern);
+int security_socket_socketpair(struct socket *socka, struct socket *sockb);
 int security_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen);
 int security_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen);
 int security_socket_listen(struct socket *sock, int backlog);
@@ -1244,6 +1245,12 @@ static inline int security_socket_post_create(struct socket *sock,
 					      int family,
 					      int type,
 					      int protocol, int kern)
+{
+	return 0;
+}
+
+static inline int security_socket_socketpair(struct socket *socka,
+					     struct socket *sockb)
 {
 	return 0;
 }
