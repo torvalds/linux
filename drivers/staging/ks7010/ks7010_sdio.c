@@ -806,24 +806,19 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 
 static void ks7010_sme_enqueue_events(struct ks_wlan_private *priv)
 {
-	hostif_sme_enqueue(priv, SME_GET_EEPROM_CKSUM);
+	static const u16 init_events[] = {
+		SME_GET_EEPROM_CKSUM, SME_STOP_REQUEST,
+		SME_RTS_THRESHOLD_REQUEST, SME_FRAGMENTATION_THRESHOLD_REQUEST,
+		SME_WEP_INDEX_REQUEST, SME_WEP_KEY1_REQUEST,
+		SME_WEP_KEY2_REQUEST, SME_WEP_KEY3_REQUEST,
+		SME_WEP_KEY4_REQUEST, SME_WEP_FLAG_REQUEST,
+		SME_RSN_ENABLED_REQUEST, SME_MODE_SET_REQUEST,
+		SME_START_REQUEST
+	};
+	int ev;
 
-	/* load initial wireless parameter */
-	hostif_sme_enqueue(priv, SME_STOP_REQUEST);
-
-	hostif_sme_enqueue(priv, SME_RTS_THRESHOLD_REQUEST);
-	hostif_sme_enqueue(priv, SME_FRAGMENTATION_THRESHOLD_REQUEST);
-
-	hostif_sme_enqueue(priv, SME_WEP_INDEX_REQUEST);
-	hostif_sme_enqueue(priv, SME_WEP_KEY1_REQUEST);
-	hostif_sme_enqueue(priv, SME_WEP_KEY2_REQUEST);
-	hostif_sme_enqueue(priv, SME_WEP_KEY3_REQUEST);
-	hostif_sme_enqueue(priv, SME_WEP_KEY4_REQUEST);
-
-	hostif_sme_enqueue(priv, SME_WEP_FLAG_REQUEST);
-	hostif_sme_enqueue(priv, SME_RSN_ENABLED_REQUEST);
-	hostif_sme_enqueue(priv, SME_MODE_SET_REQUEST);
-	hostif_sme_enqueue(priv, SME_START_REQUEST);
+	for (ev = 0; ev < ARRAY_SIZE(init_events); ev++)
+		hostif_sme_enqueue(priv, init_events[ev]);
 }
 
 static void ks7010_card_init(struct ks_wlan_private *priv)
