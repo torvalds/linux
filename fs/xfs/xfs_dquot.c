@@ -582,16 +582,15 @@ err:
 
 /*
  * Read in the ondisk dquot using dqtobp() then copy it to an incore version,
- * and release the buffer immediately.
- *
- * If XFS_QMOPT_DQALLOC is set, allocate a dquot on disk if it needed.
+ * and release the buffer immediately.  If @can_alloc is true, fill any
+ * holes in the on-disk metadata.
  */
 static int
 xfs_qm_dqread(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	uint			type,
-	uint			flags,
+	bool			can_alloc,
 	struct xfs_dquot	**dqpp)
 {
 	struct xfs_dquot	*dqp;
@@ -603,7 +602,7 @@ xfs_qm_dqread(
 
 	/* Try to read the buffer, allocating if necessary. */
 	error = xfs_dquot_disk_read(mp, dqp, &bp);
-	if (error == -ENOENT && (flags & XFS_QMOPT_DQALLOC))
+	if (error == -ENOENT && can_alloc)
 		error = xfs_qm_dqread_alloc(mp, dqp, &bp);
 	if (error)
 		goto err;
@@ -793,7 +792,7 @@ xfs_qm_dqget(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	uint			type,
-	uint			flags,	  /* DQALLOC, DQSUSER, DQREPAIR, DOWARN */
+	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
@@ -812,7 +811,7 @@ restart:
 		return 0;
 	}
 
-	error = xfs_qm_dqread(mp, id, type, flags, &dqp);
+	error = xfs_qm_dqread(mp, id, type, can_alloc, &dqp);
 	if (error)
 		return error;
 
@@ -889,15 +888,11 @@ xfs_qm_dqget_inode(
 	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	xfs_dqid_t		id;
-	uint			flags = 0;
 	int			error;
 
 	error = xfs_qm_dqget_checks(mp, type);
 	if (error)
 		return error;
-
-	if (can_alloc)
-		flags |= XFS_QMOPT_DQALLOC;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(xfs_inode_dquot(ip, type) == NULL);
@@ -919,7 +914,7 @@ restart:
 	 * we re-acquire the lock.
 	 */
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	error = xfs_qm_dqread(mp, id, type, flags, &dqp);
+	error = xfs_qm_dqread(mp, id, type, can_alloc, &dqp);
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (error)
 		return error;
@@ -978,7 +973,7 @@ xfs_qm_dqget_next(
 
 	*dqpp = NULL;
 	for (; !error; error = xfs_dq_get_next_id(mp, type, &id)) {
-		error = xfs_qm_dqget(mp, id, type, 0, &dqp);
+		error = xfs_qm_dqget(mp, id, type, false, &dqp);
 		if (error == -ENOENT)
 			continue;
 		else if (error != 0)

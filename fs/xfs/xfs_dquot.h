@@ -170,7 +170,7 @@ extern void		xfs_qm_adjust_dqlimits(struct xfs_mount *,
 extern xfs_dqid_t	xfs_qm_id_for_quotatype(struct xfs_inode *ip,
 					uint type);
 extern int		xfs_qm_dqget(struct xfs_mount *mp, xfs_dqid_t id,
-					uint type, uint flags,
+					uint type, bool can_alloc,
 					struct xfs_dquot **dqpp);
 extern int		xfs_qm_dqget_inode(struct xfs_inode *ip, uint type,
 					bool can_alloc,

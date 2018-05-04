@@ -425,7 +425,7 @@ xfs_qm_scall_setqlim(
 	 * a reference to the dquot, so it's safe to do this unlock/lock without
 	 * it being reclaimed in the mean time.
 	 */
-	error = xfs_qm_dqget(mp, id, type, XFS_QMOPT_DQALLOC, &dqp);
+	error = xfs_qm_dqget(mp, id, type, true, &dqp);
 	if (error) {
 		ASSERT(error != -ENOENT);
 		goto out_unlock;
@@ -696,11 +696,10 @@ xfs_qm_scall_getquota(
 	int			error;
 
 	/*
-	 * Try to get the dquot. We don't want it allocated on disk, so
-	 * we aren't passing the XFS_QMOPT_DOALLOC flag. If it doesn't
-	 * exist, we'll get ENOENT back.
+	 * Try to get the dquot. We don't want it allocated on disk, so don't
+	 * set doalloc. If it doesn't exist, we'll get ENOENT back.
 	 */
-	error = xfs_qm_dqget(mp, id, type, 0, &dqp);
+	error = xfs_qm_dqget(mp, id, type, false, &dqp);
 	if (error)
 		return error;
 
