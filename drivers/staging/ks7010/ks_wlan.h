@@ -9,35 +9,35 @@
 #ifndef _KS_WLAN_H
 #define _KS_WLAN_H
 
-#include <linux/atomic.h>	/* struct atomic_t */
+#include <linux/atomic.h>
 #include <linux/circ_buf.h>
-#include <linux/completion.h>	/* struct completion */
-#include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
-#include <linux/sched.h>	/* wait_queue_head_t */
-#include <linux/spinlock.h>	/* spinlock_t */
+#include <linux/completion.h>
+#include <linux/netdevice.h>
+#include <linux/sched.h>
+#include <linux/spinlock.h>
 #include <linux/wireless.h>
 
 struct ks_wlan_parameter {
-	u8 operation_mode;	/* Operation Mode */
-	u8 channel;	/*  Channel */
-	u8 tx_rate;	/*  Transmit Rate */
+	u8 operation_mode;
+	u8 channel;
+	u8 tx_rate;
 	struct {
 		u8 size;
 		u8 body[16];
 	} rate_set;
-	u8 bssid[ETH_ALEN];	/* BSSID */
+	u8 bssid[ETH_ALEN];
 	struct {
 		u8 size;
 		u8 body[32 + 1];
-	} ssid;	/*  SSID */
-	u8 preamble;	/*  Preamble */
+	} ssid;
+	u8 preamble;
 	u8 power_mgmt;
-	u32 scan_type;	/*  AP List Scan Type */
+	u32 scan_type;
 #define BEACON_LOST_COUNT_MIN 0
 #define BEACON_LOST_COUNT_MAX 65535
-	u32 beacon_lost_count;	/*  Beacon Lost Count */
-	u32 rts;	/*  RTS Threashold */
-	u32 fragment;	/*  Fragmentation Threshold */
+	u32 beacon_lost_count;
+	u32 rts;
+	u32 fragment;
 	u32 privacy_invoked;
 	u32 wep_index;
 	struct {
@@ -45,9 +45,9 @@ struct ks_wlan_parameter {
 		u8 val[13 * 2 + 1];
 	} wep_key[4];
 	u16 authenticate_type;
-	u16 phy_type;	/* 11b/11g/11bg mode type */
-	u16 cts_mode;	/* for 11g/11bg mode cts mode */
-	u16 phy_info_timer;	/* phy information timer */
+	u16 phy_type;
+	u16 cts_mode;
+	u16 phy_info_timer;
 };
 
 enum {
@@ -155,7 +155,7 @@ enum {
 	SME_WEP_SET_CONFIRM,
 	SME_TERMINATE,
 
-	SME_EVENT_SIZE	/* end */
+	SME_EVENT_SIZE
 };
 
 /* SME Status */
@@ -330,7 +330,7 @@ struct mic_failure {
 	u16 failure;	/* MIC Failure counter 0 or 1 or 2 */
 	u16 counter;	/* 1sec counter 0-60 */
 	u32 last_failure_time;
-	int stop;	/* stop flag */
+	int stop;
 };
 
 struct wpa_status {
@@ -339,7 +339,7 @@ struct wpa_status {
 	int version;
 	int pairwise_suite;	/* unicast cipher */
 	int group_suite;	/* multicast cipher */
-	int key_mgmt_suite;	/* authentication key management suite */
+	int key_mgmt_suite;
 	int auth_alg;
 	int txkey;
 	struct wpa_key key[WPA_KEY_INDEX_MAX];
@@ -485,17 +485,16 @@ struct ks_wlan_private {
 	unsigned char firmware_version[128 + 1];
 	int version_size;
 
-	bool mac_address_valid;	/* Mac Address Status */
+	bool mac_address_valid;
 
 	int dev_state;
 
 	struct sk_buff *skb;
 	unsigned int cur_rx;	/* Index into the Rx buffer of next Rx pkt. */
-	/* spinlock_t lock; */
 #define FORCE_DISCONNECT    0x80000000
 #define CONNECT_STATUS_MASK 0x7FFFFFFF
-	u32 connect_status;	/* connect status */
-	int infra_status;	/* Infractructure status */
+	u32 connect_status;
+	int infra_status;
 	u8 scan_ssid_len;
 	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
 	struct local_gain gain;
