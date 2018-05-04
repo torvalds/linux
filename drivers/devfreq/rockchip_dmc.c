@@ -2344,8 +2344,8 @@ static struct video_info *rockchip_parse_video_info(const char *buf)
 	return video_info;
 }
 
-struct video_info *rockchip_find_video_info(struct rockchip_dmcfreq *dmcfreq,
-					    const char *buf)
+static struct video_info *
+rockchip_find_video_info(struct rockchip_dmcfreq *dmcfreq, const char *buf)
 {
 	struct video_info *info, *video_info;
 
