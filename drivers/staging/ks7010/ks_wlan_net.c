@@ -2028,21 +2028,19 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (*uwrq == SLP_SLEEP) {
-		priv->sleep_mode = *uwrq;
-		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
-
-		hostif_sme_enqueue(priv, SME_STOP_REQUEST);
-		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
-
-	} else if (*uwrq == SLP_ACTIVE) {
-		priv->sleep_mode = *uwrq;
-		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
-		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
-	} else {
+	if (*uwrq != SLP_SLEEP &&
+	    *uwrq != SLP_ACTIVE) {
 		netdev_err(dev, "SET_SLEEP_MODE %d error\n", *uwrq);
 		return -EINVAL;
 	}
+
+	priv->sleep_mode = *uwrq;
+	netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
+
+	if (*uwrq == SLP_SLEEP)
+		hostif_sme_enqueue(priv, SME_STOP_REQUEST);
+
+	hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 
 	return 0;
 }
