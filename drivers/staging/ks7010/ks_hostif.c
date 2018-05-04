@@ -1886,9 +1886,11 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 		break;
 	case MODE_INFRASTRUCTURE:
 		if (!is_valid_ether_addr((u8 *)priv->reg.bssid)) {
-			hostif_infrastructure_set_request(priv, HIF_INFRA_SET_REQ);
+			hostif_infrastructure_set_request(priv,
+							  HIF_INFRA_SET_REQ);
 		} else {
-			hostif_infrastructure_set_request(priv, HIF_INFRA_SET2_REQ);
+			hostif_infrastructure_set_request(priv,
+							  HIF_INFRA_SET2_REQ);
 			netdev_dbg(priv->net_dev,
 				   "Infra bssid = %pM\n", priv->reg.bssid);
 		}
