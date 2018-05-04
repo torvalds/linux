@@ -10,13 +10,12 @@
 #define _KS_WLAN_H
 
 #include <linux/atomic.h>	/* struct atomic_t */
+#include <linux/circ_buf.h>
 #include <linux/completion.h>	/* struct completion */
 #include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
 #include <linux/sched.h>	/* wait_queue_head_t */
 #include <linux/spinlock.h>	/* spinlock_t */
 #include <linux/wireless.h>
-
-#include "ks7010_sdio.h"
 
 struct ks_wlan_parameter {
 	u8 operation_mode;	/* Operation Mode */
@@ -366,6 +365,71 @@ struct wps_status {
 	u8 ie[255];
 };
 
+/* Tx Device struct */
+#define	TX_DEVICE_BUFF_SIZE	1024
+
+struct ks_wlan_private;
+
+/**
+ * struct tx_device_buffer - Queue item for the tx queue.
+ * @sendp: Pointer to the send request data.
+ * @size: Size of @sendp data.
+ * @complete_handler: Function called once data write to device is complete.
+ * @arg1: First argument to @complete_handler.
+ * @arg2: Second argument to @complete_handler.
+ */
+struct tx_device_buffer {
+	unsigned char *sendp;
+	unsigned int size;
+	void (*complete_handler)(struct ks_wlan_private *priv,
+				 struct sk_buff *skb);
+	struct sk_buff *skb;
+};
+
+/**
+ * struct tx_device - Tx buffer queue.
+ * @tx_device_buffer: Queue buffer.
+ * @qhead: Head of tx queue.
+ * @qtail: Tail of tx queue.
+ * @tx_dev_lock: Queue lock.
+ */
+struct tx_device {
+	struct tx_device_buffer tx_dev_buff[TX_DEVICE_BUFF_SIZE];
+	unsigned int qhead;
+	unsigned int qtail;
+	spinlock_t tx_dev_lock;	/* protect access to the queue */
+};
+
+/* Rx Device struct */
+#define	RX_DATA_SIZE	(2 + 2 + 2347 + 1)
+#define	RX_DEVICE_BUFF_SIZE	32
+
+/**
+ * struct rx_device_buffer - Queue item for the rx queue.
+ * @data: rx data.
+ * @size: Size of @data.
+ */
+struct rx_device_buffer {
+	unsigned char data[RX_DATA_SIZE];
+	unsigned int size;
+};
+
+/**
+ * struct rx_device - Rx buffer queue.
+ * @rx_device_buffer: Queue buffer.
+ * @qhead: Head of rx queue.
+ * @qtail: Tail of rx queue.
+ * @rx_dev_lock: Queue lock.
+ */
+struct rx_device {
+	struct rx_device_buffer rx_dev_buff[RX_DEVICE_BUFF_SIZE];
+	unsigned int qhead;
+	unsigned int qtail;
+	spinlock_t rx_dev_lock;	/* protect access to the queue */
+};
+
+struct ks_sdio_card;
+
 struct ks_wlan_private {
 	/* hardware information */
 	struct ks_sdio_card *ks_sdio_card;
@@ -451,6 +515,50 @@ struct ks_wlan_private {
 
 	uint wakeup_count;	/* for detect wakeup loop */
 };
+
+static inline void inc_txqhead(struct ks_wlan_private *priv)
+{
+	priv->tx_dev.qhead = (priv->tx_dev.qhead + 1) % TX_DEVICE_BUFF_SIZE;
+}
+
+static inline void inc_txqtail(struct ks_wlan_private *priv)
+{
+	priv->tx_dev.qtail = (priv->tx_dev.qtail + 1) % TX_DEVICE_BUFF_SIZE;
+}
+
+static inline bool txq_has_space(struct ks_wlan_private *priv)
+{
+	return (CIRC_SPACE(priv->tx_dev.qhead, priv->tx_dev.qtail,
+			   TX_DEVICE_BUFF_SIZE) > 0);
+}
+
+static inline void inc_rxqhead(struct ks_wlan_private *priv)
+{
+	priv->rx_dev.qhead = (priv->rx_dev.qhead + 1) % RX_DEVICE_BUFF_SIZE;
+}
+
+static inline void inc_rxqtail(struct ks_wlan_private *priv)
+{
+	priv->rx_dev.qtail = (priv->rx_dev.qtail + 1) % RX_DEVICE_BUFF_SIZE;
+}
+
+static inline bool rxq_has_space(struct ks_wlan_private *priv)
+{
+	return (CIRC_SPACE(priv->rx_dev.qhead, priv->rx_dev.qtail,
+			   RX_DEVICE_BUFF_SIZE) > 0);
+}
+
+static inline unsigned int txq_count(struct ks_wlan_private *priv)
+{
+	return CIRC_CNT_TO_END(priv->tx_dev.qhead, priv->tx_dev.qtail,
+			       TX_DEVICE_BUFF_SIZE);
+}
+
+static inline unsigned int rxq_count(struct ks_wlan_private *priv)
+{
+	return CIRC_CNT_TO_END(priv->rx_dev.qhead, priv->rx_dev.qtail,
+			       RX_DEVICE_BUFF_SIZE);
+}
 
 int ks_wlan_net_start(struct net_device *dev);
 int ks_wlan_net_stop(struct net_device *dev);

@@ -8,7 +8,6 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/circ_buf.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/mmc/card.h>
@@ -97,50 +96,6 @@ enum gen_com_reg_b {
 #define KS7010_IRAM_ADDRESS	0x06000000
 
 #define KS7010_IO_BLOCK_SIZE 512
-
-static inline void inc_txqhead(struct ks_wlan_private *priv)
-{
-	priv->tx_dev.qhead = (priv->tx_dev.qhead + 1) % TX_DEVICE_BUFF_SIZE;
-}
-
-static inline void inc_txqtail(struct ks_wlan_private *priv)
-{
-	priv->tx_dev.qtail = (priv->tx_dev.qtail + 1) % TX_DEVICE_BUFF_SIZE;
-}
-
-static inline bool txq_has_space(struct ks_wlan_private *priv)
-{
-	return (CIRC_SPACE(priv->tx_dev.qhead, priv->tx_dev.qtail,
-			   TX_DEVICE_BUFF_SIZE) > 0);
-}
-
-static inline void inc_rxqhead(struct ks_wlan_private *priv)
-{
-	priv->rx_dev.qhead = (priv->rx_dev.qhead + 1) % RX_DEVICE_BUFF_SIZE;
-}
-
-static inline void inc_rxqtail(struct ks_wlan_private *priv)
-{
-	priv->rx_dev.qtail = (priv->rx_dev.qtail + 1) % RX_DEVICE_BUFF_SIZE;
-}
-
-static inline bool rxq_has_space(struct ks_wlan_private *priv)
-{
-	return (CIRC_SPACE(priv->rx_dev.qhead, priv->rx_dev.qtail,
-			   RX_DEVICE_BUFF_SIZE) > 0);
-}
-
-static inline unsigned int txq_count(struct ks_wlan_private *priv)
-{
-	return CIRC_CNT_TO_END(priv->tx_dev.qhead, priv->tx_dev.qtail,
-			       TX_DEVICE_BUFF_SIZE);
-}
-
-static inline unsigned int rxq_count(struct ks_wlan_private *priv)
-{
-	return CIRC_CNT_TO_END(priv->rx_dev.qhead, priv->rx_dev.qtail,
-			       RX_DEVICE_BUFF_SIZE);
-}
 
 /* Read single byte from device address into byte (CMD52) */
 static int ks7010_sdio_readb(struct ks_wlan_private *priv,
