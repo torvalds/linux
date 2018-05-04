@@ -1172,6 +1172,13 @@ static inline void ps_confirm_wait_inc(struct ks_wlan_private *priv)
 		atomic_inc(&priv->psstatus.confirm_wait);
 }
 
+static inline void send_request_to_device(struct ks_wlan_private *priv,
+					  void *data, size_t size)
+{
+	ps_confirm_wait_inc(priv);
+	ks_wlan_hw_tx(priv, data, size, NULL, NULL);
+}
+
 static
 void hostif_mib_get_request(struct ks_wlan_private *priv,
 			    unsigned long mib_attribute)
@@ -1184,9 +1191,7 @@ void hostif_mib_get_request(struct ks_wlan_private *priv,
 
 	pp->mib_attribute = cpu_to_le32((uint32_t)mib_attribute);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static void hostif_mib_set_request(struct ks_wlan_private *priv,
@@ -1208,9 +1213,7 @@ static void hostif_mib_set_request(struct ks_wlan_private *priv,
 	pp->mib_value.type = cpu_to_le16(type);
 	memcpy(&pp->mib_value.body, data, size);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + size), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp) + size));
 }
 
 static inline void hostif_mib_set_request_int(struct ks_wlan_private *priv,
@@ -1250,9 +1253,7 @@ void hostif_start_request(struct ks_wlan_private *priv, unsigned char mode)
 
 	pp->mode = cpu_to_le16((uint16_t)mode);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 
 	priv->aplist.size = 0;
 	priv->scan_ind_count = 0;
@@ -1299,9 +1300,7 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 	init_request(priv, &pp->request);
 	pp->channel = cpu_to_le16((uint16_t)(priv->reg.channel));
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1340,9 +1339,7 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv, int event)
 		pp->channel_list.size = 14;
 	}
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1359,9 +1356,7 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1381,9 +1376,7 @@ void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 	pp->channel_list.size = 1;
 	memcpy(pp->bssid, priv->reg.bssid, ETH_ALEN);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1395,9 +1388,7 @@ void hostif_stop_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1417,9 +1408,7 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 		pp->time = cpu_to_le16((uint16_t)0);
 	}
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1437,9 +1426,7 @@ void hostif_power_mgmt_request(struct ks_wlan_private *priv,
 	pp->wake_up = cpu_to_le32((uint32_t)wake_up);
 	pp->receive_dtims = cpu_to_le32((uint32_t)receive_dtims);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 static
@@ -1453,10 +1440,7 @@ void hostif_sleep_request(struct ks_wlan_private *priv,
 		if (!pp)
 			return;
 
-		/* send to device request */
-		ps_confirm_wait_inc(priv);
-		ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL,
-			      NULL);
+		send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 	} else if (mode == SLP_ACTIVE) {
 		atomic_set(&priv->sleepstatus.wakeup_request, 1);
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
@@ -1508,9 +1492,7 @@ void hostif_bss_scan_request(struct ks_wlan_private *priv,
 		memcpy(&pp->ssid.body[0], scan_ssid, scan_ssid_len);
 	}
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 
 	priv->aplist.size = 0;
 	priv->scan_ind_count = 0;
@@ -1530,9 +1512,7 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 	pp->failure_count = cpu_to_le16((uint16_t)failure_count);
 	pp->timer = cpu_to_le16((uint16_t)timer);
 
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
+	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
 
 /* Device I/O Receive indicate */
