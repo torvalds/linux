@@ -4709,6 +4709,8 @@ static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {
 	{0, }
 };
 
+MODULE_DEVICE_TABLE(pci, hns_roce_hw_v2_pci_tbl);
+
 static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 				  struct hnae3_handle *handle)
 {
