@@ -655,7 +655,7 @@ void hostif_start_confirm(struct ks_wlan_private *priv)
 static
 void hostif_connect_indication(struct ks_wlan_private *priv)
 {
-	unsigned short connect_code;
+	u16 connect_code;
 	unsigned int tmp = 0;
 	unsigned int old_status = priv->connect_status;
 	struct net_device *netdev = priv->net_dev;
