@@ -1426,9 +1426,6 @@ void i915_retire_requests(struct drm_i915_private *i915)
 	if (!i915->gt.active_requests)
 		return;
 
-	/* An outstanding request must be on a still active ring somewhere */
-	GEM_BUG_ON(list_empty(&i915->gt.active_rings));
-
 	list_for_each_entry_safe(ring, tmp, &i915->gt.active_rings, active_link)
 		ring_retire_requests(ring);
 }
