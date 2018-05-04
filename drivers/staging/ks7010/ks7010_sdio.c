@@ -217,7 +217,7 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 
 static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
-	unsigned char byte;
+	u8 byte;
 	int ret;
 
 	if (priv->reg.power_mgmt == POWER_MGMT_ACTIVE)
