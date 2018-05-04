@@ -765,8 +765,9 @@ static netdev_tx_t boomerang_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 static int vortex_rx(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
-static irqreturn_t vortex_interrupt(int irq, void *dev_id);
-static irqreturn_t boomerang_interrupt(int irq, void *dev_id);
+static irqreturn_t vortex_boomerang_interrupt(int irq, void *dev_id);
+static irqreturn_t _vortex_interrupt(int irq, struct net_device *dev);
+static irqreturn_t _boomerang_interrupt(int irq, struct net_device *dev);
 static int vortex_close(struct net_device *dev);
 static void dump_tx_ring(struct net_device *dev);
 static void update_stats(void __iomem *ioaddr, struct net_device *dev);
@@ -838,10 +839,9 @@ MODULE_PARM_DESC(use_mmio, "3c59x: use memory-mapped PCI I/O resource (0-1)");
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_vortex(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
 	unsigned long flags;
 	local_irq_save(flags);
-	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev);
+	vortex_boomerang_interrupt(dev->irq, dev);
 	local_irq_restore(flags);
 }
 #endif
@@ -1729,8 +1729,7 @@ vortex_open(struct net_device *dev)
 	dma_addr_t dma;
 
 	/* Use the now-standard shared IRQ implementation. */
-	if ((retval = request_irq(dev->irq, vp->full_bus_master_rx ?
-				boomerang_interrupt : vortex_interrupt, IRQF_SHARED, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, vortex_boomerang_interrupt, IRQF_SHARED, dev->name, dev))) {
 		pr_err("%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
 		goto err;
 	}
@@ -1911,10 +1910,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 			 */
 			unsigned long flags;
 			local_irq_save(flags);
-			if (vp->full_bus_master_tx)
-				boomerang_interrupt(dev->irq, dev);
-			else
-				vortex_interrupt(dev->irq, dev);
+			vortex_boomerang_interrupt(dev->irq, dev);
 			local_irq_restore(flags);
 		}
 	}
@@ -2267,9 +2263,8 @@ out_dma_err:
  */
 
 static irqreturn_t
-vortex_interrupt(int irq, void *dev_id)
+_vortex_interrupt(int irq, struct net_device *dev)
 {
-	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr;
 	int status;
@@ -2386,9 +2381,8 @@ handler_exit:
  */
 
 static irqreturn_t
-boomerang_interrupt(int irq, void *dev_id)
+_boomerang_interrupt(int irq, struct net_device *dev)
 {
-	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr;
 	int status;
@@ -2524,6 +2518,18 @@ handler_exit:
 	vp->handling_irq = 0;
 	spin_unlock(&vp->lock);
 	return IRQ_RETVAL(handled);
+}
+
+static irqreturn_t
+vortex_boomerang_interrupt(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct vortex_private *vp = netdev_priv(dev);
+
+	if (vp->full_bus_master_rx)
+		return _boomerang_interrupt(dev->irq, dev);
+	else
+		return _vortex_interrupt(dev->irq, dev);
 }
 
 static int vortex_rx(struct net_device *dev)
