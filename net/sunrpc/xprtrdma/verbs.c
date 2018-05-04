@@ -1175,17 +1175,6 @@ out:
 	return rc;
 }
 
-static struct rpcrdma_rep *
-rpcrdma_buffer_get_rep_locked(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_rep *rep;
-
-	rep = list_first_entry(&buf->rb_recv_bufs,
-			       struct rpcrdma_rep, rr_list);
-	list_del(&rep->rr_list);
-	return rep;
-}
-
 static void
 rpcrdma_destroy_rep(struct rpcrdma_rep *rep)
 {
@@ -1239,7 +1228,9 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_recv_bufs)) {
 		struct rpcrdma_rep *rep;
 
-		rep = rpcrdma_buffer_get_rep_locked(buf);
+		rep = list_first_entry(&buf->rb_recv_bufs,
+				       struct rpcrdma_rep, rr_list);
+		list_del(&rep->rr_list);
 		rpcrdma_destroy_rep(rep);
 	}
 
