@@ -10,13 +10,12 @@
 #define __TSL2X7X_H
 
 struct tsl2x7x_lux {
-	unsigned int ratio;
 	unsigned int ch0;
 	unsigned int ch1;
 };
 
 /* Max number of segments allowable in LUX table */
-#define TSL2X7X_MAX_LUX_TABLE_SIZE		9
+#define TSL2X7X_MAX_LUX_TABLE_SIZE		6
 /* The default LUX tables all have 3 elements.  */
 #define TSL2X7X_DEF_LUX_TABLE_SZ		3
 #define TSL2X7X_DEFAULT_TABLE_BYTES (sizeof(struct tsl2x7x_lux) * \
