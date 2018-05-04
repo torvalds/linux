@@ -532,6 +532,15 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static void pca953x_irq_shutdown(struct irq_data *d)
+{
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
+	u8 mask = 1 << (d->hwirq % BANK_SZ);
+
+	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
+	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
+}
+
 static struct irq_chip pca953x_irq_chip = {
 	.name			= "pca953x",
 	.irq_mask		= pca953x_irq_mask,
@@ -539,6 +548,7 @@ static struct irq_chip pca953x_irq_chip = {
 	.irq_bus_lock		= pca953x_irq_bus_lock,
 	.irq_bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
 	.irq_set_type		= pca953x_irq_set_type,
+	.irq_shutdown		= pca953x_irq_shutdown,
 };
 
 static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
