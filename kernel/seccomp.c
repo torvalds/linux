@@ -239,7 +239,7 @@ static inline void spec_mitigate(struct task_struct *task,
 	int state = arch_prctl_spec_ctrl_get(task, which);
 
 	if (state > 0 && (state & PR_SPEC_PRCTL))
-		arch_prctl_spec_ctrl_set(task, which, PR_SPEC_DISABLE);
+		arch_prctl_spec_ctrl_set(task, which, PR_SPEC_FORCE_DISABLE);
 }
 
 static inline void seccomp_assign_mode(struct task_struct *task,
