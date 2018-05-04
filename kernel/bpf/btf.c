@@ -2114,12 +2114,28 @@ int btf_get_info_by_fd(const struct btf *btf,
 		       const union bpf_attr *attr,
 		       union bpf_attr __user *uattr)
 {
-	void __user *udata = u64_to_user_ptr(attr->info.info);
-	u32 copy_len = min_t(u32, btf->data_size,
-			     attr->info.info_len);
+	struct bpf_btf_info __user *uinfo;
+	struct bpf_btf_info info = {};
+	u32 info_copy, btf_copy;
+	void __user *ubtf;
+	u32 uinfo_len;
 
-	if (copy_to_user(udata, btf->data, copy_len) ||
-	    put_user(btf->data_size, &uattr->info.info_len))
+	uinfo = u64_to_user_ptr(attr->info.info);
+	uinfo_len = attr->info.info_len;
+
+	info_copy = min_t(u32, uinfo_len, sizeof(info));
+	if (copy_from_user(&info, uinfo, info_copy))
+		return -EFAULT;
+
+	info.id = btf->id;
+	ubtf = u64_to_user_ptr(info.btf);
+	btf_copy = min_t(u32, btf->data_size, info.btf_size);
+	if (copy_to_user(ubtf, btf->data, btf_copy))
+		return -EFAULT;
+	info.btf_size = btf->data_size;
+
+	if (copy_to_user(uinfo, &info, info_copy) ||
+	    put_user(info_copy, &uattr->info.info_len))
 		return -EFAULT;
 
 	return 0;
