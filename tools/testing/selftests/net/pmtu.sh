@@ -43,6 +43,9 @@
 #	that MTU is properly calculated instead when MTU is not configured from
 #	userspace
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 tests="
 	pmtu_vti6_exception		vti6: PMTU exceptions
 	pmtu_vti4_exception		vti4: PMTU exceptions
@@ -162,7 +165,7 @@ setup_xfrm6() {
 }
 
 setup() {
-	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return 1
+	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return $ksft_skip
 
 	cleanup_done=0
 	for arg do
