@@ -776,24 +776,7 @@ static int tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 	return tsl2x7x_invoke_change(indio_dev);
 }
 
-static ssize_t
-in_intensity0_calibscale_available_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
-
-	switch (chip->id) {
-	case tsl2571:
-	case tsl2671:
-	case tmd2671:
-	case tsl2771:
-	case tmd2771:
-		return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 128");
-	}
-
-	return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 120");
-}
+static IIO_CONST_ATTR(in_intensity0_calibscale_available, "1 8 16 120");
 
 static IIO_CONST_ATTR(in_proximity0_calibscale_available, "1 2 4 8");
 
@@ -1190,25 +1173,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 				chip->settings.als_gain = 2;
 				break;
 			case 120:
-				switch (chip->id) {
-				case tsl2572:
-				case tsl2672:
-				case tmd2672:
-				case tsl2772:
-				case tmd2772:
-					return -EINVAL;
-				}
-				chip->settings.als_gain = 3;
-				break;
-			case 128:
-				switch (chip->id) {
-				case tsl2571:
-				case tsl2671:
-				case tmd2671:
-				case tsl2771:
-				case tmd2771:
-					return -EINVAL;
-				}
 				chip->settings.als_gain = 3;
 				break;
 			default:
@@ -1246,8 +1210,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 
 	return tsl2x7x_invoke_change(indio_dev);
 }
-
-static DEVICE_ATTR_RO(in_intensity0_calibscale_available);
 
 static DEVICE_ATTR_RW(in_illuminance0_target_input);
 
@@ -1321,7 +1283,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 }
 
 static struct attribute *tsl2x7x_ALS_device_attrs[] = {
-	&dev_attr_in_intensity0_calibscale_available.attr,
+	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
 	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
@@ -1335,7 +1297,7 @@ static struct attribute *tsl2x7x_PRX_device_attrs[] = {
 };
 
 static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
-	&dev_attr_in_intensity0_calibscale_available.attr,
+	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
 	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
@@ -1350,7 +1312,7 @@ static struct attribute *tsl2x7x_PRX2_device_attrs[] = {
 };
 
 static struct attribute *tsl2x7x_ALSPRX2_device_attrs[] = {
-	&dev_attr_in_intensity0_calibscale_available.attr,
+	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
 	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
