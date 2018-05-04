@@ -26,6 +26,7 @@ config VIDEO_VIA_CAMERA
 #
 # Platform multimedia device configuration
 #
+source "drivers/media/platform/cadence/Kconfig"
 
 source "drivers/media/platform/davinci/Kconfig"
 
