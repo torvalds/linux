@@ -135,14 +135,25 @@ struct hostif_mib_get_request {
 	__le32 mib_attribute;
 } __packed;
 
+/**
+ * enum mib_data_type - Message Information Base data type.
+ * @MIB_VALUE_TYPE_NULL: NULL type
+ * @MIB_VALUE_TYPE_INT: INTEGER type
+ * @MIB_VALUE_TYPE_BOOL: BOOL type
+ * @MIB_VALUE_TYPE_COUNT32: unused
+ * @MIB_VALUE_TYPE_OSTRING: Chunk of memory
+ */
+enum mib_data_type {
+	MIB_VALUE_TYPE_NULL = 0,
+	MIB_VALUE_TYPE_INT,
+	MIB_VALUE_TYPE_BOOL,
+	MIB_VALUE_TYPE_COUNT32,
+	MIB_VALUE_TYPE_OSTRING
+};
+
 struct hostif_mib_value {
 	__le16 size;
 	__le16 type;
-#define MIB_VALUE_TYPE_NULL     0
-#define MIB_VALUE_TYPE_INT      1
-#define MIB_VALUE_TYPE_BOOL     2
-#define MIB_VALUE_TYPE_COUNT32  3
-#define MIB_VALUE_TYPE_OSTRING  4
 	u8 body[0];
 } __packed;
 
