@@ -904,7 +904,7 @@ irq_error:
 static void ks7010_sdio_init_irqs(struct sdio_func *func,
 				  struct ks_wlan_private *priv)
 {
-	unsigned char byte;
+	u8 byte;
 	int ret;
 
 	/*
