@@ -57,7 +57,7 @@
 	};
 
 	clocks {
-		osc26m {
+		clk_osc26m: osc26m {
 			compatible = "fsl,imx-osc26m", "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
