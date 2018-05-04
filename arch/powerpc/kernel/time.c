@@ -578,21 +578,28 @@ void timer_interrupt(struct pt_regs *regs)
 	struct pt_regs *old_regs;
 	u64 now;
 
-	/* Ensure a positive value is written to the decrementer, or else
-	 * some CPUs will continue to take decrementer exceptions.
-	 */
-	set_dec(decrementer_max);
-
 	/* Some implementations of hotplug will get timer interrupts while
 	 * offline, just ignore these and we also need to set
 	 * decrementers_next_tb as MAX to make sure __check_irq_replay
 	 * don't replay timer interrupt when return, otherwise we'll trap
 	 * here infinitely :(
 	 */
-	if (!cpu_online(smp_processor_id())) {
+	if (unlikely(!cpu_online(smp_processor_id()))) {
 		*next_tb = ~(u64)0;
+		set_dec(decrementer_max);
 		return;
 	}
+
+	/* Ensure a positive value is written to the decrementer, or else
+	 * some CPUs will continue to take decrementer exceptions. When the
+	 * PPC_WATCHDOG (decrementer based) is configured, keep this at most
+	 * 31 bits, which is about 4 seconds on most systems, which gives
+	 * the watchdog a chance of catching timer interrupt hard lockups.
+	 */
+	if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
+		set_dec(0x7fffffff);
+	else
+		set_dec(decrementer_max);
 
 	/* Conditionally hard-enable interrupts now that the DEC has been
 	 * bumped to its maximum value
