@@ -312,21 +312,22 @@ early_param("cad", cad_setup);
 
 static __init noinline void rescue_initrd(void)
 {
-#ifdef CONFIG_BLK_DEV_INITRD
 	unsigned long min_initrd_addr = (unsigned long) _end + (4UL << 20);
+
 	/*
 	 * Just like in case of IPL from VM reader we make sure there is a
 	 * gap of 4MB between end of kernel and start of initrd.
 	 * That way we can also be sure that saving an NSS will succeed,
 	 * which however only requires different segments.
 	 */
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD))
+		return;
 	if (!INITRD_START || !INITRD_SIZE)
 		return;
 	if (INITRD_START >= min_initrd_addr)
 		return;
 	memmove((void *) min_initrd_addr, (void *) INITRD_START, INITRD_SIZE);
 	INITRD_START = min_initrd_addr;
-#endif
 }
 
 /* Set up boot command line */
