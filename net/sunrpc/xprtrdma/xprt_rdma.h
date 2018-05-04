@@ -400,6 +400,7 @@ struct rpcrdma_buffer {
 	spinlock_t		rb_lock;	/* protect buf lists */
 	struct list_head	rb_send_bufs;
 	struct list_head	rb_recv_bufs;
+	unsigned long		rb_flags;
 	u32			rb_max_requests;
 	u32			rb_credits;	/* most recent credit grant */
 	int			rb_posted_receives;
@@ -416,6 +417,11 @@ struct rpcrdma_buffer {
 	struct delayed_work	rb_refresh_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
+
+/* rb_flags */
+enum {
+	RPCRDMA_BUF_F_EMPTY_SCQ = 0,
+};
 
 /*
  * Internal structure for transport instance creation. This

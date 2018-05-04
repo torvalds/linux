@@ -878,6 +878,7 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 		sc->sc_xprt = r_xprt;
 		buf->rb_sc_ctxs[i] = sc;
 	}
+	buf->rb_flags = 0;
 
 	return 0;
 
@@ -935,7 +936,7 @@ out_emptyq:
 	 * completions recently. This is a sign the Send Queue is
 	 * backing up. Cause the caller to pause and try again.
 	 */
-	dprintk("RPC:       %s: empty sendctx queue\n", __func__);
+	set_bit(RPCRDMA_BUF_F_EMPTY_SCQ, &buf->rb_flags);
 	r_xprt = container_of(buf, struct rpcrdma_xprt, rx_buf);
 	r_xprt->rx_stats.empty_sendctx_q++;
 	return NULL;
@@ -970,6 +971,11 @@ rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 
 	/* Paired with READ_ONCE */
 	smp_store_release(&buf->rb_sc_tail, next_tail);
+
+	if (test_and_clear_bit(RPCRDMA_BUF_F_EMPTY_SCQ, &buf->rb_flags)) {
+		smp_mb__after_atomic();
+		xprt_write_space(&sc->sc_xprt->rx_xprt);
+	}
 }
 
 static void
