@@ -761,6 +761,34 @@ xfs_qm_dqget_cache_insert(
 	return 0;
 }
 
+/* Check our input parameters. */
+static int
+xfs_qm_dqget_checks(
+	struct xfs_mount	*mp,
+	uint			type)
+{
+	if (WARN_ON_ONCE(!XFS_IS_QUOTA_RUNNING(mp)))
+		return -ESRCH;
+
+	switch (type) {
+	case XFS_DQ_USER:
+		if (!XFS_IS_UQUOTA_ON(mp))
+			return -ESRCH;
+		return 0;
+	case XFS_DQ_GROUP:
+		if (!XFS_IS_GQUOTA_ON(mp))
+			return -ESRCH;
+		return 0;
+	case XFS_DQ_PROJ:
+		if (!XFS_IS_PQUOTA_ON(mp))
+			return -ESRCH;
+		return 0;
+	default:
+		WARN_ON_ONCE(0);
+		return -EINVAL;
+	}
+}
+
 /*
  * Given the file system, inode OR id, and type (UDQUOT/GDQUOT), return a
  * a locked dquot, doing an allocation (if requested) as needed.
@@ -783,16 +811,10 @@ xfs_qm_dqget(
 	struct xfs_dquot	*dqp;
 	int			error;
 
-	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
-	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
-	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
-	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
-		return -ESRCH;
-	}
+	error = xfs_qm_dqget_checks(mp, type);
+	if (error)
+		return error;
 
-	ASSERT(type == XFS_DQ_USER ||
-	       type == XFS_DQ_PROJ ||
-	       type == XFS_DQ_GROUP);
 	if (ip) {
 		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 		ASSERT(xfs_inode_dquot(ip, type) == NULL);
