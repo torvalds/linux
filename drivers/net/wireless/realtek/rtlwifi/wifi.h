@@ -2842,11 +2842,6 @@ enum bt_co_type {
 	BT_RTL8812A = 11,
 };
 
-enum bt_total_ant_num {
-	ANT_TOTAL_X2 = 0,
-	ANT_TOTAL_X1 = 1
-};
-
 enum bt_cur_state {
 	BT_OFF = 0,
 	BT_ON = 1,
