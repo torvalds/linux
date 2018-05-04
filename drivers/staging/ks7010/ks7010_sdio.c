@@ -425,7 +425,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 	int ret;
 	struct rx_device_buffer *rx_buffer;
 	struct hostif_hdr *hdr;
-	unsigned short event = 0;
+	u16 event = 0;
 
 	/* receive data */
 	if (rxq_count(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
