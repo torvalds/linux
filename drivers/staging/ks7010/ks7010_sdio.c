@@ -542,7 +542,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
-	unsigned char status, rsize, byte;
+	u8 status, rsize, byte;
 
 	card = sdio_get_drvdata(func);
 	priv = card->priv;
