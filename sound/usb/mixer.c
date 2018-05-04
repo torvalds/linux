@@ -201,10 +201,10 @@ static void *find_audio_control_unit(struct mixer_build *state,
 /*
  * copy a string with the given id
  */
-static int snd_usb_copy_string_desc(struct mixer_build *state,
+static int snd_usb_copy_string_desc(struct snd_usb_audio *chip,
 				    int index, char *buf, int maxlen)
 {
-	int len = usb_string(state->chip->dev, index, buf, maxlen - 1);
+	int len = usb_string(chip->dev, index, buf, maxlen - 1);
 
 	if (len < 0)
 		return 0;
@@ -658,14 +658,14 @@ static struct iterm_name_combo {
 	{ 0 },
 };
 
-static int get_term_name(struct mixer_build *state, struct usb_audio_term *iterm,
+static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iterm,
 			 unsigned char *name, int maxlen, int term_only)
 {
 	struct iterm_name_combo *names;
 	int len;
 
 	if (iterm->name) {
-		len = snd_usb_copy_string_desc(state, iterm->name,
+		len = snd_usb_copy_string_desc(chip, iterm->name,
 						name, maxlen);
 		if (len)
 			return len;
@@ -1407,7 +1407,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	mapped_name = len != 0;
 	if (!len && nameid)
-		len = snd_usb_copy_string_desc(state, nameid,
+		len = snd_usb_copy_string_desc(state->chip, nameid,
 				kctl->id.name, sizeof(kctl->id.name));
 
 	switch (control) {
@@ -1422,10 +1422,10 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		 * - otherwise, anonymous name.
 		 */
 		if (!len) {
-			len = get_term_name(state, iterm, kctl->id.name,
+			len = get_term_name(state->chip, iterm, kctl->id.name,
 					    sizeof(kctl->id.name), 1);
 			if (!len)
-				len = get_term_name(state, &state->oterm,
+				len = get_term_name(state->chip, &state->oterm,
 						    kctl->id.name,
 						    sizeof(kctl->id.name), 1);
 			if (!len)
@@ -1498,7 +1498,7 @@ static void get_connector_control_name(struct mixer_build *state,
 				       struct usb_audio_term *term,
 				       bool is_input, char *name, int name_size)
 {
-	int name_len = get_term_name(state, term, name, name_size, 0);
+	int name_len = get_term_name(state->chip, term, name, name_size, 0);
 
 	if (name_len == 0)
 		strlcpy(name, "Unknown", name_size);
@@ -1597,7 +1597,7 @@ static int parse_clock_source_unit(struct mixer_build *state, int unitid,
 	}
 
 	kctl->private_free = snd_usb_mixer_elem_free;
-	ret = snd_usb_copy_string_desc(state, hdr->iClockSource,
+	ret = snd_usb_copy_string_desc(state->chip, hdr->iClockSource,
 				       name, sizeof(name));
 	if (ret > 0)
 		snprintf(kctl->id.name, sizeof(kctl->id.name),
@@ -1840,7 +1840,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 
 	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	if (!len)
-		len = get_term_name(state, iterm, kctl->id.name,
+		len = get_term_name(state->chip, iterm, kctl->id.name,
 				    sizeof(kctl->id.name), 0);
 	if (!len)
 		len = sprintf(kctl->id.name, "Mixer Source %d", in_ch + 1);
@@ -2154,7 +2154,8 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 			nameid = uac_processing_unit_iProcessing(desc, state->mixer->protocol);
 			len = 0;
 			if (nameid)
-				len = snd_usb_copy_string_desc(state, nameid,
+				len = snd_usb_copy_string_desc(state->chip,
+							       nameid,
 							       kctl->id.name,
 							       sizeof(kctl->id.name));
 			if (!len)
@@ -2350,7 +2351,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 		len = check_mapped_selector_name(state, unitid, i, namelist[i],
 						 MAX_ITEM_NAME_LEN);
 		if (! len && check_input_term(state, desc->baSourceID[i], &iterm) >= 0)
-			len = get_term_name(state, &iterm, namelist[i], MAX_ITEM_NAME_LEN, 0);
+			len = get_term_name(state->chip, &iterm, namelist[i],
+					    MAX_ITEM_NAME_LEN, 0);
 		if (! len)
 			sprintf(namelist[i], "Input %u", i);
 	}
@@ -2372,12 +2374,12 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 		/* if iSelector is given, use it */
 		nameid = uac_selector_unit_iSelector(desc);
 		if (nameid)
-			len = snd_usb_copy_string_desc(state, nameid,
+			len = snd_usb_copy_string_desc(state->chip, nameid,
 						       kctl->id.name,
 						       sizeof(kctl->id.name));
 		/* ... or pick up the terminal name at next */
 		if (!len)
-			len = get_term_name(state, &state->oterm,
+			len = get_term_name(state->chip, &state->oterm,
 				    kctl->id.name, sizeof(kctl->id.name), 0);
 		/* ... or use the fixed string "USB" as the last resort */
 		if (!len)
