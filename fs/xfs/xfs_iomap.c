@@ -576,7 +576,7 @@ xfs_file_iomap_begin_delay(
 		goto done;
 	}
 
-	error = xfs_qm_dqattach_locked(ip, 0);
+	error = xfs_qm_dqattach_locked(ip, false);
 	if (error)
 		goto out_unlock;
 

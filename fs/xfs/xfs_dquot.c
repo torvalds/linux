@@ -790,24 +790,19 @@ xfs_qm_dqget_checks(
 }
 
 /*
- * Given the file system, inode OR id, and type (UDQUOT/GDQUOT), return a
- * a locked dquot, doing an allocation (if requested) as needed.
- * When both an inode and an id are given, the inode's id takes precedence.
- * That is, if the id changes while we don't hold the ilock inside this
- * function, the new dquot is returned, not necessarily the one requested
- * in the id argument.
+ * Given the file system, id, and type (UDQUOT/GDQUOT), return a a locked
+ * dquot, doing an allocation (if requested) as needed.
  */
 int
 xfs_qm_dqget(
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip,	  /* locked inode (optional) */
-	xfs_dqid_t	id,	  /* uid/projid/gid depending on type */
-	uint		type,	  /* XFS_DQ_USER/XFS_DQ_PROJ/XFS_DQ_GROUP */
-	uint		flags,	  /* DQALLOC, DQSUSER, DQREPAIR, DOWARN */
-	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
+	struct xfs_mount	*mp,
+	xfs_dqid_t		id,
+	uint			type,
+	uint			flags,	  /* DQALLOC, DQSUSER, DQREPAIR, DOWARN */
+	struct xfs_dquot	**O_dqpp)
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root *tree = xfs_dquot_tree(qi, type);
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -815,10 +810,82 @@ xfs_qm_dqget(
 	if (error)
 		return error;
 
-	if (ip) {
-		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-		ASSERT(xfs_inode_dquot(ip, type) == NULL);
+restart:
+	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
+	if (dqp) {
+		*O_dqpp = dqp;
+		return 0;
 	}
+
+	error = xfs_qm_dqread(mp, id, type, flags, &dqp);
+	if (error)
+		return error;
+
+	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
+	if (error) {
+		/*
+		 * Duplicate found. Just throw away the new dquot and start
+		 * over.
+		 */
+		xfs_qm_dqdestroy(dqp);
+		XFS_STATS_INC(mp, xs_qm_dquot_dups);
+		goto restart;
+	}
+
+	trace_xfs_dqget_miss(dqp);
+	*O_dqpp = dqp;
+	return 0;
+}
+
+/* Return the quota id for a given inode and type. */
+xfs_dqid_t
+xfs_qm_id_for_quotatype(
+	struct xfs_inode	*ip,
+	uint			type)
+{
+	switch (type) {
+	case XFS_DQ_USER:
+		return ip->i_d.di_uid;
+	case XFS_DQ_GROUP:
+		return ip->i_d.di_gid;
+	case XFS_DQ_PROJ:
+		return xfs_get_projid(ip);
+	}
+	ASSERT(0);
+	return 0;
+}
+
+/*
+ * Return the dquot for a given inode and type.  If @can_alloc is true, then
+ * allocate blocks if needed.  The inode's ILOCK must be held and it must not
+ * have already had an inode attached.
+ */
+int
+xfs_qm_dqget_inode(
+	struct xfs_inode	*ip,
+	uint			type,
+	bool			can_alloc,
+	struct xfs_dquot	**O_dqpp)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
+	struct xfs_dquot	*dqp;
+	xfs_dqid_t		id;
+	uint			flags = 0;
+	int			error;
+
+	error = xfs_qm_dqget_checks(mp, type);
+	if (error)
+		return error;
+
+	if (can_alloc)
+		flags |= XFS_QMOPT_DQALLOC;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(xfs_inode_dquot(ip, type) == NULL);
+
+	id = xfs_qm_id_for_quotatype(ip, type);
 
 restart:
 	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
@@ -834,37 +901,30 @@ restart:
 	 * lock here means dealing with a chown that can happen before
 	 * we re-acquire the lock.
 	 */
-	if (ip)
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	error = xfs_qm_dqread(mp, id, type, flags, &dqp);
-
-	if (ip)
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (error)
 		return error;
 
-	if (ip) {
-		/*
-		 * A dquot could be attached to this inode by now, since
-		 * we had dropped the ilock.
-		 */
-		if (xfs_this_quota_on(mp, type)) {
-			struct xfs_dquot	*dqp1;
+	/*
+	 * A dquot could be attached to this inode by now, since we had
+	 * dropped the ilock.
+	 */
+	if (xfs_this_quota_on(mp, type)) {
+		struct xfs_dquot	*dqp1;
 
-			dqp1 = xfs_inode_dquot(ip, type);
-			if (dqp1) {
-				xfs_qm_dqdestroy(dqp);
-				dqp = dqp1;
-				xfs_dqlock(dqp);
-				goto dqret;
-			}
-		} else {
-			/* inode stays locked on return */
+		dqp1 = xfs_inode_dquot(ip, type);
+		if (dqp1) {
 			xfs_qm_dqdestroy(dqp);
-			return -ESRCH;
+			dqp = dqp1;
+			xfs_dqlock(dqp);
+			goto dqret;
 		}
+	} else {
+		/* inode stays locked on return */
+		xfs_qm_dqdestroy(dqp);
+		return -ESRCH;
 	}
 
 	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
@@ -878,8 +938,8 @@ restart:
 		goto restart;
 	}
 
- dqret:
-	ASSERT((ip == NULL) || xfs_isilocked(ip, XFS_ILOCK_EXCL));
+dqret:
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
 	return 0;
@@ -901,7 +961,7 @@ xfs_qm_dqget_next(
 
 	*dqpp = NULL;
 	for (; !error; error = xfs_dq_get_next_id(mp, type, &id)) {
-		error = xfs_qm_dqget(mp, NULL, id, type, 0, &dqp);
+		error = xfs_qm_dqget(mp, id, type, 0, &dqp);
 		if (error == -ENOENT)
 			continue;
 		else if (error != 0)
