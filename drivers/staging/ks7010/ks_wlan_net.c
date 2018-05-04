@@ -1960,17 +1960,14 @@ static int ks_wlan_set_phy_type(struct net_device *dev,
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	/* for SLEEP MODE */
-	if (*uwrq == D_11B_ONLY_MODE) {	/* 0 */
-		priv->reg.phy_type = D_11B_ONLY_MODE;
-	} else if (*uwrq == D_11G_ONLY_MODE) {	/* 1 */
-		priv->reg.phy_type = D_11G_ONLY_MODE;
-	} else if (*uwrq == D_11BG_COMPATIBLE_MODE) {	/* 2 */
-		priv->reg.phy_type = D_11BG_COMPATIBLE_MODE;
-	} else {
-		return -EINVAL;
-	}
 
+	if (*uwrq != D_11B_ONLY_MODE &&
+	    *uwrq != D_11G_ONLY_MODE &&
+	    *uwrq != D_11BG_COMPATIBLE_MODE)
+		return -EINVAL;
+
+	/* for SLEEP MODE */
+	priv->reg.phy_type = *uwrq;
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
 }
