@@ -477,7 +477,7 @@ static void ks7010_rw_function(struct work_struct *work)
 						    struct ks_wlan_private,
 						    rw_dwork.work);
 	struct sdio_func *func = ks7010_to_func(priv);
-	unsigned char byte;
+	u8 byte;
 	int ret;
 
 	/* wait after DOZE */
