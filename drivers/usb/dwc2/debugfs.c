@@ -368,7 +368,7 @@ static const struct debugfs_reg32 dwc2_regs[] = {
 	dump_register(GINTSTS),
 	dump_register(GINTMSK),
 	dump_register(GRXSTSR),
-	dump_register(GRXSTSP),
+	/* Omit GRXSTSP */
 	dump_register(GRXFSIZ),
 	dump_register(GNPTXFSIZ),
 	dump_register(GNPTXSTS),
