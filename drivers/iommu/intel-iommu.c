@@ -2574,15 +2574,13 @@ static struct dmar_domain *find_or_alloc_domain(struct device *dev, int gaw)
 	struct device_domain_info *info = NULL;
 	struct dmar_domain *domain = NULL;
 	struct intel_iommu *iommu;
-	u16 req_id, dma_alias;
+	u16 dma_alias;
 	unsigned long flags;
 	u8 bus, devfn;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return NULL;
-
-	req_id = ((u16)bus << 8) | devfn;
 
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
