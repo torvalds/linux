@@ -504,18 +504,15 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		break;
 	case LOCAL_EEPROM_SUM:
 		memcpy(&priv->eeprom_sum, priv->rxp, sizeof(priv->eeprom_sum));
-		if (priv->eeprom_sum.type == 0) {
-			priv->eeprom_checksum = EEPROM_CHECKSUM_NONE;
-		} else if (priv->eeprom_sum.type == 1) {
-			if (priv->eeprom_sum.result == 0) {
-				priv->eeprom_checksum = EEPROM_NG;
-				netdev_info(dev, "LOCAL_EEPROM_SUM NG\n");
-			} else if (priv->eeprom_sum.result == 1) {
-				priv->eeprom_checksum = EEPROM_OK;
-			}
-		} else {
+		if (priv->eeprom_sum.type != 0 &&
+		    priv->eeprom_sum.type != 1) {
 			netdev_err(dev, "LOCAL_EEPROM_SUM error!\n");
+			return;
 		}
+		priv->eeprom_checksum = (priv->eeprom_sum.type == 0) ?
+					 EEPROM_CHECKSUM_NONE :
+					 (priv->eeprom_sum.result == 0) ?
+					 EEPROM_NG : EEPROM_OK;
 		break;
 	default:
 		netdev_err(priv->net_dev, "mib_attribute=%08x\n",
