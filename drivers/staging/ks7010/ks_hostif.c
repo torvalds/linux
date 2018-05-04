@@ -845,7 +845,7 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 static
 void hostif_bss_scan_confirm(struct ks_wlan_private *priv)
 {
-	unsigned int result_code;
+	u32 result_code;
 	struct net_device *dev = priv->net_dev;
 	union iwreq_data wrqu;
 
