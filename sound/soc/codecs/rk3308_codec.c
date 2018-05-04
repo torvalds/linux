@@ -2528,6 +2528,7 @@ failed:
 	clk_disable_unprepare(rk3308->mclk_rx);
 	clk_disable_unprepare(rk3308->mclk_tx);
 	clk_disable_unprepare(rk3308->pclk);
+	device_unregister(&rk3308->dev);
 
 	return ret;
 }
@@ -2541,6 +2542,7 @@ static int rk3308_platform_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rk3308->mclk_tx);
 	clk_disable_unprepare(rk3308->pclk);
 	snd_soc_unregister_codec(&pdev->dev);
+	device_unregister(&rk3308->dev);
 
 	return 0;
 }
