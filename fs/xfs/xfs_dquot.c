@@ -362,32 +362,40 @@ xfs_qm_dqalloc(
 			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 
 	/*
-	 * xfs_defer_finish() may commit the current transaction and
-	 * start a second transaction if the freelist is not empty.
+	 * Hold the buffer and join it to the dfops so that we'll still own
+	 * the buffer when we return to the caller.  The buffer disposal on
+	 * error must be paid attention to very carefully, as it has been
+	 * broken since commit efa092f3d4c6 "[XFS] Fixes a bug in the quota
+	 * code when allocating a new dquot record" in 2005, and the later
+	 * conversion to xfs_defer_ops in commit 310a75a3c6c747 failed to keep
+	 * the buffer locked across the _defer_finish call.  We can now do
+	 * this correctly with xfs_defer_bjoin.
 	 *
-	 * Since we still want to modify this buffer, we need to
-	 * ensure that the buffer is not released on commit of
-	 * the first transaction and ensure the buffer is added to the
-	 * second transaction.
+	 * Above, we allocated a disk block for the dquot information and
+	 * used get_buf to initialize the dquot.  If the _defer_bjoin fails,
+	 * the buffer is still locked to *tpp, so we must _bhold_release and
+	 * then _trans_brelse the buffer.  If the _defer_finish fails, the old
+	 * transaction is gone but the new buffer is not joined or held to any
+	 * transaction, so we must _buf_relse it.
 	 *
-	 * If there is only one transaction then don't stop the buffer
-	 * from being released when it commits later on.
+	 * If everything succeeds, the caller of this function is returned a
+	 * buffer that is locked and joined to the transaction.  The caller
+	 * is responsible for unlocking any buffer passed back, either
+	 * manually or by committing the transaction.
 	 */
-
-	xfs_trans_bhold(tp, bp);
-
-	error = xfs_defer_finish(tpp, &dfops);
-	if (error)
+	xfs_trans_bhold(*tpp, bp);
+	error = xfs_defer_bjoin(&dfops, bp);
+	if (error) {
+		xfs_trans_bhold_release(*tpp, bp);
+		xfs_trans_brelse(*tpp, bp);
 		goto error1;
-
-	/* Transaction was committed? */
-	if (*tpp != tp) {
-		tp = *tpp;
-		xfs_trans_bjoin(tp, bp);
-	} else {
-		xfs_trans_bhold_release(tp, bp);
 	}
-
+	error = xfs_defer_finish(tpp, &dfops);
+	if (error) {
+		xfs_buf_relse(bp);
+		goto error1;
+	}
+	xfs_trans_bhold_release(*tpp, bp);
 	*O_bpp = bp;
 	return 0;
 
