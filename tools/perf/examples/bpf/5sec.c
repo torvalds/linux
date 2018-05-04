@@ -40,5 +40,4 @@ int func(void *ctx, int err, long sec)
 	return sec == 5;
 }
 
-char _license[] SEC("license") = "GPL";
-int _version SEC("version") = LINUX_VERSION_CODE;
+license(GPL);
