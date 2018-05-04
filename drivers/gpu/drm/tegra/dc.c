@@ -1837,21 +1837,11 @@ static int tegra_dc_init(struct host1x_client *client)
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
-	if (tegra->domain) {
-		dc->group = iommu_group_get(client->dev);
-
-		if (dc->group && dc->group != tegra->group) {
-			err = iommu_attach_group(tegra->domain, dc->group);
-			if (err < 0) {
-				dev_err(dc->dev,
-					"failed to attach to domain: %d\n",
-					err);
-				iommu_group_put(dc->group);
-				return err;
-			}
-
-			tegra->group = dc->group;
-		}
+	dc->group = host1x_client_iommu_attach(client, true);
+	if (IS_ERR(dc->group)) {
+		err = PTR_ERR(dc->group);
+		dev_err(client->dev, "failed to attach to domain: %d\n", err);
+		return err;
 	}
 
 	if (dc->soc->wgrps)
@@ -1916,15 +1906,7 @@ cleanup:
 	if (!IS_ERR(primary))
 		drm_plane_cleanup(primary);
 
-	if (dc->group) {
-		if (dc->group == tegra->group) {
-			iommu_detach_group(tegra->domain, dc->group);
-			tegra->group = NULL;
-		}
-
-		iommu_group_put(dc->group);
-	}
-
+	host1x_client_iommu_detach(client, dc->group);
 	host1x_syncpt_free(dc->syncpt);
 
 	return err;
@@ -1932,9 +1914,7 @@ cleanup:
 
 static int tegra_dc_exit(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_dc *dc = host1x_client_to_dc(client);
-	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
@@ -1945,15 +1925,7 @@ static int tegra_dc_exit(struct host1x_client *client)
 		return err;
 	}
 
-	if (dc->group) {
-		if (dc->group == tegra->group) {
-			iommu_detach_group(tegra->domain, dc->group);
-			tegra->group = NULL;
-		}
-
-		iommu_group_put(dc->group);
-	}
-
+	host1x_client_iommu_detach(client, dc->group);
 	host1x_syncpt_free(dc->syncpt);
 
 	return 0;

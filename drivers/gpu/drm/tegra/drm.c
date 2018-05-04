@@ -1114,6 +1114,52 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 	return 0;
 }
 
+struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
+					       bool shared)
+{
+	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct tegra_drm *tegra = drm->dev_private;
+	struct iommu_group *group = NULL;
+	int err;
+
+	if (tegra->domain) {
+		group = iommu_group_get(client->dev);
+		if (!group) {
+			dev_err(client->dev, "failed to get IOMMU group\n");
+			return ERR_PTR(-ENODEV);
+		}
+
+		if (!shared || (shared && (group != tegra->group))) {
+			err = iommu_attach_group(tegra->domain, group);
+			if (err < 0) {
+				iommu_group_put(group);
+				return ERR_PTR(err);
+			}
+
+			if (shared && !tegra->group)
+				tegra->group = group;
+		}
+	}
+
+	return group;
+}
+
+void host1x_client_iommu_detach(struct host1x_client *client,
+				struct iommu_group *group)
+{
+	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct tegra_drm *tegra = drm->dev_private;
+
+	if (group) {
+		if (group == tegra->group) {
+			iommu_detach_group(tegra->domain, group);
+			tegra->group = NULL;
+		}
+
+		iommu_group_put(group);
+	}
+}
+
 void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 {
 	struct iova *alloc;

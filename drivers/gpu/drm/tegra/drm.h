@@ -110,6 +110,10 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client);
 int tegra_drm_unregister_client(struct tegra_drm *tegra,
 				struct tegra_drm_client *client);
+struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
+					       bool shared);
+void host1x_client_iommu_detach(struct host1x_client *client,
+				struct iommu_group *group);
 
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 int tegra_drm_exit(struct tegra_drm *tegra);
