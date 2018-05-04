@@ -109,7 +109,7 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 }
 
 static efi_status_t
-__setup_efi_pci32(efi_pci_io_protocol_32 *pci, struct pci_setup_rom **__rom)
+__setup_efi_pci32(efi_pci_io_protocol_32_t *pci, struct pci_setup_rom **__rom)
 {
 	struct pci_setup_rom *rom = NULL;
 	efi_status_t status;
@@ -176,7 +176,7 @@ static void
 setup_efi_pci32(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
-	efi_pci_io_protocol_32 *pci = NULL;
+	efi_pci_io_protocol_32_t *pci = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	u32 *handles = (u32 *)(unsigned long)pci_handle;
 	efi_status_t status;
@@ -218,7 +218,7 @@ setup_efi_pci32(struct boot_params *params, void **pci_handle,
 }
 
 static efi_status_t
-__setup_efi_pci64(efi_pci_io_protocol_64 *pci, struct pci_setup_rom **__rom)
+__setup_efi_pci64(efi_pci_io_protocol_64_t *pci, struct pci_setup_rom **__rom)
 {
 	struct pci_setup_rom *rom;
 	efi_status_t status;
@@ -284,7 +284,7 @@ static void
 setup_efi_pci64(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
-	efi_pci_io_protocol_64 *pci = NULL;
+	efi_pci_io_protocol_64_t *pci = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	u64 *handles = (u64 *)(unsigned long)pci_handle;
 	efi_status_t status;
