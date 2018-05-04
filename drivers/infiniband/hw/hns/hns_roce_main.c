@@ -199,7 +199,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 
 	memset(props, 0, sizeof(*props));
 
-	props->sys_image_guid = cpu_to_be32(hr_dev->sys_image_guid);
+	props->sys_image_guid = cpu_to_be64(hr_dev->sys_image_guid);
 	props->max_mr_size = (u64)(~(0ULL));
 	props->page_size_cap = hr_dev->caps.page_size_cap;
 	props->vendor_id = hr_dev->vendor_id;
