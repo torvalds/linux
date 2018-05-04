@@ -1977,7 +1977,7 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 
 	if (!err) {
 		btf_verifier_env_free(env);
-		btf_get(btf);
+		refcount_set(&btf->refcnt, 1);
 		return btf;
 	}
 
