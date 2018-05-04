@@ -5975,9 +5975,8 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret, 0, 1);
 }
 
-int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
-		     u64 chunk_start, u64 physical, u64 devid,
-		     u64 **logical, int *naddrs, int *stripe_len)
+int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
+		     u64 physical, u64 **logical, int *naddrs, int *stripe_len)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -6009,8 +6008,6 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 	BUG_ON(!buf); /* -ENOMEM */
 
 	for (i = 0; i < map->num_stripes; i++) {
-		if (devid && map->stripes[i].dev->devid != devid)
-			continue;
 		if (map->stripes[i].physical > physical ||
 		    map->stripes[i].physical + length <= physical)
 			continue;

@@ -256,7 +256,7 @@ static int exclude_super_stripes(struct btrfs_fs_info *fs_info,
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		bytenr = btrfs_sb_offset(i);
 		ret = btrfs_rmap_block(fs_info, cache->key.objectid,
-				       bytenr, 0, &logical, &nr, &stripe_len);
+				       bytenr, &logical, &nr, &stripe_len);
 		if (ret)
 			return ret;
 
