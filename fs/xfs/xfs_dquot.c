@@ -586,7 +586,7 @@ err:
  *
  * If XFS_QMOPT_DQALLOC is set, allocate a dquot on disk if it needed.
  */
-int
+static int
 xfs_qm_dqread(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
@@ -830,6 +830,28 @@ restart:
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
 	return 0;
+}
+
+/*
+ * Given a dquot id and type, read and initialize a dquot from the on-disk
+ * metadata.  This function is only for use during quota initialization so
+ * it ignores the dquot cache assuming that the dquot shrinker isn't set up.
+ * The caller is responsible for _qm_dqdestroy'ing the returned dquot.
+ */
+int
+xfs_qm_dqget_uncached(
+	struct xfs_mount	*mp,
+	xfs_dqid_t		id,
+	uint			type,
+	struct xfs_dquot	**dqpp)
+{
+	int			error;
+
+	error = xfs_qm_dqget_checks(mp, type);
+	if (error)
+		return error;
+
+	return xfs_qm_dqread(mp, id, type, 0, dqpp);
 }
 
 /* Return the quota id for a given inode and type. */

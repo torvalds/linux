@@ -160,8 +160,6 @@ static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
 #define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
 #define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)
 
-extern int		xfs_qm_dqread(struct xfs_mount *, xfs_dqid_t, uint,
-					uint, struct xfs_dquot	**);
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(struct xfs_dquot *, struct xfs_buf **);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
@@ -179,6 +177,9 @@ extern int		xfs_qm_dqget_inode(struct xfs_inode *ip, uint type,
 					struct xfs_dquot **dqpp);
 extern int		xfs_qm_dqget_next(struct xfs_mount *mp, xfs_dqid_t id,
 					uint type, struct xfs_dquot **dqpp);
+extern int		xfs_qm_dqget_uncached(struct xfs_mount *mp,
+					xfs_dqid_t id, uint type,
+					struct xfs_dquot **dqpp);
 extern void		xfs_qm_dqput(xfs_dquot_t *);
 
 extern void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);

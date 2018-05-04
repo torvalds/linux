@@ -563,8 +563,7 @@ xfs_qm_set_defquota(
 	struct xfs_def_quota    *defq;
 	int			error;
 
-	error = xfs_qm_dqread(mp, 0, type, 0, &dqp);
-
+	error = xfs_qm_dqget_uncached(mp, 0, type, &dqp);
 	if (!error) {
 		xfs_disk_dquot_t        *ddqp = &dqp->q_core;
 
@@ -590,11 +589,12 @@ xfs_qm_set_defquota(
  */
 STATIC int
 xfs_qm_init_quotainfo(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_quotainfo_t *qinf;
-	int		error;
-	xfs_dquot_t	*dqp;
+	struct xfs_quotainfo	*qinf;
+	struct xfs_dquot	*dqp;
+	uint			type;
+	int			error;
 
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
@@ -637,12 +637,13 @@ xfs_qm_init_quotainfo(
 	 * user/group/proj quota types, otherwise a default value is used.
 	 * This should be split into different fields per quota type.
 	 */
-	error = xfs_qm_dqread(mp, 0,
-			XFS_IS_UQUOTA_RUNNING(mp) ? XFS_DQ_USER :
-			 (XFS_IS_GQUOTA_RUNNING(mp) ? XFS_DQ_GROUP :
-			  XFS_DQ_PROJ),
-			0, &dqp);
-
+	if (XFS_IS_UQUOTA_RUNNING(mp))
+		type = XFS_DQ_USER;
+	else if (XFS_IS_GQUOTA_RUNNING(mp))
+		type = XFS_DQ_GROUP;
+	else
+		type = XFS_DQ_PROJ;
+	error = xfs_qm_dqget_uncached(mp, 0, type, &dqp);
 	if (!error) {
 		xfs_disk_dquot_t	*ddqp = &dqp->q_core;
 
