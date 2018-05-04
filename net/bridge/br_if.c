@@ -523,8 +523,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 		return -ELOOP;
 	}
 
-	/* Device is already being bridged */
-	if (br_port_exists(dev))
+	/* Device has master upper dev */
+	if (netdev_master_upper_dev_get(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */

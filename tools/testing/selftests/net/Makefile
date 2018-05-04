@@ -7,6 +7,7 @@ CFLAGS += -I../../../../usr/include/
 TEST_PROGS := run_netsocktests run_afpackettests test_bpf.sh netdevice.sh rtnetlink.sh
 TEST_PROGS += fib_tests.sh fib-onlink-tests.sh in_netns.sh pmtu.sh udpgso.sh
 TEST_PROGS += udpgso_bench.sh
+TEST_GEN_PROGS_EXTENDED := in_netns.sh
 TEST_GEN_FILES =  socket
 TEST_GEN_FILES += psock_fanout psock_tpacket msg_zerocopy
 TEST_GEN_FILES += tcp_mmap tcp_inq

@@ -293,6 +293,17 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 	smc_copy_sock_settings(&smc->sk, smc->clcsock->sk, SK_FLAGS_CLC_TO_SMC);
 }
 
+/* register a new rmb */
+static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
+{
+	/* register memory region for new rmb */
+	if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
+		rmb_desc->regerr = 1;
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static int smc_clnt_conf_first_link(struct smc_sock *smc)
 {
 	struct net *net = sock_net(smc->clcsock->sk);
@@ -323,9 +334,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 
 	smc_wr_remember_qp_attr(link);
 
-	rc = smc_wr_reg_send(link,
-			     smc->conn.rmb_desc->mr_rx[SMC_SINGLE_LINK]);
-	if (rc)
+	if (smc_reg_rmb(link, smc->conn.rmb_desc))
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK response over RoCE fabric */
@@ -478,13 +487,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 			goto decline_rdma_unlock;
 		}
 	} else {
-		struct smc_buf_desc *buf_desc = smc->conn.rmb_desc;
-
-		if (!buf_desc->reused) {
-			/* register memory region for new rmb */
-			rc = smc_wr_reg_send(link,
-					     buf_desc->mr_rx[SMC_SINGLE_LINK]);
-			if (rc) {
+		if (!smc->conn.rmb_desc->reused) {
+			if (smc_reg_rmb(link, smc->conn.rmb_desc)) {
 				reason_code = SMC_CLC_DECL_INTERR;
 				goto decline_rdma_unlock;
 			}
@@ -725,9 +729,7 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 
 	link = &lgr->lnk[SMC_SINGLE_LINK];
 
-	rc = smc_wr_reg_send(link,
-			     smc->conn.rmb_desc->mr_rx[SMC_SINGLE_LINK]);
-	if (rc)
+	if (smc_reg_rmb(link, smc->conn.rmb_desc))
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK request to client over the RoCE fabric */
@@ -863,13 +865,8 @@ static void smc_listen_work(struct work_struct *work)
 	smc_rx_init(new_smc);
 
 	if (local_contact != SMC_FIRST_CONTACT) {
-		struct smc_buf_desc *buf_desc = new_smc->conn.rmb_desc;
-
-		if (!buf_desc->reused) {
-			/* register memory region for new rmb */
-			rc = smc_wr_reg_send(link,
-					     buf_desc->mr_rx[SMC_SINGLE_LINK]);
-			if (rc) {
+		if (!new_smc->conn.rmb_desc->reused) {
+			if (smc_reg_rmb(link, new_smc->conn.rmb_desc)) {
 				reason_code = SMC_CLC_DECL_INTERR;
 				goto decline_rdma_unlock;
 			}
@@ -1207,13 +1204,15 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 		/* delegate to CLC child sock */
 		release_sock(sk);
 		mask = smc->clcsock->ops->poll(file, smc->clcsock, wait);
-		/* if non-blocking connect finished ... */
 		lock_sock(sk);
-		if ((sk->sk_state == SMC_INIT) && (mask & EPOLLOUT)) {
-			sk->sk_err = smc->clcsock->sk->sk_err;
-			if (sk->sk_err) {
-				mask |= EPOLLERR;
-			} else {
+		sk->sk_err = smc->clcsock->sk->sk_err;
+		if (sk->sk_err) {
+			mask |= EPOLLERR;
+		} else {
+			/* if non-blocking connect finished ... */
+			if (sk->sk_state == SMC_INIT &&
+			    mask & EPOLLOUT &&
+			    smc->clcsock->sk->sk_state != TCP_CLOSE) {
 				rc = smc_connect_rdma(smc);
 				if (rc < 0)
 					mask |= EPOLLERR;
@@ -1433,8 +1432,11 @@ static ssize_t smc_sendpage(struct socket *sock, struct page *page,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
-	if (sk->sk_state != SMC_ACTIVE)
+	if (sk->sk_state != SMC_ACTIVE) {
+		release_sock(sk);
 		goto out;
+	}
+	release_sock(sk);
 	if (smc->use_fallback)
 		rc = kernel_sendpage(smc->clcsock, page, offset,
 				     size, flags);
@@ -1442,7 +1444,6 @@ static ssize_t smc_sendpage(struct socket *sock, struct page *page,
 		rc = sock_no_sendpage(sock, page, offset, size, flags);
 
 out:
-	release_sock(sk);
 	return rc;
 }
 

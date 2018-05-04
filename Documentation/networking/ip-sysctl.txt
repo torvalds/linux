@@ -2139,18 +2139,3 @@ max_dgram_qlen - INTEGER
 
 	Default: 10
 
-
-UNDOCUMENTED:
-
-/proc/sys/net/irda/*
-	fast_poll_increase FIXME
-	warn_noreply_time FIXME
-	discovery_slots FIXME
-	slot_timeout FIXME
-	max_baud_rate FIXME
-	discovery_timeout FIXME
-	lap_keepalive_time FIXME
-	max_noreply_time FIXME
-	max_tx_data_size FIXME
-	max_tx_window FIXME
-	min_tx_turn_time FIXME

@@ -2271,7 +2271,7 @@ int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rtnl_lock();
 	for (bearer_id = prev_bearer; bearer_id < MAX_BEARERS; bearer_id++) {
-		err = __tipc_nl_add_monitor(net, &msg, prev_bearer);
+		err = __tipc_nl_add_monitor(net, &msg, bearer_id);
 		if (err)
 			break;
 	}

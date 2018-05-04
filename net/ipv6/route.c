@@ -1932,11 +1932,16 @@ static void ip6_multipath_l3_keys(const struct sk_buff *skb,
 	const struct ipv6hdr *inner_iph;
 	const struct icmp6hdr *icmph;
 	struct ipv6hdr _inner_iph;
+	struct icmp6hdr _icmph;
 
 	if (likely(outer_iph->nexthdr != IPPROTO_ICMPV6))
 		goto out;
 
-	icmph = icmp6_hdr(skb);
+	icmph = skb_header_pointer(skb, skb_transport_offset(skb),
+				   sizeof(_icmph), &_icmph);
+	if (!icmph)
+		goto out;
+
 	if (icmph->icmp6_type != ICMPV6_DEST_UNREACH &&
 	    icmph->icmp6_type != ICMPV6_PKT_TOOBIG &&
 	    icmph->icmp6_type != ICMPV6_TIME_EXCEED &&

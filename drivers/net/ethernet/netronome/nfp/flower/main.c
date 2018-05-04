@@ -360,7 +360,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 		}
 
 		SET_NETDEV_DEV(repr, &priv->nn->pdev->dev);
-		nfp_net_get_mac_addr(app->pf, port);
+		nfp_net_get_mac_addr(app->pf, repr, port);
 
 		cmsg_port_id = nfp_flower_cmsg_phys_port(phys_port);
 		err = nfp_repr_init(app, repr,

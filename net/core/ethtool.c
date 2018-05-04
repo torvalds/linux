@@ -1007,6 +1007,11 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 		info_size = sizeof(info);
 		if (copy_from_user(&info, useraddr, info_size))
 			return -EFAULT;
+		/* Since malicious users may modify the original data,
+		 * we need to check whether FLOW_RSS is still requested.
+		 */
+		if (!(info.flow_type & FLOW_RSS))
+			return -EINVAL;
 	}
 
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
