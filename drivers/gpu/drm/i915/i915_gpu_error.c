@@ -32,6 +32,7 @@
 #include <linux/zlib.h>
 #include <drm/drm_print.h>
 
+#include "i915_gpu_error.h"
 #include "i915_drv.h"
 
 static inline const struct intel_engine_cs *

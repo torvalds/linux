@@ -1215,10 +1215,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 {
 	struct child_device_config *it, *child = NULL;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
-	uint8_t hdmi_level_shift;
 	int i, j;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
-	uint8_t aux_channel, ddc_pin;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port.
 	 */
@@ -1255,20 +1253,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (!child)
 		return;
 
-	aux_channel = child->aux_channel;
-
 	is_dvi = child->device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	is_dp = child->device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
 	is_crt = child->device_type & DEVICE_TYPE_ANALOG_OUTPUT;
 	is_hdmi = is_dvi && (child->device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
 	is_edp = is_dp && (child->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
-
-	if (port == PORT_A && is_dvi) {
-		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
-			      is_hdmi ? "/HDMI" : "");
-		is_dvi = false;
-		is_hdmi = false;
-	}
 
 	if (port == PORT_A && is_dvi) {
 		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
@@ -1302,6 +1291,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
+		u8 ddc_pin;
+
 		ddc_pin = map_ddc_pin(dev_priv, child->ddc_pin);
 		if (intel_gmbus_is_valid_pin(dev_priv, ddc_pin)) {
 			info->alternate_ddc_pin = ddc_pin;
@@ -1314,14 +1305,14 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	if (is_dp) {
-		info->alternate_aux_channel = aux_channel;
+		info->alternate_aux_channel = child->aux_channel;
 
 		sanitize_aux_ch(dev_priv, port);
 	}
 
 	if (bdb_version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
-		hdmi_level_shift = child->hdmi_level_shifter_value;
+		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
 		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
 			      port_name(port),
 			      hdmi_level_shift);

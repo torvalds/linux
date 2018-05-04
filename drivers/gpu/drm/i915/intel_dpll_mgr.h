@@ -206,6 +206,37 @@ struct intel_shared_dpll_funcs {
 };
 
 /**
+ * struct dpll_info - display PLL platform specific info
+ */
+struct dpll_info {
+	/**
+	 * @name: DPLL name; used for logging
+	 */
+	const char *name;
+
+	/**
+	 * @funcs: platform specific hooks
+	 */
+	const struct intel_shared_dpll_funcs *funcs;
+
+	/**
+	 * @id: unique indentifier for this DPLL; should match the index in the
+	 * dev_priv->shared_dplls array
+	 */
+	enum intel_dpll_id id;
+
+#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
+	/**
+	 * @flags:
+	 *
+	 * INTEL_DPLL_ALWAYS_ON
+	 *     Inform the state checker that the DPLL is kept enabled even if
+	 *     not in use by any CRTC.
+	 */
+	uint32_t flags;
+};
+
+/**
  * struct intel_shared_dpll - display PLL with tracked state and users
  */
 struct intel_shared_dpll {
@@ -228,30 +259,9 @@ struct intel_shared_dpll {
 	bool on;
 
 	/**
-	 * @name: DPLL name; used for logging
+	 * @info: platform specific info
 	 */
-	const char *name;
-
-	/**
-	 * @id: unique indentifier for this DPLL; should match the index in the
-	 * dev_priv->shared_dplls array
-	 */
-	enum intel_dpll_id id;
-
-	/**
-	 * @funcs: platform specific hooks
-	 */
-	struct intel_shared_dpll_funcs funcs;
-
-#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
-	/**
-	 * @flags:
-	 *
-	 * INTEL_DPLL_ALWAYS_ON
-	 *     Inform the state checker that the DPLL is kept enabled even if
-	 *     not in use by any CRTC.
-	 */
-	uint32_t flags;
+	const struct dpll_info *info;
 };
 
 #define SKL_DPLL0 0

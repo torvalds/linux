@@ -43,7 +43,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-#define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 #define DP_DPRX_ESI_LEN 14
 
 /* Compliance test status bits  */
@@ -92,8 +91,6 @@ static const struct dp_link_dpll chv_dpll[] = {
 		{ .p1 = 4, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a } },
 	{ 270000,	/* m2_int = 27, m2_fraction = 0 */
 		{ .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } },
-	{ 540000,	/* m2_int = 27, m2_fraction = 0 */
-		{ .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } }
 };
 
 /**
@@ -2901,10 +2898,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 
 	} else {
-		if (IS_CHERRYVIEW(dev_priv))
-			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
-		else
-			*DP &= ~DP_LINK_TRAIN_MASK;
+		*DP &= ~DP_LINK_TRAIN_MASK;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
@@ -2917,12 +2911,8 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			if (IS_CHERRYVIEW(dev_priv)) {
-				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
-			} else {
-				DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
-				*DP |= DP_LINK_TRAIN_PAT_2;
-			}
+			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
+			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		}
 	}
@@ -3661,10 +3651,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
-		if (IS_CHERRYVIEW(dev_priv))
-			DP &= ~DP_LINK_TRAIN_MASK_CHV;
-		else
-			DP &= ~DP_LINK_TRAIN_MASK;
+		DP &= ~DP_LINK_TRAIN_MASK;
 		DP |= DP_LINK_TRAIN_PAT_IDLE;
 	}
 	I915_WRITE(intel_dp->output_reg, DP);

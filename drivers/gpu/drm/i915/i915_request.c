@@ -59,11 +59,7 @@ static bool i915_fence_signaled(struct dma_fence *fence)
 
 static bool i915_fence_enable_signaling(struct dma_fence *fence)
 {
-	if (i915_fence_signaled(fence))
-		return false;
-
-	intel_engine_enable_signaling(to_request(fence), true);
-	return !i915_fence_signaled(fence);
+	return intel_engine_enable_signaling(to_request(fence), true);
 }
 
 static signed long i915_fence_wait(struct dma_fence *fence,
@@ -211,10 +207,18 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	if (ret)
 		return ret;
 
+	GEM_BUG_ON(i915->gt.active_requests);
+
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	for_each_engine(engine, i915, id) {
 		struct i915_gem_timeline *timeline;
 		struct intel_timeline *tl = engine->timeline;
+
+		GEM_TRACE("%s seqno %d (current %d) -> %d\n",
+			  engine->name,
+			  tl->seqno,
+			  intel_engine_get_seqno(engine),
+			  seqno);
 
 		if (!i915_seqno_passed(seqno, tl->seqno)) {
 			/* Flush any waiters before we reuse the seqno */
@@ -251,47 +255,6 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 	return reset_all_global_seqno(i915, seqno - 1);
 }
 
-static void mark_busy(struct drm_i915_private *i915)
-{
-	if (i915->gt.awake)
-		return;
-
-	GEM_BUG_ON(!i915->gt.active_requests);
-
-	intel_runtime_pm_get_noresume(i915);
-
-	/*
-	 * It seems that the DMC likes to transition between the DC states a lot
-	 * when there are no connected displays (no active power domains) during
-	 * command submission.
-	 *
-	 * This activity has negative impact on the performance of the chip with
-	 * huge latencies observed in the interrupt handler and elsewhere.
-	 *
-	 * Work around it by grabbing a GT IRQ power domain whilst there is any
-	 * GT activity, preventing any DC state transitions.
-	 */
-	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
-
-	i915->gt.awake = true;
-	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
-		i915->gt.epoch = 1;
-
-	intel_enable_gt_powersave(i915);
-	i915_update_gfx_val(i915);
-	if (INTEL_GEN(i915) >= 6)
-		gen6_rps_busy(i915);
-	i915_pmu_gt_unparked(i915);
-
-	intel_engines_unpark(i915);
-
-	i915_queue_hangcheck(i915);
-
-	queue_delayed_work(i915->wq,
-			   &i915->gt.retire_work,
-			   round_jiffies_up_relative(HZ));
-}
-
 static int reserve_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -309,7 +272,7 @@ static int reserve_engine(struct intel_engine_cs *engine)
 	}
 
 	if (!i915->gt.active_requests++)
-		mark_busy(i915);
+		i915_gem_unpark(i915);
 
 	return 0;
 }
@@ -318,13 +281,8 @@ static void unreserve_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (!--i915->gt.active_requests) {
-		/* Cancel the mark_busy() from our reserve_engine() */
-		GEM_BUG_ON(!i915->gt.awake);
-		mod_delayed_work(i915->wq,
-				 &i915->gt.idle_work,
-				 msecs_to_jiffies(100));
-	}
+	if (!--i915->gt.active_requests)
+		i915_gem_park(i915);
 
 	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
 	engine->timeline->inflight_seqnos--;
@@ -358,7 +316,7 @@ static void advance_ring(struct i915_request *request)
 		 * is just about to be. Either works, if we miss the last two
 		 * noops - they are safe to be replayed on a reset.
 		 */
-		tail = READ_ONCE(request->ring->tail);
+		tail = READ_ONCE(request->tail);
 	} else {
 		tail = request->postfix;
 	}
@@ -384,6 +342,12 @@ static void i915_request_retire(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_active *active, *next;
+
+	GEM_TRACE("%s fence %llx:%d, global=%d, current %d\n",
+		  engine->name,
+		  request->fence.context, request->fence.seqno,
+		  request->global_seqno,
+		  intel_engine_get_seqno(engine));
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
@@ -486,21 +450,34 @@ static u32 timeline_get_seqno(struct intel_timeline *tl)
 	return ++tl->seqno;
 }
 
+static void move_to_timeline(struct i915_request *request,
+			     struct intel_timeline *timeline)
+{
+	GEM_BUG_ON(request->timeline == request->engine->timeline);
+	lockdep_assert_held(&request->engine->timeline->lock);
+
+	spin_lock(&request->timeline->lock);
+	list_move_tail(&request->link, &timeline->requests);
+	spin_unlock(&request->timeline->lock);
+}
+
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_timeline *timeline;
 	u32 seqno;
+
+	GEM_TRACE("%s fence %llx:%d -> global=%d, current %d\n",
+		  engine->name,
+		  request->fence.context, request->fence.seqno,
+		  engine->timeline->seqno + 1,
+		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
 
-	/* Transfer from per-context onto the global per-engine timeline */
-	timeline = engine->timeline;
-	GEM_BUG_ON(timeline == request->timeline);
 	GEM_BUG_ON(request->global_seqno);
 
-	seqno = timeline_get_seqno(timeline);
+	seqno = timeline_get_seqno(engine->timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
 
@@ -514,9 +491,8 @@ void __i915_request_submit(struct i915_request *request)
 	engine->emit_breadcrumb(request,
 				request->ring->vaddr + request->postfix);
 
-	spin_lock(&request->timeline->lock);
-	list_move_tail(&request->link, &timeline->requests);
-	spin_unlock(&request->timeline->lock);
+	/* Transfer from per-context onto the global per-engine timeline */
+	move_to_timeline(request, engine->timeline);
 
 	trace_i915_request_execute(request);
 
@@ -539,7 +515,12 @@ void i915_request_submit(struct i915_request *request)
 void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_timeline *timeline;
+
+	GEM_TRACE("%s fence %llx:%d <- global=%d, current %d\n",
+		  engine->name,
+		  request->fence.context, request->fence.seqno,
+		  request->global_seqno,
+		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
@@ -562,12 +543,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 	spin_unlock(&request->lock);
 
 	/* Transfer back from the global per-engine timeline to per-context */
-	timeline = request->timeline;
-	GEM_BUG_ON(timeline == engine->timeline);
-
-	spin_lock(&timeline->lock);
-	list_move(&request->link, &timeline->requests);
-	spin_unlock(&timeline->lock);
+	move_to_timeline(request, request->timeline);
 
 	/*
 	 * We don't need to wake_up any waiters on request->execute, they
@@ -1000,6 +976,9 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	u32 *cs;
 	int err;
 
+	GEM_TRACE("%s fence %llx:%d\n",
+		  engine->name, request->fence.context, request->fence.seqno);
+
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	trace_i915_request_add(request);
 
@@ -1206,11 +1185,13 @@ static bool __i915_spin_request(const struct i915_request *rq,
 
 static bool __i915_wait_request_check_and_reset(struct i915_request *request)
 {
-	if (likely(!i915_reset_handoff(&request->i915->gpu_error)))
+	struct i915_gpu_error *error = &request->i915->gpu_error;
+
+	if (likely(!i915_reset_handoff(error)))
 		return false;
 
 	__set_current_state(TASK_RUNNING);
-	i915_reset(request->i915, 0);
+	i915_reset(request->i915, error->stalled_mask, error->reason);
 	return true;
 }
 

@@ -227,6 +227,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
 	struct drm_atomic_state *drm_state = crtc_state->base.state;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
 	int i, j;
 
@@ -304,8 +305,8 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 				continue;
 			}
 
-			plane_state = intel_atomic_get_existing_plane_state(drm_state,
-									    intel_plane);
+			plane_state = intel_atomic_get_new_plane_state(intel_state,
+								       intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 
@@ -328,8 +329,18 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 		}
 
 		/* set scaler mode */
-		if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
-			scaler_state->scalers[*scaler_id].mode = 0;
+		if ((INTEL_GEN(dev_priv) >= 9) &&
+		    plane_state && plane_state->base.fb &&
+		    plane_state->base.fb->format->format ==
+		    DRM_FORMAT_NV12) {
+			if (INTEL_GEN(dev_priv) == 9 &&
+			    !IS_GEMINILAKE(dev_priv) &&
+			    !IS_SKYLAKE(dev_priv))
+				scaler_state->scalers[*scaler_id].mode =
+					SKL_PS_SCALER_MODE_NV12;
+			else
+				scaler_state->scalers[*scaler_id].mode =
+					PS_SCALER_MODE_PLANAR;
 		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
 			/*
 			 * when only 1 scaler is in use on either pipe A or B,

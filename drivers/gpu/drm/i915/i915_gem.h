@@ -27,6 +27,8 @@
 
 #include <linux/bug.h>
 
+struct drm_i915_private;
+
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
 		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
@@ -53,10 +55,15 @@
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
+#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
 #else
 #define GEM_TRACE(...) do { } while (0)
+#define GEM_TRACE_DUMP() do { } while (0)
 #endif
 
 #define I915_NUM_ENGINES 8
+
+void i915_gem_park(struct drm_i915_private *i915);
+void i915_gem_unpark(struct drm_i915_private *i915);
 
 #endif /* __I915_GEM_H__ */
