@@ -335,6 +335,7 @@ enum {
 struct rpcrdma_buffer;
 struct rpcrdma_req {
 	struct list_head	rl_list;
+	struct rpc_rqst		rl_slot;
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;
 	struct xdr_stream	rl_stream;
@@ -357,16 +358,10 @@ enum {
 	RPCRDMA_REQ_F_TX_RESOURCES,
 };
 
-static inline void
-rpcrdma_set_xprtdata(struct rpc_rqst *rqst, struct rpcrdma_req *req)
-{
-	rqst->rq_xprtdata = req;
-}
-
 static inline struct rpcrdma_req *
 rpcr_to_rdmar(const struct rpc_rqst *rqst)
 {
-	return rqst->rq_xprtdata;
+	return container_of(rqst, struct rpcrdma_req, rl_slot);
 }
 
 static inline void

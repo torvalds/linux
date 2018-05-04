@@ -331,9 +331,7 @@ xprt_setup_rdma(struct xprt_create *args)
 		return ERR_PTR(-EBADF);
 	}
 
-	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt),
-			xprt_rdma_slot_table_entries,
-			xprt_rdma_slot_table_entries);
+	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt), 0, 0);
 	if (xprt == NULL) {
 		dprintk("RPC:       %s: couldn't allocate rpcrdma_xprt\n",
 			__func__);
@@ -365,7 +363,7 @@ xprt_setup_rdma(struct xprt_create *args)
 		xprt_set_bound(xprt);
 	xprt_rdma_format_addresses(xprt, sap);
 
-	cdata.max_requests = xprt->max_reqs;
+	cdata.max_requests = xprt_rdma_slot_table_entries;
 
 	cdata.rsize = RPCRDMA_MAX_SEGS * PAGE_SIZE; /* RDMA write max */
 	cdata.wsize = RPCRDMA_MAX_SEGS * PAGE_SIZE; /* RDMA read max */
@@ -550,22 +548,18 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 static void
 xprt_rdma_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	struct rpc_rqst *rqst;
+	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_req *req;
 
-	spin_lock(&xprt->reserve_lock);
-	if (list_empty(&xprt->free))
+	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
+	if (!req)
 		goto out_sleep;
-	rqst = list_first_entry(&xprt->free, struct rpc_rqst, rq_list);
-	list_del(&rqst->rq_list);
-	spin_unlock(&xprt->reserve_lock);
-
-	task->tk_rqstp = rqst;
+	task->tk_rqstp = &req->rl_slot;
 	task->tk_status = 0;
 	return;
 
 out_sleep:
 	rpc_sleep_on(&xprt->backlog, task, NULL);
-	spin_unlock(&xprt->reserve_lock);
 	task->tk_status = -EAGAIN;
 }
 
@@ -579,11 +573,8 @@ static void
 xprt_rdma_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *rqst)
 {
 	memset(rqst, 0, sizeof(*rqst));
-
-	spin_lock(&xprt->reserve_lock);
-	list_add(&rqst->rq_list, &xprt->free);
+	rpcrdma_buffer_put(rpcr_to_rdmar(rqst));
 	rpc_wake_up_next(&xprt->backlog);
-	spin_unlock(&xprt->reserve_lock);
 }
 
 static bool
@@ -656,12 +647,8 @@ xprt_rdma_allocate(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
-	struct rpcrdma_req *req;
+	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	gfp_t flags;
-
-	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
-	if (req == NULL)
-		goto out_get;
 
 	flags = RPCRDMA_DEF_GFP;
 	if (RPC_IS_SWAPPER(task))
@@ -672,15 +659,12 @@ xprt_rdma_allocate(struct rpc_task *task)
 	if (!rpcrdma_get_recvbuf(r_xprt, req, rqst->rq_rcvsize, flags))
 		goto out_fail;
 
-	rpcrdma_set_xprtdata(rqst, req);
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	rqst->rq_rbuffer = req->rl_recvbuf->rg_base;
 	trace_xprtrdma_allocate(task, req);
 	return 0;
 
 out_fail:
-	rpcrdma_buffer_put(req);
-out_get:
 	trace_xprtrdma_allocate(task, NULL);
 	return -ENOMEM;
 }
@@ -701,7 +685,6 @@ xprt_rdma_free(struct rpc_task *task)
 	if (test_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags))
 		rpcrdma_release_rqst(r_xprt, req);
 	trace_xprtrdma_rpc_done(task, req);
-	rpcrdma_buffer_put(req);
 }
 
 /**

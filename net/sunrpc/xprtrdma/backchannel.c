@@ -29,29 +29,41 @@ static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
 	spin_unlock(&buf->rb_reqslock);
 
 	rpcrdma_destroy_req(req);
-
-	kfree(rqst);
 }
 
-static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
-				 struct rpc_rqst *rqst)
+static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
+				 unsigned int count)
 {
-	struct rpcrdma_regbuf *rb;
-	struct rpcrdma_req *req;
-	size_t size;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpc_rqst *rqst;
+	unsigned int i;
 
-	req = rpcrdma_create_req(r_xprt);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	for (i = 0; i < (count << 1); i++) {
+		struct rpcrdma_regbuf *rb;
+		struct rpcrdma_req *req;
+		size_t size;
 
-	size = r_xprt->rx_data.inline_rsize;
-	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, GFP_KERNEL);
-	if (IS_ERR(rb))
-		goto out_fail;
-	req->rl_sendbuf = rb;
-	xdr_buf_init(&rqst->rq_snd_buf, rb->rg_base,
-		     min_t(size_t, size, PAGE_SIZE));
-	rpcrdma_set_xprtdata(rqst, req);
+		req = rpcrdma_create_req(r_xprt);
+		if (IS_ERR(req))
+			return PTR_ERR(req);
+		rqst = &req->rl_slot;
+
+		rqst->rq_xprt = xprt;
+		INIT_LIST_HEAD(&rqst->rq_list);
+		INIT_LIST_HEAD(&rqst->rq_bc_list);
+		__set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
+		spin_lock_bh(&xprt->bc_pa_lock);
+		list_add(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
+		spin_unlock_bh(&xprt->bc_pa_lock);
+
+		size = r_xprt->rx_data.inline_rsize;
+		rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, GFP_KERNEL);
+		if (IS_ERR(rb))
+			goto out_fail;
+		req->rl_sendbuf = rb;
+		xdr_buf_init(&rqst->rq_snd_buf, rb->rg_base,
+			     min_t(size_t, size, PAGE_SIZE));
+	}
 	return 0;
 
 out_fail:
@@ -86,9 +98,6 @@ static int rpcrdma_bc_setup_reps(struct rpcrdma_xprt *r_xprt,
 int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-	struct rpcrdma_buffer *buffer = &r_xprt->rx_buf;
-	struct rpc_rqst *rqst;
-	unsigned int i;
 	int rc;
 
 	/* The backchannel reply path returns each rpc_rqst to the
@@ -103,25 +112,9 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 	if (reqs > RPCRDMA_BACKWARD_WRS >> 1)
 		goto out_err;
 
-	for (i = 0; i < (reqs << 1); i++) {
-		rqst = kzalloc(sizeof(*rqst), GFP_KERNEL);
-		if (!rqst)
-			goto out_free;
-
-		dprintk("RPC:       %s: new rqst %p\n", __func__, rqst);
-
-		rqst->rq_xprt = &r_xprt->rx_xprt;
-		INIT_LIST_HEAD(&rqst->rq_list);
-		INIT_LIST_HEAD(&rqst->rq_bc_list);
-		__set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
-
-		if (rpcrdma_bc_setup_rqst(r_xprt, rqst))
-			goto out_free;
-
-		spin_lock_bh(&xprt->bc_pa_lock);
-		list_add(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
-		spin_unlock_bh(&xprt->bc_pa_lock);
-	}
+	rc = rpcrdma_bc_setup_reqs(r_xprt, reqs);
+	if (rc)
+		goto out_free;
 
 	rc = rpcrdma_bc_setup_reps(r_xprt, reqs);
 	if (rc)
@@ -131,7 +124,7 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 	if (rc)
 		goto out_free;
 
-	buffer->rb_bc_srv_max_requests = reqs;
+	r_xprt->rx_buf.rb_bc_srv_max_requests = reqs;
 	request_module("svcrdma");
 	trace_xprtrdma_cb_setup(r_xprt, reqs);
 	return 0;
