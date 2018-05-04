@@ -513,6 +513,35 @@ static inline void clear_irq_work_pending(void)
 		"i" (offsetof(struct paca_struct, irq_work_pending)));
 }
 
+void arch_irq_work_raise(void)
+{
+	preempt_disable();
+	set_irq_work_pending_flag();
+	/*
+	 * Non-nmi code running with interrupts disabled will replay
+	 * irq_happened before it re-enables interrupts, so setthe
+	 * decrementer there instead of causing a hardware exception
+	 * which would immediately hit the masked interrupt handler
+	 * and have the net effect of setting the decrementer in
+	 * irq_happened.
+	 *
+	 * NMI interrupts can not check this when they return, so the
+	 * decrementer hardware exception is raised, which will fire
+	 * when interrupts are next enabled.
+	 *
+	 * BookE does not support this yet, it must audit all NMI
+	 * interrupt handlers to ensure they call nmi_enter() so this
+	 * check would be correct.
+	 */
+	if (IS_ENABLED(CONFIG_BOOKE) || !irqs_disabled() || in_nmi()) {
+		set_dec(1);
+	} else {
+		hard_irq_disable();
+		local_paca->irq_happened |= PACA_IRQ_DEC;
+	}
+	preempt_enable();
+}
+
 #else /* 32-bit */
 
 DEFINE_PER_CPU(u8, irq_work_pending);
@@ -521,8 +550,6 @@ DEFINE_PER_CPU(u8, irq_work_pending);
 #define test_irq_work_pending()		__this_cpu_read(irq_work_pending)
 #define clear_irq_work_pending()	__this_cpu_write(irq_work_pending, 0)
 
-#endif /* 32 vs 64 bit */
-
 void arch_irq_work_raise(void)
 {
 	preempt_disable();
@@ -530,6 +557,8 @@ void arch_irq_work_raise(void)
 	set_dec(1);
 	preempt_enable();
 }
+
+#endif /* 32 vs 64 bit */
 
 #else  /* CONFIG_IRQ_WORK */
 
