@@ -501,8 +501,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		  struct rpcrdma_create_data_internal *cdata)
 {
 	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
-	unsigned int max_qp_wr, max_sge;
 	struct ib_cq *sendcq, *recvcq;
+	unsigned int max_sge;
 	int rc;
 
 	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_sge,
@@ -513,29 +513,13 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	}
 	ia->ri_max_send_sges = max_sge;
 
-	if (ia->ri_device->attrs.max_qp_wr <= RPCRDMA_BACKWARD_WRS) {
-		dprintk("RPC:       %s: insufficient wqe's available\n",
-			__func__);
-		return -ENOMEM;
-	}
-	max_qp_wr = ia->ri_device->attrs.max_qp_wr - RPCRDMA_BACKWARD_WRS - 1;
-
-	/* check provider's send/recv wr limits */
-	if (cdata->max_requests > max_qp_wr)
-		cdata->max_requests = max_qp_wr;
+	rc = ia->ri_ops->ro_open(ia, ep, cdata);
+	if (rc)
+		return rc;
 
 	ep->rep_attr.event_handler = rpcrdma_qp_async_error_upcall;
 	ep->rep_attr.qp_context = ep;
 	ep->rep_attr.srq = NULL;
-	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
-	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
-	ep->rep_attr.cap.max_send_wr += 1;	/* drain cqe */
-	rc = ia->ri_ops->ro_open(ia, ep, cdata);
-	if (rc)
-		return rc;
-	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
-	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
-	ep->rep_attr.cap.max_recv_wr += 1;	/* drain cqe */
 	ep->rep_attr.cap.max_send_sge = max_sge;
 	ep->rep_attr.cap.max_recv_sge = 1;
 	ep->rep_attr.cap.max_inline_data = 0;

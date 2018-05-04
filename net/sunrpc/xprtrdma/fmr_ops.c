@@ -159,10 +159,32 @@ out_release:
 	fmr_op_release_mr(mr);
 }
 
+/* On success, sets:
+ *	ep->rep_attr.cap.max_send_wr
+ *	ep->rep_attr.cap.max_recv_wr
+ *	cdata->max_requests
+ *	ia->ri_max_segs
+ */
 static int
 fmr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	    struct rpcrdma_create_data_internal *cdata)
 {
+	int max_qp_wr;
+
+	max_qp_wr = ia->ri_device->attrs.max_qp_wr;
+	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
+	max_qp_wr -= 1;
+	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
+		return -ENOMEM;
+	if (cdata->max_requests > max_qp_wr)
+		cdata->max_requests = max_qp_wr;
+	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_send_wr += 1; /* for ib_drain_sq */
+	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
+
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				RPCRDMA_MAX_FMR_SGES);
 	return 0;
