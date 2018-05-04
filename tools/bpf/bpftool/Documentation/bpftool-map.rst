@@ -23,16 +23,17 @@ MAP COMMANDS
 
 |	**bpftool** **map { show | list }**   [*MAP*]
 |	**bpftool** **map dump**    *MAP*
-|	**bpftool** **map update**  *MAP*  **key** [**hex**] *BYTES*   **value** [**hex**] *VALUE* [*UPDATE_FLAGS*]
-|	**bpftool** **map lookup**  *MAP*  **key** [**hex**] *BYTES*
-|	**bpftool** **map getnext** *MAP* [**key** [**hex**] *BYTES*]
-|	**bpftool** **map delete**  *MAP*  **key** [**hex**] *BYTES*
+|	**bpftool** **map update**  *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
+|	**bpftool** **map lookup**  *MAP*  **key** *DATA*
+|	**bpftool** **map getnext** *MAP* [**key** *DATA*]
+|	**bpftool** **map delete**  *MAP*  **key** *DATA*
 |	**bpftool** **map pin**     *MAP*  *FILE*
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+|	*DATA* := { [**hex**] *BYTES* }
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
-|	*VALUE* := { *BYTES* | *MAP* | *PROG* }
+|	*VALUE* := { *DATA* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 
 DESCRIPTION
@@ -48,7 +49,7 @@ DESCRIPTION
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.
 
-	**bpftool map update**  *MAP*  **key** [**hex**] *BYTES*   **value** [**hex**] *VALUE* [*UPDATE_FLAGS*]
+	**bpftool map update**  *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
 		  Update map entry for a given *KEY*.
 
 		  *UPDATE_FLAGS* can be one of: **any** update existing entry
@@ -61,13 +62,13 @@ DESCRIPTION
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
 
-	**bpftool map lookup**  *MAP*  **key** [**hex**] *BYTES*
+	**bpftool map lookup**  *MAP*  **key** *DATA*
 		  Lookup **key** in the map.
 
-	**bpftool map getnext** *MAP* [**key** [**hex**] *BYTES*]
+	**bpftool map getnext** *MAP* [**key** *DATA*]
 		  Get next key.  If *key* is not specified, get first key.
 
-	**bpftool map delete**  *MAP*  **key** [**hex**] *BYTES*
+	**bpftool map delete**  *MAP*  **key** *DATA*
 		  Remove entry from the map.
 
 	**bpftool map pin**     *MAP*  *FILE*
