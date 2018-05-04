@@ -584,18 +584,15 @@ static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
 	}
 
 	/*
-	 * Force an audit message to be emitted when the action is RET_KILL_*,
-	 * RET_LOG, or the FILTER_FLAG_LOG bit was set and the action is
-	 * allowed to be logged by the admin.
+	 * Emit an audit message when the action is RET_KILL_*, RET_LOG, or the
+	 * FILTER_FLAG_LOG bit was set. The admin has the ability to silence
+	 * any action from being logged by removing the action name from the
+	 * seccomp_actions_logged sysctl.
 	 */
-	if (log)
-		return __audit_seccomp(syscall, signr, action);
+	if (!log)
+		return;
 
-	/*
-	 * Let the audit subsystem decide if the action should be audited based
-	 * on whether the current task itself is being audited.
-	 */
-	return audit_seccomp(syscall, signr, action);
+	audit_seccomp(syscall, signr, action);
 }
 
 /*
