@@ -1374,6 +1374,8 @@ xfs_rmap_convert_shared(
 	 */
 	error = xfs_rmap_lookup_le_range(cur, bno, owner, offset, flags,
 			&PREV, &i);
+	if (error)
+		goto done;
 	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 
 	ASSERT(PREV.rm_offset <= offset);
