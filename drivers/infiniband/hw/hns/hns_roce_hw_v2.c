@@ -1379,6 +1379,8 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 
 	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_PA_S,
 		     mr->type == MR_TYPE_MR ? 0 : 1);
+	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_INNER_PA_VLD_S,
+		     1);
 	mpt_entry->byte_12_mw_pa = cpu_to_le32(mpt_entry->byte_12_mw_pa);
 
 	mpt_entry->len_l = cpu_to_le32(lower_32_bits(mr->size));
