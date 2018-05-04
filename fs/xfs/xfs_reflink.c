@@ -1361,7 +1361,7 @@ xfs_reflink_remap_range(
 		goto out_unlock;
 
 	/* Attach dquots to dest inode before changing block map */
-	ret = xfs_qm_dqattach(dest, 0);
+	ret = xfs_qm_dqattach(dest);
 	if (ret)
 		goto out_unlock;
 

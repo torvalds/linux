@@ -855,7 +855,7 @@ xfs_setattr_size(
 	/*
 	 * Make sure that the dquots are attached to the inode.
 	 */
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 

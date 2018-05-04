@@ -848,7 +848,7 @@ xfs_free_eofblocks(
 		/*
 		 * Attach the dquots to the inode up front.
 		 */
-		error = xfs_qm_dqattach(ip, 0);
+		error = xfs_qm_dqattach(ip);
 		if (error)
 			return error;
 
@@ -918,7 +918,7 @@ xfs_alloc_file_space(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -1169,7 +1169,7 @@ xfs_free_file_space(
 
 	trace_xfs_free_file_space(ip);
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 

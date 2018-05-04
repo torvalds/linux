@@ -224,7 +224,7 @@ xfs_iomap_write_direct(
 	 * necessary and move on to transaction setup.
 	 */
 	xfs_iunlock(ip, lockmode);
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -692,7 +692,7 @@ xfs_iomap_write_allocate(
 	/*
 	 * Make sure that the dquots are there.
 	 */
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 

@@ -1424,11 +1424,11 @@ xfs_link(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(sip, 0);
+	error = xfs_qm_dqattach(sip);
 	if (error)
 		goto std_return;
 
-	error = xfs_qm_dqattach(tdp, 0);
+	error = xfs_qm_dqattach(tdp);
 	if (error)
 		goto std_return;
 
@@ -1929,7 +1929,7 @@ xfs_inactive(
 	     ip->i_d.di_nextents > 0 || ip->i_delayed_blks > 0))
 		truncate = 1;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return;
 
@@ -2592,11 +2592,11 @@ xfs_remove(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(dp, 0);
+	error = xfs_qm_dqattach(dp);
 	if (error)
 		goto std_return;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		goto std_return;
 

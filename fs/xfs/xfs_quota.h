@@ -90,7 +90,7 @@ extern struct xfs_dquot *xfs_qm_vop_chown(struct xfs_trans *,
 extern int xfs_qm_vop_chown_reserve(struct xfs_trans *, struct xfs_inode *,
 		struct xfs_dquot *, struct xfs_dquot *,
 		struct xfs_dquot *, uint);
-extern int xfs_qm_dqattach(struct xfs_inode *, uint);
+extern int xfs_qm_dqattach(struct xfs_inode *);
 extern int xfs_qm_dqattach_locked(struct xfs_inode *, uint);
 extern void xfs_qm_dqdetach(struct xfs_inode *);
 extern void xfs_qm_dqrele(struct xfs_dquot *);
@@ -132,7 +132,7 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 #define xfs_qm_vop_rename_dqattach(it)					(0)
 #define xfs_qm_vop_chown(tp, ip, old, new)				(NULL)
 #define xfs_qm_vop_chown_reserve(tp, ip, u, g, p, fl)			(0)
-#define xfs_qm_dqattach(ip, fl)						(0)
+#define xfs_qm_dqattach(ip)						(0)
 #define xfs_qm_dqattach_locked(ip, fl)					(0)
 #define xfs_qm_dqdetach(ip)
 #define xfs_qm_dqrele(d)

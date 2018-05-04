@@ -378,8 +378,7 @@ done:
 
 int
 xfs_qm_dqattach(
-	struct xfs_inode	*ip,
-	uint			flags)
+	struct xfs_inode	*ip)
 {
 	int			error;
 
@@ -387,7 +386,7 @@ xfs_qm_dqattach(
 		return 0;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	error = xfs_qm_dqattach_locked(ip, flags);
+	error = xfs_qm_dqattach_locked(ip, 0);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	return error;
@@ -1926,7 +1925,7 @@ xfs_qm_vop_rename_dqattach(
 		 */
 		if (i == 0 || ip != i_tab[i-1]) {
 			if (XFS_NOT_DQATTACHED(mp, ip)) {
-				error = xfs_qm_dqattach(ip, 0);
+				error = xfs_qm_dqattach(ip);
 				if (error)
 					return error;
 			}
