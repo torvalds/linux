@@ -2255,6 +2255,7 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, u16 event)
 static inline void hostif_aplist_init(struct ks_wlan_private *priv)
 {
 	size_t size = LOCAL_APLIST_MAX * sizeof(struct local_ap);
+
 	priv->aplist.size = 0;
 	memset(&priv->aplist.ap[0], 0, size);
 }
