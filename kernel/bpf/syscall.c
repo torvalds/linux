@@ -282,6 +282,7 @@ void bpf_map_put(struct bpf_map *map)
 {
 	__bpf_map_put(map, true);
 }
+EXPORT_SYMBOL_GPL(bpf_map_put);
 
 void bpf_map_put_with_uref(struct bpf_map *map)
 {
@@ -543,6 +544,7 @@ struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref)
 		atomic_inc(&map->usercnt);
 	return map;
 }
+EXPORT_SYMBOL_GPL(bpf_map_inc);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -1395,15 +1395,9 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int
 map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	struct bpf_offloaded_map *offmap;
-	struct nfp_bpf_map *nfp_map;
 	bool load_lm_ptr;
 	u32 ret_tgt;
 	s64 lm_off;
-	swreg tid;
-
-	offmap = (struct bpf_offloaded_map *)meta->arg1.map_ptr;
-	nfp_map = offmap->dev_priv;
 
 	/* We only have to reload LM0 if the key is not at start of stack */
 	lm_off = nfp_prog->stack_depth;
@@ -1416,17 +1410,12 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (meta->func_id == BPF_FUNC_map_update_elem)
 		emit_csr_wr(nfp_prog, reg_b(3 * 2), NFP_CSR_ACT_LM_ADDR2);
 
-	/* Load map ID into a register, it should actually fit as an immediate
-	 * but in case it doesn't deal with it here, not in the delay slots.
-	 */
-	tid = ur_load_imm_any(nfp_prog, nfp_map->tid, imm_a(nfp_prog));
-
 	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + meta->func_id,
 		     2, RELO_BR_HELPER);
 	ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
 
 	/* Load map ID into A0 */
-	wrp_mov(nfp_prog, reg_a(0), tid);
+	wrp_mov(nfp_prog, reg_a(0), reg_a(2));
 
 	/* Load the return address into B0 */
 	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
@@ -1453,6 +1442,31 @@ nfp_get_prandom_u32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
 	emit_immed(nfp_prog, reg_both(1), 0,
 		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
+	return 0;
+}
+
+static int
+nfp_perf_event_output(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	swreg ptr_type;
+	u32 ret_tgt;
+
+	ptr_type = ur_load_imm_any(nfp_prog, meta->arg1.type, imm_a(nfp_prog));
+
+	ret_tgt = nfp_prog_current_offset(nfp_prog) + 3;
+
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + meta->func_id,
+		     2, RELO_BR_HELPER);
+
+	/* Load ptr type into A1 */
+	wrp_mov(nfp_prog, reg_a(1), ptr_type);
+
+	/* Load the return address into B0 */
+	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -2411,6 +2425,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return map_call_stack_common(nfp_prog, meta);
 	case BPF_FUNC_get_prandom_u32:
 		return nfp_get_prandom_u32(nfp_prog, meta);
+	case BPF_FUNC_perf_event_output:
+		return nfp_perf_event_output(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;
@@ -3227,6 +3243,33 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 	return 0;
 }
 
+static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta1, *meta2;
+	struct nfp_bpf_map *nfp_map;
+	struct bpf_map *map;
+
+	nfp_for_each_insn_walk2(nfp_prog, meta1, meta2) {
+		if (meta1->skip || meta2->skip)
+			continue;
+
+		if (meta1->insn.code != (BPF_LD | BPF_IMM | BPF_DW) ||
+		    meta1->insn.src_reg != BPF_PSEUDO_MAP_FD)
+			continue;
+
+		map = (void *)(unsigned long)((u32)meta1->insn.imm |
+					      (u64)meta2->insn.imm << 32);
+		if (bpf_map_offload_neutral(map))
+			continue;
+		nfp_map = map_to_offmap(map)->dev_priv;
+
+		meta1->insn.imm = nfp_map->tid;
+		meta2->insn.imm = 0;
+	}
+
+	return 0;
+}
+
 static int nfp_bpf_ustore_calc(u64 *prog, unsigned int len)
 {
 	__le64 *ustore = (__force __le64 *)prog;
@@ -3262,6 +3305,10 @@ static void nfp_bpf_prog_trim(struct nfp_prog *nfp_prog)
 int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 {
 	int ret;
+
+	ret = nfp_bpf_replace_map_ptrs(nfp_prog);
+	if (ret)
+		return ret;
 
 	ret = nfp_bpf_optimize(nfp_prog);
 	if (ret)
@@ -3352,6 +3399,9 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				break;
 			case BPF_FUNC_map_delete_elem:
 				val = nfp_prog->bpf->helpers.map_delete;
+				break;
+			case BPF_FUNC_perf_event_output:
+				val = nfp_prog->bpf->helpers.perf_event_output;
 				break;
 			default:
 				pr_err("relocation of unknown helper %d\n",

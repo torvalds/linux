@@ -1,6 +1,6 @@
 # bpftool(8) bash completion                               -*- shell-script -*-
 #
-# Copyright (C) 2017 Netronome Systems, Inc.
+# Copyright (C) 2017-2018 Netronome Systems, Inc.
 #
 # This software is dual licensed under the GNU General License
 # Version 2, June 1991 as shown in the file COPYING in the top-level
@@ -78,6 +78,14 @@ _bpftool_get_map_ids()
     COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
         command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
+
+_bpftool_get_perf_map_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
+        command grep -C2 perf_event_array | \
+        command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
 
 _bpftool_get_prog_ids()
 {
@@ -359,10 +367,34 @@ _bpftool()
                     fi
                     return 0
                     ;;
+                event_pipe)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_perf_map_ids
+                            return 0
+                            ;;
+                        cpu)
+                            return 0
+                            ;;
+                        index)
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'cpu'
+                            _bpftool_once_attr 'index'
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
-                            lookup pin show list update' -- "$cur" ) )
+                            lookup pin event_pipe show list update' -- \
+                            "$cur" ) )
                     ;;
             esac
             ;;

@@ -22,17 +22,19 @@ MAP COMMANDS
 =============
 
 |	**bpftool** **map { show | list }**   [*MAP*]
-|	**bpftool** **map dump**    *MAP*
-|	**bpftool** **map update**  *MAP*  **key** [**hex**] *BYTES*   **value** [**hex**] *VALUE* [*UPDATE_FLAGS*]
-|	**bpftool** **map lookup**  *MAP*  **key** [**hex**] *BYTES*
-|	**bpftool** **map getnext** *MAP* [**key** [**hex**] *BYTES*]
-|	**bpftool** **map delete**  *MAP*  **key** [**hex**] *BYTES*
-|	**bpftool** **map pin**     *MAP*  *FILE*
+|	**bpftool** **map dump**       *MAP*
+|	**bpftool** **map update**     *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
+|	**bpftool** **map lookup**     *MAP*  **key** *DATA*
+|	**bpftool** **map getnext**    *MAP* [**key** *DATA*]
+|	**bpftool** **map delete**     *MAP*  **key** *DATA*
+|	**bpftool** **map pin**        *MAP*  *FILE*
+|	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+|	*DATA* := { [**hex**] *BYTES* }
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
-|	*VALUE* := { *BYTES* | *MAP* | *PROG* }
+|	*VALUE* := { *DATA* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 
 DESCRIPTION
@@ -48,7 +50,7 @@ DESCRIPTION
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.
 
-	**bpftool map update**  *MAP*  **key** [**hex**] *BYTES*   **value** [**hex**] *VALUE* [*UPDATE_FLAGS*]
+	**bpftool map update**  *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
 		  Update map entry for a given *KEY*.
 
 		  *UPDATE_FLAGS* can be one of: **any** update existing entry
@@ -61,19 +63,35 @@ DESCRIPTION
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
 
-	**bpftool map lookup**  *MAP*  **key** [**hex**] *BYTES*
+	**bpftool map lookup**  *MAP*  **key** *DATA*
 		  Lookup **key** in the map.
 
-	**bpftool map getnext** *MAP* [**key** [**hex**] *BYTES*]
+	**bpftool map getnext** *MAP* [**key** *DATA*]
 		  Get next key.  If *key* is not specified, get first key.
 
-	**bpftool map delete**  *MAP*  **key** [**hex**] *BYTES*
+	**bpftool map delete**  *MAP*  **key** *DATA*
 		  Remove entry from the map.
 
 	**bpftool map pin**     *MAP*  *FILE*
 		  Pin map *MAP* as *FILE*.
 
 		  Note: *FILE* must be located in *bpffs* mount.
+
+	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
+		  Read events from a BPF_MAP_TYPE_PERF_EVENT_ARRAY map.
+
+		  Install perf rings into a perf event array map and dump
+		  output of any bpf_perf_event_output() call in the kernel.
+		  By default read the number of CPUs on the system and
+		  install perf ring for each CPU in the corresponding index
+		  in the array.
+
+		  If **cpu** and **index** are specified, install perf ring
+		  for given **cpu** at **index** in the array (single ring).
+
+		  Note that installing a perf ring into an array will silently
+		  replace any existing ring.  Any other application will stop
+		  receiving events if it installed its rings earlier.
 
 	**bpftool map help**
 		  Print short help message.
