@@ -1,6 +1,9 @@
 #!/bin/bash
 # please run as root
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 #
 # Normal tests requiring no special resources
 #
@@ -29,12 +32,13 @@ if [ -n "$freepgs" ] && [ $freepgs -lt $hpages_test ]; then
 	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
 	hpages_needed=`expr $hpages_test - $freepgs`
 
+	if [ $UID != 0 ]; then
+		echo "Please run memfd with hugetlbfs test as root"
+		exit $ksft_skip
+	fi
+
 	echo 3 > /proc/sys/vm/drop_caches
 	echo $(( $hpages_needed + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
-	if [ $? -ne 0 ]; then
-		echo "Please run this test as root"
-		exit 1
-	fi
 	while read name size unit; do
 		if [ "$name" = "HugePages_Free:" ]; then
 			freepgs=$size
@@ -53,7 +57,7 @@ if [ $freepgs -lt $hpages_test ]; then
 	fi
 	printf "Not enough huge pages available (%d < %d)\n" \
 		$freepgs $needpgs
-	exit 1
+	exit $ksft_skip
 fi
 
 #
