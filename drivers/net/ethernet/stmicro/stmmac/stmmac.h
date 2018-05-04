@@ -76,6 +76,30 @@ struct stmmac_rx_queue {
 	struct napi_struct napi ____cacheline_aligned_in_smp;
 };
 
+struct stmmac_tc_entry {
+	bool in_use;
+	bool in_hw;
+	bool is_last;
+	bool is_frag;
+	void *frag_ptr;
+	unsigned int table_pos;
+	u32 handle;
+	u32 prio;
+	struct {
+		u32 match_data;
+		u32 match_en;
+		u8 af:1;
+		u8 rf:1;
+		u8 im:1;
+		u8 nc:1;
+		u8 res1:4;
+		u8 frame_offset;
+		u8 ok_index;
+		u8 dma_ch_no;
+		u32 res2;
+	} __packed val;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_count_frames;
@@ -151,6 +175,11 @@ struct stmmac_priv {
 	unsigned long state;
 	struct workqueue_struct *wq;
 	struct work_struct service_task;
+
+	/* TC Handling */
+	unsigned int tc_entries_max;
+	unsigned int tc_off_max;
+	struct stmmac_tc_entry *tc_entries;
 };
 
 enum stmmac_state {

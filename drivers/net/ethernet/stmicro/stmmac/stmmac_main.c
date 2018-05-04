@@ -45,6 +45,7 @@
 #include <linux/seq_file.h>
 #endif /* CONFIG_DEBUG_FS */
 #include <linux/net_tstamp.h>
+#include <net/pkt_cls.h>
 #include "stmmac_ptp.h"
 #include "stmmac.h"
 #include <linux/reset.h>
@@ -3790,6 +3791,58 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
+static int stmmac_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				    void *cb_priv)
+{
+	struct stmmac_priv *priv = cb_priv;
+	int ret = -EOPNOTSUPP;
+
+	stmmac_disable_all_queues(priv);
+
+	switch (type) {
+	case TC_SETUP_CLSU32:
+		if (tc_cls_can_offload_and_chain0(priv->dev, type_data))
+			ret = stmmac_tc_setup_cls_u32(priv, priv, type_data);
+		break;
+	default:
+		break;
+	}
+
+	stmmac_enable_all_queues(priv);
+	return ret;
+}
+
+static int stmmac_setup_tc_block(struct stmmac_priv *priv,
+				 struct tc_block_offload *f)
+{
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, stmmac_setup_tc_block_cb,
+				priv, priv);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, stmmac_setup_tc_block_cb, priv);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int stmmac_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+			   void *type_data)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return stmmac_setup_tc_block(priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int stmmac_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -4028,6 +4081,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_set_rx_mode = stmmac_set_rx_mode,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
+	.ndo_setup_tc = stmmac_setup_tc,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif
@@ -4226,6 +4280,11 @@ int stmmac_dvr_probe(struct device *device,
 
 	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_RXCSUM;
+
+	ret = stmmac_tc_init(priv, priv);
+	if (!ret) {
+		ndev->hw_features |= NETIF_F_HW_TC;
+	}
 
 	if ((priv->plat->tso_en) && (priv->dma_cap.tsoen)) {
 		ndev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;

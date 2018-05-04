@@ -194,6 +194,9 @@ enum power_event {
 
 /* MAC HW features3 bitmap */
 #define GMAC_HW_FEAT_ASP		GENMASK(29, 28)
+#define GMAC_HW_FEAT_FRPES		GENMASK(14, 13)
+#define GMAC_HW_FEAT_FRPBS		GENMASK(12, 11)
+#define GMAC_HW_FEAT_FRPSEL		BIT(10)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)
@@ -202,6 +205,7 @@ enum power_event {
 
 /*  MTL registers */
 #define MTL_OPERATION_MODE		0x00000c00
+#define MTL_FRPE			BIT(15)
 #define MTL_OPERATION_SCHALG_MASK	GENMASK(6, 5)
 #define MTL_OPERATION_SCHALG_WRR	(0x0 << 5)
 #define MTL_OPERATION_SCHALG_WFQ	(0x1 << 5)

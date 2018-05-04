@@ -353,6 +353,10 @@ struct dma_features {
 	unsigned int rx_fifo_size;
 	/* Automotive Safety Package */
 	unsigned int asp;
+	/* RX Parser */
+	unsigned int frpsel;
+	unsigned int frpbs;
+	unsigned int frpes;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
@@ -412,6 +416,7 @@ struct mac_device_info {
 	const struct stmmac_dma_ops *dma;
 	const struct stmmac_mode_ops *mode;
 	const struct stmmac_hwtimestamp *ptp;
+	const struct stmmac_tc_ops *tc;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	void __iomem *pcsr;     /* vpointer to device CSRs */

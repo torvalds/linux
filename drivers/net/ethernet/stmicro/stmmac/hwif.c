@@ -77,6 +77,7 @@ static const struct stmmac_hwif_entry {
 	const void *mac;
 	const void *hwtimestamp;
 	const void *mode;
+	const void *tc;
 	int (*setup)(struct stmmac_priv *priv);
 	int (*quirks)(struct stmmac_priv *priv);
 } stmmac_hw[] = {
@@ -90,6 +91,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac100_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
+		.tc = NULL,
 		.setup = dwmac100_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -101,6 +103,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac1000_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
+		.tc = NULL,
 		.setup = dwmac1000_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -112,6 +115,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac4_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
+		.tc = NULL,
 		.setup = dwmac4_setup,
 		.quirks = stmmac_dwmac4_quirks,
 	}, {
@@ -123,6 +127,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac410_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
+		.tc = NULL,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -134,6 +139,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac410_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
+		.tc = NULL,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -145,6 +151,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac510_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
+		.tc = &dwmac510_tc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}
@@ -196,6 +203,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 		mac->mac = entry->mac;
 		mac->ptp = entry->hwtimestamp;
 		mac->mode = entry->mode;
+		mac->tc = entry->tc;
 
 		priv->hw = mac;
 

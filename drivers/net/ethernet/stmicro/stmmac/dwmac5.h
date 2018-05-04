@@ -11,6 +11,17 @@
 #define PRTYEN				BIT(1)
 #define TMOUTEN				BIT(0)
 
+#define MTL_RXP_CONTROL_STATUS		0x00000ca0
+#define RXPI				BIT(31)
+#define NPE				GENMASK(23, 16)
+#define NVE				GENMASK(7, 0)
+#define MTL_RXP_IACC_CTRL_STATUS	0x00000cb0
+#define STARTBUSY			BIT(31)
+#define RXPEIEC				GENMASK(22, 21)
+#define RXPEIEE				BIT(20)
+#define WRRDN				BIT(16)
+#define ADDR				GENMASK(15, 0)
+#define MTL_RXP_IACC_DATA		0x00000cb4
 #define MTL_ECC_CONTROL			0x00000cc0
 #define TSOEE				BIT(4)
 #define MRXPEE				BIT(3)
@@ -48,5 +59,7 @@ int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		struct stmmac_safety_stats *stats);
 int dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
 			int index, unsigned long *count, const char **desc);
+int dwmac5_rxp_config(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
+		      unsigned int count);
 
 #endif /* __DWMAC5_H__ */

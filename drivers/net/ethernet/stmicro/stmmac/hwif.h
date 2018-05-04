@@ -5,10 +5,12 @@
 #ifndef __STMMAC_HWIF_H__
 #define __STMMAC_HWIF_H__
 
+#include <linux/netdevice.h>
+
 #define stmmac_do_void_callback(__priv, __module, __cname,  __arg0, __args...) \
 ({ \
 	int __result = -EINVAL; \
-	if ((__priv)->hw->__module->__cname) { \
+	if ((__priv)->hw->__module && (__priv)->hw->__module->__cname) { \
 		(__priv)->hw->__module->__cname((__arg0), ##__args); \
 		__result = 0; \
 	} \
@@ -17,7 +19,7 @@
 #define stmmac_do_callback(__priv, __module, __cname,  __arg0, __args...) \
 ({ \
 	int __result = -EINVAL; \
-	if ((__priv)->hw->__module->__cname) \
+	if ((__priv)->hw->__module && (__priv)->hw->__module->__cname) \
 		__result = (__priv)->hw->__module->__cname((__arg0), ##__args); \
 	__result; \
 })
@@ -232,6 +234,7 @@ struct mac_device_info;
 struct net_device;
 struct rgmii_adv;
 struct stmmac_safety_stats;
+struct stmmac_tc_entry;
 
 /* Helpers to program the MAC core */
 struct stmmac_ops {
@@ -301,6 +304,9 @@ struct stmmac_ops {
 			struct stmmac_safety_stats *stats);
 	int (*safety_feat_dump)(struct stmmac_safety_stats *stats,
 			int index, unsigned long *count, const char **desc);
+	/* Flexible RX Parser */
+	int (*rxp_config)(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
+			  unsigned int count);
 };
 
 #define stmmac_core_init(__priv, __args...) \
@@ -365,6 +371,8 @@ struct stmmac_ops {
 	stmmac_do_callback(__priv, mac, safety_feat_irq_status, __args)
 #define stmmac_safety_feat_dump(__priv, __args...) \
 	stmmac_do_callback(__priv, mac, safety_feat_dump, __args)
+#define stmmac_rxp_config(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, rxp_config, __args)
 
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
@@ -419,6 +427,18 @@ struct stmmac_mode_ops {
 	stmmac_do_void_callback(__priv, mode, clean_desc3, __args)
 
 struct stmmac_priv;
+struct tc_cls_u32_offload;
+
+struct stmmac_tc_ops {
+	int (*init)(struct stmmac_priv *priv);
+	int (*setup_cls_u32)(struct stmmac_priv *priv,
+			     struct tc_cls_u32_offload *cls);
+};
+
+#define stmmac_tc_init(__priv, __args...) \
+	stmmac_do_callback(__priv, tc, init, __args)
+#define stmmac_tc_setup_cls_u32(__priv, __args...) \
+	stmmac_do_callback(__priv, tc, setup_cls_u32, __args)
 
 extern const struct stmmac_ops dwmac100_ops;
 extern const struct stmmac_dma_ops dwmac100_dma_ops;
@@ -429,6 +449,7 @@ extern const struct stmmac_dma_ops dwmac4_dma_ops;
 extern const struct stmmac_ops dwmac410_ops;
 extern const struct stmmac_dma_ops dwmac410_dma_ops;
 extern const struct stmmac_ops dwmac510_ops;
+extern const struct stmmac_tc_ops dwmac510_tc_ops;
 
 #define GMAC_VERSION		0x00000020	/* GMAC CORE Version */
 #define GMAC4_VERSION		0x00000110	/* GMAC4+ CORE Version */
