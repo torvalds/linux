@@ -222,7 +222,6 @@ static const u64 shadow_acc_track_saved_bits_mask = PT64_EPT_READABLE_MASK |
 static const u64 shadow_acc_track_saved_bits_shift = PT64_SECOND_AVAIL_BITS_SHIFT;
 
 static void mmu_spte_set(u64 *sptep, u64 spte);
-static void mmu_free_roots(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value)
 {
@@ -3342,51 +3341,48 @@ out_unlock:
 	return RET_PF_RETRY;
 }
 
+static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
+			       struct list_head *invalid_list)
+{
+	struct kvm_mmu_page *sp;
 
-static void mmu_free_roots(struct kvm_vcpu *vcpu)
+	if (!VALID_PAGE(*root_hpa))
+		return;
+
+	sp = page_header(*root_hpa & PT64_BASE_ADDR_MASK);
+	--sp->root_count;
+	if (!sp->root_count && sp->role.invalid)
+		kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
+
+	*root_hpa = INVALID_PAGE;
+}
+
+void kvm_mmu_free_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
-	struct kvm_mmu_page *sp;
 	LIST_HEAD(invalid_list);
+	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
+	if (!VALID_PAGE(mmu->root_hpa))
 		return;
-
-	if (vcpu->arch.mmu.shadow_root_level >= PT64_ROOT_4LEVEL &&
-	    (vcpu->arch.mmu.root_level >= PT64_ROOT_4LEVEL ||
-	     vcpu->arch.mmu.direct_map)) {
-		hpa_t root = vcpu->arch.mmu.root_hpa;
-
-		spin_lock(&vcpu->kvm->mmu_lock);
-		sp = page_header(root);
-		--sp->root_count;
-		if (!sp->root_count && sp->role.invalid) {
-			kvm_mmu_prepare_zap_page(vcpu->kvm, sp, &invalid_list);
-			kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
-		}
-		spin_unlock(&vcpu->kvm->mmu_lock);
-		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
-		return;
-	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-	for (i = 0; i < 4; ++i) {
-		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
-		if (root) {
-			root &= PT64_BASE_ADDR_MASK;
-			sp = page_header(root);
-			--sp->root_count;
-			if (!sp->root_count && sp->role.invalid)
-				kvm_mmu_prepare_zap_page(vcpu->kvm, sp,
-							 &invalid_list);
-		}
-		vcpu->arch.mmu.pae_root[i] = INVALID_PAGE;
+	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
+	    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
+		mmu_free_root_page(vcpu->kvm, &mmu->root_hpa, &invalid_list);
+	} else {
+		for (i = 0; i < 4; ++i)
+			if (mmu->pae_root[i] != 0)
+				mmu_free_root_page(vcpu->kvm, &mmu->pae_root[i],
+						   &invalid_list);
+		mmu->root_hpa = INVALID_PAGE;
 	}
+
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 	spin_unlock(&vcpu->kvm->mmu_lock);
-	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_free_roots);
 
 static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
 {
@@ -3950,7 +3946,7 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 
 void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu)
 {
-	mmu_free_roots(vcpu);
+	kvm_mmu_free_roots(vcpu);
 }
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
@@ -4663,7 +4659,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_load);
 
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
-	mmu_free_roots(vcpu);
+	kvm_mmu_free_roots(vcpu);
 	WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unload);
