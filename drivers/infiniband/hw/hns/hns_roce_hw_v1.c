@@ -1037,7 +1037,7 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 
 	do {
 		ret = hns_roce_v1_poll_cq(&mr_free_cq->ib_cq, ne, wc);
-		if (ret < 0) {
+		if (ret < 0 && hr_qp) {
 			dev_err(dev,
 			   "(qp:0x%lx) starts, Poll cqe failed(%d) for mr 0x%x free! Remain %d cqe\n",
 			   hr_qp->qpn, ret, hr_mr->key, ne);
