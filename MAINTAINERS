@@ -564,8 +564,9 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/af9033*
 
 AFFS FILE SYSTEM
+M:	David Sterba <dsterba@suse.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
@@ -7744,7 +7745,7 @@ F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE FOR ARM (KVM/arm)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -7758,7 +7759,7 @@ F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -13852,7 +13853,6 @@ S:	Supported
 F:	drivers/iommu/tegra*
 
 TEGRA KBC DRIVER
-M:	Rakesh Iyer <riyer@nvidia.com>
 M:	Laxman Dewangan <ldewangan@nvidia.com>
 S:	Supported
 F:	drivers/input/keyboard/tegra-kbc.c
