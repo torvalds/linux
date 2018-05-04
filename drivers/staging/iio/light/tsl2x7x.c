@@ -255,16 +255,16 @@ enum {
 };
 
 static const u8 device_channel_config[] = {
-	ALS,
-	PRX,
-	PRX,
-	ALSPRX,
-	ALSPRX,
-	ALS,
-	PRX2,
-	PRX2,
-	ALSPRX2,
-	ALSPRX2
+	[tsl2571] = ALS,
+	[tsl2671] = PRX,
+	[tmd2671] = PRX,
+	[tsl2771] = ALSPRX,
+	[tmd2771] = ALSPRX,
+	[tsl2572] = ALS,
+	[tsl2672] = PRX2,
+	[tmd2672] = PRX2,
+	[tsl2772] = ALSPRX2,
+	[tmd2772] = ALSPRX2
 };
 
 static int tsl2x7x_read_status(struct tsl2X7X_chip *chip)
