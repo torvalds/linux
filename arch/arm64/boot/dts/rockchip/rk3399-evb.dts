@@ -144,6 +144,8 @@
 
 &pwm3 {
 	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3a_pin_pull_down>;
 };
 
 &sdhci {
