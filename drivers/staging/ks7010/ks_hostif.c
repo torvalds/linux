@@ -110,7 +110,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 		return -EPERM;
 	}
 
-	memcpy(ap->bssid, ap_info->bssid, ETH_ALEN);
+	ether_addr_copy(ap->bssid, ap_info->bssid);
 	memcpy(ap->ssid.body, priv->reg.ssid.body,
 	       priv->reg.ssid.size);
 	ap->ssid.size = priv->reg.ssid.size;
