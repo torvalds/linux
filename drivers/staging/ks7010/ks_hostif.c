@@ -232,8 +232,6 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 				    (RATE_SET_MAX_SIZE - ap->rate_set.size);
 			}
 			break;
-		case WLAN_EID_DS_PARAMS:
-			break;
 		case WLAN_EID_RSN:
 			ap->rsn_ie.id = *bp;
 			ap->rsn_ie.size = read_ie(bp, RSN_IE_BODY_MAX,
@@ -247,7 +245,7 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 							  ap->wpa_ie.body);
 			}
 			break;
-
+		case WLAN_EID_DS_PARAMS:
 		case WLAN_EID_FH_PARAMS:
 		case WLAN_EID_CF_PARAMS:
 		case WLAN_EID_TIM:
