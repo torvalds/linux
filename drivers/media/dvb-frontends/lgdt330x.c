@@ -917,7 +917,8 @@ static int lgdt330x_probe(struct i2c_client *client,
 
 error:
 	kfree(state);
-	dprintk(state, "ERROR\n");
+	if (debug)
+		dev_printk(KERN_DEBUG, &client->dev, "Error loading lgdt330x driver\n");
 	return -ENODEV;
 }
 struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *_config,
