@@ -6,6 +6,7 @@
  *   Copyright (C) 2009 Renesas Technology Corp.
  */
 
+#include <linux/circ_buf.h>
 #include <linux/if_arp.h>
 #include <net/iw_handler.h>
 #include <uapi/linux/llc.h>
@@ -26,9 +27,8 @@ static inline void inc_smeqtail(struct ks_wlan_private *priv)
 
 static inline unsigned int cnt_smeqbody(struct ks_wlan_private *priv)
 {
-	unsigned int sme_cnt = priv->sme_i.qtail - priv->sme_i.qhead;
-
-	return (sme_cnt + SME_EVENT_BUFF_SIZE) % SME_EVENT_BUFF_SIZE;
+	return CIRC_CNT_TO_END(priv->sme_i.qhead, priv->sme_i.qtail,
+			       SME_EVENT_BUFF_SIZE);
 }
 
 static inline u8 get_byte(struct ks_wlan_private *priv)
