@@ -467,10 +467,10 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 	u16 mib_val_size;
 	u16 mib_val_type;
 
-	mib_status = get_dword(priv);	/* MIB status */
-	mib_attribute = get_dword(priv);	/* MIB atttibute */
-	mib_val_size = get_word(priv);	/* MIB value size */
-	mib_val_type = get_word(priv);	/* MIB value type */
+	mib_status = get_dword(priv);
+	mib_attribute = get_dword(priv);
+	mib_val_size = get_word(priv);
+	mib_val_type = get_word(priv);
 
 	if (mib_status) {
 		netdev_err(priv->net_dev, "attribute=%08X, status=%08X\n",
@@ -527,11 +527,11 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 static
 void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 {
-	u32 mib_status;	/* +04 MIB Status */
-	u32 mib_attribute;	/* +08 MIB attribute */
+	u32 mib_status;
+	u32 mib_attribute;
 
-	mib_status = get_dword(priv);	/* MIB Status */
-	mib_attribute = get_dword(priv);	/* MIB attribute */
+	mib_status = get_dword(priv);
+	mib_attribute = get_dword(priv);
 
 	if (mib_status) {
 		/* in case of error */
