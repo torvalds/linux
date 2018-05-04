@@ -1925,6 +1925,8 @@ cleanup:
 		iommu_group_put(dc->group);
 	}
 
+	host1x_syncpt_free(dc->syncpt);
+
 	return err;
 }
 
