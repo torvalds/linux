@@ -194,7 +194,9 @@ const char *smp_ipi_name[] = {
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	[PPC_MSG_TICK_BROADCAST] = "ipi tick-broadcast",
 #endif
+#ifdef CONFIG_NMI_IPI
 	[PPC_MSG_NMI_IPI] = "nmi ipi",
+#endif
 };
 
 /* optional function to request ipi, for controllers with >= 4 ipis */
