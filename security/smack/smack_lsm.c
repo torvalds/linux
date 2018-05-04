@@ -2842,6 +2842,27 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
 }
 
+/**
+ * smack_socket_socketpair - create socket pair
+ * @socka: one socket
+ * @sockb: another socket
+ *
+ * Cross reference the peer labels for SO_PEERSEC
+ *
+ * Returns 0 on success, and error code otherwise
+ */
+static int smack_socket_socketpair(struct socket *socka,
+		                   struct socket *sockb)
+{
+	struct socket_smack *asp = socka->sk->sk_security;
+	struct socket_smack *bsp = sockb->sk->sk_security;
+
+	asp->smk_packet = bsp->smk_out;
+	bsp->smk_packet = asp->smk_out;
+
+	return 0;
+}
+
 #ifdef SMACK_IPV6_PORT_LABELING
 /**
  * smack_socket_bind - record port binding information.
@@ -4724,6 +4745,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(unix_may_send, smack_unix_may_send),
 
 	LSM_HOOK_INIT(socket_post_create, smack_socket_post_create),
+	LSM_HOOK_INIT(socket_socketpair, smack_socket_socketpair),
 #ifdef SMACK_IPV6_PORT_LABELING
 	LSM_HOOK_INIT(socket_bind, smack_socket_bind),
 #endif
