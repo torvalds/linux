@@ -771,10 +771,7 @@ int dev_pm_opp_check_initial_rate(struct device *dev, unsigned long *cur_freq)
 	dev_dbg(dev, "%lu Hz %d uV --> %lu Hz %lu uV\n", old_freq, old_volt,
 		target_freq, u_volt);
 
-	if (old_freq == target_freq && old_volt == u_volt)
-		return 0;
-
-	if (old_freq == target_freq && old_volt != u_volt) {
+	if (old_freq == target_freq) {
 		ret = _set_opp_voltage(dev, reg, u_volt, u_volt_min,
 				       u_volt_max);
 		if (ret) {
