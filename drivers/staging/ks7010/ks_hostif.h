@@ -542,7 +542,7 @@ static inline bool is_hif_conf(unsigned short event)
 int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb);
 void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 		    unsigned int size);
-void hostif_sme_enqueue(struct ks_wlan_private *priv, uint16_t event);
+void hostif_sme_enqueue(struct ks_wlan_private *priv, u16 event);
 int hostif_init(struct ks_wlan_private *priv);
 void hostif_exit(struct ks_wlan_private *priv);
 int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,

@@ -2259,7 +2259,7 @@ void hostif_sme_task(unsigned long dev)
 }
 
 /* send to Station Management Entity module */
-void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
+void hostif_sme_enqueue(struct ks_wlan_private *priv, u16 event)
 {
 	/* enqueue sme event */
 	if (cnt_smeqbody(priv) < (SME_EVENT_BUFF_SIZE - 1)) {
