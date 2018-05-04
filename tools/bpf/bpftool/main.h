@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -125,6 +125,7 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		       const char *arch);
 void print_hex_data_json(uint8_t *data, size_t len);
 
+unsigned int get_possible_cpus(void);
 const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
 
 #endif
