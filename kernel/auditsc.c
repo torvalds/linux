@@ -2480,6 +2480,26 @@ void __audit_seccomp(unsigned long syscall, long signr, int code)
 	audit_log_end(ab);
 }
 
+void audit_seccomp_actions_logged(const char *names, const char *old_names,
+				  int res)
+{
+	struct audit_buffer *ab;
+
+	if (!audit_enabled)
+		return;
+
+	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+			     AUDIT_CONFIG_CHANGE);
+	if (unlikely(!ab))
+		return;
+
+	audit_log_format(ab, "op=seccomp-logging");
+	audit_log_format(ab, " actions=%s", names);
+	audit_log_format(ab, " old-actions=%s", old_names);
+	audit_log_format(ab, " res=%d", res);
+	audit_log_end(ab);
+}
+
 struct list_head *audit_killed_trees(void)
 {
 	struct audit_context *ctx = current->audit_context;

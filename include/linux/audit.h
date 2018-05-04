@@ -233,6 +233,8 @@ extern void __audit_inode_child(struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
 extern void __audit_seccomp(unsigned long syscall, long signr, int code);
+extern void audit_seccomp_actions_logged(const char *names,
+					 const char *old_names, int res);
 extern void __audit_ptrace(struct task_struct *t);
 
 static inline bool audit_dummy_context(void)
@@ -501,6 +503,9 @@ static inline void audit_core_dumps(long signr)
 static inline void __audit_seccomp(unsigned long syscall, long signr, int code)
 { }
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
+{ }
+static inline void audit_seccomp_actions_logged(const char *names,
+						const char *old_names, int res)
 { }
 static inline int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec64 *t, unsigned int *serial)
