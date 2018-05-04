@@ -84,51 +84,91 @@ struct channel_list {
 	u8 pad;
 } __packed;
 
-/* MIB Attribute */
-#define DOT11_MAC_ADDRESS                 0x21010100	/* MAC Address (R) */
-#define DOT11_PRODUCT_VERSION             0x31024100	/* FirmWare Version (R) */
-#define DOT11_RTS_THRESHOLD               0x21020100	/* RTS Threshold (R/W) */
-#define DOT11_FRAGMENTATION_THRESHOLD     0x21050100	/* Fragment Threshold (R/W) */
-#define DOT11_PRIVACY_INVOKED             0x15010100	/* WEP ON/OFF (W) */
-#define DOT11_WEP_DEFAULT_KEY_ID          0x15020100	/* WEP Index (W) */
-#define DOT11_WEP_DEFAULT_KEY_VALUE1      0x13020101	/* WEP Key#1(TKIP AES: PairwiseTemporalKey) (W) */
-#define DOT11_WEP_DEFAULT_KEY_VALUE2      0x13020102	/* WEP Key#2(TKIP AES: GroupKey1) (W) */
-#define DOT11_WEP_DEFAULT_KEY_VALUE3      0x13020103	/* WEP Key#3(TKIP AES: GroupKey2) (W) */
-#define DOT11_WEP_DEFAULT_KEY_VALUE4      0x13020104	/* WEP Key#4 (W) */
-#define DOT11_WEP_LIST                    0x13020100	/* WEP LIST */
-#define	DOT11_DESIRED_SSID		  0x11090100	/* SSID */
-#define	DOT11_CURRENT_CHANNEL		  0x45010100	/* channel set */
-#define	DOT11_OPERATION_RATE_SET	  0x11110100	/* rate set */
-
-#define LOCAL_AP_SEARCH_INTEAVAL          0xF1010100	/* AP search interval (R/W) */
-#define LOCAL_CURRENTADDRESS              0xF1050100	/* MAC Address change (W) */
-#define LOCAL_MULTICAST_ADDRESS           0xF1060100	/* Multicast Address (W) */
-#define LOCAL_MULTICAST_FILTER            0xF1060200	/* Multicast Address Filter enable/disable (W) */
-#define LOCAL_SEARCHED_AP_LIST            0xF1030100	/* AP list (R) */
-#define LOCAL_LINK_AP_STATUS              0xF1040100	/* Link AP status (R) */
-#define	LOCAL_PACKET_STATISTICS		  0xF1020100	/* tx,rx packets statistics */
-#define LOCAL_AP_SCAN_LIST_TYPE_SET	  0xF1030200	/* AP_SCAN_LIST_TYPE */
-
-#define DOT11_RSN_ENABLED                 0x15070100	/* WPA enable/disable (W) */
-#define LOCAL_RSN_MODE                    0x56010100	/* RSN mode WPA/WPA2 (W) */
-#define DOT11_RSN_CONFIG_MULTICAST_CIPHER 0x51040100	/* GroupKeyCipherSuite (W) */
-#define DOT11_RSN_CONFIG_UNICAST_CIPHER   0x52020100	/* PairwiseKeyCipherSuite (W) */
-#define DOT11_RSN_CONFIG_AUTH_SUITE       0x53020100	/* AuthenticationKeyManagementSuite (W) */
-#define DOT11_RSN_CONFIG_VERSION          0x51020100	/* RSN version (W) */
-#define LOCAL_RSN_CONFIG_ALL              0x5F010100	/* RSN CONFIG ALL (W) */
-#define DOT11_PMK_TSC                     0x55010100	/* PMK_TSC (W) */
-#define DOT11_GMK1_TSC                    0x55010101	/* GMK1_TSC (W) */
-#define DOT11_GMK2_TSC                    0x55010102	/* GMK2_TSC (W) */
-#define DOT11_GMK3_TSC                    0x55010103	/* GMK3_TSC */
-#define LOCAL_PMK                         0x58010100	/* Pairwise Master Key cache (W) */
-
-#define LOCAL_REGION                      0xF10A0100	/* Region setting */
-
-#define LOCAL_WPS_ENABLE                  0xF10B0100	/* WiFi Protected Setup */
-#define LOCAL_WPS_PROBE_REQ               0xF10C0100	/* WPS Probe Request */
-
-#define LOCAL_GAIN                        0xF10D0100	/* Carrer sense threshold for demo ato show */
-#define LOCAL_EEPROM_SUM                  0xF10E0100	/* EEPROM checksum information */
+/**
+ * enum mib_attribute - Management Information Base attribute
+ * Attribute value used for accessing and updating MIB
+ *
+ * @DOT11_MAC_ADDRESS: MAC Address (R)
+ * @DOT11_PRODUCT_VERSION: FirmWare Version (R)
+ * @DOT11_RTS_THRESHOLD: RTS Threshold (R/W)
+ * @DOT11_FRAGMENTATION_THRESHOLD: Fragment Threshold (R/W)
+ * @DOT11_PRIVACY_INVOKED: WEP ON/OFF (W)
+ * @DOT11_WEP_DEFAULT_KEY_ID: WEP Index (W)
+ * @DOT11_WEP_DEFAULT_KEY_VALUE1: WEP Key#1(TKIP AES: PairwiseTemporalKey) (W)
+ * @DOT11_WEP_DEFAULT_KEY_VALUE2: WEP Key#2(TKIP AES: GroupKey1) (W)
+ * @DOT11_WEP_DEFAULT_KEY_VALUE3: WEP Key#3(TKIP AES: GroupKey2) (W)
+ * @DOT11_WEP_DEFAULT_KEY_VALUE4: WEP Key#4 (W)
+ * @DOT11_WEP_LIST: WEP LIST
+ * @DOT11_DESIRED_SSID: SSID
+ * @DOT11_CURRENT_CHANNEL: channel set
+ * @DOT11_OPERATION_RATE_SET: rate set
+ * @LOCAL_AP_SEARCH_INTERVAL: AP search interval (R/W)
+ * @LOCAL_CURRENTADDRESS: MAC Address change (W)
+ * @LOCAL_MULTICAST_ADDRESS: Multicast Address (W)
+ * @LOCAL_MULTICAST_FILTER: Multicast Address Filter enable/disable (W)
+ * @LOCAL_SEARCHED_AP_LIST: AP list (R)
+ * @LOCAL_LINK_AP_STATUS: Link AP status (R)
+ * @LOCAL_PACKET_STATISTICS: tx,rx packets statistics
+ * @LOCAL_AP_SCAN_LIST_TYPE_SET: AP_SCAN_LIST_TYPE
+ * @DOT11_RSN_ENABLED: WPA enable/disable (W)
+ * @LOCAL_RSN_MODE: RSN mode WPA/WPA2 (W)
+ * @DOT11_RSN_CONFIG_MULTICAST_CIPHER: GroupKeyCipherSuite (W)
+ * @DOT11_RSN_CONFIG_UNICAST_CIPHER: PairwiseKeyCipherSuite (W)
+ * @DOT11_RSN_CONFIG_AUTH_SUITE: AuthenticationKeyManagementSuite (W)
+ * @DOT11_RSN_CONFIG_VERSION: RSN version (W)
+ * @LOCAL_RSN_CONFIG_ALL: RSN CONFIG ALL (W)
+ * @DOT11_PMK_TSC: PMK_TSC (W)
+ * @DOT11_GMK1_TSC: GMK1_TSC (W)
+ * @DOT11_GMK2_TSC: GMK2_TSC (W)
+ * @DOT11_GMK3_TSC: GMK3_TSC
+ * @LOCAL_PMK: Pairwise Master Key cache (W)
+ * @LOCAL_REGION: Region setting
+ * @LOCAL_WPS_ENABLE: WiFi Protected Setup
+ * @LOCAL_WPS_PROBE_REQ: WPS Probe Request
+ * @LOCAL_GAIN: Carrer sense threshold for demo ato show
+ * @LOCAL_EEPROM_SUM: EEPROM checksum information
+ */
+enum mib_attribute {
+	DOT11_MAC_ADDRESS                 = 0x21010100,
+	DOT11_PRODUCT_VERSION             = 0x31024100,
+	DOT11_RTS_THRESHOLD               = 0x21020100,
+	DOT11_FRAGMENTATION_THRESHOLD     = 0x21050100,
+	DOT11_PRIVACY_INVOKED             = 0x15010100,
+	DOT11_WEP_DEFAULT_KEY_ID          = 0x15020100,
+	DOT11_WEP_DEFAULT_KEY_VALUE1      = 0x13020101,
+	DOT11_WEP_DEFAULT_KEY_VALUE2      = 0x13020102,
+	DOT11_WEP_DEFAULT_KEY_VALUE3      = 0x13020103,
+	DOT11_WEP_DEFAULT_KEY_VALUE4      = 0x13020104,
+	DOT11_WEP_LIST                    = 0x13020100,
+	DOT11_DESIRED_SSID		  = 0x11090100,
+	DOT11_CURRENT_CHANNEL		  = 0x45010100,
+	DOT11_OPERATION_RATE_SET	  = 0x11110100,
+	LOCAL_AP_SEARCH_INTERVAL          = 0xF1010100,
+	LOCAL_CURRENTADDRESS              = 0xF1050100,
+	LOCAL_MULTICAST_ADDRESS           = 0xF1060100,
+	LOCAL_MULTICAST_FILTER            = 0xF1060200,
+	LOCAL_SEARCHED_AP_LIST            = 0xF1030100,
+	LOCAL_LINK_AP_STATUS              = 0xF1040100,
+	LOCAL_PACKET_STATISTICS		  = 0xF1020100,
+	LOCAL_AP_SCAN_LIST_TYPE_SET	  = 0xF1030200,
+	DOT11_RSN_ENABLED                 = 0x15070100,
+	LOCAL_RSN_MODE                    = 0x56010100,
+	DOT11_RSN_CONFIG_MULTICAST_CIPHER = 0x51040100,
+	DOT11_RSN_CONFIG_UNICAST_CIPHER   = 0x52020100,
+	DOT11_RSN_CONFIG_AUTH_SUITE       = 0x53020100,
+	DOT11_RSN_CONFIG_VERSION          = 0x51020100,
+	LOCAL_RSN_CONFIG_ALL              = 0x5F010100,
+	DOT11_PMK_TSC                     = 0x55010100,
+	DOT11_GMK1_TSC                    = 0x55010101,
+	DOT11_GMK2_TSC                    = 0x55010102,
+	DOT11_GMK3_TSC                    = 0x55010103,
+	LOCAL_PMK                         = 0x58010100,
+	LOCAL_REGION                      = 0xF10A0100,
+	LOCAL_WPS_ENABLE                  = 0xF10B0100,
+	LOCAL_WPS_PROBE_REQ               = 0xF10C0100,
+	LOCAL_GAIN                        = 0xF10D0100,
+	LOCAL_EEPROM_SUM                  = 0xF10E0100
+};
 
 struct hostif_mib_get_request {
 	struct hostif_hdr header;
