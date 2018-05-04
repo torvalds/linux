@@ -602,70 +602,88 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
-	unsigned int adc_aif1 = 0, adc_aif2  = 0, dac_aif1 = 0, dac_aif2  = 0;
-	int grp, cur_grp_max;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_16BITS;
-		dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_16BITS;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_20BITS;
-		dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_20BITS;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_24BITS;
-		dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_24BITS;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_32BITS;
-		dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_32BITS;
-		break;
-	default:
-		return -EINVAL;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		unsigned int dac_aif1 = 0, dac_aif2 = 0;
+
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_16BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S20_3LE:
+			dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_20BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_24BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_32BITS;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		dac_aif1 |= RK3308_DAC_I2S_LR_NORMAL;
+		dac_aif2 |= RK3308_DAC_I2S_WORK;
+
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
+				   RK3308_DAC_I2S_VALID_LEN_MSK |
+				   RK3308_DAC_I2S_LR_MSK,
+				   dac_aif1);
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON02,
+				   RK3308_DAC_I2S_MSK,
+				   dac_aif2);
+	} else {
+		unsigned int adc_aif1 = 0, adc_aif2 = 0;
+		int grp, cur_grp_max;
+
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_16BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S20_3LE:
+			adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_20BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_24BITS;
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			adc_aif1 |= RK3308_ADC_I2S_VALID_LEN_32BITS;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		switch (params_channels(params)) {
+		case 1:
+			adc_aif1 |= RK3308_ADC_I2S_MONO;
+			cur_grp_max = 0;
+			break;
+		case 2:
+		case 4:
+		case 6:
+		case 8:
+			adc_aif1 |= RK3308_ADC_I2S_STEREO;
+			cur_grp_max = (params_channels(params) - 1) / 2;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		adc_aif1 |= RK3308_ADC_I2S_LR_NORMAL;
+		adc_aif2 |= RK3308_ADC_I2S_WORK;
+
+		for (grp = 0; grp <= cur_grp_max; grp++) {
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON01(grp),
+					   RK3308_ADC_I2S_VALID_LEN_MSK |
+					   RK3308_ADC_I2S_LR_MSK |
+					   RK3308_ADC_I2S_TYPE_MSK,
+					   adc_aif1);
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON02(grp),
+					   RK3308_ADC_I2S_MSK,
+					   adc_aif2);
+		}
 	}
-
-	switch (params_channels(params)) {
-	case 1:
-		adc_aif1 |= RK3308_ADC_I2S_MONO;
-		cur_grp_max = 0;
-		break;
-	case 2:
-	case 4:
-	case 6:
-	case 8:
-		adc_aif1 |= RK3308_ADC_I2S_STEREO;
-		cur_grp_max = (params_channels(params) - 1) / 2;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	adc_aif1 |= RK3308_ADC_I2S_LR_NORMAL;
-	adc_aif2 |= RK3308_ADC_I2S_WORK;
-
-	for (grp = 0; grp <= cur_grp_max; grp++) {
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON01(grp),
-				   RK3308_ADC_I2S_VALID_LEN_MSK |
-				   RK3308_ADC_I2S_LR_MSK |
-				   RK3308_ADC_I2S_TYPE_MSK,
-				   adc_aif1);
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON02(grp),
-				   RK3308_ADC_I2S_MSK,
-				   adc_aif2);
-	}
-
-	dac_aif1 |= RK3308_DAC_I2S_LR_NORMAL;
-	dac_aif2 |= RK3308_DAC_I2S_WORK;
-
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
-			   RK3308_DAC_I2S_VALID_LEN_MSK |
-			   RK3308_DAC_I2S_LR_MSK,
-			   dac_aif1);
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON02,
-			   RK3308_DAC_I2S_MSK,
-			   dac_aif2);
 
 	return 0;
 }
