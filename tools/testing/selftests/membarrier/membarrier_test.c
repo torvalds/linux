@@ -293,10 +293,9 @@ static int test_membarrier_query(void)
 		}
 		ksft_exit_fail_msg("sys_membarrier() failed\n");
 	}
-	if (!(ret & MEMBARRIER_CMD_GLOBAL)) {
-		ksft_test_result_fail("sys_membarrier() CMD_GLOBAL query failed\n");
-		ksft_exit_fail_msg("sys_membarrier is not supported.\n");
-	}
+	if (!(ret & MEMBARRIER_CMD_GLOBAL))
+		ksft_exit_skip(
+			"sys_membarrier unsupported: CMD_GLOBAL not found.\n");
 
 	ksft_test_result_pass("sys_membarrier available\n");
 	return 0;
