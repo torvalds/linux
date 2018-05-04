@@ -103,6 +103,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47094-dlink-dir-885l.dtb \
 	bcm47094-linksys-panamera.dtb \
 	bcm47094-luxul-abr-4500.dtb \
+	bcm47094-luxul-xap-1610.dtb \
 	bcm47094-luxul-xbr-4500.dtb \
 	bcm47094-luxul-xwr-3100.dtb \
 	bcm47094-luxul-xwr-3150-v1.dtb \
