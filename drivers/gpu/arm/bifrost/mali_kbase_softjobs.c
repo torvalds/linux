@@ -691,13 +691,6 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 			ret = 0;
 			break;
 		}
-		case KBASE_MEM_TYPE_IMPORTED_UMP:
-		{
-			dev_warn(katom->kctx->kbdev->dev,
-					"UMP is not supported for debug_copy jobs\n");
-			ret = -EINVAL;
-			goto out_unlock;
-		}
 		default:
 			/* Nothing to be done. */
 			break;
@@ -971,7 +964,8 @@ fail:
 
 static u8 kbase_jit_free_get_id(struct kbase_jd_atom *katom)
 {
-	if (WARN_ON(katom->core_req != BASE_JD_REQ_SOFT_JIT_FREE))
+	if (WARN_ON((katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) !=
+				BASE_JD_REQ_SOFT_JIT_FREE))
 		return 0;
 
 	return (u8) katom->jc;
@@ -1017,7 +1011,8 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 		list_for_each_entry(jit_atom, &kctx->jit_atoms_head, jit_node) {
 			if (jit_atom == katom)
 				break;
-			if (jit_atom->core_req == BASE_JD_REQ_SOFT_JIT_FREE) {
+			if ((jit_atom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) ==
+					BASE_JD_REQ_SOFT_JIT_FREE) {
 				u8 free_id = kbase_jit_free_get_id(jit_atom);
 
 				if (free_id && kctx->jit_alloc[free_id]) {

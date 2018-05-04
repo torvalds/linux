@@ -1,0 +1,31 @@
+/*
+ * Copyright:
+ * ----------------------------------------------------------------------------
+ * This confidential and proprietary software may be used only as authorized
+ * by a licensing agreement from ARM Limited.
+ *      (C) COPYRIGHT 2018 ARM Limited, ALL RIGHTS RESERVED
+ * The entire notice above must be reproduced on all authorized copies and
+ * copies may only be made to the extent permitted by a licensing agreement
+ * from ARM Limited.
+ * ----------------------------------------------------------------------------
+ */
+
+bob_kernel_module {
+    name: "kutf",
+    defaults: ["kernel_defaults"],
+    srcs: [
+        "Kbuild",
+        "kutf_helpers.c",
+        "kutf_helpers_user.c",
+        "kutf_mem.c",
+        "kutf_resultset.c",
+        "kutf_suite.c",
+        "kutf_utils.c",
+    ],
+    kbuild_options: ["CONFIG_MALI_KUTF=m"],
+    include_dirs: ["kernel/drivers/gpu/arm/midgard/tests/include"],
+    enabled: false,
+    unit_test_kernel_modules: {
+        enabled: true,
+    },
+}

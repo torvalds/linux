@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,7 +44,7 @@ static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
 	struct kbase_context *kctx;
 	int i;
 
-	kctx = kbdev->hwaccess.active_kctx;
+	kctx = kbdev->hwaccess.active_kctx[js];
 
 	if (!kctx)
 		return true;
@@ -106,10 +106,14 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
+	int js;
+
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	if (kbdev->hwaccess.active_kctx == kctx)
-		kbdev->hwaccess.active_kctx = NULL;
+	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
+		if (kbdev->hwaccess.active_kctx[js] == kctx)
+			kbdev->hwaccess.active_kctx[js] = NULL;
+	}
 }
 
 struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,

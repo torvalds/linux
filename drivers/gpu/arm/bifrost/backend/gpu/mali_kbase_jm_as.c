@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,11 +68,12 @@ static void assign_and_activate_kctx_addr_space(struct kbase_device *kbdev,
 }
 
 bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev,
-						struct kbase_context *kctx)
+						struct kbase_context *kctx,
+						int js)
 {
 	int i;
 
-	if (kbdev->hwaccess.active_kctx == kctx) {
+	if (kbdev->hwaccess.active_kctx[js] == kctx) {
 		/* Context is already active */
 		return true;
 	}
@@ -213,12 +214,15 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
 {
 	struct kbasep_js_device_data *js_devdata;
 	struct kbase_as *new_address_space = NULL;
+	int js;
 
 	js_devdata = &kbdev->js_data;
 
-	if (kbdev->hwaccess.active_kctx == kctx) {
-		WARN(1, "Context is already scheduled in\n");
-		return false;
+	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
+		if (kbdev->hwaccess.active_kctx[js] == kctx) {
+			WARN(1, "Context is already scheduled in\n");
+			return false;
+		}
 	}
 
 	new_address_space = &kbdev->as[as_nr];

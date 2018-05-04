@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -71,58 +71,67 @@ enum kbase_pm_core_type {
 };
 
 /**
- * struct kbasep_pm_metrics_data - Metrics data collected for use by the power
- *                                 management framework.
+ * struct kbasep_pm_metrics - Metrics data collected for use by the power
+ *                            management framework.
  *
- *  @time_period_start: time at which busy/idle measurements started
  *  @time_busy: number of ns the GPU was busy executing jobs since the
  *          @time_period_start timestamp.
  *  @time_idle: number of ns since time_period_start the GPU was not executing
  *          jobs since the @time_period_start timestamp.
- *  @prev_busy: busy time in ns of previous time period.
- *           Updated when metrics are reset.
- *  @prev_idle: idle time in ns of previous time period
- *           Updated when metrics are reset.
- *  @gpu_active: true when the GPU is executing jobs. false when
- *           not. Updated when the job scheduler informs us a job in submitted
- *           or removed from a GPU slot.
  *  @busy_cl: number of ns the GPU was busy executing CL jobs. Note that
  *           if two CL jobs were active for 400ns, this value would be updated
  *           with 800.
  *  @busy_gl: number of ns the GPU was busy executing GL jobs. Note that
  *           if two GL jobs were active for 400ns, this value would be updated
  *           with 800.
+ */
+struct kbasep_pm_metrics {
+	u32 time_busy;
+	u32 time_idle;
+	u32 busy_cl[2];
+	u32 busy_gl;
+};
+
+/**
+ * struct kbasep_pm_metrics_state - State required to collect the metrics in
+ *                                  struct kbasep_pm_metrics
+ *  @time_period_start: time at which busy/idle measurements started
+ *  @gpu_active: true when the GPU is executing jobs. false when
+ *           not. Updated when the job scheduler informs us a job in submitted
+ *           or removed from a GPU slot.
  *  @active_cl_ctx: number of CL jobs active on the GPU. Array is per-device.
  *  @active_gl_ctx: number of GL jobs active on the GPU. Array is per-slot. As
  *           GL jobs never run on slot 2 this slot is not recorded.
  *  @lock: spinlock protecting the kbasep_pm_metrics_data structure
+ *  @platform_data: pointer to data controlled by platform specific code
+ *  @kbdev: pointer to kbase device for which metrics are collected
+ *  @values: The current values of the power management metrics. The
+ *           kbase_pm_get_dvfs_metrics() function is used to compare these
+ *           current values with the saved values from a previous invocation.
  *  @timer: timer to regularly make DVFS decisions based on the power
  *           management metrics.
  *  @timer_active: boolean indicating @timer is running
- *  @platform_data: pointer to data controlled by platform specific code
- *  @kbdev: pointer to kbase device for which metrics are collected
- *
+ *  @dvfs_last: values of the PM metrics from the last DVFS tick
+ *  @dvfs_diff: different between the current and previous PM metrics.
  */
-struct kbasep_pm_metrics_data {
+struct kbasep_pm_metrics_state {
 	ktime_t time_period_start;
-	u32 time_busy;
-	u32 time_idle;
-	u32 prev_busy;
-	u32 prev_idle;
 	bool gpu_active;
-	u32 busy_cl[2];
-	u32 busy_gl;
 	u32 active_cl_ctx[2];
 	u32 active_gl_ctx[2]; /* GL jobs can only run on 2 of the 3 job slots */
 	spinlock_t lock;
 
+	void *platform_data;
+	struct kbase_device *kbdev;
+
+	struct kbasep_pm_metrics values;
+
 #ifdef CONFIG_MALI_BIFROST_DVFS
 	struct hrtimer timer;
 	bool timer_active;
+	struct kbasep_pm_metrics dvfs_last;
+	struct kbasep_pm_metrics dvfs_diff;
 #endif
-
-	void *platform_data;
-	struct kbase_device *kbdev;
 };
 
 union kbase_pm_policy_data {
@@ -291,7 +300,7 @@ struct kbase_pm_backend_data {
 	spinlock_t gpu_powered_lock;
 
 
-	struct kbasep_pm_metrics_data metrics;
+	struct kbasep_pm_metrics_state metrics;
 
 	int gpu_poweroff_pending;
 	int shader_poweroff_pending_time;

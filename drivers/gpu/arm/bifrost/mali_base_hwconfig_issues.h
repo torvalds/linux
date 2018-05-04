@@ -123,6 +123,7 @@ enum base_hw_issue {
 	GPUCORE_1619,
 	BASE_HW_ISSUE_TSIX_1116,
 	BASE_HW_ISSUE_TMIX_8438,
+	BASE_HW_ISSUE_TNOX_1194,
 	BASE_HW_ISSUE_END
 };
 
@@ -1123,6 +1124,7 @@ static const enum base_hw_issue base_hw_issues_tNOx_r0p0[] = {
 	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TMIX_8133,
 	BASE_HW_ISSUE_TSIX_1116,
+	BASE_HW_ISSUE_TNOX_1194,
 	BASE_HW_ISSUE_END
 };
 
@@ -1138,6 +1140,7 @@ static const enum base_hw_issue base_hw_issues_tGOx_r0p0[] = {
 	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TMIX_8133,
 	BASE_HW_ISSUE_TSIX_1116,
+	BASE_HW_ISSUE_TNOX_1194,
 	BASE_HW_ISSUE_END
 };
 

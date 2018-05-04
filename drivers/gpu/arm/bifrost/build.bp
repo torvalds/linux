@@ -3,13 +3,17 @@
  * ----------------------------------------------------------------------------
  * This confidential and proprietary software may be used only as authorized
  * by a licensing agreement from ARM Limited.
- *      (C) COPYRIGHT 2017 ARM Limited, ALL RIGHTS RESERVED
+ *      (C) COPYRIGHT 2017-2018 ARM Limited, ALL RIGHTS RESERVED
  * The entire notice above must be reproduced on all authorized copies and
  * copies may only be made to the extent permitted by a licensing agreement
  * from ARM Limited.
  * ----------------------------------------------------------------------------
  */
 
+/* Kernel-side tests may include mali_kbase's headers. Therefore any config
+ * options which affect the sizes of any structs (e.g. adding extra members)
+ * must be included in these defaults, so that the structs are consistent in
+ * both mali_kbase and the test modules. */
 bob_defaults {
     name: "mali_kbase_shared_config_defaults",
     no_mali: {
@@ -21,7 +25,32 @@ bob_defaults {
     mali_devfreq: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DEVFREQ=y"],
     },
-
+    mali_midgard_dvfs: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_DVFS=y"],
+    },
+    mali_trace_timeline: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_TRACE_TIMELINE=y"],
+    },
+    mali_debug: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_DEBUG=y"],
+    },
+    mali_fpga_bus_logger: {
+        kbuild_options: ["CONFIG_MALI_FPGA_BUS_LOGGER=y"],
+    },
+    cinstr_job_dump: {
+        kbuild_options: ["CONFIG_MALI_JOB_DUMP=y"],
+    },
+    mali_gator_support: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
+    },
+    mali_system_trace: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
+    },
+    kbuild_options: [
+        "MALI_UNIT_TEST={{.unit_test_code}}",
+        "MALI_CUSTOMER_RELEASE={{.release}}",
+        "MALI_KERNEL_TEST_API={{.debug}}",
+    ],
     defaults: ["kernel_defaults"],
 }
 
@@ -50,37 +79,15 @@ bob_kernel_module {
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
         "MALI_KERNEL_TEST_API={{.unit_test_code}}",
         "MALI_MOCK_TEST={{.mali_mock_test}}",
-        "MALI_UNIT_TEST={{.unit_test_code}}",
     ],
-    cinstr_job_dump: {
-        kbuild_options: ["CONFIG_MALI_JOB_DUMP=y"],
-    },
-    mali_debug: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_DEBUG=y"],
-    },
-    mali_gator_support: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
-    },
-    mali_system_trace: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
-    },
     mali_error_inject: {
         kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
     },
     mali_error_inject_random: {
         kbuild_options: ["CONFIG_MALI_ERROR_INJECT_RANDOM=y"],
     },
-    mali_trace_timeline: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_TRACE_TIMELINE=y"],
-    },
     mali_prfcnt_set_secondary: {
         kbuild_options: ["CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY=y"],
-    },
-    mali_fpga_bus_logger: {
-        kbuild_options: ["CONFIG_MALI_FPGA_BUS_LOGGER=y"],
-    },
-    mali_midgard_dvfs: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_DVFS=y"],
     },
     mali_2mb_alloc: {
         kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
@@ -88,8 +95,7 @@ bob_kernel_module {
     mali_mock_test: {
         srcs: ["tests/internal/src/mock/mali_kbase_pm_driver_mock.c"],
     },
-    ump: {
-        extra_symbols: ["ump"],
-    },
     defaults: ["mali_kbase_shared_config_defaults"],
 }
+
+optional_subdirs = ["tests"]

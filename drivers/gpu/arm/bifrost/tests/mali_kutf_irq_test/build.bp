@@ -1,0 +1,27 @@
+/*
+ * Copyright:
+ * ----------------------------------------------------------------------------
+ * This confidential and proprietary software may be used only as authorized
+ * by a licensing agreement from ARM Limited.
+ *      (C) COPYRIGHT 2018 ARM Limited, ALL RIGHTS RESERVED
+ * The entire notice above must be reproduced on all authorized copies and
+ * copies may only be made to the extent permitted by a licensing agreement
+ * from ARM Limited.
+ * ----------------------------------------------------------------------------
+ */
+
+bob_kernel_module {
+    name: "mali_kutf_irq_test",
+    defaults: ["kernel_test_module_defaults"],
+    srcs: [
+        "Kbuild",
+        "mali_kutf_irq_test_main.c",
+    ],
+    extra_symbols: ["mali_kbase"],
+    install_group: "IG_tests",
+    enabled: false,
+    unit_test_kernel_modules: {
+        enabled: true,
+        kbuild_options: ["CONFIG_MALI_IRQ_LATENCY=m"],
+    },
+}

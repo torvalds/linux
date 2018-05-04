@@ -1535,6 +1535,7 @@ struct kbase_device {
 	u64 current_core_mask;
 	struct kbase_devfreq_opp *opp_table;
 	int num_opps;
+	struct kbasep_pm_metrics last_devfreq_metrics;
 #ifdef CONFIG_DEVFREQ_THERMAL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 	struct devfreq_cooling_device *devfreq_cooling;
@@ -1547,6 +1548,12 @@ struct kbase_device {
 		struct mutex lock;
 		struct kbase_ipa_model *configured_model;
 		struct kbase_ipa_model *fallback_model;
+
+		/* Values of the PM utilization metrics from last time the
+		 * power model was invoked. The utilization is calculated as
+		 * the difference between last_metrics and the current values.
+		 */
+		struct kbasep_pm_metrics last_metrics;
 
 		/*
 		 * gpu_active_callback - Inform IPA that GPU is now active
@@ -1732,6 +1739,18 @@ struct jsctx_queue {
  * allocation mechanism. However, the 64-bit user-space client must still
  * reserve a JIT region using KBASE_IOCTL_MEM_JIT_INIT
  *
+ * @KCTX_PULLED_SINCE_ACTIVE_JS0: Set when the context has had an atom pulled
+ * from it for job slot 0. This is reset when the context first goes active or
+ * is re-activated on that slot.
+ *
+ * @KCTX_PULLED_SINCE_ACTIVE_JS1: Set when the context has had an atom pulled
+ * from it for job slot 1. This is reset when the context first goes active or
+ * is re-activated on that slot.
+ *
+ * @KCTX_PULLED_SINCE_ACTIVE_JS2: Set when the context has had an atom pulled
+ * from it for job slot 2. This is reset when the context first goes active or
+ * is re-activated on that slot.
+ *
  * All members need to be separate bits. This enum is intended for use in a
  * bitmask where multiple values get OR-ed together.
  */
@@ -1748,6 +1767,9 @@ enum kbase_context_flags {
 	KCTX_DYING = 1U << 9,
 	KCTX_NO_IMPLICIT_SYNC = 1U << 10,
 	KCTX_FORCE_SAME_VA = 1U << 11,
+	KCTX_PULLED_SINCE_ACTIVE_JS0 = 1U << 12,
+	KCTX_PULLED_SINCE_ACTIVE_JS1 = 1U << 13,
+	KCTX_PULLED_SINCE_ACTIVE_JS2 = 1U << 14,
 };
 
 struct kbase_sub_alloc {

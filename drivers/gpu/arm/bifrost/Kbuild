@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2016, 2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,22 +20,17 @@
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r11p0-01rel0"
+MALI_RELEASE_NAME ?= "r12p0-01rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
 KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
 UMP_PATH = $(src)/../../../base
 
-ifeq ($(CONFIG_MALI_BIFROST_ERROR_INJECT),y)
-MALI_ERROR_INJECT_ON = 1
-endif
-
 # Set up defaults if not defined by build system
 MALI_CUSTOMER_RELEASE ?= 1
 MALI_UNIT_TEST ?= 0
 MALI_KERNEL_TEST_API ?= 0
-MALI_ERROR_INJECT_ON ?= 0
 MALI_MOCK_TEST ?= 0
 MALI_COVERAGE ?= 0
 CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
@@ -56,7 +51,6 @@ DEFINES = \
 	-DMALI_CUSTOMER_RELEASE=$(MALI_CUSTOMER_RELEASE) \
 	-DMALI_KERNEL_TEST_API=$(MALI_KERNEL_TEST_API) \
 	-DMALI_UNIT_TEST=$(MALI_UNIT_TEST) \
-	-DMALI_ERROR_INJECT_ON=$(MALI_ERROR_INJECT_ON) \
 	-DMALI_MOCK_TEST=$(MALI_MOCK_TEST) \
 	-DMALI_COVERAGE=$(MALI_COVERAGE) \
 	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\" \

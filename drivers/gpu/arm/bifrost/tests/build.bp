@@ -1,0 +1,36 @@
+/*
+ * Copyright:
+ * ----------------------------------------------------------------------------
+ * This confidential and proprietary software may be used only as authorized
+ * by a licensing agreement from ARM Limited.
+ *      (C) COPYRIGHT 2018 ARM Limited, ALL RIGHTS RESERVED
+ * The entire notice above must be reproduced on all authorized copies and
+ * copies may only be made to the extent permitted by a licensing agreement
+ * from ARM Limited.
+ * ----------------------------------------------------------------------------
+ */
+
+bob_defaults {
+    name: "kernel_test_module_defaults",
+    defaults: ["mali_kbase_shared_config_defaults"],
+    include_dirs: [
+        "kernel/drivers/gpu/arm",
+        "kernel/drivers/gpu/arm/midgard",
+        "kernel/drivers/gpu/arm/midgard/backend/gpu",
+        "kernel/drivers/gpu/arm/midgard/tests/include",
+    ],
+    extra_symbols: ["kutf"],
+}
+
+subdirs = [
+    "kutf",
+    "mali_kutf_irq_test",
+]
+
+optional_subdirs = [
+    "kutf_test",
+    "kutf_test_runner",
+    "mali_kutf_ipa_test",
+    "mali_kutf_ipa_unit_test",
+    "mali_kutf_vinstr_test",
+]

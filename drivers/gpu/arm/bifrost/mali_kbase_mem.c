@@ -29,9 +29,6 @@
 #ifdef CONFIG_DMA_SHARED_BUFFER
 #include <linux/dma-buf.h>
 #endif				/* CONFIG_DMA_SHARED_BUFFER */
-#ifdef CONFIG_UMP
-#include <linux/ump.h>
-#endif				/* CONFIG_UMP */
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/compat.h>
@@ -1688,7 +1685,8 @@ invalid_request:
 
 struct tagged_addr *kbase_alloc_phy_pages_helper_locked(
 		struct kbase_mem_phy_alloc *alloc, struct kbase_mem_pool *pool,
-		size_t nr_pages_requested)
+		size_t nr_pages_requested,
+		struct kbase_sub_alloc **prealloc_sa)
 {
 	int new_page_count __maybe_unused;
 	size_t nr_left = nr_pages_requested;
@@ -1786,15 +1784,8 @@ struct tagged_addr *kbase_alloc_phy_pages_helper_locked(
 
 			if (np) {
 				int i;
-				struct kbase_sub_alloc *sa;
+				struct kbase_sub_alloc *const sa = *prealloc_sa;
 				struct page *p;
-
-				sa = kmalloc(sizeof(*sa), GFP_KERNEL);
-				if (!sa) {
-					kbase_mem_pool_free_locked(pool, np,
-							false);
-					goto alloc_failed;
-				}
 
 				/* store pointers back to the control struct */
 				np->lru.next = (void *)sa;
@@ -1811,6 +1802,10 @@ struct tagged_addr *kbase_alloc_phy_pages_helper_locked(
 
 				bitmap_set(sa->sub_pages, 0, nr_left);
 				nr_left = 0;
+				/* Indicate to user that we'll free this memory
+				 * later.
+				 */
+				*prealloc_sa = NULL;
 
 				/* expose for later use */
 				list_add(&sa->link, &kctx->mem_partials);
@@ -2127,11 +2122,6 @@ void kbase_mem_kref_free(struct kref *kref)
 	case KBASE_MEM_TYPE_RAW:
 		/* raw pages, external cleanup */
 		break;
- #ifdef CONFIG_UMP
-	case KBASE_MEM_TYPE_IMPORTED_UMP:
-		ump_dd_release(alloc->imported.ump_handle);
-		break;
-#endif
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case KBASE_MEM_TYPE_IMPORTED_UMM:
 		dma_buf_detach(alloc->imported.umm.dma_buf,
@@ -2649,6 +2639,8 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 	struct kbase_mem_pool *pool;
 	int ret = -ENOMEM;
 	struct tagged_addr *gpu_pages;
+	struct kbase_sub_alloc *prealloc_sas[2] = { NULL, NULL };
+	int i;
 
 	if (info->commit_pages > reg->nr_pages) {
 		/* Attempted to grow larger than maximum size */
@@ -2672,6 +2664,14 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 	pages_required = delta;
 
 #ifdef CONFIG_MALI_2MB_ALLOC
+	/* Preallocate memory for the sub-allocation structs */
+	for (i = 0; i != ARRAY_SIZE(prealloc_sas); ++i) {
+		prealloc_sas[i] = kmalloc(sizeof(*prealloc_sas[i]),
+				GFP_KERNEL);
+		if (!prealloc_sas[i])
+			goto update_failed;
+	}
+
 	if (pages_required >= (SZ_2M / SZ_4K)) {
 		pool = &kctx->lp_mem_pool;
 		/* Round up to number of 2 MB pages required */
@@ -2711,7 +2711,7 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 	}
 
 	gpu_pages = kbase_alloc_phy_pages_helper_locked(reg->gpu_alloc, pool,
-			delta);
+			delta, &prealloc_sas[0]);
 	if (!gpu_pages) {
 		kbase_mem_pool_unlock(pool);
 		mutex_unlock(&kctx->mem_partials_lock);
@@ -2722,7 +2722,7 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 		struct tagged_addr *cpu_pages;
 
 		cpu_pages = kbase_alloc_phy_pages_helper_locked(reg->cpu_alloc,
-				pool, delta);
+				pool, delta, &prealloc_sas[1]);
 		if (!cpu_pages) {
 			kbase_free_phy_pages_helper_locked(reg->gpu_alloc,
 					pool, gpu_pages, delta);
@@ -2753,6 +2753,9 @@ done:
 update_failed:
 	kbase_gpu_vm_unlock(kctx);
 update_failed_unlocked:
+	for (i = 0; i != ARRAY_SIZE(prealloc_sas); ++i)
+		kfree(prealloc_sas[i]);
+
 	return ret;
 }
 
@@ -3012,6 +3015,7 @@ bool kbase_jit_evict(struct kbase_context *kctx)
 		reg = list_entry(kctx->jit_pool_head.prev,
 				struct kbase_va_region, jit_node);
 		list_del(&reg->jit_node);
+		list_del_init(&reg->gpu_alloc->evict_node);
 	}
 	mutex_unlock(&kctx->jit_evict_lock);
 
@@ -3029,12 +3033,6 @@ void kbase_jit_term(struct kbase_context *kctx)
 
 	/* Free all allocations for this context */
 
-	/*
-	 * Flush the freeing of allocations whose backing has been freed
-	 * (i.e. everything in jit_destroy_head).
-	 */
-	cancel_work_sync(&kctx->jit_work);
-
 	kbase_gpu_vm_lock(kctx);
 	mutex_lock(&kctx->jit_evict_lock);
 	/* Free all allocations from the pool */
@@ -3042,6 +3040,7 @@ void kbase_jit_term(struct kbase_context *kctx)
 		walker = list_first_entry(&kctx->jit_pool_head,
 				struct kbase_va_region, jit_node);
 		list_del(&walker->jit_node);
+		list_del_init(&walker->gpu_alloc->evict_node);
 		mutex_unlock(&kctx->jit_evict_lock);
 		walker->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, walker);
@@ -3053,6 +3052,7 @@ void kbase_jit_term(struct kbase_context *kctx)
 		walker = list_first_entry(&kctx->jit_active_head,
 				struct kbase_va_region, jit_node);
 		list_del(&walker->jit_node);
+		list_del_init(&walker->gpu_alloc->evict_node);
 		mutex_unlock(&kctx->jit_evict_lock);
 		walker->flags &= ~KBASE_REG_JIT;
 		kbase_mem_free_region(kctx, walker);
@@ -3060,6 +3060,12 @@ void kbase_jit_term(struct kbase_context *kctx)
 	}
 	mutex_unlock(&kctx->jit_evict_lock);
 	kbase_gpu_vm_unlock(kctx);
+
+	/*
+	 * Flush the freeing of allocations whose backing has been freed
+	 * (i.e. everything in jit_destroy_head).
+	 */
+	cancel_work_sync(&kctx->jit_work);
 }
 
 static int kbase_jd_user_buf_map(struct kbase_context *kctx,
@@ -3335,9 +3341,6 @@ struct kbase_mem_phy_alloc *kbase_map_external_resource(
 		}
 	}
 	break;
-	case KBASE_MEM_TYPE_IMPORTED_UMP: {
-		break;
-	}
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case KBASE_MEM_TYPE_IMPORTED_UMM: {
 		reg->gpu_alloc->imported.umm.current_mapping_usage_count++;

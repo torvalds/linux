@@ -205,3 +205,5 @@ config MALI_PWRSOFT_765
 	  PWRSOFT-765 fixes devfreq cooling devices issues. However, they are
 	  not merged in mainline kernel yet. So this define helps to guard those
 	  parts of the code.
+
+source "kernel/drivers/gpu/arm/midgard/tests/Mconfig"

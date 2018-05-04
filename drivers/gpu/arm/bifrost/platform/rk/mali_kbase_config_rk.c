@@ -14,6 +14,7 @@
 #include <mali_kbase_defs.h>
 #include <mali_kbase_config.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_pm_defs.h>
 
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
@@ -398,22 +399,25 @@ static ssize_t utilisation_show(struct device *dev,
 	struct rk_context *platform = get_rk_context(kbdev);
 	ssize_t ret = 0;
 	unsigned long period_in_us = platform->utilisation_period * 1000;
-	unsigned long total_time;
-	unsigned long busy_time;
-	unsigned long utilisation;
+	u32 utilisation;
+	struct kbasep_pm_metrics metrics_when_start;
+	struct kbasep_pm_metrics metrics_diff; /* between start and end. */
+	u32 total_time = 0;
+	u32 busy_time = 0;
 
-	kbase_pm_reset_dvfs_utilisation(kbdev);
+	/* get current metrics data. */
+	kbase_pm_get_dvfs_metrics(kbdev, &metrics_when_start, &metrics_diff);
+	/* sleep for 'period_in_us'. */
 	usleep_range(period_in_us, period_in_us + 100);
-	kbase_pm_get_dvfs_utilisation(kbdev, &total_time, &busy_time);
-	/* 'devfreq_dev_profile' instance registered to devfreq
-	 * also uses kbase_pm_reset_dvfs_utilisation
-	 * and kbase_pm_get_dvfs_utilisation.
-	 * it's better to cat this file when DVFS is disabled.
-	 */
-	D("total_time : %lu, busy_time : %lu.", total_time, busy_time);
+	/* get metrics data between start and end. */
+	kbase_pm_get_dvfs_metrics(kbdev, &metrics_when_start, &metrics_diff);
+
+	total_time = metrics_diff.time_busy + metrics_diff.time_idle;
+	busy_time = metrics_diff.time_busy;
+	D("total_time : %u, busy_time : %u.", total_time, busy_time);
 
 	utilisation = busy_time * 100 / total_time;
-	ret += snprintf(buf, PAGE_SIZE, "%ld\n", utilisation);
+	ret += snprintf(buf, PAGE_SIZE, "%d\n", utilisation);
 
 	return ret;
 }

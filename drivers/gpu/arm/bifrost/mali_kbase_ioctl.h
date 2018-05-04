@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#include <asm-generic/ioctl.h>
 #include <linux/types.h>
 
 #define KBASE_IOCTL_TYPE 0x80
@@ -48,9 +49,11 @@ extern "C" {
  * 11.6:
  * - Added flags field to base_jit_alloc_info structure, which can be used to
  *   specify pseudo chunked tiler alignment for JIT allocations.
+ * 11.7:
+ * - Removed UMP support
  */
 #define BASE_UK_VERSION_MAJOR 11
-#define BASE_UK_VERSION_MINOR 6
+#define BASE_UK_VERSION_MINOR 7
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility with kernel

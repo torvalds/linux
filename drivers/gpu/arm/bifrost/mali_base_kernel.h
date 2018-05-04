@@ -242,7 +242,6 @@ typedef u32 base_mem_alloc_flags;
  * enum base_mem_import_type - Memory types supported by @a base_mem_import
  *
  * @BASE_MEM_IMPORT_TYPE_INVALID: Invalid type
- * @BASE_MEM_IMPORT_TYPE_UMP: UMP import. Handle type is ump_secure_id.
  * @BASE_MEM_IMPORT_TYPE_UMM: UMM import. Handle type is a file descriptor (int)
  * @BASE_MEM_IMPORT_TYPE_USER_BUFFER: User buffer import. Handle is a
  * base_mem_import_user_buffer
@@ -257,7 +256,9 @@ typedef u32 base_mem_alloc_flags;
  */
 typedef enum base_mem_import_type {
 	BASE_MEM_IMPORT_TYPE_INVALID = 0,
-	BASE_MEM_IMPORT_TYPE_UMP = 1,
+	/**
+	 * Import type with value 1 is deprecated.
+	 */
 	BASE_MEM_IMPORT_TYPE_UMM = 2,
 	BASE_MEM_IMPORT_TYPE_USER_BUFFER = 3
 } base_mem_import_type;

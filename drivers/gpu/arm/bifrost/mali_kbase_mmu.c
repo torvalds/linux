@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -314,6 +314,8 @@ void page_fault_worker(struct work_struct *data)
 	struct kbase_mem_pool *pool;
 	int pages_to_grow;
 	struct tagged_addr *gpu_pages, *cpu_pages;
+	struct kbase_sub_alloc *prealloc_sas[2] = { NULL, NULL };
+	int i;
 
 	faulting_as = container_of(data, struct kbase_as, work_pagefault);
 	fault_pfn = faulting_as->fault_addr >> PAGE_SHIFT;
@@ -399,6 +401,22 @@ void page_fault_worker(struct work_struct *data)
 	}
 
 page_fault_retry:
+#ifdef CONFIG_MALI_2MB_ALLOC
+	/* Preallocate memory for the sub-allocation structs if necessary */
+	for (i = 0; i != ARRAY_SIZE(prealloc_sas); ++i) {
+		if (!prealloc_sas[i]) {
+			prealloc_sas[i] = kmalloc(sizeof(*prealloc_sas[i]),
+					GFP_KERNEL);
+			if (!prealloc_sas[i]) {
+				kbase_mmu_report_fault_and_kill(
+						kctx, faulting_as,
+						"Failed pre-allocating memory for sub-allocations' metadata");
+				goto fault_done;
+			}
+		}
+	}
+#endif /* CONFIG_MALI_2MB_ALLOC */
+
 	/* so we have a translation fault, let's see if it is for growable
 	 * memory */
 	kbase_gpu_vm_lock(kctx);
@@ -520,13 +538,14 @@ page_fault_retry:
 	 */
 	if (kbase_mem_pool_size(pool) >= min_pool_size) {
 		gpu_pages = kbase_alloc_phy_pages_helper_locked(
-				region->gpu_alloc, pool, new_pages);
+				region->gpu_alloc, pool, new_pages,
+				&prealloc_sas[0]);
 
 		if (gpu_pages) {
 			if (region->gpu_alloc != region->cpu_alloc) {
 				cpu_pages = kbase_alloc_phy_pages_helper_locked(
 						region->cpu_alloc, pool,
-						new_pages);
+						new_pages, &prealloc_sas[1]);
 
 				if (cpu_pages) {
 					grown = true;
@@ -656,6 +675,9 @@ page_fault_retry:
 	}
 
 fault_done:
+	for (i = 0; i != ARRAY_SIZE(prealloc_sas); ++i)
+		kfree(prealloc_sas[i]);
+
 	/*
 	 * By this point, the fault was handled in some way,
 	 * so release the ctx refcount

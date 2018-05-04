@@ -43,7 +43,7 @@
  * @backend:         GPU backend specific data for HW access layer
  */
 struct kbase_hwaccess_data {
-	struct kbase_context *active_kctx;
+	struct kbase_context *active_kctx[BASE_JM_MAX_NR_SLOTS];
 
 	struct kbase_backend_data backend;
 };

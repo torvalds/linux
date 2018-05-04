@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -47,7 +47,6 @@ if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit
 
 make_args = env.kernel_get_config_defines(ret_list = True) + [
 	'PLATFORM=%s' % env['platform'],
-	'MALI_ERROR_INJECT_ON=%s' % env['error_inject'],
 	'MALI_KERNEL_TEST_API=%s' % env['debug'],
 	'MALI_UNIT_TEST=%s' % env['unit'],
 	'MALI_RELEASE_NAME=%s' % env['mali_release_name'],
@@ -58,10 +57,6 @@ make_args = env.kernel_get_config_defines(ret_list = True) + [
 
 kbase = env.BuildKernelModule('$STATIC_LIB_PATH/mali_kbase.ko', kbase_src,
                               make_args = make_args)
-
-# need Module.symvers from ump.ko build
-if int(env['ump']) == 1:
-	env.Depends(kbase, '$STATIC_LIB_PATH/ump.ko')
 
 if 'smc_protected_mode_switcher' in env:
 	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/smc_protected_mode_switcher.ko')

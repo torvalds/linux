@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2016, 2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -23,9 +23,7 @@
 KDIR ?= /lib/modules/$(shell uname -r)/build
 
 BUSLOG_PATH_RELATIVE = $(CURDIR)/../../../..
-UMP_PATH_RELATIVE = $(CURDIR)/../../../base/ump
 KBASE_PATH_RELATIVE = $(CURDIR)
-EXTRA_SYMBOLS = $(UMP_PATH_RELATIVE)/src/Module.symvers
 
 ifeq ($(MALI_UNIT_TEST), 1)
 	EXTRA_SYMBOLS += $(KBASE_PATH_RELATIVE)/tests/internal/src/kernel_assert_module/linux/Module.symvers

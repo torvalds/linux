@@ -171,8 +171,6 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET((u64)nominal_freq);
 
-	kbase_pm_reset_dvfs_utilisation(kbdev);
-
 	return err;
 }
 
@@ -190,10 +188,13 @@ static int
 kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
+	struct kbasep_pm_metrics diff;
 
-	kbase_pm_get_dvfs_utilisation(kbdev,
-			&stat->total_time, &stat->busy_time);
+	kbase_pm_get_dvfs_metrics(kbdev, &kbdev->last_devfreq_metrics, &diff);
 
+	stat->busy_time = diff.time_busy;
+	stat->total_time = diff.time_busy + diff.time_idle;
+	stat->current_frequency = kbdev->current_nominal_freq;
 	stat->private_data = NULL;
 
 	return 0;

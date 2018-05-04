@@ -616,8 +616,7 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 	}
 
 	/* limit to imported memory */
-	if ((reg->gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMP) &&
-	     (reg->gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMM))
+	if (reg->gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMM)
 		goto out_unlock;
 
 	/* no change? */
@@ -632,28 +631,17 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 	reg->flags |= real_flags;
 
 	/* Currently supporting only imported memory */
-	switch (reg->gpu_alloc->type) {
-#ifdef CONFIG_UMP
-	case KBASE_MEM_TYPE_IMPORTED_UMP:
-		ret = kbase_mmu_update_pages(kctx, reg->start_pfn,
-					     kbase_get_gpu_phy_pages(reg),
-					     reg->gpu_alloc->nents, reg->flags);
-		break;
-#endif
 #ifdef CONFIG_DMA_SHARED_BUFFER
-	case KBASE_MEM_TYPE_IMPORTED_UMM:
+	if (reg->gpu_alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM) {
 		/* Future use will use the new flags, existing mapping will NOT be updated
 		 * as memory should not be in use by the GPU when updating the flags.
 		 */
 		ret = 0;
 		WARN_ON(reg->gpu_alloc->imported.umm.current_mapping_usage_count);
-		break;
-#endif
-	default:
-		break;
 	}
+#endif /* CONFIG_DMA_SHARED_BUFFER */
 
-	/* roll back on error, i.e. not UMP */
+	/* roll back on error */
 	if (ret)
 		reg->flags = prev_flags;
 
@@ -665,128 +653,6 @@ out:
 }
 
 #define KBASE_MEM_IMPORT_HAVE_PAGES (1UL << BASE_MEM_FLAGS_NR_BITS)
-
-#ifdef CONFIG_UMP
-static struct kbase_va_region *kbase_mem_from_ump(struct kbase_context *kctx, ump_secure_id id, u64 *va_pages, u64 *flags)
-{
-	struct kbase_va_region *reg;
-	ump_dd_handle umph;
-	u64 block_count;
-	const ump_dd_physical_block_64 *block_array;
-	u64 i, j;
-	int page = 0;
-	ump_alloc_flags ump_flags;
-	ump_alloc_flags cpu_flags;
-	ump_alloc_flags gpu_flags;
-
-	if (*flags & BASE_MEM_SECURE)
-		goto bad_flags;
-
-	umph = ump_dd_from_secure_id(id);
-	if (UMP_DD_INVALID_MEMORY_HANDLE == umph)
-		goto bad_id;
-
-	ump_flags = ump_dd_allocation_flags_get(umph);
-	cpu_flags = (ump_flags >> UMP_DEVICE_CPU_SHIFT) & UMP_DEVICE_MASK;
-	gpu_flags = (ump_flags >> DEFAULT_UMP_GPU_DEVICE_SHIFT) &
-			UMP_DEVICE_MASK;
-
-	*va_pages = ump_dd_size_get_64(umph);
-	*va_pages >>= PAGE_SHIFT;
-
-	if (!*va_pages)
-		goto bad_size;
-
-	if (*va_pages > (U64_MAX / PAGE_SIZE))
-		/* 64-bit address range is the max */
-		goto bad_size;
-
-	if (*flags & BASE_MEM_SAME_VA)
-		reg = kbase_alloc_free_region(kctx, 0, *va_pages, KBASE_REG_ZONE_SAME_VA);
-	else
-		reg = kbase_alloc_free_region(kctx, 0, *va_pages, KBASE_REG_ZONE_CUSTOM_VA);
-
-	if (!reg)
-		goto no_region;
-
-	/* we've got pages to map now, and support SAME_VA */
-	*flags |= KBASE_MEM_IMPORT_HAVE_PAGES;
-
-	reg->gpu_alloc = kbase_alloc_create(*va_pages, KBASE_MEM_TYPE_IMPORTED_UMP);
-	if (IS_ERR_OR_NULL(reg->gpu_alloc))
-		goto no_alloc_obj;
-
-	reg->cpu_alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
-
-	reg->gpu_alloc->imported.ump_handle = umph;
-
-	reg->flags &= ~KBASE_REG_FREE;
-	reg->flags |= KBASE_REG_GPU_NX;	/* UMP is always No eXecute */
-	reg->flags &= ~KBASE_REG_GROWABLE;	/* UMP cannot be grown */
-
-	/* Override import flags based on UMP flags */
-	*flags &= ~(BASE_MEM_CACHED_CPU);
-	*flags &= ~(BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_CPU_WR);
-	*flags &= ~(BASE_MEM_PROT_GPU_RD | BASE_MEM_PROT_GPU_WR);
-
-	if ((cpu_flags & (UMP_HINT_DEVICE_RD | UMP_HINT_DEVICE_WR)) ==
-	    (UMP_HINT_DEVICE_RD | UMP_HINT_DEVICE_WR)) {
-		reg->flags |= KBASE_REG_CPU_CACHED;
-		*flags |= BASE_MEM_CACHED_CPU;
-	}
-
-	if (cpu_flags & UMP_PROT_CPU_WR) {
-		reg->flags |= KBASE_REG_CPU_WR;
-		*flags |= BASE_MEM_PROT_CPU_WR;
-	}
-
-	if (cpu_flags & UMP_PROT_CPU_RD) {
-		reg->flags |= KBASE_REG_CPU_RD;
-		*flags |= BASE_MEM_PROT_CPU_RD;
-	}
-
-	if ((gpu_flags & (UMP_HINT_DEVICE_RD | UMP_HINT_DEVICE_WR)) ==
-	    (UMP_HINT_DEVICE_RD | UMP_HINT_DEVICE_WR))
-		reg->flags |= KBASE_REG_GPU_CACHED;
-
-	if (gpu_flags & UMP_PROT_DEVICE_WR) {
-		reg->flags |= KBASE_REG_GPU_WR;
-		*flags |= BASE_MEM_PROT_GPU_WR;
-	}
-
-	if (gpu_flags & UMP_PROT_DEVICE_RD) {
-		reg->flags |= KBASE_REG_GPU_RD;
-		*flags |= BASE_MEM_PROT_GPU_RD;
-	}
-
-	/* ump phys block query */
-	ump_dd_phys_blocks_get_64(umph, &block_count, &block_array);
-
-	for (i = 0; i < block_count; i++) {
-		for (j = 0; j < (block_array[i].size >> PAGE_SHIFT); j++) {
-			struct tagged_addr tagged;
-
-			tagged = as_tagged(block_array[i].addr +
-					   (j << PAGE_SHIFT));
-			reg->gpu_alloc->pages[page] = tagged;
-			page++;
-		}
-	}
-	reg->gpu_alloc->nents = *va_pages;
-	reg->extent = 0;
-
-	return reg;
-
-no_alloc_obj:
-	kfree(reg);
-no_region:
-bad_size:
-	ump_dd_release(umph);
-bad_id:
-bad_flags:
-	return NULL;
-}
-#endif				/* CONFIG_UMP */
 
 #ifdef CONFIG_DMA_SHARED_BUFFER
 static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx,
@@ -981,7 +847,11 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 	user_buf->address = address;
 	user_buf->nr_pages = *va_pages;
 	user_buf->mm = current->mm;
+#if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
 	atomic_inc(&current->mm->mm_count);
+#else
+	mmgrab(current->mm);
+#endif
 	user_buf->pages = kmalloc_array(*va_pages, sizeof(struct page *),
 			GFP_KERNEL);
 
@@ -1308,17 +1178,6 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 	}
 
 	switch (type) {
-#ifdef CONFIG_UMP
-	case BASE_MEM_IMPORT_TYPE_UMP: {
-		ump_secure_id id;
-
-		if (get_user(id, (ump_secure_id __user *)phandle))
-			reg = NULL;
-		else
-			reg = kbase_mem_from_ump(kctx, id, va_pages, flags);
-	}
-	break;
-#endif /* CONFIG_UMP */
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case BASE_MEM_IMPORT_TYPE_UMM: {
 		int fd;

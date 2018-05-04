@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -176,17 +176,17 @@ config MALI_BIFROST_SYSTEM_TRACE
 	default n
 	help
 	  Choose this option to enable system trace events for each
-	  kbase event.	This is typically used for debugging but has
+	  kbase event. This is typically used for debugging but has
 	  minimal overhead when not in use. Enable only if you know what
 	  you are doing.
 
-config MALI_JOB_DUMPING
+config MALI_JOB_DUMP
 	bool "Enable system level support needed for job dumping"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Choose this option to enable system level support needed for
-	  job dumping.	This is typically used for instrumentation but has
+	  job dumping. This is typically used for instrumentation but has
 	  minimal overhead when not in use. Enable only if you know what
 	  you are doing.
 

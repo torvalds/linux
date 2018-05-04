@@ -164,6 +164,24 @@ static s64 kbase_g7x_jm_single_counter(
 	return kbase_ipa_single_counter(model_data, coeff, counter);
 }
 
+/**
+ * get_active_cycles() - return the GPU_ACTIVE counter
+ * @model_data:            pointer to GPU model data.
+ *
+ * Return: the number of cycles the GPU was active during the counter sampling
+ * period.
+ */
+static u32 kbase_g7x_get_active_cycles(
+	struct kbase_ipa_model_vinstr_data *model_data)
+{
+	u32 counter = kbase_g7x_power_model_get_jm_counter(model_data, JM_GPU_ACTIVE);
+
+	/* Counters are only 32-bit, so we can safely multiply by 1 then cast
+	 * the 64-bit result back to a u32.
+	 */
+	return kbase_ipa_single_counter(model_data, 1, counter);
+}
+
 /** Table of IPA group definitions.
  *
  * For each IPA group, this table defines a function to access the given performance block counter (or counters,
@@ -277,14 +295,14 @@ static const struct kbase_ipa_group ipa_groups_def_tnox[] = {
 				KBASE_IPA_MAX_GROUP_DEF_NUM); \
 		return kbase_ipa_vinstr_common_model_init(model, \
 				ipa_groups_def_ ## gpu, \
-				ARRAY_SIZE(ipa_groups_def_ ## gpu)); \
+				ARRAY_SIZE(ipa_groups_def_ ## gpu), \
+				kbase_g7x_get_active_cycles); \
 	} \
 	struct kbase_ipa_model_ops kbase_ ## gpu ## _ipa_model_ops = { \
 		.name = "mali-" #gpu "-power-model", \
 		.init = kbase_ ## gpu ## _power_model_init, \
 		.term = kbase_ipa_vinstr_common_model_term, \
 		.get_dynamic_coeff = kbase_ipa_vinstr_dynamic_coeff, \
-		.do_utilization_scaling_in_framework = false \
 	}; \
 	KBASE_EXPORT_TEST_API(kbase_ ## gpu ## _ipa_model_ops)
 

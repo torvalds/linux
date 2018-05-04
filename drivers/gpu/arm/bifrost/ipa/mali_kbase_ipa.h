@@ -96,8 +96,6 @@ struct kbase_ipa_model_ops {
 	 * get_dynamic_coeff() - calculate dynamic power coefficient
 	 * @model:		pointer to model
 	 * @coeffp:		pointer to return value location
-	 * @current_freq:	frequency the GPU has been running at for the
-	 *			previous sampling period.
 	 *
 	 * Calculate a dynamic power coefficient, with units pW/(Hz V^2), which
 	 * is then scaled by the IPA framework according to the current OPP's
@@ -105,8 +103,7 @@ struct kbase_ipa_model_ops {
 	 *
 	 * Return: 0 on success, or an error code.
 	 */
-	int (*get_dynamic_coeff)(struct kbase_ipa_model *model, u32 *coeffp,
-				 u32 current_freq);
+	int (*get_dynamic_coeff)(struct kbase_ipa_model *model, u32 *coeffp);
 	/*
 	 * get_static_coeff() - calculate static power coefficient
 	 * @model:		pointer to model
@@ -118,11 +115,6 @@ struct kbase_ipa_model_ops {
 	 * Return: 0 on success, or an error code.
 	 */
 	int (*get_static_coeff)(struct kbase_ipa_model *model, u32 *coeffp);
-	/* If false, the model's get_dynamic_coeff() method accounts for how
-	 * long the GPU was active over the sample period. If true, the
-	 * framework will scale the calculated power according to the
-	 * utilization stats recorded by devfreq in get_real_power(). */
-	bool do_utilization_scaling_in_framework;
 };
 
 /**
@@ -206,6 +198,13 @@ extern struct kbase_ipa_model_ops kbase_tnox_ipa_model_ops;
  * Return: 0 on success, or an error code.
  */
 int kbase_get_real_power(struct devfreq *df, u32 *power,
+				unsigned long freq,
+				unsigned long voltage);
+
+/* Called by kbase_get_real_power() to invoke the power models.
+ * Must be called with kbdev->ipa.lock held.
+ */
+int kbase_get_real_power_locked(struct kbase_device *kbdev, u32 *power,
 				unsigned long freq,
 				unsigned long voltage);
 #endif /* MALI_UNIT_TEST */
