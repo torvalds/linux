@@ -468,7 +468,7 @@ static inline struct fib6_info *rt6_device_match(struct net *net,
 	    !(rt->fib6_nh.nh_flags & RTNH_F_DEAD))
 		return rt;
 
-	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->rt6_next)) {
+	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->fib6_next)) {
 		const struct net_device *dev = sprt->fib6_nh.nh_dev;
 
 		if (sprt->fib6_nh.nh_flags & RTNH_F_DEAD)
@@ -696,7 +696,7 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 
 	match = NULL;
 	cont = NULL;
-	for (rt = rr_head; rt; rt = rcu_dereference(rt->rt6_next)) {
+	for (rt = rr_head; rt; rt = rcu_dereference(rt->fib6_next)) {
 		if (rt->fib6_metric != metric) {
 			cont = rt;
 			break;
@@ -706,7 +706,7 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 	}
 
 	for (rt = leaf; rt && rt != rr_head;
-	     rt = rcu_dereference(rt->rt6_next)) {
+	     rt = rcu_dereference(rt->fib6_next)) {
 		if (rt->fib6_metric != metric) {
 			cont = rt;
 			break;
@@ -718,7 +718,7 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 	if (match || !cont)
 		return match;
 
-	for (rt = cont; rt; rt = rcu_dereference(rt->rt6_next))
+	for (rt = cont; rt; rt = rcu_dereference(rt->fib6_next))
 		match = find_match(rt, oif, strict, &mpri, match, do_rr);
 
 	return match;
@@ -756,7 +756,7 @@ static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
 			     &do_rr);
 
 	if (do_rr) {
-		struct fib6_info *next = rcu_dereference(rt0->rt6_next);
+		struct fib6_info *next = rcu_dereference(rt0->fib6_next);
 
 		/* no entries matched; do round-robin */
 		if (!next || next->fib6_metric != rt0->fib6_metric)
@@ -3781,7 +3781,7 @@ static struct fib6_info *rt6_multipath_first_sibling(const struct fib6_info *rt)
 		if (iter->fib6_metric == rt->fib6_metric &&
 		    rt6_qualify_for_ecmp(iter))
 			return iter;
-		iter = rcu_dereference_protected(iter->rt6_next,
+		iter = rcu_dereference_protected(iter->fib6_next,
 				lockdep_is_held(&rt->fib6_table->tb6_lock));
 	}
 

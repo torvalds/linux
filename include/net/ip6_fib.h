@@ -135,7 +135,7 @@ struct fib6_nh {
 
 struct fib6_info {
 	struct fib6_table		*fib6_table;
-	struct fib6_info __rcu		*rt6_next;
+	struct fib6_info __rcu		*fib6_next;
 	struct fib6_node __rcu		*fib6_node;
 
 	/* Multipath routes:
@@ -192,11 +192,11 @@ struct rt6_info {
 
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
-	     rt = rcu_dereference(rt->rt6_next))
+	     rt = rcu_dereference(rt->fib6_next))
 
 #define for_each_fib6_walker_rt(w)					\
 	for (rt = (w)->leaf; rt;					\
-	     rt = rcu_dereference_protected(rt->rt6_next, 1))
+	     rt = rcu_dereference_protected(rt->fib6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
