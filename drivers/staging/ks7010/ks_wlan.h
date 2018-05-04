@@ -428,11 +428,9 @@ struct rx_device {
 	spinlock_t rx_dev_lock;	/* protect access to the queue */
 };
 
-struct ks_sdio_card;
-
 struct ks_wlan_private {
 	/* hardware information */
-	struct ks_sdio_card *ks_sdio_card;
+	void *if_hw;
 	struct workqueue_struct *wq;
 	struct delayed_work rw_dwork;
 	struct tasklet_struct rx_bh_task;

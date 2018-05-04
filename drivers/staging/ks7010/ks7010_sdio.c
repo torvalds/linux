@@ -16,7 +16,6 @@
 #include <linux/workqueue.h>
 #include "ks_wlan.h"
 #include "ks_hostif.h"
-#include "ks7010_sdio.h"
 
 #define ROM_FILE "ks7010sd.rom"
 
@@ -97,11 +96,31 @@ enum gen_com_reg_b {
 
 #define KS7010_IO_BLOCK_SIZE 512
 
+/**
+ * struct ks_sdio_card - SDIO device data.
+ *
+ * Structure is used as the &struct sdio_func private data.
+ *
+ * @func: Pointer to the SDIO function device.
+ * @priv: Pointer to the &struct net_device private data.
+ */
+struct ks_sdio_card {
+	struct sdio_func *func;
+	struct ks_wlan_private *priv;
+};
+
+static struct sdio_func *ks7010_to_func(struct ks_wlan_private *priv)
+{
+	struct ks_sdio_card *ks_sdio = priv->if_hw;
+
+	return ks_sdio->func;
+}
+
 /* Read single byte from device address into byte (CMD52) */
 static int ks7010_sdio_readb(struct ks_wlan_private *priv,
 			     u32 address, u8 *byte)
 {
-	struct sdio_func *func = priv->ks_sdio_card->func;
+	struct sdio_func *func = ks7010_to_func(priv);
 	int ret;
 
 	*byte = sdio_readb(func, address, &ret);
@@ -113,7 +132,7 @@ static int ks7010_sdio_readb(struct ks_wlan_private *priv,
 static int ks7010_sdio_read(struct ks_wlan_private *priv, u32 address,
 			    u8 *buffer, unsigned int length)
 {
-	struct sdio_func *func = priv->ks_sdio_card->func;
+	struct sdio_func *func = ks7010_to_func(priv);
 
 	return sdio_memcpy_fromio(func, buffer, address, length);
 }
@@ -122,7 +141,7 @@ static int ks7010_sdio_read(struct ks_wlan_private *priv, u32 address,
 static int ks7010_sdio_writeb(struct ks_wlan_private *priv,
 			      u32 address, u8 byte)
 {
-	struct sdio_func *func = priv->ks_sdio_card->func;
+	struct sdio_func *func = ks7010_to_func(priv);
 	int ret;
 
 	sdio_writeb(func, byte, address, &ret);
@@ -134,7 +153,7 @@ static int ks7010_sdio_writeb(struct ks_wlan_private *priv,
 static int ks7010_sdio_write(struct ks_wlan_private *priv, u32 address,
 			     u8 *buffer, unsigned int length)
 {
-	struct sdio_func *func = priv->ks_sdio_card->func;
+	struct sdio_func *func = ks7010_to_func(priv);
 
 	return sdio_memcpy_toio(func, address, buffer, length);
 }
@@ -449,11 +468,12 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 static void ks7010_rw_function(struct work_struct *work)
 {
-	struct ks_wlan_private *priv;
+	struct ks_wlan_private *priv = container_of(work,
+						    struct ks_wlan_private,
+						    rw_dwork.work);
+	struct sdio_func *func = ks7010_to_func(priv);
 	unsigned char byte;
 	int ret;
-
-	priv = container_of(work, struct ks_wlan_private, rw_dwork.work);
 
 	/* wait after DOZE */
 	if (time_after(priv->last_doze + msecs_to_jiffies(30), jiffies)) {
@@ -465,13 +485,12 @@ static void ks7010_rw_function(struct work_struct *work)
 	/* wait after WAKEUP */
 	while (time_after(priv->last_wakeup + msecs_to_jiffies(30), jiffies)) {
 		netdev_dbg(priv->net_dev, "wait after WAKEUP\n");
-		dev_info(&priv->ks_sdio_card->func->dev,
-			 "wake: %lu %lu\n",
+		dev_info(&func->dev, "wake: %lu %lu\n",
 			 priv->last_wakeup + msecs_to_jiffies(30), jiffies);
 		msleep(30);
 	}
 
-	sdio_claim_host(priv->ks_sdio_card->func);
+	sdio_claim_host(func);
 
 	/* power save wakeup */
 	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
@@ -510,7 +529,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	_ks_wlan_hw_power_save(priv);
 
 release_host:
-	sdio_release_host(priv->ks_sdio_card->func);
+	sdio_release_host(func);
 }
 
 static void ks_sdio_interrupt(struct sdio_func *func)
@@ -726,13 +745,14 @@ free_rom_buf:
 static int ks7010_upload_firmware(struct ks_sdio_card *card)
 {
 	struct ks_wlan_private *priv = card->priv;
+	struct sdio_func *func = ks7010_to_func(priv);
 	unsigned int n;
 	unsigned char byte = 0;
 	int ret;
 	const struct firmware *fw_entry = NULL;
 
 
-	sdio_claim_host(card->func);
+	sdio_claim_host(func);
 
 	/* Firmware running ? */
 	ret = ks7010_sdio_readb(priv, GCR_A_REG, &byte);
@@ -745,7 +765,7 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	}
 
 	ret = request_firmware(&fw_entry, ROM_FILE,
-			       &priv->ks_sdio_card->func->dev);
+			       &func->dev);
 	if (ret)
 		goto release_host;
 
@@ -774,7 +794,7 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
  release_firmware:
 	release_firmware(fw_entry);
  release_host:
-	sdio_release_host(card->func);
+	sdio_release_host(func);
 
 	return ret;
 }
@@ -907,7 +927,7 @@ static void ks7010_private_init(struct ks_wlan_private *priv,
 				struct net_device *netdev)
 {
 	/* private memory initialize */
-	priv->ks_sdio_card = card;
+	priv->if_hw = card;
 
 	priv->dev_state = DEVICE_STATE_PREBOOT;
 	priv->net_dev = netdev;
