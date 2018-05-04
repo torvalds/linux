@@ -228,8 +228,8 @@ static inline bool arch_irqs_disabled(void)
 #define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory")
 #define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory")
 #else
-#define __hard_irq_enable()	__mtmsrd(local_paca->kernel_msr | MSR_EE, 1)
-#define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
+#define __hard_irq_enable()	__mtmsrd(MSR_EE|MSR_RI, 1)
+#define __hard_irq_disable()	__mtmsrd(MSR_RI, 1)
 #endif
 
 #define hard_irq_disable()	do {					\
