@@ -204,13 +204,14 @@ ENTRY(__memcpy_mcsafe)
 	subl $8, %ecx
 	negl %ecx
 	subl %ecx, %edx
-.L_copy_leading_bytes:
+.L_read_leading_bytes:
 	movb (%rsi), %al
+.L_write_leading_bytes:
 	movb %al, (%rdi)
 	incq %rsi
 	incq %rdi
 	decl %ecx
-	jnz .L_copy_leading_bytes
+	jnz .L_read_leading_bytes
 
 .L_8byte_aligned:
 	movl %edx, %ecx
@@ -218,13 +219,14 @@ ENTRY(__memcpy_mcsafe)
 	shrl $3, %ecx
 	jz .L_no_whole_words
 
-.L_copy_words:
+.L_read_words:
 	movq (%rsi), %r8
+.L_write_words:
 	movq %r8, (%rdi)
 	addq $8, %rsi
 	addq $8, %rdi
 	decl %ecx
-	jnz .L_copy_words
+	jnz .L_read_words
 
 	/* Any trailing bytes? */
 .L_no_whole_words:
@@ -233,13 +235,14 @@ ENTRY(__memcpy_mcsafe)
 
 	/* Copy trailing bytes */
 	movl %edx, %ecx
-.L_copy_trailing_bytes:
+.L_read_trailing_bytes:
 	movb (%rsi), %al
+.L_write_trailing_bytes:
 	movb %al, (%rdi)
 	incq %rsi
 	incq %rdi
 	decl %ecx
-	jnz .L_copy_trailing_bytes
+	jnz .L_read_trailing_bytes
 
 	/* Copy successful. Return zero */
 .L_done_memcpy_trap:
@@ -256,7 +259,7 @@ EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
 
 	.previous
 
-	_ASM_EXTABLE_FAULT(.L_copy_leading_bytes, .L_memcpy_mcsafe_fail)
-	_ASM_EXTABLE_FAULT(.L_copy_words, .L_memcpy_mcsafe_fail)
-	_ASM_EXTABLE_FAULT(.L_copy_trailing_bytes, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_read_leading_bytes, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_read_words, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_read_trailing_bytes, .L_memcpy_mcsafe_fail)
 #endif
