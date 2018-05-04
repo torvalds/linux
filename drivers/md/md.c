@@ -6145,6 +6145,9 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 	struct md_rdev *rdev;
 	int ret = -1;
 
+	if (!mddev->pers)
+		return -ENODEV;
+
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
 		return -ENXIO;
