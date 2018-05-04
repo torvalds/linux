@@ -656,6 +656,156 @@ audio_format_alloc_init(struct snd_usb_audio *chip,
 	return fp;
 }
 
+static struct audioformat *
+snd_usb_get_audioformat_uac12(struct snd_usb_audio *chip,
+			      struct usb_host_interface *alts,
+			      int protocol, int iface_no, int altset_idx,
+			      int altno, int stream, int bm_quirk)
+{
+	struct usb_device *dev = chip->dev;
+	struct uac_format_type_i_continuous_descriptor *fmt;
+	unsigned int num_channels = 0, chconfig = 0;
+	struct audioformat *fp;
+	int clock = 0;
+	u64 format;
+
+	/* get audio formats */
+	if (protocol == UAC_VERSION_1) {
+		struct uac1_as_header_descriptor *as =
+			snd_usb_find_csint_desc(alts->extra, alts->extralen,
+						NULL, UAC_AS_GENERAL);
+		struct uac_input_terminal_descriptor *iterm;
+
+		if (!as) {
+			dev_err(&dev->dev,
+				"%u:%d : UAC_AS_GENERAL descriptor not found\n",
+				iface_no, altno);
+			return NULL;
+		}
+
+		if (as->bLength < sizeof(*as)) {
+			dev_err(&dev->dev,
+				"%u:%d : invalid UAC_AS_GENERAL desc\n",
+				iface_no, altno);
+			return NULL;
+		}
+
+		format = le16_to_cpu(as->wFormatTag); /* remember the format value */
+
+		iterm = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+							     as->bTerminalLink);
+		if (iterm) {
+			num_channels = iterm->bNrChannels;
+			chconfig = le16_to_cpu(iterm->wChannelConfig);
+		}
+	} else { /* UAC_VERSION_2 */
+		struct uac2_input_terminal_descriptor *input_term;
+		struct uac2_output_terminal_descriptor *output_term;
+		struct uac2_as_header_descriptor *as =
+			snd_usb_find_csint_desc(alts->extra, alts->extralen,
+						NULL, UAC_AS_GENERAL);
+
+		if (!as) {
+			dev_err(&dev->dev,
+				"%u:%d : UAC_AS_GENERAL descriptor not found\n",
+				iface_no, altno);
+			return NULL;
+		}
+
+		if (as->bLength < sizeof(*as)) {
+			dev_err(&dev->dev,
+				"%u:%d : invalid UAC_AS_GENERAL desc\n",
+				iface_no, altno);
+			return NULL;
+		}
+
+		num_channels = as->bNrChannels;
+		format = le32_to_cpu(as->bmFormats);
+		chconfig = le32_to_cpu(as->bmChannelConfig);
+
+		/*
+		 * lookup the terminal associated to this interface
+		 * to extract the clock
+		 */
+		input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+								    as->bTerminalLink);
+		if (input_term) {
+			clock = input_term->bCSourceID;
+			if (!chconfig && (num_channels == input_term->bNrChannels))
+				chconfig = le32_to_cpu(input_term->bmChannelConfig);
+			goto found_clock;
+		}
+
+		output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
+								      as->bTerminalLink);
+		if (output_term) {
+			clock = output_term->bCSourceID;
+			goto found_clock;
+		}
+
+		dev_err(&dev->dev,
+			"%u:%d : bogus bTerminalLink %d\n",
+			iface_no, altno, as->bTerminalLink);
+		return NULL;
+	}
+
+found_clock:
+	/* get format type */
+	fmt = snd_usb_find_csint_desc(alts->extra, alts->extralen,
+				      NULL, UAC_FORMAT_TYPE);
+	if (!fmt) {
+		dev_err(&dev->dev,
+			"%u:%d : no UAC_FORMAT_TYPE desc\n",
+			iface_no, altno);
+		return NULL;
+	}
+	if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8))
+			|| ((protocol == UAC_VERSION_2) &&
+					(fmt->bLength < 6))) {
+		dev_err(&dev->dev,
+			"%u:%d : invalid UAC_FORMAT_TYPE desc\n",
+			iface_no, altno);
+		return NULL;
+	}
+
+	/*
+	 * Blue Microphones workaround: The last altsetting is
+	 * identical with the previous one, except for a larger
+	 * packet size, but is actually a mislabeled two-channel
+	 * setting; ignore it.
+	 *
+	 * Part 2: analyze quirk flag and format
+	 */
+	if (bm_quirk && fmt->bNrChannels == 1 && fmt->bSubframeSize == 2)
+		return NULL;
+
+	fp = audio_format_alloc_init(chip, alts, protocol, iface_no,
+				     altset_idx, altno, num_channels, clock);
+	if (!fp)
+		return ERR_PTR(-ENOMEM);
+
+	fp->attributes = parse_uac_endpoint_attributes(chip, alts, protocol,
+						       iface_no);
+
+	/* some quirks for attributes here */
+	snd_usb_audioformat_attributes_quirk(chip, fp, stream);
+
+	/* ok, let's parse further... */
+	if (snd_usb_parse_audio_format(chip, fp, format,
+					fmt, stream) < 0) {
+		kfree(fp->rate_table);
+		kfree(fp);
+		return NULL;
+	}
+
+	/* Create chmap */
+	if (fp->channels != num_channels)
+		chconfig = 0;
+
+	fp->chmap = convert_chmap(fp->channels, chconfig, protocol);
+
+	return fp;
+}
 
 int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 {
@@ -663,14 +813,13 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 	struct usb_interface *iface;
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
+	struct uac3_as_header_descriptor *as = NULL;
 	int i, altno, err, stream;
 	u64 format = 0;
 	unsigned int num_channels = 0;
 	struct audioformat *fp = NULL;
 	int num, protocol, clock = 0;
-	struct uac_format_type_i_continuous_descriptor *fmt = NULL;
 	struct snd_pcm_chmap_elem *chmap_v3 = NULL;
-	unsigned int chconfig;
 
 	dev = chip->dev;
 
@@ -719,98 +868,41 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		    protocol <= 2)
 			protocol = UAC_VERSION_1;
 
-		chconfig = 0;
-		/* get audio formats */
 		switch (protocol) {
 		default:
 			dev_dbg(&dev->dev, "%u:%d: unknown interface protocol %#02x, assuming v1\n",
 				iface_no, altno, protocol);
 			protocol = UAC_VERSION_1;
 			/* fall through */
+		case UAC_VERSION_1:
+			/* fall through */
+		case UAC_VERSION_2: {
+			int bm_quirk = 0;
 
-		case UAC_VERSION_1: {
-			struct uac1_as_header_descriptor *as =
-				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
-			struct uac_input_terminal_descriptor *iterm;
+			/*
+			 * Blue Microphones workaround: The last altsetting is
+			 * identical with the previous one, except for a larger
+			 * packet size, but is actually a mislabeled two-channel
+			 * setting; ignore it.
+			 *
+			 * Part 1: prepare quirk flag
+			 */
+			if (altno == 2 && num == 3 &&
+			    fp && fp->altsetting == 1 && fp->channels == 1 &&
+			    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
+			    protocol == UAC_VERSION_1 &&
+			    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
+							fp->maxpacksize * 2)
+				bm_quirk = 1;
 
-			if (!as) {
-				dev_err(&dev->dev,
-					"%u:%d : UAC_AS_GENERAL descriptor not found\n",
-					iface_no, altno);
-				continue;
-			}
-
-			if (as->bLength < sizeof(*as)) {
-				dev_err(&dev->dev,
-					"%u:%d : invalid UAC_AS_GENERAL desc\n",
-					iface_no, altno);
-				continue;
-			}
-
-			format = le16_to_cpu(as->wFormatTag); /* remember the format value */
-
-			iterm = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
-								       as->bTerminalLink);
-			if (iterm) {
-				num_channels = iterm->bNrChannels;
-				chconfig = le16_to_cpu(iterm->wChannelConfig);
-			}
-
+			fp = snd_usb_get_audioformat_uac12(chip, alts, protocol,
+							   iface_no, i, altno,
+							   stream, bm_quirk);
 			break;
 		}
-
-		case UAC_VERSION_2: {
-			struct uac2_input_terminal_descriptor *input_term;
-			struct uac2_output_terminal_descriptor *output_term;
-			struct uac2_as_header_descriptor *as =
-				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
-
-			if (!as) {
-				dev_err(&dev->dev,
-					"%u:%d : UAC_AS_GENERAL descriptor not found\n",
-					iface_no, altno);
-				continue;
-			}
-
-			if (as->bLength < sizeof(*as)) {
-				dev_err(&dev->dev,
-					"%u:%d : invalid UAC_AS_GENERAL desc\n",
-					iface_no, altno);
-				continue;
-			}
-
-			num_channels = as->bNrChannels;
-			format = le32_to_cpu(as->bmFormats);
-			chconfig = le32_to_cpu(as->bmChannelConfig);
-
-			/* lookup the terminal associated to this interface
-			 * to extract the clock */
-			input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
-									    as->bTerminalLink);
-			if (input_term) {
-				clock = input_term->bCSourceID;
-				if (!chconfig && (num_channels == input_term->bNrChannels))
-					chconfig = le32_to_cpu(input_term->bmChannelConfig);
-				break;
-			}
-
-			output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
-									      as->bTerminalLink);
-			if (output_term) {
-				clock = output_term->bCSourceID;
-				break;
-			}
-
-			dev_err(&dev->dev,
-				"%u:%d : bogus bTerminalLink %d\n",
-				iface_no, altno, as->bTerminalLink);
-			continue;
-		}
-
 		case UAC_VERSION_3: {
 			struct uac3_input_terminal_descriptor *input_term;
 			struct uac3_output_terminal_descriptor *output_term;
-			struct uac3_as_header_descriptor *as;
 			struct uac3_cluster_header_descriptor *cluster;
 			struct uac3_hc_descriptor_header hc_header;
 			u16 cluster_id, wLength;
@@ -923,40 +1015,12 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		}
 
 		if (protocol == UAC_VERSION_1 || protocol == UAC_VERSION_2) {
-			/* get format type */
-			fmt = snd_usb_find_csint_desc(alts->extra,
-						      alts->extralen,
-						      NULL, UAC_FORMAT_TYPE);
-			if (!fmt) {
-				dev_err(&dev->dev,
-					"%u:%d : no UAC_FORMAT_TYPE desc\n",
-					iface_no, altno);
+			if (!fp)
 				continue;
-			}
-			if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8))
-					|| ((protocol == UAC_VERSION_2) &&
-							(fmt->bLength < 6))) {
-				dev_err(&dev->dev,
-					"%u:%d : invalid UAC_FORMAT_TYPE desc\n",
-					iface_no, altno);
-				continue;
-			}
+			else if (IS_ERR(fp))
+				return PTR_ERR(fp);
 
-			/*
-			 * Blue Microphones workaround: The last altsetting is
-			 * identical with the previous one, except for a larger
-			 * packet size, but is actually a mislabeled two-channel
-			 * setting; ignore it.
-			 */
-			if (fmt->bNrChannels == 1 &&
-			    fmt->bSubframeSize == 2 &&
-			    altno == 2 && num == 3 &&
-			    fp && fp->altsetting == 1 && fp->channels == 1 &&
-			    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
-			    protocol == UAC_VERSION_1 &&
-			    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
-							fp->maxpacksize * 2)
-				continue;
+			goto skip_uac3;
 		}
 
 		fp = audio_format_alloc_init(chip, alts, protocol, iface_no, i,
@@ -967,45 +1031,18 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		fp->attributes = parse_uac_endpoint_attributes(chip, alts,
 							       protocol,
 							       iface_no);
-
-		/* some quirks for attributes here */
-		snd_usb_audioformat_attributes_quirk(chip, fp, stream);
+		fp->chmap = chmap_v3;
 
 		/* ok, let's parse further... */
-		if (protocol == UAC_VERSION_1 || protocol == UAC_VERSION_2) {
-			if (snd_usb_parse_audio_format(chip, fp, format,
-							fmt, stream) < 0) {
-				kfree(fp->rate_table);
-				kfree(fp);
-				fp = NULL;
-				continue;
-			}
-		} else {
-			struct uac3_as_header_descriptor *as;
-
-			as = snd_usb_find_csint_desc(alts->extra,
-						     alts->extralen,
-						     NULL, UAC_AS_GENERAL);
-
-			if (snd_usb_parse_audio_format_v3(chip, fp, as,
-								stream) < 0) {
-				kfree(fp->rate_table);
-				kfree(fp);
-				fp = NULL;
-				continue;
-			}
+		if (snd_usb_parse_audio_format_v3(chip, fp, as,
+							stream) < 0) {
+			kfree(fp->rate_table);
+			kfree(fp);
+			fp = NULL;
+			continue;
 		}
 
-		/* Create chmap */
-		if (fp->channels != num_channels)
-			chconfig = 0;
-
-		if (protocol == UAC_VERSION_3)
-			fp->chmap = chmap_v3;
-		else
-			fp->chmap = convert_chmap(fp->channels, chconfig,
-						  protocol);
-
+skip_uac3:
 		dev_dbg(&dev->dev, "%u:%d: add audio endpoint %#x\n", iface_no, altno, fp->endpoint);
 		err = snd_usb_add_audio_stream(chip, stream, fp);
 		if (err < 0) {
