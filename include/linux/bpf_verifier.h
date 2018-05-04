@@ -173,6 +173,11 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 
 #define BPF_MAX_SUBPROGS 256
 
+struct bpf_subprog_info {
+	u32 start; /* insn idx of function entry point */
+	u16 stack_depth; /* max. stack depth used by this function */
+};
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -191,9 +196,7 @@ struct bpf_verifier_env {
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	struct bpf_verifier_log log;
-	u32 subprog_starts[BPF_MAX_SUBPROGS];
-	/* computes the stack depth of each bpf function */
-	u16 subprog_stack_depth[BPF_MAX_SUBPROGS + 1];
+	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
 };
 
