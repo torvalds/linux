@@ -846,10 +846,6 @@ bool ppc_breakpoint_available(void)
 }
 EXPORT_SYMBOL_GPL(ppc_breakpoint_available);
 
-#ifdef CONFIG_PPC64
-DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
-#endif
-
 static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
 			      struct arch_hw_breakpoint *b)
 {
@@ -1181,16 +1177,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	old_thread = &current->thread;
 
 	WARN_ON(!irqs_disabled());
-
-#ifdef CONFIG_PPC64
-	/*
-	 * Collect processor utilization data per process
-	 */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
-		cu->current_tb = mfspr(SPRN_PURR);
-	}
-#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	batch = this_cpu_ptr(&ppc64_tlb_batch);

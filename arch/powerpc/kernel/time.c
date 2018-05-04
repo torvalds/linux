@@ -597,14 +597,6 @@ static void __timer_interrupt(void)
 		__this_cpu_inc(irq_stat.timer_irqs_others);
 	}
 
-#ifdef CONFIG_PPC64
-	/* collect purr register values often, for accurate calculations */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
-		cu->current_tb = mfspr(SPRN_PURR);
-	}
-#endif
-
 	trace_timer_interrupt_exit(regs);
 }
 
