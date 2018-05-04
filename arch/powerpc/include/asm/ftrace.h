@@ -69,13 +69,30 @@ struct dyn_arch_ftrace {
 #endif
 
 #if defined(CONFIG_FTRACE_SYSCALLS) && !defined(__ASSEMBLY__)
-#ifdef PPC64_ELF_ABI_v1
+/*
+ * Some syscall entry functions on powerpc start with "ppc_" (fork and clone,
+ * for instance) or ppc32_/ppc64_. We should also match the sys_ variant with
+ * those.
+ */
 #define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+#ifdef PPC64_ELF_ABI_v1
 static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
 {
 	/* We need to skip past the initial dot, and the __se_sys alias */
 	return !strcmp(sym + 1, name) ||
-		(!strncmp(sym, ".__se_sys", 9) && !strcmp(sym + 6, name));
+		(!strncmp(sym, ".__se_sys", 9) && !strcmp(sym + 6, name)) ||
+		(!strncmp(sym, ".ppc_", 5) && !strcmp(sym + 5, name + 4)) ||
+		(!strncmp(sym, ".ppc32_", 7) && !strcmp(sym + 7, name + 4)) ||
+		(!strncmp(sym, ".ppc64_", 7) && !strcmp(sym + 7, name + 4));
+}
+#else
+static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
+{
+	return !strcmp(sym, name) ||
+		(!strncmp(sym, "__se_sys", 8) && !strcmp(sym + 5, name)) ||
+		(!strncmp(sym, "ppc_", 4) && !strcmp(sym + 4, name + 4)) ||
+		(!strncmp(sym, "ppc32_", 6) && !strcmp(sym + 6, name + 4)) ||
+		(!strncmp(sym, "ppc64_", 6) && !strcmp(sym + 6, name + 4));
 }
 #endif
 #endif /* CONFIG_FTRACE_SYSCALLS && !__ASSEMBLY__ */
