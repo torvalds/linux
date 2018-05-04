@@ -2070,10 +2070,10 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 }
 
 /* execute sme */
-static
-void hostif_sme_execute(struct ks_wlan_private *priv, int event)
+static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 {
 	__le32 val;
+	u16 failure;
 
 	switch (event) {
 	case SME_START:
@@ -2099,18 +2099,15 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		hostif_phy_information_request(priv);
 		break;
 	case SME_MIC_FAILURE_REQUEST:
-		if (priv->wpa.mic_failure.failure == 1) {
-			hostif_mic_failure_request(priv,
-						   priv->wpa.mic_failure.failure - 1,
-						   0);
-		} else if (priv->wpa.mic_failure.failure == 2) {
-			hostif_mic_failure_request(priv,
-						   priv->wpa.mic_failure.failure - 1,
-						   priv->wpa.mic_failure.counter);
-		} else {
-			netdev_err(priv->net_dev, "SME_MIC_FAILURE_REQUEST: failure count=%u error?\n",
-				   priv->wpa.mic_failure.failure);
+		failure = priv->wpa.mic_failure.failure;
+		if (failure != 1 && failure != 2) {
+			netdev_err(priv->net_dev,
+				   "SME_MIC_FAILURE_REQUEST: failure count=%u error?\n",
+				   failure);
+			return;
 		}
+		hostif_mic_failure_request(priv, failure - 1, (failure == 1) ?
+					    0 : priv->wpa.mic_failure.counter);
 		break;
 	case SME_MIC_FAILURE_CONFIRM:
 		if (priv->wpa.mic_failure.failure == 2) {
