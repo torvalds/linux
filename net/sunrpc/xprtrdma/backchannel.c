@@ -71,23 +71,6 @@ out_fail:
 	return -ENOMEM;
 }
 
-/* Allocate and add receive buffers to the rpcrdma_buffer's
- * existing list of rep's. These are released when the
- * transport is destroyed.
- */
-static int rpcrdma_bc_setup_reps(struct rpcrdma_xprt *r_xprt,
-				 unsigned int count)
-{
-	int rc = 0;
-
-	while (count--) {
-		rc = rpcrdma_create_rep(r_xprt);
-		if (rc)
-			break;
-	}
-	return rc;
-}
-
 /**
  * xprt_rdma_bc_setup - Pre-allocate resources for handling backchannel requests
  * @xprt: transport associated with these backchannel resources
@@ -113,14 +96,6 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 		goto out_err;
 
 	rc = rpcrdma_bc_setup_reqs(r_xprt, reqs);
-	if (rc)
-		goto out_free;
-
-	rc = rpcrdma_bc_setup_reps(r_xprt, reqs);
-	if (rc)
-		goto out_free;
-
-	rc = rpcrdma_ep_post_extra_recv(r_xprt, reqs);
 	if (rc)
 		goto out_free;
 
@@ -228,6 +203,7 @@ int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
 	if (rc < 0)
 		goto failed_marshal;
 
+	rpcrdma_post_recvs(r_xprt, true);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 	return 0;
@@ -268,10 +244,14 @@ void xprt_rdma_bc_destroy(struct rpc_xprt *xprt, unsigned int reqs)
  */
 void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 {
+	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpc_xprt *xprt = rqst->rq_xprt;
 
 	dprintk("RPC:       %s: freeing rqst %p (req %p)\n",
-		__func__, rqst, rpcr_to_rdmar(rqst));
+		__func__, rqst, req);
+
+	rpcrdma_recv_buffer_put(req->rl_reply);
+	req->rl_reply = NULL;
 
 	spin_lock_bh(&xprt->bc_pa_lock);
 	list_add_tail(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);

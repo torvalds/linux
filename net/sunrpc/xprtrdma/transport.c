@@ -722,9 +722,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (rc < 0)
 		goto failed_marshal;
 
-	if (req->rl_reply == NULL) 		/* e.g. reconnection */
-		rpcrdma_recv_buffer_get(req);
-
 	/* Must suppress retransmit to maintain credits */
 	if (rqst->rq_connect_cookie == xprt->connect_cookie)
 		goto drop_connection;

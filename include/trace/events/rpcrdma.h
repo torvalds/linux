@@ -546,6 +546,39 @@ TRACE_EVENT(xprtrdma_post_recv,
 	)
 );
 
+TRACE_EVENT(xprtrdma_post_recvs,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		unsigned int count,
+		int status
+	),
+
+	TP_ARGS(r_xprt, count, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, count)
+		__field(int, status)
+		__field(int, posted)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->count = count;
+		__entry->status = status;
+		__entry->posted = r_xprt->rx_buf.rb_posted_receives;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: %u new recvs, %d active (rc %d)",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__entry->count, __entry->posted, __entry->status
+	)
+);
+
 /**
  ** Completion events
  **/
@@ -800,7 +833,6 @@ TRACE_EVENT(xprtrdma_allocate,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(const void *, req)
-		__field(const void *, rep)
 		__field(size_t, callsize)
 		__field(size_t, rcvsize)
 	),
@@ -809,15 +841,13 @@ TRACE_EVENT(xprtrdma_allocate,
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->req = req;
-		__entry->rep = req ? req->rl_reply : NULL;
 		__entry->callsize = task->tk_rqstp->rq_callsize;
 		__entry->rcvsize = task->tk_rqstp->rq_rcvsize;
 	),
 
-	TP_printk("task:%u@%u req=%p rep=%p (%zu, %zu)",
+	TP_printk("task:%u@%u req=%p (%zu, %zu)",
 		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->rep,
-		__entry->callsize, __entry->rcvsize
+		__entry->req, __entry->callsize, __entry->rcvsize
 	)
 );
 
