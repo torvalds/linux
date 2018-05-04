@@ -1545,11 +1545,19 @@
 			pwm0_pin: pwm0-pin {
 				rockchip,pins = <3 21 RK_FUNC_1 &pcfg_pull_none>;
 			};
+
+			pwm0_pin_pull_down: pwm0-pin-pull-down {
+				rockchip,pins = <3 21 RK_FUNC_1 &pcfg_pull_down>;
+			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
 				rockchip,pins = <0 30 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pwm1_pin_pull_down: pwm1-pin-pull-down {
+				rockchip,pins = <0 30 RK_FUNC_2 &pcfg_pull_down>;
 			};
 		};
 
@@ -1557,11 +1565,19 @@
 			pwm2_pin: pwm2-pin {
 				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_none>;
 			};
+
+			pwm2_pin_pull_down: pwm2-pin-pull-down {
+				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_down>;
+			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
 				rockchip,pins = <1 11 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pwm3_pin_pull_down: pwm3-pin-pull-down {
+				rockchip,pins = <1 11 RK_FUNC_2 &pcfg_pull_down>;
 			};
 		};
 

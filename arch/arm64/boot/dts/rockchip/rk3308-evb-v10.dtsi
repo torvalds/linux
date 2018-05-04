@@ -707,6 +707,8 @@
 
 &pwm0 {
 	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm0_pin_pull_down>;
 };
 
 &u2phy {

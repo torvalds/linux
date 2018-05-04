@@ -1902,12 +1902,22 @@
 				rockchip,pins =
 					<0 RK_PB5 1 &pcfg_pull_none>;
 			};
+
+			pwm0_pin_pull_down: pwm0-pin-pull-down {
+				rockchip,pins =
+					<0 RK_PB5 1 &pcfg_pull_down>;
+			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
 				rockchip,pins =
 					<0 RK_PB6 1 &pcfg_pull_none>;
+			};
+
+			pwm1_pin_pull_down: pwm1-pin-pull-down {
+				rockchip,pins =
+					<0 RK_PB6 1 &pcfg_pull_down>;
 			};
 		};
 
@@ -1916,12 +1926,22 @@
 				rockchip,pins =
 					<0 RK_PB7 1 &pcfg_pull_none>;
 			};
+
+			pwm2_pin_pull_down: pwm2-pin-pull-down {
+				rockchip,pins =
+					<0 RK_PB7 1 &pcfg_pull_down>;
+			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
 				rockchip,pins =
 					<0 RK_PC0 1 &pcfg_pull_none>;
+			};
+
+			pwm3_pin_pull_down: pwm3-pin-pull-down {
+				rockchip,pins =
+					<0 RK_PC0 1 &pcfg_pull_down>;
 			};
 		};
 
