@@ -1268,14 +1268,12 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	if ((current_val - current_ev) > IW_EV_LCP_LEN)
 		current_ev = current_val;
 
-#define GENERIC_INFO_ELEM_ID 0xdd
-#define RSN_INFO_ELEM_ID 0x30
 	if (ap->rsn_ie.id == RSN_INFO_ELEM_ID && ap->rsn_ie.size != 0)
 		current_ev = ks_wlan_add_leader_event(rsn_leader, end_buf,
 						      current_ev, &ap->rsn_ie,
 						      &iwe, info);
 
-	if (ap->wpa_ie.id == GENERIC_INFO_ELEM_ID && ap->wpa_ie.size != 0)
+	if (ap->wpa_ie.id == WPA_INFO_ELEM_ID && ap->wpa_ie.size != 0)
 		current_ev = ks_wlan_add_leader_event(wpa_leader, end_buf,
 						      current_ev, &ap->wpa_ie,
 						      &iwe, info);

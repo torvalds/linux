@@ -132,12 +132,12 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 		ap_info->rsn.size : RSN_IE_BODY_MAX;
 	if ((ap_info->rsn_mode & RSN_MODE_WPA2) &&
 	    (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
-		ap->rsn_ie.id = 0x30;
+		ap->rsn_ie.id = RSN_INFO_ELEM_ID;
 		ap->rsn_ie.size = size;
 		memcpy(ap->rsn_ie.body, ap_info->rsn.body, size);
 	} else if ((ap_info->rsn_mode & RSN_MODE_WPA) &&
 		   (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA)) {
-		ap->wpa_ie.id = 0xdd;
+		ap->wpa_ie.id = WPA_INFO_ELEM_ID;
 		ap->wpa_ie.size = size;
 		memcpy(ap->wpa_ie.body, ap_info->rsn.body, size);
 	} else {

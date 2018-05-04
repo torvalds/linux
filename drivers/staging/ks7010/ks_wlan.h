@@ -190,6 +190,9 @@ struct rsn_ie {
 	u8 body[RSN_IE_BODY_MAX];
 } __packed;
 
+#define WPA_INFO_ELEM_ID 0xdd
+#define RSN_INFO_ELEM_ID 0x30
+
 #define WPS_IE_BODY_MAX 255
 struct wps_ie {
 	u8 id;	/* 221 'dd <len> 00 50 F2 04' */
