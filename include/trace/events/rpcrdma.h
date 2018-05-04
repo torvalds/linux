@@ -528,24 +528,21 @@ TRACE_EVENT(xprtrdma_post_send,
 
 TRACE_EVENT(xprtrdma_post_recv,
 	TP_PROTO(
-		const struct rpcrdma_rep *rep,
-		int status
+		const struct ib_cqe *cqe
 	),
 
-	TP_ARGS(rep, status),
+	TP_ARGS(cqe),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(int, status)
+		__field(const void *, cqe)
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
-		__entry->status = status;
+		__entry->cqe = cqe;
 	),
 
-	TP_printk("rep=%p status=%d",
-		__entry->rep, __entry->status
+	TP_printk("cqe=%p",
+		__entry->cqe
 	)
 );
 
@@ -584,28 +581,32 @@ TRACE_EVENT(xprtrdma_wc_send,
 
 TRACE_EVENT(xprtrdma_wc_receive,
 	TP_PROTO(
-		const struct rpcrdma_rep *rep,
 		const struct ib_wc *wc
 	),
 
-	TP_ARGS(rep, wc),
+	TP_ARGS(wc),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(unsigned int, byte_len)
+		__field(const void *, cqe)
+		__field(u32, byte_len)
 		__field(unsigned int, status)
-		__field(unsigned int, vendor_err)
+		__field(u32, vendor_err)
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
-		__entry->byte_len = wc->byte_len;
+		__entry->cqe = wc->wr_cqe;
 		__entry->status = wc->status;
-		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
+		if (wc->status) {
+			__entry->byte_len = 0;
+			__entry->vendor_err = wc->vendor_err;
+		} else {
+			__entry->byte_len = wc->byte_len;
+			__entry->vendor_err = 0;
+		}
 	),
 
-	TP_printk("rep=%p, %u bytes: %s (%u/0x%x)",
-		__entry->rep, __entry->byte_len,
+	TP_printk("cqe=%p %u bytes: %s (%u/0x%x)",
+		__entry->cqe, __entry->byte_len,
 		rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)

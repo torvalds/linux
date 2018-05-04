@@ -160,7 +160,7 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 					       rr_cqe);
 
 	/* WARNING: Only wr_id and status are reliable at this point */
-	trace_xprtrdma_wc_receive(rep, wc);
+	trace_xprtrdma_wc_receive(wc);
 	if (wc->status != IB_WC_SUCCESS)
 		goto out_fail;
 
@@ -1570,7 +1570,7 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	if (!rpcrdma_dma_map_regbuf(ia, rep->rr_rdmabuf))
 		goto out_map;
 	rc = ib_post_recv(ia->ri_id->qp, &rep->rr_recv_wr, &recv_wr_fail);
-	trace_xprtrdma_post_recv(rep, rc);
+	trace_xprtrdma_post_recv(rep->rr_recv_wr.wr_cqe);
 	if (rc)
 		return -ENOTCONN;
 	return 0;
