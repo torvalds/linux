@@ -52,11 +52,11 @@ struct video_i2c_data {
 	struct list_head vid_cap_active;
 };
 
-const static struct v4l2_fmtdesc amg88xx_format = {
+static const struct v4l2_fmtdesc amg88xx_format = {
 	.pixelformat = V4L2_PIX_FMT_Y12,
 };
 
-const static struct v4l2_frmsize_discrete amg88xx_size = {
+static const struct v4l2_frmsize_discrete amg88xx_size = {
 	.width = 8,
 	.height = 8,
 };
