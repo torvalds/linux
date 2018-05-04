@@ -123,10 +123,17 @@ __setup_efi_pci(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	if (status != EFI_SUCCESS)
 		return status;
 
+	/*
+	 * Some firmware images contain EFI function pointers at the place where the
+	 * romimage and romsize fields are supposed to be. Typically the EFI
+	 * code is mapped at high addresses, translating to an unrealistically
+	 * large romsize. The UEFI spec limits the size of option ROMs to 16
+	 * MiB so we reject any ROMs over 16 MiB in size to catch this.
+	 */
 	romimage = (void *)(unsigned long)efi_table_attr(efi_pci_io_protocol,
 							 romimage, pci);
 	romsize = efi_table_attr(efi_pci_io_protocol, romsize, pci);
-	if (!romimage || !romsize)
+	if (!romimage || !romsize || romsize > SZ_16M)
 		return EFI_INVALID_PARAMETER;
 
 	size = romsize + sizeof(*rom);
