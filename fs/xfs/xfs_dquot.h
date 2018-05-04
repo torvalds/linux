@@ -194,4 +194,9 @@ static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 	return dqp;
 }
 
+typedef int (*xfs_qm_dqiterate_fn)(struct xfs_dquot *dq, uint dqtype,
+		void *priv);
+int xfs_qm_dqiterate(struct xfs_mount *mp, uint dqtype,
+		xfs_qm_dqiterate_fn iter_fn, void *priv);
+
 #endif /* __XFS_DQUOT_H__ */
