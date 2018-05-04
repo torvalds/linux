@@ -63,14 +63,11 @@ __initcall(init_emergency_pool);
  */
 static void bounce_copy_vec(struct bio_vec *to, unsigned char *vfrom)
 {
-	unsigned long flags;
 	unsigned char *vto;
 
-	local_irq_save(flags);
 	vto = kmap_atomic(to->bv_page);
 	memcpy(vto + to->bv_offset, vfrom, to->bv_len);
 	kunmap_atomic(vto);
-	local_irq_restore(flags);
 }
 
 #else /* CONFIG_HIGHMEM */
