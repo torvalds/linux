@@ -1787,23 +1787,20 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	__u32 mode;
+	__u32 mode = 1;
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* for SLEEP MODE */
-	switch (mlme->cmd) {
-	case IW_MLME_DEAUTH:
-		if (mlme->reason_code == WLAN_REASON_MIC_FAILURE)
-			return 0;
-		/* fall through */
-	case IW_MLME_DISASSOC:
-		mode = 1;
-		return ks_wlan_set_stop_request(dev, NULL, &mode, NULL);
-	default:
-		return -EOPNOTSUPP;	/* Not Support */
-	}
+	if (mlme->cmd != IW_MLME_DEAUTH &&
+	    mlme->cmd != IW_MLME_DISASSOC)
+		return -EOPNOTSUPP;
+
+	if (mlme->cmd == IW_MLME_DEAUTH &&
+	    mlme->reason_code == WLAN_REASON_MIC_FAILURE)
+		return 0;
+
+	return ks_wlan_set_stop_request(dev, NULL, &mode, NULL);
 }
 
 static int ks_wlan_get_firmware_version(struct net_device *dev,
