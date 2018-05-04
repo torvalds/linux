@@ -239,11 +239,17 @@ enum mlx5_flow_match_level {
 	MLX5_MATCH_L4	= MLX5_INLINE_MODE_TCP_UDP,
 };
 
+/* current maximum for flow based vport multicasting */
+#define MLX5_MAX_FLOW_FWD_VPORTS 2
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
-	struct mlx5_eswitch_rep *out_rep;
-	struct mlx5_core_dev	*out_mdev;
+	struct mlx5_eswitch_rep *out_rep[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5_core_dev	*out_mdev[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5_core_dev	*in_mdev;
+
+	int mirror_count;
+	int out_count;
 
 	int	action;
 	__be16	vlan_proto;
