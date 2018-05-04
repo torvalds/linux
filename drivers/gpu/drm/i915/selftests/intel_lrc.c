@@ -505,5 +505,9 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 	};
+
+	if (!HAS_EXECLISTS(i915))
+		return 0;
+
 	return i915_subtests(tests, i915);
 }
