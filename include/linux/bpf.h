@@ -110,6 +110,11 @@ static inline struct bpf_offloaded_map *map_to_offmap(struct bpf_map *map)
 	return container_of(map, struct bpf_offloaded_map, map);
 }
 
+static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
+{
+	return map->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY;
+}
+
 static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 {
 	return map->ops->map_seq_show_elem && map->ops->map_check_btf;
