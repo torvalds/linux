@@ -47,8 +47,7 @@ xfs_dquot_verify(
 	struct xfs_mount *mp,
 	xfs_disk_dquot_t *ddq,
 	xfs_dqid_t	 id,
-	uint		 type,	  /* used only when IO_dorepair is true */
-	uint		 flags)
+	uint		 type)	  /* used only when IO_dorepair is true */
 {
 	/*
 	 * We can encounter an uninitialized dquot buffer for 2 reasons:
@@ -200,7 +199,7 @@ xfs_dquot_buf_verify(
 		if (i == 0)
 			id = be32_to_cpu(ddq->d_id);
 
-		fa = xfs_dquot_verify(mp, ddq, id + i, 0, 0);
+		fa = xfs_dquot_verify(mp, ddq, id + i, 0);
 		if (fa)
 			return fa;
 	}
