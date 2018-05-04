@@ -17,7 +17,7 @@ in order to help maintainers validate their code against the change in
 these memory ordering guarantees.
 
 The terms used through this document try to follow the formal LKMM defined in
-github.com/aparri/memory-model/blob/master/Documentation/explanation.txt
+tools/memory-model/Documentation/explanation.txt.
 
 memory-barriers.txt and atomic_t.txt provide more background to the
 memory ordering in general and for atomic operations specifically.
