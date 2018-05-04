@@ -200,7 +200,7 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 
 	memset(ap, 0, sizeof(struct local_ap));
 
-	memcpy(ap->bssid, ap_info->bssid, ETH_ALEN);
+	ether_addr_copy(ap->bssid, ap_info->bssid);
 	ap->rssi = ap_info->rssi;
 	ap->sq = ap_info->sq;
 	ap->noise = ap_info->noise;
