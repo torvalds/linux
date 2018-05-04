@@ -839,10 +839,7 @@ MODULE_PARM_DESC(use_mmio, "3c59x: use memory-mapped PCI I/O resource (0-1)");
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_vortex(struct net_device *dev)
 {
-	unsigned long flags;
-	local_irq_save(flags);
 	vortex_boomerang_interrupt(dev->irq, dev);
-	local_irq_restore(flags);
 }
 #endif
 
@@ -1904,15 +1901,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 		pr_err("%s: Interrupt posted but not delivered --"
 			   " IRQ blocked by another device?\n", dev->name);
 		/* Bad idea here.. but we might as well handle a few events. */
-		{
-			/*
-			 * Block interrupts because vortex_interrupt does a bare spin_lock()
-			 */
-			unsigned long flags;
-			local_irq_save(flags);
-			vortex_boomerang_interrupt(dev->irq, dev);
-			local_irq_restore(flags);
-		}
+		vortex_boomerang_interrupt(dev->irq, dev);
 	}
 
 	if (vortex_debug > 0)
@@ -2516,16 +2505,17 @@ vortex_boomerang_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
+	unsigned long flags;
 	irqreturn_t ret;
 
-	spin_lock(&vp->lock);
+	spin_lock_irqsave(&vp->lock, flags);
 
 	if (vp->full_bus_master_rx)
 		ret = _boomerang_interrupt(dev->irq, dev);
 	else
 		ret = _vortex_interrupt(dev->irq, dev);
 
-	spin_unlock(&vp->lock);
+	spin_unlock_irqrestore(&vp->lock, flags);
 
 	return ret;
 }
