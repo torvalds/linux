@@ -151,15 +151,6 @@ nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
 		return false;
 	}
 
-	/* Rest of the checks is only if we re-parse the same insn */
-	if (!meta->func_id)
-		return true;
-
-	if (meta->arg1.map_ptr != reg1->map_ptr) {
-		pr_vlog(env, "%s: called for different map\n", fname);
-		return false;
-	}
-
 	return true;
 }
 
