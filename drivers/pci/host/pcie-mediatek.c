@@ -66,6 +66,10 @@
 
 /* PCIe V2 per-port registers */
 #define PCIE_MSI_VECTOR		0x0c0
+
+#define PCIE_CONF_VEND_ID	0x100
+#define PCIE_CONF_CLASS_ID	0x106
+
 #define PCIE_INT_MASK		0x420
 #define INTX_MASK		GENMASK(19, 16)
 #define INTX_SHIFT		16
@@ -125,12 +129,14 @@ struct mtk_pcie_port;
 
 /**
  * struct mtk_pcie_soc - differentiate between host generations
+ * @need_fix_class_id: whether this host's class ID needed to be fixed or not
  * @has_msi: whether this host supports MSI interrupts or not
  * @ops: pointer to configuration access functions
  * @startup: pointer to controller setting functions
  * @setup_irq: pointer to initialize IRQ functions
  */
 struct mtk_pcie_soc {
+	bool need_fix_class_id;
 	bool has_msi;
 	struct pci_ops *ops;
 	int (*startup)(struct mtk_pcie_port *port);
@@ -375,6 +381,7 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 {
 	struct mtk_pcie *pcie = port->pcie;
 	struct resource *mem = &pcie->mem;
+	const struct mtk_pcie_soc *soc = port->pcie->soc;
 	u32 val;
 	size_t size;
 	int err;
@@ -402,6 +409,15 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 	val |= PCIE_PHY_RSTB | PCIE_PERSTB | PCIE_PIPE_SRSTB |
 	       PCIE_MAC_SRSTB | PCIE_CRSTB;
 	writel(val, port->base + PCIE_RST_CTRL);
+
+	/* Set up vendor ID and class code */
+	if (soc->need_fix_class_id) {
+		val = PCI_VENDOR_ID_MEDIATEK;
+		writew(val, port->base + PCIE_CONF_VEND_ID);
+
+		val = PCI_CLASS_BRIDGE_HOST;
+		writew(val, port->base + PCIE_CONF_CLASS_ID);
+	}
 
 	/* 100ms timeout value should be enough for Gen1/2 training */
 	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS_V2, val,
@@ -1142,7 +1158,15 @@ static const struct mtk_pcie_soc mtk_pcie_soc_v1 = {
 	.startup = mtk_pcie_startup_port,
 };
 
-static const struct mtk_pcie_soc mtk_pcie_soc_v2 = {
+static const struct mtk_pcie_soc mtk_pcie_soc_mt2712 = {
+	.has_msi = true,
+	.ops = &mtk_pcie_ops_v2,
+	.startup = mtk_pcie_startup_port_v2,
+	.setup_irq = mtk_pcie_setup_irq,
+};
+
+static const struct mtk_pcie_soc mtk_pcie_soc_mt7622 = {
+	.need_fix_class_id = true,
 	.has_msi = true,
 	.ops = &mtk_pcie_ops_v2,
 	.startup = mtk_pcie_startup_port_v2,
@@ -1152,8 +1176,8 @@ static const struct mtk_pcie_soc mtk_pcie_soc_v2 = {
 static const struct of_device_id mtk_pcie_ids[] = {
 	{ .compatible = "mediatek,mt2701-pcie", .data = &mtk_pcie_soc_v1 },
 	{ .compatible = "mediatek,mt7623-pcie", .data = &mtk_pcie_soc_v1 },
-	{ .compatible = "mediatek,mt2712-pcie", .data = &mtk_pcie_soc_v2 },
-	{ .compatible = "mediatek,mt7622-pcie", .data = &mtk_pcie_soc_v2 },
+	{ .compatible = "mediatek,mt2712-pcie", .data = &mtk_pcie_soc_mt2712 },
+	{ .compatible = "mediatek,mt7622-pcie", .data = &mtk_pcie_soc_mt7622 },
 	{},
 };
 
