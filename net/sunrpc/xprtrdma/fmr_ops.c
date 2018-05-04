@@ -244,6 +244,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 				     mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
+	trace_xprtrdma_dma_map(mr);
 
 	for (i = 0, dma_pages = mr->fmr.fm_physaddrs; i < mr->mr_nents; i++)
 		dma_pages[i] = sg_dma_address(&mr->mr_sg[i]);
