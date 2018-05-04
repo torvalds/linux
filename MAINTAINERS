@@ -9725,6 +9725,7 @@ W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
 
 NETWORKING DRIVERS
+M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
@@ -12498,6 +12499,7 @@ F:	drivers/scsi/st_*.h
 SCTP PROTOCOL
 M:	Vlad Yasevich <vyasevich@gmail.com>
 M:	Neil Horman <nhorman@tuxdriver.com>
+M:	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
 L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
 S:	Maintained
