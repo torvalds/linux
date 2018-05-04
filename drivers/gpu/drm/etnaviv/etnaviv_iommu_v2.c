@@ -87,10 +87,13 @@ static int etnaviv_iommuv2_map(struct etnaviv_iommu_domain *domain,
 	struct etnaviv_iommuv2_domain *etnaviv_domain =
 			to_etnaviv_domain(domain);
 	int mtlb_entry, stlb_entry, ret;
-	u32 entry = (u32)paddr | MMUv2_PTE_PRESENT;
+	u32 entry = lower_32_bits(paddr) | MMUv2_PTE_PRESENT;
 
 	if (size != SZ_4K)
 		return -EINVAL;
+
+	if (IS_ENABLED(CONFIG_PHYS_ADDR_T_64BIT))
+		entry |= (upper_32_bits(paddr) & 0xff) << 4;
 
 	if (prot & ETNAVIV_PROT_WRITE)
 		entry |= MMUv2_PTE_WRITEABLE;
