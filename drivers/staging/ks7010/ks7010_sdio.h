@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Driver for KeyStream, KS7010 based SDIO cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License version 2 as
- *   published by the Free Software Foundation.
  */
 #ifndef _KS7010_SDIO_H
 #define _KS7010_SDIO_H
