@@ -18,22 +18,15 @@
 		reg = <0x80000000 0x80000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		vcc_sd3: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_vcc_sd3>;
-			regulator-name = "VCC_SD3";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vcc_sd3: regulator-vcc-sd3 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_vcc_sd3>;
+		regulator-name = "VCC_SD3";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
