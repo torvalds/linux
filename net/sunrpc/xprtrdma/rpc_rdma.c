@@ -55,14 +55,6 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-static const char transfertypes[][12] = {
-	"inline",	/* no chunks */
-	"read list",	/* some argument via rdma read */
-	"*read list",	/* entire request via rdma read */
-	"write list",	/* some result via rdma write */
-	"reply chunk"	/* entire reply via rdma write */
-};
-
 /* Returns size of largest RPC-over-RDMA header in a Call message
  *
  * The largest Call header contains a full-size Read list and a
