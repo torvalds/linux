@@ -2352,18 +2352,47 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	return 0;
 }
 
+static int domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+                         struct scatterlist *sg, unsigned long phys_pfn,
+                         unsigned long nr_pages, int prot)
+{
+       int ret;
+       struct intel_iommu *iommu;
+
+       /* Do the real mapping first */
+       ret = __domain_mapping(domain, iov_pfn, sg, phys_pfn, nr_pages, prot);
+       if (ret)
+               return ret;
+
+       /* Notify about the new mapping */
+       if (domain_type_is_vm(domain)) {
+	       /* VM typed domains can have more than one IOMMUs */
+	       int iommu_id;
+	       for_each_domain_iommu(iommu_id, domain) {
+		       iommu = g_iommus[iommu_id];
+		       __mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
+	       }
+       } else {
+	       /* General domains only have one IOMMU */
+	       iommu = domain_get_iommu(domain);
+	       __mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
+       }
+
+       return 0;
+}
+
 static inline int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 				    struct scatterlist *sg, unsigned long nr_pages,
 				    int prot)
 {
-	return __domain_mapping(domain, iov_pfn, sg, 0, nr_pages, prot);
+	return domain_mapping(domain, iov_pfn, sg, 0, nr_pages, prot);
 }
 
 static inline int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 				     unsigned long phys_pfn, unsigned long nr_pages,
 				     int prot)
 {
-	return __domain_mapping(domain, iov_pfn, NULL, phys_pfn, nr_pages, prot);
+	return domain_mapping(domain, iov_pfn, NULL, phys_pfn, nr_pages, prot);
 }
 
 static void domain_context_clear_one(struct intel_iommu *iommu, u8 bus, u8 devfn)
@@ -2668,9 +2697,9 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 	 */
 	dma_pte_clear_range(domain, first_vpfn, last_vpfn);
 
-	return domain_pfn_mapping(domain, first_vpfn, first_vpfn,
-				  last_vpfn - first_vpfn + 1,
-				  DMA_PTE_READ|DMA_PTE_WRITE);
+	return __domain_mapping(domain, first_vpfn, NULL,
+				first_vpfn, last_vpfn - first_vpfn + 1,
+				DMA_PTE_READ|DMA_PTE_WRITE);
 }
 
 static int domain_prepare_identity_map(struct device *dev,
@@ -3637,8 +3666,6 @@ static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
 	if (ret)
 		goto error;
 
-	__mapping_notify_one(iommu, domain, mm_to_dma_pfn(iova_pfn), size);
-
 	start_paddr = (phys_addr_t)iova_pfn << PAGE_SHIFT;
 	start_paddr += paddr & ~PAGE_MASK;
 	return start_paddr;
@@ -3824,8 +3851,6 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 		free_iova_fast(&domain->iovad, iova_pfn, dma_to_mm_pfn(size));
 		return 0;
 	}
-
-	__mapping_notify_one(iommu, domain, start_vpfn, size);
 
 	return nelems;
 }
