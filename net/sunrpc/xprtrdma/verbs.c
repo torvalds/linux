@@ -1175,17 +1175,6 @@ out:
 	return rc;
 }
 
-static struct rpcrdma_req *
-rpcrdma_buffer_get_req_locked(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_req *req;
-
-	req = list_first_entry(&buf->rb_send_bufs,
-			       struct rpcrdma_req, rl_list);
-	list_del_init(&req->rl_list);
-	return req;
-}
-
 static struct rpcrdma_rep *
 rpcrdma_buffer_get_rep_locked(struct rpcrdma_buffer *buf)
 {
@@ -1351,15 +1340,12 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	struct rpcrdma_req *req;
 
 	spin_lock(&buffers->rb_lock);
-	if (unlikely(list_empty(&buffers->rb_send_bufs)))
-		goto out_noreqs;
-	req = rpcrdma_buffer_get_req_locked(buffers);
+	req = list_first_entry_or_null(&buffers->rb_send_bufs,
+				       struct rpcrdma_req, rl_list);
+	if (req)
+		list_del_init(&req->rl_list);
 	spin_unlock(&buffers->rb_lock);
 	return req;
-
-out_noreqs:
-	spin_unlock(&buffers->rb_lock);
-	return NULL;
 }
 
 /**
