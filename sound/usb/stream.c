@@ -626,6 +626,37 @@ snd_usb_find_output_terminal_descriptor(struct usb_host_interface *ctrl_iface,
 	return NULL;
 }
 
+static struct audioformat *
+audio_format_alloc_init(struct snd_usb_audio *chip,
+		       struct usb_host_interface *alts,
+		       int protocol, int iface_no, int altset_idx,
+		       int altno, int num_channels, int clock)
+{
+	struct audioformat *fp;
+
+	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp)
+		return NULL;
+
+	fp->iface = iface_no;
+	fp->altsetting = altno;
+	fp->altset_idx = altset_idx;
+	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
+	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
+	fp->datainterval = snd_usb_parse_datainterval(chip, alts);
+	fp->protocol = protocol;
+	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+	fp->channels = num_channels;
+	if (snd_usb_get_speed(chip->dev) == USB_SPEED_HIGH)
+		fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
+				* (fp->maxpacksize & 0x7ff);
+	fp->clock = clock;
+	INIT_LIST_HEAD(&fp->list);
+
+	return fp;
+}
+
+
 int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 {
 	struct usb_device *dev;
@@ -928,25 +959,14 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 				continue;
 		}
 
-		fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+		fp = audio_format_alloc_init(chip, alts, protocol, iface_no, i,
+					     altno, num_channels, clock);
 		if (!fp)
 			return -ENOMEM;
 
-		fp->iface = iface_no;
-		fp->altsetting = altno;
-		fp->altset_idx = i;
-		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
-		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
-		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
-		fp->protocol = protocol;
-		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
-		fp->channels = num_channels;
-		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
-			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
-					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = parse_uac_endpoint_attributes(chip, alts, protocol, iface_no);
-		fp->clock = clock;
-		INIT_LIST_HEAD(&fp->list);
+		fp->attributes = parse_uac_endpoint_attributes(chip, alts,
+							       protocol,
+							       iface_no);
 
 		/* some quirks for attributes here */
 		snd_usb_audioformat_attributes_quirk(chip, fp, stream);
