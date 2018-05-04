@@ -158,7 +158,7 @@ static irqreturn_t reschedule_action(int irq, void *data)
 
 static irqreturn_t tick_broadcast_ipi_action(int irq, void *data)
 {
-	tick_broadcast_ipi_handler();
+	timer_broadcast_interrupt();
 	return IRQ_HANDLED;
 }
 
@@ -279,7 +279,7 @@ irqreturn_t smp_ipi_demux_relaxed(void)
 		if (all & IPI_MESSAGE(PPC_MSG_RESCHEDULE))
 			scheduler_ipi();
 		if (all & IPI_MESSAGE(PPC_MSG_TICK_BROADCAST))
-			tick_broadcast_ipi_handler();
+			timer_broadcast_interrupt();
 #ifdef CONFIG_NMI_IPI
 		if (all & IPI_MESSAGE(PPC_MSG_NMI_IPI))
 			nmi_ipi_action(0, NULL);

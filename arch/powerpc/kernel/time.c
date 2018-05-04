@@ -567,47 +567,16 @@ void arch_irq_work_raise(void)
 
 #endif /* CONFIG_IRQ_WORK */
 
-static void __timer_interrupt(void)
-{
-	struct pt_regs *regs = get_irq_regs();
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
-	u64 now;
-
-	trace_timer_interrupt_entry(regs);
-
-	if (test_irq_work_pending()) {
-		clear_irq_work_pending();
-		irq_work_run();
-	}
-
-	now = get_tb_or_rtc();
-	if (now >= *next_tb) {
-		*next_tb = ~(u64)0;
-		if (evt->event_handler)
-			evt->event_handler(evt);
-		__this_cpu_inc(irq_stat.timer_irqs_event);
-	} else {
-		now = *next_tb - now;
-		if (now <= decrementer_max)
-			set_dec(now);
-		/* We may have raced with new irq work */
-		if (test_irq_work_pending())
-			set_dec(1);
-		__this_cpu_inc(irq_stat.timer_irqs_others);
-	}
-
-	trace_timer_interrupt_exit(regs);
-}
-
 /*
  * timer_interrupt - gets called when the decrementer overflows,
  * with interrupts disabled.
  */
-void timer_interrupt(struct pt_regs * regs)
+void timer_interrupt(struct pt_regs *regs)
 {
-	struct pt_regs *old_regs;
+	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
+	struct pt_regs *old_regs;
+	u64 now;
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continue to take decrementer exceptions.
@@ -638,12 +607,46 @@ void timer_interrupt(struct pt_regs * regs)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
+	trace_timer_interrupt_entry(regs);
 
-	__timer_interrupt();
+	if (test_irq_work_pending()) {
+		clear_irq_work_pending();
+		irq_work_run();
+	}
+
+	now = get_tb_or_rtc();
+	if (now >= *next_tb) {
+		*next_tb = ~(u64)0;
+		if (evt->event_handler)
+			evt->event_handler(evt);
+		__this_cpu_inc(irq_stat.timer_irqs_event);
+	} else {
+		now = *next_tb - now;
+		if (now <= decrementer_max)
+			set_dec(now);
+		/* We may have raced with new irq work */
+		if (test_irq_work_pending())
+			set_dec(1);
+		__this_cpu_inc(irq_stat.timer_irqs_others);
+	}
+
+	trace_timer_interrupt_exit(regs);
 	irq_exit();
 	set_irq_regs(old_regs);
 }
 EXPORT_SYMBOL(timer_interrupt);
+
+void timer_broadcast_interrupt(void)
+{
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
+	struct pt_regs *regs = get_irq_regs();
+
+	trace_timer_interrupt_entry(regs);
+	*next_tb = ~(u64)0;
+	tick_receive_broadcast();
+	__this_cpu_inc(irq_stat.timer_irqs_event);
+	trace_timer_interrupt_exit(regs);
+}
 
 /*
  * Hypervisor decrementer interrupts shouldn't occur but are sometimes
@@ -990,15 +993,6 @@ static int decrementer_shutdown(struct clock_event_device *dev)
 {
 	decrementer_set_next_event(decrementer_max, dev);
 	return 0;
-}
-
-/* Interrupt handler for the timer broadcast IPI */
-void tick_broadcast_ipi_handler(void)
-{
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-
-	*next_tb = get_tb_or_rtc();
-	__timer_interrupt();
 }
 
 static void register_decrementer_clockevent(int cpu)
