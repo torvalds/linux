@@ -33,6 +33,8 @@
 #include <mqueue.h>
 #include <error.h>
 
+#include "../kselftest.h"
+
 static char *usage =
 "Usage:\n"
 "  %s path\n"
@@ -262,12 +264,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (getuid() != 0) {
-		fprintf(stderr, "Not running as root, but almost all tests "
+	if (getuid() != 0)
+		ksft_exit_skip("Not running as root, but almost all tests "
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
-		exit(1);
-	}
 
 	/* Find out what files there are for us to make tweaks in */
 	def_msgs = fopen(DEF_MSGS, "r+");
