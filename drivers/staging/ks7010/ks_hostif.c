@@ -912,7 +912,7 @@ void hostif_mic_failure_confirm(struct ks_wlan_private *priv)
 static
 void hostif_event_check(struct ks_wlan_private *priv)
 {
-	unsigned short event;
+	u16 event;
 
 	event = get_word(priv);
 	switch (event) {
