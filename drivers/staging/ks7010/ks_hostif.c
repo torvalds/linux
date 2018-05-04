@@ -1613,12 +1613,13 @@ struct rsn_mode {
 	__le16 rsn_capability;
 } __packed;
 
-static
-void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
+static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
 	struct wpa_suite wpa_suite;
 	struct rsn_mode rsn_mode;
 	size_t size;
+	u32 mode;
+	const u8 *buf = NULL;
 
 	memset(&wpa_suite, 0, sizeof(wpa_suite));
 
@@ -1627,47 +1628,29 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 		wpa_suite.size = cpu_to_le16((uint16_t)1);
 		switch (priv->wpa.pairwise_suite) {
 		case IW_AUTH_CIPHER_NONE:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_NONE, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_NONE, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_NONE : CIPHER_ID_WPA_NONE;
 			break;
 		case IW_AUTH_CIPHER_WEP40:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_WEP40, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_WEP40, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_WEP40 : CIPHER_ID_WPA_WEP40;
 			break;
 		case IW_AUTH_CIPHER_TKIP:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_TKIP, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_TKIP, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_TKIP : CIPHER_ID_WPA_TKIP;
 			break;
 		case IW_AUTH_CIPHER_CCMP:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_CCMP, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_CCMP, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_CCMP : CIPHER_ID_WPA_CCMP;
 			break;
 		case IW_AUTH_CIPHER_WEP104:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_WEP104, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_WEP104, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_WEP104 : CIPHER_ID_WPA_WEP104;
 			break;
 		}
 
+		if (buf)
+			memcpy(&wpa_suite.suite[0][0], buf, CIPHER_ID_LEN);
 		size = sizeof(wpa_suite.size) +
 		       (CIPHER_ID_LEN * le16_to_cpu(wpa_suite.size));
 		hostif_mib_set_request_ostring(priv,
@@ -1677,46 +1660,28 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 	case SME_RSN_MCAST_REQUEST:
 		switch (priv->wpa.group_suite) {
 		case IW_AUTH_CIPHER_NONE:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_NONE, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_NONE, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_NONE : CIPHER_ID_WPA_NONE;
 			break;
 		case IW_AUTH_CIPHER_WEP40:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_WEP40, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_WEP40, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_WEP40 : CIPHER_ID_WPA_WEP40;
 			break;
 		case IW_AUTH_CIPHER_TKIP:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_TKIP, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_TKIP, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_TKIP : CIPHER_ID_WPA_TKIP;
 			break;
 		case IW_AUTH_CIPHER_CCMP:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_CCMP, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_CCMP, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_CCMP : CIPHER_ID_WPA_CCMP;
 			break;
 		case IW_AUTH_CIPHER_WEP104:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA2_WEP104, CIPHER_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       CIPHER_ID_WPA_WEP104, CIPHER_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				CIPHER_ID_WPA2_WEP104 : CIPHER_ID_WPA_WEP104;
 			break;
 		}
+		if (buf)
+			memcpy(&wpa_suite.suite[0][0], buf, CIPHER_ID_LEN);
 		hostif_mib_set_request_ostring(priv,
 					       DOT11_RSN_CONFIG_MULTICAST_CIPHER,
 					       &wpa_suite.suite[0][0],
@@ -1726,41 +1691,26 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 		wpa_suite.size = cpu_to_le16((uint16_t)1);
 		switch (priv->wpa.key_mgmt_suite) {
 		case IW_AUTH_KEY_MGMT_802_1X:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA2_1X, KEY_MGMT_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA_1X, KEY_MGMT_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				KEY_MGMT_ID_WPA2_1X : KEY_MGMT_ID_WPA_1X;
 			break;
 		case IW_AUTH_KEY_MGMT_PSK:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA2_PSK, KEY_MGMT_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA_PSK, KEY_MGMT_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				KEY_MGMT_ID_WPA2_PSK : KEY_MGMT_ID_WPA_PSK;
 			break;
 		case 0:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA2_NONE, KEY_MGMT_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA_NONE, KEY_MGMT_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				KEY_MGMT_ID_WPA2_NONE : KEY_MGMT_ID_WPA_NONE;
 			break;
 		case 4:
-			if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA2_WPANONE,
-				       KEY_MGMT_ID_LEN);
-			else
-				memcpy(&wpa_suite.suite[0][0],
-				       KEY_MGMT_ID_WPA_WPANONE,
-				       KEY_MGMT_ID_LEN);
+			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+				KEY_MGMT_ID_WPA2_WPANONE :
+				KEY_MGMT_ID_WPA_WPANONE;
 			break;
 		}
 
+		if (buf)
+			memcpy(&wpa_suite.suite[0][0], buf, KEY_MGMT_ID_LEN);
 		size = sizeof(wpa_suite.size) +
 		       (KEY_MGMT_ID_LEN * le16_to_cpu(wpa_suite.size));
 		hostif_mib_set_request_ostring(priv,
@@ -1772,19 +1722,12 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 					    priv->wpa.rsn_enabled);
 		break;
 	case SME_RSN_MODE_REQUEST:
-		if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) {
-			rsn_mode.rsn_mode =
-			    cpu_to_le32((uint32_t)RSN_MODE_WPA2);
-			rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
-		} else if (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA) {
-			rsn_mode.rsn_mode =
-			    cpu_to_le32((uint32_t)RSN_MODE_WPA);
-			rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
-		} else {
-			rsn_mode.rsn_mode =
-			    cpu_to_le32((uint32_t)RSN_MODE_NONE);
-			rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
-		}
+		mode = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
+			RSN_MODE_WPA2 :
+			(priv->wpa.version == IW_AUTH_WPA_VERSION_WPA) ?
+			 RSN_MODE_WPA : RSN_MODE_NONE;
+		rsn_mode.rsn_mode = cpu_to_le32(mode);
+		rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
 		hostif_mib_set_request_ostring(priv, LOCAL_RSN_MODE,
 					       &rsn_mode, sizeof(rsn_mode));
 		break;
