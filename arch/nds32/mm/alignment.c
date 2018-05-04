@@ -552,7 +552,7 @@ static struct ctl_table alignment_tbl[3] = {
 
 static struct ctl_table nds32_sysctl_table[2] = {
 	{
-	 .procname = "unaligned_acess",
+	 .procname = "unaligned_access",
 	 .mode = 0555,
 	 .child = alignment_tbl},
 	{}
