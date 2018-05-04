@@ -71,6 +71,7 @@ ENDPROC(sunxi_mc_smp_cluster_cache_enable)
 
 ENTRY(sunxi_mc_smp_secondary_startup)
 	bl	sunxi_mc_smp_cluster_cache_enable
+	bl	secure_cntvoff_init
 	b	secondary_startup
 ENDPROC(sunxi_mc_smp_secondary_startup)
 
