@@ -1372,14 +1372,14 @@ static int ks_wlan_set_auth_mode(struct net_device *dev,
 		case IW_AUTH_WPA_VERSION_DISABLED:
 			priv->wpa.version = value;
 			if (priv->wpa.rsn_enabled)
-				priv->wpa.rsn_enabled = 0;
+				priv->wpa.rsn_enabled = false;
 			priv->need_commit |= SME_RSN;
 			break;
 		case IW_AUTH_WPA_VERSION_WPA:
 		case IW_AUTH_WPA_VERSION_WPA2:
 			priv->wpa.version = value;
 			if (!(priv->wpa.rsn_enabled))
-				priv->wpa.rsn_enabled = 1;
+				priv->wpa.rsn_enabled = true;
 			priv->need_commit |= SME_RSN;
 			break;
 		default:

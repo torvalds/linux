@@ -338,7 +338,7 @@ struct mic_failure {
 
 struct wpa_status {
 	int wpa_enabled;
-	unsigned int rsn_enabled;
+	bool rsn_enabled;
 	int version;
 	int pairwise_suite;	/* unicast cipher */
 	int group_suite;	/* multicast cipher */
