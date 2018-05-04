@@ -64,6 +64,19 @@ static void __init xen_hvm_init_mem_mapping(void)
 {
 	early_memunmap(HYPERVISOR_shared_info, PAGE_SIZE);
 	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
+
+	/*
+	 * The virtual address of the shared_info page has changed, so
+	 * the vcpu_info pointer for VCPU 0 is now stale.
+	 *
+	 * The prepare_boot_cpu callback will re-initialize it via
+	 * xen_vcpu_setup, but we can't rely on that to be called for
+	 * old Xen versions (xen_have_vector_callback == 0).
+	 *
+	 * It is, in any case, bad to have a stale vcpu_info pointer
+	 * so reset it now.
+	 */
+	xen_vcpu_info_reset(0);
 }
 
 static void __init init_hvm_pv_info(void)
