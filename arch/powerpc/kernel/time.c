@@ -647,13 +647,10 @@ EXPORT_SYMBOL(timer_interrupt);
 void timer_broadcast_interrupt(void)
 {
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-	struct pt_regs *regs = get_irq_regs();
 
-	trace_timer_interrupt_entry(regs);
 	*next_tb = ~(u64)0;
 	tick_receive_broadcast();
-	__this_cpu_inc(irq_stat.timer_irqs_event);
-	trace_timer_interrupt_exit(regs);
+	__this_cpu_inc(irq_stat.broadcast_irqs_event);
 }
 #endif
 
