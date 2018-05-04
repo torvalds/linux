@@ -1199,46 +1199,62 @@ static bool seccomp_actions_logged_from_names(u32 *actions_logged, char *names)
 	return true;
 }
 
-static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+static int read_actions_logged(struct ctl_table *ro_table, void __user *buffer,
+			       size_t *lenp, loff_t *ppos)
 {
 	char names[sizeof(seccomp_actions_avail)];
 	struct ctl_table table;
-	int ret;
-
-	if (write && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	memset(names, 0, sizeof(names));
 
-	if (!write) {
-		if (!seccomp_names_from_actions_logged(names, sizeof(names),
-						       seccomp_actions_logged))
-			return -EINVAL;
-	}
+	if (!seccomp_names_from_actions_logged(names, sizeof(names),
+					       seccomp_actions_logged))
+		return -EINVAL;
 
 	table = *ro_table;
 	table.data = names;
 	table.maxlen = sizeof(names);
-	ret = proc_dostring(&table, write, buffer, lenp, ppos);
+	return proc_dostring(&table, 0, buffer, lenp, ppos);
+}
+
+static int write_actions_logged(struct ctl_table *ro_table, void __user *buffer,
+				size_t *lenp, loff_t *ppos)
+{
+	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_table table;
+	u32 actions_logged;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	memset(names, 0, sizeof(names));
+
+	table = *ro_table;
+	table.data = names;
+	table.maxlen = sizeof(names);
+	ret = proc_dostring(&table, 1, buffer, lenp, ppos);
 	if (ret)
 		return ret;
 
-	if (write) {
-		u32 actions_logged;
+	if (!seccomp_actions_logged_from_names(&actions_logged, table.data))
+		return -EINVAL;
 
-		if (!seccomp_actions_logged_from_names(&actions_logged,
-						       table.data))
-			return -EINVAL;
+	if (actions_logged & SECCOMP_LOG_ALLOW)
+		return -EINVAL;
 
-		if (actions_logged & SECCOMP_LOG_ALLOW)
-			return -EINVAL;
-
-		seccomp_actions_logged = actions_logged;
-	}
-
+	seccomp_actions_logged = actions_logged;
 	return 0;
+}
+
+static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	if (write)
+		return write_actions_logged(ro_table, buffer, lenp, ppos);
+	else
+		return read_actions_logged(ro_table, buffer, lenp, ppos);
 }
 
 static struct ctl_path seccomp_sysctl_path[] = {
