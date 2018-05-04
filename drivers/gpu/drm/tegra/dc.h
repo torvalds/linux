@@ -67,6 +67,8 @@ struct tegra_dc_soc_info {
 	const u32 *overlay_formats;
 	unsigned int num_overlay_formats;
 	const u64 *modifiers;
+	bool has_win_a_without_filters;
+	bool has_win_c_without_vert_filter;
 };
 
 struct tegra_dc {
@@ -553,6 +555,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define  THREAD_NUM(x) (((x) & 0x1f) << 1)
 #define  THREAD_GROUP_ENABLE (1 << 0)
 
+#define DC_WIN_H_FILTER_P(p)			(0x601 + (p))
+#define DC_WIN_V_FILTER_P(p)			(0x619 + (p))
+
 #define DC_WIN_CSC_YOF				0x611
 #define DC_WIN_CSC_KYRGB			0x612
 #define DC_WIN_CSC_KUR				0x613
@@ -566,6 +571,8 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define H_DIRECTION  (1 <<  0)
 #define V_DIRECTION  (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
+#define H_FILTER     (1 <<  8)
+#define V_FILTER     (1 << 10)
 #define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
 
