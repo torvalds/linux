@@ -932,6 +932,21 @@ static int vega20_init_max_sustainable_clocks(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void vega20_init_powergate_state(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data =
+		(struct vega20_hwmgr *)(hwmgr->backend);
+
+	data->uvd_power_gated = true;
+	data->vce_power_gated = true;
+
+	if (data->smu_features[GNLD_DPM_UVD].enabled)
+		data->uvd_power_gated = false;
+
+	if (data->smu_features[GNLD_DPM_VCE].enabled)
+		data->vce_power_gated = false;
+}
+
 static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
@@ -953,6 +968,9 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to enable all smu features!",
 			return result);
+
+	/* Initialize UVD/VCE powergating state */
+	vega20_init_powergate_state(hwmgr);
 
 	result = vega20_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
