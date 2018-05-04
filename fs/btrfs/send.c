@@ -6454,7 +6454,7 @@ static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 	 */
 	if (root->send_in_progress < 0)
 		btrfs_err(root->fs_info,
-			  "send_in_progres unbalanced %d root %llu",
+			  "send_in_progress unbalanced %d root %llu",
 			  root->send_in_progress, root->root_key.objectid);
 	spin_unlock(&root->root_item_lock);
 }
