@@ -32,7 +32,7 @@ config NET_9P_XEN
 
 
 config NET_9P_RDMA
-	depends on INET && INFINIBAND && INFINIBAND_ADDR_TRANS
+	depends on INET && INFINIBAND_ADDR_TRANS
 	tristate "9P RDMA Transport (Experimental)"
 	help
 	  This builds support for an RDMA transport.

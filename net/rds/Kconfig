@@ -8,7 +8,7 @@ config RDS
 
 config RDS_RDMA
 	tristate "RDS over Infiniband"
-	depends on RDS && INFINIBAND && INFINIBAND_ADDR_TRANS
+	depends on RDS && INFINIBAND_ADDR_TRANS
 	---help---
 	  Allow RDS to use Infiniband as a transport.
 	  This transport supports RDMA operations.

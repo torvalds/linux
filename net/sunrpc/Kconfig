@@ -50,7 +50,7 @@ config SUNRPC_DEBUG
 
 config SUNRPC_XPRT_RDMA
 	tristate "RPC-over-RDMA transport"
-	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS
+	depends on SUNRPC && INFINIBAND_ADDR_TRANS
 	default SUNRPC && INFINIBAND
 	select SG_POOL
 	help
