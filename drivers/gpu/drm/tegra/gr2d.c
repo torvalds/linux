@@ -42,8 +42,9 @@ static int gr2d_init(struct host1x_client *client)
 
 	client->syncpts[0] = host1x_syncpt_request(client, flags);
 	if (!client->syncpts[0]) {
-		host1x_channel_put(gr2d->channel);
-		return -ENOMEM;
+		err = -ENOMEM;
+		dev_err(client->dev, "failed to request syncpoint: %d\n", err);
+		goto put;
 	}
 
 	if (tegra->domain) {
@@ -55,15 +56,30 @@ static int gr2d_init(struct host1x_client *client)
 				dev_err(client->dev,
 					"failed to attach to domain: %d\n",
 					err);
-				host1x_syncpt_free(client->syncpts[0]);
-				host1x_channel_put(gr2d->channel);
 				iommu_group_put(gr2d->group);
-				return err;
+				goto free;
 			}
 		}
 	}
 
-	return tegra_drm_register_client(tegra, drm);
+	err = tegra_drm_register_client(tegra, drm);
+	if (err < 0) {
+		dev_err(client->dev, "failed to register client: %d\n", err);
+		goto detach;
+	}
+
+	return 0;
+
+detach:
+	if (gr2d->group) {
+		iommu_detach_group(tegra->domain, gr2d->group);
+		iommu_group_put(gr2d->group);
+	}
+free:
+	host1x_syncpt_free(client->syncpts[0]);
+put:
+	host1x_channel_put(gr2d->channel);
+	return err;
 }
 
 static int gr2d_exit(struct host1x_client *client)
