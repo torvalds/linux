@@ -114,7 +114,6 @@ typedef uint16_t	xfs_qwarncnt_t;
 #define XFS_QMOPT_SBVERSION	0x0000040 /* change superblock version num */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
 #define XFS_QMOPT_ENOSPC	0x0004000 /* enospc instead of edquot (prj) */
-#define XFS_QMOPT_DQNEXT	0x0008000 /* return next dquot >= this ID */
 
 /*
  * flags to xfs_trans_mod_dquot to indicate which field needs to be

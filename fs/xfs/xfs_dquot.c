@@ -736,18 +736,6 @@ restart:
 			goto restart;
 		}
 
-		/* uninit / unused quota found in radix tree, keep looking  */
-		if (flags & XFS_QMOPT_DQNEXT) {
-			if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-				xfs_dqunlock(dqp);
-				mutex_unlock(&qi->qi_tree_lock);
-				error = xfs_dq_get_next_id(mp, type, &id);
-				if (error)
-					return error;
-				goto restart;
-			}
-		}
-
 		dqp->q_nrefs++;
 		mutex_unlock(&qi->qi_tree_lock);
 
@@ -773,13 +761,6 @@ restart:
 
 	if (ip)
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-
-	/* If we are asked to find next active id, keep looking */
-	if (error == -ENOENT && (flags & XFS_QMOPT_DQNEXT)) {
-		error = xfs_dq_get_next_id(mp, type, &id);
-		if (!error)
-			goto restart;
-	}
 
 	if (error)
 		return error;
@@ -831,22 +812,44 @@ restart:
 	qi->qi_dquots++;
 	mutex_unlock(&qi->qi_tree_lock);
 
-	/* If we are asked to find next active id, keep looking */
-	if (flags & XFS_QMOPT_DQNEXT) {
-		if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-			xfs_qm_dqput(dqp);
-			error = xfs_dq_get_next_id(mp, type, &id);
-			if (error)
-				return error;
-			goto restart;
-		}
-	}
-
  dqret:
 	ASSERT((ip == NULL) || xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
 	return 0;
+}
+
+/*
+ * Starting at @id and progressing upwards, look for an initialized incore
+ * dquot, lock it, and return it.
+ */
+int
+xfs_qm_dqget_next(
+	struct xfs_mount	*mp,
+	xfs_dqid_t		id,
+	uint			type,
+	struct xfs_dquot	**dqpp)
+{
+	struct xfs_dquot	*dqp;
+	int			error = 0;
+
+	*dqpp = NULL;
+	for (; !error; error = xfs_dq_get_next_id(mp, type, &id)) {
+		error = xfs_qm_dqget(mp, NULL, id, type, 0, &dqp);
+		if (error == -ENOENT)
+			continue;
+		else if (error != 0)
+			break;
+
+		if (!XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
+			*dqpp = dqp;
+			return 0;
+		}
+
+		xfs_qm_dqput(dqp);
+	}
+
+	return error;
 }
 
 /*

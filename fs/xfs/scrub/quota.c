@@ -268,8 +268,7 @@ xfs_scrub_quota(
 		if (xfs_scrub_should_terminate(sc, &error))
 			break;
 
-		error = xfs_qm_dqget(mp, NULL, id, dqtype, XFS_QMOPT_DQNEXT,
-				&dq);
+		error = xfs_qm_dqget_next(mp, id, dqtype, &dq);
 		if (error == -ENOENT)
 			break;
 		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK,
