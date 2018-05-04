@@ -1085,6 +1085,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	if (ret) {
 		dev_err(hr_dev->dev, "Configure global param fail, ret = %d.\n",
 			ret);
+		return ret;
 	}
 
 	/* Get pf resource owned by every pf */
