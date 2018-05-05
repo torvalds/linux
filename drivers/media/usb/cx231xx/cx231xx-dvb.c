@@ -602,7 +602,6 @@ fail_adapter:
 
 static void unregister_dvb(struct cx231xx_dvb *dvb)
 {
-	struct i2c_client *client;
 	dvb_net_release(&dvb->net);
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
