@@ -441,11 +441,11 @@ static int vmwgfx_set_config_internal(struct drm_mode_set *set)
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_framebuffer *fb;
 	struct drm_crtc *tmp;
-	struct drm_modeset_acquire_ctx *ctx;
 	struct drm_device *dev = set->crtc->dev;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	ctx = dev->mode_config.acquire_ctx;
+	drm_modeset_acquire_init(&ctx, 0);
 
 restart:
 	/*
@@ -458,7 +458,7 @@ restart:
 
 	fb = set->fb;
 
-	ret = crtc->funcs->set_config(set, ctx);
+	ret = crtc->funcs->set_config(set, &ctx);
 	if (ret == 0) {
 		crtc->primary->crtc = crtc;
 		crtc->primary->fb = fb;
@@ -473,19 +473,12 @@ restart:
 	}
 
 	if (ret == -EDEADLK) {
-		dev->mode_config.acquire_ctx = NULL;
-
-retry_locking:
-		drm_modeset_backoff(ctx);
-
-		ret = drm_modeset_lock_all_ctx(dev, ctx);
-		if (ret)
-			goto retry_locking;
-
-		dev->mode_config.acquire_ctx = ctx;
-
+		drm_modeset_backoff(&ctx);
 		goto restart;
 	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -624,7 +617,6 @@ static int vmw_fb_set_par(struct fb_info *info)
 	}
 
 	mutex_lock(&par->bo_mutex);
-	drm_modeset_lock_all(vmw_priv->dev);
 	ret = vmw_fb_kms_framebuffer(info);
 	if (ret)
 		goto out_unlock;
@@ -657,7 +649,6 @@ out_unlock:
 		drm_mode_destroy(vmw_priv->dev, old_mode);
 	par->set_mode = mode;
 
-	drm_modeset_unlock_all(vmw_priv->dev);
 	mutex_unlock(&par->bo_mutex);
 
 	return ret;
@@ -713,18 +704,14 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	par->max_width = fb_width;
 	par->max_height = fb_height;
 
-	drm_modeset_lock_all(vmw_priv->dev);
 	ret = vmw_kms_fbdev_init_data(vmw_priv, 0, par->max_width,
 				      par->max_height, &par->con,
 				      &par->crtc, &init_mode);
-	if (ret) {
-		drm_modeset_unlock_all(vmw_priv->dev);
+	if (ret)
 		goto err_kms;
-	}
 
 	info->var.xres = init_mode->hdisplay;
 	info->var.yres = init_mode->vdisplay;
-	drm_modeset_unlock_all(vmw_priv->dev);
 
 	/*
 	 * Create buffers and alloc memory
@@ -832,7 +819,9 @@ int vmw_fb_close(struct vmw_private *vmw_priv)
 	cancel_delayed_work_sync(&par->local_work);
 	unregister_framebuffer(info);
 
+	mutex_lock(&par->bo_mutex);
 	(void) vmw_fb_kms_detach(par, true, true);
+	mutex_unlock(&par->bo_mutex);
 
 	vfree(par->vmalloc);
 	framebuffer_release(info);
