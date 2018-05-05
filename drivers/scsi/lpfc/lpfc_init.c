@@ -7790,6 +7790,40 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_wq,
 				phba->sli4_hba.max_cfg_param.max_rq);
 
+		/*
+		 * Calculate NVME queue resources based on how
+		 * many WQ/CQs are available.
+		 */
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			length = phba->sli4_hba.max_cfg_param.max_wq;
+			if (phba->sli4_hba.max_cfg_param.max_cq <
+			    phba->sli4_hba.max_cfg_param.max_wq)
+				length = phba->sli4_hba.max_cfg_param.max_cq;
+
+			/*
+			 * Whats left after this can go toward NVME.
+			 * The minus 6 accounts for ELS, NVME LS, MBOX
+			 * fof plus a couple extra. When configured for
+			 * NVMET, FCP io channel WQs are not created.
+			 */
+			length -= 6;
+			if (!phba->nvmet_support)
+				length -= phba->cfg_fcp_io_channel;
+
+			if (phba->cfg_nvme_io_channel > length) {
+				lpfc_printf_log(
+					phba, KERN_ERR, LOG_SLI,
+					"2005 Reducing NVME IO channel to %d: "
+					"WQ %d CQ %d NVMEIO %d FCPIO %d\n",
+					length,
+					phba->sli4_hba.max_cfg_param.max_wq,
+					phba->sli4_hba.max_cfg_param.max_cq,
+					phba->cfg_nvme_io_channel,
+					phba->cfg_fcp_io_channel);
+
+				phba->cfg_nvme_io_channel = length;
+			}
+		}
 	}
 
 	if (rc)
