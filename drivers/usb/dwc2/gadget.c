@@ -3236,6 +3236,9 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		dcfg |= DCFG_DEVSPD_HS;
 	}
 
+	if (hsotg->params.ipg_isoc_en)
+		dcfg |= DCFG_IPG_ISOC_SUPPORDED;
+
 	dwc2_writel(dcfg,  hsotg->regs + DCFG);
 
 	/* Clear any pending OTG interrupts */

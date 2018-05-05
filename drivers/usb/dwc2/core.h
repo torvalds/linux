@@ -380,6 +380,9 @@ enum dwc2_ep0_state {
  *                      is FS.
  *                       0 - No (default)
  *                       1 - Yes
+ * @ipg_isoc_en         Indicates the IPG supports is enabled or disabled.
+ *                       0 - Disable (default)
+ *                       1 - Enable
  * @ulpi_fs_ls:         Make ULPI phy operate in FS/LS mode only
  *                       0 - No (default)
  *                       1 - Yes
@@ -511,6 +514,7 @@ struct dwc2_core_params {
 	bool hird_threshold_en;
 	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
+	bool ipg_isoc_en;
 	u16 max_packet_count;
 	u32 max_transfer_size;
 	u32 ahbcfg;
@@ -560,6 +564,12 @@ struct dwc2_core_params {
  *                       0 - Slave only
  *                       1 - External DMA
  *                       2 - Internal DMA
+ * @ipg_isoc_en         This feature indicates that the controller supports
+ *                      the worst-case scenario of Rx followed by Rx
+ *                      Interpacket Gap (IPG) (32 bitTimes) as per the utmi
+ *                      specification for any token following ISOC OUT token.
+ *                       0 - Don't support
+ *                       1 - Support
  * @power_optimized     Are power optimizations enabled?
  * @num_dev_ep          Number of device endpoints available
  * @num_dev_in_eps      Number of device IN endpoints available
@@ -622,6 +632,7 @@ struct dwc2_hw_params {
 	unsigned hibernation:1;
 	unsigned utmi_phy_data_width:2;
 	unsigned lpm_mode:1;
+	unsigned ipg_isoc_en:1;
 	u32 snpsid;
 	u32 dev_ep_dirs;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];

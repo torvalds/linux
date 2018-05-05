@@ -710,6 +710,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, phy_ulpi_ddr);
 	print_param(seq, p, phy_ulpi_ext_vbus);
 	print_param(seq, p, i2c_enable);
+	print_param(seq, p, ipg_isoc_en);
 	print_param(seq, p, ulpi_fs_ls);
 	print_param(seq, p, host_support_fs_ls_low_power);
 	print_param(seq, p, host_ls_low_power_phy_clk);
