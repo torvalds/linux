@@ -2411,7 +2411,7 @@ static void device_create_release(struct device *dev)
 	kfree(dev);
 }
 
-static struct device *
+static __printf(6, 0) struct device *
 device_create_groups_vargs(struct class *class, struct device *parent,
 			   dev_t devt, void *drvdata,
 			   const struct attribute_group **groups,
