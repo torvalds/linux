@@ -202,5 +202,9 @@
 		ata@63000000 {
 			status = "okay";
 		};
+
+		ata@63400000 {
+			status = "okay";
+		};
 	};
 };
