@@ -245,8 +245,6 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 
 	tb = get_tb();
 	if (tb - per_cpu(wd_timer_tb, cpu) >= wd_panic_timeout_tb) {
-		per_cpu(wd_timer_tb, cpu) = tb;
-
 		wd_smp_lock(&flags);
 		if (cpumask_test_cpu(cpu, &wd_smp_cpus_stuck)) {
 			wd_smp_unlock(&flags);
