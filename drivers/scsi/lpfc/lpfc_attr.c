@@ -405,11 +405,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"      abort %08x noxri %08x nondlp %08x qdepth %08x "
-			"wqerr %08x\n",
+			"wqerr %08x err %08x\n",
 			atomic_read(&lport->xmt_fcp_abort),
 			atomic_read(&lport->xmt_fcp_noxri),
 			atomic_read(&lport->xmt_fcp_bad_ndlp),
 			atomic_read(&lport->xmt_fcp_qdepth),
+			atomic_read(&lport->xmt_fcp_err),
 			atomic_read(&lport->xmt_fcp_wqerr));
 
 	len += snprintf(buf + len, PAGE_SIZE - len,

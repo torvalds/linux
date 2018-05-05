@@ -959,11 +959,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 
 		len += snprintf(buf + len, size - len,
 				"FCP Xmt Err: noxri %06x nondlp %06x "
-				"qdepth %06x wqerr %06x Abrt %06x\n",
+				"qdepth %06x wqerr %06x err %06x Abrt %06x\n",
 				atomic_read(&lport->xmt_fcp_noxri),
 				atomic_read(&lport->xmt_fcp_bad_ndlp),
 				atomic_read(&lport->xmt_fcp_qdepth),
 				atomic_read(&lport->xmt_fcp_wqerr),
+				atomic_read(&lport->xmt_fcp_err),
 				atomic_read(&lport->xmt_fcp_abort));
 
 		len += snprintf(buf + len, size - len,

@@ -59,6 +59,7 @@ struct lpfc_nvme_lport {
 	atomic_t xmt_fcp_bad_ndlp;
 	atomic_t xmt_fcp_qdepth;
 	atomic_t xmt_fcp_wqerr;
+	atomic_t xmt_fcp_err;
 	atomic_t xmt_fcp_abort;
 	atomic_t xmt_ls_abort;
 	atomic_t xmt_ls_err;
