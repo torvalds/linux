@@ -158,7 +158,8 @@ i915-y += dvo_ch7017.o \
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \
-	selftests/i915_selftest.o
+	selftests/i915_selftest.o \
+	selftests/igt_flush_test.o
 
 # virtual gpu code
 i915-y += i915_vgpu.o

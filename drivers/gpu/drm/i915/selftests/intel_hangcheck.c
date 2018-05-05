@@ -26,6 +26,7 @@
 
 #include "../i915_selftest.h"
 #include "i915_random.h"
+#include "igt_flush_test.h"
 
 #include "mock_context.h"
 #include "mock_drm.h"
@@ -253,61 +254,6 @@ static u32 hws_seqno(const struct hang *h, const struct i915_request *rq)
 	return READ_ONCE(h->seqno[rq->fence.context % (PAGE_SIZE/sizeof(u32))]);
 }
 
-struct wedge_me {
-	struct delayed_work work;
-	struct drm_i915_private *i915;
-	const void *symbol;
-};
-
-static void wedge_me(struct work_struct *work)
-{
-	struct wedge_me *w = container_of(work, typeof(*w), work.work);
-
-	pr_err("%pS timed out, cancelling all further testing.\n", w->symbol);
-
-	GEM_TRACE("%pS timed out.\n", w->symbol);
-	GEM_TRACE_DUMP();
-
-	i915_gem_set_wedged(w->i915);
-}
-
-static void __init_wedge(struct wedge_me *w,
-			 struct drm_i915_private *i915,
-			 long timeout,
-			 const void *symbol)
-{
-	w->i915 = i915;
-	w->symbol = symbol;
-
-	INIT_DELAYED_WORK_ONSTACK(&w->work, wedge_me);
-	schedule_delayed_work(&w->work, timeout);
-}
-
-static void __fini_wedge(struct wedge_me *w)
-{
-	cancel_delayed_work_sync(&w->work);
-	destroy_delayed_work_on_stack(&w->work);
-	w->i915 = NULL;
-}
-
-#define wedge_on_timeout(W, DEV, TIMEOUT)				\
-	for (__init_wedge((W), (DEV), (TIMEOUT), __builtin_return_address(0)); \
-	     (W)->i915;							\
-	     __fini_wedge((W)))
-
-static noinline int
-flush_test(struct drm_i915_private *i915, unsigned int flags)
-{
-	struct wedge_me w;
-
-	cond_resched();
-
-	wedge_on_timeout(&w, i915, HZ)
-		i915_gem_wait_for_idle(i915, flags);
-
-	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
-}
-
 static void hang_fini(struct hang *h)
 {
 	*h->batch = MI_BATCH_BUFFER_END;
@@ -321,7 +267,7 @@ static void hang_fini(struct hang *h)
 
 	kernel_context_close(h->ctx);
 
-	flush_test(h->i915, I915_WAIT_LOCKED);
+	igt_flush_test(h->i915, I915_WAIT_LOCKED);
 }
 
 static bool wait_until_running(struct hang *h, struct i915_request *rq)
@@ -575,7 +521,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 		if (err)
 			break;
 
-		err = flush_test(i915, 0);
+		err = igt_flush_test(i915, 0);
 		if (err)
 			break;
 	}
@@ -874,7 +820,7 @@ unwind:
 		if (err)
 			break;
 
-		err = flush_test(i915, 0);
+		err = igt_flush_test(i915, 0);
 		if (err)
 			break;
 	}
@@ -1168,7 +1114,7 @@ static int igt_reset_queue(void *arg)
 
 		i915_request_put(prev);
 
-		err = flush_test(i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(i915, I915_WAIT_LOCKED);
 		if (err)
 			break;
 	}
@@ -1280,7 +1226,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	err = i915_subtests(tests, i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	flush_test(i915, I915_WAIT_LOCKED);
+	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
