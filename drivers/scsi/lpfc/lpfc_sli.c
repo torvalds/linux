@@ -96,6 +96,34 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 	return &iocbq->iocb;
 }
 
+#if defined(CONFIG_64BIT) && defined(__LITTLE_ENDIAN)
+/**
+ * lpfc_sli4_pcimem_bcopy - SLI4 memory copy function
+ * @srcp: Source memory pointer.
+ * @destp: Destination memory pointer.
+ * @cnt: Number of words required to be copied.
+ *       Must be a multiple of sizeof(uint64_t)
+ *
+ * This function is used for copying data between driver memory
+ * and the SLI WQ. This function also changes the endianness
+ * of each word if native endianness is different from SLI
+ * endianness. This function can be called with or without
+ * lock.
+ **/
+void
+lpfc_sli4_pcimem_bcopy(void *srcp, void *destp, uint32_t cnt)
+{
+	uint64_t *src = srcp;
+	uint64_t *dest = destp;
+	int i;
+
+	for (i = 0; i < (int)cnt; i += sizeof(uint64_t))
+		*dest++ = *src++;
+}
+#else
+#define lpfc_sli4_pcimem_bcopy(a, b, c) lpfc_sli_pcimem_bcopy(a, b, c)
+#endif
+
 /**
  * lpfc_sli4_wq_put - Put a Work Queue Entry on an Work Queue
  * @q: The Work Queue to operate on.
@@ -137,7 +165,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 0);
 	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
 		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
-	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
+	lpfc_sli4_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
 	if (q->dpp_enable && q->phba->cfg_enable_dpp) {
 		/* write to DPP aperture taking advatage of Combined Writes */
 		tmp = (uint8_t *)temp_wqe;
@@ -240,7 +268,7 @@ lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 	/* If the host has not yet processed the next entry then we are done */
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
 		return -ENOMEM;
-	lpfc_sli_pcimem_bcopy(mqe, temp_mqe, q->entry_size);
+	lpfc_sli4_pcimem_bcopy(mqe, temp_mqe, q->entry_size);
 	/* Save off the mailbox pointer for completion */
 	q->phba->mbox = (MAILBOX_t *)temp_mqe;
 
@@ -663,8 +691,8 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	/* If the host has not yet processed the next entry then we are done */
 	if (((hq_put_index + 1) % hq->entry_count) == hq->hba_index)
 		return -EBUSY;
-	lpfc_sli_pcimem_bcopy(hrqe, temp_hrqe, hq->entry_size);
-	lpfc_sli_pcimem_bcopy(drqe, temp_drqe, dq->entry_size);
+	lpfc_sli4_pcimem_bcopy(hrqe, temp_hrqe, hq->entry_size);
+	lpfc_sli4_pcimem_bcopy(drqe, temp_drqe, dq->entry_size);
 
 	/* Update the host index to point to the next slot */
 	hq->host_index = ((hq_put_index + 1) % hq->entry_count);
@@ -8185,8 +8213,8 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 */
 	mbx_cmnd = bf_get(lpfc_mqe_command, mb);
 	memset(phba->sli4_hba.bmbx.avirt, 0, sizeof(struct lpfc_bmbx_create));
-	lpfc_sli_pcimem_bcopy(mb, phba->sli4_hba.bmbx.avirt,
-			      sizeof(struct lpfc_mqe));
+	lpfc_sli4_pcimem_bcopy(mb, phba->sli4_hba.bmbx.avirt,
+			       sizeof(struct lpfc_mqe));
 
 	/* Post the high mailbox dma address to the port and wait for ready. */
 	dma_address = &phba->sli4_hba.bmbx.dma_address;
@@ -8210,11 +8238,11 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 * If so, update the mailbox status so that the upper layers
 	 * can complete the request normally.
 	 */
-	lpfc_sli_pcimem_bcopy(phba->sli4_hba.bmbx.avirt, mb,
-			      sizeof(struct lpfc_mqe));
+	lpfc_sli4_pcimem_bcopy(phba->sli4_hba.bmbx.avirt, mb,
+			       sizeof(struct lpfc_mqe));
 	mbox_rgn = (struct lpfc_bmbx_create *) phba->sli4_hba.bmbx.avirt;
-	lpfc_sli_pcimem_bcopy(&mbox_rgn->mcqe, &mboxq->mcqe,
-			      sizeof(struct lpfc_mcqe));
+	lpfc_sli4_pcimem_bcopy(&mbox_rgn->mcqe, &mboxq->mcqe,
+			       sizeof(struct lpfc_mcqe));
 	mcqe_status = bf_get(lpfc_mcqe_status, &mbox_rgn->mcqe);
 	/*
 	 * When the CQE status indicates a failure and the mailbox status
@@ -12830,7 +12858,7 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 
 	/* Move mbox data to caller's mailbox region, do endian swapping */
 	if (pmb->mbox_cmpl && mbox)
-		lpfc_sli_pcimem_bcopy(mbox, mqe, sizeof(struct lpfc_mqe));
+		lpfc_sli4_pcimem_bcopy(mbox, mqe, sizeof(struct lpfc_mqe));
 
 	/*
 	 * For mcqe errors, conditionally move a modified error code to
@@ -12913,7 +12941,7 @@ lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
 	bool workposted;
 
 	/* Copy the mailbox MCQE and convert endian order as needed */
-	lpfc_sli_pcimem_bcopy(cqe, &mcqe, sizeof(struct lpfc_mcqe));
+	lpfc_sli4_pcimem_bcopy(cqe, &mcqe, sizeof(struct lpfc_mcqe));
 
 	/* Invoke the proper event handling routine */
 	if (!bf_get(lpfc_trailer_async, &mcqe))
@@ -13173,7 +13201,7 @@ lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	bool workposted = false;
 
 	/* Copy the work queue CQE and convert endian order if needed */
-	lpfc_sli_pcimem_bcopy(cqe, &cqevt, sizeof(struct lpfc_cqe));
+	lpfc_sli4_pcimem_bcopy(cqe, &cqevt, sizeof(struct lpfc_cqe));
 
 	/* Check and process for different type of WCQE and dispatch */
 	switch (bf_get(lpfc_cqe_code, &cqevt)) {
@@ -13581,7 +13609,7 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	bool workposted = false;
 
 	/* Copy the work queue CQE and convert endian order if needed */
-	lpfc_sli_pcimem_bcopy(cqe, &wcqe, sizeof(struct lpfc_cqe));
+	lpfc_sli4_pcimem_bcopy(cqe, &wcqe, sizeof(struct lpfc_cqe));
 
 	/* Check and process for different type of WCQE and dispatch */
 	switch (bf_get(lpfc_wcqe_c_code, &wcqe)) {
