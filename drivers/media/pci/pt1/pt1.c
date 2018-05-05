@@ -210,7 +210,8 @@ static int config_demod(struct i2c_client *cl, enum pt1_fe_clk clk)
 		return ret;
 	usleep_range(30000, 50000);
 
-	is_sat = !strncmp(cl->name, TC90522_I2C_DEV_SAT, I2C_NAME_SIZE);
+	is_sat = !strncmp(cl->name, TC90522_I2C_DEV_SAT,
+			  strlen(TC90522_I2C_DEV_SAT));
 	if (is_sat) {
 		struct i2c_msg msg[2];
 		u8 wbuf, rbuf;
