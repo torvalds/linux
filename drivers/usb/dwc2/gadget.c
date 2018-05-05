@@ -1225,7 +1225,7 @@ static bool dwc2_gadget_target_frame_elapsed(struct dwc2_hsotg_ep *hs_ep)
 {
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
 	u32 target_frame = hs_ep->target_frame;
-	u32 current_frame = dwc2_hsotg_read_frameno(hsotg);
+	u32 current_frame = hsotg->frame_number;
 	bool frame_overrun = hs_ep->frame_overrun;
 
 	if (!frame_overrun && current_frame >= target_frame)
@@ -1359,8 +1359,15 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 			return 0;
 		}
 
-		while (dwc2_gadget_target_frame_elapsed(hs_ep))
+		/* Update current frame number value. */
+		hs->frame_number = dwc2_hsotg_read_frameno(hs);
+		while (dwc2_gadget_target_frame_elapsed(hs_ep)) {
 			dwc2_gadget_incr_frame_num(hs_ep);
+			/* Update current frame number value once more as it
+			 * changes here.
+			 */
+			hs->frame_number = dwc2_hsotg_read_frameno(hs);
+		}
 
 		if (hs_ep->target_frame != TARGET_FRAME_INITIAL)
 			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
@@ -2707,6 +2714,8 @@ static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
 			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req,
 						    -ENODATA);
 		dwc2_gadget_incr_frame_num(hs_ep);
+		/* Update current frame number value. */
+		hsotg->frame_number = dwc2_hsotg_read_frameno(hsotg);
 	} while (dwc2_gadget_target_frame_elapsed(hs_ep));
 
 	dwc2_gadget_start_next_request(hs_ep);

@@ -824,6 +824,9 @@ struct dwc2_hregs_backup {
  * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled	Status of low-level hardware resources.
  * @hibernated:		True if core is hibernated
+ * @frame_number:       Frame number read from the core. For both device
+ *			and host modes. The value ranges are from 0
+ *			to HFNUM_MAX_FRNUM.
  * @phy:                The otg phy transceiver structure for phy control.
  * @uphy:               The otg phy transceiver structure for old USB phy
  *                      control.
@@ -897,8 +900,6 @@ struct dwc2_hregs_backup {
  * @hs_periodic_bitmap: Bitmap used by the microframe scheduler any time the
  *                      host is in high speed mode; low speed schedules are
  *                      stored elsewhere since we need one per TT.
- * @frame_number:       Frame number read from the core at SOF. The value ranges
- *                      from 0 to HFNUM_MAX_FRNUM.
  * @periodic_qh_count:  Count of periodic QHs, if using several eps. Used for
  *                      SOF enable/disable.
  * @free_hc_list:       Free host channels in the controller. This is a list of
@@ -965,6 +966,7 @@ struct dwc2_hsotg {
 	unsigned int gadget_enabled:1;
 	unsigned int ll_hw_enabled:1;
 	unsigned int hibernated:1;
+	u16 frame_number;
 
 	struct phy *phy;
 	struct usb_phy *uphy;
@@ -1038,7 +1040,6 @@ struct dwc2_hsotg {
 	u16 periodic_usecs;
 	unsigned long hs_periodic_bitmap[
 		DIV_ROUND_UP(DWC2_HS_SCHEDULE_US, BITS_PER_LONG)];
-	u16 frame_number;
 	u16 periodic_qh_count;
 	bool bus_suspended;
 	bool new_connection;
