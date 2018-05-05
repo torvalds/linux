@@ -111,7 +111,13 @@ static inline void wd_smp_unlock(unsigned long *flags)
 
 static void wd_lockup_ipi(struct pt_regs *regs)
 {
-	pr_emerg("CPU %d Hard LOCKUP\n", raw_smp_processor_id());
+	int cpu = raw_smp_processor_id();
+	u64 tb = get_tb();
+
+	pr_emerg("CPU %d Hard LOCKUP\n", cpu);
+	pr_emerg("CPU %d TB:%lld, last heartbeat TB:%lld (%lldms ago)\n",
+		 cpu, tb, per_cpu(wd_timer_tb, cpu),
+		 tb_to_ns(tb - per_cpu(wd_timer_tb, cpu)) / 1000000);
 	print_modules();
 	print_irqtrace_events(current);
 	if (regs)
@@ -154,6 +160,9 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 
 	pr_emerg("CPU %d detected hard LOCKUP on other CPUs %*pbl\n",
 		 cpu, cpumask_pr_args(&wd_smp_cpus_pending));
+	pr_emerg("CPU %d TB:%lld, last SMP heartbeat TB:%lld (%lldms ago)\n",
+		 cpu, tb, wd_smp_last_reset_tb,
+		 tb_to_ns(tb - wd_smp_last_reset_tb) / 1000000);
 
 	if (!sysctl_hardlockup_all_cpu_backtrace) {
 		/*
@@ -194,10 +203,19 @@ static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
 {
 	if (!cpumask_test_cpu(cpu, &wd_smp_cpus_pending)) {
 		if (unlikely(cpumask_test_cpu(cpu, &wd_smp_cpus_stuck))) {
+			struct pt_regs *regs = get_irq_regs();
 			unsigned long flags;
 
-			pr_emerg("CPU %d became unstuck\n", cpu);
 			wd_smp_lock(&flags);
+
+			pr_emerg("CPU %d became unstuck TB:%lld\n",
+				 cpu, tb);
+			print_irqtrace_events(current);
+			if (regs)
+				show_regs(regs);
+			else
+				dump_stack();
+
 			cpumask_clear_cpu(cpu, &wd_smp_cpus_stuck);
 			wd_smp_unlock(&flags);
 		}
@@ -252,7 +270,11 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		}
 		set_cpu_stuck(cpu, tb);
 
-		pr_emerg("CPU %d self-detected hard LOCKUP @ %pS\n", cpu, (void *)regs->nip);
+		pr_emerg("CPU %d self-detected hard LOCKUP @ %pS\n",
+			 cpu, (void *)regs->nip);
+		pr_emerg("CPU %d TB:%lld, last heartbeat TB:%lld (%lldms ago)\n",
+			 cpu, tb, per_cpu(wd_timer_tb, cpu),
+			 tb_to_ns(tb - per_cpu(wd_timer_tb, cpu)) / 1000000);
 		print_modules();
 		print_irqtrace_events(current);
 		show_regs(regs);
