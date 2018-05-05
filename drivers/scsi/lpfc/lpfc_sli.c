@@ -12972,6 +12972,17 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	int txcmplq_cnt = 0;
 	int fcp_txcmplq_cnt = 0;
 
+	/* Check for response status */
+	if (unlikely(bf_get(lpfc_wcqe_c_status, wcqe))) {
+		/* Log the error status */
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"0357 ELS CQE error: status=x%x: "
+				"CQE: %08x %08x %08x %08x\n",
+				bf_get(lpfc_wcqe_c_status, wcqe),
+				wcqe->word0, wcqe->total_data_placed,
+				wcqe->parameter, wcqe->word3);
+	}
+
 	/* Get an irspiocbq for later ELS response processing use */
 	irspiocbq = lpfc_sli_get_iocbq(phba);
 	if (!irspiocbq) {
@@ -13392,14 +13403,12 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			phba->lpfc_rampdown_queue_depth(phba);
 
 		/* Log the error status */
-		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"0373 FCP complete error: status=x%x, "
-				"hw_status=x%x, total_data_specified=%d, "
-				"parameter=x%x, word3=x%x\n",
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"0373 FCP CQE error: status=x%x: "
+				"CQE: %08x %08x %08x %08x\n",
 				bf_get(lpfc_wcqe_c_status, wcqe),
-				bf_get(lpfc_wcqe_c_hw_status, wcqe),
-				wcqe->total_data_placed, wcqe->parameter,
-				wcqe->word3);
+				wcqe->word0, wcqe->total_data_placed,
+				wcqe->parameter, wcqe->word3);
 	}
 
 	/* Look up the FCP command IOCB and create pseudo response IOCB */
