@@ -4279,32 +4279,24 @@ lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
- * This routine is to parse the SLI4 link-attention link fault code and
- * translate it into the base driver's read link attention mailbox command
- * status.
- *
- * Return: Link-attention status in terms of base driver's coding.
+ * This routine is to parse the SLI4 link-attention link fault code.
  **/
-static uint16_t
+static void
 lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 			   struct lpfc_acqe_link *acqe_link)
 {
-	uint16_t latt_fault;
-
 	switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
 	case LPFC_ASYNC_LINK_FAULT_NONE:
 	case LPFC_ASYNC_LINK_FAULT_LOCAL:
 	case LPFC_ASYNC_LINK_FAULT_REMOTE:
-		latt_fault = 0;
+	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0398 Invalid link fault code: x%x\n",
+				"0398 Unknown link fault code: x%x\n",
 				bf_get(lpfc_acqe_link_fault, acqe_link));
-		latt_fault = MBXERR_ERROR;
 		break;
 	}
-	return latt_fault;
 }
 
 /**
@@ -4579,9 +4571,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	 * the READ_TOPOLOGY completion routine to continue without actually
 	 * sending the READ_TOPOLOGY mailbox command to the port.
 	 */
-	/* Parse and translate status field */
+	/* Initialize completion status */
 	mb = &pmb->u.mb;
-	mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba, acqe_link);
+	mb->mbxStatus = MBX_SUCCESS;
+
+	/* Parse port fault information field */
+	lpfc_sli4_parse_latt_fault(phba, acqe_link);
 
 	/* Parse and translate link attention fields */
 	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
@@ -4709,10 +4704,12 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			break;
 		}
 
-		/* Parse and translate status field */
+		/* Initialize completion status */
 		mb = &pmb->u.mb;
-		mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba,
-							   (void *)acqe_fc);
+		mb->mbxStatus = MBX_SUCCESS;
+
+		/* Parse port fault information field */
+		lpfc_sli4_parse_latt_fault(phba, (void *)acqe_fc);
 
 		/* Parse and translate link attention fields */
 		la = (struct lpfc_mbx_read_top *)&pmb->u.mb.un.varReadTop;
