@@ -564,8 +564,9 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/af9033*
 
 AFFS FILE SYSTEM
+M:	David Sterba <dsterba@suse.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
@@ -905,6 +906,8 @@ ANDROID ION DRIVER
 M:	Laura Abbott <labbott@redhat.com>
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 L:	devel@driverdev.osuosl.org
+L:	dri-devel@lists.freedesktop.org
+L:	linaro-mm-sig@lists.linaro.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/staging/android/ion
 F:	drivers/staging/android/uapi/ion.h
@@ -1208,7 +1211,6 @@ F:	drivers/*/*alpine*
 ARM/ARTPEC MACHINE SUPPORT
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
 M:	Lars Persson <lars.persson@axis.com>
-M:	Niklas Cassel <niklas.cassel@axis.com>
 S:	Maintained
 L:	linux-arm-kernel@axis.com
 F:	arch/arm/mach-artpec
@@ -7411,16 +7413,6 @@ S:	Obsolete
 F:	include/uapi/linux/ipx.h
 F:	drivers/staging/ipx/
 
-IRDA SUBSYSTEM
-M:	Samuel Ortiz <samuel@sortiz.org>
-L:	irda-users@lists.sourceforge.net (subscribers-only)
-L:	netdev@vger.kernel.org
-W:	http://irda.sourceforge.net/
-S:	Obsolete
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/irda-2.6.git
-F:	Documentation/networking/irda.txt
-F:	drivers/staging/irda/
-
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Marc Zyngier <marc.zyngier@arm.com>
 S:	Maintained
@@ -7753,7 +7745,7 @@ F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE FOR ARM (KVM/arm)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -7767,7 +7759,7 @@ F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
-M:	Christoffer Dall <christoffer.dall@linaro.org>
+M:	Christoffer Dall <christoffer.dall@arm.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
@@ -9734,6 +9726,7 @@ W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
 
 NETWORKING DRIVERS
+M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
@@ -10910,7 +10903,6 @@ F:	drivers/pci/host/
 F:	drivers/pci/dwc/
 
 PCIE DRIVER FOR AXIS ARTPEC
-M:	Niklas Cassel <niklas.cassel@axis.com>
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
 L:	linux-arm-kernel@axis.com
 L:	linux-pci@vger.kernel.org
@@ -12508,6 +12500,7 @@ F:	drivers/scsi/st_*.h
 SCTP PROTOCOL
 M:	Vlad Yasevich <vyasevich@gmail.com>
 M:	Neil Horman <nhorman@tuxdriver.com>
+M:	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
 L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
 S:	Maintained
@@ -13863,7 +13856,6 @@ S:	Supported
 F:	drivers/iommu/tegra*
 
 TEGRA KBC DRIVER
-M:	Rakesh Iyer <riyer@nvidia.com>
 M:	Laxman Dewangan <ldewangan@nvidia.com>
 S:	Supported
 F:	drivers/input/keyboard/tegra-kbc.c
@@ -13966,7 +13958,7 @@ THUNDERBOLT DRIVER
 M:	Andreas Noever <andreas.noever@gmail.com>
 M:	Michael Jamet <michael.jamet@intel.com>
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
-M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
+M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/westeri/thunderbolt.git
 S:	Maintained
 F:	Documentation/admin-guide/thunderbolt.rst
@@ -13976,7 +13968,7 @@ F:	include/linux/thunderbolt.h
 THUNDERBOLT NETWORK DRIVER
 M:	Michael Jamet <michael.jamet@intel.com>
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
-M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
+M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/thunderbolt.c
