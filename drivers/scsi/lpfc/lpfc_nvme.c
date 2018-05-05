@@ -1452,8 +1452,8 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 
 	if (unlikely(!hw_queue_handle)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
-				 "6129 Fail Abort, NULL hw_queue_handle\n");
-		ret = -EINVAL;
+				 "6117 Fail Abort, NULL hw_queue_handle\n");
+		ret = -EBUSY;
 		goto out_fail;
 	}
 
@@ -1499,7 +1499,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 					 "6066 Missing node for DID %x\n",
 					 pnvme_rport->port_id);
 			atomic_inc(&lport->xmt_fcp_bad_ndlp);
-			ret = -ENODEV;
+			ret = -EBUSY;
 			goto out_fail;
 		}
 	}
@@ -1509,11 +1509,12 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
 				 "6036 rport %p, DID x%06x not ready for "
-				 "IO. State x%x, Type x%x\n",
+				 "IO. State x%x, Type x%x Flg x%x\n",
 				 rport, pnvme_rport->port_id,
-				 ndlp->nlp_state, ndlp->nlp_type);
+				 ndlp->nlp_state, ndlp->nlp_type,
+				 ndlp->upcall_flags);
 		atomic_inc(&lport->xmt_fcp_bad_ndlp);
-		ret = -ENODEV;
+		ret = -EBUSY;
 		goto out_fail;
 
 	}
