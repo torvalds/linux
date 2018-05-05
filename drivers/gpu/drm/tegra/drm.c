@@ -321,46 +321,14 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	return 0;
 }
 
-static int host1x_waitchk_copy_from_user(struct host1x_waitchk *dest,
-					 struct drm_tegra_waitchk __user *src,
-					 struct drm_file *file)
-{
-	u32 cmdbuf;
-	int err;
-
-	err = get_user(cmdbuf, &src->handle);
-	if (err < 0)
-		return err;
-
-	err = get_user(dest->offset, &src->offset);
-	if (err < 0)
-		return err;
-
-	err = get_user(dest->syncpt_id, &src->syncpt);
-	if (err < 0)
-		return err;
-
-	err = get_user(dest->thresh, &src->thresh);
-	if (err < 0)
-		return err;
-
-	dest->bo = host1x_bo_lookup(file, cmdbuf);
-	if (!dest->bo)
-		return -ENOENT;
-
-	return 0;
-}
-
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
 {
 	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_relocs = args->num_relocs;
-	unsigned int num_waitchks = args->num_waitchks;
 	struct drm_tegra_cmdbuf __user *user_cmdbufs;
 	struct drm_tegra_reloc __user *user_relocs;
-	struct drm_tegra_waitchk __user *user_waitchks;
 	struct drm_tegra_syncpt __user *user_syncpt;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
@@ -372,7 +340,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
-	user_waitchks = u64_to_user_ptr(args->waitchks);
 	user_syncpt = u64_to_user_ptr(args->syncpts);
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
@@ -384,12 +351,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		return -EINVAL;
 
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
-			       args->num_relocs, args->num_waitchks);
+			       args->num_relocs);
 	if (!job)
 		return -ENOMEM;
 
 	job->num_relocs = args->num_relocs;
-	job->num_waitchk = args->num_waitchks;
 	job->client = (u32)args->context;
 	job->class = context->client->base.class;
 	job->serialize = true;
@@ -398,7 +364,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	 * Track referenced BOs so that they can be unreferenced after the
 	 * submission is complete.
 	 */
-	num_refs = num_cmdbufs + num_relocs * 2 + num_waitchks;
+	num_refs = num_cmdbufs + num_relocs * 2;
 
 	refs = kmalloc_array(num_refs, sizeof(*refs), GFP_KERNEL);
 	if (!refs) {
@@ -484,30 +450,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		refs[num_refs++] = &obj->gem;
 
 		if (reloc->target.offset >= obj->gem.size) {
-			err = -EINVAL;
-			goto fail;
-		}
-	}
-
-	/* copy and resolve waitchks from submit */
-	while (num_waitchks--) {
-		struct host1x_waitchk *wait = &job->waitchk[num_waitchks];
-		struct tegra_bo *obj;
-
-		err = host1x_waitchk_copy_from_user(
-			wait, &user_waitchks[num_waitchks], file);
-		if (err < 0)
-			goto fail;
-
-		obj = host1x_to_tegra_bo(wait->bo);
-		refs[num_refs++] = &obj->gem;
-
-		/*
-		 * The unaligned offset will cause an unaligned write during
-		 * of the waitchks patching, corrupting the commands stream.
-		 */
-		if (wait->offset & 3 ||
-		    wait->offset >= obj->gem.size) {
 			err = -EINVAL;
 			goto fail;
 		}

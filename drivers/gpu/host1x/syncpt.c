@@ -373,12 +373,6 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 		return (s32)(current_val - thresh) >= 0;
 }
 
-/* remove a wait pointed to by patch_addr */
-int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
-{
-	return host1x_hw_syncpt_patch_wait(sp->host, sp, patch_addr);
-}
-
 int host1x_syncpt_init(struct host1x *host)
 {
 	struct host1x_syncpt_base *bases;

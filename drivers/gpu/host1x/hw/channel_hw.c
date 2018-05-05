@@ -104,8 +104,7 @@ static int channel_submit(struct host1x_job *job)
 	sp = host->syncpt + job->syncpt_id;
 	trace_host1x_channel_submit(dev_name(ch->dev),
 				    job->num_gathers, job->num_relocs,
-				    job->num_waitchk, job->syncpt_id,
-				    job->syncpt_incrs);
+				    job->syncpt_id, job->syncpt_incrs);
 
 	/* before error checks, return current max */
 	prev_max = job->syncpt_end = host1x_syncpt_read_max(sp);
