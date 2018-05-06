@@ -48,6 +48,15 @@
 &i2c1 {
 	clock-frequency = <400000>;
 
+	s35390a: s35390a@30 {
+		compatible = "sii,s35390a";
+		reg = <0x30>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
+		interrupts-extended = <&gpio2 23 IRQ_TYPE_EDGE_FALLING>; /* gpio_55 */
+	};
+
 	tps: tps65023@48 {
 		compatible = "ti,tps65023";
 		reg = <0x48>;
@@ -118,6 +127,13 @@
 };
 
 &omap3_pmx_core {
+
+	rtc_pins: pinmux_rtc_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b6, PIN_INPUT_PULLUP | MUX_MODE4) /* gpmc_ncs4.gpio_55 */
+		>;
+	};
+
 	tsc2004_pins: pinmux_tsc2004_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT | MUX_MODE4) /* gpmc_wait3.gpio_65 */
