@@ -485,7 +485,7 @@ static int pt1_thread(void *data)
 		if (!pt1_filter(pt1, page)) {
 			ktime_t delay;
 
-			delay = PT1_FETCH_DELAY * NSEC_PER_MSEC;
+			delay = ktime_set(0, PT1_FETCH_DELAY * NSEC_PER_MSEC);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_hrtimeout_range(&delay,
 					PT1_FETCH_DELAY_DELTA * NSEC_PER_MSEC,
