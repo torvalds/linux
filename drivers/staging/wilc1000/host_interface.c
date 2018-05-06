@@ -2606,18 +2606,6 @@ static void timer_connect_cb(struct timer_list *t)
 	wilc_enqueue_cmd(&msg);
 }
 
-s32 wilc_remove_key(struct host_if_drv *hif_drv, const u8 *sta_addr)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_REMOVE_KEY;
-	wid.type = WID_STR;
-	wid.val = (s8 *)sta_addr;
-	wid.size = 6;
-
-	return 0;
-}
-
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 {
 	int result = 0;

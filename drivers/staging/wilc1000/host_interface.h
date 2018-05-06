@@ -303,7 +303,6 @@ struct add_sta_param {
 };
 
 struct wilc_vif;
-s32 wilc_remove_key(struct host_if_drv *hif_drv, const u8 *sta_addr);
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index);
 int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
 int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
