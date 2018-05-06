@@ -424,6 +424,9 @@ struct ov772x_priv {
 	/* band_filter = COM8[5] ? 256 - BDBASE : 0 */
 	unsigned short                    band_filter;
 	unsigned int			  fps;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pad;
+#endif
 };
 
 /*
@@ -1316,16 +1319,26 @@ static int ov772x_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto error_gpio_put;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
+	priv->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&priv->subdev.entity, 1, &priv->pad);
+	if (ret < 0)
+		goto error_gpio_put;
+#endif
+
 	priv->cfmt = &ov772x_cfmts[0];
 	priv->win = &ov772x_win_sizes[0];
 	priv->fps = 15;
 
 	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret)
-		goto error_gpio_put;
+		goto error_entity_cleanup;
 
 	return 0;
 
+error_entity_cleanup:
+	media_entity_cleanup(&priv->subdev.entity);
 error_gpio_put:
 	if (priv->pwdn_gpio)
 		gpiod_put(priv->pwdn_gpio);
@@ -1341,6 +1354,7 @@ static int ov772x_remove(struct i2c_client *client)
 {
 	struct ov772x_priv *priv = to_ov772x(i2c_get_clientdata(client));
 
+	media_entity_cleanup(&priv->subdev.entity);
 	clk_put(priv->clk);
 	if (priv->pwdn_gpio)
 		gpiod_put(priv->pwdn_gpio);
