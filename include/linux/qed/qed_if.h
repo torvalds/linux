@@ -339,7 +339,6 @@ struct qed_dev_info {
 	u8		num_hwfns;
 
 	u8		hw_mac[ETH_ALEN];
-	bool		is_mf_default;
 
 	/* FW version */
 	u16		fw_major;

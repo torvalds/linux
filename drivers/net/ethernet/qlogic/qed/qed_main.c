@@ -264,8 +264,6 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
 	dev_info->rdma_supported = QED_IS_RDMA_PERSONALITY(p_hwfn);
-	dev_info->is_mf_default = !test_bit(QED_MF_LLH_MAC_CLSS,
-					    &cdev->mf_bits);
 	dev_info->dev_type = cdev->type;
 	ether_addr_copy(dev_info->hw_mac, hw_info->hw_mac_addr);
 
