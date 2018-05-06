@@ -749,13 +749,13 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VFLIP:
 		val = ctrl->val ? VFLIP_IMG : 0x00;
 		priv->flag_vflip = ctrl->val;
-		if (priv->info->flags & OV772X_FLAG_VFLIP)
+		if (priv->info && (priv->info->flags & OV772X_FLAG_VFLIP))
 			val ^= VFLIP_IMG;
 		return ov772x_mask_set(client, COM3, VFLIP_IMG, val);
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? HFLIP_IMG : 0x00;
 		priv->flag_hflip = ctrl->val;
-		if (priv->info->flags & OV772X_FLAG_HFLIP)
+		if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 			val ^= HFLIP_IMG;
 		return ov772x_mask_set(client, COM3, HFLIP_IMG, val);
 	case V4L2_CID_BAND_STOP_FILTER:
@@ -914,6 +914,60 @@ static void ov772x_select_params(const struct v4l2_mbus_framefmt *mf,
 	*win = ov772x_select_win(mf->width, mf->height);
 }
 
+static int ov772x_edgectrl(struct ov772x_priv *priv)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
+	int ret;
+
+	if (!priv->info)
+		return 0;
+
+	if (priv->info->edgectrl.strength & OV772X_MANUAL_EDGE_CTRL) {
+		/*
+		 * Manual Edge Control Mode.
+		 *
+		 * Edge auto strength bit is set by default.
+		 * Remove it when manual mode.
+		 */
+
+		ret = ov772x_mask_set(client, DSPAUTO, EDGE_ACTRL, 0x00);
+		if (ret < 0)
+			return ret;
+
+		ret = ov772x_mask_set(client,
+				      EDGE_TRSHLD, OV772X_EDGE_THRESHOLD_MASK,
+				      priv->info->edgectrl.threshold);
+		if (ret < 0)
+			return ret;
+
+		ret = ov772x_mask_set(client,
+				      EDGE_STRNGT, OV772X_EDGE_STRENGTH_MASK,
+				      priv->info->edgectrl.strength);
+		if (ret < 0)
+			return ret;
+
+	} else if (priv->info->edgectrl.upper > priv->info->edgectrl.lower) {
+		/*
+		 * Auto Edge Control Mode.
+		 *
+		 * Set upper and lower limit.
+		 */
+		ret = ov772x_mask_set(client,
+				      EDGE_UPPER, OV772X_EDGE_UPPER_MASK,
+				      priv->info->edgectrl.upper);
+		if (ret < 0)
+			return ret;
+
+		ret = ov772x_mask_set(client,
+				      EDGE_LOWER, OV772X_EDGE_LOWER_MASK,
+				      priv->info->edgectrl.lower);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int ov772x_set_params(struct ov772x_priv *priv,
 			     const struct ov772x_color_format *cfmt,
 			     const struct ov772x_win_size *win)
@@ -927,48 +981,9 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 	ov772x_reset(client);
 
 	/* Edge Ctrl. */
-	if (priv->info->edgectrl.strength & OV772X_MANUAL_EDGE_CTRL) {
-		/*
-		 * Manual Edge Control Mode.
-		 *
-		 * Edge auto strength bit is set by default.
-		 * Remove it when manual mode.
-		 */
-
-		ret = ov772x_mask_set(client, DSPAUTO, EDGE_ACTRL, 0x00);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-
-		ret = ov772x_mask_set(client,
-				      EDGE_TRSHLD, OV772X_EDGE_THRESHOLD_MASK,
-				      priv->info->edgectrl.threshold);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-
-		ret = ov772x_mask_set(client,
-				      EDGE_STRNGT, OV772X_EDGE_STRENGTH_MASK,
-				      priv->info->edgectrl.strength);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-
-	} else if (priv->info->edgectrl.upper > priv->info->edgectrl.lower) {
-		/*
-		 * Auto Edge Control Mode.
-		 *
-		 * Set upper and lower limit.
-		 */
-		ret = ov772x_mask_set(client,
-				      EDGE_UPPER, OV772X_EDGE_UPPER_MASK,
-				      priv->info->edgectrl.upper);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-
-		ret = ov772x_mask_set(client,
-				      EDGE_LOWER, OV772X_EDGE_LOWER_MASK,
-				      priv->info->edgectrl.lower);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-	}
+	ret = ov772x_edgectrl(priv);
+	if (ret < 0)
+		return ret;
 
 	/* Format and window size. */
 	ret = ov772x_write(client, HSTART, win->rect.left >> 2);
@@ -1020,9 +1035,9 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 
 	/* Set COM3. */
 	val = cfmt->com3;
-	if (priv->info->flags & OV772X_FLAG_VFLIP)
+	if (priv->info && (priv->info->flags & OV772X_FLAG_VFLIP))
 		val |= VFLIP_IMG;
-	if (priv->info->flags & OV772X_FLAG_HFLIP)
+	if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 		val |= HFLIP_IMG;
 	if (priv->flag_vflip)
 		val ^= VFLIP_IMG;
@@ -1271,8 +1286,9 @@ static int ov772x_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = client->adapter;
 	int			ret;
 
-	if (!client->dev.platform_data) {
-		dev_err(&client->dev, "Missing ov772x platform data\n");
+	if (!client->dev.of_node && !client->dev.platform_data) {
+		dev_err(&client->dev,
+			"Missing ov772x platform data for non-DT device\n");
 		return -EINVAL;
 	}
 
@@ -1370,9 +1386,17 @@ static const struct i2c_device_id ov772x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov772x_id);
 
+static const struct of_device_id ov772x_of_match[] = {
+	{ .compatible = "ovti,ov7725", },
+	{ .compatible = "ovti,ov7720", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, ov772x_of_match);
+
 static struct i2c_driver ov772x_i2c_driver = {
 	.driver = {
 		.name = "ov772x",
+		.of_match_table = ov772x_of_match,
 	},
 	.probe    = ov772x_probe,
 	.remove   = ov772x_remove,
