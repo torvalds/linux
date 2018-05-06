@@ -1300,7 +1300,7 @@ static int ov772x_probe(struct i2c_client *client,
 	if (priv->hdl.error)
 		return priv->hdl.error;
 
-	priv->clk = clk_get(&client->dev, "xclk");
+	priv->clk = clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&client->dev, "Unable to get xclk clock\n");
 		ret = PTR_ERR(priv->clk);

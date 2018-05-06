@@ -593,7 +593,7 @@ static int __init migor_devices_setup(void)
 	}
 
 	/* Add a clock alias for ov7725 xclk source. */
-	clk_add_alias("xclk", "0-0021", "video_clk", NULL);
+	clk_add_alias(NULL, "0-0021", "video_clk", NULL);
 
 	/* Register GPIOs for video sources. */
 	gpiod_add_lookup_table(&ov7725_gpios);
