@@ -306,7 +306,7 @@ qed_tunn_set_pf_start_params(struct qed_hwfn *p_hwfn,
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_tunnel_info *p_tunn,
-		    enum qed_mf_mode mode, bool allow_npar_tx_switch)
+		    bool allow_npar_tx_switch)
 {
 	struct pf_start_ramrod_data *p_ramrod = NULL;
 	u16 sb = qed_int_get_sp_sb_id(p_hwfn);
@@ -339,18 +339,10 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->dont_log_ramrods	= 0;
 	p_ramrod->log_type_mask		= cpu_to_le16(0xf);
 
-	switch (mode) {
-	case QED_MF_DEFAULT:
-	case QED_MF_NPAR:
-		p_ramrod->mf_mode = MF_NPAR;
-		break;
-	case QED_MF_OVLAN:
+	if (test_bit(QED_MF_OVLAN_CLSS, &p_hwfn->cdev->mf_bits))
 		p_ramrod->mf_mode = MF_OVLAN;
-		break;
-	default:
-		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
+	else
 		p_ramrod->mf_mode = MF_NPAR;
-	}
 
 	p_ramrod->outer_tag_config.outer_tag.tci =
 		cpu_to_le16(p_hwfn->hw_info.ovlan);
@@ -365,7 +357,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn, &p_ramrod->tunnel_config);
 
-	if (IS_MF_SI(p_hwfn))
+	if (test_bit(QED_MF_INTER_PF_SWITCH, &p_hwfn->cdev->mf_bits))
 		p_ramrod->allow_npar_tx_switching = allow_npar_tx_switch;
 
 	switch (p_hwfn->hw_info.personality) {

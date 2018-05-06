@@ -199,7 +199,7 @@ static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 
 	/* Enable/Disable Tx switching for PF */
 	if ((rc == num_vfs_param) && netif_running(edev->ndev) &&
-	    qed_info->mf_mode != QED_MF_NPAR && qed_info->tx_switching) {
+	    !qed_info->b_inter_pf_switch && qed_info->tx_switching) {
 		vport_params->vport_id = 0;
 		vport_params->update_tx_switching_flg = 1;
 		vport_params->tx_switching_flg = num_vfs_param ? 1 : 0;
@@ -1928,7 +1928,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 	vport_update_params->update_vport_active_flg = 1;
 	vport_update_params->vport_active_flg = 1;
 
-	if ((qed_info->mf_mode == QED_MF_NPAR || pci_num_vf(edev->pdev)) &&
+	if ((qed_info->b_inter_pf_switch || pci_num_vf(edev->pdev)) &&
 	    qed_info->tx_switching) {
 		vport_update_params->update_tx_switching_flg = 1;
 		vport_update_params->tx_switching_flg = 1;

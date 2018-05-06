@@ -922,9 +922,9 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
 	p_ramrod->main_func_queue = p_ll2_conn->main_func_queue ? 1 : 0;
 
-	if ((IS_MF_DEFAULT(p_hwfn) || IS_MF_SI(p_hwfn)) &&
-	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE) &&
-	    (conn_type != QED_LL2_TYPE_IWARP)) {
+	if (test_bit(QED_MF_LL2_NON_UNICAST, &p_hwfn->cdev->mf_bits) &&
+	    p_ramrod->main_func_queue && conn_type != QED_LL2_TYPE_ROCE &&
+	    conn_type != QED_LL2_TYPE_IWARP) {
 		p_ramrod->mf_si_bcast_accept_all = 1;
 		p_ramrod->mf_si_mcast_accept_all = 1;
 	} else {

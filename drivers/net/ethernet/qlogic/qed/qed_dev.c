@@ -1149,18 +1149,10 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 		return -EINVAL;
 	}
 
-	switch (p_hwfn->cdev->mf_mode) {
-	case QED_MF_DEFAULT:
-	case QED_MF_NPAR:
-		hw_mode |= 1 << MODE_MF_SI;
-		break;
-	case QED_MF_OVLAN:
+	if (test_bit(QED_MF_OVLAN_CLSS, &p_hwfn->cdev->mf_bits))
 		hw_mode |= 1 << MODE_MF_SD;
-		break;
-	default:
-		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
+	else
 		hw_mode |= 1 << MODE_MF_SI;
-	}
 
 	hw_mode |= 1 << MODE_ASIC;
 
@@ -1557,7 +1549,6 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 		/* send function start command */
 		rc = qed_sp_pf_start(p_hwfn, p_ptt, p_tunn,
-				     p_hwfn->cdev->mf_mode,
 				     allow_npar_tx_switch);
 		if (rc) {
 			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
@@ -2651,17 +2642,25 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	switch (mf_mode) {
 	case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
-		p_hwfn->cdev->mf_mode = QED_MF_OVLAN;
+		p_hwfn->cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS);
 		break;
 	case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
-		p_hwfn->cdev->mf_mode = QED_MF_NPAR;
+		p_hwfn->cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
+					BIT(QED_MF_LLH_PROTO_CLSS) |
+					BIT(QED_MF_LL2_NON_UNICAST) |
+					BIT(QED_MF_INTER_PF_SWITCH);
 		break;
 	case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
-		p_hwfn->cdev->mf_mode = QED_MF_DEFAULT;
+		p_hwfn->cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
+					BIT(QED_MF_LLH_PROTO_CLSS) |
+					BIT(QED_MF_LL2_NON_UNICAST);
+		if (QED_IS_BB(p_hwfn->cdev))
+			p_hwfn->cdev->mf_bits |= BIT(QED_MF_NEED_DEF_PF);
 		break;
 	}
-	DP_INFO(p_hwfn, "Multi function mode is %08x\n",
-		p_hwfn->cdev->mf_mode);
+
+	DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",
+		p_hwfn->cdev->mf_bits);
 
 	/* Read Multi-function information from shmem */
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
@@ -3462,7 +3461,7 @@ int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
 	u32 high = 0, low = 0, en;
 	int i;
 
-	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+	if (!test_bit(QED_MF_LLH_MAC_CLSS, &p_hwfn->cdev->mf_bits))
 		return 0;
 
 	qed_llh_mac_to_filter(&high, &low, p_filter);
@@ -3507,7 +3506,7 @@ void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
 	u32 high = 0, low = 0;
 	int i;
 
-	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+	if (!test_bit(QED_MF_LLH_MAC_CLSS, &p_hwfn->cdev->mf_bits))
 		return;
 
 	qed_llh_mac_to_filter(&high, &low, p_filter);
@@ -3549,7 +3548,7 @@ qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
 	u32 high = 0, low = 0, en;
 	int i;
 
-	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+	if (!test_bit(QED_MF_LLH_PROTO_CLSS, &p_hwfn->cdev->mf_bits))
 		return 0;
 
 	switch (type) {
@@ -3647,7 +3646,7 @@ qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
 	u32 high = 0, low = 0;
 	int i;
 
-	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+	if (!test_bit(QED_MF_LLH_PROTO_CLSS, &p_hwfn->cdev->mf_bits))
 		return;
 
 	switch (type) {

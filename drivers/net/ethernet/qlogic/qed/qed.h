@@ -439,6 +439,41 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum qed_mf_mode_bit {
+	/* Supports PF-classification based on tag */
+	QED_MF_OVLAN_CLSS,
+
+	/* Supports PF-classification based on MAC */
+	QED_MF_LLH_MAC_CLSS,
+
+	/* Supports PF-classification based on protocol type */
+	QED_MF_LLH_PROTO_CLSS,
+
+	/* Requires a default PF to be set */
+	QED_MF_NEED_DEF_PF,
+
+	/* Allow LL2 to multicast/broadcast */
+	QED_MF_LL2_NON_UNICAST,
+
+	/* Allow Cross-PF [& child VFs] Tx-switching */
+	QED_MF_INTER_PF_SWITCH,
+
+	/* Unified Fabtic Port support enabled */
+	QED_MF_UFP_SPECIFIC,
+
+	/* Disable Accelerated Receive Flow Steering (aRFS) */
+	QED_MF_DISABLE_ARFS,
+
+	/* Use vlan for steering */
+	QED_MF_8021Q_TAGGING,
+
+	/* Use stag for steering */
+	QED_MF_8021AD_TAGGING,
+
+	/* Allow DSCP to TC mapping */
+	QED_MF_DSCP_TO_TC_MAP,
+};
+
 enum BAR_ID {
 	BAR_ID_0,		/* used for GRC */
 	BAR_ID_1		/* Used for doorbells */
@@ -669,10 +704,8 @@ struct qed_dev {
 	u8				num_funcs_in_port;
 
 	u8				path_id;
-	enum qed_mf_mode		mf_mode;
-#define IS_MF_DEFAULT(_p_hwfn)  (((_p_hwfn)->cdev)->mf_mode == QED_MF_DEFAULT)
-#define IS_MF_SI(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_NPAR)
-#define IS_MF_SD(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_OVLAN)
+
+	unsigned long			mf_bits;
 
 	int				pcie_width;
 	int				pcie_speed;
