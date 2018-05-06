@@ -105,6 +105,13 @@
 
 &i2c2 {
 	clock-frequency = <400000>;
+	/* User DIP swithes [1:8] / User LEDS [1:2] */
+	tca6416: gpio@21 {
+		compatible = "ti,tca6416";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 &i2c3 {
