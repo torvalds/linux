@@ -951,7 +951,7 @@ cifs_demultiplex_thread(void *p)
 				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
 			if (server->ops->dump_detail)
-				server->ops->dump_detail(buf);
+				server->ops->dump_detail(buf, server);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 

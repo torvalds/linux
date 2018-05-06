@@ -221,7 +221,7 @@ smb2_dump_detail(void *buf, struct TCP_Server_Info *server)
 		 shdr->Command, shdr->Status, shdr->Flags, shdr->MessageId,
 		 shdr->ProcessId);
 	cifs_dbg(VFS, "smb buf %p len %u\n", buf,
-		 server->ops->calc_smb_size(buf));
+		 server->ops->calc_smb_size(buf, server));
 #endif
 }
 

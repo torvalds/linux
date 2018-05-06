@@ -51,7 +51,7 @@ void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 		 smb->Command, smb->Status.CifsError,
 		 smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
 	cifs_dbg(VFS, "smb buf %p len %u\n", smb,
-		 server->ops->calc_smb_size(smb));
+		 server->ops->calc_smb_size(smb, server));
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
@@ -84,7 +84,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
 			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
-			cifs_dump_detail(mid_entry->resp_buf);
+			cifs_dump_detail(mid_entry->resp_buf, server);
 			cifs_dump_mem("existing buf: ",
 				mid_entry->resp_buf, 62);
 		}
