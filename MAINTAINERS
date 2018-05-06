@@ -10364,6 +10364,7 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Odd fixes
 F:	drivers/media/i2c/ov772x.c
 F:	include/media/i2c/ov772x.h
+F:	Documentation/devicetree/bindings/media/i2c/ov772x.txt
 
 OMNIVISION OV7740 SENSOR DRIVER
 M:	Wenyou Yang <wenyou.yang@microchip.com>
