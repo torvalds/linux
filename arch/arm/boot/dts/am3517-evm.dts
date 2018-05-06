@@ -34,10 +34,6 @@
 	     status = "okay";
 };
 
-&i2c1 {
-	clock-frequency = <400000>;
-};
-
 &i2c2 {
 	clock-frequency = <400000>;
 };

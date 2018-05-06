@@ -36,3 +36,54 @@
 		#size-cells = <1>;
 	};
 };
+
+&i2c1 {
+	clock-frequency = <400000>;
+
+	tps: tps65023@48 {
+		compatible = "ti,tps65023";
+		reg = <0x48>;
+
+		regulators {
+			vdd_core_reg: VDCDC1 {
+				regulator-name = "vdd_core";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			vdd_io_reg: VDCDC2 {
+				regulator-name = "vdd_io";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vdd_1v8_reg: VDCDC3 {
+				regulator-name = "vdd_1v8";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb18_reg: LDO1 {
+				regulator-name = "vdd_usb18";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb33_reg: LDO2 {
+				regulator-name = "vdd_usb33";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+};
