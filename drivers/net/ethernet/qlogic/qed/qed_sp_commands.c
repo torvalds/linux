@@ -346,6 +346,11 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->outer_tag_config.outer_tag.tci =
 		cpu_to_le16(p_hwfn->hw_info.ovlan);
+	if (test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)) {
+		p_ramrod->outer_tag_config.outer_tag.tpid = ETH_P_8021AD;
+		p_ramrod->outer_tag_config.enable_stag_pri_change = 1;
+	}
+
 
 	/* Place EQ address in RAMROD */
 	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,

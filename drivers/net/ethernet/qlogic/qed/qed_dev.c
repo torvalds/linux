@@ -1668,6 +1668,18 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		if (rc)
 			return rc;
 
+		if (IS_PF(cdev) && test_bit(QED_MF_8021AD_TAGGING,
+					    &cdev->mf_bits)) {
+			STORE_RT_REG(p_hwfn, PRS_REG_TAG_ETHERTYPE_0_RT_OFFSET,
+				     ETH_P_8021AD);
+			STORE_RT_REG(p_hwfn, NIG_REG_TAG_ETHERTYPE_0_RT_OFFSET,
+				     ETH_P_8021AD);
+			STORE_RT_REG(p_hwfn, PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET,
+				     ETH_P_8021AD);
+			STORE_RT_REG(p_hwfn, DORQ_REG_TAG1_ETHERTYPE_RT_OFFSET,
+				     ETH_P_8021AD);
+		}
+
 		qed_fill_load_req_params(&load_req_params,
 					 p_params->p_drv_load_params);
 		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt,
@@ -2630,39 +2642,51 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   link->pause.autoneg,
 		   p_caps->default_eee, p_caps->eee_lpi_timer);
 
-	/* Read Multi-function information from shmem */
-	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
-	       offsetof(struct nvm_cfg1, glob) +
-	       offsetof(struct nvm_cfg1_glob, generic_cont0);
+	if (IS_LEAD_HWFN(p_hwfn)) {
+		struct qed_dev *cdev = p_hwfn->cdev;
 
-	generic_cont0 = qed_rd(p_hwfn, p_ptt, addr);
+		/* Read Multi-function information from shmem */
+		addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+		       offsetof(struct nvm_cfg1, glob) +
+		       offsetof(struct nvm_cfg1_glob, generic_cont0);
 
-	mf_mode = (generic_cont0 & NVM_CFG1_GLOB_MF_MODE_MASK) >>
-		  NVM_CFG1_GLOB_MF_MODE_OFFSET;
+		generic_cont0 = qed_rd(p_hwfn, p_ptt, addr);
 
-	switch (mf_mode) {
-	case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
-		p_hwfn->cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS);
-		break;
-	case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
-		p_hwfn->cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
+		mf_mode = (generic_cont0 & NVM_CFG1_GLOB_MF_MODE_MASK) >>
+			  NVM_CFG1_GLOB_MF_MODE_OFFSET;
+
+		switch (mf_mode) {
+		case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
+			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS);
+			break;
+		case NVM_CFG1_GLOB_MF_MODE_BD:
+			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS) |
+					BIT(QED_MF_LLH_PROTO_CLSS) |
+					BIT(QED_MF_8021AD_TAGGING);
+			break;
+		case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
+			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
 					BIT(QED_MF_LL2_NON_UNICAST) |
 					BIT(QED_MF_INTER_PF_SWITCH);
-		break;
-	case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
-		p_hwfn->cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
+			break;
+		case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
+			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
 					BIT(QED_MF_LL2_NON_UNICAST);
-		if (QED_IS_BB(p_hwfn->cdev))
-			p_hwfn->cdev->mf_bits |= BIT(QED_MF_NEED_DEF_PF);
-		break;
+			if (QED_IS_BB(p_hwfn->cdev))
+				cdev->mf_bits |= BIT(QED_MF_NEED_DEF_PF);
+			break;
+		}
+
+		DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",
+			cdev->mf_bits);
 	}
 
 	DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",
 		p_hwfn->cdev->mf_bits);
 
-	/* Read Multi-function information from shmem */
+	/* Read device capabilities information from shmem */
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
 		offsetof(struct nvm_cfg1, glob) +
 		offsetof(struct nvm_cfg1_glob, device_capabilities);
