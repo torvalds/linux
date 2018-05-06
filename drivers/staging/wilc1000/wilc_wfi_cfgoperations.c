@@ -917,12 +917,10 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	const u8 *tx_mic = NULL;
 	u8 mode = NO_ENCRYPT;
 	u8 op_mode;
-	struct wilc *wl;
 	struct wilc_vif *vif;
 
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(netdev);
-	wl = vif->wilc;
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -1885,12 +1883,10 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		    struct cfg80211_ap_settings *settings)
 {
 	struct cfg80211_beacon_data *beacon = &settings->beacon;
-	struct wilc_priv *priv;
 	s32 ret = 0;
 	struct wilc *wl;
 	struct wilc_vif *vif;
 
-	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
 
@@ -2016,14 +2012,12 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			  const u8 *mac, struct station_parameters *params)
 {
 	s32 ret = 0;
-	struct wilc_priv *priv;
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif;
 
 	if (!wiphy)
 		return -EFAULT;
 
-	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
 
 	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
