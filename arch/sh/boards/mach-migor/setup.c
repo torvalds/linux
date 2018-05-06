@@ -351,8 +351,9 @@ static struct platform_device migor_ceu_device = {
 static struct gpiod_lookup_table ov7725_gpios = {
 	.dev_id		= "0-0021",
 	.table		= {
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT0, "pwdn", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "rstb", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT0, "powerdown",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "reset", GPIO_ACTIVE_LOW),
 	},
 };
 

@@ -837,10 +837,10 @@ static int ov772x_power_on(struct ov772x_priv *priv)
 	 * available to handle this cleanly, request the GPIO temporarily
 	 * to avoid conflicts.
 	 */
-	priv->rstb_gpio = gpiod_get_optional(&client->dev, "rstb",
+	priv->rstb_gpio = gpiod_get_optional(&client->dev, "reset",
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->rstb_gpio)) {
-		dev_info(&client->dev, "Unable to get GPIO \"rstb\"");
+		dev_info(&client->dev, "Unable to get GPIO \"reset\"");
 		return PTR_ERR(priv->rstb_gpio);
 	}
 
@@ -1307,10 +1307,10 @@ static int ov772x_probe(struct i2c_client *client,
 		goto error_ctrl_free;
 	}
 
-	priv->pwdn_gpio = gpiod_get_optional(&client->dev, "pwdn",
+	priv->pwdn_gpio = gpiod_get_optional(&client->dev, "powerdown",
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->pwdn_gpio)) {
-		dev_info(&client->dev, "Unable to get GPIO \"pwdn\"");
+		dev_info(&client->dev, "Unable to get GPIO \"powerdown\"");
 		ret = PTR_ERR(priv->pwdn_gpio);
 		goto error_clk_put;
 	}
