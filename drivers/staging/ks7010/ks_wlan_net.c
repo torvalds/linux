@@ -1920,7 +1920,7 @@ static int ks_wlan_set_beacon_lost(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq < BEACON_LOST_COUNT_MIN || *uwrq > BEACON_LOST_COUNT_MAX)
+	if (*uwrq > BEACON_LOST_COUNT_MAX)
 		return -EINVAL;
 
 	priv->reg.beacon_lost_count = *uwrq;
@@ -2120,7 +2120,7 @@ static int ks_wlan_set_tx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq < 0 || *uwrq > 0xFF)
+	if (*uwrq > 0xFF)
 		return -EINVAL;
 
 	priv->gain.tx_gain = (uint8_t)*uwrq;
@@ -2152,7 +2152,7 @@ static int ks_wlan_set_rx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (*uwrq < 0 || *uwrq > 0xFF)
+	if (*uwrq > 0xFF)
 		return -EINVAL;
 
 	priv->gain.rx_gain = (uint8_t)*uwrq;
