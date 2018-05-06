@@ -64,7 +64,7 @@
  * means the CPU(s) with their bit still set in the pending mask have had
  * their heartbeat stop, and action is taken.
  *
- * Some platforms implement true NMI IPIs, which can by used by the SMP
+ * Some platforms implement true NMI IPIs, which can be used by the SMP
  * watchdog to detect an unresponsive CPU and pull it out of its stuck
  * state with the NMI IPI, to get crash/debug data from it. This way the
  * SMP watchdog can detect hardware interrupts off lockups.
