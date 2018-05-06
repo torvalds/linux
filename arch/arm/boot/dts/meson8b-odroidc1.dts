@@ -148,6 +148,12 @@
 	};
 };
 
+&ir_receiver {
+	status = "okay";
+	pinctrl-0 = <&ir_recv_pins>;
+	pinctrl-names = "default";
+};
+
 &sdio {
 	status = "okay";
 

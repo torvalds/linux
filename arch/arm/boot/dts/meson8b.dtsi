@@ -148,6 +148,13 @@
 				function = "uart_ao";
 			};
 		};
+
+		ir_recv_pins: remote {
+			mux {
+				groups = "remote_input";
+				function = "remote";
+			};
+		};
 	};
 };
 
