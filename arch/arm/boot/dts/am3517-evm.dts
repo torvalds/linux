@@ -13,6 +13,10 @@
 	model = "TI AM3517 EVM (AM3517/05 TMDSEVM3517)";
 	compatible = "ti,am3517-evm", "ti,am3517", "ti,omap3";
 
+	aliases {
+		display0 = &lcd0;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
@@ -24,6 +28,54 @@
                 regulator-min-microvolt = <3300000>;
                 regulator-max-microvolt = <3300000>;
         };
+
+	lcd0: display@0 {
+		compatible = "panel-dpi";
+		label = "15";
+		status = "okay";
+		pinctrl-names = "default";
+		enable-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;	/* gpio176, lcd INI */
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+
+		panel-timing {
+			clock-frequency = <9000000>;
+			hactive = <480>;
+			vactive = <272>;
+			hfront-porch = <3>;
+			hback-porch = <2>;
+			hsync-len = <42>;
+			vback-porch = <3>;
+			vfront-porch = <4>;
+			vsync-len = <11>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+	};
+
+	bl: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&backlight_pins>;
+		pwms = <&pwm11 0 5000000 0>;
+		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
+		default-brightness-level = <7>;
+		enable-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* gpio_182 */
+	};
+
+	pwm11: dmtimer-pwm@11 {
+		compatible = "ti,omap-dmtimer-pwm";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_pins>;
+		ti,timers = <&timer11>;
+		#pwm-cells = <3>;
+	};
 };
 
 &davinci_emac {
@@ -32,6 +84,23 @@
 
 &davinci_mdio {
 	     status = "okay";
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_dpi_pins>;
+
+	vdds_dsi-supply = <&vdd_io_reg>;
+	vdda_video-supply = <&vdd_io_reg>;
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <16>;
+		};
+	};
 };
 
 &i2c2 {
@@ -72,6 +141,44 @@
 			OMAP3_CORE1_IOPAD(0x214e, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat3.sdmmc1_dat3 */
 			OMAP3_CORE1_IOPAD(0x2150, PIN_INPUT_PULLUP | MUX_MODE4) /* sdmmc1_dat4.gpio_126 */
 			OMAP3_CORE1_IOPAD(0x2152, PIN_INPUT_PULLUP | MUX_MODE4) /* sdmmc1_dat5.gpio_127 */
+		>;
+	};
+
+	pwm_pins: pinmux_pwm_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21dc, PIN_OUTPUT | MUX_MODE1)       /* mcspi2_cs0.gpt11_pwm */
+		>;
+	};
+
+	backlight_pins: pinmux_backlight_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21de, PIN_OUTPUT | MUX_MODE4)       /* mcspi2_cs1.gpio_182 */
+		>;
+	};
+
+	dss_dpi_pins: pinmux_dss_dpi_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21d2, PIN_OUTPUT | MUX_MODE4)       /* mcspi1_cs2.gpio_176 */
+			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)       /* dss_pclk.dss_pclk */
+			OMAP3_CORE1_IOPAD(0x20d6, PIN_OUTPUT | MUX_MODE0)       /* dss_hsync.dss_hsync */
+			OMAP3_CORE1_IOPAD(0x20d8, PIN_OUTPUT | MUX_MODE0)       /* dss_vsync.dss_vsync */
+			OMAP3_CORE1_IOPAD(0x20da, PIN_OUTPUT | MUX_MODE0)       /* dss_acbias.dss_acbias */
+			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE0)       /* dss_data0.dss_data0 */
+			OMAP3_CORE1_IOPAD(0x20de, PIN_OUTPUT | MUX_MODE0)       /* dss_data1.dss_data1 */
+			OMAP3_CORE1_IOPAD(0x20e0, PIN_OUTPUT | MUX_MODE0)       /* dss_data2.dss_data2 */
+			OMAP3_CORE1_IOPAD(0x20e2, PIN_OUTPUT | MUX_MODE0)       /* dss_data3.dss_data3 */
+			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE0)       /* dss_data4.dss_data4 */
+			OMAP3_CORE1_IOPAD(0x20e6, PIN_OUTPUT | MUX_MODE0)       /* dss_data5.dss_data5 */
+			OMAP3_CORE1_IOPAD(0x20e8, PIN_OUTPUT | MUX_MODE0)       /* dss_data6.dss_data6 */
+			OMAP3_CORE1_IOPAD(0x20ea, PIN_OUTPUT | MUX_MODE0)       /* dss_data7.dss_data7 */
+			OMAP3_CORE1_IOPAD(0x20ec, PIN_OUTPUT | MUX_MODE0)       /* dss_data8.dss_data8 */
+			OMAP3_CORE1_IOPAD(0x20ee, PIN_OUTPUT | MUX_MODE0)       /* dss_data9.dss_data9 */
+			OMAP3_CORE1_IOPAD(0x20f0, PIN_OUTPUT | MUX_MODE0)       /* dss_data10.dss_data10 */
+			OMAP3_CORE1_IOPAD(0x20f2, PIN_OUTPUT | MUX_MODE0)       /* dss_data11.dss_data11 */
+			OMAP3_CORE1_IOPAD(0x20f4, PIN_OUTPUT | MUX_MODE0)       /* dss_data12.dss_data12 */
+			OMAP3_CORE1_IOPAD(0x20f6, PIN_OUTPUT | MUX_MODE0)       /* dss_data13.dss_data13 */
+			OMAP3_CORE1_IOPAD(0x20f8, PIN_OUTPUT | MUX_MODE0)       /* dss_data14.dss_data14 */
+			OMAP3_CORE1_IOPAD(0x20fa, PIN_OUTPUT | MUX_MODE0)       /* dss_data15.dss_data15 */
 		>;
 	};
 };

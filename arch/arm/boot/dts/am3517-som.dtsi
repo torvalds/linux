@@ -94,4 +94,33 @@
 			};
 		};
 	};
+
+	touchscreen: tsc2004@4b {
+		compatible = "ti,tsc2004";
+		reg = <0x4b>;
+
+		vio-supply = <&vdd_io_reg>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc2004_pins>;
+		interrupts-extended = <&gpio3 1 IRQ_TYPE_EDGE_RISING>; /* gpio_65 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <272>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
+	};
+};
+
+&omap3_pmx_core {
+	tsc2004_pins: pinmux_tsc2004_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT | MUX_MODE4) /* gpmc_wait3.gpio_65 */
+		>;
+	};
 };
