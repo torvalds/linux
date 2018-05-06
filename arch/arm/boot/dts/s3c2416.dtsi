@@ -18,9 +18,6 @@
 	};
 
 	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		cpu {
 			compatible = "arm,arm926ej-s";
 		};
