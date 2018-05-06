@@ -14,7 +14,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 { /* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -26,10 +26,8 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@5 {
+		button-setup {
 			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
@@ -42,25 +40,25 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led@1 {
+		led-red-l3 {
 			label = "wbd111:red:L3";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@2 {
+		led-green-l4 {
 			label = "wbd111:green:L4";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@3 {
+		led-red-l4 {
 			label = "wbd111:red:L4";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@5 {
+		led-green-l3 {
 			label = "wbd111:green:L3";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;

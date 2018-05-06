@@ -15,7 +15,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory {
+	memory@0 {
 		/* 64 MB SDRAM in a Nanya NT5DS32M16BS-6K package */
 		device_type = "memory";
 		reg = <0x00000000 0x4000000>;
@@ -32,8 +32,7 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
+
 		button-esc {
 			debounce-interval = <50>;
 			wakeup-source;

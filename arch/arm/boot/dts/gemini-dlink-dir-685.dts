@@ -13,7 +13,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory {
+	memory@0 {
 		/* 128 MB SDRAM in 2 x Hynix HY5DU121622DTP-D43 */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
@@ -26,8 +26,7 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
+
 		button-esc {
 			debounce-interval = <50>;
 			wakeup-source;

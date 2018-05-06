@@ -14,7 +14,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 { /* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -26,10 +26,8 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@18 {
+		button-setup {
 			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
@@ -41,14 +39,14 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@20 {
+		led-green-info {
 			label = "sq201:green:info";
 			/* Conflict with parallel flash */
 			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
-		led@31 {
+		led-green-usb {
 			label = "sq201:green:usb";
 			/* Conflict with parallel and NAND flash */
 			gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
