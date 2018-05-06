@@ -1,0 +1,87 @@
+= STP TEST SUITE ==
+
+Test suite for SO2 Tranport Protocol
+
+== FILES ==
+
+README
+	* this file
+
+Makefile
+
+_checker
+	* script to run all tests defined in _test/stp_test.c
+
+_test/Makefile
+	* test suite internal Makefile (creates necessary object files)
+
+_test/stp_test.c
+	* test suite for SO2 Transport Protocol
+
+_test/stp_test.h
+	* test suite header file
+
+_test/stp.h
+	* SO2 Transport Protocol header file (macros and structures)
+
+_test/test.h
+	* useful macros for testing
+
+_test/debug.h
+	* debugging macros
+
+_test/util.h
+	* useful macros for generic use (error processing)
+
+== BUILDING ==
+
+
+== RUNNING ==
+
+Copy your af_stp.ko module and _checker and stp_test
+to fsimg/root directory on your QEMU/KVM virtual machine.
+
+In order to run the test suite you can either use the _checker
+script or run the stp_test executable.
+
+The _checker script runs all tests and computes assignment grade:
+
+	./_checker
+
+In order to run a specific test pass the test number (1 .. 32) to the
+stp_test executable.
+
+	./stp_test 5
+
+== TESTS ==
+
+Tests are basically unit tests. A single function in the test_fun_array (see
+stp_test.c) is called each time the stp_test executable is invoked,
+testing a single functionality (and assuming previous tests have been run and
+passed).
+
+The EXIT_IF_FAIL macro (see test.h) is unnecessary since after each test, the
+program completes.
+
+Each test function follows the unit test pattern: initialization, action,
+evaluation. The test macro (see test.h) is invoked at the end of each test
+for evaluating and grading the test.
+
+== DEBUGGING ==
+
+The debug.h header file consists of several macros useful for debugging
+(dprintf, dlog). There are multiple uses of these macros throughout the above
+files.
+
+In order to turn debug messages on, you must define the DEBUG macro, either in
+a header file, or, I suggest, in the Makefile. The LOG_LEVEL macro limits the
+log message types that are to be printed, by default LOG_WARNING (see enum in
+debug.h). You may redefine it in a header file or in the Makefile.
+
+Rapid enabling of debug messages is achieved by commenting out the CPPFLAGS
+line in the Makefile. It turns on debugging and enables all log messages
+(LOG_DEBUG).
+
+== OTHER ==
+
+srand48() and drand48() are used for generating random numbers.
