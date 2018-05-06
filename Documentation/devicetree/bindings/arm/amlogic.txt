@@ -58,6 +58,8 @@ Board compatible values (alphabetically, grouped by SoC):
   - "hardkernel,odroid-c1" (Meson8b)
   - "tronfy,mxq" (Meson8b)
 
+  - "tronsmart,mxiii-plus" (Meson8m2)
+
   - "amlogic,p200" (Meson gxbb)
   - "amlogic,p201" (Meson gxbb)
   - "friendlyarm,nanopi-k2" (Meson gxbb)
