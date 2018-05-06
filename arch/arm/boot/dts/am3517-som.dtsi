@@ -8,6 +8,14 @@
  * published by the Free Software Foundation.
  */
 
+/ {
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vdd_core_reg>;
+		};
+	};
+};
+
 &gpmc {
 	ranges = <0 0 0x30000000 0x1000000>;	/* CS0: 16MB for NAND */
 
