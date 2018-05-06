@@ -973,10 +973,19 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Waiting to drain ELSP? */
-	if (READ_ONCE(engine->execlists.active))
-		return false;
+	if (READ_ONCE(engine->execlists.active)) {
+		struct intel_engine_execlists *execlists = &engine->execlists;
 
-	/* ELSP is empty, but there are ready requests? */
+		if (tasklet_trylock(&execlists->tasklet)) {
+			execlists->tasklet.func(execlists->tasklet.data);
+			tasklet_unlock(&execlists->tasklet);
+		}
+
+		if (READ_ONCE(execlists->active))
+			return false;
+	}
+
+	/* ELSP is empty, but there are ready requests? E.g. after reset */
 	if (READ_ONCE(engine->execlists.first))
 		return false;
 
