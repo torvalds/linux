@@ -101,7 +101,13 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 		   __builtin_return_address(0), &vaf);
 
 	if (is_error && !shown_bug_once) {
-		dev_notice(kdev, "%s", FDO_BUG_MSG);
+		/*
+		 * Ask the user to file a bug report for the error, except
+		 * if they may have caused the bug by fiddling with unsafe
+		 * module parameters.
+		 */
+		if (!test_taint(TAINT_USER))
+			dev_notice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
 
