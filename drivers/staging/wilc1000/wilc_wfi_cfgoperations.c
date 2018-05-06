@@ -1054,7 +1054,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		}
 	}
 
-	if (key_index >= 0 && key_index <= 3 && priv->wep_key_len[key_index]) {
+	if (key_index <= 3 && priv->wep_key_len[key_index]) {
 		memset(priv->wep_key[key_index], 0,
 		       priv->wep_key_len[key_index]);
 		priv->wep_key_len[key_index] = 0;
