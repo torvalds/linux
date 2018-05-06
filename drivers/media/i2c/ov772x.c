@@ -617,25 +617,16 @@ static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int ov772x_set_frame_rate(struct ov772x_priv *priv,
-				 struct v4l2_fract *tpf,
-				 const struct ov772x_color_format *cfmt,
-				 const struct ov772x_win_size *win)
+static unsigned int ov772x_select_fps(struct ov772x_priv *priv,
+				      struct v4l2_fract *tpf)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
-	unsigned long fin = clk_get_rate(priv->clk);
 	unsigned int fps = tpf->numerator ?
 			   tpf->denominator / tpf->numerator :
 			   tpf->denominator;
 	unsigned int best_diff;
-	unsigned int fsize;
-	unsigned int pclk;
 	unsigned int diff;
 	unsigned int idx;
 	unsigned int i;
-	u8 clkrc = 0;
-	u8 com4 = 0;
-	int ret;
 
 	/* Approximate to the closest supported frame interval. */
 	best_diff = ~0L;
@@ -646,7 +637,25 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 			best_diff = diff;
 		}
 	}
-	fps = ov772x_frame_intervals[idx];
+
+	return ov772x_frame_intervals[idx];
+}
+
+static int ov772x_set_frame_rate(struct ov772x_priv *priv,
+				 unsigned int fps,
+				 const struct ov772x_color_format *cfmt,
+				 const struct ov772x_win_size *win)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
+	unsigned long fin = clk_get_rate(priv->clk);
+	unsigned int best_diff;
+	unsigned int fsize;
+	unsigned int pclk;
+	unsigned int diff;
+	unsigned int i;
+	u8 clkrc = 0;
+	u8 com4 = 0;
+	int ret;
 
 	/* Use image size (with blankings) to calculate desired pixel clock. */
 	switch (cfmt->com7 & OFMT_MASK) {
@@ -711,10 +720,6 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	tpf->numerator = 1;
-	tpf->denominator = fps;
-	priv->fps = tpf->denominator;
-
 	return 0;
 }
 
@@ -735,8 +740,20 @@ static int ov772x_s_frame_interval(struct v4l2_subdev *sd,
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_fract *tpf = &ival->interval;
+	unsigned int fps;
+	int ret;
 
-	return ov772x_set_frame_rate(priv, tpf, priv->cfmt, priv->win);
+	fps = ov772x_select_fps(priv, tpf);
+
+	ret = ov772x_set_frame_rate(priv, fps, priv->cfmt, priv->win);
+	if (ret)
+		return ret;
+
+	tpf->numerator = 1;
+	tpf->denominator = fps;
+	priv->fps = fps;
+
+	return 0;
 }
 
 static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -993,7 +1010,6 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 			     const struct ov772x_win_size *win)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
-	struct v4l2_fract tpf;
 	int ret;
 	u8  val;
 
@@ -1075,9 +1091,7 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 		goto ov772x_set_fmt_error;
 
 	/* COM4, CLKRC: Set pixel clock and framerate. */
-	tpf.numerator = 1;
-	tpf.denominator = priv->fps;
-	ret = ov772x_set_frame_rate(priv, &tpf, cfmt, win);
+	ret = ov772x_set_frame_rate(priv, priv->fps, cfmt, win);
 	if (ret < 0)
 		goto ov772x_set_fmt_error;
 
