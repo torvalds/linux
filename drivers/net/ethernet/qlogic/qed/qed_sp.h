@@ -462,6 +462,15 @@ int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
  * @return int
  */
 
+/**
+ * @brief qed_sp_pf_update_ufp - PF ufp update Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_sp_pf_update_ufp(struct qed_hwfn *p_hwfn);
+
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
 
 int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,

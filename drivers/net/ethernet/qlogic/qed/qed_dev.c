@@ -1499,6 +1499,11 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		STORE_RT_REG(p_hwfn, NIG_REG_LLH_FUNC_TAG_EN_RT_OFFSET, 1);
 		STORE_RT_REG(p_hwfn, NIG_REG_LLH_FUNC_TAG_VALUE_RT_OFFSET,
 			     p_hwfn->hw_info.ovlan);
+
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "Configuring LLH_FUNC_FILTER_HDR_SEL\n");
+		STORE_RT_REG(p_hwfn, NIG_REG_LLH_FUNC_FILTER_HDR_SEL_RT_OFFSET,
+			     1);
 	}
 
 	/* Enable classification by MAC if needed */
@@ -1635,6 +1640,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
 	int rc = 0, mfw_rc, i;
+	u16 ether_type;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
 		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
@@ -1668,16 +1674,22 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		if (rc)
 			return rc;
 
-		if (IS_PF(cdev) && test_bit(QED_MF_8021AD_TAGGING,
-					    &cdev->mf_bits)) {
+		if (IS_PF(cdev) && (test_bit(QED_MF_8021Q_TAGGING,
+					     &cdev->mf_bits) ||
+				    test_bit(QED_MF_8021AD_TAGGING,
+					     &cdev->mf_bits))) {
+			if (test_bit(QED_MF_8021Q_TAGGING, &cdev->mf_bits))
+				ether_type = ETH_P_8021Q;
+			else
+				ether_type = ETH_P_8021AD;
 			STORE_RT_REG(p_hwfn, PRS_REG_TAG_ETHERTYPE_0_RT_OFFSET,
-				     ETH_P_8021AD);
+				     ether_type);
 			STORE_RT_REG(p_hwfn, NIG_REG_TAG_ETHERTYPE_0_RT_OFFSET,
-				     ETH_P_8021AD);
+				     ether_type);
 			STORE_RT_REG(p_hwfn, PBF_REG_TAG_ETHERTYPE_0_RT_OFFSET,
-				     ETH_P_8021AD);
+				     ether_type);
 			STORE_RT_REG(p_hwfn, DORQ_REG_TAG1_ETHERTYPE_RT_OFFSET,
-				     ETH_P_8021AD);
+				     ether_type);
 		}
 
 		qed_fill_load_req_params(&load_req_params,
@@ -2659,6 +2671,12 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
 			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS);
 			break;
+		case NVM_CFG1_GLOB_MF_MODE_UFP:
+			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS) |
+					BIT(QED_MF_LLH_PROTO_CLSS) |
+					BIT(QED_MF_UFP_SPECIFIC) |
+					BIT(QED_MF_8021Q_TAGGING);
+			break;
 		case NVM_CFG1_GLOB_MF_MODE_BD:
 			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
@@ -2879,6 +2897,8 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 		qed_mcp_cmd_port_init(p_hwfn, p_ptt);
 
 		qed_get_eee_caps(p_hwfn, p_ptt);
+
+		qed_mcp_read_ufp_config(p_hwfn, p_ptt);
 	}
 
 	if (qed_mcp_is_init(p_hwfn)) {

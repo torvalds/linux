@@ -474,6 +474,24 @@ enum qed_mf_mode_bit {
 	QED_MF_DSCP_TO_TC_MAP,
 };
 
+enum qed_ufp_mode {
+	QED_UFP_MODE_ETS,
+	QED_UFP_MODE_VNIC_BW,
+	QED_UFP_MODE_UNKNOWN
+};
+
+enum qed_ufp_pri_type {
+	QED_UFP_PRI_OS,
+	QED_UFP_PRI_VNIC,
+	QED_UFP_PRI_UNKNOWN
+};
+
+struct qed_ufp_info {
+	enum qed_ufp_pri_type pri_type;
+	enum qed_ufp_mode mode;
+	u8 tc;
+};
+
 enum BAR_ID {
 	BAR_ID_0,		/* used for GRC */
 	BAR_ID_1		/* Used for doorbells */
@@ -581,6 +599,8 @@ struct qed_hwfn {
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_dcbx_info		*p_dcbx_info;
+
+	struct qed_ufp_info		ufp_info;
 
 	struct qed_dmae_info		dmae_info;
 
