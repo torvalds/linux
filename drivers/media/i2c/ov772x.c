@@ -419,10 +419,10 @@ struct ov772x_priv {
 	struct gpio_desc		 *rstb_gpio;
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size     *win;
-	unsigned short                    flag_vflip:1;
-	unsigned short                    flag_hflip:1;
+	struct v4l2_ctrl		 *vflip_ctrl;
+	struct v4l2_ctrl		 *hflip_ctrl;
 	/* band_filter = COM8[5] ? 256 - BDBASE : 0 */
-	unsigned short                    band_filter;
+	struct v4l2_ctrl		 *band_filter_ctrl;
 	unsigned int			  fps;
 	/* lock to protect power_count */
 	struct mutex			  lock;
@@ -768,13 +768,11 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		val = ctrl->val ? VFLIP_IMG : 0x00;
-		priv->flag_vflip = ctrl->val;
 		if (priv->info && (priv->info->flags & OV772X_FLAG_VFLIP))
 			val ^= VFLIP_IMG;
 		return ov772x_mask_set(client, COM3, VFLIP_IMG, val);
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? HFLIP_IMG : 0x00;
-		priv->flag_hflip = ctrl->val;
 		if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 			val ^= HFLIP_IMG;
 		return ov772x_mask_set(client, COM3, HFLIP_IMG, val);
@@ -794,8 +792,7 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 				ret = ov772x_mask_set(client, BDBASE,
 						      0xff, val);
 		}
-		if (!ret)
-			priv->band_filter = ctrl->val;
+
 		return ret;
 	}
 
@@ -1075,9 +1072,9 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 		val |= VFLIP_IMG;
 	if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 		val |= HFLIP_IMG;
-	if (priv->flag_vflip)
+	if (priv->vflip_ctrl->val)
 		val ^= VFLIP_IMG;
-	if (priv->flag_hflip)
+	if (priv->hflip_ctrl->val)
 		val ^= HFLIP_IMG;
 
 	ret = ov772x_mask_set(client,
@@ -1096,11 +1093,13 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 		goto ov772x_set_fmt_error;
 
 	/* Set COM8. */
-	if (priv->band_filter) {
+	if (priv->band_filter_ctrl->val) {
+		unsigned short band_filter = priv->band_filter_ctrl->val;
+
 		ret = ov772x_mask_set(client, COM8, BNDF_ON_OFF, BNDF_ON_OFF);
 		if (!ret)
 			ret = ov772x_mask_set(client, BDBASE,
-					      0xff, 256 - priv->band_filter);
+					      0xff, 256 - band_filter);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
 	}
@@ -1341,12 +1340,13 @@ static int ov772x_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 	v4l2_ctrl_handler_init(&priv->hdl, 3);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_VFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_HFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_BAND_STOP_FILTER, 0, 256, 1, 0);
+	priv->vflip_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+					     V4L2_CID_VFLIP, 0, 1, 1, 0);
+	priv->hflip_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+					     V4L2_CID_HFLIP, 0, 1, 1, 0);
+	priv->band_filter_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+						   V4L2_CID_BAND_STOP_FILTER,
+						   0, 256, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
 	if (priv->hdl.error) {
 		ret = priv->hdl.error;
