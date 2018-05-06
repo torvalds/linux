@@ -424,6 +424,9 @@ struct ov772x_priv {
 	/* band_filter = COM8[5] ? 256 - BDBASE : 0 */
 	unsigned short                    band_filter;
 	unsigned int			  fps;
+	/* lock to protect power_count */
+	struct mutex			  lock;
+	int				  power_count;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
 #endif
@@ -871,9 +874,26 @@ static int ov772x_power_off(struct ov772x_priv *priv)
 static int ov772x_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
+	int ret = 0;
 
-	return on ? ov772x_power_on(priv) :
-		    ov772x_power_off(priv);
+	mutex_lock(&priv->lock);
+
+	/* If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (priv->power_count == !on)
+		ret = on ? ov772x_power_on(priv) : ov772x_power_off(priv);
+
+	if (!ret) {
+		/* Update the power count. */
+		priv->power_count += on ? 1 : -1;
+		WARN(priv->power_count < 0, "Unbalanced power count\n");
+		WARN(priv->power_count > 1, "Duplicated s_power call\n");
+	}
+
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static const struct ov772x_win_size *ov772x_select_win(u32 width, u32 height)
@@ -1303,6 +1323,7 @@ static int ov772x_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	priv->info = client->dev.platform_data;
+	mutex_init(&priv->lock);
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 	v4l2_ctrl_handler_init(&priv->hdl, 3);
@@ -1313,8 +1334,10 @@ static int ov772x_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
 			  V4L2_CID_BAND_STOP_FILTER, 0, 256, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error)
-		return priv->hdl.error;
+	if (priv->hdl.error) {
+		ret = priv->hdl.error;
+		goto error_mutex_destroy;
+	}
 
 	priv->clk = clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -1362,6 +1385,8 @@ error_clk_put:
 	clk_put(priv->clk);
 error_ctrl_free:
 	v4l2_ctrl_handler_free(&priv->hdl);
+error_mutex_destroy:
+	mutex_destroy(&priv->lock);
 
 	return ret;
 }
@@ -1376,6 +1401,7 @@ static int ov772x_remove(struct i2c_client *client)
 		gpiod_put(priv->pwdn_gpio);
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
+	mutex_destroy(&priv->lock);
 
 	return 0;
 }
