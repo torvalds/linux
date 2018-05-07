@@ -623,6 +623,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	struct svc_xprt *xprt = rqstp->rq_xprt;
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
+	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 	__be32 *p, *rdma_argp, *rdma_resp, *wr_lst, *rp_ch;
 	struct xdr_buf *xdr = &rqstp->rq_res;
 	struct page *res_page;
@@ -675,7 +676,12 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 				      wr_lst, rp_ch);
 	if (ret < 0)
 		goto err0;
-	return 0;
+	ret = 0;
+
+out:
+	rqstp->rq_xprt_ctxt = NULL;
+	svc_rdma_recv_ctxt_put(rdma, rctxt);
+	return ret;
 
  err2:
 	if (ret != -E2BIG && ret != -EINVAL)
@@ -684,12 +690,14 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	ret = svc_rdma_send_error_msg(rdma, rdma_resp, rqstp);
 	if (ret < 0)
 		goto err0;
-	return 0;
+	ret = 0;
+	goto out;
 
  err1:
 	put_page(res_page);
  err0:
 	trace_svcrdma_send_failed(rqstp, ret);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
-	return -ENOTCONN;
+	ret = -ENOTCONN;
+	goto out;
 }
