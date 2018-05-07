@@ -3023,7 +3023,7 @@ smp_mb() 가 아니라 virt_mb() 를 사용해야 합니다.
 동기화에 락을 사용하지 않고 구현하는데에 사용될 수 있습니다.  더 자세한 내용을
 위해선 다음을 참고하세요:
 
-	Documentation/circular-buffers.txt
+	Documentation/core-api/circular-buffers.rst
 
 
 =========

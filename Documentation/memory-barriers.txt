@@ -3083,7 +3083,7 @@ CIRCULAR BUFFERS
 Memory barriers can be used to implement circular buffering without the need
 of a lock to serialise the producer with the consumer.  See:
 
-	Documentation/circular-buffers.txt
+	Documentation/core-api/circular-buffers.rst
 
 for details.
 

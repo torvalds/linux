@@ -26,6 +26,7 @@ Core utilities
    genalloc
    errseq
    printk-formats
+   circular-buffers
 
 Interfaces for kernel debugging
 ===============================

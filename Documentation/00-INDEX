@@ -82,8 +82,6 @@ cgroup-v1/
 	- cgroups v1 features, including cpusets and memory controller.
 cgroup-v2.txt
 	- cgroups v2 features, including cpusets and memory controller.
-circular-buffers.txt
-	- how to make use of the existing circular buffer infrastructure
 clk.txt
 	- info on the common clock framework
 cma/
