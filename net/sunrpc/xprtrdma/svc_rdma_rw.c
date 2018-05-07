@@ -5,11 +5,14 @@
  * Use the core R/W API to move RPC-over-RDMA Read and Write chunks.
  */
 
+#include <rdma/rw.h>
+
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
 #include <linux/sunrpc/debug.h>
 
-#include <rdma/rw.h>
+#include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -437,6 +440,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		if (ret < 0)
 			goto out_initerr;
 
+		trace_svcrdma_encode_wseg(seg_handle, write_len, seg_offset);
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
 		if (write_len == seg_length - info->wi_seg_off) {
@@ -526,6 +530,8 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
 	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
 	if (ret < 0)
 		goto out_err;
+
+	trace_svcrdma_encode_write(xdr->page_len);
 	return xdr->page_len;
 
 out_err:
@@ -582,6 +588,8 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma, __be32 *rp_ch,
 	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
 	if (ret < 0)
 		goto out_err;
+
+	trace_svcrdma_encode_reply(consumed);
 	return consumed;
 
 out_err:
@@ -605,9 +613,6 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	if (!ctxt)
 		goto out_noctx;
 	ctxt->rw_nents = sge_no;
-
-	dprintk("svcrdma: reading segment %u@0x%016llx:0x%08x (%u sges)\n",
-		len, offset, rkey, sge_no);
 
 	sg = ctxt->rw_sg_table.sgl;
 	for (sge_no = 0; sge_no < ctxt->rw_nents; sge_no++) {
@@ -686,6 +691,7 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		if (ret < 0)
 			break;
 
+		trace_svcrdma_encode_rseg(rs_handle, rs_length, rs_offset);
 		info->ri_chunklen += rs_length;
 	}
 
@@ -706,15 +712,14 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	struct svc_rdma_op_ctxt *head = info->ri_readctxt;
 	int ret;
 
-	dprintk("svcrdma: Reading Read chunk at position %u\n",
-		info->ri_position);
-
 	info->ri_pageno = head->hdr_count;
 	info->ri_pageoff = 0;
 
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
+
+	trace_svcrdma_encode_read(info->ri_chunklen, info->ri_position);
 
 	/* Split the Receive buffer between the head and tail
 	 * buffers at Read chunk's position. XDR roundup of the
@@ -764,14 +769,14 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	struct svc_rdma_op_ctxt *head = info->ri_readctxt;
 	int ret;
 
-	dprintk("svcrdma: Reading Position Zero Read chunk\n");
-
 	info->ri_pageno = head->hdr_count - 1;
 	info->ri_pageoff = offset_in_page(head->byte_len);
 
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
+
+	trace_svcrdma_encode_pzr(info->ri_chunklen);
 
 	head->arg.len += info->ri_chunklen;
 	head->arg.buflen += info->ri_chunklen;

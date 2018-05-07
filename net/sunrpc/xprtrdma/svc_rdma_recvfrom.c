@@ -93,16 +93,18 @@
  * (see rdma_read_complete() below).
  */
 
+#include <linux/spinlock.h>
 #include <asm/unaligned.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
-
-#include <linux/spinlock.h>
 
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
+
+#include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -295,7 +297,6 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 {
 	__be32 *p, *end, *rdma_argp;
 	unsigned int hdr_len;
-	char *proc;
 
 	/* Verify that there's enough bytes for header + something */
 	if (rq_arg->len <= RPCRDMA_HDRLEN_ERR)
@@ -307,10 +308,8 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 
 	switch (*(rdma_argp + 3)) {
 	case rdma_msg:
-		proc = "RDMA_MSG";
 		break;
 	case rdma_nomsg:
-		proc = "RDMA_NOMSG";
 		break;
 
 	case rdma_done:
@@ -340,30 +339,27 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 	hdr_len = (unsigned long)p - (unsigned long)rdma_argp;
 	rq_arg->head[0].iov_len -= hdr_len;
 	rq_arg->len -= hdr_len;
-	dprintk("svcrdma: received %s request for XID 0x%08x, hdr_len=%u\n",
-		proc, be32_to_cpup(rdma_argp), hdr_len);
+	trace_svcrdma_decode_rqst(rdma_argp, hdr_len);
 	return hdr_len;
 
 out_short:
-	dprintk("svcrdma: header too short = %d\n", rq_arg->len);
+	trace_svcrdma_decode_short(rq_arg->len);
 	return -EINVAL;
 
 out_version:
-	dprintk("svcrdma: bad xprt version: %u\n",
-		be32_to_cpup(rdma_argp + 1));
+	trace_svcrdma_decode_badvers(rdma_argp);
 	return -EPROTONOSUPPORT;
 
 out_drop:
-	dprintk("svcrdma: dropping RDMA_DONE/ERROR message\n");
+	trace_svcrdma_decode_drop(rdma_argp);
 	return 0;
 
 out_proc:
-	dprintk("svcrdma: bad rdma procedure (%u)\n",
-		be32_to_cpup(rdma_argp + 3));
+	trace_svcrdma_decode_badproc(rdma_argp);
 	return -EINVAL;
 
 out_inval:
-	dprintk("svcrdma: failed to parse transport header\n");
+	trace_svcrdma_decode_parse(rdma_argp);
 	return -EINVAL;
 }
 
@@ -412,12 +408,16 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 	*p++ = *(rdma_argp + 1);
 	*p++ = xprt->sc_fc_credits;
 	*p++ = rdma_error;
-	if (status == -EPROTONOSUPPORT) {
+	switch (status) {
+	case -EPROTONOSUPPORT:
 		*p++ = err_vers;
 		*p++ = rpcrdma_version;
 		*p++ = rpcrdma_version;
-	} else {
+		trace_svcrdma_err_vers(*rdma_argp);
+		break;
+	default:
 		*p++ = err_chunk;
+		trace_svcrdma_err_chunk(*rdma_argp);
 	}
 	length = (unsigned long)p - (unsigned long)err_msgp;
 
@@ -532,8 +532,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	}
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 
-	dprintk("svcrdma: recvfrom: ctxt=%p on xprt=%p, rqstp=%p\n",
-		ctxt, rdma_xprt, rqstp);
 	atomic_inc(&rdma_stat_recv);
 
 	svc_rdma_build_arg_xdr(rqstp, ctxt);
@@ -559,8 +557,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 complete:
 	svc_rdma_put_context(ctxt, 0);
-	dprintk("svcrdma: recvfrom: xprt=%p, rqstp=%p, rq_arg.len=%u\n",
-		rdma_xprt, rqstp, rqstp->rq_arg.len);
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
 	return rqstp->rq_arg.len;

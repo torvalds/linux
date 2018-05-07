@@ -41,21 +41,25 @@
  * Author: Tom Tucker <tom@opengridcomputing.com>
  */
 
-#include <linux/sunrpc/svc_xprt.h>
-#include <linux/sunrpc/addr.h>
-#include <linux/sunrpc/debug.h>
-#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/export.h>
+
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
+
+#include <linux/sunrpc/addr.h>
+#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/rpc_rdma.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svc_rdma.h>
-#include <linux/export.h>
+
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -862,10 +866,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
 	dprintk("    ord             : %d\n", conn_param.initiator_depth);
 
+	trace_svcrdma_xprt_accept(&newxprt->sc_xprt);
 	return &newxprt->sc_xprt;
 
  errout:
 	dprintk("svcrdma: failure accepting new connection rc=%d.\n", ret);
+	trace_svcrdma_xprt_fail(&newxprt->sc_xprt);
 	/* Take a reference in case the DTO handler runs */
 	svc_xprt_get(&newxprt->sc_xprt);
 	if (newxprt->sc_qp && !IS_ERR(newxprt->sc_qp))
@@ -896,7 +902,6 @@ static void svc_rdma_detach(struct svc_xprt *xprt)
 {
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
-	dprintk("svc: svc_rdma_detach(%p)\n", xprt);
 
 	/* Disconnect and flush posted WQE */
 	rdma_disconnect(rdma->sc_cm_id);
@@ -908,7 +913,7 @@ static void __svc_rdma_free(struct work_struct *work)
 		container_of(work, struct svcxprt_rdma, sc_work);
 	struct svc_xprt *xprt = &rdma->sc_xprt;
 
-	dprintk("svcrdma: %s(%p)\n", __func__, rdma);
+	trace_svcrdma_xprt_free(xprt);
 
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);

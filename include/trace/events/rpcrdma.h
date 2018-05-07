@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2017 Oracle.  All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle.  All rights reserved.
+ *
+ * Trace point definitions for the "rpcrdma" subsystem.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rpcrdma
@@ -884,6 +886,264 @@ TRACE_EVENT(xprtrdma_cb_setup,
 
 DEFINE_CB_EVENT(xprtrdma_cb_call);
 DEFINE_CB_EVENT(xprtrdma_cb_reply);
+
+/**
+ ** Server-side RPC/RDMA events
+ **/
+
+DECLARE_EVENT_CLASS(svcrdma_xprt_event,
+	TP_PROTO(
+		const struct svc_xprt *xprt
+	),
+
+	TP_ARGS(xprt),
+
+	TP_STRUCT__entry(
+		__field(const void *, xprt)
+		__string(addr, xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = xprt;
+		__assign_str(addr, xprt->xpt_remotebuf);
+	),
+
+	TP_printk("xprt=%p addr=%s",
+		__entry->xprt, __get_str(addr)
+	)
+);
+
+#define DEFINE_XPRT_EVENT(name)						\
+		DEFINE_EVENT(svcrdma_xprt_event, svcrdma_xprt_##name,	\
+				TP_PROTO(				\
+					const struct svc_xprt *xprt	\
+				),					\
+				TP_ARGS(xprt))
+
+DEFINE_XPRT_EVENT(accept);
+DEFINE_XPRT_EVENT(fail);
+DEFINE_XPRT_EVENT(free);
+
+TRACE_DEFINE_ENUM(RDMA_MSG);
+TRACE_DEFINE_ENUM(RDMA_NOMSG);
+TRACE_DEFINE_ENUM(RDMA_MSGP);
+TRACE_DEFINE_ENUM(RDMA_DONE);
+TRACE_DEFINE_ENUM(RDMA_ERROR);
+
+#define show_rpcrdma_proc(x)						\
+		__print_symbolic(x,					\
+				{ RDMA_MSG, "RDMA_MSG" },		\
+				{ RDMA_NOMSG, "RDMA_NOMSG" },		\
+				{ RDMA_MSGP, "RDMA_MSGP" },		\
+				{ RDMA_DONE, "RDMA_DONE" },		\
+				{ RDMA_ERROR, "RDMA_ERROR" })
+
+TRACE_EVENT(svcrdma_decode_rqst,
+	TP_PROTO(
+		__be32 *p,
+		unsigned int hdrlen
+	),
+
+	TP_ARGS(p, hdrlen),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, vers)
+		__field(u32, proc)
+		__field(u32, credits)
+		__field(unsigned int, hdrlen)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpup(p++);
+		__entry->vers = be32_to_cpup(p++);
+		__entry->credits = be32_to_cpup(p++);
+		__entry->proc = be32_to_cpup(p);
+		__entry->hdrlen = hdrlen;
+	),
+
+	TP_printk("xid=0x%08x vers=%u credits=%u proc=%s hdrlen=%u",
+		__entry->xid, __entry->vers, __entry->credits,
+		show_rpcrdma_proc(__entry->proc), __entry->hdrlen)
+);
+
+TRACE_EVENT(svcrdma_decode_short,
+	TP_PROTO(
+		unsigned int hdrlen
+	),
+
+	TP_ARGS(hdrlen),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, hdrlen)
+	),
+
+	TP_fast_assign(
+		__entry->hdrlen = hdrlen;
+	),
+
+	TP_printk("hdrlen=%u", __entry->hdrlen)
+);
+
+DECLARE_EVENT_CLASS(svcrdma_badreq_event,
+	TP_PROTO(
+		__be32 *p
+	),
+
+	TP_ARGS(p),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, vers)
+		__field(u32, proc)
+		__field(u32, credits)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpup(p++);
+		__entry->vers = be32_to_cpup(p++);
+		__entry->credits = be32_to_cpup(p++);
+		__entry->proc = be32_to_cpup(p);
+	),
+
+	TP_printk("xid=0x%08x vers=%u credits=%u proc=%u",
+		__entry->xid, __entry->vers, __entry->credits, __entry->proc)
+);
+
+#define DEFINE_BADREQ_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_badreq_event, svcrdma_decode_##name,\
+				TP_PROTO(				\
+					__be32 *p			\
+				),					\
+				TP_ARGS(p))
+
+DEFINE_BADREQ_EVENT(badvers);
+DEFINE_BADREQ_EVENT(drop);
+DEFINE_BADREQ_EVENT(badproc);
+DEFINE_BADREQ_EVENT(parse);
+
+DECLARE_EVENT_CLASS(svcrdma_segment_event,
+	TP_PROTO(
+		u32 handle,
+		u32 length,
+		u64 offset
+	),
+
+	TP_ARGS(handle, length, offset),
+
+	TP_STRUCT__entry(
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+	),
+
+	TP_fast_assign(
+		__entry->handle = handle;
+		__entry->length = length;
+		__entry->offset = offset;
+	),
+
+	TP_printk("%u@0x%016llx:0x%08x",
+		__entry->length, (unsigned long long)__entry->offset,
+		__entry->handle
+	)
+);
+
+#define DEFINE_SEGMENT_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_segment_event, svcrdma_encode_##name,\
+				TP_PROTO(				\
+					u32 handle,			\
+					u32 length,			\
+					u64 offset			\
+				),					\
+				TP_ARGS(handle, length, offset))
+
+DEFINE_SEGMENT_EVENT(rseg);
+DEFINE_SEGMENT_EVENT(wseg);
+
+DECLARE_EVENT_CLASS(svcrdma_chunk_event,
+	TP_PROTO(
+		u32 length
+	),
+
+	TP_ARGS(length),
+
+	TP_STRUCT__entry(
+		__field(u32, length)
+	),
+
+	TP_fast_assign(
+		__entry->length = length;
+	),
+
+	TP_printk("length=%u",
+		__entry->length
+	)
+);
+
+#define DEFINE_CHUNK_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_encode_##name,\
+				TP_PROTO(				\
+					u32 length			\
+				),					\
+				TP_ARGS(length))
+
+DEFINE_CHUNK_EVENT(pzr);
+DEFINE_CHUNK_EVENT(write);
+DEFINE_CHUNK_EVENT(reply);
+
+TRACE_EVENT(svcrdma_encode_read,
+	TP_PROTO(
+		u32 length,
+		u32 position
+	),
+
+	TP_ARGS(length, position),
+
+	TP_STRUCT__entry(
+		__field(u32, length)
+		__field(u32, position)
+	),
+
+	TP_fast_assign(
+		__entry->length = length;
+		__entry->position = position;
+	),
+
+	TP_printk("length=%u position=%u",
+		__entry->length, __entry->position
+	)
+);
+
+DECLARE_EVENT_CLASS(svcrdma_error_event,
+	TP_PROTO(
+		__be32 xid
+	),
+
+	TP_ARGS(xid),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(xid);
+	),
+
+	TP_printk("xid=0x%08x",
+		__entry->xid
+	)
+);
+
+#define DEFINE_ERROR_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_error_event, svcrdma_err_##name,	\
+				TP_PROTO(				\
+					__be32 xid			\
+				),					\
+				TP_ARGS(xid))
+
+DEFINE_ERROR_EVENT(vers);
+DEFINE_ERROR_EVENT(chunk);
 
 #endif /* _TRACE_RPCRDMA_H */
 

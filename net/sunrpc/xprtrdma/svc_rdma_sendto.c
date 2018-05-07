@@ -99,13 +99,18 @@
  * where two different Write segments send portions of the same page.
  */
 
-#include <linux/sunrpc/debug.h>
-#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/spinlock.h>
 #include <asm/unaligned.h>
+
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+
+#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
+
+#include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -524,12 +529,6 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	u32 inv_rkey;
 	int ret;
 
-	dprintk("svcrdma: sending %s reply: head=%zu, pagelen=%u, tail=%zu\n",
-		(rp_ch ? "RDMA_NOMSG" : "RDMA_MSG"),
-		rqstp->rq_res.head[0].iov_len,
-		rqstp->rq_res.page_len,
-		rqstp->rq_res.tail[0].iov_len);
-
 	ctxt = svc_rdma_get_context(rdma);
 
 	ret = svc_rdma_map_reply_hdr(rdma, ctxt, rdma_resp,
@@ -580,6 +579,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	/* Replace the original transport header with an
 	 * RDMA_ERROR response. XID etc are preserved.
 	 */
+	trace_svcrdma_err_chunk(*rdma_resp);
 	p = rdma_resp + 3;
 	*p++ = rdma_error;
 	*p   = err_chunk;
@@ -634,9 +634,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	 */
 	rdma_argp = page_address(rqstp->rq_pages[0]);
 	svc_rdma_get_write_arrays(rdma_argp, &wr_lst, &rp_ch);
-
-	dprintk("svcrdma: preparing response for XID 0x%08x\n",
-		be32_to_cpup(rdma_argp));
 
 	/* Create the RDMA response header. xprt->xpt_mutex,
 	 * acquired in svc_send(), serializes RPC replies. The
