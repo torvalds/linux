@@ -209,7 +209,7 @@ int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if ((addr + size) < addr)
 		return -EINVAL;
 
-	nframes = size / frame_size;
+	nframes = (unsigned int)div_u64(size, frame_size);
 	if (nframes == 0 || nframes > UINT_MAX)
 		return -EINVAL;
 
