@@ -100,6 +100,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
 	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	clock-frequency = <400000>;
 
 	touchscreen: tsc2004@48 {
 		compatible = "ti,tsc2004";
@@ -119,12 +125,6 @@
 		ti,x-plate-ohms = <280>;
 		ti,esd-recovery-timeout-ms = <8000>;
 	};
-};
-
-&i2c3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins>;
-	clock-frequency = <400000>;
 };
 
 &mmc3 {
