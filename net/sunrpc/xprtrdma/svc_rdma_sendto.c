@@ -302,41 +302,11 @@ static u32 svc_rdma_get_inv_rkey(__be32 *rdma_argp,
 	return be32_to_cpup(p);
 }
 
-/* ib_dma_map_page() is used here because svc_rdma_dma_unmap()
- * is used during completion to DMA-unmap this memory, and
- * it uses ib_dma_unmap_page() exclusively.
- */
-static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
-				struct svc_rdma_op_ctxt *ctxt,
-				unsigned int sge_no,
-				unsigned char *base,
-				unsigned int len)
-{
-	unsigned long offset = (unsigned long)base & ~PAGE_MASK;
-	struct ib_device *dev = rdma->sc_cm_id->device;
-	dma_addr_t dma_addr;
-
-	dma_addr = ib_dma_map_page(dev, virt_to_page(base),
-				   offset, len, DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(dev, dma_addr))
-		goto out_maperr;
-
-	ctxt->sge[sge_no].addr = dma_addr;
-	ctxt->sge[sge_no].length = len;
-	ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
-	svc_rdma_count_mappings(rdma, ctxt);
-	return 0;
-
-out_maperr:
-	pr_err("svcrdma: failed to map buffer\n");
-	return -EIO;
-}
-
 static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 				 struct svc_rdma_op_ctxt *ctxt,
 				 unsigned int sge_no,
 				 struct page *page,
-				 unsigned int offset,
+				 unsigned long offset,
 				 unsigned int len)
 {
 	struct ib_device *dev = rdma->sc_cm_id->device;
@@ -349,12 +319,25 @@ static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 	ctxt->sge[sge_no].addr = dma_addr;
 	ctxt->sge[sge_no].length = len;
 	ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
-	svc_rdma_count_mappings(rdma, ctxt);
+	ctxt->mapped_sges++;
 	return 0;
 
 out_maperr:
 	trace_svcrdma_dma_map_page(rdma, page);
 	return -EIO;
+}
+
+/* ib_dma_map_page() is used here because svc_rdma_dma_unmap()
+ * handles DMA-unmap and it uses ib_dma_unmap_page() exclusively.
+ */
+static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
+				struct svc_rdma_op_ctxt *ctxt,
+				unsigned int sge_no,
+				unsigned char *base,
+				unsigned int len)
+{
+	return svc_rdma_dma_map_page(rdma, ctxt, sge_no, virt_to_page(base),
+				     offset_in_page(base), len);
 }
 
 /**
@@ -389,7 +372,8 @@ static int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_op_ctxt *ctxt,
 				  struct xdr_buf *xdr, __be32 *wr_lst)
 {
-	unsigned int len, sge_no, remaining, page_off;
+	unsigned int len, sge_no, remaining;
+	unsigned long page_off;
 	struct page **ppages;
 	unsigned char *base;
 	u32 xdr_pad;

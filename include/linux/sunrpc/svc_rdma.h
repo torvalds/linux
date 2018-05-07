@@ -158,13 +158,6 @@ struct svc_rdma_recv_ctxt {
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
-/* Track DMA maps for this transport and context */
-static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
-					   struct svc_rdma_op_ctxt *ctxt)
-{
-	ctxt->mapped_sges++;
-}
-
 /* svc_rdma_backchannel.c */
 extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
 				    __be32 *rdma_resp,
