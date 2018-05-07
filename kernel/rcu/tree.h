@@ -217,7 +217,6 @@ struct rcu_data {
 
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
 	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
-	unsigned long offline_fqs;	/* Kicked due to being offline. */
 	unsigned long cond_resched_completed;
 					/* Grace period that needs help */
 					/*  from cond_resched(). */

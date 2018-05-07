@@ -1188,14 +1188,6 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		smp_store_release(ruqp, true);
 	}
 
-	/* Check for the CPU being offline. */
-	if (!(rdp->grpmask & rcu_rnp_online_cpus(rnp))) {
-		trace_rcu_fqs(rdp->rsp->name, rdp->gp_seq, rdp->cpu, TPS("ofl"));
-		rdp->offline_fqs++;
-		rcu_gpnum_ovf(rnp, rdp);
-		return 1;
-	}
-
 	/*
 	 * A CPU running for an extended time within the kernel can
 	 * delay RCU grace periods.  When the CPU is in NO_HZ_FULL mode,
@@ -3718,6 +3710,7 @@ void rcu_cpu_starting(unsigned int cpu)
 		nbits = bitmap_weight(&oldmask, BITS_PER_LONG);
 		/* Allow lockless access for expedited grace periods. */
 		smp_store_release(&rsp->ncpus, rsp->ncpus + nbits); /* ^^^ */
+		rcu_gpnum_ovf(rnp, rdp); /* Offline-induced counter wrap? */
 		if (rnp->qsmask & mask) { /* RCU waiting on incoming CPU? */
 			/* Report QS -after- changing ->qsmaskinitnext! */
 			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
