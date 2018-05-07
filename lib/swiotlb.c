@@ -593,9 +593,8 @@ found:
 }
 
 /*
- * Allocates bounce buffer and returns its kernel virtual address.
+ * Allocates bounce buffer and returns its physical address.
  */
-
 static phys_addr_t
 map_single(struct device *hwdev, phys_addr_t phys, size_t size,
 	   enum dma_data_direction dir, unsigned long attrs)
@@ -614,7 +613,7 @@ map_single(struct device *hwdev, phys_addr_t phys, size_t size,
 }
 
 /*
- * dma_addr is the kernel virtual address of the bounce buffer to unmap.
+ * tlb_addr is the physical address of the bounce buffer to unmap.
  */
 void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
 			      size_t size, enum dma_data_direction dir,
