@@ -3769,10 +3769,10 @@ static inline int validate_convert_profile(struct btrfs_balance_args *bctl_arg,
 /*
  * Should be called with balance mutexe held
  */
-int btrfs_balance(struct btrfs_balance_control *bctl,
+int btrfs_balance(struct btrfs_fs_info *fs_info,
+		  struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs)
 {
-	struct btrfs_fs_info *fs_info = bctl->fs_info;
 	u64 meta_target, data_target;
 	u64 allowed;
 	int mixed = 0;
@@ -3940,7 +3940,7 @@ static int balance_kthread(void *data)
 	mutex_lock(&fs_info->balance_mutex);
 	if (fs_info->balance_ctl) {
 		btrfs_info(fs_info, "continuing balance");
-		ret = btrfs_balance(fs_info->balance_ctl, NULL);
+		ret = btrfs_balance(fs_info, fs_info->balance_ctl, NULL);
 	}
 	mutex_unlock(&fs_info->balance_mutex);
 
@@ -4011,7 +4011,6 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_balance_item);
 
-	bctl->fs_info = fs_info;
 	bctl->flags = btrfs_balance_flags(leaf, item);
 	bctl->flags |= BTRFS_BALANCE_RESUME;
 

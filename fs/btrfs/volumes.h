@@ -352,8 +352,6 @@ struct map_lookup {
 struct btrfs_balance_args;
 struct btrfs_balance_progress;
 struct btrfs_balance_control {
-	struct btrfs_fs_info *fs_info;
-
 	struct btrfs_balance_args data;
 	struct btrfs_balance_args meta;
 	struct btrfs_balance_args sys;
@@ -432,7 +430,8 @@ struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid);
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *path);
-int btrfs_balance(struct btrfs_balance_control *bctl,
+int btrfs_balance(struct btrfs_fs_info *fs_info,
+		  struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs);
 int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info);
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info);

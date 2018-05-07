@@ -4428,7 +4428,6 @@ locked:
 		goto out_bargs;
 	}
 
-	bctl->fs_info = fs_info;
 	if (arg) {
 		memcpy(&bctl->data, &bargs->data, sizeof(bctl->data));
 		memcpy(&bctl->meta, &bargs->meta, sizeof(bctl->meta));
@@ -4454,7 +4453,7 @@ do_balance:
 	 */
 	need_unlock = false;
 
-	ret = btrfs_balance(bctl, bargs);
+	ret = btrfs_balance(fs_info, bctl, bargs);
 	bctl = NULL;
 
 	if (arg) {
