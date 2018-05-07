@@ -195,6 +195,7 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	struct sk_buff *segs, *seg;
 	struct udphdr *uh;
 	unsigned int mss;
+	bool copy_dtor;
 	__sum16 check;
 	__be16 newlen;
 
@@ -205,12 +206,14 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	skb_pull(gso_skb, sizeof(*uh));
 
 	/* clear destructor to avoid skb_segment assigning it to tail */
-	WARN_ON_ONCE(gso_skb->destructor != sock_wfree);
-	gso_skb->destructor = NULL;
+	copy_dtor = gso_skb->destructor == sock_wfree;
+	if (copy_dtor)
+		gso_skb->destructor = NULL;
 
 	segs = skb_segment(gso_skb, features);
 	if (unlikely(IS_ERR_OR_NULL(segs))) {
-		gso_skb->destructor = sock_wfree;
+		if (copy_dtor)
+			gso_skb->destructor = sock_wfree;
 		return segs;
 	}
 
@@ -229,9 +232,11 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
 
 	for (;;) {
-		seg->destructor = sock_wfree;
-		seg->sk = sk;
-		sum_truesize += seg->truesize;
+		if (copy_dtor) {
+			seg->destructor = sock_wfree;
+			seg->sk = sk;
+			sum_truesize += seg->truesize;
+		}
 
 		if (!seg->next)
 			break;
@@ -263,8 +268,9 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		uh->check = gso_make_checksum(seg, ~check) ? : CSUM_MANGLED_0;
 
 	/* update refcount for the packet */
-	refcount_add(sum_truesize - gso_skb->truesize, &sk->sk_wmem_alloc);
-
+	if (copy_dtor)
+		refcount_add(sum_truesize - gso_skb->truesize,
+			     &sk->sk_wmem_alloc);
 	return segs;
 }
 EXPORT_SYMBOL_GPL(__udp_gso_segment);
