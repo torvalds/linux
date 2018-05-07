@@ -189,14 +189,16 @@ EXPORT_SYMBOL(skb_udp_tunnel_segment);
 
 struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 				  netdev_features_t features,
-				  unsigned int mss, __sum16 check)
+				  __sum16 check)
 {
 	struct sock *sk = gso_skb->sk;
 	unsigned int sum_truesize = 0;
 	struct sk_buff *segs, *seg;
 	unsigned int hdrlen;
 	struct udphdr *uh;
+	unsigned int mss;
 
+	mss = skb_shinfo(gso_skb)->gso_size;
 	if (gso_skb->len <= sizeof(*uh) + mss)
 		return ERR_PTR(-EINVAL);
 
@@ -244,7 +246,7 @@ static struct sk_buff *__udp4_gso_segment(struct sk_buff *gso_skb,
 	if (!can_checksum_protocol(features, htons(ETH_P_IP)))
 		return ERR_PTR(-EIO);
 
-	return __udp_gso_segment(gso_skb, features, mss,
+	return __udp_gso_segment(gso_skb, features,
 				 udp_v4_check(sizeof(struct udphdr) + mss,
 					      iph->saddr, iph->daddr, 0));
 }

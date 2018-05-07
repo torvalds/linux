@@ -26,7 +26,7 @@ static struct sk_buff *__udp6_gso_segment(struct sk_buff *gso_skb,
 	if (!can_checksum_protocol(features, htons(ETH_P_IPV6)))
 		return ERR_PTR(-EIO);
 
-	return __udp_gso_segment(gso_skb, features, mss,
+	return __udp_gso_segment(gso_skb, features,
 				 udp_v6_check(sizeof(struct udphdr) + mss,
 					      &ip6h->saddr, &ip6h->daddr, 0));
 }

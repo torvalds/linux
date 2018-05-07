@@ -176,7 +176,7 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff, udp_lookup_t lookup);
 
 struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 				  netdev_features_t features,
-				  unsigned int mss, __sum16 check);
+				  __sum16 check);
 
 static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 {
