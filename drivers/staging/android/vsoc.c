@@ -552,10 +552,10 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (!node)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&node->list);
-			rv = do_create_fd_scoped_permission(
-				region_p,
-				node,
-				(struct fd_scoped_permission_arg __user *)arg);
+			rv = do_create_fd_scoped_permission
+				(region_p,
+				 node,
+				 (struct fd_scoped_permission_arg __user *)arg);
 			if (!rv) {
 				mutex_lock(&vsoc_dev.mtx);
 				list_add(&node->list, &vsoc_dev.permissions);
@@ -582,9 +582,7 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case VSOC_MAYBE_SEND_INTERRUPT_TO_HOST:
-		if (!atomic_xchg(
-			    reg_data->outgoing_signalled,
-			    1)) {
+		if (!atomic_xchg(reg_data->outgoing_signalled, 1)) {
 			writel(reg_num, vsoc_dev.regs + DOORBELL);
 			return 0;
 		} else {
@@ -595,17 +593,16 @@ static long vsoc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case VSOC_SEND_INTERRUPT_TO_HOST:
 		writel(reg_num, vsoc_dev.regs + DOORBELL);
 		return 0;
-
 	case VSOC_WAIT_FOR_INCOMING_INTERRUPT:
-		wait_event_interruptible(
-			reg_data->interrupt_wait_queue,
-			(atomic_read(reg_data->incoming_signalled) != 0));
+		wait_event_interruptible
+			(reg_data->interrupt_wait_queue,
+			 (atomic_read(reg_data->incoming_signalled) != 0));
 		break;
 
 	case VSOC_DESCRIBE_REGION:
-		return do_vsoc_describe_region(
-			filp,
-			(struct vsoc_device_region __user *)arg);
+		return do_vsoc_describe_region
+			(filp,
+			 (struct vsoc_device_region __user *)arg);
 
 	case VSOC_SELF_INTERRUPT:
 		atomic_set(reg_data->incoming_signalled, 1);
