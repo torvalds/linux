@@ -188,8 +188,7 @@ out_unlock:
 EXPORT_SYMBOL(skb_udp_tunnel_segment);
 
 struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
-				  netdev_features_t features,
-				  __sum16 check)
+				  netdev_features_t features)
 {
 	struct sock *sk = gso_skb->sk;
 	unsigned int sum_truesize = 0;
@@ -197,6 +196,8 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	unsigned int hdrlen;
 	struct udphdr *uh;
 	unsigned int mss;
+	__sum16 check;
+	__be16 newlen;
 
 	mss = skb_shinfo(gso_skb)->gso_size;
 	if (gso_skb->len <= sizeof(*uh) + mss)
@@ -215,17 +216,25 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		return segs;
 	}
 
+	uh = udp_hdr(segs);
+
+	/* compute checksum adjustment based on old length versus new */
+	newlen = htons(sizeof(*uh) + mss);
+	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
+
 	for (seg = segs; seg; seg = seg->next) {
 		uh = udp_hdr(seg);
-		uh->len = htons(seg->len - hdrlen);
-		uh->check = check;
 
 		/* last packet can be partial gso_size */
-		if (!seg->next)
-			csum_replace2(&uh->check, htons(mss),
-				      htons(seg->len - hdrlen - sizeof(*uh)));
+		if (!seg->next) {
+			newlen = htons(seg->len - hdrlen);
+			check = csum16_add(csum16_sub(uh->check, uh->len),
+					   newlen);
+		}
 
-		uh->check = ~uh->check;
+		uh->len = newlen;
+		uh->check = check;
+
 		seg->destructor = sock_wfree;
 		seg->sk = sk;
 		sum_truesize += seg->truesize;
@@ -240,15 +249,10 @@ EXPORT_SYMBOL_GPL(__udp_gso_segment);
 static struct sk_buff *__udp4_gso_segment(struct sk_buff *gso_skb,
 					  netdev_features_t features)
 {
-	const struct iphdr *iph = ip_hdr(gso_skb);
-	unsigned int mss = skb_shinfo(gso_skb)->gso_size;
-
 	if (!can_checksum_protocol(features, htons(ETH_P_IP)))
 		return ERR_PTR(-EIO);
 
-	return __udp_gso_segment(gso_skb, features,
-				 udp_v4_check(sizeof(struct udphdr) + mss,
-					      iph->saddr, iph->daddr, 0));
+	return __udp_gso_segment(gso_skb, features);
 }
 
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
