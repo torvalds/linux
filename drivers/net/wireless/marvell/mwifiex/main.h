@@ -84,8 +84,8 @@ enum {
 #define MWIFIEX_TIMER_10S			10000
 #define MWIFIEX_TIMER_1S			1000
 
-#define MAX_TX_PENDING      100
-#define LOW_TX_PENDING      80
+#define MAX_TX_PENDING      400
+#define LOW_TX_PENDING      380
 
 #define HIGH_RX_PENDING     50
 #define LOW_RX_PENDING      20
