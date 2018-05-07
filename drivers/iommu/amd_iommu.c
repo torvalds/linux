@@ -1943,8 +1943,8 @@ static void do_detach(struct iommu_dev_data *dev_data)
 }
 
 /*
- * If a device is not yet associated with a domain, this function does
- * assigns it visible for the hardware
+ * If a device is not yet associated with a domain, this function makes the
+ * device visible in the domain
  */
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
@@ -2065,8 +2065,8 @@ static bool pci_pri_tlp_required(struct pci_dev *pdev)
 }
 
 /*
- * If a device is not yet associated with a domain, this function
- * assigns it visible for the hardware
+ * If a device is not yet associated with a domain, this function makes the
+ * device visible in the domain
  */
 static int attach_device(struct device *dev,
 			 struct protection_domain *domain)
