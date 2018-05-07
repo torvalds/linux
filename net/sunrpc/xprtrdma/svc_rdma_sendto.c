@@ -253,41 +253,41 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	svc_xprt_put(&rdma->sc_xprt);
 }
 
+/**
+ * svc_rdma_send - Post a single Send WR
+ * @rdma: transport on which to post the WR
+ * @wr: prepared Send WR to post
+ *
+ * Returns zero the Send WR was posted successfully. Otherwise, a
+ * negative errno is returned.
+ */
 int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 {
-	struct ib_send_wr *bad_wr, *n_wr;
-	int wr_count;
-	int i;
+	struct ib_send_wr *bad_wr;
 	int ret;
 
-	wr_count = 1;
-	for (n_wr = wr->next; n_wr; n_wr = n_wr->next)
-		wr_count++;
+	might_sleep();
 
 	/* If the SQ is full, wait until an SQ entry is available */
 	while (1) {
-		if ((atomic_sub_return(wr_count, &rdma->sc_sq_avail) < 0)) {
+		if ((atomic_dec_return(&rdma->sc_sq_avail) < 0)) {
 			atomic_inc(&rdma_stat_sq_starve);
 			trace_svcrdma_sq_full(rdma);
-			atomic_add(wr_count, &rdma->sc_sq_avail);
+			atomic_inc(&rdma->sc_sq_avail);
 			wait_event(rdma->sc_send_wait,
-				   atomic_read(&rdma->sc_sq_avail) > wr_count);
+				   atomic_read(&rdma->sc_sq_avail) > 1);
 			if (test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags))
 				return -ENOTCONN;
 			trace_svcrdma_sq_retry(rdma);
 			continue;
 		}
-		/* Take a transport ref for each WR posted */
-		for (i = 0; i < wr_count; i++)
-			svc_xprt_get(&rdma->sc_xprt);
 
-		/* Bump used SQ WR count and post */
+		svc_xprt_get(&rdma->sc_xprt);
 		ret = ib_post_send(rdma->sc_qp, wr, &bad_wr);
 		trace_svcrdma_post_send(wr, ret);
 		if (ret) {
 			set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-			for (i = 0; i < wr_count; i++)
-				svc_xprt_put(&rdma->sc_xprt);
+			svc_xprt_put(&rdma->sc_xprt);
 			wake_up(&rdma->sc_send_wait);
 		}
 		break;
