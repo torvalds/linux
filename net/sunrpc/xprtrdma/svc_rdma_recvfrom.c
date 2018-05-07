@@ -144,6 +144,7 @@ svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 	ctxt->rc_recv_sge.length = rdma->sc_max_req_size;
 	ctxt->rc_recv_sge.lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->rc_recv_buf = buffer;
+	ctxt->rc_temp = false;
 	return ctxt;
 
 fail2:
@@ -152,6 +153,15 @@ fail1:
 	kfree(ctxt);
 fail0:
 	return NULL;
+}
+
+static void svc_rdma_recv_ctxt_destroy(struct svcxprt_rdma *rdma,
+				       struct svc_rdma_recv_ctxt *ctxt)
+{
+	ib_dma_unmap_single(rdma->sc_pd->device, ctxt->rc_recv_sge.addr,
+			    ctxt->rc_recv_sge.length, DMA_FROM_DEVICE);
+	kfree(ctxt->rc_recv_buf);
+	kfree(ctxt);
 }
 
 /**
@@ -165,12 +175,7 @@ void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma)
 
 	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_recv_ctxts))) {
 		list_del(&ctxt->rc_list);
-		ib_dma_unmap_single(rdma->sc_pd->device,
-				    ctxt->rc_recv_sge.addr,
-				    ctxt->rc_recv_sge.length,
-				    DMA_FROM_DEVICE);
-		kfree(ctxt->rc_recv_buf);
-		kfree(ctxt);
+		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 	}
 }
 
@@ -212,20 +217,20 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 
 	for (i = 0; i < ctxt->rc_page_count; i++)
 		put_page(ctxt->rc_pages[i]);
-	spin_lock(&rdma->sc_recv_lock);
-	list_add(&ctxt->rc_list, &rdma->sc_recv_ctxts);
-	spin_unlock(&rdma->sc_recv_lock);
+
+	if (!ctxt->rc_temp) {
+		spin_lock(&rdma->sc_recv_lock);
+		list_add(&ctxt->rc_list, &rdma->sc_recv_ctxts);
+		spin_unlock(&rdma->sc_recv_lock);
+	} else
+		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 }
 
-static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
+static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
+				struct svc_rdma_recv_ctxt *ctxt)
 {
-	struct svc_rdma_recv_ctxt *ctxt;
 	struct ib_recv_wr *bad_recv_wr;
 	int ret;
-
-	ctxt = svc_rdma_recv_ctxt_get(rdma);
-	if (!ctxt)
-		return -ENOMEM;
 
 	svc_xprt_get(&rdma->sc_xprt);
 	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, &bad_recv_wr);
@@ -240,6 +245,16 @@ err_post:
 	return ret;
 }
 
+static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
+{
+	struct svc_rdma_recv_ctxt *ctxt;
+
+	ctxt = svc_rdma_recv_ctxt_get(rdma);
+	if (!ctxt)
+		return -ENOMEM;
+	return __svc_rdma_post_recv(rdma, ctxt);
+}
+
 /**
  * svc_rdma_post_recvs - Post initial set of Recv WRs
  * @rdma: fresh svcxprt_rdma
@@ -248,11 +263,16 @@ err_post:
  */
 bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
 {
+	struct svc_rdma_recv_ctxt *ctxt;
 	unsigned int i;
 	int ret;
 
 	for (i = 0; i < rdma->sc_max_requests; i++) {
-		ret = svc_rdma_post_recv(rdma);
+		ctxt = svc_rdma_recv_ctxt_get(rdma);
+		if (!ctxt)
+			return -ENOMEM;
+		ctxt->rc_temp = true;
+		ret = __svc_rdma_post_recv(rdma, ctxt);
 		if (ret) {
 			pr_err("svcrdma: failure posting recv buffers: %d\n",
 			       ret);
