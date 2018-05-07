@@ -387,7 +387,7 @@
 		wdt: watchdog@fcfe0000 {
 			compatible = "renesas,r7s72100-wdt", "renesas,rza-wdt";
 			reg = <0xfcfe0000 0x6>;
-			interrupts = <GIC_SPI 106 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&p0_clk>;
 		};
 
