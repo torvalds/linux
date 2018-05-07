@@ -329,11 +329,6 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 
 	kbdev->current_freq = clk_get_rate(kbdev->clock);
 	kbdev->current_nominal_freq = kbdev->current_freq;
-#ifdef CONFIG_REGULATOR
-	if (kbdev->regulator)
-		kbdev->current_voltage =
-			regulator_get_voltage(kbdev->regulator);
-#endif
 
 	dp = &kbdev->devfreq_profile;
 

@@ -237,8 +237,6 @@ int mali_devfreq_init(struct mali_device *mdev)
 		return -ENODEV;
 
 	mdev->current_freq = clk_get_rate(mdev->clock);
-	if (mdev->regulator)
-		mdev->current_voltage = regulator_get_voltage(mdev->regulator);
 
 	dp = &mdev->devfreq_profile;
 

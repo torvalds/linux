@@ -73,6 +73,16 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	 */
 	if (kbdev->current_freq == freq) {
 		*target_freq = freq;
+#ifdef CONFIG_REGULATOR
+		if (kbdev->current_voltage == voltage)
+			return 0;
+		err = regulator_set_voltage(kbdev->regulator, voltage, INT_MAX);
+		if (err) {
+			dev_err(dev, "Failed to set voltage (%d)\n", err);
+			return err;
+		}
+		kbdev->current_voltage = voltage;
+#endif
 		return 0;
 	}
 
