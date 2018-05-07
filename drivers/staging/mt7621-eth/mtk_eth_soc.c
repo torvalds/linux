@@ -315,7 +315,7 @@ static int mtk_dma_rx_alloc(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 	ring->rx_buf_size = mtk_max_buf_size(ring->frag_size);
 	ring->rx_ring_size = eth->soc->dma_ring_size;
 	ring->rx_data = kcalloc(ring->rx_ring_size, sizeof(*ring->rx_data),
-			GFP_KERNEL);
+				GFP_KERNEL);
 	if (!ring->rx_data)
 		goto no_rx_mem;
 
@@ -325,10 +325,10 @@ static int mtk_dma_rx_alloc(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 			goto no_rx_mem;
 	}
 
-	ring->rx_dma = dma_alloc_coherent(eth->dev,
-			ring->rx_ring_size * sizeof(*ring->rx_dma),
-			&ring->rx_phys,
-			GFP_ATOMIC | __GFP_ZERO);
+	ring->rx_dma =
+		dma_alloc_coherent(eth->dev,
+				   ring->rx_ring_size * sizeof(*ring->rx_dma),
+				   &ring->rx_phys, GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->rx_dma)
 		goto no_rx_mem;
 
@@ -1351,14 +1351,14 @@ static int mtk_pdma_tx_alloc(struct mtk_eth *eth)
 			      MAX_SKB_FRAGS);
 
 	ring->tx_buf = kcalloc(ring->tx_ring_size, sizeof(*ring->tx_buf),
-			GFP_KERNEL);
+			       GFP_KERNEL);
 	if (!ring->tx_buf)
 		goto no_tx_mem;
 
-	ring->tx_dma = dma_alloc_coherent(eth->dev,
-			ring->tx_ring_size * sizeof(*ring->tx_dma),
-			&ring->tx_phys,
-			GFP_ATOMIC | __GFP_ZERO);
+	ring->tx_dma =
+		dma_alloc_coherent(eth->dev,
+				   ring->tx_ring_size * sizeof(*ring->tx_dma),
+				   &ring->tx_phys, GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->tx_dma)
 		goto no_tx_mem;
 
@@ -2013,8 +2013,8 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 
 	if (mtk_reg_table[MTK_REG_MTK_COUNTER_BASE]) {
 		mac->hw_stats = devm_kzalloc(eth->dev,
-					      sizeof(*mac->hw_stats),
-					      GFP_KERNEL);
+					     sizeof(*mac->hw_stats),
+					     GFP_KERNEL);
 		if (!mac->hw_stats)
 			return -ENOMEM;
 		spin_lock_init(&mac->hw_stats->stats_lock);
