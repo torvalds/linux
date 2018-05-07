@@ -1110,12 +1110,11 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	 * decide whether to preempt the entire chain so that it is ready to
 	 * run at the earliest possible convenience.
 	 */
-	rcu_read_lock();
+	local_bh_disable();
+	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule)
 		engine->schedule(request, &request->ctx->sched);
 	rcu_read_unlock();
-
-	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 
