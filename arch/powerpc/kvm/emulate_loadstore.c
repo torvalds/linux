@@ -111,6 +111,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmio_sp64_extend = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 	vcpu->arch.mmio_vmx_copy_nums = 0;
+	vcpu->arch.mmio_host_swabbed = 0;
 
 	switch (get_op(inst)) {
 	case 31:

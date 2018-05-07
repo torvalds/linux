@@ -1374,7 +1374,7 @@ static inline int kvmppc_get_vmx_data(struct kvm_vcpu *vcpu, int rs, u64 *val)
 	if (di > 1)
 		return -1;
 
-	if (vcpu->arch.mmio_host_swabbed)
+	if (kvmppc_need_byteswap(vcpu))
 		di = 1 - di;
 
 	w0 = vrs.u[di * 2];
