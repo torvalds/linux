@@ -55,7 +55,8 @@ const struct davinci_psc_init_data da830_psc0_init_data = {
 	.psc_init		= &da830_psc0_init,
 };
 
-LPSC_CLKDEV2(usb0_clkdev,	NULL,	"musb-da8xx",
+LPSC_CLKDEV3(usb0_clkdev,	"fck",	"da830-usb-phy-clks",
+				NULL,	"musb-da8xx",
 				NULL,	"cppi41-dmaengine");
 LPSC_CLKDEV1(usb1_clkdev,	NULL,	"ohci-da8xx");
 /* REVISIT: gpio-davinci.c should be modified to drop con_id */
