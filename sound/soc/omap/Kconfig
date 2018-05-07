@@ -2,6 +2,12 @@ config SND_OMAP_SOC
 	tristate "SoC Audio for the Texas Instruments OMAP chips"
 	depends on (ARCH_OMAP && DMA_OMAP) || (ARM && COMPILE_TEST)
 	select SND_DMAENGINE_PCM
+	select SND_SDMA_SOC
+
+config SND_SDMA_SOC
+	tristate "SoC Audio for Texas Instruments chips using sDMA"
+	depends on DMA_OMAP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_OMAP_SOC_DMIC
 	tristate
