@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/android/staging/vsoc.c
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2017 Google, Inc.
  *
  * Author: ghartman@google.com
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * Based on drivers/char/kvm_ivshmem.c - driver for KVM Inter-VM shared memory
  *         Copyright 2009 Cam Macdonell <cam@cs.ualberta.ca>
