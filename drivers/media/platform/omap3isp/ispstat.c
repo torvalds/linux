@@ -544,12 +544,6 @@ int omap3isp_stat_config(struct ispstat *stat, void *new_conf)
 	struct ispstat_generic_config *user_cfg = new_conf;
 	u32 buf_size = user_cfg->buf_size;
 
-	if (!new_conf) {
-		dev_dbg(stat->isp->dev, "%s: configuration is NULL\n",
-			stat->subdev.name);
-		return -EINVAL;
-	}
-
 	mutex_lock(&stat->ioctl_lock);
 
 	dev_dbg(stat->isp->dev,
