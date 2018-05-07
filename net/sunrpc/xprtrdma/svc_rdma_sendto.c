@@ -630,35 +630,6 @@ static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 }
 
-/**
- * svc_rdma_post_send_wr - Set up and post one Send Work Request
- * @rdma: controlling transport
- * @ctxt: op_ctxt for transmitting the Send WR
- * @inv_rkey: R_key argument to Send With Invalidate, or zero
- *
- * Returns:
- *	%0 if the Send* was posted successfully,
- *	%-ENOTCONN if the connection was lost or dropped,
- *	%-EINVAL if there was a problem with the Send we built,
- *	%-ENOMEM if ib_post_send failed.
- */
-int svc_rdma_post_send_wr(struct svcxprt_rdma *rdma,
-			  struct svc_rdma_send_ctxt *ctxt,
-			  u32 inv_rkey)
-{
-	dprintk("svcrdma: posting Send WR with %u sge(s)\n",
-		ctxt->sc_send_wr.num_sge);
-
-	if (inv_rkey) {
-		ctxt->sc_send_wr.opcode = IB_WR_SEND_WITH_INV;
-		ctxt->sc_send_wr.ex.invalidate_rkey = inv_rkey;
-	} else {
-		ctxt->sc_send_wr.opcode = IB_WR_SEND;
-	}
-
-	return svc_rdma_send(rdma, &ctxt->sc_send_wr);
-}
-
 /* Prepare the portion of the RPC Reply that will be transmitted
  * via RDMA Send. The RPC-over-RDMA transport header is prepared
  * in sc_sges[0], and the RPC xdr_buf is prepared in following sges.
@@ -683,7 +654,6 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 				   __be32 *wr_lst, __be32 *rp_ch)
 {
 	struct svc_rdma_send_ctxt *ctxt;
-	u32 inv_rkey;
 	int ret;
 
 	ctxt = svc_rdma_send_ctxt_get(rdma);
@@ -704,10 +674,16 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 
 	svc_rdma_save_io_pages(rqstp, ctxt);
 
-	inv_rkey = 0;
-	if (rdma->sc_snd_w_inv)
-		inv_rkey = svc_rdma_get_inv_rkey(rdma_argp, wr_lst, rp_ch);
-	ret = svc_rdma_post_send_wr(rdma, ctxt, inv_rkey);
+	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	if (rdma->sc_snd_w_inv) {
+		ctxt->sc_send_wr.ex.invalidate_rkey =
+			svc_rdma_get_inv_rkey(rdma_argp, wr_lst, rp_ch);
+		if (ctxt->sc_send_wr.ex.invalidate_rkey)
+			ctxt->sc_send_wr.opcode = IB_WR_SEND_WITH_INV;
+	}
+	dprintk("svcrdma: posting Send WR with %u sge(s)\n",
+		ctxt->sc_send_wr.num_sge);
+	ret = svc_rdma_send(rdma, &ctxt->sc_send_wr);
 	if (ret)
 		goto err;
 
@@ -750,7 +726,8 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 
 	svc_rdma_save_io_pages(rqstp, ctxt);
 
-	ret = svc_rdma_post_send_wr(rdma, ctxt, 0);
+	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	ret = svc_rdma_send(rdma, &ctxt->sc_send_wr);
 	if (ret)
 		goto err;
 

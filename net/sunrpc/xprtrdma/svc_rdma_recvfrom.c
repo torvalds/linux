@@ -642,7 +642,8 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 		return;
 	}
 
-	ret = svc_rdma_post_send_wr(xprt, ctxt, 0);
+	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	ret = svc_rdma_send(xprt, &ctxt->sc_send_wr);
 	if (ret)
 		svc_rdma_send_ctxt_put(xprt, ctxt);
 }
