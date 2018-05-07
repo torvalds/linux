@@ -13,6 +13,7 @@
 
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <soc/rockchip/rockchip-system-status.h>
 
 static unsigned long system_status;
 static unsigned long ref_count[32] = {0};
