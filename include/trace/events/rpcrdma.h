@@ -1145,6 +1145,328 @@ DECLARE_EVENT_CLASS(svcrdma_error_event,
 DEFINE_ERROR_EVENT(vers);
 DEFINE_ERROR_EVENT(chunk);
 
+/**
+ ** Server-side RDMA API events
+ **/
+
+TRACE_EVENT(svcrdma_dma_map_page,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		const void *page
+	),
+
+	TP_ARGS(rdma, page),
+
+	TP_STRUCT__entry(
+		__field(const void *, page);
+		__string(device, rdma->sc_cm_id->device->name)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->page = page;
+		__assign_str(device, rdma->sc_cm_id->device->name);
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s device=%s page=%p",
+		__get_str(addr), __get_str(device), __entry->page
+	)
+);
+
+TRACE_EVENT(svcrdma_dma_map_rwctx,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		int status
+	),
+
+	TP_ARGS(rdma, status),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+		__string(device, rdma->sc_cm_id->device->name)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__assign_str(device, rdma->sc_cm_id->device->name);
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s device=%s status=%d",
+		__get_str(addr), __get_str(device), __entry->status
+	)
+);
+
+TRACE_EVENT(svcrdma_send_failed,
+	TP_PROTO(
+		const struct svc_rqst *rqst,
+		int status
+	),
+
+	TP_ARGS(rqst, status),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+		__field(u32, xid)
+		__field(const void *, xprt)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__entry->xid = __be32_to_cpu(rqst->rq_xid);
+		__entry->xprt = rqst->rq_xprt;
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("xprt=%p addr=%s xid=0x%08x status=%d",
+		__entry->xprt, __get_str(addr),
+		__entry->xid, __entry->status
+	)
+);
+
+DECLARE_EVENT_CLASS(svcrdma_sendcomp_event,
+	TP_PROTO(
+		const struct ib_wc *wc
+	),
+
+	TP_ARGS(wc),
+
+	TP_STRUCT__entry(
+		__field(const void *, cqe)
+		__field(unsigned int, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cqe = wc->wr_cqe;
+		__entry->status = wc->status;
+		if (wc->status)
+			__entry->vendor_err = wc->vendor_err;
+		else
+			__entry->vendor_err = 0;
+	),
+
+	TP_printk("cqe=%p status=%s (%u/0x%x)",
+		__entry->cqe, rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_SENDCOMP_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_sendcomp_event, svcrdma_wc_##name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc		\
+				),					\
+				TP_ARGS(wc))
+
+TRACE_EVENT(svcrdma_post_send,
+	TP_PROTO(
+		const struct ib_send_wr *wr,
+		int status
+	),
+
+	TP_ARGS(wr, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, cqe)
+		__field(unsigned int, num_sge)
+		__field(u32, inv_rkey)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->cqe = wr->wr_cqe;
+		__entry->num_sge = wr->num_sge;
+		__entry->inv_rkey = (wr->opcode == IB_WR_SEND_WITH_INV) ?
+					wr->ex.invalidate_rkey : 0;
+		__entry->status = status;
+	),
+
+	TP_printk("cqe=%p num_sge=%u inv_rkey=0x%08x status=%d",
+		__entry->cqe, __entry->num_sge,
+		__entry->inv_rkey, __entry->status
+	)
+);
+
+DEFINE_SENDCOMP_EVENT(send);
+
+TRACE_EVENT(svcrdma_post_recv,
+	TP_PROTO(
+		const struct ib_recv_wr *wr,
+		int status
+	),
+
+	TP_ARGS(wr, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, cqe)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->cqe = wr->wr_cqe;
+		__entry->status = status;
+	),
+
+	TP_printk("cqe=%p status=%d",
+		__entry->cqe, __entry->status
+	)
+);
+
+TRACE_EVENT(svcrdma_wc_receive,
+	TP_PROTO(
+		const struct ib_wc *wc
+	),
+
+	TP_ARGS(wc),
+
+	TP_STRUCT__entry(
+		__field(const void *, cqe)
+		__field(u32, byte_len)
+		__field(unsigned int, status)
+		__field(u32, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cqe = wc->wr_cqe;
+		__entry->status = wc->status;
+		if (wc->status) {
+			__entry->byte_len = 0;
+			__entry->vendor_err = wc->vendor_err;
+		} else {
+			__entry->byte_len = wc->byte_len;
+			__entry->vendor_err = 0;
+		}
+	),
+
+	TP_printk("cqe=%p byte_len=%u status=%s (%u/0x%x)",
+		__entry->cqe, __entry->byte_len,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+TRACE_EVENT(svcrdma_post_rw,
+	TP_PROTO(
+		const void *cqe,
+		int sqecount,
+		int status
+	),
+
+	TP_ARGS(cqe, sqecount, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, cqe)
+		__field(int, sqecount)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->cqe = cqe;
+		__entry->sqecount = sqecount;
+		__entry->status = status;
+	),
+
+	TP_printk("cqe=%p sqecount=%d status=%d",
+		__entry->cqe, __entry->sqecount, __entry->status
+	)
+);
+
+DEFINE_SENDCOMP_EVENT(read);
+DEFINE_SENDCOMP_EVENT(write);
+
+TRACE_EVENT(svcrdma_cm_event,
+	TP_PROTO(
+		const struct rdma_cm_event *event,
+		const struct sockaddr *sap
+	),
+
+	TP_ARGS(event, sap),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, event)
+		__field(int, status)
+		__array(__u8, addr, INET6_ADDRSTRLEN + 10)
+	),
+
+	TP_fast_assign(
+		__entry->event = event->event;
+		__entry->status = event->status;
+		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
+			 "%pISpc", sap);
+	),
+
+	TP_printk("addr=%s event=%s (%u/%d)",
+		__entry->addr,
+		rdma_show_cm_event(__entry->event),
+		__entry->event, __entry->status
+	)
+);
+
+TRACE_EVENT(svcrdma_qp_error,
+	TP_PROTO(
+		const struct ib_event *event,
+		const struct sockaddr *sap
+	),
+
+	TP_ARGS(event, sap),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, event)
+		__string(device, event->device->name)
+		__array(__u8, addr, INET6_ADDRSTRLEN + 10)
+	),
+
+	TP_fast_assign(
+		__entry->event = event->event;
+		__assign_str(device, event->device->name);
+		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
+			 "%pISpc", sap);
+	),
+
+	TP_printk("addr=%s dev=%s event=%s (%u)",
+		__entry->addr, __get_str(device),
+		rdma_show_ib_event(__entry->event), __entry->event
+	)
+);
+
+DECLARE_EVENT_CLASS(svcrdma_sendqueue_event,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma
+	),
+
+	TP_ARGS(rdma),
+
+	TP_STRUCT__entry(
+		__field(int, avail)
+		__field(int, depth)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->avail = atomic_read(&rdma->sc_sq_avail);
+		__entry->depth = rdma->sc_sq_depth;
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s sc_sq_avail=%d/%d",
+		__get_str(addr), __entry->avail, __entry->depth
+	)
+);
+
+#define DEFINE_SQ_EVENT(name)						\
+		DEFINE_EVENT(svcrdma_sendqueue_event, svcrdma_sq_##name,\
+				TP_PROTO(				\
+					const struct svcxprt_rdma *rdma \
+				),					\
+				TP_ARGS(rdma))
+
+DEFINE_SQ_EVENT(full);
+DEFINE_SQ_EVENT(retry);
+
 #endif /* _TRACE_RPCRDMA_H */
 
 #include <trace/define_trace.h>

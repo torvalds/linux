@@ -353,7 +353,7 @@ static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 	return 0;
 
 out_maperr:
-	pr_err("svcrdma: failed to map page\n");
+	trace_svcrdma_dma_map_page(rdma, page);
 	return -EIO;
 }
 
@@ -597,7 +597,6 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	return 0;
 
 err:
-	pr_err("svcrdma: failed to post Send WR (%d)\n", ret);
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return ret;
@@ -690,8 +689,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
  err1:
 	put_page(res_page);
  err0:
-	pr_err("svcrdma: Could not send reply, err=%d. Closing transport.\n",
-	       ret);
+	trace_svcrdma_send_failed(rqstp, ret);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 	return -ENOTCONN;
 }

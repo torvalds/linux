@@ -20,6 +20,8 @@
  * verb (fmr_op_unmap).
  */
 
+#include <linux/sunrpc/svc_rdma.h>
+
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 

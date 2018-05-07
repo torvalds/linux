@@ -275,16 +275,15 @@ static void qp_event_handler(struct ib_event *event, void *context)
 {
 	struct svc_xprt *xprt = context;
 
+	trace_svcrdma_qp_error(event, (struct sockaddr *)&xprt->xpt_remote);
 	switch (event->event) {
 	/* These are considered benign events */
 	case IB_EVENT_PATH_MIG:
 	case IB_EVENT_COMM_EST:
 	case IB_EVENT_SQ_DRAINED:
 	case IB_EVENT_QP_LAST_WQE_REACHED:
-		dprintk("svcrdma: QP event %s (%d) received for QP=%p\n",
-			ib_event_msg(event->event), event->event,
-			event->element.qp);
 		break;
+
 	/* These are considered fatal events */
 	case IB_EVENT_PATH_MIG_ERR:
 	case IB_EVENT_QP_FATAL:
@@ -292,10 +291,6 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	case IB_EVENT_QP_ACCESS_ERR:
 	case IB_EVENT_DEVICE_FATAL:
 	default:
-		dprintk("svcrdma: QP ERROR event %s (%d) received for QP=%p, "
-			"closing transport\n",
-			ib_event_msg(event->event), event->event,
-			event->element.qp);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		svc_xprt_enqueue(xprt);
 		break;
@@ -313,6 +308,8 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct svcxprt_rdma *xprt = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_op_ctxt *ctxt;
+
+	trace_svcrdma_wc_receive(wc);
 
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
@@ -359,6 +356,8 @@ void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct svcxprt_rdma *xprt = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_op_ctxt *ctxt;
+
+	trace_svcrdma_wc_send(wc);
 
 	atomic_inc(&xprt->sc_sq_avail);
 	wake_up(&xprt->sc_send_wait);
@@ -455,6 +454,7 @@ svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 
 	svc_xprt_get(&xprt->sc_xprt);
 	ret = ib_post_recv(xprt->sc_qp, &recv_wr, &bad_recv_wr);
+	trace_svcrdma_post_recv(&recv_wr, ret);
 	if (ret) {
 		svc_rdma_unmap_dma(ctxt);
 		svc_rdma_put_context(ctxt, 1);
@@ -513,8 +513,6 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 		return;
 	newxprt->sc_cm_id = new_cma_id;
 	new_cma_id->context = newxprt;
-	dprintk("svcrdma: Creating newxprt=%p, cm_id=%p, listenxprt=%p\n",
-		newxprt, newxprt->sc_cm_id, listen_xprt);
 	svc_rdma_parse_connect_private(newxprt, param);
 
 	/* Save client advertised inbound read limit for use later in accept. */
@@ -545,8 +543,10 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 			       struct rdma_cm_event *event)
 {
-	struct svcxprt_rdma *xprt = cma_id->context;
+	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.src_addr;
 	int ret = 0;
+
+	trace_svcrdma_cm_event(event, sap);
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
@@ -555,23 +555,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 			rdma_event_msg(event->event), event->event);
 		handle_connect_req(cma_id, &event->param.conn);
 		break;
-
-	case RDMA_CM_EVENT_ESTABLISHED:
-		/* Accept complete */
-		dprintk("svcrdma: Connection completed on LISTEN xprt=%p, "
-			"cm_id=%p\n", xprt, cma_id);
-		break;
-
-	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		dprintk("svcrdma: Device removal xprt=%p, cm_id=%p\n",
-			xprt, cma_id);
-		if (xprt) {
-			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-			svc_xprt_enqueue(&xprt->sc_xprt);
-		}
-		break;
-
 	default:
+		/* NB: No device removal upcall for INADDR_ANY listeners */
 		dprintk("svcrdma: Unexpected event on listening endpoint %p, "
 			"event = %s (%d)\n", cma_id,
 			rdma_event_msg(event->event), event->event);
@@ -584,9 +569,12 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 			    struct rdma_cm_event *event)
 {
-	struct svc_xprt *xprt = cma_id->context;
-	struct svcxprt_rdma *rdma =
-		container_of(xprt, struct svcxprt_rdma, sc_xprt);
+	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.dst_addr;
+	struct svcxprt_rdma *rdma = cma_id->context;
+	struct svc_xprt *xprt = &rdma->sc_xprt;
+
+	trace_svcrdma_cm_event(event, sap);
+
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:
 		/* Accept complete */
@@ -599,21 +587,17 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_DISCONNECTED:
 		dprintk("svcrdma: Disconnect on DTO xprt=%p, cm_id=%p\n",
 			xprt, cma_id);
-		if (xprt) {
-			set_bit(XPT_CLOSE, &xprt->xpt_flags);
-			svc_xprt_enqueue(xprt);
-			svc_xprt_put(xprt);
-		}
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
+		svc_xprt_put(xprt);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal cma_id=%p, xprt = %p, "
 			"event = %s (%d)\n", cma_id, xprt,
 			rdma_event_msg(event->event), event->event);
-		if (xprt) {
-			set_bit(XPT_CLOSE, &xprt->xpt_flags);
-			svc_xprt_enqueue(xprt);
-			svc_xprt_put(xprt);
-		}
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
+		svc_xprt_put(xprt);
 		break;
 	default:
 		dprintk("svcrdma: Unexpected event on DTO endpoint %p, "
@@ -1022,13 +1006,13 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 	while (1) {
 		if ((atomic_sub_return(wr_count, &xprt->sc_sq_avail) < 0)) {
 			atomic_inc(&rdma_stat_sq_starve);
-
-			/* Wait until SQ WR available if SQ still full */
+			trace_svcrdma_sq_full(xprt);
 			atomic_add(wr_count, &xprt->sc_sq_avail);
 			wait_event(xprt->sc_send_wait,
 				   atomic_read(&xprt->sc_sq_avail) > wr_count);
 			if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
 				return -ENOTCONN;
+			trace_svcrdma_sq_retry(xprt);
 			continue;
 		}
 		/* Take a transport ref for each WR posted */
@@ -1037,6 +1021,7 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 
 		/* Bump used SQ WR count and post */
 		ret = ib_post_send(xprt->sc_qp, wr, &bad_wr);
+		trace_svcrdma_post_send(wr, ret);
 		if (ret) {
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 			for (i = 0; i < wr_count; i ++)

@@ -432,8 +432,6 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 
 	ret = svc_rdma_post_send_wr(xprt, ctxt, 1, 0);
 	if (ret) {
-		dprintk("svcrdma: Error %d posting send for protocol error\n",
-			ret);
 		svc_rdma_unmap_dma(ctxt);
 		svc_rdma_put_context(ctxt, 1);
 	}

@@ -208,6 +208,8 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_write_info *info =
 			container_of(cc, struct svc_rdma_write_info, wi_cc);
 
+	trace_svcrdma_wc_write(wc);
+
 	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 	wake_up(&rdma->sc_send_wait);
 
@@ -269,6 +271,8 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_read_info *info =
 			container_of(cc, struct svc_rdma_read_info, ri_cc);
 
+	trace_svcrdma_wc_read(wc);
+
 	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 	wake_up(&rdma->sc_send_wait);
 
@@ -326,18 +330,20 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 		if (atomic_sub_return(cc->cc_sqecount,
 				      &rdma->sc_sq_avail) > 0) {
 			ret = ib_post_send(rdma->sc_qp, first_wr, &bad_wr);
+			trace_svcrdma_post_rw(&cc->cc_cqe,
+					      cc->cc_sqecount, ret);
 			if (ret)
 				break;
 			return 0;
 		}
 
-		atomic_inc(&rdma_stat_sq_starve);
+		trace_svcrdma_sq_full(rdma);
 		atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 		wait_event(rdma->sc_send_wait,
 			   atomic_read(&rdma->sc_sq_avail) > cc->cc_sqecount);
+		trace_svcrdma_sq_retry(rdma);
 	} while (1);
 
-	pr_err("svcrdma: ib_post_send failed (%d)\n", ret);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 
 	/* If even one was posted, there will be a completion. */
@@ -466,7 +472,7 @@ out_noctx:
 
 out_initerr:
 	svc_rdma_put_rw_ctxt(rdma, ctxt);
-	pr_err("svcrdma: failed to map pagelist (%d)\n", ret);
+	trace_svcrdma_dma_map_rwctx(rdma, ret);
 	return -EIO;
 }
 
@@ -661,8 +667,8 @@ out_overrun:
 	return -EINVAL;
 
 out_initerr:
+	trace_svcrdma_dma_map_rwctx(cc->cc_rdma, ret);
 	svc_rdma_put_rw_ctxt(cc->cc_rdma, ctxt);
-	pr_err("svcrdma: failed to map pagelist (%d)\n", ret);
 	return -EIO;
 }
 
