@@ -367,8 +367,8 @@ do_destroy_fd_scoped_permission(struct vsoc_device_region *owner_region_p,
 
 	if (!perm)
 		return;
-	owner_ptr = (atomic_t *)shm_off_to_virtual_addr(
-		owner_region_p->region_begin_offset + perm->owner_offset);
+	owner_ptr = (atomic_t *)shm_off_to_virtual_addr
+		(owner_region_p->region_begin_offset + perm->owner_offset);
 	prev = atomic_xchg(owner_ptr, VSOC_REGION_FREE);
 	if (prev != perm->owned_value)
 		dev_err(&vsoc_dev.dev->dev,
