@@ -81,7 +81,6 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 		goto unmap_scu;
 
 	scu_enable(scu_base);
-	flush_cache_all();
 
 	/*
 	 * Write the first instruction the CPU will execute after being reset
