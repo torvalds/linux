@@ -18,6 +18,7 @@ available subsections can be seen below.
    infrastructure
    pm/index
    device-io
+   device_connection
    dma-buf
    device_link
    message-based
