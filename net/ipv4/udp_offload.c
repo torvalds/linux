@@ -193,7 +193,6 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	struct sock *sk = gso_skb->sk;
 	unsigned int sum_truesize = 0;
 	struct sk_buff *segs, *seg;
-	unsigned int hdrlen;
 	struct udphdr *uh;
 	unsigned int mss;
 	__sum16 check;
@@ -203,7 +202,6 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	if (gso_skb->len <= sizeof(*uh) + mss)
 		return ERR_PTR(-EINVAL);
 
-	hdrlen = gso_skb->data - skb_mac_header(gso_skb);
 	skb_pull(gso_skb, sizeof(*uh));
 
 	/* clear destructor to avoid skb_segment assigning it to tail */
@@ -216,30 +214,37 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		return segs;
 	}
 
-	uh = udp_hdr(segs);
+	seg = segs;
+	uh = udp_hdr(seg);
 
 	/* compute checksum adjustment based on old length versus new */
 	newlen = htons(sizeof(*uh) + mss);
 	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
 
-	for (seg = segs; seg; seg = seg->next) {
-		uh = udp_hdr(seg);
+	for (;;) {
+		seg->destructor = sock_wfree;
+		seg->sk = sk;
+		sum_truesize += seg->truesize;
 
-		/* last packet can be partial gso_size */
-		if (!seg->next) {
-			newlen = htons(seg->len - hdrlen);
-			check = csum16_add(csum16_sub(uh->check, uh->len),
-					   newlen);
-		}
+		if (!seg->next)
+			break;
 
 		uh->len = newlen;
 		uh->check = check;
 
-		seg->destructor = sock_wfree;
-		seg->sk = sk;
-		sum_truesize += seg->truesize;
+		seg = seg->next;
+		uh = udp_hdr(seg);
 	}
 
+	/* last packet can be partial gso_size, account for that in checksum */
+	newlen = htons(skb_tail_pointer(seg) - skb_transport_header(seg) +
+		       seg->data_len);
+	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
+
+	uh->len = newlen;
+	uh->check = check;
+
+	/* update refcount for the packet */
 	refcount_add(sum_truesize - gso_skb->truesize, &sk->sk_wmem_alloc);
 
 	return segs;
