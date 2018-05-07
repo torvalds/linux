@@ -2278,7 +2278,7 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 
 static bool retrieve_link_cap(struct dc_link *link)
 {
-	uint8_t dpcd_data[DP_TRAINING_AUX_RD_INTERVAL - DP_DPCD_REV + 1];
+	uint8_t dpcd_data[DP_ADAPTER_CAP - DP_DPCD_REV + 1];
 
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
