@@ -109,8 +109,8 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
-	spinlock_t	     sc_ctxt_lock;
-	struct list_head     sc_ctxts;
+	spinlock_t	     sc_send_lock;
+	struct list_head     sc_send_ctxts;
 	int		     sc_ctxt_used;
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
@@ -158,6 +158,19 @@ struct svc_rdma_recv_ctxt {
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
+enum {
+	RPCRDMA_MAX_SGES	= 1 + (RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE),
+};
+
+struct svc_rdma_send_ctxt {
+	struct list_head	sc_list;
+	struct ib_send_wr	sc_send_wr;
+	struct ib_cqe		sc_cqe;
+	int			sc_page_count;
+	struct page		*sc_pages[RPCSVC_MAXPAGES];
+	struct ib_sge		sc_sges[RPCRDMA_MAX_SGES];
+};
+
 /* svc_rdma_backchannel.c */
 extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
 				    __be32 *rdma_resp,
@@ -183,24 +196,22 @@ extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 				     struct xdr_buf *xdr);
 
 /* svc_rdma_sendto.c */
+extern void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma);
+extern struct svc_rdma_send_ctxt *
+		svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma);
+extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
+				   struct svc_rdma_send_ctxt *ctxt);
+extern int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr);
 extern int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
-				  struct svc_rdma_op_ctxt *ctxt,
+				  struct svc_rdma_send_ctxt *ctxt,
 				  __be32 *rdma_resp, unsigned int len);
 extern int svc_rdma_post_send_wr(struct svcxprt_rdma *rdma,
-				 struct svc_rdma_op_ctxt *ctxt,
+				 struct svc_rdma_send_ctxt *ctxt,
 				 u32 inv_rkey);
 extern int svc_rdma_sendto(struct svc_rqst *);
 
 /* svc_rdma_transport.c */
-extern void svc_rdma_wc_send(struct ib_cq *, struct ib_wc *);
-extern void svc_rdma_wc_reg(struct ib_cq *, struct ib_wc *);
-extern void svc_rdma_wc_read(struct ib_cq *, struct ib_wc *);
-extern void svc_rdma_wc_inv(struct ib_cq *, struct ib_wc *);
-extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
-extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
-extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
-extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
 extern void svc_rdma_prep_reply_hdr(struct svc_rqst *);

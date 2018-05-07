@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
+ * Copyright (c) 2015-2018 Oracle. All rights reserved.
  * Copyright (c) 2014 Open Grid Computing, Inc. All rights reserved.
  * Copyright (c) 2005-2007 Network Appliance, Inc. All rights reserved.
  *
@@ -157,114 +158,6 @@ static void svc_rdma_bc_free(struct svc_xprt *xprt)
 }
 #endif	/* CONFIG_SUNRPC_BACKCHANNEL */
 
-static struct svc_rdma_op_ctxt *alloc_ctxt(struct svcxprt_rdma *xprt,
-					   gfp_t flags)
-{
-	struct svc_rdma_op_ctxt *ctxt;
-
-	ctxt = kmalloc(sizeof(*ctxt), flags);
-	if (ctxt) {
-		ctxt->xprt = xprt;
-		INIT_LIST_HEAD(&ctxt->list);
-	}
-	return ctxt;
-}
-
-static bool svc_rdma_prealloc_ctxts(struct svcxprt_rdma *xprt)
-{
-	unsigned int i;
-
-	i = xprt->sc_sq_depth;
-	while (i--) {
-		struct svc_rdma_op_ctxt *ctxt;
-
-		ctxt = alloc_ctxt(xprt, GFP_KERNEL);
-		if (!ctxt) {
-			dprintk("svcrdma: No memory for RDMA ctxt\n");
-			return false;
-		}
-		list_add(&ctxt->list, &xprt->sc_ctxts);
-	}
-	return true;
-}
-
-struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
-{
-	struct svc_rdma_op_ctxt *ctxt = NULL;
-
-	spin_lock(&xprt->sc_ctxt_lock);
-	xprt->sc_ctxt_used++;
-	if (list_empty(&xprt->sc_ctxts))
-		goto out_empty;
-
-	ctxt = list_first_entry(&xprt->sc_ctxts,
-				struct svc_rdma_op_ctxt, list);
-	list_del(&ctxt->list);
-	spin_unlock(&xprt->sc_ctxt_lock);
-
-out:
-	ctxt->count = 0;
-	ctxt->mapped_sges = 0;
-	return ctxt;
-
-out_empty:
-	/* Either pre-allocation missed the mark, or send
-	 * queue accounting is broken.
-	 */
-	spin_unlock(&xprt->sc_ctxt_lock);
-
-	ctxt = alloc_ctxt(xprt, GFP_NOIO);
-	if (ctxt)
-		goto out;
-
-	spin_lock(&xprt->sc_ctxt_lock);
-	xprt->sc_ctxt_used--;
-	spin_unlock(&xprt->sc_ctxt_lock);
-	WARN_ONCE(1, "svcrdma: empty RDMA ctxt list?\n");
-	return NULL;
-}
-
-void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
-{
-	struct svcxprt_rdma *xprt = ctxt->xprt;
-	struct ib_device *device = xprt->sc_cm_id->device;
-	unsigned int i;
-
-	for (i = 0; i < ctxt->mapped_sges; i++)
-		ib_dma_unmap_page(device,
-				  ctxt->sge[i].addr,
-				  ctxt->sge[i].length,
-				  ctxt->direction);
-	ctxt->mapped_sges = 0;
-}
-
-void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
-{
-	struct svcxprt_rdma *xprt = ctxt->xprt;
-	int i;
-
-	if (free_pages)
-		for (i = 0; i < ctxt->count; i++)
-			put_page(ctxt->pages[i]);
-
-	spin_lock(&xprt->sc_ctxt_lock);
-	xprt->sc_ctxt_used--;
-	list_add(&ctxt->list, &xprt->sc_ctxts);
-	spin_unlock(&xprt->sc_ctxt_lock);
-}
-
-static void svc_rdma_destroy_ctxts(struct svcxprt_rdma *xprt)
-{
-	while (!list_empty(&xprt->sc_ctxts)) {
-		struct svc_rdma_op_ctxt *ctxt;
-
-		ctxt = list_first_entry(&xprt->sc_ctxts,
-					struct svc_rdma_op_ctxt, list);
-		list_del(&ctxt->list);
-		kfree(ctxt);
-	}
-}
-
 /* QP event handler */
 static void qp_event_handler(struct ib_event *event, void *context)
 {
@@ -292,39 +185,6 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	}
 }
 
-/**
- * svc_rdma_wc_send - Invoked by RDMA provider for each polled Send WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
-{
-	struct svcxprt_rdma *xprt = cq->cq_context;
-	struct ib_cqe *cqe = wc->wr_cqe;
-	struct svc_rdma_op_ctxt *ctxt;
-
-	trace_svcrdma_wc_send(wc);
-
-	atomic_inc(&xprt->sc_sq_avail);
-	wake_up(&xprt->sc_send_wait);
-
-	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
-	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_context(ctxt, 1);
-
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		svc_xprt_enqueue(&xprt->sc_xprt);
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			pr_err("svcrdma: Send: %s (%u/0x%x)\n",
-			       ib_wc_status_msg(wc->status),
-			       wc->status, wc->vendor_err);
-	}
-
-	svc_xprt_put(&xprt->sc_xprt);
-}
-
 static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
 						 struct net *net)
 {
@@ -338,14 +198,14 @@ static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
 	INIT_LIST_HEAD(&cma_xprt->sc_accept_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_rq_dto_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_read_complete_q);
-	INIT_LIST_HEAD(&cma_xprt->sc_ctxts);
+	INIT_LIST_HEAD(&cma_xprt->sc_send_ctxts);
 	INIT_LIST_HEAD(&cma_xprt->sc_recv_ctxts);
 	INIT_LIST_HEAD(&cma_xprt->sc_rw_ctxts);
 	init_waitqueue_head(&cma_xprt->sc_send_wait);
 
 	spin_lock_init(&cma_xprt->sc_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
-	spin_lock_init(&cma_xprt->sc_ctxt_lock);
+	spin_lock_init(&cma_xprt->sc_send_lock);
 	spin_lock_init(&cma_xprt->sc_recv_lock);
 	spin_lock_init(&cma_xprt->sc_rw_ctxt_lock);
 
@@ -640,9 +500,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	}
 	atomic_set(&newxprt->sc_sq_avail, newxprt->sc_sq_depth);
 
-	if (!svc_rdma_prealloc_ctxts(newxprt))
-		goto errout;
-
 	newxprt->sc_pd = ib_alloc_pd(dev, 0);
 	if (IS_ERR(newxprt->sc_pd)) {
 		dprintk("svcrdma: error creating PD for connect request\n");
@@ -794,11 +651,6 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	svc_rdma_flush_recv_queues(rdma);
 
-	/* Warn if we leaked a resource or under-referenced */
-	if (rdma->sc_ctxt_used != 0)
-		pr_err("svcrdma: ctxt still in use? (%d)\n",
-		       rdma->sc_ctxt_used);
-
 	/* Final put of backchannel client transport */
 	if (xprt->xpt_bc_xprt) {
 		xprt_put(xprt->xpt_bc_xprt);
@@ -806,7 +658,7 @@ static void __svc_rdma_free(struct work_struct *work)
 	}
 
 	svc_rdma_destroy_rw_ctxts(rdma);
-	svc_rdma_destroy_ctxts(rdma);
+	svc_rdma_send_ctxts_destroy(rdma);
 	svc_rdma_recv_ctxts_destroy(rdma);
 
 	/* Destroy the QP if present (not a listener) */
@@ -859,53 +711,4 @@ static void svc_rdma_secure_port(struct svc_rqst *rqstp)
 
 static void svc_rdma_kill_temp_xprt(struct svc_xprt *xprt)
 {
-}
-
-int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
-{
-	struct ib_send_wr *bad_wr, *n_wr;
-	int wr_count;
-	int i;
-	int ret;
-
-	if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
-		return -ENOTCONN;
-
-	wr_count = 1;
-	for (n_wr = wr->next; n_wr; n_wr = n_wr->next)
-		wr_count++;
-
-	/* If the SQ is full, wait until an SQ entry is available */
-	while (1) {
-		if ((atomic_sub_return(wr_count, &xprt->sc_sq_avail) < 0)) {
-			atomic_inc(&rdma_stat_sq_starve);
-			trace_svcrdma_sq_full(xprt);
-			atomic_add(wr_count, &xprt->sc_sq_avail);
-			wait_event(xprt->sc_send_wait,
-				   atomic_read(&xprt->sc_sq_avail) > wr_count);
-			if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
-				return -ENOTCONN;
-			trace_svcrdma_sq_retry(xprt);
-			continue;
-		}
-		/* Take a transport ref for each WR posted */
-		for (i = 0; i < wr_count; i++)
-			svc_xprt_get(&xprt->sc_xprt);
-
-		/* Bump used SQ WR count and post */
-		ret = ib_post_send(xprt->sc_qp, wr, &bad_wr);
-		trace_svcrdma_post_send(wr, ret);
-		if (ret) {
-			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-			for (i = 0; i < wr_count; i ++)
-				svc_xprt_put(&xprt->sc_xprt);
-			dprintk("svcrdma: failed to post SQ WR rc=%d\n", ret);
-			dprintk("    sc_sq_avail=%d, sc_sq_depth=%d\n",
-				atomic_read(&xprt->sc_sq_avail),
-				xprt->sc_sq_depth);
-			wake_up(&xprt->sc_send_wait);
-		}
-		break;
-	}
-	return ret;
 }

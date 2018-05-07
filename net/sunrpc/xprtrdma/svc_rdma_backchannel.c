@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015 Oracle.  All rights reserved.
+ * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  *
  * Support for backward direction RPCs on RPC/RDMA (server-side).
  */
@@ -117,10 +117,14 @@ out_notfound:
 static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 			      struct rpc_rqst *rqst)
 {
-	struct svc_rdma_op_ctxt *ctxt;
+	struct svc_rdma_send_ctxt *ctxt;
 	int ret;
 
-	ctxt = svc_rdma_get_context(rdma);
+	ctxt = svc_rdma_send_ctxt_get(rdma);
+	if (!ctxt) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
 
 	/* rpcrdma_bc_send_request builds the transport header and
 	 * the backchannel RPC message in the same buffer. Thus only
@@ -144,8 +148,7 @@ out_err:
 	return ret;
 
 out_unmap:
-	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_context(ctxt, 1);
+	svc_rdma_send_ctxt_put(rdma, ctxt);
 	ret = -EIO;
 	goto out_err;
 }

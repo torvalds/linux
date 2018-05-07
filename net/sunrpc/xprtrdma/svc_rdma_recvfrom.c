@@ -601,7 +601,7 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 				__be32 *rdma_argp, int status)
 {
-	struct svc_rdma_op_ctxt *ctxt;
+	struct svc_rdma_send_ctxt *ctxt;
 	__be32 *p, *err_msgp;
 	unsigned int length;
 	struct page *page;
@@ -631,7 +631,10 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 	length = (unsigned long)p - (unsigned long)err_msgp;
 
 	/* Map transport header; no RPC message payload */
-	ctxt = svc_rdma_get_context(xprt);
+	ctxt = svc_rdma_send_ctxt_get(xprt);
+	if (!ctxt)
+		return;
+
 	ret = svc_rdma_map_reply_hdr(xprt, ctxt, err_msgp, length);
 	if (ret) {
 		dprintk("svcrdma: Error %d mapping send for protocol error\n",
@@ -640,10 +643,8 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 	}
 
 	ret = svc_rdma_post_send_wr(xprt, ctxt, 0);
-	if (ret) {
-		svc_rdma_unmap_dma(ctxt);
-		svc_rdma_put_context(ctxt, 1);
-	}
+	if (ret)
+		svc_rdma_send_ctxt_put(xprt, ctxt);
 }
 
 /* By convention, backchannel calls arrive via rdma_msg type
