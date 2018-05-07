@@ -1334,7 +1334,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
 
 	if (tt)
-		event_triggers_post_call(file, tt, entry, event);
+		event_triggers_post_call(file, tt);
 }
 
 /**
@@ -1367,7 +1367,7 @@ event_trigger_unlock_commit_regs(struct trace_event_file *file,
 						irq_flags, pc, regs);
 
 	if (tt)
-		event_triggers_post_call(file, tt, entry, event);
+		event_triggers_post_call(file, tt);
 }
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
