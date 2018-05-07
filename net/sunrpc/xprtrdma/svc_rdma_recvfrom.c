@@ -602,17 +602,15 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 				__be32 *rdma_argp, int status)
 {
 	struct svc_rdma_send_ctxt *ctxt;
-	__be32 *p, *err_msgp;
 	unsigned int length;
-	struct page *page;
+	__be32 *p;
 	int ret;
 
-	page = alloc_page(GFP_KERNEL);
-	if (!page)
+	ctxt = svc_rdma_send_ctxt_get(xprt);
+	if (!ctxt)
 		return;
-	err_msgp = page_address(page);
 
-	p = err_msgp;
+	p = ctxt->sc_xprt_buf;
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = xprt->sc_fc_credits;
@@ -628,19 +626,8 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 		*p++ = err_chunk;
 		trace_svcrdma_err_chunk(*rdma_argp);
 	}
-	length = (unsigned long)p - (unsigned long)err_msgp;
-
-	/* Map transport header; no RPC message payload */
-	ctxt = svc_rdma_send_ctxt_get(xprt);
-	if (!ctxt)
-		return;
-
-	ret = svc_rdma_map_reply_hdr(xprt, ctxt, err_msgp, length);
-	if (ret) {
-		dprintk("svcrdma: Error %d mapping send for protocol error\n",
-			ret);
-		return;
-	}
+	length = (unsigned long)p - (unsigned long)ctxt->sc_xprt_buf;
+	svc_rdma_sync_reply_hdr(xprt, ctxt, length);
 
 	ctxt->sc_send_wr.opcode = IB_WR_SEND;
 	ret = svc_rdma_send(xprt, &ctxt->sc_send_wr);

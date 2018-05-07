@@ -162,6 +162,7 @@ struct svc_rdma_send_ctxt {
 	struct list_head	sc_list;
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
+	void			*sc_xprt_buf;
 	int			sc_page_count;
 	int			sc_cur_sge_no;
 	struct page		*sc_pages[RPCSVC_MAXPAGES];
@@ -199,9 +200,12 @@ extern struct svc_rdma_send_ctxt *
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr);
-extern int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
+extern void svc_rdma_sync_reply_hdr(struct svcxprt_rdma *rdma,
+				    struct svc_rdma_send_ctxt *ctxt,
+				    unsigned int len);
+extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *ctxt,
-				  __be32 *rdma_resp, unsigned int len);
+				  struct xdr_buf *xdr, __be32 *wr_lst);
 extern int svc_rdma_sendto(struct svc_rqst *);
 
 /* svc_rdma_transport.c */
