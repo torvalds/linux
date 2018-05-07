@@ -71,26 +71,6 @@ extern atomic_t rdma_stat_rq_prod;
 extern atomic_t rdma_stat_sq_poll;
 extern atomic_t rdma_stat_sq_prod;
 
-/*
- * Contexts are built when an RDMA request is created and are a
- * record of the resources that can be recovered when the request
- * completes.
- */
-struct svc_rdma_op_ctxt {
-	struct list_head list;
-	struct xdr_buf arg;
-	struct ib_cqe cqe;
-	u32 byte_len;
-	struct svcxprt_rdma *xprt;
-	enum dma_data_direction direction;
-	int count;
-	unsigned int mapped_sges;
-	int hdr_count;
-	struct ib_send_wr send_wr;
-	struct ib_sge sge[1 + RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE];
-	struct page *pages[RPCSVC_MAXPAGES];
-};
-
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
@@ -111,7 +91,6 @@ struct svcxprt_rdma {
 
 	spinlock_t	     sc_send_lock;
 	struct list_head     sc_send_ctxts;
-	int		     sc_ctxt_used;
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
 
