@@ -77,6 +77,11 @@
 		clock-div = <6>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts-extended = <&gic GIC_PPI 0 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	rtc_x1_clk: rtc_x1 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
