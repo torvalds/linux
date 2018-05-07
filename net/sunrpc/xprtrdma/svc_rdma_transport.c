@@ -588,9 +588,9 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct rdma_conn_param conn_param;
 	struct rpcrdma_connect_private pmsg;
 	struct ib_qp_init_attr qp_attr;
+	unsigned int ctxts, rq_depth;
 	struct ib_device *dev;
 	struct sockaddr *sap;
-	unsigned int ctxts;
 	int ret = 0;
 
 	listen_rdma = container_of(xprt, struct svcxprt_rdma, sc_xprt);
@@ -621,19 +621,18 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
 	newxprt->sc_max_requests = svcrdma_max_requests;
 	newxprt->sc_max_bc_requests = svcrdma_max_bc_requests;
-	newxprt->sc_rq_depth = newxprt->sc_max_requests +
-			       newxprt->sc_max_bc_requests;
-	if (newxprt->sc_rq_depth > dev->attrs.max_qp_wr) {
+	rq_depth = newxprt->sc_max_requests + newxprt->sc_max_bc_requests;
+	if (rq_depth > dev->attrs.max_qp_wr) {
 		pr_warn("svcrdma: reducing receive depth to %d\n",
 			dev->attrs.max_qp_wr);
-		newxprt->sc_rq_depth = dev->attrs.max_qp_wr;
-		newxprt->sc_max_requests = newxprt->sc_rq_depth - 2;
+		rq_depth = dev->attrs.max_qp_wr;
+		newxprt->sc_max_requests = rq_depth - 2;
 		newxprt->sc_max_bc_requests = 2;
 	}
 	newxprt->sc_fc_credits = cpu_to_be32(newxprt->sc_max_requests);
 	ctxts = rdma_rw_mr_factor(dev, newxprt->sc_port_num, RPCSVC_MAXPAGES);
 	ctxts *= newxprt->sc_max_requests;
-	newxprt->sc_sq_depth = newxprt->sc_rq_depth + ctxts;
+	newxprt->sc_sq_depth = rq_depth + ctxts;
 	if (newxprt->sc_sq_depth > dev->attrs.max_qp_wr) {
 		pr_warn("svcrdma: reducing send depth to %d\n",
 			dev->attrs.max_qp_wr);
@@ -655,7 +654,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
 	}
-	newxprt->sc_rq_cq = ib_alloc_cq(dev, newxprt, newxprt->sc_rq_depth,
+	newxprt->sc_rq_cq = ib_alloc_cq(dev, newxprt, rq_depth,
 					0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(newxprt->sc_rq_cq)) {
 		dprintk("svcrdma: error creating RQ CQ for connect request\n");
@@ -668,7 +667,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	qp_attr.port_num = newxprt->sc_port_num;
 	qp_attr.cap.max_rdma_ctxs = ctxts;
 	qp_attr.cap.max_send_wr = newxprt->sc_sq_depth - ctxts;
-	qp_attr.cap.max_recv_wr = newxprt->sc_rq_depth;
+	qp_attr.cap.max_recv_wr = rq_depth;
 	qp_attr.cap.max_send_sge = newxprt->sc_max_sge;
 	qp_attr.cap.max_recv_sge = newxprt->sc_max_sge;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
