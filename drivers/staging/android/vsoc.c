@@ -841,8 +841,8 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 	vsoc_dev.regions = (struct vsoc_device_region __force *)
 		((void *)vsoc_dev.layout +
 		 vsoc_dev.layout->vsoc_region_desc_offset);
-	vsoc_dev.msix_entries = kcalloc(
-			vsoc_dev.layout->region_count,
+	vsoc_dev.msix_entries =
+		kcalloc(vsoc_dev.layout->region_count,
 			sizeof(vsoc_dev.msix_entries[0]), GFP_KERNEL);
 	if (!vsoc_dev.msix_entries) {
 		dev_err(&vsoc_dev.dev->dev,
@@ -850,8 +850,8 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		vsoc_remove_device(pdev);
 		return -ENOSPC;
 	}
-	vsoc_dev.regions_data = kcalloc(
-			vsoc_dev.layout->region_count,
+	vsoc_dev.regions_data =
+		kcalloc(vsoc_dev.layout->region_count,
 			sizeof(vsoc_dev.regions_data[0]), GFP_KERNEL);
 	if (!vsoc_dev.regions_data) {
 		dev_err(&vsoc_dev.dev->dev,
@@ -913,8 +913,8 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		       name_sz);
 		dev_info(&pdev->dev, "region %d name=%s\n",
 			 i, vsoc_dev.regions_data[i].name);
-		init_waitqueue_head(
-				&vsoc_dev.regions_data[i].interrupt_wait_queue);
+		init_waitqueue_head
+			(&vsoc_dev.regions_data[i].interrupt_wait_queue);
 		init_waitqueue_head(&vsoc_dev.regions_data[i].futex_wait_queue);
 		vsoc_dev.regions_data[i].incoming_signalled =
 			shm_off_to_virtual_addr(region->region_begin_offset) +
@@ -922,11 +922,10 @@ static int vsoc_probe_device(struct pci_dev *pdev,
 		vsoc_dev.regions_data[i].outgoing_signalled =
 			shm_off_to_virtual_addr(region->region_begin_offset) +
 			g_to_h_signal_table->interrupt_signalled_offset;
-		result = request_irq(
-				vsoc_dev.msix_entries[i].vector,
-				vsoc_interrupt, 0,
-				vsoc_dev.regions_data[i].name,
-				vsoc_dev.regions_data + i);
+		result = request_irq(vsoc_dev.msix_entries[i].vector,
+				     vsoc_interrupt, 0,
+				     vsoc_dev.regions_data[i].name,
+				     vsoc_dev.regions_data + i);
 		if (result) {
 			dev_info(&pdev->dev,
 				 "request_irq failed irq=%d vector=%d\n",
