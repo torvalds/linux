@@ -76,7 +76,7 @@ static int gc_thread_func(void *data)
 		 * invalidated soon after by user update or deletion.
 		 * So, I'd like to wait some time to collect dirty segments.
 		 */
-		if (gc_th->gc_urgent) {
+		if (sbi->gc_mode == GC_URGENT) {
 			wait_ms = gc_th->urgent_sleep_time;
 			mutex_lock(&sbi->gc_mutex);
 			goto do_gc;
@@ -131,8 +131,6 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 	gc_th->max_sleep_time = DEF_GC_THREAD_MAX_SLEEP_TIME;
 	gc_th->no_gc_sleep_time = DEF_GC_THREAD_NOGC_SLEEP_TIME;
 
-	gc_th->gc_idle = 0;
-	gc_th->gc_urgent = 0;
 	gc_th->gc_wake= 0;
 
 	sbi->gc_thread = gc_th;
@@ -158,21 +156,19 @@ void stop_gc_thread(struct f2fs_sb_info *sbi)
 	sbi->gc_thread = NULL;
 }
 
-static int select_gc_type(struct f2fs_gc_kthread *gc_th, int gc_type)
+static int select_gc_type(struct f2fs_sb_info *sbi, int gc_type)
 {
 	int gc_mode = (gc_type == BG_GC) ? GC_CB : GC_GREEDY;
 
-	if (!gc_th)
-		return gc_mode;
-
-	if (gc_th->gc_idle) {
-		if (gc_th->gc_idle == 1)
-			gc_mode = GC_CB;
-		else if (gc_th->gc_idle == 2)
-			gc_mode = GC_GREEDY;
-	}
-	if (gc_th->gc_urgent)
+	switch (sbi->gc_mode) {
+	case GC_IDLE_CB:
+		gc_mode = GC_CB;
+		break;
+	case GC_IDLE_GREEDY:
+	case GC_URGENT:
 		gc_mode = GC_GREEDY;
+		break;
+	}
 	return gc_mode;
 }
 
@@ -187,7 +183,7 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 		p->max_search = dirty_i->nr_dirty[type];
 		p->ofs_unit = 1;
 	} else {
-		p->gc_mode = select_gc_type(sbi->gc_thread, gc_type);
+		p->gc_mode = select_gc_type(sbi, gc_type);
 		p->dirty_segmap = dirty_i->dirty_segmap[DIRTY];
 		p->max_search = dirty_i->nr_dirty[DIRTY];
 		p->ofs_unit = sbi->segs_per_sec;
@@ -195,7 +191,7 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 
 	/* we need to check every dirty segments in the FG_GC case */
 	if (gc_type != FG_GC &&
-			(sbi->gc_thread && !sbi->gc_thread->gc_urgent) &&
+			(sbi->gc_mode != GC_URGENT) &&
 			p->max_search > sbi->max_victim_search)
 		p->max_search = sbi->max_victim_search;
 
