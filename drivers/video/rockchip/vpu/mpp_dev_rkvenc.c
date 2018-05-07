@@ -21,7 +21,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/reset.h>
-#include <linux/rockchip/pmu.h>
 
 #include "vpu_iommu_ops.h"
 #include "mpp_service.h"

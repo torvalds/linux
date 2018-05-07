@@ -45,7 +45,6 @@
 #include <linux/iopoll.h>
 
 #include <linux/regulator/consumer.h>
-#include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/thermal.h>
@@ -54,6 +53,7 @@
 #include <linux/dma-buf.h>
 #include <linux/rockchip-iovmm.h>
 #include <video/rk_vpu_service.h>
+#include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "vcodec_hw_info.h"
@@ -446,7 +446,6 @@ struct vcodec_hw_ops {
 struct vcodec_hw_var {
 	s32 device_type;
 	u8 *name;
-	enum pmu_idle_req pmu_type;
 	struct vcodec_hw_ops *ops;
 	int (*init)(struct vpu_service_info *pservice);
 	void (*config)(struct vpu_subdev_data *data);
@@ -2600,7 +2599,6 @@ static struct vcodec_hw_ops hw_ops_rk3328_rkvdec = {
 static struct vcodec_hw_var rk3328_rkvdec_var = {
 	.device_type = VCODEC_DEVICE_TYPE_RKVD,
 	.name = "rkvdec",
-	.pmu_type = -1,
 	.ops = &hw_ops_rk3328_rkvdec,
 	.init = vcodec_spec_init_rk3328,
 	.config = vcodec_spec_config_rk3328,
@@ -2609,7 +2607,6 @@ static struct vcodec_hw_var rk3328_rkvdec_var = {
 static struct vcodec_hw_var rk3328_vpucombo_var = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUC,
 	.name = "vpu-combo",
-	.pmu_type = -1,
 	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
@@ -2619,7 +2616,6 @@ static struct vcodec_hw_var rk3328_vpucombo_var = {
 static struct vcodec_hw_var vpu_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUX,
 	.name = "vpu-service",
-	.pmu_type = -1,
 	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
@@ -2628,7 +2624,6 @@ static struct vcodec_hw_var vpu_device_info = {
 static struct vcodec_hw_var vpu_combo_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUC,
 	.name = "vpu-combo",
-	.pmu_type = -1,
 	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
@@ -2637,7 +2632,6 @@ static struct vcodec_hw_var vpu_combo_device_info = {
 static struct vcodec_hw_var hevc_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_HEVC,
 	.name = "hevc-service",
-	.pmu_type = -1,
 	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
@@ -2646,7 +2640,6 @@ static struct vcodec_hw_var hevc_device_info = {
 static struct vcodec_hw_var rkvd_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_RKVD,
 	.name = "rkvdec",
-	.pmu_type = -1,
 	.ops = NULL,
 	.init = NULL,
 	.config = NULL,

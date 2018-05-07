@@ -21,7 +21,6 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/rockchip/grf.h>
-#include <linux/rockchip/pmu.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 

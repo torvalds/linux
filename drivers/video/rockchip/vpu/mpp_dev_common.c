@@ -26,8 +26,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include <linux/rockchip/pmu.h>
-
 #include "vpu_iommu_ops.h"
 #include "mpp_dev_common.h"
 #include "mpp_service.h"
