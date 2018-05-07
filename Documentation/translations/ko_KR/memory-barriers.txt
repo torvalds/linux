@@ -2846,7 +2846,7 @@ CPU 의 캐시에서 RAM 으로 쓰여지는 더티 캐시 라인에 의해 덮�
 문제를 해결하기 위해선, 커널의 적절한 부분에서 각 CPU 의 캐시 안의 문제가 되는
 비트들을 무효화 시켜야 합니다.
 
-캐시 관리에 대한 더 많은 정보를 위해선 Documentation/cachetlb.txt 를
+캐시 관리에 대한 더 많은 정보를 위해선 Documentation/core-api/cachetlb.rst 를
 참고하세요.
 
 

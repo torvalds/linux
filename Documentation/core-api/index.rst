@@ -14,6 +14,7 @@ Core utilities
    kernel-api
    assoc_array
    atomic_ops
+   cachetlb
    refcount-vs-atomic
    cpu_hotplug
    idr

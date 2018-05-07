@@ -2903,7 +2903,7 @@ is discarded from the CPU's cache and reloaded.  To deal with this, the
 appropriate part of the kernel must invalidate the overlapping bits of the
 cache on each CPU.
 
-See Documentation/cachetlb.txt for more information on cache management.
+See Documentation/core-api/cachetlb.rst for more information on cache management.
 
 
 CACHE COHERENCY VS MMIO
