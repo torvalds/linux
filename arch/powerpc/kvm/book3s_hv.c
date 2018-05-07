@@ -397,13 +397,13 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 
 	pr_err("vcpu %p (%d):\n", vcpu, vcpu->vcpu_id);
 	pr_err("pc  = %.16lx  msr = %.16llx  trap = %x\n",
-	       vcpu->arch.pc, vcpu->arch.shregs.msr, vcpu->arch.trap);
+	       vcpu->arch.regs.nip, vcpu->arch.shregs.msr, vcpu->arch.trap);
 	for (r = 0; r < 16; ++r)
 		pr_err("r%2d = %.16lx  r%d = %.16lx\n",
 		       r, kvmppc_get_gpr(vcpu, r),
 		       r+16, kvmppc_get_gpr(vcpu, r+16));
 	pr_err("ctr = %.16lx  lr  = %.16lx\n",
-	       vcpu->arch.ctr, vcpu->arch.lr);
+	       vcpu->arch.regs.ctr, vcpu->arch.regs.link);
 	pr_err("srr0 = %.16llx srr1 = %.16llx\n",
 	       vcpu->arch.shregs.srr0, vcpu->arch.shregs.srr1);
 	pr_err("sprg0 = %.16llx sprg1 = %.16llx\n",
@@ -411,7 +411,7 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 	pr_err("sprg2 = %.16llx sprg3 = %.16llx\n",
 	       vcpu->arch.shregs.sprg2, vcpu->arch.shregs.sprg3);
 	pr_err("cr = %.8x  xer = %.16lx  dsisr = %.8x\n",
-	       vcpu->arch.cr, vcpu->arch.xer, vcpu->arch.shregs.dsisr);
+	       vcpu->arch.cr, vcpu->arch.regs.xer, vcpu->arch.shregs.dsisr);
 	pr_err("dar = %.16llx\n", vcpu->arch.shregs.dar);
 	pr_err("fault dar = %.16lx dsisr = %.8x\n",
 	       vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);

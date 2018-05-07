@@ -162,10 +162,10 @@ void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu)
 	svcpu->gpr[12] = vcpu->arch.regs.gpr[12];
 	svcpu->gpr[13] = vcpu->arch.regs.gpr[13];
 	svcpu->cr  = vcpu->arch.cr;
-	svcpu->xer = vcpu->arch.xer;
-	svcpu->ctr = vcpu->arch.ctr;
-	svcpu->lr  = vcpu->arch.lr;
-	svcpu->pc  = vcpu->arch.pc;
+	svcpu->xer = vcpu->arch.regs.xer;
+	svcpu->ctr = vcpu->arch.regs.ctr;
+	svcpu->lr  = vcpu->arch.regs.link;
+	svcpu->pc  = vcpu->arch.regs.nip;
 #ifdef CONFIG_PPC_BOOK3S_64
 	svcpu->shadow_fscr = vcpu->arch.shadow_fscr;
 #endif
@@ -209,10 +209,10 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs.gpr[12] = svcpu->gpr[12];
 	vcpu->arch.regs.gpr[13] = svcpu->gpr[13];
 	vcpu->arch.cr  = svcpu->cr;
-	vcpu->arch.xer = svcpu->xer;
-	vcpu->arch.ctr = svcpu->ctr;
-	vcpu->arch.lr  = svcpu->lr;
-	vcpu->arch.pc  = svcpu->pc;
+	vcpu->arch.regs.xer = svcpu->xer;
+	vcpu->arch.regs.ctr = svcpu->ctr;
+	vcpu->arch.regs.link  = svcpu->lr;
+	vcpu->arch.regs.nip  = svcpu->pc;
 	vcpu->arch.shadow_srr1 = svcpu->shadow_srr1;
 	vcpu->arch.fault_dar   = svcpu->fault_dar;
 	vcpu->arch.fault_dsisr = svcpu->fault_dsisr;

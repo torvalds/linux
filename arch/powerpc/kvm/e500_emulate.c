@@ -94,7 +94,7 @@ static int kvmppc_e500_emul_ehpriv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (get_oc(inst)) {
 	case EHPRIV_OC_DEBUG:
 		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.address = vcpu->arch.pc;
+		run->debug.arch.address = vcpu->arch.regs.nip;
 		run->debug.arch.status = 0;
 		kvmppc_account_exit(vcpu, DEBUG_EXITS);
 		emulated = EMULATE_EXIT_USER;

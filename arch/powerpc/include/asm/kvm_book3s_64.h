@@ -483,9 +483,9 @@ static inline u64 sanitize_msr(u64 msr)
 static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.cr  = vcpu->arch.cr_tm;
-	vcpu->arch.xer = vcpu->arch.xer_tm;
-	vcpu->arch.lr  = vcpu->arch.lr_tm;
-	vcpu->arch.ctr = vcpu->arch.ctr_tm;
+	vcpu->arch.regs.xer = vcpu->arch.xer_tm;
+	vcpu->arch.regs.link  = vcpu->arch.lr_tm;
+	vcpu->arch.regs.ctr = vcpu->arch.ctr_tm;
 	vcpu->arch.amr = vcpu->arch.amr_tm;
 	vcpu->arch.ppr = vcpu->arch.ppr_tm;
 	vcpu->arch.dscr = vcpu->arch.dscr_tm;
@@ -500,9 +500,9 @@ static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
 static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.cr_tm  = vcpu->arch.cr;
-	vcpu->arch.xer_tm = vcpu->arch.xer;
-	vcpu->arch.lr_tm  = vcpu->arch.lr;
-	vcpu->arch.ctr_tm = vcpu->arch.ctr;
+	vcpu->arch.xer_tm = vcpu->arch.regs.xer;
+	vcpu->arch.lr_tm  = vcpu->arch.regs.link;
+	vcpu->arch.ctr_tm = vcpu->arch.regs.ctr;
 	vcpu->arch.amr_tm = vcpu->arch.amr;
 	vcpu->arch.ppr_tm = vcpu->arch.ppr;
 	vcpu->arch.dscr_tm = vcpu->arch.dscr;
