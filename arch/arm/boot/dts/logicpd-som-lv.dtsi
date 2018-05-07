@@ -206,6 +206,8 @@
 };
 
 &omap3_pmx_wkup {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb2_reset_pin>;
 	hsusb2_reset_pin: pinmux_hsusb1_reset_pin {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0e, PIN_OUTPUT | MUX_MODE4)	/* sys_boot2.gpio_4 */
@@ -232,6 +234,8 @@
 };
 
 &omap3_pmx_core2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb2_2_pins>;
 	hsusb2_2_pins: pinmux_hsusb2_2_pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)            /* etk_d10.hsusb2_clk */
