@@ -19,6 +19,7 @@ Optional properties:
 - unprepare-delay-ms: take for the panel to display off
 - width-mm: physical panel width [mm]
 - height-mm: physical panel height [mm]
+- bpc: bits per color/component
 
 Required properties when compatible is "simple-panel" or "simple-panel-dsi":
 - display-timings: see display-timing.txt for information

@@ -714,6 +714,8 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	if (!of_property_read_u32(dev->of_node, "bus-format", &val))
 		of_desc->bus_format = val;
+	if (!of_property_read_u32(dev->of_node, "bpc", &val))
+		of_desc->bpc = val;
 	if (!of_property_read_u32(dev->of_node, "prepare-delay-ms", &val))
 		of_desc->delay.prepare = val;
 	if (!of_property_read_u32(dev->of_node, "enable-delay-ms", &val))
