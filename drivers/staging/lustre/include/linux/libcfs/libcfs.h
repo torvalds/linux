@@ -138,10 +138,6 @@ struct libcfs_ioctl_handler {
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
 
-int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
-			 const struct libcfs_ioctl_hdr __user *uparam);
-int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
-
 #define _LIBCFS_H
 
 /**
