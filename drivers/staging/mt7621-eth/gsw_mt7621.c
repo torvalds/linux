@@ -201,6 +201,7 @@ static void mt7621_hw_init(struct mtk_eth *eth, struct mt7620_gsw *gsw,
 	/* This is copied from mt7530_apply_config in libreCMC driver */
 	{
 		int i;
+
 		for (i = 0; i < MT7530_NUM_PORTS; i++)
 			mt7530_mdio_w32(gsw, REG_ESW_PORT_PCR(i), 0x00400000);
 
