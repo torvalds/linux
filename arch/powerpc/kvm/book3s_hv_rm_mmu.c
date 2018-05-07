@@ -418,7 +418,8 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
 	return kvmppc_do_h_enter(vcpu->kvm, flags, pte_index, pteh, ptel,
-				 vcpu->arch.pgdir, true, &vcpu->arch.gpr[4]);
+				 vcpu->arch.pgdir, true,
+				 &vcpu->arch.regs.gpr[4]);
 }
 
 #ifdef __BIG_ENDIAN__
@@ -561,13 +562,13 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 		     unsigned long pte_index, unsigned long avpn)
 {
 	return kvmppc_do_h_remove(vcpu->kvm, flags, pte_index, avpn,
-				  &vcpu->arch.gpr[4]);
+				  &vcpu->arch.regs.gpr[4]);
 }
 
 long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long *args = &vcpu->arch.gpr[4];
+	unsigned long *args = &vcpu->arch.regs.gpr[4];
 	__be64 *hp, *hptes[4];
 	unsigned long tlbrb[4];
 	long int i, j, k, n, found, indexes[4];
@@ -787,8 +788,8 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 			r = rev[i].guest_rpte | (r & (HPTE_R_R | HPTE_R_C));
 			r &= ~HPTE_GR_RESERVED;
 		}
-		vcpu->arch.gpr[4 + i * 2] = v;
-		vcpu->arch.gpr[5 + i * 2] = r;
+		vcpu->arch.regs.gpr[4 + i * 2] = v;
+		vcpu->arch.regs.gpr[5 + i * 2] = r;
 	}
 	return H_SUCCESS;
 }
@@ -834,7 +835,7 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 			}
 		}
 	}
-	vcpu->arch.gpr[4] = gr;
+	vcpu->arch.regs.gpr[4] = gr;
 	ret = H_SUCCESS;
  out:
 	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
@@ -881,7 +882,7 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 			kvmppc_set_dirty_from_hpte(kvm, v, gr);
 		}
 	}
-	vcpu->arch.gpr[4] = gr;
+	vcpu->arch.regs.gpr[4] = gr;
 	ret = H_SUCCESS;
  out:
 	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);

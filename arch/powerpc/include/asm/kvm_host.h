@@ -486,7 +486,7 @@ struct kvm_vcpu_arch {
 	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 #endif
 
-	ulong gpr[32];
+	struct pt_regs regs;
 
 	struct thread_fp_state fp;
 

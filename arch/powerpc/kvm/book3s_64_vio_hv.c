@@ -609,7 +609,7 @@ long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = (u64 *)page_address(page);
 
-	vcpu->arch.gpr[4] = tbl[idx % TCES_PER_PAGE];
+	vcpu->arch.regs.gpr[4] = tbl[idx % TCES_PER_PAGE];
 
 	return H_SUCCESS;
 }

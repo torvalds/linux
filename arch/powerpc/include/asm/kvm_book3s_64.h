@@ -490,8 +490,8 @@ static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
 	vcpu->arch.ppr = vcpu->arch.ppr_tm;
 	vcpu->arch.dscr = vcpu->arch.dscr_tm;
 	vcpu->arch.tar = vcpu->arch.tar_tm;
-	memcpy(vcpu->arch.gpr, vcpu->arch.gpr_tm,
-	       sizeof(vcpu->arch.gpr));
+	memcpy(vcpu->arch.regs.gpr, vcpu->arch.gpr_tm,
+	       sizeof(vcpu->arch.regs.gpr));
 	vcpu->arch.fp  = vcpu->arch.fp_tm;
 	vcpu->arch.vr  = vcpu->arch.vr_tm;
 	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
@@ -507,8 +507,8 @@ static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
 	vcpu->arch.ppr_tm = vcpu->arch.ppr;
 	vcpu->arch.dscr_tm = vcpu->arch.dscr;
 	vcpu->arch.tar_tm = vcpu->arch.tar;
-	memcpy(vcpu->arch.gpr_tm, vcpu->arch.gpr,
-	       sizeof(vcpu->arch.gpr));
+	memcpy(vcpu->arch.gpr_tm, vcpu->arch.regs.gpr,
+	       sizeof(vcpu->arch.regs.gpr));
 	vcpu->arch.fp_tm  = vcpu->arch.fp;
 	vcpu->arch.vr_tm  = vcpu->arch.vr;
 	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;

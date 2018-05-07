@@ -211,9 +211,9 @@ long kvmppc_h_random(struct kvm_vcpu *vcpu)
 
 	/* Only need to do the expensive mfmsr() on radix */
 	if (kvm_is_radix(vcpu->kvm) && (mfmsr() & MSR_IR))
-		r = powernv_get_random_long(&vcpu->arch.gpr[4]);
+		r = powernv_get_random_long(&vcpu->arch.regs.gpr[4]);
 	else
-		r = powernv_get_random_real_mode(&vcpu->arch.gpr[4]);
+		r = powernv_get_random_real_mode(&vcpu->arch.regs.gpr[4]);
 	if (r)
 		return H_SUCCESS;
 
@@ -562,7 +562,7 @@ unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	vcpu->arch.gpr[5] = get_tb();
+	vcpu->arch.regs.gpr[5] = get_tb();
 	if (xive_enabled()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);

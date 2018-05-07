@@ -517,7 +517,7 @@ unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
 	/* Return the result in GPR4 */
-	vcpu->arch.gpr[4] = xirr;
+	vcpu->arch.regs.gpr[4] = xirr;
 
 	return check_too_hard(xics, icp);
 }

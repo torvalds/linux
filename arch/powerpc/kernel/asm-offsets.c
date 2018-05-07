@@ -425,7 +425,7 @@ int main(void)
 	OFFSET(VCPU_HOST_STACK, kvm_vcpu, arch.host_stack);
 	OFFSET(VCPU_HOST_PID, kvm_vcpu, arch.host_pid);
 	OFFSET(VCPU_GUEST_PID, kvm_vcpu, arch.pid);
-	OFFSET(VCPU_GPRS, kvm_vcpu, arch.gpr);
+	OFFSET(VCPU_GPRS, kvm_vcpu, arch.regs.gpr);
 	OFFSET(VCPU_VRSAVE, kvm_vcpu, arch.vrsave);
 	OFFSET(VCPU_FPRS, kvm_vcpu, arch.fp.fpr);
 #ifdef CONFIG_ALTIVEC
