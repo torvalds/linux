@@ -578,10 +578,12 @@ static void __fence_set_priority(struct dma_fence *fence,
 	rq = to_request(fence);
 	engine = rq->engine;
 
-	rcu_read_lock();
+	local_bh_disable();
+	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule)
 		engine->schedule(rq, attr);
 	rcu_read_unlock();
+	local_bh_enable(); /* kick the tasklets if queues were reprioritised */
 }
 
 static void fence_set_priority(struct dma_fence *fence,
