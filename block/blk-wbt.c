@@ -106,6 +106,8 @@ static inline struct rq_wait *get_rq_wait(struct rq_wb *rwb,
 {
 	if (wb_acct & WBT_KSWAPD)
 		return &rwb->rq_wait[WBT_RWQ_KSWAPD];
+	else if (wb_acct & WBT_DISCARD)
+		return &rwb->rq_wait[WBT_RWQ_DISCARD];
 
 	return &rwb->rq_wait[WBT_RWQ_BG];
 }
@@ -143,10 +145,13 @@ void __wbt_done(struct rq_wb *rwb, enum wbt_flags wb_acct)
 	}
 
 	/*
-	 * If the device does write back caching, drop further down
-	 * before we wake people up.
+	 * For discards, our limit is always the background. For writes, if
+	 * the device does write back caching, drop further down before we
+	 * wake people up.
 	 */
-	if (rwb->wc && !wb_recent_wait(rwb))
+	if (wb_acct & WBT_DISCARD)
+		limit = rwb->wb_background;
+	else if (rwb->wc && !wb_recent_wait(rwb))
 		limit = 0;
 	else
 		limit = rwb->wb_normal;
@@ -483,6 +488,9 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 {
 	unsigned int limit;
 
+	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
+		return rwb->wb_background;
+
 	/*
 	 * At this point we know it's a buffered write. If this is
 	 * kswapd trying to free memory, or REQ_SYNC is set, then
@@ -564,21 +572,20 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 
 static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
 {
-	const int op = bio_op(bio);
-
-	/*
-	 * If not a WRITE, do nothing
-	 */
-	if (op != REQ_OP_WRITE)
+	switch (bio_op(bio)) {
+	case REQ_OP_WRITE:
+		/*
+		 * Don't throttle WRITE_ODIRECT
+		 */
+		if ((bio->bi_opf & (REQ_SYNC | REQ_IDLE)) ==
+		    (REQ_SYNC | REQ_IDLE))
+			return false;
+		/* fallthrough */
+	case REQ_OP_DISCARD:
+		return true;
+	default:
 		return false;
-
-	/*
-	 * Don't throttle WRITE_ODIRECT
-	 */
-	if ((bio->bi_opf & (REQ_SYNC | REQ_IDLE)) == (REQ_SYNC | REQ_IDLE))
-		return false;
-
-	return true;
+	}
 }
 
 /*
@@ -605,6 +612,8 @@ enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 
 	if (current_is_kswapd())
 		ret |= WBT_KSWAPD;
+	if (bio_op(bio) == REQ_OP_DISCARD)
+		ret |= WBT_DISCARD;
 
 	__wbt_wait(rwb, ret, bio->bi_opf, lock);
 

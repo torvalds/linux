@@ -10,11 +10,11 @@
 
 /*
  * from upper:
- * 3 bits: reserved for other usage
+ * 4 bits: reserved for other usage
  * 12 bits: size
- * 49 bits: time
+ * 48 bits: time
  */
-#define BLK_STAT_RES_BITS	3
+#define BLK_STAT_RES_BITS	4
 #define BLK_STAT_SIZE_BITS	12
 #define BLK_STAT_RES_SHIFT	(64 - BLK_STAT_RES_BITS)
 #define BLK_STAT_SIZE_SHIFT	(BLK_STAT_RES_SHIFT - BLK_STAT_SIZE_BITS)
