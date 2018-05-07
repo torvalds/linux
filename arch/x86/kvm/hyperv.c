@@ -1296,8 +1296,10 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
 	if (param & ~KVM_HYPERV_CONN_ID_MASK)
 		return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
-	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	/* the eventfd is protected by vcpu->kvm->srcu, but conn_to_evt isn't */
+	rcu_read_lock();
 	eventfd = idr_find(&vcpu->kvm->arch.hyperv.conn_to_evt, param);
+	rcu_read_unlock();
 	if (!eventfd)
 		return HV_STATUS_INVALID_PORT_ID;
 
