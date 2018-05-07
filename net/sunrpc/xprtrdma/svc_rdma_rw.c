@@ -282,7 +282,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 			pr_err("svcrdma: read ctx: %s (%u/0x%x)\n",
 			       ib_wc_status_msg(wc->status),
 			       wc->status, wc->vendor_err);
-		svc_rdma_recv_ctxt_put(rdma, info->ri_readctxt, 1);
+		svc_rdma_recv_ctxt_put(rdma, info->ri_readctxt);
 	} else {
 		spin_lock(&rdma->sc_rq_dto_lock);
 		list_add_tail(&info->ri_readctxt->rc_list,
@@ -834,7 +834,7 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	 * head->rc_arg. Pages involved with RDMA Read I/O are
 	 * transferred there.
 	 */
-	head->rc_hdr_count = head->rc_page_count;
+	head->rc_page_count = head->rc_hdr_count;
 	head->rc_arg.head[0] = rqstp->rq_arg.head[0];
 	head->rc_arg.tail[0] = rqstp->rq_arg.tail[0];
 	head->rc_arg.pages = head->rc_pages;

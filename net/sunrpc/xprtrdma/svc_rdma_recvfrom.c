@@ -175,18 +175,15 @@ static void svc_rdma_recv_ctxt_unmap(struct svcxprt_rdma *rdma,
  * svc_rdma_recv_ctxt_put - Return recv_ctxt to free list
  * @rdma: controlling svcxprt_rdma
  * @ctxt: object to return to the free list
- * @free_pages: Non-zero if rc_pages should be freed
  *
  */
 void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
-			    struct svc_rdma_recv_ctxt *ctxt,
-			    int free_pages)
+			    struct svc_rdma_recv_ctxt *ctxt)
 {
 	unsigned int i;
 
-	if (free_pages)
-		for (i = 0; i < ctxt->rc_page_count; i++)
-			put_page(ctxt->rc_pages[i]);
+	for (i = 0; i < ctxt->rc_page_count; i++)
+		put_page(ctxt->rc_pages[i]);
 	spin_lock(&rdma->sc_recv_lock);
 	list_add(&ctxt->rc_list, &rdma->sc_recv_ctxts);
 	spin_unlock(&rdma->sc_recv_lock);
@@ -243,11 +240,11 @@ static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
 
 err_put_ctxt:
 	svc_rdma_recv_ctxt_unmap(rdma, ctxt);
-	svc_rdma_recv_ctxt_put(rdma, ctxt, 1);
+	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	return -ENOMEM;
 err_post:
 	svc_rdma_recv_ctxt_unmap(rdma, ctxt);
-	svc_rdma_recv_ctxt_put(rdma, ctxt, 1);
+	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	svc_xprt_put(&rdma->sc_xprt);
 	return ret;
 }
@@ -316,7 +313,7 @@ flushed:
 		       ib_wc_status_msg(wc->status),
 		       wc->status, wc->vendor_err);
 post_err:
-	svc_rdma_recv_ctxt_put(rdma, ctxt, 1);
+	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&rdma->sc_xprt);
 out:
@@ -334,11 +331,11 @@ void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma)
 
 	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_read_complete_q))) {
 		list_del(&ctxt->rc_list);
-		svc_rdma_recv_ctxt_put(rdma, ctxt, 1);
+		svc_rdma_recv_ctxt_put(rdma, ctxt);
 	}
 	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_rq_dto_q))) {
 		list_del(&ctxt->rc_list);
-		svc_rdma_recv_ctxt_put(rdma, ctxt, 1);
+		svc_rdma_recv_ctxt_put(rdma, ctxt);
 	}
 }
 
@@ -383,16 +380,19 @@ static void svc_rdma_build_arg_xdr(struct svc_rqst *rqstp,
 		len -= min_t(u32, len, ctxt->rc_sges[sge_no].length);
 		sge_no++;
 	}
+	ctxt->rc_hdr_count = sge_no;
 	rqstp->rq_respages = &rqstp->rq_pages[sge_no];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* If not all pages were used from the SGL, free the remaining ones */
-	len = sge_no;
 	while (sge_no < ctxt->rc_recv_wr.num_sge) {
 		page = ctxt->rc_pages[sge_no++];
 		put_page(page);
 	}
-	ctxt->rc_page_count = len;
+
+	/* @ctxt's pages have all been released or moved to @rqstp->rq_pages.
+	 */
+	ctxt->rc_page_count = 0;
 
 	/* Set up tail */
 	rqstp->rq_arg.tail[0].iov_base = NULL;
@@ -602,11 +602,14 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 {
 	int page_no;
 
-	/* Copy RPC pages */
+	/* Move Read chunk pages to rqstp so that they will be released
+	 * when svc_process is done with them.
+	 */
 	for (page_no = 0; page_no < head->rc_page_count; page_no++) {
 		put_page(rqstp->rq_pages[page_no]);
 		rqstp->rq_pages[page_no] = head->rc_pages[page_no];
 	}
+	head->rc_page_count = 0;
 
 	/* Point rq_arg.pages past header */
 	rqstp->rq_arg.pages = &rqstp->rq_pages[head->rc_hdr_count];
@@ -777,7 +780,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	if (svc_rdma_is_backchannel_reply(xprt, p)) {
 		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt, p,
 					       &rqstp->rq_arg);
-		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt, 0);
+		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 		return ret;
 	}
 
@@ -786,7 +789,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		goto out_readchunk;
 
 complete:
-	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt, 0);
+	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
 	return rqstp->rq_arg.len;
@@ -799,16 +802,16 @@ out_readchunk:
 
 out_err:
 	svc_rdma_send_error(rdma_xprt, p, ret);
-	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt, 0);
+	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 
 out_postfail:
 	if (ret == -EINVAL)
 		svc_rdma_send_error(rdma_xprt, p, ret);
-	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt, 1);
+	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return ret;
 
 out_drop:
-	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt, 1);
+	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 }
