@@ -1915,15 +1915,6 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	struct amd_iommu *iommu;
 	u16 alias;
 
-	/*
-	 * First check if the device is still attached. It might already
-	 * be detached from its domain because the generic
-	 * iommu_detach_group code detached it and we try again here in
-	 * our alias handling.
-	 */
-	if (!dev_data->domain)
-		return;
-
 	iommu = amd_iommu_rlookup_table[dev_data->devid];
 	alias = dev_data->alias;
 
@@ -2128,9 +2119,6 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 	 */
 	WARN_ON(!irqs_disabled());
 
-	if (WARN_ON(!dev_data->domain))
-		return;
-
 	domain = dev_data->domain;
 
 	spin_lock(&domain->lock);
@@ -2151,6 +2139,15 @@ static void detach_device(struct device *dev)
 
 	dev_data = get_dev_data(dev);
 	domain   = dev_data->domain;
+
+	/*
+	 * First check if the device is still attached. It might already
+	 * be detached from its domain because the generic
+	 * iommu_detach_group code detached it and we try again here in
+	 * our alias handling.
+	 */
+	if (WARN_ON(!dev_data->domain))
+		return;
 
 	/* lock device table */
 	spin_lock_irqsave(&amd_iommu_devtable_lock, flags);
@@ -2797,6 +2794,7 @@ static void cleanup_domain(struct protection_domain *domain)
 	while (!list_empty(&domain->dev_list)) {
 		entry = list_first_entry(&domain->dev_list,
 					 struct iommu_dev_data, list);
+		BUG_ON(!entry->domain);
 		__detach_device(entry);
 	}
 
