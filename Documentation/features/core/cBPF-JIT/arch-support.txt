@@ -1,15 +1,15 @@
 #
-# Feature name:          BPF-JIT
-#         Kconfig:       HAVE_BPF_JIT
-#         description:   arch supports BPF JIT optimizations
+# Feature name:          cBPF-JIT
+#         Kconfig:       HAVE_CBPF_JIT
+#         description:   arch supports cBPF JIT optimizations
 #
     -----------------------
     |         arch |status|
     -----------------------
     |       alpha: | TODO |
     |         arc: | TODO |
-    |         arm: |  ok  |
-    |       arm64: |  ok  |
+    |         arm: | TODO |
+    |       arm64: | TODO |
     |         c6x: | TODO |
     |       h8300: | TODO |
     |     hexagon: | TODO |
@@ -23,11 +23,11 @@
     |      parisc: | TODO |
     |     powerpc: |  ok  |
     |       riscv: | TODO |
-    |        s390: |  ok  |
+    |        s390: | TODO |
     |          sh: | TODO |
     |       sparc: |  ok  |
     |          um: | TODO |
     |   unicore32: | TODO |
-    |         x86: |  ok  |
+    |         x86: | TODO |
     |      xtensa: | TODO |
     -----------------------
