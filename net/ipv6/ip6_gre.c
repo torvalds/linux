@@ -1314,6 +1314,7 @@ static void ip6gre_dev_free(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 
+	gro_cells_destroy(&t->gro_cells);
 	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
 }
@@ -1381,11 +1382,12 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 		return -ENOMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (ret) {
-		free_percpu(dev->tstats);
-		dev->tstats = NULL;
-		return ret;
-	}
+	if (ret)
+		goto cleanup_alloc_pcpu_stats;
+
+	ret = gro_cells_init(&tunnel->gro_cells, dev);
+	if (ret)
+		goto cleanup_dst_cache_init;
 
 	tunnel->tun_hlen = gre_calc_hlen(tunnel->parms.o_flags);
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
@@ -1405,6 +1407,13 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 	ip6gre_tnl_init_features(dev);
 
 	return 0;
+
+cleanup_dst_cache_init:
+	dst_cache_destroy(&tunnel->dst_cache);
+cleanup_alloc_pcpu_stats:
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
+	return ret;
 }
 
 static int ip6gre_tunnel_init(struct net_device *dev)
@@ -1751,11 +1760,12 @@ static int ip6erspan_tap_init(struct net_device *dev)
 		return -ENOMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (ret) {
-		free_percpu(dev->tstats);
-		dev->tstats = NULL;
-		return ret;
-	}
+	if (ret)
+		goto cleanup_alloc_pcpu_stats;
+
+	ret = gro_cells_init(&tunnel->gro_cells, dev);
+	if (ret)
+		goto cleanup_dst_cache_init;
 
 	tunnel->tun_hlen = 8;
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
@@ -1773,6 +1783,13 @@ static int ip6erspan_tap_init(struct net_device *dev)
 	ip6gre_tnl_link_config(tunnel, 1);
 
 	return 0;
+
+cleanup_dst_cache_init:
+	dst_cache_destroy(&tunnel->dst_cache);
+cleanup_alloc_pcpu_stats:
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
+	return ret;
 }
 
 static const struct net_device_ops ip6erspan_netdev_ops = {
