@@ -987,7 +987,7 @@ static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
 
 	if (crtc && priv->crtc_funcs[pipe] &&
-	    priv->crtc_funcs[pipe]->enable_vblank)
+	    priv->crtc_funcs[pipe]->disable_vblank)
 		priv->crtc_funcs[pipe]->disable_vblank(crtc);
 }
 
