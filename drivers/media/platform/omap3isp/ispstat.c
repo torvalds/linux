@@ -371,7 +371,7 @@ static int isp_stat_bufs_alloc_one(struct device *dev,
 	int ret;
 
 	buf->virt_addr = dma_alloc_coherent(dev, size, &buf->dma_addr,
-					    GFP_KERNEL | GFP_DMA);
+					    GFP_KERNEL);
 	if (!buf->virt_addr)
 		return -ENOMEM;
 
