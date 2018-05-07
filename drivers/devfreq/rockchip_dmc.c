@@ -959,6 +959,10 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 				target_volt);
 			return err;
 		}
+		dmcfreq->volt = target_volt;
+		return 0;
+	} else if (!dmcfreq->volt) {
+		dmcfreq->volt = regulator_get_voltage(dmcfreq->vdd_center);
 	}
 
 	mutex_lock(&dmcfreq->lock);
@@ -2962,7 +2966,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return -EFAULT;
 
 	data->rate = clk_get_rate(data->dmc_clk);
-	data->volt = regulator_get_voltage(data->vdd_center);
 	devp->initial_freq = data->rate;
 	opp_rate = data->rate;
 
@@ -2974,15 +2977,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	}
 	opp_volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
-
-	if (opp_volt != data->volt) {
-		ret = regulator_set_voltage(data->vdd_center, opp_volt,
-					    INT_MAX);
-		if (ret) {
-			dev_err(dev, "Cannot set voltage %lu uV\n", opp_volt);
-			return ret;
-		}
-	}
 
 	of_property_read_u32(np, "auto-freq-en", &data->auto_freq_en);
 	if (!is_events_available && data->auto_freq_en) {
@@ -2996,6 +2990,13 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 			dev_info(dev, "don't add devfreq feature\n");
 			if (data->edev)
 				devfreq_event_disable_edev(data->edev);
+			ret = regulator_set_voltage(data->vdd_center, opp_volt,
+						    INT_MAX);
+			if (ret) {
+				dev_err(dev, "Cannot set voltage %lu uV\n",
+					opp_volt);
+				return ret;
+			}
 			return 0;
 		}
 	}
