@@ -270,7 +270,6 @@ struct exynos_dsi {
 	u32 lanes;
 	u32 mode_flags;
 	u32 format;
-	struct videomode vm;
 
 	int state;
 	struct drm_property *brightness;
@@ -881,30 +880,30 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 
 static void exynos_dsi_set_display_mode(struct exynos_dsi *dsi)
 {
-	struct videomode *vm = &dsi->vm;
+	struct drm_display_mode *m = &dsi->encoder.crtc->state->adjusted_mode;
 	unsigned int num_bits_resol = dsi->driver_data->num_bits_resol;
 	u32 reg;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		reg = DSIM_CMD_ALLOW(0xf)
-			| DSIM_STABLE_VFP(vm->vfront_porch)
-			| DSIM_MAIN_VBP(vm->vback_porch);
+			| DSIM_STABLE_VFP(m->vsync_start - m->vdisplay)
+			| DSIM_MAIN_VBP(m->vtotal - m->vsync_end);
 		exynos_dsi_write(dsi, DSIM_MVPORCH_REG, reg);
 
-		reg = DSIM_MAIN_HFP(vm->hfront_porch)
-			| DSIM_MAIN_HBP(vm->hback_porch);
+		reg = DSIM_MAIN_HFP(m->hsync_start - m->hdisplay)
+			| DSIM_MAIN_HBP(m->htotal - m->hsync_end);
 		exynos_dsi_write(dsi, DSIM_MHPORCH_REG, reg);
 
-		reg = DSIM_MAIN_VSA(vm->vsync_len)
-			| DSIM_MAIN_HSA(vm->hsync_len);
+		reg = DSIM_MAIN_VSA(m->vsync_end - m->vsync_start)
+			| DSIM_MAIN_HSA(m->hsync_end - m->hsync_start);
 		exynos_dsi_write(dsi, DSIM_MSYNC_REG, reg);
 	}
-	reg =  DSIM_MAIN_HRESOL(vm->hactive, num_bits_resol) |
-		DSIM_MAIN_VRESOL(vm->vactive, num_bits_resol);
+	reg =  DSIM_MAIN_HRESOL(m->hdisplay, num_bits_resol) |
+		DSIM_MAIN_VRESOL(m->vdisplay, num_bits_resol);
 
 	exynos_dsi_write(dsi, DSIM_MDRESOL_REG, reg);
 
-	dev_dbg(dsi->dev, "LCD size = %dx%d\n", vm->hactive, vm->vactive);
+	dev_dbg(dsi->dev, "LCD size = %dx%d\n", m->hdisplay, m->vdisplay);
 }
 
 static void exynos_dsi_set_display_enable(struct exynos_dsi *dsi, bool enable)
@@ -1485,26 +1484,7 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static void exynos_dsi_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
-{
-	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
-	struct videomode *vm = &dsi->vm;
-	struct drm_display_mode *m = adjusted_mode;
-
-	vm->hactive = m->hdisplay;
-	vm->vactive = m->vdisplay;
-	vm->vfront_porch = m->vsync_start - m->vdisplay;
-	vm->vback_porch = m->vtotal - m->vsync_end;
-	vm->vsync_len = m->vsync_end - m->vsync_start;
-	vm->hfront_porch = m->hsync_start - m->hdisplay;
-	vm->hback_porch = m->htotal - m->hsync_end;
-	vm->hsync_len = m->hsync_end - m->hsync_start;
-}
-
 static const struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
-	.mode_set = exynos_dsi_mode_set,
 	.enable = exynos_dsi_enable,
 	.disable = exynos_dsi_disable,
 };
