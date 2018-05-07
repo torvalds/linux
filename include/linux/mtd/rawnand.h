@@ -747,8 +747,9 @@ enum nand_data_interface_type {
 
 /**
  * struct nand_data_interface - NAND interface timing
- * @type:	type of the timing
- * @timings:	The timing, type according to @type
+ * @type:	 type of the timing
+ * @timings:	 The timing, type according to @type
+ * @timings.sdr: Use it when @type is %NAND_SDR_IFACE.
  */
 struct nand_data_interface {
 	enum nand_data_interface_type type;
@@ -805,8 +806,9 @@ struct nand_op_addr_instr {
 /**
  * struct nand_op_data_instr - Definition of a data instruction
  * @len: number of data bytes to move
- * @in: buffer to fill when reading from the NAND chip
- * @out: buffer to read from when writing to the NAND chip
+ * @buf: buffer to fill
+ * @buf.in: buffer to fill when reading from the NAND chip
+ * @buf.out: buffer to read from when writing to the NAND chip
  * @force_8bit: force 8-bit access
  *
  * Please note that "in" and "out" are inverted from the ONFI specification
@@ -849,9 +851,13 @@ enum nand_op_instr_type {
 /**
  * struct nand_op_instr - Instruction object
  * @type: the instruction type
- * @cmd/@addr/@data/@waitrdy: extra data associated to the instruction.
- *                            You'll have to use the appropriate element
- *                            depending on @type
+ * @ctx:  extra data associated to the instruction. You'll have to use the
+ *        appropriate element depending on @type
+ * @ctx.cmd: use it if @type is %NAND_OP_CMD_INSTR
+ * @ctx.addr: use it if @type is %NAND_OP_ADDR_INSTR
+ * @ctx.data: use it if @type is %NAND_OP_DATA_IN_INSTR
+ *	      or %NAND_OP_DATA_OUT_INSTR
+ * @ctx.waitrdy: use it if @type is %NAND_OP_WAITRDY_INSTR
  * @delay_ns: delay the controller should apply after the instruction has been
  *	      issued on the bus. Most modern controllers have internal timings
  *	      control logic, and in this case, the controller driver can ignore
@@ -1004,7 +1010,9 @@ struct nand_op_parser_data_constraints {
  * struct nand_op_parser_pattern_elem - One element of a pattern
  * @type: the instructuction type
  * @optional: whether this element of the pattern is optional or mandatory
- * @addr/@data: address or data constraint (number of cycles or data length)
+ * @ctx: address or data constraint
+ * @ctx.addr: address constraint (number of cycles)
+ * @ctx.data: data constraint (data length)
  */
 struct nand_op_parser_pattern_elem {
 	enum nand_op_instr_type type;
@@ -1231,6 +1239,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *			devices.
  * @priv:		[OPTIONAL] pointer to private chip data
  * @manufacturer:	[INTERN] Contains manufacturer information
+ * @manufacturer.desc:	[INTERN] Contains manufacturer's description
+ * @manufacturer.priv:	[INTERN] Contains manufacturer private information
  */
 
 struct nand_chip {
