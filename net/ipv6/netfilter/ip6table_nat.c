@@ -35,8 +35,7 @@ static const struct xt_table nf_nat_ipv6_table = {
 
 static unsigned int ip6table_nat_do_chain(void *priv,
 					  struct sk_buff *skb,
-					  const struct nf_hook_state *state,
-					  struct nf_conn *ct)
+					  const struct nf_hook_state *state)
 {
 	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_nat);
 }

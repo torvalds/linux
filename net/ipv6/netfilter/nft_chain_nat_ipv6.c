@@ -26,8 +26,7 @@
 
 static unsigned int nft_nat_do_chain(void *priv,
 				     struct sk_buff *skb,
-				     const struct nf_hook_state *state,
-				     struct nf_conn *ct)
+				     const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 

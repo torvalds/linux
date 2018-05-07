@@ -605,6 +605,12 @@ static void nft_hash_destroy(const struct nft_set *set)
 static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 			      struct nft_set_estimate *est)
 {
+	if (!desc->size)
+		return false;
+
+	if (desc->klen == 4)
+		return false;
+
 	est->size   = sizeof(struct nft_hash) +
 		      nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
 		      desc->size * sizeof(struct nft_hash_elem);
@@ -614,91 +620,100 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_hash_type;
-static struct nft_set_ops nft_rhash_ops __read_mostly = {
-	.type		= &nft_hash_type,
-	.privsize       = nft_rhash_privsize,
-	.elemsize	= offsetof(struct nft_rhash_elem, ext),
-	.estimate	= nft_rhash_estimate,
-	.init		= nft_rhash_init,
-	.destroy	= nft_rhash_destroy,
-	.insert		= nft_rhash_insert,
-	.activate	= nft_rhash_activate,
-	.deactivate	= nft_rhash_deactivate,
-	.flush		= nft_rhash_flush,
-	.remove		= nft_rhash_remove,
-	.lookup		= nft_rhash_lookup,
-	.update		= nft_rhash_update,
-	.walk		= nft_rhash_walk,
-	.get		= nft_rhash_get,
-	.features	= NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
-};
-
-static struct nft_set_ops nft_hash_ops __read_mostly = {
-	.type		= &nft_hash_type,
-	.privsize       = nft_hash_privsize,
-	.elemsize	= offsetof(struct nft_hash_elem, ext),
-	.estimate	= nft_hash_estimate,
-	.init		= nft_hash_init,
-	.destroy	= nft_hash_destroy,
-	.insert		= nft_hash_insert,
-	.activate	= nft_hash_activate,
-	.deactivate	= nft_hash_deactivate,
-	.flush		= nft_hash_flush,
-	.remove		= nft_hash_remove,
-	.lookup		= nft_hash_lookup,
-	.walk		= nft_hash_walk,
-	.get		= nft_hash_get,
-	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
-};
-
-static struct nft_set_ops nft_hash_fast_ops __read_mostly = {
-	.type		= &nft_hash_type,
-	.privsize       = nft_hash_privsize,
-	.elemsize	= offsetof(struct nft_hash_elem, ext),
-	.estimate	= nft_hash_estimate,
-	.init		= nft_hash_init,
-	.destroy	= nft_hash_destroy,
-	.insert		= nft_hash_insert,
-	.activate	= nft_hash_activate,
-	.deactivate	= nft_hash_deactivate,
-	.flush		= nft_hash_flush,
-	.remove		= nft_hash_remove,
-	.lookup		= nft_hash_lookup_fast,
-	.walk		= nft_hash_walk,
-	.get		= nft_hash_get,
-	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
-};
-
-static const struct nft_set_ops *
-nft_hash_select_ops(const struct nft_ctx *ctx, const struct nft_set_desc *desc,
-		    u32 flags)
+static bool nft_hash_fast_estimate(const struct nft_set_desc *desc, u32 features,
+			      struct nft_set_estimate *est)
 {
-	if (desc->size && !(flags & (NFT_SET_EVAL | NFT_SET_TIMEOUT))) {
-		switch (desc->klen) {
-		case 4:
-			return &nft_hash_fast_ops;
-		default:
-			return &nft_hash_ops;
-		}
-	}
+	if (!desc->size)
+		return false;
 
-	return &nft_rhash_ops;
+	if (desc->klen != 4)
+		return false;
+
+	est->size   = sizeof(struct nft_hash) +
+		      nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
+		      desc->size * sizeof(struct nft_hash_elem);
+	est->lookup = NFT_SET_CLASS_O_1;
+	est->space  = NFT_SET_CLASS_O_N;
+
+	return true;
 }
 
-static struct nft_set_type nft_hash_type __read_mostly = {
-	.select_ops	= nft_hash_select_ops,
+static struct nft_set_type nft_rhash_type __read_mostly = {
 	.owner		= THIS_MODULE,
+	.features	= NFT_SET_MAP | NFT_SET_OBJECT |
+			  NFT_SET_TIMEOUT | NFT_SET_EVAL,
+	.ops		= {
+		.privsize       = nft_rhash_privsize,
+		.elemsize	= offsetof(struct nft_rhash_elem, ext),
+		.estimate	= nft_rhash_estimate,
+		.init		= nft_rhash_init,
+		.destroy	= nft_rhash_destroy,
+		.insert		= nft_rhash_insert,
+		.activate	= nft_rhash_activate,
+		.deactivate	= nft_rhash_deactivate,
+		.flush		= nft_rhash_flush,
+		.remove		= nft_rhash_remove,
+		.lookup		= nft_rhash_lookup,
+		.update		= nft_rhash_update,
+		.walk		= nft_rhash_walk,
+		.get		= nft_rhash_get,
+	},
+};
+
+static struct nft_set_type nft_hash_type __read_mostly = {
+	.owner		= THIS_MODULE,
+	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
+	.ops		= {
+		.privsize       = nft_hash_privsize,
+		.elemsize	= offsetof(struct nft_hash_elem, ext),
+		.estimate	= nft_hash_estimate,
+		.init		= nft_hash_init,
+		.destroy	= nft_hash_destroy,
+		.insert		= nft_hash_insert,
+		.activate	= nft_hash_activate,
+		.deactivate	= nft_hash_deactivate,
+		.flush		= nft_hash_flush,
+		.remove		= nft_hash_remove,
+		.lookup		= nft_hash_lookup,
+		.walk		= nft_hash_walk,
+		.get		= nft_hash_get,
+	},
+};
+
+static struct nft_set_type nft_hash_fast_type __read_mostly = {
+	.owner		= THIS_MODULE,
+	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
+	.ops		= {
+		.privsize       = nft_hash_privsize,
+		.elemsize	= offsetof(struct nft_hash_elem, ext),
+		.estimate	= nft_hash_fast_estimate,
+		.init		= nft_hash_init,
+		.destroy	= nft_hash_destroy,
+		.insert		= nft_hash_insert,
+		.activate	= nft_hash_activate,
+		.deactivate	= nft_hash_deactivate,
+		.flush		= nft_hash_flush,
+		.remove		= nft_hash_remove,
+		.lookup		= nft_hash_lookup_fast,
+		.walk		= nft_hash_walk,
+		.get		= nft_hash_get,
+	},
 };
 
 static int __init nft_hash_module_init(void)
 {
-	return nft_register_set(&nft_hash_type);
+	if (nft_register_set(&nft_hash_fast_type) ||
+	    nft_register_set(&nft_hash_type) ||
+	    nft_register_set(&nft_rhash_type))
+		return 1;
+	return 0;
 }
 
 static void __exit nft_hash_module_exit(void)
 {
+	nft_unregister_set(&nft_rhash_type);
 	nft_unregister_set(&nft_hash_type);
+	nft_unregister_set(&nft_hash_fast_type);
 }
 
 module_init(nft_hash_module_init);

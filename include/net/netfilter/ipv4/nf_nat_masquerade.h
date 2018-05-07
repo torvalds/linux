@@ -6,7 +6,7 @@
 
 unsigned int
 nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
-		       const struct nf_nat_range *range,
+		       const struct nf_nat_range2 *range,
 		       const struct net_device *out);
 
 void nf_nat_masquerade_ipv4_register_notifier(void);

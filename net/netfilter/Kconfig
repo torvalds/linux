@@ -444,6 +444,9 @@ config NETFILTER_SYNPROXY
 
 endif # NF_CONNTRACK
 
+config NF_OSF
+	tristate 'Passive OS fingerprint infrastructure'
+
 config NF_TABLES
 	select NETFILTER_NETLINK
 	tristate "Netfilter nf_tables support"
@@ -473,24 +476,6 @@ config NF_TABLES_NETDEV
 	bool "Netfilter nf_tables netdev tables support"
 	help
 	  This option enables support for the "netdev" table.
-
-config NFT_EXTHDR
-	tristate "Netfilter nf_tables exthdr module"
-	help
-	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers and tcp options.
-
-config NFT_META
-	tristate "Netfilter nf_tables meta module"
-	help
-	  This option adds the "meta" expression that you can use to match and
-	  to set packet metainformation such as the packet mark.
-
-config NFT_RT
-	tristate "Netfilter nf_tables routing module"
-	help
-	  This option adds the "rt" expression that you can use to match
-	  packet routing information such as the packet nexthop.
 
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
@@ -667,8 +652,7 @@ endif # NF_TABLES
 
 config NF_FLOW_TABLE_INET
 	tristate "Netfilter flow table mixed IPv4/IPv6 module"
-	depends on NF_FLOW_TABLE_IPV4
-	depends on NF_FLOW_TABLE_IPV6
+	depends on NF_FLOW_TABLE
 	help
           This option adds the flow table mixed IPv4/IPv6 support.
 
@@ -1378,6 +1362,7 @@ config NETFILTER_XT_MATCH_NFACCT
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
 	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	select NF_OSF
 	help
 	  This option selects the Passive OS Fingerprinting match module
 	  that allows to passively match the remote operating system by

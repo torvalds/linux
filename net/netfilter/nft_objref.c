@@ -38,8 +38,8 @@ static int nft_objref_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	objtype = ntohl(nla_get_be32(tb[NFTA_OBJREF_IMM_TYPE]));
-	obj = nf_tables_obj_lookup(ctx->table, tb[NFTA_OBJREF_IMM_NAME], objtype,
-				   genmask);
+	obj = nft_obj_lookup(ctx->table, tb[NFTA_OBJREF_IMM_NAME], objtype,
+			     genmask);
 	if (IS_ERR(obj))
 		return -ENOENT;
 

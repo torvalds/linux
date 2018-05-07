@@ -22,7 +22,7 @@ static u16 udp_port_rover;
 static void
 udp_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		 struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_range *range,
+		 const struct nf_nat_range2 *range,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
@@ -100,7 +100,7 @@ static bool udplite_manip_pkt(struct sk_buff *skb,
 static void
 udplite_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		     struct nf_conntrack_tuple *tuple,
-		     const struct nf_nat_range *range,
+		     const struct nf_nat_range2 *range,
 		     enum nf_nat_manip_type maniptype,
 		     const struct nf_conn *ct)
 {

@@ -157,7 +157,7 @@ EXPORT_SYMBOL(nf_nat_used_tuple);
 static int in_range(const struct nf_nat_l3proto *l3proto,
 		    const struct nf_nat_l4proto *l4proto,
 		    const struct nf_conntrack_tuple *tuple,
-		    const struct nf_nat_range *range)
+		    const struct nf_nat_range2 *range)
 {
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
@@ -194,7 +194,7 @@ find_appropriate_src(struct net *net,
 		     const struct nf_nat_l4proto *l4proto,
 		     const struct nf_conntrack_tuple *tuple,
 		     struct nf_conntrack_tuple *result,
-		     const struct nf_nat_range *range)
+		     const struct nf_nat_range2 *range)
 {
 	unsigned int h = hash_by_src(net, tuple);
 	const struct nf_conn *ct;
@@ -224,7 +224,7 @@ find_appropriate_src(struct net *net,
 static void
 find_best_ips_proto(const struct nf_conntrack_zone *zone,
 		    struct nf_conntrack_tuple *tuple,
-		    const struct nf_nat_range *range,
+		    const struct nf_nat_range2 *range,
 		    const struct nf_conn *ct,
 		    enum nf_nat_manip_type maniptype)
 {
@@ -298,7 +298,7 @@ find_best_ips_proto(const struct nf_conntrack_zone *zone,
 static void
 get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_conntrack_tuple *orig_tuple,
-		 const struct nf_nat_range *range,
+		 const struct nf_nat_range2 *range,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
@@ -349,9 +349,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
-			if (l4proto->in_range(tuple, maniptype,
-					      &range->min_proto,
-					      &range->max_proto) &&
+			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
+			    l4proto->in_range(tuple, maniptype,
+			          &range->min_proto,
+			          &range->max_proto) &&
 			    (range->min_proto.all == range->max_proto.all ||
 			     !nf_nat_used_tuple(tuple, ct)))
 				goto out;
@@ -360,7 +361,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		}
 	}
 
-	/* Last change: get protocol to try to obtain unique tuple. */
+	/* Last chance: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
 	rcu_read_unlock();
@@ -381,7 +382,7 @@ EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
 
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
-		  const struct nf_nat_range *range,
+		  const struct nf_nat_range2 *range,
 		  enum nf_nat_manip_type maniptype)
 {
 	struct net *net = nf_ct_net(ct);
@@ -459,7 +460,7 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 		(manip == NF_NAT_MANIP_SRC ?
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
-	struct nf_nat_range range = {
+	struct nf_nat_range2 range = {
 		.flags		= NF_NAT_RANGE_MAP_IPS,
 		.min_addr	= ip,
 		.max_addr	= ip,
@@ -702,7 +703,7 @@ static const struct nla_policy protonat_nla_policy[CTA_PROTONAT_MAX+1] = {
 
 static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 				     const struct nf_conn *ct,
-				     struct nf_nat_range *range)
+				     struct nf_nat_range2 *range)
 {
 	struct nlattr *tb[CTA_PROTONAT_MAX+1];
 	const struct nf_nat_l4proto *l4proto;
@@ -730,7 +731,7 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 
 static int
 nfnetlink_parse_nat(const struct nlattr *nat,
-		    const struct nf_conn *ct, struct nf_nat_range *range,
+		    const struct nf_conn *ct, struct nf_nat_range2 *range,
 		    const struct nf_nat_l3proto *l3proto)
 {
 	struct nlattr *tb[CTA_NAT_MAX+1];
@@ -758,7 +759,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
 			  const struct nlattr *attr)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 	const struct nf_nat_l3proto *l3proto;
 	int err;
 
