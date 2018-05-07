@@ -865,7 +865,7 @@ xfs_qm_reset_dqcounts(
 		 * find uninitialised dquot blks. See comment in
 		 * xfs_dquot_verify.
 		 */
-		fa = xfs_dquot_verify(mp, ddq, id + j, type);
+		fa = xfs_dqblk_verify(mp, &dqb[j], id + j, type);
 		if (fa)
 			xfs_dqblk_repair(mp, &dqb[j], id + j, type);
 

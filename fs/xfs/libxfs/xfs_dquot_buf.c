@@ -41,7 +41,12 @@ xfs_calc_dquots_per_chunk(
 
 /*
  * Do some primitive error checking on ondisk dquot data structures.
+ *
+ * The xfs_dqblk structure /contains/ the xfs_disk_dquot structure;
+ * we verify them separately because at some points we have only the
+ * smaller xfs_disk_dquot structure available.
  */
+
 xfs_failaddr_t
 xfs_dquot_verify(
 	struct xfs_mount *mp,
@@ -100,6 +105,20 @@ xfs_dquot_verify(
 	return NULL;
 }
 
+xfs_failaddr_t
+xfs_dqblk_verify(
+	struct xfs_mount	*mp,
+	struct xfs_dqblk	*dqb,
+	xfs_dqid_t	 	id,
+	uint		 	type)	/* used only during quotacheck */
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    !uuid_equal(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid))
+		return __this_address;
+
+	return xfs_dquot_verify(mp, &dqb->dd_diskdq, id, type);
+}
+
 /*
  * Do some primitive error checking on ondisk dquot data structures.
  */
@@ -156,8 +175,6 @@ xfs_dquot_buf_verify_crc(
 		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF))
 			return false;
-		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
 	}
 	return true;
 }
@@ -167,7 +184,7 @@ xfs_dquot_buf_verify(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	struct xfs_dqblk	*dqb = bp->b_addr;
 	xfs_failaddr_t		fa;
 	xfs_dqid_t		id = 0;
 	int			ndquots;
@@ -193,12 +210,12 @@ xfs_dquot_buf_verify(
 	for (i = 0; i < ndquots; i++) {
 		struct xfs_disk_dquot	*ddq;
 
-		ddq = &d[i].dd_diskdq;
+		ddq = &dqb[i].dd_diskdq;
 
 		if (i == 0)
 			id = be32_to_cpu(ddq->d_id);
 
-		fa = xfs_dquot_verify(mp, ddq, id + i, 0);
+		fa = xfs_dqblk_verify(mp, &dqb[i], id + i, 0);
 		if (fa)
 			return fa;
 	}
