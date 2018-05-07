@@ -370,7 +370,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	struct cl_object	*sub;
 	struct lov_layout_raid0 *r0;
 	struct lu_site	  *site;
-	struct lu_site_bkt_data *bkt;
+	wait_queue_head_t *wq;
 	wait_queue_entry_t	  *waiter;
 
 	r0  = &lov->u.raid0;
@@ -378,7 +378,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 
 	sub  = lovsub2cl(los);
 	site = sub->co_lu.lo_dev->ld_site;
-	bkt  = lu_site_bkt_from_fid(site, &sub->co_lu.lo_header->loh_fid);
+	wq   = lu_site_wq_from_fid(site, &sub->co_lu.lo_header->loh_fid);
 
 	cl_object_kill(env, sub);
 	/* release a reference to the sub-object and ... */
@@ -391,7 +391,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	if (r0->lo_sub[idx] == los) {
 		waiter = &lov_env_info(env)->lti_waiter;
 		init_waitqueue_entry(waiter, current);
-		add_wait_queue(&bkt->lsb_marche_funebre, waiter);
+		add_wait_queue(wq, waiter);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		while (1) {
 			/* this wait-queue is signaled at the end of
@@ -408,7 +408,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 				break;
 			}
 		}
-		remove_wait_queue(&bkt->lsb_marche_funebre, waiter);
+		remove_wait_queue(wq, waiter);
 	}
 	LASSERT(!r0->lo_sub[idx]);
 }

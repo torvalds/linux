@@ -56,6 +56,31 @@
 #include <lu_ref.h>
 #include <linux/list.h>
 
+struct lu_site_bkt_data {
+	/**
+	 * number of object in this bucket on the lsb_lru list.
+	 */
+	long			lsb_lru_len;
+	/**
+	 * LRU list, updated on each access to object. Protected by
+	 * bucket lock of lu_site::ls_obj_hash.
+	 *
+	 * "Cold" end of LRU is lu_site::ls_lru.next. Accessed object are
+	 * moved to the lu_site::ls_lru.prev (this is due to the non-existence
+	 * of list_for_each_entry_safe_reverse()).
+	 */
+	struct list_head		lsb_lru;
+	/**
+	 * Wait-queue signaled when an object in this site is ultimately
+	 * destroyed (lu_object_free()). It is used by lu_object_find() to
+	 * wait before re-trying when object in the process of destruction is
+	 * found in the hash table.
+	 *
+	 * \see htable_lookup().
+	 */
+	wait_queue_head_t	       lsb_marche_funebre;
+};
+
 enum {
 	LU_CACHE_PERCENT_MAX	 = 50,
 	LU_CACHE_PERCENT_DEFAULT = 20
@@ -87,6 +112,18 @@ MODULE_PARM_DESC(lu_cache_nr, "Maximum number of objects in lu_object cache");
 
 static void lu_object_free(const struct lu_env *env, struct lu_object *o);
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx);
+
+wait_queue_head_t *
+lu_site_wq_from_fid(struct lu_site *site, struct lu_fid *fid)
+{
+	struct cfs_hash_bd bd;
+	struct lu_site_bkt_data *bkt;
+
+	cfs_hash_bd_get(site->ls_obj_hash, fid, &bd);
+	bkt = cfs_hash_bd_extra_get(site->ls_obj_hash, &bd);
+	return &bkt->lsb_marche_funebre;
+}
+EXPORT_SYMBOL(lu_site_wq_from_fid);
 
 /**
  * Decrease reference counter on object. If last reference is freed, return
@@ -288,7 +325,7 @@ next:
  */
 static void lu_object_free(const struct lu_env *env, struct lu_object *o)
 {
-	struct lu_site_bkt_data *bkt;
+	wait_queue_head_t *wq;
 	struct lu_site	  *site;
 	struct lu_object	*scan;
 	struct list_head	      *layers;
@@ -296,7 +333,7 @@ static void lu_object_free(const struct lu_env *env, struct lu_object *o)
 
 	site   = o->lo_dev->ld_site;
 	layers = &o->lo_header->loh_layers;
-	bkt    = lu_site_bkt_from_fid(site, &o->lo_header->loh_fid);
+	wq     = lu_site_wq_from_fid(site, &o->lo_header->loh_fid);
 	/*
 	 * First call ->loo_object_delete() method to release all resources.
 	 */
@@ -324,8 +361,8 @@ static void lu_object_free(const struct lu_env *env, struct lu_object *o)
 		o->lo_ops->loo_object_free(env, o);
 	}
 
-	if (waitqueue_active(&bkt->lsb_marche_funebre))
-		wake_up_all(&bkt->lsb_marche_funebre);
+	if (waitqueue_active(wq))
+		wake_up_all(wq);
 }
 
 /**
@@ -749,7 +786,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 				    const struct lu_fid *f,
 				    const struct lu_object_conf *conf)
 {
-	struct lu_site_bkt_data *bkt;
+	wait_queue_head_t	*wq;
 	struct lu_object	*obj;
 	wait_queue_entry_t	   wait;
 
@@ -762,8 +799,8 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 		 * wait queue.
 		 */
 		schedule();
-		bkt = lu_site_bkt_from_fid(dev->ld_site, (void *)f);
-		remove_wait_queue(&bkt->lsb_marche_funebre, &wait);
+		wq = lu_site_wq_from_fid(dev->ld_site, (void *)f);
+		remove_wait_queue(wq, &wait);
 	}
 }
 EXPORT_SYMBOL(lu_object_find_at);

@@ -211,12 +211,12 @@ static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 
 	if (unlikely(atomic_read(&header->loh_ref) != 1)) {
 		struct lu_site *site = obj->co_lu.lo_dev->ld_site;
-		struct lu_site_bkt_data *bkt;
+		wait_queue_head_t *wq;
 
-		bkt = lu_site_bkt_from_fid(site, &header->loh_fid);
+		wq = lu_site_wq_from_fid(site, &header->loh_fid);
 
 		init_waitqueue_entry(&waiter, current);
-		add_wait_queue(&bkt->lsb_marche_funebre, &waiter);
+		add_wait_queue(wq, &waiter);
 
 		while (1) {
 			set_current_state(TASK_UNINTERRUPTIBLE);
@@ -226,7 +226,7 @@ static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 		}
 
 		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&bkt->lsb_marche_funebre, &waiter);
+		remove_wait_queue(wq, &waiter);
 	}
 
 	cl_object_put(env, obj);
