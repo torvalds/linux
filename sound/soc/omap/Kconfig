@@ -20,7 +20,7 @@ config SND_OMAP_SOC_MCPDM
 
 config SND_OMAP_SOC_HDMI_AUDIO
 	tristate "HDMI audio support for OMAP4+ based SoCs"
-	depends on SND_OMAP_SOC
+	depends on SND_SDMA_SOC
 	help
 	  For HDMI audio to work OMAPDSS HDMI support should be
 	  enabled.
