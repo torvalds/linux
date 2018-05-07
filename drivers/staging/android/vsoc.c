@@ -148,13 +148,13 @@ static int vsoc_release(struct inode *, struct file *);
 static ssize_t vsoc_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t vsoc_write(struct file *, const char __user *, size_t, loff_t *);
 static loff_t vsoc_lseek(struct file *filp, loff_t offset, int origin);
-static int do_create_fd_scoped_permission(
-	struct vsoc_device_region *region_p,
-	struct fd_scoped_permission_node *np,
-	struct fd_scoped_permission_arg __user *arg);
-static void do_destroy_fd_scoped_permission(
-	struct vsoc_device_region *owner_region_p,
-	struct fd_scoped_permission *perm);
+static int
+do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
+			       struct fd_scoped_permission_node *np,
+			       struct fd_scoped_permission_arg __user *arg);
+static void
+do_destroy_fd_scoped_permission(struct vsoc_device_region *owner_region_p,
+				struct fd_scoped_permission *perm);
 static long do_vsoc_describe_region(struct file *,
 				    struct vsoc_device_region __user *);
 static ssize_t vsoc_get_area(struct file *filp, __u32 *perm_off);
@@ -203,14 +203,14 @@ static inline phys_addr_t shm_off_to_phys_addr(__u32 offset)
  * Convenience functions to obtain the region from the inode or file.
  * Dangerous to call before validating the inode/file.
  */
-static inline struct vsoc_device_region *vsoc_region_from_inode(
-	struct inode *inode)
+static
+inline struct vsoc_device_region *vsoc_region_from_inode(struct inode *inode)
 {
 	return &vsoc_dev.regions[iminor(inode)];
 }
 
-static inline struct vsoc_device_region *vsoc_region_from_filep(
-	struct file *inode)
+static
+inline struct vsoc_device_region *vsoc_region_from_filep(struct file *inode)
 {
 	return vsoc_region_from_inode(file_inode(inode));
 }
@@ -250,10 +250,10 @@ static struct pci_driver vsoc_pci_driver = {
 	.remove = vsoc_remove_device,
 };
 
-static int do_create_fd_scoped_permission(
-	struct vsoc_device_region *region_p,
-	struct fd_scoped_permission_node *np,
-	struct fd_scoped_permission_arg __user *arg)
+static int
+do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
+			       struct fd_scoped_permission_node *np,
+			       struct fd_scoped_permission_arg __user *arg)
 {
 	struct file *managed_filp;
 	s32 managed_fd;
@@ -344,9 +344,9 @@ static int do_create_fd_scoped_permission(
 	return 0;
 }
 
-static void do_destroy_fd_scoped_permission_node(
-	struct vsoc_device_region *owner_region_p,
-	struct fd_scoped_permission_node *node)
+static void
+do_destroy_fd_scoped_permission_node(struct vsoc_device_region *owner_region_p,
+				     struct fd_scoped_permission_node *node)
 {
 	if (node) {
 		do_destroy_fd_scoped_permission(owner_region_p,
@@ -358,9 +358,9 @@ static void do_destroy_fd_scoped_permission_node(
 	}
 }
 
-static void do_destroy_fd_scoped_permission(
-		struct vsoc_device_region *owner_region_p,
-		struct fd_scoped_permission *perm)
+static void
+do_destroy_fd_scoped_permission(struct vsoc_device_region *owner_region_p,
+				struct fd_scoped_permission *perm)
 {
 	atomic_t *owner_ptr = NULL;
 	int prev = 0;
