@@ -51,6 +51,7 @@ enum sensors {
 	POWER_SUPPLY,
 	POWER_INPUT,
 	CURRENT,
+	ENERGY,
 	MAX_SENSOR_TYPE,
 };
 
@@ -78,6 +79,7 @@ static struct sensor_group {
 	{ "in"    },
 	{ "power" },
 	{ "curr"  },
+	{ "energy" },
 };
 
 struct sensor_data {
