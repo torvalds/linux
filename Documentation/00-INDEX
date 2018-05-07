@@ -82,8 +82,6 @@ cgroup-v1/
 	- cgroups v1 features, including cpusets and memory controller.
 cgroup-v2.txt
 	- cgroups v2 features, including cpusets and memory controller.
-clk.txt
-	- info on the common clock framework
 cma/
 	- Continuous Memory Area (CMA) debugfs interface.
 conf.py

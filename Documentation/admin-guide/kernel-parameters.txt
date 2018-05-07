@@ -518,7 +518,7 @@
 			those clocks in any way. This parameter is useful for
 			debug and development, but should not be needed on a
 			platform with proper driver support.  For more
-			information, see Documentation/clk.txt.
+			information, see Documentation/driver-api/clk.rst.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
