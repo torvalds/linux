@@ -1391,14 +1391,12 @@ static int param_set_audit(const char *val, const struct kernel_param *kp)
 	if (apparmor_initialized && !policy_admin_capable(NULL))
 		return -EPERM;
 
-	for (i = 0; i < AUDIT_MAX_INDEX; i++) {
-		if (strcmp(val, audit_mode_names[i]) == 0) {
-			aa_g_audit = i;
-			return 0;
-		}
-	}
+	i = match_string(audit_mode_names, AUDIT_MAX_INDEX, val);
+	if (i < 0)
+		return -EINVAL;
 
-	return -EINVAL;
+	aa_g_audit = i;
+	return 0;
 }
 
 static int param_get_mode(char *buffer, const struct kernel_param *kp)
@@ -1422,14 +1420,13 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
 	if (apparmor_initialized && !policy_admin_capable(NULL))
 		return -EPERM;
 
-	for (i = 0; i < APPARMOR_MODE_NAMES_MAX_INDEX; i++) {
-		if (strcmp(val, aa_profile_mode_names[i]) == 0) {
-			aa_g_profile_mode = i;
-			return 0;
-		}
-	}
+	i = match_string(aa_profile_mode_names, APPARMOR_MODE_NAMES_MAX_INDEX,
+			 val);
+	if (i < 0)
+		return -EINVAL;
 
-	return -EINVAL;
+	aa_g_profile_mode = i;
+	return 0;
 }
 
 /*
