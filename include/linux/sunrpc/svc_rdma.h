@@ -128,6 +128,9 @@ struct svcxprt_rdma {
 	unsigned long	     sc_flags;
 	struct list_head     sc_read_complete_q;
 	struct work_struct   sc_work;
+
+	spinlock_t	     sc_recv_lock;
+	struct list_head     sc_recv_ctxts;
 };
 /* sc_flags */
 #define RDMAXPRT_CONN_PENDING	3
@@ -142,6 +145,19 @@ struct svcxprt_rdma {
 
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 
+struct svc_rdma_recv_ctxt {
+	struct list_head	rc_list;
+	struct ib_recv_wr	rc_recv_wr;
+	struct ib_cqe		rc_cqe;
+	struct xdr_buf		rc_arg;
+	u32			rc_byte_len;
+	unsigned int		rc_page_count;
+	unsigned int		rc_hdr_count;
+	struct ib_sge		rc_sges[1 +
+					RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE];
+	struct page		*rc_pages[RPCSVC_MAXPAGES];
+};
+
 /* Track DMA maps for this transport and context */
 static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
 					   struct svc_rdma_op_ctxt *ctxt)
@@ -155,13 +171,19 @@ extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
 				    struct xdr_buf *rcvbuf);
 
 /* svc_rdma_recvfrom.c */
+extern void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma);
+extern bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma);
+extern void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
+				   struct svc_rdma_recv_ctxt *ctxt,
+				   int free_pages);
+extern void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma);
 extern int svc_rdma_recvfrom(struct svc_rqst *);
 
 /* svc_rdma_rw.c */
 extern void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma);
 extern int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma,
 				    struct svc_rqst *rqstp,
-				    struct svc_rdma_op_ctxt *head, __be32 *p);
+				    struct svc_rdma_recv_ctxt *head, __be32 *p);
 extern int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
 				     __be32 *wr_ch, struct xdr_buf *xdr);
 extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
