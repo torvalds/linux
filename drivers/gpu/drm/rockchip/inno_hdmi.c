@@ -764,7 +764,8 @@ static struct drm_connector_helper_funcs inno_hdmi_connector_helper_funcs = {
 	.best_encoder = inno_hdmi_connector_best_encoder,
 };
 
-int inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
+static int
+inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
 {
 	int rate, N, channel;
 
