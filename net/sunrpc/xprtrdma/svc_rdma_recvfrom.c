@@ -117,6 +117,43 @@ svc_rdma_next_recv_ctxt(struct list_head *list)
 					rc_list);
 }
 
+static struct svc_rdma_recv_ctxt *
+svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
+{
+	struct svc_rdma_recv_ctxt *ctxt;
+	dma_addr_t addr;
+	void *buffer;
+
+	ctxt = kmalloc(sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		goto fail0;
+	buffer = kmalloc(rdma->sc_max_req_size, GFP_KERNEL);
+	if (!buffer)
+		goto fail1;
+	addr = ib_dma_map_single(rdma->sc_pd->device, buffer,
+				 rdma->sc_max_req_size, DMA_FROM_DEVICE);
+	if (ib_dma_mapping_error(rdma->sc_pd->device, addr))
+		goto fail2;
+
+	ctxt->rc_recv_wr.next = NULL;
+	ctxt->rc_recv_wr.wr_cqe = &ctxt->rc_cqe;
+	ctxt->rc_recv_wr.sg_list = &ctxt->rc_recv_sge;
+	ctxt->rc_recv_wr.num_sge = 1;
+	ctxt->rc_cqe.done = svc_rdma_wc_receive;
+	ctxt->rc_recv_sge.addr = addr;
+	ctxt->rc_recv_sge.length = rdma->sc_max_req_size;
+	ctxt->rc_recv_sge.lkey = rdma->sc_pd->local_dma_lkey;
+	ctxt->rc_recv_buf = buffer;
+	return ctxt;
+
+fail2:
+	kfree(buffer);
+fail1:
+	kfree(ctxt);
+fail0:
+	return NULL;
+}
+
 /**
  * svc_rdma_recv_ctxts_destroy - Release all recv_ctxt's for an xprt
  * @rdma: svcxprt_rdma being torn down
@@ -128,6 +165,11 @@ void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma)
 
 	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_recv_ctxts))) {
 		list_del(&ctxt->rc_list);
+		ib_dma_unmap_single(rdma->sc_pd->device,
+				    ctxt->rc_recv_sge.addr,
+				    ctxt->rc_recv_sge.length,
+				    DMA_FROM_DEVICE);
+		kfree(ctxt->rc_recv_buf);
 		kfree(ctxt);
 	}
 }
@@ -145,30 +187,16 @@ svc_rdma_recv_ctxt_get(struct svcxprt_rdma *rdma)
 	spin_unlock(&rdma->sc_recv_lock);
 
 out:
-	ctxt->rc_recv_wr.num_sge = 0;
 	ctxt->rc_page_count = 0;
 	return ctxt;
 
 out_empty:
 	spin_unlock(&rdma->sc_recv_lock);
 
-	ctxt = kmalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = svc_rdma_recv_ctxt_alloc(rdma);
 	if (!ctxt)
 		return NULL;
 	goto out;
-}
-
-static void svc_rdma_recv_ctxt_unmap(struct svcxprt_rdma *rdma,
-				     struct svc_rdma_recv_ctxt *ctxt)
-{
-	struct ib_device *device = rdma->sc_cm_id->device;
-	int i;
-
-	for (i = 0; i < ctxt->rc_recv_wr.num_sge; i++)
-		ib_dma_unmap_page(device,
-				  ctxt->rc_sges[i].addr,
-				  ctxt->rc_sges[i].length,
-				  DMA_FROM_DEVICE);
 }
 
 /**
@@ -191,45 +219,13 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 
 static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
 {
-	struct ib_device *device = rdma->sc_cm_id->device;
 	struct svc_rdma_recv_ctxt *ctxt;
 	struct ib_recv_wr *bad_recv_wr;
-	int sge_no, buflen, ret;
-	struct page *page;
-	dma_addr_t pa;
+	int ret;
 
 	ctxt = svc_rdma_recv_ctxt_get(rdma);
 	if (!ctxt)
 		return -ENOMEM;
-
-	buflen = 0;
-	ctxt->rc_cqe.done = svc_rdma_wc_receive;
-	for (sge_no = 0; buflen < rdma->sc_max_req_size; sge_no++) {
-		if (sge_no >= rdma->sc_max_sge) {
-			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
-			goto err_put_ctxt;
-		}
-
-		page = alloc_page(GFP_KERNEL);
-		if (!page)
-			goto err_put_ctxt;
-		ctxt->rc_pages[sge_no] = page;
-		ctxt->rc_page_count++;
-
-		pa = ib_dma_map_page(device, ctxt->rc_pages[sge_no],
-				     0, PAGE_SIZE, DMA_FROM_DEVICE);
-		if (ib_dma_mapping_error(device, pa))
-			goto err_put_ctxt;
-		ctxt->rc_sges[sge_no].addr = pa;
-		ctxt->rc_sges[sge_no].length = PAGE_SIZE;
-		ctxt->rc_sges[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
-		ctxt->rc_recv_wr.num_sge++;
-
-		buflen += PAGE_SIZE;
-	}
-	ctxt->rc_recv_wr.next = NULL;
-	ctxt->rc_recv_wr.sg_list = &ctxt->rc_sges[0];
-	ctxt->rc_recv_wr.wr_cqe = &ctxt->rc_cqe;
 
 	svc_xprt_get(&rdma->sc_xprt);
 	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, &bad_recv_wr);
@@ -238,12 +234,7 @@ static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
 		goto err_post;
 	return 0;
 
-err_put_ctxt:
-	svc_rdma_recv_ctxt_unmap(rdma, ctxt);
-	svc_rdma_recv_ctxt_put(rdma, ctxt);
-	return -ENOMEM;
 err_post:
-	svc_rdma_recv_ctxt_unmap(rdma, ctxt);
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	svc_xprt_put(&rdma->sc_xprt);
 	return ret;
@@ -289,7 +280,6 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_recv_ctxt, rc_cqe);
-	svc_rdma_recv_ctxt_unmap(rdma, ctxt);
 
 	if (wc->status != IB_WC_SUCCESS)
 		goto flushed;
@@ -299,6 +289,10 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* All wc fields are now known to be valid */
 	ctxt->rc_byte_len = wc->byte_len;
+	ib_dma_sync_single_for_cpu(rdma->sc_pd->device,
+				   ctxt->rc_recv_sge.addr,
+				   wc->byte_len, DMA_FROM_DEVICE);
+
 	spin_lock(&rdma->sc_rq_dto_lock);
 	list_add_tail(&ctxt->rc_list, &rdma->sc_rq_dto_q);
 	spin_unlock(&rdma->sc_rq_dto_lock);
@@ -339,64 +333,22 @@ void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma)
 	}
 }
 
-/*
- * Replace the pages in the rq_argpages array with the pages from the SGE in
- * the RDMA_RECV completion. The SGL should contain full pages up until the
- * last one.
- */
 static void svc_rdma_build_arg_xdr(struct svc_rqst *rqstp,
 				   struct svc_rdma_recv_ctxt *ctxt)
 {
-	struct page *page;
-	int sge_no;
-	u32 len;
+	struct xdr_buf *arg = &rqstp->rq_arg;
 
-	/* The reply path assumes the Call's transport header resides
-	 * in rqstp->rq_pages[0].
-	 */
-	page = ctxt->rc_pages[0];
-	put_page(rqstp->rq_pages[0]);
-	rqstp->rq_pages[0] = page;
+	arg->head[0].iov_base = ctxt->rc_recv_buf;
+	arg->head[0].iov_len = ctxt->rc_byte_len;
+	arg->tail[0].iov_base = NULL;
+	arg->tail[0].iov_len = 0;
+	arg->page_len = 0;
+	arg->page_base = 0;
+	arg->buflen = ctxt->rc_byte_len;
+	arg->len = ctxt->rc_byte_len;
 
-	/* Set up the XDR head */
-	rqstp->rq_arg.head[0].iov_base = page_address(page);
-	rqstp->rq_arg.head[0].iov_len =
-		min_t(size_t, ctxt->rc_byte_len, ctxt->rc_sges[0].length);
-	rqstp->rq_arg.len = ctxt->rc_byte_len;
-	rqstp->rq_arg.buflen = ctxt->rc_byte_len;
-
-	/* Compute bytes past head in the SGL */
-	len = ctxt->rc_byte_len - rqstp->rq_arg.head[0].iov_len;
-
-	/* If data remains, store it in the pagelist */
-	rqstp->rq_arg.page_len = len;
-	rqstp->rq_arg.page_base = 0;
-
-	sge_no = 1;
-	while (len && sge_no < ctxt->rc_recv_wr.num_sge) {
-		page = ctxt->rc_pages[sge_no];
-		put_page(rqstp->rq_pages[sge_no]);
-		rqstp->rq_pages[sge_no] = page;
-		len -= min_t(u32, len, ctxt->rc_sges[sge_no].length);
-		sge_no++;
-	}
-	ctxt->rc_hdr_count = sge_no;
-	rqstp->rq_respages = &rqstp->rq_pages[sge_no];
+	rqstp->rq_respages = &rqstp->rq_pages[0];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
-	/* If not all pages were used from the SGL, free the remaining ones */
-	while (sge_no < ctxt->rc_recv_wr.num_sge) {
-		page = ctxt->rc_pages[sge_no++];
-		put_page(page);
-	}
-
-	/* @ctxt's pages have all been released or moved to @rqstp->rq_pages.
-	 */
-	ctxt->rc_page_count = 0;
-
-	/* Set up tail */
-	rqstp->rq_arg.tail[0].iov_base = NULL;
-	rqstp->rq_arg.tail[0].iov_len = 0;
 }
 
 /* This accommodates the largest possible Write chunk,

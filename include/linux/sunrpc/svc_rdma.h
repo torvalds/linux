@@ -148,12 +148,12 @@ struct svc_rdma_recv_ctxt {
 	struct list_head	rc_list;
 	struct ib_recv_wr	rc_recv_wr;
 	struct ib_cqe		rc_cqe;
+	struct ib_sge		rc_recv_sge;
+	void			*rc_recv_buf;
 	struct xdr_buf		rc_arg;
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
 	unsigned int		rc_hdr_count;
-	struct ib_sge		rc_sges[1 +
-					RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE];
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 

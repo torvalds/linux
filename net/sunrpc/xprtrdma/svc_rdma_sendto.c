@@ -629,10 +629,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	struct page *res_page;
 	int ret;
 
-	/* Find the call's chunk lists to decide how to send the reply.
-	 * Receive places the Call's xprt header at the start of page 0.
-	 */
-	rdma_argp = page_address(rqstp->rq_pages[0]);
+	rdma_argp = rctxt->rc_recv_buf;
 	svc_rdma_get_write_arrays(rdma_argp, &wr_lst, &rp_ch);
 
 	/* Create the RDMA response header. xprt->xpt_mutex,

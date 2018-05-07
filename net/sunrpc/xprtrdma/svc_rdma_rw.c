@@ -718,14 +718,13 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	int ret;
 
-	info->ri_pageno = head->rc_hdr_count;
-	info->ri_pageoff = 0;
-
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
 
 	trace_svcrdma_encode_read(info->ri_chunklen, info->ri_position);
+
+	head->rc_hdr_count = 0;
 
 	/* Split the Receive buffer between the head and tail
 	 * buffers at Read chunk's position. XDR roundup of the
@@ -775,9 +774,6 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	int ret;
 
-	info->ri_pageno = head->rc_hdr_count - 1;
-	info->ri_pageoff = offset_in_page(head->rc_byte_len);
-
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
@@ -787,20 +783,13 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	head->rc_arg.len += info->ri_chunklen;
 	head->rc_arg.buflen += info->ri_chunklen;
 
-	if (head->rc_arg.buflen <= head->rc_sges[0].length) {
-		/* Transport header and RPC message fit entirely
-		 * in page where head iovec resides.
-		 */
-		head->rc_arg.head[0].iov_len = info->ri_chunklen;
-	} else {
-		/* Transport header and part of RPC message reside
-		 * in the head iovec's page.
-		 */
-		head->rc_arg.head[0].iov_len =
-			head->rc_sges[0].length - head->rc_byte_len;
-		head->rc_arg.page_len =
-			info->ri_chunklen - head->rc_arg.head[0].iov_len;
-	}
+	head->rc_hdr_count = 1;
+	head->rc_arg.head[0].iov_base = page_address(head->rc_pages[0]);
+	head->rc_arg.head[0].iov_len = min_t(size_t, PAGE_SIZE,
+					     info->ri_chunklen);
+
+	head->rc_arg.page_len = info->ri_chunklen -
+				head->rc_arg.head[0].iov_len;
 
 out:
 	return ret;
@@ -834,7 +823,6 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	 * head->rc_arg. Pages involved with RDMA Read I/O are
 	 * transferred there.
 	 */
-	head->rc_page_count = head->rc_hdr_count;
 	head->rc_arg.head[0] = rqstp->rq_arg.head[0];
 	head->rc_arg.tail[0] = rqstp->rq_arg.tail[0];
 	head->rc_arg.pages = head->rc_pages;
@@ -847,6 +835,8 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	if (!info)
 		return -ENOMEM;
 	info->ri_readctxt = head;
+	info->ri_pageno = 0;
+	info->ri_pageoff = 0;
 
 	info->ri_position = be32_to_cpup(p + 1);
 	if (info->ri_position)
