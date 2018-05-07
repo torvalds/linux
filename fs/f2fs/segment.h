@@ -215,6 +215,8 @@ struct segment_allocation {
 #define IS_DUMMY_WRITTEN_PAGE(page)			\
 		(page_private(page) == (unsigned long)DUMMY_WRITTEN_PAGE)
 
+#define MAX_SKIP_ATOMIC_COUNT			16
+
 struct inmem_pages {
 	struct list_head list;
 	struct page *page;
