@@ -60,6 +60,7 @@ configure specific aspects of kernel behavior to your liking.
    mono
    java
    ras
+   bcache
    pm/index
    thunderbolt
    LSM/index

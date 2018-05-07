@@ -64,8 +64,6 @@ auxdisplay/
 	- misc. LCD driver documentation (cfag12864b, ks0108).
 backlight/
 	- directory with info on controlling backlights in flat panel displays
-bcache.txt
-	- Block-layer cache on fast SSDs to improve slow (raid) I/O performance.
 block/
 	- info on the Block I/O (BIO) layer.
 blockdev/
