@@ -17,15 +17,6 @@
 #include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
-static struct sk_buff *__udp6_gso_segment(struct sk_buff *gso_skb,
-					  netdev_features_t features)
-{
-	if (!can_checksum_protocol(features, htons(ETH_P_IPV6)))
-		return ERR_PTR(-EIO);
-
-	return __udp_gso_segment(gso_skb, features);
-}
-
 static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
 {
@@ -58,7 +49,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 			goto out;
 
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
-			return __udp6_gso_segment(skb, features);
+			return __udp_gso_segment(skb, features);
 
 		/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
 		 * do checksum of UDP packets sent as multiple IP fragments.

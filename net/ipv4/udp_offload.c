@@ -214,6 +214,13 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		return segs;
 	}
 
+	/* GSO partial and frag_list segmentation only requires splitting
+	 * the frame into an MSS multiple and possibly a remainder, both
+	 * cases return a GSO skb. So update the mss now.
+	 */
+	if (skb_is_gso(segs))
+		mss *= skb_shinfo(segs)->gso_segs;
+
 	seg = segs;
 	uh = udp_hdr(seg);
 
@@ -232,6 +239,12 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		uh->len = newlen;
 		uh->check = check;
 
+		if (seg->ip_summed == CHECKSUM_PARTIAL)
+			gso_reset_checksum(seg, ~check);
+		else
+			uh->check = gso_make_checksum(seg, ~check) ? :
+				    CSUM_MANGLED_0;
+
 		seg = seg->next;
 		uh = udp_hdr(seg);
 	}
@@ -244,21 +257,17 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	uh->len = newlen;
 	uh->check = check;
 
+	if (seg->ip_summed == CHECKSUM_PARTIAL)
+		gso_reset_checksum(seg, ~check);
+	else
+		uh->check = gso_make_checksum(seg, ~check) ? : CSUM_MANGLED_0;
+
 	/* update refcount for the packet */
 	refcount_add(sum_truesize - gso_skb->truesize, &sk->sk_wmem_alloc);
 
 	return segs;
 }
 EXPORT_SYMBOL_GPL(__udp_gso_segment);
-
-static struct sk_buff *__udp4_gso_segment(struct sk_buff *gso_skb,
-					  netdev_features_t features)
-{
-	if (!can_checksum_protocol(features, htons(ETH_P_IP)))
-		return ERR_PTR(-EIO);
-
-	return __udp_gso_segment(gso_skb, features);
-}
 
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
@@ -283,7 +292,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		goto out;
 
 	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
-		return __udp4_gso_segment(skb, features);
+		return __udp_gso_segment(skb, features);
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
