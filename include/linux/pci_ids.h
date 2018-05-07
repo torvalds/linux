@@ -2387,6 +2387,8 @@
 
 #define PCI_VENDOR_ID_LENOVO		0x17aa
 
+#define PCI_VENDOR_ID_QCOM		0x17cb
+
 #define PCI_VENDOR_ID_CDNS		0x17cd
 
 #define PCI_VENDOR_ID_ARECA		0x17d3
