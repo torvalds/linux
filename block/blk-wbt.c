@@ -101,9 +101,13 @@ static bool wb_recent_wait(struct rq_wb *rwb)
 	return time_before(jiffies, wb->dirty_sleep + HZ);
 }
 
-static inline struct rq_wait *get_rq_wait(struct rq_wb *rwb, bool is_kswapd)
+static inline struct rq_wait *get_rq_wait(struct rq_wb *rwb,
+					  enum wbt_flags wb_acct)
 {
-	return &rwb->rq_wait[is_kswapd];
+	if (wb_acct & WBT_KSWAPD)
+		return &rwb->rq_wait[WBT_RWQ_KSWAPD];
+
+	return &rwb->rq_wait[WBT_RWQ_BG];
 }
 
 static void rwb_wake_all(struct rq_wb *rwb)
@@ -126,7 +130,7 @@ void __wbt_done(struct rq_wb *rwb, enum wbt_flags wb_acct)
 	if (!(wb_acct & WBT_TRACKED))
 		return;
 
-	rqw = get_rq_wait(rwb, wb_acct & WBT_KSWAPD);
+	rqw = get_rq_wait(rwb, wb_acct);
 	inflight = atomic_dec_return(&rqw->inflight);
 
 	/*
@@ -529,11 +533,12 @@ static inline bool may_queue(struct rq_wb *rwb, struct rq_wait *rqw,
  * Block if we will exceed our limit, or if we are currently waiting for
  * the timer to kick off queuing again.
  */
-static void __wbt_wait(struct rq_wb *rwb, unsigned long rw, spinlock_t *lock)
+static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
+		       unsigned long rw, spinlock_t *lock)
 	__releases(lock)
 	__acquires(lock)
 {
-	struct rq_wait *rqw = get_rq_wait(rwb, current_is_kswapd());
+	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	DEFINE_WAIT(wait);
 
 	if (may_queue(rwb, rqw, &wait, rw))
@@ -584,7 +589,7 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
  */
 enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 {
-	unsigned int ret = 0;
+	enum wbt_flags ret = 0;
 
 	if (!rwb_enabled(rwb))
 		return 0;
@@ -598,13 +603,13 @@ enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 		return ret;
 	}
 
-	__wbt_wait(rwb, bio->bi_opf, lock);
+	if (current_is_kswapd())
+		ret |= WBT_KSWAPD;
+
+	__wbt_wait(rwb, ret, bio->bi_opf, lock);
 
 	if (!blk_stat_is_active(rwb->cb))
 		rwb_arm_timer(rwb);
-
-	if (current_is_kswapd())
-		ret |= WBT_KSWAPD;
 
 	return ret | WBT_TRACKED;
 }

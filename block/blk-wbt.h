@@ -19,7 +19,9 @@ enum wbt_flags {
 };
 
 enum {
-	WBT_NUM_RWQ		= 2,
+	WBT_RWQ_BG		= 0,
+	WBT_RWQ_KSWAPD,
+	WBT_NUM_RWQ,
 };
 
 /*
