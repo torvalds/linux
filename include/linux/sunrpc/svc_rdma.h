@@ -96,7 +96,7 @@ struct svcxprt_rdma {
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
-	int                  sc_max_sge;
+	int                  sc_max_send_sges;
 	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
 	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
@@ -158,17 +158,14 @@ struct svc_rdma_recv_ctxt {
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
-enum {
-	RPCRDMA_MAX_SGES	= 1 + (RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE),
-};
-
 struct svc_rdma_send_ctxt {
 	struct list_head	sc_list;
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
 	int			sc_page_count;
+	int			sc_cur_sge_no;
 	struct page		*sc_pages[RPCSVC_MAXPAGES];
-	struct ib_sge		sc_sges[RPCRDMA_MAX_SGES];
+	struct ib_sge		sc_sges[];
 };
 
 /* svc_rdma_backchannel.c */

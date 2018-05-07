@@ -127,9 +127,12 @@ static struct svc_rdma_send_ctxt *
 svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_send_ctxt *ctxt;
+	size_t size;
 	int i;
 
-	ctxt = kmalloc(sizeof(*ctxt), GFP_KERNEL);
+	size = sizeof(*ctxt);
+	size += rdma->sc_max_send_sges * sizeof(struct ib_sge);
+	ctxt = kmalloc(size, GFP_KERNEL);
 	if (!ctxt)
 		return NULL;
 
@@ -138,7 +141,7 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 	ctxt->sc_send_wr.wr_cqe = &ctxt->sc_cqe;
 	ctxt->sc_send_wr.sg_list = ctxt->sc_sges;
 	ctxt->sc_send_wr.send_flags = IB_SEND_SIGNALED;
-	for (i = 0; i < ARRAY_SIZE(ctxt->sc_sges); i++)
+	for (i = 0; i < rdma->sc_max_send_sges; i++)
 		ctxt->sc_sges[i].lkey = rdma->sc_pd->local_dma_lkey;
 	return ctxt;
 }
@@ -482,7 +485,6 @@ static u32 svc_rdma_get_inv_rkey(__be32 *rdma_argp,
 
 static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 				 struct svc_rdma_send_ctxt *ctxt,
-				 unsigned int sge_no,
 				 struct page *page,
 				 unsigned long offset,
 				 unsigned int len)
@@ -494,8 +496,8 @@ static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 	if (ib_dma_mapping_error(dev, dma_addr))
 		goto out_maperr;
 
-	ctxt->sc_sges[sge_no].addr = dma_addr;
-	ctxt->sc_sges[sge_no].length = len;
+	ctxt->sc_sges[ctxt->sc_cur_sge_no].addr = dma_addr;
+	ctxt->sc_sges[ctxt->sc_cur_sge_no].length = len;
 	ctxt->sc_send_wr.num_sge++;
 	return 0;
 
@@ -509,11 +511,10 @@ out_maperr:
  */
 static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
 				struct svc_rdma_send_ctxt *ctxt,
-				unsigned int sge_no,
 				unsigned char *base,
 				unsigned int len)
 {
-	return svc_rdma_dma_map_page(rdma, ctxt, sge_no, virt_to_page(base),
+	return svc_rdma_dma_map_page(rdma, ctxt, virt_to_page(base),
 				     offset_in_page(base), len);
 }
 
@@ -535,7 +536,8 @@ int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
 {
 	ctxt->sc_pages[0] = virt_to_page(rdma_resp);
 	ctxt->sc_page_count++;
-	return svc_rdma_dma_map_page(rdma, ctxt, 0, ctxt->sc_pages[0], 0, len);
+	ctxt->sc_cur_sge_no = 0;
+	return svc_rdma_dma_map_page(rdma, ctxt, ctxt->sc_pages[0], 0, len);
 }
 
 /* Load the xdr_buf into the ctxt's sge array, and DMA map each
@@ -547,16 +549,16 @@ static int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *ctxt,
 				  struct xdr_buf *xdr, __be32 *wr_lst)
 {
-	unsigned int len, sge_no, remaining;
+	unsigned int len, remaining;
 	unsigned long page_off;
 	struct page **ppages;
 	unsigned char *base;
 	u32 xdr_pad;
 	int ret;
 
-	sge_no = 1;
-
-	ret = svc_rdma_dma_map_buf(rdma, ctxt, sge_no++,
+	if (++ctxt->sc_cur_sge_no >= rdma->sc_max_send_sges)
+		return -EIO;
+	ret = svc_rdma_dma_map_buf(rdma, ctxt,
 				   xdr->head[0].iov_base,
 				   xdr->head[0].iov_len);
 	if (ret < 0)
@@ -586,8 +588,10 @@ static int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	while (remaining) {
 		len = min_t(u32, PAGE_SIZE - page_off, remaining);
 
-		ret = svc_rdma_dma_map_page(rdma, ctxt, sge_no++,
-					    *ppages++, page_off, len);
+		if (++ctxt->sc_cur_sge_no >= rdma->sc_max_send_sges)
+			return -EIO;
+		ret = svc_rdma_dma_map_page(rdma, ctxt, *ppages++,
+					    page_off, len);
 		if (ret < 0)
 			return ret;
 
@@ -599,7 +603,9 @@ static int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	len = xdr->tail[0].iov_len;
 tail:
 	if (len) {
-		ret = svc_rdma_dma_map_buf(rdma, ctxt, sge_no++, base, len);
+		if (++ctxt->sc_cur_sge_no >= rdma->sc_max_send_sges)
+			return -EIO;
+		ret = svc_rdma_dma_map_buf(rdma, ctxt, base, len);
 		if (ret < 0)
 			return ret;
 	}

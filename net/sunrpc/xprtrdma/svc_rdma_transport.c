@@ -476,8 +476,13 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Qualify the transport resource defaults with the
 	 * capabilities of this particular device */
-	newxprt->sc_max_sge = min((size_t)dev->attrs.max_sge,
-				  (size_t)RPCSVC_MAXPAGES);
+	newxprt->sc_max_send_sges = dev->attrs.max_sge;
+	/* transport hdr, head iovec, one page list entry, tail iovec */
+	if (newxprt->sc_max_send_sges < 4) {
+		pr_err("svcrdma: too few Send SGEs available (%d)\n",
+		       newxprt->sc_max_send_sges);
+		goto errout;
+	}
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
 	newxprt->sc_max_requests = svcrdma_max_requests;
 	newxprt->sc_max_bc_requests = svcrdma_max_bc_requests;
@@ -525,7 +530,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	qp_attr.cap.max_rdma_ctxs = ctxts;
 	qp_attr.cap.max_send_wr = newxprt->sc_sq_depth - ctxts;
 	qp_attr.cap.max_recv_wr = rq_depth;
-	qp_attr.cap.max_send_sge = newxprt->sc_max_sge;
+	qp_attr.cap.max_send_sge = newxprt->sc_max_send_sges;
 	qp_attr.cap.max_recv_sge = 1;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	qp_attr.qp_type = IB_QPT_RC;
@@ -586,7 +591,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("    local address   : %pIS:%u\n", sap, rpc_get_port(sap));
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
 	dprintk("    remote address  : %pIS:%u\n", sap, rpc_get_port(sap));
-	dprintk("    max_sge         : %d\n", newxprt->sc_max_sge);
+	dprintk("    max_sge         : %d\n", newxprt->sc_max_send_sges);
 	dprintk("    sq_depth        : %d\n", newxprt->sc_sq_depth);
 	dprintk("    rdma_rw_ctxs    : %d\n", ctxts);
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
