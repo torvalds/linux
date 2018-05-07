@@ -188,7 +188,7 @@ extern int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
 				  __be32 *rdma_resp, unsigned int len);
 extern int svc_rdma_post_send_wr(struct svcxprt_rdma *rdma,
 				 struct svc_rdma_op_ctxt *ctxt,
-				 int num_sge, u32 inv_rkey);
+				 u32 inv_rkey);
 extern int svc_rdma_sendto(struct svc_rqst *);
 
 /* svc_rdma_transport.c */

@@ -639,7 +639,7 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 		return;
 	}
 
-	ret = svc_rdma_post_send_wr(xprt, ctxt, 1, 0);
+	ret = svc_rdma_post_send_wr(xprt, ctxt, 0);
 	if (ret) {
 		svc_rdma_unmap_dma(ctxt);
 		svc_rdma_put_context(ctxt, 1);

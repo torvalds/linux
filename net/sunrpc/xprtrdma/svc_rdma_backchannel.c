@@ -135,7 +135,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	 * the rq_buffer before all retransmits are complete.
 	 */
 	get_page(virt_to_page(rqst->rq_buffer));
-	ret = svc_rdma_post_send_wr(rdma, ctxt, 1, 0);
+	ret = svc_rdma_post_send_wr(rdma, ctxt, 0);
 	if (ret)
 		goto out_unmap;
 
