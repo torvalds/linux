@@ -104,29 +104,26 @@ xfs_dquot_verify(
  * Do some primitive error checking on ondisk dquot data structures.
  */
 int
-xfs_dquot_repair(
+xfs_dqblk_repair(
 	struct xfs_mount	*mp,
-	struct xfs_disk_dquot	*ddq,
+	struct xfs_dqblk	*dqb,
 	xfs_dqid_t		id,
 	uint			type)
 {
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)ddq;
-
-
 	/*
 	 * Typically, a repair is only requested by quotacheck.
 	 */
 	ASSERT(id != -1);
-	memset(d, 0, sizeof(xfs_dqblk_t));
+	memset(dqb, 0, sizeof(xfs_dqblk_t));
 
-	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
-	d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
-	d->dd_diskdq.d_flags = type;
-	d->dd_diskdq.d_id = cpu_to_be32(id);
+	dqb->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
+	dqb->dd_diskdq.d_version = XFS_DQUOT_VERSION;
+	dqb->dd_diskdq.d_flags = type;
+	dqb->dd_diskdq.d_id = cpu_to_be32(id);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		uuid_copy(&d->dd_uuid, &mp->m_sb.sb_meta_uuid);
-		xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+		uuid_copy(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid);
+		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
 	}
 

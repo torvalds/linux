@@ -867,7 +867,7 @@ xfs_qm_reset_dqcounts(
 		 */
 		fa = xfs_dquot_verify(mp, ddq, id + j, type);
 		if (fa)
-			xfs_dquot_repair(mp, ddq, id + j, type);
+			xfs_dqblk_repair(mp, &dqb[j], id + j, type);
 
 		/*
 		 * Reset type in case we are reusing group quota file for
