@@ -1294,7 +1294,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
-	depends on HAVE_CLK && SOC_AR933X
+	depends on HAVE_CLK && ATH79
 	select SERIAL_CORE
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
