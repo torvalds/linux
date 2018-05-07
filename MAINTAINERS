@@ -13461,6 +13461,12 @@ S:	Supported
 F:	net/switchdev/
 F:	include/net/switchdev.h
 
+SY8106A REGULATOR DRIVER
+M:	Icenowy Zheng <icenowy@aosc.io>
+S:	Maintained
+F:	drivers/regulator/sy8106a-regulator.c
+F:	Documentation/devicetree/bindings/regulator/sy8106a-regulator.txt
+
 SYNC FILE FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 R:	Gustavo Padovan <gustavo@padovan.org>
