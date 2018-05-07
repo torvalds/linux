@@ -442,11 +442,16 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 	} else {
 		struct dentry *new = d_splice_alias(inode, de);
 
+		if (IS_ERR(new))
+			CDEBUG(D_DENTRY,
+			       "splice inode %p as %pd gives error %lu\n",
+			       inode, de, PTR_ERR(new));
 		if (new)
 			de = new;
 	}
-	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
-	       de, d_inode(de), d_count(de), de->d_flags);
+	if (!IS_ERR(de))
+		CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
+		       de, d_inode(de), d_count(de), de->d_flags);
 	return de;
 }
 
