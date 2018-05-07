@@ -11,6 +11,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS

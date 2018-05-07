@@ -59,6 +59,7 @@
 #include <rdma/ib_cm.h>
 
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 /*
  * Globals/Macros

@@ -675,5 +675,3 @@ void xprt_rdma_bc_destroy(struct rpc_xprt *, unsigned int);
 extern struct xprt_class xprt_rdma_bc;
 
 #endif				/* _LINUX_SUNRPC_XPRT_RDMA_H */
-
-#include <trace/events/rpcrdma.h>
