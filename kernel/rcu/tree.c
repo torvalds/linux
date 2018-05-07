@@ -154,6 +154,9 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
  */
 static int rcu_scheduler_fully_active __read_mostly;
 
+static void
+rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
+		  struct rcu_node *rnp, unsigned long gps, unsigned long flags);
 static void rcu_init_new_rnp(struct rcu_node *rnp_leaf);
 static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf);
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
@@ -1858,7 +1861,9 @@ static void rcu_gp_slow(struct rcu_state *rsp, int delay)
  */
 static bool rcu_gp_init(struct rcu_state *rsp)
 {
+	unsigned long flags;
 	unsigned long oldmask;
+	unsigned long mask;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
@@ -1951,7 +1956,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	 */
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		rcu_gp_slow(rsp, gp_init_delay);
-		raw_spin_lock_irq_rcu_node(rnp);
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		rdp = this_cpu_ptr(rsp->rda);
 		rcu_preempt_check_blocked_tasks(rnp);
 		rnp->qsmask = rnp->qsmaskinit;
@@ -1962,7 +1967,12 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 		trace_rcu_grace_period_init(rsp->name, rnp->gp_seq,
 					    rnp->level, rnp->grplo,
 					    rnp->grphi, rnp->qsmask);
-		raw_spin_unlock_irq_rcu_node(rnp);
+		/* Quiescent states for tasks on any now-offline CPUs. */
+		mask = rnp->qsmask & ~rnp->qsmaskinitnext;
+		if ((mask || rnp->wait_blkd_tasks) && rcu_is_leaf_node(rnp))
+			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
+		else
+			raw_spin_unlock_irq_rcu_node(rnp);
 		cond_resched_tasks_rcu_qs();
 		WRITE_ONCE(rsp->gp_activity, jiffies);
 	}
@@ -2233,6 +2243,10 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
  * is the grace-period snapshot, which means that the quiescent states
  * are valid only if rnp->gp_seq is equal to gps.  That structure's lock
  * must be held upon entry, and it is released before return.
+ *
+ * As a special case, if mask is zero, the bit-already-cleared check is
+ * disabled.  This allows propagating quiescent state due to resumed tasks
+ * during grace-period initialization.
  */
 static void
 rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
@@ -2246,7 +2260,7 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 
 	/* Walk up the rcu_node hierarchy. */
 	for (;;) {
-		if (!(rnp->qsmask & mask) || rnp->gp_seq != gps) {
+		if ((!(rnp->qsmask & mask) && mask) || rnp->gp_seq != gps) {
 
 			/*
 			 * Our bit has already been cleared, or the
