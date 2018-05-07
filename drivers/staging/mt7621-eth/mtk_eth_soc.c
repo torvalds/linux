@@ -768,9 +768,8 @@ err_dma:
 /* the qdma core needs scratch memory to be setup */
 static int mtk_init_fq_dma(struct mtk_eth *eth)
 {
-	unsigned int phy_ring_head, phy_ring_tail;
+	dma_addr_t dma_addr, phy_ring_head, phy_ring_tail;
 	int cnt = eth->soc->dma_ring_size;
-	dma_addr_t dma_addr;
 	int i;
 
 	eth->scratch_ring = dma_alloc_coherent(eth->dev,
