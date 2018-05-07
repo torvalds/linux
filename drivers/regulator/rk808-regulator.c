@@ -67,8 +67,8 @@
 /* Offset from XXX_EN_REG to SLEEP_SET_OFF_XXX */
 #define RK808_SLP_SET_OFF_REG_OFFSET 2
 
-/* max steps for increase voltage of Buck1/2, equal 100mv*/
-#define MAX_STEPS_ONE_TIME 8
+/* max steps for increase voltage of Buck1/2, equal 25mv*/
+#define MAX_STEPS_ONE_TIME 2
 
 #define RK8XX_DESC(_id, _match, _supply, _min, _max, _step, _vreg,	\
 	_vmask, _ereg, _emask, _etime)					\
