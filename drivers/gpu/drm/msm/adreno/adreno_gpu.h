@@ -84,6 +84,7 @@ struct adreno_info {
 	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
+	u32 inactive_period;
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);

@@ -565,7 +565,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	adreno_get_pwrlevels(&pdev->dev, gpu);
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev, DRM_MSM_INACTIVE_PERIOD);
+	pm_runtime_set_autosuspend_delay(&pdev->dev,
+		adreno_gpu->info->inactive_period);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
