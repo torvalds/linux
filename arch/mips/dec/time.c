@@ -59,14 +59,15 @@ void read_persistent_clock64(struct timespec64 *ts)
 }
 
 /*
- * In order to set the CMOS clock precisely, rtc_mips_set_mmss has to
+ * In order to set the CMOS clock precisely, update_persistent_clock64 has to
  * be called 500 ms after the second nowtime has started, because when
  * nowtime is written into the registers of the CMOS clock, it will
  * jump to the next second precisely 500 ms later.  Check the Dallas
  * DS1287 data sheet for details.
  */
-int rtc_mips_set_mmss(unsigned long nowtime)
+int update_persistent_clock64(struct timespec64 now)
 {
+	time64_t nowtime = now.tv_sec;
 	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
@@ -91,8 +92,7 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 	 * messing with unknown time zones but requires your
 	 * RTC not to be off by more than 15 minutes
 	 */
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
+	real_minutes = div_s64_rem(nowtime, 60, &real_seconds);
 	if (((abs(real_minutes - cmos_minutes) + 15) / 30) & 1)
 		real_minutes += 30;	/* correct for half hour time zone */
 	real_minutes %= 60;

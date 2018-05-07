@@ -57,11 +57,11 @@ extern void sb1250_setup(void);
 #endif
 
 extern int xicor_probe(void);
-extern int xicor_set_time(unsigned long);
+extern int xicor_set_time(time64_t);
 extern time64_t xicor_get_time(void);
 
 extern int m41t81_probe(void);
-extern int m41t81_set_time(unsigned long);
+extern int m41t81_set_time(time64_t);
 extern time64_t m41t81_get_time(void);
 
 const char *get_system_type(void)
@@ -109,8 +109,10 @@ void read_persistent_clock64(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-int rtc_mips_set_time(unsigned long sec)
+int update_persistent_clock64(struct timespec64 now)
 {
+	time64_t sec = now.tv_sec;
+
 	switch (swarm_rtc_type) {
 	case RTC_XICOR:
 		return xicor_set_time(sec);
