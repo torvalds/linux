@@ -1425,10 +1425,18 @@ static void imx_uart_shutdown(struct uart_port *port)
 	u32 ucr1, ucr2;
 
 	if (sport->dma_is_enabled) {
-		sport->dma_is_rxing = 0;
-		sport->dma_is_txing = 0;
 		dmaengine_terminate_sync(sport->dma_chan_tx);
+		if (sport->dma_is_txing) {
+			dma_unmap_sg(sport->port.dev, &sport->tx_sgl[0],
+				     sport->dma_tx_nents, DMA_TO_DEVICE);
+			sport->dma_is_txing = 0;
+		}
 		dmaengine_terminate_sync(sport->dma_chan_rx);
+		if (sport->dma_is_rxing) {
+			dma_unmap_sg(sport->port.dev, &sport->rx_sgl,
+				     1, DMA_FROM_DEVICE);
+			sport->dma_is_rxing = 0;
+		}
 
 		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_uart_stop_tx(port);
