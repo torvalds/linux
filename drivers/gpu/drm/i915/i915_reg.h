@@ -3848,6 +3848,9 @@ enum {
 #define UNSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9434)
 #define  VFUNIT_CLKGATE_DIS		(1 << 20)
 
+#define INF_UNIT_LEVEL_CLKGATE		_MMIO(0x9560)
+#define   CGPSF_CLKGATE_DIS		(1 << 3)
+
 /*
  * Display engine regs
  */
