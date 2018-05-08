@@ -672,15 +672,6 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU)) {
-		mc->smmu = tegra_smmu_probe(&pdev->dev, mc->soc->smmu, mc);
-		if (IS_ERR(mc->smmu)) {
-			dev_err(&pdev->dev, "failed to probe SMMU: %ld\n",
-				PTR_ERR(mc->smmu));
-			return PTR_ERR(mc->smmu);
-		}
-	}
-
 	err = tegra_mc_reset_setup(mc);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
@@ -704,6 +695,15 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
 			err);
 		return err;
+	}
+
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU)) {
+		mc->smmu = tegra_smmu_probe(&pdev->dev, mc->soc->smmu, mc);
+		if (IS_ERR(mc->smmu)) {
+			dev_err(&pdev->dev, "failed to probe SMMU: %ld\n",
+				PTR_ERR(mc->smmu));
+			return PTR_ERR(mc->smmu);
+		}
 	}
 
 	return 0;
