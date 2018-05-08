@@ -28,24 +28,6 @@
  ******************************************************************************/
 
 void
-gm200_grctx_generate_tpcid(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int gpc, tpc, id;
-
-	for (tpc = 0, id = 0; tpc < TPC_MAX_PER_GPC; tpc++) {
-		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-			if (tpc < gr->tpc_nr[gpc]) {
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
-				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
-				id++;
-			}
-		}
-	}
-}
-
-void
 gm200_grctx_generate_405b60(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -94,7 +76,7 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->attrib(info);
 	grctx->unkn(gr);
 
-	gm200_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gf100_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 
@@ -133,4 +115,5 @@ gm200_grctx = {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
+	.sm_id = gm107_grctx_generate_sm_id,
 };

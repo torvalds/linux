@@ -240,7 +240,7 @@ gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->attrib(info);
 	grctx->unkn(gr);
 
-	gf100_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gf100_grctx_generate_r406028(gr);
 	gf100_grctx_generate_r4060a8(gr);
 	gk104_grctx_generate_r418bb8(gr);
@@ -275,4 +275,6 @@ gf117_grctx = {
 	.attrib_nr = 0x218,
 	.alpha_nr_max = 0x7ff,
 	.alpha_nr = 0x324,
+	.sm_id = gf100_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

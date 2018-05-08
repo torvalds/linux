@@ -831,4 +831,6 @@ gk110_grctx = {
 	.alpha_nr_max = 0x7ff,
 	.alpha_nr = 0x648,
 	.patch_ltc = gk104_grctx_generate_patch_ltc,
+	.sm_id = gf100_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

@@ -347,4 +347,6 @@ gf110_grctx = {
 	.attrib = gf100_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,
+	.sm_id = gf100_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

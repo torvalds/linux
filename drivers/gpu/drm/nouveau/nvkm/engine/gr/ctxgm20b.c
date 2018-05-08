@@ -53,7 +53,7 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	grctx->unkn(gr);
 
-	gm200_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gm20b_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 
@@ -98,4 +98,5 @@ gm20b_grctx = {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
+	.sm_id = gm107_grctx_generate_sm_id,
 };

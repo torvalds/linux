@@ -974,7 +974,7 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->attrib(info);
 	grctx->unkn(gr);
 
-	gf100_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gf100_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
@@ -1017,4 +1017,6 @@ gk104_grctx = {
 	.alpha_nr_max = 0x7ff,
 	.alpha_nr = 0x648,
 	.patch_ltc = gk104_grctx_generate_patch_ltc,
+	.sm_id = gf100_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

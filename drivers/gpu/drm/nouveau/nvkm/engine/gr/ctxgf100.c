@@ -1080,28 +1080,6 @@ gf100_grctx_generate_unkn(struct gf100_gr *gr)
 }
 
 void
-gf100_grctx_generate_tpcid(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int gpc, tpc, id;
-
-	for (tpc = 0, id = 0; tpc < 4; tpc++) {
-		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-			if (tpc < gr->tpc_nr[gpc]) {
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x4e8), id);
-				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
-				id++;
-			}
-
-			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
-			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
-		}
-	}
-}
-
-void
 gf100_grctx_generate_r406028(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1231,6 +1209,40 @@ gf100_grctx_generate_r406800(struct gf100_gr *gr)
 }
 
 void
+gf100_grctx_generate_tpc_nr(struct gf100_gr *gr, int gpc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
+	nvkm_wr32(device, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
+}
+
+void
+gf100_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), sm);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x4e8), sm);
+	nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), sm);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), sm);
+}
+
+void
+gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
+{
+	const struct gf100_grctx_func *func = gr->func->grctx;
+	int tpc, gpc, sm;
+
+	for (tpc = 0, sm = 0; tpc < gr->tpc_max; tpc++) {
+		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+			if (tpc < gr->tpc_nr[gpc])
+				func->sm_id(gr, gpc, tpc, sm++);
+			if (func->tpc_nr)
+				func->tpc_nr(gr, gpc);
+		}
+	}
+}
+
+void
 gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1258,7 +1270,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		grctx->patch_ltc(info);
 	grctx->unkn(gr);
 
-	gf100_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gf100_grctx_generate_r406028(gr);
 	gf100_grctx_generate_r4060a8(gr);
 	gf100_grctx_generate_r418bb8(gr);
@@ -1410,4 +1422,6 @@ gf100_grctx = {
 	.attrib = gf100_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,
+	.sm_id = gf100_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

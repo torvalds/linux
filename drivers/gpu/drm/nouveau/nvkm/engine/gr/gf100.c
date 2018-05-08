@@ -1675,6 +1675,7 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	gr->gpc_nr = nvkm_rd32(device, 0x409604) & 0x0000001f;
 	for (i = 0; i < gr->gpc_nr; i++) {
 		gr->tpc_nr[i]  = nvkm_rd32(device, GPC_UNIT(i, 0x2608));
+		gr->tpc_max = max(gr->tpc_max, gr->tpc_nr[i]);
 		gr->tpc_total += gr->tpc_nr[i];
 		gr->ppc_nr[i]  = gr->func->ppc_nr;
 		for (j = 0; j < gr->ppc_nr[i]; j++) {

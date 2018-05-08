@@ -94,4 +94,5 @@ gp102_grctx = {
 	.attrib_nr = 0x320,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
+	.sm_id = gm107_grctx_generate_sm_id,
 };

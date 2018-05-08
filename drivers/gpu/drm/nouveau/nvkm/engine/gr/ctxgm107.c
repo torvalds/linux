@@ -930,25 +930,13 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 	}
 }
 
-static void
-gm107_grctx_generate_tpcid(struct gf100_gr *gr)
+void
+gm107_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int gpc, tpc, id;
-
-	for (tpc = 0, id = 0; tpc < 4; tpc++) {
-		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-			if (tpc < gr->tpc_nr[gpc]) {
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
-				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
-				id++;
-			}
-
-			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
-			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
-		}
-	}
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), sm);
+	nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), sm);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), sm);
 }
 
 static void
@@ -972,7 +960,7 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->attrib(info);
 	grctx->unkn(gr);
 
-	gm107_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_floorsweep(gr);
 	gf100_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
@@ -1016,4 +1004,6 @@ gm107_grctx = {
 	.attrib_nr = 0xaa0,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
+	.sm_id = gm107_grctx_generate_sm_id,
+	.tpc_nr = gf100_grctx_generate_tpc_nr,
 };

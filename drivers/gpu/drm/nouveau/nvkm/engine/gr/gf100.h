@@ -99,6 +99,7 @@ struct gf100_gr {
 	u8 rop_nr;
 	u8 gpc_nr;
 	u8 tpc_nr[GPC_MAX];
+	u8 tpc_max;
 	u8 tpc_total;
 	u8 ppc_nr[GPC_MAX];
 	u8 ppc_mask[GPC_MAX];
