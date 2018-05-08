@@ -777,6 +777,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_CURRENT_MSK,
 			   RK3308_DAC_CURRENT_EN);
 
+	udelay(20);
+
 	/*
 	 * 2. Set the ACODEC_DAC_ANA_CON1[6] and ACODEC_DAC_ANA_CON1[2] to 0x1,
 	 * to enable the reference voltage buffer
@@ -788,7 +790,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_BUF_REF_R_EN);
 
 	/* Waiting the stable reference voltage */
-	udelay(10);
+	udelay(50);
 
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
@@ -798,6 +800,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_POP_SOUND_R_MSK,
 				   RK3308_DAC_POP_SOUND_L_WORK |
 				   RK3308_DAC_POP_SOUND_R_WORK);
+
+		udelay(20);
 	}
 
 	/* Step 04 */
@@ -808,7 +812,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_EN);
 
 	/* Waiting the stable HPMIX */
-	udelay(10);
+	udelay(50);
 
 	/* Step 05 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
@@ -816,6 +820,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_WORK,
 			   RK3308_DAC_L_HPMIX_WORK |
 			   RK3308_DAC_R_HPMIX_WORK);
+
+	udelay(20);
 
 	if (rk3308->dac_output == DAC_LINEOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
@@ -825,6 +831,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_R_LINEOUT_EN,
 				   RK3308_DAC_L_LINEOUT_EN |
 				   RK3308_DAC_R_LINEOUT_EN);
+
+		udelay(20);
 	}
 
 	if (rk3308->dac_output == DAC_HPOUT ||
@@ -842,6 +850,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_R_HPOUT_WORK,
 				   RK3308_DAC_L_HPOUT_WORK |
 				   RK3308_DAC_R_HPOUT_WORK);
+
+		udelay(20);
 	}
 
 	/* Step 09 */
@@ -851,12 +861,16 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_REF_EN |
 			   RK3308_DAC_R_REF_EN);
 
+	udelay(20);
+
 	/* Step 10 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
 			   RK3308_DAC_L_CLK_EN |
 			   RK3308_DAC_R_CLK_EN,
 			   RK3308_DAC_L_CLK_EN |
 			   RK3308_DAC_R_CLK_EN);
+
+	udelay(20);
 
 	/* Step 11 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
@@ -865,12 +879,16 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_DAC_EN |
 			   RK3308_DAC_R_DAC_EN);
 
+	udelay(20);
+
 	/* Step 12 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON02,
 			   RK3308_DAC_L_DAC_WORK |
 			   RK3308_DAC_R_DAC_WORK,
 			   RK3308_DAC_L_DAC_WORK |
 			   RK3308_DAC_R_DAC_WORK);
+
+	udelay(20);
 
 	/* Step 13 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
@@ -879,6 +897,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_HPMIX_I2S |
 			   RK3308_DAC_R_HPMIX_I2S);
 
+	udelay(20);
+
 	/* Step 14 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
 			   RK3308_DAC_L_HPMIX_UNMUTE |
@@ -886,12 +906,16 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_HPMIX_UNMUTE |
 			   RK3308_DAC_R_HPMIX_UNMUTE);
 
+	udelay(20);
+
 	/* Step 15 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
 			   RK3308_DAC_L_HPMIX_GAIN_MSK |
 			   RK3308_DAC_R_HPMIX_GAIN_MSK,
 			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
 			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
+
+	udelay(20);
 
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
@@ -901,16 +925,20 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_R_HPOUT_UNMUTE,
 				   RK3308_DAC_L_HPOUT_UNMUTE |
 				   RK3308_DAC_R_HPOUT_UNMUTE);
+
+		udelay(20);
 	}
 
 	if (rk3308->dac_output == DAC_LINEOUT ||
-	    rk3308->dac_output == DAC_LINEOUT_HPOUT)
+	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
 		/* Step 17 */
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
 				   RK3308_DAC_L_LINEOUT_UNMUTE |
 				   RK3308_DAC_R_LINEOUT_UNMUTE,
 				   RK3308_DAC_L_LINEOUT_UNMUTE |
 				   RK3308_DAC_R_LINEOUT_UNMUTE);
+		udelay(20);
+	}
 
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
@@ -923,6 +951,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
 				   RK3308_DAC_R_HPOUT_GAIN_MSK,
 				   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
+
+		udelay(20);
 	}
 
 	if (rk3308->dac_output == DAC_LINEOUT ||
@@ -933,6 +963,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_R_LINEOUT_GAIN_MSK,
 				   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
 				   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+
+		udelay(20);
 	}
 
 	/* TODO: TRY TO TEST DRIVE STRENGTH */
