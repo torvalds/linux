@@ -350,4 +350,5 @@ gf110_grctx = {
 	.sm_id = gf100_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.r4060a8 = gf100_grctx_generate_r4060a8,
+	.rop_mapping = gf100_grctx_generate_rop_mapping,
 };

@@ -961,7 +961,6 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
 
 	nvkm_wr32(device, 0x4064d0, 0x00000001);
@@ -1005,4 +1004,5 @@ gm107_grctx = {
 	.alpha_nr = 0x1000,
 	.sm_id = gm107_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
+	.rop_mapping = gf117_grctx_generate_rop_mapping,
 };

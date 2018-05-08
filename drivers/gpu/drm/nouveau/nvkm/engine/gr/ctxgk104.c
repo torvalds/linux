@@ -893,65 +893,6 @@ gk104_grctx_generate_unkn(struct gf100_gr *gr)
 }
 
 void
-gk104_grctx_generate_r418bb8(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 data[6] = {}, data2[2] = {};
-	u8  tpcnr[GPC_MAX];
-	u8  shift, ntpcv;
-	int gpc, tpc, i;
-
-	/* calculate first set of magics */
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-
-	gpc = -1;
-	for (tpc = 0; tpc < gr->tpc_total; tpc++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpcnr[gpc]--;
-
-		data[tpc / 6] |= gpc << ((tpc % 6) * 5);
-	}
-
-	for (; tpc < 32; tpc++)
-		data[tpc / 6] |= 7 << ((tpc % 6) * 5);
-
-	/* and the second... */
-	shift = 0;
-	ntpcv = gr->tpc_total;
-	while (!(ntpcv & (1 << 4))) {
-		ntpcv <<= 1;
-		shift++;
-	}
-
-	data2[0]  = (ntpcv << 16);
-	data2[0] |= (shift << 21);
-	data2[0] |= (((1 << (0 + 5)) % ntpcv) << 24);
-	for (i = 1; i < 7; i++)
-		data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
-
-	/* GPC_BROADCAST */
-	nvkm_wr32(device, 0x418bb8, (gr->tpc_total << 8) |
-				     gr->screen_tile_row_offset);
-	for (i = 0; i < 6; i++)
-		nvkm_wr32(device, 0x418b08 + (i * 4), data[i]);
-
-	/* GPC_BROADCAST.TP_BROADCAST */
-	nvkm_wr32(device, 0x41bfd0, (gr->tpc_total << 8) |
-				     gr->screen_tile_row_offset | data2[0]);
-	nvkm_wr32(device, 0x41bfe4, data2[1]);
-	for (i = 0; i < 6; i++)
-		nvkm_wr32(device, 0x41bf00 + (i * 4), data[i]);
-
-	/* UNK78xx */
-	nvkm_wr32(device, 0x4078bc, (gr->tpc_total << 8) |
-				     gr->screen_tile_row_offset);
-	for (i = 0; i < 6; i++)
-		nvkm_wr32(device, 0x40780c + (i * 4), data[i]);
-}
-
-void
 gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -975,7 +916,6 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
 
 	for (i = 0; i < 8; i++)
@@ -1018,4 +958,5 @@ gk104_grctx = {
 	.patch_ltc = gk104_grctx_generate_patch_ltc,
 	.sm_id = gf100_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
+	.rop_mapping = gf117_grctx_generate_rop_mapping,
 };

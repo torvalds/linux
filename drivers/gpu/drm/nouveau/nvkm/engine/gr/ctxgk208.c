@@ -555,4 +555,5 @@ gk208_grctx = {
 	.patch_ltc = gk104_grctx_generate_patch_ltc,
 	.sm_id = gf100_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
+	.rop_mapping = gf117_grctx_generate_rop_mapping,
 };
