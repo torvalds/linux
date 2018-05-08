@@ -308,22 +308,30 @@ gm107_gr_init_bios(struct gf100_gr *gr)
 	}
 }
 
-static int
-gm107_gr_init(struct gf100_gr *gr)
+static void
+gm107_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nvkm_fb *fb = device->fb;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {};
-	u8  tpcnr[GPC_MAX];
-	int gpc, tpc, rop;
-	int i;
 
 	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(fb->mmu_wr) >> 8);
 	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
+}
+
+static int
+gm107_gr_init(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
+	u32 data[TPC_MAX / 8] = {};
+	u8  tpcnr[GPC_MAX];
+	int gpc, tpc, rop;
+	int i;
+
+	gr->func->init_gpc_mmu(gr);
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
@@ -442,6 +450,7 @@ gm107_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gm107_gr = {
 	.init = gm107_gr_init,
+	.init_gpc_mmu = gm107_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,

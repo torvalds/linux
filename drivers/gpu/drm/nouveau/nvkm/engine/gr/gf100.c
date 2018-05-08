@@ -1920,7 +1920,7 @@ gf100_gr_init_gpc_mmu(struct gf100_gr *gr)
 	struct nvkm_fb *fb = device->fb;
 
 	nvkm_wr32(device, 0x418880, nvkm_rd32(device, 0x100c80) & 0x00000001);
-	nvkm_wr32(device, 0x4188a4, 0x00000000);
+	nvkm_wr32(device, 0x4188a4, 0x03000000);
 	nvkm_wr32(device, 0x418888, 0x00000000);
 	nvkm_wr32(device, 0x41888c, 0x00000000);
 	nvkm_wr32(device, 0x418890, 0x00000000);
