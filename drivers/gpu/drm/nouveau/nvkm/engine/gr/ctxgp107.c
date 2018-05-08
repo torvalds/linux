@@ -44,6 +44,7 @@ gp107_grctx = {
 	.attrib_nr = 0x540,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
+	.gfxp_nr = 0xe94,
 	.sm_id = gm107_grctx_generate_sm_id,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.dist_skip_table = gm200_grctx_generate_dist_skip_table,

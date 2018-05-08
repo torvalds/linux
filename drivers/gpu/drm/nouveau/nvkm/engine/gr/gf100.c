@@ -1780,6 +1780,8 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 			if (gr->ppc_tpc_min == 0 ||
 			    gr->ppc_tpc_min > gr->ppc_tpc_nr[i][j])
 				gr->ppc_tpc_min = gr->ppc_tpc_nr[i][j];
+			if (gr->ppc_tpc_max < gr->ppc_tpc_nr[i][j])
+				gr->ppc_tpc_max = gr->ppc_tpc_nr[i][j];
 		}
 	}
 

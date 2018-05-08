@@ -49,6 +49,7 @@ struct gf100_grctx_func {
 	u32 attrib_nr;
 	u32 alpha_nr_max;
 	u32 alpha_nr;
+	u32 gfxp_nr;
 	/* other patch buffer stuff */
 	void (*patch_ltc)(struct gf100_grctx *);
 	/* floorsweeping */

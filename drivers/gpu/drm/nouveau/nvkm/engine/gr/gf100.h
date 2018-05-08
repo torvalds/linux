@@ -106,6 +106,7 @@ struct gf100_gr {
 	u8 ppc_tpc_mask[GPC_MAX][4];
 	u8 ppc_tpc_nr[GPC_MAX][4];
 	u8 ppc_tpc_min;
+	u8 ppc_tpc_max;
 
 	u8 screen_tile_row_offset;
 	u8 tile[TPC_MAX];
