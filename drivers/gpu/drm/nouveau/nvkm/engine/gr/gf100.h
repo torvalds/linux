@@ -72,6 +72,12 @@ struct gf100_gr_zbc_depth {
 	u32 l2;
 };
 
+struct gf100_gr_zbc_stencil {
+	u32 format;
+	u32 ds;
+	u32 l2;
+};
+
 struct gf100_gr {
 	const struct gf100_gr_func *func;
 	struct nvkm_gr base;
@@ -95,6 +101,7 @@ struct gf100_gr {
 
 	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
 	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
+	struct gf100_gr_zbc_stencil zbc_stencil[NVKM_LTC_MAX_ZBC_CNT];
 
 	u8 rop_nr;
 	u8 gpc_nr;
@@ -132,6 +139,9 @@ void *gf100_gr_dtor(struct nvkm_gr *);
 struct gf100_gr_func_zbc {
 	void (*clear_color)(struct gf100_gr *, int zbc);
 	void (*clear_depth)(struct gf100_gr *, int zbc);
+	int (*stencil_get)(struct gf100_gr *, int format,
+			   const u32 ds, const u32 l2);
+	void (*clear_stencil)(struct gf100_gr *, int zbc);
 };
 
 struct gf100_gr_func {
@@ -219,11 +229,11 @@ void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 void gp100_gr_init_fecs_exceptions(struct gf100_gr *);
 void gp100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
-extern const struct gf100_gr_func_zbc gp100_gr_zbc;
 void gp100_gr_zbc_clear_color(struct gf100_gr *, int);
 void gp100_gr_zbc_clear_depth(struct gf100_gr *, int);
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
+extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright 2018 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,44 +18,19 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs
  */
 #include "priv.h"
 
 void
-gp100_ltc_intr(struct nvkm_ltc *ltc)
+gp102_ltc_zbc_clear_stencil(struct nvkm_ltc *ltc, int i, const u32 stencil)
 {
 	struct nvkm_device *device = ltc->subdev.device;
-	u32 mask;
-
-	mask = nvkm_rd32(device, 0x0001c0);
-	while (mask) {
-		u32 s, c = __ffs(mask);
-		for (s = 0; s < ltc->lts_nr; s++)
-			gm107_ltc_intr_lts(ltc, c, s);
-		mask &= ~(1 << c);
-	}
-}
-
-int
-gp100_ltc_oneinit(struct nvkm_ltc *ltc)
-{
-	struct nvkm_device *device = ltc->subdev.device;
-	ltc->ltc_nr = nvkm_rd32(device, 0x12006c);
-	ltc->lts_nr = nvkm_rd32(device, 0x17e280) >> 28;
-	/*XXX: tagram allocation - TBD */
-	return 0;
-}
-
-void
-gp100_ltc_init(struct nvkm_ltc *ltc)
-{
-	/*XXX: PMU LS call to setup tagram address */
+	nvkm_mask(device, 0x17e338, 0x0000000f, i);
+	nvkm_wr32(device, 0x17e204, stencil);
 }
 
 static const struct nvkm_ltc_func
-gp100_ltc = {
+gp102_ltc = {
 	.oneinit = gp100_ltc_oneinit,
 	.init = gp100_ltc_init,
 	.intr = gp100_ltc_intr,
@@ -64,12 +39,13 @@ gp100_ltc = {
 	.zbc = 16,
 	.zbc_clear_color = gm107_ltc_zbc_clear_color,
 	.zbc_clear_depth = gm107_ltc_zbc_clear_depth,
+	.zbc_clear_stencil = gp102_ltc_zbc_clear_stencil,
 	.invalidate = gf100_ltc_invalidate,
 	.flush = gf100_ltc_flush,
 };
 
 int
-gp100_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gp102_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
 {
-	return nvkm_ltc_new_(&gp100_ltc, device, index, pltc);
+	return nvkm_ltc_new_(&gp102_ltc, device, index, pltc);
 }

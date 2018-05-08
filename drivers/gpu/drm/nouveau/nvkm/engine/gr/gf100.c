@@ -750,7 +750,7 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
 			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
-	int index, c = ltc->zbc_min, d = ltc->zbc_min;
+	int index, c = ltc->zbc_min, d = ltc->zbc_min, s = ltc->zbc_min;
 
 	if (!gr->zbc_color[0].format) {
 		gf100_gr_zbc_color_get(gr, 1,  & zero[0],   &zero[4]); c++;
@@ -759,12 +759,22 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 		gf100_gr_zbc_color_get(gr, 4,  &f32_1[0],  &f32_1[4]); c++;
 		gf100_gr_zbc_depth_get(gr, 1, 0x00000000, 0x00000000); d++;
 		gf100_gr_zbc_depth_get(gr, 1, 0x3f800000, 0x3f800000); d++;
+		if (gr->func->zbc->stencil_get) {
+			gr->func->zbc->stencil_get(gr, 1, 0x00, 0x00); s++;
+			gr->func->zbc->stencil_get(gr, 1, 0x01, 0x01); s++;
+			gr->func->zbc->stencil_get(gr, 1, 0xff, 0xff); s++;
+		}
 	}
 
 	for (index = c; index <= ltc->zbc_max; index++)
 		gr->func->zbc->clear_color(gr, index);
 	for (index = d; index <= ltc->zbc_max; index++)
 		gr->func->zbc->clear_depth(gr, index);
+
+	if (gr->func->zbc->clear_stencil) {
+		for (index = s; index <= ltc->zbc_max; index++)
+			gr->func->zbc->clear_stencil(gr, index);
+	}
 }
 
 /**

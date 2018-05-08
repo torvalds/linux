@@ -62,7 +62,7 @@ gp100_gr_zbc_clear_depth(struct gf100_gr *gr, int zbc)
 			  gr->zbc_depth[zbc].format << ((znum % 4) * 7));
 }
 
-const struct gf100_gr_func_zbc
+static const struct gf100_gr_func_zbc
 gp100_gr_zbc = {
 	.clear_color = gp100_gr_zbc_clear_color,
 	.clear_depth = gp100_gr_zbc_clear_depth,
