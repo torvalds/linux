@@ -502,7 +502,8 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int is_out;
 	int drive;
 	int pull;
-	u32 ctl_reg;
+	int val;
+	u32 ctl_reg, io_reg;
 
 	static const char * const pulls_keeper[] = {
 		"no pull",
@@ -522,13 +523,20 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 
 	g = &pctrl->soc->groups[offset];
 	ctl_reg = readl(pctrl->regs + g->ctl_reg);
+	io_reg = readl(pctrl->regs + g->io_reg);
 
 	is_out = !!(ctl_reg & BIT(g->oe_bit));
 	func = (ctl_reg >> g->mux_bit) & 7;
 	drive = (ctl_reg >> g->drv_bit) & 7;
 	pull = (ctl_reg >> g->pull_bit) & 3;
 
-	seq_printf(s, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
+	if (is_out)
+		val = !!(io_reg & BIT(g->out_bit));
+	else
+		val = !!(io_reg & BIT(g->in_bit));
+
+	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
+	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
 	if (pctrl->soc->pull_no_keeper)
 		seq_printf(s, " %s", pulls_no_keeper[pull]);
