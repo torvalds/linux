@@ -258,9 +258,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 }
 
 static struct i915_priolist *
-lookup_priolist(struct intel_engine_cs *engine,
-		struct i915_sched_node *node,
-		int prio)
+lookup_priolist(struct intel_engine_cs *engine, int prio)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_priolist *p;
@@ -345,7 +343,7 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != last_prio) {
 			last_prio = rq_prio(rq);
-			p = lookup_priolist(engine, &rq->sched, last_prio);
+			p = lookup_priolist(engine, last_prio);
 		}
 
 		list_add(&rq->sched.link, &p->requests);
@@ -1145,7 +1143,7 @@ static void queue_request(struct intel_engine_cs *engine,
 			  int prio)
 {
 	list_add_tail(&node->link,
-		      &lookup_priolist(engine, node, prio)->requests);
+		      &lookup_priolist(engine, prio)->requests);
 }
 
 static void __submit_queue(struct intel_engine_cs *engine, int prio)
