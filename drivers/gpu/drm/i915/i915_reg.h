@@ -8253,6 +8253,9 @@ enum {
 #define GEN8_GARBCNTL                   _MMIO(0xB004)
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
 
+#define GEN10_DFR_RATIO_EN_AND_CHICKEN	_MMIO(0x9550)
+#define   DFR_DISABLE			(1 << 9)
+
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
 #define   GEN7_L3CDERRST1_ROW_MASK	(0x7ff<<14)

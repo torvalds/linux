@@ -8664,6 +8664,13 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 }
 
+static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	/* This is not an Wa. Enable to reduce Sampler power */
+	I915_WRITE(GEN10_DFR_RATIO_EN_AND_CHICKEN,
+		   I915_READ(GEN10_DFR_RATIO_EN_AND_CHICKEN) & ~DFR_DISABLE);
+}
+
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_PCH_CNP(dev_priv))
@@ -9191,7 +9198,7 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_ICELAKE(dev_priv))
-		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+		dev_priv->display.init_clock_gating = icl_init_clock_gating;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
 	else if (IS_COFFEELAKE(dev_priv))
