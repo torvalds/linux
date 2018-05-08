@@ -32,8 +32,6 @@ int snd_soc_component_read(struct snd_soc_component *component,
 
 	if (component->regmap)
 		ret = regmap_read(component->regmap, reg, val);
-	else if (component->read)
-		ret = component->read(component, reg, val);
 	else if (component->driver->read) {
 		*val = component->driver->read(component, reg);
 		ret = 0;
@@ -72,8 +70,6 @@ int snd_soc_component_write(struct snd_soc_component *component,
 {
 	if (component->regmap)
 		return regmap_write(component->regmap, reg, val);
-	else if (component->write)
-		return component->write(component, reg, val);
 	else if (component->driver->write)
 		return component->driver->write(component, reg, val);
 	else
@@ -209,61 +205,3 @@ int snd_soc_component_test_bits(struct snd_soc_component *component,
 	return old != new;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_test_bits);
-
-unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
-{
-	unsigned int val;
-	int ret;
-
-	ret = snd_soc_component_read(&codec->component, reg, &val);
-	if (ret < 0)
-		return -1;
-
-	return val;
-}
-EXPORT_SYMBOL_GPL(snd_soc_read);
-
-int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int val)
-{
-	return snd_soc_component_write(&codec->component, reg, val);
-}
-EXPORT_SYMBOL_GPL(snd_soc_write);
-
-/**
- * snd_soc_update_bits - update codec register bits
- * @codec: audio codec
- * @reg: codec register
- * @mask: register mask
- * @value: new value
- *
- * Writes new register value.
- *
- * Returns 1 for change, 0 for no change, or negative error code.
- */
-int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
-				unsigned int mask, unsigned int value)
-{
-	return snd_soc_component_update_bits(&codec->component, reg, mask,
-		value);
-}
-EXPORT_SYMBOL_GPL(snd_soc_update_bits);
-
-/**
- * snd_soc_test_bits - test register for change
- * @codec: audio codec
- * @reg: codec register
- * @mask: register mask
- * @value: new value
- *
- * Tests a register with a new value and checks if the new value is
- * different from the old value.
- *
- * Returns 1 for change else 0.
- */
-int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
-				unsigned int mask, unsigned int value)
-{
-	return snd_soc_component_test_bits(&codec->component, reg, mask, value);
-}
-EXPORT_SYMBOL_GPL(snd_soc_test_bits);

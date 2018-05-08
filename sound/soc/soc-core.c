@@ -56,7 +56,6 @@ EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
 #endif
 
 static DEFINE_MUTEX(client_mutex);
-static LIST_HEAD(codec_list);
 static LIST_HEAD(component_list);
 
 /*
@@ -174,21 +173,6 @@ static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
 	debugfs_remove_recursive(component->debugfs_root);
 }
 
-static int codec_list_show(struct seq_file *m, void *v)
-{
-	struct snd_soc_codec *codec;
-
-	mutex_lock(&client_mutex);
-
-	list_for_each_entry(codec, &codec_list, list)
-		seq_printf(m, "%s\n", codec->component.name);
-
-	mutex_unlock(&client_mutex);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(codec_list);
-
 static int dai_list_show(struct seq_file *m, void *v)
 {
 	struct snd_soc_component *component;
@@ -240,10 +224,6 @@ static void snd_soc_debugfs_init(void)
 		snd_soc_debugfs_root = NULL;
 		return;
 	}
-
-	if (!debugfs_create_file("codecs", 0444, snd_soc_debugfs_root, NULL,
-				 &codec_list_fops))
-		pr_warn("ASoC: Failed to create CODEC list debugfs file\n");
 
 	if (!debugfs_create_file("dais", 0444, snd_soc_debugfs_root, NULL,
 				 &dai_list_fops))
@@ -536,8 +516,8 @@ int snd_soc_suspend(struct device *dev)
 				}
 
 			case SND_SOC_BIAS_OFF:
-				if (component->suspend)
-					component->suspend(component);
+				if (component->driver->suspend)
+					component->driver->suspend(component);
 				component->suspended = 1;
 				if (component->regmap)
 					regcache_mark_dirty(component->regmap);
@@ -608,8 +588,8 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	list_for_each_entry(component, &card->component_dev_list, card_list) {
 		if (component->suspended) {
-			if (component->resume)
-				component->resume(component);
+			if (component->driver->resume)
+				component->driver->resume(component);
 			component->suspended = 0;
 		}
 	}
@@ -892,7 +872,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 
 	/* Single codec links expect codec and codec_dai in runtime data */
 	rtd->codec_dai = codec_dais[0];
-	rtd->codec = rtd->codec_dai->codec;
 
 	/* if there's no platform we match on the empty platform */
 	platform_name = dai_link->platform_name;
@@ -931,8 +910,8 @@ static void soc_remove_component(struct snd_soc_component *component)
 
 	list_del(&component->card_list);
 
-	if (component->remove)
-		component->remove(component);
+	if (component->driver->remove)
+		component->driver->remove(component);
 
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 
@@ -1271,8 +1250,8 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	if (component->probe) {
-		ret = component->probe(component);
+	if (component->driver->probe) {
+		ret = component->driver->probe(component);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: failed to probe component %d\n", ret);
@@ -1663,8 +1642,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 
 	/* Flip the polarity for the "CPU" end of a CODEC<->CODEC link */
 	/* the component which has non_legacy_dai_naming is Codec */
-	if (cpu_dai->codec ||
-	    cpu_dai->component->driver->non_legacy_dai_naming) {
+	if (cpu_dai->component->driver->non_legacy_dai_naming) {
 		unsigned int inv_dai_fmt;
 
 		inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
@@ -2257,25 +2235,6 @@ int snd_soc_add_component_controls(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_add_component_controls);
 
 /**
- * snd_soc_add_codec_controls - add an array of controls to a codec.
- * Convenience function to add a list of controls. Many codecs were
- * duplicating this code.
- *
- * @codec: codec to add controls to
- * @controls: array of controls to add
- * @num_controls: number of elements in the array
- *
- * Return 0 for success, else error.
- */
-int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
-	const struct snd_kcontrol_new *controls, unsigned int num_controls)
-{
-	return snd_soc_add_component_controls(&codec->component, controls,
-		num_controls);
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
-
-/**
  * snd_soc_add_card_controls - add an array of controls to a SoC card.
  * Convenience function to add a list of controls.
  *
@@ -2336,27 +2295,6 @@ int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 
 /**
- * snd_soc_codec_set_sysclk - configure CODEC system or master clock.
- * @codec: CODEC
- * @clk_id: DAI specific clock ID
- * @source: Source for the clock
- * @freq: new clock frequency in Hz
- * @dir: new clock direction - input/output.
- *
- * Configures the CODEC master (MCLK) or system (SYSCLK) clocking.
- */
-int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-			     int source, unsigned int freq, int dir)
-{
-	if (codec->driver->set_sysclk)
-		return codec->driver->set_sysclk(codec, clk_id, source,
-						 freq, dir);
-	else
-		return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(snd_soc_codec_set_sysclk);
-
-/**
  * snd_soc_component_set_sysclk - configure COMPONENT system or master clock.
  * @component: COMPONENT
  * @clk_id: DAI specific clock ID
@@ -2369,11 +2307,6 @@ EXPORT_SYMBOL_GPL(snd_soc_codec_set_sysclk);
 int snd_soc_component_set_sysclk(struct snd_soc_component *component, int clk_id,
 			     int source, unsigned int freq, int dir)
 {
-	/* will be removed */
-	if (component->set_sysclk)
-		return component->set_sysclk(component, clk_id, source,
-					     freq, dir);
-
 	if (component->driver->set_sysclk)
 		return component->driver->set_sysclk(component, clk_id, source,
 						 freq, dir);
@@ -2425,27 +2358,6 @@ int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
 
 /*
- * snd_soc_codec_set_pll - configure codec PLL.
- * @codec: CODEC
- * @pll_id: DAI specific PLL ID
- * @source: DAI specific source for the PLL
- * @freq_in: PLL input clock frequency in Hz
- * @freq_out: requested PLL output clock frequency in Hz
- *
- * Configures and enables PLL to generate output clock based on input clock.
- */
-int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
-			  unsigned int freq_in, unsigned int freq_out)
-{
-	if (codec->driver->set_pll)
-		return codec->driver->set_pll(codec, pll_id, source,
-					      freq_in, freq_out);
-	else
-		return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
-
-/*
  * snd_soc_component_set_pll - configure component PLL.
  * @component: COMPONENT
  * @pll_id: DAI specific PLL ID
@@ -2459,11 +2371,6 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 			      int source, unsigned int freq_in,
 			      unsigned int freq_out)
 {
-	/* will be removed */
-	if (component->set_pll)
-		return component->set_pll(component, pll_id, source,
-					      freq_in, freq_out);
-
 	if (component->driver->set_pll)
 		return component->driver->set_pll(component, pll_id, source,
 					      freq_in, freq_out);
@@ -2964,13 +2871,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev = dev;
 	component->driver = driver;
-	component->probe = component->driver->probe;
-	component->remove = component->driver->remove;
-	component->suspend = component->driver->suspend;
-	component->resume = component->driver->resume;
-	component->set_sysclk = component->driver->set_sysclk;
-	component->set_pll = component->driver->set_pll;
-	component->set_jack = component->driver->set_jack;
 
 	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
@@ -3041,7 +2941,7 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
 
 static void snd_soc_component_add_unlocked(struct snd_soc_component *component)
 {
-	if (!component->write && !component->read) {
+	if (!component->driver->write && !component->driver->read) {
 		if (!component->regmap)
 			component->regmap = dev_get_regmap(component->dev, NULL);
 		if (component->regmap)
@@ -3123,9 +3023,6 @@ int snd_soc_add_component(struct device *dev,
 	if (ret)
 		goto err_free;
 
-	component->ignore_pmdown_time = true;
-	component->registered_as_component = true;
-
 	if (component_driver->endianness) {
 		for (i = 0; i < num_dai; i++) {
 			convert_endianness_formats(&dai_drv[i].playback);
@@ -3180,8 +3077,7 @@ static int __snd_soc_unregister_component(struct device *dev)
 
 	mutex_lock(&client_mutex);
 	list_for_each_entry(component, &component_list, list) {
-		if (dev != component->dev ||
-		    !component->registered_as_component)
+		if (dev != component->dev)
 			continue;
 
 		snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
@@ -3229,211 +3125,6 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
-
-static int snd_soc_codec_drv_probe(struct snd_soc_component *component)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return codec->driver->probe(codec);
-}
-
-static void snd_soc_codec_drv_remove(struct snd_soc_component *component)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	codec->driver->remove(codec);
-}
-
-static int snd_soc_codec_drv_suspend(struct snd_soc_component *component)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return codec->driver->suspend(codec);
-}
-
-static int snd_soc_codec_drv_resume(struct snd_soc_component *component)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return codec->driver->resume(codec);
-}
-
-static int snd_soc_codec_drv_write(struct snd_soc_component *component,
-	unsigned int reg, unsigned int val)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return codec->driver->write(codec, reg, val);
-}
-
-static int snd_soc_codec_drv_read(struct snd_soc_component *component,
-	unsigned int reg, unsigned int *val)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	*val = codec->driver->read(codec, reg);
-
-	return 0;
-}
-
-static int snd_soc_codec_set_sysclk_(struct snd_soc_component *component,
-			  int clk_id, int source, unsigned int freq, int dir)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return snd_soc_codec_set_sysclk(codec, clk_id, source, freq, dir);
-}
-
-static int snd_soc_codec_set_pll_(struct snd_soc_component *component,
-				  int pll_id, int source, unsigned int freq_in,
-				  unsigned int freq_out)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return snd_soc_codec_set_pll(codec, pll_id, source, freq_in, freq_out);
-}
-
-static int snd_soc_codec_set_jack_(struct snd_soc_component *component,
-			       struct snd_soc_jack *jack, void *data)
-{
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
-	return snd_soc_codec_set_jack(codec, jack, data);
-}
-
-static int snd_soc_codec_set_bias_level(struct snd_soc_dapm_context *dapm,
-	enum snd_soc_bias_level level)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
-
-	return codec->driver->set_bias_level(codec, level);
-}
-
-/**
- * snd_soc_register_codec - Register a codec with the ASoC core
- *
- * @dev: The parent device for this codec
- * @codec_drv: Codec driver
- * @dai_drv: The associated DAI driver
- * @num_dai: Number of DAIs
- */
-int snd_soc_register_codec(struct device *dev,
-			   const struct snd_soc_codec_driver *codec_drv,
-			   struct snd_soc_dai_driver *dai_drv,
-			   int num_dai)
-{
-	struct snd_soc_dapm_context *dapm;
-	struct snd_soc_codec *codec;
-	struct snd_soc_dai *dai;
-	int ret, i;
-
-	dev_dbg(dev, "codec register %s\n", dev_name(dev));
-
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	codec->component.codec = codec;
-
-	ret = snd_soc_component_initialize(&codec->component,
-			&codec_drv->component_driver, dev);
-	if (ret)
-		goto err_free;
-
-	if (codec_drv->probe)
-		codec->component.probe = snd_soc_codec_drv_probe;
-	if (codec_drv->remove)
-		codec->component.remove = snd_soc_codec_drv_remove;
-	if (codec_drv->suspend)
-		codec->component.suspend = snd_soc_codec_drv_suspend;
-	if (codec_drv->resume)
-		codec->component.resume = snd_soc_codec_drv_resume;
-	if (codec_drv->write)
-		codec->component.write = snd_soc_codec_drv_write;
-	if (codec_drv->read)
-		codec->component.read = snd_soc_codec_drv_read;
-	if (codec_drv->set_sysclk)
-		codec->component.set_sysclk = snd_soc_codec_set_sysclk_;
-	if (codec_drv->set_pll)
-		codec->component.set_pll = snd_soc_codec_set_pll_;
-	if (codec_drv->set_jack)
-		codec->component.set_jack = snd_soc_codec_set_jack_;
-	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
-
-	dapm = snd_soc_codec_get_dapm(codec);
-	dapm->idle_bias_off = codec_drv->idle_bias_off;
-	dapm->suspend_bias_off = codec_drv->suspend_bias_off;
-	if (codec_drv->seq_notifier)
-		dapm->seq_notifier = codec_drv->seq_notifier;
-	if (codec_drv->set_bias_level)
-		dapm->set_bias_level = snd_soc_codec_set_bias_level;
-	codec->dev = dev;
-	codec->driver = codec_drv;
-
-#ifdef CONFIG_DEBUG_FS
-	codec->component.debugfs_prefix = "codec";
-#endif
-
-	for (i = 0; i < num_dai; i++) {
-		convert_endianness_formats(&dai_drv[i].playback);
-		convert_endianness_formats(&dai_drv[i].capture);
-	}
-
-	ret = snd_soc_register_dais(&codec->component, dai_drv, num_dai, false);
-	if (ret < 0) {
-		dev_err(dev, "ASoC: Failed to register DAIs: %d\n", ret);
-		goto err_cleanup;
-	}
-
-	list_for_each_entry(dai, &codec->component.dai_list, list)
-		dai->codec = codec;
-
-	mutex_lock(&client_mutex);
-	snd_soc_component_add_unlocked(&codec->component);
-	list_add(&codec->list, &codec_list);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(codec->dev, "ASoC: Registered codec '%s'\n",
-		codec->component.name);
-	return 0;
-
-err_cleanup:
-	snd_soc_component_cleanup(&codec->component);
-err_free:
-	kfree(codec);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_codec);
-
-/**
- * snd_soc_unregister_codec - Unregister a codec from the ASoC core
- *
- * @dev: codec to unregister
- */
-void snd_soc_unregister_codec(struct device *dev)
-{
-	struct snd_soc_codec *codec;
-
-	mutex_lock(&client_mutex);
-	list_for_each_entry(codec, &codec_list, list) {
-		if (dev == codec->dev)
-			goto found;
-	}
-	mutex_unlock(&client_mutex);
-	return;
-
-found:
-	list_del(&codec->list);
-	snd_soc_component_del_unlocked(&codec->component);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(codec->dev, "ASoC: Unregistered codec '%s'\n",
-			codec->component.name);
-
-	snd_soc_component_cleanup(&codec->component);
-	kfree(codec);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
 
 /* Retrieve a card's name from device tree */
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,

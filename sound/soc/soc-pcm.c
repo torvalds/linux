@@ -135,7 +135,6 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
-	int i;
 	bool ignore = true;
 
 	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
@@ -146,10 +145,6 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 
 		ignore &= !component->driver->use_pmdown_time;
 	}
-
-	/* this will be removed */
-	for (i = 0; i < rtd->num_codecs; i++)
-		ignore &= rtd->codec_dais[i]->component->ignore_pmdown_time;
 
 	return ignore;
 }
