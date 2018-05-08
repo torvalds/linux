@@ -433,7 +433,7 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	}
 
 	/* ... SOR caps */
-	for (i = 0; i < disp->func->sor.nr; i++) {
+	for (i = 0; i < disp->sor.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101e0 + (i * 0x04), tmp);
 	}

@@ -34,7 +34,7 @@ g94_disp = {
 	.root = &g94_disp_root_oclass,
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
-	.sor = { .nr = 4, .new = g94_sor_new },
+	.sor = { .cnt = g94_sor_cnt, .new = g94_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
 };
 

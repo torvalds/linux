@@ -60,7 +60,7 @@ gp102_disp = {
 	.super = gf119_disp_super,
 	.root = &gp102_disp_root_oclass,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
-	.sor = { .nr = 4, .new = gm200_sor_new },
+	.sor = { .cnt = gf119_sor_cnt, .new = gm200_sor_new },
 };
 
 int

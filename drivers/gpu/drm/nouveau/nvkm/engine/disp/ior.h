@@ -106,7 +106,6 @@ nv50_sor_link(struct nvkm_ior *ior)
 	return nv50_ior_base(ior) + ((ior->asy.link == 2) * 0x80);
 }
 
-int nv50_sor_new_(const struct nvkm_ior_func *, struct nvkm_disp *, int id);
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 void nv50_sor_clock(struct nvkm_ior *);
@@ -122,7 +121,6 @@ void g94_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gt215_sor_dp_audio(struct nvkm_ior *, int, bool);
 
-int gf119_sor_new_(const struct nvkm_ior_func *, struct nvkm_disp *, int id);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void gf119_sor_clock(struct nvkm_ior *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
@@ -161,13 +159,21 @@ int gf119_dac_new(struct nvkm_disp *, int);
 
 int nv50_pior_new(struct nvkm_disp *, int);
 
+int nv50_sor_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_sor_new(struct nvkm_disp *, int);
+
 int g84_sor_new(struct nvkm_disp *, int);
+
+int g94_sor_cnt(struct nvkm_disp *, unsigned long *);
 int g94_sor_new(struct nvkm_disp *, int);
+
 int mcp77_sor_new(struct nvkm_disp *, int);
 int gt215_sor_new(struct nvkm_disp *, int);
 int mcp89_sor_new(struct nvkm_disp *, int);
+
+int gf119_sor_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_sor_new(struct nvkm_disp *, int);
+
 int gk104_sor_new(struct nvkm_disp *, int);
 int gm107_sor_new(struct nvkm_disp *, int);
 int gm200_sor_new(struct nvkm_disp *, int);
