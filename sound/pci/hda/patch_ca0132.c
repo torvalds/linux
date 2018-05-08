@@ -28,6 +28,9 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/io.h>
+#include <linux/pci.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -764,6 +767,11 @@ struct ca0132_spec {
 #ifdef ENABLE_TUNING_CONTROLS
 	long cur_ctl_vals[TUNING_CTLS_COUNT];
 #endif
+	/*
+	 * Sound Blaster Z PCI region 2 iomem, used for input and output
+	 * switching, and other unknown commands.
+	 */
+	void __iomem *mem_base;
 };
 
 /*
@@ -4700,6 +4708,8 @@ static void ca0132_free(struct hda_codec *codec)
 	snd_hda_sequence_write(codec, spec->base_exit_verbs);
 	ca0132_exit_chip(codec);
 	snd_hda_power_down(codec);
+	if (spec->mem_base)
+		iounmap(spec->mem_base);
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
 }
@@ -4915,6 +4925,15 @@ static int patch_ca0132(struct hda_codec *codec)
 	else
 		spec->quirk = QUIRK_NONE;
 
+	/* Setup BAR Region 2 for Sound Blaster Z */
+	if (spec->quirk == QUIRK_SBZ) {
+		spec->mem_base = pci_iomap(codec->bus->pci, 2, 0xC20);
+		if (spec->mem_base == NULL) {
+			codec_warn(codec, "pci_iomap failed!");
+			codec_info(codec, "perhaps this is not an SBZ?");
+			spec->quirk = QUIRK_NONE;
+		}
+	}
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ca0132_mixer;
