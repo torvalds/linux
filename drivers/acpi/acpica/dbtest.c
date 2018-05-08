@@ -330,14 +330,13 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 		case ACPI_ADR_SPACE_SYSTEM_IO:
 		case ACPI_ADR_SPACE_PCI_CONFIG:
-		case ACPI_ADR_SPACE_EC:
 
 			break;
 
 		default:
 
 			acpi_os_printf
-			    ("    %s space is not supported [%4.4s]\n",
+			    ("    %s space is not supported in this command [%4.4s]\n",
 			     acpi_ut_get_region_name(region_obj->region.
 						     space_id),
 			     region_obj->region.node->name.ascii);
