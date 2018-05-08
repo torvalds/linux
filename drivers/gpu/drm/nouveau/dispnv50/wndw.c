@@ -146,6 +146,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		wndw->func->xlut_set(wndw, asyw);
 	}
 
+	if (asyw->set.scale) wndw->func->scale_set(wndw, asyw);
 	if (asyw->set.point) {
 		wndw->immd->point(wndw, asyw);
 		wndw->immd->update(wndw, interlock);
@@ -181,6 +182,20 @@ nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
 }
 
 static int
+nv50_wndw_atomic_check_acquire_yuv(struct nv50_wndw_atom *asyw)
+{
+	switch (asyw->state.fb->format->format) {
+	case DRM_FORMAT_YUYV: asyw->image.format = 0x28; break;
+	case DRM_FORMAT_UYVY: asyw->image.format = 0x29; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	asyw->image.colorspace = 1;
+	return 0;
+}
+
+static int
 nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
@@ -197,9 +212,9 @@ nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_ARGB2101010: asyw->image.format = 0xdf; break;
 	default:
-		WARN_ON(1);
 		return -EINVAL;
 	}
+	asyw->image.colorspace = 0;
 	return 0;
 }
 
@@ -221,8 +236,11 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		asyw->image.kind = fb->nvbo->kind;
 
 		ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
-		if (ret)
-			return ret;
+		if (ret) {
+			ret = nv50_wndw_atomic_check_acquire_yuv(asyw);
+			if (ret)
+				return ret;
+		}
 
 		if (asyw->image.kind) {
 			asyw->image.layout = 0;
@@ -245,6 +263,17 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->image.interval = 0;
 		asyw->image.mode = asyw->image.interval ? 0 : 1;
 		asyw->set.image = wndw->func->image_set != NULL;
+	}
+
+	if (wndw->func->scale_set) {
+		asyw->scale.sx = asyw->state.src_x >> 16;
+		asyw->scale.sy = asyw->state.src_y >> 16;
+		asyw->scale.sw = asyw->state.src_w >> 16;
+		asyw->scale.sh = asyw->state.src_h >> 16;
+		asyw->scale.dw = asyw->state.crtc_w;
+		asyw->scale.dh = asyw->state.crtc_h;
+		if (memcmp(&armw->scale, &asyw->scale, sizeof(asyw->scale)))
+			asyw->set.scale = true;
 	}
 
 	if (wndw->immd) {

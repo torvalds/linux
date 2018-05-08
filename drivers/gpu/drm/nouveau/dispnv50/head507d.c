@@ -58,7 +58,6 @@ head507d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 
 	if (asyh->ovly.cpp) {
 		switch (asyh->ovly.cpp) {
-		case 8: bounds |= 0x00000500; break;
 		case 4: bounds |= 0x00000300; break;
 		case 2: bounds |= 0x00000100; break;
 		default:
@@ -66,6 +65,8 @@ head507d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 			break;
 		}
 		bounds |= 0x00000001;
+	} else {
+		bounds |= 0x00000100;
 	}
 
 	if ((push = evo_wait(core, 2))) {

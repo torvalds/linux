@@ -70,15 +70,21 @@ struct nv50_wndw_func {
 	void (*xlut_clr)(struct nv50_wndw *);
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
+	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
 
 extern const struct drm_plane_funcs nv50_wndw;
 
+void base507c_ntfy_reset(struct nouveau_bo *, u32);
+int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+
 struct nv50_wimm_func {
 	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
+
+extern const struct nv50_wimm_func curs507a;
 #endif

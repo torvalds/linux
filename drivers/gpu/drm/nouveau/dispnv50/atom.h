@@ -173,6 +173,7 @@ struct nv50_wndw_atom {
 		u8  mode:2;
 		u8  interval:4;
 
+		u8  colorspace:2;
 		u8  format;
 		u8  kind:7;
 		u8  layout:1;
@@ -187,6 +188,15 @@ struct nv50_wndw_atom {
 	} image;
 
 	struct {
+		u16 sx;
+		u16 sy;
+		u16 sw;
+		u16 sh;
+		u16 dw;
+		u16 dh;
+	} scale;
+
+	struct {
 		u16 x;
 		u16 y;
 	} point;
@@ -197,6 +207,7 @@ struct nv50_wndw_atom {
 			bool sema:1;
 			bool xlut:1;
 			bool image:1;
+			bool scale:1;
 			bool point:1;
 		};
 		u8 mask;

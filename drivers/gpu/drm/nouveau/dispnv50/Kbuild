@@ -40,3 +40,4 @@ nouveau-y += dispnv50/ovly.o
 nouveau-y += dispnv50/ovly507e.o
 nouveau-y += dispnv50/ovly827e.o
 nouveau-y += dispnv50/ovly907e.o
+nouveau-y += dispnv50/ovly917e.o

@@ -19,34 +19,27 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "oimm.h"
+#include "ovly.h"
 
-#include <nvif/cl507b.h>
-
-static int
-oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
-	       s32 oclass, struct nv50_wndw *wndw)
-{
-	struct nv50_disp_overlay_v0 args = {
-		.head = wndw->id,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int ret;
-
-	ret = nvif_object_init(&disp->disp->object, 0, oclass, &args,
-			       sizeof(args), &wndw->wimm.base.user);
-	if (ret) {
-		NV_ERROR(drm, "oimm%04x allocation failed: %d\n", oclass, ret);
-		return ret;
-	}
-
-	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
-	wndw->immd = func;
-	return 0;
-}
+static const u32
+ovly917e_format[] = {
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
+	0
+};
 
 int
-oimm507b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+ovly917e_new(struct nouveau_drm *drm, int head, s32 oclass,
+	     struct nv50_wndw **pwndw)
 {
-	return oimm507b_init_(&curs507a, drm, oclass, wndw);
+	return ovly507e_new_(&ovly907e, ovly917e_format, drm, head, oclass,
+			     0x00000004 << (head * 4), pwndw);
 }

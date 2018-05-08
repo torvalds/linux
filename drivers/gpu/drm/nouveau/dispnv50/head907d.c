@@ -82,6 +82,8 @@ head907d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 			break;
 		}
 		bounds |= 0x00000001;
+	} else {
+		bounds |= 0x00000100;
 	}
 
 	if ((push = evo_wait(core, 2))) {
