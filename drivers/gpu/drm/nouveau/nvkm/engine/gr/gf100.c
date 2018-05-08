@@ -1997,6 +1997,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	gr->func->init_vsc_stream_master(gr);
 	gr->func->init_zcull(gr);
 	gr->func->init_num_active_ltcs(gr);
+	if (gr->func->init_rop_active_fbps)
+		gr->func->init_rop_active_fbps(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
