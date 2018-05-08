@@ -88,7 +88,7 @@ acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
  * DESCRIPTION: This function is called to verify and install an ACPI table.
  *              When this function is called by "Load" or "LoadTable" opcodes,
  *              or by acpi_load_table() API, the "Reload" parameter is set.
- *              After sucessfully returning from this function, table is
+ *              After successfully returning from this function, table is
  *              "INSTALLED" but not "VALIDATED".
  *
  ******************************************************************************/
