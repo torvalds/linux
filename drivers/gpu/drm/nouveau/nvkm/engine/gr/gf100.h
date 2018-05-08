@@ -128,6 +128,7 @@ struct gf100_gr_func {
 	void (*init_zcull)(struct gf100_gr *);
 	void (*init_num_active_ltcs)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
+	void (*init_bios_2)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);

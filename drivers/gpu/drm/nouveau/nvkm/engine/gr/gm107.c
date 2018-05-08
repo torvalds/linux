@@ -25,6 +25,8 @@
 #include "ctxgf100.h"
 
 #include <subdev/bios.h>
+#include <subdev/bios/bit.h>
+#include <subdev/bios/init.h>
 #include <subdev/bios/P0260.h>
 #include <subdev/fb.h>
 
@@ -279,6 +281,31 @@ gm107_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gm107_gr_init_bios_2(struct gf100_gr *gr)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
+	struct bit_entry bit_P;
+	if (!bit_entry(bios, 'P', &bit_P) &&
+	    bit_P.version == 2 && bit_P.length >= 0x2c) {
+		u32 data = nvbios_rd32(bios, bit_P.offset + 0x28);
+		if (data) {
+			u8 ver = nvbios_rd08(bios, data + 0x00);
+			u8 hdr = nvbios_rd08(bios, data + 0x01);
+			if (ver == 0x20 && hdr >= 8) {
+				data = nvbios_rd32(bios, data + 0x04);
+				if (data) {
+					u32 save = nvkm_rd32(device, 0x619444);
+					nvbios_init(subdev, data);
+					nvkm_wr32(device, 0x619444, save);
+				}
+			}
+		}
+	}
+}
+
 void
 gm107_gr_init_bios(struct gf100_gr *gr)
 {
@@ -427,6 +454,7 @@ gm107_gr = {
 	.init_zcull = gf117_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_bios_2 = gm107_gr_init_bios_2,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
