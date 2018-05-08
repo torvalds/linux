@@ -29,7 +29,7 @@
 static void
 gf119_disp_pioc_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->root->disp;
+	struct nv50_disp *disp = chan->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
@@ -52,7 +52,7 @@ gf119_disp_pioc_fini(struct nv50_disp_chan *chan)
 static int
 gf119_disp_pioc_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->root->disp;
+	struct nv50_disp *disp = chan->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;

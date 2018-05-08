@@ -56,7 +56,7 @@ nv50_disp_dmac_child_new_(struct nv50_disp_chan *base,
 			  void *data, u32 size, struct nvkm_object **pobject)
 {
 	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const struct nvkm_device_oclass *sclass = oclass->priv;
 	struct nv50_disp_dmac_object *object;
@@ -85,7 +85,7 @@ nv50_disp_dmac_child_get_(struct nv50_disp_chan *base, int index,
 			  struct nvkm_oclass *sclass)
 {
 	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const struct nvkm_device_oclass *oclass = NULL;
 
@@ -133,7 +133,7 @@ nv50_disp_dmac_func_ = {
 int
 nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp_root *root, int chid, int head, u64 push,
+		    struct nv50_disp *disp, int chid, int head, u64 push,
 		    const struct nvkm_oclass *oclass,
 		    struct nvkm_object **pobject)
 {
@@ -147,7 +147,7 @@ nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
 	*pobject = &chan->base.object;
 	chan->func = func;
 
-	ret = nv50_disp_chan_ctor(&nv50_disp_dmac_func_, mthd, root,
+	ret = nv50_disp_chan_ctor(&nv50_disp_dmac_func_, mthd, disp,
 				  chid, chid, head, oclass, &chan->base);
 	if (ret)
 		return ret;
@@ -177,7 +177,7 @@ int
 nv50_disp_dmac_bind(struct nv50_disp_dmac *chan,
 		    struct nvkm_object *object, u32 handle)
 {
-	return nvkm_ramht_insert(chan->base.root->disp->ramht, object,
+	return nvkm_ramht_insert(chan->base.disp->ramht, object,
 				 chan->base.chid.user, -10, handle,
 				 chan->base.chid.user << 28 |
 				 chan->base.chid.user);
@@ -186,7 +186,7 @@ nv50_disp_dmac_bind(struct nv50_disp_dmac *chan,
 static void
 nv50_disp_dmac_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->base.chid.ctrl;
@@ -210,7 +210,7 @@ nv50_disp_dmac_fini(struct nv50_disp_dmac *chan)
 static int
 nv50_disp_dmac_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->base.chid.ctrl;

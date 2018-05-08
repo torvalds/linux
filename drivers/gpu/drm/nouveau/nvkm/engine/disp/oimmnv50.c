@@ -55,7 +55,7 @@ nv50_disp_oimm_new(const struct nv50_disp_chan_func *func,
 	} else
 		return ret;
 
-	return nv50_disp_chan_new_(func, mthd, root, ctrl + head, user + head,
+	return nv50_disp_chan_new_(func, mthd, disp, ctrl + head, user + head,
 				   head, oclass, pobject);
 }
 

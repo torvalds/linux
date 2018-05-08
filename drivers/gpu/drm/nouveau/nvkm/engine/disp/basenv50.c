@@ -58,7 +58,7 @@ nv50_disp_base_new(const struct nv50_disp_dmac_func *func,
 	} else
 		return ret;
 
-	return nv50_disp_dmac_new_(func, mthd, root, chid + head,
+	return nv50_disp_dmac_new_(func, mthd, disp, chid + head,
 				   head, push, oclass, pobject);
 }
 

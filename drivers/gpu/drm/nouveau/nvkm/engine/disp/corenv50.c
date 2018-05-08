@@ -54,7 +54,7 @@ nv50_disp_core_new(const struct nv50_disp_dmac_func *func,
 	} else
 		return ret;
 
-	return nv50_disp_dmac_new_(func, mthd, root, chid, 0,
+	return nv50_disp_dmac_new_(func, mthd, root->disp, chid, 0,
 				   push, oclass, pobject);
 }
 
@@ -168,7 +168,7 @@ nv50_disp_core_chan_mthd = {
 static void
 nv50_disp_core_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
@@ -190,7 +190,7 @@ nv50_disp_core_fini(struct nv50_disp_dmac *chan)
 static int
 nv50_disp_core_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 

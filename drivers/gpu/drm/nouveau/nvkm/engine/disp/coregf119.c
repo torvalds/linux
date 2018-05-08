@@ -174,7 +174,7 @@ gf119_disp_core_chan_mthd = {
 void
 gf119_disp_core_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
@@ -197,7 +197,7 @@ gf119_disp_core_fini(struct nv50_disp_dmac *chan)
 static int
 gf119_disp_core_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 

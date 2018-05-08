@@ -9,7 +9,7 @@ struct nv50_disp_root;
 struct nv50_disp_chan {
 	const struct nv50_disp_chan_func *func;
 	const struct nv50_disp_chan_mthd *mthd;
-	struct nv50_disp_root *root;
+	struct nv50_disp *disp;
 
 	struct {
 		int ctrl;
@@ -32,11 +32,11 @@ struct nv50_disp_chan_func {
 
 int nv50_disp_chan_ctor(const struct nv50_disp_chan_func *,
 			const struct nv50_disp_chan_mthd *,
-			struct nv50_disp_root *, int ctrl, int user, int head,
+			struct nv50_disp *, int ctrl, int user, int head,
 			const struct nvkm_oclass *, struct nv50_disp_chan *);
 int nv50_disp_chan_new_(const struct nv50_disp_chan_func *,
 			const struct nv50_disp_chan_mthd *,
-			struct nv50_disp_root *, int ctrl, int user, int head,
+			struct nv50_disp *, int ctrl, int user, int head,
 			const struct nvkm_oclass *, struct nvkm_object **);
 
 extern const struct nv50_disp_chan_func nv50_disp_pioc_func;

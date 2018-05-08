@@ -18,7 +18,7 @@ struct nv50_disp_dmac_func {
 
 int nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *,
 			const struct nv50_disp_chan_mthd *,
-			struct nv50_disp_root *, int chid, int head, u64 push,
+			struct nv50_disp *, int chid, int head, u64 push,
 			const struct nvkm_oclass *, struct nvkm_object **);
 
 extern const struct nv50_disp_dmac_func nv50_disp_dmac_func;

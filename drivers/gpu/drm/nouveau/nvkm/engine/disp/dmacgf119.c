@@ -31,7 +31,7 @@ int
 gf119_disp_dmac_bind(struct nv50_disp_dmac *chan,
 		     struct nvkm_object *object, u32 handle)
 {
-	return nvkm_ramht_insert(chan->base.root->disp->ramht, object,
+	return nvkm_ramht_insert(chan->base.disp->ramht, object,
 				 chan->base.chid.user, -9, handle,
 				 chan->base.chid.user << 27 | 0x00000001);
 }
@@ -39,7 +39,7 @@ gf119_disp_dmac_bind(struct nv50_disp_dmac *chan,
 void
 gf119_disp_dmac_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->base.chid.ctrl;
@@ -64,7 +64,7 @@ gf119_disp_dmac_fini(struct nv50_disp_dmac *chan)
 static int
 gf119_disp_dmac_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
+	struct nv50_disp *disp = chan->base.disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->base.chid.ctrl;
