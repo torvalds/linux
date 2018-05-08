@@ -113,7 +113,7 @@ struct hws_basic_entry {
 
 struct hws_diag_entry {
 	unsigned int def:16;	    /* 0-15  Data Entry Format		 */
-	unsigned int R:14;	    /* 16-19 and 20-30 reserved		 */
+	unsigned int R:15;	    /* 16-19 and 20-30 reserved		 */
 	unsigned int I:1;	    /* 31 entry valid or invalid	 */
 	u8	     data[];	    /* Machine-dependent sample data	 */
 } __packed;
