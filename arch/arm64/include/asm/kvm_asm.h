@@ -30,9 +30,6 @@
 /* The hyp-stub will return this for any kvm_call_hyp() call */
 #define ARM_EXCEPTION_HYP_GONE	  HVC_STUB_ERR
 
-#define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
-#define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
-
 #ifndef __ASSEMBLY__
 
 #include <linux/mm.h>

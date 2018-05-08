@@ -216,8 +216,8 @@ struct kvm_vcpu_arch {
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
-	/* Guest debug state */
-	u64 debug_flags;
+	/* Miscellaneous vcpu state flags */
+	u64 flags;
 
 	/*
 	 * We maintain more than a single set of debug registers to support
@@ -292,6 +292,9 @@ struct kvm_vcpu_arch {
 	 * see kvm_vcpu_load_sysregs and kvm_vcpu_put_sysregs. */
 	bool sysregs_loaded_on_cpu;
 };
+
+/* vcpu_arch flags field values: */
+#define KVM_ARM64_DEBUG_DIRTY		(1 << 0)
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 

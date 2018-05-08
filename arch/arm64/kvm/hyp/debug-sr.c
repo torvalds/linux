@@ -163,7 +163,7 @@ void __hyp_text __debug_switch_to_guest(struct kvm_vcpu *vcpu)
 	if (!has_vhe())
 		__debug_save_spe_nvhe(&vcpu->arch.host_debug_state.pmscr_el1);
 
-	if (!(vcpu->arch.debug_flags & KVM_ARM64_DEBUG_DIRTY))
+	if (!(vcpu->arch.flags & KVM_ARM64_DEBUG_DIRTY))
 		return;
 
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
@@ -185,7 +185,7 @@ void __hyp_text __debug_switch_to_host(struct kvm_vcpu *vcpu)
 	if (!has_vhe())
 		__debug_restore_spe_nvhe(vcpu->arch.host_debug_state.pmscr_el1);
 
-	if (!(vcpu->arch.debug_flags & KVM_ARM64_DEBUG_DIRTY))
+	if (!(vcpu->arch.flags & KVM_ARM64_DEBUG_DIRTY))
 		return;
 
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
@@ -196,7 +196,7 @@ void __hyp_text __debug_switch_to_host(struct kvm_vcpu *vcpu)
 	__debug_save_state(vcpu, guest_dbg, guest_ctxt);
 	__debug_restore_state(vcpu, host_dbg, host_ctxt);
 
-	vcpu->arch.debug_flags &= ~KVM_ARM64_DEBUG_DIRTY;
+	vcpu->arch.flags &= ~KVM_ARM64_DEBUG_DIRTY;
 }
 
 u32 __hyp_text __kvm_get_mdcr_el2(void)
