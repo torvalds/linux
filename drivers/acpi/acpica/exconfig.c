@@ -174,6 +174,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Complete the initialization/resolution of package objects */
+
+	status = acpi_ns_walk_namespace(ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+					ACPI_UINT32_MAX, 0,
+					acpi_ns_init_one_package, NULL, NULL,
+					NULL);
+
 	/* Parameter Data (optional) */
 
 	if (parameter_node) {
@@ -429,6 +436,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		return_ACPI_STATUS(status);
 	}
+
+	/* Complete the initialization/resolution of package objects */
+
+	status = acpi_ns_walk_namespace(ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+					ACPI_UINT32_MAX, 0,
+					acpi_ns_init_one_package, NULL, NULL,
+					NULL);
 
 	/* Store the ddb_handle into the Target operand */
 
