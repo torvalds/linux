@@ -242,7 +242,7 @@ static ssize_t
 comp_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
 	size_t to_copy, not_copied, copied;
-	struct mbo *mbo;
+	struct mbo *mbo = NULL;
 	struct comp_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
