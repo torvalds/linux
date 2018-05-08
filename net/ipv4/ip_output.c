@@ -910,7 +910,7 @@ static int __ip_append_data(struct sock *sk,
 	    length + fragheaderlen <= mtu &&
 	    rt->dst.dev->features & (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM) &&
 	    (!(flags & MSG_MORE) || cork->gso_size) &&
-	    !exthdrlen)
+	    (!exthdrlen || (rt->dst.dev->features & NETIF_F_HW_ESP_TX_CSUM)))
 		csummode = CHECKSUM_PARTIAL;
 
 	cork->length += length;
