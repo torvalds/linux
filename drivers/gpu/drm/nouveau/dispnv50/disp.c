@@ -495,6 +495,14 @@ struct nv50_core {
 
 struct nv50_core_func {
 	const struct nv50_head_func *head;
+	const struct nv50_outp_func *dac;
+	const struct nv50_outp_func *sor;
+	const struct nv50_outp_func *pior;
+};
+
+struct nv50_outp_func {
+	void (*ctrl)(struct nv50_core *, int or, u32 ctrl,
+		     struct nv50_head_atom *);
 };
 
 static int
@@ -1641,7 +1649,7 @@ head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if (core->base.user.oclass >= GF110_DISP_CORE_CHANNEL_DMA &&
-	    (push = evo_wait(core, 2))) {
+	    (push = evo_wait(core, 3))) {
 		evo_mthd(push, 0x0404 + (head->base.index * 0x300), 2);
 		evo_data(push, 0x00000001 | (asyh->or.depth  << 6) |
 					    (asyh->or.nvsync << 4) |
@@ -2546,9 +2554,15 @@ out:
 	return ret;
 }
 
+static const struct nv50_outp_func dac507d;
+static const struct nv50_outp_func sor507d;
+static const struct nv50_outp_func pior507d;
 static const struct nv50_core_func
 core507d = {
 	.head = &head507d,
+	.dac = &dac507d,
+	.sor = &sor507d,
+	.pior = &pior507d,
 };
 
 static int
@@ -2707,27 +2721,39 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
  * DAC
  *****************************************************************************/
 static void
+dac507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
+	     struct nv50_head_atom *asyh)
+{
+	u32 *push, sync = 0;
+	if ((push = evo_wait(&core->chan, 3))) {
+		if (core->chan.base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			if (asyh) {
+				sync |= asyh->or.nvsync << 1;
+				sync |= asyh->or.nhsync;
+			}
+			evo_mthd(push, 0x0400 + (or * 0x080), 2);
+			evo_data(push, ctrl);
+			evo_data(push, sync);
+		} else {
+			evo_mthd(push, 0x0180 + (or * 0x020), 1);
+			evo_data(push, ctrl);
+		}
+		evo_kick(push, &core->chan);
+	}
+}
+
+static const struct nv50_outp_func
+dac507d = {
+	.ctrl = dac507d_ctrl,
+};
+
+static void
 nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
-	const int or = nv_encoder->or;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		push = evo_wait(core, 4);
-		if (push) {
-			if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-				evo_mthd(push, 0x0400 + (or * 0x080), 1);
-				evo_data(push, 0x00000000);
-			} else {
-				evo_mthd(push, 0x0180 + (or * 0x020), 1);
-				evo_data(push, 0x00000000);
-			}
-			evo_kick(push, core);
-		}
-	}
-
+	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	if (nv_encoder->crtc)
+		core->func->dac->ctrl(core, nv_encoder->or, 0x00000000, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -2735,27 +2761,14 @@ nv50_dac_disable(struct drm_encoder *encoder)
 static void
 nv50_dac_enable(struct drm_encoder *encoder)
 {
-	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
-	u32 *push;
+	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 
 	nv50_outp_acquire(nv_encoder);
 
-	push = evo_wait(core, 8);
-	if (push) {
-		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0400 + (nv_encoder->or * 0x080), 2);
-			evo_data(push, 1 << nv_crtc->index);
-			evo_data(push, (asyh->or.nvsync << 1) | asyh->or.nhsync);
-		} else {
-			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 1);
-			evo_data(push, 1 << nv_crtc->index);
-		}
-
-		evo_kick(push, core);
-	}
+	core->func->dac->ctrl(core, nv_encoder->or, 1 << nv_crtc->index, asyh);
 	asyh->or.depth = 0;
 
 	nv_encoder->crtc = encoder->crtc;
@@ -3622,12 +3635,37 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
  * SOR
  *****************************************************************************/
 static void
+sor507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
+	     struct nv50_head_atom *asyh)
+{
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 6))) {
+		if (core->chan.base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			if (asyh) {
+				ctrl |= asyh->or.depth  << 16;
+				ctrl |= asyh->or.nvsync << 13;
+				ctrl |= asyh->or.nhsync << 12;
+			}
+			evo_mthd(push, 0x0600 + (or * 0x40), 1);
+		} else {
+			evo_mthd(push, 0x0200 + (or * 0x20), 1);
+		}
+		evo_data(push, ctrl);
+		evo_kick(push, &core->chan);
+	}
+}
+
+static const struct nv50_outp_func
+sor507d = {
+	.ctrl = sor507d_ctrl,
+};
+
+static void
 nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		struct nv50_head_atom *asyh, u8 proto, u8 depth)
 {
 	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
-	struct nv50_dmac *core = &disp->core->chan;
-	u32 *push;
+	struct nv50_core *core = disp->core;
 
 	if (!asyh) {
 		nv_encoder->ctrl &= ~BIT(head);
@@ -3639,20 +3677,7 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		asyh->or.depth = depth;
 	}
 
-	if ((push = evo_wait(core, 6))) {
-		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			if (asyh) {
-				nv_encoder->ctrl |= asyh->or.depth  << 16 |
-						    asyh->or.nvsync << 13 |
-						    asyh->or.nhsync << 12;
-			}
-			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x40), 1);
-		} else {
-			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
-		}
-		evo_data(push, nv_encoder->ctrl);
-		evo_kick(push, core);
-	}
+	core->func->sor->ctrl(core, nv_encoder->or, nv_encoder->ctrl, asyh);
 }
 
 static void
@@ -3879,6 +3904,30 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 /******************************************************************************
  * PIOR
  *****************************************************************************/
+static void
+pior507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
+	      struct nv50_head_atom *asyh)
+{
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 8))) {
+		if (core->chan.base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			if (asyh) {
+				ctrl |= asyh->or.depth  << 16;
+				ctrl |= asyh->or.nvsync << 13;
+				ctrl |= asyh->or.nhsync << 12;
+			}
+			evo_mthd(push, 0x0700 + (or * 0x040), 1);
+			evo_data(push, ctrl);
+		}
+		evo_kick(push, &core->chan);
+	}
+}
+
+static const struct nv50_outp_func
+pior507d = {
+	.ctrl = pior507d_ctrl,
+};
+
 static int
 nv50_pior_atomic_check(struct drm_encoder *encoder,
 		       struct drm_crtc_state *crtc_state,
@@ -3895,21 +3944,9 @@ static void
 nv50_pior_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
-	const int or = nv_encoder->or;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		push = evo_wait(core, 4);
-		if (push) {
-			if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-				evo_mthd(push, 0x0700 + (or * 0x040), 1);
-				evo_data(push, 0x00000000);
-			}
-			evo_kick(push, core);
-		}
-	}
-
+	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	if (nv_encoder->crtc)
+		core->func->pior->ctrl(core, nv_encoder->or, 0x00000000, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -3917,14 +3954,13 @@ nv50_pior_disable(struct drm_encoder *encoder)
 static void
 nv50_pior_enable(struct drm_encoder *encoder)
 {
-	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
+	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto;
-	u32 *push;
 
 	nv50_outp_acquire(nv_encoder);
 
@@ -3946,19 +3982,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 		break;
 	}
 
-	push = evo_wait(core, 8);
-	if (push) {
-		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0700 + (nv_encoder->or * 0x040), 1);
-			evo_data(push, (asyh->or.depth  << 16) |
-				       (asyh->or.nvsync << 13) |
-				       (asyh->or.nhsync << 12) |
-				       (proto << 8) | owner);
-		}
-
-		evo_kick(push, core);
-	}
-
+	core->func->pior->ctrl(core, nv_encoder->or, (proto << 8) | owner, asyh);
 	nv_encoder->crtc = encoder->crtc;
 }
 
