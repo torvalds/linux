@@ -50,6 +50,7 @@
 #define FLOAT_ONE	0x3f800000
 #define FLOAT_TWO	0x40000000
 #define FLOAT_THREE     0x40400000
+#define FLOAT_EIGHT     0x41000000
 #define FLOAT_MINUS_5	0xc0a00000
 
 #define UNSOL_TAG_DSP	0x16
@@ -91,14 +92,25 @@ MODULE_FIRMWARE(R3DI_EFX_FILE);
 
 static const char *dirstr[2] = { "Playback", "Capture" };
 
+#define NUM_OF_OUTPUTS 3
 enum {
 	SPEAKER_OUT,
-	HEADPHONE_OUT
+	HEADPHONE_OUT,
+	SURROUND_OUT
 };
 
 enum {
 	DIGITAL_MIC,
 	LINE_MIC_IN
+};
+
+/* Strings for Input Source Enum Control */
+static const char *in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
+#define IN_SRC_NUM_OF_INPUTS 3
+enum {
+	REAR_MIC,
+	REAR_LINE_IN,
+	FRONT_MIC,
 };
 
 enum {
@@ -134,7 +146,9 @@ enum {
 	VOICEFX = IN_EFFECT_END_NID,
 	PLAY_ENHANCEMENT,
 	CRYSTAL_VOICE,
-	EFFECT_END_NID
+	EFFECT_END_NID,
+	OUTPUT_SOURCE_ENUM,
+	INPUT_SOURCE_ENUM
 #define EFFECTS_COUNT  (EFFECT_END_NID - EFFECT_START_NID)
 };
 
@@ -484,6 +498,49 @@ static struct ct_voicefx_preset ca0132_voicefx_presets[] = {
 	}
 };
 
+/* DSP command sequences for ca0132_alt_select_out */
+#define ALT_OUT_SET_MAX_COMMANDS 9 /* Max number of commands in sequence */
+struct ca0132_alt_out_set {
+	char *name; /*preset name*/
+	unsigned char commands;
+	unsigned int mids[ALT_OUT_SET_MAX_COMMANDS];
+	unsigned int reqs[ALT_OUT_SET_MAX_COMMANDS];
+	unsigned int vals[ALT_OUT_SET_MAX_COMMANDS];
+};
+
+static const struct ca0132_alt_out_set alt_out_presets[] = {
+	{ .name = "Line Out",
+	  .commands = 7,
+	  .mids = { 0x96, 0x96, 0x96, 0x8F,
+		    0x96, 0x96, 0x96 },
+	  .reqs = { 0x19, 0x17, 0x18, 0x01,
+		    0x1F, 0x15, 0x3A },
+	  .vals = { 0x3F000000, 0x42A00000, 0x00000000,
+		    0x00000000, 0x00000000, 0x00000000,
+		    0x00000000 }
+	},
+	{ .name = "Headphone",
+	  .commands = 7,
+	  .mids = { 0x96, 0x96, 0x96, 0x8F,
+		    0x96, 0x96, 0x96 },
+	  .reqs = { 0x19, 0x17, 0x18, 0x01,
+		    0x1F, 0x15, 0x3A },
+	  .vals = { 0x3F000000, 0x42A00000, 0x00000000,
+		    0x00000000, 0x00000000, 0x00000000,
+		    0x00000000 }
+	},
+	{ .name = "Surround",
+	  .commands = 8,
+	  .mids = { 0x96, 0x8F, 0x96, 0x96,
+		    0x96, 0x96, 0x96, 0x96 },
+	  .reqs = { 0x18, 0x01, 0x1F, 0x15,
+		    0x3A, 0x1A, 0x1B, 0x1C },
+	  .vals = { 0x00000000, 0x00000000, 0x00000000,
+		    0x00000000, 0x00000000, 0x00000000,
+		    0x00000000, 0x00000000 }
+	}
+};
+
 enum hda_cmd_vendor_io {
 	/* for DspIO node */
 	VENDOR_DSPIO_SCP_WRITE_DATA_LOW      = 0x000,
@@ -763,6 +820,9 @@ struct ca0132_spec {
 	long effects_switch[EFFECTS_COUNT];
 	long voicefx_val;
 	long cur_mic_boost;
+	/* ca0132_alt control related values */
+	unsigned char in_enum_val;
+	unsigned char out_enum_val;
 
 	struct hda_codec *codec;
 	struct delayed_work unsol_hp_work;
@@ -2959,6 +3019,47 @@ enum r3di_dsp_status {
 	R3DI_DSP_DOWNLOADED = 1
 };
 
+
+static void r3di_gpio_mic_set(struct hda_codec *codec,
+		enum r3di_mic_select cur_mic)
+{
+	unsigned int cur_gpio;
+
+	/* Get the current GPIO Data setup */
+	cur_gpio = snd_hda_codec_read(codec, 0x01, 0, AC_VERB_GET_GPIO_DATA, 0);
+
+	switch (cur_mic) {
+	case R3DI_REAR_MIC:
+		cur_gpio &= ~(1 << R3DI_MIC_SELECT_BIT);
+		break;
+	case R3DI_FRONT_MIC:
+		cur_gpio |= (1 << R3DI_MIC_SELECT_BIT);
+		break;
+	}
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_DATA, cur_gpio);
+}
+
+static void r3di_gpio_out_set(struct hda_codec *codec,
+		enum r3di_out_select cur_out)
+{
+	unsigned int cur_gpio;
+
+	/* Get the current GPIO Data setup */
+	cur_gpio = snd_hda_codec_read(codec, 0x01, 0, AC_VERB_GET_GPIO_DATA, 0);
+
+	switch (cur_out) {
+	case R3DI_HEADPHONE_OUT:
+		cur_gpio &= ~(1 << R3DI_OUT_SELECT_BIT);
+		break;
+	case R3DI_LINE_OUT:
+		cur_gpio |= (1 << R3DI_OUT_SELECT_BIT);
+		break;
+	}
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_DATA, cur_gpio);
+}
+
 static void r3di_gpio_dsp_status_set(struct hda_codec *codec,
 		enum r3di_dsp_status dsp_status)
 {
@@ -3550,13 +3651,209 @@ exit:
 	return err < 0 ? err : 0;
 }
 
+/*
+ * This function behaves similarly to the ca0132_select_out funciton above,
+ * except with a few differences. It adds the ability to select the current
+ * output with an enumerated control "output source" if the auto detect
+ * mute switch is set to off. If the auto detect mute switch is enabled, it
+ * will detect either headphone or lineout(SPEAKER_OUT) from jack detection.
+ * It also adds the ability to auto-detect the front headphone port. The only
+ * way to select surround is to disable auto detect, and set Surround with the
+ * enumerated control.
+ */
+static int ca0132_alt_select_out(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int pin_ctl;
+	int jack_present;
+	int auto_jack;
+	unsigned int i;
+	unsigned int tmp;
+	int err;
+	/* Default Headphone is rear headphone */
+	hda_nid_t headphone_nid = spec->out_pins[1];
+
+	codec_dbg(codec, "%s\n", __func__);
+
+	snd_hda_power_up_pm(codec);
+
+	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+
+	/*
+	 * If headphone rear or front is plugged in, set to headphone.
+	 * If neither is plugged in, set to rear line out. Only if
+	 * hp/speaker auto detect is enabled.
+	 */
+	if (auto_jack) {
+		jack_present = snd_hda_jack_detect(codec, spec->unsol_tag_hp) ||
+			   snd_hda_jack_detect(codec, spec->unsol_tag_front_hp);
+
+		if (jack_present)
+			spec->cur_out_type = HEADPHONE_OUT;
+		else
+			spec->cur_out_type = SPEAKER_OUT;
+	} else
+		spec->cur_out_type = spec->out_enum_val;
+
+	/* Begin DSP output switch */
+	tmp = FLOAT_ONE;
+	err = dspio_set_uint_param(codec, 0x96, 0x3A, tmp);
+	if (err < 0)
+		goto exit;
+
+	switch (spec->cur_out_type) {
+	case SPEAKER_OUT:
+		codec_dbg(codec, "%s speaker\n", __func__);
+		/*speaker out config*/
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0007, spec->mem_base + 0x320);
+			writew(0x0104, spec->mem_base + 0x320);
+			writew(0x0101, spec->mem_base + 0x320);
+			chipio_set_control_param(codec, 0x0D, 0x18);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
+			break;
+		}
+
+		/* disable headphone node */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
+				    pin_ctl & ~PIN_HP);
+		/* enable line-out node */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
+				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
+				    pin_ctl | PIN_OUT);
+		/* Enable EAPD */
+		snd_hda_codec_write(codec, spec->out_pins[0], 0,
+			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
+
+		/* If PlayEnhancement is enabled, set different source */
+		if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
+		else
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_EIGHT);
+		break;
+	case HEADPHONE_OUT:
+		codec_dbg(codec, "%s hp\n", __func__);
+		/* Headphone out config*/
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0107, spec->mem_base + 0x320);
+			writew(0x0104, spec->mem_base + 0x320);
+			writew(0x0001, spec->mem_base + 0x320);
+			chipio_set_control_param(codec, 0x0D, 0x12);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x21);
+			r3di_gpio_out_set(codec, R3DI_HEADPHONE_OUT);
+			break;
+		}
+
+		snd_hda_codec_write(codec, spec->out_pins[0], 0,
+			AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+
+		/* disable speaker*/
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
+				pin_ctl & ~PIN_HP);
+
+		/* enable headphone, either front or rear */
+
+		if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
+			headphone_nid = spec->out_pins[2];
+		else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
+			headphone_nid = spec->out_pins[1];
+
+		pin_ctl = snd_hda_codec_read(codec, headphone_nid, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, headphone_nid,
+				    pin_ctl | PIN_HP);
+
+		if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
+		else
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ZERO);
+		break;
+	case SURROUND_OUT:
+		codec_dbg(codec, "%s surround\n", __func__);
+		/* Surround out config*/
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0007, spec->mem_base + 0x320);
+			writew(0x0104, spec->mem_base + 0x320);
+			writew(0x0101, spec->mem_base + 0x320);
+			chipio_set_control_param(codec, 0x0D, 0x18);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
+			break;
+		}
+		/* enable line out node */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
+				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
+						pin_ctl | PIN_OUT);
+		/* Disable headphone out */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
+				    pin_ctl & ~PIN_HP);
+		/* Enable EAPD on line out */
+		snd_hda_codec_write(codec, spec->out_pins[0], 0,
+			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
+		/* enable center/lfe out node */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[2], 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[2],
+				    pin_ctl | PIN_OUT);
+		/* Now set rear surround node as out. */
+		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[3], 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[3],
+				    pin_ctl | PIN_OUT);
+
+		if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
+		else
+			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_EIGHT);
+		break;
+	}
+
+	/* run through the output dsp commands for line-out */
+	for (i = 0; i < alt_out_presets[spec->cur_out_type].commands; i++) {
+		err = dspio_set_uint_param(codec,
+		alt_out_presets[spec->cur_out_type].mids[i],
+		alt_out_presets[spec->cur_out_type].reqs[i],
+		alt_out_presets[spec->cur_out_type].vals[i]);
+
+		if (err < 0)
+			goto exit;
+	}
+
+exit:
+	snd_hda_power_down_pm(codec);
+
+	return err < 0 ? err : 0;
+}
+
 static void ca0132_unsol_hp_delayed(struct work_struct *work)
 {
 	struct ca0132_spec *spec = container_of(
 		to_delayed_work(work), struct ca0132_spec, unsol_hp_work);
 	struct hda_jack_tbl *jack;
 
-	ca0132_select_out(spec->codec);
+	if (spec->use_alt_functions)
+		ca0132_alt_select_out(spec->codec);
+	else
+		ca0132_select_out(spec->codec);
+
 	jack = snd_hda_jack_tbl_get(spec->codec, spec->unsol_tag_hp);
 	if (jack) {
 		jack->block_report = 0;
@@ -3662,6 +3959,122 @@ static int ca0132_select_mic(struct hda_codec *codec)
 }
 
 /*
+ * Select the active input.
+ * Mic detection isn't used, because it's kind of pointless on the SBZ.
+ * The front mic has no jack-detection, so the only way to switch to it
+ * is to do it manually in alsamixer.
+ */
+static int ca0132_alt_select_in(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int tmp;
+
+	codec_dbg(codec, "%s\n", __func__);
+
+	snd_hda_power_up_pm(codec);
+
+	chipio_set_stream_control(codec, 0x03, 0);
+	chipio_set_stream_control(codec, 0x04, 0);
+
+	spec->cur_mic_type = spec->in_enum_val;
+
+	switch (spec->cur_mic_type) {
+	case REAR_MIC:
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0000, spec->mem_base + 0x320);
+			tmp = FLOAT_THREE;
+			break;
+		case QUIRK_R3DI:
+			r3di_gpio_mic_set(codec, R3DI_REAR_MIC);
+			tmp = FLOAT_ONE;
+			break;
+		default:
+			tmp = FLOAT_ONE;
+			break;
+		}
+
+		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
+		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
+		if (spec->quirk == QUIRK_R3DI)
+			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
+
+		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
+
+		chipio_set_stream_control(codec, 0x03, 1);
+		chipio_set_stream_control(codec, 0x04, 1);
+
+		if (spec->quirk == QUIRK_SBZ) {
+			chipio_write(codec, 0x18B098, 0x0000000C);
+			chipio_write(codec, 0x18B09C, 0x0000000C);
+		}
+		break;
+	case REAR_LINE_IN:
+		ca0132_mic_boost_set(codec, 0);
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0000, spec->mem_base + 0x320);
+			break;
+		case QUIRK_R3DI:
+			r3di_gpio_mic_set(codec, R3DI_REAR_MIC);
+			break;
+		}
+
+		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
+		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
+		if (spec->quirk == QUIRK_R3DI)
+			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
+
+		tmp = FLOAT_ZERO;
+		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
+
+		if (spec->quirk == QUIRK_SBZ) {
+			chipio_write(codec, 0x18B098, 0x00000000);
+			chipio_write(codec, 0x18B09C, 0x00000000);
+		}
+
+		chipio_set_stream_control(codec, 0x03, 1);
+		chipio_set_stream_control(codec, 0x04, 1);
+		break;
+	case FRONT_MIC:
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			writew(0x0100, spec->mem_base + 0x320);
+			writew(0x0005, spec->mem_base + 0x320);
+			tmp = FLOAT_THREE;
+			break;
+		case QUIRK_R3DI:
+			r3di_gpio_mic_set(codec, R3DI_FRONT_MIC);
+			tmp = FLOAT_ONE;
+			break;
+		default:
+			tmp = FLOAT_ONE;
+			break;
+		}
+
+		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
+		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
+		if (spec->quirk == QUIRK_R3DI)
+			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
+
+		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
+
+		chipio_set_stream_control(codec, 0x03, 1);
+		chipio_set_stream_control(codec, 0x04, 1);
+
+		if (spec->quirk == QUIRK_SBZ) {
+			chipio_write(codec, 0x18B098, 0x0000000C);
+			chipio_write(codec, 0x18B09C, 0x000000CC);
+		}
+		break;
+	}
+
+	snd_hda_power_down_pm(codec);
+	return 0;
+
+}
+
+/*
  * Check if VNODE settings take effect immediately.
  */
 static bool ca0132_is_vnode_effective(struct hda_codec *codec,
@@ -3743,7 +4156,8 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			val = 0;
 
 		/* If Voice Focus on SBZ, set to two channel. */
-		if ((nid == VOICE_FOCUS) && (spec->quirk == QUIRK_SBZ)) {
+		if ((nid == VOICE_FOCUS) && (spec->quirk == QUIRK_SBZ)
+				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
 
@@ -3761,7 +4175,8 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 		 * For SBZ noise reduction, there's an extra command
 		 * to module ID 0x47. No clue why.
 		 */
-		if ((nid == NOISE_REDUCTION) && (spec->quirk == QUIRK_SBZ)) {
+		if ((nid == NOISE_REDUCTION) && (spec->quirk == QUIRK_SBZ)
+				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
 				if (spec->effects_switch[NOISE_REDUCTION -
@@ -3774,6 +4189,11 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 
 			dspio_set_uint_param(codec, 0x47, 0x00, tmp);
 		}
+
+		/* If rear line in disable effects. */
+		if (spec->use_alt_functions &&
+				spec->in_enum_val == REAR_LINE_IN)
+			val = 0;
 	}
 
 	codec_dbg(codec, "ca0132_effect_set: nid=0x%x, val=%ld\n",
@@ -3800,6 +4220,9 @@ static int ca0132_pe_switch_set(struct hda_codec *codec)
 
 	codec_dbg(codec, "ca0132_pe_switch_set: val=%ld\n",
 		    spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID]);
+
+	if (spec->use_alt_functions)
+		ca0132_alt_select_out(codec);
 
 	i = OUT_EFFECT_START_NID - EFFECT_START_NID;
 	nid = OUT_EFFECT_START_NID;
@@ -3892,8 +4315,12 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	if (nid == VNID_HP_SEL) {
 		auto_jack =
 			spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
-		if (!auto_jack)
-			ca0132_select_out(codec);
+		if (!auto_jack) {
+			if (spec->use_alt_functions)
+				ca0132_alt_select_out(codec);
+			else
+				ca0132_select_out(codec);
+		}
 		return 1;
 	}
 
@@ -3906,7 +4333,10 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	}
 
 	if (nid == VNID_HP_ASEL) {
-		ca0132_select_out(codec);
+		if (spec->use_alt_functions)
+			ca0132_alt_select_out(codec);
+		else
+			ca0132_select_out(codec);
 		return 1;
 	}
 
@@ -3934,6 +4364,104 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 /* End of control change helpers. */
+
+/*
+ * Input Select Control for alternative ca0132 codecs. This exists because
+ * front microphone has no auto-detect, and we need a way to set the rear
+ * as line-in
+ */
+static int ca0132_alt_input_source_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = IN_SRC_NUM_OF_INPUTS;
+	if (uinfo->value.enumerated.item >= IN_SRC_NUM_OF_INPUTS)
+		uinfo->value.enumerated.item = IN_SRC_NUM_OF_INPUTS - 1;
+	strcpy(uinfo->value.enumerated.name,
+			in_src_str[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->in_enum_val;
+	return 0;
+}
+
+static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	int sel = ucontrol->value.enumerated.item[0];
+	unsigned int items = IN_SRC_NUM_OF_INPUTS;
+
+	if (sel >= items)
+		return 0;
+
+	codec_dbg(codec, "ca0132_alt_input_select: sel=%d, preset=%s\n",
+		    sel, in_src_str[sel]);
+
+	spec->in_enum_val = sel;
+
+	ca0132_alt_select_in(codec);
+
+	return 1;
+}
+
+/* Sound Blaster Z Output Select Control */
+static int ca0132_alt_output_select_get_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = NUM_OF_OUTPUTS;
+	if (uinfo->value.enumerated.item >= NUM_OF_OUTPUTS)
+		uinfo->value.enumerated.item = NUM_OF_OUTPUTS - 1;
+	strcpy(uinfo->value.enumerated.name,
+			alt_out_presets[uinfo->value.enumerated.item].name);
+	return 0;
+}
+
+static int ca0132_alt_output_select_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->out_enum_val;
+	return 0;
+}
+
+static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	int sel = ucontrol->value.enumerated.item[0];
+	unsigned int items = NUM_OF_OUTPUTS;
+	unsigned int auto_jack;
+
+	if (sel >= items)
+		return 0;
+
+	codec_dbg(codec, "ca0132_alt_output_select: sel=%d, preset=%s\n",
+		    sel, alt_out_presets[sel].name);
+
+	spec->out_enum_val = sel;
+
+	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+
+	if (!auto_jack)
+		ca0132_alt_select_out(codec);
+
+	return 1;
+}
 
 static int ca0132_voicefx_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -4085,10 +4613,15 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 	/* mic boost */
 	if (nid == spec->input_pins[0]) {
 		spec->cur_mic_boost = *valp;
+		if (spec->use_alt_functions) {
+			if (spec->in_enum_val != REAR_LINE_IN)
+				changed = ca0132_mic_boost_set(codec, *valp);
+		} else {
+			/* Mic boost does not apply to Digital Mic */
+			if (spec->cur_mic_type != DIGITAL_MIC)
+				changed = ca0132_mic_boost_set(codec, *valp);
+		}
 
-		/* Mic boost does not apply to Digital Mic */
-		if (spec->cur_mic_type != DIGITAL_MIC)
-			changed = ca0132_mic_boost_set(codec, *valp);
 		goto exit;
 	}
 
@@ -4262,6 +4795,39 @@ static int add_voicefx(struct hda_codec *codec)
 }
 
 /*
+ * Create an Output Select enumerated control for codecs with surround
+ * out capabilities.
+ */
+static int ca0132_alt_add_output_enum(struct hda_codec *codec)
+{
+	struct snd_kcontrol_new knew =
+		HDA_CODEC_MUTE_MONO("Output Select",
+				    OUTPUT_SOURCE_ENUM, 1, 0, HDA_OUTPUT);
+	knew.info = ca0132_alt_output_select_get_info;
+	knew.get = ca0132_alt_output_select_get;
+	knew.put = ca0132_alt_output_select_put;
+	return snd_hda_ctl_add(codec, OUTPUT_SOURCE_ENUM,
+				snd_ctl_new1(&knew, codec));
+}
+
+/*
+ * Create an Input Source enumerated control for the alternate ca0132 codecs
+ * because the front microphone has no auto-detect, and Line-in has to be set
+ * somehow.
+ */
+static int ca0132_alt_add_input_enum(struct hda_codec *codec)
+{
+	struct snd_kcontrol_new knew =
+		HDA_CODEC_MUTE_MONO("Input Source",
+				    INPUT_SOURCE_ENUM, 1, 0, HDA_INPUT);
+	knew.info = ca0132_alt_input_source_info;
+	knew.get = ca0132_alt_input_source_get;
+	knew.put = ca0132_alt_input_source_put;
+	return snd_hda_ctl_add(codec, INPUT_SOURCE_ENUM,
+				snd_ctl_new1(&knew, codec));
+}
+
+/*
  * When changing Node IDs for Mixer Controls below, make sure to update
  * Node IDs in ca0132_config() as well.
  */
@@ -4322,6 +4888,15 @@ static int ca0132_build_controls(struct hda_codec *codec)
 
 	add_voicefx(codec);
 
+	/*
+	 * If the codec uses alt_functions, you need the enumerated controls
+	 * to select the new outputs and inputs, plus add the new mic boost
+	 * setting control.
+	 */
+	if (spec->use_alt_functions) {
+		ca0132_alt_add_output_enum(codec);
+		ca0132_alt_add_input_enum(codec);
+	}
 #ifdef ENABLE_TUNING_CONTROLS
 	add_tuning_ctls(codec);
 #endif
@@ -5266,7 +5841,11 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	mutex_init(&spec->chipio_mutex);
 
 	spec->cur_out_type = SPEAKER_OUT;
-	spec->cur_mic_type = DIGITAL_MIC;
+	if (!spec->use_alt_functions)
+		spec->cur_mic_type = DIGITAL_MIC;
+	else
+		spec->cur_mic_type = REAR_MIC;
+
 	spec->cur_mic_boost = 0;
 
 	for (i = 0; i < VNODES_COUNT; i++) {
@@ -5693,15 +6272,25 @@ static int ca0132_init(struct hda_codec *codec)
 			    VENDOR_CHIPIO_PARAM_EX_VALUE_SET, 0x20);
 	}
 
-	if (spec->quirk == QUIRK_SBZ) {
+	if (spec->quirk == QUIRK_SBZ)
 		ca0132_gpio_setup(codec);
-		sbz_setup_defaults(codec);
-	}
 
 	snd_hda_sequence_write(codec, spec->spec_init_verbs);
-
-	ca0132_select_out(codec);
-	ca0132_select_mic(codec);
+	switch (spec->quirk) {
+	case QUIRK_SBZ:
+		sbz_setup_defaults(codec);
+		ca0132_alt_select_out(codec);
+		ca0132_alt_select_in(codec);
+		break;
+	case QUIRK_R3DI:
+		ca0132_alt_select_out(codec);
+		ca0132_alt_select_in(codec);
+		break;
+	default:
+		ca0132_select_out(codec);
+		ca0132_select_mic(codec);
+		break;
+	}
 
 	snd_hda_jack_report_sync(codec);
 
