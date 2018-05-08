@@ -834,42 +834,6 @@ DEFINE_EVENT(i915_request, i915_request_wait_end,
 	    TP_ARGS(rq)
 );
 
-TRACE_EVENT(i915_flip_request,
-	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
-
-	    TP_ARGS(plane, obj),
-
-	    TP_STRUCT__entry(
-		    __field(int, plane)
-		    __field(struct drm_i915_gem_object *, obj)
-		    ),
-
-	    TP_fast_assign(
-		    __entry->plane = plane;
-		    __entry->obj = obj;
-		    ),
-
-	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
-);
-
-TRACE_EVENT(i915_flip_complete,
-	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
-
-	    TP_ARGS(plane, obj),
-
-	    TP_STRUCT__entry(
-		    __field(int, plane)
-		    __field(struct drm_i915_gem_object *, obj)
-		    ),
-
-	    TP_fast_assign(
-		    __entry->plane = plane;
-		    __entry->obj = obj;
-		    ),
-
-	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
-);
-
 TRACE_EVENT_CONDITION(i915_reg_rw,
 	TP_PROTO(bool write, i915_reg_t reg, u64 val, int len, bool trace),
 
