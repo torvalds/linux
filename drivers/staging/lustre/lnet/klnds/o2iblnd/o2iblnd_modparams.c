@@ -57,6 +57,10 @@ static int nscheds;
 module_param(nscheds, int, 0444);
 MODULE_PARM_DESC(nscheds, "number of threads in each scheduler pool");
 
+static unsigned int conns_per_peer = 1;
+module_param(conns_per_peer, uint, 0444);
+MODULE_PARM_DESC(conns_per_peer, "number of connections per peer");
+
 /* NB: this value is shared by all CPTs, it can grow at runtime */
 static int ntx = 512;
 module_param(ntx, int, 0444);
@@ -271,6 +275,10 @@ int kiblnd_tunables_setup(struct lnet_ni *ni)
 		tunables->lnd_fmr_flush_trigger = fmr_flush_trigger;
 	if (!tunables->lnd_fmr_cache)
 		tunables->lnd_fmr_cache = fmr_cache;
+	if (!tunables->lnd_conns_per_peer) {
+		tunables->lnd_conns_per_peer = (conns_per_peer) ?
+			conns_per_peer : 1;
+	}
 
 	return 0;
 }
@@ -284,4 +292,5 @@ void kiblnd_tunables_init(void)
 	default_tunables.lnd_fmr_pool_size = fmr_pool_size;
 	default_tunables.lnd_fmr_flush_trigger = fmr_flush_trigger;
 	default_tunables.lnd_fmr_cache = fmr_cache;
+	default_tunables.lnd_conns_per_peer = conns_per_peer;
 }

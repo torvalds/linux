@@ -53,7 +53,8 @@ struct lnet_ioctl_config_o2iblnd_tunables {
 	__u32 lnd_fmr_pool_size;
 	__u32 lnd_fmr_flush_trigger;
 	__u32 lnd_fmr_cache;
-	__u32 pad;
+	__u16 lnd_conns_per_peer;
+	__u16 pad;
 };
 
 struct lnet_ioctl_config_lnd_tunables {
