@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/soc/rockchip/rk_vendor_storage.h>
 
 int (*_vendor_read)(u32 id, void *pbuf, u32 size) = NULL;
 int (*_vendor_write)(u32 id, void *pbuf, u32 size) = NULL;
