@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 static const struct nv50_disp_mthd_list
 gk104_disp_core_mthd_head = {

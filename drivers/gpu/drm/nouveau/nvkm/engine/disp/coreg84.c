@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 const struct nv50_disp_mthd_list
 g84_disp_core_mthd_dac = {

@@ -2,8 +2,8 @@
 #ifndef __NV50_DISP_ROOT_H__
 #define __NV50_DISP_ROOT_H__
 #define nv50_disp_root(p) container_of((p), struct nv50_disp_root, object)
+#include <core/object.h>
 #include "nv50.h"
-#include "dmacnv50.h"
 
 struct nv50_disp_root {
 	const struct nv50_disp_root_func *func;

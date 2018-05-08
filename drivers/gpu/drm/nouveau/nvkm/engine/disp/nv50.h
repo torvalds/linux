@@ -79,4 +79,11 @@ void gf119_disp_intr_error(struct nv50_disp *, int);
 void nv50_disp_dptmds_war_2(struct nv50_disp *, struct dcb_output *);
 void nv50_disp_dptmds_war_3(struct nv50_disp *, struct dcb_output *);
 void nv50_disp_update_sppll1(struct nv50_disp *);
+
+extern const struct nvkm_event_func nv50_disp_chan_uevent;
+int  nv50_disp_chan_uevent_ctor(struct nvkm_object *, void *, u32,
+				struct nvkm_notify *);
+void nv50_disp_chan_uevent_send(struct nv50_disp *, int);
+
+extern const struct nvkm_event_func gf119_disp_chan_uevent;
 #endif

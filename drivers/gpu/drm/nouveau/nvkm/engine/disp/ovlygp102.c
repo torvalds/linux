@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 int
 gp102_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,

@@ -26,6 +26,7 @@
 
 #include <core/client.h>
 #include <core/notify.h>
+#include <core/oproxy.h>
 #include <core/ramht.h>
 #include <engine/dma.h>
 
@@ -204,25 +205,76 @@ nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 	return 0;
 }
 
+struct nv50_disp_chan_object {
+	struct nvkm_oproxy oproxy;
+	struct nv50_disp *disp;
+	int hash;
+};
+
+static void
+nv50_disp_chan_child_del_(struct nvkm_oproxy *base)
+{
+	struct nv50_disp_chan_object *object =
+		container_of(base, typeof(*object), oproxy);
+	nvkm_ramht_remove(object->disp->ramht, object->hash);
+}
+
+static const struct nvkm_oproxy_func
+nv50_disp_chan_child_func_ = {
+	.dtor[0] = nv50_disp_chan_child_del_,
+};
+
 static int
 nv50_disp_chan_child_new(const struct nvkm_oclass *oclass,
-			 void *data, u32 size, struct nvkm_object **pobject)
+			 void *argv, u32 argc, struct nvkm_object **pobject)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(oclass->parent);
-	return chan->func->child_new(chan, oclass, data, size, pobject);
+	struct nv50_disp *disp = chan->disp;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	const struct nvkm_device_oclass *sclass = oclass->priv;
+	struct nv50_disp_chan_object *object;
+	int ret;
+
+	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_oproxy_ctor(&nv50_disp_chan_child_func_, oclass, &object->oproxy);
+	object->disp = disp;
+	*pobject = &object->oproxy.base;
+
+	ret = sclass->ctor(device, oclass, argv, argc, &object->oproxy.object);
+	if (ret)
+		return ret;
+
+	object->hash = chan->func->bind(chan, object->oproxy.object,
+					      oclass->handle);
+	if (object->hash < 0)
+		return object->hash;
+
+	return 0;
 }
 
 static int
 nv50_disp_chan_child_get(struct nvkm_object *object, int index,
-			 struct nvkm_oclass *oclass)
+			 struct nvkm_oclass *sclass)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	if (chan->func->child_get) {
-		int ret = chan->func->child_get(chan, index, oclass);
-		if (ret == 0)
-			oclass->ctor = nv50_disp_chan_child_new;
-		return ret;
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	const struct nvkm_device_oclass *oclass = NULL;
+
+	if (chan->func->bind)
+		sclass->engine = nvkm_device_engine(device, NVKM_ENGINE_DMAOBJ);
+	else
+		sclass->engine = NULL;
+
+	if (sclass->engine && sclass->engine->func->base.sclass) {
+		sclass->engine->func->base.sclass(sclass, index, &oclass);
+		if (oclass) {
+			sclass->ctor = nv50_disp_chan_child_new,
+			sclass->priv = oclass;
+			return 0;
+		}
 	}
+
 	return -EINVAL;
 }
 
@@ -248,7 +300,7 @@ nv50_disp_chan_dtor(struct nvkm_object *object)
 	struct nv50_disp *disp = chan->disp;
 	if (chan->chid.user >= 0)
 		disp->chan[chan->chid.user] = NULL;
-	return chan->func->dtor ? chan->func->dtor(chan) : chan;
+	return chan;
 }
 
 static const struct nvkm_object_func
@@ -264,12 +316,18 @@ nv50_disp_chan = {
 };
 
 int
-nv50_disp_chan_ctor(const struct nv50_disp_chan_func *func,
+nv50_disp_chan_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
 		    struct nv50_disp *disp, int ctrl, int user, int head,
 		    const struct nvkm_oclass *oclass,
-		    struct nv50_disp_chan *chan)
+		    struct nvkm_object **pobject)
 {
+	struct nv50_disp_chan *chan;
+
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->object;
+
 	nvkm_object_ctor(&nv50_disp_chan, oclass, &chan->object);
 	chan->func = func;
 	chan->mthd = mthd;
@@ -284,21 +342,4 @@ nv50_disp_chan_ctor(const struct nv50_disp_chan_func *func,
 	}
 	disp->chan[chan->chid.user] = chan;
 	return 0;
-}
-
-int
-nv50_disp_chan_new_(const struct nv50_disp_chan_func *func,
-		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp *disp, int ctrl, int user, int head,
-		    const struct nvkm_oclass *oclass,
-		    struct nvkm_object **pobject)
-{
-	struct nv50_disp_chan *chan;
-
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
-	*pobject = &chan->object;
-
-	return nv50_disp_chan_ctor(func, mthd, disp, ctrl, user,
-				   head, oclass, chan);
 }

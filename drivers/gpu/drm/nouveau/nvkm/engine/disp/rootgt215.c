@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "rootnv50.h"
-#include "dmacnv50.h"
+#include "channv50.h"
 
 #include <nvif/class.h>
 

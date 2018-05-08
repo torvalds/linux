@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 #include <subdev/timer.h>
 
@@ -167,10 +167,9 @@ gf119_disp_core_mthd = {
 };
 
 void
-gf119_disp_core_fini(struct nv50_disp_dmac *chan)
+gf119_disp_core_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* deactivate channel */
@@ -190,10 +189,9 @@ gf119_disp_core_fini(struct nv50_disp_dmac *chan)
 }
 
 static int
-gf119_disp_core_init(struct nv50_disp_dmac *chan)
+gf119_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* enable error reporting */
@@ -220,7 +218,7 @@ gf119_disp_core_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-const struct nv50_disp_dmac_func
+const struct nv50_disp_chan_func
 gf119_disp_core_func = {
 	.init = gf119_disp_core_init,
 	.fini = gf119_disp_core_fini,

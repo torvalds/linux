@@ -24,6 +24,7 @@
 #include "nv50.h"
 #include "head.h"
 #include "ior.h"
+#include "channv50.h"
 #include "rootnv50.h"
 
 #include <core/ramht.h>

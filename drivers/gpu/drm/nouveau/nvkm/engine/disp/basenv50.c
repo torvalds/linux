@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 #include "head.h"
 
 #include <core/client.h>
@@ -30,7 +30,7 @@
 #include <nvif/unpack.h>
 
 int
-nv50_disp_base_new_(const struct nv50_disp_dmac_func *func,
+nv50_disp_base_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
 		    struct nv50_disp *disp, int chid,
 		    const struct nvkm_oclass *oclass, void *argv, u32 argc,

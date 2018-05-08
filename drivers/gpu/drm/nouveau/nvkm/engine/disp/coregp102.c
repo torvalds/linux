@@ -21,15 +21,14 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 #include <subdev/timer.h>
 
 static int
-gp102_disp_core_init(struct nv50_disp_dmac *chan)
+gp102_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* enable error reporting */
@@ -56,7 +55,7 @@ gp102_disp_core_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-static const struct nv50_disp_dmac_func
+static const struct nv50_disp_chan_func
 gp102_disp_core_func = {
 	.init = gp102_disp_core_init,
 	.fini = gf119_disp_core_fini,

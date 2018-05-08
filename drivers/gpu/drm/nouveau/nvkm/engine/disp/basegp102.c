@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "dmacnv50.h"
+#include "channv50.h"
 
 int
 gp102_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
