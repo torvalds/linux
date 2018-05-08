@@ -27,18 +27,9 @@
 
 #include "rk_nand_blk.h"
 #include "rk_ftl_api.h"
+#include "rk_nand_base.h"
 
-#define RKNAND_VERSION_AND_DATE  "rknandbase v1.1 2016-11-08"
-
-struct rk_nandc_info {
-	int	id;
-	void __iomem     *reg_base;
-	int	irq;
-	int	clk_rate;
-	struct clk	*clk;	/* flash clk*/
-	struct clk	*hclk;	/* nandc clk*/
-	struct clk	*gclk;  /* flash clk gate*/
-};
+#define RKNAND_VERSION_AND_DATE  "rknandbase v1.2 2018-05-08"
 
 static struct rk_nandc_info g_nandc_info[2];
 struct device *g_nand_device;

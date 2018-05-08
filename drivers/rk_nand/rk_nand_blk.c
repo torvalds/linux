@@ -182,10 +182,6 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 	return ret;
 }
 
-void rknand_queue_cond_resched(void)
-{
-};
-
 static DECLARE_WAIT_QUEUE_HEAD(rknand_thread_wait);
 static void rk_ftl_gc_timeout_hack(unsigned long data);
 static DEFINE_TIMER(rk_ftl_gc_timeout, rk_ftl_gc_timeout_hack, 0, 0);
@@ -208,16 +204,13 @@ static int req_check_buffer_align(struct request *req, char **pbuf)
 	char *buffer;
 	void *firstbuf = 0;
 	char *nextbuffer = 0;
-	unsigned long block, nsect;
 
-	block = blk_rq_pos(req);
-	nsect = blk_rq_cur_bytes(req) >> 9;
 	rq_for_each_segment(bv, req, iter) {
 		buffer = page_address(bv.bv_page) + bv.bv_offset;
-		if (firstbuf == 0)
+		if (!firstbuf)
 			firstbuf = buffer;
 		nr_vec++;
-		if (nextbuffer != 0 && nextbuffer != buffer)
+		if (nextbuffer && nextbuffer != buffer)
 			return 0;
 		nextbuffer = buffer + bv.bv_len;
 	}
@@ -434,7 +427,7 @@ static int rknand_get_part(char *parts,
 		char *p;
 
 		p = strchr(parts + 1, delim);
-		if (p == 0)
+		if (!p)
 			return 0;
 		strncpy(name, parts + 1, p - (parts + 1));
 		parts = p + 1;
@@ -650,9 +643,7 @@ int nand_blk_add_whole_disk(void)
 
 static int nand_blk_register(struct nand_blk_ops *nandr)
 {
-	struct task_struct *tsk;
 	int i, ret;
-	u32 offset;
 	u32 part_size;
 
 	rk_nand_schedule_enable_config(1);
@@ -685,11 +676,10 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 
 	nandr->rq->queuedata = nandr;
 	INIT_LIST_HEAD(&nandr->devs);
-	tsk = kthread_run(nand_blktrans_thread, (void *)nandr, "rknand");
+	kthread_run(nand_blktrans_thread, (void *)nandr, "rknand");
 
 	g_max_part_num = nand_prase_cmdline_part(disk_array);
 	if (g_max_part_num) {
-		offset = 0;
 		nandr->last_dev_index = 0;
 		for (i = 0; i < g_max_part_num; i++) {
 			part_size = (disk_array[i].offset + disk_array[i].size);
@@ -761,7 +751,7 @@ int __init rknand_dev_init(void)
 	void __iomem *nandc1;
 
 	rknand_get_reg_addr((unsigned long *)&nandc0, (unsigned long *)&nandc1);
-	if (nandc0 == 0)
+	if (!nandc0)
 		return -1;
 
 	ret = rk_ftl_init();
