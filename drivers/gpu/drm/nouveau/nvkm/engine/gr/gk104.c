@@ -380,6 +380,15 @@ gk104_clkgate_pack[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gk104_gr_init_fecs_exceptions(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, 0x409ffc, 0x00000000);
+	nvkm_wr32(device, 0x409c14, 0x00003e3e);
+	nvkm_wr32(device, 0x409c24, 0x000f0001);
+}
+
 void
 gk104_gr_init_rop_active_fbps(struct gf100_gr *gr)
 {
@@ -436,9 +445,7 @@ gk104_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
 	nvkm_wr32(device, 0x400124, 0x00000002);
 
-	nvkm_wr32(device, 0x409ffc, 0x00000000);
-	nvkm_wr32(device, 0x409c14, 0x00003e3e);
-	nvkm_wr32(device, 0x409c24, 0x000f0001);
+	gr->func->init_fecs_exceptions(gr);
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);
 	nvkm_wr32(device, 0x408030, 0xc0000000);
@@ -519,6 +526,7 @@ gk104_gr = {
 	.init_zcull = gf117_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_fecs_exceptions = gk104_gr_init_fecs_exceptions,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,

@@ -167,6 +167,7 @@ gk208_gr = {
 	.init_zcull = gf117_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk208_gr_pack_mmio,
 	.fecs.ucode = &gk208_gr_fecs_ucode,

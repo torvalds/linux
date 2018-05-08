@@ -117,6 +117,7 @@ gf108_gr = {
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.init_zcull = gf100_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
+	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.mmio = gf108_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

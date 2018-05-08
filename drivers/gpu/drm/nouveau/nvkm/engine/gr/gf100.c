@@ -1915,6 +1915,13 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 }
 
 void
+gf100_gr_init_fecs_exceptions(struct gf100_gr *gr)
+{
+	const u32 data = gr->firmware ? 0x000e0000 : 0x000e0001;
+	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, data);
+}
+
+void
 gf100_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -2010,7 +2017,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
 	nvkm_wr32(device, 0x400124, 0x00000002);
 
-	nvkm_wr32(device, 0x409c24, 0x000f0000);
+	gr->func->init_fecs_exceptions(gr);
+
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);
 	nvkm_wr32(device, 0x408030, 0xc0000000);
@@ -2088,6 +2096,7 @@ gf100_gr = {
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.init_zcull = gf100_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
+	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
