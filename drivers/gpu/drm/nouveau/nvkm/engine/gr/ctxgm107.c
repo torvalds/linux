@@ -967,8 +967,6 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
-	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
-
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_mthd(gr, grctx->mthd);
@@ -1007,4 +1005,5 @@ gm107_grctx = {
 	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 	.r406500 = gm107_grctx_generate_r406500,
+	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 };

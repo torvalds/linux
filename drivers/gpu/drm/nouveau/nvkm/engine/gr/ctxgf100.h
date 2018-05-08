@@ -59,6 +59,7 @@ struct gf100_grctx_func {
 	void (*max_ways_evict)(struct gf100_gr *);
 	void (*dist_skip_table)(struct gf100_gr *);
 	void (*r406500)(struct gf100_gr *);
+	void (*gpc_tpc_nr)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -92,6 +93,7 @@ extern const struct gf100_grctx_func gf119_grctx;
 
 extern const struct gf100_grctx_func gk104_grctx;
 void gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *);
+void gk104_grctx_generate_gpc_tpc_nr(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gk20a_grctx;
 void gk104_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);

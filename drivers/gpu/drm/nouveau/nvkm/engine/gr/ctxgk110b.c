@@ -97,4 +97,5 @@ gk110b_grctx = {
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
+	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 };

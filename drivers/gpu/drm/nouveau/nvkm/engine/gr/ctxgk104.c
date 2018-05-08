@@ -893,6 +893,13 @@ gk104_grctx_generate_unkn(struct gf100_gr *gr)
 }
 
 void
+gk104_grctx_generate_gpc_tpc_nr(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
+}
+
+void
 gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -916,7 +923,6 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
-	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 	nvkm_mask(device, 0x419f78, 0x00000001, 0x00000000);
 
 	gf100_gr_icmd(gr, grctx->icmd);
@@ -1003,4 +1009,5 @@ gk104_grctx = {
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
+	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 };
