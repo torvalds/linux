@@ -339,7 +339,6 @@ struct qed_dev_info {
 	u8		num_hwfns;
 
 	u8		hw_mac[ETH_ALEN];
-	bool		is_mf_default;
 
 	/* FW version */
 	u16		fw_major;
@@ -359,7 +358,7 @@ struct qed_dev_info {
 #define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
-	u8		mf_mode;
+	bool		b_inter_pf_switch;
 	bool		tx_switching;
 	bool		rdma_supported;
 	u16		mtu;

@@ -40,6 +40,7 @@
 #include <linux/string.h>
 #include <linux/etherdevice.h>
 #include "qed.h"
+#include "qed_cxt.h"
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
@@ -1486,6 +1487,80 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		    &resp, &param);
 }
 
+void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct public_func shmem_info;
+	u32 port_cfg, val;
+
+	if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
+		return;
+
+	memset(&p_hwfn->ufp_info, 0, sizeof(p_hwfn->ufp_info));
+	port_cfg = qed_rd(p_hwfn, p_ptt, p_hwfn->mcp_info->port_addr +
+			  offsetof(struct public_port, oem_cfg_port));
+	val = (port_cfg & OEM_CFG_CHANNEL_TYPE_MASK) >>
+		OEM_CFG_CHANNEL_TYPE_OFFSET;
+	if (val != OEM_CFG_CHANNEL_TYPE_STAGGED)
+		DP_NOTICE(p_hwfn, "Incorrect UFP Channel type  %d\n", val);
+
+	val = (port_cfg & OEM_CFG_SCHED_TYPE_MASK) >> OEM_CFG_SCHED_TYPE_OFFSET;
+	if (val == OEM_CFG_SCHED_TYPE_ETS) {
+		p_hwfn->ufp_info.mode = QED_UFP_MODE_ETS;
+	} else if (val == OEM_CFG_SCHED_TYPE_VNIC_BW) {
+		p_hwfn->ufp_info.mode = QED_UFP_MODE_VNIC_BW;
+	} else {
+		p_hwfn->ufp_info.mode = QED_UFP_MODE_UNKNOWN;
+		DP_NOTICE(p_hwfn, "Unknown UFP scheduling mode %d\n", val);
+	}
+
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
+	val = (port_cfg & OEM_CFG_FUNC_TC_MASK) >> OEM_CFG_FUNC_TC_OFFSET;
+	p_hwfn->ufp_info.tc = (u8)val;
+	val = (port_cfg & OEM_CFG_FUNC_HOST_PRI_CTRL_MASK) >>
+		OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET;
+	if (val == OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC) {
+		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_VNIC;
+	} else if (val == OEM_CFG_FUNC_HOST_PRI_CTRL_OS) {
+		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_OS;
+	} else {
+		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_UNKNOWN;
+		DP_NOTICE(p_hwfn, "Unknown Host priority control %d\n", val);
+	}
+
+	DP_NOTICE(p_hwfn,
+		  "UFP shmem config: mode = %d tc = %d pri_type = %d\n",
+		  p_hwfn->ufp_info.mode,
+		  p_hwfn->ufp_info.tc, p_hwfn->ufp_info.pri_type);
+}
+
+static int
+qed_mcp_handle_ufp_event(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	qed_mcp_read_ufp_config(p_hwfn, p_ptt);
+
+	if (p_hwfn->ufp_info.mode == QED_UFP_MODE_VNIC_BW) {
+		p_hwfn->qm_info.ooo_tc = p_hwfn->ufp_info.tc;
+		p_hwfn->hw_info.offload_tc = p_hwfn->ufp_info.tc;
+
+		qed_qm_reconf(p_hwfn, p_ptt);
+	} else if (p_hwfn->ufp_info.mode == QED_UFP_MODE_ETS) {
+		/* Merge UFP TC with the dcbx TC data */
+		qed_dcbx_mib_update_event(p_hwfn, p_ptt,
+					  QED_DCBX_OPERATIONAL_MIB);
+	} else {
+		DP_ERR(p_hwfn, "Invalid sched type, discard the UFP config\n");
+		return -EINVAL;
+	}
+
+	/* update storm FW with negotiation results */
+	qed_sp_pf_update_ufp(p_hwfn);
+
+	/* update stag pcp value */
+	qed_sp_pf_update_stag(p_hwfn);
+
+	return 0;
+}
+
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt)
 {
@@ -1528,6 +1603,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 		case MFW_DRV_MSG_DCBX_OPERATIONAL_MIB_UPDATED:
 			qed_dcbx_mib_update_event(p_hwfn, p_ptt,
 						  QED_DCBX_OPERATIONAL_MIB);
+			break;
+		case MFW_DRV_MSG_OEM_CFG_UPDATE:
+			qed_mcp_handle_ufp_event(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);

@@ -1005,6 +1005,14 @@ int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
+ * @brief Read ufp config from the shared memory.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
  * @brief Populate the nvm info shadow in the given hardware function
  *
  * @param p_hwfn

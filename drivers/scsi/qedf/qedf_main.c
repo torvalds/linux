@@ -994,7 +994,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	if (qedf_dump_frames)
 		print_hex_dump(KERN_WARNING, "fcoe: ", DUMP_PREFIX_OFFSET, 16,
 		    1, skb->data, skb->len, false);
-	qed_ops->ll2->start_xmit(qedf->cdev, skb);
+	qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
 
 	return 0;
 }

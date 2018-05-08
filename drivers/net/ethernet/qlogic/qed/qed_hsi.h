@@ -11993,6 +11993,16 @@ struct public_port {
 #define EEE_REMOTE_TW_TX_OFFSET 0
 #define EEE_REMOTE_TW_RX_MASK   0xffff0000
 #define EEE_REMOTE_TW_RX_OFFSET 16
+
+	u32 oem_cfg_port;
+#define OEM_CFG_CHANNEL_TYPE_MASK                       0x00000003
+#define OEM_CFG_CHANNEL_TYPE_OFFSET                     0
+#define OEM_CFG_CHANNEL_TYPE_VLAN_PARTITION             0x1
+#define OEM_CFG_CHANNEL_TYPE_STAGGED                    0x2
+#define OEM_CFG_SCHED_TYPE_MASK                         0x0000000C
+#define OEM_CFG_SCHED_TYPE_OFFSET                       2
+#define OEM_CFG_SCHED_TYPE_ETS                          0x1
+#define OEM_CFG_SCHED_TYPE_VNIC_BW                      0x2
 };
 
 struct public_func {
@@ -12069,6 +12079,23 @@ struct public_func {
 #define DRV_ID_DRV_INIT_HW_MASK		0x80000000
 #define DRV_ID_DRV_INIT_HW_SHIFT	31
 #define DRV_ID_DRV_INIT_HW_FLAG		(1 << DRV_ID_DRV_INIT_HW_SHIFT)
+
+	u32 oem_cfg_func;
+#define OEM_CFG_FUNC_TC_MASK                    0x0000000F
+#define OEM_CFG_FUNC_TC_OFFSET                  0
+#define OEM_CFG_FUNC_TC_0                       0x0
+#define OEM_CFG_FUNC_TC_1                       0x1
+#define OEM_CFG_FUNC_TC_2                       0x2
+#define OEM_CFG_FUNC_TC_3                       0x3
+#define OEM_CFG_FUNC_TC_4                       0x4
+#define OEM_CFG_FUNC_TC_5                       0x5
+#define OEM_CFG_FUNC_TC_6                       0x6
+#define OEM_CFG_FUNC_TC_7                       0x7
+
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_MASK         0x00000030
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET       4
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC         0x1
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OS           0x2
 };
 
 struct mcp_mac {
@@ -12495,6 +12522,7 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_BW_UPDATE10,
 	MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE,
 	MFW_DRV_MSG_BW_UPDATE11,
+	MFW_DRV_MSG_OEM_CFG_UPDATE,
 	MFW_DRV_MSG_MAX
 };
 
