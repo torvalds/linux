@@ -110,7 +110,8 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
 static void gen6_ggtt_invalidate(struct drm_i915_private *dev_priv)
 {
-	/* Note that as an uncached mmio write, this should flush the
+	/*
+	 * Note that as an uncached mmio write, this will flush the
 	 * WCB of the writes into the GGTT before it triggers the invalidate.
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
@@ -2418,11 +2419,9 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	for_each_sgt_dma(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
-	wmb();
-
-	/* This next bit makes the above posting read even more important. We
-	 * want to flush the TLBs only after we're certain all the PTE updates
-	 * have finished.
+	/*
+	 * We want to flush the TLBs only after we're certain all the PTE
+	 * updates have finished.
 	 */
 	ggtt->invalidate(vm->i915);
 }
@@ -2460,11 +2459,10 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	dma_addr_t addr;
 	for_each_sgt_dma(addr, iter, vma->pages)
 		iowrite32(vm->pte_encode(addr, level, flags), &entries[i++]);
-	wmb();
 
-	/* This next bit makes the above posting read even more important. We
-	 * want to flush the TLBs only after we're certain all the PTE updates
-	 * have finished.
+	/*
+	 * We want to flush the TLBs only after we're certain all the PTE
+	 * updates have finished.
 	 */
 	ggtt->invalidate(vm->i915);
 }
