@@ -90,21 +90,23 @@ static int configure_channel(struct most_interface *most_iface,
 	}
 
 	if (channel_config->direction == MOST_CH_RX) {
-		dev->polling_mode = polling_req || dev->client->irq <= 0;
+		dev->polling_mode = polling_req;
 		if (!dev->polling_mode) {
-			pr_info("Requesting IRQ: %d\n", dev->client->irq);
+			if (dev->client->irq <= 0) {
+				pr_err("bad irq: %d\n", dev->client->irq);
+				return -ENOENT;
+			}
 			dev->rx.int_disabled = false;
 			ret = request_irq(dev->client->irq, most_irq_handler, 0,
 					  dev->client->name, dev);
 			if (ret) {
-				pr_info("IRQ request failed: %d, falling back to polling\n",
-					ret);
-				dev->polling_mode = true;
+				pr_err("request_irq(%d) failed: %d\n",
+				       dev->client->irq, ret);
+				return ret;
 			}
+		} else if (scan_rate) {
+			pr_info("polling rate is %d Hz\n", scan_rate);
 		}
-	}
-	if ((channel_config->direction == MOST_CH_RX) && (dev->polling_mode)) {
-		pr_info("Using polling at rate: %d times/sec\n", scan_rate);
 	}
 	dev->is_open[ch_idx] = true;
 
