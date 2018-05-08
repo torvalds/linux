@@ -402,6 +402,7 @@
 		regulator-max-microvolt = <1400000>;
 		regulator-ramp-delay = <1000>;
 		fcs,suspend-voltage-selector = <1>;
+		regulator-always-on;
 		regulator-boot-on;
 		regulator-state-mem {
 			regulator-off-in-suspend;
