@@ -31,7 +31,7 @@ int
 gf119_disp_dmac_bind(struct nv50_disp_dmac *chan,
 		     struct nvkm_object *object, u32 handle)
 {
-	return nvkm_ramht_insert(chan->base.root->ramht, object,
+	return nvkm_ramht_insert(chan->base.root->disp->ramht, object,
 				 chan->base.chid.user, -9, handle,
 				 chan->base.chid.user << 27 | 0x00000001);
 }

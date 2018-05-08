@@ -33,7 +33,7 @@
 
 struct nv50_disp_dmac_object {
 	struct nvkm_oproxy oproxy;
-	struct nv50_disp_root *root;
+	struct nv50_disp *disp;
 	int hash;
 };
 
@@ -42,7 +42,7 @@ nv50_disp_dmac_child_del_(struct nvkm_oproxy *base)
 {
 	struct nv50_disp_dmac_object *object =
 		container_of(base, typeof(*object), oproxy);
-	nvkm_ramht_remove(object->root->ramht, object->hash);
+	nvkm_ramht_remove(object->disp->ramht, object->hash);
 }
 
 static const struct nvkm_oproxy_func
@@ -56,8 +56,8 @@ nv50_disp_dmac_child_new_(struct nv50_disp_chan *base,
 			  void *data, u32 size, struct nvkm_object **pobject)
 {
 	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
-	struct nv50_disp_root *root = chan->base.root;
-	struct nvkm_device *device = root->disp->base.engine.subdev.device;
+	struct nv50_disp *disp = chan->base.root->disp;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const struct nvkm_device_oclass *sclass = oclass->priv;
 	struct nv50_disp_dmac_object *object;
 	int ret;
@@ -65,7 +65,7 @@ nv50_disp_dmac_child_new_(struct nv50_disp_chan *base,
 	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_oproxy_ctor(&nv50_disp_dmac_child_func_, oclass, &object->oproxy);
-	object->root = root;
+	object->disp = disp;
 	*pobject = &object->oproxy.base;
 
 	ret = sclass->ctor(device, oclass, data, size, &object->oproxy.object);
@@ -177,7 +177,7 @@ int
 nv50_disp_dmac_bind(struct nv50_disp_dmac *chan,
 		    struct nvkm_object *object, u32 handle)
 {
-	return nvkm_ramht_insert(chan->base.root->ramht, object,
+	return nvkm_ramht_insert(chan->base.root->disp->ramht, object,
 				 chan->base.chid.user, -10, handle,
 				 chan->base.chid.user << 28 |
 				 chan->base.chid.user);

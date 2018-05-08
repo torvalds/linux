@@ -4,6 +4,7 @@
 #define nv50_disp_chan(p) container_of((p), struct nv50_disp_chan, object)
 #include <core/object.h>
 #include "nv50.h"
+struct nv50_disp_root;
 
 struct nv50_disp_chan {
 	const struct nv50_disp_chan_func *func;

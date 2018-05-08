@@ -28,6 +28,8 @@
 
 static const struct nv50_disp_func
 gm200_disp = {
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,
 	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,

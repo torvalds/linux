@@ -26,6 +26,8 @@
 
 static const struct nv50_disp_func
 mcp89_disp = {
+	.init = nv50_disp_init,
+	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,

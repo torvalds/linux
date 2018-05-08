@@ -54,6 +54,8 @@ gp102_disp_intr_error(struct nv50_disp *disp, int chid)
 
 static const struct nv50_disp_func
 gp102_disp = {
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,
 	.intr_error = gp102_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,

@@ -28,8 +28,6 @@
 
 static const struct nv50_disp_root_func
 gm107_disp_root = {
-	.init = gf119_disp_root_init,
-	.fini = gf119_disp_root_fini,
 	.dmac = {
 		&gm107_disp_core_oclass,
 		&gk110_disp_base_oclass,
