@@ -2397,6 +2397,7 @@ nv13b_chipset = {
 static const struct nvkm_device_chip
 nv140_chipset = {
 	.name = "GV100",
+	.bios = nvkm_bios_new,
 	.pci = gp100_pci_new,
 };
 
