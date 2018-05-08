@@ -127,6 +127,7 @@ static struct rcu_data __percpu *const rcu_data_p = &rcu_preempt_data;
 
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake);
+static void rcu_read_unlock_special(struct task_struct *t);
 
 /*
  * Tell them what RCU they are running.
@@ -461,7 +462,7 @@ static bool rcu_preempt_has_tasks(struct rcu_node *rnp)
  * notify RCU core processing or task having blocked during the RCU
  * read-side critical section.
  */
-void rcu_read_unlock_special(struct task_struct *t)
+static void rcu_read_unlock_special(struct task_struct *t)
 {
 	bool empty_exp;
 	bool empty_norm;

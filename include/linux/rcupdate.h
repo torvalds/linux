@@ -64,7 +64,6 @@ void rcu_barrier_tasks(void);
 
 void __rcu_read_lock(void);
 void __rcu_read_unlock(void);
-void rcu_read_unlock_special(struct task_struct *t);
 void synchronize_rcu(void);
 
 /*
