@@ -225,13 +225,15 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		if (asyw->image.kind) {
 			asyw->image.layout = 0;
 			if (drm->client.device.info.chipset >= 0xc0)
-				asyw->image.block = fb->nvbo->mode >> 4;
+				asyw->image.blockh = fb->nvbo->mode >> 4;
 			else
-				asyw->image.block = fb->nvbo->mode;
-			asyw->image.pitch[0] = (fb->base.pitches[0] / 4) << 4;
+				asyw->image.blockh = fb->nvbo->mode;
+			asyw->image.blocks[0] = fb->base.pitches[0] / 64;
+			asyw->image.pitch[0] = 0;
 		} else {
 			asyw->image.layout = 1;
-			asyw->image.block  = 0;
+			asyw->image.blockh = 0;
+			asyw->image.blocks[0] = 0;
 			asyw->image.pitch[0] = fb->base.pitches[0];
 		}
 

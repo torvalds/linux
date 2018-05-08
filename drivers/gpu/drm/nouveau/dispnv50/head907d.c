@@ -172,7 +172,8 @@ head907d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 		evo_data(push, asyh->core.h << 16 | asyh->core.w);
 		evo_data(push, asyh->core.layout << 24 |
 			       (asyh->core.pitch >> 8) << 8 |
-			       asyh->core.block);
+			       asyh->core.blocks << 8 |
+			       asyh->core.blockh);
 		evo_data(push, asyh->core.format << 8);
 		evo_data(push, asyh->core.handle);
 		evo_mthd(push, 0x04b0 + head->base.index * 0x300, 1);

@@ -151,8 +151,9 @@ head507d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 		evo_mthd(push, 0x0868 + head->base.index * 0x400, 4);
 		evo_data(push, asyh->core.h << 16 | asyh->core.w);
 		evo_data(push, asyh->core.layout << 20 |
-			       asyh->core.pitch >> 8 << 8 |
-			       asyh->core.block);
+			       (asyh->core.pitch >> 8) << 8 |
+			       asyh->core.blocks << 8 |
+			       asyh->core.blockh);
 		evo_data(push, asyh->core.kind << 16 |
 			       asyh->core.format << 8);
 		evo_data(push, asyh->core.handle);
@@ -196,7 +197,8 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 	asyh->core.format = 0xcf;
 	asyh->core.kind = 0;
 	asyh->core.layout = 1;
-	asyh->core.block = 0;
+	asyh->core.blockh = 0;
+	asyh->core.blocks = 0;
 	asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
 }
 

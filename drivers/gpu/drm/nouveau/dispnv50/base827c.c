@@ -36,8 +36,9 @@ base827c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 		evo_data(push, 0x00000000);
 		evo_data(push, asyw->image.h << 16 | asyw->image.w);
 		evo_data(push, asyw->image.layout << 20 |
-			       asyw->image.pitch[0] |
-			       asyw->image.block);
+			       (asyw->image.pitch[0] >> 8) << 8 |
+			       asyw->image.blocks[0] << 8 |
+			       asyw->image.blockh);
 		evo_data(push, asyw->image.format << 8);
 		evo_kick(push, &wndw->wndw);
 	}

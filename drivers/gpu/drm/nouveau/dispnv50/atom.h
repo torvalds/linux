@@ -63,7 +63,8 @@ struct nv50_head_atom {
 		u8  format;
 		u8  kind:7;
 		u8  layout:1;
-		u8  block:4;
+		u8  blockh:4;
+		u16 blocks:12;
 		u32 pitch:20;
 		u16 x;
 		u16 y;
@@ -175,7 +176,8 @@ struct nv50_wndw_atom {
 		u8  format;
 		u8  kind:7;
 		u8  layout:1;
-		u8  block:4;
+		u8  blockh:4;
+		u16 blocks[3];
 		u32 pitch[3];
 		u16 w;
 		u16 h;
