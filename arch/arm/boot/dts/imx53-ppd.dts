@@ -555,8 +555,6 @@
 		status = "okay";
 
 		port@2 {
-			reg = <2>;
-
 			lvds0_out: endpoint {
 				remote-endpoint = <&panel_in_lvds0>;
 			};
