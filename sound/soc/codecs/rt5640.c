@@ -2138,6 +2138,25 @@ static int rt5640_probe(struct snd_soc_component *component)
 		return -ENODEV;
 	}
 
+	/*
+	 * Note on some platforms the platform code may need to add device-props
+	 * rather then relying only on properties set by the firmware.
+	 * Therefor the property parsing MUST be done here, rather then from
+	 * rt5640_i2c_probe(), so that the platform-code can attach extra
+	 * properties before calling snd_soc_register_card().
+	 */
+	if (device_property_read_bool(component->dev, "realtek,in1-differential"))
+		snd_soc_component_update_bits(component, RT5640_IN1_IN2,
+					      RT5640_IN_DF1, RT5640_IN_DF1);
+
+	if (device_property_read_bool(component->dev, "realtek,in2-differential"))
+		snd_soc_component_update_bits(component, RT5640_IN3_IN4,
+					      RT5640_IN_DF2, RT5640_IN_DF2);
+
+	if (device_property_read_bool(component->dev, "realtek,in3-differential"))
+		snd_soc_component_update_bits(component, RT5640_IN1_IN2,
+					      RT5640_IN_DF2, RT5640_IN_DF2);
+
 	return 0;
 }
 
@@ -2369,18 +2388,6 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 
 	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
 				RT5640_MCLK_DET, RT5640_MCLK_DET);
-
-	if (device_property_read_bool(&i2c->dev, "realtek,in1-differential"))
-		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,
-					RT5640_IN_DF1, RT5640_IN_DF1);
-
-	if (device_property_read_bool(&i2c->dev, "realtek,in2-differential"))
-		regmap_update_bits(rt5640->regmap, RT5640_IN3_IN4,
-					RT5640_IN_DF2, RT5640_IN_DF2);
-
-	if (device_property_read_bool(&i2c->dev, "realtek,in3-differential"))
-		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,
-					RT5640_IN_DF2, RT5640_IN_DF2);
 
 	rt5640->hp_mute = 1;
 
