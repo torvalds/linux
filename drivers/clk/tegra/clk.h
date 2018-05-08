@@ -763,7 +763,7 @@ struct clk **tegra_clk_init(void __iomem *clk_base, int num, int periph_banks);
 
 struct clk **tegra_lookup_dt_id(int clk_id, struct tegra_clk *tegra_clk);
 
-void tegra_add_of_provider(struct device_node *np);
+void tegra_add_of_provider(struct device_node *np, void *clk_src_onecell_get);
 void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
