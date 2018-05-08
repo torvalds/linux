@@ -51,6 +51,12 @@ struct gk104_fifo_func {
 		const struct nvkm_enum *gpcclient;
 	} fault;
 
+	const struct gk104_fifo_runlist_func {
+		u8 size;
+		void (*chan)(struct gk104_fifo_chan *,
+			     struct nvkm_memory *, u32 offset);
+	} *runlist;
+
 	struct gk104_fifo_chan_user {
 		struct nvkm_sclass user;
 		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *,
@@ -65,10 +71,14 @@ void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl);
 
 extern const struct nvkm_enum gk104_fifo_fault_access[];
+
 extern const struct nvkm_enum gk104_fifo_fault_engine[];
 extern const struct nvkm_enum gk104_fifo_fault_reason[];
 extern const struct nvkm_enum gk104_fifo_fault_hubclient[];
 extern const struct nvkm_enum gk104_fifo_fault_gpcclient[];
+extern const struct gk104_fifo_runlist_func gk104_fifo_runlist;
+void gk104_fifo_runlist_chan(struct gk104_fifo_chan *,
+			     struct nvkm_memory *, u32);
 
 extern const struct nvkm_enum gm107_fifo_fault_engine[];
 extern const struct nvkm_enum gp100_fifo_fault_engine[];

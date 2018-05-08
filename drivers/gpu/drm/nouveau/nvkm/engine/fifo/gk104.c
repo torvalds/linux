@@ -140,6 +140,7 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 void
 gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 {
+	const struct gk104_fifo_runlist_func *func = fifo->func->runlist;
 	struct gk104_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -153,9 +154,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 
 	nvkm_kmap(mem);
 	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
-		nvkm_wo32(mem, (nr * 8) + 0, chan->base.chid);
-		nvkm_wo32(mem, (nr * 8) + 4, 0x00000000);
-		nr++;
+		func->chan(chan, mem, nr++ * func->size);
 	}
 	nvkm_done(mem);
 
@@ -195,6 +194,20 @@ gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 	list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
 	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
+
+void
+gk104_fifo_runlist_chan(struct gk104_fifo_chan *chan,
+			struct nvkm_memory *memory, u32 offset)
+{
+	nvkm_wo32(memory, offset + 0, chan->base.chid);
+	nvkm_wo32(memory, offset + 4, 0x00000000);
+}
+
+const struct gk104_fifo_runlist_func
+gk104_fifo_runlist = {
+	.size = 8,
+	.chan = gk104_fifo_runlist_chan,
+};
 
 static void
 gk104_fifo_recover_work(struct work_struct *w)
@@ -874,17 +887,15 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	kfree(map);
 
 	for (i = 0; i < fifo->runlist_nr; i++) {
-		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-				      0x8000, 0x1000, false,
-				      &fifo->runlist[i].mem[0]);
-		if (ret)
-			return ret;
-
-		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-				      0x8000, 0x1000, false,
-				      &fifo->runlist[i].mem[1]);
-		if (ret)
-			return ret;
+		for (j = 0; j < ARRAY_SIZE(fifo->runlist[i].mem); j++) {
+			ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+					      fifo->base.nr * 2/* TSG+chan */ *
+					      fifo->func->runlist->size,
+					      0x1000, false,
+					      &fifo->runlist[i].mem[j]);
+			if (ret)
+				return ret;
+		}
 
 		init_waitqueue_head(&fifo->runlist[i].wait);
 		INIT_LIST_HEAD(&fifo->runlist[i].chan);
@@ -1111,6 +1122,7 @@ gk104_fifo = {
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.runlist = &gk104_fifo_runlist,
 	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
 };
 
