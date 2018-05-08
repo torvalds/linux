@@ -129,7 +129,9 @@ struct hws_trailer_entry {
 			unsigned int f:1;	/* 0 - Block Full Indicator   */
 			unsigned int a:1;	/* 1 - Alert request control  */
 			unsigned int t:1;	/* 2 - Timestamp format	      */
-			unsigned long long:61;	/* 3 - 63: Reserved	      */
+			unsigned int :29;	/* 3 - 31: Reserved	      */
+			unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
+			unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
 		};
 		unsigned long long flags;	/* 0 - 63: All indicators     */
 	};
