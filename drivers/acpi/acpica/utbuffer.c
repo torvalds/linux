@@ -53,7 +53,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 
 		/* Print current offset */
 
-		acpi_os_printf("%6.4X: ", (base_offset + i));
+		acpi_os_printf("%8.4X: ", (base_offset + i));
 
 		/* Print 16 hex chars */
 
@@ -219,7 +219,7 @@ acpi_ut_dump_buffer_to_file(ACPI_FILE file,
 
 		/* Print current offset */
 
-		fprintf(file, "%6.4X: ", (base_offset + i));
+		fprintf(file, "%8.4X: ", (base_offset + i));
 
 		/* Print 16 hex chars */
 
