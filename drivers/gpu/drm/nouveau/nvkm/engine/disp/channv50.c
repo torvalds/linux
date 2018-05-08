@@ -162,6 +162,15 @@ nv50_disp_chan_user(struct nv50_disp_chan *chan, u64 *psize)
 	return 0x640000 + (chan->chid.user * 0x1000);
 }
 
+void
+nv50_disp_chan_intr(struct nv50_disp_chan *chan, bool en)
+{
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	const u64 mask = 0x00010001 << chan->chid.user;
+	const u64 data = en ? 0x00010000 : 0x00000000;
+	nvkm_mask(device, 0x610028, mask, data);
+}
+
 static int
 nv50_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 {
@@ -288,6 +297,7 @@ nv50_disp_chan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
 	chan->func->fini(chan);
+	chan->func->intr(chan, false);
 	return 0;
 }
 
@@ -295,6 +305,7 @@ static int
 nv50_disp_chan_init(struct nvkm_object *object)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
+	chan->func->intr(chan, true);
 	return chan->func->init(chan);
 }
 

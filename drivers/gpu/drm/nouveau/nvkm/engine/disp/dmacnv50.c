@@ -96,9 +96,6 @@ nv50_disp_dmac_fini(struct nv50_disp_chan *chan)
 		nvkm_error(subdev, "ch %d fini timeout, %08x\n", user,
 			   nvkm_rd32(device, 0x610200 + (ctrl * 0x10)));
 	}
-
-	/* disable error reporting and completion notifications */
-	nvkm_mask(device, 0x610028, 0x00010001 << user, 0x00000000 << user);
 }
 
 static int
@@ -108,9 +105,6 @@ nv50_disp_dmac_init(struct nv50_disp_chan *chan)
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;
-
-	/* enable error reporting */
-	nvkm_mask(device, 0x610028, 0x00010000 << user, 0x00010000 << user);
 
 	/* initialise channel for dma command submission */
 	nvkm_wr32(device, 0x610204 + (ctrl * 0x0010), chan->push);
@@ -137,6 +131,7 @@ const struct nv50_disp_chan_func
 nv50_disp_dmac_func = {
 	.init = nv50_disp_dmac_init,
 	.fini = nv50_disp_dmac_fini,
+	.intr = nv50_disp_chan_intr,
 	.user = nv50_disp_chan_user,
 	.bind = nv50_disp_dmac_bind,
 };

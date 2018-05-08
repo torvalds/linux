@@ -33,9 +33,6 @@ gp102_disp_dmac_init(struct nv50_disp_chan *chan)
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;
 
-	/* enable error reporting */
-	nvkm_mask(device, 0x6100a0, 0x00000001 << user, 0x00000001 << user);
-
 	/* initialise channel for dma command submission */
 	nvkm_wr32(device, 0x611494 + (ctrl * 0x0010), chan->push);
 	nvkm_wr32(device, 0x611498 + (ctrl * 0x0010), 0x00010000);
@@ -61,6 +58,7 @@ const struct nv50_disp_chan_func
 gp102_disp_dmac_func = {
 	.init = gp102_disp_dmac_init,
 	.fini = gf119_disp_dmac_fini,
+	.intr = gf119_disp_chan_intr,
 	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };

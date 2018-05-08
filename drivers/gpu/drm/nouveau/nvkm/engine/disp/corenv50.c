@@ -179,9 +179,6 @@ nv50_disp_core_fini(struct nv50_disp_chan *chan)
 		nvkm_error(subdev, "core fini: %08x\n",
 			   nvkm_rd32(device, 0x610200));
 	}
-
-	/* disable error reporting and completion notifications */
-	nvkm_mask(device, 0x610028, 0x00010001, 0x00000000);
 }
 
 static int
@@ -189,9 +186,6 @@ nv50_disp_core_init(struct nv50_disp_chan *chan)
 {
 	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-
-	/* enable error reporting */
-	nvkm_mask(device, 0x610028, 0x00010000, 0x00010000);
 
 	/* attempt to unstick channel from some unknown state */
 	if ((nvkm_rd32(device, 0x610200) & 0x009f0000) == 0x00020000)
@@ -224,6 +218,7 @@ const struct nv50_disp_chan_func
 nv50_disp_core_func = {
 	.init = nv50_disp_core_init,
 	.fini = nv50_disp_core_fini,
+	.intr = nv50_disp_chan_intr,
 	.user = nv50_disp_chan_user,
 	.bind = nv50_disp_dmac_bind,
 };

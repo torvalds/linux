@@ -31,9 +31,6 @@ gp102_disp_core_init(struct nv50_disp_chan *chan)
 	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
-	/* enable error reporting */
-	nvkm_mask(device, 0x6100a0, 0x00000001, 0x00000001);
-
 	/* initialise channel for dma command submission */
 	nvkm_wr32(device, 0x611494, chan->push);
 	nvkm_wr32(device, 0x611498, 0x00010000);
@@ -59,6 +56,7 @@ static const struct nv50_disp_chan_func
 gp102_disp_core_func = {
 	.init = gp102_disp_core_init,
 	.fini = gf119_disp_core_fini,
+	.intr = gf119_disp_chan_intr,
 	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };
