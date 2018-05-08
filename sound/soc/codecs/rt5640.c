@@ -2097,6 +2097,10 @@ static int rt5640_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	u32 dmic1_data_pin = 0;
+	u32 dmic2_data_pin = 0;
+	bool dmic_en = false;
+	u32 val;
 
 	/* Check if MCLK provided */
 	rt5640->mclk = devm_clk_get(component->dev, "mclk");
@@ -2156,6 +2160,21 @@ static int rt5640_probe(struct snd_soc_component *component)
 	if (device_property_read_bool(component->dev, "realtek,in3-differential"))
 		snd_soc_component_update_bits(component, RT5640_IN1_IN2,
 					      RT5640_IN_DF2, RT5640_IN_DF2);
+
+	if (device_property_read_u32(component->dev, "realtek,dmic1-data-pin",
+				     &val) == 0 && val) {
+		dmic1_data_pin = val - 1;
+		dmic_en = true;
+	}
+
+	if (device_property_read_u32(component->dev, "realtek,dmic2-data-pin",
+				     &val) == 0 && val) {
+		dmic2_data_pin = val - 1;
+		dmic_en = true;
+	}
+
+	if (dmic_en)
+		rt5640_dmic_enable(component, dmic1_data_pin, dmic2_data_pin);
 
 	return 0;
 }
