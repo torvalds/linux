@@ -9190,7 +9190,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
 	else if (IS_COFFEELAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cfl_init_clock_gating;

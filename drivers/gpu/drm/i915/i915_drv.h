@@ -2470,6 +2470,15 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_CNL_REVID(p, since, until) \
 	(IS_CANNONLAKE(p) && IS_REVID(p, since, until))
 
+#define ICL_REVID_A0		0x0
+#define ICL_REVID_A2		0x1
+#define ICL_REVID_B0		0x3
+#define ICL_REVID_B2		0x4
+#define ICL_REVID_C0		0x5
+
+#define IS_ICL_REVID(p, since, until) \
+	(IS_ICELAKE(p) && IS_REVID(p, since, until))
+
 /*
  * The genX designation typically refers to the render engine, so render
  * capability related checks should use IS_GEN, while display and other checks

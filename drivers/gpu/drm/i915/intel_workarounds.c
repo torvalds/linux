@@ -441,6 +441,27 @@ static int cnl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+{
+	/* Wa_1604370585:icl (pre-prod)
+	 * Formerly known as WaPushConstantDereferenceHoldDisable
+	 */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_B0))
+		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
+				  PUSH_CONSTANT_DEREF_DISABLE);
+
+	/* WaForceEnableNonCoherent:icl
+	 * This is not the same workaround as in early Gen9 platforms, where
+	 * lacking this could cause system hangs, but coherency performance
+	 * overhead is high and only a few compute workloads really need it
+	 * (the register is whitelisted in hardware now, so UMDs can opt in
+	 * for coherency if they have a good reason).
+	 */
+	WA_SET_BIT_MASKED(ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
+
+	return 0;
+}
+
 int intel_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
 	int err = 0;
@@ -465,6 +486,8 @@ int intel_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 		err = cfl_ctx_workarounds_init(dev_priv);
 	else if (IS_CANNONLAKE(dev_priv))
 		err = cnl_ctx_workarounds_init(dev_priv);
+	else if (IS_ICELAKE(dev_priv))
+		err = icl_ctx_workarounds_init(dev_priv);
 	else
 		MISSING_CASE(INTEL_GEN(dev_priv));
 	if (err)
@@ -663,6 +686,21 @@ static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 }
 
+static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	/* This is not an Wa. Enable for better image quality */
+	I915_WRITE(_3D_CHICKEN3,
+		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
+
+	/* WaInPlaceDecompressionHang:icl */
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA, I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+					    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+
+	/* WaPipelineFlushCoherentLines:icl */
+	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+				   GEN8_LQSC_FLUSH_COHERENT_LINES);
+}
+
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) < 8)
@@ -683,6 +721,8 @@ void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		cfl_gt_workarounds_apply(dev_priv);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_gt_workarounds_apply(dev_priv);
+	else if (IS_ICELAKE(dev_priv))
+		icl_gt_workarounds_apply(dev_priv);
 	else
 		MISSING_CASE(INTEL_GEN(dev_priv));
 }
@@ -761,6 +801,10 @@ static void cnl_whitelist_build(struct whitelist *w)
 	whitelist_reg(w, GEN8_CS_CHICKEN1);
 }
 
+static void icl_whitelist_build(struct whitelist *w)
+{
+}
+
 static struct whitelist *whitelist_build(struct intel_engine_cs *engine,
 					 struct whitelist *w)
 {
@@ -789,6 +833,8 @@ static struct whitelist *whitelist_build(struct intel_engine_cs *engine,
 		cfl_whitelist_build(w);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(w);
+	else if (IS_ICELAKE(i915))
+		icl_whitelist_build(w);
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 

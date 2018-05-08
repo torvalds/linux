@@ -2138,15 +2138,15 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
-	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl,icl */
 	if (IS_BROADWELL(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
 	else if (IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
-	else if (IS_GEN9_BC(dev_priv) || IS_GEN10(dev_priv))
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 	else if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+	else if (INTEL_GEN(dev_priv) >= 9)
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 
 	/*
 	 * To support 64K PTEs we need to first enable the use of the
