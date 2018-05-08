@@ -947,8 +947,6 @@ struct snd_soc_codec_driver {
 	int (*set_jack)(struct snd_soc_codec *codec,
 			struct snd_soc_jack *jack,  void *data);
 
-	/* codec IO */
-	struct regmap *(*get_regmap)(struct device *);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 
