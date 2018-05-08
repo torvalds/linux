@@ -247,9 +247,10 @@ static int s3c24xx_dclk_probe(struct platform_device *pdev)
 	struct clk_hw **clk_table;
 	int ret, i;
 
-	s3c24xx_dclk = devm_kzalloc(&pdev->dev, sizeof(*s3c24xx_dclk) +
-			    sizeof(*s3c24xx_dclk->clk_data.hws) * DCLK_MAX_CLKS,
-			    GFP_KERNEL);
+	s3c24xx_dclk = devm_kzalloc(&pdev->dev,
+				    struct_size(s3c24xx_dclk, clk_data.hws,
+						DCLK_MAX_CLKS),
+				    GFP_KERNEL);
 	if (!s3c24xx_dclk)
 		return -ENOMEM;
 

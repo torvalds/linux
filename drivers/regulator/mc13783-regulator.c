@@ -409,9 +409,9 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 	if (num_regulators <= 0)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv) +
-			num_regulators * sizeof(priv->regulators[0]),
-			GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev,
+			    struct_size(priv, regulators, num_regulators),
+			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
