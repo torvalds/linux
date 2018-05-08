@@ -669,7 +669,7 @@ static inline int port_prio(const struct execlist_port *port)
 	return rq_prio(port_request(port));
 }
 
-static void guc_dequeue(struct intel_engine_cs *engine)
+static bool __guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
@@ -679,7 +679,8 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	bool submit = false;
 	struct rb_node *rb;
 
-	spin_lock_irq(&engine->timeline.lock);
+	lockdep_assert_held(&engine->timeline.lock);
+
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
@@ -694,13 +695,13 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,
 					   &preempt_work->work);
-				goto unlock;
+				return false;
 			}
 		}
 
 		port++;
 		if (port_isset(port))
-			goto unlock;
+			return false;
 	}
 	GEM_BUG_ON(port_isset(port));
 
@@ -738,19 +739,34 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 done:
 	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
 	execlists->first = rb;
-	if (submit) {
+	if (submit)
 		port_assign(port, last);
+	if (last)
 		execlists_user_begin(execlists, execlists->port);
-		guc_submit(engine);
-	}
 
 	/* We must always keep the beast fed if we have work piled up */
 	GEM_BUG_ON(port_isset(execlists->port) &&
 		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
-unlock:
-	spin_unlock_irq(&engine->timeline.lock);
+	return submit;
+}
+
+static void guc_dequeue(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+	bool submit;
+
+	local_irq_save(flags);
+
+	spin_lock(&engine->timeline.lock);
+	submit = __guc_dequeue(engine);
+	spin_unlock(&engine->timeline.lock);
+
+	if (submit)
+		guc_submit(engine);
+
+	local_irq_restore(flags);
 }
 
 static void guc_submission_tasklet(unsigned long data)
