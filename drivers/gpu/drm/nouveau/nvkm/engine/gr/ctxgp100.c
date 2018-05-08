@@ -36,7 +36,7 @@ gp100_grctx_generate_pagepool(struct gf100_grctx *info)
 	const int s = 8;
 	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
 	mmio_refn(info, 0x40800c, 0x00000000, s, b);
-	mmio_wr32(info, 0x408010, 0x80000000);
+	mmio_wr32(info, 0x408010, 0x8007d800);
 	mmio_refn(info, 0x419004, 0x00000000, s, b);
 	mmio_wr32(info, 0x419008, 0x00000000);
 }
