@@ -1281,7 +1281,7 @@ void iep_config_frame_end_int_en(void *base)
 	IEP_REGB_FRAME_END_INT_EN(base, 1);
 }
 
-void iep_config_misc(struct IEP_MSG *iep_msg)
+static void iep_config_misc(struct IEP_MSG *iep_msg)
 {
 //	IEP_REGB_V_REVERSE_DISP();
 //	IEP_REGB_H_REVERSE_DISP();
