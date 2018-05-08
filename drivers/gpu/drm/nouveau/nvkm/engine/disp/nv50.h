@@ -16,6 +16,7 @@ struct nv50_disp {
 	struct nvkm_event uevent;
 
 	struct {
+		unsigned long mask;
 		int nr;
 	} head;
 
@@ -38,9 +39,7 @@ void nv50_disp_super_2_2(struct nv50_disp *, struct nvkm_head *);
 void nv50_disp_super_3_0(struct nv50_disp *, struct nvkm_head *);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
-		   int index, int heads, struct nvkm_disp **);
-int gf119_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
-		    int index, struct nvkm_disp **);
+		   int index, struct nvkm_disp **);
 
 struct nv50_disp_func {
 	void (*intr)(struct nv50_disp *);
@@ -52,6 +51,7 @@ struct nv50_disp_func {
 	const struct nvkm_disp_oclass *root;
 
 	struct {
+		int (*cnt)(struct nvkm_disp *, unsigned long *mask);
 		int (*new)(struct nvkm_disp *, int id);
 	} head;
 

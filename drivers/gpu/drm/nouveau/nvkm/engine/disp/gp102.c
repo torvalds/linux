@@ -59,12 +59,12 @@ gp102_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gp102_disp_root_oclass,
-	.head.new = gf119_head_new,
+	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.sor = { .nr = 4, .new = gm200_sor_new },
 };
 
 int
 gp102_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gp102_disp, device, index, pdisp);
+	return nv50_disp_new_(&gp102_disp, device, index, pdisp);
 }

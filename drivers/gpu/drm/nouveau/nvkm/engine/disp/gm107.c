@@ -33,7 +33,7 @@ gm107_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gm107_disp_root_oclass,
-	.head.new = gf119_head_new,
+	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .nr = 3, .new = gf119_dac_new },
 	.sor = { .nr = 4, .new = gm107_sor_new },
 };
@@ -41,5 +41,5 @@ gm107_disp = {
 int
 gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
+	return nv50_disp_new_(&gm107_disp, device, index, pdisp);
 }

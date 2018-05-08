@@ -64,9 +64,13 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
 	const struct nv50_disp_func *func = disp->func;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	int ret, i;
 
-	for (i = 0; func->head.new && i < disp->head.nr; i++) {
+	disp->head.nr = func->head.cnt(&disp->base, &disp->head.mask);
+	nvkm_debug(subdev, "  Head(s): %d (%02lx)\n",
+		   disp->head.nr, disp->head.mask);
+	for_each_set_bit(i, &disp->head.mask, disp->head.nr) {
 		ret = func->head.new(&disp->base, i);
 		if (ret)
 			return ret;
@@ -103,7 +107,7 @@ nv50_disp_ = {
 
 int
 nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-	       int index, int heads, struct nvkm_disp **pdisp)
+	       int index, struct nvkm_disp **pdisp)
 {
 	struct nv50_disp *disp;
 	int ret;
@@ -122,7 +126,6 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 
 	INIT_WORK(&disp->supervisor, func->super);
-	disp->head.nr = heads;
 
 	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan),
 			       &disp->uevent);
@@ -633,7 +636,7 @@ nv50_disp = {
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
-	.head.new = nv50_head_new,
+	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .nr = 3, .new = nv50_dac_new },
 	.sor = { .nr = 2, .new = nv50_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
@@ -642,5 +645,5 @@ nv50_disp = {
 int
 nv50_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&nv50_disp, device, index, 2, pdisp);
+	return nv50_disp_new_(&nv50_disp, device, index, pdisp);
 }

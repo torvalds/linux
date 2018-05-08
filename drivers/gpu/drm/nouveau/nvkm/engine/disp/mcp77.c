@@ -30,7 +30,7 @@ mcp77_disp = {
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &g94_disp_root_oclass,
-	.head.new = nv50_head_new,
+	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .nr = 3, .new = nv50_dac_new },
 	.sor = { .nr = 4, .new = mcp77_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
@@ -39,5 +39,5 @@ mcp77_disp = {
 int
 mcp77_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&mcp77_disp, device, index, 2, pdisp);
+	return nv50_disp_new_(&mcp77_disp, device, index, pdisp);
 }

@@ -32,7 +32,7 @@ g84_disp = {
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &g84_disp_root_oclass,
-	.head.new = nv50_head_new,
+	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .nr = 3, .new = nv50_dac_new },
 	.sor = { .nr = 2, .new = g84_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
@@ -41,5 +41,5 @@ g84_disp = {
 int
 g84_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&g84_disp, device, index, 2, pdisp);
+	return nv50_disp_new_(&g84_disp, device, index, pdisp);
 }

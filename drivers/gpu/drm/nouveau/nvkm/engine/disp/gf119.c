@@ -164,14 +164,6 @@ gf119_disp_intr(struct nv50_disp *disp)
 	}
 }
 
-int
-gf119_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-		int index, struct nvkm_disp **pdisp)
-{
-	u32 heads = nvkm_rd32(device, 0x022448);
-	return nv50_disp_new_(func, device, index, heads, pdisp);
-}
-
 static const struct nv50_disp_func
 gf119_disp = {
 	.intr = gf119_disp_intr,
@@ -179,7 +171,7 @@ gf119_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gf119_disp_root_oclass,
-	.head.new = gf119_head_new,
+	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .nr = 3, .new = gf119_dac_new },
 	.sor = { .nr = 4, .new = gf119_sor_new },
 };
@@ -187,5 +179,5 @@ gf119_disp = {
 int
 gf119_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gf119_disp, device, index, pdisp);
+	return nv50_disp_new_(&gf119_disp, device, index, pdisp);
 }
