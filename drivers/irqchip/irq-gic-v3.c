@@ -1113,6 +1113,12 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	pr_info("Distributor has %sRange Selector support\n",
 		gic_data.has_rss ? "" : "no ");
 
+	if (typer & GICD_TYPER_MBIS) {
+		err = mbi_init(handle, gic_data.domain);
+		if (err)
+			pr_err("Failed to initialize MBIs\n");
+	}
+
 	set_handle_irq(gic_handle_irq);
 
 	gic_update_vlpi_properties();
