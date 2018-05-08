@@ -2420,6 +2420,7 @@ nvkm_device_subdev(struct nvkm_device *device, int index)
 	_(BUS     , device->bus     , &device->bus->subdev);
 	_(CLK     , device->clk     , &device->clk->subdev);
 	_(DEVINIT , device->devinit , &device->devinit->subdev);
+	_(FAULT   , device->fault   , &device->fault->subdev);
 	_(FB      , device->fb      , &device->fb->subdev);
 	_(FUSE    , device->fuse    , &device->fuse->subdev);
 	_(GPIO    , device->gpio    , &device->gpio->subdev);
@@ -2891,6 +2892,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_SUBDEV_BUS     ,      bus);
 		_(NVKM_SUBDEV_CLK     ,      clk);
 		_(NVKM_SUBDEV_DEVINIT ,  devinit);
+		_(NVKM_SUBDEV_FAULT   ,    fault);
 		_(NVKM_SUBDEV_FB      ,       fb);
 		_(NVKM_SUBDEV_FUSE    ,     fuse);
 		_(NVKM_SUBDEV_GPIO    ,     gpio);
