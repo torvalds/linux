@@ -442,13 +442,6 @@ extern bool force_irqthreads;
 #define set_softirq_pending(x)	(__this_cpu_write(local_softirq_pending_ref, (x)))
 #define or_softirq_pending(x)	(__this_cpu_or(local_softirq_pending_ref, (x)))
 
-#else /* local_softirq_pending */
-
-#ifndef __ARCH_SET_SOFTIRQ_PENDING
-#define set_softirq_pending(x) (local_softirq_pending() = (x))
-#define or_softirq_pending(x)  (local_softirq_pending() |= (x))
-#endif
-
 #endif /* local_softirq_pending */
 
 /* Some architectures might implement lazy enabling/disabling of
