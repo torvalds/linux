@@ -4335,7 +4335,7 @@
 			[FTRACE] Set and start specified trace events in order
 			to facilitate early boot debugging. The event-list is a
 			comma separated list of trace events to enable. See
-			also Documentation/trace/events.txt
+			also Documentation/trace/events.rst
 
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
@@ -4350,7 +4350,7 @@
 
 			      trace_options=stacktrace
 
-			See also Documentation/trace/ftrace.txt "trace options"
+			See also Documentation/trace/ftrace.rst "trace options"
 			section.
 
 	tp_printk[FTRACE]

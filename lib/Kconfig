@@ -405,7 +405,7 @@ config ASSOCIATIVE_ARRAY
 
 	  See:
 
-		Documentation/assoc_array.txt
+		Documentation/core-api/assoc_array.rst
 
 	  for more information.
 

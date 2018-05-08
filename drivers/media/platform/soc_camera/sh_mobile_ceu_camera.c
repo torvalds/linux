@@ -1111,7 +1111,7 @@ static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
 /*
  * CEU can scale and crop, but we don't want to waste bandwidth and kill the
  * framerate by always requesting the maximum image from the client. See
- * Documentation/video4linux/sh_mobile_ceu_camera.txt for a description of
+ * Documentation/media/v4l-drivers/sh_mobile_ceu_camera.rst for a description of
  * scaling and cropping algorithms and for the meaning of referenced here steps.
  */
 static int sh_mobile_ceu_set_selection(struct soc_camera_device *icd,

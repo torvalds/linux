@@ -3,7 +3,7 @@ TODO:
 From the initial code review:
 
 The main thing you need to do is to implement all the controls using the
-control framework (see Documentation/video4linux/v4l2-controls.txt).
+control framework (see Documentation/media/kapi/v4l2-controls.rst).
 Most drivers are by now converted to the control framework, so you will
 find many examples of how to do this in drivers/media/radio.
 

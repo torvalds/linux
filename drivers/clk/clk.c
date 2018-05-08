@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Standard functionality for the common clock API.  See Documentation/clk.txt
+ * Standard functionality for the common clock API.  See Documentation/driver-api/clk.rst
  */
 
 #include <linux/clk.h>
@@ -2747,7 +2747,7 @@ static int __clk_core_init(struct clk_core *core)
 		goto out;
 	}
 
-	/* check that clk_ops are sane.  See Documentation/clk.txt */
+	/* check that clk_ops are sane.  See Documentation/driver-api/clk.rst */
 	if (core->ops->set_rate &&
 	    !((core->ops->round_rate || core->ops->determine_rate) &&
 	      core->ops->recalc_rate)) {

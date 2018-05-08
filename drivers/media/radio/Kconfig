@@ -272,7 +272,7 @@ config RADIO_RTRACK
 	  been reported to be used by these cards.
 
 	  More information is contained in the file
-	  <file:Documentation/video4linux/radiotrack.txt>.
+	  <file:Documentation/media/v4l-drivers/radiotrack.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-aimslab.

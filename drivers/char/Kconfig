@@ -81,7 +81,7 @@ config PRINTER
 	  corresponding drivers into the kernel.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/parport.txt>.  The module will be called lp.
+	  <file:Documentation/admin-guide/parport.rst>.  The module will be called lp.
 
 	  If you have several parallel ports, you can specify which ports to
 	  use with the "lp" kernel command line option.  (Try "man bootparam"
