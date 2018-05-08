@@ -162,12 +162,12 @@ struct nv50_wndw_atom {
 		u8  kind:7;
 		u8  layout:1;
 		u8  block:4;
-		u32 pitch:20;
+		u32 pitch[3];
 		u16 w;
 		u16 h;
 
-		u32 handle;
-		u64 offset;
+		u32 handle[6];
+		u64 offset[6];
 	} image;
 
 	struct {

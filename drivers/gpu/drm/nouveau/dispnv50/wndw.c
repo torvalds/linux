@@ -219,11 +219,11 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 			asyw->image.block = fb->nvbo->mode >> 4;
 		else
 			asyw->image.block = fb->nvbo->mode;
-		asyw->image.pitch = (fb->base.pitches[0] / 4) << 4;
+		asyw->image.pitch[0] = (fb->base.pitches[0] / 4) << 4;
 	} else {
 		asyw->image.layout = 1;
 		asyw->image.block  = 0;
-		asyw->image.pitch  = fb->base.pitches[0];
+		asyw->image.pitch[0] = fb->base.pitches[0];
 	}
 
 	ret = wndw->func->acquire(wndw, asyw, asyh);
@@ -287,7 +287,7 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
 		if (wndw->func->image_clr)
-			asyw->clr.image = armw->image.handle != 0;
+			asyw->clr.image = armw->image.handle[0] != 0;
 		asyw->set.lut = wndw->func->lut && asyv;
 	}
 
@@ -333,8 +333,8 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	}
 
 	asyw->state.fence = reservation_object_get_excl_rcu(fb->nvbo->bo.resv);
-	asyw->image.handle = ctxdma->object.handle;
-	asyw->image.offset = fb->nvbo->bo.offset;
+	asyw->image.handle[0] = ctxdma->object.handle;
+	asyw->image.offset[0] = fb->nvbo->bo.offset;
 
 	if (wndw->func->prepare) {
 		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);

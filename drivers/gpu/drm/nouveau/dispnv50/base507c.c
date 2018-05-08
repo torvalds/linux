@@ -74,13 +74,13 @@ base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 		evo_data(push, asyw->image.mode << 8 |
 			       asyw->image.interval << 4);
 		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, asyw->image.handle);
+		evo_data(push, asyw->image.handle[0]);
 		evo_mthd(push, 0x0800, 5);
-		evo_data(push, asyw->image.offset >> 8);
+		evo_data(push, asyw->image.offset[0] >> 8);
 		evo_data(push, 0x00000000);
 		evo_data(push, asyw->image.h << 16 | asyw->image.w);
 		evo_data(push, asyw->image.layout << 20 |
-			       asyw->image.pitch |
+			       asyw->image.pitch[0] |
 			       asyw->image.block);
 		evo_data(push, asyw->image.kind << 16 |
 			       asyw->image.format << 8);

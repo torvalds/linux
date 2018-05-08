@@ -52,7 +52,7 @@ curs507a_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		 struct nv50_wndw_atom *asyw)
 {
 	u32 handle = nv50_disp(wndw->plane.dev)->core->chan.vram.handle;
-	u32 offset = asyw->image.offset;
+	u32 offset = asyw->image.offset[0];
 	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
 		asyh->curs.handle = handle;
 		asyh->curs.offset = offset;
