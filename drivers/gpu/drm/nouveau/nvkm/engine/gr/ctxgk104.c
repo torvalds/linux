@@ -975,7 +975,6 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gf100_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
 

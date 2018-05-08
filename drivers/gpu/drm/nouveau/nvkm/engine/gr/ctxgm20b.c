@@ -22,20 +22,6 @@
 #include "ctxgf100.h"
 
 static void
-gm20b_grctx_generate_r406028(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 tpc_per_gpc = 0;
-	int i;
-
-	for (i = 0; i < gr->gpc_nr; i++)
-		tpc_per_gpc |= gr->tpc_nr[i] << (4 * i);
-
-	nvkm_wr32(device, 0x406028, tpc_per_gpc);
-	nvkm_wr32(device, 0x405870, tpc_per_gpc);
-}
-
-static void
 gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -54,7 +40,6 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gm20b_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 
 	for (i = 0; i < 8; i++)
