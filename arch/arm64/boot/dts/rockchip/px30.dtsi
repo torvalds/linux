@@ -933,12 +933,14 @@
 			<&pmucru PLL_GPLL>, <&pmucru PCLK_PMU_PRE>,
 			<&pmucru SCLK_WIFI_PMU>, <&cru ACLK_BUS_PRE>,
 			<&cru ACLK_PERI_PRE>, <&cru HCLK_BUS_PRE>,
-			<&cru HCLK_PERI_PRE>, <&cru PCLK_BUS_PRE>;
+			<&cru HCLK_PERI_PRE>, <&cru PCLK_BUS_PRE>,
+			<&cru SCLK_GPU>;
 		assigned-clock-rates =
 			<1200000000>, <100000000>,
 			<26000000>, <200000000>,
 			<200000000>, <150000000>,
-			<150000000>, <100000000>;
+			<150000000>, <100000000>,
+			<200000000>;
 	};
 
 	usb2phy_grf: syscon@ff2c0000 {
