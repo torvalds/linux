@@ -224,6 +224,7 @@ const struct nv50_disp_chan_func
 nv50_disp_core_func = {
 	.init = nv50_disp_core_init,
 	.fini = nv50_disp_core_fini,
+	.user = nv50_disp_chan_user,
 	.bind = nv50_disp_dmac_bind,
 };
 

@@ -82,4 +82,5 @@ const struct nv50_disp_chan_func
 nv50_disp_pioc_func = {
 	.init = nv50_disp_pioc_init,
 	.fini = nv50_disp_pioc_fini,
+	.user = nv50_disp_chan_user,
 };

@@ -155,13 +155,20 @@ nv50_disp_chan_uevent = {
 	.fini = nv50_disp_chan_uevent_fini,
 };
 
+u64
+nv50_disp_chan_user(struct nv50_disp_chan *chan, u64 *psize)
+{
+	*psize = 0x1000;
+	return 0x640000 + (chan->chid.user * 0x1000);
+}
+
 static int
 nv50_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nv50_disp *disp = chan->disp;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	*data = nvkm_rd32(device, 0x640000 + (chan->chid.user * 0x1000) + addr);
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	u64 size, base = chan->func->user(chan, &size);
+	*data = nvkm_rd32(device, base + addr);
 	return 0;
 }
 
@@ -169,9 +176,9 @@ static int
 nv50_disp_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nv50_disp *disp = chan->disp;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	nvkm_wr32(device, 0x640000 + (chan->chid.user * 0x1000) + addr, data);
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	u64 size, base = chan->func->user(chan, &size);
+	nvkm_wr32(device, base + addr, data);
 	return 0;
 }
 
@@ -196,12 +203,10 @@ nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nv50_disp *disp = chan->disp;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	const u64 base = device->func->resource_addr(device, 0);
 	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, 0) +
-		0x640000 + (chan->chid.user * 0x1000);
-	*size = 0x001000;
+	*addr = base + chan->func->user(chan, size);
 	return 0;
 }
 

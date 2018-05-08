@@ -137,5 +137,6 @@ const struct nv50_disp_chan_func
 nv50_disp_dmac_func = {
 	.init = nv50_disp_dmac_init,
 	.fini = nv50_disp_dmac_fini,
+	.user = nv50_disp_chan_user,
 	.bind = nv50_disp_dmac_bind,
 };

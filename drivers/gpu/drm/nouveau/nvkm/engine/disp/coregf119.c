@@ -222,6 +222,7 @@ const struct nv50_disp_chan_func
 gf119_disp_core_func = {
 	.init = gf119_disp_core_init,
 	.fini = gf119_disp_core_fini,
+	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };
 

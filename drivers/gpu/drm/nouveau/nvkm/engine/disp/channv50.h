@@ -25,6 +25,7 @@ struct nv50_disp_chan {
 struct nv50_disp_chan_func {
 	int (*init)(struct nv50_disp_chan *);
 	void (*fini)(struct nv50_disp_chan *);
+	u64 (*user)(struct nv50_disp_chan *, u64 *size);
 	int (*bind)(struct nv50_disp_chan *, struct nvkm_object *, u32 handle);
 };
 
@@ -37,6 +38,7 @@ int nv50_disp_dmac_new_(const struct nv50_disp_chan_func *,
 			struct nv50_disp *, int chid, int head, u64 push,
 			const struct nvkm_oclass *, struct nvkm_object **);
 
+u64 nv50_disp_chan_user(struct nv50_disp_chan *, u64 *);
 extern const struct nv50_disp_chan_func nv50_disp_pioc_func;
 extern const struct nv50_disp_chan_func nv50_disp_dmac_func;
 int nv50_disp_dmac_bind(struct nv50_disp_chan *, struct nvkm_object *, u32);

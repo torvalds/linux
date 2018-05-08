@@ -59,6 +59,7 @@ static const struct nv50_disp_chan_func
 gp102_disp_core_func = {
 	.init = gp102_disp_core_init,
 	.fini = gf119_disp_core_fini,
+	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };
 
