@@ -346,6 +346,7 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			p = lookup_priolist(engine, last_prio);
 		}
 
+		GEM_BUG_ON(p->priority != rq_prio(rq));
 		list_add(&rq->sched.link, &p->requests);
 	}
 }
@@ -1198,7 +1199,8 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 static void execlists_schedule(struct i915_request *request,
 			       const struct i915_sched_attr *attr)
 {
-	struct intel_engine_cs *engine;
+	struct i915_priolist *uninitialized_var(pl);
+	struct intel_engine_cs *engine, *last;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
 	const int prio = attr->priority;
@@ -1271,6 +1273,7 @@ static void execlists_schedule(struct i915_request *request,
 		__list_del_entry(&stack.dfs_link);
 	}
 
+	last = NULL;
 	engine = request->engine;
 	spin_lock_irq(&engine->timeline.lock);
 
@@ -1287,8 +1290,12 @@ static void execlists_schedule(struct i915_request *request,
 
 		node->attr.priority = prio;
 		if (!list_empty(&node->link)) {
-			__list_del_entry(&node->link);
-			queue_request(engine, node, prio);
+			if (last != engine) {
+				pl = lookup_priolist(engine, prio);
+				last = engine;
+			}
+			GEM_BUG_ON(pl->priority != prio);
+			list_move_tail(&node->link, &pl->requests);
 		}
 
 		if (prio > engine->execlists.queue_priority &&
