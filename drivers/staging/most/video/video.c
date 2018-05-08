@@ -73,8 +73,6 @@ static int comp_vdev_open(struct file *filp)
 	struct most_video_dev *mdev = video_drvdata(filp);
 	struct comp_fh *fh;
 
-	v4l2_info(&mdev->v4l2_dev, "comp_vdev_open()\n");
-
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
 		break;
@@ -121,8 +119,6 @@ static int comp_vdev_close(struct file *filp)
 	struct comp_fh *fh = filp->private_data;
 	struct most_video_dev *mdev = fh->mdev;
 	struct mbo *mbo, *tmp;
-
-	v4l2_info(&mdev->v4l2_dev, "comp_vdev_close()\n");
 
 	/*
 	 * We need to put MBOs back before we call most_stop_channel()
@@ -250,8 +246,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	v4l2_info(&mdev->v4l2_dev, "vidioc_querycap()\n");
-
 	strlcpy(cap->driver, "v4l2_component", sizeof(cap->driver));
 	strlcpy(cap->card, "MOST", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
@@ -270,8 +264,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	v4l2_info(&mdev->v4l2_dev, "vidioc_enum_fmt_vid_cap() %d\n", f->index);
-
 	if (f->index)
 		return -EINVAL;
 
@@ -288,8 +280,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
-
-	v4l2_info(&mdev->v4l2_dev, "vidioc_g_fmt_vid_cap()\n");
 
 	comp_set_format_struct(f);
 	return 0;
@@ -317,8 +307,6 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
-
-	v4l2_info(&mdev->v4l2_dev, "vidioc_g_std()\n");
 
 	*norm = V4L2_STD_UNKNOWN;
 	return 0;
@@ -354,8 +342,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 {
 	struct comp_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
-
-	v4l2_info(&mdev->v4l2_dev, "vidioc_s_input(%d)\n", index);
 
 	if (index >= V4L2_CMP_MAX_INPUT)
 		return -EINVAL;
@@ -435,8 +421,6 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 {
 	int ret;
 
-	v4l2_info(&mdev->v4l2_dev, "comp_register_videodev()\n");
-
 	init_waitqueue_head(&mdev->wait_data);
 
 	/* allocate and fill v4l2 video struct */
@@ -465,8 +449,6 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 
 static void comp_unregister_videodev(struct most_video_dev *mdev)
 {
-	v4l2_info(&mdev->v4l2_dev, "comp_unregister_videodev()\n");
-
 	video_unregister_device(mdev->vdev);
 }
 
@@ -484,8 +466,6 @@ static int comp_probe_channel(struct most_interface *iface, int channel_idx,
 {
 	int ret;
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
-
-	pr_info("comp_probe_channel(%s)\n", name);
 
 	if (mdev) {
 		pr_err("channel already linked\n");
@@ -531,7 +511,6 @@ static int comp_probe_channel(struct most_interface *iface, int channel_idx,
 	spin_lock_irq(&list_lock);
 	list_add(&mdev->list, &video_devices);
 	spin_unlock_irq(&list_lock);
-	v4l2_info(&mdev->v4l2_dev, "comp_probe_channel() done\n");
 	return 0;
 
 err_unreg:
@@ -549,8 +528,6 @@ static int comp_disconnect_channel(struct most_interface *iface,
 		pr_err("no such channel is linked\n");
 		return -ENOENT;
 	}
-
-	v4l2_info(&mdev->v4l2_dev, "comp_disconnect_channel()\n");
 
 	spin_lock_irq(&list_lock);
 	list_del(&mdev->list);
