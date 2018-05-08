@@ -492,7 +492,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	/* Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported)
+	if (!vrr->supported || !vrr->send_vsif)
 		return;
 
 	if (dc_is_hdmi_signal(stream->signal)) {
@@ -634,6 +634,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		return;
 
 	in_out_vrr->state = in_config->state;
+	in_out_vrr->send_vsif = in_config->vsif_supported;
 
 	if (in_config->state == VRR_STATE_UNSUPPORTED) {
 		in_out_vrr->state = VRR_STATE_UNSUPPORTED;

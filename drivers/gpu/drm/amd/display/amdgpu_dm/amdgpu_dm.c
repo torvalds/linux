@@ -4680,6 +4680,7 @@ void set_freesync_on_stream(struct amdgpu_display_manager *dm,
 				aconnector->min_vfreq * 1000000;
 		config.max_refresh_in_uhz =
 				aconnector->max_vfreq * 1000000;
+		config.vsif_supported = true;
 	}
 
 	mod_freesync_build_vrr_params(dm->freesync_module,

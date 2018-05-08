@@ -78,6 +78,7 @@ enum mod_vrr_state {
 
 struct mod_freesync_config {
 	enum mod_vrr_state state;
+	bool vsif_supported;
 	bool ramping;
 	bool btr;
 	unsigned int min_refresh_in_uhz;
@@ -103,6 +104,7 @@ struct mod_vrr_params_fixed_refresh {
 
 struct mod_vrr_params {
 	bool supported;
+	bool send_vsif;
 	enum mod_vrr_state state;
 
 	uint32_t min_refresh_in_uhz;
