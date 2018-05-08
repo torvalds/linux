@@ -185,7 +185,6 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.h = asyw->state.fb->height;
 
 	asyw->lut.enable = 1;
-	asyw->set.image = true;
 	return 0;
 }
 

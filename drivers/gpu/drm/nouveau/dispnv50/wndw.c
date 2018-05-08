@@ -190,7 +190,8 @@ nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 }
 
 static int
-nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
+nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
+			       struct nv50_wndw_atom *armw,
 			       struct nv50_wndw_atom *asyw,
 			       struct nv50_head_atom *asyh)
 {
@@ -200,40 +201,44 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
 
-	asyw->image.w = fb->base.width;
-	asyw->image.h = fb->base.height;
-	asyw->image.kind = fb->nvbo->kind;
+	if (asyw->state.fb != armw->state.fb || !armw->visible || modeset) {
+		asyw->image.w = fb->base.width;
+		asyw->image.h = fb->base.height;
+		asyw->image.kind = fb->nvbo->kind;
 
-	ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
-	if (ret)
-		return ret;
+		ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
+		if (ret)
+			return ret;
 
-	if (asyw->image.kind) {
-		asyw->image.layout = 0;
-		if (drm->client.device.info.chipset >= 0xc0)
-			asyw->image.block = fb->nvbo->mode >> 4;
-		else
-			asyw->image.block = fb->nvbo->mode;
-		asyw->image.pitch[0] = (fb->base.pitches[0] / 4) << 4;
-	} else {
-		asyw->image.layout = 1;
-		asyw->image.block  = 0;
-		asyw->image.pitch[0] = fb->base.pitches[0];
-	}
+		if (asyw->image.kind) {
+			asyw->image.layout = 0;
+			if (drm->client.device.info.chipset >= 0xc0)
+				asyw->image.block = fb->nvbo->mode >> 4;
+			else
+				asyw->image.block = fb->nvbo->mode;
+			asyw->image.pitch[0] = (fb->base.pitches[0] / 4) << 4;
+		} else {
+			asyw->image.layout = 1;
+			asyw->image.block  = 0;
+			asyw->image.pitch[0] = fb->base.pitches[0];
+		}
 
-	ret = wndw->func->acquire(wndw, asyw, asyh);
-	if (ret)
-		return ret;
-
-	if (asyw->set.image) {
 		if (!(asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC))
 			asyw->image.interval = 1;
 		else
 			asyw->image.interval = 0;
 		asyw->image.mode = asyw->image.interval ? 0 : 1;
+		asyw->set.image = wndw->func->image_set != NULL;
 	}
 
-	return 0;
+	if (wndw->immd) {
+		asyw->point.x = asyw->state.crtc_x;
+		asyw->point.y = asyw->state.crtc_y;
+		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
+			asyw->set.point = true;
+	}
+
+	return wndw->func->acquire(wndw, asyw, asyh);
 }
 
 int
@@ -271,12 +276,8 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 
 	/* Calculate new window state. */
 	if (asyw->visible) {
-		asyw->point.x = asyw->state.crtc_x;
-		asyw->point.y = asyw->state.crtc_y;
-		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
-			asyw->set.point = true;
-
-		ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+		ret = nv50_wndw_atomic_check_acquire(wndw, modeset,
+						     armw, asyw, asyh);
 		if (ret)
 			return ret;
 	} else
