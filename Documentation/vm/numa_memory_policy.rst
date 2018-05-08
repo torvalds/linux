@@ -1,10 +1,10 @@
 .. _numa_memory_policy:
 
-===================
-Linux Memory Policy
-===================
+==================
+NUMA Memory Policy
+==================
 
-What is Linux Memory Policy?
+What is NUMA Memory Policy?
 ============================
 
 In the Linux kernel, "memory policy" determines from which node the kernel will
@@ -162,7 +162,7 @@ Shared Policy
 Components of Memory Policies
 -----------------------------
 
-A Linux memory policy consists of a "mode", optional mode flags, and
+A NUMA memory policy consists of a "mode", optional mode flags, and
 an optional set of nodes.  The mode determines the behavior of the
 policy, the optional mode flags determine the behavior of the mode,
 and the optional set of nodes can be viewed as the arguments to the
@@ -172,7 +172,7 @@ Internally, memory policies are implemented by a reference counted
 structure, struct mempolicy.  Details of this structure will be
 discussed in context, below, as required to explain the behavior.
 
-Linux memory policy supports the following 4 behavioral modes:
+NUMA memory policy supports the following 4 behavioral modes:
 
 Default Mode--MPOL_DEFAULT
 	This mode is only used in the memory policy APIs.  Internally,
@@ -245,7 +245,7 @@ MPOL_INTERLEAVED
 	address range or file.  During system boot up, the temporary
 	interleaved system default policy works in this mode.
 
-Linux memory policy supports the following optional mode flags:
+NUMA memory policy supports the following optional mode flags:
 
 MPOL_F_STATIC_NODES
 	This flag specifies that the nodemask passed by
