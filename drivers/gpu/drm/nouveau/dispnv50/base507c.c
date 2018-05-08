@@ -186,22 +186,6 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.w = asyw->state.fb->width;
 	asyh->base.h = asyw->state.fb->height;
 
-	switch (fb->format->format) {
-	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
-	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
-	case DRM_FORMAT_XRGB1555   :
-	case DRM_FORMAT_ARGB1555   : asyw->image.format = 0xe9; break;
-	case DRM_FORMAT_XRGB8888   :
-	case DRM_FORMAT_ARGB8888   : asyw->image.format = 0xcf; break;
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
-	case DRM_FORMAT_XBGR8888   :
-	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
 	asyw->lut.enable = 1;
 	asyw->set.image = true;
 	return 0;

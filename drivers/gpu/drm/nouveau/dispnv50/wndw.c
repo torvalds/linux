@@ -169,6 +169,27 @@ nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
 }
 
 static int
+nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
+{
+	switch (asyw->state.fb->format->format) {
+	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
+	case DRM_FORMAT_XRGB8888   :
+	case DRM_FORMAT_ARGB8888   : asyw->image.format = 0xcf; break;
+	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
+	case DRM_FORMAT_XRGB1555   :
+	case DRM_FORMAT_ARGB1555   : asyw->image.format = 0xe9; break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
+	case DRM_FORMAT_XBGR8888   :
+	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int
 nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 			       struct nv50_wndw_atom *asyw,
 			       struct nv50_head_atom *asyh)
@@ -182,6 +203,10 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	asyw->image.w = fb->base.width;
 	asyw->image.h = fb->base.height;
 	asyw->image.kind = fb->nvbo->kind;
+
+	ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
+	if (ret)
+		return ret;
 
 	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		asyw->interval = 0;

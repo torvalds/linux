@@ -91,8 +91,8 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (asyw->state.fb->width != asyw->state.fb->height)
 		return -EINVAL;
 
-	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_ARGB8888: asyh->curs.format = 1; break;
+	switch (asyw->image.format) {
+	case 0xcf: asyh->curs.format = 1; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
