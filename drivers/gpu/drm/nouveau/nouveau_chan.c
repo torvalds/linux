@@ -163,12 +163,15 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			return ret;
 		}
 
+		chan->push.addr = chan->push.vma->addr;
+
+		if (device->info.family >= NV_DEVICE_INFO_V0_FERMI)
+			return 0;
+
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
 		args.limit = cli->vmm.vmm.limit - 1;
-
-		chan->push.addr = chan->push.vma->addr;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
