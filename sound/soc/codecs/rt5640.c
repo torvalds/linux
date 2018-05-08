@@ -476,20 +476,6 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	return idx;
 }
 
-static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
-			 struct snd_soc_dapm_widget *sink)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
-	unsigned int val;
-
-	val = snd_soc_component_read32(component, RT5640_GLB_CLK);
-	val &= RT5640_SCLK_SRC_MASK;
-	if (val == RT5640_SCLK_SRC_PLL1)
-		return 1;
-	else
-		return 0;
-}
-
 static int is_using_asrc(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
@@ -1071,9 +1057,6 @@ static int rt5640_hp_post_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("PLL1", RT5640_PWR_ANLG2,
-			RT5640_PWR_PLL_BIT, 0, NULL, 0),
-
 	/* ASRC */
 	SND_SOC_DAPM_SUPPLY_S("Stereo Filter ASRC", 1, RT5640_ASRC_1,
 			 15, 0, NULL, 0),
@@ -1427,22 +1410,18 @@ static const struct snd_soc_dapm_route rt5640_dapm_routes[] = {
 	{"Stereo ADC MIXL", "ADC1 Switch", "Stereo ADC L1 Mux"},
 	{"Stereo ADC MIXL", "ADC2 Switch", "Stereo ADC L2 Mux"},
 	{"Stereo ADC MIXL", NULL, "Stereo Filter"},
-	{"Stereo Filter", NULL, "PLL1", is_sys_clk_from_pll},
 
 	{"Stereo ADC MIXR", "ADC1 Switch", "Stereo ADC R1 Mux"},
 	{"Stereo ADC MIXR", "ADC2 Switch", "Stereo ADC R2 Mux"},
 	{"Stereo ADC MIXR", NULL, "Stereo Filter"},
-	{"Stereo Filter", NULL, "PLL1", is_sys_clk_from_pll},
 
 	{"Mono ADC MIXL", "ADC1 Switch", "Mono ADC L1 Mux"},
 	{"Mono ADC MIXL", "ADC2 Switch", "Mono ADC L2 Mux"},
 	{"Mono ADC MIXL", NULL, "Mono Left Filter"},
-	{"Mono Left Filter", NULL, "PLL1", is_sys_clk_from_pll},
 
 	{"Mono ADC MIXR", "ADC1 Switch", "Mono ADC R1 Mux"},
 	{"Mono ADC MIXR", "ADC2 Switch", "Mono ADC R2 Mux"},
 	{"Mono ADC MIXR", NULL, "Mono Right Filter"},
-	{"Mono Right Filter", NULL, "PLL1", is_sys_clk_from_pll},
 
 	{"IF2 ADC L", NULL, "Mono ADC MIXL"},
 	{"IF2 ADC R", NULL, "Mono ADC MIXR"},
@@ -1512,10 +1491,8 @@ static const struct snd_soc_dapm_route rt5640_dapm_routes[] = {
 	{"DIG MIXR", "DAC R1 Switch", "DAC MIXR"},
 
 	{"DAC L1", NULL, "Stereo DAC MIXL"},
-	{"DAC L1", NULL, "PLL1", is_sys_clk_from_pll},
 	{"DAC L1", NULL, "DAC L1 Power"},
 	{"DAC R1", NULL, "Stereo DAC MIXR"},
-	{"DAC R1", NULL, "PLL1", is_sys_clk_from_pll},
 	{"DAC R1", NULL, "DAC R1 Power"},
 
 	{"SPK MIXL", "REC MIXL Switch", "RECMIXL"},
@@ -1622,10 +1599,8 @@ static const struct snd_soc_dapm_route rt5640_specific_dapm_routes[] = {
 	{"DIG MIXL", "DAC L2 Switch", "DAC L2 Mux"},
 
 	{"DAC L2", NULL, "Mono DAC MIXL"},
-	{"DAC L2", NULL, "PLL1", is_sys_clk_from_pll},
 	{"DAC L2", NULL, "DAC L2 Power"},
 	{"DAC R2", NULL, "Mono DAC MIXR"},
-	{"DAC R2", NULL, "PLL1", is_sys_clk_from_pll},
 	{"DAC R2", NULL, "DAC R2 Power"},
 
 	{"SPK MIXL", "DAC L2 Switch", "DAC L2"},
@@ -1861,6 +1836,7 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_component *component = dai->component;
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
+	unsigned int pll_bit = 0;
 
 	if (freq == rt5640->sysclk && clk_id == rt5640->sysclk_src)
 		return 0;
@@ -1871,6 +1847,7 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case RT5640_SCLK_S_PLL1:
 		reg_val |= RT5640_SCLK_SRC_PLL1;
+		pll_bit |= RT5640_PWR_PLL;
 		break;
 	case RT5640_SCLK_S_RCCLK:
 		reg_val |= RT5640_SCLK_SRC_RCCLK;
@@ -1879,6 +1856,8 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 		dev_err(component->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
 	}
+	snd_soc_component_update_bits(component, RT5640_PWR_ANLG2,
+		RT5640_PWR_PLL, pll_bit);
 	snd_soc_component_update_bits(component, RT5640_GLB_CLK,
 		RT5640_SCLK_SRC_MASK, reg_val);
 	rt5640->sysclk = freq;
