@@ -76,7 +76,7 @@ static int configure_channel(struct most_interface *most_iface,
 {
 	int ret;
 	struct hdm_i2c *dev = to_hdm(most_iface);
-	unsigned int delay;
+	unsigned int delay, pr;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
 	BUG_ON(dev->is_open[ch_idx]);
@@ -109,7 +109,8 @@ static int configure_channel(struct most_interface *most_iface,
 		} else if (scan_rate) {
 			delay = msecs_to_jiffies(MSEC_PER_SEC / scan_rate);
 			dev->rx.delay = delay ? delay : 1;
-			pr_info("polling rate is %d Hz\n", scan_rate);
+			pr = MSEC_PER_SEC / jiffies_to_msecs(dev->rx.delay);
+			pr_info("polling rate is %u Hz\n", pr);
 		}
 	}
 	dev->is_open[ch_idx] = true;
