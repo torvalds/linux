@@ -1,15 +1,18 @@
 #ifndef __NVKM_FAULT_H__
 #define __NVKM_FAULT_H__
 #include <core/subdev.h>
+#include <core/notify.h>
 
 struct nvkm_fault {
 	const struct nvkm_fault_func *func;
 	struct nvkm_subdev subdev;
 
-	struct nvkm_fault_buffer *buffer[1];
+	struct nvkm_fault_buffer *buffer[2];
 	int buffer_nr;
 
 	struct nvkm_event event;
+
+	struct nvkm_notify nrpfb;
 };
 
 struct nvkm_fault_data {
@@ -26,4 +29,5 @@ struct nvkm_fault_data {
 };
 
 int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
+int gv100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 #endif
