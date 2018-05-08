@@ -69,6 +69,7 @@ struct gf100_grctx_func {
 	void (*r419eb0)(struct gf100_gr *);
 	void (*r419e00)(struct gf100_gr *);
 	void (*r418e94)(struct gf100_gr *);
+	void (*r419a3c)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -130,6 +131,7 @@ void gm200_grctx_generate_dist_skip_table(struct gf100_gr *);
 void gm200_grctx_generate_r406500(struct gf100_gr *);
 void gm200_grctx_generate_tpc_mask(struct gf100_gr *);
 void gm200_grctx_generate_smid_config(struct gf100_gr *);
+void gm200_grctx_generate_r419a3c(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gm20b_grctx;
 

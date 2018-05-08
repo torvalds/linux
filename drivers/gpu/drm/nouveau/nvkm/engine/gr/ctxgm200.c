@@ -27,6 +27,13 @@
  * PGRAPH context implementation
  ******************************************************************************/
 
+void
+gm200_grctx_generate_r419a3c(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419a3c, 0x00000014, 0x00000000);
+}
+
 static void
 gm200_grctx_generate_r418e94(struct gf100_gr *gr)
 {
@@ -152,4 +159,5 @@ gm200_grctx = {
 	.tpc_mask = gm200_grctx_generate_tpc_mask,
 	.smid_config = gm200_grctx_generate_smid_config,
 	.r418e94 = gm200_grctx_generate_r418e94,
+	.r419a3c = gm200_grctx_generate_r419a3c,
 };

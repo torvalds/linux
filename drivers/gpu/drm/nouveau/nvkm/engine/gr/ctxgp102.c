@@ -101,4 +101,5 @@ gp102_grctx = {
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 	.tpc_mask = gm200_grctx_generate_tpc_mask,
 	.smid_config = gp100_grctx_generate_smid_config,
+	.r419a3c = gm200_grctx_generate_r419a3c,
 };
