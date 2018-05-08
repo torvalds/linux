@@ -1946,6 +1946,9 @@ gf100_gr_init(struct gf100_gr *gr)
 	else
 		gf100_gr_mmio(gr, gr->func->mmio);
 
+	if (gr->func->init_r405a14)
+		gr->func->init_r405a14(gr);
+
 	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
 
 	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));

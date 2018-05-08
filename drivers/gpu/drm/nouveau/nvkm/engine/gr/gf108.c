@@ -103,10 +103,17 @@ gf108_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gf108_gr_init_r405a14(struct gf100_gr *gr)
+{
+	nvkm_wr32(gr->base.engine.subdev.device, 0x405a14, 0x80000000);
+}
+
 static const struct gf100_gr_func
 gf108_gr = {
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
+	.init_r405a14 = gf108_gr_init_r405a14,
 	.mmio = gf108_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

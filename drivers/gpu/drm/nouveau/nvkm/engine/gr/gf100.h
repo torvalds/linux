@@ -122,6 +122,7 @@ struct gf100_gr_func {
 	void (*dtor)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
+	void (*init_r405a14)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
