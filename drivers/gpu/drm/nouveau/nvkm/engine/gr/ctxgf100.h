@@ -53,6 +53,7 @@ struct gf100_grctx_func {
 	/* floorsweeping */
 	void (*sm_id)(struct gf100_gr *, int gpc, int tpc, int sm);
 	void (*tpc_nr)(struct gf100_gr *, int gpc);
+	void (*r4060a8)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -63,11 +64,11 @@ void gf100_grctx_generate_pagepool(struct gf100_grctx *);
 void gf100_grctx_generate_attrib(struct gf100_grctx *);
 void gf100_grctx_generate_unkn(struct gf100_gr *);
 void gf100_grctx_generate_floorsweep(struct gf100_gr *);
-void gf100_grctx_generate_r4060a8(struct gf100_gr *);
 void gf100_grctx_generate_r418bb8(struct gf100_gr *);
 void gf100_grctx_generate_r406800(struct gf100_gr *);
 void gf100_grctx_generate_sm_id(struct gf100_gr *, int, int, int);
 void gf100_grctx_generate_tpc_nr(struct gf100_gr *, int);
+void gf100_grctx_generate_r4060a8(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gf108_grctx;
 void gf108_grctx_generate_attrib(struct gf100_grctx *);
