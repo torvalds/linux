@@ -22,11 +22,8 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "dmacnv50.h"
-#include "rootnv50.h"
 
 #include <subdev/timer.h>
-
-#include <nvif/class.h>
 
 static int
 gp102_disp_core_init(struct nv50_disp_dmac *chan)
@@ -66,13 +63,10 @@ gp102_disp_core_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-const struct nv50_disp_dmac_oclass
-gp102_disp_core_oclass = {
-	.base.oclass = GP102_DISP_CORE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_core_new,
-	.func = &gp102_disp_core_func,
-	.mthd = &gk104_disp_core_chan_mthd,
-	.chid = 0,
-};
+int
+gp102_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_core_new_(&gp102_disp_core_func, &gk104_disp_core_mthd,
+				   disp, 0, oclass, argv, argc, pobject);
+}

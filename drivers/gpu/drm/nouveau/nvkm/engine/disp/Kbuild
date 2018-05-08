@@ -79,14 +79,8 @@ nvkm-y += nvkm/engine/disp/basegp102.o
 nvkm-y += nvkm/engine/disp/corenv50.o
 nvkm-y += nvkm/engine/disp/coreg84.o
 nvkm-y += nvkm/engine/disp/coreg94.o
-nvkm-y += nvkm/engine/disp/coregt200.o
-nvkm-y += nvkm/engine/disp/coregt215.o
 nvkm-y += nvkm/engine/disp/coregf119.o
 nvkm-y += nvkm/engine/disp/coregk104.o
-nvkm-y += nvkm/engine/disp/coregk110.o
-nvkm-y += nvkm/engine/disp/coregm107.o
-nvkm-y += nvkm/engine/disp/coregm200.o
-nvkm-y += nvkm/engine/disp/coregp100.o
 nvkm-y += nvkm/engine/disp/coregp102.o
 
 nvkm-y += nvkm/engine/disp/ovlynv50.o

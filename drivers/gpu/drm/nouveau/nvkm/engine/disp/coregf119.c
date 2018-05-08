@@ -22,13 +22,8 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
-#include "rootnv50.h"
 
-#include <core/client.h>
 #include <subdev/timer.h>
-
-#include <nvif/class.h>
-#include <nvif/unpack.h>
 
 const struct nv50_disp_mthd_list
 gf119_disp_core_mthd_base = {
@@ -157,7 +152,7 @@ gf119_disp_core_mthd_head = {
 };
 
 static const struct nv50_disp_chan_mthd
-gf119_disp_core_chan_mthd = {
+gf119_disp_core_mthd = {
 	.name = "Core",
 	.addr = 0x000000,
 	.prev = -0x020000,
@@ -232,13 +227,10 @@ gf119_disp_core_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-const struct nv50_disp_dmac_oclass
-gf119_disp_core_oclass = {
-	.base.oclass = GF110_DISP_CORE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_core_new,
-	.func = &gf119_disp_core_func,
-	.mthd = &gf119_disp_core_chan_mthd,
-	.chid = 0,
-};
+int
+gf119_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_core_new_(&gf119_disp_core_func, &gf119_disp_core_mthd,
+				   disp, 0, oclass, argv, argc, pobject);
+}

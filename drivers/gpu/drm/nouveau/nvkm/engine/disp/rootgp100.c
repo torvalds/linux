@@ -28,13 +28,11 @@
 
 static const struct nv50_disp_root_func
 gp100_disp_root = {
-	.dmac = {
-		&gp100_disp_core_oclass,
-	},
 	.user = {
 		{{0,0,GK104_DISP_CURSOR             }, gf119_disp_curs_new },
 		{{0,0,GK104_DISP_OVERLAY            }, gf119_disp_oimm_new },
 		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
+		{{0,0,GP100_DISP_CORE_CHANNEL_DMA   }, gk104_disp_core_new },
 		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
 		{}
 	},

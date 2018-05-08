@@ -32,46 +32,4 @@ extern const struct nv50_disp_dmac_func gf119_disp_core_func;
 void gf119_disp_core_fini(struct nv50_disp_dmac *);
 
 extern const struct nv50_disp_dmac_func gp102_disp_dmac_func;
-
-struct nv50_disp_dmac_oclass {
-	int (*ctor)(const struct nv50_disp_dmac_func *,
-		    const struct nv50_disp_chan_mthd *,
-		    struct nv50_disp_root *, int chid,
-		    const struct nvkm_oclass *, void *data, u32 size,
-		    struct nvkm_object **);
-	struct nvkm_sclass base;
-	const struct nv50_disp_dmac_func *func;
-	const struct nv50_disp_chan_mthd *mthd;
-	int chid;
-};
-
-int nv50_disp_core_new(const struct nv50_disp_dmac_func *,
-		       const struct nv50_disp_chan_mthd *,
-		       struct nv50_disp_root *, int chid,
-		       const struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **);
-
-extern const struct nv50_disp_dmac_oclass nv50_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass g84_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass g94_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gt200_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gt215_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gf119_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gk104_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gk110_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gm107_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gm200_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gp100_disp_core_oclass;
-
-extern const struct nv50_disp_dmac_oclass gp102_disp_core_oclass;
 #endif

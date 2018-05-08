@@ -28,13 +28,11 @@
 
 static const struct nv50_disp_root_func
 gt215_disp_root = {
-	.dmac = {
-		&gt215_disp_core_oclass,
-	},
 	.user = {
 		{{0,0,GT214_DISP_CURSOR             },  nv50_disp_curs_new },
 		{{0,0,GT214_DISP_OVERLAY            },  nv50_disp_oimm_new },
 		{{0,0,GT214_DISP_BASE_CHANNEL_DMA   },   g84_disp_base_new },
+		{{0,0,GT214_DISP_CORE_CHANNEL_DMA   },   g94_disp_core_new },
 		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA},   g84_disp_ovly_new },
 		{}
 	},
