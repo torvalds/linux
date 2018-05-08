@@ -32,6 +32,7 @@
 #include <subdev/fb.h>
 #include <subdev/mc.h>
 #include <subdev/pmu.h>
+#include <subdev/therm.h>
 #include <subdev/timer.h>
 #include <engine/fifo.h>
 
@@ -1948,6 +1949,9 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	if (gr->func->init_r405a14)
 		gr->func->init_r405a14(gr);
+
+	if (gr->func->clkgate_pack)
+		nvkm_therm_clkgate_init(device->therm, gr->func->clkgate_pack);
 
 	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
 
