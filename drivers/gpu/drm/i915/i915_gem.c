@@ -5409,12 +5409,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	/*
-	 * We need to fallback to 4K pages since gvt gtt handling doesn't
-	 * support huge page entries - we will need to check either hypervisor
-	 * mm can support huge guest page or just do emulation in gvt.
-	 */
-	if (intel_vgpu_active(dev_priv))
+	/* We need to fallback to 4K pages if host doesn't support huge gtt. */
+	if (intel_vgpu_active(dev_priv) && !intel_vgpu_has_huge_gtt(dev_priv))
 		mkwrite_device_info(dev_priv)->page_sizes =
 			I915_GTT_PAGE_SIZE_4K;
 
