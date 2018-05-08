@@ -56,6 +56,8 @@ struct hdm_i2c {
 
 #define to_hdm(iface) container_of(iface, struct hdm_i2c, most_iface)
 
+static irqreturn_t most_irq_handler(int, void *);
+
 /**
  * configure_channel - called from MOST core to configure a channel
  * @iface: interface the channel belongs to
@@ -71,6 +73,7 @@ static int configure_channel(struct most_interface *most_iface,
 			     int ch_idx,
 			     struct most_channel_config *channel_config)
 {
+	int ret;
 	struct hdm_i2c *dev = to_hdm(most_iface);
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
@@ -86,7 +89,21 @@ static int configure_channel(struct most_interface *most_iface,
 		return -EPERM;
 	}
 
+	if (channel_config->direction == MOST_CH_RX) {
+		dev->polling_mode = polling_req || dev->client->irq <= 0;
+		if (!dev->polling_mode) {
+			pr_info("Requesting IRQ: %d\n", dev->client->irq);
+			ret = request_irq(dev->client->irq, most_irq_handler, 0,
+					  dev->client->name, dev);
+			if (ret) {
+				pr_info("IRQ request failed: %d, falling back to polling\n",
+					ret);
+				dev->polling_mode = true;
+			}
+		}
+	}
 	if ((channel_config->direction == MOST_CH_RX) && (dev->polling_mode)) {
+		pr_info("Using polling at rate: %d times/sec\n", scan_rate);
 		schedule_delayed_work(&dev->rx.dwork,
 				      msecs_to_jiffies(MSEC_PER_SEC / 4));
 	}
@@ -160,6 +177,10 @@ static int poison_channel(struct most_interface *most_iface,
 	dev->is_open[ch_idx] = false;
 
 	if (ch_idx == CH_RX) {
+		if (!dev->polling_mode)
+			free_irq(dev->client->irq, dev);
+		cancel_delayed_work_sync(&dev->rx.dwork);
+
 		mutex_lock(&dev->rx.list_mutex);
 		while (!list_empty(&dev->rx.list)) {
 			mbo = list_first_mbo(&dev->rx.list);
@@ -347,21 +368,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	dev->polling_mode = polling_req || client->irq <= 0;
-	if (!dev->polling_mode) {
-		pr_info("Requesting IRQ: %d\n", client->irq);
-		ret = request_irq(client->irq, most_irq_handler, 0,
-				  client->name, dev);
-		if (ret) {
-			pr_info("IRQ request failed: %d, falling back to polling\n",
-				ret);
-			dev->polling_mode = true;
-		}
-	}
-
-	if (dev->polling_mode)
-		pr_info("Using polling at rate: %d times/sec\n", scan_rate);
-
 	return 0;
 }
 
@@ -377,11 +383,7 @@ static int i2c_remove(struct i2c_client *client)
 {
 	struct hdm_i2c *dev = i2c_get_clientdata(client);
 
-	if (!dev->polling_mode)
-		free_irq(client->irq, dev);
-
 	most_deregister_interface(&dev->most_iface);
-	cancel_delayed_work_sync(&dev->rx.dwork);
 	kfree(dev);
 
 	return 0;
