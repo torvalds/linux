@@ -426,39 +426,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 }
 
 /******************************************************************************
- * Core
- *****************************************************************************/
-
-struct nv50_mast {
-	struct nv50_dmac base;
-};
-
-static int
-nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
-		 u64 syncbuf, struct nv50_mast *core)
-{
-	struct nv50_disp_core_channel_dma_v0 args = {};
-	static const s32 oclass[] = {
-		GP102_DISP_CORE_CHANNEL_DMA,
-		GP100_DISP_CORE_CHANNEL_DMA,
-		GM200_DISP_CORE_CHANNEL_DMA,
-		GM107_DISP_CORE_CHANNEL_DMA,
-		GK110_DISP_CORE_CHANNEL_DMA,
-		GK104_DISP_CORE_CHANNEL_DMA,
-		GF110_DISP_CORE_CHANNEL_DMA,
-		GT214_DISP_CORE_CHANNEL_DMA,
-		GT206_DISP_CORE_CHANNEL_DMA,
-		GT200_DISP_CORE_CHANNEL_DMA,
-		G82_DISP_CORE_CHANNEL_DMA,
-		NV50_DISP_CORE_CHANNEL_DMA,
-		0
-	};
-
-	return nv50_dmac_create(device, disp, oclass, 0, &args, sizeof(args),
-				syncbuf, &core->base);
-}
-
-/******************************************************************************
  * Base
  *****************************************************************************/
 
@@ -477,14 +444,10 @@ struct nv50_head {
 };
 
 #define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
-#define nv50_ovly(c) (&nv50_head(c)->ovly)
-#define nv50_oimm(c) (&nv50_head(c)->oimm)
-#define nv50_chan(c) (&(c)->base.base)
-#define nv50_vers(c) nv50_chan(c)->user.oclass
 
 struct nv50_disp {
 	struct nvif_disp *disp;
-	struct nv50_mast mast;
+	struct nv50_core *core;
 
 	struct nouveau_bo *sync;
 
@@ -497,7 +460,41 @@ nv50_disp(struct drm_device *dev)
 	return nouveau_display(dev)->priv;
 }
 
-#define nv50_mast(d) (&nv50_disp(d)->mast)
+/******************************************************************************
+ * Core
+ *****************************************************************************/
+
+struct nv50_core {
+	const struct nv50_core_func *func;
+	struct nv50_dmac chan;
+};
+
+struct nv50_core_func {
+};
+
+static int
+core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
+	      s32 oclass, struct nv50_core **pcore)
+{
+	struct nv50_disp_core_channel_dma_v0 args = {};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_core *core;
+	int ret;
+
+	if (!(core = *pcore = kzalloc(sizeof(*core), GFP_KERNEL)))
+		return -ENOMEM;
+	core->func = func;
+
+	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
+			       &oclass, 0, &args, sizeof(args),
+			       disp->sync->bo.offset, &core->chan);
+	if (ret) {
+		NV_ERROR(drm, "core%04x allocation failed: %d\n", oclass, ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 /******************************************************************************
  * EVO channel helpers
@@ -1175,7 +1172,7 @@ static void
 nv50_curs_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		  struct nv50_wndw_atom *asyw)
 {
-	u32 handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
+	u32 handle = nv50_disp(wndw->plane.dev)->core->chan.vram.handle;
 	u32 offset = asyw->image.offset;
 	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
 		asyh->curs.handle = handle;
@@ -1263,7 +1260,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 
 	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
 	wndw->immd = func;
-	wndw->ctxdma.parent = &disp->mast.base.base.user;
+	wndw->ctxdma.parent = &disp->core->chan.base.user;
 	return 0;
 }
 
@@ -1616,7 +1613,7 @@ nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 static void
 nv50_head_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 2))) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
@@ -1632,7 +1629,7 @@ nv50_head_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 2))) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
@@ -1652,7 +1649,7 @@ nv50_head_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 bounds = 0;
 	u32 *push;
 
@@ -1681,7 +1678,7 @@ nv50_head_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 bounds = 0;
 	u32 *push;
 
@@ -1711,7 +1708,7 @@ nv50_head_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_curs_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 4))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
@@ -1736,7 +1733,7 @@ nv50_head_curs_clr(struct nv50_head *head)
 static void
 nv50_head_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 5))) {
 		if (core->base.user.oclass < G82_DISP_BASE_CHANNEL_DMA) {
@@ -1767,7 +1764,7 @@ nv50_head_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_core_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 2))) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
@@ -1782,7 +1779,7 @@ nv50_head_core_clr(struct nv50_head *head)
 static void
 nv50_head_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 9))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
@@ -1836,7 +1833,7 @@ nv50_head_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_lut_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 4))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
@@ -1909,7 +1906,7 @@ nv50_head_lut_load(struct drm_property_blob *blob, int mode,
 static void
 nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 7))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
@@ -1939,7 +1936,7 @@ nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	struct nv50_head_mode *m = &asyh->mode;
 	u32 *push;
 	if ((push = evo_wait(core, 14))) {
@@ -1980,7 +1977,7 @@ nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 10))) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
@@ -2191,7 +2188,7 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 		asyh->lut.mode = 7;
 		asyh->set.ilut = asyh->state.color_mgmt_changed;
 	}
-	asyh->lut.handle = disp->mast.base.vram.handle;
+	asyh->lut.handle = disp->core->chan.vram.handle;
 }
 
 static void
@@ -2311,7 +2308,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			asyh->core.w = asyh->state.mode.hdisplay;
 			asyh->core.h = asyh->state.mode.vdisplay;
 		}
-		asyh->core.handle = disp->mast.base.vram.handle;
+		asyh->core.handle = disp->core->chan.vram.handle;
 		asyh->core.offset = 0;
 		asyh->core.format = 0xcf;
 		asyh->core.kind = 0;
@@ -2483,6 +2480,61 @@ out:
 	return ret;
 }
 
+static const struct nv50_core_func
+core507d = {
+};
+
+static int
+core507d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+{
+	return core507d_new_(&core507d, drm, oclass, pcore);
+}
+
+static void
+nv50_core_del(struct nv50_core **pcore)
+{
+	struct nv50_core *core = *pcore;
+	if (core) {
+		nv50_dmac_destroy(&core->chan);
+		kfree(*pcore);
+		*pcore = NULL;
+	}
+}
+
+static int
+nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
+{
+	struct {
+		s32 oclass;
+		int version;
+		int (*new)(struct nouveau_drm *, s32, struct nv50_core **);
+	} cores[] = {
+		{ GP102_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GP100_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GM200_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GM107_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GK110_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GK104_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GF110_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GT214_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GT206_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GT200_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{   G82_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{  NV50_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{}
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	int cid;
+
+	cid = nvif_mclass(&disp->disp->object, cores);
+	if (cid < 0) {
+		NV_ERROR(drm, "No supported core channel class\n");
+		return cid;
+	}
+
+	return cores[cid].new(drm, cores[cid].oclass, pcore);
+}
+
 /******************************************************************************
  * Output path helpers
  *****************************************************************************/
@@ -2591,21 +2643,21 @@ static void
 nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	const int or = nv_encoder->or;
 	u32 *push;
 
 	if (nv_encoder->crtc) {
-		push = evo_wait(mast, 4);
+		push = evo_wait(core, 4);
 		if (push) {
-			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+			if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 				evo_mthd(push, 0x0400 + (or * 0x080), 1);
 				evo_data(push, 0x00000000);
 			} else {
 				evo_mthd(push, 0x0180 + (or * 0x020), 1);
 				evo_data(push, 0x00000000);
 			}
-			evo_kick(push, mast);
+			evo_kick(push, core);
 		}
 	}
 
@@ -2616,7 +2668,7 @@ nv50_dac_disable(struct drm_encoder *encoder)
 static void
 nv50_dac_enable(struct drm_encoder *encoder)
 {
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct drm_display_mode *mode = &nv_crtc->base.state->adjusted_mode;
@@ -2624,9 +2676,9 @@ nv50_dac_enable(struct drm_encoder *encoder)
 
 	nv50_outp_acquire(nv_encoder);
 
-	push = evo_wait(mast, 8);
+	push = evo_wait(core, 8);
 	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 			u32 syncs = 0x00000000;
 
 			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -2656,7 +2708,7 @@ nv50_dac_enable(struct drm_encoder *encoder)
 			evo_data(push, 1 << nv_crtc->index);
 		}
 
-		evo_kick(push, mast);
+		evo_kick(push, core);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -3526,7 +3578,8 @@ static void
 nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		struct drm_display_mode *mode, u8 proto, u8 depth)
 {
-	struct nv50_dmac *core = &nv50_mast(nv_encoder->base.base.dev)->base;
+	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
+	struct nv50_dmac *core = &disp->core->chan;
 	u32 *push;
 
 	if (!mode) {
@@ -3809,18 +3862,18 @@ static void
 nv50_pior_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	const int or = nv_encoder->or;
 	u32 *push;
 
 	if (nv_encoder->crtc) {
-		push = evo_wait(mast, 4);
+		push = evo_wait(core, 4);
 		if (push) {
-			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+			if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 				evo_mthd(push, 0x0700 + (or * 0x040), 1);
 				evo_data(push, 0x00000000);
 			}
-			evo_kick(push, mast);
+			evo_kick(push, core);
 		}
 	}
 
@@ -3831,7 +3884,7 @@ nv50_pior_disable(struct drm_encoder *encoder)
 static void
 nv50_pior_enable(struct drm_encoder *encoder)
 {
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
@@ -3860,9 +3913,9 @@ nv50_pior_enable(struct drm_encoder *encoder)
 		break;
 	}
 
-	push = evo_wait(mast, 8);
+	push = evo_wait(core, 8);
 	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 			u32 ctrl = (depth << 16) | (proto << 8) | owner;
 			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 				ctrl |= 0x00001000;
@@ -3872,7 +3925,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 			evo_data(push, ctrl);
 		}
 
-		evo_kick(push, mast);
+		evo_kick(push, core);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -3950,7 +4003,7 @@ static void
 nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 interlock)
 {
 	struct nv50_disp *disp = nv50_disp(drm->dev);
-	struct nv50_dmac *core = &disp->mast.base;
+	struct nv50_dmac *core = &disp->core->chan;
 	struct nv50_mstm *mstm;
 	struct drm_encoder *encoder;
 	u32 *push;
@@ -4134,11 +4187,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Flush update. */
 	if (interlock_core) {
 		if (!interlock_chan && atom->state.legacy_cursor_update) {
-			u32 *push = evo_wait(&disp->mast, 2);
+			u32 *push = evo_wait(&disp->core->chan, 2);
 			if (push) {
 				evo_mthd(push, 0x0080, 1);
 				evo_data(push, 0x00000000);
-				evo_kick(push, &disp->mast);
+				evo_kick(push, &disp->core->chan);
 			}
 		} else {
 			nv50_disp_atomic_commit_core(drm, interlock_chan);
@@ -4442,17 +4495,18 @@ nv50_display_fini(struct drm_device *dev)
 int
 nv50_display_init(struct drm_device *dev)
 {
+	struct nv50_dmac *core = &nv50_disp(dev)->core->chan;
 	struct drm_encoder *encoder;
 	struct drm_plane *plane;
 	u32 *push;
 
-	push = evo_wait(nv50_mast(dev), 32);
+	push = evo_wait(core, 32);
 	if (!push)
 		return -EBUSY;
 
 	evo_mthd(push, 0x0088, 1);
-	evo_data(push, nv50_mast(dev)->base.sync.handle);
-	evo_kick(push, nv50_mast(dev));
+	evo_data(push, core->sync.handle);
+	evo_kick(push, core);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
@@ -4477,7 +4531,7 @@ nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
 
-	nv50_dmac_destroy(&disp->mast.base);
+	nv50_core_del(&disp->core);
 
 	nouveau_bo_unmap(disp->sync);
 	if (disp->sync)
@@ -4537,8 +4591,7 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	/* allocate master evo channel */
-	ret = nv50_core_create(device, &disp->disp->object,
-			       disp->sync->bo.offset, &disp->mast);
+	ret = nv50_core_new(drm, &disp->core);
 	if (ret)
 		goto out;
 
