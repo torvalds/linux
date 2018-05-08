@@ -164,7 +164,10 @@ static long plpar_int_get_source_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	do {
+		rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_SOURCE_INFO lisn=%ld failed %ld\n", lisn, rc);
 		return rc;
@@ -197,8 +200,11 @@ static long plpar_int_set_source_config(unsigned long flags,
 		flags, lisn, target, prio, sw_irq);
 
 
-	rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
-				target, prio, sw_irq);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
+					target, prio, sw_irq);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_SOURCE_CONFIG lisn=%ld target=%lx prio=%lx failed %ld\n",
 		       lisn, target, prio, rc);
@@ -217,7 +223,11 @@ static long plpar_int_get_queue_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target, priority);
+	do {
+		rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target,
+				 priority);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_QUEUE_INFO cpu=%ld prio=%ld failed %ld\n",
 		       target, priority, rc);
@@ -246,8 +256,11 @@ static long plpar_int_set_queue_config(unsigned long flags,
 	pr_devel("H_INT_SET_QUEUE_CONFIG flags=%lx target=%lx priority=%lx qpage=%lx qsize=%lx\n",
 		flags,  target, priority, qpage, qsize);
 
-	rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
-				priority, qpage, qsize);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
+					priority, qpage, qsize);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_QUEUE_CONFIG cpu=%ld prio=%ld qpage=%lx returned %ld\n",
 		       target, priority, qpage, rc);
@@ -261,7 +274,10 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 {
 	long rc;
 
-	rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	do {
+		rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SYNC lisn=%ld returned %ld\n", lisn, rc);
 		return  rc;
@@ -284,7 +300,11 @@ static long plpar_int_esb(unsigned long flags,
 	pr_devel("H_INT_ESB flags=%lx lisn=%lx offset=%lx in=%lx\n",
 		flags,  lisn, offset, in_data);
 
-	rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset, in_data);
+	do {
+		rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset,
+				 in_data);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_ESB lisn=%ld offset=%ld returned %ld\n",
 		       lisn, offset, rc);
