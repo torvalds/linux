@@ -44,6 +44,7 @@
 #include <linux/suspend.h>
 #include <linux/thermal.h>
 
+#include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rkfb_dmc.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
