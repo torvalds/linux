@@ -705,6 +705,16 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN8_GARBCNTL, I915_READ(GEN8_GARBCNTL) |
 				  GEN11_ARBITRATION_PRIO_ORDER_MASK);
+
+	/* Wa_1604223664:icl
+	 * Formerly known as WaL3BankAddressHashing
+	 */
+	I915_WRITE(GEN8_GARBCNTL,
+		   (I915_READ(GEN8_GARBCNTL) & ~GEN11_HASH_CTRL_EXCL_MASK) |
+		   GEN11_HASH_CTRL_EXCL_BIT0);
+	I915_WRITE(GEN11_GLBLINVL,
+		   (I915_READ(GEN11_GLBLINVL) & ~GEN11_BANK_HASH_ADDR_EXCL_MASK) |
+		   GEN11_BANK_HASH_ADDR_EXCL_BIT0);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
