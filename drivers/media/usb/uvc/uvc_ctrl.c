@@ -1229,9 +1229,9 @@ static void uvc_ctrl_send_event(struct uvc_fh *handle,
 	uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, value, changes);
 
 	list_for_each_entry(sev, &mapping->ev_subs, node) {
-		if (sev->fh && (sev->fh != &handle->vfh ||
+		if (sev->fh != &handle->vfh ||
 		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK) ||
-		    (changes & V4L2_EVENT_CTRL_CH_FLAGS)))
+		    (changes & V4L2_EVENT_CTRL_CH_FLAGS))
 			v4l2_event_queue_fh(sev->fh, &ev);
 	}
 }
