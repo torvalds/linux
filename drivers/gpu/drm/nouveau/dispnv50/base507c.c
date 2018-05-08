@@ -21,7 +21,6 @@
  */
 #include "base.h"
 
-#include <nvif/class.h>
 #include <nvif/cl507c.h>
 #include <nvif/event.h>
 
@@ -29,23 +28,20 @@
 #include <drm/drm_plane_helper.h>
 #include "nouveau_bo.h"
 
-static u32
+u32
 base507c_update(struct nv50_wndw *wndw, u32 interlock)
 {
 	u32 *push;
-
-	if (!(push = evo_wait(&wndw->wndw, 2)))
-		return 0;
-	evo_mthd(push, 0x0080, 1);
-	evo_data(push, interlock);
-	evo_kick(push, &wndw->wndw);
-
-	if (wndw->wndw.base.user.oclass < GF110_DISP_BASE_CHANNEL_DMA)
+	if ((push = evo_wait(&wndw->wndw, 2))) {
+		evo_mthd(push, 0x0080, 1);
+		evo_data(push, interlock);
+		evo_kick(push, &wndw->wndw);
 		return interlock ? 2 << (wndw->id * 8) : 0;
-	return interlock ? 2 << (wndw->id * 4) : 0;
+	}
+	return 0;
 }
 
-static void
+void
 base507c_lut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	u32 *push;
@@ -56,7 +52,7 @@ base507c_lut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-static void
+void
 base507c_image_clr(struct nv50_wndw *wndw)
 {
 	u32 *push;
@@ -72,7 +68,6 @@ base507c_image_clr(struct nv50_wndw *wndw)
 static void
 base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	const s32 oclass = wndw->wndw.base.user.oclass;
 	u32 *push;
 	if ((push = evo_wait(&wndw->wndw, 10))) {
 		evo_mthd(push, 0x0084, 1);
@@ -80,56 +75,33 @@ base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 			       asyw->image.interval << 4);
 		evo_mthd(push, 0x00c0, 1);
 		evo_data(push, asyw->image.handle);
-		if (oclass < G82_DISP_BASE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0800, 5);
-			evo_data(push, asyw->image.offset >> 8);
-			evo_data(push, 0x00000000);
-			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
-			evo_data(push, (asyw->image.layout << 20) |
-					asyw->image.pitch |
-					asyw->image.block);
-			evo_data(push, (asyw->image.kind << 16) |
-				       (asyw->image.format << 8));
-		} else
-		if (oclass < GF110_DISP_BASE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0800, 5);
-			evo_data(push, asyw->image.offset >> 8);
-			evo_data(push, 0x00000000);
-			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
-			evo_data(push, (asyw->image.layout << 20) |
-					asyw->image.pitch |
-					asyw->image.block);
-			evo_data(push, asyw->image.format << 8);
-		} else {
-			evo_mthd(push, 0x0400, 5);
-			evo_data(push, asyw->image.offset >> 8);
-			evo_data(push, 0x00000000);
-			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
-			evo_data(push, (asyw->image.layout << 24) |
-					asyw->image.pitch |
-					asyw->image.block);
-			evo_data(push, asyw->image.format << 8);
-		}
+		evo_mthd(push, 0x0800, 5);
+		evo_data(push, asyw->image.offset >> 8);
+		evo_data(push, 0x00000000);
+		evo_data(push, asyw->image.h << 16 | asyw->image.w);
+		evo_data(push, asyw->image.layout << 20 |
+			       asyw->image.pitch |
+			       asyw->image.block);
+		evo_data(push, asyw->image.kind << 16 |
+			       asyw->image.format << 8);
 		evo_kick(push, &wndw->wndw);
 	}
 }
 
-static int
-base507c_ntfy_wait_begun(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+int
+base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
+			 struct nvif_device *device)
 {
-	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
-	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
-	if (nvif_msec(&drm->client.device, 2000ULL,
-		u32 data = nouveau_bo_rd32(disp->sync, asyw->ntfy.offset / 4);
+	s64 time = nvif_msec(device, 2000ULL,
+		u32 data = nouveau_bo_rd32(bo, offset / 4);
 		if ((data & 0xc0000000) == 0x40000000)
 			break;
 		usleep_range(1, 2);
-	) < 0)
-		return -ETIMEDOUT;
-	return 0;
+	);
+	return time < 0 ? time : 0;
 }
 
-static void
+void
 base507c_ntfy_clr(struct nv50_wndw *wndw)
 {
 	u32 *push;
@@ -140,7 +112,7 @@ base507c_ntfy_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+void
 base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	u32 *push;
@@ -152,7 +124,13 @@ base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-static void
+void
+base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
+{
+	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+}
+
+void
 base507c_sema_clr(struct nv50_wndw *wndw)
 {
 	u32 *push;
@@ -163,7 +141,7 @@ base507c_sema_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+void
 base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	u32 *push;
@@ -177,14 +155,14 @@ base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-static void
+void
 base507c_release(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
 	asyh->base.cpp = 0;
 }
 
-static int
+int
 base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
@@ -229,7 +207,7 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	return 0;
 }
 
-static const u32
+const u32
 base507c_format[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
@@ -250,6 +228,7 @@ base507c = {
 	.release = base507c_release,
 	.sema_set = base507c_sema_set,
 	.sema_clr = base507c_sema_clr,
+	.ntfy_reset = base507c_ntfy_reset,
 	.ntfy_set = base507c_ntfy_set,
 	.ntfy_clr = base507c_ntfy_clr,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
@@ -259,7 +238,7 @@ base507c = {
 	.update = base507c_update,
 };
 
-static int
+int
 base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	      struct nouveau_drm *drm, int head, s32 oclass,
 	      struct nv50_wndw **pwndw)

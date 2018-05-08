@@ -41,6 +41,7 @@ u32 nv50_wndw_flush_set(struct nv50_wndw *, u32 interlock,
 			struct nv50_wndw_atom *);
 u32 nv50_wndw_flush_clr(struct nv50_wndw *, u32 interlock, bool flush,
 			struct nv50_wndw_atom *);
+void nv50_wndw_ntfy_enable(struct nv50_wndw *, struct nv50_wndw_atom *);
 int nv50_wndw_wait_armed(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 struct nv50_wndw_func {
@@ -53,9 +54,11 @@ struct nv50_wndw_func {
 
 	void (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*sema_clr)(struct nv50_wndw *);
+	void (*ntfy_reset)(struct nouveau_bo *, u32 offset);
 	void (*ntfy_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*ntfy_clr)(struct nv50_wndw *);
-	int (*ntfy_wait_begun)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
+			       struct nvif_device *);
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
 	void (*lut)(struct nv50_wndw *, struct nv50_wndw_atom *);

@@ -1812,7 +1812,6 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 			struct drm_atomic_state *state, bool nonblock)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nv50_disp *disp = nv50_disp(dev);
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
@@ -1847,14 +1846,8 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 
-		if (asyw->set.image) {
-			asyw->ntfy.handle = wndw->wndw.sync.handle;
-			asyw->ntfy.offset = wndw->ntfy;
-			asyw->ntfy.awaken = false;
-			asyw->set.ntfy = true;
-			nouveau_bo_wr32(disp->sync, wndw->ntfy / 4, 0x00000000);
-			wndw->ntfy ^= 0x10;
-		}
+		if (asyw->set.image)
+			nv50_wndw_ntfy_enable(wndw, asyw);
 	}
 
 	drm_atomic_state_get(state);

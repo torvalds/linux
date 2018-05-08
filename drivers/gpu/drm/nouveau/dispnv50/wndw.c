@@ -98,8 +98,12 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
 int
 nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	if (asyw->set.ntfy)
-		return wndw->func->ntfy_wait_begun(wndw, asyw);
+	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
+	if (asyw->set.ntfy) {
+		return wndw->func->ntfy_wait_begun(disp->sync,
+						   asyw->ntfy.offset,
+						   wndw->wndw.base.device);
+	}
 	return 0;
 }
 
@@ -136,6 +140,20 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 interlock,
 	}
 
 	return wndw->func->update ? wndw->func->update(wndw, interlock) : 0;
+}
+
+void
+nv50_wndw_ntfy_enable(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
+
+	asyw->ntfy.handle = wndw->wndw.sync.handle;
+	asyw->ntfy.offset = wndw->ntfy;
+	asyw->ntfy.awaken = false;
+	asyw->set.ntfy = true;
+
+	wndw->func->ntfy_reset(disp->sync, wndw->ntfy);
+	wndw->ntfy ^= 0x10;
 }
 
 static void

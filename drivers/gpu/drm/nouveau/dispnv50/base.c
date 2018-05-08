@@ -31,12 +31,12 @@ nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 		int version;
 		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 	} bases[] = {
-		{ GK110_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{ GK104_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{ GF110_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{ GT214_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{ GT200_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{   G82_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
+		{ GK110_DISP_BASE_CHANNEL_DMA, 0, base907c_new },
+		{ GK104_DISP_BASE_CHANNEL_DMA, 0, base907c_new },
+		{ GF110_DISP_BASE_CHANNEL_DMA, 0, base907c_new },
+		{ GT214_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
+		{ GT200_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
+		{   G82_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
 		{  NV50_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
 		{}
 	};
