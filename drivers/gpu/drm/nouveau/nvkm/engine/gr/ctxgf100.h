@@ -27,7 +27,8 @@ struct gf100_grctx_func {
 	void  (*unkn)(struct gf100_gr *);
 	/* mmio context data */
 	const struct gf100_gr_pack *hub;
-	const struct gf100_gr_pack *gpc;
+	const struct gf100_gr_pack *gpc_0;
+	const struct gf100_gr_pack *gpc_1;
 	const struct gf100_gr_pack *zcull;
 	const struct gf100_gr_pack *tpc;
 	const struct gf100_gr_pack *ppc;
@@ -163,7 +164,8 @@ extern const struct gf100_gr_init gf100_grctx_init_memfmt_0[];
 extern const struct gf100_gr_init gf100_grctx_init_rstr2d_0[];
 extern const struct gf100_gr_init gf100_grctx_init_scc_0[];
 
-extern const struct gf100_gr_pack gf100_grctx_pack_gpc[];
+extern const struct gf100_gr_pack gf100_grctx_pack_gpc_0[];
+extern const struct gf100_gr_pack gf100_grctx_pack_gpc_1[];
 extern const struct gf100_gr_init gf100_grctx_init_gpc_unk_0[];
 extern const struct gf100_gr_init gf100_grctx_init_prop_0[];
 extern const struct gf100_gr_init gf100_grctx_init_gpc_unk_1[];
@@ -212,6 +214,8 @@ extern const struct gf100_gr_init gf117_grctx_init_pe_0[];
 
 extern const struct gf100_gr_init gf117_grctx_init_wwdx_0[];
 
+extern const struct gf100_gr_pack gf117_grctx_pack_gpc_1[];
+
 extern const struct gf100_gr_init gk104_grctx_init_memfmt_0[];
 extern const struct gf100_gr_init gk104_grctx_init_ds_0[];
 extern const struct gf100_gr_init gk104_grctx_init_scc_0[];
@@ -221,7 +225,6 @@ extern const struct gf100_gr_init gk104_grctx_init_gpm_0[];
 extern const struct gf100_gr_init gk104_grctx_init_pes_0[];
 
 extern const struct gf100_gr_pack gk104_grctx_pack_hub[];
-extern const struct gf100_gr_pack gk104_grctx_pack_gpc[];
 extern const struct gf100_gr_pack gk104_grctx_pack_tpc[];
 extern const struct gf100_gr_pack gk104_grctx_pack_ppc[];
 extern const struct gf100_gr_pack gk104_grctx_pack_icmd[];
@@ -235,7 +238,8 @@ extern const struct gf100_gr_pack gk110_grctx_pack_hub[];
 extern const struct gf100_gr_init gk110_grctx_init_pri_0[];
 extern const struct gf100_gr_init gk110_grctx_init_cwd_0[];
 
-extern const struct gf100_gr_pack gk110_grctx_pack_gpc[];
+extern const struct gf100_gr_pack gk110_grctx_pack_gpc_0[];
+extern const struct gf100_gr_pack gk110_grctx_pack_gpc_1[];
 extern const struct gf100_gr_init gk110_grctx_init_gpc_unk_2[];
 
 extern const struct gf100_gr_init gk110_grctx_init_tex_0[];

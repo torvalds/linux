@@ -82,6 +82,7 @@ gk110b_gr_pack_mmio[] = {
 	{ gf119_gr_init_gpm_0 },
 	{ gk110_gr_init_gpc_unk_1 },
 	{ gf100_gr_init_gcc_0 },
+	{ gk104_gr_init_gpc_unk_2 },
 	{ gk104_gr_init_tpccs_0 },
 	{ gk110_gr_init_tex_0 },
 	{ gk104_gr_init_pe_0 },

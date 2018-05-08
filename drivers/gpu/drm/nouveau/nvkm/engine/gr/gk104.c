@@ -83,6 +83,12 @@ gk104_gr_init_gpc_unk_1[] = {
 };
 
 const struct gf100_gr_init
+gk104_gr_init_gpc_unk_2[] = {
+	{ 0x418884,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct gf100_gr_init
 gk104_gr_init_tpccs_0[] = {
 	{ 0x419d0c,   1, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
@@ -160,6 +166,7 @@ gk104_gr_pack_mmio[] = {
 	{ gf119_gr_init_gpm_0 },
 	{ gk104_gr_init_gpc_unk_1 },
 	{ gf100_gr_init_gcc_0 },
+	{ gk104_gr_init_gpc_unk_2 },
 	{ gk104_gr_init_tpccs_0 },
 	{ gf119_gr_init_tex_0 },
 	{ gk104_gr_init_pe_0 },

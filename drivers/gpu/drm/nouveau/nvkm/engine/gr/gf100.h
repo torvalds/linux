@@ -338,6 +338,7 @@ extern const struct gf100_gr_init gf117_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gf117_gr_init_cbm_0[];
 
 extern const struct gf100_gr_init gk104_gr_init_main_0[];
+extern const struct gf100_gr_init gk104_gr_init_gpc_unk_2[];
 extern const struct gf100_gr_init gk104_gr_init_tpccs_0[];
 extern const struct gf100_gr_init gk104_gr_init_pe_0[];
 extern const struct gf100_gr_init gk104_gr_init_be_0[];

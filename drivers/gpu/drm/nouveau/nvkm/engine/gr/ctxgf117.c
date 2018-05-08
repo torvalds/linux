@@ -84,12 +84,17 @@ gf117_grctx_init_setup_0[] = {
 };
 
 static const struct gf100_gr_pack
-gf117_grctx_pack_gpc[] = {
+gf117_grctx_pack_gpc_0[] = {
 	{ gf100_grctx_init_gpc_unk_0 },
 	{ gf119_grctx_init_prop_0 },
 	{ gf119_grctx_init_gpc_unk_1 },
 	{ gf117_grctx_init_setup_0 },
 	{ gf100_grctx_init_zcull_0 },
+	{}
+};
+
+const struct gf100_gr_pack
+gf117_grctx_pack_gpc_1[] = {
 	{ gf119_grctx_init_crstr_0 },
 	{ gf108_grctx_init_gpm_0 },
 	{ gf100_grctx_init_gcc_0 },
@@ -278,7 +283,8 @@ gf117_grctx = {
 	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gf117_grctx_pack_hub,
-	.gpc   = gf117_grctx_pack_gpc,
+	.gpc_0 = gf117_grctx_pack_gpc_0,
+	.gpc_1 = gf117_grctx_pack_gpc_1,
 	.zcull = gf100_grctx_pack_zcull,
 	.tpc   = gf117_grctx_pack_tpc,
 	.ppc   = gf117_grctx_pack_ppc,

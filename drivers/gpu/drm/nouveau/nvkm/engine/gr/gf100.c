@@ -1612,7 +1612,8 @@ gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 
 	/* load register lists */
 	gf100_gr_init_csdata(gr, grctx->hub, 0x409000, 0x000, 0x000000);
-	gf100_gr_init_csdata(gr, grctx->gpc, 0x41a000, 0x000, 0x418000);
+	gf100_gr_init_csdata(gr, grctx->gpc_0, 0x41a000, 0x000, 0x418000);
+	gf100_gr_init_csdata(gr, grctx->gpc_1, 0x41a000, 0x000, 0x418000);
 	gf100_gr_init_csdata(gr, grctx->tpc, 0x41a000, 0x004, 0x419800);
 	gf100_gr_init_csdata(gr, grctx->ppc, 0x41a000, 0x008, 0x41be00);
 
