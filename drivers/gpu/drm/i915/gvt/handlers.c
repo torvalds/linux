@@ -495,7 +495,7 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
 			vgpu->id, reg_nonpriv, offset);
 
-	return ret;
+	return 0;
 }
 
 static int ddi_buf_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,

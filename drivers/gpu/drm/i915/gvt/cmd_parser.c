@@ -828,7 +828,8 @@ static int force_nonpriv_reg_handler(struct parser_exec_state *s,
 			data != nopid) {
 		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
 			offset, data);
-		return -EPERM;
+		patch_value(s, cmd_ptr(s, index), nopid);
+		return 0;
 	}
 	return 0;
 }
