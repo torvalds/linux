@@ -35,17 +35,7 @@
 #include <linux/mlx5/driver.h>
 #include "en.h"
 
-struct mlx5e_vxlan {
-	struct hlist_node hlist;
-	atomic_t refcount;
-	u16 udp_port;
-};
-
-struct mlx5e_vxlan_work {
-	struct work_struct	work;
-	struct mlx5e_priv	*priv;
-	u16			port;
-};
+struct mlx5e_vxlan;
 
 static inline bool mlx5e_vxlan_allowed(struct mlx5_core_dev *mdev)
 {
@@ -55,8 +45,8 @@ static inline bool mlx5e_vxlan_allowed(struct mlx5_core_dev *mdev)
 
 void mlx5e_vxlan_init(struct mlx5e_priv *priv);
 void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv);
-
-void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, u16 port, int add);
+void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port);
+void mlx5e_vxlan_del_port(struct mlx5e_priv *priv, u16 port);
 struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port);
 
 #endif /* __MLX5_VXLAN_H__ */

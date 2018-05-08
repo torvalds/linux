@@ -36,7 +36,11 @@
 #include "mlx5_core.h"
 #include "vxlan.h"
 
-static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port);
+struct mlx5e_vxlan {
+	struct hlist_node hlist;
+	atomic_t refcount;
+	u16 udp_port;
+};
 
 void mlx5e_vxlan_init(struct mlx5e_priv *priv)
 {
@@ -105,7 +109,7 @@ struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)
 	return vxlan;
 }
 
-static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
+void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
@@ -144,21 +148,7 @@ err_delete_port:
 	mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
 }
 
-static void mlx5e_vxlan_add_work(struct work_struct *work)
-{
-	struct mlx5e_vxlan_work *vxlan_work =
-		container_of(work, struct mlx5e_vxlan_work, work);
-	struct mlx5e_priv *priv = vxlan_work->priv;
-	u16 port = vxlan_work->port;
-
-	mutex_lock(&priv->state_lock);
-	mlx5e_vxlan_add_port(priv, port);
-	mutex_unlock(&priv->state_lock);
-
-	kfree(vxlan_work);
-}
-
-static void mlx5e_vxlan_del_port(struct mlx5e_priv *priv, u16 port)
+void mlx5e_vxlan_del_port(struct mlx5e_priv *priv, u16 port)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
@@ -183,37 +173,6 @@ out_unlock:
 		kfree(vxlan);
 		vxlan_db->num_ports--;
 	}
-}
-
-static void mlx5e_vxlan_del_work(struct work_struct *work)
-{
-	struct mlx5e_vxlan_work *vxlan_work =
-		container_of(work, struct mlx5e_vxlan_work, work);
-	struct mlx5e_priv *priv         = vxlan_work->priv;
-	u16 port = vxlan_work->port;
-
-	mutex_lock(&priv->state_lock);
-	mlx5e_vxlan_del_port(priv, port);
-	mutex_unlock(&priv->state_lock);
-	kfree(vxlan_work);
-}
-
-void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, u16 port, int add)
-{
-	struct mlx5e_vxlan_work *vxlan_work;
-
-	vxlan_work = kmalloc(sizeof(*vxlan_work), GFP_ATOMIC);
-	if (!vxlan_work)
-		return;
-
-	if (add)
-		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_add_work);
-	else
-		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_del_work);
-
-	vxlan_work->priv = priv;
-	vxlan_work->port = port;
-	queue_work(priv->wq, &vxlan_work->work);
 }
 
 void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv)

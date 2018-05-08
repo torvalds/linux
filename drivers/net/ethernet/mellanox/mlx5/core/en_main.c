@@ -3969,6 +3969,57 @@ static int mlx5e_get_vf_stats(struct net_device *dev,
 }
 #endif
 
+struct mlx5e_vxlan_work {
+	struct work_struct	work;
+	struct mlx5e_priv	*priv;
+	u16			port;
+};
+
+static void mlx5e_vxlan_add_work(struct work_struct *work)
+{
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv = vxlan_work->priv;
+	u16 port = vxlan_work->port;
+
+	mutex_lock(&priv->state_lock);
+	mlx5e_vxlan_add_port(priv, port);
+	mutex_unlock(&priv->state_lock);
+
+	kfree(vxlan_work);
+}
+
+static void mlx5e_vxlan_del_work(struct work_struct *work)
+{
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv         = vxlan_work->priv;
+	u16 port = vxlan_work->port;
+
+	mutex_lock(&priv->state_lock);
+	mlx5e_vxlan_del_port(priv, port);
+	mutex_unlock(&priv->state_lock);
+	kfree(vxlan_work);
+}
+
+static void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, u16 port, int add)
+{
+	struct mlx5e_vxlan_work *vxlan_work;
+
+	vxlan_work = kmalloc(sizeof(*vxlan_work), GFP_ATOMIC);
+	if (!vxlan_work)
+		return;
+
+	if (add)
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_add_work);
+	else
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_del_work);
+
+	vxlan_work->priv = priv;
+	vxlan_work->port = port;
+	queue_work(priv->wq, &vxlan_work->work);
+}
+
 static void mlx5e_add_vxlan_port(struct net_device *netdev,
 				 struct udp_tunnel_info *ti)
 {
