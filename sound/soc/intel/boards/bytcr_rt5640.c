@@ -17,6 +17,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -53,6 +54,9 @@ enum {
 #define BYT_RT5640_SSP0_AIF2    BIT(21)
 #define BYT_RT5640_MCLK_EN	BIT(22)
 #define BYT_RT5640_MCLK_25MHZ	BIT(23)
+
+/* in-diff + terminating empty entry */
+#define MAX_NO_PROPS 2
 
 struct byt_rt5640_private {
 	struct clk *mclk;
@@ -438,6 +442,39 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 	{}
 };
 
+/*
+ * Note this MUST be called before snd_soc_register_card(), so that the props
+ * are in place before the codec component driver's probe function parses them.
+ */
+static int byt_rt5640_add_codec_device_props(const char *i2c_dev_name)
+{
+	struct property_entry props[MAX_NO_PROPS] = {};
+	struct device *i2c_dev;
+	int ret, cnt = 0;
+
+	i2c_dev = bus_find_device_by_name(&i2c_bus_type, NULL, i2c_dev_name);
+	if (!i2c_dev)
+		return -EPROBE_DEFER;
+
+	switch (BYT_RT5640_MAP(byt_rt5640_quirk)) {
+	case BYT_RT5640_IN1_MAP:
+		if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC)
+			props[cnt++] =
+				PROPERTY_ENTRY_BOOL("realtek,in1-differential");
+		break;
+	case BYT_RT5640_IN3_MAP:
+		if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC)
+			props[cnt++] =
+				PROPERTY_ENTRY_BOOL("realtek,in3-differential");
+		break;
+	}
+
+	ret = device_add_properties(i2c_dev, props);
+	put_device(i2c_dev);
+
+	return ret;
+}
+
 static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
@@ -518,11 +555,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 	if (ret)
 		return ret;
-
-	if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC) {
-		snd_soc_component_update_bits(component,  RT5640_IN1_IN2, RT5640_IN_DF1,
-				    RT5640_IN_DF1);
-	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN) {
 		ret = rt5640_dmic_enable(component, 0, 0);
@@ -841,6 +873,12 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			 (unsigned int)byt_rt5640_quirk, quirk_override);
 		byt_rt5640_quirk = quirk_override;
 	}
+
+	/* Must be called before register_card, also see declaration comment. */
+	ret_val = byt_rt5640_add_codec_device_props(byt_rt5640_codec_name);
+	if (ret_val)
+		return ret_val;
+
 	log_quirks(&pdev->dev);
 
 	if ((byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) ||
