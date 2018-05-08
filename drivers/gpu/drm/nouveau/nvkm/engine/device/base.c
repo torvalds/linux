@@ -2399,6 +2399,7 @@ nv140_chipset = {
 	.name = "GV100",
 	.bios = nvkm_bios_new,
 	.devinit = gv100_devinit_new,
+	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
