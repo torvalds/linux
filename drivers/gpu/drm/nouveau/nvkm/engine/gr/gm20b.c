@@ -64,6 +64,7 @@ gm20b_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 
 static const struct gf100_gr_func
 gm20b_gr = {
+	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.init = gk20a_gr_init,
 	.init_zcull = gf117_gr_init_zcull,
 	.init_gpc_mmu = gm20b_gr_init_gpc_mmu,

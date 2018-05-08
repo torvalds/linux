@@ -107,12 +107,13 @@ struct gf100_gr {
 	u8 ppc_tpc_nr[GPC_MAX][4];
 	u8 ppc_tpc_min;
 
+	u8 screen_tile_row_offset;
+	u8 tile[TPC_MAX];
+
 	struct gf100_gr_data mmio_data[4];
 	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
-
-	u8 screen_tile_row_offset;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
@@ -123,6 +124,7 @@ void *gf100_gr_dtor(struct nvkm_gr *);
 
 struct gf100_gr_func {
 	void (*dtor)(struct gf100_gr *);
+	void (*oneinit_tiles)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_r405a14)(struct gf100_gr *);
@@ -164,6 +166,7 @@ struct gf100_gr_func {
 };
 
 int gf100_gr_rops(struct gf100_gr *);
+void gf100_gr_oneinit_tiles(struct gf100_gr *);
 int gf100_gr_init(struct gf100_gr *);
 void gf100_gr_init_vsc_stream_master(struct gf100_gr *);
 void gf100_gr_init_zcull(struct gf100_gr *);
@@ -191,6 +194,7 @@ void gm107_gr_init_400054(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
 
+void gm200_gr_oneinit_tiles(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
 void gm200_gr_init_num_active_ltcs(struct gf100_gr *);
 void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);

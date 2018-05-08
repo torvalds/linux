@@ -391,6 +391,7 @@ gm107_gr_gpccs_ucode = {
 
 static const struct gf100_gr_func
 gm107_gr = {
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gm107_gr_init_gpc_mmu,
 	.init_bios = gm107_gr_init_bios,

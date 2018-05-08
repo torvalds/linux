@@ -102,6 +102,7 @@ gk110b_gr_pack_mmio[] = {
 
 static const struct gf100_gr_func
 gk110b_gr = {
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,

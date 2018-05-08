@@ -27,6 +27,7 @@
 
 static const struct gf100_gr_func
 gp10b_gr = {
+	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,

@@ -194,27 +194,14 @@ gf117_grctx_generate_rop_mapping(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 data[6] = {}, data2[2] = {};
-	u8  tpcnr[GPC_MAX];
 	u8  shift, ntpcv;
-	int gpc, tpc, i;
+	int i;
 
-	/* calculate first set of magics */
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
+	/* Pack tile map into register format. */
+	for (i = 0; i < 32; i++)
+		data[i / 6] |= (gr->tile[i] & 0x07) << ((i % 6) * 5);
 
-	gpc = -1;
-	for (tpc = 0; tpc < gr->tpc_total; tpc++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpcnr[gpc]--;
-
-		data[tpc / 6] |= gpc << ((tpc % 6) * 5);
-	}
-
-	for (; tpc < 32; tpc++)
-		data[tpc / 6] |= 7 << ((tpc % 6) * 5);
-
-	/* and the second... */
+	/* Magic. */
 	shift = 0;
 	ntpcv = gr->tpc_total;
 	while (!(ntpcv & (1 << 4))) {

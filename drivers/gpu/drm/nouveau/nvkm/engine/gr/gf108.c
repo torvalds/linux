@@ -111,6 +111,7 @@ gf108_gr_init_r405a14(struct gf100_gr *gr)
 
 static const struct gf100_gr_func
 gf108_gr = {
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_r405a14 = gf108_gr_init_r405a14,

@@ -77,6 +77,46 @@ gm200_gr_init_rop_active_fbps(struct gf100_gr *gr)
 	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
+static u8
+gm200_gr_tile_map_6_24[] = {
+	0, 1, 2, 3, 4, 5, 3, 4, 5, 0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5, 0, 1, 2,
+};
+
+static u8
+gm200_gr_tile_map_4_16[] = {
+	0, 1, 2, 3, 2, 3, 0, 1, 3, 0, 1, 2, 1, 2, 3, 0,
+};
+
+static u8
+gm200_gr_tile_map_2_8[] = {
+	0, 1, 1, 0, 0, 1, 1, 0,
+};
+
+void
+gm200_gr_oneinit_tiles(struct gf100_gr *gr)
+{
+	/*XXX: Not sure what this is about.  The algorithm from NVGPU
+	 *     seems to work for all boards I tried from earlier (and
+	 *     later) GPUs except in these specific configurations.
+	 *
+	 *     Let's just hardcode them for now.
+	 */
+	if (gr->gpc_nr == 2 && gr->tpc_total == 8) {
+		memcpy(gr->tile, gm200_gr_tile_map_2_8, gr->tpc_total);
+		gr->screen_tile_row_offset = 1;
+	} else
+	if (gr->gpc_nr == 4 && gr->tpc_total == 16) {
+		memcpy(gr->tile, gm200_gr_tile_map_4_16, gr->tpc_total);
+		gr->screen_tile_row_offset = 4;
+	} else
+	if (gr->gpc_nr == 6 && gr->tpc_total == 24) {
+		memcpy(gr->tile, gm200_gr_tile_map_6_24, gr->tpc_total);
+		gr->screen_tile_row_offset = 5;
+	} else {
+		gf100_gr_oneinit_tiles(gr);
+	}
+}
+
 int
 gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_gr **pgr)
@@ -117,6 +157,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 
 static const struct gf100_gr_func
 gm200_gr = {
+	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_bios = gm107_gr_init_bios,

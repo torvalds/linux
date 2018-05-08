@@ -282,6 +282,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 
 static const struct gf100_gr_func
 gk20a_gr = {
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
 	.init = gk20a_gr_init,
 	.init_zcull = gf117_gr_init_zcull,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
