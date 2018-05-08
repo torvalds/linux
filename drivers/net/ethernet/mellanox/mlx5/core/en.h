@@ -52,6 +52,7 @@
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
+#include "vxlan.h"
 
 struct page_pool;
 
@@ -654,13 +655,6 @@ enum {
 	MLX5E_STATE_DESTROYING,
 };
 
-struct mlx5e_vxlan_db {
-	spinlock_t			lock; /* protect vxlan table */
-	/* max_num_ports is usuallly 4, 16 buckets is more than enough */
-	DECLARE_HASHTABLE(htable, 4);
-	int				num_ports;
-};
-
 struct mlx5e_l2_rule {
 	u8  addr[ETH_ALEN + 2];
 	struct mlx5_flow_handle *rule;
@@ -818,7 +812,7 @@ struct mlx5e_priv {
 	u32                        tx_rates[MLX5E_MAX_NUM_SQS];
 
 	struct mlx5e_flow_steering fs;
-	struct mlx5e_vxlan_db      vxlan;
+	struct mlx5_vxlan          *vxlan;
 
 	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;

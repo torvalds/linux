@@ -1133,7 +1133,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		if (memchr_inv(&mask->dst, 0xff, sizeof(mask->dst)))
 			goto vxlan_match_offload_err;
 
-		if (mlx5e_vxlan_lookup_port(up_priv, be16_to_cpu(key->dst)) &&
+		if (mlx5_vxlan_lookup_port(up_priv->vxlan, be16_to_cpu(key->dst)) &&
 		    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
 			parse_vxlan_attr(spec, f);
 		else {
@@ -2557,7 +2557,7 @@ vxlan_encap_offload_err:
 		return -EOPNOTSUPP;
 	}
 
-	if (mlx5e_vxlan_lookup_port(up_priv, be16_to_cpu(key->tp_dst)) &&
+	if (mlx5_vxlan_lookup_port(up_priv->vxlan, be16_to_cpu(key->tp_dst)) &&
 	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap)) {
 		tunnel_type = MLX5_HEADER_TYPE_VXLAN;
 	} else {
