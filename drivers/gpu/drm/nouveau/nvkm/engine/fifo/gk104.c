@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "gk104.h"
+#include "cgrp.h"
 #include "changk104.h"
 
 #include <core/client.h>
@@ -145,6 +146,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *mem;
+	struct nvkm_fifo_cgrp *cgrp;
 	int nr = 0;
 	int target;
 
@@ -155,6 +157,13 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	nvkm_kmap(mem);
 	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
 		func->chan(chan, mem, nr++ * func->size);
+	}
+
+	list_for_each_entry(cgrp, &fifo->runlist[runl].cgrp, head) {
+		func->cgrp(cgrp, mem, nr++ * func->size);
+		list_for_each_entry(chan, &cgrp->chan, head) {
+			func->chan(chan, mem, nr++ * func->size);
+		}
 	}
 	nvkm_done(mem);
 
@@ -182,16 +191,28 @@ unlock:
 void
 gk104_fifo_runlist_remove(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 {
+	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
 	mutex_lock(&fifo->base.engine.subdev.mutex);
-	list_del_init(&chan->head);
+	if (!list_empty(&chan->head)) {
+		list_del_init(&chan->head);
+		if (cgrp && !--cgrp->chan_nr)
+			list_del_init(&cgrp->head);
+	}
 	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
 void
 gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 {
+	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
 	mutex_lock(&fifo->base.engine.subdev.mutex);
-	list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
+	if (cgrp) {
+		if (!cgrp->chan_nr++)
+			list_add_tail(&cgrp->head, &fifo->runlist[chan->runl].cgrp);
+		list_add_tail(&chan->head, &cgrp->chan);
+	} else {
+		list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
+	}
 	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
@@ -898,6 +919,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		}
 
 		init_waitqueue_head(&fifo->runlist[i].wait);
+		INIT_LIST_HEAD(&fifo->runlist[i].cgrp);
 		INIT_LIST_HEAD(&fifo->runlist[i].chan);
 	}
 

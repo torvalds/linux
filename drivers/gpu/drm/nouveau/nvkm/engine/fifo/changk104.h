@@ -10,6 +10,7 @@ struct gk104_fifo_chan {
 	struct gk104_fifo *fifo;
 	int runl;
 
+	struct nvkm_fifo_cgrp *cgrp;
 	struct list_head head;
 	bool killed;
 
