@@ -25,6 +25,9 @@ void base507c_update(struct nv50_wndw *, u32 *);
 int base827c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 
 int base907c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+extern const struct nv50_wndw_func base907c;
+
+int base917c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 
 int nv50_base_new(struct nouveau_drm *, int head, struct nv50_wndw **);
 #endif

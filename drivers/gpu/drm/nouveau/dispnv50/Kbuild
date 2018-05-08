@@ -27,6 +27,7 @@ nouveau-y += dispnv50/base.o
 nouveau-y += dispnv50/base507c.o
 nouveau-y += dispnv50/base827c.o
 nouveau-y += dispnv50/base907c.o
+nouveau-y += dispnv50/base917c.o
 
 nouveau-y += dispnv50/curs.o
 nouveau-y += dispnv50/curs507a.o

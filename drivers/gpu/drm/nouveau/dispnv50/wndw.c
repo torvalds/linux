@@ -194,6 +194,8 @@ nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
 	case DRM_FORMAT_XBGR8888   :
 	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010: asyw->image.format = 0xdf; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;

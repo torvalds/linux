@@ -20,34 +20,29 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "base.h"
+#include "atom.h"
 
-#include <nvif/class.h>
+const u32
+base917c_format[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
+	0
+};
 
 int
-nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+base917c_new(struct nouveau_drm *drm, int head, s32 oclass,
+	     struct nv50_wndw **pwndw)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} bases[] = {
-		{ GK110_DISP_BASE_CHANNEL_DMA, 0, base917c_new },
-		{ GK104_DISP_BASE_CHANNEL_DMA, 0, base917c_new },
-		{ GF110_DISP_BASE_CHANNEL_DMA, 0, base907c_new },
-		{ GT214_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{ GT200_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{   G82_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{  NV50_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
-
-	cid = nvif_mclass(&disp->disp->object, bases);
-	if (cid < 0) {
-		NV_ERROR(drm, "No supported base class\n");
-		return cid;
-	}
-
-	return bases[cid].new(drm, head, bases[cid].oclass, pwndw);
+	return base507c_new_(&base907c, base917c_format, drm, head, oclass,
+			     0x00000002 << (head * 4), pwndw);
 }

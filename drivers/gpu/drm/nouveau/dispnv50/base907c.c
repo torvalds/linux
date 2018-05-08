@@ -82,7 +82,7 @@ base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	asyw->xlut.i.enable = 2;
 }
 
-static const struct nv50_wndw_func
+const struct nv50_wndw_func
 base907c = {
 	.acquire = base507c_acquire,
 	.release = base507c_release,
