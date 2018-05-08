@@ -189,9 +189,15 @@ void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 	}
 
 	acpi_db_set_output_destination(ACPI_DB_DUPLICATE_OUTPUT);
-	acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
-		       ((struct acpi_namespace_node *)subtree_entry)->name.
-		       ascii, subtree_entry);
+
+	if (((struct acpi_namespace_node *)subtree_entry)->parent) {
+		acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
+			       ((struct acpi_namespace_node *)subtree_entry)->
+			       name.ascii, subtree_entry);
+	} else {
+		acpi_os_printf("ACPI Namespace (from %s):\n",
+			       ACPI_NAMESPACE_ROOT);
+	}
 
 	/* Display the subtree */
 
