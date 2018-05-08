@@ -2139,7 +2139,14 @@ struct rt5640_priv {
 	bool hp_mute;
 	bool asrc_en;
 
-	/* Jack detect data */
+	/* Jack and button detect data */
+	bool ovcd_irq_enabled;
+	bool pressed;
+	bool press_reported;
+	int press_count;
+	int release_count;
+	int poll_count;
+	struct delayed_work bp_work;
 	struct work_struct jack_work;
 	struct snd_soc_jack *jack;
 	unsigned int jd_src;
