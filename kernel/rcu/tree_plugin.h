@@ -699,13 +699,14 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  * Also, if there are blocked tasks on the list, they automatically
  * block the newly created grace period, so set up ->gp_tasks accordingly.
  */
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+static void
+rcu_preempt_check_blocked_tasks(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	struct task_struct *t;
 
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_preempt_check_blocked_tasks() invoked with preemption enabled!!!\n");
 	if (WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)))
-		dump_blkd_tasks(rnp, 10);
+		dump_blkd_tasks(rsp, rnp, 10);
 	if (rcu_preempt_has_tasks(rnp) &&
 	    (rnp->qsmaskinit || rnp->wait_blkd_tasks)) {
 		rnp->gp_tasks = rnp->blkd_tasks.next;
@@ -854,10 +855,14 @@ void exit_rcu(void)
  * Dump the blocked-tasks state, but limit the list dump to the
  * specified number of elements.
  */
-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
+static void
+dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp, int ncheck)
 {
+	int cpu;
 	int i;
 	struct list_head *lhp;
+	bool onl;
+	struct rcu_data *rdp;
 	struct rcu_node *rnp1;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
@@ -877,6 +882,14 @@ static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 			break;
 	}
 	pr_cont("\n");
+	for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++) {
+		rdp = per_cpu_ptr(rsp->rda, cpu);
+		onl = !!(rdp->grpmask & rcu_rnp_online_cpus(rnp));
+		pr_info("\t%d: %c online: %ld(%d) offline: %ld(%d)\n",
+			cpu, ".o"[onl],
+			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_flags,
+			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_flags);
+	}
 }
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
@@ -949,7 +962,8 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  * so there is no need to check for blocked tasks.  So check only for
  * bogus qsmask values.
  */
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+static void
+rcu_preempt_check_blocked_tasks(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	WARN_ON_ONCE(rnp->qsmask);
 }
@@ -990,7 +1004,8 @@ void exit_rcu(void)
 /*
  * Dump the guaranteed-empty blocked-tasks state.  Trust but verify.
  */
-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
+static void
+dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp, int ncheck)
 {
 	WARN_ON_ONCE(!list_empty(&rnp->blkd_tasks));
 }

@@ -255,12 +255,16 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 7) RCU CPU stall data. */
+	/* 7) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
 	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
+	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
+	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
+	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
+	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
 
 	int cpu;
 	struct rcu_state *rsp;
@@ -431,11 +435,13 @@ static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static int rcu_print_task_stall(struct rcu_node *rnp);
 static int rcu_print_task_exp_stall(struct rcu_node *rnp);
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+static void rcu_preempt_check_blocked_tasks(struct rcu_state *rsp,
+					    struct rcu_node *rnp);
 static void rcu_preempt_check_callbacks(void);
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
 static void __init __rcu_init_preempt(void);
-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
+static void dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp,
+			    int ncheck);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
 static void invoke_rcu_callbacks_kthread(void);
