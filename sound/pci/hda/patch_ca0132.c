@@ -2908,6 +2908,76 @@ static void ca0132_gpio_setup(struct hda_codec *codec)
 }
 
 /*
+ * GPIO control functions for the Recon3D integrated.
+ */
+
+enum r3di_gpio_bit {
+	/* Bit 1 - Switch between front/rear mic. 0 = rear, 1 = front */
+	R3DI_MIC_SELECT_BIT = 1,
+	/* Bit 2 - Switch between headphone/line out. 0 = Headphone, 1 = Line */
+	R3DI_OUT_SELECT_BIT = 2,
+	/*
+	 * I dunno what this actually does, but it stays on until the dsp
+	 * is downloaded.
+	 */
+	R3DI_GPIO_DSP_DOWNLOADING = 3,
+	/*
+	 * Same as above, no clue what it does, but it comes on after the dsp
+	 * is downloaded.
+	 */
+	R3DI_GPIO_DSP_DOWNLOADED = 4
+};
+
+enum r3di_mic_select {
+	/* Set GPIO bit 1 to 0 for rear mic */
+	R3DI_REAR_MIC = 0,
+	/* Set GPIO bit 1 to 1 for front microphone*/
+	R3DI_FRONT_MIC = 1
+};
+
+enum r3di_out_select {
+	/* Set GPIO bit 2 to 0 for headphone */
+	R3DI_HEADPHONE_OUT = 0,
+	/* Set GPIO bit 2 to 1 for speaker */
+	R3DI_LINE_OUT = 1
+};
+enum r3di_dsp_status {
+	/* Set GPIO bit 3 to 1 until DSP is downloaded */
+	R3DI_DSP_DOWNLOADING = 0,
+	/* Set GPIO bit 4 to 1 once DSP is downloaded */
+	R3DI_DSP_DOWNLOADED = 1
+};
+
+static void r3di_gpio_dsp_status_set(struct hda_codec *codec,
+		enum r3di_dsp_status dsp_status)
+{
+	unsigned int cur_gpio;
+
+	/* Get the current GPIO Data setup */
+	cur_gpio = snd_hda_codec_read(codec, 0x01, 0, AC_VERB_GET_GPIO_DATA, 0);
+
+	switch (dsp_status) {
+	case R3DI_DSP_DOWNLOADING:
+		cur_gpio |= (1 << R3DI_GPIO_DSP_DOWNLOADING);
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+				AC_VERB_SET_GPIO_DATA, cur_gpio);
+		break;
+	case R3DI_DSP_DOWNLOADED:
+		/* Set DOWNLOADING bit to 0. */
+		cur_gpio &= ~(1 << R3DI_GPIO_DSP_DOWNLOADING);
+
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+				AC_VERB_SET_GPIO_DATA, cur_gpio);
+
+		cur_gpio |= (1 << R3DI_GPIO_DSP_DOWNLOADED);
+		break;
+	}
+
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_DATA, cur_gpio);
+}
+
+/*
  * PCM callbacks
  */
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -4543,6 +4613,30 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
 }
 
 /*
+ * Recon3Di r3di_setup_defaults sub functions.
+ */
+
+static void r3di_dsp_initial_mic_setup(struct hda_codec *codec)
+{
+	unsigned int tmp;
+
+	/* Mic 1 Setup */
+	chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
+	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
+	/* This ConnPointID is unique to Recon3Di. Haven't seen it elsewhere */
+	chipio_set_conn_rate(codec, 0x0F, SR_96_000);
+	tmp = FLOAT_ONE;
+	dspio_set_uint_param(codec, 0x80, 0x00, tmp);
+
+	/* Mic 2 Setup, even though it isn't connected on SBZ */
+	chipio_set_conn_rate(codec, MEM_CONNID_MICIN2, SR_96_000);
+	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT2, SR_96_000);
+	chipio_set_conn_rate(codec, 0x0F, SR_96_000);
+	tmp = FLOAT_ZERO;
+	dspio_set_uint_param(codec, 0x80, 0x01, tmp);
+}
+
+/*
  * Initialize Sound Blaster Z analog microphones.
  */
 static void sbz_init_analog_mics(struct hda_codec *codec)
@@ -4701,6 +4795,50 @@ static void ca0132_setup_defaults(struct hda_codec *codec)
 	/* set WUH source */
 	tmp = FLOAT_TWO;
 	dspio_set_uint_param(codec, 0x31, 0x00, tmp);
+}
+
+/*
+ * Setup default parameters for Recon3Di DSP.
+ */
+
+static void r3di_setup_defaults(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int tmp;
+	int num_fx;
+	int idx, i;
+
+	if (spec->dsp_state != DSP_DOWNLOADED)
+		return;
+
+
+	r3di_dsp_initial_mic_setup(codec);
+
+	/*remove DSP headroom*/
+	tmp = FLOAT_ZERO;
+	dspio_set_uint_param(codec, 0x96, 0x3C, tmp);
+
+	/* set WUH source */
+	tmp = FLOAT_TWO;
+	dspio_set_uint_param(codec, 0x31, 0x00, tmp);
+	chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
+
+	/* Set speaker source? */
+	dspio_set_uint_param(codec, 0x32, 0x00, tmp);
+
+	r3di_gpio_dsp_status_set(codec, R3DI_DSP_DOWNLOADED);
+
+	/* Setup effect defaults */
+	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT + 1;
+	for (idx = 0; idx < num_fx; idx++) {
+		for (i = 0; i <= ca0132_effects[idx].params; i++) {
+			dspio_set_uint_param(codec,
+					ca0132_effects[idx].mid,
+					ca0132_effects[idx].reqs[i],
+					ca0132_effects[idx].def_vals[i]);
+		}
+	}
+
 }
 
 /*
@@ -5401,6 +5539,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		codec_dbg(codec, "R3DI alt_init");
 		ca0132_gpio_init(codec);
 		ca0132_gpio_setup(codec);
+		r3di_gpio_dsp_status_set(codec, R3DI_DSP_DOWNLOADING);
 		r3di_pre_dsp_setup(codec);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x6FF, 0xC4);
@@ -5449,21 +5588,29 @@ static int ca0132_init(struct hda_codec *codec)
 	ca0132_init_unsol(codec);
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
+
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
 
 	if (spec->quirk != QUIRK_NONE)
 		ca0132_alt_init(codec);
 
 	ca0132_download_dsp(codec);
+
 	ca0132_refresh_widget_caps(codec);
 
 	if (spec->quirk == QUIRK_SBZ)
 		writew(0x0107, spec->mem_base + 0x320);
 
-	if (spec->quirk != QUIRK_SBZ) {
+	switch (spec->quirk) {
+	case QUIRK_R3DI:
+		r3di_setup_defaults(codec);
+		break;
+	case QUIRK_NONE:
+	case QUIRK_ALIENWARE:
 		ca0132_setup_defaults(codec);
 		ca0132_init_analog_mic2(codec);
 		ca0132_init_dmic(codec);
+		break;
 	}
 
 	for (i = 0; i < spec->num_outputs; i++)
