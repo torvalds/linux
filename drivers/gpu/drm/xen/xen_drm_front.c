@@ -188,8 +188,8 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
 	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
-	if (!shbuf)
-		return -ENOMEM;
+	if (IS_ERR(shbuf))
+		return PTR_ERR(shbuf);
 
 	ret = dbuf_add_to_list(front_info, shbuf, dbuf_cookie);
 	if (ret < 0) {
