@@ -43,7 +43,6 @@ gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gf100_grctx_generate_r406800(gr);
 
 	for (i = 0; i < 8; i++)
 		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
@@ -83,4 +82,5 @@ gk20a_grctx = {
 	.sm_id = gf100_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
+	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
 };

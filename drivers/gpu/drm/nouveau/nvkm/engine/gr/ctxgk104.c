@@ -916,7 +916,6 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gf100_grctx_generate_r406800(gr);
 
 	for (i = 0; i < 8; i++)
 		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
@@ -931,6 +930,53 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_mask(device, 0x418800, 0x00200000, 0x00200000);
 	nvkm_mask(device, 0x41be10, 0x00800000, 0x00800000);
+}
+
+void
+gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int i, j, gpc, ppc;
+
+	for (i = 0; i < 32; i++) {
+		u32 atarget = max_t(u32, gr->tpc_total * i / 32, 1);
+		u32 btarget = gr->tpc_total - atarget;
+		bool alpha = atarget < btarget;
+		u64 amask = 0, bmask = 0;
+
+		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+			for (ppc = 0; ppc < gr->func->ppc_nr; ppc++) {
+				u32 ppc_tpcs = gr->ppc_tpc_nr[gpc][ppc];
+				u32 abits, bbits, pmask;
+
+				if (alpha) {
+					abits = atarget ? ppc_tpcs : 0;
+					bbits = ppc_tpcs - abits;
+				} else {
+					bbits = btarget ? ppc_tpcs : 0;
+					abits = ppc_tpcs - bbits;
+				}
+
+				pmask = gr->ppc_tpc_mask[gpc][ppc];
+				while (ppc_tpcs-- > abits)
+					pmask &= pmask - 1;
+				amask |= (u64)pmask << (gpc * 8);
+
+				pmask ^= gr->ppc_tpc_mask[gpc][ppc];
+				bmask |= (u64)pmask << (gpc * 8);
+
+				atarget -= min(abits, atarget);
+				btarget -= min(bbits, btarget);
+				if ((abits > 0) || (bbits > 0))
+					alpha = !alpha;
+			}
+		}
+
+		for (j = 0; j < gr->gpc_nr; j += 4, amask >>= 32, bmask >>= 32) {
+			nvkm_wr32(device, 0x406800 + (i * 0x20) + j, amask);
+			nvkm_wr32(device, 0x406c00 + (i * 0x20) + j, bmask);
+		}
+	}
 }
 
 const struct gf100_grctx_func
@@ -959,4 +1005,5 @@ gk104_grctx = {
 	.sm_id = gf100_grctx_generate_sm_id,
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
+	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
 };

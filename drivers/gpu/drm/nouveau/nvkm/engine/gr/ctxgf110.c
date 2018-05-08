@@ -351,4 +351,5 @@ gf110_grctx = {
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.r4060a8 = gf100_grctx_generate_r4060a8,
 	.rop_mapping = gf100_grctx_generate_rop_mapping,
+	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
 };

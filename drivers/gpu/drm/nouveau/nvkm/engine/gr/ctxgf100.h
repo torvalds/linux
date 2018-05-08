@@ -55,6 +55,7 @@ struct gf100_grctx_func {
 	void (*tpc_nr)(struct gf100_gr *, int gpc);
 	void (*r4060a8)(struct gf100_gr *);
 	void (*rop_mapping)(struct gf100_gr *);
+	void (*alpha_beta_tables)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -65,11 +66,11 @@ void gf100_grctx_generate_pagepool(struct gf100_grctx *);
 void gf100_grctx_generate_attrib(struct gf100_grctx *);
 void gf100_grctx_generate_unkn(struct gf100_gr *);
 void gf100_grctx_generate_floorsweep(struct gf100_gr *);
-void gf100_grctx_generate_r406800(struct gf100_gr *);
 void gf100_grctx_generate_sm_id(struct gf100_gr *, int, int, int);
 void gf100_grctx_generate_tpc_nr(struct gf100_gr *, int);
 void gf100_grctx_generate_r4060a8(struct gf100_gr *);
 void gf100_grctx_generate_rop_mapping(struct gf100_gr *);
+void gf100_grctx_generate_alpha_beta_tables(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gf108_grctx;
 void gf108_grctx_generate_attrib(struct gf100_grctx *);
@@ -85,6 +86,8 @@ void gf117_grctx_generate_rop_mapping(struct gf100_gr *);
 extern const struct gf100_grctx_func gf119_grctx;
 
 extern const struct gf100_grctx_func gk104_grctx;
+void gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *);
+
 extern const struct gf100_grctx_func gk20a_grctx;
 void gk104_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gk104_grctx_generate_bundle(struct gf100_grctx *);

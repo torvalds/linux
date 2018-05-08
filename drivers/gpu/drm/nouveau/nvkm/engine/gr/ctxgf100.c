@@ -1163,37 +1163,140 @@ gf100_grctx_generate_rop_mapping(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x40780c + (i * 4), data[i]);
 }
 
+static const u32
+gf100_grctx_alpha_beta_map[17][32] = {
+	[1] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	},
+	[2] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	},
+	//XXX: 3
+	[4] = {
+		1, 1, 1, 1, 1, 1, 1, 1,
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+		3, 3, 3, 3, 3, 3, 3, 3,
+	},
+	//XXX: 5
+	//XXX: 6
+	[7] = {
+		1, 1, 1, 1,
+		2, 2, 2, 2, 2, 2,
+		3, 3, 3, 3, 3, 3,
+		4, 4, 4, 4, 4, 4,
+		5, 5, 5, 5, 5, 5,
+		6, 6, 6, 6,
+	},
+	[8] = {
+		1, 1, 1,
+		2, 2, 2, 2, 2,
+		3, 3, 3, 3, 3,
+		4, 4, 4, 4, 4, 4,
+		5, 5, 5, 5, 5,
+		6, 6, 6, 6, 6,
+		7, 7, 7,
+	},
+	//XXX: 9
+	//XXX: 10
+	[11] = {
+		1, 1,
+		2, 2, 2, 2,
+		3, 3, 3,
+		4, 4, 4, 4,
+		5, 5, 5,
+		6, 6, 6,
+		7, 7, 7, 7,
+		8, 8, 8,
+		9, 9, 9, 9,
+		10, 10,
+	},
+	//XXX: 12
+	//XXX: 13
+	[14] = {
+		1, 1,
+		2, 2,
+		3, 3, 3,
+		4, 4, 4,
+		5, 5,
+		6, 6, 6,
+		7, 7,
+		8, 8, 8,
+		9, 9,
+		10, 10, 10,
+		11, 11, 11,
+		12, 12,
+		13, 13,
+	},
+	[15] = {
+		1, 1,
+		2, 2,
+		3, 3,
+		4, 4, 4,
+		5, 5,
+		6, 6, 6,
+		7, 7,
+		8, 8,
+		9, 9, 9,
+		10, 10,
+		11, 11, 11,
+		12, 12,
+		13, 13,
+		14, 14,
+	},
+	[16] = {
+		1, 1,
+		2, 2,
+		3, 3,
+		4, 4,
+		5, 5,
+		6, 6, 6,
+		7, 7,
+		8, 8,
+		9, 9,
+		10, 10, 10,
+		11, 11,
+		12, 12,
+		13, 13,
+		14, 14,
+		15, 15,
+	},
+};
+
 void
-gf100_grctx_generate_r406800(struct gf100_gr *gr)
+gf100_grctx_generate_alpha_beta_tables(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u64 tpc_mask = 0, tpc_set = 0;
-	u8  tpcnr[GPC_MAX];
-	int gpc, tpc;
-	int i, a, b;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	int i, gpc;
 
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++)
-		tpc_mask |= ((1ULL << gr->tpc_nr[gpc]) - 1) << (gpc * 8);
+	for (i = 0; i < 32; i++) {
+		u32 atarget = gf100_grctx_alpha_beta_map[gr->tpc_total][i];
+		u32 abits[GPC_MAX] = {}, amask = 0, bmask = 0;
 
-	for (i = 0, gpc = -1, b = -1; i < 32; i++) {
-		a = (i * (gr->tpc_total - 1)) / 32;
-		if (a != b) {
-			b = a;
-			do {
-				gpc = (gpc + 1) % gr->gpc_nr;
-			} while (!tpcnr[gpc]);
-			tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
-
-			tpc_set |= 1ULL << ((gpc * 8) + tpc);
+		if (!atarget) {
+			nvkm_warn(subdev, "missing alpha/beta mapping table\n");
+			atarget = max_t(u32, gr->tpc_total * i / 32, 1);
 		}
 
-		nvkm_wr32(device, 0x406800 + (i * 0x20), lower_32_bits(tpc_set));
-		nvkm_wr32(device, 0x406c00 + (i * 0x20), lower_32_bits(tpc_set ^ tpc_mask));
-		if (gr->gpc_nr > 4) {
-			nvkm_wr32(device, 0x406804 + (i * 0x20), upper_32_bits(tpc_set));
-			nvkm_wr32(device, 0x406c04 + (i * 0x20), upper_32_bits(tpc_set ^ tpc_mask));
+		while (atarget) {
+			for (gpc = 0; atarget && gpc < gr->gpc_nr; gpc++) {
+				if (abits[gpc] < gr->tpc_nr[gpc]) {
+					abits[gpc]++;
+					atarget--;
+				}
+			}
 		}
+
+		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+			u32 bbits = gr->tpc_nr[gpc] - abits[gpc];
+			amask |= ((1 << abits[gpc]) - 1) << (gpc * 8);
+			bmask |= ((1 << bbits) - 1) << abits[gpc] << (gpc * 8);
+		}
+
+		nvkm_wr32(device, 0x406800 + (i * 0x20), amask);
+		nvkm_wr32(device, 0x406c00 + (i * 0x20), bmask);
 	}
 }
 
@@ -1243,6 +1346,9 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 		func->r4060a8(gr);
 
 	func->rop_mapping(gr);
+
+	if (func->alpha_beta_tables)
+		func->alpha_beta_tables(gr);
 }
 
 void
@@ -1274,7 +1380,6 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-	gf100_grctx_generate_r406800(gr);
 
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, idle_timeout);
@@ -1426,4 +1531,5 @@ gf100_grctx = {
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.r4060a8 = gf100_grctx_generate_r4060a8,
 	.rop_mapping = gf100_grctx_generate_rop_mapping,
+	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
 };
