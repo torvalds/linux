@@ -120,6 +120,7 @@ gf104_gr = {
 	.init_zcull = gf100_gr_init_zcull,
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
+	.init_40601c = gf100_gr_init_40601c,
 	.mmio = gf104_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
