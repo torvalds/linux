@@ -733,6 +733,12 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_LSN_UNSLCVC, I915_READ(GEN11_LSN_UNSLCVC) |
 				      GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC |
 				      GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
+
+	/* Wa_220166154:icl
+	 * Formerly known as WaDisCtxReload
+	 */
+	I915_WRITE(GAMW_ECO_DEV_RW_IA_REG, I915_READ(GAMW_ECO_DEV_RW_IA_REG) |
+					   GAMW_ECO_DEV_CTX_RELOAD_DISABLE);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
