@@ -778,7 +778,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
 				     XenbusStateUnknown) != XenbusStateInitWait) &&
-				     to--)
+				     --to)
 		msleep(10);
 
 	if (!to) {
