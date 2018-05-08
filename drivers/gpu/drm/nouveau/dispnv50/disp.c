@@ -194,6 +194,12 @@ struct nv50_head_atom {
 		} sat;
 	} procamp;
 
+	struct {
+		u8 nhsync:1;
+		u8 nvsync:1;
+		u8 depth:4;
+	} or;
+
 	union {
 		struct {
 			bool ilut:1;
@@ -214,6 +220,7 @@ struct nv50_head_atom {
 			bool ovly:1;
 			bool dither:1;
 			bool procamp:1;
+			bool or:1;
 		};
 		u16 mask;
 	} set;
@@ -457,6 +464,7 @@ struct nv50_head_func {
 	void (*ovly)(struct nv50_head *, struct nv50_head_atom *);
 	void (*dither)(struct nv50_head *, struct nv50_head_atom *);
 	void (*procamp)(struct nv50_head *, struct nv50_head_atom *);
+	void (*or)(struct nv50_head *, struct nv50_head_atom *);
 };
 
 #define nv50_head(c) container_of((c), struct nv50_head, base.base)
@@ -1628,6 +1636,23 @@ nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
  * Head
  *****************************************************************************/
 static void
+head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	u32 *push;
+	if (core->base.user.oclass >= GF110_DISP_CORE_CHANNEL_DMA &&
+	    (push = evo_wait(core, 2))) {
+		evo_mthd(push, 0x0404 + (head->base.index * 0x300), 2);
+		evo_data(push, 0x00000001 | (asyh->or.depth  << 6) |
+					    (asyh->or.nvsync << 4) |
+					    (asyh->or.nhsync << 3));
+		evo_data(push, 0x31ec6000 | (head->base.index << 25) |
+					     asyh->mode.interlace);
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
@@ -2033,6 +2058,7 @@ head507d = {
 	.ovly = nv50_head_ovly,
 	.dither = nv50_head_dither,
 	.procamp = nv50_head_procamp,
+	.or = head907d_or,
 };
 
 static void
@@ -2066,6 +2092,7 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.ovly   ) head->func->ovly    (head, asyh);
 	if (asyh->set.dither ) head->func->dither  (head, asyh);
 	if (asyh->set.procamp) head->func->procamp (head, asyh);
+	if (asyh->set.or     ) head->func->or      (head, asyh);
 }
 
 static void
@@ -2268,6 +2295,9 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 	m->clock = mode->crtc_clock;
 
+	asyh->or.nhsync = !!(mode->flags & DRM_MODE_FLAG_NHSYNC);
+	asyh->or.nvsync = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
+	asyh->set.or = head->func->or != NULL;
 	asyh->set.mode = true;
 }
 
@@ -2304,6 +2334,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			if (asyc)
 				asyc->set.mask = ~0;
 			asyh->set.mask = ~0;
+			asyh->set.or = head->func->or != NULL;
 		}
 
 		if (asyh->state.mode_changed)
@@ -2707,7 +2738,7 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nv50_dmac *core = &nv50_disp(encoder->dev)->core->chan;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct drm_display_mode *mode = &nv_crtc->base.state->adjusted_mode;
+	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	u32 *push;
 
 	nv50_outp_acquire(nv_encoder);
@@ -2715,37 +2746,17 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	push = evo_wait(core, 8);
 	if (push) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			u32 syncs = 0x00000000;
-
-			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-				syncs |= 0x00000001;
-			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-				syncs |= 0x00000002;
-
 			evo_mthd(push, 0x0400 + (nv_encoder->or * 0x080), 2);
 			evo_data(push, 1 << nv_crtc->index);
-			evo_data(push, syncs);
+			evo_data(push, (asyh->or.nvsync << 1) | asyh->or.nhsync);
 		} else {
-			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
-			u32 syncs = 0x00000001;
-
-			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-				syncs |= 0x00000008;
-			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-				syncs |= 0x00000010;
-
-			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-				magic |= 0x00000001;
-
-			evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
-			evo_data(push, syncs);
-			evo_data(push, magic);
 			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 1);
 			evo_data(push, 1 << nv_crtc->index);
 		}
 
 		evo_kick(push, core);
 	}
+	asyh->or.depth = 0;
 
 	nv_encoder->crtc = encoder->crtc;
 }
@@ -3144,7 +3155,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	}
 
 	mstm->outp->update(mstm->outp, head->base.index,
-			   &head->base.base.state->adjusted_mode, proto, depth);
+			   nv50_head_atom(head->base.base.state), proto, depth);
 
 	msto->head = head;
 	msto->mstc = mstc;
@@ -3612,46 +3623,31 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
  *****************************************************************************/
 static void
 nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
-		struct drm_display_mode *mode, u8 proto, u8 depth)
+		struct nv50_head_atom *asyh, u8 proto, u8 depth)
 {
 	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
 	struct nv50_dmac *core = &disp->core->chan;
 	u32 *push;
 
-	if (!mode) {
+	if (!asyh) {
 		nv_encoder->ctrl &= ~BIT(head);
 		if (!(nv_encoder->ctrl & 0x0000000f))
 			nv_encoder->ctrl = 0;
 	} else {
 		nv_encoder->ctrl |= proto << 8;
 		nv_encoder->ctrl |= BIT(head);
+		asyh->or.depth = depth;
 	}
 
 	if ((push = evo_wait(core, 6))) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			if (mode) {
-				if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-					nv_encoder->ctrl |= 0x00001000;
-				if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-					nv_encoder->ctrl |= 0x00002000;
-				nv_encoder->ctrl |= depth << 16;
+			if (asyh) {
+				nv_encoder->ctrl |= asyh->or.depth  << 16 |
+						    asyh->or.nvsync << 13 |
+						    asyh->or.nhsync << 12;
 			}
 			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x40), 1);
 		} else {
-			if (mode) {
-				u32 magic = 0x31ec6000 | (head << 25);
-				u32 syncs = 0x00000001;
-				if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-					syncs |= 0x00000008;
-				if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-					syncs |= 0x00000010;
-				if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-					magic |= 0x00000001;
-
-				evo_mthd(push, 0x0404 + (head * 0x300), 2);
-				evo_data(push, syncs | (depth << 6));
-				evo_data(push, magic);
-			}
 			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
 		}
 		evo_data(push, nv_encoder->ctrl);
@@ -3692,7 +3688,8 @@ nv50_sor_enable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct drm_display_mode *mode = &nv_crtc->base.state->adjusted_mode;
+	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
+	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
 	struct {
 		struct nv50_disp_mthd_v1 base;
 		struct nv50_disp_sor_lvds_script_v0 lvds;
@@ -3786,7 +3783,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		break;
 	}
 
-	nv_encoder->update(nv_encoder, nv_crtc->index, mode, proto, depth);
+	nv_encoder->update(nv_encoder, nv_crtc->index, asyh, proto, depth);
 }
 
 static const struct drm_encoder_helper_funcs
@@ -3924,19 +3921,19 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
-	struct drm_display_mode *mode = &nv_crtc->base.state->adjusted_mode;
+	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	u8 owner = 1 << nv_crtc->index;
-	u8 proto, depth;
+	u8 proto;
 	u32 *push;
 
 	nv50_outp_acquire(nv_encoder);
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	switch (nv_connector->base.display_info.bpc) {
-	case 10: depth = 0x6; break;
-	case  8: depth = 0x5; break;
-	case  6: depth = 0x2; break;
-	default: depth = 0x0; break;
+	case 10: asyh->or.depth = 0x6; break;
+	case  8: asyh->or.depth = 0x5; break;
+	case  6: asyh->or.depth = 0x2; break;
+	default: asyh->or.depth = 0x0; break;
 	}
 
 	switch (nv_encoder->dcb->type) {
@@ -3952,13 +3949,11 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	push = evo_wait(core, 8);
 	if (push) {
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			u32 ctrl = (depth << 16) | (proto << 8) | owner;
-			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-				ctrl |= 0x00001000;
-			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-				ctrl |= 0x00002000;
 			evo_mthd(push, 0x0700 + (nv_encoder->or * 0x040), 1);
-			evo_data(push, ctrl);
+			evo_data(push, (asyh->or.depth  << 16) |
+				       (asyh->or.nvsync << 13) |
+				       (asyh->or.nhsync << 12) |
+				       (proto << 8) | owner);
 		}
 
 		evo_kick(push, core);
