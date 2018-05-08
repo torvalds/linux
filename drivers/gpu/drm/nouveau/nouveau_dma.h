@@ -54,7 +54,6 @@ enum {
 
 	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
-	FermiSw		= 5, /* DO NOT CHANGE (well.. 6/7 will work...) */
 };
 
 /* Object handles - for stuff that's doesn't use handle == oclass. */

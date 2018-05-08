@@ -388,36 +388,34 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nvif_object_init(&drm->channel->user, NVDRM_NVSW,
-			       nouveau_abi16_swclass(drm), NULL, 0, &drm->nvsw);
-	if (ret == 0) {
-		ret = RING_SPACE(drm->channel, 2);
+	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
+		ret = nvif_object_init(&drm->channel->user, NVDRM_NVSW,
+				       nouveau_abi16_swclass(drm), NULL, 0,
+				       &drm->nvsw);
 		if (ret == 0) {
-			if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
+			ret = RING_SPACE(drm->channel, 2);
+			if (ret == 0) {
 				BEGIN_NV04(drm->channel, NvSubSw, 0, 1);
-				OUT_RING  (drm->channel, NVDRM_NVSW);
-			} else
-			if (device->info.family < NV_DEVICE_INFO_V0_KEPLER) {
-				BEGIN_NVC0(drm->channel, FermiSw, 0, 1);
-				OUT_RING  (drm->channel, 0x001f0000);
+				OUT_RING  (drm->channel, drm->nvsw.handle);
+			}
+
+			ret = nvif_notify_init(&drm->nvsw,
+					       nouveau_flip_complete,
+					       false, NV04_NVSW_NTFY_UEVENT,
+					       NULL, 0, 0, &drm->flip);
+			if (ret == 0)
+				ret = nvif_notify_get(&drm->flip);
+			if (ret) {
+				nouveau_accel_fini(drm);
+				return;
 			}
 		}
 
-		ret = nvif_notify_init(&drm->nvsw, nouveau_flip_complete,
-				       false, NV04_NVSW_NTFY_UEVENT,
-				       NULL, 0, 0, &drm->flip);
-		if (ret == 0)
-			ret = nvif_notify_get(&drm->flip);
 		if (ret) {
+			NV_ERROR(drm, "failed to allocate sw class, %d\n", ret);
 			nouveau_accel_fini(drm);
 			return;
 		}
-	}
-
-	if (ret) {
-		NV_ERROR(drm, "failed to allocate software object, %d\n", ret);
-		nouveau_accel_fini(drm);
-		return;
 	}
 
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
