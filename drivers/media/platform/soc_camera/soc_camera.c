@@ -2001,14 +2001,14 @@ static int soc_camera_probe(struct soc_camera_host *ici,
 	if (shd->board_info) {
 		ret = soc_camera_i2c_init(icd, sdesc);
 		if (ret < 0 && ret != -EPROBE_DEFER)
-			goto eadd;
+			goto epower;
 	} else if (!shd->add_device || !shd->del_device) {
 		ret = -EINVAL;
-		goto eadd;
+		goto epower;
 	} else {
 		ret = soc_camera_clock_start(ici);
 		if (ret < 0)
-			goto eadd;
+			goto epower;
 
 		if (shd->module_name)
 			ret = request_module(shd->module_name);
@@ -2048,7 +2048,7 @@ enodrv:
 eadddev:
 		soc_camera_clock_stop(ici);
 	}
-
+epower:
 	soc_camera_power_off(icd->pdev, ssdd, NULL);
 eadd:
 	if (icd->vdev) {
