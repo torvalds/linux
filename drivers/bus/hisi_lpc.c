@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/logic_pio.h>
-#include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -341,15 +340,6 @@ static const struct logic_pio_host_ops hisi_lpc_ops = {
 };
 
 #ifdef CONFIG_ACPI
-#define MFD_CHILD_NAME_PREFIX DRV_NAME"-"
-#define MFD_CHILD_NAME_LEN (ACPI_ID_LEN + sizeof(MFD_CHILD_NAME_PREFIX) - 1)
-
-struct hisi_lpc_mfd_cell {
-	struct mfd_cell_acpi_match acpi_match;
-	char name[MFD_CHILD_NAME_LEN];
-	char pnpid[ACPI_ID_LEN];
-};
-
 static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 				     struct acpi_device *host,
 				     struct resource *res)
@@ -368,7 +358,7 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 }
 
 /*
- * hisi_lpc_acpi_set_io_res - set the resources for a child's MFD
+ * hisi_lpc_acpi_set_io_res - set the resources for a child
  * @child: the device node to be updated the I/O resource
  * @hostdev: the device node associated with host controller
  * @res: double pointer to be set to the address of translated resources
@@ -458,69 +448,23 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
  *
  * Returns 0 when successful, and a negative value for failure.
  *
- * Scan all child devices and create a per-device MFD with
- * logical PIO translated IO resources.
  */
 static int hisi_lpc_acpi_probe(struct device *hostdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(hostdev);
-	struct hisi_lpc_mfd_cell *hisi_lpc_mfd_cells;
-	struct mfd_cell *mfd_cells;
 	struct acpi_device *child;
-	int size, ret, count = 0, cell_num = 0;
+	int ret;
 
-	list_for_each_entry(child, &adev->children, node)
-		cell_num++;
-
-	/* allocate the mfd cell and companion ACPI info, one per child */
-	size = sizeof(*mfd_cells) + sizeof(*hisi_lpc_mfd_cells);
-	mfd_cells = devm_kcalloc(hostdev, cell_num, size, GFP_KERNEL);
-	if (!mfd_cells)
-		return -ENOMEM;
-
-	hisi_lpc_mfd_cells = (struct hisi_lpc_mfd_cell *)&mfd_cells[cell_num];
 	/* Only consider the children of the host */
 	list_for_each_entry(child, &adev->children, node) {
-		struct mfd_cell *mfd_cell = &mfd_cells[count];
-		struct hisi_lpc_mfd_cell *hisi_lpc_mfd_cell =
-					&hisi_lpc_mfd_cells[count];
-		struct mfd_cell_acpi_match *acpi_match =
-					&hisi_lpc_mfd_cell->acpi_match;
-		char *name = hisi_lpc_mfd_cell[count].name;
-		char *pnpid = hisi_lpc_mfd_cell[count].pnpid;
-		struct mfd_cell_acpi_match match = {
-			.pnpid = pnpid,
-		};
+		const struct resource *res;
+		int num_res;
 
-		/*
-		 * For any instances of this host controller (Hip06 and Hip07
-		 * are the only chipsets), we would not have multiple slaves
-		 * with the same HID. And in any system we would have just one
-		 * controller active. So don't worrry about MFD name clashes.
-		 */
-		snprintf(name, MFD_CHILD_NAME_LEN, MFD_CHILD_NAME_PREFIX"%s",
-			 acpi_device_hid(child));
-		snprintf(pnpid, ACPI_ID_LEN, "%s", acpi_device_hid(child));
-
-		memcpy(acpi_match, &match, sizeof(*acpi_match));
-		mfd_cell->name = name;
-		mfd_cell->acpi_match = acpi_match;
-
-		ret = hisi_lpc_acpi_set_io_res(&child->dev, &adev->dev,
-					       &mfd_cell->resources,
-					       &mfd_cell->num_resources);
+		ret = hisi_lpc_acpi_set_io_res(&child->dev, &adev->dev, &res,
+					       &num_res);
 		if (ret) {
-			dev_warn(&child->dev, "set resource fail (%d)\n", ret);
-			return ret;
+			dev_warn(hostdev, "set resource fail (%d)\n", ret);
 		}
-		count++;
-	}
-
-	ret = mfd_add_devices(hostdev, PLATFORM_DEVID_NONE,
-			      mfd_cells, cell_num, NULL, 0, NULL);
-	if (ret) {
-		dev_err(hostdev, "failed to add mfd cells (%d)\n", ret);
-		return ret;
 	}
 
 	return 0;
