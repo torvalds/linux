@@ -51,6 +51,7 @@ gp102_gr = {
 	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
 	.init_fecs_exceptions = gp100_gr_init_fecs_exceptions,
 	.init_ds_hww_esr_2 = gm200_gr_init_ds_hww_esr_2,
+	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 3,

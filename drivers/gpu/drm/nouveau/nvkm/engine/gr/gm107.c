@@ -378,7 +378,7 @@ gm107_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x408030, 0xc0000000);
 	nvkm_wr32(device, 0x404490, 0xc0000000);
 	nvkm_wr32(device, 0x406018, 0xc0000000);
-	nvkm_wr32(device, 0x407020, 0x40000000);
+	gr->func->init_sked_hww_esr(gr);
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
@@ -456,6 +456,7 @@ gm107_gr = {
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.init_bios_2 = gm107_gr_init_bios_2,
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
+	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,

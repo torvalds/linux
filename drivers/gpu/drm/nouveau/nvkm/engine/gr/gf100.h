@@ -133,6 +133,7 @@ struct gf100_gr_func {
 	void (*init_fecs_exceptions)(struct gf100_gr *);
 	void (*init_ds_hww_esr_2)(struct gf100_gr *);
 	void (*init_40601c)(struct gf100_gr *);
+	void (*init_sked_hww_esr)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
@@ -163,6 +164,7 @@ int gk104_gr_init(struct gf100_gr *);
 void gk104_gr_init_vsc_stream_master(struct gf100_gr *);
 void gk104_gr_init_rop_active_fbps(struct gf100_gr *);
 void gk104_gr_init_ppc_exceptions(struct gf100_gr *);
+void gk104_gr_init_sked_hww_esr(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
 

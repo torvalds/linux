@@ -2036,6 +2036,10 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	nvkm_wr32(device, 0x404490, 0xc0000000);
 	nvkm_wr32(device, 0x406018, 0xc0000000);
+
+	if (gr->func->init_sked_hww_esr)
+		gr->func->init_sked_hww_esr(gr);
+
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
