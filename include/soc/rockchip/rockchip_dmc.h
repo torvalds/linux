@@ -26,10 +26,28 @@ static inline int rockchip_drm_register_notifier_to_dmc(struct devfreq *devfreq)
 
 #ifdef CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ
 int rockchip_dmcfreq_wait_complete(void);
+int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
+					   unsigned int bw_mbyte);
+void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
+					   unsigned int bw_mbyte);
+
 #else
 static inline int rockchip_dmcfreq_wait_complete(void)
 {
 	return 0;
+}
+
+static inline int
+rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
+				       unsigned int bw_mbyte)
+{
+	return 0;
+}
+
+static inline void
+rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
+				      unsigned int bw_mbyte)
+{
 }
 #endif
 
