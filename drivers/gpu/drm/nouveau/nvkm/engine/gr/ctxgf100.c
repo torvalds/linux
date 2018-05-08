@@ -1092,23 +1092,18 @@ gf100_grctx_generate_r4060a8(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u8 gpcmax = nvkm_rd32(device, 0x022430);
 	const u8 tpcmax = nvkm_rd32(device, 0x022434) * gpcmax;
-	u8 tpcnr[GPC_MAX], data[TPC_MAX];
-	int gpc, tpc, i;
+	int i, j, sm = 0;
+	u32 data;
 
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-	memset(data, 0x1f, sizeof(data));
-
-	gpc = -1;
-	for (tpc = 0; tpc < gr->tpc_total; tpc++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpcnr[gpc]--;
-		data[tpc] = gpc;
+	for (i = 0; i < DIV_ROUND_UP(tpcmax, 4); i++) {
+		for (data = 0, j = 0; j < 4; j++) {
+			if (sm < gr->sm_nr)
+				data |= gr->sm[sm++].gpc << (j * 8);
+			else
+				data |= 0x1f << (j * 8);
+		}
+		nvkm_wr32(device, 0x4060a8 + (i * 4), data);
 	}
-
-	for (i = 0; i < DIV_ROUND_UP(tpcmax, 4); i++)
-		nvkm_wr32(device, 0x4060a8 + (i * 4), ((u32 *)data)[i]);
 }
 
 void
@@ -1326,16 +1321,13 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *func = gr->func->grctx;
-	int tpc, gpc, sm, i, j;
+	int gpc, sm, i, j;
 	u32 data;
 
-	for (tpc = 0, sm = 0; tpc < gr->tpc_max; tpc++) {
-		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-			if (tpc < gr->tpc_nr[gpc])
-				func->sm_id(gr, gpc, tpc, sm++);
-			if (func->tpc_nr)
-				func->tpc_nr(gr, gpc);
-		}
+	for (sm = 0; sm < gr->sm_nr; sm++) {
+		func->sm_id(gr, gr->sm[sm].gpc, gr->sm[sm].tpc, sm);
+		if (func->tpc_nr)
+			func->tpc_nr(gr, gr->sm[sm].gpc);
 	}
 
 	for (gpc = 0, i = 0; i < 4; i++) {

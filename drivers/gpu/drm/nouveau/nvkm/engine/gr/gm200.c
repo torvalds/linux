@@ -93,6 +93,13 @@ gm200_gr_tile_map_2_8[] = {
 };
 
 void
+gm200_gr_oneinit_sm_id(struct gf100_gr *gr)
+{
+	/*XXX: There's a different algorithm here I've not yet figured out. */
+	gf100_gr_oneinit_sm_id(gr);
+}
+
+void
 gm200_gr_oneinit_tiles(struct gf100_gr *gr)
 {
 	/*XXX: Not sure what this is about.  The algorithm from NVGPU
@@ -158,6 +165,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 static const struct gf100_gr_func
 gm200_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
+	.oneinit_sm_id = gm200_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_bios = gm107_gr_init_bios,

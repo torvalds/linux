@@ -1653,6 +1653,21 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 }
 
 void
+gf100_gr_oneinit_sm_id(struct gf100_gr *gr)
+{
+	int tpc, gpc;
+	for (tpc = 0; tpc < gr->tpc_max; tpc++) {
+		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+			if (tpc < gr->tpc_nr[gpc]) {
+				gr->sm[gr->sm_nr].gpc = gpc;
+				gr->sm[gr->sm_nr].tpc = tpc;
+				gr->sm_nr++;
+			}
+		}
+	}
+}
+
+void
 gf100_gr_oneinit_tiles(struct gf100_gr *gr)
 {
 	static const u8 primes[] = {
@@ -1769,6 +1784,7 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 
 	memset(gr->tile, 0xff, sizeof(gr->tile));
 	gr->func->oneinit_tiles(gr);
+	gr->func->oneinit_sm_id(gr);
 	return 0;
 }
 
@@ -2204,6 +2220,7 @@ gf100_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gf100_gr = {
 	.oneinit_tiles = gf100_gr_oneinit_tiles,
+	.oneinit_sm_id = gf100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,

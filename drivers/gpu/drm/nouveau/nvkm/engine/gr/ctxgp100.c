@@ -95,23 +95,13 @@ gp100_grctx_generate_smid_config(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 dist_nr = DIV_ROUND_UP(gr->tpc_total, 4);
 	u32 dist[TPC_MAX / 4] = {}, gpcs[16] = {};
-	u8  tpcnr[GPC_MAX];
-	int tpc, gpc, i;
+	u8  sm, i;
 
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-
-	/* won't result in the same distribution as the binary driver where
-	 * some of the gpcs have more tpcs than others, but this shall do
-	 * for the moment.  the code for earlier gpus has this issue too.
-	 */
-	for (gpc = -1, i = 0; i < gr->tpc_total; i++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while(!tpcnr[gpc]);
-		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
-
-		dist[i / 4] |= ((gpc << 4) | tpc) << ((i % 4) * 8);
-		gpcs[gpc + (gr->func->gpc_nr * (tpc / 4))] |= i << (tpc * 8);
+	for (sm = 0; sm < gr->sm_nr; sm++) {
+		const u8 gpc = gr->sm[sm].gpc;
+		const u8 tpc = gr->sm[sm].tpc;
+		dist[sm / 4] |= ((gpc << 4) | tpc) << ((sm % 4) * 8);
+		gpcs[gpc + (gr->func->gpc_nr * (tpc / 4))] |= sm << ((tpc % 4) * 8);
 	}
 
 	for (i = 0; i < dist_nr; i++)

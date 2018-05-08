@@ -351,6 +351,7 @@ gk110_gr_init_419eb4(struct gf100_gr *gr)
 static const struct gf100_gr_func
 gk110_gr = {
 	.oneinit_tiles = gf100_gr_oneinit_tiles,
+	.oneinit_sm_id = gf100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,

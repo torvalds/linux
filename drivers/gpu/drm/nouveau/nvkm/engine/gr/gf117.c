@@ -151,6 +151,7 @@ gf117_gr_init_zcull(struct gf100_gr *gr)
 static const struct gf100_gr_func
 gf117_gr = {
 	.oneinit_tiles = gf100_gr_oneinit_tiles,
+	.oneinit_sm_id = gf100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
