@@ -4,6 +4,7 @@
 
 #include <nvif/object.h>
 #include <nvif/cl0080.h>
+#include <nvif/user.h>
 
 struct nvif_device {
 	struct nvif_object object;
@@ -13,6 +14,8 @@ struct nvif_device {
 		u64 engines;
 	} *runlist;
 	int runlists;
+
+	struct nvif_user user;
 };
 
 int  nvif_device_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,

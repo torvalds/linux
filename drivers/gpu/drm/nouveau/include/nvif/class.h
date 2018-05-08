@@ -52,6 +52,8 @@
 
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
+#define VOLTA_USERMODE_A                                             0x0000c361
+
 #define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
 #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
@@ -66,6 +68,7 @@
 #define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
 #define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
 #define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
+#define VOLTA_CHANNEL_GPFIFO_A                        /* cla06f.h */ 0x0000c36f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270

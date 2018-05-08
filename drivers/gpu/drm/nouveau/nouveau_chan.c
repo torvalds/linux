@@ -220,7 +220,8 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u64 runlist, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
-	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { VOLTA_CHANNEL_GPFIFO_A,
+					PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_B,
 					KEPLER_CHANNEL_GPFIFO_A,

@@ -103,6 +103,10 @@ gk104_fifo_class_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	if (oclass->engn == &fifo->func->chan) {
 		const struct gk104_fifo_chan_user *user = oclass->engn;
 		return user->ctor(fifo, oclass, argv, argc, pobject);
+	} else
+	if (oclass->engn == &fifo->func->user) {
+		const struct gk104_fifo_user_user *user = oclass->engn;
+		return user->ctor(oclass, argv, argc, pobject);
 	}
 	WARN_ON(1);
 	return -EINVAL;
@@ -114,6 +118,12 @@ gk104_fifo_class_get(struct nvkm_fifo *base, int index,
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	int c = 0;
+
+	if (fifo->func->user.ctor && c++ == index) {
+		oclass->base =  fifo->func->user.user;
+		oclass->engn = &fifo->func->user;
+		return 0;
+	}
 
 	if (fifo->func->chan.ctor && c++ == index) {
 		oclass->base =  fifo->func->chan.user;

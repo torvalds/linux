@@ -39,6 +39,7 @@
 
 #include <nvif/driver.h>
 #include <nvif/fifo.h>
+#include <nvif/user.h>
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
@@ -310,6 +311,12 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (ret)
 		return;
 
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_VOLTA) {
+		ret = nvif_user_init(device);
+		if (ret)
+			return;
+	}
+
 	/* initialise synchronisation routines */
 	/*XXX: this is crap, but the fence/channel stuff is a little
 	 *     backwards in some places.  this will be fixed.
@@ -341,6 +348,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		case KEPLER_CHANNEL_GPFIFO_B:
 		case MAXWELL_CHANNEL_GPFIFO_A:
 		case PASCAL_CHANNEL_GPFIFO_A:
+		case VOLTA_CHANNEL_GPFIFO_A:
 			ret = nvc0_fence_create(drm);
 			break;
 		default:

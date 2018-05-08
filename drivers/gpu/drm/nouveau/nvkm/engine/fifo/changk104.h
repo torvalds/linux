@@ -20,6 +20,20 @@ struct gk104_fifo_chan {
 	} engn[NVKM_SUBDEV_NR];
 };
 
+extern const struct nvkm_fifo_chan_func gk104_fifo_gpfifo_func;
+
 int gk104_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+			  void *data, u32 size, struct nvkm_object **);
+void *gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *);
+void gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *);
+void gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *);
+int gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *, struct nvkm_engine *,
+				  struct nvkm_object *);
+void gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *,
+				   struct nvkm_engine *);
+int gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *);
+int gk104_fifo_gpfifo_kick_locked(struct gk104_fifo_chan *);
+
+int gv100_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
 			  void *data, u32 size, struct nvkm_object **);
 #endif

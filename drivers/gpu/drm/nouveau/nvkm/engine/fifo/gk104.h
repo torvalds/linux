@@ -63,6 +63,12 @@ struct gk104_fifo_func {
 			     struct nvkm_memory *, u32 offset);
 	} *runlist;
 
+	struct gk104_fifo_user_user {
+		struct nvkm_sclass user;
+		int (*ctor)(const struct nvkm_oclass *, void *, u32,
+			    struct nvkm_object **);
+	} user;
+
 	struct gk104_fifo_chan_user {
 		struct nvkm_sclass user;
 		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *,

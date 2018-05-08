@@ -34,8 +34,8 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-static int
-gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
+int
+gk104_fifo_gpfifo_kick_locked(struct gk104_fifo_chan *chan)
 {
 	struct gk104_fifo *fifo = chan->fifo;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
@@ -44,7 +44,6 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
 	int ret = 0;
 
-	mutex_lock(&subdev->mutex);
 	if (cgrp)
 		nvkm_wr32(device, 0x002634, cgrp->id | 0x01000000);
 	else
@@ -59,7 +58,16 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 		nvkm_fifo_recover_chan(&fifo->base, chan->base.chid);
 		ret = -ETIMEDOUT;
 	}
-	mutex_unlock(&subdev->mutex);
+	return ret;
+}
+
+int
+gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
+{
+	int ret;
+	mutex_lock(&chan->base.fifo->engine.subdev.mutex);
+	ret = gk104_fifo_gpfifo_kick_locked(chan);
+	mutex_unlock(&chan->base.fifo->engine.subdev.mutex);
 	return ret;
 }
 
@@ -138,7 +146,7 @@ gk104_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 	return 0;
 }
 
-static void
+void
 gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
@@ -147,7 +155,7 @@ gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
 	nvkm_gpuobj_del(&chan->engn[engine->subdev.index].inst);
 }
 
-static int
+int
 gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine,
 			      struct nvkm_object *object)
@@ -172,7 +180,7 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 			       chan->engn[engn].vma, NULL, 0);
 }
 
-static void
+void
 gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
@@ -190,7 +198,7 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 	nvkm_wr32(device, 0x800000 + coff, 0x00000000);
 }
 
-static void
+void
 gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
@@ -210,7 +218,7 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	}
 }
 
-static void *
+void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
@@ -218,7 +226,7 @@ gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 	return chan;
 }
 
-static const struct nvkm_fifo_chan_func
+const struct nvkm_fifo_chan_func
 gk104_fifo_gpfifo_func = {
 	.dtor = gk104_fifo_gpfifo_dtor,
 	.init = gk104_fifo_gpfifo_init,

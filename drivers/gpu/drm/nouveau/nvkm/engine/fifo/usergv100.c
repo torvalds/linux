@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat Inc.
+ * Copyright 2018 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,43 +18,28 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
+#include "user.h"
 
-#include <nvif/device.h>
-
-u64
-nvif_device_time(struct nvif_device *device)
+static int
+gv100_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
+		    enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nv_device_time_v0 args = {};
-	int ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_TIME,
-				   &args, sizeof(args));
-	WARN_ON_ONCE(ret != 0);
-	return args.time;
+	struct nvkm_device *device = object->engine->subdev.device;
+	*addr = 0x810000 + device->func->resource_addr(device, 0);
+	*size = 0x010000;
+	*type = NVKM_OBJECT_MAP_IO;
+	return 0;
 }
 
-void
-nvif_device_fini(struct nvif_device *device)
-{
-	nvif_user_fini(device);
-	kfree(device->runlist);
-	device->runlist = NULL;
-	nvif_object_fini(&device->object);
-}
+static const struct nvkm_object_func
+gv100_fifo_user = {
+	.map = gv100_fifo_user_map,
+};
 
 int
-nvif_device_init(struct nvif_object *parent, u32 handle, s32 oclass,
-		 void *data, u32 size, struct nvif_device *device)
+gv100_fifo_user_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nvkm_object **pobject)
 {
-	int ret = nvif_object_init(parent, handle, oclass, data, size,
-				   &device->object);
-	device->runlist = NULL;
-	device->user.func = NULL;
-	if (ret == 0) {
-		device->info.version = 0;
-		ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_INFO,
-				       &device->info, sizeof(device->info));
-	}
-	return ret;
+	return nvkm_object_new_(&gv100_fifo_user, oclass, argv, argc, pobject);
 }

@@ -28,6 +28,8 @@
 #include "nouveau_dma.h"
 #include "nouveau_vmm.h"
 
+#include <nvif/user.h>
+
 void
 OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
 {
@@ -82,6 +84,7 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 void
 nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 {
+	struct nvif_user *user = &chan->drm->client.device.user;
 	struct nouveau_bo *pb = chan->push.buffer;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
@@ -97,6 +100,8 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 	nouveau_bo_rd32(pb, 0);
 
 	nvif_wr32(&chan->user, 0x8c, chan->dma.ib_put);
+	if (user->func && user->func->doorbell)
+		user->func->doorbell(user, chan->chid);
 	chan->dma.ib_free--;
 }
 
