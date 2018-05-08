@@ -119,8 +119,6 @@ nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 *interlock, bool flush,
 	if (clr.image) wndw->func->image_clr(wndw);
 
 	interlock[wndw->interlock.type] |= wndw->interlock.data;
-	if (flush)
-		wndw->func->update(wndw, interlock);
 }
 
 void
@@ -142,8 +140,6 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	}
 
 	interlock[wndw->interlock.type] |= wndw->interlock.data;
-	if (wndw->func->update)
-		wndw->func->update(wndw, interlock);
 }
 
 void

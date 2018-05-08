@@ -1690,6 +1690,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Flush disable. */
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (atom->flush_disable) {
+			for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+				struct nv50_wndw *wndw = nv50_wndw(plane);
+				if (interlock[wndw->interlock.type] & wndw->interlock.data) {
+					if (wndw->func->update)
+						wndw->func->update(wndw, interlock);
+				}
+			}
+
 			nv50_disp_atomic_commit_core(drm, interlock);
 			memset(interlock, 0x00, sizeof(interlock));
 		}
@@ -1751,6 +1759,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Flush update. */
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw *wndw = nv50_wndw(plane);
+		if (interlock[wndw->interlock.type] & wndw->interlock.data) {
+			if (wndw->func->update)
+				wndw->func->update(wndw, interlock);
+		}
+	}
+
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (interlock[NV50_DISP_INTERLOCK_BASE] ||
 		    !atom->state.legacy_cursor_update)
