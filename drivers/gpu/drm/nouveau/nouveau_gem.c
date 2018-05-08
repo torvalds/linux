@@ -115,25 +115,12 @@ nouveau_gem_object_delete_work(struct nouveau_cli_work *w)
 static void
 nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
-	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
-	struct reservation_object *resv = nvbo->bo.resv;
-	struct reservation_object_list *fobj;
+	struct dma_fence *fence = vma->fence ? &vma->fence->base : NULL;
 	struct nouveau_gem_object_unmap *work;
-	struct dma_fence *fence = NULL;
-
-	fobj = reservation_object_get_list(resv);
 
 	list_del_init(&vma->head);
 
-	if (fobj && fobj->shared_count > 1)
-		ttm_bo_wait(&nvbo->bo, false, false);
-	else if (fobj && fobj->shared_count == 1)
-		fence = rcu_dereference_protected(fobj->shared[0],
-						reservation_object_held(resv));
-	else
-		fence = reservation_object_get_excl(nvbo->bo.resv);
-
-	if (!fence || !mapped) {
+	if (!fence) {
 		nouveau_gem_object_delete(vma);
 		return;
 	}
