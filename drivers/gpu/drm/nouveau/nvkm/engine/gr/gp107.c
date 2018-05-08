@@ -28,7 +28,7 @@
 
 static const struct gf100_gr_func
 gp107_gr = {
-	.init = gp100_gr_init,
+	.init = gf100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
 	.init_zcull = gf117_gr_init_zcull,

@@ -369,81 +369,6 @@ gm107_gr_init_gpc_mmu(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
 }
 
-static int
-gm107_gr_init(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int gpc, tpc, rop;
-
-	gr->func->init_gpc_mmu(gr);
-
-	gf100_gr_mmio(gr, gr->func->mmio);
-
-	gr->func->init_bios(gr);
-
-	gr->func->init_vsc_stream_master(gr);
-	gr->func->init_zcull(gr);
-	gr->func->init_num_active_ltcs(gr);
-
-	gr->func->init_rop_active_fbps(gr);
-
-	nvkm_wr32(device, 0x400500, 0x00010001);
-
-	nvkm_wr32(device, 0x400100, 0xffffffff);
-	nvkm_wr32(device, 0x40013c, 0xffffffff);
-	nvkm_wr32(device, 0x400124, 0x00000002);
-	gr->func->init_fecs_exceptions(gr);
-
-	nvkm_wr32(device, 0x404000, 0xc0000000);
-	nvkm_wr32(device, 0x404600, 0xc0000000);
-	nvkm_wr32(device, 0x408030, 0xc0000000);
-	nvkm_wr32(device, 0x404490, 0xc0000000);
-	nvkm_wr32(device, 0x406018, 0xc0000000);
-	gr->func->init_sked_hww_esr(gr);
-	nvkm_wr32(device, 0x405840, 0xc0000000);
-	nvkm_wr32(device, 0x405844, 0x00ffffff);
-	gr->func->init_419cc0(gr);
-
-	gr->func->init_ppc_exceptions(gr);
-
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0824), 0xc0000000);
-		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			gr->func->init_tex_hww_esr(gr, gpc, tpc);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			gr->func->init_504430(gr, gpc, tpc);
-			gr->func->init_shader_exceptions(gr, gpc, tpc);
-		}
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
-	}
-
-	for (rop = 0; rop < gr->rop_nr; rop++) {
-		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0x40000000);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0x40000000);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x204), 0xffffffff);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x208), 0xffffffff);
-	}
-
-	nvkm_wr32(device, 0x400108, 0xffffffff);
-	nvkm_wr32(device, 0x400138, 0xffffffff);
-	nvkm_wr32(device, 0x400118, 0xffffffff);
-	nvkm_wr32(device, 0x400130, 0xffffffff);
-	nvkm_wr32(device, 0x40011c, 0xffffffff);
-	nvkm_wr32(device, 0x400134, 0xffffffff);
-
-	gr->func->init_400054(gr);
-
-	gf100_gr_zbc_init(gr);
-
-	return gf100_gr_init_ctxctl(gr);
-}
-
 #include "fuc/hubgm107.fuc5.h"
 
 static struct gf100_gr_ucode
@@ -466,7 +391,7 @@ gm107_gr_gpccs_ucode = {
 
 static const struct gf100_gr_func
 gm107_gr = {
-	.init = gm107_gr_init,
+	.init = gf100_gr_init,
 	.init_gpc_mmu = gm107_gr_init_gpc_mmu,
 	.init_bios = gm107_gr_init_bios,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
