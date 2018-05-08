@@ -14,7 +14,6 @@ various features of the Linux memory management
    :maxdepth: 1
 
    ksm
-   numa_memory_policy
    transhuge
    swap_numa
    zswap

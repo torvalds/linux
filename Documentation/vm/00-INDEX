@@ -22,8 +22,6 @@ mmu_notifier.rst
 	- a note about clearing pte/pmd and mmu notifications
 numa.rst
 	- information about NUMA specific code in the Linux vm.
-numa_memory_policy.rst
-	- documentation of concepts and APIs of the 2.6 memory policy support.
 overcommit-accounting.rst
 	- description of the Linux kernels overcommit handling modes.
 page_frags.rst
