@@ -326,7 +326,7 @@
 					reg = <4>;
 					soc_funnel_in_port1: endpoint {
 						slave-mode;
-						remote-endpioint =
+						remote-endpoint =
 							<&stm_out_port>;
 					};
 				};
