@@ -39,7 +39,6 @@ module_param(scan_rate, int, 0644);
 MODULE_PARM_DESC(scan_rate, "Polling rate in times/sec. Default = 100");
 
 struct hdm_i2c {
-	bool is_open[NUM_CHANNELS];
 	bool polling_mode;
 	struct most_interface most_iface;
 	struct most_channel_capability capabilities[NUM_CHANNELS];
@@ -79,7 +78,6 @@ static int configure_channel(struct most_interface *most_iface,
 	unsigned int delay, pr;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(dev->is_open[ch_idx]);
 
 	if (channel_config->data_type != MOST_CH_CONTROL) {
 		pr_err("bad data type for channel %d\n", ch_idx);
@@ -113,7 +111,6 @@ static int configure_channel(struct most_interface *most_iface,
 			pr_info("polling rate is %u Hz\n", pr);
 		}
 	}
-	dev->is_open[ch_idx] = true;
 
 	return 0;
 }
@@ -136,7 +133,6 @@ static int enqueue(struct most_interface *most_iface,
 	int ret;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(!dev->is_open[ch_idx]);
 
 	if (ch_idx == CH_RX) {
 		/* RX */
@@ -184,9 +180,6 @@ static int poison_channel(struct most_interface *most_iface,
 	struct mbo *mbo;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(!dev->is_open[ch_idx]);
-
-	dev->is_open[ch_idx] = false;
 
 	if (ch_idx == CH_RX) {
 		if (!dev->polling_mode)
@@ -269,7 +262,7 @@ static void pending_rx_work(struct work_struct *work)
 	do_rx_work(dev);
 
 	if (dev->polling_mode) {
-		if (dev->is_open[CH_RX] && scan_rate)
+		if (scan_rate)
 			schedule_delayed_work(&dev->rx.dwork, dev->rx.delay);
 	} else {
 		dev->rx.int_disabled = false;
@@ -329,7 +322,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 client->adapter->nr, client->addr);
 
 	for (i = 0; i < NUM_CHANNELS; i++) {
-		dev->is_open[i] = false;
 		dev->capabilities[i].data_type = MOST_CH_CONTROL;
 		dev->capabilities[i].num_buffers_packet = MAX_BUFFERS_CONTROL;
 		dev->capabilities[i].buffer_size_packet = MAX_BUF_SIZE_CONTROL;
