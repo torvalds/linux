@@ -189,7 +189,7 @@ out:
 		pci_err(dev, "  Error of this Agent(%04x) is reported first\n", id);
 
 	trace_aer_event(dev_name(&dev->dev), (info->status & ~info->mask),
-			info->severity);
+			info->severity, info->tlp_header_valid, &info->tlp);
 }
 
 void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
@@ -251,6 +251,6 @@ void cper_print_aer(struct pci_dev *dev, int aer_severity,
 		__print_tlp_header(dev, &aer->header_log);
 
 	trace_aer_event(dev_name(&dev->dev), (status & ~mask),
-			aer_severity);
+			aer_severity, tlp_header_valid, &aer->header_log);
 }
 #endif
