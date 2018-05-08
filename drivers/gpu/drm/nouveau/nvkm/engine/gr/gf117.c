@@ -125,25 +125,25 @@ gf117_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {};
-	u8  tpcnr[GPC_MAX];
-	int gpc, tpc;
-	int i;
+	const u8 tile_nr = ALIGN(gr->tpc_total, 32);
+	u8 bank[GPC_MAX] = {}, gpc, i, j;
+	u32 data;
 
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
-
-		data[i / 8] |= tpc << ((i % 8) * 4);
+	for (i = 0; i < tile_nr; i += 8) {
+		for (data = 0, j = 0; j < 8 && i + j < gr->tpc_total; j++) {
+			data |= bank[gr->tile[i + j]] << (j * 4);
+			bank[gr->tile[i + j]]++;
+		}
+		nvkm_wr32(device, GPC_BCAST(0x0980 + ((i / 8) * 4)), data);
 	}
 
-	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
-	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
-	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
-	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+							 gr->tpc_total);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
+	}
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 }
