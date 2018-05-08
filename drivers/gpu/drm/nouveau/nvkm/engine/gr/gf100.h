@@ -124,6 +124,7 @@ struct gf100_gr_func {
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_r405a14)(struct gf100_gr *);
 	void (*init_bios)(struct gf100_gr *);
+	void (*init_vsc_stream_master)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
@@ -143,10 +144,12 @@ struct gf100_gr_func {
 	struct nvkm_sclass sclass[];
 };
 
-int gf100_gr_init(struct gf100_gr *);
 int gf100_gr_rops(struct gf100_gr *);
+int gf100_gr_init(struct gf100_gr *);
+void gf100_gr_init_vsc_stream_master(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
+void gk104_gr_init_vsc_stream_master(struct gf100_gr *);
 void gk104_gr_init_rop_active_fbps(struct gf100_gr *);
 void gk104_gr_init_ppc_exceptions(struct gf100_gr *);
 

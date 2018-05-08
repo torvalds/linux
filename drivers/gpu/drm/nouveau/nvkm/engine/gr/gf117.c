@@ -124,6 +124,7 @@ static const struct gf100_gr_func
 gf117_gr = {
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
+	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.mmio = gf117_gr_pack_mmio,
 	.fecs.ucode = &gf117_gr_fecs_ucode,
 	.gpccs.ucode = &gf117_gr_gpccs_ucode,

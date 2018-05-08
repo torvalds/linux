@@ -1930,6 +1930,13 @@ gf100_gr_init_gpc_mmu(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x4188b8, nvkm_memory_addr(fb->mmu_rd) >> 8);
 }
 
+void
+gf100_gr_init_vsc_stream_master(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
+}
+
 int
 gf100_gr_init(struct gf100_gr *gr)
 {
@@ -1956,7 +1963,7 @@ gf100_gr_init(struct gf100_gr *gr)
 	if (gr->func->init_bios)
 		gr->func->init_bios(gr);
 
-	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
+	gr->func->init_vsc_stream_master(gr);
 
 	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
 	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
@@ -2068,6 +2075,7 @@ static const struct gf100_gr_func
 gf100_gr = {
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
+	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

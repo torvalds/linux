@@ -37,6 +37,7 @@ static const struct gf100_gr_func
 gp10b_gr = {
 	.init = gp100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
+	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_num_active_ltcs = gp10b_gr_init_num_active_ltcs,
