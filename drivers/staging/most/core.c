@@ -952,18 +952,17 @@ static int arm_mbo_chain(struct most_channel *c, int dir,
 			 void (*compl)(struct mbo *))
 {
 	unsigned int i;
-	int retval;
 	struct mbo *mbo;
+	unsigned long flags;
 	u32 coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
 	atomic_set(&c->mbo_nq_level, 0);
 
 	for (i = 0; i < c->cfg.num_buffers; i++) {
 		mbo = kzalloc(sizeof(*mbo), GFP_KERNEL);
-		if (!mbo) {
-			retval = i;
-			goto _exit;
-		}
+		if (!mbo)
+			goto flush_fifos;
+
 		mbo->context = c;
 		mbo->ifp = c->iface;
 		mbo->hdm_channel_id = c->channel_id;
@@ -971,26 +970,28 @@ static int arm_mbo_chain(struct most_channel *c, int dir,
 						       coherent_buf_size,
 						       &mbo->bus_address,
 						       GFP_KERNEL);
-		if (!mbo->virt_address) {
-			pr_info("WARN: No DMA coherent buffer.\n");
-			retval = i;
-			goto _error1;
-		}
+		if (!mbo->virt_address)
+			goto release_mbo;
+
 		mbo->complete = compl;
 		mbo->num_buffers_ptr = &dummy_num_buffers;
 		if (dir == MOST_CH_RX) {
 			nq_hdm_mbo(mbo);
 			atomic_inc(&c->mbo_nq_level);
 		} else {
-			arm_mbo(mbo);
+			spin_lock_irqsave(&c->fifo_lock, flags);
+			list_add_tail(&mbo->list, &c->fifo);
+			spin_unlock_irqrestore(&c->fifo_lock, flags);
 		}
 	}
-	return i;
+	return c->cfg.num_buffers;
 
-_error1:
+release_mbo:
 	kfree(mbo);
-_exit:
-	return retval;
+
+flush_fifos:
+	flush_channel_fifos(c);
+	return 0;
 }
 
 /**
