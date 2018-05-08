@@ -251,7 +251,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	int ret;
 
 	ret = nv50_wndw_new_(func, drm->dev, DRM_PLANE_TYPE_PRIMARY,
-			     "base", head, format, &wndw);
+			     "base", head, format, BIT(head), &wndw);
 	if (*pwndw = wndw, ret)
 		return ret;
 

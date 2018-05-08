@@ -126,7 +126,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	int ret;
 
 	ret = nv50_wndw_new_(&curs507a_wndw, drm->dev, DRM_PLANE_TYPE_CURSOR,
-			     "curs", head, curs507a_format, &wndw);
+			     "curs", head, curs507a_format, BIT(head), &wndw);
 	if (*pwndw = wndw, ret)
 		return ret;
 

@@ -420,7 +420,7 @@ nv50_wndw_init(struct nv50_wndw *wndw)
 int
 nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       enum drm_plane_type type, const char *name, int index,
-	       const u32 *format, struct nv50_wndw **pwndw)
+	       const u32 *format, u32 heads, struct nv50_wndw **pwndw)
 {
 	struct nv50_wndw *wndw;
 	int nformat;
@@ -436,7 +436,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 
 	for (nformat = 0; format[nformat]; nformat++);
 
-	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw,
+	ret = drm_universal_plane_init(dev, &wndw->plane, heads, &nv50_wndw,
 				       format, nformat, NULL,
 				       type, "%s-%d", name, index);
 	if (ret) {

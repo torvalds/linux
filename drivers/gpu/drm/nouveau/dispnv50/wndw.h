@@ -34,7 +34,7 @@ struct nv50_wndw {
 
 int nv50_wndw_new_(const struct nv50_wndw_func *, struct drm_device *,
 		   enum drm_plane_type, const char *name, int index,
-		   const u32 *format, struct nv50_wndw **);
+		   const u32 *format, u32 heads, struct nv50_wndw **);
 void nv50_wndw_init(struct nv50_wndw *);
 void nv50_wndw_fini(struct nv50_wndw *);
 u32 nv50_wndw_flush_set(struct nv50_wndw *, u32 interlock,
