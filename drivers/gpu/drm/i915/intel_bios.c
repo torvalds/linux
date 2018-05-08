@@ -267,8 +267,6 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (!lvds_lfp_data_ptrs)
 		return;
 
-	dev_priv->vbt.lvds_vbt = 1;
-
 	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
 					       lvds_lfp_data_ptrs,
 					       panel_type);
@@ -1502,7 +1500,6 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 
 	/* LFP panel data */
 	dev_priv->vbt.lvds_dither = 1;
-	dev_priv->vbt.lvds_vbt = 0;
 
 	/* SDVO panel data */
 	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
