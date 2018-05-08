@@ -136,6 +136,7 @@ struct gf100_gr_func {
 	void (*init_sked_hww_esr)(struct gf100_gr *);
 	void (*init_419cc0)(struct gf100_gr *);
 	void (*init_419eb4)(struct gf100_gr *);
+	void (*init_419c9c)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;

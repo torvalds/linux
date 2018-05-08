@@ -30,6 +30,14 @@
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gp100_gr_init_419c9c(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419c9c, 0x00010000, 0x00010000);
+	nvkm_mask(device, 0x419c9c, 0x00020000, 0x00020000);
+}
+
 void
 gp100_gr_init_fecs_exceptions(struct gf100_gr *gr)
 {
@@ -80,9 +88,8 @@ gp100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	gr->func->init_419cc0(gr);
-
-	nvkm_mask(device, 0x419c9c, 0x00010000, 0x00010000);
-	nvkm_mask(device, 0x419c9c, 0x00020000, 0x00020000);
+	if (gr->func->init_419c9c)
+		gr->func->init_419c9c(gr);
 
 	gr->func->init_ppc_exceptions(gr);
 
@@ -135,6 +142,7 @@ gp100_gr = {
 	.init_ds_hww_esr_2 = gm200_gr_init_ds_hww_esr_2,
 	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
 	.init_419cc0 = gf100_gr_init_419cc0,
+	.init_419c9c = gp100_gr_init_419c9c,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,

@@ -2068,6 +2068,8 @@ gf100_gr_init(struct gf100_gr *gr)
 		gr->func->init_419cc0(gr);
 	if (gr->func->init_419eb4)
 		gr->func->init_419eb4(gr);
+	if (gr->func->init_419c9c)
+		gr->func->init_419c9c(gr);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
