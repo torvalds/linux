@@ -846,6 +846,25 @@ static int vega20_odn_initialize_default_settings(
 	return 0;
 }
 
+static int vega20_populate_umdpstate_clocks(
+		struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_single_dpm_table *gfx_table = &(data->dpm_table.gfx_table);
+	struct vega20_single_dpm_table *mem_table = &(data->dpm_table.mem_table);
+
+	hwmgr->pstate_sclk = gfx_table->dpm_levels[0].value;
+	hwmgr->pstate_mclk = mem_table->dpm_levels[0].value;
+
+	if (gfx_table->count > VEGA20_UMD_PSTATE_GFXCLK_LEVEL &&
+	    mem_table->count > VEGA20_UMD_PSTATE_MCLK_LEVEL) {
+		hwmgr->pstate_sclk = gfx_table->dpm_levels[VEGA20_UMD_PSTATE_GFXCLK_LEVEL].value;
+		hwmgr->pstate_mclk = mem_table->dpm_levels[VEGA20_UMD_PSTATE_MCLK_LEVEL].value;
+	}
+
+	return 0;
+}
+
 static int vega20_get_max_sustainable_clock(struct pp_hwmgr *hwmgr,
 		PP_Clock *clock, PPCLK_e clock_select)
 {
@@ -992,7 +1011,12 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"[EnableDPMTasks] Failed to initialize odn settings!",
 			return result);
 
-	return result;
+	result = vega20_populate_umdpstate_clocks(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"[EnableDPMTasks] Failed to populate umdpstate clocks!",
+			return result);
+
+	return 0;
 }
 
 static uint32_t vega20_find_lowest_dpm_level(
