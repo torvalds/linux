@@ -155,10 +155,10 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 				    (target << 28));
 	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
 
-	if (wait_event_timeout(fifo->runlist[runl].wait,
-			       !(nvkm_rd32(device, 0x002284 + (runl * 0x08))
-				       & 0x00100000),
-			       msecs_to_jiffies(2000)) == 0)
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
+			break;
+	) < 0)
 		nvkm_error(subdev, "runlist %d update timeout\n", runl);
 unlock:
 	mutex_unlock(&subdev->mutex);
