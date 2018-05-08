@@ -63,7 +63,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
@@ -103,7 +103,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
@@ -131,7 +131,7 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
