@@ -49,7 +49,7 @@
 #define	FSI_GPIO_CRC_SIZE	4
 #define	FSI_GPIO_MSG_ID_SIZE		2
 #define	FSI_GPIO_MSG_RESPID_SIZE	2
-#define	FSI_GPIO_PRIME_SLAVE_CLOCKS	100
+#define	FSI_GPIO_PRIME_SLAVE_CLOCKS	20
 
 struct fsi_master_gpio {
 	struct fsi_master	master;
