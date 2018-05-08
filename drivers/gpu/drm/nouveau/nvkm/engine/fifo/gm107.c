@@ -24,6 +24,8 @@
 #include "gk104.h"
 #include "changk104.h"
 
+#include <nvif/class.h>
+
 const struct nvkm_enum
 gm107_fifo_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
@@ -54,10 +56,7 @@ gm107_fifo = {
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
-	.chan = {
-		&gk110_fifo_gpfifo_oclass,
-		NULL
-	},
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_B}, gk104_fifo_gpfifo_new },
 };
 
 int

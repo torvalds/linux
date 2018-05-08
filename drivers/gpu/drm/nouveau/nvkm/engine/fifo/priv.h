@@ -28,8 +28,9 @@ struct nvkm_fifo_func {
 	void (*uevent_init)(struct nvkm_fifo *);
 	void (*uevent_fini)(struct nvkm_fifo *);
 	void (*recover_chan)(struct nvkm_fifo *, int chid);
-	int (*class_get)(struct nvkm_fifo *, int index,
-			 const struct nvkm_fifo_chan_oclass **);
+	int (*class_get)(struct nvkm_fifo *, int index, struct nvkm_oclass *);
+	int (*class_new)(struct nvkm_fifo *, const struct nvkm_oclass *,
+			 void *, u32, struct nvkm_object **);
 	const struct nvkm_fifo_chan_oclass *chan[];
 };
 

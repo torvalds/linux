@@ -51,7 +51,11 @@ struct gk104_fifo_func {
 		const struct nvkm_enum *gpcclient;
 	} fault;
 
-	const struct nvkm_fifo_chan_oclass *chan[];
+	struct gk104_fifo_chan_user {
+		struct nvkm_sclass user;
+		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *,
+			    void *, u32, struct nvkm_object **);
+	} chan;
 };
 
 int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,

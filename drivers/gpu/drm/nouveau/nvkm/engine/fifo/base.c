@@ -216,6 +216,20 @@ nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 }
 
 static int
+nvkm_fifo_class_new_(struct nvkm_device *device,
+		     const struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
+{
+	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
+	return fifo->func->class_new(fifo, oclass, data, size, pobject);
+}
+
+static const struct nvkm_device_oclass
+nvkm_fifo_class_ = {
+	.ctor = nvkm_fifo_class_new_,
+};
+
+static int
 nvkm_fifo_class_new(struct nvkm_device *device,
 		    const struct nvkm_oclass *oclass, void *data, u32 size,
 		    struct nvkm_object **pobject)
@@ -239,13 +253,9 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index,
 	int c = 0;
 
 	if (fifo->func->class_get) {
-		int ret = fifo->func->class_get(fifo, index, &sclass);
-		if (ret == 0) {
-			oclass->base = sclass->base;
-			oclass->engn = sclass;
-			*class = &nvkm_fifo_class;
-			return 0;
-		}
+		int ret = fifo->func->class_get(fifo, index, oclass);
+		if (ret == 0)
+			*class = &nvkm_fifo_class_;
 		return ret;
 	}
 

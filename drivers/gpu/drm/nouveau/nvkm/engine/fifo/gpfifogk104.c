@@ -296,14 +296,13 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 }
 
 int
-gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
+gk104_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 		      void *data, u32 size, struct nvkm_object **pobject)
 {
 	struct nvkm_object *parent = oclass->parent;
 	union {
 		struct kepler_channel_gpfifo_a_v0 v0;
 	} *args = data;
-	struct gk104_fifo *fifo = gk104_fifo(base);
 	int ret = -ENOSYS;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
@@ -324,11 +323,3 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	return ret;
 }
-
-const struct nvkm_fifo_chan_oclass
-gk104_fifo_gpfifo_oclass = {
-	.base.oclass = KEPLER_CHANNEL_GPFIFO_A,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = gk104_fifo_gpfifo_new,
-};

@@ -95,15 +95,29 @@ gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 }
 
 static int
+gk104_fifo_class_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
+		     void *argv, u32 argc, struct nvkm_object **pobject)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	if (oclass->engn == &fifo->func->chan) {
+		const struct gk104_fifo_chan_user *user = oclass->engn;
+		return user->ctor(fifo, oclass, argv, argc, pobject);
+	}
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+static int
 gk104_fifo_class_get(struct nvkm_fifo *base, int index,
-		     const struct nvkm_fifo_chan_oclass **psclass)
+		     struct nvkm_oclass *oclass)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	int c = 0;
 
-	while ((*psclass = fifo->func->chan[c])) {
-		if (c++ == index)
-			return 0;
+	if (fifo->func->chan.ctor && c++ == index) {
+		oclass->base =  fifo->func->chan.user;
+		oclass->engn = &fifo->func->chan;
+		return 0;
 	}
 
 	return c;
@@ -950,6 +964,7 @@ gk104_fifo_ = {
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,
 	.class_get = gk104_fifo_class_get,
+	.class_new = gk104_fifo_class_new,
 };
 
 int
@@ -1096,10 +1111,7 @@ gk104_fifo = {
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
-	.chan = {
-		&gk104_fifo_gpfifo_oclass,
-		NULL
-	},
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
 };
 
 int
