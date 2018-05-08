@@ -32,11 +32,6 @@
 #define MAX_BUF_SIZE_PACKET     2048
 #define MAX_BUF_SIZE_STREAMING  (8 * 1024)
 
-/* command line parameter to select clock speed */
-static char *clock_speed;
-module_param(clock_speed, charp, 0000);
-MODULE_PARM_DESC(clock_speed, "MediaLB Clock Speed");
-
 /*
  * The parameter representing the number of frames per sub-buffer for
  * synchronous channels.  Valid values: [0 .. 6].
@@ -78,7 +73,6 @@ struct hdm_channel {
  * @most_iface: most interface structure
  * @capabilities: an array of channel capability data
  * @io_base: I/O register base address
- * @clk_speed: user selectable (through command line parameter) clock speed
  * @netinfo_task: thread to deliver network status
  * @netinfo_waitq: waitq for the thread to sleep
  * @deliver_netinfo: to identify whether network status received
@@ -93,7 +87,6 @@ struct dim2_hdm {
 	struct most_interface most_iface;
 	char name[16 + sizeof "dim2-"];
 	void __iomem *io_base;
-	int clk_speed;
 	struct task_struct *netinfo_task;
 	wait_queue_head_t netinfo_waitq;
 	int deliver_netinfo;
@@ -158,52 +151,25 @@ void dimcb_on_error(u8 error_id, const char *error_message)
 /**
  * startup_dim - initialize the dim2 interface
  * @pdev: platform device
- *
- * Get the value of command line parameter "clock_speed" if given or use the
- * default value, enable the clock and PLL, and initialize the dim2 interface.
  */
 static int startup_dim(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 	struct dim2_platform_data *pdata = pdev->dev.platform_data;
 	u8 hal_ret;
+	int ret;
 
-	dev->clk_speed = -1;
-
-	if (clock_speed) {
-		if (!strcmp(clock_speed, "256fs"))
-			dev->clk_speed = CLK_256FS;
-		else if (!strcmp(clock_speed, "512fs"))
-			dev->clk_speed = CLK_512FS;
-		else if (!strcmp(clock_speed, "1024fs"))
-			dev->clk_speed = CLK_1024FS;
-		else if (!strcmp(clock_speed, "2048fs"))
-			dev->clk_speed = CLK_2048FS;
-		else if (!strcmp(clock_speed, "3072fs"))
-			dev->clk_speed = CLK_3072FS;
-		else if (!strcmp(clock_speed, "4096fs"))
-			dev->clk_speed = CLK_4096FS;
-		else if (!strcmp(clock_speed, "6144fs"))
-			dev->clk_speed = CLK_6144FS;
-		else if (!strcmp(clock_speed, "8192fs"))
-			dev->clk_speed = CLK_8192FS;
+	if (!pdata) {
+		pr_err("missing platform data\n");
+		return -EINVAL;
 	}
 
-	if (dev->clk_speed == -1) {
-		pr_info("Bad or missing clock speed parameter, using default value: 3072fs\n");
-		dev->clk_speed = CLK_3072FS;
-	} else {
-		pr_info("Selected clock speed: %s\n", clock_speed);
-	}
-	if (pdata && pdata->init) {
-		int ret = pdata->init(pdata, dev->io_base, dev->clk_speed);
-
-		if (ret)
-			return ret;
-	}
+	ret = pdata->init ? pdata->init(pdata, dev->io_base) : 0;
+	if (ret)
+		return ret;
 
 	pr_info("sync: num of frames per sub-buffer: %u\n", fcnt);
-	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);
+	hal_ret = dim_startup(dev->io_base, pdata->clk_speed, fcnt);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("dim_startup failed: %d\n", hal_ret);
 		if (pdata && pdata->destroy)
