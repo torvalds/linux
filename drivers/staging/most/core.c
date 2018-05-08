@@ -420,6 +420,26 @@ static ssize_t set_packets_per_xact_store(struct device *dev,
 	return count;
 }
 
+static ssize_t set_dbr_size_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct most_channel *c = to_channel(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.dbr_size);
+}
+
+static ssize_t set_dbr_size_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct most_channel *c = to_channel(dev);
+	int ret = kstrtou16(buf, 0, &c->cfg.dbr_size);
+
+	if (ret)
+		return ret;
+	return count;
+}
+
 #define DEV_ATTR(_name)  (&dev_attr_##_name.attr)
 
 static DEVICE_ATTR_RO(available_directions);
@@ -435,6 +455,7 @@ static DEVICE_ATTR_RW(set_direction);
 static DEVICE_ATTR_RW(set_datatype);
 static DEVICE_ATTR_RW(set_subbuffer_size);
 static DEVICE_ATTR_RW(set_packets_per_xact);
+static DEVICE_ATTR_RW(set_dbr_size);
 
 static struct attribute *channel_attrs[] = {
 	DEV_ATTR(available_directions),
@@ -450,6 +471,7 @@ static struct attribute *channel_attrs[] = {
 	DEV_ATTR(set_datatype),
 	DEV_ATTR(set_subbuffer_size),
 	DEV_ATTR(set_packets_per_xact),
+	DEV_ATTR(set_dbr_size),
 	NULL,
 };
 
