@@ -858,13 +858,15 @@ static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 {
 	int i;
 	struct list_head *lhp;
+	struct rcu_node *rnp1;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
-	pr_info("%s: grp: %d-%d level: %d ->gp_seq %#lx ->completedqs %#lx\n",
+	pr_info("%s: grp: %d-%d level: %d ->gp_seq %ld ->completedqs %ld\n",
 		__func__, rnp->grplo, rnp->grphi, rnp->level,
-		rnp->gp_seq, rnp->completedqs);
-	pr_info("%s: ->qsmask %#lx ->qsmaskinit %#lx ->qsmaskinitnext %#lx\n",
-		__func__, rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext);
+		(long)rnp->gp_seq, (long)rnp->completedqs);
+	for (rnp1 = rnp; rnp1; rnp1 = rnp1->parent)
+		pr_info("%s: %d:%d ->qsmask %#lx ->qsmaskinit %#lx ->qsmaskinitnext %#lx\n",
+			__func__, rnp1->grplo, rnp1->grphi, rnp1->qsmask, rnp1->qsmaskinit, rnp1->qsmaskinitnext);
 	pr_info("%s: ->gp_tasks %p ->boost_tasks %p ->exp_tasks %p\n",
 		__func__, rnp->gp_tasks, rnp->boost_tasks, rnp->exp_tasks);
 	pr_info("%s: ->blkd_tasks", __func__);
