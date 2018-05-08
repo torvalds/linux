@@ -31,11 +31,14 @@ g84_disp_root = {
 	.dmac = {
 		&g84_disp_core_oclass,
 		&g84_disp_base_oclass,
-		&g84_disp_ovly_oclass,
 	},
 	.pioc = {
 		&g84_disp_oimm_oclass,
 		&g84_disp_curs_oclass,
+	},
+	.user = {
+		{{0,0,G82_DISP_OVERLAY_CHANNEL_DMA},  g84_disp_ovly_new },
+		{}
 	},
 };
 

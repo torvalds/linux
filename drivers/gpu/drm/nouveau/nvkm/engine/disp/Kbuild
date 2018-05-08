@@ -96,7 +96,6 @@ nvkm-y += nvkm/engine/disp/coregp102.o
 nvkm-y += nvkm/engine/disp/ovlynv50.o
 nvkm-y += nvkm/engine/disp/ovlyg84.o
 nvkm-y += nvkm/engine/disp/ovlygt200.o
-nvkm-y += nvkm/engine/disp/ovlygt215.o
 nvkm-y += nvkm/engine/disp/ovlygf119.o
 nvkm-y += nvkm/engine/disp/ovlygk104.o
 nvkm-y += nvkm/engine/disp/ovlygp102.o

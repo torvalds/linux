@@ -31,11 +31,14 @@ gk110_disp_root = {
 	.dmac = {
 		&gk110_disp_core_oclass,
 		&gk110_disp_base_oclass,
-		&gk104_disp_ovly_oclass,
 	},
 	.pioc = {
 		&gk104_disp_oimm_oclass,
 		&gk104_disp_curs_oclass,
+	},
+	.user = {
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
+		{}
 	},
 };
 

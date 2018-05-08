@@ -55,37 +55,26 @@ int nv50_disp_base_new(const struct nv50_disp_dmac_func *,
 		       struct nv50_disp_root *, int chid,
 		       const struct nvkm_oclass *oclass, void *data, u32 size,
 		       struct nvkm_object **);
-int nv50_disp_ovly_new(const struct nv50_disp_dmac_func *,
-		       const struct nv50_disp_chan_mthd *,
-		       struct nv50_disp_root *, int chid,
-		       const struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **);
 
 extern const struct nv50_disp_dmac_oclass nv50_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass nv50_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass nv50_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass g84_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass g84_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass g84_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass g94_disp_core_oclass;
 
 extern const struct nv50_disp_dmac_oclass gt200_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gt200_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gt200_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass gt215_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gt215_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gt215_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass gf119_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gf119_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gf119_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass gk104_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gk104_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gk104_disp_ovly_oclass;
 
 extern const struct nv50_disp_dmac_oclass gk110_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gk110_disp_base_oclass;
@@ -98,5 +87,4 @@ extern const struct nv50_disp_dmac_oclass gp100_disp_core_oclass;
 
 extern const struct nv50_disp_dmac_oclass gp102_disp_core_oclass;
 extern const struct nv50_disp_dmac_oclass gp102_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gp102_disp_ovly_oclass;
 #endif

@@ -5,6 +5,7 @@
 #include <core/object.h>
 #include "nv50.h"
 struct nv50_disp_root;
+struct nv50_disp_dmac_func;
 
 struct nv50_disp_chan {
 	const struct nv50_disp_chan_func *func;
@@ -49,6 +50,30 @@ void nv50_disp_chan_uevent_send(struct nv50_disp *, int);
 
 extern const struct nvkm_event_func gf119_disp_chan_uevent;
 
+int nv50_disp_ovly_new_(const struct nv50_disp_dmac_func *,
+			const struct nv50_disp_chan_mthd *,
+			struct nv50_disp *, int chid,
+			const struct nvkm_oclass *, void *argv, u32 argc,
+			struct nvkm_object **);
+
+int nv50_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+		       struct nv50_disp *, struct nvkm_object **);
+
+int g84_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+		      struct nv50_disp *, struct nvkm_object **);
+
+int gt200_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+
+int gf119_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+
+int gk104_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+
+int gp102_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+
 struct nv50_disp_mthd_list {
 	u32 mthd;
 	u32 addr;
@@ -81,7 +106,6 @@ extern const struct nv50_disp_chan_mthd g84_disp_core_chan_mthd;
 extern const struct nv50_disp_mthd_list g84_disp_core_mthd_dac;
 extern const struct nv50_disp_mthd_list g84_disp_core_mthd_head;
 extern const struct nv50_disp_chan_mthd g84_disp_base_chan_mthd;
-extern const struct nv50_disp_chan_mthd g84_disp_ovly_chan_mthd;
 
 extern const struct nv50_disp_chan_mthd g94_disp_core_chan_mthd;
 
@@ -92,7 +116,7 @@ extern const struct nv50_disp_mthd_list gf119_disp_core_mthd_pior;
 extern const struct nv50_disp_chan_mthd gf119_disp_base_chan_mthd;
 
 extern const struct nv50_disp_chan_mthd gk104_disp_core_chan_mthd;
-extern const struct nv50_disp_chan_mthd gk104_disp_ovly_chan_mthd;
+extern const struct nv50_disp_chan_mthd gk104_disp_ovly_mthd;
 
 struct nv50_disp_pioc_oclass {
 	int (*ctor)(const struct nv50_disp_chan_func *,

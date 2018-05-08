@@ -13,8 +13,13 @@ struct nv50_disp_root {
 };
 
 struct nv50_disp_root_func {
-	const struct nv50_disp_dmac_oclass *dmac[3];
+	const struct nv50_disp_dmac_oclass *dmac[2];
 	const struct nv50_disp_pioc_oclass *pioc[2];
+	struct nv50_disp_user {
+		struct nvkm_sclass base;
+		int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
+			    struct nv50_disp *, struct nvkm_object **);
+	} user[];
 };
 
 int  nv50_disp_root_new_(const struct nv50_disp_root_func *, struct nvkm_disp *,

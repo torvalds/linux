@@ -31,11 +31,14 @@ gt215_disp_root = {
 	.dmac = {
 		&gt215_disp_core_oclass,
 		&gt215_disp_base_oclass,
-		&gt215_disp_ovly_oclass,
 	},
 	.pioc = {
 		&gt215_disp_oimm_oclass,
 		&gt215_disp_curs_oclass,
+	},
+	.user = {
+		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA},   g84_disp_ovly_new },
+		{}
 	},
 };
 
