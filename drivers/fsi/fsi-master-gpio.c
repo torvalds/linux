@@ -29,7 +29,8 @@
 #define	FSI_GPIO_CMD_TERM	0x3f
 #define FSI_GPIO_CMD_ABS_AR	0x4
 
-#define	FSI_GPIO_DPOLL_CLOCKS	100      /* < 21 will cause slave to hang */
+
+#define	FSI_GPIO_DPOLL_CLOCKS	50      /* < 21 will cause slave to hang */
 
 /* Bus errors */
 #define	FSI_GPIO_ERR_BUSY	1	/* Slave stuck in busy state */
@@ -43,7 +44,7 @@
 #define	FSI_GPIO_RESP_ACK	0
 #define	FSI_GPIO_RESP_ACKD	4
 
-#define	FSI_GPIO_MAX_BUSY	100
+#define	FSI_GPIO_MAX_BUSY	200
 #define	FSI_GPIO_MTOE_COUNT	1000
 #define	FSI_GPIO_DRAIN_BITS	20
 #define	FSI_GPIO_CRC_SIZE	4
