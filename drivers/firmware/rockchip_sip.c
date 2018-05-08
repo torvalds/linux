@@ -64,6 +64,14 @@ int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
 	return res.a0;
 }
 
+struct arm_smccc_res sip_smc_get_suspend_info(u32 info)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE, info, 0, 0);
+	return res;
+}
+
 int sip_smc_virtual_poweroff(void)
 {
 	struct arm_smccc_res res;

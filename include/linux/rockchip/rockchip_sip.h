@@ -78,6 +78,7 @@
 #define SUSPEND_DEBUG_ENABLE		0x05
 #define APIOS_SUSPEND_CONFIG		0x06
 #define VIRTUAL_POWEROFF		0x07
+#define SUSPEND_WFI_TIME_MS		0x08
 
 /* SIP_REMOTECTL_CFG call types */
 #define	REMOTECTL_SET_IRQ		0xf0
@@ -110,6 +111,7 @@ struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 					       share_page_type_t page_type);
 struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2);
 struct arm_smccc_res sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2);
+struct arm_smccc_res sip_smc_get_suspend_info(u32 info);
 
 int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2);
 int sip_smc_virtual_poweroff(void);
@@ -169,6 +171,11 @@ sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2)
 }
 
 static inline int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
+{
+	return 0;
+}
+
+static inline int sip_smc_get_suspend_info(u32 info)
 {
 	return 0;
 }
