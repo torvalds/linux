@@ -356,10 +356,13 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
+	unsigned long flags;
 
-	spin_lock_irq(&engine->timeline.lock);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
 	__unwind_incomplete_requests(engine);
-	spin_unlock_irq(&engine->timeline.lock);
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static inline void
@@ -553,7 +556,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 	execlists_set_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
-static void execlists_dequeue(struct intel_engine_cs *engine)
+static bool __execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
@@ -562,6 +565,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	struct i915_request *last = port_request(port);
 	struct rb_node *rb;
 	bool submit = false;
+
+	lockdep_assert_held(&engine->timeline.lock);
 
 	/* Hardware submission is through 2 ports. Conceptually each port
 	 * has a (RING_START, RING_HEAD, RING_TAIL) tuple. RING_START is
@@ -584,7 +589,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
-	spin_lock_irq(&engine->timeline.lock);
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
@@ -599,7 +603,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 						EXECLISTS_ACTIVE_USER));
 		GEM_BUG_ON(!port_count(&port[0]));
 		if (port_count(&port[0]) > 1)
-			goto unlock;
+			return false;
 
 		/*
 		 * If we write to ELSP a second time before the HW has had
@@ -609,11 +613,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * the HW to indicate that it has had a chance to respond.
 		 */
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
-			goto unlock;
+			return false;
 
 		if (need_preempt(engine, last, execlists->queue_priority)) {
 			inject_preempt_context(engine);
-			goto unlock;
+			return false;
 		}
 
 		/*
@@ -638,7 +642,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * priorities of the ports haven't been switch.
 		 */
 		if (port_count(&port[1]))
-			goto unlock;
+			return false;
 
 		/*
 		 * WaIdleLiteRestore:bdw,skl
@@ -743,13 +747,25 @@ done:
 	/* We must always keep the beast fed if we have work piled up */
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
-unlock:
-	spin_unlock_irq(&engine->timeline.lock);
-
-	if (submit) {
+	/* Re-evaluate the executing context setup after each preemptive kick */
+	if (last)
 		execlists_user_begin(execlists, execlists->port);
+
+	return submit;
+}
+
+static void execlists_dequeue(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	unsigned long flags;
+	bool submit;
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+	submit = __execlists_dequeue(engine);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+
+	if (submit)
 		execlists_submit_ports(engine);
-	}
 
 	GEM_BUG_ON(port_isset(execlists->port) &&
 		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
