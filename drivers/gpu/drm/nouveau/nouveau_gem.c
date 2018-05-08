@@ -432,7 +432,20 @@ retry:
 			}
 		}
 
-		b->user_priv = (uint64_t)(unsigned long)nvbo;
+		if (cli->vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+			struct nouveau_vmm *vmm = &cli->vmm;
+			struct nouveau_vma *vma = nouveau_vma_find(nvbo, vmm);
+			if (!vma) {
+				NV_PRINTK(err, cli, "vma not found!\n");
+				ret = -EINVAL;
+				break;
+			}
+
+			b->user_priv = (uint64_t)(unsigned long)vma;
+		} else {
+			b->user_priv = (uint64_t)(unsigned long)nvbo;
+		}
+
 		nvbo->reserved_by = file_priv;
 		nvbo->pbbo_index = i;
 		if ((b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
@@ -763,10 +776,10 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
-			struct nouveau_bo *nvbo = (void *)(unsigned long)
+			struct nouveau_vma *vma = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 
-			nv50_dma_push(chan, nvbo, push[i].offset,
+			nv50_dma_push(chan, vma->addr + push[i].offset,
 				      push[i].length);
 		}
 	} else

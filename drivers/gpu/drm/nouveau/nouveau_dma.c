@@ -80,18 +80,10 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 }
 
 void
-nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
-	      int delta, int length)
+nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 {
-	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nouveau_bo *pb = chan->push.buffer;
-	struct nouveau_vma *vma;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
-	u64 offset;
-
-	vma = nouveau_vma_find(bo, &cli->vmm);
-	BUG_ON(!vma);
-	offset = vma->addr + delta;
 
 	BUG_ON(chan->dma.ib_free < 1);
 
