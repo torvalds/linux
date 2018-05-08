@@ -1,6 +1,8 @@
 #ifndef _NF_OSF_H
 #define _NF_OSF_H
 
+#include <linux/types.h>
+
 #define MAXGENRELEN	32
 
 #define NF_OSF_GENRE	(1 << 0)
@@ -55,12 +57,6 @@ struct nf_osf_user_finger {
 
 	/* MAX_IPOPTLEN is maximum if all options are NOPs or EOLs */
 	struct nf_osf_opt	opt[MAX_IPOPTLEN];
-};
-
-struct nf_osf_finger {
-	struct rcu_head			rcu_head;
-	struct list_head		finger_entry;
-	struct nf_osf_user_finger	finger;
 };
 
 struct nf_osf_nlmsg {

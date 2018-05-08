@@ -21,6 +21,12 @@ enum osf_fmatch_states {
 	FMATCH_OPT_WRONG,
 };
 
+struct nf_osf_finger {
+	struct rcu_head			rcu_head;
+	struct list_head		finger_entry;
+	struct nf_osf_user_finger	finger;
+};
+
 bool nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 		  int hooknum, struct net_device *in, struct net_device *out,
 		  const struct nf_osf_info *info, struct net *net,
