@@ -19,26 +19,37 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "head.h"
 #include "core.h"
 
 static void
-dac507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
-	     struct nv50_head_atom *asyh)
+head917d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	u32 *push, sync = 0;
-	if ((push = evo_wait(&core->chan, 3))) {
-		if (asyh) {
-			sync |= asyh->or.nvsync << 1;
-			sync |= asyh->or.nhsync;
-		}
-		evo_mthd(push, 0x0400 + (or * 0x080), 2);
-		evo_data(push, ctrl);
-		evo_data(push, sync);
-		evo_kick(push, &core->chan);
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	u32 *push;
+	if ((push = evo_wait(core, 2))) {
+		evo_mthd(push, 0x04a0 + (head->base.index * 0x0300), 1);
+		evo_data(push, asyh->dither.mode << 3 |
+			       asyh->dither.bits << 1 |
+			       asyh->dither.enable);
+		evo_kick(push, core);
 	}
 }
 
-const struct nv50_outp_func
-dac507d = {
-	.ctrl = dac507d_ctrl,
+const struct nv50_head_func
+head917d = {
+	.view = head907d_view,
+	.mode = head907d_mode,
+	.ilut_set = head907d_ilut_set,
+	.ilut_clr = head907d_ilut_clr,
+	.core_calc = head507d_core_calc,
+	.core_set = head907d_core_set,
+	.core_clr = head907d_core_clr,
+	.curs_set = head907d_curs_set,
+	.curs_clr = head907d_curs_clr,
+	.base = head907d_base,
+	.ovly = head907d_ovly,
+	.dither = head917d_dither,
+	.procamp = head907d_procamp,
+	.or = head907d_or,
 };

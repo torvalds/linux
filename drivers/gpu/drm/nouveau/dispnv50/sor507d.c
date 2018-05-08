@@ -21,24 +21,18 @@
  */
 #include "core.h"
 
-#include <nvif/class.h>
-
 static void
 sor507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
 {
 	u32 *push;
-	if ((push = evo_wait(&core->chan, 6))) {
-		if (core->chan.base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
-			if (asyh) {
-				ctrl |= asyh->or.depth  << 16;
-				ctrl |= asyh->or.nvsync << 13;
-				ctrl |= asyh->or.nhsync << 12;
-			}
-			evo_mthd(push, 0x0600 + (or * 0x40), 1);
-		} else {
-			evo_mthd(push, 0x0200 + (or * 0x20), 1);
+	if ((push = evo_wait(&core->chan, 2))) {
+		if (asyh) {
+			ctrl |= asyh->or.depth  << 16;
+			ctrl |= asyh->or.nvsync << 13;
+			ctrl |= asyh->or.nhsync << 12;
 		}
+		evo_mthd(push, 0x0600 + (or * 0x40), 1);
 		evo_data(push, ctrl);
 		evo_kick(push, &core->chan);
 	}

@@ -26,15 +26,64 @@
 
 #include "nouveau_bo.h"
 
+void
+core507d_update(struct nv50_core *core, u32 interlock, bool ntfy)
+{
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 5))) {
+		if (ntfy) {
+			evo_mthd(push, 0x0084, 1);
+			evo_data(push, 0x80000000 | NV50_DISP_CORE_NTFY);
+		}
+		evo_mthd(push, 0x0080, 2);
+		evo_data(push, interlock);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &core->chan);
+	}
+}
+
+int
+core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
+			struct nvif_device *device)
+{
+	s64 time = nvif_msec(device, 2000ULL,
+		if (nouveau_bo_rd32(bo, offset / 4))
+			break;
+		usleep_range(1, 2);
+	);
+	return time < 0 ? time : 0;
+}
+
+void
+core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
+{
+	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+}
+
+void
+core507d_init(struct nv50_core *core)
+{
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 2))) {
+		evo_mthd(push, 0x0088, 1);
+		evo_data(push, core->chan.sync.handle);
+		evo_kick(push, &core->chan);
+	}
+}
+
 static const struct nv50_core_func
 core507d = {
+	.init = core507d_init,
+	.ntfy_init = core507d_ntfy_init,
+	.ntfy_wait_done = core507d_ntfy_wait_done,
+	.update = core507d_update,
 	.head = &head507d,
 	.dac = &dac507d,
 	.sor = &sor507d,
 	.pior = &pior507d,
 };
 
-static int
+int
 core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 	      s32 oclass, struct nv50_core **pcore)
 {

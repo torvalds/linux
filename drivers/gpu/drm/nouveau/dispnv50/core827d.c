@@ -20,25 +20,22 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "core.h"
+#include "head.h"
 
-static void
-dac507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
-	     struct nv50_head_atom *asyh)
-{
-	u32 *push, sync = 0;
-	if ((push = evo_wait(&core->chan, 3))) {
-		if (asyh) {
-			sync |= asyh->or.nvsync << 1;
-			sync |= asyh->or.nhsync;
-		}
-		evo_mthd(push, 0x0400 + (or * 0x080), 2);
-		evo_data(push, ctrl);
-		evo_data(push, sync);
-		evo_kick(push, &core->chan);
-	}
-}
-
-const struct nv50_outp_func
-dac507d = {
-	.ctrl = dac507d_ctrl,
+static const struct nv50_core_func
+core827d = {
+	.init = core507d_init,
+	.ntfy_init = core507d_ntfy_init,
+	.ntfy_wait_done = core507d_ntfy_wait_done,
+	.update = core507d_update,
+	.head = &head827d,
+	.dac = &dac507d,
+	.sor = &sor507d,
+	.pior = &pior507d,
 };
+
+int
+core827d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+{
+	return core507d_new_(&core827d, drm, oclass, pcore);
+}

@@ -1587,10 +1587,9 @@ static void
 nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 interlock)
 {
 	struct nv50_disp *disp = nv50_disp(drm->dev);
-	struct nv50_dmac *core = &disp->core->chan;
+	struct nv50_core *core = disp->core;
 	struct nv50_mstm *mstm;
 	struct drm_encoder *encoder;
-	u32 *push;
 
 	NV_ATOMIC(drm, "commit core %08x\n", interlock);
 
@@ -1602,21 +1601,11 @@ nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 interlock)
 		}
 	}
 
-	if ((push = evo_wait(core, 5))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x80000000);
-		evo_mthd(push, 0x0080, 2);
-		evo_data(push, interlock);
-		evo_data(push, 0x00000000);
-		nouveau_bo_wr32(disp->sync, 0, 0x00000000);
-		evo_kick(push, core);
-		if (nvif_msec(&drm->client.device, 2000ULL,
-			if (nouveau_bo_rd32(disp->sync, 0))
-				break;
-			usleep_range(1, 2);
-		) < 0)
-			NV_ERROR(drm, "EVO timeout\n");
-	}
+	core->func->ntfy_init(disp->sync, NV50_DISP_CORE_NTFY);
+	core->func->update(core, interlock, true);
+	if (core->func->ntfy_wait_done(disp->sync, NV50_DISP_CORE_NTFY,
+				       disp->core->chan.base.device))
+		NV_ERROR(drm, "core notifier timeout\n");
 
 	drm_for_each_encoder(encoder, drm->dev) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
@@ -1770,16 +1759,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	/* Flush update. */
 	if (interlock_core) {
-		if (!interlock_chan && atom->state.legacy_cursor_update) {
-			u32 *push = evo_wait(&disp->core->chan, 2);
-			if (push) {
-				evo_mthd(push, 0x0080, 1);
-				evo_data(push, 0x00000000);
-				evo_kick(push, &disp->core->chan);
-			}
-		} else {
+		if (interlock_chan || !atom->state.legacy_cursor_update)
 			nv50_disp_atomic_commit_core(drm, interlock_chan);
-		}
+		else
+			disp->core->func->update(disp->core, 0, false);
 	}
 
 	if (atom->lock_core)
@@ -2079,18 +2062,11 @@ nv50_display_fini(struct drm_device *dev)
 int
 nv50_display_init(struct drm_device *dev)
 {
-	struct nv50_dmac *core = &nv50_disp(dev)->core->chan;
+	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_encoder *encoder;
 	struct drm_plane *plane;
-	u32 *push;
 
-	push = evo_wait(core, 32);
-	if (!push)
-		return -EBUSY;
-
-	evo_mthd(push, 0x0088, 1);
-	evo_data(push, core->sync.handle);
-	evo_kick(push, core);
+	core->func->init(core);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {

@@ -22,23 +22,18 @@
 #include "core.h"
 
 static void
-dac507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
+dac907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
 {
-	u32 *push, sync = 0;
-	if ((push = evo_wait(&core->chan, 3))) {
-		if (asyh) {
-			sync |= asyh->or.nvsync << 1;
-			sync |= asyh->or.nhsync;
-		}
-		evo_mthd(push, 0x0400 + (or * 0x080), 2);
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 2))) {
+		evo_mthd(push, 0x0180 + (or * 0x020), 1);
 		evo_data(push, ctrl);
-		evo_data(push, sync);
 		evo_kick(push, &core->chan);
 	}
 }
 
 const struct nv50_outp_func
-dac507d = {
-	.ctrl = dac507d_ctrl,
+dac907d = {
+	.ctrl = dac907d_ctrl,
 };

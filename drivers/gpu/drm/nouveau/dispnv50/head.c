@@ -324,7 +324,6 @@ static int
 nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *armh = nv50_head_atom(crtc->state);
 	struct nv50_head_atom *asyh = nv50_head_atom(state);
@@ -373,31 +372,9 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 				nv50_head_atomic_check_procamp(armh, asyh, asyc);
 		}
 
-		if ((asyh->core.visible = (asyh->base.cpp != 0))) {
-			asyh->core.x = asyh->base.x;
-			asyh->core.y = asyh->base.y;
-			asyh->core.w = asyh->base.w;
-			asyh->core.h = asyh->base.h;
-		} else
-		if ((asyh->core.visible = asyh->curs.visible) ||
-		    (asyh->core.visible = asyh->ilut.visible)) {
-			/*XXX: We need to either find some way of having the
-			 *     primary base layer appear black, while still
-			 *     being able to display the other layers, or we
-			 *     need to allocate a dummy black surface here.
-			 */
-			asyh->core.x = 0;
-			asyh->core.y = 0;
-			asyh->core.w = asyh->state.mode.hdisplay;
-			asyh->core.h = asyh->state.mode.vdisplay;
-		}
-		asyh->core.handle = disp->core->chan.vram.handle;
-		asyh->core.offset = 0;
-		asyh->core.format = 0xcf;
-		asyh->core.kind = 0;
-		asyh->core.layout = 1;
-		asyh->core.block = 0;
-		asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
+		if (head->func->core_calc)
+			head->func->core_calc(head, asyh);
+
 		asyh->set.base = armh->base.cpp != asyh->base.cpp;
 		asyh->set.ovly = armh->ovly.cpp != asyh->ovly.cpp;
 	} else {

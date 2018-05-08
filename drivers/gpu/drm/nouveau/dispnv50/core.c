@@ -42,17 +42,17 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 		int version;
 		int (*new)(struct nouveau_drm *, s32, struct nv50_core **);
 	} cores[] = {
-		{ GP102_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GP100_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GM200_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GM107_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GK110_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GK104_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GF110_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GT214_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GT206_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{ GT200_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{   G82_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
+		{ GP102_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GP100_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GM200_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GM107_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GK110_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GK104_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
+		{ GF110_DISP_CORE_CHANNEL_DMA, 0, core907d_new },
+		{ GT214_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
+		{ GT206_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
+		{ GT200_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
+		{   G82_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
 		{  NV50_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
 		{}
 	};

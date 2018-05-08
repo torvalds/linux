@@ -2,15 +2,23 @@ nouveau-y += dispnv50/disp.o
 
 nouveau-y += dispnv50/core.o
 nouveau-y += dispnv50/core507d.o
+nouveau-y += dispnv50/core827d.o
+nouveau-y += dispnv50/core907d.o
+nouveau-y += dispnv50/core917d.o
 
 nouveau-y += dispnv50/dac507d.o
+nouveau-y += dispnv50/dac907d.o
 
 nouveau-y += dispnv50/pior507d.o
 
 nouveau-y += dispnv50/sor507d.o
+nouveau-y += dispnv50/sor907d.o
 
 nouveau-y += dispnv50/head.o
 nouveau-y += dispnv50/head507d.o
+nouveau-y += dispnv50/head827d.o
+nouveau-y += dispnv50/head907d.o
+nouveau-y += dispnv50/head917d.o
 
 nouveau-y += dispnv50/wndw.o
 
