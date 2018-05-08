@@ -145,6 +145,7 @@ struct gf100_gr_func {
 	void (*init_504430)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_shader_exceptions)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_400054)(struct gf100_gr *);
+	void (*trap_mp)(struct gf100_gr *, int gpc, int tpc);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -301,6 +302,7 @@ extern const struct gf100_gr_init gf100_gr_init_be_0[];
 extern const struct gf100_gr_init gf100_gr_init_fe_1[];
 extern const struct gf100_gr_init gf100_gr_init_pe_1[];
 void gf100_gr_init_gpc_mmu(struct gf100_gr *);
+void gf100_gr_trap_mp(struct gf100_gr *, int, int);
 
 extern const struct gf100_gr_init gf104_gr_init_ds_0[];
 extern const struct gf100_gr_init gf104_gr_init_tex_0[];

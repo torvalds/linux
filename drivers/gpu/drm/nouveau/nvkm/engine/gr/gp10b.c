@@ -41,6 +41,7 @@ gp10b_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gp100_gr_init_shader_exceptions,
+	.trap_mp = gf100_gr_trap_mp,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 1,
 	.tpc_nr = 2,

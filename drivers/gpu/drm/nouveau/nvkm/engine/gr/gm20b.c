@@ -68,6 +68,7 @@ gm20b_gr = {
 	.init_zcull = gf117_gr_init_zcull,
 	.init_gpc_mmu = gm20b_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.trap_mp = gf100_gr_trap_mp,
 	.set_hww_esr_report_mask = gm20b_gr_set_hww_esr_report_mask,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 1,
