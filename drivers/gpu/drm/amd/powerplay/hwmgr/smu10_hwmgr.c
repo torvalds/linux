@@ -766,6 +766,51 @@ static int smu10_get_dal_power_level(struct pp_hwmgr *hwmgr,
 static int smu10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
+	struct smu10_hwmgr *data = hwmgr->backend;
+	struct smu10_voltage_dependency_table *mclk_table =
+					data->clock_vol_info.vdd_dep_on_fclk;
+	uint32_t low, high;
+
+	low = mask ? (ffs(mask) - 1) : 0;
+	high = mask ? (fls(mask) - 1) : 0;
+
+	switch (type) {
+	case PP_SCLK:
+		if (low > 2 || high > 2) {
+			pr_info("Currently sclk only support 3 levels on RV\n");
+			return -EINVAL;
+		}
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						low == 2 ? data->gfx_max_freq_limit/100 :
+						low == 1 ? SMU10_UMD_PSTATE_GFXCLK :
+						data->gfx_min_freq_limit/100);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						high == 0 ? data->gfx_min_freq_limit/100 :
+						high == 1 ? SMU10_UMD_PSTATE_GFXCLK :
+						data->gfx_max_freq_limit/100);
+		break;
+
+	case PP_MCLK:
+		if (low > mclk_table->count - 1 || high > mclk_table->count - 1)
+			return -EINVAL;
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						mclk_table->entries[low].clk/100);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						mclk_table->entries[high].clk/100);
+		break;
+
+	case PP_PCIE:
+	default:
+		break;
+	}
 	return 0;
 }
 
