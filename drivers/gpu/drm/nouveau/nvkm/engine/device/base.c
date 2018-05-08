@@ -2398,6 +2398,7 @@ static const struct nvkm_device_chip
 nv140_chipset = {
 	.name = "GV100",
 	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
 	.devinit = gv100_devinit_new,
 	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
