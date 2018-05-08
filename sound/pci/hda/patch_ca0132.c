@@ -714,6 +714,7 @@ struct ca0132_spec {
 	const struct hda_verb *base_init_verbs;
 	const struct hda_verb *base_exit_verbs;
 	const struct hda_verb *chip_init_verbs;
+	const struct hda_verb *sbz_init_verbs;
 	struct hda_verb *spec_init_verbs;
 	struct auto_pin_cfg autocfg;
 
@@ -747,6 +748,7 @@ struct ca0132_spec {
 	unsigned int scp_resp_data[4];
 	unsigned int scp_resp_count;
 	bool alt_firmware_present;
+	bool dsp_reload;
 
 	/* mixer and effects related */
 	unsigned char dmic_ctl;
@@ -2744,6 +2746,59 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
 }
 
 /*
+ * Setup GPIO for the other variants of Core3D.
+ */
+
+/*
+ * Sets up the GPIO pins so that they are discoverable. If this isn't done,
+ * the card shows as having no GPIO pins.
+ */
+static void ca0132_gpio_init(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	switch (spec->quirk) {
+	case QUIRK_SBZ:
+		snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
+		snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x53);
+		snd_hda_codec_write(codec, 0x01, 0, 0x790, 0x23);
+		break;
+	case QUIRK_R3DI:
+		snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
+		snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x5B);
+		break;
+	}
+
+}
+
+/* Sets the GPIO for audio output. */
+static void ca0132_gpio_setup(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	switch (spec->quirk) {
+	case QUIRK_SBZ:
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_DIRECTION, 0x07);
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_MASK, 0x07);
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_DATA, 0x04);
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_DATA, 0x06);
+		break;
+	case QUIRK_R3DI:
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_DIRECTION, 0x1E);
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_MASK, 0x1F);
+		snd_hda_codec_write(codec, 0x01, 0,
+				AC_VERB_SET_GPIO_DATA, 0x0C);
+		break;
+	}
+}
+
+/*
  * PCM callbacks
  */
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -4494,11 +4549,14 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 		return; /* don't retry failures */
 
 	chipio_enable_clocks(codec);
-	spec->dsp_state = DSP_DOWNLOADING;
-	if (!ca0132_download_dsp_images(codec))
-		spec->dsp_state = DSP_DOWNLOAD_FAILED;
-	else
-		spec->dsp_state = DSP_DOWNLOADED;
+	if (spec->dsp_state != DSP_DOWNLOADED) {
+		spec->dsp_state = DSP_DOWNLOADING;
+
+		if (!ca0132_download_dsp_images(codec))
+			spec->dsp_state = DSP_DOWNLOAD_FAILED;
+		else
+			spec->dsp_state = DSP_DOWNLOADED;
+	}
 
 	if (spec->dsp_state == DSP_DOWNLOADED)
 		ca0132_set_dsp_msr(codec, true);
@@ -4573,6 +4631,7 @@ static struct hda_verb ca0132_base_exit_verbs[] = {
 };
 
 /* Other verbs tables. Sends after DSP download. */
+
 static struct hda_verb ca0132_init_verbs0[] = {
 	/* chip init verbs */
 	{0x15, 0x70D, 0xF0},
@@ -4602,8 +4661,27 @@ static struct hda_verb ca0132_init_verbs0[] = {
 	{0x15, 0x546, 0xC9},
 	{0x15, 0x53B, 0xCE},
 	{0x15, 0x5E8, 0xC9},
-	{0x15, 0x717, 0x0D},
-	{0x15, 0x718, 0x20},
+	{}
+};
+
+/* Extra init verbs for SBZ */
+static struct hda_verb sbz_init_verbs[] = {
+	{0x15, 0x70D, 0x20},
+	{0x15, 0x70E, 0x19},
+	{0x15, 0x707, 0x00},
+	{0x15, 0x539, 0xCE},
+	{0x15, 0x546, 0xC9},
+	{0x15, 0x70D, 0xB7},
+	{0x15, 0x70E, 0x09},
+	{0x15, 0x707, 0x10},
+	{0x15, 0x70D, 0xAF},
+	{0x15, 0x70E, 0x09},
+	{0x15, 0x707, 0x01},
+	{0x15, 0x707, 0x05},
+	{0x15, 0x70D, 0x73},
+	{0x15, 0x70E, 0x09},
+	{0x15, 0x707, 0x14},
+	{0x15, 0x6FF, 0xC4},
 	{}
 };
 
@@ -4762,15 +4840,165 @@ static void ca0132_exit_chip(struct hda_codec *codec)
 		dsp_reset(codec);
 }
 
+/*
+ * This is for the extra volume verbs 0x797 (left) and 0x798 (right). These add
+ * extra precision for decibel values. If you had the dB value in floating point
+ * you would take the value after the decimal point, multiply by 64, and divide
+ * by 2. So for 8.59, it's (59 * 64) / 100. Useful if someone wanted to
+ * implement fixed point or floating point dB volumes. For now, I'll set them
+ * to 0 just incase a value has lingered from a boot into Windows.
+ */
+static void ca0132_alt_vol_setup(struct hda_codec *codec)
+{
+	snd_hda_codec_write(codec, 0x02, 0, 0x797, 0x00);
+	snd_hda_codec_write(codec, 0x02, 0, 0x798, 0x00);
+	snd_hda_codec_write(codec, 0x03, 0, 0x797, 0x00);
+	snd_hda_codec_write(codec, 0x03, 0, 0x798, 0x00);
+	snd_hda_codec_write(codec, 0x04, 0, 0x797, 0x00);
+	snd_hda_codec_write(codec, 0x04, 0, 0x798, 0x00);
+	snd_hda_codec_write(codec, 0x07, 0, 0x797, 0x00);
+	snd_hda_codec_write(codec, 0x07, 0, 0x798, 0x00);
+}
+
+/*
+ * Extra commands that don't really fit anywhere else.
+ */
+static void sbz_pre_dsp_setup(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	writel(0x00820680, spec->mem_base + 0x01C);
+	writel(0x00820680, spec->mem_base + 0x01C);
+
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfc);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfd);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfe);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xff);
+
+	chipio_write(codec, 0x18b0a4, 0x000000c2);
+
+	snd_hda_codec_write(codec, 0x11, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x44);
+}
+
+/*
+ * Extra commands that don't really fit anywhere else.
+ */
+static void r3di_pre_dsp_setup(struct hda_codec *codec)
+{
+	chipio_write(codec, 0x18b0a4, 0x000000c2);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x1E);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x1C);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x5B);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x20);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x19);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x00);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x40);
+
+	snd_hda_codec_write(codec, 0x11, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x04);
+}
+
+
+/*
+ * These are sent before the DSP is downloaded. Not sure
+ * what they do, or if they're necessary. Could possibly
+ * be removed. Figure they're better to leave in.
+ */
+static void sbz_region2_startup(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	writel(0x00000000, spec->mem_base + 0x400);
+	writel(0x00000000, spec->mem_base + 0x408);
+	writel(0x00000000, spec->mem_base + 0x40C);
+	writel(0x00880680, spec->mem_base + 0x01C);
+	writel(0x00000083, spec->mem_base + 0xC0C);
+	writel(0x00000030, spec->mem_base + 0xC00);
+	writel(0x00000000, spec->mem_base + 0xC04);
+	writel(0x00000003, spec->mem_base + 0xC0C);
+	writel(0x00000003, spec->mem_base + 0xC0C);
+	writel(0x00000003, spec->mem_base + 0xC0C);
+	writel(0x00000003, spec->mem_base + 0xC0C);
+	writel(0x000000C1, spec->mem_base + 0xC08);
+	writel(0x000000F1, spec->mem_base + 0xC08);
+	writel(0x00000001, spec->mem_base + 0xC08);
+	writel(0x000000C7, spec->mem_base + 0xC08);
+	writel(0x000000C1, spec->mem_base + 0xC08);
+	writel(0x00000080, spec->mem_base + 0xC04);
+}
+
+/*
+ * Extra init functions for alternative ca0132 codecs. Done
+ * here so they don't clutter up the main ca0132_init function
+ * anymore than they have to.
+ */
+static void ca0132_alt_init(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	ca0132_alt_vol_setup(codec);
+
+	switch (spec->quirk) {
+	case QUIRK_SBZ:
+		codec_dbg(codec, "SBZ alt_init");
+		ca0132_gpio_init(codec);
+		sbz_pre_dsp_setup(codec);
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_sequence_write(codec, spec->sbz_init_verbs);
+		break;
+	case QUIRK_R3DI:
+		codec_dbg(codec, "R3DI alt_init");
+		ca0132_gpio_init(codec);
+		ca0132_gpio_setup(codec);
+		r3di_pre_dsp_setup(codec);
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x6FF, 0xC4);
+		break;
+	}
+}
+
 static int ca0132_init(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
+	bool dsp_loaded;
+
+	/*
+	 * If the DSP is already downloaded, and init has been entered again,
+	 * there's only two reasons for it. One, the codec has awaken from a
+	 * suspended state, and in that case dspload_is_loaded will return
+	 * false, and the init will be ran again. The other reason it gets
+	 * re entered is on startup for some reason it triggers a suspend and
+	 * resume state. In this case, it will check if the DSP is downloaded,
+	 * and not run the init function again. For codecs using alt_functions,
+	 * it will check if the DSP is loaded properly.
+	 */
+	if (spec->dsp_state == DSP_DOWNLOADED) {
+		dsp_loaded = dspload_is_loaded(codec);
+		if (!dsp_loaded) {
+			spec->dsp_reload = true;
+			spec->dsp_state = DSP_DOWNLOAD_INIT;
+		} else
+			return 0;
+	}
 
 	if (spec->dsp_state != DSP_DOWNLOAD_FAILED)
 		spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
+
+	if (spec->quirk == QUIRK_SBZ)
+		sbz_region2_startup(codec);
 
 	snd_hda_power_up_pm(codec);
 
@@ -4779,8 +5007,16 @@ static int ca0132_init(struct hda_codec *codec)
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
+
+	if (spec->quirk != QUIRK_NONE)
+		ca0132_alt_init(codec);
+
 	ca0132_download_dsp(codec);
 	ca0132_refresh_widget_caps(codec);
+
+	if (spec->quirk == QUIRK_SBZ)
+		writew(0x0107, spec->mem_base + 0x320);
+
 	ca0132_setup_defaults(codec);
 	ca0132_init_analog_mic2(codec);
 	ca0132_init_dmic(codec);
@@ -4795,13 +5031,32 @@ static int ca0132_init(struct hda_codec *codec)
 
 	init_input(codec, cfg->dig_in_pin, spec->dig_in);
 
-	snd_hda_sequence_write(codec, spec->chip_init_verbs);
+	if (spec->quirk == QUIRK_ALIENWARE || spec->quirk == QUIRK_NONE) {
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PARAM_EX_ID_SET, 0x0D);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PARAM_EX_VALUE_SET, 0x20);
+	}
+
+	if (spec->quirk == QUIRK_SBZ)
+		ca0132_gpio_setup(codec);
+
 	snd_hda_sequence_write(codec, spec->spec_init_verbs);
 
 	ca0132_select_out(codec);
 	ca0132_select_mic(codec);
 
 	snd_hda_jack_report_sync(codec);
+
+	/*
+	 * Re set the PlayEnhancement switch on a resume event, because the
+	 * controls will not be reloaded.
+	 */
+	if (spec->dsp_reload) {
+		spec->dsp_reload = false;
+		ca0132_pe_switch_set(codec);
+	}
 
 	snd_hda_power_down_pm(codec);
 
@@ -4989,6 +5244,8 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	spec->chip_init_verbs = ca0132_init_verbs0;
+	if (spec->quirk == QUIRK_SBZ)
+		spec->sbz_init_verbs = sbz_init_verbs;
 	spec->spec_init_verbs = kzalloc(sizeof(struct hda_verb) * NUM_SPEC_VERBS, GFP_KERNEL);
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
