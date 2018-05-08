@@ -1004,7 +1004,8 @@ static bool construct(
 
 	ctx->dc_bios->regs = &bios_regs;
 
-	pool->base.res_cap = &res_cap;
+		pool->base.res_cap = &res_cap;
+
 	pool->base.funcs = &dcn10_res_pool_funcs;
 
 	/*
