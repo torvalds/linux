@@ -4,7 +4,7 @@
 
 config MOST_DIM2
 	tristate "DIM2"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF
 
 	---help---
 	  Say Y here if you want to connect via MediaLB to network transceiver.
