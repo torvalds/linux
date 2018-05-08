@@ -1239,11 +1239,15 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_mc_unk260(device, 0);
 
-	gf100_gr_mmio(gr, grctx->hub);
-	gf100_gr_mmio(gr, grctx->gpc);
-	gf100_gr_mmio(gr, grctx->zcull);
-	gf100_gr_mmio(gr, grctx->tpc);
-	gf100_gr_mmio(gr, grctx->ppc);
+	if (!gr->fuc_sw_ctx) {
+		gf100_gr_mmio(gr, grctx->hub);
+		gf100_gr_mmio(gr, grctx->gpc);
+		gf100_gr_mmio(gr, grctx->zcull);
+		gf100_gr_mmio(gr, grctx->tpc);
+		gf100_gr_mmio(gr, grctx->ppc);
+	} else {
+		gf100_gr_mmio(gr, gr->fuc_sw_ctx);
+	}
 
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
