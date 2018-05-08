@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <core/ramht.h>
 #include <subdev/fb.h>
+#include <subdev/mmu.h>
 #include <subdev/timer.h>
 #include <engine/dma.h>
 
@@ -37,7 +38,6 @@ nv50_disp_dmac_new_(const struct nv50_disp_chan_func *func,
 		    struct nvkm_object **pobject)
 {
 	struct nvkm_client *client = oclass->client;
-	struct nvkm_dmaobj *dmaobj;
 	struct nv50_disp_chan *chan;
 	int ret;
 
@@ -47,24 +47,22 @@ nv50_disp_dmac_new_(const struct nv50_disp_chan_func *func,
 	if (ret)
 		return ret;
 
-	dmaobj = nvkm_dmaobj_search(client, push);
-	if (IS_ERR(dmaobj))
-		return PTR_ERR(dmaobj);
+	chan->memory = nvkm_umem_search(client, push);
+	if (IS_ERR(chan->memory))
+		return PTR_ERR(chan->memory);
 
-	if (dmaobj->limit - dmaobj->start != 0xfff)
+	if (nvkm_memory_size(chan->memory) < 0x1000)
 		return -EINVAL;
 
-	switch (dmaobj->target) {
-	case NV_MEM_TARGET_VRAM:
-		chan->push = 0x00000001 | dmaobj->start >> 8;
-		break;
-	case NV_MEM_TARGET_PCI_NOSNOOP:
-		chan->push = 0x00000003 | dmaobj->start >> 8;
-		break;
+	switch (nvkm_memory_target(chan->memory)) {
+	case NVKM_MEM_TARGET_VRAM: chan->push = 0x00000001; break;
+	case NVKM_MEM_TARGET_NCOH: chan->push = 0x00000002; break;
+	case NVKM_MEM_TARGET_HOST: chan->push = 0x00000003; break;
 	default:
 		return -EINVAL;
 	}
 
+	chan->push |= nvkm_memory_addr(chan->memory) >> 8;
 	return 0;
 }
 

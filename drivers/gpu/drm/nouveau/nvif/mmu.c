@@ -36,6 +36,12 @@ nvif_mmu_fini(struct nvif_mmu *mmu)
 int
 nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
 {
+	static const struct nvif_mclass mems[] = {
+		{ NVIF_CLASS_MEM_GF100, -1 },
+		{ NVIF_CLASS_MEM_NV50 , -1 },
+		{ NVIF_CLASS_MEM_NV04 , -1 },
+		{}
+	};
 	struct nvif_mmu_v0 args;
 	int ret, i;
 
@@ -53,6 +59,11 @@ nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
 	mmu->heap_nr = args.heap_nr;
 	mmu->type_nr = args.type_nr;
 	mmu->kind_nr = args.kind_nr;
+
+	ret = nvif_mclass(&mmu->object, mems);
+	if (ret < 0)
+		goto done;
+	mmu->mem = mems[ret].oclass;
 
 	mmu->heap = kmalloc(sizeof(*mmu->heap) * mmu->heap_nr, GFP_KERNEL);
 	mmu->type = kmalloc(sizeof(*mmu->type) * mmu->type_nr, GFP_KERNEL);

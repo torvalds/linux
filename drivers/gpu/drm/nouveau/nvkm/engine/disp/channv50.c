@@ -316,6 +316,7 @@ nv50_disp_chan_dtor(struct nvkm_object *object)
 	struct nv50_disp *disp = chan->disp;
 	if (chan->chid.user >= 0)
 		disp->chan[chan->chid.user] = NULL;
+	nvkm_memory_unref(&chan->memory);
 	return chan;
 }
 

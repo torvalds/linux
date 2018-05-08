@@ -34,6 +34,8 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
 
+#include <nvif/mem.h>
+
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
@@ -400,7 +402,8 @@ struct nv50_dmac_ctxdma {
 
 struct nv50_dmac {
 	struct nv50_chan base;
-	dma_addr_t handle;
+
+	struct nvif_mem push;
 	u32 *ptr;
 
 	struct nvif_object sync;
@@ -482,9 +485,8 @@ nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
 }
 
 static void
-nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
+nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
-	struct nvif_device *device = dmac->base.device;
 	struct nv50_dmac_ctxdma *ctxdma, *ctxtmp;
 
 	list_for_each_entry_safe(ctxdma, ctxtmp, &dmac->ctxdma, head) {
@@ -496,10 +498,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 
 	nv50_chan_destroy(&dmac->base);
 
-	if (dmac->ptr) {
-		struct device *dev = nvxx_device(device)->dev;
-		dma_free_coherent(dev, PAGE_SIZE, dmac->ptr, dmac->handle);
-	}
+	nvif_mem_fini(&dmac->push);
 }
 
 static int
@@ -507,33 +506,24 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		 const s32 *oclass, u8 head, void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
+	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nv50_disp_core_channel_dma_v0 *args = data;
-	struct nvif_object pushbuf;
 	int ret;
 
 	mutex_init(&dmac->lock);
 	INIT_LIST_HEAD(&dmac->ctxdma);
 
-	dmac->ptr = dma_alloc_coherent(nvxx_device(device)->dev, PAGE_SIZE,
-				       &dmac->handle, GFP_KERNEL);
-	if (!dmac->ptr)
-		return -ENOMEM;
-
-	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
-			       &(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_PCI_US,
-					.access = NV_DMA_V0_ACCESS_RD,
-					.start = dmac->handle + 0x0000,
-					.limit = dmac->handle + 0x0fff,
-			       }, sizeof(struct nv_dma_v0), &pushbuf);
+	ret = nvif_mem_init_map(&cli->mmu, NVIF_MEM_COHERENT, 0x1000,
+				&dmac->push);
 	if (ret)
 		return ret;
 
-	args->pushbuf = nvif_handle(&pushbuf);
+	dmac->ptr = dmac->push.object.map.ptr;
+
+	args->pushbuf = nvif_handle(&dmac->push.object);
 
 	ret = nv50_chan_create(device, disp, oclass, head, data, size,
 			       &dmac->base);
-	nvif_object_fini(&pushbuf);
 	if (ret)
 		return ret;
 
@@ -574,9 +564,7 @@ static int
 nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 		 u64 syncbuf, struct nv50_mast *core)
 {
-	struct nv50_disp_core_channel_dma_v0 args = {
-		.pushbuf = 0xb0007d00,
-	};
+	struct nv50_disp_core_channel_dma_v0 args = {};
 	static const s32 oclass[] = {
 		GP102_DISP_CORE_CHANNEL_DMA,
 		GP100_DISP_CORE_CHANNEL_DMA,
@@ -612,7 +600,6 @@ nv50_base_create(struct nvif_device *device, struct nvif_object *disp,
 		 int head, u64 syncbuf, struct nv50_sync *base)
 {
 	struct nv50_disp_base_channel_dma_v0 args = {
-		.pushbuf = 0xb0007c00 | head,
 		.head = head,
 	};
 	static const s32 oclass[] = {
@@ -643,7 +630,6 @@ nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
 		 int head, u64 syncbuf, struct nv50_ovly *ovly)
 {
 	struct nv50_disp_overlay_channel_dma_v0 args = {
-		.pushbuf = 0xb0007e00 | head,
 		.head = head,
 	};
 	static const s32 oclass[] = {
@@ -1472,9 +1458,8 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 static void *
 nv50_base_dtor(struct nv50_wndw *wndw)
 {
-	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
 	struct nv50_base *base = nv50_base(wndw);
-	nv50_dmac_destroy(&base->chan.base, disp->disp);
+	nv50_dmac_destroy(&base->chan.base);
 	return base;
 }
 
@@ -2354,11 +2339,10 @@ nv50_head_reset(struct drm_crtc *crtc)
 static void
 nv50_head_destroy(struct drm_crtc *crtc)
 {
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	int i;
 
-	nv50_dmac_destroy(&head->ovly.base, disp->disp);
+	nv50_dmac_destroy(&head->ovly.base);
 	nv50_pioc_destroy(&head->oimm.base);
 
 	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++)
@@ -4430,7 +4414,7 @@ nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
 
-	nv50_dmac_destroy(&disp->mast.base, disp->disp);
+	nv50_dmac_destroy(&disp->mast.base);
 
 	nouveau_bo_unmap(disp->sync);
 	if (disp->sync)
