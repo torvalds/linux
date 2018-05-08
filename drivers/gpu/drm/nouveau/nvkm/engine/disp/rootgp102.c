@@ -31,10 +31,8 @@ gp102_disp_root = {
 	.dmac = {
 		&gp102_disp_core_oclass,
 	},
-	.pioc = {
-		&gp102_disp_curs_oclass,
-	},
 	.user = {
+		{{0,0,GK104_DISP_CURSOR             }, gp102_disp_curs_new },
 		{{0,0,GK104_DISP_OVERLAY            }, gp102_disp_oimm_new },
 		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gp102_disp_base_new },
 		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gp102_disp_ovly_new },

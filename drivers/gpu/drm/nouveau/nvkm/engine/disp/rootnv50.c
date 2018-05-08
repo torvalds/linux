@@ -279,16 +279,6 @@ nv50_disp_root_dmac_new_(const struct nvkm_oclass *oclass,
 }
 
 static int
-nv50_disp_root_pioc_new_(const struct nvkm_oclass *oclass,
-			 void *data, u32 size, struct nvkm_object **pobject)
-{
-	const struct nv50_disp_pioc_oclass *sclass = oclass->priv;
-	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
-	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid.ctrl,
-			    sclass->chid.user, oclass, data, size, pobject);
-}
-
-static int
 nv50_disp_root_child_new_(const struct nvkm_oclass *oclass,
 			  void *argv, u32 argc, struct nvkm_object **pobject)
 {
@@ -311,15 +301,6 @@ nv50_disp_root_child_get_(struct nvkm_object *object, int index,
 	}
 
 	index -= ARRAY_SIZE(root->func->dmac);
-
-	if (index < ARRAY_SIZE(root->func->pioc)) {
-		sclass->base = root->func->pioc[index]->base;
-		sclass->priv = root->func->pioc[index];
-		sclass->ctor = nv50_disp_root_pioc_new_;
-		return 0;
-	}
-
-	index -= ARRAY_SIZE(root->func->pioc);
 
 	if (root->func->user[index].ctor) {
 		sclass->base = root->func->user[index].base;
@@ -369,10 +350,8 @@ nv50_disp_root = {
 	.dmac = {
 		&nv50_disp_core_oclass,
 	},
-	.pioc = {
-		&nv50_disp_curs_oclass,
-	},
 	.user = {
+		{{0,0,NV50_DISP_CURSOR             }, nv50_disp_curs_new },
 		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
 		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nv50_disp_base_new },
 		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },

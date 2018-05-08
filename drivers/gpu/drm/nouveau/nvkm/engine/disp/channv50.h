@@ -50,6 +50,10 @@ void nv50_disp_chan_uevent_send(struct nv50_disp *, int);
 
 extern const struct nvkm_event_func gf119_disp_chan_uevent;
 
+int nv50_disp_curs_new_(const struct nv50_disp_chan_func *,
+			struct nv50_disp *, int ctrl, int user,
+			const struct nvkm_oclass *, void *argv, u32 argc,
+			struct nvkm_object **);
 int nv50_disp_oimm_new_(const struct nv50_disp_chan_func *,
 			struct nv50_disp *, int ctrl, int user,
 			const struct nvkm_oclass *, void *argv, u32 argc,
@@ -65,6 +69,8 @@ int nv50_disp_ovly_new_(const struct nv50_disp_dmac_func *,
 			const struct nvkm_oclass *, void *argv, u32 argc,
 			struct nvkm_object **);
 
+int nv50_disp_curs_new(const struct nvkm_oclass *, void *, u32,
+		       struct nv50_disp *, struct nvkm_object **);
 int nv50_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
 		       struct nv50_disp *, struct nvkm_object **);
 int nv50_disp_base_new(const struct nvkm_oclass *, void *, u32,
@@ -80,6 +86,8 @@ int g84_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
 int gt200_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 
+int gf119_disp_curs_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
 int gf119_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 int gf119_disp_base_new(const struct nvkm_oclass *, void *, u32,
@@ -90,6 +98,8 @@ int gf119_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
 int gk104_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 
+int gp102_disp_curs_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
 int gp102_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 int gp102_disp_base_new(const struct nvkm_oclass *, void *, u32,
@@ -139,37 +149,4 @@ extern const struct nv50_disp_chan_mthd gf119_disp_base_mthd;
 
 extern const struct nv50_disp_chan_mthd gk104_disp_core_chan_mthd;
 extern const struct nv50_disp_chan_mthd gk104_disp_ovly_mthd;
-
-struct nv50_disp_pioc_oclass {
-	int (*ctor)(const struct nv50_disp_chan_func *,
-		    const struct nv50_disp_chan_mthd *,
-		    struct nv50_disp_root *, int ctrl, int user,
-		    const struct nvkm_oclass *, void *data, u32 size,
-		    struct nvkm_object **);
-	struct nvkm_sclass base;
-	const struct nv50_disp_chan_func *func;
-	const struct nv50_disp_chan_mthd *mthd;
-	struct {
-		int ctrl;
-		int user;
-	} chid;
-};
-
-extern const struct nv50_disp_pioc_oclass nv50_disp_curs_oclass;
-
-extern const struct nv50_disp_pioc_oclass g84_disp_curs_oclass;
-
-extern const struct nv50_disp_pioc_oclass gt215_disp_curs_oclass;
-
-extern const struct nv50_disp_pioc_oclass gf119_disp_curs_oclass;
-
-extern const struct nv50_disp_pioc_oclass gk104_disp_curs_oclass;
-
-extern const struct nv50_disp_pioc_oclass gp102_disp_curs_oclass;
-
-int nv50_disp_curs_new(const struct nv50_disp_chan_func *,
-		       const struct nv50_disp_chan_mthd *,
-		       struct nv50_disp_root *, int ctrl, int user,
-		       const struct nvkm_oclass *, void *data, u32 size,
-		       struct nvkm_object **);
 #endif

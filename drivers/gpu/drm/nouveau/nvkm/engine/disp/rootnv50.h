@@ -3,7 +3,6 @@
 #define __NV50_DISP_ROOT_H__
 #define nv50_disp_root(p) container_of((p), struct nv50_disp_root, object)
 #include "nv50.h"
-#include "channv50.h"
 #include "dmacnv50.h"
 
 struct nv50_disp_root {
@@ -14,7 +13,6 @@ struct nv50_disp_root {
 
 struct nv50_disp_root_func {
 	const struct nv50_disp_dmac_oclass *dmac[1];
-	const struct nv50_disp_pioc_oclass *pioc[1];
 	struct nv50_disp_user {
 		struct nvkm_sclass base;
 		int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
