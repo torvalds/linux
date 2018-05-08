@@ -60,4 +60,23 @@ struct nv_device_time_v0 {
 
 /* This will be returned for unsupported queries. */
 #define NV_DEVICE_INFO_INVALID                                           ~0ULL
+
+/* These return a mask of available engines of particular type. */
+#define NV_DEVICE_INFO_ENGINE_SW                     NV_DEVICE_INFO(0x00000000)
+#define NV_DEVICE_INFO_ENGINE_GR                     NV_DEVICE_INFO(0x00000001)
+#define NV_DEVICE_INFO_ENGINE_MPEG                   NV_DEVICE_INFO(0x00000002)
+#define NV_DEVICE_INFO_ENGINE_ME                     NV_DEVICE_INFO(0x00000003)
+#define NV_DEVICE_INFO_ENGINE_CIPHER                 NV_DEVICE_INFO(0x00000004)
+#define NV_DEVICE_INFO_ENGINE_BSP                    NV_DEVICE_INFO(0x00000005)
+#define NV_DEVICE_INFO_ENGINE_VP                     NV_DEVICE_INFO(0x00000006)
+#define NV_DEVICE_INFO_ENGINE_CE                     NV_DEVICE_INFO(0x00000007)
+#define NV_DEVICE_INFO_ENGINE_SEC                    NV_DEVICE_INFO(0x00000008)
+#define NV_DEVICE_INFO_ENGINE_MSVLD                  NV_DEVICE_INFO(0x00000009)
+#define NV_DEVICE_INFO_ENGINE_MSPDEC                 NV_DEVICE_INFO(0x0000000a)
+#define NV_DEVICE_INFO_ENGINE_MSPPP                  NV_DEVICE_INFO(0x0000000b)
+#define NV_DEVICE_INFO_ENGINE_MSENC                  NV_DEVICE_INFO(0x0000000c)
+#define NV_DEVICE_INFO_ENGINE_VIC                    NV_DEVICE_INFO(0x0000000d)
+#define NV_DEVICE_INFO_ENGINE_SEC2                   NV_DEVICE_INFO(0x0000000e)
+#define NV_DEVICE_INFO_ENGINE_NVDEC                  NV_DEVICE_INFO(0x0000000f)
+#define NV_DEVICE_INFO_ENGINE_NVENC                  NV_DEVICE_INFO(0x00000010)
 #endif

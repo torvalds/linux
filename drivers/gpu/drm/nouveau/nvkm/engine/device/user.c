@@ -67,6 +67,31 @@ nvkm_udevice_info_v1(struct nvkm_device *device,
 	}
 
 	switch (args->mthd) {
+#define ENGINE__(A,B,C) NV_DEVICE_INFO_ENGINE_##A: { int _i;                   \
+	for (_i = (B), args->data = 0ULL; _i <= (C); _i++) {                   \
+		if (nvkm_device_engine(device, _i))                            \
+			args->data |= BIT_ULL(_i);                             \
+	}                                                                      \
+}
+#define ENGINE_A(A) ENGINE__(A, NVKM_ENGINE_##A   , NVKM_ENGINE_##A)
+#define ENGINE_B(A) ENGINE__(A, NVKM_ENGINE_##A##0, NVKM_ENGINE_##A##_LAST)
+	case ENGINE_A(SW    ); break;
+	case ENGINE_A(GR    ); break;
+	case ENGINE_A(MPEG  ); break;
+	case ENGINE_A(ME    ); break;
+	case ENGINE_A(CIPHER); break;
+	case ENGINE_A(BSP   ); break;
+	case ENGINE_A(VP    ); break;
+	case ENGINE_B(CE    ); break;
+	case ENGINE_A(SEC   ); break;
+	case ENGINE_A(MSVLD ); break;
+	case ENGINE_A(MSPDEC); break;
+	case ENGINE_A(MSPPP ); break;
+	case ENGINE_A(MSENC ); break;
+	case ENGINE_A(VIC   ); break;
+	case ENGINE_A(SEC2  ); break;
+	case ENGINE_A(NVDEC ); break;
+	case ENGINE_B(NVENC ); break;
 	default:
 		args->mthd = NV_DEVICE_INFO_INVALID;
 		break;
