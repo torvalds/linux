@@ -121,11 +121,11 @@ static void ieee80211_get_stats(struct net_device *dev,
 
 
 		if (sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))
-			data[i] = 100000 *
+			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo->txrate);
 		i++;
 		if (sinfo->filled & BIT(NL80211_STA_INFO_RX_BITRATE))
-			data[i] = 100000 *
+			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo->rxrate);
 		i++;
 
