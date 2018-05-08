@@ -46,7 +46,6 @@ struct hdm_i2c {
 	struct rx {
 		struct delayed_work dwork;
 		struct list_head list;
-		struct mutex list_mutex;
 		bool int_disabled;
 		unsigned int delay;
 	} rx;
@@ -139,9 +138,7 @@ static int enqueue(struct most_interface *most_iface,
 		if (!dev->polling_mode)
 			disable_irq(dev->client->irq);
 		cancel_delayed_work_sync(&dev->rx.dwork);
-		mutex_lock(&dev->rx.list_mutex);
 		list_add_tail(&mbo->list, &dev->rx.list);
-		mutex_unlock(&dev->rx.list_mutex);
 		if (dev->rx.int_disabled || dev->polling_mode)
 			pending_rx_work(&dev->rx.dwork.work);
 		if (!dev->polling_mode)
@@ -186,19 +183,14 @@ static int poison_channel(struct most_interface *most_iface,
 			free_irq(dev->client->irq, dev);
 		cancel_delayed_work_sync(&dev->rx.dwork);
 
-		mutex_lock(&dev->rx.list_mutex);
 		while (!list_empty(&dev->rx.list)) {
 			mbo = list_first_mbo(&dev->rx.list);
 			list_del(&mbo->list);
-			mutex_unlock(&dev->rx.list_mutex);
 
 			mbo->processed_length = 0;
 			mbo->status = MBO_E_CLOSE;
 			mbo->complete(mbo);
-
-			mutex_lock(&dev->rx.list_mutex);
 		}
-		mutex_unlock(&dev->rx.list_mutex);
 	}
 
 	return 0;
@@ -231,10 +223,8 @@ static void do_rx_work(struct hdm_i2c *dev)
 		return;
 	}
 
-	mutex_lock(&dev->rx.list_mutex);
 	mbo = list_first_mbo(&dev->rx.list);
 	list_del(&mbo->list);
-	mutex_unlock(&dev->rx.list_mutex);
 
 	mbo->processed_length = min(data_size, mbo->buffer_length);
 	memcpy(mbo->virt_address, msg, mbo->processed_length);
@@ -251,12 +241,8 @@ static void do_rx_work(struct hdm_i2c *dev)
 static void pending_rx_work(struct work_struct *work)
 {
 	struct hdm_i2c *dev = container_of(work, struct hdm_i2c, rx.dwork.work);
-	bool empty;
 
-	mutex_lock(&dev->rx.list_mutex);
-	empty = list_empty(&dev->rx.list);
-	mutex_unlock(&dev->rx.list_mutex);
-	if (empty)
+	if (list_empty(&dev->rx.list))
 		return;
 
 	do_rx_work(dev);
@@ -340,7 +326,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->most_iface.poison_channel = poison_channel;
 
 	INIT_LIST_HEAD(&dev->rx.list);
-	mutex_init(&dev->rx.list_mutex);
 
 	INIT_DELAYED_WORK(&dev->rx.dwork, pending_rx_work);
 
