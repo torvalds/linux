@@ -130,6 +130,10 @@ enum IEC61937_PC {
 #define AUD_PLLDIV_1_1    2
 #define AUD_PLLDIV_2_3    3
 
+#define AUD_VOL_INIT         0x4000 /* +0dB */
+#define AUD_VOL_MAX          0xffff /* +6dB */
+#define AUD_VOL_FADE_TIME    20 /* 20ms */
+
 #define AUD_RING_SIZE            (128 * 1024)
 
 #define AUD_MIN_FRAGMENT         4
@@ -231,6 +235,7 @@ struct uniphier_aio_sub {
 	/* For PCM audio */
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_hw_params params;
+	int vol;
 
 	/* For compress audio */
 	struct snd_compr_stream *cstream;
@@ -323,6 +328,8 @@ int aio_port_set_clk(struct uniphier_aio_sub *sub);
 int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
 		       const struct snd_pcm_hw_params *params);
 void aio_port_set_enable(struct uniphier_aio_sub *sub, int enable);
+int aio_port_get_volume(struct uniphier_aio_sub *sub);
+void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol);
 int aio_if_set_param(struct uniphier_aio_sub *sub, int pass_through);
 int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 			      enum IEC61937_PC pc);

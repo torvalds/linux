@@ -32,6 +32,35 @@ static bool is_valid_pll(struct uniphier_aio_chip *chip, int pll_id)
 	return chip->plls[pll_id].enable;
 }
 
+/**
+ * find_volume - find volume supported HW port by HW port number
+ * @chip: the AIO chip pointer
+ * @oport_hw: HW port number, one of AUD_HW_XXXX
+ *
+ * Find AIO device from device list by HW port number. Volume feature is
+ * available only in Output and PCM ports, this limitation comes from HW
+ * specifications.
+ *
+ * Return: The pointer of AIO substream if successful, otherwise NULL on error.
+ */
+static struct uniphier_aio_sub *find_volume(struct uniphier_aio_chip *chip,
+					    int oport_hw)
+{
+	int i;
+
+	for (i = 0; i < chip->num_aios; i++) {
+		struct uniphier_aio_sub *sub = &chip->aios[i].sub[0];
+
+		if (!sub->swm)
+			continue;
+
+		if (sub->swm->oport.hw == oport_hw)
+			return sub;
+	}
+
+	return NULL;
+}
+
 static bool match_spec(const struct uniphier_aio_spec *spec,
 		       const char *name, int dir)
 {
@@ -287,6 +316,7 @@ static int uniphier_aio_hw_params(struct snd_pcm_substream *substream,
 	sub->setting = 1;
 
 	aio_port_reset(sub);
+	aio_port_set_volume(sub, sub->vol);
 	aio_src_reset(sub);
 
 	return 0;
@@ -373,6 +403,8 @@ int uniphier_aio_dai_probe(struct snd_soc_dai *dai)
 
 		sub->swm = &spec->swm;
 		sub->spec = spec;
+
+		sub->vol = AUD_VOL_INIT;
 	}
 
 	aio_iecout_set_enable(aio->chip, true);
@@ -449,8 +481,116 @@ err_out_clock:
 }
 EXPORT_SYMBOL_GPL(uniphier_aio_dai_resume);
 
+static int uniphier_aio_vol_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = AUD_VOL_MAX;
+
+	return 0;
+}
+
+static int uniphier_aio_vol_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct uniphier_aio_chip *chip = snd_soc_component_get_drvdata(comp);
+	struct uniphier_aio_sub *sub;
+	int oport_hw = kcontrol->private_value;
+
+	sub = find_volume(chip, oport_hw);
+	if (!sub)
+		return 0;
+
+	ucontrol->value.integer.value[0] = sub->vol;
+
+	return 0;
+}
+
+static int uniphier_aio_vol_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct uniphier_aio_chip *chip = snd_soc_component_get_drvdata(comp);
+	struct uniphier_aio_sub *sub;
+	int oport_hw = kcontrol->private_value;
+
+	sub = find_volume(chip, oport_hw);
+	if (!sub)
+		return 0;
+
+	if (sub->vol == ucontrol->value.integer.value[0])
+		return 0;
+	sub->vol = ucontrol->value.integer.value[0];
+
+	aio_port_set_volume(sub, sub->vol);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new uniphier_aio_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "HPCMOUT1 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_HPCMOUT1,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "PCMOUT1 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_PCMOUT1,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "PCMOUT2 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_PCMOUT2,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "PCMOUT3 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_PCMOUT3,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "HIECOUT1 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_HIECOUT1,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.name = "IECOUT1 Volume",
+		.info = uniphier_aio_vol_info,
+		.get = uniphier_aio_vol_get,
+		.put = uniphier_aio_vol_put,
+		.private_value = AUD_HW_IECOUT1,
+	},
+};
+
 static const struct snd_soc_component_driver uniphier_aio_component = {
 	.name = "uniphier-aio",
+	.controls = uniphier_aio_controls,
+	.num_controls = ARRAY_SIZE(uniphier_aio_controls),
 };
 
 int uniphier_aio_probe(struct platform_device *pdev)

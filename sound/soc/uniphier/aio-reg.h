@@ -169,6 +169,7 @@
 #define PBINMXPAUSECTR1(n)               (0x20208 + 0x40 * (n))
 
 /* AOUT */
+#define AOUTFADECTR0                     0x40020
 #define AOUTENCTR0                       0x40040
 #define AOUTENCTR1                       0x40044
 #define AOUTENCTR2                       0x40048
@@ -178,6 +179,9 @@
 #define AOUTSRCRSTCTR0                   0x400c0
 #define AOUTSRCRSTCTR1                   0x400c4
 #define AOUTSRCRSTCTR2                   0x400c8
+
+/* AOUT PCMOUT has 5 slots, slot0-3: D0-3, slot4: DMIX */
+#define OPORT_SLOT_MAX                     5
 
 /* AOUT(PCMOUTN) */
 #define OPORTMXCTR1(n)                   (0x42000 + 0x400 * (n))
@@ -359,11 +363,30 @@
 #define   OPORTMXMASK_XCKMSK_ON            (0x0 << 0)
 #define   OPORTMXMASK_XCKMSK_OFF           (0x7 << 0)
 #define OPORTMXDEBUG(n)                  (0x420fc + 0x400 * (n))
-#define OPORTMXT0RSTCTR(n)               (0x4211c + 0x400 * (n))
-#define OPORTMXT1RSTCTR(n)               (0x4213c + 0x400 * (n))
-#define OPORTMXT2RSTCTR(n)               (0x4215c + 0x400 * (n))
-#define OPORTMXT3RSTCTR(n)               (0x4217c + 0x400 * (n))
-#define OPORTMXT4RSTCTR(n)               (0x4219c + 0x400 * (n))
+#define OPORTMXTYVOLPARA1(n, m)          (0x42100 + 0x400 * (n) + 0x20 * (m))
+#define   OPORTMXTYVOLPARA1_SLOPEU_MASK    GENMASK(31, 16)
+#define OPORTMXTYVOLPARA2(n, m)          (0x42104 + 0x400 * (n) + 0x20 * (m))
+#define   OPORTMXTYVOLPARA2_FADE_MASK      GENMASK(17, 16)
+#define   OPORTMXTYVOLPARA2_FADE_NOOP      (0x0 << 16)
+#define   OPORTMXTYVOLPARA2_FADE_FADEOUT   (0x1 << 16)
+#define   OPORTMXTYVOLPARA2_FADE_FADEIN    (0x2 << 16)
+#define   OPORTMXTYVOLPARA2_TARGET_MASK    GENMASK(15, 0)
+#define OPORTMXTYVOLGAINSTATUS(n, m)     (0x42108 + 0x400 * (n) + 0x20 * (m))
+#define   OPORTMXTYVOLGAINSTATUS_CUR_MASK  GENMASK(15, 0)
+#define OPORTMXTYSLOTCTR(n, m)           (0x42114 + 0x400 * (n) + 0x20 * (m))
+#define   OPORTMXTYSLOTCTR_SLOTSEL_MASK    GENMASK(11, 8)
+#define   OPORTMXTYSLOTCTR_SLOTSEL_SLOT0   (0x8 << 8)
+#define   OPORTMXTYSLOTCTR_SLOTSEL_SLOT1   (0x9 << 8)
+#define   OPORTMXTYSLOTCTR_SLOTSEL_SLOT2   (0xa << 8)
+#define   OPORTMXTYSLOTCTR_SLOTSEL_SLOT3   (0xb << 8)
+#define   OPORTMXTYSLOTCTR_SLOTSEL_SLOT4   (0xc << 8)
+#define   OPORTMXT0SLOTCTR_MUTEOFF_MASK    BIT(1)
+#define   OPORTMXT0SLOTCTR_MUTEOFF_MUTE    (0x0 << 1)
+#define   OPORTMXT0SLOTCTR_MUTEOFF_UNMUTE  (0x1 << 1)
+#define OPORTMXTYRSTCTR(n, m)            (0x4211c + 0x400 * (n) + 0x20 * (m))
+#define   OPORTMXT0RSTCTR_RST_MASK         BIT(1)
+#define   OPORTMXT0RSTCTR_RST_OFF          (0x0 << 1)
+#define   OPORTMXT0RSTCTR_RST_ON           (0x1 << 1)
 
 #define SBF_(frame, shift)    (((frame) * 2 - 1) << shift)
 
