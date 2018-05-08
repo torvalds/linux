@@ -39,6 +39,14 @@ gm200_gr_rops(struct gf100_gr *gr)
 }
 
 void
+gm200_gr_init_num_active_ltcs(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+	nvkm_wr32(device, GPC_BCAST(0x033c), nvkm_rd32(device, 0x100804));
+}
+
+void
 gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -75,9 +83,7 @@ gm200_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_vsc_stream_master(gr);
 	gr->func->init_zcull(gr);
-
-	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
-	nvkm_wr32(device, GPC_BCAST(0x033c), nvkm_rd32(device, 0x100804));
+	gr->func->init_num_active_ltcs(gr);
 
 	gr->func->init_rop_active_fbps(gr);
 
@@ -185,6 +191,7 @@ gm200_gr = {
 	.init_bios = gm107_gr_init_bios,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
 	.init_zcull = gf117_gr_init_zcull,
+	.init_num_active_ltcs = gm200_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gm200_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,

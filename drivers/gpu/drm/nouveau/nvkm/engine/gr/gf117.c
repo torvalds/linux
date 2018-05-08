@@ -154,6 +154,7 @@ gf117_gr = {
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.init_zcull = gf117_gr_init_zcull,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.mmio = gf117_gr_pack_mmio,
 	.fecs.ucode = &gf117_gr_fecs_ucode,
 	.gpccs.ucode = &gf117_gr_gpccs_ucode,

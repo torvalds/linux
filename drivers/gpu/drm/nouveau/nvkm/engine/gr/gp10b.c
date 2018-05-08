@@ -25,23 +25,15 @@
 
 #include <nvif/class.h>
 
-static void
-gp10b_gr_init_num_active_ltcs(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-
-	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
-}
-
 static const struct gf100_gr_func
 gp10b_gr = {
 	.init = gp100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
 	.init_zcull = gf117_gr_init_zcull,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
-	.init_num_active_ltcs = gp10b_gr_init_num_active_ltcs,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gp102_grctx,

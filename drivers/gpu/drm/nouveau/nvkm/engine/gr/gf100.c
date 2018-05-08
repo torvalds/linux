@@ -1931,6 +1931,13 @@ gf100_gr_init_gpc_mmu(struct gf100_gr *gr)
 }
 
 void
+gf100_gr_init_num_active_ltcs(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+}
+
+void
 gf100_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1989,8 +1996,7 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_vsc_stream_master(gr);
 	gr->func->init_zcull(gr);
-
-	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+	gr->func->init_num_active_ltcs(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
@@ -2074,6 +2080,7 @@ gf100_gr = {
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
 	.init_zcull = gf100_gr_init_zcull,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
