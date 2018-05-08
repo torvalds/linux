@@ -1381,8 +1381,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
-	grctx->bundle(info);
 	grctx->pagepool(info);
+	grctx->bundle(info);
 	grctx->attrib(info);
 	if (grctx->patch_ltc)
 		grctx->patch_ltc(info);
