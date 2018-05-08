@@ -543,8 +543,8 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	front_info->drm_info = drm_info;
 
 	drm_dev = drm_dev_alloc(&xen_drm_driver, dev);
-	if (!drm_dev) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm_dev)) {
+		ret = PTR_ERR(drm_dev);
 		goto fail;
 	}
 
