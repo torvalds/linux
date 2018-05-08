@@ -1823,6 +1823,7 @@ xfs_inactive_ifree(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 	error = xfs_ifree(tp, ip, &dfops);
 	if (error) {
 		/*
