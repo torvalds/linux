@@ -73,11 +73,7 @@ nvkm-y += nvkm/engine/disp/dmacgp102.o
 
 nvkm-y += nvkm/engine/disp/basenv50.o
 nvkm-y += nvkm/engine/disp/baseg84.o
-nvkm-y += nvkm/engine/disp/basegt200.o
-nvkm-y += nvkm/engine/disp/basegt215.o
 nvkm-y += nvkm/engine/disp/basegf119.o
-nvkm-y += nvkm/engine/disp/basegk104.o
-nvkm-y += nvkm/engine/disp/basegk110.o
 nvkm-y += nvkm/engine/disp/basegp102.o
 
 nvkm-y += nvkm/engine/disp/corenv50.o

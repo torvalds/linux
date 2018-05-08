@@ -30,13 +30,13 @@ static const struct nv50_disp_root_func
 gf119_disp_root = {
 	.dmac = {
 		&gf119_disp_core_oclass,
-		&gf119_disp_base_oclass,
 	},
 	.pioc = {
 		&gf119_disp_curs_oclass,
 	},
 	.user = {
 		{{0,0,GF110_DISP_OVERLAY            }, gf119_disp_oimm_new },
+		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
 		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, gf119_disp_ovly_new },
 		{}
 	},

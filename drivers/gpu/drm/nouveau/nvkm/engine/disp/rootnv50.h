@@ -13,7 +13,7 @@ struct nv50_disp_root {
 };
 
 struct nv50_disp_root_func {
-	const struct nv50_disp_dmac_oclass *dmac[2];
+	const struct nv50_disp_dmac_oclass *dmac[1];
 	const struct nv50_disp_pioc_oclass *pioc[1];
 	struct nv50_disp_user {
 		struct nvkm_sclass base;
