@@ -338,7 +338,6 @@ static void hdm_write_completion(struct urb *urb)
 	struct mbo *mbo = urb->context;
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
-	struct device *dev = &mdev->usb_device->dev;
 	spinlock_t *lock = mdev->channel_lock + channel;
 	unsigned long flags;
 
@@ -354,7 +353,8 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_SUCCESS;
 			break;
 		case -EPIPE:
-			dev_warn(dev, "Broken pipe on ep%02x\n",
+			dev_warn(&mdev->usb_device->dev,
+				 "Broken pipe on ep%02x\n",
 				 mdev->ep_address[channel]);
 			mdev->is_channel_healthy[channel] = false;
 			mdev->clear_work[channel].pipe = urb->pipe;
@@ -552,7 +552,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 {
 	struct most_dev *mdev;
 	struct most_channel_config *conf;
-	struct device *dev;
 	int retval = 0;
 	struct urb *urb;
 	unsigned long length;
@@ -572,7 +571,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 		goto _exit;
 	}
 
-	dev = &mdev->usb_device->dev;
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
 	if (!urb) {
 		retval = -ENOMEM;
@@ -615,7 +613,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
-		dev_err(dev, "URB submit failed with error %d.\n", retval);
+		dev_err(&mdev->usb_device->dev,
+			"URB submit failed with error %d.\n", retval);
 		goto _error_1;
 	}
 	goto _exit;
