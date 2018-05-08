@@ -774,6 +774,13 @@ struct ca0132_spec {
 	 * switching, and other unknown commands.
 	 */
 	void __iomem *mem_base;
+
+	/*
+	 * Whether or not to use the alt functions like alt_select_out,
+	 * alt_select_in, etc. Only used on desktop codecs for now, because of
+	 * surround sound support.
+	 */
+	bool use_alt_functions;
 };
 
 /*
@@ -1111,6 +1118,42 @@ static void chipio_set_control_param(struct hda_codec *codec,
 		}
 		mutex_unlock(&spec->chipio_mutex);
 	}
+}
+
+/*
+ * Set chip parameters through the chip I/O widget. NO MUTEX.
+ */
+static void chipio_set_control_param_no_mutex(struct hda_codec *codec,
+		enum control_param_id param_id, int param_val)
+{
+	int val;
+
+	if ((param_id < 32) && (param_val < 8)) {
+		val = (param_val << 5) | (param_id);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+				    VENDOR_CHIPIO_PARAM_SET, val);
+	} else {
+		if (chipio_send(codec, VENDOR_CHIPIO_STATUS, 0) == 0) {
+			snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+					    VENDOR_CHIPIO_PARAM_EX_ID_SET,
+					    param_id);
+			snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+					    VENDOR_CHIPIO_PARAM_EX_VALUE_SET,
+					    param_val);
+		}
+	}
+}
+
+/*
+ * Enable/Disable audio stream.
+ */
+static void chipio_set_stream_control(struct hda_codec *codec,
+				int streamid, int enable)
+{
+	chipio_set_control_param_no_mutex(codec,
+			CONTROL_PARAM_STREAM_ID, streamid);
+	chipio_set_control_param_no_mutex(codec,
+			CONTROL_PARAM_STREAM_CONTROL, enable);
 }
 
 /*
@@ -2631,14 +2674,16 @@ exit:
  */
 static void dspload_post_setup(struct hda_codec *codec)
 {
+	struct ca0132_spec *spec = codec->spec;
 	codec_dbg(codec, "---- dspload_post_setup ------\n");
+	if (!spec->use_alt_functions) {
+		/*set DSP speaker to 2.0 configuration*/
+		chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x18), 0x08080080);
+		chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x19), 0x3f800000);
 
-	/*set DSP speaker to 2.0 configuration*/
-	chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x18), 0x08080080);
-	chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x19), 0x3f800000);
-
-	/*update write pointer*/
-	chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x29), 0x00000002);
+		/*update write pointer*/
+		chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x29), 0x00000002);
+	}
 }
 
 /**
@@ -3527,7 +3572,7 @@ static int ca0132_voicefx_set(struct hda_codec *codec, int enable)
 static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 {
 	struct ca0132_spec *spec = codec->spec;
-	unsigned int on;
+	unsigned int on, tmp;
 	int num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT;
 	int err = 0;
 	int idx = nid - EFFECT_START_NID;
@@ -3551,6 +3596,39 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 		/* Voice Focus applies to 2-ch Mic, Digital Mic */
 		if ((nid == VOICE_FOCUS) && (spec->cur_mic_type != DIGITAL_MIC))
 			val = 0;
+
+		/* If Voice Focus on SBZ, set to two channel. */
+		if ((nid == VOICE_FOCUS) && (spec->quirk == QUIRK_SBZ)) {
+			if (spec->effects_switch[CRYSTAL_VOICE -
+						 EFFECT_START_NID]) {
+
+				if (spec->effects_switch[VOICE_FOCUS -
+							 EFFECT_START_NID]) {
+					tmp = FLOAT_TWO;
+					val = 1;
+				} else
+					tmp = FLOAT_ONE;
+
+				dspio_set_uint_param(codec, 0x80, 0x00, tmp);
+			}
+		}
+		/*
+		 * For SBZ noise reduction, there's an extra command
+		 * to module ID 0x47. No clue why.
+		 */
+		if ((nid == NOISE_REDUCTION) && (spec->quirk == QUIRK_SBZ)) {
+			if (spec->effects_switch[CRYSTAL_VOICE -
+						 EFFECT_START_NID]) {
+				if (spec->effects_switch[NOISE_REDUCTION -
+							 EFFECT_START_NID])
+					tmp = FLOAT_ONE;
+				else
+					tmp = FLOAT_ZERO;
+			} else
+				tmp = FLOAT_ZERO;
+
+			dspio_set_uint_param(codec, 0x47, 0x00, tmp);
+		}
 	}
 
 	codec_dbg(codec, "ca0132_effect_set: nid=0x%x, val=%ld\n",
@@ -4185,12 +4263,16 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
 
-	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
-	if (!info)
-		return -ENOMEM;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[1];
+	/* With the DSP enabled, desktops don't use this ADC. */
+	if (spec->use_alt_functions) {
+		info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
+		if (!info)
+			return -ENOMEM;
+		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
+			ca0132_pcm_analog_capture;
+		info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
+		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[1];
+	}
 
 	info = snd_hda_codec_pcm_new(codec, "CA0132 What U Hear");
 	if (!info)
@@ -4445,12 +4527,32 @@ static void ca0132_setup_defaults(struct hda_codec *codec)
  */
 static void ca0132_init_flags(struct hda_codec *codec)
 {
-	chipio_set_control_flag(codec, CONTROL_FLAG_IDLE_ENABLE, 0);
-	chipio_set_control_flag(codec, CONTROL_FLAG_PORT_A_COMMON_MODE, 0);
-	chipio_set_control_flag(codec, CONTROL_FLAG_PORT_D_COMMON_MODE, 0);
-	chipio_set_control_flag(codec, CONTROL_FLAG_PORT_A_10KOHM_LOAD, 0);
-	chipio_set_control_flag(codec, CONTROL_FLAG_PORT_D_10KOHM_LOAD, 0);
-	chipio_set_control_flag(codec, CONTROL_FLAG_ADC_C_HIGH_PASS, 1);
+	struct ca0132_spec *spec = codec->spec;
+
+	if (spec->use_alt_functions) {
+		chipio_set_control_flag(codec, CONTROL_FLAG_DSP_96KHZ, 1);
+		chipio_set_control_flag(codec, CONTROL_FLAG_DAC_96KHZ, 1);
+		chipio_set_control_flag(codec, CONTROL_FLAG_ADC_B_96KHZ, 1);
+		chipio_set_control_flag(codec, CONTROL_FLAG_ADC_C_96KHZ, 1);
+		chipio_set_control_flag(codec, CONTROL_FLAG_SRC_RATE_96KHZ, 1);
+		chipio_set_control_flag(codec, CONTROL_FLAG_IDLE_ENABLE, 0);
+		chipio_set_control_flag(codec, CONTROL_FLAG_SPDIF2OUT, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_D_10KOHM_LOAD, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_A_10KOHM_LOAD, 1);
+	} else {
+		chipio_set_control_flag(codec, CONTROL_FLAG_IDLE_ENABLE, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_A_COMMON_MODE, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_D_COMMON_MODE, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_A_10KOHM_LOAD, 0);
+		chipio_set_control_flag(codec,
+				CONTROL_FLAG_PORT_D_10KOHM_LOAD, 0);
+		chipio_set_control_flag(codec, CONTROL_FLAG_ADC_C_HIGH_PASS, 1);
+	}
 }
 
 /*
@@ -4458,6 +4560,16 @@ static void ca0132_init_flags(struct hda_codec *codec)
  */
 static void ca0132_init_params(struct hda_codec *codec)
 {
+	struct ca0132_spec *spec = codec->spec;
+
+	if (spec->use_alt_functions) {
+		chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
+		chipio_set_conn_rate(codec, 0x0B, SR_48_000);
+		chipio_set_control_param(codec, CONTROL_PARAM_SPDIF1_SOURCE, 0);
+		chipio_set_control_param(codec, 0, 0);
+		chipio_set_control_param(codec, CONTROL_PARAM_VIP_SOURCE, 0);
+	}
+
 	chipio_set_control_param(codec, CONTROL_PARAM_PORTA_160OHM_GAIN, 6);
 	chipio_set_control_param(codec, CONTROL_PARAM_PORTD_160OHM_GAIN, 6);
 }
@@ -4558,7 +4670,8 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 			spec->dsp_state = DSP_DOWNLOADED;
 	}
 
-	if (spec->dsp_state == DSP_DOWNLOADED)
+	/* For codecs using alt functions, this is already done earlier */
+	if (spec->dsp_state == DSP_DOWNLOADED && (!spec->use_alt_functions))
 		ca0132_set_dsp_msr(codec, true);
 }
 
@@ -4605,7 +4718,7 @@ static void ca0132_init_unsol(struct hda_codec *codec)
 	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_DSP,
 					    ca0132_process_dsp_response);
 	/* Front headphone jack detection */
-	if (spec->quirk == QUIRK_SBZ || spec->quirk == QUIRK_R3DI)
+	if (spec->use_alt_functions)
 		snd_hda_jack_detect_enable_callback(codec,
 			spec->unsol_tag_front_hp, hp_callback);
 }
@@ -4798,12 +4911,16 @@ static void sbz_gpio_shutdown_commands(struct hda_codec *codec, int dir,
 
 static void sbz_exit_chip(struct hda_codec *codec)
 {
+	chipio_set_stream_control(codec, 0x03, 0);
+	chipio_set_stream_control(codec, 0x04, 0);
 
 	/* Mess with GPIO */
 	sbz_gpio_shutdown_commands(codec, 0x07, 0x07, -1);
 	sbz_gpio_shutdown_commands(codec, 0x07, 0x07, 0x05);
 	sbz_gpio_shutdown_commands(codec, 0x07, 0x07, 0x01);
 
+	chipio_set_stream_control(codec, 0x14, 0);
+	chipio_set_stream_control(codec, 0x0C, 0);
 
 	chipio_set_conn_rate(codec, 0x41, SR_192_000);
 	chipio_set_conn_rate(codec, 0x91, SR_192_000);
@@ -4814,6 +4931,7 @@ static void sbz_exit_chip(struct hda_codec *codec)
 	sbz_gpio_shutdown_commands(codec, 0x07, 0x07, 0x07);
 	sbz_gpio_shutdown_commands(codec, 0x07, 0x07, 0x06);
 
+	chipio_set_stream_control(codec, 0x0C, 0);
 
 	chipio_set_control_param(codec, 0x0D, 0x24);
 
@@ -5031,7 +5149,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	init_input(codec, cfg->dig_in_pin, spec->dig_in);
 
-	if (spec->quirk == QUIRK_ALIENWARE || spec->quirk == QUIRK_NONE) {
+	if (!spec->use_alt_functions) {
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
 			    VENDOR_CHIPIO_PARAM_EX_ID_SET, 0x0D);
@@ -5116,7 +5234,7 @@ static void ca0132_config(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dacs;
 	spec->multiout.num_dacs = 3;
 
-	if (spec->quirk == QUIRK_NONE || spec->quirk == QUIRK_ALIENWARE)
+	if (!spec->use_alt_functions)
 		spec->multiout.max_channels = 2;
 	else
 		spec->multiout.max_channels = 6;
@@ -5318,9 +5436,21 @@ static int patch_ca0132(struct hda_codec *codec)
 			spec->quirk = QUIRK_NONE;
 		}
 	}
+
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ca0132_mixer;
+
+	/* Setup whether or not to use alt functions */
+	switch (spec->quirk) {
+	case QUIRK_SBZ:
+	case QUIRK_R3DI:
+		spec->use_alt_functions = true;
+		break;
+	default:
+		spec->use_alt_functions = false;
+		break;
+	}
 
 	spec->base_init_verbs = ca0132_base_init_verbs;
 	spec->base_exit_verbs = ca0132_base_exit_verbs;
