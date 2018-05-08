@@ -190,6 +190,21 @@ static int dai_list_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(dai_list);
 
+static int component_list_show(struct seq_file *m, void *v)
+{
+	struct snd_soc_component *component;
+
+	mutex_lock(&client_mutex);
+
+	list_for_each_entry(component, &component_list, list)
+		seq_printf(m, "%s\n", component->name);
+
+	mutex_unlock(&client_mutex);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(component_list);
+
 static void soc_init_card_debugfs(struct snd_soc_card *card)
 {
 	if (!snd_soc_debugfs_root)
@@ -228,6 +243,10 @@ static void snd_soc_debugfs_init(void)
 	if (!debugfs_create_file("dais", 0444, snd_soc_debugfs_root, NULL,
 				 &dai_list_fops))
 		pr_warn("ASoC: Failed to create DAI list debugfs file\n");
+
+	if (!debugfs_create_file("components", 0444, snd_soc_debugfs_root, NULL,
+				 &component_list_fops))
+		pr_warn("ASoC: Failed to create component list debugfs file\n");
 }
 
 static void snd_soc_debugfs_exit(void)
