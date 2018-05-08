@@ -11,4 +11,6 @@ struct nvkm_fault {
 
 	struct nvkm_event event;
 };
+
+int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 #endif
