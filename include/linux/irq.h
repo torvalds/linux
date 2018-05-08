@@ -512,6 +512,7 @@ enum {
 	IRQCHIP_SKIP_SET_WAKE		= (1 <<  4),
 	IRQCHIP_ONESHOT_SAFE		= (1 <<  5),
 	IRQCHIP_EOI_THREADED		= (1 <<  6),
+	IRQCHIP_SUPPORTS_LEVEL_MSI	= (1 <<  7),
 };
 
 #include <linux/irqdesc.h>
