@@ -2008,6 +2008,7 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	nvkm_wr32(device, 0x400100, 0xffffffff);
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
+	nvkm_wr32(device, 0x400124, 0x00000002);
 
 	nvkm_wr32(device, 0x409c24, 0x000f0000);
 	nvkm_wr32(device, 0x404000, 0xc0000000);

@@ -434,6 +434,7 @@ gk104_gr_init(struct gf100_gr *gr)
 
 	nvkm_wr32(device, 0x400100, 0xffffffff);
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
+	nvkm_wr32(device, 0x400124, 0x00000002);
 
 	nvkm_wr32(device, 0x409ffc, 0x00000000);
 	nvkm_wr32(device, 0x409c14, 0x00003e3e);
