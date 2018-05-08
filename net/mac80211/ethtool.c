@@ -71,10 +71,14 @@ static void ieee80211_get_stats(struct net_device *dev,
 	struct ieee80211_channel *channel;
 	struct sta_info *sta;
 	struct ieee80211_local *local = sdata->local;
-	struct station_info sinfo;
+	struct station_info *sinfo;
 	struct survey_info survey;
 	int i, q;
 #define STA_STATS_SURVEY_LEN 7
+
+	sinfo = kmalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return;
 
 	memset(data, 0, sizeof(u64) * STA_STATS_LEN);
 
@@ -86,8 +90,8 @@ static void ieee80211_get_stats(struct net_device *dev,
 		data[i++] += sta->rx_stats.fragments;		\
 		data[i++] += sta->rx_stats.dropped;		\
 								\
-		data[i++] += sinfo.tx_packets;			\
-		data[i++] += sinfo.tx_bytes;			\
+		data[i++] += sinfo->tx_packets;			\
+		data[i++] += sinfo->tx_bytes;			\
 		data[i++] += sta->status_stats.filtered;	\
 		data[i++] += sta->status_stats.retry_failed;	\
 		data[i++] += sta->status_stats.retry_count;	\
@@ -107,8 +111,8 @@ static void ieee80211_get_stats(struct net_device *dev,
 		if (!(sta && !WARN_ON(sta->sdata->dev != dev)))
 			goto do_survey;
 
-		memset(&sinfo, 0, sizeof(sinfo));
-		sta_set_sinfo(sta, &sinfo);
+		memset(sinfo, 0, sizeof(*sinfo));
+		sta_set_sinfo(sta, sinfo);
 
 		i = 0;
 		ADD_STA_STATS(sta);
@@ -116,17 +120,17 @@ static void ieee80211_get_stats(struct net_device *dev,
 		data[i++] = sta->sta_state;
 
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE))
+		if (sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))
 			data[i] = 100000 *
-				cfg80211_calculate_bitrate(&sinfo.txrate);
+				cfg80211_calculate_bitrate(&sinfo->txrate);
 		i++;
-		if (sinfo.filled & BIT(NL80211_STA_INFO_RX_BITRATE))
+		if (sinfo->filled & BIT(NL80211_STA_INFO_RX_BITRATE))
 			data[i] = 100000 *
-				cfg80211_calculate_bitrate(&sinfo.rxrate);
+				cfg80211_calculate_bitrate(&sinfo->rxrate);
 		i++;
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))
-			data[i] = (u8)sinfo.signal_avg;
+		if (sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))
+			data[i] = (u8)sinfo->signal_avg;
 		i++;
 	} else {
 		list_for_each_entry(sta, &local->sta_list, list) {
@@ -134,14 +138,16 @@ static void ieee80211_get_stats(struct net_device *dev,
 			if (sta->sdata->dev != dev)
 				continue;
 
-			memset(&sinfo, 0, sizeof(sinfo));
-			sta_set_sinfo(sta, &sinfo);
+			memset(sinfo, 0, sizeof(*sinfo));
+			sta_set_sinfo(sta, sinfo);
 			i = 0;
 			ADD_STA_STATS(sta);
 		}
 	}
 
 do_survey:
+	kfree(sinfo);
+
 	i = STA_STATS_LEN - STA_STATS_SURVEY_LEN;
 	/* Get survey stats for current channel */
 	survey.filled = 0;

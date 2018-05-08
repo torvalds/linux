@@ -424,6 +424,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_PMK] = { .type = NLA_BINARY, .len = PMK_MAX_LEN },
 	[NL80211_ATTR_SCHED_SCAN_MULTI] = { .type = NLA_FLAG },
 	[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT] = { .type = NLA_FLAG },
+
+	[NL80211_ATTR_TXQ_LIMIT] = { .type = NLA_U32 },
+	[NL80211_ATTR_TXQ_MEMORY_LIMIT] = { .type = NLA_U32 },
+	[NL80211_ATTR_TXQ_QUANTUM] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -772,6 +776,39 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 
  nla_put_failure:
 	return -ENOBUFS;
+}
+
+static bool nl80211_put_txq_stats(struct sk_buff *msg,
+				  struct cfg80211_txq_stats *txqstats,
+				  int attrtype)
+{
+	struct nlattr *txqattr;
+
+#define PUT_TXQVAL_U32(attr, memb) do {					  \
+	if (txqstats->filled & BIT(NL80211_TXQ_STATS_ ## attr) &&	  \
+	    nla_put_u32(msg, NL80211_TXQ_STATS_ ## attr, txqstats->memb)) \
+		return false;						  \
+	} while (0)
+
+	txqattr = nla_nest_start(msg, attrtype);
+	if (!txqattr)
+		return false;
+
+	PUT_TXQVAL_U32(BACKLOG_BYTES, backlog_bytes);
+	PUT_TXQVAL_U32(BACKLOG_PACKETS, backlog_packets);
+	PUT_TXQVAL_U32(FLOWS, flows);
+	PUT_TXQVAL_U32(DROPS, drops);
+	PUT_TXQVAL_U32(ECN_MARKS, ecn_marks);
+	PUT_TXQVAL_U32(OVERLIMIT, overlimit);
+	PUT_TXQVAL_U32(OVERMEMORY, overmemory);
+	PUT_TXQVAL_U32(COLLISIONS, collisions);
+	PUT_TXQVAL_U32(TX_BYTES, tx_bytes);
+	PUT_TXQVAL_U32(TX_PACKETS, tx_packets);
+	PUT_TXQVAL_U32(MAX_FLOWS, max_flows);
+	nla_nest_end(msg, txqattr);
+
+#undef PUT_TXQVAL_U32
+	return true;
 }
 
 /* netlink command implementations */
@@ -1973,6 +2010,28 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 				rdev->wiphy.nan_supported_bands))
 			goto nla_put_failure;
 
+		if (wiphy_ext_feature_isset(&rdev->wiphy,
+					    NL80211_EXT_FEATURE_TXQS)) {
+			struct cfg80211_txq_stats txqstats = {};
+			int res;
+
+			res = rdev_get_txq_stats(rdev, NULL, &txqstats);
+			if (!res &&
+			    !nl80211_put_txq_stats(msg, &txqstats,
+						   NL80211_ATTR_TXQ_STATS))
+				goto nla_put_failure;
+
+			if (nla_put_u32(msg, NL80211_ATTR_TXQ_LIMIT,
+					rdev->wiphy.txq_limit))
+				goto nla_put_failure;
+			if (nla_put_u32(msg, NL80211_ATTR_TXQ_MEMORY_LIMIT,
+					rdev->wiphy.txq_memory_limit))
+				goto nla_put_failure;
+			if (nla_put_u32(msg, NL80211_ATTR_TXQ_QUANTUM,
+					rdev->wiphy.txq_quantum))
+				goto nla_put_failure;
+		}
+
 		/* done */
 		state->split_start = 0;
 		break;
@@ -2350,6 +2409,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	u8 retry_short = 0, retry_long = 0;
 	u32 frag_threshold = 0, rts_threshold = 0;
 	u8 coverage_class = 0;
+	u32 txq_limit = 0, txq_memory_limit = 0, txq_quantum = 0;
 
 	ASSERT_RTNL();
 
@@ -2556,10 +2616,38 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		changed |= WIPHY_PARAM_DYN_ACK;
 	}
 
+	if (info->attrs[NL80211_ATTR_TXQ_LIMIT]) {
+		if (!wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+		txq_limit = nla_get_u32(
+			info->attrs[NL80211_ATTR_TXQ_LIMIT]);
+		changed |= WIPHY_PARAM_TXQ_LIMIT;
+	}
+
+	if (info->attrs[NL80211_ATTR_TXQ_MEMORY_LIMIT]) {
+		if (!wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+		txq_memory_limit = nla_get_u32(
+			info->attrs[NL80211_ATTR_TXQ_MEMORY_LIMIT]);
+		changed |= WIPHY_PARAM_TXQ_MEMORY_LIMIT;
+	}
+
+	if (info->attrs[NL80211_ATTR_TXQ_QUANTUM]) {
+		if (!wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_TXQS))
+			return -EOPNOTSUPP;
+		txq_quantum = nla_get_u32(
+			info->attrs[NL80211_ATTR_TXQ_QUANTUM]);
+		changed |= WIPHY_PARAM_TXQ_QUANTUM;
+	}
+
 	if (changed) {
 		u8 old_retry_short, old_retry_long;
 		u32 old_frag_threshold, old_rts_threshold;
 		u8 old_coverage_class;
+		u32 old_txq_limit, old_txq_memory_limit, old_txq_quantum;
 
 		if (!rdev->ops->set_wiphy_params)
 			return -EOPNOTSUPP;
@@ -2569,6 +2657,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		old_frag_threshold = rdev->wiphy.frag_threshold;
 		old_rts_threshold = rdev->wiphy.rts_threshold;
 		old_coverage_class = rdev->wiphy.coverage_class;
+		old_txq_limit = rdev->wiphy.txq_limit;
+		old_txq_memory_limit = rdev->wiphy.txq_memory_limit;
+		old_txq_quantum = rdev->wiphy.txq_quantum;
 
 		if (changed & WIPHY_PARAM_RETRY_SHORT)
 			rdev->wiphy.retry_short = retry_short;
@@ -2580,6 +2671,12 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.rts_threshold = rts_threshold;
 		if (changed & WIPHY_PARAM_COVERAGE_CLASS)
 			rdev->wiphy.coverage_class = coverage_class;
+		if (changed & WIPHY_PARAM_TXQ_LIMIT)
+			rdev->wiphy.txq_limit = txq_limit;
+		if (changed & WIPHY_PARAM_TXQ_MEMORY_LIMIT)
+			rdev->wiphy.txq_memory_limit = txq_memory_limit;
+		if (changed & WIPHY_PARAM_TXQ_QUANTUM)
+			rdev->wiphy.txq_quantum = txq_quantum;
 
 		result = rdev_set_wiphy_params(rdev, changed);
 		if (result) {
@@ -2588,6 +2685,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.frag_threshold = old_frag_threshold;
 			rdev->wiphy.rts_threshold = old_rts_threshold;
 			rdev->wiphy.coverage_class = old_coverage_class;
+			rdev->wiphy.txq_limit = old_txq_limit;
+			rdev->wiphy.txq_memory_limit = old_txq_memory_limit;
+			rdev->wiphy.txq_quantum = old_txq_quantum;
 			return result;
 		}
 	}
@@ -2708,6 +2808,16 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 		break;
 	}
 	wdev_unlock(wdev);
+
+	if (rdev->ops->get_txq_stats) {
+		struct cfg80211_txq_stats txqstats = {};
+		int ret = rdev_get_txq_stats(rdev, wdev, &txqstats);
+
+		if (ret == 0 &&
+		    !nl80211_put_txq_stats(msg, &txqstats,
+					   NL80211_ATTR_TXQ_STATS))
+			goto nla_put_failure;
+	}
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -4582,6 +4692,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			PUT_TIDVAL_U64(TX_MSDU_FAILED, tx_msdu_failed);
 
 #undef PUT_TIDVAL_U64
+			if ((tidstats->filled &
+			     BIT(NL80211_TID_STATS_TXQ_STATS)) &&
+			    !nl80211_put_txq_stats(msg, &tidstats->txq_stats,
+						   NL80211_TID_STATS_TXQ_STATS))
+				goto nla_put_failure;
+
 			nla_nest_end(msg, tidattr);
 		}
 
@@ -4606,12 +4722,16 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 static int nl80211_dump_station(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
-	struct station_info sinfo;
+	struct station_info *sinfo;
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 	u8 mac_addr[ETH_ALEN];
 	int sta_idx = cb->args[2];
 	int err;
+
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return -ENOMEM;
 
 	rtnl_lock();
 	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
@@ -4629,9 +4749,9 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	}
 
 	while (1) {
-		memset(&sinfo, 0, sizeof(sinfo));
+		memset(sinfo, 0, sizeof(*sinfo));
 		err = rdev_dump_station(rdev, wdev->netdev, sta_idx,
-					mac_addr, &sinfo);
+					mac_addr, sinfo);
 		if (err == -ENOENT)
 			break;
 		if (err)
@@ -4641,7 +4761,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 				NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				rdev, wdev->netdev, mac_addr,
-				&sinfo) < 0)
+				sinfo) < 0)
 			goto out;
 
 		sta_idx++;
@@ -4652,6 +4772,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	err = skb->len;
  out_err:
 	rtnl_unlock();
+	kfree(sinfo);
 
 	return err;
 }
@@ -4660,37 +4781,49 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
-	struct station_info sinfo;
+	struct station_info *sinfo;
 	struct sk_buff *msg;
 	u8 *mac_addr = NULL;
 	int err;
 
-	memset(&sinfo, 0, sizeof(sinfo));
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return -ENOMEM;
 
-	if (!info->attrs[NL80211_ATTR_MAC])
-		return -EINVAL;
+	if (!info->attrs[NL80211_ATTR_MAC]) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (!rdev->ops->get_station)
-		return -EOPNOTSUPP;
+	if (!rdev->ops->get_station) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
 
-	err = rdev_get_station(rdev, dev, mac_addr, &sinfo);
+	err = rdev_get_station(rdev, dev, mac_addr, sinfo);
 	if (err)
-		return err;
+		goto out;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
+	if (!msg) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION,
 				 info->snd_portid, info->snd_seq, 0,
-				 rdev, dev, mac_addr, &sinfo) < 0) {
+				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
-		return -ENOBUFS;
+		err = -ENOBUFS;
+		goto out;
 	}
 
-	return genlmsg_reply(msg, info);
+	err = genlmsg_reply(msg, info);
+out:
+	kfree(sinfo);
+	return err;
 }
 
 int cfg80211_check_station_change(struct wiphy *wiphy,
@@ -9954,18 +10087,26 @@ static int cfg80211_cqm_rssi_update(struct cfg80211_registered_device *rdev,
 	 */
 	if (!wdev->cqm_config->last_rssi_event_value && wdev->current_bss &&
 	    rdev->ops->get_station) {
-		struct station_info sinfo = {};
+		struct station_info *sinfo;
 		u8 *mac_addr;
+
+		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		if (!sinfo)
+			return -ENOMEM;
 
 		mac_addr = wdev->current_bss->pub.bssid;
 
-		err = rdev_get_station(rdev, dev, mac_addr, &sinfo);
-		if (err)
+		err = rdev_get_station(rdev, dev, mac_addr, sinfo);
+		if (err) {
+			kfree(sinfo);
 			return err;
+		}
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG))
+		if (sinfo->filled & BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG))
 			wdev->cqm_config->last_rssi_event_value =
-				(s8) sinfo.rx_beacon_signal_avg;
+				(s8)sinfo->rx_beacon_signal_avg;
+
+		kfree(sinfo);
 	}
 
 	last = wdev->cqm_config->last_rssi_event_value;
@@ -14499,25 +14640,32 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct sk_buff *msg;
-	struct station_info empty_sinfo = {};
+	struct station_info *empty_sinfo = NULL;
 
-	if (!sinfo)
-		sinfo = &empty_sinfo;
+	if (!sinfo) {
+		empty_sinfo = kzalloc(sizeof(*empty_sinfo), GFP_KERNEL);
+		if (!empty_sinfo)
+			return;
+		sinfo = empty_sinfo;
+	}
 
 	trace_cfg80211_del_sta(dev, mac_addr);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
-		return;
+		goto out;
 
 	if (nl80211_send_station(msg, NL80211_CMD_DEL_STATION, 0, 0, 0,
 				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
-		return;
+		goto out;
 	}
 
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
 				NL80211_MCGRP_MLME, gfp);
+
+out:
+	kfree(empty_sinfo);
 }
 EXPORT_SYMBOL(cfg80211_del_sta_sinfo);
 
