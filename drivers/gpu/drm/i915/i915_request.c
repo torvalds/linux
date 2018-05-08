@@ -502,7 +502,7 @@ static void move_to_timeline(struct i915_request *request,
 	GEM_BUG_ON(request->timeline == &request->engine->timeline);
 	lockdep_assert_held(&request->engine->timeline.lock);
 
-	spin_lock(&request->timeline->lock);
+	spin_lock_nested(&request->timeline->lock, SINGLE_DEPTH_NESTING);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 }
