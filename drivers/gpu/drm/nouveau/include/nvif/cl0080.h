@@ -83,4 +83,11 @@ struct nv_device_time_v0 {
 
 /* Returns the number of available channels. */
 #define NV_DEVICE_FIFO_CHANNELS                      NV_DEVICE_FIFO(0x00000000)
+
+/* Returns a mask of available runlists. */
+#define NV_DEVICE_FIFO_RUNLISTS                      NV_DEVICE_FIFO(0x00000001)
+
+/* These return a mask of engines available on a particular runlist. */
+#define NV_DEVICE_FIFO_RUNLIST_ENGINES(n)     ((n) + NV_DEVICE_FIFO(0x00000010))
+#define NV_DEVICE_FIFO_RUNLIST_ENGINES__SIZE                                64
 #endif

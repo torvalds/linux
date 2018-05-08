@@ -18,6 +18,7 @@ struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
 	void *(*dtor)(struct nvkm_fifo *);
 	int (*oneinit)(struct nvkm_fifo *);
+	int (*info)(struct nvkm_fifo *, u64 mthd, u64 *data);
 	void (*init)(struct nvkm_fifo *);
 	void (*fini)(struct nvkm_fifo *);
 	void (*intr)(struct nvkm_fifo *);

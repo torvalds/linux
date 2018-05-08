@@ -33,6 +33,7 @@
 #include <engine/sw.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0080.h>
 
 struct gk104_fifo_engine_status {
 	bool busy;
@@ -784,6 +785,34 @@ gk104_fifo_fini(struct nvkm_fifo *base)
 }
 
 static int
+gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	switch (mthd) {
+	case NV_DEVICE_FIFO_RUNLISTS:
+		*data = (1ULL << fifo->runlist_nr) - 1;
+		return 0;
+	case NV_DEVICE_FIFO_RUNLIST_ENGINES(0)...
+	     NV_DEVICE_FIFO_RUNLIST_ENGINES(63): {
+		int runl = mthd - NV_DEVICE_FIFO_RUNLIST_ENGINES(0), engn;
+		if (runl < fifo->runlist_nr) {
+			unsigned long engm = fifo->runlist[runl].engm;
+			struct nvkm_engine *engine;
+			*data = 0;
+			for_each_set_bit(engn, &engm, fifo->engine_nr) {
+				if ((engine = fifo->engine[engn].engine))
+					*data |= BIT_ULL(engine->subdev.index);
+			}
+			return 0;
+		}
+	}
+		return -EINVAL;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
 gk104_fifo_oneinit(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -912,6 +941,7 @@ static const struct nvkm_fifo_func
 gk104_fifo_ = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
+	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,

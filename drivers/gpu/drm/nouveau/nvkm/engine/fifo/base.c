@@ -284,6 +284,8 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 	switch (mthd) {
 	case NV_DEVICE_FIFO_CHANNELS: *data = fifo->nr; return 0;
 	default:
+		if (fifo->func->info)
+			return fifo->func->info(fifo, mthd, data);
 		break;
 	}
 	return -ENOSYS;
