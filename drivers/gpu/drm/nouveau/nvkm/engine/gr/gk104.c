@@ -461,7 +461,7 @@ gk104_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	gr->func->init_419cc0(gr);
-	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
+	gr->func->init_419eb4(gr);
 
 	gr->func->init_ppc_exceptions(gr);
 
@@ -534,6 +534,7 @@ gk104_gr = {
 	.init_fecs_exceptions = gk104_gr_init_fecs_exceptions,
 	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
 	.init_419cc0 = gf100_gr_init_419cc0,
+	.init_419eb4 = gf100_gr_init_419eb4,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,

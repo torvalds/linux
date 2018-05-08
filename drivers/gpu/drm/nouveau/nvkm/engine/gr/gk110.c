@@ -334,6 +334,20 @@ gk110_gr_gpccs_ucode = {
 	.data.size = sizeof(gk110_grgpc_data),
 };
 
+void
+gk110_gr_init_419eb4(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
+	nvkm_mask(device, 0x419eb4, 0x00002000, 0x00002000);
+	nvkm_mask(device, 0x419eb4, 0x00004000, 0x00004000);
+	nvkm_mask(device, 0x419eb4, 0x00008000, 0x00008000);
+	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00002000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00004000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00008000, 0x00000000);
+}
+
 static const struct gf100_gr_func
 gk110_gr = {
 	.init = gk104_gr_init,
@@ -345,6 +359,7 @@ gk110_gr = {
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
 	.init_419cc0 = gf100_gr_init_419cc0,
+	.init_419eb4 = gk110_gr_init_419eb4,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk110_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
