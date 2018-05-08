@@ -1464,8 +1464,15 @@ int cx23885_start_dma(struct cx23885_tsport *port,
 		reg = reg | 0xa;
 		cx_write(PAD_CTRL, reg);
 
-		/* FIXME and these two registers should be documented. */
+		/* Sets MOE_CLK_DIS to disable MoE clock */
+		/* sets MCLK_DLY_SEL/BCLK_DLY_SEL to 1 buffer delay each */
 		cx_write(CLK_DELAY, cx_read(CLK_DELAY) | 0x80000011);
+
+		/* ALT_GPIO_ALT_SET: GPIO[0]
+		 * IR_ALT_TX_SEL: GPIO[1]
+		 * GPIO1_ALT_SEL: VIP_656_DATA[0]
+		 * GPIO0_ALT_SEL: VIP_656_CLK
+		 */
 		cx_write(ALT_PIN_OUT_SEL, 0x10100045);
 	}
 
