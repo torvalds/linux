@@ -62,6 +62,7 @@ struct fsi_master_gpio {
 	struct gpio_desc	*gpio_enable;	/* FSI enable */
 	struct gpio_desc	*gpio_mux;	/* Mux control */
 	bool			external_mode;
+	bool			no_delays;
 };
 
 #define CREATE_TRACE_POINTS
@@ -79,9 +80,11 @@ static void clock_toggle(struct fsi_master_gpio *master, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		ndelay(FSI_GPIO_STD_DLY);
+		if (!master->no_delays)
+			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 0);
-		ndelay(FSI_GPIO_STD_DLY);
+		if (!master->no_delays)
+			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 1);
 	}
 }
@@ -90,10 +93,12 @@ static int sda_clock_in(struct fsi_master_gpio *master)
 {
 	int in;
 
-	ndelay(FSI_GPIO_STD_DLY);
+	if (!master->no_delays)
+		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 0);
 	in = gpiod_get_value(master->gpio_data);
-	ndelay(FSI_GPIO_STD_DLY);
+	if (!master->no_delays)
+		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 1);
 	return in ? 1 : 0;
 }
@@ -676,6 +681,13 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio);
 	}
 	master->gpio_mux = gpio;
+
+	/*
+	 * Check if GPIO block is slow enought that no extra delays
+	 * are necessary. This improves performance on ast2500 by
+	 * an order of magnitude.
+	 */
+	master->no_delays = device_property_present(&pdev->dev, "no-gpio-delays");
 
 	master->master.n_links = 1;
 	master->master.flags = FSI_MASTER_FLAG_SWCLOCK;
