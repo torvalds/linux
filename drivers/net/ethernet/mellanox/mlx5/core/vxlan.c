@@ -158,18 +158,14 @@ static void mlx5e_vxlan_add_work(struct work_struct *work)
 	kfree(vxlan_work);
 }
 
-static void mlx5e_vxlan_del_work(struct work_struct *work)
+static void mlx5e_vxlan_del_port(struct mlx5e_priv *priv, u16 port)
 {
-	struct mlx5e_vxlan_work *vxlan_work =
-		container_of(work, struct mlx5e_vxlan_work, work);
-	struct mlx5e_priv *priv         = vxlan_work->priv;
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
-	u16 port = vxlan_work->port;
 	struct mlx5e_vxlan *vxlan;
 	bool remove = false;
 
-	mutex_lock(&priv->state_lock);
 	spin_lock_bh(&vxlan_db->lock);
+
 	vxlan = mlx5e_vxlan_lookup_port_locked(priv, port);
 	if (!vxlan)
 		goto out_unlock;
@@ -187,6 +183,17 @@ out_unlock:
 		kfree(vxlan);
 		vxlan_db->num_ports--;
 	}
+}
+
+static void mlx5e_vxlan_del_work(struct work_struct *work)
+{
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv         = vxlan_work->priv;
+	u16 port = vxlan_work->port;
+
+	mutex_lock(&priv->state_lock);
+	mlx5e_vxlan_del_port(priv, port);
 	mutex_unlock(&priv->state_lock);
 	kfree(vxlan_work);
 }
