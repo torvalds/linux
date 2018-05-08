@@ -140,8 +140,6 @@ gp100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
-	for (i = 0; i < 8; i++)
-		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
 	nvkm_wr32(device, 0x406500, 0x00000000);
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
@@ -174,4 +172,5 @@ gp100_grctx = {
 	.alpha_nr = 0x800,
 	.sm_id = gm107_grctx_generate_sm_id,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
+	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
 };

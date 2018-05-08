@@ -945,7 +945,6 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 idle_timeout;
-	int i;
 
 	gf100_gr_mmio(gr, grctx->hub);
 	gf100_gr_mmio(gr, grctx->gpc);
@@ -962,9 +961,6 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
-	nvkm_wr32(device, 0x4064d0, 0x00000001);
-	for (i = 1; i < 8; i++)
-		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
 	nvkm_wr32(device, 0x406500, 0x00000001);
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
@@ -1005,4 +1001,5 @@ gm107_grctx = {
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
+	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 };

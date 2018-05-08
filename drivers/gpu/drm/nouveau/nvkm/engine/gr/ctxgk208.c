@@ -557,4 +557,5 @@ gk208_grctx = {
 	.tpc_nr = gf100_grctx_generate_tpc_nr,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gk104_grctx_generate_alpha_beta_tables,
+	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 };

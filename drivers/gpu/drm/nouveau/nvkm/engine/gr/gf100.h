@@ -105,6 +105,7 @@ struct gf100_gr {
 	u8 ppc_mask[GPC_MAX];
 	u8 ppc_tpc_mask[GPC_MAX][4];
 	u8 ppc_tpc_nr[GPC_MAX][4];
+	u8 ppc_tpc_min;
 
 	struct gf100_gr_data mmio_data[4];
 	struct gf100_gr_mmio mmio_list[4096/8];

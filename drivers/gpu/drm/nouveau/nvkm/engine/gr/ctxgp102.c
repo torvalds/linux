@@ -96,4 +96,5 @@ gp102_grctx = {
 	.alpha_nr = 0x800,
 	.sm_id = gm107_grctx_generate_sm_id,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
+	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
 };

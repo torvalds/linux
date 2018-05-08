@@ -1685,6 +1685,9 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 				continue;
 			gr->ppc_mask[i] |= (1 << j);
 			gr->ppc_tpc_nr[i][j] = hweight8(gr->ppc_tpc_mask[i][j]);
+			if (gr->ppc_tpc_min == 0 ||
+			    gr->ppc_tpc_min > gr->ppc_tpc_nr[i][j])
+				gr->ppc_tpc_min = gr->ppc_tpc_nr[i][j];
 		}
 	}
 

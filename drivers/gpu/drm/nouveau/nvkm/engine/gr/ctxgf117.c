@@ -180,6 +180,16 @@ gf117_grctx_pack_ppc[] = {
  ******************************************************************************/
 
 void
+gf117_grctx_generate_dist_skip_table(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int i;
+
+	for (i = 0; i < 8; i++)
+		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
+}
+
+void
 gf117_grctx_generate_rop_mapping(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -282,7 +292,6 @@ gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 idle_timeout;
-	int i;
 
 	nvkm_mc_unk260(device, 0);
 
@@ -300,9 +309,6 @@ gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-
-	for (i = 0; i < 8; i++)
-		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
 
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, idle_timeout);
@@ -336,4 +342,5 @@ gf117_grctx = {
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
 	.max_ways_evict = gf100_grctx_generate_max_ways_evict,
+	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 };
