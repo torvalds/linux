@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
+#include <linux/of_pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -144,6 +145,55 @@ static void mbi_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	iommu_dma_map_msi_msg(data->irq, msg);
 }
 
+#ifdef CONFIG_PCI_MSI
+/* PCI-specific irqchip */
+static void mbi_mask_msi_irq(struct irq_data *d)
+{
+	pci_msi_mask_irq(d);
+	irq_chip_mask_parent(d);
+}
+
+static void mbi_unmask_msi_irq(struct irq_data *d)
+{
+	pci_msi_unmask_irq(d);
+	irq_chip_unmask_parent(d);
+}
+
+static struct irq_chip mbi_msi_irq_chip = {
+	.name			= "MSI",
+	.irq_mask		= mbi_mask_msi_irq,
+	.irq_unmask		= mbi_unmask_msi_irq,
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_compose_msi_msg	= mbi_compose_msi_msg,
+	.irq_write_msi_msg	= pci_msi_domain_write_msg,
+};
+
+static struct msi_domain_info mbi_msi_domain_info = {
+	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		   MSI_FLAG_PCI_MSIX | MSI_FLAG_MULTI_PCI_MSI),
+	.chip	= &mbi_msi_irq_chip,
+};
+
+static int mbi_allocate_pci_domain(struct irq_domain *nexus_domain,
+				   struct irq_domain **pci_domain)
+{
+	*pci_domain = pci_msi_create_irq_domain(nexus_domain->parent->fwnode,
+						&mbi_msi_domain_info,
+						nexus_domain);
+	if (!*pci_domain)
+		return -ENOMEM;
+
+	return 0;
+}
+#else
+static int mbi_allocate_pci_domain(struct irq_domain *nexus_domain,
+				   struct irq_domain **pci_domain)
+{
+	*pci_domain = NULL;
+	return 0;
+}
+#endif
+
 static void mbi_compose_mbi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	mbi_compose_msi_msg(data, msg);
@@ -175,7 +225,8 @@ static struct msi_domain_info mbi_pmsi_domain_info = {
 
 static int mbi_allocate_domains(struct irq_domain *parent)
 {
-	struct irq_domain *nexus_domain, *plat_domain;
+	struct irq_domain *nexus_domain, *pci_domain, *plat_domain;
+	int err;
 
 	nexus_domain = irq_domain_create_tree(parent->fwnode,
 					      &mbi_domain_ops, NULL);
@@ -185,12 +236,17 @@ static int mbi_allocate_domains(struct irq_domain *parent)
 	irq_domain_update_bus_token(nexus_domain, DOMAIN_BUS_NEXUS);
 	nexus_domain->parent = parent;
 
+	err = mbi_allocate_pci_domain(nexus_domain, &pci_domain);
+
 	plat_domain = platform_msi_create_irq_domain(parent->fwnode,
 						     &mbi_pmsi_domain_info,
 						     nexus_domain);
 
-	if (!plat_domain) {
-		irq_domain_remove(plat_domain);
+	if (err || !plat_domain) {
+		if (plat_domain)
+			irq_domain_remove(plat_domain);
+		if (pci_domain)
+			irq_domain_remove(pci_domain);
 		irq_domain_remove(nexus_domain);
 		return -ENOMEM;
 	}
