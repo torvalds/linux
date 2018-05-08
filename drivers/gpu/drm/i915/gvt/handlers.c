@@ -474,21 +474,27 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 reg_nonpriv = *(u32 *)p_data;
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	u32 ring_base;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int ret = -EINVAL;
 
-	if ((bytes != 4) || ((offset & (bytes - 1)) != 0)) {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
-			vgpu->id, offset, bytes);
+	if ((bytes != 4) || ((offset & (bytes - 1)) != 0) || ring_id < 0) {
+		gvt_err("vgpu(%d) ring %d Invalid FORCE_NONPRIV offset %x(%dB)\n",
+			vgpu->id, ring_id, offset, bytes);
 		return ret;
 	}
 
-	if (in_whitelist(reg_nonpriv)) {
+	ring_base = dev_priv->engine[ring_id]->mmio_base;
+
+	if (in_whitelist(reg_nonpriv) ||
+		reg_nonpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
 		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
 			bytes);
-	} else {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x\n",
-			vgpu->id, reg_nonpriv);
-	}
+	} else
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
+			vgpu->id, reg_nonpriv, offset);
+
 	return ret;
 }
 

@@ -817,8 +817,15 @@ static int force_nonpriv_reg_handler(struct parser_exec_state *s,
 {
 	struct intel_gvt *gvt = s->vgpu->gvt;
 	unsigned int data = cmd_val(s, index + 1);
+	u32 ring_base;
+	u32 nopid;
+	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 
-	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data)) {
+	ring_base = dev_priv->engine[s->ring_id]->mmio_base;
+	nopid = i915_mmio_reg_offset(RING_NOPID(ring_base));
+
+	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data) &&
+			data != nopid) {
 		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
 			offset, data);
 		return -EPERM;
