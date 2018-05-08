@@ -442,11 +442,27 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
 	return 0;
 }
 
+static int hisi_lpc_acpi_remove_subdev(struct device *dev, void *unused)
+{
+	platform_device_unregister(to_platform_device(dev));
+	return 0;
+}
+
+struct hisi_lpc_acpi_cell {
+	const char *hid;
+	const char *name;
+	void *pdata;
+	size_t pdata_size;
+};
+
 /*
  * hisi_lpc_acpi_probe - probe children for ACPI FW
  * @hostdev: LPC host device pointer
  *
  * Returns 0 when successful, and a negative value for failure.
+ *
+ * Create a platform device per child, fixing up the resources
+ * from bus addresses to Logical PIO addresses.
  *
  */
 static int hisi_lpc_acpi_probe(struct device *hostdev)
@@ -457,17 +473,75 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 
 	/* Only consider the children of the host */
 	list_for_each_entry(child, &adev->children, node) {
+		const char *hid = acpi_device_hid(child);
+		const struct hisi_lpc_acpi_cell *cell;
+		struct platform_device *pdev;
 		const struct resource *res;
+		bool found = false;
 		int num_res;
 
 		ret = hisi_lpc_acpi_set_io_res(&child->dev, &adev->dev, &res,
 					       &num_res);
 		if (ret) {
 			dev_warn(hostdev, "set resource fail (%d)\n", ret);
+			goto fail;
 		}
+
+		cell = (struct hisi_lpc_acpi_cell []){
+			/* ipmi */
+			{
+				.hid = "IPI0001",
+				.name = "hisi-lpc-ipmi",
+			},
+			{}
+		};
+
+		for (; cell && cell->name; cell++) {
+			if (!strcmp(cell->hid, hid)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			dev_warn(hostdev,
+				 "could not find cell for child device (%s)\n",
+				 hid);
+			ret = -ENODEV;
+			goto fail;
+		}
+
+		pdev = platform_device_alloc(cell->name, PLATFORM_DEVID_AUTO);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		pdev->dev.parent = hostdev;
+		ACPI_COMPANION_SET(&pdev->dev, child);
+
+		ret = platform_device_add_resources(pdev, res, num_res);
+		if (ret)
+			goto fail;
+
+		ret = platform_device_add_data(pdev, cell->pdata,
+					       cell->pdata_size);
+		if (ret)
+			goto fail;
+
+		ret = platform_device_add(pdev);
+		if (ret)
+			goto fail;
+
+		acpi_device_set_enumerated(child);
 	}
 
 	return 0;
+
+fail:
+	device_for_each_child(hostdev, NULL,
+			      hisi_lpc_acpi_remove_subdev);
+	return ret;
 }
 
 static const struct acpi_device_id hisi_lpc_acpi_match[] = {
