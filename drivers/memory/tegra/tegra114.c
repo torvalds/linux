@@ -948,7 +948,6 @@ static const struct tegra_smmu_soc tegra114_smmu_soc = {
 	}
 
 static const struct tegra_mc_reset tegra114_mc_resets[] = {
-	TEGRA114_MC_RESET(AFI,      0x200, 0x204,  0),
 	TEGRA114_MC_RESET(AVPC,     0x200, 0x204,  1),
 	TEGRA114_MC_RESET(DC,       0x200, 0x204,  2),
 	TEGRA114_MC_RESET(DCB,      0x200, 0x204,  3),
@@ -963,7 +962,6 @@ static const struct tegra_mc_reset tegra114_mc_resets[] = {
 	TEGRA114_MC_RESET(3D,       0x200, 0x204, 12),
 	TEGRA114_MC_RESET(3D2,      0x200, 0x204, 13),
 	TEGRA114_MC_RESET(PPCS,     0x200, 0x204, 14),
-	TEGRA114_MC_RESET(SATA,     0x200, 0x204, 15),
 	TEGRA114_MC_RESET(VDE,      0x200, 0x204, 16),
 	TEGRA114_MC_RESET(VI,       0x200, 0x204, 17),
 };
