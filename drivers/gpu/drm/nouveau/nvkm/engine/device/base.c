@@ -2413,6 +2413,7 @@ nv140_chipset = {
 	.mmu = gv100_mmu_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
+	.therm = gp100_therm_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
 };
