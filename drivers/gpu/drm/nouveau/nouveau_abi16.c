@@ -103,6 +103,7 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
 	case NV_DEVICE_INFO_V0_PASCAL:
+	case NV_DEVICE_INFO_V0_VOLTA:
 		return NVIF_CLASS_SW_GF100;
 	}
 
