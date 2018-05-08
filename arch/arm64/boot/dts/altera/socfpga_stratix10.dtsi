@@ -454,5 +454,17 @@
 			resets = <&rst WATCHDOG3_RESET>;
 			status = "disabled";
 		};
+
+		eccmgr {
+			compatible = "altr,socfpga-s10-ecc-manager";
+			interrupts = <0 15 4>, <0 95 4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			sdramedac {
+				compatible = "altr,sdram-edac-s10";
+				interrupts = <16 4>, <48 4>;
+			};
+		};
 	};
 };
