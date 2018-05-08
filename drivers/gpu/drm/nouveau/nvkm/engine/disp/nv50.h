@@ -27,6 +27,8 @@ struct nv50_disp {
 	} sor;
 
 	struct {
+		unsigned long mask;
+		int nr;
 		u8 type[3];
 	} pior;
 
@@ -55,12 +57,7 @@ struct nv50_disp_func {
 	struct {
 		int (*cnt)(struct nvkm_disp *, unsigned long *mask);
 		int (*new)(struct nvkm_disp *, int id);
-	} head, dac, sor;
-
-	struct {
-		int nr;
-		int (*new)(struct nvkm_disp *, int id);
-	} pior;
+	} head, dac, sor, pior;
 };
 
 void nv50_disp_intr(struct nv50_disp *);

@@ -87,10 +87,15 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 		}
 	}
 
-	for (i = 0; func->pior.new && i < func->pior.nr; i++) {
-		ret = func->pior.new(&disp->base, i);
-		if (ret)
-			return ret;
+	if (func->pior.cnt) {
+		disp->pior.nr = func->pior.cnt(&disp->base, &disp->pior.mask);
+		nvkm_debug(subdev, "  PIOR(s): %d (%02lx)\n",
+			   disp->pior.nr, disp->pior.mask);
+		for_each_set_bit(i, &disp->pior.mask, disp->pior.nr) {
+			ret = func->pior.new(&disp->base, i);
+			if (ret)
+				return ret;
+		}
 	}
 
 	disp->sor.nr = func->sor.cnt(&disp->base, &disp->sor.mask);
@@ -647,7 +652,7 @@ nv50_disp = {
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = nv50_sor_new },
-	.pior = { .nr = 3, .new = nv50_pior_new },
+	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 };
 
 int

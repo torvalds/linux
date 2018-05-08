@@ -35,7 +35,7 @@ g84_disp = {
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = g84_sor_new },
-	.pior = { .nr = 3, .new = nv50_pior_new },
+	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 };
 
 int

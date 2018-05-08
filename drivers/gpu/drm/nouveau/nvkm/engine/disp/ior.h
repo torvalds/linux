@@ -157,6 +157,7 @@ int nv50_dac_new(struct nvkm_disp *, int);
 int gf119_dac_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_dac_new(struct nvkm_disp *, int);
 
+int nv50_pior_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_pior_new(struct nvkm_disp *, int);
 
 int nv50_sor_cnt(struct nvkm_disp *, unsigned long *);

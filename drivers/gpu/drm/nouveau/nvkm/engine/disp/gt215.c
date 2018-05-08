@@ -35,7 +35,7 @@ gt215_disp = {
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = g94_sor_cnt, .new = gt215_sor_new },
-	.pior = { .nr = 3, .new = nv50_pior_new },
+	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 };
 
 int
