@@ -21,19 +21,6 @@
  */
 #include "base.h"
 
-static u32
-base907c_update(struct nv50_wndw *wndw, u32 interlock)
-{
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0080, 1);
-		evo_data(push, interlock);
-		evo_kick(push, &wndw->wndw);
-		return interlock ? 2 << (wndw->id * 4) : 0;
-	}
-	return 0;
-}
-
 static void
 base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -69,12 +56,13 @@ base907c = {
 	.image_set = base907c_image_set,
 	.image_clr = base507c_image_clr,
 	.lut = base507c_lut,
-	.update = base907c_update,
+	.update = base507c_update,
 };
 
 int
 base907c_new(struct nouveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
-	return base507c_new_(&base907c, base507c_format, drm, head, oclass, pwndw);
+	return base507c_new_(&base907c, base507c_format, drm, head, oclass,
+			     0x00000002 << (head * 4), pwndw);
 }

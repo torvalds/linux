@@ -3,6 +3,12 @@
 #include "wndw.h"
 
 int curs507a_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+int curs507a_new_(const struct nv50_wimm_func *, struct nouveau_drm *,
+		  int head, s32 oclass, u32 interlock_data,
+		  struct nv50_wndw **);
+extern const struct nv50_wimm_func curs507a;
+
+int curs907a_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 
 int nv50_curs_new(struct nouveau_drm *, int head, struct nv50_wndw **);
 #endif

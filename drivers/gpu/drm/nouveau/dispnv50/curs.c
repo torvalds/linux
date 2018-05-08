@@ -31,8 +31,8 @@ nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 		int version;
 		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 	} curses[] = {
-		{ GK104_DISP_CURSOR, 0, curs507a_new },
-		{ GF110_DISP_CURSOR, 0, curs507a_new },
+		{ GK104_DISP_CURSOR, 0, curs907a_new },
+		{ GF110_DISP_CURSOR, 0, curs907a_new },
 		{ GT214_DISP_CURSOR, 0, curs507a_new },
 		{   G82_DISP_CURSOR, 0, curs507a_new },
 		{  NV50_DISP_CURSOR, 0, curs507a_new },

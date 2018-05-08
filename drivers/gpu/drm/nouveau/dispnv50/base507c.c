@@ -28,17 +28,15 @@
 #include <drm/drm_plane_helper.h>
 #include "nouveau_bo.h"
 
-u32
-base507c_update(struct nv50_wndw *wndw, u32 interlock)
+void
+base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 {
 	u32 *push;
 	if ((push = evo_wait(&wndw->wndw, 2))) {
 		evo_mthd(push, 0x0080, 1);
-		evo_data(push, interlock);
+		evo_data(push, interlock[NV50_DISP_INTERLOCK_CORE]);
 		evo_kick(push, &wndw->wndw);
-		return interlock ? 2 << (wndw->id * 8) : 0;
 	}
-	return 0;
 }
 
 void
@@ -224,7 +222,7 @@ base507c = {
 
 int
 base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
-	      struct nouveau_drm *drm, int head, s32 oclass,
+	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
 	struct nv50_disp_base_channel_dma_v0 args = {
@@ -235,7 +233,8 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	int ret;
 
 	ret = nv50_wndw_new_(func, drm->dev, DRM_PLANE_TYPE_PRIMARY,
-			     "base", head, format, BIT(head), &wndw);
+			     "base", head, format, BIT(head),
+			     NV50_DISP_INTERLOCK_BASE, interlock_data, &wndw);
 	if (*pwndw = wndw, ret)
 		return ret;
 
@@ -266,5 +265,6 @@ int
 base507c_new(struct nouveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
-	return base507c_new_(&base507c, base507c_format, drm, head, oclass, pwndw);
+	return base507c_new_(&base507c, base507c_format, drm, head, oclass,
+			     0x00000002 << (head * 8), pwndw);
 }

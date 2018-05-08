@@ -27,11 +27,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
-static u32
-curs507a_update(struct nv50_wndw *wndw, u32 interlock)
+static void
+curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
 	nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
-	return 0;
 }
 
 static void
@@ -41,7 +40,7 @@ curs507a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 						 asyw->point.x);
 }
 
-static const struct nv50_wimm_func
+const struct nv50_wimm_func
 curs507a = {
 	.point = curs507a_point,
 	.update = curs507a_update,
@@ -114,9 +113,10 @@ curs507a_wndw = {
 	.prepare = curs507a_prepare,
 };
 
-static int
+int
 curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
-	      int head, s32 oclass, struct nv50_wndw **pwndw)
+	      int head, s32 oclass, u32 interlock_data,
+	      struct nv50_wndw **pwndw)
 {
 	struct nv50_disp_cursor_v0 args = {
 		.head = head,
@@ -126,7 +126,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	int ret;
 
 	ret = nv50_wndw_new_(&curs507a_wndw, drm->dev, DRM_PLANE_TYPE_CURSOR,
-			     "curs", head, curs507a_format, BIT(head), &wndw);
+			     "curs", head, curs507a_format, BIT(head),
+			     NV50_DISP_INTERLOCK_CURS, interlock_data, &wndw);
 	if (*pwndw = wndw, ret)
 		return ret;
 
@@ -147,5 +148,6 @@ int
 curs507a_new(struct nouveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
-	return curs507a_new_(&curs507a, drm, head, oclass, pwndw);
+	return curs507a_new_(&curs507a, drm, head, oclass,
+			     0x00000001 << (head * 8), pwndw);
 }

@@ -107,8 +107,8 @@ nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	return 0;
 }
 
-u32
-nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 interlock, bool flush,
+void
+nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 *interlock, bool flush,
 		    struct nv50_wndw_atom *asyw)
 {
 	union nv50_wndw_atom_mask clr = {
@@ -118,11 +118,13 @@ nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 interlock, bool flush,
 	if (clr.ntfy ) wndw->func-> ntfy_clr(wndw);
 	if (clr.image) wndw->func->image_clr(wndw);
 
-	return flush ? wndw->func->update(wndw, interlock) : 0;
+	interlock[wndw->interlock.type] |= wndw->interlock.data;
+	if (flush)
+		wndw->func->update(wndw, interlock);
 }
 
-u32
-nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 interlock,
+void
+nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		    struct nv50_wndw_atom *asyw)
 {
 	if (interlock) {
@@ -139,7 +141,9 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 interlock,
 		wndw->immd->update(wndw, interlock);
 	}
 
-	return wndw->func->update ? wndw->func->update(wndw, interlock) : 0;
+	interlock[wndw->interlock.type] |= wndw->interlock.data;
+	if (wndw->func->update)
+		wndw->func->update(wndw, interlock);
 }
 
 void
@@ -445,7 +449,9 @@ nv50_wndw_init(struct nv50_wndw *wndw)
 int
 nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       enum drm_plane_type type, const char *name, int index,
-	       const u32 *format, u32 heads, struct nv50_wndw **pwndw)
+	       const u32 *format, u32 heads,
+	       enum nv50_disp_interlock_type interlock_type, u32 interlock_data,
+	       struct nv50_wndw **pwndw)
 {
 	struct nv50_wndw *wndw;
 	int nformat;
@@ -455,6 +461,9 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 		return -ENOMEM;
 	wndw->func = func;
 	wndw->id = index;
+	wndw->interlock.type = interlock_type;
+	wndw->interlock.data = interlock_data;
+	wndw->ctxdma.parent = &wndw->wndw.base.user;
 
 	wndw->ctxdma.parent = &wndw->wndw.base.user;
 	INIT_LIST_HEAD(&wndw->ctxdma.list);

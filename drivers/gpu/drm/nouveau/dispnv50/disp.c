@@ -1582,14 +1582,14 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
  *****************************************************************************/
 
 static void
-nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 interlock)
+nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 *interlock)
 {
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_core *core = disp->core;
 	struct nv50_mstm *mstm;
 	struct drm_encoder *encoder;
 
-	NV_ATOMIC(drm, "commit core %08x\n", interlock);
+	NV_ATOMIC(drm, "commit core %08x\n", interlock[NV50_DISP_INTERLOCK_BASE]);
 
 	drm_for_each_encoder(encoder, drm->dev) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
@@ -1626,8 +1626,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_outp_atom *outp, *outt;
-	u32 interlock_core = 0;
-	u32 interlock_chan = 0;
+	u32 interlock[NV50_DISP_INTERLOCK__SIZE] = {};
 	int i;
 
 	NV_ATOMIC(drm, "commit %d %d\n", atom->lock_core, atom->flush_disable);
@@ -1650,7 +1649,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (asyh->clr.mask) {
 			nv50_head_flush_clr(head, asyh, atom->flush_disable);
-			interlock_core |= 1;
+			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
 		}
 	}
 
@@ -1664,9 +1663,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!asyw->clr.mask)
 			continue;
 
-		interlock_chan |= nv50_wndw_flush_clr(wndw, interlock_core,
-						      atom->flush_disable,
-						      asyw);
+		nv50_wndw_flush_clr(wndw, interlock, atom->flush_disable, asyw);
 	}
 
 	/* Disable output path(s). */
@@ -1682,21 +1679,19 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (outp->clr.mask) {
 			help->disable(encoder);
-			interlock_core |= 1;
+			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
 			if (outp->flush_disable) {
-				nv50_disp_atomic_commit_core(drm, interlock_chan);
-				interlock_core = 0;
-				interlock_chan = 0;
+				nv50_disp_atomic_commit_core(drm, interlock);
+				memset(interlock, 0x00, sizeof(interlock));
 			}
 		}
 	}
 
 	/* Flush disable. */
-	if (interlock_core) {
+	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (atom->flush_disable) {
-			nv50_disp_atomic_commit_core(drm, interlock_chan);
-			interlock_core = 0;
-			interlock_chan = 0;
+			nv50_disp_atomic_commit_core(drm, interlock);
+			memset(interlock, 0x00, sizeof(interlock));
 		}
 	}
 
@@ -1713,7 +1708,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (outp->set.mask) {
 			help->enable(encoder);
-			interlock_core = 1;
+			interlock[NV50_DISP_INTERLOCK_CORE] = 1;
 		}
 
 		list_del(&outp->head);
@@ -1730,7 +1725,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (asyh->set.mask) {
 			nv50_head_flush_set(head, asyh);
-			interlock_core = 1;
+			interlock[NV50_DISP_INTERLOCK_CORE] = 1;
 		}
 
 		if (new_crtc_state->active) {
@@ -1752,15 +1747,16 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		    (!asyw->clr.mask || atom->flush_disable))
 			continue;
 
-		interlock_chan |= nv50_wndw_flush_set(wndw, interlock_core, asyw);
+		nv50_wndw_flush_set(wndw, interlock, asyw);
 	}
 
 	/* Flush update. */
-	if (interlock_core) {
-		if (interlock_chan || !atom->state.legacy_cursor_update)
-			nv50_disp_atomic_commit_core(drm, interlock_chan);
+	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
+		if (interlock[NV50_DISP_INTERLOCK_BASE] ||
+		    !atom->state.legacy_cursor_update)
+			nv50_disp_atomic_commit_core(drm, interlock);
 		else
-			disp->core->func->update(disp->core, 0, false);
+			disp->core->func->update(disp->core, interlock, false);
 	}
 
 	if (atom->lock_core)

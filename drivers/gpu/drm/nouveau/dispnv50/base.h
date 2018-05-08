@@ -5,7 +5,7 @@
 int base507c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 int base507c_new_(const struct nv50_wndw_func *, const u32 *format,
 		  struct nouveau_drm *, int head, s32 oclass,
-		  struct nv50_wndw **);
+		  u32 interlock_data, struct nv50_wndw **);
 extern const u32 base507c_format[];
 int base507c_acquire(struct nv50_wndw *, struct nv50_wndw_atom *,
 		     struct nv50_head_atom *);
@@ -19,7 +19,7 @@ void base507c_ntfy_clr(struct nv50_wndw *);
 int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
 void base507c_image_clr(struct nv50_wndw *);
 void base507c_lut(struct nv50_wndw *, struct nv50_wndw_atom *);
-u32 base507c_update(struct nv50_wndw *, u32);
+void base507c_update(struct nv50_wndw *, u32 *);
 
 int base827c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 

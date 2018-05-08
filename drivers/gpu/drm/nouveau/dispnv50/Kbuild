@@ -29,9 +29,12 @@ nouveau-y += dispnv50/base907c.o
 
 nouveau-y += dispnv50/curs.o
 nouveau-y += dispnv50/curs507a.o
+nouveau-y += dispnv50/curs907a.o
 
 nouveau-y += dispnv50/oimm.o
 nouveau-y += dispnv50/oimm507b.o
 
 nouveau-y += dispnv50/ovly.o
 nouveau-y += dispnv50/ovly507e.o
+nouveau-y += dispnv50/ovly827e.o
+nouveau-y += dispnv50/ovly907e.o

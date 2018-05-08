@@ -15,6 +15,7 @@ struct nv50_wndw {
 	const struct nv50_wndw_func *func;
 	const struct nv50_wimm_func *immd;
 	int id;
+	struct nv50_disp_interlock interlock;
 
 	struct {
 		struct nvif_object *parent;
@@ -34,13 +35,14 @@ struct nv50_wndw {
 
 int nv50_wndw_new_(const struct nv50_wndw_func *, struct drm_device *,
 		   enum drm_plane_type, const char *name, int index,
-		   const u32 *format, u32 heads, struct nv50_wndw **);
+		   const u32 *format, enum nv50_disp_interlock_type,
+		   u32 interlock_data, u32 heads, struct nv50_wndw **);
 void nv50_wndw_init(struct nv50_wndw *);
 void nv50_wndw_fini(struct nv50_wndw *);
-u32 nv50_wndw_flush_set(struct nv50_wndw *, u32 interlock,
-			struct nv50_wndw_atom *);
-u32 nv50_wndw_flush_clr(struct nv50_wndw *, u32 interlock, bool flush,
-			struct nv50_wndw_atom *);
+void nv50_wndw_flush_set(struct nv50_wndw *, u32 *interlock,
+			 struct nv50_wndw_atom *);
+void nv50_wndw_flush_clr(struct nv50_wndw *, u32 *interlock, bool flush,
+			 struct nv50_wndw_atom *);
 void nv50_wndw_ntfy_enable(struct nv50_wndw *, struct nv50_wndw_atom *);
 int nv50_wndw_wait_armed(struct nv50_wndw *, struct nv50_wndw_atom *);
 
@@ -63,7 +65,7 @@ struct nv50_wndw_func {
 	void (*image_clr)(struct nv50_wndw *);
 	void (*lut)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
-	u32 (*update)(struct nv50_wndw *, u32 interlock);
+	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
 
 extern const struct drm_plane_funcs nv50_wndw;
@@ -71,6 +73,6 @@ extern const struct drm_plane_funcs nv50_wndw;
 struct nv50_wimm_func {
 	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
-	u32 (*update)(struct nv50_wndw *, u32 interlock);
+	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
 #endif

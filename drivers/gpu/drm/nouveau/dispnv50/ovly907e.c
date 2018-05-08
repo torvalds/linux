@@ -21,53 +21,14 @@
  */
 #include "ovly.h"
 
-#include <nvif/cl507e.h>
-
-#include "nouveau_bo.h"
-
 static const struct nv50_wndw_func
-ovly507e = {
-};
-
-static const u32
-ovly507e_format[] = {
-	0
+ovly907e = {
 };
 
 int
-ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
-	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
-	      struct nv50_wndw **pwndw)
-{
-	struct nv50_disp_overlay_channel_dma_v0 args = {
-		.head = head,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	struct nv50_wndw *wndw;
-	int ret;
-
-	ret = nv50_wndw_new_(func, drm->dev, DRM_PLANE_TYPE_OVERLAY,
-			     "ovly", head, format, BIT(head),
-			     NV50_DISP_INTERLOCK_OVLY, interlock_data,
-			     &wndw);
-	if (*pwndw = wndw, ret)
-		return ret;
-
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
-			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->bo.offset, &wndw->wndw);
-	if (ret) {
-		NV_ERROR(drm, "ovly%04x allocation failed: %d\n", oclass, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-int
-ovly507e_new(struct nouveau_drm *drm, int head, s32 oclass,
+ovly907e_new(struct nouveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
-	return ovly507e_new_(&ovly507e, ovly507e_format, drm, head, oclass,
-			     0x00000004 << (head * 8), pwndw);
+	return ovly507e_new_(&ovly907e, ovly827e_format, drm, head, oclass,
+			     0x00000004 << (head * 4), pwndw);
 }

@@ -27,6 +27,17 @@ nv50_disp(struct drm_device *dev)
 	return nouveau_display(dev)->priv;
 }
 
+struct nv50_disp_interlock {
+	enum nv50_disp_interlock_type {
+		NV50_DISP_INTERLOCK_CORE = 0,
+		NV50_DISP_INTERLOCK_CURS,
+		NV50_DISP_INTERLOCK_BASE,
+		NV50_DISP_INTERLOCK_OVLY,
+		NV50_DISP_INTERLOCK__SIZE
+	} type;
+	u32 data;
+};
+
 struct nv50_chan {
 	struct nvif_object user;
 	struct nvif_device *device;

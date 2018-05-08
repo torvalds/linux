@@ -27,7 +27,7 @@
 #include "nouveau_bo.h"
 
 void
-core507d_update(struct nv50_core *core, u32 interlock, bool ntfy)
+core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 {
 	u32 *push;
 	if ((push = evo_wait(&core->chan, 5))) {
@@ -36,7 +36,8 @@ core507d_update(struct nv50_core *core, u32 interlock, bool ntfy)
 			evo_data(push, 0x80000000 | NV50_DISP_CORE_NTFY);
 		}
 		evo_mthd(push, 0x0080, 2);
-		evo_data(push, interlock);
+		evo_data(push, interlock[NV50_DISP_INTERLOCK_BASE] |
+			       interlock[NV50_DISP_INTERLOCK_OVLY]);
 		evo_data(push, 0x00000000);
 		evo_kick(push, &core->chan);
 	}
