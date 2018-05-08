@@ -208,11 +208,6 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	if (ret)
 		return ret;
 
-	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		asyw->interval = 0;
-	else
-		asyw->interval = 1;
-
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
 		if (drm->client.device.info.chipset >= 0xc0)
@@ -231,10 +226,11 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 		return ret;
 
 	if (asyw->set.image) {
-		if (!(asyw->image.mode = asyw->interval ? 0 : 1))
-			asyw->image.interval = asyw->interval;
+		if (!(asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC))
+			asyw->image.interval = 1;
 		else
 			asyw->image.interval = 0;
+		asyw->image.mode = asyw->image.interval ? 0 : 1;
 	}
 
 	return 0;
@@ -371,7 +367,6 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
 		return NULL;
 	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
-	asyw->interval = 1;
 	asyw->sema = armw->sema;
 	asyw->ntfy = armw->ntfy;
 	asyw->image = armw->image;
