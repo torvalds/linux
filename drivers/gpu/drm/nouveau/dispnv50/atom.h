@@ -136,6 +136,8 @@ nv50_head_atom_get(struct drm_atomic_state *state, struct drm_crtc *crtc)
 struct nv50_wndw_atom {
 	struct drm_plane_state state;
 
+	bool visible;
+
 	struct {
 		u32  handle;
 		u16  offset:12;

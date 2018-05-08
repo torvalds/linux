@@ -244,26 +244,33 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 	struct nv50_wndw_atom *armw = nv50_wndw_atom(wndw->plane.state);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
 	struct nv50_head_atom *harm = NULL, *asyh = NULL;
-	bool varm = false, asyv = false, asym = false;
+	bool modeset = false;
 	int ret;
 
 	NV_ATOMIC(drm, "%s atomic_check\n", plane->name);
+
+	/* Fetch the assembly state for the head the window will belong to,
+	 * and determine whether the window will be visible.
+	 */
 	if (asyw->state.crtc) {
 		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);
 		if (IS_ERR(asyh))
 			return PTR_ERR(asyh);
-		asym = drm_atomic_crtc_needs_modeset(&asyh->state);
-		asyv = asyh->state.active;
+		modeset = drm_atomic_crtc_needs_modeset(&asyh->state);
+		asyw->visible = asyh->state.active;
+	} else {
+		asyw->visible = false;
 	}
 
+	/* Fetch assembly state for the head the window used to belong to. */
 	if (armw->state.crtc) {
 		harm = nv50_head_atom_get(asyw->state.state, armw->state.crtc);
 		if (IS_ERR(harm))
 			return PTR_ERR(harm);
-		varm = harm->state.crtc->state->active;
 	}
 
-	if (asyv) {
+	/* Calculate new window state. */
+	if (asyw->visible) {
 		asyw->point.x = asyw->state.crtc_x;
 		asyw->point.y = asyw->state.crtc_y;
 		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
@@ -273,18 +280,22 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		if (ret)
 			return ret;
 	} else
-	if (varm) {
+	if (armw->visible) {
 		nv50_wndw_atomic_check_release(wndw, asyw, harm);
 	} else {
 		return 0;
 	}
 
-	if (!asyv || asym) {
+	/* Aside from the obvious case where the window is actively being
+	 * disabled, we might also need to temporarily disable the window
+	 * when performing certain modeset operations.
+	 */
+	if (!asyw->visible || modeset) {
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
 		if (wndw->func->image_clr)
 			asyw->clr.image = armw->image.handle[0] != 0;
-		asyw->set.lut = wndw->func->lut && asyv;
+		asyw->set.lut = wndw->func->lut && asyw->visible;
 	}
 
 	return 0;
