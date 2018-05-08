@@ -1931,6 +1931,34 @@ gf100_gr_init_gpc_mmu(struct gf100_gr *gr)
 }
 
 void
+gf100_gr_init_zcull(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
+	u32 data[TPC_MAX / 8] = {};
+	u8  tpcnr[GPC_MAX];
+	int gpc, tpc;
+	int i;
+
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
+	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
+		do {
+			gpc = (gpc + 1) % gr->gpc_nr;
+		} while (!tpcnr[gpc]);
+		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
+
+		data[i / 8] |= tpc << ((i % 8) * 4);
+	}
+
+	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
+	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
+	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
+	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
+
+	nvkm_wr32(device, GPC_BCAST(0x1bd4), magicgpc918);
+}
+
+void
 gf100_gr_init_vsc_stream_master(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1941,11 +1969,7 @@ int
 gf100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {};
-	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
-	int i;
 
 	gr->func->init_gpc_mmu(gr);
 
@@ -1964,34 +1988,7 @@ gf100_gr_init(struct gf100_gr *gr)
 		gr->func->init_bios(gr);
 
 	gr->func->init_vsc_stream_master(gr);
-
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
-
-		data[i / 8] |= tpc << ((i % 8) * 4);
-	}
-
-	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
-	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
-	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
-	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
-
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-							 gr->tpc_total);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
-	}
-
-	if (device->chipset != 0xd7)
-		nvkm_wr32(device, GPC_BCAST(0x1bd4), magicgpc918);
-	else
-		nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
+	gr->func->init_zcull(gr);
 
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
 
@@ -2076,6 +2073,7 @@ gf100_gr = {
 	.init = gf100_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
+	.init_zcull = gf100_gr_init_zcull,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

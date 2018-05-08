@@ -415,11 +415,7 @@ int
 gk104_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {};
-	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
-	int i;
 
 	gr->func->init_gpc_mmu(gr);
 
@@ -429,32 +425,8 @@ gk104_gr_init(struct gf100_gr *gr)
 					gr->func->clkgate_pack);
 
 	gr->func->init_vsc_stream_master(gr);
+	gr->func->init_zcull(gr);
 
-	memset(data, 0x00, sizeof(data));
-	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
-	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
-		do {
-			gpc = (gpc + 1) % gr->gpc_nr;
-		} while (!tpcnr[gpc]);
-		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
-
-		data[i / 8] |= tpc << ((i % 8) * 4);
-	}
-
-	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
-	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
-	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
-	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
-
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-							 gr->tpc_total);
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
-	}
-
-	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
 
 	gr->func->init_rop_active_fbps(gr);
@@ -544,6 +516,7 @@ gk104_gr = {
 	.init = gk104_gr_init,
 	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
+	.init_zcull = gf117_gr_init_zcull,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk104_gr_pack_mmio,
