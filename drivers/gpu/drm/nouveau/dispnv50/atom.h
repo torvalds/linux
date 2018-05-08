@@ -76,7 +76,7 @@ struct nv50_head_atom {
 		bool visible;
 		u32 handle;
 		u64 offset:40;
-		u8  layout:1;
+		u8  layout:2;
 		u8  format:1;
 	} curs;
 

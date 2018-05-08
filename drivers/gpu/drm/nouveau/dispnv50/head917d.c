@@ -63,6 +63,21 @@ head917d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
+static int
+head917d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
+		     struct nv50_head_atom *asyh)
+{
+	switch (asyw->state.fb->width) {
+	case  32: asyh->curs.layout = 0; break;
+	case  64: asyh->curs.layout = 1; break;
+	case 128: asyh->curs.layout = 2; break;
+	case 256: asyh->curs.layout = 3; break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 const struct nv50_head_func
 head917d = {
 	.view = head907d_view,
@@ -73,6 +88,8 @@ head917d = {
 	.core_calc = head507d_core_calc,
 	.core_set = head907d_core_set,
 	.core_clr = head907d_core_clr,
+	.curs_layout = head917d_curs_layout,
+	.curs_format = head507d_curs_format,
 	.curs_set = head907d_curs_set,
 	.curs_clr = head907d_curs_clr,
 	.base = head917d_base,

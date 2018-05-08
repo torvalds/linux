@@ -128,6 +128,32 @@ head507d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
+int
+head507d_curs_format(struct nv50_head *head, struct nv50_wndw_atom *asyw,
+		     struct nv50_head_atom *asyh)
+{
+	switch (asyw->image.format) {
+	case 0xcf: asyh->curs.format = 1; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int
+head507d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
+		     struct nv50_head_atom *asyh)
+{
+	switch (asyw->image.w) {
+	case 32: asyh->curs.layout = 0; break;
+	case 64: asyh->curs.layout = 1; break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 void
 head507d_core_clr(struct nv50_head *head)
 {
@@ -287,6 +313,8 @@ head507d = {
 	.core_calc = head507d_core_calc,
 	.core_set = head507d_core_set,
 	.core_clr = head507d_core_clr,
+	.curs_layout = head507d_curs_layout,
+	.curs_format = head507d_curs_format,
 	.curs_set = head507d_curs_set,
 	.curs_clr = head507d_curs_clr,
 	.base = head507d_base,

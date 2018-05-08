@@ -21,6 +21,7 @@
  */
 #include "curs.h"
 #include "core.h"
+#include "head.h"
 
 #include <nvif/cl507a.h>
 
@@ -70,6 +71,7 @@ static int
 curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
+	struct nv50_head *head = nv50_head(asyw->state.crtc);
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
@@ -80,24 +82,14 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (ret || !asyh->curs.visible)
 		return ret;
 
-	switch (asyw->state.fb->width) {
-	case 32: asyh->curs.layout = 0; break;
-	case 64: asyh->curs.layout = 1; break;
-	default:
-		return -EINVAL;
-	}
-
-	if (asyw->state.fb->width != asyw->state.fb->height)
+	if (asyw->image.w != asyw->image.h)
 		return -EINVAL;
 
-	switch (asyw->image.format) {
-	case 0xcf: asyh->curs.format = 1; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
+	ret = head->func->curs_layout(head, asyw, asyh);
+	if (ret)
+		return ret;
 
-	return 0;
+	return head->func->curs_format(head, asyw, asyh);
 }
 
 static const u32
