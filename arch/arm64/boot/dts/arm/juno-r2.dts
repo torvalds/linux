@@ -278,6 +278,10 @@
 	remote-endpoint = <&csys2_funnel_out_port>;
 };
 
+&csys1_funnel_in_port0 {
+	remote-endpoint = <&stm_out_port>;
+};
+
 &stm_out_port {
 	remote-endpoint = <&csys1_funnel_in_port0>;
 };
