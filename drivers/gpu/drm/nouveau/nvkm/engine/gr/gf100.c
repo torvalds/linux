@@ -1941,7 +1941,10 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_gpc_mmu(gr);
 
-	gf100_gr_mmio(gr, gr->func->mmio);
+	if (gr->fuc_sw_nonctx)
+		gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
+	else
+		gf100_gr_mmio(gr, gr->func->mmio);
 
 	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
 
