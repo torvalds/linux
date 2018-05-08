@@ -59,6 +59,8 @@ struct dc_stream_state {
 	struct freesync_context freesync_ctx;
 
 	struct dc_info_packet hdr_static_metadata;
+	PHYSICAL_ADDRESS_LOC dmdata_address;
+
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct dc_csc_transform csc_color_matrix;
