@@ -1,31 +1,33 @@
 #
-# Feature name:          pte_special
-#         Kconfig:       __HAVE_ARCH_PTE_SPECIAL
-#         description:   arch supports the pte_special()/pte_mkspecial() VM APIs
+# Feature name:          cBPF-JIT
+#         Kconfig:       HAVE_CBPF_JIT
+#         description:   arch supports cBPF JIT optimizations
 #
     -----------------------
     |         arch |status|
     -----------------------
     |       alpha: | TODO |
-    |         arc: |  ok  |
-    |         arm: |  ok  |
-    |       arm64: |  ok  |
+    |         arc: | TODO |
+    |         arm: | TODO |
+    |       arm64: | TODO |
     |         c6x: | TODO |
     |       h8300: | TODO |
     |     hexagon: | TODO |
     |        ia64: | TODO |
     |        m68k: | TODO |
     |  microblaze: | TODO |
-    |        mips: | TODO |
+    |        mips: |  ok  |
+    |       nds32: | TODO |
     |       nios2: | TODO |
     |    openrisc: | TODO |
     |      parisc: | TODO |
     |     powerpc: |  ok  |
-    |        s390: |  ok  |
-    |          sh: |  ok  |
+    |       riscv: | TODO |
+    |        s390: | TODO |
+    |          sh: | TODO |
     |       sparc: |  ok  |
     |          um: | TODO |
     |   unicore32: | TODO |
-    |         x86: |  ok  |
+    |         x86: | TODO |
     |      xtensa: | TODO |
     -----------------------
