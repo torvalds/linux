@@ -750,6 +750,11 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(SUBSLICE_UNIT_LEVEL_CLKGATE,
 		   I915_READ(SUBSLICE_UNIT_LEVEL_CLKGATE) |
 		   GWUNIT_CLKGATE_DIS);
+
+	/* Wa_1604302699:icl */
+	I915_WRITE(GEN10_L3_CHICKEN_MODE_REGISTER,
+		   I915_READ(GEN10_L3_CHICKEN_MODE_REGISTER) |
+		   GEN11_I2M_WRITE_DISABLE);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
