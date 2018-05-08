@@ -81,14 +81,15 @@ nv50_head_lut_load(struct drm_property_blob *blob, int mode,
 }
 
 void
-nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
+nv50_head_flush_clr(struct nv50_head *head,
+		    struct nv50_head_atom *asyh, bool flush)
 {
-	if (asyh->clr.ilut && (!asyh->set.ilut || y))
-		head->func->ilut_clr(head);
-	if (asyh->clr.core && (!asyh->set.core || y))
-		head->func->core_clr(head);
-	if (asyh->clr.curs && (!asyh->set.curs || y))
-		head->func->curs_clr(head);
+	union nv50_head_atom_mask clr = {
+		.mask = asyh->clr.mask & ~(flush ? 0 : asyh->set.mask),
+	};
+	if (clr.ilut) head->func->ilut_clr(head);
+	if (clr.core) head->func->core_clr(head);
+	if (clr.curs) head->func->curs_clr(head);
 }
 
 void

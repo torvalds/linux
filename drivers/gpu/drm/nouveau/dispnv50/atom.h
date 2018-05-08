@@ -105,16 +105,7 @@ struct nv50_head_atom {
 		u8 depth:4;
 	} or;
 
-	union {
-		struct {
-			bool ilut:1;
-			bool core:1;
-			bool curs:1;
-		};
-		u8 mask;
-	} clr;
-
-	union {
+	union nv50_head_atom_mask {
 		struct {
 			bool ilut:1;
 			bool core:1;
@@ -128,7 +119,7 @@ struct nv50_head_atom {
 			bool or:1;
 		};
 		u16 mask;
-	} set;
+	} set, clr;
 };
 
 static inline struct nv50_head_atom *
@@ -184,16 +175,7 @@ struct nv50_wndw_atom {
 		u16 y;
 	} point;
 
-	union {
-		struct {
-			bool ntfy:1;
-			bool sema:1;
-			bool image:1;
-		};
-		u8 mask;
-	} clr;
-
-	union {
+	union nv50_wndw_atom_mask {
 		struct {
 			bool ntfy:1;
 			bool sema:1;
@@ -202,6 +184,6 @@ struct nv50_wndw_atom {
 			bool point:1;
 		};
 		u8 mask;
-	} set;
+	} set, clr;
 };
 #endif

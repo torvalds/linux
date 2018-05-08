@@ -111,12 +111,12 @@ u32
 nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 interlock, bool flush,
 		    struct nv50_wndw_atom *asyw)
 {
-	if (asyw->clr.sema && (!asyw->set.sema || flush))
-		wndw->func->sema_clr(wndw);
-	if (asyw->clr.ntfy && (!asyw->set.ntfy || flush))
-		wndw->func->ntfy_clr(wndw);
-	if (asyw->clr.image && (!asyw->set.image || flush))
-		wndw->func->image_clr(wndw);
+	union nv50_wndw_atom_mask clr = {
+		.mask = asyw->clr.mask & ~(flush ? 0 : asyw->set.mask),
+	};
+	if (clr.sema ) wndw->func-> sema_clr(wndw);
+	if (clr.ntfy ) wndw->func-> ntfy_clr(wndw);
+	if (clr.image) wndw->func->image_clr(wndw);
 
 	return flush ? wndw->func->update(wndw, interlock) : 0;
 }
