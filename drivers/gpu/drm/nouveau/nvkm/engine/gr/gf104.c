@@ -123,6 +123,7 @@ gf104_gr = {
 	.init_40601c = gf100_gr_init_40601c,
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_419eb4 = gf100_gr_init_419eb4,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.mmio = gf104_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

@@ -1915,6 +1915,13 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 }
 
 void
+gf100_gr_init_tex_hww_esr(struct gf100_gr *gr, int tpc, int gpc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+}
+
+void
 gf100_gr_init_419eb4(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -2082,7 +2089,8 @@ gf100_gr_init(struct gf100_gr *gr)
 		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+			if (gr->func->init_tex_hww_esr)
+				gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
@@ -2143,6 +2151,7 @@ gf100_gr = {
 	.init_40601c = gf100_gr_init_40601c,
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_419eb4 = gf100_gr_init_419eb4,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

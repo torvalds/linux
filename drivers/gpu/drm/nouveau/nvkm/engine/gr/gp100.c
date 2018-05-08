@@ -101,7 +101,7 @@ gp100_gr_init(struct gf100_gr *gr)
 		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+			gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
@@ -144,6 +144,7 @@ gp100_gr = {
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_419c9c = gp100_gr_init_419c9c,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gp100_grctx,

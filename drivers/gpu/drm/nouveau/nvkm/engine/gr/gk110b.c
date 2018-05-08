@@ -113,6 +113,7 @@ gk110b_gr = {
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_419eb4 = gk110_gr_init_419eb4,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.mmio = gk110b_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
 	.gpccs.ucode = &gk110_gr_gpccs_ucode,
