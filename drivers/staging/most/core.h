@@ -230,6 +230,7 @@ struct mbo {
  */
 struct most_interface {
 	struct device dev;
+	struct device *driver_dev;
 	struct module *mod;
 	enum most_interface_type interface;
 	const char *description;

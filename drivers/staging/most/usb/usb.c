@@ -1043,6 +1043,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
 
 	mdev->iface.mod = hdm_usb_fops.owner;
+	mdev->iface.driver_dev = &interface->dev;
 	mdev->iface.interface = ITYPE_USB;
 	mdev->iface.configure = hdm_configure_channel;
 	mdev->iface.request_netinfo = hdm_request_netinfo;
