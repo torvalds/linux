@@ -33,10 +33,10 @@ gk110_disp_root = {
 		&gk110_disp_base_oclass,
 	},
 	.pioc = {
-		&gk104_disp_oimm_oclass,
 		&gk104_disp_curs_oclass,
 	},
 	.user = {
+		{{0,0,GK104_DISP_OVERLAY            }, gf119_disp_oimm_new },
 		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
 		{}
 	},

@@ -33,10 +33,10 @@ g84_disp_root = {
 		&g84_disp_base_oclass,
 	},
 	.pioc = {
-		&g84_disp_oimm_oclass,
 		&g84_disp_curs_oclass,
 	},
 	.user = {
+		{{0,0,G82_DISP_OVERLAY            }, nv50_disp_oimm_new },
 		{{0,0,G82_DISP_OVERLAY_CHANNEL_DMA},  g84_disp_ovly_new },
 		{}
 	},

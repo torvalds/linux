@@ -33,10 +33,10 @@ gt215_disp_root = {
 		&gt215_disp_base_oclass,
 	},
 	.pioc = {
-		&gt215_disp_oimm_oclass,
 		&gt215_disp_curs_oclass,
 	},
 	.user = {
+		{{0,0,GT214_DISP_OVERLAY            },  nv50_disp_oimm_new },
 		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA},   g84_disp_ovly_new },
 		{}
 	},

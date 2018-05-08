@@ -371,10 +371,10 @@ nv50_disp_root = {
 		&nv50_disp_base_oclass,
 	},
 	.pioc = {
-		&nv50_disp_oimm_oclass,
 		&nv50_disp_curs_oclass,
 	},
 	.user = {
+		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
 		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },
 		{}
 	},
