@@ -1786,7 +1786,7 @@ void net_dec_egress_queue(void)
 EXPORT_SYMBOL_GPL(net_dec_egress_queue);
 #endif
 
-static struct static_key netstamp_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(netstamp_needed_key);
 #ifdef HAVE_JUMP_LABEL
 static atomic_t netstamp_needed_deferred;
 static atomic_t netstamp_wanted;
@@ -1797,9 +1797,9 @@ static void netstamp_clear(struct work_struct *work)
 
 	wanted = atomic_add_return(deferred, &netstamp_wanted);
 	if (wanted > 0)
-		static_key_enable(&netstamp_needed);
+		static_branch_enable(&netstamp_needed_key);
 	else
-		static_key_disable(&netstamp_needed);
+		static_branch_disable(&netstamp_needed_key);
 }
 static DECLARE_WORK(netstamp_work, netstamp_clear);
 #endif
@@ -1819,7 +1819,7 @@ void net_enable_timestamp(void)
 	atomic_inc(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_inc(&netstamp_needed);
+	static_branch_inc(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_enable_timestamp);
@@ -1839,7 +1839,7 @@ void net_disable_timestamp(void)
 	atomic_dec(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_dec(&netstamp_needed);
+	static_branch_dec(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_disable_timestamp);
@@ -1847,15 +1847,15 @@ EXPORT_SYMBOL(net_disable_timestamp);
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	skb->tstamp = 0;
-	if (static_key_false(&netstamp_needed))
+	if (static_branch_unlikely(&netstamp_needed_key))
 		__net_timestamp(skb);
 }
 
-#define net_timestamp_check(COND, SKB)			\
-	if (static_key_false(&netstamp_needed)) {		\
-		if ((COND) && !(SKB)->tstamp)	\
-			__net_timestamp(SKB);		\
-	}						\
+#define net_timestamp_check(COND, SKB)				\
+	if (static_branch_unlikely(&netstamp_needed_key)) {	\
+		if ((COND) && !(SKB)->tstamp)			\
+			__net_timestamp(SKB);			\
+	}							\
 
 bool is_skb_forwardable(const struct net_device *dev, const struct sk_buff *skb)
 {
