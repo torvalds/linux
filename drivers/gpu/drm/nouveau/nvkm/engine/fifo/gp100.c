@@ -50,6 +50,7 @@ gp100_fifo_fault_engine[] = {
 
 static const struct gk104_fifo_func
 gp100_fifo = {
+	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gp100_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,

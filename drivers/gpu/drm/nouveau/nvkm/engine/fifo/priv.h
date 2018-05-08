@@ -21,6 +21,7 @@ struct nvkm_fifo_func {
 	void (*init)(struct nvkm_fifo *);
 	void (*fini)(struct nvkm_fifo *);
 	void (*intr)(struct nvkm_fifo *);
+	void (*fault)(struct nvkm_fifo *, struct nvkm_fault_data *);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 	void (*uevent_init)(struct nvkm_fifo *);

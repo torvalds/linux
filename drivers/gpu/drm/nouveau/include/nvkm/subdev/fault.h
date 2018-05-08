@@ -12,5 +12,18 @@ struct nvkm_fault {
 	struct nvkm_event event;
 };
 
+struct nvkm_fault_data {
+	u64  addr;
+	u64  inst;
+	u64  time;
+	u8 engine;
+	u8  valid;
+	u8    gpc;
+	u8    hub;
+	u8 access;
+	u8 client;
+	u8 reason;
+};
+
 int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 #endif

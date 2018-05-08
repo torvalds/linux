@@ -57,6 +57,12 @@ nvkm_fifo_start(struct nvkm_fifo *fifo, unsigned long *flags)
 }
 
 void
+nvkm_fifo_fault(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
+{
+	return fifo->func->fault(fifo, info);
+}
+
+void
 nvkm_fifo_chan_put(struct nvkm_fifo *fifo, unsigned long flags,
 		   struct nvkm_fifo_chan **pchan)
 {
