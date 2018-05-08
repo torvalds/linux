@@ -154,6 +154,9 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
+	if (!syncbuf)
+		return 0;
+
 	ret = nvif_object_init(&dmac->base.user, 0xf0000000, NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -2170,6 +2173,9 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	/* create crtc objects to represent the hw heads */
+	if (disp->disp->object.oclass >= GV100_DISP)
+		crtcs = nvif_rd32(&device->object, 0x610060) & 0xff;
+	else
 	if (disp->disp->object.oclass >= GF110_DISP)
 		crtcs = nvif_rd32(&device->object, 0x612004) & 0xf;
 	else

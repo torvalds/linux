@@ -54,6 +54,9 @@ struct nv50_head_atom {
 		u64 offset:40;
 		u8 buffer:1;
 		u8 mode:4;
+		u8 size:2;
+		u8 range:2;
+		u8 output_mode:2;
 	} olut;
 
 	struct {
@@ -77,7 +80,7 @@ struct nv50_head_atom {
 		u32 handle;
 		u64 offset:40;
 		u8  layout:2;
-		u8  format:1;
+		u8  format:8;
 	} curs;
 
 	struct {
@@ -166,6 +169,9 @@ struct nv50_wndw_atom {
 			u8  buffer:1;
 			u8  enable:2;
 			u8  mode:4;
+			u8  size:2;
+			u8  range:2;
+			u8  output_mode:2;
 		} i;
 	} xlut;
 

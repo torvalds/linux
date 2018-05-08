@@ -63,7 +63,7 @@ head917d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static int
+int
 head917d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {

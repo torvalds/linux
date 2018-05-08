@@ -87,4 +87,10 @@ struct nv50_wimm_func {
 };
 
 extern const struct nv50_wimm_func curs507a;
+
+int wndwc37e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+		 struct nv50_wndw **);
+
+int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
+		  struct nv50_wndw **);
 #endif

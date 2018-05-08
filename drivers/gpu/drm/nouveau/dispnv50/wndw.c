@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "wndw.h"
+#include "wimm.h"
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
@@ -148,11 +149,15 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 
 	if (asyw->set.scale) wndw->func->scale_set(wndw, asyw);
 	if (asyw->set.point) {
+		if (asyw->set.point = false, asyw->set.mask)
+			interlock[wndw->interlock.type] |= wndw->interlock.data;
+		interlock[NV50_DISP_INTERLOCK_WIMM] |= wndw->interlock.data;
+
 		wndw->immd->point(wndw, asyw);
 		wndw->immd->update(wndw, interlock);
+	} else {
+		interlock[wndw->interlock.type] |= wndw->interlock.data;
 	}
-
-	interlock[wndw->interlock.type] |= wndw->interlock.data;
 }
 
 void
@@ -604,4 +609,33 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 
 	wndw->notify.func = nv50_wndw_notify;
 	return 0;
+}
+
+int
+nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
+	      struct nv50_wndw **pwndw)
+{
+	struct {
+		s32 oclass;
+		int version;
+		int (*new)(struct nouveau_drm *, enum drm_plane_type,
+			   int, s32, struct nv50_wndw **);
+	} wndws[] = {
+		{ GV100_DISP_WINDOW_CHANNEL_DMA, 0, wndwc37e_new },
+		{}
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	int cid, ret;
+
+	cid = nvif_mclass(&disp->disp->object, wndws);
+	if (cid < 0) {
+		NV_ERROR(drm, "No supported window class\n");
+		return cid;
+	}
+
+	ret = wndws[cid].new(drm, type, index, wndws[cid].oclass, pwndw);
+	if (ret)
+		return ret;
+
+	return nv50_wimm_init(drm, *pwndw);
 }

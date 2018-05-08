@@ -475,7 +475,16 @@ nv50_head_create(struct drm_device *dev, int index)
 
 	head->func = disp->core->func->head;
 	head->base.index = index;
-	ret = nv50_base_new(drm, head->base.index, &wndw);
+
+	if (disp->disp->object.oclass < GV100_DISP) {
+		ret = nv50_ovly_new(drm, head->base.index, &wndw);
+		ret = nv50_base_new(drm, head->base.index, &wndw);
+	} else {
+		ret = nv50_wndw_new(drm, DRM_PLANE_TYPE_OVERLAY,
+				    head->base.index * 2 + 1, &wndw);
+		ret = nv50_wndw_new(drm, DRM_PLANE_TYPE_PRIMARY,
+				    head->base.index * 2 + 0, &wndw);
+	}
 	if (ret == 0)
 		ret = nv50_curs_new(drm, head->base.index, &curs);
 	if (ret) {
@@ -495,8 +504,6 @@ nv50_head_create(struct drm_device *dev, int index)
 			goto out;
 	}
 
-	/* allocate overlay resources */
-	ret = nv50_ovly_new(drm, head->base.index, &wndw);
 out:
 	if (ret)
 		nv50_head_destroy(crtc);

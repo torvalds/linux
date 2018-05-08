@@ -19,34 +19,21 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "curs.h"
+#include "core.h"
 
-#include <nvif/class.h>
-
-int
-nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+static void
+sorc37d_ctrl(struct nv50_core *core, int or, u32 ctrl,
+	     struct nv50_head_atom *asyh)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} curses[] = {
-		{ GV100_DISP_CURSOR, 0, cursc37a_new },
-		{ GK104_DISP_CURSOR, 0, curs907a_new },
-		{ GF110_DISP_CURSOR, 0, curs907a_new },
-		{ GT214_DISP_CURSOR, 0, curs507a_new },
-		{   G82_DISP_CURSOR, 0, curs507a_new },
-		{  NV50_DISP_CURSOR, 0, curs507a_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
-
-	cid = nvif_mclass(&disp->disp->object, curses);
-	if (cid < 0) {
-		NV_ERROR(drm, "No supported cursor immediate class\n");
-		return cid;
+	u32 *push;
+	if ((push = evo_wait(&core->chan, 2))) {
+		evo_mthd(push, 0x0300 + (or * 0x20), 1);
+		evo_data(push, ctrl);
+		evo_kick(push, &core->chan);
 	}
-
-	return curses[cid].new(drm, head, curses[cid].oclass, pwndw);
 }
+
+const struct nv50_outp_func
+sorc37d = {
+	.ctrl = sorc37d_ctrl,
+};

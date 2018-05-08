@@ -36,10 +36,14 @@ struct nv50_disp_interlock {
 		NV50_DISP_INTERLOCK_CURS,
 		NV50_DISP_INTERLOCK_BASE,
 		NV50_DISP_INTERLOCK_OVLY,
+		NV50_DISP_INTERLOCK_WNDW,
+		NV50_DISP_INTERLOCK_WIMM,
 		NV50_DISP_INTERLOCK__SIZE
 	} type;
 	u32 data;
 };
+
+void corec37d_ntfy_init(struct nouveau_bo *, u32);
 
 struct nv50_chan {
 	struct nvif_object user;

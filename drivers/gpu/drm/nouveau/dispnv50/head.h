@@ -71,4 +71,8 @@ void head907d_procamp(struct nv50_head *, struct nv50_head_atom *);
 void head907d_or(struct nv50_head *, struct nv50_head_atom *);
 
 extern const struct nv50_head_func head917d;
+int head917d_curs_layout(struct nv50_head *, struct nv50_wndw_atom *,
+			 struct nv50_head_atom *);
+
+extern const struct nv50_head_func headc37d;
 #endif

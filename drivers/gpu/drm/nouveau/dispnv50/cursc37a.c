@@ -20,33 +20,31 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "curs.h"
+#include "atom.h"
 
-#include <nvif/class.h>
+static void
+cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
+{
+	nvif_wr32(&wndw->wimm.base.user, 0x0200, 0x00000001);
+}
+
+static void
+cursc37a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	nvif_wr32(&wndw->wimm.base.user, 0x0208, asyw->point.y << 16 |
+						 asyw->point.x);
+}
+
+static const struct nv50_wimm_func
+cursc37a = {
+	.point = cursc37a_point,
+	.update = cursc37a_update,
+};
 
 int
-nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+cursc37a_new(struct nouveau_drm *drm, int head, s32 oclass,
+	     struct nv50_wndw **pwndw)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} curses[] = {
-		{ GV100_DISP_CURSOR, 0, cursc37a_new },
-		{ GK104_DISP_CURSOR, 0, curs907a_new },
-		{ GF110_DISP_CURSOR, 0, curs907a_new },
-		{ GT214_DISP_CURSOR, 0, curs507a_new },
-		{   G82_DISP_CURSOR, 0, curs507a_new },
-		{  NV50_DISP_CURSOR, 0, curs507a_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
-
-	cid = nvif_mclass(&disp->disp->object, curses);
-	if (cid < 0) {
-		NV_ERROR(drm, "No supported cursor immediate class\n");
-		return cid;
-	}
-
-	return curses[cid].new(drm, head, curses[cid].oclass, pwndw);
+	return curs507a_new_(&cursc37a, drm, head, oclass,
+			     0x00000001 << head, pwndw);
 }
