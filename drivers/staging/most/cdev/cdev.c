@@ -18,6 +18,8 @@
 #include <linux/idr.h>
 #include "most/core.h"
 
+#define CHRDEV_REGION_SIZE 50
+
 static struct cdev_component {
 	dev_t devno;
 	struct ida minor_id;
@@ -513,7 +515,7 @@ static int __init mod_init(void)
 	spin_lock_init(&ch_list_lock);
 	ida_init(&comp.minor_id);
 
-	err = alloc_chrdev_region(&comp.devno, 0, 50, "cdev");
+	err = alloc_chrdev_region(&comp.devno, 0, CHRDEV_REGION_SIZE, "cdev");
 	if (err < 0)
 		goto dest_ida;
 	comp.major = MAJOR(comp.devno);
@@ -523,7 +525,7 @@ static int __init mod_init(void)
 	return 0;
 
 free_cdev:
-	unregister_chrdev_region(comp.devno, 1);
+	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 dest_ida:
 	ida_destroy(&comp.minor_id);
 	class_destroy(comp.class);
