@@ -343,6 +343,9 @@ int mmc_of_parse(struct mmc_host *host)
 		host->dsr_req = 0;
 	}
 
+	device_property_read_u32(dev, "post-power-on-delay-ms",
+				 &host->ios.power_delay_ms);
+
 	return mmc_pwrseq_alloc(host);
 }
 
@@ -408,6 +411,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_blk_count = PAGE_SIZE / 512;
 
 	host->fixed_drv_type = -EINVAL;
+	host->ios.power_delay_ms = 10;
 
 	return host;
 }
