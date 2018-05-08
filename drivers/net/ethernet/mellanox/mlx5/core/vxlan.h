@@ -49,8 +49,8 @@ static inline bool mlx5_vxlan_allowed(struct mlx5_vxlan *vxlan)
 
 struct mlx5_vxlan *mlx5_vxlan_create(struct mlx5_core_dev *mdev);
 void mlx5_vxlan_destroy(struct mlx5_vxlan *vxlan);
-void mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port);
-void mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port);
+int mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port);
+int mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port);
 struct mlx5_vxlan_port *mlx5_vxlan_lookup_port(struct mlx5_vxlan *vxlan, u16 port);
 
 #else

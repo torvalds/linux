@@ -104,29 +104,34 @@ struct mlx5_vxlan_port *mlx5_vxlan_lookup_port(struct mlx5_vxlan *vxlan, u16 por
 	return vxlanp;
 }
 
-void mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
+int mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
 {
 	struct mlx5_vxlan_port *vxlanp;
+	int ret = -ENOSPC;
 
 	vxlanp = mlx5_vxlan_lookup_port(vxlan, port);
 	if (vxlanp) {
 		atomic_inc(&vxlanp->refcount);
-		return;
+		return 0;
 	}
 
 	if (vxlan->num_ports >= mlx5_vxlan_max_udp_ports(vxlan->mdev)) {
 		mlx5_core_info(vxlan->mdev,
 			       "UDP port (%d) not offloaded, max number of UDP ports (%d) are already offloaded\n",
 			       port, mlx5_vxlan_max_udp_ports(vxlan->mdev));
-		return;
+		ret = -ENOSPC;
+		return ret;
 	}
 
-	if (mlx5_vxlan_core_add_port_cmd(vxlan->mdev, port))
-		return;
+	ret = mlx5_vxlan_core_add_port_cmd(vxlan->mdev, port);
+	if (ret)
+		return ret;
 
 	vxlanp = kzalloc(sizeof(*vxlanp), GFP_KERNEL);
-	if (!vxlanp)
+	if (!vxlanp) {
+		ret = -ENOMEM;
 		goto err_delete_port;
+	}
 
 	vxlanp->udp_port = port;
 	atomic_set(&vxlanp->refcount, 1);
@@ -136,21 +141,25 @@ void mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
 	spin_unlock_bh(&vxlan->lock);
 
 	vxlan->num_ports++;
-	return;
+	return 0;
 
 err_delete_port:
 	mlx5_vxlan_core_del_port_cmd(vxlan->mdev, port);
+	return ret;
 }
 
-void mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
+int mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
 {
 	struct mlx5_vxlan_port *vxlanp;
 	bool remove = false;
+	int ret = 0;
 
 	spin_lock_bh(&vxlan->lock);
 	vxlanp = mlx5_vxlan_lookup_port_locked(vxlan, port);
-	if (!vxlanp)
+	if (!vxlanp) {
+		ret = -ENOENT;
 		goto out_unlock;
+	}
 
 	if (atomic_dec_and_test(&vxlanp->refcount)) {
 		hash_del(&vxlanp->hlist);
@@ -165,6 +174,7 @@ out_unlock:
 		kfree(vxlanp);
 		vxlan->num_ports--;
 	}
+	return ret;
 }
 
 struct mlx5_vxlan *mlx5_vxlan_create(struct mlx5_core_dev *mdev)
