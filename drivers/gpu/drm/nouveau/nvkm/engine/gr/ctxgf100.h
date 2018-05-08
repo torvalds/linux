@@ -60,6 +60,7 @@ struct gf100_grctx_func {
 	void (*dist_skip_table)(struct gf100_gr *);
 	void (*r406500)(struct gf100_gr *);
 	void (*gpc_tpc_nr)(struct gf100_gr *);
+	void (*r419f78)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
