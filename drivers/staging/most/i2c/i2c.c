@@ -28,18 +28,11 @@ enum { CH_RX, CH_TX, NUM_CHANNELS };
 #define list_first_mbo(ptr) \
 	list_first_entry(ptr, struct mbo, list)
 
-/* IRQ / Polling option */
-static bool polling_req;
-module_param(polling_req, bool, 0444);
-MODULE_PARM_DESC(polling_req, "Request Polling. Default = 0 (use irq)");
-
-/* Polling Rate */
-static int scan_rate = 100;
-module_param(scan_rate, int, 0644);
-MODULE_PARM_DESC(scan_rate, "Polling rate in times/sec. Default = 100");
+static unsigned int polling_rate;
+module_param(polling_rate, uint, 0644);
+MODULE_PARM_DESC(polling_rate, "Polling rate [Hz]. Default = 0 (use IRQ)");
 
 struct hdm_i2c {
-	bool polling_mode;
 	struct most_interface most_iface;
 	struct most_channel_capability capabilities[NUM_CHANNELS];
 	struct i2c_client *client;
@@ -89,8 +82,7 @@ static int configure_channel(struct most_interface *most_iface,
 	}
 
 	if (channel_config->direction == MOST_CH_RX) {
-		dev->polling_mode = polling_req;
-		if (!dev->polling_mode) {
+		if (!polling_rate) {
 			if (dev->client->irq <= 0) {
 				pr_err("bad irq: %d\n", dev->client->irq);
 				return -ENOENT;
@@ -103,8 +95,8 @@ static int configure_channel(struct most_interface *most_iface,
 				       dev->client->irq, ret);
 				return ret;
 			}
-		} else if (scan_rate) {
-			delay = msecs_to_jiffies(MSEC_PER_SEC / scan_rate);
+		} else {
+			delay = msecs_to_jiffies(MSEC_PER_SEC / polling_rate);
 			dev->rx.delay = delay ? delay : 1;
 			pr = MSEC_PER_SEC / jiffies_to_msecs(dev->rx.delay);
 			pr_info("polling rate is %u Hz\n", pr);
@@ -135,13 +127,13 @@ static int enqueue(struct most_interface *most_iface,
 
 	if (ch_idx == CH_RX) {
 		/* RX */
-		if (!dev->polling_mode)
+		if (!polling_rate)
 			disable_irq(dev->client->irq);
 		cancel_delayed_work_sync(&dev->rx.dwork);
 		list_add_tail(&mbo->list, &dev->rx.list);
-		if (dev->rx.int_disabled || dev->polling_mode)
+		if (dev->rx.int_disabled || polling_rate)
 			pending_rx_work(&dev->rx.dwork.work);
-		if (!dev->polling_mode)
+		if (!polling_rate)
 			enable_irq(dev->client->irq);
 	} else {
 		/* TX */
@@ -179,7 +171,7 @@ static int poison_channel(struct most_interface *most_iface,
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
 
 	if (ch_idx == CH_RX) {
-		if (!dev->polling_mode)
+		if (!polling_rate)
 			free_irq(dev->client->irq, dev);
 		cancel_delayed_work_sync(&dev->rx.dwork);
 
@@ -247,9 +239,8 @@ static void pending_rx_work(struct work_struct *work)
 
 	do_rx_work(dev);
 
-	if (dev->polling_mode) {
-		if (scan_rate)
-			schedule_delayed_work(&dev->rx.dwork, dev->rx.delay);
+	if (polling_rate) {
+		schedule_delayed_work(&dev->rx.dwork, dev->rx.delay);
 	} else {
 		dev->rx.int_disabled = false;
 		enable_irq(dev->client->irq);
