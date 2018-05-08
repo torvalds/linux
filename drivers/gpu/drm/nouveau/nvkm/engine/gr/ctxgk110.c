@@ -808,6 +808,13 @@ gk110_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
+void
+gk110_grctx_generate_r419eb0(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419eb0, 0x00001000, 0x00001000);
+}
+
 const struct gf100_grctx_func
 gk110_grctx = {
 	.main  = gk104_grctx_generate_main,
@@ -838,4 +845,5 @@ gk110_grctx = {
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 	.r418800 = gk104_grctx_generate_r418800,
+	.r419eb0 = gk110_grctx_generate_r419eb0,
 };
