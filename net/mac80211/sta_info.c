@@ -2052,6 +2052,18 @@ static void sta_set_tidstats(struct sta_info *sta,
 		tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
 		tidstats->tx_msdu_failed = sta->status_stats.msdu_failed[tid];
 	}
+
+	if (local->ops->wake_tx_queue && tid < IEEE80211_NUM_TIDS) {
+		spin_lock_bh(&local->fq.lock);
+		rcu_read_lock();
+
+		tidstats->filled |= BIT(NL80211_TID_STATS_TXQ_STATS);
+		ieee80211_fill_txq_stats(&tidstats->txq_stats,
+					 to_txq_info(sta->sta.txq[tid]));
+
+		rcu_read_unlock();
+		spin_unlock_bh(&local->fq.lock);
+	}
 }
 
 static inline u64 sta_get_stats_bytes(struct ieee80211_sta_rx_stats *rxstats)
