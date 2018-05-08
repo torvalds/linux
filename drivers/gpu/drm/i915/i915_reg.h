@@ -7232,8 +7232,9 @@ enum {
 #define  L3SQ_URB_READ_CAM_MATCH_DISABLE	(1<<27)
 
 #define GEN8_L3SQCREG4				_MMIO(0xb118)
-#define  GEN8_LQSC_RO_PERF_DIS			(1<<27)
-#define  GEN8_LQSC_FLUSH_COHERENT_LINES		(1<<21)
+#define  GEN11_LQSC_CLEAN_EVICT_DISABLE		(1 << 6)
+#define  GEN8_LQSC_RO_PERF_DIS			(1 << 27)
+#define  GEN8_LQSC_FLUSH_COHERENT_LINES		(1 << 21)
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				_MMIO(0x7300)

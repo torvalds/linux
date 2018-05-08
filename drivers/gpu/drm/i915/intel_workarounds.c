@@ -720,6 +720,12 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_GACB_PERF_CTRL,
 		   (I915_READ(GEN11_GACB_PERF_CTRL) & ~GEN11_HASH_CTRL_MASK) |
 		   GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
+
+	/* Wa_1405733216:icl
+	 * Formerly known as WaDisableCleanEvicts
+	 */
+	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+				   GEN11_LQSC_CLEAN_EVICT_DISABLE);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
