@@ -61,9 +61,7 @@
 #define P1100_FIRMWARE  "dvb-usb-p1100.fw"
 #define P7500_FIRMWARE  "dvb-usb-p7500.fw"
 
-#define	err_str "did not find the firmware file. (%s) " \
-		"Please see linux/Documentation/dvb/ for more details " \
-		"on firmware-problems."
+#define	err_str "did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
 
 struct dw2102_state {
 	u8 initialized;
