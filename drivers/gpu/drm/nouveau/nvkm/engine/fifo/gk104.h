@@ -92,5 +92,7 @@ void gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
 void gk208_fifo_init_pbdma_timeout(struct gk104_fifo *);
 
 extern const struct nvkm_enum gm107_fifo_fault_engine[];
+extern const struct gk104_fifo_runlist_func gm107_fifo_runlist;
+
 extern const struct nvkm_enum gp100_fifo_fault_engine[];
 #endif
