@@ -19,6 +19,7 @@
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3288-cru.h>
 #include "clk.h"
+#include <asm/psci.h>
 
 #define RK3288_GRF_SOC_CON(x)	(0x244 + x * 4)
 #define RK3288_GRF_SOC_STATUS1	0x284
@@ -970,7 +971,9 @@ static void __init rk3288_clk_init(struct device_node *np)
 
 	rockchip_register_restart_notifier(ctx, RK3288_GLB_SRST_FST,
 					   rk3288_clk_shutdown);
-	register_syscore_ops(&rk3288_clk_syscore_ops);
+
+	if (!psci_smp_available())
+		register_syscore_ops(&rk3288_clk_syscore_ops);
 
 	rockchip_clk_of_add_provider(np, ctx);
 }
