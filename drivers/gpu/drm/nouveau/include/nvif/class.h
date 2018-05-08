@@ -55,6 +55,7 @@
 #define VOLTA_USERMODE_A                                             0x0000c361
 
 #define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
+#define VOLTA_FAULT_BUFFER_A                          /* clb069.h */ 0x0000c369
 
 #define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e

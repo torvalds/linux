@@ -157,6 +157,7 @@ tu102_fault = {
 	.buffer.init = tu102_fault_buffer_init,
 	.buffer.fini = tu102_fault_buffer_fini,
 	.buffer.intr = tu102_fault_buffer_intr,
+	.user = { { 0, 0, VOLTA_FAULT_BUFFER_A }, 1 },
 };
 
 int
