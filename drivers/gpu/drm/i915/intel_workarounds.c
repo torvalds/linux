@@ -715,6 +715,11 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_GLBLINVL,
 		   (I915_READ(GEN11_GLBLINVL) & ~GEN11_BANK_HASH_ADDR_EXCL_MASK) |
 		   GEN11_BANK_HASH_ADDR_EXCL_BIT0);
+
+	/* WaModifyGamTlbPartitioning:icl */
+	I915_WRITE(GEN11_GACB_PERF_CTRL,
+		   (I915_READ(GEN11_GACB_PERF_CTRL) & ~GEN11_HASH_CTRL_MASK) |
+		   GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)

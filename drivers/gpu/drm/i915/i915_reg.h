@@ -8263,6 +8263,11 @@ enum {
 #define GEN10_DFR_RATIO_EN_AND_CHICKEN	_MMIO(0x9550)
 #define   DFR_DISABLE			(1 << 9)
 
+#define GEN11_GACB_PERF_CTRL			_MMIO(0x4B80)
+#define   GEN11_HASH_CTRL_MASK			(0x3 << 12 | 0xf << 0)
+#define   GEN11_HASH_CTRL_BIT0			(1 << 0)
+#define   GEN11_HASH_CTRL_BIT4			(1 << 12)
+
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
 #define   GEN7_L3CDERRST1_ROW_MASK	(0x7ff<<14)
