@@ -923,7 +923,8 @@ static int bnxt_vf_configure_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 	if (req->enables & cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_DFLT_MAC_ADDR)) {
 		if (is_valid_ether_addr(req->dflt_mac_addr) &&
 		    ((vf->flags & BNXT_VF_TRUST) ||
-		     (!is_valid_ether_addr(vf->mac_addr)))) {
+		     !is_valid_ether_addr(vf->mac_addr) ||
+		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
 			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
 			return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
 		}

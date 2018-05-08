@@ -3530,6 +3530,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		      HWRM_RESP_LEN_SFT;
 		valid = bp->hwrm_cmd_resp_addr + len - 1;
 	} else {
+		int j;
+
 		/* Check if response len is updated */
 		for (i = 0; i < tmo_count; i++) {
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
@@ -3547,14 +3549,15 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 		if (i >= tmo_count) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
-				   timeout, le16_to_cpu(req->req_type),
+				   HWRM_TOTAL_TIMEOUT(i),
+				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len);
 			return -1;
 		}
 
 		/* Last byte of resp contains valid bit */
 		valid = bp->hwrm_cmd_resp_addr + len - 1;
-		for (i = 0; i < 5; i++) {
+		for (j = 0; j < HWRM_VALID_BIT_DELAY_USEC; j++) {
 			/* make sure we read from updated DMA memory */
 			dma_rmb();
 			if (*valid)
@@ -3562,9 +3565,10 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			udelay(1);
 		}
 
-		if (i >= 5) {
+		if (j >= HWRM_VALID_BIT_DELAY_USEC) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
-				   timeout, le16_to_cpu(req->req_type),
+				   HWRM_TOTAL_TIMEOUT(i),
+				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len, *valid);
 			return -1;
 		}
@@ -6458,6 +6462,9 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (!BNXT_SINGLE_PF(bp))
+		return 0;
+
 	diff = link_info->support_auto_speeds ^ link_info->advertising;
 	if ((link_info->support_auto_speeds | diff) !=
 	    link_info->support_auto_speeds) {
@@ -8671,8 +8678,8 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
 		} else {
 			eth_hw_addr_random(bp->dev);
-			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
 		}
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
 #endif
 	}
 	return rc;
