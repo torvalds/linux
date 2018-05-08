@@ -693,6 +693,42 @@ static void dma_free(struct mbo *mbo, u32 size)
 
 static const struct of_device_id dim2_of_match[];
 
+static struct {
+	const char *clock_speed;
+	u8 clk_speed;
+} clk_mt[] = {
+	{ "256fs", CLK_256FS },
+	{ "512fs", CLK_512FS },
+	{ "1024fs", CLK_1024FS },
+	{ "2048fs", CLK_2048FS },
+	{ "3072fs", CLK_3072FS },
+	{ "4096fs", CLK_4096FS },
+	{ "6144fs", CLK_6144FS },
+	{ "8192fs", CLK_8192FS },
+};
+
+/**
+ * get_dim2_clk_speed - converts string to DIM2 clock speed value
+ *
+ * @clock_speed: string in the format "{NUMBER}fs"
+ * @val: pointer to get one of the CLK_{NUMBER}FS values
+ *
+ * By success stores one of the CLK_{NUMBER}FS in the *val and returns 0,
+ * otherwise returns -EINVAL.
+ */
+static int get_dim2_clk_speed(const char *clock_speed, u8 *val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clk_mt); i++) {
+		if (!strcmp(clock_speed, clk_mt[i].clock_speed)) {
+			*val = clk_mt[i].clk_speed;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 /*
  * dim2_probe - dim2 probe handler
  * @pdev: platform device structure
@@ -704,6 +740,7 @@ static int dim2_probe(struct platform_device *pdev)
 {
 	const struct dim2_platform_data *pdata;
 	const struct of_device_id *of_id;
+	const char *clock_speed;
 	struct dim2_hdm *dev;
 	struct resource *res;
 	int ret, i;
@@ -720,7 +757,18 @@ static int dim2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	dev->clk_speed = CLK_4096FS;
+	ret = of_property_read_string(pdev->dev.of_node,
+				      "microchip,clock-speed", &clock_speed);
+	if (ret) {
+		dev_err(&pdev->dev, "missing dt property clock-speed\n");
+		return ret;
+	}
+
+	ret = get_dim2_clk_speed(clock_speed, &dev->clk_speed);
+	if (ret) {
+		dev_err(&pdev->dev, "bad dt property clock-speed\n");
+		return ret;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
