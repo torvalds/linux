@@ -187,6 +187,7 @@ gm200_gr = {
 	.tpc_nr = 4,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

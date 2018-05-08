@@ -126,6 +126,7 @@ gk110b_gr = {
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gk110b_grctx,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

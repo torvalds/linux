@@ -29,6 +29,44 @@
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
+void
+gp100_gr_zbc_clear_color(struct gf100_gr *gr, int zbc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const int znum =  zbc - 1;
+	const u32 zoff = znum * 4;
+
+	if (gr->zbc_color[zbc].format) {
+		nvkm_wr32(device, 0x418010 + zoff, gr->zbc_color[zbc].ds[0]);
+		nvkm_wr32(device, 0x41804c + zoff, gr->zbc_color[zbc].ds[1]);
+		nvkm_wr32(device, 0x418088 + zoff, gr->zbc_color[zbc].ds[2]);
+		nvkm_wr32(device, 0x4180c4 + zoff, gr->zbc_color[zbc].ds[3]);
+	}
+
+	nvkm_mask(device, 0x418100 + ((znum / 4) * 4),
+			  0x0000007f << ((znum % 4) * 7),
+			  gr->zbc_color[zbc].format << ((znum % 4) * 7));
+}
+
+void
+gp100_gr_zbc_clear_depth(struct gf100_gr *gr, int zbc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const int znum =  zbc - 1;
+	const u32 zoff = znum * 4;
+
+	if (gr->zbc_depth[zbc].format)
+		nvkm_wr32(device, 0x418110 + zoff, gr->zbc_depth[zbc].ds);
+	nvkm_mask(device, 0x41814c + ((znum / 4) * 4),
+			  0x0000007f << ((znum % 4) * 7),
+			  gr->zbc_depth[zbc].format << ((znum % 4) * 7));
+}
+
+const struct gf100_gr_func_zbc
+gp100_gr_zbc = {
+	.clear_color = gp100_gr_zbc_clear_color,
+	.clear_depth = gp100_gr_zbc_clear_depth,
+};
 
 void
 gp100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
@@ -87,6 +125,7 @@ gp100_gr = {
 	.tpc_nr = 5,
 	.ppc_nr = 2,
 	.grctx = &gp100_grctx,
+	.zbc = &gp100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

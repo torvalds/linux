@@ -129,6 +129,11 @@ int gf100_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
 		  int, struct nvkm_gr **);
 void *gf100_gr_dtor(struct nvkm_gr *);
 
+struct gf100_gr_func_zbc {
+	void (*clear_color)(struct gf100_gr *, int zbc);
+	void (*clear_depth)(struct gf100_gr *, int zbc);
+};
+
 struct gf100_gr_func {
 	void (*dtor)(struct gf100_gr *);
 	void (*oneinit_tiles)(struct gf100_gr *);
@@ -170,6 +175,7 @@ struct gf100_gr_func {
 	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
 	const struct nvkm_therm_clkgate_pack *clkgate_pack;
+	const struct gf100_gr_func_zbc *zbc;
 	struct nvkm_sclass sclass[];
 };
 
@@ -187,6 +193,7 @@ void gf100_gr_init_419eb4(struct gf100_gr *);
 void gf100_gr_init_tex_hww_esr(struct gf100_gr *, int, int);
 void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gf100_gr_init_400054(struct gf100_gr *);
+extern const struct gf100_gr_func_zbc gf100_gr_zbc;
 
 void gf117_gr_init_zcull(struct gf100_gr *);
 
@@ -212,6 +219,9 @@ void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 void gp100_gr_init_fecs_exceptions(struct gf100_gr *);
 void gp100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+extern const struct gf100_gr_func_zbc gp100_gr_zbc;
+void gp100_gr_zbc_clear_color(struct gf100_gr *, int);
+void gp100_gr_zbc_clear_depth(struct gf100_gr *, int);
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 

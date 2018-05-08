@@ -51,6 +51,7 @@ gp107_gr = {
 	.tpc_nr = 3,
 	.ppc_nr = 1,
 	.grctx = &gp107_grctx,
+	.zbc = &gp100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

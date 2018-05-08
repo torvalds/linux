@@ -92,7 +92,7 @@ gf100_gr_zbc_color_get(struct gf100_gr *gr, int format,
 	memcpy(gr->zbc_color[zbc].l2, l2, sizeof(gr->zbc_color[zbc].l2));
 	gr->zbc_color[zbc].format = format;
 	nvkm_ltc_zbc_color_get(ltc, zbc, l2);
-	gf100_gr_zbc_clear_color(gr, zbc);
+	gr->func->zbc->clear_color(gr, zbc);
 	return zbc;
 }
 
@@ -137,9 +137,15 @@ gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 	gr->zbc_depth[zbc].ds = ds;
 	gr->zbc_depth[zbc].l2 = l2;
 	nvkm_ltc_zbc_depth_get(ltc, zbc, l2);
-	gf100_gr_zbc_clear_depth(gr, zbc);
+	gr->func->zbc->clear_depth(gr, zbc);
 	return zbc;
 }
+
+const struct gf100_gr_func_zbc
+gf100_gr_zbc = {
+	.clear_color = gf100_gr_zbc_clear_color,
+	.clear_depth = gf100_gr_zbc_clear_depth,
+};
 
 /*******************************************************************************
  * Graphics object classes
@@ -744,21 +750,21 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
 			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
-	int index;
+	int index, c = ltc->zbc_min, d = ltc->zbc_min;
 
 	if (!gr->zbc_color[0].format) {
-		gf100_gr_zbc_color_get(gr, 1,  & zero[0],   &zero[4]);
-		gf100_gr_zbc_color_get(gr, 2,  &  one[0],    &one[4]);
-		gf100_gr_zbc_color_get(gr, 4,  &f32_0[0],  &f32_0[4]);
-		gf100_gr_zbc_color_get(gr, 4,  &f32_1[0],  &f32_1[4]);
-		gf100_gr_zbc_depth_get(gr, 1, 0x00000000, 0x00000000);
-		gf100_gr_zbc_depth_get(gr, 1, 0x3f800000, 0x3f800000);
+		gf100_gr_zbc_color_get(gr, 1,  & zero[0],   &zero[4]); c++;
+		gf100_gr_zbc_color_get(gr, 2,  &  one[0],    &one[4]); c++;
+		gf100_gr_zbc_color_get(gr, 4,  &f32_0[0],  &f32_0[4]); c++;
+		gf100_gr_zbc_color_get(gr, 4,  &f32_1[0],  &f32_1[4]); c++;
+		gf100_gr_zbc_depth_get(gr, 1, 0x00000000, 0x00000000); d++;
+		gf100_gr_zbc_depth_get(gr, 1, 0x3f800000, 0x3f800000); d++;
 	}
 
-	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
-		gf100_gr_zbc_clear_color(gr, index);
-	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
-		gf100_gr_zbc_clear_depth(gr, index);
+	for (index = c; index <= ltc->zbc_max; index++)
+		gr->func->zbc->clear_color(gr, index);
+	for (index = d; index <= ltc->zbc_max; index++)
+		gr->func->zbc->clear_depth(gr, index);
 }
 
 /**
@@ -2242,6 +2248,7 @@ gf100_gr = {
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.grctx = &gf100_grctx,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },

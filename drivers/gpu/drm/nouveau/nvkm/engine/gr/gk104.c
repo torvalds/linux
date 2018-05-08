@@ -479,6 +479,7 @@ gk104_gr = {
 	.ppc_nr = 1,
 	.grctx = &gk104_grctx,
 	.clkgate_pack = gk104_clkgate_pack,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },

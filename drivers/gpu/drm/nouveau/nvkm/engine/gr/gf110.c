@@ -106,6 +106,7 @@ gf110_gr = {
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.grctx = &gf110_grctx,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },
