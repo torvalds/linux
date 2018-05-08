@@ -13312,7 +13312,7 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 F:	Documentation/devicetree/bindings/sound/
-F:	Documentation/sound/alsa/soc/
+F:	Documentation/sound/soc/
 F:	sound/soc/
 F:	include/sound/soc*
 

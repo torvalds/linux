@@ -6,7 +6,7 @@ Notes on Analysing Behaviour Using Events and Tracepoints
 1. Introduction
 ===============
 
-Tracepoints (see Documentation/trace/tracepoints.txt) can be used without
+Tracepoints (see Documentation/trace/tracepoints.rst) can be used without
 creating custom kernel modules to register probe functions using the event
 tracing infrastructure.
 

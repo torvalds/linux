@@ -9,7 +9,7 @@ menuconfig INPUT_JOYSTICK
 	  and the list of supported devices will be displayed. This option
 	  doesn't affect the kernel.
 
-	  Please read the file <file:Documentation/input/joystick.txt> which
+	  Please read the file <file:Documentation/input/joydev/joystick.rst> which
 	  contains more information.
 
 if INPUT_JOYSTICK
@@ -25,7 +25,7 @@ config JOYSTICK_ANALOG
 	  Flightstick Pro, ThrustMaster FCS, 6 and 8 button gamepads, or
 	  Saitek Cyborg joysticks.
 
-	  Please read the file <file:Documentation/input/joystick.txt> which
+	  Please read the file <file:Documentation/input/joydev/joystick.rst> which
 	  contains more information.
 
 	  To compile this driver as a module, choose M here: the
