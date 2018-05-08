@@ -23,30 +23,26 @@ The platform DMA driver optionally supports the following ALSA operations:-
   };
 
 The platform driver exports its DMA functionality via struct
-snd_soc_platform_driver:-
+snd_soc_component_driver:-
 ::
 
-  struct snd_soc_platform_driver {
-	char *name;
+  struct snd_soc_component_driver {
+	const char *name;
 
-	int (*probe)(struct platform_device *pdev);
-	int (*remove)(struct platform_device *pdev);
-	int (*suspend)(struct platform_device *pdev, struct snd_soc_cpu_dai *cpu_dai);
-	int (*resume)(struct platform_device *pdev, struct snd_soc_cpu_dai *cpu_dai);
+	...
+	int (*probe)(struct snd_soc_component *);
+	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_card *, struct snd_soc_codec_dai *, struct snd_pcm *);
+	int (*pcm_new)(struct snd_soc_pcm_runtime *);
 	void (*pcm_free)(struct snd_pcm *);
 
-	/*
-	 * For platform caused delay reporting.
-	 * Optional.
-	 */
-	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
-		struct snd_soc_dai *);
-
-	/* platform stream ops */
-	struct snd_pcm_ops *pcm_ops;
+	...
+	const struct snd_pcm_ops *ops;
+	const struct snd_compr_ops *compr_ops;
+	...
   };
 
 Please refer to the ALSA driver documentation for details of audio DMA.
