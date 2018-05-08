@@ -70,8 +70,7 @@ gp100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
 	nvkm_wr32(device, 0x400124, 0x00000002);
 	gr->func->init_fecs_exceptions(gr);
-	nvkm_wr32(device, 0x405848, 0xc0000000);
-	nvkm_mask(device, 0x40584c, 0x00000000, 0x00000001);
+	gr->func->init_ds_hww_esr_2(gr);
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);
 	nvkm_wr32(device, 0x408030, 0xc0000000);
@@ -134,6 +133,7 @@ gp100_gr = {
 	.init_num_active_ltcs = gm200_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_fecs_exceptions = gp100_gr_init_fecs_exceptions,
+	.init_ds_hww_esr_2 = gm200_gr_init_ds_hww_esr_2,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,

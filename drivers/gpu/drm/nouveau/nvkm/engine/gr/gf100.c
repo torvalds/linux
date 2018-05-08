@@ -2018,6 +2018,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x400124, 0x00000002);
 
 	gr->func->init_fecs_exceptions(gr);
+	if (gr->func->init_ds_hww_esr_2)
+		gr->func->init_ds_hww_esr_2(gr);
 
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);

@@ -131,6 +131,7 @@ struct gf100_gr_func {
 	void (*init_bios_2)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
 	void (*init_fecs_exceptions)(struct gf100_gr *);
+	void (*init_ds_hww_esr_2)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
@@ -165,6 +166,7 @@ int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_rops(struct gf100_gr *);
 void gm200_gr_init_num_active_ltcs(struct gf100_gr *);
+void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
 
 int gp100_gr_init(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);

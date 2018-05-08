@@ -36,6 +36,7 @@ gp107_gr = {
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
 	.init_fecs_exceptions = gp100_gr_init_fecs_exceptions,
+	.init_ds_hww_esr_2 = gm200_gr_init_ds_hww_esr_2,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 1,

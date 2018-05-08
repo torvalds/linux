@@ -34,6 +34,7 @@ gp10b_gr = {
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_fecs_exceptions = gp100_gr_init_fecs_exceptions,
+	.init_ds_hww_esr_2 = gm200_gr_init_ds_hww_esr_2,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 1,
