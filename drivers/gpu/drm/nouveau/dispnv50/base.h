@@ -17,8 +17,9 @@ void base507c_ntfy_reset(struct nouveau_bo *, u32);
 void base507c_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void base507c_ntfy_clr(struct nv50_wndw *);
 int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+void base507c_xlut_set(struct nv50_wndw *, struct nv50_wndw_atom *);
+void base507c_xlut_clr(struct nv50_wndw *);
 void base507c_image_clr(struct nv50_wndw *);
-void base507c_lut(struct nv50_wndw *, struct nv50_wndw_atom *);
 void base507c_update(struct nv50_wndw *, u32 *);
 
 int base827c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);

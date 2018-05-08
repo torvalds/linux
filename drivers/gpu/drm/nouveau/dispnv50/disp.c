@@ -1971,7 +1971,18 @@ nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	struct nv50_atom *atom = nv50_atom(state);
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	struct drm_connector *connector;
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
 	int ret, i;
+
+	/* We need to handle colour management on a per-plane basis. */
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->color_mgmt_changed) {
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				return ret;
+		}
+	}
 
 	ret = drm_atomic_helper_check(dev, state);
 	if (ret)

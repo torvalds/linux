@@ -91,7 +91,7 @@ head907d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+static void
 head907d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
@@ -182,13 +182,13 @@ head907d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 void
-head907d_ilut_clr(struct nv50_head *head)
+head907d_olut_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x0440 + (head->base.index * 0x300), 1);
-		evo_data(push, 0x03000000);
+		evo_mthd(push, 0x0448 + (head->base.index * 0x300), 1);
+		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x045c + (head->base.index * 0x300), 1);
 		evo_data(push, 0x00000000);
 		evo_kick(push, core);
@@ -196,20 +196,24 @@ head907d_ilut_clr(struct nv50_head *head)
 }
 
 void
-head907d_ilut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+head907d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
-	if ((push = evo_wait(core, 7))) {
-		evo_mthd(push, 0x0440 + (head->base.index * 0x300), 4);
-		evo_data(push, 0x80000000 | asyh->ilut.mode << 24);
-		evo_data(push, asyh->ilut.offset >> 8);
-		evo_data(push, 0x00000000);
-		evo_data(push, 0x00000000);
+	if ((push = evo_wait(core, 5))) {
+		evo_mthd(push, 0x0448 + (head->base.index * 0x300), 2);
+		evo_data(push, 0x80000000 | asyh->olut.mode << 24);
+		evo_data(push, asyh->olut.offset >> 8);
 		evo_mthd(push, 0x045c + (head->base.index * 0x300), 1);
-		evo_data(push, asyh->ilut.handle);
+		evo_data(push, asyh->olut.handle);
 		evo_kick(push, core);
 	}
+}
+
+void
+head907d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	asyh->olut.mode = 7;
 }
 
 void
@@ -259,8 +263,9 @@ const struct nv50_head_func
 head907d = {
 	.view = head907d_view,
 	.mode = head907d_mode,
-	.ilut_set = head907d_ilut_set,
-	.ilut_clr = head907d_ilut_clr,
+	.olut = head907d_olut,
+	.olut_set = head907d_olut_set,
+	.olut_clr = head907d_olut_clr,
 	.core_calc = head507d_core_calc,
 	.core_set = head907d_core_set,
 	.core_clr = head907d_core_clr,

@@ -53,9 +53,11 @@ base827c = {
 	.ntfy_set = base507c_ntfy_set,
 	.ntfy_clr = base507c_ntfy_clr,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
+	.olut_core = 1,
+	.xlut_set = base507c_xlut_set,
+	.xlut_clr = base507c_xlut_clr,
 	.image_set = base827c_image_set,
 	.image_clr = base507c_image_clr,
-	.lut = base507c_lut,
 	.update = base507c_update,
 };
 

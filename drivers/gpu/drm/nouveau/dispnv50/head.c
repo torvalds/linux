@@ -30,56 +30,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include "nouveau_connector.h"
-#include "nouveau_bo.h"
-
-static void
-nv50_head_lut_load(struct drm_property_blob *blob, int mode,
-		   struct nouveau_bo *nvbo)
-{
-	struct drm_color_lut *in = (struct drm_color_lut *)blob->data;
-	void __iomem *lut = (u8 *)nvbo_kmap_obj_iovirtual(nvbo);
-	const int size = blob->length / sizeof(*in);
-	int bits, shift, i;
-	u16 zero, r, g, b;
-
-	/* This can't happen.. But it shuts the compiler up. */
-	if (WARN_ON(size != 256))
-		return;
-
-	switch (mode) {
-	case 0: /* LORES. */
-	case 1: /* HIRES. */
-		bits = 11;
-		shift = 3;
-		zero = 0x0000;
-		break;
-	case 7: /* INTERPOLATE_257_UNITY_RANGE. */
-		bits = 14;
-		shift = 0;
-		zero = 0x6000;
-		break;
-	default:
-		WARN_ON(1);
-		return;
-	}
-
-	for (i = 0; i < size; i++) {
-		r = (drm_color_lut_extract(in[i].  red, bits) + zero) << shift;
-		g = (drm_color_lut_extract(in[i].green, bits) + zero) << shift;
-		b = (drm_color_lut_extract(in[i]. blue, bits) + zero) << shift;
-		writew(r, lut + (i * 0x08) + 0);
-		writew(g, lut + (i * 0x08) + 2);
-		writew(b, lut + (i * 0x08) + 4);
-	}
-
-	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
-	 */
-	writew(r, lut + (i * 0x08) + 0);
-	writew(g, lut + (i * 0x08) + 2);
-	writew(b, lut + (i * 0x08) + 4);
-}
-
 void
 nv50_head_flush_clr(struct nv50_head *head,
 		    struct nv50_head_atom *asyh, bool flush)
@@ -87,7 +37,7 @@ nv50_head_flush_clr(struct nv50_head *head,
 	union nv50_head_atom_mask clr = {
 		.mask = asyh->clr.mask & ~(flush ? 0 : asyh->set.mask),
 	};
-	if (clr.ilut) head->func->ilut_clr(head);
+	if (clr.olut) head->func->olut_clr(head);
 	if (clr.core) head->func->core_clr(head);
 	if (clr.curs) head->func->curs_clr(head);
 }
@@ -97,16 +47,14 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	if (asyh->set.view   ) head->func->view    (head, asyh);
 	if (asyh->set.mode   ) head->func->mode    (head, asyh);
-	if (asyh->set.ilut   ) {
-		struct nouveau_bo *nvbo = head->ilut.nvbo[head->ilut.next];
-		struct drm_property_blob *blob = asyh->state.gamma_lut;
-		if (blob)
-			nv50_head_lut_load(blob, asyh->ilut.mode, nvbo);
-		asyh->ilut.offset = nvbo->bo.offset;
-		head->ilut.next ^= 1;
-		head->func->ilut_set(head, asyh);
-	}
 	if (asyh->set.core   ) head->func->core_set(head, asyh);
+	if (asyh->set.olut   ) {
+		asyh->olut.offset = nv50_lut_load(&head->olut,
+						  asyh->olut.mode <= 1,
+						  asyh->olut.buffer,
+						  asyh->state.gamma_lut);
+		head->func->olut_set(head, asyh);
+	}
 	if (asyh->set.curs   ) head->func->curs_set(head, asyh);
 	if (asyh->set.base   ) head->func->base    (head, asyh);
 	if (asyh->set.ovly   ) head->func->ovly    (head, asyh);
@@ -240,35 +188,37 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	asyh->set.view = true;
 }
 
-static void
+static int
 nv50_head_atomic_check_lut(struct nv50_head *head,
-			   struct nv50_head_atom *armh,
 			   struct nv50_head_atom *asyh)
 {
 	struct nv50_disp *disp = nv50_disp(head->base.base.dev);
+	struct drm_property_blob *olut = asyh->state.gamma_lut;
 
-	/* An I8 surface without an input LUT makes no sense, and
-	 * EVO will throw an error if you try.
-	 *
-	 * Legacy clients actually cause this due to the order in
-	 * which they call ioctls, so we will enable the LUT with
-	 * whatever contents the buffer already contains to avoid
-	 * triggering the error check.
-	 */
-	if (!asyh->state.gamma_lut && asyh->base.cpp != 1) {
-		asyh->ilut.handle = 0;
-		asyh->clr.ilut = armh->ilut.visible;
-		return;
+	/* Determine whether core output LUT should be enabled. */
+	if (olut) {
+		/* Check if any window(s) have stolen the core output LUT
+		 * to as an input LUT for legacy gamma + I8 colour format.
+		 */
+		if (asyh->wndw.olut) {
+			/* If any window has stolen the core output LUT,
+			 * all of them must.
+			 */
+			if (asyh->wndw.olut != asyh->wndw.mask)
+				return -EINVAL;
+			olut = NULL;
+		}
 	}
 
-	if (disp->disp->object.oclass < GF110_DISP) {
-		asyh->ilut.mode = (asyh->base.cpp == 1) ? 0 : 1;
-		asyh->set.ilut = true;
-	} else {
-		asyh->ilut.mode = 7;
-		asyh->set.ilut = asyh->state.color_mgmt_changed;
+	if (!olut) {
+		asyh->olut.handle = 0;
+		return 0;
 	}
-	asyh->ilut.handle = disp->core->chan.vram.handle;
+
+	asyh->olut.handle = disp->core->chan.vram.handle;
+	asyh->olut.buffer = !asyh->olut.buffer;
+	head->func->olut(head, asyh);
+	return 0;
 }
 
 static void
@@ -360,9 +310,13 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			nv50_head_atomic_check_mode(head, asyh);
 
 		if (asyh->state.color_mgmt_changed ||
-		    asyh->base.cpp != armh->base.cpp)
-			nv50_head_atomic_check_lut(head, armh, asyh);
-		asyh->ilut.visible = asyh->ilut.handle != 0;
+		    memcmp(&armh->wndw, &asyh->wndw, sizeof(asyh->wndw))) {
+			int ret = nv50_head_atomic_check_lut(head, asyh);
+			if (ret)
+				return ret;
+
+			asyh->olut.visible = asyh->olut.handle != 0;
+		}
 
 		if (asyc) {
 			if (asyc->set.scaler)
@@ -373,13 +327,16 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 				nv50_head_atomic_check_procamp(armh, asyh, asyc);
 		}
 
-		if (head->func->core_calc)
+		if (head->func->core_calc) {
 			head->func->core_calc(head, asyh);
+			if (!asyh->core.visible)
+				asyh->olut.visible = false;
+		}
 
 		asyh->set.base = armh->base.cpp != asyh->base.cpp;
 		asyh->set.ovly = armh->ovly.cpp != asyh->ovly.cpp;
 	} else {
-		asyh->ilut.visible = false;
+		asyh->olut.visible = false;
 		asyh->core.visible = false;
 		asyh->curs.visible = false;
 		asyh->base.cpp = 0;
@@ -402,11 +359,19 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		if (armh->curs.visible) {
 			asyh->clr.curs = true;
 		}
+
+		if (asyh->olut.visible) {
+			if (memcmp(&armh->olut, &asyh->olut, sizeof(asyh->olut)))
+				asyh->set.olut = true;
+		} else
+		if (armh->olut.visible) {
+			asyh->clr.olut = true;
+		}
 	} else {
-		asyh->clr.ilut = armh->ilut.visible;
+		asyh->clr.olut = armh->olut.visible;
 		asyh->clr.core = armh->core.visible;
 		asyh->clr.curs = armh->curs.visible;
-		asyh->set.ilut = asyh->ilut.visible;
+		asyh->set.olut = asyh->olut.visible;
 		asyh->set.core = asyh->core.visible;
 		asyh->set.curs = asyh->curs.visible;
 	}
@@ -438,9 +403,10 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 	if (!(asyh = kmalloc(sizeof(*asyh), GFP_KERNEL)))
 		return NULL;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &asyh->state);
+	asyh->wndw = armh->wndw;
 	asyh->view = armh->view;
 	asyh->mode = armh->mode;
-	asyh->ilut = armh->ilut;
+	asyh->olut = armh->olut;
 	asyh->core = armh->core;
 	asyh->curs = armh->curs;
 	asyh->base = armh->base;
@@ -477,11 +443,7 @@ static void
 nv50_head_destroy(struct drm_crtc *crtc)
 {
 	struct nv50_head *head = nv50_head(crtc);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(head->ilut.nvbo); i++)
-		nouveau_bo_unmap_unpin_unref(&head->ilut.nvbo[i]);
-
+	nv50_lut_fini(&head->olut);
 	drm_crtc_cleanup(crtc);
 	kfree(head);
 }
@@ -505,7 +467,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nv50_head *head;
 	struct nv50_wndw *curs, *wndw;
 	struct drm_crtc *crtc;
-	int ret, i;
+	int ret;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
@@ -527,10 +489,8 @@ nv50_head_create(struct drm_device *dev, int index)
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	for (i = 0; i < ARRAY_SIZE(head->ilut.nvbo); i++) {
-		ret = nouveau_bo_new_pin_map(&drm->client, 1025 * 8, 0x100,
-					     TTM_PL_FLAG_VRAM,
-					     &head->ilut.nvbo[i]);
+	if (head->func->olut_set) {
+		ret = nv50_lut_init(disp, &drm->client.mmu, &head->olut);
 		if (ret)
 			goto out;
 	}

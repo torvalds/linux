@@ -17,6 +17,11 @@ struct nv50_head_atom {
 	struct drm_crtc_state state;
 
 	struct {
+		u32 mask;
+		u32 olut;
+	} wndw;
+
+	struct {
 		u16 iW;
 		u16 iH;
 		u16 oW;
@@ -47,8 +52,9 @@ struct nv50_head_atom {
 		bool visible;
 		u32 handle;
 		u64 offset:40;
-		u8  mode:4;
-	} ilut;
+		u8 buffer:1;
+		u8 mode:4;
+	} olut;
 
 	struct {
 		bool visible;
@@ -107,7 +113,7 @@ struct nv50_head_atom {
 
 	union nv50_head_atom_mask {
 		struct {
-			bool ilut:1;
+			bool olut:1;
 			bool core:1;
 			bool curs:1;
 			bool view:1;
@@ -136,6 +142,7 @@ nv50_head_atom_get(struct drm_atomic_state *state, struct drm_crtc *crtc)
 struct nv50_wndw_atom {
 	struct drm_plane_state state;
 
+	struct drm_property_blob *ilut;
 	bool visible;
 
 	struct {
@@ -152,8 +159,14 @@ struct nv50_wndw_atom {
 	} sema;
 
 	struct {
-		u8 enable:2;
-	} lut;
+		u32 handle;
+		struct {
+			u64 offset:40;
+			u8  buffer:1;
+			u8  enable:2;
+			u8  mode:4;
+		} i;
+	} xlut;
 
 	struct {
 		u8  mode:2;
@@ -180,8 +193,8 @@ struct nv50_wndw_atom {
 		struct {
 			bool ntfy:1;
 			bool sema:1;
+			bool xlut:1;
 			bool image:1;
-			bool lut:1;
 			bool point:1;
 		};
 		u8 mask;

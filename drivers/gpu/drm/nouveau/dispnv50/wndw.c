@@ -116,6 +116,7 @@ nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 *interlock, bool flush,
 	};
 	if (clr.sema ) wndw->func-> sema_clr(wndw);
 	if (clr.ntfy ) wndw->func-> ntfy_clr(wndw);
+	if (clr.xlut ) wndw->func-> xlut_clr(wndw);
 	if (clr.image) wndw->func->image_clr(wndw);
 
 	interlock[wndw->interlock.type] |= wndw->interlock.data;
@@ -133,7 +134,18 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	if (asyw->set.sema ) wndw->func->sema_set (wndw, asyw);
 	if (asyw->set.ntfy ) wndw->func->ntfy_set (wndw, asyw);
 	if (asyw->set.image) wndw->func->image_set(wndw, asyw);
-	if (asyw->set.lut  ) wndw->func->lut      (wndw, asyw);
+
+	if (asyw->set.xlut ) {
+		if (asyw->ilut) {
+			asyw->xlut.i.offset =
+				nv50_lut_load(&wndw->ilut,
+					      asyw->xlut.i.mode <= 1,
+					      asyw->xlut.i.buffer,
+					      asyw->ilut);
+		}
+		wndw->func->xlut_set(wndw, asyw);
+	}
+
 	if (asyw->set.point) {
 		wndw->immd->point(wndw, asyw);
 		wndw->immd->update(wndw, interlock);
@@ -241,7 +253,56 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	return wndw->func->acquire(wndw, asyw, asyh);
 }
 
-int
+static void
+nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
+			   struct nv50_wndw_atom *armw,
+			   struct nv50_wndw_atom *asyw,
+			   struct nv50_head_atom *asyh)
+{
+	struct drm_property_blob *ilut = asyh->state.degamma_lut;
+
+	/* I8 format without an input LUT makes no sense, and the
+	 * HW error-checks for this.
+	 *
+	 * In order to handle legacy gamma, when there's no input
+	 * LUT we need to steal the output LUT and use it instead.
+	 */
+	if (!ilut && asyw->state.fb->format->format == DRM_FORMAT_C8) {
+		/* This should be an error, but there's legacy clients
+		 * that do a modeset before providing a gamma table.
+		 *
+		 * We keep the window disabled to avoid angering HW.
+		 */
+		if (!(ilut = asyh->state.gamma_lut)) {
+			asyw->visible = false;
+			return;
+		}
+
+		if (wndw->func->ilut)
+			asyh->wndw.olut |= BIT(wndw->id);
+	} else {
+		asyh->wndw.olut &= ~BIT(wndw->id);
+	}
+
+	/* Recalculate LUT state. */
+	memset(&asyw->xlut, 0x00, sizeof(asyw->xlut));
+	if ((asyw->ilut = wndw->func->ilut ? ilut : NULL)) {
+		wndw->func->ilut(wndw, asyw);
+		asyw->xlut.handle = wndw->wndw.vram.handle;
+		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
+		asyw->set.xlut = true;
+	}
+
+	/* Handle setting base SET_OUTPUT_LUT_LO_ENABLE_USE_CORE_LUT. */
+	if (wndw->func->olut_core &&
+	    (!armw->visible || (armw->xlut.handle && !asyw->xlut.handle)))
+		asyw->set.xlut = true;
+
+	/* Can't do an immediate flip while changing the LUT. */
+	asyh->state.pageflip_flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
+}
+
+static int
 nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
@@ -274,15 +335,26 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 			return PTR_ERR(harm);
 	}
 
+	/* LUT configuration can potentially cause the window to be disabled. */
+	if (asyw->visible && wndw->func->xlut_set &&
+	    (!armw->visible ||
+	     asyh->state.color_mgmt_changed ||
+	     asyw->state.fb->format->format !=
+	     armw->state.fb->format->format))
+		nv50_wndw_atomic_check_lut(wndw, armw, asyw, asyh);
+
 	/* Calculate new window state. */
 	if (asyw->visible) {
 		ret = nv50_wndw_atomic_check_acquire(wndw, modeset,
 						     armw, asyw, asyh);
 		if (ret)
 			return ret;
+
+		asyh->wndw.mask |= BIT(wndw->id);
 	} else
 	if (armw->visible) {
 		nv50_wndw_atomic_check_release(wndw, asyw, harm);
+		harm->wndw.mask &= ~BIT(wndw->id);
 	} else {
 		return 0;
 	}
@@ -294,9 +366,9 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 	if (!asyw->visible || modeset) {
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
+		asyw->clr.xlut = armw->xlut.handle != 0;
 		if (wndw->func->image_clr)
 			asyw->clr.image = armw->image.handle[0] != 0;
-		asyw->set.lut = wndw->func->lut && asyw->visible;
 	}
 
 	return 0;
@@ -381,9 +453,10 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
 	asyw->sema = armw->sema;
 	asyw->ntfy = armw->ntfy;
+	asyw->ilut = NULL;
+	asyw->xlut = armw->xlut;
 	asyw->image = armw->image;
 	asyw->point = armw->point;
-	asyw->lut = armw->lut;
 	asyw->clr.mask = 0;
 	asyw->set.mask = 0;
 	return &asyw->state;
@@ -417,6 +490,9 @@ nv50_wndw_destroy(struct drm_plane *plane)
 	nvif_notify_fini(&wndw->notify);
 	nv50_dmac_destroy(&wndw->wimm);
 	nv50_dmac_destroy(&wndw->wndw);
+
+	nv50_lut_fini(&wndw->ilut);
+
 	drm_plane_cleanup(&wndw->plane);
 	kfree(wndw);
 }
@@ -456,6 +532,9 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       enum nv50_disp_interlock_type interlock_type, u32 interlock_data,
 	       struct nv50_wndw **pwndw)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_mmu *mmu = &drm->client.mmu;
+	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_wndw *wndw;
 	int nformat;
 	int ret;
@@ -483,6 +562,12 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	}
 
 	drm_plane_helper_add(&wndw->plane, &nv50_wndw_helper);
+
+	if (wndw->func->ilut) {
+		ret = nv50_lut_init(disp, mmu, &wndw->ilut);
+		if (ret)
+			return ret;
+	}
 
 	wndw->notify.func = nv50_wndw_notify;
 	return 0;

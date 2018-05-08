@@ -3,6 +3,7 @@
 #define nv50_wndw(p) container_of((p), struct nv50_wndw, plane)
 #include "disp.h"
 #include "atom.h"
+#include "lut.h"
 
 #include <nvif/notify.h>
 
@@ -23,6 +24,8 @@ struct nv50_wndw {
 	} ctxdma;
 
 	struct drm_plane plane;
+
+	struct nv50_lut ilut;
 
 	struct nv50_dmac wndw;
 	struct nv50_dmac wimm;
@@ -61,9 +64,12 @@ struct nv50_wndw_func {
 	void (*ntfy_clr)(struct nv50_wndw *);
 	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
 			       struct nvif_device *);
+	void (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	bool olut_core;
+	void (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*xlut_clr)(struct nv50_wndw *);
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
-	void (*lut)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };

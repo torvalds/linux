@@ -43,6 +43,44 @@ base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
+static void
+base907c_xlut_clr(struct nv50_wndw *wndw)
+{
+	u32 *push;
+	if ((push = evo_wait(&wndw->wndw, 6))) {
+		evo_mthd(push, 0x00e0, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x00e8, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x00fc, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &wndw->wndw);
+	}
+}
+
+static void
+base907c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	u32 *push;
+	if ((push = evo_wait(&wndw->wndw, 6))) {
+		evo_mthd(push, 0x00e0, 3);
+		evo_data(push, asyw->xlut.i.enable << 30 |
+			       asyw->xlut.i.mode << 24);
+		evo_data(push, asyw->xlut.i.offset >> 8);
+		evo_data(push, 0x40000000);
+		evo_mthd(push, 0x00fc, 1);
+		evo_data(push, asyw->xlut.handle);
+		evo_kick(push, &wndw->wndw);
+	}
+}
+
+static void
+base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	asyw->xlut.i.mode = 7;
+	asyw->xlut.i.enable = 2;
+}
+
 static const struct nv50_wndw_func
 base907c = {
 	.acquire = base507c_acquire,
@@ -53,9 +91,12 @@ base907c = {
 	.ntfy_set = base507c_ntfy_set,
 	.ntfy_clr = base507c_ntfy_clr,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
+	.ilut = base907c_ilut,
+	.olut_core = true,
+	.xlut_set = base907c_xlut_set,
+	.xlut_clr = base907c_xlut_clr,
 	.image_set = base907c_image_set,
 	.image_clr = base507c_image_clr,
-	.lut = base507c_lut,
 	.update = base507c_update,
 };
 

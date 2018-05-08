@@ -36,18 +36,46 @@ head917d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
+static void
+head917d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	u32 bounds = 0;
+	u32 *push;
+
+	if (asyh->base.cpp) {
+		switch (asyh->base.cpp) {
+		case 8: bounds |= 0x00000500; break;
+		case 4: bounds |= 0x00000300; break;
+		case 2: bounds |= 0x00000100; break;
+		case 1: bounds |= 0x00000000; break;
+		default:
+			WARN_ON(1);
+			break;
+		}
+		bounds |= 0x00020001;
+	}
+
+	if ((push = evo_wait(core, 2))) {
+		evo_mthd(push, 0x04d0 + head->base.index * 0x300, 1);
+		evo_data(push, bounds);
+		evo_kick(push, core);
+	}
+}
+
 const struct nv50_head_func
 head917d = {
 	.view = head907d_view,
 	.mode = head907d_mode,
-	.ilut_set = head907d_ilut_set,
-	.ilut_clr = head907d_ilut_clr,
+	.olut = head907d_olut,
+	.olut_set = head907d_olut_set,
+	.olut_clr = head907d_olut_clr,
 	.core_calc = head507d_core_calc,
 	.core_set = head907d_core_set,
 	.core_clr = head907d_core_clr,
 	.curs_set = head907d_curs_set,
 	.curs_clr = head907d_curs_clr,
-	.base = head907d_base,
+	.base = head917d_base,
 	.ovly = head907d_ovly,
 	.dither = head917d_dither,
 	.procamp = head907d_procamp,

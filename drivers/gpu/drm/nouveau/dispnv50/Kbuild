@@ -1,4 +1,5 @@
 nouveau-y += dispnv50/disp.o
+nouveau-y += dispnv50/lut.o
 
 nouveau-y += dispnv50/core.o
 nouveau-y += dispnv50/core507d.o

@@ -165,6 +165,7 @@ head507d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 		 * without also updating HeadSetOffsetCursor.
 		 */
 		asyh->set.curs = asyh->curs.visible;
+		asyh->set.olut = asyh->olut.handle != 0;
 	}
 }
 
@@ -178,8 +179,8 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 		asyh->core.w = asyh->base.w;
 		asyh->core.h = asyh->base.h;
 	} else
-	if ((asyh->core.visible = asyh->curs.visible) ||
-	    (asyh->core.visible = asyh->ilut.visible)) {
+	if ((asyh->core.visible = (asyh->ovly.cpp != 0)) ||
+	    (asyh->core.visible = asyh->curs.visible)) {
 		/*XXX: We need to either find some way of having the
 		 *     primary base layer appear black, while still
 		 *     being able to display the other layers, or we
@@ -200,28 +201,37 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static void
-head507d_ilut_clr(struct nv50_head *head)
+head507d_olut_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 2))) {
 		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x40000000);
+		evo_data(push, 0x00000000);
 		evo_kick(push, core);
 	}
 }
 
 static void
-head507d_ilut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+head507d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 3))) {
 		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-		evo_data(push, 0x80000000 | asyh->ilut.mode << 30);
-		evo_data(push, asyh->ilut.offset >> 8);
+		evo_data(push, 0x80000000 | asyh->olut.mode << 30);
+		evo_data(push, asyh->olut.offset >> 8);
 		evo_kick(push, core);
 	}
+}
+
+void
+head507d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	if (asyh->base.cpp == 1)
+		asyh->olut.mode = 0;
+	else
+		asyh->olut.mode = 1;
 }
 
 void
@@ -269,8 +279,9 @@ const struct nv50_head_func
 head507d = {
 	.view = head507d_view,
 	.mode = head507d_mode,
-	.ilut_set = head507d_ilut_set,
-	.ilut_clr = head507d_ilut_clr,
+	.olut = head507d_olut,
+	.olut_set = head507d_olut_set,
+	.olut_clr = head507d_olut_clr,
 	.core_calc = head507d_core_calc,
 	.core_set = head507d_core_set,
 	.core_clr = head507d_core_clr,

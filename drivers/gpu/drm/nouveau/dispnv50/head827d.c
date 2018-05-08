@@ -74,13 +74,13 @@ head827d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static void
-head827d_ilut_clr(struct nv50_head *head)
+head827d_olut_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 4))) {
 		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x40000000);
+		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
 		evo_data(push, 0x00000000);
 		evo_kick(push, core);
@@ -88,16 +88,16 @@ head827d_ilut_clr(struct nv50_head *head)
 }
 
 static void
-head827d_ilut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+head827d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
 	u32 *push;
 	if ((push = evo_wait(core, 5))) {
 		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-		evo_data(push, 0x80000000 | asyh->ilut.mode << 30);
-		evo_data(push, asyh->ilut.offset >> 8);
+		evo_data(push, 0x80000000 | asyh->olut.mode << 30);
+		evo_data(push, asyh->olut.offset >> 8);
 		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
-		evo_data(push, asyh->ilut.handle);
+		evo_data(push, asyh->olut.handle);
 		evo_kick(push, core);
 	}
 }
@@ -106,8 +106,9 @@ const struct nv50_head_func
 head827d = {
 	.view = head507d_view,
 	.mode = head507d_mode,
-	.ilut_set = head827d_ilut_set,
-	.ilut_clr = head827d_ilut_clr,
+	.olut = head507d_olut,
+	.olut_set = head827d_olut_set,
+	.olut_clr = head827d_olut_clr,
 	.core_calc = head507d_core_calc,
 	.core_set = head827d_core_set,
 	.core_clr = head507d_core_clr,
