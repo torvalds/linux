@@ -110,6 +110,7 @@ gk110b_gr = {
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
+	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk110b_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,

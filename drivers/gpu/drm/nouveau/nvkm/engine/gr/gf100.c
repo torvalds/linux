@@ -1915,6 +1915,20 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 }
 
 void
+gf100_gr_init_419cc0(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int gpc, tpc;
+
+	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
+
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++)
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
+	}
+}
+
+void
 gf100_gr_init_40601c(struct gf100_gr *gr)
 {
 	nvkm_wr32(gr->base.engine.subdev.device, 0x40601c, 0xc0000000);
@@ -2042,7 +2056,10 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
-	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
+
+	if (gr->func->init_419cc0)
+		gr->func->init_419cc0(gr);
+
 	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
@@ -2054,7 +2071,6 @@ gf100_gr_init(struct gf100_gr *gr)
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
@@ -2113,6 +2129,7 @@ gf100_gr = {
 	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.init_40601c = gf100_gr_init_40601c,
+	.init_419cc0 = gf100_gr_init_419cc0,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

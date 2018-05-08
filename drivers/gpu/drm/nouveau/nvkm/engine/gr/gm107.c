@@ -381,7 +381,7 @@ gm107_gr_init(struct gf100_gr *gr)
 	gr->func->init_sked_hww_esr(gr);
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
-	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
+	gr->func->init_419cc0(gr);
 
 	gr->func->init_ppc_exceptions(gr);
 
@@ -394,7 +394,6 @@ gm107_gr_init(struct gf100_gr *gr)
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
@@ -457,6 +456,7 @@ gm107_gr = {
 	.init_bios_2 = gm107_gr_init_bios_2,
 	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
 	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
+	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
