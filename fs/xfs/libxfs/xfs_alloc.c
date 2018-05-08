@@ -2060,6 +2060,30 @@ xfs_alloc_space_available(
 	return true;
 }
 
+int
+xfs_free_agfl_block(
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		agbno,
+	struct xfs_buf		*agbp,
+	struct xfs_owner_info	*oinfo)
+{
+	int			error;
+	struct xfs_buf		*bp;
+
+	error = xfs_free_ag_extent(tp, agbp, agno, agbno, 1, oinfo,
+				   XFS_AG_RESV_AGFL);
+	if (error)
+		return error;
+
+	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno, 0);
+	if (!bp)
+		return -EFSCORRUPTED;
+	xfs_trans_binval(tp, bp);
+
+	return 0;
+}
+
 /*
  * Check the agfl fields of the agf for inconsistency or corruption. The purpose
  * is to detect an agfl header padding mismatch between current and early v5
@@ -2247,21 +2271,14 @@ xfs_alloc_fix_freelist(
 	else
 		xfs_rmap_ag_owner(&targs.oinfo, XFS_RMAP_OWN_AG);
 	while (!(flags & XFS_ALLOC_FLAG_NOSHRINK) && pag->pagf_flcount > need) {
-		struct xfs_buf	*bp;
-
 		error = xfs_alloc_get_freelist(tp, agbp, &bno, 0);
 		if (error)
 			goto out_agbp_relse;
-		error = xfs_free_ag_extent(tp, agbp, args->agno, bno, 1,
-					   &targs.oinfo, XFS_AG_RESV_AGFL);
+
+		error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
+					    &targs.oinfo);
 		if (error)
 			goto out_agbp_relse;
-		bp = xfs_btree_get_bufs(mp, tp, args->agno, bno, 0);
-		if (!bp) {
-			error = -EFSCORRUPTED;
-			goto out_agbp_relse;
-		}
-		xfs_trans_binval(tp, bp);
 	}
 
 	targs.tp = tp;
