@@ -1456,6 +1456,26 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	int ret, i;
 	u64 addr;
 
+	/* NV_PGRAPH_FE_PWR_MODE_FORCE_ON. */
+	nvkm_wr32(device, 0x404170, 0x00000012);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x404170) & 0x00000010))
+			break;
+	);
+
+	/* Reset FECS. */
+	nvkm_wr32(device, 0x409614, 0x00000070);
+	nvkm_usec(device, 10, NVKM_DELAY);
+	nvkm_mask(device, 0x409614, 0x00000700, 0x00000700);
+	nvkm_usec(device, 10, NVKM_DELAY);
+	nvkm_rd32(device, 0x409614);
+
+	/* NV_PGRAPH_FE_PWR_MODE_AUTO. */
+	nvkm_wr32(device, 0x404170, 0x00000010);
+
+	/* Init SCC RAM. */
+	nvkm_wr32(device, 0x40802c, 0x00000001);
+
 	/* Allocate memory to for a "channel", which we'll use to generate
 	 * the default context values.
 	 */
