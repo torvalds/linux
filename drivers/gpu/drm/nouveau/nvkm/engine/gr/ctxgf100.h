@@ -67,6 +67,7 @@ struct gf100_grctx_func {
 	void (*r419cb8)(struct gf100_gr *);
 	void (*r418800)(struct gf100_gr *);
 	void (*r419eb0)(struct gf100_gr *);
+	void (*r419e00)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;

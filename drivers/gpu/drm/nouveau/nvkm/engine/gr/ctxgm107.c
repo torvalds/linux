@@ -860,6 +860,16 @@ gm107_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
+static void
+gm107_grctx_generate_r419e00(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419e00, 0x00808080, 0x00808080);
+	nvkm_mask(device, 0x419ccc, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x419f80, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x419f88, 0x80000000, 0x80000000);
+}
+
 void
 gm107_grctx_generate_bundle(struct gf100_grctx *info)
 {
@@ -971,10 +981,7 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_mthd(gr, grctx->mthd);
 
-	nvkm_mask(device, 0x419e00, 0x00808080, 0x00808080);
-	nvkm_mask(device, 0x419ccc, 0x80000000, 0x80000000);
-	nvkm_mask(device, 0x419f80, 0x80000000, 0x80000000);
-	nvkm_mask(device, 0x419f88, 0x80000000, 0x80000000);
+	grctx->r419e00(gr);
 }
 
 const struct gf100_grctx_func
@@ -1006,4 +1013,5 @@ gm107_grctx = {
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 	.r406500 = gm107_grctx_generate_r406500,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
+	.r419e00 = gm107_grctx_generate_r419e00,
 };

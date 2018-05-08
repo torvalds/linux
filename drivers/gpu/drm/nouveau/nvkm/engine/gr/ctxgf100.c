@@ -1430,6 +1430,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		grctx->r418800(gr);
 	if (grctx->r419eb0)
 		grctx->r419eb0(gr);
+	if (grctx->r419e00)
+		grctx->r419e00(gr);
 }
 
 #define CB_RESERVED 0x80000
