@@ -3047,7 +3047,7 @@ static u8 drm_match_hdmi_mode_clock_tolerance(const struct drm_display_mode *to_
 		    abs(to_match->clock - clock2) > clock_tolerance)
 			continue;
 
-		if (drm_mode_equal_no_clocks(to_match, hdmi_mode))
+		if (drm_mode_equal_no_clocks_no_stereo(to_match, hdmi_mode))
 			return vic;
 	}
 
