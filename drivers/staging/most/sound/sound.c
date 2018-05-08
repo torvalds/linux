@@ -460,21 +460,68 @@ static const struct snd_pcm_ops pcm_ops = {
 	.mmap       = snd_pcm_lib_mmap_vmalloc,
 };
 
-static int split_arg_list(char *buf, char **card_name, char **pcm_format)
+static int split_arg_list(char *buf, char **card_name, u16 *ch_num,
+			  char **sample_res)
 {
+	char *num;
+	int ret;
+
 	*card_name = strsep(&buf, ".");
-	if (!*card_name)
+	if (!*card_name) {
+		pr_err("Missing sound card name\n");
 		return -EIO;
-	*pcm_format = strsep(&buf, ".\n");
-	if (!*pcm_format)
-		return -EIO;
+	}
+	num = strsep(&buf, "x");
+	if (!num)
+		goto err;
+	ret = kstrtou16(num, 0, ch_num);
+	if (ret)
+		goto err;
+	*sample_res = strsep(&buf, ".\n");
+	if (!*sample_res)
+		goto err;
 	return 0;
+
+err:
+	pr_err("Bad PCM format\n");
+	return -EIO;
 }
 
+static const struct sample_resolution_info {
+	const char *sample_res;
+	int bytes;
+	u64 formats;
+} sinfo[] = {
+	{ "8", 1, SNDRV_PCM_FMTBIT_S8 },
+	{ "16", 2, SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE },
+	{ "24", 3, SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE },
+	{ "32", 4, SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE },
+};
+
 static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
-			       char *pcm_format,
+			       u16 ch_num, char *sample_res,
 			       struct most_channel_config *cfg)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sinfo); i++) {
+		if (!strcmp(sample_res, sinfo[i].sample_res))
+			goto found;
+	}
+	pr_err("Unsupported PCM format\n");
+	return -EIO;
+
+found:
+	if (!ch_num) {
+		pr_err("Bad number of channels\n");
+		return -EINVAL;
+	}
+
+	if (cfg->subbuffer_size != ch_num * sinfo[i].bytes) {
+		pr_err("Audio resolution doesn't fit subbuffer size\n");
+		return -EINVAL;
+	}
+
 	pcm_hw->info = MOST_PCM_INFO;
 	pcm_hw->rates = SNDRV_PCM_RATE_48000;
 	pcm_hw->rate_min = 48000;
@@ -484,54 +531,10 @@ static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
 	pcm_hw->period_bytes_max = cfg->buffer_size;
 	pcm_hw->periods_min = 1;
 	pcm_hw->periods_max = cfg->num_buffers;
-
-	if (!strcmp(pcm_format, "1x8")) {
-		if (cfg->subbuffer_size != 1)
-			goto error;
-		pr_info("PCM format is 8-bit mono\n");
-		pcm_hw->channels_min = 1;
-		pcm_hw->channels_max = 1;
-		pcm_hw->formats = SNDRV_PCM_FMTBIT_S8;
-	} else if (!strcmp(pcm_format, "2x16")) {
-		if (cfg->subbuffer_size != 4)
-			goto error;
-		pr_info("PCM format is 16-bit stereo\n");
-		pcm_hw->channels_min = 2;
-		pcm_hw->channels_max = 2;
-		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FMTBIT_S16_BE;
-	} else if (!strcmp(pcm_format, "2x24")) {
-		if (cfg->subbuffer_size != 6)
-			goto error;
-		pr_info("PCM format is 24-bit stereo\n");
-		pcm_hw->channels_min = 2;
-		pcm_hw->channels_max = 2;
-		pcm_hw->formats = SNDRV_PCM_FMTBIT_S24_3LE |
-				  SNDRV_PCM_FMTBIT_S24_3BE;
-	} else if (!strcmp(pcm_format, "2x32")) {
-		if (cfg->subbuffer_size != 8)
-			goto error;
-		pr_info("PCM format is 32-bit stereo\n");
-		pcm_hw->channels_min = 2;
-		pcm_hw->channels_max = 2;
-		pcm_hw->formats = SNDRV_PCM_FMTBIT_S32_LE |
-				  SNDRV_PCM_FMTBIT_S32_BE;
-	} else if (!strcmp(pcm_format, "6x16")) {
-		if (cfg->subbuffer_size != 12)
-			goto error;
-		pr_info("PCM format is 16-bit 5.1 multi channel\n");
-		pcm_hw->channels_min = 6;
-		pcm_hw->channels_max = 6;
-		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FMTBIT_S16_BE;
-	} else {
-		pr_err("PCM format %s not supported\n", pcm_format);
-		return -EIO;
-	}
+	pcm_hw->channels_min = ch_num;
+	pcm_hw->channels_max = ch_num;
+	pcm_hw->formats = sinfo[i].formats;
 	return 0;
-error:
-	pr_err("Audio resolution doesn't fit subbuffer size\n");
-	return -EINVAL;
 }
 
 /**
@@ -558,7 +561,8 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	int ret;
 	int direction;
 	char *card_name;
-	char *pcm_format;
+	u16 ch_num;
+	char *sample_res;
 
 	if (!iface)
 		return -EINVAL;
@@ -582,11 +586,9 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		direction = SNDRV_PCM_STREAM_CAPTURE;
 	}
 
-	ret = split_arg_list(arg_list, &card_name, &pcm_format);
-	if (ret < 0) {
-		pr_info("PCM format missing\n");
+	ret = split_arg_list(arg_list, &card_name, &ch_num, &sample_res);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = snd_card_new(NULL, -1, card_name, THIS_MODULE,
 			   sizeof(*channel), &card);
@@ -600,7 +602,8 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->id = channel_id;
 	init_waitqueue_head(&channel->playback_waitq);
 
-	ret = audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg);
+	ret = audio_set_hw_params(&channel->pcm_hardware, ch_num, sample_res,
+				  cfg);
 	if (ret)
 		goto err_free_card;
 
