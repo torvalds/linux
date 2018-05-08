@@ -1414,8 +1414,7 @@ struct bnxt {
 
 #define I2C_DEV_ADDR_A0				0xa0
 #define I2C_DEV_ADDR_A2				0xa2
-#define SFP_EEPROM_SFF_8472_COMP_ADDR		0x5e
-#define SFP_EEPROM_SFF_8472_COMP_SIZE		1
+#define SFF_DIAG_SUPPORT_OFFSET			0x5c
 #define SFF_MODULE_ID_SFP			0x3
 #define SFF_MODULE_ID_QSFP			0xc
 #define SFF_MODULE_ID_QSFP_PLUS			0xd

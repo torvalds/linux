@@ -2184,9 +2184,8 @@ static int bnxt_read_sfp_module_eeprom_info(struct bnxt *bp, u16 i2c_addr,
 static int bnxt_get_module_info(struct net_device *dev,
 				struct ethtool_modinfo *modinfo)
 {
+	u8 data[SFF_DIAG_SUPPORT_OFFSET + 1];
 	struct bnxt *bp = netdev_priv(dev);
-	struct hwrm_port_phy_i2c_read_input req = {0};
-	struct hwrm_port_phy_i2c_read_output *output = bp->hwrm_cmd_resp_addr;
 	int rc;
 
 	/* No point in going further if phy status indicates
@@ -2201,21 +2200,19 @@ static int bnxt_get_module_info(struct net_device *dev,
 	if (bp->hwrm_spec_code < 0x10202)
 		return -EOPNOTSUPP;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_I2C_READ, -1, -1);
-	req.i2c_slave_addr = I2C_DEV_ADDR_A0;
-	req.page_number = 0;
-	req.page_offset = cpu_to_le16(SFP_EEPROM_SFF_8472_COMP_ADDR);
-	req.data_length = SFP_EEPROM_SFF_8472_COMP_SIZE;
-	req.port_id = cpu_to_le16(bp->pf.port_id);
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A0, 0, 0,
+					      SFF_DIAG_SUPPORT_OFFSET + 1,
+					      data);
 	if (!rc) {
-		u32 module_id = le32_to_cpu(output->data[0]);
+		u8 module_id = data[0];
+		u8 diag_supported = data[SFF_DIAG_SUPPORT_OFFSET];
 
 		switch (module_id) {
 		case SFF_MODULE_ID_SFP:
 			modinfo->type = ETH_MODULE_SFF_8472;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+			if (!diag_supported)
+				modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 			break;
 		case SFF_MODULE_ID_QSFP:
 		case SFF_MODULE_ID_QSFP_PLUS:
@@ -2231,7 +2228,6 @@ static int bnxt_get_module_info(struct net_device *dev,
 			break;
 		}
 	}
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
