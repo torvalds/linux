@@ -62,9 +62,8 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
 	case NVKM_ENGINE_SW    :
-	case NVKM_ENGINE_CE0   :
-	case NVKM_ENGINE_CE1   :
-	case NVKM_ENGINE_CE2   : return 0x0000;
+	case NVKM_ENGINE_CE0...NVKM_ENGINE_CE_LAST:
+		return 0;
 	case NVKM_ENGINE_GR    : return 0x0210;
 	case NVKM_ENGINE_SEC   : return 0x0220;
 	case NVKM_ENGINE_MSPDEC: return 0x0250;
