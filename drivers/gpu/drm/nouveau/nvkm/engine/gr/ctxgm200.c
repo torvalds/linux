@@ -89,31 +89,6 @@ gm200_grctx_generate_r406500(struct gf100_gr *gr)
 	nvkm_wr32(gr->base.engine.subdev.device, 0x406500, 0x00000000);
 }
 
-static void
-gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	u32 idle_timeout;
-
-	gf100_gr_mmio(gr, gr->fuc_sw_ctx);
-
-	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
-
-	grctx->bundle(info);
-	grctx->pagepool(info);
-	grctx->attrib(info);
-	grctx->unkn(gr);
-
-	gf100_grctx_generate_floorsweep(gr);
-
-	gf100_gr_icmd(gr, gr->fuc_bundle);
-	nvkm_wr32(device, 0x404154, idle_timeout);
-	gf100_gr_mthd(gr, gr->fuc_method);
-
-	grctx->r418e94(gr);
-}
-
 void
 gm200_grctx_generate_dist_skip_table(struct gf100_gr *gr)
 {
@@ -138,7 +113,7 @@ gm200_grctx_generate_dist_skip_table(struct gf100_gr *gr)
 
 const struct gf100_grctx_func
 gm200_grctx = {
-	.main  = gm200_grctx_generate_main,
+	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,

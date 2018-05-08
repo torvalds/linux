@@ -71,7 +71,7 @@ gk110b_grctx_pack_tpc[] = {
 
 const struct gf100_grctx_func
 gk110b_grctx = {
-	.main  = gk104_grctx_generate_main,
+	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gk110_grctx_pack_hub,
 	.gpc   = gk110_grctx_pack_gpc,

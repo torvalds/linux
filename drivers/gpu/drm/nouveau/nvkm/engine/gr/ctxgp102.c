@@ -88,7 +88,7 @@ gp102_grctx_generate_attrib(struct gf100_grctx *info)
 
 const struct gf100_grctx_func
 gp102_grctx = {
-	.main = gp100_grctx_generate_main,
+	.main = gf100_grctx_generate_main,
 	.unkn = gk104_grctx_generate_unkn,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,

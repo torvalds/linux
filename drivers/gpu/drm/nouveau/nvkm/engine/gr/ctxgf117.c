@@ -286,39 +286,9 @@ gf117_grctx_generate_attrib(struct gf100_grctx *info)
 	}
 }
 
-static void
-gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	u32 idle_timeout;
-
-	nvkm_mc_unk260(device, 0);
-
-	gf100_gr_mmio(gr, grctx->hub);
-	gf100_gr_mmio(gr, grctx->gpc);
-	gf100_gr_mmio(gr, grctx->zcull);
-	gf100_gr_mmio(gr, grctx->tpc);
-	gf100_gr_mmio(gr, grctx->ppc);
-
-	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
-
-	grctx->bundle(info);
-	grctx->pagepool(info);
-	grctx->attrib(info);
-	grctx->unkn(gr);
-
-	gf100_grctx_generate_floorsweep(gr);
-
-	gf100_gr_icmd(gr, grctx->icmd);
-	nvkm_wr32(device, 0x404154, idle_timeout);
-	gf100_gr_mthd(gr, grctx->mthd);
-	nvkm_mc_unk260(device, 1);
-}
-
 const struct gf100_grctx_func
 gf117_grctx = {
-	.main  = gf117_grctx_generate_main,
+	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gf117_grctx_pack_hub,
 	.gpc   = gf117_grctx_pack_gpc,

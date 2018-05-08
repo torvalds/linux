@@ -922,38 +922,6 @@ gk104_grctx_generate_gpc_tpc_nr(struct gf100_gr *gr)
 }
 
 void
-gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	u32 idle_timeout;
-
-	nvkm_mc_unk260(device, 0);
-
-	gf100_gr_mmio(gr, grctx->hub);
-	gf100_gr_mmio(gr, grctx->gpc);
-	gf100_gr_mmio(gr, grctx->zcull);
-	gf100_gr_mmio(gr, grctx->tpc);
-	gf100_gr_mmio(gr, grctx->ppc);
-
-	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
-
-	grctx->bundle(info);
-	grctx->pagepool(info);
-	grctx->attrib(info);
-	grctx->unkn(gr);
-
-	gf100_grctx_generate_floorsweep(gr);
-
-	gf100_gr_icmd(gr, grctx->icmd);
-	nvkm_wr32(device, 0x404154, idle_timeout);
-	gf100_gr_mthd(gr, grctx->mthd);
-	nvkm_mc_unk260(device, 1);
-
-	grctx->r418800(gr);
-}
-
-void
 gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1002,7 +970,7 @@ gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *gr)
 
 const struct gf100_grctx_func
 gk104_grctx = {
-	.main  = gk104_grctx_generate_main,
+	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gk104_grctx_pack_hub,
 	.gpc   = gk104_grctx_pack_gpc,

@@ -108,7 +108,6 @@ void gk104_grctx_generate_alpha_beta_tables(struct gf100_gr *);
 void gk104_grctx_generate_gpc_tpc_nr(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gk20a_grctx;
-void gk104_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
 void gk104_grctx_generate_patch_ltc(struct gf100_grctx *);
@@ -137,7 +136,6 @@ void gm200_grctx_generate_r419a3c(struct gf100_gr *);
 extern const struct gf100_grctx_func gm20b_grctx;
 
 extern const struct gf100_grctx_func gp100_grctx;
-void gp100_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gp100_grctx_generate_pagepool(struct gf100_grctx *);
 void gp100_grctx_generate_smid_config(struct gf100_gr *);
 

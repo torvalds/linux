@@ -532,7 +532,7 @@ gk208_grctx_pack_ppc[] = {
 
 const struct gf100_grctx_func
 gk208_grctx = {
-	.main  = gk104_grctx_generate_main,
+	.main  = gf100_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gk208_grctx_pack_hub,
 	.gpc   = gk208_grctx_pack_gpc,
