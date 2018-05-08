@@ -1049,7 +1049,8 @@ bool drm_mode_equal(const struct drm_display_mode *mode1,
 			      DRM_MODE_MATCH_TIMINGS |
 			      DRM_MODE_MATCH_CLOCK |
 			      DRM_MODE_MATCH_FLAGS |
-			      DRM_MODE_MATCH_3D_FLAGS);
+			      DRM_MODE_MATCH_3D_FLAGS|
+			      DRM_MODE_MATCH_ASPECT_RATIO);
 }
 EXPORT_SYMBOL(drm_mode_equal);
 
@@ -1647,6 +1648,20 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	out->vrefresh = in->vrefresh;
 	out->flags = in->flags;
 	out->type = in->type;
+
+	switch (in->picture_aspect_ratio) {
+	case HDMI_PICTURE_ASPECT_4_3:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_4_3;
+		break;
+	case HDMI_PICTURE_ASPECT_16_9:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_16_9;
+		break;
+	case HDMI_PICTURE_ASPECT_RESERVED:
+	default:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_NONE;
+		break;
+	}
+
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 }
@@ -1692,6 +1707,24 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	out->type = in->type & DRM_MODE_TYPE_ALL;
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
+
+	/* Clearing picture aspect ratio bits from out flags,
+	 * as the aspect-ratio information is not stored in
+	 * flags for kernel-mode, but in picture_aspect_ratio.
+	 */
+	out->flags &= ~DRM_MODE_FLAG_PIC_AR_MASK;
+
+	switch (in->flags & DRM_MODE_FLAG_PIC_AR_MASK) {
+	case DRM_MODE_FLAG_PIC_AR_4_3:
+		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_4_3;
+		break;
+	case DRM_MODE_FLAG_PIC_AR_16_9:
+		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_16_9;
+		break;
+	default:
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+		break;
+	}
 
 	out->status = drm_mode_validate_driver(dev, out);
 	if (out->status != MODE_OK)
