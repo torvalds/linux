@@ -147,6 +147,12 @@ enum drm_mode_status {
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
+#define DRM_MODE_MATCH_TIMINGS (1 << 0)
+#define DRM_MODE_MATCH_CLOCK (1 << 1)
+#define DRM_MODE_MATCH_FLAGS (1 << 2)
+#define DRM_MODE_MATCH_3D_FLAGS (1 << 3)
+#define DRM_MODE_MATCH_ASPECT_RATIO (1 << 4)
+
 /**
  * struct drm_display_mode - DRM kernel-internal display mode structure
  * @hdisplay: horizontal display size
@@ -490,6 +496,9 @@ void drm_mode_copy(struct drm_display_mode *dst,
 		   const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode);
+bool drm_mode_match(const struct drm_display_mode *mode1,
+		    const struct drm_display_mode *mode2,
+		    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2);
 bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,

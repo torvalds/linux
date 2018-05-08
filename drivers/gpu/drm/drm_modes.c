@@ -939,6 +939,99 @@ struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_duplicate);
 
+static bool drm_mode_match_timings(const struct drm_display_mode *mode1,
+				   const struct drm_display_mode *mode2)
+{
+	return mode1->hdisplay == mode2->hdisplay &&
+		mode1->hsync_start == mode2->hsync_start &&
+		mode1->hsync_end == mode2->hsync_end &&
+		mode1->htotal == mode2->htotal &&
+		mode1->hskew == mode2->hskew &&
+		mode1->vdisplay == mode2->vdisplay &&
+		mode1->vsync_start == mode2->vsync_start &&
+		mode1->vsync_end == mode2->vsync_end &&
+		mode1->vtotal == mode2->vtotal &&
+		mode1->vscan == mode2->vscan;
+}
+
+static bool drm_mode_match_clock(const struct drm_display_mode *mode1,
+				  const struct drm_display_mode *mode2)
+{
+	/*
+	 * do clock check convert to PICOS
+	 * so fb modes get matched the same
+	 */
+	if (mode1->clock && mode2->clock)
+		return KHZ2PICOS(mode1->clock) == KHZ2PICOS(mode2->clock);
+	else
+		return mode1->clock == mode2->clock;
+}
+
+static bool drm_mode_match_flags(const struct drm_display_mode *mode1,
+				 const struct drm_display_mode *mode2)
+{
+	return (mode1->flags & ~DRM_MODE_FLAG_3D_MASK) ==
+		(mode2->flags & ~DRM_MODE_FLAG_3D_MASK);
+}
+
+static bool drm_mode_match_3d_flags(const struct drm_display_mode *mode1,
+				    const struct drm_display_mode *mode2)
+{
+	return (mode1->flags & DRM_MODE_FLAG_3D_MASK) ==
+		(mode2->flags & DRM_MODE_FLAG_3D_MASK);
+}
+
+static bool drm_mode_match_aspect_ratio(const struct drm_display_mode *mode1,
+					const struct drm_display_mode *mode2)
+{
+	return mode1->picture_aspect_ratio == mode2->picture_aspect_ratio;
+}
+
+/**
+ * drm_mode_match - test modes for (partial) equality
+ * @mode1: first mode
+ * @mode2: second mode
+ * @match_flags: which parts need to match (DRM_MODE_MATCH_*)
+ *
+ * Check to see if @mode1 and @mode2 are equivalent.
+ *
+ * Returns:
+ * True if the modes are (partially) equal, false otherwise.
+ */
+bool drm_mode_match(const struct drm_display_mode *mode1,
+		    const struct drm_display_mode *mode2,
+		    unsigned int match_flags)
+{
+	if (!mode1 && !mode2)
+		return true;
+
+	if (!mode1 || !mode2)
+		return false;
+
+	if (match_flags & DRM_MODE_MATCH_TIMINGS &&
+	    !drm_mode_match_timings(mode1, mode2))
+		return false;
+
+	if (match_flags & DRM_MODE_MATCH_CLOCK &&
+	    !drm_mode_match_clock(mode1, mode2))
+		return false;
+
+	if (match_flags & DRM_MODE_MATCH_FLAGS &&
+	    !drm_mode_match_flags(mode1, mode2))
+		return false;
+
+	if (match_flags & DRM_MODE_MATCH_3D_FLAGS &&
+	    !drm_mode_match_3d_flags(mode1, mode2))
+		return false;
+
+	if (match_flags & DRM_MODE_MATCH_ASPECT_RATIO &&
+	    !drm_mode_match_aspect_ratio(mode1, mode2))
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(drm_mode_match);
+
 /**
  * drm_mode_equal - test modes for equality
  * @mode1: first mode
@@ -949,23 +1042,14 @@ EXPORT_SYMBOL(drm_mode_duplicate);
  * Returns:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+bool drm_mode_equal(const struct drm_display_mode *mode1,
+		    const struct drm_display_mode *mode2)
 {
-	if (!mode1 && !mode2)
-		return true;
-
-	if (!mode1 || !mode2)
-		return false;
-
-	/* do clock check convert to PICOS so fb modes get matched
-	 * the same */
-	if (mode1->clock && mode2->clock) {
-		if (KHZ2PICOS(mode1->clock) != KHZ2PICOS(mode2->clock))
-			return false;
-	} else if (mode1->clock != mode2->clock)
-		return false;
-
-	return drm_mode_equal_no_clocks(mode1, mode2);
+	return drm_mode_match(mode1, mode2,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_CLOCK |
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS);
 }
 EXPORT_SYMBOL(drm_mode_equal);
 
@@ -980,13 +1064,13 @@ EXPORT_SYMBOL(drm_mode_equal);
  * Returns:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
+			      const struct drm_display_mode *mode2)
 {
-	if ((mode1->flags & DRM_MODE_FLAG_3D_MASK) !=
-	    (mode2->flags & DRM_MODE_FLAG_3D_MASK))
-		return false;
-
-	return drm_mode_equal_no_clocks_no_stereo(mode1, mode2);
+	return drm_mode_match(mode1, mode2,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS);
 }
 EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 
@@ -1004,21 +1088,9 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2)
 {
-	if (mode1->hdisplay == mode2->hdisplay &&
-	    mode1->hsync_start == mode2->hsync_start &&
-	    mode1->hsync_end == mode2->hsync_end &&
-	    mode1->htotal == mode2->htotal &&
-	    mode1->hskew == mode2->hskew &&
-	    mode1->vdisplay == mode2->vdisplay &&
-	    mode1->vsync_start == mode2->vsync_start &&
-	    mode1->vsync_end == mode2->vsync_end &&
-	    mode1->vtotal == mode2->vtotal &&
-	    mode1->vscan == mode2->vscan &&
-	    (mode1->flags & ~DRM_MODE_FLAG_3D_MASK) ==
-	     (mode2->flags & ~DRM_MODE_FLAG_3D_MASK))
-		return true;
-
-	return false;
+	return drm_mode_match(mode1, mode2,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_FLAGS);
 }
 EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 
