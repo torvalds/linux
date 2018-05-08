@@ -16,3 +16,4 @@ test_sock
 test_sock_addr
 urandom_read
 test_btf
+test_sockmap
