@@ -59,35 +59,14 @@ nv50_disp_dtor_(struct nvkm_disp *base)
 	return disp;
 }
 
-static const struct nvkm_disp_func
-nv50_disp_ = {
-	.dtor = nv50_disp_dtor_,
-	.intr = nv50_disp_intr_,
-	.root = nv50_disp_root_,
-};
-
-int
-nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-	       int index, int heads, struct nvkm_disp **pdisp)
+static int
+nv50_disp_oneinit_(struct nvkm_disp *base)
 {
-	struct nv50_disp *disp;
+	struct nv50_disp *disp = nv50_disp(base);
+	const struct nv50_disp_func *func = disp->func;
 	int ret, i;
 
-	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
-		return -ENOMEM;
-	disp->func = func;
-	*pdisp = &disp->base;
-
-	ret = nvkm_disp_ctor(&nv50_disp_, device, index, &disp->base);
-	if (ret)
-		return ret;
-
-	disp->wq = create_singlethread_workqueue("nvkm-disp");
-	if (!disp->wq)
-		return -ENOMEM;
-	INIT_WORK(&disp->supervisor, func->super);
-
-	for (i = 0; func->head.new && i < heads; i++) {
+	for (i = 0; func->head.new && i < disp->head.nr; i++) {
 		ret = func->head.new(&disp->base, i);
 		if (ret)
 			return ret;
@@ -111,7 +90,42 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	return nvkm_event_init(func->uevent, 1, 1 + (heads * 4), &disp->uevent);
+	return 0;
+}
+
+static const struct nvkm_disp_func
+nv50_disp_ = {
+	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.intr = nv50_disp_intr_,
+	.root = nv50_disp_root_,
+};
+
+int
+nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
+	       int index, int heads, struct nvkm_disp **pdisp)
+{
+	struct nv50_disp *disp;
+	int ret;
+
+	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
+		return -ENOMEM;
+	disp->func = func;
+	*pdisp = &disp->base;
+
+	ret = nvkm_disp_ctor(&nv50_disp_, device, index, &disp->base);
+	if (ret)
+		return ret;
+
+	disp->wq = create_singlethread_workqueue("nvkm-disp");
+	if (!disp->wq)
+		return -ENOMEM;
+
+	INIT_WORK(&disp->supervisor, func->super);
+	disp->head.nr = heads;
+
+	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan),
+			       &disp->uevent);
 }
 
 static u32

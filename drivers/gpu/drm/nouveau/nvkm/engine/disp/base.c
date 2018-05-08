@@ -376,6 +376,12 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	if (ret)
 		return ret;
 
+	if (disp->func->oneinit) {
+		ret = disp->func->oneinit(disp);
+		if (ret)
+			return ret;
+	}
+
 	i = 0;
 	list_for_each_entry(head, &disp->head, head)
 		i = max(i, head->id + 1);
