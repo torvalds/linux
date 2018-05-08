@@ -683,12 +683,16 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 
 static void *dma_alloc(struct mbo *mbo, u32 size)
 {
-	return dma_alloc_coherent(NULL, size, &mbo->bus_address, GFP_KERNEL);
+	struct device *dev = mbo->ifp->driver_dev;
+
+	return dma_alloc_coherent(dev, size, &mbo->bus_address, GFP_KERNEL);
 }
 
 static void dma_free(struct mbo *mbo, u32 size)
 {
-	dma_free_coherent(NULL, size, mbo->virt_address, mbo->bus_address);
+	struct device *dev = mbo->ifp->driver_dev;
+
+	dma_free_coherent(dev, size, mbo->virt_address, mbo->bus_address);
 }
 
 static const struct of_device_id dim2_of_match[];
@@ -870,6 +874,7 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.dma_free = dma_free;
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
+	dev->most_iface.driver_dev = &pdev->dev;
 	dev->dev.init_name = "dim2_state";
 	dev->dev.parent = &dev->most_iface.dev;
 
