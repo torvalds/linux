@@ -592,7 +592,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 				  length,
 				  hdm_write_completion,
 				  mbo);
-		if (conf->data_type != MOST_CH_ISOC)
+		if (conf->data_type != MOST_CH_ISOC &&
+		    conf->data_type != MOST_CH_SYNC)
 			urb->transfer_flags |= URB_ZERO_PACKET;
 	} else {
 		usb_fill_bulk_urb(urb, mdev->usb_device,
