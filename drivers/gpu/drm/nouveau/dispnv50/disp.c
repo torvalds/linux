@@ -395,7 +395,7 @@ nv50_oimm_create(struct nvif_device *device, struct nvif_object *disp,
  * DMA EVO channel
  *****************************************************************************/
 
-struct nv50_dmac_ctxdma {
+struct nv50_wndw_ctxdma {
 	struct list_head head;
 	struct nvif_object object;
 };
@@ -408,7 +408,6 @@ struct nv50_dmac {
 
 	struct nvif_object sync;
 	struct nvif_object vram;
-	struct list_head ctxdma;
 
 	/* Protects against concurrent pushbuf access to this channel, lock is
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
@@ -417,82 +416,8 @@ struct nv50_dmac {
 };
 
 static void
-nv50_dmac_ctxdma_del(struct nv50_dmac_ctxdma *ctxdma)
-{
-	nvif_object_fini(&ctxdma->object);
-	list_del(&ctxdma->head);
-	kfree(ctxdma);
-}
-
-static struct nv50_dmac_ctxdma *
-nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
-{
-	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
-	struct nv50_dmac_ctxdma *ctxdma;
-	const u8    kind = fb->nvbo->kind;
-	const u32 handle = 0xfb000000 | kind;
-	struct {
-		struct nv_dma_v0 base;
-		union {
-			struct nv50_dma_v0 nv50;
-			struct gf100_dma_v0 gf100;
-			struct gf119_dma_v0 gf119;
-		};
-	} args = {};
-	u32 argc = sizeof(args.base);
-	int ret;
-
-	list_for_each_entry(ctxdma, &dmac->ctxdma, head) {
-		if (ctxdma->object.handle == handle)
-			return ctxdma;
-	}
-
-	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
-		return ERR_PTR(-ENOMEM);
-	list_add(&ctxdma->head, &dmac->ctxdma);
-
-	args.base.target = NV_DMA_V0_TARGET_VRAM;
-	args.base.access = NV_DMA_V0_ACCESS_RDWR;
-	args.base.start  = 0;
-	args.base.limit  = drm->client.device.info.ram_user - 1;
-
-	if (drm->client.device.info.chipset < 0x80) {
-		args.nv50.part = NV50_DMA_V0_PART_256;
-		argc += sizeof(args.nv50);
-	} else
-	if (drm->client.device.info.chipset < 0xc0) {
-		args.nv50.part = NV50_DMA_V0_PART_256;
-		args.nv50.kind = kind;
-		argc += sizeof(args.nv50);
-	} else
-	if (drm->client.device.info.chipset < 0xd0) {
-		args.gf100.kind = kind;
-		argc += sizeof(args.gf100);
-	} else {
-		args.gf119.page = GF119_DMA_V0_PAGE_LP;
-		args.gf119.kind = kind;
-		argc += sizeof(args.gf119);
-	}
-
-	ret = nvif_object_init(&dmac->base.user, handle, NV_DMA_IN_MEMORY,
-			       &args, argc, &ctxdma->object);
-	if (ret) {
-		nv50_dmac_ctxdma_del(ctxdma);
-		return ERR_PTR(ret);
-	}
-
-	return ctxdma;
-}
-
-static void
 nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
-	struct nv50_dmac_ctxdma *ctxdma, *ctxtmp;
-
-	list_for_each_entry_safe(ctxdma, ctxtmp, &dmac->ctxdma, head) {
-		nv50_dmac_ctxdma_del(ctxdma);
-	}
-
 	nvif_object_fini(&dmac->vram);
 	nvif_object_fini(&dmac->sync);
 
@@ -511,7 +436,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	int ret;
 
 	mutex_init(&dmac->lock);
-	INIT_LIST_HEAD(&dmac->ctxdma);
 
 	ret = nvif_mem_init_map(&cli->mmu, NVIF_MEM_COHERENT, 0x1000,
 				&dmac->push);
@@ -740,6 +664,11 @@ struct nv50_wndw {
 	const struct nv50_wndw_func *func;
 	struct nv50_dmac *dmac;
 
+	struct {
+		struct nvif_object *parent;
+		struct list_head list;
+	} ctxdma;
+
 	struct drm_plane plane;
 
 	struct nvif_notify notify;
@@ -769,6 +698,74 @@ struct nv50_wndw_func {
 
 	u32 (*update)(struct nv50_wndw *, u32 interlock);
 };
+
+static void
+nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
+{
+	nvif_object_fini(&ctxdma->object);
+	list_del(&ctxdma->head);
+	kfree(ctxdma);
+}
+
+static struct nv50_wndw_ctxdma *
+nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
+{
+	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
+	struct nv50_wndw_ctxdma *ctxdma;
+	const u8    kind = fb->nvbo->kind;
+	const u32 handle = 0xfb000000 | kind;
+	struct {
+		struct nv_dma_v0 base;
+		union {
+			struct nv50_dma_v0 nv50;
+			struct gf100_dma_v0 gf100;
+			struct gf119_dma_v0 gf119;
+		};
+	} args = {};
+	u32 argc = sizeof(args.base);
+	int ret;
+
+	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
+		if (ctxdma->object.handle == handle)
+			return ctxdma;
+	}
+
+	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
+		return ERR_PTR(-ENOMEM);
+	list_add(&ctxdma->head, &wndw->ctxdma.list);
+
+	args.base.target = NV_DMA_V0_TARGET_VRAM;
+	args.base.access = NV_DMA_V0_ACCESS_RDWR;
+	args.base.start  = 0;
+	args.base.limit  = drm->client.device.info.ram_user - 1;
+
+	if (drm->client.device.info.chipset < 0x80) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->client.device.info.chipset < 0xc0) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		args.nv50.kind = kind;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->client.device.info.chipset < 0xd0) {
+		args.gf100.kind = kind;
+		argc += sizeof(args.gf100);
+	} else {
+		args.gf119.page = GF119_DMA_V0_PAGE_LP;
+		args.gf119.kind = kind;
+		argc += sizeof(args.gf119);
+	}
+
+	ret = nvif_object_init(wndw->ctxdma.parent, handle, NV_DMA_IN_MEMORY,
+			       &args, argc, &ctxdma->object);
+	if (ret) {
+		nv50_wndw_ctxdma_del(ctxdma);
+		return ERR_PTR(ret);
+	}
+
+	return ctxdma;
+}
 
 static int
 nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
@@ -944,7 +941,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
 	struct nv50_head_atom *asyh;
-	struct nv50_dmac_ctxdma *ctxdma;
+	struct nv50_wndw_ctxdma *ctxdma;
 	int ret;
 
 	NV_ATOMIC(drm, "%s prepare: %p\n", plane->name, state->fb);
@@ -955,7 +952,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	if (ret)
 		return ret;
 
-	ctxdma = nv50_dmac_ctxdma_new(wndw->dmac, fb);
+	ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
 	if (IS_ERR(ctxdma)) {
 		nouveau_bo_unpin(fb->nvbo);
 		return PTR_ERR(ctxdma);
@@ -1030,7 +1027,13 @@ static void
 nv50_wndw_destroy(struct drm_plane *plane)
 {
 	struct nv50_wndw *wndw = nv50_wndw(plane);
+	struct nv50_wndw_ctxdma *ctxdma, *ctxtmp;
 	void *data;
+
+	list_for_each_entry_safe(ctxdma, ctxtmp, &wndw->ctxdma.list, head) {
+		nv50_wndw_ctxdma_del(ctxdma);
+	}
+
 	nvif_notify_fini(&wndw->notify);
 	data = wndw->func->dtor(wndw);
 	drm_plane_cleanup(&wndw->plane);
@@ -1069,6 +1072,7 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 
 	wndw->func = func;
 	wndw->dmac = dmac;
+	wndw->ctxdma.parent = &dmac->base.user;
 
 	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw,
 				       format, nformat, NULL,
@@ -1077,6 +1081,7 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 		return ret;
 
 	drm_plane_helper_add(&wndw->plane, &nv50_wndw_helper);
+	INIT_LIST_HEAD(&wndw->ctxdma.list);
 	return 0;
 }
 
