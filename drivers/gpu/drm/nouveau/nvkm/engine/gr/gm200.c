@@ -134,6 +134,7 @@ gm200_gr = {
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
 	.init_400054 = gm107_gr_init_400054,
 	.rops = gm200_gr_rops,
+	.tpc_nr = 4,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
 	.sclass = {

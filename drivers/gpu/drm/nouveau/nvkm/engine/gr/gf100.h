@@ -154,6 +154,8 @@ struct gf100_gr_func {
 		struct gf100_gr_ucode *ucode;
 	} gpccs;
 	int (*rops)(struct gf100_gr *);
+	int gpc_nr;
+	int tpc_nr;
 	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
 	const struct nvkm_therm_clkgate_pack *clkgate_pack;

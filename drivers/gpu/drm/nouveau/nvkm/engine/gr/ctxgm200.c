@@ -28,7 +28,7 @@
  ******************************************************************************/
 
 void
-gm200_grctx_generate_405b60(struct gf100_gr *gr)
+gm200_grctx_generate_smid_config(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 dist_nr = DIV_ROUND_UP(gr->tpc_total, 4);
@@ -60,6 +60,15 @@ gm200_grctx_generate_405b60(struct gf100_gr *gr)
 }
 
 void
+gm200_grctx_generate_tpc_mask(struct gf100_gr *gr)
+{
+	u32 tmp, i;
+	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
+		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * gr->func->tpc_nr);
+	nvkm_wr32(gr->base.engine.subdev.device, 0x4041c4, tmp);
+}
+
+void
 gm200_grctx_generate_r406500(struct gf100_gr *gr)
 {
 	nvkm_wr32(gr->base.engine.subdev.device, 0x406500, 0x00000000);
@@ -70,8 +79,7 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	u32 idle_timeout, tmp;
-	int i;
+	u32 idle_timeout;
 
 	gf100_gr_mmio(gr, gr->fuc_sw_ctx);
 
@@ -83,12 +91,6 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
-
-	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
-		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * 4);
-	nvkm_wr32(device, 0x4041c4, tmp);
-
-	gm200_grctx_generate_405b60(gr);
 
 	gf100_gr_icmd(gr, gr->fuc_bundle);
 	nvkm_wr32(device, 0x404154, idle_timeout);
@@ -140,4 +142,6 @@ gm200_grctx = {
 	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
 	.r406500 = gm200_grctx_generate_r406500,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
+	.tpc_mask = gm200_grctx_generate_tpc_mask,
+	.smid_config = gm200_grctx_generate_smid_config,
 };

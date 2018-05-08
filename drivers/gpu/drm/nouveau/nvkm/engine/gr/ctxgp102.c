@@ -99,4 +99,6 @@ gp102_grctx = {
 	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
 	.r406500 = gm200_grctx_generate_r406500,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
+	.tpc_mask = gm200_grctx_generate_tpc_mask,
+	.smid_config = gp100_grctx_generate_smid_config,
 };
