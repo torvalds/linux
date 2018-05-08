@@ -1704,6 +1704,12 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 
 	pci_status = cx_read(PCI_INT_STAT);
 	pci_mask = cx23885_irq_get_mask(dev);
+	if ((pci_status & pci_mask) == 0) {
+		dprintk(7, "pci_status: 0x%08x  pci_mask: 0x%08x\n",
+			pci_status, pci_mask);
+		goto out;
+	}
+
 	vida_status = cx_read(VID_A_INT_STAT);
 	vida_mask = cx_read(VID_A_INT_MSK);
 	audint_status = cx_read(AUDIO_INT_INT_STAT);
@@ -1713,7 +1719,9 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	ts2_status = cx_read(VID_C_INT_STAT);
 	ts2_mask = cx_read(VID_C_INT_MSK);
 
-	if ((pci_status == 0) && (ts2_status == 0) && (ts1_status == 0))
+	if (((pci_status & pci_mask) == 0) &&
+		((ts2_status & ts2_mask) == 0) &&
+		((ts1_status & ts1_mask) == 0))
 		goto out;
 
 	vida_count = cx_read(VID_A_GPCNT);
@@ -1840,7 +1848,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	}
 
 	if (handled)
-		cx_write(PCI_INT_STAT, pci_status);
+		cx_write(PCI_INT_STAT, pci_status & pci_mask);
 out:
 	return IRQ_RETVAL(handled);
 }
