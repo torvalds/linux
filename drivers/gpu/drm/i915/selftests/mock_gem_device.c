@@ -229,17 +229,19 @@ struct drm_i915_private *mock_gem_device(void)
 	INIT_LIST_HEAD(&i915->gt.closed_vma);
 
 	mutex_lock(&i915->drm.struct_mutex);
+
 	mock_init_ggtt(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
 	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
 	if (!i915->engine[RCS])
-		goto err_priorities;
+		goto err_unlock;
 
 	i915->kernel_context = mock_context(i915, NULL);
 	if (!i915->kernel_context)
 		goto err_engine;
+
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	WARN_ON(i915_gemfs_init(i915));
 
@@ -248,7 +250,8 @@ struct drm_i915_private *mock_gem_device(void)
 err_engine:
 	for_each_engine(engine, i915, id)
 		mock_engine_free(engine);
-err_priorities:
+err_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
 	kmem_cache_destroy(i915->priorities);
 err_dependencies:
 	kmem_cache_destroy(i915->dependencies);
