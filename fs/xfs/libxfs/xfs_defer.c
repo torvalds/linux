@@ -352,10 +352,21 @@ xfs_defer_finish(
 	void				*state;
 	int				error = 0;
 	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
+	struct xfs_defer_ops		*orig_dop;
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop);
+
+	/*
+	 * Attach dfops to the transaction during deferred ops processing. This
+	 * explicitly causes calls into the allocator to defer AGFL block frees.
+	 * Note that this code can go away once all dfops users attach to the
+	 * associated tp.
+	 */
+	ASSERT(!(*tp)->t_agfl_dfops || ((*tp)->t_agfl_dfops == dop));
+	orig_dop = (*tp)->t_agfl_dfops;
+	(*tp)->t_agfl_dfops = dop;
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
@@ -428,6 +439,7 @@ xfs_defer_finish(
 	}
 
 out:
+	(*tp)->t_agfl_dfops = orig_dop;
 	if (error)
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
 	else
