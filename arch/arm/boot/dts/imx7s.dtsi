@@ -294,7 +294,7 @@
 			port {
 				tpiu_in_port: endpoint {
 					slave-mode;
-					remote-endpoint = <&replicator_out_port1>;
+					remote-endpoint = <&replicator_out_port0>;
 				};
 			};
 		};
