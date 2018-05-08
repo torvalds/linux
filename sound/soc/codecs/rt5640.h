@@ -13,7 +13,6 @@
 #define _RT5640_H
 
 #include <linux/clk.h>
-#include <sound/rt5640.h>
 
 /* Info */
 #define RT5640_RESET				0x00
@@ -2103,10 +2102,10 @@ enum {
 
 struct rt5640_priv {
 	struct snd_soc_component *component;
-	struct rt5640_platform_data pdata;
 	struct regmap *regmap;
 	struct clk *mclk;
 
+	int ldo1_en; /* GPIO for LDO1_EN */
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5640_AIFS];

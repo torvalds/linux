@@ -2138,10 +2138,6 @@ static int rt5640_probe(struct snd_soc_component *component)
 		return -ENODEV;
 	}
 
-	if (rt5640->pdata.dmic_en)
-		rt5640_dmic_enable(component, rt5640->pdata.dmic1_data_pin,
-					  rt5640->pdata.dmic2_data_pin);
-
 	return 0;
 }
 
@@ -2159,8 +2155,8 @@ static int rt5640_suspend(struct snd_soc_component *component)
 	rt5640_reset(component);
 	regcache_cache_only(rt5640->regmap, true);
 	regcache_mark_dirty(rt5640->regmap);
-	if (gpio_is_valid(rt5640->pdata.ldo1_en))
-		gpio_set_value_cansleep(rt5640->pdata.ldo1_en, 0);
+	if (gpio_is_valid(rt5640->ldo1_en))
+		gpio_set_value_cansleep(rt5640->ldo1_en, 0);
 
 	return 0;
 }
@@ -2169,8 +2165,8 @@ static int rt5640_resume(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 
-	if (gpio_is_valid(rt5640->pdata.ldo1_en)) {
-		gpio_set_value_cansleep(rt5640->pdata.ldo1_en, 1);
+	if (gpio_is_valid(rt5640->ldo1_en)) {
+		gpio_set_value_cansleep(rt5640->ldo1_en, 1);
 		msleep(400);
 	}
 
@@ -2302,22 +2298,16 @@ MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);
 
 static int rt5640_parse_dt(struct rt5640_priv *rt5640, struct device_node *np)
 {
-	rt5640->pdata.in1_diff = of_property_read_bool(np,
-					"realtek,in1-differential");
-	rt5640->pdata.in2_diff = of_property_read_bool(np,
-					"realtek,in2-differential");
-
-	rt5640->pdata.ldo1_en = of_get_named_gpio(np,
-					"realtek,ldo1-en-gpios", 0);
+	rt5640->ldo1_en = of_get_named_gpio(np, "realtek,ldo1-en-gpios", 0);
 	/*
 	 * LDO1_EN is optional (it may be statically tied on the board).
 	 * -ENOENT means that the property doesn't exist, i.e. there is no
 	 * GPIO, so is not an error. Any other error code means the property
 	 * exists, but could not be parsed.
 	 */
-	if (!gpio_is_valid(rt5640->pdata.ldo1_en) &&
-			(rt5640->pdata.ldo1_en != -ENOENT))
-		return rt5640->pdata.ldo1_en;
+	if (!gpio_is_valid(rt5640->ldo1_en) &&
+			(rt5640->ldo1_en != -ENOENT))
+		return rt5640->ldo1_en;
 
 	return 0;
 }
@@ -2325,7 +2315,6 @@ static int rt5640_parse_dt(struct rt5640_priv *rt5640, struct device_node *np)
 static int rt5640_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5640_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5640_priv *rt5640;
 	int ret;
 	unsigned int val;
@@ -2337,22 +2326,12 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 	i2c_set_clientdata(i2c, rt5640);
 
-	if (pdata) {
-		rt5640->pdata = *pdata;
-		/*
-		 * Translate zero'd out (default) pdata value to an invalid
-		 * GPIO ID. This makes the pdata and DT paths consistent in
-		 * terms of the value left in this field when no GPIO is
-		 * specified, but means we can't actually use GPIO 0.
-		 */
-		if (!rt5640->pdata.ldo1_en)
-			rt5640->pdata.ldo1_en = -EINVAL;
-	} else if (i2c->dev.of_node) {
+	if (i2c->dev.of_node) {
 		ret = rt5640_parse_dt(rt5640, i2c->dev.of_node);
 		if (ret)
 			return ret;
 	} else
-		rt5640->pdata.ldo1_en = -EINVAL;
+		rt5640->ldo1_en = -EINVAL;
 
 	rt5640->regmap = devm_regmap_init_i2c(i2c, &rt5640_regmap);
 	if (IS_ERR(rt5640->regmap)) {
@@ -2362,13 +2341,13 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	if (gpio_is_valid(rt5640->pdata.ldo1_en)) {
-		ret = devm_gpio_request_one(&i2c->dev, rt5640->pdata.ldo1_en,
+	if (gpio_is_valid(rt5640->ldo1_en)) {
+		ret = devm_gpio_request_one(&i2c->dev, rt5640->ldo1_en,
 					    GPIOF_OUT_INIT_HIGH,
 					    "RT5640 LDO1_EN");
 		if (ret < 0) {
 			dev_err(&i2c->dev, "Failed to request LDO1_EN %d: %d\n",
-				rt5640->pdata.ldo1_en, ret);
+				rt5640->ldo1_en, ret);
 			return ret;
 		}
 		msleep(400);
@@ -2391,15 +2370,15 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
 				RT5640_MCLK_DET, RT5640_MCLK_DET);
 
-	if (rt5640->pdata.in1_diff)
+	if (device_property_read_bool(&i2c->dev, "realtek,in1-differential"))
 		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,
 					RT5640_IN_DF1, RT5640_IN_DF1);
 
-	if (rt5640->pdata.in2_diff)
+	if (device_property_read_bool(&i2c->dev, "realtek,in2-differential"))
 		regmap_update_bits(rt5640->regmap, RT5640_IN3_IN4,
 					RT5640_IN_DF2, RT5640_IN_DF2);
 
-	if (rt5640->pdata.in3_diff)
+	if (device_property_read_bool(&i2c->dev, "realtek,in3-differential"))
 		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,
 					RT5640_IN_DF2, RT5640_IN_DF2);
 
