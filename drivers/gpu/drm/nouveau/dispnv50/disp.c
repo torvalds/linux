@@ -436,6 +436,7 @@ struct nv50_sync {
 };
 
 struct nv50_head {
+	const struct nv50_head_func *func;
 	struct nouveau_crtc base;
 	struct {
 		struct nouveau_bo *nvbo[2];
@@ -443,7 +444,22 @@ struct nv50_head {
 	} lut;
 };
 
-#define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
+struct nv50_head_func {
+	void (*view)(struct nv50_head *, struct nv50_head_atom *);
+	void (*mode)(struct nv50_head *, struct nv50_head_atom *);
+	void (*ilut_set)(struct nv50_head *, struct nv50_head_atom *);
+	void (*ilut_clr)(struct nv50_head *);
+	void (*core_set)(struct nv50_head *, struct nv50_head_atom *);
+	void (*core_clr)(struct nv50_head *);
+	void (*curs_set)(struct nv50_head *, struct nv50_head_atom *);
+	void (*curs_clr)(struct nv50_head *);
+	void (*base)(struct nv50_head *, struct nv50_head_atom *);
+	void (*ovly)(struct nv50_head *, struct nv50_head_atom *);
+	void (*dither)(struct nv50_head *, struct nv50_head_atom *);
+	void (*procamp)(struct nv50_head *, struct nv50_head_atom *);
+};
+
+#define nv50_head(c) container_of((c), struct nv50_head, base.base)
 
 struct nv50_disp {
 	struct nvif_disp *disp;
@@ -470,6 +486,7 @@ struct nv50_core {
 };
 
 struct nv50_core_func {
+	const struct nv50_head_func *head;
 };
 
 static int
@@ -2002,22 +2019,38 @@ nv50_head_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
+static const struct nv50_head_func
+head507d = {
+	.view = nv50_head_view,
+	.mode = nv50_head_mode,
+	.ilut_set = nv50_head_lut_set,
+	.ilut_clr = nv50_head_lut_clr,
+	.core_set = nv50_head_core_set,
+	.core_clr = nv50_head_core_clr,
+	.curs_set = nv50_head_curs_set,
+	.curs_clr = nv50_head_curs_clr,
+	.base = nv50_head_base,
+	.ovly = nv50_head_ovly,
+	.dither = nv50_head_dither,
+	.procamp = nv50_head_procamp,
+};
+
 static void
 nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 {
 	if (asyh->clr.ilut && (!asyh->set.ilut || y))
-		nv50_head_lut_clr(head);
+		head->func->ilut_clr(head);
 	if (asyh->clr.core && (!asyh->set.core || y))
-		nv50_head_core_clr(head);
+		head->func->core_clr(head);
 	if (asyh->clr.curs && (!asyh->set.curs || y))
-		nv50_head_curs_clr(head);
+		head->func->curs_clr(head);
 }
 
 static void
 nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	if (asyh->set.view   ) nv50_head_view    (head, asyh);
-	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
+	if (asyh->set.view   ) head->func->view    (head, asyh);
+	if (asyh->set.mode   ) head->func->mode    (head, asyh);
 	if (asyh->set.ilut   ) {
 		struct nouveau_bo *nvbo = head->lut.nvbo[head->lut.next];
 		struct drm_property_blob *blob = asyh->state.gamma_lut;
@@ -2025,14 +2058,14 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 			nv50_head_lut_load(blob, asyh->lut.mode, nvbo);
 		asyh->lut.offset = nvbo->bo.offset;
 		head->lut.next ^= 1;
-		nv50_head_lut_set(head, asyh);
+		head->func->ilut_set(head, asyh);
 	}
-	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
-	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
-	if (asyh->set.base   ) nv50_head_base    (head, asyh);
-	if (asyh->set.ovly   ) nv50_head_ovly    (head, asyh);
-	if (asyh->set.dither ) nv50_head_dither  (head, asyh);
-	if (asyh->set.procamp) nv50_head_procamp (head, asyh);
+	if (asyh->set.core   ) head->func->core_set(head, asyh);
+	if (asyh->set.curs   ) head->func->curs_set(head, asyh);
+	if (asyh->set.base   ) head->func->base    (head, asyh);
+	if (asyh->set.ovly   ) head->func->ovly    (head, asyh);
+	if (asyh->set.dither ) head->func->dither  (head, asyh);
+	if (asyh->set.procamp) head->func->procamp (head, asyh);
 }
 
 static void
@@ -2422,7 +2455,7 @@ nv50_head_destroy(struct drm_crtc *crtc)
 		nouveau_bo_unmap_unpin_unref(&head->lut.nvbo[i]);
 
 	drm_crtc_cleanup(crtc);
-	kfree(crtc);
+	kfree(head);
 }
 
 static const struct drm_crtc_funcs
@@ -2440,6 +2473,7 @@ static int
 nv50_head_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_wndw *curs, *wndw;
 	struct drm_crtc *crtc;
@@ -2449,6 +2483,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	if (!head)
 		return -ENOMEM;
 
+	head->func = disp->core->func->head;
 	head->base.index = index;
 	ret = nv50_base_new(drm, head->base.index, &wndw);
 	if (ret == 0)
@@ -2482,6 +2517,7 @@ out:
 
 static const struct nv50_core_func
 core507d = {
+	.head = &head507d,
 };
 
 static int
