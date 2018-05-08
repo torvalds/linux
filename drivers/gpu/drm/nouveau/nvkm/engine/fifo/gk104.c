@@ -962,6 +962,9 @@ gk104_fifo_init(struct nvkm_fifo *base)
 
 	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
 
+	if (fifo->func->init_pbdma_timeout)
+		fifo->func->init_pbdma_timeout(fifo);
+
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
 }
