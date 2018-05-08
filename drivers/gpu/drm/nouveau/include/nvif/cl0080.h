@@ -39,9 +39,25 @@ struct nv_device_info_v0 {
 	char  name[64];
 };
 
+struct nv_device_info_v1 {
+	__u8  version;
+	__u8  count;
+	__u8  pad02[6];
+	struct nv_device_info_v1_data {
+		__u64 mthd; /* NV_DEVICE_INFO_* (see below). */
+		__u64 data;
+	} data[];
+};
+
 struct nv_device_time_v0 {
 	__u8  version;
 	__u8  pad01[7];
 	__u64 time;
 };
+
+#define NV_DEVICE_INFO_UNIT                               (0xffffffffULL << 32)
+#define NV_DEVICE_INFO(n)                          ((n) | (0x00000000ULL << 32))
+
+/* This will be returned for unsupported queries. */
+#define NV_DEVICE_INFO_INVALID                                           ~0ULL
 #endif
