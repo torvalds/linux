@@ -84,6 +84,6 @@ gv100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
 	      void *argv, u32 argc, struct lock_class_key *key,
 	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&gv100_vmm, mmu, 0, managed, addr, size,
-			     argv, argc, key, name, pvmm);
+	return gp100_vmm_new_(&gv100_vmm, mmu, managed, addr, size,
+			      argv, argc, key, name, pvmm);
 }

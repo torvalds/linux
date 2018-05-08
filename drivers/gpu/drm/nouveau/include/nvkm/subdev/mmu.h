@@ -45,6 +45,8 @@ struct nvkm_vmm {
 
 	dma_addr_t null;
 	void *nullp;
+
+	bool replay;
 };
 
 int nvkm_vmm_new(struct nvkm_device *, u64 addr, u64 size, void *argv, u32 argc,

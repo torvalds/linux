@@ -476,7 +476,11 @@ gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 int
 gp100_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
-	const u64 base = BIT_ULL(10) /* VER2 */ | BIT_ULL(11); /* 64KiB */
+	u64 base = BIT_ULL(10) /* VER2 */ | BIT_ULL(11) /* 64KiB */;
+	if (vmm->replay) {
+		base |= BIT_ULL(4); /* FAULT_REPLAY_TEX */
+		base |= BIT_ULL(5); /* FAULT_REPLAY_GCC */
+	}
 	return gf100_vmm_join_(vmm, inst, base);
 }
 
@@ -501,10 +505,39 @@ gp100_vmm = {
 };
 
 int
+gp100_vmm_new_(const struct nvkm_vmm_func *func,
+	       struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	       void *argv, u32 argc, struct lock_class_key *key,
+	       const char *name, struct nvkm_vmm **pvmm)
+{
+	union {
+		struct gp100_vmm_vn vn;
+		struct gp100_vmm_v0 v0;
+	} *args = argv;
+	int ret = -ENOSYS;
+	bool replay;
+
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
+		replay = args->v0.fault_replay != 0;
+	} else
+	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
+		replay = false;
+	} else
+		return ret;
+
+	ret = nvkm_vmm_new_(func, mmu, 0, managed, addr, size, key, name, pvmm);
+	if (ret)
+		return ret;
+
+	(*pvmm)->replay = replay;
+	return 0;
+}
+
+int
 gp100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
 	      void *argv, u32 argc, struct lock_class_key *key,
 	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&gp100_vmm, mmu, 0, managed, addr, size,
-			     argv, argc, key, name, pvmm);
+	return gp100_vmm_new_(&gp100_vmm, mmu, managed, addr, size,
+			      argv, argc, key, name, pvmm);
 }
