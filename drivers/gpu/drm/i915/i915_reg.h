@@ -8269,6 +8269,10 @@ enum {
 #define   GEN11_HASH_CTRL_BIT0			(1 << 0)
 #define   GEN11_HASH_CTRL_BIT4			(1 << 12)
 
+#define GEN11_LSN_UNSLCVC				_MMIO(0xB43C)
+#define   GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC	(1 << 9)
+#define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
+
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
 #define   GEN7_L3CDERRST1_ROW_MASK	(0x7ff<<14)

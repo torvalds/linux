@@ -726,6 +726,13 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 				   GEN11_LQSC_CLEAN_EVICT_DISABLE);
+
+	/* Wa_1405766107:icl
+	 * Formerly known as WaCL2SFHalfMaxAlloc
+	 */
+	I915_WRITE(GEN11_LSN_UNSLCVC, I915_READ(GEN11_LSN_UNSLCVC) |
+				      GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC |
+				      GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
