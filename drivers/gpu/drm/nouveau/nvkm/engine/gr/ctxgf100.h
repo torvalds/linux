@@ -63,6 +63,8 @@ struct gf100_grctx_func {
 	void (*r419f78)(struct gf100_gr *);
 	void (*tpc_mask)(struct gf100_gr *);
 	void (*smid_config)(struct gf100_gr *);
+	/* misc other things */
+	void (*r419cb8)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -79,6 +81,7 @@ void gf100_grctx_generate_r4060a8(struct gf100_gr *);
 void gf100_grctx_generate_rop_mapping(struct gf100_gr *);
 void gf100_grctx_generate_alpha_beta_tables(struct gf100_gr *);
 void gf100_grctx_generate_max_ways_evict(struct gf100_gr *);
+void gf100_grctx_generate_r419cb8(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gf108_grctx;
 void gf108_grctx_generate_attrib(struct gf100_grctx *);

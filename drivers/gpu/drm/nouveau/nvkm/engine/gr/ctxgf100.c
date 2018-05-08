@@ -1025,6 +1025,13 @@ gf100_grctx_mmio_item(struct gf100_grctx *info, u32 addr, u32 data,
 }
 
 void
+gf100_grctx_generate_r419cb8(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419cb8, 0x00007c00, 0x00000000);
+}
+
+void
 gf100_grctx_generate_bundle(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
@@ -1416,6 +1423,9 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	else
 		gf100_gr_mthd(gr, grctx->mthd);
 	nvkm_mc_unk260(device, 1);
+
+	if (grctx->r419cb8)
+		grctx->r419cb8(gr);
 }
 
 #define CB_RESERVED 0x80000
@@ -1564,4 +1574,5 @@ gf100_grctx = {
 	.rop_mapping = gf100_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
 	.max_ways_evict = gf100_grctx_generate_max_ways_evict,
+	.r419cb8 = gf100_grctx_generate_r419cb8,
 };

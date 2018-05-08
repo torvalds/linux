@@ -343,4 +343,5 @@ gf117_grctx = {
 	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
 	.max_ways_evict = gf100_grctx_generate_max_ways_evict,
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
+	.r419cb8 = gf100_grctx_generate_r419cb8,
 };
