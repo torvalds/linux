@@ -341,57 +341,6 @@ nv50_chan_destroy(struct nv50_chan *chan)
 }
 
 /******************************************************************************
- * PIO EVO channel
- *****************************************************************************/
-
-struct nv50_pioc {
-	struct nv50_chan base;
-};
-
-static void
-nv50_pioc_destroy(struct nv50_pioc *pioc)
-{
-	nv50_chan_destroy(&pioc->base);
-}
-
-static int
-nv50_pioc_create(struct nvif_device *device, struct nvif_object *disp,
-		 const s32 *oclass, u8 head, void *data, u32 size,
-		 struct nv50_pioc *pioc)
-{
-	return nv50_chan_create(device, disp, oclass, head, data, size,
-				&pioc->base);
-}
-
-/******************************************************************************
- * Overlay Immediate
- *****************************************************************************/
-
-struct nv50_oimm {
-	struct nv50_pioc base;
-};
-
-static int
-nv50_oimm_create(struct nvif_device *device, struct nvif_object *disp,
-		 int head, struct nv50_oimm *oimm)
-{
-	struct nv50_disp_cursor_v0 args = {
-		.head = head,
-	};
-	static const s32 oclass[] = {
-		GK104_DISP_OVERLAY,
-		GF110_DISP_OVERLAY,
-		GT214_DISP_OVERLAY,
-		G82_DISP_OVERLAY,
-		NV50_DISP_OVERLAY,
-		0
-	};
-
-	return nv50_pioc_create(device, disp, oclass, head, &args, sizeof(args),
-				&oimm->base);
-}
-
-/******************************************************************************
  * DMA EVO channel
  *****************************************************************************/
 
@@ -541,43 +490,12 @@ nv50_base_create(struct nvif_device *device, struct nvif_object *disp,
 				syncbuf, &base->base);
 }
 
-/******************************************************************************
- * Overlay
- *****************************************************************************/
-
-struct nv50_ovly {
-	struct nv50_dmac base;
-};
-
-static int
-nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
-		 int head, u64 syncbuf, struct nv50_ovly *ovly)
-{
-	struct nv50_disp_overlay_channel_dma_v0 args = {
-		.head = head,
-	};
-	static const s32 oclass[] = {
-		GK104_DISP_OVERLAY_CONTROL_DMA,
-		GF110_DISP_OVERLAY_CONTROL_DMA,
-		GT214_DISP_OVERLAY_CHANNEL_DMA,
-		GT200_DISP_OVERLAY_CHANNEL_DMA,
-		G82_DISP_OVERLAY_CHANNEL_DMA,
-		NV50_DISP_OVERLAY_CHANNEL_DMA,
-		0
-	};
-
-	return nv50_dmac_create(device, disp, oclass, head, &args, sizeof(args),
-				syncbuf, &ovly->base);
-}
-
 struct nv50_head {
 	struct nouveau_crtc base;
 	struct {
 		struct nouveau_bo *nvbo[2];
 		int next;
 	} lut;
-	struct nv50_ovly ovly;
-	struct nv50_oimm oimm;
 };
 
 #define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
@@ -662,7 +580,9 @@ evo_kick(u32 *push, void *evoc)
 
 struct nv50_wndw {
 	const struct nv50_wndw_func *func;
+	const struct nv50_wimm_func *immd;
 	struct nv50_dmac *dmac;
+	int id;
 
 	struct {
 		struct nvif_object *parent;
@@ -670,6 +590,9 @@ struct nv50_wndw {
 	} ctxdma;
 
 	struct drm_plane plane;
+
+	struct nv50_dmac wndw;
+	struct nv50_dmac wimm;
 
 	struct nvif_notify notify;
 	u16 ntfy;
@@ -697,6 +620,9 @@ struct nv50_wndw_func {
 	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	u32 (*update)(struct nv50_wndw *, u32 interlock);
+};
+
+struct nv50_wimm_func {
 };
 
 static void
@@ -1028,14 +954,17 @@ nv50_wndw_destroy(struct drm_plane *plane)
 {
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_ctxdma *ctxdma, *ctxtmp;
-	void *data;
+	void *data = wndw;
 
 	list_for_each_entry_safe(ctxdma, ctxtmp, &wndw->ctxdma.list, head) {
 		nv50_wndw_ctxdma_del(ctxdma);
 	}
 
 	nvif_notify_fini(&wndw->notify);
-	data = wndw->func->dtor(wndw);
+	if (wndw->func->dtor)
+		data = wndw->func->dtor(wndw);
+	nv50_dmac_destroy(&wndw->wimm);
+	nv50_dmac_destroy(&wndw->wndw);
 	drm_plane_cleanup(&wndw->plane);
 	kfree(data);
 }
@@ -1083,6 +1012,170 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 	drm_plane_helper_add(&wndw->plane, &nv50_wndw_helper);
 	INIT_LIST_HEAD(&wndw->ctxdma.list);
 	return 0;
+}
+
+static int
+nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
+	       enum drm_plane_type type, const char *name, int index,
+	       const u32 *format, struct nv50_wndw **pwndw)
+{
+	struct nv50_wndw *wndw;
+	int nformat;
+	int ret;
+
+	if (!(wndw = *pwndw = kzalloc(sizeof(*wndw), GFP_KERNEL)))
+		return -ENOMEM;
+	wndw->id = index;
+
+	for (nformat = 0; format[nformat]; nformat++);
+
+	ret = nv50_wndw_ctor(func, dev, type, name, index,
+			     &wndw->wndw, format, nformat, wndw);
+	if (ret) {
+		kfree(*pwndw);
+		*pwndw = NULL;
+	}
+
+	return ret;
+}
+
+/******************************************************************************
+ * Overlay
+ *****************************************************************************/
+
+static const struct nv50_wimm_func
+oimm507b = {
+};
+
+static int
+oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
+	       s32 oclass, struct nv50_wndw *wndw)
+{
+	struct nv50_disp_overlay_v0 args = {
+		.head = wndw->id,
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	int ret;
+
+	ret = nvif_object_init(&disp->disp->object, 0, oclass, &args,
+			       sizeof(args), &wndw->wimm.base.user);
+	if (ret) {
+		NV_ERROR(drm, "oimm%04x allocation failed: %d\n", oclass, ret);
+		return ret;
+	}
+
+	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
+	wndw->immd = func;
+	return 0;
+}
+
+static int
+oimm507b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+{
+	return oimm507b_init_(&oimm507b, drm, oclass, wndw);
+}
+
+static int
+nv50_oimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
+{
+	static const struct {
+		s32 oclass;
+		int version;
+		int (*init)(struct nouveau_drm *, s32, struct nv50_wndw *);
+	} oimms[] = {
+		{ GK104_DISP_OVERLAY, 0, oimm507b_init },
+		{ GF110_DISP_OVERLAY, 0, oimm507b_init },
+		{ GT214_DISP_OVERLAY, 0, oimm507b_init },
+		{   G82_DISP_OVERLAY, 0, oimm507b_init },
+		{  NV50_DISP_OVERLAY, 0, oimm507b_init },
+		{}
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	int cid;
+
+	cid = nvif_mclass(&disp->disp->object, oimms);
+	if (cid < 0) {
+		NV_ERROR(drm, "No supported overlay immediate class\n");
+		return cid;
+	}
+
+	return oimms[cid].init(drm, oimms[cid].oclass, wndw);
+}
+
+static const struct nv50_wndw_func
+ovly507e = {
+};
+
+static const u32
+ovly507e_format[] = {
+	0
+};
+
+static int
+ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
+	      struct nouveau_drm *drm, int head, s32 oclass,
+	      struct nv50_wndw **pwndw)
+{
+	struct nv50_disp_overlay_channel_dma_v0 args = {
+		.head = head,
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_wndw *wndw;
+	int ret;
+
+	ret = nv50_wndw_new_(func, drm->dev, DRM_PLANE_TYPE_OVERLAY,
+			     "ovly", head, format, &wndw);
+	if (*pwndw = wndw, ret)
+		return ret;
+
+	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
+			       &oclass, 0, &args, sizeof(args),
+			       disp->sync->bo.offset, &wndw->wndw);
+	if (ret) {
+		NV_ERROR(drm, "ovly%04x allocation failed: %d\n", oclass, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+ovly507e_new(struct nouveau_drm *drm, int head, s32 oclass,
+	     struct nv50_wndw **pwndw)
+{
+	return ovly507e_new_(&ovly507e, ovly507e_format, drm, head, oclass, pwndw);
+}
+
+static int
+nv50_ovly_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+{
+	static const struct {
+		s32 oclass;
+		int version;
+		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+	} ovlys[] = {
+		{ GK104_DISP_OVERLAY_CONTROL_DMA, 0, ovly507e_new },
+		{ GF110_DISP_OVERLAY_CONTROL_DMA, 0, ovly507e_new },
+		{ GT214_DISP_OVERLAY_CHANNEL_DMA, 0, ovly507e_new },
+		{ GT200_DISP_OVERLAY_CHANNEL_DMA, 0, ovly507e_new },
+		{   G82_DISP_OVERLAY_CHANNEL_DMA, 0, ovly507e_new },
+		{  NV50_DISP_OVERLAY_CHANNEL_DMA, 0, ovly507e_new },
+		{}
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	int cid, ret;
+
+	cid = nvif_mclass(&disp->disp->object, ovlys);
+	if (cid < 0) {
+		NV_ERROR(drm, "No supported overlay class\n");
+		return cid;
+	}
+
+	ret = ovlys[cid].new(drm, head, ovlys[cid].oclass, pwndw);
+	if (ret)
+		return ret;
+
+	return nv50_oimm_init(drm, *pwndw);
 }
 
 /******************************************************************************
@@ -2347,9 +2440,6 @@ nv50_head_destroy(struct drm_crtc *crtc)
 	struct nv50_head *head = nv50_head(crtc);
 	int i;
 
-	nv50_dmac_destroy(&head->ovly.base);
-	nv50_pioc_destroy(&head->oimm.base);
-
 	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++)
 		nouveau_bo_unmap_unpin_unref(&head->lut.nvbo[i]);
 
@@ -2372,11 +2462,10 @@ static int
 nv50_head_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->client.device;
-	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_base *base;
 	struct nv50_curs *curs;
+	struct nv50_wndw *wndw;
 	struct drm_crtc *crtc;
 	int ret, i;
 
@@ -2409,15 +2498,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	}
 
 	/* allocate overlay resources */
-	ret = nv50_oimm_create(device, &disp->disp->object, index, &head->oimm);
-	if (ret)
-		goto out;
-
-	ret = nv50_ovly_create(device, &disp->disp->object, index,
-			       disp->sync->bo.offset, &head->ovly);
-	if (ret)
-		goto out;
-
+	ret = nv50_ovly_new(drm, head->base.index, &wndw);
 out:
 	if (ret)
 		nv50_head_destroy(crtc);
