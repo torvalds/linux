@@ -86,12 +86,15 @@ static void clock_toggle(struct fsi_master_gpio *master, int count)
 	}
 }
 
-static int sda_in(struct fsi_master_gpio *master)
+static int sda_clock_in(struct fsi_master_gpio *master)
 {
 	int in;
 
 	ndelay(FSI_GPIO_STD_DLY);
+	gpiod_set_value(master->gpio_clk, 0);
 	in = gpiod_get_value(master->gpio_data);
+	ndelay(FSI_GPIO_STD_DLY);
+	gpiod_set_value(master->gpio_clk, 1);
 	return in ? 1 : 0;
 }
 
@@ -126,8 +129,7 @@ static void serial_in(struct fsi_master_gpio *master, struct fsi_gpio_msg *msg,
 	set_sda_input(master);
 
 	for (bit = 0; bit < num_bits; bit++) {
-		clock_toggle(master, 1);
-		in_bit = sda_in(master);
+		in_bit = sda_clock_in(master);
 		msg->msg <<= 1;
 		msg->msg |= ~in_bit & 0x1;	/* Data is active low */
 	}
