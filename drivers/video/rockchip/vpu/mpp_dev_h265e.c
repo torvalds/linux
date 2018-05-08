@@ -122,7 +122,7 @@ FAIL:
 static void rockchip_mpp_h265e_free_frame_buffer(struct rockchip_mpp_dev *mpp,
 						 struct rockchip_h265e_instance *instance)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct mpp_h265e_buffer *buf = NULL;
 	struct mpp_h265e_frame_buffer *fb = NULL;
 	struct mpp_session *session = instance->session;
@@ -497,9 +497,10 @@ static int rockchip_mpp_h265e_result(struct rockchip_mpp_dev *mpp,
 	return 0;
 }
 
-int rockchip_mpp_h265e_get_stream_header(struct rockchip_mpp_dev *mpp,
-					 int index,
-					 struct hal_h265e_header *head)
+#ifdef H265E_STREAM_HEADER
+static int rockchip_mpp_h265e_get_stream_header(struct rockchip_mpp_dev *mpp,
+						int index,
+						struct hal_h265e_header *head)
 {
 	struct rockchip_h265e_dev *enc =
 					 container_of(mpp,
@@ -608,6 +609,7 @@ FAIL:
 	mpp_err("fail, index = %d\n", index);
 	return -1;
 }
+#endif
 
 /*
  * set/change common parameter
@@ -857,8 +859,7 @@ static int rockchip_mpp_h265e_set_gop_parameter(struct rockchip_mpp_dev *mpp,
 						int index)
 {
 	u32 value = 0;
-	int int_reason = 0;
-	int i = 0, j = 0;
+	unsigned int i = 0, j = 0;
 	struct mpp_h265e_cfg *cfg = NULL;
 	struct rockchip_h265e_dev *enc =
 					 container_of(mpp,
@@ -900,7 +901,6 @@ static int rockchip_mpp_h265e_set_gop_parameter(struct rockchip_mpp_dev *mpp,
 	 * custom_gop related registers should be set
 	 */
 	mpp_write(mpp, 0x00010000 | index, H265E_INST_INDEX);
-	int_reason = 0;
 	if (cfg->gop_idx == PRESET_IDX_CUSTOM_GOP) {
 		mpp_write(mpp, H265E_OPT_CUSTOM_GOP,
 			  H265E_ENC_SET_PARAM_OPTION);
@@ -946,11 +946,11 @@ static int rockchip_mpp_h265e_set_gop_parameter(struct rockchip_mpp_dev *mpp,
 	}
 
 	value = mpp_read(mpp, H265E_RET_ENC_MIN_FB_NUM);
-	if (value > instance->min_frame_buffer_count)
+	if (value > (u32)instance->min_frame_buffer_count)
 		instance->min_frame_buffer_count = value;
 
 	value = mpp_read(mpp, H265E_RET_ENC_MIN_SRC_BUF_NUM);
-	if (value > instance->min_src_frame_count)
+	if (value > (u32)instance->min_src_frame_count)
 		instance->min_src_frame_count = value;
 	mpp_debug(DEBUG_H265E_INFO,
 		  "%s %d,min_frame_buffer_count = %d,min_src_frame_count=%d\n",
@@ -1207,7 +1207,7 @@ int rockchip_mpp_h265e_register_frame_buffer(struct rockchip_mpp_dev *mpp,
 	int luma_stride = 0;
 	int chroma_stride = 0;
 	int count = 0;
-	u32 value, mv_col_size;
+	u32 value, mv_col_size = 0;
 	u32 fbc_y_table_size = 0, fbc_c_table_size = 0, sub_sampled_size = 0;
 	int q, j, i, remain, idx;
 	int start_no, end_no;
