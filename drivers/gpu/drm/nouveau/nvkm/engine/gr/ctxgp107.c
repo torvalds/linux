@@ -47,4 +47,5 @@ gp107_grctx = {
 	.sm_id = gm107_grctx_generate_sm_id,
 	.rop_mapping = gf117_grctx_generate_rop_mapping,
 	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
+	.r406500 = gm200_grctx_generate_r406500,
 };

@@ -1362,6 +1362,8 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 		func->max_ways_evict(gr);
 	if (func->dist_skip_table)
 		func->dist_skip_table(gr);
+	if (func->r406500)
+		func->r406500(gr);
 }
 
 void
