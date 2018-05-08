@@ -1208,6 +1208,7 @@ xfs_create(
 	unlock_dp_on_error = true;
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 
 	/*
 	 * Reserve disk quota and the inode.

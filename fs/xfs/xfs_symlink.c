@@ -259,6 +259,7 @@ xfs_symlink(
 	 * bmapi or the directory create code.
 	 */
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 
 	/*
 	 * Allocate an inode for the symlink.
