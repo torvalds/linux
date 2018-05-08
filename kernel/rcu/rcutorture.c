@@ -87,7 +87,7 @@ torture_param(int, object_debug, 0,
 	     "Enable debug-object double call_rcu() testing");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0,
-	     "Time between CPU hotplugs (s), 0=disable");
+	     "Time between CPU hotplugs (jiffies), 0=disable");
 torture_param(int, shuffle_interval, 3, "Number of seconds between shuffles");
 torture_param(int, shutdown_secs, 0, "Shutdown time (s), <= zero to disable.");
 torture_param(int, stall_cpu, 0, "Stall duration (s), zero to disable.");
@@ -1889,7 +1889,7 @@ rcu_torture_init(void)
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
 		goto unwind;
-	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval * HZ);
+	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval);
 	if (firsterr)
 		goto unwind;
 	firsterr = rcu_torture_stall_init();
