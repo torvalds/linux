@@ -1074,8 +1074,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		return NULL;
 	}
 
-	edesc = kzalloc(sizeof(*edesc) + sg_len * sizeof(edesc->pset[0]),
-			GFP_ATOMIC);
+	edesc = kzalloc(struct_size(edesc, pset, sg_len), GFP_ATOMIC);
 	if (!edesc)
 		return NULL;
 
@@ -1192,8 +1191,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 			nslots = 2;
 	}
 
-	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
-			GFP_ATOMIC);
+	edesc = kzalloc(struct_size(edesc, pset, nslots), GFP_ATOMIC);
 	if (!edesc)
 		return NULL;
 
@@ -1315,8 +1313,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 		}
 	}
 
-	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
-			GFP_ATOMIC);
+	edesc = kzalloc(struct_size(edesc, pset, nslots), GFP_ATOMIC);
 	if (!edesc)
 		return NULL;
 

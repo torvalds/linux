@@ -43,8 +43,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 
 	_enter("%u,%u,%u", nr, service, port);
 
-	alist = kzalloc(sizeof(*alist) + sizeof(alist->addrs[0]) * nr,
-			GFP_KERNEL);
+	alist = kzalloc(struct_size(alist, addrs, nr), GFP_KERNEL);
 	if (!alist)
 		return NULL;
 

@@ -627,9 +627,9 @@ static void __init aspeed_cc_init(struct device_node *np)
 	if (!scu_base)
 		return;
 
-	aspeed_clk_data = kzalloc(sizeof(*aspeed_clk_data) +
-			sizeof(*aspeed_clk_data->hws) * ASPEED_NUM_CLKS,
-			GFP_KERNEL);
+	aspeed_clk_data = kzalloc(struct_size(aspeed_clk_data, hws,
+					      ASPEED_NUM_CLKS),
+				  GFP_KERNEL);
 	if (!aspeed_clk_data)
 		return;
 

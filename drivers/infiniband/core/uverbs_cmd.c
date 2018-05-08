@@ -2756,8 +2756,8 @@ static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 	struct ib_uflow_resources *resources;
 
 	resources =
-		kmalloc(sizeof(*resources) +
-			num_specs * sizeof(*resources->collection), GFP_KERNEL);
+		kmalloc(struct_size(resources, collection, num_specs),
+			GFP_KERNEL);
 
 	if (!resources)
 		return NULL;
