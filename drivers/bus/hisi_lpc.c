@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/serial_8250.h>
 #include <linux/slab.h>
 
 #define DRV_NAME "hisi-lpc"
@@ -492,6 +493,22 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 			{
 				.hid = "IPI0001",
 				.name = "hisi-lpc-ipmi",
+			},
+			/* 8250-compatible uart */
+			{
+				.hid = "HISI1031",
+				.name = "serial8250",
+				.pdata = (struct plat_serial8250_port []) {
+					{
+						.iobase = res->start,
+						.uartclk = 1843200,
+						.iotype = UPIO_PORT,
+						.flags = UPF_BOOT_AUTOCONF,
+					},
+					{}
+				},
+				.pdata_size = 2 *
+					sizeof(struct plat_serial8250_port),
 			},
 			{}
 		};
