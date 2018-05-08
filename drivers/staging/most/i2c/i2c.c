@@ -252,7 +252,7 @@ static void pending_rx_work(struct work_struct *work)
 	do_rx_work(dev);
 
 	if (dev->polling_mode) {
-		if (dev->is_open[CH_RX])
+		if (dev->is_open[CH_RX] && scan_rate)
 			schedule_delayed_work(&dev->rx.dwork,
 					      msecs_to_jiffies(MSEC_PER_SEC
 							       / scan_rate));
