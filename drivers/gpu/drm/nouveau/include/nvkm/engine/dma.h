@@ -27,4 +27,5 @@ int nv04_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int nv50_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int gf100_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int gf119_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
+int gv100_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 #endif
