@@ -65,6 +65,7 @@ struct gf100_grctx_func {
 	void (*smid_config)(struct gf100_gr *);
 	/* misc other things */
 	void (*r419cb8)(struct gf100_gr *);
+	void (*r418800)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -107,6 +108,7 @@ void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
 void gk104_grctx_generate_patch_ltc(struct gf100_grctx *);
 void gk104_grctx_generate_unkn(struct gf100_gr *);
+void gk104_grctx_generate_r418800(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gk110_grctx;
 extern const struct gf100_grctx_func gk110b_grctx;

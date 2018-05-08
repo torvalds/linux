@@ -841,6 +841,21 @@ gk104_grctx_pack_ppc[] = {
  ******************************************************************************/
 
 void
+gk104_grctx_generate_r418800(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	/*XXX: Not real sure where to apply these, there doesn't seem
+	 *     to be any pattern to which chipsets it's done on.
+	 *
+	 *     Perhaps a VBIOS tweak?
+	 */
+	if (0) {
+		nvkm_mask(device, 0x418800, 0x00200000, 0x00200000);
+		nvkm_mask(device, 0x41be10, 0x00800000, 0x00800000);
+	}
+}
+
+void
 gk104_grctx_generate_patch_ltc(struct gf100_grctx *info)
 {
 	struct nvkm_device *device = info->gr->base.engine.subdev.device;
@@ -935,8 +950,7 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_mthd(gr, grctx->mthd);
 	nvkm_mc_unk260(device, 1);
 
-	nvkm_mask(device, 0x418800, 0x00200000, 0x00200000);
-	nvkm_mask(device, 0x41be10, 0x00800000, 0x00800000);
+	grctx->r418800(gr);
 }
 
 void
@@ -1016,4 +1030,5 @@ gk104_grctx = {
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 	.r419f78 = gk104_grctx_generate_r419f78,
+	.r418800 = gk104_grctx_generate_r418800,
 };
