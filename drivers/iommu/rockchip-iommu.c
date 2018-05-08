@@ -1098,7 +1098,7 @@ static int rk_iommu_of_xlate(struct device *dev,
 	data->iommu = platform_get_drvdata(iommu_dev);
 	dev->archdata.iommu = data;
 
-	of_dev_put(iommu_dev);
+	platform_device_put(iommu_dev);
 
 	return 0;
 }
@@ -1175,8 +1175,15 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	for (i = 0; i < iommu->num_clocks; ++i)
 		iommu->clocks[i].id = rk_iommu_clocks[i];
 
+	/*
+	 * iommu clocks should be present for all new devices and devicetrees
+	 * but there are older devicetrees without clocks out in the wild.
+	 * So clocks as optional for the time being.
+	 */
 	err = devm_clk_bulk_get(iommu->dev, iommu->num_clocks, iommu->clocks);
-	if (err)
+	if (err == -ENOENT)
+		iommu->num_clocks = 0;
+	else if (err)
 		return err;
 
 	err = clk_bulk_prepare(iommu->num_clocks, iommu->clocks);

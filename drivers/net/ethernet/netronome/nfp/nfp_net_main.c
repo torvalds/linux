@@ -67,23 +67,26 @@
 /**
  * nfp_net_get_mac_addr() - Get the MAC address.
  * @pf:       NFP PF handle
+ * @netdev:   net_device to set MAC address on
  * @port:     NFP port structure
  *
  * First try to get the MAC address from NSP ETH table. If that
  * fails generate a random address.
  */
-void nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port)
+void
+nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
+		     struct nfp_port *port)
 {
 	struct nfp_eth_table_port *eth_port;
 
 	eth_port = __nfp_port_get_eth_port(port);
 	if (!eth_port) {
-		eth_hw_addr_random(port->netdev);
+		eth_hw_addr_random(netdev);
 		return;
 	}
 
-	ether_addr_copy(port->netdev->dev_addr, eth_port->mac_addr);
-	ether_addr_copy(port->netdev->perm_addr, eth_port->mac_addr);
+	ether_addr_copy(netdev->dev_addr, eth_port->mac_addr);
+	ether_addr_copy(netdev->perm_addr, eth_port->mac_addr);
 }
 
 static struct nfp_eth_table_port *
@@ -511,16 +514,18 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		return PTR_ERR(mem);
 	}
 
-	min_size =  NFP_MAC_STATS_SIZE * (pf->eth_tbl->max_index + 1);
-	pf->mac_stats_mem = nfp_rtsym_map(pf->rtbl, "_mac_stats",
-					  "net.macstats", min_size,
-					  &pf->mac_stats_bar);
-	if (IS_ERR(pf->mac_stats_mem)) {
-		if (PTR_ERR(pf->mac_stats_mem) != -ENOENT) {
-			err = PTR_ERR(pf->mac_stats_mem);
-			goto err_unmap_ctrl;
+	if (pf->eth_tbl) {
+		min_size =  NFP_MAC_STATS_SIZE * (pf->eth_tbl->max_index + 1);
+		pf->mac_stats_mem = nfp_rtsym_map(pf->rtbl, "_mac_stats",
+						  "net.macstats", min_size,
+						  &pf->mac_stats_bar);
+		if (IS_ERR(pf->mac_stats_mem)) {
+			if (PTR_ERR(pf->mac_stats_mem) != -ENOENT) {
+				err = PTR_ERR(pf->mac_stats_mem);
+				goto err_unmap_ctrl;
+			}
+			pf->mac_stats_mem = NULL;
 		}
-		pf->mac_stats_mem = NULL;
 	}
 
 	pf->vf_cfg_mem = nfp_net_pf_map_rtsym(pf, "net.vfcfg",

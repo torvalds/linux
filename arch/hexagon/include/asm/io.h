@@ -216,6 +216,12 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 	memcpy((void *) dst, src, count);
 }
 
+static inline void memset_io(volatile void __iomem *addr, int value,
+			     size_t size)
+{
+	memset((void __force *)addr, value, size);
+}
+
 #define PCI_IO_ADDR	(volatile void __iomem *)
 
 /*
