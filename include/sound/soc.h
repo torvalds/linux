@@ -831,10 +831,6 @@ struct snd_soc_component {
 	/* attached dynamic objects */
 	struct list_head dobj_list;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_root;
-#endif
-
 	/*
 	* DO NOT use any of the fields below in drivers, they are temporary and
 	* are going to be removed again soon. If you use them in driver code the
@@ -848,6 +844,7 @@ struct snd_soc_component {
 	int (*init)(struct snd_soc_component *component);
 
 #ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_root;
 	const char *debugfs_prefix;
 #endif
 };
