@@ -1,1 +1,27 @@
 nouveau-y += dispnv50/disp.o
+
+nouveau-y += dispnv50/core.o
+nouveau-y += dispnv50/core507d.o
+
+nouveau-y += dispnv50/dac507d.o
+
+nouveau-y += dispnv50/pior507d.o
+
+nouveau-y += dispnv50/sor507d.o
+
+nouveau-y += dispnv50/head.o
+nouveau-y += dispnv50/head507d.o
+
+nouveau-y += dispnv50/wndw.o
+
+nouveau-y += dispnv50/base.o
+nouveau-y += dispnv50/base507c.o
+
+nouveau-y += dispnv50/curs.o
+nouveau-y += dispnv50/curs507a.o
+
+nouveau-y += dispnv50/oimm.o
+nouveau-y += dispnv50/oimm507b.o
+
+nouveau-y += dispnv50/ovly.o
+nouveau-y += dispnv50/ovly507e.o

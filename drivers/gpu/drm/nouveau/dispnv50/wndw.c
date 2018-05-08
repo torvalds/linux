@@ -1,0 +1,434 @@
+/*
+ * Copyright 2018 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include "wndw.h"
+
+#include <nvif/class.h>
+#include <nvif/cl0002.h>
+
+#include <drm/drm_atomic_helper.h>
+#include "nouveau_bo.h"
+
+static void
+nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
+{
+	nvif_object_fini(&ctxdma->object);
+	list_del(&ctxdma->head);
+	kfree(ctxdma);
+}
+
+static struct nv50_wndw_ctxdma *
+nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
+{
+	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
+	struct nv50_wndw_ctxdma *ctxdma;
+	const u8    kind = fb->nvbo->kind;
+	const u32 handle = 0xfb000000 | kind;
+	struct {
+		struct nv_dma_v0 base;
+		union {
+			struct nv50_dma_v0 nv50;
+			struct gf100_dma_v0 gf100;
+			struct gf119_dma_v0 gf119;
+		};
+	} args = {};
+	u32 argc = sizeof(args.base);
+	int ret;
+
+	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
+		if (ctxdma->object.handle == handle)
+			return ctxdma;
+	}
+
+	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
+		return ERR_PTR(-ENOMEM);
+	list_add(&ctxdma->head, &wndw->ctxdma.list);
+
+	args.base.target = NV_DMA_V0_TARGET_VRAM;
+	args.base.access = NV_DMA_V0_ACCESS_RDWR;
+	args.base.start  = 0;
+	args.base.limit  = drm->client.device.info.ram_user - 1;
+
+	if (drm->client.device.info.chipset < 0x80) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->client.device.info.chipset < 0xc0) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		args.nv50.kind = kind;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->client.device.info.chipset < 0xd0) {
+		args.gf100.kind = kind;
+		argc += sizeof(args.gf100);
+	} else {
+		args.gf119.page = GF119_DMA_V0_PAGE_LP;
+		args.gf119.kind = kind;
+		argc += sizeof(args.gf119);
+	}
+
+	ret = nvif_object_init(wndw->ctxdma.parent, handle, NV_DMA_IN_MEMORY,
+			       &args, argc, &ctxdma->object);
+	if (ret) {
+		nv50_wndw_ctxdma_del(ctxdma);
+		return ERR_PTR(ret);
+	}
+
+	return ctxdma;
+}
+
+int
+nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	if (asyw->set.ntfy)
+		return wndw->func->ntfy_wait_begun(wndw, asyw);
+	return 0;
+}
+
+u32
+nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 interlock, bool flush,
+		    struct nv50_wndw_atom *asyw)
+{
+	if (asyw->clr.sema && (!asyw->set.sema || flush))
+		wndw->func->sema_clr(wndw);
+	if (asyw->clr.ntfy && (!asyw->set.ntfy || flush))
+		wndw->func->ntfy_clr(wndw);
+	if (asyw->clr.image && (!asyw->set.image || flush))
+		wndw->func->image_clr(wndw);
+
+	return flush ? wndw->func->update(wndw, interlock) : 0;
+}
+
+u32
+nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 interlock,
+		    struct nv50_wndw_atom *asyw)
+{
+	if (interlock) {
+		asyw->image.mode = 0;
+		asyw->image.interval = 1;
+	}
+
+	if (asyw->set.sema ) wndw->func->sema_set (wndw, asyw);
+	if (asyw->set.ntfy ) wndw->func->ntfy_set (wndw, asyw);
+	if (asyw->set.image) wndw->func->image_set(wndw, asyw);
+	if (asyw->set.lut  ) wndw->func->lut      (wndw, asyw);
+	if (asyw->set.point) {
+		wndw->immd->point(wndw, asyw);
+		wndw->immd->update(wndw, interlock);
+	}
+
+	return wndw->func->update ? wndw->func->update(wndw, interlock) : 0;
+}
+
+static void
+nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
+			       struct nv50_wndw_atom *asyw,
+			       struct nv50_head_atom *asyh)
+{
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	NV_ATOMIC(drm, "%s release\n", wndw->plane.name);
+	wndw->func->release(wndw, asyw, asyh);
+	asyw->ntfy.handle = 0;
+	asyw->sema.handle = 0;
+}
+
+static int
+nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
+			       struct nv50_wndw_atom *asyw,
+			       struct nv50_head_atom *asyh)
+{
+	struct nouveau_framebuffer *fb = nouveau_framebuffer(asyw->state.fb);
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	int ret;
+
+	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
+
+	asyw->image.w = fb->base.width;
+	asyw->image.h = fb->base.height;
+	asyw->image.kind = fb->nvbo->kind;
+
+	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		asyw->interval = 0;
+	else
+		asyw->interval = 1;
+
+	if (asyw->image.kind) {
+		asyw->image.layout = 0;
+		if (drm->client.device.info.chipset >= 0xc0)
+			asyw->image.block = fb->nvbo->mode >> 4;
+		else
+			asyw->image.block = fb->nvbo->mode;
+		asyw->image.pitch = (fb->base.pitches[0] / 4) << 4;
+	} else {
+		asyw->image.layout = 1;
+		asyw->image.block  = 0;
+		asyw->image.pitch  = fb->base.pitches[0];
+	}
+
+	ret = wndw->func->acquire(wndw, asyw, asyh);
+	if (ret)
+		return ret;
+
+	if (asyw->set.image) {
+		if (!(asyw->image.mode = asyw->interval ? 0 : 1))
+			asyw->image.interval = asyw->interval;
+		else
+			asyw->image.interval = 0;
+	}
+
+	return 0;
+}
+
+int
+nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
+{
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct nv50_wndw *wndw = nv50_wndw(plane);
+	struct nv50_wndw_atom *armw = nv50_wndw_atom(wndw->plane.state);
+	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	struct nv50_head_atom *harm = NULL, *asyh = NULL;
+	bool varm = false, asyv = false, asym = false;
+	int ret;
+
+	NV_ATOMIC(drm, "%s atomic_check\n", plane->name);
+	if (asyw->state.crtc) {
+		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);
+		if (IS_ERR(asyh))
+			return PTR_ERR(asyh);
+		asym = drm_atomic_crtc_needs_modeset(&asyh->state);
+		asyv = asyh->state.active;
+	}
+
+	if (armw->state.crtc) {
+		harm = nv50_head_atom_get(asyw->state.state, armw->state.crtc);
+		if (IS_ERR(harm))
+			return PTR_ERR(harm);
+		varm = harm->state.crtc->state->active;
+	}
+
+	if (asyv) {
+		asyw->point.x = asyw->state.crtc_x;
+		asyw->point.y = asyw->state.crtc_y;
+		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
+			asyw->set.point = true;
+
+		ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+		if (ret)
+			return ret;
+	} else
+	if (varm) {
+		nv50_wndw_atomic_check_release(wndw, asyw, harm);
+	} else {
+		return 0;
+	}
+
+	if (!asyv || asym) {
+		asyw->clr.ntfy = armw->ntfy.handle != 0;
+		asyw->clr.sema = armw->sema.handle != 0;
+		if (wndw->func->image_clr)
+			asyw->clr.image = armw->image.handle != 0;
+		asyw->set.lut = wndw->func->lut && asyv;
+	}
+
+	return 0;
+}
+
+static void
+nv50_wndw_cleanup_fb(struct drm_plane *plane, struct drm_plane_state *old_state)
+{
+	struct nouveau_framebuffer *fb = nouveau_framebuffer(old_state->fb);
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+
+	NV_ATOMIC(drm, "%s cleanup: %p\n", plane->name, old_state->fb);
+	if (!old_state->fb)
+		return;
+
+	nouveau_bo_unpin(fb->nvbo);
+}
+
+static int
+nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
+{
+	struct nouveau_framebuffer *fb = nouveau_framebuffer(state->fb);
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct nv50_wndw *wndw = nv50_wndw(plane);
+	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	struct nv50_head_atom *asyh;
+	struct nv50_wndw_ctxdma *ctxdma;
+	int ret;
+
+	NV_ATOMIC(drm, "%s prepare: %p\n", plane->name, state->fb);
+	if (!asyw->state.fb)
+		return 0;
+
+	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM, true);
+	if (ret)
+		return ret;
+
+	ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
+	if (IS_ERR(ctxdma)) {
+		nouveau_bo_unpin(fb->nvbo);
+		return PTR_ERR(ctxdma);
+	}
+
+	asyw->state.fence = reservation_object_get_excl_rcu(fb->nvbo->bo.resv);
+	asyw->image.handle = ctxdma->object.handle;
+	asyw->image.offset = fb->nvbo->bo.offset;
+
+	if (wndw->func->prepare) {
+		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);
+		if (IS_ERR(asyh))
+			return PTR_ERR(asyh);
+
+		wndw->func->prepare(wndw, asyh, asyw);
+	}
+
+	return 0;
+}
+
+static const struct drm_plane_helper_funcs
+nv50_wndw_helper = {
+	.prepare_fb = nv50_wndw_prepare_fb,
+	.cleanup_fb = nv50_wndw_cleanup_fb,
+	.atomic_check = nv50_wndw_atomic_check,
+};
+
+static void
+nv50_wndw_atomic_destroy_state(struct drm_plane *plane,
+			       struct drm_plane_state *state)
+{
+	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	__drm_atomic_helper_plane_destroy_state(&asyw->state);
+	kfree(asyw);
+}
+
+static struct drm_plane_state *
+nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct nv50_wndw_atom *armw = nv50_wndw_atom(plane->state);
+	struct nv50_wndw_atom *asyw;
+	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
+		return NULL;
+	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
+	asyw->interval = 1;
+	asyw->sema = armw->sema;
+	asyw->ntfy = armw->ntfy;
+	asyw->image = armw->image;
+	asyw->point = armw->point;
+	asyw->lut = armw->lut;
+	asyw->clr.mask = 0;
+	asyw->set.mask = 0;
+	return &asyw->state;
+}
+
+static void
+nv50_wndw_reset(struct drm_plane *plane)
+{
+	struct nv50_wndw_atom *asyw;
+
+	if (WARN_ON(!(asyw = kzalloc(sizeof(*asyw), GFP_KERNEL))))
+		return;
+
+	if (plane->state)
+		plane->funcs->atomic_destroy_state(plane, plane->state);
+	plane->state = &asyw->state;
+	plane->state->plane = plane;
+	plane->state->rotation = DRM_MODE_ROTATE_0;
+}
+
+static void
+nv50_wndw_destroy(struct drm_plane *plane)
+{
+	struct nv50_wndw *wndw = nv50_wndw(plane);
+	struct nv50_wndw_ctxdma *ctxdma, *ctxtmp;
+
+	list_for_each_entry_safe(ctxdma, ctxtmp, &wndw->ctxdma.list, head) {
+		nv50_wndw_ctxdma_del(ctxdma);
+	}
+
+	nvif_notify_fini(&wndw->notify);
+	nv50_dmac_destroy(&wndw->wimm);
+	nv50_dmac_destroy(&wndw->wndw);
+	drm_plane_cleanup(&wndw->plane);
+	kfree(wndw);
+}
+
+const struct drm_plane_funcs
+nv50_wndw = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = nv50_wndw_destroy,
+	.reset = nv50_wndw_reset,
+	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
+	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
+};
+
+static int
+nv50_wndw_notify(struct nvif_notify *notify)
+{
+	return NVIF_NOTIFY_KEEP;
+}
+
+void
+nv50_wndw_fini(struct nv50_wndw *wndw)
+{
+	nvif_notify_put(&wndw->notify);
+}
+
+void
+nv50_wndw_init(struct nv50_wndw *wndw)
+{
+	nvif_notify_get(&wndw->notify);
+}
+
+int
+nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
+	       enum drm_plane_type type, const char *name, int index,
+	       const u32 *format, struct nv50_wndw **pwndw)
+{
+	struct nv50_wndw *wndw;
+	int nformat;
+	int ret;
+
+	if (!(wndw = *pwndw = kzalloc(sizeof(*wndw), GFP_KERNEL)))
+		return -ENOMEM;
+	wndw->func = func;
+	wndw->id = index;
+
+	wndw->ctxdma.parent = &wndw->wndw.base.user;
+	INIT_LIST_HEAD(&wndw->ctxdma.list);
+
+	for (nformat = 0; format[nformat]; nformat++);
+
+	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw,
+				       format, nformat, NULL,
+				       type, "%s-%d", name, index);
+	if (ret) {
+		kfree(*pwndw);
+		*pwndw = NULL;
+		return ret;
+	}
+
+	drm_plane_helper_add(&wndw->plane, &nv50_wndw_helper);
+
+	wndw->notify.func = nv50_wndw_notify;
+	return 0;
+}
