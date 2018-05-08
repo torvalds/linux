@@ -181,6 +181,14 @@ struct drm_file {
 	unsigned atomic:1;
 
 	/**
+	 * @aspect_ratio_allowed:
+	 *
+	 * True, if client can handle picture aspect ratios, and has requested
+	 * to pass this information along with the mode.
+	 */
+	unsigned aspect_ratio_allowed:1;
+
+	/**
 	 * @is_master:
 	 *
 	 * This client is the creator of @master. Protected by struct

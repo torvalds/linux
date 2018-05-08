@@ -324,6 +324,15 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			return -EINVAL;
 		file_priv->atomic = req->value;
 		file_priv->universal_planes = req->value;
+		/*
+		 * No atomic user-space blows up on aspect ratio mode bits.
+		 */
+		file_priv->aspect_ratio_allowed = req->value;
+		break;
+	case DRM_CLIENT_CAP_ASPECT_RATIO:
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->aspect_ratio_allowed = req->value;
 		break;
 	default:
 		return -EINVAL;
