@@ -699,6 +699,12 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	/* WaPipelineFlushCoherentLines:icl */
 	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 				   GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+	/* Wa_1405543622:icl
+	 * Formerly known as WaGAPZPriorityScheme
+	 */
+	I915_WRITE(GEN8_GARBCNTL, I915_READ(GEN8_GARBCNTL) |
+				  GEN11_ARBITRATION_PRIO_ORDER_MASK);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
