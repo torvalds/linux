@@ -197,8 +197,19 @@ static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *d
 	int i, best = 1;
 	unsigned long flags;
 
-	if (pci_is_bridge(msi_desc_to_pci_dev(desc)) || vmd->msix_count == 1)
+	if (vmd->msix_count == 1)
 		return &vmd->irqs[0];
+
+	/*
+	 * White list for fast-interrupt handlers. All others will share the
+	 * "slow" interrupt vector.
+	 */
+	switch (msi_desc_to_pci_dev(desc)->class) {
+	case PCI_CLASS_STORAGE_EXPRESS:
+		break;
+	default:
+		return &vmd->irqs[0];
+	}
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	for (i = 1; i < vmd->msix_count; i++)
