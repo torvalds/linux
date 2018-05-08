@@ -2943,22 +2943,6 @@ static int snd_soc_component_stream_event(struct snd_soc_dapm_context *dapm,
 	return component->driver->stream_event(component, event);
 }
 
-static int snd_soc_component_drv_pcm_new(struct snd_soc_component *component,
-					struct snd_soc_pcm_runtime *rtd)
-{
-	if (component->driver->pcm_new)
-		return component->driver->pcm_new(rtd);
-
-	return 0;
-}
-
-static void snd_soc_component_drv_pcm_free(struct snd_soc_component *component,
-					  struct snd_pcm *pcm)
-{
-	if (component->driver->pcm_free)
-		component->driver->pcm_free(pcm);
-}
-
 static int snd_soc_component_set_bias_level(struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
@@ -2987,8 +2971,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->set_sysclk = component->driver->set_sysclk;
 	component->set_pll = component->driver->set_pll;
 	component->set_jack = component->driver->set_jack;
-	component->pcm_new = snd_soc_component_drv_pcm_new;
-	component->pcm_free = snd_soc_component_drv_pcm_free;
 
 	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
