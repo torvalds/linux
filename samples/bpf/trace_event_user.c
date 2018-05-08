@@ -21,6 +21,7 @@
 #include "libbpf.h"
 #include "bpf_load.h"
 #include "perf-sys.h"
+#include "trace_helpers.h"
 
 #define SAMPLE_FREQ 50
 

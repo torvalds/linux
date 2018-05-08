@@ -101,6 +101,8 @@ static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
 static int (*bpf_skb_get_xfrm_state)(void *ctx, int index, void *state,
 				     int size, int flags) =
 	(void *) BPF_FUNC_skb_get_xfrm_state;
+static int (*bpf_get_stack)(void *ctx, void *buf, int size, int flags) =
+	(void *) BPF_FUNC_get_stack;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

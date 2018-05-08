@@ -45,10 +45,12 @@ hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 hostprogs-y += cpustat
 hostprogs-y += xdp_adjust_tail
+hostprogs-y += xdpsock
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
 CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
+TRACE_HELPERS := ../../tools/testing/selftests/bpf/trace_helpers.o
 
 test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
 sock_example-objs := sock_example.o $(LIBBPF)
@@ -65,10 +67,10 @@ tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
 tracex7-objs := bpf_load.o $(LIBBPF) tracex7_user.o
 load_sock_ops-objs := bpf_load.o $(LIBBPF) load_sock_ops.o
 test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
-trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
+trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o $(TRACE_HELPERS)
 lathist-objs := bpf_load.o $(LIBBPF) lathist_user.o
-offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o
-spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o
+offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o $(TRACE_HELPERS)
+spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o $(TRACE_HELPERS)
 map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
 test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
 test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
@@ -82,8 +84,8 @@ xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
 xdp_router_ipv4-objs := bpf_load.o $(LIBBPF) xdp_router_ipv4_user.o
 test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
-trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
-sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
+trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o $(TRACE_HELPERS)
+sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o $(TRACE_HELPERS)
 tc_l2_redirect-objs := bpf_load.o $(LIBBPF) tc_l2_redirect_user.o
 lwt_len_hist-objs := bpf_load.o $(LIBBPF) lwt_len_hist_user.o
 xdp_tx_iptunnel-objs := bpf_load.o $(LIBBPF) xdp_tx_iptunnel_user.o
@@ -97,6 +99,7 @@ xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 cpustat-objs := bpf_load.o $(LIBBPF) cpustat_user.o
 xdp_adjust_tail-objs := bpf_load.o $(LIBBPF) xdp_adjust_tail_user.o
+xdpsock-objs := bpf_load.o $(LIBBPF) xdpsock_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -150,6 +153,7 @@ always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 always += cpustat_kern.o
 always += xdp_adjust_tail_kern.o
+always += xdpsock_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -196,6 +200,7 @@ HOSTLOADLIBES_xdp_rxq_info += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
 HOSTLOADLIBES_cpustat += -lelf
 HOSTLOADLIBES_xdp_adjust_tail += -lelf
+HOSTLOADLIBES_xdpsock += -lelf -pthread
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang

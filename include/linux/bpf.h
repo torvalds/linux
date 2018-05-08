@@ -110,6 +110,11 @@ static inline struct bpf_offloaded_map *map_to_offmap(struct bpf_map *map)
 	return container_of(map, struct bpf_offloaded_map, map);
 }
 
+static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
+{
+	return map->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY;
+}
+
 static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 {
 	return map->ops->map_seq_show_elem && map->ops->map_check_btf;
@@ -235,6 +240,8 @@ struct bpf_verifier_ops {
 				struct bpf_insn_access_aux *info);
 	int (*gen_prologue)(struct bpf_insn *insn, bool direct_write,
 			    const struct bpf_prog *prog);
+	int (*gen_ld_abs)(const struct bpf_insn *orig,
+			  struct bpf_insn *insn_buf);
 	u32 (*convert_ctx_access)(enum bpf_access_type type,
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
@@ -676,6 +683,31 @@ static inline int sock_map_prog(struct bpf_map *map,
 }
 #endif
 
+#if defined(CONFIG_XDP_SOCKETS)
+struct xdp_sock;
+struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map, u32 key);
+int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
+		       struct xdp_sock *xs);
+void __xsk_map_flush(struct bpf_map *map);
+#else
+struct xdp_sock;
+static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
+						     u32 key)
+{
+	return NULL;
+}
+
+static inline int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
+				     struct xdp_sock *xs)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void __xsk_map_flush(struct bpf_map *map)
+{
+}
+#endif
+
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
@@ -689,9 +721,8 @@ extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
 extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
 extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
-extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
-extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
+extern const struct bpf_func_proto bpf_get_stack_proto;
 extern const struct bpf_func_proto bpf_sock_map_update_proto;
 
 /* Shared helpers among cBPF and eBPF. */

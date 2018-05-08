@@ -38,8 +38,10 @@ typedef __u16 __sum16;
 #include "bpf_util.h"
 #include "bpf_endian.h"
 #include "bpf_rlimit.h"
+#include "trace_helpers.h"
 
 static int error_cnt, pass_cnt;
+static bool jit_enabled;
 
 #define MAGIC_BYTES 123
 
@@ -391,13 +393,30 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
+static bool is_jit_enabled(void)
+{
+	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
+	bool enabled = false;
+	int sysctl_fd;
+
+	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
+	if (sysctl_fd != -1) {
+		char tmpc;
+
+		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
+			enabled = (tmpc != '0');
+		close(sysctl_fd);
+	}
+
+	return enabled;
+}
+
 static void test_bpf_obj_id(void)
 {
 	const __u64 array_magic_value = 0xfaceb00c;
 	const __u32 array_key = 0;
 	const int nr_iters = 2;
 	const char *file = "./test_obj_id.o";
-	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
 	const char *expected_prog_name = "test_obj_id";
 	const char *expected_map_name = "test_map_id";
 	const __u64 nsec_per_sec = 1000000000;
@@ -414,19 +433,10 @@ static void test_bpf_obj_id(void)
 	char jited_insns[128], xlated_insns[128], zeros[128];
 	__u32 i, next_id, info_len, nr_id_found, duration = 0;
 	struct timespec real_time_ts, boot_time_ts;
-	int sysctl_fd, jit_enabled = 0, err = 0;
+	int err = 0;
 	__u64 array_value;
 	uid_t my_uid = getuid();
 	time_t now, load_time;
-
-	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
-	if (sysctl_fd != -1) {
-		char tmpc;
-
-		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
-			jit_enabled = (tmpc != '0');
-		close(sysctl_fd);
-	}
 
 	err = bpf_prog_get_fd_by_id(0);
 	CHECK(err >= 0 || errno != ENOENT,
@@ -896,11 +906,47 @@ static int compare_map_keys(int map1_fd, int map2_fd)
 	return 0;
 }
 
+static int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len)
+{
+	__u32 key, next_key, *cur_key_p, *next_key_p;
+	char *val_buf1, *val_buf2;
+	int i, err = 0;
+
+	val_buf1 = malloc(stack_trace_len);
+	val_buf2 = malloc(stack_trace_len);
+	cur_key_p = NULL;
+	next_key_p = &key;
+	while (bpf_map_get_next_key(smap_fd, cur_key_p, next_key_p) == 0) {
+		err = bpf_map_lookup_elem(smap_fd, next_key_p, val_buf1);
+		if (err)
+			goto out;
+		err = bpf_map_lookup_elem(amap_fd, next_key_p, val_buf2);
+		if (err)
+			goto out;
+		for (i = 0; i < stack_trace_len; i++) {
+			if (val_buf1[i] != val_buf2[i]) {
+				err = -1;
+				goto out;
+			}
+		}
+		key = *next_key_p;
+		cur_key_p = &key;
+		next_key_p = &next_key;
+	}
+	if (errno != ENOENT)
+		err = -1;
+
+out:
+	free(val_buf1);
+	free(val_buf2);
+	return err;
+}
+
 static void test_stacktrace_map()
 {
-	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	const char *file = "./test_stacktrace_map.o";
-	int bytes, efd, err, pmu_fd, prog_fd;
+	int bytes, efd, err, pmu_fd, prog_fd, stack_trace_len;
 	struct perf_event_attr attr = {};
 	__u32 key, val, duration = 0;
 	struct bpf_object *obj;
@@ -956,6 +1002,10 @@ static void test_stacktrace_map()
 	if (stackmap_fd < 0)
 		goto disable_pmu;
 
+	stack_amap_fd = bpf_find_map(__func__, obj, "stack_amap");
+	if (stack_amap_fd < 0)
+		goto disable_pmu;
+
 	/* give some time for bpf program run */
 	sleep(1);
 
@@ -974,6 +1024,12 @@ static void test_stacktrace_map()
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu_noerr;
+
+	stack_trace_len = PERF_MAX_STACK_DEPTH * sizeof(__u64);
+	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
+	if (CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
 		  "err %d errno %d\n", err, errno))
 		goto disable_pmu_noerr;
 
@@ -1070,9 +1126,9 @@ err:
 
 static void test_stacktrace_build_id(void)
 {
-	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	const char *file = "./test_stacktrace_build_id.o";
-	int bytes, efd, err, pmu_fd, prog_fd;
+	int bytes, efd, err, pmu_fd, prog_fd, stack_trace_len;
 	struct perf_event_attr attr = {};
 	__u32 key, previous_key, val, duration = 0;
 	struct bpf_object *obj;
@@ -1137,6 +1193,11 @@ static void test_stacktrace_build_id(void)
 		  err, errno))
 		goto disable_pmu;
 
+	stack_amap_fd = bpf_find_map(__func__, obj, "stack_amap");
+	if (CHECK(stack_amap_fd < 0, "bpf_find_map stack_amap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu;
+
 	assert(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")
 	       == 0);
 	assert(system("./urandom_read") == 0);
@@ -1188,8 +1249,15 @@ static void test_stacktrace_build_id(void)
 		previous_key = key;
 	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
 
-	CHECK(build_id_matches < 1, "build id match",
-	      "Didn't find expected build ID from the map\n");
+	if (CHECK(build_id_matches < 1, "build id match",
+		  "Didn't find expected build ID from the map\n"))
+		goto disable_pmu;
+
+	stack_trace_len = PERF_MAX_STACK_DEPTH
+		* sizeof(struct bpf_stack_build_id);
+	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
+	CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
+	      "err %d errno %d\n", err, errno);
 
 disable_pmu:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
@@ -1204,8 +1272,147 @@ out:
 	return;
 }
 
+#define MAX_CNT_RAWTP	10ull
+#define MAX_STACK_RAWTP	100
+struct get_stack_trace_t {
+	int pid;
+	int kern_stack_size;
+	int user_stack_size;
+	int user_stack_buildid_size;
+	__u64 kern_stack[MAX_STACK_RAWTP];
+	__u64 user_stack[MAX_STACK_RAWTP];
+	struct bpf_stack_build_id user_stack_buildid[MAX_STACK_RAWTP];
+};
+
+static int get_stack_print_output(void *data, int size)
+{
+	bool good_kern_stack = false, good_user_stack = false;
+	const char *nonjit_func = "___bpf_prog_run";
+	struct get_stack_trace_t *e = data;
+	int i, num_stack;
+	static __u64 cnt;
+	struct ksym *ks;
+
+	cnt++;
+
+	if (size < sizeof(struct get_stack_trace_t)) {
+		__u64 *raw_data = data;
+		bool found = false;
+
+		num_stack = size / sizeof(__u64);
+		/* If jit is enabled, we do not have a good way to
+		 * verify the sanity of the kernel stack. So we
+		 * just assume it is good if the stack is not empty.
+		 * This could be improved in the future.
+		 */
+		if (jit_enabled) {
+			found = num_stack > 0;
+		} else {
+			for (i = 0; i < num_stack; i++) {
+				ks = ksym_search(raw_data[i]);
+				if (strcmp(ks->name, nonjit_func) == 0) {
+					found = true;
+					break;
+				}
+			}
+		}
+		if (found) {
+			good_kern_stack = true;
+			good_user_stack = true;
+		}
+	} else {
+		num_stack = e->kern_stack_size / sizeof(__u64);
+		if (jit_enabled) {
+			good_kern_stack = num_stack > 0;
+		} else {
+			for (i = 0; i < num_stack; i++) {
+				ks = ksym_search(e->kern_stack[i]);
+				if (strcmp(ks->name, nonjit_func) == 0) {
+					good_kern_stack = true;
+					break;
+				}
+			}
+		}
+		if (e->user_stack_size > 0 && e->user_stack_buildid_size > 0)
+			good_user_stack = true;
+	}
+	if (!good_kern_stack || !good_user_stack)
+		return PERF_EVENT_ERROR;
+
+	if (cnt == MAX_CNT_RAWTP)
+		return PERF_EVENT_DONE;
+
+	return PERF_EVENT_CONT;
+}
+
+static void test_get_stack_raw_tp(void)
+{
+	const char *file = "./test_get_stack_rawtp.o";
+	int i, efd, err, prog_fd, pmu_fd, perfmap_fd;
+	struct perf_event_attr attr = {};
+	struct timespec tv = {0, 10};
+	__u32 key = 0, duration = 0;
+	struct bpf_object *obj;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+		return;
+
+	efd = bpf_raw_tracepoint_open("sys_enter", prog_fd);
+	if (CHECK(efd < 0, "raw_tp_open", "err %d errno %d\n", efd, errno))
+		goto close_prog;
+
+	perfmap_fd = bpf_find_map(__func__, obj, "perfmap");
+	if (CHECK(perfmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
+		  perfmap_fd, errno))
+		goto close_prog;
+
+	err = load_kallsyms();
+	if (CHECK(err < 0, "load_kallsyms", "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	attr.sample_type = PERF_SAMPLE_RAW;
+	attr.type = PERF_TYPE_SOFTWARE;
+	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
+	pmu_fd = syscall(__NR_perf_event_open, &attr, getpid()/*pid*/, -1/*cpu*/,
+			 -1/*group_fd*/, 0);
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n", pmu_fd,
+		  errno))
+		goto close_prog;
+
+	err = bpf_map_update_elem(perfmap_fd, &key, &pmu_fd, BPF_ANY);
+	if (CHECK(err < 0, "bpf_map_update_elem", "err %d errno %d\n", err,
+		  errno))
+		goto close_prog;
+
+	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
+	if (CHECK(err < 0, "ioctl PERF_EVENT_IOC_ENABLE", "err %d errno %d\n",
+		  err, errno))
+		goto close_prog;
+
+	err = perf_event_mmap(pmu_fd);
+	if (CHECK(err < 0, "perf_event_mmap", "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	/* trigger some syscall action */
+	for (i = 0; i < MAX_CNT_RAWTP; i++)
+		nanosleep(&tv, NULL);
+
+	err = perf_event_poller(pmu_fd, get_stack_print_output);
+	if (CHECK(err < 0, "perf_event_poller", "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	goto close_prog_noerr;
+close_prog:
+	error_cnt++;
+close_prog_noerr:
+	bpf_object__close(obj);
+}
+
 int main(void)
 {
+	jit_enabled = is_jit_enabled();
+
 	test_pkt_access();
 	test_xdp();
 	test_xdp_adjust_tail();
@@ -1219,6 +1426,7 @@ int main(void)
 	test_stacktrace_map();
 	test_stacktrace_build_id();
 	test_stacktrace_map_raw_tp();
+	test_get_stack_raw_tp();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;

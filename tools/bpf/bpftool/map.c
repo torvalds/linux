@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -34,7 +34,6 @@
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -68,61 +67,6 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_SOCKMAP]		= "sockmap",
 	[BPF_MAP_TYPE_CPUMAP]		= "cpumap",
 };
-
-static unsigned int get_possible_cpus(void)
-{
-	static unsigned int result;
-	char buf[128];
-	long int n;
-	char *ptr;
-	int fd;
-
-	if (result)
-		return result;
-
-	fd = open("/sys/devices/system/cpu/possible", O_RDONLY);
-	if (fd < 0) {
-		p_err("can't open sysfs possible cpus");
-		exit(-1);
-	}
-
-	n = read(fd, buf, sizeof(buf));
-	if (n < 2) {
-		p_err("can't read sysfs possible cpus");
-		exit(-1);
-	}
-	close(fd);
-
-	if (n == sizeof(buf)) {
-		p_err("read sysfs possible cpus overflow");
-		exit(-1);
-	}
-
-	ptr = buf;
-	n = 0;
-	while (*ptr && *ptr != '\n') {
-		unsigned int a, b;
-
-		if (sscanf(ptr, "%u-%u", &a, &b) == 2) {
-			n += b - a + 1;
-
-			ptr = strchr(ptr, '-') + 1;
-		} else if (sscanf(ptr, "%u", &a) == 1) {
-			n++;
-		} else {
-			assert(0);
-		}
-
-		while (isdigit(*ptr))
-			ptr++;
-		if (*ptr == ',')
-			ptr++;
-	}
-
-	result = n;
-
-	return result;
-}
 
 static bool map_is_per_cpu(__u32 type)
 {
@@ -186,8 +130,7 @@ static int map_parse_fd(int *argc, char ***argv)
 	return -1;
 }
 
-static int
-map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 {
 	int err;
 	int fd;
@@ -873,23 +816,25 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %s %s { show | list }   [MAP]\n"
-		"       %s %s dump    MAP\n"
-		"       %s %s update  MAP  key [hex] BYTES value [hex] VALUE [UPDATE_FLAGS]\n"
-		"       %s %s lookup  MAP  key [hex] BYTES\n"
-		"       %s %s getnext MAP [key [hex] BYTES]\n"
-		"       %s %s delete  MAP  key [hex] BYTES\n"
-		"       %s %s pin     MAP  FILE\n"
+		"       %s %s dump       MAP\n"
+		"       %s %s update     MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
+		"       %s %s lookup     MAP  key DATA\n"
+		"       %s %s getnext    MAP [key DATA]\n"
+		"       %s %s delete     MAP  key DATA\n"
+		"       %s %s pin        MAP  FILE\n"
+		"       %s %s event_pipe MAP [cpu N index M]\n"
 		"       %s %s help\n"
 		"\n"
 		"       MAP := { id MAP_ID | pinned FILE }\n"
+		"       DATA := { [hex] BYTES }\n"
 		"       " HELP_SPEC_PROGRAM "\n"
-		"       VALUE := { BYTES | MAP | PROG }\n"
+		"       VALUE := { DATA | MAP | PROG }\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -904,6 +849,7 @@ static const struct cmd cmds[] = {
 	{ "getnext",	do_getnext },
 	{ "delete",	do_delete },
 	{ "pin",	do_pin },
+	{ "event_pipe",	do_event_pipe },
 	{ 0 }
 };
 

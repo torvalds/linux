@@ -145,6 +145,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	}
 
 	if (is_kprobe || is_kretprobe) {
+		bool need_normal_check = true;
+		const char *event_prefix = "";
+
 		if (is_kprobe)
 			event += 7;
 		else
@@ -158,18 +161,33 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		if (isdigit(*event))
 			return populate_prog_array(event, fd);
 
-		snprintf(buf, sizeof(buf),
-			 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
-			 is_kprobe ? 'p' : 'r', event, event);
-		err = system(buf);
-		if (err < 0) {
-			printf("failed to create kprobe '%s' error '%s'\n",
-			       event, strerror(errno));
-			return -1;
+#ifdef __x86_64__
+		if (strncmp(event, "sys_", 4) == 0) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:__x64_%s __x64_%s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err >= 0) {
+				need_normal_check = false;
+				event_prefix = "__x64_";
+			}
+		}
+#endif
+		if (need_normal_check) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err < 0) {
+				printf("failed to create kprobe '%s' error '%s'\n",
+				       event, strerror(errno));
+				return -1;
+			}
 		}
 
 		strcpy(buf, DEBUGFS);
 		strcat(buf, "events/kprobes/");
+		strcat(buf, event_prefix);
 		strcat(buf, event);
 		strcat(buf, "/id");
 	} else if (is_tracepoint) {
@@ -648,66 +666,3 @@ void read_trace_pipe(void)
 		}
 	}
 }
-
-#define MAX_SYMS 300000
-static struct ksym syms[MAX_SYMS];
-static int sym_cnt;
-
-static int ksym_cmp(const void *p1, const void *p2)
-{
-	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
-}
-
-int load_kallsyms(void)
-{
-	FILE *f = fopen("/proc/kallsyms", "r");
-	char func[256], buf[256];
-	char symbol;
-	void *addr;
-	int i = 0;
-
-	if (!f)
-		return -ENOENT;
-
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
-		if (sscanf(buf, "%p %c %s", &addr, &symbol, func) != 3)
-			break;
-		if (!addr)
-			continue;
-		syms[i].addr = (long) addr;
-		syms[i].name = strdup(func);
-		i++;
-	}
-	sym_cnt = i;
-	qsort(syms, sym_cnt, sizeof(struct ksym), ksym_cmp);
-	return 0;
-}
-
-struct ksym *ksym_search(long key)
-{
-	int start = 0, end = sym_cnt;
-	int result;
-
-	while (start < end) {
-		size_t mid = start + (end - start) / 2;
-
-		result = key - syms[mid].addr;
-		if (result < 0)
-			end = mid;
-		else if (result > 0)
-			start = mid + 1;
-		else
-			return &syms[mid];
-	}
-
-	if (start >= 1 && syms[start - 1].addr < key &&
-	    key < syms[start].addr)
-		/* valid ksym */
-		return &syms[start - 1];
-
-	/* out of range. return _stext */
-	return &syms[0];
-}
-

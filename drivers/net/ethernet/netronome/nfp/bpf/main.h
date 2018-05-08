@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -39,6 +39,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/rhashtable.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -114,6 +115,8 @@ enum pkt_vec {
  * @maps_in_use:	number of currently offloaded maps
  * @map_elems_in_use:	number of elements allocated to offloaded maps
  *
+ * @maps_neutral:	hash table of offload-neutral maps (on pointer)
+ *
  * @adjust_head:	adjust head capability
  * @adjust_head.flags:		extra flags for adjust head
  * @adjust_head.off_min:	minimal packet offset within buffer required
@@ -133,6 +136,7 @@ enum pkt_vec {
  * @helpers.map_lookup:		map lookup helper address
  * @helpers.map_update:		map update helper address
  * @helpers.map_delete:		map delete helper address
+ * @helpers.perf_event_output:	output perf event to a ring buffer
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  */
@@ -149,6 +153,8 @@ struct nfp_app_bpf {
 	struct list_head map_list;
 	unsigned int maps_in_use;
 	unsigned int map_elems_in_use;
+
+	struct rhashtable maps_neutral;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
@@ -171,6 +177,7 @@ struct nfp_app_bpf {
 		u32 map_lookup;
 		u32 map_update;
 		u32 map_delete;
+		u32 perf_event_output;
 	} helpers;
 
 	bool pseudo_random;
@@ -198,6 +205,14 @@ struct nfp_bpf_map {
 	struct list_head l;
 	enum nfp_bpf_map_use use_map[];
 };
+
+struct nfp_bpf_neutral_map {
+	struct rhash_head l;
+	struct bpf_map *ptr;
+	u32 count;
+};
+
+extern const struct rhashtable_params nfp_bpf_maps_neutral_params;
 
 struct nfp_prog;
 struct nfp_insn_meta;
@@ -367,6 +382,8 @@ static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
  * @error: error code if something went wrong
  * @stack_depth: max stack depth from the verifier
  * @adjust_head_location: if program has single adjust head call - the insn no.
+ * @map_records_cnt: the number of map pointers recorded for this prog
+ * @map_records: the map record pointers from bpf->maps_neutral
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -389,6 +406,9 @@ struct nfp_prog {
 
 	unsigned int stack_depth;
 	unsigned int adjust_head_location;
+
+	unsigned int map_records_cnt;
+	struct nfp_bpf_neutral_map **map_records;
 
 	struct list_head insns;
 };
@@ -439,6 +459,8 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 			      void *key, void *value);
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
+
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif
