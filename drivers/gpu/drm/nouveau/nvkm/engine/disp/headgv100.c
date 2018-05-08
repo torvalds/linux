@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat Inc.
+ * Copyright 2018 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,61 +18,59 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "head.h"
 
 static void
-gf119_head_vblank_put(struct nvkm_head *head)
+gv100_head_vblank_put(struct nvkm_head *head)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;
-	const u32 hoff = head->id * 0x800;
-	nvkm_mask(device, 0x6100c0 + hoff, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x611d80 + (head->id * 4), 0x00000004, 0x00000000);
 }
 
 static void
-gf119_head_vblank_get(struct nvkm_head *head)
+gv100_head_vblank_get(struct nvkm_head *head)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;
-	const u32 hoff = head->id * 0x800;
-	nvkm_mask(device, 0x6100c0 + hoff, 0x00000001, 0x00000001);
-}
-
-void
-gf119_head_rgclk(struct nvkm_head *head, int div)
-{
-	struct nvkm_device *device = head->disp->engine.subdev.device;
-	nvkm_mask(device, 0x612200 + (head->id * 0x800), 0x0000000f, div);
+	nvkm_mask(device, 0x611d80 + (head->id * 4), 0x00000004, 0x00000004);
 }
 
 static void
-gf119_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
+gv100_head_rgpos(struct nvkm_head *head, u16 *hline, u16 *vline)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;
-	const u32 hoff = (state == &head->asy) * 0x20000 + head->id * 0x300;
+	const u32 hoff = head->id * 0x800;
+	/* vline read locks hline. */
+	*vline = nvkm_rd32(device, 0x616330 + hoff) & 0x0000ffff;
+	*hline = nvkm_rd32(device, 0x616334 + hoff) & 0x0000ffff;
+}
+
+static void
+gv100_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	const u32 hoff = (state == &head->arm) * 0x8000 + head->id * 0x400;
 	u32 data;
 
-	data = nvkm_rd32(device, 0x640414 + hoff);
+	data = nvkm_rd32(device, 0x682064 + hoff);
 	state->vtotal = (data & 0xffff0000) >> 16;
 	state->htotal = (data & 0x0000ffff);
-	data = nvkm_rd32(device, 0x640418 + hoff);
+	data = nvkm_rd32(device, 0x682068 + hoff);
 	state->vsynce = (data & 0xffff0000) >> 16;
 	state->hsynce = (data & 0x0000ffff);
-	data = nvkm_rd32(device, 0x64041c + hoff);
+	data = nvkm_rd32(device, 0x68206c + hoff);
 	state->vblanke = (data & 0xffff0000) >> 16;
 	state->hblanke = (data & 0x0000ffff);
-	data = nvkm_rd32(device, 0x640420 + hoff);
+	data = nvkm_rd32(device, 0x682070 + hoff);
 	state->vblanks = (data & 0xffff0000) >> 16;
 	state->hblanks = (data & 0x0000ffff);
-	state->hz = nvkm_rd32(device, 0x640450 + hoff);
+	state->hz = nvkm_rd32(device, 0x68200c + hoff);
 
-	data = nvkm_rd32(device, 0x640404 + hoff);
-	switch ((data & 0x000003c0) >> 6) {
-	case 6: state->or.depth = 30; break;
-	case 5: state->or.depth = 24; break;
-	case 2: state->or.depth = 18; break;
-	case 0: state->or.depth = 18; break; /*XXX: "default" */
+	data = nvkm_rd32(device, 0x682004 + hoff);
+	switch ((data & 0x000000f0) >> 4) {
+	case 5: state->or.depth = 30; break;
+	case 4: state->or.depth = 24; break;
+	case 1: state->or.depth = 18; break;
 	default:
 		state->or.depth = 18;
 		WARN_ON(1);
@@ -81,24 +79,27 @@ gf119_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
 }
 
 static const struct nvkm_head_func
-gf119_head = {
-	.state = gf119_head_state,
-	.rgpos = nv50_head_rgpos,
+gv100_head = {
+	.state = gv100_head_state,
+	.rgpos = gv100_head_rgpos,
 	.rgclk = gf119_head_rgclk,
-	.vblank_get = gf119_head_vblank_get,
-	.vblank_put = gf119_head_vblank_put,
+	.vblank_get = gv100_head_vblank_get,
+	.vblank_put = gv100_head_vblank_put,
 };
 
 int
-gf119_head_new(struct nvkm_disp *disp, int id)
+gv100_head_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_head_new_(&gf119_head, disp, id);
+	struct nvkm_device *device = disp->engine.subdev.device;
+	if (!(nvkm_rd32(device, 0x610060) & (0x00000001 << id)))
+		return 0;
+	return nvkm_head_new_(&gv100_head, disp, id);
 }
 
 int
-gf119_head_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+gv100_head_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
-	*pmask = nvkm_rd32(device, 0x612004) & 0x0000000f;
-	return nvkm_rd32(device, 0x022448);
+	*pmask = nvkm_rd32(device, 0x610060) & 0x000000ff;
+	return nvkm_rd32(device, 0x610074) & 0x0000000f;
 }

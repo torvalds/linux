@@ -19,42 +19,34 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <nvif/disp.h>
-#include <nvif/device.h>
+#include "rootnv50.h"
+#include "channv50.h"
 
 #include <nvif/class.h>
 
-void
-nvif_disp_dtor(struct nvif_disp *disp)
-{
-	nvif_object_fini(&disp->object);
-}
-
-int
-nvif_disp_ctor(struct nvif_device *device, s32 oclass, struct nvif_disp *disp)
-{
-	static const struct nvif_mclass disps[] = {
-		{ GV100_DISP, -1 },
-		{ GP102_DISP, -1 },
-		{ GP100_DISP, -1 },
-		{ GM200_DISP, -1 },
-		{ GM107_DISP, -1 },
-		{ GK110_DISP, -1 },
-		{ GK104_DISP, -1 },
-		{ GF110_DISP, -1 },
-		{ GT214_DISP, -1 },
-		{ GT206_DISP, -1 },
-		{ GT200_DISP, -1 },
-		{   G82_DISP, -1 },
-		{  NV50_DISP, -1 },
-		{  NV04_DISP, -1 },
+static const struct nv50_disp_root_func
+gv100_disp_root = {
+	.user = {
+		{{0,0,GV100_DISP_CURSOR                }, gv100_disp_curs_new },
+		{{0,0,GV100_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
+		{{0,0,GV100_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
+		{{0,0,GV100_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
 		{}
-	};
-	int cid = nvif_sclass(&device->object, disps, oclass);
-	disp->object.client = NULL;
-	if (cid < 0)
-		return cid;
+	},
+};
 
-	return nvif_object_init(&device->object, 0, disps[cid].oclass,
-				NULL, 0, &disp->object);
+static int
+gv100_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&gv100_disp_root, disp, oclass,
+				   data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+gv100_disp_root_oclass = {
+	.base.oclass = GV100_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gv100_disp_root_new,
+};

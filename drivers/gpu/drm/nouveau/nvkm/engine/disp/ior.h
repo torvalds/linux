@@ -30,7 +30,7 @@ struct nvkm_ior {
 			UNKNOWN
 		} proto:3;
 		unsigned link:2;
-		unsigned head:4;
+		unsigned head:8;
 	} arm, asy;
 
 	/* Armed DP state. */
@@ -133,10 +133,15 @@ void gf119_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 
+void gm200_sor_route_set(struct nvkm_outp *, struct nvkm_ior *);
+int gm200_sor_route_get(struct nvkm_outp *, int *);
+void gm200_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
+
 void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+void gv100_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 
 void gt215_hda_hpd(struct nvkm_ior *, int, bool);
 void gt215_hda_eld(struct nvkm_ior *, u8 *, u8);
@@ -178,4 +183,7 @@ int gf119_sor_new(struct nvkm_disp *, int);
 int gk104_sor_new(struct nvkm_disp *, int);
 int gm107_sor_new(struct nvkm_disp *, int);
 int gm200_sor_new(struct nvkm_disp *, int);
+
+int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
+int gv100_sor_new(struct nvkm_disp *, int);
 #endif

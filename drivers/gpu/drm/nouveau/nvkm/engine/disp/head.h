@@ -58,4 +58,8 @@ int nv50_head_new(struct nvkm_disp *, int id);
 
 int gf119_head_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_head_new(struct nvkm_disp *, int id);
+void gf119_head_rgclk(struct nvkm_head *, int);
+
+int gv100_head_cnt(struct nvkm_disp *, unsigned long *);
+int gv100_head_new(struct nvkm_disp *, int id);
 #endif

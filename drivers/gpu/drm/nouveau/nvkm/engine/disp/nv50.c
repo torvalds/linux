@@ -88,6 +88,12 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 	struct nvkm_device *device = subdev->device;
 	int ret, i;
 
+	if (func->wndw.cnt) {
+		disp->wndw.nr = func->wndw.cnt(&disp->base, &disp->wndw.mask);
+		nvkm_debug(subdev, "Window(s): %d (%08lx)\n",
+			   disp->wndw.nr, disp->wndw.mask);
+	}
+
 	disp->head.nr = func->head.cnt(&disp->base, &disp->head.mask);
 	nvkm_debug(subdev, "  Head(s): %d (%02lx)\n",
 		   disp->head.nr, disp->head.mask);
@@ -133,7 +139,8 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 	if (ret)
 		return ret;
 
-	return nvkm_ramht_new(device, 0x1000, 0, disp->inst, &disp->ramht);
+	return nvkm_ramht_new(device, func->ramht_size ? func->ramht_size :
+			      0x1000, 0, disp->inst, &disp->ramht);
 }
 
 static const struct nvkm_disp_func

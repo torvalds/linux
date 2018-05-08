@@ -19,42 +19,16 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <nvif/disp.h>
-#include <nvif/device.h>
+#include "channv50.h"
 
-#include <nvif/class.h>
+const struct nvkm_event_func
+gv100_disp_chan_uevent = {
+	.ctor = nv50_disp_chan_uevent_ctor,
+};
 
-void
-nvif_disp_dtor(struct nvif_disp *disp)
+u64
+gv100_disp_chan_user(struct nv50_disp_chan *chan, u64 *psize)
 {
-	nvif_object_fini(&disp->object);
-}
-
-int
-nvif_disp_ctor(struct nvif_device *device, s32 oclass, struct nvif_disp *disp)
-{
-	static const struct nvif_mclass disps[] = {
-		{ GV100_DISP, -1 },
-		{ GP102_DISP, -1 },
-		{ GP100_DISP, -1 },
-		{ GM200_DISP, -1 },
-		{ GM107_DISP, -1 },
-		{ GK110_DISP, -1 },
-		{ GK104_DISP, -1 },
-		{ GF110_DISP, -1 },
-		{ GT214_DISP, -1 },
-		{ GT206_DISP, -1 },
-		{ GT200_DISP, -1 },
-		{   G82_DISP, -1 },
-		{  NV50_DISP, -1 },
-		{  NV04_DISP, -1 },
-		{}
-	};
-	int cid = nvif_sclass(&device->object, disps, oclass);
-	disp->object.client = NULL;
-	if (cid < 0)
-		return cid;
-
-	return nvif_object_init(&device->object, 0, disps[cid].oclass,
-				NULL, 0, &disp->object);
+	*psize = 0x1000;
+	return 0x690000 + ((chan->chid.user - 1) * 0x1000);
 }

@@ -79,6 +79,7 @@
 #define GM200_DISP                                    /* cl5070.h */ 0x00009570
 #define GP100_DISP                                    /* cl5070.h */ 0x00009770
 #define GP102_DISP                                    /* cl5070.h */ 0x00009870
+#define GV100_DISP                                    /* cl5070.h */ 0x0000c370
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
@@ -90,12 +91,15 @@
 #define GT214_DISP_CURSOR                             /* cl507a.h */ 0x0000857a
 #define GF110_DISP_CURSOR                             /* cl507a.h */ 0x0000907a
 #define GK104_DISP_CURSOR                             /* cl507a.h */ 0x0000917a
+#define GV100_DISP_CURSOR                             /* cl507a.h */ 0x0000c37a
 
 #define NV50_DISP_OVERLAY                             /* cl507b.h */ 0x0000507b
 #define G82_DISP_OVERLAY                              /* cl507b.h */ 0x0000827b
 #define GT214_DISP_OVERLAY                            /* cl507b.h */ 0x0000857b
 #define GF110_DISP_OVERLAY                            /* cl507b.h */ 0x0000907b
 #define GK104_DISP_OVERLAY                            /* cl507b.h */ 0x0000917b
+
+#define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c37b
 
 #define NV50_DISP_BASE_CHANNEL_DMA                    /* cl507c.h */ 0x0000507c
 #define G82_DISP_BASE_CHANNEL_DMA                     /* cl507c.h */ 0x0000827c
@@ -117,6 +121,7 @@
 #define GM200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
 #define GP100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000977d
 #define GP102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000987d
+#define GV100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c37d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
@@ -124,6 +129,8 @@
 #define GT214_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000857e
 #define GF110_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000907e
 #define GK104_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000917e
+
+#define GV100_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c37e
 
 #define NV50_TESLA                                                   0x00005097
 #define G82_TESLA                                                    0x00008297

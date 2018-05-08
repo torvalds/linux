@@ -57,6 +57,11 @@ void gf119_disp_core_fini(struct nv50_disp_chan *);
 
 extern const struct nv50_disp_chan_func gp102_disp_dmac_func;
 
+u64 gv100_disp_chan_user(struct nv50_disp_chan *, u64 *);
+int gv100_disp_dmac_init(struct nv50_disp_chan *);
+void gv100_disp_dmac_fini(struct nv50_disp_chan *);
+int gv100_disp_dmac_bind(struct nv50_disp_chan *, struct nvkm_object *, u32);
+
 int nv50_disp_curs_new_(const struct nv50_disp_chan_func *,
 			struct nv50_disp *, int ctrl, int user,
 			const struct nvkm_oclass *, void *argv, u32 argc,
@@ -130,6 +135,15 @@ int gp102_disp_base_new(const struct nvkm_oclass *, void *, u32,
 int gp102_disp_core_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 int gp102_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+
+int gv100_disp_curs_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+int gv100_disp_wimm_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+int gv100_disp_core_new(const struct nvkm_oclass *, void *, u32,
+			struct nv50_disp *, struct nvkm_object **);
+int gv100_disp_wndw_new(const struct nvkm_oclass *, void *, u32,
 			struct nv50_disp *, struct nvkm_object **);
 
 struct nv50_disp_mthd_list {

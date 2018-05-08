@@ -2416,6 +2416,7 @@ nv140_chipset = {
 	.therm = gp100_therm_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
+	.disp = gv100_disp_new,
 	.dma = gv100_dma_new,
 };
 
