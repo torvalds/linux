@@ -153,7 +153,10 @@ void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
 #define IOR_WARN(i,f,a...) IOR_MSG((i), warn, f, ##a)
 #define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)
 
+int nv50_dac_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_dac_new(struct nvkm_disp *, int);
+
+int gf119_dac_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_dac_new(struct nvkm_disp *, int);
 
 int nv50_pior_new(struct nvkm_disp *, int);

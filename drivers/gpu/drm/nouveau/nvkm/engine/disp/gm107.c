@@ -34,7 +34,7 @@ gm107_disp = {
 	.super = gf119_disp_super,
 	.root = &gm107_disp_root_oclass,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
-	.dac = { .nr = 3, .new = gf119_dac_new },
+	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .nr = 4, .new = gm107_sor_new },
 };
 

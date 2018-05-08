@@ -427,7 +427,7 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	}
 
 	/* ... DAC caps */
-	for (i = 0; i < disp->func->dac.nr; i++) {
+	for (i = 0; i < disp->dac.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101d0 + (i * 0x04), tmp);
 	}

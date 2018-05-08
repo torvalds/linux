@@ -76,10 +76,15 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 			return ret;
 	}
 
-	for (i = 0; func->dac.new && i < func->dac.nr; i++) {
-		ret = func->dac.new(&disp->base, i);
-		if (ret)
-			return ret;
+	if (func->dac.cnt) {
+		disp->dac.nr = func->dac.cnt(&disp->base, &disp->dac.mask);
+		nvkm_debug(subdev, "   DAC(s): %d (%02lx)\n",
+			   disp->dac.nr, disp->dac.mask);
+		for_each_set_bit(i, &disp->dac.mask, disp->dac.nr) {
+			ret = func->dac.new(&disp->base, i);
+			if (ret)
+				return ret;
+		}
 	}
 
 	for (i = 0; func->pior.new && i < func->pior.nr; i++) {
@@ -637,7 +642,7 @@ nv50_disp = {
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
-	.dac = { .nr = 3, .new = nv50_dac_new },
+	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .nr = 2, .new = nv50_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
 };
