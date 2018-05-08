@@ -1163,6 +1163,15 @@ gf100_grctx_generate_rop_mapping(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x40780c + (i * 4), data[i]);
 }
 
+void
+gf100_grctx_generate_max_ways_evict(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 fbps = nvkm_rd32(device, 0x121c74);
+	if (fbps == 1)
+		nvkm_mask(device, 0x17e91c, 0x001f0000, 0x00090000);
+}
+
 static const u32
 gf100_grctx_alpha_beta_map[17][32] = {
 	[1] = {
@@ -1349,6 +1358,8 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 
 	if (func->alpha_beta_tables)
 		func->alpha_beta_tables(gr);
+	if (func->max_ways_evict)
+		func->max_ways_evict(gr);
 }
 
 void
@@ -1532,4 +1543,5 @@ gf100_grctx = {
 	.r4060a8 = gf100_grctx_generate_r4060a8,
 	.rop_mapping = gf100_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
+	.max_ways_evict = gf100_grctx_generate_max_ways_evict,
 };

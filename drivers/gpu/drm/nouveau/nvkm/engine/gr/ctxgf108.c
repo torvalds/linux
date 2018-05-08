@@ -799,4 +799,5 @@ gf108_grctx = {
 	.r4060a8 = gf100_grctx_generate_r4060a8,
 	.rop_mapping = gf100_grctx_generate_rop_mapping,
 	.alpha_beta_tables = gf100_grctx_generate_alpha_beta_tables,
+	.max_ways_evict = gf100_grctx_generate_max_ways_evict,
 };
