@@ -475,8 +475,7 @@ gk104_gr_init(struct gf100_gr *gr)
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
 			gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
+			gr->func->init_shader_exceptions(gr, gpc, tpc);
 		}
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
@@ -537,6 +536,7 @@ gk104_gr = {
 	.init_419eb4 = gf100_gr_init_419eb4,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
+	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,
 	.gpccs.ucode = &gk104_gr_gpccs_ucode,

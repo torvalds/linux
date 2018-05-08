@@ -140,6 +140,7 @@ struct gf100_gr_func {
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*init_tex_hww_esr)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_504430)(struct gf100_gr *, int gpc, int tpc);
+	void (*init_shader_exceptions)(struct gf100_gr *, int gpc, int tpc);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -165,6 +166,7 @@ void gf100_gr_init_40601c(struct gf100_gr *);
 void gf100_gr_init_419cc0(struct gf100_gr *);
 void gf100_gr_init_419eb4(struct gf100_gr *);
 void gf100_gr_init_tex_hww_esr(struct gf100_gr *, int, int);
+void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 
 void gf117_gr_init_zcull(struct gf100_gr *);
 
@@ -177,6 +179,7 @@ void gk104_gr_init_sked_hww_esr(struct gf100_gr *);
 void gk110_gr_init_419eb4(struct gf100_gr *);
 
 void gm107_gr_init_504430(struct gf100_gr *, int, int);
+void gm107_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 
 int gk20a_gr_init(struct gf100_gr *);
 
@@ -187,6 +190,7 @@ void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
 int gp100_gr_init(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 void gp100_gr_init_fecs_exceptions(struct gf100_gr *);
+void gp100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 

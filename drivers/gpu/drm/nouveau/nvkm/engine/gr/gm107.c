@@ -282,6 +282,14 @@ gm107_gr_pack_mmio[] = {
  ******************************************************************************/
 
 void
+gm107_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
+}
+
+void
 gm107_gr_init_504430(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -403,8 +411,7 @@ gm107_gr_init(struct gf100_gr *gr)
 			gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			gr->func->init_504430(gr, gpc, tpc);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
+			gr->func->init_shader_exceptions(gr, gpc, tpc);
 		}
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
@@ -467,6 +474,7 @@ gm107_gr = {
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
+	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,

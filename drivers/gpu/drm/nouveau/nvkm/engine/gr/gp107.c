@@ -42,6 +42,7 @@ gp107_gr = {
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
+	.init_shader_exceptions = gp100_gr_init_shader_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gp107_grctx,
