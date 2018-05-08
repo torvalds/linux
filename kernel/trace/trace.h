@@ -1451,6 +1451,7 @@ trace_find_event_field(struct trace_event_call *call, char *name);
 extern void trace_event_enable_cmd_record(bool enable);
 extern void trace_event_enable_tgid_record(bool enable);
 
+extern int event_trace_init(void);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 

@@ -8111,6 +8111,8 @@ static __init int tracer_init_tracefs(void)
 	if (IS_ERR(d_tracer))
 		return 0;
 
+	event_trace_init();
+
 	init_tracer_tracefs(&global_trace, d_tracer);
 	ftrace_init_tracefs_toplevel(&global_trace, d_tracer);
 
