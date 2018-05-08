@@ -4513,7 +4513,7 @@ DRM DRIVER FOR ILITEK ILI9225 PANELS
 M:	David Lechner <david@lechnology.com>
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/ili9225.c
-F:	Documentation/devicetree/bindings/display/ili9225.txt
+F:	Documentation/devicetree/bindings/display/ilitek,ili9225.txt
 
 DRM DRIVER FOR INTEL I810 VIDEO CARDS
 S:	Orphan / Obsolete
@@ -4599,13 +4599,13 @@ DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7586.c
-F:	Documentation/devicetree/bindings/display/st7586.txt
+F:	Documentation/devicetree/bindings/display/sitronix,st7586.txt
 
 DRM DRIVER FOR SITRONIX ST7735R PANELS
 M:	David Lechner <david@lechnology.com>
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7735r.c
-F:	Documentation/devicetree/bindings/display/st7735r.txt
+F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
 
 DRM DRIVER FOR TDFX VIDEO CARDS
 S:	Orphan / Obsolete
@@ -4824,7 +4824,7 @@ M:	Eric Anholt <eric@anholt.net>
 S:	Supported
 F:	drivers/gpu/drm/v3d/
 F:	include/uapi/drm/v3d_drm.h
-F:	Documentation/devicetree/bindings/display/brcm,bcm-v3d.txt
+F:	Documentation/devicetree/bindings/gpu/brcm,bcm-v3d.txt
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR VC4
@@ -5735,7 +5735,7 @@ M:	Madalin Bucur <madalin.bucur@nxp.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/freescale/fman
-F:	Documentation/devicetree/bindings/powerpc/fsl/fman.txt
+F:	Documentation/devicetree/bindings/net/fsl-fman.txt
 
 FREESCALE QORIQ PTP CLOCK DRIVER
 M:	Yangbo Lu <yangbo.lu@nxp.com>
@@ -7425,7 +7425,7 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/gyro/mpu3050*
-F:	Documentation/devicetree/bindings/iio/gyroscope/inv,mpu3050.txt
+F:	Documentation/devicetree/bindings/iio/gyroscope/invensense,mpu3050.txt
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
@@ -8700,7 +8700,7 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/max6697
-F:	Documentation/devicetree/bindings/i2c/max6697.txt
+F:	Documentation/devicetree/bindings/hwmon/max6697.txt
 F:	drivers/hwmon/max6697.c
 F:	include/linux/platform_data/max6697.h
 
@@ -9080,7 +9080,7 @@ M:	Martin Donnelly <martin.donnelly@ge.com>
 M:	Martyn Welch <martyn.welch@collabora.co.uk>
 S:	Maintained
 F:	drivers/gpu/drm/bridge/megachips-stdpxxxx-ge-b850v3-fw.c
-F:	Documentation/devicetree/bindings/video/bridge/megachips-stdpxxxx-ge-b850v3-fw.txt
+F:	Documentation/devicetree/bindings/display/bridge/megachips-stdpxxxx-ge-b850v3-fw.txt
 
 MEGARAID SCSI/SAS DRIVERS
 M:	Kashyap Desai <kashyap.desai@broadcom.com>
@@ -10728,7 +10728,7 @@ PARALLEL LCD/KEYPAD PANEL DRIVER
 M:	Willy Tarreau <willy@haproxy.com>
 M:	Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
 S:	Odd Fixes
-F:	Documentation/misc-devices/lcd-panel-cgram.txt
+F:	Documentation/auxdisplay/lcd-panel-cgram.txt
 F:	drivers/misc/panel.c
 
 PARALLEL PORT SUBSYSTEM
@@ -13291,7 +13291,7 @@ M:	Vinod Koul <vkoul@kernel.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 S:	Supported
-F:	Documentation/sound/alsa/compress_offload.txt
+F:	Documentation/sound/designs/compress-offload.rst
 F:	include/sound/compress_driver.h
 F:	include/uapi/sound/compress_*
 F:	sound/core/compress_offload.c

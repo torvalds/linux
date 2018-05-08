@@ -12,7 +12,7 @@ Required properties:
 - clocks:		 Phandles for clock specified in "clock-names" property
 - clock-names :		 The name of clock used by the DFI, must be
 			 "pclk_ddr_mon";
-- operating-points-v2:	 Refer to Documentation/devicetree/bindings/power/opp.txt
+- operating-points-v2:	 Refer to Documentation/devicetree/bindings/opp/opp.txt
 			 for details.
 - center-supply:	 DMC supply node.
 - status:		 Marks the node enabled/disabled.
