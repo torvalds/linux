@@ -111,8 +111,10 @@ static void most_free_mbo_coherent(struct mbo *mbo)
 	struct most_channel *c = mbo->context;
 	u16 const coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
-	dma_free_coherent(NULL, coherent_buf_size, mbo->virt_address,
-			  mbo->bus_address);
+	if (c->iface->dma_free)
+		c->iface->dma_free(mbo, coherent_buf_size);
+	else
+		kfree(mbo->virt_address);
 	kfree(mbo);
 	if (atomic_sub_and_test(1, &c->mbo_ref))
 		complete(&c->cleanup);
@@ -988,10 +990,13 @@ static int arm_mbo_chain(struct most_channel *c, int dir,
 		mbo->context = c;
 		mbo->ifp = c->iface;
 		mbo->hdm_channel_id = c->channel_id;
-		mbo->virt_address = dma_alloc_coherent(NULL,
-						       coherent_buf_size,
-						       &mbo->bus_address,
-						       GFP_KERNEL);
+		if (c->iface->dma_alloc) {
+			mbo->virt_address =
+				c->iface->dma_alloc(mbo, coherent_buf_size);
+		} else {
+			mbo->virt_address =
+				kzalloc(coherent_buf_size, GFP_KERNEL);
+		}
 		if (!mbo->virt_address)
 			goto release_mbo;
 

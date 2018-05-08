@@ -235,6 +235,8 @@ struct most_interface {
 	const char *description;
 	unsigned int num_channels;
 	struct most_channel_capability *channel_vector;
+	void *(*dma_alloc)(struct mbo *mbo, u32 size);
+	void (*dma_free)(struct mbo *mbo, u32 size);
 	int (*configure)(struct most_interface *iface, int channel_idx,
 			 struct most_channel_config *channel_config);
 	int (*enqueue)(struct most_interface *iface, int channel_idx,

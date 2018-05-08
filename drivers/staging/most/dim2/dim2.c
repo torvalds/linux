@@ -703,6 +703,16 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 	return ret;
 }
 
+static void *dma_alloc(struct mbo *mbo, u32 size)
+{
+	return dma_alloc_coherent(NULL, size, &mbo->bus_address, GFP_KERNEL);
+}
+
+static void dma_free(struct mbo *mbo, u32 size)
+{
+	dma_free_coherent(NULL, size, mbo->virt_address, mbo->bus_address);
+}
+
 /*
  * dim2_probe - dim2 probe handler
  * @pdev: platform device structure
@@ -800,6 +810,8 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.channel_vector = dev->capabilities;
 	dev->most_iface.configure = configure_channel;
 	dev->most_iface.enqueue = enqueue;
+	dev->most_iface.dma_alloc = dma_alloc;
+	dev->most_iface.dma_free = dma_free;
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
 	dev->dev.init_name = "dim2_state";
