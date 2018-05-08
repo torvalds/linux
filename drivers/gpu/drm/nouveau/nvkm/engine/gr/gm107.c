@@ -281,6 +281,13 @@ gm107_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+void
+gm107_gr_init_504430(struct gf100_gr *gr, int gpc, int tpc)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
+}
+
 static void
 gm107_gr_init_bios_2(struct gf100_gr *gr)
 {
@@ -395,7 +402,7 @@ gm107_gr_init(struct gf100_gr *gr)
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
 			gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
+			gr->func->init_504430(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
 		}
@@ -459,6 +466,7 @@ gm107_gr = {
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
+	.init_504430 = gm107_gr_init_504430,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,

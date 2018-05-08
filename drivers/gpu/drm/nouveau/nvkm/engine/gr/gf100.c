@@ -2092,6 +2092,8 @@ gf100_gr_init(struct gf100_gr *gr)
 			if (gr->func->init_tex_hww_esr)
 				gr->func->init_tex_hww_esr(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
+			if (gr->func->init_504430)
+				gr->func->init_504430(gr, gpc, tpc);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
 		}

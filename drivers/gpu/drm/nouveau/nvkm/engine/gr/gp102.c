@@ -55,6 +55,7 @@ gp102_gr = {
 	.init_419cc0 = gf100_gr_init_419cc0,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
+	.init_504430 = gm107_gr_init_504430,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 3,
 	.grctx = &gp102_grctx,
