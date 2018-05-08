@@ -932,8 +932,6 @@ struct snd_soc_codec {
 	unsigned int cache_init:1; /* codec cache has been initialized */
 
 	/* codec IO */
-	void *control_data; /* codec control (i2c/3wire) data */
-	hw_write_t hw_write;
 	void *reg_cache;
 
 	/* component */
