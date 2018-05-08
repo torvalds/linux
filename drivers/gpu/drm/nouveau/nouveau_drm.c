@@ -113,24 +113,22 @@ nouveau_name(struct drm_device *dev)
 }
 
 static inline bool
-nouveau_cli_work_ready(struct dma_fence *fence, bool wait)
+nouveau_cli_work_ready(struct dma_fence *fence)
 {
-	if (!dma_fence_is_signaled(fence)) {
-		if (!wait)
-			return false;
-		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
-	}
+	if (!dma_fence_is_signaled(fence))
+		return false;
 	dma_fence_put(fence);
 	return true;
 }
 
 static void
-nouveau_cli_work_flush(struct nouveau_cli *cli, bool wait)
+nouveau_cli_work(struct work_struct *w)
 {
+	struct nouveau_cli *cli = container_of(w, typeof(*cli), work);
 	struct nouveau_cli_work *work, *wtmp;
 	mutex_lock(&cli->lock);
 	list_for_each_entry_safe(work, wtmp, &cli->worker, head) {
-		if (!work->fence || nouveau_cli_work_ready(work->fence, wait)) {
+		if (!work->fence || nouveau_cli_work_ready(work->fence)) {
 			list_del(&work->head);
 			work->func(work);
 		}
@@ -159,16 +157,16 @@ nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
 }
 
 static void
-nouveau_cli_work(struct work_struct *w)
-{
-	struct nouveau_cli *cli = container_of(w, typeof(*cli), work);
-	nouveau_cli_work_flush(cli, false);
-}
-
-static void
 nouveau_cli_fini(struct nouveau_cli *cli)
 {
-	nouveau_cli_work_flush(cli, true);
+	/* All our channels are dead now, which means all the fences they
+	 * own are signalled, and all callback functions have been called.
+	 *
+	 * So, after flushing the workqueue, there should be nothing left.
+	 */
+	flush_work(&cli->work);
+	WARN_ON(!list_empty(&cli->worker));
+
 	usif_client_fini(cli);
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_fini(&cli->mmu);
