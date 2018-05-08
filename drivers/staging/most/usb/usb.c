@@ -354,7 +354,8 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_SUCCESS;
 			break;
 		case -EPIPE:
-			dev_warn(dev, "Broken OUT pipe detected\n");
+			dev_warn(dev, "Broken pipe on ep%02x\n",
+				 mdev->ep_address[channel]);
 			mdev->is_channel_healthy[channel] = false;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -507,7 +508,8 @@ static void hdm_read_completion(struct urb *urb)
 			}
 			break;
 		case -EPIPE:
-			dev_warn(dev, "Broken IN pipe detected\n");
+			dev_warn(dev, "Broken pipe on ep%02x\n",
+				 mdev->ep_address[channel]);
 			mdev->is_channel_healthy[channel] = false;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -517,7 +519,8 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_CLOSE;
 			break;
 		case -EOVERFLOW:
-			dev_warn(dev, "Babble on IN pipe detected\n");
+			dev_warn(dev, "Babble on ep%02x\n",
+				 mdev->ep_address[channel]);
 			break;
 		}
 	}
