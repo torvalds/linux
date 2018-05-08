@@ -2436,6 +2436,8 @@ DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_abort);
 #define DEFINE_BMAP_FREE_DEFERRED_EVENT DEFINE_PHYS_EXTENT_DEFERRED_EVENT
 DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_defer);
 DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_deferred);
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_defer);
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_deferred);
 
 /* rmap tracepoints */
 DECLARE_EVENT_CLASS(xfs_rmap_class,

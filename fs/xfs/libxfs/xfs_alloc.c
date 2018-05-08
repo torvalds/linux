@@ -39,6 +39,9 @@
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
 #include "xfs_ag_resv.h"
+#include "xfs_bmap.h"
+
+extern kmem_zone_t	*xfs_bmap_free_item_zone;
 
 struct workqueue_struct *xfs_alloc_wq;
 
@@ -2172,6 +2175,40 @@ xfs_agfl_reset(
 }
 
 /*
+ * Defer an AGFL block free. This is effectively equivalent to
+ * xfs_bmap_add_free() with some special handling particular to AGFL blocks.
+ *
+ * Deferring AGFL frees helps prevent log reservation overruns due to too many
+ * allocation operations in a transaction. AGFL frees are prone to this problem
+ * because for one they are always freed one at a time. Further, an immediate
+ * AGFL block free can cause a btree join and require another block free before
+ * the real allocation can proceed. Deferring the free disconnects freeing up
+ * the AGFL slot from freeing the block.
+ */
+STATIC void
+xfs_defer_agfl_block(
+	struct xfs_mount		*mp,
+	struct xfs_defer_ops		*dfops,
+	xfs_agnumber_t			agno,
+	xfs_fsblock_t			agbno,
+	struct xfs_owner_info		*oinfo)
+{
+	struct xfs_extent_free_item	*new;		/* new element */
+
+	ASSERT(xfs_bmap_free_item_zone != NULL);
+	ASSERT(oinfo != NULL);
+
+	new = kmem_zone_alloc(xfs_bmap_free_item_zone, KM_SLEEP);
+	new->xefi_startblock = XFS_AGB_TO_FSB(mp, agno, agbno);
+	new->xefi_blockcount = 1;
+	new->xefi_oinfo = *oinfo;
+
+	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
+
+	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_AGFL_FREE, &new->xefi_list);
+}
+
+/*
  * Decide whether to use this allocation group for this allocation.
  * If so, fix up the btree freelist's size.
  */
@@ -2275,10 +2312,16 @@ xfs_alloc_fix_freelist(
 		if (error)
 			goto out_agbp_relse;
 
-		error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
-					    &targs.oinfo);
-		if (error)
-			goto out_agbp_relse;
+		/* defer agfl frees if dfops is provided */
+		if (tp->t_agfl_dfops) {
+			xfs_defer_agfl_block(mp, tp->t_agfl_dfops, args->agno,
+					     bno, &targs.oinfo);
+		} else {
+			error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
+						    &targs.oinfo);
+			if (error)
+				goto out_agbp_relse;
+		}
 	}
 
 	targs.tp = tp;

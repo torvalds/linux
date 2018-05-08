@@ -31,6 +31,7 @@
 #include "xfs_log.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_defer.h"
 
 kmem_zone_t	*xfs_trans_zone;
 kmem_zone_t	*xfs_log_item_desc_zone;
@@ -94,11 +95,11 @@ xfs_trans_free(
  * blocks.  Locks and log items, however, are no inherited.  They must
  * be added to the new transaction explicitly.
  */
-STATIC xfs_trans_t *
+STATIC struct xfs_trans *
 xfs_trans_dup(
-	xfs_trans_t	*tp)
+	struct xfs_trans	*tp)
 {
-	xfs_trans_t	*ntp;
+	struct xfs_trans	*ntp;
 
 	ntp = kmem_zone_zalloc(xfs_trans_zone, KM_SLEEP);
 
@@ -127,6 +128,7 @@ xfs_trans_dup(
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
 	tp->t_rtx_res = tp->t_rtx_res_used;
 	ntp->t_pflags = tp->t_pflags;
+	ntp->t_agfl_dfops = tp->t_agfl_dfops;
 
 	xfs_trans_dup_dqinfo(tp, ntp);
 
@@ -935,6 +937,9 @@ __xfs_trans_commit(
 	xfs_lsn_t		commit_lsn = -1;
 	int			error = 0;
 	int			sync = tp->t_flags & XFS_TRANS_SYNC;
+
+	ASSERT(!tp->t_agfl_dfops ||
+	       !xfs_defer_has_unfinished_work(tp->t_agfl_dfops) || regrant);
 
 	/*
 	 * If there is nothing to be logged by the transaction,
