@@ -307,6 +307,10 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (nouveau_noaccel)
 		return;
 
+	ret = nouveau_channels_init(drm);
+	if (ret)
+		return;
+
 	/* initialise synchronisation routines */
 	/*XXX: this is crap, but the fence/channel stuff is a little
 	 *     backwards in some places.  this will be fixed.

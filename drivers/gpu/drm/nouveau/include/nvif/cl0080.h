@@ -57,6 +57,7 @@ struct nv_device_time_v0 {
 
 #define NV_DEVICE_INFO_UNIT                               (0xffffffffULL << 32)
 #define NV_DEVICE_INFO(n)                          ((n) | (0x00000000ULL << 32))
+#define NV_DEVICE_FIFO(n)                          ((n) | (0x00000001ULL << 32))
 
 /* This will be returned for unsupported queries. */
 #define NV_DEVICE_INFO_INVALID                                           ~0ULL
@@ -79,4 +80,7 @@ struct nv_device_time_v0 {
 #define NV_DEVICE_INFO_ENGINE_SEC2                   NV_DEVICE_INFO(0x0000000e)
 #define NV_DEVICE_INFO_ENGINE_NVDEC                  NV_DEVICE_INFO(0x0000000f)
 #define NV_DEVICE_INFO_ENGINE_NVENC                  NV_DEVICE_INFO(0x00000010)
+
+/* Returns the number of available channels. */
+#define NV_DEVICE_FIFO_CHANNELS                      NV_DEVICE_FIFO(0x00000000)
 #endif

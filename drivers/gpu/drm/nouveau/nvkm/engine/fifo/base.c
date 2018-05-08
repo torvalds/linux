@@ -30,6 +30,7 @@
 #include <subdev/mc.h>
 
 #include <nvif/event.h>
+#include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
 void
@@ -271,6 +272,18 @@ nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 }
 
 static int
+nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
+{
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	switch (mthd) {
+	case NV_DEVICE_FIFO_CHANNELS: *data = fifo->nr; return 0;
+	default:
+		break;
+	}
+	return -ENOSYS;
+}
+
+static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
@@ -311,6 +324,7 @@ nvkm_fifo = {
 	.dtor = nvkm_fifo_dtor,
 	.preinit = nvkm_fifo_preinit,
 	.oneinit = nvkm_fifo_oneinit,
+	.info = nvkm_fifo_info,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,
 	.intr = nvkm_fifo_intr,

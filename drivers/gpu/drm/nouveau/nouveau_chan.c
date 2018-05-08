@@ -474,3 +474,28 @@ done:
 	cli->base.super = super;
 	return ret;
 }
+
+int
+nouveau_channels_init(struct nouveau_drm *drm)
+{
+	struct {
+		struct nv_device_info_v1 m;
+		struct {
+			struct nv_device_info_v1_data channels;
+		} v;
+	} args = {
+		.m.version = 1,
+		.m.count = sizeof(args.v) / sizeof(args.v.channels),
+		.v.channels.mthd = NV_DEVICE_FIFO_CHANNELS,
+	};
+	struct nvif_object *device = &drm->client.device.object;
+	int ret;
+
+	ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
+	if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
+		return -ENODEV;
+
+	drm->chan.nr = args.v.channels.data;
+	drm->chan.context_base = dma_fence_context_alloc(drm->chan.nr);
+	return 0;
+}

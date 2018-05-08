@@ -46,6 +46,7 @@ nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
 	enum nvkm_devidx subidx;
 
 	switch (mthd & NV_DEVICE_INFO_UNIT) {
+	case NV_DEVICE_FIFO(0): subidx = NVKM_ENGINE_FIFO; break;
 	default:
 		return -EINVAL;
 	}

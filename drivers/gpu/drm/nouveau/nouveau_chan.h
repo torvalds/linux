@@ -45,6 +45,7 @@ struct nouveau_channel {
 	atomic_t killed;
 };
 
+int nouveau_channels_init(struct nouveau_drm *);
 
 int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
 			 u32 arg0, u32 arg1, struct nouveau_channel **);
