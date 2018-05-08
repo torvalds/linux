@@ -552,4 +552,5 @@ gk208_grctx = {
 	.attrib_nr = 0x218,
 	.alpha_nr_max = 0x7ff,
 	.alpha_nr = 0x648,
+	.patch_ltc = gk104_grctx_generate_patch_ltc,
 };

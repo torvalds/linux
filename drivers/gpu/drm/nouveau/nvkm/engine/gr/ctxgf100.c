@@ -1254,6 +1254,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->bundle(info);
 	grctx->pagepool(info);
 	grctx->attrib(info);
+	if (grctx->patch_ltc)
+		grctx->patch_ltc(info);
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_tpcid(gr);

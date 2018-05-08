@@ -841,6 +841,17 @@ gk104_grctx_pack_ppc[] = {
  ******************************************************************************/
 
 void
+gk104_grctx_generate_patch_ltc(struct gf100_grctx *info)
+{
+	struct nvkm_device *device = info->gr->base.engine.subdev.device;
+	u32 data0 = nvkm_rd32(device, 0x17e91c);
+	u32 data1 = nvkm_rd32(device, 0x17e920);
+	/*XXX: Figure out how to modify this correctly! */
+	mmio_wr32(info, 0x17e91c, data0);
+	mmio_wr32(info, 0x17e920, data1);
+}
+
+void
 gk104_grctx_generate_bundle(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
@@ -1005,4 +1016,5 @@ gk104_grctx = {
 	.attrib_nr = 0x218,
 	.alpha_nr_max = 0x7ff,
 	.alpha_nr = 0x648,
+	.patch_ltc = gk104_grctx_generate_patch_ltc,
 };

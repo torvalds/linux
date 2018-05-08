@@ -48,6 +48,8 @@ struct gf100_grctx_func {
 	u32 attrib_nr;
 	u32 alpha_nr_max;
 	u32 alpha_nr;
+	/* other patch buffer stuff */
+	void (*patch_ltc)(struct gf100_grctx *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -80,6 +82,7 @@ extern const struct gf100_grctx_func gk20a_grctx;
 void gk104_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
+void gk104_grctx_generate_patch_ltc(struct gf100_grctx *);
 void gk104_grctx_generate_unkn(struct gf100_gr *);
 void gk104_grctx_generate_r418bb8(struct gf100_gr *);
 
