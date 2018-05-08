@@ -52,6 +52,8 @@
 #include "nouveau_fence.h"
 #include "nouveau_fbcon.h"
 
+#include <subdev/bios/dp.h>
+
 /******************************************************************************
  * Atomic state
  *****************************************************************************/
@@ -1383,9 +1385,12 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
+	u8 ver, hdr, cnt, len;
+	u32 data;
 	int type, ret;
 
 	switch (dcbe->type) {
@@ -1429,8 +1434,8 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			nv_encoder->aux = aux;
 		}
 
-		/*TODO: Use DP Info Table to check for support. */
-		if (disp->disp->object.oclass >= GF110_DISP) {
+		if ((data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len)) &&
+		    ver >= 0x40 && (nvbios_rd08(bios, data + 0x08) & 0x04)) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
 					    nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
