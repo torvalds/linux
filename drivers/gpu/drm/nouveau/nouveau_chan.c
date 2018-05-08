@@ -214,7 +214,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 engine, struct nouveau_channel **pchan)
+		    u64 runlist, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
@@ -245,9 +245,9 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	do {
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
-			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.addr;
+			args.kepler.runlist = runlist;
 			args.kepler.vmm = nvif_handle(&cli->vmm.vmm.object);
 			size = sizeof(args.kepler);
 		} else

@@ -222,62 +222,30 @@ gk104_fifo_gpfifo_func = {
 	.engine_fini = gk104_fifo_gpfifo_engine_fini,
 };
 
-struct gk104_fifo_chan_func {
-	u32 engine;
-	u64 subdev;
-};
-
 static int
-gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
-		       struct gk104_fifo *fifo, u32 *engmask, u16 *chid,
+gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		       u64 vmm, u64 ioffset, u64 ilength,
 		       const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
 	struct gk104_fifo_chan *chan;
-	int runlist = -1, ret = -ENOSYS, i, j;
-	u32 engines = 0, present = 0;
+	int runlist = ffs(*runlists) -1, ret, i;
+	unsigned long engm;
 	u64 subdevs = 0;
 	u64 usermem;
 
-	if (!vmm)
+	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
+	*runlists = BIT_ULL(runlist);
 
-	/* Determine which downstream engines are present */
-	for (i = 0; i < fifo->engine_nr; i++) {
-		struct nvkm_engine *engine = fifo->engine[i].engine;
-		if (engine) {
-			u64 submask = BIT_ULL(engine->subdev.index);
-			for (j = 0; func[j].subdev; j++) {
-				if (func[j].subdev & submask) {
-					present |= func[j].engine;
-					break;
-				}
-			}
-
-			if (!func[j].subdev)
-				continue;
-
-			if (runlist < 0 && (*engmask & present))
-				runlist = fifo->engine[i].runl;
-			if (runlist == fifo->engine[i].runl) {
-				engines |= func[j].engine;
-				subdevs |= func[j].subdev;
-			}
-		}
+	engm = fifo->runlist[runlist].engm;
+	for_each_set_bit(i, &engm, fifo->engine_nr) {
+		if (fifo->engine[i].engine)
+			subdevs |= BIT_ULL(fifo->engine[i].engine->subdev.index);
 	}
 
-	/* Just an engine mask query?  All done here! */
-	if (!*engmask) {
-		*engmask = present;
-		return nvkm_object_new(oclass, NULL, 0, pobject);
-	}
-
-	/* No runlist?  No supported engines. */
-	*engmask = present;
-	if (runlist < 0)
-		return -ENODEV;
-	*engmask = engines;
+	if (subdevs & BIT_ULL(NVKM_ENGINE_GR))
+		subdevs |= BIT_ULL(NVKM_ENGINE_SW);
 
 	/* Allocate the channel. */
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
@@ -327,26 +295,6 @@ gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
 	return 0;
 }
 
-static const struct gk104_fifo_chan_func
-gk104_fifo_gpfifo[] = {
-	{ NVA06F_V0_ENGINE_SW | NVA06F_V0_ENGINE_GR,
-		BIT_ULL(NVKM_ENGINE_SW) | BIT_ULL(NVKM_ENGINE_GR)
-	},
-	{ NVA06F_V0_ENGINE_SEC   , BIT_ULL(NVKM_ENGINE_SEC   ) },
-	{ NVA06F_V0_ENGINE_MSVLD , BIT_ULL(NVKM_ENGINE_MSVLD ) },
-	{ NVA06F_V0_ENGINE_MSPDEC, BIT_ULL(NVKM_ENGINE_MSPDEC) },
-	{ NVA06F_V0_ENGINE_MSPPP , BIT_ULL(NVKM_ENGINE_MSPPP ) },
-	{ NVA06F_V0_ENGINE_MSENC , BIT_ULL(NVKM_ENGINE_MSENC ) },
-	{ NVA06F_V0_ENGINE_VIC   , BIT_ULL(NVKM_ENGINE_VIC   ) },
-	{ NVA06F_V0_ENGINE_NVDEC , BIT_ULL(NVKM_ENGINE_NVDEC ) },
-	{ NVA06F_V0_ENGINE_NVENC0, BIT_ULL(NVKM_ENGINE_NVENC0) },
-	{ NVA06F_V0_ENGINE_NVENC1, BIT_ULL(NVKM_ENGINE_NVENC1) },
-	{ NVA06F_V0_ENGINE_CE0   , BIT_ULL(NVKM_ENGINE_CE0   ) },
-	{ NVA06F_V0_ENGINE_CE1   , BIT_ULL(NVKM_ENGINE_CE1   ) },
-	{ NVA06F_V0_ENGINE_CE2   , BIT_ULL(NVKM_ENGINE_CE2   ) },
-	{}
-};
-
 int
 gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		      void *data, u32 size, struct nvkm_object **pobject)
@@ -361,11 +309,12 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vmm %llx "
-				   "ioffset %016llx ilength %08x engine %08x\n",
+				   "ioffset %016llx ilength %08x "
+				   "runlist %016llx\n",
 			   args->v0.version, args->v0.vmm, args->v0.ioffset,
-			   args->v0.ilength, args->v0.engines);
-		return gk104_fifo_gpfifo_new_(gk104_fifo_gpfifo, fifo,
-					      &args->v0.engines,
+			   args->v0.ilength, args->v0.runlist);
+		return gk104_fifo_gpfifo_new_(fifo,
+					      &args->v0.runlist,
 					      &args->v0.chid,
 					       args->v0.vmm,
 					       args->v0.ioffset,
