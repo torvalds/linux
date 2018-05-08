@@ -1404,9 +1404,17 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
-	gf100_gr_icmd(gr, grctx->icmd);
+	if (gr->fuc_bundle)
+		gf100_gr_icmd(gr, gr->fuc_bundle);
+	else
+		gf100_gr_icmd(gr, grctx->icmd);
+
 	nvkm_wr32(device, 0x404154, idle_timeout);
-	gf100_gr_mthd(gr, grctx->mthd);
+
+	if (gr->fuc_method)
+		gf100_gr_mthd(gr, gr->fuc_method);
+	else
+		gf100_gr_mthd(gr, grctx->mthd);
 	nvkm_mc_unk260(device, 1);
 }
 
