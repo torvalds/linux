@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "changk104.h"
+#include "cgrp.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
@@ -40,16 +41,21 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_client *client = chan->base.object.client;
+	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
 	int ret = 0;
 
 	mutex_lock(&subdev->mutex);
-	nvkm_wr32(device, 0x002634, chan->base.chid);
+	if (cgrp)
+		nvkm_wr32(device, 0x002634, cgrp->id | 0x01000000);
+	else
+		nvkm_wr32(device, 0x002634, chan->base.chid);
 	if (nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x002634) & 0x00100000))
 			break;
 	) < 0) {
-		nvkm_error(subdev, "channel %d [%s] kick timeout\n",
-			   chan->base.chid, client->name);
+		nvkm_error(subdev, "%s %d [%s] kick timeout\n",
+			   cgrp ? "tsg" : "channel",
+			   cgrp ? cgrp->id : chan->base.chid, client->name);
 		nvkm_fifo_recover_chan(&fifo->base, chan->base.chid);
 		ret = -ETIMEDOUT;
 	}
@@ -207,7 +213,9 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 static void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
-	return gk104_fifo_chan(base);
+	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
+	kfree(chan->cgrp);
+	return chan;
 }
 
 static const struct nvkm_fifo_chan_func
@@ -263,6 +271,18 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		return ret;
 
 	*chid = chan->base.chid;
+
+	/* Hack to support GPUs where even individual channels should be
+	 * part of a channel group.
+	 */
+	if (fifo->func->cgrp_force) {
+		if (!(chan->cgrp = kmalloc(sizeof(*chan->cgrp), GFP_KERNEL)))
+			return -ENOMEM;
+		chan->cgrp->id = chan->base.chid;
+		INIT_LIST_HEAD(&chan->cgrp->head);
+		INIT_LIST_HEAD(&chan->cgrp->chan);
+		chan->cgrp->chan_nr = 0;
+	}
 
 	/* Clear channel control registers. */
 	usermem = chan->base.chid * 0x200;

@@ -285,6 +285,32 @@ gk104_fifo_recover_runl(struct gk104_fifo *fifo, int runl)
 	schedule_work(&fifo->recover.work);
 }
 
+static struct gk104_fifo_chan *
+gk104_fifo_recover_chid(struct gk104_fifo *fifo, int runl, int chid)
+{
+	struct gk104_fifo_chan *chan;
+	struct nvkm_fifo_cgrp *cgrp;
+
+	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
+		if (chan->base.chid == chid) {
+			list_del_init(&chan->head);
+			return chan;
+		}
+	}
+
+	list_for_each_entry(cgrp, &fifo->runlist[runl].cgrp, head) {
+		if (cgrp->id == chid) {
+			chan = list_first_entry(&cgrp->chan, typeof(*chan), head);
+			list_del_init(&chan->head);
+			if (!--cgrp->chan_nr)
+				list_del_init(&cgrp->head);
+			return chan;
+		}
+	}
+
+	return NULL;
+}
+
 static void
 gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 {
@@ -302,13 +328,10 @@ gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 		return;
 
 	/* Lookup SW state for channel, and mark it as dead. */
-	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
-		if (chan->base.chid == chid) {
-			list_del_init(&chan->head);
-			chan->killed = true;
-			nvkm_fifo_kevent(&fifo->base, chid);
-			break;
-		}
+	chan = gk104_fifo_recover_chid(fifo, runl, chid);
+	if (chan) {
+		chan->killed = true;
+		nvkm_fifo_kevent(&fifo->base, chid);
 	}
 
 	/* Disable channel. */

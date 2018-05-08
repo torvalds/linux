@@ -60,6 +60,7 @@ gp100_fifo = {
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.runlist = &gm107_fifo_runlist,
 	.chan = {{0,0,PASCAL_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
+	.cgrp_force = true,
 };
 
 int

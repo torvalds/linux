@@ -68,6 +68,7 @@ struct gk104_fifo_func {
 		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *,
 			    void *, u32, struct nvkm_object **);
 	} chan;
+	bool cgrp_force;
 };
 
 int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,
