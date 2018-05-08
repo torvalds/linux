@@ -61,7 +61,7 @@ gm200_gr_init_rop_active_fbps(struct gf100_gr *gr)
 	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-int
+static int
 gm200_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -75,7 +75,7 @@ gm200_gr_init(struct gf100_gr *gr)
 
 	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
 
-	gm107_gr_init_bios(gr);
+	gr->func->init_bios(gr);
 
 	nvkm_wr32(device, GPC_UNIT(0, 0x3018), 0x00000001);
 
@@ -210,6 +210,7 @@ static const struct gf100_gr_func
 gm200_gr = {
 	.init = gm200_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
+	.init_bios = gm107_gr_init_bios,
 	.init_rop_active_fbps = gm200_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,

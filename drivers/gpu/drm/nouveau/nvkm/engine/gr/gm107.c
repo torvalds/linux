@@ -335,7 +335,7 @@ gm107_gr_init(struct gf100_gr *gr)
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
-	gm107_gr_init_bios(gr);
+	gr->func->init_bios(gr);
 
 	nvkm_wr32(device, GPC_UNIT(0, 0x3018), 0x00000001);
 
@@ -451,6 +451,7 @@ static const struct gf100_gr_func
 gm107_gr = {
 	.init = gm107_gr_init,
 	.init_gpc_mmu = gm107_gr_init_gpc_mmu,
+	.init_bios = gm107_gr_init_bios,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,

@@ -123,6 +123,7 @@ struct gf100_gr_func {
 	int (*init)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_r405a14)(struct gf100_gr *);
+	void (*init_bios)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
@@ -151,7 +152,6 @@ void gk104_gr_init_ppc_exceptions(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
 
-int gm200_gr_init(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
 
 int gp100_gr_init(struct gf100_gr *);
