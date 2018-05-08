@@ -1915,6 +1915,12 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 }
 
 void
+gf100_gr_init_400054(struct gf100_gr *gr)
+{
+	nvkm_wr32(gr->base.engine.subdev.device, 0x400054, 0x34ce3464);
+}
+
+void
 gf100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -2122,7 +2128,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40011c, 0xffffffff);
 	nvkm_wr32(device, 0x400134, 0xffffffff);
 
-	nvkm_wr32(device, 0x400054, 0x34ce3464);
+	if (gr->func->init_400054)
+		gr->func->init_400054(gr);
 
 	gf100_gr_zbc_init(gr);
 
@@ -2162,6 +2169,7 @@ gf100_gr = {
 	.init_419eb4 = gf100_gr_init_419eb4,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_400054 = gf100_gr_init_400054,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

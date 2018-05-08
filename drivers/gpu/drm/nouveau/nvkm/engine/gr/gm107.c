@@ -282,6 +282,12 @@ gm107_gr_pack_mmio[] = {
  ******************************************************************************/
 
 void
+gm107_gr_init_400054(struct gf100_gr *gr)
+{
+	nvkm_wr32(gr->base.engine.subdev.device, 0x400054, 0x2c350f63);
+}
+
+void
 gm107_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -431,7 +437,7 @@ gm107_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40011c, 0xffffffff);
 	nvkm_wr32(device, 0x400134, 0xffffffff);
 
-	nvkm_wr32(device, 0x400054, 0x2c350f63);
+	gr->func->init_400054(gr);
 
 	gf100_gr_zbc_init(gr);
 
@@ -475,6 +481,7 @@ gm107_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
+	.init_400054 = gm107_gr_init_400054,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,

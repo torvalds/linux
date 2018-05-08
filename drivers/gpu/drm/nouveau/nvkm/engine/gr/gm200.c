@@ -144,7 +144,7 @@ gm200_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40011c, 0xffffffff);
 	nvkm_wr32(device, 0x400134, 0xffffffff);
 
-	nvkm_wr32(device, 0x400054, 0x2c350f63);
+	gr->func->init_400054(gr);
 
 	gf100_gr_zbc_init(gr);
 
@@ -206,6 +206,7 @@ gm200_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
+	.init_400054 = gm107_gr_init_400054,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
