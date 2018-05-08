@@ -99,6 +99,7 @@ struct nouveau_gem_object_unmap {
 static void
 nouveau_gem_object_delete(struct nouveau_vma *vma)
 {
+	nouveau_fence_unref(&vma->fence);
 	nouveau_vma_del(&vma);
 }
 
@@ -344,8 +345,19 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
 		nvbo = list_entry(op->list.next, struct nouveau_bo, entry);
 		b = &pbbo[nvbo->pbbo_index];
 
-		if (likely(fence))
+		if (likely(fence)) {
+			struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+			struct nouveau_vma *vma;
+
 			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
+
+			if (drm->client.vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+				vma = (void *)(unsigned long)b->user_priv;
+				nouveau_fence_unref(&vma->fence);
+				dma_fence_get(&fence->base);
+				vma->fence = fence;
+			}
+		}
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
