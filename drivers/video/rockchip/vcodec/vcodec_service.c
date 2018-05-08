@@ -3104,10 +3104,13 @@ static int devfreq_vcodec_target(struct device *dev, unsigned long *freq,
 			return ret;
 		ret = regulator_set_voltage(pservice->vdd_vcodec, target_volt,
 					    INT_MAX);
-		if (ret)
+		if (ret) {
 			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
-		return ret;
+			return ret;
+		}
+		pservice->volt = target_volt;
+		return 0;
 	}
 
 	if (old_clk_rate < target_rate) {
@@ -3406,7 +3409,6 @@ static int vcodec_probe(struct platform_device *pdev)
 
 		stat = &pservice->devfreq->last_status;
 		stat->current_frequency = clk_get_rate(pservice->aclk_vcodec);
-		pservice->volt = regulator_get_voltage(pservice->vdd_vcodec);
 
 		ret = devfreq_register_opp_notifier(dev, pservice->devfreq);
 		if (ret)
