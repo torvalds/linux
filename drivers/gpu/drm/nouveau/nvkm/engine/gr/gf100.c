@@ -2109,8 +2109,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	}
 
 	for (rop = 0; rop < gr->rop_nr; rop++) {
-		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0xc0000000);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0xc0000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0x40000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0x40000000);
 		nvkm_wr32(device, ROP_UNIT(rop, 0x204), 0xffffffff);
 		nvkm_wr32(device, ROP_UNIT(rop, 0x208), 0xffffffff);
 	}
