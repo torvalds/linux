@@ -2305,6 +2305,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[DP_ADAPTER_CAP - DP_DPCD_REV + 1];
 
+	struct dp_device_vendor_id sink_id;
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
@@ -2390,6 +2391,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 			DP_SINK_COUNT,
 			&link->dpcd_caps.sink_count.raw,
 			sizeof(link->dpcd_caps.sink_count.raw));
+
+	/* read sink ieee oui */
+	core_link_read_dpcd(link,
+			DP_SINK_OUI,
+			(uint8_t *)(&sink_id),
+			sizeof(sink_id));
+
+	link->dpcd_caps.sink_dev_id =
+			(sink_id.ieee_oui[0] << 16) +
+			(sink_id.ieee_oui[1] << 8) +
+			(sink_id.ieee_oui[2]);
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
