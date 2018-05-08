@@ -1396,10 +1396,14 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_grctx_generate_floorsweep(gr);
 
+	if (grctx->r400088) grctx->r400088(gr, false);
 	if (gr->fuc_bundle)
 		gf100_gr_icmd(gr, gr->fuc_bundle);
 	else
 		gf100_gr_icmd(gr, grctx->icmd);
+	if (grctx->sw_veid_bundle_init)
+		gf100_gr_icmd(gr, grctx->sw_veid_bundle_init);
+	if (grctx->r400088) grctx->r400088(gr, true);
 
 	nvkm_wr32(device, 0x404154, idle_timeout);
 
@@ -1448,12 +1452,18 @@ gf100_grctx_generate(struct gf100_gr *gr)
 			break;
 	);
 
+	if (grctx->unkn88c)
+		grctx->unkn88c(gr, true);
+
 	/* Reset FECS. */
 	nvkm_wr32(device, 0x409614, 0x00000070);
 	nvkm_usec(device, 10, NVKM_DELAY);
 	nvkm_mask(device, 0x409614, 0x00000700, 0x00000700);
 	nvkm_usec(device, 10, NVKM_DELAY);
 	nvkm_rd32(device, 0x409614);
+
+	if (grctx->unkn88c)
+		grctx->unkn88c(gr, false);
 
 	/* NV_PGRAPH_FE_PWR_MODE_AUTO. */
 	nvkm_wr32(device, 0x404170, 0x00000010);

@@ -2413,6 +2413,7 @@ nv140_chipset = {
 	.mmu = gv100_mmu_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
+	.secboot = gp108_secboot_new,
 	.therm = gp100_therm_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
@@ -2428,6 +2429,9 @@ nv140_chipset = {
 	.ce[8] = gv100_ce_new,
 	.dma = gv100_dma_new,
 	.fifo = gv100_fifo_new,
+	.gr = gv100_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
 };
 
 static int

@@ -987,7 +987,7 @@ gf100_gr_trap_gpc_rop(struct gf100_gr *gr, int gpc)
 	nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 }
 
-static const struct nvkm_enum gf100_mp_warp_error[] = {
+const struct nvkm_enum gf100_mp_warp_error[] = {
 	{ 0x01, "STACK_ERROR" },
 	{ 0x02, "API_STACK_ERROR" },
 	{ 0x03, "RET_EMPTY_STACK_ERROR" },
@@ -1012,7 +1012,7 @@ static const struct nvkm_enum gf100_mp_warp_error[] = {
 	{}
 };
 
-static const struct nvkm_bitfield gf100_mp_global_error[] = {
+const struct nvkm_bitfield gf100_mp_global_error[] = {
 	{ 0x00000001, "SM_TO_SM_FAULT" },
 	{ 0x00000002, "L1_ERROR" },
 	{ 0x00000004, "MULTIPLE_WARP_ERRORS" },
@@ -2113,6 +2113,9 @@ gf100_gr_init(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, rop;
 
+	if (gr->func->init_419bd8)
+		gr->func->init_419bd8(gr);
+
 	gr->func->init_gpc_mmu(gr);
 
 	if (gr->fuc_sw_nonctx)
@@ -2212,6 +2215,9 @@ gf100_gr_init(struct gf100_gr *gr)
 		gr->func->init_400054(gr);
 
 	gf100_gr_zbc_init(gr);
+
+	if (gr->func->init_4188a4)
+		gr->func->init_4188a4(gr);
 
 	return gf100_gr_init_ctxctl(gr);
 }

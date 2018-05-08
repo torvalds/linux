@@ -149,6 +149,7 @@ struct gf100_gr_func {
 	void (*oneinit_tiles)(struct gf100_gr *);
 	void (*oneinit_sm_id)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
+	void (*init_419bd8)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_r405a14)(struct gf100_gr *);
 	void (*init_bios)(struct gf100_gr *);
@@ -170,6 +171,7 @@ struct gf100_gr_func {
 	void (*init_504430)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_shader_exceptions)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_400054)(struct gf100_gr *);
+	void (*init_4188a4)(struct gf100_gr *);
 	void (*trap_mp)(struct gf100_gr *, int gpc, int tpc);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
@@ -266,7 +268,7 @@ extern const struct nvkm_object_func gf100_fermi;
 struct gf100_gr_init {
 	u32 addr;
 	u8  count;
-	u8  pitch;
+	u32 pitch;
 	u32 data;
 };
 
@@ -337,6 +339,8 @@ extern const struct gf100_gr_init gf100_gr_init_fe_1[];
 extern const struct gf100_gr_init gf100_gr_init_pe_1[];
 void gf100_gr_init_gpc_mmu(struct gf100_gr *);
 void gf100_gr_trap_mp(struct gf100_gr *, int, int);
+extern const struct nvkm_bitfield gf100_mp_global_error[];
+extern const struct nvkm_enum gf100_mp_warp_error[];
 
 extern const struct gf100_gr_init gf104_gr_init_ds_0[];
 extern const struct gf100_gr_init gf104_gr_init_tex_0[];
