@@ -24,6 +24,7 @@ static const struct of_device_id pm_match_table[] = {
 	{ .compatible = "rockchip,pm-px30",},
 	{ .compatible = "rockchip,pm-rk322x",},
 	{ .compatible = "rockchip,pm-rk3288",},
+	{ .compatible = "rockchip,pm-rk3308",},
 	{ .compatible = "rockchip,pm-rk3328",},
 	{ .compatible = "rockchip,pm-rk3368",},
 	{ .compatible = "rockchip,pm-rk3399",},

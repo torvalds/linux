@@ -75,6 +75,28 @@ Example:
 	};
 
 	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3308";
+		status = "okay";
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_ARMOFF
+			| RKPM_PMU_HW_PLLS_PD
+			| RKPM_DBG_FSM_SOUT
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WAKEUP_EN
+			)
+		>;
+		rockchip,pwm-regulator-config = <
+			(0
+			| RKPM_PWM_REGULATOR
+			)
+		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk3328";
 		status = "disabled";
 		rockchip,virtual-poweroff = <0>;
