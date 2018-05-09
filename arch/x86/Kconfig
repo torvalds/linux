@@ -28,6 +28,7 @@ config X86_64
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE
 	select X86_DEV_DMA_OPS
 	select ARCH_HAS_SYSCALL_WRAPPER
 
@@ -235,10 +236,6 @@ config ARCH_MMAP_RND_COMPAT_BITS_MAX
 
 config SBUS
 	bool
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
 
 config GENERIC_ISA_DMA
 	def_bool y
@@ -925,6 +922,7 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	def_bool y if X86_64
+	select NEED_DMA_MAP_STATE
 	---help---
 	  Support for software bounce buffers used on x86-64 systems
 	  which don't have a hardware IOMMU. Using this PCI devices

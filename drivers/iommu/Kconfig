@@ -146,6 +146,7 @@ config INTEL_IOMMU
 	select DMA_DIRECT_OPS
 	select IOMMU_API
 	select IOMMU_IOVA
+	select NEED_DMA_MAP_STATE
 	select DMAR_TABLE
 	help
 	  DMA remapping (DMAR) devices support enables independent address

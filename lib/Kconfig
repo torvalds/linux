@@ -432,6 +432,9 @@ config SGL_ALLOC
 config NEED_SG_DMA_LENGTH
 	bool
 
+config NEED_DMA_MAP_STATE
+	bool
+
 config IOMMU_HELPER
 	bool
 

@@ -49,6 +49,7 @@ config SUPERH
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_NMI
+	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 
 	help
@@ -160,9 +161,6 @@ config DMA_COHERENT
 
 config DMA_NONCOHERENT
 	def_bool !DMA_COHERENT
-
-config NEED_DMA_MAP_STATE
-	def_bool DMA_NONCOHERENT
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB

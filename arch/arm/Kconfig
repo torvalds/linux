@@ -95,6 +95,7 @@ config ARM
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_REL
+	select NEED_DMA_MAP_STATE
 	select NO_BOOTMEM
 	select OF_EARLY_FLATTREE if OF
 	select OF_RESERVED_MEM if OF
@@ -219,9 +220,6 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config ZONE_DMA
 	bool
-
-config NEED_DMA_MAP_STATE
-       def_bool y
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y

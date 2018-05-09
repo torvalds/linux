@@ -10,6 +10,7 @@ config ALPHA
 	select HAVE_OPROFILE
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
+	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
@@ -67,9 +68,6 @@ config ZONE_DMA
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
-
-config NEED_DMA_MAP_STATE
-       def_bool y
 
 config GENERIC_ISA_DMA
 	bool

@@ -1634,6 +1634,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 
 config DMA_API_DEBUG
 	bool "Enable debugging of DMA-API usage"
+	select NEED_DMA_MAP_STATE
 	help
 	  Enable this option to debug the use of the DMA API by device drivers.
 	  With this option you will be able to detect common bugs in device
