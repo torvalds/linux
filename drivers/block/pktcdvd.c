@@ -710,7 +710,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 
 	if (cgc->buflen) {
 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
-				      __GFP_RECLAIM);
+				      GFP_NOIO);
 		if (ret)
 			goto out;
 	}
