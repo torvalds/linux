@@ -3433,8 +3433,8 @@ static int adap_config_hma(struct adapter *adapter)
 	sgl = adapter->hma.sgt->sgl;
 	node = dev_to_node(adapter->pdev_dev);
 	for_each_sg(sgl, iter, sgt->orig_nents, i) {
-		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL,
-					   page_order);
+		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL |
+					   __GFP_ZERO, page_order);
 		if (!newpage) {
 			dev_err(adapter->pdev_dev,
 				"Not enough memory for HMA page allocation\n");
