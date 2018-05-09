@@ -807,10 +807,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	sdev->glb_base = devm_ioremap_nocache(&pdev->dev, res->start,
-					      resource_size(res));
+	sdev->glb_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!sdev->glb_base)
 		return -ENOMEM;
 
