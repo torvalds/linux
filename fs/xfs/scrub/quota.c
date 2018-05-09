@@ -66,12 +66,24 @@ xfs_scrub_setup_quota(
 	struct xfs_inode		*ip)
 {
 	uint				dqtype;
+	int				error;
+
+	if (!XFS_IS_QUOTA_RUNNING(sc->mp) || !XFS_IS_QUOTA_ON(sc->mp))
+		return -ENOENT;
 
 	dqtype = xfs_scrub_quota_to_dqtype(sc);
 	if (dqtype == 0)
 		return -EINVAL;
+	sc->has_quotaofflock = true;
+	mutex_lock(&sc->mp->m_quotainfo->qi_quotaofflock);
 	if (!xfs_this_quota_on(sc->mp, dqtype))
 		return -ENOENT;
+	error = xfs_scrub_setup_fs(sc, ip);
+	if (error)
+		return error;
+	sc->ip = xfs_quota_inode(sc->mp, dqtype);
+	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+	sc->ilock_flags = XFS_ILOCK_EXCL;
 	return 0;
 }
 
@@ -202,7 +214,6 @@ xfs_scrub_quota(
 	struct xfs_bmbt_irec		irec = { 0 };
 	struct xfs_scrub_quota_info	sqi;
 	struct xfs_mount		*mp = sc->mp;
-	struct xfs_inode		*ip;
 	struct xfs_quotainfo		*qi = mp->m_quotainfo;
 	xfs_fileoff_t			max_dqid_off;
 	xfs_fileoff_t			off = 0;
@@ -210,25 +221,12 @@ xfs_scrub_quota(
 	int				nimaps;
 	int				error = 0;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
-		return -ENOENT;
-
-	mutex_lock(&qi->qi_quotaofflock);
 	dqtype = xfs_scrub_quota_to_dqtype(sc);
-	if (!xfs_this_quota_on(sc->mp, dqtype)) {
-		error = -ENOENT;
-		goto out_unlock_quota;
-	}
-
-	/* Attach to the quota inode and set sc->ip so that reporting works. */
-	ip = xfs_quota_inode(sc->mp, dqtype);
-	sc->ip = ip;
 
 	/* Look for problem extents. */
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
 		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
-		goto out_unlock_inode;
+		goto out;
 	}
 	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
 	while (1) {
@@ -237,11 +235,11 @@ xfs_scrub_quota(
 
 		off = irec.br_startoff + irec.br_blockcount;
 		nimaps = 1;
-		error = xfs_bmapi_read(ip, off, -1, &irec, &nimaps,
+		error = xfs_bmapi_read(sc->ip, off, -1, &irec, &nimaps,
 				XFS_BMAPI_ENTIRE);
 		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, off,
 				&error))
-			goto out_unlock_inode;
+			goto out;
 		if (!nimaps)
 			break;
 		if (irec.br_startblock == HOLESTARTBLOCK)
@@ -267,26 +265,25 @@ xfs_scrub_quota(
 		    irec.br_startoff + irec.br_blockcount > max_dqid_off + 1)
 			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, off);
 	}
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
-	/* Check all the quota items. */
+	/*
+	 * Check all the quota items.  Now that we've checked the quota inode
+	 * data fork we have to drop ILOCK_EXCL to use the regular dquot
+	 * functions.
+	 */
+	xfs_iunlock(sc->ip, sc->ilock_flags);
+	sc->ilock_flags = 0;
 	sqi.sc = sc;
 	sqi.last_id = 0;
 	error = xfs_qm_dqiterate(mp, dqtype, xfs_scrub_quota_item, &sqi);
+	sc->ilock_flags = XFS_ILOCK_EXCL;
+	xfs_ilock(sc->ip, sc->ilock_flags);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK,
 			sqi.last_id * qi->qi_dqperchunk, &error))
 		goto out;
 
 out:
-	/* We set sc->ip earlier, so make sure we clear it now. */
-	sc->ip = NULL;
-out_unlock_quota:
-	mutex_unlock(&qi->qi_quotaofflock);
 	return error;
-
-out_unlock_inode:
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	goto out;
 }
