@@ -965,11 +965,17 @@
 		compatible = "rockchip,rk3308-cru";
 		reg = <0x0 0xff500000 0x0 0x1000>;
 		rockchip,grf = <&grf>;
+		rockchip,boost = <&cpu_boost>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
 		assigned-clocks = <&cru SCLK_RTC32K>;
 		assigned-clock-rates = <32768>;
+	};
+
+	cpu_boost: cpu-boost@ff550000 {
+		compatible = "syscon";
+		reg = <0x0 0xff550000 0x0 0x1000>;
 	};
 
 	acodec: acodec@ff560000 {
