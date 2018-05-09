@@ -3046,13 +3046,13 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
-static void hns3_init_mac_addr(struct net_device *netdev)
+static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u8 mac_addr_temp[ETH_ALEN];
 
-	if (h->ae_algo->ops->get_mac_addr) {
+	if (h->ae_algo->ops->get_mac_addr && init) {
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
 		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
 	}
@@ -3106,7 +3106,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, true);
 
 	hns3_set_default_feature(netdev);
 
@@ -3353,7 +3353,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, false);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
 
