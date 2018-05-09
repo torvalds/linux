@@ -1081,17 +1081,11 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 u64 *cookie)
 {
 	const u8 *buf = params->buf;
-	size_t len = params->len, total;
+	size_t len = params->len;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 	int rc;
-	bool tx_status = false;
-	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
-	struct wmi_sw_tx_req_cmd *cmd;
-	struct {
-		struct wmi_cmd_hdr wmi;
-		struct wmi_sw_tx_complete_event evt;
-	} __packed evt;
+	bool tx_status;
 
 	/* Note, currently we do not support the "wait" parameter, user-space
 	 * must call remain_on_channel before mgmt_tx or listen on a channel
@@ -1100,34 +1094,9 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	 * different from currently "listened" channel and fail if it is.
 	 */
 
-	wil_dbg_misc(wil, "mgmt_tx mid %d\n", vif->mid);
-	wil_hex_dump_misc("mgmt tx frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
-			  len, true);
+	rc = wmi_mgmt_tx(vif, buf, len);
+	tx_status = (rc == 0);
 
-	if (len < sizeof(struct ieee80211_hdr_3addr))
-		return -EINVAL;
-
-	total = sizeof(*cmd) + len;
-	if (total < len)
-		return -EINVAL;
-
-	cmd = kmalloc(total, GFP_KERNEL);
-	if (!cmd) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
-	cmd->len = cpu_to_le16(len);
-	memcpy(cmd->payload, buf, len);
-
-	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, vif->mid, cmd, total,
-		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
-	if (rc == 0)
-		tx_status = !evt.evt.status;
-
-	kfree(cmd);
- out:
 	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
 				tx_status, GFP_KERNEL);
 	return rc;

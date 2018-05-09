@@ -2773,3 +2773,50 @@ int wmi_stop_sched_scan(struct wil6210_priv *wil)
 
 	return 0;
 }
+
+int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
+{
+	size_t total;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
+	struct wmi_sw_tx_req_cmd *cmd;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_sw_tx_complete_event evt;
+	} __packed evt = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	int rc;
+
+	wil_dbg_misc(wil, "mgmt_tx mid %d\n", vif->mid);
+	wil_hex_dump_misc("mgmt tx frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
+			  len, true);
+
+	if (len < sizeof(struct ieee80211_hdr_3addr))
+		return -EINVAL;
+
+	total = sizeof(*cmd) + len;
+	if (total < len) {
+		wil_err(wil, "mgmt_tx invalid len %zu\n", len);
+		return -EINVAL;
+	}
+
+	cmd = kmalloc(total, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
+	cmd->len = cpu_to_le16(len);
+	memcpy(cmd->payload, buf, len);
+
+	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, vif->mid, cmd, total,
+		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
+	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "mgmt_tx failed with status %d\n", evt.evt.status);
+		rc = -EINVAL;
+	}
+
+	kfree(cmd);
+
+	return rc;
+}

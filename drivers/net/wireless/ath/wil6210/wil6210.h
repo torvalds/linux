@@ -1150,5 +1150,6 @@ void wil6210_clear_halp(struct wil6210_priv *wil);
 int wmi_start_sched_scan(struct wil6210_priv *wil,
 			 struct cfg80211_sched_scan_request *request);
 int wmi_stop_sched_scan(struct wil6210_priv *wil);
+int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 
 #endif /* __WIL6210_H__ */
