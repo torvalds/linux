@@ -112,7 +112,8 @@ config DRM_EXYNOS_ROTATOR
 
 config DRM_EXYNOS_GSC
 	bool "GScaler"
-	depends on BROKEN && ARCH_EXYNOS5 && VIDEO_SAMSUNG_EXYNOS_GSC=n
+	depends on VIDEO_SAMSUNG_EXYNOS_GSC=n
+	select DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
 

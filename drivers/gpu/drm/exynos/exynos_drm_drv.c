@@ -266,6 +266,7 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(gsc_driver, CONFIG_DRM_EXYNOS_GSC),
+		DRM_COMPONENT_DRIVER
 	}, {
 		&exynos_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE
