@@ -192,7 +192,7 @@ struct lio {
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
-#define LIO_MAX_CORES                12
+#define LIO_MAX_CORES                16
 
 /**
  * \brief Enable or disable feature
