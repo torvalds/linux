@@ -2405,7 +2405,11 @@ dont_test_tx_en:
 		if (uart_console(port))
 			msg = "forbid DMA for kernel console";
 		else if (serial8250_request_dma(up))
+#ifdef CONFIG_ARCH_ROCKCHIP
+			msg = "failed to request DMA, use interrupt mode";
+#else
 			msg = "failed to request DMA";
+#endif
 		if (msg) {
 			dev_warn_ratelimited(port->dev, "%s\n", msg);
 			up->dma = NULL;
