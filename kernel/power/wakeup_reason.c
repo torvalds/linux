@@ -26,6 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <linux/suspend.h>
+#if defined(CONFIG_ROCKCHIP_SIP)
+#include <linux/rockchip/rockchip_sip.h>
+#endif
 
 
 #define MAX_WAKEUP_REASON_IRQS 32
@@ -92,12 +95,37 @@ static ssize_t last_suspend_time_show(struct kobject *kobj,
 				sleep_time.tv_sec, sleep_time.tv_nsec);
 }
 
+#if defined(CONFIG_ROCKCHIP_SIP)
+static ssize_t total_suspend_wfi_time_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct arm_smccc_res res;
+	unsigned long wfi_time_ms;
+
+	res = sip_smc_get_suspend_info(SUSPEND_WFI_TIME_MS);
+	if (res.a0)
+		wfi_time_ms = 0;
+	else
+		wfi_time_ms = res.a1;
+
+	return sprintf(buf, "%lu.%02lu\n", wfi_time_ms / MSEC_PER_SEC,
+		       (wfi_time_ms % MSEC_PER_SEC) / 10);
+}
+#endif
+
 static struct kobj_attribute resume_reason = __ATTR_RO(last_resume_reason);
 static struct kobj_attribute suspend_time = __ATTR_RO(last_suspend_time);
+#if defined(CONFIG_ROCKCHIP_SIP)
+static struct kobj_attribute suspend_wfi_time = __ATTR_RO(total_suspend_wfi_time);
+#endif
 
 static struct attribute *attrs[] = {
 	&resume_reason.attr,
 	&suspend_time.attr,
+#if defined(CONFIG_ROCKCHIP_SIP)
+	&suspend_wfi_time.attr,
+#endif
 	NULL,
 };
 static struct attribute_group attr_group = {
