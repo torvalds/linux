@@ -19,7 +19,6 @@
 #define	__XFS_TRANS_PRIV_H__
 
 struct xfs_log_item;
-struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_ail;

@@ -438,7 +438,7 @@ xfs_buf_item_unpin(
 			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			if (lip->li_desc)
+			if (!list_empty(&lip->li_trans))
 				xfs_trans_del_item(lip);
 
 			/*

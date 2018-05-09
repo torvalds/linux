@@ -184,5 +184,5 @@ xfs_icreate_log(
 
 	xfs_trans_add_item(tp, &icp->ic_item);
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	icp->ic_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &icp->ic_item.li_flags);
 }

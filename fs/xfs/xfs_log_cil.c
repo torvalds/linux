@@ -141,10 +141,9 @@ xlog_cil_alloc_shadow_bufs(
 	struct xlog		*log,
 	struct xfs_trans	*tp)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item *lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv;
 		int	niovecs = 0;
 		int	nbytes = 0;
@@ -152,7 +151,7 @@ xlog_cil_alloc_shadow_bufs(
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/* get number of vecs and size of data to be stored */
@@ -317,7 +316,7 @@ xlog_cil_insert_format_items(
 	int			*diff_len,
 	int			*diff_iovecs)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 
 
 	/* Bail out if we didn't find a log item.  */
@@ -326,15 +325,14 @@ xlog_cil_insert_format_items(
 		return;
 	}
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item *lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv;
 		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/*
@@ -406,7 +404,7 @@ xlog_cil_insert_items(
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_cil_ctx	*ctx = cil->xc_ctx;
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 	int			len = 0;
 	int			diff_iovecs = 0;
 	int			iclog_space;
@@ -479,11 +477,10 @@ xlog_cil_insert_items(
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
 	 */
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/*

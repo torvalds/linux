@@ -79,7 +79,7 @@ xfs_trans_log_finish_bmap_update(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	budp->bud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &budp->bud_item.li_flags);
 
 	return error;
 }
@@ -158,7 +158,7 @@ xfs_bmap_update_log_item(
 	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	buip->bui_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &buip->bui_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;

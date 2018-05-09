@@ -77,7 +77,7 @@ xfs_trans_log_dquot(
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	dqp->q_logitem.qli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &dqp->q_logitem.qli_item.li_flags);
 }
 
 /*
@@ -879,7 +879,7 @@ xfs_trans_log_quotaoff_item(
 	xfs_qoff_logitem_t	*qlp)
 {
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	qlp->qql_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &qlp->qql_item.li_flags);
 }
 
 STATIC void

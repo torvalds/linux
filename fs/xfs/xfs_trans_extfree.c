@@ -90,7 +90,7 @@ xfs_trans_free_extent(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	efdp->efd_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);
@@ -155,7 +155,7 @@ xfs_extent_free_log_item(
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	efip->efi_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efip->efi_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -273,7 +273,7 @@ xfs_agfl_free_finish_item(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	efdp->efd_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);

@@ -34,7 +34,6 @@
 #include "xfs_defer.h"
 
 kmem_zone_t	*xfs_trans_zone;
-kmem_zone_t	*xfs_log_item_desc_zone;
 
 #if defined(CONFIG_TRACEPOINTS)
 static void
@@ -734,77 +733,52 @@ out:
 	return;
 }
 
-/*
- * Add the given log item to the transaction's list of log items.
- *
- * The log item will now point to its new descriptor with its li_desc field.
- */
+/* Add the given log item to the transaction's list of log items. */
 void
 xfs_trans_add_item(
 	struct xfs_trans	*tp,
 	struct xfs_log_item	*lip)
 {
-	struct xfs_log_item_desc *lidp;
-
 	ASSERT(lip->li_mountp == tp->t_mountp);
 	ASSERT(lip->li_ailp == tp->t_mountp->m_ail);
+	ASSERT(list_empty(&lip->li_trans));
+	ASSERT(!test_bit(XFS_LI_DIRTY, &lip->li_flags));
 
-	lidp = kmem_zone_zalloc(xfs_log_item_desc_zone, KM_SLEEP | KM_NOFS);
-
-	lidp->lid_item = lip;
-	lidp->lid_flags = 0;
-	list_add_tail(&lidp->lid_trans, &tp->t_items);
-
-	lip->li_desc = lidp;
-
+	list_add_tail(&lip->li_trans, &tp->t_items);
 	trace_xfs_trans_add_item(tp, _RET_IP_);
 }
 
-STATIC void
-xfs_trans_free_item_desc(
-	struct xfs_log_item_desc *lidp)
-{
-	list_del_init(&lidp->lid_trans);
-	kmem_zone_free(xfs_log_item_desc_zone, lidp);
-}
-
 /*
- * Unlink and free the given descriptor.
+ * Unlink the log item from the transaction. the log item is no longer
+ * considered dirty in this transaction, as the linked transaction has
+ * finished, either by abort or commit completion.
  */
 void
 xfs_trans_del_item(
 	struct xfs_log_item	*lip)
 {
-	xfs_trans_free_item_desc(lip->li_desc);
-	lip->li_desc = NULL;
+	clear_bit(XFS_LI_DIRTY, &lip->li_flags);
+	list_del_init(&lip->li_trans);
 }
 
-/*
- * Unlock all of the items of a transaction and free all the descriptors
- * of that transaction.
- */
+/* Detach and unlock all of the items in a transaction */
 void
 xfs_trans_free_items(
 	struct xfs_trans	*tp,
 	xfs_lsn_t		commit_lsn,
 	bool			abort)
 {
-	struct xfs_log_item_desc *lidp, *next;
+	struct xfs_log_item	*lip, *next;
 
 	trace_xfs_trans_free_items(tp, _RET_IP_);
 
-	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
-
-		lip->li_desc = NULL;
-
+	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
+		xfs_trans_del_item(lip);
 		if (commit_lsn != NULLCOMMITLSN)
 			lip->li_ops->iop_committing(lip, commit_lsn);
 		if (abort)
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
 		lip->li_ops->iop_unlock(lip);
-
-		xfs_trans_free_item_desc(lidp);
 	}
 }
 
@@ -1052,10 +1026,10 @@ xfs_trans_cancel(
 	}
 #ifdef DEBUG
 	if (!dirty && !XFS_FORCED_SHUTDOWN(mp)) {
-		struct xfs_log_item_desc *lidp;
+		struct xfs_log_item *lip;
 
-		list_for_each_entry(lidp, &tp->t_items, lid_trans)
-			ASSERT(!(lidp->lid_item->li_type == XFS_LI_EFD));
+		list_for_each_entry(lip, &tp->t_items, li_trans)
+			ASSERT(!(lip->li_type == XFS_LI_EFD));
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);

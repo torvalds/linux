@@ -133,14 +133,13 @@ xfs_trans_log_inode(
 	 * set however, then go ahead and bump the i_version counter
 	 * unconditionally.
 	 */
-	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
+	if (!test_and_set_bit(XFS_LI_DIRTY, &ip->i_itemp->ili_item.li_flags) &&
 	    IS_I_VERSION(VFS_I(ip))) {
 		if (inode_maybe_inc_iversion(VFS_I(ip), flags & XFS_ILOG_CORE))
 			flags |= XFS_ILOG_CORE;
 	}
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	ip->i_itemp->ili_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 
 	/*
 	 * Always OR in the bits from the ili_last_fields field.

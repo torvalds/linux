@@ -441,7 +441,6 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__field(unsigned, bli_recur)
 		__field(int, bli_refcount)
 		__field(unsigned, bli_flags)
-		__field(void *, li_desc)
 		__field(unsigned long, li_flags)
 	),
 	TP_fast_assign(
@@ -455,12 +454,11 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_hold = atomic_read(&bip->bli_buf->b_hold);
 		__entry->buf_pincount = atomic_read(&bip->bli_buf->b_pin_count);
 		__entry->buf_lockval = bip->bli_buf->b_sema.count;
-		__entry->li_desc = bip->bli_item.li_desc;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d flags %s recur %d refcount %d bliflags %s "
-		  "lidesc %p liflags %s",
+		  "liflags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->buf_bno,
 		  __entry->buf_len,
@@ -471,7 +469,6 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		  __entry->bli_recur,
 		  __entry->bli_refcount,
 		  __print_flags(__entry->bli_flags, "|", XFS_BLI_FLAGS),
-		  __entry->li_desc,
 		  __print_flags(__entry->li_flags, "|", XFS_LI_FLAGS))
 )
 
