@@ -636,8 +636,6 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	if (!info->xfer_alloc_table)
 		return -ENOMEM;
 
-	bitmap_zero(info->xfer_alloc_table, desc->max_msg);
-
 	/* Pre-initialize the buffer pointer to pre-allocated buffers */
 	for (i = 0, xfer = info->xfer_block; i < desc->max_msg; i++, xfer++) {
 		xfer->rx.buf = devm_kcalloc(dev, sizeof(u8), desc->max_msg_size,
