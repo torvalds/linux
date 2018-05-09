@@ -27,6 +27,8 @@
  * interface into the I2C driver, I believe.
  */
 
+#define pr_fmt(fmt) "ipmi_ssif: " fmt
+
 #if defined(MODVERSIONS)
 #include <linux/modversions.h>
 #endif
@@ -52,7 +54,6 @@
 #include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
-#define PFX "ipmi_ssif: "
 #define DEVICE_NAME "ipmi_ssif"
 
 #define IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_CMD	0x57
@@ -316,9 +317,8 @@ static void deliver_recv_msg(struct ssif_info *ssif_info,
 {
 	if (msg->rsp_size < 0) {
 		return_hosed_msg(ssif_info, msg);
-		pr_err(PFX
-		       "Malformed message in deliver_recv_msg: rsp_size = %d\n",
-		       msg->rsp_size);
+		pr_err("%s: Malformed message: rsp_size = %d\n",
+		       __func__, msg->rsp_size);
 	} else {
 		ipmi_smi_msg_received(ssif_info->intf, msg);
 	}
@@ -652,7 +652,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		if (len == 0) {
 			result = -EIO;
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info(PFX "Middle message with no data\n");
+				pr_info("Middle message with no data\n");
 
 			goto continue_op;
 		}
@@ -696,8 +696,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 					   I2C_SMBUS_BLOCK_DATA);
 			if (rv < 0) {
 				if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-					pr_info(PFX
-						"Error from ssif_i2c_send\n");
+					pr_info("Error from ssif_i2c_send\n");
 
 				result = -EIO;
 			} else
@@ -715,7 +714,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 
  continue_op:
 	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
-		pr_info(PFX "DONE 1: state = %d, result=%d.\n",
+		pr_info("DONE 1: state = %d, result=%d\n",
 			ssif_info->ssif_state, result);
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
@@ -749,8 +748,8 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			 */
 			ssif_info->ssif_state = SSIF_NORMAL;
 			ipmi_ssif_unlock_cond(ssif_info, flags);
-			pr_warn(PFX "Error getting flags: %d %d, %x\n",
-			       result, len, (len >= 3) ? data[2] : 0);
+			pr_warn("Error getting flags: %d %d, %x\n",
+				result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_GET_MSG_FLAGS_CMD) {
 			/*
@@ -758,7 +757,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			 * response to a previous command.
 			 */
 			ipmi_ssif_unlock_cond(ssif_info, flags);
-			pr_warn(PFX "Invalid response getting flags: %x %x\n",
+			pr_warn("Invalid response getting flags: %x %x\n",
 				data[0], data[1]);
 		} else {
 			ssif_inc_stat(ssif_info, flag_fetches);
@@ -771,11 +770,11 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		/* We cleared the flags. */
 		if ((result < 0) || (len < 3) || (data[2] != 0)) {
 			/* Error clearing flags */
-			pr_warn(PFX "Error clearing flags: %d %d, %x\n",
-			       result, len, (len >= 3) ? data[2] : 0);
+			pr_warn("Error clearing flags: %d %d, %x\n",
+				result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_CLEAR_MSG_FLAGS_CMD) {
-			pr_warn(PFX "Invalid response clearing flags: %x %x\n",
+			pr_warn("Invalid response clearing flags: %x %x\n",
 				data[0], data[1]);
 		}
 		ssif_info->ssif_state = SSIF_NORMAL;
@@ -792,7 +791,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			handle_flags(ssif_info, flags);
 		} else if (msg->rsp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || msg->rsp[1] != IPMI_READ_EVENT_MSG_BUFFER_CMD) {
-			pr_warn(PFX "Invalid response getting events: %x %x\n",
+			pr_warn("Invalid response getting events: %x %x\n",
 				msg->rsp[0], msg->rsp[1]);
 			msg->done(msg);
 			/* Take off the event flag. */
@@ -815,7 +814,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			handle_flags(ssif_info, flags);
 		} else if (msg->rsp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || msg->rsp[1] != IPMI_GET_MSG_CMD) {
-			pr_warn(PFX "Invalid response clearing flags: %x %x\n",
+			pr_warn("Invalid response clearing flags: %x %x\n",
 				msg->rsp[0], msg->rsp[1]);
 			msg->done(msg);
 
@@ -842,7 +841,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ipmi_ssif_unlock_cond(ssif_info, flags);
 
 	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
-		pr_info(PFX "DONE 2: state = %d.\n", ssif_info->ssif_state);
+		pr_info("DONE 2: state = %d.\n", ssif_info->ssif_state);
 }
 
 static void msg_written_handler(struct ssif_info *ssif_info, int result,
@@ -862,8 +861,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ssif_inc_stat(ssif_info, send_errors);
 
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info(PFX
-					"Out of retries in msg_written_handler\n");
+				pr_info("%s: Out of retries\n", __func__);
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
 			return;
 		}
@@ -1043,8 +1041,8 @@ static void sender(void                *send_info,
 
 		ktime_get_real_ts64(&t);
 		pr_info("**Enqueue %02x %02x: %lld.%6.6ld\n",
-		       msg->data[0], msg->data[1],
-		       (long long) t.tv_sec, (long) t.tv_nsec / NSEC_PER_USEC);
+			msg->data[0], msg->data[1],
+			(long long)t.tv_sec, (long)t.tv_nsec / NSEC_PER_USEC);
 	}
 }
 
@@ -1435,9 +1433,9 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	slave_addr = find_slave_address(client, slave_addr);
 
-	pr_info(PFX "Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
-	       ipmi_addr_src_to_str(ssif_info->addr_source),
-	       client->addr, client->adapter->name, slave_addr);
+	pr_info("Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
+		ipmi_addr_src_to_str(ssif_info->addr_source),
+		client->addr, client->adapter->name, slave_addr);
 
 	ssif_info->client = client;
 	i2c_set_clientdata(client, ssif_info);
@@ -1450,7 +1448,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!rv && (len >= 3) && (resp[2] == 0)) {
 		if (len < 7) {
 			if (ssif_dbg_probe)
-				pr_info(PFX "SSIF info too short: %d\n", len);
+				pr_info("SSIF info too short: %d\n", len);
 			goto no_support;
 		}
 
@@ -1506,8 +1504,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	} else {
  no_support:
 		/* Assume no multi-part or PEC support */
-		pr_info(PFX "Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so using defaults\n",
-		       rv, len, resp[2]);
+		pr_info("Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so using defaults\n",
+			rv, len, resp[2]);
 
 		ssif_info->max_xmit_msg_size = 32;
 		ssif_info->max_recv_msg_size = 32;
@@ -1521,7 +1519,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[2] = WDT_PRE_TIMEOUT_INT;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 3) || (resp[2] != 0))
-		pr_warn(PFX "Unable to clear message flags: %d %d %2.2x\n",
+		pr_warn("Unable to clear message flags: %d %d %2.2x\n",
 			rv, len, resp[2]);
 
 	/* Attempt to enable the event buffer. */
@@ -1529,7 +1527,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
 	rv = do_cmd(client, 2, msg, &len, resp);
 	if (rv || (len < 4) || (resp[2] != 0)) {
-		pr_warn(PFX "Error getting global enables: %d %d %2.2x\n",
+		pr_warn("Error getting global enables: %d %d %2.2x\n",
 			rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
@@ -1548,7 +1546,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[2] = ssif_info->global_enables | IPMI_BMC_EVT_MSG_BUFF;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 2)) {
-		pr_warn(PFX "Error setting global enables: %d %d %2.2x\n",
+		pr_warn("Error setting global enables: %d %d %2.2x\n",
 			rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
@@ -1569,7 +1567,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[2] = ssif_info->global_enables | IPMI_BMC_RCV_MSG_INTR;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 2)) {
-		pr_warn(PFX "Error setting global enables: %d %d %2.2x\n",
+		pr_warn("Error setting global enables: %d %d %2.2x\n",
 			rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
@@ -1637,7 +1635,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			       &ssif_info->client->dev,
 			       slave_addr);
 	 if (rv) {
-		pr_err(PFX "Unable to register device: error %d\n", rv);
+		pr_err("Unable to register device: error %d\n", rv);
 		goto out_remove_attr;
 	}
 
@@ -1790,7 +1788,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 
 	rv = device_property_read_u16(&pdev->dev, "i2c-addr", &i2c_addr);
 	if (rv) {
-		dev_warn(&pdev->dev, PFX "No i2c-addr property\n");
+		dev_warn(&pdev->dev, "No i2c-addr property\n");
 		return -ENODEV;
 	}
 
@@ -1871,8 +1869,7 @@ static int init_ipmi_ssif(void)
 				     dbg[i], slave_addrs[i],
 				     SI_HARDCODED, NULL);
 		if (rv)
-			pr_err(PFX
-			       "Couldn't add hardcoded device at addr 0x%x\n",
+			pr_err("Couldn't add hardcoded device at addr 0x%x\n",
 			       addr[i]);
 	}
 
@@ -1883,7 +1880,7 @@ static int init_ipmi_ssif(void)
 	if (ssif_trydmi) {
 		rv = platform_driver_register(&ipmi_driver);
 		if (rv)
-			pr_err(PFX "Unable to register driver: %d\n", rv);
+			pr_err("Unable to register driver: %d\n", rv);
 	}
 
 	ssif_i2c_driver.address_list = ssif_address_list();
