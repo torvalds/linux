@@ -402,6 +402,8 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	spin_lock_init(&ctx->lock);
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
 						   "rockchip,grf");
+	ctx->boost = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+						   "rockchip,boost");
 
 	return ctx;
 

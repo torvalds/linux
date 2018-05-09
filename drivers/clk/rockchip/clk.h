@@ -34,6 +34,25 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
+#define BOOST_PLL_H_CON(x)		((x) * 0x4)
+#define BOOST_CLK_CON			0x0008
+#define BOOST_BOOST_CON			0x000c
+#define BOOST_SWITCH_CNT		0x0010
+#define BOOST_HIGH_PERF_CNT0		0x0014
+#define BOOST_HIGH_PERF_CNT1		0x0018
+#define BOOST_STATIS_THRESHOLD		0x001c
+#define BOOST_SHORT_SWITCH_CNT		0x0020
+#define BOOST_SWITCH_THRESHOLD		0x0024
+#define BOOST_FSM_STATUS		0x0028
+#define BOOST_PLL_L_CON(x)		((x) * 0x4 + 0x2c)
+#define BOOST_RECOVERY_MASK		0x1
+#define BOOST_RECOVERY_SHIFT		1
+#define BOOST_SW_CTRL_MASK		0x1
+#define BOOST_SW_CTRL_SHIFT		2
+#define BOOST_LOW_FREQ_EN_MASK		0x1
+#define BOOST_LOW_FREQ_EN_SHIFT		3
+#define BOOST_BUSY_STATE		BIT(8)
+
 #define PX30_PLL_CON(x)			((x) * 0x4)
 #define PX30_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
 #define PX30_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
@@ -53,25 +72,6 @@ struct clk;
 #define PX30_PMU_CLKSEL_CON(x)		((x) * 0x4 + 0x40)
 #define PX30_PMU_CLKGATE_CON(x)		((x) * 0x4 + 0x80)
 #define PX30_PMU_MODE			0x0020
-
-#define PX30_BOOST_PLL_H_CON(x)		((x) * 0x4 + 0x8000)
-#define PX30_BOOST_CLK_CON		0x8008
-#define PX30_BOOST_BOOST_CON		0x800c
-#define PX30_BOOST_SWITCH_CNT		0x8010
-#define PX30_BOOST_HIGH_PERF_CNT0	0x8014
-#define PX30_BOOST_HIGH_PERF_CNT1	0x8018
-#define PX30_BOOST_STATIS_THRESHOLD	0x801c
-#define PX30_BOOST_SHORT_SWITCH_CNT	0x8020
-#define PX30_BOOST_SWITCH_THRESHOLD	0x8024
-#define PX30_BOOST_FSM_STATUS		0x8028
-#define PX30_BOOST_PLL_L_CON(x)		((x) * 0x4 + 0x802c)
-#define PX30_BOOST_RECOVERY_MASK	0x1
-#define PX30_BOOST_RECOVERY_SHIFT	1
-#define PX30_BOOST_SW_CTRL_MASK		0x1
-#define PX30_BOOST_SW_CTRL_SHIFT	2
-#define PX30_BOOST_LOW_FREQ_EN_MASK	0x1
-#define PX30_BOOST_LOW_FREQ_EN_SHIFT	3
-#define PX30_BOOST_BUSY_STATE		BIT(8)
 
 /* register positions shared by RK2928, RK3036, RK3066, RK3188 and RK3228 */
 #define RK2928_PLL_CON(x)		((x) * 0x4)
@@ -237,6 +237,7 @@ struct rockchip_clk_provider {
 	struct clk_onecell_data clk_data;
 	struct device_node *cru_node;
 	struct regmap *grf;
+	struct regmap *boost;
 	spinlock_t lock;
 };
 

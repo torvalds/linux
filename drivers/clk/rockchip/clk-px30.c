@@ -186,7 +186,7 @@ PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_ref24m_pmu" };
 PNAME(mux_mipidsiphy_ref_p)	= { "xin24m", "clk_ref24m_pmu" };
 
 static struct rockchip_pll_clock px30_pll_clks[] __initdata = {
-	[apll] = PLL(pll_px30, PLL_APLL, "apll", mux_pll_p,
+	[apll] = PLL_BOOST(pll_rk3036, PLL_APLL, "apll", mux_pll_p,
 		     0, PX30_PLL_CON(0),
 		     PX30_MODE_CON, 0, 0, 0, px30_pll_rates),
 	[dpll] = PLL(pll_rk3036, PLL_DPLL, "dpll", mux_pll_p,
@@ -198,12 +198,6 @@ static struct rockchip_pll_clock px30_pll_clks[] __initdata = {
 	[npll] = PLL(pll_rk3036, PLL_NPLL, "npll", mux_pll_p,
 		     0, PX30_PLL_CON(24),
 		     PX30_MODE_CON, 6, 4, 0, px30_pll_rates),
-	[apll_b_h] = PLL(pll_rk3036, APLL_BOOST_H, "apll_b_h", mux_pll_p,
-		     0, PX30_BOOST_PLL_H_CON(0),
-		     PX30_MODE_CON, 0, 0, 0, px30_pll_rates),
-	[apll_b_l] = PLL(pll_rk3036, APLL_BOOST_L, "apll_b_l", mux_pll_p,
-		     0, PX30_BOOST_PLL_L_CON(0),
-		     PX30_MODE_CON, 0, 0, 0, px30_pll_rates),
 };
 
 static struct rockchip_pll_clock px30_pmu_pll_clks[] __initdata = {

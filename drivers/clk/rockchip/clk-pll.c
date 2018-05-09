@@ -359,54 +359,60 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 void rockchip_boost_enable_recovery_sw_low(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll;
-	int ret;
+	struct regmap *boost;
+	unsigned int val;
 
 	if (!hw)
 		return;
 	pll = to_rockchip_clk_pll(hw);
+	if (!pll->boost_enabled || IS_ERR(pll->ctx->boost))
+		return;
 
-	if (pll->type == pll_px30) {
-		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_RECOVERY_MASK,
-					     PX30_BOOST_RECOVERY_SHIFT),
-			       pll->reg_base + PX30_BOOST_BOOST_CON);
-		do {
-			ret = readl_relaxed(pll->reg_base +
-					    PX30_BOOST_FSM_STATUS);
-		} while (!(ret & PX30_BOOST_BUSY_STATE));
+	boost = pll->ctx->boost;
+	regmap_write(boost, BOOST_BOOST_CON,
+		     HIWORD_UPDATE(1, BOOST_RECOVERY_MASK,
+				   BOOST_RECOVERY_SHIFT));
+	do {
+		regmap_read(boost, BOOST_FSM_STATUS, &val);
+	} while (!(val & BOOST_BUSY_STATE));
 
-		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_SW_CTRL_MASK,
-					     PX30_BOOST_SW_CTRL_SHIFT) |
-			       HIWORD_UPDATE(1, PX30_BOOST_LOW_FREQ_EN_MASK,
-					     PX30_BOOST_LOW_FREQ_EN_SHIFT),
-			       pll->reg_base + PX30_BOOST_BOOST_CON);
-	}
+	regmap_write(boost, BOOST_BOOST_CON,
+		     HIWORD_UPDATE(1, BOOST_SW_CTRL_MASK,
+				   BOOST_SW_CTRL_SHIFT) |
+		     HIWORD_UPDATE(1, BOOST_LOW_FREQ_EN_MASK,
+				   BOOST_LOW_FREQ_EN_SHIFT));
 }
 
 void rockchip_boost_disable_low(struct rockchip_clk_pll *pll)
 {
-	if (pll->type == pll_px30) {
-		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_LOW_FREQ_EN_MASK,
-					     PX30_BOOST_LOW_FREQ_EN_SHIFT),
-			       pll->reg_base + PX30_BOOST_BOOST_CON);
-	}
+	struct regmap *boost = pll->ctx->boost;
+
+	if (!pll->boost_enabled || IS_ERR(boost))
+		return;
+
+	regmap_write(boost, BOOST_BOOST_CON,
+		     HIWORD_UPDATE(0, BOOST_LOW_FREQ_EN_MASK,
+				   BOOST_LOW_FREQ_EN_SHIFT));
 }
 
 void rockchip_boost_disable_recovery_sw(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll;
+	struct regmap *boost;
 
 	if (!hw)
 		return;
 	pll = to_rockchip_clk_pll(hw);
+	if (!pll->boost_enabled || IS_ERR(pll->ctx->boost))
+		return;
 
-	if (pll->type == pll_px30) {
-		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_RECOVERY_MASK,
-					     PX30_BOOST_RECOVERY_SHIFT),
-			       pll->reg_base + PX30_BOOST_BOOST_CON);
-		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_SW_CTRL_MASK,
-					     PX30_BOOST_SW_CTRL_SHIFT),
-			       pll->reg_base + PX30_BOOST_BOOST_CON);
-	}
+	boost = pll->ctx->boost;
+	regmap_write(boost, BOOST_BOOST_CON,
+		     HIWORD_UPDATE(0, BOOST_RECOVERY_MASK,
+				   BOOST_RECOVERY_SHIFT));
+	regmap_write(boost, BOOST_BOOST_CON,
+		     HIWORD_UPDATE(0, BOOST_SW_CTRL_MASK,
+				   BOOST_SW_CTRL_SHIFT));
 }
 
 /**
