@@ -186,7 +186,7 @@ unsigned int blk_plug_queued_count(struct request_queue *q);
 
 void blk_account_io_start(struct request *req, bool new_io);
 void blk_account_io_completion(struct request *req, unsigned int bytes);
-void blk_account_io_done(struct request *req);
+void blk_account_io_done(struct request *req, u64 now);
 
 /*
  * EH timer and IO completion will both attempt to 'grab' the request, make

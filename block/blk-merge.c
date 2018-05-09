@@ -724,13 +724,12 @@ static struct request *attempt_merge(struct request_queue *q,
 	}
 
 	/*
-	 * At this point we have either done a back merge
-	 * or front merge. We need the smaller start_time of
-	 * the merged requests to be the current request
-	 * for accounting purposes.
+	 * At this point we have either done a back merge or front merge. We
+	 * need the smaller start_time_ns of the merged requests to be the
+	 * current request for accounting purposes.
 	 */
-	if (time_after(req->start_time, next->start_time))
-		req->start_time = next->start_time;
+	if (next->start_time_ns < req->start_time_ns)
+		req->start_time_ns = next->start_time_ns;
 
 	req->biotail->bi_next = next->bio;
 	req->biotail = next->biotail;

@@ -4778,8 +4778,8 @@ static void bfq_finish_requeue_request(struct request *rq)
 
 	if (rq->rq_flags & RQF_STARTED)
 		bfqg_stats_update_completion(bfqq_group(bfqq),
-					     rq_start_time_ns(rq),
-					     rq_io_start_time_ns(rq),
+					     rq->start_time_ns,
+					     rq->io_start_time_ns,
 					     rq->cmd_flags);
 
 	if (likely(rq->rq_flags & RQF_STARTED)) {

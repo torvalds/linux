@@ -65,7 +65,7 @@ struct blk_stat_callback {
 struct blk_queue_stats *blk_alloc_queue_stats(void);
 void blk_free_queue_stats(struct blk_queue_stats *);
 
-void blk_stat_add(struct request *);
+void blk_stat_add(struct request *rq, u64 now);
 
 /* record time/size info in request but not add a callback */
 void blk_stat_enable_accounting(struct request_queue *q);
