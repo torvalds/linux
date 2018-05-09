@@ -48,8 +48,11 @@ struct msm_kms_funcs {
 	/* functions to wait for atomic commit completed on each CRTC */
 	void (*wait_for_crtc_commit_done)(struct msm_kms *kms,
 					struct drm_crtc *crtc);
+	/* get msm_format w/ optional format modifiers from drm_mode_fb_cmd2 */
+	const struct msm_format *(*get_format)(struct msm_kms *kms,
+					const uint32_t format,
+					const uint64_t modifiers);
 	/* misc: */
-	const struct msm_format *(*get_format)(struct msm_kms *kms, uint32_t format);
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
 			struct drm_encoder *encoder);
 	int (*set_split_display)(struct msm_kms *kms,

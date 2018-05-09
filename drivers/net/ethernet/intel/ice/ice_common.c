@@ -78,6 +78,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 	struct ice_aq_desc desc;
 	enum ice_status status;
 	u16 flags;
+	u8 i;
 
 	cmd = &desc.params.mac_read;
 
@@ -98,8 +99,16 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 		return ICE_ERR_CFG;
 	}
 
-	ether_addr_copy(hw->port_info->mac.lan_addr, resp->mac_addr);
-	ether_addr_copy(hw->port_info->mac.perm_addr, resp->mac_addr);
+	/* A single port can report up to two (LAN and WoL) addresses */
+	for (i = 0; i < cmd->num_addr; i++)
+		if (resp[i].addr_type == ICE_AQC_MAN_MAC_ADDR_TYPE_LAN) {
+			ether_addr_copy(hw->port_info->mac.lan_addr,
+					resp[i].mac_addr);
+			ether_addr_copy(hw->port_info->mac.perm_addr,
+					resp[i].mac_addr);
+			break;
+		}
+
 	return 0;
 }
 
@@ -464,9 +473,12 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
-	/* Get port MAC information */
-	mac_buf_len = sizeof(struct ice_aqc_manage_mac_read_resp);
-	mac_buf = devm_kzalloc(ice_hw_to_dev(hw), mac_buf_len, GFP_KERNEL);
+	/* Get MAC information */
+	/* A single port can report up to two (LAN and WoL) addresses */
+	mac_buf = devm_kcalloc(ice_hw_to_dev(hw), 2,
+			       sizeof(struct ice_aqc_manage_mac_read_resp),
+			       GFP_KERNEL);
+	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
 
 	if (!mac_buf) {
 		status = ICE_ERR_NO_MEMORY;
