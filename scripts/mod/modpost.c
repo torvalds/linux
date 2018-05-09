@@ -121,7 +121,7 @@ void *do_nofail(void *ptr, const char *expr)
 /* A list of all modules we processed */
 static struct module *modules;
 
-static struct module *find_module(char *modname)
+static struct module *find_module(const char *modname)
 {
 	struct module *mod;
 
@@ -1929,7 +1929,7 @@ static char *remove_dot(char *s)
 	return s;
 }
 
-static void read_symbols(char *modname)
+static void read_symbols(const char *modname)
 {
 	const char *symname;
 	char *version;
