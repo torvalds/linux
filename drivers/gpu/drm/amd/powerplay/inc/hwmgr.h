@@ -254,6 +254,7 @@ struct pp_hwmgr_func {
 						const void *state);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
+	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*update_clock_gatings)(struct pp_hwmgr *hwmgr,

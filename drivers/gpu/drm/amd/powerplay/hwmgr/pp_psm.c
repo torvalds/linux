@@ -272,6 +272,8 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 		 */
 		phm_apply_clock_adjust_rules(hwmgr);
 
+	phm_pre_display_configuration_changed(hwmgr);
+
 	phm_display_configuration_changed(hwmgr);
 
 	if (hwmgr->ps)

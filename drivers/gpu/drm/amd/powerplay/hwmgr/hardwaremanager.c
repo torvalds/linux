@@ -170,6 +170,16 @@ int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (NULL != hwmgr->hwmgr_func->pre_display_config_changed)
+		hwmgr->hwmgr_func->pre_display_config_changed(hwmgr);
+
+	return 0;
+
+}
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
