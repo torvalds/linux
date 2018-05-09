@@ -530,20 +530,20 @@ err_free:
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
 
-void zero_fill_bio(struct bio *bio)
+void zero_fill_bio_iter(struct bio *bio, struct bvec_iter start)
 {
 	unsigned long flags;
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
-	bio_for_each_segment(bv, bio, iter) {
+	__bio_for_each_segment(bv, bio, iter, start) {
 		char *data = bvec_kmap_irq(&bv, &flags);
 		memset(data, 0, bv.bv_len);
 		flush_dcache_page(bv.bv_page);
 		bvec_kunmap_irq(data, &flags);
 	}
 }
-EXPORT_SYMBOL(zero_fill_bio);
+EXPORT_SYMBOL(zero_fill_bio_iter);
 
 /**
  * bio_put - release a reference to a bio
@@ -971,27 +971,12 @@ void bio_advance(struct bio *bio, unsigned bytes)
 }
 EXPORT_SYMBOL(bio_advance);
 
-/**
- * bio_copy_data - copy contents of data buffers from one chain of bios to
- * another
- * @src: source bio list
- * @dst: destination bio list
- *
- * If @src and @dst are single bios, bi_next must be NULL - otherwise, treats
- * @src and @dst as linked lists of bios.
- *
- * Stops when it reaches the end of either @src or @dst - that is, copies
- * min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of bios).
- */
-void bio_copy_data(struct bio *dst, struct bio *src)
+void bio_copy_data_iter(struct bio *dst, struct bvec_iter dst_iter,
+			struct bio *src, struct bvec_iter src_iter)
 {
-	struct bvec_iter src_iter, dst_iter;
 	struct bio_vec src_bv, dst_bv;
 	void *src_p, *dst_p;
 	unsigned bytes;
-
-	src_iter = src->bi_iter;
-	dst_iter = dst->bi_iter;
 
 	while (1) {
 		if (!src_iter.bi_size) {
@@ -1028,6 +1013,25 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 		bio_advance_iter(src, &src_iter, bytes);
 		bio_advance_iter(dst, &dst_iter, bytes);
 	}
+}
+EXPORT_SYMBOL(bio_copy_data_iter);
+
+/**
+ * bio_copy_data - copy contents of data buffers from one chain of bios to
+ * another
+ * @src: source bio list
+ * @dst: destination bio list
+ *
+ * If @src and @dst are single bios, bi_next must be NULL - otherwise, treats
+ * @src and @dst as linked lists of bios.
+ *
+ * Stops when it reaches the end of either @src or @dst - that is, copies
+ * min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of bios).
+ */
+void bio_copy_data(struct bio *dst, struct bio *src)
+{
+	bio_copy_data_iter(dst, dst->bi_iter,
+			   src, src->bi_iter);
 }
 EXPORT_SYMBOL(bio_copy_data);
 

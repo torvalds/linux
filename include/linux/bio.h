@@ -67,8 +67,12 @@
 
 #define bio_multiple_segments(bio)				\
 	((bio)->bi_iter.bi_size != bio_iovec(bio).bv_len)
-#define bio_sectors(bio)	((bio)->bi_iter.bi_size >> 9)
-#define bio_end_sector(bio)	((bio)->bi_iter.bi_sector + bio_sectors((bio)))
+
+#define bvec_iter_sectors(iter)	((iter).bi_size >> 9)
+#define bvec_iter_end_sector(iter) ((iter).bi_sector + bvec_iter_sectors((iter)))
+
+#define bio_sectors(bio)	bvec_iter_sectors((bio)->bi_iter)
+#define bio_end_sector(bio)	bvec_iter_end_sector((bio)->bi_iter)
 
 /*
  * Return the data direction, READ or WRITE.
@@ -501,6 +505,8 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
 }
 #endif
 
+extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter dst_iter,
+			       struct bio *src, struct bvec_iter src_iter);
 extern void bio_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);
 
@@ -509,7 +515,13 @@ extern struct bio *bio_copy_user_iov(struct request_queue *,
 				     struct iov_iter *,
 				     gfp_t);
 extern int bio_uncopy_user(struct bio *);
-void zero_fill_bio(struct bio *bio);
+void zero_fill_bio_iter(struct bio *bio, struct bvec_iter iter);
+
+static inline void zero_fill_bio(struct bio *bio)
+{
+	zero_fill_bio_iter(bio, bio->bi_iter);
+}
+
 extern struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
 extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
