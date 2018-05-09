@@ -6,7 +6,11 @@ extern const struct dma_map_ops *dma_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
+#ifdef CONFIG_ALPHA_JENSEN
+	return &dma_direct_ops;
+#else
 	return dma_ops;
+#endif
 }
 
 #endif	/* _ALPHA_DMA_MAPPING_H */
