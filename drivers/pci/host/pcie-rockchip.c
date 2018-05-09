@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_pci.h>
 #include <linux/phy/phy.h>
@@ -144,6 +145,147 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rockchip_pcie_parse_dt);
+
+int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
+{
+	struct device *dev = rockchip->dev;
+	int err, i;
+	u32 regs;
+
+	err = reset_control_assert(rockchip->aclk_rst);
+	if (err) {
+		dev_err(dev, "assert aclk_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(rockchip->pclk_rst);
+	if (err) {
+		dev_err(dev, "assert pclk_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(rockchip->pm_rst);
+	if (err) {
+		dev_err(dev, "assert pm_rst err %d\n", err);
+		return err;
+	}
+
+	for (i = 0; i < MAX_LANE_NUM; i++) {
+		err = phy_init(rockchip->phys[i]);
+		if (err) {
+			dev_err(dev, "init phy%d err %d\n", i, err);
+			goto err_exit_phy;
+		}
+	}
+
+	err = reset_control_assert(rockchip->core_rst);
+	if (err) {
+		dev_err(dev, "assert core_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	err = reset_control_assert(rockchip->mgmt_rst);
+	if (err) {
+		dev_err(dev, "assert mgmt_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	err = reset_control_assert(rockchip->mgmt_sticky_rst);
+	if (err) {
+		dev_err(dev, "assert mgmt_sticky_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	err = reset_control_assert(rockchip->pipe_rst);
+	if (err) {
+		dev_err(dev, "assert pipe_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	udelay(10);
+
+	err = reset_control_deassert(rockchip->pm_rst);
+	if (err) {
+		dev_err(dev, "deassert pm_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	err = reset_control_deassert(rockchip->aclk_rst);
+	if (err) {
+		dev_err(dev, "deassert aclk_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	err = reset_control_deassert(rockchip->pclk_rst);
+	if (err) {
+		dev_err(dev, "deassert pclk_rst err %d\n", err);
+		goto err_exit_phy;
+	}
+
+	if (rockchip->link_gen == 2)
+		rockchip_pcie_write(rockchip, PCIE_CLIENT_GEN_SEL_2,
+				    PCIE_CLIENT_CONFIG);
+	else
+		rockchip_pcie_write(rockchip, PCIE_CLIENT_GEN_SEL_1,
+				    PCIE_CLIENT_CONFIG);
+
+	regs = PCIE_CLIENT_LINK_TRAIN_ENABLE | PCIE_CLIENT_ARI_ENABLE |
+	       PCIE_CLIENT_CONF_LANE_NUM(rockchip->lanes);
+
+	if (rockchip->is_rc)
+		regs |= PCIE_CLIENT_CONF_ENABLE | PCIE_CLIENT_MODE_RC;
+	else
+		regs |= PCIE_CLIENT_CONF_DISABLE | PCIE_CLIENT_MODE_EP;
+
+	rockchip_pcie_write(rockchip, regs, PCIE_CLIENT_CONFIG);
+
+	for (i = 0; i < MAX_LANE_NUM; i++) {
+		err = phy_power_on(rockchip->phys[i]);
+		if (err) {
+			dev_err(dev, "power on phy%d err %d\n", i, err);
+			goto err_power_off_phy;
+		}
+	}
+
+	/*
+	 * Please don't reorder the deassert sequence of the following
+	 * four reset pins.
+	 */
+	err = reset_control_deassert(rockchip->mgmt_sticky_rst);
+	if (err) {
+		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
+		goto err_power_off_phy;
+	}
+
+	err = reset_control_deassert(rockchip->core_rst);
+	if (err) {
+		dev_err(dev, "deassert core_rst err %d\n", err);
+		goto err_power_off_phy;
+	}
+
+	err = reset_control_deassert(rockchip->mgmt_rst);
+	if (err) {
+		dev_err(dev, "deassert mgmt_rst err %d\n", err);
+		goto err_power_off_phy;
+	}
+
+	err = reset_control_deassert(rockchip->pipe_rst);
+	if (err) {
+		dev_err(dev, "deassert pipe_rst err %d\n", err);
+		goto err_power_off_phy;
+	}
+
+	return 0;
+err_power_off_phy:
+	while (i--)
+		phy_power_off(rockchip->phys[i]);
+	i = MAX_LANE_NUM;
+err_exit_phy:
+	while (i--)
+		phy_exit(rockchip->phys[i]);
+	return err;
+}
+EXPORT_SYMBOL_GPL(rockchip_pcie_init_port);
 
 int rockchip_pcie_get_phys(struct rockchip_pcie *rockchip)
 {

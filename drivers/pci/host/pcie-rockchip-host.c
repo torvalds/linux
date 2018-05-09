@@ -293,137 +293,20 @@ static void rockchip_pcie_set_power_limit(struct rockchip_pcie *rockchip)
 }
 
 /**
- * rockchip_pcie_init_port - Initialize hardware
+ * rockchip_pcie_host_init_port - Initialize hardware
  * @rockchip: PCIe port information
  */
-static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
+static int rockchip_pcie_host_init_port(struct rockchip_pcie *rockchip)
 {
 	struct device *dev = rockchip->dev;
-	int err, i;
+	int err, i = MAX_LANE_NUM;
 	u32 status;
 
 	gpiod_set_value_cansleep(rockchip->ep_gpio, 0);
 
-	err = reset_control_assert(rockchip->aclk_rst);
-	if (err) {
-		dev_err(dev, "assert aclk_rst err %d\n", err);
+	err = rockchip_pcie_init_port(rockchip);
+	if (err)
 		return err;
-	}
-
-	err = reset_control_assert(rockchip->pclk_rst);
-	if (err) {
-		dev_err(dev, "assert pclk_rst err %d\n", err);
-		return err;
-	}
-
-	err = reset_control_assert(rockchip->pm_rst);
-	if (err) {
-		dev_err(dev, "assert pm_rst err %d\n", err);
-		return err;
-	}
-
-	for (i = 0; i < MAX_LANE_NUM; i++) {
-		err = phy_init(rockchip->phys[i]);
-		if (err) {
-			dev_err(dev, "init phy%d err %d\n", i, err);
-			goto err_exit_phy;
-		}
-	}
-
-	err = reset_control_assert(rockchip->core_rst);
-	if (err) {
-		dev_err(dev, "assert core_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	err = reset_control_assert(rockchip->mgmt_rst);
-	if (err) {
-		dev_err(dev, "assert mgmt_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	err = reset_control_assert(rockchip->mgmt_sticky_rst);
-	if (err) {
-		dev_err(dev, "assert mgmt_sticky_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	err = reset_control_assert(rockchip->pipe_rst);
-	if (err) {
-		dev_err(dev, "assert pipe_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	udelay(10);
-
-	err = reset_control_deassert(rockchip->pm_rst);
-	if (err) {
-		dev_err(dev, "deassert pm_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	err = reset_control_deassert(rockchip->aclk_rst);
-	if (err) {
-		dev_err(dev, "deassert aclk_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	err = reset_control_deassert(rockchip->pclk_rst);
-	if (err) {
-		dev_err(dev, "deassert pclk_rst err %d\n", err);
-		goto err_exit_phy;
-	}
-
-	if (rockchip->link_gen == 2)
-		rockchip_pcie_write(rockchip, PCIE_CLIENT_GEN_SEL_2,
-				    PCIE_CLIENT_CONFIG);
-	else
-		rockchip_pcie_write(rockchip, PCIE_CLIENT_GEN_SEL_1,
-				    PCIE_CLIENT_CONFIG);
-
-	rockchip_pcie_write(rockchip,
-			    PCIE_CLIENT_CONF_ENABLE |
-			    PCIE_CLIENT_LINK_TRAIN_ENABLE |
-			    PCIE_CLIENT_ARI_ENABLE |
-			    PCIE_CLIENT_CONF_LANE_NUM(rockchip->lanes) |
-			    PCIE_CLIENT_MODE_RC,
-			    PCIE_CLIENT_CONFIG);
-
-	for (i = 0; i < MAX_LANE_NUM; i++) {
-		err = phy_power_on(rockchip->phys[i]);
-		if (err) {
-			dev_err(dev, "power on phy%d err %d\n", i, err);
-			goto err_power_off_phy;
-		}
-	}
-
-	/*
-	 * Please don't reorder the deassert sequence of the following
-	 * four reset pins.
-	 */
-	err = reset_control_deassert(rockchip->mgmt_sticky_rst);
-	if (err) {
-		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
-		goto err_power_off_phy;
-	}
-
-	err = reset_control_deassert(rockchip->core_rst);
-	if (err) {
-		dev_err(dev, "deassert core_rst err %d\n", err);
-		goto err_power_off_phy;
-	}
-
-	err = reset_control_deassert(rockchip->mgmt_rst);
-	if (err) {
-		dev_err(dev, "deassert mgmt_rst err %d\n", err);
-		goto err_power_off_phy;
-	}
-
-	err = reset_control_deassert(rockchip->pipe_rst);
-	if (err) {
-		dev_err(dev, "deassert pipe_rst err %d\n", err);
-		goto err_power_off_phy;
-	}
 
 	/* Fix the transmitted FTS count desired to exit from L0s. */
 	status = rockchip_pcie_read(rockchip, PCIE_CORE_CTRL_PLC1);
@@ -517,7 +400,6 @@ err_power_off_phy:
 	while (i--)
 		phy_power_off(rockchip->phys[i]);
 	i = MAX_LANE_NUM;
-err_exit_phy:
 	while (i--)
 		phy_exit(rockchip->phys[i]);
 	return err;
@@ -1036,7 +918,7 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 	if (err)
 		goto err_disable_0v9;
 
-	err = rockchip_pcie_init_port(rockchip);
+	err = rockchip_pcie_host_init_port(rockchip);
 	if (err)
 		goto err_pcie_resume;
 
@@ -1101,7 +983,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		goto err_set_vpcie;
 	}
 
-	err = rockchip_pcie_init_port(rockchip);
+	err = rockchip_pcie_host_init_port(rockchip);
 	if (err)
 		goto err_vpcie;
 
