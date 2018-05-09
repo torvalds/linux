@@ -2246,30 +2246,35 @@ struct xfs_defer_pending;
 struct xfs_defer_ops;
 
 DECLARE_EVENT_CLASS(xfs_defer_class,
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop),
-	TP_ARGS(mp, dop),
+	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop,
+		 unsigned long caller_ip),
+	TP_ARGS(mp, dop, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(void *, dop)
 		__field(char, committed)
 		__field(char, low)
+		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->dop = dop;
 		__entry->committed = dop->dop_committed;
 		__entry->low = dop->dop_low;
+		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ops %p committed %d low %d",
+	TP_printk("dev %d:%d ops %p committed %d low %d, caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dop,
 		  __entry->committed,
-		  __entry->low)
+		  __entry->low,
+		  (char *)__entry->caller_ip)
 )
 #define DEFINE_DEFER_EVENT(name) \
 DEFINE_EVENT(xfs_defer_class, name, \
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop), \
-	TP_ARGS(mp, dop))
+	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, \
+		 unsigned long caller_ip), \
+	TP_ARGS(mp, dop, caller_ip))
 
 DECLARE_EVENT_CLASS(xfs_defer_error_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, int error),
