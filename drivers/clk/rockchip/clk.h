@@ -269,6 +269,7 @@ struct rockchip_pll_rate_table {
  * @type: Type of PLL to be registered.
  * @pll_flags: hardware-specific flags
  * @rate_table: Table of usable pll rates
+ * @boost_enabled: whether pll supports boost
  *
  * Flags:
  * ROCKCHIP_PLL_SYNC_RATE - check rate parameters to match against the
@@ -287,6 +288,7 @@ struct rockchip_pll_clock {
 	enum rockchip_pll_type	type;
 	u8			pll_flags;
 	struct rockchip_pll_rate_table *rate_table;
+	bool			boost_enabled;
 };
 
 #define ROCKCHIP_PLL_SYNC_RATE		BIT(0)
@@ -308,13 +310,32 @@ struct rockchip_pll_clock {
 		.rate_table	= _rtable,				\
 	}
 
+#define PLL_BOOST(_type, _id, _name, _pnames, _flags, _con, _mode,	\
+		_mshift, _lshift, _pflags, _rtable)			\
+	{								\
+		.id		= _id,					\
+		.type		= _type,				\
+		.name		= _name,				\
+		.parent_names	= _pnames,				\
+		.num_parents	= ARRAY_SIZE(_pnames),			\
+		.flags		= CLK_GET_RATE_NOCACHE | _flags,	\
+		.con_offset	= _con,					\
+		.mode_offset	= _mode,				\
+		.mode_shift	= _mshift,				\
+		.lock_shift	= _lshift,				\
+		.pll_flags	= _pflags,				\
+		.rate_table	= _rtable,				\
+		.boost_enabled  = true,					\
+	}
+
 struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		enum rockchip_pll_type pll_type,
 		const char *name, const char *const *parent_names,
 		u8 num_parents, int con_offset, int grf_lock_offset,
 		int lock_shift, int mode_offset, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		unsigned long flags, u8 clk_pll_flags);
+		unsigned long flags, u8 clk_pll_flags,
+		bool boost_enabled);
 
 void rockchip_boost_enable_recovery_sw_low(struct clk_hw *hw);
 

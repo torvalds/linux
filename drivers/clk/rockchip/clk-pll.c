@@ -50,6 +50,7 @@ struct rockchip_clk_pll {
 	int			sel;
 	unsigned long		scaling;
 	spinlock_t		*lock;
+	bool			boost_enabled;
 
 	struct rockchip_clk_provider *ctx;
 };
@@ -1360,7 +1361,8 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		u8 num_parents, int con_offset, int grf_lock_offset,
 		int lock_shift, int mode_offset, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		unsigned long flags, u8 clk_pll_flags)
+		unsigned long flags, u8 clk_pll_flags,
+		bool boost_enabled)
 {
 	const char *pll_parents[3];
 	struct clk_init_data init;
@@ -1487,6 +1489,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	pll->flags = clk_pll_flags;
 	pll->lock = &ctx->lock;
 	pll->ctx = ctx;
+	pll->boost_enabled = boost_enabled;
 
 	pll_clk = clk_register(NULL, &pll->hw);
 	if (IS_ERR(pll_clk)) {

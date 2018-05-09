@@ -445,7 +445,8 @@ void __init rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				list->con_offset, grf_lock_offset,
 				list->lock_shift, list->mode_offset,
 				list->mode_shift, list->rate_table,
-				list->flags, list->pll_flags);
+				list->flags, list->pll_flags,
+				list->boost_enabled);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);
