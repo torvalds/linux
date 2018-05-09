@@ -648,6 +648,16 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	rockchip,pwm-regulator-config = <
+		(0
+		| RKPM_PWM_REGULATOR
+		)
+	>;
+
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8>;
