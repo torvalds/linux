@@ -33,6 +33,12 @@ static inline u64 ssbd_tif_to_amd_ls_cfg(u64 tifn)
 	return (tifn & _TIF_SSBD) ? x86_amd_ls_cfg_ssbd_mask : 0ULL;
 }
 
+#ifdef CONFIG_SMP
+extern void speculative_store_bypass_ht_init(void);
+#else
+static inline void speculative_store_bypass_ht_init(void) { }
+#endif
+
 extern void speculative_store_bypass_update(void);
 
 #endif
