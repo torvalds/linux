@@ -572,14 +572,14 @@
 			thermal-sensors = <&scpi_sensors0 3>;
 		};
 
-		big_cluster_thermal_zone: big_cluster {
+		big_cluster_thermal_zone: big-cluster {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 21>;
 			status = "disabled";
 		};
 
-		little_cluster_thermal_zone: little_cluster {
+		little_cluster_thermal_zone: little-cluster {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 22>;

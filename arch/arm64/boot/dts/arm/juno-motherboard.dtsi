@@ -54,7 +54,7 @@
 				regulator-always-on;
 			};
 
-			gpio_keys {
+			gpio-keys {
 				compatible = "gpio-keys";
 
 				power-button {
