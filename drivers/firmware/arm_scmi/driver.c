@@ -295,7 +295,7 @@ static void scmi_tx_prepare(struct mbox_client *cl, void *m)
  *
  * Return: 0 if all went fine, else corresponding error.
  */
-static struct scmi_xfer *scmi_one_xfer_get(const struct scmi_handle *handle)
+static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle)
 {
 	u16 xfer_id;
 	struct scmi_xfer *xfer;
@@ -324,14 +324,14 @@ static struct scmi_xfer *scmi_one_xfer_get(const struct scmi_handle *handle)
 }
 
 /**
- * scmi_one_xfer_put() - Release a message
+ * scmi_xfer_put() - Release a message
  *
  * @handle: Pointer to SCMI entity handle
  * @xfer: message that was reserved by scmi_xfer_get
  *
  * This holds a spinlock to maintain integrity of internal data structures.
  */
-void scmi_one_xfer_put(const struct scmi_handle *handle, struct scmi_xfer *xfer)
+void scmi_xfer_put(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 {
 	unsigned long flags;
 	struct scmi_info *info = handle_to_scmi_info(handle);
@@ -436,7 +436,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 }
 
 /**
- * scmi_one_xfer_init() - Allocate and initialise one message
+ * scmi_xfer_get_init() - Allocate and initialise one message
  *
  * @handle: Pointer to SCMI entity handle
  * @msg_id: Message identifier
@@ -445,13 +445,13 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
  * @rx_size: receive message size
  * @p: pointer to the allocated and initialised message
  *
- * This function allocates the message using @scmi_one_xfer_get and
+ * This function allocates the message using @scmi_xfer_get and
  * initialise the header.
  *
  * Return: 0 if all went fine with @p pointing to message, else
  *	corresponding error.
  */
-int scmi_one_xfer_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
+int scmi_xfer_get_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 		       size_t tx_size, size_t rx_size, struct scmi_xfer **p)
 {
 	int ret;
@@ -464,7 +464,7 @@ int scmi_one_xfer_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 	    tx_size > info->desc->max_msg_size)
 		return -ERANGE;
 
-	xfer = scmi_one_xfer_get(handle);
+	xfer = scmi_xfer_get(handle);
 	if (IS_ERR(xfer)) {
 		ret = PTR_ERR(xfer);
 		dev_err(dev, "failed to get free message slot(%d)\n", ret);
@@ -500,7 +500,7 @@ int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
 	__le32 *rev_info;
 	struct scmi_xfer *t;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_VERSION, protocol, 0,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_VERSION, protocol, 0,
 				 sizeof(*version), &t);
 	if (ret)
 		return ret;
@@ -511,7 +511,7 @@ int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
 		*version = le32_to_cpu(*rev_info);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -539,7 +539,7 @@ scmi_is_protocol_implemented(const struct scmi_handle *handle, u8 prot_id)
 }
 
 /**
- * scmi_handle_get() - Get the  SCMI handle for a device
+ * scmi_handle_get() - Get the SCMI handle for a device
  *
  * @dev: pointer to device for which we want SCMI handle
  *

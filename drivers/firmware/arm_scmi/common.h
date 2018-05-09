@@ -95,9 +95,9 @@ struct scmi_xfer {
 	struct completion done;
 };
 
-void scmi_one_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer);
+void scmi_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer);
 int scmi_do_xfer(const struct scmi_handle *h, struct scmi_xfer *xfer);
-int scmi_one_xfer_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
+int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
 		       size_t tx_size, size_t rx_size, struct scmi_xfer **p);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);

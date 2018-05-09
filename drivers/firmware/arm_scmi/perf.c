@@ -115,7 +115,7 @@ static int scmi_perf_attributes_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
 				 SCMI_PROTOCOL_PERF, 0, sizeof(*attr), &t);
 	if (ret)
 		return ret;
@@ -133,7 +133,7 @@ static int scmi_perf_attributes_get(const struct scmi_handle *handle,
 		pi->stats_size = le32_to_cpu(attr->stats_size);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -145,7 +145,7 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_perf_domain_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PERF_DOMAIN_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PERF_DOMAIN_ATTRIBUTES,
 				 SCMI_PROTOCOL_PERF, sizeof(domain),
 				 sizeof(*attr), &t);
 	if (ret)
@@ -171,7 +171,7 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 		memcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -194,7 +194,7 @@ scmi_perf_describe_levels_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_msg_perf_describe_levels *dom_info;
 	struct scmi_msg_resp_perf_describe_levels *level_info;
 
-	ret = scmi_one_xfer_init(handle, PERF_DESCRIBE_LEVELS,
+	ret = scmi_xfer_get_init(handle, PERF_DESCRIBE_LEVELS,
 				 SCMI_PROTOCOL_PERF, sizeof(*dom_info), 0, &t);
 	if (ret)
 		return ret;
@@ -237,7 +237,7 @@ scmi_perf_describe_levels_get(const struct scmi_handle *handle, u32 domain,
 	} while (num_returned && num_remaining);
 
 	perf_dom->opp_count = tot_opp_cnt;
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 
 	sort(perf_dom->opp, tot_opp_cnt, sizeof(*opp), opp_cmp_func, NULL);
 	return ret;
@@ -250,7 +250,7 @@ static int scmi_perf_limits_set(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_set_limits *limits;
 
-	ret = scmi_one_xfer_init(handle, PERF_LIMITS_SET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LIMITS_SET, SCMI_PROTOCOL_PERF,
 				 sizeof(*limits), 0, &t);
 	if (ret)
 		return ret;
@@ -262,7 +262,7 @@ static int scmi_perf_limits_set(const struct scmi_handle *handle, u32 domain,
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -273,7 +273,7 @@ static int scmi_perf_limits_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_get_limits *limits;
 
-	ret = scmi_one_xfer_init(handle, PERF_LIMITS_GET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LIMITS_GET, SCMI_PROTOCOL_PERF,
 				 sizeof(__le32), 0, &t);
 	if (ret)
 		return ret;
@@ -288,7 +288,7 @@ static int scmi_perf_limits_get(const struct scmi_handle *handle, u32 domain,
 		*min_perf = le32_to_cpu(limits->min_level);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -299,7 +299,7 @@ static int scmi_perf_level_set(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_perf_set_level *lvl;
 
-	ret = scmi_one_xfer_init(handle, PERF_LEVEL_SET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LEVEL_SET, SCMI_PROTOCOL_PERF,
 				 sizeof(*lvl), 0, &t);
 	if (ret)
 		return ret;
@@ -311,7 +311,7 @@ static int scmi_perf_level_set(const struct scmi_handle *handle, u32 domain,
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -321,7 +321,7 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_one_xfer_init(handle, PERF_LEVEL_GET, SCMI_PROTOCOL_PERF,
+	ret = scmi_xfer_get_init(handle, PERF_LEVEL_GET, SCMI_PROTOCOL_PERF,
 				 sizeof(u32), sizeof(u32), &t);
 	if (ret)
 		return ret;
@@ -333,7 +333,7 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 	if (!ret)
 		*level = le32_to_cpu(*(__le32 *)t->rx.buf);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
