@@ -29,6 +29,26 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/wbt.h>
 
+static inline void wbt_clear_state(struct blk_issue_stat *stat)
+{
+	stat->stat &= ~BLK_STAT_RES_MASK;
+}
+
+static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
+{
+	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
+}
+
+static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
+{
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
+}
+
+static inline bool wbt_is_read(struct blk_issue_stat *stat)
+{
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
+}
+
 enum {
 	/*
 	 * Default setting, we'll scale up (to 75% of QD max) or down (min 1)

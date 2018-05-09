@@ -35,31 +35,6 @@ enum {
 	WBT_STATE_ON_MANUAL	= 2,
 };
 
-static inline void wbt_clear_state(struct blk_issue_stat *stat)
-{
-	stat->stat &= ~BLK_STAT_RES_MASK;
-}
-
-static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
-{
-	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
-}
-
-static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags wb_acct)
-{
-	stat->stat |= ((u64) wb_acct) << BLK_STAT_RES_SHIFT;
-}
-
-static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
-{
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
-}
-
-static inline bool wbt_is_read(struct blk_issue_stat *stat)
-{
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
-}
-
 struct rq_wait {
 	wait_queue_head_t wait;
 	atomic_t inflight;
@@ -113,6 +88,11 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 #ifdef CONFIG_BLK_WBT
 
+static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags flags)
+{
+	stat->stat |= ((u64)flags) << BLK_STAT_RES_SHIFT;
+}
+
 void __wbt_done(struct rq_wb *, enum wbt_flags);
 void wbt_done(struct rq_wb *, struct blk_issue_stat *);
 enum wbt_flags wbt_wait(struct rq_wb *, struct bio *, spinlock_t *);
@@ -131,6 +111,9 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
+static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags flags)
+{
+}
 static inline void __wbt_done(struct rq_wb *rwb, enum wbt_flags flags)
 {
 }
