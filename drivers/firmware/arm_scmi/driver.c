@@ -687,11 +687,12 @@ static int scmi_remove(struct platform_device *pdev)
 		list_del(&info->node);
 	mutex_unlock(&scmi_list_mutex);
 
-	if (!ret) {
-		/* Safe to free channels since no more users */
-		ret = idr_for_each(idr, scmi_mbox_free_channel, idr);
-		idr_destroy(&info->tx_idr);
-	}
+	if (ret)
+		return ret;
+
+	/* Safe to free channels since no more users */
+	ret = idr_for_each(idr, scmi_mbox_free_channel, idr);
+	idr_destroy(&info->tx_idr);
 
 	return ret;
 }
