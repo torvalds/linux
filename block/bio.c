@@ -1856,20 +1856,82 @@ int biovec_init_pool(mempool_t *pool, int pool_entries)
 	return mempool_init_slab_pool(pool, pool_entries, bp->slab);
 }
 
-void bioset_free(struct bio_set *bs)
+/*
+ * bioset_exit - exit a bioset initialized with bioset_init()
+ *
+ * May be called on a zeroed but uninitialized bioset (i.e. allocated with
+ * kzalloc()).
+ */
+void bioset_exit(struct bio_set *bs)
 {
 	if (bs->rescue_workqueue)
 		destroy_workqueue(bs->rescue_workqueue);
+	bs->rescue_workqueue = NULL;
 
 	mempool_exit(&bs->bio_pool);
 	mempool_exit(&bs->bvec_pool);
 
 	bioset_integrity_free(bs);
-	bio_put_slab(bs);
+	if (bs->bio_slab)
+		bio_put_slab(bs);
+	bs->bio_slab = NULL;
+}
+EXPORT_SYMBOL(bioset_exit);
 
+void bioset_free(struct bio_set *bs)
+{
+	bioset_exit(bs);
 	kfree(bs);
 }
 EXPORT_SYMBOL(bioset_free);
+
+/**
+ * bioset_init - Initialize a bio_set
+ * @pool_size:	Number of bio and bio_vecs to cache in the mempool
+ * @front_pad:	Number of bytes to allocate in front of the returned bio
+ * @flags:	Flags to modify behavior, currently %BIOSET_NEED_BVECS
+ *              and %BIOSET_NEED_RESCUER
+ *
+ * Similar to bioset_create(), but initializes a passed-in bioset instead of
+ * separately allocating it.
+ */
+int bioset_init(struct bio_set *bs,
+		unsigned int pool_size,
+		unsigned int front_pad,
+		int flags)
+{
+	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
+
+	bs->front_pad = front_pad;
+
+	spin_lock_init(&bs->rescue_lock);
+	bio_list_init(&bs->rescue_list);
+	INIT_WORK(&bs->rescue_work, bio_alloc_rescue);
+
+	bs->bio_slab = bio_find_or_create_slab(front_pad + back_pad);
+	if (!bs->bio_slab)
+		return -ENOMEM;
+
+	if (mempool_init_slab_pool(&bs->bio_pool, pool_size, bs->bio_slab))
+		goto bad;
+
+	if ((flags & BIOSET_NEED_BVECS) &&
+	    biovec_init_pool(&bs->bvec_pool, pool_size))
+		goto bad;
+
+	if (!(flags & BIOSET_NEED_RESCUER))
+		return 0;
+
+	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
+	if (!bs->rescue_workqueue)
+		goto bad;
+
+	return 0;
+bad:
+	bioset_exit(bs);
+	return -ENOMEM;
+}
+EXPORT_SYMBOL(bioset_init);
 
 /**
  * bioset_create  - Create a bio_set
@@ -1895,43 +1957,18 @@ struct bio_set *bioset_create(unsigned int pool_size,
 			      unsigned int front_pad,
 			      int flags)
 {
-	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
 	struct bio_set *bs;
 
 	bs = kzalloc(sizeof(*bs), GFP_KERNEL);
 	if (!bs)
 		return NULL;
 
-	bs->front_pad = front_pad;
-
-	spin_lock_init(&bs->rescue_lock);
-	bio_list_init(&bs->rescue_list);
-	INIT_WORK(&bs->rescue_work, bio_alloc_rescue);
-
-	bs->bio_slab = bio_find_or_create_slab(front_pad + back_pad);
-	if (!bs->bio_slab) {
+	if (bioset_init(bs, pool_size, front_pad, flags)) {
 		kfree(bs);
 		return NULL;
 	}
 
-	if (mempool_init_slab_pool(&bs->bio_pool, pool_size, bs->bio_slab))
-		goto bad;
-
-	if ((flags & BIOSET_NEED_BVECS) &&
-	    biovec_init_pool(&bs->bvec_pool, pool_size))
-		goto bad;
-
-	if (!(flags & BIOSET_NEED_RESCUER))
-		return bs;
-
-	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
-	if (!bs->rescue_workqueue)
-		goto bad;
-
 	return bs;
-bad:
-	bioset_free(bs);
-	return NULL;
 }
 EXPORT_SYMBOL(bioset_create);
 

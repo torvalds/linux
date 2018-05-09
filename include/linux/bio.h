@@ -406,6 +406,8 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
 	return bio_split(bio, sectors, gfp, bs);
 }
 
+extern int bioset_init(struct bio_set *, unsigned int, unsigned int, int flags);
+extern void bioset_exit(struct bio_set *);
 extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
 enum {
 	BIOSET_NEED_BVECS = BIT(0),
