@@ -53,7 +53,8 @@ static int mtk_set_link_ksettings(struct net_device *dev,
 			mac->phy_dev = mac->hw->phy->phy[cmd->base.phy_address];
 			mac->phy_flags = MTK_PHY_FLAG_PORT;
 		} else if (mac->hw->mii_bus) {
-			mac->phy_dev = mdiobus_get_phy(mac->hw->mii_bus, cmd->base.phy_address);
+			mac->phy_dev = mdiobus_get_phy(mac->hw->mii_bus,
+						       cmd->base.phy_address);
 			if (!mac->phy_dev)
 				return -ENODEV;
 			mac->phy_flags = MTK_PHY_FLAG_ATTACH;
