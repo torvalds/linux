@@ -3224,8 +3224,10 @@ static int ip6_route_del(struct fib6_config *cfg,
 							      &cfg->fc_src);
 				if (rt_cache) {
 					rc = ip6_del_cached_rt(rt_cache, cfg);
-					if (rc != -ESRCH)
+					if (rc != -ESRCH) {
+						rcu_read_unlock();
 						return rc;
+					}
 				}
 				continue;
 			}
