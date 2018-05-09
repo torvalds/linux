@@ -378,6 +378,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
 
 static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 {
+	struct kyber_queue_data *kqd = hctx->queue->elevator->elevator_data;
 	struct kyber_hctx_data *khd;
 	int i;
 
@@ -400,6 +401,8 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 	khd->batching = 0;
 
 	hctx->sched_data = khd;
+	sbitmap_queue_min_shallow_depth(&hctx->sched_tags->bitmap_tags,
+					kqd->async_depth);
 
 	return 0;
 }
