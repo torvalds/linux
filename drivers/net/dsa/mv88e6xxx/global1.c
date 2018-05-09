@@ -373,6 +373,24 @@ int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_g1_ctl2_mask(chip, mask, port << __bf_shf(mask));
 }
 
+int mv88e6085_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6085_G1_CTL2_P10RM |
+				      MV88E6085_G1_CTL2_RM_ENABLE, 0);
+}
+
+int mv88e6352_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6352_G1_CTL2_RMU_MODE_MASK,
+				      MV88E6352_G1_CTL2_RMU_MODE_DISABLED);
+}
+
+int mv88e6390_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6390_G1_CTL2_RMU_MODE_MASK,
+				      MV88E6390_G1_CTL2_RMU_MODE_DISABLED);
+}
+
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 {
 	u16 val;

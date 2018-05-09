@@ -207,6 +207,22 @@
 #define MV88E6185_G1_CTL2_CASCADE_PORT_MASK	0xf000
 #define MV88E6185_G1_CTL2_CASCADE_PORT_NONE	0xe000
 #define MV88E6185_G1_CTL2_CASCADE_PORT_MULTI	0xf000
+#define MV88E6352_G1_CTL2_RMU_MODE_MASK		0x3000
+#define MV88E6352_G1_CTL2_RMU_MODE_DISABLED	0x0000
+#define MV88E6352_G1_CTL2_RMU_MODE_PORT_4	0x1000
+#define MV88E6352_G1_CTL2_RMU_MODE_PORT_5	0x2000
+#define MV88E6352_G1_CTL2_RMU_MODE_PORT_6	0x3000
+#define MV88E6085_G1_CTL2_DA_CHECK		0x4000
+#define MV88E6085_G1_CTL2_P10RM			0x2000
+#define MV88E6085_G1_CTL2_RM_ENABLE		0x1000
+#define MV88E6352_G1_CTL2_DA_CHECK		0x0800
+#define MV88E6390_G1_CTL2_RMU_MODE_MASK		0x0700
+#define MV88E6390_G1_CTL2_RMU_MODE_PORT_0	0x0000
+#define MV88E6390_G1_CTL2_RMU_MODE_PORT_1	0x0100
+#define MV88E6390_G1_CTL2_RMU_MODE_PORT_9	0x0200
+#define MV88E6390_G1_CTL2_RMU_MODE_PORT_10	0x0300
+#define MV88E6390_G1_CTL2_RMU_MODE_ALL_DSA	0x0600
+#define MV88E6390_G1_CTL2_RMU_MODE_DISABLED	0x0700
 #define MV88E6XXX_G1_CTL2_DEVICE_NUMBER_MASK	0x001f
 
 /* Offset 0x1D: Stats Operation Register */
@@ -256,6 +272,10 @@ int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
 int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port);
+
+int mv88e6085_g1_rmu_disable(struct mv88e6xxx_chip *chip);
+int mv88e6352_g1_rmu_disable(struct mv88e6xxx_chip *chip);
+int mv88e6390_g1_rmu_disable(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g1_set_device_number(struct mv88e6xxx_chip *chip, int index);
 

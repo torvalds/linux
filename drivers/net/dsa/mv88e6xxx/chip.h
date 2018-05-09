@@ -432,6 +432,9 @@ struct mv88e6xxx_ops {
 
 	/* Interface to the AVB/PTP registers */
 	const struct mv88e6xxx_avb_ops *avb_ops;
+
+	/* Remote Management Unit operations */
+	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
 };
 
 struct mv88e6xxx_irq_ops {
