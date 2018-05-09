@@ -1228,7 +1228,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 #endif
 
 
-long rga2_ioctl_kernel(struct rga_req *req_rga)
+static long rga2_ioctl_kernel(struct rga_req *req_rga)
 {
 	int ret = 0;
 	rga2_session *session;
