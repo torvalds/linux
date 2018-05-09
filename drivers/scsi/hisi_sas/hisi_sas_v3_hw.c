@@ -2373,7 +2373,6 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state, status;
 	int rc;
 	u32 reg_val;
-	unsigned long flags;
 
 	if (!pdev->pm_cap) {
 		dev_err(dev, "PCI PM not supported\n");
@@ -2418,9 +2417,7 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, device_state);
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_release_tasks(hisi_hba);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	sas_suspend_ha(sha);
 	return 0;
