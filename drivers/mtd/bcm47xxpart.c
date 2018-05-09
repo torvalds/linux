@@ -304,9 +304,16 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	return curr_part;
 };
 
+static const struct of_device_id bcm47xxpart_of_match_table[] = {
+	{ .compatible = "brcm,bcm947xx-cfe-partitions" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bcm47xxpart_of_match_table);
+
 static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 	.parse_fn = bcm47xxpart_parse,
 	.name = "bcm47xxpart",
+	.of_match_table = bcm47xxpart_of_match_table,
 };
 module_mtd_part_parser(bcm47xxpart_mtd_parser);
 
