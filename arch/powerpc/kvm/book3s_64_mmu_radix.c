@@ -162,7 +162,7 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG))
 		asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
 			     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("ptesync": : :"memory");
+	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
 }
 
 static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
@@ -173,7 +173,7 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
 	/* RIC=1 PRS=0 R=1 IS=2 */
 	asm volatile(PPC_TLBIE_5(%0, %1, 1, 0, 1)
 		     : : "r" (rb), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("ptesync": : :"memory");
+	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
 }
 
 unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
