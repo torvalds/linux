@@ -542,14 +542,7 @@ static void bfq_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 	if (op_is_sync(op) && !op_is_write(op))
 		return;
 
-	if (data->flags & BLK_MQ_REQ_RESERVED) {
-		if (unlikely(!tags->nr_reserved_tags)) {
-			WARN_ON_ONCE(1);
-			return;
-		}
-		bt = &tags->breserved_tags;
-	} else
-		bt = &tags->bitmap_tags;
+	bt = &tags->bitmap_tags;
 
 	if (unlikely(bfqd->sb_shift != bt->sb.shift))
 		bfq_update_depths(bfqd, bt);
