@@ -673,6 +673,36 @@
 			iommus = <&sysmmu_gscl1>;
 		};
 
+		scaler_0: scaler@12800000 {
+			compatible = "samsung,exynos5420-scaler";
+			reg = <0x12800000 0x1294>;
+			interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_MSCL0>;
+			clock-names = "mscl";
+			power-domains = <&msc_pd>;
+			iommus = <&sysmmu_scaler0r>, <&sysmmu_scaler0w>;
+		};
+
+		scaler_1: scaler@12810000 {
+			compatible = "samsung,exynos5420-scaler";
+			reg = <0x12810000 0x1294>;
+			interrupts = <0 221 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_MSCL1>;
+			clock-names = "mscl";
+			power-domains = <&msc_pd>;
+			iommus = <&sysmmu_scaler1r>, <&sysmmu_scaler1w>;
+		};
+
+		scaler_2: scaler@12820000 {
+			compatible = "samsung,exynos5420-scaler";
+			reg = <0x12820000 0x1294>;
+			interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_MSCL2>;
+			clock-names = "mscl";
+			power-domains = <&msc_pd>;
+			iommus = <&sysmmu_scaler2r>, <&sysmmu_scaler2w>;
+		};
+
 		jpeg_0: jpeg@11f50000 {
 			compatible = "samsung,exynos5420-jpeg";
 			reg = <0x11F50000 0x1000>;
@@ -807,6 +837,7 @@
 			interrupts = <22 4>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL0>, <&clock CLK_MSCL0>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
@@ -816,6 +847,7 @@
 			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL1>, <&clock CLK_MSCL1>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
@@ -825,6 +857,7 @@
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL2>, <&clock CLK_MSCL2>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
@@ -835,6 +868,7 @@
 			interrupts = <27 2>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL0>, <&clock CLK_MSCL0>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
@@ -845,6 +879,7 @@
 			interrupts = <22 6>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL1>, <&clock CLK_MSCL1>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
@@ -855,6 +890,7 @@
 			interrupts = <19 6>;
 			clock-names = "sysmmu", "master";
 			clocks = <&clock CLK_SMMU_MSCL2>, <&clock CLK_MSCL2>;
+			power-domains = <&msc_pd>;
 			#iommu-cells = <0>;
 		};
 
