@@ -258,7 +258,8 @@ union kvm_mmu_page_role {
 		unsigned smep_andnot_wp:1;
 		unsigned smap_andnot_wp:1;
 		unsigned ad_disabled:1;
-		unsigned :7;
+		unsigned guest_mode:1;
+		unsigned :6;
 
 		/*
 		 * This is left at the top of the word so that
