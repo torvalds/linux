@@ -80,6 +80,7 @@ xfs_trans_free(
 	xfs_extent_busy_sort(&tp->t_busy);
 	xfs_extent_busy_clear(tp->t_mountp, &tp->t_busy, false);
 
+	trace_xfs_trans_free(tp, _RET_IP_);
 	atomic_dec(&tp->t_mountp->m_active_trans);
 	if (!(tp->t_flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_end_intwrite(tp->t_mountp->m_super);
@@ -100,6 +101,8 @@ xfs_trans_dup(
 	struct xfs_trans	*tp)
 {
 	struct xfs_trans	*ntp;
+
+	trace_xfs_trans_dup(tp, _RET_IP_);
 
 	ntp = kmem_zone_zalloc(xfs_trans_zone, KM_SLEEP);
 
@@ -284,6 +287,8 @@ xfs_trans_alloc(
 		xfs_trans_cancel(tp);
 		return error;
 	}
+
+	trace_xfs_trans_alloc(tp, _RET_IP_);
 
 	*tpp = tp;
 	return 0;
@@ -751,6 +756,8 @@ xfs_trans_add_item(
 	list_add_tail(&lidp->lid_trans, &tp->t_items);
 
 	lip->li_desc = lidp;
+
+	trace_xfs_trans_add_item(tp, _RET_IP_);
 }
 
 STATIC void
@@ -783,6 +790,8 @@ xfs_trans_free_items(
 	bool			abort)
 {
 	struct xfs_log_item_desc *lidp, *next;
+
+	trace_xfs_trans_free_items(tp, _RET_IP_);
 
 	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
 		struct xfs_log_item	*lip = lidp->lid_item;
@@ -941,6 +950,8 @@ __xfs_trans_commit(
 	ASSERT(!tp->t_agfl_dfops ||
 	       !xfs_defer_has_unfinished_work(tp->t_agfl_dfops) || regrant);
 
+	trace_xfs_trans_commit(tp, _RET_IP_);
+
 	/*
 	 * If there is nothing to be logged by the transaction,
 	 * then unlock all of the items associated with the
@@ -996,6 +1007,7 @@ out_unreserve:
 		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 		if (commit_lsn == -1 && !error)
 			error = -EIO;
+		tp->t_ticket = NULL;
 	}
 	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
 	xfs_trans_free_items(tp, NULLCOMMITLSN, !!error);
@@ -1027,6 +1039,8 @@ xfs_trans_cancel(
 	struct xfs_mount	*mp = tp->t_mountp;
 	bool			dirty = (tp->t_flags & XFS_TRANS_DIRTY);
 
+	trace_xfs_trans_cancel(tp, _RET_IP_);
+
 	/*
 	 * See if the caller is relying on us to shut down the
 	 * filesystem.  This happens in paths where we detect
@@ -1047,8 +1061,10 @@ xfs_trans_cancel(
 	xfs_trans_unreserve_and_mod_sb(tp);
 	xfs_trans_unreserve_and_mod_dquots(tp);
 
-	if (tp->t_ticket)
+	if (tp->t_ticket) {
 		xfs_log_done(mp, tp->t_ticket, NULL, false);
+		tp->t_ticket = NULL;
+	}
 
 	/* mark this thread as no longer being in a transaction */
 	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
@@ -1071,6 +1087,8 @@ xfs_trans_roll(
 	struct xfs_trans	*trans = *tpp;
 	struct xfs_trans_res	tres;
 	int			error;
+
+	trace_xfs_trans_roll(trans, _RET_IP_);
 
 	/*
 	 * Copy the critical parameters from one trans to the next.

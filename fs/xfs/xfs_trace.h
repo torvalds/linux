@@ -3351,6 +3351,43 @@ TRACE_EVENT(xfs_trans_resv_calc,
 		  __entry->logflags)
 );
 
+DECLARE_EVENT_CLASS(xfs_trans_class,
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip),
+	TP_ARGS(tp, caller_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint32_t, tid)
+		__field(uint32_t, flags)
+		__field(unsigned long, caller_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = tp->t_mountp->m_super->s_dev;
+		__entry->tid = 0;
+		if (tp->t_ticket)
+			__entry->tid = tp->t_ticket->t_tid;
+		__entry->flags = tp->t_flags;
+		__entry->caller_ip = caller_ip;
+	),
+	TP_printk("dev %d:%d trans %x flags 0x%x caller %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tid,
+		  __entry->flags,
+		  (char *)__entry->caller_ip)
+)
+
+#define DEFINE_TRANS_EVENT(name) \
+DEFINE_EVENT(xfs_trans_class, name, \
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip), \
+	TP_ARGS(tp, caller_ip))
+DEFINE_TRANS_EVENT(xfs_trans_alloc);
+DEFINE_TRANS_EVENT(xfs_trans_cancel);
+DEFINE_TRANS_EVENT(xfs_trans_commit);
+DEFINE_TRANS_EVENT(xfs_trans_dup);
+DEFINE_TRANS_EVENT(xfs_trans_free);
+DEFINE_TRANS_EVENT(xfs_trans_roll);
+DEFINE_TRANS_EVENT(xfs_trans_add_item);
+DEFINE_TRANS_EVENT(xfs_trans_free_items);
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH

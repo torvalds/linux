@@ -1013,6 +1013,7 @@ xfs_log_commit_cil(
 		*commit_lsn = xc_commit_lsn;
 
 	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
+	tp->t_ticket = NULL;
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
