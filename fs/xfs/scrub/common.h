@@ -38,19 +38,7 @@ xfs_scrub_should_terminate(
 	return false;
 }
 
-/*
- * Grab an empty transaction so that we can re-grab locked buffers if
- * one of our btrees turns out to be cyclic.
- */
-static inline int
-xfs_scrub_trans_alloc(
-	struct xfs_scrub_metadata	*sm,
-	struct xfs_mount		*mp,
-	struct xfs_trans		**tpp)
-{
-	return xfs_trans_alloc_empty(mp, tpp);
-}
-
+int xfs_scrub_trans_alloc(struct xfs_scrub_context *sc);
 bool xfs_scrub_process_error(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 		xfs_agblock_t bno, int *error);
 bool xfs_scrub_fblock_process_error(struct xfs_scrub_context *sc, int whichfork,

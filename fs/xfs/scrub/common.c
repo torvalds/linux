@@ -568,13 +568,24 @@ xfs_scrub_ag_init(
 
 /* Per-scrubber setup functions */
 
+/*
+ * Grab an empty transaction so that we can re-grab locked buffers if
+ * one of our btrees turns out to be cyclic.
+ */
+int
+xfs_scrub_trans_alloc(
+	struct xfs_scrub_context	*sc)
+{
+	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+}
+
 /* Set us up with a transaction and an empty context. */
 int
 xfs_scrub_setup_fs(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_trans_alloc(sc->sm, sc->mp, &sc->tp);
+	return xfs_scrub_trans_alloc(sc);
 }
 
 /* Set us up with AG headers and btree cursors. */
@@ -695,7 +706,6 @@ xfs_scrub_setup_inode_contents(
 	struct xfs_inode		*ip,
 	unsigned int			resblks)
 {
-	struct xfs_mount		*mp = sc->mp;
 	int				error;
 
 	error = xfs_scrub_get_inode(sc, ip);
@@ -705,7 +715,7 @@ xfs_scrub_setup_inode_contents(
 	/* Got the inode, lock it and we're ready to go. */
 	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
-	error = xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
+	error = xfs_scrub_trans_alloc(sc);
 	if (error)
 		goto out;
 	sc->ilock_flags |= XFS_ILOCK_EXCL;
