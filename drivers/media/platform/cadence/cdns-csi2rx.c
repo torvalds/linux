@@ -174,8 +174,8 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 	return 0;
 
 err_disable_pixclk:
-	for (; i >= 0; i--)
-		clk_disable_unprepare(csi2rx->pixel_clk[i]);
+	for (; i > 0; i--)
+		clk_disable_unprepare(csi2rx->pixel_clk[i - 1]);
 
 err_disable_pclk:
 	clk_disable_unprepare(csi2rx->p_clk);
