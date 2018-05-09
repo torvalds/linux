@@ -257,16 +257,6 @@ static void task_fpsimd_load(void)
 			       sve_vq_from_vl(current->thread.sve_vl) - 1);
 	else
 		fpsimd_load_state(&current->thread.uw.fpsimd_state);
-
-	if (system_supports_sve()) {
-		/* Toggle SVE trapping for userspace if needed */
-		if (test_thread_flag(TIF_SVE))
-			sve_user_enable();
-		else
-			sve_user_disable();
-
-		/* Serialised by exception return to user */
-	}
 }
 
 /*
@@ -278,7 +268,7 @@ static void task_fpsimd_load(void)
 static void fpsimd_save(void)
 {
 	struct user_fpsimd_state *st = __this_cpu_read(fpsimd_last_state.st);
-	/* set by fpsimd_bind_to_cpu() */
+	/* set by fpsimd_bind_task_to_cpu() */
 
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
@@ -996,7 +986,7 @@ void fpsimd_signal_preserve_current_state(void)
  * Associate current's FPSIMD context with this cpu
  * Preemption must be disabled when calling this function.
  */
-static void fpsimd_bind_to_cpu(void)
+static void fpsimd_bind_task_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);
@@ -1004,6 +994,16 @@ static void fpsimd_bind_to_cpu(void)
 	last->st = &current->thread.uw.fpsimd_state;
 	last->sve_in_use = test_thread_flag(TIF_SVE);
 	current->thread.fpsimd_cpu = smp_processor_id();
+
+	if (system_supports_sve()) {
+		/* Toggle SVE trapping for userspace if needed */
+		if (test_thread_flag(TIF_SVE))
+			sve_user_enable();
+		else
+			sve_user_disable();
+
+		/* Serialised by exception return to user */
+	}
 }
 
 /*
@@ -1020,7 +1020,7 @@ void fpsimd_restore_current_state(void)
 
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		task_fpsimd_load();
-		fpsimd_bind_to_cpu();
+		fpsimd_bind_task_to_cpu();
 	}
 
 	local_bh_enable();
@@ -1043,9 +1043,9 @@ void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 		fpsimd_to_sve(current);
 
 	task_fpsimd_load();
+	fpsimd_bind_task_to_cpu();
 
-	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE))
-		fpsimd_bind_to_cpu();
+	clear_thread_flag(TIF_FOREIGN_FPSTATE);
 
 	local_bh_enable();
 }
