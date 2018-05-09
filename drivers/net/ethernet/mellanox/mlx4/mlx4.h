@@ -55,8 +55,8 @@
 #include "fw_qos.h"
 
 #define DRV_NAME	"mlx4_core"
-#define PFX		DRV_NAME ": "
 #define DRV_VERSION	"4.0-0"
+#define DRV_NAME_FOR_FW		"Linux," DRV_NAME "," DRV_VERSION
 
 #define MLX4_FS_UDP_UC_EN		(1 << 1)
 #define MLX4_FS_TCP_UC_EN		(1 << 2)
