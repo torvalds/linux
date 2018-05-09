@@ -151,6 +151,6 @@ struct mci_result {
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input,
 		int mci_type, int nr,
-		int (**fn_set_input)(struct dvb_frontend *, int));
+		int (**fn_set_input)(struct dvb_frontend *fe, int input));
 
 #endif /* _DDBRIDGE_MCI_H_ */

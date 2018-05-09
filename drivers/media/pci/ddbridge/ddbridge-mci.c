@@ -500,7 +500,7 @@ static int probe(struct mci *state)
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input,
 		int mci_type, int nr,
-		int (**fn_set_input)(struct dvb_frontend *, int))
+		int (**fn_set_input)(struct dvb_frontend *fe, int input))
 {
 	struct ddb_port *port = input->port;
 	struct ddb *dev = port->dev;
