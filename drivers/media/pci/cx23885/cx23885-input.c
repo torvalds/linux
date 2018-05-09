@@ -13,7 +13,7 @@
  *  Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
  *  Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
  *		       Markus Rechberger <mrechberger@gmail.com>
- *		       Mauro Carvalho Chehab <mchehab@infradead.org>
+ *		       Mauro Carvalho Chehab <mchehab@kernel.org>
  *		       Sascha Sommer <saschasommer@freenet.de>
  *  Copyright (C) 2004, 2005 Chris Pascoe
  *  Copyright (C) 2003, 2004 Gerd Knorr
