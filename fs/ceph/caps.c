@@ -1358,9 +1358,9 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		arg.xattr_buf = NULL;
 	}
 
-	arg.mtime = inode->i_mtime;
-	arg.atime = inode->i_atime;
-	arg.ctime = inode->i_ctime;
+	arg.mtime = timespec64_to_timespec(inode->i_mtime);
+	arg.atime = timespec64_to_timespec(inode->i_atime);
+	arg.ctime = timespec64_to_timespec(inode->i_ctime);
 
 	arg.op = op;
 	arg.caps = cap->implemented;

@@ -2460,6 +2460,7 @@ static inline void clear_file(struct inode *inode, int type)
 
 static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 {
+	struct timespec ts;
 	bool ret;
 
 	if (dsync) {
@@ -2475,11 +2476,14 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 			i_size_read(inode) & ~PAGE_MASK)
 		return false;
 
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time, &inode->i_atime))
+	ts = timespec64_to_timespec(inode->i_atime);
+	if (!timespec_equal(F2FS_I(inode)->i_disk_time, &ts))
 		return false;
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 1, &inode->i_ctime))
+	ts = timespec64_to_timespec(inode->i_ctime);
+	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 1, &ts))
 		return false;
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 2, &inode->i_mtime))
+	ts = timespec64_to_timespec(inode->i_mtime);
+	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 2, &ts))
 		return false;
 	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 3,
 						&F2FS_I(inode)->i_crtime))
