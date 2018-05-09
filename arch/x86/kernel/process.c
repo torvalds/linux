@@ -283,11 +283,11 @@ static __always_inline void __speculative_store_bypass_update(unsigned long tifn
 {
 	u64 msr;
 
-	if (static_cpu_has(X86_FEATURE_AMD_RDS)) {
-		msr = x86_amd_ls_cfg_base | rds_tif_to_amd_ls_cfg(tifn);
+	if (static_cpu_has(X86_FEATURE_AMD_SSBD)) {
+		msr = x86_amd_ls_cfg_base | ssbd_tif_to_amd_ls_cfg(tifn);
 		wrmsrl(MSR_AMD64_LS_CFG, msr);
 	} else {
-		msr = x86_spec_ctrl_base | rds_tif_to_spec_ctrl(tifn);
+		msr = x86_spec_ctrl_base | ssbd_tif_to_spec_ctrl(tifn);
 		wrmsrl(MSR_IA32_SPEC_CTRL, msr);
 	}
 }
@@ -329,7 +329,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 	if ((tifp ^ tifn) & _TIF_NOCPUID)
 		set_cpuid_faulting(!!(tifn & _TIF_NOCPUID));
 
-	if ((tifp ^ tifn) & _TIF_RDS)
+	if ((tifp ^ tifn) & _TIF_SSBD)
 		__speculative_store_bypass_update(tifn);
 }
 

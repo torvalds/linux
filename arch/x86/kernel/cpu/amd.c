@@ -567,12 +567,12 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		}
 		/*
 		 * Try to cache the base value so further operations can
-		 * avoid RMW. If that faults, do not enable RDS.
+		 * avoid RMW. If that faults, do not enable SSBD.
 		 */
 		if (!rdmsrl_safe(MSR_AMD64_LS_CFG, &x86_amd_ls_cfg_base)) {
-			setup_force_cpu_cap(X86_FEATURE_RDS);
-			setup_force_cpu_cap(X86_FEATURE_AMD_RDS);
-			x86_amd_ls_cfg_rds_mask = 1ULL << bit;
+			setup_force_cpu_cap(X86_FEATURE_SSBD);
+			setup_force_cpu_cap(X86_FEATURE_AMD_SSBD);
+			x86_amd_ls_cfg_ssbd_mask = 1ULL << bit;
 		}
 	}
 }
@@ -920,9 +920,9 @@ static void init_amd(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_XENPV))
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
 
-	if (boot_cpu_has(X86_FEATURE_AMD_RDS)) {
-		set_cpu_cap(c, X86_FEATURE_RDS);
-		set_cpu_cap(c, X86_FEATURE_AMD_RDS);
+	if (boot_cpu_has(X86_FEATURE_AMD_SSBD)) {
+		set_cpu_cap(c, X86_FEATURE_SSBD);
+		set_cpu_cap(c, X86_FEATURE_AMD_SSBD);
 	}
 }
 
