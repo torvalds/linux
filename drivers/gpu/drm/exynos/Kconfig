@@ -110,6 +110,12 @@ config DRM_EXYNOS_ROTATOR
 	help
 	  Choose this option if you want to use Exynos Rotator for DRM.
 
+config DRM_EXYNOS_SCALER
+	bool "Scaler"
+	select DRM_EXYNOS_IPP
+	help
+	  Choose this option if you want to use Exynos Scaler for DRM.
+
 config DRM_EXYNOS_GSC
 	bool "GScaler"
 	depends on VIDEO_SAMSUNG_EXYNOS_GSC=n
