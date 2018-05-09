@@ -87,9 +87,6 @@ static inline void pm_runtime_remove(struct device *dev) {}
 
 static inline int dpm_sysfs_add(struct device *dev) { return 0; }
 static inline void dpm_sysfs_remove(struct device *dev) {}
-static inline void rpm_sysfs_remove(struct device *dev) {}
-static inline int wakeup_sysfs_add(struct device *dev) { return 0; }
-static inline void wakeup_sysfs_remove(struct device *dev) {}
 
 #endif
 
