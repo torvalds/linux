@@ -164,7 +164,7 @@ static int iblock_configure_device(struct se_device *dev)
 				goto out_blkdev_put;
 			}
 			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
-				 bs->bio_integrity_pool);
+				 &bs->bio_integrity_pool);
 		}
 		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
 	}
