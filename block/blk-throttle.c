@@ -36,8 +36,6 @@ static int throtl_quantum = 32;
  */
 #define LATENCY_FILTERED_HD (1000L) /* 1ms */
 
-#define SKIP_LATENCY (((u64)1) << BLK_STAT_RES_SHIFT)
-
 static struct blkcg_policy blkcg_policy_throtl;
 
 /* A workqueue to queue throttle related work */
@@ -2139,7 +2137,7 @@ static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 		bio->bi_cg_private = tg;
 		blkg_get(tg_to_blkg(tg));
 	}
-	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
+	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
 #endif
 }
 
@@ -2251,7 +2249,7 @@ out:
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	if (throttled || !td->track_bio_latency)
-		bio->bi_issue_stat.stat |= SKIP_LATENCY;
+		bio->bi_issue.value |= BIO_ISSUE_THROTL_SKIP_LATENCY;
 #endif
 	return throttled;
 }
@@ -2302,8 +2300,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 	finish_time_ns = ktime_get_ns();
 	tg->last_finish_time = finish_time_ns >> 10;
 
-	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
-	finish_time = __blk_stat_time(finish_time_ns) >> 10;
+	start_time = bio_issue_time(&bio->bi_issue) >> 10;
+	finish_time = __bio_issue_time(finish_time_ns) >> 10;
 	if (!start_time || finish_time <= start_time) {
 		blkg_put(tg_to_blkg(tg));
 		return;
@@ -2311,16 +2309,15 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
-	if (!(bio->bi_issue_stat.stat & SKIP_LATENCY))
-		throtl_track_latency(tg->td, blk_stat_size(&bio->bi_issue_stat),
-			bio_op(bio), lat);
+	if (!(bio->bi_issue.value & BIO_ISSUE_THROTL_SKIP_LATENCY))
+		throtl_track_latency(tg->td, bio_issue_size(&bio->bi_issue),
+				     bio_op(bio), lat);
 
 	if (tg->latency_target && lat >= tg->td->filtered_latency) {
 		int bucket;
 		unsigned int threshold;
 
-		bucket = request_bucket_index(
-			blk_stat_size(&bio->bi_issue_stat));
+		bucket = request_bucket_index(bio_issue_size(&bio->bi_issue));
 		threshold = tg->td->avg_buckets[rw][bucket].latency +
 			tg->latency_target;
 		if (lat > threshold)
