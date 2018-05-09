@@ -310,12 +310,13 @@ out:
 		task->task_done(task);
 }
 
-static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq *dq,
+static int hisi_sas_task_prep(struct sas_task *task,
+			      struct hisi_sas_dq **dq_pointer,
 			      int is_tmf, struct hisi_sas_tmf_task *tmf,
 			      int *pass)
 {
-	struct hisi_hba *hisi_hba = dq->hisi_hba;
 	struct domain_device *device = task->dev;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_port *port;
 	struct hisi_sas_slot *slot;
@@ -323,8 +324,9 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq *dq,
 	struct asd_sas_port *sas_port = device->port;
 	struct device *dev = hisi_hba->dev;
 	int dlvry_queue_slot, dlvry_queue, rc, slot_idx;
-	int  n_elem = 0, n_elem_req = 0, n_elem_resp = 0;
+	int n_elem = 0, n_elem_req = 0, n_elem_resp = 0;
 	unsigned long flags, flags_dq;
+	struct hisi_sas_dq *dq;
 	int wr_q_index;
 
 	if (!sas_port) {
@@ -351,6 +353,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq *dq,
 
 		return -ECOMM;
 	}
+
+	*dq_pointer = dq = sas_dev->dq;
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
@@ -520,22 +524,21 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	unsigned long flags;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
 	struct device *dev = hisi_hba->dev;
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct hisi_sas_dq *dq = sas_dev->dq;
+	struct hisi_sas_dq *dq = NULL;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
 		return -EINVAL;
 
 	/* protect task_prep and start_delivery sequence */
-	rc = hisi_sas_task_prep(task, dq, is_tmf, tmf, &pass);
+	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf, &pass);
 	if (rc)
 		dev_err(dev, "task exec: failed[%d]!\n", rc);
 
-	spin_lock_irqsave(&dq->lock, flags);
-	if (likely(pass))
+	if (likely(pass)) {
+		spin_lock_irqsave(&dq->lock, flags);
 		hisi_hba->hw->start_delivery(dq);
-	spin_unlock_irqrestore(&dq->lock, flags);
+		spin_unlock_irqrestore(&dq->lock, flags);
+	}
 
 	return rc;
 }
