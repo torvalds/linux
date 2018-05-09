@@ -1317,30 +1317,34 @@ struct device_link *device_link_add(struct device *consumer,
 				    struct device *supplier, u32 flags);
 void device_link_del(struct device_link *link);
 
+#ifndef dev_fmt
+#define dev_fmt(fmt) fmt
+#endif
+
 #ifdef CONFIG_PRINTK
 
-extern __printf(3, 0)
+__printf(3, 0)
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args);
-extern __printf(3, 4)
+__printf(3, 4)
 int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...);
 
-extern __printf(3, 4)
+__printf(3, 4)
 void dev_printk(const char *level, const struct device *dev,
 		const char *fmt, ...);
-extern __printf(2, 3)
-void dev_emerg(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
-void dev_alert(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
-void dev_crit(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
-void dev_err(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
-void dev_warn(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
-void dev_notice(const struct device *dev, const char *fmt, ...);
-extern __printf(2, 3)
+__printf(2, 3)
+void _dev_emerg(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
+void _dev_alert(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
+void _dev_crit(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
+void _dev_err(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
+void _dev_warn(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
+void _dev_notice(const struct device *dev, const char *fmt, ...);
+__printf(2, 3)
 void _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
@@ -1358,26 +1362,26 @@ static inline void __dev_printk(const char *level, const struct device *dev,
 {}
 static inline __printf(3, 4)
 void dev_printk(const char *level, const struct device *dev,
-		const char *fmt, ...)
+		 const char *fmt, ...)
 {}
 
 static inline __printf(2, 3)
-void dev_emerg(const struct device *dev, const char *fmt, ...)
+void _dev_emerg(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void dev_crit(const struct device *dev, const char *fmt, ...)
+void _dev_crit(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void dev_alert(const struct device *dev, const char *fmt, ...)
+void _dev_alert(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void dev_err(const struct device *dev, const char *fmt, ...)
+void _dev_err(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void dev_warn(const struct device *dev, const char *fmt, ...)
+void _dev_warn(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void dev_notice(const struct device *dev, const char *fmt, ...)
+void _dev_notice(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
 void _dev_info(const struct device *dev, const char *fmt, ...)
@@ -1386,27 +1390,36 @@ void _dev_info(const struct device *dev, const char *fmt, ...)
 #endif
 
 /*
- * Stupid hackaround for existing uses of non-printk uses dev_info
- *
- * Note that the definition of dev_info below is actually _dev_info
- * and a macro is used to avoid redefining dev_info
+ * #defines for all the dev_<level> macros to prefix with whatever
+ * possible use of #define dev_fmt(fmt) ...
  */
 
-#define dev_info(dev, fmt, arg...) _dev_info(dev, fmt, ##arg)
+#define dev_emerg(dev, fmt, ...)					\
+	_dev_emerg(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_crit(dev, fmt, ...)						\
+	_dev_crit(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_alert(dev, fmt, ...)					\
+	_dev_alert(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_err(dev, fmt, ...)						\
+	_dev_err(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_warn(dev, fmt, ...)						\
+	_dev_warn(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_notice(dev, fmt, ...)					\
+	_dev_notice(dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_info(dev, fmt, ...)						\
+	_dev_info(dev, dev_fmt(fmt), ##__VA_ARGS__)
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-#define dev_dbg(dev, format, ...)		     \
-do {						     \
-	dynamic_dev_dbg(dev, format, ##__VA_ARGS__); \
-} while (0)
+#define dev_dbg(dev, fmt, ...)						\
+	dynamic_dev_dbg(dev, dev_fmt(fmt), ##__VA_ARGS__)
 #elif defined(DEBUG)
-#define dev_dbg(dev, format, arg...)		\
-	dev_printk(KERN_DEBUG, dev, format, ##arg)
+#define dev_dbg(dev, fmt, ...)						\
+	dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__)
 #else
-#define dev_dbg(dev, format, arg...)				\
-({								\
-	if (0)							\
-		dev_printk(KERN_DEBUG, dev, format, ##arg);	\
+#define dev_dbg(dev, fmt, ...)						\
+({									\
+	if (0)								\
+		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 })
 #endif
 
@@ -1478,7 +1491,7 @@ do {									\
 	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
 	if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT) &&	\
 	    __ratelimit(&_rs))						\
-		__dynamic_dev_dbg(&descriptor, dev, fmt,		\
+		__dynamic_dev_dbg(&descriptor, dev, dev_fmt(fmt),	\
 				  ##__VA_ARGS__);			\
 } while (0)
 #elif defined(DEBUG)
@@ -1488,23 +1501,23 @@ do {									\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
 	if (__ratelimit(&_rs))						\
-		dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);	\
+		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 } while (0)
 #else
 #define dev_dbg_ratelimited(dev, fmt, ...)				\
 do {									\
 	if (0)								\
-		dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);	\
+		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 } while (0)
 #endif
 
 #ifdef VERBOSE_DEBUG
 #define dev_vdbg	dev_dbg
 #else
-#define dev_vdbg(dev, format, arg...)				\
-({								\
-	if (0)							\
-		dev_printk(KERN_DEBUG, dev, format, ##arg);	\
+#define dev_vdbg(dev, fmt, ...)						\
+({									\
+	if (0)								\
+		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 })
 #endif
 
