@@ -567,7 +567,7 @@ static int pmcmsptwi_master_xfer(struct i2c_adapter *adap,
 		return -1;
 	}
 
-	return 0;
+	return num;
 }
 
 static u32 pmcmsptwi_i2c_func(struct i2c_adapter *adapter)
