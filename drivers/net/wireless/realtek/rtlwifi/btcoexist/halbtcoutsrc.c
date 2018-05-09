@@ -173,16 +173,6 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 
 u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv)
 {
-	struct rtl_mod_params *mod_params = rtlpriv->cfg->mod_params;
-
-	/* override ant_num / ant_path */
-	if (mod_params->ant_sel) {
-		rtlpriv->btcoexist.btc_info.ant_num =
-			(mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1);
-
-		rtlpriv->btcoexist.btc_info.single_ant_path =
-			(mod_params->ant_sel == 1 ? 0 : 1);
-	}
 	return rtlpriv->btcoexist.btc_info.single_ant_path;
 }
 
@@ -193,17 +183,12 @@ u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv)
 
 u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
 {
-	struct rtl_mod_params *mod_params = rtlpriv->cfg->mod_params;
 	u8 num;
 
 	if (rtlpriv->btcoexist.btc_info.ant_num == ANT_X2)
 		num = 2;
 	else
 		num = 1;
-
-	/* override ant_num / ant_path */
-	if (mod_params->ant_sel)
-		num = (mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1) + 1;
 
 	return num;
 }

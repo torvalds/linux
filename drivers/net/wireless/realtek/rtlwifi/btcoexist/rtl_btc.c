@@ -32,6 +32,7 @@
 static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_init_variables = rtl_btc_init_variables,
 	.btc_init_hal_vars = rtl_btc_init_hal_vars,
+	.btc_power_on_setting = rtl_btc_power_on_setting,
 	.btc_init_hw_config = rtl_btc_init_hw_config,
 	.btc_ips_notify = rtl_btc_ips_notify,
 	.btc_lps_notify = rtl_btc_lps_notify,
@@ -108,6 +109,11 @@ void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv)
 	/* move ant_num, bt_type and single_ant_path to
 	 * exhalbtc_bind_bt_coex_withadapter()
 	 */
+}
+
+void rtl_btc_power_on_setting(struct rtl_priv *rtlpriv)
+{
+	exhalbtc_power_on_setting(&gl_bt_coexist);
 }
 
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)

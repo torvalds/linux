@@ -2545,6 +2545,7 @@ struct bt_coexist_info {
 struct rtl_btc_ops {
 	void (*btc_init_variables) (struct rtl_priv *rtlpriv);
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
+	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
@@ -2705,6 +2706,11 @@ struct rtl_priv {
 enum bt_ant_num {
 	ANT_X2 = 0,
 	ANT_X1 = 1,
+};
+
+enum bt_ant_path {
+	ANT_MAIN = 0,
+	ANT_AUX = 1,
 };
 
 enum bt_co_type {
