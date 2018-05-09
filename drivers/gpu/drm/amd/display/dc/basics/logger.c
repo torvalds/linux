@@ -32,8 +32,9 @@
 static const struct dc_log_type_info log_type_info_tbl[] = {
 		{LOG_ERROR,                 "Error"},
 		{LOG_WARNING,               "Warning"},
-		{LOG_DEBUG,		    "Debug"},
+		{LOG_DEBUG,                 "Debug"},
 		{LOG_DC,                    "DC_Interface"},
+		{LOG_DTN,                   "DTN"},
 		{LOG_SURFACE,               "Surface"},
 		{LOG_HW_HOTPLUG,            "HW_Hotplug"},
 		{LOG_HW_LINK_TRAINING,      "HW_LKTN"},
@@ -60,7 +61,7 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 		{LOG_EVENT_LINK_LOSS,       "LinkLoss"},
 		{LOG_EVENT_UNDERFLOW,       "Underflow"},
 		{LOG_IF_TRACE,              "InterfaceTrace"},
-		{LOG_DTN,                   "DTN"},
+		{LOG_PERF_TRACE,            "PerfTrace"},
 		{LOG_DISPLAYSTATS,          "DisplayStats"}
 };
 
@@ -128,8 +129,45 @@ uint32_t dal_logger_destroy(struct dal_logger **logger)
 }
 
 /* ------------------------------------------------------------------------ */
+void dm_logger_append_heading(struct log_entry *entry)
+{
+	int j;
+
+	for (j = 0; j < NUM_ELEMENTS(log_type_info_tbl); j++) {
+
+		const struct dc_log_type_info *info = &log_type_info_tbl[j];
+
+		if (info->type == entry->type)
+			dm_logger_append(entry, "[%s]\t", info->name);
+	}
+}
 
 
+/* Print everything unread existing in log_buffer to debug console*/
+void dm_logger_flush_buffer(struct dal_logger *logger, bool should_warn)
+{
+	char *string_start = &logger->log_buffer[logger->buffer_read_offset];
+
+	if (should_warn)
+		dm_output_to_console(
+			"---------------- FLUSHING LOG BUFFER ----------------\n");
+	while (logger->buffer_read_offset < logger->buffer_write_offset) {
+
+		if (logger->log_buffer[logger->buffer_read_offset] == '\0') {
+			dm_output_to_console("%s", string_start);
+			string_start = logger->log_buffer + logger->buffer_read_offset + 1;
+		}
+		logger->buffer_read_offset++;
+	}
+	if (should_warn)
+		dm_output_to_console(
+			"-------------- END FLUSHING LOG BUFFER --------------\n\n");
+}
+/* ------------------------------------------------------------------------ */
+
+/* Warning: Be careful that 'msg' is null terminated and the total size is
+ * less than DAL_LOGGER_BUFFER_MAX_LOG_LINE_SIZE (256) including '\0'
+ */
 static bool dal_logger_should_log(
 	struct dal_logger *logger,
 	enum dc_log_type log_type)
@@ -159,26 +197,6 @@ static void log_to_debug_console(struct log_entry *entry)
 	}
 }
 
-/* Print everything unread existing in log_buffer to debug console*/
-void dm_logger_flush_buffer(struct dal_logger *logger, bool should_warn)
-{
-	char *string_start = &logger->log_buffer[logger->buffer_read_offset];
-
-	if (should_warn)
-		dm_output_to_console(
-			"---------------- FLUSHING LOG BUFFER ----------------\n");
-	while (logger->buffer_read_offset < logger->buffer_write_offset) {
-
-		if (logger->log_buffer[logger->buffer_read_offset] == '\0') {
-			dm_output_to_console("%s", string_start);
-			string_start = logger->log_buffer + logger->buffer_read_offset + 1;
-		}
-		logger->buffer_read_offset++;
-	}
-	if (should_warn)
-		dm_output_to_console(
-			"-------------- END FLUSHING LOG BUFFER --------------\n\n");
-}
 
 static void log_to_internal_buffer(struct log_entry *entry)
 {
@@ -229,19 +247,6 @@ static void log_to_internal_buffer(struct log_entry *entry)
 	}
 }
 
-static void log_heading(struct log_entry *entry)
-{
-	int j;
-
-	for (j = 0; j < NUM_ELEMENTS(log_type_info_tbl); j++) {
-
-		const struct dc_log_type_info *info = &log_type_info_tbl[j];
-
-		if (info->type == entry->type)
-			dm_logger_append(entry, "[%s]\t", info->name);
-	}
-}
-
 static void append_entry(
 		struct log_entry *entry,
 		char *buffer,
@@ -259,11 +264,7 @@ static void append_entry(
 	entry->buf_offset += buf_size;
 }
 
-/* ------------------------------------------------------------------------ */
 
-/* Warning: Be careful that 'msg' is null terminated and the total size is
- * less than DAL_LOGGER_BUFFER_MAX_LOG_LINE_SIZE (256) including '\0'
- */
 void dm_logger_write(
 	struct dal_logger *logger,
 	enum dc_log_type log_type,
@@ -287,7 +288,7 @@ void dm_logger_write(
 
 		entry.type = log_type;
 
-		log_heading(&entry);
+		dm_logger_append_heading(&entry);
 
 		size = dm_log_to_buffer(
 			buffer, LOG_MAX_LINE_SIZE - 1, msg, args);
@@ -372,7 +373,7 @@ void dm_logger_open(
 
 	logger->open_count++;
 
-	log_heading(entry);
+	dm_logger_append_heading(entry);
 }
 
 void dm_logger_close(struct log_entry *entry)

@@ -62,6 +62,8 @@ void dm_logger_append_va(
 		const char *msg,
 		va_list args);
 
+void dm_logger_append_heading(struct log_entry *entry);
+
 void dm_logger_open(
 		struct dal_logger *logger,
 		struct log_entry *entry,
