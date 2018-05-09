@@ -38,10 +38,10 @@ struct mci_base {
 	struct mutex         mci_lock; /* concurrent MCI access lock */
 	int                  count;
 
-	u8                   tuner_use_count[4];
-	u8                   assigned_demod[8];
-	u32                  used_ldpc_bitrate[8];
-	u8                   demod_in_use[8];
+	u8                   tuner_use_count[MCI_TUNER_MAX];
+	u8                   assigned_demod[MCI_DEMOD_MAX];
+	u32                  used_ldpc_bitrate[MCI_DEMOD_MAX];
+	u8                   demod_in_use[MCI_DEMOD_MAX];
 	u32                  iq_mode;
 };
 
@@ -193,7 +193,7 @@ static int stop(struct dvb_frontend *fe)
 	u32 input = state->tuner;
 
 	memset(&cmd, 0, sizeof(cmd));
-	if (state->demod != 0xff) {
+	if (state->demod != DEMOD_UNUSED) {
 		cmd.command = MCI_CMD_STOP;
 		cmd.demod = state->demod;
 		mci_cmd(state, &cmd, NULL);
@@ -209,10 +209,11 @@ static int stop(struct dvb_frontend *fe)
 	state->base->tuner_use_count[input]--;
 	if (!state->base->tuner_use_count[input])
 		mci_set_tuner(fe, input, 0);
-	state->base->demod_in_use[state->demod] = 0;
+	if (state->demod < MCI_DEMOD_MAX)
+		state->base->demod_in_use[state->demod] = 0;
 	state->base->used_ldpc_bitrate[state->nr] = 0;
-	state->demod = 0xff;
-	state->base->assigned_demod[state->nr] = 0xff;
+	state->demod = DEMOD_UNUSED;
+	state->base->assigned_demod[state->nr] = DEMOD_UNUSED;
 	state->base->iq_mode = 0;
 	mutex_unlock(&state->base->tuner_lock);
 	state->started = 0;
@@ -250,7 +251,7 @@ static int start(struct dvb_frontend *fe, u32 flags, u32 modmask, u32 ts_config)
 		stat = -EBUSY;
 		goto unlock;
 	}
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < MCI_DEMOD_MAX; i++) {
 		used_ldpc_bitrate += state->base->used_ldpc_bitrate[i];
 		if (state->base->demod_in_use[i])
 			used_demods++;
@@ -342,7 +343,7 @@ static int start_iq(struct dvb_frontend *fe, u32 ts_config)
 		stat = -EBUSY;
 		goto unlock;
 	}
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < MCI_DEMOD_MAX; i++)
 		if (state->base->demod_in_use[i])
 			used_demods++;
 	if (used_demods > 0) {

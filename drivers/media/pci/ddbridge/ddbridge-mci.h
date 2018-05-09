@@ -19,6 +19,10 @@
 #ifndef _DDBRIDGE_MCI_H_
 #define _DDBRIDGE_MCI_H_
 
+#define MCI_DEMOD_MAX                       8
+#define MCI_TUNER_MAX                       4
+#define DEMOD_UNUSED                        (0xFF)
+
 #define MCI_CONTROL                         (0x500)
 #define MCI_COMMAND                         (0x600)
 #define MCI_RESULT                          (0x680)
