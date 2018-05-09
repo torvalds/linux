@@ -427,8 +427,10 @@ static int hi3110_get_berr_counter(const struct net_device *net,
 	struct hi3110_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
 
+	mutex_lock(&priv->hi3110_lock);
 	bec->txerr = hi3110_read(spi, HI3110_READ_TEC);
 	bec->rxerr = hi3110_read(spi, HI3110_READ_REC);
+	mutex_unlock(&priv->hi3110_lock);
 
 	return 0;
 }
