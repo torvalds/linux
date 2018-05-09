@@ -123,10 +123,20 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 			dimm->mtype = MEM_FB_DDR2;
 			break;
 		case 0x18:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & 1 << 12)
+				dimm->mtype = MEM_NVDIMM;
+			else if (entry->type_detail & 1 << 13)
 				dimm->mtype = MEM_RDDR3;
 			else
 				dimm->mtype = MEM_DDR3;
+			break;
+		case 0x1a:
+			if (entry->type_detail & 1 << 12)
+				dimm->mtype = MEM_NVDIMM;
+			else if (entry->type_detail & 1 << 13)
+				dimm->mtype = MEM_RDDR4;
+			else
+				dimm->mtype = MEM_DDR4;
 			break;
 		default:
 			if (entry->type_detail & 1 << 6)
