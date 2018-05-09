@@ -4125,12 +4125,58 @@ static const struct pci_error_handlers mlx4_err_handler = {
 	.resume		= mlx4_pci_resume,
 };
 
+static int mlx4_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+
+	mlx4_err(dev, "suspend was called\n");
+	mutex_lock(&persist->interface_state_mutex);
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+		mlx4_unload_one(pdev);
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return 0;
+}
+
+static int mlx4_resume(struct pci_dev *pdev)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int nvfs[MLX4_MAX_PORTS + 1] = {0, 0, 0};
+	int total_vfs;
+	int ret = 0;
+
+	mlx4_err(dev, "resume was called\n");
+	total_vfs = dev->persist->num_vfs;
+	memcpy(nvfs, dev->persist->nvfs, sizeof(dev->persist->nvfs));
+
+	mutex_lock(&persist->interface_state_mutex);
+	if (!(persist->interface_state & MLX4_INTERFACE_STATE_UP)) {
+		ret = mlx4_load_one(pdev, priv->pci_dev_data, total_vfs,
+				    nvfs, priv, 1);
+		if (!ret) {
+			ret = restore_current_port_types(dev,
+					dev->persist->curr_port_type,
+					dev->persist->curr_port_poss_type);
+			if (ret)
+				mlx4_err(dev, "resume: could not restore original port types (%d)\n", ret);
+		}
+	}
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return ret;
+}
+
 static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
 	.shutdown	= mlx4_shutdown,
 	.remove		= mlx4_remove_one,
+	.suspend	= mlx4_suspend,
+	.resume		= mlx4_resume,
 	.err_handler    = &mlx4_err_handler,
 };
 
