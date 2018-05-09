@@ -840,23 +840,37 @@ get_free_slot_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq)
 	r = hisi_sas_read32_relaxed(hisi_hba,
 				DLVRY_Q_0_RD_PTR + (queue * 0x14));
 	if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
-		dev_warn(dev, "full queue=%d r=%d w=%d\n\n",
+		dev_warn(dev, "full queue=%d r=%d w=%d\n",
 				queue, r, w);
 		return -EAGAIN;
 	}
 
-	return 0;
+	dq->wr_point = (dq->wr_point + 1) % HISI_SAS_QUEUE_SLOTS;
+
+	return w;
 }
 
 static void start_delivery_v3_hw(struct hisi_sas_dq *dq)
 {
 	struct hisi_hba *hisi_hba = dq->hisi_hba;
-	int dlvry_queue = dq->slot_prep->dlvry_queue;
-	int dlvry_queue_slot = dq->slot_prep->dlvry_queue_slot;
+	struct hisi_sas_slot *s, *s1;
+	struct list_head *dq_list;
+	int dlvry_queue = dq->id;
+	int wp, count = 0;
 
-	dq->wr_point = ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS;
-	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14),
-			 dq->wr_point);
+	dq_list = &dq->list;
+	list_for_each_entry_safe(s, s1, &dq->list, delivery) {
+		if (!s->ready)
+			break;
+		count++;
+		wp = (s->dlvry_queue_slot + 1) % HISI_SAS_QUEUE_SLOTS;
+		list_del(&s->delivery);
+	}
+
+	if (!count)
+		return;
+
+	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14), wp);
 }
 
 static void prep_prd_sge_v3_hw(struct hisi_hba *hisi_hba,

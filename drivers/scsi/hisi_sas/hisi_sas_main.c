@@ -307,9 +307,9 @@ out:
 		task->task_done(task);
 }
 
-static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
-		*dq, int is_tmf, struct hisi_sas_tmf_task *tmf,
-		int *pass)
+static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq *dq,
+			      int is_tmf, struct hisi_sas_tmf_task *tmf,
+			      int *pass)
 {
 	struct hisi_hba *hisi_hba = dq->hisi_hba;
 	struct domain_device *device = task->dev;
@@ -321,7 +321,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	struct device *dev = hisi_hba->dev;
 	int dlvry_queue_slot, dlvry_queue, rc, slot_idx;
 	int  n_elem = 0, n_elem_req = 0, n_elem_resp = 0;
-	unsigned long flags;
+	unsigned long flags, flags_dq;
+	int wr_q_index;
 
 	if (!sas_port) {
 		struct task_status_struct *ts = &task->task_status;
@@ -422,12 +423,18 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 		goto err_out_tag;
 	}
 
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
-	if (rc)
+	spin_lock_irqsave(&dq->lock, flags_dq);
+	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
+	if (wr_q_index < 0) {
+		spin_unlock_irqrestore(&dq->lock, flags_dq);
 		goto err_out_buf;
+	}
+
+	list_add_tail(&slot->delivery, &dq->list);
+	spin_unlock_irqrestore(&dq->lock, flags_dq);
 
 	dlvry_queue = dq->id;
-	dlvry_queue_slot = dq->wr_point;
+	dlvry_queue_slot = wr_q_index;
 
 	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
@@ -471,8 +478,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	dq->slot_prep = slot;
 	++(*pass);
+	slot->ready = 1;
 
 	return 0;
 
@@ -518,11 +525,11 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		return -EINVAL;
 
 	/* protect task_prep and start_delivery sequence */
-	spin_lock_irqsave(&dq->lock, flags);
 	rc = hisi_sas_task_prep(task, dq, is_tmf, tmf, &pass);
 	if (rc)
 		dev_err(dev, "task exec: failed[%d]!\n", rc);
 
+	spin_lock_irqsave(&dq->lock, flags);
 	if (likely(pass))
 		hisi_hba->hw->start_delivery(dq);
 	spin_unlock_irqrestore(&dq->lock, flags);
@@ -1503,7 +1510,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
 	struct hisi_sas_dq *dq = sas_dev->dq;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
-	unsigned long flags, flags_dq;
+	unsigned long flags, flags_dq = 0;
+	int wr_q_index;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
 		return -EINVAL;
@@ -1531,16 +1539,18 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 		rc = -ENOMEM;
 		goto err_out_tag;
 	}
+
 	spin_lock_irqsave(&dq->lock, flags_dq);
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
-	if (rc) {
-		rc = -ENOMEM;
+	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
+	if (wr_q_index < 0) {
 		spin_unlock_irqrestore(&dq->lock, flags_dq);
 		goto err_out_buf;
 	}
+	list_add_tail(&slot->delivery, &dq->list);
+	spin_unlock_irqrestore(&dq->lock, flags_dq);
 
 	dlvry_queue = dq->id;
-	dlvry_queue_slot = dq->wr_point;
+	dlvry_queue_slot = wr_q_index;
 
 	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
@@ -1560,18 +1570,16 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	hisi_sas_task_prep_abort(hisi_hba, slot, device_id,
 				      abort_flag, task_tag);
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
-	list_add_tail(&slot->entry, &sas_dev->list);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	dq->slot_prep = slot;
-
+	slot->ready = 1;
 	/* send abort command to the chip */
+	spin_lock_irqsave(&dq->lock, flags);
+	list_add_tail(&slot->entry, &sas_dev->list);
 	hisi_hba->hw->start_delivery(dq);
-	spin_unlock_irqrestore(&dq->lock, flags_dq);
+	spin_unlock_irqrestore(&dq->lock, flags);
 
 	return 0;
 
@@ -1856,6 +1864,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);
+		INIT_LIST_HEAD(&dq->list);
 		dq->id = i;
 		dq->hisi_hba = hisi_hba;
 
