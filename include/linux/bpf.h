@@ -627,7 +627,7 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
 
-static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
+static inline bool bpf_prog_is_dev_bound(const struct bpf_prog_aux *aux)
 {
 	return aux->offload_requested;
 }

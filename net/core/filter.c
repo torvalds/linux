@@ -4645,8 +4645,15 @@ static bool xdp_is_valid_access(int off, int size,
 				const struct bpf_prog *prog,
 				struct bpf_insn_access_aux *info)
 {
-	if (type == BPF_WRITE)
+	if (type == BPF_WRITE) {
+		if (bpf_prog_is_dev_bound(prog->aux)) {
+			switch (off) {
+			case offsetof(struct xdp_md, rx_queue_index):
+				return __is_valid_xdp_access(off, size);
+			}
+		}
 		return false;
+	}
 
 	switch (off) {
 	case offsetof(struct xdp_md, data):
