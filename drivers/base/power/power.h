@@ -56,14 +56,6 @@ static inline void device_wakeup_detach_irq(struct device *dev)
 {
 }
 
-static inline void device_wakeup_arm_wake_irqs(void)
-{
-}
-
-static inline void device_wakeup_disarm_wake_irqs(void)
-{
-}
-
 #endif /* CONFIG_PM_SLEEP */
 
 /*
