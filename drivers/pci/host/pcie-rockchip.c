@@ -29,15 +29,22 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	struct resource *regs;
 	int err;
 
-	regs = platform_get_resource_byname(pdev,
-					    IORESOURCE_MEM,
-					    "axi-base");
-	rockchip->reg_base = devm_pci_remap_cfg_resource(dev, regs);
-	if (IS_ERR(rockchip->reg_base))
-		return PTR_ERR(rockchip->reg_base);
+	if (rockchip->is_rc) {
+		regs = platform_get_resource_byname(pdev,
+						    IORESOURCE_MEM,
+						    "axi-base");
+		rockchip->reg_base = devm_pci_remap_cfg_resource(dev, regs);
+		if (IS_ERR(rockchip->reg_base))
+			return PTR_ERR(rockchip->reg_base);
+	} else {
+		rockchip->mem_res =
+			platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						     "mem-base");
+		if (!rockchip->mem_res)
+			return -EINVAL;
+	}
 
-	regs = platform_get_resource_byname(pdev,
-					    IORESOURCE_MEM,
+	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					    "apb-base");
 	rockchip->apb_base = devm_ioremap_resource(dev, regs);
 	if (IS_ERR(rockchip->apb_base))

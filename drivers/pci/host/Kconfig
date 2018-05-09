@@ -194,6 +194,18 @@ config PCIE_ROCKCHIP_HOST
 	  There is 1 internal PCIe port available to support GEN2 with
 	  4 slots.
 
+config PCIE_ROCKCHIP_EP
+	bool "Rockchip PCIe endpoint controller"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on OF
+	depends on PCI_ENDPOINT
+	select MFD_SYSCON
+	select PCIE_ROCKCHIP
+	help
+	  Say Y here if you want to support Rockchip PCIe controller in
+	  endpoint mode on Rockchip SoC. There is 1 internal PCIe port
+	  available to support GEN2 with 4 slots.
+
 config PCIE_MEDIATEK
 	bool "MediaTek PCIe controller"
 	depends on (ARM || ARM64) && (ARCH_MEDIATEK || COMPILE_TEST)
