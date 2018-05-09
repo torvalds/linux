@@ -2007,16 +2007,18 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 			return -1;
 		}
 	}
-	trace_create_file("filter", 0644, file->dir, file,
-			  &ftrace_event_filter_fops);
 
 	/*
 	 * Only event directories that can be enabled should have
-	 * triggers.
+	 * triggers or filters.
 	 */
-	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
+	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)) {
+		trace_create_file("filter", 0644, file->dir, file,
+				  &ftrace_event_filter_fops);
+
 		trace_create_file("trigger", 0644, file->dir, file,
 				  &event_trigger_fops);
+	}
 
 #ifdef CONFIG_HIST_TRIGGERS
 	trace_create_file("hist", 0444, file->dir, file,
