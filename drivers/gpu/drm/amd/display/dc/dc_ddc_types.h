@@ -109,7 +109,7 @@ struct ddc_service {
 
 	uint32_t address;
 	uint32_t edid_buf_len;
-	uint8_t edid_buf[MAX_EDID_BUFFER_SIZE];
+	uint8_t edid_buf[DC_MAX_EDID_BUFFER_SIZE];
 };
 
 #endif /* DC_DDC_TYPES_H_ */
