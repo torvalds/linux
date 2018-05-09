@@ -88,7 +88,7 @@ torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, !IS_ENABLED(MODULE),
 	      "Shutdown at end of performance tests.");
-torture_param(bool, verbose, true, "Enable verbose debugging printk()s");
+torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
 
 static char *perf_type = "rcu";

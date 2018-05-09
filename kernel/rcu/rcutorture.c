@@ -101,7 +101,7 @@ torture_param(int, test_boost_interval, 7,
 	     "Interval between boost tests, seconds.");
 torture_param(bool, test_no_idle_hz, true,
 	     "Test support for tickless idle CPUs");
-torture_param(bool, verbose, true,
+torture_param(int, verbose, 1,
 	     "Enable verbose debugging printk()s");
 
 static char *torture_type = "rcu";
