@@ -913,9 +913,9 @@ xfs_qm_dqflush_done(
 	 * since it's cheaper, and then we recheck while
 	 * holding the lock before removing the dquot from the AIL.
 	 */
-	if ((lip->li_flags & XFS_LI_IN_AIL) &&
+	if (test_bit(XFS_LI_IN_AIL, &lip->li_flags) &&
 	    ((lip->li_lsn == qip->qli_flush_lsn) ||
-	     (lip->li_flags & XFS_LI_FAILED))) {
+	     test_bit(XFS_LI_FAILED, &lip->li_flags))) {
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
 		spin_lock(&ailp->ail_lock);
@@ -926,8 +926,7 @@ xfs_qm_dqflush_done(
 			 * Clear the failed state since we are about to drop the
 			 * flush lock
 			 */
-			if (lip->li_flags & XFS_LI_FAILED)
-				xfs_clear_li_failed(lip);
+			xfs_clear_li_failed(lip);
 			spin_unlock(&ailp->ail_lock);
 		}
 	}

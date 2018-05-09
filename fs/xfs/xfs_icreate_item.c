@@ -91,7 +91,7 @@ xfs_icreate_item_unlock(
 {
 	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
 
-	if (icp->ic_item.li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		kmem_zone_free(xfs_icreate_zone, icp);
 	return;
 }

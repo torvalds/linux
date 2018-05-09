@@ -46,7 +46,7 @@ xfs_ail_check(
 	/*
 	 * Check the next and previous entries are valid.
 	 */
-	ASSERT((lip->li_flags & XFS_LI_IN_AIL) != 0);
+	ASSERT(test_bit(XFS_LI_IN_AIL, &lip->li_flags));
 	prev_lip = list_entry(lip->li_ail.prev, xfs_log_item_t, li_ail);
 	if (&prev_lip->li_ail != &ailp->ail_head)
 		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
@@ -684,7 +684,7 @@ xfs_trans_ail_update_bulk(
 
 	for (i = 0; i < nr_items; i++) {
 		struct xfs_log_item *lip = log_items[i];
-		if (lip->li_flags & XFS_LI_IN_AIL) {
+		if (test_and_set_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 			/* check if we really need to move the item */
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
 				continue;
@@ -694,7 +694,6 @@ xfs_trans_ail_update_bulk(
 			if (mlip == lip)
 				mlip_changed = 1;
 		} else {
-			lip->li_flags |= XFS_LI_IN_AIL;
 			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
@@ -725,7 +724,7 @@ xfs_ail_delete_one(
 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 	xfs_ail_delete(ailp, lip);
 	xfs_clear_li_failed(lip);
-	lip->li_flags &= ~XFS_LI_IN_AIL;
+	clear_bit(XFS_LI_IN_AIL, &lip->li_flags);
 	lip->li_lsn = 0;
 
 	return mlip == lip;
@@ -761,7 +760,7 @@ xfs_trans_ail_delete(
 	struct xfs_mount	*mp = ailp->ail_mount;
 	bool			mlip_changed;
 
-	if (!(lip->li_flags & XFS_LI_IN_AIL)) {
+	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 		spin_unlock(&ailp->ail_lock);
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_alert_tag(mp, XFS_PTAG_AILDELETE,

@@ -442,7 +442,7 @@ xfs_trans_brelse(
 		ASSERT(bp->b_pincount == 0);
 ***/
 		ASSERT(atomic_read(&bip->bli_refcount) == 0);
-		ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
+		ASSERT(!test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
 		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
 		xfs_buf_item_relse(bp);
 	}

@@ -159,7 +159,7 @@ STATIC void
 xfs_cui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_cui_release(CUI_ITEM(lip));
 }
 
@@ -310,7 +310,7 @@ xfs_cud_item_unlock(
 {
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_cui_release(cudp->cud_cuip);
 		kmem_zone_free(xfs_cud_zone, cudp);
 	}

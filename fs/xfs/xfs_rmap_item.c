@@ -158,7 +158,7 @@ STATIC void
 xfs_rui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_rui_release(RUI_ITEM(lip));
 }
 
@@ -331,7 +331,7 @@ xfs_rud_item_unlock(
 {
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_rui_release(rudp->rud_ruip);
 		kmem_zone_free(xfs_rud_zone, rudp);
 	}

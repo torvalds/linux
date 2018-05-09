@@ -568,12 +568,14 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
+	bool			aborted;
 	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
 	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
 #if defined(DEBUG) || defined(XFS_WARN)
 	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
 #endif
+
+	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags);
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;

@@ -173,7 +173,7 @@ xfs_qm_dquot_logitem_push(
 	 * The buffer containing this item failed to be written back
 	 * previously. Resubmit the buffer for IO
 	 */
-	if (lip->li_flags & XFS_LI_FAILED) {
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 

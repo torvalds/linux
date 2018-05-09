@@ -2132,7 +2132,7 @@ xlog_print_trans(
 
 		xfs_warn(mp, "log item: ");
 		xfs_warn(mp, "  type	= 0x%x", lip->li_type);
-		xfs_warn(mp, "  flags	= 0x%x", lip->li_flags);
+		xfs_warn(mp, "  flags	= 0x%lx", lip->li_flags);
 		if (!lv)
 			continue;
 		xfs_warn(mp, "  niovecs	= %d", lv->lv_niovecs);

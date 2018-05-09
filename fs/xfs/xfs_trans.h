@@ -48,7 +48,7 @@ typedef struct xfs_log_item {
 	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
 	struct xfs_ail			*li_ailp;	/* ptr to AIL */
 	uint				li_type;	/* item type */
-	uint				li_flags;	/* misc flags */
+	unsigned long			li_flags;	/* misc flags */
 	struct xfs_buf			*li_buf;	/* real buffer pointer */
 	struct list_head		li_bio_list;	/* buffer item list */
 	void				(*li_cb)(struct xfs_buf *,
@@ -64,14 +64,19 @@ typedef struct xfs_log_item {
 	xfs_lsn_t			li_seq;		/* CIL commit seq */
 } xfs_log_item_t;
 
-#define	XFS_LI_IN_AIL	0x1
-#define	XFS_LI_ABORTED	0x2
-#define	XFS_LI_FAILED	0x4
+/*
+ * li_flags use the (set/test/clear)_bit atomic interfaces because updates can
+ * race with each other and we don't want to have to use the AIL lock to
+ * serialise all updates.
+ */
+#define	XFS_LI_IN_AIL	0
+#define	XFS_LI_ABORTED	1
+#define	XFS_LI_FAILED	2
 
 #define XFS_LI_FLAGS \
-	{ XFS_LI_IN_AIL,	"IN_AIL" }, \
-	{ XFS_LI_ABORTED,	"ABORTED" }, \
-	{ XFS_LI_FAILED,	"FAILED" }
+	{ (1 << XFS_LI_IN_AIL),		"IN_AIL" }, \
+	{ (1 << XFS_LI_ABORTED),	"ABORTED" }, \
+	{ (1 << XFS_LI_FAILED),		"FAILED" }
 
 struct xfs_item_ops {
 	void (*iop_size)(xfs_log_item_t *, int *, int *);

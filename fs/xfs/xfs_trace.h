@@ -442,7 +442,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__field(int, bli_refcount)
 		__field(unsigned, bli_flags)
 		__field(void *, li_desc)
-		__field(unsigned, li_flags)
+		__field(unsigned long, li_flags)
 	),
 	TP_fast_assign(
 		__entry->dev = bip->bli_buf->b_target->bt_dev;
@@ -1018,7 +1018,7 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 		__field(dev_t, dev)
 		__field(void *, lip)
 		__field(uint, type)
-		__field(uint, flags)
+		__field(unsigned long, flags)
 		__field(xfs_lsn_t, lsn)
 	),
 	TP_fast_assign(
@@ -1070,7 +1070,7 @@ DECLARE_EVENT_CLASS(xfs_ail_class,
 		__field(dev_t, dev)
 		__field(void *, lip)
 		__field(uint, type)
-		__field(uint, flags)
+		__field(unsigned long, flags)
 		__field(xfs_lsn_t, old_lsn)
 		__field(xfs_lsn_t, new_lsn)
 	),

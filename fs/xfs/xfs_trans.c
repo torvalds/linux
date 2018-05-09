@@ -792,7 +792,7 @@ xfs_trans_free_items(
 		if (commit_lsn != NULLCOMMITLSN)
 			lip->li_ops->iop_committing(lip, commit_lsn);
 		if (abort)
-			lip->li_flags |= XFS_LI_ABORTED;
+			set_bit(XFS_LI_ABORTED, &lip->li_flags);
 		lip->li_ops->iop_unlock(lip);
 
 		xfs_trans_free_item_desc(lidp);
@@ -863,7 +863,7 @@ xfs_trans_committed_bulk(
 		xfs_lsn_t		item_lsn;
 
 		if (aborted)
-			lip->li_flags |= XFS_LI_ABORTED;
+			set_bit(XFS_LI_ABORTED, &lip->li_flags);
 		item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
 
 		/* item_lsn of -1 means the item needs no further processing */

@@ -107,7 +107,8 @@ xfs_inode_free_callback(
 		xfs_idestroy_fork(ip, XFS_COW_FORK);
 
 	if (ip->i_itemp) {
-		ASSERT(!(ip->i_itemp->ili_item.li_flags & XFS_LI_IN_AIL));
+		ASSERT(!test_bit(XFS_LI_IN_AIL,
+				 &ip->i_itemp->ili_item.li_flags));
 		xfs_inode_item_destroy(ip);
 		ip->i_itemp = NULL;
 	}
