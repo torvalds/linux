@@ -7,6 +7,8 @@
  *
  */
 
+/ {
+	smb@8000000 {
 		mb_clk24mhz: clk24mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -287,3 +289,5 @@
 				};
 			};
 		};
+	};
+};

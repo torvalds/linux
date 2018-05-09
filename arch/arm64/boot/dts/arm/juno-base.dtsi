@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "juno-clocks.dtsi"
+#include "juno-motherboard.dtsi"
 
 / {
 	/*
@@ -795,8 +796,6 @@
 				<0 0 10 &gic 0 0 0 167 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 11 &gic 0 0 0 168 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 12 &gic 0 0 0 169 IRQ_TYPE_LEVEL_HIGH>;
-
-		/include/ "juno-motherboard.dtsi"
 	};
 
 	site2: tlx@60000000 {
