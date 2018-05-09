@@ -1,7 +1,6 @@
 config SND_OMAP_SOC
-	tristate "SoC Audio for the Texas Instruments OMAP chips"
+	tristate "SoC Audio for Texas Instruments OMAP chips (deprecated)"
 	depends on (ARCH_OMAP && DMA_OMAP) || (ARM && COMPILE_TEST)
-	select SND_DMAENGINE_PCM
 	select SND_SDMA_SOC
 
 config SND_SDMA_SOC

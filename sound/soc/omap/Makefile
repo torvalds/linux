@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 # OMAP Platform Support
-snd-soc-omap-objs := omap-pcm.o
 snd-soc-sdma-objs := sdma-pcm.o
 snd-soc-omap-dmic-objs := omap-dmic.o
 snd-soc-omap-mcbsp-objs := omap-mcbsp.o mcbsp.o
 snd-soc-omap-mcpdm-objs := omap-mcpdm.o
 snd-soc-omap-hdmi-audio-objs := omap-hdmi-audio.o
 
-obj-$(CONFIG_SND_OMAP_SOC) += snd-soc-omap.o
 obj-$(CONFIG_SND_SDMA_SOC) += snd-soc-sdma.o
 obj-$(CONFIG_SND_OMAP_SOC_DMIC) += snd-soc-omap-dmic.o
 obj-$(CONFIG_SND_OMAP_SOC_MCBSP) += snd-soc-omap-mcbsp.o
