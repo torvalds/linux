@@ -2154,6 +2154,21 @@ static inline int ata_eh_worth_retry(struct ata_queued_cmd *qc)
 }
 
 /**
+ *      ata_eh_quiet - check if we need to be quiet about a command error
+ *      @qc: qc to check
+ *
+ *      Look at the qc flags anbd its scsi command request flags to determine
+ *      if we need to be quiet about the command failure.
+ */
+static inline bool ata_eh_quiet(struct ata_queued_cmd *qc)
+{
+	if (qc->scsicmd &&
+	    qc->scsicmd->request->rq_flags & RQF_QUIET)
+		qc->flags |= ATA_QCFLAG_QUIET;
+	return qc->flags & ATA_QCFLAG_QUIET;
+}
+
+/**
  *	ata_eh_link_autopsy - analyze error and determine recovery action
  *	@link: host link to perform autopsy on
  *
@@ -2170,7 +2185,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev;
 	unsigned int all_err_mask = 0, eflags = 0;
-	int tag;
+	int tag, nr_failed = 0, nr_quiet = 0;
 	u32 serror;
 	int rc;
 
@@ -2236,7 +2251,16 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		if (qc->flags & ATA_QCFLAG_IO)
 			eflags |= ATA_EFLAG_IS_IO;
 		trace_ata_eh_link_autopsy_qc(qc);
+
+		/* Count quiet errors */
+		if (ata_eh_quiet(qc))
+			nr_quiet++;
+		nr_failed++;
 	}
+
+	/* If all failed commands requested silence, then be quiet */
+	if (nr_quiet == nr_failed)
+		ehc->i.flags |= ATA_EHI_QUIET;
 
 	/* enforce default EH actions */
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
