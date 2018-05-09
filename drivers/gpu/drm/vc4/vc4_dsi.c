@@ -1612,8 +1612,18 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
 					  &panel, &dsi->bridge);
-	if (ret)
+	if (ret) {
+		/* If the bridge or panel pointed by dev->of_node is not
+		 * enabled, just return 0 here so that we don't prevent the DRM
+		 * dev from being registered. Of course that means the DSI
+		 * encoder won't be exposed, but that's not a problem since
+		 * nothing is connected to it.
+		 */
+		if (ret == -ENODEV)
+			return 0;
+
 		return ret;
+	}
 
 	if (panel) {
 		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
@@ -1664,7 +1674,8 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 
-	pm_runtime_disable(dev);
+	if (dsi->bridge)
+		pm_runtime_disable(dev);
 
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
