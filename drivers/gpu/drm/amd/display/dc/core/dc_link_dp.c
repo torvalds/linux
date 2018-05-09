@@ -1647,22 +1647,26 @@ static enum dc_status read_hpd_rx_irq_data(
 			irq_data->raw,
 			sizeof(union hpd_irq_data));
 	else {
-		/* Read 2 bytes at this location,... */
+		/* Read 14 bytes in a single read and then copy only the required fields.
+		 * This is more efficient than doing it in two separate AUX reads. */
+
+		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
+
 		retval = core_link_read_dpcd(
 			link,
 			DP_SINK_COUNT_ESI,
-			irq_data->raw,
-			2);
+			tmp,
+			sizeof(tmp));
 
 		if (retval != DC_OK)
 			return retval;
 
-		/* ... then read remaining 4 at the other location */
-		retval = core_link_read_dpcd(
-			link,
-			DP_LANE0_1_STATUS_ESI,
-			&irq_data->raw[2],
-			4);
+		irq_data->bytes.sink_cnt.raw = tmp[DP_SINK_COUNT_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.device_service_irq.raw = tmp[DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0 - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane01_status.raw = tmp[DP_LANE0_1_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
 	}
 
 	return retval;
