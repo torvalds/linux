@@ -120,6 +120,9 @@ struct xfs_extent_free_item
 /* Skip online discard of freed extents */
 #define XFS_BMAPI_NODISCARD	0x1000
 
+/* Do not update the rmap btree.  Used for reconstructing bmbt from rmapbt. */
+#define XFS_BMAPI_NORMAP	0x2000
+
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
@@ -133,7 +136,8 @@ struct xfs_extent_free_item
 	{ XFS_BMAPI_COWFORK,	"COWFORK" }, \
 	{ XFS_BMAPI_DELALLOC,	"DELALLOC" }, \
 	{ XFS_BMAPI_CONVERT_ONLY, "CONVERT_ONLY" }, \
-	{ XFS_BMAPI_NODISCARD,	"NODISCARD" }
+	{ XFS_BMAPI_NODISCARD,	"NODISCARD" }, \
+	{ XFS_BMAPI_NORMAP,	"NORMAP" }
 
 
 static inline int xfs_bmapi_aflag(int w)
