@@ -1191,7 +1191,7 @@ static const struct lnbh25_config lnbh25_cfg = {
 	.data2_config = LNBH25_TEN
 };
 
-static int demod_attach_stv0910(struct ddb_input *input, int type)
+static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
@@ -1204,6 +1204,12 @@ static int demod_attach_stv0910(struct ddb_input *input, int type)
 
 	if (type)
 		cfg.parallel = 2;
+
+	if (tsfast) {
+		dev_info(dev, "Enabling stv0910 higher speed TS\n");
+		cfg.tsspeed = 0x10;
+	}
+
 	dvb->fe = dvb_attach(stv0910_attach, i2c, &cfg, (input->nr & 1));
 	if (!dvb->fe) {
 		cfg.adr = 0x6c;
@@ -1439,7 +1445,25 @@ static int dvb_input_attach(struct ddb_input *input)
 	struct ddb_port *port = input->port;
 	struct dvb_adapter *adap = dvb->adap;
 	struct dvb_demux *dvbdemux = &dvb->demux;
-	int par = 0, osc24 = 0;
+	struct ddb_ids *devids = &input->port->dev->link[input->port->lnr].ids;
+	int par = 0, osc24 = 0, tsfast = 0;
+
+	/*
+	 * Determine if bridges with stv0910 demods can run with fast TS and
+	 * thus support high bandwidth transponders.
+	 * STV0910_PR and STV0910_P tuner types covers all relevant bridges,
+	 * namely the CineS2 V7(A) and the Octopus CI S2 Pro/Advanced. All
+	 * DuoFlex S2 V4(A) have type=DDB_TUNER_DVBS_STV0910 without any suffix
+	 * and are limited by the serial link to the bridge, thus won't work
+	 * in fast TS mode.
+	 */
+	if (port->nr == 0 &&
+	    (port->type == DDB_TUNER_DVBS_STV0910_PR ||
+	     port->type == DDB_TUNER_DVBS_STV0910_P)) {
+		/* fast TS on port 0 requires FPGA version >= 1.7 */
+		if ((devids->hwid & 0x00ffffff) >= 0x00010007)
+			tsfast = 1;
+	}
 
 	dvb->attached = 0x01;
 
@@ -1496,19 +1520,19 @@ static int dvb_input_attach(struct ddb_input *input)
 			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910:
-		if (demod_attach_stv0910(input, 0) < 0)
+		if (demod_attach_stv0910(input, 0, tsfast) < 0)
 			goto err_detach;
 		if (tuner_attach_stv6111(input, 0) < 0)
 			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910_PR:
-		if (demod_attach_stv0910(input, 1) < 0)
+		if (demod_attach_stv0910(input, 1, tsfast) < 0)
 			goto err_detach;
 		if (tuner_attach_stv6111(input, 1) < 0)
 			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910_P:
-		if (demod_attach_stv0910(input, 0) < 0)
+		if (demod_attach_stv0910(input, 0, tsfast) < 0)
 			goto err_detach;
 		if (tuner_attach_stv6111(input, 1) < 0)
 			goto err_tuner;
