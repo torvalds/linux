@@ -18,7 +18,7 @@ int sclp_init_state __section(.data) = sclp_init_state_uninitialized;
  * Used to keep track of the size of the event masks. Qemu until version 2.11
  * only supports 4 and needs a workaround.
  */
-bool sclp_mask_compat_mode;
+bool sclp_mask_compat_mode __section(.data);
 
 void sclp_early_wait_irq(void)
 {

@@ -34,9 +34,13 @@ meta-data and shadow-data:
   - data[] - storage for shadow data
 
 It is important to note that the klp_shadow_alloc() and
-klp_shadow_get_or_alloc() calls, described below, store a *copy* of the
-data that the functions are provided.  Callers should provide whatever
-mutual exclusion is required of the shadow data.
+klp_shadow_get_or_alloc() are zeroing the variable by default.
+They also allow to call a custom constructor function when a non-zero
+value is needed. Callers should provide whatever mutual exclusion
+is required.
+
+Note that the constructor is called under klp_shadow_lock spinlock. It allows
+to do actions that can be done only once when a new variable is allocated.
 
 * klp_shadow_get() - retrieve a shadow variable data pointer
   - search hashtable for <obj, id> pair
@@ -47,7 +51,7 @@ mutual exclusion is required of the shadow data.
     - WARN and return NULL
   - if <obj, id> doesn't already exist
     - allocate a new shadow variable
-    - copy data into the new shadow variable
+    - initialize the variable using a custom constructor and data when provided
     - add <obj, id> to the global hashtable
 
 * klp_shadow_get_or_alloc() - get existing or alloc a new shadow variable
@@ -56,16 +60,20 @@ mutual exclusion is required of the shadow data.
     - return existing shadow variable
   - if <obj, id> doesn't already exist
     - allocate a new shadow variable
-    - copy data into the new shadow variable
+    - initialize the variable using a custom constructor and data when provided
     - add <obj, id> pair to the global hashtable
 
 * klp_shadow_free() - detach and free a <obj, id> shadow variable
   - find and remove a <obj, id> reference from global hashtable
-    - if found, free shadow variable
+    - if found
+      - call destructor function if defined
+      - free shadow variable
 
 * klp_shadow_free_all() - detach and free all <*, id> shadow variables
   - find and remove any <*, id> references from global hashtable
-    - if found, free shadow variable
+    - if found
+      - call destructor function if defined
+      - free shadow variable
 
 
 2. Use cases
@@ -107,7 +115,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 
 	/* Attach a corresponding shadow variable, then initialize it */
-	ps_lock = klp_shadow_alloc(sta, PS_LOCK, NULL, sizeof(*ps_lock), gfp);
+	ps_lock = klp_shadow_alloc(sta, PS_LOCK, sizeof(*ps_lock), gfp,
+				   NULL, NULL);
 	if (!ps_lock)
 		goto shadow_fail;
 	spin_lock_init(ps_lock);
@@ -131,7 +140,7 @@ variable:
 
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
-	klp_shadow_free(sta, PS_LOCK);
+	klp_shadow_free(sta, PS_LOCK, NULL);
 	kfree(sta);
 	...
 
@@ -148,16 +157,24 @@ shadow variables to parents already in-flight.
 For commit 1d147bfa6429, a good spot to allocate a shadow spinlock is
 inside ieee80211_sta_ps_deliver_wakeup():
 
+int ps_lock_shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
+{
+	spinlock_t *lock = shadow_data;
+
+	spin_lock_init(lock);
+	return 0;
+}
+
 #define PS_LOCK 1
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 {
-	DEFINE_SPINLOCK(ps_lock_fallback);
 	spinlock_t *ps_lock;
 
 	/* sync with ieee80211_tx_h_unicast_ps_buf */
 	ps_lock = klp_shadow_get_or_alloc(sta, PS_LOCK,
-			&ps_lock_fallback, sizeof(ps_lock_fallback),
-			GFP_ATOMIC);
+			sizeof(*ps_lock), GFP_ATOMIC,
+			ps_lock_shadow_ctor, NULL);
+
 	if (ps_lock)
 		spin_lock(ps_lock);
 	...

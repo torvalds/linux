@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
  *		      Ludovico Cavedon <cavedon@sssup.it>
- *		      Mauro Carvalho Chehab <mchehab@infradead.org>
+ *		      Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
  *
  * Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>

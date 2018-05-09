@@ -37,15 +37,27 @@ static inline int kvm_psci_version(struct kvm_vcpu *vcpu, struct kvm *kvm)
 	 * Our PSCI implementation stays the same across versions from
 	 * v0.2 onward, only adding the few mandatory functions (such
 	 * as FEATURES with 1.0) that are required by newer
-	 * revisions. It is thus safe to return the latest.
+	 * revisions. It is thus safe to return the latest, unless
+	 * userspace has instructed us otherwise.
 	 */
-	if (test_bit(KVM_ARM_VCPU_PSCI_0_2, vcpu->arch.features))
+	if (test_bit(KVM_ARM_VCPU_PSCI_0_2, vcpu->arch.features)) {
+		if (vcpu->kvm->arch.psci_version)
+			return vcpu->kvm->arch.psci_version;
+
 		return KVM_ARM_PSCI_LATEST;
+	}
 
 	return KVM_ARM_PSCI_0_1;
 }
 
 
 int kvm_hvc_call_handler(struct kvm_vcpu *vcpu);
+
+struct kvm_one_reg;
+
+int kvm_arm_get_fw_num_regs(struct kvm_vcpu *vcpu);
+int kvm_arm_copy_fw_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices);
+int kvm_arm_get_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
+int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 
 #endif /* __KVM_ARM_PSCI_H__ */

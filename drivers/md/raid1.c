@@ -854,7 +854,7 @@ static void flush_pending_writes(struct r1conf *conf)
  *    there is no normal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  */
-static void raise_barrier(struct r1conf *conf, sector_t sector_nr)
+static sector_t raise_barrier(struct r1conf *conf, sector_t sector_nr)
 {
 	int idx = sector_to_idx(sector_nr);
 
@@ -885,13 +885,23 @@ static void raise_barrier(struct r1conf *conf, sector_t sector_nr)
 	 *    max resync count which allowed on current I/O barrier bucket.
 	 */
 	wait_event_lock_irq(conf->wait_barrier,
-			    !conf->array_frozen &&
+			    (!conf->array_frozen &&
 			     !atomic_read(&conf->nr_pending[idx]) &&
-			     atomic_read(&conf->barrier[idx]) < RESYNC_DEPTH,
+			     atomic_read(&conf->barrier[idx]) < RESYNC_DEPTH) ||
+				test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery),
 			    conf->resync_lock);
+
+	if (test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
+		atomic_dec(&conf->barrier[idx]);
+		spin_unlock_irq(&conf->resync_lock);
+		wake_up(&conf->wait_barrier);
+		return -EINTR;
+	}
 
 	atomic_inc(&conf->nr_sync_pending);
 	spin_unlock_irq(&conf->resync_lock);
+
+	return 0;
 }
 
 static void lower_barrier(struct r1conf *conf, sector_t sector_nr)
@@ -1091,6 +1101,8 @@ static void alloc_behind_master_bio(struct r1bio *r1_bio,
 		behind_bio->bi_iter.bi_size = size;
 		goto skip_copy;
 	}
+
+	behind_bio->bi_write_hint = bio->bi_write_hint;
 
 	while (i < vcnt && size) {
 		struct page *page;
@@ -2662,9 +2674,12 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr,
 		mddev_is_clustered(mddev) && (sector_nr + 2 * RESYNC_SECTORS > conf->cluster_sync_high));
-	r1_bio = raid1_alloc_init_r1buf(conf);
 
-	raise_barrier(conf, sector_nr);
+
+	if (raise_barrier(conf, sector_nr))
+		return 0;
+
+	r1_bio = raid1_alloc_init_r1buf(conf);
 
 	rcu_read_lock();
 	/*

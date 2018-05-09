@@ -7,6 +7,6 @@
 #define BTRFS_PRINT_TREE_H
 
 void btrfs_print_leaf(struct extent_buffer *l);
-void btrfs_print_tree(struct extent_buffer *c);
+void btrfs_print_tree(struct extent_buffer *c, bool follow);
 
 #endif

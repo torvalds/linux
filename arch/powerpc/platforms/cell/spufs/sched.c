@@ -1093,7 +1093,7 @@ static int show_spu_loadavg(struct seq_file *s, void *private)
 		LOAD_INT(c), LOAD_FRAC(c),
 		count_active_contexts(),
 		atomic_read(&nr_spu_contexts),
-		idr_get_cursor(&task_active_pid_ns(current)->idr));
+		idr_get_cursor(&task_active_pid_ns(current)->idr) - 1);
 	return 0;
 }
 

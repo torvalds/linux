@@ -162,15 +162,12 @@ int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo)
 		ret = nanddev_erase(nand, &pos);
 		if (ret) {
 			einfo->fail_addr = nanddev_pos_to_offs(nand, &pos);
-			einfo->state = MTD_ERASE_FAILED;
 
 			return ret;
 		}
 
 		nanddev_pos_next_eraseblock(nand, &pos);
 	}
-
-	einfo->state = MTD_ERASE_DONE;
 
 	return 0;
 }

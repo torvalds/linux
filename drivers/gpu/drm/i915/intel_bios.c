@@ -1256,7 +1256,6 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		return;
 
 	aux_channel = child->aux_channel;
-	ddc_pin = child->ddc_pin;
 
 	is_dvi = child->device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	is_dp = child->device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
@@ -1303,9 +1302,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		info->alternate_ddc_pin = map_ddc_pin(dev_priv, ddc_pin);
-
-		sanitize_ddc_pin(dev_priv, port);
+		ddc_pin = map_ddc_pin(dev_priv, child->ddc_pin);
+		if (intel_gmbus_is_valid_pin(dev_priv, ddc_pin)) {
+			info->alternate_ddc_pin = ddc_pin;
+			sanitize_ddc_pin(dev_priv, port);
+		} else {
+			DRM_DEBUG_KMS("Port %c has invalid DDC pin %d, "
+				      "sticking to defaults\n",
+				      port_name(port), ddc_pin);
+		}
 	}
 
 	if (is_dp) {

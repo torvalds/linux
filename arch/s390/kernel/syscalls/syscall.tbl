@@ -388,3 +388,4 @@
 378  common	s390_guarded_storage	sys_s390_guarded_storage	compat_sys_s390_guarded_storage
 379  common	statx			sys_statx			compat_sys_statx
 380  common	s390_sthyi		sys_s390_sthyi			compat_sys_s390_sthyi
+381  common	kexec_file_load		sys_kexec_file_load		compat_sys_kexec_file_load

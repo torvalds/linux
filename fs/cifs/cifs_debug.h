@@ -54,7 +54,7 @@ do {								\
 		pr_debug_ ## ratefunc("%s: "			\
 				fmt, __FILE__, ##__VA_ARGS__);	\
 	} else if ((type) & VFS) {				\
-		pr_err_ ## ratefunc("CuIFS VFS: "		\
+		pr_err_ ## ratefunc("CIFS VFS: "		\
 				 fmt, ##__VA_ARGS__);		\
 	} else if ((type) & NOISY && (NOISY != 0)) {		\
 		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);	\

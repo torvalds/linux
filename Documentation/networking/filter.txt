@@ -169,7 +169,7 @@ access to BPF code as well.
 BPF engine and instruction set
 ------------------------------
 
-Under tools/net/ there's a small helper tool called bpf_asm which can
+Under tools/bpf/ there's a small helper tool called bpf_asm which can
 be used to write low-level filters for example scenarios mentioned in the
 previous section. Asm-like syntax mentioned here has been implemented in
 bpf_asm and will be used for further explanations (instead of dealing with
@@ -359,7 +359,7 @@ $ ./bpf_asm -c foo
 In particular, as usage with xt_bpf or cls_bpf can result in more complex BPF
 filters that might not be obvious at first, it's good to test filters before
 attaching to a live system. For that purpose, there's a small tool called
-bpf_dbg under tools/net/ in the kernel source directory. This debugger allows
+bpf_dbg under tools/bpf/ in the kernel source directory. This debugger allows
 for testing BPF filters against given pcap files, single stepping through the
 BPF code on the pcap's packets and to do BPF machine register dumps.
 
@@ -483,7 +483,7 @@ Example output from dmesg:
 [ 3389.935851] JIT code: 00000030: 00 e8 28 94 ff e0 83 f8 01 75 07 b8 ff ff 00 00
 [ 3389.935852] JIT code: 00000040: eb 02 31 c0 c9 c3
 
-In the kernel source tree under tools/net/, there's bpf_jit_disasm for
+In the kernel source tree under tools/bpf/, there's bpf_jit_disasm for
 generating disassembly out of the kernel log's hexdump:
 
 # ./bpf_jit_disasm
