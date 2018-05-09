@@ -132,6 +132,15 @@ int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->apply_clocks_adjust_rules != NULL)
+		return hwmgr->hwmgr_func->apply_clocks_adjust_rules(hwmgr);
+	return 0;
+}
+
 int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);

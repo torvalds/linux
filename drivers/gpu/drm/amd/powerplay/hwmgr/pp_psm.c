@@ -265,6 +265,13 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 	if (skip)
 		return 0;
 
+	if (!hwmgr->ps)
+		/*
+		 * for vega12/vega20 which does not support power state manager
+		 * DAL clock limits should also be honoured
+		 */
+		phm_apply_clock_adjust_rules(hwmgr);
+
 	phm_display_configuration_changed(hwmgr);
 
 	if (hwmgr->ps)

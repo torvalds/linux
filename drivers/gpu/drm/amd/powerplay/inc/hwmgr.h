@@ -229,6 +229,8 @@ struct pp_hwmgr_func {
 				struct pp_power_state  *prequest_ps,
 			const struct pp_power_state *pcurrent_ps);
 
+	int (*apply_clocks_adjust_rules)(struct pp_hwmgr *hwmgr);
+
 	int (*force_dpm_level)(struct pp_hwmgr *hw_mgr,
 					enum amd_dpm_forced_level level);
 
