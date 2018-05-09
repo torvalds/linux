@@ -91,6 +91,7 @@
 #define HI3110_STAT_BUSOFF BIT(2)
 #define HI3110_STAT_ERRP BIT(3)
 #define HI3110_STAT_ERRW BIT(4)
+#define HI3110_STAT_TXMTY BIT(7)
 
 #define HI3110_BTR0_SJW_SHIFT 6
 #define HI3110_BTR0_BRP_SHIFT 0
@@ -737,10 +738,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 			}
 		}
 
-		if (intf == 0)
-			break;
-
-		if (intf & HI3110_INT_TXCPLT) {
+		if (priv->tx_len && statf & HI3110_STAT_TXMTY) {
 			net->stats.tx_packets++;
 			net->stats.tx_bytes += priv->tx_len - 1;
 			can_led_event(net, CAN_LED_EVENT_TX);
@@ -750,6 +748,9 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 			}
 			netif_wake_queue(net);
 		}
+
+		if (intf == 0)
+			break;
 	}
 	mutex_unlock(&priv->hi3110_lock);
 	return IRQ_HANDLED;
