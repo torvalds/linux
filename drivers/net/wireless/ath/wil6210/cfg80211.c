@@ -276,6 +276,8 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
 
+	memset(&reply, 0, sizeof(reply));
+
 	rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid, &cmd, sizeof(cmd),
 		      WMI_NOTIFY_REQ_DONE_EVENTID, &reply, sizeof(reply), 20);
 	if (rc)
@@ -2246,7 +2248,9 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_get_rf_sector_params_done_event evt;
-	} __packed reply;
+	} __packed reply = {
+		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+	};
 	struct sk_buff *msg;
 	struct nlattr *nl_cfgs, *nl_cfg;
 	u32 i;
@@ -2292,7 +2296,6 @@ static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 	cmd.sector_idx = cpu_to_le16(sector_index);
 	cmd.sector_type = sector_type;
 	cmd.rf_modules_vec = rf_modules_vec & 0xFF;
-	memset(&reply, 0, sizeof(reply));
 	rc = wmi_call(wil, WMI_GET_RF_SECTOR_PARAMS_CMDID, vif->mid,
 		      &cmd, sizeof(cmd), WMI_GET_RF_SECTOR_PARAMS_DONE_EVENTID,
 		      &reply, sizeof(reply),
@@ -2367,7 +2370,9 @@ static int wil_rf_sector_set_cfg(struct wiphy *wiphy,
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_set_rf_sector_params_done_event evt;
-	} __packed reply;
+	} __packed reply = {
+		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+	};
 	struct nlattr *nl_cfg;
 	struct wmi_rf_sector_info *si;
 
@@ -2450,7 +2455,6 @@ static int wil_rf_sector_set_cfg(struct wiphy *wiphy,
 	}
 
 	cmd.rf_modules_vec = rf_modules_vec & 0xFF;
-	memset(&reply, 0, sizeof(reply));
 	rc = wmi_call(wil, WMI_SET_RF_SECTOR_PARAMS_CMDID, vif->mid,
 		      &cmd, sizeof(cmd), WMI_SET_RF_SECTOR_PARAMS_DONE_EVENTID,
 		      &reply, sizeof(reply),
@@ -2474,7 +2478,9 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_get_selected_rf_sector_index_done_event evt;
-	} __packed reply;
+	} __packed reply = {
+		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+	};
 	struct sk_buff *msg;
 
 	if (!test_bit(WMI_FW_CAPABILITY_RF_SECTORS, wil->fw_capabilities))
@@ -2514,7 +2520,6 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cid = (u8)cid;
 	cmd.sector_type = sector_type;
-	memset(&reply, 0, sizeof(reply));
 	rc = wmi_call(wil, WMI_GET_SELECTED_RF_SECTOR_INDEX_CMDID, vif->mid,
 		      &cmd, sizeof(cmd),
 		      WMI_GET_SELECTED_RF_SECTOR_INDEX_DONE_EVENTID,
@@ -2555,14 +2560,15 @@ static int wil_rf_sector_wmi_set_selected(struct wil6210_priv *wil,
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_set_selected_rf_sector_index_done_event evt;
-	} __packed reply;
+	} __packed reply = {
+		.evt = {.status = WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR},
+	};
 	int rc;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sector_idx = cpu_to_le16(sector_index);
 	cmd.sector_type = sector_type;
 	cmd.cid = (u8)cid;
-	memset(&reply, 0, sizeof(reply));
 	rc = wmi_call(wil, WMI_SET_SELECTED_RF_SECTOR_INDEX_CMDID, mid,
 		      &cmd, sizeof(cmd),
 		      WMI_SET_SELECTED_RF_SECTOR_INDEX_DONE_EVENTID,

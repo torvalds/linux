@@ -1078,6 +1078,8 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 		struct wmi_notify_req_done_event evt;
 	} __packed reply;
 
+	memset(&reply, 0, sizeof(reply));
+
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		u32 status;
 
