@@ -47,8 +47,12 @@ struct device;
  * header include loops we need it here for now.
  */
 
+/* Note that the order of this enum is ABI (it determines
+ * /dev/dri/renderD* numbers).
+ */
 enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
+	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
 };
 
