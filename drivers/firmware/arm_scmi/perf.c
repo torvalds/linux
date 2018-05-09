@@ -349,8 +349,8 @@ static int scmi_dev_domain_id(struct device *dev)
 	return clkspec.args[0];
 }
 
-static int scmi_dvfs_add_opps_to_device(const struct scmi_handle *handle,
-					struct device *dev)
+static int scmi_dvfs_device_opps_add(const struct scmi_handle *handle,
+				     struct device *dev)
 {
 	int idx, ret, domain;
 	unsigned long freq;
@@ -383,7 +383,7 @@ static int scmi_dvfs_add_opps_to_device(const struct scmi_handle *handle,
 	return 0;
 }
 
-static int scmi_dvfs_get_transition_latency(const struct scmi_handle *handle,
+static int scmi_dvfs_transition_latency_get(const struct scmi_handle *handle,
 					    struct device *dev)
 {
 	struct perf_dom_info *dom;
@@ -432,8 +432,8 @@ static struct scmi_perf_ops perf_ops = {
 	.level_set = scmi_perf_level_set,
 	.level_get = scmi_perf_level_get,
 	.device_domain_id = scmi_dev_domain_id,
-	.get_transition_latency = scmi_dvfs_get_transition_latency,
-	.add_opps_to_device = scmi_dvfs_add_opps_to_device,
+	.transition_latency_get = scmi_dvfs_transition_latency_get,
+	.device_opps_add = scmi_dvfs_device_opps_add,
 	.freq_set = scmi_dvfs_freq_set,
 	.freq_get = scmi_dvfs_freq_get,
 };
