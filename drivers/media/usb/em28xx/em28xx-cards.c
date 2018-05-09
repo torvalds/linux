@@ -3702,7 +3702,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 
 	/* Don't register audio interfaces */
 	if (intf->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-		dev_err(&intf->dev,
+		dev_info(&intf->dev,
 			"audio device (%04x:%04x): interface %i, class %i\n",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct),
@@ -3985,7 +3985,7 @@ static void em28xx_usb_disconnect(struct usb_interface *intf)
 
 	dev->disconnected = 1;
 
-	dev_err(&dev->intf->dev, "Disconnecting %s\n", dev->name);
+	dev_info(&dev->intf->dev, "Disconnecting %s\n", dev->name);
 
 	flush_request_modules(dev);
 
