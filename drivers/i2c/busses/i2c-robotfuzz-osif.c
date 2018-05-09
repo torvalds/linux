@@ -62,10 +62,10 @@ static int osif_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 {
 	struct osif_priv *priv = adapter->algo_data;
 	struct i2c_msg *pmsg;
-	int ret = 0;
+	int ret;
 	int i;
 
-	for (i = 0; ret >= 0 && i < num; i++) {
+	for (i = 0; i < num; i++) {
 		pmsg = &msgs[i];
 
 		if (pmsg->flags & I2C_M_RD) {
