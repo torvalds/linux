@@ -3028,10 +3028,27 @@ static struct intel_uncore_type bdx_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
+static struct intel_uncore_type bdx_uncore_sbox = {
+	.name			= "sbox",
+	.num_counters		= 4,
+	.num_boxes		= 4,
+	.perf_ctr_bits		= 48,
+	.event_ctl		= HSWEP_S0_MSR_PMON_CTL0,
+	.perf_ctr		= HSWEP_S0_MSR_PMON_CTR0,
+	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
+	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
+	.ops			= &hswep_uncore_sbox_msr_ops,
+	.format_group		= &hswep_uncore_sbox_format_group,
+};
+
+#define BDX_MSR_UNCORE_SBOX	3
+
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
 	&hswep_uncore_pcu,
+	&bdx_uncore_sbox,
 	NULL,
 };
 
@@ -3043,10 +3060,25 @@ static struct event_constraint bdx_uncore_pcu_constraints[] = {
 
 void bdx_uncore_cpu_init(void)
 {
+	int pkg = topology_phys_to_logical_pkg(0);
+
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
 
+	/* BDX-DE doesn't have SBOX */
+	if (boot_cpu_data.x86_model == 86) {
+		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
+	/* Detect systems with no SBOXes */
+	} else if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
+		struct pci_dev *pdev;
+		u32 capid4;
+
+		pdev = uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3];
+		pci_read_config_dword(pdev, 0x94, &capid4);
+		if (((capid4 >> 6) & 0x3) == 0)
+			bdx_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
+	}
 	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
 }
 
@@ -3263,6 +3295,11 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	{ /* QPI Port 2 filter  */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f46),
 		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 2),
+	},
+	{ /* PCU.3 (for Capability registers) */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fc0),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
+						   HSWEP_PCI_PCU_3),
 	},
 	{ /* end: all zeroes */ }
 };

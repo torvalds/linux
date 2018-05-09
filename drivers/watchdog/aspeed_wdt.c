@@ -55,6 +55,8 @@ MODULE_DEVICE_TABLE(of, aspeed_wdt_of_table);
 #define   WDT_CTRL_WDT_INTR		BIT(2)
 #define   WDT_CTRL_RESET_SYSTEM		BIT(1)
 #define   WDT_CTRL_ENABLE		BIT(0)
+#define WDT_TIMEOUT_STATUS	0x10
+#define   WDT_TIMEOUT_STATUS_BOOT_SECONDARY	BIT(1)
 
 /*
  * WDT_RESET_WIDTH controls the characteristics of the external pulse (if
@@ -192,6 +194,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	struct device_node *np;
 	const char *reset_type;
 	u32 duration;
+	u32 status;
 	int ret;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
@@ -306,6 +309,10 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		 */
 		writel(duration - 1, wdt->base + WDT_RESET_WIDTH);
 	}
+
+	status = readl(wdt->base + WDT_TIMEOUT_STATUS);
+	if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY)
+		wdt->wdd.bootstatus = WDIOF_CARDRESET;
 
 	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
 	if (ret) {

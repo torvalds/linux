@@ -487,14 +487,17 @@ static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback 
 	struct net *net = sock_net(skb->sk);
 
 	for (;;) {
-		tunnel = l2tp_tunnel_find_nth(net, ti);
+		tunnel = l2tp_tunnel_get_nth(net, ti);
 		if (tunnel == NULL)
 			goto out;
 
 		if (l2tp_nl_tunnel_send(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					tunnel, L2TP_CMD_TUNNEL_GET) < 0)
+					tunnel, L2TP_CMD_TUNNEL_GET) < 0) {
+			l2tp_tunnel_dec_refcount(tunnel);
 			goto out;
+		}
+		l2tp_tunnel_dec_refcount(tunnel);
 
 		ti++;
 	}
@@ -848,7 +851,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 
 	for (;;) {
 		if (tunnel == NULL) {
-			tunnel = l2tp_tunnel_find_nth(net, ti);
+			tunnel = l2tp_tunnel_get_nth(net, ti);
 			if (tunnel == NULL)
 				goto out;
 		}
@@ -856,6 +859,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 		session = l2tp_session_get_nth(tunnel, si);
 		if (session == NULL) {
 			ti++;
+			l2tp_tunnel_dec_refcount(tunnel);
 			tunnel = NULL;
 			si = 0;
 			continue;
@@ -865,6 +869,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 session, L2TP_CMD_SESSION_GET) < 0) {
 			l2tp_session_dec_refcount(session);
+			l2tp_tunnel_dec_refcount(tunnel);
 			break;
 		}
 		l2tp_session_dec_refcount(session);
