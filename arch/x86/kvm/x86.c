@@ -318,23 +318,27 @@ u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_apic_base);
 
+enum lapic_mode kvm_get_apic_mode(struct kvm_vcpu *vcpu)
+{
+	return kvm_apic_mode(kvm_get_apic_base(vcpu));
+}
+EXPORT_SYMBOL_GPL(kvm_get_apic_mode);
+
 int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	u64 old_state = vcpu->arch.apic_base &
-		(MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
-	u64 new_state = msr_info->data &
-		(MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
+	enum lapic_mode old_mode = kvm_get_apic_mode(vcpu);
+	enum lapic_mode new_mode = kvm_apic_mode(msr_info->data);
 	u64 reserved_bits = ((~0ULL) << cpuid_maxphyaddr(vcpu)) | 0x2ff |
 		(guest_cpuid_has(vcpu, X86_FEATURE_X2APIC) ? 0 : X2APIC_ENABLE);
 
-	if ((msr_info->data & reserved_bits) || new_state == X2APIC_ENABLE)
+	if ((msr_info->data & reserved_bits) != 0 || new_mode == LAPIC_MODE_INVALID)
 		return 1;
-	if (!msr_info->host_initiated &&
-	    ((new_state == MSR_IA32_APICBASE_ENABLE &&
-	      old_state == (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE)) ||
-	     (new_state == (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE) &&
-	      old_state == 0)))
-		return 1;
+	if (!msr_info->host_initiated) {
+		if (old_mode == LAPIC_MODE_X2APIC && new_mode == LAPIC_MODE_XAPIC)
+			return 1;
+		if (old_mode == LAPIC_MODE_DISABLED && new_mode == LAPIC_MODE_X2APIC)
+			return 1;
+	}
 
 	kvm_lapic_set_base(vcpu, msr_info->data);
 	return 0;
