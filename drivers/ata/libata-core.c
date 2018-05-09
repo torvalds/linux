@@ -3573,9 +3573,11 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
 		dev->xfer_shift, (int)dev->xfer_mode);
 
-	ata_dev_info(dev, "configured for %s%s\n",
-		     ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)),
-		     dev_err_whine);
+	if (!(ehc->i.flags & ATA_EHI_QUIET) ||
+	    ehc->i.flags & ATA_EHI_DID_HARDRESET)
+		ata_dev_info(dev, "configured for %s%s\n",
+			     ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)),
+			     dev_err_whine);
 
 	return 0;
 
