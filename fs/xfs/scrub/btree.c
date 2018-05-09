@@ -442,7 +442,7 @@ xfs_scrub_btree_check_owner(
 	 */
 	if (cur->bc_btnum == XFS_BTNUM_BNO || cur->bc_btnum == XFS_BTNUM_RMAP) {
 		co = kmem_alloc(sizeof(struct check_owner),
-				KM_MAYFAIL | KM_NOFS);
+				KM_MAYFAIL);
 		if (!co)
 			return -ENOMEM;
 		co->level = level;

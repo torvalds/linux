@@ -150,7 +150,7 @@ xfs_scrub_refcountbt_rmap_check(
 		 * so we don't need insertion sort here.
 		 */
 		frag = kmem_alloc(sizeof(struct xfs_scrub_refcnt_frag),
-				KM_MAYFAIL | KM_NOFS);
+				KM_MAYFAIL);
 		if (!frag)
 			return -ENOMEM;
 		memcpy(&frag->rm, rec, sizeof(frag->rm));
