@@ -871,8 +871,8 @@ xfs_free_eofblocks(
 		 * contents of the file are flushed to disk then the files
 		 * may be full of holes (ie NULL files bug).
 		 */
-		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK,
-					      XFS_ISIZE(ip));
+		error = xfs_itruncate_extents_nodiscard(&tp, ip, XFS_DATA_FORK,
+							XFS_ISIZE(ip));
 		if (error) {
 			/*
 			 * If we get an error at this point we simply don't
