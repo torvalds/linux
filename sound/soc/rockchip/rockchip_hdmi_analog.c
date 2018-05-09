@@ -40,8 +40,9 @@ static int rk_hdmi_analog_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai **codec_dais = rtd->codec_dais;
 	int mclk;
+	unsigned int i;
 
 	switch (params_rate(params)) {
 	case 8000:
@@ -77,11 +78,17 @@ static int rk_hdmi_analog_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
-				     SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
-		dev_err(codec_dai->dev, "Can't set codec clock %d\n", ret);
-		return ret;
+	for (i = 0; i < rtd->num_codecs; i++) {
+		struct snd_soc_dai *codec_dai = codec_dais[i];
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
+					     SND_SOC_CLOCK_IN);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(codec_dai->dev,
+				"Can't set codec clock %d\n", ret);
+			return ret;
+		}
+
 	}
 
 	return 0;
