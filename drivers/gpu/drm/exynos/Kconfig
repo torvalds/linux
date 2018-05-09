@@ -95,6 +95,9 @@ config DRM_EXYNOS_G2D
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 
+config DRM_EXYNOS_IPP
+	bool
+
 config DRM_EXYNOS_FIMC
 	bool "FIMC"
 	depends on BROKEN && MFD_SYSCON
