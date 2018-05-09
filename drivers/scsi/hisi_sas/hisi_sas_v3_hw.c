@@ -986,37 +986,16 @@ static int prep_smp_v3_hw(struct hisi_hba *hisi_hba,
 	struct sas_task *task = slot->task;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct domain_device *device = task->dev;
-	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_port *port = slot->port;
-	struct scatterlist *sg_req, *sg_resp;
+	struct scatterlist *sg_req;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	dma_addr_t req_dma_addr;
-	unsigned int req_len, resp_len;
-	int elem, rc;
+	unsigned int req_len;
 
-	/*
-	 * DMA-map SMP request, response buffers
-	 */
 	/* req */
 	sg_req = &task->smp_task.smp_req;
-	elem = dma_map_sg(dev, sg_req, 1, DMA_TO_DEVICE);
-	if (!elem)
-		return -ENOMEM;
 	req_len = sg_dma_len(sg_req);
 	req_dma_addr = sg_dma_address(sg_req);
-
-	/* resp */
-	sg_resp = &task->smp_task.smp_resp;
-	elem = dma_map_sg(dev, sg_resp, 1, DMA_FROM_DEVICE);
-	if (!elem) {
-		rc = -ENOMEM;
-		goto err_out_req;
-	}
-	resp_len = sg_dma_len(sg_resp);
-	if ((req_len & 0x3) || (resp_len & 0x3)) {
-		rc = -EINVAL;
-		goto err_out_resp;
-	}
 
 	/* create header */
 	/* dw0 */
@@ -1040,14 +1019,6 @@ static int prep_smp_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
 	return 0;
-
-err_out_resp:
-	dma_unmap_sg(dev, &slot->task->smp_task.smp_resp, 1,
-		     DMA_FROM_DEVICE);
-err_out_req:
-	dma_unmap_sg(dev, &slot->task->smp_task.smp_req, 1,
-		     DMA_TO_DEVICE);
-	return rc;
 }
 
 static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
