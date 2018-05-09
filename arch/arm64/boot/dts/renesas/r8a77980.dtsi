@@ -190,6 +190,7 @@
 			assigned-clocks = <&cpg CPG_CORE R8A77980_CLK_CANFD>;
 			assigned-clock-rates = <40000000>;
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+			resets = <&cpg 914>;
 			status = "disabled";
 
 			channel0 {
