@@ -1026,8 +1026,10 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	dev_set_name(&csdev->dev, "%s", desc->pdata->name);
 
 	ret = device_register(&csdev->dev);
-	if (ret)
-		goto err_device_register;
+	if (ret) {
+		put_device(&csdev->dev);
+		goto err_kzalloc_csdev;
+	}
 
 	mutex_lock(&coresight_mutex);
 
@@ -1038,8 +1040,6 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 
 	return csdev;
 
-err_device_register:
-	kfree(conns);
 err_kzalloc_conns:
 	kfree(refcnts);
 err_kzalloc_refcnts:
