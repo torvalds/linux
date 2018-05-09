@@ -189,6 +189,14 @@ struct scmi_sensor_ops {
  * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
+ * @perf_priv: pointer to private data structure specific to performance
+ *	protocol(for internal use only)
+ * @clk_priv: pointer to private data structure specific to clock
+ *	protocol(for internal use only)
+ * @power_priv: pointer to private data structure specific to power
+ *	protocol(for internal use only)
+ * @sensor_priv: pointer to private data structure specific to sensors
+ *	protocol(for internal use only)
  */
 struct scmi_handle {
 	struct device *dev;

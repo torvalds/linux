@@ -26,7 +26,7 @@ struct scmi_msg_resp_base_attributes {
  * scmi_base_attributes_get() - gets the implementation details
  *	that are associated with the base protocol.
  *
- * @handle - SCMI entity handle
+ * @handle: SCMI entity handle
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -50,14 +50,15 @@ static int scmi_base_attributes_get(const struct scmi_handle *handle)
 	}
 
 	scmi_one_xfer_put(handle, t);
+
 	return ret;
 }
 
 /**
  * scmi_base_vendor_id_get() - gets vendor/subvendor identifier ASCII string.
  *
- * @handle - SCMI entity handle
- * @sub_vendor - specify true if sub-vendor ID is needed
+ * @handle: SCMI entity handle
+ * @sub_vendor: specify true if sub-vendor ID is needed
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -97,7 +98,7 @@ scmi_base_vendor_id_get(const struct scmi_handle *handle, bool sub_vendor)
  *	implementation 32-bit version. The format of the version number is
  *	vendor-specific
  *
- * @handle - SCMI entity handle
+ * @handle: SCMI entity handle
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -128,8 +129,8 @@ scmi_base_implementation_version_get(const struct scmi_handle *handle)
  * scmi_base_implementation_list_get() - gets the list of protocols it is
  *	OSPM is allowed to access
  *
- * @handle - SCMI entity handle
- * @protocols_imp - pointer to hold the list of protocol identifiers
+ * @handle: SCMI entity handle
+ * @protocols_imp: pointer to hold the list of protocol identifiers
  *
  * Return: 0 on success, else appropriate SCMI error.
  */
@@ -173,15 +174,16 @@ static int scmi_base_implementation_list_get(const struct scmi_handle *handle,
 	} while (loop_num_ret);
 
 	scmi_one_xfer_put(handle, t);
+
 	return ret;
 }
 
 /**
  * scmi_base_discover_agent_get() - discover the name of an agent
  *
- * @handle - SCMI entity handle
- * @id - Agent identifier
- * @name - Agent identifier ASCII string
+ * @handle: SCMI entity handle
+ * @id: Agent identifier
+ * @name: Agent identifier ASCII string
  *
  * An agent id of 0 is reserved to identify the platform itself.
  * Generally operating system is represented as "OSPM"
