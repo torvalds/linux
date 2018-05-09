@@ -584,7 +584,7 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep)) {
-		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
+		old = kvmppc_radix_update_pte(kvm, ptep, ~0UL, 0,
 					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift);
 		if ((old & _PAGE_DIRTY) && memslot->dirty_bitmap) {
