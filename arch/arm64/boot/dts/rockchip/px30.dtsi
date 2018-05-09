@@ -913,13 +913,19 @@
 
 	cru: clock-controller@ff2b0000 {
 		compatible = "rockchip,px30-cru";
-		reg = <0x0 0xff2b0000 0x0 0x9000>;
+		reg = <0x0 0xff2b0000 0x0 0x1000>;
 		rockchip,grf = <&grf>;
+		rockchip,boost = <&cpu_boost>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
 		assigned-clocks = <&cru PLL_NPLL>, <&cru ARMCLK>;
 		assigned-clock-rates = <1188000000>, <816000000>;
+	};
+
+	cpu_boost: cpu-boost@ff2b8000 {
+		compatible = "syscon";
+		reg = <0x0 0xff2b8000 0x0 0x1000>;
 	};
 
 	pmucru: pmu-clock-controller@ff2bc000 {
