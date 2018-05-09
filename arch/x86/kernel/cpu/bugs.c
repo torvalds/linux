@@ -45,10 +45,10 @@ static u64 __ro_after_init x86_spec_ctrl_mask = ~SPEC_CTRL_IBRS;
 
 /*
  * AMD specific MSR info for Speculative Store Bypass control.
- * x86_amd_ls_cfg_rds_mask is initialized in identify_boot_cpu().
+ * x86_amd_ls_cfg_ssbd_mask is initialized in identify_boot_cpu().
  */
 u64 __ro_after_init x86_amd_ls_cfg_base;
-u64 __ro_after_init x86_amd_ls_cfg_rds_mask;
+u64 __ro_after_init x86_amd_ls_cfg_ssbd_mask;
 
 void __init check_bugs(void)
 {
@@ -146,7 +146,7 @@ u64 x86_spec_ctrl_get_default(void)
 	u64 msrval = x86_spec_ctrl_base;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		msrval |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+		msrval |= ssbd_tif_to_spec_ctrl(current_thread_info()->flags);
 	return msrval;
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_get_default);
@@ -159,7 +159,7 @@ void x86_spec_ctrl_set_guest(u64 guest_spec_ctrl)
 		return;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		host |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+		host |= ssbd_tif_to_spec_ctrl(current_thread_info()->flags);
 
 	if (host != guest_spec_ctrl)
 		wrmsrl(MSR_IA32_SPEC_CTRL, guest_spec_ctrl);
@@ -174,18 +174,18 @@ void x86_spec_ctrl_restore_host(u64 guest_spec_ctrl)
 		return;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		host |= rds_tif_to_spec_ctrl(current_thread_info()->flags);
+		host |= ssbd_tif_to_spec_ctrl(current_thread_info()->flags);
 
 	if (host != guest_spec_ctrl)
 		wrmsrl(MSR_IA32_SPEC_CTRL, host);
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_restore_host);
 
-static void x86_amd_rds_enable(void)
+static void x86_amd_ssb_disable(void)
 {
-	u64 msrval = x86_amd_ls_cfg_base | x86_amd_ls_cfg_rds_mask;
+	u64 msrval = x86_amd_ls_cfg_base | x86_amd_ls_cfg_ssbd_mask;
 
-	if (boot_cpu_has(X86_FEATURE_AMD_RDS))
+	if (boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		wrmsrl(MSR_AMD64_LS_CFG, msrval);
 }
 
@@ -473,7 +473,7 @@ static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
 	enum ssb_mitigation mode = SPEC_STORE_BYPASS_NONE;
 	enum ssb_mitigation_cmd cmd;
 
-	if (!boot_cpu_has(X86_FEATURE_RDS))
+	if (!boot_cpu_has(X86_FEATURE_SSBD))
 		return mode;
 
 	cmd = ssb_parse_cmdline();
@@ -507,7 +507,7 @@ static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
 	/*
 	 * We have three CPU feature flags that are in play here:
 	 *  - X86_BUG_SPEC_STORE_BYPASS - CPU is susceptible.
-	 *  - X86_FEATURE_RDS - CPU is able to turn off speculative store bypass
+	 *  - X86_FEATURE_SSBD - CPU is able to turn off speculative store bypass
 	 *  - X86_FEATURE_SPEC_STORE_BYPASS_DISABLE - engage the mitigation
 	 */
 	if (mode == SPEC_STORE_BYPASS_DISABLE) {
@@ -518,12 +518,12 @@ static enum ssb_mitigation_cmd __init __ssb_select_mitigation(void)
 		 */
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_INTEL:
-			x86_spec_ctrl_base |= SPEC_CTRL_RDS;
-			x86_spec_ctrl_mask &= ~SPEC_CTRL_RDS;
-			x86_spec_ctrl_set(SPEC_CTRL_RDS);
+			x86_spec_ctrl_base |= SPEC_CTRL_SSBD;
+			x86_spec_ctrl_mask &= ~SPEC_CTRL_SSBD;
+			x86_spec_ctrl_set(SPEC_CTRL_SSBD);
 			break;
 		case X86_VENDOR_AMD:
-			x86_amd_rds_enable();
+			x86_amd_ssb_disable();
 			break;
 		}
 	}
@@ -556,16 +556,16 @@ static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 		if (task_spec_ssb_force_disable(task))
 			return -EPERM;
 		task_clear_spec_ssb_disable(task);
-		update = test_and_clear_tsk_thread_flag(task, TIF_RDS);
+		update = test_and_clear_tsk_thread_flag(task, TIF_SSBD);
 		break;
 	case PR_SPEC_DISABLE:
 		task_set_spec_ssb_disable(task);
-		update = !test_and_set_tsk_thread_flag(task, TIF_RDS);
+		update = !test_and_set_tsk_thread_flag(task, TIF_SSBD);
 		break;
 	case PR_SPEC_FORCE_DISABLE:
 		task_set_spec_ssb_disable(task);
 		task_set_spec_ssb_force_disable(task);
-		update = !test_and_set_tsk_thread_flag(task, TIF_RDS);
+		update = !test_and_set_tsk_thread_flag(task, TIF_SSBD);
 		break;
 	default:
 		return -ERANGE;
@@ -635,7 +635,7 @@ void x86_spec_ctrl_setup_ap(void)
 		x86_spec_ctrl_set(x86_spec_ctrl_base & ~x86_spec_ctrl_mask);
 
 	if (ssb_mode == SPEC_STORE_BYPASS_DISABLE)
-		x86_amd_rds_enable();
+		x86_amd_ssb_disable();
 }
 
 #ifdef CONFIG_SYSFS
