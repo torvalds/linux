@@ -33,6 +33,7 @@
 #include <xen/xen.h>
 #include <xen/privcmd.h>
 #include <xen/interface/xen.h>
+#include <xen/interface/memory.h>
 #include <xen/interface/hvm/dm_op.h>
 #include <xen/features.h>
 #include <xen/page.h>
@@ -722,6 +723,134 @@ static long privcmd_ioctl_restrict(struct file *file, void __user *udata)
 	return 0;
 }
 
+struct remap_pfn {
+	struct mm_struct *mm;
+	struct page **pages;
+	pgprot_t prot;
+	unsigned long i;
+};
+
+static int remap_pfn_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
+			void *data)
+{
+	struct remap_pfn *r = data;
+	struct page *page = r->pages[r->i];
+	pte_t pte = pte_mkspecial(pfn_pte(page_to_pfn(page), r->prot));
+
+	set_pte_at(r->mm, addr, ptep, pte);
+	r->i++;
+
+	return 0;
+}
+
+static long privcmd_ioctl_mmap_resource(struct file *file, void __user *udata)
+{
+	struct privcmd_data *data = file->private_data;
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	struct privcmd_mmap_resource kdata;
+	xen_pfn_t *pfns = NULL;
+	struct xen_mem_acquire_resource xdata;
+	int rc;
+
+	if (copy_from_user(&kdata, udata, sizeof(kdata)))
+		return -EFAULT;
+
+	/* If restriction is in place, check the domid matches */
+	if (data->domid != DOMID_INVALID && data->domid != kdata.dom)
+		return -EPERM;
+
+	down_write(&mm->mmap_sem);
+
+	vma = find_vma(mm, kdata.addr);
+	if (!vma || vma->vm_ops != &privcmd_vm_ops) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	pfns = kcalloc(kdata.num, sizeof(*pfns), GFP_KERNEL);
+	if (!pfns) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned int nr = DIV_ROUND_UP(kdata.num, XEN_PFN_PER_PAGE);
+		struct page **pages;
+		unsigned int i;
+
+		rc = alloc_empty_pages(vma, nr);
+		if (rc < 0)
+			goto out;
+
+		pages = vma->vm_private_data;
+		for (i = 0; i < kdata.num; i++) {
+			xen_pfn_t pfn =
+				page_to_xen_pfn(pages[i / XEN_PFN_PER_PAGE]);
+
+			pfns[i] = pfn + (i % XEN_PFN_PER_PAGE);
+		}
+	} else
+		vma->vm_private_data = PRIV_VMA_LOCKED;
+
+	memset(&xdata, 0, sizeof(xdata));
+	xdata.domid = kdata.dom;
+	xdata.type = kdata.type;
+	xdata.id = kdata.id;
+	xdata.frame = kdata.idx;
+	xdata.nr_frames = kdata.num;
+	set_xen_guest_handle(xdata.frame_list, pfns);
+
+	xen_preemptible_hcall_begin();
+	rc = HYPERVISOR_memory_op(XENMEM_acquire_resource, &xdata);
+	xen_preemptible_hcall_end();
+
+	if (rc)
+		goto out;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		struct remap_pfn r = {
+			.mm = vma->vm_mm,
+			.pages = vma->vm_private_data,
+			.prot = vma->vm_page_prot,
+		};
+
+		rc = apply_to_page_range(r.mm, kdata.addr,
+					 kdata.num << PAGE_SHIFT,
+					 remap_pfn_fn, &r);
+	} else {
+		unsigned int domid =
+			(xdata.flags & XENMEM_rsrc_acq_caller_owned) ?
+			DOMID_SELF : kdata.dom;
+		int num;
+
+		num = xen_remap_domain_mfn_array(vma,
+						 kdata.addr & PAGE_MASK,
+						 pfns, kdata.num, (int *)pfns,
+						 vma->vm_page_prot,
+						 domid,
+						 vma->vm_private_data);
+		if (num < 0)
+			rc = num;
+		else if (num != kdata.num) {
+			unsigned int i;
+
+			for (i = 0; i < num; i++) {
+				rc = pfns[i];
+				if (rc < 0)
+					break;
+			}
+		} else
+			rc = 0;
+	}
+
+out:
+	up_write(&mm->mmap_sem);
+	kfree(pfns);
+
+	return rc;
+}
+
 static long privcmd_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long data)
 {
@@ -751,6 +880,10 @@ static long privcmd_ioctl(struct file *file,
 
 	case IOCTL_PRIVCMD_RESTRICT:
 		ret = privcmd_ioctl_restrict(file, udata);
+		break;
+
+	case IOCTL_PRIVCMD_MMAP_RESOURCE:
+		ret = privcmd_ioctl_mmap_resource(file, udata);
 		break;
 
 	default:

@@ -89,6 +89,17 @@ int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 
+/* Not used by XENFEAT_auto_translated guests. */
+int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+			       unsigned long addr,
+			       xen_pfn_t *mfn, int nr,
+			       int *err_ptr, pgprot_t prot,
+			       unsigned int domid, struct page **pages)
+{
+	return -ENOSYS;
+}
+EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+
 static void xen_read_wallclock(struct timespec64 *ts)
 {
 	u32 version;

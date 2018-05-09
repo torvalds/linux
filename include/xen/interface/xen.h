@@ -265,9 +265,10 @@
  *
  * PAT (bit 7 on) --> PWT (bit 3 on) and clear bit 7.
  */
-#define MMU_NORMAL_PT_UPDATE      0 /* checked '*ptr = val'. ptr is MA.       */
-#define MMU_MACHPHYS_UPDATE       1 /* ptr = MA of frame to modify entry for  */
-#define MMU_PT_UPDATE_PRESERVE_AD 2 /* atomically: *ptr = val | (*ptr&(A|D)) */
+#define MMU_NORMAL_PT_UPDATE       0 /* checked '*ptr = val'. ptr is MA.      */
+#define MMU_MACHPHYS_UPDATE        1 /* ptr = MA of frame to modify entry for */
+#define MMU_PT_UPDATE_PRESERVE_AD  2 /* atomically: *ptr = val | (*ptr&(A|D)) */
+#define MMU_PT_UPDATE_NO_TRANSLATE 3 /* checked '*ptr = val'. ptr is MA.      */
 
 /*
  * MMU EXTENDED OPERATIONS
