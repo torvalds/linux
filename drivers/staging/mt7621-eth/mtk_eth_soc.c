@@ -1539,8 +1539,8 @@ static void mtk_tx_timeout(struct net_device *dev)
 	if (eth->soc->dma_type & MTK_PDMA) {
 		netif_info(eth, drv, dev, "pdma_cfg:%08x\n",
 			   mtk_reg_r32(eth, MTK_REG_PDMA_GLO_CFG));
-		netif_info(eth, drv, dev, "tx_ring=%d, "
-			   "base=%08x, max=%u, ctx=%u, dtx=%u, fdx=%hu, next=%hu\n",
+		netif_info(eth, drv, dev,
+			   "tx_ring=%d, base=%08x, max=%u, ctx=%u, dtx=%u, fdx=%hu, next=%hu\n",
 			   0, mtk_reg_r32(eth, MTK_REG_TX_BASE_PTR0),
 			   mtk_reg_r32(eth, MTK_REG_TX_MAX_CNT0),
 			   mtk_reg_r32(eth, MTK_REG_TX_CTX_IDX0),
@@ -1551,8 +1551,8 @@ static void mtk_tx_timeout(struct net_device *dev)
 	if (eth->soc->dma_type & MTK_QDMA) {
 		netif_info(eth, drv, dev, "qdma_cfg:%08x\n",
 			   mtk_r32(eth, MTK_QDMA_GLO_CFG));
-		netif_info(eth, drv, dev, "tx_ring=%d, "
-			   "ctx=%08x, dtx=%08x, crx=%08x, drx=%08x, free=%hu\n",
+		netif_info(eth, drv, dev,
+			   "tx_ring=%d, ctx=%08x, dtx=%08x, crx=%08x, drx=%08x, free=%hu\n",
 			   0, mtk_r32(eth, MTK_QTX_CTX_PTR),
 			   mtk_r32(eth, MTK_QTX_DTX_PTR),
 			   mtk_r32(eth, MTK_QTX_CRX_PTR),
