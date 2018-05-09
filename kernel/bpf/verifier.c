@@ -5215,7 +5215,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		}
 	}
 
-	if (!ops->convert_ctx_access)
+	if (!ops->convert_ctx_access || bpf_prog_is_dev_bound(env->prog->aux))
 		return 0;
 
 	insn = env->prog->insnsi + delta;

@@ -50,6 +50,7 @@ enum bpf_cap_tlv_type {
 	NFP_BPF_CAP_TYPE_ADJUST_HEAD	= 2,
 	NFP_BPF_CAP_TYPE_MAPS		= 3,
 	NFP_BPF_CAP_TYPE_RANDOM		= 4,
+	NFP_BPF_CAP_TYPE_QUEUE_SELECT	= 5,
 };
 
 struct nfp_bpf_cap_tlv_func {

@@ -42,6 +42,7 @@
 
 #include "main.h"
 #include "../nfp_asm.h"
+#include "../nfp_net_ctrl.h"
 
 /* --- NFP prog --- */
 /* Foreach "multiple" entries macros provide pos and next<n> pointers.
@@ -1470,6 +1471,38 @@ nfp_perf_event_output(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int
+nfp_queue_select(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u32 jmp_tgt;
+
+	jmp_tgt = nfp_prog_current_offset(nfp_prog) + 5;
+
+	/* Make sure the queue id fits into FW field */
+	emit_alu(nfp_prog, reg_none(), reg_a(meta->insn.src_reg * 2),
+		 ALU_OP_AND_NOT_B, reg_imm(0xff));
+	emit_br(nfp_prog, BR_BEQ, jmp_tgt, 2);
+
+	/* Set the 'queue selected' bit and the queue value */
+	emit_shf(nfp_prog, pv_qsel_set(nfp_prog),
+		 pv_qsel_set(nfp_prog), SHF_OP_OR, reg_imm(1),
+		 SHF_SC_L_SHF, PKT_VEL_QSEL_SET_BIT);
+	emit_ld_field(nfp_prog,
+		      pv_qsel_val(nfp_prog), 0x1, reg_b(meta->insn.src_reg * 2),
+		      SHF_SC_NONE, 0);
+	/* Delay slots end here, we will jump over next instruction if queue
+	 * value fits into the field.
+	 */
+	emit_ld_field(nfp_prog,
+		      pv_qsel_val(nfp_prog), 0x1, reg_imm(NFP_NET_RXR_MAX),
+		      SHF_SC_NONE, 0);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, jmp_tgt))
+		return -EINVAL;
+
+	return 0;
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -2160,6 +2193,17 @@ mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 			    false, wrp_lmem_store);
 }
 
+static int mem_stx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	switch (meta->insn.off) {
+	case offsetof(struct xdp_md, rx_queue_index):
+		return nfp_queue_select(nfp_prog, meta);
+	}
+
+	WARN_ON_ONCE(1); /* verifier should have rejected bad accesses */
+	return -EOPNOTSUPP;
+}
+
 static int
 mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
@@ -2186,6 +2230,9 @@ static int mem_stx2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->ptr.type == PTR_TO_CTX)
+		if (nfp_prog->type == BPF_PROG_TYPE_XDP)
+			return mem_stx_xdp(nfp_prog, meta);
 	return mem_stx(nfp_prog, meta, 4);
 }
 
