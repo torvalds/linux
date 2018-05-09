@@ -1874,6 +1874,45 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int vega20_set_uclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr,
+		struct vega20_single_dpm_table *dpm_table)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		PP_ASSERT_WITH_CODE(dpm_table->count > 0,
+				"[SetUclkToHightestDpmLevel] Dpm table has no entry!",
+				return -EINVAL);
+		PP_ASSERT_WITH_CODE(dpm_table->count <= NUM_UCLK_DPM_LEVELS,
+				"[SetUclkToHightestDpmLevel] Dpm table has too many entries!",
+				return -EINVAL);
+
+		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetHardMinByFreq,
+				(PPCLK_UCLK << 16 ) | dpm_table->dpm_state.hard_min_level)),
+				"[SetUclkToHightestDpmLevel] Set hard min uclk failed!",
+				return ret);
+	}
+
+	return ret;
+}
+
+static int vega20_pre_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_NumOfDisplays, 0);
+
+	ret = vega20_set_uclk_to_highest_dpm_level(hwmgr,
+			&data->dpm_table.mem_table);
+
+	return ret;
+}
+
 static int vega20_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
@@ -2277,6 +2316,8 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* power state related */
 	.apply_clocks_adjust_rules =
 		vega20_apply_clocks_adjust_rules,
+	.pre_display_config_changed =
+		vega20_pre_display_configuration_changed_task,
 	.display_config_changed =
 		vega20_display_configuration_changed_task,
 	.check_smc_update_required_for_display_configuration =
