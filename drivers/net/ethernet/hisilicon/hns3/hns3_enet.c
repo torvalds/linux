@@ -3203,9 +3203,35 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 		hns3_nic_mc_sync(ndev, ha->addr);
 }
 
-static void hns3_drop_skb_data(struct hns3_enet_ring *ring, struct sk_buff *skb)
+static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
-	dev_kfree_skb_any(skb);
+	if (!HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_clean != ring->next_to_use) {
+		hns3_free_buffer_detach(ring, ring->next_to_clean);
+		ring_ptr_move_fw(ring, next_to_clean);
+	}
+}
+
+static void hns3_clear_rx_ring(struct hns3_enet_ring *ring)
+{
+	if (HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_use != ring->next_to_clean) {
+		/* When a buffer is not reused, it's memory has been
+		 * freed in hns3_handle_rx_bd or will be freed by
+		 * stack, so only need to unmap the buffer here.
+		 */
+		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
+			hns3_unmap_buffer(ring,
+					  &ring->desc_cb[ring->next_to_use]);
+			ring->desc_cb[ring->next_to_use].dma = 0;
+		}
+
+		ring_ptr_move_fw(ring, next_to_use);
+	}
 }
 
 static void hns3_clear_all_ring(struct hnae3_handle *h)
@@ -3219,13 +3245,13 @@ static void hns3_clear_all_ring(struct hnae3_handle *h)
 		struct hns3_enet_ring *ring;
 
 		ring = priv->ring_data[i].ring;
-		hns3_clean_tx_ring(ring, ring->desc_num);
+		hns3_clear_tx_ring(ring);
 		dev_queue = netdev_get_tx_queue(ndev,
 						priv->ring_data[i].queue_index);
 		netdev_tx_reset_queue(dev_queue);
 
 		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
-		hns3_clean_rx_ring(ring, ring->desc_num, hns3_drop_skb_data);
+		hns3_clear_rx_ring(ring);
 	}
 }
 
