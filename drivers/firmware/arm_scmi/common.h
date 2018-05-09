@@ -86,9 +86,7 @@ struct scmi_msg {
  *	buffer for the rx path as we use for the tx path.
  * @done: completion event
  */
-
 struct scmi_xfer {
-	void *con_priv;
 	struct scmi_msg_hdr hdr;
 	struct scmi_msg tx;
 	struct scmi_msg rx;
