@@ -10940,8 +10940,8 @@ M:	Shawn Lin <shawn.lin@rock-chips.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/pci/rockchip-pcie.txt
-F:	drivers/pci/host/pcie-rockchip.c
+F:	Documentation/devicetree/bindings/pci/rockchip-pcie*
+F:	drivers/pci/host/pcie-rockchip*
 
 PCI DRIVER FOR V3 SEMICONDUCTOR V360EPC
 M:	Linus Walleij <linus.walleij@linaro.org>
