@@ -93,23 +93,6 @@ static inline void wakeup_sysfs_remove(struct device *dev) {}
 static inline int pm_qos_sysfs_add(struct device *dev) { return 0; }
 static inline void pm_qos_sysfs_remove(struct device *dev) {}
 
-static inline void dev_pm_arm_wake_irq(struct wake_irq *wirq)
-{
-}
-
-static inline void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
-{
-}
-
-static inline void dev_pm_enable_wake_irq_check(struct device *dev,
-						bool can_change_status)
-{
-}
-
-static inline void dev_pm_disable_wake_irq_check(struct device *dev)
-{
-}
-
 #endif
 
 #ifdef CONFIG_PM_SLEEP
