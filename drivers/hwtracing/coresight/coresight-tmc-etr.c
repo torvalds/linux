@@ -153,11 +153,11 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		goto out;
 
 	/*
-	 * If drvdata::buf == NULL, use the memory allocated above.
+	 * If drvdata::vaddr == NULL, use the memory allocated above.
 	 * Otherwise a buffer still exists from a previous session, so
 	 * simply use that.
 	 */
-	if (drvdata->buf == NULL) {
+	if (drvdata->vaddr == NULL) {
 		used = true;
 		drvdata->vaddr = vaddr;
 		drvdata->paddr = paddr;
