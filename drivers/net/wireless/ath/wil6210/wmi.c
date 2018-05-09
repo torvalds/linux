@@ -1554,7 +1554,9 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		.pcp_max_assoc_sta = max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
-		.disable_ap_sme = disable_ap_sme,
+		.ap_sme_offload_mode = disable_ap_sme ?
+				       WMI_AP_SME_OFFLOAD_PARTIAL :
+				       WMI_AP_SME_OFFLOAD_FULL,
 		.abft_len = wil->abft_len,
 	};
 	struct {
@@ -1574,7 +1576,7 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 	}
 
 	if (disable_ap_sme &&
-	    !test_bit(WMI_FW_CAPABILITY_DISABLE_AP_SME,
+	    !test_bit(WMI_FW_CAPABILITY_AP_SME_OFFLOAD_PARTIAL,
 		      wil->fw_capabilities)) {
 		wil_err(wil, "disable_ap_sme not supported by FW\n");
 		return -EOPNOTSUPP;
