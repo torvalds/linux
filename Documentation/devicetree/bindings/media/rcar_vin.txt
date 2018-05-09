@@ -107,9 +107,6 @@ Board setup example for Gen2 platforms (vin1 composite video input)
         status = "okay";
 
         port {
-                #address-cells = <1>;
-                #size-cells = <0>;
-
                 vin1ep0: endpoint {
                         remote-endpoint = <&adv7180>;
                         bus-width = <8>;
