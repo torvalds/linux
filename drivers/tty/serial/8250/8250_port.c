@@ -2370,8 +2370,13 @@ dont_test_tx_en:
 	if (up->dma) {
 		retval = serial8250_request_dma(up);
 		if (retval) {
+#ifdef CONFIG_ARCH_ROCKCHIP
+			pr_warn_ratelimited("%s - failed to request DMA, use interrupt mode\n",
+					    port->name);
+#else
 			pr_warn_ratelimited("%s - failed to request DMA\n",
 					    port->name);
+#endif
 			up->dma = NULL;
 		}
 	}
