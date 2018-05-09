@@ -31,22 +31,22 @@
 
 static inline void wbt_clear_state(struct request *rq)
 {
-	rq->issue_stat.stat &= ~BLK_STAT_RES_MASK;
+	rq->wbt_flags = 0;
 }
 
 static inline enum wbt_flags wbt_flags(struct request *rq)
 {
-	return (rq->issue_stat.stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
+	return rq->wbt_flags;
 }
 
 static inline bool wbt_is_tracked(struct request *rq)
 {
-	return (rq->issue_stat.stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
+	return rq->wbt_flags & WBT_TRACKED;
 }
 
 static inline bool wbt_is_read(struct request *rq)
 {
-	return (rq->issue_stat.stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
+	return rq->wbt_flags & WBT_READ;
 }
 
 enum {
@@ -657,7 +657,7 @@ void wbt_issue(struct rq_wb *rwb, struct request *rq)
 	 */
 	if (wbt_is_read(rq) && !rwb->sync_issue) {
 		rwb->sync_cookie = rq;
-		rwb->sync_issue = blk_stat_time(&rq->issue_stat);
+		rwb->sync_issue = rq->io_start_time_ns;
 	}
 }
 
@@ -745,8 +745,6 @@ int wbt_init(struct request_queue *q)
 {
 	struct rq_wb *rwb;
 	int i;
-
-	BUILD_BUG_ON(WBT_NR_BITS > BLK_STAT_RES_BITS);
 
 	rwb = kzalloc(sizeof(*rwb), GFP_KERNEL);
 	if (!rwb)

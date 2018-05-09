@@ -63,7 +63,7 @@ struct rq_wb {
 
 	struct blk_stat_callback *cb;
 
-	s64 sync_issue;
+	u64 sync_issue;
 	void *sync_cookie;
 
 	unsigned int wc;
@@ -90,7 +90,7 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 static inline void wbt_track(struct request *rq, enum wbt_flags flags)
 {
-	rq->issue_stat.stat |= ((u64)flags) << BLK_STAT_RES_SHIFT;
+	rq->wbt_flags |= flags;
 }
 
 void __wbt_done(struct rq_wb *, enum wbt_flags);

@@ -91,10 +91,6 @@ static inline bool blk_path_error(blk_status_t error)
 	return true;
 }
 
-struct blk_issue_stat {
-	u64 stat;
-};
-
 /*
  * From most significant bit:
  * 1 bit: reserved for other usage, see below

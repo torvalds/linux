@@ -55,11 +55,8 @@ void blk_stat_add(struct request *rq)
 	int bucket;
 	u64 now, value;
 
-	now = __blk_stat_time(ktime_to_ns(ktime_get()));
-	if (now < blk_stat_time(&rq->issue_stat))
-		return;
-
-	value = now - blk_stat_time(&rq->issue_stat);
+	now = ktime_get_ns();
+	value = (now >= rq->io_start_time_ns) ? now - rq->io_start_time_ns : 0;
 
 	blk_throtl_stat_add(rq, value);
 
