@@ -40,6 +40,12 @@
 			reg = <0 0x86200000 0 0x2d00000>;
 			no-map;
 		};
+
+		memory@85fe0000 {
+			compatible = "qcom,cmd-db";
+			reg = <0x0 0x85fe0000 0x0 0x20000>;
+			no-map;
+		};
 	};
 
 	cpus {
