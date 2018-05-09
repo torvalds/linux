@@ -1866,10 +1866,10 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
 		int ret = scsi_check_sense(qc->scsicmd);
 		/*
-		 * SUCCESS here means that the sense code could
+		 * SUCCESS here means that the sense code could be
 		 * evaluated and should be passed to the upper layers
 		 * for correct evaluation.
-		 * FAILED means the sense code could not interpreted
+		 * FAILED means the sense code could not be interpreted
 		 * and the device would need to be reset.
 		 * NEEDS_RETRY and ADD_TO_MLQUEUE means that the
 		 * command would need to be retried.
