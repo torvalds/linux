@@ -64,15 +64,24 @@
  * generates .data.identifier sections, which need to be pulled in with
  * .data. We don't want to pull in .data..other sections, which Linux
  * has defined. Same for text and bss.
+ *
+ * RODATA_MAIN is not used because existing code already defines .rodata.x
+ * sections to be brought in with rodata.
  */
 #ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
 #define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
 #define DATA_MAIN .data .data.[0-9a-zA-Z_]*
+#define SDATA_MAIN .sdata .sdata.[0-9a-zA-Z_]*
+#define RODATA_MAIN .rodata .rodata.[0-9a-zA-Z_]*
 #define BSS_MAIN .bss .bss.[0-9a-zA-Z_]*
+#define SBSS_MAIN .sbss .sbss.[0-9a-zA-Z_]*
 #else
 #define TEXT_MAIN .text
 #define DATA_MAIN .data
+#define SDATA_MAIN .sdata
+#define RODATA_MAIN .rodata
 #define BSS_MAIN .bss
+#define SBSS_MAIN .sbss
 #endif
 
 /*
@@ -105,7 +114,7 @@
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 #define MCOUNT_REC()	. = ALIGN(8);				\
 			__start_mcount_loc = .;			\
-			*(__mcount_loc)				\
+			KEEP(*(__mcount_loc))			\
 			__stop_mcount_loc = .;
 #else
 #define MCOUNT_REC()
@@ -113,7 +122,7 @@
 
 #ifdef CONFIG_TRACE_BRANCH_PROFILING
 #define LIKELY_PROFILE()	__start_annotated_branch_profile = .;	\
-				*(_ftrace_annotated_branch)		\
+				KEEP(*(_ftrace_annotated_branch))	\
 				__stop_annotated_branch_profile = .;
 #else
 #define LIKELY_PROFILE()
@@ -121,7 +130,7 @@
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
 #define BRANCH_PROFILE()	__start_branch_profile = .;		\
-				*(_ftrace_branch)			\
+				KEEP(*(_ftrace_branch))			\
 				__stop_branch_profile = .;
 #else
 #define BRANCH_PROFILE()
@@ -238,8 +247,8 @@
 	*(DATA_MAIN)							\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
-	MEM_KEEP(init.data)						\
-	MEM_KEEP(exit.data)						\
+	MEM_KEEP(init.data*)						\
+	MEM_KEEP(exit.data*)						\
 	*(.data.unlikely)						\
 	__start_once = .;						\
 	*(.data.once)							\
@@ -289,8 +298,8 @@
 	__start_init_task = .;						\
 	init_thread_union = .;						\
 	init_stack = .;							\
-	*(.data..init_task)						\
-	*(.data..init_thread_info)					\
+	KEEP(*(.data..init_task))					\
+	KEEP(*(.data..init_thread_info))				\
 	. = __start_init_task + THREAD_SIZE;				\
 	__end_init_task = .;
 
@@ -487,8 +496,8 @@
 		*(.text.hot TEXT_MAIN .text.fixup .text.unlikely)	\
 		*(.text..refcount)					\
 		*(.ref.text)						\
-	MEM_KEEP(init.text)						\
-	MEM_KEEP(exit.text)						\
+	MEM_KEEP(init.text*)						\
+	MEM_KEEP(exit.text*)						\
 
 
 /* sched.text is aling to function alignment to secure we have same
@@ -538,7 +547,7 @@
 		__softirqentry_text_end = .;
 
 /* Section used for early init (in .S files) */
-#define HEAD_TEXT  *(.head.text)
+#define HEAD_TEXT  KEEP(*(.head.text))
 
 #define HEAD_TEXT_SECTION							\
 	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {		\
@@ -579,11 +588,11 @@
 /* init and exit section handling */
 #define INIT_DATA							\
 	KEEP(*(SORT(___kentry+*)))					\
-	*(.init.data)							\
-	MEM_DISCARD(init.data)						\
+	*(.init.data init.data.*)					\
+	MEM_DISCARD(init.data*)						\
 	KERNEL_CTORS()							\
 	MCOUNT_REC()							\
-	*(.init.rodata)							\
+	*(.init.rodata .init.rodata.*)					\
 	FTRACE_EVENTS()							\
 	TRACE_SYSCALLS()						\
 	KPROBE_BLACKLIST()						\
@@ -602,16 +611,16 @@
 	EARLYCON_TABLE()
 
 #define INIT_TEXT							\
-	*(.init.text)							\
+	*(.init.text .init.text.*)					\
 	*(.text.startup)						\
-	MEM_DISCARD(init.text)
+	MEM_DISCARD(init.text*)
 
 #define EXIT_DATA							\
-	*(.exit.data)							\
+	*(.exit.data .exit.data.*)					\
 	*(.fini_array)							\
 	*(.dtors)							\
-	MEM_DISCARD(exit.data)						\
-	MEM_DISCARD(exit.rodata)
+	MEM_DISCARD(exit.data*)						\
+	MEM_DISCARD(exit.rodata*)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
@@ -629,7 +638,7 @@
 	. = ALIGN(sbss_align);						\
 	.sbss : AT(ADDR(.sbss) - LOAD_OFFSET) {				\
 		*(.dynsbss)						\
-		*(.sbss)						\
+		*(SBSS_MAIN)						\
 		*(.scommon)						\
 	}
 
@@ -754,7 +763,7 @@
 #define NOTES								\
 	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
 		__start_notes = .;					\
-		*(.note.*)						\
+		KEEP(*(.note.*))					\
 		__stop_notes = .;					\
 	}
 
