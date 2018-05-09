@@ -89,7 +89,7 @@ static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 	dw_pcie_setup_rc(pp);
 
 	if (dw_pcie_link_up(pci)) {
-		dev_err(dev, "Link already up\n");
+		dev_info(dev, "Link already up\n");
 		return 0;
 	}
 
