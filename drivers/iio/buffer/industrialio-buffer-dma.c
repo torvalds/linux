@@ -587,7 +587,7 @@ EXPORT_SYMBOL_GPL(iio_dma_buffer_set_bytes_per_datum);
  * Should be used as the set_length callback for iio_buffer_access_ops
  * struct for DMA buffers.
  */
-int iio_dma_buffer_set_length(struct iio_buffer *buffer, int length)
+int iio_dma_buffer_set_length(struct iio_buffer *buffer, unsigned int length)
 {
 	/* Avoid an invalid state */
 	if (length < 2)
