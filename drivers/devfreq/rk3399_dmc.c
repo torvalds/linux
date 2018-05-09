@@ -103,7 +103,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 		if (err) {
-			dev_err(dev, "Cannot to set voltage %lu uV\n",
+			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
@@ -111,8 +111,8 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
-		dev_err(dev, "Cannot to set frequency %lu (%d)\n",
-			target_rate, err);
+		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
+			err);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
@@ -128,8 +128,8 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	/* If get the incorrect rate, set voltage to old value. */
 	if (dmcfreq->rate != target_rate) {
-		dev_err(dev, "Get wrong ddr frequency, Request frequency %lu,\
-			Current frequency %lu\n", target_rate, dmcfreq->rate);
+		dev_err(dev, "Got wrong frequency, Request %lu, Current %lu\n",
+			target_rate, dmcfreq->rate);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
@@ -137,7 +137,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 	if (err)
-		dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+		dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
 
 	dmcfreq->rate = target_rate;
 	dmcfreq->volt = target_volt;
