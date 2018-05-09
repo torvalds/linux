@@ -505,9 +505,10 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
 }
 #endif
 
-extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter dst_iter,
-			       struct bio *src, struct bvec_iter src_iter);
+extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
+			       struct bio *src, struct bvec_iter *src_iter);
 extern void bio_copy_data(struct bio *dst, struct bio *src);
+extern void bio_list_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
