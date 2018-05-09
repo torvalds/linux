@@ -455,6 +455,32 @@ static int rk3308_codec_reset(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int rk3308_codec_adc_dig_reset(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_ADC_DIG_WORK,
+				   RK3308_ADC_DIG_RESET);
+	udelay(50);
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_ADC_DIG_WORK,
+				   RK3308_ADC_DIG_WORK);
+
+	return 0;
+}
+
+static int rk3308_codec_dac_dig_reset(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_DAC_DIG_WORK,
+				   RK3308_DAC_DIG_RESET);
+	udelay(50);
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+				   RK3308_DAC_DIG_WORK,
+				   RK3308_DAC_DIG_WORK);
+
+	return 0;
+}
+
 static int rk3308_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -606,6 +632,9 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int dac_aif1 = 0, dac_aif2 = 0;
 
+		/* Clear the status of DAC DIG Digital reigisters */
+		rk3308_codec_dac_dig_reset(rk3308);
+
 		switch (params_format(params)) {
 		case SNDRV_PCM_FORMAT_S16_LE:
 			dac_aif1 |= RK3308_DAC_I2S_VALID_LEN_16BITS;
@@ -636,6 +665,9 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		unsigned int adc_aif1 = 0, adc_aif2 = 0;
 		int grp, cur_grp_max;
+
+		/* Clear the status of ADC DIG Digital reigisters */
+		rk3308_codec_adc_dig_reset(rk3308);
 
 		switch (params_format(params)) {
 		case SNDRV_PCM_FORMAT_S16_LE:
