@@ -152,12 +152,17 @@ EXPORT_SYMBOL(drm_panel_detach);
  *
  * Return: A pointer to the panel registered for the specified device tree
  * node or an ERR_PTR() if no panel matching the device tree node can be found.
- * The only error that can be reported is -EPROBE_DEFER, meaning that the panel
- * device has not been probed yet, and the caller should retry later.
+ * Possible error codes returned by this function:
+ * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
+ *   should retry later
+ * - ENODEV: the device is not available (status != "okay" or "ok")
  */
 struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	struct drm_panel *panel;
+
+	if (!of_device_is_available(np))
+		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&panel_lock);
 
