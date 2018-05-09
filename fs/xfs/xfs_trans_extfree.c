@@ -68,7 +68,8 @@ xfs_trans_free_extent(
 	struct xfs_efd_log_item	*efdp,
 	xfs_fsblock_t		start_block,
 	xfs_extlen_t		ext_len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_owner_info	*oinfo,
+	bool			skip_discard)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	uint			next_extent;
@@ -79,8 +80,12 @@ xfs_trans_free_extent(
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
-	error = xfs_free_extent(tp, start_block, ext_len, oinfo,
-			XFS_AG_RESV_NONE);
+	if (skip_discard)
+		error = xfs_free_extent_nodiscard(tp, start_block, ext_len,
+						  oinfo, XFS_AG_RESV_NONE);
+	else
+		error = xfs_free_extent(tp, start_block, ext_len, oinfo,
+					XFS_AG_RESV_NONE);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -195,7 +200,7 @@ xfs_extent_free_finish_item(
 	error = xfs_trans_free_extent(tp, done_item,
 			free->xefi_startblock,
 			free->xefi_blockcount,
-			&free->xefi_oinfo);
+			&free->xefi_oinfo, free->xefi_skip_discard);
 	kmem_free(free);
 	return error;
 }

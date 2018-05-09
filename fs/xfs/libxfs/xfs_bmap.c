@@ -544,12 +544,13 @@ xfs_bmap_validate_ret(
  * The list is maintained sorted (by block number).
  */
 void
-xfs_bmap_add_free(
+__xfs_bmap_add_free(
 	struct xfs_mount		*mp,
 	struct xfs_defer_ops		*dfops,
 	xfs_fsblock_t			bno,
 	xfs_filblks_t			len,
-	struct xfs_owner_info		*oinfo)
+	struct xfs_owner_info		*oinfo,
+	bool				skip_discard)
 {
 	struct xfs_extent_free_item	*new;		/* new element */
 #ifdef DEBUG
@@ -576,6 +577,7 @@ xfs_bmap_add_free(
 		new->xefi_oinfo = *oinfo;
 	else
 		xfs_rmap_skip_owner_update(&new->xefi_oinfo);
+	new->xefi_skip_discard = skip_discard;
 	trace_xfs_bmap_free_defer(mp, XFS_FSB_TO_AGNO(mp, bno), 0,
 			XFS_FSB_TO_AGBNO(mp, bno), len);
 	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_FREE, &new->xefi_list);
@@ -5106,9 +5108,16 @@ xfs_bmap_del_extent_real(
 			error = xfs_refcount_decrease_extent(mp, dfops, del);
 			if (error)
 				goto done;
-		} else
-			xfs_bmap_add_free(mp, dfops, del->br_startblock,
+		} else {
+			if (bflags & XFS_BMAPI_NODISCARD) {
+				xfs_bmap_add_free_nodiscard(mp, dfops,
+					del->br_startblock, del->br_blockcount,
+					NULL);
+			} else {
+				xfs_bmap_add_free(mp, dfops, del->br_startblock,
 					del->br_blockcount, NULL);
+			}
+		}
 	}
 
 	/*
