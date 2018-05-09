@@ -355,6 +355,15 @@ thp_zero_page_alloc_failed
 	is incremented if kernel fails to allocate
 	huge zero page and falls back to using small pages.
 
+thp_swpout
+	is incremented every time a huge page is swapout in one
+	piece without splitting.
+
+thp_swpout_fallback
+	is incremented if a huge page has to be split before swapout.
+	Usually because failed to allocate some continuous swap space
+	for the huge page.
+
 As the system ages, allocating huge pages may be expensive as the
 system uses memory compaction to copy data around memory to free a
 huge page for use. There are some counters in ``/proc/vmstat`` to help
