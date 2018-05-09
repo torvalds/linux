@@ -110,7 +110,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	u16 hashkey_size;
 
 	/* The offset of the secret key from the beginning of this structure */
-	u32 kashkey_offset;
+	u32 hashkey_offset;
 
 	u32 processor_masks_offset;
 	u32 num_processor_masks;
