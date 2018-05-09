@@ -1046,6 +1046,13 @@ static int mv88e6xxx_devmap_setup(struct mv88e6xxx_chip *chip)
 			return err;
 	}
 
+	if (chip->info->ops->set_cascade_port) {
+		port = MV88E6XXX_CASCADE_PORT_MULTIPLE;
+		err = chip->info->ops->set_cascade_port(chip, port);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -2158,7 +2165,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 
 	/* Disable remote management, and set the switch's DSA device number. */
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
-				 MV88E6XXX_G1_CTL2_MULTIPLE_CASCADE |
 				 (ds->index & 0x1f));
 	if (err)
 		return err;
@@ -2643,6 +2649,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6185_g2_mgmt_rsvd2cpu,
 	.ppu_enable = mv88e6185_g1_ppu_enable,
+	.set_cascade_port = mv88e6185_g1_set_cascade_port,
 	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
@@ -2911,6 +2918,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.set_egress_port = mv88e6095_g1_set_egress_port,
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6185_g2_mgmt_rsvd2cpu,
+	.set_cascade_port = mv88e6185_g1_set_cascade_port,
 	.ppu_enable = mv88e6185_g1_ppu_enable,
 	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,

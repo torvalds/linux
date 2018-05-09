@@ -201,11 +201,12 @@
 
 /* Offset 0x1C: Global Control 2 */
 #define MV88E6XXX_G1_CTL2			0x1c
-#define MV88E6XXX_G1_CTL2_NO_CASCADE		0xe000
-#define MV88E6XXX_G1_CTL2_MULTIPLE_CASCADE	0xf000
 #define MV88E6XXX_G1_CTL2_HIST_RX		0x0040
 #define MV88E6XXX_G1_CTL2_HIST_TX		0x0080
 #define MV88E6XXX_G1_CTL2_HIST_RX_TX		0x00c0
+#define MV88E6185_G1_CTL2_CASCADE_PORT_MASK	0xf000
+#define MV88E6185_G1_CTL2_CASCADE_PORT_NONE	0xe000
+#define MV88E6185_G1_CTL2_CASCADE_PORT_MULTI	0xf000
 
 /* Offset 0x1D: Stats Operation Register */
 #define MV88E6XXX_G1_STATS_OP			0x1d
@@ -252,6 +253,8 @@ int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
+
+int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port);
 
 int mv88e6xxx_g1_atu_set_learn2all(struct mv88e6xxx_chip *chip, bool learn2all);
 int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,

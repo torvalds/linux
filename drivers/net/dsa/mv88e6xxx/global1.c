@@ -350,6 +350,29 @@ int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 
 /* Offset 0x1c: Global Control 2 */
 
+static int mv88e6xxx_g1_ctl2_mask(struct mv88e6xxx_chip *chip, u16 mask,
+				  u16 val)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &reg);
+	if (err)
+		return err;
+
+	reg &= ~mask;
+	reg |= val & mask;
+
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, reg);
+}
+
+int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port)
+{
+	const u16 mask = MV88E6185_G1_CTL2_CASCADE_PORT_MASK;
+
+	return mv88e6xxx_g1_ctl2_mask(chip, mask, port << __bf_shf(mask));
+}
+
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 {
 	u16 val;
