@@ -745,8 +745,10 @@ xfs_buf_item_init(
 	 * nothing to do here so return.
 	 */
 	ASSERT(bp->b_target->bt_mount == mp);
-	if (bip != NULL) {
+	if (bip) {
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
+		ASSERT(!bp->b_transp);
+		ASSERT(bip->bli_buf == bp);
 		return 0;
 	}
 
