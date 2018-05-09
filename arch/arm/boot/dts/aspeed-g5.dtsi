@@ -299,7 +299,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1e786000 0x1000>;
-				clocks = <&syscon ASPEED_CLK_APB>;
+				clocks = <&syscon ASPEED_CLK_24M>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
 			};
