@@ -412,7 +412,7 @@ enum {
 	BIOSET_NEED_RESCUER = BIT(1),
 };
 extern void bioset_free(struct bio_set *);
-extern mempool_t *biovec_create_pool(int pool_entries);
+extern int biovec_init_pool(mempool_t *pool, int pool_entries);
 
 extern struct bio *bio_alloc_bioset(gfp_t, unsigned int, struct bio_set *);
 extern void bio_put(struct bio *);
@@ -722,11 +722,11 @@ struct bio_set {
 	struct kmem_cache *bio_slab;
 	unsigned int front_pad;
 
-	mempool_t *bio_pool;
-	mempool_t *bvec_pool;
+	mempool_t bio_pool;
+	mempool_t bvec_pool;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
-	mempool_t *bio_integrity_pool;
-	mempool_t *bvec_integrity_pool;
+	mempool_t bio_integrity_pool;
+	mempool_t bvec_integrity_pool;
 #endif
 
 	/*
