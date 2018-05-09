@@ -988,23 +988,23 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		}
 	} else if (overload && he_mu && he_phy_data != HE_PHY_DATA_INVAL) {
 		he_mu->flags1 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SIBG_SYM_OR_USER_NUM_MASK,
-						  he_phy_data),
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIBG_SYM_OR_USER_NUM_MASK,
+						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS);
 		he_mu->flags1 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SIGB_DCM,
-						  he_phy_data),
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_DCM,
+						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM);
 		he_mu->flags1 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SIGB_MCS_MASK,
-						  he_phy_data),
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_MCS_MASK,
+						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS);
 		he_mu->flags2 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SIGB_COMPRESSION,
-						  he_phy_data),
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_COMPRESSION,
+						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP);
 		he_mu->flags2 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_PREAMBLE_PUNC_TYPE_MASK,
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_PREAMBLE_PUNC_TYPE_MASK,
 						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
 
@@ -1049,15 +1049,18 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
 	}
 
-	if (he_mu) {
+	if (he_phy_data != HE_PHY_DATA_INVAL &&
+	    (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data) ==
+			IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO ||
+	     FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data) ==
+			IWL_RX_HE_PHY_INFO_TYPE_TB_EXT_INFO)) {
 		/*
 		 * Unfortunately, we have to leave the mac80211 data
 		 * incorrect for the case that we receive an HE-MU
-		 * transmission and *don't* have the he_mu pointer,
-		 * i.e. we don't have the phy data (due to the bits
-		 * being used for TSF). This shouldn't happen though
-		 * as management frames where we need the TSF/timers
-		 * are not be transmitted in HE-MU, I think.
+		 * transmission and *don't* have the HE phy data (due
+		 * to the bits being used for TSF). This shouldn't
+		 * happen though as management frames where we need
+		 * the TSF/timers are not be transmitted in HE-MU.
 		 */
 		u8 ru = FIELD_GET(IWL_RX_HE_PHY_RU_ALLOC_MASK, he_phy_data);
 		u8 offs = 0;
@@ -1100,10 +1103,11 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 					 IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
 		he->data2 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_KNOWN);
-		if (he_phy_data & IWL_RX_HE_PHY_RU_ALLOC_SEC80) {
+		if (he_phy_data & IWL_RX_HE_PHY_RU_ALLOC_SEC80)
 			he->data2 |=
 				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
 
+		if (he_mu) {
 #define CHECK_BW(bw) \
 	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
 		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS)
@@ -1111,7 +1115,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 			CHECK_BW(40);
 			CHECK_BW(80);
 			CHECK_BW(160);
-			he_mu->flags2 |=
+			he->data2 |=
 				le16_encode_bits(FIELD_GET(RATE_MCS_CHAN_WIDTH_MSK,
 							   rate_n_flags),
 						 IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW);
