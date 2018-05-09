@@ -1395,6 +1395,9 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
+
 		err = dsa_port_fdb_add(dp, fdb_info->addr, fdb_info->vid);
 		if (err) {
 			netdev_dbg(dev, "fdb add failed err=%d\n", err);
@@ -1406,6 +1409,9 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
+
 		err = dsa_port_fdb_del(dp, fdb_info->addr, fdb_info->vid);
 		if (err) {
 			netdev_dbg(dev, "fdb del failed err=%d\n", err);
@@ -1441,7 +1447,6 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct dsa_switchdev_event_work *switchdev_work;
 
 	if (!dsa_slave_dev_check(dev))
@@ -1459,10 +1464,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		if (!fdb_info->added_by_user)
-			break;
-		if (dsa_slave_switchdev_fdb_work_init(switchdev_work,
-						      fdb_info))
+		if (dsa_slave_switchdev_fdb_work_init(switchdev_work, ptr))
 			goto err_fdb_work_init;
 		dev_hold(dev);
 		break;
