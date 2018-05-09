@@ -2015,8 +2015,13 @@ dont_test_tx_en:
 	if (up->dma) {
 		retval = serial8250_request_dma(up);
 		if (retval) {
+#ifdef CONFIG_ARCH_ROCKCHIP
+			pr_warn_ratelimited("ttyS%d - failed to request DMA, use interrupt mode\n",
+					    serial_index(port));
+#else
 			pr_warn_ratelimited("ttyS%d - failed to request DMA\n",
 					    serial_index(port));
+#endif
 			up->dma = NULL;
 		}
 	}
