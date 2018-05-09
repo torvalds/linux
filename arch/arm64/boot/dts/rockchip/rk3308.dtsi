@@ -10,6 +10,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/suspend/rockchip-rk3308.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -145,6 +146,21 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3308";
+		status = "disabled";
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_PMU_HW_PLLS_PD
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WAKEUP_EN
+			)
+		>;
 	};
 
 	timer {
