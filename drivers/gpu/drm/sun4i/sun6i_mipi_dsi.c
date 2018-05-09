@@ -833,8 +833,8 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 
 	dsi->device = device;
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (!dsi->panel)
-		return -EINVAL;
+	if (IS_ERR(dsi->panel))
+		return PTR_ERR(dsi->panel);
 
 	dev_info(host->dev, "Attached device %s\n", device->name);
 

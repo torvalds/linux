@@ -151,7 +151,9 @@ EXPORT_SYMBOL(drm_panel_detach);
  * tree node. If a matching panel is found, return a pointer to it.
  *
  * Return: A pointer to the panel registered for the specified device tree
- * node or NULL if no panel matching the device tree node can be found.
+ * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ * The only error that can be reported is -EPROBE_DEFER, meaning that the panel
+ * device has not been probed yet, and the caller should retry later.
  */
 struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
@@ -167,7 +169,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	}
 
 	mutex_unlock(&panel_lock);
-	return NULL;
+	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(of_drm_find_panel);
 #endif

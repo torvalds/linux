@@ -434,8 +434,8 @@ static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 			ret = -EPROBE_DEFER;
 	} else {
 		lvds->panel = of_drm_find_panel(remote);
-		if (!lvds->panel)
-			ret = -EPROBE_DEFER;
+		if (IS_ERR(lvds->panel))
+			ret = PTR_ERR(lvds->panel);
 	}
 
 done:

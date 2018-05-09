@@ -240,8 +240,8 @@ struct drm_encoder *exynos_dpi_probe(struct device *dev)
 
 	if (ctx->panel_node) {
 		ctx->panel = of_drm_find_panel(ctx->panel_node);
-		if (!ctx->panel)
-			return ERR_PTR(-EPROBE_DEFER);
+		if (IS_ERR(ctx->panel))
+			return ERR_CAST(ctx->panel);
 	}
 
 	return &ctx->encoder;
