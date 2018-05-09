@@ -2192,7 +2192,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 
 		len = nr * CD_FRAMESIZE_RAW;
 
-		rq = blk_get_request(q, REQ_OP_SCSI_IN, GFP_KERNEL);
+		rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			break;

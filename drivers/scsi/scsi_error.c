@@ -1937,7 +1937,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
 	 * request becomes available
 	 */
-	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, GFP_KERNEL);
+	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);

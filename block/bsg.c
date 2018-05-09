@@ -226,8 +226,7 @@ bsg_map_hdr(struct request_queue *q, struct sg_io_v4 *hdr, fmode_t mode)
 		return ERR_PTR(ret);
 
 	rq = blk_get_request(q, hdr->dout_xfer_len ?
-			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
-			GFP_KERNEL);
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(rq))
 		return rq;
 
@@ -249,7 +248,7 @@ bsg_map_hdr(struct request_queue *q, struct sg_io_v4 *hdr, fmode_t mode)
 			goto out;
 		}
 
-		next_rq = blk_get_request(q, REQ_OP_SCSI_IN, GFP_KERNEL);
+		next_rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
 		if (IS_ERR(next_rq)) {
 			ret = PTR_ERR(next_rq);
 			goto out;

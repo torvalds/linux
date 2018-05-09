@@ -1605,13 +1605,13 @@ static struct request *blk_old_get_request(struct request_queue *q,
 }
 
 /**
- * blk_get_request_flags - allocate a request
+ * blk_get_request - allocate a request
  * @q: request queue to allocate a request for
  * @op: operation (REQ_OP_*) and REQ_* flags, e.g. REQ_SYNC.
  * @flags: BLK_MQ_REQ_* flags, e.g. BLK_MQ_REQ_NOWAIT.
  */
-struct request *blk_get_request_flags(struct request_queue *q, unsigned int op,
-				      blk_mq_req_flags_t flags)
+struct request *blk_get_request(struct request_queue *q, unsigned int op,
+				blk_mq_req_flags_t flags)
 {
 	struct request *req;
 
@@ -1629,14 +1629,6 @@ struct request *blk_get_request_flags(struct request_queue *q, unsigned int op,
 	}
 
 	return req;
-}
-EXPORT_SYMBOL(blk_get_request_flags);
-
-struct request *blk_get_request(struct request_queue *q, unsigned int op,
-				gfp_t gfp_mask)
-{
-	return blk_get_request_flags(q, op, gfp_mask & __GFP_DIRECT_RECLAIM ?
-				     0 : BLK_MQ_REQ_NOWAIT);
 }
 EXPORT_SYMBOL(blk_get_request);
 

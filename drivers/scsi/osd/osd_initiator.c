@@ -1570,7 +1570,7 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 	int ret;
 
 	req = blk_get_request(q, has_write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
-			GFP_KERNEL);
+			0);
 	if (IS_ERR(req))
 		return req;
 

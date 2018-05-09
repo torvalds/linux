@@ -298,7 +298,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	struct request *req;
 	int err;
 
-	req = blk_get_request(q, REQ_OP_DRV_IN, GFP_KERNEL);
+	req = blk_get_request(q, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
