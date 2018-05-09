@@ -1403,8 +1403,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	pll_mux->lock = &ctx->lock;
 	pll_mux->hw.init = &init;
 
-	if (pll_type == pll_px30 ||
-	    pll_type == pll_rk3036 ||
+	if (pll_type == pll_rk3036 ||
 	    pll_type == pll_rk3066 ||
 	    pll_type == pll_rk3328 ||
 	    pll_type == pll_rk3366 ||
@@ -1456,7 +1455,6 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	}
 
 	switch (pll_type) {
-	case pll_px30:
 	case pll_rk3036:
 	case pll_rk3328:
 		if (!pll->rate_table)

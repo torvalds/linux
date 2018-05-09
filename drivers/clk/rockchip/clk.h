@@ -186,7 +186,6 @@ struct clk;
 #define RK3399_PMU_GATEDIS_CON(x)	((x) * 0x4 + 0x130)
 
 enum rockchip_pll_type {
-	pll_px30,
 	pll_rk3036,
 	pll_rk3066,
 	pll_rk3328,
