@@ -1483,6 +1483,10 @@ static const char *ata_err_string(unsigned int err_mask)
 		return "invalid argument";
 	if (err_mask & AC_ERR_DEV)
 		return "device error";
+	if (err_mask & AC_ERR_NCQ)
+		return "NCQ error";
+	if (err_mask & AC_ERR_NODEV_HINT)
+		return "Polling detection error";
 	return "unknown error";
 }
 
