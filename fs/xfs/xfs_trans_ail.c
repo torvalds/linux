@@ -32,30 +32,51 @@
 #ifdef DEBUG
 /*
  * Check that the list is sorted as it should be.
+ *
+ * Called with the ail lock held, but we don't want to assert fail with it
+ * held otherwise we'll lock everything up and won't be able to debug the
+ * cause. Hence we sample and check the state under the AIL lock and return if
+ * everything is fine, otherwise we drop the lock and run the ASSERT checks.
+ * Asserts may not be fatal, so pick the lock back up and continue onwards.
  */
 STATIC void
 xfs_ail_check(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip)
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
 {
-	xfs_log_item_t	*prev_lip;
+	struct xfs_log_item	*prev_lip;
+	struct xfs_log_item	*next_lip;
+	xfs_lsn_t		prev_lsn = NULLCOMMITLSN;
+	xfs_lsn_t		next_lsn = NULLCOMMITLSN;
+	xfs_lsn_t		lsn;
+	bool			in_ail;
+
 
 	if (list_empty(&ailp->ail_head))
 		return;
 
 	/*
-	 * Check the next and previous entries are valid.
+	 * Sample then check the next and previous entries are valid.
 	 */
-	ASSERT(test_bit(XFS_LI_IN_AIL, &lip->li_flags));
-	prev_lip = list_entry(lip->li_ail.prev, xfs_log_item_t, li_ail);
+	in_ail = test_bit(XFS_LI_IN_AIL, &lip->li_flags);
+	prev_lip = list_entry(lip->li_ail.prev, struct xfs_log_item, li_ail);
 	if (&prev_lip->li_ail != &ailp->ail_head)
-		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
+		prev_lsn = prev_lip->li_lsn;
+	next_lip = list_entry(lip->li_ail.next, struct xfs_log_item, li_ail);
+	if (&next_lip->li_ail != &ailp->ail_head)
+		next_lsn = next_lip->li_lsn;
+	lsn = lip->li_lsn;
 
-	prev_lip = list_entry(lip->li_ail.next, xfs_log_item_t, li_ail);
-	if (&prev_lip->li_ail != &ailp->ail_head)
-		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) >= 0);
+	if (in_ail &&
+	    (prev_lsn == NULLCOMMITLSN || XFS_LSN_CMP(prev_lsn, lsn) <= 0) &&
+	    (next_lsn == NULLCOMMITLSN || XFS_LSN_CMP(next_lsn, lsn) >= 0))
+		return;
 
-
+	spin_unlock(&ailp->ail_lock);
+	ASSERT(in_ail);
+	ASSERT(prev_lsn == NULLCOMMITLSN || XFS_LSN_CMP(prev_lsn, lsn) <= 0);
+	ASSERT(next_lsn == NULLCOMMITLSN || XFS_LSN_CMP(next_lsn, lsn) >= 0);
+	spin_lock(&ailp->ail_lock);
 }
 #else /* !DEBUG */
 #define	xfs_ail_check(a,l)
