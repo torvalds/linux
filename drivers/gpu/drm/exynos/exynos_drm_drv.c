@@ -222,6 +222,7 @@ struct exynos_drm_driver_info {
 #define DRM_COMPONENT_DRIVER	BIT(0)	/* supports component framework */
 #define DRM_VIRTUAL_DEVICE	BIT(1)	/* create virtual platform device */
 #define DRM_DMA_DEVICE		BIT(2)	/* can be used for dma allocations */
+#define DRM_FIMC_DEVICE		BIT(3)	/* devices shared with V4L2 subsystem */
 
 #define DRV_PTR(drv, cond) (IS_ENABLED(cond) ? &drv : NULL)
 
@@ -261,6 +262,7 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(g2d_driver, CONFIG_DRM_EXYNOS_G2D),
 	}, {
 		DRV_PTR(fimc_driver, CONFIG_DRM_EXYNOS_FIMC),
+		DRM_COMPONENT_DRIVER | DRM_FIMC_DEVICE,
 	}, {
 		DRV_PTR(rotator_driver, CONFIG_DRM_EXYNOS_ROTATOR),
 		DRM_COMPONENT_DRIVER
@@ -294,7 +296,11 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 					    &info->driver->driver,
 					    (void *)platform_bus_type.match))) {
 			put_device(p);
-			component_match_add(dev, &match, compare_dev, d);
+
+			if (!(info->flags & DRM_FIMC_DEVICE) ||
+			    exynos_drm_check_fimc_device(d) == 0)
+				component_match_add(dev, &match,
+						    compare_dev, d);
 			p = d;
 		}
 		put_device(p);

@@ -100,7 +100,7 @@ config DRM_EXYNOS_IPP
 
 config DRM_EXYNOS_FIMC
 	bool "FIMC"
-	depends on BROKEN && MFD_SYSCON
+	select DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos FIMC for DRM.
 
