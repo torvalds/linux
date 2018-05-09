@@ -98,7 +98,6 @@ struct qcom_geni_serial_port {
 	enum geni_se_xfer_mode xfer_mode;
 	bool setup;
 	int (*handle_rx)(struct uart_port *uport, u32 bytes, bool drop);
-	unsigned int xmit_size;
 	unsigned int baud;
 	unsigned int tx_bytes_pw;
 	unsigned int rx_bytes_pw;
@@ -462,7 +461,6 @@ static void qcom_geni_serial_stop_tx(struct uart_port *uport)
 		writel_relaxed(0, uport->membase +
 				     SE_GENI_TX_WATERMARK_REG);
 	}
-	port->xmit_size = 0;
 	writel_relaxed(irq_en, uport->membase + SE_GENI_M_IRQ_EN);
 	status = readl_relaxed(uport->membase + SE_GENI_STATUS);
 	/* Possible stop tx is called multiple times. */
@@ -592,16 +590,13 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport)
 	chunk = uart_circ_chars_pending(xmit);
 	status = readl_relaxed(uport->membase + SE_GENI_TX_FIFO_STATUS);
 	/* Both FIFO and framework buffer are drained */
-	if (chunk == port->xmit_size && !status) {
-		port->xmit_size = 0;
-		uart_circ_clear(xmit);
+	if (!chunk && !status) {
 		qcom_geni_serial_stop_tx(uport);
 		goto out_write_wakeup;
 	}
-	chunk -= port->xmit_size;
 
 	avail = (port->tx_fifo_depth - port->tx_wm) * port->tx_bytes_pw;
-	tail = (xmit->tail + port->xmit_size) & (UART_XMIT_SIZE - 1);
+	tail = xmit->tail;
 	chunk = min3((size_t)chunk, (size_t)(UART_XMIT_SIZE - tail), avail);
 	if (!chunk)
 		goto out_write_wakeup;
@@ -622,14 +617,16 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport)
 		iowrite32_rep(uport->membase + SE_GENI_TX_FIFOn, buf, 1);
 
 		i += tx_bytes;
-		tail = (tail + tx_bytes) & (UART_XMIT_SIZE - 1);
+		tail += tx_bytes;
 		uport->icount.tx += tx_bytes;
 		remaining -= tx_bytes;
 	}
+
+	xmit->tail = tail & (UART_XMIT_SIZE - 1);
 	qcom_geni_serial_poll_tx_done(uport);
-	port->xmit_size += chunk;
 out_write_wakeup:
-	uart_write_wakeup(uport);
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(uport);
 }
 
 static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
