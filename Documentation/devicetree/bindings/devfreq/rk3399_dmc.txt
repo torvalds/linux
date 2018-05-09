@@ -19,7 +19,7 @@ Required properties:
 
 Following properties relate to DDR timing:
 
-- rockchip,dram_speed_bin :	  Value reference include/dt-bindings/clock/ddr.h,
+- rockchip,dram_speed_bin :	  Value reference include/dt-bindings/clock/rk3399-ddr.h,
 				  it selects the DDR3 cl-trp-trcd type. It must be
 				  set according to "Speed Bin" in DDR3 datasheet,
 				  DO NOT use a smaller "Speed Bin" than specified
