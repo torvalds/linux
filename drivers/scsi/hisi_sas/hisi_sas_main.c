@@ -243,30 +243,30 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
-static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
+static void hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 				  struct hisi_sas_slot *slot)
 {
-	return hisi_hba->hw->prep_smp(hisi_hba, slot);
+	hisi_hba->hw->prep_smp(hisi_hba, slot);
 }
 
-static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
+static void hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 				  struct hisi_sas_slot *slot, int is_tmf,
 				  struct hisi_sas_tmf_task *tmf)
 {
-	return hisi_hba->hw->prep_ssp(hisi_hba, slot, is_tmf, tmf);
+	hisi_hba->hw->prep_ssp(hisi_hba, slot, is_tmf, tmf);
 }
 
-static int hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
+static void hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
 				  struct hisi_sas_slot *slot)
 {
-	return hisi_hba->hw->prep_stp(hisi_hba, slot);
+	hisi_hba->hw->prep_stp(hisi_hba, slot);
 }
 
-static int hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
+static void hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
 		struct hisi_sas_slot *slot,
 		int device_id, int abort_flag, int tag_to_abort)
 {
-	return hisi_hba->hw->prep_abort(hisi_hba, slot,
+	hisi_hba->hw->prep_abort(hisi_hba, slot,
 			device_id, abort_flag, tag_to_abort);
 }
 
@@ -395,6 +395,13 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	} else
 		n_elem = task->num_scatter;
 
+	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
+		dev_err(dev, "task prep: n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
+			n_elem);
+		rc = -EINVAL;
+		goto err_out_dma_unmap;
+	}
+
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	if (hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, &slot_idx,
@@ -439,26 +446,20 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
-		rc = hisi_sas_task_prep_smp(hisi_hba, slot);
+		hisi_sas_task_prep_smp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SSP:
-		rc = hisi_sas_task_prep_ssp(hisi_hba, slot, is_tmf, tmf);
+		hisi_sas_task_prep_ssp(hisi_hba, slot, is_tmf, tmf);
 		break;
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
-		rc = hisi_sas_task_prep_ata(hisi_hba, slot);
+		hisi_sas_task_prep_ata(hisi_hba, slot);
 		break;
 	default:
 		dev_err(dev, "task prep: unknown/unsupported proto (0x%x)\n",
 			task->task_proto);
-		rc = -EINVAL;
 		break;
-	}
-
-	if (rc) {
-		dev_err(dev, "task prep: rc = 0x%x\n", rc);
-		goto err_out_buf;
 	}
 
 	spin_lock_irqsave(&hisi_hba->lock, flags);
@@ -473,9 +474,6 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 
 	return 0;
 
-err_out_buf:
-	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
-		slot->buf_dma);
 err_out_slot_buf:
 	/* Nothing to be done */
 err_out_tag:
@@ -1554,10 +1552,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	memset(hisi_sas_cmd_hdr_addr_mem(slot), 0, HISI_SAS_COMMAND_TABLE_SZ);
 	memset(hisi_sas_status_buf_addr_mem(slot), 0, HISI_SAS_STATUS_BUF_SZ);
 
-	rc = hisi_sas_task_prep_abort(hisi_hba, slot, device_id,
+	hisi_sas_task_prep_abort(hisi_hba, slot, device_id,
 				      abort_flag, task_tag);
-	if (rc)
-		goto err_out_buf;
 
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	list_add_tail(&slot->entry, &sas_dev->list);
@@ -1574,9 +1570,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 
 	return 0;
 
-err_out_buf:
-	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
-		slot->buf_dma);
 err_out_tag:
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);

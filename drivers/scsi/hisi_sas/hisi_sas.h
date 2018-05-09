@@ -214,14 +214,14 @@ struct hisi_sas_hw {
 	void (*sl_notify)(struct hisi_hba *hisi_hba, int phy_no);
 	int (*get_free_slot)(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq);
 	void (*start_delivery)(struct hisi_sas_dq *dq);
-	int (*prep_ssp)(struct hisi_hba *hisi_hba,
+	void (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot, int is_tmf,
 			struct hisi_sas_tmf_task *tmf);
-	int (*prep_smp)(struct hisi_hba *hisi_hba,
+	void (*prep_smp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
-	int (*prep_stp)(struct hisi_hba *hisi_hba,
+	void (*prep_stp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
-	int (*prep_abort)(struct hisi_hba *hisi_hba,
+	void (*prep_abort)(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot,
 			  int device_id, int abort_flag, int tag_to_abort);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,

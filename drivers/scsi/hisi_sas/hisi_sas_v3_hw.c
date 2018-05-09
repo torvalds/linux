@@ -859,22 +859,15 @@ static void start_delivery_v3_hw(struct hisi_sas_dq *dq)
 			 dq->wr_point);
 }
 
-static int prep_prd_sge_v3_hw(struct hisi_hba *hisi_hba,
+static void prep_prd_sge_v3_hw(struct hisi_hba *hisi_hba,
 			      struct hisi_sas_slot *slot,
 			      struct hisi_sas_cmd_hdr *hdr,
 			      struct scatterlist *scatter,
 			      int n_elem)
 {
 	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
-	struct device *dev = hisi_hba->dev;
 	struct scatterlist *sg;
 	int i;
-
-	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
-		dev_err(dev, "prd err: n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
-			n_elem);
-		return -EINVAL;
-	}
 
 	for_each_sg(scatter, sg, n_elem, i) {
 		struct hisi_sas_sge *entry = &sge_page->sge[i];
@@ -888,11 +881,9 @@ static int prep_prd_sge_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->prd_table_addr = cpu_to_le64(hisi_sas_sge_addr_dma(slot));
 
 	hdr->sg_len = cpu_to_le32(n_elem << CMD_HDR_DATA_SGL_LEN_OFF);
-
-	return 0;
 }
 
-static int prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
+static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot, int is_tmf,
 			  struct hisi_sas_tmf_task *tmf)
 {
@@ -903,7 +894,7 @@ static int prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	int has_data = 0, rc, priority = is_tmf;
+	int has_data = 0, priority = is_tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
 
@@ -944,12 +935,9 @@ static int prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->dw2 = cpu_to_le32(dw2);
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
 
-	if (has_data) {
-		rc = prep_prd_sge_v3_hw(hisi_hba, slot, hdr, task->scatter,
+	if (has_data)
+		prep_prd_sge_v3_hw(hisi_hba, slot, hdr, task->scatter,
 					slot->n_elem);
-		if (rc)
-			return rc;
-	}
 
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
 	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
@@ -976,11 +964,9 @@ static int prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 			break;
 		}
 	}
-
-	return 0;
 }
 
-static int prep_smp_v3_hw(struct hisi_hba *hisi_hba,
+static void prep_smp_v3_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
@@ -1018,10 +1004,9 @@ static int prep_smp_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->cmd_table_addr = cpu_to_le64(req_dma_addr);
 	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	return 0;
 }
 
-static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
+static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
@@ -1032,7 +1017,7 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	u8 *buf_cmd;
-	int has_data = 0, rc = 0, hdr_tag = 0;
+	int has_data = 0, hdr_tag = 0;
 	u32 dw1 = 0, dw2 = 0;
 
 	hdr->dw0 = cpu_to_le32(port->id << CMD_HDR_PORT_OFF);
@@ -1081,12 +1066,9 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	/* dw3 */
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
 
-	if (has_data) {
-		rc = prep_prd_sge_v3_hw(hisi_hba, slot, hdr, task->scatter,
+	if (has_data)
+		prep_prd_sge_v3_hw(hisi_hba, slot, hdr, task->scatter,
 					slot->n_elem);
-		if (rc)
-			return rc;
-	}
 
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
 	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
@@ -1098,11 +1080,9 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
 	/* fill in command FIS */
 	memcpy(buf_cmd, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
-
-	return 0;
 }
 
-static int prep_abort_v3_hw(struct hisi_hba *hisi_hba,
+static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 		struct hisi_sas_slot *slot,
 		int device_id, int abort_flag, int tag_to_abort)
 {
@@ -1127,7 +1107,6 @@ static int prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->dw7 = cpu_to_le32(tag_to_abort << CMD_HDR_ABORT_IPTT_OFF);
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
 
-	return 0;
 }
 
 static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
