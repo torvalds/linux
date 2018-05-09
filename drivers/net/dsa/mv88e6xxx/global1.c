@@ -389,6 +389,13 @@ int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 	return err;
 }
 
+int mv88e6xxx_g1_set_device_number(struct mv88e6xxx_chip *chip, int index)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip,
+				      MV88E6XXX_G1_CTL2_DEVICE_NUMBER_MASK,
+				      index);
+}
+
 /* Offset 0x1d: Statistics Operation 2 */
 
 int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)

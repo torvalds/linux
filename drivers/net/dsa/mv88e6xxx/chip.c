@@ -1053,6 +1053,10 @@ static int mv88e6xxx_devmap_setup(struct mv88e6xxx_chip *chip)
 			return err;
 	}
 
+	err = mv88e6xxx_g1_set_device_number(chip, chip->ds->index);
+	if (err)
+		return err;
+
 	return 0;
 }
 
@@ -2160,14 +2164,7 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 
 static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
-	struct dsa_switch *ds = chip->ds;
 	int err;
-
-	/* Disable remote management, and set the switch's DSA device number. */
-	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
-				 (ds->index & 0x1f));
-	if (err)
-		return err;
 
 	/* Configure the IP ToS mapping registers. */
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_0, 0x0000);
