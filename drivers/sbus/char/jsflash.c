@@ -215,6 +215,7 @@ static void jsfd_request(void)
 		unsigned long offset = blk_rq_pos(req) << 9;
 		size_t len = blk_rq_cur_bytes(req);
 		blk_status_t err = BLK_STS_IOERR;
+		void *p;
 
 		if ((offset + len) > jdp->dsize)
 			goto end;
@@ -229,7 +230,9 @@ static void jsfd_request(void)
 			goto end;
 		}
 
-		jsfd_read(bio_data(req->bio), jdp->dbase + offset, len);
+		p = kmap_atomic(bio_page(bio)) + bio_offset(bio);
+		jsfd_read(p, jdp->dbase + offset, len);
+		kunmap_atomic(p);
 		err = BLK_STS_OK;
 	end:
 		if (!__blk_end_request_cur(req, err))
@@ -592,7 +595,6 @@ static int jsfd_init(void)
 			put_disk(disk);
 			goto out;
 		}
-		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		jsfd_disk[i] = disk;
 	}
 
