@@ -1173,9 +1173,12 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->psr.sink_support)
 		return;
 
-	/* Per platform default: all disabled. */
-	if (i915_modparams.enable_psr == -1)
+	if (i915_modparams.enable_psr == -1) {
+		i915_modparams.enable_psr = dev_priv->vbt.psr.enable;
+
+		/* Per platform default: all disabled. */
 		i915_modparams.enable_psr = 0;
+	}
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
