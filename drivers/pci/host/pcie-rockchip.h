@@ -222,6 +222,7 @@ struct rockchip_pcie {
 	u32     mem_size;
 	phys_addr_t msg_bus_addr;
 	phys_addr_t mem_bus_addr;
+	bool is_rc;
 };
 
 static u32 rockchip_pcie_read(struct rockchip_pcie *rockchip, u32 reg)
@@ -235,6 +236,7 @@ static void rockchip_pcie_write(struct rockchip_pcie *rockchip, u32 val,
 	writel(val, rockchip->apb_base + reg);
 }
 
+int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip);
 int rockchip_pcie_get_phys(struct rockchip_pcie *rockchip);
 void rockchip_pcie_deinit_phys(struct rockchip_pcie *rockchip);
 int rockchip_pcie_enable_clocks(struct rockchip_pcie *rockchip);
