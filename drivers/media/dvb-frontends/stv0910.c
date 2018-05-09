@@ -1200,7 +1200,6 @@ static int probe(struct stv *state)
 	write_reg(state, RSTV0910_P1_TSCFGM, 0xC0); /* Manual speed */
 	write_reg(state, RSTV0910_P1_TSCFGL, 0x20);
 
-	/* Speed = 67.5 MHz */
 	write_reg(state, RSTV0910_P1_TSSPEED, state->tsspeed);
 
 	write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh | 0x01);
@@ -1208,7 +1207,6 @@ static int probe(struct stv *state)
 	write_reg(state, RSTV0910_P2_TSCFGM, 0xC0); /* Manual speed */
 	write_reg(state, RSTV0910_P2_TSCFGL, 0x20);
 
-	/* Speed = 67.5 MHz */
 	write_reg(state, RSTV0910_P2_TSSPEED, state->tsspeed);
 
 	/* Reset stream merger */
@@ -1790,7 +1788,8 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->tscfgh = 0x20 | (cfg->parallel ? 0 : 0x40);
 	state->tsgeneral = (cfg->parallel == 2) ? 0x02 : 0x00;
 	state->i2crpt = 0x0A | ((cfg->rptlvl & 0x07) << 4);
-	state->tsspeed = 0x28;
+	/* use safe tsspeed value if unspecified through stv0910_cfg */
+	state->tsspeed = (cfg->tsspeed ? cfg->tsspeed : 0x28);
 	state->nr = nr;
 	state->regoff = state->nr ? 0 : 0x200;
 	state->search_range = 16000000;

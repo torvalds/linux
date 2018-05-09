@@ -1183,6 +1183,7 @@ static const struct stv0910_cfg stv0910_p = {
 	.parallel = 1,
 	.rptlvl   = 4,
 	.clk      = 30000000,
+	.tsspeed  = 0x28,
 };
 
 static const struct lnbh25_config lnbh25_cfg = {
