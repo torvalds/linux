@@ -82,12 +82,12 @@ static const u16 mtk_reg_table_default[MTK_REG_COUNT] = {
 
 static const u16 *mtk_reg_table = mtk_reg_table_default;
 
-void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
+void mtk_w32(struct mtk_eth *eth, u32 val, unsigned int reg)
 {
 	__raw_writel(val, eth->base + reg);
 }
 
-u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
+u32 mtk_r32(struct mtk_eth *eth, unsigned int reg)
 {
 	return __raw_readl(eth->base + reg);
 }

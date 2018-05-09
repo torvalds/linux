@@ -706,8 +706,8 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 void mtk_reset(struct mtk_eth *eth, u32 reset_bits);
 
 /* register i/o wrappers */
-void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
-u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+void mtk_w32(struct mtk_eth *eth, u32 val, unsigned int reg);
+u32 mtk_r32(struct mtk_eth *eth, unsigned int reg);
 
 /* default clock calibration handler */
 int mtk_set_clock_cycle(struct mtk_eth *eth);

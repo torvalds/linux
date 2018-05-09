@@ -24,13 +24,13 @@
 #include "mtk_eth_soc.h"
 #include "gsw_mt7620.h"
 
-void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned reg)
+void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned int reg)
 {
 	iowrite32(val, gsw->base + reg);
 }
 EXPORT_SYMBOL_GPL(mtk_switch_w32);
 
-u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned reg)
+u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned int reg)
 {
 	return ioread32(gsw->base + reg);
 }
