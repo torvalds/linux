@@ -986,7 +986,7 @@ int wmi_read_hdr(struct wil6210_priv *wil, __le32 ptr,
 int wmi_send(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len);
 void wmi_recv_cmd(struct wil6210_priv *wil);
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
-	     u16 reply_id, void *reply, u8 reply_size, int to_msec);
+	     u16 reply_id, void *reply, u16 reply_size, int to_msec);
 void wmi_event_worker(struct work_struct *work);
 void wmi_event_flush(struct wil6210_priv *wil);
 int wmi_set_ssid(struct wil6210_vif *vif, u8 ssid_len, const void *ssid);

@@ -1416,7 +1416,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 }
 
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
-	     u16 reply_id, void *reply, u8 reply_size, int to_msec)
+	     u16 reply_id, void *reply, u16 reply_size, int to_msec)
 {
 	int rc;
 	unsigned long remain;
