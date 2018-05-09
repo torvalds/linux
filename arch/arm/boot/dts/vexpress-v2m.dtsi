@@ -76,21 +76,27 @@
 				v2m_sysreg: sysreg@0 {
 					compatible = "arm,vexpress-sysreg";
 					reg = <0x00000 0x1000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0 0x1000>;
 
-					v2m_led_gpios: sys_led {
+					v2m_led_gpios: gpio@8 {
 						compatible = "arm,vexpress-sysreg,sys_led";
+						reg = <0x008 4>;
 						gpio-controller;
 						#gpio-cells = <2>;
 					};
 
-					v2m_mmc_gpios: sys_mci {
+					v2m_mmc_gpios: gpio@48 {
 						compatible = "arm,vexpress-sysreg,sys_mci";
+						reg = <0x048 4>;
 						gpio-controller;
 						#gpio-cells = <2>;
 					};
 
-					v2m_flash_gpios: sys_flash {
+					v2m_flash_gpios: gpio@4c {
 						compatible = "arm,vexpress-sysreg,sys_flash";
+						reg = <0x04c 4>;
 						gpio-controller;
 						#gpio-cells = <2>;
 					};
