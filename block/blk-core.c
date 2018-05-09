@@ -1659,7 +1659,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
-	wbt_requeue(q->rq_wb, &rq->issue_stat);
+	wbt_requeue(q->rq_wb, rq);
 
 	if (rq->rq_flags & RQF_QUEUED)
 		blk_queue_end_tag(q, rq);
@@ -1766,7 +1766,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	/* this is a bio leak */
 	WARN_ON(req->bio != NULL);
 
-	wbt_done(q->rq_wb, &req->issue_stat);
+	wbt_done(q->rq_wb, req);
 
 	/*
 	 * Request may not have originated from ll_rw_blk. if not,
@@ -2077,7 +2077,7 @@ get_rq:
 		goto out_unlock;
 	}
 
-	wbt_track(&req->issue_stat, wb_acct);
+	wbt_track(req, wb_acct);
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
@@ -2993,7 +2993,7 @@ void blk_start_request(struct request *req)
 	if (test_bit(QUEUE_FLAG_STATS, &req->q->queue_flags)) {
 		blk_stat_set_issue(&req->issue_stat, blk_rq_sectors(req));
 		req->rq_flags |= RQF_STATS;
-		wbt_issue(req->q->rq_wb, &req->issue_stat);
+		wbt_issue(req->q->rq_wb, req);
 	}
 
 	BUG_ON(blk_rq_is_complete(req));
@@ -3212,7 +3212,7 @@ void blk_finish_request(struct request *req, blk_status_t error)
 	blk_account_io_done(req);
 
 	if (req->end_io) {
-		wbt_done(req->q->rq_wb, &req->issue_stat);
+		wbt_done(req->q->rq_wb, req);
 		req->end_io(req, error);
 	} else {
 		if (blk_bidi_rq(req))

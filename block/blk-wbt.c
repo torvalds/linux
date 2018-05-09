@@ -29,24 +29,24 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/wbt.h>
 
-static inline void wbt_clear_state(struct blk_issue_stat *stat)
+static inline void wbt_clear_state(struct request *rq)
 {
-	stat->stat &= ~BLK_STAT_RES_MASK;
+	rq->issue_stat.stat &= ~BLK_STAT_RES_MASK;
 }
 
-static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
+static inline enum wbt_flags wbt_flags(struct request *rq)
 {
-	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
+	return (rq->issue_stat.stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
 }
 
-static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
+static inline bool wbt_is_tracked(struct request *rq)
 {
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
+	return (rq->issue_stat.stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
 }
 
-static inline bool wbt_is_read(struct blk_issue_stat *stat)
+static inline bool wbt_is_read(struct request *rq)
 {
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
+	return (rq->issue_stat.stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
 }
 
 enum {
@@ -194,24 +194,24 @@ void __wbt_done(struct rq_wb *rwb, enum wbt_flags wb_acct)
  * Called on completion of a request. Note that it's also called when
  * a request is merged, when the request gets freed.
  */
-void wbt_done(struct rq_wb *rwb, struct blk_issue_stat *stat)
+void wbt_done(struct rq_wb *rwb, struct request *rq)
 {
 	if (!rwb)
 		return;
 
-	if (!wbt_is_tracked(stat)) {
-		if (rwb->sync_cookie == stat) {
+	if (!wbt_is_tracked(rq)) {
+		if (rwb->sync_cookie == rq) {
 			rwb->sync_issue = 0;
 			rwb->sync_cookie = NULL;
 		}
 
-		if (wbt_is_read(stat))
+		if (wbt_is_read(rq))
 			wb_timestamp(rwb, &rwb->last_comp);
 	} else {
-		WARN_ON_ONCE(stat == rwb->sync_cookie);
-		__wbt_done(rwb, wbt_stat_to_mask(stat));
+		WARN_ON_ONCE(rq == rwb->sync_cookie);
+		__wbt_done(rwb, wbt_flags(rq));
 	}
-	wbt_clear_state(stat);
+	wbt_clear_state(rq);
 }
 
 /*
@@ -643,30 +643,29 @@ enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 	return ret | WBT_TRACKED;
 }
 
-void wbt_issue(struct rq_wb *rwb, struct blk_issue_stat *stat)
+void wbt_issue(struct rq_wb *rwb, struct request *rq)
 {
 	if (!rwb_enabled(rwb))
 		return;
 
 	/*
-	 * Track sync issue, in case it takes a long time to complete. Allows
-	 * us to react quicker, if a sync IO takes a long time to complete.
-	 * Note that this is just a hint. 'stat' can go away when the
-	 * request completes, so it's important we never dereference it. We
-	 * only use the address to compare with, which is why we store the
-	 * sync_issue time locally.
+	 * Track sync issue, in case it takes a long time to complete. Allows us
+	 * to react quicker, if a sync IO takes a long time to complete. Note
+	 * that this is just a hint. The request can go away when it completes,
+	 * so it's important we never dereference it. We only use the address to
+	 * compare with, which is why we store the sync_issue time locally.
 	 */
-	if (wbt_is_read(stat) && !rwb->sync_issue) {
-		rwb->sync_cookie = stat;
-		rwb->sync_issue = blk_stat_time(stat);
+	if (wbt_is_read(rq) && !rwb->sync_issue) {
+		rwb->sync_cookie = rq;
+		rwb->sync_issue = blk_stat_time(&rq->issue_stat);
 	}
 }
 
-void wbt_requeue(struct rq_wb *rwb, struct blk_issue_stat *stat)
+void wbt_requeue(struct rq_wb *rwb, struct request *rq)
 {
 	if (!rwb_enabled(rwb))
 		return;
-	if (stat == rwb->sync_cookie) {
+	if (rq == rwb->sync_cookie) {
 		rwb->sync_issue = 0;
 		rwb->sync_cookie = NULL;
 	}
