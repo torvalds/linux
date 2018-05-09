@@ -117,6 +117,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_DEVMAP,
 	BPF_MAP_TYPE_SOCKMAP,
 	BPF_MAP_TYPE_CPUMAP,
+	BPF_MAP_TYPE_XSKMAP,
 };
 
 enum bpf_prog_type {
@@ -1827,6 +1828,33 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
+ *
+ * int bpf_fib_lookup(void *ctx, struct bpf_fib_lookup *params, int plen, u32 flags)
+ *	Description
+ *		Do FIB lookup in kernel tables using parameters in *params*.
+ *		If lookup is successful and result shows packet is to be
+ *		forwarded, the neighbor tables are searched for the nexthop.
+ *		If successful (ie., FIB lookup shows forwarding and nexthop
+ *		is resolved), the nexthop address is returned in ipv4_dst,
+ *		ipv6_dst or mpls_out based on family, smac is set to mac
+ *		address of egress device, dmac is set to nexthop mac address,
+ *		rt_metric is set to metric from route.
+ *
+ *             *plen* argument is the size of the passed in struct.
+ *             *flags* argument can be one or more BPF_FIB_LOOKUP_ flags:
+ *
+ *             **BPF_FIB_LOOKUP_DIRECT** means do a direct table lookup vs
+ *             full lookup using FIB rules
+ *             **BPF_FIB_LOOKUP_OUTPUT** means do lookup from an egress
+ *             perspective (default is ingress)
+ *
+ *             *ctx* is either **struct xdp_md** for XDP programs or
+ *             **struct sk_buff** tc cls_act programs.
+ *
+ *     Return
+ *             Egress device index on success, 0 if packet needs to continue
+ *             up the stack for further processing or a negative error in case
+ *             of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -1897,7 +1925,8 @@ union bpf_attr {
 	FN(xdp_adjust_tail),		\
 	FN(skb_get_xfrm_state),		\
 	FN(get_stack),			\
-	FN(skb_load_bytes_relative),
+	FN(skb_load_bytes_relative),	\
+	FN(fib_lookup),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2318,6 +2347,57 @@ struct bpf_cgroup_dev_ctx {
 
 struct bpf_raw_tracepoint_args {
 	__u64 args[0];
+};
+
+/* DIRECT:  Skip the FIB rules and go to FIB table associated with device
+ * OUTPUT:  Do lookup from egress perspective; default is ingress
+ */
+#define BPF_FIB_LOOKUP_DIRECT  BIT(0)
+#define BPF_FIB_LOOKUP_OUTPUT  BIT(1)
+
+struct bpf_fib_lookup {
+	/* input */
+	__u8	family;   /* network family, AF_INET, AF_INET6, AF_MPLS */
+
+	/* set if lookup is to consider L4 data - e.g., FIB rules */
+	__u8	l4_protocol;
+	__be16	sport;
+	__be16	dport;
+
+	/* total length of packet from network header - used for MTU check */
+	__u16	tot_len;
+	__u32	ifindex;  /* L3 device index for lookup */
+
+	union {
+		/* inputs to lookup */
+		__u8	tos;		/* AF_INET  */
+		__be32	flowlabel;	/* AF_INET6 */
+
+		/* output: metric of fib result */
+		__u32 rt_metric;
+	};
+
+	union {
+		__be32		mpls_in;
+		__be32		ipv4_src;
+		__u32		ipv6_src[4];  /* in6_addr; network order */
+	};
+
+	/* input to bpf_fib_lookup, *dst is destination address.
+	 * output: bpf_fib_lookup sets to gateway address
+	 */
+	union {
+		/* return for MPLS lookups */
+		__be32		mpls_out[4];  /* support up to 4 labels */
+		__be32		ipv4_dst;
+		__u32		ipv6_dst[4];  /* in6_addr; network order */
+	};
+
+	/* output */
+	__be16	h_vlan_proto;
+	__be16	h_vlan_TCI;
+	__u8	smac[6];     /* ETH_ALEN */
+	__u8	dmac[6];     /* ETH_ALEN */
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
