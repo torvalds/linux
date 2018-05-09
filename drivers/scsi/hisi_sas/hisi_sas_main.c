@@ -412,14 +412,22 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	if (rc)
 		goto err_out_dma_unmap;
 
+	slot = &hisi_hba->slot_info[slot_idx];
+	memset(slot, 0, sizeof(struct hisi_sas_slot));
+
+	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
+				   GFP_ATOMIC, &slot->buf_dma);
+	if (!slot->buf) {
+		rc = -ENOMEM;
+		goto err_out_tag;
+	}
+
 	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (rc)
-		goto err_out_tag;
+		goto err_out_buf;
 
 	dlvry_queue = dq->id;
 	dlvry_queue_slot = dq->wr_point;
-	slot = &hisi_hba->slot_info[slot_idx];
-	memset(slot, 0, sizeof(struct hisi_sas_slot));
 
 	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
@@ -434,12 +442,6 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	task->lldd_task = slot;
 	INIT_WORK(&slot->abort_slot, hisi_sas_slot_abort);
 
-	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
-				   GFP_ATOMIC, &slot->buf_dma);
-	if (!slot->buf) {
-		rc = -ENOMEM;
-		goto err_out_slot_buf;
-	}
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
 	memset(hisi_sas_cmd_hdr_addr_mem(slot), 0, HISI_SAS_COMMAND_TABLE_SZ);
 	memset(hisi_sas_status_buf_addr_mem(slot), 0, HISI_SAS_STATUS_BUF_SZ);
@@ -474,8 +476,9 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 
 	return 0;
 
-err_out_slot_buf:
-	/* Nothing to be done */
+err_out_buf:
+	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
+		      slot->buf_dma);
 err_out_tag:
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
@@ -1519,16 +1522,25 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	}
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
+	slot = &hisi_hba->slot_info[slot_idx];
+	memset(slot, 0, sizeof(struct hisi_sas_slot));
+
+	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
+			GFP_ATOMIC, &slot->buf_dma);
+	if (!slot->buf) {
+		rc = -ENOMEM;
+		goto err_out_tag;
+	}
 	spin_lock_irqsave(&dq->lock, flags_dq);
 	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
-	if (rc)
-		goto err_out_tag;
+	if (rc) {
+		rc = -ENOMEM;
+		spin_unlock_irqrestore(&dq->lock, flags_dq);
+		goto err_out_buf;
+	}
 
 	dlvry_queue = dq->id;
 	dlvry_queue_slot = dq->wr_point;
-
-	slot = &hisi_hba->slot_info[slot_idx];
-	memset(slot, 0, sizeof(struct hisi_sas_slot));
 
 	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
@@ -1540,13 +1552,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	slot->port = port;
 	slot->is_internal = true;
 	task->lldd_task = slot;
-
-	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
-			GFP_ATOMIC, &slot->buf_dma);
-	if (!slot->buf) {
-		rc = -ENOMEM;
-		goto err_out_tag;
-	}
 
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
 	memset(hisi_sas_cmd_hdr_addr_mem(slot), 0, HISI_SAS_COMMAND_TABLE_SZ);
@@ -1570,11 +1575,13 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 
 	return 0;
 
+err_out_buf:
+	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
+		      slot->buf_dma);
 err_out_tag:
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
-	spin_unlock_irqrestore(&dq->lock, flags_dq);
 err_out:
 	dev_err(dev, "internal abort task prep: failed[%d]!\n", rc);
 
