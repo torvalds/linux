@@ -29,16 +29,12 @@
 
 #include "common.h"
 
-#define MSG_ID_SHIFT		0
-#define MSG_ID_MASK		0xff
-#define MSG_TYPE_SHIFT		8
-#define MSG_TYPE_MASK		0x3
-#define MSG_PROTOCOL_ID_SHIFT	10
-#define MSG_PROTOCOL_ID_MASK	0xff
-#define MSG_TOKEN_ID_SHIFT	18
-#define MSG_TOKEN_ID_MASK	0x3ff
-#define MSG_XTRACT_TOKEN(header)	\
-	(((header) >> MSG_TOKEN_ID_SHIFT) & MSG_TOKEN_ID_MASK)
+#define MSG_ID_MASK		GENMASK(7, 0)
+#define MSG_TYPE_MASK		GENMASK(9, 8)
+#define MSG_PROTOCOL_ID_MASK	GENMASK(17, 10)
+#define MSG_TOKEN_ID_MASK	GENMASK(27, 18)
+#define MSG_XTRACT_TOKEN(hdr)	FIELD_GET(MSG_TOKEN_ID_MASK, (hdr))
+#define MSG_TOKEN_MAX		(MSG_XTRACT_TOKEN(MSG_TOKEN_ID_MASK) + 1)
 
 enum scmi_error_codes {
 	SCMI_SUCCESS = 0,	/* Success */
@@ -255,9 +251,9 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
  */
 static inline u32 pack_scmi_header(struct scmi_msg_hdr *hdr)
 {
-	return ((hdr->id & MSG_ID_MASK) << MSG_ID_SHIFT) |
-	   ((hdr->seq & MSG_TOKEN_ID_MASK) << MSG_TOKEN_ID_SHIFT) |
-	   ((hdr->protocol_id & MSG_PROTOCOL_ID_MASK) << MSG_PROTOCOL_ID_SHIFT);
+	return FIELD_PREP(MSG_ID_MASK, hdr->id) |
+		FIELD_PREP(MSG_TOKEN_ID_MASK, hdr->seq) |
+		FIELD_PREP(MSG_PROTOCOL_ID_MASK, hdr->protocol_id);
 }
 
 /**
@@ -621,9 +617,9 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	struct scmi_xfers_info *info = &sinfo->minfo;
 
 	/* Pre-allocated messages, no more than what hdr.seq can support */
-	if (WARN_ON(desc->max_msg >= (MSG_TOKEN_ID_MASK + 1))) {
-		dev_err(dev, "Maximum message of %d exceeds supported %d\n",
-			desc->max_msg, MSG_TOKEN_ID_MASK + 1);
+	if (WARN_ON(desc->max_msg >= MSG_TOKEN_MAX)) {
+		dev_err(dev, "Maximum message of %d exceeds supported %ld\n",
+			desc->max_msg, MSG_TOKEN_MAX);
 		return -EINVAL;
 	}
 
@@ -840,7 +836,8 @@ static int scmi_probe(struct platform_device *pdev)
 		if (of_property_read_u32(child, "reg", &prot_id))
 			continue;
 
-		prot_id &= MSG_PROTOCOL_ID_MASK;
+		if (!FIELD_FIT(MSG_PROTOCOL_ID_MASK, prot_id))
+			dev_err(dev, "Out of range protocol %d\n", prot_id);
 
 		if (!scmi_is_protocol_implemented(handle, prot_id)) {
 			dev_err(dev, "SCMI protocol %d not implemented\n",

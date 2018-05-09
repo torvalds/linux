@@ -7,6 +7,7 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -14,10 +15,10 @@
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
 
-#define PROTOCOL_REV_MINOR_BITS	16
-#define PROTOCOL_REV_MINOR_MASK	((1U << PROTOCOL_REV_MINOR_BITS) - 1)
-#define PROTOCOL_REV_MAJOR(x)	((x) >> PROTOCOL_REV_MINOR_BITS)
-#define PROTOCOL_REV_MINOR(x)	((x) & PROTOCOL_REV_MINOR_MASK)
+#define PROTOCOL_REV_MINOR_MASK	GENMASK(15, 0)
+#define PROTOCOL_REV_MAJOR_MASK	GENMASK(31, 16)
+#define PROTOCOL_REV_MAJOR(x)	(u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x)))
+#define PROTOCOL_REV_MINOR(x)	(u16)(FIELD_GET(PROTOCOL_REV_MINOR_MASK, (x)))
 #define MAX_PROTOCOLS_IMP	16
 #define MAX_OPPS		16
 
