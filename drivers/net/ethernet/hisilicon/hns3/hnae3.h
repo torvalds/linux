@@ -273,10 +273,6 @@ struct hnae3_ae_dev {
  *   Map rings to vector
  * unmap_ring_from_vector()
  *   Unmap rings from vector
- * add_tunnel_udp()
- *   Add tunnel information to hardware
- * del_tunnel_udp()
- *   Delete tunnel information from hardware
  * reset_queue()
  *   Reset queue
  * get_fw_version()
@@ -387,9 +383,6 @@ struct hnae3_ae_ops {
 	int (*unmap_ring_from_vector)(struct hnae3_handle *handle,
 				      int vector_num,
 				      struct hnae3_ring_chain_node *vr_chain);
-
-	int (*add_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
-	int (*del_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
 
 	void (*reset_queue)(struct hnae3_handle *handle, u16 queue_id);
 	u32 (*get_fw_version)(struct hnae3_handle *handle);

@@ -1244,93 +1244,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->tx_compressed = netdev->stats.tx_compressed;
 }
 
-static void hns3_add_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (udp_tnl->used && udp_tnl->dst_port == port) {
-		udp_tnl->used++;
-		return;
-	}
-
-	if (udp_tnl->used) {
-		netdev_warn(netdev,
-			    "UDP tunnel [%d], port [%d] offload\n", type, port);
-		return;
-	}
-
-	udp_tnl->dst_port = port;
-	udp_tnl->used = 1;
-	/* TBD send command to hardware to add port */
-	if (h->ae_algo->ops->add_tunnel_udp)
-		h->ae_algo->ops->add_tunnel_udp(h, port);
-}
-
-static void hns3_del_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (!udp_tnl->used || udp_tnl->dst_port != port) {
-		netdev_warn(netdev,
-			    "Invalid UDP tunnel port %d\n", port);
-		return;
-	}
-
-	udp_tnl->used--;
-	if (udp_tnl->used)
-		return;
-
-	udp_tnl->dst_port = 0;
-	/* TBD send command to hardware to del port  */
-	if (h->ae_algo->ops->del_tunnel_udp)
-		h->ae_algo->ops->del_tunnel_udp(h, port);
-}
-
-/* hns3_nic_udp_tunnel_add - Get notifiacetion about UDP tunnel ports
- * @netdev: This physical ports's netdev
- * @ti: Tunnel information
- */
-static void hns3_nic_udp_tunnel_add(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		netdev_err(netdev, "unsupported tunnel type %d\n", ti->type);
-		break;
-	}
-}
-
-static void hns3_nic_udp_tunnel_del(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		break;
-	}
-}
-
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
@@ -1569,8 +1482,6 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_get_stats64	= hns3_nic_get_stats64,
 	.ndo_setup_tc		= hns3_nic_setup_tc,
 	.ndo_set_rx_mode	= hns3_nic_set_rx_mode,
-	.ndo_udp_tunnel_add	= hns3_nic_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= hns3_nic_udp_tunnel_del,
 	.ndo_vlan_rx_add_vid	= hns3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= hns3_vlan_rx_kill_vid,
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
