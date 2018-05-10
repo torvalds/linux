@@ -114,14 +114,6 @@ config SPI_BCM2835AUX
 	  "universal SPI master", and the regular SPI controller.
 	  This driver is for the universal/auxiliary SPI controller.
 
-config SPI_BCM53XX
-	tristate "Broadcom BCM53xx SPI controller"
-	depends on ARCH_BCM_5301X
-	depends on BCMA_POSSIBLE
-	select BCMA
-	help
-          Enable support for the SPI controller on Broadcom BCM53xx ARM SoCs.
-
 config SPI_BCM63XX
 	tristate "Broadcom BCM63xx SPI controller"
 	depends on BCM63XX || COMPILE_TEST
