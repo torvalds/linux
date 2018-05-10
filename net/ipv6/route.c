@@ -1078,6 +1078,8 @@ restart:
 			goto restart;
 	}
 
+	trace_fib6_table_lookup(net, f6i, table, fl6);
+
 	/* Search through exception table */
 	rt = rt6_find_cached_rt(f6i, &fl6->daddr, &fl6->saddr);
 	if (rt) {
@@ -1095,8 +1097,6 @@ restart:
 	}
 
 	rcu_read_unlock();
-
-	trace_fib6_table_lookup(net, rt, table, fl6);
 
 	return rt;
 }
@@ -1827,6 +1827,8 @@ redo_rt6_select:
 		}
 	}
 
+	trace_fib6_table_lookup(net, f6i, table, fl6);
+
 	return f6i;
 }
 
@@ -1853,7 +1855,6 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		rt = net->ipv6.ip6_null_entry;
 		rcu_read_unlock();
 		dst_hold(&rt->dst);
-		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	}
 
@@ -1864,7 +1865,6 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 			dst_use_noref(&rt->dst, jiffies);
 
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	} else if (unlikely((fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH) &&
 			    !(f6i->fib6_flags & RTF_GATEWAY))) {
@@ -1890,9 +1890,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 			dst_hold(&uncached_rt->dst);
 		}
 
-		trace_fib6_table_lookup(net, uncached_rt, table, fl6);
 		return uncached_rt;
-
 	} else {
 		/* Get a percpu copy */
 
@@ -1906,7 +1904,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 
 		local_bh_enable();
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, pcpu_rt, table, fl6);
+
 		return pcpu_rt;
 	}
 }
@@ -2491,7 +2489,7 @@ out:
 
 	rcu_read_unlock();
 
-	trace_fib6_table_lookup(net, ret, table, fl6);
+	trace_fib6_table_lookup(net, rt, table, fl6);
 	return ret;
 };
 
