@@ -360,7 +360,7 @@ static void phylink_get_fixed_state(struct phylink *pl, struct phylink_link_stat
 	if (pl->get_fixed_state)
 		pl->get_fixed_state(pl->netdev, state);
 	else if (pl->link_gpio)
-		state->link = !!gpiod_get_value(pl->link_gpio);
+		state->link = !!gpiod_get_value_cansleep(pl->link_gpio);
 }
 
 /* Flow control is resolved according to our and the link partners
