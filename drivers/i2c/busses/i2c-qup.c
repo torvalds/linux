@@ -155,6 +155,10 @@
 /* TAG length for DATA READ in RX FIFO  */
 #define READ_RX_TAGS_LEN		2
 
+static unsigned int scl_freq;
+module_param_named(scl_freq, scl_freq, uint, 0444);
+MODULE_PARM_DESC(scl_freq, "SCL frequency override");
+
 /*
  * count: no of blocks
  * pos: current block number
@@ -1682,10 +1686,15 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	init_completion(&qup->xfer);
 	platform_set_drvdata(pdev, qup);
 
-	ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
-	if (ret) {
-		dev_notice(qup->dev, "using default clock-frequency %d",
-			DEFAULT_CLK_FREQ);
+	if (scl_freq) {
+		dev_notice(qup->dev, "Using override frequency of %u\n", scl_freq);
+		clk_freq = scl_freq;
+	} else {
+		ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
+		if (ret) {
+			dev_notice(qup->dev, "using default clock-frequency %d",
+				DEFAULT_CLK_FREQ);
+		}
 	}
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,i2c-qup-v1.1.1")) {
