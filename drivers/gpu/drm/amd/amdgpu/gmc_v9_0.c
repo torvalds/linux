@@ -675,6 +675,7 @@ static int gmc_v9_0_late_init(void *handle)
 			DRM_INFO("ECC is active.\n");
 		} else if (r == 0) {
 			DRM_INFO("ECC is not present.\n");
+			adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
 		} else {
 			DRM_ERROR("gmc_v9_0_ecc_available() failed. r: %d\n", r);
 			return r;
