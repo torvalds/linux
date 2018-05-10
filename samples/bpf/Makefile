@@ -165,6 +165,14 @@ HOSTCFLAGS += -I$(srctree)/tools/lib/ -I$(srctree)/tools/include
 HOSTCFLAGS += -I$(srctree)/tools/perf
 
 HOSTCFLAGS_bpf_load.o += -I$(objtree)/usr/include -Wno-unused-variable
+HOSTCFLAGS_trace_helpers.o += -I$(srctree)/tools/lib/bpf/
+
+HOSTCFLAGS_trace_output_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_offwaketime_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_spintest_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_trace_event_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_sampleip_user.o += -I$(srctree)/tools/lib/bpf/
+
 HOSTLOADLIBES_test_lru_dist += -lelf
 HOSTLOADLIBES_sock_example += -lelf
 HOSTLOADLIBES_fds_example += -lelf

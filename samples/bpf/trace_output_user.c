@@ -48,7 +48,7 @@ static int print_bpf_output(void *data, int size)
 	if (e->cookie != 0x12345678) {
 		printf("BUG pid %llx cookie %llx sized %d\n",
 		       e->pid, e->cookie, size);
-		return PERF_EVENT_ERROR;
+		return LIBBPF_PERF_EVENT_ERROR;
 	}
 
 	cnt++;
@@ -56,10 +56,10 @@ static int print_bpf_output(void *data, int size)
 	if (cnt == MAX_CNT) {
 		printf("recv %lld events per sec\n",
 		       MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
-		return PERF_EVENT_DONE;
+		return LIBBPF_PERF_EVENT_DONE;
 	}
 
-	return PERF_EVENT_CONT;
+	return LIBBPF_PERF_EVENT_CONT;
 }
 
 static void test_bpf_perf_event(void)

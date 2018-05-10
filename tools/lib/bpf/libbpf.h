@@ -267,4 +267,17 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		  struct bpf_object **pobj, int *prog_fd);
 
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+
+enum bpf_perf_event_ret {
+	LIBBPF_PERF_EVENT_DONE	= 0,
+	LIBBPF_PERF_EVENT_ERROR	= -1,
+	LIBBPF_PERF_EVENT_CONT	= -2,
+};
+
+typedef enum bpf_perf_event_ret (*bpf_perf_event_print_t)(void *event,
+							  void *priv);
+int bpf_perf_event_read_simple(void *mem, unsigned long size,
+			       unsigned long page_size,
+			       void **buf, size_t *buf_len,
+			       bpf_perf_event_print_t fn, void *priv);
 #endif

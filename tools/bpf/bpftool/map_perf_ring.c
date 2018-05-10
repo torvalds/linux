@@ -50,14 +50,15 @@ static void int_exit(int signo)
 	stop = true;
 }
 
-static void
-print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
+static enum bpf_perf_event_ret print_bpf_output(void *event, void *priv)
 {
+	struct event_ring_info *ring = priv;
+	struct perf_event_sample *e = event;
 	struct {
 		struct perf_event_header header;
 		__u64 id;
 		__u64 lost;
-	} *lost = (void *)e;
+	} *lost = event;
 
 	if (json_output) {
 		jsonw_start_object(json_wtr);
@@ -96,60 +97,23 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 			       e->header.type, e->header.size);
 		}
 	}
+
+	return LIBBPF_PERF_EVENT_CONT;
 }
 
 static void
 perf_event_read(struct event_ring_info *ring, void **buf, size_t *buf_len)
 {
-	volatile struct perf_event_mmap_page *header = ring->mem;
-	__u64 buffer_size = MMAP_PAGE_CNT * get_page_size();
-	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
-	void *base, *begin, *end;
+	enum bpf_perf_event_ret ret;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
-	if (data_head == data_tail)
-		return;
-
-	base = ((char *)header) + get_page_size();
-
-	begin = base + data_tail % buffer_size;
-	end = base + data_head % buffer_size;
-
-	while (begin != end) {
-		struct perf_event_sample *e;
-
-		e = begin;
-		if (begin + e->header.size > base + buffer_size) {
-			long len = base + buffer_size - begin;
-
-			if (*buf_len < e->header.size) {
-				free(*buf);
-				*buf = malloc(e->header.size);
-				if (!*buf) {
-					fprintf(stderr,
-						"can't allocate memory");
-					stop = true;
-					return;
-				}
-				*buf_len = e->header.size;
-			}
-
-			memcpy(*buf, begin, len);
-			memcpy(*buf + len, base, e->header.size - len);
-			e = (void *)*buf;
-			begin = base + e->header.size - len;
-		} else if (begin + e->header.size == base + buffer_size) {
-			begin = base;
-		} else {
-			begin += e->header.size;
-		}
-
-		print_bpf_output(ring, e);
+	ret = bpf_perf_event_read_simple(ring->mem,
+					 MMAP_PAGE_CNT * get_page_size(),
+					 get_page_size(), buf, buf_len,
+					 print_bpf_output, ring);
+	if (ret != LIBBPF_PERF_EVENT_CONT) {
+		fprintf(stderr, "perf read loop failed with %d\n", ret);
+		stop = true;
 	}
-
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_head;
 }
 
 static int perf_mmap_size(void)

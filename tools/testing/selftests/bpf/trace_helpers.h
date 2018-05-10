@@ -2,6 +2,8 @@
 #ifndef __TRACE_HELPER_H
 #define __TRACE_HELPER_H
 
+#include <libbpf.h>
+
 struct ksym {
 	long addr;
 	char *name;
@@ -10,14 +12,9 @@ struct ksym {
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
 
-typedef int (*perf_event_print_fn)(void *data, int size);
-
-/* return code for perf_event_print_fn */
-#define PERF_EVENT_DONE		0
-#define PERF_EVENT_ERROR	-1
-#define PERF_EVENT_CONT		-2
+typedef enum bpf_perf_event_ret (*perf_event_print_fn)(void *data, int size);
 
 int perf_event_mmap(int fd);
-/* return PERF_EVENT_DONE or PERF_EVENT_ERROR */
+/* return LIBBPF_PERF_EVENT_DONE or LIBBPF_PERF_EVENT_ERROR */
 int perf_event_poller(int fd, perf_event_print_fn output_fn);
 #endif
