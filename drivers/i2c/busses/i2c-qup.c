@@ -1648,6 +1648,14 @@ static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
 	clk_disable_unprepare(qup->pclk);
 }
 
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id qup_i2c_acpi_match[] = {
+	{ "QCOM8010"},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
+#endif
+
 static int qup_i2c_probe(struct platform_device *pdev)
 {
 	static const int blk_sizes[] = {4, 16, 32};
@@ -1682,7 +1690,10 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	} else {
 		qup->adap.algo = &qup_i2c_algo_v2;
 		is_qup_v1 = false;
-		ret = qup_i2c_req_dma(qup);
+		if (acpi_match_device(qup_i2c_acpi_match, qup->dev))
+			goto nodma;
+		else
+			ret = qup_i2c_req_dma(qup);
 
 		if (ret == -EPROBE_DEFER)
 			goto fail_dma;
@@ -1958,14 +1969,6 @@ static const struct of_device_id qup_i2c_dt_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
-
-#if IS_ENABLED(CONFIG_ACPI)
-static const struct acpi_device_id qup_i2c_acpi_match[] = {
-	{ "QCOM8010"},
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
-#endif
 
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,
