@@ -28,7 +28,8 @@ void btrfs_free_dummy_root(struct btrfs_root *root);
 struct btrfs_block_group_cache *
 btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info, unsigned long length);
 void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache);
-void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans);
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info);
 #else
 static inline int btrfs_run_sanity_tests(void)
 {

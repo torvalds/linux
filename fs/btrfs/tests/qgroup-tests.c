@@ -24,7 +24,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	u32 size = sizeof(*item) + sizeof(*iref) + sizeof(*block_info);
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	ins.objectid = bytenr;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
@@ -74,7 +74,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 	u64 refs;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -124,7 +124,7 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 	struct btrfs_path *path;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -158,7 +158,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 	u64 refs;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -213,7 +213,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	struct ulist *new_roots = NULL;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, fs_info);
 
 	test_msg("Qgroup basic add\n");
 	ret = btrfs_create_qgroup(NULL, fs_info, BTRFS_FS_TREE_OBJECTID);
@@ -314,7 +314,7 @@ static int test_multiple_refs(struct btrfs_root *root,
 	struct ulist *new_roots = NULL;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, fs_info);
 
 	test_msg("Qgroup multiple refs test\n");
 

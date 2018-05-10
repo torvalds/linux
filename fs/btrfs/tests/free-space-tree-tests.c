@@ -482,7 +482,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	cache->needs_free_space = 1;
 	cache->fs_info = root->fs_info;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, root->fs_info);
 
 	path = btrfs_alloc_path();
 	if (!path) {
