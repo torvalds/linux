@@ -93,7 +93,7 @@ menu "Firmware loader"
 config FW_LOADER
 	tristate "Firmware loading facility" if EXPERT
 	default y
-	---help---
+	help
 	  This enables the firmware loading facility in the kernel. The kernel
 	  will first look for built-in firmware, if it has any. Next, it will
 	  look for the requested firmware in a series of filesystem paths:
