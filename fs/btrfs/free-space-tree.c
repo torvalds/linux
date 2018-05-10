@@ -44,11 +44,10 @@ void set_free_space_tree_thresholds(struct btrfs_block_group_cache *cache)
 }
 
 static int add_new_free_space_info(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_block_group_cache *block_group,
 				   struct btrfs_path *path)
 {
-	struct btrfs_root *root = fs_info->free_space_root;
+	struct btrfs_root *root = trans->fs_info->free_space_root;
 	struct btrfs_free_space_info *info;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
@@ -1067,7 +1066,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	}
 
-	ret = add_new_free_space_info(trans, fs_info, block_group, path2);
+	ret = add_new_free_space_info(trans, block_group, path2);
 	if (ret)
 		goto out;
 
@@ -1277,7 +1276,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 
 	block_group->needs_free_space = 0;
 
-	ret = add_new_free_space_info(trans, trans->fs_info, block_group, path);
+	ret = add_new_free_space_info(trans, block_group, path);
 	if (ret)
 		return ret;
 
