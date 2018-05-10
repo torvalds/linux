@@ -59,10 +59,12 @@
 #define QM1D1B0004_XTL_FREQ 4000
 #define QM1D1B0004_LPF_FALLBACK 30000
 
+#if 0 /* Currently unused */
 static const struct qm1d1b0004_config default_cfg = {
 	.lpf_freq = QM1D1B0004_CFG_LPF_DFLT,
 	.half_step = false,
 };
+#endif
 
 struct qm1d1b0004_state {
 	struct qm1d1b0004_config cfg;
