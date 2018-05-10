@@ -376,6 +376,11 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
+struct fib6_info *fib6_multipath_select(const struct net *net,
+					struct fib6_info *match,
+					struct flowi6 *fl6, int oif,
+					const struct sk_buff *skb, int strict);
+
 struct fib6_node *fib6_node_lookup(struct fib6_node *root,
 				   const struct in6_addr *daddr,
 				   const struct in6_addr *saddr);

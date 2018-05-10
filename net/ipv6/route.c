@@ -419,11 +419,11 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	return false;
 }
 
-static struct fib6_info *rt6_multipath_select(const struct net *net,
-					      struct fib6_info *match,
-					     struct flowi6 *fl6, int oif,
-					     const struct sk_buff *skb,
-					     int strict)
+struct fib6_info *fib6_multipath_select(const struct net *net,
+					struct fib6_info *match,
+					struct flowi6 *fl6, int oif,
+					const struct sk_buff *skb,
+					int strict)
 {
 	struct fib6_info *sibling, *next_sibling;
 
@@ -1068,8 +1068,9 @@ restart:
 		f6i = rt6_device_match(net, f6i, &fl6->saddr,
 				      fl6->flowi6_oif, flags);
 		if (f6i->fib6_nsiblings && fl6->flowi6_oif == 0)
-			f6i = rt6_multipath_select(net, f6i, fl6,
-						   fl6->flowi6_oif, skb, flags);
+			f6i = fib6_multipath_select(net, f6i, fl6,
+						    fl6->flowi6_oif, skb,
+						    flags);
 	}
 	if (f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
@@ -1824,7 +1825,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 redo_rt6_select:
 	f6i = rt6_select(net, fn, oif, strict);
 	if (f6i->fib6_nsiblings)
-		f6i = rt6_multipath_select(net, f6i, fl6, oif, skb, strict);
+		f6i = fib6_multipath_select(net, f6i, fl6, oif, skb, strict);
 	if (f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
