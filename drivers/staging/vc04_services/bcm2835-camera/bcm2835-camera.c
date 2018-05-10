@@ -23,6 +23,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-common.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include "mmal-common.h"
 #include "mmal-encodings.h"
@@ -1803,7 +1804,7 @@ static struct v4l2_format default_v4l2_format = {
 	.fmt.pix.sizeimage = 1024 * 768,
 };
 
-static int __init bm2835_mmal_init(void)
+static int __init bcm2835_mmal_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct bm2835_mmal_dev *dev;
@@ -1923,7 +1924,7 @@ cleanup_gdev:
 	return ret;
 }
 
-static void __exit bm2835_mmal_exit(void)
+static int bcm2835_mmal_remove(struct platform_device *pdev)
 {
 	int camera;
 	struct vchiq_mmal_instance *instance = gdev[0]->instance;
@@ -1933,7 +1934,16 @@ static void __exit bm2835_mmal_exit(void)
 		gdev[camera] = NULL;
 	}
 	vchiq_mmal_finalise(instance);
+
+	return 0;
 }
 
-module_init(bm2835_mmal_init);
-module_exit(bm2835_mmal_exit);
+static struct platform_driver bcm2835_camera_driver = {
+	.probe		= bcm2835_mmal_probe,
+	.remove		= bcm2835_mmal_remove,
+	.driver		= {
+		.name	= "bcm2835-camera",
+	},
+};
+
+module_platform_driver(bcm2835_camera_driver)
