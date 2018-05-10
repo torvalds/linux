@@ -168,6 +168,7 @@ static VCHIQ_STATE_T g_state;
 static struct class  *vchiq_class;
 static struct device *vchiq_dev;
 static DEFINE_SPINLOCK(msg_queue_spinlock);
+static struct platform_device *bcm2835_camera;
 
 static const char *const ioctl_names[] = {
 	"CONNECT",
@@ -3638,6 +3639,10 @@ static int vchiq_probe(struct platform_device *pdev)
 		VCHIQ_VERSION, VCHIQ_VERSION_MIN,
 		MAJOR(vchiq_devid), MINOR(vchiq_devid));
 
+	bcm2835_camera = platform_device_register_data(&pdev->dev,
+						       "bcm2835-camera", -1,
+						       NULL, 0);
+
 	return 0;
 
 failed_debugfs_init:
@@ -3655,6 +3660,7 @@ failed_platform_init:
 
 static int vchiq_remove(struct platform_device *pdev)
 {
+	platform_device_unregister(bcm2835_camera);
 	vchiq_debugfs_deinit();
 	device_destroy(vchiq_class, vchiq_devid);
 	class_destroy(vchiq_class);
