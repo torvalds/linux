@@ -1658,6 +1658,23 @@ done:
 	return err;
 }
 
+static int i40e_get_stats_count(struct net_device *netdev)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+
+	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
+		if (pf->lan_veb != I40E_NO_VEB &&
+		    pf->flags & I40E_FLAG_VEB_STATS_ENABLED)
+			return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
+		else
+			return I40E_PF_STATS_LEN(netdev);
+	} else {
+		return I40E_VSI_STATS_LEN(netdev);
+	}
+}
+
 static int i40e_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
@@ -1668,16 +1685,7 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return I40E_TEST_LEN;
 	case ETH_SS_STATS:
-		if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
-			int len = I40E_PF_STATS_LEN(netdev);
-
-			if ((pf->lan_veb != I40E_NO_VEB) &&
-			    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED))
-				len += I40E_VEB_STATS_TOTAL;
-			return len;
-		} else {
-			return I40E_VSI_STATS_LEN(netdev);
-		}
+		return i40e_get_stats_count(netdev);
 	case ETH_SS_PRIV_FLAGS:
 		return I40E_PRIV_FLAGS_STR_LEN +
 			(pf->hw.pf_id == 0 ? I40E_GL_PRIV_FLAGS_STR_LEN : 0);
