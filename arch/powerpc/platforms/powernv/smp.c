@@ -334,7 +334,16 @@ static int pnv_cause_nmi_ipi(int cpu)
 	int64_t rc;
 
 	if (cpu >= 0) {
-		rc = opal_signal_system_reset(get_hard_smp_processor_id(cpu));
+		int h = get_hard_smp_processor_id(cpu);
+
+		if (opal_check_token(OPAL_QUIESCE))
+			opal_quiesce(QUIESCE_HOLD, h);
+
+		rc = opal_signal_system_reset(h);
+
+		if (opal_check_token(OPAL_QUIESCE))
+			opal_quiesce(QUIESCE_RESUME, h);
+
 		if (rc != OPAL_SUCCESS)
 			return 0;
 		return 1;
@@ -343,6 +352,8 @@ static int pnv_cause_nmi_ipi(int cpu)
 		bool success = true;
 		int c;
 
+		if (opal_check_token(OPAL_QUIESCE))
+			opal_quiesce(QUIESCE_HOLD, -1);
 
 		/*
 		 * We do not use broadcasts (yet), because it's not clear
@@ -358,6 +369,10 @@ static int pnv_cause_nmi_ipi(int cpu)
 			if (rc != OPAL_SUCCESS)
 				success = false;
 		}
+
+		if (opal_check_token(OPAL_QUIESCE))
+			opal_quiesce(QUIESCE_RESUME, -1);
+
 		if (success)
 			return 1;
 
