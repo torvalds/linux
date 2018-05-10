@@ -79,9 +79,9 @@ test_cgrp2_attach-objs := test_cgrp2_attach.o $(LIBBPF)
 test_cgrp2_attach2-objs := test_cgrp2_attach2.o $(LIBBPF) $(CGROUP_HELPERS)
 test_cgrp2_sock-objs := test_cgrp2_sock.o $(LIBBPF)
 test_cgrp2_sock2-objs := bpf_load.o $(LIBBPF) test_cgrp2_sock2.o
-xdp1-objs := bpf_load.o $(LIBBPF) xdp1_user.o
+xdp1-objs := xdp1_user.o $(LIBBPF)
 # reuse xdp1 source intentionally
-xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
+xdp2-objs := xdp1_user.o $(LIBBPF)
 xdp_router_ipv4-objs := bpf_load.o $(LIBBPF) xdp_router_ipv4_user.o
 test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
@@ -96,10 +96,10 @@ xdp_redirect-objs := bpf_load.o $(LIBBPF) xdp_redirect_user.o
 xdp_redirect_map-objs := bpf_load.o $(LIBBPF) xdp_redirect_map_user.o
 xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
-xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
+xdp_rxq_info-objs := xdp_rxq_info_user.o $(LIBBPF)
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 cpustat-objs := bpf_load.o $(LIBBPF) cpustat_user.o
-xdp_adjust_tail-objs := bpf_load.o $(LIBBPF) xdp_adjust_tail_user.o
+xdp_adjust_tail-objs := xdp_adjust_tail_user.o $(LIBBPF)
 xdpsock-objs := bpf_load.o $(LIBBPF) xdpsock_user.o
 xdp_fwd-objs := bpf_load.o $(LIBBPF) xdp_fwd_user.o
 
