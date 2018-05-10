@@ -79,10 +79,6 @@ struct vchiq_mmal_port {
 	struct list_head buffers;
 	/* lock to serialise adding and removing buffers from list */
 	spinlock_t slock;
-	/* count of how many buffer header refils have failed because
-	 * there was no buffer to satisfy them
-	 */
-	int buffer_underflow;
 	/* callback on buffer completion */
 	vchiq_mmal_buffer_cb buffer_cb;
 	/* callback context */

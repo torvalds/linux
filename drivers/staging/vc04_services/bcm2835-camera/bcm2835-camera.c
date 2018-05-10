@@ -260,8 +260,10 @@ static int queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 	}
 
-	if (*nbuffers < (dev->capture.port->current_buffer.num + 2))
-		*nbuffers = (dev->capture.port->current_buffer.num + 2);
+	if (*nbuffers < dev->capture.port->minimum_buffer.num)
+		*nbuffers = dev->capture.port->minimum_buffer.num;
+
+	dev->capture.port->current_buffer.num = *nbuffers;
 
 	*nplanes = 1;
 
