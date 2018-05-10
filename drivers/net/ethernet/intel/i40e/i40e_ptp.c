@@ -317,7 +317,7 @@ void i40e_ptp_rx_hang(struct i40e_pf *pf)
  * This watchdog task is run periodically to make sure that we clear the Tx
  * timestamp logic if we don't obtain a timestamp in a reasonable amount of
  * time. It is unexpected in the normal case but if it occurs it results in
- * permanently prevent timestamps of future packets
+ * permanently preventing timestamps of future packets.
  **/
 void i40e_ptp_tx_hang(struct i40e_pf *pf)
 {
