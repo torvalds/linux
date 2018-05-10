@@ -378,6 +378,8 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_PQ,
 	TRANSFER_FUNCTION_LINEAR,
 	TRANSFER_FUNCTION_UNITY,
+	TRANSFER_FUNCTION_HLG,
+	TRANSFER_FUNCTION_HLG12
 };
 
 struct dc_transfer_func {
