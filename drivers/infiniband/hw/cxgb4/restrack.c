@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#include <rdma/rdma_cm.h>
+
 #include "iw_cxgb4.h"
 #include <rdma/restrack.h>
 #include <uapi/rdma/rdma_netlink.h>
@@ -188,6 +190,88 @@ err:
 	return -EMSGSIZE;
 }
 
+union union_ep {
+	struct c4iw_listen_ep lep;
+	struct c4iw_ep ep;
+};
+
+static int fill_res_ep_entry(struct sk_buff *msg,
+			     struct rdma_restrack_entry *res)
+{
+	struct rdma_cm_id *cm_id = rdma_res_to_id(res);
+	struct nlattr *table_attr;
+	struct c4iw_ep_common *epcp;
+	struct c4iw_listen_ep *listen_ep = NULL;
+	struct c4iw_ep *ep = NULL;
+	struct iw_cm_id *iw_cm_id;
+	union union_ep *uep;
+
+	iw_cm_id = rdma_iw_cm_id(cm_id);
+	if (!iw_cm_id)
+		return 0;
+	epcp = (struct c4iw_ep_common *)iw_cm_id->provider_data;
+	if (!epcp)
+		return 0;
+	uep = kcalloc(1, sizeof(*uep), GFP_KERNEL);
+	if (!uep)
+		return 0;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	if (!table_attr)
+		goto err_free_uep;
+
+	/* Get a consistent snapshot */
+	mutex_lock(&epcp->mutex);
+	if (epcp->state == LISTEN) {
+		uep->lep = *(struct c4iw_listen_ep *)epcp;
+		mutex_unlock(&epcp->mutex);
+		listen_ep = &uep->lep;
+		epcp = &listen_ep->com;
+	} else {
+		uep->ep = *(struct c4iw_ep *)epcp;
+		mutex_unlock(&epcp->mutex);
+		ep = &uep->ep;
+		epcp = &ep->com;
+	}
+
+	if (rdma_nl_put_driver_u32(msg, "state", epcp->state))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u64_hex(msg, "flags", epcp->flags))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u64_hex(msg, "history", epcp->history))
+		goto err_cancel_table;
+
+	if (epcp->state == LISTEN) {
+		if (rdma_nl_put_driver_u32(msg, "stid", listen_ep->stid))
+			goto err_cancel_table;
+		if (rdma_nl_put_driver_u32(msg, "backlog", listen_ep->backlog))
+			goto err_cancel_table;
+	} else {
+		if (rdma_nl_put_driver_u32(msg, "hwtid", ep->hwtid))
+			goto err_cancel_table;
+		if (rdma_nl_put_driver_u32(msg, "ord", ep->ord))
+			goto err_cancel_table;
+		if (rdma_nl_put_driver_u32(msg, "ird", ep->ird))
+			goto err_cancel_table;
+		if (rdma_nl_put_driver_u32(msg, "emss", ep->emss))
+			goto err_cancel_table;
+
+		if (!ep->parent_ep && rdma_nl_put_driver_u32(msg, "atid",
+							     ep->atid))
+			goto err_cancel_table;
+	}
+	nla_nest_end(msg, table_attr);
+	kfree(uep);
+	return 0;
+
+err_cancel_table:
+	nla_nest_cancel(msg, table_attr);
+err_free_uep:
+	kfree(uep);
+	return -EMSGSIZE;
+}
+
 c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
 	[RDMA_RESTRACK_QP]	= fill_res_qp_entry,
+	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
 };
