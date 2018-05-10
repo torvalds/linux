@@ -12,7 +12,6 @@
 #include "transaction.h"
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
-					struct btrfs_fs_info *fs_info,
 					struct btrfs_block_group_cache *block_group,
 					struct btrfs_path *path);
 
@@ -791,8 +790,7 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (block_group->needs_free_space) {
-		ret = __add_block_group_free_space(trans, fs_info, block_group,
-						   path);
+		ret = __add_block_group_free_space(trans, block_group, path);
 		if (ret)
 			return ret;
 	}
@@ -987,8 +985,7 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (block_group->needs_free_space) {
-		ret = __add_block_group_free_space(trans, fs_info, block_group,
-						   path);
+		ret = __add_block_group_free_space(trans, block_group, path);
 		if (ret)
 			return ret;
 	}
@@ -1274,7 +1271,6 @@ abort:
 }
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
-					struct btrfs_fs_info *fs_info,
 					struct btrfs_block_group_cache *block_group,
 					struct btrfs_path *path)
 {
@@ -1282,11 +1278,12 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 
 	block_group->needs_free_space = 0;
 
-	ret = add_new_free_space_info(trans, fs_info, block_group, path);
+	ret = add_new_free_space_info(trans, trans->fs_info, block_group, path);
 	if (ret)
 		return ret;
 
-	return __add_to_free_space_tree(trans, fs_info, block_group, path,
+	return __add_to_free_space_tree(trans, trans->fs_info, block_group,
+					path,
 					block_group->key.objectid,
 					block_group->key.offset);
 }
@@ -1311,7 +1308,7 @@ int add_block_group_free_space(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = __add_block_group_free_space(trans, fs_info, block_group, path);
+	ret = __add_block_group_free_space(trans, block_group, path);
 
 out:
 	btrfs_free_path(path);
