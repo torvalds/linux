@@ -283,7 +283,7 @@ static __always_inline void __speculative_store_bypass_update(unsigned long tifn
 {
 	u64 msr;
 
-	if (static_cpu_has(X86_FEATURE_AMD_SSBD)) {
+	if (static_cpu_has(X86_FEATURE_LS_CFG_SSBD)) {
 		msr = x86_amd_ls_cfg_base | ssbd_tif_to_amd_ls_cfg(tifn);
 		wrmsrl(MSR_AMD64_LS_CFG, msr);
 	} else {
