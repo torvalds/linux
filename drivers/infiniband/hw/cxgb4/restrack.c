@@ -271,7 +271,170 @@ err_free_uep:
 	return -EMSGSIZE;
 }
 
+static int fill_cq(struct sk_buff *msg, struct t4_cq *cq)
+{
+	if (rdma_nl_put_driver_u32(msg, "cqid", cq->cqid))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "memsize", cq->memsize))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "size", cq->size))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "cidx", cq->cidx))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "cidx_inc", cq->cidx_inc))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "sw_cidx", cq->sw_cidx))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "sw_pidx", cq->sw_pidx))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "sw_in_use", cq->sw_in_use))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "vector", cq->vector))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "gen", cq->gen))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "error", cq->error))
+		goto err;
+	if (rdma_nl_put_driver_u64_hex(msg, "bits_type_ts",
+					 be64_to_cpu(cq->bits_type_ts)))
+		goto err;
+	if (rdma_nl_put_driver_u64_hex(msg, "flags", cq->flags))
+		goto err;
+
+	return 0;
+
+err:
+	return -EMSGSIZE;
+}
+
+static int fill_cqe(struct sk_buff *msg, struct t4_cqe *cqe, u16 idx,
+		    const char *qstr)
+{
+	if (rdma_nl_put_driver_u32(msg, qstr, idx))
+		goto err;
+	if (rdma_nl_put_driver_u32_hex(msg, "header",
+					 be32_to_cpu(cqe->header)))
+		goto err;
+	if (rdma_nl_put_driver_u32(msg, "len", be32_to_cpu(cqe->len)))
+		goto err;
+	if (rdma_nl_put_driver_u32_hex(msg, "wrid_hi",
+					 be32_to_cpu(cqe->u.gen.wrid_hi)))
+		goto err;
+	if (rdma_nl_put_driver_u32_hex(msg, "wrid_low",
+					 be32_to_cpu(cqe->u.gen.wrid_low)))
+		goto err;
+	if (rdma_nl_put_driver_u64_hex(msg, "bits_type_ts",
+					 be64_to_cpu(cqe->bits_type_ts)))
+		goto err;
+
+	return 0;
+
+err:
+	return -EMSGSIZE;
+}
+
+static int fill_hwcqes(struct sk_buff *msg, struct t4_cq *cq,
+		       struct t4_cqe *cqes)
+{
+	u16 idx;
+
+	idx = (cq->cidx > 0) ? cq->cidx - 1 : cq->size - 1;
+	if (fill_cqe(msg, cqes, idx, "hwcq_idx"))
+		goto err;
+	idx = cq->cidx;
+	if (fill_cqe(msg, cqes + 1, idx, "hwcq_idx"))
+		goto err;
+
+	return 0;
+err:
+	return -EMSGSIZE;
+}
+
+static int fill_swcqes(struct sk_buff *msg, struct t4_cq *cq,
+		       struct t4_cqe *cqes)
+{
+	u16 idx;
+
+	if (!cq->sw_in_use)
+		return 0;
+
+	idx = cq->sw_cidx;
+	if (fill_cqe(msg, cqes, idx, "swcq_idx"))
+		goto err;
+	if (cq->sw_in_use == 1)
+		goto out;
+	idx = (cq->sw_pidx > 0) ? cq->sw_pidx - 1 : cq->size - 1;
+	if (fill_cqe(msg, cqes + 1, idx, "swcq_idx"))
+		goto err;
+out:
+	return 0;
+err:
+	return -EMSGSIZE;
+}
+
+static int fill_res_cq_entry(struct sk_buff *msg,
+			     struct rdma_restrack_entry *res)
+{
+	struct ib_cq *ibcq = container_of(res, struct ib_cq, res);
+	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
+	struct nlattr *table_attr;
+	struct t4_cqe hwcqes[2];
+	struct t4_cqe swcqes[2];
+	struct t4_cq cq;
+	u16 idx;
+
+	/* User cq state is not available, so don't dump user cqs */
+	if (ibcq->uobject)
+		return 0;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	if (!table_attr)
+		goto err;
+
+	/* Get a consistent snapshot */
+	spin_lock_irq(&chp->lock);
+
+	/* t4_cq struct */
+	cq = chp->cq;
+
+	/* get 2 hw cqes: cidx-1, and cidx */
+	idx = (cq.cidx > 0) ? cq.cidx - 1 : cq.size - 1;
+	hwcqes[0] = chp->cq.queue[idx];
+
+	idx = cq.cidx;
+	hwcqes[1] = chp->cq.queue[idx];
+
+	/* get first and last sw cqes */
+	if (cq.sw_in_use) {
+		swcqes[0] = chp->cq.sw_queue[cq.sw_cidx];
+		if (cq.sw_in_use > 1) {
+			idx = (cq.sw_pidx > 0) ? cq.sw_pidx - 1 : cq.size - 1;
+			swcqes[1] = chp->cq.sw_queue[idx];
+		}
+	}
+
+	spin_unlock_irq(&chp->lock);
+
+	if (fill_cq(msg, &cq))
+		goto err_cancel_table;
+
+	if (fill_swcqes(msg, &cq, swcqes))
+		goto err_cancel_table;
+
+	if (fill_hwcqes(msg, &cq, hwcqes))
+		goto err_cancel_table;
+
+	nla_nest_end(msg, table_attr);
+	return 0;
+
+err_cancel_table:
+	nla_nest_cancel(msg, table_attr);
+err:
+	return -EMSGSIZE;
+}
+
 c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
 	[RDMA_RESTRACK_QP]	= fill_res_qp_entry,
 	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
+	[RDMA_RESTRACK_CQ]	= fill_res_cq_entry,
 };
