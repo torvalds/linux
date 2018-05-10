@@ -32,8 +32,6 @@
 
 #include "ima.h"
 
-int ima_initialized;
-
 #ifdef CONFIG_IMA_APPRAISE
 int ima_appraise = IMA_APPRAISE_ENFORCE;
 #else
@@ -517,10 +515,9 @@ static int __init init_ima(void)
 		error = ima_init();
 	}
 
-	if (!error) {
-		ima_initialized = 1;
+	if (!error)
 		ima_update_policy_flag();
-	}
+
 	return error;
 }
 
