@@ -401,6 +401,12 @@ struct mv88e6xxx_ops {
 			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+#define MV88E6XXX_CASCADE_PORT_NONE		0xe
+#define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
+
+	int (*set_cascade_port)(struct mv88e6xxx_chip *chip, int port);
+
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
@@ -426,6 +432,9 @@ struct mv88e6xxx_ops {
 
 	/* Interface to the AVB/PTP registers */
 	const struct mv88e6xxx_avb_ops *avb_ops;
+
+	/* Remote Management Unit operations */
+	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
 };
 
 struct mv88e6xxx_irq_ops {
