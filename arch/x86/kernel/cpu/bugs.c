@@ -598,7 +598,7 @@ static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 	 * mitigation until it is next scheduled.
 	 */
 	if (task == current && update)
-		speculative_store_bypass_update();
+		speculative_store_bypass_update_current();
 
 	return 0;
 }
