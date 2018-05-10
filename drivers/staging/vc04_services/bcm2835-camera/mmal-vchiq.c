@@ -162,9 +162,6 @@ struct vchiq_mmal_instance {
 	/* ensure serialised access to service */
 	struct mutex vchiq_mutex;
 
-	/* ensure serialised access to bulk operations */
-	struct mutex bulk_mutex;
-
 	/* vmalloc page to receive scratch bulk xfers into */
 	void *bulk_scratch;
 
@@ -332,13 +329,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 	unsigned long flags = 0;
 	int ret;
 
-	/* bulk mutex stops other bulk operations while we have a
-	 * receive in progress - released in callback
-	 */
-	ret = mutex_lock_interruptible(&instance->bulk_mutex);
-	if (ret != 0)
-		return ret;
-
 	rd_len = msg->u.buffer_from_host.buffer_header.length;
 
 	/* take buffer from queue */
@@ -356,8 +346,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 		 * it arrives? perhaps a starved flag to indicate a
 		 * waiting bulk receive?
 		 */
-
-		mutex_unlock(&instance->bulk_mutex);
 
 		return -EINVAL;
 	}
@@ -399,11 +387,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 
 	vchi_service_release(instance->handle);
 
-	if (ret != 0) {
-		/* callback will not be clearing the mutex */
-		mutex_unlock(&instance->bulk_mutex);
-	}
-
 	return ret;
 }
 
@@ -412,13 +395,6 @@ static int dummy_bulk_receive(struct vchiq_mmal_instance *instance,
 			      struct mmal_msg_context *msg_context)
 {
 	int ret;
-
-	/* bulk mutex stops other bulk operations while we have a
-	 * receive in progress - released in callback
-	 */
-	ret = mutex_lock_interruptible(&instance->bulk_mutex);
-	if (ret != 0)
-		return ret;
 
 	/* zero length indicates this was a dummy transfer */
 	msg_context->u.bulk.buffer_used = 0;
@@ -434,11 +410,6 @@ static int dummy_bulk_receive(struct vchiq_mmal_instance *instance,
 				      msg_context);
 
 	vchi_service_release(instance->handle);
-
-	if (ret != 0) {
-		/* callback will not be clearing the mutex */
-		mutex_unlock(&instance->bulk_mutex);
-	}
 
 	return ret;
 }
@@ -494,18 +465,11 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	pr_debug("instance:%p buffer:%p\n", instance->handle, buf);
 
-	/* bulk mutex stops other bulk operations while we
-	 * have a receive in progress
-	 */
-	if (mutex_lock_interruptible(&instance->bulk_mutex))
-		return -EINTR;
-
 	/* get context */
 	if (!buf->msg_context) {
 		pr_err("%s: msg_context not allocated, buf %p\n", __func__,
 		       buf);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 	msg_context = buf->msg_context;
 
@@ -558,9 +522,6 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 					sizeof(m.u.buffer_from_host));
 
 	vchi_service_release(instance->handle);
-
-unlock:
-	mutex_unlock(&instance->bulk_mutex);
 
 	return ret;
 }
@@ -685,9 +646,6 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 static void bulk_receive_cb(struct vchiq_mmal_instance *instance,
 			    struct mmal_msg_context *msg_context)
 {
-	/* bulk receive operation complete */
-	mutex_unlock(&msg_context->u.bulk.instance->bulk_mutex);
-
 	/* replace the buffer header */
 	port_buffer_from_host(msg_context->u.bulk.instance,
 			      msg_context->u.bulk.port);
@@ -702,9 +660,6 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 			  struct mmal_msg_context *msg_context)
 {
 	pr_err("%s: bulk ABORTED msg_context:%p\n", __func__, msg_context);
-
-	/* bulk receive operation complete */
-	mutex_unlock(&msg_context->u.bulk.instance->bulk_mutex);
 
 	/* replace the buffer header */
 	port_buffer_from_host(msg_context->u.bulk.instance,
@@ -2042,7 +1997,6 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -ENOMEM;
 
 	mutex_init(&instance->vchiq_mutex);
-	mutex_init(&instance->bulk_mutex);
 
 	instance->bulk_scratch = vmalloc(PAGE_SIZE);
 
