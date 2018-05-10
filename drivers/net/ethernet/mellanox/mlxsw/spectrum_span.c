@@ -176,21 +176,23 @@ mlxsw_sp_span_entry_bridge_8021q(const struct net_device *br_dev,
 {
 	struct bridge_vlan_info vinfo;
 	struct net_device *edev;
-	u16 pvid;
+	u16 vid = *p_vid;
 
-	if (WARN_ON(br_vlan_get_pvid(br_dev, &pvid)))
+	if (!vid && WARN_ON(br_vlan_get_pvid(br_dev, &vid)))
 		return NULL;
-	if (!pvid)
+	if (!vid ||
+	    br_vlan_get_info(br_dev, vid, &vinfo) ||
+	    !(vinfo.flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return NULL;
 
-	edev = br_fdb_find_port(br_dev, dmac, pvid);
+	edev = br_fdb_find_port(br_dev, dmac, vid);
 	if (!edev)
 		return NULL;
 
-	if (br_vlan_get_info(edev, pvid, &vinfo))
+	if (br_vlan_get_info(edev, vid, &vinfo))
 		return NULL;
 	if (!(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
-		*p_vid = pvid;
+		*p_vid = vid;
 	return edev;
 }
 
@@ -208,13 +210,13 @@ mlxsw_sp_span_entry_bridge(const struct net_device *br_dev,
 {
 	struct mlxsw_sp_bridge_port *bridge_port;
 	enum mlxsw_reg_spms_state spms_state;
+	struct net_device *dev = NULL;
 	struct mlxsw_sp_port *port;
-	struct net_device *dev;
 	u8 stp_state;
 
 	if (br_vlan_enabled(br_dev))
 		dev = mlxsw_sp_span_entry_bridge_8021q(br_dev, dmac, p_vid);
-	else
+	else if (!*p_vid)
 		dev = mlxsw_sp_span_entry_bridge_8021d(br_dev, dmac);
 	if (!dev)
 		return NULL;
@@ -235,6 +237,14 @@ mlxsw_sp_span_entry_bridge(const struct net_device *br_dev,
 	return dev;
 }
 
+static struct net_device *
+mlxsw_sp_span_entry_vlan(const struct net_device *vlan_dev,
+			 u16 *p_vid)
+{
+	*p_vid = vlan_dev_vlan_id(vlan_dev);
+	return vlan_dev_real_dev(vlan_dev);
+}
+
 static __maybe_unused int
 mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 					union mlxsw_sp_l3addr saddr,
@@ -253,10 +263,19 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	if (!l3edev || mlxsw_sp_span_dmac(tbl, &gw, l3edev, dmac))
 		goto unoffloadable;
 
+	if (is_vlan_dev(l3edev))
+		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
+
 	if (netif_is_bridge_master(l3edev)) {
 		l3edev = mlxsw_sp_span_entry_bridge(l3edev, dmac, &vid);
 		if (!l3edev)
 			goto unoffloadable;
+	}
+
+	if (is_vlan_dev(l3edev)) {
+		if (vid || !(l3edev->flags & IFF_UP))
+			goto unoffloadable;
+		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
 	}
 
 	if (!mlxsw_sp_port_dev_check(l3edev))
@@ -477,6 +496,61 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
 };
 #endif
 
+static bool
+mlxsw_sp_span_vlan_can_handle(const struct net_device *dev)
+{
+	return is_vlan_dev(dev) &&
+	       mlxsw_sp_port_dev_check(vlan_dev_real_dev(dev));
+}
+
+static int
+mlxsw_sp_span_entry_vlan_parms(const struct net_device *to_dev,
+			       struct mlxsw_sp_span_parms *sparmsp)
+{
+	struct net_device *real_dev;
+	u16 vid;
+
+	if (!(to_dev->flags & IFF_UP))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	real_dev = mlxsw_sp_span_entry_vlan(to_dev, &vid);
+	sparmsp->dest_port = netdev_priv(real_dev);
+	sparmsp->vid = vid;
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_vlan_configure(struct mlxsw_sp_span_entry *span_entry,
+				   struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH);
+	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_vlan_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH);
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_vlan = {
+	.can_handle = mlxsw_sp_span_vlan_can_handle,
+	.parms = mlxsw_sp_span_entry_vlan_parms,
+	.configure = mlxsw_sp_span_entry_vlan_configure,
+	.deconfigure = mlxsw_sp_span_entry_vlan_deconfigure,
+};
+
 static const
 struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 	&mlxsw_sp_span_entry_ops_phys,
@@ -486,6 +560,7 @@ struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 #if IS_ENABLED(CONFIG_IPV6_GRE)
 	&mlxsw_sp_span_entry_ops_gretap6,
 #endif
+	&mlxsw_sp_span_entry_ops_vlan,
 };
 
 static int

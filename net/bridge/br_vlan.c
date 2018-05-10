@@ -1176,6 +1176,8 @@ int br_vlan_get_info(const struct net_device *dev, u16 vid,
 	p = br_port_get_check_rtnl(dev);
 	if (p)
 		vg = nbp_vlan_group(p);
+	else if (netif_is_bridge_master(dev))
+		vg = br_vlan_group(netdev_priv(dev));
 	else
 		return -EINVAL;
 
