@@ -37,7 +37,6 @@ search_free_space_info(struct btrfs_trans_handle *trans,
 		       struct btrfs_block_group_cache *block_group,
 		       struct btrfs_path *path, int cow);
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_path *path, u64 start, u64 size);
 int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,

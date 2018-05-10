@@ -976,10 +976,10 @@ out:
 }
 
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_path *path, u64 start, u64 size)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_free_space_info *info;
 	u32 flags;
 	int ret;
@@ -1030,8 +1030,7 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	}
 
 	mutex_lock(&block_group->free_space_lock);
-	ret = __add_to_free_space_tree(trans, fs_info, block_group, path, start,
-				       size);
+	ret = __add_to_free_space_tree(trans, block_group, path, start, size);
 	mutex_unlock(&block_group->free_space_lock);
 
 	btrfs_put_block_group(block_group);
@@ -1101,7 +1100,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 				break;
 
 			if (start < key.objectid) {
-				ret = __add_to_free_space_tree(trans, fs_info,
+				ret = __add_to_free_space_tree(trans,
 							       block_group,
 							       path2, start,
 							       key.objectid -
@@ -1126,8 +1125,8 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 			break;
 	}
 	if (start < end) {
-		ret = __add_to_free_space_tree(trans, fs_info, block_group,
-					       path2, start, end - start);
+		ret = __add_to_free_space_tree(trans, block_group, path2,
+					       start, end - start);
 		if (ret)
 			goto out_locked;
 	}
@@ -1282,8 +1281,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	return __add_to_free_space_tree(trans, trans->fs_info, block_group,
-					path,
+	return __add_to_free_space_tree(trans, block_group, path,
 					block_group->key.objectid,
 					block_group->key.offset);
 }
