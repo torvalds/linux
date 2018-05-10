@@ -1401,6 +1401,8 @@ struct amdgpu_df_funcs {
 						 bool enable);
 	void (*get_clockgating_state)(struct amdgpu_device *adev,
 				      u32 *flags);
+	void (*enable_ecc_force_par_wr_rmw)(struct amdgpu_device *adev,
+					    bool enable);
 };
 /* Define the HW IP blocks will be used in driver , add more if necessary */
 enum amd_hw_ip_block_type {
