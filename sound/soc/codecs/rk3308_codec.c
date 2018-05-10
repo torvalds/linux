@@ -68,6 +68,11 @@ enum {
 	DAC_LINEOUT_HPOUT = 11,
 };
 
+enum {
+	PATH_IDLE = 0,
+	PATH_BUSY,
+};
+
 struct rk3308_codec_priv {
 	const struct device *plat_dev;
 	struct device dev;
@@ -92,6 +97,7 @@ struct rk3308_codec_priv {
 	int adc_zerocross;
 	/* 0: line out, 1: hp out, 11: lineout and hpout */
 	int dac_output;
+	int dac_path_state;
 
 	bool hp_plugged;
 	struct delayed_work hpdet_work;
@@ -424,6 +430,22 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_DAC_R_HPMIX_GAIN_MAX,
 			     0, rk3308_codec_dac_hpmix_gain_tlv),
 };
+
+/*
+ * Maybe there are rk3308_codec_get_adc_path_state() and
+ * rk3308_codec_set_adc_path_state() in future.
+ */
+
+static int rk3308_codec_get_dac_path_state(struct rk3308_codec_priv *rk3308)
+{
+	return rk3308->dac_path_state;
+}
+
+static void rk3308_codec_set_dac_path_state(struct rk3308_codec_priv *rk3308,
+					   int state)
+{
+	rk3308->dac_path_state = state;
+}
 
 static void rk3308_headphone_ctl(struct rk3308_codec_priv *rk3308, int on)
 {
@@ -770,6 +792,180 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	}
 
 	return 0;
+}
+
+static int rk3308_codec_dac_lineout_enable(struct rk3308_codec_priv *rk3308)
+{
+	/* Step 06 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+			   RK3308_DAC_L_LINEOUT_EN |
+			   RK3308_DAC_R_LINEOUT_EN,
+			   RK3308_DAC_L_LINEOUT_EN |
+			   RK3308_DAC_R_LINEOUT_EN);
+
+	udelay(20);
+
+	/* Step 17 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+			   RK3308_DAC_L_LINEOUT_UNMUTE |
+			   RK3308_DAC_R_LINEOUT_UNMUTE,
+			   RK3308_DAC_L_LINEOUT_UNMUTE |
+			   RK3308_DAC_R_LINEOUT_UNMUTE);
+	udelay(20);
+
+	return 0;
+}
+
+static int rk3308_codec_dac_lineout_disable(struct rk3308_codec_priv *rk3308)
+{
+	/* Step 06 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+			   RK3308_DAC_L_LINEOUT_EN |
+			   RK3308_DAC_R_LINEOUT_EN,
+			   RK3308_DAC_L_LINEOUT_DIS |
+			   RK3308_DAC_R_LINEOUT_DIS);
+
+	/* Step 17 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+			   RK3308_DAC_L_LINEOUT_UNMUTE |
+			   RK3308_DAC_R_LINEOUT_UNMUTE,
+			   RK3308_DAC_L_LINEOUT_MUTE |
+			   RK3308_DAC_R_LINEOUT_MUTE);
+
+	return 0;
+}
+
+static int rk3308_codec_dac_hpout_enable(struct rk3308_codec_priv *rk3308)
+{
+	/* Step 03 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+			   RK3308_DAC_POP_SOUND_L_MSK |
+			   RK3308_DAC_POP_SOUND_R_MSK,
+			   RK3308_DAC_POP_SOUND_L_WORK |
+			   RK3308_DAC_POP_SOUND_R_WORK);
+
+	udelay(20);
+
+	/* Step 07 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_EN |
+			   RK3308_DAC_R_HPOUT_EN,
+			   RK3308_DAC_L_HPOUT_EN |
+			   RK3308_DAC_R_HPOUT_EN);
+
+	udelay(20);
+
+	/* Step 08 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_WORK |
+			   RK3308_DAC_R_HPOUT_WORK,
+			   RK3308_DAC_L_HPOUT_WORK |
+			   RK3308_DAC_R_HPOUT_WORK);
+
+	udelay(20);
+
+	/* Step 16 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_UNMUTE |
+			   RK3308_DAC_R_HPOUT_UNMUTE,
+			   RK3308_DAC_L_HPOUT_UNMUTE |
+			   RK3308_DAC_R_HPOUT_UNMUTE);
+
+	udelay(20);
+
+	return 0;
+}
+
+static int rk3308_codec_dac_hpout_disable(struct rk3308_codec_priv *rk3308)
+{
+	/* Step 03 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+			   RK3308_DAC_POP_SOUND_L_MSK |
+			   RK3308_DAC_POP_SOUND_R_MSK,
+			   RK3308_DAC_POP_SOUND_L_INIT |
+			   RK3308_DAC_POP_SOUND_R_INIT);
+
+	/* Step 07 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_EN |
+			   RK3308_DAC_R_HPOUT_EN,
+			   RK3308_DAC_L_HPOUT_DIS |
+			   RK3308_DAC_R_HPOUT_DIS);
+
+	/* Step 08 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_WORK |
+			   RK3308_DAC_R_HPOUT_WORK,
+			   RK3308_DAC_L_HPOUT_INIT |
+			   RK3308_DAC_R_HPOUT_INIT);
+
+	/* Step 16 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
+			   RK3308_DAC_L_HPOUT_UNMUTE |
+			   RK3308_DAC_R_HPOUT_UNMUTE,
+			   RK3308_DAC_L_HPOUT_MUTE |
+			   RK3308_DAC_R_HPOUT_MUTE);
+
+	return 0;
+}
+
+static int rk3308_codec_dac_switch(struct rk3308_codec_priv *rk3308,
+				   int dac_output)
+{	int ret = 0;
+
+	if (rk3308->dac_output == dac_output) {
+		dev_info(rk3308->plat_dev,
+			 "Don't need to change dac_output: %d\n", dac_output);
+		goto out;
+	}
+
+	switch (dac_output) {
+	case DAC_LINEOUT:
+	case DAC_HPOUT:
+	case DAC_LINEOUT_HPOUT:
+		break;
+	default:
+		dev_err(rk3308->plat_dev, "Unknown value: %d\n", dac_output);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (rk3308_codec_get_dac_path_state(rk3308) == PATH_BUSY) {
+		/*
+		 * We can only switch the audio path to LINEOUT or HPOUT on
+		 * codec during playbacking, otherwise, just update the
+		 * dac_output flag.
+		 */
+		switch (dac_output) {
+		case DAC_LINEOUT:
+			rk3308_headphone_ctl(rk3308, 0);
+			rk3308_speaker_ctl(rk3308, 1);
+			rk3308_codec_dac_hpout_disable(rk3308);
+			rk3308_codec_dac_lineout_enable(rk3308);
+			break;
+		case DAC_HPOUT:
+			rk3308_speaker_ctl(rk3308, 0);
+			rk3308_headphone_ctl(rk3308, 1);
+			rk3308_codec_dac_lineout_disable(rk3308);
+			rk3308_codec_dac_hpout_enable(rk3308);
+			break;
+		case DAC_LINEOUT_HPOUT:
+			rk3308_speaker_ctl(rk3308, 1);
+			rk3308_headphone_ctl(rk3308, 1);
+			rk3308_codec_dac_lineout_enable(rk3308);
+			rk3308_codec_dac_hpout_enable(rk3308);
+			break;
+		default:
+			break;
+		}
+	}
+
+	rk3308->dac_output = dac_output;
+out:
+	dev_dbg(rk3308->plat_dev, "switch dac_output to: %d\n",
+		 rk3308->dac_output);
+
+	return ret;
 }
 
 static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
@@ -1942,6 +2138,7 @@ static int rk3308_codec_open_playback(struct snd_soc_codec *codec)
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
 	rk3308_codec_dac_enable(rk3308);
+	rk3308_codec_set_dac_path_state(rk3308, PATH_BUSY);
 
 	return 0;
 }
@@ -1950,6 +2147,7 @@ static int rk3308_codec_close_playback(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
+	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 	rk3308_codec_dac_disable(rk3308);
 
 	return 0;
@@ -2051,6 +2249,8 @@ static int rk3308_probe(struct snd_soc_codec *codec)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
+	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
+
 	rk3308_codec_reset(codec);
 	rk3308_codec_power_on(codec);
 
@@ -2075,6 +2275,8 @@ static int rk3308_remove(struct snd_soc_codec *codec)
 	rk3308_codec_headset_detect_disable(rk3308);
 	rk3308_codec_power_off(codec);
 	rk3308_codec_micbias_disable(rk3308);
+
+	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 
 	regcache_cache_only(rk3308->regmap, false);
 	regcache_sync(rk3308->regmap);
@@ -2114,12 +2316,12 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 	unsigned int val;
 	int need_poll = 0, need_irq = 0;
 	int need_report = 0, report_type = 0;
+	int dac_output = DAC_LINEOUT;
 
 	regmap_read(rk3308->regmap, RK3308_DAC_DIG_CON14, &val);
 	if (!val) {
 		rk3308->hp_plugged = false;
 
-		report_type = 0;
 		need_report = 1;
 		need_irq = 1;
 	} else {
@@ -2136,10 +2338,15 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 				   &rk3308->hpdet_work,
 				   msecs_to_jiffies(HPDET_POLL_MS));
 
-	if (need_report)
+	if (need_report) {
+		if (report_type)
+			dac_output = DAC_HPOUT;
+
+		rk3308_codec_dac_switch(rk3308, dac_output);
 		snd_soc_jack_report(asoc_simple_card_get_hp_jack(),
 				    report_type,
 				    SND_JACK_HEADPHONE);
+	}
 
 	if (need_irq)
 		enable_irq(rk3308->irq);
@@ -2313,17 +2520,9 @@ static ssize_t dac_output_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	switch (dac_output) {
-	case DAC_LINEOUT:
-	case DAC_HPOUT:
-	case DAC_LINEOUT_HPOUT:
-		rk3308->dac_output = dac_output;
-		dev_info(dev, "Store dac_output: %d\n", rk3308->dac_output);
-		break;
-	default:
-		dev_err(dev, "Unknown value: %ld\n", dac_output);
-		break;
-	}
+	rk3308_codec_dac_switch(rk3308, dac_output);
+
+	dev_info(dev, "Store dac_output: %d\n", rk3308->dac_output);
 
 	return count;
 }
