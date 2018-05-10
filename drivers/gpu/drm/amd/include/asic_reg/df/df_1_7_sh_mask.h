@@ -45,4 +45,8 @@
 #define DF_CS_AON0_DramBaseAddress0__IntLvAddrSel_MASK							0x00000700L
 #define DF_CS_AON0_DramBaseAddress0__DramBaseAddr_MASK							0xFFFFF000L
 
+//DF_CS_AON0_CoherentSlaveModeCtrlA0
+#define DF_CS_AON0_CoherentSlaveModeCtrlA0__ForceParWrRMW__SHIFT					0x3
+#define DF_CS_AON0_CoherentSlaveModeCtrlA0__ForceParWrRMW_MASK						0x00000008L
+
 #endif
