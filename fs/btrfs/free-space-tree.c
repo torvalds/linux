@@ -776,7 +776,6 @@ out:
 }
 
 int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path, u64 start, u64 size)
 {
@@ -790,7 +789,8 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 			return ret;
 	}
 
-	info = search_free_space_info(NULL, fs_info, block_group, path, 0);
+	info = search_free_space_info(NULL, trans->fs_info, block_group, path,
+				      0);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 	flags = btrfs_free_space_flags(path->nodes[0], info);
@@ -830,8 +830,8 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	}
 
 	mutex_lock(&block_group->free_space_lock);
-	ret = __remove_from_free_space_tree(trans, fs_info, block_group, path,
-					    start, size);
+	ret = __remove_from_free_space_tree(trans, block_group, path, start,
+					    size);
 	mutex_unlock(&block_group->free_space_lock);
 
 	btrfs_put_block_group(block_group);

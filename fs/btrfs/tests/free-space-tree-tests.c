@@ -170,7 +170,7 @@ static int test_remove_all(struct btrfs_trans_handle *trans,
 	const struct free_space_extent extents[] = {};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid,
 					    cache->key.offset);
 	if (ret) {
@@ -194,7 +194,7 @@ static int test_remove_beginning(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid, alignment);
 	if (ret) {
 		test_msg("Could not remove free space\n");
@@ -217,7 +217,7 @@ static int test_remove_end(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid +
 					    cache->key.offset - alignment,
 					    alignment);
@@ -243,7 +243,7 @@ static int test_remove_middle(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid + alignment,
 					    alignment);
 	if (ret) {
@@ -266,7 +266,7 @@ static int test_merge_left(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid,
 					    cache->key.offset);
 	if (ret) {
@@ -304,7 +304,7 @@ static int test_merge_right(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid,
 					    cache->key.offset);
 	if (ret) {
@@ -343,7 +343,7 @@ static int test_merge_both(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid,
 					    cache->key.offset);
 	if (ret) {
@@ -391,7 +391,7 @@ static int test_merge_none(struct btrfs_trans_handle *trans,
 	};
 	int ret;
 
-	ret = __remove_from_free_space_tree(trans, fs_info, cache, path,
+	ret = __remove_from_free_space_tree(trans, cache, path,
 					    cache->key.objectid,
 					    cache->key.offset);
 	if (ret) {
