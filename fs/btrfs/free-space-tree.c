@@ -177,10 +177,10 @@ static void le_bitmap_set(unsigned long *map, unsigned int start, int len)
 }
 
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root = fs_info->free_space_root;
 	struct btrfs_free_space_info *info;
 	struct btrfs_key key, found_key;
@@ -477,8 +477,7 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 
 	if (!(flags & BTRFS_FREE_SPACE_USING_BITMAPS) &&
 	    extent_count > block_group->bitmap_high_thresh) {
-		ret = convert_free_space_to_bitmaps(trans, fs_info, block_group,
-						    path);
+		ret = convert_free_space_to_bitmaps(trans, block_group, path);
 	} else if ((flags & BTRFS_FREE_SPACE_USING_BITMAPS) &&
 		   extent_count < block_group->bitmap_low_thresh) {
 		ret = convert_free_space_to_extents(trans, fs_info, block_group,

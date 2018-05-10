@@ -137,7 +137,7 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 			return ret;
 		}
 	} else {
-		ret = convert_free_space_to_bitmaps(trans, fs_info, cache, path);
+		ret = convert_free_space_to_bitmaps(trans, cache, path);
 		if (ret) {
 			test_msg("Could not convert to bitmaps\n");
 			return ret;
@@ -498,8 +498,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	}
 
 	if (bitmaps) {
-		ret = convert_free_space_to_bitmaps(&trans, root->fs_info,
-						    cache, path);
+		ret = convert_free_space_to_bitmaps(&trans, cache, path);
 		if (ret) {
 			test_msg("Could not convert block group to bitmaps\n");
 			goto out;
