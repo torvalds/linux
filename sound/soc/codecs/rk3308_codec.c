@@ -771,8 +771,10 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 #endif
 		} else {
 #if !DEBUG_POP_ALWAYS
-			rk3308_headphone_ctl(rk3308, 1);
-			rk3308_speaker_ctl(rk3308, 1);
+			if (rk3308->dac_output == DAC_LINEOUT)
+				rk3308_speaker_ctl(rk3308, 1);
+			else if (rk3308->dac_output == DAC_HPOUT)
+				rk3308_headphone_ctl(rk3308, 1);
 #endif
 
 			for (dgain = 0x7; dgain >= 0x2; dgain--) {
