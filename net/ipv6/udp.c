@@ -546,10 +546,10 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
-static struct static_key udpv6_encap_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
-	static_key_enable(&udpv6_encap_needed);
+	static_branch_enable(&udpv6_encap_needed_key);
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
@@ -561,7 +561,7 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
 
-	if (static_key_false(&udpv6_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udpv6_encap_needed_key) && up->encap_type) {
 		int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
 
 		/*
@@ -1427,7 +1427,7 @@ void udpv6_destroy_sock(struct sock *sk)
 	udp_v6_flush_pending_frames(sk);
 	release_sock(sk);
 
-	if (static_key_false(&udpv6_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udpv6_encap_needed_key) && up->encap_type) {
 		void (*encap_destroy)(struct sock *sk);
 		encap_destroy = READ_ONCE(up->encap_destroy);
 		if (encap_destroy)

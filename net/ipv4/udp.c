@@ -1875,10 +1875,10 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static struct static_key udp_encap_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(udp_encap_needed_key);
 void udp_encap_enable(void)
 {
-	static_key_enable(&udp_encap_needed);
+	static_branch_enable(&udp_encap_needed_key);
 }
 EXPORT_SYMBOL(udp_encap_enable);
 
@@ -1902,7 +1902,7 @@ static int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	nf_reset(skb);
 
-	if (static_key_false(&udp_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udp_encap_needed_key) && up->encap_type) {
 		int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
 
 		/*
@@ -2365,7 +2365,7 @@ void udp_destroy_sock(struct sock *sk)
 	bool slow = lock_sock_fast(sk);
 	udp_flush_pending_frames(sk);
 	unlock_sock_fast(sk, slow);
-	if (static_key_false(&udp_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udp_encap_needed_key) && up->encap_type) {
 		void (*encap_destroy)(struct sock *sk);
 		encap_destroy = READ_ONCE(up->encap_destroy);
 		if (encap_destroy)

@@ -1755,38 +1755,38 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
 #ifdef CONFIG_NET_INGRESS
-static struct static_key ingress_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(ingress_needed_key);
 
 void net_inc_ingress_queue(void)
 {
-	static_key_slow_inc(&ingress_needed);
+	static_branch_inc(&ingress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_inc_ingress_queue);
 
 void net_dec_ingress_queue(void)
 {
-	static_key_slow_dec(&ingress_needed);
+	static_branch_dec(&ingress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_dec_ingress_queue);
 #endif
 
 #ifdef CONFIG_NET_EGRESS
-static struct static_key egress_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(egress_needed_key);
 
 void net_inc_egress_queue(void)
 {
-	static_key_slow_inc(&egress_needed);
+	static_branch_inc(&egress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_inc_egress_queue);
 
 void net_dec_egress_queue(void)
 {
-	static_key_slow_dec(&egress_needed);
+	static_branch_dec(&egress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_dec_egress_queue);
 #endif
 
-static struct static_key netstamp_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(netstamp_needed_key);
 #ifdef HAVE_JUMP_LABEL
 static atomic_t netstamp_needed_deferred;
 static atomic_t netstamp_wanted;
@@ -1797,9 +1797,9 @@ static void netstamp_clear(struct work_struct *work)
 
 	wanted = atomic_add_return(deferred, &netstamp_wanted);
 	if (wanted > 0)
-		static_key_enable(&netstamp_needed);
+		static_branch_enable(&netstamp_needed_key);
 	else
-		static_key_disable(&netstamp_needed);
+		static_branch_disable(&netstamp_needed_key);
 }
 static DECLARE_WORK(netstamp_work, netstamp_clear);
 #endif
@@ -1819,7 +1819,7 @@ void net_enable_timestamp(void)
 	atomic_inc(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_inc(&netstamp_needed);
+	static_branch_inc(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_enable_timestamp);
@@ -1839,7 +1839,7 @@ void net_disable_timestamp(void)
 	atomic_dec(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_dec(&netstamp_needed);
+	static_branch_dec(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_disable_timestamp);
@@ -1847,15 +1847,15 @@ EXPORT_SYMBOL(net_disable_timestamp);
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	skb->tstamp = 0;
-	if (static_key_false(&netstamp_needed))
+	if (static_branch_unlikely(&netstamp_needed_key))
 		__net_timestamp(skb);
 }
 
-#define net_timestamp_check(COND, SKB)			\
-	if (static_key_false(&netstamp_needed)) {		\
-		if ((COND) && !(SKB)->tstamp)	\
-			__net_timestamp(SKB);		\
-	}						\
+#define net_timestamp_check(COND, SKB)				\
+	if (static_branch_unlikely(&netstamp_needed_key)) {	\
+		if ((COND) && !(SKB)->tstamp)			\
+			__net_timestamp(SKB);			\
+	}							\
 
 bool is_skb_forwardable(const struct net_device *dev, const struct sk_buff *skb)
 {
@@ -3532,7 +3532,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_at_ingress = 0;
 # ifdef CONFIG_NET_EGRESS
-	if (static_key_false(&egress_needed)) {
+	if (static_branch_unlikely(&egress_needed_key)) {
 		skb = sch_handle_egress(skb, &rc, dev);
 		if (!skb)
 			goto out;
@@ -4154,7 +4154,7 @@ void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
 }
 EXPORT_SYMBOL_GPL(generic_xdp_tx);
 
-static struct static_key generic_xdp_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(generic_xdp_needed_key);
 
 int do_xdp_generic(struct bpf_prog *xdp_prog, struct sk_buff *skb)
 {
@@ -4194,7 +4194,7 @@ static int netif_rx_internal(struct sk_buff *skb)
 
 	trace_netif_rx(skb);
 
-	if (static_key_false(&generic_xdp_needed)) {
+	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret;
 
 		preempt_disable();
@@ -4566,7 +4566,7 @@ another_round:
 
 skip_taps:
 #ifdef CONFIG_NET_INGRESS
-	if (static_key_false(&ingress_needed)) {
+	if (static_branch_unlikely(&ingress_needed_key)) {
 		skb = sch_handle_ingress(skb, &pt_prev, &ret, orig_dev);
 		if (!skb)
 			goto out;
@@ -4726,9 +4726,9 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 			bpf_prog_put(old);
 
 		if (old && !new) {
-			static_key_slow_dec(&generic_xdp_needed);
+			static_branch_dec(&generic_xdp_needed_key);
 		} else if (new && !old) {
-			static_key_slow_inc(&generic_xdp_needed);
+			static_branch_inc(&generic_xdp_needed_key);
 			dev_disable_lro(dev);
 			dev_disable_gro_hw(dev);
 		}
@@ -4756,7 +4756,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	if (skb_defer_rx_timestamp(skb))
 		return NET_RX_SUCCESS;
 
-	if (static_key_false(&generic_xdp_needed)) {
+	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret;
 
 		preempt_disable();
