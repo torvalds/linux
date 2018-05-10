@@ -252,7 +252,7 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 					 MTK_POLL_DELAY_US, MTK_POLL_TIMEOUT);
 		if (ret < 0)
 			goto err_pwr_ack;
-	};
+	}
 
 	if (scpd->data->bus_prot_mask) {
 		ret = mtk_infracfg_clear_bus_protection(scp->infracfg,
