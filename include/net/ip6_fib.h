@@ -376,6 +376,10 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
+/* called with rcu lock held; caller needs to select path */
+struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
+				    int oif, struct flowi6 *fl6, int strict);
+
 struct fib6_info *fib6_multipath_select(const struct net *net,
 					struct fib6_info *match,
 					struct flowi6 *fl6, int oif,
