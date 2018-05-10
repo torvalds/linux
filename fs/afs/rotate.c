@@ -369,8 +369,16 @@ use_server:
 	if (!test_bit(AFS_SERVER_FL_PROBED, &server->flags)) {
 		fc->ac.alist = afs_get_addrlist(alist);
 
-		if (!afs_probe_fileserver(fc))
-			goto failed;
+		if (!afs_probe_fileserver(fc)) {
+			switch (fc->ac.error) {
+			case -ENOMEM:
+			case -ERESTARTSYS:
+			case -EINTR:
+				goto failed;
+			default:
+				goto next_server;
+			}
+		}
 	}
 
 	if (!fc->ac.alist)
