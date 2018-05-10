@@ -321,8 +321,6 @@ static void buffer_work_cb(struct work_struct *work)
 					    msg_context->u.bulk.dts,
 					    msg_context->u.bulk.pts);
 
-	/* release message context */
-	release_msg_context(msg_context);
 }
 
 /* enqueue a bulk receive for a given message context */
@@ -503,11 +501,13 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 		return -EINTR;
 
 	/* get context */
-	msg_context = get_msg_context(instance);
-	if (IS_ERR(msg_context)) {
-		ret = PTR_ERR(msg_context);
+	if (!buf->msg_context) {
+		pr_err("%s: msg_context not allocated, buf %p\n", __func__,
+		       buf);
+		ret = -EINVAL;
 		goto unlock;
 	}
+	msg_context = buf->msg_context;
 
 	/* store bulk message context for when data arrives */
 	msg_context->u.bulk.instance = instance;
@@ -556,11 +556,6 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 					&m,
 					sizeof(struct mmal_msg_header) +
 					sizeof(m.u.buffer_from_host));
-
-	if (ret != 0) {
-		release_msg_context(msg_context);
-		/* todo: is this correct error value? */
-	}
 
 	vchi_service_release(instance->handle);
 
@@ -1771,6 +1766,29 @@ int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 		port_buffer_from_host(instance, port);
 		port->buffer_underflow--;
 	}
+
+	return 0;
+}
+
+int mmal_vchi_buffer_init(struct vchiq_mmal_instance *instance,
+			  struct mmal_buffer *buf)
+{
+	struct mmal_msg_context *msg_context = get_msg_context(instance);
+
+	if (IS_ERR(msg_context))
+		return (PTR_ERR(msg_context));
+
+	buf->msg_context = msg_context;
+	return 0;
+}
+
+int mmal_vchi_buffer_cleanup(struct mmal_buffer *buf)
+{
+	struct mmal_msg_context *msg_context = buf->msg_context;
+
+	if (msg_context)
+		release_msg_context(msg_context);
+	buf->msg_context = NULL;
 
 	return 0;
 }

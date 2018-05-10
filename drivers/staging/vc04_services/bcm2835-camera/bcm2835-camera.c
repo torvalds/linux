@@ -278,6 +278,20 @@ static int queue_setup(struct vb2_queue *vq,
 	return 0;
 }
 
+static int buffer_init(struct vb2_buffer *vb)
+{
+	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vb2 = to_vb2_v4l2_buffer(vb);
+	struct mmal_buffer *buf = container_of(vb2, struct mmal_buffer, vb);
+
+	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p, vb %p\n",
+		 __func__, dev, vb);
+	buf->buffer = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
+	buf->buffer_size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+
+	return mmal_vchi_buffer_init(dev->instance, buf);
+}
+
 static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
@@ -298,6 +312,17 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	return 0;
+}
+
+static void buffer_cleanup(struct vb2_buffer *vb)
+{
+	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vb2 = to_vb2_v4l2_buffer(vb);
+	struct mmal_buffer *buf = container_of(vb2, struct mmal_buffer, vb);
+
+	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p, vb %p\n",
+		 __func__, dev, vb);
+	mmal_vchi_buffer_cleanup(buf);
 }
 
 static inline bool is_capturing(struct bm2835_mmal_dev *dev)
@@ -467,9 +492,6 @@ static void buffer_queue(struct vb2_buffer *vb)
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "%s: dev:%p buf:%p\n", __func__, dev, buf);
 
-	buf->buffer = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
-	buf->buffer_size = vb2_plane_size(&buf->vb.vb2_buf, 0);
-
 	ret = vchiq_mmal_submit_buffer(dev->instance, dev->capture.port, buf);
 	if (ret < 0)
 		v4l2_err(&dev->v4l2_dev, "%s: error submitting buffer\n",
@@ -632,7 +654,9 @@ static void bm2835_mmal_unlock(struct vb2_queue *vq)
 
 static const struct vb2_ops bm2835_mmal_video_qops = {
 	.queue_setup = queue_setup,
+	.buf_init = buffer_init,
 	.buf_prepare = buffer_prepare,
+	.buf_cleanup = buffer_cleanup,
 	.buf_queue = buffer_queue,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,

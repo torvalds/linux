@@ -19,6 +19,8 @@
 /** Special value signalling that time is not known */
 #define MMAL_TIME_UNKNOWN (1LL<<63)
 
+struct mmal_msg_context;
+
 /* mapping between v4l and mmal video modes */
 struct mmal_fmt {
 	char  *name;
@@ -43,6 +45,8 @@ struct mmal_buffer {
 
 	void *buffer; /* buffer pointer */
 	unsigned long buffer_size; /* size of allocated buffer */
+
+	struct mmal_msg_context *msg_context;
 };
 
 /* */

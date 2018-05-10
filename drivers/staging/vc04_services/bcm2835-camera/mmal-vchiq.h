@@ -168,4 +168,7 @@ int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 			     struct vchiq_mmal_port *port,
 			     struct mmal_buffer *buf);
 
+int mmal_vchi_buffer_init(struct vchiq_mmal_instance *instance,
+			  struct mmal_buffer *buf);
+int mmal_vchi_buffer_cleanup(struct mmal_buffer *buf);
 #endif /* MMAL_VCHIQ_H */
