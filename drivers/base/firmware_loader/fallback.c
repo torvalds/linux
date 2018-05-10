@@ -690,6 +690,11 @@ int firmware_fallback_sysfs(struct firmware *fw, const char *name,
 	if (!fw_run_sysfs_fallback(opt_flags))
 		return ret;
 
-	dev_warn(device, "Falling back to user helper\n");
+	if (!(opt_flags & FW_OPT_NO_WARN))
+		dev_warn(device, "Falling back to syfs fallback for: %s\n",
+				 name);
+	else
+		dev_dbg(device, "Falling back to sysfs fallback for: %s\n",
+				name);
 	return fw_load_from_user_helper(fw, name, device, opt_flags);
 }
