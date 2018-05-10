@@ -876,6 +876,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 				   RK3308_DAC_L_HPOUT_EN |
 				   RK3308_DAC_R_HPOUT_EN);
 
+		udelay(20);
+
 		/* Step 08 */
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON03,
 				   RK3308_DAC_L_HPOUT_WORK |
