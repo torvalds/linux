@@ -10638,7 +10638,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	mutex_unlock(&fs_info->chunk_mutex);
 
-	ret = remove_block_group_free_space(trans, fs_info, block_group);
+	ret = remove_block_group_free_space(trans, block_group);
 	if (ret)
 		goto out;
 

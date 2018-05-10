@@ -510,7 +510,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	if (ret)
 		goto out;
 
-	ret = remove_block_group_free_space(&trans, root->fs_info, cache);
+	ret = remove_block_group_free_space(&trans, cache);
 	if (ret) {
 		test_msg("Could not remove block group free space\n");
 		goto out;
