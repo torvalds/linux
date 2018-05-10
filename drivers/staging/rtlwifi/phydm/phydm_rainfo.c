@@ -985,7 +985,7 @@ static void phydm_ra_common_info_update(void *dm_void)
 		}
 		ODM_RT_TRACE(
 			dm, ODM_COMP_RATE_ADAPTIVE,
-			"MACID[%d], Highest Tx order Update for power traking: %d\n",
+			"MACID[%d], Highest Tx order Update for power tracking: %d\n",
 			(ra_tab->highest_client_tx_rate_order),
 			(ra_tab->highest_client_tx_order));
 	}
