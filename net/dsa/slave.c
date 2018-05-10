@@ -1119,6 +1119,11 @@ static int dsa_slave_phy_connect(struct net_device *slave_dev, int addr)
 				  dsa_slave_adjust_link, p->phy_interface);
 }
 
+void dsa_port_phylink_mac_change(struct dsa_switch *ds, int port, bool up)
+{
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_change);
+
 static int dsa_slave_phy_setup(struct net_device *slave_dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(slave_dev);
