@@ -11,6 +11,7 @@ Contents:
    can
    dpaa2/index
    e100
+   e1000
    kapi
    z8530book
    msg_zerocopy

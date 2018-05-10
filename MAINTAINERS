@@ -7090,7 +7090,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-queue.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/next-queue.git
 S:	Supported
 F:	Documentation/networking/e100.rst
-F:	Documentation/networking/e1000.txt
+F:	Documentation/networking/e1000.rst
 F:	Documentation/networking/e1000e.txt
 F:	Documentation/networking/igb.txt
 F:	Documentation/networking/igbvf.txt
