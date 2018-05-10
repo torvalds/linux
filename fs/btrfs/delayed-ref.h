@@ -127,6 +127,7 @@ struct btrfs_delayed_ref_head {
 	 */
 	unsigned int must_insert_reserved:1;
 	unsigned int is_data:1;
+	unsigned int is_system:1;
 	unsigned int processing:1;
 };
 

@@ -28,6 +28,9 @@
 
 #include "udf_sb.h"
 
+#define SURROGATE_MASK 0xfffff800
+#define SURROGATE_PAIR 0x0000d800
+
 static int udf_uni2char_utf8(wchar_t uni,
 			     unsigned char *out,
 			     int boundlen)
@@ -36,6 +39,9 @@ static int udf_uni2char_utf8(wchar_t uni,
 
 	if (boundlen <= 0)
 		return -ENAMETOOLONG;
+
+	if ((uni & SURROGATE_MASK) == SURROGATE_PAIR)
+		return -EINVAL;
 
 	if (uni < 0x80) {
 		out[u_len++] = (unsigned char)uni;

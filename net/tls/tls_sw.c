@@ -41,6 +41,8 @@
 #include <net/strparser.h>
 #include <net/tls.h>
 
+#define MAX_IV_SIZE	TLS_CIPHER_AES_GCM_128_IV_SIZE
+
 static int tls_do_decryption(struct sock *sk,
 			     struct scatterlist *sgin,
 			     struct scatterlist *sgout,
@@ -673,7 +675,7 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
-	char iv[TLS_CIPHER_AES_GCM_128_SALT_SIZE + tls_ctx->rx.iv_size];
+	char iv[TLS_CIPHER_AES_GCM_128_SALT_SIZE + MAX_IV_SIZE];
 	struct scatterlist sgin_arr[MAX_SKB_FRAGS + 2];
 	struct scatterlist *sgin = &sgin_arr[0];
 	struct strp_msg *rxm = strp_msg(skb);
@@ -1090,6 +1092,12 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		break;
 	}
 	default:
+		rc = -EINVAL;
+		goto free_priv;
+	}
+
+	/* Sanity-check the IV size for stack allocations. */
+	if (iv_size > MAX_IV_SIZE) {
 		rc = -EINVAL;
 		goto free_priv;
 	}

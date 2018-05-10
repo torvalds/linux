@@ -6,7 +6,7 @@
 #include <linux/device.h>
 
 /**
- * struct firmware_fallback_config - firmware fallback configuratioon settings
+ * struct firmware_fallback_config - firmware fallback configuration settings
  *
  * Helps describe and fine tune the fallback mechanism.
  *

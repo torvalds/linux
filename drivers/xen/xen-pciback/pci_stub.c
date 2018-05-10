@@ -71,7 +71,7 @@ static struct pcistub_device *pcistub_device_alloc(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "pcistub_device_alloc\n");
 
-	psdev = kzalloc(sizeof(*psdev), GFP_ATOMIC);
+	psdev = kzalloc(sizeof(*psdev), GFP_KERNEL);
 	if (!psdev)
 		return NULL;
 
@@ -364,7 +364,7 @@ static int pcistub_init_device(struct pci_dev *dev)
 	 * here and then to call kfree(pci_get_drvdata(psdev->dev)).
 	 */
 	dev_data = kzalloc(sizeof(*dev_data) +  strlen(DRV_NAME "[]")
-				+ strlen(pci_name(dev)) + 1, GFP_ATOMIC);
+				+ strlen(pci_name(dev)) + 1, GFP_KERNEL);
 	if (!dev_data) {
 		err = -ENOMEM;
 		goto out;
@@ -577,7 +577,7 @@ static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 
 		if (!match) {
-			pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_ATOMIC);
+			pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_KERNEL);
 			if (!pci_dev_id) {
 				err = -ENOMEM;
 				goto out;
@@ -1149,7 +1149,7 @@ static int pcistub_reg_add(int domain, int bus, int slot, int func,
 	}
 	dev = psdev->dev;
 
-	field = kzalloc(sizeof(*field), GFP_ATOMIC);
+	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field) {
 		err = -ENOMEM;
 		goto out;

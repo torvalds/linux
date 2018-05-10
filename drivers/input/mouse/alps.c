@@ -583,7 +583,7 @@ static void alps_process_trackstick_packet_v3(struct psmouse *psmouse)
 
 	x = (s8)(((packet[0] & 0x20) << 2) | (packet[1] & 0x7f));
 	y = (s8)(((packet[0] & 0x10) << 3) | (packet[2] & 0x7f));
-	z = packet[4] & 0x7c;
+	z = packet[4] & 0x7f;
 
 	/*
 	 * The x and y values tend to be quite large, and when used

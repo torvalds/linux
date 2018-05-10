@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Nokia Corporation
  *
  * Based on drivers/media/video/v4l2_dev.c code authored by
- *	Mauro Carvalho Chehab <mchehab@infradead.org> (version 2)
+ *	Mauro Carvalho Chehab <mchehab@kernel.org> (version 2)
  *	Alan Cox, <alan@lxorguk.ukuu.org.uk> (version 1)
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>

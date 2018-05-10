@@ -183,7 +183,8 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
 	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
 
-	format = kms->funcs->get_format(kms, mode_cmd->pixel_format);
+	format = kms->funcs->get_format(kms, mode_cmd->pixel_format,
+			mode_cmd->modifier[0]);
 	if (!format) {
 		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
 				(char *)&mode_cmd->pixel_format);

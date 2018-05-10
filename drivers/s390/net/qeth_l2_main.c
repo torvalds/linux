@@ -21,7 +21,6 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/hashtable.h>
-#include <linux/string.h>
 #include <asm/setup.h>
 #include "qeth_core.h"
 #include "qeth_l2.h"
@@ -122,13 +121,10 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 	QETH_CARD_TEXT(card, 2, "L2Setmac");
 	rc = qeth_l2_send_setdelmac(card, mac, IPA_CMD_SETVMAC);
 	if (rc == 0) {
-		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
-		ether_addr_copy(card->dev->dev_addr, mac);
 		dev_info(&card->gdev->dev,
-			"MAC address %pM successfully registered on device %s\n",
-			card->dev->dev_addr, card->dev->name);
+			 "MAC address %pM successfully registered on device %s\n",
+			 mac, card->dev->name);
 	} else {
-		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 		switch (rc) {
 		case -EEXIST:
 			dev_warn(&card->gdev->dev,
@@ -140,19 +136,6 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 			break;
 		}
 	}
-	return rc;
-}
-
-static int qeth_l2_send_delmac(struct qeth_card *card, __u8 *mac)
-{
-	int rc;
-
-	QETH_CARD_TEXT(card, 2, "L2Delmac");
-	if (!(card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
-		return 0;
-	rc = qeth_l2_send_setdelmac(card, mac, IPA_CMD_DELVMAC);
-	if (rc == 0)
-		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 	return rc;
 }
 
@@ -520,6 +503,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 	struct qeth_card *card = dev->ml_priv;
+	u8 old_addr[ETH_ALEN];
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 3, "setmac");
@@ -531,14 +515,35 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 		return -EOPNOTSUPP;
 	}
 	QETH_CARD_HEX(card, 3, addr->sa_data, ETH_ALEN);
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
 	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
 		QETH_CARD_TEXT(card, 3, "setmcREC");
 		return -ERESTARTSYS;
 	}
-	rc = qeth_l2_send_delmac(card, &card->dev->dev_addr[0]);
-	if (!rc || (rc == -ENOENT))
-		rc = qeth_l2_send_setmac(card, addr->sa_data);
-	return rc ? -EINVAL : 0;
+
+	if (!qeth_card_hw_is_reachable(card)) {
+		ether_addr_copy(dev->dev_addr, addr->sa_data);
+		return 0;
+	}
+
+	/* don't register the same address twice */
+	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
+	    (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
+		return 0;
+
+	/* add the new address, switch over, drop the old */
+	rc = qeth_l2_send_setmac(card, addr->sa_data);
+	if (rc)
+		return rc;
+	ether_addr_copy(old_addr, dev->dev_addr);
+	ether_addr_copy(dev->dev_addr, addr->sa_data);
+
+	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
+		qeth_l2_remove_mac(card, old_addr);
+	card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
+	return 0;
 }
 
 static void qeth_promisc_to_bridge(struct qeth_card *card)
@@ -1068,8 +1073,9 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		goto out_remove;
 	}
 
-	if (card->info.type != QETH_CARD_TYPE_OSN)
-		qeth_l2_send_setmac(card, &card->dev->dev_addr[0]);
+	if (card->info.type != QETH_CARD_TYPE_OSN &&
+	    !qeth_l2_send_setmac(card, card->dev->dev_addr))
+		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
 
 	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
 		if (card->info.hwtrap &&
@@ -1339,8 +1345,8 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 	qeth_prepare_control_data(card, len, iob);
 	QETH_CARD_TEXT(card, 6, "osnoirqp");
 	spin_lock_irqsave(get_ccwdev_lock(card->write.ccwdev), flags);
-	rc = ccw_device_start(card->write.ccwdev, &card->write.ccw,
-			      (addr_t) iob, 0, 0);
+	rc = ccw_device_start_timeout(CARD_WDEV(card), &card->write.ccw,
+				      (addr_t) iob, 0, 0, QETH_IPA_TIMEOUT);
 	spin_unlock_irqrestore(get_ccwdev_lock(card->write.ccwdev), flags);
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "qeth_osn_send_control_data: "
