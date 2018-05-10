@@ -1244,93 +1244,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->tx_compressed = netdev->stats.tx_compressed;
 }
 
-static void hns3_add_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (udp_tnl->used && udp_tnl->dst_port == port) {
-		udp_tnl->used++;
-		return;
-	}
-
-	if (udp_tnl->used) {
-		netdev_warn(netdev,
-			    "UDP tunnel [%d], port [%d] offload\n", type, port);
-		return;
-	}
-
-	udp_tnl->dst_port = port;
-	udp_tnl->used = 1;
-	/* TBD send command to hardware to add port */
-	if (h->ae_algo->ops->add_tunnel_udp)
-		h->ae_algo->ops->add_tunnel_udp(h, port);
-}
-
-static void hns3_del_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (!udp_tnl->used || udp_tnl->dst_port != port) {
-		netdev_warn(netdev,
-			    "Invalid UDP tunnel port %d\n", port);
-		return;
-	}
-
-	udp_tnl->used--;
-	if (udp_tnl->used)
-		return;
-
-	udp_tnl->dst_port = 0;
-	/* TBD send command to hardware to del port  */
-	if (h->ae_algo->ops->del_tunnel_udp)
-		h->ae_algo->ops->del_tunnel_udp(h, port);
-}
-
-/* hns3_nic_udp_tunnel_add - Get notifiacetion about UDP tunnel ports
- * @netdev: This physical ports's netdev
- * @ti: Tunnel information
- */
-static void hns3_nic_udp_tunnel_add(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		netdev_err(netdev, "unsupported tunnel type %d\n", ti->type);
-		break;
-	}
-}
-
-static void hns3_nic_udp_tunnel_del(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		break;
-	}
-}
-
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
@@ -1569,8 +1482,6 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_get_stats64	= hns3_nic_get_stats64,
 	.ndo_setup_tc		= hns3_nic_setup_tc,
 	.ndo_set_rx_mode	= hns3_nic_set_rx_mode,
-	.ndo_udp_tunnel_add	= hns3_nic_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= hns3_nic_udp_tunnel_del,
 	.ndo_vlan_rx_add_vid	= hns3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= hns3_vlan_rx_kill_vid,
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
@@ -3046,13 +2957,13 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
-static void hns3_init_mac_addr(struct net_device *netdev)
+static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u8 mac_addr_temp[ETH_ALEN];
 
-	if (h->ae_algo->ops->get_mac_addr) {
+	if (h->ae_algo->ops->get_mac_addr && init) {
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
 		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
 	}
@@ -3106,7 +3017,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, true);
 
 	hns3_set_default_feature(netdev);
 
@@ -3292,9 +3203,35 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 		hns3_nic_mc_sync(ndev, ha->addr);
 }
 
-static void hns3_drop_skb_data(struct hns3_enet_ring *ring, struct sk_buff *skb)
+static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
-	dev_kfree_skb_any(skb);
+	if (!HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_clean != ring->next_to_use) {
+		hns3_free_buffer_detach(ring, ring->next_to_clean);
+		ring_ptr_move_fw(ring, next_to_clean);
+	}
+}
+
+static void hns3_clear_rx_ring(struct hns3_enet_ring *ring)
+{
+	if (HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_use != ring->next_to_clean) {
+		/* When a buffer is not reused, it's memory has been
+		 * freed in hns3_handle_rx_bd or will be freed by
+		 * stack, so only need to unmap the buffer here.
+		 */
+		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
+			hns3_unmap_buffer(ring,
+					  &ring->desc_cb[ring->next_to_use]);
+			ring->desc_cb[ring->next_to_use].dma = 0;
+		}
+
+		ring_ptr_move_fw(ring, next_to_use);
+	}
 }
 
 static void hns3_clear_all_ring(struct hnae3_handle *h)
@@ -3308,13 +3245,13 @@ static void hns3_clear_all_ring(struct hnae3_handle *h)
 		struct hns3_enet_ring *ring;
 
 		ring = priv->ring_data[i].ring;
-		hns3_clean_tx_ring(ring, ring->desc_num);
+		hns3_clear_tx_ring(ring);
 		dev_queue = netdev_get_tx_queue(ndev,
 						priv->ring_data[i].queue_index);
 		netdev_tx_reset_queue(dev_queue);
 
 		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
-		hns3_clean_rx_ring(ring, ring->desc_num, hns3_drop_skb_data);
+		hns3_clear_rx_ring(ring);
 	}
 }
 
@@ -3353,7 +3290,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, false);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
 
