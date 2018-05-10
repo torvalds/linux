@@ -270,6 +270,10 @@ static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
+	/* WaClearHIZ_WM_CHICKEN3:bxt,glk */
+	if (IS_GEN9_LP(dev_priv))
+		WA_SET_BIT_MASKED(GEN9_WM_CHICKEN3, GEN9_FACTOR_IN_CLR_VAL_HIZ);
+
 	return 0;
 }
 
