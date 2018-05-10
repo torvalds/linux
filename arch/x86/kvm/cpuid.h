@@ -189,6 +189,15 @@ static inline bool guest_cpuid_has_arch_capabilities(struct kvm_vcpu *vcpu)
 	return best && (best->edx & bit(X86_FEATURE_ARCH_CAPABILITIES));
 }
 
+static inline bool guest_cpuid_has_virt_ssbd(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
+	return best && (best->ebx & bit(X86_FEATURE_VIRT_SSBD));
+}
+
+
 
 /*
  * NRIPS is provided through cpuidfn 0x8000000a.edx bit 3

@@ -693,7 +693,8 @@ static void init_speculation_control(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_INTEL_STIBP))
 		set_cpu_cap(c, X86_FEATURE_STIBP);
 
-	if (cpu_has(c, X86_FEATURE_SPEC_CTRL_SSBD))
+	if (cpu_has(c, X86_FEATURE_SPEC_CTRL_SSBD) ||
+	    cpu_has(c, X86_FEATURE_VIRT_SSBD))
 		set_cpu_cap(c, X86_FEATURE_SSBD);
 
 	if (cpu_has(c, X86_FEATURE_AMD_IBRS)) {
