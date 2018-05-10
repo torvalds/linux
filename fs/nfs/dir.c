@@ -1051,13 +1051,15 @@ out_force:
  *
  * If LOOKUP_RCU prevents us from performing a full check, return 1
  * suggesting a reval is needed.
+ *
+ * Note that when creating a new file, or looking up a rename target,
+ * then it shouldn't be necessary to revalidate a negative dentry.
  */
 static inline
 int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
 		       unsigned int flags)
 {
-	/* Don't revalidate a negative dentry if we're creating a new file */
-	if (flags & LOOKUP_CREATE)
+	if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
 		return 0;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG)
 		return 1;
@@ -1347,7 +1349,7 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	 * If we're doing an exclusive create, optimize away the lookup
 	 * but don't hash the dentry.
 	 */
-	if (nfs_is_exclusive_create(dir, flags))
+	if (nfs_is_exclusive_create(dir, flags) || flags & LOOKUP_RENAME_TARGET)
 		return NULL;
 
 	res = ERR_PTR(-ENOMEM);
