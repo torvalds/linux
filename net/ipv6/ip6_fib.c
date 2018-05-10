@@ -1354,8 +1354,8 @@ struct lookup_args {
 	const struct in6_addr	*addr;		/* search key			*/
 };
 
-static struct fib6_node *fib6_lookup_1(struct fib6_node *root,
-				       struct lookup_args *args)
+static struct fib6_node *fib6_node_lookup_1(struct fib6_node *root,
+					    struct lookup_args *args)
 {
 	struct fib6_node *fn;
 	__be32 dir;
@@ -1400,7 +1400,8 @@ static struct fib6_node *fib6_lookup_1(struct fib6_node *root,
 #ifdef CONFIG_IPV6_SUBTREES
 				if (subtree) {
 					struct fib6_node *sfn;
-					sfn = fib6_lookup_1(subtree, args + 1);
+					sfn = fib6_node_lookup_1(subtree,
+								 args + 1);
 					if (!sfn)
 						goto backtrack;
 					fn = sfn;
@@ -1422,8 +1423,9 @@ backtrack:
 
 /* called with rcu_read_lock() held
  */
-struct fib6_node *fib6_lookup(struct fib6_node *root, const struct in6_addr *daddr,
-			      const struct in6_addr *saddr)
+struct fib6_node *fib6_node_lookup(struct fib6_node *root,
+				   const struct in6_addr *daddr,
+				   const struct in6_addr *saddr)
 {
 	struct fib6_node *fn;
 	struct lookup_args args[] = {
@@ -1442,7 +1444,7 @@ struct fib6_node *fib6_lookup(struct fib6_node *root, const struct in6_addr *dad
 		}
 	};
 
-	fn = fib6_lookup_1(root, daddr ? args : args + 1);
+	fn = fib6_node_lookup_1(root, daddr ? args : args + 1);
 	if (!fn || fn->fn_flags & RTN_TL_ROOT)
 		fn = root;
 

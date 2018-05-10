@@ -1006,7 +1006,7 @@ static struct fib6_node* fib6_backtrack(struct fib6_node *fn,
 		pn = rcu_dereference(fn->parent);
 		sn = FIB6_SUBTREE(pn);
 		if (sn && sn != fn)
-			fn = fib6_lookup(sn, NULL, saddr);
+			fn = fib6_node_lookup(sn, NULL, saddr);
 		else
 			fn = pn;
 		if (fn->fn_flags & RTN_RTINFO)
@@ -1059,7 +1059,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 		flags &= ~RT6_LOOKUP_F_IFACE;
 
 	rcu_read_lock();
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	f6i = rcu_dereference(fn->leaf);
 	if (!f6i) {
@@ -1815,7 +1815,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 
 	rcu_read_lock();
 
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 	saved_fn = fn;
 
 	if (fl6->flowi6_flags & FLOWI_FLAG_SKIP_NH_OIF)
@@ -2425,7 +2425,7 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	 */
 
 	rcu_read_lock();
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	for_each_fib6_node_rt_rcu(fn) {
 		if (rt->fib6_nh.nh_flags & RTNH_F_DEAD)
