@@ -83,7 +83,7 @@ and a file upload firmware into:
   * /sys/$DEVPATH/data
 
 To upload firmware you will echo 1 onto the loading file to indicate
-you are loading firmware. You then cat the firmware into the data file,
+you are loading firmware. You then write the firmware into the data file,
 and you notify the kernel the firmware is ready by echo'ing 0 onto
 the loading file.
 
@@ -136,7 +136,8 @@ by kobject uevents. This is specially exacerbated due to the fact that most
 distributions today disable CONFIG_FW_LOADER_USER_HELPER_FALLBACK.
 
 Refer to do_firmware_uevent() for details of the kobject event variables
-setup. Variables passwdd with a kobject add event:
+setup. The variables currently passed to userspace with a "kobject add"
+event are:
 
 * FIRMWARE=firmware name
 * TIMEOUT=timeout value
