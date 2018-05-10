@@ -234,7 +234,7 @@ static int nand_blktrans_thread(void *arg)
 	int req_empty_times = 0;
 
 	spin_lock_irq(rq->queue_lock);
-	rk_ftl_gc_jiffies = HZ * 5;
+	rk_ftl_gc_jiffies = HZ / 10; /* do garbage collect after 100ms */
 	rk_ftl_gc_do = 0;
 	rk_ftl_gc_timeout.expires = jiffies + rk_ftl_gc_jiffies;
 	add_timer(&rk_ftl_gc_timeout);
@@ -477,8 +477,9 @@ static int nand_prase_cmdline_part(struct nand_part *pdisk_part)
 				> cap_size) {
 				pdisk_part[i].size = cap_size -
 					pdisk_part[i].offset;
-				pr_err("partition config error....\n");
-				if (pdisk_part[i].size)
+				pr_err("partition error....max cap:%x\n",
+					cap_size);
+				if (!pdisk_part[i].size)
 					return i;
 				else
 					return (i + 1);
