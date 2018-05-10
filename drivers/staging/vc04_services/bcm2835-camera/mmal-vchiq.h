@@ -32,14 +32,6 @@ enum vchiq_mmal_es_type {
 	MMAL_ES_TYPE_SUBPICTURE   /**< Sub-picture elementary stream */
 };
 
-/* rectangle, used lots so it gets its own struct */
-struct vchiq_mmal_rect {
-	s32 x;
-	s32 y;
-	s32 width;
-	s32 height;
-};
-
 struct vchiq_mmal_port_buffer {
 	unsigned int num; /* number of buffers */
 	u32 size; /* size of buffers */
