@@ -396,6 +396,7 @@ struct afs_server {
 #define AFS_SERVER_FL_PROBED	5		/* The fileserver has been probed */
 #define AFS_SERVER_FL_PROBING	6		/* Fileserver is being probed */
 #define AFS_SERVER_FL_NO_IBULK	7		/* Fileserver doesn't support FS.InlineBulkStatus */
+#define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
 

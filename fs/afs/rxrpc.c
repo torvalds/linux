@@ -482,8 +482,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 		state = READ_ONCE(call->state);
 		switch (ret) {
 		case 0:
-			if (state == AFS_CALL_CL_PROC_REPLY)
+			if (state == AFS_CALL_CL_PROC_REPLY) {
+				if (call->cbi)
+					set_bit(AFS_SERVER_FL_MAY_HAVE_CB,
+						&call->cbi->server->flags);
 				goto call_complete;
+			}
 			ASSERTCMP(state, >, AFS_CALL_CL_PROC_REPLY);
 			goto done;
 		case -EINPROGRESS:

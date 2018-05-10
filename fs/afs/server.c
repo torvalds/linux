@@ -395,14 +395,16 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 	struct afs_addr_list *alist = rcu_access_pointer(server->addresses);
 	struct afs_addr_cursor ac = {
 		.alist	= alist,
-		.addr	= &alist->addrs[0],
 		.start	= alist->index,
-		.index	= alist->index,
+		.index	= 0,
+		.addr	= &alist->addrs[alist->index],
 		.error	= 0,
 	};
 	_enter("%p", server);
 
-	afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+	if (test_bit(AFS_SERVER_FL_MAY_HAVE_CB, &server->flags))
+		afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+
 	call_rcu(&server->rcu, afs_server_rcu);
 	afs_dec_servers_outstanding(net);
 }
