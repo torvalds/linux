@@ -577,12 +577,11 @@ static int free_space_next_bitmap(struct btrfs_trans_handle *trans,
  * the bitmap.
  */
 static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
-				    struct btrfs_fs_info *fs_info,
 				    struct btrfs_block_group_cache *block_group,
 				    struct btrfs_path *path,
 				    u64 start, u64 size, int remove)
 {
-	struct btrfs_root *root = fs_info->free_space_root;
+	struct btrfs_root *root = block_group->fs_info->free_space_root;
 	struct btrfs_key key;
 	u64 end = start + size;
 	u64 cur_start, cur_size;
@@ -799,8 +798,8 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
-		return modify_free_space_bitmap(trans, fs_info, block_group,
-						path, start, size, 1);
+		return modify_free_space_bitmap(trans, block_group, path,
+						start, size, 1);
 	} else {
 		return remove_free_space_extent(trans, fs_info, block_group,
 						path, start, size);
@@ -994,8 +993,8 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
-		return modify_free_space_bitmap(trans, fs_info, block_group,
-						path, start, size, 0);
+		return modify_free_space_bitmap(trans, block_group, path,
+						start, size, 0);
 	} else {
 		return add_free_space_extent(trans, fs_info, block_group, path,
 					     start, size);
