@@ -433,8 +433,69 @@ err:
 	return -EMSGSIZE;
 }
 
+static int fill_res_mr_entry(struct sk_buff *msg,
+			     struct rdma_restrack_entry *res)
+{
+	struct ib_mr *ibmr = container_of(res, struct ib_mr, res);
+	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
+	struct c4iw_dev *dev = mhp->rhp;
+	u32 stag = mhp->attr.stag;
+	struct nlattr *table_attr;
+	struct fw_ri_tpte tpte;
+	int ret;
+
+	if (!stag)
+		return 0;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	if (!table_attr)
+		goto err;
+
+	ret = cxgb4_read_tpte(dev->rdev.lldi.ports[0], stag, (__be32 *)&tpte);
+	if (ret) {
+		dev_err(&dev->rdev.lldi.pdev->dev,
+			"%s cxgb4_read_tpte err %d\n", __func__, ret);
+		return 0;
+	}
+
+	if (rdma_nl_put_driver_u32_hex(msg, "idx", stag >> 8))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32(msg, "valid",
+			FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid))))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32_hex(msg, "key", stag & 0xff))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32(msg, "state",
+			FW_RI_TPTE_STAGSTATE_G(ntohl(tpte.valid_to_pdid))))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32(msg, "pdid",
+			FW_RI_TPTE_PDID_G(ntohl(tpte.valid_to_pdid))))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32_hex(msg, "perm",
+			FW_RI_TPTE_PERM_G(ntohl(tpte.locread_to_qpid))))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32(msg, "ps",
+			FW_RI_TPTE_PS_G(ntohl(tpte.locread_to_qpid))))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u64(msg, "len",
+		      ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo)))
+		goto err_cancel_table;
+	if (rdma_nl_put_driver_u32_hex(msg, "pbl_addr",
+			FW_RI_TPTE_PBLADDR_G(ntohl(tpte.nosnoop_pbladdr))))
+		goto err_cancel_table;
+
+	nla_nest_end(msg, table_attr);
+	return 0;
+
+err_cancel_table:
+	nla_nest_cancel(msg, table_attr);
+err:
+	return -EMSGSIZE;
+}
+
 c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
 	[RDMA_RESTRACK_QP]	= fill_res_qp_entry,
 	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
 	[RDMA_RESTRACK_CQ]	= fill_res_cq_entry,
+	[RDMA_RESTRACK_MR]	= fill_res_mr_entry,
 };
