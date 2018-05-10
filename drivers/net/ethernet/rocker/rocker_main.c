@@ -2738,6 +2738,8 @@ static void rocker_switchdev_event_work(struct work_struct *work)
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
 		err = rocker_world_port_fdb_add(rocker_port, fdb_info);
 		if (err) {
 			netdev_dbg(rocker_port->dev, "fdb add failed err=%d\n", err);
@@ -2747,6 +2749,8 @@ static void rocker_switchdev_event_work(struct work_struct *work)
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
 		err = rocker_world_port_fdb_del(rocker_port, fdb_info);
 		if (err)
 			netdev_dbg(rocker_port->dev, "fdb add failed err=%d\n", err);
@@ -2783,8 +2787,6 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		if (!fdb_info->added_by_user)
-			break;
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
