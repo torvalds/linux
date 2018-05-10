@@ -26,7 +26,6 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
 			   u64 start, u64 size);
 int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
 				u64 start, u64 size);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS

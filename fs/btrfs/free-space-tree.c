@@ -806,14 +806,13 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 }
 
 int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
 				u64 start, u64 size)
 {
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_path *path;
 	int ret;
 
-	if (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+	if (!btrfs_fs_compat_ro(trans->fs_info, FREE_SPACE_TREE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -822,7 +821,7 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	block_group = btrfs_lookup_block_group(fs_info, start);
+	block_group = btrfs_lookup_block_group(trans->fs_info, start);
 	if (!block_group) {
 		ASSERT(0);
 		ret = -ENOENT;

@@ -8173,8 +8173,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_free_path(path);
 
-	ret = remove_from_free_space_tree(trans, fs_info, ins->objectid,
-					  ins->offset);
+	ret = remove_from_free_space_tree(trans, ins->objectid, ins->offset);
 	if (ret)
 		return ret;
 
@@ -8256,8 +8255,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_free_path(path);
 
-	ret = remove_from_free_space_tree(trans, fs_info, ins->objectid,
-					  num_bytes);
+	ret = remove_from_free_space_tree(trans, ins->objectid, num_bytes);
 	if (ret)
 		return ret;
 
