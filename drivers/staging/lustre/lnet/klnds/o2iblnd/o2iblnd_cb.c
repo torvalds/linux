@@ -1965,13 +1965,14 @@ kiblnd_handle_early_rxs(struct kib_conn *conn)
 {
 	unsigned long flags;
 	struct kib_rx *rx;
-	struct kib_rx *tmp;
 
 	LASSERT(!in_interrupt());
 	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
 
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
-	list_for_each_entry_safe(rx, tmp, &conn->ibc_early_rxs, rx_list) {
+	while (!list_empty(&conn->ibc_early_rxs)) {
+		rx = list_entry(conn->ibc_early_rxs.next,
+				struct kib_rx, rx_list);
 		list_del(&rx->rx_list);
 		write_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
