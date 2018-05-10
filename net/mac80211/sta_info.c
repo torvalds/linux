@@ -2233,11 +2233,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
 	}
 
-	sinfo->filled |= BIT(NL80211_STA_INFO_TID_STATS);
-	for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
-		struct cfg80211_tid_stats *tidstats = &sinfo->pertid[i];
+	if (!cfg80211_sinfo_alloc_tid_stats(sinfo, GFP_KERNEL)) {
+		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
+			struct cfg80211_tid_stats *tidstats = &sinfo->pertid[i];
 
-		sta_set_tidstats(sta, tidstats, i);
+			sta_set_tidstats(sta, tidstats, i);
+		}
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
