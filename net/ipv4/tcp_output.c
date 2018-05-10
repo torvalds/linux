@@ -772,7 +772,7 @@ struct tsq_tasklet {
 };
 static DEFINE_PER_CPU(struct tsq_tasklet, tsq_tasklet);
 
-static void tcp_tsq_handler(struct sock *sk)
+static void tcp_tsq_write(struct sock *sk)
 {
 	if ((1 << sk->sk_state) &
 	    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 | TCPF_CLOSING |
@@ -788,6 +788,16 @@ static void tcp_tsq_handler(struct sock *sk)
 		tcp_write_xmit(sk, tcp_current_mss(sk), tp->nonagle,
 			       0, GFP_ATOMIC);
 	}
+}
+
+static void tcp_tsq_handler(struct sock *sk)
+{
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		tcp_tsq_write(sk);
+	else if (!test_and_set_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags))
+		sock_hold(sk);
+	bh_unlock_sock(sk);
 }
 /*
  * One tasklet per cpu tries to send more skbs.
@@ -816,16 +826,7 @@ static void tcp_tasklet_func(unsigned long data)
 		smp_mb__before_atomic();
 		clear_bit(TSQ_QUEUED, &sk->sk_tsq_flags);
 
-		if (!sk->sk_lock.owned &&
-		    test_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags)) {
-			bh_lock_sock(sk);
-			if (!sock_owned_by_user(sk)) {
-				clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
-				tcp_tsq_handler(sk);
-			}
-			bh_unlock_sock(sk);
-		}
-
+		tcp_tsq_handler(sk);
 		sk_free(sk);
 	}
 }
@@ -853,9 +854,10 @@ void tcp_release_cb(struct sock *sk)
 		nflags = flags & ~TCP_DEFERRED_ALL;
 	} while (cmpxchg(&sk->sk_tsq_flags, flags, nflags) != flags);
 
-	if (flags & TCPF_TSQ_DEFERRED)
-		tcp_tsq_handler(sk);
-
+	if (flags & TCPF_TSQ_DEFERRED) {
+		tcp_tsq_write(sk);
+		__sock_put(sk);
+	}
 	/* Here begins the tricky part :
 	 * We are called from release_sock() with :
 	 * 1) BH disabled
@@ -929,7 +931,7 @@ void tcp_wfree(struct sk_buff *skb)
 		if (!(oval & TSQF_THROTTLED) || (oval & TSQF_QUEUED))
 			goto out;
 
-		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED | TCPF_TSQ_DEFERRED;
+		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED;
 		nval = cmpxchg(&sk->sk_tsq_flags, oval, nval);
 		if (nval != oval)
 			continue;
@@ -948,37 +950,17 @@ out:
 	sk_free(sk);
 }
 
-/* Note: Called under hard irq.
- * We can not call TCP stack right away.
+/* Note: Called under soft irq.
+ * We can call TCP stack right away, unless socket is owned by user.
  */
 enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer)
 {
 	struct tcp_sock *tp = container_of(timer, struct tcp_sock, pacing_timer);
 	struct sock *sk = (struct sock *)tp;
-	unsigned long nval, oval;
 
-	for (oval = READ_ONCE(sk->sk_tsq_flags);; oval = nval) {
-		struct tsq_tasklet *tsq;
-		bool empty;
+	tcp_tsq_handler(sk);
+	sock_put(sk);
 
-		if (oval & TSQF_QUEUED)
-			break;
-
-		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED | TCPF_TSQ_DEFERRED;
-		nval = cmpxchg(&sk->sk_tsq_flags, oval, nval);
-		if (nval != oval)
-			continue;
-
-		if (!refcount_inc_not_zero(&sk->sk_wmem_alloc))
-			break;
-		/* queue this socket to tasklet queue */
-		tsq = this_cpu_ptr(&tsq_tasklet);
-		empty = list_empty(&tsq->head);
-		list_add(&tp->tsq_node, &tsq->head);
-		if (empty)
-			tasklet_schedule(&tsq->tasklet);
-		break;
-	}
 	return HRTIMER_NORESTART;
 }
 
@@ -1011,7 +993,8 @@ static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 	do_div(len_ns, rate);
 	hrtimer_start(&tcp_sk(sk)->pacing_timer,
 		      ktime_add_ns(ktime_get(), len_ns),
-		      HRTIMER_MODE_ABS_PINNED);
+		      HRTIMER_MODE_ABS_PINNED_SOFT);
+	sock_hold(sk);
 }
 
 static void tcp_update_skb_after_send(struct tcp_sock *tp, struct sk_buff *skb)
@@ -1078,7 +1061,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	/* if no packet is in qdisc/device queue, then allow XPS to select
 	 * another queue. We can be called from tcp_tsq_handler()
-	 * which holds one reference to sk_wmem_alloc.
+	 * which holds one reference to sk.
 	 *
 	 * TODO: Ideally, in-flight pure ACK packets should not matter here.
 	 * One way to get this would be to set skb->truesize = 2 on them.
@@ -2185,7 +2168,7 @@ static int tcp_mtu_probe(struct sock *sk)
 static bool tcp_pacing_check(const struct sock *sk)
 {
 	return tcp_needs_internal_pacing(sk) &&
-	       hrtimer_active(&tcp_sk(sk)->pacing_timer);
+	       hrtimer_is_queued(&tcp_sk(sk)->pacing_timer);
 }
 
 /* TCP Small Queues :
@@ -2365,8 +2348,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 					  skb, limit, mss_now, gfp)))
 			break;
 
-		if (test_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags))
-			clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
 
