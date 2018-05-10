@@ -133,22 +133,49 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		}
 	}
 
-	/* we want to receive ICMP errors */
-	opt = 1;
-	ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
-				(char *) &opt, sizeof(opt));
-	if (ret < 0) {
-		_debug("setsockopt failed");
-		goto error;
-	}
+	switch (local->srx.transport.family) {
+	case AF_INET:
+		/* we want to receive ICMP errors */
+		opt = 1;
+		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
 
-	/* we want to set the don't fragment bit */
-	opt = IP_PMTUDISC_DO;
-	ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
-				(char *) &opt, sizeof(opt));
-	if (ret < 0) {
-		_debug("setsockopt failed");
-		goto error;
+		/* we want to set the don't fragment bit */
+		opt = IP_PMTUDISC_DO;
+		ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+		break;
+
+	case AF_INET6:
+		/* we want to receive ICMP errors */
+		opt = 1;
+		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_RECVERR,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+
+		/* we want to set the don't fragment bit */
+		opt = IPV6_PMTUDISC_DO;
+		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_MTU_DISCOVER,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+		break;
+
+	default:
+		BUG();
 	}
 
 	/* set the socket up */
