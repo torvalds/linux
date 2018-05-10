@@ -60,6 +60,8 @@ static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 		goto out;
 	}
 
+	return 0;
+
 out:
 	return ret;
 }
