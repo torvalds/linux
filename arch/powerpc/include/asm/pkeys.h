@@ -15,21 +15,6 @@ DECLARE_STATIC_KEY_TRUE(pkey_disabled);
 extern int pkeys_total; /* total pkeys as per device tree */
 extern u32 initial_allocation_mask; /* bits set for reserved keys */
 
-/*
- * Define these here temporarily so we're not dependent on patching linux/mm.h.
- * Once it's updated we can drop these.
- */
-#ifndef VM_PKEY_BIT0
-# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
-# define VM_PKEY_BIT0	VM_HIGH_ARCH_0
-# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
-# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
-# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
-# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
-#elif !defined(VM_PKEY_BIT4)
-# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
-#endif
-
 #define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | \
 			    VM_PKEY_BIT3 | VM_PKEY_BIT4)
 
