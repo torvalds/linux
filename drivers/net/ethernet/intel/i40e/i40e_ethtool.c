@@ -19,13 +19,13 @@ struct i40e_stats {
 }
 
 #define I40E_NETDEV_STAT(_net_stat) \
-		I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
+	I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
 #define I40E_PF_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_pf, _name, _stat)
+	I40E_STAT(struct i40e_pf, _name, _stat)
 #define I40E_VSI_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_vsi, _name, _stat)
+	I40E_STAT(struct i40e_vsi, _name, _stat)
 #define I40E_VEB_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_veb, _name, _stat)
+	I40E_STAT(struct i40e_veb, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -144,9 +144,9 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	    * 2 /* Tx and Rx together */                                     \
 	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
-#define I40E_NETDEV_STATS_LEN   ARRAY_SIZE(i40e_gstrings_net_stats)
+#define I40E_NETDEV_STATS_LEN	ARRAY_SIZE(i40e_gstrings_net_stats)
 #define I40E_MISC_STATS_LEN	ARRAY_SIZE(i40e_gstrings_misc_stats)
-#define I40E_VSI_STATS_LEN(n)   (I40E_NETDEV_STATS_LEN + \
+#define I40E_VSI_STATS_LEN(n)	(I40E_NETDEV_STATS_LEN + \
 				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
 #define I40E_PFC_STATS_LEN ( \
