@@ -7127,7 +7127,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 		}
 
-		ret = add_to_free_space_tree(trans, info, bytenr, num_bytes);
+		ret = add_to_free_space_tree(trans, bytenr, num_bytes);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
