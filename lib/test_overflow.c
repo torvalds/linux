@@ -220,30 +220,38 @@ DEFINE_TEST_ARRAY(s64) = {
 		pr_warn("expected "fmt" "sym" "fmt		\
 			" to%s overflow (type %s)\n",		\
 			a, b, of ? "" : " not", #t);		\
+		err = 1;					\
 	}							\
 	if (_r != r) {						\
 		pr_warn("expected "fmt" "sym" "fmt" == "	\
 			fmt", got "fmt" (type %s)\n",		\
 			a, b, r, _r, #t);			\
+		err = 1;					\
 	}							\
 } while (0)
 
 #define DEFINE_TEST_FUNC(t, fmt)					\
-static void __init do_test_ ## t(const struct test_ ## t *p)		\
+static int __init do_test_ ## t(const struct test_ ## t *p)		\
 {							   		\
+	int err = 0;							\
+									\
 	check_one_op(t, fmt, add, "+", p->a, p->b, p->sum, p->s_of);	\
 	check_one_op(t, fmt, add, "+", p->b, p->a, p->sum, p->s_of);	\
 	check_one_op(t, fmt, sub, "-", p->a, p->b, p->diff, p->d_of);	\
 	check_one_op(t, fmt, mul, "*", p->a, p->b, p->prod, p->p_of);	\
 	check_one_op(t, fmt, mul, "*", p->b, p->a, p->prod, p->p_of);	\
+									\
+	return err;							\
 }									\
 									\
-static void __init test_ ## t ## _overflow(void) {			\
+static int __init test_ ## t ## _overflow(void) {			\
+	int err = 0;							\
 	unsigned i;							\
 									\
 	pr_info("%-3s: %zu tests\n", #t, ARRAY_SIZE(t ## _tests));	\
 	for (i = 0; i < ARRAY_SIZE(t ## _tests); ++i)			\
-		do_test_ ## t(&t ## _tests[i]);				\
+		err |= do_test_ ## t(&t ## _tests[i]);			\
+	return err;							\
 }
 
 DEFINE_TEST_FUNC(u8, "%d");
@@ -257,27 +265,43 @@ DEFINE_TEST_FUNC(u64, "%llu");
 DEFINE_TEST_FUNC(s64, "%lld");
 #endif
 
-static int __init test_overflow(void)
+static int __init test_overflow_calculation(void)
 {
-	test_u8_overflow();
-	test_s8_overflow();
-	test_u16_overflow();
-	test_s16_overflow();
-	test_u32_overflow();
-	test_s32_overflow();
+	int err = 0;
+
+	err |= test_u8_overflow();
+	err |= test_s8_overflow();
+	err |= test_u16_overflow();
+	err |= test_s16_overflow();
+	err |= test_u32_overflow();
+	err |= test_s32_overflow();
 #if BITS_PER_LONG == 64
-	test_u64_overflow();
-	test_s64_overflow();
+	err |= test_u64_overflow();
+	err |= test_s64_overflow();
 #endif
 
-	pr_info("done\n");
+	return err;
+}
 
-	return 0;
+static int __init test_module_init(void)
+{
+	int err = 0;
+
+	err |= test_overflow_calculation();
+
+	if (err) {
+		pr_warn("FAIL!\n");
+		err = -EINVAL;
+	} else {
+		pr_info("all tests passed\n");
+	}
+
+	return err;
 }
 
 static void __exit test_module_exit(void)
 { }
 
-module_init(test_overflow);
+module_init(test_module_init);
 module_exit(test_module_exit);
 MODULE_LICENSE("Dual MIT/GPL");
