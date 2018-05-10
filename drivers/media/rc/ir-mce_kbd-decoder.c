@@ -274,9 +274,6 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		decrease_duration(&ev, MCIR2_BIT_END);
 
 		if (data->count != MCIR2_HEADER_NBITS) {
@@ -313,9 +310,6 @@ again:
 		return 0;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == data->wanted_bits)
 			data->state = STATE_FINISHED;
 		else
