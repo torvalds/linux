@@ -1855,9 +1855,15 @@ nodma:
 	size = QUP_INPUT_FIFO_SIZE(io_mode);
 	qup->in_fifo_sz = qup->in_blk_sz * (2 << size);
 
-	fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
 	hs_div = 3;
-	qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
+	if (clk_freq <= I2C_STANDARD_FREQ) {
+		fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
+		qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
+	} else {
+		/* 33%/66% duty cycle */
+		fs_div = ((src_clk_freq / clk_freq) - 6) * 2 / 3;
+		qup->clk_ctl = ((fs_div / 2) << 16) | (hs_div << 8) | (fs_div & 0xff);
+	}
 
 	/*
 	 * Time it takes for a byte to be clocked out on the bus.
