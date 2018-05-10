@@ -326,16 +326,12 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 			struct mmal_msg_context *msg_context)
 {
 	unsigned long rd_len;
-	unsigned long flags = 0;
 	int ret;
 
 	rd_len = msg->u.buffer_from_host.buffer_header.length;
 
-	/* take buffer from queue */
-	spin_lock_irqsave(&msg_context->u.bulk.port->slock, flags);
-	if (list_empty(&msg_context->u.bulk.port->buffers)) {
-		spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-		pr_err("buffer list empty trying to submit bulk receive\n");
+	if (!msg_context->u.bulk.buffer) {
+		pr_err("bulk.buffer not configured - error in buffer_from_host\n");
 
 		/* todo: this is a serious error, we should never have
 		 * committed a buffer_to_host operation to the mmal
@@ -349,13 +345,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 
 		return -EINVAL;
 	}
-
-	msg_context->u.bulk.buffer =
-	    list_entry(msg_context->u.bulk.port->buffers.next,
-		       struct mmal_buffer, list);
-	list_del(&msg_context->u.bulk.buffer->list);
-
-	spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
 
 	/* ensure we do not overrun the available buffer */
 	if (rd_len > msg_context->u.bulk.buffer->buffer_size) {
@@ -419,31 +408,6 @@ static int inline_receive(struct vchiq_mmal_instance *instance,
 			  struct mmal_msg *msg,
 			  struct mmal_msg_context *msg_context)
 {
-	unsigned long flags = 0;
-
-	/* take buffer from queue */
-	spin_lock_irqsave(&msg_context->u.bulk.port->slock, flags);
-	if (list_empty(&msg_context->u.bulk.port->buffers)) {
-		spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-		pr_err("buffer list empty trying to receive inline\n");
-
-		/* todo: this is a serious error, we should never have
-		 * committed a buffer_to_host operation to the mmal
-		 * port without the buffer to back it up (with
-		 * underflow handling) and there is no obvious way to
-		 * deal with this. Less bad than the bulk case as we
-		 * can just drop this on the floor but...unhelpful
-		 */
-		return -EINVAL;
-	}
-
-	msg_context->u.bulk.buffer =
-	    list_entry(msg_context->u.bulk.port->buffers.next,
-		       struct mmal_buffer, list);
-	list_del(&msg_context->u.bulk.buffer->list);
-
-	spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-
 	memcpy(msg_context->u.bulk.buffer->buffer,
 	       msg->u.buffer_from_host.short_data,
 	       msg->u.buffer_from_host.payload_in_message);
@@ -463,6 +427,9 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	struct mmal_msg m;
 	int ret;
 
+	if (!port->enabled)
+		return -EINVAL;
+
 	pr_debug("instance:%p buffer:%p\n", instance->handle, buf);
 
 	/* get context */
@@ -476,7 +443,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	/* store bulk message context for when data arrives */
 	msg_context->u.bulk.instance = instance;
 	msg_context->u.bulk.port = port;
-	msg_context->u.bulk.buffer = NULL;	/* not valid until bulk xfer */
+	msg_context->u.bulk.buffer = buf;
 	msg_context->u.bulk.buffer_used = 0;
 
 	/* initialise work structure ready to schedule callback */
@@ -522,43 +489,6 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 					sizeof(m.u.buffer_from_host));
 
 	vchi_service_release(instance->handle);
-
-	return ret;
-}
-
-/* submit a buffer to the mmal sevice
- *
- * the buffer_from_host uses size data from the ports next available
- * mmal_buffer and deals with there being no buffer available by
- * incrementing the underflow for later
- */
-static int port_buffer_from_host(struct vchiq_mmal_instance *instance,
-				 struct vchiq_mmal_port *port)
-{
-	int ret;
-	struct mmal_buffer *buf;
-	unsigned long flags = 0;
-
-	if (!port->enabled)
-		return -EINVAL;
-
-	/* peek buffer from queue */
-	spin_lock_irqsave(&port->slock, flags);
-	if (list_empty(&port->buffers)) {
-		spin_unlock_irqrestore(&port->slock, flags);
-		return -ENOSPC;
-	}
-
-	buf = list_entry(port->buffers.next, struct mmal_buffer, list);
-
-	spin_unlock_irqrestore(&port->slock, flags);
-
-	/* issue buffer to mmal service */
-	ret = buffer_from_host(instance, port, buf);
-	if (ret) {
-		pr_err("adding buffer header failed\n");
-		/* todo: how should this be dealt with */
-	}
 
 	return ret;
 }
@@ -1420,7 +1350,14 @@ static int port_disable(struct vchiq_mmal_instance *instance,
 	ret = port_action_port(instance, port,
 			       MMAL_MSG_PORT_ACTION_TYPE_DISABLE);
 	if (ret == 0) {
-		/* drain all queued buffers on port */
+		/*
+		 * Drain all queued buffers on port. This should only
+		 * apply to buffers that have been queued before the port
+		 * has been enabled. If the port has been enabled and buffers
+		 * passed, then the buffers should have been removed from this
+		 * list, and we should get the relevant callbacks via VCHIQ
+		 * to release the buffers.
+		 */
 		spin_lock_irqsave(&port->slock, flags);
 
 		list_for_each_safe(buf_head, q, &port->buffers) {
@@ -1449,7 +1386,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 		       struct vchiq_mmal_port *port)
 {
 	unsigned int hdr_count;
-	struct list_head *buf_head;
+	struct list_head *q, *buf_head;
 	int ret;
 
 	if (port->enabled)
@@ -1475,7 +1412,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 	if (port->buffer_cb) {
 		/* send buffer headers to videocore */
 		hdr_count = 1;
-		list_for_each(buf_head, &port->buffers) {
+		list_for_each_safe(buf_head, q, &port->buffers) {
 			struct mmal_buffer *mmalbuf;
 
 			mmalbuf = list_entry(buf_head, struct mmal_buffer,
@@ -1484,6 +1421,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 			if (ret)
 				goto done;
 
+			list_del(buf_head);
 			hdr_count++;
 			if (hdr_count > port->current_buffer.num)
 				break;
@@ -1696,12 +1634,15 @@ int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 			     struct mmal_buffer *buffer)
 {
 	unsigned long flags = 0;
+	int ret;
 
-	spin_lock_irqsave(&port->slock, flags);
-	list_add_tail(&buffer->list, &port->buffers);
-	spin_unlock_irqrestore(&port->slock, flags);
-
-	port_buffer_from_host(instance, port);
+	ret = buffer_from_host(instance, port, buffer);
+	if (ret == -EINVAL) {
+		/* Port is disabled. Queue for when it is enabled. */
+		spin_lock_irqsave(&port->slock, flags);
+		list_add_tail(&buffer->list, &port->buffers);
+		spin_unlock_irqrestore(&port->slock, flags);
+	}
 
 	return 0;
 }
