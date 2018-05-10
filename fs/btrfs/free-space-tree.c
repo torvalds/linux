@@ -449,7 +449,6 @@ out:
 }
 
 static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
-					  struct btrfs_fs_info *fs_info,
 					  struct btrfs_block_group_cache *block_group,
 					  struct btrfs_path *path,
 					  int new_extents)
@@ -462,7 +461,8 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 	if (new_extents == 0)
 		return 0;
 
-	info = search_free_space_info(trans, fs_info, block_group, path, 1);
+	info = search_free_space_info(trans, trans->fs_info, block_group, path,
+				      1);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
 		goto out;
@@ -683,7 +683,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_release_path(path);
-	ret = update_free_space_extent_count(trans, fs_info, block_group, path,
+	ret = update_free_space_extent_count(trans, block_group, path,
 					     new_extents);
 
 out:
@@ -770,7 +770,7 @@ static int remove_free_space_extent(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_release_path(path);
-	ret = update_free_space_extent_count(trans, fs_info, block_group, path,
+	ret = update_free_space_extent_count(trans, block_group, path,
 					     new_extents);
 
 out:
@@ -965,7 +965,7 @@ insert:
 		goto out;
 
 	btrfs_release_path(path);
-	ret = update_free_space_extent_count(trans, fs_info, block_group, path,
+	ret = update_free_space_extent_count(trans, block_group, path,
 					     new_extents);
 
 out:
