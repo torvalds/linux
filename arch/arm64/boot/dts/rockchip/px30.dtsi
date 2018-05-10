@@ -452,12 +452,14 @@
 	};
 
 	pdm: pdm@ff0a0000 {
-		compatible = "rockchip,pdm";
+		compatible = "rockchip,px30-pdm", "rockchip,pdm";
 		reg = <0x0 0xff0a0000 0x0 0x1000>;
 		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac 24>;
 		dma-names = "rx";
+		resets = <&cru SRST_PDM>;
+		reset-names = "pdm-m";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pdm_clk0m0
 			     &pdm_clk1
