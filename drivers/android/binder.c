@@ -3921,10 +3921,11 @@ retry:
 			binder_inner_proc_unlock(proc);
 			if (put_user(e->cmd, (uint32_t __user *)ptr))
 				return -EFAULT;
+			cmd = e->cmd;
 			e->cmd = BR_OK;
 			ptr += sizeof(uint32_t);
 
-			binder_stat_br(proc, thread, e->cmd);
+			binder_stat_br(proc, thread, cmd);
 		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			binder_inner_proc_unlock(proc);
