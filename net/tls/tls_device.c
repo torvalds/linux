@@ -604,6 +604,8 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	INIT_LIST_HEAD(&offload_ctx->records_list);
 	list_add_tail(&start_marker_record->list, &offload_ctx->records_list);
 	spin_lock_init(&offload_ctx->lock);
+	sg_init_table(offload_ctx->sg_tx_data,
+		      ARRAY_SIZE(offload_ctx->sg_tx_data));
 
 	clean_acked_data_enable(inet_csk(sk), &tls_icsk_clean_acked);
 	ctx->push_pending_record = tls_device_push_pending_record;
