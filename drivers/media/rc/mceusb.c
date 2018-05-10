@@ -572,6 +572,7 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 			datasize = 1;
 			break;
 		}
+		break;
 	case MCE_CMD_PORT_IR:
 		switch (subcmd) {
 		case MCE_CMD_UNKNOWN:
