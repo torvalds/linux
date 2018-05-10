@@ -6,16 +6,26 @@
 #include "fm10k.h"
 
 struct fm10k_stats {
+	/* The stat_string is expected to be a format string formatted using
+	 * vsnprintf by fm10k_add_stat_strings. Every member of a stats array
+	 * should use the same format specifiers as they will be formatted
+	 * using the same variadic arguments.
+	 */
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int stat_offset;
 };
 
-#define FM10K_NETDEV_STAT(_net_stat) { \
-	.stat_string = #_net_stat, \
-	.sizeof_stat = FIELD_SIZEOF(struct net_device_stats, _net_stat), \
-	.stat_offset = offsetof(struct net_device_stats, _net_stat) \
+#define FM10K_STAT_FIELDS(_type, _name, _stat) { \
+	.stat_string = _name, \
+	.sizeof_stat = FIELD_SIZEOF(_type, _stat), \
+	.stat_offset = offsetof(_type, _stat) \
 }
+
+/* netdevice statistics */
+#define FM10K_NETDEV_STAT(_net_stat) \
+	FM10K_STAT_FIELDS(struct net_device_stats, __stringify(_net_stat), \
+			  _net_stat)
 
 static const struct fm10k_stats fm10k_gstrings_net_stats[] = {
 	FM10K_NETDEV_STAT(tx_packets),
@@ -34,11 +44,9 @@ static const struct fm10k_stats fm10k_gstrings_net_stats[] = {
 
 #define FM10K_NETDEV_STATS_LEN	ARRAY_SIZE(fm10k_gstrings_net_stats)
 
-#define FM10K_STAT(_name, _stat) { \
-	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(struct fm10k_intfc, _stat), \
-	.stat_offset = offsetof(struct fm10k_intfc, _stat) \
-}
+/* General interface statistics */
+#define FM10K_STAT(_name, _stat) \
+	FM10K_STAT_FIELDS(struct fm10k_intfc, _name, _stat)
 
 static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("tx_restart_queue", restart_queue),
@@ -75,11 +83,9 @@ static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 	FM10K_STAT("nodesc_drop", stats.nodesc_drop.count),
 };
 
-#define FM10K_MBX_STAT(_name, _stat) { \
-	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(struct fm10k_mbx_info, _stat), \
-	.stat_offset = offsetof(struct fm10k_mbx_info, _stat) \
-}
+/* mailbox statistics */
+#define FM10K_MBX_STAT(_name, _stat) \
+	FM10K_STAT_FIELDS(struct fm10k_mbx_info, _name, _stat)
 
 static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 	FM10K_MBX_STAT("mbx_tx_busy", tx_busy),
@@ -93,15 +99,13 @@ static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 	FM10K_MBX_STAT("mbx_rx_mbmem_pushed", rx_mbmem_pushed),
 };
 
-#define FM10K_QUEUE_STAT(_name, _stat) { \
-	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(struct fm10k_ring, _stat), \
-	.stat_offset = offsetof(struct fm10k_ring, _stat) \
-}
+/* per-queue ring statistics */
+#define FM10K_QUEUE_STAT(_name, _stat) \
+	FM10K_STAT_FIELDS(struct fm10k_ring, _name, _stat)
 
 static const struct fm10k_stats fm10k_gstrings_queue_stats[] = {
-	FM10K_QUEUE_STAT("packets", stats.packets),
-	FM10K_QUEUE_STAT("bytes", stats.bytes),
+	FM10K_QUEUE_STAT("%s_queue_%u_packets", stats.packets),
+	FM10K_QUEUE_STAT("%s_queue_%u_bytes", stats.bytes),
 };
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
@@ -131,49 +135,44 @@ enum {
 static const char fm10k_prv_flags[FM10K_PRV_FLAG_LEN][ETH_GSTRING_LEN] = {
 };
 
-static void fm10k_add_stat_strings(u8 **p, const char *prefix,
-				   const struct fm10k_stats stats[],
-				   const unsigned int size)
+static void __fm10k_add_stat_strings(u8 **p, const struct fm10k_stats stats[],
+				     const unsigned int size, ...)
 {
 	unsigned int i;
 
 	for (i = 0; i < size; i++) {
-		snprintf(*p, ETH_GSTRING_LEN, "%s%s",
-			 prefix, stats[i].stat_string);
+		va_list args;
+
+		va_start(args, size);
+		vsnprintf(*p, ETH_GSTRING_LEN, stats[i].stat_string, args);
 		*p += ETH_GSTRING_LEN;
+		va_end(args);
 	}
 }
+
+#define fm10k_add_stat_strings(p, stats, ...) \
+	__fm10k_add_stat_strings(p, stats, ARRAY_SIZE(stats), ## __VA_ARGS__)
 
 static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	unsigned int i;
 
-	fm10k_add_stat_strings(&data, "", fm10k_gstrings_net_stats,
-			       FM10K_NETDEV_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_net_stats);
 
-	fm10k_add_stat_strings(&data, "", fm10k_gstrings_global_stats,
-			       FM10K_GLOBAL_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_global_stats);
 
-	fm10k_add_stat_strings(&data, "", fm10k_gstrings_mbx_stats,
-			       FM10K_MBX_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_mbx_stats);
 
 	if (interface->hw.mac.type != fm10k_mac_vf)
-		fm10k_add_stat_strings(&data, "", fm10k_gstrings_pf_stats,
-				       FM10K_PF_STATS_LEN);
+		fm10k_add_stat_strings(&data, fm10k_gstrings_pf_stats);
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
-		char prefix[ETH_GSTRING_LEN];
+		fm10k_add_stat_strings(&data, fm10k_gstrings_queue_stats,
+				       "tx", i);
 
-		snprintf(prefix, ETH_GSTRING_LEN, "tx_queue_%u_", i);
-		fm10k_add_stat_strings(&data, prefix,
-				       fm10k_gstrings_queue_stats,
-				       FM10K_QUEUE_STATS_LEN);
-
-		snprintf(prefix, ETH_GSTRING_LEN, "rx_queue_%u_", i);
-		fm10k_add_stat_strings(&data, prefix,
-				       fm10k_gstrings_queue_stats,
-				       FM10K_QUEUE_STATS_LEN);
+		fm10k_add_stat_strings(&data, fm10k_gstrings_queue_stats,
+				       "rx", i);
 	}
 }
 
@@ -218,9 +217,9 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-static void fm10k_add_ethtool_stats(u64 **data, void *pointer,
-				    const struct fm10k_stats stats[],
-				    const unsigned int size)
+static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
+				      const struct fm10k_stats stats[],
+				      const unsigned int size)
 {
 	unsigned int i;
 	char *p;
@@ -249,10 +248,15 @@ static void fm10k_add_ethtool_stats(u64 **data, void *pointer,
 			*((*data)++) = *(u8 *)p;
 			break;
 		default:
+			WARN_ONCE(1, "unexpected stat size for %s",
+				  stats[i].stat_string);
 			*((*data)++) = 0;
 		}
 	}
 }
+
+#define fm10k_add_ethtool_stats(data, pointer, stats) \
+	__fm10k_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
 
 static void fm10k_get_ethtool_stats(struct net_device *netdev,
 				    struct ethtool_stats __always_unused *stats,
@@ -264,20 +268,16 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 	fm10k_update_stats(interface);
 
-	fm10k_add_ethtool_stats(&data, net_stats, fm10k_gstrings_net_stats,
-				FM10K_NETDEV_STATS_LEN);
+	fm10k_add_ethtool_stats(&data, net_stats, fm10k_gstrings_net_stats);
 
-	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats,
-				FM10K_GLOBAL_STATS_LEN);
+	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats);
 
 	fm10k_add_ethtool_stats(&data, &interface->hw.mbx,
-				fm10k_gstrings_mbx_stats,
-				FM10K_MBX_STATS_LEN);
+				fm10k_gstrings_mbx_stats);
 
 	if (interface->hw.mac.type != fm10k_mac_vf) {
 		fm10k_add_ethtool_stats(&data, interface,
-					fm10k_gstrings_pf_stats,
-					FM10K_PF_STATS_LEN);
+					fm10k_gstrings_pf_stats);
 	}
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
@@ -285,13 +285,11 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 		ring = interface->tx_ring[i];
 		fm10k_add_ethtool_stats(&data, ring,
-					fm10k_gstrings_queue_stats,
-					FM10K_QUEUE_STATS_LEN);
+					fm10k_gstrings_queue_stats);
 
 		ring = interface->rx_ring[i];
 		fm10k_add_ethtool_stats(&data, ring,
-					fm10k_gstrings_queue_stats,
-					FM10K_QUEUE_STATS_LEN);
+					fm10k_gstrings_queue_stats);
 	}
 }
 
