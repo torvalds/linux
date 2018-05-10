@@ -146,6 +146,34 @@ const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
 }
 EXPORT_SYMBOL(rdma_consumer_reject_data);
 
+/**
+ * rdma_iw_cm_id() - return the iw_cm_id pointer for this cm_id.
+ * @id: Communication Identifier
+ */
+struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *id)
+{
+	struct rdma_id_private *id_priv;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	if (id->device->node_type == RDMA_NODE_RNIC)
+		return id_priv->cm_id.iw;
+	return NULL;
+}
+EXPORT_SYMBOL(rdma_iw_cm_id);
+
+/**
+ * rdma_res_to_id() - return the rdma_cm_id pointer for this restrack.
+ * @res: rdma resource tracking entry pointer
+ */
+struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
+{
+	struct rdma_id_private *id_priv =
+		container_of(res, struct rdma_id_private, res);
+
+	return &id_priv->id;
+}
+EXPORT_SYMBOL(rdma_res_to_id);
+
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
