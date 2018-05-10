@@ -176,21 +176,23 @@ mlxsw_sp_span_entry_bridge_8021q(const struct net_device *br_dev,
 {
 	struct bridge_vlan_info vinfo;
 	struct net_device *edev;
-	u16 pvid;
+	u16 vid = *p_vid;
 
-	if (WARN_ON(br_vlan_get_pvid(br_dev, &pvid)))
+	if (!vid && WARN_ON(br_vlan_get_pvid(br_dev, &vid)))
 		return NULL;
-	if (!pvid)
+	if (!vid ||
+	    br_vlan_get_info(br_dev, vid, &vinfo) ||
+	    !(vinfo.flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return NULL;
 
-	edev = br_fdb_find_port(br_dev, dmac, pvid);
+	edev = br_fdb_find_port(br_dev, dmac, vid);
 	if (!edev)
 		return NULL;
 
-	if (br_vlan_get_info(edev, pvid, &vinfo))
+	if (br_vlan_get_info(edev, vid, &vinfo))
 		return NULL;
 	if (!(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
-		*p_vid = pvid;
+		*p_vid = vid;
 	return edev;
 }
 
@@ -208,13 +210,13 @@ mlxsw_sp_span_entry_bridge(const struct net_device *br_dev,
 {
 	struct mlxsw_sp_bridge_port *bridge_port;
 	enum mlxsw_reg_spms_state spms_state;
+	struct net_device *dev = NULL;
 	struct mlxsw_sp_port *port;
-	struct net_device *dev;
 	u8 stp_state;
 
 	if (br_vlan_enabled(br_dev))
 		dev = mlxsw_sp_span_entry_bridge_8021q(br_dev, dmac, p_vid);
-	else
+	else if (!*p_vid)
 		dev = mlxsw_sp_span_entry_bridge_8021d(br_dev, dmac);
 	if (!dev)
 		return NULL;
@@ -261,10 +263,19 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	if (!l3edev || mlxsw_sp_span_dmac(tbl, &gw, l3edev, dmac))
 		goto unoffloadable;
 
+	if (is_vlan_dev(l3edev))
+		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
+
 	if (netif_is_bridge_master(l3edev)) {
 		l3edev = mlxsw_sp_span_entry_bridge(l3edev, dmac, &vid);
 		if (!l3edev)
 			goto unoffloadable;
+	}
+
+	if (is_vlan_dev(l3edev)) {
+		if (vid || !(l3edev->flags & IFF_UP))
+			goto unoffloadable;
+		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
 	}
 
 	if (!mlxsw_sp_port_dev_check(l3edev))
