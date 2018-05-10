@@ -195,10 +195,8 @@ u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	u16 ret;
 
 	ret = nvmet_check_ctrl_status(req, cmd);
-	if (unlikely(ret)) {
-		req->ns = NULL;
+	if (unlikely(ret))
 		return ret;
-	}
 
 	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
 	if (unlikely(!req->ns))
