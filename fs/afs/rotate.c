@@ -350,8 +350,8 @@ use_server:
 	 * break request before we've finished decoding the reply and
 	 * installing the vnode.
 	 */
-	fc->ac.error = afs_register_server_cb_interest(
-		vnode, &fc->server_list->servers[fc->index]);
+	fc->ac.error = afs_register_server_cb_interest(vnode, fc->server_list,
+						       fc->index);
 	if (fc->ac.error < 0)
 		goto failed;
 

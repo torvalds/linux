@@ -23,36 +23,55 @@
 /*
  * Set up an interest-in-callbacks record for a volume on a server and
  * register it with the server.
- * - Called with volume->server_sem held.
+ * - Called with vnode->io_lock held.
  */
 int afs_register_server_cb_interest(struct afs_vnode *vnode,
-				    struct afs_server_entry *entry)
+				    struct afs_server_list *slist,
+				    unsigned int index)
 {
-	struct afs_cb_interest *cbi = entry->cb_interest, *vcbi, *new, *x;
+	struct afs_server_entry *entry = &slist->servers[index];
+	struct afs_cb_interest *cbi, *vcbi, *new, *old;
 	struct afs_server *server = entry->server;
 
 again:
+	if (vnode->cb_interest &&
+	    likely(vnode->cb_interest == entry->cb_interest))
+		return 0;
+
+	read_lock(&slist->lock);
+	cbi = afs_get_cb_interest(entry->cb_interest);
+	read_unlock(&slist->lock);
+
 	vcbi = vnode->cb_interest;
 	if (vcbi) {
-		if (vcbi == cbi)
-			return 0;
-
-		if (cbi && vcbi->server == cbi->server) {
-			write_seqlock(&vnode->cb_lock);
-			vnode->cb_interest = afs_get_cb_interest(cbi);
-			write_sequnlock(&vnode->cb_lock);
+		if (vcbi == cbi) {
 			afs_put_cb_interest(afs_v2net(vnode), cbi);
 			return 0;
 		}
 
+		/* Use a new interest in the server list for the same server
+		 * rather than an old one that's still attached to a vnode.
+		 */
+		if (cbi && vcbi->server == cbi->server) {
+			write_seqlock(&vnode->cb_lock);
+			old = vnode->cb_interest;
+			vnode->cb_interest = cbi;
+			write_sequnlock(&vnode->cb_lock);
+			afs_put_cb_interest(afs_v2net(vnode), old);
+			return 0;
+		}
+
+		/* Re-use the one attached to the vnode. */
 		if (!cbi && vcbi->server == server) {
-			afs_get_cb_interest(vcbi);
-			x = cmpxchg(&entry->cb_interest, cbi, vcbi);
-			if (x != cbi) {
-				cbi = x;
-				afs_put_cb_interest(afs_v2net(vnode), vcbi);
+			write_lock(&slist->lock);
+			if (entry->cb_interest) {
+				write_unlock(&slist->lock);
+				afs_put_cb_interest(afs_v2net(vnode), cbi);
 				goto again;
 			}
+
+			entry->cb_interest = cbi;
+			write_unlock(&slist->lock);
 			return 0;
 		}
 	}
@@ -72,13 +91,16 @@ again:
 		list_add_tail(&new->cb_link, &server->cb_interests);
 		write_unlock(&server->cb_break_lock);
 
-		x = cmpxchg(&entry->cb_interest, cbi, new);
-		if (x == cbi) {
+		write_lock(&slist->lock);
+		if (!entry->cb_interest) {
+			entry->cb_interest = afs_get_cb_interest(new);
 			cbi = new;
+			new = NULL;
 		} else {
-			cbi = x;
-			afs_put_cb_interest(afs_v2net(vnode), new);
+			cbi = afs_get_cb_interest(entry->cb_interest);
 		}
+		write_unlock(&slist->lock);
+		afs_put_cb_interest(afs_v2net(vnode), new);
 	}
 
 	ASSERT(cbi);
@@ -88,11 +110,13 @@ again:
 	 */
 	write_seqlock(&vnode->cb_lock);
 
-	vnode->cb_interest = afs_get_cb_interest(cbi);
+	old = vnode->cb_interest;
+	vnode->cb_interest = cbi;
 	vnode->cb_s_break = cbi->server->cb_s_break;
 	clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 
 	write_sequnlock(&vnode->cb_lock);
+	afs_put_cb_interest(afs_v2net(vnode), old);
 	return 0;
 }
 
