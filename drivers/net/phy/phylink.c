@@ -19,6 +19,7 @@
 #include <linux/phylink.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 #include "sfp.h"
@@ -54,6 +55,7 @@ struct phylink {
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
 	struct gpio_desc *link_gpio;
+	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
 				struct phylink_link_state *s);
 
@@ -500,6 +502,15 @@ static void phylink_run_resolve(struct phylink *pl)
 		queue_work(system_power_efficient_wq, &pl->resolve);
 }
 
+static void phylink_fixed_poll(struct timer_list *t)
+{
+	struct phylink *pl = container_of(t, struct phylink, link_poll);
+
+	mod_timer(t, jiffies + HZ);
+
+	phylink_run_resolve(pl);
+}
+
 static const struct sfp_upstream_ops sfp_phylink_ops;
 
 static int phylink_register_sfp(struct phylink *pl,
@@ -572,6 +583,7 @@ struct phylink *phylink_create(struct net_device *ndev,
 	pl->link_config.an_enabled = true;
 	pl->ops = ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
+	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
 
 	bitmap_fill(pl->supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	linkmode_copy(pl->link_config.advertising, pl->supported);
@@ -905,6 +917,8 @@ void phylink_start(struct phylink *pl)
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
 
+	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
+		mod_timer(&pl->link_poll, jiffies + HZ);
 	if (pl->sfp_bus)
 		sfp_upstream_start(pl->sfp_bus);
 	if (pl->phydev)
@@ -929,6 +943,8 @@ void phylink_stop(struct phylink *pl)
 		phy_stop(pl->phydev);
 	if (pl->sfp_bus)
 		sfp_upstream_stop(pl->sfp_bus);
+	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
+		del_timer_sync(&pl->link_poll);
 
 	set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	queue_work(system_power_efficient_wq, &pl->resolve);
