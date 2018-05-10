@@ -370,12 +370,12 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 
 	/* Wait for MAC to become idle */
 	for (i = 0; i < 300; i++) {
-		if (mt76_rr(dev, MT_MAC_STATUS) &
-		    (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX))
+		if ((mt76_rr(dev, MT_MAC_STATUS) &
+		     (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX)) ||
+		    mt76_rr(dev, MT_BBP(IBI, 12))) {
+			usleep_range(10, 20);
 			continue;
-
-		if (mt76_rr(dev, MT_BBP(IBI, 12)))
-			continue;
+		}
 
 		stopped = true;
 		break;
