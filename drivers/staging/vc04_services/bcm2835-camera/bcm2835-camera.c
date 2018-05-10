@@ -1397,7 +1397,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 {
 	struct bm2835_mmal_dev *dev = video_drvdata(file);
 	struct v4l2_fract tpf;
-	struct mmal_parameter_rational fps_param;
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1414,10 +1413,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	parm->parm.capture.readbuffers  = 1;
 	parm->parm.capture.capability   = V4L2_CAP_TIMEPERFRAME;
 
-	fps_param.num = 0;	/* Select variable fps, and then use
-				 * FPS_RANGE to select the actual limits.
-				 */
-	fps_param.den = 1;
 	set_framerate_params(dev);
 
 	return 0;
