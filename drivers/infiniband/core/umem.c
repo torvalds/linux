@@ -64,8 +64,6 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 	}
 
 	sg_free_table(&umem->sg_head);
-	return;
-
 }
 
 /**
