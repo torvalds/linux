@@ -201,6 +201,7 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	struct phylink		*pl;
 	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
