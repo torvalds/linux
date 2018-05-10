@@ -3,7 +3,7 @@
  * em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
  *		    video capture devices
  *
- * Copyright (C) 2013-2014 Mauro Carvalho Chehab <m.chehab@samsung.com>
+ * Copyright (C) 2013-2014 Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
