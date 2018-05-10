@@ -5,12 +5,6 @@
 ksft_skip=4
 
 #
-# Normal tests requiring no special resources
-#
-./run_fuse_test.sh
-./memfd_test
-
-#
 # To test memfd_create with hugetlbfs, there needs to be hpages_test
 # huge pages free.  Attempt to allocate enough pages to test.
 #
