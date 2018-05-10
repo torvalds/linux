@@ -621,6 +621,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	struct sock *sk1 = NULL;
 #endif
 	struct net *net;
+	struct sock *ctl_sk;
 
 	/* Never send a reset in response to a reset. */
 	if (th->rst)
@@ -723,11 +724,16 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	arg.tos = ip_hdr(skb)->tos;
 	arg.uid = sock_net_uid(net, sk && sk_fullsock(sk) ? sk : NULL);
 	local_bh_disable();
-	ip_send_unicast_reply(*this_cpu_ptr(net->ipv4.tcp_sk),
+	ctl_sk = *this_cpu_ptr(net->ipv4.tcp_sk);
+	if (sk)
+		ctl_sk->sk_mark = (sk->sk_state == TCP_TIME_WAIT) ?
+				   inet_twsk(sk)->tw_mark : sk->sk_mark;
+	ip_send_unicast_reply(ctl_sk,
 			      skb, &TCP_SKB_CB(skb)->header.h4.opt,
 			      ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 			      &arg, arg.iov[0].iov_len);
 
+	ctl_sk->sk_mark = 0;
 	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
 	__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
 	local_bh_enable();
@@ -759,6 +765,7 @@ static void tcp_v4_send_ack(const struct sock *sk,
 	} rep;
 	struct net *net = sock_net(sk);
 	struct ip_reply_arg arg;
+	struct sock *ctl_sk;
 
 	memset(&rep.th, 0, sizeof(struct tcphdr));
 	memset(&arg, 0, sizeof(arg));
@@ -809,11 +816,16 @@ static void tcp_v4_send_ack(const struct sock *sk,
 	arg.tos = tos;
 	arg.uid = sock_net_uid(net, sk_fullsock(sk) ? sk : NULL);
 	local_bh_disable();
-	ip_send_unicast_reply(*this_cpu_ptr(net->ipv4.tcp_sk),
+	ctl_sk = *this_cpu_ptr(net->ipv4.tcp_sk);
+	if (sk)
+		ctl_sk->sk_mark = (sk->sk_state == TCP_TIME_WAIT) ?
+				   inet_twsk(sk)->tw_mark : sk->sk_mark;
+	ip_send_unicast_reply(ctl_sk,
 			      skb, &TCP_SKB_CB(skb)->header.h4.opt,
 			      ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 			      &arg, arg.iov[0].iov_len);
 
+	ctl_sk->sk_mark = 0;
 	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
 	local_bh_enable();
 }

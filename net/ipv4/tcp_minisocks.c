@@ -263,6 +263,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		struct inet_sock *inet = inet_sk(sk);
 
 		tw->tw_transparent	= inet->transparent;
+		tw->tw_mark		= sk->sk_mark;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;

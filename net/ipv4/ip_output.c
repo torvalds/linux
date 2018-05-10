@@ -1561,7 +1561,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 		oif = skb->skb_iif;
 
 	flowi4_init_output(&fl4, oif,
-			   IP4_REPLY_MARK(net, skb->mark),
+			   IP4_REPLY_MARK(net, skb->mark) ?: sk->sk_mark,
 			   RT_TOS(arg->tos),
 			   RT_SCOPE_UNIVERSE, ip_hdr(skb)->protocol,
 			   ip_reply_arg_flowi_flags(arg),
