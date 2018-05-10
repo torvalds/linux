@@ -354,6 +354,13 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 	return &rt->dst;
 }
 
+/* called with rcu lock held; no reference taken on fib6_info */
+struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+			      int flags)
+{
+	return fib6_table_lookup(net, net->ipv6.fib6_main_tbl, oif, fl6, flags);
+}
+
 static void __net_init fib6_tables_init(struct net *net)
 {
 	fib6_link_table(net, net->ipv6.fib6_main_tbl);
