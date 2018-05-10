@@ -343,8 +343,9 @@ static void fragment_free_space(struct btrfs_block_group_cache *block_group)
  * since their free space will be released as soon as the transaction commits.
  */
 u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
-		       struct btrfs_fs_info *info, u64 start, u64 end)
+		       u64 start, u64 end)
 {
+	struct btrfs_fs_info *info = block_group->fs_info;
 	u64 extent_start, extent_end, size, total_added = 0;
 	int ret;
 
@@ -489,8 +490,7 @@ next:
 
 		if (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		    key.type == BTRFS_METADATA_ITEM_KEY) {
-			total_found += add_new_free_space(block_group,
-							  fs_info, last,
+			total_found += add_new_free_space(block_group, last,
 							  key.objectid);
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
 				last = key.objectid +
@@ -508,7 +508,7 @@ next:
 	}
 	ret = 0;
 
-	total_found += add_new_free_space(block_group, fs_info, last,
+	total_found += add_new_free_space(block_group, last,
 					  block_group->key.objectid +
 					  block_group->key.offset);
 	caching_ctl->progress = (u64)-1;
@@ -10162,8 +10162,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		} else if (btrfs_block_group_used(&cache->item) == 0) {
 			cache->last_byte_to_unpin = (u64)-1;
 			cache->cached = BTRFS_CACHE_FINISHED;
-			add_new_free_space(cache, info,
-					   found_key.objectid,
+			add_new_free_space(cache, found_key.objectid,
 					   found_key.objectid +
 					   found_key.offset);
 			free_excluded_extents(info, cache);
@@ -10300,7 +10299,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	add_new_free_space(cache, fs_info, chunk_offset, chunk_offset + size);
+	add_new_free_space(cache, chunk_offset, chunk_offset + size);
 
 	free_excluded_extents(fs_info, cache);
 
