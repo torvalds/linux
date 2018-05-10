@@ -28,6 +28,9 @@ struct mmal_fmt {
 	int   depth;
 	u32   mmal_component;  /* MMAL component index to be used to encode */
 	u32   ybbp;            /* depth of first Y plane for planar formats */
+	bool  remove_padding;  /* Does the GPU have to remove padding,
+				* or can we do hide padding via bytesperline.
+				*/
 };
 
 /* buffer for one video frame */

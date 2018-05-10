@@ -86,6 +86,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 12,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 1,
+	 .remove_padding = 1,
 	 },
 	{
 	 .name = "4:2:2, packed, YUYV",
@@ -95,6 +96,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 16,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 2,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "RGB24 (LE)",
@@ -104,6 +106,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 24,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 3,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "JPEG",
@@ -113,6 +116,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 8,
 	 .mmal_component = MMAL_COMPONENT_IMAGE_ENCODE,
 	 .ybbp = 0,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "H264",
@@ -122,6 +126,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 8,
 	 .mmal_component = MMAL_COMPONENT_VIDEO_ENCODE,
 	 .ybbp = 0,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "MJPEG",
@@ -131,6 +136,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 8,
 	 .mmal_component = MMAL_COMPONENT_VIDEO_ENCODE,
 	 .ybbp = 0,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "4:2:2, packed, YVYU",
@@ -140,6 +146,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 16,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 2,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "4:2:2, packed, VYUY",
@@ -149,6 +156,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 16,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 2,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "4:2:2, packed, UYVY",
@@ -158,6 +166,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 16,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 2,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "4:2:0, planar, NV12",
@@ -167,6 +176,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 12,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 1,
+	 .remove_padding = 1,
 	 },
 	{
 	 .name = "RGB24 (BE)",
@@ -176,6 +186,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 24,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 3,
+	 .remove_padding = 0,
 	 },
 	{
 	 .name = "4:2:0, planar, YVU",
@@ -185,6 +196,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 12,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 1,
+	 .remove_padding = 1,
 	 },
 	{
 	 .name = "4:2:0, planar, NV21",
@@ -194,6 +206,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 12,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 1,
+	 .remove_padding = 1,
 	 },
 	{
 	 .name = "RGB32 (BE)",
@@ -203,6 +216,7 @@ static struct mmal_fmt formats[] = {
 	 .depth = 32,
 	 .mmal_component = MMAL_COMPONENT_CAMERA,
 	 .ybbp = 4,
+	 .remove_padding = 0,
 	 },
 };
 
@@ -929,9 +943,19 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			      &f->fmt.pix.height, MIN_HEIGHT, dev->max_height,
 			      1, 0);
 	f->fmt.pix.bytesperline = f->fmt.pix.width * mfmt->ybbp;
+	if (!mfmt->remove_padding) {
+		int align_mask = ((32 * mfmt->depth) >> 3) - 1;
+		/* GPU isn't removing padding, so stride is aligned to 32 */
+		f->fmt.pix.bytesperline =
+			(f->fmt.pix.bytesperline + align_mask) & ~align_mask;
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "Not removing padding, so bytes/line = %d, "
+			 "(align_mask %d)\n",
+			 f->fmt.pix.bytesperline, align_mask);
+	}
 
 	/* Image buffer has to be padded to allow for alignment, even though
-	 * we then remove that padding before delivering the buffer.
+	 * we sometimes then remove that padding before delivering the buffer.
 	 */
 	f->fmt.pix.sizeimage = ((f->fmt.pix.height + 15) & ~15) *
 			(((f->fmt.pix.width + 31) & ~31) * mfmt->depth) >> 3;
@@ -964,6 +988,7 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	struct vchiq_mmal_port *port = NULL, *camera_port = NULL;
 	struct vchiq_mmal_component *encode_component = NULL;
 	struct mmal_fmt *mfmt = get_format(f);
+	u32 remove_padding;
 
 	BUG_ON(!mfmt);
 
@@ -1031,6 +1056,12 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 		else if (camera_port->format.encoding == MMAL_ENCODING_BGR24)
 			camera_port->format.encoding = MMAL_ENCODING_RGB24;
 	}
+
+	remove_padding = mfmt->remove_padding;
+	vchiq_mmal_port_parameter_set(dev->instance,
+				      camera_port,
+				      MMAL_PARAMETER_NO_IMAGE_PADDING,
+				      &remove_padding, sizeof(remove_padding));
 
 	camera_port->format.encoding_variant = 0;
 	camera_port->es.video.width = f->fmt.pix.width;
@@ -1509,7 +1540,6 @@ static int __init mmal_init(struct bm2835_mmal_dev *dev)
 {
 	int ret;
 	struct mmal_es_format_local *format;
-	u32 bool_true = 1;
 	u32 supported_encodings[MAX_SUPPORTED_ENCODINGS];
 	int param_size;
 	struct vchiq_mmal_component  *camera;
@@ -1593,11 +1623,6 @@ static int __init mmal_init(struct bm2835_mmal_dev *dev)
 	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
 	format->es->video.frame_rate.den = 1;
 
-	vchiq_mmal_port_parameter_set(dev->instance,
-				      &camera->output[MMAL_CAMERA_PORT_VIDEO],
-				      MMAL_PARAMETER_NO_IMAGE_PADDING,
-				      &bool_true, sizeof(bool_true));
-
 	format = &camera->output[MMAL_CAMERA_PORT_CAPTURE].format;
 
 	format->encoding = MMAL_ENCODING_OPAQUE;
@@ -1618,11 +1643,6 @@ static int __init mmal_init(struct bm2835_mmal_dev *dev)
 	dev->capture.timeperframe = tpf_default;
 	dev->capture.enc_profile = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH;
 	dev->capture.enc_level = V4L2_MPEG_VIDEO_H264_LEVEL_4_0;
-
-	vchiq_mmal_port_parameter_set(dev->instance,
-				      &camera->output[MMAL_CAMERA_PORT_CAPTURE],
-				      MMAL_PARAMETER_NO_IMAGE_PADDING,
-				      &bool_true, sizeof(bool_true));
 
 	/* get the preview component ready */
 	ret = vchiq_mmal_component_init(
