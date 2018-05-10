@@ -1809,6 +1809,15 @@ unsigned long arch_scale_freq_capacity(int cpu)
 }
 #endif
 
+#ifndef arch_scale_max_freq_capacity
+struct sched_domain;
+static __always_inline
+unsigned long arch_scale_max_freq_capacity(struct sched_domain *sd, int cpu)
+{
+	return SCHED_CAPACITY_SCALE;
+}
+#endif
+
 struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 	__acquires(rq->lock);
 
