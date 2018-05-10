@@ -90,9 +90,9 @@ CLANG_FLAGS = -I. -I./include/uapi -I../../../include/uapi \
 $(OUTPUT)/test_l4lb_noinline.o: CLANG_FLAGS += -fno-inline
 $(OUTPUT)/test_xdp_noinline.o: CLANG_FLAGS += -fno-inline
 
-BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help |& grep dwarfris)
-BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help |& grep BTF)
-BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --version |& grep LLVM)
+BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
+BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
+BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --version 2>&1 | grep LLVM)
 
 ifneq ($(BTF_LLC_PROBE),)
 ifneq ($(BTF_PAHOLE_PROBE),)
