@@ -80,13 +80,8 @@ xfs_trans_free_extent(
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
-	if (skip_discard)
-		error = xfs_free_extent_nodiscard(tp, start_block, ext_len,
-						  oinfo, XFS_AG_RESV_NONE);
-	else
-		error = xfs_free_extent(tp, start_block, ext_len, oinfo,
-					XFS_AG_RESV_NONE);
-
+	error = __xfs_free_extent(tp, start_block, ext_len,
+				  oinfo, XFS_AG_RESV_NONE, skip_discard);
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
 	 * transaction is aborted, which:

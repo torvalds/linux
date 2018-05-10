@@ -1548,12 +1548,12 @@ xfs_itruncate_clear_reflink_flags(
  * dirty on error so that transactions can be easily aborted if possible.
  */
 int
-__xfs_itruncate_extents(
+xfs_itruncate_extents_flags(
 	struct xfs_trans	**tpp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	xfs_fsize_t		new_size,
-	bool			skip_discard)
+	int			flags)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
@@ -1564,7 +1564,6 @@ __xfs_itruncate_extents(
 	xfs_filblks_t		unmap_len;
 	int			error = 0;
 	int			done = 0;
-	int			flags;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(!atomic_read(&VFS_I(ip)->i_count) ||
@@ -1577,9 +1576,7 @@ __xfs_itruncate_extents(
 
 	trace_xfs_itruncate_extents_start(ip, new_size);
 
-	flags = xfs_bmapi_aflag(whichfork);
-	if (skip_discard)
-		flags |= XFS_BMAPI_NODISCARD;
+	flags |= xfs_bmapi_aflag(whichfork);
 
 	/*
 	 * Since it is possible for space to become allocated beyond

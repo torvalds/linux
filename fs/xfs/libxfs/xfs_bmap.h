@@ -260,17 +260,6 @@ xfs_bmap_add_free(
 	__xfs_bmap_add_free(mp, dfops, bno, len, oinfo, false);
 }
 
-static inline void
-xfs_bmap_add_free_nodiscard(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
-	xfs_fsblock_t			bno,
-	xfs_filblks_t			len,
-	struct xfs_owner_info		*oinfo)
-{
-	__xfs_bmap_add_free(mp, dfops, bno, len, oinfo, true);
-}
-
 enum xfs_bmap_intent_type {
 	XFS_BMAP_MAP = 1,
 	XFS_BMAP_UNMAP,

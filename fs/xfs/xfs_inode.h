@@ -415,8 +415,8 @@ uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
 uint		xfs_ip2xflags(struct xfs_inode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_defer_ops *);
-int		__xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
-				        int, xfs_fsize_t, bool);
+int		xfs_itruncate_extents_flags(struct xfs_trans **,
+				struct xfs_inode *, int, xfs_fsize_t, int);
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
 
 void		xfs_iunpin_wait(xfs_inode_t *);
@@ -440,17 +440,7 @@ xfs_itruncate_extents(
 	int			whichfork,
 	xfs_fsize_t		new_size)
 {
-	return __xfs_itruncate_extents(tpp, ip, whichfork, new_size, false);
-}
-
-static inline int
-xfs_itruncate_extents_nodiscard(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip,
-	int			whichfork,
-	xfs_fsize_t		new_size)
-{
-	return __xfs_itruncate_extents(tpp, ip, whichfork, new_size, true);
+	return xfs_itruncate_extents_flags(tpp, ip, whichfork, new_size, 0);
 }
 
 /* from xfs_file.c */
