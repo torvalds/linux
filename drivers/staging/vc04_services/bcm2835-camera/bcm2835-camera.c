@@ -492,7 +492,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
 	int ret;
-	int parameter_size;
+	u32 parameter_size;
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p\n",
 		 __func__, dev);
@@ -1489,7 +1489,7 @@ static int get_num_cameras(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct vchiq_mmal_component  *cam_info_component;
 	struct mmal_parameter_camera_info_t cam_info = {0};
-	int param_size = sizeof(cam_info);
+	u32 param_size = sizeof(cam_info);
 	int i;
 
 	/* create a camera_info component */
@@ -1553,7 +1553,7 @@ static int __init mmal_init(struct bm2835_mmal_dev *dev)
 	int ret;
 	struct mmal_es_format_local *format;
 	u32 supported_encodings[MAX_SUPPORTED_ENCODINGS];
-	int param_size;
+	u32 param_size;
 	struct vchiq_mmal_component  *camera;
 
 	ret = vchiq_mmal_init(&dev->instance);
