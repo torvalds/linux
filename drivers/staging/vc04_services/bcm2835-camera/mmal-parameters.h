@@ -18,6 +18,9 @@
  * @{
  */
 
+#ifndef __MMAL_PARAMETERS_H
+#define __MMAL_PARAMETERS_H
+
 /** Common parameter ID group, used with many types of component. */
 #define MMAL_PARAMETER_GROUP_COMMON            (0<<16)
 /** Camera-specific parameter ID group. */
@@ -682,3 +685,5 @@ struct mmal_parameter_camera_info_t {
 	struct mmal_parameter_camera_info_flash_t
 				flashes[MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES];
 };
+
+#endif
