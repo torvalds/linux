@@ -1337,12 +1337,12 @@ static int get_stack_print_output(void *data, int size)
 			good_user_stack = true;
 	}
 	if (!good_kern_stack || !good_user_stack)
-		return PERF_EVENT_ERROR;
+		return LIBBPF_PERF_EVENT_ERROR;
 
 	if (cnt == MAX_CNT_RAWTP)
-		return PERF_EVENT_DONE;
+		return LIBBPF_PERF_EVENT_DONE;
 
-	return PERF_EVENT_CONT;
+	return LIBBPF_PERF_EVENT_CONT;
 }
 
 static void test_get_stack_raw_tp(void)

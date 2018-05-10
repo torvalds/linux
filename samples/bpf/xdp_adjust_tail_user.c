@@ -18,9 +18,8 @@
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf_load.h"
-#include "libbpf.h"
-#include "bpf_util.h"
+#include "bpf/bpf.h"
+#include "bpf/libbpf.h"
 
 #define STATS_INTERVAL_S 2U
 
@@ -36,7 +35,7 @@ static void int_exit(int sig)
 
 /* simple "icmp packet too big sent" counter
  */
-static void poll_stats(unsigned int kill_after_s)
+static void poll_stats(unsigned int map_fd, unsigned int kill_after_s)
 {
 	time_t started_at = time(NULL);
 	__u64 value = 0;
@@ -46,7 +45,7 @@ static void poll_stats(unsigned int kill_after_s)
 	while (!kill_after_s || time(NULL) - started_at <= kill_after_s) {
 		sleep(STATS_INTERVAL_S);
 
-		assert(bpf_map_lookup_elem(map_fd[0], &key, &value) == 0);
+		assert(bpf_map_lookup_elem(map_fd, &key, &value) == 0);
 
 		printf("icmp \"packet too big\" sent: %10llu pkts\n", value);
 	}
@@ -66,14 +65,17 @@ static void usage(const char *cmd)
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
 	unsigned char opt_flags[256] = {};
 	unsigned int kill_after_s = 0;
 	const char *optstr = "i:T:SNh";
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	int i, prog_fd, map_fd, opt;
+	struct bpf_object *obj;
+	struct bpf_map *map;
 	char filename[256];
-	int opt;
-	int i;
-
 
 	for (i = 0; i < strlen(optstr); i++)
 		if (optstr[i] != 'h' && 'a' <= optstr[i] && optstr[i] <= 'z')
@@ -115,13 +117,19 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = filename;
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
+	map = bpf_map__next(NULL, obj);
+	if (!map) {
+		printf("finding a map in obj file failed\n");
 		return 1;
 	}
+	map_fd = bpf_map__fd(map);
 
-	if (!prog_fd[0]) {
+	if (!prog_fd) {
 		printf("load_bpf_file: %s\n", strerror(errno));
 		return 1;
 	}
@@ -129,12 +137,12 @@ int main(int argc, char **argv)
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
 
-	poll_stats(kill_after_s);
+	poll_stats(map_fd, kill_after_s);
 
 	bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
 

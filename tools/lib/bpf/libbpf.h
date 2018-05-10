@@ -52,8 +52,8 @@ enum libbpf_errno {
 int libbpf_strerror(int err, char *buf, size_t size);
 
 /*
- * In include/linux/compiler-gcc.h, __printf is defined. However
- * it should be better if libbpf.h doesn't depend on Linux header file.
+ * __printf is defined in include/linux/compiler-gcc.h. However,
+ * it would be better if libbpf.h didn't depend on Linux header files.
  * So instead of __printf, here we use gcc attribute directly.
  */
 typedef int (*libbpf_print_fn_t)(const char *, ...)
@@ -92,7 +92,7 @@ int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 			 bpf_object_clear_priv_t clear_priv);
 void *bpf_object__priv(struct bpf_object *prog);
 
-/* Accessors of bpf_program. */
+/* Accessors of bpf_program */
 struct bpf_program;
 struct bpf_program *bpf_program__next(struct bpf_program *prog,
 				      struct bpf_object *obj);
@@ -121,28 +121,28 @@ struct bpf_insn;
 
 /*
  * Libbpf allows callers to adjust BPF programs before being loaded
- * into kernel. One program in an object file can be transform into
- * multiple variants to be attached to different code.
+ * into kernel. One program in an object file can be transformed into
+ * multiple variants to be attached to different hooks.
  *
  * bpf_program_prep_t, bpf_program__set_prep and bpf_program__nth_fd
- * are APIs for this propose.
+ * form an API for this purpose.
  *
  * - bpf_program_prep_t:
- *   It defines 'preprocessor', which is a caller defined function
+ *   Defines a 'preprocessor', which is a caller defined function
  *   passed to libbpf through bpf_program__set_prep(), and will be
  *   called before program is loaded. The processor should adjust
- *   the program one time for each instances according to the number
+ *   the program one time for each instance according to the instance id
  *   passed to it.
  *
  * - bpf_program__set_prep:
- *   Attachs a preprocessor to a BPF program. The number of instances
- *   whould be created is also passed through this function.
+ *   Attaches a preprocessor to a BPF program. The number of instances
+ *   that should be created is also passed through this function.
  *
  * - bpf_program__nth_fd:
- *   After the program is loaded, get resuling fds from bpf program for
- *   each instances.
+ *   After the program is loaded, get resulting FD of a given instance
+ *   of the BPF program.
  *
- * If bpf_program__set_prep() is not used, the program whould be loaded
+ * If bpf_program__set_prep() is not used, the program would be loaded
  * without adjustment during bpf_object__load(). The program has only
  * one instance. In this case bpf_program__fd(prog) is equal to
  * bpf_program__nth_fd(prog, 0).
@@ -156,7 +156,7 @@ struct bpf_prog_prep_result {
 	struct bpf_insn *new_insn_ptr;
 	int new_insn_cnt;
 
-	/* If not NULL, result fd is set to it */
+	/* If not NULL, result FD is written to it. */
 	int *pfd;
 };
 
@@ -169,8 +169,8 @@ struct bpf_prog_prep_result {
  *  - res:	Output parameter, result of transformation.
  *
  * Return value:
- *  - Zero: pre-processing success.
- *  - Non-zero: pre-processing, stop loading.
+ *  - Zero:	pre-processing success.
+ *  - Non-zero:	pre-processing error, stop loading.
  */
 typedef int (*bpf_program_prep_t)(struct bpf_program *prog, int n,
 				  struct bpf_insn *insns, int insns_cnt,
@@ -182,7 +182,7 @@ int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
 int bpf_program__nth_fd(struct bpf_program *prog, int n);
 
 /*
- * Adjust type of bpf program. Default is kprobe.
+ * Adjust type of BPF program. Default is kprobe.
  */
 int bpf_program__set_socket_filter(struct bpf_program *prog);
 int bpf_program__set_tracepoint(struct bpf_program *prog);
@@ -206,10 +206,10 @@ bool bpf_program__is_xdp(struct bpf_program *prog);
 bool bpf_program__is_perf_event(struct bpf_program *prog);
 
 /*
- * We don't need __attribute__((packed)) now since it is
- * unnecessary for 'bpf_map_def' because they are all aligned.
- * In addition, using it will trigger -Wpacked warning message,
- * and will be treated as an error due to -Werror.
+ * No need for __attribute__((packed)), all members of 'bpf_map_def'
+ * are all aligned.  In addition, using __attribute__((packed))
+ * would trigger a -Wpacked warning message, and lead to an error
+ * if -Werror is set.
  */
 struct bpf_map_def {
 	unsigned int type;
@@ -220,8 +220,8 @@ struct bpf_map_def {
 };
 
 /*
- * There is another 'struct bpf_map' in include/linux/map.h. However,
- * it is not a uapi header so no need to consider name clash.
+ * The 'struct bpf_map' in include/linux/bpf.h is internal to the kernel,
+ * so no need to worry about a name clash.
  */
 struct bpf_map;
 struct bpf_map *
@@ -229,7 +229,7 @@ bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
- * in the bpf object file.
+ * in the BPF object file.
  */
 struct bpf_map *
 bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
@@ -267,4 +267,17 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		  struct bpf_object **pobj, int *prog_fd);
 
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+
+enum bpf_perf_event_ret {
+	LIBBPF_PERF_EVENT_DONE	= 0,
+	LIBBPF_PERF_EVENT_ERROR	= -1,
+	LIBBPF_PERF_EVENT_CONT	= -2,
+};
+
+typedef enum bpf_perf_event_ret (*bpf_perf_event_print_t)(void *event,
+							  void *priv);
+int bpf_perf_event_read_simple(void *mem, unsigned long size,
+			       unsigned long page_size,
+			       void **buf, size_t *buf_len,
+			       bpf_perf_event_print_t fn, void *priv);
 #endif

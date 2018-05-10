@@ -420,7 +420,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 	/* Keeping compatible with ELF maps section changes
 	 * ------------------------------------------------
-	 * The program size of struct bpf_map_def is known by loader
+	 * The program size of struct bpf_load_map_def is known by loader
 	 * code, but struct stored in ELF file can be different.
 	 *
 	 * Unfortunately sym[i].st_size is zero.  To calculate the
@@ -429,7 +429,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 	 * symbols.
 	 */
 	map_sz_elf = data_maps->d_size / nr_maps;
-	map_sz_copy = sizeof(struct bpf_map_def);
+	map_sz_copy = sizeof(struct bpf_load_map_def);
 	if (map_sz_elf < map_sz_copy) {
 		/*
 		 * Backward compat, loading older ELF file with
@@ -448,8 +448,8 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 	/* Memcpy relevant part of ELF maps data to loader maps */
 	for (i = 0; i < nr_maps; i++) {
+		struct bpf_load_map_def *def;
 		unsigned char *addr, *end;
-		struct bpf_map_def *def;
 		const char *map_name;
 		size_t offset;
 
@@ -464,9 +464,9 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 		/* Symbol value is offset into ELF maps section data area */
 		offset = sym[i].st_value;
-		def = (struct bpf_map_def *)(data_maps->d_buf + offset);
+		def = (struct bpf_load_map_def *)(data_maps->d_buf + offset);
 		maps[i].elf_offset = offset;
-		memset(&maps[i].def, 0, sizeof(struct bpf_map_def));
+		memset(&maps[i].def, 0, sizeof(struct bpf_load_map_def));
 		memcpy(&maps[i].def, def, map_sz_copy);
 
 		/* Verify no newer features were requested */

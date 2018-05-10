@@ -39,6 +39,7 @@ struct event_ring_info {
 
 struct perf_event_sample {
 	struct perf_event_header header;
+	u64 time;
 	__u32 size;
 	unsigned char data[];
 };
@@ -49,25 +50,18 @@ static void int_exit(int signo)
 	stop = true;
 }
 
-static void
-print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
+static enum bpf_perf_event_ret print_bpf_output(void *event, void *priv)
 {
+	struct event_ring_info *ring = priv;
+	struct perf_event_sample *e = event;
 	struct {
 		struct perf_event_header header;
 		__u64 id;
 		__u64 lost;
-	} *lost = (void *)e;
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
-		perror("Can't read clock for timestamp");
-		return;
-	}
+	} *lost = event;
 
 	if (json_output) {
 		jsonw_start_object(json_wtr);
-		jsonw_name(json_wtr, "timestamp");
-		jsonw_uint(json_wtr, ts.tv_sec * 1000000000ull + ts.tv_nsec);
 		jsonw_name(json_wtr, "type");
 		jsonw_uint(json_wtr, e->header.type);
 		jsonw_name(json_wtr, "cpu");
@@ -75,6 +69,8 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 		jsonw_name(json_wtr, "index");
 		jsonw_uint(json_wtr, ring->key);
 		if (e->header.type == PERF_RECORD_SAMPLE) {
+			jsonw_name(json_wtr, "timestamp");
+			jsonw_uint(json_wtr, e->time);
 			jsonw_name(json_wtr, "data");
 			print_data_json(e->data, e->size);
 		} else if (e->header.type == PERF_RECORD_LOST) {
@@ -89,8 +85,8 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 		jsonw_end_object(json_wtr);
 	} else {
 		if (e->header.type == PERF_RECORD_SAMPLE) {
-			printf("== @%ld.%ld CPU: %d index: %d =====\n",
-			       (long)ts.tv_sec, ts.tv_nsec,
+			printf("== @%lld.%09lld CPU: %d index: %d =====\n",
+			       e->time / 1000000000ULL, e->time % 1000000000ULL,
 			       ring->cpu, ring->key);
 			fprint_hex(stdout, e->data, e->size, " ");
 			printf("\n");
@@ -101,60 +97,23 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 			       e->header.type, e->header.size);
 		}
 	}
+
+	return LIBBPF_PERF_EVENT_CONT;
 }
 
 static void
 perf_event_read(struct event_ring_info *ring, void **buf, size_t *buf_len)
 {
-	volatile struct perf_event_mmap_page *header = ring->mem;
-	__u64 buffer_size = MMAP_PAGE_CNT * get_page_size();
-	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
-	void *base, *begin, *end;
+	enum bpf_perf_event_ret ret;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
-	if (data_head == data_tail)
-		return;
-
-	base = ((char *)header) + get_page_size();
-
-	begin = base + data_tail % buffer_size;
-	end = base + data_head % buffer_size;
-
-	while (begin != end) {
-		struct perf_event_sample *e;
-
-		e = begin;
-		if (begin + e->header.size > base + buffer_size) {
-			long len = base + buffer_size - begin;
-
-			if (*buf_len < e->header.size) {
-				free(*buf);
-				*buf = malloc(e->header.size);
-				if (!*buf) {
-					fprintf(stderr,
-						"can't allocate memory");
-					stop = true;
-					return;
-				}
-				*buf_len = e->header.size;
-			}
-
-			memcpy(*buf, begin, len);
-			memcpy(*buf + len, base, e->header.size - len);
-			e = (void *)*buf;
-			begin = base + e->header.size - len;
-		} else if (begin + e->header.size == base + buffer_size) {
-			begin = base;
-		} else {
-			begin += e->header.size;
-		}
-
-		print_bpf_output(ring, e);
+	ret = bpf_perf_event_read_simple(ring->mem,
+					 MMAP_PAGE_CNT * get_page_size(),
+					 get_page_size(), buf, buf_len,
+					 print_bpf_output, ring);
+	if (ret != LIBBPF_PERF_EVENT_CONT) {
+		fprintf(stderr, "perf read loop failed with %d\n", ret);
+		stop = true;
 	}
-
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_head;
 }
 
 static int perf_mmap_size(void)
@@ -185,7 +144,7 @@ static void perf_event_unmap(void *mem)
 static int bpf_perf_event_open(int map_fd, int key, int cpu)
 {
 	struct perf_event_attr attr = {
-		.sample_type = PERF_SAMPLE_RAW,
+		.sample_type = PERF_SAMPLE_RAW | PERF_SAMPLE_TIME,
 		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_BPF_OUTPUT,
 	};

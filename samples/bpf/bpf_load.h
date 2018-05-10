@@ -7,7 +7,7 @@
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
-struct bpf_map_def {
+struct bpf_load_map_def {
 	unsigned int type;
 	unsigned int key_size;
 	unsigned int value_size;
@@ -21,7 +21,7 @@ struct bpf_map_data {
 	int fd;
 	char *name;
 	size_t elf_offset;
-	struct bpf_map_def def;
+	struct bpf_load_map_def def;
 };
 
 typedef void (*fixup_map_cb)(struct bpf_map_data *map, int idx);
