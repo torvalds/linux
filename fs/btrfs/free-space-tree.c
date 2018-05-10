@@ -844,12 +844,11 @@ out:
 }
 
 static int add_free_space_extent(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info,
 				 struct btrfs_block_group_cache *block_group,
 				 struct btrfs_path *path,
 				 u64 start, u64 size)
 {
-	struct btrfs_root *root = fs_info->free_space_root;
+	struct btrfs_root *root = trans->fs_info->free_space_root;
 	struct btrfs_key key, new_key;
 	u64 found_start, found_end;
 	u64 end = start + size;
@@ -996,8 +995,8 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 		return modify_free_space_bitmap(trans, block_group, path,
 						start, size, 0);
 	} else {
-		return add_free_space_extent(trans, fs_info, block_group, path,
-					     start, size);
+		return add_free_space_extent(trans, block_group, path, start,
+					     size);
 	}
 }
 
