@@ -1039,10 +1039,9 @@ out:
  * through the normal add/remove hooks.
  */
 static int populate_free_space_tree(struct btrfs_trans_handle *trans,
-				    struct btrfs_fs_info *fs_info,
 				    struct btrfs_block_group_cache *block_group)
 {
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_root *extent_root = trans->fs_info->extent_root;
 	struct btrfs_path *path, *path2;
 	struct btrfs_key key;
 	u64 start, end;
@@ -1102,7 +1101,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 			}
 			start = key.objectid;
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				start += fs_info->nodesize;
+				start += trans->fs_info->nodesize;
 			else
 				start += key.offset;
 		} else if (key.type == BTRFS_BLOCK_GROUP_ITEM_KEY) {
@@ -1158,7 +1157,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	while (node) {
 		block_group = rb_entry(node, struct btrfs_block_group_cache,
 				       cache_node);
-		ret = populate_free_space_tree(trans, fs_info, block_group);
+		ret = populate_free_space_tree(trans, block_group);
 		if (ret)
 			goto abort;
 		node = rb_next(node);
