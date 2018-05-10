@@ -72,9 +72,12 @@ the firmware requested, and establishes it in the device hierarchy by
 associating the device used to make the request as the device's parent.
 The sysfs directory's file attributes are defined and controlled through
 the new device's class (firmware_class) and group (fw_dev_attr_groups).
-This is actually where the original firmware_class.c file name comes from,
-as originally the only firmware loading mechanism available was the
-mechanism we now use as a fallback mechanism.
+This is actually where the original firmware_class module name came from,
+given that originally the only firmware loading mechanism available was the
+mechanism we now use as a fallback mechanism, which registers a struct class
+firmware_class. Because the attributes exposed are part of the module name, the
+module name firmware_class cannot be renamed in the future, to ensure backward
+compatibility with old userspace.
 
 To load firmware using the sysfs interface we expose a loading indicator,
 and a file upload firmware into:
