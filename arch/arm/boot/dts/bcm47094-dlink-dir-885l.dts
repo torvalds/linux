@@ -26,9 +26,15 @@
 
 	nand: nand@18028000 {
 		nandcs@0 {
-			partition@0 {
-				label = "firmware";
-				reg = <0x00000000 0x08000000>;
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				partition@0 {
+					label = "firmware";
+					reg = <0x00000000 0x08000000>;
+				};
 			};
 		};
 	};
