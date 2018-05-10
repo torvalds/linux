@@ -552,34 +552,46 @@ int sas_ata_init(struct domain_device *found_dev)
 {
 	struct sas_ha_struct *ha = found_dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
+	struct ata_host *ata_host;
 	struct ata_port *ap;
 	int rc;
 
-	ata_host_init(&found_dev->sata_dev.ata_host, ha->dev, &sas_sata_ops);
-	ap = ata_sas_port_alloc(&found_dev->sata_dev.ata_host,
-				&sata_port_info,
-				shost);
+	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
+	if (!ata_host)	{
+		SAS_DPRINTK("ata host alloc failed.\n");
+		return -ENOMEM;
+	}
+
+	ata_host_init(ata_host, ha->dev, &sas_sata_ops);
+
+	ap = ata_sas_port_alloc(ata_host, &sata_port_info, shost);
 	if (!ap) {
 		SAS_DPRINTK("ata_sas_port_alloc failed.\n");
-		return -ENODEV;
+		rc = -ENODEV;
+		goto free_host;
 	}
 
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
 	rc = ata_sas_port_init(ap);
-	if (rc) {
-		ata_sas_port_destroy(ap);
-		return rc;
-	}
-	rc = ata_sas_tport_add(found_dev->sata_dev.ata_host.dev, ap);
-	if (rc) {
-		ata_sas_port_destroy(ap);
-		return rc;
-	}
+	if (rc)
+		goto destroy_port;
+
+	rc = ata_sas_tport_add(ata_host->dev, ap);
+	if (rc)
+		goto destroy_port;
+
+	found_dev->sata_dev.ata_host = ata_host;
 	found_dev->sata_dev.ap = ap;
 
 	return 0;
+
+destroy_port:
+	ata_sas_port_destroy(ap);
+free_host:
+	ata_host_put(ata_host);
+	return rc;
 }
 
 void sas_ata_task_abort(struct sas_task *task)
