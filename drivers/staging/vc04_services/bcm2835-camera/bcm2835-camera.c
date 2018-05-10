@@ -302,8 +302,8 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p, vb %p\n",
 		 __func__, dev, vb);
 
-	BUG_ON(!dev->capture.port);
-	BUG_ON(!dev->capture.fmt);
+	if (!dev->capture.port || !dev->capture.fmt)
+		return -ENODEV;
 
 	size = dev->capture.stride * dev->capture.height;
 	if (vb2_plane_size(vb, 0) < size) {
@@ -1017,7 +1017,8 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	struct mmal_fmt *mfmt = get_format(f);
 	u32 remove_padding;
 
-	BUG_ON(!mfmt);
+	if (!mfmt)
+		return -EINVAL;
 
 	if (dev->capture.encode_component) {
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
