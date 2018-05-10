@@ -211,6 +211,20 @@ enum rxrpc_congest_change {
 	rxrpc_cong_saw_nack,
 };
 
+enum rxrpc_tx_fail_trace {
+	rxrpc_tx_fail_call_abort,
+	rxrpc_tx_fail_call_ack,
+	rxrpc_tx_fail_call_data_frag,
+	rxrpc_tx_fail_call_data_nofrag,
+	rxrpc_tx_fail_call_final_resend,
+	rxrpc_tx_fail_conn_abort,
+	rxrpc_tx_fail_conn_challenge,
+	rxrpc_tx_fail_conn_response,
+	rxrpc_tx_fail_reject,
+	rxrpc_tx_fail_version_keepalive,
+	rxrpc_tx_fail_version_reply,
+};
+
 #endif /* end __RXRPC_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -438,6 +452,19 @@ enum rxrpc_congest_change {
 	EM(RXRPC_CALL_LOCAL_ERROR,		"LocalError") \
 	E_(RXRPC_CALL_NETWORK_ERROR,		"NetError")
 
+#define rxrpc_tx_fail_traces \
+	EM(rxrpc_tx_fail_call_abort,		"CallAbort") \
+	EM(rxrpc_tx_fail_call_ack,		"CallAck") \
+	EM(rxrpc_tx_fail_call_data_frag,	"CallDataFrag") \
+	EM(rxrpc_tx_fail_call_data_nofrag,	"CallDataNofrag") \
+	EM(rxrpc_tx_fail_call_final_resend,	"CallFinalResend") \
+	EM(rxrpc_tx_fail_conn_abort,		"ConnAbort") \
+	EM(rxrpc_tx_fail_conn_challenge,	"ConnChall") \
+	EM(rxrpc_tx_fail_conn_response,		"ConnResp") \
+	EM(rxrpc_tx_fail_reject,		"Reject") \
+	EM(rxrpc_tx_fail_version_keepalive,	"VerKeepalive") \
+	E_(rxrpc_tx_fail_version_reply,		"VerReply")
+
 /*
  * Export enum symbols via userspace.
  */
@@ -461,6 +488,7 @@ rxrpc_propose_ack_traces;
 rxrpc_propose_ack_outcomes;
 rxrpc_congest_modes;
 rxrpc_congest_changes;
+rxrpc_tx_fail_traces;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -1402,6 +1430,33 @@ TRACE_EVENT(rxrpc_rx_icmp,
 		      __entry->ee.ee_data,
 		      __entry->ee.ee_errno,
 		      &__entry->srx.transport)
+	    );
+
+TRACE_EVENT(rxrpc_tx_fail,
+	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial, int ret,
+		     enum rxrpc_tx_fail_trace what),
+
+	    TP_ARGS(debug_id, serial, ret, what),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id	)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(int,			ret		)
+		    __field(enum rxrpc_tx_fail_trace,   what		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->debug_id = debug_id;
+		    __entry->serial = serial;
+		    __entry->ret = ret;
+		    __entry->what = what;
+			   ),
+
+	    TP_printk("c=%08x r=%x ret=%d %s",
+		      __entry->debug_id,
+		      __entry->serial,
+		      __entry->ret,
+		      __print_symbolic(__entry->what, rxrpc_tx_fail_traces))
 	    );
 
 #endif /* _TRACE_RXRPC_H */
