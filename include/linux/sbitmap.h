@@ -127,6 +127,12 @@ struct sbitmap_queue {
 	 * @round_robin: Allocate bits in strict round-robin order.
 	 */
 	bool round_robin;
+
+	/**
+	 * @min_shallow_depth: The minimum shallow depth which may be passed to
+	 * sbitmap_queue_get_shallow() or __sbitmap_queue_get_shallow().
+	 */
+	unsigned int min_shallow_depth;
 };
 
 /**
@@ -390,6 +396,9 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq);
  * @shallow_depth: The maximum number of bits to allocate from a single word.
  * See sbitmap_get_shallow().
  *
+ * If you call this, make sure to call sbitmap_queue_min_shallow_depth() after
+ * initializing @sbq.
+ *
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
 int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
@@ -424,6 +433,9 @@ static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
  * @shallow_depth: The maximum number of bits to allocate from a single word.
  * See sbitmap_get_shallow().
  *
+ * If you call this, make sure to call sbitmap_queue_min_shallow_depth() after
+ * initializing @sbq.
+ *
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
 static inline int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
@@ -437,6 +449,23 @@ static inline int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
 	put_cpu();
 	return nr;
 }
+
+/**
+ * sbitmap_queue_min_shallow_depth() - Inform a &struct sbitmap_queue of the
+ * minimum shallow depth that will be used.
+ * @sbq: Bitmap queue in question.
+ * @min_shallow_depth: The minimum shallow depth that will be passed to
+ * sbitmap_queue_get_shallow() or __sbitmap_queue_get_shallow().
+ *
+ * sbitmap_queue_clear() batches wakeups as an optimization. The batch size
+ * depends on the depth of the bitmap. Since the shallow allocation functions
+ * effectively operate with a different depth, the shallow depth must be taken
+ * into account when calculating the batch size. This function must be called
+ * with the minimum shallow depth that will be used. Failure to do so can result
+ * in missed wakeups.
+ */
+void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
+				     unsigned int min_shallow_depth);
 
 /**
  * sbitmap_queue_clear() - Free an allocated bit and wake up waiters on a
