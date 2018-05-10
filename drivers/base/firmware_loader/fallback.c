@@ -512,7 +512,7 @@ static const struct attribute_group *fw_dev_attr_groups[] = {
 
 static struct fw_sysfs *
 fw_create_instance(struct firmware *firmware, const char *fw_name,
-		   struct device *device, unsigned int opt_flags)
+		   struct device *device, enum fw_opt opt_flags)
 {
 	struct fw_sysfs *fw_sysfs;
 	struct device *f_dev;
@@ -545,7 +545,7 @@ exit:
  * In charge of constructing a sysfs fallback interface for firmware loading.
  **/
 static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs,
-				  unsigned int opt_flags, long timeout)
+				  enum fw_opt opt_flags, long timeout)
 {
 	int retval = 0;
 	struct device *f_dev = &fw_sysfs->dev;
@@ -599,7 +599,7 @@ err_put_dev:
 
 static int fw_load_from_user_helper(struct firmware *firmware,
 				    const char *name, struct device *device,
-				    unsigned int opt_flags)
+				    enum fw_opt opt_flags)
 {
 	struct fw_sysfs *fw_sysfs;
 	long timeout;
@@ -640,7 +640,7 @@ out_unlock:
 	return ret;
 }
 
-static bool fw_force_sysfs_fallback(unsigned int opt_flags)
+static bool fw_force_sysfs_fallback(enum fw_opt opt_flags)
 {
 	if (fw_fallback_config.force_sysfs_fallback)
 		return true;
@@ -649,7 +649,7 @@ static bool fw_force_sysfs_fallback(unsigned int opt_flags)
 	return true;
 }
 
-static bool fw_run_sysfs_fallback(unsigned int opt_flags)
+static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
 {
 	if (fw_fallback_config.ignore_sysfs_fallback) {
 		pr_info_once("Ignoring firmware sysfs fallback due to sysctl knob\n");
@@ -664,7 +664,7 @@ static bool fw_run_sysfs_fallback(unsigned int opt_flags)
 
 int fw_sysfs_fallback(struct firmware *fw, const char *name,
 		      struct device *device,
-		      unsigned int opt_flags,
+		      enum fw_opt opt_flags,
 		      int ret)
 {
 	if (!fw_run_sysfs_fallback(opt_flags))

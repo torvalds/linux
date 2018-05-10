@@ -443,7 +443,7 @@ static int fw_add_devm_name(struct device *dev, const char *name)
 #endif
 
 int assign_fw(struct firmware *fw, struct device *device,
-	      unsigned int opt_flags)
+	      enum fw_opt opt_flags)
 {
 	struct fw_priv *fw_priv = fw->priv;
 	int ret;
@@ -558,7 +558,7 @@ static void fw_abort_batch_reqs(struct firmware *fw)
 static int
 _request_firmware(const struct firmware **firmware_p, const char *name,
 		  struct device *device, void *buf, size_t size,
-		  unsigned int opt_flags)
+		  enum fw_opt opt_flags)
 {
 	struct firmware *fw = NULL;
 	int ret;
@@ -734,7 +734,7 @@ struct firmware_work {
 	struct device *device;
 	void *context;
 	void (*cont)(const struct firmware *fw, void *context);
-	unsigned int opt_flags;
+	enum fw_opt opt_flags;
 };
 
 static void request_firmware_work_func(struct work_struct *work)
