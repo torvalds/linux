@@ -1637,7 +1637,7 @@ static void excprint(struct pt_regs *fp)
 
 	printf("  current = 0x%px\n", current);
 #ifdef CONFIG_PPC64
-	printf("  paca    = 0x%px\t softe: %d\t irq_happened: 0x%02x\n",
+	printf("  paca    = 0x%px\t irqmask: 0x%02x\t irq_happened: 0x%02x\n",
 	       local_paca, local_paca->irq_soft_mask, local_paca->irq_happened);
 #endif
 	if (current) {
