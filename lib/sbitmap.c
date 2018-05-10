@@ -402,6 +402,8 @@ int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
 	unsigned int hint, depth;
 	int nr;
 
+	WARN_ON_ONCE(shallow_depth < sbq->min_shallow_depth);
+
 	hint = this_cpu_read(*sbq->alloc_hint);
 	depth = READ_ONCE(sbq->sb.depth);
 	if (unlikely(hint >= depth)) {
