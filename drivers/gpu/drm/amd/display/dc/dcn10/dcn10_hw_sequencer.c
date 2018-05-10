@@ -719,19 +719,7 @@ static void reset_back_end_for_pipe(
 		if (!pipe_ctx->stream->dpms_off)
 			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		else if (pipe_ctx->stream_res.audio) {
-			/*
-			 * if stream is already disabled outside of commit streams path,
-			 * audio disable was skipped. Need to do it here
-			 */
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-
-			if (dc->caps.dynamic_audio == true) {
-				/*we have to dynamic arbitrate the audio endpoints*/
-				pipe_ctx->stream_res.audio = NULL;
-				/*we free the resource, need reset is_audio_acquired*/
-				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
-			}
-
+			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		}
 
 	}
@@ -2778,6 +2766,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
 	.blank_stream = dce110_blank_stream,
+	.enable_audio_stream = dce110_enable_audio_stream,
+	.disable_audio_stream = dce110_disable_audio_stream,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.disable_plane = dcn10_disable_plane,
 	.blank_pixel_data = dcn10_blank_pixel_data,

@@ -1861,28 +1861,6 @@ static enum dc_status enable_link(
 		break;
 	}
 
-	if (pipe_ctx->stream_res.audio && status == DC_OK) {
-		struct dc *core_dc = pipe_ctx->stream->ctx->dc;
-		/* notify audio driver for audio modes of monitor */
-		struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
-		unsigned int i, num_audio = 1;
-		for (i = 0; i < MAX_PIPES; i++) {
-			/*current_state not updated yet*/
-			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
-				num_audio++;
-		}
-
-		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
-
-		if (num_audio == 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
-			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
-		/* un-mute audio */
-		/* TODO: audio should be per stream rather than per link */
-		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, false);
-	}
-
 	return status;
 }
 
@@ -2414,6 +2392,8 @@ void core_link_enable_stream(
 				return;
 			}
 	}
+
+	core_dc->hwss.enable_audio_stream(pipe_ctx);
 
 	/* turn off otg test pattern if enable */
 	pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,

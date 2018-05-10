@@ -154,6 +154,11 @@ struct hw_sequencer_funcs {
 			struct dc_link_settings *link_settings);
 
 	void (*blank_stream)(struct pipe_ctx *pipe_ctx);
+
+	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
+
+	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx, int option);
+
 	void (*pipe_control_lock)(
 				struct dc *dc,
 				struct pipe_ctx *pipe,

@@ -972,19 +972,35 @@ void hwss_edp_backlight_control(
 		edp_receiver_ready_T9(link);
 }
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	/* notify audio driver for audio modes of monitor */
+	struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+	unsigned int i, num_audio = 1;
+
+	if (pipe_ctx->stream_res.audio) {
+		for (i = 0; i < MAX_PIPES; i++) {
+			/*current_state not updated yet*/
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
+				num_audio++;
+		}
+
+		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
+
+		if (num_audio == 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
+			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+		/* un-mute audio */
+		/* TODO: audio should be per stream rather than per link */
+		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, false);
+	}
+}
+
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
+{
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
-
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
-			pipe_ctx->stream_res.stream_enc);
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
-			pipe_ctx->stream_res.stream_enc);
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
@@ -1015,7 +1031,23 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		 * stream->stream_engine_id);
 		 */
 	}
+}
 
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	dc->hwss.disable_audio_stream(pipe_ctx, option);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
@@ -1297,6 +1329,30 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
+
+	if (pipe_ctx->stream_res.audio != NULL) {
+		struct audio_output audio_output;
+
+		build_audio_output(context, pipe_ctx, &audio_output);
+
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
+					pipe_ctx->stream_res.stream_enc,
+					pipe_ctx->stream_res.audio->inst,
+					&pipe_ctx->stream->audio_info);
+		else
+			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
+					pipe_ctx->stream_res.stream_enc,
+					pipe_ctx->stream_res.audio->inst,
+					&pipe_ctx->stream->audio_info,
+					&audio_output.crtc_info);
+
+		pipe_ctx->stream_res.audio->funcs->az_configure(
+				pipe_ctx->stream_res.audio,
+				pipe_ctx->stream->signal,
+				&audio_output.crtc_info,
+				&pipe_ctx->stream->audio_info);
+	}
 
 	/*  */
 	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
@@ -1949,6 +2005,86 @@ static void dce110_reset_hw_ctx_wrap(
 	}
 }
 
+static void dce110_setup_audio_dto(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i;
+
+	/* program audio wall clock. use HDMI as clock source if HDMI
+	 * audio active. Otherwise, use DP as clock source
+	 * first, loop to find any HDMI audio, if not, loop find DP audio
+	 */
+	/* Setup audio rate clock source */
+	/* Issue:
+	* Audio lag happened on DP monitor when unplug a HDMI monitor
+	*
+	* Cause:
+	* In case of DP and HDMI connected or HDMI only, DCCG_AUDIO_DTO_SEL
+	* is set to either dto0 or dto1, audio should work fine.
+	* In case of DP connected only, DCCG_AUDIO_DTO_SEL should be dto1,
+	* set to dto0 will cause audio lag.
+	*
+	* Solution:
+	* Not optimized audio wall dto setup. When mode set, iterate pipe_ctx,
+	* find first available pipe with audio, setup audio wall DTO per topology
+	* instead of per pipe.
+	*/
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == NULL)
+			continue;
+
+		if (pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
+			continue;
+
+		if (pipe_ctx->stream_res.audio != NULL) {
+			struct audio_output audio_output;
+
+			build_audio_output(context, pipe_ctx, &audio_output);
+
+			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+				pipe_ctx->stream_res.audio,
+				pipe_ctx->stream->signal,
+				&audio_output.crtc_info,
+				&audio_output.pll_info);
+			break;
+		}
+	}
+
+	/* no HDMI audio is found, try DP audio */
+	if (i == dc->res_pool->pipe_count) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream == NULL)
+				continue;
+
+			if (pipe_ctx->top_pipe)
+				continue;
+
+			if (!dc_is_dp_signal(pipe_ctx->stream->signal))
+				continue;
+
+			if (pipe_ctx->stream_res.audio != NULL) {
+				struct audio_output audio_output;
+
+				build_audio_output(context, pipe_ctx, &audio_output);
+
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+					pipe_ctx->stream_res.audio,
+					pipe_ctx->stream->signal,
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
+				break;
+			}
+		}
+	}
+}
 
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
@@ -2040,79 +2176,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 				dc->res_pool->display_clock,
 				context->bw.dce.dispclk_khz * 115 / 100);
 	}
-	/* program audio wall clock. use HDMI as clock source if HDMI
-	 * audio active. Otherwise, use DP as clock source
-	 * first, loop to find any HDMI audio, if not, loop find DP audio
-	 */
-	/* Setup audio rate clock source */
-	/* Issue:
-	* Audio lag happened on DP monitor when unplug a HDMI monitor
-	*
-	* Cause:
-	* In case of DP and HDMI connected or HDMI only, DCCG_AUDIO_DTO_SEL
-	* is set to either dto0 or dto1, audio should work fine.
-	* In case of DP connected only, DCCG_AUDIO_DTO_SEL should be dto1,
-	* set to dto0 will cause audio lag.
-	*
-	* Solution:
-	* Not optimized audio wall dto setup. When mode set, iterate pipe_ctx,
-	* find first available pipe with audio, setup audio wall DTO per topology
-	* instead of per pipe.
-	*/
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->stream == NULL)
-			continue;
-
-		if (pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
-			continue;
-
-		if (pipe_ctx->stream_res.audio != NULL) {
-			struct audio_output audio_output;
-
-			build_audio_output(context, pipe_ctx, &audio_output);
-
-			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
-				pipe_ctx->stream_res.audio,
-				pipe_ctx->stream->signal,
-				&audio_output.crtc_info,
-				&audio_output.pll_info);
-			break;
-		}
-	}
-
-	/* no HDMI audio is found, try DP audio */
-	if (i == dc->res_pool->pipe_count) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->stream == NULL)
-				continue;
-
-			if (pipe_ctx->top_pipe)
-				continue;
-
-			if (!dc_is_dp_signal(pipe_ctx->stream->signal))
-				continue;
-
-			if (pipe_ctx->stream_res.audio != NULL) {
-				struct audio_output audio_output;
-
-				build_audio_output(context, pipe_ctx, &audio_output);
-
-				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
-					pipe_ctx->stream_res.audio,
-					pipe_ctx->stream->signal,
-					&audio_output.crtc_info,
-					&audio_output.pll_info);
-				break;
-			}
-		}
-	}
+	dce110_setup_audio_dto(dc, context);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =
@@ -2130,31 +2195,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 		if (pipe_ctx->top_pipe)
 			continue;
-
-		if (context->res_ctx.pipe_ctx[i].stream_res.audio != NULL) {
-
-			struct audio_output audio_output;
-
-			build_audio_output(context, pipe_ctx, &audio_output);
-
-			if (dc_is_dp_signal(pipe_ctx->stream->signal))
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info,
-						&audio_output.crtc_info);
-
-			pipe_ctx->stream_res.audio->funcs->az_configure(
-					pipe_ctx->stream_res.audio,
-					pipe_ctx->stream->signal,
-					&audio_output.crtc_info,
-					&pipe_ctx->stream->audio_info);
-		}
 
 		status = apply_single_controller_ctx_to_hw(
 				pipe_ctx,
@@ -2968,6 +3008,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
 	.blank_stream = dce110_blank_stream,
+	.enable_audio_stream = dce110_enable_audio_stream,
+	.disable_audio_stream = dce110_disable_audio_stream,
 	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
 	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.disable_plane = dce110_power_down_fe,
