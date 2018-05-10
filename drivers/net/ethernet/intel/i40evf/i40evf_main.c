@@ -1925,7 +1925,8 @@ continue_reset:
 	 * ndo_open() returning, so we can't assume it means all our open
 	 * tasks have finished, since we're not holding the rtnl_lock here.
 	 */
-	running = (adapter->state == __I40EVF_RUNNING);
+	running = ((adapter->state == __I40EVF_RUNNING) ||
+		   (adapter->state == __I40EVF_RESETTING));
 
 	if (running) {
 		netif_carrier_off(netdev);
