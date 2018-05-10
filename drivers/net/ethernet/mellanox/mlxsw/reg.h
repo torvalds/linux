@@ -6833,6 +6833,12 @@ enum mlxsw_reg_mpat_span_type {
 	 */
 	MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH = 0x0,
 
+	/* Remote SPAN Ethernet VLAN.
+	 * The packet is forwarded to the monitoring port on the monitoring
+	 * VLAN.
+	 */
+	MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH = 0x1,
+
 	/* Encapsulated Remote SPAN Ethernet L3 GRE.
 	 * The packet is encapsulated with GRE header.
 	 */
