@@ -6,6 +6,17 @@ Need cross compile tools for the armhf architecture and additional bison and fle
 ```sh
 sudo apt-get install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc make gcc libc6-dev libncurses5-dev libssl-dev bison flex
 ```
+## Issues
+currently gcc7 is not supported
+```sh
+apt-get install gcc-5-arm-linux-gnueabihf
+update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-7  50
+update-alternatives: using /usr/bin/arm-linux-gnueabihf-gcc-7 to provide /usr/bin/arm-linux-gnueabihf-gcc (arm-linux-gnueabihf-gcc) in auto mode
+update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-5  100
+update-alternatives: using /usr/bin/arm-linux-gnueabihf-gcc-5 to provide /usr/bin/arm-linux-gnueabihf-gcc (arm-linux-gnueabihf-gcc) in auto mode
+
+update-alternatives --config arm-linux-gnueabihf-gcc
+```
 
 ## Usage
 
