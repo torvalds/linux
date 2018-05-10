@@ -46,7 +46,6 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path);
 int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct btrfs_block_group_cache *block_group,
 				  struct btrfs_path *path);
 int free_space_test_bit(struct btrfs_block_group_cache *block_group,

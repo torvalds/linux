@@ -131,7 +131,7 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 
 	/* Flip it to the other format and check that for good measure. */
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
-		ret = convert_free_space_to_extents(trans, fs_info, cache, path);
+		ret = convert_free_space_to_extents(trans, cache, path);
 		if (ret) {
 			test_msg("Could not convert to extents\n");
 			return ret;
