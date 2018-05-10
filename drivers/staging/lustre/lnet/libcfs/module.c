@@ -314,7 +314,7 @@ static const struct file_operations libcfs_fops = {
 	.unlocked_ioctl	= libcfs_psdev_ioctl,
 };
 
-struct miscdevice libcfs_dev = {
+static struct miscdevice libcfs_dev = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "lnet",
 	.fops = &libcfs_fops,
