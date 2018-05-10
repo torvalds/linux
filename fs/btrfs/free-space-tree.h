@@ -19,7 +19,6 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info);
 int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info);
 int load_free_space_tree(struct btrfs_caching_control *caching_ctl);
 int add_block_group_free_space(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info,
 			       struct btrfs_block_group_cache *block_group);
 int remove_block_group_free_space(struct btrfs_trans_handle *trans,
 				  struct btrfs_fs_info *fs_info,

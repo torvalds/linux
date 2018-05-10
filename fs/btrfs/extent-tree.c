@@ -10259,7 +10259,7 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 					       key.offset);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
-		add_block_group_free_space(trans, fs_info, block_group);
+		add_block_group_free_space(trans, block_group);
 		/* already aborted the transaction if it failed. */
 next:
 		list_del_init(&block_group->bg_list);

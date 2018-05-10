@@ -1292,9 +1292,9 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 }
 
 int add_block_group_free_space(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info,
 			       struct btrfs_block_group_cache *block_group)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_path *path = NULL;
 	int ret = 0;
 
