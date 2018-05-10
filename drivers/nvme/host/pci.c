@@ -2681,8 +2681,15 @@ static pci_ers_result_t nvme_slot_reset(struct pci_dev *pdev)
 
 	dev_info(dev->ctrl.device, "restart after slot reset\n");
 	pci_restore_state(pdev);
-	nvme_reset_ctrl(&dev->ctrl);
-	return PCI_ERS_RESULT_RECOVERED;
+	nvme_reset_ctrl_sync(&dev->ctrl);
+
+	switch (dev->ctrl.state) {
+	case NVME_CTRL_LIVE:
+	case NVME_CTRL_ADMIN_ONLY:
+		return PCI_ERS_RESULT_RECOVERED;
+	default:
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
 }
 
 static void nvme_error_resume(struct pci_dev *pdev)
