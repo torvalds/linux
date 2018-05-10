@@ -121,10 +121,7 @@ read back the image downloaded.
 
 .. note::
 
-   This driver requires a patch for firmware_class.c which has the modified
-   request_firmware_nowait function.
-
-   Also after updating the BIOS image a user mode application needs to execute
+   After updating the BIOS image a user mode application needs to execute
    code which sends the BIOS update request to the BIOS. So on the next reboot
    the BIOS knows about the new image downloaded and it updates itself.
    Also don't unload the rbu driver if the image has to be updated.
