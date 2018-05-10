@@ -39,6 +39,7 @@ struct event_ring_info {
 
 struct perf_event_sample {
 	struct perf_event_header header;
+	u64 time;
 	__u32 size;
 	unsigned char data[];
 };
@@ -57,17 +58,9 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 		__u64 id;
 		__u64 lost;
 	} *lost = (void *)e;
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
-		perror("Can't read clock for timestamp");
-		return;
-	}
 
 	if (json_output) {
 		jsonw_start_object(json_wtr);
-		jsonw_name(json_wtr, "timestamp");
-		jsonw_uint(json_wtr, ts.tv_sec * 1000000000ull + ts.tv_nsec);
 		jsonw_name(json_wtr, "type");
 		jsonw_uint(json_wtr, e->header.type);
 		jsonw_name(json_wtr, "cpu");
@@ -75,6 +68,8 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 		jsonw_name(json_wtr, "index");
 		jsonw_uint(json_wtr, ring->key);
 		if (e->header.type == PERF_RECORD_SAMPLE) {
+			jsonw_name(json_wtr, "timestamp");
+			jsonw_uint(json_wtr, e->time);
 			jsonw_name(json_wtr, "data");
 			print_data_json(e->data, e->size);
 		} else if (e->header.type == PERF_RECORD_LOST) {
@@ -89,8 +84,8 @@ print_bpf_output(struct event_ring_info *ring, struct perf_event_sample *e)
 		jsonw_end_object(json_wtr);
 	} else {
 		if (e->header.type == PERF_RECORD_SAMPLE) {
-			printf("== @%ld.%ld CPU: %d index: %d =====\n",
-			       (long)ts.tv_sec, ts.tv_nsec,
+			printf("== @%lld.%09lld CPU: %d index: %d =====\n",
+			       e->time / 1000000000ULL, e->time % 1000000000ULL,
 			       ring->cpu, ring->key);
 			fprint_hex(stdout, e->data, e->size, " ");
 			printf("\n");
@@ -185,7 +180,7 @@ static void perf_event_unmap(void *mem)
 static int bpf_perf_event_open(int map_fd, int key, int cpu)
 {
 	struct perf_event_attr attr = {
-		.sample_type = PERF_SAMPLE_RAW,
+		.sample_type = PERF_SAMPLE_RAW | PERF_SAMPLE_TIME,
 		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_BPF_OUTPUT,
 	};
