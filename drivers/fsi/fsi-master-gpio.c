@@ -463,13 +463,9 @@ static int fsi_master_gpio_xfer(struct fsi_master_gpio *master, uint8_t slave,
 {
 	int rc;
 
-	mutex_lock(&master->cmd_lock);
-
 	rc = send_request(master, cmd);
 	if (!rc)
 		rc = poll_for_response(master, slave, resp_len, resp);
-
-	mutex_unlock(&master->cmd_lock);
 
 	return rc;
 }
@@ -479,12 +475,17 @@ static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
+	mutex_lock(&master->cmd_lock);
 	build_abs_ar_command(&cmd, id, addr, size, NULL);
-	return fsi_master_gpio_xfer(master, id, &cmd, size, val);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, size, val);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_write(struct fsi_master *_master, int link,
@@ -492,12 +493,17 @@ static int fsi_master_gpio_write(struct fsi_master *_master, int link,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
+	mutex_lock(&master->cmd_lock);
 	build_abs_ar_command(&cmd, id, addr, size, val);
-	return fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_term(struct fsi_master *_master,
@@ -505,12 +511,17 @@ static int fsi_master_gpio_term(struct fsi_master *_master,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
+	mutex_lock(&master->cmd_lock);
 	build_term_command(&cmd, id);
-	return fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_break(struct fsi_master *_master, int link)
