@@ -889,7 +889,7 @@ static void force_ibs_eilvt_setup(void)
 	if (!ibs_eilvt_valid())
 		goto out;
 
-	pr_info("IBS: LVT offset %d assigned\n", offset);
+	pr_info("LVT offset %d assigned\n", offset);
 
 	return;
 out:
