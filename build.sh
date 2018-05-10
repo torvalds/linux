@@ -17,7 +17,8 @@ fi;
 #Check Dependencies
 PACKAGE_Error=0
 for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev" "libssl-dev" "fakeroot"; do
-	if [[ -z "$(dpkg -l |grep ${package})" ]];then echo "please install ${package}";PACKAGE_Error=1;fi
+	TESTPKG=$(dpkg -l |grep "\s${package}")
+	if [[ -z "${TESTPKG}" ]];then echo "please install ${package}";PACKAGE_Error=1;fi
 done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
 
