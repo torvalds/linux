@@ -103,6 +103,9 @@ static int (*bpf_skb_get_xfrm_state)(void *ctx, int index, void *state,
 	(void *) BPF_FUNC_skb_get_xfrm_state;
 static int (*bpf_get_stack)(void *ctx, void *buf, int size, int flags) =
 	(void *) BPF_FUNC_get_stack;
+static int (*bpf_fib_lookup)(void *ctx, struct bpf_fib_lookup *params,
+			     int plen, __u32 flags) =
+	(void *) BPF_FUNC_fib_lookup;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
