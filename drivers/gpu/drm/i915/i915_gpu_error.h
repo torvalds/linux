@@ -58,7 +58,7 @@ struct i915_gpu_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
-	u32 gtier[4], ngtier;
+	u32 gtier[6], ngtier;
 	u32 ccid;
 	u32 derrmr;
 	u32 forcewake;

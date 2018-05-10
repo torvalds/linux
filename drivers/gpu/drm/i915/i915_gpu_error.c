@@ -1667,7 +1667,16 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	}
 
 	/* 4: Everything else */
-	if (INTEL_GEN(dev_priv) >= 8) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		error->ier = I915_READ(GEN8_DE_MISC_IER);
+		error->gtier[0] = I915_READ(GEN11_RENDER_COPY_INTR_ENABLE);
+		error->gtier[1] = I915_READ(GEN11_VCS_VECS_INTR_ENABLE);
+		error->gtier[2] = I915_READ(GEN11_GUC_SG_INTR_ENABLE);
+		error->gtier[3] = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
+		error->gtier[4] = I915_READ(GEN11_CRYPTO_RSVD_INTR_ENABLE);
+		error->gtier[5] = I915_READ(GEN11_GUNIT_CSME_INTR_ENABLE);
+		error->ngtier = 6;
+	} else if (INTEL_GEN(dev_priv) >= 8) {
 		error->ier = I915_READ(GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
 			error->gtier[i] = I915_READ(GEN8_GT_IER(i));

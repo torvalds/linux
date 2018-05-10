@@ -1162,19 +1162,28 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
-		if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
-			pm_ier = I915_READ(GEN6_PMIER);
-			pm_imr = I915_READ(GEN6_PMIMR);
-			pm_isr = I915_READ(GEN6_PMISR);
-			pm_iir = I915_READ(GEN6_PMIIR);
-			pm_mask = I915_READ(GEN6_PMINTRMSK);
-		} else {
+		if (INTEL_GEN(dev_priv) >= 11) {
+			pm_ier = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
+			pm_imr = I915_READ(GEN11_GPM_WGBOXPERF_INTR_MASK);
+			/*
+			 * The equivalent to the PM ISR & IIR cannot be read
+			 * without affecting the current state of the system
+			 */
+			pm_isr = 0;
+			pm_iir = 0;
+		} else if (INTEL_GEN(dev_priv) >= 8) {
 			pm_ier = I915_READ(GEN8_GT_IER(2));
 			pm_imr = I915_READ(GEN8_GT_IMR(2));
 			pm_isr = I915_READ(GEN8_GT_ISR(2));
 			pm_iir = I915_READ(GEN8_GT_IIR(2));
-			pm_mask = I915_READ(GEN6_PMINTRMSK);
+		} else {
+			pm_ier = I915_READ(GEN6_PMIER);
+			pm_imr = I915_READ(GEN6_PMIMR);
+			pm_isr = I915_READ(GEN6_PMISR);
+			pm_iir = I915_READ(GEN6_PMIIR);
 		}
+		pm_mask = I915_READ(GEN6_PMINTRMSK);
+
 		seq_printf(m, "Video Turbo Mode: %s\n",
 			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
 		seq_printf(m, "HW control enabled: %s\n",
@@ -1182,8 +1191,12 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "SW control enabled: %s\n",
 			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
 				  GEN6_RP_MEDIA_SW_MODE));
-		seq_printf(m, "PM IER=0x%08x IMR=0x%08x ISR=0x%08x IIR=0x%08x, MASK=0x%08x\n",
-			   pm_ier, pm_imr, pm_isr, pm_iir, pm_mask);
+
+		seq_printf(m, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
+			   pm_ier, pm_imr, pm_mask);
+		if (INTEL_GEN(dev_priv) <= 10)
+			seq_printf(m, "PM ISR=0x%08x IIR=0x%08x\n",
+				   pm_isr, pm_iir);
 		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
 			   rps->pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
