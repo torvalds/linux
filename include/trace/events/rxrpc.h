@@ -15,6 +15,7 @@
 #define _TRACE_RXRPC_H
 
 #include <linux/tracepoint.h>
+#include <linux/errqueue.h>
 
 /*
  * Define enums for tracing information.
@@ -1372,6 +1373,35 @@ TRACE_EVENT(rxrpc_resend,
 		      __entry->call,
 		      __entry->ix,
 		      __entry->anno)
+	    );
+
+TRACE_EVENT(rxrpc_rx_icmp,
+	    TP_PROTO(struct rxrpc_peer *peer, struct sock_extended_err *ee,
+		     struct sockaddr_rxrpc *srx),
+
+	    TP_ARGS(peer, ee, srx),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			peer	)
+		    __field_struct(struct sock_extended_err,	ee	)
+		    __field_struct(struct sockaddr_rxrpc,	srx	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer = peer->debug_id;
+		    memcpy(&__entry->ee, ee, sizeof(__entry->ee));
+		    memcpy(&__entry->srx, srx, sizeof(__entry->srx));
+			   ),
+
+	    TP_printk("P=%08x o=%u t=%u c=%u i=%u d=%u e=%d %pISp",
+		      __entry->peer,
+		      __entry->ee.ee_origin,
+		      __entry->ee.ee_type,
+		      __entry->ee.ee_code,
+		      __entry->ee.ee_info,
+		      __entry->ee.ee_data,
+		      __entry->ee.ee_errno,
+		      &__entry->srx.transport)
 	    );
 
 #endif /* _TRACE_RXRPC_H */
