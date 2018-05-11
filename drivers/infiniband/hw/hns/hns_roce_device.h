@@ -100,6 +100,9 @@
 #define SERV_TYPE_UC				2
 #define SERV_TYPE_UD				3
 
+/* Configure to HW for PAGE_SIZE larger than 4KB */
+#define PG_SHIFT_OFFSET				(PAGE_SHIFT - 12)
+
 #define PAGES_SHIFT_8				8
 #define PAGES_SHIFT_16				16
 #define PAGES_SHIFT_24				24
