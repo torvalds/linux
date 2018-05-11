@@ -207,32 +207,12 @@ static inline u16 get_cap_info(u8 *data)
 	return cap_info;
 }
 
-static inline u16 get_assoc_resp_cap_info(u8 *data)
-{
-	u16 cap_info;
-
-	cap_info  = data[0];
-	cap_info |= (data[1] << 8);
-
-	return cap_info;
-}
-
 static inline u16 get_asoc_status(u8 *data)
 {
 	u16 asoc_status;
 
 	asoc_status = data[3];
 	return (asoc_status << 8) | data[2];
-}
-
-static inline u16 get_asoc_id(u8 *data)
-{
-	u16 asoc_id;
-
-	asoc_id  = data[4];
-	asoc_id |= (data[5] << 8);
-
-	return asoc_id;
 }
 
 static u8 *get_tim_elm(u8 *msa, u16 rx_len, u16 tag_param_offset)
@@ -338,38 +318,23 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 }
 
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
-			       struct connect_resp_info **ret_connect_resp_info)
+			       struct connect_info *ret_conn_info)
 {
-	struct connect_resp_info *connect_resp_info = NULL;
-	u16 assoc_resp_len = 0;
 	u8 *ies = NULL;
 	u16 ies_len = 0;
 
-	connect_resp_info = kzalloc(sizeof(*connect_resp_info), GFP_KERNEL);
-	if (!connect_resp_info)
-		return -ENOMEM;
-
-	assoc_resp_len = (u16)buffer_len;
-
-	connect_resp_info->status = get_asoc_status(buffer);
-	if (connect_resp_info->status == SUCCESSFUL_STATUSCODE) {
-		connect_resp_info->capability = get_assoc_resp_cap_info(buffer);
-		connect_resp_info->assoc_id = get_asoc_id(buffer);
-
+	ret_conn_info->status = get_asoc_status(buffer);
+	if (ret_conn_info->status == SUCCESSFUL_STATUSCODE) {
 		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
-		ies_len = assoc_resp_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
-					    AID_LEN);
+		ies_len = buffer_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
+					AID_LEN);
 
-		connect_resp_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-		if (!connect_resp_info->ies) {
-			kfree(connect_resp_info);
+		ret_conn_info->resp_ies = kmemdup(ies, ies_len, GFP_KERNEL);
+		if (!ret_conn_info->resp_ies)
 			return -ENOMEM;
-		}
 
-		connect_resp_info->ies_len = ies_len;
+		ret_conn_info->resp_ies_len = ies_len;
 	}
-
-	*ret_connect_resp_info = connect_resp_info;
 
 	return 0;
 }

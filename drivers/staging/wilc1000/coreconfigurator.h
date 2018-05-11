@@ -71,14 +71,6 @@ struct network_info {
 	u64 tsf_hi;
 };
 
-struct connect_resp_info {
-	u16 capability;
-	u16 status;
-	u16 assoc_id;
-	u8 *ies;
-	u16 ies_len;
-};
-
 struct connect_info {
 	u8 bssid[6];
 	u8 *req_ies;
@@ -97,7 +89,7 @@ struct disconnect_info {
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info);
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
-			       struct connect_resp_info **ret_connect_resp_info);
+			       struct connect_info *ret_conn_info);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);

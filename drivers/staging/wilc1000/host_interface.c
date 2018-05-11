@@ -1297,7 +1297,6 @@ static inline void host_int_free_user_conn_req(struct host_if_drv *hif_drv)
 static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 						  u8 mac_status)
 {
-	struct connect_resp_info *connect_resp_info = NULL;
 	struct connect_info conn_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -1317,26 +1316,11 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 			err = wilc_parse_assoc_resp_info(rcv_assoc_resp,
 							 assoc_resp_info_len,
-							 &connect_resp_info);
-			if (err) {
+							 &conn_info);
+			if (err)
 				netdev_err(vif->ndev,
 					   "wilc_parse_assoc_resp_info() returned error %d\n",
 					   err);
-			} else {
-				conn_info.status = connect_resp_info->status;
-
-				if (conn_info.status == SUCCESSFUL_STATUSCODE &&
-				    connect_resp_info->ies) {
-					conn_info.resp_ies = kmemdup(connect_resp_info->ies,
-								     connect_resp_info->ies_len,
-								     GFP_KERNEL);
-					if (conn_info.resp_ies)
-						conn_info.resp_ies_len = connect_resp_info->ies_len;
-				}
-
-				kfree(connect_resp_info->ies);
-				kfree(connect_resp_info);
-			}
 		}
 	}
 
