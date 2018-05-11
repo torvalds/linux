@@ -995,14 +995,6 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 
 }
 
-static int mv88e6xxx_stats_set_histogram(struct mv88e6xxx_chip *chip)
-{
-	if (chip->info->ops->stats_set_histogram)
-		return chip->info->ops->stats_set_histogram(chip);
-
-	return 0;
-}
-
 static int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
 {
 	return 32 * sizeof(u16);
@@ -2267,14 +2259,16 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 	return err;
 }
 
-static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_stats_setup(struct mv88e6xxx_chip *chip)
 {
 	int err;
 
 	/* Initialize the statistics unit */
-	err = mv88e6xxx_stats_set_histogram(chip);
-	if (err)
-		return err;
+	if (chip->info->ops->stats_set_histogram) {
+		err = chip->info->ops->stats_set_histogram(chip);
+		if (err)
+			return err;
+	}
 
 	return mv88e6xxx_g1_stats_clear(chip);
 }
@@ -2299,11 +2293,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
-
-	/* Setup Switch Global 1 Registers */
-	err = mv88e6xxx_g1_setup(chip);
-	if (err)
-		goto unlock;
 
 	err = mv88e6xxx_irl_setup(chip);
 	if (err)
@@ -2367,6 +2356,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_stats_setup(chip);
+	if (err)
+		goto unlock;
 
 unlock:
 	mutex_unlock(&chip->reg_lock);
