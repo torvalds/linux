@@ -497,11 +497,6 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -ECONNABORTED:
 			ASSERTCMP(state, ==, AFS_CALL_COMPLETE);
 			goto done;
-		case -ENOTCONN:
-			abort_code = RX_CALL_DEAD;
-			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
-						abort_code, ret, "KNC");
-			goto local_abort;
 		case -ENOTSUPP:
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,

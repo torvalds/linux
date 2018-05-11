@@ -143,8 +143,8 @@ static void afs_cm_destructor(struct afs_call *call)
 	 * received.  The step number here must match the final number in
 	 * afs_deliver_cb_callback().
 	 */
-	if (call->unmarshall == 5) {
-		ASSERT(call->cm_server && call->count && call->request);
+	if (call->cm_server && call->unmarshall == 5) {
+		ASSERT(call->count && call->request);
 		afs_break_callbacks(call->cm_server, call->count, call->request);
 	}
 
@@ -168,7 +168,8 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 	 * yet */
 	afs_send_empty_reply(call);
 
-	afs_break_callbacks(call->cm_server, call->count, call->request);
+	if (call->cm_server)
+		afs_break_callbacks(call->cm_server, call->count, call->request);
 	afs_put_call(call);
 	_leave("");
 }
@@ -180,7 +181,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 {
 	struct afs_callback_break *cb;
 	struct sockaddr_rxrpc srx;
-	struct afs_server *server;
 	__be32 *bp;
 	int ret, loop;
 
@@ -286,12 +286,9 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
 	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
-	server = afs_find_server(call->net, &srx);
-	if (!server) {
+	call->cm_server = afs_find_server(call->net, &srx);
+	if (!call->cm_server)
 		trace_afs_cm_no_server(call, &srx);
-		return -ENOTCONN;
-	}
-	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
@@ -305,7 +302,8 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 
 	_enter("{%p}", call->cm_server);
 
-	afs_init_callback_state(call->cm_server);
+	if (call->cm_server)
+		afs_init_callback_state(call->cm_server);
 	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");
@@ -317,7 +315,6 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 {
 	struct sockaddr_rxrpc srx;
-	struct afs_server *server;
 	int ret;
 
 	_enter("");
@@ -330,12 +327,9 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	server = afs_find_server(call->net, &srx);
-	if (!server) {
+	call->cm_server = afs_find_server(call->net, &srx);
+	if (!call->cm_server)
 		trace_afs_cm_no_server(call, &srx);
-		return -ENOTCONN;
-	}
-	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
@@ -345,7 +339,6 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
  */
 static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 {
-	struct afs_server *server;
 	struct afs_uuid *r;
 	unsigned loop;
 	__be32 *b;
@@ -402,13 +395,10 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
 	rcu_read_lock();
-	server = afs_find_server_by_uuid(call->net, call->request);
+	call->cm_server = afs_find_server_by_uuid(call->net, call->request);
 	rcu_read_unlock();
-	if (!server) {
+	if (!call->cm_server)
 		trace_afs_cm_no_server_u(call, call->request);
-		return -ENOTCONN;
-	}
-	call->cm_server = server;
 
 	return afs_queue_call_work(call);
 }
