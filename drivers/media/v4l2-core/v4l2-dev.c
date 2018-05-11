@@ -360,14 +360,8 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		struct mutex *lock = v4l2_ioctl_get_lock(vdev, cmd);
-
-		if (lock && mutex_lock_interruptible(lock))
-			return -ERESTARTSYS;
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
-		if (lock)
-			mutex_unlock(lock);
 	} else
 		ret = -ENOTTY;
 

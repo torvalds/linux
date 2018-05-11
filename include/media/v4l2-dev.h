@@ -436,15 +436,6 @@ void video_device_release(struct video_device *vdev);
 void video_device_release_empty(struct video_device *vdev);
 
 /**
- * v4l2_is_known_ioctl - Checks if a given cmd is a known V4L ioctl
- *
- * @cmd: ioctl command
- *
- * returns true if cmd is a known V4L2 ioctl
- */
-bool v4l2_is_known_ioctl(unsigned int cmd);
-
-/**
  * v4l2_disable_ioctl- mark that a given command isn't implemented.
  *	shouldn't use core locking
  *

@@ -2655,14 +2655,15 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
-bool v4l2_is_known_ioctl(unsigned int cmd)
+static bool v4l2_is_known_ioctl(unsigned int cmd)
 {
 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
 		return false;
 	return v4l2_ioctls[_IOC_NR(cmd)].ioctl == cmd;
 }
 
-struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev, unsigned cmd)
+static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
+					 unsigned int cmd)
 {
 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
 		return vdev->lock;
@@ -2713,6 +2714,7 @@ static long __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
+	struct mutex *lock; /* ioctl serialization mutex */
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
 	bool write_only = false;
 	struct v4l2_ioctl_info default_info;
@@ -2730,6 +2732,16 @@ static long __video_do_ioctl(struct file *file,
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
 		vfh = file->private_data;
+
+	lock = v4l2_ioctl_get_lock(vfd, cmd);
+
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+
+	if (!video_is_registered(vfd)) {
+		ret = -ENODEV;
+		goto unlock;
+	}
 
 	if (v4l2_is_known_ioctl(cmd)) {
 		info = &v4l2_ioctls[_IOC_NR(cmd)];
@@ -2780,6 +2792,9 @@ done:
 		}
 	}
 
+unlock:
+	if (lock)
+		mutex_unlock(lock);
 	return ret;
 }
 
@@ -2969,7 +2984,6 @@ out:
 	kvfree(mbuf);
 	return err;
 }
-EXPORT_SYMBOL(video_usercopy);
 
 long video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
