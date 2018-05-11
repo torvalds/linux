@@ -342,6 +342,7 @@ struct i915_address_space {
 	void (*clear_pages)(struct i915_vma *vma);
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
+	I915_SELFTEST_DECLARE(bool scrub_64K);
 };
 
 #define i915_is_ggtt(V) (!(V)->file)

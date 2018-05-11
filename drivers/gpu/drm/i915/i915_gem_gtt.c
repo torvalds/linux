@@ -1162,6 +1162,27 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 			vaddr[idx.pde] |= GEN8_PDE_IPS_64K;
 			kunmap_atomic(vaddr);
 			page_size = I915_GTT_PAGE_SIZE_64K;
+
+			/*
+			 * We write all 4K page entries, even when using 64K
+			 * pages. In order to verify that the HW isn't cheating
+			 * by using the 4K PTE instead of the 64K PTE, we want
+			 * to remove all the surplus entries. If the HW skipped
+			 * the 64K PTE, it will read/write into the scratch page
+			 * instead - which we detect as missing results during
+			 * selftests.
+			 */
+			if (I915_SELFTEST_ONLY(vma->vm->scrub_64K)) {
+				u16 i;
+
+				encode = pte_encode | vma->vm->scratch_page.daddr;
+				vaddr = kmap_atomic_px(pd->page_table[idx.pde]);
+
+				for (i = 1; i < index; i += 16)
+					memset64(vaddr + i, encode, 15);
+
+				kunmap_atomic(vaddr);
+			}
 		}
 
 		vma->page_sizes.gtt |= page_size;

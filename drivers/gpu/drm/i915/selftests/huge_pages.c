@@ -1757,6 +1757,9 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		goto out_unlock;
 	}
 
+	if (ctx->ppgtt)
+		ctx->ppgtt->base.scrub_64K = true;
+
 	err = i915_subtests(tests, ctx);
 
 out_unlock:
