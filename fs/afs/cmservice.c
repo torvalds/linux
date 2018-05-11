@@ -287,8 +287,10 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 	 * vnodes to operate upon */
 	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
 	server = afs_find_server(call->net, &srx);
-	if (!server)
+	if (!server) {
+		trace_afs_cm_no_server(call, &srx);
 		return -ENOTCONN;
+	}
 	call->cm_server = server;
 
 	return afs_queue_call_work(call);
@@ -329,8 +331,10 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
 	server = afs_find_server(call->net, &srx);
-	if (!server)
+	if (!server) {
+		trace_afs_cm_no_server(call, &srx);
 		return -ENOTCONN;
+	}
 	call->cm_server = server;
 
 	return afs_queue_call_work(call);
@@ -400,8 +404,10 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	rcu_read_lock();
 	server = afs_find_server_by_uuid(call->net, call->request);
 	rcu_read_unlock();
-	if (!server)
+	if (!server) {
+		trace_afs_cm_no_server_u(call, call->request);
 		return -ENOTCONN;
+	}
 	call->cm_server = server;
 
 	return afs_queue_call_work(call);
