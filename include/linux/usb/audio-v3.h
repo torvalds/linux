@@ -221,6 +221,12 @@ struct uac3_iso_endpoint_descriptor {
 	__le16 wLockDelay;
 } __attribute__((packed));
 
+/* 5.2.1.6.1 INSERTION CONTROL PARAMETER BLOCK */
+struct uac3_insertion_ctl_blk {
+	__u8 bSize;
+	__u8 bmConInserted;
+} __attribute__ ((packed));
+
 /* 6.1 INTERRUPT DATA MESSAGE */
 struct uac3_interrupt_data_msg {
 	__u8 bInfo;
@@ -391,6 +397,14 @@ struct uac3_interrupt_data_msg {
 #define UAC3_AC_CONTROL_UNDEFINED		0x00
 #define UAC3_AC_ACTIVE_INTERFACE_CONTROL	0x01
 #define UAC3_AC_POWER_DOMAIN_CONTROL		0x02
+
+/* A.23.5 TERMINAL CONTROL SELECTORS */
+#define UAC3_TE_UNDEFINED			0x00
+#define UAC3_TE_INSERTION			0x01
+#define UAC3_TE_OVERLOAD			0x02
+#define UAC3_TE_UNDERFLOW			0x03
+#define UAC3_TE_OVERFLOW			0x04
+#define UAC3_TE_LATENCY 			0x05
 
 /* BADD predefined Unit/Terminal values */
 #define UAC3_BADD_IT_ID1	1  /* Input Terminal ID1: bTerminalID = 1 */
