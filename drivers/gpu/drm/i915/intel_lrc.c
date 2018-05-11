@@ -1009,6 +1009,7 @@ static void execlists_submission_tasklet(unsigned long data)
 
 			head = execlists->csb_head;
 			tail = READ_ONCE(buf[write_idx]);
+			rmb(); /* Hopefully paired with a wmb() in HW */
 		}
 		GEM_TRACE("%s cs-irq head=%d [%d%s], tail=%d [%d%s]\n",
 			  engine->name,
