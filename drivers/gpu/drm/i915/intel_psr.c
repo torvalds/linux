@@ -219,13 +219,13 @@ static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 
 static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 {
-	u8 val = 0;
+	u8 val = 8; /* assume the worst if we can't read the value */
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			      DP_SYNCHRONIZATION_LATENCY_IN_SINK, &val) == 1)
 		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
 	else
-		DRM_ERROR("Unable to get sink synchronization latency\n");
+		DRM_DEBUG_KMS("Unable to get sink synchronization latency, assuming 8 frames\n");
 	return val;
 }
 
