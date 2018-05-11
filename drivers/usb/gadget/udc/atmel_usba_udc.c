@@ -20,7 +20,6 @@
 #include <linux/ctype.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/irq.h>
