@@ -7,14 +7,13 @@
  */
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
 
-void *dma_generic_alloc_coherent(struct device *dev, size_t size,
-				 dma_addr_t *dma_handle, gfp_t gfp,
-				 unsigned long attrs)
+void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	void *ret, *ret_nocache;
 	int order = get_order(size);
@@ -29,7 +28,8 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 	 * Pages from the page allocator may have data present in
 	 * cache. So flush the cache before using uncached memory.
 	 */
-	sh_sync_dma_for_device(ret, size, DMA_BIDIRECTIONAL);
+	arch_sync_dma_for_device(dev, virt_to_phys(ret), size,
+			DMA_BIDIRECTIONAL);
 
 	ret_nocache = (void __force *)ioremap_nocache(virt_to_phys(ret), size);
 	if (!ret_nocache) {
@@ -46,9 +46,8 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 	return ret_nocache;
 }
 
-void dma_generic_free_coherent(struct device *dev, size_t size,
-			       void *vaddr, dma_addr_t dma_handle,
-			       unsigned long attrs)
+void arch_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	int order = get_order(size);
 	unsigned long pfn = (dma_handle >> PAGE_SHIFT);
@@ -63,12 +62,12 @@ void dma_generic_free_coherent(struct device *dev, size_t size,
 	iounmap(vaddr);
 }
 
-void sh_sync_dma_for_device(void *vaddr, size_t size,
-		    enum dma_data_direction direction)
+void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
 {
-	void *addr = sh_cacheop_vaddr(vaddr);
+	void *addr = sh_cacheop_vaddr(phys_to_virt(paddr));
 
-	switch (direction) {
+	switch (dir) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
 		__flush_invalidate_region(addr, size);
 		break;
