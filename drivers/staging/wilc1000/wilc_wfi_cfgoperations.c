@@ -327,12 +327,15 @@ static void add_network_to_shadow(struct network_info *nw_info,
 	shadow_nw_info->beacon_period = nw_info->beacon_period;
 	shadow_nw_info->dtim_period = nw_info->dtim_period;
 	shadow_nw_info->ch = nw_info->ch;
-	shadow_nw_info->ies_len = nw_info->ies_len;
 	shadow_nw_info->tsf_hi = nw_info->tsf_hi;
 	if (ap_found != -1)
 		kfree(shadow_nw_info->ies);
-	shadow_nw_info->ies = kmalloc(nw_info->ies_len, GFP_KERNEL);
-	memcpy(shadow_nw_info->ies, nw_info->ies, nw_info->ies_len);
+	shadow_nw_info->ies = kmemdup(nw_info->ies, nw_info->ies_len,
+				      GFP_KERNEL);
+	if (shadow_nw_info->ies)
+		shadow_nw_info->ies_len = nw_info->ies_len;
+	else
+		shadow_nw_info->ies_len = 0;
 	shadow_nw_info->time_scan = jiffies;
 	shadow_nw_info->time_scan_cached = jiffies;
 	shadow_nw_info->found = 1;
