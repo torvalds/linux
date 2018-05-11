@@ -384,7 +384,7 @@ extern struct device_attribute *ahci_sdev_attrs[];
  */
 #define AHCI_SHT(drv_name)						\
 	ATA_NCQ_SHT(drv_name),						\
-	.can_queue		= AHCI_MAX_CMDS - 1,			\
+	.can_queue		= AHCI_MAX_CMDS,			\
 	.sg_tablesize		= AHCI_MAX_SG,				\
 	.dma_boundary		= AHCI_DMA_BOUNDARY,			\
 	.shost_attrs		= ahci_shost_attrs,			\
