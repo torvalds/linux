@@ -24,15 +24,8 @@
 static int meson_efuse_read(void *context, unsigned int offset,
 			    void *val, size_t bytes)
 {
-	u8 *buf = val;
-	int ret;
-
-	ret = meson_sm_call_read(buf, bytes, SM_EFUSE_READ, offset,
-				 bytes, 0, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return meson_sm_call_read((u8 *)val, bytes, SM_EFUSE_READ, offset,
+				  bytes, 0, 0, 0);
 }
 
 static const struct of_device_id meson_efuse_match[] = {
