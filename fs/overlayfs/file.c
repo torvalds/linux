@@ -372,7 +372,7 @@ static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ret)
 			return ret;
 
-		ret = ovl_copy_up(file_dentry(file));
+		ret = ovl_copy_up_with_data(file_dentry(file));
 		if (!ret) {
 			ret = ovl_real_ioctl(file, cmd, arg);
 
