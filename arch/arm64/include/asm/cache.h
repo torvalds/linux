@@ -43,7 +43,7 @@
  * cache before the transfer is done, causing old data to be seen by
  * the CPU.
  */
-#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN	(128)
 
 #ifndef __ASSEMBLY__
 
@@ -77,7 +77,7 @@ static inline u32 cache_type_cwg(void)
 static inline int cache_line_size(void)
 {
 	u32 cwg = cache_type_cwg();
-	return cwg ? 4 << cwg : L1_CACHE_BYTES;
+	return cwg ? 4 << cwg : ARCH_DMA_MINALIGN;
 }
 
 #endif	/* __ASSEMBLY__ */
