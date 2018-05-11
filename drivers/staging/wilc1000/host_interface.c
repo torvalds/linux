@@ -1303,18 +1303,19 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	memset(&conn_info, 0, sizeof(struct connect_info));
 
 	if (mac_status == MAC_STATUS_CONNECTED) {
-		u32 rcvd_assoc_resp_info_len;
+		u32 assoc_resp_info_len;
 
 		memset(rcv_assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
 
 		host_int_get_assoc_res_info(vif, rcv_assoc_resp,
 					    MAX_ASSOC_RESP_FRAME_SIZE,
-					    &rcvd_assoc_resp_info_len);
+					    &assoc_resp_info_len);
 
-		if (rcvd_assoc_resp_info_len != 0) {
+		if (assoc_resp_info_len != 0) {
 			s32 err = 0;
 
-			err = wilc_parse_assoc_resp_info(rcv_assoc_resp, rcvd_assoc_resp_info_len,
+			err = wilc_parse_assoc_resp_info(rcv_assoc_resp,
+							 assoc_resp_info_len,
 							 &connect_resp_info);
 			if (err) {
 				netdev_err(vif->ndev,
