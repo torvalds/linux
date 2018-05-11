@@ -636,8 +636,11 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 	priv->cfg_scanning = true;
 	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) {
-		for (i = 0; i < request->n_channels; i++)
-			scan_ch_list[i] = (u8)ieee80211_frequency_to_channel(request->channels[i]->center_freq);
+		for (i = 0; i < request->n_channels; i++) {
+			u16 freq = request->channels[i]->center_freq;
+
+			scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
+		}
 
 		if (request->n_ssids >= 1) {
 			if (wilc_wfi_cfg_alloc_fill_ssid(request,
