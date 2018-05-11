@@ -2126,6 +2126,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 
 	cfg->ops->perst_reloads_same_image(cfg->afu_cookie, true);
 
+	mutex_init(&afu->sync_active);
 	afu->num_hwqs = afu->desired_hwqs;
 	for (i = 0; i < afu->num_hwqs; i++) {
 		rc = init_mc(cfg, i);
@@ -2309,7 +2310,6 @@ static int send_afu_cmd(struct afu *afu, struct sisl_ioarcb *rcb)
 	char *buf = NULL;
 	int rc = 0;
 	int nretry = 0;
-	static DEFINE_MUTEX(sync_active);
 
 	if (cfg->state != STATE_NORMAL) {
 		dev_dbg(dev, "%s: Sync not required state=%u\n",
@@ -2317,7 +2317,7 @@ static int send_afu_cmd(struct afu *afu, struct sisl_ioarcb *rcb)
 		return 0;
 	}
 
-	mutex_lock(&sync_active);
+	mutex_lock(&afu->sync_active);
 	atomic_inc(&afu->cmds_active);
 	buf = kmalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
 	if (unlikely(!buf)) {
@@ -2372,7 +2372,7 @@ retry:
 		*rcb->ioasa = cmd->sa;
 out:
 	atomic_dec(&afu->cmds_active);
-	mutex_unlock(&sync_active);
+	mutex_unlock(&afu->sync_active);
 	kfree(buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;

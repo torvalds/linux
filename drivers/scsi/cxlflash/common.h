@@ -240,6 +240,7 @@ struct afu {
 	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
 
 	atomic_t cmds_active;	/* Number of currently active AFU commands */
+	struct mutex sync_active;	/* Mutex to serialize AFU commands */
 	u64 hb;
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
 
