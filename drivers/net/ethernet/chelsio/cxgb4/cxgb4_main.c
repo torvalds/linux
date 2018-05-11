@@ -4276,6 +4276,20 @@ static int adap_init0(struct adapter *adap)
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
 
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		/* Read the raw mps entries. In T6, the last 2 tcam entries
+		 * are reserved for raw mac addresses (rawf = 2, one per port).
+		 */
+		params[0] = FW_PARAM_PFVF(RAWF_START);
+		params[1] = FW_PARAM_PFVF(RAWF_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret == 0) {
+			adap->rawf_start = val[0];
+			adap->rawf_cnt = val[1] - val[0] + 1;
+		}
+	}
+
 	/* qids (ingress/egress) returned from firmware can be anywhere
 	 * in the range from EQ(IQFLINT)_START to EQ(IQFLINT)_END.
 	 * Hence driver needs to allocate memory for this range to
@@ -5181,6 +5195,7 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
+	kvfree(adapter->mps_encap);
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
 	kvfree(adapter->srq);
@@ -5676,6 +5691,12 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "could not allocate L2T, continuing\n");
 		adapter->params.offload = 0;
 	}
+
+	adapter->mps_encap = kvzalloc(sizeof(struct mps_encap_entry) *
+					  adapter->params.arch.mps_tcam_size,
+				      GFP_KERNEL);
+	if (!adapter->mps_encap)
+		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if ((CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) &&
