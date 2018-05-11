@@ -1305,52 +1305,23 @@ static const struct attribute_group tsl2X7X_device_attr_group_tbl[] = {
 	},
 };
 
+#define TSL2X7X_DEVICE_INFO(type)[type] = \
+	{ \
+		.attrs = &tsl2X7X_device_attr_group_tbl[type], \
+		.read_raw = &tsl2x7x_read_raw, \
+		.write_raw = &tsl2x7x_write_raw, \
+		.read_event_value = &tsl2x7x_read_event_value, \
+		.write_event_value = &tsl2x7x_write_event_value, \
+		.read_event_config = &tsl2x7x_read_interrupt_config, \
+		.write_event_config = &tsl2x7x_write_interrupt_config, \
+	}
+
 static const struct iio_info tsl2X7X_device_info[] = {
-	[ALS] = {
-		.attrs = &tsl2X7X_device_attr_group_tbl[ALS],
-		.read_raw = &tsl2x7x_read_raw,
-		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_event_value,
-		.write_event_value = &tsl2x7x_write_event_value,
-		.read_event_config = &tsl2x7x_read_interrupt_config,
-		.write_event_config = &tsl2x7x_write_interrupt_config,
-	},
-	[PRX] = {
-		.attrs = &tsl2X7X_device_attr_group_tbl[PRX],
-		.read_raw = &tsl2x7x_read_raw,
-		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_event_value,
-		.write_event_value = &tsl2x7x_write_event_value,
-		.read_event_config = &tsl2x7x_read_interrupt_config,
-		.write_event_config = &tsl2x7x_write_interrupt_config,
-	},
-	[ALSPRX] = {
-		.attrs = &tsl2X7X_device_attr_group_tbl[ALSPRX],
-		.read_raw = &tsl2x7x_read_raw,
-		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_event_value,
-		.write_event_value = &tsl2x7x_write_event_value,
-		.read_event_config = &tsl2x7x_read_interrupt_config,
-		.write_event_config = &tsl2x7x_write_interrupt_config,
-	},
-	[PRX2] = {
-		.attrs = &tsl2X7X_device_attr_group_tbl[PRX2],
-		.read_raw = &tsl2x7x_read_raw,
-		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_event_value,
-		.write_event_value = &tsl2x7x_write_event_value,
-		.read_event_config = &tsl2x7x_read_interrupt_config,
-		.write_event_config = &tsl2x7x_write_interrupt_config,
-	},
-	[ALSPRX2] = {
-		.attrs = &tsl2X7X_device_attr_group_tbl[ALSPRX2],
-		.read_raw = &tsl2x7x_read_raw,
-		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_event_value,
-		.write_event_value = &tsl2x7x_write_event_value,
-		.read_event_config = &tsl2x7x_read_interrupt_config,
-		.write_event_config = &tsl2x7x_write_interrupt_config,
-	},
+	TSL2X7X_DEVICE_INFO(ALS),
+	TSL2X7X_DEVICE_INFO(PRX),
+	TSL2X7X_DEVICE_INFO(ALSPRX),
+	TSL2X7X_DEVICE_INFO(PRX2),
+	TSL2X7X_DEVICE_INFO(ALSPRX2),
 };
 
 static const struct iio_event_spec tsl2x7x_events[] = {
