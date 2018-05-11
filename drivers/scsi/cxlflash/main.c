@@ -616,6 +616,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 		rc = 0;
 		goto out;
 	default:
+		atomic_inc(&afu->cmds_active);
 		break;
 	}
 
@@ -641,6 +642,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	memcpy(cmd->rcb.cdb, scp->cmnd, sizeof(cmd->rcb.cdb));
 
 	rc = afu->send_cmd(afu, cmd);
+	atomic_dec(&afu->cmds_active);
 out:
 	return rc;
 }
