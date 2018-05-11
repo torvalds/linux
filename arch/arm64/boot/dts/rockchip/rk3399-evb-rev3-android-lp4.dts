@@ -111,6 +111,7 @@
 
 &dmc {
 	status = "okay";
+	center-supply = <&vdd_center>;
 	system-status-freq = <
 		/*system status         freq(KHz)*/
 		SYS_STATUS_NORMAL       800000
