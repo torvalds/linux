@@ -47,9 +47,6 @@ struct sdio_cmd53 {
 	u32 block_size;
 };
 
-#define WILC_MAC_INDICATE_STATUS	0x1
-#define WILC_MAC_INDICATE_SCAN		0x2
-
 #define MAC_STATUS_INIT			-1
 #define MAC_STATUS_CONNECTED		1
 #define MAC_STATUS_DISCONNECTED		0

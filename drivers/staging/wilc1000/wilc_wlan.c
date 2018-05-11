@@ -816,12 +816,7 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 					if (wilc->cfg_seq_no == rsp.seq_no)
 						complete(&wilc->cfg_event);
 				} else if (rsp.type == WILC_CFG_RSP_STATUS) {
-					wilc_mac_indicate(wilc,
-							  WILC_MAC_INDICATE_STATUS);
-
-				} else if (rsp.type == WILC_CFG_RSP_SCAN) {
-					wilc_mac_indicate(wilc,
-							  WILC_MAC_INDICATE_SCAN);
+					wilc_mac_indicate(wilc);
 				}
 			}
 		}
