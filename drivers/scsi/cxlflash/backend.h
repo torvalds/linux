@@ -12,6 +12,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#ifndef _CXLFLASH_BACKEND_H
+#define _CXLFLASH_BACKEND_H
+
 extern const struct cxlflash_backend_ops cxlflash_cxl_ops;
 extern const struct cxlflash_backend_ops cxlflash_ocxl_ops;
 
@@ -45,3 +48,5 @@ struct cxlflash_backend_ops {
 	int (*fd_mmap)(struct file *file, struct vm_area_struct *vm);
 	int (*fd_release)(struct inode *inode, struct file *file);
 };
+
+#endif /* _CXLFLASH_BACKEND_H */
