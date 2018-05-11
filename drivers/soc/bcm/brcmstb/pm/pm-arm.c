@@ -632,6 +632,10 @@ static const struct of_device_id brcmstb_memc_of_match[] = {
 		.data = &ddr_seq_b22,
 	},
 	{
+		.compatible = "brcm,brcmstb-memc-ddr-rev-b.3.0",
+		.data = &ddr_seq_b22,
+	},
+	{
 		.compatible = "brcm,brcmstb-memc-ddr",
 		.data = &ddr_seq,
 	},
