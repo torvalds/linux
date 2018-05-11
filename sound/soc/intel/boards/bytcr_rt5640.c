@@ -178,14 +178,14 @@ static int byt_rt5640_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
 	}
 
 	if (ret < 0) {
-		dev_err(codec_dai->codec->dev, "can't set pll: %d\n", ret);
+		dev_err(codec_dai->component->dev, "can't set pll: %d\n", ret);
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_PLL1,
 				     rate * 512, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-		dev_err(codec_dai->codec->dev, "can't set clock %d\n", ret);
+		dev_err(codec_dai->component->dev, "can't set clock %d\n", ret);
 		return ret;
 	}
 
