@@ -353,18 +353,27 @@ static int nvmem_cell_info_to_nvmem_cell(struct nvmem_device *nvmem,
 	return 0;
 }
 
-static int nvmem_add_cells(struct nvmem_device *nvmem,
-			   const struct nvmem_config *cfg)
+/**
+ * nvmem_add_cells() - Add cell information to an nvmem device
+ *
+ * @nvmem: nvmem device to add cells to.
+ * @info: nvmem cell info to add to the device
+ * @ncells: number of cells in info
+ *
+ * Return: 0 or negative error code on failure.
+ */
+int nvmem_add_cells(struct nvmem_device *nvmem,
+		    const struct nvmem_cell_info *info,
+		    int ncells)
 {
 	struct nvmem_cell **cells;
-	const struct nvmem_cell_info *info = cfg->cells;
 	int i, rval;
 
-	cells = kcalloc(cfg->ncells, sizeof(*cells), GFP_KERNEL);
+	cells = kcalloc(ncells, sizeof(*cells), GFP_KERNEL);
 	if (!cells)
 		return -ENOMEM;
 
-	for (i = 0; i < cfg->ncells; i++) {
+	for (i = 0; i < ncells; i++) {
 		cells[i] = kzalloc(sizeof(**cells), GFP_KERNEL);
 		if (!cells[i]) {
 			rval = -ENOMEM;
@@ -380,7 +389,7 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 		nvmem_cell_add(cells[i]);
 	}
 
-	nvmem->ncells = cfg->ncells;
+	nvmem->ncells = ncells;
 	/* remove tmp array */
 	kfree(cells);
 
@@ -393,6 +402,7 @@ err:
 
 	return rval;
 }
+EXPORT_SYMBOL_GPL(nvmem_add_cells);
 
 /*
  * nvmem_setup_compat() - Create an additional binary entry in
@@ -509,7 +519,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	}
 
 	if (config->cells)
-		nvmem_add_cells(nvmem, config);
+		nvmem_add_cells(nvmem, config->cells, config->ncells);
 
 	return nvmem;
 
