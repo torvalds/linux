@@ -4705,7 +4705,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int pending_del_slot = 0;
 	int extent_type = -1;
 	int ret;
-	int err = 0;
 	u64 ino = btrfs_ino(BTRFS_I(inode));
 	u64 bytes_deleted = 0;
 	bool be_nice = false;
@@ -4757,22 +4756,19 @@ search_again:
 	 * up a huge file in a single leaf.  Most of the time that
 	 * bytes_deleted is > 0, it will be huge by the time we get here
 	 */
-	if (be_nice && bytes_deleted > SZ_32M) {
-		if (btrfs_should_end_transaction(trans)) {
-			err = -EAGAIN;
-			goto error;
-		}
-	}
-
-
-	path->leave_spinning = 1;
-	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret < 0) {
-		err = ret;
+	if (be_nice && bytes_deleted > SZ_32M &&
+	    btrfs_should_end_transaction(trans)) {
+		ret = -EAGAIN;
 		goto out;
 	}
 
+	path->leave_spinning = 1;
+	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+	if (ret < 0)
+		goto out;
+
 	if (ret > 0) {
+		ret = 0;
 		/* there are no items in the tree for us to truncate, we're
 		 * done
 		 */
@@ -4883,7 +4879,7 @@ search_again:
 				 * We have to bail so the last_size is set to
 				 * just before this extent.
 				 */
-				err = NEED_TRUNCATE_BLOCK;
+				ret = NEED_TRUNCATE_BLOCK;
 				break;
 			}
 
@@ -4950,7 +4946,7 @@ delete:
 						pending_del_nr);
 				if (ret) {
 					btrfs_abort_transaction(trans, ret);
-					goto error;
+					break;
 				}
 				pending_del_nr = 0;
 			}
@@ -4961,8 +4957,8 @@ delete:
 					trans->delayed_ref_updates = 0;
 					ret = btrfs_run_delayed_refs(trans,
 								   updates * 2);
-					if (ret && !err)
-						err = ret;
+					if (ret)
+						break;
 				}
 			}
 			/*
@@ -4970,8 +4966,8 @@ delete:
 			 * and let the transaction restart
 			 */
 			if (should_end) {
-				err = -EAGAIN;
-				goto error;
+				ret = -EAGAIN;
+				break;
 			}
 			goto search_again;
 		} else {
@@ -4979,32 +4975,37 @@ delete:
 		}
 	}
 out:
-	if (pending_del_nr) {
-		ret = btrfs_del_items(trans, root, path, pending_del_slot,
+	if (ret >= 0 && pending_del_nr) {
+		int err;
+
+		err = btrfs_del_items(trans, root, path, pending_del_slot,
 				      pending_del_nr);
-		if (ret)
-			btrfs_abort_transaction(trans, ret);
+		if (err) {
+			btrfs_abort_transaction(trans, err);
+			ret = err;
+		}
 	}
-error:
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 		ASSERT(last_size >= new_size);
-		if (!err && last_size > new_size)
+		if (!ret && last_size > new_size)
 			last_size = new_size;
 		btrfs_ordered_update_i_size(inode, last_size, NULL);
 	}
 
 	btrfs_free_path(path);
 
-	if (be_nice && bytes_deleted > SZ_32M) {
+	if (be_nice && bytes_deleted > SZ_32M && (ret >= 0 || ret == -EAGAIN)) {
 		unsigned long updates = trans->delayed_ref_updates;
+		int err;
+
 		if (updates) {
 			trans->delayed_ref_updates = 0;
-			ret = btrfs_run_delayed_refs(trans, updates * 2);
-			if (ret && !err)
-				err = ret;
+			err = btrfs_run_delayed_refs(trans, updates * 2);
+			if (err)
+				ret = err;
 		}
 	}
-	return err;
+	return ret;
 }
 
 /*
