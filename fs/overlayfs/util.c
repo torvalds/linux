@@ -825,3 +825,19 @@ out:
 	pr_warn_ratelimited("overlayfs: failed to get metacopy (%i)\n", res);
 	return res;
 }
+
+bool ovl_is_metacopy_dentry(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	if (!d_is_reg(dentry))
+		return false;
+
+	if (ovl_dentry_upper(dentry)) {
+		if (!ovl_has_upperdata(d_inode(dentry)))
+			return true;
+		return false;
+	}
+
+	return (oe->numlower > 1);
+}
