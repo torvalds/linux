@@ -2286,7 +2286,7 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 		return 0;
 	}
 	if (ap->flags & ATA_FLAG_NCQ) {
-		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
+		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE);
 		dev->flags |= ATA_DFLAG_NCQ;
 	}
 
@@ -6408,7 +6408,7 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 {
 	spin_lock_init(&host->lock);
 	mutex_init(&host->eh_mutex);
-	host->n_tags = ATA_MAX_QUEUE - 1;
+	host->n_tags = ATA_MAX_QUEUE;
 	host->dev = dev;
 	host->ops = ops;
 }
@@ -6490,7 +6490,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 {
 	int i, rc;
 
-	host->n_tags = clamp(sht->can_queue, 1, ATA_MAX_QUEUE - 1);
+	host->n_tags = clamp(sht->can_queue, 1, ATA_MAX_QUEUE);
 
 	/* host must have been started */
 	if (!(host->flags & ATA_HOST_STARTED)) {
