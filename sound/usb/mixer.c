@@ -717,6 +717,66 @@ static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iter
 }
 
 /*
+ * Get logical cluster information for UAC3 devices.
+ */
+static int get_cluster_channels_v3(struct mixer_build *state, unsigned int cluster_id)
+{
+	struct uac3_cluster_header_descriptor c_header;
+	int err;
+
+	err = snd_usb_ctl_msg(state->chip->dev,
+			usb_rcvctrlpipe(state->chip->dev, 0),
+			UAC3_CS_REQ_HIGH_CAPABILITY_DESCRIPTOR,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
+			cluster_id,
+			snd_usb_ctrl_intf(state->chip),
+			&c_header, sizeof(c_header));
+	if (err < 0)
+		goto error;
+	if (err != sizeof(c_header)) {
+		err = -EIO;
+		goto error;
+	}
+
+	return c_header.bNrChannels;
+
+error:
+	usb_audio_err(state->chip, "cannot request logical cluster ID: %d (err: %d)\n", cluster_id, err);
+	return err;
+}
+
+/*
+ * Get number of channels for a Mixer Unit.
+ */
+static int uac_mixer_unit_get_channels(struct mixer_build *state,
+				       struct uac_mixer_unit_descriptor *desc)
+{
+	int mu_channels;
+
+	if (desc->bLength < 11)
+		return -EINVAL;
+	if (!desc->bNrInPins)
+		return -EINVAL;
+
+	switch (state->mixer->protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		mu_channels = uac_mixer_unit_bNrChannels(desc);
+		break;
+	case UAC_VERSION_3:
+		mu_channels = get_cluster_channels_v3(state,
+				uac3_mixer_unit_wClusterDescrID(desc));
+		break;
+	}
+
+	if (!mu_channels)
+		return -EINVAL;
+
+	return mu_channels;
+}
+
+/*
  * parse the source unit recursively until it reaches to a terminal
  * or a branched unit.
  */
@@ -861,6 +921,18 @@ static int check_input_term(struct mixer_build *state, int id,
 				term->type = d->bDescriptorSubtype << 16; /* virtual type */
 				term->id = id;
 				term->name = le16_to_cpu(d->wClockSourceStr);
+				return 0;
+			}
+			case UAC3_MIXER_UNIT: {
+				struct uac_mixer_unit_descriptor *d = p1;
+
+				err = uac_mixer_unit_get_channels(state, d);
+				if (err < 0)
+					return err;
+
+				term->channels = err;
+				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+
 				return 0;
 			}
 			default:
@@ -1826,11 +1898,10 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
  */
 static void build_mixer_unit_ctl(struct mixer_build *state,
 				 struct uac_mixer_unit_descriptor *desc,
-				 int in_pin, int in_ch, int unitid,
-				 struct usb_audio_term *iterm)
+				 int in_pin, int in_ch, int num_outs,
+				 int unitid, struct usb_audio_term *iterm)
 {
 	struct usb_mixer_elem_info *cval;
-	unsigned int num_outs = uac_mixer_unit_bNrChannels(desc);
 	unsigned int i, len;
 	struct snd_kcontrol *kctl;
 	const struct usbmix_name_map *map;
@@ -1907,13 +1978,16 @@ static int parse_audio_mixer_unit(struct mixer_build *state, int unitid,
 	int input_pins, num_ins, num_outs;
 	int pin, ich, err;
 
-	if (desc->bLength < 11 || !(input_pins = desc->bNrInPins) ||
-	    !(num_outs = uac_mixer_unit_bNrChannels(desc))) {
+	err = uac_mixer_unit_get_channels(state, desc);
+	if (err < 0) {
 		usb_audio_err(state->chip,
 			      "invalid MIXER UNIT descriptor %d\n",
 			      unitid);
-		return -EINVAL;
+		return err;
 	}
+
+	num_outs = err;
+	input_pins = desc->bNrInPins;
 
 	num_ins = 0;
 	ich = 0;
@@ -1941,7 +2015,7 @@ static int parse_audio_mixer_unit(struct mixer_build *state, int unitid,
 				}
 			}
 			if (ich_has_controls)
-				build_mixer_unit_ctl(state, desc, pin, ich,
+				build_mixer_unit_ctl(state, desc, pin, ich, num_outs,
 						     unitid, &iterm);
 		}
 	}
