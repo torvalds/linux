@@ -273,17 +273,18 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		d->metacopy = err;
 		d->stop = !d->metacopy;
 		goto out;
-	}
-	if (last_element)
-		d->is_dir = true;
-	if (d->last)
-		goto out;
-
-	if (ovl_is_opaquedir(this)) {
-		d->stop = true;
+	} else {
 		if (last_element)
-			d->opaque = true;
-		goto out;
+			d->is_dir = true;
+		if (d->last)
+			goto out;
+
+		if (ovl_is_opaquedir(this)) {
+			d->stop = true;
+			if (last_element)
+				d->opaque = true;
+			goto out;
+		}
 	}
 	err = ovl_check_redirect(this, d, prelen, post);
 	if (err)
