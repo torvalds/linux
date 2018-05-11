@@ -187,6 +187,7 @@ CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN
 	CH_PCI_ID_TABLE_FENTRY(0x50aa), /* Custom T580-CR */
 	CH_PCI_ID_TABLE_FENTRY(0x50ab), /* Custom T520-CR */
 	CH_PCI_ID_TABLE_FENTRY(0x50ac), /* Custom T540-BT */
+	CH_PCI_ID_TABLE_FENTRY(0x50ad), /* Custom T520-CR */
 
 	/* T6 adapters:
 	 */
