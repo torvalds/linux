@@ -72,11 +72,12 @@
 #define FIRMWARE_VEGA12		"amdgpu/vega12_uvd.bin"
 #define FIRMWARE_VEGA20		"amdgpu/vega20_uvd.bin"
 
-#define mmUVD_GPCOM_VCPU_DATA0_VEGA10 (0x03c4 + 0x7e00)
-#define mmUVD_GPCOM_VCPU_DATA1_VEGA10 (0x03c5 + 0x7e00)
-#define mmUVD_GPCOM_VCPU_CMD_VEGA10 (0x03c3 + 0x7e00)
-#define mmUVD_NO_OP_VEGA10 (0x03ff + 0x7e00)
-#define mmUVD_ENGINE_CNTL_VEGA10 (0x03c6 + 0x7e00)
+/* These are common relative offsets for all asics, from uvd_7_0_offset.h,  */
+#define UVD_GPCOM_VCPU_CMD		0x03c3
+#define UVD_GPCOM_VCPU_DATA0	0x03c4
+#define UVD_GPCOM_VCPU_DATA1	0x03c5
+#define UVD_NO_OP				0x03ff
+#define UVD_BASE_SI				0x3800
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context
@@ -990,6 +991,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	uint64_t addr;
 	long r;
 	int i;
+	unsigned offset_idx = 0;
+	unsigned offset[3] = { UVD_BASE_SI, 0, 0 };
 
 	amdgpu_bo_kunmap(bo);
 	amdgpu_bo_unpin(bo);
@@ -1009,16 +1012,15 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		goto err;
 
 	if (adev->asic_type >= CHIP_VEGA10) {
-		data[0] = PACKET0(mmUVD_GPCOM_VCPU_DATA0_VEGA10, 0);
-		data[1] = PACKET0(mmUVD_GPCOM_VCPU_DATA1_VEGA10, 0);
-		data[2] = PACKET0(mmUVD_GPCOM_VCPU_CMD_VEGA10, 0);
-		data[3] = PACKET0(mmUVD_NO_OP_VEGA10, 0);
-	} else {
-		data[0] = PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0);
-		data[1] = PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0);
-		data[2] = PACKET0(mmUVD_GPCOM_VCPU_CMD, 0);
-		data[3] = PACKET0(mmUVD_NO_OP, 0);
+		offset_idx = 1 + ring->me;
+		offset[1] = adev->reg_offset[UVD_HWIP][0][1];
+		offset[2] = adev->reg_offset[UVD_HWIP][1][1];
 	}
+
+	data[0] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_DATA0, 0);
+	data[1] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_DATA1, 0);
+	data[2] = PACKET0(offset[offset_idx] + UVD_GPCOM_VCPU_CMD, 0);
+	data[3] = PACKET0(offset[offset_idx] + UVD_NO_OP, 0);
 
 	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);

@@ -40,6 +40,8 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 
+#define UVD7_MAX_HW_INSTANCES_VEGA20			2
+
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v7_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v7_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -370,7 +372,10 @@ error:
 static int uvd_v7_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	adev->uvd.num_uvd_inst = 1;
+	if (adev->asic_type == CHIP_VEGA20)
+		adev->uvd.num_uvd_inst = UVD7_MAX_HW_INSTANCES_VEGA20;
+	else
+		adev->uvd.num_uvd_inst = 1;
 
 	if (amdgpu_sriov_vf(adev))
 		adev->uvd.num_enc_rings = 1;
