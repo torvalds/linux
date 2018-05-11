@@ -246,10 +246,12 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
 			 sizeof(intel_dp->psr_dpcd));
 
-	if (intel_dp->psr_dpcd[0]) {
-		dev_priv->psr.sink_support = true;
-		DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
-	}
+	if (!intel_dp->psr_dpcd[0])
+		return;
+
+	DRM_DEBUG_KMS("eDP panel supports PSR version %x\n",
+		      intel_dp->psr_dpcd[0]);
+	dev_priv->psr.sink_support = true;
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
 	    (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)) {
@@ -266,8 +268,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		 */
 		dev_priv->psr.sink_psr2_support =
 				intel_dp_get_y_coord_required(intel_dp);
-		DRM_DEBUG_KMS("PSR2 %s on sink", dev_priv->psr.sink_psr2_support
-			      ? "supported" : "not supported");
+		DRM_DEBUG_KMS("PSR2 %ssupported\n",
+			      dev_priv->psr.sink_psr2_support ? "" : "not ");
 
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
