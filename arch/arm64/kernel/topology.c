@@ -13,6 +13,7 @@
 
 #include <linux/acpi.h>
 #include <linux/arch_topology.h>
+#include <linux/cacheinfo.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -214,7 +215,19 @@ EXPORT_SYMBOL_GPL(cpu_topology);
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	return &cpu_topology[cpu].core_sibling;
+	const cpumask_t *core_mask = cpumask_of_node(cpu_to_node(cpu));
+
+	/* Find the smaller of NUMA, core or LLC siblings */
+	if (cpumask_subset(&cpu_topology[cpu].core_sibling, core_mask)) {
+		/* not numa in package, lets use the package siblings */
+		core_mask = &cpu_topology[cpu].core_sibling;
+	}
+	if (cpu_topology[cpu].llc_id != -1) {
+		if (cpumask_subset(&cpu_topology[cpu].llc_siblings, core_mask))
+			core_mask = &cpu_topology[cpu].llc_siblings;
+	}
+
+	return core_mask;
 }
 
 static void update_siblings_masks(unsigned int cpuid)
@@ -225,6 +238,9 @@ static void update_siblings_masks(unsigned int cpuid)
 	/* update core and thread sibling masks */
 	for_each_possible_cpu(cpu) {
 		cpu_topo = &cpu_topology[cpu];
+
+		if (cpuid_topo->llc_id == cpu_topo->llc_id)
+			cpumask_set_cpu(cpu, &cpuid_topo->llc_siblings);
 
 		if (cpuid_topo->package_id != cpu_topo->package_id)
 			continue;
@@ -291,6 +307,10 @@ static void __init reset_cpu_topology(void)
 		cpu_topo->core_id = 0;
 		cpu_topo->package_id = -1;
 
+		cpu_topo->llc_id = -1;
+		cpumask_clear(&cpu_topo->llc_siblings);
+		cpumask_set_cpu(cpu, &cpu_topo->llc_siblings);
+
 		cpumask_clear(&cpu_topo->core_sibling);
 		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
@@ -311,6 +331,8 @@ static int __init parse_acpi_topology(void)
 	is_threaded = read_cpuid_mpidr() & MPIDR_MT_BITMASK;
 
 	for_each_possible_cpu(cpu) {
+		int i, cache_id;
+
 		topology_id = find_acpi_cpu_topology(cpu, 0);
 		if (topology_id < 0)
 			return topology_id;
@@ -325,6 +347,18 @@ static int __init parse_acpi_topology(void)
 		}
 		topology_id = find_acpi_cpu_topology_package(cpu);
 		cpu_topology[cpu].package_id = topology_id;
+
+		i = acpi_find_last_cache_level(cpu);
+
+		if (i > 0) {
+			/*
+			 * this is the only part of cpu_topology that has
+			 * a direct relationship with the cache topology
+			 */
+			cache_id = find_acpi_cpu_cache_topology(cpu, i);
+			if (cache_id > 0)
+				cpu_topology[cpu].llc_id = cache_id;
+		}
 	}
 
 	return 0;
