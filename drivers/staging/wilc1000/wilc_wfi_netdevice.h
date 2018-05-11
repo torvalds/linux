@@ -78,7 +78,6 @@ struct wilc_priv {
 	u8 monitor_flag;
 	int status;
 	struct sk_buff *skb;
-	spinlock_t lock;
 	struct net_device *dev;
 	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
