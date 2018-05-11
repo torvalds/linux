@@ -3730,8 +3730,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 		dev_priv->no_aux_handshake = intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
 			DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 
-	intel_psr_init_dpcd(intel_dp);
-
 	/*
 	 * Read the eDP display control registers.
 	 *
@@ -3746,6 +3744,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 			     sizeof(intel_dp->edp_dpcd))
 		DRM_DEBUG_KMS("eDP DPCD: %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
 			      intel_dp->edp_dpcd);
+
+	/*
+	 * This has to be called after intel_dp->edp_dpcd is filled, PSR checks
+	 * for SET_POWER_CAPABLE bit in intel_dp->edp_dpcd[1]
+	 */
+	intel_psr_init_dpcd(intel_dp);
 
 	/* Read the eDP 1.4+ supported link rates. */
 	if (intel_dp->edp_dpcd[0] >= DP_EDP_14) {

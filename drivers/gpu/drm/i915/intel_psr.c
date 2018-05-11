@@ -248,9 +248,13 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 
 	if (!intel_dp->psr_dpcd[0])
 		return;
-
 	DRM_DEBUG_KMS("eDP panel supports PSR version %x\n",
 		      intel_dp->psr_dpcd[0]);
+
+	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
+		DRM_DEBUG_KMS("Panel lacks power state control, PSR cannot be enabled\n");
+		return;
+	}
 	dev_priv->psr.sink_support = true;
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
@@ -567,11 +571,6 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	    adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vdisplay - 1) {
 		DRM_DEBUG_KMS("PSR condition failed: PSR setup time (%d us) too long\n",
 			      psr_setup_time);
-		return;
-	}
-
-	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
-		DRM_DEBUG_KMS("PSR condition failed: panel lacks power state control\n");
 		return;
 	}
 
