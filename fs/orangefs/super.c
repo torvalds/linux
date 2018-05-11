@@ -156,9 +156,10 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	sb = dentry->d_sb;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "orangefs_statfs: called on sb %p (fs_id is %d)\n",
-		     sb,
-		     (int)(ORANGEFS_SB(sb)->fs_id));
+			"%s: called on sb %p (fs_id is %d)\n",
+			__func__,
+			sb,
+			(int)(ORANGEFS_SB(sb)->fs_id));
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_STATFS);
 	if (!new_op)
@@ -198,7 +199,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 out_op_release:
 	op_release(new_op);
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_statfs: returning %d\n", ret);
+	gossip_debug(GOSSIP_SUPER_DEBUG, "%s: returning %d\n", __func__, ret);
 	return ret;
 }
 

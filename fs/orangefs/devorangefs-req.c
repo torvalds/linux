@@ -281,14 +281,17 @@ restart:
 	ret = copy_to_user(buf, &proto_ver, sizeof(__s32));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+sizeof(__s32), &magic, sizeof(__s32));
+	ret = copy_to_user(buf + sizeof(__s32), &magic, sizeof(__s32));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+2 * sizeof(__s32), &cur_op->tag, sizeof(__u64));
+	ret = copy_to_user(buf + 2 * sizeof(__s32),
+		&cur_op->tag,
+		sizeof(__u64));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+2*sizeof(__s32)+sizeof(__u64), &cur_op->upcall,
-			   sizeof(struct orangefs_upcall_s));
+	ret = copy_to_user(buf + 2 * sizeof(__s32) + sizeof(__u64),
+		&cur_op->upcall,
+		sizeof(struct orangefs_upcall_s));
 	if (ret != 0)
 		goto error;
 
@@ -381,7 +384,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 			   (unsigned int) MAX_DEV_REQ_DOWNSIZE);
 		return -EFAULT;
 	}
-     
+
 	if (!copy_from_iter_full(&head, head_size, iter)) {
 		gossip_err("%s: failed to copy head.\n", __func__);
 		return -EFAULT;
@@ -426,7 +429,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		goto wakeup;
 
 	/*
-	 * We've successfully peeled off the head and the downcall. 
+	 * We've successfully peeled off the head and the downcall.
 	 * Something has gone awry if total doesn't equal the
 	 * sum of head_size, downcall_size and trailer_size.
 	 */
@@ -477,7 +480,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 wakeup:
 	/*
 	 * Return to vfs waitqueue, and back to service_operation
-	 * through wait_for_matching_downcall. 
+	 * through wait_for_matching_downcall.
 	 */
 	spin_lock(&op->lock);
 	if (unlikely(op_is_cancel(op))) {

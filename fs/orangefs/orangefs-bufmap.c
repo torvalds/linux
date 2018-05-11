@@ -184,7 +184,7 @@ orangefs_bufmap_free(struct orangefs_bufmap *bufmap)
 }
 
 /*
- * XXX: Can the size and shift change while the caller gives up the 
+ * XXX: Can the size and shift change while the caller gives up the
  * XXX: lock between calling this and doing something useful?
  */
 
@@ -496,7 +496,7 @@ void orangefs_readdir_index_put(int buffer_index)
 }
 
 /*
- * we've been handed an iovec, we need to copy it to 
+ * we've been handed an iovec, we need to copy it to
  * the shared memory descriptor at "buffer_index".
  */
 int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,

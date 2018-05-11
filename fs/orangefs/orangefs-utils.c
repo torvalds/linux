@@ -183,9 +183,9 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 		attrs->mask |= ORANGEFS_ATTR_SYS_CTIME;
 
 	/*
-	 * ORANGEFS cannot set size with a setattr operation.  Probably not likely
-	 * to be requested through the VFS, but just in case, don't worry about
-	 * ATTR_SIZE
+	 * ORANGEFS cannot set size with a setattr operation. Probably not
+	 * likely to be requested through the VFS, but just in case, don't
+	 * worry about ATTR_SIZE
 	 */
 
 	if (iattr->ia_valid & ATTR_MODE) {
@@ -200,14 +200,16 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 				tmp_mode -= S_ISVTX;
 			} else {
 				gossip_debug(GOSSIP_UTILS_DEBUG,
-					     "User attempted to set sticky bit on non-root directory; returning EINVAL.\n");
+					"%s: setting sticky bit not supported.\n",
+					__func__);
 				return -EINVAL;
 			}
 		}
 
 		if (tmp_mode & (S_ISUID)) {
 			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
+				"%s: setting setuid bit not supported.\n",
+				__func__);
 			return -EINVAL;
 		}
 
@@ -521,7 +523,9 @@ int orangefs_normalize_to_errno(__s32 error_code)
 			error_code = -ETIMEDOUT;
 		} else {
 			/* assume a default error code */
-			gossip_err("orangefs: warning: got error code without errno equivalent: %d.\n", error_code);
+			gossip_err("%s: bad error code :%d:.\n",
+				__func__,
+				error_code);
 			error_code = -EINVAL;
 		}
 
@@ -538,7 +542,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 * there is a bug somewhere.
 	 */
 	} else {
-		gossip_err("orangefs: orangefs_normalize_to_errno: got error code which is not from ORANGEFS.\n");
+		gossip_err("%s: unknown error code.\n", __func__);
 		error_code = -EINVAL;
 	}
 	return error_code;

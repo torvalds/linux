@@ -162,7 +162,7 @@ populate_shared_memory:
 				else
 					ret = 0;
 				break;
-			/* 
+			/*
 			 * If the op was in progress when the interrupt
 			 * occurred, then the client-core was able to
 			 * trigger the write.
