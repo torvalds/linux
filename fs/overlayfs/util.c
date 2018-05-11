@@ -256,6 +256,18 @@ struct inode *ovl_inode_lowerdata(struct inode *inode)
 	return OVL_I(inode)->lowerdata ?: ovl_inode_lower(inode);
 }
 
+/* Return real inode which contains data. Does not return metacopy inode */
+struct inode *ovl_inode_realdata(struct inode *inode)
+{
+	struct inode *upperinode;
+
+	upperinode = ovl_inode_upper(inode);
+	if (upperinode && ovl_has_upperdata(inode))
+		return upperinode;
+
+	return ovl_inode_lowerdata(inode);
+}
+
 struct ovl_dir_cache *ovl_dir_cache(struct inode *inode)
 {
 	return OVL_I(inode)->cache;
