@@ -415,6 +415,7 @@
 &edp_panel {
 	compatible ="lg,lp079qx1-sp0v", "simple-panel";
 	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+	bpc = <6>;
 	backlight = <&backlight>;
 	enable-gpios = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 	reset-gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
