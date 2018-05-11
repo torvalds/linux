@@ -1293,7 +1293,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
 		return;
 
-	} else if ((ap->qc_active & (1 << ATA_TAG_INTERNAL))) {
+	} else if ((ap->qc_active & (1ULL << ATA_TAG_INTERNAL))) {
 		iowrite32(1, hcr_base + CC);
 		qc = ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
