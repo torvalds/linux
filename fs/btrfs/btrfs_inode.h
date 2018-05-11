@@ -20,7 +20,6 @@
  * new data the application may have written before commit.
  */
 #define BTRFS_INODE_ORDERED_DATA_CLOSE		0
-#define BTRFS_INODE_ORPHAN_META_RESERVED	1
 #define BTRFS_INODE_DUMMY			2
 #define BTRFS_INODE_IN_DEFRAG			3
 #define BTRFS_INODE_HAS_ASYNC_EXTENT		5

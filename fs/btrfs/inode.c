@@ -3298,42 +3298,6 @@ void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info)
 }
 
 /*
- * This is called in transaction commit time. If there are no orphan
- * files in the subvolume, it removes orphan item and frees block_rsv
- * structure.
- */
-void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_block_rsv *block_rsv;
-
-	if (atomic_read(&root->orphan_inodes) ||
-	    root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE)
-		return;
-
-	spin_lock(&root->orphan_lock);
-	if (atomic_read(&root->orphan_inodes)) {
-		spin_unlock(&root->orphan_lock);
-		return;
-	}
-
-	if (root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE) {
-		spin_unlock(&root->orphan_lock);
-		return;
-	}
-
-	block_rsv = root->orphan_block_rsv;
-	root->orphan_block_rsv = NULL;
-	spin_unlock(&root->orphan_lock);
-
-	if (block_rsv) {
-		WARN_ON(block_rsv->size > 0);
-		btrfs_free_block_rsv(fs_info, block_rsv);
-	}
-}
-
-/*
  * This creates an orphan entry for the given inode in case something goes wrong
  * in the middle of an unlink.
  */
@@ -3526,12 +3490,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 	root->orphan_cleanup_state = ORPHAN_CLEANUP_DONE;
 
-	if (root->orphan_block_rsv)
-		btrfs_block_rsv_release(fs_info, root->orphan_block_rsv,
-					(u64)-1);
-
-	if (root->orphan_block_rsv ||
-	    test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state)) {
+	if (test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state)) {
 		trans = btrfs_join_transaction(root);
 		if (!IS_ERR(trans))
 			btrfs_end_transaction(trans);

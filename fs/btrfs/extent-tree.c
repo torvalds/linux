@@ -5949,44 +5949,6 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 	trans->chunk_bytes_reserved = 0;
 }
 
-/* Can only return 0 or -ENOSPC */
-int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
-				  struct btrfs_inode *inode)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
-	struct btrfs_root *root = inode->root;
-	/*
-	 * We always use trans->block_rsv here as we will have reserved space
-	 * for our orphan when starting the transaction, using get_block_rsv()
-	 * here will sometimes make us choose the wrong block rsv as we could be
-	 * doing a reloc inode for a non refcounted root.
-	 */
-	struct btrfs_block_rsv *src_rsv = trans->block_rsv;
-	struct btrfs_block_rsv *dst_rsv = root->orphan_block_rsv;
-
-	/*
-	 * We need to hold space in order to delete our orphan item once we've
-	 * added it, so this takes the reservation so we can release it later
-	 * when we are truly done with the orphan item.
-	 */
-	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
-
-	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode),
-			num_bytes, 1);
-	return btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
-}
-
-void btrfs_orphan_release_metadata(struct btrfs_inode *inode)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
-	struct btrfs_root *root = inode->root;
-	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
-
-	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode),
-			num_bytes, 0);
-	btrfs_block_rsv_release(fs_info, root->orphan_block_rsv, num_bytes);
-}
-
 /*
  * btrfs_subvolume_reserve_metadata() - reserve space for subvolume operation
  * root: the root of the parent directory
