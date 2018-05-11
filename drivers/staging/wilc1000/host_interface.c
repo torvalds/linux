@@ -1166,10 +1166,11 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 
 		if (hif_drv->usr_conn_req.ies) {
 			info.req_ies_len = hif_drv->usr_conn_req.ies_len;
-			info.req_ies = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
-			memcpy(info.req_ies,
-			       hif_drv->usr_conn_req.ies,
-			       hif_drv->usr_conn_req.ies_len);
+			info.req_ies = kmemdup(hif_drv->usr_conn_req.ies,
+					       hif_drv->usr_conn_req.ies_len,
+					       GFP_KERNEL);
+			if (!info.req_ies)
+				return -ENOMEM;
 		}
 
 		hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_CONN_RESP,
