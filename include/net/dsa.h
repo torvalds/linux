@@ -20,12 +20,14 @@
 #include <linux/of.h>
 #include <linux/ethtool.h>
 #include <linux/net_tstamp.h>
+#include <linux/phy.h>
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
 struct tc_action;
 struct phy_device;
 struct fixed_phy_status;
+struct phylink_link_state;
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE = 0,
@@ -199,6 +201,7 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	struct phylink		*pl;
 	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
@@ -353,6 +356,27 @@ struct dsa_switch_ops {
 	void	(*fixed_link_update)(struct dsa_switch *ds, int port,
 				struct fixed_phy_status *st);
 
+	/*
+	 * PHYLINK integration
+	 */
+	void	(*phylink_validate)(struct dsa_switch *ds, int port,
+				    unsigned long *supported,
+				    struct phylink_link_state *state);
+	int	(*phylink_mac_link_state)(struct dsa_switch *ds, int port,
+					  struct phylink_link_state *state);
+	void	(*phylink_mac_config)(struct dsa_switch *ds, int port,
+				      unsigned int mode,
+				      const struct phylink_link_state *state);
+	void	(*phylink_mac_an_restart)(struct dsa_switch *ds, int port);
+	void	(*phylink_mac_link_down)(struct dsa_switch *ds, int port,
+					 unsigned int mode,
+					 phy_interface_t interface);
+	void	(*phylink_mac_link_up)(struct dsa_switch *ds, int port,
+				       unsigned int mode,
+				       phy_interface_t interface,
+				       struct phy_device *phydev);
+	void	(*phylink_fixed_state)(struct dsa_switch *ds, int port,
+				       struct phylink_link_state *state);
 	/*
 	 * ethtool hardware statistics.
 	 */
@@ -595,5 +619,6 @@ static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data);
 int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data);
 int dsa_port_get_phy_sset_count(struct dsa_port *dp);
+void dsa_port_phylink_mac_change(struct dsa_switch *ds, int port, bool up);
 
 #endif

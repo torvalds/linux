@@ -31,6 +31,7 @@
 #include <linux/netdevice.h>
 #include <linux/gpio/consumer.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <net/dsa.h>
 
 #include "chip.h"
@@ -578,6 +579,83 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 
 	if (err && err != -EOPNOTSUPP)
 		dev_err(ds->dev, "p%d: failed to configure MAC\n", port);
+}
+
+static void mv88e6xxx_validate(struct dsa_switch *ds, int port,
+			       unsigned long *supported,
+			       struct phylink_link_state *state)
+{
+}
+
+static int mv88e6xxx_link_state(struct dsa_switch *ds, int port,
+				struct phylink_link_state *state)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_port_link_state(chip, port, state);
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
+}
+
+static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
+				 unsigned int mode,
+				 const struct phylink_link_state *state)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int speed, duplex, link, err;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		link = LINK_FORCED_UP;
+		speed = state->speed;
+		duplex = state->duplex;
+	} else {
+		speed = SPEED_UNFORCED;
+		duplex = DUPLEX_UNFORCED;
+		link = LINK_UNFORCED;
+	}
+
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
+				       state->interface);
+	mutex_unlock(&chip->reg_lock);
+
+	if (err && err != -EOPNOTSUPP)
+		dev_err(ds->dev, "p%d: failed to configure MAC\n", port);
+}
+
+static void mv88e6xxx_mac_link_force(struct dsa_switch *ds, int port, int link)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+	err = chip->info->ops->port_set_link(chip, port, link);
+	mutex_unlock(&chip->reg_lock);
+
+	if (err)
+		dev_err(chip->dev, "p%d: failed to force MAC link\n", port);
+}
+
+static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
+				    unsigned int mode,
+				    phy_interface_t interface)
+{
+	if (mode == MLO_AN_FIXED)
+		mv88e6xxx_mac_link_force(ds, port, LINK_FORCED_DOWN);
+}
+
+static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
+				  unsigned int mode, phy_interface_t interface,
+				  struct phy_device *phydev)
+{
+	if (mode == MLO_AN_FIXED)
+		mv88e6xxx_mac_link_force(ds, port, LINK_FORCED_UP);
 }
 
 static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
@@ -4169,6 +4247,11 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.adjust_link		= mv88e6xxx_adjust_link,
+	.phylink_validate	= mv88e6xxx_validate,
+	.phylink_mac_link_state	= mv88e6xxx_link_state,
+	.phylink_mac_config	= mv88e6xxx_mac_config,
+	.phylink_mac_link_down	= mv88e6xxx_mac_link_down,
+	.phylink_mac_link_up	= mv88e6xxx_mac_link_up,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,
