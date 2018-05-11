@@ -862,6 +862,9 @@ static int vega20_populate_umdpstate_clocks(
 		hwmgr->pstate_mclk = mem_table->dpm_levels[VEGA20_UMD_PSTATE_MCLK_LEVEL].value;
 	}
 
+	hwmgr->pstate_sclk = hwmgr->pstate_sclk * 100;
+	hwmgr->pstate_mclk = hwmgr->pstate_mclk * 100;
+
 	return 0;
 }
 
