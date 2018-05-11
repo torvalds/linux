@@ -165,9 +165,40 @@ log_recovery_delay_show(
 }
 XFS_SYSFS_ATTR_RW(log_recovery_delay);
 
+STATIC ssize_t
+mount_delay_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 60)
+		return -EINVAL;
+
+	xfs_globals.mount_delay = val;
+
+	return count;
+}
+
+STATIC ssize_t
+mount_delay_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.mount_delay);
+}
+XFS_SYSFS_ATTR_RW(mount_delay);
+
 static struct attribute *xfs_dbg_attrs[] = {
 	ATTR_LIST(bug_on_assert),
 	ATTR_LIST(log_recovery_delay),
+	ATTR_LIST(mount_delay),
 	NULL,
 };
 

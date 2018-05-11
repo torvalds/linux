@@ -1635,6 +1635,17 @@ xfs_fs_fill_super(
 #endif
 	sb->s_op = &xfs_super_operations;
 
+	/*
+	 * Delay mount work if the debug hook is set. This is debug
+	 * instrumention to coordinate simulation of xfs mount failures with
+	 * VFS superblock operations
+	 */
+	if (xfs_globals.mount_delay) {
+		xfs_notice(mp, "Delaying mount for %d seconds.",
+			xfs_globals.mount_delay);
+		msleep(xfs_globals.mount_delay * 1000);
+	}
+
 	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
