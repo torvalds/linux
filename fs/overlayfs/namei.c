@@ -272,7 +272,8 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 
 		d->metacopy = err;
 		d->stop = !d->metacopy;
-		goto out;
+		if (!d->metacopy || d->last)
+			goto out;
 	} else {
 		if (last_element)
 			d->is_dir = true;
@@ -874,7 +875,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		if (upperdentry && !d.is_dir) {
 			unsigned int origin_ctr = 0;
 
-			BUG_ON(d.redirect);
 			/*
 			 * Lookup copy up origin by decoding origin file handle.
 			 * We may get a disconnected dentry, which is fine,
