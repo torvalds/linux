@@ -196,16 +196,16 @@ static const struct tsl2x7x_lux tmd2x72_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 };
 
 static const struct tsl2x7x_lux *tsl2x7x_default_lux_table_group[] = {
-	[tsl2571] =	tsl2x71_lux_table,
-	[tsl2671] =	tsl2x71_lux_table,
-	[tmd2671] =	tmd2x71_lux_table,
-	[tsl2771] =	tsl2x71_lux_table,
-	[tmd2771] =	tmd2x71_lux_table,
-	[tsl2572] =	tsl2x72_lux_table,
-	[tsl2672] =	tsl2x72_lux_table,
-	[tmd2672] =	tmd2x72_lux_table,
-	[tsl2772] =	tsl2x72_lux_table,
-	[tmd2772] =	tmd2x72_lux_table,
+	[tsl2571] = tsl2x71_lux_table,
+	[tsl2671] = tsl2x71_lux_table,
+	[tmd2671] = tmd2x71_lux_table,
+	[tsl2771] = tsl2x71_lux_table,
+	[tmd2771] = tmd2x71_lux_table,
+	[tsl2572] = tsl2x72_lux_table,
+	[tsl2672] = tsl2x72_lux_table,
+	[tmd2672] = tmd2x72_lux_table,
+	[tsl2772] = tsl2x72_lux_table,
+	[tmd2772] = tmd2x72_lux_table,
 };
 
 static const struct tsl2x7x_settings tsl2x7x_default_settings = {
@@ -1241,7 +1241,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_EITHER),
-						    timestamp);
+			       timestamp);
 	}
 
 	if (ret & TSL2X7X_STA_ALS_INTR) {

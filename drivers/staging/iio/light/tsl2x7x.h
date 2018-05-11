@@ -92,7 +92,6 @@ struct tsl2x7x_settings {
  * struct tsl2X7X_platform_data - Platform callback, glass and defaults
  * @platform_lux_table:        Device specific glass coefficents
  * @platform_default_settings: Device specific power on defaults
- *
  */
 struct tsl2X7X_platform_data {
 	struct tsl2x7x_lux platform_lux_table[TSL2X7X_MAX_LUX_TABLE_SIZE];
