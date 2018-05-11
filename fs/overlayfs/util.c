@@ -247,6 +247,14 @@ struct inode *ovl_inode_real(struct inode *inode)
 	return ovl_inode_upper(inode) ?: ovl_inode_lower(inode);
 }
 
+/* Return inode which contains lower data. Do not return metacopy */
+struct inode *ovl_inode_lowerdata(struct inode *inode)
+{
+	if (WARN_ON(!S_ISREG(inode->i_mode)))
+		return NULL;
+
+	return OVL_I(inode)->lowerdata ?: ovl_inode_lower(inode);
+}
 
 struct ovl_dir_cache *ovl_dir_cache(struct inode *inode)
 {
@@ -381,7 +389,7 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
 }
 
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
-		    struct dentry *lowerdentry)
+		    struct dentry *lowerdentry, struct dentry *lowerdata)
 {
 	struct inode *realinode = d_inode(upperdentry ?: lowerdentry);
 
@@ -389,6 +397,8 @@ void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
 		OVL_I(inode)->__upperdentry = upperdentry;
 	if (lowerdentry)
 		OVL_I(inode)->lower = igrab(d_inode(lowerdentry));
+	if (lowerdata)
+		OVL_I(inode)->lowerdata = igrab(d_inode(lowerdata));
 
 	ovl_copyattr(realinode, inode);
 	ovl_copyflags(realinode, inode);
