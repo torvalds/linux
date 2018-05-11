@@ -24,6 +24,8 @@ module_param_named(redirect_max, ovl_redirect_max, ushort, 0644);
 MODULE_PARM_DESC(ovl_redirect_max,
 		 "Maximum length of absolute redirect xattr value");
 
+static int ovl_set_redirect(struct dentry *dentry, bool samedir);
+
 int ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 {
 	int err;
@@ -656,6 +658,12 @@ static int ovl_link(struct dentry *old, struct inode *newdir,
 	err = ovl_copy_up(old);
 	if (err)
 		goto out_drop_write;
+
+	if (ovl_is_metacopy_dentry(old)) {
+		err = ovl_set_redirect(old, false);
+		if (err)
+			goto out_drop_write;
+	}
 
 	err = ovl_nlink_start(old, &locked);
 	if (err)
