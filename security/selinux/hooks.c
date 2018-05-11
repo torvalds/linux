@@ -4622,6 +4622,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			goto err_af;
 		}
 
+		ad.type = LSM_AUDIT_DATA_NET;
+		ad.u.net = &net;
+		ad.u.net->sport = htons(snum);
+		ad.u.net->family = family_sa;
+
 		if (snum) {
 			int low, high;
 
@@ -4633,10 +4638,6 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 						      snum, &sid);
 				if (err)
 					goto out;
-				ad.type = LSM_AUDIT_DATA_NET;
-				ad.u.net = &net;
-				ad.u.net->sport = htons(snum);
-				ad.u.net->family = family;
 				err = avc_has_perm(&selinux_state,
 						   sksec->sid, sid,
 						   sksec->sclass,
@@ -4668,14 +4669,9 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			break;
 		}
 
-		err = sel_netnode_sid(addrp, family, &sid);
+		err = sel_netnode_sid(addrp, family_sa, &sid);
 		if (err)
 			goto out;
-
-		ad.type = LSM_AUDIT_DATA_NET;
-		ad.u.net = &net;
-		ad.u.net->sport = htons(snum);
-		ad.u.net->family = family;
 
 		if (family_sa == AF_INET)
 			ad.u.net->v4info.saddr = addr4->sin_addr.s_addr;
@@ -4772,7 +4768,7 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		ad.type = LSM_AUDIT_DATA_NET;
 		ad.u.net = &net;
 		ad.u.net->dport = htons(snum);
-		ad.u.net->family = sk->sk_family;
+		ad.u.net->family = address->sa_family;
 		err = avc_has_perm(&selinux_state,
 				   sksec->sid, sid, sksec->sclass, perm, &ad);
 		if (err)
