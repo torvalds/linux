@@ -11,6 +11,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include "hi3798cv200.dtsi"
+#include "poplar-pinctrl.dtsi"
 
 / {
 	model = "HiSilicon Poplar Development Board";
@@ -73,6 +74,20 @@
 };
 
 &ehci {
+	status = "okay";
+};
+
+&emmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins_1 &emmc_pins_2
+		     &emmc_pins_3 &emmc_pins_4>;
+	fifo-depth = <256>;
+	clock-frequency = <200000000>;
+	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	non-removable;
+	bus-width = <8>;
 	status = "okay";
 };
 
