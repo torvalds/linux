@@ -57,7 +57,7 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 				     u8 demod_address,
 				     struct i2c_adapter *i2c);
 #else
-static
+static inline
 struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 				     u8 demod_address,
 				     struct i2c_adapter *i2c)
