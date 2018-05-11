@@ -988,6 +988,10 @@ static int cxlflash_disk_detach(struct scsi_device *sdev,
  * theoretically never occur), every call into this routine results
  * in a complete freeing of a context.
  *
+ * Detaching the LUN is typically an ioctl() operation and the underlying
+ * code assumes that ioctl_rwsem has been acquired as a reader. To support
+ * that design point, the semaphore is acquired and released around detach.
+ *
  * Return: 0 on success
  */
 static int cxlflash_cxl_release(struct inode *inode, struct file *file)
@@ -1026,9 +1030,11 @@ static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 
 	dev_dbg(dev, "%s: close for ctxid=%d\n", __func__, ctxid);
 
+	down_read(&cfg->ioctl_rwsem);
 	detach.context_id = ctxi->ctxid;
 	list_for_each_entry_safe(lun_access, t, &ctxi->luns, list)
 		_cxlflash_disk_detach(lun_access->sdev, ctxi, &detach);
+	up_read(&cfg->ioctl_rwsem);
 out_release:
 	cfg->ops->fd_release(inode, file);
 out:
