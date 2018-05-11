@@ -72,6 +72,10 @@
 	};
 };
 
+&ehci {
+	status = "okay";
+};
+
 &gmac1 {
 	status = "okay";
 	#address-cells = <1>;
@@ -152,6 +156,10 @@
 };
 
 &ir {
+	status = "okay";
+};
+
+&ohci {
 	status = "okay";
 };
 
