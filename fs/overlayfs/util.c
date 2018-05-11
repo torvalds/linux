@@ -279,6 +279,62 @@ void ovl_dentry_set_upper_alias(struct dentry *dentry)
 	ovl_dentry_set_flag(OVL_E_UPPER_ALIAS, dentry);
 }
 
+static bool ovl_should_check_upperdata(struct inode *inode)
+{
+	if (!S_ISREG(inode->i_mode))
+		return false;
+
+	if (!ovl_inode_lower(inode))
+		return false;
+
+	return true;
+}
+
+bool ovl_has_upperdata(struct inode *inode)
+{
+	if (!ovl_should_check_upperdata(inode))
+		return true;
+
+	if (!ovl_test_flag(OVL_UPPERDATA, inode))
+		return false;
+	/*
+	 * Pairs with smp_wmb() in ovl_set_upperdata(). Main user of
+	 * ovl_has_upperdata() is ovl_copy_up_meta_inode_data(). Make sure
+	 * if setting of OVL_UPPERDATA is visible, then effects of writes
+	 * before that are visible too.
+	 */
+	smp_rmb();
+	return true;
+}
+
+void ovl_set_upperdata(struct inode *inode)
+{
+	/*
+	 * Pairs with smp_rmb() in ovl_has_upperdata(). Make sure
+	 * if OVL_UPPERDATA flag is visible, then effects of write operations
+	 * before it are visible as well.
+	 */
+	smp_wmb();
+	ovl_set_flag(OVL_UPPERDATA, inode);
+}
+
+/* Caller should hold ovl_inode->lock */
+bool ovl_dentry_needs_data_copy_up_locked(struct dentry *dentry, int flags)
+{
+	if (!ovl_open_flags_need_copy_up(flags))
+		return false;
+
+	return !ovl_test_flag(OVL_UPPERDATA, d_inode(dentry));
+}
+
+bool ovl_dentry_needs_data_copy_up(struct dentry *dentry, int flags)
+{
+	if (!ovl_open_flags_need_copy_up(flags))
+		return false;
+
+	return !ovl_has_upperdata(d_inode(dentry));
+}
+
 bool ovl_redirect_dir(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
@@ -377,7 +433,20 @@ struct file *ovl_path_open(struct path *path, int flags)
 	return dentry_open(path, flags | O_NOATIME, current_cred());
 }
 
-bool ovl_already_copied_up(struct dentry *dentry)
+/* Caller should hold ovl_inode->lock */
+static bool ovl_already_copied_up_locked(struct dentry *dentry, int flags)
+{
+	bool disconnected = dentry->d_flags & DCACHE_DISCONNECTED;
+
+	if (ovl_dentry_upper(dentry) &&
+	    (ovl_dentry_has_upper_alias(dentry) || disconnected) &&
+	    !ovl_dentry_needs_data_copy_up_locked(dentry, flags))
+		return true;
+
+	return false;
+}
+
+bool ovl_already_copied_up(struct dentry *dentry, int flags)
 {
 	bool disconnected = dentry->d_flags & DCACHE_DISCONNECTED;
 
@@ -395,19 +464,20 @@ bool ovl_already_copied_up(struct dentry *dentry)
 	 *      with rename.
 	 */
 	if (ovl_dentry_upper(dentry) &&
-	    (ovl_dentry_has_upper_alias(dentry) || disconnected))
+	    (ovl_dentry_has_upper_alias(dentry) || disconnected) &&
+	    !ovl_dentry_needs_data_copy_up(dentry, flags))
 		return true;
 
 	return false;
 }
 
-int ovl_copy_up_start(struct dentry *dentry)
+int ovl_copy_up_start(struct dentry *dentry, int flags)
 {
 	struct ovl_inode *oi = OVL_I(d_inode(dentry));
 	int err;
 
 	err = mutex_lock_interruptible(&oi->lock);
-	if (!err && ovl_already_copied_up(dentry)) {
+	if (!err && ovl_already_copied_up_locked(dentry, flags)) {
 		err = 1; /* Already copied up */
 		mutex_unlock(&oi->lock);
 	}

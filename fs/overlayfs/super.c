@@ -1485,6 +1485,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	/* Root is always merge -> can have whiteouts */
 	ovl_set_flag(OVL_WHITEOUTS, d_inode(root_dentry));
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root_dentry);
+	ovl_set_upperdata(d_inode(root_dentry));
 	ovl_inode_init(d_inode(root_dentry), upperpath.dentry,
 		       ovl_dentry_lower(root_dentry));
 
