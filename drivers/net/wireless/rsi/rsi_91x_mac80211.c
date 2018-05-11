@@ -1804,9 +1804,14 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 	struct rsi_common *common = adapter->priv;
 	u16 triggers = 0;
 	u16 rx_filter_word = 0;
-	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+	struct ieee80211_bss_conf *bss = NULL;
 
 	rsi_dbg(INFO_ZONE, "Config WoWLAN to device\n");
+
+	if (!adapter->vifs[0])
+		return -EINVAL;
+
+	bss = &adapter->vifs[0]->bss_conf;
 
 	if (WARN_ON(!wowlan)) {
 		rsi_dbg(ERR_ZONE, "WoW triggers not enabled\n");
