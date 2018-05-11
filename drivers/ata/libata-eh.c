@@ -873,9 +873,12 @@ static int ata_eh_nr_in_flight(struct ata_port *ap)
 	int nr = 0;
 
 	/* count only non-internal commands */
-	for (tag = 0; tag < ATA_MAX_QUEUE - 1; tag++)
+	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
+		if (ata_tag_internal(tag))
+			continue;
 		if (ata_qc_from_tag(ap, tag))
 			nr++;
+	}
 
 	return nr;
 }
@@ -900,7 +903,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 		/* No progress during the last interval, tag all
 		 * in-flight qcs as timed out and freeze the port.
 		 */
-		for (tag = 0; tag < ATA_MAX_QUEUE - 1; tag++) {
+		for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 			struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
 			if (qc)
 				qc->err_mask |= AC_ERR_TIMEOUT;
