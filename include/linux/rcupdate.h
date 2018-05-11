@@ -194,8 +194,8 @@ static inline void exit_tasks_rcu_finish(void) { }
  */
 #define cond_resched_tasks_rcu_qs() \
 do { \
-	if (!cond_resched()) \
-		rcu_note_voluntary_context_switch_lite(current); \
+	rcu_note_voluntary_context_switch_lite(current); \
+	cond_resched(); \
 } while (0)
 
 /*
