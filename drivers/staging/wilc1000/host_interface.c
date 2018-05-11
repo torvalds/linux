@@ -1117,10 +1117,8 @@ error:
 			}
 
 			conn_attr->result(CONN_DISCONN_EVENT_CONN_RESP,
-							       &conn_info,
-							       MAC_STATUS_DISCONNECTED,
-							       NULL,
-							       conn_attr->arg);
+					  &conn_info, MAC_STATUS_DISCONNECTED,
+					  NULL, conn_attr->arg);
 			hif_drv->hif_state = HOST_IF_IDLE;
 			kfree(conn_info.req_ies);
 			conn_info.req_ies = NULL;
