@@ -2082,6 +2082,8 @@ bool skl_plane_get_hw_state(struct intel_plane *plane);
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, enum plane_id plane_id);
 bool intel_format_is_yuv(uint32_t format);
+bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, enum plane_id plane_id);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);
