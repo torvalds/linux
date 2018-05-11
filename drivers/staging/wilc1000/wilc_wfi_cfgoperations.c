@@ -1570,14 +1570,14 @@ static void wilc_wfi_cfg_tx_vendor_spec(struct p2p_mgmt_data *mgmt_tx,
 	for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < len; i++) {
 		if (buf[i] == P2PELEM_ATTR_ID &&
 		    !memcmp(p2p_oui, &buf[i + 2], 4)) {
+			bool oper_ch = false;
+			u8 *tx_buff = &mgmt_tx->buff[i + 6];
+
 			if (subtype == P2P_INV_REQ || subtype == P2P_INV_RSP)
-				wilc_wfi_cfg_parse_tx_action(&mgmt_tx->buff[i + 6],
-							     len - (i + 6),
-							     true, iftype);
-			else
-				wilc_wfi_cfg_parse_tx_action(&mgmt_tx->buff[i + 6],
-							     len - (i + 6),
-							     false, iftype);
+				oper_ch = true;
+
+			wilc_wfi_cfg_parse_tx_action(tx_buff, len - (i + 6),
+						     oper_ch, iftype);
 
 			break;
 		}
