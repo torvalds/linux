@@ -6,7 +6,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -16,8 +15,6 @@
 #include <linux/sysfs.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
-#include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
 #define ADIS16209_STARTUP_DELAY_MS	220
@@ -71,13 +68,13 @@
 #define ADIS16209_STAT_REG			0x3C
 #define  ADIS16209_STAT_ALARM2			BIT(9)
 #define  ADIS16209_STAT_ALARM1			BIT(8)
-#define ADIS16209_STAT_SELFTEST_FAIL_BIT	5
-#define ADIS16209_STAT_SPI_FAIL_BIT		3
-#define ADIS16209_STAT_FLASH_UPT_FAIL_BIT	2
+#define  ADIS16209_STAT_SELFTEST_FAIL_BIT	5
+#define  ADIS16209_STAT_SPI_FAIL_BIT		3
+#define  ADIS16209_STAT_FLASH_UPT_FAIL_BIT	2
 /* Power supply above 3.625 V */
-#define ADIS16209_STAT_POWER_HIGH_BIT		1
+#define  ADIS16209_STAT_POWER_HIGH_BIT		1
 /* Power supply below 3.15 V */
-#define ADIS16209_STAT_POWER_LOW_BIT		0
+#define  ADIS16209_STAT_POWER_LOW_BIT		0
 
 #define ADIS16209_CMD_REG			0x3E
 #define  ADIS16209_CMD_SW_RESET			BIT(7)
@@ -115,25 +112,22 @@ static int adis16209_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct adis *st = iio_priv(indio_dev);
-	int bits;
-	s16 val16;
-	u8 addr;
+	int m;
 
-	switch (mask) {
-	case IIO_CHAN_INFO_CALIBBIAS:
-		switch (chan->type) {
-		case IIO_ACCEL:
-		case IIO_INCLI:
-			bits = 14;
-			break;
-		default:
-			return -EINVAL;
-		}
-		val16 = val & ((1 << bits) - 1);
-		addr = adis16209_addresses[chan->scan_index][0];
-		return adis_write_reg_16(st, addr, val16);
+	if (mask != IIO_CHAN_INFO_CALIBBIAS)
+		return -EINVAL;
+
+	switch (chan->type) {
+	case IIO_ACCEL:
+	case IIO_INCLI:
+		m = GENMASK(13, 0);
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	return adis_write_reg_16(st, adis16209_addresses[chan->scan_index][0],
+				 val & m);
 }
 
 static int adis16209_read_raw(struct iio_dev *indio_dev,
@@ -195,7 +189,7 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OFFSET:
 		/*
 		 * The raw ADC value is 0x4FE when the temperature
-		 * is 25 degrees and the scale factor per milli
+		 * is 45 degrees and the scale factor per milli
 		 * degree celcius is -470.
 		 */
 		*val = 25000 / -470 - 0x4FE;
@@ -270,13 +264,14 @@ static const struct adis_data adis16209_data = {
 
 static int adis16209_probe(struct spi_device *spi)
 {
-	int ret;
-	struct adis *st;
 	struct iio_dev *indio_dev;
+	struct adis *st;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 
@@ -290,6 +285,7 @@ static int adis16209_probe(struct spi_device *spi)
 	ret = adis_init(st, indio_dev, spi, &adis16209_data);
 	if (ret)
 		return ret;
+
 	ret = adis_setup_buffer_and_trigger(st, indio_dev, NULL);
 	if (ret)
 		return ret;

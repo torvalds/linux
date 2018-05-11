@@ -16,7 +16,9 @@
 #ifndef __CROS_EC_SENSORS_CORE_H
 #define __CROS_EC_SENSORS_CORE_H
 
+#include <linux/iio/iio.h>
 #include <linux/irqreturn.h>
+#include <linux/mfd/cros_ec.h>
 
 enum {
 	CROS_EC_SENSOR_X,
@@ -103,6 +105,7 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev, unsigned long scan_mask,
 int cros_ec_sensors_read_cmd(struct iio_dev *indio_dev, unsigned long scan_mask,
 			     s16 *data);
 
+struct platform_device;
 /**
  * cros_ec_sensors_core_init() - basic initialization of the core structure
  * @pdev:		platform device created for the sensors

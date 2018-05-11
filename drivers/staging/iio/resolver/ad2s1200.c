@@ -9,16 +9,16 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/types.h>
-#include <linux/mutex.h>
-#include <linux/device.h>
-#include <linux/spi/spi.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
+
+#include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
-#include <linux/bitops.h>
+#include <linux/mutex.h>
+#include <linux/spi/spi.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -38,7 +38,7 @@ struct ad2s1200_state {
 	struct spi_device *sdev;
 	int sample;
 	int rdvel;
-	u8 rx[2] ____cacheline_aligned;
+	__be16 rx ____cacheline_aligned;
 };
 
 static int ad2s1200_read_raw(struct iio_dev *indio_dev,
@@ -47,17 +47,18 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 			     int *val2,
 			     long m)
 {
-	int ret = 0;
-	s16 vel;
 	struct ad2s1200_state *st = iio_priv(indio_dev);
+	int ret = 0;
 
 	mutex_lock(&st->lock);
 	gpio_set_value(st->sample, 0);
+
 	/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
 	udelay(1);
 	gpio_set_value(st->sample, 1);
 	gpio_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
-	ret = spi_read(st->sdev, st->rx, 2);
+
+	ret = spi_read(st->sdev, &st->rx, 2);
 	if (ret < 0) {
 		mutex_unlock(&st->lock);
 		return ret;
@@ -65,20 +66,20 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 
 	switch (chan->type) {
 	case IIO_ANGL:
-		*val = (((u16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
+		*val = be16_to_cpup(&st->rx) >> 4;
 		break;
 	case IIO_ANGL_VEL:
-		vel = (((s16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
-		vel = sign_extend32(vel, 11);
-		*val = vel;
+		*val = sign_extend32(be16_to_cpup(&st->rx) >> 4, 11);
 		break;
 	default:
 		mutex_unlock(&st->lock);
 		return -EINVAL;
 	}
+
 	/* delay (2 * AD2S1200_TSCLK + 20) ns for sample pulse */
 	udelay(1);
 	mutex_unlock(&st->lock);
+
 	return IIO_VAL_INT;
 }
 
@@ -102,10 +103,10 @@ static const struct iio_info ad2s1200_info = {
 
 static int ad2s1200_probe(struct spi_device *spi)
 {
+	unsigned short *pins = spi->dev.platform_data;
 	struct ad2s1200_state *st;
 	struct iio_dev *indio_dev;
 	int pn, ret = 0;
-	unsigned short *pins = spi->dev.platform_data;
 
 	for (pn = 0; pn < AD2S1200_PN; pn++) {
 		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
@@ -116,9 +117,11 @@ static int ad2s1200_probe(struct spi_device *spi)
 			return ret;
 		}
 	}
+
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);

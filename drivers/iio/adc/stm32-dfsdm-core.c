@@ -227,6 +227,11 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	}
 
 	priv->spi_clk_out_div = div_u64_rem(clk_freq, spi_freq, &rem) - 1;
+	if (!priv->spi_clk_out_div) {
+		/* spi_clk_out_div == 0 means ckout is OFF */
+		dev_err(&pdev->dev, "spi-max-frequency not achievable\n");
+		return -EINVAL;
+	}
 	priv->dfsdm.spi_master_freq = spi_freq;
 
 	if (rem) {

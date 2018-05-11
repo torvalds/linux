@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 #include "inv_mpu_iio.h"
 
 /*
@@ -52,6 +53,7 @@ static const struct inv_mpu6050_reg_map reg_set_6500 = {
 	.raw_accl               = INV_MPU6050_REG_RAW_ACCEL,
 	.temperature            = INV_MPU6050_REG_TEMPERATURE,
 	.int_enable             = INV_MPU6050_REG_INT_ENABLE,
+	.int_status             = INV_MPU6050_REG_INT_STATUS,
 	.pwr_mgmt_1             = INV_MPU6050_REG_PWR_MGMT_1,
 	.pwr_mgmt_2             = INV_MPU6050_REG_PWR_MGMT_2,
 	.int_pin_cfg		= INV_MPU6050_REG_INT_PIN_CFG,
@@ -86,6 +88,7 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
 	.accl_fs = INV_MPU6050_FS_02G,
+	.user_ctrl = 0,
 };
 
 /* Indexed by enum inv_devices */
@@ -117,6 +120,12 @@ static const struct inv_mpu6050_hw hw_info[] = {
 	{
 		.whoami = INV_MPU9250_WHOAMI_VALUE,
 		.name = "MPU9250",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+	},
+	{
+		.whoami = INV_MPU9255_WHOAMI_VALUE,
+		.name = "MPU9255",
 		.reg = &reg_set_6500,
 		.config = &chip_config_6050,
 	},
@@ -168,7 +177,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		return result;
 
 	if (en) {
-		/* Wait for output stabilize */
+		/* Wait for output to stabilize */
 		msleep(INV_MPU6050_TEMP_UP_TIME);
 		if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
 			/* switch internal clock to PLL */
@@ -185,26 +194,29 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 {
-	int result = 0;
+	int result;
 
 	if (power_on) {
-		if (!st->powerup_count)
+		if (!st->powerup_count) {
 			result = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
-		if (!result)
-			st->powerup_count++;
+			if (result)
+				return result;
+			usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
+				     INV_MPU6050_REG_UP_TIME_MAX);
+		}
+		st->powerup_count++;
 	} else {
-		st->powerup_count--;
-		if (!st->powerup_count)
+		if (st->powerup_count == 1) {
 			result = regmap_write(st->map, st->reg->pwr_mgmt_1,
 					      INV_MPU6050_BIT_SLEEP);
+			if (result)
+				return result;
+		}
+		st->powerup_count--;
 	}
 
-	if (result)
-		return result;
-
-	if (power_on)
-		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
-			     INV_MPU6050_REG_UP_TIME_MAX);
+	dev_dbg(regmap_get_device(st->map), "set power %d, count=%u\n",
+		power_on, st->powerup_count);
 
 	return 0;
 }
@@ -262,26 +274,33 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	d = (INV_MPU6050_FSR_2000DPS << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->gyro_config, d);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	d = INV_MPU6050_ONE_K_HZ / INV_MPU6050_INIT_FIFO_RATE - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
-		return result;
+		goto error_power_off;
 
 	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->accl_config, d);
+	if (result)
+		goto error_power_off;
+
+	result = regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	if (result)
 		return result;
 
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
 	       sizeof(struct inv_mpu6050_chip_config));
-	result = inv_mpu6050_set_power_itg(st, false);
 
+	return inv_mpu6050_set_power_itg(st, false);
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
 	return result;
 }
 
@@ -314,6 +333,65 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	return IIO_VAL_INT;
 }
 
+static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
+					 struct iio_chan_spec const *chan,
+					 int *val)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int result;
+	int ret;
+
+	result = inv_mpu6050_set_power_itg(st, true);
+	if (result)
+		return result;
+
+	switch (chan->type) {
+	case IIO_ANGL_VEL:
+		result = inv_mpu6050_switch_engine(st, true,
+				INV_MPU6050_BIT_PWR_GYRO_STBY);
+		if (result)
+			goto error_power_off;
+		ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
+					      chan->channel2, val);
+		result = inv_mpu6050_switch_engine(st, false,
+				INV_MPU6050_BIT_PWR_GYRO_STBY);
+		if (result)
+			goto error_power_off;
+		break;
+	case IIO_ACCEL:
+		result = inv_mpu6050_switch_engine(st, true,
+				INV_MPU6050_BIT_PWR_ACCL_STBY);
+		if (result)
+			goto error_power_off;
+		ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
+					      chan->channel2, val);
+		result = inv_mpu6050_switch_engine(st, false,
+				INV_MPU6050_BIT_PWR_ACCL_STBY);
+		if (result)
+			goto error_power_off;
+		break;
+	case IIO_TEMP:
+		/* wait for stablization */
+		msleep(INV_MPU6050_SENSOR_UP_TIME);
+		ret = inv_mpu6050_sensor_show(st, st->reg->temperature,
+					      IIO_MOD_X, val);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	result = inv_mpu6050_set_power_itg(st, false);
+	if (result)
+		goto error_power_off;
+
+	return ret;
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
+}
+
 static int
 inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 		     struct iio_chan_spec const *chan,
@@ -324,63 +402,14 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-	{
-		int result;
-
-		ret = IIO_VAL_INT;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		mutex_lock(&st->lock);
-		result = iio_device_claim_direct_mode(indio_dev);
-		if (result)
-			goto error_read_raw_unlock;
-		result = inv_mpu6050_set_power_itg(st, true);
-		if (result)
-			goto error_read_raw_release;
-		switch (chan->type) {
-		case IIO_ANGL_VEL:
-			result = inv_mpu6050_switch_engine(st, true,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-			if (result)
-				goto error_read_raw_power_off;
-			ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
-						      chan->channel2, val);
-			result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-			if (result)
-				goto error_read_raw_power_off;
-			break;
-		case IIO_ACCEL:
-			result = inv_mpu6050_switch_engine(st, true,
-					INV_MPU6050_BIT_PWR_ACCL_STBY);
-			if (result)
-				goto error_read_raw_power_off;
-			ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
-						      chan->channel2, val);
-			result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_ACCL_STBY);
-			if (result)
-				goto error_read_raw_power_off;
-			break;
-		case IIO_TEMP:
-			/* wait for stablization */
-			msleep(INV_MPU6050_SENSOR_UP_TIME);
-			ret = inv_mpu6050_sensor_show(st, st->reg->temperature,
-						IIO_MOD_X, val);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-error_read_raw_power_off:
-		result |= inv_mpu6050_set_power_itg(st, false);
-error_read_raw_release:
-		iio_device_release_direct_mode(indio_dev);
-error_read_raw_unlock:
+		ret = inv_mpu6050_read_channel_data(indio_dev, chan, val);
 		mutex_unlock(&st->lock);
-		if (result)
-			return result;
-
+		iio_device_release_direct_mode(indio_dev);
 		return ret;
-	}
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
@@ -502,17 +531,18 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 	int result;
 
-	mutex_lock(&st->lock);
 	/*
 	 * we should only update scale when the chip is disabled, i.e.
 	 * not running
 	 */
 	result = iio_device_claim_direct_mode(indio_dev);
 	if (result)
-		goto error_write_raw_unlock;
+		return result;
+
+	mutex_lock(&st->lock);
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto error_write_raw_release;
+		goto error_write_raw_unlock;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -551,10 +581,9 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	}
 
 	result |= inv_mpu6050_set_power_itg(st, false);
-error_write_raw_release:
-	iio_device_release_direct_mode(indio_dev);
 error_write_raw_unlock:
 	mutex_unlock(&st->lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return result;
 }
@@ -613,17 +642,18 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;
 
+	result = iio_device_claim_direct_mode(indio_dev);
+	if (result)
+		return result;
+
 	mutex_lock(&st->lock);
 	if (fifo_rate == st->chip_config.fifo_rate) {
 		result = 0;
 		goto fifo_rate_fail_unlock;
 	}
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		goto fifo_rate_fail_unlock;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto fifo_rate_fail_release;
+		goto fifo_rate_fail_unlock;
 
 	d = INV_MPU6050_ONE_K_HZ / fifo_rate - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
@@ -637,10 +667,9 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 
 fifo_rate_fail_power_off:
 	result |= inv_mpu6050_set_power_itg(st, false);
-fifo_rate_fail_release:
-	iio_device_release_direct_mode(indio_dev);
 fifo_rate_fail_unlock:
 	mutex_unlock(&st->lock);
+	iio_device_release_direct_mode(indio_dev);
 	if (result)
 		return result;
 
@@ -850,14 +879,11 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	msleep(INV_MPU6050_POWER_UP_TIME);
 
 	/*
-	 * toggle power state. After reset, the sleep bit could be on
-	 * or off depending on the OTP settings. Toggling power would
+	 * Turn power on. After reset, the sleep bit could be on
+	 * or off depending on the OTP settings. Turning power on
 	 * make it in a definite state as well as making the hardware
 	 * state align with the software state
 	 */
-	result = inv_mpu6050_set_power_itg(st, false);
-	if (result)
-		return result;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
 		return result;
@@ -865,13 +891,17 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	result = inv_mpu6050_switch_engine(st, false,
 					   INV_MPU6050_BIT_PWR_ACCL_STBY);
 	if (result)
-		return result;
+		goto error_power_off;
 	result = inv_mpu6050_switch_engine(st, false,
 					   INV_MPU6050_BIT_PWR_GYRO_STBY);
 	if (result)
-		return result;
+		goto error_power_off;
 
-	return 0;
+	return inv_mpu6050_set_power_itg(st, false);
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
 }
 
 int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
@@ -882,6 +912,8 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	struct inv_mpu6050_platform_data *pdata;
 	struct device *dev = regmap_get_device(regmap);
 	int result;
+	struct irq_data *desc;
+	int irq_type;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
@@ -913,19 +945,42 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		st->plat_data = *pdata;
 	}
 
+	desc = irq_get_irq_data(irq);
+	if (!desc) {
+		dev_err(dev, "Could not find IRQ %d\n", irq);
+		return -EINVAL;
+	}
+
+	irq_type = irqd_get_trigger_type(desc);
+	if (irq_type == IRQF_TRIGGER_RISING)
+		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
+	else if (irq_type == IRQF_TRIGGER_FALLING)
+		st->irq_mask = INV_MPU6050_ACTIVE_LOW;
+	else if (irq_type == IRQF_TRIGGER_HIGH)
+		st->irq_mask = INV_MPU6050_ACTIVE_HIGH |
+			INV_MPU6050_LATCH_INT_EN;
+	else if (irq_type == IRQF_TRIGGER_LOW)
+		st->irq_mask = INV_MPU6050_ACTIVE_LOW |
+			INV_MPU6050_LATCH_INT_EN;
+	else {
+		dev_err(dev, "Invalid interrupt type 0x%x specified\n",
+			irq_type);
+		return -EINVAL;
+	}
+
 	/* power is turned on inside check chip type*/
 	result = inv_check_and_setup_chip(st);
 	if (result)
 		return result;
-
-	if (inv_mpu_bus_setup)
-		inv_mpu_bus_setup(indio_dev);
 
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {
 		dev_err(dev, "Could not initialize device.\n");
 		return result;
 	}
+
+	if (inv_mpu_bus_setup)
+		inv_mpu_bus_setup(indio_dev);
 
 	dev_set_drvdata(dev, indio_dev);
 	indio_dev->dev.parent = dev;
@@ -940,49 +995,31 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	indio_dev->info = &mpu_info;
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	result = iio_triggered_buffer_setup(indio_dev,
-					    inv_mpu6050_irq_handler,
-					    inv_mpu6050_read_fifo,
-					    NULL);
+	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						 inv_mpu6050_irq_handler,
+						 inv_mpu6050_read_fifo,
+						 NULL);
 	if (result) {
 		dev_err(dev, "configure buffer fail %d\n", result);
 		return result;
 	}
-	result = inv_mpu6050_probe_trigger(indio_dev);
+	result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
 	if (result) {
 		dev_err(dev, "trigger probe fail %d\n", result);
-		goto out_unreg_ring;
+		return result;
 	}
 
 	INIT_KFIFO(st->timestamps);
 	spin_lock_init(&st->time_stamp_lock);
-	result = iio_device_register(indio_dev);
+	result = devm_iio_device_register(dev, indio_dev);
 	if (result) {
 		dev_err(dev, "IIO register fail %d\n", result);
-		goto out_remove_trigger;
+		return result;
 	}
 
 	return 0;
-
-out_remove_trigger:
-	inv_mpu6050_remove_trigger(st);
-out_unreg_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return result;
 }
 EXPORT_SYMBOL_GPL(inv_mpu_core_probe);
-
-int inv_mpu_core_remove(struct device  *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(indio_dev);
-	inv_mpu6050_remove_trigger(iio_priv(indio_dev));
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(inv_mpu_core_remove);
 
 #ifdef CONFIG_PM_SLEEP
 

@@ -5,6 +5,30 @@
 
 menu "Accelerometers"
 
+config ADIS16201
+        tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
+        depends on SPI
+        select IIO_ADIS_LIB
+        select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+        help
+          Say Y here to build support for Analog Devices adis16201 dual-axis
+          digital inclinometer and accelerometer.
+
+          To compile this driver as a module, say M here: the module will
+          be called adis16201.
+
+config ADIS16209
+        tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
+        depends on SPI
+        select IIO_ADIS_LIB
+        select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+        help
+          Say Y here to build support for Analog Devices adis16209 dual-axis digital inclinometer
+          and accelerometer.
+
+          To compile this driver as a module, say M here: the module will be
+          called adis16209.
+
 config ADXL345
 	tristate
 

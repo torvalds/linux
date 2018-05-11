@@ -17,7 +17,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 8KB
  *
- * - LSM6DS3H/LSM6DSL/LSM6DSM:
+ * - LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -252,6 +252,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.id = {
 			[0] = ST_LSM6DSL_ID,
 			[1] = ST_LSM6DSM_ID,
+			[2] = ST_ISM330DLC_ID,
 		},
 		.decimator = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -266,11 +267,11 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.fifo_ops = {
 			.fifo_th = {
 				.addr = 0x06,
-				.mask = GENMASK(11, 0),
+				.mask = GENMASK(10, 0),
 			},
 			.fifo_diff = {
 				.addr = 0x3a,
-				.mask = GENMASK(11, 0),
+				.mask = GENMASK(10, 0),
 			},
 			.th_wl = 3, /* 1LSB = 2B */
 		},
