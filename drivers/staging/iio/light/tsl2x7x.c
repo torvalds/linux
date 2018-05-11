@@ -1014,7 +1014,7 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 				    int *val, int *val2)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret = -EINVAL, filter_delay, mult;
+	int filter_delay, mult;
 	u8 time;
 
 	switch (info) {
@@ -1023,27 +1023,23 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
 				*val = chip->settings.als_thresh_high;
-				ret = IIO_VAL_INT;
-				break;
+				return IIO_VAL_INT;
 			case IIO_EV_DIR_FALLING:
 				*val = chip->settings.als_thresh_low;
-				ret = IIO_VAL_INT;
-				break;
+				return IIO_VAL_INT;
 			default:
-				break;
+				return -EINVAL;
 			}
 		} else {
 			switch (dir) {
 			case IIO_EV_DIR_RISING:
 				*val = chip->settings.prox_thres_high;
-				ret = IIO_VAL_INT;
-				break;
+				return IIO_VAL_INT;
 			case IIO_EV_DIR_FALLING:
 				*val = chip->settings.prox_thres_low;
-				ret = IIO_VAL_INT;
-				break;
+				return IIO_VAL_INT;
 			default:
-				break;
+				return -EINVAL;
 			}
 		}
 		break;
@@ -1062,13 +1058,10 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 		filter_delay = *val2 * mult;
 		*val = filter_delay / 1000;
 		*val2 = filter_delay % 1000;
-		ret = IIO_VAL_INT_PLUS_MICRO;
-		break;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
-		break;
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
@@ -1078,7 +1071,6 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret = -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
@@ -1086,12 +1078,10 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 		case IIO_LIGHT:
 			tsl2x7x_get_lux(indio_dev);
 			*val = chip->als_cur_info.lux;
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
-		break;
 	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_INTENSITY:
@@ -1100,13 +1090,11 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 				*val = chip->als_cur_info.als_ch0;
 			else
 				*val = chip->als_cur_info.als_ch1;
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		case IIO_PROXIMITY:
 			tsl2x7x_get_prox(indio_dev);
 			*val = chip->prox_data;
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
@@ -1116,22 +1104,17 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 			*val = tsl2x7x_als_gain[chip->settings.als_gain];
 		else
 			*val = tsl2x7x_prox_gain[chip->settings.prox_gain];
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		*val = chip->settings.als_gain_trim;
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
 		*val = 0;
 		*val2 = (256 - chip->settings.als_time) * 2720;
-		ret = IIO_VAL_INT_PLUS_MICRO;
-		break;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
