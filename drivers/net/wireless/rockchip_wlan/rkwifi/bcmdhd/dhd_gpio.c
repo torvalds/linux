@@ -244,6 +244,7 @@ int dhd_wlan_init_gpio(void)
 #ifdef CUSTOMER_OOB
 	int host_oob_irq = -1;
 	uint host_oob_irq_flags = 0;
+	int irq_flags = -1;
 #endif
 
 	/* Please check your schematic and fill right GPIO number which connected to
@@ -289,11 +290,14 @@ int dhd_wlan_init_gpio(void)
 	printf("%s: host_oob_irq: %d\n", __FUNCTION__, host_oob_irq);
 
 #ifdef HW_OOB
-#ifdef HW_OOB_LOW_LEVEL
-	host_oob_irq_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL | IORESOURCE_IRQ_SHAREABLE;
-#else
-	host_oob_irq_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE;
-#endif
+	host_oob_irq_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE;
+	irq_flags = rockchip_wifi_get_oob_irq_flag();
+	if (irq_flags == 1)
+		host_oob_irq_flags |= IORESOURCE_IRQ_HIGHLEVEL;
+	else if (irq_flags == 0)
+		host_oob_irq_flags |= IORESOURCE_IRQ_LOWLEVEL;
+	else
+		pr_warn("%s: unknown oob irqflags !\n", __func__);
 #else
 	host_oob_irq_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_SHAREABLE;
 #endif

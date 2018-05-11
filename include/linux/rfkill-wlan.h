@@ -83,6 +83,7 @@ int rockchip_wifi_ref_voltage(int on);
 int rockchip_wifi_power(int on);
 int rockchip_wifi_set_carddetect(int val);
 int rockchip_wifi_get_oob_irq(void);
+int rockchip_wifi_get_oob_irq_flag(void);
 int rockchip_wifi_reset(int on);
 int rockchip_wifi_mac_addr(unsigned char *buf);
 void *rockchip_wifi_country_code(char *ccode);
