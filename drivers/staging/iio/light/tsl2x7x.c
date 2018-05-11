@@ -103,8 +103,6 @@
 #define TSL2X7X_CNTL_PROXPON_ENBL	0x0F
 #define TSL2X7X_CNTL_INTPROXPON_ENBL	0x2F
 
-#define TSL2X7X_MIN_ITIME		3
-
 /* TAOS txx2x7x Device family members */
 enum {
 	tsl2571,
@@ -984,7 +982,7 @@ static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
 				     int val, int val2)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret = -EINVAL, y, z, filter_delay;
+	int ret = -EINVAL, count, persistence;
 	u8 time;
 
 	switch (info) {
@@ -1023,15 +1021,20 @@ static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
 		else
 			time = chip->settings.prox_time;
 
-		y = (TSL2X7X_MAX_TIMER_CNT - time) + 1;
-		z = y * TSL2X7X_MIN_ITIME;
+		count = 256 - time;
+		persistence = ((val * 1000000) + val2) /
+			(count * tsl2x7x_int_time_avail[chip->id][3]);
 
-		filter_delay = DIV_ROUND_UP((val * 1000) + val2, z);
+		if (chan->type == IIO_INTENSITY) {
+			/* ALS filter values are 1, 2, 3, 5, 10, 15, ..., 60 */
+			if (persistence > 3)
+				persistence = (persistence / 5) + 3;
 
-		if (chan->type == IIO_INTENSITY)
-			chip->settings.als_persistence = filter_delay;
-		else
-			chip->settings.prox_persistence = filter_delay;
+			chip->settings.als_persistence = persistence;
+		} else {
+			chip->settings.prox_persistence = persistence;
+		}
+
 		ret = 0;
 		break;
 	default:
@@ -1052,7 +1055,7 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 				    int *val, int *val2)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int filter_delay, mult;
+	int filter_delay, persistence;
 	u8 time;
 
 	switch (info) {
@@ -1084,18 +1087,21 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		if (chan->type == IIO_INTENSITY) {
 			time = chip->settings.als_time;
-			mult = chip->settings.als_persistence;
+			persistence = chip->settings.als_persistence;
+
+			/* ALS filter values are 1, 2, 3, 5, 10, 15, ..., 60 */
+			if (persistence > 3)
+				persistence = (persistence - 3) * 5;
 		} else {
 			time = chip->settings.prox_time;
-			mult = chip->settings.prox_persistence;
+			persistence = chip->settings.prox_persistence;
 		}
 
-		/* Determine integration time */
-		*val = (TSL2X7X_MAX_TIMER_CNT - time) + 1;
-		*val2 = *val * TSL2X7X_MIN_ITIME;
-		filter_delay = *val2 * mult;
-		*val = filter_delay / 1000;
-		*val2 = filter_delay % 1000;
+		filter_delay = persistence * (256 - time) *
+			tsl2x7x_int_time_avail[chip->id][3];
+
+		*val = filter_delay / 1000000;
+		*val2 = filter_delay % 1000000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;

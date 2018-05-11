@@ -31,7 +31,6 @@ struct tsl2x7x_lux {
 #define TSL2X7X_50_mA                   0x01
 #define TSL2X7X_25_mA                   0x02
 #define TSL2X7X_13_mA                   0x03
-#define TSL2X7X_MAX_TIMER_CNT           0xFF
 
 /**
  * struct tsl2x7x_settings - Settings for the tsl2x7x driver
