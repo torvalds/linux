@@ -359,6 +359,7 @@ out:
 }
 
 static struct dentry *ima_dir;
+static struct dentry *ima_symlink;
 static struct dentry *binary_runtime_measurements;
 static struct dentry *ascii_runtime_measurements;
 static struct dentry *runtime_measurements_count;
@@ -453,9 +454,14 @@ static const struct file_operations ima_measure_policy_ops = {
 
 int __init ima_fs_init(void)
 {
-	ima_dir = securityfs_create_dir("ima", NULL);
+	ima_dir = securityfs_create_dir("ima", integrity_dir);
 	if (IS_ERR(ima_dir))
 		return -1;
+
+	ima_symlink = securityfs_create_symlink("ima", NULL, "integrity/ima",
+						NULL);
+	if (IS_ERR(ima_symlink))
+		goto out;
 
 	binary_runtime_measurements =
 	    securityfs_create_file("binary_runtime_measurements",
@@ -496,6 +502,7 @@ out:
 	securityfs_remove(runtime_measurements_count);
 	securityfs_remove(ascii_runtime_measurements);
 	securityfs_remove(binary_runtime_measurements);
+	securityfs_remove(ima_symlink);
 	securityfs_remove(ima_dir);
 	securityfs_remove(ima_policy);
 	return -1;

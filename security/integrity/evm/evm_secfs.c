@@ -19,7 +19,9 @@
 #include <linux/module.h>
 #include "evm.h"
 
+static struct dentry *evm_dir;
 static struct dentry *evm_init_tpm;
+static struct dentry *evm_symlink;
 
 /**
  * evm_read_key - read() for <securityfs>/evm
@@ -111,9 +113,28 @@ int __init evm_init_secfs(void)
 {
 	int error = 0;
 
-	evm_init_tpm = securityfs_create_file("evm", S_IRUSR | S_IRGRP,
-					      NULL, NULL, &evm_key_ops);
-	if (!evm_init_tpm || IS_ERR(evm_init_tpm))
+	evm_dir = securityfs_create_dir("evm", integrity_dir);
+	if (!evm_dir || IS_ERR(evm_dir))
+		return -EFAULT;
+
+	evm_init_tpm = securityfs_create_file("evm", 0660,
+					      evm_dir, NULL, &evm_key_ops);
+	if (!evm_init_tpm || IS_ERR(evm_init_tpm)) {
 		error = -EFAULT;
+		goto out;
+	}
+
+	evm_symlink = securityfs_create_symlink("evm", NULL,
+						"integrity/evm/evm", NULL);
+	if (!evm_symlink || IS_ERR(evm_symlink)) {
+		error = -EFAULT;
+		goto out;
+	}
+
+	return 0;
+out:
+	securityfs_remove(evm_symlink);
+	securityfs_remove(evm_init_tpm);
+	securityfs_remove(evm_dir);
 	return error;
 }
