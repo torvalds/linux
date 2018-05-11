@@ -70,6 +70,7 @@
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_uvd.bin"
 #define FIRMWARE_VEGA12		"amdgpu/vega12_uvd.bin"
+#define FIRMWARE_VEGA20		"amdgpu/vega20_uvd.bin"
 
 #define mmUVD_GPCOM_VCPU_DATA0_VEGA10 (0x03c4 + 0x7e00)
 #define mmUVD_GPCOM_VCPU_DATA1_VEGA10 (0x03c5 + 0x7e00)
@@ -114,6 +115,7 @@ MODULE_FIRMWARE(FIRMWARE_VEGAM);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
 MODULE_FIRMWARE(FIRMWARE_VEGA12);
+MODULE_FIRMWARE(FIRMWARE_VEGA20);
 
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
@@ -176,6 +178,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGAM:
 		fw_name = FIRMWARE_VEGAM;
+		break;
+	case CHIP_VEGA20:
+		fw_name = FIRMWARE_VEGA20;
 		break;
 	default:
 		return -EINVAL;
