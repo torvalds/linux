@@ -209,9 +209,9 @@ static const struct tsl2x7x_lux *tsl2x7x_default_lux_table_group[] = {
 };
 
 static const struct tsl2x7x_settings tsl2x7x_default_settings = {
-	.als_time = 255, /* 2.73 ms */
+	.als_time = 255, /* 2.72 / 2.73 ms */
 	.als_gain = 0,
-	.prox_time = 255, /* 2.73 ms */
+	.prox_time = 255, /* 2.72 / 2.73 ms */
 	.prox_gain = 0,
 	.wait_time = 255,
 	.als_prox_config = 0,
@@ -244,6 +244,23 @@ static const s16 tsl2x7x_prox_gain[] = {
 	4,
 	8
 };
+
+static const int tsl2x7x_int_time_avail[][6] = {
+	[tsl2571] = { 0, 2720, 0, 2720, 0, 696000 },
+	[tsl2671] = { 0, 2720, 0, 2720, 0, 696000 },
+	[tmd2671] = { 0, 2720, 0, 2720, 0, 696000 },
+	[tsl2771] = { 0, 2720, 0, 2720, 0, 696000 },
+	[tmd2771] = { 0, 2720, 0, 2720, 0, 696000 },
+	[tsl2572] = { 0, 2730, 0, 2730, 0, 699000 },
+	[tsl2672] = { 0, 2730, 0, 2730, 0, 699000 },
+	[tmd2672] = { 0, 2730, 0, 2730, 0, 699000 },
+	[tsl2772] = { 0, 2730, 0, 2730, 0, 699000 },
+	[tmd2772] = { 0, 2730, 0, 2730, 0, 699000 },
+};
+
+static int tsl2x7x_int_calibscale_avail[] = { 1, 8, 16, 120 };
+
+static int tsl2x7x_prox_calibscale_avail[] = { 1, 2, 4, 8 };
 
 /* Channel variations */
 enum {
@@ -626,7 +643,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 
 	/* set chip time scaling and saturation */
 	als_count = 256 - chip->settings.als_time;
-	als_time_us = als_count * 2720;
+	als_time_us = als_count * tsl2x7x_int_time_avail[chip->id][3];
 	chip->als_saturation = als_count * 768; /* 75% of full scale */
 	chip->als_gain_time_scale = als_time_us *
 		tsl2x7x_als_gain[chip->settings.als_gain];
@@ -760,12 +777,33 @@ static int tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 	return tsl2x7x_invoke_change(indio_dev);
 }
 
-static IIO_CONST_ATTR(in_intensity0_calibscale_available, "1 8 16 120");
+static int tsl2x7x_read_avail(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      const int **vals, int *type, int *length,
+			      long mask)
+{
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 
-static IIO_CONST_ATTR(in_proximity0_calibscale_available, "1 2 4 8");
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		if (chan->type == IIO_INTENSITY) {
+			*length = ARRAY_SIZE(tsl2x7x_int_calibscale_avail);
+			*vals = tsl2x7x_int_calibscale_avail;
+		} else {
+			*length = ARRAY_SIZE(tsl2x7x_prox_calibscale_avail);
+			*vals = tsl2x7x_prox_calibscale_avail;
+		}
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_INT_TIME:
+		*length = ARRAY_SIZE(tsl2x7x_int_time_avail[chip->id]);
+		*vals = tsl2x7x_int_time_avail[chip->id];
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		return IIO_AVAIL_RANGE;
+	}
 
-static IIO_CONST_ATTR(in_intensity0_integration_time_available,
-		".00272 - .696");
+	return -EINVAL;
+}
 
 static ssize_t in_illuminance0_target_input_show(struct device *dev,
 						 struct device_attribute *attr,
@@ -1110,7 +1148,8 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
 		*val = 0;
-		*val2 = (256 - chip->settings.als_time) * 2720;
+		*val2 = (256 - chip->settings.als_time) *
+			tsl2x7x_int_time_avail[chip->id][3];
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
@@ -1167,7 +1206,8 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 		chip->settings.als_gain_trim = val;
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
-		chip->settings.als_time = 256 - (val2 / 2720);
+		chip->settings.als_time = 256 -
+			(val2 / tsl2x7x_int_time_avail[chip->id][3]);
 		break;
 	default:
 		return -EINVAL;
@@ -1248,8 +1288,6 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 }
 
 static struct attribute *tsl2x7x_ALS_device_attrs[] = {
-	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
-	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
@@ -1262,8 +1300,6 @@ static struct attribute *tsl2x7x_PRX_device_attrs[] = {
 };
 
 static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
-	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
-	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
@@ -1272,18 +1308,14 @@ static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
 
 static struct attribute *tsl2x7x_PRX2_device_attrs[] = {
 	&dev_attr_in_proximity0_calibrate.attr,
-	&iio_const_attr_in_proximity0_calibscale_available.dev_attr.attr,
 	NULL
 };
 
 static struct attribute *tsl2x7x_ALSPRX2_device_attrs[] = {
-	&iio_const_attr_in_intensity0_calibscale_available.dev_attr.attr,
-	&iio_const_attr_in_intensity0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
 	&dev_attr_in_proximity0_calibrate.attr,
-	&iio_const_attr_in_proximity0_calibscale_available.dev_attr.attr,
 	NULL
 };
 
@@ -1309,6 +1341,7 @@ static const struct attribute_group tsl2X7X_device_attr_group_tbl[] = {
 	{ \
 		.attrs = &tsl2X7X_device_attr_group_tbl[type], \
 		.read_raw = &tsl2x7x_read_raw, \
+		.read_avail = &tsl2x7x_read_avail, \
 		.write_raw = &tsl2x7x_write_raw, \
 		.read_event_value = &tsl2x7x_read_event_value, \
 		.write_event_value = &tsl2x7x_write_event_value, \
@@ -1357,6 +1390,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_spec = tsl2x7x_events,
 			.num_event_specs = ARRAY_SIZE(tsl2x7x_events),
 			}, {
@@ -1379,6 +1415,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
@@ -1425,6 +1464,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_spec = tsl2x7x_events,
 			.num_event_specs = ARRAY_SIZE(tsl2x7x_events),
 			}, {
@@ -1455,6 +1497,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
@@ -1478,6 +1523,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.channel = 0,
 			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_spec = tsl2x7x_events,
 			.num_event_specs = ARRAY_SIZE(tsl2x7x_events),
 			},
@@ -1488,6 +1535,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
+			.info_mask_separate_available =
 				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			},
 		},
@@ -1509,6 +1558,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_spec = tsl2x7x_events,
 			.num_event_specs = ARRAY_SIZE(tsl2x7x_events),
 			}, {
@@ -1521,6 +1573,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
+			.info_mask_separate_available =
 				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_spec = tsl2x7x_events,
 			.num_event_specs = ARRAY_SIZE(tsl2x7x_events),
@@ -1540,6 +1594,9 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_CALIBSCALE) |
 				BIT(IIO_CHAN_INFO_CALIBBIAS),
+			.info_mask_separate_available =
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
@@ -1550,6 +1607,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
+			.info_mask_separate_available =
 				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			},
 		},
