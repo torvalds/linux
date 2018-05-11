@@ -95,10 +95,13 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	}
 
 	real = ovl_dentry_upper(dentry);
-	if (real && (!inode || inode == d_inode(real)))
+	if (real && (inode == d_inode(real)))
 		return real;
 
-	real = ovl_dentry_lower(dentry);
+	if (real && !inode && ovl_has_upperdata(d_inode(dentry)))
+		return real;
+
+	real = ovl_dentry_lowerdata(dentry);
 	if (!real)
 		goto bug;
 
