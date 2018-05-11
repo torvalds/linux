@@ -867,6 +867,11 @@ int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 	return err;
 }
 
+int ovl_copy_up_with_data(struct dentry *dentry)
+{
+	return ovl_copy_up_flags(dentry, O_WRONLY);
+}
+
 int ovl_copy_up(struct dentry *dentry)
 {
 	return ovl_copy_up_flags(dentry, 0);

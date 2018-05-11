@@ -407,6 +407,7 @@ extern const struct file_operations ovl_file_operations;
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);
+int ovl_copy_up_with_data(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
