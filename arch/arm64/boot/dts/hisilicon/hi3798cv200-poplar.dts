@@ -61,6 +61,15 @@
 			default-state = "off";
 		};
 	};
+
+	reg_pcie: regulator-pcie {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3_PCIE0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio6 7 0>;
+		enable-active-high;
+	};
 };
 
 &gmac1 {
@@ -143,6 +152,12 @@
 };
 
 &ir {
+	status = "okay";
+};
+
+&pcie {
+	reset-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+	vpcie-supply = <&reg_pcie>;
 	status = "okay";
 };
 
