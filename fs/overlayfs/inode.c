@@ -749,6 +749,15 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 	return true;
 }
 
+static struct inode *ovl_iget5(struct super_block *sb, struct inode *newinode,
+			       struct inode *key)
+{
+	return newinode ? inode_insert5(newinode, (unsigned long) key,
+					 ovl_inode_test, ovl_inode_set, key) :
+			  iget5_locked(sb, (unsigned long) key,
+				       ovl_inode_test, ovl_inode_set, key);
+}
+
 struct inode *ovl_get_inode(struct super_block *sb,
 			    struct ovl_inode_params *oip)
 {
@@ -776,8 +785,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 						      upperdentry);
 		unsigned int nlink = is_dir ? 1 : realinode->i_nlink;
 
-		inode = iget5_locked(sb, (unsigned long) key, ovl_inode_test,
-				     ovl_inode_set, key);
+		inode = ovl_iget5(sb, oip->newinode, key);
 		if (!inode)
 			goto out_nomem;
 		if (!(inode->i_state & I_NEW)) {

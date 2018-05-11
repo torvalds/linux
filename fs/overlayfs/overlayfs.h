@@ -329,6 +329,7 @@ int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
 
 struct ovl_inode_params {
+	struct inode *newinode;
 	struct dentry *upperdentry;
 	struct ovl_path *lowerpath;
 	struct dentry *index;
