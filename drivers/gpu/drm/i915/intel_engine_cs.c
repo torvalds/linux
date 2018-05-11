@@ -458,14 +458,6 @@ static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
 
 static bool csb_force_mmio(struct drm_i915_private *i915)
 {
-	/*
-	 * IOMMU adds unpredictable latency causing the CSB write (from the
-	 * GPU into the HWSP) to only be visible some time after the interrupt
-	 * (missed breadcrumb syndrome).
-	 */
-	if (intel_vtd_active())
-		return true;
-
 	/* Older GVT emulation depends upon intercepting CSB mmio */
 	if (intel_vgpu_active(i915) && !intel_vgpu_has_hwsp_emulation(i915))
 		return true;
