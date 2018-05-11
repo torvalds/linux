@@ -406,22 +406,17 @@ static void release_metapath(struct metapath *mp)
 
 /**
  * gfs2_extent_length - Returns length of an extent of blocks
- * @start: Start of the buffer
- * @len: Length of the buffer in bytes
- * @ptr: Current position in the buffer
- * @limit: Max extent length to return (0 = unlimited)
+ * @bh: The metadata block
+ * @ptr: Current position in @bh
+ * @limit: Max extent length to return
  * @eob: Set to 1 if we hit "end of block"
- *
- * If the first block is zero (unallocated) it will return the number of
- * unallocated blocks in the extent, otherwise it will return the number
- * of contiguous blocks in the extent.
  *
  * Returns: The length of the extent (minimum of one block)
  */
 
-static inline unsigned int gfs2_extent_length(void *start, unsigned int len, __be64 *ptr, size_t limit, int *eob)
+static inline unsigned int gfs2_extent_length(struct buffer_head *bh, __be64 *ptr, size_t limit, int *eob)
 {
-	const __be64 *end = (start + len);
+	const __be64 *end = (__be64 *)(bh->b_data + bh->b_size);
 	const __be64 *first = ptr;
 	u64 d = be64_to_cpu(*ptr);
 
@@ -430,14 +425,11 @@ static inline unsigned int gfs2_extent_length(void *start, unsigned int len, __b
 		ptr++;
 		if (ptr >= end)
 			break;
-		if (limit && --limit == 0)
-			break;
-		if (d)
-			d++;
+		d++;
 	} while(be64_to_cpu(*ptr) == d);
 	if (ptr >= end)
 		*eob = 1;
-	return (ptr - first);
+	return ptr - first;
 }
 
 typedef const __be64 *(*gfs2_metadata_walker)(
@@ -893,7 +885,7 @@ unstuff:
 		goto do_alloc;
 
 	bh = mp->mp_bh[ip->i_height - 1];
-	len = gfs2_extent_length(bh->b_data, bh->b_size, ptr, len, &eob);
+	len = gfs2_extent_length(bh, ptr, len, &eob);
 
 	iomap->addr = be64_to_cpu(*ptr) << inode->i_blkbits;
 	iomap->length = len << inode->i_blkbits;
