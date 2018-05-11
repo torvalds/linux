@@ -21,6 +21,8 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 
+#include "../pci.h"
+
 /*
  * PCIe unit register offsets.
  */

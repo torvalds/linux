@@ -28,6 +28,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 #define PCIECAR			0x000010
 #define PCIECCTLR		0x000018
 #define  CONFIG_SEND_ENABLE	(1 << 31)

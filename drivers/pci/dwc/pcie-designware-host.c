@@ -15,6 +15,7 @@
 #include <linux/pci_regs.h>
 #include <linux/platform_device.h>
 
+#include "../pci.h"
 #include "pcie-designware.h"
 
 static struct pci_ops dw_pcie_ops;

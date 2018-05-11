@@ -40,6 +40,8 @@
 #include <soc/tegra/cpuidle.h>
 #include <soc/tegra/pmc.h>
 
+#include "../pci.h"
+
 #define INT_PCI_MSI_NR (8 * 32)
 
 /* register definitions */

@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 #define RP_TX_REG0			0x2000
 #define RP_TX_REG1			0x2004
 #define RP_TX_CNTRL			0x2008

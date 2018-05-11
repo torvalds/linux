@@ -21,6 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/irqchip/chained_irq.h>
 
+#include "../pci.h"
+
 /* Bridge core config registers */
 #define BRCFG_PCIE_RX0			0x00000000
 #define BRCFG_INTERRUPT			0x00000010

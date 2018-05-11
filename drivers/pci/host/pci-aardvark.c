@@ -19,6 +19,8 @@
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 
+#include "../pci.h"
+
 /* PCIe core registers */
 #define PCIE_CORE_CMD_STATUS_REG				0x4
 #define     PCIE_CORE_CMD_IO_ACCESS_EN				BIT(0)

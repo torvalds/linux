@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 #define PCIECORE_CTLANDSTATUS		0x50
 #define PIM1_1L				0x80
 #define IBAR2				0x98

@@ -36,6 +36,8 @@
 #include <linux/reset.h>
 #include <linux/regmap.h>
 
+#include "../pci.h"
+
 /*
  * The upper 16 bits of PCIE_CLIENT_CONFIG are a write mask for the lower 16
  * bits.  This allows atomic updates of the register without locking.

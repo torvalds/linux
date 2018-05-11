@@ -21,6 +21,8 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 /* AHB-PCI Bridge PCI communication registers */
 #define RCAR_AHBPCI_PCICOM_OFFSET	0x800
 

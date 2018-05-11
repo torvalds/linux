@@ -27,6 +27,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
+#include "../pci.h"
 #include "pcie-designware.h"
 
 /* PCIe controller wrapper DRA7XX configuration registers */
