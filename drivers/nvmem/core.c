@@ -569,6 +569,7 @@ static void devm_nvmem_release(struct device *dev, void *res)
  * nvmem_config.
  * Also creates an binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
  *
+ * @dev: Device that uses the nvmem device.
  * @config: nvmem device configuration with which nvmem device is created.
  *
  * Return: Will be an ERR_PTR() on error or a valid pointer to nvmem_device
@@ -607,6 +608,7 @@ static int devm_nvmem_match(struct device *dev, void *res, void *data)
  * devm_nvmem_unregister() - Unregister previously registered managed nvmem
  * device.
  *
+ * @dev: Device that uses the nvmem device.
  * @nvmem: Pointer to previously registered nvmem device.
  *
  * Return: Will be an negative on error or a zero on success.
