@@ -1488,13 +1488,12 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 
 static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 	struct wid wid_list[5];
 	u8 i;
 	u8 *key_buf;
 	s8 s8idxarray[1];
-	s8 ret = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	switch (hif_key->type) {
@@ -1585,7 +1584,7 @@ out_wep:
 		if (hif_key->action & ADDKEY_AP) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_rx_gtk;
 			}
 
@@ -1615,7 +1614,7 @@ out_wep:
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_rx_gtk;
 			}
 
@@ -1645,16 +1644,13 @@ out_wpa_rx_gtk:
 		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
 		kfree(hif_key->attr.wpa.seq);
-		if (ret)
-			return ret;
-
 		break;
 
 	case WPA_PTK:
 		if (hif_key->action & ADDKEY_AP) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN + 1, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_ptk;
 			}
 
@@ -1681,7 +1677,7 @@ out_wpa_rx_gtk:
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_ptk;
 			}
 
@@ -1704,9 +1700,6 @@ out_wpa_rx_gtk:
 out_wpa_ptk:
 		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
-		if (ret)
-			return ret;
-
 		break;
 
 	case PMKSA:
