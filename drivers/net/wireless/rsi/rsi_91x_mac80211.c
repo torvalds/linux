@@ -1818,6 +1818,7 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 		return -EINVAL;
 	}
 
+	common->wow_flags |= RSI_WOW_ENABLED;
 	triggers = rsi_wow_map_triggers(common, wowlan);
 	if (!triggers) {
 		rsi_dbg(ERR_ZONE, "%s:No valid WoW triggers\n", __func__);
@@ -1840,7 +1841,6 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 
 	rx_filter_word = (ALLOW_DATA_ASSOC_PEER | DISALLOW_BEACONS);
 	rsi_send_rx_filter_frame(common, rx_filter_word);
-	common->wow_flags |= RSI_WOW_ENABLED;
 
 	return 0;
 }
