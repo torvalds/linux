@@ -1,5 +1,5 @@
 config VIDEO_ZORAN
-	tristate "Zoran ZR36057/36067 Video For Linux"
+	tristate "Zoran ZR36057/36067 Video For Linux (Deprecated)"
 	depends on PCI && I2C_ALGOBIT && VIDEO_V4L2 && VIRT_TO_BUS
 	depends on !ALPHA
 	help

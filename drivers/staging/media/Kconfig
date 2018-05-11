@@ -33,4 +33,6 @@ source "drivers/staging/media/omap4iss/Kconfig"
 
 source "drivers/staging/media/tegra-vde/Kconfig"
 
+source "drivers/staging/media/zoran/Kconfig"
+
 endif

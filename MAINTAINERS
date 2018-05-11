@@ -15609,7 +15609,7 @@ L:	linux-media@vger.kernel.org
 W:	http://mjpeg.sourceforge.net/driver-zoran/
 T:	hg https://linuxtv.org/hg/v4l-dvb
 S:	Odd Fixes
-F:	drivers/media/pci/zoran/
+F:	drivers/staging/media/zoran/
 
 ZRAM COMPRESSED RAM BLOCK DEVICE DRVIER
 M:	Minchan Kim <minchan@kernel.org>
