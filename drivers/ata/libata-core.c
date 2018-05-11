@@ -1600,7 +1600,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc = __ata_qc_from_tag(ap, tag);
 
-	qc->tag = tag;
+	qc->tag = qc->hw_tag = tag;
 	qc->scsicmd = NULL;
 	qc->ap = ap;
 	qc->dev = dev;
@@ -5125,7 +5125,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev, int tag)
 	}
 
 	qc = __ata_qc_from_tag(ap, tag);
-	qc->tag = tag;
+	qc->tag = qc->hw_tag = tag;
 	qc->scsicmd = NULL;
 	qc->ap = ap;
 	qc->dev = dev;

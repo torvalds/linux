@@ -637,7 +637,8 @@ struct ata_queued_cmd {
 	u8			cdb[ATAPI_CDB_LEN];
 
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
-	unsigned int		tag;
+	unsigned int		tag;		/* libata core tag */
+	unsigned int		hw_tag;		/* driver tag */
 	unsigned int		n_elem;
 	unsigned int		orig_n_elem;
 
