@@ -211,11 +211,12 @@ struct stm32f7_i2c_setup {
 
 /**
  * struct stm32f7_i2c_timings - private I2C output parameters
- * @prec: Prescaler value
+ * @node: List entry
+ * @presc: Prescaler value
  * @scldel: Data setup time
  * @sdadel: Data hold time
  * @sclh: SCL high period (master mode)
- * @sclh: SCL low period (master mode)
+ * @scll: SCL low period (master mode)
  */
 struct stm32f7_i2c_timings {
 	struct list_head node;
@@ -237,7 +238,7 @@ struct stm32f7_i2c_timings {
  * @size: type of SMBus protocol
  * @read_write: direction of SMBus protocol
  * SMBus block read and SMBus block write - block read process call protocols
- * @smbus_buff: buffer to be used for SMBus protocol transfer. It will
+ * @smbus_buf: buffer to be used for SMBus protocol transfer. It will
  * contain a maximum of 32 bytes of data + byte command + byte count + PEC
  * This buffer has to be 32-bit aligned to be compliant with memory address
  * register in DMA mode.
