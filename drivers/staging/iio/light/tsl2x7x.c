@@ -103,6 +103,9 @@
 #define TSL2X7X_CNTL_PROXPON_ENBL	0x0F
 #define TSL2X7X_CNTL_INTPROXPON_ENBL	0x2F
 
+#define TSL2X7X_ALS_GAIN_TRIM_MIN	250
+#define TSL2X7X_ALS_GAIN_TRIM_MAX	4000
+
 /* TAOS txx2x7x Device family members */
 enum {
 	tsl2571,
@@ -581,7 +584,7 @@ static int tsl2x7x_als_calibrate(struct iio_dev *indio_dev)
 
 	ret = (chip->settings.als_cal_target * chip->settings.als_gain_trim) /
 			lux_val;
-	if (ret < 250 || ret > 4000)
+	if (ret < TSL2X7X_ALS_GAIN_TRIM_MIN || ret > TSL2X7X_ALS_GAIN_TRIM_MAX)
 		return -ERANGE;
 
 	chip->settings.als_gain_trim = ret;
@@ -1209,9 +1212,17 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
+		if (val < TSL2X7X_ALS_GAIN_TRIM_MIN ||
+		    val > TSL2X7X_ALS_GAIN_TRIM_MAX)
+			return -EINVAL;
+
 		chip->settings.als_gain_trim = val;
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
+		if (val != 0 || val2 < tsl2x7x_int_time_avail[chip->id][1] ||
+		    val2 > tsl2x7x_int_time_avail[chip->id][5])
+			return -EINVAL;
+
 		chip->settings.als_time = 256 -
 			(val2 / tsl2x7x_int_time_avail[chip->id][3]);
 		break;
