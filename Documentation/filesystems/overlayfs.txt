@@ -262,6 +262,30 @@ rightmost one and going left.  In the above example lower1 will be the
 top, lower2 the middle and lower3 the bottom layer.
 
 
+Metadata only copy up
+--------------------
+
+When metadata only copy up feature is enabled, overlayfs will only copy
+up metadata (as opposed to whole file), when a metadata specific operation
+like chown/chmod is performed. Full file will be copied up later when
+file is opened for WRITE operation.
+
+In other words, this is delayed data copy up operation and data is copied
+up when there is a need to actually modify data.
+
+There are multiple ways to enable/disable this feature. A config option
+CONFIG_OVERLAY_FS_METACOPY can be set/unset to enable/disable this feature
+by default. Or one can enable/disable it at module load time with module
+parameter metacopy=on/off. Lastly, there is also a per mount option
+metacopy=on/off to enable/disable this feature per mount.
+
+Do not use metacopy=on with untrusted upper/lower directories. Otherwise
+it is possible that an attacker can create a handcrafted file with
+appropriate REDIRECT and METACOPY xattrs, and gain access to file on lower
+pointed by REDIRECT. This should not be possible on local system as setting
+"trusted." xattrs will require CAP_SYS_ADMIN. But it should be possible
+for untrusted layers like from a pen drive.
+
 Sharing and copying layers
 --------------------------
 
@@ -280,7 +304,7 @@ though it will not result in a crash or deadlock.
 Mounting an overlay using an upper layer path, where the upper layer path
 was previously used by another mounted overlay in combination with a
 different lower layer path, is allowed, unless the "inodes index" feature
-is enabled.
+or "metadata only copy up" feature is enabled.
 
 With the "inodes index" feature, on the first time mount, an NFS file
 handle of the lower layer root directory, along with the UUID of the lower
@@ -292,6 +316,10 @@ lower root origin, mount will fail with ESTALE.  An overlayfs mount with
 "inodes index" enabled will fail with EOPNOTSUPP if the lower filesystem
 does not support NFS export, lower filesystem does not have a valid UUID or
 if the upper filesystem does not support extended attributes.
+
+For "metadata only copy up" feature there is no verification mechanism at
+mount time. So if same upper is mounted with different set of lower, mount
+probably will succeed but expect the unexpected later on. So don't do it.
 
 It is quite a common practice to copy overlay layers to a different
 directory tree on the same or different underlying filesystem, and even

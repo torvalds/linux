@@ -19,6 +19,7 @@ struct ovl_config {
 	bool index;
 	bool nfs_export;
 	int xino;
+	bool metacopy;
 };
 
 struct ovl_sb {
