@@ -34,6 +34,9 @@
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 #include "mlx5_core.h"
 #include "fpga/core.h"
 #include "eswitch.h"
@@ -922,4 +925,29 @@ int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
 	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+}
+
+/* This function should only be called after mlx5_cmd_force_teardown_hca */
+void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq;
+
+#ifdef CONFIG_RFS_ACCEL
+	if (dev->rmap) {
+		free_irq_cpu_rmap(dev->rmap);
+		dev->rmap = NULL;
+	}
+#endif
+	list_for_each_entry(eq, &table->comp_eqs_list, list)
+		free_irq(eq->irqn, eq);
+
+	free_irq(table->pages_eq.irqn, &table->pages_eq);
+	free_irq(table->async_eq.irqn, &table->async_eq);
+	free_irq(table->cmd_eq.irqn, &table->cmd_eq);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (MLX5_CAP_GEN(dev, pg))
+		free_irq(table->pfault_eq.irqn, &table->pfault_eq);
+#endif
+	pci_free_irq_vectors(dev->pdev);
 }
