@@ -489,9 +489,21 @@ static const struct intel_limit intel_limits_bxt = {
 };
 
 static void
+skl_wa_528(struct drm_i915_private *dev_priv, int pipe, bool enable)
+{
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
+		return;
+
+	if (enable)
+		I915_WRITE(CHICKEN_PIPESL_1(pipe), HSW_FBCQ_DIS);
+	else
+		I915_WRITE(CHICKEN_PIPESL_1(pipe), 0);
+}
+
+static void
 skl_wa_clkgate(struct drm_i915_private *dev_priv, int pipe, bool enable)
 {
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return;
 
 	if (enable)
@@ -5193,8 +5205,10 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	/* Display WA 827 */
 	if (needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    !needs_nv12_wa(dev_priv, pipe_config))
+	    !needs_nv12_wa(dev_priv, pipe_config)) {
 		skl_wa_clkgate(dev_priv, crtc->pipe, false);
+		skl_wa_528(dev_priv, crtc->pipe, false);
+	}
 }
 
 static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
@@ -5231,8 +5245,10 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    needs_nv12_wa(dev_priv, pipe_config))
+	    needs_nv12_wa(dev_priv, pipe_config)) {
 		skl_wa_clkgate(dev_priv, crtc->pipe, true);
+		skl_wa_528(dev_priv, crtc->pipe, true);
+	}
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
