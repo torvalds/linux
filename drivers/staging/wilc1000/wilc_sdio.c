@@ -26,7 +26,8 @@ struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
 	int nint;
-#define MAX_NUN_INT_THRPT_ENH2 (5) /* Max num interrupts allowed in registers 0xf7, 0xf8 */
+/* Max num interrupts allowed in registers 0xf7, 0xf8 */
+#define MAX_NUN_INT_THRPT_ENH2 (5)
 	int has_thrpt_enh3;
 };
 
