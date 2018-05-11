@@ -123,6 +123,15 @@ config SAMPLE_VFIO_MDEV_MDPY
 	  mediated device.  It is a simple framebuffer and supports
 	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
 
+config SAMPLE_VFIO_MDEV_MDPY_FB
+	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
+	depends on FB && m
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Guest fbdev driver for the virtual display sample driver.
+
 config SAMPLE_STATX
 	bool "Build example extended-stat using code"
 	depends on BROKEN
