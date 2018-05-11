@@ -1657,10 +1657,13 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	}
 
 	tsl2x7x_defaults(chip);
-	tsl2x7x_chip_on(indio_dev);
+	ret = tsl2x7x_chip_on(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
+		tsl2x7x_chip_off(indio_dev);
 		dev_err(&clientp->dev,
 			"%s: iio registration failed\n", __func__);
 		return ret;
