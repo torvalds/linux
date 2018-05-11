@@ -115,6 +115,14 @@ config SAMPLE_VFIO_MDEV_MTTY
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
 
+config SAMPLE_VFIO_MDEV_MDPY
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It is a simple framebuffer and supports
+	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
+
 config SAMPLE_STATX
 	bool "Build example extended-stat using code"
 	depends on BROKEN

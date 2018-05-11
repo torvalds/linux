@@ -1,1 +1,2 @@
 obj-$(CONFIG_SAMPLE_VFIO_MDEV_MTTY) += mtty.o
+obj-$(CONFIG_SAMPLE_VFIO_MDEV_MDPY) += mdpy.o
