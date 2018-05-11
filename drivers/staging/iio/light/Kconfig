@@ -3,7 +3,7 @@
 #
 menu "Light sensors"
 
-config TSL2x7x
+config TSL2772
 	tristate "TAOS TSL/TMD2x71 and TSL/TMD2x72 Family of light and proximity sensors"
 	depends on I2C
 	help
