@@ -1297,4 +1297,8 @@ static inline int lpit_read_residency_count_address(u64 *address)
 }
 #endif
 
+int find_acpi_cpu_topology(unsigned int cpu, int level);
+int find_acpi_cpu_topology_package(unsigned int cpu);
+int find_acpi_cpu_cache_topology(unsigned int cpu, int level);
+
 #endif	/*_LINUX_ACPI_H*/
