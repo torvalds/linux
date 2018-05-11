@@ -1830,7 +1830,7 @@ static int scan_its_table(struct vgic_its *its, gpa_t base, int size, int esz,
 		int next_offset;
 		size_t byte_offset;
 
-		ret = kvm_read_guest(kvm, gpa, entry, esz);
+		ret = kvm_read_guest_lock(kvm, gpa, entry, esz);
 		if (ret)
 			return ret;
 
@@ -2191,7 +2191,7 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	int ret;
 
 	BUG_ON(esz > sizeof(val));
-	ret = kvm_read_guest(kvm, gpa, &val, esz);
+	ret = kvm_read_guest_lock(kvm, gpa, &val, esz);
 	if (ret)
 		return ret;
 	val = le64_to_cpu(val);
