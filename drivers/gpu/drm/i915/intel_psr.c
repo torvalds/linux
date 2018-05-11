@@ -250,6 +250,10 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
 	    (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)) {
+		bool y_req = intel_dp->psr_dpcd[1] &
+			     DP_PSR2_SU_Y_COORDINATE_REQUIRED;
+		bool alpm = intel_dp_get_alpm_status(intel_dp);
+
 		/*
 		 * All panels that supports PSR version 03h (PSR2 +
 		 * Y-coordinate) can handle Y-coordinates in VSC but we are
@@ -261,16 +265,13 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		 * Y-coordinate requirement panels we would need to enable
 		 * GTC first.
 		 */
-		dev_priv->psr.sink_psr2_support =
-			intel_dp->psr_dpcd[1] & DP_PSR2_SU_Y_COORDINATE_REQUIRED;
+		dev_priv->psr.sink_psr2_support = y_req && alpm;
 		DRM_DEBUG_KMS("PSR2 %ssupported\n",
 			      dev_priv->psr.sink_psr2_support ? "" : "not ");
 
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
-			dev_priv->psr.alpm =
-				intel_dp_get_alpm_status(intel_dp);
 			dev_priv->psr.sink_sync_latency =
 				intel_dp_get_sink_sync_latency(intel_dp);
 		}
@@ -351,13 +352,12 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	u8 dpcd_val = DP_PSR_ENABLE;
 
 	/* Enable ALPM at sink for psr2 */
-	if (dev_priv->psr.psr2_enabled && dev_priv->psr.alpm)
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				DP_RECEIVER_ALPM_CONFIG,
-				DP_ALPM_ENABLE);
-
-	if (dev_priv->psr.psr2_enabled)
+	if (dev_priv->psr.psr2_enabled) {
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG,
+				   DP_ALPM_ENABLE);
 		dpcd_val |= DP_PSR_ENABLE_PSR2;
+	}
+
 	if (dev_priv->psr.link_standby)
 		dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
