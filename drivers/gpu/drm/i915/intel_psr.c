@@ -197,15 +197,6 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 	}
 }
 
-static bool intel_dp_get_y_coord_required(struct intel_dp *intel_dp)
-{
-	uint8_t psr_caps = 0;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_CAPS, &psr_caps) != 1)
-		return false;
-	return psr_caps & DP_PSR2_SU_Y_COORDINATE_REQUIRED;
-}
-
 static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
 	uint8_t dprx = 0;
@@ -271,7 +262,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		 * GTC first.
 		 */
 		dev_priv->psr.sink_psr2_support =
-				intel_dp_get_y_coord_required(intel_dp);
+			intel_dp->psr_dpcd[1] & DP_PSR2_SU_Y_COORDINATE_REQUIRED;
 		DRM_DEBUG_KMS("PSR2 %ssupported\n",
 			      dev_priv->psr.sink_psr2_support ? "" : "not ");
 
