@@ -924,7 +924,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
-		return -ENOENT;
+		return -ENOBUFS;
 
 	netdev_dbg(from->dev, "Adding inspected port to SPAN entry %d\n",
 		   span_entry->id);
