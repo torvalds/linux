@@ -56,6 +56,10 @@ int vega20_enable_smc_features(struct pp_hwmgr *hwmgr,
 		bool enable, uint64_t feature_mask);
 int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 		uint64_t *features_enabled);
+int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
+		uint8_t *table, uint16_t workload_type);
+int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
+		uint8_t *table, uint16_t workload_type);
 
 #endif
 

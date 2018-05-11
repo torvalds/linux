@@ -243,6 +243,63 @@ int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
+		uint8_t *table, uint16_t workload_type)
+{
+	struct vega20_smumgr *priv =
+			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	int ret = 0;
+
+	memcpy(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table, table,
+			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);
+
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			"[SetActivityMonitor] Attempt to Set Dram Addr High Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrLow,
+			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			"[SetActivityMonitor] Attempt to Set Dram Addr Low Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_TransferTableDram2Smu, TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16))) == 0,
+			"[SetActivityMonitor] Attempt to Transfer Table To SMU Failed!",
+			return ret);
+
+	return 0;
+}
+
+int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
+		uint8_t *table, uint16_t workload_type)
+{
+	struct vega20_smumgr *priv =
+			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	int ret = 0;
+
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			"[GetActivityMonitor] Attempt to Set Dram Addr High Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrLow,
+			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			"[GetActivityMonitor] Attempt to Set Dram Addr Low Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_TransferTableSmu2Dram,
+			TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16))) == 0,
+			"[GetActivityMonitor] Attempt to Transfer Table From SMU Failed!",
+			return ret);
+
+	memcpy(table, priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table,
+			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);
+
+	return 0;
+}
+
 int vega20_enable_smc_features(struct pp_hwmgr *hwmgr,
 		bool enable, uint64_t feature_mask)
 {
