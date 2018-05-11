@@ -1330,6 +1330,11 @@ static enum bp_result bios_parser_get_firmware_info(
 			case 2:
 				result = get_firmware_info_v3_2(bp, info);
 				break;
+			case 3:
+#ifdef CONFIG_DRM_AMD_DC_VG20
+				result = get_firmware_info_v3_2(bp, info);
+#endif
+				break;
 			default:
 				break;
 			}
