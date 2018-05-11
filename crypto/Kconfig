@@ -310,6 +310,30 @@ config CRYPTO_AEGIS256
 	help
 	 Support for the AEGIS-256 dedicated AEAD algorithm.
 
+config CRYPTO_AEGIS128_AESNI_SSE2
+	tristate "AEGIS-128 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-128 dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS128L_AESNI_SSE2
+	tristate "AEGIS-128L AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-128L dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS256_AESNI_SSE2
+	tristate "AEGIS-256 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-256 dedicated AEAD algorithm.
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
