@@ -1782,7 +1782,7 @@ static void nv_swncq_ncq_stop(struct ata_port *ap)
 	u32 sactive;
 	u32 done_mask;
 
-	ata_port_err(ap, "EH in SWNCQ mode,QC:qc_active 0x%X sactive 0x%X\n",
+	ata_port_err(ap, "EH in SWNCQ mode,QC:qc_active 0x%llX sactive 0x%X\n",
 		     ap->qc_active, ap->link.sactive);
 	ata_port_err(ap,
 		"SWNCQ:qc_active 0x%X defer_bits 0x%X last_issue_tag 0x%x\n  "

@@ -2539,7 +2539,7 @@ static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
 	failed_links = hweight16(new_map);
 
 	ata_port_info(ap,
-		      "%s: pmp_map=%04x qc_map=%04x failed_links=%d nr_active_links=%d\n",
+		      "%s: pmp_map=%04x qc_map=%04llx failed_links=%d nr_active_links=%d\n",
 		      __func__, pp->delayed_eh_pmp_map,
 		      ap->qc_active, failed_links,
 		      ap->nr_active_links);

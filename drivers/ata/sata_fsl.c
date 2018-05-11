@@ -1266,7 +1266,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 	}
 
 	VPRINTK("Status of all queues :\n");
-	VPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%x\n",
+	VPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%llx\n",
 		done_mask,
 		ioread32(hcr_base + CA),
 		ioread32(hcr_base + CE),

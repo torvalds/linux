@@ -1571,7 +1571,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
 	unsigned int tag, preempted_tag;
-	u32 preempted_sactive, preempted_qc_active;
+	u32 preempted_sactive;
+	u64 preempted_qc_active;
 	int preempted_nr_active_links;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
@@ -5195,7 +5196,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	 * is called. (when rc != 0 and atapi request sense is needed)
 	 */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
-	ap->qc_active &= ~(1 << qc->tag);
+	ap->qc_active &= ~(1ULL << qc->tag);
 
 	/* call completion callback */
 	qc->complete_fn(qc);
@@ -5352,29 +5353,29 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Number of completed commands on success, -errno otherwise.
  */
-int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active)
+int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 {
 	int nr_done = 0;
-	u32 done_mask;
+	u64 done_mask;
 
 	done_mask = ap->qc_active ^ qc_active;
 
 	if (unlikely(done_mask & qc_active)) {
-		ata_port_err(ap, "illegal qc_active transition (%08x->%08x)\n",
+		ata_port_err(ap, "illegal qc_active transition (%08llx->%08llx)\n",
 			     ap->qc_active, qc_active);
 		return -EINVAL;
 	}
 
 	while (done_mask) {
 		struct ata_queued_cmd *qc;
-		unsigned int tag = __ffs(done_mask);
+		unsigned int tag = __ffs64(done_mask);
 
 		qc = ata_qc_from_tag(ap, tag);
 		if (qc) {
 			ata_qc_complete(qc);
 			nr_done++;
 		}
-		done_mask &= ~(1 << tag);
+		done_mask &= ~(1ULL << tag);
 	}
 
 	return nr_done;
@@ -5418,7 +5419,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	qc->flags |= ATA_QCFLAG_ACTIVE;
-	ap->qc_active |= 1 << qc->tag;
+	ap->qc_active |= 1ULL << qc->tag;
 
 	/*
 	 * We guarantee to LLDs that they will have at least one
