@@ -57,6 +57,7 @@
 		power-supply = <&vcc3v3_s0>;
 		enable-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+		bpc = <6>;
 		prepare-delay-ms = <50>;
 		ports {
 			panel_in_edp: endpoint {
