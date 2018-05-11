@@ -269,7 +269,7 @@ static void remove_network_from_shadow(struct timer_list *unused)
 		mod_timer(&aging_timer, jiffies + msecs_to_jiffies(AGING_TIME));
 }
 
-static void clear_duringIP(struct timer_list *unused)
+static void clear_during_ip(struct timer_list *unused)
 {
 	wilc_optaining_ip = false;
 }
@@ -2262,7 +2262,7 @@ int wilc_init_host_int(struct net_device *net)
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
 		timer_setup(&aging_timer, remove_network_from_shadow, 0);
-		timer_setup(&wilc_during_ip_timer, clear_duringIP, 0);
+		timer_setup(&wilc_during_ip_timer, clear_during_ip, 0);
 	}
 	op_ifcs++;
 
