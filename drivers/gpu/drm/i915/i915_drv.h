@@ -607,7 +607,6 @@ struct i915_psr {
 	bool link_standby;
 	bool colorimetry_support;
 	bool alpm;
-	bool has_hw_tracking;
 	bool psr2_enabled;
 	u8 sink_sync_latency;
 	bool debug;
