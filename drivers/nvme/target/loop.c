@@ -174,7 +174,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 			&queue->nvme_sq, &nvme_loop_ops))
 		return BLK_STS_OK;
 
-	if (blk_rq_payload_bytes(req)) {
+	if (blk_rq_nr_phys_segments(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
 		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
