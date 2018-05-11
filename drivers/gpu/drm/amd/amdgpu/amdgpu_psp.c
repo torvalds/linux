@@ -31,6 +31,7 @@
 #include "soc15_common.h"
 #include "psp_v3_1.h"
 #include "psp_v10_0.h"
+#include "psp_v11_0.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
 
@@ -52,11 +53,13 @@ static int psp_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
-	case CHIP_VEGA20:
 		psp_v3_1_set_psp_funcs(psp);
 		break;
 	case CHIP_RAVEN:
 		psp_v10_0_set_psp_funcs(psp);
+		break;
+	case CHIP_VEGA20:
+		psp_v11_0_set_psp_funcs(psp);
 		break;
 	default:
 		return -EINVAL;
@@ -590,6 +593,15 @@ const struct amdgpu_ip_block_version psp_v10_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 10,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v11_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 11,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
