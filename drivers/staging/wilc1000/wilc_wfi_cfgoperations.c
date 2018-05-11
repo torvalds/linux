@@ -908,8 +908,7 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 }
 
 static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		   bool pairwise,
-		   const u8 *mac_addr, struct key_params *params)
+		   bool pairwise, const u8 *mac_addr, struct key_params *params)
 
 {
 	s32 ret = 0, keylen = params->key_len;
@@ -955,6 +954,8 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (priv->wdev->iftype == NL80211_IFTYPE_AP ||
 		    priv->wdev->iftype == NL80211_IFTYPE_P2P_GO) {
+			struct wilc_wfi_key *key;
+
 			ret = wilc_wfi_cfg_allocate_wpa_entry(priv, key_index);
 			if (ret)
 				return -ENOMEM;
@@ -974,21 +975,19 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 				priv->wilc_groupkey = mode;
 
-				ret = wilc_wfi_cfg_copy_wpa_info(priv->wilc_gtk[key_index],
-								 params);
-				if (ret)
-					return -ENOMEM;
+				key = priv->wilc_gtk[key_index];
 			} else {
 				if (params->cipher == WLAN_CIPHER_SUITE_TKIP)
 					mode = ENCRYPT_ENABLED | WPA | TKIP;
 				else
 					mode = priv->wilc_groupkey | AES;
 
-				ret = wilc_wfi_cfg_copy_wpa_info(priv->wilc_ptk[key_index],
-								 params);
-				if (ret)
-					return -ENOMEM;
+				key = priv->wilc_ptk[key_index];
 			}
+			ret = wilc_wfi_cfg_copy_wpa_info(key, params);
+			if (ret)
+				return -ENOMEM;
+
 			op_mode = AP_MODE;
 		} else {
 			if (params->key_len > 16 &&
