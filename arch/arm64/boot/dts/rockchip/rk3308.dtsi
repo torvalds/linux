@@ -813,6 +813,8 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac1 12>;
 		dma-names = "rx";
+		resets = <&cru SRST_PDM_M>;
+		reset-names = "pdm-m";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pdm_m2_clk
 			     &pdm_m2_sdi0
