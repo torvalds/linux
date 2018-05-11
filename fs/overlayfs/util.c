@@ -133,7 +133,8 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 		 * Non-dir dentry can hold lower dentry of its copy up origin.
 		 */
 		if (oe->numlower) {
-			type |= __OVL_PATH_ORIGIN;
+			if (ovl_test_flag(OVL_CONST_INO, d_inode(dentry)))
+				type |= __OVL_PATH_ORIGIN;
 			if (d_is_dir(dentry) ||
 			    !ovl_has_upperdata(d_inode(dentry)))
 				type |= __OVL_PATH_MERGE;
