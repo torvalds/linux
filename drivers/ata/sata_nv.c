@@ -400,7 +400,7 @@ static struct scsi_host_template nv_adma_sht = {
 
 static struct scsi_host_template nv_swncq_sht = {
 	ATA_NCQ_SHT(DRV_NAME),
-	.can_queue		= ATA_MAX_QUEUE,
+	.can_queue		= ATA_MAX_QUEUE - 1,
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= nv_swncq_slave_config,
