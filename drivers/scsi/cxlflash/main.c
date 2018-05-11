@@ -19,8 +19,6 @@
 
 #include <asm/unaligned.h>
 
-#include <misc/cxl.h>
-
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <uapi/scsi/cxlflash_ioctl.h>

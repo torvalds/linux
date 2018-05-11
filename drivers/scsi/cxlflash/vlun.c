@@ -12,8 +12,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/syscalls.h>
-#include <misc/cxl.h>
 #include <asm/unaligned.h>
 #include <asm/bitsperlong.h>
 

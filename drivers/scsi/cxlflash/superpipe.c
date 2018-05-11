@@ -14,8 +14,9 @@
 
 #include <linux/delay.h>
 #include <linux/file.h>
+#include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/syscalls.h>
-#include <misc/cxl.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
