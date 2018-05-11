@@ -131,10 +131,11 @@ struct wilc {
 	u8 vif_num;
 	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
-
+	/*protect head of transmit queue*/
 	struct mutex txq_add_to_head_cs;
+	/*protect txq_entry_t transmit queue*/
 	spinlock_t txq_spinlock;
-
+	/*protect rxq_entry_t receiver queue*/
 	struct mutex rxq_cs;
 	struct mutex hif_cs;
 

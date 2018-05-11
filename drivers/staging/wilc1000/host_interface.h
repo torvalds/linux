@@ -271,7 +271,7 @@ struct host_if_drv {
 
 	u8 assoc_bssid[ETH_ALEN];
 	struct cfg_param_attr cfg_values;
-
+	/*lock to protect concurrent setting of cfg params*/
 	struct mutex cfg_values_lock;
 	struct completion comp_test_key_block;
 	struct completion comp_test_disconn_block;
