@@ -341,7 +341,7 @@ static void xive_native_update_pending(struct xive_cpu *xc)
 	 * of the hypervisor interrupt (if any)
 	 */
 	cppr = ack & 0xff;
-	he = GETFIELD(TM_QW3_NSR_HE, (ack >> 8));
+	he = (ack >> 8) >> 6;
 	switch(he) {
 	case TM_QW3_NSR_HE_NONE: /* Nothing to see here */
 		break;
