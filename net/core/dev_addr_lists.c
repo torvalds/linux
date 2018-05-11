@@ -57,8 +57,8 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 		return -EINVAL;
 
 	list_for_each_entry(ha, &list->list, list) {
-		if (!memcmp(ha->addr, addr, addr_len) &&
-		    ha->type == addr_type) {
+		if (ha->type == addr_type &&
+		    !memcmp(ha->addr, addr, addr_len)) {
 			if (global) {
 				/* check if addr is already used as global */
 				if (ha->global_use)
@@ -839,7 +839,7 @@ void dev_mc_flush(struct net_device *dev)
 EXPORT_SYMBOL(dev_mc_flush);
 
 /**
- *	dev_mc_flush - Init multicast address list
+ *	dev_mc_init - Init multicast address list
  *	@dev: device
  *
  *	Init multicast address list.

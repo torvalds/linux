@@ -223,8 +223,8 @@ static int nfs_cb_stat_to_errno(int status)
 	return -status;
 }
 
-static int decode_cb_op_status(struct xdr_stream *xdr, enum nfs_opnum4 expected,
-			       int *status)
+static int decode_cb_op_status(struct xdr_stream *xdr,
+			       enum nfs_cb_opnum4 expected, int *status)
 {
 	__be32 *p;
 	u32 op;

@@ -65,7 +65,6 @@ struct usb_dev_state {
 	const struct cred *cred;
 	void __user *disccontext;
 	unsigned long ifclaimed;
-	u32 secid;
 	u32 disabled_bulk_eps;
 	bool privileges_dropped;
 	unsigned long interface_allowed_mask;
@@ -95,7 +94,6 @@ struct async {
 	struct usb_memory *usbm;
 	unsigned int mem_usage;
 	int status;
-	u32 secid;
 	u8 bulk_addr;
 	u8 bulk_status;
 };
@@ -586,7 +584,6 @@ static void async_completed(struct urb *urb)
 	struct usb_dev_state *ps = as->ps;
 	struct siginfo sinfo;
 	struct pid *pid = NULL;
-	u32 secid = 0;
 	const struct cred *cred = NULL;
 	int signr;
 
@@ -602,7 +599,6 @@ static void async_completed(struct urb *urb)
 		sinfo.si_addr = as->userurb;
 		pid = get_pid(as->pid);
 		cred = get_cred(as->cred);
-		secid = as->secid;
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb->dev, as->userurb, urb->pipe, urb->actual_length,
@@ -618,7 +614,7 @@ static void async_completed(struct urb *urb)
 	spin_unlock(&ps->lock);
 
 	if (signr) {
-		kill_pid_info_as_cred(sinfo.si_signo, &sinfo, pid, cred, secid);
+		kill_pid_info_as_cred(sinfo.si_signo, &sinfo, pid, cred);
 		put_pid(pid);
 		put_cred(cred);
 	}
@@ -1013,7 +1009,6 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&ps->wait);
 	ps->disc_pid = get_pid(task_pid(current));
 	ps->cred = get_current_cred();
-	security_task_getsecid(current, &ps->secid);
 	smp_wmb();
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
@@ -1727,7 +1722,6 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	as->ifnum = ifnum;
 	as->pid = get_pid(task_pid(current));
 	as->cred = get_current_cred();
-	security_task_getsecid(current, &as->secid);
 	snoop_urb(ps->dev, as->userurb, as->urb->pipe,
 			as->urb->transfer_buffer_length, 0, SUBMIT,
 			NULL, 0);
@@ -2617,7 +2611,7 @@ static void usbdev_remove(struct usb_device *udev)
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ps->disccontext;
 			kill_pid_info_as_cred(ps->discsignr, &sinfo,
-					ps->disc_pid, ps->cred, ps->secid);
+					ps->disc_pid, ps->cred);
 		}
 	}
 }

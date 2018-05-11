@@ -171,56 +171,19 @@ int enable_chan(struct line *line)
 	return err;
 }
 
-/* Items are added in IRQ context, when free_irq can't be called, and
- * removed in process context, when it can.
- * This handles interrupt sources which disappear, and which need to
- * be permanently disabled.  This is discovered in IRQ context, but
- * the freeing of the IRQ must be done later.
- */
-static DEFINE_SPINLOCK(irqs_to_free_lock);
-static LIST_HEAD(irqs_to_free);
-
-void free_irqs(void)
-{
-	struct chan *chan;
-	LIST_HEAD(list);
-	struct list_head *ele;
-	unsigned long flags;
-
-	spin_lock_irqsave(&irqs_to_free_lock, flags);
-	list_splice_init(&irqs_to_free, &list);
-	spin_unlock_irqrestore(&irqs_to_free_lock, flags);
-
-	list_for_each(ele, &list) {
-		chan = list_entry(ele, struct chan, free_list);
-
-		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
-		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
-		chan->enabled = 0;
-	}
-}
-
 static void close_one_chan(struct chan *chan, int delay_free_irq)
 {
-	unsigned long flags;
-
 	if (!chan->opened)
 		return;
 
-	if (delay_free_irq) {
-		spin_lock_irqsave(&irqs_to_free_lock, flags);
-		list_add(&chan->free_list, &irqs_to_free);
-		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
-	}
-	else {
-		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
-		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
-		chan->enabled = 0;
-	}
+    /* we can safely call free now - it will be marked
+     *  as free and freed once the IRQ stopped processing
+     */
+	if (chan->input && chan->enabled)
+		um_free_irq(chan->line->driver->read_irq, chan);
+	if (chan->output && chan->enabled)
+		um_free_irq(chan->line->driver->write_irq, chan);
+	chan->enabled = 0;
 	if (chan->ops->close != NULL)
 		(*chan->ops->close)(chan->fd, chan->data);
 

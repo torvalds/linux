@@ -50,7 +50,7 @@
 	model = "Warp i.MX7 Board";
 	compatible = "warp,imx7s-warp", "fsl,imx7s";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
 	};
 
@@ -271,6 +271,15 @@
 	status = "okay";
 };
 
+&uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart6>;
+	assigned-clocks = <&clks IMX7D_UART6_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
+	fsl,dte-mode;
+	status = "okay";
+};
+
 &usbotg1 {
 	dr_mode = "peripheral";
 	status = "okay";
@@ -376,6 +385,13 @@
 			MX7D_PAD_UART3_RX_DATA__UART3_DCE_RX	0x79
 			MX7D_PAD_UART3_CTS_B__UART3_DCE_CTS	0x79
 			MX7D_PAD_UART3_RTS_B__UART3_DCE_RTS	0x79
+		>;
+	};
+
+	pinctrl_uart6: uart6grp {
+		fsl,pins = <
+			MX7D_PAD_ECSPI1_MOSI__UART6_DTE_RX	0x79
+			MX7D_PAD_ECSPI1_SCLK__UART6_DTE_TX	0x79
 		>;
 	};
 

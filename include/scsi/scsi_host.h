@@ -52,21 +52,6 @@ struct scsi_host_template {
 	const char *name;
 
 	/*
-	 * Used to initialize old-style drivers.  For new-style drivers
-	 * just perform all work in your module initialization function.
-	 *
-	 * Status:  OBSOLETE
-	 */
-	int (* detect)(struct scsi_host_template *);
-
-	/*
-	 * Used as unload callback for hosts with old-style drivers.
-	 *
-	 * Status: OBSOLETE
-	 */
-	int (* release)(struct Scsi_Host *);
-
-	/*
 	 * The info function will return whatever useful information the
 	 * developer sees fit.  If not provided, then the name field will
 	 * be used instead.
@@ -452,6 +437,9 @@ struct scsi_host_template {
 	/* True if the controller does not support WRITE SAME */
 	unsigned no_write_same:1;
 
+	/* True if the low-level driver supports blk-mq only */
+	unsigned force_blk_mq:1;
+
 	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
@@ -477,13 +465,10 @@ struct scsi_host_template {
 	struct device_attribute **sdev_attrs;
 
 	/*
-	 * List of hosts per template.
-	 *
-	 * This is only for use by scsi_module.c for legacy templates.
-	 * For these access to it is synchronized implicitly by
-	 * module_init/module_exit.
+	 * Pointer to the SCSI device attribute groups for this host,
+	 * NULL terminated.
 	 */
-	struct list_head legacy_hosts;
+	const struct attribute_group **sdev_groups;
 
 	/*
 	 * Vendor Identifier associated with the host
@@ -706,15 +691,6 @@ struct Scsi_Host {
 	struct device		shost_gendev, shost_dev;
 
 	/*
-	 * List of hosts per template.
-	 *
-	 * This is only for use by scsi_module.c for legacy templates.
-	 * For these access to it is synchronized implicitly by
-	 * module_init/module_exit.
-	 */
-	struct list_head sht_legacy_list;
-
-	/*
 	 * Points to the transport data (if any) which is allocated
 	 * separately
 	 */
@@ -914,9 +890,6 @@ static inline unsigned char scsi_host_get_guard(struct Scsi_Host *shost)
 	return shost->prot_guard_type;
 }
 
-/* legacy interfaces */
-extern struct Scsi_Host *scsi_register(struct scsi_host_template *, int);
-extern void scsi_unregister(struct Scsi_Host *);
 extern int scsi_host_set_state(struct Scsi_Host *, enum scsi_host_state);
 
 #endif /* _SCSI_SCSI_HOST_H */

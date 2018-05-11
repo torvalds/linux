@@ -46,7 +46,7 @@ config MLX5_MPFS
 
 config MLX5_ESWITCH
 	bool "Mellanox Technologies MLX5 SRIOV E-Switch support"
-	depends on MLX5_CORE_EN
+	depends on MLX5_CORE_EN && NET_SWITCHDEV
 	default y
 	---help---
 	  Mellanox Technologies Ethernet SRIOV E-Switch support in ConnectX NIC.

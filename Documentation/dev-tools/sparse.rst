@@ -67,7 +67,7 @@ __releases - The specified lock is held on function entry, but not exit.
 
 If the function enters and exits without the lock held, acquiring and
 releasing the lock inside the function in a balanced way, no
-annotation is needed.  The tree annotations above are for cases where
+annotation is needed.  The three annotations above are for cases where
 sparse would otherwise report a context imbalance.
 
 Getting sparse

@@ -34,6 +34,7 @@ Required properties
 
 Optional properties:
 - reset-gpios: The gpio to generate PCIe PERST# assert and deassert signal.
+- vpcie-supply: The regulator in charge of PCIe port power.
 - phys: List of phandle and phy mode specifier, should be 0.
 - phy-names: Must be "phy".
 

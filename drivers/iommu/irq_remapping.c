@@ -27,7 +27,7 @@ int disable_irq_post = 0;
 static int disable_irq_remap;
 static struct irq_remap_ops *remap_ops;
 
-static void irq_remapping_disable_io_apic(void)
+static void irq_remapping_restore_boot_irq_mode(void)
 {
 	/*
 	 * With interrupt-remapping, for now we will use virtual wire A
@@ -42,7 +42,7 @@ static void irq_remapping_disable_io_apic(void)
 
 static void __init irq_remapping_modify_x86_ops(void)
 {
-	x86_io_apic_ops.disable		= irq_remapping_disable_io_apic;
+	x86_apic_ops.restore = irq_remapping_restore_boot_irq_mode;
 }
 
 static __init int setup_nointremap(char *str)

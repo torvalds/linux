@@ -1,5 +1,5 @@
 /*
- * sched_clock for unstable cpu clocks
+ * sched_clock() for unstable CPU clocks
  *
  *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra
  *
@@ -11,7 +11,7 @@
  *   Guillaume Chazarain <guichaz@gmail.com>
  *
  *
- * What:
+ * What this file implements:
  *
  * cpu_clock(i) provides a fast (execution time) high resolution
  * clock with bounded drift between CPUs. The value of cpu_clock(i)
@@ -26,11 +26,11 @@
  * at 0 on boot (but people really shouldn't rely on that).
  *
  * cpu_clock(i)       -- can be used from any context, including NMI.
- * local_clock()      -- is cpu_clock() on the current cpu.
+ * local_clock()      -- is cpu_clock() on the current CPU.
  *
  * sched_clock_cpu(i)
  *
- * How:
+ * How it is implemented:
  *
  * The implementation either uses sched_clock() when
  * !CONFIG_HAVE_UNSTABLE_SCHED_CLOCK, which means in that case the
@@ -52,19 +52,7 @@
  * that is otherwise invisible (TSC gets stopped).
  *
  */
-#include <linux/spinlock.h>
-#include <linux/hardirq.h>
-#include <linux/export.h>
-#include <linux/percpu.h>
-#include <linux/ktime.h>
-#include <linux/sched.h>
-#include <linux/nmi.h>
-#include <linux/sched/clock.h>
-#include <linux/static_key.h>
-#include <linux/workqueue.h>
-#include <linux/compiler.h>
-#include <linux/tick.h>
-#include <linux/init.h>
+#include "sched.h"
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -302,21 +290,21 @@ again:
 	 * cmpxchg64 below only protects one readout.
 	 *
 	 * We must reread via sched_clock_local() in the retry case on
-	 * 32bit as an NMI could use sched_clock_local() via the
+	 * 32-bit kernels as an NMI could use sched_clock_local() via the
 	 * tracer and hit between the readout of
-	 * the low32bit and the high 32bit portion.
+	 * the low 32-bit and the high 32-bit portion.
 	 */
 	this_clock = sched_clock_local(my_scd);
 	/*
-	 * We must enforce atomic readout on 32bit, otherwise the
-	 * update on the remote cpu can hit inbetween the readout of
-	 * the low32bit and the high 32bit portion.
+	 * We must enforce atomic readout on 32-bit, otherwise the
+	 * update on the remote CPU can hit inbetween the readout of
+	 * the low 32-bit and the high 32-bit portion.
 	 */
 	remote_clock = cmpxchg64(&scd->clock, 0, 0);
 #else
 	/*
-	 * On 64bit the read of [my]scd->clock is atomic versus the
-	 * update, so we can avoid the above 32bit dance.
+	 * On 64-bit kernels the read of [my]scd->clock is atomic versus the
+	 * update, so we can avoid the above 32-bit dance.
 	 */
 	sched_clock_local(my_scd);
 again:

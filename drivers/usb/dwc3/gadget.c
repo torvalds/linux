@@ -166,6 +166,29 @@ static void dwc3_ep_inc_deq(struct dwc3_ep *dep)
 	dwc3_ep_inc_trb(&dep->trb_dequeue);
 }
 
+void dwc3_gadget_del_and_unmap_request(struct dwc3_ep *dep,
+		struct dwc3_request *req, int status)
+{
+	struct dwc3			*dwc = dep->dwc;
+
+	req->started = false;
+	list_del(&req->list);
+	req->remaining = 0;
+
+	if (req->request.status == -EINPROGRESS)
+		req->request.status = status;
+
+	if (req->trb)
+		usb_gadget_unmap_request_by_dev(dwc->sysdev,
+				&req->request, req->direction);
+
+	req->trb = NULL;
+	trace_dwc3_gadget_giveback(req);
+
+	if (dep->number > 1)
+		pm_runtime_put(dwc->dev);
+}
+
 /**
  * dwc3_gadget_giveback - call struct usb_request's ->complete callback
  * @dep: The endpoint to whom the request belongs to
@@ -181,27 +204,11 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 {
 	struct dwc3			*dwc = dep->dwc;
 
-	req->started = false;
-	list_del(&req->list);
-	req->remaining = 0;
-
-	if (req->request.status == -EINPROGRESS)
-		req->request.status = status;
-
-	if (req->trb)
-		usb_gadget_unmap_request_by_dev(dwc->sysdev,
-						&req->request, req->direction);
-
-	req->trb = NULL;
-
-	trace_dwc3_gadget_giveback(req);
+	dwc3_gadget_del_and_unmap_request(dep, req, status);
 
 	spin_unlock(&dwc->lock);
 	usb_gadget_giveback_request(&dep->endpoint, &req->request);
 	spin_lock(&dwc->lock);
-
-	if (dep->number > 1)
-		pm_runtime_put(dwc->dev);
 }
 
 /**
@@ -1227,7 +1234,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 		if (req->trb)
 			memset(req->trb, 0, sizeof(struct dwc3_trb));
 		dep->queued_requests--;
-		dwc3_gadget_giveback(dep, req, ret);
+		dwc3_gadget_del_and_unmap_request(dep, req, ret);
 		return ret;
 	}
 
@@ -1858,7 +1865,11 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 	 * bursts of data without going through any sort of endpoint throttling.
 	 */
 	reg = dwc3_readl(dwc->regs, DWC3_GRXTHRCFG);
-	reg &= ~DWC3_GRXTHRCFG_PKTCNTSEL;
+	if (dwc3_is_usb31(dwc))
+		reg &= ~DWC31_GRXTHRCFG_PKTCNTSEL;
+	else
+		reg &= ~DWC3_GRXTHRCFG_PKTCNTSEL;
+
 	dwc3_writel(dwc->regs, DWC3_GRXTHRCFG, reg);
 
 	dwc3_gadget_setup_nump(dwc);
@@ -1950,6 +1961,7 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 	struct dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
 	int			epnum;
+	u32			tmo_eps = 0;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
@@ -1960,6 +1972,7 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 
 	for (epnum = 2; epnum < DWC3_ENDPOINTS_NUM; epnum++) {
 		struct dwc3_ep  *dep = dwc->eps[epnum];
+		int ret;
 
 		if (!dep)
 			continue;
@@ -1967,9 +1980,24 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 		if (!(dep->flags & DWC3_EP_END_TRANSFER_PENDING))
 			continue;
 
-		wait_event_lock_irq(dep->wait_end_transfer,
-				    !(dep->flags & DWC3_EP_END_TRANSFER_PENDING),
-				    dwc->lock);
+		ret = wait_event_interruptible_lock_irq_timeout(dep->wait_end_transfer,
+			    !(dep->flags & DWC3_EP_END_TRANSFER_PENDING),
+			    dwc->lock, msecs_to_jiffies(5));
+
+		if (ret <= 0) {
+			/* Timed out or interrupted! There's nothing much
+			 * we can do so we just log here and print which
+			 * endpoints timed out at the end.
+			 */
+			tmo_eps |= 1 << epnum;
+			dep->flags &= DWC3_EP_END_TRANSFER_PENDING;
+		}
+	}
+
+	if (tmo_eps) {
+		dev_err(dwc->dev,
+			"end transfer timed out on endpoints 0x%x [bitmap]\n",
+			tmo_eps);
 	}
 
 out:
@@ -2023,7 +2051,10 @@ static void dwc3_gadget_set_speed(struct usb_gadget *g,
 			reg |= DWC3_DCFG_SUPERSPEED;
 			break;
 		case USB_SPEED_SUPER_PLUS:
-			reg |= DWC3_DCFG_SUPERSPEED_PLUS;
+			if (dwc3_is_usb31(dwc))
+				reg |= DWC3_DCFG_SUPERSPEED_PLUS;
+			else
+				reg |= DWC3_DCFG_SUPERSPEED;
 			break;
 		default:
 			dev_err(dwc->dev, "invalid speed (%d)\n", speed);
@@ -2101,7 +2132,10 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 			mdwidth /= 8;
 
 			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(num));
-			size = DWC3_GTXFIFOSIZ_TXFDEF(size);
+			if (dwc3_is_usb31(dwc))
+				size = DWC31_GTXFIFOSIZ_TXFDEF(size);
+			else
+				size = DWC3_GTXFIFOSIZ_TXFDEF(size);
 
 			/* FIFO Depth is in MDWDITH bytes. Multiply */
 			size *= mdwidth;

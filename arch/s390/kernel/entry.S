@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/alternative-asm.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/ctl_reg.h>
@@ -56,6 +57,8 @@ _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
 		   _CIF_ASCE_SECONDARY | _CIF_FPU)
 _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
+
+_LPP_OFFSET	= __LC_LPP
 
 #define BASED(name) name-cleanup_critical(%r13)
 
@@ -162,65 +165,22 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.endm
 
 	.macro BPOFF
-	.pushsection .altinstr_replacement, "ax"
-660:	.long	0xb2e8c000
-	.popsection
-661:	.long	0x47000000
-	.pushsection .altinstructions, "a"
-	.long 661b - .
-	.long 660b - .
-	.word 82
-	.byte 4
-	.byte 4
-	.popsection
+	ALTERNATIVE "", ".long 0xb2e8c000", 82
 	.endm
 
 	.macro BPON
-	.pushsection .altinstr_replacement, "ax"
-662:	.long	0xb2e8d000
-	.popsection
-663:	.long	0x47000000
-	.pushsection .altinstructions, "a"
-	.long 663b - .
-	.long 662b - .
-	.word 82
-	.byte 4
-	.byte 4
-	.popsection
+	ALTERNATIVE "", ".long 0xb2e8d000", 82
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
-	.pushsection .altinstr_replacement, "ax"
-662:	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
-	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
-	.popsection
-664:	TSTMSK	\tif_ptr,\tif_mask
-	jz	. + 8
-	.long	0xb2e8d000
-	.pushsection .altinstructions, "a"
-	.long 664b - .
-	.long 662b - .
-	.word 82
-	.byte 12
-	.byte 12
-	.popsection
+	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .long 0xb2e8d000", \
+		    "", 82
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
 	TSTMSK	\tif_ptr,\tif_mask
-	.pushsection .altinstr_replacement, "ax"
-662:	jnz	. + 8
-	.long	0xb2e8d000
-	.popsection
-664:	jz	. + 8
-	.long	0xb2e8c000
-	.pushsection .altinstructions, "a"
-	.long 664b - .
-	.long 662b - .
-	.word 82
-	.byte 8
-	.byte 8
-	.popsection
+	ALTERNATIVE "jz .+8;  .long 0xb2e8c000", \
+		    "jnz .+8; .long 0xb2e8d000", 82
 	.endm
 
 #ifdef CONFIG_EXPOLINE
@@ -323,10 +283,8 @@ ENTRY(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	0f
-	.insn	s,0xb2800000,__LC_LPP		# set program parameter
-0:	BR_R1USE_R14
+	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	BR_R1USE_R14
 
 .L__critical_start:
 
@@ -339,10 +297,10 @@ ENTRY(__switch_to)
 ENTRY(sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	lg	%r12,__LC_CURRENT
-	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
-	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
-	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # reason code = 0
-	mvc	__SF_EMPTY+24(8,%r15),__TI_flags(%r12) # copy thread flags
+	stg	%r2,__SF_SIE_CONTROL(%r15)	# save control block pointer
+	stg	%r3,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
+	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
+	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r12) # copy thread flags
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU		# load guest fp/vx registers ?
 	jno	.Lsie_load_guest_gprs
 	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
@@ -353,18 +311,18 @@ ENTRY(sie64a)
 	jz	.Lsie_gmap
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 .Lsie_gmap:
-	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
-	BPEXIT	__SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	BPEXIT	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_entry:
 	sie	0(%r14)
 .Lsie_exit:
 	BPOFF
-	BPENTER	__SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
@@ -383,7 +341,7 @@ ENTRY(sie64a)
 	nopr	7
 	.globl sie_exit
 sie_exit:
-	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
+	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	xgr	%r0,%r0				# clear guest registers to
 	xgr	%r1,%r1				# prevent speculative use
@@ -392,11 +350,11 @@ sie_exit:
 	xgr	%r4,%r4
 	xgr	%r5,%r5
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
-	lg	%r2,__SF_EMPTY+16(%r15)		# return exit reason code
+	lg	%r2,__SF_SIE_REASON(%r15)	# return exit reason code
 	BR_R1USE_R14
 .Lsie_fault:
 	lghi	%r14,-EFAULT
-	stg	%r14,__SF_EMPTY+16(%r15)	# set exit reason code
+	stg	%r14,__SF_SIE_REASON(%r15)	# set exit reason code
 	j	sie_exit
 
 	EX_TABLE(.Lrewind_pad6,.Lsie_fault)
@@ -685,7 +643,7 @@ ENTRY(pgm_check_handler)
 	slg	%r14,BASED(.Lsie_critical_start)
 	clg	%r14,BASED(.Lsie_critical_length)
 	jhe	0f
-	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
@@ -1285,10 +1243,8 @@ ENTRY(mcck_int_handler)
 # PSW restart interrupt handler
 #
 ENTRY(restart_int_handler)
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	0f
-	.insn	s,0xb2800000,__LC_LPP
-0:	stg	%r15,__LC_SAVE_AREA_RESTART
+	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	stg	%r15,__LC_SAVE_AREA_RESTART
 	lg	%r15,__LC_RESTART_STACK
 	aghi	%r15,-__PT_SIZE			# create pt_regs on stack
 	xc	0(__PT_SIZE,%r15),0(%r15)
@@ -1397,8 +1353,8 @@ cleanup_critical:
 	clg     %r9,BASED(.Lsie_crit_mcck_length)
 	jh      1f
 	oi      __LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-1:	BPENTER __SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
-	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
+1:	BPENTER __SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit

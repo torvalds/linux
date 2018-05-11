@@ -29,12 +29,6 @@ static int adau1977_i2c_probe(struct i2c_client *client,
 		id->driver_data, NULL);
 }
 
-static int adau1977_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
 static const struct i2c_device_id adau1977_i2c_ids[] = {
 	{ "adau1977", ADAU1977 },
 	{ "adau1978", ADAU1978 },
@@ -48,7 +42,6 @@ static struct i2c_driver adau1977_i2c_driver = {
 		.name = "adau1977",
 	},
 	.probe = adau1977_i2c_probe,
-	.remove = adau1977_i2c_remove,
 	.id_table = adau1977_i2c_ids,
 };
 module_i2c_driver(adau1977_i2c_driver);

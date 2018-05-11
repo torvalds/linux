@@ -552,7 +552,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		pbuf = round_up(pbuf_tail, 8);
 
 		pfirstframe->agg_num++;
-		if (MAX_TX_AGG_PACKET_NUMBER == pfirstframe->agg_num)
+		if (pfirstframe->agg_num ==  MAX_TX_AGG_PACKET_NUMBER)
 			break;
 
 		if (pbuf < bulkptr) {

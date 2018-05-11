@@ -161,7 +161,7 @@ static void lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 		fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
 
 	if (!tbl_id) {
-		dst = ip6_route_input_lookup(net, skb->dev, &fl6, flags);
+		dst = ip6_route_input_lookup(net, skb->dev, &fl6, skb, flags);
 	} else {
 		struct fib6_table *table;
 
@@ -169,7 +169,7 @@ static void lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 		if (!table)
 			goto out;
 
-		rt = ip6_pol_route(net, table, 0, &fl6, flags);
+		rt = ip6_pol_route(net, table, 0, &fl6, skb, flags);
 		dst = &rt->dst;
 	}
 

@@ -600,8 +600,8 @@ static int do_one_pass(journal_t *journal,
 						success = -EFSBADCRC;
 						printk(KERN_ERR "JBD2: Invalid "
 						       "checksum recovering "
-						       "block %llu in log\n",
-						       blocknr);
+						       "data block %llu in "
+						       "log\n", blocknr);
 						block_error = 1;
 						goto skip_write;
 					}

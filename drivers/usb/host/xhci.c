@@ -1290,7 +1290,8 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
 	int ret = 0;
-	unsigned int slot_id, ep_index, ep_state;
+	unsigned int slot_id, ep_index;
+	unsigned int *ep_state;
 	struct urb_priv	*urb_priv;
 	int num_tds;
 
@@ -1300,6 +1301,7 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 
 	slot_id = urb->dev->slot_id;
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
+	ep_state = &xhci->devs[slot_id]->eps[ep_index].ep_state;
 
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		if (!in_interrupt())
@@ -1351,6 +1353,17 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 		ret = -ESHUTDOWN;
 		goto free_priv;
 	}
+	if (*ep_state & (EP_GETTING_STREAMS | EP_GETTING_NO_STREAMS)) {
+		xhci_warn(xhci, "WARN: Can't enqueue URB, ep in streams transition state %x\n",
+			  *ep_state);
+		ret = -EINVAL;
+		goto free_priv;
+	}
+	if (*ep_state & EP_SOFT_CLEAR_TOGGLE) {
+		xhci_warn(xhci, "Can't enqueue URB while manually clearing toggle\n");
+		ret = -EINVAL;
+		goto free_priv;
+	}
 
 	switch (usb_endpoint_type(&urb->ep->desc)) {
 
@@ -1359,23 +1372,13 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 					 slot_id, ep_index);
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
-		if (ep_state & (EP_GETTING_STREAMS | EP_GETTING_NO_STREAMS)) {
-			xhci_warn(xhci, "WARN: Can't enqueue URB, ep in streams transition state %x\n",
-				  ep_state);
-			ret = -EINVAL;
-			break;
-		}
 		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
 					 slot_id, ep_index);
 		break;
-
-
 	case USB_ENDPOINT_XFER_INT:
 		ret = xhci_queue_intr_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 		break;
-
 	case USB_ENDPOINT_XFER_ISOC:
 		ret = xhci_queue_isoc_tx_prepare(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
@@ -2874,33 +2877,103 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int ep_index,
 	}
 }
 
-/* Called when clearing halted device. The core should have sent the control
- * message to clear the device halt condition. The host side of the halt should
- * already be cleared with a reset endpoint command issued when the STALL tx
- * event was received.
+/*
+ * Called after usb core issues a clear halt control message.
+ * The host side of the halt should already be cleared by a reset endpoint
+ * command issued when the STALL event was received.
  *
- * Context: in_interrupt
+ * The reset endpoint command may only be issued to endpoints in the halted
+ * state. For software that wishes to reset the data toggle or sequence number
+ * of an endpoint that isn't in the halted state this function will issue a
+ * configure endpoint command with the Drop and Add bits set for the target
+ * endpoint. Refer to the additional note in xhci spcification section 4.6.8.
  */
 
 static void xhci_endpoint_reset(struct usb_hcd *hcd,
-		struct usb_host_endpoint *ep)
+		struct usb_host_endpoint *host_ep)
 {
 	struct xhci_hcd *xhci;
+	struct usb_device *udev;
+	struct xhci_virt_device *vdev;
+	struct xhci_virt_ep *ep;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_command *stop_cmd, *cfg_cmd;
+	unsigned int ep_index;
+	unsigned long flags;
+	u32 ep_flag;
 
 	xhci = hcd_to_xhci(hcd);
+	if (!host_ep->hcpriv)
+		return;
+	udev = (struct usb_device *) host_ep->hcpriv;
+	vdev = xhci->devs[udev->slot_id];
+	ep_index = xhci_get_endpoint_index(&host_ep->desc);
+	ep = &vdev->eps[ep_index];
+
+	/* Bail out if toggle is already being cleared by a endpoint reset */
+	if (ep->ep_state & EP_HARD_CLEAR_TOGGLE) {
+		ep->ep_state &= ~EP_HARD_CLEAR_TOGGLE;
+		return;
+	}
+	/* Only interrupt and bulk ep's use data toggle, USB2 spec 5.5.4-> */
+	if (usb_endpoint_xfer_control(&host_ep->desc) ||
+	    usb_endpoint_xfer_isoc(&host_ep->desc))
+		return;
+
+	ep_flag = xhci_get_endpoint_flag(&host_ep->desc);
+
+	if (ep_flag == SLOT_FLAG || ep_flag == EP0_FLAG)
+		return;
+
+	stop_cmd = xhci_alloc_command(xhci, true, GFP_NOWAIT);
+	if (!stop_cmd)
+		return;
+
+	cfg_cmd = xhci_alloc_command_with_ctx(xhci, true, GFP_NOWAIT);
+	if (!cfg_cmd)
+		goto cleanup;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* block queuing new trbs and ringing ep doorbell */
+	ep->ep_state |= EP_SOFT_CLEAR_TOGGLE;
 
 	/*
-	 * We might need to implement the config ep cmd in xhci 4.8.1 note:
-	 * The Reset Endpoint Command may only be issued to endpoints in the
-	 * Halted state. If software wishes reset the Data Toggle or Sequence
-	 * Number of an endpoint that isn't in the Halted state, then software
-	 * may issue a Configure Endpoint Command with the Drop and Add bits set
-	 * for the target endpoint. that is in the Stopped state.
+	 * Make sure endpoint ring is empty before resetting the toggle/seq.
+	 * Driver is required to synchronously cancel all transfer request.
+	 * Stop the endpoint to force xHC to update the output context
 	 */
 
-	/* For now just print debug to follow the situation */
-	xhci_dbg(xhci, "Endpoint 0x%x ep reset callback called\n",
-		 ep->desc.bEndpointAddress);
+	if (!list_empty(&ep->ring->td_list)) {
+		dev_err(&udev->dev, "EP not empty, refuse reset\n");
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		goto cleanup;
+	}
+	xhci_queue_stop_endpoint(xhci, stop_cmd, udev->slot_id, ep_index, 0);
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	wait_for_completion(stop_cmd->completion);
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* config ep command clears toggle if add and drop ep flags are set */
+	ctrl_ctx = xhci_get_input_control_ctx(cfg_cmd->in_ctx);
+	xhci_setup_input_ctx_for_config_ep(xhci, cfg_cmd->in_ctx, vdev->out_ctx,
+					   ctrl_ctx, ep_flag, ep_flag);
+	xhci_endpoint_copy(xhci, cfg_cmd->in_ctx, vdev->out_ctx, ep_index);
+
+	xhci_queue_configure_endpoint(xhci, cfg_cmd, cfg_cmd->in_ctx->dma,
+				      udev->slot_id, false);
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	wait_for_completion(cfg_cmd->completion);
+
+	ep->ep_state &= ~EP_SOFT_CLEAR_TOGGLE;
+	xhci_free_command(xhci, cfg_cmd);
+cleanup:
+	xhci_free_command(xhci, stop_cmd);
 }
 
 static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
@@ -4768,6 +4841,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	 * quirks
 	 */
 	struct device		*dev = hcd->self.sysdev;
+	unsigned int		minor_rev;
 	int			retval;
 
 	/* Accept arbitrarily long scatter-gather lists */
@@ -4795,12 +4869,19 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		 */
 		hcd->has_tt = 1;
 	} else {
-		/* Some 3.1 hosts return sbrn 0x30, can't rely on sbrn alone */
-		if (xhci->sbrn == 0x31 || xhci->usb3_rhub.min_rev >= 1) {
-			xhci_info(xhci, "Host supports USB 3.1 Enhanced SuperSpeed\n");
+		/*
+		 * Some 3.1 hosts return sbrn 0x30, use xhci supported protocol
+		 * minor revision instead of sbrn
+		 */
+		minor_rev = xhci->usb3_rhub.min_rev;
+		if (minor_rev) {
 			hcd->speed = HCD_USB31;
 			hcd->self.root_hub->speed = USB_SPEED_SUPER_PLUS;
 		}
+		xhci_info(xhci, "Host supports USB 3.%x %s SuperSpeed\n",
+			  minor_rev,
+			  minor_rev ? "Enhanced" : "");
+
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */

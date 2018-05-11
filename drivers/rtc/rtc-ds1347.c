@@ -66,7 +66,7 @@ static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_wday = bcd2bin(buf[5]) - 1;
 	dt->tm_year = bcd2bin(buf[6]) + 100;
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1347_set_time(struct device *dev, struct rtc_time *dt)

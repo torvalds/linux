@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_I__
-#define __BTRFS_I__
+#ifndef BTRFS_INODE_H
+#define BTRFS_INODE_H
 
 #include <linux/hash.h>
 #include "extent_map.h"
@@ -195,7 +182,6 @@ struct btrfs_inode {
 
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;
-	long delayed_iput_count;
 
 	/*
 	 * To avoid races between lockless (i_mutex not held) direct IO writes
@@ -364,7 +350,5 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
 			root->objectid, btrfs_ino(inode),
 			logical_start, csum, csum_expected, mirror_num);
 }
-
-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
 
 #endif

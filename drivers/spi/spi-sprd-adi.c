@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0
  */
 
+#include <linux/delay.h>
 #include <linux/hwspinlock.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -12,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/spi/spi.h>
 #include <linux/sizes.h>
 
@@ -67,6 +69,40 @@
 #define ADI_READ_TIMEOUT		2000
 #define REG_ADDR_LOW_MASK		GENMASK(11, 0)
 
+/* Registers definitions for PMIC watchdog controller */
+#define REG_WDG_LOAD_LOW		0x80
+#define REG_WDG_LOAD_HIGH		0x84
+#define REG_WDG_CTRL			0x88
+#define REG_WDG_LOCK			0xa0
+
+/* Bits definitions for register REG_WDG_CTRL */
+#define BIT_WDG_RUN			BIT(1)
+#define BIT_WDG_RST			BIT(3)
+
+/* Registers definitions for PMIC */
+#define PMIC_RST_STATUS			0xee8
+#define PMIC_MODULE_EN			0xc08
+#define PMIC_CLK_EN			0xc18
+#define BIT_WDG_EN			BIT(2)
+
+/* Definition of PMIC reset status register */
+#define HWRST_STATUS_RECOVERY		0x20
+#define HWRST_STATUS_NORMAL		0x40
+#define HWRST_STATUS_ALARM		0x50
+#define HWRST_STATUS_SLEEP		0x60
+#define HWRST_STATUS_FASTBOOT		0x30
+#define HWRST_STATUS_SPECIAL		0x70
+#define HWRST_STATUS_PANIC		0x80
+#define HWRST_STATUS_CFTREBOOT		0x90
+#define HWRST_STATUS_AUTODLOADER	0xa0
+#define HWRST_STATUS_IQMODE		0xb0
+#define HWRST_STATUS_SPRDISK		0xc0
+
+/* Use default timeout 50 ms that converts to watchdog values */
+#define WDG_LOAD_VAL			((50 * 1000) / 32768)
+#define WDG_LOAD_MASK			GENMASK(15, 0)
+#define WDG_UNLOCK_KEY			0xe551
+
 struct sprd_adi {
 	struct spi_controller	*ctlr;
 	struct device		*dev;
@@ -74,6 +110,7 @@ struct sprd_adi {
 	struct hwspinlock	*hwlock;
 	unsigned long		slave_vbase;
 	unsigned long		slave_pbase;
+	struct notifier_block	restart_handler;
 };
 
 static int sprd_adi_check_paddr(struct sprd_adi *sadi, u32 paddr)
@@ -123,7 +160,17 @@ static int sprd_adi_fifo_is_full(struct sprd_adi *sadi)
 static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 {
 	int read_timeout = ADI_READ_TIMEOUT;
+	unsigned long flags;
 	u32 val, rd_addr;
+	int ret;
+
+	ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
+					  ADI_HWSPINLOCK_TIMEOUT,
+					  &flags);
+	if (ret) {
+		dev_err(sadi->dev, "get the hw lock failed\n");
+		return ret;
+	}
 
 	/*
 	 * Set the physical register address need to read into RD_CMD register,
@@ -147,7 +194,8 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 
 	if (read_timeout == 0) {
 		dev_err(sadi->dev, "ADI read timeout\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	/*
@@ -161,21 +209,35 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 	if (rd_addr != (reg_paddr & REG_ADDR_LOW_MASK)) {
 		dev_err(sadi->dev, "read error, reg addr = 0x%x, val = 0x%x\n",
 			reg_paddr, val);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	*read_val = val & RD_VALUE_MASK;
-	return 0;
+
+out:
+	hwspin_unlock_irqrestore(sadi->hwlock, &flags);
+	return ret;
 }
 
-static int sprd_adi_write(struct sprd_adi *sadi, unsigned long reg, u32 val)
+static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
 {
+	unsigned long reg = sprd_adi_to_vaddr(sadi, reg_paddr);
 	u32 timeout = ADI_FIFO_DRAIN_TIMEOUT;
+	unsigned long flags;
 	int ret;
+
+	ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
+					  ADI_HWSPINLOCK_TIMEOUT,
+					  &flags);
+	if (ret) {
+		dev_err(sadi->dev, "get the hw lock failed\n");
+		return ret;
+	}
 
 	ret = sprd_adi_drain_fifo(sadi);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/*
 	 * we should wait for write fifo is empty before writing data to PMIC
@@ -192,10 +254,12 @@ static int sprd_adi_write(struct sprd_adi *sadi, unsigned long reg, u32 val)
 
 	if (timeout == 0) {
 		dev_err(sadi->dev, "write fifo is full\n");
-		return -EBUSY;
+		ret = -EBUSY;
 	}
 
-	return 0;
+out:
+	hwspin_unlock_irqrestore(sadi->hwlock, &flags);
+	return ret;
 }
 
 static int sprd_adi_transfer_one(struct spi_controller *ctlr,
@@ -203,7 +267,6 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 				 struct spi_transfer *t)
 {
 	struct sprd_adi *sadi = spi_controller_get_devdata(ctlr);
-	unsigned long flags, virt_reg;
 	u32 phy_reg, val;
 	int ret;
 
@@ -214,16 +277,7 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 		if (ret)
 			return ret;
 
-		ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
-						  ADI_HWSPINLOCK_TIMEOUT,
-						  &flags);
-		if (ret) {
-			dev_err(sadi->dev, "get the hw lock failed\n");
-			return ret;
-		}
-
 		ret = sprd_adi_read(sadi, phy_reg, &val);
-		hwspin_unlock_irqrestore(sadi->hwlock, &flags);
 		if (ret)
 			return ret;
 
@@ -241,19 +295,8 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 		if (ret)
 			return ret;
 
-		virt_reg = sprd_adi_to_vaddr(sadi, phy_reg);
 		val = *p;
-
-		ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
-						  ADI_HWSPINLOCK_TIMEOUT,
-						  &flags);
-		if (ret) {
-			dev_err(sadi->dev, "get the hw lock failed\n");
-			return ret;
-		}
-
-		ret = sprd_adi_write(sadi, virt_reg, val);
-		hwspin_unlock_irqrestore(sadi->hwlock, &flags);
+		ret = sprd_adi_write(sadi, phy_reg, val);
 		if (ret)
 			return ret;
 	} else {
@@ -262,6 +305,72 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 	}
 
 	return 0;
+}
+
+static int sprd_adi_restart_handler(struct notifier_block *this,
+				    unsigned long mode, void *cmd)
+{
+	struct sprd_adi *sadi = container_of(this, struct sprd_adi,
+					     restart_handler);
+	u32 val, reboot_mode = 0;
+
+	if (!cmd)
+		reboot_mode = HWRST_STATUS_NORMAL;
+	else if (!strncmp(cmd, "recovery", 8))
+		reboot_mode = HWRST_STATUS_RECOVERY;
+	else if (!strncmp(cmd, "alarm", 5))
+		reboot_mode = HWRST_STATUS_ALARM;
+	else if (!strncmp(cmd, "fastsleep", 9))
+		reboot_mode = HWRST_STATUS_SLEEP;
+	else if (!strncmp(cmd, "bootloader", 10))
+		reboot_mode = HWRST_STATUS_FASTBOOT;
+	else if (!strncmp(cmd, "panic", 5))
+		reboot_mode = HWRST_STATUS_PANIC;
+	else if (!strncmp(cmd, "special", 7))
+		reboot_mode = HWRST_STATUS_SPECIAL;
+	else if (!strncmp(cmd, "cftreboot", 9))
+		reboot_mode = HWRST_STATUS_CFTREBOOT;
+	else if (!strncmp(cmd, "autodloader", 11))
+		reboot_mode = HWRST_STATUS_AUTODLOADER;
+	else if (!strncmp(cmd, "iqmode", 6))
+		reboot_mode = HWRST_STATUS_IQMODE;
+	else if (!strncmp(cmd, "sprdisk", 7))
+		reboot_mode = HWRST_STATUS_SPRDISK;
+	else
+		reboot_mode = HWRST_STATUS_NORMAL;
+
+	/* Record the reboot mode */
+	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_RST_STATUS, &val);
+	val |= reboot_mode;
+	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_RST_STATUS, val);
+
+	/* Enable the interface clock of the watchdog */
+	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_MODULE_EN, &val);
+	val |= BIT_WDG_EN;
+	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_MODULE_EN, val);
+
+	/* Enable the work clock of the watchdog */
+	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_CLK_EN, &val);
+	val |= BIT_WDG_EN;
+	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_CLK_EN, val);
+
+	/* Unlock the watchdog */
+	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOCK, WDG_UNLOCK_KEY);
+
+	/* Load the watchdog timeout value, 50ms is always enough. */
+	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_LOW,
+		       WDG_LOAD_VAL & WDG_LOAD_MASK);
+	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
+
+	/* Start the watchdog to reset system */
+	sprd_adi_read(sadi, sadi->slave_pbase + REG_WDG_CTRL, &val);
+	val |= BIT_WDG_RUN | BIT_WDG_RST;
+	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
+
+	mdelay(1000);
+
+	dev_emerg(sadi->dev, "Unable to restart system\n");
+	return NOTIFY_DONE;
 }
 
 static void sprd_adi_hw_init(struct sprd_adi *sadi)
@@ -377,6 +486,14 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		goto free_hwlock;
 	}
 
+	sadi->restart_handler.notifier_call = sprd_adi_restart_handler;
+	sadi->restart_handler.priority = 128;
+	ret = register_restart_handler(&sadi->restart_handler);
+	if (ret) {
+		dev_err(&pdev->dev, "can not register restart handler\n");
+		goto free_hwlock;
+	}
+
 	return 0;
 
 free_hwlock:
@@ -391,6 +508,7 @@ static int sprd_adi_remove(struct platform_device *pdev)
 	struct spi_controller *ctlr = dev_get_drvdata(&pdev->dev);
 	struct sprd_adi *sadi = spi_controller_get_devdata(ctlr);
 
+	unregister_restart_handler(&sadi->restart_handler);
 	hwspin_lock_free(sadi->hwlock);
 	return 0;
 }

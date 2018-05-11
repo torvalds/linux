@@ -587,7 +587,8 @@
 			device_type = "mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x0 0x2d24000 0x0 0x4000>;
+			reg = <0x0 0x2d24000 0x0 0x4000>,
+			      <0x0 0x2d10030 0x0 0x4>;
 		};
 
 		ptp_clock@2d10e00 {
@@ -787,6 +788,22 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "ipg", "per";
 			big-endian;
+		};
+
+		ocram1: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x10000000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x10000000 0x10000>;
+		};
+
+		ocram2: sram@10010000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x10010000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x10010000 0x10000>;
 		};
 	};
 };

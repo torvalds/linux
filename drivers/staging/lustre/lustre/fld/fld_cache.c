@@ -263,7 +263,7 @@ static void fld_cache_punch_hole(struct fld_cache *cache,
 	fldt = kzalloc(sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
 		kfree(f_new);
-		/* overlap is not allowed, so dont mess up list. */
+		/* overlap is not allowed, so don't mess up list. */
 		return;
 	}
 	/*  break f_curr RANGE into three RANGES:

@@ -1094,7 +1094,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	struct command_iu *cmd_iu = cmdbuf;
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg = fu->tpg;
-	struct tcm_usbg_nexus *tv_nexus = tpg->tpg_nexus;
+	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 	u16 scsi_tag;
 

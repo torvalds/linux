@@ -132,3 +132,10 @@ KernelVersion:	4.16
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Monitor bit associated with channel
 Users:		Debugging tools and userspace drivers
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/ring
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Binary file created by uio_hv_generic for ring buffer
+Users:		Userspace drivers

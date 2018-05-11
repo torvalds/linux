@@ -321,6 +321,8 @@
 #define MT_TX_PWR_CFG_2			0x131c
 #define MT_TX_PWR_CFG_3			0x1320
 #define MT_TX_PWR_CFG_4			0x1324
+#define MT_TX_PIN_CFG			0x1328
+#define MT_TX_PIN_CFG_TXANT		GENMASK(3, 0)
 
 #define MT_TX_BAND_CFG			0x132c
 #define MT_TX_BAND_CFG_UPPER_40M	BIT(0)

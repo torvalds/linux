@@ -169,6 +169,8 @@ static u8 dpcd_fix_data[DPCD_HEADER_SIZE] = {
 static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	int pipe;
+
 	vgpu_vreg_t(vgpu, SDEISR) &= ~(SDE_PORTB_HOTPLUG_CPT |
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT);
@@ -266,6 +268,14 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	/* Clear host CRT status, so guest couldn't detect this host CRT. */
 	if (IS_BROADWELL(dev_priv))
 		vgpu_vreg_t(vgpu, PCH_ADPA) &= ~ADPA_CRT_HOTPLUG_MONITOR_MASK;
+
+	/* Disable Primary/Sprite/Cursor plane */
+	for_each_pipe(dev_priv, pipe) {
+		vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISPLAY_PLANE_ENABLE;
+		vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~CURSOR_MODE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= CURSOR_MODE_DISABLE;
+	}
 
 	vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
 }

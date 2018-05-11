@@ -302,16 +302,14 @@ rebuild_sys_tab:
 }
 
 
-/*
- * scsi_unregister will be called AFTER we return.
- */
-static int adpt_release(struct Scsi_Host *host)
+static void adpt_release(adpt_hba *pHba)
 {
-	adpt_hba* pHba = (adpt_hba*) host->hostdata[0];
+	struct Scsi_Host *shost = pHba->host;
+
+	scsi_remove_host(shost);
 //	adpt_i2o_quiesce_hba(pHba);
 	adpt_i2o_delete_hba(pHba);
-	scsi_unregister(host);
-	return 0;
+	scsi_host_put(shost);
 }
 
 
@@ -801,14 +799,17 @@ static int __adpt_reset(struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	int rcode;
+	char name[32];
+
 	pHba = (adpt_hba*)cmd->device->host->hostdata[0];
-	printk(KERN_WARNING"%s: Hba Reset: scsi id %d: tid: %d\n",pHba->name,cmd->device->channel,pHba->channel[cmd->device->channel].tid );
+	strncpy(name, pHba->name, sizeof(name));
+	printk(KERN_WARNING"%s: Hba Reset: scsi id %d: tid: %d\n", name, cmd->device->channel, pHba->channel[cmd->device->channel].tid);
 	rcode =  adpt_hba_reset(pHba);
 	if(rcode == 0){
-		printk(KERN_WARNING"%s: HBA reset complete\n",pHba->name);
+		printk(KERN_WARNING"%s: HBA reset complete\n", name);
 		return SUCCESS;
 	} else {
-		printk(KERN_WARNING"%s: HBA reset failed (%x)\n",pHba->name, rcode);
+		printk(KERN_WARNING"%s: HBA reset failed (%x)\n", name, rcode);
 		return FAILED;
 	}
 }
@@ -1087,8 +1088,6 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 
 
 	mutex_lock(&adpt_configuration_lock);
-	// scsi_unregister calls our adpt_release which
-	// does a quiese
 	if(pHba->host){
 		free_irq(pHba->host->irq, pHba);
 	}
@@ -2052,13 +2051,16 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd, ulong ar
 		}
 		break;
 		}
-	case I2ORESETCMD:
-		if(pHba->host)
-			spin_lock_irqsave(pHba->host->host_lock, flags);
+	case I2ORESETCMD: {
+		struct Scsi_Host *shost = pHba->host;
+
+		if (shost)
+			spin_lock_irqsave(shost->host_lock, flags);
 		adpt_hba_reset(pHba);
-		if(pHba->host)
-			spin_unlock_irqrestore(pHba->host->host_lock, flags);
+		if (shost)
+			spin_unlock_irqrestore(shost->host_lock, flags);
 		break;
+	}
 	case I2ORESCANCMD:
 		adpt_rescan(pHba);
 		break;
@@ -3524,7 +3526,7 @@ static int adpt_i2o_systab_send(adpt_hba* pHba)
 #endif
 
 	return ret;	
- }
+}
 
 
 /*============================================================================
@@ -3595,11 +3597,9 @@ static void __exit adpt_exit(void)
 {
 	adpt_hba	*pHba, *next;
 
-	for (pHba = hba_chain; pHba; pHba = pHba->next)
-		scsi_remove_host(pHba->host);
 	for (pHba = hba_chain; pHba; pHba = next) {
 		next = pHba->next;
-		adpt_release(pHba->host);
+		adpt_release(pHba);
 	}
 }
 

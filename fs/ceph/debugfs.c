@@ -260,7 +260,7 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 		goto out;
 
 	fsc->debugfs_mdsmap = debugfs_create_file("mdsmap",
-					0600,
+					0400,
 					fsc->client->debugfs_dir,
 					fsc,
 					&mdsmap_show_fops);
@@ -268,7 +268,7 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 		goto out;
 
 	fsc->debugfs_mds_sessions = debugfs_create_file("mds_sessions",
-					0600,
+					0400,
 					fsc->client->debugfs_dir,
 					fsc,
 					&mds_sessions_show_fops);
@@ -276,7 +276,7 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 		goto out;
 
 	fsc->debugfs_mdsc = debugfs_create_file("mdsc",
-						0600,
+						0400,
 						fsc->client->debugfs_dir,
 						fsc,
 						&mdsc_show_fops);
@@ -292,7 +292,7 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 		goto out;
 
 	fsc->debugfs_dentry_lru = debugfs_create_file("dentry_lru",
-					0600,
+					0400,
 					fsc->client->debugfs_dir,
 					fsc,
 					&dentry_lru_show_fops);

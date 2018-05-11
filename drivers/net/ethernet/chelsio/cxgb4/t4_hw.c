@@ -484,6 +484,117 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
 }
 
 /**
+ * t4_memory_rw_init - Get memory window relative offset, base, and size.
+ * @adap: the adapter
+ * @win: PCI-E Memory Window to use
+ * @mtype: memory type: MEM_EDC0, MEM_EDC1, MEM_HMA or MEM_MC
+ * @mem_off: memory relative offset with respect to @mtype.
+ * @mem_base: configured memory base address.
+ * @mem_aperture: configured memory window aperture.
+ *
+ * Get the configured memory window's relative offset, base, and size.
+ */
+int t4_memory_rw_init(struct adapter *adap, int win, int mtype, u32 *mem_off,
+		      u32 *mem_base, u32 *mem_aperture)
+{
+	u32 edc_size, mc_size, mem_reg;
+
+	/* Offset into the region of memory which is being accessed
+	 * MEM_EDC0 = 0
+	 * MEM_EDC1 = 1
+	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
+	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
+	 * MEM_HMA  = 4
+	 */
+	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
+	if (mtype == MEM_HMA) {
+		*mem_off = 2 * (edc_size * 1024 * 1024);
+	} else if (mtype != MEM_MC1) {
+		*mem_off = (mtype * (edc_size * 1024 * 1024));
+	} else {
+		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
+						      MA_EXT_MEMORY0_BAR_A));
+		*mem_off = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
+	}
+
+	/* Each PCI-E Memory Window is programmed with a window size -- or
+	 * "aperture" -- which controls the granularity of its mapping onto
+	 * adapter memory.  We need to grab that aperture in order to know
+	 * how to use the specified window.  The window is also programmed
+	 * with the base address of the Memory Window in BAR0's address
+	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
+	 * the address is relative to BAR0.
+	 */
+	mem_reg = t4_read_reg(adap,
+			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A,
+						  win));
+	/* a dead adapter will return 0xffffffff for PIO reads */
+	if (mem_reg == 0xffffffff)
+		return -ENXIO;
+
+	*mem_aperture = 1 << (WINDOW_G(mem_reg) + WINDOW_SHIFT_X);
+	*mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
+	if (is_t4(adap->params.chip))
+		*mem_base -= adap->t4_bar0;
+
+	return 0;
+}
+
+/**
+ * t4_memory_update_win - Move memory window to specified address.
+ * @adap: the adapter
+ * @win: PCI-E Memory Window to use
+ * @addr: location to move.
+ *
+ * Move memory window to specified address.
+ */
+void t4_memory_update_win(struct adapter *adap, int win, u32 addr)
+{
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win),
+		     addr);
+	/* Read it back to ensure that changes propagate before we
+	 * attempt to use the new value.
+	 */
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
+}
+
+/**
+ * t4_memory_rw_residual - Read/Write residual data.
+ * @adap: the adapter
+ * @off: relative offset within residual to start read/write.
+ * @addr: address within indicated memory type.
+ * @buf: host memory buffer
+ * @dir: direction of transfer T4_MEMORY_READ (1) or T4_MEMORY_WRITE (0)
+ *
+ * Read/Write residual data less than 32-bits.
+ */
+void t4_memory_rw_residual(struct adapter *adap, u32 off, u32 addr, u8 *buf,
+			   int dir)
+{
+	union {
+		u32 word;
+		char byte[4];
+	} last;
+	unsigned char *bp;
+	int i;
+
+	if (dir == T4_MEMORY_READ) {
+		last.word = le32_to_cpu((__force __le32)
+					t4_read_reg(adap, addr));
+		for (bp = (unsigned char *)buf, i = off; i < 4; i++)
+			bp[i] = last.byte[i];
+	} else {
+		last.word = *buf;
+		for (i = off; i < 4; i++)
+			last.byte[i] = 0;
+		t4_write_reg(adap, addr,
+			     (__force u32)cpu_to_le32(last.word));
+	}
+}
+
+/**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
  *	@win: PCI-E Memory Window to use
@@ -504,8 +615,9 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		 u32 len, void *hbuf, int dir)
 {
 	u32 pos, offset, resid, memoffset;
-	u32 edc_size, mc_size, win_pf, mem_reg, mem_aperture, mem_base;
+	u32 win_pf, mem_aperture, mem_base;
 	u32 *buf;
+	int ret;
 
 	/* Argument sanity checks ...
 	 */
@@ -521,59 +633,26 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	resid = len & 0x3;
 	len -= resid;
 
-	/* Offset into the region of memory which is being accessed
-	 * MEM_EDC0 = 0
-	 * MEM_EDC1 = 1
-	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
-	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
-	 * MEM_HMA  = 4
-	 */
-	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
-	if (mtype == MEM_HMA) {
-		memoffset = 2 * (edc_size * 1024 * 1024);
-	} else if (mtype != MEM_MC1) {
-		memoffset = (mtype * (edc_size * 1024 * 1024));
-	} else {
-		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
-						      MA_EXT_MEMORY0_BAR_A));
-		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
-	}
+	ret = t4_memory_rw_init(adap, win, mtype, &memoffset, &mem_base,
+				&mem_aperture);
+	if (ret)
+		return ret;
 
 	/* Determine the PCIE_MEM_ACCESS_OFFSET */
 	addr = addr + memoffset;
 
-	/* Each PCI-E Memory Window is programmed with a window size -- or
-	 * "aperture" -- which controls the granularity of its mapping onto
-	 * adapter memory.  We need to grab that aperture in order to know
-	 * how to use the specified window.  The window is also programmed
-	 * with the base address of the Memory Window in BAR0's address
-	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
-	 * the address is relative to BAR0.
-	 */
-	mem_reg = t4_read_reg(adap,
-			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A,
-						  win));
-	mem_aperture = 1 << (WINDOW_G(mem_reg) + WINDOW_SHIFT_X);
-	mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
-	if (is_t4(adap->params.chip))
-		mem_base -= adap->t4_bar0;
 	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->pf);
 
 	/* Calculate our initial PCI-E Memory Window Position and Offset into
 	 * that Window.
 	 */
-	pos = addr & ~(mem_aperture-1);
+	pos = addr & ~(mem_aperture - 1);
 	offset = addr - pos;
 
 	/* Set up initial PCI-E Memory Window to cover the start of our
-	 * transfer.  (Read it back to ensure that changes propagate before we
-	 * attempt to use the new value.)
+	 * transfer.
 	 */
-	t4_write_reg(adap,
-		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win),
-		     pos | win_pf);
-	t4_read_reg(adap,
-		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
+	t4_memory_update_win(adap, win, pos | win_pf);
 
 	/* Transfer data to/from the adapter as long as there's an integral
 	 * number of 32-bit transfers to complete.
@@ -628,12 +707,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		if (offset == mem_aperture) {
 			pos += mem_aperture;
 			offset = 0;
-			t4_write_reg(adap,
-				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
-						    win), pos | win_pf);
-			t4_read_reg(adap,
-				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
-						    win));
+			t4_memory_update_win(adap, win, pos | win_pf);
 		}
 	}
 
@@ -642,28 +716,9 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 * residual amount.  The PCI-E Memory Window has already been moved
 	 * above (if necessary) to cover this final transfer.
 	 */
-	if (resid) {
-		union {
-			u32 word;
-			char byte[4];
-		} last;
-		unsigned char *bp;
-		int i;
-
-		if (dir == T4_MEMORY_READ) {
-			last.word = le32_to_cpu(
-					(__force __le32)t4_read_reg(adap,
-						mem_base + offset));
-			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
-				bp[i] = last.byte[i];
-		} else {
-			last.word = *buf;
-			for (i = resid; i < 4; i++)
-				last.byte[i] = 0;
-			t4_write_reg(adap, mem_base + offset,
-				     (__force u32)cpu_to_le32(last.word));
-		}
-	}
+	if (resid)
+		t4_memory_rw_residual(adap, resid, mem_base + offset,
+				      (u8 *)buf, dir);
 
 	return 0;
 }
@@ -4011,8 +4066,6 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
 	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
 
-	lc->link_ok = 0;
-
 	/* Convert driver coding of Pause Frame Flow Control settings into the
 	 * Firmware's API.
 	 */
@@ -6036,6 +6089,7 @@ unsigned int t4_get_tp_ch_map(struct adapter *adap, int pidx)
 
 	case CHELSIO_T6:
 		switch (nports) {
+		case 1:
 		case 2: return 1 << pidx;
 		}
 		break;
@@ -8545,6 +8599,25 @@ static int t4_get_flash_params(struct adapter *adap)
 
 		default:
 			dev_err(adap->pdev_dev, "Micron Flash Part has bad size, ID = %#x, Density code = %#x\n",
+				flashid, density);
+			return -EINVAL;
+		}
+		break;
+	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+			break;
+		default:
+			dev_err(adap->pdev_dev, "ISSI Flash Part has bad size, ID = %#x, Density code = %#x\n",
 				flashid, density);
 			return -EINVAL;
 		}

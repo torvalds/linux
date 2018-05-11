@@ -52,9 +52,9 @@ static int do_synth_init(struct spk_synth *in_synth);
  * For devices that have a "full" notification mechanism, the driver can
  * adapt the loop the way they prefer.
  */
-void spk_do_catch_up(struct spk_synth *synth)
+static void _spk_do_catch_up(struct spk_synth *synth, int unicode)
 {
-	u_char ch;
+	u16 ch;
 	unsigned long flags;
 	unsigned long jiff_max;
 	struct var_t *delay_time;
@@ -63,6 +63,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 	int jiffy_delta_val;
 	int delay_time_val;
 	int full_time_val;
+	int ret;
 
 	jiffy_delta = spk_get_var(JIFFY);
 	full_time = spk_get_var(FULL);
@@ -81,7 +82,8 @@ void spk_do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		if (!unicode)
+			synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -92,7 +94,11 @@ void spk_do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = synth->procspeech;
-		if (!synth->io_ops->synth_out(synth, ch)) {
+		if (unicode)
+			ret = synth->io_ops->synth_out_unicode(synth, ch);
+		else
+			ret = synth->io_ops->synth_out(synth, ch);
+		if (!ret) {
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
@@ -117,7 +123,18 @@ void spk_do_catch_up(struct spk_synth *synth)
 	}
 	synth->io_ops->synth_out(synth, synth->procspeech);
 }
+
+void spk_do_catch_up(struct spk_synth *synth)
+{
+	_spk_do_catch_up(synth, 0);
+}
 EXPORT_SYMBOL_GPL(spk_do_catch_up);
+
+void spk_do_catch_up_unicode(struct spk_synth *synth)
+{
+	_spk_do_catch_up(synth, 1);
+}
+EXPORT_SYMBOL_GPL(spk_do_catch_up_unicode);
 
 void spk_synth_flush(struct spk_synth *synth)
 {

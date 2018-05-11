@@ -828,16 +828,16 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 
 	get_symbol_props_str(r, sym, P_SELECT, _("  Selects: "));
 	if (sym->rev_dep.expr) {
-		str_append(r, _("  Selected by: "));
-		expr_gstr_print_revdep(sym->rev_dep.expr, r);
-		str_append(r, "\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, yes, "  Selected by [y]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, mod, "  Selected by [m]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, no, "  Selected by [n]:\n");
 	}
 
 	get_symbol_props_str(r, sym, P_IMPLY, _("  Implies: "));
 	if (sym->implied.expr) {
-		str_append(r, _("  Implied by: "));
-		expr_gstr_print_revdep(sym->implied.expr, r);
-		str_append(r, "\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, yes, "  Implied by [y]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, mod, "  Implied by [m]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, no, "  Implied by [n]:\n");
 	}
 
 	str_append(r, "\n\n");

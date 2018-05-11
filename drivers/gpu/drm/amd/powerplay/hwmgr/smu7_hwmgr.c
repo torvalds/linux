@@ -3374,7 +3374,8 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
 			"Failed to start pm status log!",
 			return -1);
 
-	msleep_interruptible(20);
+	/* Sampling period from 50ms to 4sec */
+	msleep_interruptible(200);
 
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PmStatusLogSample),
@@ -4742,23 +4743,27 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 
 	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			break;
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
 		}
 	}
-	if (i == dep_table->count)
+	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
 		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+	}
 
 	dep_table = table_info->vdd_dep_on_sclk;
 	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
 	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			break;
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
 		}
 	}
-	if (i == dep_table->count)
+	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
 		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+	}
 }
 
 static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,

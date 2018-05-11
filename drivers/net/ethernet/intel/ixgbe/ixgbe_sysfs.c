@@ -146,7 +146,7 @@ static int ixgbe_add_hwmon_attr(struct ixgbe_adapter *adapter,
 		&adapter->hw.mac.thermal_sensor_data.sensor[offset];
 	ixgbe_attr->hw = &adapter->hw;
 	ixgbe_attr->dev_attr.store = NULL;
-	ixgbe_attr->dev_attr.attr.mode = S_IRUGO;
+	ixgbe_attr->dev_attr.attr.mode = 0444;
 	ixgbe_attr->dev_attr.attr.name = ixgbe_attr->name;
 	sysfs_attr_init(&ixgbe_attr->dev_attr.attr);
 

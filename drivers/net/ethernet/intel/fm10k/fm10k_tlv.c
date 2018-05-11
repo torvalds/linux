@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2018 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -120,6 +121,7 @@ static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
  *  @msg: Pointer to message block
  *  @attr_id: Attribute ID
  *  @mac_addr: MAC address to be stored
+ *  @vlan: VLAN to be stored
  *
  *  This function will reorder a MAC address to be CPU endian and store it
  *  in the attribute buffer.  It will return success if provided with a
@@ -155,8 +157,8 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
 /**
  *  fm10k_tlv_attr_get_mac_vlan - Get MAC/VLAN stored in attribute
  *  @attr: Pointer to attribute
- *  @attr_id: Attribute ID
  *  @mac_addr: location of buffer to store MAC address
+ *  @vlan: location of buffer to store VLAN
  *
  *  This function pulls the MAC address back out of the attribute and will
  *  place it in the array pointed by by mac_addr.  It will return success
@@ -549,7 +551,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
  *  @hw: Pointer to hardware structure
  *  @msg: Pointer to message
  *  @mbx: Pointer to mailbox information structure
- *  @func: Function array containing list of message handling functions
+ *  @data: Pointer to message handler data structure
  *
  *  This function should be the first function called upon receiving a
  *  message.  The handler will identify the message type and call the correct

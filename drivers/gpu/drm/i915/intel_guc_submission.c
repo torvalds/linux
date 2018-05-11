@@ -231,8 +231,8 @@ static int create_doorbell(struct intel_guc_client *client)
 	if (ret) {
 		__destroy_doorbell(client);
 		__update_doorbell_desc(client, GUC_DOORBELL_INVALID);
-		DRM_ERROR("Couldn't create client %u doorbell: %d\n",
-			  client->stage_id, ret);
+		DRM_DEBUG_DRIVER("Couldn't create client %u doorbell: %d\n",
+				 client->stage_id, ret);
 		return ret;
 	}
 
@@ -386,8 +386,8 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		lrc->ring_lrca =
-			guc_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
+		lrc->ring_lrca = intel_guc_ggtt_offset(guc, ce->state) +
+				 LRC_STATE_PN * PAGE_SIZE;
 
 		/* XXX: In direct submission, the GuC wants the HW context id
 		 * here. In proxy submission, it wants the stage id
@@ -395,7 +395,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 		lrc->context_id = (client->stage_id << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
-		lrc->ring_begin = guc_ggtt_offset(ce->ring->vma);
+		lrc->ring_begin = intel_guc_ggtt_offset(guc, ce->ring->vma);
 		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
@@ -411,7 +411,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	 * The doorbell, process descriptor, and workqueue are all parts
 	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	gfx_addr = guc_ggtt_offset(client->vma);
+	gfx_addr = intel_guc_ggtt_offset(guc, client->vma);
 	desc->db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
 	desc->db_trigger_cpu = ptr_to_u64(__get_doorbell(client));
@@ -584,7 +584,7 @@ static void inject_preempt_context(struct work_struct *work)
 	data[3] = engine->guc_id;
 	data[4] = guc->execbuf_client->priority;
 	data[5] = guc->execbuf_client->stage_id;
-	data[6] = guc_ggtt_offset(guc->shared_data);
+	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
 
 	if (WARN_ON(intel_guc_send(guc, data, ARRAY_SIZE(data)))) {
 		execlists_clear_active(&engine->execlists,
@@ -657,6 +657,16 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 	port_set(port, i915_request_get(rq));
 }
 
+static inline int rq_prio(const struct i915_request *rq)
+{
+	return rq->priotree.priority;
+}
+
+static inline int port_prio(const struct execlist_port *port)
+{
+	return rq_prio(port_request(port));
+}
+
 static void guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -672,12 +682,12 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
 	if (port_isset(port)) {
-		if (engine->i915->preempt_context) {
+		if (intel_engine_has_preemption(engine)) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
+			int prio = execlists->queue_priority;
 
-			if (execlists->queue_priority >
-			    max(port_request(port)->priotree.priority, 0)) {
+			if (__execlists_need_preempt(prio, port_prio(port))) {
 				execlists_set_active(execlists,
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,
@@ -728,7 +738,7 @@ done:
 	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
-		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
+		execlists_user_begin(execlists, execlists->port);
 		guc_submit(engine);
 	}
 
@@ -748,17 +758,20 @@ static void guc_submission_tasklet(unsigned long data)
 	struct execlist_port *port = execlists->port;
 	struct i915_request *rq;
 
-	rq = port_request(&port[0]);
+	rq = port_request(port);
 	while (rq && i915_request_completed(rq)) {
 		trace_i915_request_out(rq);
 		i915_request_put(rq);
 
-		execlists_port_complete(execlists, port);
-
-		rq = port_request(&port[0]);
+		port = execlists_port_complete(execlists, port);
+		if (port_isset(port)) {
+			execlists_user_begin(execlists, port);
+			rq = port_request(port);
+		} else {
+			execlists_user_end(execlists);
+			rq = NULL;
+		}
 	}
-	if (!rq)
-		execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
 
 	if (execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT) &&
 	    intel_read_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX) ==

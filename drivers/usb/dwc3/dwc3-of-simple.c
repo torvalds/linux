@@ -27,6 +27,7 @@ struct dwc3_of_simple {
 	struct clk		**clks;
 	int			num_clocks;
 	struct reset_control	*resets;
+	bool			pulse_resets;
 };
 
 static int dwc3_of_simple_clk_init(struct dwc3_of_simple *simple, int count)
@@ -83,6 +84,7 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 
 	int			ret;
 	int			i;
+	bool			shared_resets = false;
 
 	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
 	if (!simple)
@@ -91,16 +93,28 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, simple);
 	simple->dev = dev;
 
-	simple->resets = of_reset_control_array_get_optional_exclusive(np);
+	if (of_device_is_compatible(np, "amlogic,meson-axg-dwc3") ||
+	    of_device_is_compatible(np, "amlogic,meson-gxl-dwc3")) {
+		shared_resets = true;
+		simple->pulse_resets = true;
+	}
+
+	simple->resets = of_reset_control_array_get(np, shared_resets, true);
 	if (IS_ERR(simple->resets)) {
 		ret = PTR_ERR(simple->resets);
 		dev_err(dev, "failed to get device resets, err=%d\n", ret);
 		return ret;
 	}
 
-	ret = reset_control_deassert(simple->resets);
-	if (ret)
-		goto err_resetc_put;
+	if (simple->pulse_resets) {
+		ret = reset_control_reset(simple->resets);
+		if (ret)
+			goto err_resetc_put;
+	} else {
+		ret = reset_control_deassert(simple->resets);
+		if (ret)
+			goto err_resetc_put;
+	}
 
 	ret = dwc3_of_simple_clk_init(simple, of_count_phandle_with_args(np,
 						"clocks", "#clock-cells"));
@@ -124,7 +138,8 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	return 0;
 
 err_resetc_assert:
-	reset_control_assert(simple->resets);
+	if (!simple->pulse_resets)
+		reset_control_assert(simple->resets);
 
 err_resetc_put:
 	reset_control_put(simple->resets);
@@ -145,7 +160,9 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	}
 	simple->num_clocks = 0;
 
-	reset_control_assert(simple->resets);
+	if (!simple->pulse_resets)
+		reset_control_assert(simple->resets);
+
 	reset_control_put(simple->resets);
 
 	pm_runtime_put_sync(dev);
@@ -196,6 +213,8 @@ static const struct of_device_id of_dwc3_simple_match[] = {
 	{ .compatible = "xlnx,zynqmp-dwc3" },
 	{ .compatible = "cavium,octeon-7130-usb-uctl" },
 	{ .compatible = "sprd,sc9860-dwc3" },
+	{ .compatible = "amlogic,meson-axg-dwc3" },
+	{ .compatible = "amlogic,meson-gxl-dwc3" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_simple_match);

@@ -522,6 +522,7 @@ err_free_skb:
 static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 			__be16 proto)
 {
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	struct rtable *rt = NULL;
@@ -545,9 +546,11 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	if (gre_handle_offloads(skb, !!(tun_info->key.tun_flags & TUNNEL_CSUM)))
 		goto err_free_rt;
 
-	flags = tun_info->key.tun_flags & (TUNNEL_CSUM | TUNNEL_KEY);
+	flags = tun_info->key.tun_flags &
+		(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
 	gre_build_header(skb, tunnel_hlen, flags, proto,
-			 tunnel_id_to_key32(tun_info->key.tun_id), 0);
+			 tunnel_id_to_key32(tun_info->key.tun_id),
+			 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqno++) : 0);
 
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
 
@@ -778,8 +781,14 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 		    tunnel->encap.type == TUNNEL_ENCAP_NONE) {
 			dev->features |= NETIF_F_GSO_SOFTWARE;
 			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		} else {
+			dev->features &= ~NETIF_F_GSO_SOFTWARE;
+			dev->hw_features &= ~NETIF_F_GSO_SOFTWARE;
 		}
 		dev->features |= NETIF_F_LLTX;
+	} else {
+		dev->hw_features &= ~NETIF_F_GSO_SOFTWARE;
+		dev->features &= ~(NETIF_F_LLTX | NETIF_F_GSO_SOFTWARE);
 	}
 }
 
@@ -1316,6 +1325,12 @@ static void ipgre_tap_setup(struct net_device *dev)
 	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
+
+bool is_gretap_dev(const struct net_device *dev)
+{
+	return dev->netdev_ops == &gre_tap_netdev_ops;
+}
+EXPORT_SYMBOL_GPL(is_gretap_dev);
 
 static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],

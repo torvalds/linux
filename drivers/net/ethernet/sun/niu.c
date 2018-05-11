@@ -9437,11 +9437,11 @@ static ssize_t show_num_ports(struct device *dev,
 }
 
 static struct device_attribute niu_parent_attributes[] = {
-	__ATTR(port_phy, S_IRUGO, show_port_phy, NULL),
-	__ATTR(plat_type, S_IRUGO, show_plat_type, NULL),
-	__ATTR(rxchan_per_port, S_IRUGO, show_rxchan_per_port, NULL),
-	__ATTR(txchan_per_port, S_IRUGO, show_txchan_per_port, NULL),
-	__ATTR(num_ports, S_IRUGO, show_num_ports, NULL),
+	__ATTR(port_phy, 0444, show_port_phy, NULL),
+	__ATTR(plat_type, 0444, show_plat_type, NULL),
+	__ATTR(rxchan_per_port, 0444, show_rxchan_per_port, NULL),
+	__ATTR(txchan_per_port, 0444, show_txchan_per_port, NULL),
+	__ATTR(num_ports, 0444, show_num_ports, NULL),
 	{}
 };
 

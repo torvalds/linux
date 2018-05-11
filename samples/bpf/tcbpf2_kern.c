@@ -52,7 +52,8 @@ int _gre_set_tunnel(struct __sk_buff *skb)
 	key.tunnel_tos = 0;
 	key.tunnel_ttl = 64;
 
-	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key), BPF_F_ZERO_CSUM_TX);
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_ZERO_CSUM_TX | BPF_F_SEQ_NUMBER);
 	if (ret < 0) {
 		ERROR(ret);
 		return TC_ACT_SHOT;
@@ -92,7 +93,8 @@ int _ip6gretap_set_tunnel(struct __sk_buff *skb)
 	key.tunnel_label = 0xabcde;
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
-				     BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX);
+				     BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX |
+				     BPF_F_SEQ_NUMBER);
 	if (ret < 0) {
 		ERROR(ret);
 		return TC_ACT_SHOT;

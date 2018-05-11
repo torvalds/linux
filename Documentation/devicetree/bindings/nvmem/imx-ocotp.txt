@@ -11,17 +11,32 @@ Required properties:
 	"fsl,imx6ul-ocotp" (i.MX6UL),
 	"fsl,imx7d-ocotp" (i.MX7D/S),
 	followed by "syscon".
+- #address-cells : Should be 1
+- #size-cells : Should be 1
 - reg: Should contain the register base and length.
 - clocks: Should contain a phandle pointing to the gated peripheral clock.
 
 Optional properties:
 - read-only: disable write access
 
-Example:
+Optional Child nodes:
 
+- Data cells of ocotp:
+  Detailed bindings are described in bindings/nvmem/nvmem.txt
+
+Example:
 	ocotp: ocotp@21bc000 {
-		compatible = "fsl,imx6q-ocotp", "syscon";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,imx6sx-ocotp", "syscon";
 		reg = <0x021bc000 0x4000>;
-		clocks = <&clks IMX6QDL_CLK_IIM>;
-		read-only;
+		clocks = <&clks IMX6SX_CLK_OCOTP>;
+
+		tempmon_calib: calib@38 {
+			reg = <0x38 4>;
+		};
+
+		tempmon_temp_grade: temp-grade@20 {
+			reg = <0x20 4>;
+		};
 	};

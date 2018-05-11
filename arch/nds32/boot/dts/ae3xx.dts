@@ -1,0 +1,85 @@
+/dts-v1/;
+/ {
+	compatible = "andestech,ae3xx";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+
+	chosen {
+		stdout-path = &serial0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "andestech,n13", "andestech,nds32v3";
+			reg = <0>;
+			clock-frequency = <60000000>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	intc: interrupt-controller {
+		compatible = "andestech,ativic32";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+	};
+
+	clock: clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <30000000>;
+	};
+
+	apb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		serial0: serial@f0300000 {
+			compatible = "andestech,uart16550", "ns16550a";
+			reg = <0xf0300000 0x1000>;
+			interrupts = <8>;
+			clock-frequency = <14745600>;
+			reg-shift = <2>;
+			reg-offset = <32>;
+			no-loopback-test = <1>;
+		};
+
+		timer0: timer@f0400000 {
+			compatible = "andestech,atcpit100";
+			reg = <0xf0400000 0x1000>;
+			interrupts = <2>;
+			clocks = <&clock>;
+			clock-names = "PCLK";
+		};
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		L2: cache-controller@e0500000 {
+			compatible = "andestech,atl2c";
+			reg = <0xe0500000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		mac0: ethernet@e0100000 {
+			compatible = "andestech,atmac100";
+			reg = <0xe0100000 0x1000>;
+			interrupts = <18>;
+		};
+	};
+};

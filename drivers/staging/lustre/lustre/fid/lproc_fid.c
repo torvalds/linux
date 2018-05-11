@@ -98,33 +98,43 @@ ldebugfs_fid_space_seq_write(struct file *file,
 			     size_t count, loff_t *off)
 {
 	struct lu_client_seq *seq;
+	struct lu_seq_range range;
 	int rc;
 
 	seq = ((struct seq_file *)file->private_data)->private;
 
-	mutex_lock(&seq->lcs_mutex);
-	rc = ldebugfs_fid_write_common(buffer, count, &seq->lcs_space);
+	rc = ldebugfs_fid_write_common(buffer, count, &range);
 
-	if (rc == 0) {
+	spin_lock(&seq->lcs_lock);
+	if (seq->lcs_update)
+		/* An RPC call is active to update lcs_space */
+		rc = -EBUSY;
+	if (rc > 0)
+		seq->lcs_space = range;
+	spin_unlock(&seq->lcs_lock);
+
+	if (rc > 0) {
 		CDEBUG(D_INFO, "%s: Space: " DRANGE "\n",
-		       seq->lcs_name, PRANGE(&seq->lcs_space));
+		       seq->lcs_name, PRANGE(&range));
 	}
 
-	mutex_unlock(&seq->lcs_mutex);
-
-	return count;
+	return rc;
 }
 
 static int
 ldebugfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
+	int rc = 0;
 
-	mutex_lock(&seq->lcs_mutex);
-	seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
-	mutex_unlock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
+	if (seq->lcs_update)
+		rc = -EBUSY;
+	else
+		seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
+	spin_unlock(&seq->lcs_lock);
 
-	return 0;
+	return rc;
 }
 
 static ssize_t
@@ -142,7 +152,7 @@ ldebugfs_fid_width_seq_write(struct file *file,
 	if (rc)
 		return rc;
 
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 	if (seq->lcs_type == LUSTRE_SEQ_DATA)
 		max = LUSTRE_DATA_SEQ_MAX_WIDTH;
 	else
@@ -155,7 +165,7 @@ ldebugfs_fid_width_seq_write(struct file *file,
 		       seq->lcs_width);
 	}
 
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 
 	return count;
 }
@@ -165,9 +175,9 @@ ldebugfs_fid_width_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 	seq_printf(m, "%llu\n", seq->lcs_width);
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 
 	return 0;
 }
@@ -177,9 +187,9 @@ ldebugfs_fid_fid_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 	seq_printf(m, DFID "\n", PFID(&seq->lcs_fid));
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 
 	return 0;
 }

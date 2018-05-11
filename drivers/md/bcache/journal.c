@@ -62,7 +62,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bch_bio_map(bio, data);
 
-		closure_bio_submit(bio, &cl);
+		closure_bio_submit(ca->set, bio, &cl);
 		closure_sync(&cl);
 
 		/* This function could be simpler now since we no longer write
@@ -493,7 +493,7 @@ static void journal_reclaim(struct cache_set *c)
 	struct cache *ca;
 	uint64_t last_seq;
 	unsigned iter, n = 0;
-	atomic_t p;
+	atomic_t p __maybe_unused;
 
 	atomic_long_inc(&c->reclaim);
 
@@ -594,6 +594,7 @@ static void journal_write_done(struct closure *cl)
 }
 
 static void journal_write_unlock(struct closure *cl)
+	__releases(&c->journal.lock)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
 
@@ -674,7 +675,7 @@ static void journal_write_unlocked(struct closure *cl)
 	spin_unlock(&c->journal.lock);
 
 	while ((bio = bio_list_pop(&list)))
-		closure_bio_submit(bio, cl);
+		closure_bio_submit(c, bio, cl);
 
 	continue_at(cl, journal_write_done, NULL);
 }
@@ -705,6 +706,7 @@ static void journal_try_write(struct cache_set *c)
 
 static struct journal_write *journal_wait_for_write(struct cache_set *c,
 						    unsigned nkeys)
+	__acquires(&c->journal.lock)
 {
 	size_t sectors;
 	struct closure cl;

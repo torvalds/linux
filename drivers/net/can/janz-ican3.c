@@ -1865,9 +1865,9 @@ static ssize_t ican3_sysfs_show_fwinfo(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", mod->fwinfo);
 }
 
-static DEVICE_ATTR(termination, S_IWUSR | S_IRUGO, ican3_sysfs_show_term,
-						   ican3_sysfs_set_term);
-static DEVICE_ATTR(fwinfo, S_IRUSR | S_IRUGO, ican3_sysfs_show_fwinfo, NULL);
+static DEVICE_ATTR(termination, 0644, ican3_sysfs_show_term,
+		   ican3_sysfs_set_term);
+static DEVICE_ATTR(fwinfo, 0444, ican3_sysfs_show_fwinfo, NULL);
 
 static struct attribute *ican3_sysfs_attrs[] = {
 	&dev_attr_termination.attr,

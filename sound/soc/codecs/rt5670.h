@@ -1986,11 +1986,11 @@ enum {
 	RT5670_DOWN_RATE_FILTER = (0x1 << 7),
 };
 
-int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5670_sel_asrc_clk_src(struct snd_soc_component *component,
 			    unsigned int filter_mask, unsigned int clk_src);
 
 struct rt5670_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5670_platform_data pdata;
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
@@ -2012,8 +2012,8 @@ struct rt5670_priv {
 	int jack_type_saved;
 };
 
-void rt5670_jack_suspend(struct snd_soc_codec *codec);
-void rt5670_jack_resume(struct snd_soc_codec *codec);
-int rt5670_set_jack_detect(struct snd_soc_codec *codec,
+void rt5670_jack_suspend(struct snd_soc_component *component);
+void rt5670_jack_resume(struct snd_soc_component *component);
+int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
 #endif /* __RT5670_H__ */

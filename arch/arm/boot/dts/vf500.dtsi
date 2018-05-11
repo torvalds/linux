@@ -39,11 +39,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
 #include "vfxxx.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+	memory { device_type = "memory"; };
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

@@ -1686,7 +1686,7 @@ ppp_push(struct ppp *ppp)
 
 #ifdef CONFIG_PPP_MULTILINK
 static bool mp_protocol_compress __read_mostly = true;
-module_param(mp_protocol_compress, bool, S_IRUGO | S_IWUSR);
+module_param(mp_protocol_compress, bool, 0644);
 MODULE_PARM_DESC(mp_protocol_compress,
 		 "compress protocol id in multilink fragments");
 

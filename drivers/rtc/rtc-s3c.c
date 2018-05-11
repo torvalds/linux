@@ -232,7 +232,7 @@ retry_get_time:
 
 	rtc_tm->tm_mon -= 1;
 
-	return rtc_valid_tm(rtc_tm);
+	return 0;
 }
 
 static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)

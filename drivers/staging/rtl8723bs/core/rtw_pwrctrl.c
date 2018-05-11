@@ -701,7 +701,7 @@ void LPS_Leave_check(
 	bReady = false;
 	start_time = jiffies;
 
-	yield();
+	cond_resched();
 
 	while (1) {
 		down(&pwrpriv->lock);

@@ -16,6 +16,10 @@ enum ti_sysc_module_type {
 	TI_SYSC_OMAP4_USB_HOST_FS,
 };
 
+struct ti_sysc_cookie {
+	void *data;
+};
+
 /**
  * struct sysc_regbits - TI OCP_SYSCONFIG register field offsets
  * @midle_shift: Offset of the midle bit
@@ -41,6 +45,7 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+#define SYSC_QUIRK_LEGACY_IDLE		BIT(8)
 #define SYSC_QUIRK_RESET_STATUS		BIT(7)
 #define SYSC_QUIRK_NO_IDLE_ON_INIT	BIT(6)
 #define SYSC_QUIRK_NO_RESET_ON_INIT	BIT(5)
@@ -81,6 +86,51 @@ struct sysc_config {
 	u8 sidlemodes;
 	u8 srst_udelay;
 	u32 quirks;
+};
+
+enum sysc_registers {
+	SYSC_REVISION,
+	SYSC_SYSCONFIG,
+	SYSC_SYSSTATUS,
+	SYSC_MAX_REGS,
+};
+
+/**
+ * struct ti_sysc_module_data - ti-sysc to hwmod translation data for a module
+ * @name: legacy "ti,hwmods" module name
+ * @module_pa: physical address of the interconnect target module
+ * @module_size: size of the interconnect target module
+ * @offsets: array of register offsets as listed in enum sysc_registers
+ * @nr_offsets: number of registers
+ * @cap: interconnect target module capabilities
+ * @cfg: interconnect target module configuration
+ *
+ * This data is enough to allocate a new struct omap_hwmod_class_sysconfig
+ * based on device tree data parsed by ti-sysc driver.
+ */
+struct ti_sysc_module_data {
+	const char *name;
+	u64 module_pa;
+	u32 module_size;
+	int *offsets;
+	int nr_offsets;
+	const struct sysc_capabilities *cap;
+	struct sysc_config *cfg;
+};
+
+struct device;
+
+struct ti_sysc_platform_data {
+	struct of_dev_auxdata *auxdata;
+	int (*init_module)(struct device *dev,
+			   const struct ti_sysc_module_data *data,
+			   struct ti_sysc_cookie *cookie);
+	int (*enable_module)(struct device *dev,
+			     const struct ti_sysc_cookie *cookie);
+	int (*idle_module)(struct device *dev,
+			   const struct ti_sysc_cookie *cookie);
+	int (*shutdown_module)(struct device *dev,
+			       const struct ti_sysc_cookie *cookie);
 };
 
 #endif	/* __TI_SYSC_DATA_H__ */

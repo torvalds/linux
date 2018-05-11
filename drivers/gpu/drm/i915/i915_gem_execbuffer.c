@@ -81,6 +81,35 @@ enum {
  * but this remains just a hint as the kernel may choose a new location for
  * any object in the future.
  *
+ * At the level of talking to the hardware, submitting a batchbuffer for the
+ * GPU to execute is to add content to a buffer from which the HW
+ * command streamer is reading.
+ *
+ * 1. Add a command to load the HW context. For Logical Ring Contexts, i.e.
+ *    Execlists, this command is not placed on the same buffer as the
+ *    remaining items.
+ *
+ * 2. Add a command to invalidate caches to the buffer.
+ *
+ * 3. Add a batchbuffer start command to the buffer; the start command is
+ *    essentially a token together with the GPU address of the batchbuffer
+ *    to be executed.
+ *
+ * 4. Add a pipeline flush to the buffer.
+ *
+ * 5. Add a memory write command to the buffer to record when the GPU
+ *    is done executing the batchbuffer. The memory write writes the
+ *    global sequence number of the request, ``i915_request::global_seqno``;
+ *    the i915 driver uses the current value in the register to determine
+ *    if the GPU has completed the batchbuffer.
+ *
+ * 6. Add a user interrupt command to the buffer. This command instructs
+ *    the GPU to issue an interrupt when the command, pipeline flush and
+ *    memory write are completed.
+ *
+ * 7. Inform the hardware of the additional commands added to the buffer
+ *    (by updating the tail pointer).
+ *
  * Processing an execbuf ioctl is conceptually split up into a few phases.
  *
  * 1. Validation - Ensure all the pointers, handles and flags are valid.
@@ -728,7 +757,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		err = radix_tree_insert(handles_vma, handle, vma);
 		if (unlikely(err)) {
-			kfree(lut);
+			kmem_cache_free(eb->i915->luts, lut);
 			goto err_obj;
 		}
 

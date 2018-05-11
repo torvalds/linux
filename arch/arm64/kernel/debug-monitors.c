@@ -33,6 +33,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/system_misc.h>
+#include <asm/traps.h>
 
 /* Determine debug architecture. */
 u8 debug_monitors_arch(void)
@@ -223,7 +224,7 @@ static void send_user_sigtrap(int si_code)
 	if (interrupts_enabled(regs))
 		local_irq_enable();
 
-	force_sig_info(SIGTRAP, &info, current);
+	arm64_force_sig_info(&info, "User debug trap", current);
 }
 
 static int single_step_handler(unsigned long addr, unsigned int esr,

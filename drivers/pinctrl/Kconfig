@@ -30,17 +30,6 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
-config PINCTRL_ADI2
-	bool "ADI pin controller driver"
-	depends on (BF54x || BF60x)
-	depends on !GPIO_ADI
-	select PINMUX
-	select IRQ_DOMAIN
-	help
-	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
-	  future processors. This option is selected automatically when specific
-	  machine and arch are selected to build.
-
 config PINCTRL_ARTPEC6
         bool "Axis ARTPEC-6 pin controller driver"
         depends on MACH_ARTPEC6
@@ -76,14 +65,6 @@ config PINCTRL_AXP209
 	  muxing and a GPIO driver to handle the GPIO when the GPIO function is
 	  selected.
 	  Say yes to enable pinctrl and GPIO support for the AXP209 PMIC
-
-config PINCTRL_BF54x
-	def_bool y if BF54x
-	select PINCTRL_ADI2
-
-config PINCTRL_BF60x
-	def_bool y if BF60x
-	select PINCTRL_ADI2
 
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
@@ -262,18 +243,6 @@ config PINCTRL_ST
 	select PINMUX
 	select PINCONF
 	select GPIOLIB_IRQCHIP
-
-config PINCTRL_TZ1090
-	bool "Toumaz Xenif TZ1090 pin control driver"
-	depends on SOC_TZ1090
-	select PINMUX
-	select GENERIC_PINCONF
-
-config PINCTRL_TZ1090_PDC
-	bool "Toumaz Xenif TZ1090 PDC pin control driver"
-	depends on SOC_TZ1090
-	select PINMUX
-	select PINCONF
 
 config PINCTRL_U300
 	bool "U300 pin controller driver"

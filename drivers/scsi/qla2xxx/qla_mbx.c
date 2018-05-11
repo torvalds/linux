@@ -503,11 +503,19 @@ mbx_done:
 				}
 			pr_warn(" cmd=%x ****\n", command);
 		}
-		ql_dbg(ql_dbg_mbx, vha, 0x1198,
-		    "host_status=%#x intr_ctrl=%#x intr_status=%#x\n",
-		    RD_REG_DWORD(&reg->isp24.host_status),
-		    RD_REG_DWORD(&reg->isp24.ictrl),
-		    RD_REG_DWORD(&reg->isp24.istatus));
+		if (IS_FWI2_CAPABLE(ha) && !(IS_P3P_TYPE(ha))) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1198,
+			    "host_status=%#x intr_ctrl=%#x intr_status=%#x\n",
+			    RD_REG_DWORD(&reg->isp24.host_status),
+			    RD_REG_DWORD(&reg->isp24.ictrl),
+			    RD_REG_DWORD(&reg->isp24.istatus));
+		} else {
+			ql_dbg(ql_dbg_mbx, vha, 0x1206,
+			    "ctrl_status=%#x ictrl=%#x istatus=%#x\n",
+			    RD_REG_WORD(&reg->isp.ctrl_status),
+			    RD_REG_WORD(&reg->isp.ictrl),
+			    RD_REG_WORD(&reg->isp.istatus));
+		}
 	} else {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1021, "Done %s.\n", __func__);
 	}
@@ -1025,9 +1033,12 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		 * FW supports nvme and driver load parameter requested nvme.
 		 * BIT 26 of fw_attributes indicates NVMe support.
 		 */
-		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable)
+		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable) {
 			vha->flags.nvme_enabled = 1;
-
+			ql_log(ql_log_info, vha, 0xd302,
+			    "%s: FC-NVMe is Enabled (0x%x)\n",
+			     __func__, ha->fw_attributes_h);
+		}
 	}
 
 	if (IS_QLA27XX(ha)) {
@@ -3385,7 +3396,10 @@ qla8044_read_serdes_word(scsi_qla_host_t *vha, uint32_t addr, uint32_t *data)
 
 /**
  * qla2x00_set_serdes_params() -
- * @ha: HA context
+ * @vha: HA context
+ * @sw_em_1g:
+ * @sw_em_2g:
+ * @sw_em_4g:
  *
  * Returns
  */
@@ -3744,6 +3758,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	id.b.area   = rptid_entry->port_id[1];
 	id.b.al_pa  = rptid_entry->port_id[0];
 	id.b.rsvd_1 = 0;
+	ha->flags.n2n_ae = 0;
 
 	if (rptid_entry->format == 0) {
 		/* loop */
@@ -3796,6 +3811,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
 			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
+			ha->flags.n2n_ae = 1;
 			return;
 		}
 
@@ -3872,6 +3888,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		vha->d_id.b.area = rptid_entry->port_id[1];
 		vha->d_id.b.al_pa = rptid_entry->port_id[0];
 
+		ha->flags.n2n_ae = 1;
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		qlt_update_vp_map(vha, SET_AL_PA);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
@@ -6006,13 +6023,13 @@ int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
 	sp->type = SRB_MB_IOCB;
 	sp->name = mb_to_str(mcp->mb[0]);
 
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	memcpy(sp->u.iocb_cmd.u.mbx.out_mb, mcp->mb, SIZEOF_IOCB_MB_REG);
-
 	c = &sp->u.iocb_cmd;
 	c->timeout = qla2x00_async_iocb_timeout;
 	init_completion(&c->u.mbx.comp);
+
+	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+
+	memcpy(sp->u.iocb_cmd.u.mbx.out_mb, mcp->mb, SIZEOF_IOCB_MB_REG);
 
 	sp->done = qla2x00_async_mb_sp_done;
 

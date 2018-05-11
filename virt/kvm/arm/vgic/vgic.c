@@ -14,11 +14,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/list_sort.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
+#include <linux/nospec.h>
+
+#include <asm/kvm_hyp.h>
 
 #include "vgic.h"
 
@@ -100,12 +103,16 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid)
 {
 	/* SGIs and PPIs */
-	if (intid <= VGIC_MAX_PRIVATE)
+	if (intid <= VGIC_MAX_PRIVATE) {
+		intid = array_index_nospec(intid, VGIC_MAX_PRIVATE);
 		return &vcpu->arch.vgic_cpu.private_irqs[intid];
+	}
 
 	/* SPIs */
-	if (intid <= VGIC_MAX_SPI)
+	if (intid <= VGIC_MAX_SPI) {
+		intid = array_index_nospec(intid, VGIC_MAX_SPI);
 		return &kvm->arch.vgic.spis[intid - VGIC_NR_PRIVATE_IRQS];
+	}
 
 	/* LPIs */
 	if (intid >= VGIC_MIN_LPI)
@@ -593,6 +600,7 @@ retry:
 
 	list_for_each_entry_safe(irq, tmp, &vgic_cpu->ap_list_head, ap_list) {
 		struct kvm_vcpu *target_vcpu, *vcpuA, *vcpuB;
+		bool target_vcpu_needs_kick = false;
 
 		spin_lock(&irq->irq_lock);
 
@@ -663,11 +671,18 @@ retry:
 			list_del(&irq->ap_list);
 			irq->vcpu = target_vcpu;
 			list_add_tail(&irq->ap_list, &new_cpu->ap_list_head);
+			target_vcpu_needs_kick = true;
 		}
 
 		spin_unlock(&irq->irq_lock);
 		spin_unlock(&vcpuB->arch.vgic_cpu.ap_list_lock);
 		spin_unlock_irqrestore(&vcpuA->arch.vgic_cpu.ap_list_lock, flags);
+
+		if (target_vcpu_needs_kick) {
+			kvm_make_request(KVM_REQ_IRQ_PENDING, target_vcpu);
+			kvm_vcpu_kick(target_vcpu);
+		}
+
 		goto retry;
 	}
 
@@ -808,6 +823,24 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 		vgic_clear_lr(vcpu, count);
 }
 
+static inline bool can_access_vgic_from_kernel(void)
+{
+	/*
+	 * GICv2 can always be accessed from the kernel because it is
+	 * memory-mapped, and VHE systems can access GICv3 EL2 system
+	 * registers.
+	 */
+	return !static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif) || has_vhe();
+}
+
+static inline void vgic_save_state(struct kvm_vcpu *vcpu)
+{
+	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		vgic_v2_save_state(vcpu);
+	else
+		__vgic_v3_save_state(vcpu);
+}
+
 /* Sync back the hardware VGIC state into our emulation after a guest's run. */
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
@@ -819,9 +852,20 @@ void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
 		return;
 
+	if (can_access_vgic_from_kernel())
+		vgic_save_state(vcpu);
+
 	if (vgic_cpu->used_lrs)
 		vgic_fold_lr_state(vcpu);
 	vgic_prune_ap_list(vcpu);
+}
+
+static inline void vgic_restore_state(struct kvm_vcpu *vcpu)
+{
+	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		vgic_v2_restore_state(vcpu);
+	else
+		__vgic_v3_restore_state(vcpu);
 }
 
 /* Flush our emulation state into the GIC hardware before entering the guest. */
@@ -846,6 +890,9 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);
 	vgic_flush_lr_state(vcpu);
 	spin_unlock(&vcpu->arch.vgic_cpu.ap_list_lock);
+
+	if (can_access_vgic_from_kernel())
+		vgic_restore_state(vcpu);
 }
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu)

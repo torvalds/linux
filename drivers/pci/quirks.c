@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  This file contains work-arounds for many known PCI hardware
- *  bugs.  Devices present only on certain architectures (host
- *  bridges et cetera) should be handled in arch-specific code.
+ * This file contains work-arounds for many known PCI hardware bugs.
+ * Devices present only on certain architectures (host bridges et cetera)
+ * should be handled in arch-specific code.
  *
- *  Note: any quirks for hotpluggable devices must _NOT_ be declared __init.
+ * Note: any quirks for hotpluggable devices must _NOT_ be declared __init.
  *
- *  Copyright (c) 1999 Martin Mares <mj@ucw.cz>
+ * Copyright (c) 1999 Martin Mares <mj@ucw.cz>
  *
- *  Init/reset quirks for USB host controllers should be in the
- *  USB quirks file, where their drivers can access reuse it.
+ * Init/reset quirks for USB host controllers should be in the USB quirks
+ * file, where their drivers can use them.
  */
 
 #include <linux/types.h>
@@ -1968,31 +1968,6 @@ static void quirk_netmos(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_NETMOS, PCI_ANY_ID,
 			 PCI_CLASS_COMMUNICATION_SERIAL, 8, quirk_netmos);
 
-/*
- * Quirk non-zero PCI functions to route VPD access through function 0 for
- * devices that share VPD resources between functions.  The functions are
- * expected to be identical devices.
- */
-static void quirk_f0_vpd_link(struct pci_dev *dev)
-{
-	struct pci_dev *f0;
-
-	if (!PCI_FUNC(dev->devfn))
-		return;
-
-	f0 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
-	if (!f0)
-		return;
-
-	if (f0->vpd && dev->class == f0->class &&
-	    dev->vendor == f0->vendor && dev->device == f0->device)
-		dev->dev_flags |= PCI_DEV_FLAGS_VPD_REF_F0;
-
-	pci_dev_put(f0);
-}
-DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
-			      PCI_CLASS_NETWORK_ETHERNET, 8, quirk_f0_vpd_link);
-
 static void quirk_e100_interrupt(struct pci_dev *dev)
 {
 	u16 command, pmcsr;
@@ -2183,83 +2158,6 @@ static void quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_caching);
 
-/*
- * If a device follows the VPD format spec, the PCI core will not read or
- * write past the VPD End Tag.  But some vendors do not follow the VPD
- * format spec, so we can't tell how much data is safe to access.  Devices
- * may behave unpredictably if we access too much.  Blacklist these devices
- * so we don't touch VPD at all.
- */
-static void quirk_blacklist_vpd(struct pci_dev *dev)
-{
-	if (dev->vpd) {
-		dev->vpd->len = 0;
-		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
-	}
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0060, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x007c, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0413, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0078, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0079, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0073, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0071, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005b, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x002f, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005d, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005f, quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, PCI_ANY_ID,
-		quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
-
-/*
- * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the
- * VPD end tag will hang the device.  This problem was initially
- * observed when a vpd entry was created in sysfs
- * ('/sys/bus/pci/devices/<id>/vpd').   A read to this sysfs entry
- * will dump 32k of data.  Reading a full 32k will cause an access
- * beyond the VPD end tag causing the device to hang.  Once the device
- * is hung, the bnx2 driver will not be able to reset the device.
- * We believe that it is legal to read beyond the end tag and
- * therefore the solution is to limit the read/write length.
- */
-static void quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
-{
-	/*
-	 * Only disable the VPD capability for 5706, 5706S, 5708,
-	 * 5708S and 5709 rev. A
-	 */
-	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5706S) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708S) ||
-	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
-	     (dev->revision & 0xf0) == 0x0)) {
-		if (dev->vpd)
-			dev->vpd->len = 0x80;
-	}
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709S,
-			quirk_brcm_570x_limit_vpd);
-
 static void quirk_brcm_5719_limit_mrrs(struct pci_dev *dev)
 {
 	u32 rev;
@@ -2319,25 +2217,6 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 			quirk_unhide_mch_dev6);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
-
-#ifdef CONFIG_TILEPRO
-/*
- * The Tilera TILEmpower tilepro platform needs to set the link speed
- * to 2.5GT(Giga-Transfers)/s (Gen 1). The default link speed
- * setting is 5GT/s (Gen 2). 0x98 is the Link Control2 PCIe
- * capability register of the PEX8624 PCIe switch. The switch
- * supports link speed auto negotiation, but falsely sets
- * the link speed to 5GT/s.
- */
-static void quirk_tile_plx_gen1(struct pci_dev *dev)
-{
-	if (tile_plx_gen1) {
-		pci_write_config_dword(dev, 0x98, 0x1);
-		mdelay(50);
-	}
-}
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8624, quirk_tile_plx_gen1);
-#endif /* CONFIG_TILEPRO */
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
@@ -3105,16 +2984,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0e0d, quirk_intel_ntb);
 static ktime_t fixup_debug_start(struct pci_dev *dev,
 				 void (*fn)(struct pci_dev *dev))
 {
-	ktime_t calltime = 0;
+	if (initcall_debug)
+		pci_info(dev, "calling  %pF @ %i\n", fn, task_pid_nr(current));
 
-	pci_dbg(dev, "calling %pF\n", fn);
-	if (initcall_debug) {
-		pr_debug("calling  %pF @ %i for %s\n",
-			 fn, task_pid_nr(current), dev_name(&dev->dev));
-		calltime = ktime_get();
-	}
-
-	return calltime;
+	return ktime_get();
 }
 
 static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
@@ -3123,13 +2996,11 @@ static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
 	ktime_t delta, rettime;
 	unsigned long long duration;
 
-	if (initcall_debug) {
-		rettime = ktime_get();
-		delta = ktime_sub(rettime, calltime);
-		duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-		pr_debug("pci fixup %pF returned after %lld usecs for %s\n",
-			 fn, duration, dev_name(&dev->dev));
-	}
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	if (initcall_debug || duration > 10000)
+		pci_info(dev, "%pF took %lld usecs\n", fn, duration);
 }
 
 /*
@@ -3417,32 +3288,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C
 			quirk_thunderbolt_hotplug_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PORT_RIDGE,
 			quirk_thunderbolt_hotplug_msi);
-
-static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
-{
-	int chip = (dev->device & 0xf000) >> 12;
-	int func = (dev->device & 0x0f00) >>  8;
-	int prod = (dev->device & 0x00ff) >>  0;
-
-	/*
-	 * If this is a T3-based adapter, there's a 1KB VPD area at offset
-	 * 0xc00 which contains the preferred VPD values.  If this is a T4 or
-	 * later based adapter, the special VPD is at offset 0x400 for the
-	 * Physical Functions (the SR-IOV Virtual Functions have no VPD
-	 * Capabilities).  The PCI VPD Access core routines will normally
-	 * compute the size of the VPD by parsing the VPD Data Structure at
-	 * offset 0x000.  This will result in silent failures when attempting
-	 * to accesses these other VPD areas which are beyond those computed
-	 * limits.
-	 */
-	if (chip == 0x0 && prod >= 0x20)
-		pci_set_vpd_size(dev, 8192);
-	else if (chip >= 0x4 && func < 0x8)
-		pci_set_vpd_size(dev, 2048);
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
-			quirk_chelsio_extend_vpd);
 
 #ifdef CONFIG_ACPI
 /*
@@ -3903,6 +3748,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9182,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c46 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x91a0,
+			 quirk_dma_func1_alias);
+/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c127 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9220,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c49 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9230,
@@ -4524,6 +4372,15 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_CAVIUM, PCI_ANY_ID, pci_quirk_cavium_acs },
 	/* APM X-Gene */
 	{ PCI_VENDOR_ID_AMCC, 0xE004, pci_quirk_xgene_acs },
+	/* Ampere Computing */
+	{ PCI_VENDOR_ID_AMPERE, 0xE005, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE006, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE007, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE008, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE009, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE00A, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE00B, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_AMPERE, 0xE00C, pci_quirk_xgene_acs },
 	{ 0 }
 };
 
@@ -4816,9 +4673,13 @@ static void quirk_no_ext_tags(struct pci_dev *pdev)
 
 	pci_walk_bus(bridge->bus, pci_configure_extended_tags, NULL);
 }
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0132, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0140, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0141, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0142, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0144, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0420, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0422, quirk_no_ext_tags);
 
 #ifdef CONFIG_PCI_ATS
 /*

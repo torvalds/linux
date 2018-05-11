@@ -278,6 +278,7 @@ config IPV6_SUBTREES
 config IPV6_MROUTE
 	bool "IPv6: multicast routing"
 	depends on IPV6
+	select IP_MROUTE_COMMON
 	---help---
 	  Experimental support for IPv6 multicast forwarding.
 	  If unsure, say N.

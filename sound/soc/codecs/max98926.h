@@ -838,7 +838,7 @@
 
 struct max98926_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	unsigned int sysclk;
 	unsigned int v_slot;
 	unsigned int i_slot;

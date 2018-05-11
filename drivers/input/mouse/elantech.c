@@ -35,7 +35,7 @@
 static int synaptics_send_cmd(struct psmouse *psmouse, unsigned char c,
 				unsigned char *param)
 {
-	if (psmouse_sliced_command(psmouse, c) ||
+	if (ps2_sliced_command(&psmouse->ps2dev, c) ||
 	    ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETINFO)) {
 		psmouse_err(psmouse, "%s query 0x%02x failed.\n", __func__, c);
 		return -1;
@@ -107,8 +107,8 @@ static int elantech_read_reg(struct psmouse *psmouse, unsigned char reg,
 
 	switch (etd->hw_version) {
 	case 1:
-		if (psmouse_sliced_command(psmouse, ETP_REGISTER_READ) ||
-		    psmouse_sliced_command(psmouse, reg) ||
+		if (ps2_sliced_command(&psmouse->ps2dev, ETP_REGISTER_READ) ||
+		    ps2_sliced_command(&psmouse->ps2dev, reg) ||
 		    ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETINFO)) {
 			rc = -1;
 		}
@@ -162,9 +162,9 @@ static int elantech_write_reg(struct psmouse *psmouse, unsigned char reg,
 
 	switch (etd->hw_version) {
 	case 1:
-		if (psmouse_sliced_command(psmouse, ETP_REGISTER_WRITE) ||
-		    psmouse_sliced_command(psmouse, reg) ||
-		    psmouse_sliced_command(psmouse, val) ||
+		if (ps2_sliced_command(&psmouse->ps2dev, ETP_REGISTER_WRITE) ||
+		    ps2_sliced_command(&psmouse->ps2dev, reg) ||
+		    ps2_sliced_command(&psmouse->ps2dev, val) ||
 		    ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSCALE11)) {
 			rc = -1;
 		}
@@ -279,8 +279,8 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
 	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
-	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
-	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
+
+	psmouse_report_standard_buttons(dev, packet[0]);
 
 	if (etd->fw_version < 0x020000 &&
 	    (etd->capabilities[0] & ETP_CAP_HAS_ROCKER)) {
@@ -390,8 +390,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
 	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
-	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
-	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
+	psmouse_report_standard_buttons(dev, packet[0]);
 	if (etd->reports_pressure) {
 		input_report_abs(dev, ABS_PRESSURE, pres);
 		input_report_abs(dev, ABS_TOOL_WIDTH, width);
@@ -434,9 +433,7 @@ static void elantech_report_trackpoint(struct psmouse *psmouse,
 		x = packet[4] - (int)((packet[1]^0x80) << 1);
 		y = (int)((packet[2]^0x80) << 1) - packet[5];
 
-		input_report_key(tp_dev, BTN_LEFT, packet[0] & 0x01);
-		input_report_key(tp_dev, BTN_RIGHT, packet[0] & 0x02);
-		input_report_key(tp_dev, BTN_MIDDLE, packet[0] & 0x04);
+		psmouse_report_standard_buttons(tp_dev, packet[0]);
 
 		input_report_rel(tp_dev, REL_X, x);
 		input_report_rel(tp_dev, REL_Y, y);
@@ -526,12 +523,10 @@ static void elantech_report_absolute_v3(struct psmouse *psmouse,
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
 
 	/* For clickpads map both buttons to BTN_LEFT */
-	if (etd->fw_version & 0x001000) {
+	if (etd->fw_version & 0x001000)
 		input_report_key(dev, BTN_LEFT, packet[0] & 0x03);
-	} else {
-		input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
-		input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
-	}
+	else
+		psmouse_report_standard_buttons(dev, packet[0]);
 
 	input_report_abs(dev, ABS_PRESSURE, pres);
 	input_report_abs(dev, ABS_TOOL_WIDTH, width);
@@ -546,13 +541,10 @@ static void elantech_input_sync_v4(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 
 	/* For clickpads map both buttons to BTN_LEFT */
-	if (etd->fw_version & 0x001000) {
+	if (etd->fw_version & 0x001000)
 		input_report_key(dev, BTN_LEFT, packet[0] & 0x03);
-	} else {
-		input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
-		input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
-		input_report_key(dev, BTN_MIDDLE, packet[0] & 0x04);
-	}
+	else
+		psmouse_report_standard_buttons(dev, packet[0]);
 
 	input_mt_report_pointer_emulation(dev, true);
 	input_sync(dev);

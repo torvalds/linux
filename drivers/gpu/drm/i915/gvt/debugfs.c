@@ -122,18 +122,7 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 	seq_printf(s, "Total: %d, Diff: %d\n", param.total, param.diff);
 	return 0;
 }
-
-static int vgpu_mmio_diff_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vgpu_mmio_diff_show, inode->i_private);
-}
-
-static const struct file_operations vgpu_mmio_diff_fops = {
-	.open		= vgpu_mmio_diff_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(vgpu_mmio_diff);
 
 /**
  * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU

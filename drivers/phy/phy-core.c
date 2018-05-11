@@ -351,6 +351,8 @@ int phy_set_mode(struct phy *phy, enum phy_mode mode)
 
 	mutex_lock(&phy->mutex);
 	ret = phy->ops->set_mode(phy, mode);
+	if (!ret)
+		phy->attrs.mode = mode;
 	mutex_unlock(&phy->mutex);
 
 	return ret;

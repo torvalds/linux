@@ -20,13 +20,13 @@
  *
  */
 
-#include <asm/processor.h>
+#include <crypto/algapi.h>
 #include <crypto/des.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <crypto/algapi.h>
 
 struct des3_ede_x86_ctx {
 	u32 enc_expkey[DES3_EDE_EXPKEY_WORDS];
@@ -83,18 +83,18 @@ static void des3_ede_x86_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	des3_ede_dec_blk(crypto_tfm_ctx(tfm), dst, src);
 }
 
-static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
-		     const u32 *expkey)
+static int ecb_crypt(struct skcipher_request *req, const u32 *expkey)
 {
-	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
+	const unsigned int bsize = DES3_EDE_BLOCK_SIZE;
+	struct skcipher_walk walk;
 	unsigned int nbytes;
 	int err;
 
-	err = blkcipher_walk_virt(desc, walk);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk->nbytes)) {
-		u8 *wsrc = walk->src.virt.addr;
-		u8 *wdst = walk->dst.virt.addr;
+	while ((nbytes = walk.nbytes)) {
+		u8 *wsrc = walk.src.virt.addr;
+		u8 *wdst = walk.dst.virt.addr;
 
 		/* Process four block batch */
 		if (nbytes >= bsize * 3) {
@@ -121,36 +121,31 @@ static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
 		} while (nbytes >= bsize);
 
 done:
-		err = blkcipher_walk_done(desc, walk, nbytes);
+		err = skcipher_walk_done(&walk, nbytes);
 	}
 
 	return err;
 }
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_crypt(desc, &walk, ctx->enc_expkey);
+	return ecb_crypt(req, ctx->enc_expkey);
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_crypt(desc, &walk, ctx->dec_expkey);
+	return ecb_crypt(req, ctx->dec_expkey);
 }
 
-static unsigned int __cbc_encrypt(struct blkcipher_desc *desc,
-				  struct blkcipher_walk *walk)
+static unsigned int __cbc_encrypt(struct des3_ede_x86_ctx *ctx,
+				  struct skcipher_walk *walk)
 {
-	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
 	u64 *src = (u64 *)walk->src.virt.addr;
@@ -171,27 +166,27 @@ static unsigned int __cbc_encrypt(struct blkcipher_desc *desc,
 	return nbytes;
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
+	unsigned int nbytes;
 	int err;
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes)) {
-		nbytes = __cbc_encrypt(desc, &walk);
-		err = blkcipher_walk_done(desc, &walk, nbytes);
+		nbytes = __cbc_encrypt(ctx, &walk);
+		err = skcipher_walk_done(&walk, nbytes);
 	}
 
 	return err;
 }
 
-static unsigned int __cbc_decrypt(struct blkcipher_desc *desc,
-				  struct blkcipher_walk *walk)
+static unsigned int __cbc_decrypt(struct des3_ede_x86_ctx *ctx,
+				  struct skcipher_walk *walk)
 {
-	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
 	u64 *src = (u64 *)walk->src.virt.addr;
@@ -250,25 +245,26 @@ done:
 	return nbytes;
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
+	unsigned int nbytes;
 	int err;
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes)) {
-		nbytes = __cbc_decrypt(desc, &walk);
-		err = blkcipher_walk_done(desc, &walk, nbytes);
+		nbytes = __cbc_decrypt(ctx, &walk);
+		err = skcipher_walk_done(&walk, nbytes);
 	}
 
 	return err;
 }
 
 static void ctr_crypt_final(struct des3_ede_x86_ctx *ctx,
-			    struct blkcipher_walk *walk)
+			    struct skcipher_walk *walk)
 {
 	u8 *ctrblk = walk->iv;
 	u8 keystream[DES3_EDE_BLOCK_SIZE];
@@ -282,10 +278,9 @@ static void ctr_crypt_final(struct des3_ede_x86_ctx *ctx,
 	crypto_inc(ctrblk, DES3_EDE_BLOCK_SIZE);
 }
 
-static unsigned int __ctr_crypt(struct blkcipher_desc *desc,
-				struct blkcipher_walk *walk)
+static unsigned int __ctr_crypt(struct des3_ede_x86_ctx *ctx,
+				struct skcipher_walk *walk)
 {
-	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
 	__be64 *src = (__be64 *)walk->src.virt.addr;
@@ -333,23 +328,24 @@ done:
 	return nbytes;
 }
 
-static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		     struct scatterlist *src, unsigned int nbytes)
+static int ctr_crypt(struct skcipher_request *req)
 {
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
+	unsigned int nbytes;
 	int err;
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt_block(desc, &walk, DES3_EDE_BLOCK_SIZE);
+	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes) >= DES3_EDE_BLOCK_SIZE) {
-		nbytes = __ctr_crypt(desc, &walk);
-		err = blkcipher_walk_done(desc, &walk, nbytes);
+		nbytes = __ctr_crypt(ctx, &walk);
+		err = skcipher_walk_done(&walk, nbytes);
 	}
 
-	if (walk.nbytes) {
-		ctr_crypt_final(crypto_blkcipher_ctx(desc->tfm), &walk);
-		err = blkcipher_walk_done(desc, &walk, 0);
+	if (nbytes) {
+		ctr_crypt_final(ctx, &walk);
+		err = skcipher_walk_done(&walk, 0);
 	}
 
 	return err;
@@ -381,7 +377,14 @@ static int des3_ede_x86_setkey(struct crypto_tfm *tfm, const u8 *key,
 	return 0;
 }
 
-static struct crypto_alg des3_ede_algs[4] = { {
+static int des3_ede_x86_setkey_skcipher(struct crypto_skcipher *tfm,
+					const u8 *key,
+					unsigned int keylen)
+{
+	return des3_ede_x86_setkey(&tfm->base, key, keylen);
+}
+
+static struct crypto_alg des3_ede_cipher = {
 	.cra_name		= "des3_ede",
 	.cra_driver_name	= "des3_ede-asm",
 	.cra_priority		= 200,
@@ -399,66 +402,50 @@ static struct crypto_alg des3_ede_algs[4] = { {
 			.cia_decrypt		= des3_ede_x86_decrypt,
 		}
 	}
-}, {
-	.cra_name		= "ecb(des3_ede)",
-	.cra_driver_name	= "ecb-des3_ede-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct des3_ede_x86_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= DES3_EDE_KEY_SIZE,
-			.max_keysize	= DES3_EDE_KEY_SIZE,
-			.setkey		= des3_ede_x86_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "cbc(des3_ede)",
-	.cra_driver_name	= "cbc-des3_ede-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct des3_ede_x86_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= DES3_EDE_KEY_SIZE,
-			.max_keysize	= DES3_EDE_KEY_SIZE,
-			.ivsize		= DES3_EDE_BLOCK_SIZE,
-			.setkey		= des3_ede_x86_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ctr(des3_ede)",
-	.cra_driver_name	= "ctr-des3_ede-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct des3_ede_x86_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= DES3_EDE_KEY_SIZE,
-			.max_keysize	= DES3_EDE_KEY_SIZE,
-			.ivsize		= DES3_EDE_BLOCK_SIZE,
-			.setkey		= des3_ede_x86_setkey,
-			.encrypt	= ctr_crypt,
-			.decrypt	= ctr_crypt,
-		},
-	},
-} };
+};
+
+static struct skcipher_alg des3_ede_skciphers[] = {
+	{
+		.base.cra_name		= "ecb(des3_ede)",
+		.base.cra_driver_name	= "ecb-des3_ede-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct des3_ede_x86_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= DES3_EDE_KEY_SIZE,
+		.max_keysize		= DES3_EDE_KEY_SIZE,
+		.setkey			= des3_ede_x86_setkey_skcipher,
+		.encrypt		= ecb_encrypt,
+		.decrypt		= ecb_decrypt,
+	}, {
+		.base.cra_name		= "cbc(des3_ede)",
+		.base.cra_driver_name	= "cbc-des3_ede-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct des3_ede_x86_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= DES3_EDE_KEY_SIZE,
+		.max_keysize		= DES3_EDE_KEY_SIZE,
+		.ivsize			= DES3_EDE_BLOCK_SIZE,
+		.setkey			= des3_ede_x86_setkey_skcipher,
+		.encrypt		= cbc_encrypt,
+		.decrypt		= cbc_decrypt,
+	}, {
+		.base.cra_name		= "ctr(des3_ede)",
+		.base.cra_driver_name	= "ctr-des3_ede-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct des3_ede_x86_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= DES3_EDE_KEY_SIZE,
+		.max_keysize		= DES3_EDE_KEY_SIZE,
+		.ivsize			= DES3_EDE_BLOCK_SIZE,
+		.chunksize		= DES3_EDE_BLOCK_SIZE,
+		.setkey			= des3_ede_x86_setkey_skcipher,
+		.encrypt		= ctr_crypt,
+		.decrypt		= ctr_crypt,
+	}
+};
 
 static bool is_blacklisted_cpu(void)
 {
@@ -483,17 +470,30 @@ MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
 static int __init des3_ede_x86_init(void)
 {
+	int err;
+
 	if (!force && is_blacklisted_cpu()) {
 		pr_info("des3_ede-x86_64: performance on this CPU would be suboptimal: disabling des3_ede-x86_64.\n");
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(des3_ede_algs, ARRAY_SIZE(des3_ede_algs));
+	err = crypto_register_alg(&des3_ede_cipher);
+	if (err)
+		return err;
+
+	err = crypto_register_skciphers(des3_ede_skciphers,
+					ARRAY_SIZE(des3_ede_skciphers));
+	if (err)
+		crypto_unregister_alg(&des3_ede_cipher);
+
+	return err;
 }
 
 static void __exit des3_ede_x86_fini(void)
 {
-	crypto_unregister_algs(des3_ede_algs, ARRAY_SIZE(des3_ede_algs));
+	crypto_unregister_alg(&des3_ede_cipher);
+	crypto_unregister_skciphers(des3_ede_skciphers,
+				    ARRAY_SIZE(des3_ede_skciphers));
 }
 
 module_init(des3_ede_x86_init);

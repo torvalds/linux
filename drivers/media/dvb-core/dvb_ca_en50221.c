@@ -1254,8 +1254,8 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 		ca->pub->slot_ts_enable(ca->pub, slot);
 		sl->slot_state = DVB_CA_SLOTSTATE_RUNNING;
 		dvb_ca_en50221_thread_update_delay(ca);
-		pr_err("dvb_ca adapter %d: DVB CAM detected and initialised successfully\n",
-		       ca->dvbdev->adapter->num);
+		pr_info("dvb_ca adapter %d: DVB CAM detected and initialised successfully\n",
+			ca->dvbdev->adapter->num);
 		break;
 
 	case DVB_CA_SLOTSTATE_RUNNING:

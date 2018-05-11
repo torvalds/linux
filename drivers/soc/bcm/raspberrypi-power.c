@@ -45,7 +45,7 @@ struct rpi_power_domains {
 struct rpi_power_domain_packet {
 	u32 domain;
 	u32 on;
-} __packet;
+};
 
 /*
  * Asks the firmware to enable or disable power on a specific power

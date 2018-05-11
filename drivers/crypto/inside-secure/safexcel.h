@@ -135,7 +135,7 @@
 
 /* EIP197_HIA_xDR_DMA_CFG */
 #define EIP197_HIA_xDR_WR_RES_BUF		BIT(22)
-#define EIP197_HIA_xDR_WR_CTRL_BUG		BIT(23)
+#define EIP197_HIA_xDR_WR_CTRL_BUF		BIT(23)
 #define EIP197_HIA_xDR_WR_OWN_BUF		BIT(24)
 #define EIP197_HIA_xDR_CFG_WR_CACHE(n)		(((n) & 0x7) << 25)
 #define EIP197_HIA_xDR_CFG_RD_CACHE(n)		(((n) & 0x7) << 29)
@@ -179,7 +179,7 @@
 #define EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(n)	((n) << 0)
 #define EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(n)	(((n) & 0x7) << 4)
 #define EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(n)	((n) << 8)
-#define EIP197_HIA_DSE_CFG_ALLWAYS_BUFFERABLE	GENMASK(15, 14)
+#define EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE	GENMASK(15, 14)
 #define EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(n)	((n) << 16)
 #define EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(n)	(((n) & 0x7) << 20)
 #define EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(n)	((n) << 24)
@@ -525,6 +525,7 @@ struct safexcel_crypto_priv {
 	void __iomem *base;
 	struct device *dev;
 	struct clk *clk;
+	struct clk *reg_clk;
 	struct safexcel_config config;
 
 	enum safexcel_eip_version version;
@@ -551,10 +552,8 @@ struct safexcel_crypto_priv {
 		struct crypto_queue queue;
 		spinlock_t queue_lock;
 
-		/* Number of requests in the engine that needs the threshold
-		 * interrupt to be set up.
-		 */
-		int requests_left;
+		/* Number of requests in the engine. */
+		int requests;
 
 		/* The ring is currently handling at least one request */
 		bool busy;
@@ -580,12 +579,6 @@ struct safexcel_context {
 	int ring;
 	bool needs_inv;
 	bool exit_inv;
-
-	/* Used for ahash requests */
-	dma_addr_t result_dma;
-	void *cache;
-	dma_addr_t cache_dma;
-	unsigned int cache_sz;
 };
 
 /*
@@ -609,9 +602,6 @@ struct safexcel_inv_result {
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
-void safexcel_free_context(struct safexcel_crypto_priv *priv,
-				  struct crypto_async_request *req,
-				  int result_sz);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
 			      dma_addr_t ctxr_dma, int ring,
@@ -643,5 +633,7 @@ extern struct safexcel_alg_template safexcel_alg_sha1;
 extern struct safexcel_alg_template safexcel_alg_sha224;
 extern struct safexcel_alg_template safexcel_alg_sha256;
 extern struct safexcel_alg_template safexcel_alg_hmac_sha1;
+extern struct safexcel_alg_template safexcel_alg_hmac_sha224;
+extern struct safexcel_alg_template safexcel_alg_hmac_sha256;
 
 #endif

@@ -46,13 +46,10 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-unsigned int
-BBuGetFrameTime(
-	unsigned char byPreambleType,
-	unsigned char byPktType,
-	unsigned int cbFrameLength,
-	unsigned short wRate
-);
+unsigned int BBuGetFrameTime(unsigned char byPreambleType,
+			     unsigned char byPktType,
+			     unsigned int cbFrameLength,
+			     unsigned short wRate);
 
 void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);

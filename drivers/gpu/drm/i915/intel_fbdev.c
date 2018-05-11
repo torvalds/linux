@@ -221,6 +221,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unlock;
 	}
 
+	fb = &ifbdev->fb->base;
+	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
+
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		DRM_ERROR("Failed to allocate fb_info\n");
@@ -229,8 +232,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = helper;
-
-	fb = &ifbdev->fb->base;
 
 	ifbdev->helper.fb = fb;
 
@@ -806,7 +807,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (ifbdev->vma)
+	if (ifbdev->vma || ifbdev->helper.deferred_setup)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 

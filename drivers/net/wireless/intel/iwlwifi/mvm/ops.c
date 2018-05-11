@@ -104,14 +104,14 @@ struct iwl_mvm_mod_params iwlmvm_mod_params = {
 	/* rest of fields are 0 by default */
 };
 
-module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, S_IRUGO);
+module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, 0444);
 MODULE_PARM_DESC(init_dbg,
 		 "set to true to debug an ASSERT in INIT fw (default: false");
-module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, S_IRUGO);
+module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, 0444);
 MODULE_PARM_DESC(power_scheme,
 		 "power management scheme: 1-active, 2-balanced, 3-low power, default: 2");
 module_param_named(tfd_q_hang_detect, iwlmvm_mod_params.tfd_q_hang_detect,
-		   bool, S_IRUGO);
+		   bool, 0444);
 MODULE_PARM_DESC(tfd_q_hang_detect,
 		 "TFD queues hang detection (default: true");
 

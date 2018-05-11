@@ -28,11 +28,19 @@ Required properties:
   - interrupts: one XHCI interrupt should be described here.
 
 Optional properties:
-  - clocks: reference to a clock
+  - clocks: reference to the clocks
+  - clock-names: mandatory if there is a second clock, in this case
+    the name must be "core" for the first clock and "reg" for the
+    second one
   - usb2-lpm-disable: indicate if we don't want to enable USB2 HW LPM
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
   - quirk-broken-port-ped: set if the controller has broken port disable mechanism
   - imod-interval-ns: default interrupt moderation interval is 5000ns
+  - phys : see usb-hcd.txt in the current directory
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
+
 
 Example:
 	usb@f0931000 {

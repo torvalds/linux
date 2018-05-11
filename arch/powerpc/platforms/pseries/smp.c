@@ -110,7 +110,7 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 	}
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
-	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
+	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
 #ifdef CONFIG_HOTPLUG_CPU
 	if (get_cpu_current_state(lcpu) == CPU_STATE_INACTIVE)
 		goto out;
@@ -165,7 +165,7 @@ static int smp_pSeries_kick_cpu(int nr)
 	 * cpu_start field to become non-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
-	paca[nr].cpu_start = 1;
+	paca_ptrs[nr]->cpu_start = 1;
 #ifdef CONFIG_HOTPLUG_CPU
 	set_preferred_offline_state(nr, CPU_STATE_ONLINE);
 
@@ -215,7 +215,7 @@ static int pseries_cause_nmi_ipi(int cpu)
 		hwcpu = get_hard_smp_processor_id(cpu);
 	}
 
-	if (plapr_signal_sys_reset(hwcpu) == H_SUCCESS)
+	if (plpar_signal_sys_reset(hwcpu) == H_SUCCESS)
 		return 1;
 
 	return 0;

@@ -586,11 +586,11 @@ static int faraday_pci_probe(struct platform_device *pdev)
  * We encode bridge variants here, we have at least two so it doesn't
  * hurt to have infrastructure to encompass future variants as well.
  */
-const struct faraday_pci_variant faraday_regular = {
+static const struct faraday_pci_variant faraday_regular = {
 	.cascaded_irq = true,
 };
 
-const struct faraday_pci_variant faraday_dual = {
+static const struct faraday_pci_variant faraday_dual = {
 	.cascaded_irq = false,
 };
 

@@ -620,6 +620,13 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 				  struct device_node *np,
 				  struct resource *res);
 
+struct ti_sysc_module_data;
+struct ti_sysc_cookie;
+
+int omap_hwmod_init_module(struct device *dev,
+			   const struct ti_sysc_module_data *data,
+			   struct ti_sysc_cookie *cookie);
+
 int omap_hwmod_enable(struct omap_hwmod *oh);
 int omap_hwmod_idle(struct omap_hwmod *oh);
 int omap_hwmod_shutdown(struct omap_hwmod *oh);

@@ -72,7 +72,8 @@ config DISPLAY7SEG
 
 config ORACLE_DAX
 	tristate "Oracle Data Analytics Accelerator"
-	default m if SPARC64
+	depends on SPARC64
+	default m
 	help
 	 Driver for Oracle Data Analytics Accelerator, which is
 	 a coprocessor that performs database operations in hardware.

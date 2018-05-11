@@ -48,7 +48,7 @@
 	model = "Creative ZEN X-Fi3";
 	compatible = "creative,x-fi3", "fsl,imx23";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x04000000>;
 	};
 

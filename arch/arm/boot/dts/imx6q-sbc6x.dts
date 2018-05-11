@@ -12,7 +12,7 @@
 	model = "MicroSys sbc6x board";
 	compatible = "microsys,sbc6x", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 };

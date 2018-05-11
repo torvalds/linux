@@ -7,6 +7,7 @@
 /* ipcs ctl commands */
 #define MSG_STAT 11
 #define MSG_INFO 12
+#define MSG_STAT_ANY 13
 
 /* msgrcv options */
 #define MSG_NOERROR     010000  /* no error if message is too big */

@@ -48,6 +48,7 @@ struct brcmf_proto {
 	void (*del_if)(struct brcmf_if *ifp);
 	void (*reset_if)(struct brcmf_if *ifp);
 	int (*init_done)(struct brcmf_pub *drvr);
+	void (*debugfs_create)(struct brcmf_pub *drvr);
 	void *pd;
 };
 
@@ -154,6 +155,12 @@ brcmf_proto_init_done(struct brcmf_pub *drvr)
 	if (!drvr->proto->init_done)
 		return 0;
 	return drvr->proto->init_done(drvr);
+}
+
+static inline void
+brcmf_proto_debugfs_create(struct brcmf_pub *drvr)
+{
+	drvr->proto->debugfs_create(drvr);
 }
 
 #endif /* BRCMFMAC_PROTO_H */

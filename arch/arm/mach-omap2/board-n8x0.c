@@ -566,11 +566,11 @@ static int n8x0_menelaus_late_init(struct device *dev)
 }
 #endif
 
-struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
+struct menelaus_platform_data n8x0_menelaus_platform_data = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-struct aic3x_pdata n810_aic33_data __initdata = {
+struct aic3x_pdata n810_aic33_data = {
 	.gpio_reset = 118,
 };
 

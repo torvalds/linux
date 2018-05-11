@@ -354,7 +354,7 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
 	if (!dogrp)
 		return n;
 
-	list_for_each_entry(event, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(event, leader) {
 		if (!is_box_event(box, event) ||
 		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;

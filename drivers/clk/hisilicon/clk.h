@@ -68,6 +68,19 @@ struct hisi_mux_clock {
 	const char		*alias;
 };
 
+struct hisi_phase_clock {
+	unsigned int		id;
+	const char		*name;
+	const char		*parent_names;
+	unsigned long		flags;
+	unsigned long		offset;
+	u8			shift;
+	u8			width;
+	u32			*phase_degrees;
+	u32			*phase_regvals;
+	u8			phase_num;
+};
+
 struct hisi_divider_clock {
 	unsigned int		id;
 	const char		*name;
@@ -120,6 +133,12 @@ int hisi_clk_register_fixed_factor(const struct hisi_fixed_factor_clock *,
 				int, struct hisi_clock_data *);
 int hisi_clk_register_mux(const struct hisi_mux_clock *, int,
 				struct hisi_clock_data *);
+struct clk *clk_register_hisi_phase(struct device *dev,
+				const struct hisi_phase_clock *clks,
+				void __iomem *base, spinlock_t *lock);
+int hisi_clk_register_phase(struct device *dev,
+				const struct hisi_phase_clock *clks,
+				int nums, struct hisi_clock_data *data);
 int hisi_clk_register_divider(const struct hisi_divider_clock *,
 				int, struct hisi_clock_data *);
 int hisi_clk_register_gate(const struct hisi_gate_clock *,

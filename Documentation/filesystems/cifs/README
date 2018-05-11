@@ -11,13 +11,14 @@ Information Foundation.  CIFS and now SMB3 has now become a defacto
 standard for interoperating between Macs and Windows and major NAS appliances.
 
 Please see
+  MS-SMB2 (for detailed SMB2/SMB3/SMB3.1.1 protocol specification)
   http://protocolfreedom.org/ and
   http://samba.org/samba/PFIF/
 for more details.
 
 
 For questions or bug reports please contact:
-    sfrench@samba.org (sfrench@us.ibm.com) 
+    smfrench@gmail.com
 
 See the project page at: https://wiki.samba.org/index.php/LinuxCIFS_utils
 
@@ -37,15 +38,15 @@ Installation instructions:
 =========================
 If you have built the CIFS vfs as module (successfully) simply
 type "make modules_install" (or if you prefer, manually copy the file to
-the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.o).
+the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.ko).
 
 If you have built the CIFS vfs into the kernel itself, follow the instructions
 for your distribution on how to install a new kernel (usually you
 would simply type "make install").
 
-If you do not have the utility mount.cifs (in the Samba 3.0 source tree and on 
-the CIFS VFS web site) copy it to the same directory in which mount.smbfs and 
-similar files reside (usually /sbin).  Although the helper software is not  
+If you do not have the utility mount.cifs (in the Samba 4.x source tree and on
+the CIFS VFS web site) copy it to the same directory in which mount helpers
+reside (usually /sbin).  Although the helper software is not
 required, mount.cifs is recommended.  Most distros include a "cifs-utils"
 package that includes this utility so it is recommended to install this.
 
@@ -118,10 +119,13 @@ this can become unwieldy when potential mount targets include many
 or  unpredictable UNC names.
 
 Samba Considerations 
-==================== 
-To get the maximum benefit from the CIFS VFS, we recommend using a server that 
-supports the SNIA CIFS Unix Extensions standard (e.g.  Samba 2.2.5 or later or 
-Samba 3.0) but the CIFS vfs works fine with a wide variety of CIFS servers.  
+====================
+Most current servers support SMB2.1 and SMB3 which are more secure,
+but there are useful protocol extensions for the older less secure CIFS
+dialect, so to get the maximum benefit if mounting using the older dialect
+(CIFS/SMB1), we recommend using a server that supports the SNIA CIFS
+Unix Extensions standard (e.g. almost any  version of Samba ie version
+2.2.5 or later) but the CIFS vfs works fine with a wide variety of CIFS servers.
 Note that uid, gid and file permissions will display default values if you do 
 not have a server that supports the Unix extensions for CIFS (such as Samba 
 2.2.5 or later).  To enable the Unix CIFS Extensions in the Samba server, add 
@@ -603,11 +607,6 @@ Stats			Lists summary resource usage information as well as per
 			in the kernel configuration.
 
 Configuration pseudo-files:
-PacketSigningEnabled	If set to one, cifs packet signing is enabled
-			and will be used if the server requires 
-			it.  If set to two, cifs packet signing is
-			required even if the server considers packet
-			signing optional. (default 1)
 SecurityFlags		Flags which control security negotiation and
 			also packet signing. Authentication (may/must)
 			flags (e.g. for NTLM and/or NTLMv2) may be combined with
@@ -665,8 +664,6 @@ traceSMB		If set to one, debug information is logged to the
 			and responses (default 0)
 LookupCacheEnable	If set to one, inode information is kept cached
 			for one second improving performance of lookups
-			(default 1)
-OplockEnabled		If set to one, safe distributed caching enabled.
 			(default 1)
 LinuxExtensionsEnabled	If set to one then the client will attempt to
 			use the CIFS "UNIX" extensions which are optional

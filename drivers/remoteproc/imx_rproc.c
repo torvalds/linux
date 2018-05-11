@@ -333,14 +333,14 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	/* set some other name then imx */
 	rproc = rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
 			    NULL, sizeof(*priv));
-	if (!rproc) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!rproc)
+		return -ENOMEM;
 
 	dcfg = of_device_get_match_data(dev);
-	if (!dcfg)
-		return -EINVAL;
+	if (!dcfg) {
+		ret = -EINVAL;
+		goto err_put_rproc;
+	}
 
 	priv = rproc->priv;
 	priv->rproc = rproc;
@@ -359,8 +359,8 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "Failed to get clock\n");
-		rproc_free(rproc);
-		return PTR_ERR(priv->clk);
+		ret = PTR_ERR(priv->clk);
+		goto err_put_rproc;
 	}
 
 	/*
@@ -370,8 +370,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
 		dev_err(&rproc->dev, "Failed to enable clock\n");
-		rproc_free(rproc);
-		return ret;
+		goto err_put_rproc;
 	}
 
 	ret = rproc_add(rproc);
@@ -380,13 +379,13 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	return ret;
+	return 0;
 
 err_put_clk:
 	clk_disable_unprepare(priv->clk);
 err_put_rproc:
 	rproc_free(rproc);
-err:
+
 	return ret;
 }
 

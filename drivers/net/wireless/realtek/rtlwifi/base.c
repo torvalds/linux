@@ -244,6 +244,9 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
+	if (!(rtlpriv->cfg->spec_ver & RTL_SPEC_SUPPORT_VHT))
+		return;
+
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE ||
 	    rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
 		u16 mcs_map;
@@ -397,6 +400,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
 	if (rtlpriv->psc.swctrl_lps) {
@@ -886,8 +890,7 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 
 	tcb_desc->packet_bw = HT_CHANNEL_WIDTH_20_40;
 
-	if (rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8812AE ||
-	    rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8821AE) {
+	if (rtlpriv->cfg->spec_ver & RTL_SPEC_SUPPORT_VHT) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
 		    mac->opmode == NL80211_IFTYPE_ADHOC ||
 		    mac->opmode == NL80211_IFTYPE_MESH_POINT) {
@@ -1546,7 +1549,6 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 		/* EAPOL is seens as in-4way */
 		rtlpriv->btcoexist.btc_info.in_4way = true;
 		rtlpriv->btcoexist.btc_info.in_4way_ts = jiffies;
-	rtlpriv->btcoexist.btc_info.in_4way_ts = jiffies;
 
 		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
 			 "802.1X %s EAPOL pkt!!\n", (is_tx) ? "Tx" : "Rx");
@@ -1594,7 +1596,11 @@ static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
 	u16 sn;
 
-	sn = atomic_inc_return(&tx_report->sn) & 0x0FFF;
+	/* SW_DEFINE[11:8] are reserved (driver fills zeros)
+	 * SW_DEFINE[7:2] are used by driver
+	 * SW_DEFINE[1:0] are reserved for firmware (driver fills zeros)
+	 */
+	sn = (atomic_inc_return(&tx_report->sn) & 0x003F) << 2;
 
 	tx_report->last_sent_sn = sn;
 	tx_report->last_sent_time = jiffies;
@@ -1622,14 +1628,23 @@ void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
 	u16 sn;
+	u8 st, retry;
 
-	sn = ((tmp_buf[7] & 0x0F) << 8) | tmp_buf[6];
+	if (rtlpriv->cfg->spec_ver & RTL_SPEC_EXT_C2H) {
+		sn = GET_TX_REPORT_SN_V2(tmp_buf);
+		st = GET_TX_REPORT_ST_V2(tmp_buf);
+		retry = GET_TX_REPORT_RETRY_V2(tmp_buf);
+	} else {
+		sn = GET_TX_REPORT_SN_V1(tmp_buf);
+		st = GET_TX_REPORT_ST_V1(tmp_buf);
+		retry = GET_TX_REPORT_RETRY_V1(tmp_buf);
+	}
 
 	tx_report->last_recv_sn = sn;
 
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
-		 tmp_buf[0], sn, tmp_buf[2]);
+		 st, sn, retry);
 }
 EXPORT_SYMBOL_GPL(rtl_tx_report_handler);
 
@@ -1643,7 +1658,8 @@ bool rtl_check_tx_report_acked(struct ieee80211_hw *hw)
 
 	if (time_before(tx_report->last_sent_time + 3 * HZ, jiffies)) {
 		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_WARNING,
-			 "Check TX-Report timeout!!\n");
+			 "Check TX-Report timeout!! s_sn=0x%X r_sn=0x%X\n",
+			 tx_report->last_sent_sn, tx_report->last_recv_sn);
 		return true;	/* 3 sec. (timeout) seen as acked */
 	}
 
@@ -2629,6 +2645,11 @@ EXPORT_SYMBOL_GPL(rtl_global_var);
 
 static int __init rtl_core_module_init(void)
 {
+	BUILD_BUG_ON(TX_PWR_BY_RATE_NUM_RATE < TX_PWR_BY_RATE_NUM_SECTION);
+	BUILD_BUG_ON(MAX_RATE_SECTION_NUM != MAX_RATE_SECTION);
+	BUILD_BUG_ON(MAX_BASE_NUM_IN_PHY_REG_PG_24G != MAX_RATE_SECTION);
+	BUILD_BUG_ON(MAX_BASE_NUM_IN_PHY_REG_PG_5G != (MAX_RATE_SECTION - 1));
+
 	if (rtl_rate_control_register())
 		pr_err("rtl: Unable to register rtl_rc, use default RC !!\n");
 

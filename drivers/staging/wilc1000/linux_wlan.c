@@ -628,8 +628,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			wl->hif_func->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
-		if (&wl->txq_event)
-			complete(&wl->txq_event);
+		complete(&wl->txq_event);
 
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);
@@ -677,11 +676,9 @@ static int wlan_deinit_locks(struct net_device *dev)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	if (&wilc->hif_cs)
-		mutex_destroy(&wilc->hif_cs);
-
-	if (&wilc->rxq_cs)
-		mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->hif_cs);
+	mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->txq_add_to_head_cs);
 
 	return 0;
 }
@@ -716,8 +713,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 
 	wl->close = 1;
 
-	if (&wl->txq_event)
-		complete(&wl->txq_event);
+	complete(&wl->txq_event);
 
 	if (wl->txq_thread) {
 		kthread_stop(wl->txq_thread);
@@ -866,10 +862,10 @@ static int wilc_mac_open(struct net_device *ndev)
 			break;
 		}
 	}
-			wilc_get_mac_address(vif, mac_add);
-			netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 
+	wilc_get_mac_address(vif, mac_add);
+	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
+	memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 	memcpy(ndev->dev_addr, wl->vif[i]->src_addr, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1154,7 +1150,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 	}
 }
 
-void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
+void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 {
 	int i = 0;
 	struct wilc_vif *vif;

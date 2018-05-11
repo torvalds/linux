@@ -52,6 +52,7 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 		return xtensa_ioremap_cache(offset, size);
 }
 #define ioremap_cache ioremap_cache
+#define ioremap_nocache ioremap_nocache
 
 #define ioremap_wc ioremap_nocache
 #define ioremap_wt ioremap_nocache

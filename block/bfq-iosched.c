@@ -201,7 +201,20 @@ static struct kmem_cache *bfq_pool;
 /* Target observation time interval for a peak-rate update (ns) */
 #define BFQ_RATE_REF_INTERVAL	NSEC_PER_SEC
 
-/* Shift used for peak rate fixed precision calculations. */
+/*
+ * Shift used for peak-rate fixed precision calculations.
+ * With
+ * - the current shift: 16 positions
+ * - the current type used to store rate: u32
+ * - the current unit of measure for rate: [sectors/usec], or, more precisely,
+ *   [(sectors/usec) / 2^BFQ_RATE_SHIFT] to take into account the shift,
+ * the range of rates that can be stored is
+ * [1 / 2^BFQ_RATE_SHIFT, 2^(32 - BFQ_RATE_SHIFT)] sectors/usec =
+ * [1 / 2^16, 2^16] sectors/usec = [15e-6, 65536] sectors/usec =
+ * [15, 65G] sectors/sec
+ * Which, assuming a sector size of 512B, corresponds to a range of
+ * [7.5K, 33T] B/sec
+ */
 #define BFQ_RATE_SHIFT		16
 
 /*
@@ -2637,6 +2650,16 @@ static void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 	rate /= divisor; /* smoothing constant alpha = 1/divisor */
 
 	bfqd->peak_rate += rate;
+
+	/*
+	 * For a very slow device, bfqd->peak_rate can reach 0 (see
+	 * the minimum representable values reported in the comments
+	 * on BFQ_RATE_SHIFT). Push to 1 if this happens, to avoid
+	 * divisions by zero where bfqd->peak_rate is used as a
+	 * divisor.
+	 */
+	bfqd->peak_rate = max_t(u32, 1, bfqd->peak_rate);
+
 	update_thr_responsiveness_params(bfqd);
 
 reset_computation:
@@ -4911,8 +4934,16 @@ static void bfq_prepare_request(struct request *rq, struct bio *bio)
 	bool new_queue = false;
 	bool bfqq_already_existing = false, split = false;
 
-	if (!rq->elv.icq)
+	/*
+	 * Even if we don't have an icq attached, we should still clear
+	 * the scheduler pointers, as they might point to previously
+	 * allocated bic/bfqq structs.
+	 */
+	if (!rq->elv.icq) {
+		rq->elv.priv[0] = rq->elv.priv[1] = NULL;
 		return;
+	}
+
 	bic = icq_to_bic(rq->elv.icq);
 
 	spin_lock_irq(&bfqd->lock);

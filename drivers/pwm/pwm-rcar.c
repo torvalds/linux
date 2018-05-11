@@ -134,16 +134,12 @@ static int rcar_pwm_set_counter(struct rcar_pwm_chip *rp, int div, int duty_ns,
 
 static int rcar_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
-
-	return clk_prepare_enable(rp->clk);
+	return pm_runtime_get_sync(chip->dev);
 }
 
 static void rcar_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
-
-	clk_disable_unprepare(rp->clk);
+	pm_runtime_put(chip->dev);
 }
 
 static int rcar_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -156,8 +152,12 @@ static int rcar_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (div < 0)
 		return div;
 
-	/* Let the core driver set pwm->period if disabled and duty_ns == 0 */
-	if (!pwm_is_enabled(pwm) && !duty_ns)
+	/*
+	 * Let the core driver set pwm->period if disabled and duty_ns == 0.
+	 * But, this driver should prevent to set the new duty_ns if current
+	 * duty_cycle is not set
+	 */
+	if (!pwm_is_enabled(pwm) && !duty_ns && !pwm->state.duty_cycle)
 		return 0;
 
 	rcar_pwm_update(rp, RCAR_PWMCR_SYNC, RCAR_PWMCR_SYNC, RCAR_PWMCR);
@@ -258,11 +258,53 @@ static const struct of_device_id rcar_pwm_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, rcar_pwm_of_table);
 
+#ifdef CONFIG_PM_SLEEP
+static struct pwm_device *rcar_pwm_dev_to_pwm_dev(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rcar_pwm_chip *rcar_pwm = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = &rcar_pwm->chip;
+
+	return &chip->pwms[0];
+}
+
+static int rcar_pwm_suspend(struct device *dev)
+{
+	struct pwm_device *pwm = rcar_pwm_dev_to_pwm_dev(dev);
+
+	if (!test_bit(PWMF_REQUESTED, &pwm->flags))
+		return 0;
+
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
+static int rcar_pwm_resume(struct device *dev)
+{
+	struct pwm_device *pwm = rcar_pwm_dev_to_pwm_dev(dev);
+
+	if (!test_bit(PWMF_REQUESTED, &pwm->flags))
+		return 0;
+
+	pm_runtime_get_sync(dev);
+
+	rcar_pwm_config(pwm->chip, pwm, pwm->state.duty_cycle,
+			pwm->state.period);
+	if (pwm_is_enabled(pwm))
+		rcar_pwm_enable(pwm->chip, pwm);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+static SIMPLE_DEV_PM_OPS(rcar_pwm_pm_ops, rcar_pwm_suspend, rcar_pwm_resume);
+
 static struct platform_driver rcar_pwm_driver = {
 	.probe = rcar_pwm_probe,
 	.remove = rcar_pwm_remove,
 	.driver = {
 		.name = "pwm-rcar",
+		.pm	= &rcar_pwm_pm_ops,
 		.of_match_table = of_match_ptr(rcar_pwm_of_table),
 	}
 };

@@ -1,33 +1,12 @@
 /*
- * Copyright © 2017 Intel Corporation
+ * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2017-2018 Intel Corporation
  */
 
-#include <linux/perf_event.h>
-#include <linux/pm_runtime.h>
-
-#include "i915_drv.h"
 #include "i915_pmu.h"
 #include "intel_ringbuffer.h"
+#include "i915_drv.h"
 
 /* Frequency for the sampling timer for events which need it. */
 #define FREQUENCY 200
@@ -473,20 +452,37 @@ static u64 get_rc6(struct drm_i915_private *i915)
 		spin_lock_irqsave(&i915->pmu.lock, flags);
 		spin_lock(&kdev->power.lock);
 
-		if (!i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
-			i915->pmu.suspended_jiffies_last =
-						kdev->power.suspended_jiffies;
+		/*
+		 * After the above branch intel_runtime_pm_get_if_in_use failed
+		 * to get the runtime PM reference we cannot assume we are in
+		 * runtime suspend since we can either: a) race with coming out
+		 * of it before we took the power.lock, or b) there are other
+		 * states than suspended which can bring us here.
+		 *
+		 * We need to double-check that we are indeed currently runtime
+		 * suspended and if not we cannot do better than report the last
+		 * known RC6 value.
+		 */
+		if (kdev->power.runtime_status == RPM_SUSPENDED) {
+			if (!i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
+				i915->pmu.suspended_jiffies_last =
+						  kdev->power.suspended_jiffies;
 
-		val = kdev->power.suspended_jiffies -
-		      i915->pmu.suspended_jiffies_last;
-		val += jiffies - kdev->power.accounting_timestamp;
+			val = kdev->power.suspended_jiffies -
+			      i915->pmu.suspended_jiffies_last;
+			val += jiffies - kdev->power.accounting_timestamp;
+
+			val = jiffies_to_nsecs(val);
+			val += i915->pmu.sample[__I915_SAMPLE_RC6].cur;
+
+			i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
+		} else if (i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
+			val = i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
+		} else {
+			val = i915->pmu.sample[__I915_SAMPLE_RC6].cur;
+		}
 
 		spin_unlock(&kdev->power.lock);
-
-		val = jiffies_to_nsecs(val);
-		val += i915->pmu.sample[__I915_SAMPLE_RC6].cur;
-		i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
-
 		spin_unlock_irqrestore(&i915->pmu.lock, flags);
 	}
 

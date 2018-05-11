@@ -200,7 +200,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 
 	/* Consider sectors used for metadata */
 	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
-	blk_meta = DIV_ROUND_UP(sec_meta, geo->sec_per_chk);
+	blk_meta = DIV_ROUND_UP(sec_meta, geo->clba);
 
 	rl->high = pblk->op_blks - blk_meta - lm->blk_per_line;
 	rl->high_pw = get_count_order(rl->high);

@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
+#include <linux/suspend.h>
 
 #define DRV_NAME "cros_ec_lpcs"
 #define ACPI_DRV_NAME "GOOG0004"
@@ -235,6 +236,9 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 	    cros_ec_get_next_event(ec_dev, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier, 0,
 					     ec_dev);
+
+	if (value == ACPI_NOTIFY_DEVICE_WAKE)
+		pm_system_wakeup();
 }
 
 static int cros_ec_lpc_probe(struct platform_device *pdev)
@@ -339,6 +343,18 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
 			DMI_MATCH(DMI_BIOS_VERSION, "Google_"),
+		},
+	},
+	{
+		/*
+		 * If the box is running custom coreboot firmware then the
+		 * DMI BIOS version string will not be matched by "Google_",
+		 * but the system vendor string will still be matched by
+		 * "GOOGLE".
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 		},
 	},
 	{

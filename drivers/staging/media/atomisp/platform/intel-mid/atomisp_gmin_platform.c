@@ -441,7 +441,7 @@ static int gmin_v1p2_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->v1p2_on == on)
+	if (!gs || gs->v1p2_on == on)
 		return 0;
 	gs->v1p2_on = on;
 
@@ -475,7 +475,7 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 		}
 	}
 
-	if (gs && gs->v1p8_on == on)
+	if (!gs || gs->v1p8_on == on)
 		return 0;
 	gs->v1p8_on = on;
 
@@ -511,7 +511,7 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 		}
 	}
 
-	if (gs && gs->v2p8_on == on)
+	if (!gs || gs->v2p8_on == on)
 		return 0;
 	gs->v2p8_on = on;
 
@@ -693,9 +693,11 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
+#ifdef CONFIG_64BIT
 	/* To avoid owerflows when calling the efivar API */
 	if (*out_len > ULONG_MAX)
 		return -EINVAL;
+#endif
 
 	/* Not sure this API usage is kosher; efivar_entry_get()'s
 	 * implementation simply uses VariableName and VendorGuid from

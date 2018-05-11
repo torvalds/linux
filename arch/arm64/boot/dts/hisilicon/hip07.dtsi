@@ -1083,6 +1083,31 @@
 		};
 	};
 
+	/**
+	 *  HiSilicon erratum 161010801: This describes the limitation
+	 *  of HiSilicon platforms hip06/hip07 to support the SMMUv3
+	 *  mappings for PCIe MSI transactions.
+	 *  PCIe controller on these platforms has to differentiate the
+	 *  MSI payload against other DMA payload and has to modify the
+	 *  MSI payload. This makes it difficult for these platforms to
+	 *  have a SMMU translation for MSI. In order to workaround this,
+	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
+	 *  separately. Such a quirk is currently missing for DT based
+	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  hip07 is disabled as this will break the PCIe functionality
+	 *  when iommu-map entry is used along with the PCIe node.
+	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
+	 */
+	smmu0: smmu_pcie {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xa0040000 0x0 0x20000>;
+		#iommu-cells = <1>;
+		dma-coherent;
+		smmu-cb-memtype = <0x0 0x1>;
+		hisilicon,broken-prefetch-cmd;
+		status = "disabled";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -1125,6 +1150,12 @@
 		dsa_subctrl: dsa_subctrl@c0000000 {
 			compatible = "hisilicon,dsa-subctrl", "syscon";
 			reg = <0x0 0xc0000000 0x0 0x10000>;
+		};
+
+		dsa_cpld: dsa_cpld@78000010 {
+			compatible = "syscon";
+			reg = <0x0 0x78000010 0x0 0x100>;
+			reg-io-width = <2>;
 		};
 
 		pcie_subctl: pcie_subctl@a0000000 {
@@ -1258,6 +1289,7 @@
 			port@0 {
 				reg = <0>;
 				serdes-syscon = <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x0>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
 				mc-mac-mask = [ff f0 00 00 00 00];
@@ -1267,6 +1299,7 @@
 			port@1 {
 				reg = <1>;
 				serdes-syscon= <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x4>;
 				port-rst-offset = <1>;
 				port-mode-offset = <1>;
 				mc-mac-mask = [ff f0 00 00 00 00];

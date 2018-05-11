@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011, 2012 STRATO.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/blkdev.h>
@@ -371,7 +358,7 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 	struct full_stripe_lock *entry;
 	struct full_stripe_lock *ret;
 
-	WARN_ON(!mutex_is_locked(&locks_root->lock));
+	lockdep_assert_held(&locks_root->lock);
 
 	p = &locks_root->root.rb_node;
 	while (*p) {
@@ -413,7 +400,7 @@ static struct full_stripe_lock *search_full_stripe_lock(
 	struct rb_node *node;
 	struct full_stripe_lock *entry;
 
-	WARN_ON(!mutex_is_locked(&locks_root->lock));
+	lockdep_assert_held(&locks_root->lock);
 
 	node = locks_root->root.rb_node;
 	while (node) {
@@ -1111,7 +1098,6 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	struct scrub_ctx *sctx = sblock_to_check->sctx;
 	struct btrfs_device *dev;
 	struct btrfs_fs_info *fs_info;
-	u64 length;
 	u64 logical;
 	unsigned int failed_mirror_index;
 	unsigned int is_metadata;
@@ -1139,7 +1125,6 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		spin_unlock(&sctx->stat_lock);
 		return 0;
 	}
-	length = sblock_to_check->page_count * PAGE_SIZE;
 	logical = sblock_to_check->pagev[0]->logical;
 	BUG_ON(sblock_to_check->pagev[0]->mirror_num < 1);
 	failed_mirror_index = sblock_to_check->pagev[0]->mirror_num - 1;
@@ -1412,8 +1397,17 @@ nodatasum_case:
 		if (!page_bad->io_error && !sctx->is_dev_replace)
 			continue;
 
-		/* try to find no-io-error page in mirrors */
-		if (page_bad->io_error) {
+		if (scrub_is_page_on_raid56(sblock_bad->pagev[0])) {
+			/*
+			 * In case of dev replace, if raid56 rebuild process
+			 * didn't work out correct data, then copy the content
+			 * in sblock_bad to make sure target device is identical
+			 * to source device, instead of writing garbage data in
+			 * sblock_for_recheck array to target device.
+			 */
+			sblock_other = NULL;
+		} else if (page_bad->io_error) {
+			/* try to find no-io-error page in mirrors */
 			for (mirror_index = 0;
 			     mirror_index < BTRFS_MAX_MIRRORS &&
 			     sblocks_for_recheck[mirror_index].page_count > 0;
@@ -1718,6 +1712,45 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	return blk_status_to_errno(bio->bi_status);
 }
 
+static void scrub_recheck_block_on_raid56(struct btrfs_fs_info *fs_info,
+					  struct scrub_block *sblock)
+{
+	struct scrub_page *first_page = sblock->pagev[0];
+	struct bio *bio;
+	int page_num;
+
+	/* All pages in sblock belong to the same stripe on the same device. */
+	ASSERT(first_page->dev);
+	if (!first_page->dev->bdev)
+		goto out;
+
+	bio = btrfs_io_bio_alloc(BIO_MAX_PAGES);
+	bio_set_dev(bio, first_page->dev->bdev);
+
+	for (page_num = 0; page_num < sblock->page_count; page_num++) {
+		struct scrub_page *page = sblock->pagev[page_num];
+
+		WARN_ON(!page->page);
+		bio_add_page(bio, page->page, PAGE_SIZE, 0);
+	}
+
+	if (scrub_submit_raid56_bio_wait(fs_info, bio, first_page)) {
+		bio_put(bio);
+		goto out;
+	}
+
+	bio_put(bio);
+
+	scrub_recheck_block_checksum(sblock);
+
+	return;
+out:
+	for (page_num = 0; page_num < sblock->page_count; page_num++)
+		sblock->pagev[page_num]->io_error = 1;
+
+	sblock->no_io_error_seen = 0;
+}
+
 /*
  * this function will check the on disk data for checksum errors, header
  * errors and read I/O errors. If any I/O errors happen, the exact pages
@@ -1732,6 +1765,10 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	int page_num;
 
 	sblock->no_io_error_seen = 1;
+
+	/* short cut for raid56 */
+	if (!retry_failed_mirror && scrub_is_page_on_raid56(sblock->pagev[0]))
+		return scrub_recheck_block_on_raid56(fs_info, sblock);
 
 	for (page_num = 0; page_num < sblock->page_count; page_num++) {
 		struct bio *bio;
@@ -1748,19 +1785,12 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		bio_set_dev(bio, page->dev->bdev);
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
-		if (!retry_failed_mirror && scrub_is_page_on_raid56(page)) {
-			if (scrub_submit_raid56_bio_wait(fs_info, bio, page)) {
-				page->io_error = 1;
-				sblock->no_io_error_seen = 0;
-			}
-		} else {
-			bio->bi_iter.bi_sector = page->physical >> 9;
-			bio_set_op_attrs(bio, REQ_OP_READ, 0);
+		bio->bi_iter.bi_sector = page->physical >> 9;
+		bio->bi_opf = REQ_OP_READ;
 
-			if (btrfsic_submit_bio_wait(bio)) {
-				page->io_error = 1;
-				sblock->no_io_error_seen = 0;
-			}
+		if (btrfsic_submit_bio_wait(bio)) {
+			page->io_error = 1;
+			sblock->no_io_error_seen = 0;
 		}
 
 		bio_put(bio);
@@ -2728,7 +2758,8 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 }
 
 /* scrub extent tries to collect up to 64 kB for each bio */
-static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
+static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
+			u64 logical, u64 len,
 			u64 physical, struct btrfs_device *dev, u64 flags,
 			u64 gen, int mirror_num, u64 physical_for_dev_replace)
 {
@@ -2737,13 +2768,19 @@ static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
 	u32 blocksize;
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->fs_info->sectorsize;
+		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+			blocksize = map->stripe_len;
+		else
+			blocksize = sctx->fs_info->sectorsize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.data_extents_scrubbed++;
 		sctx->stat.data_bytes_scrubbed += len;
 		spin_unlock(&sctx->stat_lock);
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->fs_info->nodesize;
+		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+			blocksize = map->stripe_len;
+		else
+			blocksize = sctx->fs_info->nodesize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.tree_extents_scrubbed++;
 		sctx->stat.tree_bytes_scrubbed += len;
@@ -2883,9 +2920,9 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	}
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->fs_info->sectorsize;
+		blocksize = sparity->stripe_len;
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->fs_info->nodesize;
+		blocksize = sparity->stripe_len;
 	} else {
 		blocksize = sctx->fs_info->sectorsize;
 		WARN_ON(1);
@@ -3595,7 +3632,7 @@ again:
 			if (ret)
 				goto out;
 
-			ret = scrub_extent(sctx, extent_logical, extent_len,
+			ret = scrub_extent(sctx, map, extent_logical, extent_len,
 					   extent_physical, extent_dev, flags,
 					   generation, extent_mirror_num,
 					   extent_logical - logical + physical);
@@ -3885,11 +3922,11 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		}
 
-		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
+		btrfs_dev_replace_write_lock(&fs_info->dev_replace);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
-		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
+		btrfs_dev_replace_write_unlock(&fs_info->dev_replace);
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
 				  found_key.offset, cache, is_dev_replace);
 
@@ -3925,10 +3962,10 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		btrfs_dev_replace_lock(&fs_info->dev_replace, 1);
+		btrfs_dev_replace_write_lock(&fs_info->dev_replace);
 		dev_replace->cursor_left = dev_replace->cursor_right;
 		dev_replace->item_needs_writeback = 1;
-		btrfs_dev_replace_unlock(&fs_info->dev_replace, 1);
+		btrfs_dev_replace_write_unlock(&fs_info->dev_replace);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(cache);
@@ -4144,16 +4181,16 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return -EIO;
 	}
 
-	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
+	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
 	if (dev->scrub_ctx ||
 	    (!is_dev_replace &&
 	     btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))) {
-		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+		btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		return -EINPROGRESS;
 	}
-	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 
 	ret = scrub_workers_get(fs_info, is_dev_replace);
 	if (ret) {
@@ -4480,7 +4517,8 @@ static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 	 * move on to the next inode.
 	 */
 	if (em->block_start > logical ||
-	    em->block_start + em->block_len < logical + len) {
+	    em->block_start + em->block_len < logical + len ||
+	    test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 		free_extent_map(em);
 		ret = 1;
 		goto out_unlock;
@@ -4620,7 +4658,6 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
-	int ret;
 
 	dev = sctx->wr_tgtdev;
 	if (!dev)
@@ -4635,16 +4672,14 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
 	bio_set_dev(bio, dev->bdev);
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
-	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
-	if (ret != PAGE_SIZE) {
-leave_with_eio:
+	/* bio_add_page won't fail on a freshly allocated bio */
+	bio_add_page(bio, page, PAGE_SIZE, 0);
+
+	if (btrfsic_submit_bio_wait(bio)) {
 		bio_put(bio);
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
 		return -EIO;
 	}
-
-	if (btrfsic_submit_bio_wait(bio))
-		goto leave_with_eio;
 
 	bio_put(bio);
 	return 0;

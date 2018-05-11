@@ -68,6 +68,19 @@
 			};
 		};
 
+		cpcap_audio: audio-codec {
+			#sound-dai-cells = <1>;
+
+			port@0 {
+				cpcap_audio_codec0: endpoint {
+				};
+			};
+			port@1 {
+				cpcap_audio_codec1: endpoint {
+				};
+			};
+		};
+
 		cpcap_rtc: rtc {
 			compatible = "motorola,cpcap-rtc";
 

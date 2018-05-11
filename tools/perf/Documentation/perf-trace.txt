@@ -63,6 +63,31 @@ filter out the startup phase of the program, which is often very different.
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-G::
+--cgroup::
+	Record events in threads in a cgroup.
+
+	Look for cgroups to set at the /sys/fs/cgroup/perf_event directory, then
+	remove the /sys/fs/cgroup/perf_event/ part and try:
+
+		perf trace -G A -e sched:*switch
+
+	Will set all raw_syscalls:sys_{enter,exit}, pgfault, vfs_getname, etc
+	_and_ sched:sched_switch to the 'A' cgroup, while:
+
+		perf trace -e sched:*switch -G A
+
+	will only set the sched:sched_switch event to the 'A' cgroup, all the
+	other events (raw_syscalls:sys_{enter,exit}, etc are left "without"
+	a cgroup (on the root cgroup, sys wide, etc).
+
+	Multiple cgroups:
+
+		perf trace -G A -e sched:*switch -G B
+
+	the syscall ones go to the 'A' cgroup, the sched:sched_switch goes
+	to the 'B' cgroup.
+
 --filter-pids=::
 	Filter out events for these pids and for 'trace' itself (comma separated list).
 
@@ -91,6 +116,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --sched::
 	Accrue thread runtime and provide a summary at the end of the session.
+
+--failure::
+	Show only syscalls that failed, i.e. that returned < 0.
 
 -i::
 --input::

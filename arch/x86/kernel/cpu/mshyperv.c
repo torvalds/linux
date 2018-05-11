@@ -22,7 +22,7 @@
 #include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
-#include <asm/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
 #include <asm/irq_regs.h>
@@ -37,6 +37,7 @@ EXPORT_SYMBOL_GPL(ms_hyperv);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 static void (*vmbus_handler)(void);
+static void (*hv_stimer0_handler)(void);
 static void (*hv_kexec_handler)(void);
 static void (*hv_crash_handler)(struct pt_regs *regs);
 
@@ -68,6 +69,41 @@ void hv_remove_vmbus_irq(void)
 }
 EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
 EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
+
+/*
+ * Routines to do per-architecture handling of stimer0
+ * interrupts when in Direct Mode
+ */
+
+__visible void __irq_entry hv_stimer0_vector_handler(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	entering_irq();
+	inc_irq_stat(hyperv_stimer0_count);
+	if (hv_stimer0_handler)
+		hv_stimer0_handler();
+	ack_APIC_irq();
+
+	exiting_irq();
+	set_irq_regs(old_regs);
+}
+
+int hv_setup_stimer0_irq(int *irq, int *vector, void (*handler)(void))
+{
+	*vector = HYPERV_STIMER0_VECTOR;
+	*irq = 0;   /* Unused on x86/x64 */
+	hv_stimer0_handler = handler;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hv_setup_stimer0_irq);
+
+void hv_remove_stimer0_irq(int irq)
+{
+	/* We have no way to deallocate the interrupt gate */
+	hv_stimer0_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_stimer0_irq);
 
 void hv_setup_kexec_handler(void (*handler)(void))
 {
@@ -180,8 +216,8 @@ static void __init ms_hyperv_init_platform(void)
 	pr_info("Hyper-V: features 0x%x, hints 0x%x\n",
 		ms_hyperv.features, ms_hyperv.hints);
 
-	ms_hyperv.max_vp_index = cpuid_eax(HVCPUID_IMPLEMENTATION_LIMITS);
-	ms_hyperv.max_lp_index = cpuid_ebx(HVCPUID_IMPLEMENTATION_LIMITS);
+	ms_hyperv.max_vp_index = cpuid_eax(HYPERV_CPUID_IMPLEMENT_LIMITS);
+	ms_hyperv.max_lp_index = cpuid_ebx(HYPERV_CPUID_IMPLEMENT_LIMITS);
 
 	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
@@ -189,11 +225,12 @@ static void __init ms_hyperv_init_platform(void)
 	/*
 	 * Extract host information.
 	 */
-	if (cpuid_eax(HVCPUID_VENDOR_MAXFUNCTION) >= HVCPUID_VERSION) {
-		hv_host_info_eax = cpuid_eax(HVCPUID_VERSION);
-		hv_host_info_ebx = cpuid_ebx(HVCPUID_VERSION);
-		hv_host_info_ecx = cpuid_ecx(HVCPUID_VERSION);
-		hv_host_info_edx = cpuid_edx(HVCPUID_VERSION);
+	if (cpuid_eax(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS) >=
+	    HYPERV_CPUID_VERSION) {
+		hv_host_info_eax = cpuid_eax(HYPERV_CPUID_VERSION);
+		hv_host_info_ebx = cpuid_ebx(HYPERV_CPUID_VERSION);
+		hv_host_info_ecx = cpuid_ecx(HYPERV_CPUID_VERSION);
+		hv_host_info_edx = cpuid_edx(HYPERV_CPUID_VERSION);
 
 		pr_info("Hyper-V Host Build:%d-%d.%d-%d-%d.%d\n",
 			hv_host_info_eax, hv_host_info_ebx >> 16,
@@ -205,6 +242,11 @@ static void __init ms_hyperv_init_platform(void)
 	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		x86_platform.calibrate_tsc = hv_get_tsc_khz;
 		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+	}
+
+	if (ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED) {
+		ms_hyperv.nested_features =
+			cpuid_eax(HYPERV_CPUID_NESTED_FEATURES);
 	}
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -257,6 +299,10 @@ static void __init ms_hyperv_init_platform(void)
 		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
 				hyperv_reenlightenment_vector);
 
+	/* Setup the IDT for stimer0 */
+	if (ms_hyperv.misc_features & HV_X64_STIMER_DIRECT_MODE_AVAILABLE)
+		alloc_intr_gate(HYPERV_STIMER0_VECTOR,
+				hv_stimer0_callback_vector);
 #endif
 }
 

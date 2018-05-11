@@ -1480,6 +1480,19 @@ void ath10k_debug_tpc_stats_process(struct ath10k *ar,
 	spin_unlock_bh(&ar->data_lock);
 }
 
+void
+ath10k_debug_tpc_stats_final_process(struct ath10k *ar,
+				     struct ath10k_tpc_stats_final *tpc_stats)
+{
+	spin_lock_bh(&ar->data_lock);
+
+	kfree(ar->debug.tpc_stats_final);
+	ar->debug.tpc_stats_final = tpc_stats;
+	complete(&ar->debug.tpc_complete);
+
+	spin_unlock_bh(&ar->data_lock);
+}
+
 static void ath10k_tpc_stats_print(struct ath10k_tpc_stats *tpc_stats,
 				   unsigned int j, char *buf, size_t *len)
 {
@@ -2143,6 +2156,137 @@ static const struct file_operations fops_fw_checksums = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_sta_tid_stats_mask_read(struct file *file,
+					      char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[32];
+	size_t len;
+
+	len = scnprintf(buf, sizeof(buf), "0x%08x\n", ar->sta_tid_stats_mask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_sta_tid_stats_mask_write(struct file *file,
+					       const char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[32];
+	ssize_t len;
+	u32 mask;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoint(buf, 0, &mask))
+		return -EINVAL;
+
+	ar->sta_tid_stats_mask = mask;
+
+	return len;
+}
+
+static const struct file_operations fops_sta_tid_stats_mask = {
+	.read = ath10k_sta_tid_stats_mask_read,
+	.write = ath10k_sta_tid_stats_mask_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static int ath10k_debug_tpc_stats_final_request(struct ath10k *ar)
+{
+	int ret;
+	unsigned long time_left;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	reinit_completion(&ar->debug.tpc_complete);
+
+	ret = ath10k_wmi_pdev_get_tpc_table_cmdid(ar, WMI_TPC_CONFIG_PARAM);
+	if (ret) {
+		ath10k_warn(ar, "failed to request tpc table cmdid: %d\n", ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->debug.tpc_complete,
+						1 * HZ);
+	if (time_left == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int ath10k_tpc_stats_final_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	void *buf;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto err_unlock;
+	}
+
+	buf = vmalloc(ATH10K_TPC_CONFIG_BUF_SIZE);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_unlock;
+	}
+
+	ret = ath10k_debug_tpc_stats_final_request(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to request tpc stats final: %d\n",
+			    ret);
+		goto err_free;
+	}
+
+	ath10k_tpc_stats_fill(ar, ar->debug.tpc_stats, buf);
+	file->private_data = buf;
+
+	mutex_unlock(&ar->conf_mutex);
+	return 0;
+
+err_free:
+	vfree(buf);
+
+err_unlock:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_tpc_stats_final_release(struct inode *inode,
+					  struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static ssize_t ath10k_tpc_stats_final_read(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	unsigned int len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_tpc_stats_final = {
+	.open = ath10k_tpc_stats_final_open,
+	.release = ath10k_tpc_stats_final_release,
+	.read = ath10k_tpc_stats_final_read,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
@@ -2257,6 +2401,16 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("fw_checksums", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_fw_checksums);
+
+	if (IS_ENABLED(CONFIG_MAC80211_DEBUGFS))
+		debugfs_create_file("sta_tid_stats_mask", 0600,
+				    ar->debug.debugfs_phy,
+				    ar, &fops_sta_tid_stats_mask);
+
+	if (test_bit(WMI_SERVICE_TPC_STATS_FINAL, ar->wmi.svc_map))
+		debugfs_create_file("tpc_stats_final", 0400,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_tpc_stats_final);
 
 	return 0;
 }

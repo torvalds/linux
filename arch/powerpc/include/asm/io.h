@@ -33,8 +33,6 @@ extern struct pci_dev *isa_bridge_pcidev;
 #include <asm/mmu.h>
 #include <asm/ppc_asm.h>
 
-#include <asm-generic/iomap.h>
-
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
@@ -662,6 +660,8 @@ static inline void name at					\
 #define writew_relaxed(v, addr)	writew(v, addr)
 #define writel_relaxed(v, addr)	writel(v, addr)
 #define writeq_relaxed(v, addr)	writeq(v, addr)
+
+#include <asm-generic/iomap.h>
 
 #ifdef CONFIG_PPC32
 #define mmiowb()

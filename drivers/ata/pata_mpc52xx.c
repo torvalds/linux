@@ -738,7 +738,6 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	/* Prepare our private structure */
 	priv = devm_kzalloc(&op->dev, sizeof(*priv), GFP_ATOMIC);
 	if (!priv) {
-		dev_err(&op->dev, "error allocating private structure\n");
 		rv = -ENOMEM;
 		goto err1;
 	}

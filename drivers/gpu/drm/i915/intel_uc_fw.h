@@ -115,6 +115,28 @@ static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
 	return uc_fw->path != NULL;
 }
 
+static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
+{
+	if (uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS)
+		uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+}
+
+/**
+ * intel_uc_fw_get_upload_size() - Get size of firmware needed to be uploaded.
+ * @uc_fw: uC firmware.
+ *
+ * Get the size of the firmware and header that will be uploaded to WOPCM.
+ *
+ * Return: Upload firmware size, or zero on firmware fetch failure.
+ */
+static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
+{
+	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return 0;
+
+	return uc_fw->header_size + uc_fw->ucode_size;
+}
+
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,

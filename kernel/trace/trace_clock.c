@@ -96,7 +96,7 @@ u64 notrace trace_clock_global(void)
 	int this_cpu;
 	u64 now;
 
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 
 	this_cpu = raw_smp_processor_id();
 	now = sched_clock_cpu(this_cpu);
@@ -122,7 +122,7 @@ u64 notrace trace_clock_global(void)
 	arch_spin_unlock(&trace_clock_struct.lock);
 
  out:
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 
 	return now;
 }

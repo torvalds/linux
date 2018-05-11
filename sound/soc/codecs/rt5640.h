@@ -2102,7 +2102,7 @@ enum {
 };
 
 struct rt5640_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5640_platform_data pdata;
 	struct regmap *regmap;
 	struct clk *mclk;
@@ -2121,9 +2121,9 @@ struct rt5640_priv {
 	bool asrc_en;
 };
 
-int rt5640_dmic_enable(struct snd_soc_codec *codec,
+int rt5640_dmic_enable(struct snd_soc_component *component,
 		       bool dmic1_data_pin, bool dmic2_data_pin);
-int rt5640_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
 		unsigned int filter_mask, unsigned int clk_src);
 
 #endif

@@ -26,13 +26,13 @@ struct xfs_mru_cache_elem {
 };
 
 /* Function pointer type for callback to free a client's data pointer. */
-typedef void (*xfs_mru_cache_free_func_t)(struct xfs_mru_cache_elem *elem);
+typedef void (*xfs_mru_cache_free_func_t)(void *, struct xfs_mru_cache_elem *);
 
 int xfs_mru_cache_init(void);
 void xfs_mru_cache_uninit(void);
-int xfs_mru_cache_create(struct xfs_mru_cache **mrup, unsigned int lifetime_ms,
-			     unsigned int grp_count,
-			     xfs_mru_cache_free_func_t free_func);
+int xfs_mru_cache_create(struct xfs_mru_cache **mrup, void *data,
+		unsigned int lifetime_ms, unsigned int grp_count,
+		xfs_mru_cache_free_func_t free_func);
 void xfs_mru_cache_destroy(struct xfs_mru_cache *mru);
 int xfs_mru_cache_insert(struct xfs_mru_cache *mru, unsigned long key,
 		struct xfs_mru_cache_elem *elem);

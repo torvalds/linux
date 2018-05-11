@@ -272,6 +272,7 @@ ENDPROC(cpu_pj4b_do_resume)
 __v7_ca5mp_setup:
 __v7_ca9mp_setup:
 __v7_cr7mp_setup:
+__v7_cr8mp_setup:
 	mov	r10, #(1 << 0)			@ Cache/TLB ops broadcasting
 	b	1f
 __v7_ca7mp_setup:
@@ -640,6 +641,16 @@ __v7_cr7mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_cr7mp_proc_info, __v7_cr7mp_setup
 	.size	__v7_cr7mp_proc_info, . - __v7_cr7mp_proc_info
+
+	/*
+	 * ARM Ltd. Cortex R8 processor.
+	 */
+	.type	__v7_cr8mp_proc_info, #object
+__v7_cr8mp_proc_info:
+	.long	0x410fc180
+	.long	0xff0ffff0
+	__v7_proc __v7_cr8mp_proc_info, __v7_cr8mp_setup
+	.size	__v7_cr8mp_proc_info, . - __v7_cr8mp_proc_info
 
 	/*
 	 * ARM Ltd. Cortex A7 processor.

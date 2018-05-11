@@ -2,7 +2,7 @@
  * GPIO Testing Device Driver
  *
  * Copyright (C) 2014  Kamlakant Patel <kamlakant.patel@broadcom.com>
- * Copyright (C) 2015-2016  Bamvor Jian Zhang <bamvor.zhangjian@linaro.org>
+ * Copyright (C) 2015-2016  Bamvor Jian Zhang <bamv2005@gmail.com>
  * Copyright (C) 2017 Bartosz Golaszewski <brgl@bgdev.pl>
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -314,7 +314,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	if (rv)
 		return rv;
 
-	if (gpio_mockup_dbg_dir)
+	if (!IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
 		gpio_mockup_debugfs_setup(dev, chip);
 
 	return 0;
@@ -411,7 +411,7 @@ module_init(gpio_mockup_init);
 module_exit(gpio_mockup_exit);
 
 MODULE_AUTHOR("Kamlakant Patel <kamlakant.patel@broadcom.com>");
-MODULE_AUTHOR("Bamvor Jian Zhang <bamvor.zhangjian@linaro.org>");
+MODULE_AUTHOR("Bamvor Jian Zhang <bamv2005@gmail.com>");
 MODULE_AUTHOR("Bartosz Golaszewski <brgl@bgdev.pl>");
 MODULE_DESCRIPTION("GPIO Testing driver");
 MODULE_LICENSE("GPL v2");

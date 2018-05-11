@@ -166,7 +166,17 @@ devicetree:
 		{
 			$$ = merge_nodes($1, $3);
 		}
-
+	| DT_REF nodedef
+		{
+			/*
+			 * We rely on the rule being always:
+			 *   versioninfo plugindecl memreserves devicetree
+			 * so $-1 is what we want (plugindecl)
+			 */
+			if (!($<flags>-1 & DTSF_PLUGIN))
+				ERROR(&@2, "Label or path %s not found", $1);
+			$$ = add_orphan_node(name_node(build_node(NULL, NULL), ""), $2, $1);
+		}
 	| devicetree DT_LABEL DT_REF nodedef
 		{
 			struct node *target = get_node_by_ref($1, $3);
@@ -208,11 +218,6 @@ devicetree:
 
 
 			$$ = $1;
-		}
-	| /* empty */
-		{
-			/* build empty node */
-			$$ = name_node(build_node(NULL, NULL), "");
 		}
 	;
 

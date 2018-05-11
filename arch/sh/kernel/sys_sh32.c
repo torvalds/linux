@@ -39,23 +39,23 @@ asmlinkage int sys_sh_pipe(void)
 asmlinkage ssize_t sys_pread_wrapper(unsigned int fd, char __user *buf,
 			     size_t count, long dummy, loff_t pos)
 {
-	return sys_pread64(fd, buf, count, pos);
+	return ksys_pread64(fd, buf, count, pos);
 }
 
 asmlinkage ssize_t sys_pwrite_wrapper(unsigned int fd, const char __user *buf,
 			      size_t count, long dummy, loff_t pos)
 {
-	return sys_pwrite64(fd, buf, count, pos);
+	return ksys_pwrite64(fd, buf, count, pos);
 }
 
 asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 				u32 len0, u32 len1, int advice)
 {
 #ifdef  __LITTLE_ENDIAN__
-	return sys_fadvise64_64(fd, (u64)offset1 << 32 | offset0,
-				(u64)len1 << 32 | len0,	advice);
+	return ksys_fadvise64_64(fd, (u64)offset1 << 32 | offset0,
+				 (u64)len1 << 32 | len0, advice);
 #else
-	return sys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
-				(u64)len0 << 32 | len1,	advice);
+	return ksys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
+				 (u64)len0 << 32 | len1, advice);
 #endif
 }

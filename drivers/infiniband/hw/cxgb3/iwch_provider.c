@@ -440,7 +440,9 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 	php->pdid = pdid;
 	php->rhp = rhp;
 	if (context) {
-		if (ib_copy_to_udata(udata, &php->pdid, sizeof (__u32))) {
+		struct iwch_alloc_pd_resp resp = {.pdid = php->pdid};
+
+		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			iwch_deallocate_pd(&php->ibpd);
 			return ERR_PTR(-EFAULT);
 		}
@@ -1439,6 +1441,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.t3cdev_p->lldev->name,
 	       sizeof(dev->ibdev.iwcm->ifname));
 
+	dev->ibdev.driver_id = RDMA_DRIVER_CXGB3;
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
 		goto bail1;

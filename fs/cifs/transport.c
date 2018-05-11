@@ -37,6 +37,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smb2proto.h"
 #include "smbdirect.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
@@ -751,6 +752,12 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		goto out;
 
+#ifdef CONFIG_CIFS_SMB311
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
+		smb311_update_preauth_hash(ses, rqst->rq_iov+1,
+					   rqst->rq_nvec-1);
+#endif
+
 	if (timeout == CIFS_ASYNC_OP)
 		goto out;
 
@@ -783,11 +790,22 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	buf = (char *)midQ->resp_buf;
 	resp_iov->iov_base = buf;
-	resp_iov->iov_len = get_rfc1002_length(buf) + 4;
+	resp_iov->iov_len = midQ->resp_buf_size +
+		ses->server->vals->header_preamble_size;
 	if (midQ->large_buf)
 		*resp_buf_type = CIFS_LARGE_BUFFER;
 	else
 		*resp_buf_type = CIFS_SMALL_BUFFER;
+
+#ifdef CONFIG_CIFS_SMB311
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
+		struct kvec iov = {
+			.iov_base = buf + 4,
+			.iov_len = get_rfc1002_length(buf)
+		};
+		smb311_update_preauth_hash(ses, &iov, 1);
+	}
+#endif
 
 	credits = ses->server->ops->get_credits(midQ);
 
@@ -816,8 +834,11 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
 		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
 				  GFP_KERNEL);
-		if (!new_iov)
+		if (!new_iov) {
+			/* otherwise cifs_send_recv below sets resp_buf_type */
+			*resp_buf_type = CIFS_NO_BUFFER;
 			return -ENOMEM;
+		}
 	} else
 		new_iov = s_iov;
 

@@ -34,6 +34,9 @@
 
 #include <linux/hyperv.h>
 
+#define CREATE_TRACE_POINTS
+#include "hv_trace_balloon.h"
+
 /*
  * We begin with definitions supporting the Dynamic Memory protocol
  * with the host.
@@ -576,11 +579,65 @@ static struct hv_dynmem_device dm_device;
 static void post_status(struct hv_dynmem_device *dm);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+static inline bool has_pfn_is_backed(struct hv_hotadd_state *has,
+				     unsigned long pfn)
+{
+	struct hv_hotadd_gap *gap;
+
+	/* The page is not backed. */
+	if ((pfn < has->covered_start_pfn) || (pfn >= has->covered_end_pfn))
+		return false;
+
+	/* Check for gaps. */
+	list_for_each_entry(gap, &has->gap_list, list) {
+		if ((pfn >= gap->start_pfn) && (pfn < gap->end_pfn))
+			return false;
+	}
+
+	return true;
+}
+
+static unsigned long hv_page_offline_check(unsigned long start_pfn,
+					   unsigned long nr_pages)
+{
+	unsigned long pfn = start_pfn, count = 0;
+	struct hv_hotadd_state *has;
+	bool found;
+
+	while (pfn < start_pfn + nr_pages) {
+		/*
+		 * Search for HAS which covers the pfn and when we find one
+		 * count how many consequitive PFNs are covered.
+		 */
+		found = false;
+		list_for_each_entry(has, &dm_device.ha_region_list, list) {
+			while ((pfn >= has->start_pfn) &&
+			       (pfn < has->end_pfn) &&
+			       (pfn < start_pfn + nr_pages)) {
+				found = true;
+				if (has_pfn_is_backed(has, pfn))
+					count++;
+				pfn++;
+			}
+		}
+
+		/*
+		 * This PFN is not in any HAS (e.g. we're offlining a region
+		 * which was present at boot), no need to account for it. Go
+		 * to the next one.
+		 */
+		if (!found)
+			pfn++;
+	}
+
+	return count;
+}
+
 static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 			      void *v)
 {
 	struct memory_notify *mem = (struct memory_notify *)v;
-	unsigned long flags;
+	unsigned long flags, pfn_count;
 
 	switch (val) {
 	case MEM_ONLINE:
@@ -593,7 +650,19 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 
 	case MEM_OFFLINE:
 		spin_lock_irqsave(&dm_device.ha_lock, flags);
-		dm_device.num_pages_onlined -= mem->nr_pages;
+		pfn_count = hv_page_offline_check(mem->start_pfn,
+						  mem->nr_pages);
+		if (pfn_count <= dm_device.num_pages_onlined) {
+			dm_device.num_pages_onlined -= pfn_count;
+		} else {
+			/*
+			 * We're offlining more pages than we managed to online.
+			 * This is unexpected. In any case don't let
+			 * num_pages_onlined wrap around zero.
+			 */
+			WARN_ON_ONCE(1);
+			dm_device.num_pages_onlined = 0;
+		}
 		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 		break;
 	case MEM_GOING_ONLINE:
@@ -612,29 +681,8 @@ static struct notifier_block hv_memory_nb = {
 /* Check if the particular page is backed and can be onlined and online it. */
 static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 {
-	unsigned long cur_start_pgp;
-	unsigned long cur_end_pgp;
-	struct hv_hotadd_gap *gap;
-
-	cur_start_pgp = (unsigned long)pfn_to_page(has->covered_start_pfn);
-	cur_end_pgp = (unsigned long)pfn_to_page(has->covered_end_pfn);
-
-	/* The page is not backed. */
-	if (((unsigned long)pg < cur_start_pgp) ||
-	    ((unsigned long)pg >= cur_end_pgp))
+	if (!has_pfn_is_backed(has, page_to_pfn(pg)))
 		return;
-
-	/* Check for gaps. */
-	list_for_each_entry(gap, &has->gap_list, list) {
-		cur_start_pgp = (unsigned long)
-			pfn_to_page(gap->start_pfn);
-		cur_end_pgp = (unsigned long)
-			pfn_to_page(gap->end_pfn);
-		if (((unsigned long)pg >= cur_start_pgp) &&
-		    ((unsigned long)pg < cur_end_pgp)) {
-			return;
-		}
-	}
 
 	/* This frame is currently backed; online the page. */
 	__online_page_set_limits(pg);
@@ -691,7 +739,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				(HA_CHUNK << PAGE_SHIFT));
 
 		if (ret) {
-			pr_warn("hot_add memory failed error is %d\n", ret);
+			pr_err("hot_add memory failed error is %d\n", ret);
 			if (ret == -EEXIST) {
 				/*
 				 * This error indicates that the error
@@ -726,19 +774,13 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 static void hv_online_page(struct page *pg)
 {
 	struct hv_hotadd_state *has;
-	unsigned long cur_start_pgp;
-	unsigned long cur_end_pgp;
 	unsigned long flags;
+	unsigned long pfn = page_to_pfn(pg);
 
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry(has, &dm_device.ha_region_list, list) {
-		cur_start_pgp = (unsigned long)
-			pfn_to_page(has->start_pfn);
-		cur_end_pgp = (unsigned long)pfn_to_page(has->end_pfn);
-
 		/* The page belongs to a different HAS. */
-		if (((unsigned long)pg < cur_start_pgp) ||
-		    ((unsigned long)pg >= cur_end_pgp))
+		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
 			continue;
 
 		hv_page_online_one(has, pg);
@@ -1014,7 +1056,7 @@ static void hot_add_req(struct work_struct *dummy)
 		resp.result = 0;
 
 	if (!do_hot_add || (resp.page_count == 0))
-		pr_info("Memory hot add failed\n");
+		pr_err("Memory hot add failed\n");
 
 	dm->state = DM_INITIALIZED;
 	resp.hdr.trans_id = atomic_inc_return(&trans_id);
@@ -1041,7 +1083,7 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 
 		break;
 	default:
-		pr_info("Received Unknown type: %d\n", info_hdr->type);
+		pr_warn("Received Unknown type: %d\n", info_hdr->type);
 	}
 }
 
@@ -1120,6 +1162,9 @@ static void post_status(struct hv_dynmem_device *dm)
 		 dm->num_pages_added - dm->num_pages_onlined : 0) +
 		compute_balloon_floor();
 
+	trace_balloon_status(status.num_avail, status.num_committed,
+			     vm_memory_committed(), dm->num_pages_ballooned,
+			     dm->num_pages_added, dm->num_pages_onlined);
 	/*
 	 * If our transaction ID is no longer current, just don't
 	 * send the status. This can happen if we were interrupted
@@ -1290,7 +1335,7 @@ static void balloon_up(struct work_struct *dummy)
 			/*
 			 * Free up the memory we allocatted.
 			 */
-			pr_info("Balloon response failed\n");
+			pr_err("Balloon response failed\n");
 
 			for (i = 0; i < bl_resp->range_count; i++)
 				free_balloon_pages(&dm_device,
@@ -1421,7 +1466,7 @@ static void cap_resp(struct hv_dynmem_device *dm,
 			struct dm_capabilities_resp_msg *cap_resp)
 {
 	if (!cap_resp->is_accepted) {
-		pr_info("Capabilities not accepted by host\n");
+		pr_err("Capabilities not accepted by host\n");
 		dm->state = DM_INIT_ERROR;
 	}
 	complete(&dm->host_event);
@@ -1508,7 +1553,7 @@ static void balloon_onchannelcallback(void *context)
 			break;
 
 		default:
-			pr_err("Unhandled message: type: %d\n", dm_hdr->type);
+			pr_warn("Unhandled message: type: %d\n", dm_hdr->type);
 
 		}
 	}

@@ -1058,13 +1058,13 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		pr_warn("Can't create new usermode queue because %d queues were already created\n",
 				dqm->total_queue_count);
 		retval = -EPERM;
-		goto out;
+		goto out_unlock;
 	}
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
 		retval = allocate_sdma_queue(dqm, &q->sdma_id);
 		if (retval)
-			goto out;
+			goto out_unlock;
 		q->properties.sdma_queue_id =
 			q->sdma_id / CIK_SDMA_QUEUES_PER_ENGINE;
 		q->properties.sdma_engine_id =
@@ -1075,7 +1075,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 
 	if (!mqd) {
 		retval = -ENOMEM;
-		goto out;
+		goto out_deallocate_sdma_queue;
 	}
 	/*
 	 * Eviction state logic: we only mark active queues as evicted
@@ -1093,7 +1093,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval)
-		goto out;
+		goto out_deallocate_sdma_queue;
 
 	list_add(&q->list, &qpd->queues_list);
 	qpd->queue_count++;
@@ -1114,7 +1114,13 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
-out:
+	mutex_unlock(&dqm->lock);
+	return retval;
+
+out_deallocate_sdma_queue:
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		deallocate_sdma_queue(dqm, q->sdma_id);
+out_unlock:
 	mutex_unlock(&dqm->lock);
 	return retval;
 }
@@ -1433,8 +1439,10 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 
 	/* Clear all user mode queues */
 	list_for_each_entry(q, &qpd->queues_list, list) {
-		if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
 			dqm->sdma_queue_count--;
+			deallocate_sdma_queue(dqm, q->sdma_id);
+		}
 
 		if (q->properties.is_active)
 			dqm->queue_count--;

@@ -1272,6 +1272,34 @@ out:
 	mutex_unlock(&fbc->lock);
 }
 
+/*
+ * intel_fbc_reset_underrun - reset FBC fifo underrun status.
+ * @dev_priv: i915 device instance
+ *
+ * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
+ * want to re-enable FBC after an underrun to increase test coverage.
+ */
+int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	cancel_work_sync(&dev_priv->fbc.underrun_work);
+
+	ret = mutex_lock_interruptible(&dev_priv->fbc.lock);
+	if (ret)
+		return ret;
+
+	if (dev_priv->fbc.underrun_detected) {
+		DRM_DEBUG_KMS("Re-allowing FBC after fifo underrun\n");
+		dev_priv->fbc.no_fbc_reason = "FIFO underrun cleared";
+	}
+
+	dev_priv->fbc.underrun_detected = false;
+	mutex_unlock(&dev_priv->fbc.lock);
+
+	return 0;
+}
+
 /**
  * intel_fbc_handle_fifo_underrun_irq - disable FBC when we get a FIFO underrun
  * @dev_priv: i915 device instance

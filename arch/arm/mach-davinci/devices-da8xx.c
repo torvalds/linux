@@ -11,7 +11,6 @@
  * (at your option) any later version.
  */
 #include <linux/init.h>
-#include <linux/platform_data/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/dma-contiguous.h>
 #include <linux/serial_8250.h>
@@ -370,19 +369,6 @@ static struct platform_device da8xx_wdt_device = {
 	.num_resources	= ARRAY_SIZE(da8xx_watchdog_resources),
 	.resource	= da8xx_watchdog_resources,
 };
-
-void da8xx_restart(enum reboot_mode mode, const char *cmd)
-{
-	struct device *dev;
-
-	dev = bus_find_device_by_name(&platform_bus_type, NULL, "davinci-wdt");
-	if (!dev) {
-		pr_err("%s: failed to find watchdog device\n", __func__);
-		return;
-	}
-
-	davinci_watchdog_reset(to_platform_device(dev));
-}
 
 int __init da8xx_register_watchdog(void)
 {
@@ -1118,29 +1104,30 @@ int __init da850_register_sata(unsigned long refclkpn)
 }
 #endif
 
-static struct syscon_platform_data da8xx_cfgchip_platform_data = {
-	.label	= "cfgchip",
+static struct regmap *da8xx_cfgchip;
+
+static const struct regmap_config da8xx_cfgchip_config __initconst = {
+	.name		= "cfgchip",
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.max_register	= DA8XX_CFGCHIP4_REG - DA8XX_CFGCHIP0_REG,
 };
 
-static struct resource da8xx_cfgchip_resources[] = {
-	{
-		.start	= DA8XX_SYSCFG0_BASE + DA8XX_CFGCHIP0_REG,
-		.end	= DA8XX_SYSCFG0_BASE + DA8XX_CFGCHIP4_REG + 3,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device da8xx_cfgchip_device = {
-	.name	= "syscon",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &da8xx_cfgchip_platform_data,
-	},
-	.num_resources	= ARRAY_SIZE(da8xx_cfgchip_resources),
-	.resource	= da8xx_cfgchip_resources,
-};
-
-int __init da8xx_register_cfgchip(void)
+/**
+ * da8xx_get_cfgchip - Lazy gets CFGCHIP as regmap
+ *
+ * This is for use on non-DT boards only. For DT boards, use
+ * syscon_regmap_lookup_by_compatible("ti,da830-cfgchip")
+ *
+ * Returns: Pointer to the CFGCHIP regmap or negative error code.
+ */
+struct regmap * __init da8xx_get_cfgchip(void)
 {
-	return platform_device_register(&da8xx_cfgchip_device);
+	if (IS_ERR_OR_NULL(da8xx_cfgchip))
+		da8xx_cfgchip = regmap_init_mmio(NULL,
+					DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG),
+					&da8xx_cfgchip_config);
+
+	return da8xx_cfgchip;
 }

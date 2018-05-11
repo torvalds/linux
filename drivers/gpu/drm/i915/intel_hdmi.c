@@ -2082,41 +2082,33 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
  * it enables scrambling. This should be called before enabling the HDMI
  * 2.0 port, as the sink can choose to disable the scrambling if it doesn't
  * detect a scrambled clock within 100 ms.
+ *
+ * Returns:
+ * True on success, false on failure.
  */
-void intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
+bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 				       struct drm_connector *connector,
 				       bool high_tmds_clock_ratio,
 				       bool scrambling)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct drm_scrambling *sink_scrambling =
-				&connector->display_info.hdmi.scdc.scrambling;
-	struct i2c_adapter *adptr = intel_gmbus_get_adapter(dev_priv,
-							   intel_hdmi->ddc_bus);
-	bool ret;
+		&connector->display_info.hdmi.scdc.scrambling;
+	struct i2c_adapter *adapter =
+		intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 
 	if (!sink_scrambling->supported)
-		return;
+		return true;
 
-	DRM_DEBUG_KMS("Setting sink scrambling for enc:%s connector:%s\n",
-		      encoder->base.name, connector->name);
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] scrambling=%s, TMDS bit clock ratio=1/%d\n",
+		      connector->base.id, connector->name,
+		      yesno(scrambling), high_tmds_clock_ratio ? 40 : 10);
 
-	/* Set TMDS bit clock ratio to 1/40 or 1/10 */
-	ret = drm_scdc_set_high_tmds_clock_ratio(adptr, high_tmds_clock_ratio);
-	if (!ret) {
-		DRM_ERROR("Set TMDS ratio failed\n");
-		return;
-	}
-
-	/* Enable/disable sink scrambling */
-	ret = drm_scdc_set_scrambling(adptr, scrambling);
-	if (!ret) {
-		DRM_ERROR("Set sink scrambling failed\n");
-		return;
-	}
-
-	DRM_DEBUG_KMS("sink scrambling handled\n");
+	/* Set TMDS bit clock ratio to 1/40 or 1/10, and enable/disable scrambling */
+	return drm_scdc_set_high_tmds_clock_ratio(adapter,
+						  high_tmds_clock_ratio) &&
+		drm_scdc_set_scrambling(adapter, scrambling);
 }
 
 static u8 chv_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)

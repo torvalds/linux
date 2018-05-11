@@ -90,6 +90,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "intel_workarounds.h"
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
@@ -318,12 +319,13 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
 
-	/* GuC requires the ring to be placed above GUC_WOPCM_TOP. If GuC is not
+	/*
+	 * GuC requires the ring to be placed in Non-WOPCM memory. If GuC is not
 	 * present or not in use we still need a small bias as ring wraparound
 	 * at offset 0 sometimes hangs. No idea why.
 	 */
 	if (USES_GUC(dev_priv))
-		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
+		ctx->ggtt_offset_bias = dev_priv->guc.ggtt_pin_bias;
 	else
 		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
 
@@ -458,10 +460,15 @@ static bool needs_preempt_context(struct drm_i915_private *i915)
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
+	int ret;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
+
+	ret = intel_ctx_workarounds_init(dev_priv);
+	if (ret)
+		return ret;
 
 	INIT_LIST_HEAD(&dev_priv->contexts.list);
 	INIT_WORK(&dev_priv->contexts.free_work, contexts_free_worker);

@@ -1595,7 +1595,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 		DMWARN("Target message sector outside device.");
 		r = -EINVAL;
 	} else if (ti->type->message)
-		r = ti->type->message(ti, argc, argv);
+		r = ti->type->message(ti, argc, argv, result, maxlen);
 	else {
 		DMWARN("Target type does not support messages");
 		r = -EINVAL;

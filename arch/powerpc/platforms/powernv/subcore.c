@@ -280,7 +280,7 @@ void update_subcore_sibling_mask(void)
 		int offset = (tid / threads_per_subcore) * threads_per_subcore;
 		int mask = sibling_mask_first_cpu << offset;
 
-		paca[cpu].subcore_sibling_mask = mask;
+		paca_ptrs[cpu]->subcore_sibling_mask = mask;
 
 	}
 }

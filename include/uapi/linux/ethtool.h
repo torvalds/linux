@@ -217,10 +217,14 @@ struct ethtool_value {
 	__u32	data;
 };
 
+#define PFC_STORM_PREVENTION_AUTO	0xffff
+#define PFC_STORM_PREVENTION_DISABLE	0
+
 enum tunable_id {
 	ETHTOOL_ID_UNSPEC,
 	ETHTOOL_RX_COPYBREAK,
 	ETHTOOL_TX_COPYBREAK,
+	ETHTOOL_PFC_PREVENTION_TOUT, /* timeout in msecs */
 	/*
 	 * Add your fresh new tubale attribute above and remember to update
 	 * tunable_strings[] in net/core/ethtool.c
@@ -914,12 +918,15 @@ static inline __u64 ethtool_get_flow_spec_ring_vf(__u64 ring_cookie)
  * @flow_type: Type of flow to be affected, e.g. %TCP_V4_FLOW
  * @data: Command-dependent value
  * @fs: Flow classification rule
+ * @rss_context: RSS context to be affected
  * @rule_cnt: Number of rules to be affected
  * @rule_locs: Array of used rule locations
  *
  * For %ETHTOOL_GRXFH and %ETHTOOL_SRXFH, @data is a bitmask indicating
  * the fields included in the flow hash, e.g. %RXH_IP_SRC.  The following
- * structure fields must not be used.
+ * structure fields must not be used, except that if @flow_type includes
+ * the %FLOW_RSS flag, then @rss_context determines which RSS context to
+ * act on.
  *
  * For %ETHTOOL_GRXRINGS, @data is set to the number of RX rings/queues
  * on return.
@@ -931,7 +938,9 @@ static inline __u64 ethtool_get_flow_spec_ring_vf(__u64 ring_cookie)
  * set in @data then special location values should not be used.
  *
  * For %ETHTOOL_GRXCLSRULE, @fs.@location specifies the location of an
- * existing rule on entry and @fs contains the rule on return.
+ * existing rule on entry and @fs contains the rule on return; if
+ * @fs.@flow_type includes the %FLOW_RSS flag, then @rss_context is
+ * filled with the RSS context ID associated with the rule.
  *
  * For %ETHTOOL_GRXCLSRLALL, @rule_cnt specifies the array size of the
  * user buffer for @rule_locs on entry.  On return, @data is the size
@@ -942,7 +951,11 @@ static inline __u64 ethtool_get_flow_spec_ring_vf(__u64 ring_cookie)
  * For %ETHTOOL_SRXCLSRLINS, @fs specifies the rule to add or update.
  * @fs.@location either specifies the location to use or is a special
  * location value with %RX_CLS_LOC_SPECIAL flag set.  On return,
- * @fs.@location is the actual rule location.
+ * @fs.@location is the actual rule location.  If @fs.@flow_type
+ * includes the %FLOW_RSS flag, @rss_context is the RSS context ID to
+ * use for flow spreading traffic which matches this rule.  The value
+ * from the rxfh indirection table will be added to @fs.@ring_cookie
+ * to choose which ring to deliver to.
  *
  * For %ETHTOOL_SRXCLSRLDEL, @fs.@location specifies the location of an
  * existing rule on entry.
@@ -963,7 +976,10 @@ struct ethtool_rxnfc {
 	__u32				flow_type;
 	__u64				data;
 	struct ethtool_rx_flow_spec	fs;
-	__u32				rule_cnt;
+	union {
+		__u32			rule_cnt;
+		__u32			rss_context;
+	};
 	__u32				rule_locs[0];
 };
 
@@ -990,7 +1006,11 @@ struct ethtool_rxfh_indir {
 /**
  * struct ethtool_rxfh - command to get/set RX flow hash indir or/and hash key.
  * @cmd: Specific command number - %ETHTOOL_GRSSH or %ETHTOOL_SRSSH
- * @rss_context: RSS context identifier.
+ * @rss_context: RSS context identifier.  Context 0 is the default for normal
+ *	traffic; other contexts can be referenced as the destination for RX flow
+ *	classification rules.  %ETH_RXFH_CONTEXT_ALLOC is used with command
+ *	%ETHTOOL_SRSSH to allocate a new RSS context; on return this field will
+ *	contain the ID of the newly allocated context.
  * @indir_size: On entry, the array size of the user buffer for the
  *	indirection table, which may be zero, or (for %ETHTOOL_SRSSH),
  *	%ETH_RXFH_INDIR_NO_CHANGE.  On return from %ETHTOOL_GRSSH,
@@ -1009,7 +1029,8 @@ struct ethtool_rxfh_indir {
  * size should be returned.  For %ETHTOOL_SRSSH, an @indir_size of
  * %ETH_RXFH_INDIR_NO_CHANGE means that indir table setting is not requested
  * and a @indir_size of zero means the indir table should be reset to default
- * values. An hfunc of zero means that hash function setting is not requested.
+ * values (if @rss_context == 0) or that the RSS context should be deleted.
+ * An hfunc of zero means that hash function setting is not requested.
  */
 struct ethtool_rxfh {
 	__u32   cmd;
@@ -1021,6 +1042,7 @@ struct ethtool_rxfh {
 	__u32	rsvd32;
 	__u32   rss_config[0];
 };
+#define ETH_RXFH_CONTEXT_ALLOC		0xffffffff
 #define ETH_RXFH_INDIR_NO_CHANGE	0xffffffff
 
 /**
@@ -1635,6 +1657,8 @@ static inline int ethtool_validate_duplex(__u8 duplex)
 /* Flag to enable additional fields in struct ethtool_rx_flow_spec */
 #define	FLOW_EXT	0x80000000
 #define	FLOW_MAC_EXT	0x40000000
+/* Flag to enable RSS spreading of traffic matching rule (nfc only) */
+#define	FLOW_RSS	0x20000000
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)

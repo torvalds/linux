@@ -31,6 +31,7 @@ struct wake_irq {
 	struct device *dev;
 	unsigned int status;
 	int irq;
+	const char *name;
 };
 
 extern void dev_pm_arm_wake_irq(struct wake_irq *wirq);

@@ -83,8 +83,9 @@ struct shmid_ds {
 #define SHM_UNLOCK 	12
 
 /* ipcs ctl commands */
-#define SHM_STAT 	13
-#define SHM_INFO 	14
+#define SHM_STAT	13
+#define SHM_INFO	14
+#define SHM_STAT_ANY    15
 
 /* Obsolete, used only for backwards compatibility */
 struct	shminfo {

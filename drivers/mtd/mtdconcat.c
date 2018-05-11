@@ -333,45 +333,6 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 	return -EINVAL;
 }
 
-static void concat_erase_callback(struct erase_info *instr)
-{
-	wake_up((wait_queue_head_t *) instr->priv);
-}
-
-static int concat_dev_erase(struct mtd_info *mtd, struct erase_info *erase)
-{
-	int err;
-	wait_queue_head_t waitq;
-	DECLARE_WAITQUEUE(wait, current);
-
-	/*
-	 * This code was stol^H^H^H^Hinspired by mtdchar.c
-	 */
-	init_waitqueue_head(&waitq);
-
-	erase->mtd = mtd;
-	erase->callback = concat_erase_callback;
-	erase->priv = (unsigned long) &waitq;
-
-	/*
-	 * FIXME: Allow INTERRUPTIBLE. Which means
-	 * not having the wait_queue head on the stack.
-	 */
-	err = mtd_erase(mtd, erase);
-	if (!err) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		add_wait_queue(&waitq, &wait);
-		if (erase->state != MTD_ERASE_DONE
-		    && erase->state != MTD_ERASE_FAILED)
-			schedule();
-		remove_wait_queue(&waitq, &wait);
-		set_current_state(TASK_RUNNING);
-
-		err = (erase->state == MTD_ERASE_FAILED) ? -EIO : 0;
-	}
-	return err;
-}
-
 static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
@@ -466,7 +427,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			erase->len = length;
 
 		length -= erase->len;
-		if ((err = concat_dev_erase(subdev, erase))) {
+		if ((err = mtd_erase(subdev, erase))) {
 			/* sanity check: should never happen since
 			 * block alignment has been checked above */
 			BUG_ON(err == -EINVAL);
@@ -485,14 +446,9 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		erase->addr = 0;
 		offset += subdev->size;
 	}
-	instr->state = erase->state;
 	kfree(erase);
-	if (err)
-		return err;
 
-	if (instr->callback)
-		instr->callback(instr);
-	return 0;
+	return err;
 }
 
 static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)

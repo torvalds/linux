@@ -122,8 +122,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		if (memcmp(buf, "ANAND", 6)) {
 			printk(KERN_NOTICE "ANAND header found at 0x%x in mtd%d, but went away on reread!\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index);
-			printk(KERN_NOTICE "New data are: %02x %02x %02x %02x %02x %02x\n",
-			       buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+			printk(KERN_NOTICE "New data are: %6ph\n", buf);
 			continue;
 		}
 #endif
@@ -328,12 +327,9 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	memset(instr, 0, sizeof(struct erase_info));
 
 	/* XXX: use async erase interface, XXX: test return code */
-	instr->mtd = nftl->mbd.mtd;
 	instr->addr = block * nftl->EraseSize;
 	instr->len = nftl->EraseSize;
-	mtd_erase(mtd, instr);
-
-	if (instr->state == MTD_ERASE_FAILED) {
+	if (mtd_erase(mtd, instr)) {
 		printk("Error while formatting block %d\n", block);
 		goto fail;
 	}

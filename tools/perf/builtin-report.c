@@ -68,6 +68,7 @@ struct report {
 	bool			header;
 	bool			header_only;
 	bool			nonany_branch_mode;
+	bool			group_set;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -191,6 +192,45 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 
 out:
 	return err;
+}
+
+/*
+ * Events in data file are not collect in groups, but we still want
+ * the group display. Set the artificial group and set the leader's
+ * forced_leader flag to notify the display code.
+ */
+static void setup_forced_leader(struct report *report,
+				struct perf_evlist *evlist)
+{
+	if (report->group_set && !evlist->nr_groups) {
+		struct perf_evsel *leader = perf_evlist__first(evlist);
+
+		perf_evlist__set_leader(evlist);
+		leader->forced_leader = true;
+	}
+}
+
+static int process_feature_event(struct perf_tool *tool,
+				 union perf_event *event,
+				 struct perf_session *session __maybe_unused)
+{
+	struct report *rep = container_of(tool, struct report, tool);
+
+	if (event->feat.feat_id < HEADER_LAST_FEATURE)
+		return perf_event__process_feature(tool, event, session);
+
+	if (event->feat.feat_id != HEADER_LAST_FEATURE) {
+		pr_err("failed: wrong feature ID: %" PRIu64 "\n",
+		       event->feat.feat_id);
+		return -1;
+	}
+
+	/*
+	 * All features are received, we can force the
+	 * group if needed.
+	 */
+	setup_forced_leader(rep, session->evlist);
+	return 0;
 }
 
 static int process_sample_event(struct perf_tool *tool,
@@ -400,8 +440,10 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
-	if (evname != NULL)
-		ret += fprintf(fp, " of event '%s'", evname);
+	if (evname != NULL) {
+		ret += fprintf(fp, " of event%s '%s'",
+			       evsel->nr_members > 1 ? "s" : "", evname);
+	}
 
 	if (rep->time_str)
 		ret += fprintf(fp, " (time slices: %s)", rep->time_str);
@@ -614,6 +656,7 @@ static int stats_print(struct report *rep)
 static void tasks_setup(struct report *rep)
 {
 	memset(&rep->tool, 0, sizeof(rep->tool));
+	rep->tool.ordered_events = true;
 	if (rep->mmaps_mode) {
 		rep->tool.mmap = perf_event__process_mmap;
 		rep->tool.mmap2 = perf_event__process_mmap2;
@@ -954,7 +997,7 @@ int cmd_report(int argc, const char **argv)
 			.id_index	 = perf_event__process_id_index,
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
-			.feature	 = perf_event__process_feature,
+			.feature	 = process_feature_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -975,6 +1018,8 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "mmaps", &report.mmaps_mode, "Display recorded tasks memory maps"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
+	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+                    "don't load vmlinux even if found"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
@@ -1056,7 +1101,7 @@ int cmd_report(int argc, const char **argv)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
-	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
+	OPT_BOOLEAN_SET(0, "group", &symbol_conf.event_group, &report.group_set,
 		    "Show event group information together"),
 	OPT_CALLBACK_NOOPT('b', "branch-stack", &branch_mode, "",
 		    "use branch records for per branch histogram filling",
@@ -1172,6 +1217,8 @@ repeat:
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
+
+	setup_forced_leader(&report, session->evlist);
 
 	if (itrace_synth_opts.last_branch)
 		has_br_stack = true;
@@ -1295,6 +1342,7 @@ repeat:
 			symbol_conf.priv_size += sizeof(u32);
 			symbol_conf.sort_by_name = true;
 		}
+		annotation_config__init();
 	}
 
 	if (symbol__init(&session->header.env) < 0)
@@ -1330,6 +1378,15 @@ repeat:
 		}
 	} else {
 		report.range_num = 1;
+	}
+
+	if (session->tevent.pevent &&
+	    pevent_set_function_resolver(session->tevent.pevent,
+					 machine__resolve_kernel_addr,
+					 &session->machines.host) < 0) {
+		pr_err("%s: failed to set libtraceevent function resolver\n",
+		       __func__);
+		return -1;
 	}
 
 	sort__setup_elide(stdout);

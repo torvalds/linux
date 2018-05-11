@@ -246,7 +246,7 @@ notrace void xmon_xive_do_dump(int cpu)
 		u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
 		xmon_printf("  IPI state: %x:%c%c\n", xc->hw_ipi,
 			val & XIVE_ESB_VAL_P ? 'P' : 'p',
-			val & XIVE_ESB_VAL_P ? 'Q' : 'q');
+			val & XIVE_ESB_VAL_Q ? 'Q' : 'q');
 	}
 #endif
 }

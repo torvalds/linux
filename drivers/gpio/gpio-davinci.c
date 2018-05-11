@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/irqchip/chained_irq.h>
@@ -225,6 +226,11 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.of_gpio_n_cells = 2;
 	chips->chip.parent = dev;
 	chips->chip.of_node = dev->of_node;
+
+	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+		chips->chip.request = gpiochip_generic_request;
+		chips->chip.free = gpiochip_generic_free;
+	}
 #endif
 	spin_lock_init(&chips->lock);
 	bank_base += ngpio;

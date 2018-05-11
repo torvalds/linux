@@ -962,7 +962,6 @@ struct esas2r_adapter {
  * Function Declarations
  * SCSI functions
  */
-int esas2r_release(struct Scsi_Host *);
 const char *esas2r_info(struct Scsi_Host *);
 int esas2r_write_params(struct esas2r_adapter *a, struct esas2r_request *rq,
 			struct esas2r_sas_nvram *data);
@@ -984,7 +983,6 @@ int esas2r_target_reset(struct scsi_cmnd *cmd);
 /* Internal functions */
 int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 			int index);
-int esas2r_cleanup(struct Scsi_Host *host);
 int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count);
 int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 		    int count);

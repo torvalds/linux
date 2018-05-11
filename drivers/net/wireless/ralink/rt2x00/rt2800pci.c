@@ -49,7 +49,7 @@
  * Allow hardware encryption to be disabled.
  */
 static bool modparam_nohwcrypt = false;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)

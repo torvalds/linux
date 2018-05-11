@@ -426,8 +426,8 @@ out:
 }
 
 static int ad7152_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       long mask)
+				    struct iio_chan_spec const *chan,
+				    long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -493,7 +493,7 @@ static const struct iio_chan_spec ad7152_channels[] = {
  */
 
 static int ad7152_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	int ret = 0;
 	struct ad7152_chip_info *chip;

@@ -93,20 +93,26 @@ xfs_inode_buf_verify(
 	bool		readahead)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
+	xfs_agnumber_t	agno;
 	int		i;
 	int		ni;
 
 	/*
 	 * Validate the magic number and version of every inode in the buffer
 	 */
+	agno = xfs_daddr_to_agno(mp, XFS_BUF_ADDR(bp));
 	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_inopblock;
 	for (i = 0; i < ni; i++) {
 		int		di_ok;
 		xfs_dinode_t	*dip;
+		xfs_agino_t	unlinked_ino;
 
 		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
+		unlinked_ino = be32_to_cpu(dip->di_next_unlinked);
 		di_ok = dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
-			xfs_dinode_good_version(mp, dip->di_version);
+			xfs_dinode_good_version(mp, dip->di_version) &&
+			(unlinked_ino == NULLAGINO ||
+			 xfs_verify_agino(mp, agno, unlinked_ino));
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP))) {
 			if (readahead) {
@@ -115,16 +121,18 @@ xfs_inode_buf_verify(
 				return;
 			}
 
-			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 #ifdef DEBUG
 			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)bp->b_bn, i,
 				be16_to_cpu(dip->di_magic));
 #endif
+			xfs_buf_verifier_error(bp, -EFSCORRUPTED,
+					__func__, dip, sizeof(*dip),
+					NULL);
+			return;
 		}
 	}
-	xfs_inobp_check(mp, bp);
 }
 
 
@@ -564,10 +572,7 @@ xfs_iread(
 		/* initialise the on-disk inode core */
 		memset(&ip->i_d, 0, sizeof(ip->i_d));
 		VFS_I(ip)->i_generation = prandom_u32();
-		if (xfs_sb_version_hascrc(&mp->m_sb))
-			ip->i_d.di_version = 3;
-		else
-			ip->i_d.di_version = 2;
+		ip->i_d.di_version = 3;
 		return 0;
 	}
 
@@ -648,4 +653,109 @@ xfs_iread(
  out_brelse:
 	xfs_trans_brelse(tp, bp);
 	return error;
+}
+
+/*
+ * Validate di_extsize hint.
+ *
+ * The rules are documented at xfs_ioctl_setattr_check_extsize().
+ * These functions must be kept in sync with each other.
+ */
+xfs_failaddr_t
+xfs_inode_validate_extsize(
+	struct xfs_mount		*mp,
+	uint32_t			extsize,
+	uint16_t			mode,
+	uint16_t			flags)
+{
+	bool				rt_flag;
+	bool				hint_flag;
+	bool				inherit_flag;
+	uint32_t			extsize_bytes;
+	uint32_t			blocksize_bytes;
+
+	rt_flag = (flags & XFS_DIFLAG_REALTIME);
+	hint_flag = (flags & XFS_DIFLAG_EXTSIZE);
+	inherit_flag = (flags & XFS_DIFLAG_EXTSZINHERIT);
+	extsize_bytes = XFS_FSB_TO_B(mp, extsize);
+
+	if (rt_flag)
+		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
+	else
+		blocksize_bytes = mp->m_sb.sb_blocksize;
+
+	if ((hint_flag || inherit_flag) && !(S_ISDIR(mode) || S_ISREG(mode)))
+		return __this_address;
+
+	if (hint_flag && !S_ISREG(mode))
+		return __this_address;
+
+	if (inherit_flag && !S_ISDIR(mode))
+		return __this_address;
+
+	if ((hint_flag || inherit_flag) && extsize == 0)
+		return __this_address;
+
+	if (!(hint_flag || inherit_flag) && extsize != 0)
+		return __this_address;
+
+	if (extsize_bytes % blocksize_bytes)
+		return __this_address;
+
+	if (extsize > MAXEXTLEN)
+		return __this_address;
+
+	if (!rt_flag && extsize > mp->m_sb.sb_agblocks / 2)
+		return __this_address;
+
+	return NULL;
+}
+
+/*
+ * Validate di_cowextsize hint.
+ *
+ * The rules are documented at xfs_ioctl_setattr_check_cowextsize().
+ * These functions must be kept in sync with each other.
+ */
+xfs_failaddr_t
+xfs_inode_validate_cowextsize(
+	struct xfs_mount		*mp,
+	uint32_t			cowextsize,
+	uint16_t			mode,
+	uint16_t			flags,
+	uint64_t			flags2)
+{
+	bool				rt_flag;
+	bool				hint_flag;
+	uint32_t			cowextsize_bytes;
+
+	rt_flag = (flags & XFS_DIFLAG_REALTIME);
+	hint_flag = (flags2 & XFS_DIFLAG2_COWEXTSIZE);
+	cowextsize_bytes = XFS_FSB_TO_B(mp, cowextsize);
+
+	if (hint_flag && !xfs_sb_version_hasreflink(&mp->m_sb))
+		return __this_address;
+
+	if (hint_flag && !(S_ISDIR(mode) || S_ISREG(mode)))
+		return __this_address;
+
+	if (hint_flag && cowextsize == 0)
+		return __this_address;
+
+	if (!hint_flag && cowextsize != 0)
+		return __this_address;
+
+	if (hint_flag && rt_flag)
+		return __this_address;
+
+	if (cowextsize_bytes % mp->m_sb.sb_blocksize)
+		return __this_address;
+
+	if (cowextsize > MAXEXTLEN)
+		return __this_address;
+
+	if (cowextsize > mp->m_sb.sb_agblocks / 2)
+		return __this_address;
+
+	return NULL;
 }

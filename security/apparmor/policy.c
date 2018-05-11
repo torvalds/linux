@@ -82,7 +82,7 @@
 
 #include "include/apparmor.h"
 #include "include/capability.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/file.h"
 #include "include/ipc.h"
 #include "include/match.h"
@@ -210,6 +210,7 @@ static void aa_free_data(void *ptr, void *arg)
 void aa_free_profile(struct aa_profile *profile)
 {
 	struct rhashtable *rht;
+	int i;
 
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
@@ -227,6 +228,9 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_free_cap_rules(&profile->caps);
 	aa_free_rlimit_rules(&profile->rlimits);
 
+	for (i = 0; i < profile->xattr_count; i++)
+		kzfree(profile->xattrs[i]);
+	kzfree(profile->xattrs);
 	kzfree(profile->dirname);
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
@@ -845,8 +849,9 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
  * @udata: serialized data stream  (NOT NULL)
  *
  * unpack and replace a profile on the profile list and uses of that profile
- * by any aa_task_ctx.  If the profile does not exist on the profile list
- * it is added.
+ * by any task creds via invalidating the old version of the profile, which
+ * tasks will notice to update their own cred.  If the profile does not exist
+ * on the profile list it is added.
  *
  * Returns: size of data consumed else error code on failure.
  */

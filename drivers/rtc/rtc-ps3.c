@@ -41,7 +41,7 @@ static u64 read_rtc(void)
 static int ps3_get_time(struct device *dev, struct rtc_time *tm)
 {
 	rtc_time_to_tm(read_rtc() + ps3_os_area_get_rtc_diff(), tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ps3_set_time(struct device *dev, struct rtc_time *tm)

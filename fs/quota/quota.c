@@ -833,8 +833,8 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
  * calls. Maybe we need to add the process quotas etc. in the future,
  * but we probably should use rlimits for that.
  */
-SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
-		qid_t, id, void __user *, addr)
+int kernel_quotactl(unsigned int cmd, const char __user *special,
+		    qid_t id, void __user *addr)
 {
 	uint cmds, type;
 	struct super_block *sb = NULL;
@@ -884,4 +884,10 @@ out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);
 	return ret;
+}
+
+SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
+		qid_t, id, void __user *, addr)
+{
+	return kernel_quotactl(cmd, special, id, addr);
 }

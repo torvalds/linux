@@ -40,6 +40,11 @@
  */
 
 / {
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};
@@ -239,10 +244,9 @@
 
 		pinctrl_hummingboard_usbotg_id: hummingboard-usbotg-id {
 			/*
-			 * Similar to pinctrl_usbotg_2, but we want it
-			 * pulled down for a fixed host connection.
+			 * We want it pulled down for a fixed host connection.
 			 */
-			fsl,pins = <MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x13059>;
+			fsl,pins = <MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x13059>;
 		};
 
 		pinctrl_hummingboard_usbotg_vbus: hummingboard-usbotg-vbus {

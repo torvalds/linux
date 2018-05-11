@@ -1004,32 +1004,17 @@ ath5k_debug_init_device(struct ath5k_hw *ah)
 	if (!phydir)
 		return;
 
-	debugfs_create_file("debug", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_debug);
-
-	debugfs_create_file("registers", S_IRUSR, phydir, ah, &fops_registers);
-
-	debugfs_create_file("beacon", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_beacon);
-
-	debugfs_create_file("reset", S_IWUSR, phydir, ah, &fops_reset);
-
-	debugfs_create_file("antenna", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_antenna);
-
-	debugfs_create_file("misc", S_IRUSR, phydir, ah, &fops_misc);
-
-	debugfs_create_file("eeprom", S_IRUSR, phydir, ah, &fops_eeprom);
-
-	debugfs_create_file("frameerrors", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_frameerrors);
-
-	debugfs_create_file("ani", S_IWUSR | S_IRUSR, phydir, ah, &fops_ani);
-
-	debugfs_create_file("queue", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_queue);
-
-	debugfs_create_bool("32khz_clock", S_IWUSR | S_IRUSR, phydir,
+	debugfs_create_file("debug", 0600, phydir, ah, &fops_debug);
+	debugfs_create_file("registers", 0400, phydir, ah, &fops_registers);
+	debugfs_create_file("beacon", 0600, phydir, ah, &fops_beacon);
+	debugfs_create_file("reset", 0200, phydir, ah, &fops_reset);
+	debugfs_create_file("antenna", 0600, phydir, ah, &fops_antenna);
+	debugfs_create_file("misc", 0400, phydir, ah, &fops_misc);
+	debugfs_create_file("eeprom", 0400, phydir, ah, &fops_eeprom);
+	debugfs_create_file("frameerrors", 0600, phydir, ah, &fops_frameerrors);
+	debugfs_create_file("ani", 0600, phydir, ah, &fops_ani);
+	debugfs_create_file("queue", 0600, phydir, ah, &fops_queue);
+	debugfs_create_bool("32khz_clock", 0600, phydir,
 			    &ah->ah_use_32khz_clock);
 }
 

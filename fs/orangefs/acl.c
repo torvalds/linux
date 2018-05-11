@@ -9,7 +9,6 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
-#include <linux/fs_struct.h>
 
 struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 {

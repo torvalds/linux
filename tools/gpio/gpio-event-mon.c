@@ -99,7 +99,7 @@ int monitor_device(const char *device_name,
 			ret = -EIO;
 			break;
 		}
-		fprintf(stdout, "GPIO EVENT %" PRIu64 ": ", event.timestamp);
+		fprintf(stdout, "GPIO EVENT %llu: ", event.timestamp);
 		switch (event.id) {
 		case GPIOEVENT_EVENT_RISING_EDGE:
 			fprintf(stdout, "rising edge");

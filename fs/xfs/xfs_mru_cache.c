@@ -112,6 +112,7 @@ struct xfs_mru_cache {
 	xfs_mru_cache_free_func_t free_func; /* Function pointer for freeing. */
 	struct delayed_work	work;      /* Workqueue data for reaping.   */
 	unsigned int		queued;	   /* work has been queued */
+	void			*data;
 };
 
 static struct workqueue_struct	*xfs_mru_reap_wq;
@@ -259,7 +260,7 @@ _xfs_mru_cache_clear_reap_list(
 
 	list_for_each_entry_safe(elem, next, &tmp, list_node) {
 		list_del_init(&elem->list_node);
-		mru->free_func(elem);
+		mru->free_func(mru->data, elem);
 	}
 
 	spin_lock(&mru->lock);
@@ -326,6 +327,7 @@ xfs_mru_cache_uninit(void)
 int
 xfs_mru_cache_create(
 	struct xfs_mru_cache	**mrup,
+	void			*data,
 	unsigned int		lifetime_ms,
 	unsigned int		grp_count,
 	xfs_mru_cache_free_func_t free_func)
@@ -369,7 +371,7 @@ xfs_mru_cache_create(
 
 	mru->grp_time  = grp_time;
 	mru->free_func = free_func;
-
+	mru->data = data;
 	*mrup = mru;
 
 exit:
@@ -492,7 +494,7 @@ xfs_mru_cache_delete(
 
 	elem = xfs_mru_cache_remove(mru, key);
 	if (elem)
-		mru->free_func(elem);
+		mru->free_func(mru->data, elem);
 }
 
 /*

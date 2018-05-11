@@ -9,6 +9,7 @@
  */
 
 #include <linux/bottom_half.h>
+#include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -26,12 +27,18 @@ struct xfrm_trans_tasklet {
 };
 
 struct xfrm_trans_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
 	int (*finish)(struct net *net, struct sock *sk, struct sk_buff *skb);
 };
 
 #define XFRM_TRANS_SKB_CB(__skb) ((struct xfrm_trans_cb *)&((__skb)->cb[0]))
 
-static struct kmem_cache *secpath_cachep __read_mostly;
+static struct kmem_cache *secpath_cachep __ro_after_init;
 
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo const __rcu *xfrm_input_afinfo[AF_INET6 + 1];

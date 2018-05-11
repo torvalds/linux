@@ -2025,9 +2025,9 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.coupled_pm = false,
 	.has_nvdisplay = false,
 	.num_primary_formats = ARRAY_SIZE(tegra124_primary_formats),
-	.primary_formats = tegra114_primary_formats,
+	.primary_formats = tegra124_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
-	.overlay_formats = tegra114_overlay_formats,
+	.overlay_formats = tegra124_overlay_formats,
 	.modifiers = tegra124_modifiers,
 };
 
@@ -2178,7 +2178,7 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 		struct device_link *link;
 		struct device *partner;
 
-		partner = driver_find_device(dc->dev->driver, NULL, 0,
+		partner = driver_find_device(dc->dev->driver, NULL, NULL,
 					     tegra_dc_match_by_pipe);
 		if (!partner)
 			return -EPROBE_DEFER;

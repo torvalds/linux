@@ -1117,6 +1117,25 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	return 0;
 }
 
+int dtsec_set_allmulti(struct fman_mac *dtsec, bool enable)
+{
+	u32 tmp;
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+
+	if (!is_init_done(dtsec->dtsec_drv_param))
+		return -EINVAL;
+
+	tmp = ioread32be(&regs->rctrl);
+	if (enable)
+		tmp |= RCTRL_MPROM;
+	else
+		tmp &= ~RCTRL_MPROM;
+
+	iowrite32be(tmp, &regs->rctrl);
+
+	return 0;
+}
+
 int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;

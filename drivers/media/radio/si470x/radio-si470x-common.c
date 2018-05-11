@@ -207,6 +207,15 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 	unsigned long time_left;
 	bool timed_out = false;
 
+	retval = si470x_get_register(radio, POWERCFG);
+	if (retval)
+		return retval;
+
+	if ((radio->registers[POWERCFG] & (POWERCFG_ENABLE|POWERCFG_DMUTE))
+		!= (POWERCFG_ENABLE|POWERCFG_DMUTE)) {
+		return 0;
+	}
+
 	/* start tuning */
 	radio->registers[CHANNEL] &= ~CHANNEL_CHAN;
 	radio->registers[CHANNEL] |= CHANNEL_TUNE | chan;
@@ -377,8 +386,12 @@ int si470x_start(struct si470x_device *radio)
 		goto done;
 
 	/* sysconfig 1 */
-	radio->registers[SYSCONFIG1] =
-		(de << 11) & SYSCONFIG1_DE;		/* DE*/
+	radio->registers[SYSCONFIG1] |= SYSCONFIG1_RDSIEN | SYSCONFIG1_STCIEN |
+					SYSCONFIG1_RDS;
+	radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_GPIO2;
+	radio->registers[SYSCONFIG1] |= SYSCONFIG1_GPIO2_INT;
+	if (de)
+		radio->registers[SYSCONFIG1] |= SYSCONFIG1_DE;
 	retval = si470x_set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		goto done;

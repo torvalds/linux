@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -101,6 +102,9 @@ void ath10k_debug_unregister(struct ath10k *ar);
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_debug_tpc_stats_process(struct ath10k *ar,
 				    struct ath10k_tpc_stats *tpc_stats);
+void
+ath10k_debug_tpc_stats_final_process(struct ath10k *ar,
+				     struct ath10k_tpc_stats_final *tpc_stats);
 void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer, int len);
 
 #define ATH10K_DFS_STAT_INC(ar, c) (ar->debug.dfs_stats.c++)
@@ -164,6 +168,13 @@ static inline void ath10k_debug_tpc_stats_process(struct ath10k *ar,
 	kfree(tpc_stats);
 }
 
+static inline void
+ath10k_debug_tpc_stats_final_process(struct ath10k *ar,
+				     struct ath10k_tpc_stats_final *tpc_stats)
+{
+	kfree(tpc_stats);
+}
+
 static inline void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer,
 					   int len)
 {
@@ -191,10 +202,40 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
 void ath10k_sta_update_rx_duration(struct ath10k *ar,
 				   struct ath10k_fw_stats *stats);
+void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
+				    unsigned long int num_msdus,
+				    enum ath10k_pkt_rx_err err,
+				    unsigned long int unchain_cnt,
+				    unsigned long int drop_cnt,
+				    unsigned long int drop_cnt_filter,
+				    unsigned long int queued_msdus);
+void ath10k_sta_update_rx_tid_stats_ampdu(struct ath10k *ar,
+					  u16 peer_id, u8 tid,
+					  struct htt_rx_indication_mpdu_range *ranges,
+					  int num_ranges);
 #else
 static inline
 void ath10k_sta_update_rx_duration(struct ath10k *ar,
 				   struct ath10k_fw_stats *stats)
+{
+}
+
+static inline
+void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
+				    unsigned long int num_msdus,
+				    enum ath10k_pkt_rx_err err,
+				    unsigned long int unchain_cnt,
+				    unsigned long int drop_cnt,
+				    unsigned long int drop_cnt_filter,
+				    unsigned long int queued_msdus)
+{
+}
+
+static inline
+void ath10k_sta_update_rx_tid_stats_ampdu(struct ath10k *ar,
+					  u16 peer_id, u8 tid,
+					  struct htt_rx_indication_mpdu_range *ranges,
+					  int num_ranges)
 {
 }
 #endif /* CONFIG_MAC80211_DEBUGFS */

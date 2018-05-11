@@ -20,6 +20,7 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 
 .ONESHELL:
 define RUN_TESTS
+	@export KSFT_TAP_LEVEL=`echo 1`;
 	@test_num=`echo 0`;
 	@echo "TAP version 13";
 	@for TEST in $(1); do				\

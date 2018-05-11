@@ -279,7 +279,6 @@ int do_shash(unsigned char *name, unsigned char *result,
 	sdesc = kmalloc(size, GFP_KERNEL);
 	if (!sdesc) {
 		rc = -ENOMEM;
-		pr_err("%s: Memory allocation failure\n", __func__);
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;

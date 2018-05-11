@@ -1,0 +1,113 @@
+		ACPI Time and Alarm (TAD) device attributes.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/caps
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RO) Hexadecimal bitmask of the TAD attributes are reported by
+		the platform firmware (see ACPI 6.2, section 9.18.2):
+
+		BIT(0): AC wakeup implemented if set
+		BIT(1): DC wakeup implemented if set
+		BIT(2): Get/set real time features implemented if set
+		BIT(3): Real time accuracy in milliseconds if set
+		BIT(4): Correct status reported for wakeups from S4/S5 if set
+		BIT(5): The AC timer wakes up from S4 if set
+		BIT(6): The AC timer wakes up from S5 if set
+		BIT(7): The DC timer wakes up from S4 if set
+		BIT(8): The DC timer wakes up from S5 if set
+
+		The other bits are reserved.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/ac_alarm
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RW) The AC alarm timer value.
+
+		Reads return the current AC alarm timer value in seconds or
+		"disabled", if the AC alarm is not set to wake up the system.
+
+		Write a new AC alarm timer value in seconds or "disabled" to it
+		to set the AC alarm timer or to disable it, respectively.
+
+		If the AC alarm timer is set through this attribute and it
+		expires, it will immediately wake up the system from the S3
+		sleep state (and from S4/S5 too if supported) until its status
+		is explicitly cleared via the ac_status attribute.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/ac_policy
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RW) The AC alarm expired timer wake policy (see ACPI 6.2,
+		Section 9.18 for details).
+
+		Reads return the current expired timer wake delay for the AC
+		alarm timer or "never", if the policy is to discard AC timer
+		wakeups if the system is on DC power.
+
+		Write a new expired timer wake delay for the AC alarm timer in
+		seconds or "never" to it to set the expired timer wake delay for
+		the AC alarm timer or to set its expired wake policy to discard
+		wakeups if the system is on DC power, respectively.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/ac_status
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RW) The AC alarm status.
+
+		Reads return a hexadecimal bitmask representing the AC alarm
+		timer status with the following meaning of bits (see ACPI 6.2,
+		Section 9.18.5):
+
+		Bit(0): The timer has expired if set.
+		Bit(1): The timer has woken up the system from a sleep state
+		        (S3 or S4/S5 if supported) if set.
+
+		The other bits are reserved.
+
+		Reads also cause the AC alarm timer status to be reset.
+
+		Another way to reset the the status of the AC alarm timer is to
+		write (the number) 0 to this file.
+
+		If the status return value indicates that the timer has expired,
+		it will immediately wake up the system from the S3 sleep state
+		(and from S4/S5 too if supported) until its status is explicitly
+		cleared through this attribute.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/dc_alarm
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RW,optional) The DC alarm timer value.
+
+		This attribute is only present if the TAD supports a separate
+		DC timer.
+
+		It is analogous to the ac_alarm attribute.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/dc_policy
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		(RW,optional) The DC alarm expired timer wake policy.
+
+		This attribute is only present if the TAD supports a separate
+		DC timer.
+
+		It is analogous to the ac_policy attribute.
+
+What:		/sys/bus/platform/devices/ACPI000E:00/dc_status
+Date:		March 2018
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
+Description:
+		(RW,optional) The DC alarm status.
+
+		This attribute is only present if the TAD supports a separate
+		DC timer.
+
+		It is analogous to the ac_status attribute.

@@ -511,6 +511,9 @@ static int fl_set_key_flags(struct nlattr **tb,
 
 	fl_set_key_flag(key, mask, flags_key, flags_mask,
 			TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT, FLOW_DIS_IS_FRAGMENT);
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST,
+			FLOW_DIS_FIRST_FRAG);
 
 	return 0;
 }
@@ -1130,6 +1133,9 @@ static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
 
 	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
 			TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT, FLOW_DIS_IS_FRAGMENT);
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST,
+			FLOW_DIS_FIRST_FRAG);
 
 	_key = cpu_to_be32(key);
 	_mask = cpu_to_be32(mask);

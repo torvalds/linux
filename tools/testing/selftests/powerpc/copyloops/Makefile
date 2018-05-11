@@ -5,8 +5,8 @@ CFLAGS += -I$(CURDIR)
 CFLAGS += -D SELFTEST
 CFLAGS += -maltivec
 
-# Use our CFLAGS for the implicit .S rule
-ASFLAGS = $(CFLAGS)
+# Use our CFLAGS for the implicit .S rule & set the asm machine type
+ASFLAGS = $(CFLAGS) -Wa,-mpower4
 
 TEST_GEN_PROGS := copyuser_64 copyuser_power7 memcpy_64 memcpy_power7
 EXTRA_SOURCES := validate.c ../harness.c

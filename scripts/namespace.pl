@@ -164,7 +164,7 @@ sub linux_objects
 	s:^\./::;
 	if (/.*\.o$/ &&
 		! (
-		m:/built-in.o$:
+		m:/built-in.a$:
 		|| m:arch/x86/vdso/:
 		|| m:arch/x86/boot/:
 		|| m:arch/ia64/ia32/ia32.o$:

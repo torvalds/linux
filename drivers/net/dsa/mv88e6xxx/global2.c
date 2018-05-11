@@ -20,22 +20,22 @@
 #include "global1.h" /* for MV88E6XXX_G1_STS_IRQ_DEVICE */
 #include "global2.h"
 
-static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
+int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {
 	return mv88e6xxx_read(chip, chip->info->global2_addr, reg, val);
 }
 
-static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
+int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 {
 	return mv88e6xxx_write(chip, chip->info->global2_addr, reg, val);
 }
 
-static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
+int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
 {
 	return mv88e6xxx_update(chip, chip->info->global2_addr, reg, update);
 }
 
-static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
+int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 {
 	return mv88e6xxx_wait(chip, chip->info->global2_addr, reg, mask);
 }
@@ -798,6 +798,7 @@ int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 						   val);
 }
 
+/* Offset 0x1B: Watchdog Control */
 static int mv88e6097_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 {
 	u16 reg;
@@ -1089,7 +1090,7 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 
 	err = request_threaded_irq(chip->device_irq, NULL,
 				   mv88e6xxx_g2_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g1", chip);
+				   IRQF_ONESHOT, "mv88e6xxx-g2", chip);
 	if (err)
 		goto out;
 
@@ -1104,6 +1105,38 @@ out:
 	irq_domain_remove(chip->g2_irq.domain);
 
 	return err;
+}
+
+int mv88e6xxx_g2_irq_mdio_setup(struct mv88e6xxx_chip *chip,
+				struct mii_bus *bus)
+{
+	int phy, irq, err, err_phy;
+
+	for (phy = 0; phy < chip->info->num_internal_phys; phy++) {
+		irq = irq_find_mapping(chip->g2_irq.domain, phy);
+		if (irq < 0) {
+			err = irq;
+			goto out;
+		}
+		bus->irq[chip->info->port_base_addr + phy] = irq;
+	}
+	return 0;
+out:
+	err_phy = phy;
+
+	for (phy = 0; phy < err_phy; phy++)
+		irq_dispose_mapping(bus->irq[phy]);
+
+	return err;
+}
+
+void mv88e6xxx_g2_irq_mdio_free(struct mv88e6xxx_chip *chip,
+				struct mii_bus *bus)
+{
+	int phy;
+
+	for (phy = 0; phy < chip->info->num_internal_phys; phy++)
+		irq_dispose_mapping(bus->irq[phy]);
 }
 
 int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)

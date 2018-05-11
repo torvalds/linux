@@ -119,10 +119,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 				     struct rdma_dev_addr *addr, void *context),
 		    void *context);
 
-int rdma_resolve_ip_route(struct sockaddr *src_addr,
-			  const struct sockaddr *dst_addr,
-			  struct rdma_dev_addr *addr);
-
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
@@ -130,11 +126,8 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 		    const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(struct sockaddr *addr);
-
-int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
-				 const union ib_gid *dgid,
-				 u8 *dmac, const struct net_device *ndev,
-				 int *hoplimit);
+int rdma_addr_size_in6(struct sockaddr_in6 *addr);
+int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {

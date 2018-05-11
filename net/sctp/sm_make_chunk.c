@@ -87,7 +87,28 @@ static void  *sctp_addto_chunk_fixed(struct sctp_chunk *, int len,
 /* Control chunk destructor */
 static void sctp_control_release_owner(struct sk_buff *skb)
 {
-	/*TODO: do memory release */
+	struct sctp_chunk *chunk = skb_shinfo(skb)->destructor_arg;
+
+	if (chunk->shkey) {
+		struct sctp_shared_key *shkey = chunk->shkey;
+		struct sctp_association *asoc = chunk->asoc;
+
+		/* refcnt == 2 and !list_empty mean after this release, it's
+		 * not being used anywhere, and it's time to notify userland
+		 * that this shkey can be freed if it's been deactivated.
+		 */
+		if (shkey->deactivated && !list_empty(&shkey->key_list) &&
+		    refcount_read(&shkey->refcnt) == 2) {
+			struct sctp_ulpevent *ev;
+
+			ev = sctp_ulpevent_make_authkey(asoc, shkey->key_id,
+							SCTP_AUTH_FREE_KEY,
+							GFP_KERNEL);
+			if (ev)
+				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
+		}
+		sctp_auth_shkey_release(chunk->shkey);
+	}
 }
 
 static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
@@ -102,7 +123,12 @@ static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
 	 *
 	 *  For now don't do anything for now.
 	 */
+	if (chunk->auth) {
+		chunk->shkey = asoc->shkey;
+		sctp_auth_shkey_hold(chunk->shkey);
+	}
 	skb->sk = asoc ? asoc->base.sk : NULL;
+	skb_shinfo(skb)->destructor_arg = chunk;
 	skb->destructor = sctp_control_release_owner;
 }
 
@@ -1271,7 +1297,8 @@ nodata:
 	return retval;
 }
 
-struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
+struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc,
+				  __u16 key_id)
 {
 	struct sctp_authhdr auth_hdr;
 	struct sctp_hmac *hmac_desc;
@@ -1289,7 +1316,7 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
 		return NULL;
 
 	auth_hdr.hmac_id = htons(hmac_desc->hmac_id);
-	auth_hdr.shkey_id = htons(asoc->active_key_id);
+	auth_hdr.shkey_id = htons(key_id);
 
 	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(auth_hdr),
 						 &auth_hdr);
@@ -3071,6 +3098,12 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		if (af->is_any(&addr))
 			memcpy(&addr, &asconf->source, sizeof(addr));
 
+		if (security_sctp_bind_connect(asoc->ep->base.sk,
+					       SCTP_PARAM_ADD_IP,
+					       (struct sockaddr *)&addr,
+					       af->sockaddr_len))
+			return SCTP_ERROR_REQ_REFUSED;
+
 		/* ADDIP 4.3 D9) If an endpoint receives an ADD IP address
 		 * request and does not have the local resources to add this
 		 * new address to the association, it MUST return an Error
@@ -3136,6 +3169,12 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		 */
 		if (af->is_any(&addr))
 			memcpy(&addr.v4, sctp_source(asconf), sizeof(addr));
+
+		if (security_sctp_bind_connect(asoc->ep->base.sk,
+					       SCTP_PARAM_SET_PRIMARY,
+					       (struct sockaddr *)&addr,
+					       af->sockaddr_len))
+			return SCTP_ERROR_REQ_REFUSED;
 
 		peer = sctp_assoc_lookup_paddr(asoc, &addr);
 		if (!peer)

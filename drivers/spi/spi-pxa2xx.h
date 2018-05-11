@@ -31,7 +31,7 @@ struct driver_data {
 
 	/* SPI framework hookup */
 	enum pxa_ssp_type ssp_type;
-	struct spi_master *master;
+	struct spi_controller *master;
 
 	/* PXA hookup */
 	struct pxa2xx_spi_master *master_info;

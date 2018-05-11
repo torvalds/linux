@@ -2366,7 +2366,7 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 {
 	int ep = usb_pipeendpoint(urb->pipe);
 
-	return snprintf(buf, size,
+	return scnprintf(buf, size,
 		"urb/%p %s ep%d%s%s len %d/%d\n",
 		urb,
 		({ char *s;

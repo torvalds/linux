@@ -341,4 +341,5 @@ extern struct list_head *audit_killed_trees(void);
 #define audit_filter_inodes(t,c) AUDIT_DISABLED
 #endif
 
-extern struct mutex audit_cmd_mutex;
+extern void audit_ctl_lock(void);
+extern void audit_ctl_unlock(void);

@@ -31,8 +31,6 @@
 		       EVM_ALLOW_METADATA_WRITES)
 
 extern int evm_initialized;
-extern char *evm_hmac;
-extern char *evm_hash;
 
 #define EVM_ATTR_FSUUID		0x0001
 

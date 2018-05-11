@@ -548,6 +548,8 @@ struct sta_info {
 		u64 msdu_retries[IEEE80211_NUM_TIDS + 1];
 		u64 msdu_failed[IEEE80211_NUM_TIDS + 1];
 		unsigned long last_ack;
+		s8 last_ack_signal;
+		bool ack_signal_filled;
 	} status_stats;
 
 	/* Updated from TX path only, no locking requirements */

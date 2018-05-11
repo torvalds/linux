@@ -221,13 +221,13 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 	} else {
 		for (i = 0; i < (txpktbuf_bndy - 1); i++) {
 			status = _LLTWrite(padapter, i, i + 1);
-			if (_SUCCESS != status)
+			if (status != _SUCCESS)
 				return status;
 		}
 
 		/*  end of list */
 		status = _LLTWrite(padapter, (txpktbuf_bndy - 1), 0xFF);
-		if (_SUCCESS != status)
+		if (status != _SUCCESS)
 			return status;
 
 		/*  Make the other pages as ring buffer */
@@ -235,13 +235,13 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 		/*  Otherwise used as local loopback buffer. */
 		for (i = txpktbuf_bndy; i < Last_Entry_Of_TxPktBuf; i++) {
 			status = _LLTWrite(padapter, i, (i + 1));
-			if (_SUCCESS != status)
+			if (status != _SUCCESS)
 				return status;
 		}
 
 		/*  Let last entry point to the start entry of ring buffer */
 		status = _LLTWrite(padapter, Last_Entry_Of_TxPktBuf, txpktbuf_bndy);
-		if (_SUCCESS != status) {
+		if (status != _SUCCESS) {
 			return status;
 		}
 	}

@@ -52,6 +52,7 @@
  */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
+enum chips { lm92, max6635 };
 
 /* The LM92 registers */
 #define LM92_REG_CONFIG			0x01 /* 8-bit, RW */
@@ -259,62 +260,6 @@ static void lm92_init_client(struct i2c_client *client)
 					  config & 0xFE);
 }
 
-/*
- * The MAX6635 has no identification register, so we have to use tricks
- * to identify it reliably. This is somewhat slow.
- * Note that we do NOT rely on the 2 MSB of the configuration register
- * always reading 0, as suggested by the datasheet, because it was once
- * reported not to be true.
- */
-static int max6635_check(struct i2c_client *client)
-{
-	u16 temp_low, temp_high, temp_hyst, temp_crit;
-	u8 conf;
-	int i;
-
-	/*
-	 * No manufacturer ID register, so a read from this address will
-	 * always return the last read value.
-	 */
-	temp_low = i2c_smbus_read_word_data(client, LM92_REG_TEMP_LOW);
-	if (i2c_smbus_read_word_data(client, LM92_REG_MAN_ID) != temp_low)
-		return 0;
-	temp_high = i2c_smbus_read_word_data(client, LM92_REG_TEMP_HIGH);
-	if (i2c_smbus_read_word_data(client, LM92_REG_MAN_ID) != temp_high)
-		return 0;
-
-	/* Limits are stored as integer values (signed, 9-bit). */
-	if ((temp_low & 0x7f00) || (temp_high & 0x7f00))
-		return 0;
-	temp_hyst = i2c_smbus_read_word_data(client, LM92_REG_TEMP_HYST);
-	temp_crit = i2c_smbus_read_word_data(client, LM92_REG_TEMP_CRIT);
-	if ((temp_hyst & 0x7f00) || (temp_crit & 0x7f00))
-		return 0;
-
-	/*
-	 * Registers addresses were found to cycle over 16-byte boundaries.
-	 * We don't test all registers with all offsets so as to save some
-	 * reads and time, but this should still be sufficient to dismiss
-	 * non-MAX6635 chips.
-	 */
-	conf = i2c_smbus_read_byte_data(client, LM92_REG_CONFIG);
-	for (i = 16; i < 96; i *= 2) {
-		if (temp_hyst != i2c_smbus_read_word_data(client,
-				 LM92_REG_TEMP_HYST + i - 16)
-		 || temp_crit != i2c_smbus_read_word_data(client,
-				 LM92_REG_TEMP_CRIT + i)
-		 || temp_low != i2c_smbus_read_word_data(client,
-				LM92_REG_TEMP_LOW + i + 16)
-		 || temp_high != i2c_smbus_read_word_data(client,
-				 LM92_REG_TEMP_HIGH + i + 32)
-		 || conf != i2c_smbus_read_byte_data(client,
-			    LM92_REG_CONFIG + i))
-			return 0;
-	}
-
-	return 1;
-}
-
 static struct attribute *lm92_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
@@ -348,8 +293,6 @@ static int lm92_detect(struct i2c_client *new_client,
 
 	if ((config & 0xe0) == 0x00 && man_id == 0x0180)
 		pr_info("lm92: Found National Semiconductor LM92 chip\n");
-	else if (max6635_check(new_client))
-		pr_info("lm92: Found Maxim MAX6635 chip\n");
 	else
 		return -ENODEV;
 
@@ -387,8 +330,8 @@ static int lm92_probe(struct i2c_client *new_client,
  */
 
 static const struct i2c_device_id lm92_id[] = {
-	{ "lm92", 0 },
-	/* max6635 could be added here */
+	{ "lm92", lm92 },
+	{ "max6635", max6635 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm92_id);

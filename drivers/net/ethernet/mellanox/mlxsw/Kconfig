@@ -76,6 +76,8 @@ config MLXSW_SPECTRUM
 	depends on PSAMPLE || PSAMPLE=n
 	depends on BRIDGE || BRIDGE=n
 	depends on IPV6 || IPV6=n
+	depends on NET_IPGRE || NET_IPGRE=n
+	depends on IPV6_GRE || IPV6_GRE=n
 	select PARMAN
 	select MLXFW
 	default m

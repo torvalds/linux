@@ -192,3 +192,14 @@ Date:		November 2017
 Contact:	"Sheng Yong" <shengyong1@huawei.com>
 Description:
 		 Controls readahead inode block in readdir.
+
+What:		/sys/fs/f2fs/<disk>/extension_list
+Date:		Feburary 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:
+		 Used to control configure extension list:
+		 - Query: cat /sys/fs/f2fs/<disk>/extension_list
+		 - Add: echo '[h/c]extension' > /sys/fs/f2fs/<disk>/extension_list
+		 - Del: echo '[h/c]!extension' > /sys/fs/f2fs/<disk>/extension_list
+		 - [h] means add/del hot file extension
+		 - [c] means add/del cold file extension

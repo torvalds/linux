@@ -134,9 +134,9 @@ static int pm80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct pm80x_rtc_info *info = dev_get_drvdata(dev);
 	unsigned char buf[4];
 	unsigned long ticks, base, data;
-	if ((tm->tm_year < 70) || (tm->tm_year > 138)) {
+	if (tm->tm_year > 206) {
 		dev_dbg(info->dev,
-			"Set time %d out of range. Please set time between 1970 to 2038.\n",
+			"Set time %d out of range. Please set time between 1970 to 2106.\n",
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}

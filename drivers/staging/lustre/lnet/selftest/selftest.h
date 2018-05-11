@@ -575,7 +575,7 @@ swi_state2str(int state)
 #define selftest_wait_events()					\
 	do {							\
 		set_current_state(TASK_UNINTERRUPTIBLE);	\
-		schedule_timeout(cfs_time_seconds(1) / 10);	\
+		schedule_timeout(HZ / 10);	\
 	} while (0)
 
 #define lst_wait_until(cond, lock, fmt, ...)				\

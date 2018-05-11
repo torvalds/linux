@@ -789,7 +789,7 @@ mlxsw_sx_port_get_link_ksettings(struct net_device *dev,
 	u32 supported, advertising, lp_advertising;
 	int err;
 
-	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0, false);
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to get proto");
@@ -879,7 +879,7 @@ mlxsw_sx_port_set_link_ksettings(struct net_device *dev,
 		mlxsw_sx_to_ptys_advert_link(advertising) :
 		mlxsw_sx_to_ptys_speed(speed);
 
-	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0, false);
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to get proto");
@@ -897,7 +897,7 @@ mlxsw_sx_port_set_link_ksettings(struct net_device *dev,
 		return 0;
 
 	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port,
-				eth_proto_new);
+				eth_proto_new, true);
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to set proto admin");
@@ -1029,7 +1029,7 @@ mlxsw_sx_port_speed_by_width_set(struct mlxsw_sx_port *mlxsw_sx_port, u8 width)
 
 	eth_proto_admin = mlxsw_sx_to_ptys_upper_speed(upper_speed);
 	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port,
-				eth_proto_admin);
+				eth_proto_admin, true);
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 }
 
@@ -1706,7 +1706,6 @@ static const struct mlxsw_config_profile mlxsw_sx_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_IB,
 		}
 	},
-	.resource_query_enable		= 0,
 };
 
 static struct mlxsw_driver mlxsw_sx_driver = {

@@ -1045,11 +1045,7 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c,
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
 		if (unlikely(!h->msix_vectors))
 			return;
-		if (likely(reply_queue == DEFAULT_REPLY_QUEUE))
-			c->Header.ReplyQueue =
-				raw_smp_processor_id() % h->nreply_queues;
-		else
-			c->Header.ReplyQueue = reply_queue % h->nreply_queues;
+		c->Header.ReplyQueue = reply_queue;
 	}
 }
 
@@ -1063,10 +1059,7 @@ static void set_ioaccel1_performant_mode(struct ctlr_info *h,
 	 * Tell the controller to post the reply to the queue for this
 	 * processor.  This seems to give the best I/O throughput.
 	 */
-	if (likely(reply_queue == DEFAULT_REPLY_QUEUE))
-		cp->ReplyQueue = smp_processor_id() % h->nreply_queues;
-	else
-		cp->ReplyQueue = reply_queue % h->nreply_queues;
+	cp->ReplyQueue = reply_queue;
 	/*
 	 * Set the bits in the address sent down to include:
 	 *  - performant mode bit (bit 0)
@@ -1087,10 +1080,7 @@ static void set_ioaccel2_tmf_performant_mode(struct ctlr_info *h,
 	/* Tell the controller to post the reply to the queue for this
 	 * processor.  This seems to give the best I/O throughput.
 	 */
-	if (likely(reply_queue == DEFAULT_REPLY_QUEUE))
-		cp->reply_queue = smp_processor_id() % h->nreply_queues;
-	else
-		cp->reply_queue = reply_queue % h->nreply_queues;
+	cp->reply_queue = reply_queue;
 	/* Set the bits in the address sent down to include:
 	 *  - performant mode bit not used in ioaccel mode 2
 	 *  - pull count (bits 0-3)
@@ -1109,10 +1099,7 @@ static void set_ioaccel2_performant_mode(struct ctlr_info *h,
 	 * Tell the controller to post the reply to the queue for this
 	 * processor.  This seems to give the best I/O throughput.
 	 */
-	if (likely(reply_queue == DEFAULT_REPLY_QUEUE))
-		cp->reply_queue = smp_processor_id() % h->nreply_queues;
-	else
-		cp->reply_queue = reply_queue % h->nreply_queues;
+	cp->reply_queue = reply_queue;
 	/*
 	 * Set the bits in the address sent down to include:
 	 *  - performant mode bit not used in ioaccel mode 2
@@ -1157,6 +1144,8 @@ static void __enqueue_cmd_and_start_io(struct ctlr_info *h,
 {
 	dial_down_lockup_detection_during_fw_flash(h, c);
 	atomic_inc(&h->commands_outstanding);
+
+	reply_queue = h->reply_map[raw_smp_processor_id()];
 	switch (c->cmd_type) {
 	case CMD_IOACCEL1:
 		set_ioaccel1_performant_mode(h, c, reply_queue);
@@ -7376,6 +7365,26 @@ static void hpsa_disable_interrupt_mode(struct ctlr_info *h)
 	h->msix_vectors = 0;
 }
 
+static void hpsa_setup_reply_map(struct ctlr_info *h)
+{
+	const struct cpumask *mask;
+	unsigned int queue, cpu;
+
+	for (queue = 0; queue < h->msix_vectors; queue++) {
+		mask = pci_irq_get_affinity(h->pdev, queue);
+		if (!mask)
+			goto fallback;
+
+		for_each_cpu(cpu, mask)
+			h->reply_map[cpu] = queue;
+	}
+	return;
+
+fallback:
+	for_each_possible_cpu(cpu)
+		h->reply_map[cpu] = 0;
+}
+
 /* If MSI/MSI-X is supported by the kernel we will try to enable it on
  * controllers that are capable. If not, we use legacy INTx mode.
  */
@@ -7771,6 +7780,10 @@ static int hpsa_pci_init(struct ctlr_info *h)
 	err = hpsa_interrupt_mode(h);
 	if (err)
 		goto clean1;
+
+	/* setup mapping between CPU and reply queue */
+	hpsa_setup_reply_map(h);
+
 	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
 		goto clean2;	/* intmode+region, pci */
@@ -8480,6 +8493,28 @@ static struct workqueue_struct *hpsa_create_controller_wq(struct ctlr_info *h,
 	return wq;
 }
 
+static void hpda_free_ctlr_info(struct ctlr_info *h)
+{
+	kfree(h->reply_map);
+	kfree(h);
+}
+
+static struct ctlr_info *hpda_alloc_ctlr_info(void)
+{
+	struct ctlr_info *h;
+
+	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	if (!h)
+		return NULL;
+
+	h->reply_map = kzalloc(sizeof(*h->reply_map) * nr_cpu_ids, GFP_KERNEL);
+	if (!h->reply_map) {
+		kfree(h);
+		return NULL;
+	}
+	return h;
+}
+
 static int hpsa_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int dac, rc;
@@ -8517,7 +8552,7 @@ reinit_after_soft_reset:
 	 * the driver.  See comments in hpsa.h for more info.
 	 */
 	BUILD_BUG_ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
-	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	h = hpda_alloc_ctlr_info();
 	if (!h) {
 		dev_err(&pdev->dev, "Failed to allocate controller head\n");
 		return -ENOMEM;
@@ -8916,7 +8951,7 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	h->lockup_detected = NULL;			/* init_one 2 */
 	/* (void) pci_disable_pcie_error_reporting(pdev); */	/* init_one 1 */
 
-	kfree(h);					/* init_one 1 */
+	hpda_free_ctlr_info(h);				/* init_one 1 */
 }
 
 static int hpsa_suspend(__attribute__((unused)) struct pci_dev *pdev,

@@ -215,6 +215,5 @@ extern const struct regmap_config pcm186x_regmap;
 
 int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 		  struct regmap *regmap);
-int pcm186x_remove(struct device *dev);
 
 #endif /* _PCM186X_H_ */

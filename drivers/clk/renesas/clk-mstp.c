@@ -64,13 +64,13 @@ struct mstp_clock {
 static inline u32 cpg_mstp_read(struct mstp_clock_group *group,
 				u32 __iomem *reg)
 {
-	return group->width_8bit ? readb(reg) : clk_readl(reg);
+	return group->width_8bit ? readb(reg) : readl(reg);
 }
 
 static inline void cpg_mstp_write(struct mstp_clock_group *group, u32 val,
 				  u32 __iomem *reg)
 {
-	group->width_8bit ? writeb(val, reg) : clk_writel(val, reg);
+	group->width_8bit ? writeb(val, reg) : writel(val, reg);
 }
 
 static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)

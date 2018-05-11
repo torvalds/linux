@@ -276,10 +276,8 @@ config SMP
 	  than one CPU, say Y.
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
-	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  uniprocessor machines. On a uniprocessor machine, the kernel
-	  will run faster if you say N here.
+	  machines, but will use only one CPU of a multiprocessor machine.
+	  On a uniprocessor machine, the kernel will run faster if you say N.
 
 	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
@@ -340,6 +338,7 @@ source "mm/Kconfig"
 config COMPAT
 	def_bool y
 	depends on 64BIT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	def_bool y

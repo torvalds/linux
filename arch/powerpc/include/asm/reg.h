@@ -156,6 +156,8 @@
 #define PSSCR_SD		0x00400000 /* Status Disable */
 #define PSSCR_PLS	0xf000000000000000 /* Power-saving Level Status */
 #define PSSCR_GUEST_VIS	0xf0000000000003ff /* Guest-visible PSSCR fields */
+#define PSSCR_FAKE_SUSPEND	0x00000400 /* Fake-suspend bit (P9 DD2.2) */
+#define PSSCR_FAKE_SUSPEND_LG	10	   /* Fake-suspend bit position */
 
 /* Floating Point Status and Control Register (FPSCR) Fields */
 #define FPSCR_FX	0x80000000	/* FPU exception summary */
@@ -237,7 +239,12 @@
 #define SPRN_TFIAR	0x81	/* Transaction Failure Inst Addr   */
 #define SPRN_TEXASR	0x82	/* Transaction EXception & Summary */
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
+#define   TEXASR_ABORT	__MASK(63-31) /* terminated by tabort or treclaim */
+#define   TEXASR_SUSP	__MASK(63-32) /* tx failed in suspended state */
+#define   TEXASR_HV	__MASK(63-34) /* MSR[HV] when failure occurred */
+#define   TEXASR_PR	__MASK(63-35) /* MSR[PR] when failure occurred */
 #define   TEXASR_FS	__MASK(63-36) /* TEXASR Failure Summary */
+#define   TEXASR_EXACT	__MASK(63-37) /* TFIAR value is exact */
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
 #define SPRN_TIDR	144	/* Thread ID register */
 #define SPRN_CTRLF	0x088

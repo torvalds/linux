@@ -63,7 +63,7 @@ lsm_md_eq(const struct lmv_stripe_md *lsm1, const struct lmv_stripe_md *lsm2)
 	    lsm1->lsm_md_master_mdt_index != lsm2->lsm_md_master_mdt_index ||
 	    lsm1->lsm_md_hash_type != lsm2->lsm_md_hash_type ||
 	    lsm1->lsm_md_layout_version != lsm2->lsm_md_layout_version ||
-	    !strcmp(lsm1->lsm_md_pool_name, lsm2->lsm_md_pool_name))
+	    strcmp(lsm1->lsm_md_pool_name, lsm2->lsm_md_pool_name) != 0)
 		return false;
 
 	for (idx = 0; idx < lsm1->lsm_md_stripe_count; idx++) {

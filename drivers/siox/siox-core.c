@@ -594,7 +594,7 @@ static ssize_t device_add_store(struct device *dev,
 	size_t inbytes = 0, outbytes = 0;
 	u8 statustype = 0;
 
-	ret = sscanf(buf, "%20s %zu %zu %hhu", type, &inbytes,
+	ret = sscanf(buf, "%19s %zu %zu %hhu", type, &inbytes,
 		     &outbytes, &statustype);
 	if (ret != 3 && ret != 4)
 		return -EINVAL;

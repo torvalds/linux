@@ -397,7 +397,6 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
-	INIT_LIST_HEAD(&ha->base_qpair->nvme_done_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
 	qla_cpu_update(rsp->qpair, raw_smp_processor_id());
@@ -471,9 +470,6 @@ fail_req_map:
 
 static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 {
-	if (!ha->req_q_map)
-		return;
-
 	if (IS_QLAFX00(ha)) {
 		if (req && req->ring_fx00)
 			dma_free_coherent(&ha->pdev->dev,
@@ -484,19 +480,16 @@ static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 		(req->length + 1) * sizeof(request_t),
 		req->ring, req->dma);
 
-	if (req) {
+	if (req)
 		kfree(req->outstanding_cmds);
-		kfree(req);
-	}
+
+	kfree(req);
 }
 
 static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
-	if (!ha->rsp_q_map)
-		return;
-
 	if (IS_QLAFX00(ha)) {
-		if (rsp && rsp->ring)
+		if (rsp && rsp->ring_fx00)
 			dma_free_coherent(&ha->pdev->dev,
 			    (rsp->length_fx00 + 1) * sizeof(request_t),
 			    rsp->ring_fx00, rsp->dma_fx00);
@@ -505,8 +498,7 @@ static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 		(rsp->length + 1) * sizeof(response_t),
 		rsp->ring, rsp->dma);
 	}
-	if (rsp)
-		kfree(rsp);
+	kfree(rsp);
 }
 
 static void qla2x00_free_queues(struct qla_hw_data *ha)
@@ -1744,7 +1736,7 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 					sp_get(sp);
 					spin_unlock_irqrestore(qp->qp_lock_ptr,
 					    flags);
-					qla_nvme_abort(ha, sp);
+					qla_nvme_abort(ha, sp, res);
 					spin_lock_irqsave(qp->qp_lock_ptr,
 					    flags);
 				} else if (GET_CMD_SP(sp) &&
@@ -3107,7 +3099,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 
 	/* Alloc arrays of request and response ring ptrs */
-	if (qla2x00_alloc_queues(ha, req, rsp)) {
+	ret = qla2x00_alloc_queues(ha, req, rsp);
+	if (ret) {
 		ql_log(ql_log_fatal, base_vha, 0x003d,
 		    "Failed to allocate memory for queue pointers..."
 		    "aborting.\n");
@@ -3408,8 +3401,15 @@ probe_failed:
 	}
 
 	qla2x00_free_device(base_vha);
-
 	scsi_host_put(base_vha->host);
+	/*
+	 * Need to NULL out local req/rsp after
+	 * qla2x00_free_device => qla2x00_free_queues frees
+	 * what these are pointing to. Or else we'll
+	 * fall over below in qla2x00_free_req/rsp_que.
+	 */
+	req = NULL;
+	rsp = NULL;
 
 probe_hw_failed:
 	qla2x00_mem_free(ha);
@@ -4115,6 +4115,7 @@ fail_npiv_info:
 	(*rsp)->dma = 0;
 fail_rsp_ring:
 	kfree(*rsp);
+	*rsp = NULL;
 fail_rsp:
 	dma_free_coherent(&ha->pdev->dev, ((*req)->length + 1) *
 		sizeof(request_t), (*req)->ring, (*req)->dma);
@@ -4122,6 +4123,7 @@ fail_rsp:
 	(*req)->dma = 0;
 fail_req_ring:
 	kfree(*req);
+	*req = NULL;
 fail_req:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct ct_sns_pkt),
 		ha->ct_sns, ha->ct_sns_dma);
@@ -4509,16 +4511,11 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		dma_free_coherent(&ha->pdev->dev, ha->init_cb_size,
 			ha->init_cb, ha->init_cb_dma);
 
-	if (ha->optrom_buffer)
-		vfree(ha->optrom_buffer);
-	if (ha->nvram)
-		kfree(ha->nvram);
-	if (ha->npiv_info)
-		kfree(ha->npiv_info);
-	if (ha->swl)
-		kfree(ha->swl);
-	if (ha->loop_id_map)
-		kfree(ha->loop_id_map);
+	vfree(ha->optrom_buffer);
+	kfree(ha->nvram);
+	kfree(ha->npiv_info);
+	kfree(ha->swl);
+	kfree(ha->loop_id_map);
 
 	ha->srb_mempool = NULL;
 	ha->ctx_mempool = NULL;
@@ -4822,12 +4819,14 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
-			if (e->u.new_sess.fc4_type == FC4_TYPE_FCP_SCSI) {
+			if (e->u.new_sess.fc4_type & FS_FC4TYPE_FCP)
 				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
-			} else if (e->u.new_sess.fc4_type == FC4_TYPE_NVME) {
+
+			if (e->u.new_sess.fc4_type & FS_FC4TYPE_NVME) {
 				fcport->fc4_type = FC4_TYPE_OTHER;
 				fcport->fc4f_nvme = FC4_TYPE_NVME;
 			}
+
 			memcpy(fcport->port_name, e->u.new_sess.port_name,
 			    WWN_SIZE);
 		} else {
@@ -5047,7 +5046,8 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			    e->u.logio.data);
 			break;
 		case QLA_EVT_GPNFT:
-			qla24xx_async_gpnft(vha, e->u.gpnft.fc4_type);
+			qla24xx_async_gpnft(vha, e->u.gpnft.fc4_type,
+			    e->u.gpnft.sp);
 			break;
 		case QLA_EVT_GPNFT_DONE:
 			qla24xx_async_gpnft_done(vha, e->u.iosb.sp);
@@ -6830,7 +6830,7 @@ static int qla2xxx_map_queues(struct Scsi_Host *shost)
 	if (USER_CTRL_IRQ(vha->hw))
 		rc = blk_mq_map_queues(&shost->tag_set);
 	else
-		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev);
+		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev, 0);
 	return rc;
 }
 

@@ -711,9 +711,7 @@ static void raw_close(struct sock *sk, long timeout)
 	/*
 	 * Raw sockets may have direct kernel references. Kill them.
 	 */
-	rtnl_lock();
 	ip_ra_control(sk, 0, NULL);
-	rtnl_unlock();
 
 	sk_common_release(sk);
 }
@@ -1142,7 +1140,7 @@ static const struct file_operations raw_seq_fops = {
 
 static __net_init int raw_init_net(struct net *net)
 {
-	if (!proc_create("raw", S_IRUGO, net->proc_net, &raw_seq_fops))
+	if (!proc_create("raw", 0444, net->proc_net, &raw_seq_fops))
 		return -ENOMEM;
 
 	return 0;

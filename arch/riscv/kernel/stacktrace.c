@@ -18,6 +18,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
+#include <linux/ftrace.h>
 
 #ifdef CONFIG_FRAME_POINTER
 
@@ -63,7 +64,12 @@ static void notrace walk_stackframe(struct task_struct *task,
 		frame = (struct stackframe *)fp - 1;
 		sp = fp;
 		fp = frame->fp;
+#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+		pc = ftrace_graph_ret_addr(current, NULL, frame->ra,
+					   (unsigned long *)(fp - 8));
+#else
 		pc = frame->ra - 0x4;
+#endif
 	}
 }
 

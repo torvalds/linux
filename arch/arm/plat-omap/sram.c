@@ -23,6 +23,7 @@
 #include <asm/fncpy.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 
 #include <asm/mach/map.h>
 
@@ -42,7 +43,7 @@ static void __iomem *omap_sram_ceil;
  * Note that fncpy requires the returned address to be aligned
  * to an 8-byte boundary.
  */
-void *omap_sram_push_address(unsigned long size)
+static void *omap_sram_push_address(unsigned long size)
 {
 	unsigned long available, new_ceil = (unsigned long)omap_sram_ceil;
 
@@ -60,6 +61,30 @@ void *omap_sram_push_address(unsigned long size)
 	return (void *)omap_sram_ceil;
 }
 
+void *omap_sram_push(void *funcp, unsigned long size)
+{
+	void *sram;
+	unsigned long base;
+	int pages;
+	void *dst = NULL;
+
+	sram = omap_sram_push_address(size);
+	if (!sram)
+		return NULL;
+
+	base = (unsigned long)sram & PAGE_MASK;
+	pages = PAGE_ALIGN(size) / PAGE_SIZE;
+
+	set_memory_rw(base, pages);
+
+	dst = fncpy(sram, funcp, size);
+
+	set_memory_ro(base, pages);
+	set_memory_x(base, pages);
+
+	return dst;
+}
+
 /*
  * The SRAM context is lost during off-idle and stack
  * needs to be reset.
@@ -75,6 +100,9 @@ void omap_sram_reset(void)
 void __init omap_map_sram(unsigned long start, unsigned long size,
 				 unsigned long skip, int cached)
 {
+	unsigned long base;
+	int pages;
+
 	if (size == 0)
 		return;
 
@@ -95,4 +123,10 @@ void __init omap_map_sram(unsigned long start, unsigned long size,
 	 */
 	memset_io(omap_sram_base + omap_sram_skip, 0,
 		  omap_sram_size - omap_sram_skip);
+
+	base = (unsigned long)omap_sram_base;
+	pages = PAGE_ALIGN(omap_sram_size) / PAGE_SIZE;
+
+	set_memory_ro(base, pages);
+	set_memory_x(base, pages);
 }
