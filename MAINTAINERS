@@ -137,9 +137,9 @@ Maintainers List (try to look for most precise areas first)
 		-----------------------------------
 
 3C59X NETWORK DRIVER
-M:	Steffen Klassert <klassert@mathematik.tu-chemnitz.de>
+M:	Steffen Klassert <klassert@kernel.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/networking/vortex.txt
 F:	drivers/net/ethernet/3com/3c59x.c
 
