@@ -1960,11 +1960,19 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 static void gen7_oa_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN7_OACONTROL, 0);
+	if (intel_wait_for_register(dev_priv,
+				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
+				    50))
+		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
 static void gen8_oa_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN8_OACONTROL, 0);
+	if (intel_wait_for_register(dev_priv,
+				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
+				    50))
+		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
 /**
