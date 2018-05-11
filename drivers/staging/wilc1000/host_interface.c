@@ -1513,8 +1513,10 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 
 			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
 					  GFP_KERNEL);
-			if (!key_buf)
-				return -ENOMEM;
+			if (!key_buf) {
+				result = -ENOMEM;
+				goto out_wep;
+			}
 
 			key_buf[0] = hif_key->attr.wep.index;
 			key_buf[1] = hif_key->attr.wep.key_len;
@@ -1535,8 +1537,10 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 			kfree(key_buf);
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kmalloc(hif_key->attr.wep.key_len + 2, GFP_KERNEL);
-			if (!key_buf)
-				return -ENOMEM;
+			if (!key_buf) {
+				result = -ENOMEM;
+				goto out_wep;
+			}
 			key_buf[0] = hif_key->attr.wep.index;
 			memcpy(key_buf + 1, &hif_key->attr.wep.key_len, 1);
 			memcpy(key_buf + 2, hif_key->attr.wep.key,
@@ -1573,6 +1577,7 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		}
+out_wep:
 		complete(&hif_drv->comp_test_key_block);
 		break;
 
@@ -1607,7 +1612,6 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
@@ -1636,9 +1640,9 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		}
 out_wpa_rx_gtk:
+		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
 		kfree(hif_key->attr.wpa.seq);
 		if (ret)
@@ -1674,7 +1678,6 @@ out_wpa_rx_gtk:
 						      wid_list, 2,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
@@ -1696,10 +1699,10 @@ out_wpa_rx_gtk:
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		}
 
 out_wpa_ptk:
+		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
 		if (ret)
 			return ret;
