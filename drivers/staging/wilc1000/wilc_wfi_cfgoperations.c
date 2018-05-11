@@ -1992,6 +1992,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	s32 ret = 0;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
+	struct sta_info *info;
 
 	if (!wiphy)
 		return -EFAULT;
@@ -1999,16 +2000,17 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
 
-	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
-		if (!mac)
-			ret = wilc_del_allstation(vif,
-				     priv->assoc_stainfo.sta_associated_bss);
+	if (!(vif->iftype == AP_MODE || vif->iftype == GO_MODE))
+		return ret;
 
-		ret = wilc_del_station(vif, mac);
+	info = &priv->assoc_stainfo;
 
-		if (ret)
-			netdev_err(dev, "Host delete station fail\n");
-	}
+	if (!mac)
+		ret = wilc_del_allstation(vif, info->sta_associated_bss);
+
+	ret = wilc_del_station(vif, mac);
+	if (ret)
+		netdev_err(dev, "Host delete station fail\n");
 	return ret;
 }
 
