@@ -902,6 +902,27 @@ static struct ceph_msg *create_session_msg(u32 op, u64 seq)
 	return msg;
 }
 
+static void encode_supported_features(void **p, void *end)
+{
+	static const unsigned char bits[] = CEPHFS_FEATURES_CLIENT_SUPPORTED;
+	static const size_t count = ARRAY_SIZE(bits);
+
+	if (count > 0) {
+		size_t i;
+		size_t size = ((size_t)bits[count - 1] + 64) / 64 * 8;
+
+		BUG_ON(*p + 4 + size > end);
+		ceph_encode_32(p, size);
+		memset(*p, 0, size);
+		for (i = 0; i < count; i++)
+			((unsigned char*)(*p))[i / 8] |= 1 << (bits[i] % 8);
+		*p += size;
+	} else {
+		BUG_ON(*p + 4 > end);
+		ceph_encode_32(p, 0);
+	}
+}
+
 /*
  * session message, specialization for CEPH_SESSION_REQUEST_OPEN
  * to include additional client metadata fields.
@@ -911,11 +932,11 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	struct ceph_msg *msg;
 	struct ceph_mds_session_head *h;
 	int i = -1;
-	int metadata_bytes = 0;
+	int extra_bytes = 0;
 	int metadata_key_count = 0;
 	struct ceph_options *opt = mdsc->fsc->client->options;
 	struct ceph_mount_options *fsopt = mdsc->fsc->mount_options;
-	void *p;
+	void *p, *end;
 
 	const char* metadata[][2] = {
 		{"hostname", mdsc->nodename},
@@ -926,21 +947,26 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	};
 
 	/* Calculate serialized length of metadata */
-	metadata_bytes = 4;  /* map length */
+	extra_bytes = 4;  /* map length */
 	for (i = 0; metadata[i][0]; ++i) {
-		metadata_bytes += 8 + strlen(metadata[i][0]) +
+		extra_bytes += 8 + strlen(metadata[i][0]) +
 			strlen(metadata[i][1]);
 		metadata_key_count++;
 	}
+	/* supported feature */
+	extra_bytes += 4 + 8;
 
 	/* Allocate the message */
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h) + metadata_bytes,
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h) + extra_bytes,
 			   GFP_NOFS, false);
 	if (!msg) {
 		pr_err("create_session_msg ENOMEM creating msg\n");
 		return NULL;
 	}
-	h = msg->front.iov_base;
+	p = msg->front.iov_base;
+	end = p + msg->front.iov_len;
+
+	h = p;
 	h->op = cpu_to_le32(CEPH_SESSION_REQUEST_OPEN);
 	h->seq = cpu_to_le64(seq);
 
@@ -950,11 +976,11 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	 *
 	 * ClientSession messages with metadata are v2
 	 */
-	msg->hdr.version = cpu_to_le16(2);
+	msg->hdr.version = cpu_to_le16(3);
 	msg->hdr.compat_version = cpu_to_le16(1);
 
 	/* The write pointer, following the session_head structure */
-	p = msg->front.iov_base + sizeof(*h);
+	p += sizeof(*h);
 
 	/* Number of entries in the map */
 	ceph_encode_32(&p, metadata_key_count);
@@ -971,6 +997,10 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 		memcpy(p, metadata[i][1], val_len);
 		p += val_len;
 	}
+
+	encode_supported_features(&p, end);
+	msg->front.iov_len = p - msg->front.iov_base;
+	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
 	return msg;
 }
@@ -2749,7 +2779,7 @@ static void handle_session(struct ceph_mds_session *session,
 	int wake = 0;
 
 	/* decode */
-	if (msg->front.iov_len != sizeof(*h))
+	if (msg->front.iov_len < sizeof(*h))
 		goto bad;
 	op = le32_to_cpu(h->op);
 	seq = le64_to_cpu(h->seq);
