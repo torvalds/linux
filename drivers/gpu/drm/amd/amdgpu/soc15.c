@@ -41,8 +41,6 @@
 #include "sdma1/sdma1_4_0_offset.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
-#include "mp/mp_9_0_offset.h"
-#include "mp/mp_9_0_sh_mask.h"
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
 
