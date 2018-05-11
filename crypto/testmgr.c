@@ -3363,6 +3363,24 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(michael_mic_tv_template)
 		}
 	}, {
+		.alg = "morus1280",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = __VECS(morus1280_enc_tv_template),
+				.dec = __VECS(morus1280_dec_tv_template),
+			}
+		}
+	}, {
+		.alg = "morus640",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = __VECS(morus640_enc_tv_template),
+				.dec = __VECS(morus640_dec_tv_template),
+			}
+		}
+	}, {
 		.alg = "ofb(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
