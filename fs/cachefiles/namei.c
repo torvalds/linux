@@ -572,6 +572,11 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 
+			if (unlikely(d_unhashed(next))) {
+				dput(next);
+				inode_unlock(d_inode(dir));
+				goto lookup_again;
+			}
 			ASSERT(d_backing_inode(next));
 
 			_debug("mkdir -> %p{%p{ino=%lu}}",
@@ -764,6 +769,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	/* search the current directory for the element name */
 	inode_lock(d_inode(dir));
 
+retry:
 	start = jiffies;
 	subdir = lookup_one_len(dirname, dir, strlen(dirname));
 	cachefiles_hist(cachefiles_lookup_histogram, start);
@@ -793,6 +799,10 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 		if (ret < 0)
 			goto mkdir_error;
 
+		if (unlikely(d_unhashed(subdir))) {
+			dput(subdir);
+			goto retry;
+		}
 		ASSERT(d_backing_inode(subdir));
 
 		_debug("mkdir -> %p{%p{ino=%lu}}",
