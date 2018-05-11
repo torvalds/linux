@@ -5269,6 +5269,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 	while (walk_size < addrlen) {
 		addr = addr_buf;
 		switch (addr->sa_family) {
+		case AF_UNSPEC:
 		case AF_INET:
 			len = sizeof(struct sockaddr_in);
 			break;
@@ -5276,7 +5277,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 			len = sizeof(struct sockaddr_in6);
 			break;
 		default:
-			return -EAFNOSUPPORT;
+			return -EINVAL;
 		}
 
 		err = -EINVAL;
