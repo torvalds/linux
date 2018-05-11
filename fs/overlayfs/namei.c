@@ -31,32 +31,13 @@ static int ovl_check_redirect(struct dentry *dentry, struct ovl_lookup_data *d,
 			      size_t prelen, const char *post)
 {
 	int res;
-	char *s, *next, *buf = NULL;
+	char *buf;
 
-	res = vfs_getxattr(dentry, OVL_XATTR_REDIRECT, NULL, 0);
-	if (res < 0) {
-		if (res == -ENODATA || res == -EOPNOTSUPP)
-			return 0;
-		goto fail;
-	}
-	buf = kzalloc(prelen + res + strlen(post) + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	buf = ovl_get_redirect_xattr(dentry, prelen + strlen(post));
+	if (IS_ERR_OR_NULL(buf))
+		return PTR_ERR(buf);
 
-	if (res == 0)
-		goto invalid;
-
-	res = vfs_getxattr(dentry, OVL_XATTR_REDIRECT, buf, res);
-	if (res < 0)
-		goto fail;
-	if (res == 0)
-		goto invalid;
 	if (buf[0] == '/') {
-		for (s = buf; *s++ == '/'; s = next) {
-			next = strchrnul(s, '/');
-			if (s == next)
-				goto invalid;
-		}
 		/*
 		 * One of the ancestor path elements in an absolute path
 		 * lookup in ovl_lookup_layer() could have been opaque and
@@ -67,9 +48,7 @@ static int ovl_check_redirect(struct dentry *dentry, struct ovl_lookup_data *d,
 		 */
 		d->stop = false;
 	} else {
-		if (strchr(buf, '/') != NULL)
-			goto invalid;
-
+		res = strlen(buf) + 1;
 		memmove(buf + prelen, buf, res);
 		memcpy(buf, d->name.name, prelen);
 	}
@@ -81,16 +60,6 @@ static int ovl_check_redirect(struct dentry *dentry, struct ovl_lookup_data *d,
 	d->name.len = strlen(d->redirect);
 
 	return 0;
-
-err_free:
-	kfree(buf);
-	return 0;
-fail:
-	pr_warn_ratelimited("overlayfs: failed to get redirect (%i)\n", res);
-	goto err_free;
-invalid:
-	pr_warn_ratelimited("overlayfs: invalid redirect (%s)\n", buf);
-	goto err_free;
 }
 
 static int ovl_acceptable(void *ctx, struct dentry *dentry)
@@ -1071,8 +1040,15 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (upperdentry)
 		ovl_dentry_set_upper_alias(dentry);
-	else if (index)
+	else if (index) {
 		upperdentry = dget(index);
+		upperredirect = ovl_get_redirect_xattr(upperdentry, 0);
+		if (IS_ERR(upperredirect)) {
+			err = PTR_ERR(upperredirect);
+			upperredirect = NULL;
+			goto out_free_oe;
+		}
+	}
 
 	if (upperdentry || ctr) {
 		struct ovl_inode_params oip = {
