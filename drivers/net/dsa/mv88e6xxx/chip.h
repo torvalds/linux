@@ -294,6 +294,9 @@ struct mv88e6xxx_mdio_bus {
 };
 
 struct mv88e6xxx_ops {
+	int (*ieee_pri_map)(struct mv88e6xxx_chip *chip);
+	int (*ip_pri_map)(struct mv88e6xxx_chip *chip);
+
 	/* Ingress Rate Limit unit (IRL) operations */
 	int (*irl_init_all)(struct mv88e6xxx_chip *chip, int port);
 
