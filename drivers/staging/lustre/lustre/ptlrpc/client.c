@@ -2514,7 +2514,7 @@ static int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		}
 
 		DEBUG_REQ(D_WARNING, request,
-			  "Unexpectedly long timeout receiving_reply=%d req_ulinked=%d reply_unlinked=%d",
+			  "Unexpectedly long timeout receiving_reply=%d req_unlinked=%d reply_unlinked=%d",
 			  request->rq_receiving_reply,
 			  request->rq_req_unlinked,
 			  request->rq_reply_unlinked);
