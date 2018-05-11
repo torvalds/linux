@@ -1057,7 +1057,8 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	/* we're gonna abort all commands, no need for fast drain */
 	ata_eh_set_pending(ap, 0);
 
-	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
+	/* include internal tag in iteration */
+	for (tag = 0; tag <= ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
 
 		if (qc && (!link || qc->dev->link == link)) {

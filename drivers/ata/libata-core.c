@@ -1570,7 +1570,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 command = tf->command;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
-	unsigned int tag, preempted_tag;
+	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
@@ -1588,20 +1588,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
-	/* XXX: Tag 0 is used for drivers with legacy EH as some
-	 * drivers choke if any other tag is given.  This breaks
-	 * ata_tag_internal() test for those drivers.  Don't use new
-	 * EH stuff without converting to it.
-	 */
-	if (ap->ops->error_handler)
-		tag = ATA_TAG_INTERNAL;
-	else
-		tag = 0;
-
-	qc = __ata_qc_from_tag(ap, tag);
-
-	qc->tag = qc->hw_tag = tag;
+	qc->tag = ATA_TAG_INTERNAL;
+	qc->hw_tag = 0;
 	qc->scsicmd = NULL;
 	qc->ap = ap;
 	qc->dev = dev;
@@ -5156,7 +5146,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 
 	qc->flags = 0;
 	tag = qc->tag;
-	if (likely(ata_tag_valid(tag))) {
+	if (ata_tag_valid(tag)) {
 		qc->tag = ATA_TAG_POISON;
 		if (ap->flags & ATA_FLAG_SAS_HOST)
 			ata_sas_free_tag(tag, ap);
@@ -5415,7 +5405,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		WARN_ON_ONCE(link->sactive);
 
 		ap->nr_active_links++;
-		link->active_tag = qc->hw_tag;
+		link->active_tag = qc->tag;
 	}
 
 	qc->flags |= ATA_QCFLAG_ACTIVE;
