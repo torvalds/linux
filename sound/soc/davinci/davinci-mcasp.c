@@ -789,7 +789,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 					rx_ser < max_active_serializers) {
 			mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AXR(i));
 			rx_ser++;
-		} else {
+		} else if (mcasp->serial_dir[i] == INACTIVE_MODE) {
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 				       SRMOD_INACTIVE, SRMOD_MASK);
 		}
