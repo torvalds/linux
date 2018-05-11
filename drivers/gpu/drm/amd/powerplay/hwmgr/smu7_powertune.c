@@ -852,12 +852,10 @@ int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	n = (n & 0xff) << 8;
-
 	if (data->power_containment_features &
 			POWERCONTAINMENT_FEATURE_PkgPwrLimit)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_PkgPwrSetLimit, n);
+				PPSMC_MSG_PkgPwrSetLimit, n<<8);
 	return 0;
 }
 
