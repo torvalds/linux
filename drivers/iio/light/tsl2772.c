@@ -19,7 +19,7 @@
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "tsl2772.h"
+#include <linux/platform_data/tsl2772.h>
 
 /* Cal defs */
 #define PROX_STAT_CAL			0
