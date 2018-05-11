@@ -1802,7 +1802,7 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 	struct mv_sg *mv_sg, *last_sg = NULL;
 	unsigned int si;
 
-	mv_sg = pp->sg_tbl[qc->tag];
+	mv_sg = pp->sg_tbl[qc->hw_tag];
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
@@ -1903,9 +1903,9 @@ static void mv_bmdma_setup(struct ata_queued_cmd *qc)
 	writel(0, port_mmio + BMDMA_CMD);
 
 	/* load PRD table addr. */
-	writel((pp->sg_tbl_dma[qc->tag] >> 16) >> 16,
+	writel((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16,
 		port_mmio + BMDMA_PRD_HIGH);
-	writelfl(pp->sg_tbl_dma[qc->tag],
+	writelfl(pp->sg_tbl_dma[qc->hw_tag],
 		port_mmio + BMDMA_PRD_LOW);
 
 	/* issue r/w command */
@@ -2071,17 +2071,17 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	 */
 	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
-	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
-	flags |= qc->tag << CRQB_TAG_SHIFT;
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->hw_tag);
+	flags |= qc->hw_tag << CRQB_TAG_SHIFT;
 	flags |= (qc->dev->link->pmp & 0xf) << CRQB_PMP_SHIFT;
 
 	/* get current queue index from software */
 	in_index = pp->req_idx;
 
 	pp->crqb[in_index].sg_addr =
-		cpu_to_le32(pp->sg_tbl_dma[qc->tag] & 0xffffffff);
+		cpu_to_le32(pp->sg_tbl_dma[qc->hw_tag] & 0xffffffff);
 	pp->crqb[in_index].sg_addr_hi =
-		cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
+		cpu_to_le32((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16);
 	pp->crqb[in_index].ctrl_flags = cpu_to_le16(flags);
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
@@ -2164,17 +2164,17 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 
-	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
-	flags |= qc->tag << CRQB_TAG_SHIFT;
-	flags |= qc->tag << CRQB_HOSTQ_SHIFT;
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->hw_tag);
+	flags |= qc->hw_tag << CRQB_TAG_SHIFT;
+	flags |= qc->hw_tag << CRQB_HOSTQ_SHIFT;
 	flags |= (qc->dev->link->pmp & 0xf) << CRQB_PMP_SHIFT;
 
 	/* get current queue index from software */
 	in_index = pp->req_idx;
 
 	crqb = (struct mv_crqb_iie *) &pp->crqb[in_index];
-	crqb->addr = cpu_to_le32(pp->sg_tbl_dma[qc->tag] & 0xffffffff);
-	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
+	crqb->addr = cpu_to_le32(pp->sg_tbl_dma[qc->hw_tag] & 0xffffffff);
+	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16);
 	crqb->flags = cpu_to_le32(flags);
 
 	crqb->ata_cmd[0] = cpu_to_le32(

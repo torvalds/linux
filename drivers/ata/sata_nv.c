@@ -1342,11 +1342,11 @@ static void nv_adma_fill_sg(struct ata_queued_cmd *qc, struct nv_adma_cpb *cpb)
 
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		aprd = (si < 5) ? &cpb->aprd[si] :
-			       &pp->aprd[NV_ADMA_SGTBL_LEN * qc->tag + (si-5)];
+			&pp->aprd[NV_ADMA_SGTBL_LEN * qc->hw_tag + (si-5)];
 		nv_adma_fill_aprd(qc, sg, si, aprd);
 	}
 	if (si > 5)
-		cpb->next_aprd = cpu_to_le64(((u64)(pp->aprd_dma + NV_ADMA_SGTBL_SZ * qc->tag)));
+		cpb->next_aprd = cpu_to_le64(((u64)(pp->aprd_dma + NV_ADMA_SGTBL_SZ * qc->hw_tag)));
 	else
 		cpb->next_aprd = cpu_to_le64(0);
 }
@@ -1371,7 +1371,7 @@ static int nv_adma_use_reg_mode(struct ata_queued_cmd *qc)
 static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
-	struct nv_adma_cpb *cpb = &pp->cpb[qc->tag];
+	struct nv_adma_cpb *cpb = &pp->cpb[qc->hw_tag];
 	u8 ctl_flags = NV_CPB_CTL_CPB_VALID |
 		       NV_CPB_CTL_IEN;
 
@@ -1389,7 +1389,7 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	wmb();
 
 	cpb->len		= 3;
-	cpb->tag		= qc->tag;
+	cpb->tag		= qc->hw_tag;
 	cpb->next_cpb_idx	= 0;
 
 	/* turn on NCQ flags for NCQ commands */
@@ -1452,9 +1452,9 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 		pp->last_issue_ncq = curr_ncq;
 	}
 
-	writew(qc->tag, mmio + NV_ADMA_APPEND);
+	writew(qc->hw_tag, mmio + NV_ADMA_APPEND);
 
-	DPRINTK("Issued tag %u\n", qc->tag);
+	DPRINTK("Issued tag %u\n", qc->hw_tag);
 
 	return 0;
 }
@@ -1716,8 +1716,8 @@ static void nv_swncq_qc_to_dq(struct ata_port *ap, struct ata_queued_cmd *qc)
 
 	/* queue is full */
 	WARN_ON(dq->tail - dq->head == ATA_MAX_QUEUE);
-	dq->defer_bits |= (1 << qc->tag);
-	dq->tag[dq->tail++ & (ATA_MAX_QUEUE - 1)] = qc->tag;
+	dq->defer_bits |= (1 << qc->hw_tag);
+	dq->tag[dq->tail++ & (ATA_MAX_QUEUE - 1)] = qc->hw_tag;
 }
 
 static struct ata_queued_cmd *nv_swncq_qc_from_dq(struct ata_port *ap)
@@ -1996,7 +1996,7 @@ static void nv_swncq_fill_sg(struct ata_queued_cmd *qc)
 	struct ata_bmdma_prd *prd;
 	unsigned int si, idx;
 
-	prd = pp->prd + ATA_MAX_PRD * qc->tag;
+	prd = pp->prd + ATA_MAX_PRD * qc->hw_tag;
 
 	idx = 0;
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
@@ -2034,16 +2034,16 @@ static unsigned int nv_swncq_issue_atacmd(struct ata_port *ap,
 
 	DPRINTK("Enter\n");
 
-	writel((1 << qc->tag), pp->sactive_block);
-	pp->last_issue_tag = qc->tag;
-	pp->dhfis_bits &= ~(1 << qc->tag);
-	pp->dmafis_bits &= ~(1 << qc->tag);
-	pp->qc_active |= (0x1 << qc->tag);
+	writel((1 << qc->hw_tag), pp->sactive_block);
+	pp->last_issue_tag = qc->hw_tag;
+	pp->dhfis_bits &= ~(1 << qc->hw_tag);
+	pp->dmafis_bits &= ~(1 << qc->hw_tag);
+	pp->qc_active |= (0x1 << qc->hw_tag);
 
 	ap->ops->sff_tf_load(ap, &qc->tf);	 /* load tf registers */
 	ap->ops->sff_exec_command(ap, &qc->tf);
 
-	DPRINTK("Issued tag %u\n", qc->tag);
+	DPRINTK("Issued tag %u\n", qc->hw_tag);
 
 	return 0;
 }
@@ -2193,7 +2193,7 @@ static void nv_swncq_dmafis(struct ata_port *ap)
 	rw = qc->tf.flags & ATA_TFLAG_WRITE;
 
 	/* load PRD table addr. */
-	iowrite32(pp->prd_dma + ATA_PRD_TBL_SZ * qc->tag,
+	iowrite32(pp->prd_dma + ATA_PRD_TBL_SZ * qc->hw_tag,
 		  ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
 
 	/* specify data direction, triple-check start bit is clear */

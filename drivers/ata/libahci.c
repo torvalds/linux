@@ -1645,7 +1645,7 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	 * Fill in command table information.  First, the header,
 	 * a SATA Register - Host to Device command FIS.
 	 */
-	cmd_tbl = pp->cmd_tbl + qc->tag * AHCI_CMD_TBL_SZ;
+	cmd_tbl = pp->cmd_tbl + qc->hw_tag * AHCI_CMD_TBL_SZ;
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, cmd_tbl);
 	if (is_atapi) {
@@ -1666,7 +1666,7 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	if (is_atapi)
 		opts |= AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH;
 
-	ahci_fill_cmd_slot(pp, qc->tag, opts);
+	ahci_fill_cmd_slot(pp, qc->hw_tag, opts);
 }
 
 static void ahci_fbs_dec_intr(struct ata_port *ap)
@@ -2002,7 +2002,7 @@ unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 	pp->active_link = qc->dev->link;
 
 	if (ata_is_ncq(qc->tf.protocol))
-		writel(1 << qc->tag, port_mmio + PORT_SCR_ACT);
+		writel(1 << qc->hw_tag, port_mmio + PORT_SCR_ACT);
 
 	if (pp->fbs_enabled && pp->fbs_last_dev != qc->dev->link->pmp) {
 		u32 fbs = readl(port_mmio + PORT_FBS);
@@ -2012,7 +2012,7 @@ unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 		pp->fbs_last_dev = qc->dev->link->pmp;
 	}
 
-	writel(1 << qc->tag, port_mmio + PORT_CMD_ISSUE);
+	writel(1 << qc->hw_tag, port_mmio + PORT_CMD_ISSUE);
 
 	ahci_sw_activity(qc->dev->link);
 

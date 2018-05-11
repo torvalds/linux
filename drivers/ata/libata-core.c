@@ -5177,7 +5177,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 
 	/* command should be marked inactive atomically with qc completion */
 	if (ata_is_ncq(qc->tf.protocol)) {
-		link->sactive &= ~(1 << qc->tag);
+		link->sactive &= ~(1 << qc->hw_tag);
 		if (!link->sactive)
 			ap->nr_active_links--;
 	} else {
@@ -5405,16 +5405,16 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
 	if (ata_is_ncq(prot)) {
-		WARN_ON_ONCE(link->sactive & (1 << qc->tag));
+		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
 
 		if (!link->sactive)
 			ap->nr_active_links++;
-		link->sactive |= 1 << qc->tag;
+		link->sactive |= 1 << qc->hw_tag;
 	} else {
 		WARN_ON_ONCE(link->sactive);
 
 		ap->nr_active_links++;
-		link->active_tag = qc->tag;
+		link->active_tag = qc->hw_tag;
 	}
 
 	qc->flags |= ATA_QCFLAG_ACTIVE;

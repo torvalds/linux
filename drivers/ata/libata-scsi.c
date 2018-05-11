@@ -1898,7 +1898,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	qc->nbytes = n_block * scmd->device->sector_size;
 
 	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
-			     qc->tag, class);
+			     qc->hw_tag, class);
 
 	if (likely(rc == 0))
 		return 0;
@@ -3236,7 +3236,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 
 	/* For NCQ commands copy the tag value */
 	if (ata_is_ncq(tf->protocol))
-		tf->nsect = qc->tag << 3;
+		tf->nsect = qc->hw_tag << 3;
 
 	/* enforce correct master/slave bit */
 	tf->device = dev->devno ?
@@ -3516,7 +3516,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 		tf->protocol = ATA_PROT_NCQ;
 		tf->command = ATA_CMD_FPDMA_SEND;
 		tf->hob_nsect = ATA_SUBCMD_FPDMA_SEND_DSM & 0x1f;
-		tf->nsect = qc->tag << 3;
+		tf->nsect = qc->hw_tag << 3;
 		tf->hob_feature = (size / 512) >> 8;
 		tf->feature = size / 512;
 
@@ -3736,7 +3736,7 @@ static unsigned int ata_scsi_zbc_in_xlat(struct ata_queued_cmd *qc)
 		tf->protocol = ATA_PROT_NCQ;
 		tf->command = ATA_CMD_FPDMA_RECV;
 		tf->hob_nsect = ATA_SUBCMD_FPDMA_RECV_ZAC_MGMT_IN & 0x1f;
-		tf->nsect = qc->tag << 3;
+		tf->nsect = qc->hw_tag << 3;
 		tf->feature = sect & 0xff;
 		tf->hob_feature = (sect >> 8) & 0xff;
 		tf->auxiliary = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES | (options << 8);
@@ -3815,7 +3815,7 @@ static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
 		tf->protocol = ATA_PROT_NCQ_NODATA;
 		tf->command = ATA_CMD_NCQ_NON_DATA;
 		tf->feature = ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT;
-		tf->nsect = qc->tag << 3;
+		tf->nsect = qc->hw_tag << 3;
 		tf->auxiliary = sa | ((u16)all << 8);
 	} else {
 		tf->protocol = ATA_PROT_NODATA;
