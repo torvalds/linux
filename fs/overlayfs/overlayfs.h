@@ -38,6 +38,8 @@ enum ovl_inode_flag {
 	OVL_WHITEOUTS,
 	OVL_INDEX,
 	OVL_UPPERDATA,
+	/* Inode number will remain constant over copy up. */
+	OVL_CONST_INO,
 };
 
 enum ovl_entry_flag {
