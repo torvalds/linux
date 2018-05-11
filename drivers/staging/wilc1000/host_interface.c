@@ -1526,7 +1526,6 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 	struct wid wid;
 	struct wid wid_list[5];
 	u8 *key_buf;
-	s8 s8idxarray[1];
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	switch (hif_key->type) {
@@ -1593,8 +1592,7 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 			wid.id = (u16)WID_REMOVE_WEP_KEY;
 			wid.type = WID_STR;
 
-			s8idxarray[0] = (s8)hif_key->attr.wep.index;
-			wid.val = s8idxarray;
+			wid.val = (s8 *)&hif_key->attr.wep.index;
 			wid.size = 1;
 
 			result = wilc_send_config_pkt(vif, SET_CFG,
