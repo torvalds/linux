@@ -268,9 +268,17 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		uh->check = gso_make_checksum(seg, ~check) ? : CSUM_MANGLED_0;
 
 	/* update refcount for the packet */
-	if (copy_dtor)
-		refcount_add(sum_truesize - gso_skb->truesize,
-			     &sk->sk_wmem_alloc);
+	if (copy_dtor) {
+		int delta = sum_truesize - gso_skb->truesize;
+
+		/* In some pathological cases, delta can be negative.
+		 * We need to either use refcount_add() or refcount_sub_and_test()
+		 */
+		if (likely(delta >= 0))
+			refcount_add(delta, &sk->sk_wmem_alloc);
+		else
+			WARN_ON_ONCE(refcount_sub_and_test(-delta, &sk->sk_wmem_alloc));
+	}
 	return segs;
 }
 EXPORT_SYMBOL_GPL(__udp_gso_segment);
