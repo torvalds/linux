@@ -785,7 +785,6 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	unsigned domain;
 	const char *placement;
 	unsigned pin_count;
-	uint64_t offset;
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	switch (domain) {
@@ -802,10 +801,6 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	}
 	seq_printf(m, "\t0x%08x: %12ld byte %s",
 		   id, amdgpu_bo_size(bo), placement);
-
-	offset = READ_ONCE(bo->tbo.mem.start);
-	if (offset != AMDGPU_BO_INVALID_OFFSET)
-		seq_printf(m, " @ 0x%010Lx", offset);
 
 	pin_count = READ_ONCE(bo->pin_count);
 	if (pin_count)
