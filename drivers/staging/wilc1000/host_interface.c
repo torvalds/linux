@@ -1486,12 +1486,45 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 	return result;
 }
 
+static int wilc_pmksa_key_copy(struct wilc_vif *vif, struct key_attr *hif_key)
+{
+	int i;
+	int ret;
+	struct wid wid;
+	u8 *key_buf;
+
+	key_buf = kmalloc((hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1,
+			  GFP_KERNEL);
+	if (!key_buf)
+		return -ENOMEM;
+
+	key_buf[0] = hif_key->attr.pmkid.numpmkid;
+
+	for (i = 0; i < hif_key->attr.pmkid.numpmkid; i++) {
+		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1),
+		       hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
+		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1),
+		       hif_key->attr.pmkid.pmkidlist[i].pmkid, PMKID_LEN);
+	}
+
+	wid.id = (u16)WID_PMKID_INFO;
+	wid.type = WID_STR;
+	wid.val = (s8 *)key_buf;
+	wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
+
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
+
+	kfree(key_buf);
+
+	return ret;
+}
+
 static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 {
 	int result = 0;
 	struct wid wid;
 	struct wid wid_list[5];
-	u8 i;
 	u8 *key_buf;
 	s8 s8idxarray[1];
 	struct host_if_drv *hif_drv = vif->hif_drv;
@@ -1535,7 +1568,8 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
 		} else if (hif_key->action & ADDKEY) {
-			key_buf = kmalloc(hif_key->attr.wep.key_len + 2, GFP_KERNEL);
+			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
+					  GFP_KERNEL);
 			if (!key_buf) {
 				result = -ENOMEM;
 				goto out_wep;
@@ -1703,26 +1737,7 @@ out_wpa_ptk:
 		break;
 
 	case PMKSA:
-		key_buf = kmalloc((hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1, GFP_KERNEL);
-		if (!key_buf)
-			return -ENOMEM;
-
-		key_buf[0] = hif_key->attr.pmkid.numpmkid;
-
-		for (i = 0; i < hif_key->attr.pmkid.numpmkid; i++) {
-			memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1), hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
-			memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1), hif_key->attr.pmkid.pmkidlist[i].pmkid, PMKID_LEN);
-		}
-
-		wid.id = (u16)WID_PMKID_INFO;
-		wid.type = WID_STR;
-		wid.val = (s8 *)key_buf;
-		wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
-
-		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-					      wilc_get_vif_idx(vif));
-
-		kfree(key_buf);
+		result = wilc_pmksa_key_copy(vif, hif_key);
 		break;
 	}
 
