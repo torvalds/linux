@@ -179,7 +179,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 */
 			if (fc->flags & AFS_FS_CURSOR_VNOVOL) {
 				fc->ac.error = -EREMOTEIO;
-				goto failed;
+				goto next_server;
 			}
 
 			write_lock(&vnode->volume->servers_lock);
@@ -201,7 +201,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 */
 			if (vnode->volume->servers == fc->server_list) {
 				fc->ac.error = -EREMOTEIO;
-				goto failed;
+				goto next_server;
 			}
 
 			/* Try again */
