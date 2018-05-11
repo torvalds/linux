@@ -507,6 +507,11 @@ of ftrace. Here is a list of some of the key files:
 
 		trace_fd = open("trace_marker", WR_ONLY);
 
+	Note: Writing into the trace_marker file can also initiate triggers
+	      that are written into /sys/kernel/tracing/events/ftrace/print/trigger
+	      See "Event triggers" in Documentation/trace/events.rst and an
+              example in Documentation/trace/histogram.rst (Section 3.)
+
   trace_marker_raw:
 
 	This is similar to trace_marker above, but is meant for for binary data
