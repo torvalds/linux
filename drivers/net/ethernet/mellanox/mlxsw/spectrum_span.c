@@ -137,14 +137,14 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 
 static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 			      const void *pkey,
-			      struct net_device *l3edev,
+			      struct net_device *dev,
 			      unsigned char dmac[ETH_ALEN])
 {
-	struct neighbour *neigh = neigh_lookup(tbl, pkey, l3edev);
+	struct neighbour *neigh = neigh_lookup(tbl, pkey, dev);
 	int err = 0;
 
 	if (!neigh) {
-		neigh = neigh_create(tbl, pkey, l3edev);
+		neigh = neigh_create(tbl, pkey, dev);
 		if (IS_ERR(neigh))
 			return PTR_ERR(neigh);
 	}
@@ -246,7 +246,7 @@ mlxsw_sp_span_entry_vlan(const struct net_device *vlan_dev,
 }
 
 static __maybe_unused int
-mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
+mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 					union mlxsw_sp_l3addr saddr,
 					union mlxsw_sp_l3addr daddr,
 					union mlxsw_sp_l3addr gw,
@@ -260,31 +260,31 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	if (mlxsw_sp_l3addr_is_zero(gw))
 		gw = daddr;
 
-	if (!l3edev || mlxsw_sp_span_dmac(tbl, &gw, l3edev, dmac))
+	if (!edev || mlxsw_sp_span_dmac(tbl, &gw, edev, dmac))
 		goto unoffloadable;
 
-	if (is_vlan_dev(l3edev))
-		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
+	if (is_vlan_dev(edev))
+		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
 
-	if (netif_is_bridge_master(l3edev)) {
-		l3edev = mlxsw_sp_span_entry_bridge(l3edev, dmac, &vid);
-		if (!l3edev)
+	if (netif_is_bridge_master(edev)) {
+		edev = mlxsw_sp_span_entry_bridge(edev, dmac, &vid);
+		if (!edev)
 			goto unoffloadable;
 	}
 
-	if (is_vlan_dev(l3edev)) {
-		if (vid || !(l3edev->flags & IFF_UP))
+	if (is_vlan_dev(edev)) {
+		if (vid || !(edev->flags & IFF_UP))
 			goto unoffloadable;
-		l3edev = mlxsw_sp_span_entry_vlan(l3edev, &vid);
+		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
 	}
 
-	if (!mlxsw_sp_port_dev_check(l3edev))
+	if (!mlxsw_sp_port_dev_check(edev))
 		goto unoffloadable;
 
-	sparmsp->dest_port = netdev_priv(l3edev);
+	sparmsp->dest_port = netdev_priv(edev);
 	sparmsp->ttl = ttl;
 	memcpy(sparmsp->dmac, dmac, ETH_ALEN);
-	memcpy(sparmsp->smac, l3edev->dev_addr, ETH_ALEN);
+	memcpy(sparmsp->smac, edev->dev_addr, ETH_ALEN);
 	sparmsp->saddr = saddr;
 	sparmsp->daddr = daddr;
 	sparmsp->vid = vid;
