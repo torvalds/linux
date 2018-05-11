@@ -133,21 +133,10 @@ bool afs_cm_incoming_call(struct afs_call *call)
 }
 
 /*
- * clean up a cache manager call
+ * Clean up a cache manager call.
  */
 static void afs_cm_destructor(struct afs_call *call)
 {
-	_enter("");
-
-	/* Break the callbacks here so that we do it after the final ACK is
-	 * received.  The step number here must match the final number in
-	 * afs_deliver_cb_callback().
-	 */
-	if (call->cm_server && call->unmarshall == 5) {
-		ASSERT(call->count && call->request);
-		afs_break_callbacks(call->cm_server, call->count, call->request);
-	}
-
 	kfree(call->buffer);
 	call->buffer = NULL;
 }
@@ -161,15 +150,14 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 
 	_enter("");
 
-	/* be sure to send the reply *before* attempting to spam the AFS server
-	 * with FSFetchStatus requests on the vnodes with broken callbacks lest
-	 * the AFS server get into a vicious cycle of trying to break further
-	 * callbacks because it hadn't received completion of the CBCallBack op
-	 * yet */
-	afs_send_empty_reply(call);
-
+	/* We need to break the callbacks before sending the reply as the
+	 * server holds up change visibility till it receives our reply so as
+	 * to maintain cache coherency.
+	 */
 	if (call->cm_server)
 		afs_break_callbacks(call->cm_server, call->count, call->request);
+
+	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");
 }
@@ -266,15 +254,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		}
 
 		call->offset = 0;
-		call->unmarshall++;
-
-		/* Record that the message was unmarshalled successfully so
-		 * that the call destructor can know do the callback breaking
-		 * work, even if the final ACK isn't received.
-		 *
-		 * If the step number changes, then afs_cm_destructor() must be
-		 * updated also.
-		 */
 		call->unmarshall++;
 	case 5:
 		break;
