@@ -679,7 +679,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 sel_bssi_idx = UINT_MAX;
 	u8 u8security = NO_ENCRYPT;
 	enum AUTHTYPE auth_type = ANY;
-
+	u32 cipher_group;
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
 	struct network_info *nw_info = NULL;
@@ -727,32 +727,35 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	memset(priv->wep_key, 0, sizeof(priv->wep_key));
 	memset(priv->wep_key_len, 0, sizeof(priv->wep_key_len));
 
-	if (sme->crypto.cipher_group != NO_ENCRYPT) {
-		if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP40) {
+	cipher_group = sme->crypto.cipher_group;
+	if (cipher_group != NO_ENCRYPT) {
+		if (cipher_group == WLAN_CIPHER_SUITE_WEP40) {
 			u8security = ENCRYPT_ENABLED | WEP;
 
 			priv->wep_key_len[sme->key_idx] = sme->key_len;
-			memcpy(priv->wep_key[sme->key_idx], sme->key, sme->key_len);
+			memcpy(priv->wep_key[sme->key_idx], sme->key,
+			       sme->key_len);
 
 			wilc_set_wep_default_keyid(vif, sme->key_idx);
 			wilc_add_wep_key_bss_sta(vif, sme->key, sme->key_len,
 						 sme->key_idx);
-		} else if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP104)   {
+		} else if (cipher_group == WLAN_CIPHER_SUITE_WEP104) {
 			u8security = ENCRYPT_ENABLED | WEP | WEP_EXTENDED;
 
 			priv->wep_key_len[sme->key_idx] = sme->key_len;
-			memcpy(priv->wep_key[sme->key_idx], sme->key, sme->key_len);
+			memcpy(priv->wep_key[sme->key_idx], sme->key,
+			       sme->key_len);
 
 			wilc_set_wep_default_keyid(vif, sme->key_idx);
 			wilc_add_wep_key_bss_sta(vif, sme->key, sme->key_len,
 						 sme->key_idx);
-		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2)   {
-			if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP)
+		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2) {
+			if (cipher_group == WLAN_CIPHER_SUITE_TKIP)
 				u8security = ENCRYPT_ENABLED | WPA2 | TKIP;
 			else
 				u8security = ENCRYPT_ENABLED | WPA2 | AES;
-		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_1)   {
-			if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP)
+		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_1) {
+			if (cipher_group == WLAN_CIPHER_SUITE_TKIP)
 				u8security = ENCRYPT_ENABLED | WPA | TKIP;
 			else
 				u8security = ENCRYPT_ENABLED | WPA | AES;
@@ -767,14 +770,16 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if ((sme->crypto.wpa_versions & NL80211_WPA_VERSION_1) ||
 	    (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2)) {
 		for (i = 0; i < sme->crypto.n_ciphers_pairwise; i++) {
-			if (sme->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP)
+			u32 ciphers_pairwise = sme->crypto.ciphers_pairwise[i];
+
+			if (ciphers_pairwise == WLAN_CIPHER_SUITE_TKIP)
 				u8security = u8security | TKIP;
 			else
 				u8security = u8security | AES;
 		}
 	}
 
-	switch (sme->auth_type)	{
+	switch (sme->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 		auth_type = OPEN_SYSTEM;
 		break;
