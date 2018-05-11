@@ -5120,7 +5120,7 @@ int ata_sas_allocate_tag(struct ata_port *ap)
 		tag = tag < max_queue ? tag : 0;
 
 		/* the last tag is reserved for internal command. */
-		if (tag == ATA_TAG_INTERNAL)
+		if (ata_tag_internal(tag))
 			continue;
 
 		if (!test_and_set_bit(tag, &ap->sas_tag_allocated)) {
