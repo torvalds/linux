@@ -2440,9 +2440,19 @@ out:
 	return ret;
 }
 
-static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info)
+/*
+ * Real super block validation
+ * NOTE: super csum type and incompat features will not be checked here.
+ *
+ * @sb:		super block to check
+ * @mirror_num:	the super block number to check its bytenr:
+ * 		0	the primary (1st) sb
+ * 		1, 2	2nd and 3rd backup copy
+ * 	       -1	skip bytenr check
+ */
+static int validate_super(struct btrfs_fs_info *fs_info,
+			    struct btrfs_super_block *sb, int mirror_num)
 {
-	struct btrfs_super_block *sb = fs_info->super_copy;
 	u64 nodesize = btrfs_super_nodesize(sb);
 	u64 sectorsize = btrfs_super_sectorsize(sb);
 	int ret = 0;
@@ -2545,7 +2555,8 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info)
 		ret = -EINVAL;
 	}
 
-	if (btrfs_super_bytenr(sb) != BTRFS_SUPER_INFO_OFFSET) {
+	if (mirror_num >= 0 &&
+	    btrfs_super_bytenr(sb) != btrfs_sb_offset(mirror_num)) {
 		btrfs_err(fs_info, "super offset mismatch %llu != %u",
 			  btrfs_super_bytenr(sb), BTRFS_SUPER_INFO_OFFSET);
 		ret = -EINVAL;
@@ -2587,6 +2598,16 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info)
 			btrfs_super_cache_generation(sb));
 
 	return ret;
+}
+
+/*
+ * Validation of super block at mount time.
+ * Some checks already done early at mount time, like csum type and incompat
+ * flags will be skipped.
+ */
+static int btrfs_validate_mount_super(struct btrfs_fs_info *fs_info)
+{
+	return validate_super(fs_info, fs_info->super_copy, 0);
 }
 
 int open_ctree(struct super_block *sb,
@@ -2814,7 +2835,7 @@ int open_ctree(struct super_block *sb,
 
 	memcpy(fs_info->fsid, fs_info->super_copy->fsid, BTRFS_FSID_SIZE);
 
-	ret = btrfs_check_super_valid(fs_info);
+	ret = btrfs_validate_mount_super(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "superblock contains fatal errors");
 		err = -EINVAL;
