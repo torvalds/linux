@@ -180,6 +180,10 @@
 /* SDRAM Single Bit Error Count Compare Set Register */
 #define S10_SERRCNTREG_OFST        0xF801113C
 
+/* Sticky registers for Uncorrected Errors */
+#define S10_SYSMGR_UE_VAL_OFST     0xFFD12220
+#define S10_SYSMGR_UE_ADDR_OFST    0xFFD12224
+
 struct altr_sdram_prv_data {
 	int ecc_ctrl_offset;
 	int ecc_ctl_en_mask;
@@ -322,6 +326,8 @@ struct altr_sdram_mc_data {
 #define S10_SYSMGR_ECC_INTSTAT_SERR_OFST  0xFFD1209C
 #define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xFFD120A0
 
+#define S10_DDR0_IRQ_MASK                 BIT(16)
+
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
@@ -434,10 +440,10 @@ struct altr_arria10_edac {
 struct altr_stratix10_edac {
 	struct device		*dev;
 	int sb_irq;
-	int db_irq;
 	struct irq_domain	*domain;
 	struct irq_chip		irq_chip;
 	struct list_head	s10_ecc_devices;
+	struct notifier_block	panic_notifier;
 };
 
 #endif	/* #ifndef _ALTERA_EDAC_H */
