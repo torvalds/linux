@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
-#include <linux/btree.h>
 #include <asm/cacheflush.h>
 #include <media/videobuf2-vmalloc.h>
 
@@ -111,7 +110,11 @@ struct vchiq_mmal_instance;
 /* normal message context */
 struct mmal_msg_context {
 	struct vchiq_mmal_instance *instance;
-	u32 handle;
+
+	/* Index in the context_map idr so that we can find the
+	 * mmal_msg_context again when servicing the VCHI reply.
+	 */
+	int handle;
 
 	union {
 		struct {
@@ -149,13 +152,6 @@ struct mmal_msg_context {
 
 };
 
-struct vchiq_mmal_context_map {
-	/* ensure serialized access to the btree(contention should be low) */
-	struct mutex lock;
-	struct btree_head32 btree_head;
-	u32 last_handle;
-};
-
 struct vchiq_mmal_instance {
 	VCHI_SERVICE_HANDLE_T handle;
 
@@ -165,92 +161,19 @@ struct vchiq_mmal_instance {
 	/* vmalloc page to receive scratch bulk xfers into */
 	void *bulk_scratch;
 
-	/* mapping table between context handles and mmal_msg_contexts */
-	struct vchiq_mmal_context_map context_map;
+	struct idr context_map;
+	spinlock_t context_map_lock;
 
 	/* component to use next */
 	int component_idx;
 	struct vchiq_mmal_component component[VCHIQ_MMAL_MAX_COMPONENTS];
 };
 
-static int __must_check
-mmal_context_map_init(struct vchiq_mmal_context_map *context_map)
-{
-	mutex_init(&context_map->lock);
-	context_map->last_handle = 0;
-	return btree_init32(&context_map->btree_head);
-}
-
-static void mmal_context_map_destroy(struct vchiq_mmal_context_map *context_map)
-{
-	mutex_lock(&context_map->lock);
-	btree_destroy32(&context_map->btree_head);
-	mutex_unlock(&context_map->lock);
-}
-
-static u32
-mmal_context_map_create_handle(struct vchiq_mmal_context_map *context_map,
-			       struct mmal_msg_context *msg_context,
-			       gfp_t gfp)
-{
-	u32 handle;
-
-	mutex_lock(&context_map->lock);
-
-	while (1) {
-		/* just use a simple count for handles, but do not use 0 */
-		context_map->last_handle++;
-		if (!context_map->last_handle)
-			context_map->last_handle++;
-
-		handle = context_map->last_handle;
-
-		/* check if the handle is already in use */
-		if (!btree_lookup32(&context_map->btree_head, handle))
-			break;
-	}
-
-	if (btree_insert32(&context_map->btree_head, handle,
-			   msg_context, gfp)) {
-		/* probably out of memory */
-		mutex_unlock(&context_map->lock);
-		return 0;
-	}
-
-	mutex_unlock(&context_map->lock);
-	return handle;
-}
-
-static struct mmal_msg_context *
-mmal_context_map_lookup_handle(struct vchiq_mmal_context_map *context_map,
-			       u32 handle)
-{
-	struct mmal_msg_context *msg_context;
-
-	if (!handle)
-		return NULL;
-
-	mutex_lock(&context_map->lock);
-
-	msg_context = btree_lookup32(&context_map->btree_head, handle);
-
-	mutex_unlock(&context_map->lock);
-	return msg_context;
-}
-
-static void
-mmal_context_map_destroy_handle(struct vchiq_mmal_context_map *context_map,
-				u32 handle)
-{
-	mutex_lock(&context_map->lock);
-	btree_remove32(&context_map->btree_head, handle);
-	mutex_unlock(&context_map->lock);
-}
-
 static struct mmal_msg_context *
 get_msg_context(struct vchiq_mmal_instance *instance)
 {
 	struct mmal_msg_context *msg_context;
+	int handle;
 
 	/* todo: should this be allocated from a pool to avoid kzalloc */
 	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
@@ -258,32 +181,40 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 	if (!msg_context)
 		return ERR_PTR(-ENOMEM);
 
-	msg_context->instance = instance;
-	msg_context->handle =
-		mmal_context_map_create_handle(&instance->context_map,
-					       msg_context,
-					       GFP_KERNEL);
+	/* Create an ID that will be passed along with our message so
+	 * that when we service the VCHI reply, we can look up what
+	 * message is being replied to.
+	 */
+	spin_lock(&instance->context_map_lock);
+	handle = idr_alloc(&instance->context_map, msg_context,
+			   0, 0, GFP_KERNEL);
+	spin_unlock(&instance->context_map_lock);
 
-	if (!msg_context->handle) {
+	if (handle < 0) {
 		kfree(msg_context);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(handle);
 	}
+
+	msg_context->instance = instance;
+	msg_context->handle = handle;
 
 	return msg_context;
 }
 
 static struct mmal_msg_context *
-lookup_msg_context(struct vchiq_mmal_instance *instance, u32 handle)
+lookup_msg_context(struct vchiq_mmal_instance *instance, int handle)
 {
-	return mmal_context_map_lookup_handle(&instance->context_map,
-		handle);
+	return idr_find(&instance->context_map, handle);
 }
 
 static void
 release_msg_context(struct mmal_msg_context *msg_context)
 {
-	mmal_context_map_destroy_handle(&msg_context->instance->context_map,
-					msg_context->handle);
+	struct vchiq_mmal_instance *instance = msg_context->instance;
+
+	spin_lock(&instance->context_map_lock);
+	idr_remove(&instance->context_map, msg_context->handle);
+	spin_unlock(&instance->context_map_lock);
 	kfree(msg_context);
 }
 
@@ -1860,7 +1791,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 
 	vfree(instance->bulk_scratch);
 
-	mmal_context_map_destroy(&instance->context_map);
+	idr_destroy(&instance->context_map);
 
 	kfree(instance);
 
@@ -1922,12 +1853,8 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 
 	instance->bulk_scratch = vmalloc(PAGE_SIZE);
 
-	status = mmal_context_map_init(&instance->context_map);
-	if (status) {
-		pr_err("Failed to init context map (status=%d)\n", status);
-		kfree(instance);
-		return status;
-	}
+	spin_lock_init(&instance->context_map_lock);
+	idr_init_base(&instance->context_map, 1);
 
 	params.callback_param = instance;
 
