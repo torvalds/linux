@@ -702,6 +702,12 @@ static int rvin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	vin->format = f->fmt.pix;
 
+	vin->crop.top = 0;
+	vin->crop.left = 0;
+	vin->crop.width = vin->format.width;
+	vin->crop.height = vin->format.height;
+	vin->compose = vin->crop;
+
 	return 0;
 }
 
