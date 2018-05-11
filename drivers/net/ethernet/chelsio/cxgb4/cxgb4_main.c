@@ -3081,7 +3081,7 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 					   match_all_mac, match_all_mac,
 					   adapter->rawf_start +
 					    pi->port_id,
-					   1, pi->port_id, true);
+					   1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
 				    i);
@@ -3169,7 +3169,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 					    match_all_mac,
 					    adapter->rawf_start +
 					    pi->port_id,
-					    1, pi->port_id, true);
+					    1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
 				    be16_to_cpu(ti->port));
