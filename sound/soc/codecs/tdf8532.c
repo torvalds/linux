@@ -107,11 +107,11 @@ out:
 	return ret;
 }
 
-static uint8_t tdf8532_single_read(struct tdf8532_priv *dev_data,
+static int tdf8532_single_read(struct tdf8532_priv *dev_data,
 						char **repl_buff)
 {
 	int ret;
-	uint8_t len;
+	int len;
 
 	struct device *dev = &(dev_data->i2c->dev);
 
@@ -126,6 +126,10 @@ static uint8_t tdf8532_single_read(struct tdf8532_priv *dev_data,
 	len = ret + HEADER_SIZE;
 
 	*repl_buff = kzalloc(len, GFP_KERNEL);
+	if (*repl_buff == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	ret = i2c_master_recv(dev_data->i2c, *repl_buff, len);
 
@@ -136,6 +140,8 @@ static uint8_t tdf8532_single_read(struct tdf8532_priv *dev_data,
 		dev_err(dev,
 				"i2c recv packet returned: %d (expected: %d)\n",
 				ret, len);
+
+		ret = -EINVAL;
 		goto out_free;
 	}
 
@@ -143,7 +149,7 @@ static uint8_t tdf8532_single_read(struct tdf8532_priv *dev_data,
 
 out_free:
 	kfree(*repl_buff);
-	repl_buff = NULL;
+	*repl_buff = NULL;
 out:
 	return ret;
 }
