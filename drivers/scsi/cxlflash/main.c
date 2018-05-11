@@ -3708,11 +3708,8 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
 	cfg->cxl_fops = cxlflash_cxl_fops;
-
-	if (ddv->flags & CXLFLASH_OCXL_DEV)
-		cfg->ops = &cxlflash_ocxl_ops;
-	else
-		cfg->ops = &cxlflash_cxl_ops;
+	cfg->ops = cxlflash_assign_ops(ddv);
+	WARN_ON_ONCE(!cfg->ops);
 
 	/*
 	 * Promoted LUNs move to the top of the LUN table. The rest stay on
