@@ -3119,7 +3119,7 @@ static void engine_skip_context(struct i915_request *request)
 	GEM_BUG_ON(timeline == &engine->timeline);
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-	spin_lock(&timeline->lock);
+	spin_lock_nested(&timeline->lock, SINGLE_DEPTH_NESTING);
 
 	list_for_each_entry_continue(request, &engine->timeline.requests, link)
 		if (request->ctx == hung_ctx)
