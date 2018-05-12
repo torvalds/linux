@@ -33,8 +33,6 @@
 	 */
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		label = "EV3 Brick Buttons";
 		pinctrl-names = "default";
 		pinctrl-0 = <&button_bias>;
