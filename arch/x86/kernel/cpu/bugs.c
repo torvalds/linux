@@ -36,6 +36,7 @@ static void __init ssb_select_mitigation(void);
  * writes to SPEC_CTRL contain whatever reserved bits have been set.
  */
 u64 __ro_after_init x86_spec_ctrl_base;
+EXPORT_SYMBOL_GPL(x86_spec_ctrl_base);
 
 /*
  * The vendor and possibly platform specific bits which can be modified in
@@ -140,16 +141,6 @@ void x86_spec_ctrl_set(u64 val)
 		wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base | val);
 }
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_set);
-
-u64 x86_spec_ctrl_get_default(void)
-{
-	u64 msrval = x86_spec_ctrl_base;
-
-	if (static_cpu_has(X86_FEATURE_SPEC_CTRL))
-		msrval |= ssbd_tif_to_spec_ctrl(current_thread_info()->flags);
-	return msrval;
-}
-EXPORT_SYMBOL_GPL(x86_spec_ctrl_get_default);
 
 void
 x86_virt_spec_ctrl(u64 guest_spec_ctrl, u64 guest_virt_spec_ctrl, bool setguest)
