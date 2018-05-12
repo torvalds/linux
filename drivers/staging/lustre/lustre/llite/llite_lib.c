@@ -400,11 +400,11 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt)
 		LCONSOLE_ERROR_MSG(0x150,
 				   "An OST (dt %s) is performing recovery, of which this client is not a part.  Please wait for recovery to complete, abort, or time out.\n",
 				   dt);
-		goto out_md;
+		goto out_md_fid;
 	} else if (err) {
 		CERROR("%s: Cannot connect to %s: rc = %d\n",
 		       sbi->ll_dt_exp->exp_obd->obd_name, dt, err);
-		goto out_md;
+		goto out_md_fid;
 	}
 
 	sbi->ll_dt_exp->exp_connect_data = *data;
