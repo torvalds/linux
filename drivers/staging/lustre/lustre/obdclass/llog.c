@@ -385,7 +385,7 @@ out:
 	if (cd)
 		cd->lpcd_last_idx = last_called_index;
 
-	kfree(buf);
+	kvfree(buf);
 	lpi->lpi_rc = rc;
 	return 0;
 }
