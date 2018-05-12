@@ -944,9 +944,10 @@ static int bcm_qspi_mspi_exec_mem_op(struct spi_device *spi,
 	return ret;
 }
 
-static int bcm_qspi_exec_mem_op(struct spi_device *spi,
+static int bcm_qspi_exec_mem_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
+	struct spi_device *spi = mem->spi;
 	struct bcm_qspi *qspi = spi_master_get_devdata(spi->master);
 	int ret = 0;
 	bool mspi_read = false;
@@ -987,34 +988,6 @@ static int bcm_qspi_exec_mem_op(struct spi_device *spi,
 
 	if (!ret)
 		ret = bcm_qspi_bspi_exec_mem_op(spi, op);
-
-	return ret;
-}
-
-static int bcm_qspi_exec_mem_op_wrapper(struct spi_mem *mem,
-					const struct spi_mem_op *op)
-{
-	return bcm_qspi_exec_mem_op(mem->spi, op);
-}
-
-static int bcm_qspi_flash_read_wrapper(struct spi_device *spi,
-				       struct spi_flash_read_message *msg)
-{
-	int ret;
-	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(msg->read_opcode, 1),
-					  SPI_MEM_OP_ADDR(msg->addr_width,
-							  msg->from,
-							  msg->addr_nbits),
-					  SPI_MEM_OP_DUMMY(msg->dummy_bytes,
-							   msg->addr_nbits),
-					  SPI_MEM_OP_DATA_IN(msg->len,
-							     msg->buf,
-							     msg->data_nbits));
-
-	msg->retlen = 0;
-	ret = bcm_qspi_exec_mem_op(spi, &op);
-	if (!ret)
-		msg->retlen = msg->len;
 
 	return ret;
 }
@@ -1214,7 +1187,7 @@ static void bcm_qspi_hw_uninit(struct bcm_qspi *qspi)
 }
 
 static const struct spi_controller_mem_ops bcm_qspi_mem_ops = {
-	.exec_op = bcm_qspi_exec_mem_op_wrapper,
+	.exec_op = bcm_qspi_exec_mem_op,
 };
 
 static const struct of_device_id bcm_qspi_of_match[] = {
@@ -1259,7 +1232,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_RX_DUAL | SPI_RX_QUAD;
 	master->setup = bcm_qspi_setup;
 	master->transfer_one = bcm_qspi_transfer_one;
-	master->spi_flash_read = bcm_qspi_flash_read_wrapper;
 	master->mem_ops = &bcm_qspi_mem_ops;
 	master->cleanup = bcm_qspi_cleanup;
 	master->dev.of_node = dev->of_node;
