@@ -238,7 +238,6 @@ struct v4l2_file_operations {
  * @ioctl_ops: pointer to &struct v4l2_ioctl_ops with ioctl callbacks
  *
  * @valid_ioctls: bitmap with the valid ioctls for this device
- * @disable_locking: bitmap with the ioctls that don't require locking
  * @lock: pointer to &struct mutex serialization lock
  *
  * .. note::
@@ -291,7 +290,6 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
-	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
@@ -445,19 +443,6 @@ void video_device_release_empty(struct video_device *vdev);
  * returns true if cmd is a known V4L2 ioctl
  */
 bool v4l2_is_known_ioctl(unsigned int cmd);
-
-/** v4l2_disable_ioctl_locking - mark that a given command
- *	shouldn't use core locking
- *
- * @vdev: pointer to &struct video_device
- * @cmd: ioctl command
- */
-static inline void v4l2_disable_ioctl_locking(struct video_device *vdev,
-					      unsigned int cmd)
-{
-	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
-		set_bit(_IOC_NR(cmd), vdev->disable_locking);
-}
 
 /**
  * v4l2_disable_ioctl- mark that a given command isn't implemented.
