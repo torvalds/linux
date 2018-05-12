@@ -1686,16 +1686,6 @@ done:
 		goto check_error;
 	}
 
-	/*
-	 * Force failures of commands if we're killing the controller
-	 * or have an error on a command used to create an new association
-	 */
-	if (status &&
-	    (blk_queue_dying(rq->q) ||
-	     ctrl->ctrl.state == NVME_CTRL_NEW ||
-	     ctrl->ctrl.state == NVME_CTRL_CONNECTING))
-		status |= cpu_to_le16(NVME_SC_DNR << 1);
-
 	__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
 	nvme_end_request(rq, status, result);
 
