@@ -1256,14 +1256,15 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
 
-	parm->parm.capture.readbuffers = 2;
+	parm->parm.capture.readbuffers = gspca_dev->queue.min_buffers_needed;
 
-	if (gspca_dev->sd_desc->get_streamparm) {
-		gspca_dev->usb_err = 0;
-		gspca_dev->sd_desc->get_streamparm(gspca_dev, parm);
-		return gspca_dev->usb_err;
-	}
-	return 0;
+	if (!gspca_dev->sd_desc->get_streamparm)
+		return 0;
+
+	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	gspca_dev->usb_err = 0;
+	gspca_dev->sd_desc->get_streamparm(gspca_dev, parm);
+	return gspca_dev->usb_err;
 }
 
 static int vidioc_s_parm(struct file *filp, void *priv,
@@ -1271,15 +1272,17 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
 
-	parm->parm.capture.readbuffers = 2;
+	parm->parm.capture.readbuffers = gspca_dev->queue.min_buffers_needed;
 
-	if (gspca_dev->sd_desc->set_streamparm) {
-		gspca_dev->usb_err = 0;
-		gspca_dev->sd_desc->set_streamparm(gspca_dev, parm);
-		return gspca_dev->usb_err;
+	if (!gspca_dev->sd_desc->set_streamparm) {
+		parm->parm.capture.capability = 0;
+		return 0;
 	}
 
-	return 0;
+	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	gspca_dev->usb_err = 0;
+	gspca_dev->sd_desc->set_streamparm(gspca_dev, parm);
+	return gspca_dev->usb_err;
 }
 
 static int gspca_queue_setup(struct vb2_queue *vq,
