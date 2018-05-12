@@ -91,6 +91,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
 						       mci->n_layers,
 						       dimm_fill->count, 0, 0);
+		u16 rdr_mask = BIT(7) | BIT(13);
 
 		if (entry->size == 0xffff) {
 			pr_info("Can't get DIMM%i size\n",
@@ -99,22 +100,21 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 		} else if (entry->size == 0x7fff) {
 			dimm->nr_pages = MiB_TO_PAGES(entry->extended_size);
 		} else {
-			if (entry->size & 1 << 15)
-				dimm->nr_pages = MiB_TO_PAGES((entry->size &
-							       0x7fff) << 10);
+			if (entry->size & BIT(15))
+				dimm->nr_pages = MiB_TO_PAGES((entry->size & 0x7fff) << 10);
 			else
 				dimm->nr_pages = MiB_TO_PAGES(entry->size);
 		}
 
 		switch (entry->memory_type) {
 		case 0x12:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR;
 			else
 				dimm->mtype = MEM_DDR;
 			break;
 		case 0x13:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR2;
 			else
 				dimm->mtype = MEM_DDR2;
@@ -123,30 +123,29 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 			dimm->mtype = MEM_FB_DDR2;
 			break;
 		case 0x18:
-			if (entry->type_detail & 1 << 12)
+			if (entry->type_detail & BIT(12))
 				dimm->mtype = MEM_NVDIMM;
-			else if (entry->type_detail & 1 << 13)
+			else if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR3;
 			else
 				dimm->mtype = MEM_DDR3;
 			break;
 		case 0x1a:
-			if (entry->type_detail & 1 << 12)
+			if (entry->type_detail & BIT(12))
 				dimm->mtype = MEM_NVDIMM;
-			else if (entry->type_detail & 1 << 13)
+			else if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR4;
 			else
 				dimm->mtype = MEM_DDR4;
 			break;
 		default:
-			if (entry->type_detail & 1 << 6)
+			if (entry->type_detail & BIT(6))
 				dimm->mtype = MEM_RMBS;
-			else if ((entry->type_detail & ((1 << 7) | (1 << 13)))
-				 == ((1 << 7) | (1 << 13)))
+			else if ((entry->type_detail & rdr_mask) == rdr_mask)
 				dimm->mtype = MEM_RDR;
-			else if (entry->type_detail & 1 << 7)
+			else if (entry->type_detail & BIT(7))
 				dimm->mtype = MEM_SDR;
-			else if (entry->type_detail & 1 << 9)
+			else if (entry->type_detail & BIT(9))
 				dimm->mtype = MEM_EDO;
 			else
 				dimm->mtype = MEM_UNKNOWN;
