@@ -85,6 +85,7 @@
 };
 
 &edp_panel {
+	backlight = <&backlight>;
 	power-supply = <&vcc_lcd>;
 };
 

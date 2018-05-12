@@ -389,10 +389,6 @@
 	};
 };
 
-&edp_panel {
-	backlight = <&backlight>;
-};
-
 &cpu0 {
 	enable-method = "psci";
 };
