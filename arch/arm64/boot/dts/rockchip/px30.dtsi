@@ -403,6 +403,9 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac 16>, <&dmac 17>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S0_TX>, <&cru SRST_I2S0_RX>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_8ch_sclktx
 			     &i2s0_8ch_sclkrx
