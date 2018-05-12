@@ -149,6 +149,8 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
+	cd-gpios = <&gpio 64 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio 65 GPIO_ACTIVE_HIGH>;
 };
 
 &spi1 {
