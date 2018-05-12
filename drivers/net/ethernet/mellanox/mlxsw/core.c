@@ -1100,11 +1100,11 @@ err_emad_init:
 err_alloc_lag_mapping:
 	mlxsw_ports_fini(mlxsw_core);
 err_ports_init:
-	mlxsw_bus->fini(bus_priv);
-err_bus_init:
 	if (!reload)
 		devlink_resources_unregister(devlink, NULL);
 err_register_resources:
+	mlxsw_bus->fini(bus_priv);
+err_bus_init:
 	if (!reload)
 		devlink_free(devlink);
 err_devlink_alloc:

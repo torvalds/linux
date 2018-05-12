@@ -985,6 +985,7 @@ struct dwc2_hsotg {
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
+#define DWC2_CORE_REV_2_72a     0x4f54272a
 #define DWC2_CORE_REV_2_80a	0x4f54280a
 #define DWC2_CORE_REV_2_90a	0x4f54290a
 #define DWC2_CORE_REV_2_91a	0x4f54291a
@@ -992,6 +993,7 @@ struct dwc2_hsotg {
 #define DWC2_CORE_REV_2_94a	0x4f54294a
 #define DWC2_CORE_REV_3_00a	0x4f54300a
 #define DWC2_CORE_REV_3_10a	0x4f54310a
+#define DWC2_CORE_REV_4_00a	0x4f54400a
 #define DWC2_FS_IOT_REV_1_00a	0x5531100a
 #define DWC2_HS_IOT_REV_1_00a	0x5532100a
 

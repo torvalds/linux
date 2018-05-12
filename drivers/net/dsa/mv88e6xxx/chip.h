@@ -110,6 +110,7 @@ struct mv88e6xxx_info {
 	unsigned int num_gpio;
 	unsigned int max_vid;
 	unsigned int port_base_addr;
+	unsigned int phy_base_addr;
 	unsigned int global1_addr;
 	unsigned int global2_addr;
 	unsigned int age_time_coeff;

@@ -135,6 +135,7 @@ retry:
 			offset -= sg->offset;
 			ctx->partially_sent_offset = offset;
 			ctx->partially_sent_record = (void *)sg;
+			ctx->in_tcp_sendpages = false;
 			return ret;
 		}
 
@@ -248,16 +249,14 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	struct tls_context *ctx = tls_get_ctx(sk);
 	long timeo = sock_sndtimeo(sk, 0);
 	void (*sk_proto_close)(struct sock *sk, long timeout);
+	bool free_ctx = false;
 
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
-	if (ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD)
-		goto skip_tx_cleanup;
-
-	if (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE) {
-		kfree(ctx);
-		ctx = NULL;
+	if ((ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD) ||
+	    (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE)) {
+		free_ctx = true;
 		goto skip_tx_cleanup;
 	}
 
@@ -305,8 +304,7 @@ skip_tx_cleanup:
 	/* free ctx for TLS_HW_RECORD, used by tcp_set_state
 	 * for sk->sk_prot->unhash [tls_hw_unhash]
 	 */
-	if (ctx && ctx->tx_conf == TLS_HW_RECORD &&
-	    ctx->rx_conf == TLS_HW_RECORD)
+	if (free_ctx)
 		kfree(ctx);
 }
 

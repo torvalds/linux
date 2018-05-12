@@ -23,6 +23,8 @@
 
 #define MAX_RECOVERY 1	/* Maximum number of regions recovered in parallel. */
 
+#define MAX_NR_MIRRORS	(DM_KCOPYD_MAX_REGIONS + 1)
+
 #define DM_RAID1_HANDLE_ERRORS	0x01
 #define DM_RAID1_KEEP_LOG	0x02
 #define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
@@ -255,7 +257,7 @@ static int mirror_flush(struct dm_target *ti)
 	unsigned long error_bits;
 
 	unsigned int i;
-	struct dm_io_region io[ms->nr_mirrors];
+	struct dm_io_region io[MAX_NR_MIRRORS];
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
@@ -651,7 +653,7 @@ static void write_callback(unsigned long error, void *context)
 static void do_write(struct mirror_set *ms, struct bio *bio)
 {
 	unsigned int i;
-	struct dm_io_region io[ms->nr_mirrors], *dest = io;
+	struct dm_io_region io[MAX_NR_MIRRORS], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
@@ -1083,7 +1085,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argc -= args_used;
 
 	if (!argc || sscanf(argv[0], "%u%c", &nr_mirrors, &dummy) != 1 ||
-	    nr_mirrors < 2 || nr_mirrors > DM_KCOPYD_MAX_REGIONS + 1) {
+	    nr_mirrors < 2 || nr_mirrors > MAX_NR_MIRRORS) {
 		ti->error = "Invalid number of mirrors";
 		dm_dirty_log_destroy(dl);
 		return -EINVAL;
@@ -1404,7 +1406,7 @@ static void mirror_status(struct dm_target *ti, status_type_t type,
 	int num_feature_args = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
-	char buffer[ms->nr_mirrors + 1];
+	char buffer[MAX_NR_MIRRORS + 1];
 
 	switch (type) {
 	case STATUSTYPE_INFO:

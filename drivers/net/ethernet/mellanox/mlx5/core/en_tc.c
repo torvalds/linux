@@ -1261,6 +1261,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 						  f->mask);
 		addr_type = key->addr_type;
 
+		/* the HW doesn't support frag first/later */
+		if (mask->flags & FLOW_DIS_FIRST_FRAG)
+			return -EOPNOTSUPP;
+
 		if (mask->flags & FLOW_DIS_IS_FRAGMENT) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag,

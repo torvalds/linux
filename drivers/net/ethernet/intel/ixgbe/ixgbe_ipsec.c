@@ -919,8 +919,8 @@ err2:
 	kfree(ipsec->ip_tbl);
 	kfree(ipsec->rx_tbl);
 	kfree(ipsec->tx_tbl);
+	kfree(ipsec);
 err1:
-	kfree(adapter->ipsec);
 	netdev_err(adapter->netdev, "Unable to allocate memory for SA tables");
 }
 

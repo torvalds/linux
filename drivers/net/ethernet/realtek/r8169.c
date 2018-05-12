@@ -4662,6 +4662,9 @@ static void r8168_phy_power_up(struct rtl8169_private *tp)
 		break;
 	}
 	rtl_writephy(tp, MII_BMCR, BMCR_ANENABLE);
+
+	/* give MAC/PHY some time to resume */
+	msleep(20);
 }
 
 static void r8168_phy_power_down(struct rtl8169_private *tp)

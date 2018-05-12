@@ -664,7 +664,8 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
-		_debug("sendmsg failed: %d", ret);
+		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+				    rxrpc_tx_fail_conn_challenge);
 		return -EAGAIN;
 	}
 
@@ -719,7 +720,8 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 3, len);
 	if (ret < 0) {
-		_debug("sendmsg failed: %d", ret);
+		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+				    rxrpc_tx_fail_conn_response);
 		return -EAGAIN;
 	}
 
