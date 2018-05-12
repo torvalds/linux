@@ -143,7 +143,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		ext4_error(sb, "Cannot read inode bitmap - "
 			    "block_group = %u, inode_bitmap = %llu",
 			    block_group, bitmap_blk);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-ENOMEM);
 	}
 	if (bitmap_uptodate(bh))
 		goto verify;
