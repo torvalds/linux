@@ -688,7 +688,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_get_volume_status(&fc, &vs);
 		}
 

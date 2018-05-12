@@ -461,6 +461,9 @@ struct afs_volume {
 	rwlock_t		servers_lock;	/* Lock for ->servers */
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
 
+	unsigned		cb_v_break;	/* Break-everything counter. */
+	rwlock_t		cb_break_lock;
+
 	afs_voltype_t		type;		/* type of volume */
 	short			error;
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
@@ -521,6 +524,7 @@ struct afs_vnode {
 	/* outstanding callback notification on this file */
 	struct afs_cb_interest	*cb_interest;	/* Server on which this resides */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
+	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
 	seqlock_t		cb_lock;	/* Lock for ->cb_interest, ->status, ->cb_*break */
 
@@ -660,6 +664,17 @@ static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest
 	if (cbi)
 		refcount_inc(&cbi->usage);
 	return cbi;
+}
+
+static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
+{
+	return vnode->cb_break + vnode->cb_s_break + vnode->cb_v_break;
+}
+
+static inline unsigned int afs_cb_break_sum(struct afs_vnode *vnode,
+					    struct afs_cb_interest *cbi)
+{
+	return vnode->cb_break + cbi->server->cb_s_break + vnode->volume->cb_v_break;
 }
 
 /*

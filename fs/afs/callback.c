@@ -113,6 +113,7 @@ again:
 	old = vnode->cb_interest;
 	vnode->cb_interest = cbi;
 	vnode->cb_s_break = cbi->server->cb_s_break;
+	vnode->cb_v_break = vnode->volume->cb_v_break;
 	clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 
 	write_sequnlock(&vnode->cb_lock);
@@ -195,13 +196,24 @@ static void afs_break_one_callback(struct afs_server *server,
 		if (cbi->vid != fid->vid)
 			continue;
 
-		data.volume = NULL;
-		data.fid = *fid;
-		inode = ilookup5_nowait(cbi->sb, fid->vnode, afs_iget5_test, &data);
-		if (inode) {
-			vnode = AFS_FS_I(inode);
-			afs_break_callback(vnode);
-			iput(inode);
+		if (fid->vnode == 0 && fid->unique == 0) {
+			/* The callback break applies to an entire volume. */
+			struct afs_super_info *as = AFS_FS_S(cbi->sb);
+			struct afs_volume *volume = as->volume;
+
+			write_lock(&volume->cb_break_lock);
+			volume->cb_v_break++;
+			write_unlock(&volume->cb_break_lock);
+		} else {
+			data.volume = NULL;
+			data.fid = *fid;
+			inode = ilookup5_nowait(cbi->sb, fid->vnode,
+						afs_iget5_test, &data);
+			if (inode) {
+				vnode = AFS_FS_I(inode);
+				afs_break_callback(vnode);
+				iput(inode);
+			}
 		}
 	}
 
@@ -218,6 +230,8 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 
 	ASSERT(server != NULL);
 	ASSERTCMP(count, <=, AFSCBMAX);
+
+	/* TODO: Sort the callback break list by volume ID */
 
 	for (; count > 0; callbacks++, count--) {
 		_debug("- Fid { vl=%08x n=%u u=%u }  CB { v=%u x=%u t=%u }",

@@ -1141,7 +1141,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
 				      &newfid, &newstatus, &newcb);
 		}
@@ -1211,7 +1211,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_remove(&fc, dentry->d_name.name, true,
 				      data_version);
 		}
@@ -1314,7 +1314,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_remove(&fc, dentry->d_name.name, false,
 				      data_version);
 		}
@@ -1371,7 +1371,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
 				      &newfid, &newstatus, &newcb);
 		}
@@ -1441,8 +1441,8 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		}
 
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
-			fc.cb_break_2 = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			fc.cb_break_2 = afs_calc_vnode_cb_break(vnode);
 			afs_fs_link(&fc, vnode, dentry->d_name.name, data_version);
 		}
 
@@ -1510,7 +1510,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = dvnode->cb_break + dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_symlink(&fc, dentry->d_name.name,
 				       content, data_version,
 				       &newfid, &newstatus);
@@ -1586,8 +1586,8 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			}
 		}
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = orig_dvnode->cb_break + orig_dvnode->cb_s_break;
-			fc.cb_break_2 = new_dvnode->cb_break + new_dvnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(orig_dvnode);
+			fc.cb_break_2 = afs_calc_vnode_cb_break(new_dvnode);
 			afs_fs_rename(&fc, old_dentry->d_name.name,
 				      new_dvnode, new_dentry->d_name.name,
 				      orig_data_version, new_data_version);

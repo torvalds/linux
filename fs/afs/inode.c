@@ -108,7 +108,7 @@ int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool new_inode)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_fetch_file_status(&fc, NULL, new_inode);
 		}
 
@@ -393,15 +393,18 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	read_seqlock_excl(&vnode->cb_lock);
 
 	if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
-		if (vnode->cb_s_break != vnode->cb_interest->server->cb_s_break) {
+		if (vnode->cb_s_break != vnode->cb_interest->server->cb_s_break ||
+		    vnode->cb_v_break != vnode->volume->cb_v_break) {
 			vnode->cb_s_break = vnode->cb_interest->server->cb_s_break;
+			vnode->cb_v_break = vnode->volume->cb_v_break;
+			valid = false;
 		} else if (vnode->status.type == AFS_FTYPE_DIR &&
 			   test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) &&
 			   vnode->cb_expires_at - 10 > now) {
-				valid = true;
+			valid = true;
 		} else if (!test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
 			   vnode->cb_expires_at - 10 > now) {
-				valid = true;
+			valid = true;
 		}
 	} else if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 		valid = true;
@@ -574,7 +577,7 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_setattr(&fc, attr);
 		}
 
