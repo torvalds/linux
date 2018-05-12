@@ -31,14 +31,12 @@ BEGIN {
 	printversion("Isdn4k-utils", version("isdnctrl"))
 	printversion("Nfs-utils", version("showmount --version"))
 
-	if (system("test -r /proc/self/maps") == 0) {
-		while (getline <"/proc/self/maps" > 0) {
-			n = split($0, procmaps, "/")
-			if (/libc.*so$/ && match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
-				ver = substr(procmaps[n], RSTART, RLENGTH)
-				printversion("Linux C Library", ver)
-				break
-			}
+	while (getline <"/proc/self/maps" > 0) {
+		n = split($0, procmaps, "/")
+		if (/libc.*so$/ && match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
+			ver = substr(procmaps[n], RSTART, RLENGTH)
+			printversion("Linux C Library", ver)
+			break
 		}
 	}
 
@@ -50,9 +48,7 @@ BEGIN {
 			break
 		}
 	}
-	if (system("test -r " libcpp) == 0)
-		printversion("Linux C++ Library", version("readlink " libcpp))
-
+	printversion("Linux C++ Library", version("readlink " libcpp))
 	printversion("Procps", version("ps --version"))
 	printversion("Net-tools", version("ifconfig --version"))
 	printversion("Kbd", version("loadkeys -V"))
@@ -62,13 +58,11 @@ BEGIN {
 	printversion("Udev", version("udevadm --version"))
 	printversion("Wireless-tools", version("iwconfig --version"))
 
-	if (system("test -r /proc/modules") == 0) {
-		while ("sort /proc/modules" | getline > 0) {
-			mods = mods sep $1
-			sep = " "
-		}
-		printversion("Modules Loaded", mods)
+	while ("sort /proc/modules" | getline > 0) {
+		mods = mods sep $1
+		sep = " "
 	}
+	printversion("Modules Loaded", mods)
 }
 
 function version(cmd,    ver) {
