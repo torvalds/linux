@@ -32,7 +32,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 	struct regulator_state *suspend_state;
 	struct device_node *suspend_np;
 	unsigned int mode;
-	int ret, i;
+	int ret, i, len;
 	u32 pval;
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
@@ -133,6 +133,33 @@ static void of_get_regulation_constraints(struct device_node *np,
 		} else {
 			pr_warn("%s: mapping for mode %d not defined\n",
 				np->name, pval);
+		}
+	}
+
+	len = of_property_count_elems_of_size(np, "regulator-allowed-modes",
+						sizeof(u32));
+	if (len > 0) {
+		if (desc && desc->of_map_mode) {
+			for (i = 0; i < len; i++) {
+				ret = of_property_read_u32_index(np,
+					"regulator-allowed-modes", i, &pval);
+				if (ret) {
+					pr_err("%s: couldn't read allowed modes index %d, ret=%d\n",
+						np->name, i, ret);
+					break;
+				}
+				mode = desc->of_map_mode(pval);
+				if (mode == REGULATOR_MODE_INVALID)
+					pr_err("%s: invalid regulator-allowed-modes element %u\n",
+						np->name, pval);
+				else
+					constraints->valid_modes_mask |= mode;
+			}
+			if (constraints->valid_modes_mask)
+				constraints->valid_ops_mask
+					|= REGULATOR_CHANGE_MODE;
+		} else {
+			pr_warn("%s: mode mapping not defined\n", np->name);
 		}
 	}
 
