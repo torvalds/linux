@@ -983,16 +983,6 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 		goto out_module_put;
 	}
 
-	if (strcmp(ctrl->subsys->subnqn, opts->subsysnqn)) {
-		dev_warn(ctrl->device,
-			"controller returned incorrect NQN: \"%s\".\n",
-			ctrl->subsys->subnqn);
-		module_put(ops->module);
-		up_read(&nvmf_transports_rwsem);
-		nvme_delete_ctrl_sync(ctrl);
-		return ERR_PTR(-EINVAL);
-	}
-
 	module_put(ops->module);
 	up_read(&nvmf_transports_rwsem);
 	return ctrl;
