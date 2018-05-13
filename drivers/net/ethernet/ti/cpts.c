@@ -564,7 +564,7 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
 		dev_err(dev, "Failed to get cpts refclk\n");
-		return ERR_PTR(PTR_ERR(cpts->refclk));
+		return ERR_CAST(cpts->refclk);
 	}
 
 	clk_prepare(cpts->refclk);
