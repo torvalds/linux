@@ -61,6 +61,7 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_inner_packets;
 	u64 tx_tso_inner_bytes;
 	u64 tx_added_vlan_packets;
+	u64 tx_nop;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
 	u64 rx_removed_vlan_packets;
