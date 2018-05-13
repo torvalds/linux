@@ -17,7 +17,7 @@
 #define MMAL_MAGIC MMAL_FOURCC('m', 'm', 'a', 'l')
 
 /** Special value signalling that time is not known */
-#define MMAL_TIME_UNKNOWN (1LL<<63)
+#define MMAL_TIME_UNKNOWN BIT_ULL(63)
 
 struct mmal_msg_context;
 
