@@ -983,6 +983,34 @@ static struct mac_device_info *sun8i_dwmac_setup(void *ppriv)
 	return mac;
 }
 
+static struct regmap *sun8i_dwmac_get_syscon_from_dev(struct device_node *node)
+{
+	struct device_node *syscon_node;
+	struct platform_device *syscon_pdev;
+	struct regmap *regmap = NULL;
+
+	syscon_node = of_parse_phandle(node, "syscon", 0);
+	if (!syscon_node)
+		return ERR_PTR(-ENODEV);
+
+	syscon_pdev = of_find_device_by_node(syscon_node);
+	if (!syscon_pdev) {
+		/* platform device might not be probed yet */
+		regmap = ERR_PTR(-EPROBE_DEFER);
+		goto out_put_node;
+	}
+
+	/* If no regmap is found then the other device driver is at fault */
+	regmap = dev_get_regmap(&syscon_pdev->dev, NULL);
+	if (!regmap)
+		regmap = ERR_PTR(-EINVAL);
+
+	platform_device_put(syscon_pdev);
+out_put_node:
+	of_node_put(syscon_node);
+	return regmap;
+}
+
 static int sun8i_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -1027,7 +1055,27 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 		gmac->regulator = NULL;
 	}
 
-	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "syscon");
+	/* The "GMAC clock control" register might be located in the
+	 * CCU address range (on the R40), or the system control address
+	 * range (on most other sun8i and later SoCs).
+	 *
+	 * The former controls most if not all clocks in the SoC. The
+	 * latter has an SoC identification register, and on some SoCs,
+	 * controls to map device specific SRAM to either the intended
+	 * peripheral, or the CPU address space.
+	 *
+	 * In either case, there should be a coordinated and restricted
+	 * method of accessing the register needed here. This is done by
+	 * having the device export a custom regmap, instead of a generic
+	 * syscon, which grants all access to all registers.
+	 *
+	 * To support old device trees, we fall back to using the syscon
+	 * interface if possible.
+	 */
+	regmap = sun8i_dwmac_get_syscon_from_dev(pdev->dev.of_node);
+	if (IS_ERR(regmap))
+		regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							 "syscon");
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(&pdev->dev, "Unable to map syscon: %d\n", ret);
