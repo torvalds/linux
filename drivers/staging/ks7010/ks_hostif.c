@@ -1182,9 +1182,8 @@ static inline void send_request_to_device(struct ks_wlan_private *priv,
 	ks_wlan_hw_tx(priv, data, size, NULL, NULL);
 }
 
-static
-void hostif_mib_get_request(struct ks_wlan_private *priv,
-			    unsigned long mib_attribute)
+static void hostif_mib_get_request(struct ks_wlan_private *priv,
+				   u32 mib_attribute)
 {
 	struct hostif_mib_get_request *pp;
 
@@ -1192,7 +1191,7 @@ void hostif_mib_get_request(struct ks_wlan_private *priv,
 	if (!pp)
 		return;
 
-	pp->mib_attribute = cpu_to_le32((uint32_t)mib_attribute);
+	pp->mib_attribute = cpu_to_le32(mib_attribute);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
