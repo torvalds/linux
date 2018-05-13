@@ -756,7 +756,6 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	int ret;
 	const struct firmware *fw_entry = NULL;
 
-
 	sdio_claim_host(func);
 
 	/* Firmware running ? */
