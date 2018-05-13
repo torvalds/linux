@@ -6045,11 +6045,6 @@ static int btrfs_dentry_delete(const struct dentry *dentry)
 	return 0;
 }
 
-static void btrfs_dentry_release(struct dentry *dentry)
-{
-	kfree(dentry->d_fsdata);
-}
-
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
@@ -10844,5 +10839,4 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 
 const struct dentry_operations btrfs_dentry_operations = {
 	.d_delete	= btrfs_dentry_delete,
-	.d_release	= btrfs_dentry_release,
 };
