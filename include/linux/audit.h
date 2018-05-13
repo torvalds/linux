@@ -237,6 +237,11 @@ extern void audit_seccomp_actions_logged(const char *names,
 					 const char *old_names, int res);
 extern void __audit_ptrace(struct task_struct *t);
 
+static inline void audit_set_context(struct task_struct *task, struct audit_context *ctx)
+{
+	task->audit_context = ctx;
+}
+
 static inline struct audit_context *audit_context(void)
 {
 	return current->audit_context;
@@ -469,6 +474,8 @@ static inline bool audit_dummy_context(void)
 {
 	return true;
 }
+static inline void audit_set_context(struct task_struct *task, struct audit_context *ctx)
+{ }
 static inline struct audit_context *audit_context(void)
 {
 	return NULL;
