@@ -84,6 +84,9 @@ enum {
 
 #define BYTCR_INPUT_DEFAULTS				\
 	(BYT_RT5640_IN3_MAP |				\
+	 BYT_RT5640_JD_SRC_JD1_IN4P |			\
+	 BYT_RT5640_OVCD_TH_2000UA |			\
+	 BYT_RT5640_OVCD_SF_0P75 |			\
 	 BYT_RT5640_DIFF_MIC)
 
 /* in-diff or dmic-pin + jdsrc + ovcd-th + -sf + jd-inv + terminating entry */
@@ -985,7 +988,10 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		/* change defaults for Baytrail-CR capture */
 		byt_rt5640_quirk |= BYTCR_INPUT_DEFAULTS;
 	} else {
-		byt_rt5640_quirk |= BYT_RT5640_DMIC1_MAP;
+		byt_rt5640_quirk |= BYT_RT5640_DMIC1_MAP |
+				    BYT_RT5640_JD_SRC_JD2_IN4N |
+				    BYT_RT5640_OVCD_TH_2000UA |
+				    BYT_RT5640_OVCD_SF_0P75;
 	}
 
 	/* check quirks before creating card */
