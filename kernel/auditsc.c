@@ -2050,7 +2050,7 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 int audit_set_loginuid(kuid_t loginuid)
 {
 	struct task_struct *task = current;
-	unsigned int oldsessionid, sessionid = (unsigned int)-1;
+	unsigned int oldsessionid, sessionid = AUDIT_SID_UNSET;
 	kuid_t oldloginuid;
 	int rc;
 
@@ -2064,7 +2064,7 @@ int audit_set_loginuid(kuid_t loginuid)
 	/* are we setting or clearing? */
 	if (uid_valid(loginuid)) {
 		sessionid = (unsigned int)atomic_inc_return(&session_id);
-		if (unlikely(sessionid == (unsigned int)-1))
+		if (unlikely(sessionid == AUDIT_SID_UNSET))
 			sessionid = (unsigned int)atomic_inc_return(&session_id);
 	}
 

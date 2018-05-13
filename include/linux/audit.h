@@ -510,7 +510,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 }
 static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
-	return -1;
+	return AUDIT_SID_UNSET;
 }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
