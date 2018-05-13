@@ -370,10 +370,11 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 	{
 		.callback = byt_rt5640_quirk_cb,
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "DellInc."),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5830"),
 		},
-		.driver_data = (void *)(BYT_RT5640_DMIC2_MAP |
+		.driver_data = (void *)(BYT_RT5640_DMIC1_MAP |
+					BYT_RT5640_MONO_SPEAKER |
 					BYT_RT5640_MCLK_EN),
 	},
 	{
