@@ -27,7 +27,7 @@ config SOUNDWIRE_INTEL
 	tristate "Intel SoundWire Master driver"
 	select SOUNDWIRE_CADENCE
 	select SOUNDWIRE_BUS
-	depends on X86 && ACPI
+	depends on X86 && ACPI && SND_SOC
 	---help---
 	  SoundWire Intel Master driver.
 	  If you have an Intel platform which has a SoundWire Master then
