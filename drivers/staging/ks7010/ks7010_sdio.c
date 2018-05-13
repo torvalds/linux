@@ -752,7 +752,7 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	struct ks_wlan_private *priv = card->priv;
 	struct sdio_func *func = ks7010_to_func(priv);
 	unsigned int n;
-	unsigned char byte = 0;
+	u8 byte = 0;
 	int ret;
 	const struct firmware *fw_entry = NULL;
 
