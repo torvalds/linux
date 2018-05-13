@@ -513,7 +513,7 @@ struct ks_wlan_private {
 	unsigned long last_doze;
 	unsigned long last_wakeup;
 
-	uint wakeup_count;	/* for detect wakeup loop */
+	unsigned int wakeup_count;	/* for detect wakeup loop */
 };
 
 static inline void inc_txqhead(struct ks_wlan_private *priv)
