@@ -323,7 +323,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 			} else if (mic_failure->failure == 1) {
 				mic_failure->failure = 2;
 				mic_failure->counter =
-					(uint16_t)((now - mic_failure->last_failure_time) / HZ);
+					(u16)((now - mic_failure->last_failure_time) / HZ);
 				/*  range 1-60 */
 				if (!mic_failure->counter)
 					mic_failure->counter = 1;
