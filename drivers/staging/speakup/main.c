@@ -68,7 +68,7 @@ int spk_punc_level, spk_reading_punc;
 char spk_str_caps_start[MAXVARLEN + 1] = "\0";
 char spk_str_caps_stop[MAXVARLEN + 1] = "\0";
 char spk_str_pause[MAXVARLEN + 1] = "\0";
-bool spk_paused = 0;
+bool spk_paused;
 const struct st_bits_data spk_punc_info[] = {
 	{"none", "", 0},
 	{"some", "/$%&@", SOME},
@@ -1784,8 +1784,7 @@ static void speakup_con_update(struct vc_data *vc)
 		/* Speakup output, discard */
 		return;
 	speakup_date(vc);
-	if (vc->vc_mode == KD_GRAPHICS && !spk_paused && spk_str_pause[0])
-	{
+	if (vc->vc_mode == KD_GRAPHICS && !spk_paused && spk_str_pause[0]) {
 		synth_printf("%s", spk_str_pause);
 		spk_paused = 1;
 	}

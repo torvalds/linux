@@ -78,7 +78,8 @@ void synth_buffer_add(u16 ch)
 	if (buff_in > buffer_end)
 		buff_in = synth_buffer;
 	/* We have written something to the speech synthesis, so we are not
-	 * paused any more. */
+	 * paused any more.
+	 */
 	spk_paused = 0;
 }
 
