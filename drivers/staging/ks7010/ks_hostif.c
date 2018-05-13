@@ -1501,8 +1501,7 @@ void hostif_bss_scan_request(struct ks_wlan_private *priv,
 
 static
 void hostif_mic_failure_request(struct ks_wlan_private *priv,
-				unsigned short failure_count,
-				unsigned short timer)
+				u16 failure_count, u16 timer)
 {
 	struct hostif_mic_failure_request *pp;
 
@@ -1510,8 +1509,8 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 	if (!pp)
 		return;
 
-	pp->failure_count = cpu_to_le16((uint16_t)failure_count);
-	pp->timer = cpu_to_le16((uint16_t)timer);
+	pp->failure_count = cpu_to_le16(failure_count);
+	pp->timer = cpu_to_le16(timer);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
