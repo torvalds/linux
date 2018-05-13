@@ -163,9 +163,6 @@ static u8 ic_domain[64];		/* DNS (not NIS) domain name */
  * Private state.
  */
 
-/* proc_dir_entry for /proc/net/ipconfig */
-static struct proc_dir_entry *ipconfig_dir;
-
 /* Name of user-selected boot device */
 static char user_dev_name[IFNAMSIZ] __initdata = { 0, };
 
@@ -1292,6 +1289,8 @@ static int __init ic_dynamic(void)
 #endif /* IPCONFIG_DYNAMIC */
 
 #ifdef CONFIG_PROC_FS
+/* proc_dir_entry for /proc/net/ipconfig */
+static struct proc_dir_entry *ipconfig_dir;
 
 /* Name servers: */
 static int pnp_seq_show(struct seq_file *seq, void *v)
