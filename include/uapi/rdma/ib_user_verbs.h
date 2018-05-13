@@ -1060,6 +1060,29 @@ struct ib_uverbs_flow_spec_gre {
 	struct ib_uverbs_flow_gre_filter     mask;
 };
 
+struct ib_uverbs_flow_mpls_filter {
+	/* The field includes the entire MPLS label:
+	 * bits 0:19 - label field.
+	 * bits 20:22 - traffic class field.
+	 * bits 23 - bottom of stack bit.
+	 * bits 24:31 - ttl field.
+	 */
+	__be32 label;
+};
+
+struct ib_uverbs_flow_spec_mpls {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_mpls_filter     val;
+	struct ib_uverbs_flow_mpls_filter     mask;
+};
+
 struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
