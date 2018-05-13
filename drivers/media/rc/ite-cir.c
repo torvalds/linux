@@ -1561,9 +1561,11 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	rdev->close = ite_close;
 	rdev->s_idle = ite_s_idle;
 	rdev->s_rx_carrier_range = ite_set_rx_carrier_range;
-	rdev->min_timeout = ITE_MIN_IDLE_TIMEOUT;
-	rdev->max_timeout = ITE_MAX_IDLE_TIMEOUT;
-	rdev->timeout = ITE_IDLE_TIMEOUT;
+	/* FIFO threshold is 17 bytes, so 17 * 8 samples minimum */
+	rdev->min_timeout = 17 * 8 * ITE_BAUDRATE_DIVISOR *
+			    itdev->params.sample_period;
+	rdev->timeout = IR_DEFAULT_TIMEOUT;
+	rdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	rdev->rx_resolution = ITE_BAUDRATE_DIVISOR *
 				itdev->params.sample_period;
 	rdev->tx_resolution = ITE_BAUDRATE_DIVISOR *
