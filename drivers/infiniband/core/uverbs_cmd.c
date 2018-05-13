@@ -2948,6 +2948,17 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 		memcpy(&ib_spec->esp.val, kern_spec_val, actual_filter_sz);
 		memcpy(&ib_spec->esp.mask, kern_spec_mask, actual_filter_sz);
 		break;
+	case IB_FLOW_SPEC_GRE:
+		ib_filter_sz = offsetof(struct ib_flow_gre_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->gre.size = sizeof(struct ib_flow_spec_gre);
+		memcpy(&ib_spec->gre.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->gre.mask, kern_spec_mask, actual_filter_sz);
+		break;
 	default:
 		return -EINVAL;
 	}

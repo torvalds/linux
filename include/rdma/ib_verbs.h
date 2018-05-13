@@ -1852,6 +1852,7 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_TCP		= 0x40,
 	IB_FLOW_SPEC_UDP		= 0x41,
 	IB_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
+	IB_FLOW_SPEC_GRE		= 0x51,
 	IB_FLOW_SPEC_INNER		= 0x100,
 	/* Actions */
 	IB_FLOW_SPEC_ACTION_TAG         = 0x1000,
@@ -1994,6 +1995,21 @@ struct ib_flow_spec_esp {
 	struct ib_flow_esp_filter     mask;
 };
 
+struct ib_flow_gre_filter {
+	__be16 c_ks_res0_ver;
+	__be16 protocol;
+	__be32 key;
+	/* Must be last */
+	u8	real_sz[0];
+};
+
+struct ib_flow_spec_gre {
+	u32                           type;
+	u16			      size;
+	struct ib_flow_gre_filter     val;
+	struct ib_flow_gre_filter     mask;
+};
+
 struct ib_flow_spec_action_tag {
 	enum ib_flow_spec_type	      type;
 	u16			      size;
@@ -2023,6 +2039,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_ipv6        ipv6;
 	struct ib_flow_spec_tunnel      tunnel;
 	struct ib_flow_spec_esp		esp;
+	struct ib_flow_spec_gre		gre;
 	struct ib_flow_spec_action_tag  flow_tag;
 	struct ib_flow_spec_action_drop drop;
 	struct ib_flow_spec_action_handle action;
