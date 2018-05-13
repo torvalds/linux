@@ -1061,8 +1061,8 @@ static int send_stop_request(struct sdio_func *func)
 		return -ENOMEM;
 
 	size = sizeof(*pp) - sizeof(pp->header.size);
-	pp->header.size = cpu_to_le16((uint16_t)size);
-	pp->header.event = cpu_to_le16((uint16_t)HIF_STOP_REQ);
+	pp->header.size = cpu_to_le16((u16)size);
+	pp->header.event = cpu_to_le16((u16)HIF_STOP_REQ);
 
 	sdio_claim_host(func);
 	write_to_device(card->priv, (u8 *)pp, hif_align_size(sizeof(*pp)));
