@@ -20,6 +20,8 @@
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 
+#include "cpu.h"
+
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
 #define LVL_2		3
