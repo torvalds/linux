@@ -1033,6 +1033,33 @@ struct ib_uverbs_flow_spec_esp {
 	struct ib_uverbs_flow_spec_esp_filter mask;
 };
 
+struct ib_uverbs_flow_gre_filter {
+	/* c_ks_res0_ver field is bits 0-15 in offset 0 of a standard GRE header:
+	 * bit 0 - C - checksum bit.
+	 * bit 1 - reserved. set to 0.
+	 * bit 2 - key bit.
+	 * bit 3 - sequence number bit.
+	 * bits 4:12 - reserved. set to 0.
+	 * bits 13:15 - GRE version.
+	 */
+	__be16 c_ks_res0_ver;
+	__be16 protocol;
+	__be32 key;
+};
+
+struct ib_uverbs_flow_spec_gre {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_gre_filter     val;
+	struct ib_uverbs_flow_gre_filter     mask;
+};
+
 struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
