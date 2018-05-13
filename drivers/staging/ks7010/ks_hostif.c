@@ -1979,7 +1979,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		memcpy(pmkcache.list[i].pmkid, pmk->pmkid, IW_PMKID_LEN);
 		i++;
 	}
-	pmkcache.size = cpu_to_le16((uint16_t)(priv->pmklist.size));
+	pmkcache.size = cpu_to_le16((u16)(priv->pmklist.size));
 	size = sizeof(priv->pmklist.size) +
 	       ((ETH_ALEN + IW_PMKID_LEN) * priv->pmklist.size);
 	hostif_mib_set_request_ostring(priv, LOCAL_PMK, &pmkcache, size);
