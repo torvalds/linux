@@ -1281,9 +1281,9 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 static void init_request(struct ks_wlan_private *priv,
 			 struct hostif_request *req)
 {
-	req->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	req->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	req->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
+	req->phy_type = cpu_to_le16((u16)(priv->reg.phy_type));
+	req->cts_mode = cpu_to_le16((u16)(priv->reg.cts_mode));
+	req->scan_type = cpu_to_le16((u16)(priv->reg.scan_type));
 	req->rate_set.size = priv->reg.rate_set.size;
 	req->capability = ks_wlan_cap(priv);
 	memcpy(&req->rate_set.body[0], &priv->reg.rate_set.body[0],
