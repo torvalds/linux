@@ -42,6 +42,7 @@
  *				This value is used for disabling properly EMAC
  *				and used as a good starting value in case of the
  *				boot process(uboot) leave some stuff.
+ * @syscon_field		reg_field for the syscon's gmac register
  * @soc_has_internal_phy:	Does the MAC embed an internal PHY
  * @support_mii:		Does the MAC handle MII
  * @support_rmii:		Does the MAC handle RMII
@@ -49,6 +50,7 @@
  */
 struct emac_variant {
 	u32 default_syscon_value;
+	const struct reg_field *syscon_field;
 	bool soc_has_internal_phy;
 	bool support_mii;
 	bool support_rmii;
@@ -71,13 +73,21 @@ struct sunxi_priv_data {
 	struct regulator *regulator;
 	struct reset_control *rst_ephy;
 	const struct emac_variant *variant;
-	struct regmap *regmap;
+	struct regmap_field *regmap_field;
 	bool internal_phy_powered;
 	void *mux_handle;
 };
 
+/* EMAC clock register @ 0x30 in the "system control" address range */
+static const struct reg_field sun8i_syscon_reg_field = {
+	.reg = 0x30,
+	.lsb = 0,
+	.msb = 31,
+};
+
 static const struct emac_variant emac_variant_h3 = {
 	.default_syscon_value = 0x58000,
+	.syscon_field = &sun8i_syscon_reg_field,
 	.soc_has_internal_phy = true,
 	.support_mii = true,
 	.support_rmii = true,
@@ -86,12 +96,14 @@ static const struct emac_variant emac_variant_h3 = {
 
 static const struct emac_variant emac_variant_v3s = {
 	.default_syscon_value = 0x38000,
+	.syscon_field = &sun8i_syscon_reg_field,
 	.soc_has_internal_phy = true,
 	.support_mii = true
 };
 
 static const struct emac_variant emac_variant_a83t = {
 	.default_syscon_value = 0,
+	.syscon_field = &sun8i_syscon_reg_field,
 	.soc_has_internal_phy = false,
 	.support_mii = true,
 	.support_rgmii = true
@@ -99,6 +111,7 @@ static const struct emac_variant emac_variant_a83t = {
 
 static const struct emac_variant emac_variant_a64 = {
 	.default_syscon_value = 0,
+	.syscon_field = &sun8i_syscon_reg_field,
 	.soc_has_internal_phy = false,
 	.support_mii = true,
 	.support_rmii = true,
@@ -216,7 +229,6 @@ static const struct emac_variant emac_variant_a64 = {
 #define SYSCON_ETCS_MII		0x0
 #define SYSCON_ETCS_EXT_GMII	0x1
 #define SYSCON_ETCS_INT_GMII	0x2
-#define SYSCON_EMAC_REG		0x30
 
 /* sun8i_dwmac_dma_reset() - reset the EMAC
  * Called from stmmac via stmmac_dma_ops->reset
@@ -745,7 +757,7 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 	bool need_power_ephy = false;
 
 	if (current_child ^ desired_child) {
-		regmap_read(gmac->regmap, SYSCON_EMAC_REG, &reg);
+		regmap_field_read(gmac->regmap_field, &reg);
 		switch (desired_child) {
 		case DWMAC_SUN8I_MDIO_MUX_INTERNAL_ID:
 			dev_info(priv->device, "Switch mux to internal PHY");
@@ -763,7 +775,7 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 				desired_child);
 			return -EINVAL;
 		}
-		regmap_write(gmac->regmap, SYSCON_EMAC_REG, val);
+		regmap_field_write(gmac->regmap_field, val);
 		if (need_power_ephy) {
 			ret = sun8i_dwmac_power_internal_phy(priv);
 			if (ret)
@@ -801,7 +813,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 	int ret;
 	u32 reg, val;
 
-	regmap_read(gmac->regmap, SYSCON_EMAC_REG, &val);
+	regmap_field_read(gmac->regmap_field, &val);
 	reg = gmac->variant->default_syscon_value;
 	if (reg != val)
 		dev_warn(priv->device,
@@ -883,7 +895,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		return -EINVAL;
 	}
 
-	regmap_write(gmac->regmap, SYSCON_EMAC_REG, reg);
+	regmap_field_write(gmac->regmap_field, reg);
 
 	return 0;
 }
@@ -892,7 +904,7 @@ static void sun8i_dwmac_unset_syscon(struct sunxi_priv_data *gmac)
 {
 	u32 reg = gmac->variant->default_syscon_value;
 
-	regmap_write(gmac->regmap, SYSCON_EMAC_REG, reg);
+	regmap_field_write(gmac->regmap_field, reg);
 }
 
 static void sun8i_dwmac_exit(struct platform_device *pdev, void *priv)
@@ -980,6 +992,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	int ret;
 	struct stmmac_priv *priv;
 	struct net_device *ndev;
+	struct regmap *regmap;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -1014,11 +1027,18 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 		gmac->regulator = NULL;
 	}
 
-	gmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						       "syscon");
-	if (IS_ERR(gmac->regmap)) {
-		ret = PTR_ERR(gmac->regmap);
+	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "syscon");
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
 		dev_err(&pdev->dev, "Unable to map syscon: %d\n", ret);
+		return ret;
+	}
+
+	gmac->regmap_field = devm_regmap_field_alloc(dev, regmap,
+						     *gmac->variant->syscon_field);
+	if (IS_ERR(gmac->regmap_field)) {
+		ret = PTR_ERR(gmac->regmap_field);
+		dev_err(dev, "Unable to map syscon register: %d\n", ret);
 		return ret;
 	}
 
