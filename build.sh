@@ -10,13 +10,13 @@ crosscompile=0
 if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]]; then
 	if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
 
-	export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
+	export ARCH=arm;export CROSS_COMPILE='ccache arm-linux-gnueabihf-'
 	crosscompile=1
 fi;
 
 #Check Dependencies
 PACKAGE_Error=0
-for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev" "libssl-dev" "fakeroot"; do
+for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev" "libssl-dev" "fakeroot" "ccache"; do
 	TESTPKG=$(dpkg -l |grep "\s${package}")
 	if [[ -z "${TESTPKG}" ]];then echo "please install ${package}";PACKAGE_Error=1;fi
 done
@@ -127,7 +127,7 @@ EOF
     fakeroot dpkg-deb --build bananapi-r2-image ../debian
     cd ..
     ls -lh debian/*.deb
-    dpkg -c debian/bananapi-r2-image-${kernbranch}_${kernver}-1_armhf.deb
+    dpkg -c debian/bananapi-r2-image-${kernbranch,,}_${kernver}-1_armhf.deb
   else
     echo "First build kernel ${ver}"
     echo "eg: ./build"
