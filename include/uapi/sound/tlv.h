@@ -83,6 +83,10 @@
 		SNDRV_CTL_TLVD_DB_MINMAX_MUTE_ITEM(min_dB, max_dB) \
 	}
 
+/* Accessor offsets for min, max items in db-minmax types of TLV. */
+#define SNDRV_CTL_TLVO_DB_MINMAX_MIN	2
+#define SNDRV_CTL_TLVO_DB_MINMAX_MAX	3
+
 /* linear volume between min_dB and max_dB (.01dB unit) */
 #define SNDRV_CTL_TLVD_DB_LINEAR_ITEM(min_dB, max_dB) \
 	SNDRV_CTL_TLVD_ITEM(SNDRV_CTL_TLVT_DB_LINEAR, (min_dB), (max_dB))
@@ -90,6 +94,10 @@
 	unsigned int name[] = { \
 		SNDRV_CTL_TLVD_DB_LINEAR_ITEM(min_dB, max_dB) \
 	}
+
+/* Accessor offsets for min, max items in db-linear type of TLV. */
+#define SNDRV_CTL_TLVO_DB_LINEAR_MIN	2
+#define SNDRV_CTL_TLVO_DB_LINEAR_MAX	3
 
 /* dB range container:
  * Items in dB range container must be ordered by their values and by their
