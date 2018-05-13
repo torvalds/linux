@@ -170,6 +170,7 @@ struct nvmet_subsys {
 	struct kref		ref;
 
 	struct list_head	namespaces;
+	unsigned int		nr_namespaces;
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
@@ -362,6 +363,13 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 #define NVMET_QUEUE_SIZE	1024
 #define NVMET_NR_QUEUES		128
 #define NVMET_MAX_CMD		NVMET_QUEUE_SIZE
+
+/*
+ * Nice round number that makes a list of nsids fit into a page.
+ * Should become tunable at some point in the future.
+ */
+#define NVMET_MAX_NAMESPACES	1024
+
 #define NVMET_KAS		10
 #define NVMET_DISC_KATO		120
 

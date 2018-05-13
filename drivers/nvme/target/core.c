@@ -337,9 +337,13 @@ static void nvmet_ns_dev_disable(struct nvmet_ns *ns)
 int nvmet_ns_enable(struct nvmet_ns *ns)
 {
 	struct nvmet_subsys *subsys = ns->subsys;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&subsys->lock);
+	ret = -EMFILE;
+	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
+		goto out_unlock;
+	ret = 0;
 	if (ns->enabled)
 		goto out_unlock;
 
@@ -374,6 +378,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 
 		list_add_tail_rcu(&ns->dev_link, &old->dev_link);
 	}
+	subsys->nr_namespaces++;
 
 	nvmet_ns_changed(subsys, ns->nsid);
 	ns->enabled = true;
@@ -414,6 +419,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 	percpu_ref_exit(&ns->ref);
 
 	mutex_lock(&subsys->lock);
+	subsys->nr_namespaces--;
 	nvmet_ns_changed(subsys, ns->nsid);
 	nvmet_ns_dev_disable(ns);
 out_unlock:
