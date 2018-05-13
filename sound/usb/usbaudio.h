@@ -49,6 +49,8 @@ struct snd_usb_audio {
 	int num_suspended_intf;
 	int sample_rate_read_error;
 
+	int badd_profile;		/* UAC3 BADD profile */
+
 	struct list_head pcm_list;	/* list of pcm streams */
 	struct list_head ep_list;	/* list of audio-related endpoints */
 	int pcm_devs;

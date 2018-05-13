@@ -817,14 +817,66 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 	struct uac3_input_terminal_descriptor *input_term;
 	struct uac3_output_terminal_descriptor *output_term;
 	struct uac3_cluster_header_descriptor *cluster;
-	struct uac3_as_header_descriptor *as;
+	struct uac3_as_header_descriptor *as = NULL;
 	struct uac3_hc_descriptor_header hc_header;
 	struct snd_pcm_chmap_elem *chmap;
+	unsigned char badd_profile;
+	u64 badd_formats = 0;
 	unsigned int num_channels;
 	struct audioformat *fp;
 	u16 cluster_id, wLength;
 	int clock = 0;
 	int err;
+
+	badd_profile = chip->badd_profile;
+
+	if (badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
+		unsigned int maxpacksize =
+			le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+
+		switch (maxpacksize) {
+		default:
+			dev_err(&dev->dev,
+				"%u:%d : incorrect wMaxPacketSize for BADD profile\n",
+				iface_no, altno);
+			return NULL;
+		case UAC3_BADD_EP_MAXPSIZE_SYNC_MONO_16:
+		case UAC3_BADD_EP_MAXPSIZE_ASYNC_MONO_16:
+			badd_formats = SNDRV_PCM_FMTBIT_S16_LE;
+			num_channels = 1;
+			break;
+		case UAC3_BADD_EP_MAXPSIZE_SYNC_MONO_24:
+		case UAC3_BADD_EP_MAXPSIZE_ASYNC_MONO_24:
+			badd_formats = SNDRV_PCM_FMTBIT_S24_3LE;
+			num_channels = 1;
+			break;
+		case UAC3_BADD_EP_MAXPSIZE_SYNC_STEREO_16:
+		case UAC3_BADD_EP_MAXPSIZE_ASYNC_STEREO_16:
+			badd_formats = SNDRV_PCM_FMTBIT_S16_LE;
+			num_channels = 2;
+			break;
+		case UAC3_BADD_EP_MAXPSIZE_SYNC_STEREO_24:
+		case UAC3_BADD_EP_MAXPSIZE_ASYNC_STEREO_24:
+			badd_formats = SNDRV_PCM_FMTBIT_S24_3LE;
+			num_channels = 2;
+			break;
+		}
+
+		chmap = kzalloc(sizeof(*chmap), GFP_KERNEL);
+		if (!chmap)
+			return ERR_PTR(-ENOMEM);
+
+		if (num_channels == 1) {
+			chmap->map[0] = SNDRV_CHMAP_MONO;
+		} else {
+			chmap->map[0] = SNDRV_CHMAP_FL;
+			chmap->map[1] = SNDRV_CHMAP_FR;
+		}
+
+		chmap->channels = num_channels;
+		clock = UAC3_BADD_CS_ID9;
+		goto found_clock;
+	}
 
 	as = snd_usb_find_csint_desc(alts->extra, alts->extralen,
 				     NULL, UAC_AS_GENERAL);
@@ -931,16 +983,29 @@ found_clock:
 	if (!fp)
 		return ERR_PTR(-ENOMEM);
 
-	fp->attributes = parse_uac_endpoint_attributes(chip, alts,
-						       UAC_VERSION_3,
-						       iface_no);
 	fp->chmap = chmap;
 
-	/* ok, let's parse further... */
-	if (snd_usb_parse_audio_format_v3(chip, fp, as, stream) < 0) {
-		kfree(fp->rate_table);
-		kfree(fp);
-		return NULL;
+	if (badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
+		fp->attributes = 0; /* No attributes */
+
+		fp->fmt_type = UAC_FORMAT_TYPE_I;
+		fp->formats = badd_formats;
+
+		fp->nr_rates = 0;	/* SNDRV_PCM_RATE_CONTINUOUS */
+		fp->rate_min = UAC3_BADD_SAMPLING_RATE;
+		fp->rate_max = UAC3_BADD_SAMPLING_RATE;
+		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
+
+	} else {
+		fp->attributes = parse_uac_endpoint_attributes(chip, alts,
+							       UAC_VERSION_3,
+							       iface_no);
+		/* ok, let's parse further... */
+		if (snd_usb_parse_audio_format_v3(chip, fp, as, stream) < 0) {
+			kfree(fp->rate_table);
+			kfree(fp);
+			return NULL;
+		}
 	}
 
 	return fp;
