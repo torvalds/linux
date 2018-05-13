@@ -67,6 +67,4 @@ struct wpa_eapol_key {
 #define WPA_KEY_INFO_REQUEST BIT(11)
 #define WPA_KEY_INFO_ENCR_KEY_DATA BIT(12)	/* IEEE 802.11i/RSN only */
 
-#define WPA_CAPABILITY_PREAUTH BIT(0)
-
 #endif /* EAP_PACKET_H */
