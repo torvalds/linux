@@ -75,6 +75,18 @@ maxim,max6621		PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
 maxim,max6625		9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
 mcube,mc3230		mCube 3-axis 8-bit digital accelerometer
 memsic,mxc6225		MEMSIC 2-axis 8-bit digital accelerometer
+microchip,mcp4017-502	Microchip 7-bit Single I2C Digital POT (5k)
+microchip,mcp4017-103	Microchip 7-bit Single I2C Digital POT (10k)
+microchip,mcp4017-503	Microchip 7-bit Single I2C Digital POT (50k)
+microchip,mcp4017-104	Microchip 7-bit Single I2C Digital POT (100k)
+microchip,mcp4018-502	Microchip 7-bit Single I2C Digital POT (5k)
+microchip,mcp4018-103	Microchip 7-bit Single I2C Digital POT (10k)
+microchip,mcp4018-503	Microchip 7-bit Single I2C Digital POT (50k)
+microchip,mcp4018-104	Microchip 7-bit Single I2C Digital POT (100k)
+microchip,mcp4019-502	Microchip 7-bit Single I2C Digital POT (5k)
+microchip,mcp4019-103	Microchip 7-bit Single I2C Digital POT (10k)
+microchip,mcp4019-503	Microchip 7-bit Single I2C Digital POT (50k)
+microchip,mcp4019-104	Microchip 7-bit Single I2C Digital POT (100k)
 microchip,mcp4531-502	Microchip 7-bit Single I2C Digital Potentiometer (5k)
 microchip,mcp4531-103	Microchip 7-bit Single I2C Digital Potentiometer (10k)
 microchip,mcp4531-503	Microchip 7-bit Single I2C Digital Potentiometer (50k)

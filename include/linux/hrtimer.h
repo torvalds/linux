@@ -426,6 +426,7 @@ static inline ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 }
 
 extern u64 hrtimer_get_next_event(void);
+extern u64 hrtimer_next_event_without(const struct hrtimer *exclude);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 

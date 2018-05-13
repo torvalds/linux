@@ -86,6 +86,16 @@ static int (*bpf_perf_prog_read_value)(void *ctx, void *buf,
 	(void *) BPF_FUNC_perf_prog_read_value;
 static int (*bpf_override_return)(void *ctx, unsigned long rc) =
 	(void *) BPF_FUNC_override_return;
+static int (*bpf_msg_redirect_map)(void *ctx, void *map, int key, int flags) =
+	(void *) BPF_FUNC_msg_redirect_map;
+static int (*bpf_msg_apply_bytes)(void *ctx, int len) =
+	(void *) BPF_FUNC_msg_apply_bytes;
+static int (*bpf_msg_cork_bytes)(void *ctx, int len) =
+	(void *) BPF_FUNC_msg_cork_bytes;
+static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
+	(void *) BPF_FUNC_msg_pull_data;
+static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
+	(void *) BPF_FUNC_bind;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -123,6 +133,8 @@ static int (*bpf_skb_under_cgroup)(void *ctx, void *map, int index) =
 	(void *) BPF_FUNC_skb_under_cgroup;
 static int (*bpf_skb_change_head)(void *, int len, int flags) =
 	(void *) BPF_FUNC_skb_change_head;
+static int (*bpf_skb_pull_data)(void *, int len) =
+	(void *) BPF_FUNC_skb_pull_data;
 
 /* Scan the ARCH passed in from ARCH env variable (see Makefile) */
 #if defined(__TARGET_ARCH_x86)

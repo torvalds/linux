@@ -23,7 +23,7 @@
 	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -143,7 +143,7 @@
 		};
 	};
 
-	pmu {
+	pmu: pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupt-parent = <&gpc>;
 		interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;

@@ -61,9 +61,8 @@ struct lpfc_iocbq {
 	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 	uint64_t isr_timestamp;
 
-	/* Be careful here */
-	union lpfc_wqe wqe;	/* WQE cmd */
-	IOCB_t iocb;		/* For IOCB cmd or if we want 128 byte WQE */
+	union lpfc_wqe128 wqe;	/* SLI-4 */
+	IOCB_t iocb;		/* SLI-3 */
 
 	uint8_t rsvd2;
 	uint8_t priority;	/* OAS priority */
@@ -148,6 +147,7 @@ typedef struct lpfcMboxq {
 	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
+	void *context3;
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;

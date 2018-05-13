@@ -1112,7 +1112,7 @@ static int viacam_g_parm(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, video, g_parm, parm);
+	ret = v4l2_g_parm_cap(video_devdata(filp), cam->sensor, parm);
 	mutex_unlock(&cam->lock);
 	parm->parm.capture.readbuffers = cam->n_cap_bufs;
 	return ret;
@@ -1125,7 +1125,7 @@ static int viacam_s_parm(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, video, s_parm, parm);
+	ret = v4l2_s_parm_cap(video_devdata(filp), cam->sensor, parm);
 	mutex_unlock(&cam->lock);
 	parm->parm.capture.readbuffers = cam->n_cap_bufs;
 	return ret;

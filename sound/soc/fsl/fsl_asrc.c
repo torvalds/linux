@@ -582,10 +582,6 @@ static struct snd_soc_dai_driver fsl_asrc_dai = {
 	.ops = &fsl_asrc_dai_ops,
 };
 
-static const struct snd_soc_component_driver fsl_asrc_component = {
-	.name = "fsl-asrc-dai",
-};
-
 static bool fsl_asrc_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -924,12 +920,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 					      &fsl_asrc_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register ASoC DAI\n");
-		return ret;
-	}
-
-	ret = devm_snd_soc_register_platform(&pdev->dev, &fsl_asrc_platform);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register ASoC platform\n");
 		return ret;
 	}
 

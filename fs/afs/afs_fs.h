@@ -31,10 +31,12 @@ enum AFS_FS_Operations {
 	FSGETVOLUMEINFO		= 148,	/* AFS Get information about a volume */
 	FSGETVOLUMESTATUS	= 149,	/* AFS Get volume status information */
 	FSGETROOTVOLUME		= 151,	/* AFS Get root volume name */
+	FSBULKSTATUS		= 155,	/* AFS Fetch multiple file statuses */
 	FSSETLOCK		= 156,	/* AFS Request a file lock */
 	FSEXTENDLOCK		= 157,	/* AFS Extend a file lock */
 	FSRELEASELOCK		= 158,	/* AFS Release a file lock */
 	FSLOOKUP		= 161,	/* AFS lookup file in directory */
+	FSINLINEBULKSTATUS	= 65536, /* AFS Fetch multiple file statuses with inline errors */
 	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
 	FSSTOREDATA64		= 65538, /* AFS Store file data */
 	FSGIVEUPALLCALLBACKS	= 65539, /* AFS Give up all outstanding callbacks on a server */

@@ -204,7 +204,7 @@
 	/*0x23[4] = 1b'0 12H LDO enter normal mode*/			\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(4), 0},			\
-	/*0x04[12:11] = 2b'01enable WL suspend*/			\
+	/*0x04[12:11] = 2b'00 disable WL suspend*/			\
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(3)|BIT(4), 0},
 
@@ -251,7 +251,7 @@
 	/*0x48[16] = 0 to disable GPIO9 as EXT WAKEUP*/			\
 	{0x004A, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(0), 0},			\
-	/*0x04[12:11] = 2b'01enable WL suspend*/			\
+	/*0x04[12:11] = 2b'00 disable WL suspend*/			\
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(3)|BIT(4), 0},		\
 	/*0x23[4] = 1b'0 12H LDO enter normal mode*/			\

@@ -1791,7 +1791,7 @@ out:
 	return -EINVAL;
 }
 
-static int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
+int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 {
 	switch (common->fsm_state) {
 	case FSM_CARD_NOT_READY:

@@ -1901,7 +1901,7 @@ ThunderLAN driver adapter related routines
  *		Nothing
  *	Parms:
  *		dev	The device structure with the list
- *			stuctures to be reset.
+ *			structures to be reset.
  *
  *	This routine sets the variables associated with managing
  *	the TLAN lists to their initial values.

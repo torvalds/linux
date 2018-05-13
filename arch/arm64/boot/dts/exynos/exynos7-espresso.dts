@@ -23,7 +23,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &serial_2;
+		stdout-path = &serial_2;
 	};
 
 	memory@40000000 {

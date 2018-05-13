@@ -30,10 +30,12 @@
 
 static const struct stm32_sai_conf stm32_sai_conf_f4 = {
 	.version = SAI_STM32F4,
+	.has_spdif = false,
 };
 
 static const struct stm32_sai_conf stm32_sai_conf_h7 = {
 	.version = SAI_STM32H7,
+	.has_spdif = true,
 };
 
 static const struct of_device_id stm32_sai_ids[] = {

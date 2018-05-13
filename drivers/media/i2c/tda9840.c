@@ -68,11 +68,15 @@ static void tda9840_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 static int tda9840_status(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int rc;
 	u8 byte;
 
-	if (1 != i2c_master_recv(client, &byte, 1)) {
+	rc = i2c_master_recv(client, &byte, 1);
+	if (rc != 1) {
 		v4l2_dbg(1, debug, sd,
 			"i2c_master_recv() failed\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 

@@ -360,14 +360,6 @@ int sst_assign_pvt_id(struct intel_sst_drv *drv)
 	return local;
 }
 
-void sst_init_stream(struct stream_info *stream,
-		int codec, int sst_id, int ops, u8 slot)
-{
-	stream->status = STREAM_INIT;
-	stream->prev = STREAM_UN_INIT;
-	stream->ops = ops;
-}
-
 int sst_validate_strid(
 		struct intel_sst_drv *sst_drv_ctx, int str_id)
 {

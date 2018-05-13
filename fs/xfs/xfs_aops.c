@@ -209,7 +209,8 @@ xfs_setfilesize_trans_alloc(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0,
+				XFS_TRANS_NOFS, &tp);
 	if (error)
 		return error;
 
@@ -1194,14 +1195,20 @@ xfs_vm_writepages(
 	int			ret;
 
 	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
-	if (dax_mapping(mapping))
-		return dax_writeback_mapping_range(mapping,
-				xfs_find_bdev_for_inode(mapping->host), wbc);
-
 	ret = write_cache_pages(mapping, wbc, xfs_do_writepage, &wpc);
 	if (wpc.ioend)
 		ret = xfs_submit_ioend(wbc, wpc.ioend, ret);
 	return ret;
+}
+
+STATIC int
+xfs_dax_writepages(
+	struct address_space	*mapping,
+	struct writeback_control *wbc)
+{
+	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
+	return dax_writeback_mapping_range(mapping,
+			xfs_find_bdev_for_inode(mapping->host), wbc);
 }
 
 /*
@@ -1330,20 +1337,19 @@ xfs_get_blocks(
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
-	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
-				&imap, &nimaps, XFS_BMAPI_ENTIRE);
+	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
+			&nimaps, 0);
 	if (error)
 		goto out_unlock;
-
-	if (nimaps) {
-		trace_xfs_get_blocks_found(ip, offset, size,
-			imap.br_state == XFS_EXT_UNWRITTEN ?
-				XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
-		xfs_iunlock(ip, lockmode);
-	} else {
+	if (!nimaps) {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
 		goto out_unlock;
 	}
+
+	trace_xfs_get_blocks_found(ip, offset, size,
+		imap.br_state == XFS_EXT_UNWRITTEN ?
+			XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
+	xfs_iunlock(ip, lockmode);
 
 	/* trim mapping down to size requested */
 	xfs_map_trim_size(inode, iblock, bh_result, &imap, offset, size);
@@ -1367,17 +1373,6 @@ out_unlock:
 	return error;
 }
 
-STATIC ssize_t
-xfs_vm_direct_IO(
-	struct kiocb		*iocb,
-	struct iov_iter		*iter)
-{
-	/*
-	 * We just need the method present so that open/fcntl allow direct I/O.
-	 */
-	return -EINVAL;
-}
-
 STATIC sector_t
 xfs_vm_bmap(
 	struct address_space	*mapping,
@@ -1390,7 +1385,7 @@ xfs_vm_bmap(
 
 	/*
 	 * The swap code (ab-)uses ->bmap to get a block mapping and then
-	 * bypasseѕ the file system for actual I/O.  We really can't allow
+	 * bypasses the file system for actual I/O.  We really can't allow
 	 * that on reflinks inodes, so we have to skip out here.  And yes,
 	 * 0 is the magic code for a bmap error.
 	 *
@@ -1472,19 +1467,8 @@ xfs_vm_set_page_dirty(
 	newly_dirty = !TestSetPageDirty(page);
 	spin_unlock(&mapping->private_lock);
 
-	if (newly_dirty) {
-		/* sigh - __set_page_dirty() is static, so copy it here, too */
-		unsigned long flags;
-
-		spin_lock_irqsave(&mapping->tree_lock, flags);
-		if (page->mapping) {	/* Race with truncate? */
-			WARN_ON_ONCE(!PageUptodate(page));
-			account_page_dirtied(page, mapping);
-			radix_tree_tag_set(&mapping->page_tree,
-					page_index(page), PAGECACHE_TAG_DIRTY);
-		}
-		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-	}
+	if (newly_dirty)
+		__set_page_dirty(page, mapping, 1);
 	unlock_page_memcg(page);
 	if (newly_dirty)
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
@@ -1500,8 +1484,15 @@ const struct address_space_operations xfs_address_space_operations = {
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
 	.bmap			= xfs_vm_bmap,
-	.direct_IO		= xfs_vm_direct_IO,
+	.direct_IO		= noop_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
+};
+
+const struct address_space_operations xfs_dax_aops = {
+	.writepages		= xfs_dax_writepages,
+	.direct_IO		= noop_direct_IO,
+	.set_page_dirty		= noop_set_page_dirty,
+	.invalidatepage		= noop_invalidatepage,
 };

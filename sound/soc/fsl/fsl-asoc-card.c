@@ -91,9 +91,9 @@ struct fsl_asoc_card_priv {
 	struct cpu_priv cpu_priv;
 	struct snd_soc_card card;
 	u32 sample_rate;
-	u32 sample_format;
+	snd_pcm_format_t sample_format;
 	u32 asrc_rate;
-	u32 asrc_format;
+	snd_pcm_format_t asrc_format;
 	u32 dai_fmt;
 	char name[32];
 };
@@ -199,7 +199,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	snd_mask_none(mask);
-	snd_mask_set(mask, priv->asrc_format);
+	snd_mask_set(mask, (__force int)priv->asrc_format);
 
 	return 0;
 }

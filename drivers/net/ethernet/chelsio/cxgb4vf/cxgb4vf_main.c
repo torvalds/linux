@@ -155,8 +155,6 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 		const char *fc;
 		const struct port_info *pi = netdev_priv(dev);
 
-		netif_carrier_on(dev);
-
 		switch (pi->link_cfg.speed) {
 		case 100:
 			s = "100Mbps";
@@ -202,7 +200,6 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s, fc);
 	} else {
-		netif_carrier_off(dev);
 		netdev_info(dev, "link down\n");
 	}
 }
@@ -278,6 +275,17 @@ static int link_start(struct net_device *dev)
 	 */
 	if (ret == 0)
 		ret = t4vf_enable_vi(pi->adapter, pi->viid, true, true);
+
+	/* The Virtual Interfaces are connected to an internal switch on the
+	 * chip which allows VIs attached to the same port to talk to each
+	 * other even when the port link is down.  As a result, we generally
+	 * want to always report a VI's link as being "up", provided there are
+	 * no errors in enabling vi.
+	 */
+
+	if (ret == 0)
+		netif_carrier_on(dev);
+
 	return ret;
 }
 
@@ -1281,22 +1289,22 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_KR:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP4_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
-		SET_LMM(10000baseKX4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKX4_Full);
 		break;
 
 	case FW_PORT_TYPE_FIBER_XFI:
@@ -1312,18 +1320,24 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_BP40_BA:
 	case FW_PORT_TYPE_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(40000baseSR4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		break;
 
 	case FW_PORT_TYPE_CR_QSFP:
 	case FW_PORT_TYPE_SFP28:
 		SET_LMM(FIBRE);
-		SET_LMM(25000baseCR_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		break;
 
 	case FW_PORT_TYPE_KR_SFP28:
 		SET_LMM(Backplane);
-		SET_LMM(25000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_KR_XLAUI:
@@ -1335,13 +1349,18 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_CR2_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(50000baseSR2_Full);
+		FW_CAPS_TO_LMM(SPEED_50G, 50000baseSR2_Full);
 		break;
 
 	case FW_PORT_TYPE_KR4_100G:
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(100000baseCR4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
+		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
+		FW_CAPS_TO_LMM(SPEED_100G, 100000baseCR4_Full);
 		break;
 
 	default:
@@ -2383,11 +2402,11 @@ struct cxgb4vf_debugfs_entry {
 };
 
 static struct cxgb4vf_debugfs_entry debugfs_files[] = {
-	{ "mboxlog",    S_IRUGO, &mboxlog_fops },
-	{ "sge_qinfo",  S_IRUGO, &sge_qinfo_debugfs_fops },
-	{ "sge_qstats", S_IRUGO, &sge_qstats_proc_fops },
-	{ "resources",  S_IRUGO, &resources_proc_fops },
-	{ "interfaces", S_IRUGO, &interfaces_proc_fops },
+	{ "mboxlog",    0444, &mboxlog_fops },
+	{ "sge_qinfo",  0444, &sge_qinfo_debugfs_fops },
+	{ "sge_qstats", 0444, &sge_qstats_proc_fops },
+	{ "resources",  0444, &resources_proc_fops },
+	{ "interfaces", 0444, &interfaces_proc_fops },
 };
 
 /*

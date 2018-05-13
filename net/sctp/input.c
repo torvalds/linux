@@ -1010,19 +1010,18 @@ struct sctp_association *sctp_lookup_association(struct net *net,
 }
 
 /* Is there an association matching the given local and peer addresses? */
-int sctp_has_association(struct net *net,
-			 const union sctp_addr *laddr,
-			 const union sctp_addr *paddr)
+bool sctp_has_association(struct net *net,
+			  const union sctp_addr *laddr,
+			  const union sctp_addr *paddr)
 {
-	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 
-	if ((asoc = sctp_lookup_association(net, laddr, paddr, &transport))) {
+	if (sctp_lookup_association(net, laddr, paddr, &transport)) {
 		sctp_transport_put(transport);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /*

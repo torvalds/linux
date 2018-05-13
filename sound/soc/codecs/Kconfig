@@ -35,6 +35,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ADAU7002
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
+	select SND_SOC_AK4458 if I2C
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4554
 	select SND_SOC_AK4613 if I2C
@@ -42,9 +43,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_AK5386
+	select SND_SOC_AK5558 if I2C
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_BT_SCO
+	select SND_SOC_BD28623
 	select SND_SOC_CQ0093VC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
@@ -98,6 +101,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98373 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
+	select SND_SOC_MAX9759
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
@@ -108,6 +112,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
+	select SND_SOC_PCM1789_I2C if I2C
 	select SND_SOC_PCM179X_I2C if I2C
 	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM186X_I2C if I2C
@@ -151,6 +156,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS571X if I2C
 	select SND_SOC_TAS5720 if I2C
 	select SND_SOC_TAS6424 if I2C
+	select SND_SOC_TDA7419 if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -375,6 +381,11 @@ config SND_SOC_AK4104
 	tristate "AKM AK4104 CODEC"
 	depends on SPI_MASTER
 
+config SND_SOC_AK4458
+	tristate "AKM AK4458 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+
 config SND_SOC_AK4535
 	tristate
 
@@ -398,6 +409,11 @@ config SND_SOC_AK4671
 config SND_SOC_AK5386
 	tristate "AKM AK5638 CODEC"
 
+config SND_SOC_AK5558
+	tristate "AKM AK5558 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+
 config SND_SOC_ALC5623
        tristate "Realtek ALC5623 CODEC"
 	depends on I2C
@@ -405,8 +421,19 @@ config SND_SOC_ALC5623
 config SND_SOC_ALC5632
 	tristate
 
+config SND_SOC_BD28623
+	tristate "ROHM BD28623 CODEC"
+	help
+	  Enable support for ROHM BD28623MUV Class D speaker amplifier.
+	  This codec does not have any control buses such as I2C, it
+	  detect format of I2S automatically.
+
 config SND_SOC_BT_SCO
 	tristate "Dummy BT SCO codec driver"
+
+config SND_SOC_CPCAP
+	tristate "Motorola CPCAP codec"
+	depends on MFD_CPCAP
 
 config SND_SOC_CQ0093VC
 	tristate
@@ -615,7 +642,8 @@ config SND_SOC_MAX98504
 	depends on I2C
 
 config SND_SOC_MAX9867
-	tristate
+	tristate "Maxim MAX9867 CODEC"
+	depends on I2C
 
 config SND_SOC_MAX98925
        tristate
@@ -649,6 +677,17 @@ config SND_SOC_MSM8916_WCD_DIGITAL
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C
+
+config SND_SOC_PCM1789
+	tristate
+
+config SND_SOC_PCM1789_I2C
+	tristate "Texas Instruments PCM1789 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_PCM1789
+	help
+	  Enable support for Texas Instruments PCM1789 CODEC.
+	  Select this if your PCM1789 is connected via an I2C bus.
 
 config SND_SOC_PCM179X
 	tristate
@@ -909,6 +948,11 @@ config SND_SOC_TAS6424
 	help
 	  Enable support for Texas Instruments TAS6424 high-efficiency
 	  digital input quad-channel Class-D audio power amplifiers.
+
+config SND_SOC_TDA7419
+	tristate "ST TDA7419 audio processor"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
@@ -1186,6 +1230,10 @@ config SND_SOC_ZX_AUD96P22
 # Amp
 config SND_SOC_LM4857
 	tristate
+
+config SND_SOC_MAX9759
+	tristate "Maxim MAX9759 speaker Amplifier"
+	select GPIOLIB
 
 config SND_SOC_MAX9768
 	tristate

@@ -139,7 +139,9 @@ fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
 	 * in the hope that the original ack will be delivered along with
 	 * the fallback ack.
 	 *
-	 * This workaround is described in HSDES #1604254524
+	 * This workaround is described in HSDES #1604254524 and it's known as:
+	 * WaRsForcewakeAddDelayForAck:skl,bxt,kbl,glk,cfl,cnl,icl
+	 * although the name is a bit misleading.
 	 */
 
 	pass = 1;
@@ -1394,7 +1396,8 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 11) {
 		int i;
 
-		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
+		dev_priv->uncore.funcs.force_wake_get =
+			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_RENDER_GEN9,

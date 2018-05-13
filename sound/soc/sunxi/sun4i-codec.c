@@ -792,15 +792,17 @@ static const struct snd_soc_dapm_route sun4i_codec_codec_dapm_routes[] = {
 	{ "Mic1", NULL, "VMIC" },
 };
 
-static const struct snd_soc_codec_driver sun4i_codec_codec = {
-	.component_driver = {
-		.controls		= sun4i_codec_controls,
-		.num_controls		= ARRAY_SIZE(sun4i_codec_controls),
-		.dapm_widgets		= sun4i_codec_codec_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(sun4i_codec_codec_dapm_widgets),
-		.dapm_routes		= sun4i_codec_codec_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(sun4i_codec_codec_dapm_routes),
-	},
+static const struct snd_soc_component_driver sun4i_codec_codec = {
+	.controls		= sun4i_codec_controls,
+	.num_controls		= ARRAY_SIZE(sun4i_codec_controls),
+	.dapm_widgets		= sun4i_codec_codec_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sun4i_codec_codec_dapm_widgets),
+	.dapm_routes		= sun4i_codec_codec_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(sun4i_codec_codec_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /*** sun6i Codec ***/
@@ -1098,15 +1100,17 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	{ "Right ADC", NULL, "Right ADC Mixer" },
 };
 
-static const struct snd_soc_codec_driver sun6i_codec_codec = {
-	.component_driver = {
-		.controls		= sun6i_codec_codec_widgets,
-		.num_controls		= ARRAY_SIZE(sun6i_codec_codec_widgets),
-		.dapm_widgets		= sun6i_codec_codec_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(sun6i_codec_codec_dapm_widgets),
-		.dapm_routes		= sun6i_codec_codec_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(sun6i_codec_codec_dapm_routes),
-	},
+static const struct snd_soc_component_driver sun6i_codec_codec = {
+	.controls		= sun6i_codec_codec_widgets,
+	.num_controls		= ARRAY_SIZE(sun6i_codec_codec_widgets),
+	.dapm_widgets		= sun6i_codec_codec_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sun6i_codec_codec_dapm_widgets),
+	.dapm_routes		= sun6i_codec_codec_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(sun6i_codec_codec_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /* sun8i A23 codec */
@@ -1126,13 +1130,15 @@ static const struct snd_soc_dapm_widget sun8i_a23_codec_codec_widgets[] = {
 
 };
 
-static const struct snd_soc_codec_driver sun8i_a23_codec_codec = {
-	.component_driver = {
-		.controls		= sun8i_a23_codec_codec_controls,
-		.num_controls		= ARRAY_SIZE(sun8i_a23_codec_codec_controls),
-		.dapm_widgets		= sun8i_a23_codec_codec_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(sun8i_a23_codec_codec_widgets),
-	},
+static const struct snd_soc_component_driver sun8i_a23_codec_codec = {
+	.controls		= sun8i_a23_codec_codec_controls,
+	.num_controls		= ARRAY_SIZE(sun8i_a23_codec_codec_controls),
+	.dapm_widgets		= sun8i_a23_codec_codec_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sun8i_a23_codec_codec_widgets),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_component_driver sun4i_codec_component = {
@@ -1450,7 +1456,7 @@ static const struct regmap_config sun8i_v3s_codec_regmap_config = {
 
 struct sun4i_codec_quirks {
 	const struct regmap_config *regmap_config;
-	const struct snd_soc_codec_driver *codec;
+	const struct snd_soc_component_driver *codec;
 	struct snd_soc_card * (*create_card)(struct device *dev);
 	struct reg_field reg_adc_fifoc;	/* used for regmap_field */
 	unsigned int reg_dac_txdata;	/* TX FIFO offset for DMA config */
@@ -1657,7 +1663,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	scodec->capture_dma_data.maxburst = 8;
 	scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
-	ret = snd_soc_register_codec(&pdev->dev, quirks->codec,
+	ret = devm_snd_soc_register_component(&pdev->dev, quirks->codec,
 				     &sun4i_codec_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our codec\n");
@@ -1669,20 +1675,20 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 					      &dummy_cpu_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our DAI\n");
-		goto err_unregister_codec;
+		goto err_assert_reset;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register against DMAEngine\n");
-		goto err_unregister_codec;
+		goto err_assert_reset;
 	}
 
 	card = quirks->create_card(&pdev->dev);
 	if (IS_ERR(card)) {
 		ret = PTR_ERR(card);
 		dev_err(&pdev->dev, "Failed to create our card\n");
-		goto err_unregister_codec;
+		goto err_assert_reset;
 	}
 
 	snd_soc_card_set_drvdata(card, scodec);
@@ -1690,13 +1696,11 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our card\n");
-		goto err_unregister_codec;
+		goto err_assert_reset;
 	}
 
 	return 0;
 
-err_unregister_codec:
-	snd_soc_unregister_codec(&pdev->dev);
 err_assert_reset:
 	if (scodec->rst)
 		reset_control_assert(scodec->rst);
@@ -1711,7 +1715,6 @@ static int sun4i_codec_remove(struct platform_device *pdev)
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
-	snd_soc_unregister_codec(&pdev->dev);
 	if (scodec->rst)
 		reset_control_assert(scodec->rst);
 	clk_disable_unprepare(scodec->clk_apb);

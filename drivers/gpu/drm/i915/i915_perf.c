@@ -1234,7 +1234,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		 *
 		 * NB: implied RCS engine...
 		 */
-		ring = engine->context_pin(engine, stream->ctx);
+		ring = intel_context_pin(stream->ctx, engine);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 		if (IS_ERR(ring))
 			return PTR_ERR(ring);
@@ -1246,7 +1246,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		 * with gen8+ and execlists
 		 */
 		dev_priv->perf.oa.specific_ctx_id =
-			i915_ggtt_offset(stream->ctx->engine[engine->id].state);
+			i915_ggtt_offset(to_intel_context(stream->ctx, engine)->state);
 	}
 
 	return 0;
@@ -1271,7 +1271,7 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 		mutex_lock(&dev_priv->drm.struct_mutex);
 
 		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-		engine->context_unpin(engine, stream->ctx);
+		intel_context_unpin(stream->ctx, engine);
 
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
@@ -1695,7 +1695,7 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 						 const struct i915_oa_config *oa_config)
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
-	struct i915_gem_timeline *timeline;
+	struct i915_timeline *timeline;
 	struct i915_request *rq;
 	int ret;
 
@@ -1716,15 +1716,11 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 	/* Queue this switch after all other activity */
 	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
 		struct i915_request *prev;
-		struct intel_timeline *tl;
 
-		tl = &timeline->engine[engine->id];
-		prev = i915_gem_active_raw(&tl->last_request,
+		prev = i915_gem_active_raw(&timeline->last_request,
 					   &dev_priv->drm.struct_mutex);
 		if (prev)
-			i915_sw_fence_await_sw_fence_gfp(&rq->submit,
-							 &prev->submit,
-							 GFP_KERNEL);
+			i915_request_await_dma_fence(rq, &prev->fence);
 	}
 
 	i915_request_add(rq);
@@ -1759,6 +1755,7 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	struct i915_gem_context *ctx;
 	int ret;
 	unsigned int wait_flags = I915_WAIT_LOCKED;
@@ -1789,7 +1786,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = &ctx->engine[RCS];
+		struct intel_context *ce = to_intel_context(ctx, engine);
 		u32 *regs;
 
 		/* OA settings will be set upon first use */
@@ -1963,11 +1960,19 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 static void gen7_oa_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN7_OACONTROL, 0);
+	if (intel_wait_for_register(dev_priv,
+				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
+				    50))
+		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
 static void gen8_oa_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN8_OACONTROL, 0);
+	if (intel_wait_for_register(dev_priv,
+				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
+				    50))
+		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
 /**

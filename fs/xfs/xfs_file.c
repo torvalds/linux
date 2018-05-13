@@ -48,20 +48,6 @@
 
 static const struct vm_operations_struct xfs_file_vm_ops;
 
-/*
- * Clear the specified ranges to zero through either the pagecache or DAX.
- * Holes and unwritten extents will be left as-is as they already are zeroed.
- */
-int
-xfs_zero_range(
-	struct xfs_inode	*ip,
-	xfs_off_t		pos,
-	xfs_off_t		count,
-	bool			*did_zero)
-{
-	return iomap_zero_range(VFS_I(ip), pos, count, did_zero, &xfs_iomap_ops);
-}
-
 int
 xfs_update_prealloc_flags(
 	struct xfs_inode	*ip,
@@ -122,7 +108,7 @@ xfs_dir_fsync(
 
 	if (!lsn)
 		return 0;
-	return _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
 }
 
 STATIC int
@@ -182,7 +168,7 @@ xfs_file_fsync(
 	}
 
 	if (lsn) {
-		error = _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, &log_flushed);
+		error = xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, &log_flushed);
 		ip->i_itemp->ili_fsync_fields = 0;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -301,31 +287,6 @@ xfs_file_read_iter(
 }
 
 /*
- * Zero any on disk space between the current EOF and the new, larger EOF.
- *
- * This handles the normal case of zeroing the remainder of the last block in
- * the file and the unusual case of zeroing blocks out beyond the size of the
- * file.  This second case only happens with fixed size extents and when the
- * system crashes before the inode size was updated but after blocks were
- * allocated.
- *
- * Expects the iolock to be held exclusive, and will take the ilock internally.
- */
-int					/* error (positive) */
-xfs_zero_eof(
-	struct xfs_inode	*ip,
-	xfs_off_t		offset,		/* starting I/O offset */
-	xfs_fsize_t		isize,		/* current inode size */
-	bool			*did_zeroing)
-{
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-	ASSERT(offset > isize);
-
-	trace_xfs_zero_eof(ip, isize, offset - isize);
-	return xfs_zero_range(ip, isize, offset - isize, did_zeroing);
-}
-
-/*
  * Common pre-write limit and setup checks.
  *
  * Called with the iolocked held either shared and exclusive according to
@@ -344,6 +305,7 @@ xfs_file_aio_write_checks(
 	ssize_t			error = 0;
 	size_t			count = iov_iter_count(from);
 	bool			drained_dio = false;
+	loff_t			isize;
 
 restart:
 	error = generic_write_checks(iocb, from);
@@ -380,7 +342,8 @@ restart:
 	 * and hence be able to correctly determine if we need to run zeroing.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	if (iocb->ki_pos > i_size_read(inode)) {
+	isize = i_size_read(inode);
+	if (iocb->ki_pos > isize) {
 		spin_unlock(&ip->i_flags_lock);
 		if (!drained_dio) {
 			if (*iolock == XFS_IOLOCK_SHARED) {
@@ -401,7 +364,10 @@ restart:
 			drained_dio = true;
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), NULL);
+	
+		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
+		error = iomap_zero_range(inode, isize, iocb->ki_pos - isize,
+				NULL, &xfs_iomap_ops);
 		if (error)
 			return error;
 	} else

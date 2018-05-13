@@ -18,8 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
@@ -607,19 +605,24 @@ out:
 	return rc;
 }
 
-void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
+static void zcrypt_device_status_mask(struct zcrypt_device_status *devstatus)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;
 	struct zcrypt_device_status *stat;
+	int card, queue;
 
-	memset(matrix, 0, sizeof(*matrix));
+	memset(devstatus, 0, MAX_ZDEV_ENTRIES
+	       * sizeof(struct zcrypt_device_status));
+
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
-			stat = matrix->device;
-			stat += AP_QID_CARD(zq->queue->qid) * MAX_ZDEV_DOMAINS;
-			stat += AP_QID_QUEUE(zq->queue->qid);
+			card = AP_QID_CARD(zq->queue->qid);
+			if (card >= MAX_ZDEV_CARDIDS)
+				continue;
+			queue = AP_QID_QUEUE(zq->queue->qid);
+			stat = &devstatus[card * AP_DOMAINS + queue];
 			stat->hwtype = zc->card->ap_dev.device_type;
 			stat->functions = zc->card->functions >> 26;
 			stat->qid = zq->queue->qid;
@@ -628,40 +631,70 @@ void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
 	}
 	spin_unlock(&zcrypt_list_lock);
 }
-EXPORT_SYMBOL(zcrypt_device_status_mask);
 
-static void zcrypt_status_mask(char status[AP_DEVICES])
+void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;
+	struct zcrypt_device_status_ext *stat;
+	int card, queue;
 
-	memset(status, 0, sizeof(char) * AP_DEVICES);
+	memset(devstatus, 0, MAX_ZDEV_ENTRIES_EXT
+	       * sizeof(struct zcrypt_device_status_ext));
+
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+			card = AP_QID_CARD(zq->queue->qid);
+			queue = AP_QID_QUEUE(zq->queue->qid);
+			stat = &devstatus[card * AP_DOMAINS + queue];
+			stat->hwtype = zc->card->ap_dev.device_type;
+			stat->functions = zc->card->functions >> 26;
+			stat->qid = zq->queue->qid;
+			stat->online = zq->online ? 0x01 : 0x00;
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
+}
+EXPORT_SYMBOL(zcrypt_device_status_mask_ext);
+
+static void zcrypt_status_mask(char status[], size_t max_adapters)
+{
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+	int card;
+
+	memset(status, 0, max_adapters);
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			card = AP_QID_CARD(zq->queue->qid);
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index
+			    || card >= max_adapters)
 				continue;
-			status[AP_QID_CARD(zq->queue->qid)] =
-				zc->online ? zc->user_space_type : 0x0d;
+			status[card] = zc->online ? zc->user_space_type : 0x0d;
 		}
 	}
 	spin_unlock(&zcrypt_list_lock);
 }
 
-static void zcrypt_qdepth_mask(char qdepth[AP_DEVICES])
+static void zcrypt_qdepth_mask(char qdepth[], size_t max_adapters)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;
+	int card;
 
-	memset(qdepth, 0, sizeof(char)	* AP_DEVICES);
+	memset(qdepth, 0, max_adapters);
 	spin_lock(&zcrypt_list_lock);
 	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+			card = AP_QID_CARD(zq->queue->qid);
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index
+			    || card >= max_adapters)
 				continue;
 			spin_lock(&zq->queue->lock);
-			qdepth[AP_QID_CARD(zq->queue->qid)] =
+			qdepth[card] =
 				zq->queue->pendingq_count +
 				zq->queue->requestq_count;
 			spin_unlock(&zq->queue->lock);
@@ -671,21 +704,23 @@ static void zcrypt_qdepth_mask(char qdepth[AP_DEVICES])
 	spin_unlock(&zcrypt_list_lock);
 }
 
-static void zcrypt_perdev_reqcnt(int reqcnt[AP_DEVICES])
+static void zcrypt_perdev_reqcnt(int reqcnt[], size_t max_adapters)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;
+	int card;
 
-	memset(reqcnt, 0, sizeof(int) * AP_DEVICES);
+	memset(reqcnt, 0, sizeof(int) * max_adapters);
 	spin_lock(&zcrypt_list_lock);
 	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+			card = AP_QID_CARD(zq->queue->qid);
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index
+			    || card >= max_adapters)
 				continue;
 			spin_lock(&zq->queue->lock);
-			reqcnt[AP_QID_CARD(zq->queue->qid)] =
-				zq->queue->total_request_count;
+			reqcnt[card] = zq->queue->total_request_count;
 			spin_unlock(&zq->queue->lock);
 		}
 	}
@@ -739,60 +774,10 @@ static int zcrypt_requestq_count(void)
 	return requestq_count;
 }
 
-static int zcrypt_count_type(int type)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-	int device_count;
-
-	device_count = 0;
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		if (zc->card->id != type)
-			continue;
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			device_count++;
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-	return device_count;
-}
-
-/**
- * zcrypt_ica_status(): Old, depracted combi status call.
- *
- * Old, deprecated combi status call.
- */
-static long zcrypt_ica_status(struct file *filp, unsigned long arg)
-{
-	struct ica_z90_status *pstat;
-	int ret;
-
-	pstat = kzalloc(sizeof(*pstat), GFP_KERNEL);
-	if (!pstat)
-		return -ENOMEM;
-	pstat->totalcount = zcrypt_device_count;
-	pstat->leedslitecount = zcrypt_count_type(ZCRYPT_PCICA);
-	pstat->leeds2count = zcrypt_count_type(ZCRYPT_PCICC);
-	pstat->requestqWaitCount = zcrypt_requestq_count();
-	pstat->pendingqWaitCount = zcrypt_pendingq_count();
-	pstat->totalOpenCount = atomic_read(&zcrypt_open_count);
-	pstat->cryptoDomain = ap_domain_index;
-	zcrypt_status_mask(pstat->status);
-	zcrypt_qdepth_mask(pstat->qdepth);
-	ret = 0;
-	if (copy_to_user((void __user *) arg, pstat, sizeof(*pstat)))
-		ret = -EFAULT;
-	kfree(pstat);
-	return ret;
-}
-
 static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				  unsigned long arg)
 {
-	int rc;
+	int rc = 0;
 
 	switch (cmd) {
 	case ICARSAMODEXPO: {
@@ -871,48 +856,48 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		return rc;
 	}
-	case ZDEVICESTATUS: {
-		struct zcrypt_device_matrix *device_status;
+	case ZCRYPT_DEVICE_STATUS: {
+		struct zcrypt_device_status_ext *device_status;
+		size_t total_size = MAX_ZDEV_ENTRIES_EXT
+			* sizeof(struct zcrypt_device_status_ext);
 
-		device_status = kzalloc(sizeof(struct zcrypt_device_matrix),
-					GFP_KERNEL);
+		device_status = kzalloc(total_size, GFP_KERNEL);
 		if (!device_status)
 			return -ENOMEM;
-
-		zcrypt_device_status_mask(device_status);
-
+		zcrypt_device_status_mask_ext(device_status);
 		if (copy_to_user((char __user *) arg, device_status,
-				 sizeof(struct zcrypt_device_matrix))) {
-			kfree(device_status);
-			return -EFAULT;
-		}
-
+				 total_size))
+			rc = -EFAULT;
 		kfree(device_status);
-		return 0;
+		return rc;
 	}
-	case Z90STAT_STATUS_MASK: {
+	case ZCRYPT_STATUS_MASK: {
 		char status[AP_DEVICES];
-		zcrypt_status_mask(status);
-		if (copy_to_user((char __user *) arg, status,
-				 sizeof(char) * AP_DEVICES))
+
+		zcrypt_status_mask(status, AP_DEVICES);
+		if (copy_to_user((char __user *) arg, status, sizeof(status)))
 			return -EFAULT;
 		return 0;
 	}
-	case Z90STAT_QDEPTH_MASK: {
+	case ZCRYPT_QDEPTH_MASK: {
 		char qdepth[AP_DEVICES];
-		zcrypt_qdepth_mask(qdepth);
-		if (copy_to_user((char __user *) arg, qdepth,
-				 sizeof(char) * AP_DEVICES))
+
+		zcrypt_qdepth_mask(qdepth, AP_DEVICES);
+		if (copy_to_user((char __user *) arg, qdepth, sizeof(qdepth)))
 			return -EFAULT;
 		return 0;
 	}
-	case Z90STAT_PERDEV_REQCNT: {
-		int reqcnt[AP_DEVICES];
-		zcrypt_perdev_reqcnt(reqcnt);
-		if (copy_to_user((int __user *) arg, reqcnt,
-				 sizeof(int) * AP_DEVICES))
-			return -EFAULT;
-		return 0;
+	case ZCRYPT_PERDEV_REQCNT: {
+		int *reqcnt;
+
+		reqcnt = kcalloc(AP_DEVICES, sizeof(int), GFP_KERNEL);
+		if (!reqcnt)
+			return -ENOMEM;
+		zcrypt_perdev_reqcnt(reqcnt, AP_DEVICES);
+		if (copy_to_user((int __user *) arg, reqcnt, sizeof(reqcnt)))
+			rc = -EFAULT;
+		kfree(reqcnt);
+		return rc;
 	}
 	case Z90STAT_REQUESTQ_COUNT:
 		return put_user(zcrypt_requestq_count(), (int __user *) arg);
@@ -924,38 +909,54 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	case Z90STAT_DOMAIN_INDEX:
 		return put_user(ap_domain_index, (int __user *) arg);
 	/*
-	 * Deprecated ioctls. Don't add another device count ioctl,
-	 * you can count them yourself in the user space with the
-	 * output of the Z90STAT_STATUS_MASK ioctl.
+	 * Deprecated ioctls
 	 */
-	case ICAZ90STATUS:
-		return zcrypt_ica_status(filp, arg);
-	case Z90STAT_TOTALCOUNT:
-		return put_user(zcrypt_device_count, (int __user *) arg);
-	case Z90STAT_PCICACOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCICA),
-				(int __user *) arg);
-	case Z90STAT_PCICCCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCICC),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCMCL2COUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL2),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCMCL3COUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL3),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL2) +
-				zcrypt_count_type(ZCRYPT_PCIXCC_MCL3),
-				(int __user *) arg);
-	case Z90STAT_CEX2CCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_CEX2C),
-				(int __user *) arg);
-	case Z90STAT_CEX2ACOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_CEX2A),
-				(int __user *) arg);
+	case ZDEVICESTATUS: {
+		/* the old ioctl supports only 64 adapters */
+		struct zcrypt_device_status *device_status;
+		size_t total_size = MAX_ZDEV_ENTRIES
+			* sizeof(struct zcrypt_device_status);
+
+		device_status = kzalloc(total_size, GFP_KERNEL);
+		if (!device_status)
+			return -ENOMEM;
+		zcrypt_device_status_mask(device_status);
+		if (copy_to_user((char __user *) arg, device_status,
+				 total_size))
+			rc = -EFAULT;
+		kfree(device_status);
+		return rc;
+	}
+	case Z90STAT_STATUS_MASK: {
+		/* the old ioctl supports only 64 adapters */
+		char status[MAX_ZDEV_CARDIDS];
+
+		zcrypt_status_mask(status, MAX_ZDEV_CARDIDS);
+		if (copy_to_user((char __user *) arg, status, sizeof(status)))
+			return -EFAULT;
+		return 0;
+	}
+	case Z90STAT_QDEPTH_MASK: {
+		/* the old ioctl supports only 64 adapters */
+		char qdepth[MAX_ZDEV_CARDIDS];
+
+		zcrypt_qdepth_mask(qdepth, MAX_ZDEV_CARDIDS);
+		if (copy_to_user((char __user *) arg, qdepth, sizeof(qdepth)))
+			return -EFAULT;
+		return 0;
+	}
+	case Z90STAT_PERDEV_REQCNT: {
+		/* the old ioctl supports only 64 adapters */
+		int reqcnt[MAX_ZDEV_CARDIDS];
+
+		zcrypt_perdev_reqcnt(reqcnt, MAX_ZDEV_CARDIDS);
+		if (copy_to_user((int __user *) arg, reqcnt, sizeof(reqcnt)))
+			return -EFAULT;
+		return 0;
+	}
+	/* unknown ioctl number */
 	default:
-		/* unknown ioctl number */
+		ZCRYPT_DBF(DBF_DEBUG, "unknown ioctl 0x%08x\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -1152,201 +1153,6 @@ static struct miscdevice zcrypt_misc_device = {
 	.fops	    = &zcrypt_fops,
 };
 
-/*
- * Deprecated /proc entry support.
- */
-static struct proc_dir_entry *zcrypt_entry;
-
-static void sprintcl(struct seq_file *m, unsigned char *addr, unsigned int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		seq_printf(m, "%01x", (unsigned int) addr[i]);
-	seq_putc(m, ' ');
-}
-
-static void sprintrw(struct seq_file *m, unsigned char *addr, unsigned int len)
-{
-	int inl, c, cx;
-
-	seq_printf(m, "	   ");
-	inl = 0;
-	for (c = 0; c < (len / 16); c++) {
-		sprintcl(m, addr+inl, 16);
-		inl += 16;
-	}
-	cx = len%16;
-	if (cx) {
-		sprintcl(m, addr+inl, cx);
-		inl += cx;
-	}
-	seq_putc(m, '\n');
-}
-
-static void sprinthx(unsigned char *title, struct seq_file *m,
-		     unsigned char *addr, unsigned int len)
-{
-	int inl, r, rx;
-
-	seq_printf(m, "\n%s\n", title);
-	inl = 0;
-	for (r = 0; r < (len / 64); r++) {
-		sprintrw(m, addr+inl, 64);
-		inl += 64;
-	}
-	rx = len % 64;
-	if (rx) {
-		sprintrw(m, addr+inl, rx);
-		inl += rx;
-	}
-	seq_putc(m, '\n');
-}
-
-static void sprinthx4(unsigned char *title, struct seq_file *m,
-		      unsigned int *array, unsigned int len)
-{
-	seq_printf(m, "\n%s\n", title);
-	seq_hex_dump(m, "    ", DUMP_PREFIX_NONE, 32, 4, array, len, false);
-	seq_putc(m, '\n');
-}
-
-static int zcrypt_proc_show(struct seq_file *m, void *v)
-{
-	char workarea[sizeof(int) * AP_DEVICES];
-
-	seq_printf(m, "\nzcrypt version: %d.%d.%d\n",
-		   ZCRYPT_VERSION, ZCRYPT_RELEASE, ZCRYPT_VARIANT);
-	seq_printf(m, "Cryptographic domain: %d\n", ap_domain_index);
-	seq_printf(m, "Total device count: %d\n", zcrypt_device_count);
-	seq_printf(m, "PCICA count: %d\n", zcrypt_count_type(ZCRYPT_PCICA));
-	seq_printf(m, "PCICC count: %d\n", zcrypt_count_type(ZCRYPT_PCICC));
-	seq_printf(m, "PCIXCC MCL2 count: %d\n",
-		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL2));
-	seq_printf(m, "PCIXCC MCL3 count: %d\n",
-		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL3));
-	seq_printf(m, "CEX2C count: %d\n", zcrypt_count_type(ZCRYPT_CEX2C));
-	seq_printf(m, "CEX2A count: %d\n", zcrypt_count_type(ZCRYPT_CEX2A));
-	seq_printf(m, "CEX3C count: %d\n", zcrypt_count_type(ZCRYPT_CEX3C));
-	seq_printf(m, "CEX3A count: %d\n", zcrypt_count_type(ZCRYPT_CEX3A));
-	seq_printf(m, "requestq count: %d\n", zcrypt_requestq_count());
-	seq_printf(m, "pendingq count: %d\n", zcrypt_pendingq_count());
-	seq_printf(m, "Total open handles: %d\n\n",
-		   atomic_read(&zcrypt_open_count));
-	zcrypt_status_mask(workarea);
-	sprinthx("Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
-		 "4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A 7=CEX3C 8=CEX3A",
-		 m, workarea, AP_DEVICES);
-	zcrypt_qdepth_mask(workarea);
-	sprinthx("Waiting work element counts", m, workarea, AP_DEVICES);
-	zcrypt_perdev_reqcnt((int *) workarea);
-	sprinthx4("Per-device successfully completed request counts",
-		  m, (unsigned int *) workarea, AP_DEVICES);
-	return 0;
-}
-
-static int zcrypt_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, zcrypt_proc_show, NULL);
-}
-
-static void zcrypt_disable_card(int index)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			zq->online = 0;
-			ap_flush_queue(zq->queue);
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-}
-
-static void zcrypt_enable_card(int index)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			zq->online = 1;
-			ap_flush_queue(zq->queue);
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-}
-
-static ssize_t zcrypt_proc_write(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	unsigned char *lbuf, *ptr;
-	size_t local_count;
-	int j;
-
-	if (count <= 0)
-		return 0;
-
-#define LBUFSIZE 1200UL
-	lbuf = kmalloc(LBUFSIZE, GFP_KERNEL);
-	if (!lbuf)
-		return 0;
-
-	local_count = min(LBUFSIZE - 1, count);
-	if (copy_from_user(lbuf, buffer, local_count) != 0) {
-		kfree(lbuf);
-		return -EFAULT;
-	}
-	lbuf[local_count] = '\0';
-
-	ptr = strstr(lbuf, "Online devices");
-	if (!ptr)
-		goto out;
-	ptr = strstr(ptr, "\n");
-	if (!ptr)
-		goto out;
-	ptr++;
-
-	if (strstr(ptr, "Waiting work element counts") == NULL)
-		goto out;
-
-	for (j = 0; j < 64 && *ptr; ptr++) {
-		/*
-		 * '0' for no device, '1' for PCICA, '2' for PCICC,
-		 * '3' for PCIXCC_MCL2, '4' for PCIXCC_MCL3,
-		 * '5' for CEX2C and '6' for CEX2A'
-		 * '7' for CEX3C and '8' for CEX3A
-		 */
-		if (*ptr >= '0' && *ptr <= '8')
-			j++;
-		else if (*ptr == 'd' || *ptr == 'D')
-			zcrypt_disable_card(j++);
-		else if (*ptr == 'e' || *ptr == 'E')
-			zcrypt_enable_card(j++);
-		else if (*ptr != ' ' && *ptr != '\t')
-			break;
-	}
-out:
-	kfree(lbuf);
-	return count;
-}
-
-static const struct file_operations zcrypt_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= zcrypt_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= zcrypt_proc_write,
-};
-
 static int zcrypt_rng_device_count;
 static u32 *zcrypt_rng_buffer;
 static int zcrypt_rng_buffer_index;
@@ -1448,27 +1254,15 @@ int __init zcrypt_api_init(void)
 	if (rc)
 		goto out;
 
-	atomic_set(&zcrypt_rescan_req, 0);
-
 	/* Register the request sprayer. */
 	rc = misc_register(&zcrypt_misc_device);
 	if (rc < 0)
 		goto out;
 
-	/* Set up the proc file system */
-	zcrypt_entry = proc_create("driver/z90crypt", 0644, NULL,
-				   &zcrypt_proc_fops);
-	if (!zcrypt_entry) {
-		rc = -ENOMEM;
-		goto out_misc;
-	}
-
 	zcrypt_msgtype6_init();
 	zcrypt_msgtype50_init();
 	return 0;
 
-out_misc:
-	misc_deregister(&zcrypt_misc_device);
 out:
 	return rc;
 }
@@ -1480,7 +1274,6 @@ out:
  */
 void __exit zcrypt_api_exit(void)
 {
-	remove_proc_entry("driver/z90crypt", NULL);
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();

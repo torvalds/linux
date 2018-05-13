@@ -32,6 +32,7 @@ struct mtk_iommu_suspend_reg {
 	u32				ctrl_reg;
 	u32				int_control0;
 	u32				int_main_control;
+	u32				ivrp_paddr;
 };
 
 enum mtk_iommu_plat {

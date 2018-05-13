@@ -147,7 +147,7 @@ _bpftool()
 
     # Deal with simplest keywords
     case $prev in
-        help|key|opcodes)
+        help|key|opcodes|visual)
             return 0
             ;;
         tag)
@@ -223,11 +223,16 @@ _bpftool()
                             return 0
                             ;;
                     *)
-                            _bpftool_once_attr 'file'
+                        _bpftool_once_attr 'file'
+                        if _bpftool_search_list 'xlated'; then
+                            COMPREPLY+=( $( compgen -W 'opcodes visual' -- \
+                                "$cur" ) )
+                        else
                             COMPREPLY+=( $( compgen -W 'opcodes' -- \
                                 "$cur" ) )
-                            return 0
-                            ;;
+                        fi
+                        return 0
+                        ;;
                     esac
                     ;;
                 pin)

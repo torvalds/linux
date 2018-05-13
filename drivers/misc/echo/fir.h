@@ -27,14 +27,6 @@
 #define _FIR_H_
 
 /*
-   Blackfin NOTES & IDEAS:
-
-   A simple dot product function is used to implement the filter.  This performs
-   just one MAC/cycle which is inefficient but was easy to implement as a first
-   pass.  The current Blackfin code also uses an unrolled form of the filter
-   history to avoid 0 length hardware loop issues.  This is wasteful of
-   memory.
-
    Ideas for improvement:
 
    1/ Rewrite filter for dual MAC inner loop.  The issue here is handling
@@ -94,21 +86,13 @@ static inline const int16_t *fir16_create(struct fir16_state_t *fir,
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
 	fir->coeffs = coeffs;
-#if defined(__bfin__)
-	fir->history = kcalloc(2 * taps, sizeof(int16_t), GFP_KERNEL);
-#else
 	fir->history = kcalloc(taps, sizeof(int16_t), GFP_KERNEL);
-#endif
 	return fir->history;
 }
 
 static inline void fir16_flush(struct fir16_state_t *fir)
 {
-#if defined(__bfin__)
-	memset(fir->history, 0, 2 * fir->taps * sizeof(int16_t));
-#else
 	memset(fir->history, 0, fir->taps * sizeof(int16_t));
-#endif
 }
 
 static inline void fir16_free(struct fir16_state_t *fir)
@@ -116,42 +100,9 @@ static inline void fir16_free(struct fir16_state_t *fir)
 	kfree(fir->history);
 }
 
-#ifdef __bfin__
-static inline int32_t dot_asm(short *x, short *y, int len)
-{
-	int dot;
-
-	len--;
-
-	__asm__("I0 = %1;\n\t"
-		"I1 = %2;\n\t"
-		"A0 = 0;\n\t"
-		"R0.L = W[I0++] || R1.L = W[I1++];\n\t"
-		"LOOP dot%= LC0 = %3;\n\t"
-		"LOOP_BEGIN dot%=;\n\t"
-		"A0 += R0.L * R1.L (IS) || R0.L = W[I0++] || R1.L = W[I1++];\n\t"
-		"LOOP_END dot%=;\n\t"
-		"A0 += R0.L*R1.L (IS);\n\t"
-		"R0 = A0;\n\t"
-		"%0 = R0;\n\t"
-		: "=&d"(dot)
-		: "a"(x), "a"(y), "a"(len)
-		: "I0", "I1", "A1", "A0", "R0", "R1"
-	);
-
-	return dot;
-}
-#endif
-
 static inline int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 {
 	int32_t y;
-#if defined(__bfin__)
-	fir->history[fir->curr_pos] = sample;
-	fir->history[fir->curr_pos + fir->taps] = sample;
-	y = dot_asm((int16_t *) fir->coeffs, &fir->history[fir->curr_pos],
-		    fir->taps);
-#else
 	int i;
 	int offset1;
 	int offset2;
@@ -165,7 +116,6 @@ static inline int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 		y += fir->coeffs[i] * fir->history[i - offset1];
 	for (; i >= 0; i--)
 		y += fir->coeffs[i] * fir->history[i + offset2];
-#endif
 	if (fir->curr_pos <= 0)
 		fir->curr_pos = fir->taps;
 	fir->curr_pos--;

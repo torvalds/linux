@@ -309,8 +309,6 @@ static void ushc_request(struct mmc_host *mmc, struct mmc_request *req)
 
 	/* Submit CSW. */
 	ret = usb_submit_urb(ushc->csw_urb, GFP_ATOMIC);
-	if (ret < 0)
-		goto out;
 
 out:
 	spin_unlock_irqrestore(&ushc->lock, flags);

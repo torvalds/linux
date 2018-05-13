@@ -46,6 +46,9 @@ struct rxrpc_wire_header {
 #define RXRPC_PACKET_TYPE_CHALLENGE	6	/* connection security challenge (SRVR->CLNT) */
 #define RXRPC_PACKET_TYPE_RESPONSE	7	/* connection secutity response (CLNT->SRVR) */
 #define RXRPC_PACKET_TYPE_DEBUG		8	/* debug info request */
+#define RXRPC_PACKET_TYPE_PARAMS	9	/* Parameter negotiation (unspec'd, ignore) */
+#define RXRPC_PACKET_TYPE_10		10	/* Ignored */
+#define RXRPC_PACKET_TYPE_11		11	/* Ignored */
 #define RXRPC_PACKET_TYPE_VERSION	13	/* version string request */
 #define RXRPC_N_PACKET_TYPES		14	/* number of packet types (incl type 0) */
 
@@ -78,6 +81,9 @@ struct rxrpc_wire_header {
 		(1 << RXRPC_PACKET_TYPE_CHALLENGE) |	\
 		(1 << RXRPC_PACKET_TYPE_RESPONSE) |	\
 		/*(1 << RXRPC_PACKET_TYPE_DEBUG) | */	\
+		(1 << RXRPC_PACKET_TYPE_PARAMS) |	\
+		(1 << RXRPC_PACKET_TYPE_10) |		\
+		(1 << RXRPC_PACKET_TYPE_11) |		\
 		(1 << RXRPC_PACKET_TYPE_VERSION))
 
 /*****************************************************************************/

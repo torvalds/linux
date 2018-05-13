@@ -124,9 +124,17 @@ static int reserve_doorbell(struct intel_guc_client *client)
 	return 0;
 }
 
+static bool has_doorbell(struct intel_guc_client *client)
+{
+	if (client->doorbell_id == GUC_DOORBELL_INVALID)
+		return false;
+
+	return test_bit(client->doorbell_id, client->guc->doorbell_bitmap);
+}
+
 static void unreserve_doorbell(struct intel_guc_client *client)
 {
-	GEM_BUG_ON(client->doorbell_id == GUC_DOORBELL_INVALID);
+	GEM_BUG_ON(!has_doorbell(client));
 
 	__clear_bit(client->doorbell_id, client->guc->doorbell_bitmap);
 	client->doorbell_id = GUC_DOORBELL_INVALID;
@@ -184,14 +192,6 @@ static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 	return client->vaddr + client->doorbell_offset;
 }
 
-static bool has_doorbell(struct intel_guc_client *client)
-{
-	if (client->doorbell_id == GUC_DOORBELL_INVALID)
-		return false;
-
-	return test_bit(client->doorbell_id, client->guc->doorbell_bitmap);
-}
-
 static void __create_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
@@ -206,7 +206,6 @@ static void __destroy_doorbell(struct intel_guc_client *client)
 	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
 	u16 db_id = client->doorbell_id;
-
 
 	doorbell = __get_doorbell(client);
 	doorbell->db_status = GUC_DOORBELL_DISABLED;
@@ -223,6 +222,9 @@ static void __destroy_doorbell(struct intel_guc_client *client)
 static int create_doorbell(struct intel_guc_client *client)
 {
 	int ret;
+
+	if (WARN_ON(!has_doorbell(client)))
+		return -ENODEV; /* internal setup error, should never happen */
 
 	__update_doorbell_desc(client, client->doorbell_id);
 	__create_doorbell(client);
@@ -362,7 +364,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	desc->db_id = client->doorbell_id;
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = &ctx->engine[engine->id];
+		struct intel_context *ce = to_intel_context(ctx, engine);
 		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
@@ -659,7 +661,7 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->priotree.priority;
+	return rq->sched.attr.priority;
 }
 
 static inline int port_prio(const struct execlist_port *port)
@@ -667,7 +669,7 @@ static inline int port_prio(const struct execlist_port *port)
 	return rq_prio(port_request(port));
 }
 
-static void guc_dequeue(struct intel_engine_cs *engine)
+static bool __guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
@@ -677,7 +679,8 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	bool submit = false;
 	struct rb_node *rb;
 
-	spin_lock_irq(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline.lock);
+
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
@@ -692,13 +695,13 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,
 					   &preempt_work->work);
-				goto unlock;
+				return false;
 			}
 		}
 
 		port++;
 		if (port_isset(port))
-			goto unlock;
+			return false;
 	}
 	GEM_BUG_ON(port_isset(port));
 
@@ -706,11 +709,11 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
 			if (last && rq->ctx != last->ctx) {
 				if (port == last_port) {
 					__list_del_many(&p->requests,
-							&rq->priotree.link);
+							&rq->sched.link);
 					goto done;
 				}
 
@@ -719,7 +722,7 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 				port++;
 			}
 
-			INIT_LIST_HEAD(&rq->priotree.link);
+			INIT_LIST_HEAD(&rq->sched.link);
 
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));
@@ -736,19 +739,34 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 done:
 	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
 	execlists->first = rb;
-	if (submit) {
+	if (submit)
 		port_assign(port, last);
+	if (last)
 		execlists_user_begin(execlists, execlists->port);
-		guc_submit(engine);
-	}
 
 	/* We must always keep the beast fed if we have work piled up */
 	GEM_BUG_ON(port_isset(execlists->port) &&
 		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
-unlock:
-	spin_unlock_irq(&engine->timeline->lock);
+	return submit;
+}
+
+static void guc_dequeue(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+	bool submit;
+
+	local_irq_save(flags);
+
+	spin_lock(&engine->timeline.lock);
+	submit = __guc_dequeue(engine);
+	spin_unlock(&engine->timeline.lock);
+
+	if (submit)
+		guc_submit(engine);
+
+	local_irq_restore(flags);
 }
 
 static void guc_submission_tasklet(unsigned long data)
@@ -990,7 +1008,8 @@ static void guc_fill_preempt_context(struct intel_guc *guc)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_context *ce = &client->owner->engine[id];
+		struct intel_context *ce =
+			to_intel_context(client->owner, engine);
 		u32 addr = intel_hws_preempt_done_address(engine);
 		u32 *cs;
 

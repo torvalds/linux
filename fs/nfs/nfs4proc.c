@@ -1045,7 +1045,9 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo,
 	struct nfs_inode *nfsi = NFS_I(dir);
 
 	spin_lock(&dir->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
+	nfsi->cache_validity |= NFS_INO_INVALID_CTIME
+		| NFS_INO_INVALID_MTIME
+		| NFS_INO_INVALID_DATA;
 	if (cinfo->atomic && cinfo->before == inode_peek_iversion_raw(dir)) {
 		nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
 		nfsi->attrtimeo_timestamp = jiffies;
@@ -1669,6 +1671,7 @@ static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmo
 {
 	struct nfs_delegation *delegation;
 
+	fmode &= FMODE_READ|FMODE_WRITE;
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 	if (delegation == NULL || (delegation->type & fmode) == fmode) {
@@ -1751,12 +1754,16 @@ nfs4_opendata_check_deleg(struct nfs4_opendata *data, struct nfs4_state *state)
 	}
 	if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
 		nfs_inode_set_delegation(state->inode,
-					 data->owner->so_cred,
-					 &data->o_res);
+				data->owner->so_cred,
+				data->o_res.delegation_type,
+				&data->o_res.delegation,
+				data->o_res.pagemod_limit);
 	else
 		nfs_inode_reclaim_delegation(state->inode,
-					     data->owner->so_cred,
-					     &data->o_res);
+				data->owner->so_cred,
+				data->o_res.delegation_type,
+				&data->o_res.delegation,
+				data->o_res.pagemod_limit);
 }
 
 /*
@@ -2743,27 +2750,40 @@ static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
  * fields corresponding to attributes that were used to store the verifier.
  * Make sure we clobber those fields in the later setattr call
  */
-static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
+static unsigned nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
 				struct iattr *sattr, struct nfs4_label **label)
 {
-	const u32 *attrset = opendata->o_res.attrset;
+	const __u32 *bitmask = opendata->o_arg.server->exclcreat_bitmask;
+	__u32 attrset[3];
+	unsigned ret;
+	unsigned i;
 
-	if ((attrset[1] & FATTR4_WORD1_TIME_ACCESS) &&
-	    !(sattr->ia_valid & ATTR_ATIME_SET))
-		sattr->ia_valid |= ATTR_ATIME;
+	for (i = 0; i < ARRAY_SIZE(attrset); i++) {
+		attrset[i] = opendata->o_res.attrset[i];
+		if (opendata->o_arg.createmode == NFS4_CREATE_EXCLUSIVE4_1)
+			attrset[i] &= ~bitmask[i];
+	}
 
-	if ((attrset[1] & FATTR4_WORD1_TIME_MODIFY) &&
-	    !(sattr->ia_valid & ATTR_MTIME_SET))
-		sattr->ia_valid |= ATTR_MTIME;
+	ret = (opendata->o_arg.createmode == NFS4_CREATE_EXCLUSIVE) ?
+		sattr->ia_valid : 0;
 
-	/* Except MODE, it seems harmless of setting twice. */
-	if (opendata->o_arg.createmode != NFS4_CREATE_EXCLUSIVE &&
-		(attrset[1] & FATTR4_WORD1_MODE ||
-		 attrset[2] & FATTR4_WORD2_MODE_UMASK))
-		sattr->ia_valid &= ~ATTR_MODE;
+	if ((attrset[1] & (FATTR4_WORD1_TIME_ACCESS|FATTR4_WORD1_TIME_ACCESS_SET))) {
+		if (sattr->ia_valid & ATTR_ATIME_SET)
+			ret |= ATTR_ATIME_SET;
+		else
+			ret |= ATTR_ATIME;
+	}
 
-	if (attrset[2] & FATTR4_WORD2_SECURITY_LABEL)
+	if ((attrset[1] & (FATTR4_WORD1_TIME_MODIFY|FATTR4_WORD1_TIME_MODIFY_SET))) {
+		if (sattr->ia_valid & ATTR_MTIME_SET)
+			ret |= ATTR_MTIME_SET;
+		else
+			ret |= ATTR_MTIME;
+	}
+
+	if (!(attrset[2] & FATTR4_WORD2_SECURITY_LABEL))
 		*label = NULL;
+	return ret;
 }
 
 static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
@@ -2892,12 +2912,15 @@ static int _nfs4_do_open(struct inode *dir,
 
 	if ((opendata->o_arg.open_flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL) &&
 	    (opendata->o_arg.createmode != NFS4_CREATE_GUARDED)) {
-		nfs4_exclusive_attrset(opendata, sattr, &label);
+		unsigned attrs = nfs4_exclusive_attrset(opendata, sattr, &label);
 		/*
 		 * send create attributes which was not set by open
 		 * with an extra setattr.
 		 */
-		if (sattr->ia_valid & NFS4_VALID_ATTRS) {
+		if (attrs || label) {
+			unsigned ia_old = sattr->ia_valid;
+
+			sattr->ia_valid = attrs;
 			nfs_fattr_init(opendata->o_res.f_attr);
 			status = nfs4_do_setattr(state->inode, cred,
 					opendata->o_res.f_attr, sattr,
@@ -2907,6 +2930,7 @@ static int _nfs4_do_open(struct inode *dir,
 						opendata->o_res.f_attr);
 				nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
 			}
+			sattr->ia_valid = ia_old;
 		}
 	}
 	if (opened && opendata->file_created)
@@ -3874,6 +3898,10 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	if (IS_ERR(label))
 		return PTR_ERR(label);
 
+	/* Return any delegations if we're going to change ACLs */
+	if ((sattr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
+		nfs4_inode_make_writeable(inode);
+
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, ctx, NULL, label);
 	if (status == 0) {
 		nfs_setattr_update_inode(inode, sattr, fattr);
@@ -4048,7 +4076,6 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_accessargs args = {
 		.fh = NFS_FH(inode),
-		.bitmask = server->cache_consistency_bitmask,
 		.access = entry->mask,
 	};
 	struct nfs4_accessres res = {
@@ -4062,14 +4089,18 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	};
 	int status = 0;
 
-	res.fattr = nfs_alloc_fattr();
-	if (res.fattr == NULL)
-		return -ENOMEM;
+	if (!nfs_have_delegated_attributes(inode)) {
+		res.fattr = nfs_alloc_fattr();
+		if (res.fattr == NULL)
+			return -ENOMEM;
+		args.bitmask = server->cache_consistency_bitmask;
+	}
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (!status) {
 		nfs_access_set_mask(entry, res.access);
-		nfs_refresh_inode(inode, res.fattr);
+		if (res.fattr)
+			nfs_refresh_inode(inode, res.fattr);
 	}
 	nfs_free_fattr(res.fattr);
 	return status;
@@ -4199,10 +4230,32 @@ static int _nfs4_proc_remove(struct inode *dir, const struct qstr *name)
 	return status;
 }
 
-static int nfs4_proc_remove(struct inode *dir, const struct qstr *name)
+static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
+{
+	struct nfs4_exception exception = { };
+	struct inode *inode = d_inode(dentry);
+	int err;
+
+	if (inode) {
+		if (inode->i_nlink == 1)
+			nfs4_inode_return_delegation(inode);
+		else
+			nfs4_inode_make_writeable(inode);
+	}
+	do {
+		err = _nfs4_proc_remove(dir, &dentry->d_name);
+		trace_nfs4_remove(dir, &dentry->d_name, err);
+		err = nfs4_handle_exception(NFS_SERVER(dir), err,
+				&exception);
+	} while (exception.retry);
+	return err;
+}
+
+static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 {
 	struct nfs4_exception exception = { };
 	int err;
+
 	do {
 		err = _nfs4_proc_remove(dir, name);
 		trace_nfs4_remove(dir, name, err);
@@ -4212,17 +4265,20 @@ static int nfs4_proc_remove(struct inode *dir, const struct qstr *name)
 	return err;
 }
 
-static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
+static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_removeargs *args = msg->rpc_argp;
 	struct nfs_removeres *res = msg->rpc_resp;
+	struct inode *inode = d_inode(dentry);
 
-	res->server = server;
+	res->server = NFS_SB(dentry->d_sb);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVE];
 	nfs4_init_sequence(&args->seq_args, &res->seq_res, 1);
 
 	nfs_fattr_init(res->dir_attr);
+
+	if (inode)
+		nfs4_inode_return_delegation(inode);
 }
 
 static void nfs4_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlinkdata *data)
@@ -4248,14 +4304,21 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	return 1;
 }
 
-static void nfs4_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+static void nfs4_proc_rename_setup(struct rpc_message *msg,
+		struct dentry *old_dentry,
+		struct dentry *new_dentry)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_renameargs *arg = msg->rpc_argp;
 	struct nfs_renameres *res = msg->rpc_resp;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 
+	if (old_inode)
+		nfs4_inode_make_writeable(old_inode);
+	if (new_inode)
+		nfs4_inode_return_delegation(new_inode);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
-	res->server = server;
+	res->server = NFS_SB(old_dentry->d_sb);
 	nfs4_init_sequence(&arg->seq_args, &res->seq_res, 1);
 }
 
@@ -4316,6 +4379,8 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 		goto out;
 	}
 	arg.bitmask = nfs4_bitmask(server, res.label);
+
+	nfs4_inode_make_writeable(inode);
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
@@ -5310,7 +5375,7 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 	i = buf_to_pages_noslab(buf, buflen, arg.acl_pages);
 	if (i < 0)
 		return i;
-	nfs4_inode_return_delegation(inode);
+	nfs4_inode_make_writeable(inode);
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 
 	/*
@@ -5325,7 +5390,8 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 	 * so mark the attribute cache invalid.
 	 */
 	spin_lock(&inode->i_lock);
-	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+		| NFS_INO_INVALID_CTIME;
 	spin_unlock(&inode->i_lock);
 	nfs_access_zap_cache(inode);
 	nfs_zap_acl_cache(inode);
@@ -6621,22 +6687,24 @@ static int
 nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, void *key)
 {
 	int ret;
-	struct cb_notify_lock_args *cbnl = key;
 	struct nfs4_lock_waiter	*waiter	= wait->private;
-	struct nfs_lowner	*lowner = &cbnl->cbnl_owner,
-				*wowner = waiter->owner;
 
-	/* Only wake if the callback was for the same owner */
-	if (lowner->clientid != wowner->clientid ||
-	    lowner->id != wowner->id		 ||
-	    lowner->s_dev != wowner->s_dev)
-		return 0;
+	/* NULL key means to wake up everyone */
+	if (key) {
+		struct cb_notify_lock_args	*cbnl = key;
+		struct nfs_lowner		*lowner = &cbnl->cbnl_owner,
+						*wowner = waiter->owner;
 
-	/* Make sure it's for the right inode */
-	if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
-		return 0;
+		/* Only wake if the callback was for the same owner. */
+		if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
+			return 0;
 
-	waiter->notified = true;
+		/* Make sure it's for the right inode */
+		if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
+			return 0;
+
+		waiter->notified = true;
+	}
 
 	/* override "private" so we can use default_wake_function */
 	wait->private = waiter->task;
@@ -6673,6 +6741,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 	add_wait_queue(q, &wait);
 
 	while(!signalled()) {
+		waiter.notified = false;
 		status = nfs4_proc_setlk(state, cmd, request);
 		if ((status != -EAGAIN) || IS_SETLK(cmd))
 			break;
@@ -8414,6 +8483,8 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 {
 	switch(task->tk_status) {
 	case 0:
+		wake_up_all(&clp->cl_lock_waitq);
+		/* Fallthrough */
 	case -NFS4ERR_COMPLETE_ALREADY:
 	case -NFS4ERR_WRONG_CRED: /* What to do here? */
 		break;
@@ -9593,7 +9664,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.link		= nfs4_proc_link,
 	.symlink	= nfs4_proc_symlink,
 	.mkdir		= nfs4_proc_mkdir,
-	.rmdir		= nfs4_proc_remove,
+	.rmdir		= nfs4_proc_rmdir,
 	.readdir	= nfs4_proc_readdir,
 	.mknod		= nfs4_proc_mknod,
 	.statfs		= nfs4_proc_statfs,
@@ -9614,7 +9685,6 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.close_context  = nfs4_close_context,
 	.open_context	= nfs4_atomic_open,
 	.have_delegation = nfs4_have_delegation,
-	.return_delegation = nfs4_inode_return_delegation,
 	.alloc_client	= nfs4_alloc_client,
 	.init_client	= nfs4_init_client,
 	.free_client	= nfs4_free_client,

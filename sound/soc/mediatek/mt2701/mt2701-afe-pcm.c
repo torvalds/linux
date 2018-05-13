@@ -93,7 +93,8 @@ static int mt2701_afe_i2s_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 
 	if (i2s_num < 0)
@@ -108,7 +109,8 @@ static int mt2701_afe_i2s_path_shutdown(struct snd_pcm_substream *substream,
 					int dir_invert)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[i2s_num];
 	const struct mt2701_i2s_data *i2s_data;
@@ -144,7 +146,8 @@ static void mt2701_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
@@ -176,7 +179,8 @@ static int mt2701_i2s_path_prepare_enable(struct snd_pcm_substream *substream,
 					  int dir_invert)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	struct mt2701_i2s_path *i2s_path = &afe_priv->i2s_path[i2s_num];
 	const struct mt2701_i2s_data *i2s_data;
@@ -247,7 +251,8 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 {
 	int clk_domain;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
@@ -312,7 +317,8 @@ static int mt2701_btmrg_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int ret;
 
@@ -329,14 +335,15 @@ static int mt2701_btmrg_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	int stream_fs;
 	u32 val, msk;
 
 	stream_fs = params_rate(params);
 
 	if ((stream_fs != 8000) && (stream_fs != 16000)) {
-		dev_err(afe->dev, "%s() btmgr not supprt this stream_fs %d\n",
+		dev_err(afe->dev, "%s() btmgr not support this stream_fs %d\n",
 			__func__, stream_fs);
 		return -EINVAL;
 	}
@@ -372,7 +379,8 @@ static void mt2701_btmrg_shutdown(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 
 	/* if the other direction stream is not occupied */
@@ -392,7 +400,8 @@ static int mt2701_simple_fe_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	int stream_dir = substream->stream;
 	int memif_num = rtd->cpu_dai->id;
 	struct mtk_base_afe_memif *memif_tmp;
@@ -414,7 +423,8 @@ static int mt2701_simple_fe_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	int stream_dir = substream->stream;
 
 	/* single DL use PAIR_INTERLEAVE */
@@ -431,7 +441,8 @@ static int mt2701_dlm_fe_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mtk_base_afe_memif *memif_tmp;
 	const struct mtk_base_memif_data *memif_data;
 	int i;
@@ -458,7 +469,8 @@ static void mt2701_dlm_fe_shutdown(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	const struct mtk_base_memif_data *memif_data;
 	int i;
 
@@ -477,7 +489,8 @@ static int mt2701_dlm_fe_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	int channels = params_channels(params);
 
 	regmap_update_bits(afe->regmap,
@@ -500,7 +513,8 @@ static int mt2701_dlm_fe_trigger(struct snd_pcm_substream *substream,
 				 int cmd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct mtk_base_afe_memif *memif_tmp = &afe->memif[MT2701_MEMIF_DL1];
 
 	switch (cmd) {
@@ -1517,7 +1531,8 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 	pm_runtime_get_sync(dev);
 
-	ret = snd_soc_register_platform(dev, &mtk_afe_pcm_platform);
+	ret = devm_snd_soc_register_component(&pdev->dev, &mtk_afe_pcm_platform,
+					      NULL, 0);
 	if (ret) {
 		dev_warn(dev, "err_platform\n");
 		goto err_platform;
@@ -1526,13 +1541,11 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	ret = mt2701_afe_add_component(afe);
 	if (ret) {
 		dev_warn(dev, "err_dai_component\n");
-		goto err_dai_component;
+		goto err_platform;
 	}
 
 	return 0;
 
-err_dai_component:
-	snd_soc_unregister_platform(dev);
 err_platform:
 	pm_runtime_put_sync(dev);
 err_pm_disable:
@@ -1547,9 +1560,6 @@ static int mt2701_afe_pcm_dev_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		mt2701_afe_runtime_suspend(&pdev->dev);
-
-	snd_soc_unregister_component(&pdev->dev);
-	snd_soc_unregister_platform(&pdev->dev);
 
 	return 0;
 }

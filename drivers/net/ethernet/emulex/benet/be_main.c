@@ -34,11 +34,11 @@ MODULE_LICENSE("GPL");
  * Use sysfs method to enable/disable VFs.
  */
 static unsigned int num_vfs;
-module_param(num_vfs, uint, S_IRUGO);
+module_param(num_vfs, uint, 0444);
 MODULE_PARM_DESC(num_vfs, "Number of PCI VFs to initialize");
 
 static ushort rx_frag_size = 2048;
-module_param(rx_frag_size, ushort, S_IRUGO);
+module_param(rx_frag_size, ushort, 0444);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
 /* Per-module error detection/recovery workq shared across all functions.
@@ -5788,7 +5788,7 @@ static ssize_t be_hwmon_show_temp(struct device *dev,
 			       adapter->hwmon_info.be_on_die_temp * 1000);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444,
 			  be_hwmon_show_temp, NULL, 1);
 
 static struct attribute *be_hwmon_attrs[] = {

@@ -90,7 +90,7 @@ controller resets the bus. This notification allows the driver to take necessary
 steps to boot the device so that it's functional after the bus has been reset.
 
 Driver and Controller APIs:
---------------------------
+---------------------------
 .. kernel-doc:: include/linux/slimbus.h
    :internal:
 

@@ -187,7 +187,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
 	BUG_ON(blk_rq_is_passthrough(rq));
 
-	ledtrig_disk_activity();
+	ledtrig_disk_activity(rq_data_dir(rq) == WRITE);
 
 	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
@@ -687,8 +687,8 @@ static void ide_disk_setup(ide_drive_t *drive)
 	       queue_max_sectors(q) / 2);
 
 	if (ata_id_is_ssd(id)) {
-		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
-		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
+		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
 	/* calculate drive capacity, and select LBA if possible */

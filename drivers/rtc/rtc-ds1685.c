@@ -306,7 +306,7 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_yday  = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
 	tm->tm_isdst = 0; /* RTC has hardcoded timezone, so don't use. */
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 /**

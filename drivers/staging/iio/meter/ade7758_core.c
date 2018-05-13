@@ -24,6 +24,17 @@
 #include "meter.h"
 #include "ade7758.h"
 
+static int __ade7758_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
+
+	st->tx[0] = ADE7758_WRITE_REG(reg_address);
+	st->tx[1] = val;
+
+	return spi_write(st->us, st->tx, 2);
+}
+
 int ade7758_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
 {
 	int ret;
@@ -31,10 +42,7 @@ int ade7758_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
 	struct ade7758_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADE7758_WRITE_REG(reg_address);
-	st->tx[1] = val;
-
-	ret = spi_write(st->us, st->tx, 2);
+	ret = __ade7758_spi_write_reg_8(dev, reg_address, val);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -91,7 +99,7 @@ static int ade7758_spi_write_reg_24(struct device *dev, u8 reg_address,
 	return ret;
 }
 
-int ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
+static int __ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
@@ -111,7 +119,6 @@ int ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 		},
 	};
 
-	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7758_READ_REG(reg_address);
 	st->tx[1] = 0;
 
@@ -124,7 +131,19 @@ int ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 	*val = st->rx[0];
 
 error_ret:
+	return ret;
+}
+
+int ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->buf_lock);
+	ret = __ade7758_spi_read_reg_8(dev, reg_address, val);
 	mutex_unlock(&st->buf_lock);
+
 	return ret;
 }
 
@@ -484,6 +503,8 @@ static int ade7758_write_samp_freq(struct device *dev, int val)
 {
 	int ret;
 	u8 reg, t;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 
 	switch (val) {
 	case 26040:
@@ -499,20 +520,23 @@ static int ade7758_write_samp_freq(struct device *dev, int val)
 		t = 3;
 		break;
 	default:
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	ret = ade7758_spi_read_reg_8(dev, ADE7758_WAVMODE, &reg);
+	mutex_lock(&st->buf_lock);
+
+	ret = __ade7758_spi_read_reg_8(dev, ADE7758_WAVMODE, &reg);
 	if (ret)
 		goto out;
 
 	reg &= ~(5 << 3);
 	reg |= t << 5;
 
-	ret = ade7758_spi_write_reg_8(dev, ADE7758_WAVMODE, reg);
+	ret = __ade7758_spi_write_reg_8(dev, ADE7758_WAVMODE, reg);
 
 out:
+	mutex_unlock(&st->buf_lock);
+
 	return ret;
 }
 
@@ -526,9 +550,9 @@ static int ade7758_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&indio_dev->mlock);
+
 		ret = ade7758_read_samp_freq(&indio_dev->dev, val);
-		mutex_unlock(&indio_dev->mlock);
+
 		return ret;
 	default:
 		return -EINVAL;
@@ -547,9 +571,9 @@ static int ade7758_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
 			return -EINVAL;
-		mutex_lock(&indio_dev->mlock);
+
 		ret = ade7758_write_samp_freq(&indio_dev->dev, val);
-		mutex_unlock(&indio_dev->mlock);
+
 		return ret;
 	default:
 		return -EINVAL;

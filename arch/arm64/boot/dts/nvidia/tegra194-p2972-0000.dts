@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra194-p2888.dtsi"
+
+/ {
+	model = "NVIDIA Tegra194 P2972-0000 Development Board";
+	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
+
+	cbb {
+		/* SDMMC1 (SD/MMC) */
+		sdhci@3400000 {
+			status = "okay";
+		};
+	};
+};

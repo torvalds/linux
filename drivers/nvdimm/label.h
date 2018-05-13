@@ -33,7 +33,7 @@ enum {
 	BTTINFO_UUID_LEN = 16,
 	BTTINFO_FLAG_ERROR = 0x1,    /* error state (read-only) */
 	BTTINFO_MAJOR_VERSION = 1,
-	ND_LABEL_MIN_SIZE = 512 * 129, /* see sizeof_namespace_index() */
+	ND_LABEL_MIN_SIZE = 256 * 4, /* see sizeof_namespace_index() */
 	ND_LABEL_ID_SIZE = 50,
 	ND_NSINDEX_INIT = 0x1,
 };

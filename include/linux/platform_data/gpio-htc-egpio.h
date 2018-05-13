@@ -6,8 +6,6 @@
 #ifndef __HTC_EGPIO_H__
 #define __HTC_EGPIO_H__
 
-#include <linux/gpio.h>
-
 /* Descriptive values for all-in or all-out htc_egpio_chip descriptors. */
 #define HTC_EGPIO_OUTPUT (~0)
 #define HTC_EGPIO_INPUT  0

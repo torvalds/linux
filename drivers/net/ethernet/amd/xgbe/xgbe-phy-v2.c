@@ -147,6 +147,14 @@
 /* Rate-change complete wait/retry count */
 #define XGBE_RATECHANGE_COUNT		500
 
+/* CDR delay values for KR support (in usec) */
+#define XGBE_CDR_DELAY_INIT		10000
+#define XGBE_CDR_DELAY_INC		10000
+#define XGBE_CDR_DELAY_MAX		100000
+
+/* RRC frequency during link status check */
+#define XGBE_RRC_FREQUENCY		10
+
 enum xgbe_port_mode {
 	XGBE_PORT_MODE_RSVD = 0,
 	XGBE_PORT_MODE_BACKPLANE,
@@ -245,6 +253,10 @@ enum xgbe_sfp_speed {
 #define XGBE_SFP_BASE_VENDOR_SN			4
 #define XGBE_SFP_BASE_VENDOR_SN_LEN		16
 
+#define XGBE_SFP_EXTD_OPT1			1
+#define XGBE_SFP_EXTD_OPT1_RX_LOS		BIT(1)
+#define XGBE_SFP_EXTD_OPT1_TX_FAULT		BIT(3)
+
 #define XGBE_SFP_EXTD_DIAG			28
 #define XGBE_SFP_EXTD_DIAG_ADDR_CHANGE		BIT(2)
 
@@ -324,6 +336,7 @@ struct xgbe_phy_data {
 
 	unsigned int sfp_gpio_address;
 	unsigned int sfp_gpio_mask;
+	unsigned int sfp_gpio_inputs;
 	unsigned int sfp_gpio_rx_los;
 	unsigned int sfp_gpio_tx_fault;
 	unsigned int sfp_gpio_mod_absent;
@@ -355,6 +368,10 @@ struct xgbe_phy_data {
 	unsigned int redrv_addr;
 	unsigned int redrv_lane;
 	unsigned int redrv_model;
+
+	/* KR AN support */
+	unsigned int phy_cdr_notrack;
+	unsigned int phy_cdr_delay;
 };
 
 /* I2C, MDIO and GPIO lines are muxed, so only one device at a time */
@@ -974,6 +991,49 @@ static void xgbe_phy_sfp_external_phy(struct xgbe_prv_data *pdata)
 	phy_data->sfp_phy_avail = 1;
 }
 
+static bool xgbe_phy_check_sfp_rx_los(struct xgbe_phy_data *phy_data)
+{
+	u8 *sfp_extd = phy_data->sfp_eeprom.extd;
+
+	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_RX_LOS))
+		return false;
+
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_RX_LOS)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_rx_los))
+		return true;
+
+	return false;
+}
+
+static bool xgbe_phy_check_sfp_tx_fault(struct xgbe_phy_data *phy_data)
+{
+	u8 *sfp_extd = phy_data->sfp_eeprom.extd;
+
+	if (!(sfp_extd[XGBE_SFP_EXTD_OPT1] & XGBE_SFP_EXTD_OPT1_TX_FAULT))
+		return false;
+
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_TX_FAULT)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_tx_fault))
+		return true;
+
+	return false;
+}
+
+static bool xgbe_phy_check_sfp_mod_absent(struct xgbe_phy_data *phy_data)
+{
+	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_MOD_ABSENT)
+		return false;
+
+	if (phy_data->sfp_gpio_inputs & (1 << phy_data->sfp_gpio_mod_absent))
+		return true;
+
+	return false;
+}
+
 static bool xgbe_phy_belfuse_parse_quirks(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -1018,6 +1078,10 @@ static void xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 
 	if (sfp_base[XGBE_SFP_BASE_EXT_ID] != XGBE_SFP_EXT_ID_SFP)
 		return;
+
+	/* Update transceiver signals (eeprom extd/options) */
+	phy_data->sfp_tx_fault = xgbe_phy_check_sfp_tx_fault(phy_data);
+	phy_data->sfp_rx_los = xgbe_phy_check_sfp_rx_los(phy_data);
 
 	if (xgbe_phy_sfp_parse_quirks(pdata))
 		return;
@@ -1184,7 +1248,6 @@ put:
 static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int gpio_input;
 	u8 gpio_reg, gpio_ports[2];
 	int ret;
 
@@ -1199,23 +1262,9 @@ static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 		return;
 	}
 
-	gpio_input = (gpio_ports[1] << 8) | gpio_ports[0];
+	phy_data->sfp_gpio_inputs = (gpio_ports[1] << 8) | gpio_ports[0];
 
-	if (phy_data->sfp_gpio_mask & XGBE_GPIO_NO_MOD_ABSENT) {
-		/* No GPIO, just assume the module is present for now */
-		phy_data->sfp_mod_absent = 0;
-	} else {
-		if (!(gpio_input & (1 << phy_data->sfp_gpio_mod_absent)))
-			phy_data->sfp_mod_absent = 0;
-	}
-
-	if (!(phy_data->sfp_gpio_mask & XGBE_GPIO_NO_RX_LOS) &&
-	    (gpio_input & (1 << phy_data->sfp_gpio_rx_los)))
-		phy_data->sfp_rx_los = 1;
-
-	if (!(phy_data->sfp_gpio_mask & XGBE_GPIO_NO_TX_FAULT) &&
-	    (gpio_input & (1 << phy_data->sfp_gpio_tx_fault)))
-		phy_data->sfp_tx_fault = 1;
+	phy_data->sfp_mod_absent = xgbe_phy_check_sfp_mod_absent(phy_data);
 }
 
 static void xgbe_phy_sfp_mod_absent(struct xgbe_prv_data *pdata)
@@ -2361,7 +2410,7 @@ static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 		return 1;
 
 	/* No link, attempt a receiver reset cycle */
-	if (phy_data->rrc_count++) {
+	if (phy_data->rrc_count++ > XGBE_RRC_FREQUENCY) {
 		phy_data->rrc_count = 0;
 		xgbe_phy_rrc(pdata);
 	}
@@ -2669,6 +2718,103 @@ static bool xgbe_phy_port_enabled(struct xgbe_prv_data *pdata)
 	return true;
 }
 
+static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	if (!pdata->debugfs_an_cdr_workaround)
+		return;
+
+	if (!phy_data->phy_cdr_notrack)
+		return;
+
+	usleep_range(phy_data->phy_cdr_delay,
+		     phy_data->phy_cdr_delay + 500);
+
+	XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_VEND2_PMA_CDR_CONTROL,
+			 XGBE_PMA_CDR_TRACK_EN_MASK,
+			 XGBE_PMA_CDR_TRACK_EN_ON);
+
+	phy_data->phy_cdr_notrack = 0;
+}
+
+static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	if (!pdata->debugfs_an_cdr_workaround)
+		return;
+
+	if (phy_data->phy_cdr_notrack)
+		return;
+
+	XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_VEND2_PMA_CDR_CONTROL,
+			 XGBE_PMA_CDR_TRACK_EN_MASK,
+			 XGBE_PMA_CDR_TRACK_EN_OFF);
+
+	xgbe_phy_rrc(pdata);
+
+	phy_data->phy_cdr_notrack = 1;
+}
+
+static void xgbe_phy_kr_training_post(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->debugfs_an_cdr_track_early)
+		xgbe_phy_cdr_track(pdata);
+}
+
+static void xgbe_phy_kr_training_pre(struct xgbe_prv_data *pdata)
+{
+	if (pdata->debugfs_an_cdr_track_early)
+		xgbe_phy_cdr_track(pdata);
+}
+
+static void xgbe_phy_an_post(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
+		if (phy_data->cur_mode != XGBE_MODE_KR)
+			break;
+
+		xgbe_phy_cdr_track(pdata);
+
+		switch (pdata->an_result) {
+		case XGBE_AN_READY:
+		case XGBE_AN_COMPLETE:
+			break;
+		default:
+			if (phy_data->phy_cdr_delay < XGBE_CDR_DELAY_MAX)
+				phy_data->phy_cdr_delay += XGBE_CDR_DELAY_INC;
+			else
+				phy_data->phy_cdr_delay = XGBE_CDR_DELAY_INIT;
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void xgbe_phy_an_pre(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
+		if (phy_data->cur_mode != XGBE_MODE_KR)
+			break;
+
+		xgbe_phy_cdr_notrack(pdata);
+		break;
+	default:
+		break;
+	}
+}
+
 static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -2679,6 +2825,9 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 	/* Reset SFP data */
 	xgbe_phy_sfp_reset(phy_data);
 	xgbe_phy_sfp_mod_absent(pdata);
+
+	/* Reset CDR support */
+	xgbe_phy_cdr_track(pdata);
 
 	/* Power off the PHY */
 	xgbe_phy_power_off(pdata);
@@ -2711,6 +2860,9 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 
 	/* Start in highest supported mode */
 	xgbe_phy_set_mode(pdata, phy_data->start_mode);
+
+	/* Reset CDR support */
+	xgbe_phy_cdr_track(pdata);
 
 	/* After starting the I2C controller, we can check for an SFP */
 	switch (phy_data->port_mode) {
@@ -3019,6 +3171,8 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		}
 	}
 
+	phy_data->phy_cdr_delay = XGBE_CDR_DELAY_INIT;
+
 	/* Register for driving external PHYs */
 	mii = devm_mdiobus_alloc(pdata->dev);
 	if (!mii) {
@@ -3071,4 +3225,10 @@ void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *phy_if)
 	phy_impl->an_advertising	= xgbe_phy_an_advertising;
 
 	phy_impl->an_outcome		= xgbe_phy_an_outcome;
+
+	phy_impl->an_pre		= xgbe_phy_an_pre;
+	phy_impl->an_post		= xgbe_phy_an_post;
+
+	phy_impl->kr_training_pre	= xgbe_phy_kr_training_pre;
+	phy_impl->kr_training_post	= xgbe_phy_kr_training_post;
 }

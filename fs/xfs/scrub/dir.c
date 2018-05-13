@@ -781,7 +781,7 @@ xfs_scrub_directory(
 
 	/* Plausible size? */
 	if (sc->ip->i_d.di_size < xfs_dir2_sf_hdr_size(0)) {
-		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
 		goto out;
 	}
 

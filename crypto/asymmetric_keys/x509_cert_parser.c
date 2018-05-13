@@ -17,8 +17,8 @@
 #include <linux/oid_registry.h>
 #include <crypto/public_key.h>
 #include "x509_parser.h"
-#include "x509-asn1.h"
-#include "x509_akid-asn1.h"
+#include "x509.asn1.h"
+#include "x509_akid.asn1.h"
 
 struct x509_parse_context {
 	struct x509_certificate	*cert;		/* Certificate being constructed */

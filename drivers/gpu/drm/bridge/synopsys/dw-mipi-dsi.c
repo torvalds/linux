@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2016, Fuzhou Rockchip Electronics Co., Ltd
  * Copyright (C) STMicroelectronics SA 2017
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Modified by Philippe Cornu <philippe.cornu@st.com>
  * This generic Synopsys DesignWare MIPI DSI host driver is based on the
@@ -775,20 +771,20 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 
 	clk_prepare_enable(dsi->pclk);
 
-	ret = phy_ops->get_lane_mbps(priv_data, mode, dsi->mode_flags,
+	ret = phy_ops->get_lane_mbps(priv_data, adjusted_mode, dsi->mode_flags,
 				     dsi->lanes, dsi->format, &dsi->lane_mbps);
 	if (ret)
 		DRM_DEBUG_DRIVER("Phy get_lane_mbps() failed\n");
 
 	pm_runtime_get_sync(dsi->dev);
 	dw_mipi_dsi_init(dsi);
-	dw_mipi_dsi_dpi_config(dsi, mode);
+	dw_mipi_dsi_dpi_config(dsi, adjusted_mode);
 	dw_mipi_dsi_packet_handler_config(dsi);
 	dw_mipi_dsi_video_mode_config(dsi);
-	dw_mipi_dsi_video_packet_config(dsi, mode);
+	dw_mipi_dsi_video_packet_config(dsi, adjusted_mode);
 	dw_mipi_dsi_command_mode_config(dsi);
-	dw_mipi_dsi_line_timer_config(dsi, mode);
-	dw_mipi_dsi_vertical_timing_config(dsi, mode);
+	dw_mipi_dsi_line_timer_config(dsi, adjusted_mode);
+	dw_mipi_dsi_vertical_timing_config(dsi, adjusted_mode);
 
 	dw_mipi_dsi_dphy_init(dsi);
 	dw_mipi_dsi_dphy_timing_config(dsi);
@@ -802,7 +798,7 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 
 	dw_mipi_dsi_dphy_enable(dsi);
 
-	dw_mipi_dsi_wait_for_two_frames(mode);
+	dw_mipi_dsi_wait_for_two_frames(adjusted_mode);
 
 	/* Switch to cmd mode for panel-bridge pre_enable & panel prepare */
 	dw_mipi_dsi_set_mode(dsi, 0);

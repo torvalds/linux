@@ -45,6 +45,7 @@ static inline void iounmap(void __iomem *addr)
 	__iounmap(addr);
 }
 
+#define ioremap_nocache ioremap_nocache
 #define ioremap_wc ioremap_nocache
 #define ioremap_wt ioremap_nocache
 

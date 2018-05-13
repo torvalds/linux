@@ -587,7 +587,7 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 		       mpc_ioapic_id(apic), pin);
 }
 
-static void clear_IO_APIC (void)
+void clear_IO_APIC (void)
 {
 	int apic, pin;
 
@@ -1410,7 +1410,7 @@ void __init enable_IO_APIC(void)
 	clear_IO_APIC();
 }
 
-void native_disable_io_apic(void)
+void native_restore_boot_irq_mode(void)
 {
 	/*
 	 * If the i8259 is routed through an IOAPIC
@@ -1438,20 +1438,12 @@ void native_disable_io_apic(void)
 		disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
-/*
- * Not an __init, needed by the reboot code
- */
-void disable_IO_APIC(void)
+void restore_boot_irq_mode(void)
 {
-	/*
-	 * Clear the IO-APIC before rebooting:
-	 */
-	clear_IO_APIC();
-
 	if (!nr_legacy_irqs())
 		return;
 
-	x86_io_apic_ops.disable();
+	x86_apic_ops.restore();
 }
 
 #ifdef CONFIG_X86_32

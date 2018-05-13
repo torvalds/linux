@@ -31,8 +31,6 @@ source "drivers/media/platform/davinci/Kconfig"
 
 source "drivers/media/platform/omap/Kconfig"
 
-source "drivers/media/platform/blackfin/Kconfig"
-
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
 	depends on MEDIA_CAMERA_SUPPORT
@@ -53,26 +51,6 @@ config VIDEO_VIU
 
 	  Say Y here if you want to enable VIU device on MPC5121e Rev2+.
 	  In doubt, say N.
-
-config VIDEO_M32R_AR
-	tristate "AR devices"
-	depends on VIDEO_V4L2
-	depends on M32R || COMPILE_TEST
-	---help---
-	  This is a video4linux driver for the Renesas AR (Artificial Retina)
-	  camera module.
-
-config VIDEO_M32R_AR_M64278
-	tristate "AR device with color module M64278(VGA)"
-	depends on PLAT_M32700UT
-	select VIDEO_M32R_AR
-	---help---
-	  This is a video4linux driver for the Renesas AR (Artificial
-	  Retina) with M64278E-800 camera module.
-	  This module supports VGA(640x480 pixels) resolutions.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called arv.
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
@@ -143,6 +121,15 @@ config VIDEO_STM32_DCMI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called stm32-dcmi.
+
+config VIDEO_RENESAS_CEU
+	tristate "Renesas Capture Engine Unit (CEU) driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	---help---
+	  This is a v4l2 driver for the Renesas CEU Interface
 
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
@@ -582,7 +569,7 @@ config CEC_GPIO
 
 config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"
-       depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+       depends on ARCH_EXYNOS || COMPILE_TEST
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---

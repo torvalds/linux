@@ -534,8 +534,7 @@ static u64 user2rate_bytes(u32 user)
 	u64 r;
 
 	r = user ? U32_MAX / user : U32_MAX;
-	r = (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
-	return r;
+	return (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
 }
 
 static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now,

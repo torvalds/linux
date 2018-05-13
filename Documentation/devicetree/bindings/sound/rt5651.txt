@@ -16,6 +16,23 @@ Optional properties:
 - realtek,dmic-en
   Boolean. true if dmic is used.
 
+- realtek,jack-detect-source
+  u32. Valid values:
+  1: Use JD1_1 pin for jack-detect
+  2: Use JD1_2 pin for jack-detect
+  3: Use JD2 pin for jack-detect
+
+- realtek,over-current-threshold-microamp
+  u32, micbias over-current detection threshold in µA, valid values are
+  600, 1500 and 2000µA.
+
+- realtek,over-current-scale-factor
+  u32, micbias over-current detection scale-factor, valid values are:
+  0: Scale current by 0.5
+  1: Scale current by 0.75
+  2: Scale current by 1.0
+  3: Scale current by 1.5
+
 Pins on the device (for linking into audio routes) for RT5651:
 
   * DMIC L1

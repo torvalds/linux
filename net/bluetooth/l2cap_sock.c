@@ -358,7 +358,7 @@ done:
 }
 
 static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
-			      int *len, int peer)
+			      int peer)
 {
 	struct sockaddr_l2 *la = (struct sockaddr_l2 *) addr;
 	struct sock *sk = sock->sk;
@@ -373,7 +373,6 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
 
 	memset(la, 0, sizeof(struct sockaddr_l2));
 	addr->sa_family = AF_BLUETOOTH;
-	*len = sizeof(struct sockaddr_l2);
 
 	la->l2_psm = chan->psm;
 
@@ -387,7 +386,7 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
 		la->l2_bdaddr_type = chan->src_type;
 	}
 
-	return 0;
+	return sizeof(struct sockaddr_l2);
 }
 
 static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,

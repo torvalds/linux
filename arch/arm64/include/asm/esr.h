@@ -240,6 +240,15 @@
 		(((e) & ESR_ELx_SYS64_ISS_OP2_MASK) >>		\
 		 ESR_ELx_SYS64_ISS_OP2_SHIFT))
 
+/*
+ * ISS field definitions for floating-point exception traps
+ * (FP_EXC_32/FP_EXC_64).
+ *
+ * (The FPEXC_* constants are used instead for common bits.)
+ */
+
+#define ESR_ELx_FP_EXC_TFV	(UL(1) << 23)
+
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 

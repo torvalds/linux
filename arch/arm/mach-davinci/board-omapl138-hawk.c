@@ -127,8 +127,8 @@ static struct gpiod_lookup_table mmc_gpios_table = {
 	.dev_id = "da830-mmc.0",
 	.table = {
 		/* CD: gpio3_12: gpio60: chip 1 contains gpio range 32-63*/
-		GPIO_LOOKUP("davinci_gpio.1", 28, "cd", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("davinci_gpio.1", 29, "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("davinci_gpio.0", 28, "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("davinci_gpio.0", 29, "wp", GPIO_ACTIVE_LOW),
 	},
 };
 
@@ -281,10 +281,6 @@ static __init void omapl138_hawk_init(void)
 {
 	int ret;
 
-	ret = da8xx_register_cfgchip();
-	if (ret)
-		pr_warn("%s: CFGCHIP registration failed: %d\n", __func__, ret);
-
 	ret = da850_register_gpio();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
@@ -334,10 +330,9 @@ MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
 	.atag_offset	= 0x100,
 	.map_io		= omapl138_hawk_map_io,
 	.init_irq	= cp_intc_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= da850_init_time,
 	.init_machine	= omapl138_hawk_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= da8xx_restart,
 	.reserve	= da8xx_rproc_reserve_cma,
 MACHINE_END

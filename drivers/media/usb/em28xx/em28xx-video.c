@@ -1,30 +1,26 @@
-/*
-   em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
-		    video capture devices
-
-   Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
-		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@infradead.org>
-		      Sascha Sommer <saschasommer@freenet.de>
-   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
-
-	Some parts based on SN9C10x PC Camera Controllers GPL driver made
-		by Luca Risolia <luca.risolia@studio.unibo.it>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
+//		    video capture devices
+//
+// Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
+//		      Markus Rechberger <mrechberger@gmail.com>
+//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Sascha Sommer <saschasommer@freenet.de>
+// Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
+//
+//	Some parts based on SN9C10x PC Camera Controllers GPL driver made
+//		by Luca Risolia <luca.risolia@studio.unibo.it>
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
 #include "em28xx.h"
 
@@ -77,7 +73,7 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC " - v4l2 interface");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(EM28XX_VERSION);
 
 #define EM25XX_FRMDATAHDR_BYTE1			0x02
@@ -148,7 +144,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return v4l2->sensor_xres;
 
 	if (dev->board.max_range_640_480)
@@ -161,7 +157,7 @@ static inline unsigned int norm_maxh(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return v4l2->sensor_yres;
 
 	if (dev->board.max_range_640_480)
@@ -176,7 +172,7 @@ static int em28xx_vbi_supported(struct em28xx *dev)
 	if (disable_vbi == 1)
 		return 0;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return 0;
 
 	/* FIXME: check subdevices for VBI support */
@@ -250,7 +246,8 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 	if (em28xx_vbi_supported(dev) == 1) {
 		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, v4l2->vbi_width/4);
+		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH,
+				 v4l2->vbi_width / 4);
 		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, v4l2->vbi_height);
 		if (v4l2->norm & V4L2_STD_525_60) {
 			/* NTSC */
@@ -320,8 +317,10 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		buf[0] = v;
 		buf[1] = v >> 8;
 		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
-		/* it seems that both H and V scalers must be active
-		   to work correctly */
+		/*
+		 * it seems that both H and V scalers must be active
+		 * to work correctly
+		 */
 		mode = (h || v) ? 0x30 : 0x00;
 	}
 	return em28xx_write_reg(dev, EM28XX_R26_COMPR, mode);
@@ -345,13 +344,15 @@ static int em28xx_resolution_set(struct em28xx *dev)
 
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 
-	/* If we don't set the start position to 2 in VBI mode, we end up
-	   with line 20/21 being YUYV encoded instead of being in 8-bit
-	   greyscale.  The core of the issue is that line 21 (and line 23 for
-	   PAL WSS) are inside of active video region, and as a result they
-	   get the pixelformatting associated with that area.  So by cropping
-	   it out, we end up with the same format as the rest of the VBI
-	   region */
+	/*
+	 * If we don't set the start position to 2 in VBI mode, we end up
+	 * with line 20/21 being YUYV encoded instead of being in 8-bit
+	 * greyscale.  The core of the issue is that line 21 (and line 23 for
+	 * PAL WSS) are inside of active video region, and as a result they
+	 * get the pixelformatting associated with that area.  So by cropping
+	 * it out, we end up with the same format as the rest of the VBI
+	 * region
+	 */
 	if (em28xx_vbi_supported(dev) == 1)
 		em28xx_capture_area_set(dev, 0, 2, width, height);
 	else
@@ -365,14 +366,16 @@ static int em28xx_set_alternate(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
-	int errCode;
+	int err;
 	int i;
 	unsigned int min_pkt_size = v4l2->width * 2 + 4;
 
-	/* NOTE: for isoc transfers, only alt settings > 0 are allowed
-		 bulk transfers seem to work only with alt=0 ! */
+	/*
+	 * NOTE: for isoc transfers, only alt settings > 0 are allowed
+	 * bulk transfers seem to work only with alt=0 !
+	 */
 	dev->alt = 0;
-	if ((alt > 0) && (alt < dev->num_alt)) {
+	if (alt > 0 && alt < dev->num_alt) {
 		em28xx_videodbg("alternate forced to %d\n", dev->alt);
 		dev->alt = alt;
 		goto set_alt;
@@ -380,9 +383,10 @@ static int em28xx_set_alternate(struct em28xx *dev)
 	if (dev->analog_xfer_bulk)
 		goto set_alt;
 
-	/* When image size is bigger than a certain value,
-	   the frame size should be increased, otherwise, only
-	   green screen will be received.
+	/*
+	 * When image size is bigger than a certain value,
+	 * the frame size should be increased, otherwise, only
+	 * green screen will be received.
 	 */
 	if (v4l2->width * 2 * v4l2->height > 720 * 240 * 2)
 		min_pkt_size *= 2;
@@ -392,18 +396,22 @@ static int em28xx_set_alternate(struct em28xx *dev)
 		if (dev->alt_max_pkt_size_isoc[i] >= min_pkt_size) {
 			dev->alt = i;
 			break;
-		/* otherwise make sure that we end up with the maximum bandwidth
-		   because the min_pkt_size equation might be wrong...
-		*/
+		/*
+		 * otherwise make sure that we end up with the maximum
+		 * bandwidth because the min_pkt_size equation might be wrong.
+		 *
+		 */
 		} else if (dev->alt_max_pkt_size_isoc[i] >
 			   dev->alt_max_pkt_size_isoc[dev->alt])
 			dev->alt = i;
 	}
 
 set_alt:
-	/* NOTE: for bulk transfers, we need to call usb_set_interface()
+	/*
+	 * NOTE: for bulk transfers, we need to call usb_set_interface()
 	 * even if the previous settings were the same. Otherwise streaming
-	 * fails with all urbs having status = -EOVERFLOW ! */
+	 * fails with all urbs having status = -EOVERFLOW !
+	 */
 	if (dev->analog_xfer_bulk) {
 		dev->max_pkt_size = 512; /* USB 2.0 spec */
 		dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
@@ -416,19 +424,19 @@ set_alt:
 	}
 	em28xx_videodbg("setting alternate %d with wMaxPacketSize=%u\n",
 			dev->alt, dev->max_pkt_size);
-	errCode = usb_set_interface(udev, dev->ifnum, dev->alt);
-	if (errCode < 0) {
+	err = usb_set_interface(udev, dev->ifnum, dev->alt);
+	if (err < 0) {
 		dev_err(&dev->intf->dev,
 			"cannot change alternate number to %d (error=%i)\n",
-			dev->alt, errCode);
-		return errCode;
+			dev->alt, err);
+		return err;
 	}
 	return 0;
 }
 
-/* ------------------------------------------------------------------
-	DMA and thread functions
-   ------------------------------------------------------------------*/
+/*
+ * DMA and thread functions
+ */
 
 /*
  * Finish the current buffer
@@ -514,8 +522,9 @@ static void em28xx_copy_video(struct em28xx *dev,
 			em28xx_isocdbg("Overflow of %zu bytes past buffer end(2)\n",
 				       ((char *)startwrite + lencopy) -
 				       ((char *)buf->vb_buf + buf->length));
-			lencopy = remain = (char *)buf->vb_buf + buf->length -
-				(char *)startwrite;
+			remain = (char *)buf->vb_buf + buf->length -
+				 (char *)startwrite;
+			lencopy = remain;
 		}
 		if (lencopy <= 0)
 			break;
@@ -623,11 +632,11 @@ finish_field_prepare_next(struct em28xx *dev,
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
 	if (v4l2->progressive || v4l2->top_field) { /* Brand new frame */
-		if (buf != NULL)
+		if (buf)
 			finish_buffer(dev, buf);
 		buf = get_next_buf(dev, dma_q);
 	}
-	if (buf != NULL) {
+	if (buf) {
 		buf->top_field = v4l2->top_field;
 		buf->pos = 0;
 	}
@@ -648,13 +657,17 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 	struct em28xx_dmaqueue  *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue  *vbi_dma_q = &dev->vbiq;
 
-	/* capture type 0 = vbi start
-	   capture type 1 = vbi in progress
-	   capture type 2 = video start
-	   capture type 3 = video in progress */
+	/*
+	 * capture type 0 = vbi start
+	 * capture type 1 = vbi in progress
+	 * capture type 2 = video start
+	 * capture type 3 = video in progress
+	 */
 	if (data_len >= 4) {
-		/* NOTE: Headers are always 4 bytes and
-		 * never split across packets */
+		/*
+		 * NOTE: Headers are always 4 bytes and
+		 * never split across packets
+		 */
 		if (data_pkt[0] == 0x88 && data_pkt[1] == 0x88 &&
 		    data_pkt[2] == 0x88 && data_pkt[3] == 0x88) {
 			/* Continuation */
@@ -677,8 +690,10 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 			data_len -= 4;
 		}
 	}
-	/* NOTE: With bulk transfers, intermediate data packets
-	 * have no continuation header */
+	/*
+	 * NOTE: With bulk transfers, intermediate data packets
+	 * have no continuation header
+	 */
 
 	if (v4l2->capture_type == 0) {
 		vbi_buf = finish_field_prepare_next(dev, vbi_buf, vbi_dma_q);
@@ -692,7 +707,7 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 				   (vbi_size - v4l2->vbi_read) : data_len;
 
 		/* Copy VBI data */
-		if (vbi_buf != NULL)
+		if (vbi_buf)
 			em28xx_copy_vbi(dev, vbi_buf, data_pkt, vbi_data_len);
 		v4l2->vbi_read += vbi_data_len;
 
@@ -710,7 +725,7 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 		v4l2->capture_type = 3;
 	}
 
-	if (v4l2->capture_type == 3 && buf != NULL && data_len > 0)
+	if (v4l2->capture_type == 3 && buf && data_len > 0)
 		em28xx_copy_video(dev, buf, data_pkt, data_len);
 }
 
@@ -727,8 +742,10 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 	bool frame_end = false;
 
 	/* Check for header */
-	/* NOTE: at least with bulk transfers, only the first packet
-	 * has a header and has always set the FRAME_END bit         */
+	/*
+	 * NOTE: at least with bulk transfers, only the first packet
+	 * has a header and has always set the FRAME_END bit
+	 */
 	if (data_len >= 2) {	/* em25xx header is only 2 bytes long */
 		if ((data_pkt[0] == EM25XX_FRMDATAHDR_BYTE1) &&
 		    ((data_pkt[1] & ~EM25XX_FRMDATAHDR_BYTE2_MASK) == 0x00)) {
@@ -745,14 +762,15 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 			buf = finish_field_prepare_next(dev, buf, dmaq);
 			dev->usb_ctl.vid_buf = buf;
 		}
-		/* NOTE: in ISOC mode when a new frame starts and buf==NULL,
+		/*
+		 * NOTE: in ISOC mode when a new frame starts and buf==NULL,
 		 * we COULD already prepare a buffer here to avoid skipping the
 		 * first frame.
 		 */
 	}
 
 	/* Copy data */
-	if (buf != NULL && data_len > 0)
+	if (buf && data_len > 0)
 		em28xx_copy_video(dev, buf, data_pkt, data_len);
 
 	/* Finish frame (ISOC only) => avoids lag of 1 frame */
@@ -761,14 +779,17 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 		dev->usb_ctl.vid_buf = buf;
 	}
 
-	/* NOTE: Tested with USB bulk transfers only !
+	/*
+	 * NOTES:
+	 *
+	 * 1) Tested with USB bulk transfers only !
 	 * The wording in the datasheet suggests that isoc might work different.
 	 * The current code assumes that with isoc transfers each packet has a
 	 * header like with the other em28xx devices.
+	 *
+	 * 2) Support for interlaced mode is pure theory. It has not been
+	 * tested and it is unknown if these devices actually support it.
 	 */
-	/* NOTE: Support for interlaced mode is pure theory. It has not been
-	 * tested and it is unknown if these devices actually support it. */
-	/* NOTE: No VBI support yet (these chips likely do not support VBI). */
 }
 
 /* Processes and copies the URB data content (video and VBI data) */
@@ -829,12 +850,11 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		else
 			process_frame_data_em28xx(dev,
 						  usb_data_pkt, usb_data_len);
-
 	}
 	return 1;
 }
 
-static int get_ressource(enum v4l2_buf_type f_type)
+static int get_resource(enum v4l2_buf_type f_type)
 {
 	switch (f_type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -842,14 +862,15 @@ static int get_ressource(enum v4l2_buf_type f_type)
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		return EM28XX_RESOURCE_VBI;
 	default:
-		BUG();
+		WARN_ON(1);
+		return -1; /* Indicate that device is busy */
 	}
 }
 
 /* Usage lock check functions */
 static int res_get(struct em28xx *dev, enum v4l2_buf_type f_type)
 {
-	int res_type = get_ressource(f_type);
+	int res_type = get_resource(f_type);
 
 	/* is it free? */
 	if (dev->resources & res_type) {
@@ -865,7 +886,7 @@ static int res_get(struct em28xx *dev, enum v4l2_buf_type f_type)
 
 static void res_free(struct em28xx *dev, enum v4l2_buf_type f_type)
 {
-	int res_type = get_ressource(f_type);
+	int res_type = get_resource(f_type);
 
 	dev->resources &= ~res_type;
 	em28xx_videodbg("res: put %d\n", res_type);
@@ -937,10 +958,11 @@ static int em28xx_enable_analog_tuner(struct em28xx *dev)
 				flags ? "enabled" : "disabled",
 				ret);
 			return ret;
-		} else
-			em28xx_videodbg("link %s->%s was %s\n",
-					source->name, sink->name,
-					flags ? "ENABLED" : "disabled");
+		}
+
+		em28xx_videodbg("link %s->%s was %s\n",
+				source->name, sink->name,
+				flags ? "ENABLED" : "disabled");
 	}
 #endif
 	return 0;
@@ -976,7 +998,7 @@ static void em28xx_v4l2_create_entities(struct em28xx *dev)
 	}
 
 	/* Webcams don't have input connectors */
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return;
 
 	/* Create entities for each input connector */
@@ -1016,10 +1038,9 @@ static void em28xx_v4l2_create_entities(struct em28xx *dev)
 #endif
 }
 
-
-/* ------------------------------------------------------------------
-	Videobuf2 operations
-   ------------------------------------------------------------------*/
+/*
+ * Videobuf2 operations
+ */
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
@@ -1072,8 +1093,10 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 
 	em28xx_videodbg("%s\n", __func__);
 
-	/* Make sure streaming is not already in progress for this type
-	   of filehandle (e.g. video, vbi) */
+	/*
+	 * Make sure streaming is not already in progress for this type
+	 * of filehandle (e.g. video, vbi)
+	 */
 	rc = res_get(dev, vq->type);
 	if (rc)
 		return rc;
@@ -1084,9 +1107,10 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 		/* Allocate the USB bandwidth */
 		em28xx_set_alternate(dev);
 
-		/* Needed, since GPIO might have disabled power of
-		   some i2c device
-		*/
+		/*
+		 * Needed, since GPIO might have disabled power of
+		 * some i2c device
+		 */
 		em28xx_wake_i2c(dev);
 
 		v4l2->capture_type = -1;
@@ -1145,7 +1169,7 @@ static void em28xx_stop_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->usb_ctl.vid_buf != NULL) {
+	if (dev->usb_ctl.vid_buf) {
 		vb2_buffer_done(&dev->usb_ctl.vid_buf->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 		dev->usb_ctl.vid_buf = NULL;
@@ -1180,7 +1204,7 @@ void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->usb_ctl.vbi_buf != NULL) {
+	if (dev->usb_ctl.vbi_buf) {
 		vb2_buffer_done(&dev->usb_ctl.vbi_buf->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 		dev->usb_ctl.vbi_buf = NULL;
@@ -1261,7 +1285,9 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	return 0;
 }
 
-/*********************  v4l2 interface  **************************************/
+/*
+ * v4l2 interface
+ */
 
 static void video_mux(struct em28xx *dev, int index)
 {
@@ -1277,7 +1303,7 @@ static void video_mux(struct em28xx *dev, int index)
 	v4l2_device_call_all(v4l2_dev, 0, video, s_routing,
 			     INPUT(index)->vmux, 0, 0);
 
-	if (dev->board.has_msp34xx) {
+	if (dev->has_msp34xx) {
 		if (dev->i2s_speed) {
 			v4l2_device_call_all(v4l2_dev, 0, audio,
 					     s_i2s_clock_freq, dev->i2s_speed);
@@ -1394,9 +1420,9 @@ static void scale_to_size(struct em28xx *dev,
 		*height = 1;
 }
 
-/* ------------------------------------------------------------------
-	IOCTL vidioc handling
-   ------------------------------------------------------------------*/
+/*
+ * IOCTL vidioc handling
+ */
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
@@ -1462,8 +1488,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		if (width == maxw && height == maxh)
 			width /= 2;
 	} else {
-		/* width must even because of the YUYV format
-		   height must be even because of interlacing */
+		/*
+		 * width must even because of the YUYV format
+		 * height must be even because of interlacing
+		 */
 		v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh,
 				      1, 0);
 	}
@@ -1493,7 +1521,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
-				   unsigned width, unsigned height)
+				   unsigned int width, unsigned int height)
 {
 	struct em28xx_fmt     *fmt;
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
@@ -1582,17 +1610,26 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 static int vidioc_g_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
+	struct v4l2_subdev_frame_interval ival = { 0 };
 	struct em28xx      *dev  = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	int rc = 0;
 
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
-	if (dev->board.is_webcam)
+	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	if (dev->is_webcam) {
 		rc = v4l2_device_call_until_err(&v4l2->v4l2_dev, 0,
-						video, g_parm, p);
-	else
+						video, g_frame_interval, &ival);
+		if (!rc)
+			p->parm.capture.timeperframe = ival.interval;
+	} else {
 		v4l2_video_std_frame_period(v4l2->norm,
 					    &p->parm.capture.timeperframe);
+	}
 
 	return rc;
 }
@@ -1601,10 +1638,27 @@ static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
 	struct em28xx *dev = video_drvdata(file);
+	struct v4l2_subdev_frame_interval ival = {
+		0,
+		p->parm.capture.timeperframe
+	};
+	int rc = 0;
 
+	if (!dev->is_webcam)
+		return -ENOTTY;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	memset(&p->parm, 0, sizeof(p->parm));
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
-	return v4l2_device_call_until_err(&dev->v4l2->v4l2_dev,
-					  0, video, s_parm, p);
+	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	rc = v4l2_device_call_until_err(&dev->v4l2->v4l2_dev, 0,
+					video, s_frame_interval, &ival);
+	if (!rc)
+		p->parm.capture.timeperframe = ival.interval;
+	return rc;
 }
 
 static int vidioc_enum_input(struct file *file, void *priv,
@@ -1616,20 +1670,19 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	n = i->index;
 	if (n >= MAX_EM28XX_INPUT)
 		return -EINVAL;
-	if (0 == INPUT(n)->type)
+	if (!INPUT(n)->type)
 		return -EINVAL;
 
-	i->index = n;
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 
 	strcpy(i->name, iname[INPUT(n)->type]);
 
-	if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type))
+	if (INPUT(n)->type == EM28XX_VMUX_TELEVISION)
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
 	i->std = dev->v4l2->vdev.tvnorms;
 	/* webcams do not have the STD API */
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		i->capabilities = 0;
 
 	return 0;
@@ -1650,7 +1703,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	if (i >= MAX_EM28XX_INPUT)
 		return -EINVAL;
-	if (0 == INPUT(i)->type)
+	if (!INPUT(i)->type)
 		return -EINVAL;
 
 	video_mux(dev, i);
@@ -1696,13 +1749,14 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *priv,
+			  const struct v4l2_audio *a)
 {
 	struct em28xx *dev = video_drvdata(file);
 
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
-	if (0 == INPUT(a->index)->type)
+	if (!INPUT(a->index)->type)
 		return -EINVAL;
 
 	dev->ctl_ainput = INPUT(a->index)->amux;
@@ -1719,7 +1773,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 {
 	struct em28xx *dev = video_drvdata(file);
 
-	if (0 != t->index)
+	if (t->index != 0)
 		return -EINVAL;
 
 	strcpy(t->name, "Tuner");
@@ -1733,7 +1787,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 {
 	struct em28xx *dev = video_drvdata(file);
 
-	if (0 != t->index)
+	if (t->index != 0)
 		return -EINVAL;
 
 	v4l2_device_call_all(&dev->v4l2->v4l2_dev, 0, tuner, s_tuner, t);
@@ -1746,7 +1800,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct em28xx         *dev = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
-	if (0 != f->tuner)
+	if (f->tuner != 0)
 		return -EINVAL;
 
 	f->frequency = v4l2->frequency;
@@ -1760,7 +1814,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	struct em28xx             *dev  = video_drvdata(file);
 	struct em28xx_v4l2        *v4l2 = dev->v4l2;
 
-	if (0 != f->tuner)
+	if (f->tuner != 0)
 		return -EINVAL;
 
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, s_frequency, f);
@@ -1884,8 +1938,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->device_caps |= V4L2_CAP_TUNER;
 
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
-		V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps |
+			    V4L2_CAP_DEVICE_CAPS | V4L2_CAP_READWRITE |
+			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	if (video_is_registered(&v4l2->vbi_dev))
 		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
 	if (video_is_registered(&v4l2->radio_dev))
@@ -1978,9 +2033,9 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/* ----------------------------------------------------------- */
-/* RADIO ESPECIFIC IOCTLS                                      */
-/* ----------------------------------------------------------- */
+/*
+ * RADIO ESPECIFIC IOCTLS
+ */
 
 static int radio_g_tuner(struct file *file, void *priv,
 			 struct v4l2_tuner *t)
@@ -2002,7 +2057,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 {
 	struct em28xx *dev = video_drvdata(file);
 
-	if (0 != t->index)
+	if (t->index != 0)
 		return -EINVAL;
 
 	v4l2_device_call_all(&dev->v4l2->v4l2_dev, 0, tuner, s_tuner, t);
@@ -2097,7 +2152,7 @@ static int em28xx_v4l2_open(struct file *filp)
  * em28xx_v4l2_fini()
  * unregisters the v4l2,i2c and usb devices
  * called when the device gets disconected or at module unload
-*/
+ */
 static int em28xx_v4l2_fini(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
@@ -2112,7 +2167,7 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	if (v4l2 == NULL)
+	if (!v4l2)
 		return 0;
 
 	dev_info(&dev->intf->dev, "Closing video extension\n");
@@ -2127,17 +2182,17 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	if (video_is_registered(&v4l2->radio_dev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			video_device_node_name(&v4l2->radio_dev));
+			 video_device_node_name(&v4l2->radio_dev));
 		video_unregister_device(&v4l2->radio_dev);
 	}
 	if (video_is_registered(&v4l2->vbi_dev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			video_device_node_name(&v4l2->vbi_dev));
+			 video_device_node_name(&v4l2->vbi_dev));
 		video_unregister_device(&v4l2->vbi_dev);
 	}
 	if (video_is_registered(&v4l2->vdev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			video_device_node_name(&v4l2->vdev));
+			 video_device_node_name(&v4l2->vdev));
 		video_unregister_device(&v4l2->vdev);
 	}
 
@@ -2189,7 +2244,7 @@ static int em28xx_v4l2_close(struct file *filp)
 	struct em28xx         *dev  = video_drvdata(filp);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
-	int              errCode;
+	int              err;
 
 	em28xx_videodbg("users=%d\n", v4l2->users);
 
@@ -2202,7 +2257,7 @@ static int em28xx_v4l2_close(struct file *filp)
 			goto exit;
 
 		/* Save some power by putting tuner to sleep */
-		v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_power, 0);
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
 
 		/* do this before setting alternate! */
 		em28xx_set_mode(dev, EM28XX_SUSPEND);
@@ -2210,11 +2265,11 @@ static int em28xx_v4l2_close(struct file *filp)
 		/* set alternate 0 */
 		dev->alt = 0;
 		em28xx_videodbg("setting alternate 0\n");
-		errCode = usb_set_interface(udev, 0, 0);
-		if (errCode < 0) {
+		err = usb_set_interface(udev, 0, 0);
+		if (err < 0) {
 			dev_err(&dev->intf->dev,
 				"cannot change alternate number to 0 (error=%i)\n",
-				errCode);
+				err);
 		}
 	}
 
@@ -2343,7 +2398,7 @@ static void em28xx_vdev_init(struct em28xx *dev,
 	*vfd		= *template;
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
 	vfd->lock	= &dev->lock;
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		vfd->tvnorms = 0;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
@@ -2372,7 +2427,7 @@ static void em28xx_tuner_setup(struct em28xx *dev, unsigned short tuner_addr)
 				     0, tuner, s_type_addr, &tun_setup);
 	}
 
-	if ((dev->tuner_type != TUNER_ABSENT) && (dev->tuner_type)) {
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type) {
 		tun_setup.type   = dev->tuner_type;
 		tun_setup.addr   = tuner_addr;
 
@@ -2435,7 +2490,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	mutex_lock(&dev->lock);
 
-	v4l2 = kzalloc(sizeof(struct em28xx_v4l2), GFP_KERNEL);
+	v4l2 = kzalloc(sizeof(*v4l2), GFP_KERNEL);
 	if (!v4l2) {
 		mutex_unlock(&dev->lock);
 		return -ENOMEM;
@@ -2458,7 +2513,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2_ctrl_handler_init(hdl, 8);
 	v4l2->v4l2_dev.ctrl_handler = hdl;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		v4l2->progressive = true;
 
 	/*
@@ -2470,7 +2525,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	/* request some modules */
 
-	if (dev->board.has_msp34xx)
+	if (dev->has_msp34xx)
 		v4l2_i2c_new_subdev(&v4l2->v4l2_dev,
 				    &dev->i2c_adap[dev->def_i2c_bus],
 				    "msp3400", 0, msp3400_addrs);
@@ -2559,7 +2614,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vbiq.active);
 
-	if (dev->board.has_msp34xx) {
+	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
 		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xf7);
 		if (ret < 0) {
@@ -2568,7 +2623,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 				__func__, ret);
 			goto unregister_dev;
 		}
-		msleep(3);
+		usleep_range(10000, 11000);
 
 		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xff);
 		if (ret < 0) {
@@ -2577,7 +2632,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 				__func__, ret);
 			goto unregister_dev;
 		}
-		msleep(3);
+		usleep_range(10000, 11000);
 	}
 
 	/* set default norm */
@@ -2589,8 +2644,10 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->format = &format[0];
 
 	maxw = norm_maxw(dev);
-	/* MaxPacketSize for em2800 is too small to capture at full resolution
-	 * use half of maxw as the scaler can only scale to 50% */
+	/*
+	 * MaxPacketSize for em2800 is too small to capture at full resolution
+	 * use half of maxw as the scaler can only scale to 50%
+	 */
 	if (dev->board.is_em2800)
 		maxw /= 2;
 
@@ -2611,29 +2668,33 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	em28xx_set_outfmt(dev);
 
 	/* Add image controls */
-	/* NOTE: at this point, the subdevices are already registered, so bridge
-	 * controls are only added/enabled when no subdevice provides them */
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_CONTRAST))
+
+	/*
+	 * NOTE: at this point, the subdevices are already registered, so
+	 * bridge controls are only added/enabled when no subdevice provides
+	 * them
+	 */
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_CONTRAST))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_CONTRAST,
 				  0, 0x1f, 1, CONTRAST_DEFAULT);
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_BRIGHTNESS))
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_BRIGHTNESS))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_BRIGHTNESS,
 				  -0x80, 0x7f, 1, BRIGHTNESS_DEFAULT);
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_SATURATION))
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_SATURATION))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_SATURATION,
 				  0, 0x1f, 1, SATURATION_DEFAULT);
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_BLUE_BALANCE))
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_BLUE_BALANCE))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_BLUE_BALANCE,
 				  -0x30, 0x30, 1, BLUE_BALANCE_DEFAULT);
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_RED_BALANCE))
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_RED_BALANCE))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_RED_BALANCE,
 				  -0x30, 0x30, 1, RED_BALANCE_DEFAULT);
-	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_SHARPNESS))
+	if (!v4l2_ctrl_find(hdl, V4L2_CID_SHARPNESS))
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_SHARPNESS,
 				  0, 0x0f, 1, SHARPNESS_DEFAULT);
@@ -2653,7 +2714,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->vdev.queue->lock = &v4l2->vb_queue_lock;
 
 	/* disable inapplicable ioctls */
-	if (dev->board.is_webcam) {
+	if (dev->is_webcam) {
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_QUERYSTD);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_G_STD);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_S_STD);
@@ -2683,7 +2744,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Allocate and fill vbi video_device struct */
 	if (em28xx_vbi_supported(dev) == 1) {
 		em28xx_vdev_init(dev, &v4l2->vbi_dev, &em28xx_video_template,
-				"vbi");
+				 "vbi");
 
 		v4l2->vbi_dev.queue = &v4l2->vb_vbiq;
 		v4l2->vbi_dev.queue->lock = &v4l2->vb_vbi_queue_lock;
@@ -2713,7 +2774,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
 		em28xx_vdev_init(dev, &v4l2->radio_dev, &em28xx_radio_template,
-				   "radio");
+				 "radio");
 		ret = video_register_device(&v4l2->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {
@@ -2749,7 +2810,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			 video_device_node_name(&v4l2->vbi_dev));
 
 	/* Save some power by putting tuner to sleep */
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_power, 0);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
 
 	/* initialize videobuf2 stuff */
 	em28xx_vb2_setup(dev);

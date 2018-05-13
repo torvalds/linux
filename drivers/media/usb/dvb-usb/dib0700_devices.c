@@ -3412,7 +3412,7 @@ static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
 static struct s5h1411_config pinnacle_801e_config = {
 	.output_mode   = S5H1411_PARALLEL_OUTPUT,
 	.gpio          = S5H1411_GPIO_OFF,
-	.mpeg_timing   = S5H1411_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK,
 	.qam_if        = S5H1411_IF_44000,
 	.vsb_if        = S5H1411_IF_44000,
 	.inversion     = S5H1411_INVERSION_OFF,

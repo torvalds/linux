@@ -330,6 +330,21 @@
 #define SCALER_DISPCTRL0                        0x00000040
 # define SCALER_DISPCTRLX_ENABLE		BIT(31)
 # define SCALER_DISPCTRLX_RESET			BIT(30)
+/* Generates a single frame when VSTART is seen and stops at the last
+ * pixel read from the FIFO.
+ */
+# define SCALER_DISPCTRLX_ONESHOT		BIT(29)
+/* Processes a single context in the dlist and then task switch,
+ * instead of an entire line.
+ */
+# define SCALER_DISPCTRLX_ONECTX		BIT(28)
+/* Set to have DISPSLAVE return 2 16bpp pixels and no status data. */
+# define SCALER_DISPCTRLX_FIFO32		BIT(27)
+/* Turns on output to the DISPSLAVE register instead of the normal
+ * FIFO.
+ */
+# define SCALER_DISPCTRLX_FIFOREG		BIT(26)
+
 # define SCALER_DISPCTRLX_WIDTH_MASK		VC4_MASK(23, 12)
 # define SCALER_DISPCTRLX_WIDTH_SHIFT		12
 # define SCALER_DISPCTRLX_HEIGHT_MASK		VC4_MASK(11, 0)
@@ -401,6 +416,68 @@
  * enabled.
  */
 # define SCALER_GAMADDR_SRAMENB			BIT(30)
+
+#define SCALER_OLEDOFFS                         0x00000080
+/* Clamps R to [16,235] and G/B to [16,240]. */
+# define SCALER_OLEDOFFS_YUVCLAMP               BIT(31)
+
+/* Chooses which display FIFO the matrix applies to. */
+# define SCALER_OLEDOFFS_DISPFIFO_MASK          VC4_MASK(25, 24)
+# define SCALER_OLEDOFFS_DISPFIFO_SHIFT         24
+# define SCALER_OLEDOFFS_DISPFIFO_DISABLED      0
+# define SCALER_OLEDOFFS_DISPFIFO_0             1
+# define SCALER_OLEDOFFS_DISPFIFO_1             2
+# define SCALER_OLEDOFFS_DISPFIFO_2             3
+
+/* Offsets are 8-bit 2s-complement. */
+# define SCALER_OLEDOFFS_RED_MASK               VC4_MASK(23, 16)
+# define SCALER_OLEDOFFS_RED_SHIFT              16
+# define SCALER_OLEDOFFS_GREEN_MASK             VC4_MASK(15, 8)
+# define SCALER_OLEDOFFS_GREEN_SHIFT            8
+# define SCALER_OLEDOFFS_BLUE_MASK              VC4_MASK(7, 0)
+# define SCALER_OLEDOFFS_BLUE_SHIFT             0
+
+/* The coefficients are S0.9 fractions. */
+#define SCALER_OLEDCOEF0                        0x00000084
+# define SCALER_OLEDCOEF0_B_TO_R_MASK           VC4_MASK(29, 20)
+# define SCALER_OLEDCOEF0_B_TO_R_SHIFT          20
+# define SCALER_OLEDCOEF0_B_TO_G_MASK           VC4_MASK(19, 10)
+# define SCALER_OLEDCOEF0_B_TO_G_SHIFT          10
+# define SCALER_OLEDCOEF0_B_TO_B_MASK           VC4_MASK(9, 0)
+# define SCALER_OLEDCOEF0_B_TO_B_SHIFT          0
+
+#define SCALER_OLEDCOEF1                        0x00000088
+# define SCALER_OLEDCOEF1_G_TO_R_MASK           VC4_MASK(29, 20)
+# define SCALER_OLEDCOEF1_G_TO_R_SHIFT          20
+# define SCALER_OLEDCOEF1_G_TO_G_MASK           VC4_MASK(19, 10)
+# define SCALER_OLEDCOEF1_G_TO_G_SHIFT          10
+# define SCALER_OLEDCOEF1_G_TO_B_MASK           VC4_MASK(9, 0)
+# define SCALER_OLEDCOEF1_G_TO_B_SHIFT          0
+
+#define SCALER_OLEDCOEF2                        0x0000008c
+# define SCALER_OLEDCOEF2_R_TO_R_MASK           VC4_MASK(29, 20)
+# define SCALER_OLEDCOEF2_R_TO_R_SHIFT          20
+# define SCALER_OLEDCOEF2_R_TO_G_MASK           VC4_MASK(19, 10)
+# define SCALER_OLEDCOEF2_R_TO_G_SHIFT          10
+# define SCALER_OLEDCOEF2_R_TO_B_MASK           VC4_MASK(9, 0)
+# define SCALER_OLEDCOEF2_R_TO_B_SHIFT          0
+
+/* Slave addresses for DMAing from HVS composition output to other
+ * devices.  The top bits are valid only in !FIFO32 mode.
+ */
+#define SCALER_DISPSLAVE0                       0x000000c0
+#define SCALER_DISPSLAVE1                       0x000000c9
+#define SCALER_DISPSLAVE2                       0x000000d0
+# define SCALER_DISPSLAVE_ISSUE_VSTART          BIT(31)
+# define SCALER_DISPSLAVE_ISSUE_HSTART          BIT(30)
+/* Set when the current line has been read and an HSTART is required. */
+# define SCALER_DISPSLAVE_EOL                   BIT(26)
+/* Set when the display FIFO is empty. */
+# define SCALER_DISPSLAVE_EMPTY                 BIT(25)
+/* Set when there is RGB data ready to read. */
+# define SCALER_DISPSLAVE_VALID                 BIT(24)
+# define SCALER_DISPSLAVE_RGB_MASK              VC4_MASK(23, 0)
+# define SCALER_DISPSLAVE_RGB_SHIFT             0
 
 #define SCALER_GAMDATA                          0x000000e0
 #define SCALER_DLIST_START                      0x00002000
@@ -767,6 +844,10 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE = 9,
 	HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE = 10,
 	HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE = 11,
+	HVS_PIXEL_FORMAT_H264 = 12,
+	HVS_PIXEL_FORMAT_PALETTE = 13,
+	HVS_PIXEL_FORMAT_YUV444_RGB = 14,
+	HVS_PIXEL_FORMAT_AYUV444_RGB = 15,
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
@@ -800,11 +881,26 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_TILING_128B			2
 #define SCALER_CTL0_TILING_256B_OR_T		3
 
+#define SCALER_CTL0_ALPHA_MASK                  BIT(19)
 #define SCALER_CTL0_HFLIP                       BIT(16)
 #define SCALER_CTL0_VFLIP                       BIT(15)
 
+#define SCALER_CTL0_KEY_MODE_MASK		VC4_MASK(18, 17)
+#define SCALER_CTL0_KEY_MODE_SHIFT		17
+#define SCALER_CTL0_KEY_DISABLED		0
+#define SCALER_CTL0_KEY_LUMA_OR_COMMON_RGB	1
+#define SCALER_CTL0_KEY_MATCH			2 /* turn transparent */
+#define SCALER_CTL0_KEY_REPLACE			3 /* replace with value from key mask word 2 */
+
 #define SCALER_CTL0_ORDER_MASK			VC4_MASK(14, 13)
 #define SCALER_CTL0_ORDER_SHIFT			13
+
+#define SCALER_CTL0_RGBA_EXPAND_MASK		VC4_MASK(12, 11)
+#define SCALER_CTL0_RGBA_EXPAND_SHIFT		11
+#define SCALER_CTL0_RGBA_EXPAND_ZERO		0
+#define SCALER_CTL0_RGBA_EXPAND_LSB		1
+#define SCALER_CTL0_RGBA_EXPAND_MSB		2
+#define SCALER_CTL0_RGBA_EXPAND_ROUND		3
 
 #define SCALER_CTL0_SCL1_MASK			VC4_MASK(10, 8)
 #define SCALER_CTL0_SCL1_SHIFT			8
@@ -849,6 +945,7 @@ enum hvs_pixel_format {
 #define SCALER_POS2_ALPHA_MODE_FIXED_NONZERO	2
 #define SCALER_POS2_ALPHA_MODE_FIXED_OVER_0x07	3
 #define SCALER_POS2_ALPHA_PREMULT		BIT(29)
+#define SCALER_POS2_ALPHA_MIX			BIT(28)
 
 #define SCALER_POS2_HEIGHT_MASK			VC4_MASK(27, 16)
 #define SCALER_POS2_HEIGHT_SHIFT		16

@@ -97,7 +97,7 @@ nfp_record_adjust_head(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 		if (nfp_prog->adjust_head_location != meta->n)
 			goto exit_set_location;
 
-		if (meta->arg2.var_off.value != imm)
+		if (meta->arg2.reg.var_off.value != imm)
 			goto exit_set_location;
 	}
 
@@ -107,14 +107,69 @@ exit_set_location:
 }
 
 static int
+nfp_bpf_stack_arg_ok(const char *fname, struct bpf_verifier_env *env,
+		     const struct bpf_reg_state *reg,
+		     struct nfp_bpf_reg_state *old_arg)
+{
+	s64 off, old_off;
+
+	if (reg->type != PTR_TO_STACK) {
+		pr_vlog(env, "%s: unsupported ptr type %d\n",
+			fname, reg->type);
+		return false;
+	}
+	if (!tnum_is_const(reg->var_off)) {
+		pr_vlog(env, "%s: variable pointer\n", fname);
+		return false;
+	}
+
+	off = reg->var_off.value + reg->off;
+	if (-off % 4) {
+		pr_vlog(env, "%s: unaligned stack pointer %lld\n", fname, -off);
+		return false;
+	}
+
+	/* Rest of the checks is only if we re-parse the same insn */
+	if (!old_arg)
+		return true;
+
+	old_off = old_arg->reg.var_off.value + old_arg->reg.off;
+	old_arg->var_off |= off != old_off;
+
+	return true;
+}
+
+static bool
+nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
+		    struct nfp_insn_meta *meta,
+		    u32 helper_tgt, const struct bpf_reg_state *reg1)
+{
+	if (!helper_tgt) {
+		pr_vlog(env, "%s: not supported by FW\n", fname);
+		return false;
+	}
+
+	/* Rest of the checks is only if we re-parse the same insn */
+	if (!meta->func_id)
+		return true;
+
+	if (meta->arg1.map_ptr != reg1->map_ptr) {
+		pr_vlog(env, "%s: called for different map\n", fname);
+		return false;
+	}
+
+	return true;
+}
+
+static int
 nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		   struct nfp_insn_meta *meta)
 {
 	const struct bpf_reg_state *reg1 = cur_regs(env) + BPF_REG_1;
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
+	const struct bpf_reg_state *reg3 = cur_regs(env) + BPF_REG_3;
 	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
-	s64 off, old_off;
 
 	switch (func_id) {
 	case BPF_FUNC_xdp_adjust_head:
@@ -131,41 +186,36 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		break;
 
 	case BPF_FUNC_map_lookup_elem:
-		if (!bpf->helpers.map_lookup) {
-			pr_vlog(env, "map_lookup: not supported by FW\n");
+		if (!nfp_bpf_map_call_ok("map_lookup", env, meta,
+					 bpf->helpers.map_lookup, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_lookup", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL))
 			return -EOPNOTSUPP;
-		}
-		if (reg2->type != PTR_TO_STACK) {
-			pr_vlog(env,
-				"map_lookup: unsupported key ptr type %d\n",
-				reg2->type);
-			return -EOPNOTSUPP;
-		}
-		if (!tnum_is_const(reg2->var_off)) {
-			pr_vlog(env, "map_lookup: variable key pointer\n");
-			return -EOPNOTSUPP;
-		}
-
-		off = reg2->var_off.value + reg2->off;
-		if (-off % 4) {
-			pr_vlog(env,
-				"map_lookup: unaligned stack pointer %lld\n",
-				-off);
-			return -EOPNOTSUPP;
-		}
-
-		/* Rest of the checks is only if we re-parse the same insn */
-		if (!meta->func_id)
-			break;
-
-		old_off = meta->arg2.var_off.value + meta->arg2.off;
-		meta->arg2_var_off |= off != old_off;
-
-		if (meta->arg1.map_ptr != reg1->map_ptr) {
-			pr_vlog(env, "map_lookup: called for different map\n");
-			return -EOPNOTSUPP;
-		}
 		break;
+
+	case BPF_FUNC_map_update_elem:
+		if (!nfp_bpf_map_call_ok("map_update", env, meta,
+					 bpf->helpers.map_update, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_update", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL) ||
+		    !nfp_bpf_stack_arg_ok("map_update", env, reg3, NULL))
+			return -EOPNOTSUPP;
+		break;
+
+	case BPF_FUNC_map_delete_elem:
+		if (!nfp_bpf_map_call_ok("map_delete", env, meta,
+					 bpf->helpers.map_delete, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_delete", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL))
+			return -EOPNOTSUPP;
+		break;
+
+	case BPF_FUNC_get_prandom_u32:
+		if (bpf->pseudo_random)
+			break;
+		pr_vlog(env, "bpf_get_prandom_u32(): FW doesn't support random number generation\n");
+		return -EOPNOTSUPP;
+
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
@@ -173,7 +223,7 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 
 	meta->func_id = func_id;
 	meta->arg1 = *reg1;
-	meta->arg2 = *reg2;
+	meta->arg2.reg = *reg2;
 
 	return 0;
 }
@@ -242,6 +292,72 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 	return -EINVAL;
 }
 
+static const char *nfp_bpf_map_use_name(enum nfp_bpf_map_use use)
+{
+	static const char * const names[] = {
+		[NFP_MAP_UNUSED]	= "unused",
+		[NFP_MAP_USE_READ]	= "read",
+		[NFP_MAP_USE_WRITE]	= "write",
+		[NFP_MAP_USE_ATOMIC_CNT] = "atomic",
+	};
+
+	if (use >= ARRAY_SIZE(names) || !names[use])
+		return "unknown";
+	return names[use];
+}
+
+static int
+nfp_bpf_map_mark_used_one(struct bpf_verifier_env *env,
+			  struct nfp_bpf_map *nfp_map,
+			  unsigned int off, enum nfp_bpf_map_use use)
+{
+	if (nfp_map->use_map[off / 4] != NFP_MAP_UNUSED &&
+	    nfp_map->use_map[off / 4] != use) {
+		pr_vlog(env, "map value use type conflict %s vs %s off: %u\n",
+			nfp_bpf_map_use_name(nfp_map->use_map[off / 4]),
+			nfp_bpf_map_use_name(use), off);
+		return -EOPNOTSUPP;
+	}
+
+	nfp_map->use_map[off / 4] = use;
+
+	return 0;
+}
+
+static int
+nfp_bpf_map_mark_used(struct bpf_verifier_env *env, struct nfp_insn_meta *meta,
+		      const struct bpf_reg_state *reg,
+		      enum nfp_bpf_map_use use)
+{
+	struct bpf_offloaded_map *offmap;
+	struct nfp_bpf_map *nfp_map;
+	unsigned int size, off;
+	int i, err;
+
+	if (!tnum_is_const(reg->var_off)) {
+		pr_vlog(env, "map value offset is variable\n");
+		return -EOPNOTSUPP;
+	}
+
+	off = reg->var_off.value + meta->insn.off + reg->off;
+	size = BPF_LDST_BYTES(&meta->insn);
+	offmap = map_to_offmap(reg->map_ptr);
+	nfp_map = offmap->dev_priv;
+
+	if (off + size > offmap->map.value_size) {
+		pr_vlog(env, "map value access out-of-bounds\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < size; i += 4 - (off + i) % 4) {
+		err = nfp_bpf_map_mark_used_one(env, nfp_map, off + i, use);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int
 nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  struct bpf_verifier_env *env, u8 reg_no)
@@ -264,9 +380,21 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	}
 
 	if (reg->type == PTR_TO_MAP_VALUE) {
+		if (is_mbpf_load(meta)) {
+			err = nfp_bpf_map_mark_used(env, meta, reg,
+						    NFP_MAP_USE_READ);
+			if (err)
+				return err;
+		}
 		if (is_mbpf_store(meta)) {
 			pr_vlog(env, "map writes not supported\n");
 			return -EOPNOTSUPP;
+		}
+		if (is_mbpf_xadd(meta)) {
+			err = nfp_bpf_map_mark_used(env, meta, reg,
+						    NFP_MAP_USE_ATOMIC_CNT);
+			if (err)
+				return err;
 		}
 	}
 
@@ -279,6 +407,31 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	meta->ptr = *reg;
 
 	return 0;
+}
+
+static int
+nfp_bpf_check_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		   struct bpf_verifier_env *env)
+{
+	const struct bpf_reg_state *sreg = cur_regs(env) + meta->insn.src_reg;
+	const struct bpf_reg_state *dreg = cur_regs(env) + meta->insn.dst_reg;
+
+	if (dreg->type != PTR_TO_MAP_VALUE) {
+		pr_vlog(env, "atomic add not to a map value pointer: %d\n",
+			dreg->type);
+		return -EOPNOTSUPP;
+	}
+	if (sreg->type != SCALAR_VALUE) {
+		pr_vlog(env, "atomic add not of a scalar: %d\n", sreg->type);
+		return -EOPNOTSUPP;
+	}
+
+	meta->xadd_over_16bit |=
+		sreg->var_off.value > 0xffff || sreg->var_off.mask > 0xffff;
+	meta->xadd_maybe_16bit |=
+		(sreg->var_off.value & ~sreg->var_off.mask) <= 0xffff;
+
+	return nfp_bpf_check_ptr(nfp_prog, meta, env, meta->insn.dst_reg);
 }
 
 static int
@@ -313,6 +466,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	if (is_mbpf_store(meta))
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.dst_reg);
+	if (is_mbpf_xadd(meta))
+		return nfp_bpf_check_xadd(nfp_prog, meta, env);
 
 	return 0;
 }

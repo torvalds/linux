@@ -168,7 +168,7 @@ static int ad5764_read(struct iio_dev *indio_dev, unsigned int reg,
 static int ad5764_chan_info_to_reg(struct iio_chan_spec const *chan, long info)
 {
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		return AD5764_REG_DATA(chan->address);
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return AD5764_REG_OFFSET(chan->address);

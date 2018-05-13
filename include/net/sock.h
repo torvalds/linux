@@ -417,6 +417,7 @@ struct sock {
 	struct page_frag	sk_frag;
 	netdev_features_t	sk_route_caps;
 	netdev_features_t	sk_route_nocaps;
+	netdev_features_t	sk_route_forced_caps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
@@ -1025,6 +1026,9 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 struct proto {
 	void			(*close)(struct sock *sk,
 					long timeout);
+	int			(*pre_connect)(struct sock *sk,
+					struct sockaddr *uaddr,
+					int addr_len);
 	int			(*connect)(struct sock *sk,
 					struct sockaddr *uaddr,
 					int addr_len);
@@ -1084,6 +1088,7 @@ struct proto {
 #endif
 
 	bool			(*stream_memory_free)(const struct sock *sk);
+	bool			(*stream_memory_read)(const struct sock *sk);
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(struct sock *sk);
 	void			(*leave_memory_pressure)(struct sock *sk);
@@ -1109,8 +1114,8 @@ struct proto {
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
 	slab_flags_t		slab_flags;
-	size_t			useroffset;	/* Usercopy region offset */
-	size_t			usersize;	/* Usercopy region size */
+	unsigned int		useroffset;	/* Usercopy region offset */
+	unsigned int		usersize;	/* Usercopy region size */
 
 	struct percpu_counter	*orphan_count;
 
@@ -1585,7 +1590,7 @@ int sock_no_bind(struct socket *, struct sockaddr *, int);
 int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
 int sock_no_accept(struct socket *, struct socket *, int, bool);
-int sock_no_getname(struct socket *, struct sockaddr *, int *, int);
+int sock_no_getname(struct socket *, struct sockaddr *, int);
 __poll_t sock_no_poll(struct file *, struct socket *,
 			  struct poll_table_struct *);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
@@ -1861,15 +1866,6 @@ static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
 {
 	sk->sk_route_nocaps |= flags;
 	sk->sk_route_caps &= ~flags;
-}
-
-static inline bool sk_check_csum_caps(struct sock *sk)
-{
-	return (sk->sk_route_caps & NETIF_F_HW_CSUM) ||
-	       (sk->sk_family == PF_INET &&
-		(sk->sk_route_caps & NETIF_F_IP_CSUM)) ||
-	       (sk->sk_family == PF_INET6 &&
-		(sk->sk_route_caps & NETIF_F_IPV6_CSUM));
 }
 
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
@@ -2149,6 +2145,10 @@ static inline struct page_frag *sk_page_frag(struct sock *sk)
 }
 
 bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag);
+
+int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
+		int sg_start, int *sg_curr, unsigned int *sg_size,
+		int first_coalesce);
 
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO

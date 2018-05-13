@@ -689,22 +689,14 @@ static int isi_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct atmel_isi *isi = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	a->parm.capture.readbuffers = 2;
-	return v4l2_subdev_call(isi->entity.subdev, video, g_parm, a);
+	return v4l2_g_parm_cap(video_devdata(file), isi->entity.subdev, a);
 }
 
 static int isi_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct atmel_isi *isi = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	a->parm.capture.readbuffers = 2;
-	return v4l2_subdev_call(isi->entity.subdev, video, s_parm, a);
+	return v4l2_s_parm_cap(video_devdata(file), isi->entity.subdev, a);
 }
 
 static int isi_enum_framesizes(struct file *file, void *fh,

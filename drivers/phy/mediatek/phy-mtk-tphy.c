@@ -306,6 +306,8 @@ struct mtk_tphy {
 	const struct mtk_phy_pdata *pdata;
 	struct mtk_phy_instance **phys;
 	int nphys;
+	int src_ref_clk; /* MHZ, reference clock for slew rate calibrate */
+	int src_coef; /* coefficient for slew rate calibrate */
 };
 
 static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
@@ -360,16 +362,17 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	writel(tmp, fmreg + U3P_U2FREQ_FMMONR1);
 
 	if (fm_out) {
-		/* ( 1024 / FM_OUT ) x reference clock frequency x 0.028 */
-		tmp = U3P_FM_DET_CYCLE_CNT * U3P_REF_CLK * U3P_SLEW_RATE_COEF;
-		tmp /= fm_out;
+		/* ( 1024 / FM_OUT ) x reference clock frequency x coef */
+		tmp = tphy->src_ref_clk * tphy->src_coef;
+		tmp = (tmp * U3P_FM_DET_CYCLE_CNT) / fm_out;
 		calibration_val = DIV_ROUND_CLOSEST(tmp, U3P_SR_COEF_DIVISOR);
 	} else {
 		/* if FM detection fail, set default value */
 		calibration_val = 4;
 	}
-	dev_dbg(tphy->dev, "phy:%d, fm_out:%d, calib:%d\n",
-		instance->index, fm_out, calibration_val);
+	dev_dbg(tphy->dev, "phy:%d, fm_out:%d, calib:%d (clk:%d, coef:%d)\n",
+		instance->index, fm_out, calibration_val,
+		tphy->src_ref_clk, tphy->src_coef);
 
 	/* set HS slew rate */
 	tmp = readl(com + U3P_USBPHYACR5);
@@ -688,8 +691,7 @@ static void pcie_phy_instance_power_on(struct mtk_tphy *tphy,
 	u32 tmp;
 
 	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLD);
-	tmp &= ~(P3C_FORCE_IP_SW_RST | P3C_MCU_BUS_CK_GATE_EN |
-		P3C_REG_IP_SW_RST);
+	tmp &= ~(P3C_FORCE_IP_SW_RST | P3C_REG_IP_SW_RST);
 	writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLD);
 
 	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLE);
@@ -1041,6 +1043,13 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 
 		tphy->u3phya_ref = NULL;
 	}
+
+	tphy->src_ref_clk = U3P_REF_CLK;
+	tphy->src_coef = U3P_SLEW_RATE_COEF;
+	/* update parameters of slew rate calibrate if exist */
+	device_property_read_u32(dev, "mediatek,src-ref-clk-mhz",
+		&tphy->src_ref_clk);
+	device_property_read_u32(dev, "mediatek,src-coef", &tphy->src_coef);
 
 	port = 0;
 	for_each_child_of_node(np, child_np) {

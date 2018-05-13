@@ -1,3 +1,7 @@
+config DAX_DRIVER
+	select DAX
+	bool
+
 menuconfig DAX
 	tristate "DAX: direct access to differentiated memory"
 	select SRCU
@@ -15,7 +19,6 @@ config DEV_DAX
 	  platform memory resource that is differentiated from the
 	  baseline memory pool.  Mappings of a /dev/daxX.Y device impose
 	  restrictions that make the mapping behavior deterministic.
-
 
 config DEV_DAX_PMEM
 	tristate "PMEM DAX: direct access to persistent memory"

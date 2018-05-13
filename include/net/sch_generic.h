@@ -30,6 +30,7 @@ struct qdisc_rate_table {
 enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
+	__QDISC_STATE_RUNNING,
 };
 
 struct qdisc_size_table {
@@ -540,7 +541,7 @@ static inline bool skb_skip_tc_classify(struct sk_buff *skb)
 	return false;
 }
 
-/* Reset all TX qdiscs greater then index of a device.  */
+/* Reset all TX qdiscs greater than index of a device.  */
 static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
 {
 	struct Qdisc *qdisc;

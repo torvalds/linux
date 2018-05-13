@@ -731,7 +731,7 @@ static void fc_disc_stop_final(struct fc_lport *lport)
  */
 void fc_disc_config(struct fc_lport *lport, void *priv)
 {
-	struct fc_disc *disc = &lport->disc;
+	struct fc_disc *disc;
 
 	if (!lport->tt.disc_start)
 		lport->tt.disc_start = fc_disc_start;

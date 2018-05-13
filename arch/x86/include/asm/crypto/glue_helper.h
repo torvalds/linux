@@ -45,35 +45,8 @@ struct common_glue_ctx {
 };
 
 static inline bool glue_fpu_begin(unsigned int bsize, int fpu_blocks_limit,
-				  struct blkcipher_desc *desc,
+				  struct skcipher_walk *walk,
 				  bool fpu_enabled, unsigned int nbytes)
-{
-	if (likely(fpu_blocks_limit < 0))
-		return false;
-
-	if (fpu_enabled)
-		return true;
-
-	/*
-	 * Vector-registers are only used when chunk to be processed is large
-	 * enough, so do not enable FPU until it is necessary.
-	 */
-	if (nbytes < bsize * (unsigned int)fpu_blocks_limit)
-		return false;
-
-	if (desc) {
-		/* prevent sleeping if FPU is in use */
-		desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	}
-
-	kernel_fpu_begin();
-	return true;
-}
-
-static inline bool glue_skwalk_fpu_begin(unsigned int bsize,
-					 int fpu_blocks_limit,
-					 struct skcipher_walk *walk,
-					 bool fpu_enabled, unsigned int nbytes)
 {
 	if (likely(fpu_blocks_limit < 0))
 		return false;
@@ -126,41 +99,17 @@ static inline void le128_inc(le128 *i)
 	i->b = cpu_to_le64(b);
 }
 
-extern int glue_ecb_crypt_128bit(const struct common_glue_ctx *gctx,
-				 struct blkcipher_desc *desc,
-				 struct scatterlist *dst,
-				 struct scatterlist *src, unsigned int nbytes);
+extern int glue_ecb_req_128bit(const struct common_glue_ctx *gctx,
+			       struct skcipher_request *req);
 
-extern int glue_cbc_encrypt_128bit(const common_glue_func_t fn,
-				   struct blkcipher_desc *desc,
-				   struct scatterlist *dst,
-				   struct scatterlist *src,
-				   unsigned int nbytes);
+extern int glue_cbc_encrypt_req_128bit(const common_glue_func_t fn,
+				       struct skcipher_request *req);
 
-extern int glue_cbc_decrypt_128bit(const struct common_glue_ctx *gctx,
-				   struct blkcipher_desc *desc,
-				   struct scatterlist *dst,
-				   struct scatterlist *src,
-				   unsigned int nbytes);
+extern int glue_cbc_decrypt_req_128bit(const struct common_glue_ctx *gctx,
+				       struct skcipher_request *req);
 
-extern int glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
-				 struct blkcipher_desc *desc,
-				 struct scatterlist *dst,
-				 struct scatterlist *src, unsigned int nbytes);
-
-extern int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
-				 struct blkcipher_desc *desc,
-				 struct scatterlist *dst,
-				 struct scatterlist *src, unsigned int nbytes,
-				 common_glue_func_t tweak_fn, void *tweak_ctx,
-				 void *crypt_ctx);
-
-extern int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
-				 struct blkcipher_desc *desc,
-				 struct scatterlist *dst,
-				 struct scatterlist *src, unsigned int nbytes,
-				 common_glue_func_t tweak_fn, void *tweak_ctx,
-				 void *crypt_ctx);
+extern int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
+			       struct skcipher_request *req);
 
 extern int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 			       struct skcipher_request *req,

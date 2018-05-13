@@ -766,13 +766,12 @@ display_crc_ctl_parse_object(const char *buf, enum intel_pipe_crc_object *o)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pipe_crc_objects); i++)
-		if (!strcmp(buf, pipe_crc_objects[i])) {
-			*o = i;
-			return 0;
-		}
+	i = match_string(pipe_crc_objects, ARRAY_SIZE(pipe_crc_objects), buf);
+	if (i < 0)
+		return i;
 
-	return -EINVAL;
+	*o = i;
+	return 0;
 }
 
 static int display_crc_ctl_parse_pipe(struct drm_i915_private *dev_priv,
@@ -798,13 +797,12 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pipe_crc_sources); i++)
-		if (!strcmp(buf, pipe_crc_sources[i])) {
-			*s = i;
-			return 0;
-		}
+	i = match_string(pipe_crc_sources, ARRAY_SIZE(pipe_crc_sources), buf);
+	if (i < 0)
+		return i;
 
-	return -EINVAL;
+	*s = i;
+	return 0;
 }
 
 static int display_crc_ctl_parse(struct drm_i915_private *dev_priv,

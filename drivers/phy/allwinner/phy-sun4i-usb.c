@@ -112,6 +112,7 @@ enum sun4i_usb_phy_type {
 	sun8i_a33_phy,
 	sun8i_a83t_phy,
 	sun8i_h3_phy,
+	sun8i_r40_phy,
 	sun8i_v3s_phy,
 	sun50i_a64_phy,
 };
@@ -410,11 +411,13 @@ static bool sun4i_usb_phy0_poll(struct sun4i_usb_phy_data *data)
 		return true;
 
 	/*
-	 * The A31 companion pmic (axp221) does not generate vbus change
-	 * interrupts when the board is driving vbus, so we must poll
+	 * The A31/A23/A33 companion pmics (AXP221/AXP223) do not
+	 * generate vbus change interrupts when the board is driving
+	 * vbus using the N_VBUSEN pin on the pmic, so we must poll
 	 * when using the pmic for vbus-det _and_ we're driving vbus.
 	 */
-	if (data->cfg->type == sun6i_a31_phy &&
+	if ((data->cfg->type == sun6i_a31_phy ||
+	     data->cfg->type == sun8i_a33_phy) &&
 	    data->vbus_power_supply && data->phys[0].regulator_on)
 		return true;
 
@@ -885,7 +888,7 @@ static const struct sun4i_usb_phy_cfg sun7i_a20_cfg = {
 
 static const struct sun4i_usb_phy_cfg sun8i_a23_cfg = {
 	.num_phys = 2,
-	.type = sun4i_a10_phy,
+	.type = sun6i_a31_phy,
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = true,
@@ -912,6 +915,16 @@ static const struct sun4i_usb_phy_cfg sun8i_a83t_cfg = {
 static const struct sun4i_usb_phy_cfg sun8i_h3_cfg = {
 	.num_phys = 4,
 	.type = sun8i_h3_phy,
+	.disc_thresh = 3,
+	.phyctl_offset = REG_PHYCTL_A33,
+	.dedicated_clocks = true,
+	.enable_pmu_unk1 = true,
+	.phy0_dual_route = true,
+};
+
+static const struct sun4i_usb_phy_cfg sun8i_r40_cfg = {
+	.num_phys = 3,
+	.type = sun8i_r40_phy,
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
@@ -948,6 +961,7 @@ static const struct of_device_id sun4i_usb_phy_of_match[] = {
 	{ .compatible = "allwinner,sun8i-a33-usb-phy", .data = &sun8i_a33_cfg },
 	{ .compatible = "allwinner,sun8i-a83t-usb-phy", .data = &sun8i_a83t_cfg },
 	{ .compatible = "allwinner,sun8i-h3-usb-phy", .data = &sun8i_h3_cfg },
+	{ .compatible = "allwinner,sun8i-r40-usb-phy", .data = &sun8i_r40_cfg },
 	{ .compatible = "allwinner,sun8i-v3s-usb-phy", .data = &sun8i_v3s_cfg },
 	{ .compatible = "allwinner,sun50i-a64-usb-phy",
 	  .data = &sun50i_a64_cfg},

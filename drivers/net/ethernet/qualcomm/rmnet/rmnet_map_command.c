@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -69,7 +69,7 @@ static void rmnet_map_send_ack(struct sk_buff *skb,
 	struct rmnet_map_control_command *cmd;
 	int xmit_status;
 
-	if (port->data_format & RMNET_INGRESS_FORMAT_MAP_CKSUMV4) {
+	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
 		if (skb->len < sizeof(struct rmnet_map_header) +
 		    RMNET_MAP_GET_LENGTH(skb) +
 		    sizeof(struct rmnet_map_dl_csum_trailer)) {

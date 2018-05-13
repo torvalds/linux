@@ -4,7 +4,7 @@
 
 config FSL_DPAA2
 	bool "Freescale DPAA2 devices"
-	depends on FSL_MC_BUS && ARCH_LAYERSCAPE
+	depends on FSL_MC_BUS
 	---help---
 	  Build drivers for Freescale DataPath Acceleration
 	  Architecture (DPAA2) family of SoCs.
@@ -16,3 +16,11 @@ config FSL_DPAA2_ETH
 	---help---
 	  Ethernet driver for Freescale DPAA2 SoCs, using the
 	  Freescale MC bus driver
+
+config FSL_DPAA2_ETHSW
+	tristate "Freescale DPAA2 Ethernet Switch"
+	depends on FSL_DPAA2
+	depends on NET_SWITCHDEV
+	---help---
+	Driver for Freescale DPAA2 Ethernet Switch. Select
+	BRIDGE to have support for bridge tools.

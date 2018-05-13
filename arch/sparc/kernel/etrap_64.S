@@ -151,7 +151,32 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
 		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
 		or	%l7, %l0, %l7
-		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
+661:		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
+		/* If userspace is using ADI, it could potentially pass
+		 * a pointer with version tag embedded in it. To maintain
+		 * the ADI security, we must enable PSTATE.mcde. Userspace
+		 * would have already set TTE.mcd in an earlier call to
+		 * kernel and set the version tag for the address being
+		 * dereferenced. Setting PSTATE.mcde would ensure any
+		 * access to userspace data through a system call honors
+		 * ADI and does not allow a rogue app to bypass ADI by
+		 * using system calls. Setting PSTATE.mcde only affects
+		 * accesses to virtual addresses that have TTE.mcd set.
+		 * Set PMCDPER to ensure any exceptions caused by ADI
+		 * version tag mismatch are exposed before system call
+		 * returns to userspace. Setting PMCDPER affects only
+		 * writes to virtual addresses that have TTE.mcd set and
+		 * have a version tag set as well.
+		 */
+		.section .sun_m7_1insn_patch, "ax"
+		.word	661b
+		sethi	%hi(TSTATE_TSO | TSTATE_PEF | TSTATE_MCDE), %l0
+		.previous
+661:		nop
+		.section .sun_m7_1insn_patch, "ax"
+		.word	661b
+		.word 0xaf902001	/* wrpr %g0, 1, %pmcdper */
+		.previous
 		or	%l7, %l0, %l7
 		wrpr	%l2, %tnpc
 		wrpr	%l7, (TSTATE_PRIV | TSTATE_IE), %tstate

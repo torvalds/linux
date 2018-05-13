@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * mmap.c — generic PCI resource mmap helper
+ * Generic PCI resource mmap helper
  *
  * Copyright © 2017 Amazon.com, Inc. or its affiliates.
  *

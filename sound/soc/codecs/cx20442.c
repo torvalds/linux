@@ -89,10 +89,10 @@ static const struct snd_soc_dapm_route cx20442_audio_map[] = {
 	{"ADC", NULL, "Input Mixer"},
 };
 
-static unsigned int cx20442_read_reg_cache(struct snd_soc_codec *codec,
+static unsigned int cx20442_read_reg_cache(struct snd_soc_component *component,
 					   unsigned int reg)
 {
-	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+	struct cx20442_priv *cx20442 = snd_soc_component_get_drvdata(component);
 
 	if (reg >= 1)
 		return -EINVAL;
@@ -153,10 +153,10 @@ static int cx20442_pm_to_v253_vsp(u8 value)
 	return (value & (1 << CX20442_AGC)) ? -EINVAL : 0;
 }
 
-static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
+static int cx20442_write(struct snd_soc_component *component, unsigned int reg,
 							unsigned int value)
 {
-	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+	struct cx20442_priv *cx20442 = snd_soc_component_get_drvdata(component);
 	int vls, vsp, old, len;
 	char buf[18];
 
@@ -193,7 +193,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (unlikely(len > (ARRAY_SIZE(buf) - 1)))
 		return -ENOMEM;
 
-	dev_dbg(codec->dev, "%s: %s\n", __func__, buf);
+	dev_dbg(component->dev, "%s: %s\n", __func__, buf);
 	if (cx20442->tty->ops->write(cx20442->tty, buf, len) != len)
 		return -EIO;
 
@@ -240,19 +240,19 @@ err:
 /* Line discipline .close() */
 static void v253_close(struct tty_struct *tty)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
+	struct snd_soc_component *component = tty->disc_data;
 	struct cx20442_priv *cx20442;
 
 	tty->disc_data = NULL;
 
-	if (!codec)
+	if (!component)
 		return;
 
-	cx20442 = snd_soc_codec_get_drvdata(codec);
+	cx20442 = snd_soc_component_get_drvdata(component);
 
 	/* Prevent the codec driver from further accessing the modem */
 	cx20442->tty = NULL;
-	codec->component.card->pop_time = 0;
+	component->card->pop_time = 0;
 }
 
 /* Line discipline .hangup() */
@@ -266,20 +266,20 @@ static int v253_hangup(struct tty_struct *tty)
 static void v253_receive(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
+	struct snd_soc_component *component = tty->disc_data;
 	struct cx20442_priv *cx20442;
 
-	if (!codec)
+	if (!component)
 		return;
 
-	cx20442 = snd_soc_codec_get_drvdata(codec);
+	cx20442 = snd_soc_component_get_drvdata(component);
 
 	if (!cx20442->tty) {
 		/* First modem response, complete setup procedure */
 
 		/* Set up codec driver access to modem controls */
 		cx20442->tty = tty;
-		codec->component.card->pop_time = 1;
+		component->card->pop_time = 1;
 	}
 }
 
@@ -323,15 +323,15 @@ static struct snd_soc_dai_driver cx20442_dai = {
 	},
 };
 
-static int cx20442_set_bias_level(struct snd_soc_codec *codec,
+static int cx20442_set_bias_level(struct snd_soc_component *component,
 		enum snd_soc_bias_level level)
 {
-	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+	struct cx20442_priv *cx20442 = snd_soc_component_get_drvdata(component);
 	int err = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_STANDBY)
+		if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_STANDBY)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -339,7 +339,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 			err = regulator_enable(cx20442->por);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_PREPARE)
+		if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_PREPARE)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -353,7 +353,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 	return err;
 }
 
-static int cx20442_codec_probe(struct snd_soc_codec *codec)
+static int cx20442_component_probe(struct snd_soc_component *component)
 {
 	struct cx20442_priv *cx20442;
 
@@ -361,21 +361,21 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 	if (cx20442 == NULL)
 		return -ENOMEM;
 
-	cx20442->por = regulator_get(codec->dev, "POR");
+	cx20442->por = regulator_get(component->dev, "POR");
 	if (IS_ERR(cx20442->por))
-		dev_warn(codec->dev, "failed to get the regulator");
+		dev_warn(component->dev, "failed to get the regulator");
 	cx20442->tty = NULL;
 
-	snd_soc_codec_set_drvdata(codec, cx20442);
-	codec->component.card->pop_time = 0;
+	snd_soc_component_set_drvdata(component, cx20442);
+	component->card->pop_time = 0;
 
 	return 0;
 }
 
 /* power down chip */
-static int cx20442_codec_remove(struct snd_soc_codec *codec)
+static void cx20442_component_remove(struct snd_soc_component *component)
 {
-	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+	struct cx20442_priv *cx20442 = snd_soc_component_get_drvdata(component);
 
 	if (cx20442->tty) {
 		struct tty_struct *tty = cx20442->tty;
@@ -387,36 +387,30 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 		regulator_put(cx20442->por);
 	}
 
-	snd_soc_codec_set_drvdata(codec, NULL);
+	snd_soc_component_set_drvdata(component, NULL);
 	kfree(cx20442);
-	return 0;
 }
 
-static const struct snd_soc_codec_driver cx20442_codec_dev = {
-	.probe = 	cx20442_codec_probe,
-	.remove = 	cx20442_codec_remove,
-	.set_bias_level = cx20442_set_bias_level,
-	.read = cx20442_read_reg_cache,
-	.write = cx20442_write,
-
-	.component_driver = {
-		.dapm_widgets		= cx20442_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(cx20442_dapm_widgets),
-		.dapm_routes		= cx20442_audio_map,
-		.num_dapm_routes	= ARRAY_SIZE(cx20442_audio_map),
-	},
+static const struct snd_soc_component_driver cx20442_component_dev = {
+	.probe			= cx20442_component_probe,
+	.remove			= cx20442_component_remove,
+	.set_bias_level		= cx20442_set_bias_level,
+	.read			= cx20442_read_reg_cache,
+	.write			= cx20442_write,
+	.dapm_widgets		= cx20442_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cx20442_dapm_widgets),
+	.dapm_routes		= cx20442_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(cx20442_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cx20442_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&cx20442_codec_dev, &cx20442_dai, 1);
-}
-
-static int cx20442_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&cx20442_component_dev, &cx20442_dai, 1);
 }
 
 static struct platform_driver cx20442_platform_driver = {
@@ -424,7 +418,6 @@ static struct platform_driver cx20442_platform_driver = {
 		.name = "cx20442-codec",
 		},
 	.probe = cx20442_platform_probe,
-	.remove = cx20442_platform_remove,
 };
 
 module_platform_driver(cx20442_platform_driver);

@@ -4667,7 +4667,7 @@ static int sky2_device_event(struct notifier_block *unused,
 		break;
 
 	case NETDEV_UP:
-		sky2->debugfs = debugfs_create_file(dev->name, S_IRUGO,
+		sky2->debugfs = debugfs_create_file(dev->name, 0444,
 						    sky2_debug, dev,
 						    &sky2_debug_fops);
 		if (IS_ERR(sky2->debugfs))
@@ -5087,7 +5087,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&hw->restart_work, sky2_restart);
 
 	pci_set_drvdata(pdev, hw);
-	pdev->d3_delay = 150;
+	pdev->d3_delay = 200;
 
 	return 0;
 

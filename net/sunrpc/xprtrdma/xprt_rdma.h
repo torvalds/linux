@@ -334,8 +334,6 @@ enum {
 struct rpcrdma_buffer;
 struct rpcrdma_req {
 	struct list_head	rl_list;
-	int			rl_cpu;
-	unsigned int		rl_connect_cookie;
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;
 	struct xdr_stream	rl_stream;
@@ -474,6 +472,8 @@ struct rpcrdma_memreg_ops {
 			(*ro_map)(struct rpcrdma_xprt *,
 				  struct rpcrdma_mr_seg *, int, bool,
 				  struct rpcrdma_mr **);
+	int		(*ro_send)(struct rpcrdma_ia *ia,
+				   struct rpcrdma_req *req);
 	void		(*ro_reminv)(struct rpcrdma_rep *rep,
 				     struct list_head *mrs);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,

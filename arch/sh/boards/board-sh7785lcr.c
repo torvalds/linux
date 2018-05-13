@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/gpio/machine.h>
 #include <mach/sh7785lcr.h>
 #include <cpu/sh7785.h>
 #include <asm/heartbeat.h>
@@ -243,8 +244,15 @@ static struct resource i2c_resources[] = {
 	},
 };
 
+static struct gpiod_lookup_table i2c_gpio_table = {
+	.dev_id = "i2c.0",
+	.table = {
+		GPIO_LOOKUP("pfc-sh7757", 0, "reset-gpios", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct i2c_pca9564_pf_platform_data i2c_platform_data = {
-	.gpio			= 0,
 	.i2c_clock_speed	= I2C_PCA_CON_330kHz,
 	.timeout		= HZ,
 };
@@ -283,6 +291,7 @@ static int __init sh7785lcr_devices_setup(void)
 		i2c_device.num_resources = ARRAY_SIZE(i2c_proto_resources);
 	}
 
+	gpiod_add_lookup_table(&i2c_gpio_table);
 	return platform_add_devices(sh7785lcr_devices,
 				    ARRAY_SIZE(sh7785lcr_devices));
 }

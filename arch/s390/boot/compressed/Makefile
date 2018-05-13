@@ -29,10 +29,15 @@ LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS)
 	$(call if_changed,ld)
 
-sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\)$$/\#define SZ\2 0x\1/p'
+TRIM_HEAD_SIZE := 0x11000
 
-quiet_cmd_sizes = GEN $@
+sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\)$$/\#define SZ\2 (0x\1 - $(TRIM_HEAD_SIZE))/p'
+
+quiet_cmd_sizes = GEN     $@
       cmd_sizes = $(NM) $< | sed -n $(sed-sizes) > $@
+
+quiet_cmd_trim_head = TRIM    $@
+      cmd_trim_head = tail -c +$$(($(TRIM_HEAD_SIZE) + 1)) $< > $@
 
 $(obj)/sizes.h: vmlinux
 	$(call if_changed,sizes)
@@ -43,9 +48,12 @@ $(obj)/head.o: $(obj)/sizes.h
 CFLAGS_misc.o += -I$(objtree)/$(obj)
 $(obj)/misc.o: $(obj)/sizes.h
 
-OBJCOPYFLAGS_vmlinux.bin :=  -R .comment -S
-$(obj)/vmlinux.bin: vmlinux
+OBJCOPYFLAGS_vmlinux.bin.full :=  -R .comment -S
+$(obj)/vmlinux.bin.full: vmlinux
 	$(call if_changed,objcopy)
+
+$(obj)/vmlinux.bin: $(obj)/vmlinux.bin.full
+	$(call if_changed,trim_head)
 
 vmlinux.bin.all-y := $(obj)/vmlinux.bin
 

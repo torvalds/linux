@@ -2226,6 +2226,7 @@ qla2x00_erase_flash_sector(struct qla_hw_data *ha, uint32_t addr,
 
 /**
  * qla2x00_get_flash_manufacturer() - Read manufacturer ID from flash chip.
+ * @ha:
  * @man_id: Flash manufacturer ID
  * @flash_id: Flash ID
  */

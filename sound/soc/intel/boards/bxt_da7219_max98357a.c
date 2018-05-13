@@ -169,7 +169,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	/* Configure sysclk for codec */
 	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, 19200000,
@@ -192,7 +192,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	da7219_aad_jack_det(codec, &broxton_headset);
+	da7219_aad_jack_det(component, &broxton_headset);
 
 	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
 
@@ -522,12 +522,12 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 {
 	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct bxt_hdmi_pcm *pcm;
-	struct snd_soc_codec *codec = NULL;
+	struct snd_soc_component *component = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		codec = pcm->codec_dai->codec;
+		component = pcm->codec_dai->component;
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
@@ -545,10 +545,10 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
-	if (!codec)
+	if (!component)
 		return -EINVAL;
 
-	return hdac_hdmi_jack_port_init(codec, &card->dapm);
+	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
 
 /* broxton audio machine driver for SPT + da7219 */

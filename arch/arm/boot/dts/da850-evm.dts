@@ -15,11 +15,16 @@
 	compatible = "ti,da850-evm", "ti,da850";
 	model = "DA850/AM1808/OMAP-L138 EVM";
 
+	chosen {
+		stdout-path = &serial2;
+	};
+
 	aliases {
 		serial0 = &serial0;
 		serial1 = &serial1;
 		serial2 = &serial2;
 		ethernet0 = &eth0;
+		spi0 = &spi1;
 	};
 
 	soc@1c00000 {

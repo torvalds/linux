@@ -208,7 +208,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 	/* Create cached_info and set spu_info[spu->number] to point to it.
 	 * spu->number is a system-wide value, not a per-node value.
 	 */
-	info = kzalloc(sizeof(struct cached_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: create vma_map failed\n",

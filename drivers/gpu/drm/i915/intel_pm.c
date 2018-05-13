@@ -3567,6 +3567,23 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
+static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
+{
+	u8 enabled_slices;
+
+	/* Slice 1 will always be enabled */
+	enabled_slices = 1;
+
+	/* Gen prior to GEN11 have only one DBuf slice */
+	if (INTEL_GEN(dev_priv) < 11)
+		return enabled_slices;
+
+	if (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
+		enabled_slices++;
+
+	return enabled_slices;
+}
+
 /*
  * FIXME: We still don't have the proper code detect if we need to apply the WA,
  * so assume we'll always need it in order to avoid underruns.
@@ -3754,9 +3771,42 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	return true;
 }
 
+static unsigned int intel_get_ddb_size(struct drm_i915_private *dev_priv,
+				       const struct intel_crtc_state *cstate,
+				       const unsigned int total_data_rate,
+				       const int num_active,
+				       struct skl_ddb_allocation *ddb)
+{
+	const struct drm_display_mode *adjusted_mode;
+	u64 total_data_bw;
+	u16 ddb_size = INTEL_INFO(dev_priv)->ddb_size;
+
+	WARN_ON(ddb_size == 0);
+
+	if (INTEL_GEN(dev_priv) < 11)
+		return ddb_size - 4; /* 4 blocks for bypass path allocation */
+
+	adjusted_mode = &cstate->base.adjusted_mode;
+	total_data_bw = (u64)total_data_rate * drm_mode_vrefresh(adjusted_mode);
+
+	/*
+	 * 12GB/s is maximum BW supported by single DBuf slice.
+	 */
+	if (total_data_bw >= GBps(12) || num_active > 1) {
+		ddb->enabled_slices = 2;
+	} else {
+		ddb->enabled_slices = 1;
+		ddb_size /= 2;
+	}
+
+	return ddb_size;
+}
+
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 				   const struct intel_crtc_state *cstate,
+				   const unsigned int total_data_rate,
+				   struct skl_ddb_allocation *ddb,
 				   struct skl_ddb_entry *alloc, /* out */
 				   int *num_active /* out */)
 {
@@ -3779,11 +3829,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	else
 		*num_active = hweight32(dev_priv->active_crtcs);
 
-	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
-	WARN_ON(ddb_size == 0);
-
-	if (INTEL_GEN(dev_priv) < 11)
-		ddb_size -= 4; /* 4 blocks for bypass path allocation */
+	ddb_size = intel_get_ddb_size(dev_priv, cstate, total_data_rate,
+				      *num_active, ddb);
 
 	/*
 	 * If the state doesn't change the active CRTC's, then there's
@@ -3817,10 +3864,18 @@ static unsigned int skl_cursor_allocation(int num_active)
 	return 8;
 }
 
-static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
+static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
+				       struct skl_ddb_entry *entry, u32 reg)
 {
-	entry->start = reg & 0x3ff;
-	entry->end = (reg >> 16) & 0x3ff;
+	u16 mask;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		mask = ICL_DDB_ENTRY_MASK;
+	else
+		mask = SKL_DDB_ENTRY_MASK;
+	entry->start = reg & mask;
+	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & mask;
+
 	if (entry->end)
 		entry->end += 1;
 }
@@ -3837,7 +3892,8 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = I915_READ(CUR_BUF_CFG(pipe));
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val);
 		return;
 	}
 
@@ -3856,10 +3912,13 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
 
 	if (fourcc == DRM_FORMAT_NV12) {
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val2);
-		skl_ddb_entry_init_from_hw(&ddb->uv_plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val2);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->uv_plane[pipe][plane_id], val);
 	} else {
-		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+		skl_ddb_entry_init_from_hw(dev_priv,
+					   &ddb->plane[pipe][plane_id], val);
 	}
 }
 
@@ -3869,6 +3928,8 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 
 	memset(ddb, 0, sizeof(*ddb));
+
+	ddb->enabled_slices = intel_enabled_dbuf_slices_num(dev_priv);
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		enum intel_display_power_domain power_domain;
@@ -4242,7 +4303,11 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 	}
 
-	skl_ddb_get_pipe_allocation_limits(dev, cstate, alloc, &num_active);
+	total_data_rate = skl_get_total_relative_data_rate(cstate,
+							   plane_data_rate,
+							   uv_plane_data_rate);
+	skl_ddb_get_pipe_allocation_limits(dev, cstate, total_data_rate, ddb,
+					   alloc, &num_active);
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0)
 		return 0;
@@ -4277,9 +4342,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 *
 	 * FIXME: we may not allocate every single block here.
 	 */
-	total_data_rate = skl_get_total_relative_data_rate(cstate,
-							   plane_data_rate,
-							   uv_plane_data_rate);
 	if (total_data_rate == 0)
 		return 0;
 
@@ -5088,6 +5150,7 @@ skl_copy_ddb_for_pipe(struct skl_ddb_values *dst,
 	       sizeof(dst->ddb.uv_plane[pipe]));
 	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
 	       sizeof(dst->ddb.plane[pipe]));
+	dst->ddb.enabled_slices = src->ddb.enabled_slices;
 }
 
 static void
@@ -5472,8 +5535,12 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 		/* Fully recompute DDB on first atomic commit */
 		dev_priv->wm.distrust_bios_wm = true;
 	} else {
-		/* Easy/common case; just sanitize DDB now if everything off */
-		memset(ddb, 0, sizeof(*ddb));
+		/*
+		 * Easy/common case; just sanitize DDB now if everything off
+		 * Keep dbuf slice info intact
+		 */
+		memset(ddb->plane, 0, sizeof(ddb->plane));
+		memset(ddb->uv_plane, 0, sizeof(ddb->uv_plane));
 	}
 }
 
@@ -8597,6 +8664,13 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 }
 
+static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	/* This is not an Wa. Enable to reduce Sampler power */
+	I915_WRITE(GEN10_DFR_RATIO_EN_AND_CHICKEN,
+		   I915_READ(GEN10_DFR_RATIO_EN_AND_CHICKEN) & ~DFR_DISABLE);
+}
+
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_PCH_CNP(dev_priv))
@@ -9123,7 +9197,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		dev_priv->display.init_clock_gating = icl_init_clock_gating;
+	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
 	else if (IS_COFFEELAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cfl_init_clock_gating;

@@ -60,7 +60,7 @@
 	(((prot) & 0x3) << F_MMU_TF_PROTECT_SEL_SHIFT(data))
 
 #define REG_MMU_IVRP_PADDR			0x114
-#define F_MMU_IVRP_PA_SET(pa, ext)		(((pa) >> 1) | ((!!(ext)) << 31))
+
 #define REG_MMU_VLD_PA_RNG			0x118
 #define F_MMU_VLD_PA_RNG(EA, SA)		(((EA) << 8) | (SA))
 
@@ -539,8 +539,13 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 		F_INT_PRETETCH_TRANSATION_FIFO_FAULT;
 	writel_relaxed(regval, data->base + REG_MMU_INT_MAIN_CONTROL);
 
-	writel_relaxed(F_MMU_IVRP_PA_SET(data->protect_base, data->enable_4GB),
-		       data->base + REG_MMU_IVRP_PADDR);
+	if (data->m4u_plat == M4U_MT8173)
+		regval = (data->protect_base >> 1) | (data->enable_4GB << 31);
+	else
+		regval = lower_32_bits(data->protect_base) |
+			 upper_32_bits(data->protect_base);
+	writel_relaxed(regval, data->base + REG_MMU_IVRP_PADDR);
+
 	if (data->enable_4GB && data->m4u_plat != M4U_MT8173) {
 		/*
 		 * If 4GB mode is enabled, the validate PA range is from
@@ -695,6 +700,7 @@ static int __maybe_unused mtk_iommu_suspend(struct device *dev)
 	reg->ctrl_reg = readl_relaxed(base + REG_MMU_CTRL_REG);
 	reg->int_control0 = readl_relaxed(base + REG_MMU_INT_CONTROL0);
 	reg->int_main_control = readl_relaxed(base + REG_MMU_INT_MAIN_CONTROL);
+	reg->ivrp_paddr = readl_relaxed(base + REG_MMU_IVRP_PADDR);
 	clk_disable_unprepare(data->bclk);
 	return 0;
 }
@@ -717,8 +723,7 @@ static int __maybe_unused mtk_iommu_resume(struct device *dev)
 	writel_relaxed(reg->ctrl_reg, base + REG_MMU_CTRL_REG);
 	writel_relaxed(reg->int_control0, base + REG_MMU_INT_CONTROL0);
 	writel_relaxed(reg->int_main_control, base + REG_MMU_INT_MAIN_CONTROL);
-	writel_relaxed(F_MMU_IVRP_PA_SET(data->protect_base, data->enable_4GB),
-		       base + REG_MMU_IVRP_PADDR);
+	writel_relaxed(reg->ivrp_paddr, base + REG_MMU_IVRP_PADDR);
 	if (data->m4u_dom)
 		writel(data->m4u_dom->cfg.arm_v7s_cfg.ttbr[0],
 		       base + REG_MMU_PT_BASE_ADDR);

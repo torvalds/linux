@@ -592,7 +592,7 @@ static int aha1740_probe (struct device *dev)
 					     DMA_BIDIRECTIONAL);
 	if (!host->ecb_dma_addr) {
 		printk (KERN_ERR "aha1740_probe: Couldn't map ECB, giving up\n");
-		scsi_unregister (shpnt);
+		scsi_host_put (shpnt);
 		goto err_host_put;
 	}
 	

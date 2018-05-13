@@ -46,10 +46,6 @@
 #define CPUINFO_PROC	{"Processor"}
 #endif
 
-#ifdef __metag__
-#define CPUINFO_PROC	{"CPU"}
-#endif
-
 #ifdef __xtensa__
 #define CPUINFO_PROC	{"core ID"}
 #endif

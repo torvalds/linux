@@ -72,6 +72,7 @@ config SOC_AM43XX
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select OMAP_INTERCONNECT
+	select ARM_CPU_SUSPEND if PM
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"

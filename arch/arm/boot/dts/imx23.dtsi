@@ -23,7 +23,7 @@
 	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; };
 
 	aliases {
 		gpio0 = &gpio0;
@@ -222,7 +222,8 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				gpmi_pins_fixup: gpmi-pins-fixup {
+				gpmi_pins_fixup: gpmi-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_GPMI_WPN__GPMI_WPN
 						MX23_PAD_GPMI_WRN__GPMI_WRN
@@ -266,7 +267,8 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc0_pins_fixup: mmc0-pins-fixup {
+				mmc0_pins_fixup: mmc0-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 						MX23_PAD_SSP1_SCK__SSP1_SCK

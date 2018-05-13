@@ -1,0 +1,7 @@
+menu "HW tracing support"
+
+source "drivers/hwtracing/stm/Kconfig"
+
+source "drivers/hwtracing/intel_th/Kconfig"
+
+endmenu

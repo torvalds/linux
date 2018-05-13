@@ -1,0 +1,28 @@
+Spreadtrum GPIO controller bindings
+
+The controller's registers are organized as sets of sixteen 16-bit
+registers with each set controlling a bank of up to 16 pins. A single
+interrupt is shared for all of the banks handled by the controller.
+
+Required properties:
+- compatible: Should be "sprd,sc9860-gpio".
+- reg: Define the base and range of the I/O address space containing
+the GPIO controller registers.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Should be <2>. The first cell is the gpio number and
+the second cell is used to specify optional parameters.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Should be <2>. Specifies the number of cells needed
+to encode interrupt source.
+- interrupts: Should be the port interrupt shared by all the gpios.
+
+Example:
+	ap_gpio: gpio@40280000 {
+		compatible = "sprd,sc9860-gpio";
+		reg = <0 0x40280000 0 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+	};

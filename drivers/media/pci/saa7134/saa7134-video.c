@@ -1200,7 +1200,7 @@ static int video_release(struct file *file)
 	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
 
-	saa_call_all(dev, core, s_power, 0);
+	saa_call_all(dev, tuner, standby);
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
 		saa_call_all(dev, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
 	mutex_unlock(&dev->lock);
@@ -1235,12 +1235,12 @@ static __poll_t radio_poll(struct file *file, poll_table *wait)
 
 	cmd.instance = file;
 	cmd.event_list = wait;
-	cmd.result = 0;
+	cmd.poll_mask = 0;
 	mutex_lock(&dev->lock);
 	saa_call_all(dev, core, ioctl, SAA6588_CMD_POLL, &cmd);
 	mutex_unlock(&dev->lock);
 
-	return rc | cmd.result;
+	return rc | cmd.poll_mask;
 }
 
 /* ------------------------------------------------------------------ */

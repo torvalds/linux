@@ -1,7 +1,7 @@
 /*
  * kernel/sched/debug.c
  *
- * Print the CFS rbtree
+ * Print the CFS rbtree and other debugging details
  *
  * Copyright(C) 2007, Red Hat, Inc., Ingo Molnar
  *
@@ -9,16 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-#include <linux/proc_fs.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
-#include <linux/seq_file.h>
-#include <linux/kallsyms.h>
-#include <linux/utsname.h>
-#include <linux/mempolicy.h>
-#include <linux/debugfs.h>
-
 #include "sched.h"
 
 static DEFINE_SPINLOCK(sched_debug_lock);
@@ -274,34 +264,19 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 	if (table == NULL)
 		return NULL;
 
-	set_table_entry(&table[0], "min_interval", &sd->min_interval,
-		sizeof(long), 0644, proc_doulongvec_minmax, false);
-	set_table_entry(&table[1], "max_interval", &sd->max_interval,
-		sizeof(long), 0644, proc_doulongvec_minmax, false);
-	set_table_entry(&table[2], "busy_idx", &sd->busy_idx,
-		sizeof(int), 0644, proc_dointvec_minmax, true);
-	set_table_entry(&table[3], "idle_idx", &sd->idle_idx,
-		sizeof(int), 0644, proc_dointvec_minmax, true);
-	set_table_entry(&table[4], "newidle_idx", &sd->newidle_idx,
-		sizeof(int), 0644, proc_dointvec_minmax, true);
-	set_table_entry(&table[5], "wake_idx", &sd->wake_idx,
-		sizeof(int), 0644, proc_dointvec_minmax, true);
-	set_table_entry(&table[6], "forkexec_idx", &sd->forkexec_idx,
-		sizeof(int), 0644, proc_dointvec_minmax, true);
-	set_table_entry(&table[7], "busy_factor", &sd->busy_factor,
-		sizeof(int), 0644, proc_dointvec_minmax, false);
-	set_table_entry(&table[8], "imbalance_pct", &sd->imbalance_pct,
-		sizeof(int), 0644, proc_dointvec_minmax, false);
-	set_table_entry(&table[9], "cache_nice_tries",
-		&sd->cache_nice_tries,
-		sizeof(int), 0644, proc_dointvec_minmax, false);
-	set_table_entry(&table[10], "flags", &sd->flags,
-		sizeof(int), 0644, proc_dointvec_minmax, false);
-	set_table_entry(&table[11], "max_newidle_lb_cost",
-		&sd->max_newidle_lb_cost,
-		sizeof(long), 0644, proc_doulongvec_minmax, false);
-	set_table_entry(&table[12], "name", sd->name,
-		CORENAME_MAX_SIZE, 0444, proc_dostring, false);
+	set_table_entry(&table[0] , "min_interval",	   &sd->min_interval,	     sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[1] , "max_interval",	   &sd->max_interval,	     sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[2] , "busy_idx",		   &sd->busy_idx,	     sizeof(int) , 0644, proc_dointvec_minmax,   true );
+	set_table_entry(&table[3] , "idle_idx",		   &sd->idle_idx,	     sizeof(int) , 0644, proc_dointvec_minmax,   true );
+	set_table_entry(&table[4] , "newidle_idx",	   &sd->newidle_idx,	     sizeof(int) , 0644, proc_dointvec_minmax,   true );
+	set_table_entry(&table[5] , "wake_idx",		   &sd->wake_idx,	     sizeof(int) , 0644, proc_dointvec_minmax,   true );
+	set_table_entry(&table[6] , "forkexec_idx",	   &sd->forkexec_idx,	     sizeof(int) , 0644, proc_dointvec_minmax,   true );
+	set_table_entry(&table[7] , "busy_factor",	   &sd->busy_factor,	     sizeof(int) , 0644, proc_dointvec_minmax,   false);
+	set_table_entry(&table[8] , "imbalance_pct",	   &sd->imbalance_pct,	     sizeof(int) , 0644, proc_dointvec_minmax,   false);
+	set_table_entry(&table[9] , "cache_nice_tries",	   &sd->cache_nice_tries,    sizeof(int) , 0644, proc_dointvec_minmax,   false);
+	set_table_entry(&table[10], "flags",		   &sd->flags,		     sizeof(int) , 0644, proc_dointvec_minmax,   false);
+	set_table_entry(&table[11], "max_newidle_lb_cost", &sd->max_newidle_lb_cost, sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[12], "name",		   sd->name,		CORENAME_MAX_SIZE, 0444, proc_dostring,		 false);
 	/* &table[13] is terminator */
 
 	return table;
@@ -332,8 +307,8 @@ static struct ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 	return table;
 }
 
-static cpumask_var_t sd_sysctl_cpus;
-static struct ctl_table_header *sd_sysctl_header;
+static cpumask_var_t		sd_sysctl_cpus;
+static struct ctl_table_header	*sd_sysctl_header;
 
 void register_sched_domain_sysctl(void)
 {
@@ -413,14 +388,10 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 {
 	struct sched_entity *se = tg->se[cpu];
 
-#define P(F) \
-	SEQ_printf(m, "  .%-30s: %lld\n", #F, (long long)F)
-#define P_SCHEDSTAT(F) \
-	SEQ_printf(m, "  .%-30s: %lld\n", #F, (long long)schedstat_val(F))
-#define PN(F) \
-	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)F))
-#define PN_SCHEDSTAT(F) \
-	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)schedstat_val(F)))
+#define P(F)		SEQ_printf(m, "  .%-30s: %lld\n",	#F, (long long)F)
+#define P_SCHEDSTAT(F)	SEQ_printf(m, "  .%-30s: %lld\n",	#F, (long long)schedstat_val(F))
+#define PN(F)		SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)F))
+#define PN_SCHEDSTAT(F)	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)schedstat_val(F)))
 
 	if (!se)
 		return;
@@ -428,6 +399,7 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	PN(se->exec_start);
 	PN(se->vruntime);
 	PN(se->sum_exec_runtime);
+
 	if (schedstat_enabled()) {
 		PN_SCHEDSTAT(se->statistics.wait_start);
 		PN_SCHEDSTAT(se->statistics.sleep_start);
@@ -440,6 +412,7 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 		PN_SCHEDSTAT(se->statistics.wait_sum);
 		P_SCHEDSTAT(se->statistics.wait_count);
 	}
+
 	P(se->load.weight);
 	P(se->runnable_weight);
 #ifdef CONFIG_SMP
@@ -464,6 +437,7 @@ static char *task_group_path(struct task_group *tg)
 		return group_path;
 
 	cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
+
 	return group_path;
 }
 #endif
@@ -569,6 +543,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			cfs_rq->avg.runnable_load_avg);
 	SEQ_printf(m, "  .%-30s: %lu\n", "util_avg",
 			cfs_rq->avg.util_avg);
+	SEQ_printf(m, "  .%-30s: %u\n", "util_est_enqueued",
+			cfs_rq->avg.util_est.enqueued);
 	SEQ_printf(m, "  .%-30s: %ld\n", "removed.load_avg",
 			cfs_rq->removed.load_avg);
 	SEQ_printf(m, "  .%-30s: %ld\n", "removed.util_avg",
@@ -804,9 +780,9 @@ void sysrq_sched_debug_show(void)
 /*
  * This itererator needs some explanation.
  * It returns 1 for the header position.
- * This means 2 is cpu 0.
- * In a hotplugged system some cpus, including cpu 0, may be missing so we have
- * to use cpumask_* to iterate over the cpus.
+ * This means 2 is CPU 0.
+ * In a hotplugged system some CPUs, including CPU 0, may be missing so we have
+ * to use cpumask_* to iterate over the CPUs.
  */
 static void *sched_debug_start(struct seq_file *file, loff_t *offset)
 {
@@ -826,6 +802,7 @@ static void *sched_debug_start(struct seq_file *file, loff_t *offset)
 
 	if (n < nr_cpu_ids)
 		return (void *)(unsigned long)(n + 2);
+
 	return NULL;
 }
 
@@ -840,10 +817,10 @@ static void sched_debug_stop(struct seq_file *file, void *data)
 }
 
 static const struct seq_operations sched_debug_sops = {
-	.start = sched_debug_start,
-	.next = sched_debug_next,
-	.stop = sched_debug_stop,
-	.show = sched_debug_show,
+	.start		= sched_debug_start,
+	.next		= sched_debug_next,
+	.stop		= sched_debug_stop,
+	.show		= sched_debug_show,
 };
 
 static int sched_debug_release(struct inode *inode, struct file *file)
@@ -881,14 +858,10 @@ static int __init init_sched_debug_procfs(void)
 
 __initcall(init_sched_debug_procfs);
 
-#define __P(F) \
-	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)F)
-#define P(F) \
-	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)p->F)
-#define __PN(F) \
-	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
-#define PN(F) \
-	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
+#define __P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)F)
+#define   P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)p->F)
+#define __PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
+#define   PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
 
 #ifdef CONFIG_NUMA_BALANCING
@@ -1023,6 +996,8 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 	P(se.avg.runnable_load_avg);
 	P(se.avg.util_avg);
 	P(se.avg.last_update_time);
+	P(se.avg.util_est.ewma);
+	P(se.avg.util_est.enqueued);
 #endif
 	P(policy);
 	P(prio);

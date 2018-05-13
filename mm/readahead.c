@@ -175,7 +175,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			break;
 
 		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->page_tree, page_offset);
+		page = radix_tree_lookup(&mapping->i_pages, page_offset);
 		rcu_read_unlock();
 		if (page && !radix_tree_exceptional_entry(page))
 			continue;
@@ -573,7 +573,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
 	return force_page_cache_readahead(mapping, filp, index, nr);
 }
 
-SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
+ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 {
 	ssize_t ret;
 	struct fd f;
@@ -591,4 +591,9 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
 		fdput(f);
 	}
 	return ret;
+}
+
+SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
+{
+	return ksys_readahead(fd, offset, count);
 }

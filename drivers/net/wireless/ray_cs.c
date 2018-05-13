@@ -2815,9 +2815,11 @@ static int __init init_ray_cs(void)
 	proc_mkdir("driver/ray_cs", NULL);
 
 	proc_create("driver/ray_cs/ray_cs", 0, NULL, &ray_cs_proc_fops);
-	proc_create("driver/ray_cs/essid", S_IWUSR, NULL, &ray_cs_essid_proc_fops);
-	proc_create_data("driver/ray_cs/net_type", S_IWUSR, NULL, &int_proc_fops, &net_type);
-	proc_create_data("driver/ray_cs/translate", S_IWUSR, NULL, &int_proc_fops, &translate);
+	proc_create("driver/ray_cs/essid", 0200, NULL, &ray_cs_essid_proc_fops);
+	proc_create_data("driver/ray_cs/net_type", 0200, NULL, &int_proc_fops,
+			 &net_type);
+	proc_create_data("driver/ray_cs/translate", 0200, NULL, &int_proc_fops,
+			 &translate);
 #endif
 	if (translate != 0)
 		translate = 1;

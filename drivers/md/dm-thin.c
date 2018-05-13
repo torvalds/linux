@@ -3705,7 +3705,8 @@ static int process_release_metadata_snap_mesg(unsigned argc, char **argv, struct
  *   reserve_metadata_snap
  *   release_metadata_snap
  */
-static int pool_message(struct dm_target *ti, unsigned argc, char **argv)
+static int pool_message(struct dm_target *ti, unsigned argc, char **argv,
+			char *result, unsigned maxlen)
 {
 	int r = -EINVAL;
 	struct pool_c *pt = ti->private;

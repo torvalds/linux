@@ -32,8 +32,8 @@ static int pcm3008_dac_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct pcm3008_setup_data *setup = codec->dev->platform_data;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct pcm3008_setup_data *setup = component->dev->platform_data;
 
 	gpio_set_value_cansleep(setup->pdda_pin,
 				SND_SOC_DAPM_EVENT_ON(event));
@@ -45,8 +45,8 @@ static int pcm3008_adc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct pcm3008_setup_data *setup = codec->dev->platform_data;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct pcm3008_setup_data *setup = component->dev->platform_data;
 
 	gpio_set_value_cansleep(setup->pdad_pin,
 				SND_SOC_DAPM_EVENT_ON(event));
@@ -98,13 +98,15 @@ static struct snd_soc_dai_driver pcm3008_dai = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
-	.component_driver = {
-		.dapm_widgets		= pcm3008_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(pcm3008_dapm_widgets),
-		.dapm_routes		= pcm3008_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(pcm3008_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_pcm3008 = {
+	.dapm_widgets		= pcm3008_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm3008_dapm_widgets),
+	.dapm_routes		= pcm3008_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm3008_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int pcm3008_codec_probe(struct platform_device *pdev)
@@ -146,22 +148,14 @@ static int pcm3008_codec_probe(struct platform_device *pdev)
 	if (ret != 0)
 		return ret;
 
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_pcm3008, &pcm3008_dai, 1);
-}
-
-static int pcm3008_codec_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_pcm3008, &pcm3008_dai, 1);
 }
 
 MODULE_ALIAS("platform:pcm3008-codec");
 
 static struct platform_driver pcm3008_codec_driver = {
 	.probe		= pcm3008_codec_probe,
-	.remove		= pcm3008_codec_remove,
 	.driver		= {
 		.name	= "pcm3008-codec",
 	},

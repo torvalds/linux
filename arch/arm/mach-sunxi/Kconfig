@@ -48,4 +48,11 @@ config MACH_SUN9I
 	default ARCH_SUNXI
 	select ARM_GIC
 
+config ARCH_SUNXI_MC_SMP
+	bool
+	depends on SMP
+	default MACH_SUN9I
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
+
 endif

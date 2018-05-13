@@ -55,7 +55,9 @@ Default is to monitor all CPUS.
 
 -F <freq>::
 --freq=<freq>::
-	Profile at this frequency.
+	Profile at this frequency. Use 'max' to use the currently maximum
+	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
+	sysctl.
 
 -i::
 --inherit::
@@ -64,6 +66,9 @@ Default is to monitor all CPUS.
 -k <path>::
 --vmlinux=<path>::
 	Path to vmlinux.  Required for annotation functionality.
+
+--ignore-vmlinux::
+	Ignore vmlinux files.
 
 -m <pages>::
 --mmap-pages=<pages>::

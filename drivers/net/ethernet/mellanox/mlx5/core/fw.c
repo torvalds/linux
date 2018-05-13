@@ -183,6 +183,9 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, debug))
+		mlx5_core_get_caps(dev, MLX5_CAP_DEBUG);
+
 	if (MLX5_CAP_GEN(dev, pcam_reg))
 		mlx5_get_pcam_reg(dev);
 
@@ -191,6 +194,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, qcam_reg))
 		mlx5_get_qcam_reg(dev);
+
+	if (MLX5_CAP_GEN(dev, device_memory)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_DEV_MEM);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -242,7 +251,7 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 
 	force_state = MLX5_GET(teardown_hca_out, out, force_state);
 	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
-		mlx5_core_err(dev, "teardown with force mode failed\n");
+		mlx5_core_warn(dev, "teardown with force mode failed, doing normal teardown\n");
 		return -EIO;
 	}
 

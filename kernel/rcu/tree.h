@@ -146,12 +146,6 @@ struct rcu_node {
 				/*  boosting for this rcu_node structure. */
 	unsigned int boost_kthread_status;
 				/* State of boost_kthread_task for tracing. */
-	unsigned long n_tasks_boosted;
-				/* Total number of tasks boosted. */
-	unsigned long n_exp_boosts;
-				/* Number of tasks boosted for expedited GP. */
-	unsigned long n_normal_boosts;
-				/* Number of tasks boosted for normal GP. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct swait_queue_head nocb_gp_wq[2];
 				/* Place for rcu_nocb_kthread() to wait GP. */
@@ -184,13 +178,6 @@ union rcu_noqs {
 	u16 s; /* Set of bits, aggregate OR here. */
 };
 
-/* Index values for nxttail array in struct rcu_data. */
-#define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
-#define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
-#define RCU_NEXT_READY_TAIL	2	/* Also RCU_NEXT head. */
-#define RCU_NEXT_TAIL		3
-#define RCU_NEXT_SIZE		4
-
 /* Per-CPU data for read-copy update. */
 struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
@@ -217,8 +204,6 @@ struct rcu_data {
 					/* different grace periods. */
 	long		qlen_last_fqs_check;
 					/* qlen at last check for QS forcing */
-	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */
-	unsigned long	n_nocbs_invoked; /* count of no-CBs RCU cbs invoked. */
 	unsigned long	n_force_qs_snap;
 					/* did other CPU force QS recently? */
 	long		blimit;		/* Upper limit on a processed batch */
@@ -234,18 +219,7 @@ struct rcu_data {
 					/* Grace period that needs help */
 					/*  from cond_resched(). */
 
-	/* 5) __rcu_pending() statistics. */
-	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
-	unsigned long n_rp_core_needs_qs;
-	unsigned long n_rp_report_qs;
-	unsigned long n_rp_cb_ready;
-	unsigned long n_rp_cpu_needs_gp;
-	unsigned long n_rp_gp_completed;
-	unsigned long n_rp_gp_started;
-	unsigned long n_rp_nocb_defer_wakeup;
-	unsigned long n_rp_need_nothing;
-
-	/* 6) _rcu_barrier(), OOM callbacks, and expediting. */
+	/* 5) _rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
@@ -256,7 +230,7 @@ struct rcu_data {
 	atomic_long_t exp_workdone3;	/* # done by others #3. */
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
-	/* 7) Callback offloading. */
+	/* 6) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
@@ -283,7 +257,7 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 8) RCU CPU stall data. */
+	/* 7) RCU CPU stall data. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
@@ -374,10 +348,6 @@ struct rcu_state {
 						/*  kthreads, if configured. */
 	unsigned long n_force_qs;		/* Number of calls to */
 						/*  force_quiescent_state(). */
-	unsigned long n_force_qs_lh;		/* ~Number of calls leaving */
-						/*  due to lock unavailable. */
-	unsigned long n_force_qs_ngp;		/* Number of calls leaving */
-						/*  due to no GP active. */
 	unsigned long gp_start;			/* Time at which GP started, */
 						/*  but in jiffies. */
 	unsigned long gp_activity;		/* Time of last GP kthread */

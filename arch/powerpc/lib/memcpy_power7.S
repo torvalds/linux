@@ -259,15 +259,12 @@ _GLOBAL(memcpy_power7)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	dcbt	0,r6,0b01000
 	dcbt	0,r7,0b01010
 	dcbtst	0,r9,0b01000
 	dcbtst	0,r10,0b01010
 	eieio
 	dcbt	0,r8,0b01010	/* GO */
-.machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 

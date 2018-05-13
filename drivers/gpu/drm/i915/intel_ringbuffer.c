@@ -558,7 +558,8 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 	 */
 	if (request) {
 		struct drm_i915_private *dev_priv = request->i915;
-		struct intel_context *ce = &request->ctx->engine[engine->id];
+		struct intel_context *ce = to_intel_context(request->ctx,
+							    engine);
 		struct i915_hw_ppgtt *ppgtt;
 
 		if (ce->state) {
@@ -618,9 +619,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	ret = intel_whitelist_workarounds_apply(engine);
-	if (ret)
-		return ret;
+	intel_whitelist_workarounds_apply(engine);
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (IS_GEN(dev_priv, 4, 6))
@@ -698,17 +697,17 @@ static void cancel_requests(struct intel_engine_cs *engine)
 	struct i915_request *request;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	/* Mark all submitted requests as skipped. */
-	list_for_each_entry(request, &engine->timeline->requests, link) {
+	list_for_each_entry(request, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!request->global_seqno);
 		if (!i915_request_completed(request))
 			dma_fence_set_error(&request->fence, -EIO);
 	}
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static void i9xx_submit_request(struct i915_request *request)
@@ -1067,7 +1066,6 @@ err:
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
 {
-	GEM_BUG_ON(!list_empty(&ring->request_list));
 	ring->tail = tail;
 	ring->head = tail;
 	ring->emit = tail;
@@ -1119,19 +1117,24 @@ err:
 }
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size)
+intel_engine_create_ring(struct intel_engine_cs *engine,
+			 struct i915_timeline *timeline,
+			 int size)
 {
 	struct intel_ring *ring;
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!is_power_of_2(size));
 	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
+	GEM_BUG_ON(timeline == &engine->timeline);
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&ring->request_list);
+	ring->timeline = i915_timeline_get(timeline);
 
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1162,12 +1165,13 @@ intel_ring_free(struct intel_ring *ring)
 	i915_vma_close(ring->vma);
 	__i915_gem_object_release_unless_active(obj);
 
+	i915_timeline_put(ring->timeline);
 	kfree(ring);
 }
 
-static int context_pin(struct i915_gem_context *ctx)
+static int context_pin(struct intel_context *ce)
 {
-	struct i915_vma *vma = ctx->engine[RCS].state;
+	struct i915_vma *vma = ce->state;
 	int ret;
 
 	/*
@@ -1258,7 +1262,7 @@ static struct intel_ring *
 intel_ring_context_pin(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	int ret;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
@@ -1280,7 +1284,7 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 	}
 
 	if (ce->state) {
-		ret = context_pin(ctx);
+		ret = context_pin(ce);
 		if (ret)
 			goto err;
 
@@ -1301,7 +1305,7 @@ err:
 static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 				     struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(ce->pin_count == 0);
@@ -1320,6 +1324,7 @@ static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct intel_ring *ring;
+	struct i915_timeline *timeline;
 	int err;
 
 	intel_engine_setup_common(engine);
@@ -1328,7 +1333,14 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (err)
 		goto err;
 
-	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
+	timeline = i915_timeline_create(engine->i915, engine->name);
+	if (IS_ERR(timeline)) {
+		err = PTR_ERR(timeline);
+		goto err;
+	}
+
+	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
+	i915_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);
 		goto err;
@@ -1429,7 +1441,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	*cs++ = MI_NOOP;
 	*cs++ = MI_SET_CONTEXT;
-	*cs++ = i915_ggtt_offset(rq->ctx->engine[RCS].state) | flags;
+	*cs++ = i915_ggtt_offset(to_intel_context(rq->ctx, engine)->state) | flags;
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -1520,7 +1532,7 @@ static int switch_context(struct i915_request *rq)
 		hw_flags = MI_FORCE_RESTORE;
 	}
 
-	if (to_ctx->engine[engine->id].state &&
+	if (to_intel_context(to_ctx, engine)->state &&
 	    (to_ctx != from_ctx || hw_flags & MI_FORCE_RESTORE)) {
 		GEM_BUG_ON(engine->id != RCS);
 
@@ -1568,7 +1580,7 @@ static int ring_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!request->ctx->engine[request->engine->id].pin_count);
+	GEM_BUG_ON(!to_intel_context(request->ctx, request->engine)->pin_count);
 
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
@@ -1719,22 +1731,24 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 /* Align the ring tail to a cacheline boundary */
 int intel_ring_cacheline_align(struct i915_request *rq)
 {
-	int num_dwords = (rq->ring->emit & (CACHELINE_BYTES - 1)) / sizeof(u32);
-	u32 *cs;
+	int num_dwords;
+	void *cs;
 
+	num_dwords = (rq->ring->emit & (CACHELINE_BYTES - 1)) / sizeof(u32);
 	if (num_dwords == 0)
 		return 0;
 
-	num_dwords = CACHELINE_BYTES / sizeof(u32) - num_dwords;
+	num_dwords = CACHELINE_DWORDS - num_dwords;
+	GEM_BUG_ON(num_dwords & 1);
+
 	cs = intel_ring_begin(rq, num_dwords);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	while (num_dwords--)
-		*cs++ = MI_NOOP;
-
+	memset64(cs, (u64)MI_NOOP << 32 | MI_NOOP, num_dwords / 2);
 	intel_ring_advance(rq, cs);
 
+	GEM_BUG_ON(rq->ring->emit & (CACHELINE_BYTES - 1));
 	return 0;
 }
 

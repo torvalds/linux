@@ -1385,7 +1385,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 		return -ENOMEM;
 
 #ifdef CONFIG_ATH_DEBUG
-	debugfs_create_file("debug", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("debug", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_debug);
 #endif
 
@@ -1409,22 +1409,22 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 
-	debugfs_create_u8("rx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("rx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->rxchainmask);
-	debugfs_create_u8("tx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("tx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->txchainmask);
-	debugfs_create_file("ani", S_IRUSR | S_IWUSR,
+	debugfs_create_file("ani", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_ani);
-	debugfs_create_bool("paprd", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_bool("paprd", 0600, sc->debug.debugfs_phy,
 			    &sc->sc_ah->config.enable_paprd);
-	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regidx", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", S_IRUSR | S_IWUSR,
+	debugfs_create_bool("ignore_extcca", 0600,
 			    sc->debug.debugfs_phy,
 			    &ah->config.cwm_ignore_extcca);
-	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",
 				    sc->debug.debugfs_phy,
@@ -1433,35 +1433,33 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 
-	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_mask", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
-	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_val", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("antenna_diversity", S_IRUSR,
+	debugfs_create_file("antenna_diversity", 0400,
 			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
-	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
+	debugfs_create_file("bt_ant_diversity", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
-	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("btcoex", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif
 
 #ifdef CONFIG_ATH9K_WOW
-	debugfs_create_file("wow", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_wow);
+	debugfs_create_file("wow", 0600, sc->debug.debugfs_phy, sc, &fops_wow);
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("ack_to", 0400, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif
-	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_tpc);
+	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
 
-	debugfs_create_u16("airtime_flags", S_IRUSR | S_IWUSR,
+	debugfs_create_u16("airtime_flags", 0600,
 			   sc->debug.debugfs_phy, &sc->airtime_flags);
 
-	debugfs_create_file("nf_override", S_IRUSR | S_IWUSR,
+	debugfs_create_file("nf_override", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_nf_override);
 
 	return 0;

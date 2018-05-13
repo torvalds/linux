@@ -307,6 +307,20 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 		spin_unlock(&group->notification_lock);
 		ret = put_user(send_len, (int __user *) p);
 		break;
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	case INOTIFY_IOC_SETNEXTWD:
+		ret = -EINVAL;
+		if (arg >= 1 && arg <= INT_MAX) {
+			struct inotify_group_private_data *data;
+
+			data = &group->inotify_data;
+			spin_lock(&data->idr_lock);
+			idr_set_cursor(&data->idr, (unsigned int)arg);
+			spin_unlock(&data->idr_lock);
+			ret = 0;
+		}
+		break;
+#endif /* CONFIG_CHECKPOINT_RESTORE */
 	}
 
 	return ret;
@@ -635,7 +649,7 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 
 
 /* inotify syscalls */
-SYSCALL_DEFINE1(inotify_init1, int, flags)
+static int do_inotify_init(int flags)
 {
 	struct fsnotify_group *group;
 	int ret;
@@ -660,9 +674,14 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	return ret;
 }
 
+SYSCALL_DEFINE1(inotify_init1, int, flags)
+{
+	return do_inotify_init(flags);
+}
+
 SYSCALL_DEFINE0(inotify_init)
 {
-	return sys_inotify_init1(0);
+	return do_inotify_init(0);
 }
 
 SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,

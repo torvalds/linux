@@ -1,4 +1,4 @@
-/* Generic process execution definitions, based on MN10300 definitions.
+/* Generic process execution definitions.
  *
  * It should be possible to use these on really simple architectures,
  * but it serves more as a starting point for new ports.

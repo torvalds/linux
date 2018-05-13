@@ -519,7 +519,7 @@ static ssize_t hso_sysfs_show_porttype(struct device *dev,
 
 	return sprintf(buf, "%s\n", port_name);
 }
-static DEVICE_ATTR(hsotype, S_IRUGO, hso_sysfs_show_porttype, NULL);
+static DEVICE_ATTR(hsotype, 0444, hso_sysfs_show_porttype, NULL);
 
 static struct attribute *hso_serial_dev_attrs[] = {
 	&dev_attr_hsotype.attr,
@@ -3289,12 +3289,12 @@ MODULE_LICENSE("GPL");
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "debug level mask [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");
-module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(debug, int, 0644);
 
 /* set the major tty number (eg: insmod hso.ko tty_major=245) */
 MODULE_PARM_DESC(tty_major, "Set the major tty number");
-module_param(tty_major, int, S_IRUGO | S_IWUSR);
+module_param(tty_major, int, 0644);
 
 /* disable network interface (eg: insmod hso.ko disable_net=1) */
 MODULE_PARM_DESC(disable_net, "Disable the network interface");
-module_param(disable_net, int, S_IRUGO | S_IWUSR);
+module_param(disable_net, int, 0644);

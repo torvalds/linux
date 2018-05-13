@@ -122,12 +122,6 @@ EXPORT_SYMBOL(udp_table);
 long sysctl_udp_mem[3] __read_mostly;
 EXPORT_SYMBOL(sysctl_udp_mem);
 
-int sysctl_udp_rmem_min __read_mostly;
-EXPORT_SYMBOL(sysctl_udp_rmem_min);
-
-int sysctl_udp_wmem_min __read_mostly;
-EXPORT_SYMBOL(sysctl_udp_wmem_min);
-
 atomic_long_t udp_memory_allocated;
 EXPORT_SYMBOL(udp_memory_allocated);
 
@@ -1664,6 +1658,19 @@ csum_copy_err:
 	goto try_again;
 }
 
+int udp_pre_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+{
+	/* This check is replicated from __ip4_datagram_connect() and
+	 * intended to prevent BPF program called below from accessing bytes
+	 * that are out of the bound specified by user in addr_len.
+	 */
+	if (addr_len < sizeof(struct sockaddr_in))
+		return -EINVAL;
+
+	return BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr);
+}
+EXPORT_SYMBOL(udp_pre_connect);
+
 int __udp_disconnect(struct sock *sk, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -2533,35 +2540,36 @@ int udp_abort(struct sock *sk, int err)
 EXPORT_SYMBOL_GPL(udp_abort);
 
 struct proto udp_prot = {
-	.name		   = "UDP",
-	.owner		   = THIS_MODULE,
-	.close		   = udp_lib_close,
-	.connect	   = ip4_datagram_connect,
-	.disconnect	   = udp_disconnect,
-	.ioctl		   = udp_ioctl,
-	.init		   = udp_init_sock,
-	.destroy	   = udp_destroy_sock,
-	.setsockopt	   = udp_setsockopt,
-	.getsockopt	   = udp_getsockopt,
-	.sendmsg	   = udp_sendmsg,
-	.recvmsg	   = udp_recvmsg,
-	.sendpage	   = udp_sendpage,
-	.release_cb	   = ip4_datagram_release_cb,
-	.hash		   = udp_lib_hash,
-	.unhash		   = udp_lib_unhash,
-	.rehash		   = udp_v4_rehash,
-	.get_port	   = udp_v4_get_port,
-	.memory_allocated  = &udp_memory_allocated,
-	.sysctl_mem	   = sysctl_udp_mem,
-	.sysctl_wmem	   = &sysctl_udp_wmem_min,
-	.sysctl_rmem	   = &sysctl_udp_rmem_min,
-	.obj_size	   = sizeof(struct udp_sock),
-	.h.udp_table	   = &udp_table,
+	.name			= "UDP",
+	.owner			= THIS_MODULE,
+	.close			= udp_lib_close,
+	.pre_connect		= udp_pre_connect,
+	.connect		= ip4_datagram_connect,
+	.disconnect		= udp_disconnect,
+	.ioctl			= udp_ioctl,
+	.init			= udp_init_sock,
+	.destroy		= udp_destroy_sock,
+	.setsockopt		= udp_setsockopt,
+	.getsockopt		= udp_getsockopt,
+	.sendmsg		= udp_sendmsg,
+	.recvmsg		= udp_recvmsg,
+	.sendpage		= udp_sendpage,
+	.release_cb		= ip4_datagram_release_cb,
+	.hash			= udp_lib_hash,
+	.unhash			= udp_lib_unhash,
+	.rehash			= udp_v4_rehash,
+	.get_port		= udp_v4_get_port,
+	.memory_allocated	= &udp_memory_allocated,
+	.sysctl_mem		= sysctl_udp_mem,
+	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_udp_wmem_min),
+	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_udp_rmem_min),
+	.obj_size		= sizeof(struct udp_sock),
+	.h.udp_table		= &udp_table,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_udp_setsockopt,
-	.compat_getsockopt = compat_udp_getsockopt,
+	.compat_setsockopt	= compat_udp_setsockopt,
+	.compat_getsockopt	= compat_udp_getsockopt,
 #endif
-	.diag_destroy	   = udp_abort,
+	.diag_destroy		= udp_abort,
 };
 EXPORT_SYMBOL(udp_prot);
 
@@ -2679,7 +2687,7 @@ int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 	afinfo->seq_ops.next		= udp_seq_next;
 	afinfo->seq_ops.stop		= udp_seq_stop;
 
-	p = proc_create_data(afinfo->name, S_IRUGO, net->proc_net,
+	p = proc_create_data(afinfo->name, 0444, net->proc_net,
 			     afinfo->seq_fops, afinfo);
 	if (!p)
 		rc = -ENOMEM;
@@ -2830,6 +2838,26 @@ u32 udp_flow_hashrnd(void)
 }
 EXPORT_SYMBOL(udp_flow_hashrnd);
 
+static void __udp_sysctl_init(struct net *net)
+{
+	net->ipv4.sysctl_udp_rmem_min = SK_MEM_QUANTUM;
+	net->ipv4.sysctl_udp_wmem_min = SK_MEM_QUANTUM;
+
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	net->ipv4.sysctl_udp_l3mdev_accept = 0;
+#endif
+}
+
+static int __net_init udp_sysctl_init(struct net *net)
+{
+	__udp_sysctl_init(net);
+	return 0;
+}
+
+static struct pernet_operations __net_initdata udp_sysctl_ops = {
+	.init	= udp_sysctl_init,
+};
+
 void __init udp_init(void)
 {
 	unsigned long limit;
@@ -2842,8 +2870,7 @@ void __init udp_init(void)
 	sysctl_udp_mem[1] = limit;
 	sysctl_udp_mem[2] = sysctl_udp_mem[0] * 2;
 
-	sysctl_udp_rmem_min = SK_MEM_QUANTUM;
-	sysctl_udp_wmem_min = SK_MEM_QUANTUM;
+	__udp_sysctl_init(&init_net);
 
 	/* 16 spinlocks per cpu */
 	udp_busylocks_log = ilog2(nr_cpu_ids) + 4;
@@ -2853,4 +2880,7 @@ void __init udp_init(void)
 		panic("UDP: failed to alloc udp_busylocks\n");
 	for (i = 0; i < (1U << udp_busylocks_log); i++)
 		spin_lock_init(udp_busylocks + i);
+
+	if (register_pernet_subsys(&udp_sysctl_ops))
+		panic("UDP: failed to init sysctl parameters.\n");
 }

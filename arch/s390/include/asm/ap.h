@@ -20,9 +20,9 @@
  */
 typedef unsigned int ap_qid_t;
 
-#define AP_MKQID(_card, _queue) (((_card) & 63) << 8 | ((_queue) & 255))
-#define AP_QID_CARD(_qid) (((_qid) >> 8) & 63)
-#define AP_QID_QUEUE(_qid) ((_qid) & 255)
+#define AP_MKQID(_card, _queue) (((_card) & 0xff) << 8 | ((_queue) & 0xff))
+#define AP_QID_CARD(_qid) (((_qid) >> 8) & 0xff)
+#define AP_QID_QUEUE(_qid) ((_qid) & 0xff)
 
 /**
  * struct ap_queue_status - Holds the AP queue status.

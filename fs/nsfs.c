@@ -184,6 +184,7 @@ int open_related_ns(struct ns_common *ns,
 
 	return fd;
 }
+EXPORT_SYMBOL_GPL(open_related_ns);
 
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)

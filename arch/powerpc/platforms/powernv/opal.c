@@ -490,9 +490,12 @@ void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 	 *    opal to trigger checkstop explicitly for error analysis.
 	 *    The FSP PRD component would have already got notified
 	 *    about this error through other channels.
+	 * 4. We are running on a newer skiboot that by default does
+	 *    not cause a checkstop, drops us back to the kernel to
+	 *    extract context and state at the time of the error.
 	 */
 
-	ppc_md.restart(NULL);
+	panic(msg);
 }
 
 int opal_machine_check(struct pt_regs *regs)
@@ -820,6 +823,9 @@ static int __init opal_init(void)
 
 	/* Create i2c platform devices */
 	opal_pdev_init("ibm,opal-i2c");
+
+	/* Handle non-volatile memory devices */
+	opal_pdev_init("pmem-region");
 
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();

@@ -241,6 +241,10 @@ extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 			unsigned long mask);
 extern void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr);
 
+extern int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu);
+extern int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu);
+extern void kvmhv_emulate_tm_rollback(struct kvm_vcpu *vcpu);
+
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);
 extern u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst);

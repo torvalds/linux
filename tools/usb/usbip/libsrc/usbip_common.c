@@ -66,6 +66,29 @@ const char *usbip_speed_string(int num)
 	return "Unknown Speed";
 }
 
+struct op_common_status_string {
+	int num;
+	char *desc;
+};
+
+static struct op_common_status_string op_common_status_strings[] = {
+	{ ST_OK,	"Request Completed Successfully" },
+	{ ST_NA,	"Request Failed" },
+	{ ST_DEV_BUSY,	"Device busy (exported)" },
+	{ ST_DEV_ERR,	"Device in error state" },
+	{ ST_NODEV,	"Device not found" },
+	{ ST_ERROR,	"Unexpected response" },
+	{ 0, NULL}
+};
+
+const char *usbip_op_common_status_string(int status)
+{
+	for (int i = 0; op_common_status_strings[i].desc != NULL; i++)
+		if (op_common_status_strings[i].num == status)
+			return op_common_status_strings[i].desc;
+
+	return "Unknown Op Common Status";
+}
 
 #define DBG_UDEV_INTEGER(name)\
 	dbg("%-20s = %x", to_string(name), (int) udev->name)

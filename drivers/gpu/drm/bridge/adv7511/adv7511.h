@@ -93,6 +93,11 @@
 #define ADV7511_REG_CHIP_ID_HIGH		0xf5
 #define ADV7511_REG_CHIP_ID_LOW			0xf6
 
+/* Hardware defined default addresses for I2C register maps */
+#define ADV7511_CEC_I2C_ADDR_DEFAULT		0x3c
+#define ADV7511_EDID_I2C_ADDR_DEFAULT		0x3f
+#define ADV7511_PACKET_I2C_ADDR_DEFAULT		0x38
+
 #define ADV7511_CSC_ENABLE			BIT(7)
 #define ADV7511_CSC_UPDATE_MODE			BIT(5)
 
@@ -321,6 +326,7 @@ enum adv7511_type {
 struct adv7511 {
 	struct i2c_client *i2c_main;
 	struct i2c_client *i2c_edid;
+	struct i2c_client *i2c_packet;
 	struct i2c_client *i2c_cec;
 
 	struct regmap *regmap;

@@ -21,6 +21,7 @@
 #include <linux/lockdep.h>
 
 struct module;
+struct clk;
 struct device;
 struct i2c_client;
 struct irq_domain;
@@ -905,6 +906,8 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 	__regmap_lockdep_wrapper(__devm_regmap_init_sdw, #config,	\
 				sdw, config)
 
+int regmap_mmio_attach_clk(struct regmap *map, struct clk *clk);
+void regmap_mmio_detach_clk(struct regmap *map);
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
 			const struct regmap_config *config);

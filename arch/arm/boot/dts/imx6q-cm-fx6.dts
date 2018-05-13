@@ -50,7 +50,7 @@
 	model = "CompuLab CM-FX6";
 	compatible = "compulab,cm-fx6", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 

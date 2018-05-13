@@ -85,9 +85,9 @@ static int ov2722_read_reg(struct i2c_client *client,
 	if (data_length == OV2722_8BIT)
 		*val = (u8)data[0];
 	else if (data_length == OV2722_16BIT)
-		*val = be16_to_cpu(*(u16 *)&data[0]);
+		*val = be16_to_cpu(*(__be16 *)&data[0]);
 	else
-		*val = be32_to_cpu(*(u32 *)&data[0]);
+		*val = be32_to_cpu(*(__be32 *)&data[0]);
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static int ov2722_write_reg(struct i2c_client *client, u16 data_length,
 {
 	int ret;
 	unsigned char data[4] = {0};
-	u16 *wreg = (u16 *)data;
+	__be16 *wreg = (__be16 *)data;
 	const u16 len = data_length + sizeof(u16); /* 16-bit address + data */
 
 	if (data_length != OV2722_8BIT && data_length != OV2722_16BIT) {
@@ -128,7 +128,8 @@ static int ov2722_write_reg(struct i2c_client *client, u16 data_length,
 		data[2] = (u8)(val);
 	} else {
 		/* OV2722_16BIT */
-		u16 *wdata = (u16 *)&data[2];
+		__be16 *wdata = (__be16 *)&data[2];
+
 		*wdata = cpu_to_be16(val);
 	}
 
@@ -160,12 +161,13 @@ static int __ov2722_flush_reg_array(struct i2c_client *client,
 				    struct ov2722_write_ctrl *ctrl)
 {
 	u16 size;
+	__be16 *data16 = (void *)&ctrl->buffer.addr;
 
 	if (ctrl->index == 0)
 		return 0;
 
 	size = sizeof(u16) + ctrl->index; /* 16-bit address + data */
-	ctrl->buffer.addr = cpu_to_be16(ctrl->buffer.addr);
+	*data16 = cpu_to_be16(ctrl->buffer.addr);
 	ctrl->index = 0;
 
 	return ov2722_i2c_write(client, size, (u8 *)&ctrl->buffer);
@@ -176,7 +178,7 @@ static int __ov2722_buf_reg_array(struct i2c_client *client,
 				  const struct ov2722_reg *next)
 {
 	int size;
-	u16 *data16;
+	__be16 *data16;
 
 	switch (next->type) {
 	case OV2722_8BIT:
@@ -185,7 +187,7 @@ static int __ov2722_buf_reg_array(struct i2c_client *client,
 		break;
 	case OV2722_16BIT:
 		size = 2;
-		data16 = (u16 *)&ctrl->buffer.data[ctrl->index];
+		data16 = (void *)&ctrl->buffer.data[ctrl->index];
 		*data16 = cpu_to_be16((u16)next->val);
 		break;
 	default:
@@ -569,7 +571,7 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.g_volatile_ctrl = ov2722_g_volatile_ctrl
 };
 
-struct v4l2_ctrl_config ov2722_controls[] = {
+static const struct v4l2_ctrl_config ov2722_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_EXPOSURE_ABSOLUTE,
@@ -1083,57 +1085,6 @@ fail_power_off:
 	return ret;
 }
 
-static int ov2722_g_parm(struct v4l2_subdev *sd,
-			struct v4l2_streamparm *param)
-{
-	struct ov2722_device *dev = to_ov2722_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!param)
-		return -EINVAL;
-
-	if (param->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		dev_err(&client->dev,  "unsupported buffer type.\n");
-		return -EINVAL;
-	}
-
-	memset(param, 0, sizeof(*param));
-	param->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	if (dev->fmt_idx >= 0 && dev->fmt_idx < N_RES) {
-		param->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-		param->parm.capture.timeperframe.numerator = 1;
-		param->parm.capture.capturemode = dev->run_mode;
-		param->parm.capture.timeperframe.denominator =
-			ov2722_res[dev->fmt_idx].fps;
-	}
-	return 0;
-}
-
-static int ov2722_s_parm(struct v4l2_subdev *sd,
-			struct v4l2_streamparm *param)
-{
-	struct ov2722_device *dev = to_ov2722_sensor(sd);
-	dev->run_mode = param->parm.capture.capturemode;
-
-	mutex_lock(&dev->input_lock);
-	switch (dev->run_mode) {
-	case CI_MODE_VIDEO:
-		ov2722_res = ov2722_res_video;
-		N_RES = N_RES_VIDEO;
-		break;
-	case CI_MODE_STILL_CAPTURE:
-		ov2722_res = ov2722_res_still;
-		N_RES = N_RES_STILL;
-		break;
-	default:
-		ov2722_res = ov2722_res_preview;
-		N_RES = N_RES_PREVIEW;
-	}
-	mutex_unlock(&dev->input_lock);
-	return 0;
-}
-
 static int ov2722_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
@@ -1192,8 +1143,6 @@ static const struct v4l2_subdev_sensor_ops ov2722_sensor_ops = {
 
 static const struct v4l2_subdev_video_ops ov2722_video_ops = {
 	.s_stream = ov2722_s_stream,
-	.g_parm = ov2722_g_parm,
-	.s_parm = ov2722_s_parm,
 	.g_frame_interval = ov2722_g_frame_interval,
 };
 

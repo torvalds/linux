@@ -193,11 +193,6 @@ struct ipoib_tx_buf {
 	u64		mapping[MAX_SKB_FRAGS + 1];
 };
 
-struct ipoib_cm_tx_buf {
-	struct sk_buff *skb;
-	u64		mapping;
-};
-
 struct ib_cm_id;
 
 struct ipoib_cm_data {

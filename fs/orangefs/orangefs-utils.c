@@ -500,7 +500,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 * server.
 	 */
 	} else if (error_code > 0) {
-		gossip_err("orangefs: error status receieved.\n");
+		gossip_err("orangefs: error status received.\n");
 		gossip_err("orangefs: assuming error code is inverted.\n");
 		error_code = -error_code;
 	}

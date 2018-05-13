@@ -13,44 +13,6 @@
 
 	.text
 
-#define SIGN1(STUB,SYSCALL,REG1) \
-	.align	32; \
-	.globl	STUB; \
-STUB:	sethi	%hi(SYSCALL), %g1; \
-	jmpl	%g1 + %lo(SYSCALL), %g0; \
-	sra	REG1, 0, REG1
-
-#define SIGN2(STUB,SYSCALL,REG1,REG2) \
-	.align	32; \
-	.globl	STUB; \
-STUB:	sethi	%hi(SYSCALL), %g1; \
-	sra	REG1, 0, REG1; \
-	jmpl	%g1 + %lo(SYSCALL), %g0; \
-	sra	REG2, 0, REG2
-
-#define SIGN3(STUB,SYSCALL,REG1,REG2,REG3) \
-	.align	32; \
-	.globl	STUB; \
-STUB:	sra	REG1, 0, REG1; \
-	sethi	%hi(SYSCALL), %g1; \
-	sra	REG2, 0, REG2; \
-	jmpl	%g1 + %lo(SYSCALL), %g0; \
-	sra	REG3, 0, REG3
-
-SIGN1(sys32_readahead, compat_sys_readahead, %o0)
-SIGN2(sys32_fadvise64, compat_sys_fadvise64, %o0, %o4)
-SIGN2(sys32_fadvise64_64, compat_sys_fadvise64_64, %o0, %o5)
-SIGN1(sys32_clock_nanosleep, compat_sys_clock_nanosleep, %o1)
-SIGN1(sys32_timer_settime, compat_sys_timer_settime, %o1)
-SIGN1(sys32_io_submit, compat_sys_io_submit, %o1)
-SIGN1(sys32_mq_open, compat_sys_mq_open, %o1)
-SIGN1(sys32_select, compat_sys_select, %o0)
-SIGN1(sys32_futex, compat_sys_futex, %o1)
-SIGN1(sys32_recvfrom, compat_sys_recvfrom, %o0)
-SIGN1(sys32_recvmsg, compat_sys_recvmsg, %o0)
-SIGN1(sys32_sendmsg, compat_sys_sendmsg, %o0)
-SIGN2(sys32_renameat2, sys_renameat2, %o0, %o2)
-
 	.globl		sys32_mmap2
 sys32_mmap2:
 	sethi		%hi(sys_mmap), %g1

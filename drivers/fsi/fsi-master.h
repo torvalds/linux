@@ -37,7 +37,24 @@ struct fsi_master {
 
 #define dev_to_fsi_master(d) container_of(d, struct fsi_master, dev)
 
+/**
+ * fsi_master registration & lifetime: the fsi_master_register() and
+ * fsi_master_unregister() functions will take ownership of the master, and
+ * ->dev in particular. The registration path performs a get_device(), which
+ * takes the first reference on the device. Similarly, the unregistration path
+ * performs a put_device(), which may well drop the last reference.
+ *
+ * This means that master implementations *may* need to hold their own
+ * reference (via get_device()) on master->dev. In particular, if the device's
+ * ->release callback frees the fsi_master, then fsi_master_unregister will
+ * invoke this free if no other reference is held.
+ *
+ * The same applies for the error path of fsi_master_register; if the call
+ * fails, dev->release will have been invoked.
+ */
 extern int fsi_master_register(struct fsi_master *master);
 extern void fsi_master_unregister(struct fsi_master *master);
+
+extern int fsi_master_rescan(struct fsi_master *master);
 
 #endif /* DRIVERS_FSI_MASTER_H */

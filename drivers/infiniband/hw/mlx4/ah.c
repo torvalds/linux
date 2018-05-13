@@ -101,12 +101,10 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 	if (ret)
 		return ERR_PTR(ret);
 	eth_zero_addr(ah->av.eth.s_mac);
-	if (gid_attr.ndev) {
-		if (is_vlan_dev(gid_attr.ndev))
-			vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
-		memcpy(ah->av.eth.s_mac, gid_attr.ndev->dev_addr, ETH_ALEN);
-		dev_put(gid_attr.ndev);
-	}
+	if (is_vlan_dev(gid_attr.ndev))
+		vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
+	memcpy(ah->av.eth.s_mac, gid_attr.ndev->dev_addr, ETH_ALEN);
+	dev_put(gid_attr.ndev);
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn |

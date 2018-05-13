@@ -82,7 +82,7 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		intel_engine_dump(engine, &p,
@@ -130,11 +130,12 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 
 static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = from_timer(engine, t,
-						    breadcrumbs.fake_irq);
+	struct intel_engine_cs *engine =
+		from_timer(engine, t, breadcrumbs.fake_irq);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	/* The timer persists in case we cannot enable interrupts,
+	/*
+	 * The timer persists in case we cannot enable interrupts,
 	 * or if we have previously seen seqno/interrupt incoherency
 	 * ("missed interrupt" syndrome, better known as a "missed breadcrumb").
 	 * Here the worker will wake up every jiffie in order to kick the
@@ -147,6 +148,12 @@ static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 	spin_unlock_irq(&b->irq_lock);
 	if (!b->irq_armed)
 		return;
+
+	/* If the user has disabled the fake-irq, restore the hangchecking */
+	if (!test_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings)) {
+		mod_timer(&b->hangcheck, wait_timeout());
+		return;
+	}
 
 	mod_timer(&b->fake_irq, jiffies + 1);
 }
@@ -831,8 +838,8 @@ static void cancel_fake_irq(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
+	del_timer_sync(&b->fake_irq); /* may queue b->hangcheck */
 	del_timer_sync(&b->hangcheck);
-	del_timer_sync(&b->fake_irq);
 	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
 
@@ -840,15 +847,22 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	cancel_fake_irq(engine);
 	spin_lock_irq(&b->irq_lock);
+
+	/*
+	 * Leave the fake_irq timer enabled (if it is running), but clear the
+	 * bit so that it turns itself off on its next wake up and goes back
+	 * to the long hangcheck interval if still required.
+	 */
+	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 
 	if (b->irq_enabled)
 		irq_enable(engine);
 	else
 		irq_disable(engine);
 
-	/* We set the IRQ_BREADCRUMB bit when we enable the irq presuming the
+	/*
+	 * We set the IRQ_BREADCRUMB bit when we enable the irq presuming the
 	 * GPU is active and may have already executed the MI_USER_INTERRUPT
 	 * before the CPU is ready to receive. However, the engine is currently
 	 * idle (we haven't started it yet), there is no possibility for a
@@ -856,9 +870,6 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	 * immediate wakeup (until a real interrupt arrives for the waiter).
 	 */
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
-
-	if (b->irq_armed)
-		enable_fake_irq(b);
 
 	spin_unlock_irq(&b->irq_lock);
 }

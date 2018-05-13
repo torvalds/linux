@@ -74,8 +74,9 @@ void rxe_av_fill_ip_info(struct rxe_av *av,
 			struct ib_gid_attr *sgid_attr,
 			union ib_gid *sgid)
 {
-	rdma_gid2ip(&av->sgid_addr._sockaddr, sgid);
-	rdma_gid2ip(&av->dgid_addr._sockaddr, &rdma_ah_read_grh(attr)->dgid);
+	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, sgid);
+	rdma_gid2ip((struct sockaddr *)&av->dgid_addr,
+		    &rdma_ah_read_grh(attr)->dgid);
 	av->network_type = ib_gid_to_network_type(sgid_attr->gid_type, sgid);
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
@@ -353,11 +354,12 @@ i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 	rx_ring->vsi = &adapter->vsi;
 	q_vector->rx.ring = rx_ring;
 	q_vector->rx.count++;
-	q_vector->rx.latency_range = I40E_LOW_LATENCY;
-	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
+	q_vector->rx.next_update = jiffies + 1;
+	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 	q_vector->ring_mask |= BIT(r_idx);
-	q_vector->itr_countdown = ITR_COUNTDOWN_START;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, v_idx - 1), q_vector->rx.itr);
+	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
+	     q_vector->rx.current_itr);
+	q_vector->rx.current_itr = q_vector->rx.target_itr;
 }
 
 /**
@@ -378,11 +380,12 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 	tx_ring->vsi = &adapter->vsi;
 	q_vector->tx.ring = tx_ring;
 	q_vector->tx.count++;
-	q_vector->tx.latency_range = I40E_LOW_LATENCY;
-	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
-	q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	q_vector->tx.next_update = jiffies + 1;
+	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 	q_vector->num_ringpairs++;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, v_idx - 1), q_vector->tx.itr);
+	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
+	     q_vector->tx.target_itr);
+	q_vector->tx.current_itr = q_vector->tx.target_itr;
 }
 
 /**
@@ -783,7 +786,7 @@ static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
  **/
 static struct
 i40evf_mac_filter *i40evf_find_filter(struct i40evf_adapter *adapter,
-				      u8 *macaddr)
+				      const u8 *macaddr)
 {
 	struct i40evf_mac_filter *f;
 
@@ -806,20 +809,18 @@ i40evf_mac_filter *i40evf_find_filter(struct i40evf_adapter *adapter,
  **/
 static struct
 i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
-				     u8 *macaddr)
+				     const u8 *macaddr)
 {
 	struct i40evf_mac_filter *f;
 
 	if (!macaddr)
 		return NULL;
 
-	spin_lock_bh(&adapter->mac_vlan_list_lock);
-
 	f = i40evf_find_filter(adapter, macaddr);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			goto clearout;
+			return f;
 
 		ether_addr_copy(f->macaddr, macaddr);
 
@@ -830,8 +831,6 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		f->remove = false;
 	}
 
-clearout:
-	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 	return f;
 }
 
@@ -866,9 +865,10 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 	}
 
+	f = i40evf_add_filter(adapter, addr->sa_data);
+
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
 		ether_addr_copy(hw->mac.addr, addr->sa_data);
 		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
@@ -878,50 +878,64 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 }
 
 /**
+ * i40evf_addr_sync - Callback for dev_(mc|uc)_sync to add address
+ * @netdev: the netdevice
+ * @addr: address to add
+ *
+ * Called by __dev_(mc|uc)_sync when an address needs to be added. We call
+ * __dev_(uc|mc)_sync from .set_rx_mode and guarantee to hold the hash lock.
+ */
+static int i40evf_addr_sync(struct net_device *netdev, const u8 *addr)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
+	if (i40evf_add_filter(adapter, addr))
+		return 0;
+	else
+		return -ENOMEM;
+}
+
+/**
+ * i40evf_addr_unsync - Callback for dev_(mc|uc)_sync to remove address
+ * @netdev: the netdevice
+ * @addr: address to add
+ *
+ * Called by __dev_(mc|uc)_sync when an address needs to be removed. We call
+ * __dev_(uc|mc)_sync from .set_rx_mode and guarantee to hold the hash lock.
+ */
+static int i40evf_addr_unsync(struct net_device *netdev, const u8 *addr)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct i40evf_mac_filter *f;
+
+	/* Under some circumstances, we might receive a request to delete
+	 * our own device address from our uc list. Because we store the
+	 * device address in the VSI's MAC/VLAN filter list, we need to ignore
+	 * such requests and not delete our device address from this list.
+	 */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
+
+	f = i40evf_find_filter(adapter, addr);
+	if (f) {
+		f->remove = true;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+	}
+	return 0;
+}
+
+/**
  * i40evf_set_rx_mode - NDO callback to set the netdev filters
  * @netdev: network interface device structure
  **/
 static void i40evf_set_rx_mode(struct net_device *netdev)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40evf_mac_filter *f, *ftmp;
-	struct netdev_hw_addr *uca;
-	struct netdev_hw_addr *mca;
-	struct netdev_hw_addr *ha;
-
-	/* add addr if not already in the filter list */
-	netdev_for_each_uc_addr(uca, netdev) {
-		i40evf_add_filter(adapter, uca->addr);
-	}
-	netdev_for_each_mc_addr(mca, netdev) {
-		i40evf_add_filter(adapter, mca->addr);
-	}
 
 	spin_lock_bh(&adapter->mac_vlan_list_lock);
-
-	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
-		netdev_for_each_mc_addr(mca, netdev)
-			if (ether_addr_equal(mca->addr, f->macaddr))
-				goto bottom_of_search_loop;
-
-		netdev_for_each_uc_addr(uca, netdev)
-			if (ether_addr_equal(uca->addr, f->macaddr))
-				goto bottom_of_search_loop;
-
-		for_each_dev_addr(netdev, ha)
-			if (ether_addr_equal(ha->addr, f->macaddr))
-				goto bottom_of_search_loop;
-
-		if (ether_addr_equal(f->macaddr, adapter->hw.mac.addr))
-			goto bottom_of_search_loop;
-
-		/* f->macaddr wasn't found in uc, mc, or ha list so delete it */
-		f->remove = true;
-		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
-
-bottom_of_search_loop:
-		continue;
-	}
+	__dev_uc_sync(netdev, i40evf_addr_sync, i40evf_addr_unsync);
+	__dev_mc_sync(netdev, i40evf_addr_sync, i40evf_addr_unsync);
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
 	if (netdev->flags & IFF_PROMISC &&
 	    !(adapter->flags & I40EVF_FLAG_PROMISC_ON))
@@ -936,8 +950,6 @@ bottom_of_search_loop:
 	else if (!(netdev->flags & IFF_ALLMULTI) &&
 		 adapter->flags & I40EVF_FLAG_ALLMULTI_ON)
 		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_ALLMULTI;
-
-	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 }
 
 /**
@@ -1025,7 +1037,9 @@ static void i40evf_up_complete(struct i40evf_adapter *adapter)
 void i40evf_down(struct i40evf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct i40evf_vlan_filter *vlf;
 	struct i40evf_mac_filter *f;
+	struct i40evf_cloud_filter *cf;
 
 	if (adapter->state <= __I40EVF_DOWN_PENDING)
 		return;
@@ -1038,16 +1052,28 @@ void i40evf_down(struct i40evf_adapter *adapter)
 
 	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
+	/* clear the sync flag on all filters */
+	__dev_uc_unsync(adapter->netdev, NULL);
+	__dev_mc_unsync(adapter->netdev, NULL);
+
 	/* remove all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->remove = true;
 	}
+
 	/* remove all VLAN filters */
-	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
-		f->remove = true;
+	list_for_each_entry(vlf, &adapter->vlan_filter_list, list) {
+		vlf->remove = true;
 	}
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
+	/* remove all cloud filters */
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		cf->del = true;
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
 
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
@@ -1059,6 +1085,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 		 */
 		adapter->aq_required = I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_CLOUD_FILTER;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
 	}
 
@@ -1144,6 +1171,9 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 	 */
 	if (adapter->num_req_queues)
 		num_active_queues = adapter->num_req_queues;
+	else if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+		 adapter->num_tc)
+		num_active_queues = adapter->ch_config.total_qps;
 	else
 		num_active_queues = min_t(int,
 					  adapter->vsi_res->num_queue_pairs,
@@ -1169,7 +1199,7 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		tx_ring->netdev = adapter->netdev;
 		tx_ring->dev = &adapter->pdev->dev;
 		tx_ring->count = adapter->tx_desc_count;
-		tx_ring->tx_itr_setting = I40E_ITR_TX_DEF;
+		tx_ring->itr_setting = I40E_ITR_TX_DEF;
 		if (adapter->flags & I40EVF_FLAG_WB_ON_ITR_CAPABLE)
 			tx_ring->flags |= I40E_TXR_FLAGS_WB_ON_ITR;
 
@@ -1178,7 +1208,7 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		rx_ring->netdev = adapter->netdev;
 		rx_ring->dev = &adapter->pdev->dev;
 		rx_ring->count = adapter->rx_desc_count;
-		rx_ring->rx_itr_setting = I40E_ITR_RX_DEF;
+		rx_ring->itr_setting = I40E_ITR_RX_DEF;
 	}
 
 	adapter->num_active_queues = num_active_queues;
@@ -1471,6 +1501,16 @@ int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter)
 		goto err_alloc_q_vectors;
 	}
 
+	/* If we've made it so far while ADq flag being ON, then we haven't
+	 * bailed out anywhere in middle. And ADq isn't just enabled but actual
+	 * resources have been allocated in the reset path.
+	 * Now we can truly claim that ADq is enabled.
+	 */
+	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+	    adapter->num_tc)
+		dev_info(&adapter->pdev->dev, "ADq Enabled, %u TCs created",
+			 adapter->num_tc);
+
 	dev_info(&adapter->pdev->dev, "Multiqueue %s: Queue pair count = %u",
 		 (adapter->num_active_queues > 1) ? "Enabled" : "Disabled",
 		 adapter->num_active_queues);
@@ -1712,6 +1752,27 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		i40evf_set_promiscuous(adapter, 0);
 		goto watchdog_done;
 	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_ENABLE_CHANNELS) {
+		i40evf_enable_channels(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_DISABLE_CHANNELS) {
+		i40evf_disable_channels(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_ADD_CLOUD_FILTER) {
+		i40evf_add_cloud_filter(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_DEL_CLOUD_FILTER) {
+		i40evf_del_cloud_filter(adapter);
+		goto watchdog_done;
+	}
+
 	schedule_delayed_work(&adapter->client_task, msecs_to_jiffies(5));
 
 	if (adapter->state == __I40EVF_RUNNING)
@@ -1735,6 +1796,7 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 {
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40evf_vlan_filter *fv, *fvtmp;
+	struct i40evf_cloud_filter *cf, *cftmp;
 
 	adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 
@@ -1756,7 +1818,7 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 
 	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
-	/* Delete all of the filters, both MAC and VLAN. */
+	/* Delete all of the filters */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		list_del(&f->list);
 		kfree(f);
@@ -1768,6 +1830,14 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 	}
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list, list) {
+		list_del(&cf->list);
+		kfree(cf);
+		adapter->num_cloud_filters--;
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
 
 	i40evf_free_misc_irq(adapter);
 	i40evf_reset_interrupt_capability(adapter);
@@ -1798,9 +1868,11 @@ static void i40evf_reset_task(struct work_struct *work)
 	struct i40evf_adapter *adapter = container_of(work,
 						      struct i40evf_adapter,
 						      reset_task);
+	struct virtchnl_vf_resource *vfres = adapter->vf_res;
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40evf_vlan_filter *vlf;
+	struct i40evf_cloud_filter *cf;
 	struct i40evf_mac_filter *f;
 	u32 reg_val;
 	int i = 0, err;
@@ -1893,6 +1965,7 @@ continue_reset:
 	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_all_tx_resources(adapter);
 
+	adapter->flags |= I40EVF_FLAG_QUEUES_DISABLED;
 	/* kill and reinit the admin queue */
 	i40evf_shutdown_adminq(hw);
 	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
@@ -1924,8 +1997,19 @@ continue_reset:
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
+	/* check if TCs are running and re-add all cloud filters */
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	if ((vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+	    adapter->num_tc) {
+		list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+			cf->add = true;
+		}
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
+
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
+	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_CLOUD_FILTER;
 	i40evf_misc_irq_enable(adapter);
 
 	mod_timer(&adapter->watchdog_timer, jiffies + 2);
@@ -2191,6 +2275,712 @@ void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_validate_tx_bandwidth - validate the max Tx bandwidth
+ * @adapter: board private structure
+ * @max_tx_rate: max Tx bw for a tc
+ **/
+static int i40evf_validate_tx_bandwidth(struct i40evf_adapter *adapter,
+					u64 max_tx_rate)
+{
+	int speed = 0, ret = 0;
+
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		speed = 40000;
+		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = 25000;
+		break;
+	case I40E_LINK_SPEED_20GB:
+		speed = 20000;
+		break;
+	case I40E_LINK_SPEED_10GB:
+		speed = 10000;
+		break;
+	case I40E_LINK_SPEED_1GB:
+		speed = 1000;
+		break;
+	case I40E_LINK_SPEED_100MB:
+		speed = 100;
+		break;
+	default:
+		break;
+	}
+
+	if (max_tx_rate > speed) {
+		dev_err(&adapter->pdev->dev,
+			"Invalid tx rate specified\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
+ * i40evf_validate_channel_config - validate queue mapping info
+ * @adapter: board private structure
+ * @mqprio_qopt: queue parameters
+ *
+ * This function validates if the config provided by the user to
+ * configure queue channels is valid or not. Returns 0 on a valid
+ * config.
+ **/
+static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
+				     struct tc_mqprio_qopt_offload *mqprio_qopt)
+{
+	u64 total_max_rate = 0;
+	int i, num_qps = 0;
+	u64 tx_rate = 0;
+	int ret = 0;
+
+	if (mqprio_qopt->qopt.num_tc > I40EVF_MAX_TRAFFIC_CLASS ||
+	    mqprio_qopt->qopt.num_tc < 1)
+		return -EINVAL;
+
+	for (i = 0; i <= mqprio_qopt->qopt.num_tc - 1; i++) {
+		if (!mqprio_qopt->qopt.count[i] ||
+		    mqprio_qopt->qopt.offset[i] != num_qps)
+			return -EINVAL;
+		if (mqprio_qopt->min_rate[i]) {
+			dev_err(&adapter->pdev->dev,
+				"Invalid min tx rate (greater than 0) specified\n");
+			return -EINVAL;
+		}
+		/*convert to Mbps */
+		tx_rate = div_u64(mqprio_qopt->max_rate[i],
+				  I40EVF_MBPS_DIVISOR);
+		total_max_rate += tx_rate;
+		num_qps += mqprio_qopt->qopt.count[i];
+	}
+	if (num_qps > MAX_QUEUES)
+		return -EINVAL;
+
+	ret = i40evf_validate_tx_bandwidth(adapter, total_max_rate);
+	return ret;
+}
+
+/**
+ * i40evf_del_all_cloud_filters - delete all cloud filters
+ * on the traffic classes
+ **/
+static void i40evf_del_all_cloud_filters(struct i40evf_adapter *adapter)
+{
+	struct i40evf_cloud_filter *cf, *cftmp;
+
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list,
+				 list) {
+		list_del(&cf->list);
+		kfree(cf);
+		adapter->num_cloud_filters--;
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
+}
+
+/**
+ * __i40evf_setup_tc - configure multiple traffic classes
+ * @netdev: network interface device structure
+ * @type_date: tc offload data
+ *
+ * This function processes the config information provided by the
+ * user to configure traffic classes/queue channels and packages the
+ * information to request the PF to setup traffic classes.
+ *
+ * Returns 0 on success.
+ **/
+static int __i40evf_setup_tc(struct net_device *netdev, void *type_data)
+{
+	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct virtchnl_vf_resource *vfres = adapter->vf_res;
+	u8 num_tc = 0, total_qps = 0;
+	int ret = 0, netdev_tc = 0;
+	u64 max_tx_rate;
+	u16 mode;
+	int i;
+
+	num_tc = mqprio_qopt->qopt.num_tc;
+	mode = mqprio_qopt->mode;
+
+	/* delete queue_channel */
+	if (!mqprio_qopt->qopt.hw) {
+		if (adapter->ch_config.state == __I40EVF_TC_RUNNING) {
+			/* reset the tc configuration */
+			netdev_reset_tc(netdev);
+			adapter->num_tc = 0;
+			netif_tx_stop_all_queues(netdev);
+			netif_tx_disable(netdev);
+			i40evf_del_all_cloud_filters(adapter);
+			adapter->aq_required = I40EVF_FLAG_AQ_DISABLE_CHANNELS;
+			goto exit;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	/* add queue channel */
+	if (mode == TC_MQPRIO_MODE_CHANNEL) {
+		if (!(vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ)) {
+			dev_err(&adapter->pdev->dev, "ADq not supported\n");
+			return -EOPNOTSUPP;
+		}
+		if (adapter->ch_config.state != __I40EVF_TC_INVALID) {
+			dev_err(&adapter->pdev->dev, "TC configuration already exists\n");
+			return -EINVAL;
+		}
+
+		ret = i40evf_validate_ch_config(adapter, mqprio_qopt);
+		if (ret)
+			return ret;
+		/* Return if same TC config is requested */
+		if (adapter->num_tc == num_tc)
+			return 0;
+		adapter->num_tc = num_tc;
+
+		for (i = 0; i < I40EVF_MAX_TRAFFIC_CLASS; i++) {
+			if (i < num_tc) {
+				adapter->ch_config.ch_info[i].count =
+					mqprio_qopt->qopt.count[i];
+				adapter->ch_config.ch_info[i].offset =
+					mqprio_qopt->qopt.offset[i];
+				total_qps += mqprio_qopt->qopt.count[i];
+				max_tx_rate = mqprio_qopt->max_rate[i];
+				/* convert to Mbps */
+				max_tx_rate = div_u64(max_tx_rate,
+						      I40EVF_MBPS_DIVISOR);
+				adapter->ch_config.ch_info[i].max_tx_rate =
+					max_tx_rate;
+			} else {
+				adapter->ch_config.ch_info[i].count = 1;
+				adapter->ch_config.ch_info[i].offset = 0;
+			}
+		}
+		adapter->ch_config.total_qps = total_qps;
+		netif_tx_stop_all_queues(netdev);
+		netif_tx_disable(netdev);
+		adapter->aq_required |= I40EVF_FLAG_AQ_ENABLE_CHANNELS;
+		netdev_reset_tc(netdev);
+		/* Report the tc mapping up the stack */
+		netdev_set_num_tc(adapter->netdev, num_tc);
+		for (i = 0; i < I40EVF_MAX_TRAFFIC_CLASS; i++) {
+			u16 qcount = mqprio_qopt->qopt.count[i];
+			u16 qoffset = mqprio_qopt->qopt.offset[i];
+
+			if (i < num_tc)
+				netdev_set_tc_queue(netdev, netdev_tc++, qcount,
+						    qoffset);
+		}
+	}
+exit:
+	return ret;
+}
+
+/**
+ * i40evf_parse_cls_flower - Parse tc flower filters provided by kernel
+ * @adapter: board private structure
+ * @cls_flower: pointer to struct tc_cls_flower_offload
+ * @filter: pointer to cloud filter structure
+ */
+static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
+				   struct tc_cls_flower_offload *f,
+				   struct i40evf_cloud_filter *filter)
+{
+	u16 n_proto_mask = 0;
+	u16 n_proto_key = 0;
+	u8 field_flags = 0;
+	u16 addr_type = 0;
+	u16 n_proto = 0;
+	int i = 0;
+	struct virtchnl_filter *vf = &filter->f;
+
+	if (f->dissector->used_keys &
+	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID))) {
+		dev_err(&adapter->pdev->dev, "Unsupported key used: 0x%x\n",
+			f->dissector->used_keys);
+		return -EOPNOTSUPP;
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_dissector_key_keyid *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_KEYID,
+						  f->mask);
+
+		if (mask->keyid != 0)
+			field_flags |= I40EVF_CLOUD_FIELD_TEN_ID;
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  f->key);
+
+		struct flow_dissector_key_basic *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  f->mask);
+		n_proto_key = ntohs(key->n_proto);
+		n_proto_mask = ntohs(mask->n_proto);
+
+		if (n_proto_key == ETH_P_ALL) {
+			n_proto_key = 0;
+			n_proto_mask = 0;
+		}
+		n_proto = n_proto_key & n_proto_mask;
+		if (n_proto != ETH_P_IP && n_proto != ETH_P_IPV6)
+			return -EINVAL;
+		if (n_proto == ETH_P_IPV6) {
+			/* specify flow type as TCP IPv6 */
+			vf->flow_type = VIRTCHNL_TCP_V6_FLOW;
+		}
+
+		if (key->ip_proto != IPPROTO_TCP) {
+			dev_info(&adapter->pdev->dev, "Only TCP transport is supported\n");
+			return -EINVAL;
+		}
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_dissector_key_eth_addrs *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+						  f->key);
+
+		struct flow_dissector_key_eth_addrs *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+						  f->mask);
+		/* use is_broadcast and is_zero to check for all 0xf or 0 */
+		if (!is_zero_ether_addr(mask->dst)) {
+			if (is_broadcast_ether_addr(mask->dst)) {
+				field_flags |= I40EVF_CLOUD_FIELD_OMAC;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad ether dest mask %pM\n",
+					mask->dst);
+				return I40E_ERR_CONFIG;
+			}
+		}
+
+		if (!is_zero_ether_addr(mask->src)) {
+			if (is_broadcast_ether_addr(mask->src)) {
+				field_flags |= I40EVF_CLOUD_FIELD_IMAC;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad ether src mask %pM\n",
+					mask->src);
+				return I40E_ERR_CONFIG;
+			}
+		}
+
+		if (!is_zero_ether_addr(key->dst))
+			if (is_valid_ether_addr(key->dst) ||
+			    is_multicast_ether_addr(key->dst)) {
+				/* set the mask if a valid dst_mac address */
+				for (i = 0; i < ETH_ALEN; i++)
+					vf->mask.tcp_spec.dst_mac[i] |= 0xff;
+				ether_addr_copy(vf->data.tcp_spec.dst_mac,
+						key->dst);
+			}
+
+		if (!is_zero_ether_addr(key->src))
+			if (is_valid_ether_addr(key->src) ||
+			    is_multicast_ether_addr(key->src)) {
+				/* set the mask if a valid dst_mac address */
+				for (i = 0; i < ETH_ALEN; i++)
+					vf->mask.tcp_spec.src_mac[i] |= 0xff;
+				ether_addr_copy(vf->data.tcp_spec.src_mac,
+						key->src);
+		}
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->mask);
+
+		if (mask->vlan_id) {
+			if (mask->vlan_id == VLAN_VID_MASK) {
+				field_flags |= I40EVF_CLOUD_FIELD_IVLAN;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad vlan mask %u\n",
+					mask->vlan_id);
+				return I40E_ERR_CONFIG;
+			}
+		}
+		vf->mask.tcp_spec.vlan_id |= cpu_to_be16(0xffff);
+		vf->data.tcp_spec.vlan_id = cpu_to_be16(key->vlan_id);
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_dissector_key_control *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_CONTROL,
+						  f->key);
+
+		addr_type = key->addr_type;
+	}
+
+	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+		struct flow_dissector_key_ipv4_addrs *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						  f->key);
+		struct flow_dissector_key_ipv4_addrs *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						  f->mask);
+
+		if (mask->dst) {
+			if (mask->dst == cpu_to_be32(0xffffffff)) {
+				field_flags |= I40EVF_CLOUD_FIELD_IIP;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad ip dst mask 0x%08x\n",
+					be32_to_cpu(mask->dst));
+				return I40E_ERR_CONFIG;
+			}
+		}
+
+		if (mask->src) {
+			if (mask->src == cpu_to_be32(0xffffffff)) {
+				field_flags |= I40EVF_CLOUD_FIELD_IIP;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad ip src mask 0x%08x\n",
+					be32_to_cpu(mask->dst));
+				return I40E_ERR_CONFIG;
+			}
+		}
+
+		if (field_flags & I40EVF_CLOUD_FIELD_TEN_ID) {
+			dev_info(&adapter->pdev->dev, "Tenant id not allowed for ip filter\n");
+			return I40E_ERR_CONFIG;
+		}
+		if (key->dst) {
+			vf->mask.tcp_spec.dst_ip[0] |= cpu_to_be32(0xffffffff);
+			vf->data.tcp_spec.dst_ip[0] = key->dst;
+		}
+		if (key->src) {
+			vf->mask.tcp_spec.src_ip[0] |= cpu_to_be32(0xffffffff);
+			vf->data.tcp_spec.src_ip[0] = key->src;
+		}
+	}
+
+	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+		struct flow_dissector_key_ipv6_addrs *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						  f->key);
+		struct flow_dissector_key_ipv6_addrs *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						  f->mask);
+
+		/* validate mask, make sure it is not IPV6_ADDR_ANY */
+		if (ipv6_addr_any(&mask->dst)) {
+			dev_err(&adapter->pdev->dev, "Bad ipv6 dst mask 0x%02x\n",
+				IPV6_ADDR_ANY);
+			return I40E_ERR_CONFIG;
+		}
+
+		/* src and dest IPv6 address should not be LOOPBACK
+		 * (0:0:0:0:0:0:0:1) which can be represented as ::1
+		 */
+		if (ipv6_addr_loopback(&key->dst) ||
+		    ipv6_addr_loopback(&key->src)) {
+			dev_err(&adapter->pdev->dev,
+				"ipv6 addr should not be loopback\n");
+			return I40E_ERR_CONFIG;
+		}
+		if (!ipv6_addr_any(&mask->dst) || !ipv6_addr_any(&mask->src))
+			field_flags |= I40EVF_CLOUD_FIELD_IIP;
+
+		for (i = 0; i < 4; i++)
+			vf->mask.tcp_spec.dst_ip[i] |= cpu_to_be32(0xffffffff);
+		memcpy(&vf->data.tcp_spec.dst_ip, &key->dst.s6_addr32,
+		       sizeof(vf->data.tcp_spec.dst_ip));
+		for (i = 0; i < 4; i++)
+			vf->mask.tcp_spec.src_ip[i] |= cpu_to_be32(0xffffffff);
+		memcpy(&vf->data.tcp_spec.src_ip, &key->src.s6_addr32,
+		       sizeof(vf->data.tcp_spec.src_ip));
+	}
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_dissector_key_ports *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_PORTS,
+						  f->key);
+		struct flow_dissector_key_ports *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_PORTS,
+						  f->mask);
+
+		if (mask->src) {
+			if (mask->src == cpu_to_be16(0xffff)) {
+				field_flags |= I40EVF_CLOUD_FIELD_IIP;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad src port mask %u\n",
+					be16_to_cpu(mask->src));
+				return I40E_ERR_CONFIG;
+			}
+		}
+
+		if (mask->dst) {
+			if (mask->dst == cpu_to_be16(0xffff)) {
+				field_flags |= I40EVF_CLOUD_FIELD_IIP;
+			} else {
+				dev_err(&adapter->pdev->dev, "Bad dst port mask %u\n",
+					be16_to_cpu(mask->dst));
+				return I40E_ERR_CONFIG;
+			}
+		}
+		if (key->dst) {
+			vf->mask.tcp_spec.dst_port |= cpu_to_be16(0xffff);
+			vf->data.tcp_spec.dst_port = key->dst;
+		}
+
+		if (key->src) {
+			vf->mask.tcp_spec.src_port |= cpu_to_be16(0xffff);
+			vf->data.tcp_spec.src_port = key->src;
+		}
+	}
+	vf->field_flags = field_flags;
+
+	return 0;
+}
+
+/**
+ * i40evf_handle_tclass - Forward to a traffic class on the device
+ * @adapter: board private structure
+ * @tc: traffic class index on the device
+ * @filter: pointer to cloud filter structure
+ */
+static int i40evf_handle_tclass(struct i40evf_adapter *adapter, u32 tc,
+				struct i40evf_cloud_filter *filter)
+{
+	if (tc == 0)
+		return 0;
+	if (tc < adapter->num_tc) {
+		if (!filter->f.data.tcp_spec.dst_port) {
+			dev_err(&adapter->pdev->dev,
+				"Specify destination port to redirect to traffic class other than TC0\n");
+			return -EINVAL;
+		}
+	}
+	/* redirect to a traffic class on the same device */
+	filter->f.action = VIRTCHNL_ACTION_TC_REDIRECT;
+	filter->f.action_meta = tc;
+	return 0;
+}
+
+/**
+ * i40evf_configure_clsflower - Add tc flower filters
+ * @adapter: board private structure
+ * @cls_flower: Pointer to struct tc_cls_flower_offload
+ */
+static int i40evf_configure_clsflower(struct i40evf_adapter *adapter,
+				      struct tc_cls_flower_offload *cls_flower)
+{
+	int tc = tc_classid_to_hwtc(adapter->netdev, cls_flower->classid);
+	struct i40evf_cloud_filter *filter = NULL;
+	int err = -EINVAL, count = 50;
+
+	if (tc < 0) {
+		dev_err(&adapter->pdev->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	if (!filter)
+		return -ENOMEM;
+
+	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		if (--count == 0)
+			goto err;
+		udelay(1);
+	}
+
+	filter->cookie = cls_flower->cookie;
+
+	/* set the mask to all zeroes to begin with */
+	memset(&filter->f.mask.tcp_spec, 0, sizeof(struct virtchnl_l4_spec));
+	/* start out with flow type and eth type IPv4 to begin with */
+	filter->f.flow_type = VIRTCHNL_TCP_V4_FLOW;
+	err = i40evf_parse_cls_flower(adapter, cls_flower, filter);
+	if (err < 0)
+		goto err;
+
+	err = i40evf_handle_tclass(adapter, tc, filter);
+	if (err < 0)
+		goto err;
+
+	/* add filter to the list */
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	list_add_tail(&filter->list, &adapter->cloud_filter_list);
+	adapter->num_cloud_filters++;
+	filter->add = true;
+	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_CLOUD_FILTER;
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
+err:
+	if (err)
+		kfree(filter);
+
+	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
+	return err;
+}
+
+/* i40evf_find_cf - Find the cloud filter in the list
+ * @adapter: Board private structure
+ * @cookie: filter specific cookie
+ *
+ * Returns ptr to the filter object or NULL. Must be called while holding the
+ * cloud_filter_list_lock.
+ */
+static struct i40evf_cloud_filter *i40evf_find_cf(struct i40evf_adapter *adapter,
+						  unsigned long *cookie)
+{
+	struct i40evf_cloud_filter *filter = NULL;
+
+	if (!cookie)
+		return NULL;
+
+	list_for_each_entry(filter, &adapter->cloud_filter_list, list) {
+		if (!memcmp(cookie, &filter->cookie, sizeof(filter->cookie)))
+			return filter;
+	}
+	return NULL;
+}
+
+/**
+ * i40evf_delete_clsflower - Remove tc flower filters
+ * @adapter: board private structure
+ * @cls_flower: Pointer to struct tc_cls_flower_offload
+ */
+static int i40evf_delete_clsflower(struct i40evf_adapter *adapter,
+				   struct tc_cls_flower_offload *cls_flower)
+{
+	struct i40evf_cloud_filter *filter = NULL;
+	int err = 0;
+
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	filter = i40evf_find_cf(adapter, &cls_flower->cookie);
+	if (filter) {
+		filter->del = true;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_CLOUD_FILTER;
+	} else {
+		err = -EINVAL;
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
+
+	return err;
+}
+
+/**
+ * i40evf_setup_tc_cls_flower - flower classifier offloads
+ * @netdev: net device to configure
+ * @type_data: offload data
+ */
+static int i40evf_setup_tc_cls_flower(struct i40evf_adapter *adapter,
+				      struct tc_cls_flower_offload *cls_flower)
+{
+	if (cls_flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_flower->command) {
+	case TC_CLSFLOWER_REPLACE:
+		return i40evf_configure_clsflower(adapter, cls_flower);
+	case TC_CLSFLOWER_DESTROY:
+		return i40evf_delete_clsflower(adapter, cls_flower);
+	case TC_CLSFLOWER_STATS:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * i40evf_setup_tc_block_cb - block callback for tc
+ * @type: type of offload
+ * @type_data: offload data
+ * @cb_priv:
+ *
+ * This function is the block callback for traffic classes
+ **/
+static int i40evf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				    void *cb_priv)
+{
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return i40evf_setup_tc_cls_flower(cb_priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
+ * i40evf_setup_tc_block - register callbacks for tc
+ * @netdev: network interface device structure
+ * @f: tc offload data
+ *
+ * This function registers block callbacks for tc
+ * offloads
+ **/
+static int i40evf_setup_tc_block(struct net_device *dev,
+				 struct tc_block_offload *f)
+{
+	struct i40evf_adapter *adapter = netdev_priv(dev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, i40evf_setup_tc_block_cb,
+					     adapter, adapter);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, i40evf_setup_tc_block_cb,
+					adapter);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
+ * i40evf_setup_tc - configure multiple traffic classes
+ * @netdev: network interface device structure
+ * @type: type of offload
+ * @type_date: tc offload data
+ *
+ * This function is the callback to ndo_setup_tc in the
+ * netdev_ops.
+ *
+ * Returns 0 on success
+ **/
+static int i40evf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+			   void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return __i40evf_setup_tc(netdev, type_data);
+	case TC_SETUP_BLOCK:
+		return i40evf_setup_tc_block(netdev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
  * i40evf_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2236,7 +3026,12 @@ static int i40evf_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_add_filter(adapter, adapter->hw.mac.addr);
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_configure(adapter);
 
 	i40evf_up_complete(adapter);
@@ -2457,6 +3252,7 @@ static const struct net_device_ops i40evf_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40evf_netpoll,
 #endif
+	.ndo_setup_tc		= i40evf_setup_tc,
 };
 
 /**
@@ -2571,6 +3367,9 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
 		hw_features |= (NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX);
+	/* Enable cloud filter if ADQ is supported */
+	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ)
+		hw_features |= NETIF_F_HW_TC;
 
 	netdev->hw_features |= hw_features;
 
@@ -2938,9 +3737,11 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&hw->aq.arq_mutex);
 
 	spin_lock_init(&adapter->mac_vlan_list_lock);
+	spin_lock_init(&adapter->cloud_filter_list_lock);
 
 	INIT_LIST_HEAD(&adapter->mac_filter_list);
 	INIT_LIST_HEAD(&adapter->vlan_filter_list);
+	INIT_LIST_HEAD(&adapter->cloud_filter_list);
 
 	INIT_WORK(&adapter->reset_task, i40evf_reset_task);
 	INIT_WORK(&adapter->adminq_task, i40evf_adminq_task);
@@ -3065,7 +3866,9 @@ static void i40evf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct i40evf_vlan_filter *vlf, *vlftmp;
 	struct i40evf_mac_filter *f, *ftmp;
+	struct i40evf_cloud_filter *cf, *cftmp;
 	struct i40e_hw *hw = &adapter->hw;
 	int err;
 	/* Indicate we are in remove and not to run reset_task */
@@ -3087,6 +3890,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 	/* Shut down all the garbage mashers on the detention level */
 	adapter->state = __I40EVF_REMOVE;
 	adapter->aq_required = 0;
+	adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
 	i40evf_request_reset(adapter);
 	msleep(50);
 	/* If the FW isn't responding, kick it once, but only once. */
@@ -3127,12 +3931,20 @@ static void i40evf_remove(struct pci_dev *pdev)
 		list_del(&f->list);
 		kfree(f);
 	}
-	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
-		list_del(&f->list);
-		kfree(f);
+	list_for_each_entry_safe(vlf, vlftmp, &adapter->vlan_filter_list,
+				 list) {
+		list_del(&vlf->list);
+		kfree(vlf);
 	}
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
+	spin_lock_bh(&adapter->cloud_filter_list_lock);
+	list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list, list) {
+		list_del(&cf->list);
+		kfree(cf);
+	}
+	spin_unlock_bh(&adapter->cloud_filter_list_lock);
 
 	free_netdev(netdev);
 

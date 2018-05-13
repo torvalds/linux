@@ -491,6 +491,10 @@ static int dw_configure_dai(struct dw_i2s_dev *dev,
 			dev->quirks & DW_I2S_QUIRK_COMP_PARAM1)
 		comp1 = comp1 & ~BIT(5);
 
+	if (dev->capability & DWC_I2S_PLAY &&
+			dev->quirks & DW_I2S_QUIRK_COMP_PARAM1)
+		comp1 = comp1 & ~BIT(6);
+
 	if (COMP1_TX_ENABLED(comp1)) {
 		dev_dbg(dev->dev, " designware: play supported\n");
 		idx = COMP1_TX_WORDSIZE_0(comp1);

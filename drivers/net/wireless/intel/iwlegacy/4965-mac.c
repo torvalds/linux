@@ -4591,7 +4591,7 @@ il4965_store_debug_level(struct device *d, struct device_attribute *attr,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO, il4965_show_debug_level,
+static DEVICE_ATTR(debug_level, 0644, il4965_show_debug_level,
 		   il4965_store_debug_level);
 
 #endif /* CONFIG_IWLEGACY_DEBUG */
@@ -4608,7 +4608,7 @@ il4965_show_temperature(struct device *d, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", il->temperature);
 }
 
-static DEVICE_ATTR(temperature, S_IRUGO, il4965_show_temperature, NULL);
+static DEVICE_ATTR(temperature, 0444, il4965_show_temperature, NULL);
 
 static ssize_t
 il4965_show_tx_power(struct device *d, struct device_attribute *attr, char *buf)
@@ -4642,7 +4642,7 @@ il4965_store_tx_power(struct device *d, struct device_attribute *attr,
 	return ret;
 }
 
-static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, il4965_show_tx_power,
+static DEVICE_ATTR(tx_power, 0644, il4965_show_tx_power,
 		   il4965_store_tx_power);
 
 static struct attribute *il_sysfs_entries[] = {
@@ -6859,18 +6859,17 @@ module_exit(il4965_exit);
 module_init(il4965_init);
 
 #ifdef CONFIG_IWLEGACY_DEBUG
-module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, il_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, il4965_mod_params.sw_crypto, int, S_IRUGO);
+module_param_named(swcrypto, il4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(queues_num, il4965_mod_params.num_of_queues, int, S_IRUGO);
+module_param_named(queues_num, il4965_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-module_param_named(11n_disable, il4965_mod_params.disable_11n, int, S_IRUGO);
+module_param_named(11n_disable, il4965_mod_params.disable_11n, int, 0444);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int,
-		   S_IRUGO);
+module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0 [disabled])");
-module_param_named(fw_restart, il4965_mod_params.restart_fw, int, S_IRUGO);
+module_param_named(fw_restart, il4965_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");

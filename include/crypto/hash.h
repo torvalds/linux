@@ -74,7 +74,8 @@ struct ahash_request {
  * @init: **[mandatory]** Initialize the transformation context. Intended only to initialize the
  *	  state of the HASH transformation at the beginning. This shall fill in
  *	  the internal structures used during the entire duration of the whole
- *	  transformation. No data processing happens at this point.
+ *	  transformation. No data processing happens at this point. Driver code
+ *	  implementation must not use req->result.
  * @update: **[mandatory]** Push a chunk of data into the driver for transformation. This
  *	   function actually pushes blocks of data from upper layers into the
  *	   driver, which then passes those to the hardware as seen fit. This
@@ -83,7 +84,8 @@ struct ahash_request {
  *	   transformation. This function shall not modify the transformation
  *	   context, as this function may be called in parallel with the same
  *	   transformation object. Data processing can happen synchronously
- *	   [SHASH] or asynchronously [AHASH] at this point.
+ *	   [SHASH] or asynchronously [AHASH] at this point. Driver must not use
+ *	   req->result.
  * @final: **[mandatory]** Retrieve result from the driver. This function finalizes the
  *	   transformation and retrieves the resulting hash from the driver and
  *	   pushes it back to upper layers. No data processing happens at this
@@ -120,11 +122,12 @@ struct ahash_request {
  *	    you want to save partial result of the transformation after
  *	    processing certain amount of data and reload this partial result
  *	    multiple times later on for multiple re-use. No data processing
- *	    happens at this point.
+ *	    happens at this point. Driver must not use req->result.
  * @import: Import partial state of the transformation. This function loads the
  *	    entire state of the ongoing transformation from a provided block of
  *	    data so the transformation can continue from this point onward. No
- *	    data processing happens at this point.
+ *	    data processing happens at this point. Driver must not use
+ *	    req->result.
  * @halg: see struct hash_alg_common
  */
 struct ahash_alg {

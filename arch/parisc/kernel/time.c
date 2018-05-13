@@ -174,7 +174,7 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 
 	/* we treat tod_sec as unsigned, so this can work until year 2106 */
 	rtc_time64_to_tm(tod_data.tod_sec, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)

@@ -80,11 +80,6 @@ int ion_export_buffer_fd(struct ion_buffer_info *ion_info)
 	heap_id = MAX_HEAP_COUNT + 1;
 	for (i = 0; i < query.cnt; i++) {
 		if (heap_data[i].type == ion_info->heap_type) {
-			printf("--------------------------------------\n");
-			printf("heap type: %d\n", heap_data[i].type);
-			printf("  heap id: %d\n", heap_data[i].heap_id);
-			printf("heap name: %s\n", heap_data[i].name);
-			printf("--------------------------------------\n");
 			heap_id = heap_data[i].heap_id;
 			break;
 		}
@@ -204,7 +199,6 @@ void ion_close_buffer_fd(struct ion_buffer_info *ion_info)
 		/* Finally, close the client fd */
 		if (ion_info->ionfd > 0)
 			close(ion_info->ionfd);
-		printf("<%s>: buffer release successfully....\n", __func__);
 	}
 }
 

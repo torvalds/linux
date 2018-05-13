@@ -239,20 +239,6 @@ static inline void da830_evm_init_mmc(void)
 	}
 }
 
-/*
- * UI board NAND/NOR flashes only use 8-bit data bus.
- */
-static const short da830_evm_emif25_pins[] = {
-	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
-	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
-	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
-	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
-	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
-	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_NEMA_WE,
-	DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE, DA830_EMA_WAIT_0,
-	-1
-};
-
 #define HAS_MMC		IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 #ifdef CONFIG_DA830_UI_NAND
@@ -355,6 +341,20 @@ static struct platform_device da830_evm_nand_device = {
 	},
 	.num_resources	= ARRAY_SIZE(da830_evm_nand_resources),
 	.resource	= da830_evm_nand_resources,
+};
+
+/*
+ * UI board NAND/NOR flashes only use 8-bit data bus.
+ */
+static const short da830_evm_emif25_pins[] = {
+	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
+	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
+	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
+	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
+	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
+	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_NEMA_WE,
+	DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE, DA830_EMA_WAIT_0,
+	-1
 };
 
 static inline void da830_evm_init_nand(int mux_mode)
@@ -551,10 +551,6 @@ static __init void da830_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
 
-	ret = da8xx_register_cfgchip();
-	if (ret)
-		pr_warn("%s: CFGCHIP registration failed: %d\n", __func__, ret);
-
 	ret = da830_register_gpio();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
@@ -638,9 +634,8 @@ MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137/AM17x EVM")
 	.atag_offset	= 0x100,
 	.map_io		= da830_evm_map_io,
 	.init_irq	= cp_intc_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= da830_init_time,
 	.init_machine	= da830_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= da8xx_restart,
 MACHINE_END

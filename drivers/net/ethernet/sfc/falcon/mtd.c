@@ -24,17 +24,8 @@
 static int ef4_mtd_erase(struct mtd_info *mtd, struct erase_info *erase)
 {
 	struct ef4_nic *efx = mtd->priv;
-	int rc;
 
-	rc = efx->type->mtd_erase(mtd, erase->addr, erase->len);
-	if (rc == 0) {
-		erase->state = MTD_ERASE_DONE;
-	} else {
-		erase->state = MTD_ERASE_FAILED;
-		erase->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
-	}
-	mtd_erase_callback(erase);
-	return rc;
+	return efx->type->mtd_erase(mtd, erase->addr, erase->len);
 }
 
 static void ef4_mtd_sync(struct mtd_info *mtd)

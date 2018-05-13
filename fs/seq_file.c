@@ -6,6 +6,7 @@
  * initial implementation -- AV, Oct 2001.
  */
 
+#include <linux/cache.h>
 #include <linux/fs.h>
 #include <linux/export.h>
 #include <linux/seq_file.h>
@@ -19,6 +20,8 @@
 #include <linux/uaccess.h>
 #include <asm/page.h>
 
+static struct kmem_cache *seq_file_cache __ro_after_init;
+
 static void seq_set_overflow(struct seq_file *m)
 {
 	m->count = m->size;
@@ -26,7 +29,7 @@ static void seq_set_overflow(struct seq_file *m)
 
 static void *seq_buf_alloc(unsigned long size)
 {
-	return kvmalloc(size, GFP_KERNEL);
+	return kvmalloc(size, GFP_KERNEL_ACCOUNT);
 }
 
 /**
@@ -51,7 +54,7 @@ int seq_open(struct file *file, const struct seq_operations *op)
 
 	WARN_ON(file->private_data);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kmem_cache_zalloc(seq_file_cache, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -366,7 +369,7 @@ int seq_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	kvfree(m->buf);
-	kfree(m);
+	kmem_cache_free(seq_file_cache, m);
 	return 0;
 }
 EXPORT_SYMBOL(seq_release);
@@ -563,7 +566,7 @@ static void single_stop(struct seq_file *p, void *v)
 int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 		void *data)
 {
-	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL);
+	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL_ACCOUNT);
 	int res = -ENOMEM;
 
 	if (op) {
@@ -625,7 +628,7 @@ void *__seq_open_private(struct file *f, const struct seq_operations *ops,
 	void *private;
 	struct seq_file *seq;
 
-	private = kzalloc(psize, GFP_KERNEL);
+	private = kzalloc(psize, GFP_KERNEL_ACCOUNT);
 	if (private == NULL)
 		goto out;
 
@@ -673,29 +676,37 @@ void seq_puts(struct seq_file *m, const char *s)
 }
 EXPORT_SYMBOL(seq_puts);
 
-/*
+/**
  * A helper routine for putting decimal numbers without rich format of printf().
  * only 'unsigned long long' is supported.
- * This routine will put strlen(delimiter) + number into seq_file.
+ * @m: seq_file identifying the buffer to which data should be written
+ * @delimiter: a string which is printed before the number
+ * @num: the number
+ * @width: a minimum field width
+ *
+ * This routine will put strlen(delimiter) + number into seq_filed.
  * This routine is very quick when you show lots of numbers.
  * In usual cases, it will be better to use seq_printf(). It's easier to read.
  */
-void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
-			 unsigned long long num)
+void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
+			 unsigned long long num, unsigned int width)
 {
 	int len;
 
 	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
 		goto overflow;
 
-	len = strlen(delimiter);
-	if (m->count + len >= m->size)
-		goto overflow;
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
+	}
 
-	memcpy(m->buf + m->count, delimiter, len);
-	m->count += len;
+	if (!width)
+		width = 1;
 
-	if (m->count + 1 >= m->size)
+	if (m->count + width >= m->size)
 		goto overflow;
 
 	if (num < 10) {
@@ -703,7 +714,7 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 		return;
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, width);
 	if (!len)
 		goto overflow;
 
@@ -713,7 +724,59 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 overflow:
 	seq_set_overflow(m);
 }
+
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
+			 unsigned long long num)
+{
+	return seq_put_decimal_ull_width(m, delimiter, num, 0);
+}
 EXPORT_SYMBOL(seq_put_decimal_ull);
+
+/**
+ * seq_put_hex_ll - put a number in hexadecimal notation
+ * @m: seq_file identifying the buffer to which data should be written
+ * @delimiter: a string which is printed before the number
+ * @v: the number
+ * @width: a minimum field width
+ *
+ * seq_put_hex_ll(m, "", v, 8) is equal to seq_printf(m, "%08llx", v)
+ *
+ * This routine is very quick when you show lots of numbers.
+ * In usual cases, it will be better to use seq_printf(). It's easier to read.
+ */
+void seq_put_hex_ll(struct seq_file *m, const char *delimiter,
+				unsigned long long v, unsigned int width)
+{
+	unsigned int len;
+	int i;
+
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
+	}
+
+	/* If x is 0, the result of __builtin_clzll is undefined */
+	if (v == 0)
+		len = 1;
+	else
+		len = (sizeof(v) * 8 - __builtin_clzll(v) + 3) / 4;
+
+	if (len < width)
+		len = width;
+
+	if (m->count + len > m->size) {
+		seq_set_overflow(m);
+		return;
+	}
+
+	for (i = len - 1; i >= 0; i--) {
+		m->buf[m->count + i] = hex_asc[0xf & v];
+		v = v >> 4;
+	}
+	m->count += len;
+}
 
 void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num)
 {
@@ -722,12 +785,12 @@ void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num
 	if (m->count + 3 >= m->size) /* we'll write 2 bytes at least */
 		goto overflow;
 
-	len = strlen(delimiter);
-	if (m->count + len >= m->size)
-		goto overflow;
-
-	memcpy(m->buf + m->count, delimiter, len);
-	m->count += len;
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
+	}
 
 	if (m->count + 2 >= m->size)
 		goto overflow;
@@ -742,7 +805,7 @@ void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num
 		return;
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, 0);
 	if (!len)
 		goto overflow;
 
@@ -782,8 +845,14 @@ EXPORT_SYMBOL(seq_write);
 void seq_pad(struct seq_file *m, char c)
 {
 	int size = m->pad_until - m->count;
-	if (size > 0)
-		seq_printf(m, "%*s", size, "");
+	if (size > 0) {
+		if (size + m->count > m->size) {
+			seq_set_overflow(m);
+			return;
+		}
+		memset(m->buf + m->count, ' ', size);
+		m->count += size;
+	}
 	if (c)
 		seq_putc(m, c);
 }
@@ -1040,3 +1109,8 @@ seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head,
 	return NULL;
 }
 EXPORT_SYMBOL(seq_hlist_next_percpu);
+
+void __init seq_file_init(void)
+{
+	seq_file_cache = KMEM_CACHE(seq_file, SLAB_ACCOUNT|SLAB_PANIC);
+}

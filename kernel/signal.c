@@ -770,7 +770,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 		}
 	}
 
-	return security_task_kill(t, info, sig, 0);
+	return security_task_kill(t, info, sig, NULL);
 }
 
 /**
@@ -1361,7 +1361,7 @@ static int kill_as_cred_perm(const struct cred *cred,
 
 /* like kill_pid_info(), but doesn't use uid/euid of "current" */
 int kill_pid_info_as_cred(int sig, struct siginfo *info, struct pid *pid,
-			 const struct cred *cred, u32 secid)
+			 const struct cred *cred)
 {
 	int ret = -EINVAL;
 	struct task_struct *p;
@@ -1380,7 +1380,7 @@ int kill_pid_info_as_cred(int sig, struct siginfo *info, struct pid *pid,
 		ret = -EPERM;
 		goto out_unlock;
 	}
-	ret = security_task_kill(p, info, sig, secid);
+	ret = security_task_kill(p, info, sig, cred);
 	if (ret)
 		goto out_unlock;
 
@@ -2844,10 +2844,6 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 		if ((sig == SIGFPE) && (si_code == FPE_FIXME))
 			layout = SIL_FAULT;
 #endif
-#ifdef BUS_FIXME
-		if ((sig == SIGBUS) && (si_code == BUS_FIXME))
-			layout = SIL_FAULT;
-#endif
 	}
 	return layout;
 }
@@ -3573,9 +3569,8 @@ int __save_altstack(stack_t __user *uss, unsigned long sp)
 }
 
 #ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE2(sigaltstack,
-			const compat_stack_t __user *, uss_ptr,
-			compat_stack_t __user *, uoss_ptr)
+static int do_compat_sigaltstack(const compat_stack_t __user *uss_ptr,
+				 compat_stack_t __user *uoss_ptr)
 {
 	stack_t uss, uoss;
 	int ret;
@@ -3602,9 +3597,16 @@ COMPAT_SYSCALL_DEFINE2(sigaltstack,
 	return ret;
 }
 
+COMPAT_SYSCALL_DEFINE2(sigaltstack,
+			const compat_stack_t __user *, uss_ptr,
+			compat_stack_t __user *, uoss_ptr)
+{
+	return do_compat_sigaltstack(uss_ptr, uoss_ptr);
+}
+
 int compat_restore_altstack(const compat_stack_t __user *uss)
 {
-	int err = compat_sys_sigaltstack(uss, NULL);
+	int err = do_compat_sigaltstack(uss, NULL);
 	/* squash all but -EFAULT for now */
 	return err == -EFAULT ? err : 0;
 }
@@ -3629,11 +3631,20 @@ int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
 
 /**
  *  sys_sigpending - examine pending signals
- *  @set: where mask of pending signal is returned
+ *  @uset: where mask of pending signal is returned
  */
-SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
+SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, uset)
 {
-	return sys_rt_sigpending((sigset_t __user *)set, sizeof(old_sigset_t)); 
+	sigset_t set;
+	int err;
+
+	if (sizeof(old_sigset_t) > sizeof(*uset))
+		return -EINVAL;
+
+	err = do_sigpending(&set);
+	if (!err && copy_to_user(uset, &set, sizeof(old_sigset_t)))
+		err = -EFAULT;
+	return err;
 }
 
 #ifdef CONFIG_COMPAT

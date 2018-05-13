@@ -38,6 +38,7 @@
 
 #include <asm/atomic.h>
 #include <asm/bug.h>
+#include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
@@ -223,13 +224,46 @@ void die(const char *str, struct pt_regs *regs, int err)
 		do_exit(SIGSEGV);
 }
 
+static bool show_unhandled_signals_ratelimited(void)
+{
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
+	return show_unhandled_signals && __ratelimit(&rs);
+}
+
+void arm64_force_sig_info(struct siginfo *info, const char *str,
+			  struct task_struct *tsk)
+{
+	unsigned int esr = tsk->thread.fault_code;
+	struct pt_regs *regs = task_pt_regs(tsk);
+
+	if (!unhandled_signal(tsk, info->si_signo))
+		goto send_sig;
+
+	if (!show_unhandled_signals_ratelimited())
+		goto send_sig;
+
+	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
+	if (esr)
+		pr_cont("%s, ESR 0x%08x, ", esr_get_class_string(esr), esr);
+
+	pr_cont("%s", str);
+	print_vma_addr(KERN_CONT " in ", regs->pc);
+	pr_cont("\n");
+	__show_regs(regs);
+
+send_sig:
+	force_sig_info(info->si_signo, info, tsk);
+}
+
 void arm64_notify_die(const char *str, struct pt_regs *regs,
 		      struct siginfo *info, int err)
 {
 	if (user_mode(regs)) {
+		WARN_ON(regs != current_pt_regs());
 		current->thread.fault_address = 0;
 		current->thread.fault_code = err;
-		force_sig_info(info->si_signo, info, current);
+		arm64_force_sig_info(info, str, current);
 	} else {
 		die(str, regs, err);
 	}
@@ -243,7 +277,8 @@ void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
 	 * If we were single stepping, we want to get the step exception after
 	 * we return from the trap.
 	 */
-	user_fastforward_single_step(current);
+	if (user_mode(regs))
+		user_fastforward_single_step(current);
 }
 
 static LIST_HEAD(undef_hook);
@@ -311,12 +346,13 @@ exit:
 	return fn ? fn(regs, instr) : 1;
 }
 
-void force_signal_inject(int signal, int code, struct pt_regs *regs,
-			 unsigned long address)
+void force_signal_inject(int signal, int code, unsigned long address)
 {
 	siginfo_t info;
-	void __user *pc = (void __user *)instruction_pointer(regs);
 	const char *desc;
+	struct pt_regs *regs = current_pt_regs();
+
+	clear_siginfo(&info);
 
 	switch (signal) {
 	case SIGILL:
@@ -330,17 +366,16 @@ void force_signal_inject(int signal, int code, struct pt_regs *regs,
 		break;
 	}
 
-	if (unhandled_signal(current, signal) &&
-	    show_unhandled_signals_ratelimited()) {
-		pr_info("%s[%d]: %s: pc=%p\n",
-			current->comm, task_pid_nr(current), desc, pc);
-		dump_instr(KERN_INFO, regs);
+	/* Force signals we don't understand to SIGKILL */
+	if (WARN_ON(signal != SIGKILL &&
+		    siginfo_layout(signal, code) != SIL_FAULT)) {
+		signal = SIGKILL;
 	}
 
 	info.si_signo = signal;
 	info.si_errno = 0;
 	info.si_code  = code;
-	info.si_addr  = pc;
+	info.si_addr  = (void __user *)address;
 
 	arm64_notify_die(desc, regs, &info, 0);
 }
@@ -348,7 +383,7 @@ void force_signal_inject(int signal, int code, struct pt_regs *regs,
 /*
  * Set up process info to signal segmentation fault - called on access error.
  */
-void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr)
+void arm64_notify_segfault(unsigned long addr)
 {
 	int code;
 
@@ -359,7 +394,7 @@ void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr)
 		code = SEGV_ACCERR;
 	up_read(&current->mm->mmap_sem);
 
-	force_signal_inject(SIGSEGV, code, regs, addr);
+	force_signal_inject(SIGSEGV, code, addr);
 }
 
 asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
@@ -371,13 +406,12 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 }
 
-int cpu_enable_cache_maint_trap(void *__unused)
+void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 {
 	config_sctlr_el1(SCTLR_EL1_UCI, 0);
-	return 0;
 }
 
 #define __user_cache_maint(insn, address, res)			\
@@ -426,12 +460,12 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 		__user_cache_maint("ic ivau", address, ret);
 		break;
 	default:
-		force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 		return;
 	}
 
 	if (ret)
-		arm64_notify_segfault(regs, address);
+		arm64_notify_segfault(address);
 	else
 		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
@@ -600,11 +634,6 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
-	console_verbose();
-
-	pr_crit("Bad EL0 synchronous exception detected on CPU%d, code 0x%08x -- %s\n",
-		smp_processor_id(), esr, esr_get_class_string(esr));
-	__show_regs(regs);
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
@@ -612,9 +641,9 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	info.si_addr  = pc;
 
 	current->thread.fault_address = 0;
-	current->thread.fault_code = 0;
+	current->thread.fault_code = esr;
 
-	force_sig_info(info.si_signo, &info, current);
+	arm64_force_sig_info(&info, "Bad EL0 synchronous exception", current);
 }
 
 #ifdef CONFIG_VMAP_STACK

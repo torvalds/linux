@@ -64,10 +64,6 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 		#    2b6c:       4e56 fb70       linkw %fp,#-1168
 		#  1df770:       defc ffe4       addaw #-28,%sp
 		$re = qr/.*(?:linkw %fp,|addaw )#-([0-9]{1,4})(?:,%sp)?$/o;
-	} elsif ($arch eq 'metag') {
-		#400026fc:       40 00 00 82     ADD       A0StP,A0StP,#0x8
-		$re = qr/.*ADD.*A0StP,A0StP,\#(0x$x{1,8})/o;
-		$funcre = qr/^$x* <[^\$](.*)>:$/;
 	} elsif ($arch eq 'mips64') {
 		#8800402c:       67bdfff0        daddiu  sp,sp,-16
 		$re = qr/.*daddiu.*sp,sp,-(([0-9]{2}|[3-9])[0-9]{2})/o;
@@ -102,9 +98,6 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 		#     pair for larger users. -- PFM.
 		#a00048e0:       d4fc40f0        addi.l  r15,-240,r15
 		$re = qr/.*addi\.l.*r15,-(([0-9]{2}|[3-9])[0-9]{2}),r15/o;
-	} elsif ($arch =~ /^blackfin$/) {
-		#   0:   00 e8 38 01     LINK 0x4e0;
-		$re = qr/.*[[:space:]]LINK[[:space:]]*(0x$x{1,8})/o;
 	} elsif ($arch eq 'sparc' || $arch eq 'sparc64') {
 		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
 		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;

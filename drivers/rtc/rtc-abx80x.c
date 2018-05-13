@@ -172,11 +172,7 @@ static int abx80x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(buf[ABX8XX_REG_MO] & 0x1F) - 1;
 	tm->tm_year = bcd2bin(buf[ABX8XX_REG_YR]) + 100;
 
-	err = rtc_valid_tm(tm);
-	if (err < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
-
-	return err;
+	return 0;
 }
 
 static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)

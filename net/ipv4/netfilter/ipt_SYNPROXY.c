@@ -16,6 +16,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 static struct iphdr *
 synproxy_build_ip(struct net *net, struct sk_buff *skb, __be32 saddr,
@@ -384,6 +385,8 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 		synproxy->isn = ntohl(th->ack_seq);
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy->its = opts.tsecr;
+
+		nf_conntrack_event_cache(IPCT_SYNPROXY, ct);
 		break;
 	case TCP_CONNTRACK_SYN_RECV:
 		if (!th->syn || !th->ack)
@@ -392,8 +395,10 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
 
-		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
+		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP) {
 			synproxy->tsoff = opts.tsval - synproxy->its;
+			nf_conntrack_event_cache(IPCT_SYNPROXY, ct);
+		}
 
 		opts.options &= ~(XT_SYNPROXY_OPT_MSS |
 				  XT_SYNPROXY_OPT_WSCALE |
@@ -403,6 +408,7 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 		synproxy_send_server_ack(net, state, skb, th, &opts);
 
 		nf_ct_seqadj_init(ct, ctinfo, synproxy->isn - ntohl(th->seq));
+		nf_conntrack_event_cache(IPCT_SEQADJ, ct);
 
 		swap(opts.tsval, opts.tsecr);
 		synproxy_send_client_ack(net, skb, th, &opts);

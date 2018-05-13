@@ -112,11 +112,19 @@ struct optee_smc_calls_revision_result {
  * Trusted OS, not of the API.
  *
  * Returns revision in a0-1 in the same way as OPTEE_SMC_CALLS_REVISION
- * described above.
+ * described above. May optionally return a 32-bit build identifier in a2,
+ * with zero meaning unspecified.
  */
 #define OPTEE_SMC_FUNCID_GET_OS_REVISION OPTEE_MSG_FUNCID_GET_OS_REVISION
 #define OPTEE_SMC_CALL_GET_OS_REVISION \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_OS_REVISION)
+
+struct optee_smc_call_get_os_revision_result {
+	unsigned long major;
+	unsigned long minor;
+	unsigned long build_id;
+	unsigned long reserved1;
+};
 
 /*
  * Call with struct optee_msg_arg as argument

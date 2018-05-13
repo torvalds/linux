@@ -73,7 +73,7 @@
 		btm {
 			uart6: uart@11000000 {
 				status = "okay";
-				sirf,uart-has-rtscts;
+				uart-has-rtscts;
 			};
 		};
 

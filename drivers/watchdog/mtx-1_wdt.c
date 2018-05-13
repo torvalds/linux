@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *      Driver for the MTX-1 Watchdog.
  *
@@ -6,16 +7,6 @@
  *                              http://www.4g-systems.biz
  *
  *	(C) Copyright 2007 OpenWrt.org, Florian Fainelli <florian@openwrt.org>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
- *      Neither Michael Stickel nor 4G Systems admit liability nor provide
- *      warranty for any of this software. This material is provided
- *      "AS-IS" and at no charge.
- *
  *      (c) Copyright 2005    4G Systems <info@4g-systems.biz>
  *
  *      Release 0.01.

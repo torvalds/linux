@@ -502,7 +502,10 @@ sclp_tty_init(void)
 	int i;
 	int rc;
 
-	if (!CONSOLE_IS_SCLP)
+	/* z/VM multiplexes the line mode output on the 32xx screen */
+	if (MACHINE_IS_VM && !CONSOLE_IS_SCLP)
+		return 0;
+	if (!sclp.has_linemode)
 		return 0;
 	driver = alloc_tty_driver(1);
 	if (!driver)

@@ -1157,11 +1157,9 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	bank = devm_kzalloc(dev, sizeof(struct gpio_bank), GFP_KERNEL);
-	if (!bank) {
-		dev_err(dev, "Memory alloc failed\n");
+	bank = devm_kzalloc(dev, sizeof(*bank), GFP_KERNEL);
+	if (!bank)
 		return -ENOMEM;
-	}
 
 	irqc = devm_kzalloc(dev, sizeof(*irqc), GFP_KERNEL);
 	if (!irqc)

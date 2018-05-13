@@ -43,12 +43,6 @@
 #define GOSSIP_MAX_NR                 16
 #define GOSSIP_MAX_DEBUG              (((__u64)1 << GOSSIP_MAX_NR) - 1)
 
-/*function prototypes*/
-__u64 ORANGEFS_kmod_eventlog_to_mask(const char *event_logging);
-__u64 ORANGEFS_debug_eventlog_to_mask(const char *event_logging);
-char *ORANGEFS_debug_mask_to_eventlog(__u64 mask);
-char *ORANGEFS_kmod_mask_to_eventlog(__u64 mask);
-
 /* a private internal type */
 struct __keyword_mask_s {
 	const char *keyword;

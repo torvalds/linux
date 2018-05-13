@@ -33,13 +33,13 @@
  */
 enum vfl_devnode_type {
 	VFL_TYPE_GRABBER	= 0,
-	VFL_TYPE_VBI		= 1,
-	VFL_TYPE_RADIO		= 2,
-	VFL_TYPE_SUBDEV		= 3,
-	VFL_TYPE_SDR		= 4,
-	VFL_TYPE_TOUCH		= 5,
+	VFL_TYPE_VBI,
+	VFL_TYPE_RADIO,
+	VFL_TYPE_SUBDEV,
+	VFL_TYPE_SDR,
+	VFL_TYPE_TOUCH,
+	VFL_TYPE_MAX /* Shall be the last one */
 };
-#define VFL_TYPE_MAX VFL_TYPE_TOUCH
 
 /**
  * enum  vfl_direction - Identifies if a &struct video_device corresponds
@@ -298,10 +298,10 @@ struct video_device
  * media_entity_to_video_device - Returns a &struct video_device from
  *	the &struct media_entity embedded on it.
  *
- * @entity: pointer to &struct media_entity
+ * @__entity: pointer to &struct media_entity
  */
-#define media_entity_to_video_device(entity) \
-	container_of(entity, struct video_device, entity)
+#define media_entity_to_video_device(__entity) \
+	container_of(__entity, struct video_device, entity)
 
 /**
  * to_video_device - Returns a &struct video_device from the

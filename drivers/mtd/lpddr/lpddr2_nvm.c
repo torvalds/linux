@@ -380,14 +380,8 @@ out:
  */
 static int lpddr2_nvm_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	int ret = lpddr2_nvm_do_block_op(mtd, instr->addr, instr->len,
-		LPDDR2_NVM_ERASE);
-	if (!ret) {
-		instr->state = MTD_ERASE_DONE;
-		mtd_erase_callback(instr);
-	}
-
-	return ret;
+	return lpddr2_nvm_do_block_op(mtd, instr->addr, instr->len,
+				      LPDDR2_NVM_ERASE);
 }
 
 /*

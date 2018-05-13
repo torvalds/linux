@@ -83,12 +83,14 @@ EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
  * @mem_region:	allocated memory region to load firmware into
  * @mem_phys:	physical address of allocated memory region
  * @mem_size:	size of the allocated memory region
+ * @reloc_base:	adjusted physical address after relocation
  *
  * Returns 0 on success, negative errno otherwise.
  */
 int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		  const char *firmware, int pas_id, void *mem_region,
-		  phys_addr_t mem_phys, size_t mem_size)
+		  phys_addr_t mem_phys, size_t mem_size,
+		  phys_addr_t *reloc_base)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_phdr *phdr;
@@ -191,6 +193,9 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		if (phdr->p_memsz > phdr->p_filesz)
 			memset(ptr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
 	}
+
+	if (reloc_base)
+		*reloc_base = mem_reloc;
 
 out:
 	kfree(fw_name);

@@ -54,7 +54,7 @@ MODULE_DEVICE_TABLE(usb, device_table);
 /* we can have up to this number of device plugged in at once */
 #define MAX_DEVICES	16
 
-#define COMMAND_TIMEOUT	(2*HZ)	/* 60 second timeout for a command */
+#define COMMAND_TIMEOUT	(2*HZ)
 
 /*
  * The locking scheme is a vanilla 3-lock:
@@ -132,6 +132,8 @@ static void adu_abort_transfers(struct adu_device *dev)
 	spin_lock_irqsave(&dev->buflock, flags);
 	if (!dev->out_urb_finished) {
 		spin_unlock_irqrestore(&dev->buflock, flags);
+		wait_event_timeout(dev->write_wait, dev->out_urb_finished,
+			COMMAND_TIMEOUT);
 		usb_kill_urb(dev->interrupt_out_urb);
 	} else
 		spin_unlock_irqrestore(&dev->buflock, flags);

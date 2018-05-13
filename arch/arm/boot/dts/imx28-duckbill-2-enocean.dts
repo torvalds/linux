@@ -20,7 +20,7 @@
 	model = "I2SE Duckbill 2 EnOcean";
 	compatible = "i2se,duckbill-2-enocean", "i2se,duckbill-2", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 

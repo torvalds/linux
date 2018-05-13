@@ -236,7 +236,6 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	struct dma_async_tx_descriptor *tx;
 	enum dma_ctrl_flags flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
 	struct dma_chan *chan = vout->vrfb_dma_tx.chan;
-	struct dma_device *dmadev = chan->device;
 	struct dma_interleaved_template *xt = vout->vrfb_dma_tx.xt;
 	dma_cookie_t cookie;
 	enum dma_status status;
@@ -271,7 +270,7 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	xt->dst_sgl = true;
 	xt->dst_inc = true;
 
-	tx = dmadev->device_prep_interleaved_dma(chan, xt, flags);
+	tx = dmaengine_prep_interleaved_dma(chan, xt, flags);
 	if (tx == NULL) {
 		pr_err("%s: DMA interleaved prep error\n", __func__);
 		return -EINVAL;

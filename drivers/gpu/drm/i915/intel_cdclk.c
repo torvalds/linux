@@ -1626,7 +1626,7 @@ static void cnl_cdclk_pll_disable(struct drm_i915_private *dev_priv)
 
 	/* Timeout 200us */
 	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
-		DRM_ERROR("timout waiting for CDCLK PLL unlock\n");
+		DRM_ERROR("timeout waiting for CDCLK PLL unlock\n");
 
 	dev_priv->cdclk.hw.vco = 0;
 }
@@ -1644,7 +1644,7 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 
 	/* Timeout 200us */
 	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
-		DRM_ERROR("timout waiting for CDCLK PLL lock\n");
+		DRM_ERROR("timeout waiting for CDCLK PLL lock\n");
 
 	dev_priv->cdclk.hw.vco = vco;
 }
@@ -2140,10 +2140,22 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	/* According to BSpec, "The CD clock frequency must be at least twice
+	/*
+	 * According to BSpec, "The CD clock frequency must be at least twice
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
+	 *
+	 * FIXME: Check the actual, not default, BCLK being used.
+	 *
+	 * FIXME: This does not depend on ->has_audio because the higher CDCLK
+	 * is required for audio probe, also when there are no audio capable
+	 * displays connected at probe time. This leads to unnecessarily high
+	 * CDCLK when audio is not required.
+	 *
+	 * FIXME: This limit is only applied when there are displays connected
+	 * at probe time. If we probe without displays, we'll still end up using
+	 * the platform minimum CDCLK, failing audio probe.
 	 */
-	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
 	/*
@@ -2290,9 +2302,44 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 	return 0;
 }
 
+static int skl_dpll0_vco(struct intel_atomic_state *intel_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_state->base.dev);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	int vco, i;
+
+	vco = intel_state->cdclk.logical.vco;
+	if (!vco)
+		vco = dev_priv->skl_preferred_vco_freq;
+
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+		if (!crtc_state->base.enable)
+			continue;
+
+		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+			continue;
+
+		/*
+		 * DPLL0 VCO may need to be adjusted to get the correct
+		 * clock for eDP. This will affect cdclk as well.
+		 */
+		switch (crtc_state->port_clock / 2) {
+		case 108000:
+		case 216000:
+			vco = 8640000;
+			break;
+		default:
+			vco = 8100000;
+			break;
+		}
+	}
+
+	return vco;
+}
+
 static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	int min_cdclk, cdclk, vco;
 
@@ -2300,9 +2347,7 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	vco = intel_state->cdclk.logical.vco;
-	if (!vco)
-		vco = dev_priv->skl_preferred_vco_freq;
+	vco = skl_dpll0_vco(intel_state);
 
 	/*
 	 * FIXME should also account for plane ratio

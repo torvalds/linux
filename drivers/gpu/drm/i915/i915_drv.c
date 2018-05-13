@@ -101,7 +101,13 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 		   __builtin_return_address(0), &vaf);
 
 	if (is_error && !shown_bug_once) {
-		dev_notice(kdev, "%s", FDO_BUG_MSG);
+		/*
+		 * Ask the user to file a bug report for the error, except
+		 * if they may have caused the bug by fiddling with unsafe
+		 * module parameters.
+		 */
+		if (!test_taint(TAINT_USER))
+			dev_notice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
 
@@ -449,7 +455,10 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
-	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+	int domain = pci_domain_nr(dev_priv->drm.pdev->bus);
+
+	dev_priv->bridge_dev =
+		pci_get_domain_bus_and_slot(domain, 0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
 		DRM_ERROR("bridge device not found\n");
 		return -1;
@@ -1101,30 +1110,32 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
-		return ret;
+		goto err_perf;
 
-	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
-	 * otherwise the vga fbdev driver falls over. */
+	/*
+	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
+	 * otherwise the vga fbdev driver falls over.
+	 */
 	ret = i915_kick_out_firmware_fb(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
-		goto out_ggtt;
+		goto err_ggtt;
 	}
 
 	ret = i915_kick_out_vgacon(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting VGA console\n");
-		goto out_ggtt;
+		goto err_ggtt;
 	}
 
 	ret = i915_ggtt_init_hw(dev_priv);
 	if (ret)
-		return ret;
+		goto err_ggtt;
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
-		goto out_ggtt;
+		goto err_ggtt;
 	}
 
 	pci_set_master(pdev);
@@ -1135,7 +1146,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto out_ggtt;
+			goto err_ggtt;
 		}
 	}
 
@@ -1153,7 +1164,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto out_ggtt;
+			goto err_ggtt;
 		}
 	}
 
@@ -1186,13 +1197,14 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_init(dev_priv);
 	if (ret)
-		goto out_ggtt;
+		goto err_ggtt;
 
 	return 0;
 
-out_ggtt:
+err_ggtt:
 	i915_ggtt_cleanup_hw(dev_priv);
-
+err_perf:
+	i915_perf_fini(dev_priv);
 	return ret;
 }
 
@@ -2462,10 +2474,13 @@ static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	/*
 	 * RC6 transitioning can be delayed up to 2 msec (see
 	 * valleyview_enable_rps), use 3 msec for safety.
+	 *
+	 * This can fail to turn off the rc6 if the GPU is stuck after a failed
+	 * reset and we are trying to force the machine to sleep.
 	 */
 	if (vlv_wait_for_pw_status(dev_priv, mask, val))
-		DRM_ERROR("timeout waiting for GT wells to go %s\n",
-			  onoff(wait_for_on));
+		DRM_DEBUG_DRIVER("timeout waiting for GT wells to go %s\n",
+				 onoff(wait_for_on));
 }
 
 static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)

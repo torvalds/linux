@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pcie/aer/aerdrv_errprint.c
- *
  * Format error messages and print them to console.
  *
  * Copyright (C) 2006 Intel Corp.
  *	Tom Long Nguyen (tom.l.nguyen@intel.com)
  *	Zhang Yanmin (yanmin.zhang@intel.com)
- *
  */
 
 #include <linux/module.h>

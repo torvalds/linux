@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/kernel.h>
+#include <uapi/rdma/mlx4-abi.h>
 
 #include "fw.h"
 #include "icm.h"

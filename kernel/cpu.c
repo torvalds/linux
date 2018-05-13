@@ -124,24 +124,11 @@ struct cpuhp_step {
 };
 
 static DEFINE_MUTEX(cpuhp_state_mutex);
-static struct cpuhp_step cpuhp_bp_states[];
-static struct cpuhp_step cpuhp_ap_states[];
-
-static bool cpuhp_is_ap_state(enum cpuhp_state state)
-{
-	/*
-	 * The extra check for CPUHP_TEARDOWN_CPU is only for documentation
-	 * purposes as that state is handled explicitly in cpu_down.
-	 */
-	return state > CPUHP_BRINGUP_CPU && state != CPUHP_TEARDOWN_CPU;
-}
+static struct cpuhp_step cpuhp_hp_states[];
 
 static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
 {
-	struct cpuhp_step *sp;
-
-	sp = cpuhp_is_ap_state(state) ? cpuhp_ap_states : cpuhp_bp_states;
-	return sp + state;
+	return cpuhp_hp_states + state;
 }
 
 /**
@@ -239,6 +226,15 @@ err:
 }
 
 #ifdef CONFIG_SMP
+static bool cpuhp_is_ap_state(enum cpuhp_state state)
+{
+	/*
+	 * The extra check for CPUHP_TEARDOWN_CPU is only for documentation
+	 * purposes as that state is handled explicitly in cpu_down.
+	 */
+	return state > CPUHP_BRINGUP_CPU && state != CPUHP_TEARDOWN_CPU;
+}
+
 static inline void wait_for_ap_thread(struct cpuhp_cpu_state *st, bool bringup)
 {
 	struct completion *done = bringup ? &st->done_up : &st->done_down;
@@ -1224,7 +1220,7 @@ int __boot_cpu_id;
 #endif /* CONFIG_SMP */
 
 /* Boot processor state steps */
-static struct cpuhp_step cpuhp_bp_states[] = {
+static struct cpuhp_step cpuhp_hp_states[] = {
 	[CPUHP_OFFLINE] = {
 		.name			= "offline",
 		.startup.single		= NULL,
@@ -1289,24 +1285,6 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown.single	= NULL,
 		.cant_stop		= true,
 	},
-	/*
-	 * Handled on controll processor until the plugged processor manages
-	 * this itself.
-	 */
-	[CPUHP_TEARDOWN_CPU] = {
-		.name			= "cpu:teardown",
-		.startup.single		= NULL,
-		.teardown.single	= takedown_cpu,
-		.cant_stop		= true,
-	},
-#else
-	[CPUHP_BRINGUP_CPU] = { },
-#endif
-};
-
-/* Application processor state steps */
-static struct cpuhp_step cpuhp_ap_states[] = {
-#ifdef CONFIG_SMP
 	/* Final state before CPU kills itself */
 	[CPUHP_AP_IDLE_DEAD] = {
 		.name			= "idle:dead",
@@ -1339,6 +1317,16 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	 * state for synchronsization */
 	[CPUHP_AP_ONLINE] = {
 		.name			= "ap:online",
+	},
+	/*
+	 * Handled on controll processor until the plugged processor manages
+	 * this itself.
+	 */
+	[CPUHP_TEARDOWN_CPU] = {
+		.name			= "cpu:teardown",
+		.startup.single		= NULL,
+		.teardown.single	= takedown_cpu,
+		.cant_stop		= true,
 	},
 	/* Handle smpboot threads park/unpark */
 	[CPUHP_AP_SMPBOOT_THREADS] = {
@@ -1408,11 +1396,11 @@ static int cpuhp_reserve_state(enum cpuhp_state state)
 
 	switch (state) {
 	case CPUHP_AP_ONLINE_DYN:
-		step = cpuhp_ap_states + CPUHP_AP_ONLINE_DYN;
+		step = cpuhp_hp_states + CPUHP_AP_ONLINE_DYN;
 		end = CPUHP_AP_ONLINE_DYN_END;
 		break;
 	case CPUHP_BP_PREPARE_DYN:
-		step = cpuhp_bp_states + CPUHP_BP_PREPARE_DYN;
+		step = cpuhp_hp_states + CPUHP_BP_PREPARE_DYN;
 		end = CPUHP_BP_PREPARE_DYN_END;
 		break;
 	default:

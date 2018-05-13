@@ -49,13 +49,15 @@
  * check the condition before the timeout.
  */
 #define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
-	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
+	const ktime_t end__ = ktime_add_ns(ktime_get_raw(), 1000ll * (US)); \
 	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
-		bool expired__ = time_after(jiffies, timeout__);	\
+		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
 		OP;							\
+		/* Guarantee COND check prior to timeout */		\
+		barrier();						\
 		if (COND) {						\
 			ret__ = 0;					\
 			break;						\
@@ -96,6 +98,8 @@
 		u64 now = local_clock(); \
 		if (!(ATOMIC)) \
 			preempt_enable(); \
+		/* Guarantee COND check prior to timeout */ \
+		barrier(); \
 		if (COND) { \
 			ret = 0; \
 			break; \
@@ -139,6 +143,10 @@
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
+
+#define KBps(x) (1000 * (x))
+#define MBps(x) KBps(1000 * (x))
+#define GBps(x) ((u64)1000 * MBps((x)))
 
 /*
  * Display related stuff
@@ -882,6 +890,7 @@ struct intel_crtc_state {
 
 	/* bitmask of visible planes (enum plane_id) */
 	u8 active_planes;
+	u8 nv12_planes;
 
 	/* HDMI scrambling status */
 	bool hdmi_scrambling;
@@ -1329,6 +1338,9 @@ void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv);
 void intel_check_pch_fifo_underruns(struct drm_i915_private *dev_priv);
 
 /* i915_irq.c */
+bool gen11_reset_one_iir(struct drm_i915_private * const i915,
+			 const unsigned int bank,
+			 const unsigned int bit);
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
@@ -1398,6 +1410,12 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
+void icl_map_plls_to_ports(struct drm_crtc *crtc,
+			   struct intel_crtc_state *crtc_state,
+			   struct drm_atomic_state *old_state);
+void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
+			     struct intel_crtc_state *crtc_state,
+			     struct drm_atomic_state *old_state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int plane, unsigned int height);
@@ -1580,8 +1598,6 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
 void gen9_enable_dc5(struct drm_i915_private *dev_priv);
 unsigned int skl_cdclk_get_vco(unsigned int freq);
-void skl_enable_dc6(struct drm_i915_private *dev_priv);
-void skl_disable_dc6(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
@@ -1901,6 +1917,8 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug);
+void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
@@ -1924,6 +1942,8 @@ bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 					enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
+void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			    u8 req_slices);
 
 static inline void
 assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
@@ -2062,6 +2082,8 @@ bool skl_plane_get_hw_state(struct intel_plane *plane);
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, enum plane_id plane_id);
 bool intel_format_is_yuv(uint32_t format);
+bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, enum plane_id plane_id);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

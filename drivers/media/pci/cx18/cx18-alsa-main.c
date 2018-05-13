@@ -32,7 +32,6 @@
 #include "cx18-driver.h"
 #include "cx18-version.h"
 #include "cx18-alsa.h"
-#include "cx18-alsa-mixer.h"
 #include "cx18-alsa-pcm.h"
 
 int cx18_alsa_debug;

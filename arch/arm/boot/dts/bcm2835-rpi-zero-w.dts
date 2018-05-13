@@ -12,7 +12,7 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
-#include "bcm283x-rpi-usb-host.dtsi"
+#include "bcm283x-rpi-usb-otg.dtsi"
 
 / {
 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
@@ -131,6 +131,18 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_gpio14>;
+	pinctrl-0 = <&uart0_gpio32 &uart0_ctsrts_gpio30>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <2000000>;
+		shutdown-gpios = <&gpio 45 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_gpio14>;
 	status = "okay";
 };

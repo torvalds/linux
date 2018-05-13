@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/msi.h>
 #include <linux/iommu.h>
+#include <linux/sched/mm.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -38,6 +39,7 @@
 #include "pci.h"
 
 static DEFINE_MUTEX(p2p_mutex);
+static DEFINE_MUTEX(tunnel_mutex);
 
 int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 {
@@ -1091,6 +1093,139 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(pnv_pci_set_p2p);
+
+struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+
+	return of_node_get(hose->dn);
+}
+EXPORT_SYMBOL(pnv_pci_get_phb_node);
+
+int pnv_pci_enable_tunnel(struct pci_dev *dev, u64 *asnind)
+{
+	struct device_node *np;
+	const __be32 *prop;
+	struct pnv_ioda_pe *pe;
+	uint16_t window_id;
+	int rc;
+
+	if (!radix_enabled())
+		return -ENXIO;
+
+	if (!(np = pnv_pci_get_phb_node(dev)))
+		return -ENXIO;
+
+	prop = of_get_property(np, "ibm,phb-indications", NULL);
+	of_node_put(np);
+
+	if (!prop || !prop[1])
+		return -ENXIO;
+
+	*asnind = (u64)be32_to_cpu(prop[1]);
+	pe = pnv_ioda_get_pe(dev);
+	if (!pe)
+		return -ENODEV;
+
+	/* Increase real window size to accept as_notify messages. */
+	window_id = (pe->pe_number << 1 ) + 1;
+	rc = opal_pci_map_pe_dma_window_real(pe->phb->opal_id, pe->pe_number,
+					     window_id, pe->tce_bypass_base,
+					     (uint64_t)1 << 48);
+	return opal_error_code(rc);
+}
+EXPORT_SYMBOL_GPL(pnv_pci_enable_tunnel);
+
+int pnv_pci_disable_tunnel(struct pci_dev *dev)
+{
+	struct pnv_ioda_pe *pe;
+
+	pe = pnv_ioda_get_pe(dev);
+	if (!pe)
+		return -ENODEV;
+
+	/* Restore default real window size. */
+	pnv_pci_ioda2_set_bypass(pe, true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_disable_tunnel);
+
+int pnv_pci_set_tunnel_bar(struct pci_dev *dev, u64 addr, int enable)
+{
+	__be64 val;
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+	u64 tunnel_bar;
+	int rc;
+
+	if (!opal_check_token(OPAL_PCI_GET_PBCQ_TUNNEL_BAR))
+		return -ENXIO;
+	if (!opal_check_token(OPAL_PCI_SET_PBCQ_TUNNEL_BAR))
+		return -ENXIO;
+
+	hose = pci_bus_to_host(dev->bus);
+	phb = hose->private_data;
+
+	mutex_lock(&tunnel_mutex);
+	rc = opal_pci_get_pbcq_tunnel_bar(phb->opal_id, &val);
+	if (rc != OPAL_SUCCESS) {
+		rc = -EIO;
+		goto out;
+	}
+	tunnel_bar = be64_to_cpu(val);
+	if (enable) {
+		/*
+		* Only one device per PHB can use atomics.
+		* Our policy is first-come, first-served.
+		*/
+		if (tunnel_bar) {
+			if (tunnel_bar != addr)
+				rc = -EBUSY;
+			else
+				rc = 0;	/* Setting same address twice is ok */
+			goto out;
+		}
+	} else {
+		/*
+		* The device that owns atomics and wants to release
+		* them must pass the same address with enable == 0.
+		*/
+		if (tunnel_bar != addr) {
+			rc = -EPERM;
+			goto out;
+		}
+		addr = 0x0ULL;
+	}
+	rc = opal_pci_set_pbcq_tunnel_bar(phb->opal_id, addr);
+	rc = opal_error_code(rc);
+out:
+	mutex_unlock(&tunnel_mutex);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_set_tunnel_bar);
+
+#ifdef CONFIG_PPC64	/* for thread.tidr */
+int pnv_pci_get_as_notify_info(struct task_struct *task, u32 *lpid, u32 *pid,
+			       u32 *tid)
+{
+	struct mm_struct *mm = NULL;
+
+	if (task == NULL)
+		return -EINVAL;
+
+	mm = get_task_mm(task);
+	if (mm == NULL)
+		return -EINVAL;
+
+	*pid = mm->context.id;
+	mmput(mm);
+
+	*tid = task->thread.tidr;
+	*lpid = mfspr(SPRN_LPID);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_as_notify_info);
+#endif
 
 void pnv_pci_shutdown(void)
 {

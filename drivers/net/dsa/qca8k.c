@@ -631,7 +631,7 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 }
 
 static int
-qca8k_get_sset_count(struct dsa_switch *ds)
+qca8k_get_sset_count(struct dsa_switch *ds, int port)
 {
 	return ARRAY_SIZE(ar8327_mib);
 }

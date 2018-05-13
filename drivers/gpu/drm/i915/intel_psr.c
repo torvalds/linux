@@ -93,6 +93,114 @@ static void psr_aux_io_power_put(struct intel_dp *intel_dp)
 	intel_display_power_put(dev_priv, psr_aux_domain(intel_dp));
 }
 
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
+{
+	u32 debug_mask, mask;
+
+	/* No PSR interrupts on VLV/CHV */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return;
+
+	mask = EDP_PSR_ERROR(TRANSCODER_EDP);
+	debug_mask = EDP_PSR_POST_EXIT(TRANSCODER_EDP) |
+		     EDP_PSR_PRE_ENTRY(TRANSCODER_EDP);
+
+	if (INTEL_GEN(dev_priv) >= 8) {
+		mask |= EDP_PSR_ERROR(TRANSCODER_A) |
+			EDP_PSR_ERROR(TRANSCODER_B) |
+			EDP_PSR_ERROR(TRANSCODER_C);
+
+		debug_mask |= EDP_PSR_POST_EXIT(TRANSCODER_A) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_A) |
+			      EDP_PSR_POST_EXIT(TRANSCODER_B) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_B) |
+			      EDP_PSR_POST_EXIT(TRANSCODER_C) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_C);
+	}
+
+	if (debug)
+		mask |= debug_mask;
+
+	WRITE_ONCE(dev_priv->psr.debug, debug);
+	I915_WRITE(EDP_PSR_IMR, ~mask);
+}
+
+static void psr_event_print(u32 val, bool psr2_enabled)
+{
+	DRM_DEBUG_KMS("PSR exit events: 0x%x\n", val);
+	if (val & PSR_EVENT_PSR2_WD_TIMER_EXPIRE)
+		DRM_DEBUG_KMS("\tPSR2 watchdog timer expired\n");
+	if ((val & PSR_EVENT_PSR2_DISABLED) && psr2_enabled)
+		DRM_DEBUG_KMS("\tPSR2 disabled\n");
+	if (val & PSR_EVENT_SU_DIRTY_FIFO_UNDERRUN)
+		DRM_DEBUG_KMS("\tSU dirty FIFO underrun\n");
+	if (val & PSR_EVENT_SU_CRC_FIFO_UNDERRUN)
+		DRM_DEBUG_KMS("\tSU CRC FIFO underrun\n");
+	if (val & PSR_EVENT_GRAPHICS_RESET)
+		DRM_DEBUG_KMS("\tGraphics reset\n");
+	if (val & PSR_EVENT_PCH_INTERRUPT)
+		DRM_DEBUG_KMS("\tPCH interrupt\n");
+	if (val & PSR_EVENT_MEMORY_UP)
+		DRM_DEBUG_KMS("\tMemory up\n");
+	if (val & PSR_EVENT_FRONT_BUFFER_MODIFY)
+		DRM_DEBUG_KMS("\tFront buffer modification\n");
+	if (val & PSR_EVENT_WD_TIMER_EXPIRE)
+		DRM_DEBUG_KMS("\tPSR watchdog timer expired\n");
+	if (val & PSR_EVENT_PIPE_REGISTERS_UPDATE)
+		DRM_DEBUG_KMS("\tPIPE registers updated\n");
+	if (val & PSR_EVENT_REGISTER_UPDATE)
+		DRM_DEBUG_KMS("\tRegister updated\n");
+	if (val & PSR_EVENT_HDCP_ENABLE)
+		DRM_DEBUG_KMS("\tHDCP enabled\n");
+	if (val & PSR_EVENT_KVMR_SESSION_ENABLE)
+		DRM_DEBUG_KMS("\tKVMR session enabled\n");
+	if (val & PSR_EVENT_VBI_ENABLE)
+		DRM_DEBUG_KMS("\tVBI enabled\n");
+	if (val & PSR_EVENT_LPSP_MODE_EXIT)
+		DRM_DEBUG_KMS("\tLPSP mode exited\n");
+	if ((val & PSR_EVENT_PSR_DISABLE) && !psr2_enabled)
+		DRM_DEBUG_KMS("\tPSR disabled\n");
+}
+
+void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
+{
+	u32 transcoders = BIT(TRANSCODER_EDP);
+	enum transcoder cpu_transcoder;
+	ktime_t time_ns =  ktime_get();
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		transcoders |= BIT(TRANSCODER_A) |
+			       BIT(TRANSCODER_B) |
+			       BIT(TRANSCODER_C);
+
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
+		/* FIXME: Exit PSR and link train manually when this happens. */
+		if (psr_iir & EDP_PSR_ERROR(cpu_transcoder))
+			DRM_DEBUG_KMS("[transcoder %s] PSR aux error\n",
+				      transcoder_name(cpu_transcoder));
+
+		if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
+			dev_priv->psr.last_entry_attempt = time_ns;
+			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
+				      transcoder_name(cpu_transcoder));
+		}
+
+		if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
+			dev_priv->psr.last_exit = time_ns;
+			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
+				      transcoder_name(cpu_transcoder));
+
+			if (INTEL_GEN(dev_priv) >= 9) {
+				u32 val = I915_READ(PSR_EVENT(cpu_transcoder));
+				bool psr2_enabled = dev_priv->psr.psr2_enabled;
+
+				I915_WRITE(PSR_EVENT(cpu_transcoder), val);
+				psr_event_print(val, psr2_enabled);
+			}
+		}
+	}
+}
+
 static bool intel_dp_get_y_coord_required(struct intel_dp *intel_dp)
 {
 	uint8_t psr_caps = 0;
@@ -400,9 +508,8 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
 	 * good enough. */
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
-		val |= EDP_Y_COORDINATE_VALID | EDP_Y_COORDINATE_ENABLE;
-	}
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		val |= EDP_Y_COORDINATE_ENABLE;
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(dev_priv->psr.sink_sync_latency + 1);
 
@@ -604,7 +711,8 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
-			   EDP_PSR_DEBUG_MASK_LPSP);
+			   EDP_PSR_DEBUG_MASK_LPSP |
+			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
 	}
 }
 
@@ -1065,9 +1173,12 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->psr.sink_support)
 		return;
 
-	/* Per platform default: all disabled. */
-	if (i915_modparams.enable_psr == -1)
+	if (i915_modparams.enable_psr == -1) {
+		i915_modparams.enable_psr = dev_priv->vbt.psr.enable;
+
+		/* Per platform default: all disabled. */
 		i915_modparams.enable_psr = 0;
+	}
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))

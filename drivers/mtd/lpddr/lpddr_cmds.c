@@ -693,8 +693,6 @@ static int lpddr_erase(struct mtd_info *mtd, struct erase_info *instr)
 		ofs += size;
 		len -= size;
 	}
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 
 	return 0;
 }

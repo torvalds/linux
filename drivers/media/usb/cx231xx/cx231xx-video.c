@@ -1941,7 +1941,7 @@ static int cx231xx_close(struct file *filp)
 		}
 
 		/* Save some power by putting tuner to sleep */
-		call_all(dev, core, s_power, 0);
+		call_all(dev, tuner, standby);
 
 		/* do this before setting alternate! */
 		if (dev->USE_ISO)

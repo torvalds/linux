@@ -641,7 +641,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		if (!crtc->state->active)
 			continue;
 
-		WARN(!crtc->primary->fb,
+		WARN(!crtc->primary->state->fb,
 		     "re-used BIOS config but lost an fb on crtc %d\n",
 		     crtc->base.id);
 	}
@@ -807,7 +807,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (ifbdev->vma)
+	if (ifbdev->vma || ifbdev->helper.deferred_setup)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 

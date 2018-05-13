@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Filipe David Borba Manana <fdmanana@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/hashtable.h>
 #include "props.h"
 #include "btrfs_inode.h"
-#include "hash.h"
 #include "transaction.h"
+#include "ctree.h"
 #include "xattr.h"
 #include "compression.h"
 
@@ -116,7 +103,7 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 				       NULL, 0, flags);
 		if (ret)
 			return ret;
@@ -130,13 +117,13 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 	ret = handler->validate(value, value_len);
 	if (ret)
 		return ret;
-	ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+	ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 			       value, value_len, flags);
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
 	if (ret) {
-		__btrfs_setxattr(trans, inode, handler->xattr_name,
+		btrfs_setxattr(trans, inode, handler->xattr_name,
 				 NULL, 0, flags);
 		return ret;
 	}

@@ -141,7 +141,7 @@ static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 	sbdev->e_addr = *eaddr;
 	ret = slim_add_device(ctrl, sbdev, node);
 	if (ret) {
-		kfree(sbdev);
+		put_device(&sbdev->dev);
 		return NULL;
 	}
 

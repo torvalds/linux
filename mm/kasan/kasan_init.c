@@ -31,7 +31,7 @@
 unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
 
 #if CONFIG_PGTABLE_LEVELS > 4
-p4d_t kasan_zero_p4d[PTRS_PER_P4D] __page_aligned_bss;
+p4d_t kasan_zero_p4d[MAX_PTRS_PER_P4D] __page_aligned_bss;
 #endif
 #if CONFIG_PGTABLE_LEVELS > 3
 pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;

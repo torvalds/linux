@@ -376,7 +376,6 @@ xfs_rmap_free_check_owner(
 	struct xfs_mount	*mp,
 	uint64_t		ltoff,
 	struct xfs_rmap_irec	*rec,
-	xfs_fsblock_t		bno,
 	xfs_filblks_t		len,
 	uint64_t		owner,
 	uint64_t		offset,
@@ -519,7 +518,7 @@ xfs_rmap_unmap(
 			bno + len, out_error);
 
 	/* Check owner information. */
-	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, bno, len, owner,
+	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, len, owner,
 			offset, flags);
 	if (error)
 		goto out_error;

@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2014 Facebook.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_QGROUP__
-#define __BTRFS_QGROUP__
+#ifndef BTRFS_QGROUP_H
+#define BTRFS_QGROUP_H
 
 #include "ulist.h"
 #include "delayed-ref.h"
@@ -62,6 +49,48 @@ struct btrfs_qgroup_extent_record {
 };
 
 /*
+ * Qgroup reservation types:
+ *
+ * DATA:
+ *	space reserved for data
+ *
+ * META_PERTRANS:
+ * 	Space reserved for metadata (per-transaction)
+ * 	Due to the fact that qgroup data is only updated at transaction commit
+ * 	time, reserved space for metadata must be kept until transaction
+ * 	commits.
+ * 	Any metadata reserved that are used in btrfs_start_transaction() should
+ * 	be of this type.
+ *
+ * META_PREALLOC:
+ *	There are cases where metadata space is reserved before starting
+ *	transaction, and then btrfs_join_transaction() to get a trans handle.
+ *	Any metadata reserved for such usage should be of this type.
+ *	And after join_transaction() part (or all) of such reservation should
+ *	be converted into META_PERTRANS.
+ */
+enum btrfs_qgroup_rsv_type {
+	BTRFS_QGROUP_RSV_DATA = 0,
+	BTRFS_QGROUP_RSV_META_PERTRANS,
+	BTRFS_QGROUP_RSV_META_PREALLOC,
+	BTRFS_QGROUP_RSV_LAST,
+};
+
+/*
+ * Represents how many bytes we have reserved for this qgroup.
+ *
+ * Each type should have different reservation behavior.
+ * E.g, data follows its io_tree flag modification, while
+ * *currently* meta is just reserve-and-clear during transcation.
+ *
+ * TODO: Add new type for reservation which can survive transaction commit.
+ * Currect metadata reservation behavior is not suitable for such case.
+ */
+struct btrfs_qgroup_rsv {
+	u64 values[BTRFS_QGROUP_RSV_LAST];
+};
+
+/*
  * one struct for each qgroup, organized in fs_info->qgroup_tree.
  */
 struct btrfs_qgroup {
@@ -87,7 +116,7 @@ struct btrfs_qgroup {
 	/*
 	 * reservation tracking
 	 */
-	u64 reserved;
+	struct btrfs_qgroup_rsv rsv;
 
 	/*
 	 * lists
@@ -220,20 +249,21 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
 			    u64 bytenr, u64 num_bytes,
 			    struct ulist *old_roots, struct ulist *new_roots);
-int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 		      struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
 			 struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
-			       u64 ref_root, u64 num_bytes);
+			       u64 ref_root, u64 num_bytes,
+			       enum btrfs_qgroup_rsv_type type);
 static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
 						 u64 ref_root, u64 num_bytes)
 {
 	trace_btrfs_qgroup_free_delayed_ref(fs_info, ref_root, num_bytes);
-	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
+	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes,
+				  BTRFS_QGROUP_RSV_DATA);
 }
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
@@ -248,9 +278,55 @@ int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len);
 int btrfs_qgroup_free_data(struct inode *inode,
 			struct extent_changeset *reserved, u64 start, u64 len);
 
-int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-			      bool enforce);
-void btrfs_qgroup_free_meta_all(struct btrfs_root *root);
-void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes);
+int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
+				enum btrfs_qgroup_rsv_type type, bool enforce);
+/* Reserve metadata space for pertrans and prealloc type */
+static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
+				int num_bytes, bool enforce)
+{
+	return __btrfs_qgroup_reserve_meta(root, num_bytes,
+			BTRFS_QGROUP_RSV_META_PERTRANS, enforce);
+}
+static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
+				int num_bytes, bool enforce)
+{
+	return __btrfs_qgroup_reserve_meta(root, num_bytes,
+			BTRFS_QGROUP_RSV_META_PREALLOC, enforce);
+}
+
+void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
+			     enum btrfs_qgroup_rsv_type type);
+
+/* Free per-transaction meta reservation for error handling */
+static inline void btrfs_qgroup_free_meta_pertrans(struct btrfs_root *root,
+						   int num_bytes)
+{
+	__btrfs_qgroup_free_meta(root, num_bytes,
+			BTRFS_QGROUP_RSV_META_PERTRANS);
+}
+
+/* Pre-allocated meta reservation can be freed at need */
+static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
+						   int num_bytes)
+{
+	__btrfs_qgroup_free_meta(root, num_bytes,
+			BTRFS_QGROUP_RSV_META_PREALLOC);
+}
+
+/*
+ * Per-transaction meta reservation should be all freed at transaction commit
+ * time
+ */
+void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
+
+/*
+ * Convert @num_bytes of META_PREALLOCATED reservation to META_PERTRANS.
+ *
+ * This is called when preallocated meta reservation needs to be used.
+ * Normally after btrfs_join_transaction() call.
+ */
+void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
+
 void btrfs_qgroup_check_reserved_leak(struct inode *inode);
-#endif /* __BTRFS_QGROUP__ */
+
+#endif

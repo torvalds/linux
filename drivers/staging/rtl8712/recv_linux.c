@@ -111,8 +111,8 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	_pkt *skb;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 
-	precvpriv = &(padapter->recvpriv);
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
+	precvpriv = &padapter->recvpriv;
+	pfree_recv_queue = &precvpriv->free_recv_queue;
 	skb = precv_frame->u.hdr.pkt;
 	if (!skb)
 		goto _recv_indicatepkt_drop;

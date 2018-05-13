@@ -72,9 +72,10 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
-#include "i915_gem_timeline.h"
 #include "i915_gpu_error.h"
 #include "i915_request.h"
+#include "i915_scheduler.h"
+#include "i915_timeline.h"
 #include "i915_vma.h"
 
 #include "intel_gvt.h"
@@ -609,6 +610,9 @@ struct i915_psr {
 	bool has_hw_tracking;
 	bool psr2_enabled;
 	u8 sink_sync_latency;
+	bool debug;
+	ktime_t last_entry_attempt;
+	ktime_t last_exit;
 
 	void (*enable_source)(struct intel_dp *,
 			      const struct intel_crtc_state *);
@@ -1069,6 +1073,7 @@ struct intel_vbt_data {
 	} edp;
 
 	struct {
+		bool enable;
 		bool full_link;
 		bool require_aux_wakeup;
 		int idle_frames;
@@ -1185,6 +1190,7 @@ struct skl_ddb_allocation {
 	/* packed/y */
 	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
 	struct skl_ddb_entry uv_plane[I915_MAX_PIPES][I915_MAX_PLANES];
+	u8 enabled_slices; /* GEN11 has configurable 2 slices */
 };
 
 struct skl_ddb_values {
@@ -1297,7 +1303,6 @@ struct i915_wa_reg {
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
 	u32 count;
-	u32 hw_whitelist_count[I915_NUM_ENGINES];
 };
 
 struct i915_virtual_gpu {
@@ -2056,8 +2061,11 @@ struct drm_i915_private {
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
 		struct list_head timelines;
-		struct i915_gem_timeline global_timeline;
+
+		struct list_head active_rings;
+		struct list_head closed_vma;
 		u32 active_requests;
+		u32 request_serial;
 
 		/**
 		 * Is the GPU currently considered idle, or busy executing
@@ -2461,6 +2469,15 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define IS_CNL_REVID(p, since, until) \
 	(IS_CANNONLAKE(p) && IS_REVID(p, since, until))
+
+#define ICL_REVID_A0		0x0
+#define ICL_REVID_A2		0x1
+#define ICL_REVID_B0		0x3
+#define ICL_REVID_B2		0x4
+#define ICL_REVID_C0		0x5
+
+#define IS_ICL_REVID(p, since, until) \
+	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
 /*
  * The genX designation typically refers to the render engine, so render
@@ -3159,7 +3176,7 @@ int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 			 struct intel_rps_client *rps);
 int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 				  unsigned int flags,
-				  int priority);
+				  const struct i915_sched_attr *attr);
 #define I915_PRIORITY_DISPLAY I915_PRIORITY_MAX
 
 int __must_check
@@ -3226,16 +3243,6 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 	rcu_read_unlock();
 
 	return ctx;
-}
-
-static inline struct intel_timeline *
-i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
-				 struct intel_engine_cs *engine)
-{
-	struct i915_address_space *vm;
-
-	vm = ctx->ppgtt ? &ctx->ppgtt->base : &ctx->i915->ggtt.base;
-	return &vm->timeline.engine[engine->id];
 }
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,

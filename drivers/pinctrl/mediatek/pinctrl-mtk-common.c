@@ -293,7 +293,7 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 		unsigned int pin, bool enable, bool isup, unsigned int arg)
 {
 	unsigned int bit;
-	unsigned int reg_pullen, reg_pullsel;
+	unsigned int reg_pullen, reg_pullsel, r1r0;
 	int ret;
 
 	/* Some pins' pull setting are very different,
@@ -301,8 +301,12 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 	 * resistor bit, so we need this special handle.
 	 */
 	if (pctl->devdata->spec_pull_set) {
+		/* For special pins, bias-disable is set by R1R0,
+		 * the parameter should be "MTK_PUPD_SET_R1R0_00".
+		 */
+		r1r0 = enable ? arg : MTK_PUPD_SET_R1R0_00;
 		ret = pctl->devdata->spec_pull_set(mtk_get_regmap(pctl, pin),
-			pin, pctl->devdata->port_align, isup, arg);
+			pin, pctl->devdata->port_align, isup, r1r0);
 		if (!ret)
 			return 0;
 	}
@@ -501,7 +505,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	int num_pins, num_funcs, maps_per_pin;
 	unsigned long *configs;
 	unsigned int num_configs;
-	bool has_config = 0;
+	bool has_config = false;
 	int i, err;
 	unsigned reserve = 0;
 	struct mtk_pinctrl_group *grp;
@@ -520,7 +524,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		return err;
 
 	if (num_configs)
-		has_config = 1;
+		has_config = true;
 
 	num_pins = pins->length / sizeof(u32);
 	num_funcs = num_pins;

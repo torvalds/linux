@@ -25,7 +25,6 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/dma-direct.h> /* XXX: drivers shall never use this directly! */
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>

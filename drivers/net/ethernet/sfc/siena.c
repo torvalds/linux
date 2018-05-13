@@ -350,11 +350,11 @@ static int siena_rx_pull_rss_config(struct efx_nic *efx)
 	 * siena_rx_push_rss_config, below)
 	 */
 	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
-	memcpy(efx->rx_hash_key, &temp, sizeof(temp));
+	memcpy(efx->rss_context.rx_hash_key, &temp, sizeof(temp));
 	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
-	memcpy(efx->rx_hash_key + sizeof(temp), &temp, sizeof(temp));
+	memcpy(efx->rss_context.rx_hash_key + sizeof(temp), &temp, sizeof(temp));
 	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
-	memcpy(efx->rx_hash_key + 2 * sizeof(temp), &temp,
+	memcpy(efx->rss_context.rx_hash_key + 2 * sizeof(temp), &temp,
 	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
 	efx_farch_rx_pull_indir_table(efx);
 	return 0;
@@ -367,26 +367,26 @@ static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
 
 	/* Set hash key for IPv4 */
 	if (key)
-		memcpy(efx->rx_hash_key, key, sizeof(temp));
-	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+		memcpy(efx->rss_context.rx_hash_key, key, sizeof(temp));
+	memcpy(&temp, efx->rss_context.rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
 	/* Enable IPv6 RSS */
-	BUILD_BUG_ON(sizeof(efx->rx_hash_key) <
+	BUILD_BUG_ON(sizeof(efx->rss_context.rx_hash_key) <
 		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
 		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
-	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	memcpy(&temp, efx->rss_context.rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
-	memcpy(&temp, efx->rx_hash_key + sizeof(temp), sizeof(temp));
+	memcpy(&temp, efx->rss_context.rx_hash_key + sizeof(temp), sizeof(temp));
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
 	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
 			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
-	memcpy(&temp, efx->rx_hash_key + 2 * sizeof(temp),
+	memcpy(&temp, efx->rss_context.rx_hash_key + 2 * sizeof(temp),
 	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
-	memcpy(efx->rx_indir_table, rx_indir_table,
-	       sizeof(efx->rx_indir_table));
+	memcpy(efx->rss_context.rx_indir_table, rx_indir_table,
+	       sizeof(efx->rss_context.rx_indir_table));
 	efx_farch_rx_push_indir_table(efx);
 
 	return 0;
@@ -432,8 +432,8 @@ static int siena_init_nic(struct efx_nic *efx)
 			    EFX_RX_USR_BUF_SIZE >> 5);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
-	siena_rx_push_rss_config(efx, false, efx->rx_indir_table, NULL);
-	efx->rss_active = true;
+	siena_rx_push_rss_config(efx, false, efx->rss_context.rx_indir_table, NULL);
+	efx->rss_context.context_id = 0; /* indicates RSS is active */
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -1035,7 +1035,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.filter_get_rx_id_limit = efx_farch_filter_get_rx_id_limit,
 	.filter_get_rx_ids = efx_farch_filter_get_rx_ids,
 #ifdef CONFIG_RFS_ACCEL
-	.filter_rfs_insert = efx_farch_filter_rfs_insert,
 	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
 #endif
 #ifdef CONFIG_SFC_MTD

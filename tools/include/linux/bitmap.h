@@ -98,7 +98,7 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
 
 /**
  * bitmap_alloc - Allocate bitmap
- * @nr: Bit to set
+ * @nbits: Number of bits
  */
 static inline unsigned long *bitmap_alloc(int nbits)
 {

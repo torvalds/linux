@@ -1742,7 +1742,7 @@ exit:
 	return res;
 }
 
-u32 g_wait_hiq_empty = 0;
+u32 g_wait_hiq_empty;
 
 static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 {

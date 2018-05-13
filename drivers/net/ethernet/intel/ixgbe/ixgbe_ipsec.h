@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
@@ -32,6 +33,7 @@
 #define IXGBE_IPSEC_MAX_RX_IP_COUNT	128
 #define IXGBE_IPSEC_BASE_RX_INDEX	0
 #define IXGBE_IPSEC_BASE_TX_INDEX	IXGBE_IPSEC_MAX_SA_COUNT
+#define IXGBE_IPSEC_AUTH_BITS		128
 
 #define IXGBE_RXTXIDX_IPS_EN		0x00000001
 #define IXGBE_RXIDX_TBL_SHIFT		1

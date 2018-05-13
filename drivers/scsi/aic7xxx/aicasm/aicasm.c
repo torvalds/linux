@@ -451,8 +451,7 @@ output_code()
 	fprintf(ofile, "\n};\n\n");
 
 	fprintf(ofile,
-"static const int num_critical_sections = sizeof(critical_sections)\n"
-"				       / sizeof(*critical_sections);\n");
+	"#define NUM_CRITICAL_SECTIONS ARRAY_SIZE(critical_sections)\n");
 
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }

@@ -106,7 +106,7 @@ TRACE_EVENT(hfi1_uctxtdata,
 TRACE_EVENT(hfi1_ctxt_info,
 	    TP_PROTO(struct hfi1_devdata *dd, unsigned int ctxt,
 		     unsigned int subctxt,
-		     struct hfi1_ctxt_info cinfo),
+		     struct hfi1_ctxt_info *cinfo),
 	    TP_ARGS(dd, ctxt, subctxt, cinfo),
 	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
 			     __field(unsigned int, ctxt)
@@ -120,11 +120,11 @@ TRACE_EVENT(hfi1_ctxt_info,
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
 			    __entry->ctxt = ctxt;
 			    __entry->subctxt = subctxt;
-			    __entry->egrtids = cinfo.egrtids;
-			    __entry->rcvhdrq_cnt = cinfo.rcvhdrq_cnt;
-			    __entry->rcvhdrq_size = cinfo.rcvhdrq_entsize;
-			    __entry->sdma_ring_size = cinfo.sdma_ring_size;
-			    __entry->rcvegr_size = cinfo.rcvegr_size;
+			    __entry->egrtids = cinfo->egrtids;
+			    __entry->rcvhdrq_cnt = cinfo->rcvhdrq_cnt;
+			    __entry->rcvhdrq_size = cinfo->rcvhdrq_entsize;
+			    __entry->sdma_ring_size = cinfo->sdma_ring_size;
+			    __entry->rcvegr_size = cinfo->rcvegr_size;
 			    ),
 	    TP_printk("[%s] ctxt %u:%u " CINFO_FMT,
 		      __get_str(dev),

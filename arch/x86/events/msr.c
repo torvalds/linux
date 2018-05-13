@@ -188,10 +188,11 @@ static inline u64 msr_read_counter(struct perf_event *event)
 	if (event->hw.event_base)
 		rdmsrl(event->hw.event_base, now);
 	else
-		rdtscll(now);
+		now = rdtsc_ordered();
 
 	return now;
 }
+
 static void msr_event_update(struct perf_event *event)
 {
 	u64 prev, now;

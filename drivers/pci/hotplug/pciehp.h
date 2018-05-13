@@ -20,9 +20,10 @@
 #include <linux/pci_hotplug.h>
 #include <linux/delay.h>
 #include <linux/sched/signal.h>		/* signal_pending() */
-#include <linux/pcieport_if.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+
+#include "../pcie/portdrv.h"
 
 #define MY_NAME	"pciehp"
 

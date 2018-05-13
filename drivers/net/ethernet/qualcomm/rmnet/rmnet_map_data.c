@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -309,7 +309,7 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
 	maph = (struct rmnet_map_header *)skb->data;
 	packet_len = ntohs(maph->pkt_len) + sizeof(struct rmnet_map_header);
 
-	if (port->data_format & RMNET_INGRESS_FORMAT_MAP_CKSUMV4)
+	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
 		packet_len += sizeof(struct rmnet_map_dl_csum_trailer);
 
 	if (((int)skb->len - (int)packet_len) < 0)
@@ -323,7 +323,6 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
 	if (!skbn)
 		return NULL;
 
-	skbn->dev = skb->dev;
 	skb_reserve(skbn, RMNET_MAP_DEAGGR_HEADROOM);
 	skb_put(skbn, packet_len);
 	memcpy(skbn->data, skb->data, packet_len);

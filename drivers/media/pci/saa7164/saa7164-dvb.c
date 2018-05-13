@@ -78,7 +78,7 @@ static struct s5h1411_config hauppauge_s5h1411_config = {
 	.vsb_if        = S5H1411_IF_3250,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 static struct lgdt3306a_config hauppauge_hvr2255a_config = {

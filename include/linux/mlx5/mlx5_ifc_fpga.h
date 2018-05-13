@@ -373,7 +373,10 @@ struct mlx5_ifc_fpga_destroy_qp_out_bits {
 struct mlx5_ifc_ipsec_extended_cap_bits {
 	u8         encapsulation[0x20];
 
-	u8         reserved_0[0x15];
+	u8         reserved_0[0x12];
+	u8         v2_command[0x1];
+	u8         udp_encap[0x1];
+	u8         rx_no_trailer[0x1];
 	u8         ipv4_fragment[0x1];
 	u8         ipv6[0x1];
 	u8         esn[0x1];
@@ -428,5 +431,92 @@ struct mlx5_ifc_ipsec_counters_bits {
 
 	u8         dropped_cmd[0x40];
 };
+
+enum mlx5_ifc_fpga_ipsec_response_syndrome {
+	MLX5_FPGA_IPSEC_RESPONSE_SUCCESS = 0,
+	MLX5_FPGA_IPSEC_RESPONSE_ILLEGAL_REQUEST = 1,
+	MLX5_FPGA_IPSEC_RESPONSE_SADB_ISSUE = 2,
+	MLX5_FPGA_IPSEC_RESPONSE_WRITE_RESPONSE_ISSUE = 3,
+};
+
+struct mlx5_ifc_fpga_ipsec_cmd_resp {
+	__be32 syndrome;
+	union {
+		__be32 sw_sa_handle;
+		__be32 flags;
+	};
+	u8 reserved[24];
+} __packed;
+
+enum mlx5_ifc_fpga_ipsec_cmd_opcode {
+	MLX5_FPGA_IPSEC_CMD_OP_ADD_SA = 0,
+	MLX5_FPGA_IPSEC_CMD_OP_DEL_SA = 1,
+	MLX5_FPGA_IPSEC_CMD_OP_ADD_SA_V2 = 2,
+	MLX5_FPGA_IPSEC_CMD_OP_DEL_SA_V2 = 3,
+	MLX5_FPGA_IPSEC_CMD_OP_MOD_SA_V2 = 4,
+	MLX5_FPGA_IPSEC_CMD_OP_SET_CAP = 5,
+};
+
+enum mlx5_ifc_fpga_ipsec_cap {
+	MLX5_FPGA_IPSEC_CAP_NO_TRAILER = BIT(0),
+};
+
+struct mlx5_ifc_fpga_ipsec_cmd_cap {
+	__be32 cmd;
+	__be32 flags;
+	u8 reserved[24];
+} __packed;
+
+enum mlx5_ifc_fpga_ipsec_sa_flags {
+	MLX5_FPGA_IPSEC_SA_ESN_EN = BIT(0),
+	MLX5_FPGA_IPSEC_SA_ESN_OVERLAP = BIT(1),
+	MLX5_FPGA_IPSEC_SA_IPV6 = BIT(2),
+	MLX5_FPGA_IPSEC_SA_DIR_SX = BIT(3),
+	MLX5_FPGA_IPSEC_SA_SPI_EN = BIT(4),
+	MLX5_FPGA_IPSEC_SA_SA_VALID = BIT(5),
+	MLX5_FPGA_IPSEC_SA_IP_ESP = BIT(6),
+	MLX5_FPGA_IPSEC_SA_IP_AH = BIT(7),
+};
+
+enum mlx5_ifc_fpga_ipsec_sa_enc_mode {
+	MLX5_FPGA_IPSEC_SA_ENC_MODE_NONE = 0,
+	MLX5_FPGA_IPSEC_SA_ENC_MODE_AES_GCM_128_AUTH_128 = 1,
+	MLX5_FPGA_IPSEC_SA_ENC_MODE_AES_GCM_256_AUTH_128 = 3,
+};
+
+struct mlx5_ifc_fpga_ipsec_sa_v1 {
+	__be32 cmd;
+	u8 key_enc[32];
+	u8 key_auth[32];
+	__be32 sip[4];
+	__be32 dip[4];
+	union {
+		struct {
+			__be32 reserved;
+			u8 salt_iv[8];
+			__be32 salt;
+		} __packed gcm;
+		struct {
+			u8 salt[16];
+		} __packed cbc;
+	};
+	__be32 spi;
+	__be32 sw_sa_handle;
+	__be16 tfclen;
+	u8 enc_mode;
+	u8 reserved1[2];
+	u8 flags;
+	u8 reserved2[2];
+};
+
+struct mlx5_ifc_fpga_ipsec_sa {
+	struct mlx5_ifc_fpga_ipsec_sa_v1 ipsec_sa_v1;
+	__be16 udp_sp;
+	__be16 udp_dp;
+	u8 reserved1[4];
+	__be32 esn;
+	__be16 vid;	/* only 12 bits, rest is reserved */
+	__be16 reserved2;
+} __packed;
 
 #endif /* MLX5_IFC_FPGA_H */

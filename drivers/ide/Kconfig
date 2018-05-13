@@ -200,7 +200,7 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	depends on ALPHA || X86 || IA64 || M32R || MIPS || ARCH_RPC
+	depends on ALPHA || X86 || IA64 || MIPS || ARCH_RPC
 	default ARM && ARCH_RPC
 	help
 	  This is the generic IDE driver.  This driver attaches to the

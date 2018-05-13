@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "cpuidle.h"
+#include "hardware.h"
 
 static int imx6sl_enter_wait(struct cpuidle_device *dev,
 			    struct cpuidle_driver *drv, int index)
@@ -21,9 +22,11 @@ static int imx6sl_enter_wait(struct cpuidle_device *dev,
 	 * Software workaround for ERR005311, see function
 	 * description for details.
 	 */
-	imx6sl_set_wait_clk(true);
+	if (cpu_is_imx6sl())
+		imx6sl_set_wait_clk(true);
 	cpu_do_idle();
-	imx6sl_set_wait_clk(false);
+	if (cpu_is_imx6sl())
+		imx6sl_set_wait_clk(false);
 	imx6_set_lpm(WAIT_CLOCKED);
 
 	return index;

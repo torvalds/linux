@@ -350,7 +350,7 @@ static struct notifier_block xfrm_dev_notifier = {
 	.notifier_call	= xfrm_dev_event,
 };
 
-void __net_init xfrm_dev_init(void)
+void __init xfrm_dev_init(void)
 {
 	register_netdevice_notifier(&xfrm_dev_notifier);
 }

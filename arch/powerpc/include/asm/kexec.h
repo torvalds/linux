@@ -95,7 +95,7 @@ static inline bool kdump_in_progress(void)
 }
 
 #ifdef CONFIG_KEXEC_FILE
-extern struct kexec_file_ops kexec_elf64_ops;
+extern const struct kexec_file_ops kexec_elf64_ops;
 
 #ifdef CONFIG_IMA_KEXEC
 #define ARCH_HAS_KIMAGE_ARCH

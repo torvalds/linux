@@ -651,8 +651,10 @@ static int reset_hw_v1_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "De-reset failed\n");
 			return -EIO;
 		}
-	} else
+	} else {
 		dev_warn(dev, "no reset method\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -873,7 +875,6 @@ static void phy_set_linkrate_v1_hw(struct hisi_hba *hisi_hba, int phy_no,
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
 
-	min -= SAS_LINK_RATE_1_5_GBPS;
 	max -= SAS_LINK_RATE_1_5_GBPS;
 
 	for (i = 0; i <= max; i++)
@@ -882,10 +883,11 @@ static void phy_set_linkrate_v1_hw(struct hisi_hba *hisi_hba, int phy_no,
 	prog_phy_link_rate &= ~0xff;
 	prog_phy_link_rate |= rate_mask;
 
+	disable_phy_v1_hw(hisi_hba, phy_no);
+	msleep(100);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
 			prog_phy_link_rate);
-
-	phy_hard_reset_v1_hw(hisi_hba, phy_no);
+	start_phy_v1_hw(hisi_hba, phy_no);
 }
 
 static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
@@ -1407,9 +1409,6 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	}
 
 out:
-	if (sas_dev)
-		atomic64_dec(&sas_dev->running_req);
-
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
 

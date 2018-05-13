@@ -7,6 +7,9 @@
 
 struct blk_mq_tag_set;
 
+/**
+ * struct blk_mq_ctx - State for a software queue facing the submitting CPUs
+ */
 struct blk_mq_ctx {
 	struct {
 		spinlock_t		lock;

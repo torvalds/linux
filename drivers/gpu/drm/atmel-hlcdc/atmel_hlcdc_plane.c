@@ -31,7 +31,6 @@
  * @src_y: y buffer position
  * @src_w: buffer width
  * @src_h: buffer height
- * @alpha: alpha blending of the plane
  * @disc_x: x discard position
  * @disc_y: y discard position
  * @disc_w: discard width
@@ -53,8 +52,6 @@ struct atmel_hlcdc_plane_state {
 	uint32_t src_y;
 	uint32_t src_w;
 	uint32_t src_h;
-
-	u8 alpha;
 
 	int disc_x;
 	int disc_y;
@@ -385,7 +382,7 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 			cfg |= ATMEL_HLCDC_LAYER_LAEN;
 		else
 			cfg |= ATMEL_HLCDC_LAYER_GAEN |
-			       ATMEL_HLCDC_LAYER_GA(state->alpha);
+			       ATMEL_HLCDC_LAYER_GA(state->base.alpha >> 8);
 	}
 
 	if (state->disc_h && state->disc_w)
@@ -553,7 +550,7 @@ atmel_hlcdc_plane_prepare_disc_area(struct drm_crtc_state *c_state)
 
 		if (!ovl_s->fb ||
 		    ovl_s->fb->format->has_alpha ||
-		    ovl_state->alpha != 255)
+		    ovl_s->alpha != DRM_BLEND_ALPHA_OPAQUE)
 			continue;
 
 		/* TODO: implement a smarter hidden area detection */
@@ -829,51 +826,18 @@ static void atmel_hlcdc_plane_destroy(struct drm_plane *p)
 	drm_plane_cleanup(p);
 }
 
-static int atmel_hlcdc_plane_atomic_set_property(struct drm_plane *p,
-						 struct drm_plane_state *s,
-						 struct drm_property *property,
-						 uint64_t val)
-{
-	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-	struct atmel_hlcdc_plane_properties *props = plane->properties;
-	struct atmel_hlcdc_plane_state *state =
-			drm_plane_state_to_atmel_hlcdc_plane_state(s);
-
-	if (property == props->alpha)
-		state->alpha = val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int atmel_hlcdc_plane_atomic_get_property(struct drm_plane *p,
-					const struct drm_plane_state *s,
-					struct drm_property *property,
-					uint64_t *val)
-{
-	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-	struct atmel_hlcdc_plane_properties *props = plane->properties;
-	const struct atmel_hlcdc_plane_state *state =
-		container_of(s, const struct atmel_hlcdc_plane_state, base);
-
-	if (property == props->alpha)
-		*val = state->alpha;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
-				struct atmel_hlcdc_plane_properties *props)
+static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
 
 	if (desc->type == ATMEL_HLCDC_OVERLAY_LAYER ||
-	    desc->type == ATMEL_HLCDC_CURSOR_LAYER)
-		drm_object_attach_property(&plane->base.base,
-					   props->alpha, 255);
+	    desc->type == ATMEL_HLCDC_CURSOR_LAYER) {
+		int ret;
+
+		ret = drm_plane_create_alpha_property(&plane->base);
+		if (ret)
+			return ret;
+	}
 
 	if (desc->layout.xstride && desc->layout.pstride) {
 		int ret;
@@ -988,8 +952,8 @@ static void atmel_hlcdc_plane_reset(struct drm_plane *p)
 			return;
 		}
 
-		state->alpha = 255;
 		p->state = &state->base;
+		p->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
 		p->state->plane = p;
 	}
 }
@@ -1042,13 +1006,10 @@ static const struct drm_plane_funcs layer_plane_funcs = {
 	.reset = atmel_hlcdc_plane_reset,
 	.atomic_duplicate_state = atmel_hlcdc_plane_atomic_duplicate_state,
 	.atomic_destroy_state = atmel_hlcdc_plane_atomic_destroy_state,
-	.atomic_set_property = atmel_hlcdc_plane_atomic_set_property,
-	.atomic_get_property = atmel_hlcdc_plane_atomic_get_property,
 };
 
 static int atmel_hlcdc_plane_create(struct drm_device *dev,
-				    const struct atmel_hlcdc_layer_desc *desc,
-				    struct atmel_hlcdc_plane_properties *props)
+				    const struct atmel_hlcdc_layer_desc *desc)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 	struct atmel_hlcdc_plane *plane;
@@ -1060,7 +1021,6 @@ static int atmel_hlcdc_plane_create(struct drm_device *dev,
 		return -ENOMEM;
 
 	atmel_hlcdc_layer_init(&plane->layer, desc, dc->hlcdc->regmap);
-	plane->properties = props;
 
 	if (desc->type == ATMEL_HLCDC_BASE_LAYER)
 		type = DRM_PLANE_TYPE_PRIMARY;
@@ -1081,7 +1041,7 @@ static int atmel_hlcdc_plane_create(struct drm_device *dev,
 			     &atmel_hlcdc_layer_plane_helper_funcs);
 
 	/* Set default property values*/
-	ret = atmel_hlcdc_plane_init_properties(plane, props);
+	ret = atmel_hlcdc_plane_init_properties(plane);
 	if (ret)
 		return ret;
 
@@ -1090,33 +1050,12 @@ static int atmel_hlcdc_plane_create(struct drm_device *dev,
 	return 0;
 }
 
-static struct atmel_hlcdc_plane_properties *
-atmel_hlcdc_plane_create_properties(struct drm_device *dev)
-{
-	struct atmel_hlcdc_plane_properties *props;
-
-	props = devm_kzalloc(dev->dev, sizeof(*props), GFP_KERNEL);
-	if (!props)
-		return ERR_PTR(-ENOMEM);
-
-	props->alpha = drm_property_create_range(dev, 0, "alpha", 0, 255);
-	if (!props->alpha)
-		return ERR_PTR(-ENOMEM);
-
-	return props;
-}
-
 int atmel_hlcdc_create_planes(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_plane_properties *props;
 	const struct atmel_hlcdc_layer_desc *descs = dc->desc->layers;
 	int nlayers = dc->desc->nlayers;
 	int i, ret;
-
-	props = atmel_hlcdc_plane_create_properties(dev);
-	if (IS_ERR(props))
-		return PTR_ERR(props);
 
 	dc->dscrpool = dmam_pool_create("atmel-hlcdc-dscr", dev->dev,
 				sizeof(struct atmel_hlcdc_dma_channel_dscr),
@@ -1130,7 +1069,7 @@ int atmel_hlcdc_create_planes(struct drm_device *dev)
 		    descs[i].type != ATMEL_HLCDC_CURSOR_LAYER)
 			continue;
 
-		ret = atmel_hlcdc_plane_create(dev, &descs[i], props);
+		ret = atmel_hlcdc_plane_create(dev, &descs[i]);
 		if (ret)
 			return ret;
 	}

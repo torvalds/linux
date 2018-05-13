@@ -33,15 +33,106 @@ H2H_TEST_RX_TX = DMA2
 #define WCN36XX_CCU_DXE_INT_SELECT_RIVA		0x310
 #define WCN36XX_CCU_DXE_INT_SELECT_PRONTO	0x10dc
 
-/* TODO This must calculated properly but not hardcoded */
-#define WCN36XX_DXE_CTRL_TX_L			0x328a44
-#define WCN36XX_DXE_CTRL_TX_H			0x32ce44
-#define WCN36XX_DXE_CTRL_RX_L			0x12ad2f
-#define WCN36XX_DXE_CTRL_RX_H			0x12d12f
-#define WCN36XX_DXE_CTRL_TX_H_BD		0x30ce45
-#define WCN36XX_DXE_CTRL_TX_H_SKB		0x32ce4d
-#define WCN36XX_DXE_CTRL_TX_L_BD		0x308a45
-#define WCN36XX_DXE_CTRL_TX_L_SKB		0x328a4d
+/* Descriptor valid */
+#define WCN36xx_DXE_CTRL_VLD		BIT(0)
+/* End of packet */
+#define WCN36xx_DXE_CTRL_EOP		BIT(3)
+/* BD handling bit */
+#define WCN36xx_DXE_CTRL_BDH		BIT(4)
+/* Source is a queue */
+#define WCN36xx_DXE_CTRL_SIQ		BIT(5)
+/* Destination is a queue */
+#define WCN36xx_DXE_CTRL_DIQ		BIT(6)
+/* Pointer address is a queue */
+#define WCN36xx_DXE_CTRL_PIQ		BIT(7)
+/* Release PDU when done */
+#define WCN36xx_DXE_CTRL_PDU_REL	BIT(8)
+/* STOP channel processing */
+#define WCN36xx_DXE_CTRL_STOP		BIT(16)
+/* INT on descriptor done */
+#define WCN36xx_DXE_CTRL_INT		BIT(17)
+/* Endian byte swap enable */
+#define WCN36xx_DXE_CTRL_SWAP		BIT(20)
+/* Master endianness */
+#define WCN36xx_DXE_CTRL_ENDIANNESS	BIT(21)
+
+/* Transfer type */
+#define WCN36xx_DXE_CTRL_XTYPE_SHIFT 1
+#define WCN36xx_DXE_CTRL_XTYPE_MASK GENMASK(2, WCN36xx_DXE_CTRL_XTYPE_SHIFT)
+#define WCN36xx_DXE_CTRL_XTYPE_SET(x)	((x) << WCN36xx_DXE_CTRL_XTYPE_SHIFT)
+
+/* BMU Threshold select */
+#define WCN36xx_DXE_CTRL_BTHLD_SEL_SHIFT 9
+#define WCN36xx_DXE_CTRL_BTHLD_SEL_MASK GENMASK(12, WCN36xx_DXE_CTRL_BTHLD_SEL_SHIFT)
+#define WCN36xx_DXE_CTRL_BTHLD_SEL_SET(x) ((x) << WCN36xx_DXE_CTRL_BTHLD_SEL_SHIFT)
+
+/* Priority */
+#define WCN36xx_DXE_CTRL_PRIO_SHIFT 13
+#define WCN36xx_DXE_CTRL_PRIO_MASK GENMASK(15, WCN36xx_DXE_CTRL_PRIO_SHIFT)
+#define WCN36xx_DXE_CTRL_PRIO_SET(x) ((x) << WCN36xx_DXE_CTRL_PRIO_SHIFT)
+
+/* BD Template index */
+#define WCN36xx_DXE_CTRL_BDT_IDX_SHIFT 18
+#define WCN36xx_DXE_CTRL_BDT_IDX_MASK GENMASK(19, WCN36xx_DXE_CTRL_BDT_IDX_SHIFT)
+#define WCN36xx_DXE_CTRL_BDT_IDX_SET(x) ((x) << WCN36xx_DXE_CTRL_BDT_IDX_SHIFT)
+
+/* Transfer types: */
+/* Host to host */
+#define WCN36xx_DXE_XTYPE_H2H (0)
+/* Host to BMU */
+#define WCN36xx_DXE_XTYPE_H2B (2)
+/* BMU to host */
+#define WCN36xx_DXE_XTYPE_B2H (3)
+
+#define WCN36XX_DXE_CTRL_TX_L	(WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_DIQ | WCN36xx_DXE_CTRL_BTHLD_SEL_SET(5) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(4) | WCN36xx_DXE_CTRL_INT | \
+	WCN36xx_DXE_CTRL_SWAP | WCN36xx_DXE_CTRL_ENDIANNESS)
+
+#define WCN36XX_DXE_CTRL_TX_H	 (WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_DIQ | WCN36xx_DXE_CTRL_BTHLD_SEL_SET(7) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(6) | WCN36xx_DXE_CTRL_INT | \
+	WCN36xx_DXE_CTRL_SWAP | WCN36xx_DXE_CTRL_ENDIANNESS)
+
+#define WCN36XX_DXE_CTRL_RX_L	(WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_B2H) | \
+	WCN36xx_DXE_CTRL_EOP | WCN36xx_DXE_CTRL_SIQ | \
+	WCN36xx_DXE_CTRL_PDU_REL | WCN36xx_DXE_CTRL_BTHLD_SEL_SET(6) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(5) | WCN36xx_DXE_CTRL_INT | \
+	WCN36xx_DXE_CTRL_SWAP)
+
+#define WCN36XX_DXE_CTRL_RX_H	(WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_B2H) | \
+	WCN36xx_DXE_CTRL_EOP | WCN36xx_DXE_CTRL_SIQ | \
+	WCN36xx_DXE_CTRL_PDU_REL |  WCN36xx_DXE_CTRL_BTHLD_SEL_SET(8) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(6) | WCN36xx_DXE_CTRL_INT | \
+	WCN36xx_DXE_CTRL_SWAP)
+
+#define WCN36XX_DXE_CTRL_TX_H_BD	(WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_DIQ | WCN36xx_DXE_CTRL_BTHLD_SEL_SET(7) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(6) | WCN36xx_DXE_CTRL_SWAP | \
+	WCN36xx_DXE_CTRL_ENDIANNESS)
+
+#define WCN36XX_DXE_CTRL_TX_H_SKB	(WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_EOP | WCN36xx_DXE_CTRL_DIQ | \
+	WCN36xx_DXE_CTRL_BTHLD_SEL_SET(7) | WCN36xx_DXE_CTRL_PRIO_SET(6) | \
+	WCN36xx_DXE_CTRL_INT | WCN36xx_DXE_CTRL_SWAP | \
+	WCN36xx_DXE_CTRL_ENDIANNESS)
+
+#define WCN36XX_DXE_CTRL_TX_L_BD	 (WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_DIQ | WCN36xx_DXE_CTRL_BTHLD_SEL_SET(5) | \
+	WCN36xx_DXE_CTRL_PRIO_SET(4) | WCN36xx_DXE_CTRL_SWAP | \
+	WCN36xx_DXE_CTRL_ENDIANNESS)
+
+#define WCN36XX_DXE_CTRL_TX_L_SKB	(WCN36xx_DXE_CTRL_VLD | \
+	WCN36xx_DXE_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+	WCN36xx_DXE_CTRL_EOP | WCN36xx_DXE_CTRL_DIQ | \
+	WCN36xx_DXE_CTRL_BTHLD_SEL_SET(5) | WCN36xx_DXE_CTRL_PRIO_SET(4) | \
+	WCN36xx_DXE_CTRL_INT | WCN36xx_DXE_CTRL_SWAP | \
+	WCN36xx_DXE_CTRL_ENDIANNESS)
 
 /* TODO This must calculated properly but not hardcoded */
 #define WCN36XX_DXE_WQ_TX_L			0x17
@@ -49,15 +140,106 @@ H2H_TEST_RX_TX = DMA2
 #define WCN36XX_DXE_WQ_RX_L			0xB
 #define WCN36XX_DXE_WQ_RX_H			0x4
 
-/* DXE descriptor control filed */
-#define WCN36XX_DXE_CTRL_VALID_MASK (0x00000001)
+/* Channel enable or restart */
+#define WCN36xx_DXE_CH_CTRL_EN			BIT(0)
+/* End of packet bit */
+#define WCN36xx_DXE_CH_CTRL_EOP			BIT(3)
+/* BD Handling bit */
+#define WCN36xx_DXE_CH_CTRL_BDH			BIT(4)
+/* Source is queue */
+#define WCN36xx_DXE_CH_CTRL_SIQ			BIT(5)
+/* Destination is queue */
+#define WCN36xx_DXE_CH_CTRL_DIQ			BIT(6)
+/* Pointer descriptor is queue */
+#define WCN36xx_DXE_CH_CTRL_PIQ			BIT(7)
+/* Relase PDU when done */
+#define WCN36xx_DXE_CH_CTRL_PDU_REL		BIT(8)
+/* Stop channel processing */
+#define WCN36xx_DXE_CH_CTRL_STOP		BIT(16)
+/* Enable external descriptor interrupt */
+#define WCN36xx_DXE_CH_CTRL_INE_ED		BIT(17)
+/* Enable channel interrupt on errors */
+#define WCN36xx_DXE_CH_CTRL_INE_ERR		BIT(18)
+/* Enable Channel interrupt when done */
+#define WCN36xx_DXE_CH_CTRL_INE_DONE	BIT(19)
+/* External descriptor enable */
+#define WCN36xx_DXE_CH_CTRL_EDEN		BIT(20)
+/* Wait for valid bit */
+#define WCN36xx_DXE_CH_CTRL_EDVEN		BIT(21)
+/* Endianness is little endian*/
+#define WCN36xx_DXE_CH_CTRL_ENDIANNESS	BIT(26)
+/* Abort transfer */
+#define WCN36xx_DXE_CH_CTRL_ABORT		BIT(27)
+/* Long descriptor format */
+#define WCN36xx_DXE_CH_CTRL_DFMT		BIT(28)
+/* Endian byte swap enable */
+#define WCN36xx_DXE_CH_CTRL_SWAP		BIT(31)
 
-/* TODO This must calculated properly but not hardcoded */
+/* Transfer type */
+#define WCN36xx_DXE_CH_CTRL_XTYPE_SHIFT 1
+#define WCN36xx_DXE_CH_CTRL_XTYPE_MASK GENMASK(2, WCN36xx_DXE_CH_CTRL_XTYPE_SHIFT)
+#define WCN36xx_DXE_CH_CTRL_XTYPE_SET(x)	((x) << WCN36xx_DXE_CH_CTRL_XTYPE_SHIFT)
+
+/* Channel BMU Threshold select */
+#define WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SHIFT 9
+#define WCN36xx_DXE_CH_CTRL_BTHLD_SEL_MASK GENMASK(12, WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SHIFT)
+#define WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SET(x) ((x) << WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SHIFT)
+
+/* Channel Priority */
+#define WCN36xx_DXE_CH_CTRL_PRIO_SHIFT 13
+#define WCN36xx_DXE_CH_CTRL_PRIO_MASK GENMASK(15, WCN36xx_DXE_CH_CTRL_PRIO_SHIFT)
+#define WCN36xx_DXE_CH_CTRL_PRIO_SET(x) ((x) << WCN36xx_DXE_CH_CTRL_PRIO_SHIFT)
+
+/* Counter select */
+#define WCN36xx_DXE_CH_CTRL_SEL_SHIFT 22
+#define WCN36xx_DXE_CH_CTRL_SEL_MASK GENMASK(25, WCN36xx_DXE_CH_CTRL_SEL_SHIFT)
+#define WCN36xx_DXE_CH_CTRL_SEL_SET(x)	((x) << WCN36xx_DXE_CH_CTRL_SEL_SHIFT)
+
+/* Channel BD template index */
+#define WCN36xx_DXE_CH_CTRL_BDT_IDX_SHIFT 29
+#define WCN36xx_DXE_CH_CTRL_BDT_IDX_MASK GENMASK(30, WCN36xx_DXE_CH_CTRL_BDT_IDX_SHIFT)
+#define WCN36xx_DXE_CH_CTRL_BDT_IDX_SET(x)	((x) << WCN36xx_DXE_CH_CTRL_BDT_IDX_SHIFT)
+
 /* DXE default control register values */
-#define WCN36XX_DXE_CH_DEFAULT_CTL_RX_L		0x847EAD2F
-#define WCN36XX_DXE_CH_DEFAULT_CTL_RX_H		0x84FED12F
-#define WCN36XX_DXE_CH_DEFAULT_CTL_TX_H		0x853ECF4D
-#define WCN36XX_DXE_CH_DEFAULT_CTL_TX_L		0x843e8b4d
+#define WCN36XX_DXE_CH_DEFAULT_CTL_RX_L (WCN36xx_DXE_CH_CTRL_EN | \
+		WCN36xx_DXE_CH_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_B2H) | \
+		WCN36xx_DXE_CH_CTRL_EOP | WCN36xx_DXE_CH_CTRL_SIQ | \
+		WCN36xx_DXE_CH_CTRL_PDU_REL | WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SET(6) | \
+		WCN36xx_DXE_CH_CTRL_PRIO_SET(5) | WCN36xx_DXE_CH_CTRL_INE_ED | \
+		WCN36xx_DXE_CH_CTRL_INE_ERR | WCN36xx_DXE_CH_CTRL_INE_DONE | \
+		WCN36xx_DXE_CH_CTRL_EDEN | WCN36xx_DXE_CH_CTRL_EDVEN | \
+		WCN36xx_DXE_CH_CTRL_SEL_SET(1) | WCN36xx_DXE_CH_CTRL_ENDIANNESS | \
+		WCN36xx_DXE_CH_CTRL_SWAP)
+
+#define WCN36XX_DXE_CH_DEFAULT_CTL_RX_H (WCN36xx_DXE_CH_CTRL_EN | \
+		WCN36xx_DXE_CH_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_B2H) | \
+		WCN36xx_DXE_CH_CTRL_EOP | WCN36xx_DXE_CH_CTRL_SIQ | \
+		WCN36xx_DXE_CH_CTRL_PDU_REL | WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SET(8) | \
+		WCN36xx_DXE_CH_CTRL_PRIO_SET(6) | WCN36xx_DXE_CH_CTRL_INE_ED | \
+		WCN36xx_DXE_CH_CTRL_INE_ERR | WCN36xx_DXE_CH_CTRL_INE_DONE | \
+		WCN36xx_DXE_CH_CTRL_EDEN | WCN36xx_DXE_CH_CTRL_EDVEN | \
+		WCN36xx_DXE_CH_CTRL_SEL_SET(3) | WCN36xx_DXE_CH_CTRL_ENDIANNESS | \
+		WCN36xx_DXE_CH_CTRL_SWAP)
+
+#define WCN36XX_DXE_CH_DEFAULT_CTL_TX_H	(WCN36xx_DXE_CH_CTRL_EN | \
+		WCN36xx_DXE_CH_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+		WCN36xx_DXE_CH_CTRL_EOP | WCN36xx_DXE_CH_CTRL_DIQ | \
+		WCN36xx_DXE_CH_CTRL_PDU_REL | WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SET(7) | \
+		WCN36xx_DXE_CH_CTRL_PRIO_SET(6) | WCN36xx_DXE_CH_CTRL_INE_ED | \
+		WCN36xx_DXE_CH_CTRL_INE_ERR | WCN36xx_DXE_CH_CTRL_INE_DONE | \
+		WCN36xx_DXE_CH_CTRL_EDEN | WCN36xx_DXE_CH_CTRL_EDVEN | \
+		WCN36xx_DXE_CH_CTRL_SEL_SET(4) | WCN36xx_DXE_CH_CTRL_ENDIANNESS | \
+		WCN36xx_DXE_CH_CTRL_SWAP)
+
+#define WCN36XX_DXE_CH_DEFAULT_CTL_TX_L (WCN36xx_DXE_CH_CTRL_EN | \
+		WCN36xx_DXE_CH_CTRL_XTYPE_SET(WCN36xx_DXE_XTYPE_H2B) | \
+		WCN36xx_DXE_CH_CTRL_EOP | WCN36xx_DXE_CH_CTRL_DIQ | \
+		WCN36xx_DXE_CH_CTRL_PDU_REL | WCN36xx_DXE_CH_CTRL_BTHLD_SEL_SET(5) | \
+		WCN36xx_DXE_CH_CTRL_PRIO_SET(4) | WCN36xx_DXE_CH_CTRL_INE_ED | \
+		WCN36xx_DXE_CH_CTRL_INE_ERR | WCN36xx_DXE_CH_CTRL_INE_DONE | \
+		WCN36xx_DXE_CH_CTRL_EDEN | WCN36xx_DXE_CH_CTRL_EDVEN | \
+		WCN36xx_DXE_CH_CTRL_SEL_SET(0) | WCN36xx_DXE_CH_CTRL_ENDIANNESS | \
+		WCN36xx_DXE_CH_CTRL_SWAP)
 
 /* Common DXE registers */
 #define WCN36XX_DXE_MEM_CSR			(WCN36XX_DXE_MEM_REG + 0x00)
@@ -79,6 +261,10 @@ H2H_TEST_RX_TX = DMA2
 #define WCN36XX_DXE_0_INT_ED_CLR		(WCN36XX_DXE_MEM_REG + 0x34)
 #define WCN36XX_DXE_0_INT_DONE_CLR		(WCN36XX_DXE_MEM_REG + 0x38)
 #define WCN36XX_DXE_0_INT_ERR_CLR		(WCN36XX_DXE_MEM_REG + 0x3C)
+
+#define WCN36XX_CH_STAT_INT_DONE_MASK   0x00008000
+#define WCN36XX_CH_STAT_INT_ERR_MASK    0x00004000
+#define WCN36XX_CH_STAT_INT_ED_MASK     0x00002000
 
 #define WCN36XX_DXE_0_CH0_STATUS		(WCN36XX_DXE_MEM_REG + 0x404)
 #define WCN36XX_DXE_0_CH1_STATUS		(WCN36XX_DXE_MEM_REG + 0x444)
@@ -266,6 +452,7 @@ struct wcn36xx_dxe_mem_pool {
 	dma_addr_t	phy_addr;
 };
 
+struct wcn36xx_tx_bd;
 struct wcn36xx_vif;
 int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn);
 void wcn36xx_dxe_free_mem_pools(struct wcn36xx *wcn);
@@ -277,8 +464,8 @@ void wcn36xx_dxe_deinit(struct wcn36xx *wcn);
 int wcn36xx_dxe_init_channels(struct wcn36xx *wcn);
 int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 struct wcn36xx_vif *vif_priv,
+			 struct wcn36xx_tx_bd *bd,
 			 struct sk_buff *skb,
 			 bool is_low);
 void wcn36xx_dxe_tx_ack_ind(struct wcn36xx *wcn, u32 status);
-void *wcn36xx_dxe_get_next_bd(struct wcn36xx *wcn, bool is_low);
 #endif	/* _DXE_H_ */

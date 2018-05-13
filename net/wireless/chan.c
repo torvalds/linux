@@ -579,6 +579,10 @@ static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
 {
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
+	bool dfs_offload;
+
+	dfs_offload = wiphy_ext_feature_isset(wiphy,
+					      NL80211_EXT_FEATURE_DFS_OFFLOAD);
 
 	start_freq = cfg80211_get_start_freq(center_freq, bandwidth);
 	end_freq = cfg80211_get_end_freq(center_freq, bandwidth);
@@ -596,8 +600,9 @@ static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
 		if (c->flags & IEEE80211_CHAN_DISABLED)
 			return false;
 
-		if ((c->flags & IEEE80211_CHAN_RADAR)  &&
-		    (c->dfs_state != NL80211_DFS_AVAILABLE))
+		if ((c->flags & IEEE80211_CHAN_RADAR) &&
+		    (c->dfs_state != NL80211_DFS_AVAILABLE) &&
+		    !(c->dfs_state == NL80211_DFS_USABLE && dfs_offload))
 			return false;
 	}
 

@@ -407,21 +407,59 @@ int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	return 0;
 }
 
-int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg)
+static DEFINE_MUTEX(indications_mutex);
+
+static int get_phb_indications(struct pci_dev *dev, u64 *capiind, u64 *asnind,
+			       u64 *nbwind)
+{
+	static u64 nbw, asn, capi = 0;
+	struct device_node *np;
+	const __be32 *prop;
+
+	mutex_lock(&indications_mutex);
+	if (!capi) {
+		if (!(np = pnv_pci_get_phb_node(dev))) {
+			mutex_unlock(&indications_mutex);
+			return -ENODEV;
+		}
+
+		prop = of_get_property(np, "ibm,phb-indications", NULL);
+		if (!prop) {
+			nbw = 0x0300UL; /* legacy values */
+			asn = 0x0400UL;
+			capi = 0x0200UL;
+		} else {
+			nbw = (u64)be32_to_cpu(prop[2]);
+			asn = (u64)be32_to_cpu(prop[1]);
+			capi = (u64)be32_to_cpu(prop[0]);
+		}
+		of_node_put(np);
+	}
+	*capiind = capi;
+	*asnind = asn;
+	*nbwind = nbw;
+	mutex_unlock(&indications_mutex);
+	return 0;
+}
+
+int cxl_get_xsl9_dsnctl(struct pci_dev *dev, u64 capp_unit_id, u64 *reg)
 {
 	u64 xsl_dsnctl;
+	u64 capiind, asnind, nbwind;
 
 	/*
 	 * CAPI Identifier bits [0:7]
 	 * bit 61:60 MSI bits --> 0
 	 * bit 59 TVT selector --> 0
 	 */
+	if (get_phb_indications(dev, &capiind, &asnind, &nbwind))
+		return -ENODEV;
 
 	/*
 	 * Tell XSL where to route data to.
 	 * The field chipid should match the PHB CAPI_CMPM register
 	 */
-	xsl_dsnctl = ((u64)0x2 << (63-7)); /* Bit 57 */
+	xsl_dsnctl = (capiind << (63-15)); /* Bit 57 */
 	xsl_dsnctl |= (capp_unit_id << (63-15));
 
 	/* nMMU_ID Defaults to: b’000001001’*/
@@ -435,14 +473,14 @@ int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg)
 		 * nbwind=0x03, bits [57:58], must include capi indicator.
 		 * Not supported on P9 DD1.
 		 */
-		xsl_dsnctl |= ((u64)0x03 << (63-47));
+		xsl_dsnctl |= (nbwind << (63-55));
 
 		/*
 		 * Upper 16b address bits of ASB_Notify messages sent to the
 		 * system. Need to match the PHB’s ASN Compare/Mask Register.
 		 * Not supported on P9 DD1.
 		 */
-		xsl_dsnctl |= ((u64)0x04 << (63-55));
+		xsl_dsnctl |= asnind;
 	}
 
 	*reg = xsl_dsnctl;
@@ -456,13 +494,14 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	u64 chipid;
 	u32 phb_index;
 	u64 capp_unit_id;
+	u64 psl_debug;
 	int rc;
 
 	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
-	rc = cxl_get_xsl9_dsnctl(capp_unit_id, &xsl_dsnctl);
+	rc = cxl_get_xsl9_dsnctl(dev, capp_unit_id, &xsl_dsnctl);
 	if (rc)
 		return rc;
 
@@ -503,8 +542,22 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	if (cxl_is_power9_dd1()) {
 		/* Disabling deadlock counter CAR */
 		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0020000000000001ULL);
-	} else
-		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x4000000000000000ULL);
+		/* Enable NORST */
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
+	} else {
+		/* Enable NORST and DD2 features */
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0xC000000000000000ULL);
+	}
+
+	/*
+	 * Check if PSL has data-cache. We need to flush adapter datacache
+	 * when as its about to be removed.
+	 */
+	psl_debug = cxl_p1_read(adapter, CXL_PSL9_DEBUG);
+	if (psl_debug & CXL_PSL_DEBUG_CDC) {
+		dev_dbg(&dev->dev, "No data-cache present\n");
+		adapter->native->no_data_cache = true;
+	}
 
 	return 0;
 }
@@ -568,12 +621,6 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 /* For the PSL this is a multiple for 0 < n <= 7: */
 #define PSL_2048_250MHZ_CYCLES 1
 
-static void write_timebase_ctrl_psl9(struct cxl *adapter)
-{
-	cxl_p1_write(adapter, CXL_PSL9_TB_CTLSTAT,
-		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
-}
-
 static void write_timebase_ctrl_psl8(struct cxl *adapter)
 {
 	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
@@ -612,9 +659,6 @@ static u64 timebase_read_xsl(struct cxl *adapter)
 
 static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 {
-	u64 psl_tb;
-	int delta;
-	unsigned int retry = 0;
 	struct device_node *np;
 
 	adapter->psl_timebase_synced = false;
@@ -635,26 +679,13 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	 * Setup PSL Timebase Control and Status register
 	 * with the recommended Timebase Sync Count value
 	 */
-	adapter->native->sl_ops->write_timebase_ctrl(adapter);
+	if (adapter->native->sl_ops->write_timebase_ctrl)
+		adapter->native->sl_ops->write_timebase_ctrl(adapter);
 
 	/* Enable PSL Timebase */
 	cxl_p1_write(adapter, CXL_PSL_Control, 0x0000000000000000);
 	cxl_p1_write(adapter, CXL_PSL_Control, CXL_PSL_Control_tb);
 
-	/* Wait until CORE TB and PSL TB difference <= 16usecs */
-	do {
-		msleep(1);
-		if (retry++ > 5) {
-			dev_info(&dev->dev, "PSL timebase can't synchronize\n");
-			return;
-		}
-		psl_tb = adapter->native->sl_ops->timebase_read(adapter);
-		delta = mftb() - psl_tb;
-		if (delta < 0)
-			delta = -delta;
-	} while (tb_to_ns(delta) > 16000);
-
-	adapter->psl_timebase_synced = true;
 	return;
 }
 
@@ -1449,10 +1480,8 @@ int cxl_pci_reset(struct cxl *adapter)
 
 	/*
 	 * The adapter is about to be reset, so ignore errors.
-	 * Not supported on P9 DD1
 	 */
-	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
-		cxl_data_cache_flush(adapter);
+	cxl_data_cache_flush(adapter);
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
 	 * PERST assert/deassert.  PERST triggers a loading of the image
@@ -1801,7 +1830,6 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl9,
 	.debugfs_stop_trace = cxl_stop_trace_psl9,
-	.write_timebase_ctrl = write_timebase_ctrl_psl9,
 	.timebase_read = timebase_read_psl9,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
 	.needs_reset_before_disable = true,
@@ -1936,10 +1964,8 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 
 	/*
 	 * Flush adapter datacache as its about to be removed.
-	 * Not supported on P9 DD1.
 	 */
-	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
-		cxl_data_cache_flush(adapter);
+	cxl_data_cache_flush(adapter);
 
 	cxl_deconfigure_adapter(adapter);
 

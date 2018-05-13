@@ -336,11 +336,10 @@
 				regulator-name = "vdd_io_sd";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 		};

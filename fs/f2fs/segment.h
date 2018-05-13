@@ -53,13 +53,19 @@
 	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
 	  (sbi)->segs_per_sec))	\
 
-#define MAIN_BLKADDR(sbi)	(SM_I(sbi)->main_blkaddr)
-#define SEG0_BLKADDR(sbi)	(SM_I(sbi)->seg0_blkaddr)
+#define MAIN_BLKADDR(sbi)						\
+	(SM_I(sbi) ? SM_I(sbi)->main_blkaddr : 				\
+		le32_to_cpu(F2FS_RAW_SUPER(sbi)->main_blkaddr))
+#define SEG0_BLKADDR(sbi)						\
+	(SM_I(sbi) ? SM_I(sbi)->seg0_blkaddr : 				\
+		le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment0_blkaddr))
 
 #define MAIN_SEGS(sbi)	(SM_I(sbi)->main_segments)
 #define MAIN_SECS(sbi)	((sbi)->total_sections)
 
-#define TOTAL_SEGS(sbi)	(SM_I(sbi)->segment_count)
+#define TOTAL_SEGS(sbi)							\
+	(SM_I(sbi) ? SM_I(sbi)->segment_count : 				\
+		le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment_count))
 #define TOTAL_BLKS(sbi)	(TOTAL_SEGS(sbi) << (sbi)->log_blocks_per_seg)
 
 #define MAX_BLKADDR(sbi)	(SEG0_BLKADDR(sbi) + TOTAL_BLKS(sbi))
@@ -596,6 +602,8 @@ static inline int utilization(struct f2fs_sb_info *sbi)
 #define DEF_MIN_FSYNC_BLOCKS	8
 #define DEF_MIN_HOT_BLOCKS	16
 
+#define SMALL_VOLUME_SEGMENTS	(16 * 512)	/* 16GB */
+
 enum {
 	F2FS_IPU_FORCE,
 	F2FS_IPU_SSR,
@@ -630,10 +638,17 @@ static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 	f2fs_bug_on(sbi, segno > TOTAL_SEGS(sbi) - 1);
 }
 
-static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
+static inline void verify_block_addr(struct f2fs_io_info *fio, block_t blk_addr)
 {
-	BUG_ON(blk_addr < SEG0_BLKADDR(sbi)
-			|| blk_addr >= MAX_BLKADDR(sbi));
+	struct f2fs_sb_info *sbi = fio->sbi;
+
+	if (PAGE_TYPE_OF_BIO(fio->type) == META &&
+				(!is_read_io(fio->op) || fio->is_meta))
+		BUG_ON(blk_addr < SEG0_BLKADDR(sbi) ||
+				blk_addr >= MAIN_BLKADDR(sbi));
+	else
+		BUG_ON(blk_addr < MAIN_BLKADDR(sbi) ||
+				blk_addr >= MAX_BLKADDR(sbi));
 }
 
 /*

@@ -32,6 +32,10 @@ Optional properties:
 		  to "clock" property. Frequency must be a multiple of the rcc
 		  clock frequency. If not, SPI CLKOUT frequency will not be
 		  accurate.
+- pinctrl-names:	Set to "default".
+- pinctrl-0:		List of phandles pointing to pin configuration
+			nodes to set pins in mode of operation for dfsdm
+			on external pin.
 
 Contents of a STM32 DFSDM child nodes:
 --------------------------------------
@@ -68,8 +72,8 @@ Optional properties:
 - st,adc-channel-types:	Single-ended channel input type.
 			- "SPI_R": SPI with data on rising edge (default)
 			- "SPI_F": SPI with data on falling edge
-			- "MANCH_R": manchester codec, rising edge = logic 0
-			- "MANCH_F": manchester codec, falling edge = logic 1
+			- "MANCH_R": manchester codec, rising edge = logic 0, falling edge = logic 1
+			- "MANCH_F": manchester codec, rising edge = logic 1, falling edge = logic 0
 - st,adc-channel-clk-src: Conversion clock source.
 			  - "CLKIN": external SPI clock (CLKIN x)
 			  - "CLKOUT": internal SPI clock (CLKOUT) (default)

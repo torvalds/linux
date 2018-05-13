@@ -36,7 +36,7 @@ static void sitesurvey_ctrl_handler(struct timer_list *t)
 {
 	struct _adapter *adapter =
 		from_timer(adapter, t,
-			mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
+			   mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 
 	_r8712_sitesurvey_ctrl_handler(adapter);
 	mod_timer(&adapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,

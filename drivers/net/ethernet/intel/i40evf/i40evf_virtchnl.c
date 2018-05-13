@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
@@ -161,7 +162,8 @@ int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2 |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM |
-	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES;
+	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES |
+	       VIRTCHNL_VF_OFFLOAD_ADQ;
 
 	adapter->current_op = VIRTCHNL_OP_GET_VF_RESOURCES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
@@ -344,6 +346,7 @@ void i40evf_disable_queues(struct i40evf_adapter *adapter)
 void i40evf_map_queues(struct i40evf_adapter *adapter)
 {
 	struct virtchnl_irq_map_info *vimi;
+	struct virtchnl_vector_map *vecmap;
 	int v_idx, q_vectors, len;
 	struct i40e_q_vector *q_vector;
 
@@ -367,17 +370,22 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	vimi->num_vectors = adapter->num_msix_vectors;
 	/* Queue vectors first */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
-		q_vector = adapter->q_vectors + v_idx;
-		vimi->vecmap[v_idx].vsi_id = adapter->vsi_res->vsi_id;
-		vimi->vecmap[v_idx].vector_id = v_idx + NONQ_VECS;
-		vimi->vecmap[v_idx].txq_map = q_vector->ring_mask;
-		vimi->vecmap[v_idx].rxq_map = q_vector->ring_mask;
+		q_vector = &adapter->q_vectors[v_idx];
+		vecmap = &vimi->vecmap[v_idx];
+
+		vecmap->vsi_id = adapter->vsi_res->vsi_id;
+		vecmap->vector_id = v_idx + NONQ_VECS;
+		vecmap->txq_map = q_vector->ring_mask;
+		vecmap->rxq_map = q_vector->ring_mask;
+		vecmap->rxitr_idx = I40E_RX_ITR;
+		vecmap->txitr_idx = I40E_TX_ITR;
 	}
 	/* Misc vector last - this is only for AdminQ messages */
-	vimi->vecmap[v_idx].vsi_id = adapter->vsi_res->vsi_id;
-	vimi->vecmap[v_idx].vector_id = 0;
-	vimi->vecmap[v_idx].txq_map = 0;
-	vimi->vecmap[v_idx].rxq_map = 0;
+	vecmap = &vimi->vecmap[v_idx];
+	vecmap->vsi_id = adapter->vsi_res->vsi_id;
+	vecmap->vector_id = 0;
+	vecmap->txq_map = 0;
+	vecmap->rxq_map = 0;
 
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_MAP_VECTORS;
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_CONFIG_IRQ_MAP,
@@ -459,7 +467,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 		more = true;
 	}
 
-	veal = kzalloc(len, GFP_KERNEL);
+	veal = kzalloc(len, GFP_ATOMIC);
 	if (!veal) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -532,7 +540,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 		      (count * sizeof(struct virtchnl_ether_addr));
 		more = true;
 	}
-	veal = kzalloc(len, GFP_KERNEL);
+	veal = kzalloc(len, GFP_ATOMIC);
 	if (!veal) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -606,7 +614,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_KERNEL);
+	vvfl = kzalloc(len, GFP_ATOMIC);
 	if (!vvfl) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -678,7 +686,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_KERNEL);
+	vvfl = kzalloc(len, GFP_ATOMIC);
 	if (!vvfl) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -967,6 +975,205 @@ static void i40evf_print_link_message(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_enable_channel
+ * @adapter: adapter structure
+ *
+ * Request that the PF enable channels as specified by
+ * the user via tc tool.
+ **/
+void i40evf_enable_channels(struct i40evf_adapter *adapter)
+{
+	struct virtchnl_tc_info *vti = NULL;
+	u16 len;
+	int i;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	len = (adapter->num_tc * sizeof(struct virtchnl_channel_info)) +
+	       sizeof(struct virtchnl_tc_info);
+
+	vti = kzalloc(len, GFP_KERNEL);
+	if (!vti)
+		return;
+	vti->num_tc = adapter->num_tc;
+	for (i = 0; i < vti->num_tc; i++) {
+		vti->list[i].count = adapter->ch_config.ch_info[i].count;
+		vti->list[i].offset = adapter->ch_config.ch_info[i].offset;
+		vti->list[i].pad = 0;
+		vti->list[i].max_tx_rate =
+				adapter->ch_config.ch_info[i].max_tx_rate;
+	}
+
+	adapter->ch_config.state = __I40EVF_TC_RUNNING;
+	adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+	adapter->current_op = VIRTCHNL_OP_ENABLE_CHANNELS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_CHANNELS;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_ENABLE_CHANNELS,
+			   (u8 *)vti, len);
+	kfree(vti);
+}
+
+/**
+ * i40evf_disable_channel
+ * @adapter: adapter structure
+ *
+ * Request that the PF disable channels that are configured
+ **/
+void i40evf_disable_channels(struct i40evf_adapter *adapter)
+{
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	adapter->ch_config.state = __I40EVF_TC_INVALID;
+	adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+	adapter->current_op = VIRTCHNL_OP_DISABLE_CHANNELS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_CHANNELS;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_DISABLE_CHANNELS,
+			   NULL, 0);
+}
+
+/**
+ * i40evf_print_cloud_filter
+ * @adapter: adapter structure
+ * @f: cloud filter to print
+ *
+ * Print the cloud filter
+ **/
+static void i40evf_print_cloud_filter(struct i40evf_adapter *adapter,
+				      struct virtchnl_filter *f)
+{
+	switch (f->flow_type) {
+	case VIRTCHNL_TCP_V4_FLOW:
+		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI4 src_ip %pI4 dst_port %hu src_port %hu\n",
+			 &f->data.tcp_spec.dst_mac,
+			 &f->data.tcp_spec.src_mac,
+			 ntohs(f->data.tcp_spec.vlan_id),
+			 &f->data.tcp_spec.dst_ip[0],
+			 &f->data.tcp_spec.src_ip[0],
+			 ntohs(f->data.tcp_spec.dst_port),
+			 ntohs(f->data.tcp_spec.src_port));
+		break;
+	case VIRTCHNL_TCP_V6_FLOW:
+		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI6 src_ip %pI6 dst_port %hu src_port %hu\n",
+			 &f->data.tcp_spec.dst_mac,
+			 &f->data.tcp_spec.src_mac,
+			 ntohs(f->data.tcp_spec.vlan_id),
+			 &f->data.tcp_spec.dst_ip,
+			 &f->data.tcp_spec.src_ip,
+			 ntohs(f->data.tcp_spec.dst_port),
+			 ntohs(f->data.tcp_spec.src_port));
+		break;
+	}
+}
+
+/**
+ * i40evf_add_cloud_filter
+ * @adapter: adapter structure
+ *
+ * Request that the PF add cloud filters as specified
+ * by the user via tc tool.
+ **/
+void i40evf_add_cloud_filter(struct i40evf_adapter *adapter)
+{
+	struct i40evf_cloud_filter *cf;
+	struct virtchnl_filter *f;
+	int len = 0, count = 0;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot add cloud filter, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->add) {
+			count++;
+			break;
+		}
+	}
+	if (!count) {
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_CLOUD_FILTER;
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_ADD_CLOUD_FILTER;
+
+	len = sizeof(struct virtchnl_filter);
+	f = kzalloc(len, GFP_KERNEL);
+	if (!f)
+		return;
+
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->add) {
+			memcpy(f, &cf->f, sizeof(struct virtchnl_filter));
+			cf->add = false;
+			cf->state = __I40EVF_CF_ADD_PENDING;
+			i40evf_send_pf_msg(adapter,
+					   VIRTCHNL_OP_ADD_CLOUD_FILTER,
+					   (u8 *)f, len);
+		}
+	}
+	kfree(f);
+}
+
+/**
+ * i40evf_del_cloud_filter
+ * @adapter: adapter structure
+ *
+ * Request that the PF delete cloud filters as specified
+ * by the user via tc tool.
+ **/
+void i40evf_del_cloud_filter(struct i40evf_adapter *adapter)
+{
+	struct i40evf_cloud_filter *cf, *cftmp;
+	struct virtchnl_filter *f;
+	int len = 0, count = 0;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot remove cloud filter, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->del) {
+			count++;
+			break;
+		}
+	}
+	if (!count) {
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_CLOUD_FILTER;
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_DEL_CLOUD_FILTER;
+
+	len = sizeof(struct virtchnl_filter);
+	f = kzalloc(len, GFP_KERNEL);
+	if (!f)
+		return;
+
+	list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list, list) {
+		if (cf->del) {
+			memcpy(f, &cf->f, sizeof(struct virtchnl_filter));
+			cf->del = false;
+			cf->state = __I40EVF_CF_DEL_PENDING;
+			i40evf_send_pf_msg(adapter,
+					   VIRTCHNL_OP_DEL_CLOUD_FILTER,
+					   (u8 *)f, len);
+		}
+	}
+	kfree(f);
+}
+
+/**
  * i40evf_request_reset
  * @adapter: adapter structure
  *
@@ -1011,14 +1218,25 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			if (adapter->link_up == link_up)
 				break;
 
-			/* If we get link up message and start queues before
-			 * our queues are configured it will trigger a TX hang.
-			 * In that case, just ignore the link status message,
-			 * we'll get another one after we enable queues and
-			 * actually prepared to send traffic.
-			 */
-			if (link_up && adapter->state != __I40EVF_RUNNING)
-				break;
+			if (link_up) {
+				/* If we get link up message and start queues
+				 * before our queues are configured it will
+				 * trigger a TX hang. In that case, just ignore
+				 * the link status message,we'll get another one
+				 * after we enable queues and actually prepared
+				 * to send traffic.
+				 */
+				if (adapter->state != __I40EVF_RUNNING)
+					break;
+
+				/* For ADq enabled VF, we reconfigure VSIs and
+				 * re-allocate queues. Hence wait till all
+				 * queues are enabled.
+				 */
+				if (adapter->flags &
+				    I40EVF_FLAG_QUEUES_DISABLED)
+					break;
+			}
 
 			adapter->link_up = link_up;
 			if (link_up) {
@@ -1031,7 +1249,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			i40evf_print_link_message(adapter);
 			break;
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
-			dev_info(&adapter->pdev->dev, "PF reset warning received\n");
+			dev_info(&adapter->pdev->dev, "Reset warning received from the PF\n");
 			if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
 				adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 				dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
@@ -1062,6 +1280,57 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		case VIRTCHNL_OP_DEL_ETH_ADDR:
 			dev_err(&adapter->pdev->dev, "Failed to delete MAC filter, error %s\n",
 				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		case VIRTCHNL_OP_ENABLE_CHANNELS:
+			dev_err(&adapter->pdev->dev, "Failed to configure queue channels, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+			adapter->ch_config.state = __I40EVF_TC_INVALID;
+			netdev_reset_tc(netdev);
+			netif_tx_start_all_queues(netdev);
+			break;
+		case VIRTCHNL_OP_DISABLE_CHANNELS:
+			dev_err(&adapter->pdev->dev, "Failed to disable queue channels, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+			adapter->ch_config.state = __I40EVF_TC_RUNNING;
+			netif_tx_start_all_queues(netdev);
+			break;
+		case VIRTCHNL_OP_ADD_CLOUD_FILTER: {
+			struct i40evf_cloud_filter *cf, *cftmp;
+
+			list_for_each_entry_safe(cf, cftmp,
+						 &adapter->cloud_filter_list,
+						 list) {
+				if (cf->state == __I40EVF_CF_ADD_PENDING) {
+					cf->state = __I40EVF_CF_INVALID;
+					dev_info(&adapter->pdev->dev, "Failed to add cloud filter, error %s\n",
+						 i40evf_stat_str(&adapter->hw,
+								 v_retval));
+					i40evf_print_cloud_filter(adapter,
+								  &cf->f);
+					list_del(&cf->list);
+					kfree(cf);
+					adapter->num_cloud_filters--;
+				}
+			}
+			}
+			break;
+		case VIRTCHNL_OP_DEL_CLOUD_FILTER: {
+			struct i40evf_cloud_filter *cf;
+
+			list_for_each_entry(cf, &adapter->cloud_filter_list,
+					    list) {
+				if (cf->state == __I40EVF_CF_DEL_PENDING) {
+					cf->state = __I40EVF_CF_ACTIVE;
+					dev_info(&adapter->pdev->dev, "Failed to del cloud filter, error %s\n",
+						 i40evf_stat_str(&adapter->hw,
+								 v_retval));
+					i40evf_print_cloud_filter(adapter,
+								  &cf->f);
+				}
+			}
+			}
 			break;
 		default:
 			dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",
@@ -1102,6 +1371,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
+		adapter->flags &= ~I40EVF_FLAG_QUEUES_DISABLED;
 		break;
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);
@@ -1153,6 +1423,29 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				 vfres->num_queue_pairs);
 			adapter->num_req_queues = 0;
 			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+		}
+		}
+		break;
+	case VIRTCHNL_OP_ADD_CLOUD_FILTER: {
+		struct i40evf_cloud_filter *cf;
+
+		list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+			if (cf->state == __I40EVF_CF_ADD_PENDING)
+				cf->state = __I40EVF_CF_ACTIVE;
+		}
+		}
+		break;
+	case VIRTCHNL_OP_DEL_CLOUD_FILTER: {
+		struct i40evf_cloud_filter *cf, *cftmp;
+
+		list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list,
+					 list) {
+			if (cf->state == __I40EVF_CF_DEL_PENDING) {
+				cf->state = __I40EVF_CF_INVALID;
+				list_del(&cf->list);
+				kfree(cf);
+				adapter->num_cloud_filters--;
+			}
 		}
 		}
 		break;

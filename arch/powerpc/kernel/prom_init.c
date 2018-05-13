@@ -171,7 +171,7 @@ static unsigned long __initdata prom_tce_alloc_start;
 static unsigned long __initdata prom_tce_alloc_end;
 #endif
 
-static bool __initdata prom_radix_disable;
+static bool prom_radix_disable __initdata = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
 
 struct platform_support {
 	bool hash_mmu;
@@ -641,9 +641,19 @@ static void __init early_cmdline_parse(void)
 
 	opt = strstr(prom_cmd_line, "disable_radix");
 	if (opt) {
-		prom_debug("Radix disabled from cmdline\n");
-		prom_radix_disable = true;
+		opt += 13;
+		if (*opt && *opt == '=') {
+			bool val;
+
+			if (kstrtobool(++opt, &val))
+				prom_radix_disable = false;
+			else
+				prom_radix_disable = val;
+		} else
+			prom_radix_disable = true;
 	}
+	if (prom_radix_disable)
+		prom_debug("Radix disabled from cmdline\n");
 }
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
@@ -1110,7 +1120,8 @@ static void __init prom_check_platform_support(void)
 		}
 	}
 
-	if (supported.radix_mmu && supported.radix_gtse) {
+	if (supported.radix_mmu && supported.radix_gtse &&
+	    IS_ENABLED(CONFIG_PPC_RADIX_MMU)) {
 		/* Radix preferred - but we require GTSE for now */
 		prom_debug("Asking for radix with GTSE\n");
 		ibm_architecture_vec.vec5.mmu = OV5_FEAT(OV5_MMU_RADIX);
@@ -1809,16 +1820,8 @@ static void __init prom_initialize_tce_table(void)
 		 * size to 4 MB.  This is enough to map 2GB of PCI DMA space.
 		 * By doing this, we avoid the pitfalls of trying to DMA to
 		 * MMIO space and the DMA alias hole.
-		 *
-		 * On POWER4, firmware sets the TCE region by assuming
-		 * each TCE table is 8MB. Using this memory for anything
-		 * else will impact performance, so we always allocate 8MB.
-		 * Anton
 		 */
-		if (pvr_version_is(PVR_POWER4) || pvr_version_is(PVR_POWER4p))
-			minsize = 8UL << 20;
-		else
-			minsize = 4UL << 20;
+		minsize = 4UL << 20;
 
 		/* Align to the greater of the align or size */
 		align = max(minalign, minsize);

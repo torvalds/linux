@@ -828,6 +828,22 @@ static int m88e1121_config_init(struct phy_device *phydev)
 	return marvell_config_init(phydev);
 }
 
+static int m88e1318_config_init(struct phy_device *phydev)
+{
+	if (phy_interrupt_is_valid(phydev)) {
+		int err = phy_modify_paged(
+			phydev, MII_MARVELL_LED_PAGE,
+			MII_88E1318S_PHY_LED_TCR,
+			MII_88E1318S_PHY_LED_TCR_FORCE_INT,
+			MII_88E1318S_PHY_LED_TCR_INTn_ENABLE |
+			MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW);
+		if (err < 0)
+			return err;
+	}
+
+	return m88e1121_config_init(phydev);
+}
+
 static int m88e1510_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -860,7 +876,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 			return err;
 
 		/* There appears to be a bug in the 88e1512 when used in
-		 * SGMII to copper mode, where the AN advertisment register
+		 * SGMII to copper mode, where the AN advertisement register
 		 * clears the pause bits each time a negotiation occurs.
 		 * This means we can never be truely sure what was advertised,
 		 * so disable Pause support.
@@ -870,7 +886,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 		phydev->advertising &= ~pause;
 	}
 
-	return m88e1121_config_init(phydev);
+	return m88e1318_config_init(phydev);
 }
 
 static int m88e1118_config_aneg(struct phy_device *phydev)
@@ -1376,6 +1392,15 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 		err = marvell_write_page(phydev, MII_MARVELL_COPPER_PAGE);
 		if (err < 0)
 			goto error;
+
+		/* If WOL event happened once, the LED[2] interrupt pin
+		 * will not be cleared unless we reading the interrupt status
+		 * register. If interrupts are in use, the normal interrupt
+		 * handling will clear the WOL event. Clear the WOL event
+		 * before enabling it if !phy_interrupt_is_valid()
+		 */
+		if (!phy_interrupt_is_valid(phydev))
+			phy_read(phydev, MII_M1011_IEVENT);
 
 		/* Enable the WOL interrupt */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
@@ -2086,7 +2111,7 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
-		.config_init = &m88e1121_config_init,
+		.config_init = &m88e1318_config_init,
 		.config_aneg = &m88e1318_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,

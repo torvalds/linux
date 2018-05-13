@@ -352,6 +352,8 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			else
 				i40iw_cm_disconn(iwqp);
 			break;
+		case I40IW_AE_BAD_CLOSE:
+			/* fall through */
 		case I40IW_AE_RESET_SENT:
 			i40iw_next_iw_state(iwqp, I40IW_QP_STATE_ERROR, 1, 0, 0);
 			i40iw_cm_disconn(iwqp);
@@ -665,6 +667,39 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 	}
 
 	return 0;
+}
+
+/**
+ * i40iw_gen_ae - generate AE
+ * @iwdev: iwarp device
+ * @qp: qp associated with AE
+ * @info: info for ae
+ * @wait: wait for completion
+ */
+void i40iw_gen_ae(struct i40iw_device *iwdev,
+		  struct i40iw_sc_qp *qp,
+		  struct i40iw_gen_ae_info *info,
+		  bool wait)
+{
+	struct i40iw_gen_ae_info *ae_info;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+
+	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, wait);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	ae_info = &cqp_request->info.in.u.gen_ae.info;
+	memcpy(ae_info, info, sizeof(*ae_info));
+
+	cqp_info->cqp_cmd = OP_GEN_AE;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.gen_ae.qp = qp;
+	cqp_info->in.u.gen_ae.scratch = (uintptr_t)cqp_request;
+	if (i40iw_handle_cqp_op(iwdev, cqp_request))
+		i40iw_pr_err("CQP OP failed attempting to generate ae_code=0x%x\n",
+			     info->ae_code);
 }
 
 /**

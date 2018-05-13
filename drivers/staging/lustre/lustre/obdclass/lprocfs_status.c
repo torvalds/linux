@@ -1467,7 +1467,7 @@ int lprocfs_write_frac_u64_helper(const char __user *buffer,
 {
 	char kernbuf[22], *end, *pbuf;
 	__u64 whole, frac = 0, units;
-	unsigned frac_d = 1;
+	unsigned int frac_d = 1;
 	int sign = 1;
 
 	if (count > (sizeof(kernbuf) - 1))
@@ -1585,7 +1585,7 @@ int ldebugfs_seq_create(struct dentry *parent, const char *name,
 	struct dentry *entry;
 
 	/* Disallow secretly (un)writable entries. */
-	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));
+	LASSERT((!seq_fops->write) == ((mode & 0222) == 0));
 
 	entry = debugfs_create_file(name, mode, parent, data, seq_fops);
 	if (IS_ERR_OR_NULL(entry))

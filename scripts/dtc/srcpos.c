@@ -209,8 +209,6 @@ struct srcpos srcpos_empty = {
 	.file = NULL,
 };
 
-#define TAB_SIZE      8
-
 void srcpos_update(struct srcpos *pos, const char *text, int len)
 {
 	int i;
@@ -224,9 +222,6 @@ void srcpos_update(struct srcpos *pos, const char *text, int len)
 		if (text[i] == '\n') {
 			current_srcfile->lineno++;
 			current_srcfile->colno = 1;
-		} else if (text[i] == '\t') {
-			current_srcfile->colno =
-				ALIGN(current_srcfile->colno, TAB_SIZE);
 		} else {
 			current_srcfile->colno++;
 		}

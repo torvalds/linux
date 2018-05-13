@@ -9,6 +9,7 @@
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
  *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
+ *  Copyright (c) 2018 Todd Kelner
  */
 
 /*
@@ -55,6 +56,8 @@
 #define NAVIGATION_CONTROLLER_BT  BIT(11)
 #define SINO_LITE_CONTROLLER      BIT(12)
 #define FUTUREMAX_DANCE_MAT       BIT(13)
+#define NSG_MR5U_REMOTE_BT        BIT(14)
+#define NSG_MR7U_REMOTE_BT        BIT(15)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -72,8 +75,11 @@
 				MOTION_CONTROLLER)
 #define SONY_BT_DEVICE (SIXAXIS_CONTROLLER_BT | DUALSHOCK4_CONTROLLER_BT |\
 			MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER_BT)
+#define NSG_MRXU_REMOTE (NSG_MR5U_REMOTE_BT | NSG_MR7U_REMOTE_BT)
 
 #define MAX_LEDS 4
+#define NSG_MRXU_MAX_X 1667
+#define NSG_MRXU_MAX_Y 1868
 
 
 /* PS/3 Motion controller */
@@ -1098,6 +1104,80 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	}
 }
 
+static void nsg_mrxu_parse_report(struct sony_sc *sc, u8 *rd, int size)
+{
+	int n, offset, relx, rely;
+	u8 active;
+
+	/*
+	 * The NSG-MRxU multi-touch trackpad data starts at offset 1 and
+	 *   the touch-related data starts at offset 2.
+	 * For the first byte, bit 0 is set when touchpad button is pressed.
+	 * Bit 2 is set when a touch is active and the drag (Fn) key is pressed.
+	 * This drag key is mapped to BTN_LEFT.  It is operational only when a 
+	 *   touch point is active.
+	 * Bit 4 is set when only the first touch point is active.
+	 * Bit 6 is set when only the second touch point is active.
+	 * Bits 5 and 7 are set when both touch points are active.
+	 * The next 3 bytes are two 12 bit X/Y coordinates for the first touch.
+	 * The following byte, offset 5, has the touch width and length.
+	 *   Bits 0-4=X (width), bits 5-7=Y (length).
+	 * A signed relative X coordinate is at offset 6.
+	 * The bytes at offset 7-9 are the second touch X/Y coordinates.
+	 * Offset 10 has the second touch width and length.
+	 * Offset 11 has the relative Y coordinate.
+	 */
+	offset = 1;
+
+	input_report_key(sc->touchpad, BTN_LEFT, rd[offset] & 0x0F);
+	active = (rd[offset] >> 4);
+	relx = (s8) rd[offset+5];
+	rely = ((s8) rd[offset+10]) * -1;
+
+	offset++;
+
+	for (n = 0; n < 2; n++) {
+		u16 x, y;
+		u8 contactx, contacty;
+
+		x = rd[offset] | ((rd[offset+1] & 0x0F) << 8);
+		y = ((rd[offset+1] & 0xF0) >> 4) | (rd[offset+2] << 4);
+
+		input_mt_slot(sc->touchpad, n);
+		input_mt_report_slot_state(sc->touchpad, MT_TOOL_FINGER, active & 0x03);
+
+		if (active & 0x03) {
+			contactx = rd[offset+3] & 0x0F;
+			contacty = rd[offset+3] >> 4;
+			input_report_abs(sc->touchpad, ABS_MT_TOUCH_MAJOR,
+				max(contactx, contacty));
+			input_report_abs(sc->touchpad, ABS_MT_TOUCH_MINOR,
+				min(contactx, contacty));
+			input_report_abs(sc->touchpad, ABS_MT_ORIENTATION,
+				(bool) (contactx > contacty));
+			input_report_abs(sc->touchpad, ABS_MT_POSITION_X, x);
+			input_report_abs(sc->touchpad, ABS_MT_POSITION_Y,
+				NSG_MRXU_MAX_Y - y);
+			/*
+			 * The relative coordinates belong to the first touch
+			 * point, when present, or to the second touch point
+			 * when the first is not active.
+			 */
+			if ((n == 0) || ((n == 1) && (active & 0x01))) {
+				input_report_rel(sc->touchpad, REL_X, relx);
+				input_report_rel(sc->touchpad, REL_Y, rely);
+			}
+		}
+
+		offset += 5;
+		active >>= 2;
+	}
+
+	input_mt_sync_frame(sc->touchpad);
+
+	input_sync(sc->touchpad);
+}
+
 static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *rd, int size)
 {
@@ -1206,6 +1286,10 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		}
 
 		dualshock4_parse_report(sc, rd, size);
+
+	} else if ((sc->quirks & NSG_MRXU_REMOTE) && rd[0] == 0x02) {
+		nsg_mrxu_parse_report(sc, rd, size);
+		return 1;
 	}
 
 	if (sc->defer_initialization) {
@@ -1263,7 +1347,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
-					int w, int h)
+		int w, int h, int touch_major, int touch_minor, int orientation)
 {
 	size_t name_sz;
 	char *name;
@@ -1294,10 +1378,6 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	snprintf(name, name_sz, "%s" DS4_TOUCHPAD_SUFFIX, sc->hdev->name);
 	sc->touchpad->name = name;
 
-	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
-	if (ret < 0)
-		goto err;
-
 	/* We map the button underneath the touchpad to BTN_LEFT. */
 	__set_bit(EV_KEY, sc->touchpad->evbit);
 	__set_bit(BTN_LEFT, sc->touchpad->keybit);
@@ -1305,6 +1385,25 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 
 	input_set_abs_params(sc->touchpad, ABS_MT_POSITION_X, 0, w, 0, 0);
 	input_set_abs_params(sc->touchpad, ABS_MT_POSITION_Y, 0, h, 0, 0);
+
+	if (touch_major > 0) {
+		input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MAJOR, 
+			0, touch_major, 0, 0);
+		if (touch_minor > 0)
+			input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MINOR, 
+				0, touch_minor, 0, 0);
+		if (orientation > 0)
+			input_set_abs_params(sc->touchpad, ABS_MT_ORIENTATION, 
+				0, orientation, 0, 0);
+	}
+
+	if (sc->quirks & NSG_MRXU_REMOTE) {
+		__set_bit(EV_REL, sc->touchpad->evbit);
+	}
+
+	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
+	if (ret < 0)
+		goto err;
 
 	ret = input_register_device(sc->touchpad);
 	if (ret < 0)
@@ -2690,7 +2789,7 @@ static int sony_input_configured(struct hid_device *hdev,
 		 * The Dualshock 4 touchpad supports 2 touches and has a
 		 * resolution of 1920x942 (44.86 dots/mm).
 		 */
-		ret = sony_register_touchpad(sc, 2, 1920, 942);
+		ret = sony_register_touchpad(sc, 2, 1920, 942, 0, 0, 0);
 		if (ret) {
 			hid_err(sc->hdev,
 			"Unable to initialize multi-touch slots: %d\n",
@@ -2721,6 +2820,20 @@ static int sony_input_configured(struct hid_device *hdev,
 		}
 
 		sony_init_output_report(sc, dualshock4_send_output_report);
+	} else if (sc->quirks & NSG_MRXU_REMOTE) {
+		/*
+		 * The NSG-MRxU touchpad supports 2 touches and has a
+		 * resolution of 1667x1868
+		 */
+		ret = sony_register_touchpad(sc, 2,
+			NSG_MRXU_MAX_X, NSG_MRXU_MAX_Y, 15, 15, 1);
+		if (ret) {
+			hid_err(sc->hdev,
+			"Unable to initialize multi-touch slots: %d\n",
+			ret);
+			goto err_stop;
+		}
+
 	} else if (sc->quirks & MOTION_CONTROLLER) {
 		sony_init_output_report(sc, motion_send_output_report);
 	} else {
@@ -2969,6 +3082,12 @@ static const struct hid_device_id sony_devices[] = {
 	/* Nyko Core Controller for PS3 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SINO_LITE, USB_DEVICE_ID_SINO_LITE_CONTROLLER),
 		.driver_data = SIXAXIS_CONTROLLER_USB | SINO_LITE_CONTROLLER },
+	/* SMK-Link NSG-MR5U Remote Control */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR5U_REMOTE),
+		.driver_data = NSG_MR5U_REMOTE_BT },
+	/* SMK-Link NSG-MR7U Remote Control */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR7U_REMOTE),
+		.driver_data = NSG_MR7U_REMOTE_BT },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);

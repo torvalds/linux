@@ -33,7 +33,21 @@
  * the NetBSD file "sys/arch/mac68k/dev/if_sn.c".
  */
 
+static unsigned int version_printed;
 
+static int sonic_debug = -1;
+module_param(sonic_debug, int, 0);
+MODULE_PARM_DESC(sonic_debug, "debug message level");
+
+static void sonic_msg_init(struct net_device *dev)
+{
+	struct sonic_local *lp = netdev_priv(dev);
+
+	lp->msg_enable = netif_msg_init(sonic_debug, 0);
+
+	if (version_printed++ == 0)
+		netif_dbg(lp, drv, dev, "%s", version);
+}
 
 /*
  * Open/initialize the SONIC controller.
@@ -47,8 +61,7 @@ static int sonic_open(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;
 
-	if (sonic_debug > 2)
-		printk("sonic_open: initializing sonic driver.\n");
+	netif_dbg(lp, ifup, dev, "%s: initializing sonic driver\n", __func__);
 
 	for (i = 0; i < SONIC_NUM_RRS; i++) {
 		struct sk_buff *skb = netdev_alloc_skb(dev, SONIC_RBSIZE + 2);
@@ -95,8 +108,7 @@ static int sonic_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 
-	if (sonic_debug > 2)
-		printk("sonic_open: Initialization done.\n");
+	netif_dbg(lp, ifup, dev, "%s: Initialization done\n", __func__);
 
 	return 0;
 }
@@ -110,8 +122,7 @@ static int sonic_close(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;
 
-	if (sonic_debug > 2)
-		printk("sonic_close\n");
+	netif_dbg(lp, ifdown, dev, "%s\n", __func__);
 
 	netif_stop_queue(dev);
 
@@ -205,8 +216,7 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 	int length;
 	int entry = lp->next_tx;
 
-	if (sonic_debug > 2)
-		printk("sonic_send_packet: skb=%p, dev=%p\n", skb, dev);
+	netif_dbg(lp, tx_queued, dev, "%s: skb=%p\n", __func__, skb);
 
 	length = skb->len;
 	if (length < ETH_ZLEN) {
@@ -252,14 +262,12 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 	lp->next_tx = (entry + 1) & SONIC_TDS_MASK;
 	if (lp->tx_skb[lp->next_tx] != NULL) {
 		/* The ring is full, the ISR has yet to process the next TD. */
-		if (sonic_debug > 3)
-			printk("%s: stopping queue\n", dev->name);
+		netif_dbg(lp, tx_queued, dev, "%s: stopping queue\n", __func__);
 		netif_stop_queue(dev);
 		/* after this packet, wait for ISR to free up some TDAs */
 	} else netif_start_queue(dev);
 
-	if (sonic_debug > 2)
-		printk("sonic_send_packet: issuing Tx command\n");
+	netif_dbg(lp, tx_queued, dev, "%s: issuing Tx command\n", __func__);
 
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_TXP);
 
@@ -281,8 +289,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 
 	do {
 		if (status & SONIC_INT_PKTRX) {
-			if (sonic_debug > 2)
-				printk("%s: packet rx\n", dev->name);
+			netif_dbg(lp, intr, dev, "%s: packet rx\n", __func__);
 			sonic_rx(dev);	/* got packet(s) */
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_PKTRX); /* clear the interrupt */
 		}
@@ -299,8 +306,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 			 *   still being allocated by sonic_send_packet (status clear & tx_skb[entry] clear)
 			 */
 
-			if (sonic_debug > 2)
-				printk("%s: tx done\n", dev->name);
+			netif_dbg(lp, intr, dev, "%s: tx done\n", __func__);
 
 			while (lp->tx_skb[entry] != NULL) {
 				if ((td_status = sonic_tda_get(dev, entry, SONIC_TD_STATUS)) == 0)
@@ -346,20 +352,20 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 		 * check error conditions
 		 */
 		if (status & SONIC_INT_RFO) {
-			if (sonic_debug > 1)
-				printk("%s: rx fifo overrun\n", dev->name);
+			netif_dbg(lp, rx_err, dev, "%s: rx fifo overrun\n",
+				  __func__);
 			lp->stats.rx_fifo_errors++;
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_RFO); /* clear the interrupt */
 		}
 		if (status & SONIC_INT_RDE) {
-			if (sonic_debug > 1)
-				printk("%s: rx descriptors exhausted\n", dev->name);
+			netif_dbg(lp, rx_err, dev, "%s: rx descriptors exhausted\n",
+				  __func__);
 			lp->stats.rx_dropped++;
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_RDE); /* clear the interrupt */
 		}
 		if (status & SONIC_INT_RBAE) {
-			if (sonic_debug > 1)
-				printk("%s: rx buffer area exceeded\n", dev->name);
+			netif_dbg(lp, rx_err, dev, "%s: rx buffer area exceeded\n",
+				  __func__);
 			lp->stats.rx_dropped++;
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_RBAE); /* clear the interrupt */
 		}
@@ -380,8 +386,9 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 
 		/* transmit error */
 		if (status & SONIC_INT_TXER) {
-			if ((SONIC_READ(SONIC_TCR) & SONIC_TCR_FU) && (sonic_debug > 2))
-				printk(KERN_ERR "%s: tx fifo underrun\n", dev->name);
+			if (SONIC_READ(SONIC_TCR) & SONIC_TCR_FU)
+				netif_dbg(lp, tx_err, dev, "%s: tx fifo underrun\n",
+					  __func__);
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_TXER); /* clear the interrupt */
 		}
 
@@ -475,8 +482,8 @@ static void sonic_rx(struct net_device *dev)
 			if (lp->cur_rwp >= lp->rra_end) lp->cur_rwp = lp->rra_laddr & 0xffff;
 			SONIC_WRITE(SONIC_RWP, lp->cur_rwp);
 			if (SONIC_READ(SONIC_ISR) & SONIC_INT_RBE) {
-				if (sonic_debug > 2)
-					printk("%s: rx buffer exhausted\n", dev->name);
+				netif_dbg(lp, rx_err, dev, "%s: rx buffer exhausted\n",
+					  __func__);
 				SONIC_WRITE(SONIC_ISR, SONIC_INT_RBE); /* clear the flag */
 			}
 		} else
@@ -542,9 +549,8 @@ static void sonic_multicast_list(struct net_device *dev)
 		    (netdev_mc_count(dev) > 15)) {
 			rcr |= SONIC_RCR_AMC;
 		} else {
-			if (sonic_debug > 2)
-				printk("sonic_multicast_list: mc_count %d\n",
-				       netdev_mc_count(dev));
+			netif_dbg(lp, ifup, dev, "%s: mc_count %d\n", __func__,
+				  netdev_mc_count(dev));
 			sonic_set_cam_enable(dev, 1);  /* always enable our own address */
 			i = 1;
 			netdev_for_each_mc_addr(ha, dev) {
@@ -562,8 +568,7 @@ static void sonic_multicast_list(struct net_device *dev)
 		}
 	}
 
-	if (sonic_debug > 2)
-		printk("sonic_multicast_list: setting RCR=%x\n", rcr);
+	netif_dbg(lp, ifup, dev, "%s: setting RCR=%x\n", __func__, rcr);
 
 	SONIC_WRITE(SONIC_RCR, rcr);
 }
@@ -596,8 +601,8 @@ static int sonic_init(struct net_device *dev)
 	/*
 	 * initialize the receive resource area
 	 */
-	if (sonic_debug > 2)
-		printk("sonic_init: initialize receive resource area\n");
+	netif_dbg(lp, ifup, dev, "%s: initialize receive resource area\n",
+		  __func__);
 
 	for (i = 0; i < SONIC_NUM_RRS; i++) {
 		u16 bufadr_l = (unsigned long)lp->rx_laddr[i] & 0xffff;
@@ -622,8 +627,7 @@ static int sonic_init(struct net_device *dev)
 	SONIC_WRITE(SONIC_EOBC, (SONIC_RBSIZE >> 1) - (lp->dma_bitmode ? 2 : 1));
 
 	/* load the resource pointers */
-	if (sonic_debug > 3)
-		printk("sonic_init: issuing RRRA command\n");
+	netif_dbg(lp, ifup, dev, "%s: issuing RRRA command\n", __func__);
 
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_RRRA);
 	i = 0;
@@ -632,16 +636,17 @@ static int sonic_init(struct net_device *dev)
 			break;
 	}
 
-	if (sonic_debug > 2)
-		printk("sonic_init: status=%x i=%d\n", SONIC_READ(SONIC_CMD), i);
+	netif_dbg(lp, ifup, dev, "%s: status=%x, i=%d\n", __func__,
+		  SONIC_READ(SONIC_CMD), i);
 
 	/*
 	 * Initialize the receive descriptors so that they
 	 * become a circular linked list, ie. let the last
 	 * descriptor point to the first again.
 	 */
-	if (sonic_debug > 2)
-		printk("sonic_init: initialize receive descriptors\n");
+	netif_dbg(lp, ifup, dev, "%s: initialize receive descriptors\n",
+		  __func__);
+
 	for (i=0; i<SONIC_NUM_RDS; i++) {
 		sonic_rda_put(dev, i, SONIC_RD_STATUS, 0);
 		sonic_rda_put(dev, i, SONIC_RD_PKTLEN, 0);
@@ -664,8 +669,9 @@ static int sonic_init(struct net_device *dev)
 	/*
 	 * initialize transmit descriptors
 	 */
-	if (sonic_debug > 2)
-		printk("sonic_init: initialize transmit descriptors\n");
+	netif_dbg(lp, ifup, dev, "%s: initialize transmit descriptors\n",
+		  __func__);
+
 	for (i = 0; i < SONIC_NUM_TDS; i++) {
 		sonic_tda_put(dev, i, SONIC_TD_STATUS, 0);
 		sonic_tda_put(dev, i, SONIC_TD_CONFIG, 0);
@@ -712,10 +718,8 @@ static int sonic_init(struct net_device *dev)
 		if (SONIC_READ(SONIC_ISR) & SONIC_INT_LCD)
 			break;
 	}
-	if (sonic_debug > 2) {
-		printk("sonic_init: CMD=%x, ISR=%x\n, i=%d",
-		       SONIC_READ(SONIC_CMD), SONIC_READ(SONIC_ISR), i);
-	}
+	netif_dbg(lp, ifup, dev, "%s: CMD=%x, ISR=%x, i=%d\n", __func__,
+		  SONIC_READ(SONIC_CMD), SONIC_READ(SONIC_ISR), i);
 
 	/*
 	 * enable receiver, disable loopback
@@ -731,9 +735,8 @@ static int sonic_init(struct net_device *dev)
 	if ((cmd & SONIC_CR_RXEN) == 0 || (cmd & SONIC_CR_STP) == 0)
 		printk(KERN_ERR "sonic_init: failed, status=%x\n", cmd);
 
-	if (sonic_debug > 2)
-		printk("sonic_init: new status=%x\n",
-		       SONIC_READ(SONIC_CMD));
+	netif_dbg(lp, ifup, dev, "%s: new status=%x\n", __func__,
+		  SONIC_READ(SONIC_CMD));
 
 	return 0;
 }

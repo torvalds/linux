@@ -14,19 +14,20 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/of_gpio.h>
 #include <linux/bitops.h>
 
 /* GPIO registers definition */
 #define GPIO_DATA_OUT		0x00
 #define GPIO_DATA_IN		0x04
 #define GPIO_DIR		0x08
+#define GPIO_BYPASS_IN		0x0C
 #define GPIO_DATA_SET		0x10
 #define GPIO_DATA_CLR		0x14
 #define GPIO_PULL_EN		0x18
 #define GPIO_PULL_TYPE		0x1C
 #define GPIO_INT_EN		0x20
-#define GPIO_INT_STAT		0x24
+#define GPIO_INT_STAT_RAW	0x24
+#define GPIO_INT_STAT_MASKED	0x28
 #define GPIO_INT_MASK		0x2C
 #define GPIO_INT_CLR		0x30
 #define GPIO_INT_TYPE		0x34
@@ -147,7 +148,7 @@ static void ftgpio_gpio_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(irqchip, desc);
 
-	stat = readl(g->base + GPIO_INT_STAT);
+	stat = readl(g->base + GPIO_INT_STAT_RAW);
 	if (stat)
 		for_each_set_bit(offset, &stat, gc->ngpio)
 			generic_handle_irq(irq_find_mapping(gc->irq.domain,

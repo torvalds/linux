@@ -280,9 +280,8 @@ qla8044_clear_qsnt_ready(struct scsi_qla_host *vha)
 }
 
 /**
- *
  * qla8044_lock_recovery - Recovers the idc_lock.
- * @ha : Pointer to adapter structure
+ * @vha : Pointer to adapter structure
  *
  * Lock Recovery Register
  * 5-2	Lock recovery owner: Function ID of driver doing lock recovery,
@@ -1639,10 +1638,10 @@ qla8044_set_rst_ready(struct scsi_qla_host *vha)
 
 /**
  * qla8044_need_reset_handler - Code to start reset sequence
- * @ha: pointer to adapter structure
+ * @vha: pointer to adapter structure
  *
  * Note: IDC lock must be held upon entry
- **/
+ */
 static void
 qla8044_need_reset_handler(struct scsi_qla_host *vha)
 {
@@ -1859,8 +1858,8 @@ exit_update_idc_reg:
 
 /**
  * qla8044_need_qsnt_handler - Code to start qsnt
- * @ha: pointer to adapter structure
- **/
+ * @vha: pointer to adapter structure
+ */
 static void
 qla8044_need_qsnt_handler(struct scsi_qla_host *vha)
 {
@@ -2031,10 +2030,10 @@ exit_error:
 
 /**
  * qla4_8xxx_check_temp - Check the ISP82XX temperature.
- * @ha: adapter block pointer.
+ * @vha: adapter block pointer.
  *
  * Note: The caller should not hold the idc lock.
- **/
+ */
 static int
 qla8044_check_temp(struct scsi_qla_host *vha)
 {
@@ -2071,10 +2070,10 @@ int qla8044_read_temperature(scsi_qla_host_t *vha)
 
 /**
  * qla8044_check_fw_alive  - Check firmware health
- * @ha: Pointer to host adapter structure.
+ * @vha: Pointer to host adapter structure.
  *
  * Context: Interrupt
- **/
+ */
 int
 qla8044_check_fw_alive(struct scsi_qla_host *vha)
 {

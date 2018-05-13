@@ -1647,9 +1647,17 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 	}
 }
 
+struct link_config_limits {
+	int min_clock, max_clock;
+	int min_lane_count, max_lane_count;
+	int min_bpp, max_bpp;
+};
+
 static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int bpp, bpc;
 
 	bpp = pipe_config->pipe_bpp;
@@ -1658,13 +1666,16 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 	if (bpc > 0)
 		bpp = min(bpp, 3*bpc);
 
-	/* For DP Compliance we override the computed bpp for the pipe */
-	if (intel_dp->compliance.test_data.bpc != 0) {
-		pipe_config->pipe_bpp =	3*intel_dp->compliance.test_data.bpc;
-		pipe_config->dither_force_disable = pipe_config->pipe_bpp == 6*3;
-		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n",
-			      pipe_config->pipe_bpp);
+	if (intel_dp_is_edp(intel_dp)) {
+		/* Get bpp from vbt only for panels that dont have bpp in edid */
+		if (intel_connector->base.display_info.bpc == 0 &&
+		    dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp) {
+			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+				      dev_priv->vbt.edp.bpp);
+			bpp = dev_priv->vbt.edp.bpp;
+		}
 	}
+
 	return bpp;
 }
 
@@ -1685,6 +1696,142 @@ static bool intel_edp_compare_alt_mode(struct drm_display_mode *m1,
 	return bres;
 }
 
+/* Adjust link config limits based on compliance test requests. */
+static void
+intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  struct link_config_limits *limits)
+{
+	/* For DP Compliance we override the computed bpp for the pipe */
+	if (intel_dp->compliance.test_data.bpc != 0) {
+		int bpp = 3 * intel_dp->compliance.test_data.bpc;
+
+		limits->min_bpp = limits->max_bpp = bpp;
+		pipe_config->dither_force_disable = bpp == 6 * 3;
+
+		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n", bpp);
+	}
+
+	/* Use values requested by Compliance Test Request */
+	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
+		int index;
+
+		/* Validate the compliance test data since max values
+		 * might have changed due to link train fallback.
+		 */
+		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
+					       intel_dp->compliance.test_lane_count)) {
+			index = intel_dp_rate_index(intel_dp->common_rates,
+						    intel_dp->num_common_rates,
+						    intel_dp->compliance.test_link_rate);
+			if (index >= 0)
+				limits->min_clock = limits->max_clock = index;
+			limits->min_lane_count = limits->max_lane_count =
+				intel_dp->compliance.test_lane_count;
+		}
+	}
+}
+
+/* Optimize link config in order: max bpp, min clock, min lanes */
+static bool
+intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  const struct link_config_limits *limits)
+{
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int bpp, clock, lane_count;
+	int mode_rate, link_clock, link_avail;
+
+	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
+						   bpp);
+
+		for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
+			for (lane_count = limits->min_lane_count;
+			     lane_count <= limits->max_lane_count;
+			     lane_count <<= 1) {
+				link_clock = intel_dp->common_rates[clock];
+				link_avail = intel_dp_max_data_rate(link_clock,
+								    lane_count);
+
+				if (mode_rate <= link_avail) {
+					pipe_config->lane_count = lane_count;
+					pipe_config->pipe_bpp = bpp;
+					pipe_config->port_clock = link_clock;
+
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+static bool
+intel_dp_compute_link_config(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
+{
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct link_config_limits limits;
+	int common_len;
+
+	common_len = intel_dp_common_len_rate_limit(intel_dp,
+						    intel_dp->max_link_rate);
+
+	/* No common link rates between source and sink */
+	WARN_ON(common_len <= 0);
+
+	limits.min_clock = 0;
+	limits.max_clock = common_len - 1;
+
+	limits.min_lane_count = 1;
+	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
+
+	limits.min_bpp = 6 * 3;
+	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
+
+	if (intel_dp_is_edp(intel_dp)) {
+		/*
+		 * Use the maximum clock and number of lanes the eDP panel
+		 * advertizes being capable of. The panels are generally
+		 * designed to support only a single clock and lane
+		 * configuration, and typically these values correspond to the
+		 * native resolution of the panel.
+		 */
+		limits.min_lane_count = limits.max_lane_count;
+		limits.min_clock = limits.max_clock;
+	}
+
+	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
+
+	DRM_DEBUG_KMS("DP link computation with max lane count %i "
+		      "max rate %d max bpp %d pixel clock %iKHz\n",
+		      limits.max_lane_count,
+		      intel_dp->common_rates[limits.max_clock],
+		      limits.max_bpp, adjusted_mode->crtc_clock);
+
+	/*
+	 * Optimize for slow and wide. This is the place to add alternative
+	 * optimization policy.
+	 */
+	if (!intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits))
+		return false;
+
+	DRM_DEBUG_KMS("DP lane count %d clock %d bpp %d\n",
+		      pipe_config->lane_count, pipe_config->port_clock,
+		      pipe_config->pipe_bpp);
+
+	DRM_DEBUG_KMS("DP link rate required %i available %i\n",
+		      intel_dp_link_required(adjusted_mode->crtc_clock,
+					     pipe_config->pipe_bpp),
+		      intel_dp_max_data_rate(pipe_config->port_clock,
+					     pipe_config->lane_count));
+
+	return true;
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -1698,26 +1845,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
-	int lane_count, clock;
-	int min_lane_count = 1;
-	int max_lane_count = intel_dp_max_lane_count(intel_dp);
-	/* Conveniently, the link BW constants become indices with a shift...*/
-	int min_clock = 0;
-	int max_clock;
-	int bpp, mode_rate;
-	int link_avail, link_clock;
-	int common_len;
-	uint8_t link_bw, rate_select;
 	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_LIMITED_M_N);
-
-	common_len = intel_dp_common_len_rate_limit(intel_dp,
-						    intel_dp->max_link_rate);
-
-	/* No common link rates between source and sink */
-	WARN_ON(common_len <= 0);
-
-	max_clock = common_len - 1;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -1744,6 +1873,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 		if (INTEL_GEN(dev_priv) >= 9) {
 			int ret;
+
 			ret = skl_update_scaler_crtc(pipe_config);
 			if (ret)
 				return ret;
@@ -1764,75 +1894,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
 
-	/* Use values requested by Compliance Test Request */
-	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
-		int index;
+	if (!intel_dp_compute_link_config(encoder, pipe_config))
+		return false;
 
-		/* Validate the compliance test data since max values
-		 * might have changed due to link train fallback.
-		 */
-		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
-					       intel_dp->compliance.test_lane_count)) {
-			index = intel_dp_rate_index(intel_dp->common_rates,
-						    intel_dp->num_common_rates,
-						    intel_dp->compliance.test_link_rate);
-			if (index >= 0)
-				min_clock = max_clock = index;
-			min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
-		}
-	}
-	DRM_DEBUG_KMS("DP link computation with max lane count %i "
-		      "max bw %d pixel clock %iKHz\n",
-		      max_lane_count, intel_dp->common_rates[max_clock],
-		      adjusted_mode->crtc_clock);
-
-	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
-	 * bpc in between. */
-	bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
-	if (intel_dp_is_edp(intel_dp)) {
-
-		/* Get bpp from vbt only for panels that dont have bpp in edid */
-		if (intel_connector->base.display_info.bpc == 0 &&
-			(dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp)) {
-			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
-				      dev_priv->vbt.edp.bpp);
-			bpp = dev_priv->vbt.edp.bpp;
-		}
-
-		/*
-		 * Use the maximum clock and number of lanes the eDP panel
-		 * advertizes being capable of. The panels are generally
-		 * designed to support only a single clock and lane
-		 * configuration, and typically these values correspond to the
-		 * native resolution of the panel.
-		 */
-		min_lane_count = max_lane_count;
-		min_clock = max_clock;
-	}
-
-	for (; bpp >= 6*3; bpp -= 2*3) {
-		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   bpp);
-
-		for (clock = min_clock; clock <= max_clock; clock++) {
-			for (lane_count = min_lane_count;
-				lane_count <= max_lane_count;
-				lane_count <<= 1) {
-
-				link_clock = intel_dp->common_rates[clock];
-				link_avail = intel_dp_max_data_rate(link_clock,
-								    lane_count);
-
-				if (mode_rate <= link_avail) {
-					goto found;
-				}
-			}
-		}
-	}
-
-	return false;
-
-found:
 	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/*
 		 * See:
@@ -1840,7 +1904,7 @@ found:
 		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
 		 */
 		pipe_config->limited_color_range =
-			bpp != 18 &&
+			pipe_config->pipe_bpp != 18 &&
 			drm_default_rgb_quant_range(adjusted_mode) ==
 			HDMI_QUANTIZATION_RANGE_LIMITED;
 	} else {
@@ -1848,21 +1912,7 @@ found:
 			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
 	}
 
-	pipe_config->lane_count = lane_count;
-
-	pipe_config->pipe_bpp = bpp;
-	pipe_config->port_clock = intel_dp->common_rates[clock];
-
-	intel_dp_compute_rate(intel_dp, pipe_config->port_clock,
-			      &link_bw, &rate_select);
-
-	DRM_DEBUG_KMS("DP link bw %02x rate select %02x lane count %d clock %d bpp %d\n",
-		      link_bw, rate_select, pipe_config->lane_count,
-		      pipe_config->port_clock, bpp);
-	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
-		      mode_rate, link_avail);
-
-	intel_link_compute_m_n(bpp, lane_count,
+	intel_link_compute_m_n(pipe_config->pipe_bpp, pipe_config->lane_count,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
@@ -1871,31 +1921,12 @@ found:
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
 			pipe_config->has_drrs = true;
-			intel_link_compute_m_n(bpp, lane_count,
-				intel_connector->panel.downclock_mode->clock,
-				pipe_config->port_clock,
-				&pipe_config->dp_m2_n2,
-				reduce_m_n);
-	}
-
-	/*
-	 * DPLL0 VCO may need to be adjusted to get the correct
-	 * clock for eDP. This will affect cdclk as well.
-	 */
-	if (intel_dp_is_edp(intel_dp) && IS_GEN9_BC(dev_priv)) {
-		int vco;
-
-		switch (pipe_config->port_clock / 2) {
-		case 108000:
-		case 216000:
-			vco = 8640000;
-			break;
-		default:
-			vco = 8100000;
-			break;
-		}
-
-		to_intel_atomic_state(pipe_config->base.state)->cdclk.logical.vco = vco;
+			intel_link_compute_m_n(pipe_config->pipe_bpp,
+					       pipe_config->lane_count,
+					       intel_connector->panel.downclock_mode->clock,
+					       pipe_config->port_clock,
+					       &pipe_config->dp_m2_n2,
+					       reduce_m_n);
 	}
 
 	if (!HAS_DDI(dev_priv))

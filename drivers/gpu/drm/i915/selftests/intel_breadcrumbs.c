@@ -271,18 +271,13 @@ struct igt_wakeup {
 	u32 seqno;
 };
 
-static int wait_atomic_timeout(atomic_t *p, unsigned int mode)
-{
-	return schedule_timeout(10 * HZ) ? 0 : -ETIMEDOUT;
-}
-
 static bool wait_for_ready(struct igt_wakeup *w)
 {
 	DEFINE_WAIT(ready);
 
 	set_bit(IDLE, &w->flags);
 	if (atomic_dec_and_test(w->done))
-		wake_up_atomic_t(w->done);
+		wake_up_var(w->done);
 
 	if (test_bit(STOP, &w->flags))
 		goto out;
@@ -299,7 +294,7 @@ static bool wait_for_ready(struct igt_wakeup *w)
 out:
 	clear_bit(IDLE, &w->flags);
 	if (atomic_dec_and_test(w->set))
-		wake_up_atomic_t(w->set);
+		wake_up_var(w->set);
 
 	return !test_bit(STOP, &w->flags);
 }
@@ -342,7 +337,7 @@ static void igt_wake_all_sync(atomic_t *ready,
 	atomic_set(ready, 0);
 	wake_up_all(wq);
 
-	wait_on_atomic_t(set, atomic_t_wait, TASK_UNINTERRUPTIBLE);
+	wait_var_event(set, !atomic_read(set));
 	atomic_set(ready, count);
 	atomic_set(done, count);
 }
@@ -350,7 +345,6 @@ static void igt_wake_all_sync(atomic_t *ready,
 static int igt_wakeup(void *arg)
 {
 	I915_RND_STATE(prng);
-	const int state = TASK_UNINTERRUPTIBLE;
 	struct intel_engine_cs *engine = arg;
 	struct igt_wakeup *waiters;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -418,10 +412,11 @@ static int igt_wakeup(void *arg)
 		 * that they are ready for the next test. We wait until all
 		 * threads are complete and waiting for us (i.e. not a seqno).
 		 */
-		err = wait_on_atomic_t(&done, wait_atomic_timeout, state);
-		if (err) {
+		if (!wait_var_event_timeout(&done,
+					    !atomic_read(&done), 10 * HZ)) {
 			pr_err("Timed out waiting for %d remaining waiters\n",
 			       atomic_read(&done));
+			err = -ETIMEDOUT;
 			break;
 		}
 

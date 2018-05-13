@@ -46,7 +46,14 @@ struct drm_device {
 	/* currently active master for this device. Protected by master_mutex */
 	struct drm_master *master;
 
-	atomic_t unplugged;			/**< Flag whether dev is dead */
+	/**
+	 * @unplugged:
+	 *
+	 * Flag to tell if the device has been unplugged.
+	 * See drm_dev_enter() and drm_dev_is_unplugged().
+	 */
+	bool unplugged;
+
 	struct inode *anon_inode;		/**< inode for private address-space */
 	char *unique;				/**< unique name of the device */
 	/*@} */

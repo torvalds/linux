@@ -57,6 +57,14 @@
 #define UNIPHIER_PRO4_SYS_CLK_USB3(idx, ch)				\
 	UNIPHIER_CLK_GATE("usb3" #ch, (idx), NULL, 0x2104, 16 + (ch))
 
+#define UNIPHIER_PRO4_SYS_CLK_AIO(idx)					\
+	UNIPHIER_CLK_FACTOR("aio-io200m", -1, "spll", 1, 8),		\
+	UNIPHIER_CLK_GATE("aio", (idx), "aio-io200m", 0x2104, 13)
+
+#define UNIPHIER_PRO5_SYS_CLK_AIO(idx)					\
+	UNIPHIER_CLK_FACTOR("aio-io200m", -1, "spll", 1, 12),		\
+	UNIPHIER_CLK_GATE("aio", (idx), "aio-io200m", 0x2104, 13)
+
 #define UNIPHIER_LD11_SYS_CLK_AIO(idx)					\
 	UNIPHIER_CLK_FACTOR("aio-io200m", -1, "spll", 1, 10),		\
 	UNIPHIER_CLK_GATE("aio", (idx), "aio-io200m", 0x2108, 0)
@@ -94,16 +102,22 @@ const struct uniphier_clk_data uniphier_pro4_sys_clk_data[] = {
 	UNIPHIER_CLK_FACTOR("upll", -1, "ref", 288, 25),	/* 288 MHz */
 	UNIPHIER_CLK_FACTOR("a2pll", -1, "upll", 256, 125),	/* 589.824 MHz */
 	UNIPHIER_CLK_FACTOR("vpll27a", -1, "ref", 270, 25),	/* 270 MHz */
+	UNIPHIER_CLK_FACTOR("gpll", -1, "ref", 10, 1),		/* 250 MHz */
 	UNIPHIER_CLK_FACTOR("uart", 0, "a2pll", 1, 8),
 	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 32),
 	UNIPHIER_LD4_SYS_CLK_NAND(2),
 	UNIPHIER_LD4_SYS_CLK_SD,
 	UNIPHIER_CLK_FACTOR("usb2", -1, "upll", 1, 12),
 	UNIPHIER_PRO4_SYS_CLK_ETHER(6),
+	UNIPHIER_CLK_GATE("ether-gb", 7, "gpll", 0x2104, 5),
 	UNIPHIER_LD4_SYS_CLK_STDMAC(8),			/* HSC, MIO, RLE */
+	UNIPHIER_CLK_GATE("ether-phy", 10, "ref", 0x2260, 0),
 	UNIPHIER_PRO4_SYS_CLK_GIO(12),			/* Ether, SATA, USB3 */
 	UNIPHIER_PRO4_SYS_CLK_USB3(14, 0),
 	UNIPHIER_PRO4_SYS_CLK_USB3(15, 1),
+	UNIPHIER_CLK_GATE("sata0", 28, NULL, 0x2104, 18),
+	UNIPHIER_CLK_GATE("sata1", 29, NULL, 0x2104, 19),
+	UNIPHIER_PRO4_SYS_CLK_AIO(40),
 	{ /* sentinel */ }
 };
 
@@ -132,6 +146,8 @@ const struct uniphier_clk_data uniphier_pro5_sys_clk_data[] = {
 	UNIPHIER_PRO4_SYS_CLK_GIO(12),				/* PCIe, USB3 */
 	UNIPHIER_PRO4_SYS_CLK_USB3(14, 0),
 	UNIPHIER_PRO4_SYS_CLK_USB3(15, 1),
+	UNIPHIER_CLK_GATE("pcie", 24, NULL, 0x2108, 2),
+	UNIPHIER_PRO5_SYS_CLK_AIO(40),
 	{ /* sentinel */ }
 };
 
@@ -149,6 +165,8 @@ const struct uniphier_clk_data uniphier_pxs2_sys_clk_data[] = {
 	/* The document mentions 0x2104 bit 18, but not functional */
 	UNIPHIER_CLK_GATE("usb30-phy", 16, NULL, 0x2104, 19),
 	UNIPHIER_CLK_GATE("usb31-phy", 20, NULL, 0x2104, 20),
+	UNIPHIER_CLK_GATE("sata0", 28, NULL, 0x2104, 22),
+	UNIPHIER_PRO5_SYS_CLK_AIO(40),
 	{ /* sentinel */ }
 };
 
@@ -205,6 +223,7 @@ const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
 	UNIPHIER_CLK_GATE("usb30", 14, NULL, 0x210c, 14),
 	UNIPHIER_CLK_GATE("usb30-phy0", 16, NULL, 0x210c, 12),
 	UNIPHIER_CLK_GATE("usb30-phy1", 17, NULL, 0x210c, 13),
+	UNIPHIER_CLK_GATE("pcie", 24, NULL, 0x210c, 4),
 	UNIPHIER_LD11_SYS_CLK_AIO(40),
 	UNIPHIER_LD11_SYS_CLK_EVEA(41),
 	UNIPHIER_LD11_SYS_CLK_EXIV(42),
@@ -233,6 +252,8 @@ const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
 	UNIPHIER_LD20_SYS_CLK_SD,
 	UNIPHIER_LD11_SYS_CLK_NAND(2),
 	UNIPHIER_LD11_SYS_CLK_EMMC(4),
+	UNIPHIER_CLK_GATE("ether0", 6, NULL, 0x210c, 9),
+	UNIPHIER_CLK_GATE("ether1", 7, NULL, 0x210c, 10),
 	UNIPHIER_CLK_GATE("usb30", 12, NULL, 0x210c, 4),	/* =GIO0 */
 	UNIPHIER_CLK_GATE("usb31-0", 13, NULL, 0x210c, 5),	/* =GIO1 */
 	UNIPHIER_CLK_GATE("usb31-1", 14, NULL, 0x210c, 6),	/* =GIO1-1 */
@@ -241,6 +262,10 @@ const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
 	UNIPHIER_CLK_GATE("usb30-phy2", 18, NULL, 0x210c, 20),
 	UNIPHIER_CLK_GATE("usb31-phy0", 20, NULL, 0x210c, 17),
 	UNIPHIER_CLK_GATE("usb31-phy1", 21, NULL, 0x210c, 19),
+	UNIPHIER_CLK_GATE("pcie", 24, NULL, 0x210c, 3),
+	UNIPHIER_CLK_GATE("sata0", 28, NULL, 0x210c, 7),
+	UNIPHIER_CLK_GATE("sata1", 29, NULL, 0x210c, 8),
+	UNIPHIER_CLK_GATE("sata-phy", 30, NULL, 0x210c, 21),
 	/* CPU gears */
 	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV4("spll", 2, 3, 4, 8),

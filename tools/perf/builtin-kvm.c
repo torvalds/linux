@@ -743,16 +743,23 @@ static bool verify_vcpu(int vcpu)
 static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 				   u64 *mmap_time)
 {
+	struct perf_evlist *evlist = kvm->evlist;
 	union perf_event *event;
+	struct perf_mmap *md;
 	u64 timestamp;
 	s64 n = 0;
 	int err;
 
 	*mmap_time = ULLONG_MAX;
-	while ((event = perf_evlist__mmap_read(kvm->evlist, idx)) != NULL) {
-		err = perf_evlist__parse_sample_timestamp(kvm->evlist, event, &timestamp);
+	md = &evlist->mmap[idx];
+	err = perf_mmap__read_init(md);
+	if (err < 0)
+		return (err == -EAGAIN) ? 0 : -1;
+
+	while ((event = perf_mmap__read_event(md)) != NULL) {
+		err = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
 		if (err) {
-			perf_evlist__mmap_consume(kvm->evlist, idx);
+			perf_mmap__consume(md);
 			pr_err("Failed to parse sample\n");
 			return -1;
 		}
@@ -762,7 +769,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
 		 */
-		perf_evlist__mmap_consume(kvm->evlist, idx);
+		perf_mmap__consume(md);
 
 		if (err) {
 			pr_err("Failed to enqueue sample: %d\n", err);
@@ -779,6 +786,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			break;
 	}
 
+	perf_mmap__read_done(md);
 	return n;
 }
 

@@ -189,18 +189,15 @@ int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 			   unsigned char *key, unsigned int key_len,
 			   unsigned char *hash, unsigned int *hash_len);
 
-/* cfs crypto hash descriptor */
-struct cfs_crypto_hash_desc;
-
-struct cfs_crypto_hash_desc *
+struct ahash_request *
 cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 		     unsigned char *key, unsigned int key_len);
-int cfs_crypto_hash_update_page(struct cfs_crypto_hash_desc *desc,
+int cfs_crypto_hash_update_page(struct ahash_request *desc,
 				struct page *page, unsigned int offset,
 				unsigned int len);
-int cfs_crypto_hash_update(struct cfs_crypto_hash_desc *desc, const void *buf,
+int cfs_crypto_hash_update(struct ahash_request *desc, const void *buf,
 			   unsigned int buf_len);
-int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *desc,
+int cfs_crypto_hash_final(struct ahash_request *desc,
 			  unsigned char *hash, unsigned int *hash_len);
 int cfs_crypto_register(void);
 void cfs_crypto_unregister(void);

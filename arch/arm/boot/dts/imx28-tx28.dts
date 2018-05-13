@@ -65,8 +65,8 @@
 		usbotg = &usb0;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled in by U-Boot */
+	memory@40000000 {
+		reg = <0x40000000 0>; /* will be filled in by U-Boot */
 	};
 
 	onewire {
@@ -531,7 +531,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_edt_ft5x06_pins: tx28-edt-ft5x06-pins {
+	tx28_edt_ft5x06_pins: tx28-edt-ft5x06-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SSP0_DATA6__GPIO_2_6 /* RESET */
 			MX28_PAD_SSP0_DATA5__GPIO_2_5 /* IRQ */
@@ -542,7 +543,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_flexcan_xcvr_pins: tx28-flexcan-xcvr-pins {
+	tx28_flexcan_xcvr_pins: tx28-flexcan-xcvr-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_LCD_D00__GPIO_1_0
 		>;
@@ -551,7 +553,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_lcdif_23bit_pins: tx28-lcdif-23bit {
+	tx28_lcdif_23bit_pins: tx28-lcdif-23bit@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			/* LCD_D00 may be used as Flexcan Transceiver Enable on STK5-V5 */
 			MX28_PAD_LCD_D01__LCD_D1
@@ -583,7 +586,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_lcdif_ctrl_pins: tx28-lcdif-ctrl {
+	tx28_lcdif_ctrl_pins: tx28-lcdif-ctrl@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_LCD_ENABLE__GPIO_1_31 /* Enable */
 			MX28_PAD_LCD_RESET__GPIO_3_30  /* Reset */
@@ -593,7 +597,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_mac0_pins_gpio: tx28-mac0-gpio-pins {
+	tx28_mac0_pins_gpio: tx28-mac0-gpio-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_ENET0_MDC__GPIO_4_0
 			MX28_PAD_ENET0_MDIO__GPIO_4_1
@@ -610,7 +615,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_pca9554_pins: tx28-pca9554-pins {
+	tx28_pca9554_pins: tx28-pca9554-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_PWM3__GPIO_3_28
 		>;
@@ -619,7 +625,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_spi_gpio_pins: spi-gpiogrp {
+	tx28_spi_gpio_pins: spi-gpiogrp@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_AUART2_RX__GPIO_3_8
 			MX28_PAD_AUART2_TX__GPIO_3_9
@@ -633,7 +640,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_tsc2007_pins: tx28-tsc2007-pins {
+	tx28_tsc2007_pins: tx28-tsc2007-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SAIF0_MCLK__GPIO_3_20 /* TSC2007 IRQ */
 		>;
@@ -643,7 +651,8 @@
 	};
 
 
-	tx28_usbphy0_pins: tx28-usbphy0-pins {
+	tx28_usbphy0_pins: tx28-usbphy0-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_GPMI_CE2N__GPIO_0_18 /* USBOTG_VBUSEN */
 			MX28_PAD_GPMI_CE3N__GPIO_0_19 /* USBOTH_OC */
@@ -653,7 +662,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_usbphy1_pins: tx28-usbphy1-pins {
+	tx28_usbphy1_pins: tx28-usbphy1-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SPDIF__GPIO_3_27 /* USBH_VBUSEN */
 			MX28_PAD_JTAG_RTCK__GPIO_4_20 /* USBH_OC */

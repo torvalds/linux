@@ -8,6 +8,39 @@ config SND_SOC_UNIPHIER
 	  audio interfaces to support below.
 	  If unsure select "N".
 
+config SND_SOC_UNIPHIER_AIO
+	tristate "UniPhier AIO DAI Driver"
+	select REGMAP_MMIO
+	select SND_SOC_COMPRESS
+	depends on SND_SOC_UNIPHIER
+	help
+	  This adds ASoC driver support for Socionext UniPhier
+	  'AIO' Audio Input/Output subsystem.
+	  Select Y if you use such device.
+	  If unsure select "N".
+
+config SND_SOC_UNIPHIER_LD11
+	tristate "UniPhier LD11/LD20 Device Driver"
+	depends on SND_SOC_UNIPHIER
+	select SND_SOC_UNIPHIER_AIO
+	select SND_SOC_UNIPHIER_AIO_DMA
+	help
+	  This adds ASoC driver for Socionext UniPhier LD11/LD20
+	  input and output that can be used with other codecs.
+	  Select Y if you use such device.
+	  If unsure select "N".
+
+config SND_SOC_UNIPHIER_PXS2
+	tristate "UniPhier PXs2 Device Driver"
+	depends on SND_SOC_UNIPHIER
+	select SND_SOC_UNIPHIER_AIO
+	select SND_SOC_UNIPHIER_AIO_DMA
+	help
+	  This adds ASoC driver for Socionext UniPhier PXs2
+	  input and output that can be used with other codecs.
+	  Select Y if you use such device.
+	  If unsure select "N".
+
 config SND_SOC_UNIPHIER_EVEA_CODEC
 	tristate "UniPhier SoC internal audio codec"
 	depends on SND_SOC_UNIPHIER

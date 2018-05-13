@@ -287,7 +287,8 @@ do {									\
 			break;						\
 									\
 		mutex_unlock(&(ca)->set->bucket_lock);			\
-		if (kthread_should_stop()) {				\
+		if (kthread_should_stop() ||				\
+		    test_bit(CACHE_SET_IO_DISABLE, &ca->set->flags)) {	\
 			set_current_state(TASK_RUNNING);		\
 			return 0;					\
 		}							\

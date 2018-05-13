@@ -1106,7 +1106,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 	return n;
 }
 
-static int tda998x_connector_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
 	/* TDA19988 dotclock can go up to 165MHz */

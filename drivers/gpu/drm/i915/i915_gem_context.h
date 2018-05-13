@@ -137,18 +137,7 @@ struct i915_gem_context {
 	 */
 	u32 user_handle;
 
-	/**
-	 * @priority: execution and service priority
-	 *
-	 * All clients are equal, but some are more equal than others!
-	 *
-	 * Requests from a context with a greater (more positive) value of
-	 * @priority will be executed before those with a lower @priority
-	 * value, forming a simple QoS.
-	 *
-	 * The &drm_i915_private.kernel_context is assigned the lowest priority.
-	 */
-	int priority;
+	struct i915_sched_attr sched;
 
 	/** ggtt_offset_bias: placement restriction for context objects */
 	u32 ggtt_offset_bias;
@@ -160,7 +149,7 @@ struct i915_gem_context {
 		u32 *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
-	} engine[I915_NUM_ENGINES];
+	} __engine[I915_NUM_ENGINES];
 
 	/** ring_size: size for allocating the per-engine ring buffer */
 	u32 ring_size;
@@ -265,6 +254,34 @@ static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
 static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 {
 	return !ctx->file_priv;
+}
+
+static inline struct intel_context *
+to_intel_context(struct i915_gem_context *ctx,
+		 const struct intel_engine_cs *engine)
+{
+	return &ctx->__engine[engine->id];
+}
+
+static inline struct intel_ring *
+intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
+{
+	return engine->context_pin(engine, ctx);
+}
+
+static inline void __intel_context_pin(struct i915_gem_context *ctx,
+				       const struct intel_engine_cs *engine)
+{
+	struct intel_context *ce = to_intel_context(ctx, engine);
+
+	GEM_BUG_ON(!ce->pin_count);
+	ce->pin_count++;
+}
+
+static inline void intel_context_unpin(struct i915_gem_context *ctx,
+				       struct intel_engine_cs *engine)
+{
+	engine->context_unpin(engine, ctx);
 }
 
 /* i915_gem_context.c */

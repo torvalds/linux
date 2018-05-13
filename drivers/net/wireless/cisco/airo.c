@@ -4519,21 +4519,21 @@ static int setup_proc_entry( struct net_device *dev,
 	proc_set_user(apriv->proc_entry, proc_kuid, proc_kgid);
 
 	/* Setup the StatsDelta */
-	entry = proc_create_data("StatsDelta", S_IRUGO & proc_perm,
+	entry = proc_create_data("StatsDelta", 0444 & proc_perm,
 				 apriv->proc_entry, &proc_statsdelta_ops, dev);
 	if (!entry)
 		goto fail;
 	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the Stats */
-	entry = proc_create_data("Stats", S_IRUGO & proc_perm,
+	entry = proc_create_data("Stats", 0444 & proc_perm,
 				 apriv->proc_entry, &proc_stats_ops, dev);
 	if (!entry)
 		goto fail;
 	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the Status */
-	entry = proc_create_data("Status", S_IRUGO & proc_perm,
+	entry = proc_create_data("Status", 0444 & proc_perm,
 				 apriv->proc_entry, &proc_status_ops, dev);
 	if (!entry)
 		goto fail;
