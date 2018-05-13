@@ -4189,7 +4189,9 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 				maxphyaddr = eax & 0xff;
 			else
 				maxphyaddr = 36;
-			rsvd = rsvd_bits(maxphyaddr, 62);
+			rsvd = rsvd_bits(maxphyaddr, 63);
+			if (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_PCIDE)
+				rsvd &= ~CR3_PCID_INVD;
 		}
 
 		if (new_val & rsvd)
