@@ -579,13 +579,8 @@ clk_stm32_register_gate_ops(struct device *dev,
 			    spinlock_t *lock)
 {
 	struct clk_init_data init = { NULL };
-	struct clk_gate *gate;
 	struct clk_hw *hw;
 	int ret;
-
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
-	if (!gate)
-		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
 	init.parent_names = &parent_name;
@@ -604,10 +599,8 @@ clk_stm32_register_gate_ops(struct device *dev,
 	hw->init = &init;
 
 	ret = clk_hw_register(dev, hw);
-	if (ret) {
-		kfree(gate);
+	if (ret)
 		hw = ERR_PTR(ret);
-	}
 
 	return hw;
 }
