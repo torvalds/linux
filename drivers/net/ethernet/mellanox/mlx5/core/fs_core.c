@@ -324,7 +324,8 @@ static bool check_valid_mask(u8 match_criteria_enable, const u32 *match_criteria
 	if (match_criteria_enable & ~(
 		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_OUTER_HEADERS)   |
 		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS) |
-		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_INNER_HEADERS)))
+		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_INNER_HEADERS) |
+		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_2)))
 		return false;
 
 	if (!(match_criteria_enable &
@@ -357,6 +358,17 @@ static bool check_valid_mask(u8 match_criteria_enable, const u32 *match_criteria
 		if (fg_type_mask[0] ||
 		    memcmp(fg_type_mask, fg_type_mask + 1,
 			   MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4) - 1))
+			return false;
+	}
+
+	if (!(match_criteria_enable &
+	      1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_2)) {
+		char *fg_type_mask = MLX5_ADDR_OF(fte_match_param,
+						  match_criteria, misc_parameters_2);
+
+		if (fg_type_mask[0] ||
+		    memcmp(fg_type_mask, fg_type_mask + 1,
+			   MLX5_ST_SZ_BYTES(fte_match_set_misc2) - 1))
 			return false;
 	}
 
