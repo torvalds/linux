@@ -1062,7 +1062,7 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 
 #ifdef CONFIG_AUDIT
 	if (audit_enabled) {
-		audit_log(current->audit_context, GFP_KERNEL,
+		audit_log(audit_context(), GFP_KERNEL,
 			  AUDIT_NETFILTER_CFG,
 			  "table=%s family=%u entries=%u",
 			  repl->name, AF_BRIDGE, repl->nentries);
