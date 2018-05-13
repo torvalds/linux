@@ -1403,11 +1403,11 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 		return;
 
 	if (priv->reg.phy_info_timer) {
-		pp->type = cpu_to_le16((uint16_t)TIME_TYPE);
-		pp->time = cpu_to_le16((uint16_t)(priv->reg.phy_info_timer));
+		pp->type = cpu_to_le16((u16)TIME_TYPE);
+		pp->time = cpu_to_le16((u16)(priv->reg.phy_info_timer));
 	} else {
-		pp->type = cpu_to_le16((uint16_t)NORMAL_TYPE);
-		pp->time = cpu_to_le16((uint16_t)0);
+		pp->type = cpu_to_le16((u16)NORMAL_TYPE);
+		pp->time = cpu_to_le16((u16)0);
 	}
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
