@@ -82,6 +82,10 @@ enum {
 #define BYT_RT5640_MCLK_EN		BIT(22)
 #define BYT_RT5640_MCLK_25MHZ		BIT(23)
 
+#define BYTCR_INPUT_DEFAULTS				\
+	(BYT_RT5640_IN3_MAP |				\
+	 BYT_RT5640_DIFF_MIC)
+
 /* in-diff or dmic-pin + jdsrc + ovcd-th + -sf + jd-inv + terminating entry */
 #define MAX_NO_PROPS 6
 
@@ -475,7 +479,7 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 		},
-		.driver_data = (void *)(BYT_RT5640_IN3_MAP |
+		.driver_data = (void *)(BYTCR_INPUT_DEFAULTS |
 					BYT_RT5640_MCLK_EN |
 					BYT_RT5640_SSP0_AIF1),
 
@@ -979,8 +983,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		}
 
 		/* change defaults for Baytrail-CR capture */
-		byt_rt5640_quirk |= BYT_RT5640_IN3_MAP;
-		byt_rt5640_quirk |= BYT_RT5640_DIFF_MIC;
+		byt_rt5640_quirk |= BYTCR_INPUT_DEFAULTS;
 	} else {
 		byt_rt5640_quirk |= BYT_RT5640_DMIC1_MAP;
 	}
