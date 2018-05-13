@@ -277,10 +277,11 @@ out:
 }
 
 #ifdef CONFIG_FS_DAX
-static int ext4_dax_huge_fault(struct vm_fault *vmf,
+static vm_fault_t ext4_dax_huge_fault(struct vm_fault *vmf,
 		enum page_entry_size pe_size)
 {
-	int result, error = 0;
+	int error = 0;
+	vm_fault_t result;
 	int retries = 0;
 	handle_t *handle = NULL;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -335,7 +336,7 @@ retry:
 	return result;
 }
 
-static int ext4_dax_fault(struct vm_fault *vmf)
+static vm_fault_t ext4_dax_fault(struct vm_fault *vmf)
 {
 	return ext4_dax_huge_fault(vmf, PE_SIZE_PTE);
 }
