@@ -42,6 +42,10 @@
 #define SNDRV_CTL_TLVD_LENGTH(...) \
 	((unsigned int)sizeof((const unsigned int[]) { __VA_ARGS__ }))
 
+/* Accessor offsets for TLV data items */
+#define SNDRV_CTL_TLVO_TYPE		0
+#define SNDRV_CTL_TLVO_LEN		1
+
 #define SNDRV_CTL_TLVD_CONTAINER_ITEM(...) \
 	SNDRV_CTL_TLVD_ITEM(SNDRV_CTL_TLVT_CONTAINER, __VA_ARGS__)
 #define SNDRV_CTL_TLVD_DECLARE_CONTAINER(name, ...) \
@@ -60,6 +64,10 @@
 	unsigned int name[] = { \
 		SNDRV_CTL_TLVD_DB_SCALE_ITEM(min, step, mute) \
 	}
+
+/* Accessor offsets for min, mute and step items in dB scale type TLV */
+#define SNDRV_CTL_TLVO_DB_SCALE_MIN		2
+#define SNDRV_CTL_TLVO_DB_SCALE_MUTE_AND_STEP	3
 
 /* dB scale specified with min/max values instead of step */
 #define SNDRV_CTL_TLVD_DB_MINMAX_ITEM(min_dB, max_dB) \
