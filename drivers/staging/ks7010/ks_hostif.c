@@ -1619,7 +1619,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 
 	switch (type) {
 	case SME_RSN_UCAST_REQUEST:
-		wpa_suite.size = cpu_to_le16((uint16_t)1);
+		wpa_suite.size = cpu_to_le16((u16)1);
 		switch (priv->wpa.pairwise_suite) {
 		case IW_AUTH_CIPHER_NONE:
 			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
@@ -1682,7 +1682,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 					       CIPHER_ID_LEN);
 		break;
 	case SME_RSN_AUTH_REQUEST:
-		wpa_suite.size = cpu_to_le16((uint16_t)1);
+		wpa_suite.size = cpu_to_le16((u16)1);
 		switch (priv->wpa.key_mgmt_suite) {
 		case IW_AUTH_KEY_MGMT_802_1X:
 			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
@@ -1721,7 +1721,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 			(priv->wpa.version == IW_AUTH_WPA_VERSION_WPA) ?
 			 RSN_MODE_WPA : RSN_MODE_NONE;
 		rsn_mode.rsn_mode = cpu_to_le32(mode);
-		rsn_mode.rsn_capability = cpu_to_le16((uint16_t)0);
+		rsn_mode.rsn_capability = cpu_to_le16((u16)0);
 		hostif_mib_set_request_ostring(priv, LOCAL_RSN_MODE,
 					       &rsn_mode, sizeof(rsn_mode));
 		break;
