@@ -1354,7 +1354,7 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 		return;
 
 	init_request(priv, &pp->request);
-	pp->channel = cpu_to_le16((uint16_t)(priv->reg.channel));
+	pp->channel = cpu_to_le16((u16)(priv->reg.channel));
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
 
