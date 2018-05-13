@@ -1300,7 +1300,7 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 		return;
 
 	init_request(priv, &pp->request);
-	pp->channel = cpu_to_le16((uint16_t)(priv->reg.channel));
+	pp->channel = cpu_to_le16((u16)(priv->reg.channel));
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
