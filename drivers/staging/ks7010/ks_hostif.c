@@ -1275,7 +1275,7 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 		capability &= ~(WLAN_CAPABILITY_DSSS_OFDM);
 	}
 
-	return cpu_to_le16((uint16_t)capability);
+	return cpu_to_le16(capability);
 }
 
 static void init_request(struct ks_wlan_private *priv,
