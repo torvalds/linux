@@ -1453,8 +1453,8 @@ void hostif_sleep_request(struct ks_wlan_private *priv,
 
 static
 void hostif_bss_scan_request(struct ks_wlan_private *priv,
-			     unsigned long scan_type, uint8_t *scan_ssid,
-			     uint8_t scan_ssid_len)
+			     unsigned long scan_type, u8 *scan_ssid,
+			     u8 scan_ssid_len)
 {
 	struct hostif_bss_scan_request *pp;
 
@@ -1464,8 +1464,8 @@ void hostif_bss_scan_request(struct ks_wlan_private *priv,
 
 	pp->scan_type = scan_type;
 
-	pp->ch_time_min = cpu_to_le32((uint32_t)110);	/* default value */
-	pp->ch_time_max = cpu_to_le32((uint32_t)130);	/* default value */
+	pp->ch_time_min = cpu_to_le32((u32)110);	/* default value */
+	pp->ch_time_max = cpu_to_le32((u32)130);	/* default value */
 	pp->channel_list.body[0] = 1;
 	pp->channel_list.body[1] = 8;
 	pp->channel_list.body[2] = 2;
