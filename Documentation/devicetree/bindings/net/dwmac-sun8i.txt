@@ -28,10 +28,13 @@ Required properties:
   - allwinner,sun8i-a83t-system-controller
 
 Optional properties:
-- allwinner,tx-delay-ps: TX clock delay chain value in ps. Range value is 0-700. Default is 0)
-- allwinner,rx-delay-ps: RX clock delay chain value in ps. Range value is 0-3100. Default is 0)
-Both delay properties need to be a multiple of 100. They control the delay for
-external PHY.
+- allwinner,tx-delay-ps: TX clock delay chain value in ps.
+			 Range is 0-700. Default is 0.
+- allwinner,rx-delay-ps: RX clock delay chain value in ps.
+			 Range is 0-3100. Default is 0.
+Both delay properties need to be a multiple of 100. They control the
+clock delay for external RGMII PHY. They do not apply to the internal
+PHY or external non-RGMII PHYs.
 
 Optional properties for the following compatibles:
   - "allwinner,sun8i-h3-emac",
