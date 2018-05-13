@@ -2959,6 +2959,17 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 		memcpy(&ib_spec->gre.val, kern_spec_val, actual_filter_sz);
 		memcpy(&ib_spec->gre.mask, kern_spec_mask, actual_filter_sz);
 		break;
+	case IB_FLOW_SPEC_MPLS:
+		ib_filter_sz = offsetof(struct ib_flow_mpls_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->mpls.size = sizeof(struct ib_flow_spec_mpls);
+		memcpy(&ib_spec->mpls.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->mpls.mask, kern_spec_mask, actual_filter_sz);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -3518,6 +3529,7 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 					   uflow_res);
 		if (err)
 			goto err_free;
+
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
 		cmd.flow_attr.size -= ((struct ib_uverbs_flow_spec *)kern_spec)->size;
