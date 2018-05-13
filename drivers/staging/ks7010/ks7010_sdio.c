@@ -420,7 +420,7 @@ static void rx_event_task(unsigned long dev)
 	}
 }
 
-static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
+static void ks_wlan_hw_rx(struct ks_wlan_private *priv, size_t size)
 {
 	int ret;
 	struct rx_device_buffer *rx_buffer;
@@ -526,7 +526,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	}
 
 	if (byte & RSIZE_MASK) {	/* Read schedule */
-		ks_wlan_hw_rx(priv, (uint16_t)((byte & RSIZE_MASK) << 4));
+		ks_wlan_hw_rx(priv, (size_t)((byte & RSIZE_MASK) << 4));
 	}
 	if ((byte & WSTATUS_MASK))
 		tx_device_task(priv);
@@ -586,7 +586,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		}
 		rsize = byte & RSIZE_MASK;
 		if (rsize != 0)		/* Read schedule */
-			ks_wlan_hw_rx(priv, (uint16_t)(rsize << 4));
+			ks_wlan_hw_rx(priv, (size_t)(rsize << 4));
 
 		if (byte & WSTATUS_MASK) {
 			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
