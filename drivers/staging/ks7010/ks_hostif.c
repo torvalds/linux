@@ -1253,7 +1253,7 @@ void hostif_start_request(struct ks_wlan_private *priv, unsigned char mode)
 	if (!pp)
 		return;
 
-	pp->mode = cpu_to_le16((uint16_t)mode);
+	pp->mode = cpu_to_le16((u16)mode);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 
