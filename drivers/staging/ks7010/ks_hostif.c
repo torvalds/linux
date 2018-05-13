@@ -1318,8 +1318,8 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv, int event)
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
 	pp->beacon_lost_count =
-	    cpu_to_le16((uint16_t)(priv->reg.beacon_lost_count));
-	pp->auth_type = cpu_to_le16((uint16_t)(priv->reg.authenticate_type));
+	    cpu_to_le16((u16)(priv->reg.beacon_lost_count));
+	pp->auth_type = cpu_to_le16((u16)(priv->reg.authenticate_type));
 
 	pp->channel_list.body[0] = 1;
 	pp->channel_list.body[1] = 8;
