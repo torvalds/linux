@@ -406,12 +406,12 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 11000000:
 			case 5500000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t)(vwrq->bitrate.value / 500000);
+				    (u8)(vwrq->bitrate.value / 500000);
 				break;
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t)(vwrq->bitrate.value / 500000)) |
+				    ((u8)(vwrq->bitrate.value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
@@ -466,7 +466,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 18000000:
 			case 9000000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t)(vwrq->bitrate.value / 500000);
+				    (u8)(vwrq->bitrate.value / 500000);
 				break;
 			case 24000000:
 			case 12000000:
@@ -476,7 +476,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t)(vwrq->bitrate.value / 500000)) |
+				    ((u8)(vwrq->bitrate.value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
