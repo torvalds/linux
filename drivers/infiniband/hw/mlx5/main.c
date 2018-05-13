@@ -2448,6 +2448,7 @@ static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 #define LAST_TUNNEL_FIELD tunnel_id
 #define LAST_FLOW_TAG_FIELD tag_id
 #define LAST_DROP_FIELD size
+#define LAST_DROP_FIELD size
 
 /* Field is the last supported field */
 #define FIELDS_NOT_SUPPORTED(filter, field)\
@@ -2688,6 +2689,29 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			 ntohs(ib_spec->tcp_udp.mask.dst_port));
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_dport,
 			 ntohs(ib_spec->tcp_udp.val.dst_port));
+		break;
+	case IB_FLOW_SPEC_GRE:
+		if (ib_spec->gre.mask.c_ks_res0_ver)
+			return -EOPNOTSUPP;
+
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_protocol,
+			 0xff);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol,
+			 IPPROTO_GRE);
+
+		MLX5_SET(fte_match_set_misc, misc_params_c, gre_protocol,
+			 0xffff);
+		MLX5_SET(fte_match_set_misc, misc_params_v, gre_protocol,
+			 ntohs(ib_spec->gre.val.protocol));
+
+		memcpy(MLX5_ADDR_OF(fte_match_set_misc, misc_params_c,
+				    gre_key_h),
+		       &ib_spec->gre.mask.key,
+		       sizeof(ib_spec->gre.mask.key));
+		memcpy(MLX5_ADDR_OF(fte_match_set_misc, misc_params_v,
+				    gre_key_h),
+		       &ib_spec->gre.val.key,
+		       sizeof(ib_spec->gre.val.key));
 		break;
 	case IB_FLOW_SPEC_VXLAN_TUNNEL:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->tunnel.mask,
