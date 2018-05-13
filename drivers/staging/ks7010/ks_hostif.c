@@ -1109,7 +1109,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		    priv->wpa.key[1].key_len == 0 &&
 		    priv->wpa.key[2].key_len == 0 &&
 		    priv->wpa.key[3].key_len == 0) {
-			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);
+			pp->auth_type = cpu_to_le16((u16)TYPE_AUTH);
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
 				michael_mic_function(&michael_mic,
@@ -1121,26 +1121,26 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 				skb_len += 8;
 				p += 8;
 				pp->auth_type =
-				    cpu_to_le16((uint16_t)TYPE_DATA);
+				    cpu_to_le16((u16)TYPE_DATA);
 
 			} else if (priv->wpa.pairwise_suite ==
 				   IW_AUTH_CIPHER_CCMP) {
 				pp->auth_type =
-				    cpu_to_le16((uint16_t)TYPE_DATA);
+				    cpu_to_le16((u16)TYPE_DATA);
 			}
 		}
 	} else {
 		if (eth_proto == ETH_P_PAE)
-			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);
+			pp->auth_type = cpu_to_le16((u16)TYPE_AUTH);
 		else
-			pp->auth_type = cpu_to_le16((uint16_t)TYPE_DATA);
+			pp->auth_type = cpu_to_le16((u16)TYPE_DATA);
 	}
 
 	/* header value set */
 	pp->header.size =
-	    cpu_to_le16((uint16_t)
+	    cpu_to_le16((u16)
 			(sizeof(*pp) - sizeof(pp->header.size) + skb_len));
-	pp->header.event = cpu_to_le16((uint16_t)HIF_DATA_REQ);
+	pp->header.event = cpu_to_le16((u16)HIF_DATA_REQ);
 
 	/* tx request */
 	result = ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + skb_len),
