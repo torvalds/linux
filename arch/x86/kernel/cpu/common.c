@@ -584,18 +584,17 @@ static void get_model_name(struct cpuinfo_x86 *c)
 	*(s + 1) = '\0';
 }
 
-int detect_num_cpu_cores(struct cpuinfo_x86 *c)
+void detect_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax, ebx, ecx, edx;
 
+	c->x86_max_cores = 1;
 	if (!IS_ENABLED(CONFIG_SMP) || c->cpuid_level < 4)
-		return 1;
+		return;
 
 	cpuid_count(4, 0, &eax, &ebx, &ecx, &edx);
 	if (eax & 0x1f)
-		return (eax >> 26) + 1;
-	else
-		return 1;
+		c->x86_max_cores = (eax >> 26) + 1;
 }
 
 void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
