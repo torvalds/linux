@@ -33,7 +33,6 @@ struct ks_wlan_parameter {
 	u8 preamble;
 	u8 power_mgmt;
 	u32 scan_type;
-#define BEACON_LOST_COUNT_MIN 0
 #define BEACON_LOST_COUNT_MAX 65535
 	u32 beacon_lost_count;
 	u32 rts;
