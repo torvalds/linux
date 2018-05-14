@@ -282,12 +282,13 @@ xfs_agiblock_init(
 		agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 }
 
+typedef void (*aghdr_init_work_f)(struct xfs_mount *mp, struct xfs_buf *bp,
+				  struct aghdr_init_data *id);
 static int
 xfs_growfs_init_aghdr(
 	struct xfs_mount	*mp,
 	struct aghdr_init_data	*id,
-	void			(*work)(struct xfs_mount *, struct xfs_buf *,
-					struct aghdr_init_data *),
+	aghdr_init_work_f	work,
 	const struct xfs_buf_ops *ops)
 
 {
@@ -304,6 +305,15 @@ xfs_growfs_init_aghdr(
 	return 0;
 }
 
+struct xfs_aghdr_grow_data {
+	xfs_daddr_t		daddr;
+	size_t			numblks;
+	const struct xfs_buf_ops *ops;
+	aghdr_init_work_f	work;
+	xfs_btnum_t		type;
+	bool			need_init;
+};
+
 /*
  * Write new AG headers to disk. Non-transactional, but written
  * synchronously so they are completed prior to the growfs transaction
@@ -315,101 +325,93 @@ xfs_grow_ag_headers(
 	struct aghdr_init_data	*id)
 
 {
+	struct xfs_aghdr_grow_data aghdr_data[] = {
+	{ /* AGF */
+		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGF_DADDR(mp)),
+		.numblks = XFS_FSS_TO_BB(mp, 1),
+		.ops = &xfs_agf_buf_ops,
+		.work = &xfs_agfblock_init,
+		.need_init = true
+	},
+	{ /* AGFL */
+		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGFL_DADDR(mp)),
+		.numblks = XFS_FSS_TO_BB(mp, 1),
+		.ops = &xfs_agfl_buf_ops,
+		.work = &xfs_agflblock_init,
+		.need_init = true
+	},
+	{ /* AGI */
+		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGI_DADDR(mp)),
+		.numblks = XFS_FSS_TO_BB(mp, 1),
+		.ops = &xfs_agi_buf_ops,
+		.work = &xfs_agiblock_init,
+		.need_init = true
+	},
+	{ /* BNO root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_BNO_BLOCK(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_allocbt_buf_ops,
+		.work = &xfs_bnoroot_init,
+		.need_init = true
+	},
+	{ /* CNT root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_CNT_BLOCK(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_allocbt_buf_ops,
+		.work = &xfs_cntroot_init,
+		.need_init = true
+	},
+	{ /* INO root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_IBT_BLOCK(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_inobt_buf_ops,
+		.work = &xfs_btroot_init,
+		.type = XFS_BTNUM_INO,
+		.need_init = true
+	},
+	{ /* FINO root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_inobt_buf_ops,
+		.work = &xfs_btroot_init,
+		.type = XFS_BTNUM_FINO,
+		.need_init =  xfs_sb_version_hasfinobt(&mp->m_sb)
+	},
+	{ /* RMAP root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_RMAP_BLOCK(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_rmapbt_buf_ops,
+		.work = &xfs_rmaproot_init,
+		.need_init = xfs_sb_version_hasrmapbt(&mp->m_sb)
+	},
+	{ /* REFC root block */
+		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, xfs_refc_block(mp)),
+		.numblks = BTOBB(mp->m_sb.sb_blocksize),
+		.ops = &xfs_refcountbt_buf_ops,
+		.work = &xfs_btroot_init,
+		.type = XFS_BTNUM_REFC,
+		.need_init = xfs_sb_version_hasreflink(&mp->m_sb)
+	},
+	{ /* NULL terminating block */
+		.daddr = XFS_BUF_DADDR_NULL,
+	}
+	};
+	struct  xfs_aghdr_grow_data *dp;
 	int			error = 0;
 
 	/* Account for AG free space in new AG */
 	id->nfree += id->agsize - mp->m_ag_prealloc_blocks;
+	for (dp = &aghdr_data[0]; dp->daddr != XFS_BUF_DADDR_NULL; dp++) {
+		if (!dp->need_init)
+			continue;
 
-	/* AG freespace header block */
-	id->daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGF_DADDR(mp));
-	id->numblks = XFS_FSS_TO_BB(mp, 1);
-	error = xfs_growfs_init_aghdr(mp, id, xfs_agfblock_init,
-					&xfs_agf_buf_ops);
-	if (error)
-		goto out_error;
-
-	/* AG freelist header block */
-	id->daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGFL_DADDR(mp));
-	id->numblks = XFS_FSS_TO_BB(mp, 1);
-	error = xfs_growfs_init_aghdr(mp, id, xfs_agflblock_init,
-					&xfs_agfl_buf_ops);
-	if (error)
-		goto out_error;
-
-	/* AG inode header block */
-	id->daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGI_DADDR(mp));
-	id->numblks = XFS_FSS_TO_BB(mp, 1);
-	error = xfs_growfs_init_aghdr(mp, id, xfs_agiblock_init,
-					&xfs_agi_buf_ops);
-	if (error)
-		goto out_error;
-
-
-	/* BNO btree root block */
-	id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_BNO_BLOCK(mp));
-	id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-	error = xfs_growfs_init_aghdr(mp, id, xfs_bnoroot_init,
-				   &xfs_allocbt_buf_ops);
-	if (error)
-		goto out_error;
-
-
-	/* CNT btree root block */
-	id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_CNT_BLOCK(mp));
-	id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-	error = xfs_growfs_init_aghdr(mp, id, xfs_cntroot_init,
-				   &xfs_allocbt_buf_ops);
-	if (error)
-		goto out_error;
-
-	/* RMAP btree root block */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
-		id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_RMAP_BLOCK(mp));
-		id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-		error = xfs_growfs_init_aghdr(mp, id, xfs_rmaproot_init,
-					   &xfs_rmapbt_buf_ops);
+		id->daddr = dp->daddr;
+		id->numblks = dp->numblks;
+		id->type = dp->type;
+		error = xfs_growfs_init_aghdr(mp, id, dp->work, dp->ops);
 		if (error)
-			goto out_error;
-
+			break;
 	}
-
-	/* INO btree root block */
-	id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_IBT_BLOCK(mp));
-	id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-	id->type = XFS_BTNUM_INO;
-	error = xfs_growfs_init_aghdr(mp, id, xfs_btroot_init,
-				   &xfs_inobt_buf_ops);
-	if (error)
-		goto out_error;
-
-
-	/*
-	 * FINO btree root block
-	 */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
-		id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp));
-		id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-		id->type = XFS_BTNUM_FINO;
-		error = xfs_growfs_init_aghdr(mp, id, xfs_btroot_init,
-					   &xfs_inobt_buf_ops);
-		if (error)
-			goto out_error;
-	}
-
-	/*
-	 * refcount btree root block
-	 */
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
-		id->daddr = XFS_AGB_TO_DADDR(mp, id->agno, xfs_refc_block(mp));
-		id->numblks = BTOBB(mp->m_sb.sb_blocksize);
-		id->type = XFS_BTNUM_REFC;
-		error = xfs_growfs_init_aghdr(mp, id, xfs_btroot_init,
-					   &xfs_refcountbt_buf_ops);
-		if (error)
-			goto out_error;
-	}
-
-out_error:
 	return error;
 }
 
