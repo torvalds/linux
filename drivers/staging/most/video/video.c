@@ -261,9 +261,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *f)
 {
-	struct comp_fh *fh = priv;
-	struct most_video_dev *mdev = fh->mdev;
-
 	if (f->index)
 		return -EINVAL;
 
@@ -278,9 +275,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct comp_fh *fh = priv;
-	struct most_video_dev *mdev = fh->mdev;
-
 	comp_set_format_struct(f);
 	return 0;
 }
@@ -305,9 +299,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
-	struct comp_fh *fh = priv;
-	struct most_video_dev *mdev = fh->mdev;
-
 	*norm = V4L2_STD_UNKNOWN;
 	return 0;
 }
