@@ -19,13 +19,13 @@ struct i40e_stats {
 }
 
 #define I40E_NETDEV_STAT(_net_stat) \
-		I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
+	I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
 #define I40E_PF_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_pf, _name, _stat)
+	I40E_STAT(struct i40e_pf, _name, _stat)
 #define I40E_VSI_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_vsi, _name, _stat)
+	I40E_STAT(struct i40e_vsi, _name, _stat)
 #define I40E_VEB_STAT(_name, _stat) \
-		I40E_STAT(struct i40e_veb, _name, _stat)
+	I40E_STAT(struct i40e_veb, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -66,6 +66,7 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
 	I40E_VSI_STAT("tx_linearize", tx_linearize),
 	I40E_VSI_STAT("tx_force_wb", tx_force_wb),
+	I40E_VSI_STAT("tx_busy", tx_busy),
 	I40E_VSI_STAT("rx_alloc_fail", rx_buf_failed),
 	I40E_VSI_STAT("rx_pg_alloc_fail", rx_page_failed),
 };
@@ -103,10 +104,6 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("link_xoff_rx", stats.link_xoff_rx),
 	I40E_PF_STAT("link_xon_tx", stats.link_xon_tx),
 	I40E_PF_STAT("link_xoff_tx", stats.link_xoff_tx),
-	I40E_PF_STAT("priority_xon_rx", stats.priority_xon_rx),
-	I40E_PF_STAT("priority_xoff_rx", stats.priority_xoff_rx),
-	I40E_PF_STAT("priority_xon_tx", stats.priority_xon_tx),
-	I40E_PF_STAT("priority_xoff_tx", stats.priority_xoff_tx),
 	I40E_PF_STAT("rx_size_64", stats.rx_size_64),
 	I40E_PF_STAT("rx_size_127", stats.rx_size_127),
 	I40E_PF_STAT("rx_size_255", stats.rx_size_255),
@@ -148,9 +145,9 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	    * 2 /* Tx and Rx together */                                     \
 	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
-#define I40E_NETDEV_STATS_LEN   ARRAY_SIZE(i40e_gstrings_net_stats)
+#define I40E_NETDEV_STATS_LEN	ARRAY_SIZE(i40e_gstrings_net_stats)
 #define I40E_MISC_STATS_LEN	ARRAY_SIZE(i40e_gstrings_misc_stats)
-#define I40E_VSI_STATS_LEN(n)   (I40E_NETDEV_STATS_LEN + \
+#define I40E_VSI_STATS_LEN(n)	(I40E_NETDEV_STATS_LEN + \
 				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
 #define I40E_PFC_STATS_LEN ( \
@@ -1658,6 +1655,23 @@ done:
 	return err;
 }
 
+static int i40e_get_stats_count(struct net_device *netdev)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+
+	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
+		if (pf->lan_veb != I40E_NO_VEB &&
+		    pf->flags & I40E_FLAG_VEB_STATS_ENABLED)
+			return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
+		else
+			return I40E_PF_STATS_LEN(netdev);
+	} else {
+		return I40E_VSI_STATS_LEN(netdev);
+	}
+}
+
 static int i40e_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
@@ -1668,16 +1682,7 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return I40E_TEST_LEN;
 	case ETH_SS_STATS:
-		if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
-			int len = I40E_PF_STATS_LEN(netdev);
-
-			if ((pf->lan_veb != I40E_NO_VEB) &&
-			    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED))
-				len += I40E_VEB_STATS_TOTAL;
-			return len;
-		} else {
-			return I40E_VSI_STATS_LEN(netdev);
-		}
+		return i40e_get_stats_count(netdev);
 	case ETH_SS_PRIV_FLAGS:
 		return I40E_PRIV_FLAGS_STR_LEN +
 			(pf->hw.pf_id == 0 ? I40E_GL_PRIV_FLAGS_STR_LEN : 0);

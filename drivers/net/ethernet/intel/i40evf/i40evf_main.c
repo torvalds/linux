@@ -1925,7 +1925,8 @@ continue_reset:
 	 * ndo_open() returning, so we can't assume it means all our open
 	 * tasks have finished, since we're not holding the rtnl_lock here.
 	 */
-	running = (adapter->state == __I40EVF_RUNNING);
+	running = ((adapter->state == __I40EVF_RUNNING) ||
+		   (adapter->state == __I40EVF_RESETTING));
 
 	if (running) {
 		netif_carrier_off(netdev);
@@ -2331,7 +2332,7 @@ static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
 		total_max_rate += tx_rate;
 		num_qps += mqprio_qopt->qopt.count[i];
 	}
-	if (num_qps > MAX_QUEUES)
+	if (num_qps > I40EVF_MAX_REQ_QUEUES)
 		return -EINVAL;
 
 	ret = i40evf_validate_tx_bandwidth(adapter, total_max_rate);
@@ -3689,7 +3690,8 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter), MAX_QUEUES);
+	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter),
+				   I40EVF_MAX_REQ_QUEUES);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
