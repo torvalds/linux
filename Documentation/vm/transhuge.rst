@@ -9,13 +9,18 @@ Objective
 
 Performance critical computing applications dealing with large memory
 working sets are already running on top of libhugetlbfs and in turn
-hugetlbfs. Transparent Hugepage Support is an alternative means of
+hugetlbfs. Transparent HugePage Support (THP) is an alternative mean of
 using huge pages for the backing of virtual memory with huge pages
 that supports the automatic promotion and demotion of page sizes and
 without the shortcomings of hugetlbfs.
 
-Currently it only works for anonymous memory mappings and tmpfs/shmem.
+Currently THP only works for anonymous memory mappings and tmpfs/shmem.
 But in the future it can expand to other filesystems.
+
+.. note::
+   in the examples below we presume that the basic page size is 4K and
+   the huge page size is 2M, although the actual numbers may vary
+   depending on the CPU architecture.
 
 The reason applications are running faster is because of two
 factors. The first factor is almost completely irrelevant and it's not
@@ -28,15 +33,27 @@ only matters the first time the memory is accessed for the lifetime of
 a memory mapping. The second long lasting and much more important
 factor will affect all subsequent accesses to the memory for the whole
 runtime of the application. The second factor consist of two
-components: 1) the TLB miss will run faster (especially with
-virtualization using nested pagetables but almost always also on bare
-metal without virtualization) and 2) a single TLB entry will be
-mapping a much larger amount of virtual memory in turn reducing the
-number of TLB misses. With virtualization and nested pagetables the
-TLB can be mapped of larger size only if both KVM and the Linux guest
-are using hugepages but a significant speedup already happens if only
-one of the two is using hugepages just because of the fact the TLB
-miss is going to run faster.
+components:
+
+1) the TLB miss will run faster (especially with virtualization using
+   nested pagetables but almost always also on bare metal without
+   virtualization)
+
+2) a single TLB entry will be mapping a much larger amount of virtual
+   memory in turn reducing the number of TLB misses. With
+   virtualization and nested pagetables the TLB can be mapped of
+   larger size only if both KVM and the Linux guest are using
+   hugepages but a significant speedup already happens if only one of
+   the two is using hugepages just because of the fact the TLB miss is
+   going to run faster.
+
+THP can be enabled system wide or restricted to certain tasks or even
+memory ranges inside task's address space. Unless THP is completely
+disabled, there is ``khugepaged`` daemon that scans memory and
+collapses sequences of basic pages into huge pages.
+
+The THP behaviour is controlled via :ref:`sysfs <thp_sysfs>`
+interface and using madivse(2) and prctl(2) system calls.
 
 Transparent Hugepage Support maximizes the usefulness of free memory
 if compared to the reservation approach of hugetlbfs by allowing all
@@ -69,8 +86,13 @@ Applications that gets a lot of benefit from hugepages and that don't
 risk to lose memory by using hugepages, should use
 madvise(MADV_HUGEPAGE) on their critical mmapped regions.
 
+.. _thp_sysfs:
+
 sysfs
 =====
+
+Global THP controls
+-------------------
 
 Transparent Hugepage Support for anonymous memory can be entirely disabled
 (mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
@@ -141,6 +163,9 @@ library) may want to know the size (in bytes) of a transparent hugepage::
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
 be automatically shutdown if it's set to "never".
+
+Khugepaged controls
+-------------------
 
 khugepaged runs usually at low frequency so while one may not want to
 invoke defrag algorithms synchronously during the page faults, it
