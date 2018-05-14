@@ -83,12 +83,6 @@
 	bus-width = <4>;
 };
 
-&pwm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
-	status = "okay";
-};
-
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
 };

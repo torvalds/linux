@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2016 Luxul Inc.
+ * Copyright 2018 Luxul Inc.
  */
 
 /dts-v1/;
 
 #include "bcm47094.dtsi"
-#include "bcm5301x-nand-cs0-bch4.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
-	compatible = "luxul,xwr-3100v1", "brcm,bcm47094", "brcm,bcm4708";
-	model = "Luxul XWR-3100 V1";
+	compatible = "luxul,xwr-3150-v1", "brcm,bcm47094", "brcm,bcm4708";
+	model = "Luxul XWR-3150 V1";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon";
+		bootargs = "earlycon";
 	};
 
 	memory {
 		reg = <0x00000000 0x08000000
-		       0x88000000 0x08000000>;
+		       0x88000000 0x18000000>;
 	};
 
 	leds {
@@ -28,31 +28,6 @@
 			label = "bcm53xx:green:power";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
-		};
-
-		lan3	{
-			label = "bcm53xx:green:lan3";
-			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
-		};
-
-		lan4	{
-			label = "bcm53xx:green:lan4";
-			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
-		};
-
-		wan	{
-			label = "bcm53xx:green:wan";
-			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-		};
-
-		lan1	{
-			label = "bcm53xx:green:lan1";
-			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
-		};
-
-		lan2	{
-			label = "bcm53xx:green:lan2";
-			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 		};
 
 		usb3	{
