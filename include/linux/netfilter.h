@@ -67,7 +67,6 @@ struct nf_hook_ops {
 	struct net_device	*dev;
 	void			*priv;
 	u_int8_t		pf;
-	bool			nat_hook;
 	unsigned int		hooknum;
 	/* Hooks are ordered in ascending priority. */
 	int			priority;
