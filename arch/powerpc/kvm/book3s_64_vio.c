@@ -615,7 +615,7 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 		return H_PARAMETER;
 
 	list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
-		unsigned long entry = ioba >> stit->tbl->it_page_shift;
+		unsigned long entry = ioba >> stt->page_shift;
 
 		for (i = 0; i < npages; ++i) {
 			ret = kvmppc_tce_iommu_unmap(vcpu->kvm,
