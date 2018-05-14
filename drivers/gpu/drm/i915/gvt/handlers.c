@@ -1204,8 +1204,8 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		ret = handle_g2v_notification(vgpu, data);
 		break;
 	/* add xhot and yhot to handled list to avoid error log */
-	case 0x78830:
-	case 0x78834:
+	case _vgtif_reg(cursor_x_hot):
+	case _vgtif_reg(cursor_y_hot):
 	case _vgtif_reg(pdp[0].lo):
 	case _vgtif_reg(pdp[0].hi):
 	case _vgtif_reg(pdp[1].lo):

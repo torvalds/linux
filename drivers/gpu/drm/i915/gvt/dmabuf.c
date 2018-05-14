@@ -192,6 +192,14 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 	return obj;
 }
 
+static bool validate_hotspot(struct intel_vgpu_cursor_plane_format *c)
+{
+	if (c && c->x_hot <= c->width && c->y_hot <= c->height)
+		return true;
+	else
+		return false;
+}
+
 static int vgpu_get_plane_info(struct drm_device *dev,
 		struct intel_vgpu *vgpu,
 		struct intel_vgpu_fb_info *info,
@@ -229,12 +237,14 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		info->x_pos = c.x_pos;
 		info->y_pos = c.y_pos;
 
-		/* The invalid cursor hotspot value is delivered to host
-		 * until we find a way to get the cursor hotspot info of
-		 * guest OS.
-		 */
-		info->x_hot = UINT_MAX;
-		info->y_hot = UINT_MAX;
+		if (validate_hotspot(&c)) {
+			info->x_hot = c.x_hot;
+			info->y_hot = c.y_hot;
+		} else {
+			info->x_hot = UINT_MAX;
+			info->y_hot = UINT_MAX;
+		}
+
 		info->size = (((info->stride * c.height * c.bpp) / 8)
 				+ (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else {

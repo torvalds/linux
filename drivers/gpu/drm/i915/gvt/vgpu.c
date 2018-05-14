@@ -58,6 +58,9 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
 
+	vgpu_vreg_t(vgpu, vgtif_reg(cursor_x_hot)) = UINT_MAX;
+	vgpu_vreg_t(vgpu, vgtif_reg(cursor_y_hot)) = UINT_MAX;
+
 	gvt_dbg_core("Populate PVINFO PAGE for vGPU %d\n", vgpu->id);
 	gvt_dbg_core("aperture base [GMADR] 0x%llx size 0x%llx\n",
 		vgpu_aperture_gmadr_base(vgpu), vgpu_aperture_sz(vgpu));

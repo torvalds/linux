@@ -36,6 +36,7 @@
 #include <uapi/drm/drm_fourcc.h>
 #include "i915_drv.h"
 #include "gvt.h"
+#include "i915_pvinfo.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
@@ -384,6 +385,8 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	plane->y_pos = (val & _CURSOR_POS_Y_MASK) >> _CURSOR_POS_Y_SHIFT;
 	plane->y_sign = (val & _CURSOR_SIGN_Y_MASK) >> _CURSOR_SIGN_Y_SHIFT;
 
+	plane->x_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_x_hot));
+	plane->y_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_y_hot));
 	return 0;
 }
 
