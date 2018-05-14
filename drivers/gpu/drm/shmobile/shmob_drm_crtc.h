@@ -28,7 +28,6 @@ struct shmob_drm_crtc {
 	int dpms;
 
 	const struct shmob_drm_format_info *format;
-	void *cache;
 	unsigned long dma[2];
 	unsigned int line_size;
 	bool started;

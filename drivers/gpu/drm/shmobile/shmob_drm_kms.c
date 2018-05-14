@@ -18,8 +18,6 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
-#include <video/sh_mobile_meram.h>
-
 #include "shmob_drm_crtc.h"
 #include "shmob_drm_drv.h"
 #include "shmob_drm_kms.h"
@@ -35,55 +33,46 @@ static const struct shmob_drm_format_info shmob_drm_format_infos[] = {
 		.bpp = 16,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB16,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_RGB888,
 		.bpp = 24,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB24,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB8888,
 		.bpp = 32,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_ARGB32,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_NV12,
 		.bpp = 12,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV21,
 		.bpp = 12,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV16,
 		.bpp = 16,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV61,
 		.bpp = 16,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV24,
 		.bpp = 24,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
-		.meram = SH_MOBILE_MERAM_PF_NV24,
 	}, {
 		.fourcc = DRM_FORMAT_NV42,
 		.bpp = 24,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
-		.meram = SH_MOBILE_MERAM_PF_NV24,
 	},
 };
 
