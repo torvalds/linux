@@ -28,8 +28,8 @@ Two sets of Questions and Answers (Q&A) are maintained.
 
 
 .. Links:
-.. _bpf_design_QA: bpf_design_QA.txt
-.. _bpf_devel_QA:  bpf_devel_QA.txt
+.. _bpf_design_QA: bpf_design_QA.rst
+.. _bpf_devel_QA:  bpf_devel_QA.rst
 .. _Documentation/networking/filter.txt: ../networking/filter.txt
 .. _man-pages: https://www.kernel.org/doc/man-pages/
 .. _bpf(2): http://man7.org/linux/man-pages/man2/bpf.2.html
