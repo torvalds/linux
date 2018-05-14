@@ -40,31 +40,11 @@ struct cfs_overlay_item {
 	int			dtbo_size;
 };
 
-static int create_overlay(struct cfs_overlay_item *overlay, void *blob)
+static int create_overlay(struct cfs_overlay_item *overlay, void *blob, u32 blob_size)
 {
 	int err;
 
-	/* unflatten the tree */
-	of_fdt_unflatten_tree(blob, NULL, &overlay->overlay);
-	if (overlay->overlay == NULL) {
-		pr_err("%s: failed to unflatten tree\n", __func__);
-		err = -EINVAL;
-		goto out_err;
-	}
-	pr_debug("%s: unflattened OK\n", __func__);
-
-	/* mark it as detached */
-	of_node_set_flag(overlay->overlay, OF_DETACHED);
-
-	/* perform resolution */
-	err = of_resolve_phandles(overlay->overlay);
-	if (err != 0) {
-		pr_err("%s: Failed to resolve tree\n", __func__);
-		goto out_err;
-	}
-	pr_debug("%s: resolved OK\n", __func__);
-
-	err = of_overlay_apply(overlay->overlay, &overlay->ov_id);
+	err = of_overlay_fdt_apply(blob, blob_size, &overlay->ov_id);
 	if (err < 0) {
 		pr_err("%s: Failed to create overlay (err=%d)\n",
 				__func__, err);
@@ -115,7 +95,7 @@ static ssize_t cfs_overlay_item_path_store(struct config_item *item,
 	if (err != 0)
 		goto out_err;
 
-	err = create_overlay(overlay, (void *)overlay->fw->data);
+	err = create_overlay(overlay, (void *)overlay->fw->data, overlay->fw->size);
 	if (err != 0)
 		goto out_err;
 
@@ -188,7 +168,7 @@ ssize_t cfs_overlay_item_dtbo_write(struct config_item *item,
 
 	overlay->dtbo_size = count;
 
-	err = create_overlay(overlay, overlay->dtbo);
+	err = create_overlay(overlay, overlay->dtbo, overlay->dtbo_size);
 	if (err != 0)
 		goto out_err;
 
