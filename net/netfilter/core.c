@@ -186,9 +186,31 @@ static void hooks_validate(const struct nf_hook_entries *hooks)
 #endif
 }
 
+int nf_hook_entries_insert_raw(struct nf_hook_entries __rcu **pp,
+				const struct nf_hook_ops *reg)
+{
+	struct nf_hook_entries *new_hooks;
+	struct nf_hook_entries *p;
+
+	p = rcu_dereference_raw(*pp);
+	new_hooks = nf_hook_entries_grow(p, reg);
+	if (IS_ERR(new_hooks))
+		return PTR_ERR(new_hooks);
+
+	hooks_validate(new_hooks);
+
+	rcu_assign_pointer(*pp, new_hooks);
+
+	BUG_ON(p == new_hooks);
+	nf_hook_entries_free(p);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_hook_entries_insert_raw);
+
 /*
  * __nf_hook_entries_try_shrink - try to shrink hook array
  *
+ * @old -- current hook blob at @pp
  * @pp -- location of hook blob
  *
  * Hook unregistration must always succeed, so to-be-removed hooks
@@ -201,14 +223,14 @@ static void hooks_validate(const struct nf_hook_entries *hooks)
  *
  * Returns address to free, or NULL.
  */
-static void *__nf_hook_entries_try_shrink(struct nf_hook_entries __rcu **pp)
+static void *__nf_hook_entries_try_shrink(struct nf_hook_entries *old,
+					  struct nf_hook_entries __rcu **pp)
 {
-	struct nf_hook_entries *old, *new = NULL;
 	unsigned int i, j, skip = 0, hook_entries;
+	struct nf_hook_entries *new = NULL;
 	struct nf_hook_ops **orig_ops;
 	struct nf_hook_ops **new_ops;
 
-	old = nf_entry_dereference(*pp);
 	if (WARN_ON_ONCE(!old))
 		return NULL;
 
@@ -347,11 +369,10 @@ static int __nf_register_net_hook(struct net *net, int pf,
  * This cannot fail, hook unregistration must always succeed.
  * Therefore replace the to-be-removed hook with a dummy hook.
  */
-static void nf_remove_net_hook(struct nf_hook_entries *old,
-			       const struct nf_hook_ops *unreg, int pf)
+static bool nf_remove_net_hook(struct nf_hook_entries *old,
+			       const struct nf_hook_ops *unreg)
 {
 	struct nf_hook_ops **orig_ops;
-	bool found = false;
 	unsigned int i;
 
 	orig_ops = nf_hook_entries_get_hook_ops(old);
@@ -360,21 +381,10 @@ static void nf_remove_net_hook(struct nf_hook_entries *old,
 			continue;
 		WRITE_ONCE(old->hooks[i].hook, accept_all);
 		WRITE_ONCE(orig_ops[i], &dummy_ops);
-		found = true;
-		break;
+		return true;
 	}
 
-	if (found) {
-#ifdef CONFIG_NETFILTER_INGRESS
-		if (pf == NFPROTO_NETDEV && unreg->hooknum == NF_NETDEV_INGRESS)
-			net_dec_ingress_queue();
-#endif
-#ifdef HAVE_JUMP_LABEL
-		static_key_slow_dec(&nf_hooks_needed[pf][unreg->hooknum]);
-#endif
-	} else {
-		WARN_ONCE(1, "hook not found, pf %d num %d", pf, unreg->hooknum);
-	}
+	return false;
 }
 
 static void __nf_unregister_net_hook(struct net *net, int pf,
@@ -395,9 +405,19 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 		return;
 	}
 
-	nf_remove_net_hook(p, reg, pf);
+	if (nf_remove_net_hook(p, reg)) {
+#ifdef CONFIG_NETFILTER_INGRESS
+		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+			net_dec_ingress_queue();
+#endif
+#ifdef HAVE_JUMP_LABEL
+		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
+#endif
+	} else {
+		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
+	}
 
-	p = __nf_hook_entries_try_shrink(pp);
+	p = __nf_hook_entries_try_shrink(p, pp);
 	mutex_unlock(&nf_hook_mutex);
 	if (!p)
 		return;
@@ -416,6 +436,19 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	}
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
+
+void nf_hook_entries_delete_raw(struct nf_hook_entries __rcu **pp,
+				const struct nf_hook_ops *reg)
+{
+	struct nf_hook_entries *p;
+
+	p = rcu_dereference_raw(*pp);
+	if (nf_remove_net_hook(p, reg)) {
+		p = __nf_hook_entries_try_shrink(p, pp);
+		nf_hook_entries_free(p);
+	}
+}
+EXPORT_SYMBOL_GPL(nf_hook_entries_delete_raw);
 
 int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
