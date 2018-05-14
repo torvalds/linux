@@ -25,6 +25,13 @@ static void xen_snd_drv_fini(struct xen_snd_front_info *front_info)
 
 static int sndback_initwait(struct xen_snd_front_info *front_info)
 {
+	int num_streams;
+	int ret;
+
+	ret = xen_snd_front_cfg_card(front_info, &num_streams);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 

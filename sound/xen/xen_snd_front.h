@@ -11,8 +11,12 @@
 #ifndef __XEN_SND_FRONT_H
 #define __XEN_SND_FRONT_H
 
+#include "xen_snd_front_cfg.h"
+
 struct xen_snd_front_info {
 	struct xenbus_device *xb_dev;
+
+	struct xen_front_cfg_card cfg;
 };
 
 #endif /* __XEN_SND_FRONT_H */
