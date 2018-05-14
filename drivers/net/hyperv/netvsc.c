@@ -850,13 +850,6 @@ int netvsc_send(struct net_device *ndev,
 	if (unlikely(!net_device || net_device->destroy))
 		return -ENODEV;
 
-	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
-	 * here before the negotiation with the host is finished and
-	 * send_section_map may not be allocated yet.
-	 */
-	if (unlikely(!net_device->send_section_map))
-		return -EAGAIN;
-
 	nvchan = &net_device->chan_table[packet->q_idx];
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
@@ -864,10 +857,8 @@ int netvsc_send(struct net_device *ndev,
 	/* Send control message directly without accessing msd (Multi-Send
 	 * Data) field which may be changed during data packet processing.
 	 */
-	if (!skb) {
-		cur_send = packet;
-		goto send_now;
-	}
+	if (!skb)
+		return netvsc_send_pkt(device, packet, net_device, pb, skb);
 
 	/* batch packets in send buffer if possible */
 	msdp = &nvchan->msd;
@@ -951,7 +942,6 @@ int netvsc_send(struct net_device *ndev,
 		}
 	}
 
-send_now:
 	if (cur_send)
 		ret = netvsc_send_pkt(device, cur_send, net_device, pb, skb);
 
@@ -1308,11 +1298,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	napi_enable(&net_device->chan_table[0].napi);
 
-	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
-	 * populated.
-	 */
-	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
-
 	/* Connect with the NetVsp */
 	ret = netvsc_connect_vsp(device, net_device, device_info);
 	if (ret != 0) {
@@ -1320,6 +1305,11 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 			"unable to connect to NetVSP - %d\n", ret);
 		goto close;
 	}
+
+	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
+	 * populated.
+	 */
+	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
 
 	return net_device;
 
