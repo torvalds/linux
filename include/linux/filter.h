@@ -515,9 +515,8 @@ struct sk_msg_buff {
 	int sg_end;
 	struct scatterlist sg_data[MAX_SKB_FRAGS];
 	bool sg_copy[MAX_SKB_FRAGS];
-	__u32 key;
 	__u32 flags;
-	struct bpf_map *map;
+	struct sock *sk_redir;
 	struct sk_buff *skb;
 	struct list_head list;
 };
