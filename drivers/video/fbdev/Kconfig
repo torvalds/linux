@@ -2253,39 +2253,6 @@ config FB_BROADSHEET
 	  and could also have been called by other names when coupled with
 	  a bridge adapter.
 
-config FB_AUO_K190X
-	tristate "AUO-K190X EPD controller support"
-	depends on FB
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	select FB_DEFERRED_IO
-	help
-	  Provides support for epaper controllers from the K190X series
-	  of AUO. These controllers can be used to drive epaper displays
-	  from Sipix.
-
-	  This option enables the common support, shared by the individual
-	  controller drivers. You will also have to enable the driver
-	  for the controller type used in your device.
-
-config FB_AUO_K1900
-	tristate "AUO-K1900 EPD controller support"
-	depends on FB && FB_AUO_K190X
-	help
-	  This driver implements support for the AUO K1900 epd-controller.
-	  This controller can drive Sipix epaper displays but can only do
-	  serial updates, reducing the number of possible frames per second.
-
-config FB_AUO_K1901
-	tristate "AUO-K1901 EPD controller support"
-	depends on FB && FB_AUO_K190X
-	help
-	  This driver implements support for the AUO K1901 epd-controller.
-	  This controller can drive Sipix epaper displays and supports
-	  concurrent updates, making higher frames per second possible.
-
 config FB_JZ4740
 	tristate "JZ4740 LCD framebuffer support"
 	depends on FB && MACH_JZ4740
