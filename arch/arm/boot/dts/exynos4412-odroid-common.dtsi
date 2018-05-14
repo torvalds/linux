@@ -37,20 +37,14 @@
 	};
 
 	sound: sound {
-		compatible = "simple-audio-card";
+		compatible = "hardkernel,odroid-xu4-audio";
 
-		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&link0_codec>;
-		simple-audio-card,frame-master = <&link0_codec>;
-
-		simple-audio-card,cpu {
+		cpu {
 			sound-dai = <&i2s0 0>;
-			system-clock-frequency = <19200000>;
 		};
 
-		link0_codec: simple-audio-card,codec {
-			sound-dai = <&max98090>;
-			clocks = <&i2s0 CLK_I2S_CDCLK>;
+		codec {
+			sound-dai = <&hdmi>, <&max98090>;
 		};
 	};
 
@@ -142,14 +136,25 @@
 	pinctrl-0 = <>;
 };
 
+&clock {
+	assigned-clocks = <&clock CLK_FOUT_EPLL>;
+	assigned-clock-rates = <45158401>;
+};
+
 &clock_audss {
 	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
 			<&clock_audss EXYNOS_MOUT_I2S>,
 			<&clock_audss EXYNOS_DOUT_SRP>,
-			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+			<&clock_audss EXYNOS_DOUT_AUD_BUS>,
+			<&clock_audss EXYNOS_DOUT_I2S>;
+
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
-			<&clock_audss EXYNOS_MOUT_AUDSS>;
-	assigned-clock-rates = <0>, <0>, <192000000>, <19200000>;
+			  <&clock_audss EXYNOS_MOUT_AUDSS>;
+
+	assigned-clock-rates = <0>, <0>,
+			<196608001>,
+			<(196608001 / 2)>,
+			<(196608001 / 8)>;
 };
 
 &cpu0 {
@@ -498,6 +503,8 @@
 	pinctrl-0 = <&i2s0_bus>;
 	pinctrl-names = "default";
 	status = "okay";
+	assigned-clocks = <&i2s0 CLK_I2S_RCLK_SRC>;
+	assigned-clock-parents = <&clock_audss EXYNOS_SCLK_I2S>;
 };
 
 &mixer {
