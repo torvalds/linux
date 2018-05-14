@@ -165,6 +165,41 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 	}
 }
 
+/**
+ * brcmf_feat_fwcap_debugfs_read() - expose firmware capabilities to debugfs.
+ *
+ * @seq: sequence for debugfs entry.
+ * @data: raw data pointer.
+ */
+static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
+	struct brcmf_if *ifp = brcmf_get_ifp(bus_if->drvr, 0);
+	char caps[MAX_CAPS_BUFFER_SIZE + 1] = { };
+	char *tmp;
+	int err;
+
+	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
+	if (err) {
+		brcmf_err("could not get firmware cap (%d)\n", err);
+		return err;
+	}
+
+	/* Put every capability in a new line */
+	for (tmp = caps; *tmp; tmp++) {
+		if (*tmp == ' ')
+			*tmp = '\n';
+	}
+
+	/* Usually there is a space at the end of capabilities string */
+	seq_printf(seq, "%s", caps);
+	/* So make sure we don't print two line breaks */
+	if (tmp > caps && *(tmp - 1) != '\n')
+		seq_printf(seq, "\n");
+
+	return 0;
+}
+
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
@@ -233,6 +268,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 void brcmf_feat_debugfs_create(struct brcmf_pub *drvr)
 {
 	brcmf_debugfs_add_entry(drvr, "features", brcmf_feat_debugfs_read);
+	brcmf_debugfs_add_entry(drvr, "fwcap", brcmf_feat_fwcap_debugfs_read);
 }
 
 bool brcmf_feat_is_enabled(struct brcmf_if *ifp, enum brcmf_feat_id id)
