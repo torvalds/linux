@@ -234,18 +234,11 @@ static void jit_fill_hole(void *area, unsigned int size)
 #define SCRATCH_SIZE 80
 
 /* total stack size used in JITed code */
-#define _STACK_SIZE \
-	(ctx->prog->aux->stack_depth + \
-	 + SCRATCH_SIZE + \
-	 + 4 /* extra for skb_copy_bits buffer */)
-
-#define STACK_SIZE ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
+#define _STACK_SIZE	(ctx->prog->aux->stack_depth + SCRATCH_SIZE)
+#define STACK_SIZE	ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
 
 /* Get the offset of eBPF REGISTERs stored on scratch space. */
-#define STACK_VAR(off) (STACK_SIZE-off-4)
-
-/* Offset of skb_copy_bits buffer */
-#define SKB_BUFFER STACK_VAR(SCRATCH_SIZE)
+#define STACK_VAR(off) (STACK_SIZE - off)
 
 #if __LINUX_ARM_ARCH__ < 7
 
