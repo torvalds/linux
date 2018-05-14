@@ -4696,7 +4696,9 @@ enum {
 /* Enables the TV encoder */
 # define TV_ENC_ENABLE			(1 << 31)
 /* Sources the TV encoder input from pipe B instead of A. */
-# define TV_ENC_PIPEB_SELECT		(1 << 30)
+# define TV_ENC_PIPE_SEL_SHIFT		30
+# define TV_ENC_PIPE_SEL_MASK		(1 << 30)
+# define TV_ENC_PIPE_SEL(pipe)		((pipe) << 30)
 /* Outputs composite video (DAC A only) */
 # define TV_ENC_OUTPUT_COMPOSITE	(0 << 28)
 /* Outputs SVideo video (DAC B/C) */

@@ -798,16 +798,12 @@ static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
 static bool
 intel_tv_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp = I915_READ(TV_CTL);
 
-	if (!(tmp & TV_ENC_ENABLE))
-		return false;
+	*pipe = (tmp & TV_ENC_PIPE_SEL_MASK) >> TV_ENC_PIPE_SEL_SHIFT;
 
-	*pipe = PORT_TO_PIPE(tmp);
-
-	return true;
+	return tmp & TV_ENC_ENABLE;
 }
 
 static void
@@ -1024,8 +1020,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_crtc->pipe == 1)
-		tv_ctl |= TV_ENC_PIPEB_SELECT;
+	tv_ctl |= TV_ENC_PIPE_SEL(intel_crtc->pipe);
 	tv_ctl |= tv_mode->oversample;
 
 	if (tv_mode->progressive)
@@ -1149,12 +1144,9 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	save_tv_ctl = tv_ctl = I915_READ(TV_CTL);
 
 	/* Poll for TV detection */
-	tv_ctl &= ~(TV_ENC_ENABLE | TV_TEST_MODE_MASK);
+	tv_ctl &= ~(TV_ENC_ENABLE | TV_ENC_PIPE_SEL_MASK | TV_TEST_MODE_MASK);
 	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
-	if (intel_crtc->pipe == 1)
-		tv_ctl |= TV_ENC_PIPEB_SELECT;
-	else
-		tv_ctl &= ~TV_ENC_PIPEB_SELECT;
+	tv_ctl |= TV_ENC_PIPE_SEL(intel_crtc->pipe);
 
 	tv_dac &= ~(TVDAC_SENSE_MASK | DAC_A_MASK | DAC_B_MASK | DAC_C_MASK);
 	tv_dac |= (TVDAC_STATE_CHG_EN |
