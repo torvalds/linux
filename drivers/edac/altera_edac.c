@@ -1106,7 +1106,7 @@ static void *ocram_alloc_mem(size_t size, void **other)
 
 static void ocram_free_mem(void *p, size_t size, void *other)
 {
-	gen_pool_free((struct gen_pool *)other, (u32)p, size);
+	gen_pool_free((struct gen_pool *)other, (unsigned long)p, size);
 }
 
 static const struct edac_device_prv_data ocramecc_data = {
