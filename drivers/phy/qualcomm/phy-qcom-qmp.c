@@ -1586,7 +1586,9 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 
 	ret = qcom_qmp_phy_vreg_init(dev);
 	if (ret) {
-		dev_err(dev, "failed to get regulator supplies\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to get regulator supplies: %d\n",
+				ret);
 		return ret;
 	}
 
