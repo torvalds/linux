@@ -30,8 +30,8 @@
 #endif
 
 #define get_ds()	(KERNEL_DS)
-#define get_fs()	(current->thread.fs)
-#define set_fs(val)	(current->thread.fs = (val))
+#define get_fs()	(current->thread.addr_limit)
+#define set_fs(val)	(current->thread.addr_limit = (val))
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
