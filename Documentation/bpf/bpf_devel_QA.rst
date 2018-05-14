@@ -417,6 +417,33 @@ submitted by the BPF maintainers to the stable maintainers.
 Testing patches
 ===============
 
+Q: How to run BPF selftests
+---------------------------
+A: After you have booted into the newly compiled kernel, navigate to
+the BPF selftests_ suite in order to test BPF functionality (current
+working directory points to the root of the cloned git tree)::
+
+  $ cd tools/testing/selftests/bpf/
+  $ make
+
+To run the verifier tests::
+
+  $ sudo ./test_verifier
+
+The verifier tests print out all the current checks being
+performed. The summary at the end of running all tests will dump
+information of test successes and failures::
+
+  Summary: 418 PASSED, 0 FAILED
+
+In order to run through all BPF selftests, the following command is
+needed::
+
+  $ sudo make run_tests
+
+See the kernels selftest `Documentation/dev-tools/kselftest.rst`_
+document for further documentation.
+
 Q: Which BPF kernel selftests version should I run my kernel against?
 ---------------------------------------------------------------------
 A: If you run a kernel ``xyz``, then always run the BPF kernel selftests
@@ -607,5 +634,7 @@ when:
 .. _netdev FAQ: ../networking/netdev-FAQ.txt
 .. _samples/bpf/: ../../samples/bpf/
 .. _selftests: ../../tools/testing/selftests/bpf/
+.. _Documentation/dev-tools/kselftest.rst:
+   https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
 
 Happy BPF hacking!
