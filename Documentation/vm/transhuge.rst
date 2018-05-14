@@ -38,31 +38,6 @@ are using hugepages but a significant speedup already happens if only
 one of the two is using hugepages just because of the fact the TLB
 miss is going to run faster.
 
-Design
-======
-
-- "graceful fallback": mm components which don't have transparent hugepage
-  knowledge fall back to breaking huge pmd mapping into table of ptes and,
-  if necessary, split a transparent hugepage. Therefore these components
-  can continue working on the regular pages or regular pte mappings.
-
-- if a hugepage allocation fails because of memory fragmentation,
-  regular pages should be gracefully allocated instead and mixed in
-  the same vma without any failure or significant delay and without
-  userland noticing
-
-- if some task quits and more hugepages become available (either
-  immediately in the buddy or through the VM), guest physical memory
-  backed by regular pages should be relocated on hugepages
-  automatically (with khugepaged)
-
-- it doesn't require memory reservation and in turn it uses hugepages
-  whenever possible (the only possible reservation here is kernelcore=
-  to avoid unmovable pages to fragment all the memory but such a tweak
-  is not specific to transparent hugepage support and it's a generic
-  feature that applies to all dynamic high order allocations in the
-  kernel)
-
 Transparent Hugepage Support maximizes the usefulness of free memory
 if compared to the reservation approach of hugetlbfs by allowing all
 unused memory to be used as cache or other movable (or even unmovable
@@ -401,6 +376,47 @@ tracer to record how long was spent in __alloc_pages_nodemask and
 using the mm_page_alloc tracepoint to identify which allocations were
 for huge pages.
 
+Optimizing the applications
+===========================
+
+To be guaranteed that the kernel will map a 2M page immediately in any
+memory region, the mmap region has to be hugepage naturally
+aligned. posix_memalign() can provide that guarantee.
+
+Hugetlbfs
+=========
+
+You can use hugetlbfs on a kernel that has transparent hugepage
+support enabled just fine as always. No difference can be noted in
+hugetlbfs other than there will be less overall fragmentation. All
+usual features belonging to hugetlbfs are preserved and
+unaffected. libhugetlbfs will also work fine as usual.
+
+Design principles
+=================
+
+- "graceful fallback": mm components which don't have transparent hugepage
+  knowledge fall back to breaking huge pmd mapping into table of ptes and,
+  if necessary, split a transparent hugepage. Therefore these components
+  can continue working on the regular pages or regular pte mappings.
+
+- if a hugepage allocation fails because of memory fragmentation,
+  regular pages should be gracefully allocated instead and mixed in
+  the same vma without any failure or significant delay and without
+  userland noticing
+
+- if some task quits and more hugepages become available (either
+  immediately in the buddy or through the VM), guest physical memory
+  backed by regular pages should be relocated on hugepages
+  automatically (with khugepaged)
+
+- it doesn't require memory reservation and in turn it uses hugepages
+  whenever possible (the only possible reservation here is kernelcore=
+  to avoid unmovable pages to fragment all the memory but such a tweak
+  is not specific to transparent hugepage support and it's a generic
+  feature that applies to all dynamic high order allocations in the
+  kernel)
+
 get_user_pages and follow_page
 ==============================
 
@@ -431,22 +447,6 @@ hugepages thanks to FOLL_SPLIT). migration simply can't deal with
 hugepages being returned (as it's not only checking the pfn of the
 page and pinning it during the copy but it pretends to migrate the
 memory in regular page sizes and with regular pte/pmd mappings).
-
-Optimizing the applications
-===========================
-
-To be guaranteed that the kernel will map a 2M page immediately in any
-memory region, the mmap region has to be hugepage naturally
-aligned. posix_memalign() can provide that guarantee.
-
-Hugetlbfs
-=========
-
-You can use hugetlbfs on a kernel that has transparent hugepage
-support enabled just fine as always. No difference can be noted in
-hugetlbfs other than there will be less overall fragmentation. All
-usual features belonging to hugetlbfs are preserved and
-unaffected. libhugetlbfs will also work fine as usual.
 
 Graceful fallback
 =================
