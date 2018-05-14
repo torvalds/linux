@@ -266,13 +266,23 @@ static void rndis_set_link_state(struct rndis_device *rdev,
 	}
 }
 
-static void rndis_filter_receive_response(struct rndis_device *dev,
-				       struct rndis_message *resp)
+static void rndis_filter_receive_response(struct net_device *ndev,
+					  struct netvsc_device *nvdev,
+					  const struct rndis_message *resp)
 {
+	struct rndis_device *dev = nvdev->extension;
 	struct rndis_request *request = NULL;
 	bool found = false;
 	unsigned long flags;
-	struct net_device *ndev = dev->ndev;
+
+	/* This should never happen, it means control message
+	 * response received after device removed.
+	 */
+	if (dev->state == RNDIS_DEV_UNINITIALIZED) {
+		netdev_err(ndev,
+			   "got rndis message uninitialized\n");
+		return;
+	}
 
 	spin_lock_irqsave(&dev->request_lock, flags);
 	list_for_each_entry(request, &dev->req_list, list_ent) {
@@ -353,7 +363,7 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 }
 
 static int rndis_filter_receive_data(struct net_device *ndev,
-				     struct rndis_device *dev,
+				     struct netvsc_device *nvdev,
 				     struct rndis_message *msg,
 				     struct vmbus_channel *channel,
 				     void *data, u32 data_buflen)
@@ -373,7 +383,7 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	 * should be the data packet size plus the trailer padding size
 	 */
 	if (unlikely(data_buflen < rndis_pkt->data_len)) {
-		netdev_err(dev->ndev, "rndis message buffer "
+		netdev_err(ndev, "rndis message buffer "
 			   "overflow detected (got %u, min %u)"
 			   "...dropping this message!\n",
 			   data_buflen, rndis_pkt->data_len);
@@ -401,34 +411,20 @@ int rndis_filter_receive(struct net_device *ndev,
 			 void *data, u32 buflen)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct rndis_device *rndis_dev = net_dev->extension;
 	struct rndis_message *rndis_msg = data;
-
-	/* Make sure the rndis device state is initialized */
-	if (unlikely(!rndis_dev)) {
-		netif_err(net_device_ctx, rx_err, ndev,
-			  "got rndis message but no rndis device!\n");
-		return NVSP_STAT_FAIL;
-	}
-
-	if (unlikely(rndis_dev->state == RNDIS_DEV_UNINITIALIZED)) {
-		netif_err(net_device_ctx, rx_err, ndev,
-			  "got rndis message uninitialized\n");
-		return NVSP_STAT_FAIL;
-	}
 
 	if (netif_msg_rx_status(net_device_ctx))
 		dump_rndis_message(dev, rndis_msg);
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
-		return rndis_filter_receive_data(ndev, rndis_dev, rndis_msg,
+		return rndis_filter_receive_data(ndev, net_dev, rndis_msg,
 						 channel, data, buflen);
 	case RNDIS_MSG_INIT_C:
 	case RNDIS_MSG_QUERY_C:
 	case RNDIS_MSG_SET_C:
 		/* completion msgs */
-		rndis_filter_receive_response(rndis_dev, rndis_msg);
+		rndis_filter_receive_response(ndev, net_dev, rndis_msg);
 		break;
 
 	case RNDIS_MSG_INDICATE:
@@ -1349,7 +1345,6 @@ void rndis_filter_device_remove(struct hv_device *dev,
 	net_dev->extension = NULL;
 
 	netvsc_device_remove(dev);
-	kfree(rndis_dev);
 }
 
 int rndis_filter_open(struct netvsc_device *nvdev)

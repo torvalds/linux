@@ -89,6 +89,11 @@ static void free_netvsc_device(struct rcu_head *head)
 		= container_of(head, struct netvsc_device, rcu);
 	int i;
 
+	kfree(nvdev->extension);
+	vfree(nvdev->recv_buf);
+	vfree(nvdev->send_buf);
+	kfree(nvdev->send_section_map);
+
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
 		vfree(nvdev->chan_table[i].mrc.slots);
 
@@ -210,12 +215,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		net_device->recv_buf_gpadl_handle = 0;
 	}
 
-	if (net_device->recv_buf) {
-		/* Free up the receive buffer */
-		vfree(net_device->recv_buf);
-		net_device->recv_buf = NULL;
-	}
-
 	if (net_device->send_buf_gpadl_handle) {
 		ret = vmbus_teardown_gpadl(device->channel,
 					   net_device->send_buf_gpadl_handle);
@@ -230,12 +229,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		}
 		net_device->send_buf_gpadl_handle = 0;
 	}
-	if (net_device->send_buf) {
-		/* Free up the send buffer */
-		vfree(net_device->send_buf);
-		net_device->send_buf = NULL;
-	}
-	kfree(net_device->send_section_map);
 }
 
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx)
