@@ -1709,5 +1709,5 @@ static struct platform_driver cci_pmu_driver = {
 };
 
 builtin_platform_driver(cci_pmu_driver);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ARM CCI PMU support");
