@@ -632,7 +632,7 @@
 		nand: nand@ffb90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
+			compatible = "altr,socfpga-denali-nand";
 			reg = <0xffb90000 0x72000>,
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
