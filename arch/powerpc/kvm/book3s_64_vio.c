@@ -300,7 +300,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	int ret = -ENOMEM;
 	int i;
 
-	if (!args->size)
+	if (!args->size || args->page_shift < 12 || args->page_shift > 34 ||
+		(args->offset + args->size > (ULLONG_MAX >> args->page_shift)))
 		return -EINVAL;
 
 	size = _ALIGN_UP(args->size, PAGE_SIZE >> 3);
