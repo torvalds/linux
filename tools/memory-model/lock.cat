@@ -32,6 +32,17 @@ include "cross.cat"
  * LKW, LF, RL, and RU have no ordering properties.
  *)
 
+(* Backward compatibility *)
+let RL = try RL with emptyset
+let RU = try RU with emptyset
+
+(* Treat RL as a kind of LF: a read with no ordering properties *)
+let LF = LF | RL
+
+(* There should be no ordinary R or W accesses to spinlocks *)
+let ALL-LOCKS = LKR | LKW | UL | LF | RU
+flag ~empty [M \ IW] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
+
 (* Link Lock-Reads to their RMW-partner Lock-Writes *)
 let lk-rmw = ([LKR] ; po-loc ; [LKW]) \ (po ; po)
 let rmw = rmw | lk-rmw
@@ -49,19 +60,8 @@ flag ~empty LKW \ range(lk-rmw) as unpaired-LKW
 (* This will be allowed if we implement spin_is_locked() *)
 flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
 
-(* There should be no ordinary R or W accesses to spinlocks *)
-let ALL-LOCKS = LKR | LKW | UL | LF
-flag ~empty [M \ IW] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
-
 (* The final value of a spinlock should not be tested *)
 flag ~empty [FW] ; loc ; [ALL-LOCKS] as lock-final
-
-(* Backward compatibility *)
-let RL = try RL with emptyset
-let RU = try RU with emptyset
-
-(* Treat RL as a kind of LF: a read with no ordering properties *)
-let LF = LF | RL
 
 (*
  * Put lock operations in their appropriate classes, but leave UL out of W
