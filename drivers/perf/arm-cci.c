@@ -1407,6 +1407,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	pmu_format_attr_group.attrs = model->format_attrs;
 
 	cci_pmu->pmu = (struct pmu) {
+		.module		= THIS_MODULE,
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= cci_pmu_enable,
@@ -1572,6 +1573,7 @@ static const struct of_device_id arm_cci_pmu_matches[] = {
 #endif
 	{},
 };
+MODULE_DEVICE_TABLE(of, arm_cci_pmu_matches);
 
 static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
 {
@@ -1693,14 +1695,27 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int cci_pmu_remove(struct platform_device *pdev)
+{
+	if (!g_cci_pmu)
+		return 0;
+
+	cpuhp_remove_state(CPUHP_AP_PERF_ARM_CCI_ONLINE);
+	perf_pmu_unregister(&g_cci_pmu->pmu);
+	g_cci_pmu = NULL;
+
+	return 0;
+}
+
 static struct platform_driver cci_pmu_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = arm_cci_pmu_matches,
 		  },
 	.probe = cci_pmu_probe,
+	.remove = cci_pmu_remove,
 };
 
-builtin_platform_driver(cci_pmu_driver);
+module_platform_driver(cci_pmu_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ARM CCI PMU support");
