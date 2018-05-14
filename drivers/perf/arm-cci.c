@@ -1184,16 +1184,11 @@ static int cci_pmu_add(struct perf_event *event, int flags)
 	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
-	int err = 0;
-
-	perf_pmu_disable(event->pmu);
 
 	/* If we don't have a space for the counter then finish early. */
 	idx = pmu_get_event_idx(hw_events, event);
-	if (idx < 0) {
-		err = idx;
-		goto out;
-	}
+	if (idx < 0)
+		return idx;
 
 	event->hw.idx = idx;
 	hw_events->events[idx] = event;
@@ -1205,9 +1200,7 @@ static int cci_pmu_add(struct perf_event *event, int flags)
 	/* Propagate our changes to the userspace mapping. */
 	perf_event_update_userpage(event);
 
-out:
-	perf_pmu_enable(event->pmu);
-	return err;
+	return 0;
 }
 
 static void cci_pmu_del(struct perf_event *event, int flags)
