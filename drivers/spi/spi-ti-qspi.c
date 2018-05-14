@@ -718,7 +718,9 @@ static int ti_qspi_probe(struct platform_device *pdev)
 				"memory mapped resource not required\n");
 		}
 	}
-	qspi->mmap_size = resource_size(res_mmap);
+
+	if (res_mmap)
+		qspi->mmap_size = resource_size(res_mmap);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
