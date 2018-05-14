@@ -123,6 +123,13 @@ config MDIO_MOXART
 	  This driver supports the MDIO interface found in the network
 	  interface units of the MOXA ART SoC
 
+config MDIO_MSCC_MIIM
+	tristate "Microsemi MIIM interface support"
+	depends on HAS_IOMEM
+	help
+	  This driver supports the MIIM (MDIO) interface found in the network
+	  switches of the Microsemi SoCs
+
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
 	depends on 64BIT
