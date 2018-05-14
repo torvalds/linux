@@ -1176,6 +1176,29 @@ static void sctp_outq_flush_data(struct sctp_outq *q,
 	}
 }
 
+static void sctp_outq_flush_transports(struct sctp_outq *q,
+				       struct list_head *transport_list,
+				       gfp_t gfp)
+{
+	struct list_head *ltransport;
+	struct sctp_packet *packet;
+	struct sctp_transport *t;
+	int error = 0;
+
+	while ((ltransport = sctp_list_dequeue(transport_list)) != NULL) {
+		t = list_entry(ltransport, struct sctp_transport, send_ready);
+		packet = &t->packet;
+		if (!sctp_packet_empty(packet)) {
+			error = sctp_packet_transmit(packet, gfp);
+			if (error < 0)
+				q->asoc->base.sk->sk_err = -error;
+		}
+
+		/* Clear the burst limited state, if any */
+		sctp_transport_burst_reset(t);
+	}
+}
+
 /*
  * Try to flush an outqueue.
  *
@@ -1187,17 +1210,10 @@ static void sctp_outq_flush_data(struct sctp_outq *q,
  */
 static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 {
-	struct sctp_packet *packet;
-	struct sctp_association *asoc = q->asoc;
+	/* Current transport being used. It's NOT the same as curr active one */
 	struct sctp_transport *transport = NULL;
-	int error = 0;
-
 	/* These transports have chunks to send. */
-	struct list_head transport_list;
-	struct list_head *ltransport;
-
-	INIT_LIST_HEAD(&transport_list);
-	packet = NULL;
+	LIST_HEAD(transport_list);
 
 	/*
 	 * 6.10 Bundling
@@ -1218,27 +1234,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 
 sctp_flush_out:
 
-	/* Before returning, examine all the transports touched in
-	 * this call.  Right now, we bluntly force clear all the
-	 * transports.  Things might change after we implement Nagle.
-	 * But such an examination is still required.
-	 *
-	 * --xguo
-	 */
-	while ((ltransport = sctp_list_dequeue(&transport_list)) != NULL) {
-		struct sctp_transport *t = list_entry(ltransport,
-						      struct sctp_transport,
-						      send_ready);
-		packet = &t->packet;
-		if (!sctp_packet_empty(packet)) {
-			error = sctp_packet_transmit(packet, gfp);
-			if (error < 0)
-				asoc->base.sk->sk_err = -error;
-		}
-
-		/* Clear the burst limited state, if any */
-		sctp_transport_burst_reset(t);
-	}
+	sctp_outq_flush_transports(q, &transport_list, gfp);
 }
 
 /* Update unack_data based on the incoming SACK chunk */
