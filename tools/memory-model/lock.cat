@@ -84,16 +84,16 @@ let rfi-lf = ([LKW] ; po-loc ; [LF]) \ ([LKW] ; po-loc ; [UL] ; po-loc)
 
 (* rfe for LF events *)
 let all-possible-rfe-lf =
-  (*
-   * Given an LF event r, compute the possible rfe edges for that event
-   * (all those starting from LKW events in other threads),
-   * and then convert that relation to a set of single-edge relations.
-   *)
-  let possible-rfe-lf r =
-    let pair-to-relation p = p ++ 0
-    in map pair-to-relation ((LKW * {r}) & loc & ext)
-  (* Do this for each LF event r that isn't in rfi-lf *)
-  in map possible-rfe-lf (LF \ range(rfi-lf))
+	(*
+	 * Given an LF event r, compute the possible rfe edges for that event
+	 * (all those starting from LKW events in other threads),
+	 * and then convert that relation to a set of single-edge relations.
+	 *)
+	let possible-rfe-lf r =
+		let pair-to-relation p = p ++ 0
+		in map pair-to-relation ((LKW * {r}) & loc & ext)
+	(* Do this for each LF event r that isn't in rfi-lf *)
+	in map possible-rfe-lf (LF \ range(rfi-lf))
 
 (* Generate all rf relations for LF events *)
 with rfe-lf from cross(all-possible-rfe-lf)
@@ -110,10 +110,10 @@ let rfi-ru = ([UL] ; po-loc ; [RU]) \ ([UL] ; po-loc ; [LKW] ; po-loc)
 
 (* rfe for RU events: an RU may read from an external UL or the initial write *)
 let all-possible-rfe-ru =
-   let possible-rfe-ru r =
-     let pair-to-relation p = p ++ 0
-     in map pair-to-relation (((UL|IW) * {r}) & loc & ext)
-  in map possible-rfe-ru RU
+	let possible-rfe-ru r =
+		let pair-to-relation p = p ++ 0
+		in map pair-to-relation (((UL | IW) * {r}) & loc & ext)
+	in map possible-rfe-ru RU
 
 (* Generate all rf relations for RU events *)
 with rfe-ru from cross(all-possible-rfe-ru)
