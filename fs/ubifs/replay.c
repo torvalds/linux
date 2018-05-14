@@ -1034,7 +1034,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 			 * The head of the log must always start with the
 			 * "commit start" node on a properly formatted UBIFS.
 			 * But we found no nodes at all, which means that
-			 * someting went wrong and we cannot proceed mounting
+			 * something went wrong and we cannot proceed mounting
 			 * the file-system.
 			 */
 			ubifs_err(c, "no UBIFS nodes found at the log head LEB %d:%d, possibly corrupted",
