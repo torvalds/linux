@@ -481,7 +481,7 @@ static int _wait_softreset_complete(struct omap_hwmod *oh)
 
 	sysc = oh->class->sysc;
 
-	if (sysc->sysc_flags & SYSS_HAS_RESET_STATUS)
+	if (sysc->sysc_flags & SYSS_HAS_RESET_STATUS && sysc->syss_offs > 0)
 		omap_test_timeout((omap_hwmod_read(oh, sysc->syss_offs)
 				   & SYSS_RESETDONE_MASK),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
@@ -3171,19 +3171,19 @@ static int omap_hwmod_init_regbits(struct device *dev,
  */
 int omap_hwmod_init_reg_offs(struct device *dev,
 			     const struct ti_sysc_module_data *data,
-			     u32 *rev_offs, u32 *sysc_offs, u32 *syss_offs)
+			     s32 *rev_offs, s32 *sysc_offs, s32 *syss_offs)
 {
-	*rev_offs = 0;
+	*rev_offs = -ENODEV;
 	*sysc_offs = 0;
 	*syss_offs = 0;
 
-	if (data->offsets[SYSC_REVISION] > 0)
+	if (data->offsets[SYSC_REVISION] >= 0)
 		*rev_offs = data->offsets[SYSC_REVISION];
 
-	if (data->offsets[SYSC_SYSCONFIG] > 0)
+	if (data->offsets[SYSC_SYSCONFIG] >= 0)
 		*sysc_offs = data->offsets[SYSC_SYSCONFIG];
 
-	if (data->offsets[SYSC_SYSSTATUS] > 0)
+	if (data->offsets[SYSC_SYSSTATUS] >= 0)
 		*syss_offs = data->offsets[SYSC_SYSSTATUS];
 
 	return 0;
@@ -3312,8 +3312,8 @@ static int omap_hwmod_check_module(struct device *dev,
 				   struct omap_hwmod *oh,
 				   const struct ti_sysc_module_data *data,
 				   struct sysc_regbits *sysc_fields,
-				   u32 rev_offs, u32 sysc_offs,
-				   u32 syss_offs, u32 sysc_flags,
+				   s32 rev_offs, s32 sysc_offs,
+				   s32 syss_offs, u32 sysc_flags,
 				   u32 idlemodes)
 {
 	if (!oh->class->sysc)
@@ -3365,7 +3365,7 @@ static int omap_hwmod_check_module(struct device *dev,
 int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 			       const struct ti_sysc_module_data *data,
 			       struct sysc_regbits *sysc_fields,
-			       u32 rev_offs, u32 sysc_offs, u32 syss_offs,
+			       s32 rev_offs, s32 sysc_offs, s32 syss_offs,
 			       u32 sysc_flags, u32 idlemodes)
 {
 	struct omap_hwmod_class_sysconfig *sysc;
@@ -3425,7 +3425,8 @@ int omap_hwmod_init_module(struct device *dev,
 {
 	struct omap_hwmod *oh;
 	struct sysc_regbits *sysc_fields;
-	u32 rev_offs, sysc_offs, syss_offs, sysc_flags, idlemodes;
+	s32 rev_offs, sysc_offs, syss_offs;
+	u32 sysc_flags, idlemodes;
 	int error;
 
 	if (!dev || !data)

@@ -31,7 +31,6 @@
 #include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include "omap-pm.h"
 
 #include "soc.h"
 #include "cm2xxx_3xxx.h"
@@ -240,10 +239,6 @@ static int option_set(void *data, u64 val)
 	*option = val;
 
 	if (option == &enable_off_mode) {
-		if (val)
-			omap_pm_enable_off_mode();
-		else
-			omap_pm_disable_off_mode();
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
 	}
