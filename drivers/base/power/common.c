@@ -106,7 +106,7 @@ int dev_pm_domain_attach(struct device *dev, bool power_on)
 	int ret;
 
 	if (dev->pm_domain)
-		return -EEXIST;
+		return 0;
 
 	ret = acpi_dev_pm_attach(dev, power_on);
 	if (!ret)
