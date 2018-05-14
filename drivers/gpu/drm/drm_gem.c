@@ -40,6 +40,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_print.h>
 #include "drm_internal.h"
 
 /** @file drm_gem.c
@@ -348,7 +349,7 @@ EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
  * @file: drm file-private structure to remove the dumb handle from
  * @dev: corresponding drm_device
  * @handle: the dumb handle to remove
- * 
+ *
  * This implements the &drm_driver.dumb_destroy kms driver callback for drivers
  * which use gem to manage their backing storage.
  */
@@ -365,7 +366,7 @@ EXPORT_SYMBOL(drm_gem_dumb_destroy);
  * @file_priv: drm file-private structure to register the handle for
  * @obj: object to register
  * @handlep: pointer to return the created handle to the caller
- * 
+ *
  * This expects the &drm_device.object_name_lock to be held already and will
  * drop it before returning. Used to avoid races in establishing new handles
  * when importing an object from either an flink name or a dma-buf.
@@ -1040,3 +1041,19 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_mmap);
+
+void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
+			const struct drm_gem_object *obj)
+{
+	drm_printf_indent(p, indent, "name=%d\n", obj->name);
+	drm_printf_indent(p, indent, "refcount=%u\n",
+			  kref_read(&obj->refcount));
+	drm_printf_indent(p, indent, "start=%08lx\n",
+			  drm_vma_node_start(&obj->vma_node));
+	drm_printf_indent(p, indent, "size=%zu\n", obj->size);
+	drm_printf_indent(p, indent, "imported=%s\n",
+			  obj->import_attach ? "yes" : "no");
+
+	if (obj->dev->driver->gem_print_info)
+		obj->dev->driver->gem_print_info(p, indent, obj);
+}

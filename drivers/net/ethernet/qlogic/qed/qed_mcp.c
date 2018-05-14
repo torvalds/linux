@@ -2234,7 +2234,7 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 					DRV_MSG_CODE_NVM_READ_NVRAM,
 					addr + offset +
 					(bytes_to_copy <<
-					 DRV_MB_PARAM_NVM_LEN_SHIFT),
+					 DRV_MB_PARAM_NVM_LEN_OFFSET),
 					&resp, &resp_param,
 					&read_len,
 					(u32 *)(p_buf + offset));

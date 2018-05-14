@@ -21,7 +21,7 @@
 #ifndef FC2580_H
 #define FC2580_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include <media/v4l2-subdev.h>
 #include <linux/i2c.h>
 

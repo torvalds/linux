@@ -1,16 +1,11 @@
-/* linux/arch/arm/plat-samsung/dev-uart.c
- *	originally from arch/arm/plat-s3c24xx/devs.c
- *x
- * Copyright (c) 2004 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * Base S3C24XX platform device definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+//	originally from arch/arm/plat-s3c24xx/devs.c
+//
+// Copyright (c) 2004 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// Base S3C24XX platform device definitions
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>

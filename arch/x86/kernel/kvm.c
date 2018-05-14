@@ -49,7 +49,7 @@
 
 static int kvmapf = 1;
 
-static int parse_no_kvmapf(char *arg)
+static int __init parse_no_kvmapf(char *arg)
 {
         kvmapf = 0;
         return 0;
@@ -58,7 +58,7 @@ static int parse_no_kvmapf(char *arg)
 early_param("no-kvmapf", parse_no_kvmapf);
 
 static int steal_acc = 1;
-static int parse_no_stealacc(char *arg)
+static int __init parse_no_stealacc(char *arg)
 {
         steal_acc = 0;
         return 0;
@@ -67,7 +67,7 @@ static int parse_no_stealacc(char *arg)
 early_param("no-steal-acc", parse_no_stealacc);
 
 static int kvmclock_vsyscall = 1;
-static int parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_no_kvmclock_vsyscall(char *arg)
 {
         kvmclock_vsyscall = 0;
         return 0;
@@ -341,10 +341,10 @@ static void kvm_guest_cpu_init(void)
 #endif
 		pa |= KVM_ASYNC_PF_ENABLED;
 
-		/* Async page fault support for L1 hypervisor is optional */
-		if (wrmsr_safe(MSR_KVM_ASYNC_PF_EN,
-			(pa | KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT) & 0xffffffff, pa >> 32) < 0)
-			wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
+		if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF_VMEXIT))
+			pa |= KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT;
+
+		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(apf_reason.enabled, 1);
 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
 		       smp_processor_id());
@@ -498,6 +498,34 @@ static void __init kvm_apf_trap_init(void)
 	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
+static DEFINE_PER_CPU(cpumask_var_t, __pv_tlb_mask);
+
+static void kvm_flush_tlb_others(const struct cpumask *cpumask,
+			const struct flush_tlb_info *info)
+{
+	u8 state;
+	int cpu;
+	struct kvm_steal_time *src;
+	struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__pv_tlb_mask);
+
+	cpumask_copy(flushmask, cpumask);
+	/*
+	 * We have to call flush only on online vCPUs. And
+	 * queue flush_on_enter for pre-empted vCPUs
+	 */
+	for_each_cpu(cpu, flushmask) {
+		src = &per_cpu(steal_time, cpu);
+		state = READ_ONCE(src->preempted);
+		if ((state & KVM_VCPU_PREEMPTED)) {
+			if (try_cmpxchg(&src->preempted, &state,
+					state | KVM_VCPU_FLUSH_TLB))
+				__cpumask_clear_cpu(cpu, flushmask);
+		}
+	}
+
+	native_flush_tlb_others(flushmask, info);
+}
+
 static void __init kvm_guest_init(void)
 {
 	int i;
@@ -516,6 +544,10 @@ static void __init kvm_guest_init(void)
 		has_steal_clock = 1;
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
+
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
+		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
@@ -598,6 +630,23 @@ static __init int activate_jump_labels(void)
 }
 arch_initcall(activate_jump_labels);
 
+static __init int kvm_setup_pv_tlb_flush(void)
+{
+	int cpu;
+
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
+		for_each_possible_cpu(cpu) {
+			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
+				GFP_KERNEL, cpu_to_node(cpu));
+		}
+		pr_info("KVM setup pv remote TLB flush\n");
+	}
+
+	return 0;
+}
+arch_initcall(kvm_setup_pv_tlb_flush);
+
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
 /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
@@ -643,7 +692,7 @@ __visible bool __kvm_vcpu_is_preempted(long cpu)
 {
 	struct kvm_steal_time *src = &per_cpu(steal_time, cpu);
 
-	return !!src->preempted;
+	return !!(src->preempted & KVM_VCPU_PREEMPTED);
 }
 PV_CALLEE_SAVE_REGS_THUNK(__kvm_vcpu_is_preempted);
 

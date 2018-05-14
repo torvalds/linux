@@ -669,10 +669,10 @@ edd_get_pci_dev(struct edd_device *edev)
 	struct edd_info *info = edd_dev_get_info(edev);
 
 	if (edd_dev_is_type(edev, "PCI") || edd_dev_is_type(edev, "XPRS")) {
-		return pci_get_bus_and_slot(info->params.interface_path.pci.bus,
-				     PCI_DEVFN(info->params.interface_path.pci.slot,
-					       info->params.interface_path.pci.
-					       function));
+		return pci_get_domain_bus_and_slot(0,
+				info->params.interface_path.pci.bus,
+				PCI_DEVFN(info->params.interface_path.pci.slot,
+				info->params.interface_path.pci.function));
 	}
 	return NULL;
 }

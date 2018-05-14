@@ -100,7 +100,6 @@ enum cpsw_ale_port_state {
 #define ALE_ENTRY_WORDS	DIV_ROUND_UP(ALE_ENTRY_BITS, 32)
 
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params);
-int cpsw_ale_destroy(struct cpsw_ale *ale);
 
 void cpsw_ale_start(struct cpsw_ale *ale);
 void cpsw_ale_stop(struct cpsw_ale *ale);

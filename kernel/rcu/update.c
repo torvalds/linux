@@ -422,11 +422,13 @@ void init_rcu_head(struct rcu_head *head)
 {
 	debug_object_init(head, &rcuhead_debug_descr);
 }
+EXPORT_SYMBOL_GPL(init_rcu_head);
 
 void destroy_rcu_head(struct rcu_head *head)
 {
 	debug_object_free(head, &rcuhead_debug_descr);
 }
+EXPORT_SYMBOL_GPL(destroy_rcu_head);
 
 static bool rcuhead_is_static_object(void *addr)
 {

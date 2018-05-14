@@ -252,31 +252,25 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 			       struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned int target_rate, min_rate, max_rate;
 	struct dw8250_data *d = p->private_data;
 	long rate;
-	int i, ret;
+	int ret;
 
 	if (IS_ERR(d->clk) || !old)
 		goto out;
 
-	/* Find a clk rate within +/-1.6% of an integer multiple of baudx16 */
-	target_rate = baud * 16;
-	min_rate = target_rate - (target_rate >> 6);
-	max_rate = target_rate + (target_rate >> 6);
-
-	for (i = 1; i <= UART_DIV_MAX; i++) {
-		rate = clk_round_rate(d->clk, i * target_rate);
-		if (rate >= i * min_rate && rate <= i * max_rate)
-			break;
-	}
-	if (i <= UART_DIV_MAX) {
-		clk_disable_unprepare(d->clk);
+	clk_disable_unprepare(d->clk);
+	rate = clk_round_rate(d->clk, baud * 16);
+	if (rate < 0)
+		ret = rate;
+	else if (rate == 0)
+		ret = -ENOENT;
+	else
 		ret = clk_set_rate(d->clk, rate);
-		clk_prepare_enable(d->clk);
-		if (!ret)
-			p->uartclk = rate;
-	}
+	clk_prepare_enable(d->clk);
+
+	if (!ret)
+		p->uartclk = rate;
 
 out:
 	p->status &= ~UPSTAT_AUTOCTS;
@@ -515,7 +509,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	/* If no clock rate is defined, fail. */
 	if (!p->uartclk) {
 		dev_err(dev, "clock rate not defined\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_clk;
 	}
 
 	data->pclk = devm_clk_get(dev, "apb_pclk");

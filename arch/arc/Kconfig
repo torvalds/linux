@@ -463,9 +463,6 @@ config ARCH_PHYS_ADDR_T_64BIT
 config ARCH_DMA_ADDR_T_64BIT
 	bool
 
-config ARC_PLAT_NEEDS_PHYS_TO_DMA
-	bool
-
 config ARC_KVADDR_SIZE
 	int "Kernel Virtual Address Space size (MB)"
 	range 0 512
@@ -487,7 +484,6 @@ config ARC_CURR_IN_REG
 
 config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
-	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	depends on ISA_ARCOMPACT

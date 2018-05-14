@@ -26,8 +26,6 @@
 #ifndef _OS_TYPES_H_
 #define _OS_TYPES_H_
 
-#if defined __KERNEL__
-
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <drm/drmP.h>
@@ -46,14 +44,12 @@
 #undef WRITE
 #undef FRAME_SIZE
 
-#define dm_output_to_console(fmt, ...) DRM_INFO(fmt, ##__VA_ARGS__)
+#define dm_output_to_console(fmt, ...) DRM_DEBUG_KMS(fmt, ##__VA_ARGS__)
 
 #define dm_error(fmt, ...) DRM_ERROR(fmt, ##__VA_ARGS__)
 
-#define dm_debug(fmt, ...) DRM_DEBUG_KMS(fmt, ##__VA_ARGS__)
-
-#define dm_vlog(fmt, args) vprintk(fmt, args)
-
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include <asm/fpu/api.h>
 #endif
 
 /*
@@ -88,9 +84,5 @@
 	dm_error(__VA_ARGS__); \
 	BREAK_TO_DEBUGGER(); \
 } while (0)
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-#include <asm/fpu/api.h>
-#endif
 
 #endif /* _OS_TYPES_H_ */

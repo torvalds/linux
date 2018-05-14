@@ -1,0 +1,18 @@
+config VBOXGUEST
+	tristate "Virtual Box Guest integration support"
+	depends on X86 && PCI && INPUT
+	help
+	  This is a driver for the Virtual Box Guest PCI device used in
+	  Virtual Box virtual machines. Enabling this driver will add
+	  support for Virtual Box Guest integration features such as
+	  copy-and-paste, seamless mode and OpenGL pass-through.
+
+	  This driver also offers vboxguest IPC functionality which is needed
+	  for the vboxfs driver which offers folder sharing support.
+
+	  If you enable this driver you should also enable the VBOXVIDEO option.
+
+	  Although it is possible to build this module in, it is advised
+	  to build this driver as a module, so that it can be updated
+	  independently of the kernel. Select M to build this driver as a
+	  module.

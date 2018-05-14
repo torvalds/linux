@@ -11,13 +11,8 @@ options:
   * CONFIG_EXTRA_FIRMWARE
   * CONFIG_EXTRA_FIRMWARE_DIR
 
-This should not be confused with CONFIG_FIRMWARE_IN_KERNEL, this is for drivers
-which enables firmware to be built as part of the kernel build process. This
-option, CONFIG_FIRMWARE_IN_KERNEL, will build all firmware for all drivers
-enabled which ship its firmware inside the Linux kernel source tree.
-
 There are a few reasons why you might want to consider building your firmware
-into the kernel with CONFIG_EXTRA_FIRMWARE though:
+into the kernel with CONFIG_EXTRA_FIRMWARE:
 
 * Speed
 * Firmware is needed for accessing the boot device, and the user doesn't

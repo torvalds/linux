@@ -262,7 +262,6 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 
 		spin_lock_irqsave(&priv->echo_lock, flags);
 		can_get_echo_skb(priv->ndev, msg->client);
-		spin_unlock_irqrestore(&priv->echo_lock, flags);
 
 		/* count bytes of the echo instead of skb */
 		stats->tx_bytes += cf_len;
@@ -271,6 +270,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 		/* restart tx queue (a slot is free) */
 		netif_wake_queue(priv->ndev);
 
+		spin_unlock_irqrestore(&priv->echo_lock, flags);
 		return 0;
 	}
 
@@ -333,7 +333,6 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	/* this STATUS is the CNF of the RX_BARRIER: Tx path can be setup */
 	if (pucan_status_is_rx_barrier(msg)) {
-		unsigned long flags;
 
 		if (priv->enable_tx_path) {
 			int err = priv->enable_tx_path(priv);
@@ -342,16 +341,8 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 				return err;
 		}
 
-		/* restart network queue only if echo skb array is free */
-		spin_lock_irqsave(&priv->echo_lock, flags);
-
-		if (!priv->can.echo_skb[priv->echo_idx]) {
-			spin_unlock_irqrestore(&priv->echo_lock, flags);
-
-			netif_wake_queue(ndev);
-		} else {
-			spin_unlock_irqrestore(&priv->echo_lock, flags);
-		}
+		/* start network queue (echo_skb array is empty) */
+		netif_start_queue(ndev);
 
 		return 0;
 	}
@@ -726,11 +717,6 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	 */
 	should_stop_tx_queue = !!(priv->can.echo_skb[priv->echo_idx]);
 
-	spin_unlock_irqrestore(&priv->echo_lock, flags);
-
-	/* write the skb on the interface */
-	priv->write_tx_msg(priv, msg);
-
 	/* stop network tx queue if not enough room to save one more msg too */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
 		should_stop_tx_queue |= (room_left <
@@ -741,6 +727,11 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 
 	if (should_stop_tx_queue)
 		netif_stop_queue(ndev);
+
+	spin_unlock_irqrestore(&priv->echo_lock, flags);
+
+	/* write the skb on the interface */
+	priv->write_tx_msg(priv, msg);
 
 	return NETDEV_TX_OK;
 }

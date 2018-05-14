@@ -73,10 +73,16 @@ static inline void radix__pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
+	pgd_t *pgd;
+
 	if (radix_enabled())
 		return radix__pgd_alloc(mm);
-	return kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
-		pgtable_gfp_flags(mm, GFP_KERNEL));
+
+	pgd = kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
+			       pgtable_gfp_flags(mm, GFP_KERNEL));
+	memset(pgd, 0, PGD_TABLE_SIZE);
+
+	return pgd;
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
@@ -93,13 +99,13 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return kmem_cache_alloc(PGT_CACHE(PUD_INDEX_SIZE),
+	return kmem_cache_alloc(PGT_CACHE(PUD_CACHE_INDEX),
 		pgtable_gfp_flags(mm, GFP_KERNEL));
 }
 
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
-	kmem_cache_free(PGT_CACHE(PUD_INDEX_SIZE), pud);
+	kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), pud);
 }
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
@@ -115,7 +121,7 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 	 * ahead and flush the page walk cache
 	 */
 	flush_tlb_pgtable(tlb, address);
-        pgtable_free_tlb(tlb, pud, PUD_INDEX_SIZE);
+	pgtable_free_tlb(tlb, pud, PUD_CACHE_INDEX);
 }
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)

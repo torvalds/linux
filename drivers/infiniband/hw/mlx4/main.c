@@ -219,8 +219,6 @@ static int mlx4_ib_update_gids_v1_v2(struct gid_entry *gids,
 			gid_tbl[i].version = 2;
 			if (!ipv6_addr_v4mapped((struct in6_addr *)&gids[i].gid))
 				gid_tbl[i].type = 1;
-			else
-				memset(&gid_tbl[i].gid, 0, 12);
 		}
 	}
 
@@ -366,8 +364,13 @@ static int mlx4_ib_del_gid(struct ib_device *device,
 		if (!gids) {
 			ret = -ENOMEM;
 		} else {
-			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
-				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++) {
+				memcpy(&gids[i].gid,
+				       &port_gid_table->gids[i].gid,
+				       sizeof(union ib_gid));
+				gids[i].gid_type =
+				    port_gid_table->gids[i].gid_type;
+			}
 		}
 	}
 	spin_unlock_bh(&iboe->lock);
@@ -589,6 +592,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		if (props->rss_caps.supported_qpts) {
 			resp.rss_caps.rx_hash_function =
 				MLX4_IB_RX_HASH_FUNC_TOEPLITZ;
+
 			resp.rss_caps.rx_hash_fields_mask =
 				MLX4_IB_RX_HASH_SRC_IPV4 |
 				MLX4_IB_RX_HASH_DST_IPV4 |
@@ -598,6 +602,11 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 				MLX4_IB_RX_HASH_DST_PORT_TCP |
 				MLX4_IB_RX_HASH_SRC_PORT_UDP |
 				MLX4_IB_RX_HASH_DST_PORT_UDP;
+
+			if (dev->dev->caps.tunnel_offload_mode ==
+			    MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+				resp.rss_caps.rx_hash_fields_mask |=
+					MLX4_IB_RX_HASH_INNER;
 		}
 	}
 
@@ -2995,9 +3004,8 @@ err_steer_free_bitmap:
 	kfree(ibdev->ib_uc_qpns_bitmap);
 
 err_steer_qp_release:
-	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED)
-		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
-				      ibdev->steer_qpn_count);
+	mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
+			      ibdev->steer_qpn_count);
 err_counter:
 	for (i = 0; i < ibdev->num_ports; ++i)
 		mlx4_ib_delete_counters_table(ibdev, &ibdev->counters_table[i]);
@@ -3102,11 +3110,9 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 
-	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED) {
-		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
-				      ibdev->steer_qpn_count);
-		kfree(ibdev->ib_uc_qpns_bitmap);
-	}
+	mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
+			      ibdev->steer_qpn_count);
+	kfree(ibdev->ib_uc_qpns_bitmap);
 
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)

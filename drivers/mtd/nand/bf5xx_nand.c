@@ -572,6 +572,8 @@ static void bf5xx_nand_dma_write_buf(struct mtd_info *mtd,
 static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 		uint8_t *buf, int oob_required, int page)
 {
+	nand_read_page_op(chip, page, 0, NULL, 0);
+
 	bf5xx_nand_read_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
@@ -582,10 +584,10 @@ static int bf5xx_nand_write_page_raw(struct mtd_info *mtd,
 		struct nand_chip *chip,	const uint8_t *buf, int oob_required,
 		int page)
 {
-	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 /*

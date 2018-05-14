@@ -1172,7 +1172,7 @@ struct rtl8723bu_c2h {
 
 			u8 basic_rate:1;
 			u8 bt_has_reset:1;
-			u8 dummy4_1:1;;
+			u8 dummy4_1:1;
 			u8 ignore_wlan:1;
 			u8 auto_report:1;
 			u8 dummy4_2:3;

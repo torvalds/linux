@@ -249,10 +249,8 @@ extern int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd);
 extern void kvmppc_pr_init_default_hcalls(struct kvm *kvm);
 extern int kvmppc_hcall_impl_pr(unsigned long cmd);
 extern int kvmppc_hcall_impl_hv_realmode(unsigned long cmd);
-extern void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
-				 struct kvm_vcpu *vcpu);
-extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
-				   struct kvmppc_book3s_shadow_vcpu *svcpu);
+extern void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu);
+extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu);
 extern int kvm_irq_bypass;
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)

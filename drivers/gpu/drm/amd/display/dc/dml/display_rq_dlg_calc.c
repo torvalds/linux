@@ -27,6 +27,15 @@
 #include "display_mode_vba.h"
 #include "display_rq_dlg_calc.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 static void calculate_ttu_cursor(struct display_mode_lib *mode_lib,
 		double *refcyc_per_req_delivery_pre_cur,
 		double *refcyc_per_req_delivery_cur,

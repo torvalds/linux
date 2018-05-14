@@ -41,7 +41,19 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
-struct pid init_struct_pid = INIT_STRUCT_PID;
+struct pid init_struct_pid = {
+	.count 		= ATOMIC_INIT(1),
+	.tasks		= {
+		{ .first = NULL },
+		{ .first = NULL },
+		{ .first = NULL },
+	},
+	.level		= 0,
+	.numbers	= { {
+		.nr		= 0,
+		.ns		= &init_pid_ns,
+	}, }
+};
 
 int pid_max = PID_MAX_DEFAULT;
 
@@ -329,6 +341,19 @@ struct task_struct *find_task_by_pid_ns(pid_t nr, struct pid_namespace *ns)
 struct task_struct *find_task_by_vpid(pid_t vnr)
 {
 	return find_task_by_pid_ns(vnr, task_active_pid_ns(current));
+}
+
+struct task_struct *find_get_task_by_vpid(pid_t nr)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+	task = find_task_by_vpid(nr);
+	if (task)
+		get_task_struct(task);
+	rcu_read_unlock();
+
+	return task;
 }
 
 struct pid *get_task_pid(struct task_struct *task, enum pid_type type)

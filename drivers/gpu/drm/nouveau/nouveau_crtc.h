@@ -60,7 +60,6 @@ struct nouveau_crtc {
 	} cursor;
 
 	struct {
-		struct nouveau_bo *nvbo;
 		int depth;
 	} lut;
 

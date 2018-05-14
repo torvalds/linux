@@ -280,7 +280,7 @@ static void cik_ih_decode_iv(struct amdgpu_device *adev,
 	entry->src_id = dw[0] & 0xff;
 	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
-	entry->vm_id = (dw[2] >> 8) & 0xff;
+	entry->vmid = (dw[2] >> 8) & 0xff;
 	entry->pas_id = (dw[2] >> 16) & 0xffff;
 
 	/* wptr/rptr are in bytes! */

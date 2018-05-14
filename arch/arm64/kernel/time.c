@@ -52,7 +52,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	frame.fp = regs->regs[29];
 	frame.pc = regs->pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = -1; /* no task info */
+	frame.graph = current->curr_ret_stack;
 #endif
 	do {
 		int ret = unwind_frame(NULL, &frame);

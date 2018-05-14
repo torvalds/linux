@@ -207,6 +207,8 @@ struct mv88e6xxx_chip {
 	int irq;
 	int device_irq;
 	int watchdog_irq;
+	int atu_prob_irq;
+	int vtu_prob_irq;
 };
 
 struct mv88e6xxx_bus_ops {

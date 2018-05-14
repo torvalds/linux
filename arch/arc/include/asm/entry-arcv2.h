@@ -184,7 +184,7 @@
 .macro FAKE_RET_FROM_EXCPN
 	lr      r9, [status32]
 	bic     r9, r9, (STATUS_U_MASK|STATUS_DE_MASK|STATUS_AE_MASK)
-	or      r9, r9, (STATUS_L_MASK|STATUS_IE_MASK)
+	or      r9, r9, STATUS_IE_MASK
 	kflag   r9
 .endm
 

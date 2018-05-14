@@ -526,7 +526,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	    !(pll_is_valid(parent_rate, 1, 1000000, 20000000)
 	      && pll_is_valid(cco_rate, 1, 156000000, 320000000)
 	      && pll_is_valid(ref_rate, 1, 1000000, 27000000)))
-		pr_err("%s: PLL clocks are not in valid ranges: %lu/%lu/%lu",
+		pr_err("%s: PLL clocks are not in valid ranges: %lu/%lu/%lu\n",
 		       clk_hw_get_name(hw),
 		       parent_rate, cco_rate, ref_rate);
 
@@ -956,7 +956,7 @@ static unsigned long clk_divider_recalc_rate(struct clk_hw *hw,
 	val &= div_mask(divider->width);
 
 	return divider_recalc_rate(hw, parent_rate, val, divider->table,
-				   divider->flags);
+				   divider->flags, divider->width);
 }
 
 static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -1505,7 +1505,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 		return;
 	}
 	if (clk_get_rate(clk_32k) != 32768) {
-		pr_err("invalid clock rate of external 32KHz oscillator");
+		pr_err("invalid clock rate of external 32KHz oscillator\n");
 		return;
 	}
 

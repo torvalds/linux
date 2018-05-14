@@ -455,7 +455,7 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 		}
 	}
 
-	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
+	ret = spufs_mkdir(inode, dentry, flags, mode & 0777);
 	if (ret)
 		goto out_aff_unlock;
 
@@ -546,7 +546,7 @@ static int spufs_create_gang(struct inode *inode,
 	struct path path = {.mnt = mnt, .dentry = dentry};
 	int ret;
 
-	ret = spufs_mkgang(inode, dentry, mode & S_IRWXUGO);
+	ret = spufs_mkgang(inode, dentry, mode & 0777);
 	if (!ret) {
 		ret = spufs_gang_open(&path);
 		if (ret < 0) {

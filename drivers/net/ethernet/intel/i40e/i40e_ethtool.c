@@ -126,6 +126,10 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("link_xoff_rx", stats.link_xoff_rx),
 	I40E_PF_STAT("link_xon_tx", stats.link_xon_tx),
 	I40E_PF_STAT("link_xoff_tx", stats.link_xoff_tx),
+	I40E_PF_STAT("priority_xon_rx", stats.priority_xon_rx),
+	I40E_PF_STAT("priority_xoff_rx", stats.priority_xoff_rx),
+	I40E_PF_STAT("priority_xon_tx", stats.priority_xon_tx),
+	I40E_PF_STAT("priority_xoff_tx", stats.priority_xoff_tx),
 	I40E_PF_STAT("rx_size_64", stats.rx_size_64),
 	I40E_PF_STAT("rx_size_127", stats.rx_size_127),
 	I40E_PF_STAT("rx_size_255", stats.rx_size_255),
@@ -229,6 +233,7 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
 	I40E_PRIV_FLAG("disable-source-pruning",
 		       I40E_FLAG_SOURCE_PRUNING_DISABLED, 0),
+	I40E_PRIV_FLAG("disable-fw-lldp", I40E_FLAG_DISABLE_FW_LLDP, 0),
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gstrings_priv_flags)
@@ -1585,6 +1590,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			 */
 			rx_rings[i].desc = NULL;
 			rx_rings[i].rx_bi = NULL;
+			/* Clear cloned XDP RX-queue info before setup call */
+			memset(&rx_rings[i].xdp_rxq, 0, sizeof(rx_rings[i].xdp_rxq));
 			/* this is to allow wr32 to have something to write to
 			 * during early allocation of Rx buffers
 			 */
@@ -2299,6 +2306,8 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 				   struct ethtool_coalesce *ec,
 				   int queue)
 {
+	struct i40e_ring *rx_ring = vsi->rx_rings[queue];
+	struct i40e_ring *tx_ring = vsi->tx_rings[queue];
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_q_vector *q_vector;
@@ -2306,26 +2315,26 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
-	vsi->rx_rings[queue]->rx_itr_setting = ec->rx_coalesce_usecs;
-	vsi->tx_rings[queue]->tx_itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->rx_itr_setting = ec->rx_coalesce_usecs;
+	tx_ring->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (ec->use_adaptive_rx_coalesce)
-		vsi->rx_rings[queue]->rx_itr_setting |= I40E_ITR_DYNAMIC;
+		rx_ring->rx_itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		vsi->rx_rings[queue]->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		rx_ring->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	if (ec->use_adaptive_tx_coalesce)
-		vsi->tx_rings[queue]->tx_itr_setting |= I40E_ITR_DYNAMIC;
+		tx_ring->tx_itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		vsi->tx_rings[queue]->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		tx_ring->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
-	q_vector = vsi->rx_rings[queue]->q_vector;
-	q_vector->rx.itr = ITR_TO_REG(vsi->rx_rings[queue]->rx_itr_setting);
+	q_vector = rx_ring->q_vector;
+	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
 
-	q_vector = vsi->tx_rings[queue]->q_vector;
-	q_vector->tx.itr = ITR_TO_REG(vsi->tx_rings[queue]->tx_itr_setting);
+	q_vector = tx_ring->q_vector;
+	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
 
@@ -2740,16 +2749,16 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 
 no_input_set:
 	if (input_set & I40E_L3_SRC_MASK)
-		fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFF);
+		fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFFFFFF);
 
 	if (input_set & I40E_L3_DST_MASK)
-		fsp->m_u.tcp_ip4_spec.ip4dst = htonl(0xFFFF);
+		fsp->m_u.tcp_ip4_spec.ip4dst = htonl(0xFFFFFFFF);
 
 	if (input_set & I40E_L4_SRC_MASK)
-		fsp->m_u.tcp_ip4_spec.psrc = htons(0xFFFFFFFF);
+		fsp->m_u.tcp_ip4_spec.psrc = htons(0xFFFF);
 
 	if (input_set & I40E_L4_DST_MASK)
-		fsp->m_u.tcp_ip4_spec.pdst = htons(0xFFFFFFFF);
+		fsp->m_u.tcp_ip4_spec.pdst = htons(0xFFFF);
 
 	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
@@ -3800,6 +3809,16 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 
 	i40e_write_fd_input_set(pf, index, new_mask);
 
+	/* IP_USER_FLOW filters match both IPv4/Other and IPv4/Fragmented
+	 * frames. If we're programming the input set for IPv4/Other, we also
+	 * need to program the IPv4/Fragmented input set. Since we don't have
+	 * separate support, we'll always assume and enforce that the two flow
+	 * types must have matching input sets.
+	 */
+	if (index == I40E_FILTER_PCTYPE_NONF_IPV4_OTHER)
+		i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV4,
+					new_mask);
+
 	/* Add the new offset and update table, if necessary */
 	if (new_flex_offset) {
 		err = i40e_add_flex_offset(&pf->l4_flex_pit_list, src_offset,
@@ -3816,6 +3835,87 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		}
 
 		i40e_reprogram_flex_pit(pf);
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_match_fdir_filter - Return true of two filters match
+ * @a: pointer to filter struct
+ * @b: pointer to filter struct
+ *
+ * Returns true if the two filters match exactly the same criteria. I.e. they
+ * match the same flow type and have the same parameters. We don't need to
+ * check any input-set since all filters of the same flow type must use the
+ * same input set.
+ **/
+static bool i40e_match_fdir_filter(struct i40e_fdir_filter *a,
+				   struct i40e_fdir_filter *b)
+{
+	/* The filters do not much if any of these criteria differ. */
+	if (a->dst_ip != b->dst_ip ||
+	    a->src_ip != b->src_ip ||
+	    a->dst_port != b->dst_port ||
+	    a->src_port != b->src_port ||
+	    a->flow_type != b->flow_type ||
+	    a->ip4_proto != b->ip4_proto)
+		return false;
+
+	return true;
+}
+
+/**
+ * i40e_disallow_matching_filters - Check that new filters differ
+ * @vsi: pointer to the targeted VSI
+ * @input: new filter to check
+ *
+ * Due to hardware limitations, it is not possible for two filters that match
+ * similar criteria to be programmed at the same time. This is true for a few
+ * reasons:
+ *
+ * (a) all filters matching a particular flow type must use the same input
+ * set, that is they must match the same criteria.
+ * (b) different flow types will never match the same packet, as the flow type
+ * is decided by hardware before checking which rules apply.
+ * (c) hardware has no way to distinguish which order filters apply in.
+ *
+ * Due to this, we can't really support using the location data to order
+ * filters in the hardware parsing. It is technically possible for the user to
+ * request two filters matching the same criteria but which select different
+ * queues. In this case, rather than keep both filters in the list, we reject
+ * the 2nd filter when the user requests adding it.
+ *
+ * This avoids needing to track location for programming the filter to
+ * hardware, and ensures that we avoid some strange scenarios involving
+ * deleting filters which match the same criteria.
+ **/
+static int i40e_disallow_matching_filters(struct i40e_vsi *vsi,
+					  struct i40e_fdir_filter *input)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_fdir_filter *rule;
+	struct hlist_node *node2;
+
+	/* Loop through every filter, and check that it doesn't match */
+	hlist_for_each_entry_safe(rule, node2,
+				  &pf->fdir_filter_list, fdir_node) {
+		/* Don't check the filters match if they share the same fd_id,
+		 * since the new filter is actually just updating the target
+		 * of the old filter.
+		 */
+		if (rule->fd_id == input->fd_id)
+			continue;
+
+		/* If any filters match, then print a warning message to the
+		 * kernel message buffer and bail out.
+		 */
+		if (i40e_match_fdir_filter(rule, input)) {
+			dev_warn(&pf->pdev->dev,
+				 "Existing user defined filter %d already matches this flow.\n",
+				 rule->fd_id);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -3933,19 +4033,25 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		input->flex_offset = userdef.flex_offset;
 	}
 
-	ret = i40e_add_del_fdir(vsi, input, true);
+	/* Avoid programming two filters with identical match criteria. */
+	ret = i40e_disallow_matching_filters(vsi, input);
 	if (ret)
-		goto free_input;
+		goto free_filter_memory;
 
 	/* Add the input filter to the fdir_input_list, possibly replacing
 	 * a previous filter. Do not free the input structure after adding it
 	 * to the list as this would cause a use-after-free bug.
 	 */
 	i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
-
+	ret = i40e_add_del_fdir(vsi, input, true);
+	if (ret)
+		goto remove_sw_rule;
 	return 0;
 
-free_input:
+remove_sw_rule:
+	hlist_del(&input->fdir_node);
+	pf->fdir_pf_active_filters--;
+free_filter_memory:
 	kfree(input);
 	return ret;
 }
@@ -4258,7 +4364,7 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	u32 orig_flags, new_flags, changed_flags;
+	u64 orig_flags, new_flags, changed_flags;
 	u32 i, j;
 
 	orig_flags = READ_ONCE(pf->flags);
@@ -4309,13 +4415,32 @@ flags_complete:
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
+	/* Disable FW LLDP not supported if NPAR active or if FW
+	 * API version < 1.7
+	 */
+	if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+		if (pf->hw.func_caps.npar_enable) {
+			dev_warn(&pf->pdev->dev,
+				 "Unable to stop FW LLDP if NPAR active\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (pf->hw.aq.api_maj_ver < 1 ||
+		    (pf->hw.aq.api_maj_ver == 1 &&
+		     pf->hw.aq.api_min_ver < 7)) {
+			dev_warn(&pf->pdev->dev,
+				 "FW ver does not support stopping FW LLDP\n");
+			return -EOPNOTSUPP;
+		}
+	}
+
 	/* Compare and exchange the new flags into place. If we failed, that
 	 * is if cmpxchg returns anything but the old value, this means that
 	 * something else has modified the flags variable since we copied it
 	 * originally. We'll just punt with an error and log something in the
 	 * message buffer.
 	 */
-	if (cmpxchg(&pf->flags, orig_flags, new_flags) != orig_flags) {
+	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&pf->pdev->dev,
 			 "Unable to update pf->flags as it was modified by another thread...\n");
 		return -EAGAIN;
@@ -4354,12 +4479,37 @@ flags_complete:
 		}
 	}
 
+	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
+			struct i40e_dcbx_config *dcbcfg;
+			int i;
+
+			i40e_aq_stop_lldp(&pf->hw, true, NULL);
+			i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);
+			/* reset local_dcbx_config to default */
+			dcbcfg = &pf->hw.local_dcbx_config;
+			dcbcfg->etscfg.willing = 1;
+			dcbcfg->etscfg.maxtcs = 0;
+			dcbcfg->etscfg.tcbwtable[0] = 100;
+			for (i = 1; i < I40E_MAX_TRAFFIC_CLASS; i++)
+				dcbcfg->etscfg.tcbwtable[i] = 0;
+			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
+				dcbcfg->etscfg.prioritytable[i] = 0;
+			dcbcfg->etscfg.tsatable[0] = I40E_IEEE_TSA_ETS;
+			dcbcfg->pfc.willing = 1;
+			dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
+		} else {
+			i40e_aq_start_lldp(&pf->hw, NULL);
+		}
+	}
+
 	/* Issue reset to cause things to take effect, as additional bits
 	 * are added we will need to create a mask of bits requiring reset
 	 */
 	if (changed_flags & (I40E_FLAG_VEB_STATS_ENABLED |
 			     I40E_FLAG_LEGACY_RX |
-			     I40E_FLAG_SOURCE_PRUNING_DISABLED))
+			     I40E_FLAG_SOURCE_PRUNING_DISABLED |
+			     I40E_FLAG_DISABLE_FW_LLDP))
 		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
 	return 0;

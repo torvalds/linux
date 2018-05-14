@@ -67,7 +67,7 @@ struct receiver {
 enum { RX_ERR, RX_ALL, RX_FIL, RX_INV, RX_MAX };
 
 /* per device receive filters linked at dev->ml_priv */
-struct dev_rcv_lists {
+struct can_dev_rcv_lists {
 	struct hlist_head rx[RX_MAX];
 	struct hlist_head rx_sff[CAN_SFF_RCV_ARRAY_SZ];
 	struct hlist_head rx_eff[CAN_EFF_RCV_ARRAY_SZ];

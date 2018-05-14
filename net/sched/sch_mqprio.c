@@ -132,7 +132,8 @@ static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
 	return 0;
 }
 
-static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
+static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mqprio_sched *priv = qdisc_priv(sch);
@@ -229,7 +230,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 		qdisc = qdisc_create_dflt(dev_queue,
 					  get_default_qdisc_ops(dev, i),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(i + 1)));
+						    TC_H_MIN(i + 1)), extack);
 		if (!qdisc)
 			return -ENOMEM;
 
@@ -319,7 +320,7 @@ static struct netdev_queue *mqprio_queue_get(struct Qdisc *sch,
 }
 
 static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+			struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
@@ -388,22 +389,40 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct nlattr *nla = (struct nlattr *)skb_tail_pointer(skb);
 	struct tc_mqprio_qopt opt = { 0 };
 	struct Qdisc *qdisc;
-	unsigned int i;
+	unsigned int ntx, tc;
 
 	sch->q.qlen = 0;
 	memset(&sch->bstats, 0, sizeof(sch->bstats));
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		qdisc = rtnl_dereference(netdev_get_tx_queue(dev, i)->qdisc);
+	/* MQ supports lockless qdiscs. However, statistics accounting needs
+	 * to account for all, none, or a mix of locked and unlocked child
+	 * qdiscs. Percpu stats are added to counters in-band and locking
+	 * qdisc totals are added at end.
+	 */
+	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
+		qdisc = netdev_get_tx_queue(dev, ntx)->qdisc_sleeping;
 		spin_lock_bh(qdisc_lock(qdisc));
-		sch->q.qlen		+= qdisc->q.qlen;
-		sch->bstats.bytes	+= qdisc->bstats.bytes;
-		sch->bstats.packets	+= qdisc->bstats.packets;
-		sch->qstats.backlog	+= qdisc->qstats.backlog;
-		sch->qstats.drops	+= qdisc->qstats.drops;
-		sch->qstats.requeues	+= qdisc->qstats.requeues;
-		sch->qstats.overlimits	+= qdisc->qstats.overlimits;
+
+		if (qdisc_is_percpu_stats(qdisc)) {
+			__u32 qlen = qdisc_qlen_sum(qdisc);
+
+			__gnet_stats_copy_basic(NULL, &sch->bstats,
+						qdisc->cpu_bstats,
+						&qdisc->bstats);
+			__gnet_stats_copy_queue(&sch->qstats,
+						qdisc->cpu_qstats,
+						&qdisc->qstats, qlen);
+		} else {
+			sch->q.qlen		+= qdisc->q.qlen;
+			sch->bstats.bytes	+= qdisc->bstats.bytes;
+			sch->bstats.packets	+= qdisc->bstats.packets;
+			sch->qstats.backlog	+= qdisc->qstats.backlog;
+			sch->qstats.drops	+= qdisc->qstats.drops;
+			sch->qstats.requeues	+= qdisc->qstats.requeues;
+			sch->qstats.overlimits	+= qdisc->qstats.overlimits;
+		}
+
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
 
@@ -411,9 +430,9 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
 	opt.hw = priv->hw_offload;
 
-	for (i = 0; i < netdev_get_num_tc(dev); i++) {
-		opt.count[i] = dev->tc_to_txq[i].count;
-		opt.offset[i] = dev->tc_to_txq[i].offset;
+	for (tc = 0; tc < netdev_get_num_tc(dev); tc++) {
+		opt.count[tc] = dev->tc_to_txq[tc].count;
+		opt.offset[tc] = dev->tc_to_txq[tc].offset;
 	}
 
 	if (nla_put(skb, TCA_OPTIONS, NLA_ALIGN(sizeof(opt)), &opt))
@@ -495,7 +514,6 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	if (cl >= TC_H_MIN_PRIORITY) {
 		int i;
 		__u32 qlen = 0;
-		struct Qdisc *qdisc;
 		struct gnet_stats_queue qstats = {0};
 		struct gnet_stats_basic_packed bstats = {0};
 		struct net_device *dev = qdisc_dev(sch);
@@ -511,18 +529,26 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 		for (i = tc.offset; i < tc.offset + tc.count; i++) {
 			struct netdev_queue *q = netdev_get_tx_queue(dev, i);
+			struct Qdisc *qdisc = rtnl_dereference(q->qdisc);
+			struct gnet_stats_basic_cpu __percpu *cpu_bstats = NULL;
+			struct gnet_stats_queue __percpu *cpu_qstats = NULL;
 
-			qdisc = rtnl_dereference(q->qdisc);
 			spin_lock_bh(qdisc_lock(qdisc));
-			qlen		  += qdisc->q.qlen;
-			bstats.bytes      += qdisc->bstats.bytes;
-			bstats.packets    += qdisc->bstats.packets;
-			qstats.backlog    += qdisc->qstats.backlog;
-			qstats.drops      += qdisc->qstats.drops;
-			qstats.requeues   += qdisc->qstats.requeues;
-			qstats.overlimits += qdisc->qstats.overlimits;
+			if (qdisc_is_percpu_stats(qdisc)) {
+				cpu_bstats = qdisc->cpu_bstats;
+				cpu_qstats = qdisc->cpu_qstats;
+			}
+
+			qlen = qdisc_qlen_sum(qdisc);
+			__gnet_stats_copy_basic(NULL, &sch->bstats,
+						cpu_bstats, &qdisc->bstats);
+			__gnet_stats_copy_queue(&sch->qstats,
+						cpu_qstats,
+						&qdisc->qstats,
+						qlen);
 			spin_unlock_bh(qdisc_lock(qdisc));
 		}
+
 		/* Reclaim root sleeping lock before completing stats */
 		if (d->lock)
 			spin_lock_bh(d->lock);

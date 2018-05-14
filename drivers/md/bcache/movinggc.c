@@ -162,7 +162,7 @@ static void read_moving(struct cache_set *c)
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bio->bi_end_io	= read_moving_endio;
 
-		if (bio_alloc_pages(bio, GFP_KERNEL))
+		if (bch_bio_alloc_pages(bio, GFP_KERNEL))
 			goto err;
 
 		trace_bcache_gc_copy(&w->key);

@@ -137,8 +137,10 @@ enum fixed_addresses {
 
 extern void reserve_top_address(unsigned long reserve);
 
-#define FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_SIZE		(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START		(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_TOT_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_TOT_START	(FIXADDR_TOP - FIXADDR_TOT_SIZE)
 
 extern int fixmaps_set;
 

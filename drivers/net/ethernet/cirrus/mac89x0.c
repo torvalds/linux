@@ -187,6 +187,7 @@ struct net_device * __init mac89x0_probe(int unit)
 	unsigned long ioaddr;
 	unsigned short sig;
 	int err = -ENODEV;
+	struct nubus_rsrc *fres;
 
 	if (!MACH_IS_MAC)
 		return ERR_PTR(-ENODEV);
@@ -207,8 +208,9 @@ struct net_device * __init mac89x0_probe(int unit)
 	/* We might have to parameterize this later */
 	slot = 0xE;
 	/* Get out now if there's a real NuBus card in slot E */
-	if (nubus_find_slot(slot, NULL) != NULL)
-		goto out;
+	for_each_func_rsrc(fres)
+		if (fres->board->slot == slot)
+			goto out;
 
 	/* The pseudo-ISA bits always live at offset 0x300 (gee,
            wonder why...) */

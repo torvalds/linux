@@ -723,7 +723,6 @@ config CRYPTO_DEV_ARTPEC6
 	select CRYPTO_HASH
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
-	select CRYPTO_SHA384
 	select CRYPTO_SHA512
 	help
 	  Enables the driver for the on-chip crypto accelerator

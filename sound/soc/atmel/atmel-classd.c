@@ -308,15 +308,9 @@ static int atmel_classd_codec_resume(struct snd_soc_codec *codec)
 	return regcache_sync(dd->regmap);
 }
 
-static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
-{
-	return dev_get_regmap(dev, NULL);
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_classd = {
 	.probe		= atmel_classd_codec_probe,
 	.resume		= atmel_classd_codec_resume,
-	.get_regmap	= atmel_classd_codec_get_remap,
 	.component_driver = {
 		.controls		= atmel_classd_snd_controls,
 		.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),

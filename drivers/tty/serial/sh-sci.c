@@ -885,6 +885,8 @@ static void sci_receive_chars(struct uart_port *port)
 		/* Tell the rest of the system the news. New characters! */
 		tty_flip_buffer_push(tport);
 	} else {
+		/* TTY buffers full; read from RX reg to prevent lockup */
+		serial_port_in(port, SCxRDR);
 		serial_port_in(port, SCxSR); /* dummy read */
 		sci_clear_SCxSR(port, SCxSR_RDxF_CLEAR(port));
 	}
@@ -1144,7 +1146,7 @@ static ssize_t rx_fifo_timeout_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(rx_fifo_timeout, 0644, rx_fifo_timeout_show, rx_fifo_timeout_store);
+static DEVICE_ATTR_RW(rx_fifo_timeout);
 
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA

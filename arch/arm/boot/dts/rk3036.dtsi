@@ -280,7 +280,7 @@
 		max-frequency = <37500000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&cru SRST_SDIO>;
@@ -298,7 +298,7 @@
 		max-frequency = <37500000>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		default-sample-phase = <158>;
 		disable-wp;
 		dmas = <&pdma 12>;

@@ -177,6 +177,9 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 			sizeof(mux->data));
 	} else {
 		ret = i2c_mux_reg_probe_dt(mux, pdev);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Error parsing device tree");
 			return ret;

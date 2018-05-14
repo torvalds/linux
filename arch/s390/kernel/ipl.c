@@ -119,13 +119,9 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-/*
- * Must be in data section since the bss section
- * is not cleared when these are accessed.
- */
-static u8 ipl_ssid __section(.data) = 0;
-static u16 ipl_devno __section(.data) = 0;
-u32 ipl_flags __section(.data) = 0;
+static u8 ipl_ssid;
+static u16 ipl_devno;
+u32 ipl_flags;
 
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,
@@ -148,7 +144,7 @@ enum dump_method {
 	DUMP_METHOD_FCP_DIAG,
 };
 
-static int diag308_set_works = 0;
+static int diag308_set_works;
 
 static struct ipl_parameter_block ipl_block;
 
@@ -547,6 +543,7 @@ static struct kset *ipl_kset;
 
 static void __ipl_run(void *unused)
 {
+	__bpon();
 	diag308(DIAG308_LOAD_CLEAR, NULL);
 	if (MACHINE_IS_VM)
 		__cpcmd("IPL", NULL, 0, NULL);

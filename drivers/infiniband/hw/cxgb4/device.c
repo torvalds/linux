@@ -66,7 +66,7 @@ MODULE_PARM_DESC(c4iw_wr_log_size_order,
 
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
-struct workqueue_struct *reg_workq;
+static struct workqueue_struct *reg_workq;
 
 #define DB_FC_RESUME_SIZE 64
 #define DB_FC_RESUME_DELAY 1
@@ -108,19 +108,19 @@ void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe)
 	idx = (atomic_inc_return(&wq->rdev->wr_log_idx) - 1) &
 		(wq->rdev->wr_log_size - 1);
 	le.poll_sge_ts = cxgb4_read_sge_timestamp(wq->rdev->lldi.ports[0]);
-	getnstimeofday(&le.poll_host_ts);
+	le.poll_host_time = ktime_get();
 	le.valid = 1;
 	le.cqe_sge_ts = CQE_TS(cqe);
 	if (SQ_TYPE(cqe)) {
 		le.qid = wq->sq.qid;
 		le.opcode = CQE_OPCODE(cqe);
-		le.post_host_ts = wq->sq.sw_sq[wq->sq.cidx].host_ts;
+		le.post_host_time = wq->sq.sw_sq[wq->sq.cidx].host_time;
 		le.post_sge_ts = wq->sq.sw_sq[wq->sq.cidx].sge_ts;
 		le.wr_id = CQE_WRID_SQ_IDX(cqe);
 	} else {
 		le.qid = wq->rq.qid;
 		le.opcode = FW_RI_RECEIVE;
-		le.post_host_ts = wq->rq.sw_rq[wq->rq.cidx].host_ts;
+		le.post_host_time = wq->rq.sw_rq[wq->rq.cidx].host_time;
 		le.post_sge_ts = wq->rq.sw_rq[wq->rq.cidx].sge_ts;
 		le.wr_id = CQE_WRID_MSN(cqe);
 	}
@@ -130,9 +130,9 @@ void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe)
 static int wr_log_show(struct seq_file *seq, void *v)
 {
 	struct c4iw_dev *dev = seq->private;
-	struct timespec prev_ts = {0, 0};
+	ktime_t prev_time;
 	struct wr_log_entry *lep;
-	int prev_ts_set = 0;
+	int prev_time_set = 0;
 	int idx, end;
 
 #define ts2ns(ts) div64_u64((ts) * dev->rdev.lldi.cclk_ps, 1000)
@@ -145,33 +145,29 @@ static int wr_log_show(struct seq_file *seq, void *v)
 	lep = &dev->rdev.wr_log[idx];
 	while (idx != end) {
 		if (lep->valid) {
-			if (!prev_ts_set) {
-				prev_ts_set = 1;
-				prev_ts = lep->poll_host_ts;
+			if (!prev_time_set) {
+				prev_time_set = 1;
+				prev_time = lep->poll_host_time;
 			}
-			seq_printf(seq, "%04u: sec %lu nsec %lu qid %u opcode "
-				   "%u %s 0x%x host_wr_delta sec %lu nsec %lu "
+			seq_printf(seq, "%04u: nsec %llu qid %u opcode "
+				   "%u %s 0x%x host_wr_delta nsec %llu "
 				   "post_sge_ts 0x%llx cqe_sge_ts 0x%llx "
 				   "poll_sge_ts 0x%llx post_poll_delta_ns %llu "
 				   "cqe_poll_delta_ns %llu\n",
 				   idx,
-				   timespec_sub(lep->poll_host_ts,
-						prev_ts).tv_sec,
-				   timespec_sub(lep->poll_host_ts,
-						prev_ts).tv_nsec,
+				   ktime_to_ns(ktime_sub(lep->poll_host_time,
+							 prev_time)),
 				   lep->qid, lep->opcode,
 				   lep->opcode == FW_RI_RECEIVE ?
 							"msn" : "wrid",
 				   lep->wr_id,
-				   timespec_sub(lep->poll_host_ts,
-						lep->post_host_ts).tv_sec,
-				   timespec_sub(lep->poll_host_ts,
-						lep->post_host_ts).tv_nsec,
+				   ktime_to_ns(ktime_sub(lep->poll_host_time,
+							 lep->post_host_time)),
 				   lep->post_sge_ts, lep->cqe_sge_ts,
 				   lep->poll_sge_ts,
 				   ts2ns(lep->poll_sge_ts - lep->post_sge_ts),
 				   ts2ns(lep->poll_sge_ts - lep->cqe_sge_ts));
-			prev_ts = lep->poll_host_ts;
+			prev_time = lep->poll_host_time;
 		}
 		idx++;
 		if (idx > (dev->rdev.wr_log_size - 1))

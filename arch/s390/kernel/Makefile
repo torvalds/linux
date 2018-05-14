@@ -29,6 +29,7 @@ UBSAN_SANITIZE_early.o	:= n
 #
 ifneq ($(CC_FLAGS_MARCH),-march=z900)
 CFLAGS_REMOVE_als.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_REMOVE_als.o	+= $(CC_FLAGS_EXPOLINE)
 CFLAGS_als.o		+= -march=z900
 AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
 AFLAGS_head.o		+= -march=z900
@@ -62,6 +63,9 @@ obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
 
 extra-y				+= head.o head64.o vmlinux.lds
+
+obj-$(CONFIG_EXPOLINE)		+= nospec-branch.o
+CFLAGS_REMOVE_expoline.o	+= $(CC_FLAGS_EXPOLINE)
 
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SMP)		+= smp.o

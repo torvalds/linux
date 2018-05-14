@@ -173,14 +173,9 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr, int oob)
 
 /* returns nonzero if entire page is blank */
 static int check_read_ecc(struct mtd_info *mtd, struct fsl_ifc_ctrl *ctrl,
-			  u32 *eccstat, unsigned int bufnum)
+			  u32 eccstat, unsigned int bufnum)
 {
-	u32 reg = eccstat[bufnum / 4];
-	int errors;
-
-	errors = (reg >> ((3 - bufnum % 4) * 8)) & 15;
-
-	return errors;
+	return  (eccstat >> ((3 - bufnum % 4) * 8)) & 15;
 }
 
 /*
@@ -193,7 +188,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;
-	u32 eccstat[4];
+	u32 eccstat;
 	int i;
 
 	/* set the chip select for NAND Transaction */
@@ -228,19 +223,17 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 	if (nctrl->eccread) {
 		int errors;
 		int bufnum = nctrl->page & priv->bufnum_mask;
-		int sector = bufnum * chip->ecc.steps;
-		int sector_end = sector + chip->ecc.steps - 1;
+		int sector_start = bufnum * chip->ecc.steps;
+		int sector_end = sector_start + chip->ecc.steps - 1;
 		__be32 *eccstat_regs;
 
-		if (ctrl->version >= FSL_IFC_VERSION_2_0_0)
-			eccstat_regs = ifc->ifc_nand.v2_nand_eccstat;
-		else
-			eccstat_regs = ifc->ifc_nand.v1_nand_eccstat;
+		eccstat_regs = ifc->ifc_nand.nand_eccstat;
+		eccstat = ifc_in32(&eccstat_regs[sector_start / 4]);
 
-		for (i = sector / 4; i <= sector_end / 4; i++)
-			eccstat[i] = ifc_in32(&eccstat_regs[i]);
+		for (i = sector_start; i <= sector_end; i++) {
+			if (i != sector_start && !(i % 4))
+				eccstat = ifc_in32(&eccstat_regs[i / 4]);
 
-		for (i = sector; i <= sector_end; i++) {
 			errors = check_read_ecc(mtd, ctrl, eccstat, i);
 
 			if (errors == 15) {
@@ -626,6 +619,7 @@ static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;
 	u32 nand_fsr;
+	int status;
 
 	/* Use READ_STATUS command, but wait for the device to be ready */
 	ifc_out32((IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
@@ -640,12 +634,12 @@ static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	fsl_ifc_run_command(mtd);
 
 	nand_fsr = ifc_in32(&ifc->ifc_nand.nand_fsr);
-
+	status = nand_fsr >> 24;
 	/*
 	 * The chip always seems to report that it is
 	 * write-protected, even when it is not.
 	 */
-	return nand_fsr | NAND_STATUS_WP;
+	return status | NAND_STATUS_WP;
 }
 
 /*
@@ -688,7 +682,7 @@ static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 
-	fsl_ifc_read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
 		fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
@@ -711,10 +705,10 @@ static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 static int fsl_ifc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			       const uint8_t *buf, int oob_required, int page)
 {
-	fsl_ifc_write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	fsl_ifc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
@@ -915,6 +909,13 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	if (ctrl->version >= FSL_IFC_VERSION_1_1_0)
 		fsl_ifc_sram_init(priv);
+
+	/*
+	 * As IFC version 2.0.0 has 16KB of internal SRAM as compared to older
+	 * versions which had 8KB. Hence bufnum mask needs to be updated.
+	 */
+	if (ctrl->version >= FSL_IFC_VERSION_2_0_0)
+		priv->bufnum_mask = (priv->bufnum_mask * 2) + 1;
 
 	return 0;
 }

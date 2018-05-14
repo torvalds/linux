@@ -166,8 +166,15 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		empty strings ("") correspond to non-existing menu items (this
  *		is in addition to the menu_skip_mask above). The last entry
  *		must be NULL.
+ *		Used only if the @type is %V4L2_CTRL_TYPE_MENU.
+ * @qmenu_int:	A 64-bit integer array for with integer menu items.
+ *		The size of array must be equal to the menu size, e. g.:
+ *		:math:`ceil(\frac{maximum - minimum}{step}) + 1`.
+ *		Used only if the @type is %V4L2_CTRL_TYPE_INTEGER_MENU.
  * @flags:	The control's flags.
- * @cur:	The control's current value.
+ * @cur:	Structure to store the current value.
+ * @cur.val:	The control's current value, if the @type is represented via
+ *		a u32 integer (see &enum v4l2_ctrl_type).
  * @val:	The control's new s32 value.
  * @priv:	The control's private pointer. For use by the driver. It is
  *		untouched by the control framework. Note that this pointer is
@@ -1037,7 +1044,7 @@ int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
  * @file: pointer to struct file
  * @wait: pointer to struct poll_table_struct
  */
-unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
+__poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
 
 /* Helpers for ioctl_ops */
 
@@ -1139,7 +1146,7 @@ int v4l2_s_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 
 /**
  * v4l2_ctrl_subdev_subscribe_event - Helper function to implement
- * 	as a &struct v4l2_subdev_core_ops subscribe_event function
+ *	as a &struct v4l2_subdev_core_ops subscribe_event function
  *	that just subscribes control events.
  *
  * @sd: pointer to &struct v4l2_subdev

@@ -154,15 +154,16 @@ static void sq905c_dostream(struct work_struct *work)
 				usb_rcvbulkpipe(gspca_dev->dev, 0x81),
 				buffer, FRAME_HEADER_LEN, &act_len,
 				SQ905C_DATA_TIMEOUT);
-		PDEBUG(D_STREAM,
-			"Got %d bytes out of %d for header",
-			act_len, FRAME_HEADER_LEN);
+		gspca_dbg(gspca_dev, D_STREAM,
+			  "Got %d bytes out of %d for header\n",
+			  act_len, FRAME_HEADER_LEN);
 		if (ret < 0 || act_len < FRAME_HEADER_LEN)
 			goto quit_stream;
 		/* size is read from 4 bytes starting 0x40, little endian */
 		bytes_left = buffer[0x40]|(buffer[0x41]<<8)|(buffer[0x42]<<16)
 					|(buffer[0x43]<<24);
-		PDEBUG(D_STREAM, "bytes_left = 0x%x", bytes_left);
+		gspca_dbg(gspca_dev, D_STREAM, "bytes_left = 0x%x\n",
+			  bytes_left);
 		/* We keep the header. It has other information, too. */
 		packet_type = FIRST_PACKET;
 		gspca_frame_add(gspca_dev, packet_type,
@@ -176,9 +177,9 @@ static void sq905c_dostream(struct work_struct *work)
 				SQ905C_DATA_TIMEOUT);
 			if (ret < 0 || act_len < data_len)
 				goto quit_stream;
-			PDEBUG(D_STREAM,
-				"Got %d bytes out of %d for frame",
-				data_len, bytes_left);
+			gspca_dbg(gspca_dev, D_STREAM,
+				  "Got %d bytes out of %d for frame\n",
+				  data_len, bytes_left);
 			bytes_left -= data_len;
 			if (bytes_left == 0)
 				packet_type = LAST_PACKET;
@@ -205,25 +206,25 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *dev = (struct sd *) gspca_dev;
 	int ret;
 
-	PDEBUG(D_PROBE,
-	       "SQ9050 camera detected (vid/pid 0x%04X:0x%04X)",
-	       id->idVendor, id->idProduct);
+	gspca_dbg(gspca_dev, D_PROBE,
+		  "SQ9050 camera detected (vid/pid 0x%04X:0x%04X)\n",
+		  id->idVendor, id->idProduct);
 
 	ret = sq905c_command(gspca_dev, SQ905C_GET_ID, 0);
 	if (ret < 0) {
-		PERR("Get version command failed");
+		gspca_err(gspca_dev, "Get version command failed\n");
 		return ret;
 	}
 
 	ret = sq905c_read(gspca_dev, 0xf5, 0, 20);
 	if (ret < 0) {
-		PERR("Reading version command failed");
+		gspca_err(gspca_dev, "Reading version command failed\n");
 		return ret;
 	}
 	/* Note we leave out the usb id and the manufacturing date */
-	PDEBUG(D_PROBE,
-	       "SQ9050 ID string: %02x - %*ph",
-		gspca_dev->usb_buf[3], 6, gspca_dev->usb_buf + 14);
+	gspca_dbg(gspca_dev, D_PROBE,
+		  "SQ9050 ID string: %02x - %*ph\n",
+		  gspca_dev->usb_buf[3], 6, gspca_dev->usb_buf + 14);
 
 	cam->cam_mode = sq905c_mode;
 	cam->nmodes = 2;
@@ -267,19 +268,19 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* "Open the shutter" and set size, to start capture */
 	switch (gspca_dev->pixfmt.width) {
 	case 640:
-		PDEBUG(D_STREAM, "Start streaming at high resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at high resolution\n");
 		dev->cap_mode++;
 		ret = sq905c_command(gspca_dev, SQ905C_CAPTURE_HI,
 						SQ905C_CAPTURE_INDEX);
 		break;
 	default: /* 320 */
-	PDEBUG(D_STREAM, "Start streaming at medium resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at medium resolution\n");
 		ret = sq905c_command(gspca_dev, SQ905C_CAPTURE_MED,
 						SQ905C_CAPTURE_INDEX);
 	}
 
 	if (ret < 0) {
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 		return ret;
 	}
 	/* Start the workqueue function to do the streaming */

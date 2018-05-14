@@ -906,7 +906,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
 			"icmnd_cmpl abts pending "
-			  "hdr status = %s tag = 0x%x sc = 0x%p"
+			  "hdr status = %s tag = 0x%x sc = 0x%p "
 			  "scsi_status = %x residual = %d\n",
 			  fnic_fcpio_status_to_str(hdr_status),
 			  id, sc,

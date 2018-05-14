@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/kallsyms.h>
 #include <asm/pgtable.h>
 #include <linux/mmiotrace.h>
 #include <asm/e820/api.h> /* for ISA_START_ADDRESS */
@@ -123,8 +122,8 @@ static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 	pr_emerg("unexpected fault for address: 0x%08lx, last fault for address: 0x%08lx\n",
 		 addr, my_reason->addr);
 	print_pte(addr);
-	print_symbol(KERN_EMERG "faulting IP is at %s\n", regs->ip);
-	print_symbol(KERN_EMERG "last faulting IP was at %s\n", my_reason->ip);
+	pr_emerg("faulting IP is at %pS\n", (void *)regs->ip);
+	pr_emerg("last faulting IP was at %pS\n", (void *)my_reason->ip);
 #ifdef __i386__
 	pr_emerg("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 		 regs->ax, regs->bx, regs->cx, regs->dx);

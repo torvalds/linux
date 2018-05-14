@@ -1599,6 +1599,8 @@ static int fill_files_note(struct memelfnote *note)
 
 	/* *Estimated* file count and total data size needed */
 	count = current->mm->map_count;
+	if (count > UINT_MAX / 64)
+		return -EINVAL;
 	size = count * 64;
 
 	names_ofs = (2 + 3 * count) * sizeof(data[0]);

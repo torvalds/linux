@@ -49,7 +49,7 @@ struct read_info_sccb {
 	u8	_pad_112[116 - 112];	/* 112-115 */
 	u8	fac116;			/* 116 */
 	u8	fac117;			/* 117 */
-	u8	_pad_118;		/* 118 */
+	u8	fac118;			/* 118 */
 	u8	fac119;			/* 119 */
 	u16	hcpua;			/* 120-121 */
 	u8	_pad_122[124 - 122];	/* 122-123 */
@@ -100,6 +100,7 @@ static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 	sclp.has_esca = !!(sccb->fac116 & 0x08);
 	sclp.has_pfmfi = !!(sccb->fac117 & 0x40);
 	sclp.has_ibs = !!(sccb->fac117 & 0x20);
+	sclp.has_gisaf = !!(sccb->fac118 & 0x08);
 	sclp.has_hvs = !!(sccb->fac119 & 0x80);
 	sclp.has_kss = !!(sccb->fac98 & 0x01);
 	if (sccb->fac85 & 0x02)

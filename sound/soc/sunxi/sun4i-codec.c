@@ -590,11 +590,27 @@ static int sun4i_codec_hw_params(struct snd_pcm_substream *substream,
 					     hwrate);
 }
 
+
+static unsigned int sun4i_codec_src_rates[] = {
+	8000, 11025, 12000, 16000, 22050, 24000, 32000,
+	44100, 48000, 96000, 192000
+};
+
+
+static struct snd_pcm_hw_constraint_list sun4i_codec_constraints = {
+	.count  = ARRAY_SIZE(sun4i_codec_src_rates),
+	.list   = sun4i_codec_src_rates,
+};
+
+
 static int sun4i_codec_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(rtd->card);
+
+	snd_pcm_hw_constraint_list(substream->runtime, 0,
+				SNDRV_PCM_HW_PARAM_RATE, &sun4i_codec_constraints);
 
 	/*
 	 * Stop issuing DRQ when we have room for less than 16 samples
@@ -633,9 +649,7 @@ static struct snd_soc_dai_driver sun4i_codec_dai = {
 		.channels_max	= 2,
 		.rate_min	= 8000,
 		.rate_max	= 192000,
-		.rates		= SNDRV_PCM_RATE_8000_48000 |
-				  SNDRV_PCM_RATE_96000 |
-				  SNDRV_PCM_RATE_192000,
+		.rates		= SNDRV_PCM_RATE_CONTINUOUS,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 		.sig_bits	= 24,
@@ -645,11 +659,8 @@ static struct snd_soc_dai_driver sun4i_codec_dai = {
 		.channels_min	= 1,
 		.channels_max	= 2,
 		.rate_min	= 8000,
-		.rate_max	= 192000,
-		.rates		= SNDRV_PCM_RATE_8000_48000 |
-				  SNDRV_PCM_RATE_96000 |
-				  SNDRV_PCM_RATE_192000 |
-				  SNDRV_PCM_RATE_KNOT,
+		.rate_max	= 48000,
+		.rates		= SNDRV_PCM_RATE_CONTINUOUS,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 		.sig_bits	= 24,
@@ -1128,7 +1139,7 @@ static const struct snd_soc_component_driver sun4i_codec_component = {
 	.name = "sun4i-codec",
 };
 
-#define SUN4I_CODEC_RATES	SNDRV_PCM_RATE_8000_192000
+#define SUN4I_CODEC_RATES	SNDRV_PCM_RATE_CONTINUOUS
 #define SUN4I_CODEC_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 				 SNDRV_PCM_FMTBIT_S32_LE)
 

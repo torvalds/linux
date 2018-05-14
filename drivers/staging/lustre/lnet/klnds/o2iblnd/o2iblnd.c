@@ -325,7 +325,7 @@ int kiblnd_create_peer(struct lnet_ni *ni, struct kib_peer **peerp,
 	LASSERT(net);
 	LASSERT(nid != LNET_NID_ANY);
 
-	LIBCFS_CPT_ALLOC(peer, lnet_cpt_table(), cpt, sizeof(*peer));
+	peer = kzalloc_cpt(sizeof(*peer), GFP_NOFS, cpt);
 	if (!peer) {
 		CERROR("Cannot allocate peer\n");
 		return -ENOMEM;
@@ -367,7 +367,7 @@ void kiblnd_destroy_peer(struct kib_peer *peer)
 	LASSERT(kiblnd_peer_idle(peer));
 	LASSERT(list_empty(&peer->ibp_tx_queue));
 
-	LIBCFS_FREE(peer, sizeof(*peer));
+	kfree(peer);
 
 	/*
 	 * NB a peer's connections keep a reference on their peer until
@@ -596,7 +596,7 @@ static void kiblnd_setup_mtu_locked(struct rdma_cm_id *cmid)
 
 static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 {
-	cpumask_t *mask;
+	cpumask_var_t *mask;
 	int vectors;
 	int off;
 	int i;
@@ -611,8 +611,8 @@ static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 		return 0;
 
 	/* hash NID to CPU id in this partition... */
-	off = do_div(nid, cpumask_weight(mask));
-	for_each_cpu(i, mask) {
+	off = do_div(nid, cpumask_weight(*mask));
+	for_each_cpu(i, *mask) {
 		if (!off--)
 			return i % vectors;
 	}
@@ -656,15 +656,14 @@ struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cm
 
 	LASSERT(sched->ibs_nthreads > 0);
 
-	LIBCFS_CPT_ALLOC(init_qp_attr, lnet_cpt_table(), cpt,
-			 sizeof(*init_qp_attr));
+	init_qp_attr = kzalloc_cpt(sizeof(*init_qp_attr), GFP_NOFS, cpt);
 	if (!init_qp_attr) {
 		CERROR("Can't allocate qp_attr for %s\n",
 		       libcfs_nid2str(peer->ibp_nid));
 		goto failed_0;
 	}
 
-	LIBCFS_CPT_ALLOC(conn, lnet_cpt_table(), cpt, sizeof(*conn));
+	conn = kzalloc_cpt(sizeof(*conn), GFP_NOFS, cpt);
 	if (!conn) {
 		CERROR("Can't allocate connection for %s\n",
 		       libcfs_nid2str(peer->ibp_nid));
@@ -687,8 +686,7 @@ struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cm
 	INIT_LIST_HEAD(&conn->ibc_active_txs);
 	spin_lock_init(&conn->ibc_lock);
 
-	LIBCFS_CPT_ALLOC(conn->ibc_connvars, lnet_cpt_table(), cpt,
-			 sizeof(*conn->ibc_connvars));
+	conn->ibc_connvars = kzalloc_cpt(sizeof(*conn->ibc_connvars), GFP_NOFS, cpt);
 	if (!conn->ibc_connvars) {
 		CERROR("Can't allocate in-progress connection state\n");
 		goto failed_2;
@@ -722,8 +720,8 @@ struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cm
 
 	write_unlock_irqrestore(glock, flags);
 
-	LIBCFS_CPT_ALLOC(conn->ibc_rxs, lnet_cpt_table(), cpt,
-			 IBLND_RX_MSGS(conn) * sizeof(struct kib_rx));
+	conn->ibc_rxs = kzalloc_cpt(IBLND_RX_MSGS(conn) * sizeof(struct kib_rx),
+				    GFP_NOFS, cpt);
 	if (!conn->ibc_rxs) {
 		CERROR("Cannot allocate RX buffers\n");
 		goto failed_2;
@@ -776,7 +774,7 @@ struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cm
 		goto failed_2;
 	}
 
-	LIBCFS_FREE(init_qp_attr, sizeof(*init_qp_attr));
+	kfree(init_qp_attr);
 
 	/* 1 ref for caller and each rxmsg */
 	atomic_set(&conn->ibc_refcount, 1 + IBLND_RX_MSGS(conn));
@@ -826,14 +824,15 @@ struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cm
 	return conn;
 
  failed_2:
-	kiblnd_destroy_conn(conn, true);
+	kiblnd_destroy_conn(conn);
+	kfree(conn);
  failed_1:
-	LIBCFS_FREE(init_qp_attr, sizeof(*init_qp_attr));
+	kfree(init_qp_attr);
  failed_0:
 	return NULL;
 }
 
-void kiblnd_destroy_conn(struct kib_conn *conn, bool free_conn)
+void kiblnd_destroy_conn(struct kib_conn *conn)
 {
 	struct rdma_cm_id *cmid = conn->ibc_cmid;
 	struct kib_peer *peer = conn->ibc_peer;
@@ -877,13 +876,8 @@ void kiblnd_destroy_conn(struct kib_conn *conn, bool free_conn)
 	if (conn->ibc_rx_pages)
 		kiblnd_unmap_rx_descs(conn);
 
-	if (conn->ibc_rxs) {
-		LIBCFS_FREE(conn->ibc_rxs,
-			    IBLND_RX_MSGS(conn) * sizeof(struct kib_rx));
-	}
-
-	if (conn->ibc_connvars)
-		LIBCFS_FREE(conn->ibc_connvars, sizeof(*conn->ibc_connvars));
+	kfree(conn->ibc_rxs);
+	kfree(conn->ibc_connvars);
 
 	if (conn->ibc_hdev)
 		kiblnd_hdev_decref(conn->ibc_hdev);
@@ -896,8 +890,6 @@ void kiblnd_destroy_conn(struct kib_conn *conn, bool free_conn)
 		rdma_destroy_id(cmid);
 		atomic_dec(&net->ibn_nconns);
 	}
-
-	LIBCFS_FREE(conn, sizeof(*conn));
 }
 
 int kiblnd_close_peer_conns_locked(struct kib_peer *peer, int why)
@@ -1089,7 +1081,7 @@ static void kiblnd_free_pages(struct kib_pages *p)
 			__free_page(p->ibp_pages[i]);
 	}
 
-	LIBCFS_FREE(p, offsetof(struct kib_pages, ibp_pages[npages]));
+	kfree(p);
 }
 
 int kiblnd_alloc_pages(struct kib_pages **pp, int cpt, int npages)
@@ -1097,14 +1089,13 @@ int kiblnd_alloc_pages(struct kib_pages **pp, int cpt, int npages)
 	struct kib_pages *p;
 	int i;
 
-	LIBCFS_CPT_ALLOC(p, lnet_cpt_table(), cpt,
-			 offsetof(struct kib_pages, ibp_pages[npages]));
+	p = kzalloc_cpt(offsetof(struct kib_pages, ibp_pages[npages]),
+			GFP_NOFS, cpt);
 	if (!p) {
 		CERROR("Can't allocate descriptor for %d pages\n", npages);
 		return -ENOMEM;
 	}
 
-	memset(p, 0, offsetof(struct kib_pages, ibp_pages[npages]));
 	p->ibp_npages = npages;
 
 	for (i = 0; i < npages; i++) {
@@ -1299,7 +1290,7 @@ static void kiblnd_destroy_fmr_pool(struct kib_fmr_pool *fpo)
 					 frd_list) {
 			list_del(&frd->frd_list);
 			ib_dereg_mr(frd->frd_mr);
-			LIBCFS_FREE(frd, sizeof(*frd));
+			kfree(frd);
 			i++;
 		}
 		if (i < fpo->fast_reg.fpo_pool_size)
@@ -1310,7 +1301,7 @@ static void kiblnd_destroy_fmr_pool(struct kib_fmr_pool *fpo)
 	if (fpo->fpo_hdev)
 		kiblnd_hdev_decref(fpo->fpo_hdev);
 
-	LIBCFS_FREE(fpo, sizeof(*fpo));
+	kfree(fpo);
 }
 
 static void kiblnd_destroy_fmr_pool_list(struct list_head *head)
@@ -1376,8 +1367,7 @@ static int kiblnd_alloc_freg_pool(struct kib_fmr_poolset *fps, struct kib_fmr_po
 	INIT_LIST_HEAD(&fpo->fast_reg.fpo_pool_list);
 	fpo->fast_reg.fpo_pool_size = 0;
 	for (i = 0; i < fps->fps_pool_size; i++) {
-		LIBCFS_CPT_ALLOC(frd, lnet_cpt_table(), fps->fps_cpt,
-				 sizeof(*frd));
+		frd = kzalloc_cpt(sizeof(*frd), GFP_NOFS, fps->fps_cpt);
 		if (!frd) {
 			CERROR("Failed to allocate a new fast_reg descriptor\n");
 			rc = -ENOMEM;
@@ -1405,14 +1395,14 @@ static int kiblnd_alloc_freg_pool(struct kib_fmr_poolset *fps, struct kib_fmr_po
 out_middle:
 	if (frd->frd_mr)
 		ib_dereg_mr(frd->frd_mr);
-	LIBCFS_FREE(frd, sizeof(*frd));
+	kfree(frd);
 
 out:
 	list_for_each_entry_safe(frd, tmp, &fpo->fast_reg.fpo_pool_list,
 				 frd_list) {
 		list_del(&frd->frd_list);
 		ib_dereg_mr(frd->frd_mr);
-		LIBCFS_FREE(frd, sizeof(*frd));
+		kfree(frd);
 	}
 
 	return rc;
@@ -1426,7 +1416,7 @@ static int kiblnd_create_fmr_pool(struct kib_fmr_poolset *fps,
 	struct kib_fmr_pool *fpo;
 	int rc;
 
-	LIBCFS_CPT_ALLOC(fpo, lnet_cpt_table(), fps->fps_cpt, sizeof(*fpo));
+	fpo = kzalloc_cpt(sizeof(*fpo), GFP_NOFS, fps->fps_cpt);
 	if (!fpo)
 		return -ENOMEM;
 
@@ -1464,7 +1454,7 @@ static int kiblnd_create_fmr_pool(struct kib_fmr_poolset *fps,
 
 out_fpo:
 	kiblnd_hdev_decref(fpo->fpo_hdev);
-	LIBCFS_FREE(fpo, sizeof(*fpo));
+	kfree(fpo);
 	return rc;
 }
 
@@ -1985,33 +1975,17 @@ static void kiblnd_destroy_tx_pool(struct kib_pool *pool)
 		struct kib_tx *tx = &tpo->tpo_tx_descs[i];
 
 		list_del(&tx->tx_list);
-		if (tx->tx_pages)
-			LIBCFS_FREE(tx->tx_pages,
-				    LNET_MAX_IOV *
-				    sizeof(*tx->tx_pages));
-		if (tx->tx_frags)
-			LIBCFS_FREE(tx->tx_frags,
-				    (1 + IBLND_MAX_RDMA_FRAGS) *
-				     sizeof(*tx->tx_frags));
-		if (tx->tx_wrq)
-			LIBCFS_FREE(tx->tx_wrq,
-				    (1 + IBLND_MAX_RDMA_FRAGS) *
-				    sizeof(*tx->tx_wrq));
-		if (tx->tx_sge)
-			LIBCFS_FREE(tx->tx_sge,
-				    (1 + IBLND_MAX_RDMA_FRAGS) *
-				    sizeof(*tx->tx_sge));
-		if (tx->tx_rd)
-			LIBCFS_FREE(tx->tx_rd,
-				    offsetof(struct kib_rdma_desc,
-					     rd_frags[IBLND_MAX_RDMA_FRAGS]));
+		kfree(tx->tx_pages);
+		kfree(tx->tx_frags);
+		kfree(tx->tx_wrq);
+		kfree(tx->tx_sge);
+		kfree(tx->tx_rd);
 	}
 
-	LIBCFS_FREE(tpo->tpo_tx_descs,
-		    pool->po_size * sizeof(struct kib_tx));
+	kfree(tpo->tpo_tx_descs);
 out:
 	kiblnd_fini_pool(pool);
-	LIBCFS_FREE(tpo, sizeof(*tpo));
+	kfree(tpo);
 }
 
 static int kiblnd_tx_pool_size(int ncpts)
@@ -2029,7 +2003,7 @@ static int kiblnd_create_tx_pool(struct kib_poolset *ps, int size,
 	struct kib_pool *pool;
 	struct kib_tx_pool *tpo;
 
-	LIBCFS_CPT_ALLOC(tpo, lnet_cpt_table(), ps->ps_cpt, sizeof(*tpo));
+	tpo = kzalloc_cpt(sizeof(*tpo), GFP_NOFS, ps->ps_cpt);
 	if (!tpo) {
 		CERROR("Failed to allocate TX pool\n");
 		return -ENOMEM;
@@ -2043,12 +2017,12 @@ static int kiblnd_create_tx_pool(struct kib_poolset *ps, int size,
 	npg = DIV_ROUND_UP(size * IBLND_MSG_SIZE, PAGE_SIZE);
 	if (kiblnd_alloc_pages(&tpo->tpo_tx_pages, ps->ps_cpt, npg)) {
 		CERROR("Can't allocate tx pages: %d\n", npg);
-		LIBCFS_FREE(tpo, sizeof(*tpo));
+		kfree(tpo);
 		return -ENOMEM;
 	}
 
-	LIBCFS_CPT_ALLOC(tpo->tpo_tx_descs, lnet_cpt_table(), ps->ps_cpt,
-			 size * sizeof(struct kib_tx));
+	tpo->tpo_tx_descs = kzalloc_cpt(size * sizeof(struct kib_tx),
+					GFP_NOFS, ps->ps_cpt);
 	if (!tpo->tpo_tx_descs) {
 		CERROR("Can't allocate %d tx descriptors\n", size);
 		ps->ps_pool_destroy(pool);
@@ -2062,36 +2036,35 @@ static int kiblnd_create_tx_pool(struct kib_poolset *ps, int size,
 
 		tx->tx_pool = tpo;
 		if (ps->ps_net->ibn_fmr_ps) {
-			LIBCFS_CPT_ALLOC(tx->tx_pages,
-					 lnet_cpt_table(), ps->ps_cpt,
-					 LNET_MAX_IOV * sizeof(*tx->tx_pages));
+			tx->tx_pages = kzalloc_cpt(LNET_MAX_IOV * sizeof(*tx->tx_pages),
+						   GFP_NOFS, ps->ps_cpt);
 			if (!tx->tx_pages)
 				break;
 		}
 
-		LIBCFS_CPT_ALLOC(tx->tx_frags, lnet_cpt_table(), ps->ps_cpt,
-				 (1 + IBLND_MAX_RDMA_FRAGS) *
-				 sizeof(*tx->tx_frags));
+		tx->tx_frags = kzalloc_cpt((1 + IBLND_MAX_RDMA_FRAGS) *
+					   sizeof(*tx->tx_frags),
+					   GFP_NOFS, ps->ps_cpt);
 		if (!tx->tx_frags)
 			break;
 
 		sg_init_table(tx->tx_frags, IBLND_MAX_RDMA_FRAGS + 1);
 
-		LIBCFS_CPT_ALLOC(tx->tx_wrq, lnet_cpt_table(), ps->ps_cpt,
-				 (1 + IBLND_MAX_RDMA_FRAGS) *
-				 sizeof(*tx->tx_wrq));
+		tx->tx_wrq = kzalloc_cpt((1 + IBLND_MAX_RDMA_FRAGS) *
+					 sizeof(*tx->tx_wrq),
+					 GFP_NOFS, ps->ps_cpt);
 		if (!tx->tx_wrq)
 			break;
 
-		LIBCFS_CPT_ALLOC(tx->tx_sge, lnet_cpt_table(), ps->ps_cpt,
-				 (1 + IBLND_MAX_RDMA_FRAGS) *
-				 sizeof(*tx->tx_sge));
+		tx->tx_sge = kzalloc_cpt((1 + IBLND_MAX_RDMA_FRAGS) *
+					 sizeof(*tx->tx_sge),
+					 GFP_NOFS, ps->ps_cpt);
 		if (!tx->tx_sge)
 			break;
 
-		LIBCFS_CPT_ALLOC(tx->tx_rd, lnet_cpt_table(), ps->ps_cpt,
-				 offsetof(struct kib_rdma_desc,
-					  rd_frags[IBLND_MAX_RDMA_FRAGS]));
+		tx->tx_rd = kzalloc_cpt(offsetof(struct kib_rdma_desc,
+						 rd_frags[IBLND_MAX_RDMA_FRAGS]),
+					GFP_NOFS, ps->ps_cpt);
 		if (!tx->tx_rd)
 			break;
 	}
@@ -2263,7 +2236,7 @@ void kiblnd_hdev_destroy(struct kib_hca_dev *hdev)
 	if (hdev->ibh_cmid)
 		rdma_destroy_id(hdev->ibh_cmid);
 
-	LIBCFS_FREE(hdev, sizeof(*hdev));
+	kfree(hdev);
 }
 
 /* DUMMY */
@@ -2392,7 +2365,7 @@ int kiblnd_dev_failover(struct kib_dev *dev)
 		goto out;
 	}
 
-	LIBCFS_ALLOC(hdev, sizeof(*hdev));
+	hdev = kzalloc(sizeof(*hdev), GFP_NOFS);
 	if (!hdev) {
 		CERROR("Failed to allocate kib_hca_dev\n");
 		rdma_destroy_id(cmid);
@@ -2471,7 +2444,7 @@ void kiblnd_destroy_dev(struct kib_dev *dev)
 	if (dev->ibd_hdev)
 		kiblnd_hdev_decref(dev->ibd_hdev);
 
-	LIBCFS_FREE(dev, sizeof(*dev));
+	kfree(dev);
 }
 
 static struct kib_dev *kiblnd_create_dev(char *ifname)
@@ -2495,7 +2468,7 @@ static struct kib_dev *kiblnd_create_dev(char *ifname)
 		return NULL;
 	}
 
-	LIBCFS_ALLOC(dev, sizeof(*dev));
+	dev = kzalloc(sizeof(*dev), GFP_NOFS);
 	if (!dev)
 		return NULL;
 
@@ -2517,7 +2490,7 @@ static struct kib_dev *kiblnd_create_dev(char *ifname)
 	rc = kiblnd_dev_failover(dev);
 	if (rc) {
 		CERROR("Can't initialize device: %d\n", rc);
-		LIBCFS_FREE(dev, sizeof(*dev));
+		kfree(dev);
 		return NULL;
 	}
 
@@ -2577,11 +2550,7 @@ static void kiblnd_base_shutdown(void)
 		break;
 	}
 
-	if (kiblnd_data.kib_peers) {
-		LIBCFS_FREE(kiblnd_data.kib_peers,
-			    sizeof(struct list_head) *
-			    kiblnd_data.kib_peer_hash_size);
-	}
+	kvfree(kiblnd_data.kib_peers);
 
 	if (kiblnd_data.kib_scheds)
 		cfs_percpt_free(kiblnd_data.kib_scheds);
@@ -2648,7 +2617,7 @@ static void kiblnd_shutdown(struct lnet_ni *ni)
 	net->ibn_init = IBLND_INIT_NOTHING;
 	ni->ni_data = NULL;
 
-	LIBCFS_FREE(net, sizeof(*net));
+	kfree(net);
 
 out:
 	if (list_empty(&kiblnd_data.kib_devs))
@@ -2673,8 +2642,9 @@ static int kiblnd_base_startup(void)
 	INIT_LIST_HEAD(&kiblnd_data.kib_failed_devs);
 
 	kiblnd_data.kib_peer_hash_size = IBLND_PEER_HASH_SIZE;
-	LIBCFS_ALLOC(kiblnd_data.kib_peers,
-		     sizeof(struct list_head) * kiblnd_data.kib_peer_hash_size);
+	kiblnd_data.kib_peers = kvmalloc_array(kiblnd_data.kib_peer_hash_size,
+					       sizeof(struct list_head),
+					       GFP_KERNEL);
 	if (!kiblnd_data.kib_peers)
 		goto failed;
 	for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++)
@@ -2865,7 +2835,7 @@ static int kiblnd_startup(struct lnet_ni *ni)
 			return rc;
 	}
 
-	LIBCFS_ALLOC(net, sizeof(*net));
+	net = kzalloc(sizeof(*net), GFP_NOFS);
 	ni->ni_data = net;
 	if (!net)
 		goto net_failed;

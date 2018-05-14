@@ -33,51 +33,11 @@ void nvme_failover_req(struct request *req)
 	kblockd_schedule_work(&ns->head->requeue_work);
 }
 
-bool nvme_req_needs_failover(struct request *req)
+bool nvme_req_needs_failover(struct request *req, blk_status_t error)
 {
 	if (!(req->cmd_flags & REQ_NVME_MPATH))
 		return false;
-
-	switch (nvme_req(req)->status & 0x7ff) {
-	/*
-	 * Generic command status:
-	 */
-	case NVME_SC_INVALID_OPCODE:
-	case NVME_SC_INVALID_FIELD:
-	case NVME_SC_INVALID_NS:
-	case NVME_SC_LBA_RANGE:
-	case NVME_SC_CAP_EXCEEDED:
-	case NVME_SC_RESERVATION_CONFLICT:
-		return false;
-
-	/*
-	 * I/O command set specific error.  Unfortunately these values are
-	 * reused for fabrics commands, but those should never get here.
-	 */
-	case NVME_SC_BAD_ATTRIBUTES:
-	case NVME_SC_INVALID_PI:
-	case NVME_SC_READ_ONLY:
-	case NVME_SC_ONCS_NOT_SUPPORTED:
-		WARN_ON_ONCE(nvme_req(req)->cmd->common.opcode ==
-			nvme_fabrics_command);
-		return false;
-
-	/*
-	 * Media and Data Integrity Errors:
-	 */
-	case NVME_SC_WRITE_FAULT:
-	case NVME_SC_READ_ERROR:
-	case NVME_SC_GUARD_CHECK:
-	case NVME_SC_APPTAG_CHECK:
-	case NVME_SC_REFTAG_CHECK:
-	case NVME_SC_COMPARE_FAILED:
-	case NVME_SC_ACCESS_DENIED:
-	case NVME_SC_UNWRITTEN_BLOCK:
-		return false;
-	}
-
-	/* Everything else could be a path failure, so should be retried */
-	return true;
+	return blk_path_error(error);
 }
 
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
@@ -238,30 +198,16 @@ void nvme_mpath_add_disk(struct nvme_ns_head *head)
 {
 	if (!head->disk)
 		return;
-	device_add_disk(&head->subsys->dev, head->disk);
-	if (sysfs_create_group(&disk_to_dev(head->disk)->kobj,
-			&nvme_ns_id_attr_group))
-		pr_warn("%s: failed to create sysfs group for identification\n",
-			head->disk->disk_name);
-}
 
-void nvme_mpath_add_disk_links(struct nvme_ns *ns)
-{
-	struct kobject *slave_disk_kobj, *holder_disk_kobj;
-
-	if (!ns->head->disk)
-		return;
-
-	slave_disk_kobj = &disk_to_dev(ns->disk)->kobj;
-	if (sysfs_create_link(ns->head->disk->slave_dir, slave_disk_kobj,
-			kobject_name(slave_disk_kobj)))
-		return;
-
-	holder_disk_kobj = &disk_to_dev(ns->head->disk)->kobj;
-	if (sysfs_create_link(ns->disk->part0.holder_dir, holder_disk_kobj,
-			kobject_name(holder_disk_kobj)))
-		sysfs_remove_link(ns->head->disk->slave_dir,
-			kobject_name(slave_disk_kobj));
+	mutex_lock(&head->subsys->lock);
+	if (!(head->disk->flags & GENHD_FL_UP)) {
+		device_add_disk(&head->subsys->dev, head->disk);
+		if (sysfs_create_group(&disk_to_dev(head->disk)->kobj,
+				&nvme_ns_id_attr_group))
+			pr_warn("%s: failed to create sysfs group for identification\n",
+				head->disk->disk_name);
+	}
+	mutex_unlock(&head->subsys->lock);
 }
 
 void nvme_mpath_remove_disk(struct nvme_ns_head *head)
@@ -277,15 +223,4 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 	flush_work(&head->requeue_work);
 	blk_cleanup_queue(head->disk->queue);
 	put_disk(head->disk);
-}
-
-void nvme_mpath_remove_disk_links(struct nvme_ns *ns)
-{
-	if (!ns->head->disk)
-		return;
-
-	sysfs_remove_link(ns->disk->part0.holder_dir,
-			kobject_name(&disk_to_dev(ns->head->disk)->kobj));
-	sysfs_remove_link(ns->head->disk->slave_dir,
-			kobject_name(&disk_to_dev(ns->disk)->kobj));
 }

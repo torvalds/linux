@@ -94,9 +94,9 @@ TRACE_EVENT(thermal_zone_trip,
 #ifdef CONFIG_CPU_THERMAL
 TRACE_EVENT(thermal_power_cpu_get_power,
 	TP_PROTO(const struct cpumask *cpus, unsigned long freq, u32 *load,
-		size_t load_len, u32 dynamic_power, u32 static_power),
+		size_t load_len, u32 dynamic_power),
 
-	TP_ARGS(cpus, freq, load, load_len, dynamic_power, static_power),
+	TP_ARGS(cpus, freq, load, load_len, dynamic_power),
 
 	TP_STRUCT__entry(
 		__bitmask(cpumask, num_possible_cpus())
@@ -104,7 +104,6 @@ TRACE_EVENT(thermal_power_cpu_get_power,
 		__dynamic_array(u32,   load, load_len)
 		__field(size_t,        load_len      )
 		__field(u32,           dynamic_power )
-		__field(u32,           static_power  )
 	),
 
 	TP_fast_assign(
@@ -115,13 +114,12 @@ TRACE_EVENT(thermal_power_cpu_get_power,
 			load_len * sizeof(*load));
 		__entry->load_len = load_len;
 		__entry->dynamic_power = dynamic_power;
-		__entry->static_power = static_power;
 	),
 
-	TP_printk("cpus=%s freq=%lu load={%s} dynamic_power=%d static_power=%d",
+	TP_printk("cpus=%s freq=%lu load={%s} dynamic_power=%d",
 		__get_bitmask(cpumask), __entry->freq,
 		__print_array(__get_dynamic_array(load), __entry->load_len, 4),
-		__entry->dynamic_power, __entry->static_power)
+		__entry->dynamic_power)
 );
 
 TRACE_EVENT(thermal_power_cpu_limit,

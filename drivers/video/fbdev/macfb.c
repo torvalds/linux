@@ -556,7 +556,7 @@ static void __init iounmap_macfb(void)
 static int __init macfb_init(void)
 {
 	int video_cmap_len, video_is_nubus = 0;
-	struct nubus_dev* ndev = NULL;
+	struct nubus_rsrc *ndev = NULL;
 	char *option = NULL;
 	int err;
 
@@ -670,13 +670,15 @@ static int __init macfb_init(void)
 	 * code is really broken :-)
 	 */
 
-	while ((ndev = nubus_find_type(NUBUS_CAT_DISPLAY,
-				       NUBUS_TYPE_VIDEO, ndev)))
-	{
+	for_each_func_rsrc(ndev) {
 		unsigned long base = ndev->board->slot_addr;
 
 		if (mac_bi_data.videoaddr < base ||
 		    mac_bi_data.videoaddr - base > 0xFFFFFF)
+			continue;
+
+		if (ndev->category != NUBUS_CAT_DISPLAY ||
+		    ndev->type != NUBUS_TYPE_VIDEO)
 			continue;
 
 		video_is_nubus = 1;

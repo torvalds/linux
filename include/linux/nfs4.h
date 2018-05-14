@@ -457,7 +457,12 @@ enum lock_type4 {
 
 #define NFS4_DEBUG 1
 
-/* Index of predefined Linux client operations */
+/*
+ * Index of predefined Linux client operations
+ *
+ * To ensure that /proc/net/rpc/nfs remains correctly ordered, please
+ * append only to this enum when adding new client operations.
+ */
 
 enum {
 	NFSPROC4_CLNT_NULL = 0,		/* Unused */
@@ -480,7 +485,6 @@ enum {
 	NFSPROC4_CLNT_ACCESS,
 	NFSPROC4_CLNT_GETATTR,
 	NFSPROC4_CLNT_LOOKUP,
-	NFSPROC4_CLNT_LOOKUPP,
 	NFSPROC4_CLNT_LOOKUP_ROOT,
 	NFSPROC4_CLNT_REMOVE,
 	NFSPROC4_CLNT_RENAME,
@@ -500,7 +504,6 @@ enum {
 	NFSPROC4_CLNT_SECINFO,
 	NFSPROC4_CLNT_FSID_PRESENT,
 
-	/* nfs41 */
 	NFSPROC4_CLNT_EXCHANGE_ID,
 	NFSPROC4_CLNT_CREATE_SESSION,
 	NFSPROC4_CLNT_DESTROY_SESSION,
@@ -518,13 +521,14 @@ enum {
 	NFSPROC4_CLNT_BIND_CONN_TO_SESSION,
 	NFSPROC4_CLNT_DESTROY_CLIENTID,
 
-	/* nfs42 */
 	NFSPROC4_CLNT_SEEK,
 	NFSPROC4_CLNT_ALLOCATE,
 	NFSPROC4_CLNT_DEALLOCATE,
 	NFSPROC4_CLNT_LAYOUTSTATS,
 	NFSPROC4_CLNT_CLONE,
 	NFSPROC4_CLNT_COPY,
+
+	NFSPROC4_CLNT_LOOKUPP,
 };
 
 /* nfs41 types */

@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2015
  * Authors: Yannick Fertre <yannick.fertre@st.com>
  *          Hugues Fruchet <hugues.fruchet@st.com>
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef HVA_H
@@ -245,7 +245,7 @@ struct hva_enc;
  * @dbg:             context debug info
  */
 struct hva_ctx {
-	struct hva_dev		        *hva_dev;
+	struct hva_dev			*hva_dev;
 	struct v4l2_fh			fh;
 	struct v4l2_ctrl_handler	ctrl_handler;
 	struct hva_controls		ctrls;

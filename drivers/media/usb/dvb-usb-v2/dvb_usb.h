@@ -27,11 +27,11 @@
 #include <media/rc-core.h>
 #include <media/media-device.h>
 
-#include "dvb_frontend.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
-#include "dmxdev.h"
-#include "dvb-usb-ids.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
+#include <media/dvb-usb-ids.h>
 
 /*
  * device file: /dev/dvb/adapter[0-1]/frontend[0-2]

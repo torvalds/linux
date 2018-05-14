@@ -174,7 +174,6 @@ struct ov2680_format {
 		struct mutex input_lock;
 	struct v4l2_ctrl_handler ctrl_handler;
 		struct camera_sensor_platform_data *platform_data;
-		struct timespec timestamp_t_focus_abs;
 		int vt_pix_clk_freq_mhz;
 		int fmt_idx;
 		int run_mode;

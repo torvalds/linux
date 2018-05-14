@@ -26,6 +26,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_atombios.h"
+#include "amd_pcie.h"
 #include "sid.h"
 #include "r600_dpm.h"
 #include "si_dpm.h"
@@ -3331,29 +3332,6 @@ static void btc_apply_voltage_delta_rules(struct amdgpu_device *adev,
 	}
 }
 
-static enum amdgpu_pcie_gen r600_get_pcie_gen_support(struct amdgpu_device *adev,
-					       u32 sys_mask,
-					       enum amdgpu_pcie_gen asic_gen,
-					       enum amdgpu_pcie_gen default_gen)
-{
-	switch (asic_gen) {
-	case AMDGPU_PCIE_GEN1:
-		return AMDGPU_PCIE_GEN1;
-	case AMDGPU_PCIE_GEN2:
-		return AMDGPU_PCIE_GEN2;
-	case AMDGPU_PCIE_GEN3:
-		return AMDGPU_PCIE_GEN3;
-	default:
-		if ((sys_mask & DRM_PCIE_SPEED_80) && (default_gen == AMDGPU_PCIE_GEN3))
-			return AMDGPU_PCIE_GEN3;
-		else if ((sys_mask & DRM_PCIE_SPEED_50) && (default_gen == AMDGPU_PCIE_GEN2))
-			return AMDGPU_PCIE_GEN2;
-		else
-			return AMDGPU_PCIE_GEN1;
-	}
-	return AMDGPU_PCIE_GEN1;
-}
-
 static void r600_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
 			    u32 *p, u32 *u)
 {
@@ -3463,6 +3441,11 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6665) ||
 		    (adev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
+		}
+		if ((adev->pdev->revision == 0xC3) ||
+		    (adev->pdev->device == 0x6665)) {
+			max_sclk = 60000;
+			max_mclk = 80000;
 		}
 	} else if (adev->asic_type == CHIP_OLAND) {
 		if ((adev->pdev->revision == 0xC7) ||
@@ -5023,10 +5006,11 @@ static int si_populate_smc_acpi_state(struct amdgpu_device *adev,
 							      table->ACPIState.levels[0].vddc.index,
 							      &table->ACPIState.levels[0].std_vddc);
 		}
-		table->ACPIState.levels[0].gen2PCIE = (u8)r600_get_pcie_gen_support(adev,
-										    si_pi->sys_pcie_mask,
-										    si_pi->boot_pcie_gen,
-										    AMDGPU_PCIE_GEN1);
+		table->ACPIState.levels[0].gen2PCIE =
+			(u8)amdgpu_get_pcie_gen_support(adev,
+							si_pi->sys_pcie_mask,
+							si_pi->boot_pcie_gen,
+							AMDGPU_PCIE_GEN1);
 
 		if (si_pi->vddc_phase_shed_control)
 			si_populate_phase_shedding_value(adev,
@@ -5845,9 +5829,9 @@ static int si_set_mc_special_registers(struct amdgpu_device *adev,
 					((temp_reg & 0xffff0000)) |
 					((table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16);
 			j++;
+
 			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
-
 			temp_reg = RREG32(MC_PMG_CMD_MRS);
 			table->mc_reg_address[j].s1 = MC_PMG_CMD_MRS;
 			table->mc_reg_address[j].s0 = MC_SEQ_PMG_CMD_MRS_LP;
@@ -5859,18 +5843,16 @@ static int si_set_mc_special_registers(struct amdgpu_device *adev,
 					table->mc_reg_table_entry[k].mc_data[j] |= 0x100;
 			}
 			j++;
-			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
-				return -EINVAL;
 
 			if (adev->mc.vram_type != AMDGPU_VRAM_TYPE_GDDR5) {
+				if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+					return -EINVAL;
 				table->mc_reg_address[j].s1 = MC_PMG_AUTO_CMD;
 				table->mc_reg_address[j].s0 = MC_PMG_AUTO_CMD;
 				for (k = 0; k < table->num_entries; k++)
 					table->mc_reg_table_entry[k].mc_data[j] =
 						(table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16;
 				j++;
-				if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
-					return -EINVAL;
 			}
 			break;
 		case MC_SEQ_RESERVE_M:
@@ -5882,8 +5864,6 @@ static int si_set_mc_special_registers(struct amdgpu_device *adev,
 					(temp_reg & 0xffff0000) |
 					(table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
 			j++;
-			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
-				return -EINVAL;
 			break;
 		default:
 			break;
@@ -7167,10 +7147,10 @@ static void si_parse_pplib_clock_info(struct amdgpu_device *adev,
 	pl->vddc = le16_to_cpu(clock_info->si.usVDDC);
 	pl->vddci = le16_to_cpu(clock_info->si.usVDDCI);
 	pl->flags = le32_to_cpu(clock_info->si.ulFlags);
-	pl->pcie_gen = r600_get_pcie_gen_support(adev,
-						 si_pi->sys_pcie_mask,
-						 si_pi->boot_pcie_gen,
-						 clock_info->si.ucPCIEGen);
+	pl->pcie_gen = amdgpu_get_pcie_gen_support(adev,
+						   si_pi->sys_pcie_mask,
+						   si_pi->boot_pcie_gen,
+						   clock_info->si.ucPCIEGen);
 
 	/* patch up vddc if necessary */
 	ret = si_get_leakage_voltage_from_leakage_index(adev, pl->vddc,
@@ -7325,7 +7305,6 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	struct si_power_info *si_pi;
 	struct atom_clock_dividers dividers;
 	int ret;
-	u32 mask;
 
 	si_pi = kzalloc(sizeof(struct si_power_info), GFP_KERNEL);
 	if (si_pi == NULL)
@@ -7335,11 +7314,9 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	eg_pi = &ni_pi->eg;
 	pi = &eg_pi->rv7xx;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret)
-		si_pi->sys_pcie_mask = 0;
-	else
-		si_pi->sys_pcie_mask = mask;
+	si_pi->sys_pcie_mask =
+		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
+		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
 	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(adev);
 

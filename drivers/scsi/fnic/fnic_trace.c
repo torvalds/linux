@@ -111,7 +111,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 	int len = 0;
 	unsigned long flags;
 	char str[KSYM_SYMBOL_LEN];
-	struct timespec val;
+	struct timespec64 val;
 	fnic_trace_data_t *tbp;
 
 	spin_lock_irqsave(&fnic_trace_lock, flags);
@@ -129,10 +129,10 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			/* Convert function pointer to function name */
 			if (sizeof(unsigned long) < 8) {
 				sprint_symbol(str, tbp->fnaddr.low);
-				jiffies_to_timespec(tbp->timestamp.low, &val);
+				jiffies_to_timespec64(tbp->timestamp.low, &val);
 			} else {
 				sprint_symbol(str, tbp->fnaddr.val);
-				jiffies_to_timespec(tbp->timestamp.val, &val);
+				jiffies_to_timespec64(tbp->timestamp.val, &val);
 			}
 			/*
 			 * Dump trace buffer entry to memory file
@@ -140,8 +140,8 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 */
 			len += snprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
-				  "%16lu.%16lu %-50s %8x %8x %16llx %16llx "
-				  "%16llx %16llx %16llx\n", val.tv_sec,
+				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
+				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
 				  val.tv_nsec, str, tbp->host_no, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
@@ -171,10 +171,10 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			/* Convert function pointer to function name */
 			if (sizeof(unsigned long) < 8) {
 				sprint_symbol(str, tbp->fnaddr.low);
-				jiffies_to_timespec(tbp->timestamp.low, &val);
+				jiffies_to_timespec64(tbp->timestamp.low, &val);
 			} else {
 				sprint_symbol(str, tbp->fnaddr.val);
-				jiffies_to_timespec(tbp->timestamp.val, &val);
+				jiffies_to_timespec64(tbp->timestamp.val, &val);
 			}
 			/*
 			 * Dump trace buffer entry to memory file
@@ -182,8 +182,8 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 */
 			len += snprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
-				  "%16lu.%16lu %-50s %8x %8x %16llx %16llx "
-				  "%16llx %16llx %16llx\n", val.tv_sec,
+				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
+				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
 				  val.tv_nsec, str, tbp->host_no, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
@@ -217,29 +217,29 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 {
 	int len = 0;
 	int buf_size = debug->buf_size;
-	struct timespec val1, val2;
+	struct timespec64 val1, val2;
 
-	getnstimeofday(&val1);
+	ktime_get_real_ts64(&val1);
 	len = snprintf(debug->debug_buffer + len, buf_size - len,
 		"------------------------------------------\n"
 		 "\t\tTime\n"
 		"------------------------------------------\n");
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
-		"Current time :          [%ld:%ld]\n"
-		"Last stats reset time:  [%ld:%ld]\n"
-		"Last stats read time:   [%ld:%ld]\n"
-		"delta since last reset: [%ld:%ld]\n"
-		"delta since last read:  [%ld:%ld]\n",
-	val1.tv_sec, val1.tv_nsec,
-	stats->stats_timestamps.last_reset_time.tv_sec,
+		"Current time :          [%lld:%ld]\n"
+		"Last stats reset time:  [%lld:%09ld]\n"
+		"Last stats read time:   [%lld:%ld]\n"
+		"delta since last reset: [%lld:%ld]\n"
+		"delta since last read:  [%lld:%ld]\n",
+	(s64)val1.tv_sec, val1.tv_nsec,
+	(s64)stats->stats_timestamps.last_reset_time.tv_sec,
 	stats->stats_timestamps.last_reset_time.tv_nsec,
-	stats->stats_timestamps.last_read_time.tv_sec,
+	(s64)stats->stats_timestamps.last_read_time.tv_sec,
 	stats->stats_timestamps.last_read_time.tv_nsec,
-	timespec_sub(val1, stats->stats_timestamps.last_reset_time).tv_sec,
-	timespec_sub(val1, stats->stats_timestamps.last_reset_time).tv_nsec,
-	timespec_sub(val1, stats->stats_timestamps.last_read_time).tv_sec,
-	timespec_sub(val1, stats->stats_timestamps.last_read_time).tv_nsec);
+	(s64)timespec64_sub(val1, stats->stats_timestamps.last_reset_time).tv_sec,
+	timespec64_sub(val1, stats->stats_timestamps.last_reset_time).tv_nsec,
+	(s64)timespec64_sub(val1, stats->stats_timestamps.last_read_time).tv_sec,
+	timespec64_sub(val1, stats->stats_timestamps.last_read_time).tv_nsec);
 
 	stats->stats_timestamps.last_read_time = val1;
 
@@ -403,12 +403,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "\t\tOther Important Statistics\n"
 		  "------------------------------------------\n");
 
-	jiffies_to_timespec(stats->misc_stats.last_isr_time, &val1);
-	jiffies_to_timespec(stats->misc_stats.last_ack_time, &val2);
+	jiffies_to_timespec64(stats->misc_stats.last_isr_time, &val1);
+	jiffies_to_timespec64(stats->misc_stats.last_ack_time, &val2);
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
-		  "Last ISR time: %llu (%8lu.%8lu)\n"
-		  "Last ACK time: %llu (%8lu.%8lu)\n"
+		  "Last ISR time: %llu (%8llu.%09lu)\n"
+		  "Last ACK time: %llu (%8llu.%09lu)\n"
 		  "Number of ISRs: %lld\n"
 		  "Maximum CQ Entries: %lld\n"
 		  "Number of ACK index out of range: %lld\n"
@@ -425,9 +425,9 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of rport not ready: %lld\n"
 		  "Number of receive frame errors: %lld\n",
 		  (u64)stats->misc_stats.last_isr_time,
-		  val1.tv_sec, val1.tv_nsec,
+		  (s64)val1.tv_sec, val1.tv_nsec,
 		  (u64)stats->misc_stats.last_ack_time,
-		  val2.tv_sec, val2.tv_nsec,
+		  (s64)val2.tv_sec, val2.tv_nsec,
 		  (u64)atomic64_read(&stats->misc_stats.isr_count),
 		  (u64)atomic64_read(&stats->misc_stats.max_cq_entries),
 		  (u64)atomic64_read(&stats->misc_stats.ack_index_out_of_range),

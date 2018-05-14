@@ -827,6 +827,7 @@ err_fwq:
 err_cwq:
 	destroy_workqueue(dmz->chunk_wq);
 err_bio:
+	mutex_destroy(&dmz->chunk_lock);
 	bioset_free(dmz->bio_set);
 err_meta:
 	dmz_dtr_metadata(dmz->metadata);
@@ -860,6 +861,8 @@ static void dmz_dtr(struct dm_target *ti)
 	bioset_free(dmz->bio_set);
 
 	dmz_put_zoned_device(ti);
+
+	mutex_destroy(&dmz->chunk_lock);
 
 	kfree(dmz);
 }

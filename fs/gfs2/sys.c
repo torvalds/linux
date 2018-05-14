@@ -112,7 +112,7 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	}
 
 	if (error) {
-		fs_warn(sdp, "freeze %d error %d", n, error);
+		fs_warn(sdp, "freeze %d error %d\n", n, error);
 		return error;
 	}
 
@@ -679,7 +679,7 @@ fail_tune:
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 fail_reg:
 	free_percpu(sdp->sd_lkstats);
-	fs_err(sdp, "error %d adding sysfs files", error);
+	fs_err(sdp, "error %d adding sysfs files\n", error);
 	if (sysfs_frees_sdp)
 		kobject_put(&sdp->sd_kobj);
 	else

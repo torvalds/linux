@@ -29,9 +29,9 @@
 #define POLLRDHUP       0x2000
 #endif
 
-#define POLLFREE	0x4000	/* currently only for epoll */
+#define POLLFREE	(__force __poll_t)0x4000	/* currently only for epoll */
 
-#define POLL_BUSY_LOOP	0x8000
+#define POLL_BUSY_LOOP	(__force __poll_t)0x8000
 
 struct pollfd {
 	int fd;

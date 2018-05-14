@@ -140,7 +140,7 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 #else
 #define __flush_tlb() __native_flush_tlb()
 #define __flush_tlb_global() __native_flush_tlb_global()
-#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+#define __flush_tlb_one_user(addr) __native_flush_tlb_one_user(addr)
 #endif
 
 static inline bool tlb_defer_switch_to_init_mm(void)
@@ -174,6 +174,8 @@ struct tlb_state {
 	struct mm_struct *loaded_mm;
 	u16 loaded_mm_asid;
 	u16 next_asid;
+	/* last user mm's ctx id */
+	u64 last_ctx_id;
 
 	/*
 	 * We can be in one of several states:
@@ -398,7 +400,7 @@ static inline void __native_flush_tlb_global(void)
 /*
  * flush one page in the user mapping
  */
-static inline void __native_flush_tlb_single(unsigned long addr)
+static inline void __native_flush_tlb_one_user(unsigned long addr)
 {
 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
 
@@ -435,18 +437,31 @@ static inline void __flush_tlb_all(void)
 /*
  * flush one page in the kernel mapping
  */
-static inline void __flush_tlb_one(unsigned long addr)
+static inline void __flush_tlb_one_kernel(unsigned long addr)
 {
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
-	__flush_tlb_single(addr);
+
+	/*
+	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
+	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
+	 * use PCID if we also use global PTEs for the kernel mapping, and
+	 * INVLPG flushes global translations across all address spaces.
+	 *
+	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
+	 * __flush_tlb_one_user() will flush the given address for the current
+	 * kernel address space and for its usermode counterpart, but it does
+	 * not flush it for other address spaces.
+	 */
+	__flush_tlb_one_user(addr);
 
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;
 
 	/*
-	 * __flush_tlb_single() will have cleared the TLB entry for this ASID,
-	 * but since kernel space is replicated across all, we must also
-	 * invalidate all others.
+	 * See above.  We need to propagate the flush to all other address
+	 * spaces.  In principle, we only need to propagate it to kernelmode
+	 * address spaces, but the extra bookkeeping we would need is not
+	 * worth it.
 	 */
 	invalidate_other_asid();
 }

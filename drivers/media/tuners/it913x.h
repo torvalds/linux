@@ -19,7 +19,7 @@
 #ifndef IT913X_H
 #define IT913X_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * struct it913x_platform_data - Platform data for the it913x driver

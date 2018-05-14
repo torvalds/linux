@@ -708,8 +708,8 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", temp);
 }
 
-static DEVICE_ATTR(update_mode, 0644, update_mode_show, update_mode_store);
-static DEVICE_ATTR(flash, 0644, flash_show, flash_store);
+static DEVICE_ATTR_RW(update_mode);
+static DEVICE_ATTR_RW(flash);
 static DEVICE_ATTR(temp, 0644, temp_show, NULL);
 
 static struct attribute *auok190x_attributes[] = {
@@ -1056,13 +1056,12 @@ int auok190x_common_probe(struct platform_device *pdev,
 	/* videomemory handling */
 
 	videomemorysize = roundup((panel->w * panel->h) * 2, PAGE_SIZE);
-	videomemory = vmalloc(videomemorysize);
+	videomemory = vzalloc(videomemorysize);
 	if (!videomemory) {
 		ret = -ENOMEM;
 		goto err_irq;
 	}
 
-	memset(videomemory, 0, videomemorysize);
 	info->screen_base = (char *)videomemory;
 	info->fix.smem_len = videomemorysize;
 

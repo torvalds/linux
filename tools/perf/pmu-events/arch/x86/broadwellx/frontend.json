@@ -15,58 +15,7 @@
         "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
         "Counter": "0,1,2,3",
         "EventName": "IDQ.MITE_UOPS",
-        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may \"bypass\" the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x8",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.DSB_UOPS",
-        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may \"bypass\" the IDQ.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x10",
-        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_DSB_UOPS",
-        "PublicDescription": "This event counts the number of uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Counting includes uops that may \"bypass\" the IDQ.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x20",
-        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_MITE_UOPS",
-        "PublicDescription": "This event counts the number of uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may \"bypass\" the IDQ.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_UOPS",
-        "PublicDescription": "This event counts the total number of uops delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may \"bypass\" the IDQ. Uops maybe initiated by Decode Stream Buffer (DSB) or MITE.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_CYCLES",
-        "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may \"bypass\" the IDQ. Uops maybe initiated by Decode Stream Buffer (DSB) or MITE.",
+        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may bypass the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -77,7 +26,17 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.MITE_CYCLES",
         "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may bypass the IDQ.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x8",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.DSB_UOPS",
+        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -88,7 +47,17 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.DSB_CYCLES",
         "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may bypass the IDQ.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x10",
+        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_DSB_UOPS",
+        "PublicDescription": "This event counts the number of uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -99,7 +68,7 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.MS_DSB_CYCLES",
         "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which uops initiated by Decode Stream Buffer (DSB) are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts cycles during which uops initiated by Decode Stream Buffer (DSB) are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -111,7 +80,7 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.MS_DSB_OCCUR",
         "CounterMask": "1",
-        "PublicDescription": "This event counts the number of deliveries to Instruction Decode Queue (IDQ) initiated by Decode Stream Buffer (DSB) while the Microcode Sequencer (MS) is busy. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts the number of deliveries to Instruction Decode Queue (IDQ) initiated by Decode Stream Buffer (DSB) while the Microcode Sequencer (MS) is busy. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -122,7 +91,7 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.ALL_DSB_CYCLES_4_UOPS",
         "CounterMask": "4",
-        "PublicDescription": "This event counts the number of cycles 4  uops were  delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts the number of cycles 4  uops were  delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -133,7 +102,17 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.ALL_DSB_CYCLES_ANY_UOPS",
         "CounterMask": "1",
-        "PublicDescription": "This event counts the number of cycles  uops were  delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may \"bypass\" the IDQ.",
+        "PublicDescription": "This event counts the number of cycles  uops were  delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path. Counting includes uops that may bypass the IDQ.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x20",
+        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_MITE_UOPS",
+        "PublicDescription": "This event counts the number of uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may bypass the IDQ.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -144,7 +123,7 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.ALL_MITE_CYCLES_4_UOPS",
         "CounterMask": "4",
-        "PublicDescription": "This event counts the number of cycles 4  uops were  delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may \"bypass\" the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "This event counts the number of cycles 4  uops were  delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may bypass the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -155,7 +134,39 @@
         "Counter": "0,1,2,3",
         "EventName": "IDQ.ALL_MITE_CYCLES_ANY_UOPS",
         "CounterMask": "1",
-        "PublicDescription": "This event counts the number of cycles  uops were delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may \"bypass\" the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "This event counts the number of cycles  uops were delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may bypass the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_UOPS",
+        "PublicDescription": "This event counts the total number of uops delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may bypass the IDQ. Uops maybe initiated by Decode Stream Buffer (DSB) or MITE.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_CYCLES",
+        "CounterMask": "1",
+        "PublicDescription": "This event counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequenser (MS) is busy. Counting includes uops that may bypass the IDQ. Uops maybe initiated by Decode Stream Buffer (DSB) or MITE.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EdgeDetect": "1",
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_SWITCHES",
+        "CounterMask": "1",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -165,7 +176,7 @@
         "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
         "Counter": "0,1,2,3",
         "EventName": "IDQ.MITE_ALL_UOPS",
-        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may \"bypass\" the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "This event counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may bypass the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -205,7 +216,7 @@
         "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled",
         "Counter": "0,1,2,3",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
-        "PublicDescription": "This event counts the number of uops not delivered to Resource Allocation Table (RAT) per thread adding ?4 ? x? when Resource Allocation Table (RAT) is not stalled and Instruction Decode Queue (IDQ) delivers x uops to Resource Allocation Table (RAT) (where x belongs to {0,1,2,3}). Counting does not cover cases when:\n a. IDQ-Resource Allocation Table (RAT) pipe serves the other thread;\n b. Resource Allocation Table (RAT) is stalled for the thread (including uop drops and clear BE conditions); \n c. Instruction Decode Queue (IDQ) delivers four uops.",
+        "PublicDescription": "This event counts the number of uops not delivered to Resource Allocation Table (RAT) per thread adding 4  x when Resource Allocation Table (RAT) is not stalled and Instruction Decode Queue (IDQ) delivers x uops to Resource Allocation Table (RAT) (where x belongs to {0,1,2,3}). Counting does not cover cases when:\n a. IDQ-Resource Allocation Table (RAT) pipe serves the other thread;\n b. Resource Allocation Table (RAT) is stalled for the thread (including uop drops and clear BE conditions); \n c. Instruction Decode Queue (IDQ) delivers four uops.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -268,18 +279,7 @@
         "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles.",
         "Counter": "0,1,2,3",
         "EventName": "DSB2MITE_SWITCHES.PENALTY_CYCLES",
-        "PublicDescription": "This event counts Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles. These cycles do not include uops routed through because of the switch itself, for example, when Instruction Decode Queue (IDQ) pre-allocation is unavailable, or Instruction Decode Queue (IDQ) is full. SBD-to-MITE switch true penalty cycles happen after the merge mux (MM) receives Decode Stream Buffer (DSB) Sync-indication until receiving the first MITE uop. \nMM is placed before Instruction Decode Queue (IDQ) to merge uops being fed from the MITE and Decode Stream Buffer (DSB) paths. Decode Stream Buffer (DSB) inserts the Sync-indication whenever a Decode Stream Buffer (DSB)-to-MITE switch occurs.\nPenalty: A Decode Stream Buffer (DSB) hit followed by a Decode Stream Buffer (DSB) miss can cost up to six cycles in which no uops are delivered to the IDQ. Most often, such switches from the Decode Stream Buffer (DSB) to the legacy pipeline cost 0?2 cycles.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EdgeDetect": "1",
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_SWITCHES",
-        "CounterMask": "1",
+        "PublicDescription": "This event counts Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles. These cycles do not include uops routed through because of the switch itself, for example, when Instruction Decode Queue (IDQ) pre-allocation is unavailable, or Instruction Decode Queue (IDQ) is full. SBD-to-MITE switch true penalty cycles happen after the merge mux (MM) receives Decode Stream Buffer (DSB) Sync-indication until receiving the first MITE uop. \nMM is placed before Instruction Decode Queue (IDQ) to merge uops being fed from the MITE and Decode Stream Buffer (DSB) paths. Decode Stream Buffer (DSB) inserts the Sync-indication whenever a Decode Stream Buffer (DSB)-to-MITE switch occurs.\nPenalty: A Decode Stream Buffer (DSB) hit followed by a Decode Stream Buffer (DSB) miss can cost up to six cycles in which no uops are delivered to the IDQ. Most often, such switches from the Decode Stream Buffer (DSB) to the legacy pipeline cost 02 cycles.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }

@@ -181,6 +181,10 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 			return -ENOMEM;
 		}
 		cf->fmode = fmode;
+
+		spin_lock_init(&cf->rw_contexts_lock);
+		INIT_LIST_HEAD(&cf->rw_contexts);
+
 		cf->next_offset = 2;
 		cf->readdir_cache_idx = -1;
 		file->private_data = cf;
@@ -396,7 +400,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
-		req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
+		req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
 		req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 		if (acls.pagelist) {
 			req->r_pagelist = acls.pagelist;
@@ -464,6 +468,7 @@ int ceph_release(struct inode *inode, struct file *file)
 		ceph_mdsc_put_request(cf->last_readdir);
 	kfree(cf->last_name);
 	kfree(cf->dir_info);
+	WARN_ON(!list_empty(&cf->rw_contexts));
 	kmem_cache_free(ceph_file_cachep, cf);
 
 	/* wake up anyone waiting for caps on this inode */
@@ -635,7 +640,8 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 struct ceph_aio_request {
 	struct kiocb *iocb;
 	size_t total_len;
-	int write;
+	bool write;
+	bool should_dirty;
 	int error;
 	struct list_head osd_reqs;
 	unsigned num_reqs;
@@ -745,7 +751,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 		}
 	}
 
-	ceph_put_page_vector(osd_data->pages, num_pages, !aio_req->write);
+	ceph_put_page_vector(osd_data->pages, num_pages, aio_req->should_dirty);
 	ceph_osdc_put_request(req);
 
 	if (rc < 0)
@@ -842,6 +848,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	loff_t pos = iocb->ki_pos;
 	bool write = iov_iter_rw(iter) == WRITE;
+	bool should_dirty = !write && iter_is_iovec(iter);
 
 	if (write && ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
@@ -909,6 +916,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			if (aio_req) {
 				aio_req->iocb = iocb;
 				aio_req->write = write;
+				aio_req->should_dirty = should_dirty;
 				INIT_LIST_HEAD(&aio_req->osd_reqs);
 				if (write) {
 					aio_req->mtime = mtime;
@@ -966,7 +974,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 				len = ret;
 		}
 
-		ceph_put_page_vector(pages, num_pages, !write);
+		ceph_put_page_vector(pages, num_pages, should_dirty);
 
 		ceph_osdc_put_request(req);
 		if (ret < 0)
@@ -1199,12 +1207,13 @@ again:
 			retry_op = READ_INLINE;
 		}
 	} else {
+		CEPH_DEFINE_RW_CONTEXT(rw_ctx, got);
 		dout("aio_read %p %llx.%llx %llu~%u got cap refs on %s\n",
 		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
-		current->journal_info = filp;
+		ceph_add_rw_context(fi, &rw_ctx);
 		ret = generic_file_read_iter(iocb, to);
-		current->journal_info = NULL;
+		ceph_del_rw_context(fi, &rw_ctx);
 	}
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);

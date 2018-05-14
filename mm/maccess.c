@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(probe_kernel_write);
  * strncpy_from_unsafe: - Copy a NUL terminated string from unsafe address.
  * @dst:   Destination address, in kernel space.  This buffer must be at
  *         least @count bytes long.
- * @src:   Unsafe address.
+ * @unsafe_addr: Unsafe address.
  * @count: Maximum number of bytes to copy, including the trailing NUL.
  *
  * Copies a NUL-terminated string from unsafe address to kernel buffer.

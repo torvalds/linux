@@ -155,7 +155,8 @@ static inline struct exynos_video_entity *vdev_to_exynos_video_entity(
 }
 
 #define fimc_pipeline_call(ent, op, args...)				  \
-	(!(ent) ? -ENOENT : (((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
+	((!(ent) || !(ent)->pipe) ? -ENOENT : \
+	(((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
 	(ent)->pipe->ops->op(((ent)->pipe), ##args) : -ENOIOCTLCMD))	  \
 
 #endif /* S5P_FIMC_H_ */

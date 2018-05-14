@@ -70,9 +70,8 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < PT_ENTRIES; i++)
-		etnaviv_domain->pgtable_cpu[i] =
-				etnaviv_domain->base.bad_page_dma;
+	memset32(etnaviv_domain->pgtable_cpu, etnaviv_domain->base.bad_page_dma,
+		 PT_ENTRIES);
 
 	return 0;
 }

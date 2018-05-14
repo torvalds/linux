@@ -477,12 +477,12 @@ ttm_pool_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 	return count;
 }
 
-static void ttm_pool_mm_shrink_init(struct ttm_pool_manager *manager)
+static int ttm_pool_mm_shrink_init(struct ttm_pool_manager *manager)
 {
 	manager->mm_shrink.count_objects = ttm_pool_shrink_count;
 	manager->mm_shrink.scan_objects = ttm_pool_shrink_scan;
 	manager->mm_shrink.seeks = 1;
-	register_shrinker(&manager->mm_shrink);
+	return register_shrinker(&manager->mm_shrink);
 }
 
 static void ttm_pool_mm_shrink_fini(struct ttm_pool_manager *manager)
@@ -1034,15 +1034,18 @@ int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 
 	ret = kobject_init_and_add(&_manager->kobj, &ttm_pool_kobj_type,
 				   &glob->kobj, "pool");
-	if (unlikely(ret != 0)) {
-		kobject_put(&_manager->kobj);
-		_manager = NULL;
-		return ret;
-	}
+	if (unlikely(ret != 0))
+		goto error;
 
-	ttm_pool_mm_shrink_init(_manager);
-
+	ret = ttm_pool_mm_shrink_init(_manager);
+	if (unlikely(ret != 0))
+		goto error;
 	return 0;
+
+error:
+	kobject_put(&_manager->kobj);
+	_manager = NULL;
+	return ret;
 }
 
 void ttm_page_alloc_fini(void)
@@ -1060,7 +1063,7 @@ void ttm_page_alloc_fini(void)
 	_manager = NULL;
 }
 
-int ttm_pool_populate(struct ttm_tt *ttm)
+int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	unsigned i;
@@ -1072,15 +1075,17 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
 			    ttm->caching_state);
 	if (unlikely(ret != 0)) {
-		ttm_pool_unpopulate(ttm);
+		ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
+			      ttm->caching_state);
 		return ret;
 	}
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						PAGE_SIZE);
+						PAGE_SIZE, ctx);
 		if (unlikely(ret != 0)) {
-			ttm_pool_unpopulate(ttm);
+			ttm_put_pages(ttm->pages, ttm->num_pages,
+				      ttm->page_flags, ttm->caching_state);
 			return -ENOMEM;
 		}
 	}
@@ -1115,12 +1120,13 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
+int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
+					struct ttm_operation_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
 
-	r = ttm_pool_populate(&tt->ttm);
+	r = ttm_pool_populate(&tt->ttm, ctx);
 	if (r)
 		return r;
 

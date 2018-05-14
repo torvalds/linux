@@ -16,9 +16,9 @@
 #include <linux/mutex.h>
 #include <asm/div64.h>
 
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "dib8000.h"
 

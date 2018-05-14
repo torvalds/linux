@@ -585,15 +585,24 @@ static int usb_audio_probe(struct usb_interface *intf,
 		 * now look for an empty slot and create a new card instance
 		 */
 		for (i = 0; i < SNDRV_CARDS; i++)
-			if (enable[i] && ! usb_chip[i] &&
+			if (!usb_chip[i] &&
 			    (vid[i] == -1 || vid[i] == USB_ID_VENDOR(id)) &&
 			    (pid[i] == -1 || pid[i] == USB_ID_PRODUCT(id))) {
-				err = snd_usb_audio_create(intf, dev, i, quirk,
-							   id, &chip);
-				if (err < 0)
+				if (enable[i]) {
+					err = snd_usb_audio_create(intf, dev, i, quirk,
+								   id, &chip);
+					if (err < 0)
+						goto __error;
+					chip->pm_intf = intf;
+					break;
+				} else if (vid[i] != -1 || pid[i] != -1) {
+					dev_info(&dev->dev,
+						 "device (%04x:%04x) is disabled\n",
+						 USB_ID_VENDOR(id),
+						 USB_ID_PRODUCT(id));
+					err = -ENOENT;
 					goto __error;
-				chip->pm_intf = intf;
-				break;
+				}
 			}
 		if (!chip) {
 			dev_err(&dev->dev, "no available usb audio device\n");

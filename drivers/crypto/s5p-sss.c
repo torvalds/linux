@@ -1,17 +1,13 @@
-/*
- * Cryptographic API.
- *
- * Support for Samsung S5PV210 and Exynos HW acceleration.
- *
- * Copyright (C) 2011 NetUP Inc. All rights reserved.
- * Copyright (c) 2017 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * Hash part based on omap-sham.c driver.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Cryptographic API.
+//
+// Support for Samsung S5PV210 and Exynos HW acceleration.
+//
+// Copyright (C) 2011 NetUP Inc. All rights reserved.
+// Copyright (c) 2017 Samsung Electronics Co., Ltd. All rights reserved.
+//
+// Hash part based on omap-sham.c driver.
 
 #include <linux/clk.h>
 #include <linux/crypto.h>
@@ -1461,7 +1457,7 @@ static void s5p_hash_tasklet_cb(unsigned long data)
 				       &dd->hash_flags)) {
 			/* hash or semi-hash ready */
 			clear_bit(HASH_FLAGS_DMA_READY, &dd->hash_flags);
-				goto finish;
+			goto finish;
 		}
 	}
 
@@ -1926,15 +1922,21 @@ static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 	uint32_t aes_control;
 	unsigned long flags;
 	int err;
+	u8 *iv;
 
 	aes_control = SSS_AES_KEY_CHANGE_MODE;
 	if (mode & FLAGS_AES_DECRYPT)
 		aes_control |= SSS_AES_MODE_DECRYPT;
 
-	if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CBC)
+	if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CBC) {
 		aes_control |= SSS_AES_CHAIN_MODE_CBC;
-	else if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CTR)
+		iv = req->info;
+	} else if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CTR) {
 		aes_control |= SSS_AES_CHAIN_MODE_CTR;
+		iv = req->info;
+	} else {
+		iv = NULL; /* AES_ECB */
+	}
 
 	if (dev->ctx->keylen == AES_KEYSIZE_192)
 		aes_control |= SSS_AES_KEY_SIZE_192;
@@ -1965,7 +1967,7 @@ static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 		goto outdata_error;
 
 	SSS_AES_WRITE(dev, AES_CONTROL, aes_control);
-	s5p_set_aes(dev, dev->ctx->aes_key, req->info, dev->ctx->keylen);
+	s5p_set_aes(dev, dev->ctx->aes_key, iv, dev->ctx->keylen);
 
 	s5p_set_dma_indata(dev,  dev->sg_src);
 	s5p_set_dma_outdata(dev, dev->sg_dst);

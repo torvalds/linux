@@ -241,6 +241,7 @@ static inline int uv_hub_info_check(int version)
 #define UV2_HUB_REVISION_BASE		3
 #define UV3_HUB_REVISION_BASE		5
 #define UV4_HUB_REVISION_BASE		7
+#define UV4A_HUB_REVISION_BASE		8	/* UV4 (fixed) rev 2 */
 
 #ifdef	UV1_HUB_IS_SUPPORTED
 static inline int is_uv1_hub(void)
@@ -275,6 +276,19 @@ static inline int is_uv3_hub(void)
 }
 #else
 static inline int is_uv3_hub(void)
+{
+	return 0;
+}
+#endif
+
+/* First test "is UV4A", then "is UV4" */
+#ifdef	UV4A_HUB_IS_SUPPORTED
+static inline int is_uv4a_hub(void)
+{
+	return (uv_hub_info->hub_revision >= UV4A_HUB_REVISION_BASE);
+}
+#else
+static inline int is_uv4a_hub(void)
 {
 	return 0;
 }

@@ -169,7 +169,7 @@ static int crypto_report_one(struct crypto_alg *alg,
 	ualg->cru_type = 0;
 	ualg->cru_mask = 0;
 	ualg->cru_flags = alg->cra_flags;
-	ualg->cru_refcnt = atomic_read(&alg->cra_refcnt);
+	ualg->cru_refcnt = refcount_read(&alg->cra_refcnt);
 
 	if (nla_put_u32(skb, CRYPTOCFGA_PRIORITY_VAL, alg->cra_priority))
 		goto nla_put_failure;
@@ -387,7 +387,7 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto drop_alg;
 
 	err = -EBUSY;
-	if (atomic_read(&alg->cra_refcnt) > 2)
+	if (refcount_read(&alg->cra_refcnt) > 2)
 		goto drop_alg;
 
 	err = crypto_unregister_instance((struct crypto_instance *)alg);

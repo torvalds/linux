@@ -21,11 +21,16 @@
 struct xfs_mount;
 
 extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
-			const char *filename, int linenum, void *ra);
+			const char *filename, int linenum,
+			xfs_failaddr_t failaddr);
 extern void xfs_corruption_error(const char *tag, int level,
 			struct xfs_mount *mp, void *p, const char *filename,
-			int linenum, void *ra);
-extern void xfs_verifier_error(struct xfs_buf *bp);
+			int linenum, xfs_failaddr_t failaddr);
+extern void xfs_verifier_error(struct xfs_buf *bp, int error,
+			xfs_failaddr_t failaddr);
+extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
+			const char *name, void *buf, size_t bufsz,
+			xfs_failaddr_t failaddr);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
@@ -36,6 +41,9 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_ERRLEVEL_OFF	0
 #define XFS_ERRLEVEL_LOW	1
 #define XFS_ERRLEVEL_HIGH	5
+
+/* Dump 128 bytes of any corrupt buffer */
+#define XFS_CORRUPTION_DUMP_LEN		(128)
 
 /*
  * Macros to set EFSCORRUPTED & return/branch.

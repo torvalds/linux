@@ -20,7 +20,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "s5h1432.h"
 
 struct s5h1432_state {

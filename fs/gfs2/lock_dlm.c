@@ -1091,7 +1091,7 @@ static void gdlm_recover_slot(void *arg, struct dlm_slot *slot)
 
 	spin_lock(&ls->ls_recover_spin);
 	if (ls->ls_recover_size < jid + 1) {
-		fs_err(sdp, "recover_slot jid %d gen %u short size %d",
+		fs_err(sdp, "recover_slot jid %d gen %u short size %d\n",
 		       jid, ls->ls_recover_block, ls->ls_recover_size);
 		spin_unlock(&ls->ls_recover_spin);
 		return;
@@ -1153,7 +1153,7 @@ static void gdlm_recovery_result(struct gfs2_sbd *sdp, unsigned int jid,
 		return;
 	}
 	if (ls->ls_recover_size < jid + 1) {
-		fs_err(sdp, "recovery_result jid %d short size %d",
+		fs_err(sdp, "recovery_result jid %d short size %d\n",
 		       jid, ls->ls_recover_size);
 		spin_unlock(&ls->ls_recover_spin);
 		return;

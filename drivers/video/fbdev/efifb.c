@@ -16,6 +16,8 @@
 #include <linux/screen_info.h>
 #include <video/vga.h>
 #include <asm/efi.h>
+#include <drm/drm_utils.h> /* For drm_get_panel_orientation_quirk */
+#include <drm/drm_connector.h>  /* For DRM_MODE_PANEL_ORIENTATION_* */
 
 static bool request_mem_succeeded = false;
 static bool nowc = false;
@@ -157,7 +159,7 @@ static u64 bar_offset;
 static int efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
-	int err;
+	int err, orientation;
 	unsigned int size_vmode;
 	unsigned int size_remap;
 	unsigned int size_total;
@@ -328,6 +330,23 @@ static int efifb_probe(struct platform_device *dev)
 	info->var = efifb_defined;
 	info->fix = efifb_fix;
 	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE;
+
+	orientation = drm_get_panel_orientation_quirk(efifb_defined.xres,
+						      efifb_defined.yres);
+	switch (orientation) {
+	default:
+		info->fbcon_rotate_hint = FB_ROTATE_UR;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP:
+		info->fbcon_rotate_hint = FB_ROTATE_UD;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_LEFT_UP:
+		info->fbcon_rotate_hint = FB_ROTATE_CCW;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_RIGHT_UP:
+		info->fbcon_rotate_hint = FB_ROTATE_CW;
+		break;
+	}
 
 	err = sysfs_create_groups(&dev->dev.kobj, efifb_groups);
 	if (err) {

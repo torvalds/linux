@@ -89,6 +89,8 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
+	uhci = hcd_to_uhci(hcd);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
@@ -97,8 +99,6 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-
-	uhci = hcd_to_uhci(hcd);
 
 	uhci->regs = hcd->regs;
 
@@ -119,13 +119,28 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 				 "Enabled Aspeed implementation workarounds\n");
 		}
 	}
+
+	/* Get and enable clock if any specified */
+	uhci->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(uhci->clk)) {
+		ret = PTR_ERR(uhci->clk);
+		goto err_rmr;
+	}
+	ret = clk_prepare_enable(uhci->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Error couldn't enable clock (%d)\n", ret);
+		goto err_rmr;
+	}
+
 	ret = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_SHARED);
 	if (ret)
-		goto err_rmr;
+		goto err_clk;
 
 	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
+err_clk:
+	clk_disable_unprepare(uhci->clk);
 err_rmr:
 	usb_put_hcd(hcd);
 
@@ -135,7 +150,9 @@ err_rmr:
 static int uhci_hcd_platform_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
+	clk_disable_unprepare(uhci->clk);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
 

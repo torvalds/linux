@@ -178,8 +178,13 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 
 		field_value = get_reg_field_value_ex(reg_val, mask, shift);
 
-		if (field_value == condition_value)
+		if (field_value == condition_value) {
+			if (i * delay_between_poll_us > 1000)
+				dm_output_to_console("REG_WAIT taking a while: %dms in %s line:%d\n",
+						delay_between_poll_us * i / 1000,
+						func_name, line);
 			return reg_val;
+		}
 	}
 
 	dm_error("REG_WAIT timeout %dus * %d tries - %s line:%d\n",

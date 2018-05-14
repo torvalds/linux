@@ -513,6 +513,13 @@ struct fw_ulptx_wr {
 	u64 cookie;
 };
 
+#define FW_ULPTX_WR_DATA_S      28
+#define FW_ULPTX_WR_DATA_M      0x1
+#define FW_ULPTX_WR_DATA_V(x)   ((x) << FW_ULPTX_WR_DATA_S)
+#define FW_ULPTX_WR_DATA_G(x)   \
+	(((x) >> FW_ULPTX_WR_DATA_S) & FW_ULPTX_WR_DATA_M)
+#define FW_ULPTX_WR_DATA_F      FW_ULPTX_WR_DATA_V(1U)
+
 struct fw_tp_wr {
 	__be32 op_to_immdlen;
 	__be32 flowid_len16;
@@ -828,6 +835,7 @@ enum fw_ldst_addrspc {
 	FW_LDST_ADDRSPC_MPS       = 0x0020,
 	FW_LDST_ADDRSPC_FUNC      = 0x0028,
 	FW_LDST_ADDRSPC_FUNC_PCIE = 0x0029,
+	FW_LDST_ADDRSPC_I2C       = 0x0038,
 };
 
 enum fw_ldst_mps_fid {
@@ -2059,6 +2067,7 @@ struct fw_vi_cmd {
 #define FW_VI_MAC_ADD_MAC		0x3FF
 #define FW_VI_MAC_ADD_PERSIST_MAC	0x3FE
 #define FW_VI_MAC_MAC_BASED_FREE	0x3FD
+#define FW_VI_MAC_ID_BASED_FREE		0x3FC
 #define FW_CLS_TCAM_NUM_ENTRIES		336
 
 enum fw_vi_mac_smac {
@@ -2075,6 +2084,13 @@ enum fw_vi_mac_result {
 	FW_VI_MAC_R_F_ACL_CHECK
 };
 
+enum fw_vi_mac_entry_types {
+	FW_VI_MAC_TYPE_EXACTMAC,
+	FW_VI_MAC_TYPE_HASHVEC,
+	FW_VI_MAC_TYPE_RAW,
+	FW_VI_MAC_TYPE_EXACTMAC_VNI,
+};
+
 struct fw_vi_mac_cmd {
 	__be32 op_to_viid;
 	__be32 freemacs_to_len16;
@@ -2086,6 +2102,13 @@ struct fw_vi_mac_cmd {
 		struct fw_vi_mac_hash {
 			__be64 hashvec;
 		} hash;
+		struct fw_vi_mac_raw {
+			__be32 raw_idx_pkd;
+			__be32 data0_pkd;
+			__be32 data1[2];
+			__be64 data0m_pkd;
+			__be32 data1m[2];
+		} raw;
 	} u;
 };
 
@@ -2094,6 +2117,12 @@ struct fw_vi_mac_cmd {
 
 #define FW_VI_MAC_CMD_FREEMACS_S	31
 #define FW_VI_MAC_CMD_FREEMACS_V(x)	((x) << FW_VI_MAC_CMD_FREEMACS_S)
+
+#define FW_VI_MAC_CMD_ENTRY_TYPE_S      23
+#define FW_VI_MAC_CMD_ENTRY_TYPE_M      0x7
+#define FW_VI_MAC_CMD_ENTRY_TYPE_V(x)   ((x) << FW_VI_MAC_CMD_ENTRY_TYPE_S)
+#define FW_VI_MAC_CMD_ENTRY_TYPE_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_ENTRY_TYPE_S) & FW_VI_MAC_CMD_ENTRY_TYPE_M)
 
 #define FW_VI_MAC_CMD_HASHVECEN_S	23
 #define FW_VI_MAC_CMD_HASHVECEN_V(x)	((x) << FW_VI_MAC_CMD_HASHVECEN_S)
@@ -2120,6 +2149,12 @@ struct fw_vi_mac_cmd {
 #define FW_VI_MAC_CMD_IDX_V(x)	((x) << FW_VI_MAC_CMD_IDX_S)
 #define FW_VI_MAC_CMD_IDX_G(x)	\
 	(((x) >> FW_VI_MAC_CMD_IDX_S) & FW_VI_MAC_CMD_IDX_M)
+
+#define FW_VI_MAC_CMD_RAW_IDX_S         16
+#define FW_VI_MAC_CMD_RAW_IDX_M         0xffff
+#define FW_VI_MAC_CMD_RAW_IDX_V(x)      ((x) << FW_VI_MAC_CMD_RAW_IDX_S)
+#define FW_VI_MAC_CMD_RAW_IDX_G(x)      \
+	(((x) >> FW_VI_MAC_CMD_RAW_IDX_S) & FW_VI_MAC_CMD_RAW_IDX_M)
 
 #define FW_RXMODE_MTU_NO_CHG	65535
 
@@ -2325,14 +2360,22 @@ struct fw_acl_vlan_cmd {
 #define FW_ACL_VLAN_CMD_VFN_S		0
 #define FW_ACL_VLAN_CMD_VFN_V(x)	((x) << FW_ACL_VLAN_CMD_VFN_S)
 
-#define FW_ACL_VLAN_CMD_EN_S	31
-#define FW_ACL_VLAN_CMD_EN_V(x)	((x) << FW_ACL_VLAN_CMD_EN_S)
+#define FW_ACL_VLAN_CMD_EN_S		31
+#define FW_ACL_VLAN_CMD_EN_M		0x1
+#define FW_ACL_VLAN_CMD_EN_V(x)		((x) << FW_ACL_VLAN_CMD_EN_S)
+#define FW_ACL_VLAN_CMD_EN_G(x)         \
+	(((x) >> S_FW_ACL_VLAN_CMD_EN_S) & FW_ACL_VLAN_CMD_EN_M)
+#define FW_ACL_VLAN_CMD_EN_F            FW_ACL_VLAN_CMD_EN_V(1U)
 
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_S	7
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPNOVLAN_S)
 
-#define FW_ACL_VLAN_CMD_FM_S	6
-#define FW_ACL_VLAN_CMD_FM_V(x)	((x) << FW_ACL_VLAN_CMD_FM_S)
+#define FW_ACL_VLAN_CMD_FM_S		6
+#define FW_ACL_VLAN_CMD_FM_M		0x1
+#define FW_ACL_VLAN_CMD_FM_V(x)         ((x) << FW_ACL_VLAN_CMD_FM_S)
+#define FW_ACL_VLAN_CMD_FM_G(x)         \
+	(((x) >> FW_ACL_VLAN_CMD_FM_S) & FW_ACL_VLAN_CMD_FM_M)
+#define FW_ACL_VLAN_CMD_FM_F            FW_ACL_VLAN_CMD_FM_V(1U)
 
 /* old 16-bit port capabilities bitmap (fw_port_cap16_t) */
 enum fw_port_cap {
@@ -2828,6 +2871,7 @@ enum fw_port_type {
 	FW_PORT_TYPE_CR2_QSFP,
 	FW_PORT_TYPE_SFP28,
 	FW_PORT_TYPE_KR_SFP28,
+	FW_PORT_TYPE_KR_XLAUI,
 
 	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
 };

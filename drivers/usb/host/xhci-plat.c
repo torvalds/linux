@@ -269,6 +269,11 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (device_property_read_bool(&pdev->dev, "quirk-broken-port-ped"))
 		xhci->quirks |= XHCI_BROKEN_PORT_PED;
 
+	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	xhci->imod_interval = 40000;
+	device_property_read_u32(sysdev, "imod-interval-ns",
+				 &xhci->imod_interval);
+
 	hcd->usb_phy = devm_usb_get_phy_by_phandle(sysdev, "usb-phy", 0);
 	if (IS_ERR(hcd->usb_phy)) {
 		ret = PTR_ERR(hcd->usb_phy);
@@ -355,7 +360,6 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int ret;
 
 	/*
 	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
@@ -365,12 +369,7 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	 * reconsider this when xhci_plat_suspend enlarges its scope, e.g.,
 	 * also applies to runtime suspend.
 	 */
-	ret = xhci_suspend(xhci, device_may_wakeup(dev));
-
-	if (!device_may_wakeup(dev) && !IS_ERR(xhci->clk))
-		clk_disable_unprepare(xhci->clk);
-
-	return ret;
+	return xhci_suspend(xhci, device_may_wakeup(dev));
 }
 
 static int __maybe_unused xhci_plat_resume(struct device *dev)
@@ -378,9 +377,6 @@ static int __maybe_unused xhci_plat_resume(struct device *dev)
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
-
-	if (!device_may_wakeup(dev) && !IS_ERR(xhci->clk))
-		clk_prepare_enable(xhci->clk);
 
 	ret = xhci_priv_resume_quirk(hcd);
 	if (ret)

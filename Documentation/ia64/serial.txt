@@ -111,7 +111,7 @@ TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
 
 	- If you don't have an HCDP, the kernel doesn't know where
 	  your console lives until the driver discovers serial
-	  devices.  Use "console=uart, io,0x3f8" (or appropriate
+	  devices.  Use "console=uart,io,0x3f8" (or appropriate
 	  address for your machine).
 
     Kernel and init script output works fine, but no "login:" prompt:

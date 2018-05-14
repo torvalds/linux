@@ -28,10 +28,10 @@
 #include "amdgpu_sched.h"
 
 static int amdgpu_ctx_priority_permit(struct drm_file *filp,
-				      enum amd_sched_priority priority)
+				      enum drm_sched_priority priority)
 {
 	/* NORMAL and below are accessible by everyone */
-	if (priority <= AMD_SCHED_PRIORITY_NORMAL)
+	if (priority <= DRM_SCHED_PRIORITY_NORMAL)
 		return 0;
 
 	if (capable(CAP_SYS_NICE))
@@ -44,14 +44,14 @@ static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 }
 
 static int amdgpu_ctx_init(struct amdgpu_device *adev,
-			   enum amd_sched_priority priority,
+			   enum drm_sched_priority priority,
 			   struct drm_file *filp,
 			   struct amdgpu_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
 
-	if (priority < 0 || priority >= AMD_SCHED_PRIORITY_MAX)
+	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_MAX)
 		return -EINVAL;
 
 	r = amdgpu_ctx_priority_permit(filp, priority);
@@ -75,22 +75,23 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	}
 
 	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+	ctx->reset_counter_query = ctx->reset_counter;
 	ctx->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	ctx->init_priority = priority;
-	ctx->override_priority = AMD_SCHED_PRIORITY_UNSET;
+	ctx->override_priority = DRM_SCHED_PRIORITY_UNSET;
 
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
-		struct amd_sched_rq *rq;
+		struct drm_sched_rq *rq;
 
 		rq = &ring->sched.sched_rq[priority];
 
 		if (ring == &adev->gfx.kiq.ring)
 			continue;
 
-		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
-					  rq, amdgpu_sched_jobs);
+		r = drm_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
+					  rq, amdgpu_sched_jobs, &ctx->guilty);
 		if (r)
 			goto failed;
 	}
@@ -103,7 +104,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 
 failed:
 	for (j = 0; j < i; j++)
-		amd_sched_entity_fini(&adev->rings[j]->sched,
+		drm_sched_entity_fini(&adev->rings[j]->sched,
 				      &ctx->rings[j].entity);
 	kfree(ctx->fences);
 	ctx->fences = NULL;
@@ -125,7 +126,7 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 	ctx->fences = NULL;
 
 	for (i = 0; i < adev->num_rings; i++)
-		amd_sched_entity_fini(&adev->rings[i]->sched,
+		drm_sched_entity_fini(&adev->rings[i]->sched,
 				      &ctx->rings[i].entity);
 
 	amdgpu_queue_mgr_fini(adev, &ctx->queue_mgr);
@@ -136,7 +137,7 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 			    struct amdgpu_fpriv *fpriv,
 			    struct drm_file *filp,
-			    enum amd_sched_priority priority,
+			    enum drm_sched_priority priority,
 			    uint32_t *id)
 {
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
@@ -216,11 +217,45 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	/* determine if a GPU reset has occured since the last call */
 	reset_counter = atomic_read(&adev->gpu_reset_counter);
 	/* TODO: this should ideally return NO, GUILTY, or INNOCENT. */
-	if (ctx->reset_counter == reset_counter)
+	if (ctx->reset_counter_query == reset_counter)
 		out->state.reset_status = AMDGPU_CTX_NO_RESET;
 	else
 		out->state.reset_status = AMDGPU_CTX_UNKNOWN_RESET;
-	ctx->reset_counter = reset_counter;
+	ctx->reset_counter_query = reset_counter;
+
+	mutex_unlock(&mgr->lock);
+	return 0;
+}
+
+static int amdgpu_ctx_query2(struct amdgpu_device *adev,
+	struct amdgpu_fpriv *fpriv, uint32_t id,
+	union drm_amdgpu_ctx_out *out)
+{
+	struct amdgpu_ctx *ctx;
+	struct amdgpu_ctx_mgr *mgr;
+
+	if (!fpriv)
+		return -EINVAL;
+
+	mgr = &fpriv->ctx_mgr;
+	mutex_lock(&mgr->lock);
+	ctx = idr_find(&mgr->ctx_handles, id);
+	if (!ctx) {
+		mutex_unlock(&mgr->lock);
+		return -EINVAL;
+	}
+
+	out->state.flags = 0x0;
+	out->state.hangs = 0x0;
+
+	if (ctx->reset_counter != atomic_read(&adev->gpu_reset_counter))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RESET;
+
+	if (ctx->vram_lost_counter != atomic_read(&adev->vram_lost_counter))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST;
+
+	if (atomic_read(&ctx->guilty))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
 
 	mutex_unlock(&mgr->lock);
 	return 0;
@@ -231,7 +266,7 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 {
 	int r;
 	uint32_t id;
-	enum amd_sched_priority priority;
+	enum drm_sched_priority priority;
 
 	union drm_amdgpu_ctx *args = data;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -243,8 +278,8 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 
 	/* For backwards compatibility reasons, we need to accept
 	 * ioctls with garbage in the priority field */
-	if (priority == AMD_SCHED_PRIORITY_INVALID)
-		priority = AMD_SCHED_PRIORITY_NORMAL;
+	if (priority == DRM_SCHED_PRIORITY_INVALID)
+		priority = DRM_SCHED_PRIORITY_NORMAL;
 
 	switch (args->in.op) {
 	case AMDGPU_CTX_OP_ALLOC_CTX:
@@ -256,6 +291,9 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		break;
 	case AMDGPU_CTX_OP_QUERY_STATE:
 		r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
+		break;
+	case AMDGPU_CTX_OP_QUERY_STATE2:
+		r = amdgpu_ctx_query2(adev, fpriv, id, &args->out);
 		break;
 	default:
 		return -EINVAL;
@@ -347,18 +385,18 @@ struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 }
 
 void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
-				  enum amd_sched_priority priority)
+				  enum drm_sched_priority priority)
 {
 	int i;
 	struct amdgpu_device *adev = ctx->adev;
-	struct amd_sched_rq *rq;
-	struct amd_sched_entity *entity;
+	struct drm_sched_rq *rq;
+	struct drm_sched_entity *entity;
 	struct amdgpu_ring *ring;
-	enum amd_sched_priority ctx_prio;
+	enum drm_sched_priority ctx_prio;
 
 	ctx->override_priority = priority;
 
-	ctx_prio = (ctx->override_priority == AMD_SCHED_PRIORITY_UNSET) ?
+	ctx_prio = (ctx->override_priority == DRM_SCHED_PRIORITY_UNSET) ?
 			ctx->init_priority : ctx->override_priority;
 
 	for (i = 0; i < adev->num_rings; i++) {
@@ -369,7 +407,7 @@ void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
 		if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
 			continue;
 
-		amd_sched_entity_set_rq(entity, rq);
+		drm_sched_entity_set_rq(entity, rq);
 	}
 }
 

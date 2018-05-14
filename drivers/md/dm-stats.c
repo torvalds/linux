@@ -228,6 +228,7 @@ void dm_stats_cleanup(struct dm_stats *stats)
 		dm_stat_free(&s->rcu_head);
 	}
 	free_percpu(stats->last);
+	mutex_destroy(&stats->mutex);
 }
 
 static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,

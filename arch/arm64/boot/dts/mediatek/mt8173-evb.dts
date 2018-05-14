@@ -74,6 +74,24 @@
 	status = "okay";
 };
 
+&cpu0 {
+	proc-supply = <&mt6397_vpca15_reg>;
+};
+
+&cpu1 {
+	proc-supply = <&mt6397_vpca15_reg>;
+};
+
+&cpu2 {
+	proc-supply = <&da9211_vcpu_reg>;
+	sram-supply = <&mt6397_vsramca7_reg>;
+};
+
+&cpu3 {
+	proc-supply = <&da9211_vcpu_reg>;
+	sram-supply = <&mt6397_vsramca7_reg>;
+};
+
 &dpi0 {
 	status = "okay";
 };
@@ -505,7 +523,7 @@
 	vbus-supply = <&usb_p0_vbus>;
 	extcon = <&extcon_usb>;
 	dr_mode = "otg";
-	mediatek,enable-wakeup;
+	wakeup-source;
 	pinctrl-names = "default", "id_float", "id_ground";
 	pinctrl-0 = <&usb_id_pins_float>;
 	pinctrl-1 = <&usb_id_pins_float>;

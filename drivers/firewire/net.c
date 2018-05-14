@@ -1480,9 +1480,14 @@ static int fwnet_probe(struct fw_unit *unit,
 		goto out;
 	dev->local_fifo = dev->handler.offset;
 
+	/*
+	 * default MTU: RFC 2734 cl. 4, RFC 3146 cl. 4
+	 * maximum MTU: RFC 2734 cl. 4.2, fragment encapsulation header's
+	 *              maximum possible datagram_size + 1 = 0xfff + 1
+	 */
 	net->mtu = 1500U;
 	net->min_mtu = ETH_MIN_MTU;
-	net->max_mtu = 0xfff;
+	net->max_mtu = 4096U;
 
 	/* Set our hardware address while we're at it */
 	ha = (union fwnet_hwaddr *)net->dev_addr;

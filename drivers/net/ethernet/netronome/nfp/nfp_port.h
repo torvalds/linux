@@ -72,6 +72,8 @@ enum nfp_port_flags {
  * @netdev:	backpointer to associated netdev
  * @type:	what port type does the entity represent
  * @flags:	port flags
+ * @tc_offload_cnt:	number of active TC offloads, how offloads are counted
+ *			is not defined, use as a boolean
  * @app:	backpointer to the app structure
  * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
@@ -87,6 +89,7 @@ struct nfp_port {
 	enum nfp_port_type type;
 
 	unsigned long flags;
+	unsigned long tc_offload_cnt;
 
 	struct nfp_app *app;
 
@@ -120,6 +123,9 @@ static inline bool nfp_port_is_vnic(const struct nfp_port *port)
 {
 	return port->type == NFP_PORT_PF_PORT || port->type == NFP_PORT_VF_PORT;
 }
+
+int
+nfp_port_set_features(struct net_device *netdev, netdev_features_t features);
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *

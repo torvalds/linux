@@ -31,7 +31,7 @@ struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
 	struct list_head hybrid_tuner_instance_list;
 
-	unsigned char 	   data[4];
+	unsigned char	   data[4];
 	unsigned int       config;
 	unsigned int       mode;
 	unsigned int       audmode;
@@ -94,7 +94,7 @@ struct tvnorm {
 #define cAudioGain6             0x80    // bit c7
 
 #define cTopMask                0x1f    // bit c0:4
-#define cTopDefault		0x10 	// bit c0:4
+#define cTopDefault		0x10	// bit c0:4
 
 //// third reg (e)
 #define cAudioIF_4_5             0x00    // bit e0:1

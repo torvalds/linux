@@ -314,12 +314,13 @@ void o2quo_conn_err(u8 node)
 				node, qs->qs_connected);
 
 		clear_bit(node, qs->qs_conn_bm);
+
+		if (test_bit(node, qs->qs_hb_bm))
+			o2quo_set_hold(qs, node);
 	}
 
 	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
 
-	if (test_bit(node, qs->qs_hb_bm))
-		o2quo_set_hold(qs, node);
 
 	spin_unlock(&qs->qs_lock);
 }

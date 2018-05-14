@@ -38,6 +38,7 @@
 
 #include <../drivers/nvme/host/nvme.h>
 #include <linux/nvme-fc-driver.h>
+#include <linux/nvme-fc.h>
 
 #include "lpfc_version.h"
 #include "lpfc_hw4.h"
@@ -126,10 +127,17 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
-	if (status)
-		atomic_inc(&tgtp->xmt_ls_rsp_error);
-	else
-		atomic_inc(&tgtp->xmt_ls_rsp_cmpl);
+	if (tgtp) {
+		if (status) {
+			atomic_inc(&tgtp->xmt_ls_rsp_error);
+			if (status == IOERR_ABORT_REQUESTED)
+				atomic_inc(&tgtp->xmt_ls_rsp_aborted);
+			if (bf_get(lpfc_wcqe_c_xb, wcqe))
+				atomic_inc(&tgtp->xmt_ls_rsp_xb_set);
+		} else {
+			atomic_inc(&tgtp->xmt_ls_rsp_cmpl);
+		}
+	}
 
 out:
 	rsp = &ctxp->ctx.ls_req;
@@ -218,6 +226,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		ctxp->entry_cnt = 1;
 		ctxp->flag = 0;
 		ctxp->ctxbuf = ctx_buf;
+		ctxp->rqb_buffer = (void *)nvmebuf;
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -253,6 +262,17 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 			return;
 		}
 
+		/* Processing of FCP command is deferred */
+		if (rc == -EOVERFLOW) {
+			lpfc_nvmeio_data(phba,
+					 "NVMET RCV BUSY: xri x%x sz %d "
+					 "from %06x\n",
+					 oxid, size, sid);
+			/* defer repost rcv buffer till .defer_rcv callback */
+			ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
+			atomic_inc(&tgtp->rcv_fcp_cmd_out);
+			return;
+		}
 		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
@@ -519,8 +539,11 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (status) {
 		rsp->fcp_error = NVME_SC_DATA_XFER_ERROR;
 		rsp->transferred_length = 0;
-		if (tgtp)
+		if (tgtp) {
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
+			if (status == IOERR_ABORT_REQUESTED)
+				atomic_inc(&tgtp->xmt_fcp_rsp_aborted);
+		}
 
 		logerr = LOG_NVME_IOERR;
 
@@ -528,6 +551,8 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 			ctxp->flag |= LPFC_NVMET_XBUSY;
 			logerr |= LOG_NVME_ABTS;
+			if (tgtp)
+				atomic_inc(&tgtp->xmt_fcp_rsp_xb_set);
 
 		} else {
 			ctxp->flag &= ~LPFC_NVMET_XBUSY;
@@ -635,6 +660,9 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return -ENODEV;
 
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return -ENODEV;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 			"6023 NVMET LS rsp oxid x%x\n", ctxp->oxid);
 
@@ -715,6 +743,11 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_iocbq *nvmewqeq;
 	int rc;
+
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		rc = -ENODEV;
+		goto aerr;
+	}
 
 	if (phba->pport->load_flag & FC_UNLOADING) {
 		rc = -ENODEV;
@@ -823,6 +856,9 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return;
 
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6103 NVMET Abort op: oxri x%x flg x%x ste %d\n",
 			ctxp->oxid, ctxp->flag, ctxp->state);
@@ -910,7 +946,11 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 	tgtp = phba->targetport->private;
 	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
-	lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	if (ctxp->flag & LPFC_NVMET_DEFER_RCV_REPOST)
+		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	else
+		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+	ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
 }
 
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
@@ -1216,6 +1256,8 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_ls_rsp, 0);
 		atomic_set(&tgtp->xmt_ls_drop, 0);
 		atomic_set(&tgtp->xmt_ls_rsp_error, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_xb_set, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_aborted, 0);
 		atomic_set(&tgtp->xmt_ls_rsp_cmpl, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_in, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_out, 0);
@@ -1228,7 +1270,10 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_fcp_release, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_cmpl, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_error, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_xb_set, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_aborted, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_drop, 0);
+		atomic_set(&tgtp->xmt_fcp_xri_abort_cqe, 0);
 		atomic_set(&tgtp->xmt_fcp_abort, 0);
 		atomic_set(&tgtp->xmt_fcp_abort_cmpl, 0);
 		atomic_set(&tgtp->xmt_abort_unsol, 0);
@@ -1270,6 +1315,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nodelist *ndlp;
 	unsigned long iflag = 0;
 	int rrq_empty = 0;
@@ -1280,6 +1326,12 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
+
+	if (phba->targetport) {
+		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+		atomic_inc(&tgtp->xmt_fcp_xri_abort_cqe);
+	}
+
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,
@@ -1682,6 +1734,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	ctxp->entry_cnt = 1;
 	ctxp->flag = 0;
 	ctxp->ctxbuf = ctx_buf;
+	ctxp->rqb_buffer = (void *)nvmebuf;
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1715,6 +1768,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	/* Process FCP command */
 	if (rc == 0) {
+		ctxp->rqb_buffer = NULL;
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
 		return;
@@ -1726,10 +1780,11 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
 		/* defer reposting rcv buffer till .defer_rcv callback */
-		ctxp->rqb_buffer = nvmebuf;
+		ctxp->flag |= LPFC_NVMET_DEFER_RCV_REPOST;
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		return;
 	}
+	ctxp->rqb_buffer = nvmebuf;
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
@@ -1992,7 +2047,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		return NULL;
 	}
 
-	if (rsp->sg_cnt > phba->cfg_nvme_seg_cnt) {
+	if (rsp->sg_cnt > lpfc_tgttemplate.max_sgl_segments) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6109 NVMET prep FCP wqe: seg cnt err: "
 				"NPORT x%x oxid x%x ste %d cnt %d\n",

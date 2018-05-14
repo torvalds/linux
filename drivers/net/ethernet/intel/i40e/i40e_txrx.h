@@ -27,6 +27,8 @@
 #ifndef _I40E_TXRX_H_
 #define _I40E_TXRX_H_
 
+#include <net/xdp.h>
+
 /* Interrupt Throttling and Rate Limiting Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
@@ -277,7 +279,7 @@ static inline unsigned int i40e_txd_use_count(unsigned int size)
 }
 
 /* Tx Descriptors needed, worst case */
-#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 6)
 #define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
@@ -331,6 +333,7 @@ struct i40e_tx_queue_stats {
 	u64 tx_done_old;
 	u64 tx_linearize;
 	u64 tx_force_wb;
+	int prev_pkt_ctr;
 };
 
 struct i40e_rx_queue_stats {
@@ -428,6 +431,7 @@ struct i40e_ring {
 					 */
 
 	struct i40e_channel *ch;
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_internodealigned_in_smp;
 
 static inline bool ring_uses_build_skb(struct i40e_ring *ring)
@@ -498,6 +502,7 @@ void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40e_get_tx_pending(struct i40e_ring *ring);
+void i40e_detect_recover_hung(struct i40e_vsi *vsi);
 int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
 

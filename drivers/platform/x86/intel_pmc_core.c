@@ -18,19 +18,23 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/pmc_core.h>
 
 #include "intel_pmc_core.h"
+
+#define ICPU(model, data) \
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (kernel_ulong_t)data }
 
 static struct pmc_dev pmc;
 
@@ -119,10 +123,88 @@ static const struct pmc_reg_map spt_reg_map = {
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
 };
 
-static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID),
-					(kernel_ulong_t)&spt_reg_map },
-	{ 0, },
+/* Cannonlake: PGD PFET Enable Ack Status Register(s) bitmap */
+static const struct pmc_bit_map cnp_pfear_map[] = {
+	{"PMC",                 BIT(0)},
+	{"OPI-DMI",             BIT(1)},
+	{"SPI/eSPI",            BIT(2)},
+	{"XHCI",                BIT(3)},
+	{"SPA",                 BIT(4)},
+	{"SPB",                 BIT(5)},
+	{"SPC",                 BIT(6)},
+	{"GBE",                 BIT(7)},
+
+	{"SATA",                BIT(0)},
+	{"HDA_PGD0",            BIT(1)},
+	{"HDA_PGD1",            BIT(2)},
+	{"HDA_PGD2",            BIT(3)},
+	{"HDA_PGD3",            BIT(4)},
+	{"SPD",                 BIT(5)},
+	{"LPSS",                BIT(6)},
+	{"LPC",                 BIT(7)},
+
+	{"SMB",                 BIT(0)},
+	{"ISH",                 BIT(1)},
+	{"P2SB",                BIT(2)},
+	{"NPK_VNN",             BIT(3)},
+	{"SDX",                 BIT(4)},
+	{"SPE",                 BIT(5)},
+	{"Fuse",                BIT(6)},
+	{"Res_23",              BIT(7)},
+
+	{"CSME_FSC",            BIT(0)},
+	{"USB3_OTG",            BIT(1)},
+	{"EXI",                 BIT(2)},
+	{"CSE",                 BIT(3)},
+	{"csme_kvm",            BIT(4)},
+	{"csme_pmt",            BIT(5)},
+	{"csme_clink",          BIT(6)},
+	{"csme_ptio",           BIT(7)},
+
+	{"csme_usbr",           BIT(0)},
+	{"csme_susram",         BIT(1)},
+	{"csme_smt1",           BIT(2)},
+	{"CSME_SMT4",           BIT(3)},
+	{"csme_sms2",           BIT(4)},
+	{"csme_sms1",           BIT(5)},
+	{"csme_rtc",            BIT(6)},
+	{"csme_psf",            BIT(7)},
+
+	{"SBR0",                BIT(0)},
+	{"SBR1",                BIT(1)},
+	{"SBR2",                BIT(2)},
+	{"SBR3",                BIT(3)},
+	{"SBR4",                BIT(4)},
+	{"SBR5",                BIT(5)},
+	{"CSME_PECI",           BIT(6)},
+	{"PSF1",                BIT(7)},
+
+	{"PSF2",                BIT(0)},
+	{"PSF3",                BIT(1)},
+	{"PSF4",                BIT(2)},
+	{"CNVI",                BIT(3)},
+	{"UFS0",                BIT(4)},
+	{"EMMC",                BIT(5)},
+	{"Res_6",               BIT(6)},
+	{"SBR6",                BIT(7)},
+
+	{"SBR7",                BIT(0)},
+	{"NPK_AON",             BIT(1)},
+	{"HDA_PGD4",            BIT(2)},
+	{"HDA_PGD5",            BIT(3)},
+	{"HDA_PGD6",            BIT(4)},
+	{}
+};
+
+static const struct pmc_reg_map cnp_reg_map = {
+	.pfear_sts = cnp_pfear_map,
+	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.regmap_length = CNP_PMC_MMIO_REG_LEN,
+	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
+	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
+	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
+	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 };
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -145,37 +227,6 @@ static inline u32 pmc_core_adjust_slp_s0_step(u32 value)
 {
 	return value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
 }
-
-/**
- * intel_pmc_slp_s0_counter_read() - Read SLP_S0 residency.
- * @data: Out param that contains current SLP_S0 count.
- *
- * This API currently supports Intel Skylake SoC and Sunrise
- * Point Platform Controller Hub. Future platform support
- * should be added for platforms that support low power modes
- * beyond Package C10 state.
- *
- * SLP_S0_RESIDENCY counter counts in 100 us granularity per
- * step hence function populates the multiplied value in out
- * parameter @data.
- *
- * Return: an error code or 0 on success.
- */
-int intel_pmc_slp_s0_counter_read(u32 *data)
-{
-	struct pmc_dev *pmcdev = &pmc;
-	const struct pmc_reg_map *map = pmcdev->map;
-	u32 value;
-
-	if (!pmcdev->has_slp_s0_res)
-		return -EACCES;
-
-	value = pmc_core_reg_read(pmcdev, map->slp_s0_offset);
-	*data = pmc_core_adjust_slp_s0_step(value);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pmc_slp_s0_counter_read);
 
 static int pmc_core_dev_state_get(void *data, u64 *val)
 {
@@ -437,47 +488,33 @@ static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 
 static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
-	struct dentry *dir, *file;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir("pmc_core", NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	pmcdev->dbgfs_dir = dir;
-	file = debugfs_create_file("slp_s0_residency_usec", S_IFREG | S_IRUGO,
-				   dir, pmcdev, &pmc_core_dev_state);
-	if (!file)
-		goto err;
 
-	file = debugfs_create_file("pch_ip_power_gating_status",
-				   S_IFREG | S_IRUGO, dir, pmcdev,
-				   &pmc_core_ppfear_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
+			    &pmc_core_dev_state);
 
-	file = debugfs_create_file("mphy_core_lanes_power_gating_status",
-				   S_IFREG | S_IRUGO, dir, pmcdev,
-				   &pmc_core_mphy_pg_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
+			    &pmc_core_ppfear_ops);
 
-	file = debugfs_create_file("pll_status",
-				   S_IFREG | S_IRUGO, dir, pmcdev,
-				   &pmc_core_pll_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
+			    &pmc_core_ltr_ignore_ops);
 
-	file = debugfs_create_file("ltr_ignore",
-				   S_IFREG | S_IRUGO, dir, pmcdev,
-				   &pmc_core_ltr_ignore_ops);
+	if (pmcdev->map->pll_sts)
+		debugfs_create_file("pll_status", 0444, dir, pmcdev,
+				    &pmc_core_pll_ops);
 
-	if (!file)
-		goto err;
+	if (pmcdev->map->mphy_sts)
+		debugfs_create_file("mphy_core_lanes_power_gating_status",
+				    0444, dir, pmcdev,
+				    &pmc_core_mphy_pg_ops);
 
 	return 0;
-err:
-	pmc_core_dbgfs_unregister(pmcdev);
-	return -ENODEV;
 }
 #else
 static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
@@ -491,71 +528,76 @@ static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 #endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_MOBILE, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_DESKTOP, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_KABYLAKE_MOBILE, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_KABYLAKE_DESKTOP, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
+	ICPU(INTEL_FAM6_SKYLAKE_MOBILE, &spt_reg_map),
+	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP, &spt_reg_map),
+	ICPU(INTEL_FAM6_KABYLAKE_MOBILE, &spt_reg_map),
+	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP, &spt_reg_map),
+	ICPU(INTEL_FAM6_CANNONLAKE_MOBILE, &cnp_reg_map),
 	{}
 };
 
-static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
+MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
+
+static const struct pci_device_id pmc_pci_ids[] = {
+	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID), 0},
+	{ 0, },
+};
+
+static int __init pmc_core_probe(void)
 {
-	struct device *ptr_dev = &dev->dev;
 	struct pmc_dev *pmcdev = &pmc;
 	const struct x86_cpu_id *cpu_id;
-	const struct pmc_reg_map *map = (struct pmc_reg_map *)id->driver_data;
+	u64 slp_s0_addr;
 	int err;
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
-	if (!cpu_id) {
-		dev_dbg(&dev->dev, "PMC Core: cpuid mismatch.\n");
-		return -EINVAL;
-	}
+	if (!cpu_id)
+		return -ENODEV;
 
-	err = pcim_enable_device(dev);
-	if (err < 0) {
-		dev_dbg(&dev->dev, "PMC Core: failed to enable Power Management Controller.\n");
-		return err;
-	}
+	pmcdev->map = (struct pmc_reg_map *)cpu_id->driver_data;
 
-	err = pci_read_config_dword(dev,
-				    SPT_PMC_BASE_ADDR_OFFSET,
-				    &pmcdev->base_addr);
-	if (err < 0) {
-		dev_dbg(&dev->dev, "PMC Core: failed to read PCI config space.\n");
-		return err;
-	}
-	pmcdev->base_addr &= PMC_BASE_ADDR_MASK;
-	dev_dbg(&dev->dev, "PMC Core: PWRMBASE is %#x\n", pmcdev->base_addr);
+	/*
+	 * Coffeelake has CPU ID of Kabylake and Cannonlake PCH. So here
+	 * Sunrisepoint PCH regmap can't be used. Use Cannonlake PCH regmap
+	 * in this case.
+	 */
+	if (!pci_dev_present(pmc_pci_ids))
+		pmcdev->map = &cnp_reg_map;
 
-	pmcdev->regbase = devm_ioremap_nocache(ptr_dev,
-					      pmcdev->base_addr,
-					      SPT_PMC_MMIO_REG_LEN);
-	if (!pmcdev->regbase) {
-		dev_dbg(&dev->dev, "PMC Core: ioremap failed.\n");
+	if (lpit_read_residency_count_address(&slp_s0_addr))
+		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
+	else
+		pmcdev->base_addr = slp_s0_addr - pmcdev->map->slp_s0_offset;
+
+	pmcdev->regbase = ioremap(pmcdev->base_addr,
+				  pmcdev->map->regmap_length);
+	if (!pmcdev->regbase)
 		return -ENOMEM;
-	}
 
 	mutex_init(&pmcdev->lock);
-	pmcdev->map = map;
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
 
 	err = pmc_core_dbgfs_register(pmcdev);
-	if (err < 0)
-		dev_warn(&dev->dev, "PMC Core: debugfs register failed.\n");
+	if (err < 0) {
+		pr_warn(" debugfs register failed.\n");
+		iounmap(pmcdev->regbase);
+		return err;
+	}
 
-	pmc.has_slp_s0_res = true;
+	pr_info(" initialized\n");
 	return 0;
 }
+module_init(pmc_core_probe)
 
-static struct pci_driver intel_pmc_core_driver = {
-	.name = "intel_pmc_core",
-	.id_table = pmc_pci_ids,
-	.probe = pmc_core_probe,
-};
+static void __exit pmc_core_remove(void)
+{
+	struct pmc_dev *pmcdev = &pmc;
 
-builtin_pci_driver(intel_pmc_core_driver);
+	pmc_core_dbgfs_unregister(pmcdev);
+	mutex_destroy(&pmcdev->lock);
+	iounmap(pmcdev->regbase);
+}
+module_exit(pmc_core_remove)
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Intel PMC Core Driver");

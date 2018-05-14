@@ -4,8 +4,49 @@ Usually, we only use device tree for hard wired USB device.
 The reference binding doc is from:
 http://www.devicetree.org/open-firmware/bindings/usb/usb-1_0.ps
 
+Four types of device-tree nodes are defined: "host-controller nodes"
+representing USB host controllers, "device nodes" representing USB devices,
+"interface nodes" representing USB interfaces and "combined nodes"
+representing simple USB devices.
 
-Required properties:
+A combined node shall be used instead of a device node and an interface node
+for devices of class 0 or 9 (hub) with a single configuration and a single
+interface.
+
+A "hub node" is a combined node or an interface node that represents a USB
+hub.
+
+
+Required properties for device nodes:
+- compatible: "usbVID,PID", where VID is the vendor id and PID the product id.
+  The textual representation of VID and PID shall be in lower case hexadecimal
+  with leading zeroes suppressed. The other compatible strings from the above
+  standard binding could also be used, but a device adhering to this binding
+  may leave out all except for "usbVID,PID".
+- reg: the number of the USB hub port or the USB host-controller port to which
+  this device is attached. The range is 1-255.
+
+
+Required properties for device nodes with interface nodes:
+- #address-cells: shall be 2
+- #size-cells: shall be 0
+
+
+Required properties for interface nodes:
+- compatible: "usbifVID,PID.configCN.IN", where VID is the vendor id, PID is
+  the product id, CN is the configuration value and IN is the interface
+  number. The textual representation of VID, PID, CN and IN shall be in lower
+  case hexadecimal with leading zeroes suppressed. The other compatible
+  strings from the above standard binding could also be used, but a device
+  adhering to this binding may leave out all except for
+  "usbifVID,PID.configCN.IN".
+- reg: the interface number and configuration value
+
+The configuration component is not included in the textual representation of
+an interface-node unit address for configuration 1.
+
+
+Required properties for combined nodes:
 - compatible: "usbVID,PID", where VID is the vendor id and PID the product id.
   The textual representation of VID and PID shall be in lower case hexadecimal
   with leading zeroes suppressed. The other compatible strings from the above
@@ -31,8 +72,31 @@ Example:
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	hub@1 {	/* hub connected to port 1 */
+	hub@1 {		/* hub connected to port 1 */
 		compatible = "usb5e3,608";
 		reg = <1>;
+	};
+
+	device@2 {	/* device connected to port 2 */
+		compatible = "usb123,4567";
+		reg = <2>;
+	};
+
+	device@3 { 	/* device connected to port 3 */
+		compatible = "usb123,abcd";
+		reg = <3>;
+
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		interface@0 {	/* interface 0 of configuration 1 */
+			compatible = "usbif123,abcd.config1.0";
+			reg = <0 1>;
+		};
+
+		interface@0,2 {	/* interface 0 of configuration 2 */
+			compatible = "usbif123,abcd.config2.0";
+			reg = <0 2>;
+		};
 	};
 };

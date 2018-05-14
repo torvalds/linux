@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * File: main_usb.c
  *
@@ -437,11 +427,8 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->num_rcb; ii++) {
 		priv->rcb[ii] = kzalloc(sizeof(*priv->rcb[ii]), GFP_KERNEL);
-		if (!priv->rcb[ii]) {
-			dev_err(&priv->usb->dev,
-				"failed to allocate rcb no %d\n", ii);
+		if (!priv->rcb[ii])
 			goto free_rx_tx;
-		}
 
 		rcb = priv->rcb[ii];
 

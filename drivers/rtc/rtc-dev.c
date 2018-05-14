@@ -194,7 +194,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return ret;
 }
 
-static unsigned int rtc_dev_poll(struct file *file, poll_table *wait)
+static __poll_t rtc_dev_poll(struct file *file, poll_table *wait)
 {
 	struct rtc_device *rtc = file->private_data;
 	unsigned long data;
@@ -203,7 +203,7 @@ static unsigned int rtc_dev_poll(struct file *file, poll_table *wait)
 
 	data = rtc->irq_data;
 
-	return (data != 0) ? (POLLIN | POLLRDNORM) : 0;
+	return (data != 0) ? (EPOLLIN | EPOLLRDNORM) : 0;
 }
 
 static long rtc_dev_ioctl(struct file *file,

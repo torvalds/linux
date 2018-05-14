@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_gem_dmabuf.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it

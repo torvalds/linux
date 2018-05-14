@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver core interface to the pinctrl subsystem.
  *
@@ -6,8 +7,6 @@
  * Based on bits of regulator core, gpio core and clk core
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/device.h>

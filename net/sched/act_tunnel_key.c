@@ -153,6 +153,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err_out;
 	}
 
@@ -201,17 +202,18 @@ err_out:
 	return ret;
 }
 
-static void tunnel_key_release(struct tc_action *a, int bind)
+static void tunnel_key_release(struct tc_action *a)
 {
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;
 
 	params = rcu_dereference_protected(t->params, 1);
+	if (params) {
+		if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
+			dst_release(&params->tcft_enc_metadata->dst);
 
-	if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
-		dst_release(&params->tcft_enc_metadata->dst);
-
-	kfree_rcu(params, rcu);
+		kfree_rcu(params, rcu);
+	}
 }
 
 static int tunnel_key_dump_addresses(struct sk_buff *skb,
@@ -325,16 +327,14 @@ static __net_init int tunnel_key_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_tunnel_key_ops);
 }
 
-static void __net_exit tunnel_key_exit_net(struct net *net)
+static void __net_exit tunnel_key_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, tunnel_key_net_id);
 }
 
 static struct pernet_operations tunnel_key_net_ops = {
 	.init = tunnel_key_init_net,
-	.exit = tunnel_key_exit_net,
+	.exit_batch = tunnel_key_exit_net,
 	.id   = &tunnel_key_net_id,
 	.size = sizeof(struct tc_action_net),
 };

@@ -207,6 +207,7 @@ static void tsc_check_state(int state)
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
 	case X86_VENDOR_INTEL:
+	case X86_VENDOR_CENTAUR:
 		/*
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
@@ -291,6 +292,9 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 		pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
 		pr->power.states[ACPI_STATE_C1].valid = 1;
 		pr->power.states[ACPI_STATE_C1].entry_method = ACPI_CSTATE_HALT;
+
+		snprintf(pr->power.states[ACPI_STATE_C1].desc,
+			 ACPI_CX_DESC_LEN, "ACPI HLT");
 	}
 	/* the C0 state only exists as a filler in our array */
 	pr->power.states[ACPI_STATE_C0].valid = 1;

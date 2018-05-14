@@ -934,8 +934,12 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (vid >= VLAN_N_VID)
 		return -EINVAL;
 
-	/* Verify we have permission to add VLANs */
-	if (hw->mac.vlan_override)
+	/* Verify that we have permission to add VLANs. If this is a request
+	 * to remove a VLAN, we still want to allow the user to remove the
+	 * VLAN device. In that case, we need to clear the bit in the
+	 * active_vlans bitmask.
+	 */
+	if (set && hw->mac.vlan_override)
 		return -EACCES;
 
 	/* update active_vlans bitmask */
@@ -953,6 +957,12 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 		else
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
+
+	/* If our VLAN has been overridden, there is no reason to send VLAN
+	 * removal requests as they will be silently ignored.
+	 */
+	if (hw->mac.vlan_override)
+		return 0;
 
 	/* Do not remove default VLAN ID related entries from VLAN and MAC
 	 * tables
@@ -1040,14 +1050,13 @@ static int __fm10k_uc_sync(struct net_device *dev,
 			   const unsigned char *addr, bool sync)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
 	s32 err;
 
 	if (!is_valid_ether_addr(addr))
 		return -EADDRNOTAVAIL;
 
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		err = fm10k_queue_mac_request(interface, glort,
@@ -1106,14 +1115,13 @@ static int __fm10k_mc_sync(struct net_device *dev,
 			   const unsigned char *addr, bool sync)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
 	s32 err;
 
 	if (!is_multicast_ether_addr(addr))
 		return -EADDRNOTAVAIL;
 
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		err = fm10k_queue_mac_request(interface, glort,
@@ -1157,10 +1165,12 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	/* update xcast mode first, but only if it changed */
 	if (interface->xcast_mode != xcast_mode) {
-		/* update VLAN table */
+		/* update VLAN table when entering promiscuous mode */
 		if (xcast_mode == FM10K_XCAST_MODE_PROMISC)
 			fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL,
 						 0, true);
+
+		/* clear VLAN table when exiting promiscuous mode */
 		if (interface->xcast_mode == FM10K_XCAST_MODE_PROMISC)
 			fm10k_clear_unused_vlans(interface);
 
@@ -1182,9 +1192,10 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 {
+	struct fm10k_l2_accel *l2_accel = interface->l2_accel;
 	struct net_device *netdev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
-	int xcast_mode;
+	int xcast_mode, i;
 	u16 vid, glort;
 
 	/* record glort for this interface */
@@ -1211,11 +1222,8 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL, 0,
 				 xcast_mode == FM10K_XCAST_MODE_PROMISC);
 
-	/* Add filter for VLAN 0 */
-	fm10k_queue_vlan_request(interface, 0, 0, true);
-
 	/* update table with current entries */
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		fm10k_queue_vlan_request(interface, vid, 0, true);
@@ -1233,6 +1241,24 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	/* synchronize all of the addresses */
 	__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
 	__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
+
+	/* synchronize macvlan addresses */
+	if (l2_accel) {
+		for (i = 0; i < l2_accel->size; i++) {
+			struct net_device *sdev = l2_accel->macvlan[i];
+
+			if (!sdev)
+				continue;
+
+			glort = l2_accel->dglort + 1 + i;
+
+			hw->mac.ops.update_xcast_mode(hw, glort,
+						      FM10K_XCAST_MODE_MULTI);
+			fm10k_queue_mac_request(interface, glort,
+						sdev->dev_addr,
+						hw->mac.default_vid, true);
+		}
+	}
 
 	fm10k_mbx_unlock(interface);
 
@@ -1490,7 +1516,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_MULTI);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					0, true);
+					hw->mac.default_vid, true);
 	}
 
 	fm10k_mbx_unlock(interface);
@@ -1530,7 +1556,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_NONE);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					0, false);
+					hw->mac.default_vid, false);
 	}
 
 	fm10k_mbx_unlock(interface);

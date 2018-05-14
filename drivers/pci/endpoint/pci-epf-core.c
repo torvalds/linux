@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * PCI Endpoint *Function* (EPF) library
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -99,7 +88,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
  */
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar)
 {
-	struct device *dev = &epf->dev;
+	struct device *dev = epf->epc->dev.parent;
 
 	if (!addr)
 		return;
@@ -122,7 +111,7 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
 void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar)
 {
 	void *space;
-	struct device *dev = &epf->dev;
+	struct device *dev = epf->epc->dev.parent;
 	dma_addr_t phys_addr;
 
 	if (size < 128)

@@ -86,10 +86,10 @@ static u32 spu_backing_mbox_stat_read(struct spu_context *ctx)
 	return ctx->csa.prob.mb_stat_R;
 }
 
-static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
-					  unsigned int events)
+static __poll_t spu_backing_mbox_stat_poll(struct spu_context *ctx,
+					  __poll_t events)
 {
-	int ret;
+	__poll_t ret;
 	u32 stat;
 
 	ret = 0;
@@ -101,9 +101,9 @@ static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
 	   but first mark any pending interrupts as done so
 	   we don't get woken up unnecessarily */
 
-	if (events & (POLLIN | POLLRDNORM)) {
+	if (events & (EPOLLIN | EPOLLRDNORM)) {
 		if (stat & 0xff0000)
-			ret |= POLLIN | POLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDNORM;
 		else {
 			ctx->csa.priv1.int_stat_class2_RW &=
 				~CLASS2_MAILBOX_INTR;
@@ -111,9 +111,9 @@ static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
 				CLASS2_ENABLE_MAILBOX_INTR;
 		}
 	}
-	if (events & (POLLOUT | POLLWRNORM)) {
+	if (events & (EPOLLOUT | EPOLLWRNORM)) {
 		if (stat & 0x00ff00)
-			ret = POLLOUT | POLLWRNORM;
+			ret = EPOLLOUT | EPOLLWRNORM;
 		else {
 			ctx->csa.priv1.int_stat_class2_RW &=
 				~CLASS2_MAILBOX_THRESHOLD_INTR;

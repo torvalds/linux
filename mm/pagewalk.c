@@ -265,6 +265,7 @@ static int __walk_page_range(unsigned long start, unsigned long end,
  * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
  * callbacks, the associated entries/pages are just ignored.
  * The return values of these callbacks are commonly defined like below:
+ *
  *  - 0  : succeeded to handle the current entry, and if you don't reach the
  *         end address yet, continue to walk.
  *  - >0 : succeeded to handle the current entry, and return to the caller

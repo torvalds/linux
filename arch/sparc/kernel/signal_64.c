@@ -9,9 +9,6 @@
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
 
-#ifdef CONFIG_COMPAT
-#include <linux/compat.h>	/* for compat_old_sigset_t */
-#endif
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>

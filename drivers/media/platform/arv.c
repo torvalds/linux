@@ -56,7 +56,7 @@
 
 #define VERSION	"0.0.5"
 
-#define ar_inl(addr) 		inl((unsigned long)(addr))
+#define ar_inl(addr)		inl((unsigned long)(addr))
 #define ar_outl(val, addr)	outl((unsigned long)(val), (unsigned long)(addr))
 
 extern struct cpuinfo_m32r	boot_cpu_data;
@@ -66,7 +66,7 @@ extern struct cpuinfo_m32r	boot_cpu_data;
  *	Note that M32700UT does not support CIF mode, but QVGA is
  *	supported by M32700UT hardware using VGA mode of AR LSI.
  *
- * 	Supported: VGA  (Normal mode, Interlace mode)
+ *	Supported: VGA  (Normal mode, Interlace mode)
  *		   QVGA (Always Interlace mode of VGA)
  *
  */
@@ -210,8 +210,8 @@ static void init_iic(void)
 	 * ICU Setting (iic)
 	 */
 	/* I2C Setting */
-	ar_outl(0x0, PLDI2CCR);      	/* I2CCR Disable                   */
-	ar_outl(0x0300, PLDI2CMOD); 	/* I2CMOD ACK/8b-data/7b-addr/auto */
+	ar_outl(0x0, PLDI2CCR);		/* I2CCR Disable                   */
+	ar_outl(0x0300, PLDI2CMOD);	/* I2CMOD ACK/8b-data/7b-addr/auto */
 	ar_outl(0x1, PLDI2CACK);	/* I2CACK ACK                      */
 
 	/* I2C CLK */
@@ -222,7 +222,7 @@ static void init_iic(void)
 		ar_outl(244, PLDI2CFREQ);	/* BCLK = 50MHz */
 	else
 		ar_outl(244, PLDI2CFREQ);	/* default: BCLK = 50MHz */
-	ar_outl(0x1, PLDI2CCR); 	/* I2CCR Enable */
+	ar_outl(0x1, PLDI2CCR);		/* I2CCR Enable */
 }
 
 /**************************************************************************
@@ -300,9 +300,9 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	ar_outl(ARDATA32, M32R_DMA0CSA_PORTL);
 	ar_outl(ARDATA32, M32R_DMA0RSA_PORTL);
 	ar_outl(ar->line_buff, M32R_DMA0CDA_PORTL);	/* destination addr. */
-	ar_outl(ar->line_buff, M32R_DMA0RDA_PORTL); 	/* reload address */
-	ar_outl(ar->line_bytes, M32R_DMA0CBCUT_PORTL); 	/* byte count (bytes) */
-	ar_outl(ar->line_bytes, M32R_DMA0RBCUT_PORTL); 	/* reload count (bytes) */
+	ar_outl(ar->line_buff, M32R_DMA0RDA_PORTL);	/* reload address */
+	ar_outl(ar->line_bytes, M32R_DMA0CBCUT_PORTL);	/* byte count (bytes) */
+	ar_outl(ar->line_bytes, M32R_DMA0RBCUT_PORTL);	/* reload count (bytes) */
 
 	/*
 	 * Okay, kick AR LSI to invoke an interrupt
@@ -364,7 +364,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 
 	/*
 	 * convert YUV422 to YUV422P
-	 * 	+--------------------+
+	 *	+--------------------+
 	 *	|  Y0,Y1,...	     |
 	 *	|  ..............Yn  |
 	 *	+--------------------+
@@ -533,9 +533,9 @@ static void ar_interrupt(int irq, void *dev)
 	line_count = ar_inl(ARVHCOUNT);			/* line number */
 	if (ar->mode == AR_MODE_INTERLACE && ar->size == AR_SIZE_VGA) {
 		/* operations for interlace mode */
-		if (line_count < (AR_HEIGHT_VGA / 2)) 	/* even line */
+		if (line_count < (AR_HEIGHT_VGA / 2))	/* even line */
 			line_number = (line_count << 1);
-		else 					/* odd line */
+		else					/* odd line */
 			line_number =
 			(((line_count - (AR_HEIGHT_VGA / 2)) << 1) + 1);
 	} else {
@@ -568,7 +568,7 @@ static void ar_interrupt(int irq, void *dev)
 		 * if captured all line of a frame, disable AR interrupt
 		 * and wake a process up.
 		 */
-		if (line_number == (ar->height - 1)) { 	/* end  of line */
+		if (line_number == (ar->height - 1)) {	/* end  of line */
 
 			ar->start_capture = 0;
 
@@ -590,7 +590,7 @@ static void ar_interrupt(int irq, void *dev)
 
 /*
  * ar_initialize()
- * 	ar_initialize() is called by video_register_device() and
+ *	ar_initialize() is called by video_register_device() and
  *	initializes AR LSI and peripherals.
  *
  *	-1 is returned in all failures.
@@ -718,14 +718,14 @@ static const struct v4l2_file_operations ar_fops = {
 };
 
 static const struct v4l2_ioctl_ops ar_ioctl_ops = {
-	.vidioc_querycap    		    = ar_querycap,
-	.vidioc_g_input      		    = ar_g_input,
-	.vidioc_s_input      		    = ar_s_input,
-	.vidioc_enum_input   		    = ar_enum_input,
-	.vidioc_enum_fmt_vid_cap 	    = ar_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap 		    = ar_g_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap  		    = ar_s_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap  	    = ar_try_fmt_vid_cap,
+	.vidioc_querycap		    = ar_querycap,
+	.vidioc_g_input			    = ar_g_input,
+	.vidioc_s_input			    = ar_s_input,
+	.vidioc_enum_input		    = ar_enum_input,
+	.vidioc_enum_fmt_vid_cap	    = ar_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		    = ar_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		    = ar_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		    = ar_try_fmt_vid_cap,
 };
 
 #define ALIGN4(x)	((((int)(x)) & 0x3) == 0)
@@ -776,9 +776,9 @@ static int __init ar_init(void)
 	video_set_drvdata(&ar->vdev, ar);
 
 	if (vga) {
-		ar->width 	= AR_WIDTH_VGA;
-		ar->height 	= AR_HEIGHT_VGA;
-		ar->size 	= AR_SIZE_VGA;
+		ar->width	= AR_WIDTH_VGA;
+		ar->height	= AR_HEIGHT_VGA;
+		ar->size	= AR_SIZE_VGA;
 		ar->frame_bytes = AR_FRAME_BYTES_VGA;
 		ar->line_bytes	= AR_LINE_BYTES_VGA;
 		if (vga_interlace)
@@ -786,9 +786,9 @@ static int __init ar_init(void)
 		else
 			ar->mode = AR_MODE_NORMAL;
 	} else {
-		ar->width 	= AR_WIDTH_QVGA;
-		ar->height 	= AR_HEIGHT_QVGA;
-		ar->size 	= AR_SIZE_QVGA;
+		ar->width	= AR_WIDTH_QVGA;
+		ar->height	= AR_HEIGHT_QVGA;
+		ar->size	= AR_SIZE_QVGA;
 		ar->frame_bytes = AR_FRAME_BYTES_QVGA;
 		ar->line_bytes	= AR_LINE_BYTES_QVGA;
 		ar->mode	= AR_MODE_INTERLACE;

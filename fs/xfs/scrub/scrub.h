@@ -22,6 +22,14 @@
 
 struct xfs_scrub_context;
 
+/* Type info and names for the scrub types. */
+enum xfs_scrub_type {
+	ST_NONE = 1,	/* disabled */
+	ST_PERAG,	/* per-AG metadata */
+	ST_FS,		/* per-FS metadata */
+	ST_INODE,	/* per-inode metadata */
+};
+
 struct xfs_scrub_meta_ops {
 	/* Acquire whatever resources are needed for the operation. */
 	int		(*setup)(struct xfs_scrub_context *,
@@ -32,6 +40,9 @@ struct xfs_scrub_meta_ops {
 
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_sb *);
+
+	/* type describing required/allowed inputs */
+	enum xfs_scrub_type	type;
 };
 
 /* Buffer pointers and btree cursors for an entire AG. */
@@ -110,6 +121,32 @@ xfs_scrub_quota(struct xfs_scrub_context *sc)
 {
 	return -ENOENT;
 }
+#endif
+
+/* cross-referencing helpers */
+void xfs_scrub_xref_is_used_space(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_not_inode_chunk(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_inode_chunk(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_owned_by(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len,
+		struct xfs_owner_info *oinfo);
+void xfs_scrub_xref_is_not_owned_by(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len,
+		struct xfs_owner_info *oinfo);
+void xfs_scrub_xref_has_no_owner(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_cow_staging(struct xfs_scrub_context *sc,
+		xfs_agblock_t bno, xfs_extlen_t len);
+void xfs_scrub_xref_is_not_shared(struct xfs_scrub_context *sc,
+		xfs_agblock_t bno, xfs_extlen_t len);
+#ifdef CONFIG_XFS_RT
+void xfs_scrub_xref_is_used_rt_space(struct xfs_scrub_context *sc,
+		xfs_rtblock_t rtbno, xfs_extlen_t len);
+#else
+# define xfs_scrub_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
 #endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

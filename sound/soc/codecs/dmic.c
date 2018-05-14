@@ -107,8 +107,30 @@ static const struct snd_soc_codec_driver soc_dmic = {
 
 static int dmic_dev_probe(struct platform_device *pdev)
 {
+	int err;
+	u32 chans;
+	struct snd_soc_dai_driver *dai_drv = &dmic_dai;
+
+	if (pdev->dev.of_node) {
+		err = of_property_read_u32(pdev->dev.of_node, "num-channels", &chans);
+		if (err && (err != -EINVAL))
+			return err;
+
+		if (!err) {
+			if (chans < 1 || chans > 8)
+				return -EINVAL;
+
+			dai_drv = devm_kzalloc(&pdev->dev, sizeof(*dai_drv), GFP_KERNEL);
+			if (!dai_drv)
+				return -ENOMEM;
+
+			memcpy(dai_drv, &dmic_dai, sizeof(*dai_drv));
+			dai_drv->capture.channels_max = chans;
+		}
+	}
+
 	return snd_soc_register_codec(&pdev->dev,
-			&soc_dmic, &dmic_dai, 1);
+			&soc_dmic, dai_drv, 1);
 }
 
 static int dmic_dev_remove(struct platform_device *pdev)

@@ -264,6 +264,8 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 			res = PTR_ERR(msgs[i].buf);
 			break;
 		}
+		/* memdup_user allocates with GFP_KERNEL, so DMA is ok */
+		msgs[i].flags |= I2C_M_DMA_SAFE;
 
 		/*
 		 * If the message length is received from the slave (similar

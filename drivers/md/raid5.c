@@ -2196,15 +2196,16 @@ static int grow_one_stripe(struct r5conf *conf, gfp_t gfp)
 static int grow_stripes(struct r5conf *conf, int num)
 {
 	struct kmem_cache *sc;
+	size_t namelen = sizeof(conf->cache_name[0]);
 	int devs = max(conf->raid_disks, conf->previous_raid_disks);
 
 	if (conf->mddev->gendisk)
-		sprintf(conf->cache_name[0],
+		snprintf(conf->cache_name[0], namelen,
 			"raid%d-%s", conf->level, mdname(conf->mddev));
 	else
-		sprintf(conf->cache_name[0],
+		snprintf(conf->cache_name[0], namelen,
 			"raid%d-%p", conf->level, conf->mddev);
-	sprintf(conf->cache_name[1], "%s-alt", conf->cache_name[0]);
+	snprintf(conf->cache_name[1], namelen, "%.27s-alt", conf->cache_name[0]);
 
 	conf->active_name = 0;
 	sc = kmem_cache_create(conf->cache_name[conf->active_name],
@@ -5563,7 +5564,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	bool do_flush = false;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
-		int ret = r5l_handle_flush_request(conf->log, bi);
+		int ret = log_handle_flush_request(conf, bi);
 
 		if (ret == 0)
 			return true;
@@ -6168,7 +6169,7 @@ static int handle_active_stripes(struct r5conf *conf, int group,
 				break;
 		if (i == NR_STRIPE_HASH_LOCKS) {
 			spin_unlock_irq(&conf->device_lock);
-			r5l_flush_stripe_to_raid(conf->log);
+			log_flush_stripe_to_raid(conf);
 			spin_lock_irq(&conf->device_lock);
 			return batch_size;
 		}
@@ -6764,9 +6765,7 @@ static void free_conf(struct r5conf *conf)
 
 	log_exit(conf);
 
-	if (conf->shrinker.nr_deferred)
-		unregister_shrinker(&conf->shrinker);
-
+	unregister_shrinker(&conf->shrinker);
 	free_thread_groups(conf);
 	shrink_stripes(conf);
 	raid5_free_percpu(conf);
@@ -8001,13 +8000,7 @@ static void raid5_finish_reshape(struct mddev *mddev)
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 
-		if (mddev->delta_disks > 0) {
-			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
-			if (mddev->queue) {
-				set_capacity(mddev->gendisk, mddev->array_sectors);
-				revalidate_disk(mddev->gendisk);
-			}
-		} else {
+		if (mddev->delta_disks <= 0) {
 			int d;
 			spin_lock_irq(&conf->device_lock);
 			mddev->degraded = raid5_calc_degraded(conf);
@@ -8060,7 +8053,7 @@ static void raid5_quiesce(struct mddev *mddev, int quiesce)
 		wake_up(&conf->wait_for_overlap);
 		unlock_all_device_hash_locks_irq(conf);
 	}
-	r5l_quiesce(conf->log, quiesce);
+	log_quiesce(conf, quiesce);
 }
 
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)
@@ -8364,6 +8357,13 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 	return err;
 }
 
+static int raid5_start(struct mddev *mddev)
+{
+	struct r5conf *conf = mddev->private;
+
+	return r5l_start(conf->log);
+}
+
 static struct md_personality raid6_personality =
 {
 	.name		= "raid6",
@@ -8371,6 +8371,7 @@ static struct md_personality raid6_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
+	.start		= raid5_start,
 	.free		= raid5_free,
 	.status		= raid5_status,
 	.error_handler	= raid5_error,
@@ -8395,6 +8396,7 @@ static struct md_personality raid5_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
+	.start		= raid5_start,
 	.free		= raid5_free,
 	.status		= raid5_status,
 	.error_handler	= raid5_error,
@@ -8420,6 +8422,7 @@ static struct md_personality raid4_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
+	.start		= raid5_start,
 	.free		= raid5_free,
 	.status		= raid5_status,
 	.error_handler	= raid5_error,

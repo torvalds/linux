@@ -23,7 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "mt2060.h"
 #include "mt2060_priv.h"

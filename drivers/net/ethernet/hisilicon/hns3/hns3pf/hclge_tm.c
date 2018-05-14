@@ -23,8 +23,8 @@ enum hclge_shaper_level {
 	HCLGE_SHAPER_LVL_PF	= 1,
 };
 
-#define HCLGE_SHAPER_BS_U_DEF	1
-#define HCLGE_SHAPER_BS_S_DEF	4
+#define HCLGE_SHAPER_BS_U_DEF	5
+#define HCLGE_SHAPER_BS_S_DEF	20
 
 #define HCLGE_ETHER_MAX_RATE	100000
 
@@ -112,7 +112,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	return 0;
 }
 
-static int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
+int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
 {
 	struct hclge_desc desc;
 
@@ -136,6 +136,46 @@ static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 	pfc->pri_en_bitmap = pfc_bitmap;
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+static int hclge_mac_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
+				     u8 pause_trans_gap, u16 pause_trans_time)
+{
+	struct hclge_cfg_pause_param_cmd *pause_param;
+	struct hclge_desc desc;
+
+	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, false);
+
+	ether_addr_copy(pause_param->mac_addr, addr);
+	pause_param->pause_trans_gap = pause_trans_gap;
+	pause_param->pause_trans_time = cpu_to_le16(pause_trans_time);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
+{
+	struct hclge_cfg_pause_param_cmd *pause_param;
+	struct hclge_desc desc;
+	u16 trans_time;
+	u8 trans_gap;
+	int ret;
+
+	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		return ret;
+
+	trans_gap = pause_param->pause_trans_gap;
+	trans_time = le16_to_cpu(pause_param->pause_trans_time);
+
+	return hclge_mac_pause_param_cfg(hdev, mac_addr, trans_gap,
+					 trans_time);
 }
 
 static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
@@ -1056,6 +1096,15 @@ static int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 	return hclge_tm_schd_mode_hw(hdev);
 }
 
+static int hclge_mac_pause_param_setup_hw(struct hclge_dev *hdev)
+{
+	struct hclge_mac *mac = &hdev->hw.mac;
+
+	return hclge_mac_pause_param_cfg(hdev, mac->mac_addr,
+					 HCLGE_DEFAULT_PAUSE_TRANS_GAP,
+					 HCLGE_DEFAULT_PAUSE_TRANS_TIME);
+}
+
 static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
 {
 	u8 enable_bitmap = 0;
@@ -1102,8 +1151,13 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	int ret;
 	u8 i;
 
-	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC)
-		return hclge_mac_pause_setup_hw(hdev);
+	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC) {
+		ret = hclge_mac_pause_setup_hw(hdev);
+		if (ret)
+			return ret;
+
+		return hclge_mac_pause_param_setup_hw(hdev);
+	}
 
 	/* Only DCB-supported dev supports qset back pressure and pfc cmd */
 	if (!hnae3_dev_dcb_supported(hdev))

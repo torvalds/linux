@@ -550,7 +550,7 @@ try_again:
 		return;
 	}
 
-	smp_read_barrier_depends();
+	/* READ_ONCE() enforces dependency, but dangerous through integer!!! */
 	ch = port->rx_buffer[ix++];
 	st = port->rx_buffer[ix++];
 	smp_mb();
@@ -1728,7 +1728,10 @@ static int mn10300_serial_poll_get_char(struct uart_port *_port)
 			if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0)
 				return NO_POLL_CHAR;
 
-			smp_read_barrier_depends();
+			/*
+			 * READ_ONCE() enforces dependency, but dangerous
+			 * through integer!!!
+			 */
 			ch = port->rx_buffer[ix++];
 			st = port->rx_buffer[ix++];
 			smp_mb();

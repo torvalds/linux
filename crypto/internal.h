@@ -30,9 +30,6 @@
 enum {
 	CRYPTO_MSG_ALG_REQUEST,
 	CRYPTO_MSG_ALG_REGISTER,
-	CRYPTO_MSG_ALG_UNREGISTER,
-	CRYPTO_MSG_TMPL_REGISTER,
-	CRYPTO_MSG_TMPL_UNREGISTER,
 };
 
 struct crypto_instance;
@@ -78,7 +75,6 @@ int crypto_init_compress_ops(struct crypto_tfm *tfm);
 
 struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask);
 void crypto_larval_kill(struct crypto_alg *alg);
-struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask);
 void crypto_alg_tested(const char *name, int err);
 
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
@@ -106,13 +102,13 @@ int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
 
 static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
-	atomic_inc(&alg->cra_refcnt);
+	refcount_inc(&alg->cra_refcnt);
 	return alg;
 }
 
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
-	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
+	if (refcount_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
 		alg->cra_destroy(alg);
 }
 

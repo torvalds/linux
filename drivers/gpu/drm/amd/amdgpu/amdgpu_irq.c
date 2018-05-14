@@ -88,7 +88,7 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 						  reset_work);
 
 	if (!amdgpu_sriov_vf(adev))
-		amdgpu_gpu_reset(adev);
+		amdgpu_device_gpu_recover(adev, NULL, false);
 }
 
 /* Disable *all* interrupts */
@@ -232,7 +232,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		int ret = pci_enable_msi(adev->pdev);
 		if (!ret) {
 			adev->irq.msi_enabled = true;
-			dev_info(adev->dev, "amdgpu: using MSI.\n");
+			dev_dbg(adev->dev, "amdgpu: using MSI.\n");
 		}
 	}
 
@@ -257,12 +257,13 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
 	if (r) {
 		adev->irq.installed = false;
-		flush_work(&adev->hotplug_work);
+		if (!amdgpu_device_has_dc_support(adev))
+			flush_work(&adev->hotplug_work);
 		cancel_work_sync(&adev->reset_work);
 		return r;
 	}
 
-	DRM_INFO("amdgpu: irq initialized.\n");
+	DRM_DEBUG("amdgpu: irq initialized.\n");
 	return 0;
 }
 
@@ -282,7 +283,8 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		adev->irq.installed = false;
 		if (adev->irq.msi_enabled)
 			pci_disable_msi(adev->pdev);
-		flush_work(&adev->hotplug_work);
+		if (!amdgpu_device_has_dc_support(adev))
+			flush_work(&adev->hotplug_work);
 		cancel_work_sync(&adev->reset_work);
 	}
 

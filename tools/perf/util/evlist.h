@@ -7,7 +7,6 @@
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include "../perf.h"
 #include "event.h"
@@ -31,7 +30,6 @@ struct perf_evlist {
 	int		 nr_entries;
 	int		 nr_groups;
 	int		 nr_mmaps;
-	bool		 overwrite;
 	bool		 enabled;
 	bool		 has_user_cpus;
 	size_t		 mmap_len;
@@ -45,12 +43,14 @@ struct perf_evlist {
 	} workload;
 	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
-	struct perf_mmap *backward_mmap;
+	struct perf_mmap *overwrite_mmap;
 	struct thread_map *threads;
 	struct cpu_map	  *cpus;
 	struct perf_evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
+	u64		first_sample_time;
+	u64		last_sample_time;
 };
 
 struct perf_evsel_str_handler {
@@ -133,10 +133,6 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 
 union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist,
 						 int idx);
-union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist,
-						  int idx);
-void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx);
-
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
 int perf_evlist__open(struct perf_evlist *evlist);
@@ -169,10 +165,9 @@ int perf_evlist__parse_mmap_pages(const struct option *opt,
 unsigned long perf_event_mlock_kb_in_pages(void);
 
 int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
-			 bool overwrite, unsigned int auxtrace_pages,
+			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite);
-int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
-		      bool overwrite);
+int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages);
 void perf_evlist__munmap(struct perf_evlist *evlist);
 
 size_t perf_evlist__mmap_size(unsigned long pages);
@@ -204,6 +199,10 @@ u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist);
 
 int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
 			      struct perf_sample *sample);
+
+int perf_evlist__parse_sample_timestamp(struct perf_evlist *evlist,
+					union perf_event *event,
+					u64 *timestamp);
 
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist);
 bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);

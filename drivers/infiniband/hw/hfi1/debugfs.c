@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -1200,6 +1200,13 @@ static int _fault_stats_seq_show(struct seq_file *s, void *v)
 			n_bytes += rcd->opstats->stats[i].n_bytes;
 		}
 		hfi1_rcd_put(rcd);
+	}
+	for_each_possible_cpu(j) {
+		struct hfi1_opcode_stats_perctx *sp =
+			per_cpu_ptr(dd->tx_opstats, j);
+
+		n_packets += sp->stats[i].n_packets;
+		n_bytes += sp->stats[i].n_bytes;
 	}
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;

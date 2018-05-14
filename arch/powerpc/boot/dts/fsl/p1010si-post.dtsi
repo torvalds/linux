@@ -137,12 +137,14 @@
 		compatible = "fsl,p1010-flexcan";
 		reg = <0x1c000 0x1000>;
 		interrupts = <48 0x2 0 0>;
+		big-endian;
 	};
 
 	can1: can@1d000 {
 		compatible = "fsl,p1010-flexcan";
 		reg = <0x1d000 0x1000>;
 		interrupts = <61 0x2 0 0>;
+		big-endian;
 	};
 
 	L2: l2-cache-controller@20000 {

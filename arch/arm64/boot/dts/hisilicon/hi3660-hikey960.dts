@@ -109,6 +109,7 @@
 			label = "user_led4";
 			/* gpio_190_user_led4 */
 			gpios = <&gpio23 6 0>;
+			panic-indicator;
 			linux,default-trigger = "cpu0";
 		};
 

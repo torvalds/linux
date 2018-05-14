@@ -109,7 +109,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 		struct cea_sad *sad = &sads[i];
 
 		edid_caps->audio_modes[i].format_code = sad->format;
-		edid_caps->audio_modes[i].channel_count = sad->channels;
+		edid_caps->audio_modes[i].channel_count = sad->channels + 1;
 		edid_caps->audio_modes[i].sample_rate = sad->freq;
 		edid_caps->audio_modes[i].sample_size = sad->byte2;
 	}

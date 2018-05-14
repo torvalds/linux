@@ -52,7 +52,7 @@ static irqreturn_t ppi_irq_err(int irq, void *dev_id)
 		struct bfin_ppi_regs *reg = info->base;
 		unsigned short status;
 
-		/* register on bf561 is cleared when read 
+		/* register on bf561 is cleared when read
 		 * others are W1C
 		 */
 		status = bfin_read16(&reg->status);

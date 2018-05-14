@@ -73,6 +73,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_LLTX_BIT] =             "tx-lockless",
 	[NETIF_F_NETNS_LOCAL_BIT] =      "netns-local",
 	[NETIF_F_GRO_BIT] =              "rx-gro",
+	[NETIF_F_GRO_HW_BIT] =           "rx-gro-hw",
 	[NETIF_F_LRO_BIT] =              "rx-lro",
 
 	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
@@ -615,18 +616,15 @@ static int load_link_ksettings_from_user(struct ethtool_link_ksettings *to,
 		return -EFAULT;
 
 	memcpy(&to->base, &link_usettings.base, sizeof(to->base));
-	bitmap_from_u32array(to->link_modes.supported,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.supported,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
-	bitmap_from_u32array(to->link_modes.advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
-	bitmap_from_u32array(to->link_modes.lp_advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.lp_advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
+	bitmap_from_arr32(to->link_modes.supported,
+			  link_usettings.link_modes.supported,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_from_arr32(to->link_modes.advertising,
+			  link_usettings.link_modes.advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_from_arr32(to->link_modes.lp_advertising,
+			  link_usettings.link_modes.lp_advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	return 0;
 }
@@ -642,18 +640,15 @@ store_link_ksettings_for_user(void __user *to,
 	struct ethtool_link_usettings link_usettings;
 
 	memcpy(&link_usettings.base, &from->base, sizeof(link_usettings));
-	bitmap_to_u32array(link_usettings.link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_to_u32array(link_usettings.link_modes.advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_to_u32array(link_usettings.link_modes.lp_advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.lp_advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.supported,
+			from->link_modes.supported,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.advertising,
+			from->link_modes.advertising,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.lp_advertising,
+			from->link_modes.lp_advertising,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	if (copy_to_user(to, &link_usettings, sizeof(link_usettings)))
 		return -EFAULT;
@@ -1692,13 +1687,22 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_ringparam ringparam;
+	struct ethtool_ringparam ringparam, max = { .cmd = ETHTOOL_GRINGPARAM };
 
-	if (!dev->ethtool_ops->set_ringparam)
+	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
 		return -EFAULT;
+
+	dev->ethtool_ops->get_ringparam(dev, &max);
+
+	/* ensure new ring parameters are within the maximums */
+	if (ringparam.rx_pending > max.rx_max_pending ||
+	    ringparam.rx_mini_pending > max.rx_mini_max_pending ||
+	    ringparam.rx_jumbo_pending > max.rx_jumbo_max_pending ||
+	    ringparam.tx_pending > max.tx_max_pending)
+		return -EINVAL;
 
 	return dev->ethtool_ops->set_ringparam(dev, &ringparam);
 }
@@ -2348,10 +2352,8 @@ static int ethtool_get_per_queue_coalesce(struct net_device *dev,
 
 	useraddr += sizeof(*per_queue_opt);
 
-	bitmap_from_u32array(queue_mask,
-			     MAX_NUM_QUEUE,
-			     per_queue_opt->queue_mask,
-			     DIV_ROUND_UP(MAX_NUM_QUEUE, 32));
+	bitmap_from_arr32(queue_mask, per_queue_opt->queue_mask,
+			  MAX_NUM_QUEUE);
 
 	for_each_set_bit(bit, queue_mask, MAX_NUM_QUEUE) {
 		struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
@@ -2383,10 +2385,7 @@ static int ethtool_set_per_queue_coalesce(struct net_device *dev,
 
 	useraddr += sizeof(*per_queue_opt);
 
-	bitmap_from_u32array(queue_mask,
-			     MAX_NUM_QUEUE,
-			     per_queue_opt->queue_mask,
-			     DIV_ROUND_UP(MAX_NUM_QUEUE, 32));
+	bitmap_from_arr32(queue_mask, per_queue_opt->queue_mask, MAX_NUM_QUEUE);
 	n_queue = bitmap_weight(queue_mask, MAX_NUM_QUEUE);
 	tmp = backup = kmalloc_array(n_queue, sizeof(*backup), GFP_KERNEL);
 	if (!backup)
@@ -2521,11 +2520,14 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_fecparam(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_fecparam fecparam = { ETHTOOL_GFECPARAM };
+	int rc;
 
 	if (!dev->ethtool_ops->get_fecparam)
 		return -EOPNOTSUPP;
 
-	dev->ethtool_ops->get_fecparam(dev, &fecparam);
+	rc = dev->ethtool_ops->get_fecparam(dev, &fecparam);
+	if (rc)
+		return rc;
 
 	if (copy_to_user(useraddr, &fecparam, sizeof(fecparam)))
 		return -EFAULT;

@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/dma/qcom_bam_dma.h>
+#include <linux/dma-direct.h> /* XXX: drivers shall never use this directly! */
 
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
@@ -1725,6 +1726,7 @@ static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 *data_buf, *oob_buf = NULL;
 	int ret;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	data_buf = buf;
 	oob_buf = oob_required ? chip->oob_poi : NULL;
 
@@ -1750,6 +1752,7 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 	int i, ret;
 	int read_loc;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	data_buf = buf;
 	oob_buf = chip->oob_poi;
 
@@ -1850,6 +1853,8 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 *data_buf, *oob_buf;
 	int i, ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
 
@@ -1902,6 +1907,9 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	free_descs(nandc);
 
+	if (!ret)
+		ret = nand_prog_page_end_op(chip);
+
 	return ret;
 }
 
@@ -1916,6 +1924,7 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 	u8 *data_buf, *oob_buf;
 	int i, ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
 
@@ -1970,6 +1979,9 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 
 	free_descs(nandc);
 
+	if (!ret)
+		ret = nand_prog_page_end_op(chip);
+
 	return ret;
 }
 
@@ -1990,7 +2002,7 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *oob = chip->oob_poi;
 	int data_size, oob_size;
-	int ret, status = 0;
+	int ret;
 
 	host->use_ecc = true;
 
@@ -2027,11 +2039,7 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 		return -EIO;
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
@@ -2081,7 +2089,7 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	int page, ret, status = 0;
+	int page, ret;
 
 	clear_read_regs(nandc);
 	clear_bam_transaction(nandc);
@@ -2114,11 +2122,7 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return -EIO;
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_end_op(chip);
 }
 
 /*
@@ -2636,6 +2640,9 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 
 	nand_set_flash_node(chip, dn);
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "qcom_nand.%d", host->cs);
+	if (!mtd->name)
+		return -ENOMEM;
+
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
 

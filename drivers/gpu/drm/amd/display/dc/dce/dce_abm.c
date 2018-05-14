@@ -51,16 +51,6 @@
 
 #define MCP_DISABLE_ABM_IMMEDIATELY 255
 
-struct abm_backlight_registers {
-	unsigned int BL_PWM_CNTL;
-	unsigned int BL_PWM_CNTL2;
-	unsigned int BL_PWM_PERIOD_CNTL;
-	unsigned int LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-};
-
-/* registers setting needs to be save and restored used at InitBacklight */
-static struct abm_backlight_registers stored_backlight_registers = {0};
-
 
 static unsigned int get_current_backlight_16_bit(struct dce_abm *abm_dce)
 {
@@ -347,16 +337,16 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	 */
 	REG_GET(BL_PWM_CNTL, BL_ACTIVE_INT_FRAC_CNT, &value);
 	if (value == 0 || value == 1) {
-		if (stored_backlight_registers.BL_PWM_CNTL != 0) {
+		if (abm->stored_backlight_registers.BL_PWM_CNTL != 0) {
 			REG_WRITE(BL_PWM_CNTL,
-				stored_backlight_registers.BL_PWM_CNTL);
+				abm->stored_backlight_registers.BL_PWM_CNTL);
 			REG_WRITE(BL_PWM_CNTL2,
-				stored_backlight_registers.BL_PWM_CNTL2);
+				abm->stored_backlight_registers.BL_PWM_CNTL2);
 			REG_WRITE(BL_PWM_PERIOD_CNTL,
-				stored_backlight_registers.BL_PWM_PERIOD_CNTL);
+				abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL);
 			REG_UPDATE(LVTMA_PWRSEQ_REF_DIV,
 				BL_PWM_REF_DIV,
-				stored_backlight_registers.
+				abm->stored_backlight_registers.
 				LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 		} else {
 			/* TODO: Note: This should not really happen since VBIOS
@@ -366,15 +356,15 @@ static bool dce_abm_init_backlight(struct abm *abm)
 			REG_WRITE(BL_PWM_PERIOD_CNTL, 0x000C0FA0);
 		}
 	} else {
-		stored_backlight_registers.BL_PWM_CNTL =
+		abm->stored_backlight_registers.BL_PWM_CNTL =
 				REG_READ(BL_PWM_CNTL);
-		stored_backlight_registers.BL_PWM_CNTL2 =
+		abm->stored_backlight_registers.BL_PWM_CNTL2 =
 				REG_READ(BL_PWM_CNTL2);
-		stored_backlight_registers.BL_PWM_PERIOD_CNTL =
+		abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL =
 				REG_READ(BL_PWM_PERIOD_CNTL);
 
 		REG_GET(LVTMA_PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
-				&stored_backlight_registers.
+				&abm->stored_backlight_registers.
 				LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 	}
 
@@ -395,21 +385,12 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	return true;
 }
 
-static bool is_dmcu_initialized(struct abm *abm)
-{
-	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	unsigned int dmcu_uc_reset;
-
-	REG_GET(DMCU_STATUS, UC_IN_RESET, &dmcu_uc_reset);
-
-	return !dmcu_uc_reset;
-}
-
 static bool dce_abm_set_backlight_level(
 		struct abm *abm,
 		unsigned int backlight_level,
 		unsigned int frame_ramp,
-		unsigned int controller_id)
+		unsigned int controller_id,
+		bool use_smooth_brightness)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
@@ -418,7 +399,7 @@ static bool dce_abm_set_backlight_level(
 			backlight_level, backlight_level);
 
 	/* If DMCU is in reset state, DMCU is uninitialized */
-	if (is_dmcu_initialized(abm))
+	if (use_smooth_brightness)
 		dmcu_set_backlight_level(abm_dce,
 				backlight_level,
 				frame_ramp,
@@ -435,8 +416,7 @@ static const struct abm_funcs dce_funcs = {
 	.init_backlight = dce_abm_init_backlight,
 	.set_backlight_level = dce_abm_set_backlight_level,
 	.get_current_backlight_8_bit = dce_abm_get_current_backlight_8_bit,
-	.set_abm_immediate_disable = dce_abm_immediate_disable,
-	.is_dmcu_initialized = is_dmcu_initialized
+	.set_abm_immediate_disable = dce_abm_immediate_disable
 };
 
 static void dce_abm_construct(
@@ -450,6 +430,10 @@ static void dce_abm_construct(
 
 	base->ctx = ctx;
 	base->funcs = &dce_funcs;
+	base->stored_backlight_registers.BL_PWM_CNTL = 0;
+	base->stored_backlight_registers.BL_PWM_CNTL2 = 0;
+	base->stored_backlight_registers.BL_PWM_PERIOD_CNTL = 0;
+	base->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV = 0;
 
 	abm_dce->regs = regs;
 	abm_dce->abm_shift = abm_shift;

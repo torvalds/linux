@@ -36,6 +36,7 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>
+#include <linux/serial_core.h>
 
 #include <asm/e820/api.h>
 #include <asm/irqdomain.h>
@@ -68,8 +69,9 @@ int acpi_ioapic;
 int acpi_strict;
 int acpi_disable_cmcff;
 
+/* ACPI SCI override configuration */
 u8 acpi_sci_flags __initdata;
-int acpi_sci_override_gsi __initdata;
+u32 acpi_sci_override_gsi __initdata = INVALID_ACPI_IRQ;
 int acpi_skip_timer_override __initdata;
 int acpi_use_timer_override __initdata;
 int acpi_fix_pin2_polarity __initdata;
@@ -111,8 +113,6 @@ enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 };
-
-#define	ACPI_INVALID_GSI		INT_MIN
 
 /*
  * This is just a simple wrapper around early_memremap(),
@@ -372,7 +372,7 @@ static void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 	 * and acpi_isa_irq_to_gsi() may give wrong result.
 	 */
 	if (gsi < nr_legacy_irqs() && isa_irq_to_gsi[gsi] == gsi)
-		isa_irq_to_gsi[gsi] = ACPI_INVALID_GSI;
+		isa_irq_to_gsi[gsi] = INVALID_ACPI_IRQ;
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
 
@@ -620,24 +620,24 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irqp)
 	}
 
 	rc = acpi_get_override_irq(gsi, &trigger, &polarity);
-	if (rc == 0) {
-		trigger = trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
-		polarity = polarity ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
-		irq = acpi_register_gsi(NULL, gsi, trigger, polarity);
-		if (irq >= 0) {
-			*irqp = irq;
-			return 0;
-		}
-	}
+	if (rc)
+		return rc;
 
-	return -1;
+	trigger = trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
+	polarity = polarity ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
+	irq = acpi_register_gsi(NULL, gsi, trigger, polarity);
+	if (irq < 0)
+		return irq;
+
+	*irqp = irq;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
 	if (isa_irq < nr_legacy_irqs() &&
-	    isa_irq_to_gsi[isa_irq] != ACPI_INVALID_GSI) {
+	    isa_irq_to_gsi[isa_irq] != INVALID_ACPI_IRQ) {
 		*gsi = isa_irq_to_gsi[isa_irq];
 		return 0;
 	}
@@ -676,8 +676,7 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 	mutex_lock(&acpi_ioapic_lock);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
 	/* Don't set up the ACPI SCI because it's already set up */
-	if (irq >= 0 && enable_update_mptable &&
-	    acpi_gbl_FADT.sci_interrupt != gsi)
+	if (irq >= 0 && enable_update_mptable && gsi != acpi_gbl_FADT.sci_interrupt)
 		mp_config_acpi_gsi(dev, gsi, trigger, polarity);
 	mutex_unlock(&acpi_ioapic_lock);
 #endif
@@ -1211,8 +1210,9 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	/*
 	 * If BIOS did not supply an INT_SRC_OVR for the SCI
 	 * pretend we got one so we can set the SCI flags.
+	 * But ignore setting up SCI on hardware reduced platforms.
 	 */
-	if (!acpi_sci_override_gsi)
+	if (acpi_sci_override_gsi == INVALID_ACPI_IRQ && !acpi_gbl_reduced_hardware)
 		acpi_sci_ioapic_setup(acpi_gbl_FADT.sci_interrupt, 0, 0,
 				      acpi_gbl_FADT.sci_interrupt);
 
@@ -1626,6 +1626,8 @@ int __init acpi_boot_init(void)
 	if (!acpi_noirq)
 		x86_init.pci.init = pci_acpi_init;
 
+	/* Do not enable ACPI SPCR console by default */
+	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 	return 0;
 }
 

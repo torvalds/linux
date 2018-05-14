@@ -45,6 +45,9 @@
 #define PF_BASE(idx) (PF0_BASE + (idx) * PF_STRIDE)
 #define PF_REG(idx, reg) (PF_BASE(idx) + (reg))
 
+#define NUM_CIM_CTL_TSCH_CHANNEL_INSTANCES 4
+#define NUM_CIM_CTL_TSCH_CHANNEL_TSCH_CLASS_INSTANCES 16
+
 #define MYPORT_BASE 0x1c000
 #define MYPORT_REG(reg_addr) (MYPORT_BASE + (reg_addr))
 
@@ -960,6 +963,10 @@
 #define EXT_MEM_SIZE_G(x) (((x) >> EXT_MEM_SIZE_S) & EXT_MEM_SIZE_M)
 
 #define MA_EXT_MEMORY1_BAR_A 0x7808
+
+#define HMA_MUX_S    5
+#define HMA_MUX_V(x) ((x) << HMA_MUX_S)
+#define HMA_MUX_F    HMA_MUX_V(1U)
 
 #define EXT_MEM1_BASE_S    16
 #define EXT_MEM1_BASE_M    0xfffU
@@ -2504,6 +2511,28 @@
 #define MPS_RX_MAC_BG_PG_CNT0_A 0x11208
 #define MPS_RX_LPBK_BG_PG_CNT0_A 0x11218
 
+#define MPS_RX_VXLAN_TYPE_A 0x11234
+
+#define VXLAN_EN_S    16
+#define VXLAN_EN_V(x) ((x) << VXLAN_EN_S)
+#define VXLAN_EN_F    VXLAN_EN_V(1U)
+
+#define VXLAN_S    0
+#define VXLAN_M    0xffffU
+#define VXLAN_V(x) ((x) << VXLAN_S)
+#define VXLAN_G(x) (((x) >> VXLAN_S) & VXLAN_M)
+
+#define MPS_RX_GENEVE_TYPE_A 0x11238
+
+#define GENEVE_EN_S    16
+#define GENEVE_EN_V(x) ((x) << GENEVE_EN_S)
+#define GENEVE_EN_F    GENEVE_EN_V(1U)
+
+#define GENEVE_S    0
+#define GENEVE_M    0xffffU
+#define GENEVE_V(x) ((x) << GENEVE_S)
+#define GENEVE_G(x) (((x) >> GENEVE_S) & GENEVE_M)
+
 #define MPS_CLS_TCAM_Y_L_A 0xf000
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
@@ -2530,7 +2559,13 @@
 
 #define DATAPORTNUM_S    12
 #define DATAPORTNUM_M    0xfU
+#define DATAPORTNUM_V(x) ((x) << DATAPORTNUM_S)
 #define DATAPORTNUM_G(x) (((x) >> DATAPORTNUM_S) & DATAPORTNUM_M)
+
+#define DATALKPTYPE_S    10
+#define DATALKPTYPE_M    0x3U
+#define DATALKPTYPE_V(x) ((x) << DATALKPTYPE_S)
+#define DATALKPTYPE_G(x) (((x) >> DATALKPTYPE_S) & DATALKPTYPE_M)
 
 #define DATADIPHIT_S    8
 #define DATADIPHIT_V(x) ((x) << DATADIPHIT_S)

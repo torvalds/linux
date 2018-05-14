@@ -527,7 +527,7 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 	struct pci_sys_data *sys;
 	LIST_HEAD(head);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 	if (hw->preinit)
 		hw->preinit();
 	pcibios_init_hw(parent, hw, &head);

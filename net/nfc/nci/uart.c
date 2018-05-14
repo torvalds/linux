@@ -305,7 +305,7 @@ static ssize_t nci_uart_tty_write(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static unsigned int nci_uart_tty_poll(struct tty_struct *tty,
+static __poll_t nci_uart_tty_poll(struct tty_struct *tty,
 				      struct file *filp, poll_table *wait)
 {
 	return 0;

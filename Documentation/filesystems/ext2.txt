@@ -49,12 +49,10 @@ sb=n				Use alternate superblock at this location.
 
 user_xattr			Enable "user." POSIX Extended Attributes
 				(requires CONFIG_EXT2_FS_XATTR).
-				See also http://acl.bestbits.at
 nouser_xattr			Don't support "user." extended attributes.
 
 acl				Enable POSIX Access Control Lists support
 				(requires CONFIG_EXT2_FS_POSIX_ACL).
-				See also http://acl.bestbits.at
 noacl				Don't support POSIX ACLs.
 
 nobh				Do not attach buffer_heads to file pagecache.

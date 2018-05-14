@@ -53,6 +53,33 @@ static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 static void process_srcu(struct work_struct *work);
 
+/* Wrappers for lock acquisition and release, see raw_spin_lock_rcu_node(). */
+#define spin_lock_rcu_node(p)					\
+do {									\
+	spin_lock(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define spin_unlock_rcu_node(p) spin_unlock(&ACCESS_PRIVATE(p, lock))
+
+#define spin_lock_irq_rcu_node(p)					\
+do {									\
+	spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define spin_unlock_irq_rcu_node(p)					\
+	spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
+
+#define spin_lock_irqsave_rcu_node(p, flags)			\
+do {									\
+	spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define spin_unlock_irqrestore_rcu_node(p, flags)			\
+	spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
+
 /*
  * Initialize SRCU combining tree.  Note that statically allocated
  * srcu_struct structures might already have srcu_read_lock() and
@@ -77,7 +104,7 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 
 	/* Each pass through this loop initializes one srcu_node structure. */
 	rcu_for_each_node_breadth_first(sp, snp) {
-		raw_spin_lock_init(&ACCESS_PRIVATE(snp, lock));
+		spin_lock_init(&ACCESS_PRIVATE(snp, lock));
 		WARN_ON_ONCE(ARRAY_SIZE(snp->srcu_have_cbs) !=
 			     ARRAY_SIZE(snp->srcu_data_have_cbs));
 		for (i = 0; i < ARRAY_SIZE(snp->srcu_have_cbs); i++) {
@@ -111,7 +138,7 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 	snp_first = sp->level[level];
 	for_each_possible_cpu(cpu) {
 		sdp = per_cpu_ptr(sp->sda, cpu);
-		raw_spin_lock_init(&ACCESS_PRIVATE(sdp, lock));
+		spin_lock_init(&ACCESS_PRIVATE(sdp, lock));
 		rcu_segcblist_init(&sdp->srcu_cblist);
 		sdp->srcu_cblist_invoking = false;
 		sdp->srcu_gp_seq_needed = sp->srcu_gp_seq;
@@ -170,7 +197,7 @@ int __init_srcu_struct(struct srcu_struct *sp, const char *name,
 	/* Don't re-initialize a lock while it is held. */
 	debug_check_no_locks_freed((void *)sp, sizeof(*sp));
 	lockdep_init_map(&sp->dep_map, name, key, 0);
-	raw_spin_lock_init(&ACCESS_PRIVATE(sp, lock));
+	spin_lock_init(&ACCESS_PRIVATE(sp, lock));
 	return init_srcu_struct_fields(sp, false);
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct);
@@ -187,7 +214,7 @@ EXPORT_SYMBOL_GPL(__init_srcu_struct);
  */
 int init_srcu_struct(struct srcu_struct *sp)
 {
-	raw_spin_lock_init(&ACCESS_PRIVATE(sp, lock));
+	spin_lock_init(&ACCESS_PRIVATE(sp, lock));
 	return init_srcu_struct_fields(sp, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct);
@@ -210,13 +237,13 @@ static void check_init_srcu_struct(struct srcu_struct *sp)
 	/* The smp_load_acquire() pairs with the smp_store_release(). */
 	if (!rcu_seq_state(smp_load_acquire(&sp->srcu_gp_seq_needed))) /*^^^*/
 		return; /* Already initialized. */
-	raw_spin_lock_irqsave_rcu_node(sp, flags);
+	spin_lock_irqsave_rcu_node(sp, flags);
 	if (!rcu_seq_state(sp->srcu_gp_seq_needed)) {
-		raw_spin_unlock_irqrestore_rcu_node(sp, flags);
+		spin_unlock_irqrestore_rcu_node(sp, flags);
 		return;
 	}
 	init_srcu_struct_fields(sp, true);
-	raw_spin_unlock_irqrestore_rcu_node(sp, flags);
+	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
 
 /*
@@ -513,7 +540,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	mutex_lock(&sp->srcu_cb_mutex);
 
 	/* End the current grace period. */
-	raw_spin_lock_irq_rcu_node(sp);
+	spin_lock_irq_rcu_node(sp);
 	idx = rcu_seq_state(sp->srcu_gp_seq);
 	WARN_ON_ONCE(idx != SRCU_STATE_SCAN2);
 	cbdelay = srcu_get_delay(sp);
@@ -522,7 +549,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	gpseq = rcu_seq_current(&sp->srcu_gp_seq);
 	if (ULONG_CMP_LT(sp->srcu_gp_seq_needed_exp, gpseq))
 		sp->srcu_gp_seq_needed_exp = gpseq;
-	raw_spin_unlock_irq_rcu_node(sp);
+	spin_unlock_irq_rcu_node(sp);
 	mutex_unlock(&sp->srcu_gp_mutex);
 	/* A new grace period can start at this point.  But only one. */
 
@@ -530,7 +557,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
 	idxnext = (idx + 1) % ARRAY_SIZE(snp->srcu_have_cbs);
 	rcu_for_each_node_breadth_first(sp, snp) {
-		raw_spin_lock_irq_rcu_node(snp);
+		spin_lock_irq_rcu_node(snp);
 		cbs = false;
 		if (snp >= sp->level[rcu_num_lvls - 1])
 			cbs = snp->srcu_have_cbs[idx] == gpseq;
@@ -540,7 +567,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 			snp->srcu_gp_seq_needed_exp = gpseq;
 		mask = snp->srcu_data_have_cbs[idx];
 		snp->srcu_data_have_cbs[idx] = 0;
-		raw_spin_unlock_irq_rcu_node(snp);
+		spin_unlock_irq_rcu_node(snp);
 		if (cbs)
 			srcu_schedule_cbs_snp(sp, snp, mask, cbdelay);
 
@@ -548,11 +575,11 @@ static void srcu_gp_end(struct srcu_struct *sp)
 		if (!(gpseq & counter_wrap_check))
 			for (cpu = snp->grplo; cpu <= snp->grphi; cpu++) {
 				sdp = per_cpu_ptr(sp->sda, cpu);
-				raw_spin_lock_irqsave_rcu_node(sdp, flags);
+				spin_lock_irqsave_rcu_node(sdp, flags);
 				if (ULONG_CMP_GE(gpseq,
 						 sdp->srcu_gp_seq_needed + 100))
 					sdp->srcu_gp_seq_needed = gpseq;
-				raw_spin_unlock_irqrestore_rcu_node(sdp, flags);
+				spin_unlock_irqrestore_rcu_node(sdp, flags);
 			}
 	}
 
@@ -560,17 +587,17 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	mutex_unlock(&sp->srcu_cb_mutex);
 
 	/* Start a new grace period if needed. */
-	raw_spin_lock_irq_rcu_node(sp);
+	spin_lock_irq_rcu_node(sp);
 	gpseq = rcu_seq_current(&sp->srcu_gp_seq);
 	if (!rcu_seq_state(gpseq) &&
 	    ULONG_CMP_LT(gpseq, sp->srcu_gp_seq_needed)) {
 		srcu_gp_start(sp);
-		raw_spin_unlock_irq_rcu_node(sp);
+		spin_unlock_irq_rcu_node(sp);
 		/* Throttle expedited grace periods: Should be rare! */
 		srcu_reschedule(sp, rcu_seq_ctr(gpseq) & 0x3ff
 				    ? 0 : SRCU_INTERVAL);
 	} else {
-		raw_spin_unlock_irq_rcu_node(sp);
+		spin_unlock_irq_rcu_node(sp);
 	}
 }
 
@@ -590,18 +617,18 @@ static void srcu_funnel_exp_start(struct srcu_struct *sp, struct srcu_node *snp,
 		if (rcu_seq_done(&sp->srcu_gp_seq, s) ||
 		    ULONG_CMP_GE(READ_ONCE(snp->srcu_gp_seq_needed_exp), s))
 			return;
-		raw_spin_lock_irqsave_rcu_node(snp, flags);
+		spin_lock_irqsave_rcu_node(snp, flags);
 		if (ULONG_CMP_GE(snp->srcu_gp_seq_needed_exp, s)) {
-			raw_spin_unlock_irqrestore_rcu_node(snp, flags);
+			spin_unlock_irqrestore_rcu_node(snp, flags);
 			return;
 		}
 		WRITE_ONCE(snp->srcu_gp_seq_needed_exp, s);
-		raw_spin_unlock_irqrestore_rcu_node(snp, flags);
+		spin_unlock_irqrestore_rcu_node(snp, flags);
 	}
-	raw_spin_lock_irqsave_rcu_node(sp, flags);
+	spin_lock_irqsave_rcu_node(sp, flags);
 	if (!ULONG_CMP_LT(sp->srcu_gp_seq_needed_exp, s))
 		sp->srcu_gp_seq_needed_exp = s;
-	raw_spin_unlock_irqrestore_rcu_node(sp, flags);
+	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
 
 /*
@@ -623,12 +650,12 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 	for (; snp != NULL; snp = snp->srcu_parent) {
 		if (rcu_seq_done(&sp->srcu_gp_seq, s) && snp != sdp->mynode)
 			return; /* GP already done and CBs recorded. */
-		raw_spin_lock_irqsave_rcu_node(snp, flags);
+		spin_lock_irqsave_rcu_node(snp, flags);
 		if (ULONG_CMP_GE(snp->srcu_have_cbs[idx], s)) {
 			snp_seq = snp->srcu_have_cbs[idx];
 			if (snp == sdp->mynode && snp_seq == s)
 				snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
-			raw_spin_unlock_irqrestore_rcu_node(snp, flags);
+			spin_unlock_irqrestore_rcu_node(snp, flags);
 			if (snp == sdp->mynode && snp_seq != s) {
 				srcu_schedule_cbs_sdp(sdp, do_norm
 							   ? SRCU_INTERVAL
@@ -644,11 +671,11 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 			snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 		if (!do_norm && ULONG_CMP_LT(snp->srcu_gp_seq_needed_exp, s))
 			snp->srcu_gp_seq_needed_exp = s;
-		raw_spin_unlock_irqrestore_rcu_node(snp, flags);
+		spin_unlock_irqrestore_rcu_node(snp, flags);
 	}
 
 	/* Top of tree, must ensure the grace period will be started. */
-	raw_spin_lock_irqsave_rcu_node(sp, flags);
+	spin_lock_irqsave_rcu_node(sp, flags);
 	if (ULONG_CMP_LT(sp->srcu_gp_seq_needed, s)) {
 		/*
 		 * Record need for grace period s.  Pair with load
@@ -667,7 +694,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 		queue_delayed_work(system_power_efficient_wq, &sp->work,
 				   srcu_get_delay(sp));
 	}
-	raw_spin_unlock_irqrestore_rcu_node(sp, flags);
+	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
 
 /*
@@ -830,7 +857,7 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	rhp->func = func;
 	local_irq_save(flags);
 	sdp = this_cpu_ptr(sp->sda);
-	raw_spin_lock_rcu_node(sdp);
+	spin_lock_rcu_node(sdp);
 	rcu_segcblist_enqueue(&sdp->srcu_cblist, rhp, false);
 	rcu_segcblist_advance(&sdp->srcu_cblist,
 			      rcu_seq_current(&sp->srcu_gp_seq));
@@ -844,7 +871,7 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 		sdp->srcu_gp_seq_needed_exp = s;
 		needexp = true;
 	}
-	raw_spin_unlock_irqrestore_rcu_node(sdp, flags);
+	spin_unlock_irqrestore_rcu_node(sdp, flags);
 	if (needgp)
 		srcu_funnel_gp_start(sp, sdp, s, do_norm);
 	else if (needexp)
@@ -900,7 +927,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool do_norm)
 
 	/*
 	 * Make sure that later code is ordered after the SRCU grace
-	 * period.  This pairs with the raw_spin_lock_irq_rcu_node()
+	 * period.  This pairs with the spin_lock_irq_rcu_node()
 	 * in srcu_invoke_callbacks().  Unlike Tree RCU, this is needed
 	 * because the current CPU might have been totally uninvolved with
 	 * (and thus unordered against) that grace period.
@@ -1024,7 +1051,7 @@ void srcu_barrier(struct srcu_struct *sp)
 	 */
 	for_each_possible_cpu(cpu) {
 		sdp = per_cpu_ptr(sp->sda, cpu);
-		raw_spin_lock_irq_rcu_node(sdp);
+		spin_lock_irq_rcu_node(sdp);
 		atomic_inc(&sp->srcu_barrier_cpu_cnt);
 		sdp->srcu_barrier_head.func = srcu_barrier_cb;
 		debug_rcu_head_queue(&sdp->srcu_barrier_head);
@@ -1033,7 +1060,7 @@ void srcu_barrier(struct srcu_struct *sp)
 			debug_rcu_head_unqueue(&sdp->srcu_barrier_head);
 			atomic_dec(&sp->srcu_barrier_cpu_cnt);
 		}
-		raw_spin_unlock_irq_rcu_node(sdp);
+		spin_unlock_irq_rcu_node(sdp);
 	}
 
 	/* Remove the initial count, at which point reaching zero can happen. */
@@ -1082,17 +1109,17 @@ static void srcu_advance_state(struct srcu_struct *sp)
 	 */
 	idx = rcu_seq_state(smp_load_acquire(&sp->srcu_gp_seq)); /* ^^^ */
 	if (idx == SRCU_STATE_IDLE) {
-		raw_spin_lock_irq_rcu_node(sp);
+		spin_lock_irq_rcu_node(sp);
 		if (ULONG_CMP_GE(sp->srcu_gp_seq, sp->srcu_gp_seq_needed)) {
 			WARN_ON_ONCE(rcu_seq_state(sp->srcu_gp_seq));
-			raw_spin_unlock_irq_rcu_node(sp);
+			spin_unlock_irq_rcu_node(sp);
 			mutex_unlock(&sp->srcu_gp_mutex);
 			return;
 		}
 		idx = rcu_seq_state(READ_ONCE(sp->srcu_gp_seq));
 		if (idx == SRCU_STATE_IDLE)
 			srcu_gp_start(sp);
-		raw_spin_unlock_irq_rcu_node(sp);
+		spin_unlock_irq_rcu_node(sp);
 		if (idx != SRCU_STATE_IDLE) {
 			mutex_unlock(&sp->srcu_gp_mutex);
 			return; /* Someone else started the grace period. */
@@ -1141,19 +1168,19 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	sdp = container_of(work, struct srcu_data, work.work);
 	sp = sdp->sp;
 	rcu_cblist_init(&ready_cbs);
-	raw_spin_lock_irq_rcu_node(sdp);
+	spin_lock_irq_rcu_node(sdp);
 	rcu_segcblist_advance(&sdp->srcu_cblist,
 			      rcu_seq_current(&sp->srcu_gp_seq));
 	if (sdp->srcu_cblist_invoking ||
 	    !rcu_segcblist_ready_cbs(&sdp->srcu_cblist)) {
-		raw_spin_unlock_irq_rcu_node(sdp);
+		spin_unlock_irq_rcu_node(sdp);
 		return;  /* Someone else on the job or nothing to do. */
 	}
 
 	/* We are on the job!  Extract and invoke ready callbacks. */
 	sdp->srcu_cblist_invoking = true;
 	rcu_segcblist_extract_done_cbs(&sdp->srcu_cblist, &ready_cbs);
-	raw_spin_unlock_irq_rcu_node(sdp);
+	spin_unlock_irq_rcu_node(sdp);
 	rhp = rcu_cblist_dequeue(&ready_cbs);
 	for (; rhp != NULL; rhp = rcu_cblist_dequeue(&ready_cbs)) {
 		debug_rcu_head_unqueue(rhp);
@@ -1166,13 +1193,13 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	 * Update counts, accelerate new callbacks, and if needed,
 	 * schedule another round of callback invocation.
 	 */
-	raw_spin_lock_irq_rcu_node(sdp);
+	spin_lock_irq_rcu_node(sdp);
 	rcu_segcblist_insert_count(&sdp->srcu_cblist, &ready_cbs);
 	(void)rcu_segcblist_accelerate(&sdp->srcu_cblist,
 				       rcu_seq_snap(&sp->srcu_gp_seq));
 	sdp->srcu_cblist_invoking = false;
 	more = rcu_segcblist_ready_cbs(&sdp->srcu_cblist);
-	raw_spin_unlock_irq_rcu_node(sdp);
+	spin_unlock_irq_rcu_node(sdp);
 	if (more)
 		srcu_schedule_cbs_sdp(sdp, 0);
 }
@@ -1185,7 +1212,7 @@ static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 {
 	bool pushgp = true;
 
-	raw_spin_lock_irq_rcu_node(sp);
+	spin_lock_irq_rcu_node(sp);
 	if (ULONG_CMP_GE(sp->srcu_gp_seq, sp->srcu_gp_seq_needed)) {
 		if (!WARN_ON_ONCE(rcu_seq_state(sp->srcu_gp_seq))) {
 			/* All requests fulfilled, time to go idle. */
@@ -1195,7 +1222,7 @@ static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 		/* Outstanding request and no GP.  Start one. */
 		srcu_gp_start(sp);
 	}
-	raw_spin_unlock_irq_rcu_node(sp);
+	spin_unlock_irq_rcu_node(sp);
 
 	if (pushgp)
 		queue_delayed_work(system_power_efficient_wq, &sp->work, delay);

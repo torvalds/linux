@@ -7,7 +7,7 @@ Required properties:
 
 compatible: Shall be one of the following:
 	    "ti,omap3-smartreflex-core"
-	    "ti,omap3-smartreflex-iva"
+	    "ti,omap3-smartreflex-mpu-iva"
 	    "ti,omap4-smartreflex-core"
 	    "ti,omap4-smartreflex-mpu"
 	    "ti,omap4-smartreflex-iva"

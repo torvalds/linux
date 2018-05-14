@@ -196,18 +196,16 @@ static void cxacru_poll_status(struct work_struct *work);
 
 /* Card info exported through sysfs */
 #define CXACRU__ATTR_INIT(_name) \
-static DEVICE_ATTR(_name, S_IRUGO, cxacru_sysfs_show_##_name, NULL)
+static DEVICE_ATTR_RO(_name)
 
 #define CXACRU_CMD_INIT(_name) \
-static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, \
-	cxacru_sysfs_show_##_name, cxacru_sysfs_store_##_name)
+static DEVICE_ATTR_RW(_name)
 
 #define CXACRU_SET_INIT(_name) \
-static DEVICE_ATTR(_name, S_IWUSR, \
-	NULL, cxacru_sysfs_store_##_name)
+static DEVICE_ATTR_WO(_name)
 
 #define CXACRU_ATTR_INIT(_value, _type, _name) \
-static ssize_t cxacru_sysfs_show_##_name(struct device *dev, \
+static ssize_t _name##_show(struct device *dev, \
 	struct device_attribute *attr, char *buf) \
 { \
 	struct cxacru_data *instance = to_usbatm_driver_data(\
@@ -302,7 +300,7 @@ static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
  * MAC_ADDRESS_LOW  = 0x33221100
  * Where 00-55 are bytes 0-5 of the MAC.
  */
-static ssize_t cxacru_sysfs_show_mac_address(struct device *dev,
+static ssize_t mac_address_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct cxacru_data *instance = to_usbatm_driver_data(
@@ -315,7 +313,7 @@ static ssize_t cxacru_sysfs_show_mac_address(struct device *dev,
 		instance->usbatm->atm_dev->esi);
 }
 
-static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,
+static ssize_t adsl_state_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	static char *str[] = { "running", "stopped" };
@@ -332,7 +330,7 @@ static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
-static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
+static ssize_t adsl_state_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cxacru_data *instance = to_usbatm_driver_data(
@@ -435,7 +433,7 @@ static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
 
 /* CM_REQUEST_CARD_DATA_GET times out, so no show attribute */
 
-static ssize_t cxacru_sysfs_store_adsl_config(struct device *dev,
+static ssize_t adsl_config_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cxacru_data *instance = to_usbatm_driver_data(

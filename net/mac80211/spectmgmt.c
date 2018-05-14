@@ -8,6 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2008, Intel Corporation
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,7 +28,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 u32 sta_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
 {
-	enum nl80211_band new_band;
+	enum nl80211_band new_band = current_band;
 	int new_freq;
 	u8 new_chan_no;
 	struct ieee80211_channel *new_chan;
@@ -55,15 +56,13 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				elems->ext_chansw_ie->new_operating_class,
 				&new_band)) {
 			sdata_info(sdata,
-				   "cannot understand ECSA IE operating class %d, disconnecting\n",
+				   "cannot understand ECSA IE operating class, %d, ignoring\n",
 				   elems->ext_chansw_ie->new_operating_class);
-			return -EINVAL;
 		}
 		new_chan_no = elems->ext_chansw_ie->new_ch_num;
 		csa_ie->count = elems->ext_chansw_ie->count;
 		csa_ie->mode = elems->ext_chansw_ie->mode;
 	} else if (elems->ch_switch_ie) {
-		new_band = current_band;
 		new_chan_no = elems->ch_switch_ie->new_ch_num;
 		csa_ie->count = elems->ch_switch_ie->count;
 		csa_ie->mode = elems->ch_switch_ie->mode;

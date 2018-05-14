@@ -14,7 +14,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 
-
 #include "safexcel.h"
 
 struct safexcel_ahash_ctx {
@@ -33,6 +32,8 @@ struct safexcel_ahash_req {
 	bool finish;
 	bool hmac;
 	bool needs_inv;
+
+	int nents;
 
 	u8 state_sz;    /* expected sate size, only set once */
 	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)] __aligned(sizeof(u32));
@@ -152,8 +153,10 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		memcpy(areq->result, sreq->state,
 		       crypto_ahash_digestsize(ahash));
 
-	dma_unmap_sg(priv->dev, areq->src,
-		     sg_nents_for_len(areq->src, areq->nbytes), DMA_TO_DEVICE);
+	if (sreq->nents) {
+		dma_unmap_sg(priv->dev, areq->src, sreq->nents, DMA_TO_DEVICE);
+		sreq->nents = 0;
+	}
 
 	safexcel_free_context(priv, async, sreq->state_sz);
 
@@ -178,7 +181,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	struct safexcel_command_desc *cdesc, *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc;
 	struct scatterlist *sg;
-	int i, nents, queued, len, cache_len, extra, n_cdesc = 0, ret = 0;
+	int i, queued, len, cache_len, extra, n_cdesc = 0, ret = 0;
 
 	queued = len = req->len - req->processed;
 	if (queued < crypto_ahash_blocksize(ahash))
@@ -186,17 +189,31 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	else
 		cache_len = queued - areq->nbytes;
 
-	/*
-	 * If this is not the last request and the queued data does not fit
-	 * into full blocks, cache it for the next send() call.
-	 */
-	extra = queued & (crypto_ahash_blocksize(ahash) - 1);
-	if (!req->last_req && extra) {
-		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
-				   req->cache_next, extra, areq->nbytes - extra);
+	if (!req->last_req) {
+		/* If this is not the last request and the queued data does not
+		 * fit into full blocks, cache it for the next send() call.
+		 */
+		extra = queued & (crypto_ahash_blocksize(ahash) - 1);
+		if (!extra)
+			/* If this is not the last request and the queued data
+			 * is a multiple of a block, cache the last one for now.
+			 */
+			extra = queued - crypto_ahash_blocksize(ahash);
 
-		queued -= extra;
-		len -= extra;
+		if (extra) {
+			sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
+					   req->cache_next, extra,
+					   areq->nbytes - extra);
+
+			queued -= extra;
+			len -= extra;
+
+			if (!queued) {
+				*commands = 0;
+				*results = 0;
+				return 0;
+			}
+		}
 	}
 
 	spin_lock_bh(&priv->ring[ring].egress_lock);
@@ -234,15 +251,15 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	}
 
 	/* Now handle the current ahash request buffer(s) */
-	nents = dma_map_sg(priv->dev, areq->src,
-		       sg_nents_for_len(areq->src, areq->nbytes),
-		       DMA_TO_DEVICE);
-	if (!nents) {
+	req->nents = dma_map_sg(priv->dev, areq->src,
+				sg_nents_for_len(areq->src, areq->nbytes),
+				DMA_TO_DEVICE);
+	if (!req->nents) {
 		ret = -ENOMEM;
 		goto cdesc_rollback;
 	}
 
-	for_each_sg(areq->src, sg, nents, i) {
+	for_each_sg(areq->src, sg, req->nents, i) {
 		int sglen = sg_dma_len(sg);
 
 		/* Do not overflow the request */
@@ -382,8 +399,8 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 	if (enq_ret != -EINPROGRESS)
 		*ret = enq_ret;
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	*should_complete = false;
 
@@ -397,6 +414,8 @@ static int safexcel_handle_result(struct safexcel_crypto_priv *priv, int ring,
 	struct ahash_request *areq = ahash_request_cast(async);
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	int err;
+
+	BUG_ON(priv->version == EIP97 && req->needs_inv);
 
 	if (req->needs_inv) {
 		req->needs_inv = false;
@@ -418,7 +437,7 @@ static int safexcel_ahash_send_inv(struct crypto_async_request *async,
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	int ret;
 
-	ret = safexcel_invalidate_cache(async, &ctx->base, ctx->priv,
+	ret = safexcel_invalidate_cache(async, ctx->priv,
 					ctx->base.ctxr_dma, ring, request);
 	if (unlikely(ret))
 		return ret;
@@ -471,8 +490,8 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	wait_for_completion_interruptible(&result.completion);
 
@@ -485,13 +504,23 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	return 0;
 }
 
+/* safexcel_ahash_cache: cache data until at least one request can be sent to
+ * the engine, aka. when there is at least 1 block size in the pipe.
+ */
 static int safexcel_ahash_cache(struct ahash_request *areq)
 {
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	int queued, cache_len;
 
+	/* cache_len: everyting accepted by the driver but not sent yet,
+	 * tot sz handled by update() - last req sz - tot sz handled by send()
+	 */
 	cache_len = req->len - areq->nbytes - req->processed;
+	/* queued: everything accepted by the driver which will be handled by
+	 * the next send() calls.
+	 * tot sz handled by update() - tot sz handled by send()
+	 */
 	queued = req->len - req->processed;
 
 	/*
@@ -505,7 +534,7 @@ static int safexcel_ahash_cache(struct ahash_request *areq)
 		return areq->nbytes;
 	}
 
-	/* We could'nt cache all the data */
+	/* We couldn't cache all the data */
 	return -E2BIG;
 }
 
@@ -518,10 +547,17 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 
 	req->needs_inv = false;
 
-	if (req->processed && ctx->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)
-		ctx->base.needs_inv = safexcel_ahash_needs_inv_get(areq);
-
 	if (ctx->base.ctxr) {
+		if (priv->version == EIP197 &&
+		    !ctx->base.needs_inv && req->processed &&
+		    ctx->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)
+			/* We're still setting needs_inv here, even though it is
+			 * cleared right away, because the needs_inv flag can be
+			 * set in other functions and we want to keep the same
+			 * logic.
+			 */
+			ctx->base.needs_inv = safexcel_ahash_needs_inv_get(areq);
+
 		if (ctx->base.needs_inv) {
 			ctx->base.needs_inv = false;
 			req->needs_inv = true;
@@ -541,8 +577,8 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 	ret = crypto_enqueue_request(&priv->ring[ring].queue, &areq->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	return ret;
 }
@@ -625,7 +661,6 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	export->processed = req->processed;
 
 	memcpy(export->state, req->state, req->state_sz);
-	memset(export->cache, 0, crypto_ahash_blocksize(ahash));
 	memcpy(export->cache, req->cache, crypto_ahash_blocksize(ahash));
 
 	return 0;
@@ -707,9 +742,14 @@ static void safexcel_ahash_cra_exit(struct crypto_tfm *tfm)
 	if (!ctx->base.ctxr)
 		return;
 
-	ret = safexcel_ahash_exit_inv(tfm);
-	if (ret)
-		dev_warn(priv->dev, "hash: invalidation error %d\n", ret);
+	if (priv->version == EIP197) {
+		ret = safexcel_ahash_exit_inv(tfm);
+		if (ret)
+			dev_warn(priv->dev, "hash: invalidation error %d\n", ret);
+	} else {
+		dma_pool_free(priv->context_pool, ctx->base.ctxr,
+			      ctx->base.ctxr_dma);
+	}
 }
 
 struct safexcel_alg_template safexcel_alg_sha1 = {
@@ -848,7 +888,7 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	req->last_req = true;
 
 	ret = crypto_ahash_update(areq);
-	if (ret && ret != -EINPROGRESS)
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
 		return ret;
 
 	wait_for_completion_interruptible(&result.completion);
@@ -913,6 +953,7 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 				     unsigned int keylen)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct safexcel_ahash_export_state istate, ostate;
 	int ret, i;
 
@@ -920,11 +961,13 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
-		if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
-		    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
-			ctx->base.needs_inv = true;
-			break;
+	if (priv->version == EIP197 && ctx->base.ctxr) {
+		for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
+			if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
+			    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
+				ctx->base.needs_inv = true;
+				break;
+			}
 		}
 	}
 

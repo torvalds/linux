@@ -38,7 +38,7 @@ cfs_percpt_lock_free(struct cfs_percpt_lock *pcl)
 	LASSERT(!pcl->pcl_locked);
 
 	cfs_percpt_free(pcl->pcl_locks);
-	LIBCFS_FREE(pcl, sizeof(*pcl));
+	kfree(pcl);
 }
 EXPORT_SYMBOL(cfs_percpt_lock_free);
 
@@ -58,14 +58,14 @@ cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
 	int i;
 
 	/* NB: cptab can be NULL, pcl will be for HW CPUs on that case */
-	LIBCFS_ALLOC(pcl, sizeof(*pcl));
+	pcl = kzalloc(sizeof(*pcl), GFP_NOFS);
 	if (!pcl)
 		return NULL;
 
 	pcl->pcl_cptab = cptab;
 	pcl->pcl_locks = cfs_percpt_alloc(cptab, sizeof(*lock));
 	if (!pcl->pcl_locks) {
-		LIBCFS_FREE(pcl, sizeof(*pcl));
+		kfree(pcl);
 		return NULL;
 	}
 

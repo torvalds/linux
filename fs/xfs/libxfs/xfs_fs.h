@@ -233,6 +233,13 @@ typedef struct xfs_fsop_resblks {
 #define XFS_MAX_LOG_BLOCKS	(1024 * 1024ULL)
 #define XFS_MIN_LOG_BYTES	(10 * 1024 * 1024ULL)
 
+/*
+ * Limits on sb_agblocks/sb_agblklog -- mkfs won't format AGs smaller than
+ * 16MB or larger than 1TB.
+ */
+#define XFS_MIN_AG_BYTES	(1ULL << 24)	/* 16 MB */
+#define XFS_MAX_AG_BYTES	(1ULL << 40)	/* 1 TB */
+
 /* keep the maximum size under 2^31 by a small amount */
 #define XFS_MAX_LOG_BYTES \
 	((2 * 1024 * 1024 * 1024ULL) - XFS_MIN_LOG_BYTES)

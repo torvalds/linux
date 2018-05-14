@@ -341,62 +341,6 @@ static int tegra_thermctl_get_temp(void *data, int *out_temp)
 	return 0;
 }
 
-static int
-thermtrip_program(struct device *dev, const struct tegra_tsensor_group *sg,
-		  int trip_temp);
-static int
-throttrip_program(struct device *dev, const struct tegra_tsensor_group *sg,
-		  struct soctherm_throt_cfg *stc, int trip_temp);
-static struct soctherm_throt_cfg *
-find_throttle_cfg_by_name(struct tegra_soctherm *ts, const char *name);
-
-static int tegra_thermctl_set_trip_temp(void *data, int trip, int temp)
-{
-	struct tegra_thermctl_zone *zone = data;
-	struct thermal_zone_device *tz = zone->tz;
-	struct tegra_soctherm *ts = zone->ts;
-	const struct tegra_tsensor_group *sg = zone->sg;
-	struct device *dev = zone->dev;
-	enum thermal_trip_type type;
-	int ret;
-
-	if (!tz)
-		return -EINVAL;
-
-	ret = tz->ops->get_trip_type(tz, trip, &type);
-	if (ret)
-		return ret;
-
-	if (type == THERMAL_TRIP_CRITICAL) {
-		return thermtrip_program(dev, sg, temp);
-	} else if (type == THERMAL_TRIP_HOT) {
-		int i;
-
-		for (i = 0; i < THROTTLE_SIZE; i++) {
-			struct thermal_cooling_device *cdev;
-			struct soctherm_throt_cfg *stc;
-
-			if (!ts->throt_cfgs[i].init)
-				continue;
-
-			cdev = ts->throt_cfgs[i].cdev;
-			if (get_thermal_instance(tz, cdev, trip))
-				stc = find_throttle_cfg_by_name(ts, cdev->type);
-			else
-				continue;
-
-			return throttrip_program(dev, sg, stc, temp);
-		}
-	}
-
-	return 0;
-}
-
-static const struct thermal_zone_of_device_ops tegra_of_thermal_ops = {
-	.get_temp = tegra_thermctl_get_temp,
-	.set_trip_temp = tegra_thermctl_set_trip_temp,
-};
-
 /**
  * enforce_temp_range() - check and enforce temperature range [min, max]
  * @trip_temp: the trip temperature to check
@@ -526,6 +470,53 @@ find_throttle_cfg_by_name(struct tegra_soctherm *ts, const char *name)
 
 	return NULL;
 }
+
+static int tegra_thermctl_set_trip_temp(void *data, int trip, int temp)
+{
+	struct tegra_thermctl_zone *zone = data;
+	struct thermal_zone_device *tz = zone->tz;
+	struct tegra_soctherm *ts = zone->ts;
+	const struct tegra_tsensor_group *sg = zone->sg;
+	struct device *dev = zone->dev;
+	enum thermal_trip_type type;
+	int ret;
+
+	if (!tz)
+		return -EINVAL;
+
+	ret = tz->ops->get_trip_type(tz, trip, &type);
+	if (ret)
+		return ret;
+
+	if (type == THERMAL_TRIP_CRITICAL) {
+		return thermtrip_program(dev, sg, temp);
+	} else if (type == THERMAL_TRIP_HOT) {
+		int i;
+
+		for (i = 0; i < THROTTLE_SIZE; i++) {
+			struct thermal_cooling_device *cdev;
+			struct soctherm_throt_cfg *stc;
+
+			if (!ts->throt_cfgs[i].init)
+				continue;
+
+			cdev = ts->throt_cfgs[i].cdev;
+			if (get_thermal_instance(tz, cdev, trip))
+				stc = find_throttle_cfg_by_name(ts, cdev->type);
+			else
+				continue;
+
+			return throttrip_program(dev, sg, stc, temp);
+		}
+	}
+
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops tegra_of_thermal_ops = {
+	.get_temp = tegra_thermctl_get_temp,
+	.set_trip_temp = tegra_thermctl_set_trip_temp,
+};
 
 static int get_hot_temp(struct thermal_zone_device *tz, int *trip, int *temp)
 {

@@ -10,6 +10,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Counts any demand and L1 HW prefetch data load requests to L2.",
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x3",
+        "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Demand Data Read requests",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "RFO requests that hit L2 cache.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
@@ -27,6 +37,16 @@
         "EventName": "L2_RQSTS.RFO_MISS",
         "SampleAfterValue": "200003",
         "BriefDescription": "RFO requests that miss L2 cache",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts all L2 store RFO requests.",
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0xc",
+        "EventName": "L2_RQSTS.ALL_RFO",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "RFO requests to L2 cache",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -50,6 +70,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Counts all L2 code requests.",
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EventName": "L2_RQSTS.ALL_CODE_RD",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "L2 code requests",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Counts all L2 HW prefetcher requests that hit L2.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
@@ -67,36 +97,6 @@
         "EventName": "L2_RQSTS.PF_MISS",
         "SampleAfterValue": "200003",
         "BriefDescription": "Requests from the L2 hardware prefetchers that miss L2 cache",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts any demand and L1 HW prefetch data load requests to L2.",
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x3",
-        "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Demand Data Read requests",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts all L2 store RFO requests.",
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0xc",
-        "EventName": "L2_RQSTS.ALL_RFO",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "RFO requests to L2 cache",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts all L2 code requests.",
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x30",
-        "EventName": "L2_RQSTS.ALL_CODE_RD",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "L2 code requests",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -219,6 +219,29 @@
         "CounterHTOff": "2"
     },
     {
+        "PublicDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
+        "EventCode": "0x48",
+        "Counter": "2",
+        "UMask": "0x1",
+        "AnyThread": "1",
+        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core",
+        "CounterMask": "1",
+        "CounterHTOff": "2"
+    },
+    {
+        "PublicDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "EventCode": "0x48",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "L1D_PEND_MISS.FB_FULL",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Counts the number of lines brought into the L1 data cache.",
         "EventCode": "0x51",
         "Counter": "0,1,2,3",
@@ -239,36 +262,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Offcore outstanding Demand Code Read transactions in SQ to uncore. Set Cmask=1 to count cycles.",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore outstanding code reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Offcore outstanding RFO store transactions in SQ to uncore. Set Cmask=1 to count cycles.",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore outstanding RFO store transactions in SuperQueue (SQ), queue to uncore",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Offcore outstanding cacheable data read transactions in SQ to uncore. Set Cmask=1 to count cycles.",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore outstanding cacheable Core Data Read transactions in SuperQueue (SQ), queue to uncore",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "PublicDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
@@ -280,14 +273,24 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
+        "PublicDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
+        "UMask": "0x1",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore",
-        "CounterMask": "1",
+        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue",
+        "CounterMask": "6",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Offcore outstanding Demand Code Read transactions in SQ to uncore. Set Cmask=1 to count cycles.",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Offcore outstanding code reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -302,6 +305,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Offcore outstanding RFO store transactions in SQ to uncore. Set Cmask=1 to count cycles.",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Offcore outstanding RFO store transactions in SuperQueue (SQ), queue to uncore",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
@@ -309,6 +322,27 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Offcore outstanding cacheable data read transactions in SQ to uncore. Set Cmask=1 to count cycles.",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Offcore outstanding cacheable Core Data Read transactions in SuperQueue (SQ), queue to uncore",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -379,7 +413,7 @@
         "UMask": "0x11",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops that miss the STLB.",
+        "BriefDescription": "Retired load uops that miss the STLB. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -389,7 +423,7 @@
         "UMask": "0x12",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired store uops that miss the STLB.",
+        "BriefDescription": "Retired store uops that miss the STLB. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -399,7 +433,7 @@
         "UMask": "0x21",
         "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Retired load uops with locked access.",
+        "BriefDescription": "Retired load uops with locked access. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -409,7 +443,7 @@
         "UMask": "0x41",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired load uops that split across a cacheline boundary. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -419,7 +453,7 @@
         "UMask": "0x42",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired store uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -429,7 +463,7 @@
         "UMask": "0x81",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "All retired load uops.",
+        "BriefDescription": "All retired load uops. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -439,67 +473,61 @@
         "UMask": "0x82",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "All retired store uops.",
+        "BriefDescription": "All retired store uops. (Precise Event)",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops with L1 cache hits as data sources.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Retired load uops with L1 cache hits as data sources. ",
+        "BriefDescription": "Retired load uops with L1 cache hits as data sources.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops with L2 cache hits as data sources.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops with L2 cache hits as data sources. ",
+        "BriefDescription": "Retired load uops with L2 cache hits as data sources.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source was LLC hit with no snoop required.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "MEM_LOAD_UOPS_RETIRED.LLC_HIT",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Retired load uops which data sources were data hits in LLC without snoops required. ",
+        "BriefDescription": "Retired load uops which data sources were data hits in LLC without snoops required.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source followed an L1 miss.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources following L1 data-cache miss",
+        "BriefDescription": "Retired load uops which data sources following L1 data-cache miss.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops that missed L2, excluding unknown sources.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Retired load uops with L2 cache misses as data sources.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source is LLC miss.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x20",
@@ -510,67 +538,61 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready. ",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source was an on-package core cache LLC hit and cross-core snoop missed.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were LLC hit and cross-core snoop missed in on-pkg core cache. ",
+        "BriefDescription": "Retired load uops which data sources were LLC hit and cross-core snoop missed in on-pkg core cache.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source was an on-package LLC hit and cross-core snoop hits.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were LLC and cross-core snoop hits in on-pkg core cache. ",
+        "BriefDescription": "Retired load uops which data sources were LLC and cross-core snoop hits in on-pkg core cache.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source was an on-package core cache with HitM responses.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were HitM responses from shared LLC. ",
+        "BriefDescription": "Retired load uops which data sources were HitM responses from shared LLC.",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uops whose data source was LLC hit with no snoop required.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were hits in LLC without snoops required. ",
+        "BriefDescription": "Retired load uops which data sources were hits in LLC without snoops required.",
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Snoop not needed or Snoop Miss (RspI)",
         "EventCode": "0xD3",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "UMask": "0x3",
         "EventName": "MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Retired load uops which data sources missed LLC but serviced from local dram.",
+        "BriefDescription": "Retired load uops whose data source was local DRAM (Snoop not needed, Snoop Miss, or Snoop Hit data not forwarded).",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -777,40 +799,6 @@
         "EventName": "SQ_MISC.SPLIT_LOCK",
         "SampleAfterValue": "100003",
         "BriefDescription": "Split locks in SQ",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue",
-        "CounterMask": "6",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
-        "EventCode": "0x48",
-        "Counter": "2",
-        "UMask": "0x1",
-        "AnyThread": "1",
-        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core",
-        "CounterMask": "1",
-        "CounterHTOff": "2"
-    },
-    {
-        "PublicDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
-        "EventCode": "0x48",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "L1D_PEND_MISS.FB_FULL",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability",
-        "CounterMask": "1",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

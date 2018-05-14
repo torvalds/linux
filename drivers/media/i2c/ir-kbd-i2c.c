@@ -18,6 +18,20 @@
  *      Brian Rogers <brian_rogers@comcast.net>
  * modified for AVerMedia Cardbus by
  *      Oldrich Jedlicka <oldium.pro@seznam.cz>
+ * Zilog Transmitter portions/ideas were derived from GPLv2+ sources:
+ *  - drivers/char/pctv_zilogir.[ch] from Hauppauge Broadway product
+ *	Copyright 2011 Hauppauge Computer works
+ *  - drivers/staging/media/lirc/lirc_zilog.c
+ *	Copyright (c) 2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ *	Michal Kochanowicz <mkochano@pld.org.pl>
+ *	Christoph Bartelmus <lirc@bartelmus.de>
+ *	Ulrich Mueller <ulrich.mueller42@web.de>
+ *	Stefan Jahn <stefan@lkcc.org>
+ *	Jerome Brock <jbrock@users.sourceforge.net>
+ *	Thomas Reitmayr (treitmayr@yahoo.com)
+ *	Mark Weaver <mark@npsl.co.uk>
+ *	Jarod Wilson <jarod@redhat.com>
+ *	Copyright (C) 2011 Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -46,18 +60,11 @@
 #include <media/rc-core.h>
 #include <media/i2c/ir-kbd-i2c.h>
 
-/* ----------------------------------------------------------------------- */
-/* insmod parameters                                                       */
+#define FLAG_TX		1
+#define FLAG_HDPVR	2
 
-static int debug;
-module_param(debug, int, 0644);    /* debug level (0,1,2) */
-
-
-#define MODULE_NAME "ir-kbd-i2c"
-#define dprintk(level, fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG MODULE_NAME ": " fmt , ## arg)
-
-/* ----------------------------------------------------------------------- */
+static bool enable_hdpvr;
+module_param(enable_hdpvr, bool, 0644);
 
 static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
 			       u32 *scancode, u8 *ptoggle, int size)
@@ -96,7 +103,8 @@ static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
 		if (!range)
 			code += 64;
 
-		dprintk(1, "ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
+		dev_dbg(&ir->rc->dev,
+			"ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
 			start, range, toggle, dev, code);
 
 		*protocol = RC_PROTO_RC5;
@@ -113,13 +121,15 @@ static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
 			*ptoggle = (dev & 0x80) != 0;
 			*protocol = RC_PROTO_RC6_MCE;
 			dev &= 0x7f;
-			dprintk(1, "ir hauppauge (rc6-mce): t%d vendor=%d dev=%d code=%d\n",
-						*ptoggle, vendor, dev, code);
+			dev_dbg(&ir->rc->dev,
+				"ir hauppauge (rc6-mce): t%d vendor=%d dev=%d code=%d\n",
+				*ptoggle, vendor, dev, code);
 		} else {
 			*ptoggle = 0;
 			*protocol = RC_PROTO_RC6_6A_32;
-			dprintk(1, "ir hauppauge (rc6-6a-32): vendor=%d dev=%d code=%d\n",
-							vendor, dev, code);
+			dev_dbg(&ir->rc->dev,
+				"ir hauppauge (rc6-6a-32): vendor=%d dev=%d code=%d\n",
+				vendor, dev, code);
 		}
 
 		*scancode = RC_SCANCODE_RC6_6A(vendor, dev, code);
@@ -162,7 +172,7 @@ static int get_key_pixelview(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		dprintk(1,"read error\n");
+		dev_dbg(&ir->rc->dev, "read error\n");
 		return -EIO;
 	}
 
@@ -179,13 +189,12 @@ static int get_key_fusionhdtv(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	/* poll IR chip */
 	if (4 != i2c_master_recv(ir->c, buf, 4)) {
-		dprintk(1,"read error\n");
+		dev_dbg(&ir->rc->dev, "read error\n");
 		return -EIO;
 	}
 
-	if(buf[0] !=0 || buf[1] !=0 || buf[2] !=0 || buf[3] != 0)
-		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __func__,
-			buf[0], buf[1], buf[2], buf[3]);
+	if (buf[0] != 0 || buf[1] != 0 || buf[2] != 0 || buf[3] != 0)
+		dev_dbg(&ir->rc->dev, "%s: %*ph\n", __func__, 4, buf);
 
 	/* no key pressed or signal from other ir remote */
 	if(buf[0] != 0x1 ||  buf[1] != 0xfe)
@@ -204,7 +213,7 @@ static int get_key_knc1(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		dprintk(1,"read error\n");
+		dev_dbg(&ir->rc->dev, "read error\n");
 		return -EIO;
 	}
 
@@ -212,7 +221,7 @@ static int get_key_knc1(struct IR_i2c *ir, enum rc_proto *protocol,
 	   down, while 0xff indicates that no button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
-	dprintk(2,"key %02x\n", b);
+	dev_dbg(&ir->rc->dev, "key %02x\n", b);
 
 	if (b == 0xff)
 		return 0;
@@ -237,7 +246,7 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir, enum rc_proto *protocol,
 				  .buf = &key, .len = 1} };
 	subaddr = 0x0d;
 	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
-		dprintk(1, "read error\n");
+		dev_dbg(&ir->rc->dev, "read error\n");
 		return -EIO;
 	}
 
@@ -247,18 +256,17 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir, enum rc_proto *protocol,
 	subaddr = 0x0b;
 	msg[1].buf = &keygroup;
 	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
-		dprintk(1, "read error\n");
+		dev_dbg(&ir->rc->dev, "read error\n");
 		return -EIO;
 	}
 
 	if (keygroup == 0xff)
 		return 0;
 
-	dprintk(1, "read key 0x%02x/0x%02x\n", key, keygroup);
+	dev_dbg(&ir->rc->dev, "read key 0x%02x/0x%02x\n", key, keygroup);
 	if (keygroup < 2 || keygroup > 4) {
-		/* Only a warning */
-		dprintk(1, "warning: invalid key group 0x%02x for key 0x%02x\n",
-								keygroup, key);
+		dev_warn(&ir->rc->dev, "warning: invalid key group 0x%02x for key 0x%02x\n",
+			 keygroup, key);
 	}
 	key |= (keygroup & 1) << 6;
 
@@ -279,15 +287,15 @@ static int ir_key_poll(struct IR_i2c *ir)
 	u8 toggle;
 	int rc;
 
-	dprintk(3, "%s\n", __func__);
+	dev_dbg(&ir->rc->dev, "%s\n", __func__);
 	rc = ir->get_key(ir, &protocol, &scancode, &toggle);
 	if (rc < 0) {
-		dprintk(2,"error\n");
+		dev_warn(&ir->rc->dev, "error %d\n", rc);
 		return rc;
 	}
 
 	if (rc) {
-		dprintk(1, "%s: proto = 0x%04x, scancode = 0x%08x\n",
+		dev_dbg(&ir->rc->dev, "%s: proto = 0x%04x, scancode = 0x%08x\n",
 			__func__, protocol, scancode);
 		rc_keydown(ir->rc, protocol, scancode, toggle);
 	}
@@ -299,17 +307,416 @@ static void ir_work(struct work_struct *work)
 	int rc;
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
 
-	rc = ir_key_poll(ir);
-	if (rc == -ENODEV) {
-		rc_unregister_device(ir->rc);
-		ir->rc = NULL;
-		return;
+	/*
+	 * If the transmit code is holding the lock, skip polling for
+	 * IR, we'll get it to it next time round
+	 */
+	if (mutex_trylock(&ir->lock)) {
+		rc = ir_key_poll(ir);
+		mutex_unlock(&ir->lock);
+		if (rc == -ENODEV) {
+			rc_unregister_device(ir->rc);
+			ir->rc = NULL;
+			return;
+		}
 	}
 
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
-/* ----------------------------------------------------------------------- */
+static int ir_open(struct rc_dev *dev)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	schedule_delayed_work(&ir->work, 0);
+
+	return 0;
+}
+
+static void ir_close(struct rc_dev *dev)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	cancel_delayed_work_sync(&ir->work);
+}
+
+/* Zilog Transmit Interface */
+#define XTAL_FREQ		18432000
+
+#define ZILOG_SEND		0x80
+#define ZILOG_UIR_END		0x40
+#define ZILOG_INIT_END		0x20
+#define ZILOG_LIR_END		0x10
+
+#define ZILOG_STATUS_OK		0x80
+#define ZILOG_STATUS_TX		0x40
+#define ZILOG_STATUS_SET	0x20
+
+/*
+ * As you can see here, very few different lengths of pulse and space
+ * can be encoded. This means that the hardware does not work well with
+ * recorded IR. It's best to work with generated IR, like from ir-ctl or
+ * the in-kernel encoders.
+ */
+struct code_block {
+	u8	length;
+	u16	pulse[7];	/* not aligned */
+	u8	carrier_pulse;
+	u8	carrier_space;
+	u16	space[8];	/* not aligned */
+	u8	codes[61];
+	u8	csum[2];
+} __packed;
+
+static int send_data_block(struct IR_i2c *ir, int cmd,
+			   struct code_block *code_block)
+{
+	int i, j, ret;
+	u8 buf[5], *p;
+
+	p = &code_block->length;
+	for (i = 0; p < code_block->csum; i++)
+		code_block->csum[i & 1] ^= *p++;
+
+	p = &code_block->length;
+
+	for (i = 0; i < sizeof(*code_block);) {
+		int tosend = sizeof(*code_block) - i;
+
+		if (tosend > 4)
+			tosend = 4;
+		buf[0] = i + 1;
+		for (j = 0; j < tosend; ++j)
+			buf[1 + j] = p[i + j];
+		dev_dbg(&ir->rc->dev, "%*ph", tosend + 1, buf);
+		ret = i2c_master_send(ir->tx_c, buf, tosend + 1);
+		if (ret != tosend + 1) {
+			dev_dbg(&ir->rc->dev,
+				"i2c_master_send failed with %d\n", ret);
+			return ret < 0 ? ret : -EIO;
+		}
+		i += tosend;
+	}
+
+	buf[0] = 0;
+	buf[1] = cmd;
+	ret = i2c_master_send(ir->tx_c, buf, 2);
+	if (ret != 2) {
+		dev_err(&ir->rc->dev, "i2c_master_send failed with %d\n", ret);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	usleep_range(2000, 5000);
+
+	ret = i2c_master_send(ir->tx_c, buf, 1);
+	if (ret != 1) {
+		dev_err(&ir->rc->dev, "i2c_master_send failed with %d\n", ret);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	return 0;
+}
+
+static int zilog_init(struct IR_i2c *ir)
+{
+	struct code_block code_block = { .length = sizeof(code_block) };
+	u8 buf[4];
+	int ret;
+
+	put_unaligned_be16(0x1000, &code_block.pulse[3]);
+
+	ret = send_data_block(ir, ZILOG_INIT_END, &code_block);
+	if (ret)
+		return ret;
+
+	ret = i2c_master_recv(ir->tx_c, buf, 4);
+	if (ret != 4) {
+		dev_err(&ir->c->dev, "failed to retrieve firmware version: %d\n",
+			ret);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	dev_info(&ir->c->dev, "Zilog/Hauppauge IR blaster firmware version %d.%d.%d\n",
+		 buf[1], buf[2], buf[3]);
+
+	return 0;
+}
+
+/*
+ * If the last slot for pulse is the same as the current slot for pulse,
+ * then use slot no 7.
+ */
+static void copy_codes(u8 *dst, u8 *src, unsigned int count)
+{
+	u8 c, last = 0xff;
+
+	while (count--) {
+		c = *src++;
+		if ((c & 0xf0) == last) {
+			*dst++ = 0x70 | (c & 0xf);
+		} else {
+			*dst++ = c;
+			last = c & 0xf0;
+		}
+	}
+}
+
+/*
+ * When looking for repeats, we don't care about the trailing space. This
+ * is set to the shortest possible anyway.
+ */
+static int cmp_no_trail(u8 *a, u8 *b, unsigned int count)
+{
+	while (--count) {
+		if (*a++ != *b++)
+			return 1;
+	}
+
+	return (*a & 0xf0) - (*b & 0xf0);
+}
+
+static int find_slot(u16 *array, unsigned int size, u16 val)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (get_unaligned_be16(&array[i]) == val) {
+			return i;
+		} else if (!array[i]) {
+			put_unaligned_be16(val, &array[i]);
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
+			   unsigned int count, struct code_block *code_block)
+{
+	struct IR_i2c *ir = rcdev->priv;
+	int rep, i, l, p = 0, s, c = 0;
+	bool repeating;
+	u8 codes[174];
+
+	code_block->carrier_pulse = DIV_ROUND_CLOSEST(
+			ir->duty_cycle * XTAL_FREQ / 1000, ir->carrier);
+	code_block->carrier_space = DIV_ROUND_CLOSEST(
+			(100 - ir->duty_cycle) * XTAL_FREQ / 1000, ir->carrier);
+
+	for (i = 0; i < count; i++) {
+		if (c >= ARRAY_SIZE(codes) - 1) {
+			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * Lengths more than 142220us cannot be encoded; also
+		 * this checks for multiply overflow
+		 */
+		if (txbuf[i] > 142220)
+			return -EINVAL;
+
+		l = DIV_ROUND_CLOSEST((XTAL_FREQ / 1000) * txbuf[i], 40000);
+
+		if (i & 1) {
+			s = find_slot(code_block->space,
+				      ARRAY_SIZE(code_block->space), l);
+			if (s == -1) {
+				dev_warn(&rcdev->dev, "Too many different lengths spaces, cannot transmit");
+				return -EINVAL;
+			}
+
+			/* We have a pulse and space */
+			codes[c++] = (p << 4) | s;
+		} else {
+			p = find_slot(code_block->pulse,
+				      ARRAY_SIZE(code_block->pulse), l);
+			if (p == -1) {
+				dev_warn(&rcdev->dev, "Too many different lengths pulses, cannot transmit");
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* We have to encode the trailing pulse. Find the shortest space */
+	s = 0;
+	for (i = 1; i < ARRAY_SIZE(code_block->space); i++) {
+		u16 d = get_unaligned_be16(&code_block->space[i]);
+
+		if (get_unaligned_be16(&code_block->space[s]) > d)
+			s = i;
+	}
+
+	codes[c++] = (p << 4) | s;
+
+	dev_dbg(&rcdev->dev, "generated %d codes\n", c);
+
+	/*
+	 * Are the last N codes (so pulse + space) repeating 3 times?
+	 * if so we can shorten the codes list and use code 0xc0 to repeat
+	 * them.
+	 */
+	repeating = false;
+
+	for (rep = c / 3; rep >= 1; rep--) {
+		if (!memcmp(&codes[c - rep * 3], &codes[c - rep * 2], rep) &&
+		    !cmp_no_trail(&codes[c - rep], &codes[c - rep * 2], rep)) {
+			repeating = true;
+			break;
+		}
+	}
+
+	if (repeating) {
+		/* first copy any leading non-repeating */
+		int leading = c - rep * 3;
+
+		if (leading + rep >= ARRAY_SIZE(code_block->codes) - 3) {
+			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			return -EINVAL;
+		}
+
+		dev_dbg(&rcdev->dev, "found trailing %d repeat\n", rep);
+		copy_codes(code_block->codes, codes, leading);
+		code_block->codes[leading] = 0x82;
+		copy_codes(code_block->codes + leading + 1, codes + leading,
+			   rep);
+		c = leading + 1 + rep;
+		code_block->codes[c++] = 0xc0;
+	} else {
+		if (c >= ARRAY_SIZE(code_block->codes) - 3) {
+			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			return -EINVAL;
+		}
+
+		dev_dbg(&rcdev->dev, "found no trailing repeat\n");
+		code_block->codes[0] = 0x82;
+		copy_codes(code_block->codes + 1, codes, c);
+		c++;
+		code_block->codes[c++] = 0xc4;
+	}
+
+	while (c < ARRAY_SIZE(code_block->codes))
+		code_block->codes[c++] = 0x83;
+
+	return 0;
+}
+
+static int zilog_tx(struct rc_dev *rcdev, unsigned int *txbuf,
+		    unsigned int count)
+{
+	struct IR_i2c *ir = rcdev->priv;
+	struct code_block code_block = { .length = sizeof(code_block) };
+	u8 buf[2];
+	int ret, i;
+
+	ret = zilog_ir_format(rcdev, txbuf, count, &code_block);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&ir->lock);
+	if (ret)
+		return ret;
+
+	ret = send_data_block(ir, ZILOG_UIR_END, &code_block);
+	if (ret)
+		goto out_unlock;
+
+	ret = i2c_master_recv(ir->tx_c, buf, 1);
+	if (ret != 1) {
+		dev_err(&ir->rc->dev, "i2c_master_recv failed with %d\n", ret);
+		goto out_unlock;
+	}
+
+	dev_dbg(&ir->rc->dev, "code set status: %02x\n", buf[0]);
+
+	if (buf[0] != (ZILOG_STATUS_OK | ZILOG_STATUS_SET)) {
+		dev_err(&ir->rc->dev, "unexpected IR TX response %02x\n",
+			buf[0]);
+		ret = -EIO;
+		goto out_unlock;
+	}
+
+	buf[0] = 0x00;
+	buf[1] = ZILOG_SEND;
+
+	ret = i2c_master_send(ir->tx_c, buf, 2);
+	if (ret != 2) {
+		dev_err(&ir->rc->dev, "i2c_master_send failed with %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
+		goto out_unlock;
+	}
+
+	dev_dbg(&ir->rc->dev, "send command sent\n");
+
+	/*
+	 * This bit NAKs until the device is ready, so we retry it
+	 * sleeping a bit each time.  This seems to be what the windows
+	 * driver does, approximately.
+	 * Try for up to 1s.
+	 */
+	for (i = 0; i < 20; ++i) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(50));
+		ret = i2c_master_send(ir->tx_c, buf, 1);
+		if (ret == 1)
+			break;
+		dev_dbg(&ir->rc->dev,
+			"NAK expected: i2c_master_send failed with %d (try %d)\n",
+			ret, i + 1);
+	}
+
+	if (ret != 1) {
+		dev_err(&ir->rc->dev,
+			"IR TX chip never got ready: last i2c_master_send failed with %d\n",
+			ret);
+		if (ret >= 0)
+			ret = -EIO;
+		goto out_unlock;
+	}
+
+	i = i2c_master_recv(ir->tx_c, buf, 1);
+	if (i != 1) {
+		dev_err(&ir->rc->dev, "i2c_master_recv failed with %d\n", ret);
+		ret = -EIO;
+		goto out_unlock;
+	} else if (buf[0] != ZILOG_STATUS_OK) {
+		dev_err(&ir->rc->dev, "unexpected IR TX response #2: %02x\n",
+			buf[0]);
+		ret = -EIO;
+		goto out_unlock;
+	}
+	dev_dbg(&ir->rc->dev, "transmit complete\n");
+
+	/* Oh good, it worked */
+	ret = count;
+out_unlock:
+	mutex_unlock(&ir->lock);
+
+	return ret;
+}
+
+static int zilog_tx_carrier(struct rc_dev *dev, u32 carrier)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	if (carrier > 500000 || carrier < 20000)
+		return -EINVAL;
+
+	ir->carrier = carrier;
+
+	return 0;
+}
+
+static int zilog_tx_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	ir->duty_cycle = duty_cycle;
+
+	return 0;
+}
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -321,6 +728,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct i2c_adapter *adap = client->adapter;
 	unsigned short addr = client->addr;
 	int err;
+
+	if ((id->driver_data & FLAG_HDPVR) && !enable_hdpvr) {
+		dev_err(&client->dev, "IR for HDPVR is known to cause problems during recording, use enable_hdpvr modparam to enable\n");
+		return -ENODEV;
+	}
 
 	ir = devm_kzalloc(&client->dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
@@ -433,18 +845,15 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* Make sure we are all setup before going on */
 	if (!name || !ir->get_key || !rc_proto || !ir_codes) {
-		dprintk(1, ": Unsupported device at address 0x%02x\n",
-			addr);
+		dev_warn(&client->dev, "Unsupported device at address 0x%02x\n",
+			 addr);
 		err = -ENODEV;
 		goto err_out_free;
 	}
 
-	/* Sets name */
-	snprintf(ir->name, sizeof(ir->name), "i2c IR (%s)", name);
 	ir->ir_codes = ir_codes;
 
-	snprintf(ir->phys, sizeof(ir->phys), "%s/%s/ir0",
-		 dev_name(&adap->dev),
+	snprintf(ir->phys, sizeof(ir->phys), "%s/%s", dev_name(&adap->dev),
 		 dev_name(&client->dev));
 
 	/*
@@ -453,7 +862,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	rc->input_id.bustype = BUS_I2C;
 	rc->input_phys       = ir->phys;
-	rc->device_name	     = ir->name;
+	rc->device_name	     = name;
+	rc->dev.parent       = &client->dev;
+	rc->priv             = ir;
+	rc->open             = ir_open;
+	rc->close            = ir_close;
 
 	/*
 	 * Initialize the other fields of rc_dev
@@ -461,22 +874,35 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	rc->map_name       = ir->ir_codes;
 	rc->allowed_protocols = rc_proto;
 	if (!rc->driver_name)
-		rc->driver_name = MODULE_NAME;
+		rc->driver_name = KBUILD_MODNAME;
+
+	mutex_init(&ir->lock);
+
+	INIT_DELAYED_WORK(&ir->work, ir_work);
+
+	if (id->driver_data & FLAG_TX) {
+		ir->tx_c = i2c_new_dummy(client->adapter, 0x70);
+		if (!ir->tx_c) {
+			dev_err(&client->dev, "failed to setup tx i2c address");
+		} else if (!zilog_init(ir)) {
+			ir->carrier = 38000;
+			ir->duty_cycle = 40;
+			rc->tx_ir = zilog_tx;
+			rc->s_tx_carrier = zilog_tx_carrier;
+			rc->s_tx_duty_cycle = zilog_tx_duty_cycle;
+		}
+	}
 
 	err = rc_register_device(rc);
 	if (err)
 		goto err_out_free;
 
-	printk(MODULE_NAME ": %s detected at %s [%s]\n",
-	       ir->name, ir->phys, adap->name);
-
-	/* start polling via eventd */
-	INIT_DELAYED_WORK(&ir->work, ir_work);
-	schedule_delayed_work(&ir->work, 0);
-
 	return 0;
 
  err_out_free:
+	if (ir->tx_c)
+		i2c_unregister_device(ir->tx_c);
+
 	/* Only frees rc if it were allocated internally */
 	rc_free_device(rc);
 	return err;
@@ -489,6 +915,9 @@ static int ir_remove(struct i2c_client *client)
 	/* kill outstanding polls */
 	cancel_delayed_work_sync(&ir->work);
 
+	if (ir->tx_c)
+		i2c_unregister_device(ir->tx_c);
+
 	/* unregister device */
 	rc_unregister_device(ir->rc);
 
@@ -500,10 +929,11 @@ static const struct i2c_device_id ir_kbd_id[] = {
 	/* Generic entry for any IR receiver */
 	{ "ir_video", 0 },
 	/* IR device specific entries should be added here */
-	{ "ir_rx_z8f0811_haup", 0 },
-	{ "ir_rx_z8f0811_hdpvr", 0 },
+	{ "ir_z8f0811_haup", FLAG_TX },
+	{ "ir_z8f0811_hdpvr", FLAG_TX | FLAG_HDPVR },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ir_kbd_id);
 
 static struct i2c_driver ir_kbd_driver = {
 	.driver = {

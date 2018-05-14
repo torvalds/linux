@@ -15,7 +15,6 @@ Required properties:
 			- "clkin" for the reference clock (typically XTAL)
 			- "core" for the SAR ADC core clock
 		optional clocks:
-			- "sana" for the analog clock
 			- "adc_clk" for the ADC (sampling) clock
 			- "adc_sel" for the ADC (sampling) clock mux
 - vref-supply:	the regulator supply for the ADC reference voltage

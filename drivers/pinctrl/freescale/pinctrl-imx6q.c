@@ -460,7 +460,7 @@ static const struct pinctrl_pin_desc imx6q_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX6Q_PAD_SD2_DAT3),
 };
 
-static struct imx_pinctrl_soc_info imx6q_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx6q_pinctrl_info = {
 	.pins = imx6q_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx6q_pinctrl_pads),
 	.gpr_compatible = "fsl,imx6q-iomuxc-gpr",

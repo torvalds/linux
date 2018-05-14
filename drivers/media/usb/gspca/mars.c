@@ -378,8 +378,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    || data[5 + p] == 0x65
 			    || data[5 + p] == 0x66
 			    || data[5 + p] == 0x67) {
-				PDEBUG(D_PACK, "sof offset: %d len: %d",
-					p, len);
+				gspca_dbg(gspca_dev, D_PACK, "sof offset: %d len: %d\n",
+					  p, len);
 				gspca_frame_add(gspca_dev, LAST_PACKET,
 						data, p);
 

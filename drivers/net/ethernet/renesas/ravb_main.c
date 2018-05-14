@@ -2205,8 +2205,7 @@ out_dma_free:
 	if (chip_id != RCAR_GEN2)
 		ravb_ptp_stop(ndev);
 out_release:
-	if (ndev)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -2256,9 +2255,6 @@ static int ravb_wol_setup(struct net_device *ndev)
 	/* Enable MagicPacket */
 	ravb_modify(ndev, ECMR, ECMR_MPDE, ECMR_MPDE);
 
-	/* Increased clock usage so device won't be suspended */
-	clk_enable(priv->clk);
-
 	return enable_irq_wake(priv->emac_irq);
 }
 
@@ -2276,9 +2272,6 @@ static int ravb_wol_restore(struct net_device *ndev)
 	ret = ravb_close(ndev);
 	if (ret < 0)
 		return ret;
-
-	/* Restore clock usage count */
-	clk_disable(priv->clk);
 
 	return disable_irq_wake(priv->emac_irq);
 }

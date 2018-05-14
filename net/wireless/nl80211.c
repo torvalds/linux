@@ -16,6 +16,7 @@
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
+#include <linux/nospec.h>
 #include <linux/etherdevice.h>
 #include <net/net_namespace.h>
 #include <net/genetlink.h>
@@ -734,11 +735,12 @@ struct key_parse {
 	bool def_uni, def_multi;
 };
 
-static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
+static int nl80211_parse_key_new(struct genl_info *info, struct nlattr *key,
+				 struct key_parse *k)
 {
 	struct nlattr *tb[NL80211_KEY_MAX + 1];
 	int err = nla_parse_nested(tb, NL80211_KEY_MAX, key,
-				   nl80211_key_policy, NULL);
+				   nl80211_key_policy, info->extack);
 	if (err)
 		return err;
 
@@ -771,7 +773,8 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 	if (tb[NL80211_KEY_TYPE]) {
 		k->type = nla_get_u32(tb[NL80211_KEY_TYPE]);
 		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
-			return -EINVAL;
+			return genl_err_attr(info, -EINVAL,
+					     tb[NL80211_KEY_TYPE]);
 	}
 
 	if (tb[NL80211_KEY_DEFAULT_TYPES]) {
@@ -779,7 +782,8 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 
 		err = nla_parse_nested(kdt, NUM_NL80211_KEY_DEFAULT_TYPES - 1,
 				       tb[NL80211_KEY_DEFAULT_TYPES],
-				       nl80211_key_default_policy, NULL);
+				       nl80211_key_default_policy,
+				       info->extack);
 		if (err)
 			return err;
 
@@ -820,8 +824,10 @@ static int nl80211_parse_key_old(struct genl_info *info, struct key_parse *k)
 
 	if (info->attrs[NL80211_ATTR_KEY_TYPE]) {
 		k->type = nla_get_u32(info->attrs[NL80211_ATTR_KEY_TYPE]);
-		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
+		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES) {
+			GENL_SET_ERR_MSG(info, "key type out of range");
 			return -EINVAL;
+		}
 	}
 
 	if (info->attrs[NL80211_ATTR_KEY_DEFAULT_TYPES]) {
@@ -850,31 +856,42 @@ static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
 	k->type = -1;
 
 	if (info->attrs[NL80211_ATTR_KEY])
-		err = nl80211_parse_key_new(info->attrs[NL80211_ATTR_KEY], k);
+		err = nl80211_parse_key_new(info, info->attrs[NL80211_ATTR_KEY], k);
 	else
 		err = nl80211_parse_key_old(info, k);
 
 	if (err)
 		return err;
 
-	if (k->def && k->defmgmt)
+	if (k->def && k->defmgmt) {
+		GENL_SET_ERR_MSG(info, "key with def && defmgmt is invalid");
 		return -EINVAL;
+	}
 
 	if (k->defmgmt) {
-		if (k->def_uni || !k->def_multi)
+		if (k->def_uni || !k->def_multi) {
+			GENL_SET_ERR_MSG(info, "defmgmt key must be mcast");
 			return -EINVAL;
+		}
 	}
 
 	if (k->idx != -1) {
 		if (k->defmgmt) {
-			if (k->idx < 4 || k->idx > 5)
+			if (k->idx < 4 || k->idx > 5) {
+				GENL_SET_ERR_MSG(info,
+						 "defmgmt key idx not 4 or 5");
 				return -EINVAL;
+			}
 		} else if (k->def) {
-			if (k->idx < 0 || k->idx > 3)
+			if (k->idx < 0 || k->idx > 3) {
+				GENL_SET_ERR_MSG(info, "def key idx not 0-3");
 				return -EINVAL;
+			}
 		} else {
-			if (k->idx < 0 || k->idx > 5)
+			if (k->idx < 0 || k->idx > 5) {
+				GENL_SET_ERR_MSG(info, "key idx not 0-5");
 				return -EINVAL;
+			}
 		}
 	}
 
@@ -883,8 +900,9 @@ static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
 
 static struct cfg80211_cached_keys *
 nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
-		       struct nlattr *keys, bool *no_ht)
+		       struct genl_info *info, bool *no_ht)
 {
+	struct nlattr *keys = info->attrs[NL80211_ATTR_KEYS];
 	struct key_parse parse;
 	struct nlattr *key;
 	struct cfg80211_cached_keys *result;
@@ -909,17 +927,22 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 		memset(&parse, 0, sizeof(parse));
 		parse.idx = -1;
 
-		err = nl80211_parse_key_new(key, &parse);
+		err = nl80211_parse_key_new(info, key, &parse);
 		if (err)
 			goto error;
 		err = -EINVAL;
 		if (!parse.p.key)
 			goto error;
-		if (parse.idx < 0 || parse.idx > 3)
+		if (parse.idx < 0 || parse.idx > 3) {
+			GENL_SET_ERR_MSG(info, "key index out of range [0-3]");
 			goto error;
+		}
 		if (parse.def) {
-			if (def)
+			if (def) {
+				GENL_SET_ERR_MSG(info,
+						 "only one key can be default");
 				goto error;
+			}
 			def = 1;
 			result->def = parse.idx;
 			if (!parse.def_uni || !parse.def_multi)
@@ -932,6 +955,7 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 			goto error;
 		if (parse.p.cipher != WLAN_CIPHER_SUITE_WEP40 &&
 		    parse.p.cipher != WLAN_CIPHER_SUITE_WEP104) {
+			GENL_SET_ERR_MSG(info, "connect key must be WEP");
 			err = -EINVAL;
 			goto error;
 		}
@@ -947,6 +971,7 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 
 	if (result->def < 0) {
 		err = -EINVAL;
+		GENL_SET_ERR_MSG(info, "need a default/TX key");
 		goto error;
 	}
 
@@ -2056,20 +2081,22 @@ static const struct nla_policy txq_params_policy[NL80211_TXQ_ATTR_MAX + 1] = {
 static int parse_txq_params(struct nlattr *tb[],
 			    struct ieee80211_txq_params *txq_params)
 {
+	u8 ac;
+
 	if (!tb[NL80211_TXQ_ATTR_AC] || !tb[NL80211_TXQ_ATTR_TXOP] ||
 	    !tb[NL80211_TXQ_ATTR_CWMIN] || !tb[NL80211_TXQ_ATTR_CWMAX] ||
 	    !tb[NL80211_TXQ_ATTR_AIFS])
 		return -EINVAL;
 
-	txq_params->ac = nla_get_u8(tb[NL80211_TXQ_ATTR_AC]);
+	ac = nla_get_u8(tb[NL80211_TXQ_ATTR_AC]);
 	txq_params->txop = nla_get_u16(tb[NL80211_TXQ_ATTR_TXOP]);
 	txq_params->cwmin = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMIN]);
 	txq_params->cwmax = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMAX]);
 	txq_params->aifs = nla_get_u8(tb[NL80211_TXQ_ATTR_AIFS]);
 
-	if (txq_params->ac >= NL80211_NUM_ACS)
+	if (ac >= NL80211_NUM_ACS)
 		return -EINVAL;
-
+	txq_params->ac = array_index_nospec(ac, NL80211_NUM_ACS);
 	return 0;
 }
 
@@ -7820,6 +7847,11 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 			      intbss->ts_boottime, NL80211_BSS_PAD))
 		goto nla_put_failure;
 
+	if (!nl80211_put_signal(msg, intbss->pub.chains,
+				intbss->pub.chain_signal,
+				NL80211_BSS_CHAIN_SIGNAL))
+		goto nla_put_failure;
+
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
 		if (nla_put_u32(msg, NL80211_BSS_SIGNAL_MBM, res->signal))
@@ -8616,9 +8648,7 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	if (ibss.privacy && info->attrs[NL80211_ATTR_KEYS]) {
 		bool no_ht = false;
 
-		connkeys = nl80211_parse_connkeys(rdev,
-					  info->attrs[NL80211_ATTR_KEYS],
-					  &no_ht);
+		connkeys = nl80211_parse_connkeys(rdev, info, &no_ht);
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 
@@ -9022,8 +9052,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (connect.privacy && info->attrs[NL80211_ATTR_KEYS]) {
-		connkeys = nl80211_parse_connkeys(rdev,
-					  info->attrs[NL80211_ATTR_KEYS], NULL);
+		connkeys = nl80211_parse_connkeys(rdev, info, NULL);
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 	}
@@ -13948,7 +13977,7 @@ void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
-	    (from_ap && reason &&
+	    (reason &&
 	     nla_put_u16(msg, NL80211_ATTR_REASON_CODE, reason)) ||
 	    (from_ap &&
 	     nla_put_flag(msg, NL80211_ATTR_DISCONNECTED_BY_AP)) ||

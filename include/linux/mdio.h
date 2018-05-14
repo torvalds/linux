@@ -12,6 +12,7 @@
 #include <uapi/linux/mdio.h>
 #include <linux/mod_devicetable.h>
 
+struct gpio_desc;
 struct mii_bus;
 
 /* Multiple levels of nesting are possible. However typically this is
@@ -39,6 +40,9 @@ struct mdio_device {
 	/* Bus address of the MDIO device (0-31) */
 	int addr;
 	int flags;
+	struct gpio_desc *reset;
+	unsigned int reset_assert_delay;
+	unsigned int reset_deassert_delay;
 };
 #define to_mdio_device(d) container_of(d, struct mdio_device, dev)
 
@@ -71,6 +75,7 @@ void mdio_device_free(struct mdio_device *mdiodev);
 struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr);
 int mdio_device_register(struct mdio_device *mdiodev);
 void mdio_device_remove(struct mdio_device *mdiodev);
+void mdio_device_reset(struct mdio_device *mdiodev, int value);
 int mdio_driver_register(struct mdio_driver *drv);
 void mdio_driver_unregister(struct mdio_driver *drv);
 int mdio_device_bus_match(struct device *dev, struct device_driver *drv);
@@ -256,6 +261,9 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 
 	return reg;
 }
+
+int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
 int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);

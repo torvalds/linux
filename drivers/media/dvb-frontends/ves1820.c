@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ves1820.h"
 
 

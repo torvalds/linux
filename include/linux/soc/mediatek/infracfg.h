@@ -28,7 +28,8 @@
 #define MT7622_TOP_AXI_PROT_EN_WB		(BIT(2) | BIT(6) | \
 						 BIT(7) | BIT(8))
 
-int mtk_infracfg_set_bus_protection(struct regmap *infracfg, u32 mask);
-int mtk_infracfg_clear_bus_protection(struct regmap *infracfg, u32 mask);
-
+int mtk_infracfg_set_bus_protection(struct regmap *infracfg, u32 mask,
+		bool reg_update);
+int mtk_infracfg_clear_bus_protection(struct regmap *infracfg, u32 mask,
+		bool reg_update);
 #endif /* __SOC_MEDIATEK_INFRACFG_H */

@@ -216,36 +216,30 @@ inline void megasas_return_cmd_fusion(struct megasas_instance *instance,
 /**
  * megasas_fire_cmd_fusion -	Sends command to the FW
  * @instance:			Adapter soft state
- * @req_desc:			32bit or 64bit Request descriptor
+ * @req_desc:			64bit Request descriptor
  *
- * Perform PCI Write. Ventura supports 32 bit Descriptor.
- * Prior to Ventura (12G) MR controller supports 64 bit Descriptor.
+ * Perform PCI Write.
  */
 
 static void
 megasas_fire_cmd_fusion(struct megasas_instance *instance,
 		union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc)
 {
-	if (instance->adapter_type == VENTURA_SERIES)
-		writel(le32_to_cpu(req_desc->u.low),
-			&instance->reg_set->inbound_single_queue_port);
-	else {
 #if defined(writeq) && defined(CONFIG_64BIT)
-		u64 req_data = (((u64)le32_to_cpu(req_desc->u.high) << 32) |
-				le32_to_cpu(req_desc->u.low));
+	u64 req_data = (((u64)le32_to_cpu(req_desc->u.high) << 32) |
+		le32_to_cpu(req_desc->u.low));
 
-		writeq(req_data, &instance->reg_set->inbound_low_queue_port);
+	writeq(req_data, &instance->reg_set->inbound_low_queue_port);
 #else
-		unsigned long flags;
-		spin_lock_irqsave(&instance->hba_lock, flags);
-		writel(le32_to_cpu(req_desc->u.low),
-			&instance->reg_set->inbound_low_queue_port);
-		writel(le32_to_cpu(req_desc->u.high),
-			&instance->reg_set->inbound_high_queue_port);
-		mmiowb();
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
+	unsigned long flags;
+	spin_lock_irqsave(&instance->hba_lock, flags);
+	writel(le32_to_cpu(req_desc->u.low),
+		&instance->reg_set->inbound_low_queue_port);
+	writel(le32_to_cpu(req_desc->u.high),
+		&instance->reg_set->inbound_high_queue_port);
+	mmiowb();
+	spin_unlock_irqrestore(&instance->hba_lock, flags);
 #endif
-	}
 }
 
 /**
@@ -982,8 +976,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	const char *sys_info;
 	MFI_CAPABILITIES *drv_ops;
 	u32 scratch_pad_2;
-	unsigned long flags;
-	struct timeval tv;
+	ktime_t time;
 	bool cur_fw_64bit_dma_capable;
 
 	fusion = instance->ctrl_context;
@@ -1042,13 +1035,12 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	IOCInitMessage->HostMSIxVectors = instance->msix_vectors;
 	IOCInitMessage->HostPageSize = MR_DEFAULT_NVME_PAGE_SHIFT;
 
-	do_gettimeofday(&tv);
+	time = ktime_get_real();
 	/* Convert to milliseconds as per FW requirement */
-	IOCInitMessage->TimeStamp = cpu_to_le64((tv.tv_sec * 1000) +
-						(tv.tv_usec / 1000));
+	IOCInitMessage->TimeStamp = cpu_to_le64(ktime_to_ms(time));
 
 	init_frame = (struct megasas_init_frame *)cmd->frame;
-	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
+	memset(init_frame, 0, IOC_INIT_FRAME_SIZE);
 
 	frame_hdr = &cmd->frame->hdr;
 	frame_hdr->cmd_status = 0xFF;
@@ -1080,6 +1072,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	drv_ops->mfi_capabilities.support_qd_throttling = 1;
 	drv_ops->mfi_capabilities.support_pd_map_target_id = 1;
+	drv_ops->mfi_capabilities.support_nvme_passthru = 1;
 
 	if (instance->consistent_mask_64bit)
 		drv_ops->mfi_capabilities.support_64bit_mode = 1;
@@ -1121,14 +1114,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 			break;
 	}
 
-	/* For Ventura also IOC INIT required 64 bit Descriptor write. */
-	spin_lock_irqsave(&instance->hba_lock, flags);
-	writel(le32_to_cpu(req_desc.u.low),
-	       &instance->reg_set->inbound_low_queue_port);
-	writel(le32_to_cpu(req_desc.u.high),
-	       &instance->reg_set->inbound_high_queue_port);
-	mmiowb();
-	spin_unlock_irqrestore(&instance->hba_lock, flags);
+	megasas_fire_cmd_fusion(instance, &req_desc);
 
 	wait_and_poll(instance, cmd, MFI_POLL_TIMEOUT_SECS);
 
@@ -1320,7 +1306,7 @@ megasas_get_map_info(struct megasas_instance *instance)
 
 	fusion->fast_path_io = 0;
 	if (!megasas_get_ld_map_info(instance)) {
-		if (MR_ValidateMapInfo(instance)) {
+		if (MR_ValidateMapInfo(instance, instance->map_id)) {
 			fusion->fast_path_io = 1;
 			return 0;
 		}
@@ -1603,7 +1589,7 @@ static int megasas_alloc_ioc_init_frame(struct megasas_instance *instance)
 
 	fusion = instance->ctrl_context;
 
-	cmd = kmalloc(sizeof(struct megasas_cmd), GFP_KERNEL);
+	cmd = kzalloc(sizeof(struct megasas_cmd), GFP_KERNEL);
 
 	if (!cmd) {
 		dev_err(&instance->pdev->dev, "Failed from func: %s line: %d\n",
@@ -2655,25 +2641,12 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			fp_possible = (io_info.fpOkForIo > 0) ? true : false;
 	}
 
-	/* Use raw_smp_processor_id() for now until cmd->request->cpu is CPU
-	   id by default, not CPU group id, otherwise all MSI-X queues won't
-	   be utilized */
-	cmd->request_desc->SCSIIO.MSIxIndex = instance->msix_vectors ?
-		raw_smp_processor_id() % instance->msix_vectors : 0;
+	cmd->request_desc->SCSIIO.MSIxIndex =
+		instance->reply_map[raw_smp_processor_id()];
 
 	praid_context = &io_request->RaidContext;
 
 	if (instance->adapter_type == VENTURA_SERIES) {
-		spin_lock_irqsave(&instance->stream_lock, spinlock_flags);
-		megasas_stream_detect(instance, cmd, &io_info);
-		spin_unlock_irqrestore(&instance->stream_lock, spinlock_flags);
-		/* In ventura if stream detected for a read and it is read ahead
-		 *  capable make this IO as LDIO
-		 */
-		if (is_stream_detected(&io_request->RaidContext.raid_context_g35) &&
-		    io_info.isRead && io_info.ra_capable)
-			fp_possible = false;
-
 		/* FP for Optimal raid level 1.
 		 * All large RAID-1 writes (> 32 KiB, both WT and WB modes)
 		 * are built by the driver as LD I/Os.
@@ -2697,6 +2670,20 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 					atomic_set(&mrdev_priv->r1_ldio_hint,
 						   instance->r1_ldio_hint_default);
 			}
+		}
+
+		if (!fp_possible ||
+		    (io_info.isRead && io_info.ra_capable)) {
+			spin_lock_irqsave(&instance->stream_lock,
+					  spinlock_flags);
+			megasas_stream_detect(instance, cmd, &io_info);
+			spin_unlock_irqrestore(&instance->stream_lock,
+					       spinlock_flags);
+			/* In ventura if stream detected for a read and it is
+			 * read ahead capable make this IO as LDIO
+			 */
+			if (is_stream_detected(&io_request->RaidContext.raid_context_g35))
+				fp_possible = false;
 		}
 
 		/* If raid is NULL, set CPU affinity to default CPU0 */
@@ -2981,10 +2968,9 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 	}
 
 	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
-	cmd->request_desc->SCSIIO.MSIxIndex =
-		instance->msix_vectors ?
-		(raw_smp_processor_id() % instance->msix_vectors) : 0;
 
+	cmd->request_desc->SCSIIO.MSIxIndex =
+		instance->reply_map[raw_smp_processor_id()];
 
 	if (!fp_possible) {
 		/* system pd firmware path */
@@ -3953,6 +3939,8 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u16 smid;
 	bool refire_cmd = 0;
+	u8 result;
+	u32 opcode = 0;
 
 	fusion = instance->ctrl_context;
 
@@ -3963,29 +3951,53 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 		cmd_fusion = fusion->cmd_list[j];
 		cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
 		smid = le16_to_cpu(cmd_mfi->context.smid);
+		result = REFIRE_CMD;
 
 		if (!smid)
 			continue;
 
-		/* Do not refire shutdown command */
-		if (le32_to_cpu(cmd_mfi->frame->dcmd.opcode) ==
-			MR_DCMD_CTRL_SHUTDOWN) {
-			cmd_mfi->frame->dcmd.cmd_status = MFI_STAT_OK;
-			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
-			continue;
+		req_desc = megasas_get_request_descriptor(instance, smid - 1);
+
+		switch (cmd_mfi->frame->hdr.cmd) {
+		case MFI_CMD_DCMD:
+			opcode = le32_to_cpu(cmd_mfi->frame->dcmd.opcode);
+			 /* Do not refire shutdown command */
+			if (opcode == MR_DCMD_CTRL_SHUTDOWN) {
+				cmd_mfi->frame->dcmd.cmd_status = MFI_STAT_OK;
+				result = COMPLETE_CMD;
+				break;
+			}
+
+			refire_cmd = ((opcode != MR_DCMD_LD_MAP_GET_INFO)) &&
+				      (opcode != MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
+				      !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
+
+			if (!refire_cmd)
+				result = RETURN_CMD;
+
+			break;
+		case MFI_CMD_NVME:
+			if (!instance->support_nvme_passthru) {
+				cmd_mfi->frame->hdr.cmd_status = MFI_STAT_INVALID_CMD;
+				result = COMPLETE_CMD;
+			}
+
+			break;
+		default:
+			break;
 		}
 
-		req_desc = megasas_get_request_descriptor
-					(instance, smid - 1);
-		refire_cmd = req_desc && ((cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) &&
-				 (cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO)))
-				&& !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
-		if (refire_cmd)
+		switch (result) {
+		case REFIRE_CMD:
 			megasas_fire_cmd_fusion(instance, req_desc);
-		else
+			break;
+		case RETURN_CMD:
 			megasas_return_cmd(instance, cmd_mfi);
+			break;
+		case COMPLETE_CMD:
+			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
+			break;
+		}
 	}
 }
 
@@ -4625,8 +4637,6 @@ transition_to_ready:
 					continue;
 			}
 
-			megasas_refire_mgmt_cmd(instance);
-
 			if (megasas_get_ctrl_info(instance)) {
 				dev_info(&instance->pdev->dev,
 					"Failed from %s %d\n",
@@ -4635,6 +4645,9 @@ transition_to_ready:
 				retval = FAILED;
 				goto out;
 			}
+
+			megasas_refire_mgmt_cmd(instance);
+
 			/* Reset load balance info */
 			if (fusion->load_balance_info)
 				memset(fusion->load_balance_info, 0,

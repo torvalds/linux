@@ -1,6 +1,7 @@
 /*
  * axp288_charger.c - X-power AXP288 PMIC Charger driver
  *
+ * Copyright (C) 2016-2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2014 Intel Corporation
  * Author: Ramakrishna Pallala <ramakrishna.pallala@intel.com>
  *
@@ -98,27 +99,9 @@
 #define CV_4200MV			4200	/* 4200mV */
 #define CV_4350MV			4350	/* 4350mV */
 
-#define CC_200MA			200	/*  200mA */
-#define CC_600MA			600	/*  600mA */
-#define CC_800MA			800	/*  800mA */
-#define CC_1000MA			1000	/* 1000mA */
-#define CC_1600MA			1600	/* 1600mA */
-#define CC_2000MA			2000	/* 2000mA */
-
-#define ILIM_100MA			100	/* 100mA */
-#define ILIM_500MA			500	/* 500mA */
-#define ILIM_900MA			900	/* 900mA */
-#define ILIM_1500MA			1500	/* 1500mA */
-#define ILIM_2000MA			2000	/* 2000mA */
-#define ILIM_2500MA			2500	/* 2500mA */
-#define ILIM_3000MA			3000	/* 3000mA */
-
 #define AXP288_EXTCON_DEV_NAME		"axp288_extcon"
 #define USB_HOST_EXTCON_HID		"INT3496"
 #define USB_HOST_EXTCON_NAME		"INT3496:00"
-
-static const unsigned int cable_ids[] =
-	{ EXTCON_CHG_USB_SDP, EXTCON_CHG_USB_CDP, EXTCON_CHG_USB_DCP };
 
 enum {
 	VBUS_OV_IRQ = 0,
@@ -139,7 +122,6 @@ struct axp288_chrg_info {
 	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[CHRG_INTR_END];
 	struct power_supply *psy_usb;
-	struct mutex lock;
 
 	/* OTG/Host mode */
 	struct {
@@ -152,18 +134,14 @@ struct axp288_chrg_info {
 	/* SDP/CDP/DCP USB charging cable notifications */
 	struct {
 		struct extcon_dev *edev;
-		bool connected;
-		enum power_supply_type chg_type;
-		struct notifier_block nb[ARRAY_SIZE(cable_ids)];
+		struct notifier_block nb;
 		struct work_struct work;
 	} cable;
 
-	int inlmt;
 	int cc;
 	int cv;
 	int max_cc;
 	int max_cv;
-	int is_charger_enabled;
 };
 
 static inline int axp288_charger_set_cc(struct axp288_chrg_info *info, int cc)
@@ -220,51 +198,63 @@ static inline int axp288_charger_set_cv(struct axp288_chrg_info *info, int cv)
 	return ret;
 }
 
+static int axp288_charger_get_vbus_inlmt(struct axp288_chrg_info *info)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(info->regmap, AXP20X_CHRG_BAK_CTRL, &val);
+	if (ret < 0)
+		return ret;
+
+	val >>= CHRG_VBUS_ILIM_BIT_POS;
+	switch (val) {
+	case CHRG_VBUS_ILIM_100MA:
+		return 100000;
+	case CHRG_VBUS_ILIM_500MA:
+		return 500000;
+	case CHRG_VBUS_ILIM_900MA:
+		return 900000;
+	case CHRG_VBUS_ILIM_1500MA:
+		return 1500000;
+	case CHRG_VBUS_ILIM_2000MA:
+		return 2000000;
+	case CHRG_VBUS_ILIM_2500MA:
+		return 2500000;
+	case CHRG_VBUS_ILIM_3000MA:
+		return 3000000;
+	default:
+		dev_warn(&info->pdev->dev, "Unknown ilim reg val: %d\n", val);
+		return 0;
+	}
+}
+
 static inline int axp288_charger_set_vbus_inlmt(struct axp288_chrg_info *info,
 					   int inlmt)
 {
 	int ret;
-	unsigned int val;
 	u8 reg_val;
 
-	/* Read in limit register */
-	ret = regmap_read(info->regmap, AXP20X_CHRG_BAK_CTRL, &val);
-	if (ret < 0)
-		goto set_inlmt_fail;
-
-	if (inlmt <= ILIM_100MA) {
-		reg_val = CHRG_VBUS_ILIM_100MA;
-		inlmt = ILIM_100MA;
-	} else if (inlmt <= ILIM_500MA) {
-		reg_val = CHRG_VBUS_ILIM_500MA;
-		inlmt = ILIM_500MA;
-	} else if (inlmt <= ILIM_900MA) {
-		reg_val = CHRG_VBUS_ILIM_900MA;
-		inlmt = ILIM_900MA;
-	} else if (inlmt <= ILIM_1500MA) {
-		reg_val = CHRG_VBUS_ILIM_1500MA;
-		inlmt = ILIM_1500MA;
-	} else if (inlmt <= ILIM_2000MA) {
-		reg_val = CHRG_VBUS_ILIM_2000MA;
-		inlmt = ILIM_2000MA;
-	} else if (inlmt <= ILIM_2500MA) {
-		reg_val = CHRG_VBUS_ILIM_2500MA;
-		inlmt = ILIM_2500MA;
-	} else {
-		reg_val = CHRG_VBUS_ILIM_3000MA;
-		inlmt = ILIM_3000MA;
-	}
-
-	reg_val = (val & ~CHRG_VBUS_ILIM_MASK)
-			| (reg_val << CHRG_VBUS_ILIM_BIT_POS);
-	ret = regmap_write(info->regmap, AXP20X_CHRG_BAK_CTRL, reg_val);
-	if (ret >= 0)
-		info->inlmt = inlmt;
+	if (inlmt >= 3000000)
+		reg_val = CHRG_VBUS_ILIM_3000MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 2500000)
+		reg_val = CHRG_VBUS_ILIM_2500MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 2000000)
+		reg_val = CHRG_VBUS_ILIM_2000MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 1500000)
+		reg_val = CHRG_VBUS_ILIM_1500MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 900000)
+		reg_val = CHRG_VBUS_ILIM_900MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 500000)
+		reg_val = CHRG_VBUS_ILIM_500MA << CHRG_VBUS_ILIM_BIT_POS;
 	else
+		reg_val = CHRG_VBUS_ILIM_100MA << CHRG_VBUS_ILIM_BIT_POS;
+
+	ret = regmap_update_bits(info->regmap, AXP20X_CHRG_BAK_CTRL,
+				 CHRG_VBUS_ILIM_MASK, reg_val);
+	if (ret < 0)
 		dev_err(&info->pdev->dev, "charger BAK control %d\n", ret);
 
-
-set_inlmt_fail:
 	return ret;
 }
 
@@ -283,7 +273,6 @@ static int axp288_charger_vbus_path_select(struct axp288_chrg_info *info,
 	if (ret < 0)
 		dev_err(&info->pdev->dev, "axp288 vbus path select %d\n", ret);
 
-
 	return ret;
 }
 
@@ -291,9 +280,6 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 								bool enable)
 {
 	int ret;
-
-	if ((int)enable == info->is_charger_enabled)
-		return 0;
 
 	if (enable)
 		ret = regmap_update_bits(info->regmap, AXP20X_CHRG_CTRL1,
@@ -303,8 +289,6 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 				CHRG_CCCV_CHG_EN, 0);
 	if (ret < 0)
 		dev_err(&info->pdev->dev, "axp288 enable charger %d\n", ret);
-	else
-		info->is_charger_enabled = enable;
 
 	return ret;
 }
@@ -376,8 +360,6 @@ static int axp288_charger_usb_set_property(struct power_supply *psy,
 	int ret = 0;
 	int scaled_val;
 
-	mutex_lock(&info->lock);
-
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		scaled_val = min(val->intval, info->max_cc);
@@ -393,11 +375,15 @@ static int axp288_charger_usb_set_property(struct power_supply *psy,
 		if (ret < 0)
 			dev_warn(&info->pdev->dev, "set charge voltage failed\n");
 		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		ret = axp288_charger_set_vbus_inlmt(info, val->intval);
+		if (ret < 0)
+			dev_warn(&info->pdev->dev, "set input current limit failed\n");
+		break;
 	default:
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&info->lock);
 	return ret;
 }
 
@@ -406,9 +392,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 				    union power_supply_propval *val)
 {
 	struct axp288_chrg_info *info = power_supply_get_drvdata(psy);
-	int ret = 0;
-
-	mutex_lock(&info->lock);
+	int ret;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -419,7 +403,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 		}
 		ret = axp288_charger_is_present(info);
 		if (ret < 0)
-			goto psy_get_prop_fail;
+			return ret;
 		val->intval = ret;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -430,7 +414,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 		}
 		ret = axp288_charger_is_online(info);
 		if (ret < 0)
-			goto psy_get_prop_fail;
+			return ret;
 		val->intval = ret;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -448,17 +432,17 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 		val->intval = info->max_cv * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
-		val->intval = info->inlmt * 1000;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		ret = axp288_charger_get_vbus_inlmt(info);
+		if (ret < 0)
+			return ret;
+		val->intval = ret;
 		break;
 	default:
-		ret = -EINVAL;
-		goto psy_get_prop_fail;
+		return -EINVAL;
 	}
 
-psy_get_prop_fail:
-	mutex_unlock(&info->lock);
-	return ret;
+	return 0;
 }
 
 static int axp288_charger_property_is_writeable(struct power_supply *psy,
@@ -469,6 +453,7 @@ static int axp288_charger_property_is_writeable(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = 1;
 		break;
 	default:
@@ -487,7 +472,7 @@ static enum power_supply_property axp288_usb_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
-	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 };
 
 static const struct power_supply_desc axp288_charger_desc = {
@@ -565,99 +550,53 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	    container_of(work, struct axp288_chrg_info, cable.work);
 	int ret, current_limit;
 	struct extcon_dev *edev = info->cable.edev;
-	bool old_connected = info->cable.connected;
-	enum power_supply_type old_chg_type = info->cable.chg_type;
+	unsigned int val;
+
+	ret = regmap_read(info->regmap, AXP20X_PWR_INPUT_STATUS, &val);
+	if (ret < 0) {
+		dev_err(&info->pdev->dev, "Error reading status (%d)\n", ret);
+		return;
+	}
+
+	/* Offline? Disable charging and bail */
+	if (!(val & PS_STAT_VBUS_VALID)) {
+		dev_dbg(&info->pdev->dev, "USB charger disconnected\n");
+		axp288_charger_enable_charger(info, false);
+		power_supply_changed(info->psy_usb);
+		return;
+	}
 
 	/* Determine cable/charger type */
 	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB SDP charger  is connected");
-		info->cable.connected = true;
-		info->cable.chg_type = POWER_SUPPLY_TYPE_USB;
+		dev_dbg(&info->pdev->dev, "USB SDP charger is connected\n");
+		current_limit = 500000;
 	} else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB CDP charger is connected");
-		info->cable.connected = true;
-		info->cable.chg_type = POWER_SUPPLY_TYPE_USB_CDP;
+		dev_dbg(&info->pdev->dev, "USB CDP charger is connected\n");
+		current_limit = 1500000;
 	} else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB DCP charger is connected");
-		info->cable.connected = true;
-		info->cable.chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+		dev_dbg(&info->pdev->dev, "USB DCP charger is connected\n");
+		current_limit = 2000000;
 	} else {
-		if (old_connected)
-			dev_dbg(&info->pdev->dev, "USB charger disconnected");
-		info->cable.connected = false;
-		info->cable.chg_type = POWER_SUPPLY_TYPE_USB;
-	}
-
-	/* Cable status changed */
-	if (old_connected == info->cable.connected &&
-	    old_chg_type == info->cable.chg_type)
+		/* Charger type detection still in progress, bail. */
 		return;
-
-	mutex_lock(&info->lock);
-
-	if (info->cable.connected) {
-		axp288_charger_enable_charger(info, false);
-
-		switch (info->cable.chg_type) {
-		case POWER_SUPPLY_TYPE_USB:
-			current_limit = ILIM_500MA;
-			break;
-		case POWER_SUPPLY_TYPE_USB_CDP:
-			current_limit = ILIM_1500MA;
-			break;
-		case POWER_SUPPLY_TYPE_USB_DCP:
-			current_limit = ILIM_2000MA;
-			break;
-		default:
-			/* Unknown */
-			current_limit = 0;
-			break;
-		}
-
-		/* Set vbus current limit first, then enable charger */
-		ret = axp288_charger_set_vbus_inlmt(info, current_limit);
-		if (ret == 0)
-			axp288_charger_enable_charger(info, true);
-		else
-			dev_err(&info->pdev->dev,
-				"error setting current limit (%d)", ret);
-	} else {
-		axp288_charger_enable_charger(info, false);
 	}
 
-	mutex_unlock(&info->lock);
+	/* Set vbus current limit first, then enable charger */
+	ret = axp288_charger_set_vbus_inlmt(info, current_limit);
+	if (ret == 0)
+		axp288_charger_enable_charger(info, true);
+	else
+		dev_err(&info->pdev->dev,
+			"error setting current limit (%d)\n", ret);
 
 	power_supply_changed(info->psy_usb);
 }
 
-/*
- * We need 3 copies of this, because there is no way to find out for which
- * cable id we are being called from the passed in arguments; and we must
- * have a separate nb for each extcon_register_notifier call.
- */
-static int axp288_charger_handle_cable0_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
+static int axp288_charger_handle_cable_evt(struct notifier_block *nb,
+					   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[0]);
-	schedule_work(&info->cable.work);
-	return NOTIFY_OK;
-}
-
-static int axp288_charger_handle_cable1_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
-{
-	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[1]);
-	schedule_work(&info->cable.work);
-	return NOTIFY_OK;
-}
-
-static int axp288_charger_handle_cable2_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
-{
-	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[2]);
+		container_of(nb, struct axp288_chrg_info, cable.nb);
 	schedule_work(&info->cable.work);
 	return NOTIFY_OK;
 }
@@ -785,6 +724,14 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	return 0;
 }
 
+static void axp288_charger_cancel_work(void *data)
+{
+	struct axp288_chrg_info *info = data;
+
+	cancel_work_sync(&info->otg.work);
+	cancel_work_sync(&info->cable.work);
+}
+
 static int axp288_charger_probe(struct platform_device *pdev)
 {
 	int ret, i, pirq;
@@ -799,8 +746,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
-	info->cable.chg_type = -1;
-	info->is_charger_enabled = -1;
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
 	if (info->cable.edev == NULL) {
@@ -820,7 +765,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	mutex_init(&info->lock);
 
 	ret = charger_init_hw_regs(info);
 	if (ret)
@@ -836,19 +780,19 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Cancel our work on cleanup, register this before the notifiers */
+	ret = devm_add_action(dev, axp288_charger_cancel_work, info);
+	if (ret)
+		return ret;
+
 	/* Register for extcon notification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
-	info->cable.nb[0].notifier_call = axp288_charger_handle_cable0_evt;
-	info->cable.nb[1].notifier_call = axp288_charger_handle_cable1_evt;
-	info->cable.nb[2].notifier_call = axp288_charger_handle_cable2_evt;
-	for (i = 0; i < ARRAY_SIZE(cable_ids); i++) {
-		ret = devm_extcon_register_notifier(dev, info->cable.edev,
-					  cable_ids[i], &info->cable.nb[i]);
-		if (ret) {
-			dev_err(dev, "failed to register extcon notifier for %u: %d\n",
-				cable_ids[i], ret);
-			return ret;
-		}
+	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
+	ret = devm_extcon_register_notifier_all(dev, info->cable.edev,
+						&info->cable.nb);
+	if (ret) {
+		dev_err(dev, "failed to register cable extcon notifier\n");
+		return ret;
 	}
 	schedule_work(&info->cable.work);
 

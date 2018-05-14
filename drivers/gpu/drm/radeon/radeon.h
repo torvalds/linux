@@ -731,10 +731,6 @@ struct radeon_doorbell {
 
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *page);
 void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell);
-void radeon_doorbell_get_kfd_info(struct radeon_device *rdev,
-				  phys_addr_t *aperture_base,
-				  size_t *aperture_size,
-				  size_t *start_offset);
 
 /*
  * IRQS.
@@ -2442,8 +2438,6 @@ struct radeon_device {
 	struct radeon_atcs		atcs;
 	/* srbm instance registers */
 	struct mutex			srbm_mutex;
-	/* GRBM index mutex. Protects concurrents access to GRBM index */
-	struct mutex			grbm_idx_mutex;
 	/* clock, powergating flags */
 	u32 cg_flags;
 	u32 pg_flags;

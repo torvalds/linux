@@ -369,8 +369,6 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	}
 	ctx->pos = pos;
 	ll_finish_md_op_data(op_data);
-	filp->f_version = inode->i_version;
-
 out:
 	if (!rc)
 		ll_stats_ops_tally(sbi, LPROC_LL_READDIR, 1);
@@ -1339,9 +1337,9 @@ finish_req:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			} else {
-				goto out_req;
 			}
+
+			goto out_req;
 		}
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
@@ -1678,7 +1676,6 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 			else
 				fd->lfd_pos = offset;
 			file->f_pos = offset;
-			file->f_version = 0;
 		}
 		ret = offset;
 	}

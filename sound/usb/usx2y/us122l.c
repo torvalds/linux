@@ -271,16 +271,16 @@ out:
 	return err;
 }
 
-static unsigned int usb_stream_hwdep_poll(struct snd_hwdep *hw,
+static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 					  struct file *file, poll_table *wait)
 {
 	struct us122l	*us122l = hw->private_data;
 	unsigned	*polled;
-	unsigned int	mask;
+	__poll_t	mask;
 
 	poll_wait(file, &us122l->sk.sleep, wait);
 
-	mask = POLLIN | POLLOUT | POLLWRNORM | POLLERR;
+	mask = EPOLLIN | EPOLLOUT | EPOLLWRNORM | EPOLLERR;
 	if (mutex_trylock(&us122l->mutex)) {
 		struct usb_stream *s = us122l->sk.s;
 		if (s && s->state == usb_stream_ready) {
@@ -290,7 +290,7 @@ static unsigned int usb_stream_hwdep_poll(struct snd_hwdep *hw,
 				polled = &us122l->second_periods_polled;
 			if (*polled != s->periods_done) {
 				*polled = s->periods_done;
-				mask = POLLIN | POLLOUT | POLLWRNORM;
+				mask = EPOLLIN | EPOLLOUT | EPOLLWRNORM;
 			} else
 				mask = 0;
 		}
@@ -378,7 +378,7 @@ out:
 static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 				  unsigned cmd, unsigned long arg)
 {
-	struct usb_stream_config *cfg;
+	struct usb_stream_config cfg;
 	struct us122l *us122l = hw->private_data;
 	struct usb_stream *s;
 	unsigned min_period_frames;
@@ -388,24 +388,21 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	if (cmd != SNDRV_USB_STREAM_IOCTL_SET_PARAMS)
 		return -ENOTTY;
 
-	cfg = memdup_user((void *)arg, sizeof(*cfg));
-	if (IS_ERR(cfg))
-		return PTR_ERR(cfg);
+	if (copy_from_user(&cfg, (void __user *)arg, sizeof(cfg)))
+		return -EFAULT;
 
-	if (cfg->version != USB_STREAM_INTERFACE_VERSION) {
-		err = -ENXIO;
-		goto free;
-	}
+	if (cfg.version != USB_STREAM_INTERFACE_VERSION)
+		return -ENXIO;
+
 	high_speed = us122l->dev->speed == USB_SPEED_HIGH;
-	if ((cfg->sample_rate != 44100 && cfg->sample_rate != 48000  &&
+	if ((cfg.sample_rate != 44100 && cfg.sample_rate != 48000  &&
 	     (!high_speed ||
-	      (cfg->sample_rate != 88200 && cfg->sample_rate != 96000))) ||
-	    cfg->frame_size != 6 ||
-	    cfg->period_frames > 0x3000) {
-		err = -EINVAL;
-		goto free;
-	}
-	switch (cfg->sample_rate) {
+	      (cfg.sample_rate != 88200 && cfg.sample_rate != 96000))) ||
+	    cfg.frame_size != 6 ||
+	    cfg.period_frames > 0x3000)
+		return -EINVAL;
+
+	switch (cfg.sample_rate) {
 	case 44100:
 		min_period_frames = 48;
 		break;
@@ -418,10 +415,8 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	}
 	if (!high_speed)
 		min_period_frames <<= 1;
-	if (cfg->period_frames < min_period_frames) {
-		err = -EINVAL;
-		goto free;
-	}
+	if (cfg.period_frames < min_period_frames)
+		return -EINVAL;
 
 	snd_power_wait(hw->card, SNDRV_CTL_POWER_D0);
 
@@ -430,24 +425,22 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	if (!us122l->master)
 		us122l->master = file;
 	else if (us122l->master != file) {
-		if (!s || memcmp(cfg, &s->cfg, sizeof(*cfg))) {
+		if (!s || memcmp(&cfg, &s->cfg, sizeof(cfg))) {
 			err = -EIO;
 			goto unlock;
 		}
 		us122l->slave = file;
 	}
-	if (!s || memcmp(cfg, &s->cfg, sizeof(*cfg)) ||
+	if (!s || memcmp(&cfg, &s->cfg, sizeof(cfg)) ||
 	    s->state == usb_stream_xrun) {
 		us122l_stop(us122l);
-		if (!us122l_start(us122l, cfg->sample_rate, cfg->period_frames))
+		if (!us122l_start(us122l, cfg.sample_rate, cfg.period_frames))
 			err = -EIO;
 		else
 			err = 1;
 	}
 unlock:
 	mutex_unlock(&us122l->mutex);
-free:
-	kfree(cfg);
 	wake_up_all(&us122l->sk.sleep);
 	return err;
 }

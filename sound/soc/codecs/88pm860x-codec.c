@@ -1319,6 +1319,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 	int i, ret;
 
 	pm860x->codec = codec;
+	snd_soc_codec_init_regmap(codec,  pm860x->regmap);
 
 	for (i = 0; i < 4; i++) {
 		ret = request_threaded_irq(pm860x->irq[i], NULL,
@@ -1348,18 +1349,10 @@ static int pm860x_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct regmap *pm860x_get_regmap(struct device *dev)
-{
-	struct pm860x_priv *pm860x = dev_get_drvdata(dev);
-
-	return pm860x->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
 	.set_bias_level	= pm860x_set_bias_level,
-	.get_regmap	= pm860x_get_regmap,
 
 	.component_driver = {
 		.controls		= pm860x_snd_controls,

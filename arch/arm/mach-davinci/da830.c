@@ -417,7 +417,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK("davinci-mcasp.0",	NULL,		&mcasp0_clk),
 	CLK("davinci-mcasp.1",	NULL,		&mcasp1_clk),
 	CLK("davinci-mcasp.2",	NULL,		&mcasp2_clk),
-	CLK("musb-da8xx",	"usb20",	&usb20_clk),
+	CLK("musb-da8xx",	NULL,		&usb20_clk),
 	CLK("cppi41-dmaengine",	NULL,		&cppi41_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		"aintc",	&aintc_clk),
@@ -426,7 +426,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK("davinci_mdio.0",   "fck",          &emac_clk),
 	CLK(NULL,		"gpio",		&gpio_clk),
 	CLK("i2c_davinci.2",	NULL,		&i2c1_clk),
-	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
+	CLK("ohci-da8xx",	NULL,	&usb11_clk),
 	CLK(NULL,		"emif3",	&emif3_clk),
 	CLK(NULL,		"arm",		&arm_clk),
 	CLK(NULL,		"rmii",		&rmii_clk),
@@ -1194,7 +1194,7 @@ static struct davinci_timer_info da830_timer_info = {
 	.clocksource_id	= T0_BOT,
 };
 
-static struct davinci_soc_info davinci_soc_info_da830 = {
+static const struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
 	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,

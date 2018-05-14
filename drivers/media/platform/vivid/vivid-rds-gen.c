@@ -103,7 +103,7 @@ void vivid_rds_generate(struct vivid_rds_gen *rds)
 			 * EN 50067:1998 to convert a UTC date to an RDS Modified
 			 * Julian Day.
 			 */
-			time_to_tm(get_seconds(), 0, &tm);
+			time64_to_tm(ktime_get_real_seconds(), 0, &tm);
 			l = tm.tm_mon <= 1;
 			date = 14956 + tm.tm_mday + ((tm.tm_year - l) * 1461) / 4 +
 				((tm.tm_mon + 2 + l * 12) * 306001) / 10000;

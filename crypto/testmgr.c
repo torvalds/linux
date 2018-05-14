@@ -177,6 +177,18 @@ static void testmgr_free_buf(char *buf[XBUFSIZE])
 		free_page((unsigned long)buf[i]);
 }
 
+static int ahash_guard_result(char *result, char c, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (result[i] != c)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ahash_partial_update(struct ahash_request **preq,
 	struct crypto_ahash *tfm, const struct hash_testvec *template,
 	void *hash_buff, int k, int temp, struct scatterlist *sg,
@@ -185,7 +197,8 @@ static int ahash_partial_update(struct ahash_request **preq,
 	char *state;
 	struct ahash_request *req;
 	int statesize, ret = -EINVAL;
-	const char guard[] = { 0x00, 0xba, 0xad, 0x00 };
+	static const unsigned char guard[] = { 0x00, 0xba, 0xad, 0x00 };
+	int digestsize = crypto_ahash_digestsize(tfm);
 
 	req = *preq;
 	statesize = crypto_ahash_statesize(
@@ -196,10 +209,17 @@ static int ahash_partial_update(struct ahash_request **preq,
 		goto out_nostate;
 	}
 	memcpy(state + statesize, guard, sizeof(guard));
+	memset(result, 1, digestsize);
 	ret = crypto_ahash_export(req, state);
 	WARN_ON(memcmp(state + statesize, guard, sizeof(guard)));
 	if (ret) {
 		pr_err("alg: hash: Failed to export() for %s\n", algo);
+		goto out;
+	}
+	ret = ahash_guard_result(result, 1, digestsize);
+	if (ret) {
+		pr_err("alg: hash: Failed, export used req->result for %s\n",
+		       algo);
 		goto out;
 	}
 	ahash_request_free(req);
@@ -219,6 +239,12 @@ static int ahash_partial_update(struct ahash_request **preq,
 	ret = crypto_ahash_import(req, state);
 	if (ret) {
 		pr_err("alg: hash: Failed to import() for %s\n", algo);
+		goto out;
+	}
+	ret = ahash_guard_result(result, 1, digestsize);
+	if (ret) {
+		pr_err("alg: hash: Failed, import used req->result for %s\n",
+		       algo);
 		goto out;
 	}
 	ret = crypto_wait_req(crypto_ahash_update(req), wait);
@@ -316,16 +342,29 @@ static int __test_hash(struct crypto_ahash *tfm,
 				goto out;
 			}
 		} else {
+			memset(result, 1, digest_size);
 			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
 			if (ret) {
 				pr_err("alg: hash: init failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
+			ret = ahash_guard_result(result, 1, digest_size);
+			if (ret) {
+				pr_err("alg: hash: init failed on test %d "
+				       "for %s: used req->result\n", j, algo);
+				goto out;
+			}
 			ret = crypto_wait_req(crypto_ahash_update(req), &wait);
 			if (ret) {
 				pr_err("alg: hash: update failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+			ret = ahash_guard_result(result, 1, digest_size);
+			if (ret) {
+				pr_err("alg: hash: update failed on test %d "
+				       "for %s: used req->result\n", j, algo);
 				goto out;
 			}
 			ret = crypto_wait_req(crypto_ahash_final(req), &wait);

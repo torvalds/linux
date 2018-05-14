@@ -22,6 +22,8 @@ nfp-objs := \
 	    nfp_hwmon.o \
 	    nfp_main.o \
 	    nfp_net_common.o \
+	    nfp_net_ctrl.o \
+	    nfp_net_debugdump.o \
 	    nfp_net_ethtool.o \
 	    nfp_net_main.o \
 	    nfp_net_repr.o \
@@ -43,6 +45,7 @@ endif
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 nfp-objs += \
+	    bpf/cmsg.o \
 	    bpf/main.o \
 	    bpf/offload.o \
 	    bpf/verifier.o \

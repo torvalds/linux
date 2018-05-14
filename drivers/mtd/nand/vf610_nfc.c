@@ -560,7 +560,7 @@ static int vf610_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsize = chip->ecc.size;
 	int stat;
 
-	vf610_nfc_read_buf(mtd, buf, eccsize);
+	nand_read_page_op(chip, page, 0, buf, eccsize);
 	if (oob_required)
 		vf610_nfc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
@@ -580,7 +580,7 @@ static int vf610_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 
-	vf610_nfc_write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
 		vf610_nfc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
@@ -588,7 +588,7 @@ static int vf610_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	nfc->use_hw_ecc = true;
 	nfc->write_sz = mtd->writesize + mtd->oobsize;
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static const struct of_device_id vf610_nfc_dt_ids[] = {
@@ -752,10 +752,8 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		if (mtd->oobsize > 64)
 			mtd->oobsize = 64;
 
-		/*
-		 * mtd->ecclayout is not specified here because we're using the
-		 * default large page ECC layout defined in NAND core.
-		 */
+		/* Use default large page ECC layout defined in NAND core */
+		mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
 		if (chip->ecc.strength == 32) {
 			nfc->ecc_mode = ECC_60_BYTE;
 			chip->ecc.bytes = 60;

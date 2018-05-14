@@ -724,9 +724,15 @@ static inline void __update_cgrp_time(struct perf_cgroup *cgrp)
 
 static inline void update_cgrp_time_from_cpuctx(struct perf_cpu_context *cpuctx)
 {
-	struct perf_cgroup *cgrp_out = cpuctx->cgrp;
-	if (cgrp_out)
-		__update_cgrp_time(cgrp_out);
+	struct perf_cgroup *cgrp = cpuctx->cgrp;
+	struct cgroup_subsys_state *css;
+
+	if (cgrp) {
+		for (css = &cgrp->css; css; css = css->parent) {
+			cgrp = container_of(css, struct perf_cgroup, css);
+			__update_cgrp_time(cgrp);
+		}
+	}
 }
 
 static inline void update_cgrp_time_from_event(struct perf_event *event)
@@ -754,6 +760,7 @@ perf_cgroup_set_timestamp(struct task_struct *task,
 {
 	struct perf_cgroup *cgrp;
 	struct perf_cgroup_info *info;
+	struct cgroup_subsys_state *css;
 
 	/*
 	 * ctx->lock held by caller
@@ -764,8 +771,12 @@ perf_cgroup_set_timestamp(struct task_struct *task,
 		return;
 
 	cgrp = perf_cgroup_from_task(task, ctx);
-	info = this_cpu_ptr(cgrp->info);
-	info->timestamp = ctx->timestamp;
+
+	for (css = &cgrp->css; css; css = css->parent) {
+		cgrp = container_of(css, struct perf_cgroup, css);
+		info = this_cpu_ptr(cgrp->info);
+		info->timestamp = ctx->timestamp;
+	}
 }
 
 static DEFINE_PER_CPU(struct list_head, cgrp_cpuctx_list);
@@ -2246,7 +2257,7 @@ static void ctx_resched(struct perf_cpu_context *cpuctx,
 			struct perf_event_context *task_ctx,
 			enum event_type_t event_type)
 {
-	enum event_type_t ctx_event_type = event_type & EVENT_ALL;
+	enum event_type_t ctx_event_type;
 	bool cpu_event = !!(event_type & EVENT_CPU);
 
 	/*
@@ -2255,6 +2266,8 @@ static void ctx_resched(struct perf_cpu_context *cpuctx,
 	 */
 	if (event_type & EVENT_PINNED)
 		event_type |= EVENT_FLEXIBLE;
+
+	ctx_event_type = event_type & EVENT_ALL;
 
 	perf_pmu_disable(cpuctx->ctx.pmu);
 	if (task_ctx)
@@ -4520,11 +4533,11 @@ perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return ret;
 }
 
-static unsigned int perf_poll(struct file *file, poll_table *wait)
+static __poll_t perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_event *event = file->private_data;
 	struct ring_buffer *rb;
-	unsigned int events = POLLHUP;
+	__poll_t events = EPOLLHUP;
 
 	poll_wait(file, &event->waitq, wait);
 
@@ -4732,6 +4745,9 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 		rcu_read_unlock();
 		return 0;
 	}
+
+	case PERF_EVENT_IOC_QUERY_BPF:
+		return perf_event_query_prog_array(event, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -4913,6 +4929,7 @@ void perf_event_update_userpage(struct perf_event *event)
 unlock:
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(perf_event_update_userpage);
 
 static int perf_mmap_fault(struct vm_fault *vmf)
 {
@@ -5824,19 +5841,11 @@ void perf_output_sample(struct perf_output_handle *handle,
 		perf_output_read(handle, event);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
-		if (data->callchain) {
-			int size = 1;
+		int size = 1;
 
-			if (data->callchain)
-				size += data->callchain->nr;
-
-			size *= sizeof(u64);
-
-			__output_copy(handle, data->callchain, size);
-		} else {
-			u64 nr = 0;
-			perf_output_put(handle, nr);
-		}
+		size += data->callchain->nr;
+		size *= sizeof(u64);
+		__output_copy(handle, data->callchain, size);
 	}
 
 	if (sample_type & PERF_SAMPLE_RAW) {
@@ -5989,6 +5998,26 @@ static u64 perf_virt_to_phys(u64 virt)
 	return phys_addr;
 }
 
+static struct perf_callchain_entry __empty_callchain = { .nr = 0, };
+
+static struct perf_callchain_entry *
+perf_callchain(struct perf_event *event, struct pt_regs *regs)
+{
+	bool kernel = !event->attr.exclude_callchain_kernel;
+	bool user   = !event->attr.exclude_callchain_user;
+	/* Disallow cross-task user callchains. */
+	bool crosstask = event->ctx->task && event->ctx->task != current;
+	const u32 max_stack = event->attr.sample_max_stack;
+	struct perf_callchain_entry *callchain;
+
+	if (!kernel && !user)
+		return &__empty_callchain;
+
+	callchain = get_perf_callchain(regs, 0, kernel, user,
+				       max_stack, crosstask, true);
+	return callchain ?: &__empty_callchain;
+}
+
 void perf_prepare_sample(struct perf_event_header *header,
 			 struct perf_sample_data *data,
 			 struct perf_event *event,
@@ -6011,9 +6040,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 		int size = 1;
 
 		data->callchain = perf_callchain(event, regs);
-
-		if (data->callchain)
-			size += data->callchain->nr;
+		size += data->callchain->nr;
 
 		header->size += size * sizeof(u64);
 	}
@@ -8085,6 +8112,13 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	    (is_tracepoint && prog->type != BPF_PROG_TYPE_TRACEPOINT) ||
 	    (is_syscall_tp && prog->type != BPF_PROG_TYPE_TRACEPOINT)) {
 		/* valid fd, but invalid bpf program type */
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
+
+	/* Kprobe override only works for kprobes, not uprobes. */
+	if (prog->kprobe_override &&
+	    !(event->tp_event->flags & TRACE_EVENT_FL_KPROBE)) {
 		bpf_prog_put(prog);
 		return -EINVAL;
 	}
@@ -10740,6 +10774,19 @@ inherit_event(struct perf_event *parent_event,
 	if (IS_ERR(child_event))
 		return child_event;
 
+
+	if ((child_event->attach_state & PERF_ATTACH_TASK_DATA) &&
+	    !child_ctx->task_ctx_data) {
+		struct pmu *pmu = child_event->pmu;
+
+		child_ctx->task_ctx_data = kzalloc(pmu->task_ctx_size,
+						   GFP_KERNEL);
+		if (!child_ctx->task_ctx_data) {
+			free_event(child_event);
+			return NULL;
+		}
+	}
+
 	/*
 	 * is_orphaned_event() and list_add_tail(&parent_event->child_list)
 	 * must be under the same lock in order to serialize against
@@ -10750,6 +10797,7 @@ inherit_event(struct perf_event *parent_event,
 	if (is_orphaned_event(parent_event) ||
 	    !atomic_long_inc_not_zero(&parent_event->refcount)) {
 		mutex_unlock(&parent_event->child_mutex);
+		/* task_ctx_data is freed with child_ctx */
 		free_event(child_event);
 		return NULL;
 	}

@@ -82,7 +82,7 @@ struct rxe_dev *get_rxe_by_name(const char *name)
 }
 
 
-struct rxe_recv_sockets recv_sockets;
+static struct rxe_recv_sockets recv_sockets;
 
 struct device *rxe_dma_device(struct rxe_dev *rxe)
 {
@@ -452,31 +452,26 @@ static void rxe_skb_tx_dtor(struct sk_buff *skb)
 
 int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
-	struct sk_buff *nskb;
 	struct rxe_av *av;
 	int err;
 
 	av = rxe_get_av(pkt);
 
-	nskb = skb_clone(skb, GFP_ATOMIC);
-	if (!nskb)
-		return -ENOMEM;
-
-	nskb->destructor = rxe_skb_tx_dtor;
-	nskb->sk = pkt->qp->sk->sk;
+	skb->destructor = rxe_skb_tx_dtor;
+	skb->sk = pkt->qp->sk->sk;
 
 	rxe_add_ref(pkt->qp);
 	atomic_inc(&pkt->qp->skb_out);
 
 	if (av->network_type == RDMA_NETWORK_IPV4) {
-		err = ip_local_out(dev_net(skb_dst(skb)->dev), nskb->sk, nskb);
+		err = ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	} else if (av->network_type == RDMA_NETWORK_IPV6) {
-		err = ip6_local_out(dev_net(skb_dst(skb)->dev), nskb->sk, nskb);
+		err = ip6_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	} else {
 		pr_err("Unknown layer 3 protocol: %d\n", av->network_type);
 		atomic_dec(&pkt->qp->skb_out);
 		rxe_drop_ref(pkt->qp);
-		kfree_skb(nskb);
+		kfree_skb(skb);
 		return -EINVAL;
 	}
 
@@ -485,7 +480,6 @@ int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
 		return -EAGAIN;
 	}
 
-	kfree_skb(skb);
 	return 0;
 }
 

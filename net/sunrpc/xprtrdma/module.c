@@ -1,18 +1,20 @@
 /*
- * Copyright (c) 2015 Oracle.  All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle.  All rights reserved.
  */
 
 /* rpcrdma.ko module initialization
  */
 
+#include <linux/types.h>
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sunrpc/svc_rdma.h>
-#include "xprt_rdma.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_TRANS
-#endif
+#include <asm/swab.h>
+
+#define CREATE_TRACE_POINTS
+#include "xprt_rdma.h"
 
 MODULE_AUTHOR("Open Grid Computing and Network Appliance, Inc.");
 MODULE_DESCRIPTION("RPC/RDMA Transport");

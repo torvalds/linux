@@ -46,7 +46,6 @@ rcuperf_param_nwriters () {
 per_version_boot_params () {
 	echo $1 `rcuperf_param_nreaders "$1"` \
 		`rcuperf_param_nwriters "$1"` \
-		rcuperf.perf_runnable=1 \
 		rcuperf.shutdown=1 \
 		rcuperf.verbose=1
 }

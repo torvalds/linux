@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel Odroid XU3-Lite board device tree source
  *
@@ -5,11 +6,7 @@
  * Copyright (c) 2014 Collabora Ltd.
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos5422-odroidxu3-common.dtsi"

@@ -122,12 +122,6 @@ config GPIO_ATH79
 	  Select this option to enable GPIO driver for
 	  Atheros AR71XX/AR724X/AR913X SoC devices.
 
-config GPIO_AXP209
-	tristate "X-Powers AXP209 PMIC GPIO Support"
-	depends on MFD_AXP20X
-	help
-	  Say yes to enable GPIO support for the AXP209 PMIC
-
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
@@ -704,6 +698,22 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
+config GPIO_WINBOND
+	tristate "Winbond Super I/O GPIO support"
+	depends on ISA_BUS_API
+	help
+	  This option enables support for GPIOs found on Winbond Super I/O
+	  chips.
+	  Currently, only W83627UHG (also known as Nuvoton NCT6627UD) is
+	  supported.
+
+	  You will need to provide a module parameter "gpios", or a
+	  boot-time parameter "gpio_winbond.gpios" with a bitmask of GPIO
+	  ports to enable (bit 0 is GPIO1, bit 1 is GPIO2, etc.).
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-winbond.
+
 config GPIO_WS16C48
 	tristate "WinSystems WS16C48 GPIO support"
 	depends on ISA_BUS_API
@@ -1233,6 +1243,16 @@ config GPIO_PCI_IDIO_16
 	  generated when any of the inputs change state (low to high or high to
 	  low). Input filter control is not supported by this driver, and the
 	  input filters are deactivated by this driver.
+
+config GPIO_PCIE_IDIO_24
+	tristate "ACCES PCIe-IDIO-24 GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Enables GPIO support for the ACCES PCIe-IDIO-24 family (PCIe-IDIO-24,
+	  PCIe-IDI-24, PCIe-IDO-24, PCIe-IDIO-12). An interrupt is generated
+	  when any of the inputs change state (low to high or high to low).
+	  Input filter control is not supported by this driver, and the input
+	  filters are deactivated by this driver.
 
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"

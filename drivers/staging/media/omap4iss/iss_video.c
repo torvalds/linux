@@ -1185,7 +1185,7 @@ static int iss_video_release(struct file *file)
 	return 0;
 }
 
-static unsigned int iss_video_poll(struct file *file, poll_table *wait)
+static __poll_t iss_video_poll(struct file *file, poll_table *wait)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(file->private_data);
 

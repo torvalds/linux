@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * kselftest.h:	kselftest framework return codes to include from
  *		selftests.
@@ -5,7 +6,6 @@
  * Copyright (c) 2014 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *
- * This file is released under the GPLv2.
  */
 #ifndef __KSELFTEST_H
 #define __KSELFTEST_H

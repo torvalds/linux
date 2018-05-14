@@ -18,7 +18,7 @@
 #include "q_struct.h"
 #include "thunder_bgx.h"
 
-#define DRV_NAME	"thunder-nic"
+#define DRV_NAME	"nicpf"
 #define DRV_VERSION	"1.0"
 
 struct hw_info {
@@ -426,13 +426,22 @@ static void nic_init_hw(struct nicpf *nic)
 	/* Enable backpressure */
 	nic_reg_write(nic, NIC_PF_BP_CFG, (1ULL << 6) | 0x03);
 
-	/* TNS and TNS bypass modes are present only on 88xx */
+	/* TNS and TNS bypass modes are present only on 88xx
+	 * Also offset of this CSR has changed in 81xx and 83xx.
+	 */
 	if (nic->pdev->subsystem_device == PCI_SUBSYS_DEVID_88XX_NIC_PF) {
 		/* Disable TNS mode on both interfaces */
 		nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG,
-			      (NIC_TNS_BYPASS_MODE << 7) | BGX0_BLOCK);
+			      (NIC_TNS_BYPASS_MODE << 7) |
+			      BGX0_BLOCK | (1ULL << 16));
 		nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG | (1 << 8),
-			      (NIC_TNS_BYPASS_MODE << 7) | BGX1_BLOCK);
+			      (NIC_TNS_BYPASS_MODE << 7) |
+			      BGX1_BLOCK | (1ULL << 16));
+	} else {
+		/* Configure timestamp generation timeout to 10us */
+		for (i = 0; i < nic->hw->bgx_cnt; i++)
+			nic_reg_write(nic, NIC_PF_INTFX_SEND_CFG | (i << 3),
+				      (1ULL << 16));
 	}
 
 	nic_reg_write(nic, NIC_PF_INTF_0_1_BP_CFG,
@@ -880,6 +889,44 @@ static void nic_pause_frame(struct nicpf *nic, int vf, struct pfc *cfg)
 	}
 }
 
+/* Enable or disable HW timestamping by BGX for pkts received on a LMAC */
+static void nic_config_timestamp(struct nicpf *nic, int vf, struct set_ptp *ptp)
+{
+	struct pkind_cfg *pkind;
+	u8 lmac, bgx_idx;
+	u64 pkind_val, pkind_idx;
+
+	if (vf >= nic->num_vf_en)
+		return;
+
+	bgx_idx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+
+	pkind_idx = lmac + bgx_idx * MAX_LMAC_PER_BGX;
+	pkind_val = nic_reg_read(nic, NIC_PF_PKIND_0_15_CFG | (pkind_idx << 3));
+	pkind = (struct pkind_cfg *)&pkind_val;
+
+	if (ptp->enable && !pkind->hdr_sl) {
+		/* Skiplen to exclude 8byte timestamp while parsing pkt
+		 * If not configured, will result in L2 errors.
+		 */
+		pkind->hdr_sl = 4;
+		/* Adjust max packet length allowed */
+		pkind->maxlen += (pkind->hdr_sl * 2);
+		bgx_config_timestamping(nic->node, bgx_idx, lmac, true);
+		nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7 | (1 << 3),
+			      (ETYPE_ALG_ENDPARSE << 16) | ETH_P_1588);
+	} else if (!ptp->enable && pkind->hdr_sl) {
+		pkind->maxlen -= (pkind->hdr_sl * 2);
+		pkind->hdr_sl = 0;
+		bgx_config_timestamping(nic->node, bgx_idx, lmac, false);
+		nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7 | (1 << 3),
+			      (ETYPE_ALG_SKIP << 16) | ETH_P_8021Q);
+	}
+
+	nic_reg_write(nic, NIC_PF_PKIND_0_15_CFG | (pkind_idx << 3), pkind_val);
+}
+
 /* Interrupt handler to handle mailbox messages from VFs */
 static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 {
@@ -1022,6 +1069,9 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_PFC:
 		nic_pause_frame(nic, vf, &mbx.pfc);
 		goto unlock;
+	case NIC_MBOX_MSG_PTP_CFG:
+		nic_config_timestamp(nic, vf, &mbx.ptp);
+		break;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);
