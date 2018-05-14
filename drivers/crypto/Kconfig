@@ -687,6 +687,7 @@ config CRYPTO_DEV_SAFEXCEL
 	depends on OF
 	depends on (ARM64 && ARCH_MVEBU) || (COMPILE_TEST && 64BIT)
 	select CRYPTO_AES
+	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_HMAC

@@ -50,16 +50,6 @@ struct safexcel_ahash_req {
 	u8 cache_next[SHA256_BLOCK_SIZE] __aligned(sizeof(u32));
 };
 
-struct safexcel_ahash_export_state {
-	u64 len;
-	u64 processed;
-
-	u32 digest;
-
-	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)];
-	u8 cache[SHA256_BLOCK_SIZE];
-};
-
 static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 				u32 input_length, u32 result_length)
 {
@@ -909,8 +899,8 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	return crypto_ahash_export(areq, state);
 }
 
-static int safexcel_hmac_setkey(const char *alg, const u8 *key,
-				unsigned int keylen, void *istate, void *ostate)
+int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
+			 void *istate, void *ostate)
 {
 	struct ahash_request *areq;
 	struct crypto_ahash *tfm;
