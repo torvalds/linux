@@ -102,20 +102,27 @@ let rscs = po ; crit^-1 ; po?
  *)
 let rcu-link = hb* ; pb* ; prop
 
-(* Chains that affect the RCU grace-period guarantee *)
-let gp-link = gp ; rcu-link
-let rscs-link = rscs ; rcu-link
-
 (*
- * A cycle containing at least as many grace periods as RCU read-side
- * critical sections is forbidden.
+ * Any sequence containing at least as many grace periods as RCU read-side
+ * critical sections (joined by rcu-link) acts as a generalized strong fence.
  *)
-let rec rb =
-	gp-link |
-	(gp-link ; rscs-link) |
-	(rscs-link ; gp-link) |
-	(rb ; rb) |
-	(gp-link ; rb ; rscs-link) |
-	(rscs-link ; rb ; gp-link)
+let rec rcu-fence = gp |
+	(gp ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; gp) |
+	(gp ; rcu-link ; rcu-fence ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; rcu-fence ; rcu-link ; gp) |
+	(rcu-fence ; rcu-link ; rcu-fence)
+
+(* rb orders instructions just as pb does *)
+let rb = prop ; rcu-fence ; hb* ; pb*
 
 irreflexive rb as rcu
+
+(*
+ * The happens-before, propagation, and rcu constraints are all
+ * expressions of temporal ordering.  They could be replaced by
+ * a single constraint on an "executes-before" relation, xb:
+ *
+ * let xb = hb | pb | rb
+ * acyclic xb as executes-before
+ *)
