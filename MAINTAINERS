@@ -15494,6 +15494,13 @@ S:	Supported
 F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
 
+XEN SOUND FRONTEND DRIVER
+M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Supported
+F:	sound/xen/*
+
 XFS FILESYSTEM
 M:	Darrick J. Wong <darrick.wong@oracle.com>
 M:	linux-xfs@vger.kernel.org
