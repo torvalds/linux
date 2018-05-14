@@ -15,7 +15,7 @@ because the described operation is actually the composing. The
 selection API makes a clear distinction between composing and cropping
 operations by setting the appropriate targets.
 
-The V4L2 API lacks any support for composing to and cropping from an
+The CROP API lacks any support for composing to and cropping from an
 image inside a memory buffer. The application could configure a
 capture device to fill only a part of an image by abusing V4L2
 API. Cropping a smaller image from a larger one is achieved by setting
