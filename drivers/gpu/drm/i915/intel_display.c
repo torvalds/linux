@@ -1323,25 +1323,6 @@ static bool dp_pipe_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static bool hdmi_pipe_enabled(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, u32 val)
-{
-	if ((val & SDVO_ENABLE) == 0)
-		return false;
-
-	if (HAS_PCH_CPT(dev_priv)) {
-		if ((val & SDVO_PIPE_SEL_MASK_CPT) != SDVO_PIPE_SEL_CPT(pipe))
-			return false;
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		if ((val & SDVO_PIPE_SEL_MASK_CHV) != SDVO_PIPE_SEL_CHV(pipe))
-			return false;
-	} else {
-		if ((val & SDVO_PIPE_SEL_MASK) != SDVO_PIPE_SEL(pipe))
-			return false;
-	}
-	return true;
-}
-
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, i915_reg_t reg,
 				   u32 port_sel)
@@ -1357,16 +1338,21 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
-				     enum pipe pipe, i915_reg_t reg)
+				     enum pipe pipe, enum port port,
+				     i915_reg_t hdmi_reg)
 {
-	u32 val = I915_READ(reg);
-	I915_STATE_WARN(hdmi_pipe_enabled(dev_priv, pipe, val),
-	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     i915_mmio_reg_offset(reg), pipe_name(pipe));
+	enum pipe port_pipe;
+	bool state;
 
-	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && (val & SDVO_ENABLE) == 0
-	     && (val & SDVO_PIPE_B_SELECT),
-	     "IBX PCH hdmi port still using transcoder B\n");
+	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
+
+	I915_STATE_WARN(state && port_pipe == pipe,
+			"PCH HDMI %c enabled on transcoder %c, should be disabled\n",
+			port_name(port), pipe_name(pipe));
+
+	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+			"IBX PCH HDMI %c still using transcoder B\n",
+			port_name(port));
 }
 
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
@@ -1388,9 +1374,9 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 			"PCH LVDS enabled on transcoder %c, should be disabled\n",
 			pipe_name(pipe));
 
-	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMIB);
-	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMIC);
-	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMID);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PORT_B, PCH_HDMIB);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PORT_C, PCH_HDMIC);
+	assert_pch_hdmi_disabled(dev_priv, pipe, PORT_D, PCH_HDMID);
 }
 
 static void _vlv_enable_pll(struct intel_crtc *crtc,

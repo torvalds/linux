@@ -2064,6 +2064,8 @@ void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
 /* intel_sdvo.c */
+bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
+			     i915_reg_t sdvo_reg, enum pipe *pipe);
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 		     i915_reg_t reg, enum port port);
 

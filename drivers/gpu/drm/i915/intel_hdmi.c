@@ -1161,33 +1161,16 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	u32 tmp;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
 						encoder->power_domain))
 		return false;
 
-	ret = false;
+	ret = intel_sdvo_port_enabled(dev_priv, intel_hdmi->hdmi_reg, pipe);
 
-	tmp = I915_READ(intel_hdmi->hdmi_reg);
-
-	if (!(tmp & SDVO_ENABLE))
-		goto out;
-
-	if (HAS_PCH_CPT(dev_priv))
-		*pipe = PORT_TO_PIPE_CPT(tmp);
-	else if (IS_CHERRYVIEW(dev_priv))
-		*pipe = SDVO_PORT_TO_PIPE_CHV(tmp);
-	else
-		*pipe = PORT_TO_PIPE(tmp);
-
-	ret = true;
-
-out:
 	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
@@ -1421,8 +1404,8 @@ static void intel_disable_hdmi(struct intel_encoder *encoder,
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 
-		temp &= ~SDVO_PIPE_B_SELECT;
-		temp |= SDVO_ENABLE;
+		temp &= ~SDVO_PIPE_SEL_MASK;
+		temp |= SDVO_ENABLE | SDVO_PIPE_SEL(PIPE_A);
 		/*
 		 * HW workaround, need to write this twice for issue
 		 * that may result in first write getting masked.

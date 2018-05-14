@@ -1403,27 +1403,37 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 		return false;
 }
 
+bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
+			     i915_reg_t sdvo_reg, enum pipe *pipe)
+{
+	u32 val;
+
+	val = I915_READ(sdvo_reg);
+
+	/* asserts want to know the pipe even if the port is disabled */
+	if (HAS_PCH_CPT(dev_priv))
+		*pipe = (val & SDVO_PIPE_SEL_MASK_CPT) >> SDVO_PIPE_SEL_SHIFT_CPT;
+	else if (IS_CHERRYVIEW(dev_priv))
+		*pipe = (val & SDVO_PIPE_SEL_MASK_CHV) >> SDVO_PIPE_SEL_SHIFT_CHV;
+	else
+		*pipe = (val & SDVO_PIPE_SEL_MASK) >> SDVO_PIPE_SEL_SHIFT;
+
+	return val & SDVO_ENABLE;
+}
+
 static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	u16 active_outputs = 0;
-	u32 tmp;
+	bool ret;
 
-	tmp = I915_READ(intel_sdvo->sdvo_reg);
 	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
-	if (!(tmp & SDVO_ENABLE) && (active_outputs == 0))
-		return false;
+	ret = intel_sdvo_port_enabled(dev_priv, intel_sdvo->sdvo_reg, pipe);
 
-	if (HAS_PCH_CPT(dev_priv))
-		*pipe = PORT_TO_PIPE_CPT(tmp);
-	else
-		*pipe = PORT_TO_PIPE(tmp);
-
-	return true;
+	return ret || active_outputs;
 }
 
 static void intel_sdvo_get_config(struct intel_encoder *encoder,
@@ -1550,8 +1560,8 @@ static void intel_disable_sdvo(struct intel_encoder *encoder,
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 
-		temp &= ~SDVO_PIPE_B_SELECT;
-		temp |= SDVO_ENABLE;
+		temp &= ~SDVO_PIPE_SEL_MASK;
+		temp |= SDVO_ENABLE | SDVO_PIPE_SEL(PIPE_A);
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 		temp &= ~SDVO_ENABLE;
