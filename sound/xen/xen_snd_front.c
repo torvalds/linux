@@ -18,9 +18,11 @@
 #include <xen/interface/io/sndif.h>
 
 #include "xen_snd_front.h"
+#include "xen_snd_front_evtchnl.h"
 
 static void xen_snd_drv_fini(struct xen_snd_front_info *front_info)
 {
+	xen_snd_front_evtchnl_free_all(front_info);
 }
 
 static int sndback_initwait(struct xen_snd_front_info *front_info)
@@ -32,7 +34,12 @@ static int sndback_initwait(struct xen_snd_front_info *front_info)
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	/* create event channels for all streams and publish */
+	ret = xen_snd_front_evtchnl_create_all(front_info, num_streams);
+	if (ret < 0)
+		return ret;
+
+	return xen_snd_front_evtchnl_publish_all(front_info);
 }
 
 static int sndback_connect(struct xen_snd_front_info *front_info)
