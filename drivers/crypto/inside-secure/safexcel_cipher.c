@@ -554,13 +554,13 @@ static int safexcel_cipher_cra_exit(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	memzero_explicit(ctx->key, 8 * sizeof(u32));
+	memzero_explicit(ctx->key, sizeof(ctx->key));
 
 	/* context not allocated, skip invalidation */
 	if (!ctx->base.ctxr)
 		return -ENOMEM;
 
-	memzero_explicit(ctx->base.ctxr->data, 8 * sizeof(u32));
+	memzero_explicit(ctx->base.ctxr->data, sizeof(ctx->base.ctxr->data));
 	return 0;
 }
 
