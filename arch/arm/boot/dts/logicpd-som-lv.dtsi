@@ -26,7 +26,7 @@
 		gpio = <&gpio1 3 0>;   /* gpio_3 */
 		startup-delay-us = <70000>;
 		enable-active-high;
-		vin-supply = <&vmmc2>;
+		vin-supply = <&vaux3>;
 	};
 
 	/* HS USB Host PHY on PORT 1 */
@@ -82,6 +82,7 @@
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {
+				ti,hs_extmute_gpio = <&gpio2 25 GPIO_ACTIVE_HIGH>;
 			};
 		};
 	};
@@ -199,6 +200,7 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT | MUX_MODE0)        /* i2c1_scl.i2c1_scl */
 			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT | MUX_MODE0)        /* i2c1_sda.i2c1_sda */
+			OMAP3_CORE1_IOPAD(0x20ba, PIN_OUTPUT | MUX_MODE4)        /* gpmc_ncs6.gpio_57 */
 		>;
 	};
 };
@@ -213,7 +215,7 @@
 	};
 	wl127x_gpio: pinmux_wl127x_gpio_pin {
 		pinctrl-single,pins = <
-			OMAP3_WKUP_IOPAD(0x2a0c, PIN_INPUT | MUX_MODE4)		/* sys_boot0.gpio_2 */
+			OMAP3_WKUP_IOPAD(0x2a0a, PIN_INPUT | MUX_MODE4)		/* sys_boot0.gpio_2 */
 			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
 		>;
 	};
@@ -259,6 +261,11 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
+
+&vaux3 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
 
 &twl {
 	twl_power: power {
