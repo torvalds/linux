@@ -241,6 +241,64 @@ int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
 	return mv88e6185_g1_wait_ppu_disabled(chip);
 }
 
+/* Offset 0x10: IP-PRI Mapping Register 0
+ * Offset 0x11: IP-PRI Mapping Register 1
+ * Offset 0x12: IP-PRI Mapping Register 2
+ * Offset 0x13: IP-PRI Mapping Register 3
+ * Offset 0x14: IP-PRI Mapping Register 4
+ * Offset 0x15: IP-PRI Mapping Register 5
+ * Offset 0x16: IP-PRI Mapping Register 6
+ * Offset 0x17: IP-PRI Mapping Register 7
+ */
+
+int mv88e6085_g1_ip_pri_map(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* Reset the IP TOS/DiffServ/Traffic priorities to defaults */
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_0, 0x0000);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_1, 0x0000);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_2, 0x5555);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_3, 0x5555);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_4, 0xaaaa);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_5, 0xaaaa);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_6, 0xffff);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_7, 0xffff);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* Offset 0x18: IEEE-PRI Register */
+
+int mv88e6085_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
+{
+	/* Reset the IEEE Tag priorities to defaults */
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa41);
+}
+
 /* Offset 0x1a: Monitor Control */
 /* Offset 0x1a: Monitor & MGMT Control on some devices */
 
@@ -393,18 +451,9 @@ int mv88e6390_g1_rmu_disable(struct mv88e6xxx_chip *chip)
 
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 {
-	u16 val;
-	int err;
-
-	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &val);
-	if (err)
-		return err;
-
-	val |= MV88E6XXX_G1_CTL2_HIST_RX_TX;
-
-	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, val);
-
-	return err;
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6390_G1_CTL2_HIST_MODE_MASK,
+				      MV88E6390_G1_CTL2_HIST_MODE_RX |
+				      MV88E6390_G1_CTL2_HIST_MODE_TX);
 }
 
 int mv88e6xxx_g1_set_device_number(struct mv88e6xxx_chip *chip, int index)
