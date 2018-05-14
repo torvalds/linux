@@ -888,6 +888,79 @@ xfs_sync_sb(
 	return xfs_trans_commit(tp);
 }
 
+/*
+ * Update all the secondary superblocks to match the new state of the primary.
+ * Because we are completely overwriting all the existing fields in the
+ * secondary superblock buffers, there is no need to read them in from disk.
+ * Just get a new buffer, stamp it and write it.
+ *
+ * The sb buffers need to be cached here so that we serialise against other
+ * operations that access the secondary superblocks, but we don't want to keep
+ * them in memory once it is written so we mark it as a one-shot buffer.
+ */
+int
+xfs_update_secondary_sbs(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	int			saved_error = 0;
+	int			error = 0;
+	LIST_HEAD		(buffer_list);
+
+	/* update secondary superblocks. */
+	for (agno = 1; agno < mp->m_sb.sb_agcount; agno++) {
+		struct xfs_buf		*bp;
+
+		bp = xfs_buf_get(mp->m_ddev_targp,
+				 XFS_AG_DADDR(mp, agno, XFS_SB_DADDR),
+				 XFS_FSS_TO_BB(mp, 1), 0);
+		/*
+		 * If we get an error reading or writing alternate superblocks,
+		 * continue.  xfs_repair chooses the "best" superblock based
+		 * on most matches; if we break early, we'll leave more
+		 * superblocks un-updated than updated, and xfs_repair may
+		 * pick them over the properly-updated primary.
+		 */
+		if (!bp) {
+			xfs_warn(mp,
+		"error allocating secondary superblock for ag %d",
+				agno);
+			if (!saved_error)
+				saved_error = -ENOMEM;
+			continue;
+		}
+
+		bp->b_ops = &xfs_sb_buf_ops;
+		xfs_buf_oneshot(bp);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
+		xfs_buf_delwri_queue(bp, &buffer_list);
+		xfs_buf_relse(bp);
+
+		/* don't hold too many buffers at once */
+		if (agno % 16)
+			continue;
+
+		error = xfs_buf_delwri_submit(&buffer_list);
+		if (error) {
+			xfs_warn(mp,
+		"write error %d updating a secondary superblock near ag %d",
+				error, agno);
+			if (!saved_error)
+				saved_error = error;
+			continue;
+		}
+	}
+	error = xfs_buf_delwri_submit(&buffer_list);
+	if (error) {
+		xfs_warn(mp,
+		"write error %d updating a secondary superblock near ag %d",
+			error, agno);
+	}
+
+	return saved_error ? saved_error : error;
+}
+
 int
 xfs_fs_geometry(
 	struct xfs_sb		*sbp,
