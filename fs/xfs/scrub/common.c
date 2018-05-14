@@ -737,6 +737,10 @@ xfs_scrub_should_check_xref(
 	int				*error,
 	struct xfs_btree_cur		**curpp)
 {
+	/* No point in xref if we already know we're corrupt. */
+	if (xfs_scrub_skip_xref(sc->sm))
+		return false;
+
 	if (*error == 0)
 		return true;
 

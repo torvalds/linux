@@ -450,8 +450,8 @@ retry_op:
 	} else if (error)
 		goto out_teardown;
 
-	if (sc.sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
-			       XFS_SCRUB_OFLAG_XCORRUPT))
+	if (sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
+			    XFS_SCRUB_OFLAG_XCORRUPT))
 		xfs_alert_ratelimited(mp, "Corruption detected during scrub.");
 
 out_teardown:

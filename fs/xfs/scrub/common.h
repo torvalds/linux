@@ -145,4 +145,14 @@ int xfs_scrub_setup_inode_contents(struct xfs_scrub_context *sc,
 				   struct xfs_inode *ip, unsigned int resblks);
 void xfs_scrub_buffer_recheck(struct xfs_scrub_context *sc, struct xfs_buf *bp);
 
+/*
+ * Don't bother cross-referencing if we already found corruption or cross
+ * referencing discrepancies.
+ */
+static inline bool xfs_scrub_skip_xref(struct xfs_scrub_metadata *sm)
+{
+	return sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
+			       XFS_SCRUB_OFLAG_XCORRUPT);
+}
+
 #endif	/* __XFS_SCRUB_COMMON_H__ */
