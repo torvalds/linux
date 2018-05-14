@@ -1598,6 +1598,10 @@
 #define VNIC_V(x) ((x) << VNIC_S)
 #define VNIC_F    VNIC_V(1U)
 
+#define USE_ENC_IDX_S		13
+#define USE_ENC_IDX_V(x)	((x) << USE_ENC_IDX_S)
+#define USE_ENC_IDX_F		USE_ENC_IDX_V(1U)
+
 #define CSUM_HAS_PSEUDO_HDR_S    10
 #define CSUM_HAS_PSEUDO_HDR_V(x) ((x) << CSUM_HAS_PSEUDO_HDR_S)
 #define CSUM_HAS_PSEUDO_HDR_F    CSUM_HAS_PSEUDO_HDR_V(1U)
