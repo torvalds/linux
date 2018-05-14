@@ -606,6 +606,36 @@ static void is31fl32xx_shutdown(struct i2c_client *client)
 	gpiod_set_value(priv->reset_gpio, 0);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int is31fl32xx_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
+
+	if (IS_ERR(priv->reset_gpio)) {
+		return is31fl3216_software_shutdown(priv,
+			IS31FL3216_CONFIG_SSD_DISABLE);
+	} else {
+		gpiod_set_value(priv->reset_gpio, 0);
+		return 0;
+	}
+}
+
+static int is31fl32xx_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
+
+	if (IS_ERR(priv->reset_gpio)) {
+		return is31fl3216_software_shutdown(priv,
+			IS31FL3216_CONFIG_SSD_ENABLE);
+	} else {
+		gpiod_set_value(priv->reset_gpio, 1);
+		return 0;
+	}
+}
+#endif /* CONFIG_PM_SLEEP */
+
 /*
  * i2c-core (and modalias) requires that id_table be properly filled,
  * even though it is not used for DeviceTree based instantiation.
@@ -622,10 +652,15 @@ static const struct i2c_device_id is31fl32xx_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, is31fl32xx_id);
 
+static SIMPLE_DEV_PM_OPS(is31fl32xx_pmops,
+			 is31fl32xx_suspend,
+			 is31fl32xx_resume);
+
 static struct i2c_driver is31fl32xx_driver = {
 	.driver = {
 		.name	= "is31fl32xx",
 		.of_match_table = of_is31fl32xx_match,
+		.pm	= &is31fl32xx_pmops,
 	},
 	.probe		= is31fl32xx_probe,
 	.remove		= is31fl32xx_remove,
