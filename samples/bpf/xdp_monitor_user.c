@@ -58,7 +58,7 @@ static void usage(char *argv[])
 			printf(" flag (internal value:%d)",
 			       *long_options[i].flag);
 		else
-			printf("(internal short-option: -%c)",
+			printf("short-option: -%c",
 			       long_options[i].val);
 		printf("\n");
 	}
@@ -594,7 +594,7 @@ int main(int argc, char **argv)
 	snprintf(bpf_obj_file, sizeof(bpf_obj_file), "%s_kern.o", argv[0]);
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "h",
+	while ((opt = getopt_long(argc, argv, "hDSs:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'D':
