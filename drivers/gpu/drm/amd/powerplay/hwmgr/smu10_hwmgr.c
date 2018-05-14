@@ -1113,6 +1113,13 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	data->water_marks_exist = true;
 	return result;
 }
+
+static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
+{
+
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SetRccPfcPmeRestoreRegister);
+}
+
 static int smu10_set_mmhub_powergating_by_smu(struct pp_hwmgr *hwmgr)
 {
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PowerGateMmHub);
@@ -1153,6 +1160,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.set_mmhub_powergating_by_smu = smu10_set_mmhub_powergating_by_smu,
+	.smus_notify_pwe = smu10_smus_notify_pwe,
 	.gfx_off_control = smu10_gfx_off_control,
 };
 

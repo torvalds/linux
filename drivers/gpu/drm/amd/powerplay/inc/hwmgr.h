@@ -326,6 +326,7 @@ struct pp_hwmgr_func {
 					long *input, uint32_t size);
 	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
 	int (*set_mmhub_powergating_by_smu)(struct pp_hwmgr *hwmgr);
+	int (*smus_notify_pwe)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
