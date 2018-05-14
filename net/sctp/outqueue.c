@@ -776,6 +776,20 @@ void sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
 	sctp_outq_flush(q, 0, gfp);
 }
 
+static int sctp_packet_singleton(struct sctp_transport *transport,
+				 struct sctp_chunk *chunk, gfp_t gfp)
+{
+	const struct sctp_association *asoc = transport->asoc;
+	const __u16 sport = asoc->base.bind_addr.port;
+	const __u16 dport = asoc->peer.port;
+	const __u32 vtag = asoc->peer.i.init_tag;
+	struct sctp_packet singleton;
+
+	sctp_packet_init(&singleton, transport, sport, dport);
+	sctp_packet_config(&singleton, vtag, 0);
+	sctp_packet_append_chunk(&singleton, chunk);
+	return sctp_packet_transmit(&singleton, gfp);
+}
 
 /*
  * Try to flush an outqueue.
@@ -789,10 +803,7 @@ void sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
 static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 {
 	struct sctp_packet *packet;
-	struct sctp_packet singleton;
 	struct sctp_association *asoc = q->asoc;
-	__u16 sport = asoc->base.bind_addr.port;
-	__u16 dport = asoc->peer.port;
 	__u32 vtag = asoc->peer.i.init_tag;
 	struct sctp_transport *transport = NULL;
 	struct sctp_transport *new_transport;
@@ -905,10 +916,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_INIT:
 		case SCTP_CID_INIT_ACK:
 		case SCTP_CID_SHUTDOWN_COMPLETE:
-			sctp_packet_init(&singleton, transport, sport, dport);
-			sctp_packet_config(&singleton, vtag, 0);
-			sctp_packet_append_chunk(&singleton, chunk);
-			error = sctp_packet_transmit(&singleton, gfp);
+			error = sctp_packet_singleton(transport, chunk, gfp);
 			if (error < 0) {
 				asoc->base.sk->sk_err = -error;
 				return;
