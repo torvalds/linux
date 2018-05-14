@@ -217,7 +217,6 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	struct hv_netvsc_packet *packet;
 	struct hv_page_buffer page_buf[2];
 	struct hv_page_buffer *pb = page_buf;
-	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
 	int ret;
 
 	/* Setup the packet to send it */
@@ -245,7 +244,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	}
 
 	rcu_read_lock_bh();
-	ret = netvsc_send(net_device_ctx, packet, NULL, pb, NULL);
+	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL);
 	rcu_read_unlock_bh();
 
 	return ret;
