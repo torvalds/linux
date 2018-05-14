@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/clk.h>
+#include <linux/dm9000.h>
 #include <linux/videodev2.h>
 #include <media/i2c/tvp514x.h>
 #include <linux/spi/spi.h>
@@ -109,12 +110,15 @@ static struct platform_device davinci_nand_device = {
 	},
 };
 
+#define DM355_I2C_SDA_PIN	GPIO_TO_PIN(0, 15)
+#define DM355_I2C_SCL_PIN	GPIO_TO_PIN(0, 14)
+
 static struct gpiod_lookup_table i2c_recovery_gpiod_table = {
-	.dev_id = "i2c_davinci",
+	.dev_id = "i2c_davinci.1",
 	.table = {
-		GPIO_LOOKUP("davinci_gpio", 15, "sda",
+		GPIO_LOOKUP("davinci_gpio.0", DM355_I2C_SDA_PIN, "sda",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
-		GPIO_LOOKUP("davinci_gpio", 14, "scl",
+		GPIO_LOOKUP("davinci_gpio.0", DM355_I2C_SCL_PIN, "scl",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
@@ -179,11 +183,16 @@ static struct resource dm355evm_dm9000_rsrc[] = {
 	},
 };
 
+static struct dm9000_plat_data dm335evm_dm9000_platdata;
+
 static struct platform_device dm355evm_dm9000 = {
 	.name		= "dm9000",
 	.id		= -1,
 	.resource	= dm355evm_dm9000_rsrc,
 	.num_resources	= ARRAY_SIZE(dm355evm_dm9000_rsrc),
+	.dev		= {
+		.platform_data = &dm335evm_dm9000_platdata,
+	},
 };
 
 static struct tvp514x_platform_data tvp5146_pdata = {

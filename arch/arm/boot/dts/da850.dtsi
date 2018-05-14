@@ -7,10 +7,19 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0xc0000000 0x0>;
+	};
+
 	arm {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -46,8 +55,6 @@
 		pmx_core: pinmux@14120 {
 			compatible = "pinctrl-single";
 			reg = <0x14120 0x50>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			#pinctrl-cells = <2>;
 			pinctrl-single,bit-per-mux;
 			pinctrl-single,register-width = <32>;
