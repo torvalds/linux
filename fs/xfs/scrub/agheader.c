@@ -157,9 +157,7 @@ xfs_scrub_superblock(
 	if (agno == 0)
 		return 0;
 
-	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-		  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
-		  XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_sb_buf_ops);
+	error = xfs_sb_read_secondary(mp, sc->tp, agno, &bp);
 	/*
 	 * The superblock verifier can return several different error codes
 	 * if it thinks the superblock doesn't look right.  For a mount these
