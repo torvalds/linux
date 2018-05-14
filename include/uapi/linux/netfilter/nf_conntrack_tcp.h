@@ -46,6 +46,9 @@ enum tcp_conntrack {
 /* Marks possibility for expected RFC5961 challenge ACK */
 #define IP_CT_EXP_CHALLENGE_ACK 		0x40
 
+/* Simultaneous open initialized */
+#define IP_CT_TCP_SIMULTANEOUS_OPEN		0x80
+
 struct nf_ct_tcp_flags {
 	__u8 flags;
 	__u8 mask;
