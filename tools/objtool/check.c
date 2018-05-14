@@ -898,24 +898,24 @@ static struct rela *find_switch_table(struct objtool_file *file,
 {
 	struct rela *text_rela, *rodata_rela;
 	struct instruction *orig_insn = insn;
+	unsigned long table_offset;
 
+	/* case 1 & 2 */
 	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
 	if (text_rela && text_rela->sym == file->rodata->sym &&
 	    !find_symbol_containing(file->rodata, text_rela->addend)) {
 
-		/* case 1 */
-		rodata_rela = find_rela_by_dest(file->rodata,
-						text_rela->addend);
-		if (rodata_rela)
-			return rodata_rela;
+		table_offset = text_rela->addend;
+		if (text_rela->type == R_X86_64_PC32) {
+			/* case 2 */
+			table_offset += 4;
+			file->ignore_unreachables = true;
+		}
 
-		/* case 2 */
-		rodata_rela = find_rela_by_dest(file->rodata,
-						text_rela->addend + 4);
+		rodata_rela = find_rela_by_dest(file->rodata, table_offset);
 		if (!rodata_rela)
 			return NULL;
 
-		file->ignore_unreachables = true;
 		return rodata_rela;
 	}
 
@@ -949,18 +949,21 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		if (!text_rela || text_rela->sym != file->rodata->sym)
 			continue;
 
+		table_offset = text_rela->addend;
+		if (text_rela->type == R_X86_64_PC32)
+			table_offset += 4;
+
 		/*
 		 * Make sure the .rodata address isn't associated with a
 		 * symbol.  gcc jump tables are anonymous data.
 		 */
-		if (find_symbol_containing(file->rodata, text_rela->addend))
+		if (find_symbol_containing(file->rodata, table_offset))
 			continue;
 
-		rodata_rela = find_rela_by_dest(file->rodata, text_rela->addend);
-		if (!rodata_rela)
-			continue;
-
-		return rodata_rela;
+		/* mov [rodata addr], %reg */
+		rodata_rela = find_rela_by_dest(file->rodata, table_offset);
+		if (rodata_rela)
+			return rodata_rela;
 	}
 
 	return NULL;
