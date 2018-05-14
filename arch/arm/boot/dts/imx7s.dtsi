@@ -519,11 +519,8 @@
 				reg = <0x30360000 0x10000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				reg_1p0d: regulator-vdd1p0d@30360210 {
-					reg = <0x30360210>;
+				reg_1p0d: regulator-vdd1p0d {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p0d";
 					regulator-min-microvolt = <800000>;
@@ -537,8 +534,7 @@
 					anatop-enable-bit = <0>;
 				};
 
-				reg_1p2: regulator-vdd1p2@30360220 {
-					reg = <0x30360220>;
+				reg_1p2: regulator-vdd1p2 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p2";
 					regulator-min-microvolt = <1100000>;
