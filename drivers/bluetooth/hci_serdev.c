@@ -204,9 +204,8 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		return 0;
 	}
 
-	if (skb->len != sizeof(*ver)) {
+	if (skb->len != sizeof(*ver))
 		bt_dev_err(hdev, "Event length mismatch for version info");
-	}
 
 	kfree_skb(skb);
 	return 0;
