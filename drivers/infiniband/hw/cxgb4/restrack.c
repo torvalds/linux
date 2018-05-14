@@ -174,10 +174,10 @@ static int fill_res_qp_entry(struct sk_buff *msg,
 	struct t4_swsqe *fsp = NULL, *lsp = NULL;
 	struct t4_swrqe *frp = NULL, *lrp = NULL;
 	struct c4iw_qp *qhp = to_c4iw_qp(ibqp);
+	u16 first_sq_idx = 0, last_sq_idx = 0;
+	u16 first_rq_idx = 0, last_rq_idx = 0;
 	struct t4_swsqe first_sqe, last_sqe;
 	struct t4_swrqe first_rqe, last_rqe;
-	u16 first_sq_idx, last_sq_idx;
-	u16 first_rq_idx, last_rq_idx;
 	struct nlattr *table_attr;
 	struct t4_wq wq;
 
