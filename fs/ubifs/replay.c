@@ -223,9 +223,6 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 	dbg_mntk(&r->key, "LEB %d:%d len %d deletion %d sqnum %llu key ",
 		 r->lnum, r->offs, r->len, r->deletion, r->sqnum);
 
-	/* Set c->replay_sqnum to help deal with dangling branches. */
-	c->replay_sqnum = r->sqnum;
-
 	if (is_hash_key(c, &r->key)) {
 		if (r->deletion)
 			err = ubifs_tnc_remove_nm(c, &r->key, &r->nm);
