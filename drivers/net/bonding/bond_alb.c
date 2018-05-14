@@ -1478,8 +1478,24 @@ netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	}
 
 	if (do_tx_balance) {
-		hash_index = _simple_hash(hash_start, hash_size);
-		tx_slave = tlb_choose_channel(bond, hash_index, skb->len);
+		if (bond->params.tlb_dynamic_lb) {
+			hash_index = _simple_hash(hash_start, hash_size);
+			tx_slave = tlb_choose_channel(bond, hash_index, skb->len);
+		} else {
+			/*
+			 * do_tx_balance means we are free to select the tx_slave
+			 * So we do exactly what tlb would do for hash selection
+			 */
+
+			struct bond_up_slave *slaves;
+			unsigned int count;
+
+			slaves = rcu_dereference(bond->slave_arr);
+			count = slaves ? READ_ONCE(slaves->count) : 0;
+			if (likely(count))
+				tx_slave = slaves->arr[bond_xmit_hash(bond, skb) %
+						       count];
+		}
 	}
 
 	return bond_do_alb_xmit(skb, bond, tx_slave);
