@@ -568,20 +568,29 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	ssize_t retval;
 	s32 irq_on;
 
-	if (!idev->info->irq)
-		return -EIO;
+	if (!idev->info->irq) {
+		retval = -EIO;
+		goto out;
+	}
 
-	if (count != sizeof(s32))
-		return -EINVAL;
+	if (count != sizeof(s32)) {
+		retval = -EINVAL;
+		goto out;
+	}
 
-	if (!idev->info->irqcontrol)
-		return -ENOSYS;
+	if (!idev->info->irqcontrol) {
+		retval = -ENOSYS;
+		goto out;
+	}
 
-	if (copy_from_user(&irq_on, buf, count))
-		return -EFAULT;
+	if (copy_from_user(&irq_on, buf, count)) {
+		retval = -EFAULT;
+		goto out;
+	}
 
 	retval = idev->info->irqcontrol(idev->info, irq_on);
 
+out:
 	return retval ? retval : sizeof(s32);
 }
 
