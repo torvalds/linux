@@ -396,6 +396,7 @@ config CPU_V7
 	select CPU_CP15_MPU if !MMU
 	select CPU_HAS_ASID if MMU
 	select CPU_PABRT_V7
+	select CPU_SPECTRE if MMU
 	select CPU_TLB_V7 if MMU
 
 # ARMv7M
@@ -792,6 +793,9 @@ config CPU_BPREDICT_DISABLE
 	depends on CPU_ARM1020 || CPU_V6 || CPU_V6K || CPU_MOHAWK || CPU_XSC3 || CPU_V7 || CPU_FA526
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
+
+config CPU_SPECTRE
+	bool
 
 config TLS_REG_EMUL
 	bool
