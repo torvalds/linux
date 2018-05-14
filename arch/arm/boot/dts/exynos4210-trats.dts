@@ -259,8 +259,8 @@
 		reg = <0x48>;
 		interrupt-parent = <&gpx0>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-		x-size = <720>;
-		y-size = <1280>;
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
 		avdd-supply = <&tsp_reg>;
 		vdd-supply = <&tsp_reg>;
 	};
