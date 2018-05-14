@@ -244,3 +244,11 @@ Description:    read only
                 Returns 1 if the psl timebase register is synchronized
                 with the core timebase register, 0 otherwise.
 Users:          https://github.com/ibm-capi/libcxl
+
+What:           /sys/class/cxl/<card>/tunneled_ops_supported
+Date:           May 2018
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Returns 1 if tunneled operations are supported in capi mode,
+                0 otherwise.
+Users:          https://github.com/ibm-capi/libcxl

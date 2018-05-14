@@ -717,6 +717,7 @@ struct cxl {
 	bool perst_select_user;
 	bool perst_same_image;
 	bool psl_timebase_synced;
+	bool tunneled_ops_supported;
 
 	/*
 	 * number of contexts mapped on to this card. Possible values are:
