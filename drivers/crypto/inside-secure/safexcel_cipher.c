@@ -118,21 +118,20 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 	switch (ctx->key_len) {
 	case AES_KEYSIZE_128:
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES128;
-		ctrl_size = 4;
 		break;
 	case AES_KEYSIZE_192:
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES192;
-		ctrl_size = 6;
 		break;
 	case AES_KEYSIZE_256:
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES256;
-		ctrl_size = 8;
 		break;
 	default:
 		dev_err(priv->dev, "aes keysize not supported: %u\n",
 			ctx->key_len);
 		return -EINVAL;
 	}
+
+	ctrl_size = ctx->key_len / sizeof(u32);
 	cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(ctrl_size);
 
 	return 0;
