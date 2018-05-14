@@ -274,7 +274,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 void flush_anon_page(struct vm_area_struct *vma,
 		     struct page *page, unsigned long vaddr)
 {
-	unsigned long flags;
+	unsigned long kaddr, flags, ktmp;
 	if (!PageAnon(page))
 		return;
 
@@ -284,7 +284,12 @@ void flush_anon_page(struct vm_area_struct *vma,
 	local_irq_save(flags);
 	if (vma->vm_flags & VM_EXEC)
 		cpu_icache_inval_page(vaddr & PAGE_MASK);
-	cpu_dcache_wbinval_page((unsigned long)page_address(page));
+	kaddr = (unsigned long)page_address(page);
+	if (aliasing(vaddr, kaddr)) {
+		ktmp = kremap0(vaddr, page_to_phys(page));
+		cpu_dcache_wbinval_page(ktmp);
+		kunmap01(ktmp);
+	}
 	local_irq_restore(flags);
 }
 
