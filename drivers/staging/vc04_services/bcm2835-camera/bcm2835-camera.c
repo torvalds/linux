@@ -1548,7 +1548,7 @@ static int set_camera_parameters(struct vchiq_mmal_instance *instance,
 #define MAX_SUPPORTED_ENCODINGS 20
 
 /* MMAL instance and component init */
-static int __init mmal_init(struct bm2835_mmal_dev *dev)
+static int mmal_init(struct bm2835_mmal_dev *dev)
 {
 	int ret;
 	struct mmal_es_format_local *format;
@@ -1756,8 +1756,8 @@ unreg_mmal:
 	return ret;
 }
 
-static int __init bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
-					  struct video_device *vfd)
+static int bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
+				   struct video_device *vfd)
 {
 	int ret;
 
@@ -1836,7 +1836,7 @@ static struct v4l2_format default_v4l2_format = {
 	.fmt.pix.sizeimage = 1024 * 768,
 };
 
-static int __init bcm2835_mmal_probe(struct platform_device *pdev)
+static int bcm2835_mmal_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct bm2835_mmal_dev *dev;
