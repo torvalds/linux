@@ -26,17 +26,19 @@
 #define IMX219_TABLE_END		0xffff
 #define IMX219_ANALOGUE_GAIN_MULTIPLIER	256
 #define IMX219_ANALOGUE_GAIN_MIN	(1 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
-#define IMX219_ANALOGUE_GAIN_MAX	(8 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
+#define IMX219_ANALOGUE_GAIN_MAX	(11 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
 #define IMX219_ANALOGUE_GAIN_DEFAULT	(2 * IMX219_ANALOGUE_GAIN_MULTIPLIER)
 
 /* In dB*256 */
 #define IMX219_DIGITAL_GAIN_MIN		256
-#define IMX219_DIGITAL_GAIN_MAX		4095
+#define IMX219_DIGITAL_GAIN_MAX		43663
 #define IMX219_DIGITAL_GAIN_DEFAULT	256
 
 #define IMX219_DIGITAL_EXPOSURE_MIN	0
 #define IMX219_DIGITAL_EXPOSURE_MAX	4095
-#define IMX219_DIGITAL_EXPOSURE_DEFAULT	256
+#define IMX219_DIGITAL_EXPOSURE_DEFAULT	1575
+
+#define IMX219_EXP_LINES_MARGIN	4
 
 static const s64 link_freq_menu_items[] = {
 	456000000,
@@ -74,12 +76,22 @@ static const struct imx219_reg imx219_init_tab_3280_2464_21fps[] = {
 	{0x0161, 0xC4},		/* FRM_LENGTH_A[7:0] */
 	{0x0162, 0x0D},		/* LINE_LENGTH_A[15:8] */
 	{0x0163, 0x78},		/* LINE_LENGTH_A[7:0] */
+	{0x0260, 0x09},		/* FRM_LENGTH_B[15:8] */
+	{0x0261, 0xC4},		/* FRM_LENGTH_B[7:0] */
+	{0x0262, 0x0D},		/* LINE_LENGTH_B[15:8] */
+	{0x0263, 0x78},		/* LINE_LENGTH_B[7:0] */
 	{0x0170, 0x01},		/* X_ODD_INC_A[2:0] */
 	{0x0171, 0x01},		/* Y_ODD_INC_A[2:0] */
+	{0x0270, 0x01},		/* X_ODD_INC_B[2:0] */
+	{0x0271, 0x01},		/* Y_ODD_INC_B[2:0] */
 	{0x0174, 0x00},		/* BINNING_MODE_H_A */
 	{0x0175, 0x00},		/* BINNING_MODE_V_A */
+	{0x0274, 0x00},		/* BINNING_MODE_H_B */
+	{0x0275, 0x00},		/* BINNING_MODE_V_B */
 	{0x018C, 0x0A},		/* CSI_DATA_FORMAT_A[15:8] */
 	{0x018D, 0x0A},		/* CSI_DATA_FORMAT_A[7:0] */
+	{0x028C, 0x0A},		/* CSI_DATA_FORMAT_B[15:8] */
+	{0x028D, 0x0A},		/* CSI_DATA_FORMAT_B[7:0] */
 	{0x0301, 0x05},		/* VTPXCK_DIV */
 	{0x0303, 0x01},		/* VTSYCK_DIV */
 	{0x0304, 0x03},		/* PREPLLCK_VT_DIV[3:0] */
@@ -98,45 +110,56 @@ static const struct imx219_reg imx219_init_tab_3280_2464_21fps[] = {
 	{IMX219_TABLE_END, 0x00}
 };
 
-/* MCLK:24MHz  1920x1080  47.5fps   MIPI LANE2 */
-static const struct imx219_reg imx219_init_tab_1920_1080_48fps[] = {
-	{0x30EB, 0x05},		/* Access Code for address over 0x3000 */
-	{0x30EB, 0x0C},		/* Access Code for address over 0x3000 */
-	{0x300A, 0xFF},		/* Access Code for address over 0x3000 */
-	{0x300B, 0xFF},		/* Access Code for address over 0x3000 */
-	{0x30EB, 0x05},		/* Access Code for address over 0x3000 */
-	{0x30EB, 0x09},		/* Access Code for address over 0x3000 */
-	{0x0114, 0x01},		/* CSI_LANE_MODE[1:0} */
-	{0x0128, 0x00},		/* DPHY_CNTRL */
-	{0x012A, 0x18},		/* EXCK_FREQ[15:8] */
-	{0x012B, 0x00},		/* EXCK_FREQ[7:0] */
-	{0x015A, 0x03},		/* INTEG TIME[15:8] */
-	{0x015B, 0xE8},		/* INTEG TIME[7:0] */
-	{0x0160, 0x04},		/* FRM_LENGTH_A[15:8] */
-	{0x0161, 0x59},		/* FRM_LENGTH_A[7:0] */
-	{0x0162, 0x0D},		/* LINE_LENGTH_A[15:8] */
-	{0x0163, 0x78},		/* LINE_LENGTH_A[7:0] */
-	{0x0170, 0x01},		/* X_ODD_INC_A[2:0] */
-	{0x0171, 0x01},		/* Y_ODD_INC_A[2:0] */
-	{0x0174, 0x00},		/* BINNING_MODE_H_A */
-	{0x0175, 0x00},		/* BINNING_MODE_V_A */
-	{0x018C, 0x0A},		/* CSI_DATA_FORMAT_A[15:8] */
-	{0x018D, 0x0A},		/* CSI_DATA_FORMAT_A[7:0] */
-	{0x0301, 0x05},		/* VTPXCK_DIV */
-	{0x0303, 0x01},		/* VTSYCK_DIV */
-	{0x0304, 0x03},		/* PREPLLCK_VT_DIV[3:0] */
-	{0x0305, 0x03},		/* PREPLLCK_OP_DIV[3:0] */
-	{0x0306, 0x00},		/* PLL_VT_MPY[10:8] */
-	{0x0307, 0x39},		/* PLL_VT_MPY[7:0] */
-	{0x0309, 0x0A},		/* OPPXCK_DIV[4:0] */
-	{0x030B, 0x01},		/* OPSYCK_DIV */
-	{0x030C, 0x00},		/* PLL_OP_MPY[10:8] */
-	{0x030D, 0x72},		/* PLL_OP_MPY[7:0] */
-	{0x455E, 0x00},		/* CIS Tuning */
-	{0x471E, 0x4B},		/* CIS Tuning */
-	{0x4767, 0x0F},		/* CIS Tuning */
-	{0x4750, 0x14},		/* CIS Tuning */
-	{0x47B4, 0x14},		/* CIS Tuning */
+/* MCLK:24MHz  1920x1080  30fps   MIPI LANE2 */
+static const struct imx219_reg imx219_init_tab_1920_1080_30fps[] = {
+	{0x30EB, 0x05},
+	{0x30EB, 0x0C},
+	{0x300A, 0xFF},
+	{0x300B, 0xFF},
+	{0x30EB, 0x05},
+	{0x30EB, 0x09},
+	{0x0114, 0x01},
+	{0x0128, 0x00},
+	{0x012A, 0x18},
+	{0x012B, 0x00},
+	{0x0160, 0x06},
+	{0x0161, 0xE6},
+	{0x0162, 0x0D},
+	{0x0163, 0x78},
+	{0x0164, 0x02},
+	{0x0165, 0xA8},
+	{0x0166, 0x0A},
+	{0x0167, 0x27},
+	{0x0168, 0x02},
+	{0x0169, 0xB4},
+	{0x016A, 0x06},
+	{0x016B, 0xEB},
+	{0x016C, 0x07},
+	{0x016D, 0x80},
+	{0x016E, 0x04},
+	{0x016F, 0x38},
+	{0x0170, 0x01},
+	{0x0171, 0x01},
+	{0x0174, 0x00},
+	{0x0175, 0x00},
+	{0x018C, 0x0A},
+	{0x018D, 0x0A},
+	{0x0301, 0x05},
+	{0x0303, 0x01},
+	{0x0304, 0x03},
+	{0x0305, 0x03},
+	{0x0306, 0x00},
+	{0x0307, 0x39},
+	{0x0309, 0x0A},
+	{0x030B, 0x01},
+	{0x030C, 0x00},
+	{0x030D, 0x72},
+	{0x455E, 0x00},
+	{0x471E, 0x4B},
+	{0x4767, 0x0F},
+	{0x4750, 0x14},
+	{0x4540, 0x00},
+	{0x47B4, 0x14},
 	{IMX219_TABLE_END, 0x00}
 };
 
@@ -207,24 +230,25 @@ struct imx219 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *pixel_rate;
 	const struct imx219_mode *cur_mode;
+	u16 cur_vts;
 };
 
 static const struct imx219_mode supported_modes[] = {
 	{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = 30,
+		.hts_def = 0x0d78 - IMX219_EXP_LINES_MARGIN,
+		.vts_def = 0x06E6,
+		.reg_list = imx219_init_tab_1920_1080_30fps,
+	},
+	{
 		.width = 3280,
 		.height = 2464,
 		.max_fps = 21,
-		.hts_def = 0x0d78,
+		.hts_def = 0x0d78 - IMX219_EXP_LINES_MARGIN,
 		.vts_def = 0x09c4,
 		.reg_list = imx219_init_tab_3280_2464_21fps,
-	},
-	{
-		.width = 1920,
-		.height = 1080,
-		.max_fps = 48,
-		.hts_def = 0x0d78,
-		.vts_def = 0x0459,
-		.reg_list = imx219_init_tab_1920_1080_48fps,
 	},
 };
 
@@ -314,12 +338,12 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	/* Handle crop */
 	ret = reg_write(client, 0x0164, priv->crop_rect.left >> 8);
 	ret |= reg_write(client, 0x0165, priv->crop_rect.left & 0xff);
-	ret |= reg_write(client, 0x0166, (priv->crop_rect.width - 1) >> 8);
-	ret |= reg_write(client, 0x0167, (priv->crop_rect.width - 1) & 0xff);
+	ret |= reg_write(client, 0x0166, (priv->crop_rect.left + priv->crop_rect.width - 1) >> 8);
+	ret |= reg_write(client, 0x0167, (priv->crop_rect.left + priv->crop_rect.width - 1) & 0xff);
 	ret |= reg_write(client, 0x0168, priv->crop_rect.top >> 8);
 	ret |= reg_write(client, 0x0169, priv->crop_rect.top & 0xff);
-	ret |= reg_write(client, 0x016A, (priv->crop_rect.height - 1) >> 8);
-	ret |= reg_write(client, 0x016B, (priv->crop_rect.height - 1) & 0xff);
+	ret |= reg_write(client, 0x016A, (priv->crop_rect.top + priv->crop_rect.height - 1) >> 8);
+	ret |= reg_write(client, 0x016B, (priv->crop_rect.top + priv->crop_rect.height - 1) & 0xff);
 	ret |= reg_write(client, 0x016C, priv->crop_rect.width >> 8);
 	ret |= reg_write(client, 0x016D, priv->crop_rect.width & 0xff);
 	ret |= reg_write(client, 0x016E, priv->crop_rect.height >> 8);
@@ -371,6 +395,7 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 		ret |= reg_write(client, 0x0601, 0x00);
 	}
 
+	priv->cur_vts = priv->cur_mode->vts_def - IMX219_EXP_LINES_MARGIN;
 	if (ret)
 		return ret;
 
@@ -477,46 +502,92 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
 	u8 reg;
 	int ret;
+	u16 gain = 256;
+	u16 a_gain = 256;
+	u16 d_gain = 1;
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
 		priv->hflip = ctrl->val;
 		break;
+
 	case V4L2_CID_VFLIP:
 		priv->vflip = ctrl->val;
 		break;
-	case V4L2_CID_ANALOGUE_GAIN:
-		/*
-		 * Register value goes from 0 to 224, and the analog gain
-		 * setting is 256 / (256 - reg).  This results in a total gain
-		 * of 1.0f to 8.0f.  We multiply the control setting by some
-		 * big number IMX219_ANALOGUE_GAIN_MULTIPLIER to make use of
-		 * the full resolution of this register.
-		 */
-		priv->analogue_gain =
-		    256 - ((256 * IMX219_ANALOGUE_GAIN_MULTIPLIER) / ctrl->val);
-		ret = reg_write(client, 0x0157, priv->analogue_gain);
 
-		return ret;
+	case V4L2_CID_ANALOGUE_GAIN:
 	case V4L2_CID_GAIN:
 		/*
-		 * Register value goes from 256 to 4095, and the digital gain
-		 * setting is reg / 256.  This results in a total gain of 0dB
-		 * to 24dB.
+		 * hal transfer (gain * 256)  to kernel
+		 * than divide into analog gain & digital gain in kernel
 		 */
-		priv->digital_gain = ctrl->val;
-		ret = reg_write(client, 0x0158, priv->digital_gain >> 8);
+
+		gain = ctrl->val;
+		if (gain < 256)
+			gain = 256;
+		if (gain > 43663)
+			gain = 43663;
+		if (gain >= 256 && gain <= 2728) {
+			a_gain = gain;
+			d_gain = 1 * 256;
+		} else {
+			a_gain = 2728;
+			d_gain = (gain * 256) / a_gain;
+		}
+
+		/*
+		 * Analog gain, reg range[0, 232], gain value[1, 10.66]
+		 * reg = 256 - 256 / again
+		 * a_gain here is 256 multify
+		 * so the reg = 256 - 256 * 256 / a_gain
+		 */
+		priv->analogue_gain = (256 - (256 * 256) / a_gain);
+		if (a_gain < 256)
+			priv->analogue_gain = 0;
+		if (priv->analogue_gain > 232)
+			priv->analogue_gain = 232;
+
+		/*
+		 * Digital gain, reg range[256, 4095], gain rage[1, 16]
+		 * reg = dgain * 256
+		 */
+		priv->digital_gain = d_gain;
+		if (priv->digital_gain < 256)
+			priv->digital_gain = 256;
+		if (priv->digital_gain > 4095)
+			priv->digital_gain = 4095;
+
+		/*
+		 * for bank A and bank B switch
+		 * exposure time , gain, vts must change at the same time
+		 * so the exposure & gain can reflect at the same frame
+		 */
+
+		ret = reg_write(client, 0x0157, priv->analogue_gain);
+		ret |= reg_write(client, 0x0158, priv->digital_gain >> 8);
 		ret |= reg_write(client, 0x0159, priv->digital_gain & 0xff);
 
 		return ret;
+
 	case V4L2_CID_EXPOSURE:
 		priv->exposure_time = ctrl->val;
+
 		ret = reg_write(client, 0x015a, priv->exposure_time >> 8);
 		ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
-
 		return ret;
+
 	case V4L2_CID_TEST_PATTERN:
 		return imx219_s_ctrl_test_pattern(ctrl);
+
+	case V4L2_CID_VBLANK:
+		if (ctrl->val < priv->cur_mode->vts_def)
+			ctrl->val = priv->cur_mode->vts_def;
+		if ((ctrl->val - IMX219_EXP_LINES_MARGIN) != priv->cur_vts)
+			priv->cur_vts = ctrl->val - IMX219_EXP_LINES_MARGIN;
+		ret = reg_write(client, 0x0160, ((priv->cur_vts >> 8) & 0xff));
+		ret |= reg_write(client, 0x0161, (priv->cur_vts & 0xff));
+		return ret;
+
 	default:
 		return -EINVAL;
 	}
@@ -596,8 +667,12 @@ static int imx219_set_fmt(struct v4l2_subdev *sd,
 					pixel_rate, 1, pixel_rate);
 
 	/* reset crop window */
-	priv->crop_rect.left = 0;
-	priv->crop_rect.top = 0;
+	priv->crop_rect.left = 1640 - (mode->width / 2);
+	if (priv->crop_rect.left < 0)
+		priv->crop_rect.left = 0;
+	priv->crop_rect.top = 1232 - (mode->height / 2);
+	if (priv->crop_rect.top < 0)
+		priv->crop_rect.top = 0;
 	priv->crop_rect.width = mode->width;
 	priv->crop_rect.height = mode->height;
 
@@ -818,11 +893,11 @@ static int imx219_probe(struct i2c_client *client,
 		return -EPROBE_DEFER;
 	}
 
-	/* 3280 * 2464 by default */
+	/* 1920 * 1080 by default */
 	priv->cur_mode = &supported_modes[0];
 
-	priv->crop_rect.left = 0;
-	priv->crop_rect.top = 0;
+	priv->crop_rect.left = 680;
+	priv->crop_rect.top = 692;
 	priv->crop_rect.width = priv->cur_mode->width;
 	priv->crop_rect.height = priv->cur_mode->height;
 
