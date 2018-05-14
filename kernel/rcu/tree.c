@@ -457,7 +457,7 @@ void rcu_note_context_switch(bool preempt)
 		rcu_momentary_dyntick_idle();
 	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
 	if (!preempt)
-		rcu_note_voluntary_context_switch_lite(current);
+		rcu_tasks_qs(current);
 out:
 	trace_rcu_utilization(TPS("End context switch"));
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
