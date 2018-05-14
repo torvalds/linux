@@ -902,8 +902,12 @@ static int check_input_term(struct mixer_build *state, int id,
 				term->id = id;
 				term->type = le16_to_cpu(d->wTerminalType);
 
-				/* REVISIT: UAC3 IT doesn't have channels/cfg */
-				term->channels = 0;
+				err = get_cluster_channels_v3(state, le16_to_cpu(d->wClusterDescrID));
+				if (err < 0)
+					return err;
+				term->channels = err;
+
+				/* REVISIT: UAC3 IT doesn't have channels cfg */
 				term->chconfig = 0;
 
 				term->name = le16_to_cpu(d->wTerminalDescrStr);
