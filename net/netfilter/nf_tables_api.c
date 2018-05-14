@@ -129,6 +129,7 @@ static int nf_tables_register_hook(struct net *net,
 				   const struct nft_table *table,
 				   struct nft_chain *chain)
 {
+	const struct nft_base_chain *basechain;
 	struct nf_hook_ops *ops;
 	int ret;
 
@@ -136,7 +137,12 @@ static int nf_tables_register_hook(struct net *net,
 	    !nft_is_base_chain(chain))
 		return 0;
 
-	ops = &nft_base_chain(chain)->ops;
+	basechain = nft_base_chain(chain);
+	ops = &basechain->ops;
+
+	if (basechain->type->ops_register)
+		return basechain->type->ops_register(net, ops);
+
 	ret = nf_register_net_hook(net, ops);
 	if (ret == -EBUSY && nf_tables_allow_nat_conflict(net, ops)) {
 		ops->nat_hook = false;
@@ -151,11 +157,19 @@ static void nf_tables_unregister_hook(struct net *net,
 				      const struct nft_table *table,
 				      struct nft_chain *chain)
 {
+	const struct nft_base_chain *basechain;
+	const struct nf_hook_ops *ops;
+
 	if (table->flags & NFT_TABLE_F_DORMANT ||
 	    !nft_is_base_chain(chain))
 		return;
+	basechain = nft_base_chain(chain);
+	ops = &basechain->ops;
 
-	nf_unregister_net_hook(net, &nft_base_chain(chain)->ops);
+	if (basechain->type->ops_unregister)
+		return basechain->type->ops_unregister(net, ops);
+
+	nf_unregister_net_hook(net, ops);
 }
 
 static int nft_trans_table_add(struct nft_ctx *ctx, int msg_type)
@@ -1262,8 +1276,6 @@ static void nf_tables_chain_destroy(struct nft_ctx *ctx)
 	if (nft_is_base_chain(chain)) {
 		struct nft_base_chain *basechain = nft_base_chain(chain);
 
-		if (basechain->type->free)
-			basechain->type->free(ctx);
 		module_put(basechain->type->owner);
 		free_percpu(basechain->stats);
 		if (basechain->stats)
@@ -1396,9 +1408,6 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		}
 
 		basechain->type = hook.type;
-		if (basechain->type->init)
-			basechain->type->init(ctx);
-
 		chain = &basechain->chain;
 
 		ops		= &basechain->ops;

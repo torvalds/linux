@@ -66,14 +66,21 @@ static unsigned int nft_nat_ipv4_local_fn(void *priv,
 	return nf_nat_ipv4_local_fn(priv, skb, state, nft_nat_do_chain);
 }
 
-static int nft_nat_ipv4_init(struct nft_ctx *ctx)
+static int nft_nat_ipv4_reg(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_ct_netns_get(ctx->net, ctx->family);
+	int ret = nf_register_net_hook(net, ops);
+	if (ret == 0) {
+		ret = nf_ct_netns_get(net, NFPROTO_IPV4);
+		if (ret)
+			 nf_unregister_net_hook(net, ops);
+	}
+	return ret;
 }
 
-static void nft_nat_ipv4_free(struct nft_ctx *ctx)
+static void nft_nat_ipv4_unreg(struct net *net, const struct nf_hook_ops *ops)
 {
-	nf_ct_netns_put(ctx->net, ctx->family);
+	nf_unregister_net_hook(net, ops);
+	nf_ct_netns_put(net, NFPROTO_IPV4);
 }
 
 static const struct nft_chain_type nft_chain_nat_ipv4 = {
@@ -91,8 +98,8 @@ static const struct nft_chain_type nft_chain_nat_ipv4 = {
 		[NF_INET_LOCAL_OUT]	= nft_nat_ipv4_local_fn,
 		[NF_INET_LOCAL_IN]	= nft_nat_ipv4_fn,
 	},
-	.init		= nft_nat_ipv4_init,
-	.free		= nft_nat_ipv4_free,
+	.ops_register = nft_nat_ipv4_reg,
+	.ops_unregister = nft_nat_ipv4_unreg,
 };
 
 static int __init nft_chain_nat_init(void)
