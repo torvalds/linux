@@ -28,6 +28,12 @@ struct vmcore {
 	loff_t offset;
 };
 
+struct vmcoredd_node {
+	struct list_head list;	/* List of dumps */
+	void *buf;		/* Buffer containing device's dump */
+	unsigned int size;	/* Size of the buffer */
+};
+
 #ifdef CONFIG_PROC_KCORE
 extern void kclist_add(struct kcore_list *, void *, size_t, int type);
 #else
