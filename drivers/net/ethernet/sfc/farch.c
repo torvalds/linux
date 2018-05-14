@@ -2905,18 +2905,45 @@ bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 {
 	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table;
-	bool ret = false;
+	bool ret = false, force = false;
+	u16 arfs_id;
 
 	down_write(&state->lock);
+	spin_lock_bh(&efx->rps_hash_lock);
 	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	if (test_bit(index, table->used_bitmap) &&
-	    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
-	    rps_may_expire_flow(efx->net_dev, table->spec[index].dmaq_id,
-				flow_id, 0)) {
-		efx_farch_filter_table_clear_entry(efx, table, index);
-		ret = true;
-	}
+	    table->spec[index].priority == EFX_FILTER_PRI_HINT) {
+		struct efx_arfs_rule *rule = NULL;
+		struct efx_filter_spec spec;
 
+		efx_farch_filter_to_gen_spec(&spec, &table->spec[index]);
+		if (!efx->rps_hash_table) {
+			/* In the absence of the table, we always returned 0 to
+			 * ARFS, so use the same to query it.
+			 */
+			arfs_id = 0;
+		} else {
+			rule = efx_rps_hash_find(efx, &spec);
+			if (!rule) {
+				/* ARFS table doesn't know of this filter, remove it */
+				force = true;
+			} else {
+				arfs_id = rule->arfs_id;
+				if (!efx_rps_check_rule(rule, index, &force))
+					goto out_unlock;
+			}
+		}
+		if (force || rps_may_expire_flow(efx->net_dev, spec.dmaq_id,
+						 flow_id, arfs_id)) {
+			if (rule)
+				rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+			efx_rps_hash_del(efx, &spec);
+			efx_farch_filter_table_clear_entry(efx, table, index);
+			ret = true;
+		}
+	}
+out_unlock:
+	spin_unlock_bh(&efx->rps_hash_lock);
 	up_write(&state->lock);
 	return ret;
 }

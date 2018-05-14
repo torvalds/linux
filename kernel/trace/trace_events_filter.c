@@ -762,6 +762,9 @@ static int regex_match_full(char *str, struct regex *r, int len)
 
 static int regex_match_front(char *str, struct regex *r, int len)
 {
+	if (len < r->len)
+		return 0;
+
 	if (strncmp(str, r->pattern, r->len) == 0)
 		return 1;
 	return 0;
@@ -1499,14 +1502,14 @@ static int process_preds(struct trace_event_call *call,
 		return ret;
 	}
 
-	if (!nr_preds) {
-		prog = NULL;
-	} else {
-		prog = predicate_parse(filter_string, nr_parens, nr_preds,
+	if (!nr_preds)
+		return -EINVAL;
+
+	prog = predicate_parse(filter_string, nr_parens, nr_preds,
 			       parse_pred, call, pe);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-	}
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
 	rcu_assign_pointer(filter->prog, prog);
 	return 0;
 }

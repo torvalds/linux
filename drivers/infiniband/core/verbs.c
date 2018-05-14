@@ -1656,6 +1656,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
+		mr->dm      = NULL;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 		mr->need_inval = false;

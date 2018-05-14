@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 17
 SUBLEVEL = 0
-EXTRAVERSION = -rc2
-NAME = Fearless Coyote
+EXTRAVERSION = -rc5
+NAME = Merciless Moray
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
