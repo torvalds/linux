@@ -880,8 +880,18 @@ xfs_file_dedupe_range(
 	struct file	*dst_file,
 	u64		dst_loff)
 {
+	struct inode	*srci = file_inode(src_file);
+	u64		max_dedupe;
 	int		error;
 
+	/*
+	 * Since we have to read all these pages in to compare them, cut
+	 * it off at MAX_RW_COUNT/2 rounded down to the nearest block.
+	 * That means we won't do more than MAX_RW_COUNT IO per request.
+	 */
+	max_dedupe = (MAX_RW_COUNT >> 1) & ~(i_blocksize(srci) - 1);
+	if (len > max_dedupe)
+		len = max_dedupe;
 	error = xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
 				     len, true);
 	if (error)

@@ -3427,6 +3427,9 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 		hw->phy.sfp_setup_needed = false;
 	}
 
+	if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		return status;
+
 	/* Reset PHY */
 	if (!hw->phy.reset_disable && hw->phy.ops.reset)
 		hw->phy.ops.reset(hw);

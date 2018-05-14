@@ -76,7 +76,7 @@
 #define I2C6		63
 #define USART1		64
 #define RTCAPB		65
-#define TZC		66
+#define TZC1		66
 #define TZPC		67
 #define IWDG1		68
 #define BSEC		69
@@ -123,6 +123,7 @@
 #define CRC1		110
 #define USBH		111
 #define ETHSTP		112
+#define TZC2		113
 
 /* Kernel clocks */
 #define SDMMC1_K	118
@@ -228,7 +229,6 @@
 #define CK_MCO2		212
 
 /* TRACE & DEBUG clocks */
-#define DBG		213
 #define CK_DBG		214
 #define CK_TRACE	215
 
