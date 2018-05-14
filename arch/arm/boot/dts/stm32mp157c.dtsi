@@ -709,6 +709,18 @@
 			status = "disabled";
 		};
 
+		hash1: hash@54002000 {
+			compatible = "st,stm32f756-hash";
+			reg = <0x54002000 0x400>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc HASH1>;
+			resets = <&rcc HASH1_R>;
+			dmas = <&mdma1 31 0x10 0x1000A02 0x0 0x0 0x0>;
+			dma-names = "in";
+			dma-maxburst = <2>;
+			status = "disabled";
+		};
+
 		rng1: rng@54003000 {
 			compatible = "st,stm32-rng";
 			reg = <0x54003000 0x400>;
