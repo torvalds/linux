@@ -1449,31 +1449,13 @@ found_ok_skb:
 				}
 			}
 		}
-		if (hws->rstate == TLS_RCV_ST_READ_BODY) {
-			if (skb_copy_datagram_msg(skb, offset,
-						  msg, avail)) {
-				if (!copied) {
-					copied = -EFAULT;
-					break;
-				}
-			}
-		} else {
-			struct tlsrx_cmp_hdr *tls_hdr_pkt =
-				(struct tlsrx_cmp_hdr *)skb->data;
-
-			if ((tls_hdr_pkt->res_to_mac_error &
-			    TLSRX_HDR_PKT_ERROR_M))
-				tls_hdr_pkt->type = 0x7F;
-
-			/* CMP pld len is for recv seq */
-			hws->rcvpld = skb->hdr_len;
-			if (skb_copy_datagram_msg(skb, offset, msg, avail)) {
-				if (!copied) {
-					copied = -EFAULT;
-					break;
-				}
+		if (skb_copy_datagram_msg(skb, offset, msg, avail)) {
+			if (!copied) {
+				copied = -EFAULT;
+				break;
 			}
 		}
+
 		copied += avail;
 		len -= avail;
 		hws->copied_seq += avail;
@@ -1481,32 +1463,20 @@ skip_copy:
 		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq))
 			tp->urg_data = 0;
 
-		if (hws->rstate == TLS_RCV_ST_READ_BODY &&
-		    (avail + offset) >= skb->len) {
+		if ((avail + offset) >= skb->len) {
 			if (likely(skb))
 				chtls_free_skb(sk, skb);
 			buffers_freed++;
-			hws->rstate = TLS_RCV_ST_READ_HEADER;
-			atomic_inc(&adap->chcr_stats.tls_pdu_rx);
-			tp->copied_seq += hws->rcvpld;
+			if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_TLS_HDR) {
+				tp->copied_seq += skb->len;
+				hws->rcvpld = skb->hdr_len;
+			} else {
+				tp->copied_seq += hws->rcvpld;
+			}
 			hws->copied_seq = 0;
 			if (copied >= target &&
 			    !skb_peek(&sk->sk_receive_queue))
 				break;
-		} else {
-			if (likely(skb)) {
-				if (ULP_SKB_CB(skb)->flags &
-				    ULPCB_FLAG_TLS_ND)
-					hws->rstate =
-						TLS_RCV_ST_READ_HEADER;
-				else
-					hws->rstate =
-						TLS_RCV_ST_READ_BODY;
-				chtls_free_skb(sk, skb);
-			}
-			buffers_freed++;
-			tp->copied_seq += avail;
-			hws->copied_seq = 0;
 		}
 	} while (len > 0);
 
