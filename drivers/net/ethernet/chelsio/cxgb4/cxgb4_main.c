@@ -5276,13 +5276,9 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	u32 pcie_fw;
 
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
-	/* Check if cxgb4 is the MASTER and fw is initialized */
-	if (num_vfs &&
-	    (!(pcie_fw & PCIE_FW_INIT_F) ||
-	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF)) {
-		dev_warn(&pdev->dev,
-			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
+	/* Check if fw is initialized */
+	if (!(pcie_fw & PCIE_FW_INIT_F)) {
+		dev_warn(&pdev->dev, "Device not initialized\n");
 		return -EOPNOTSUPP;
 	}
 
