@@ -16,6 +16,7 @@
 #include "xfs_alloc_btree.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_alloc.h"
+#include "xfs_ialloc.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
@@ -401,4 +402,63 @@ xfs_ag_init_headers(
 			break;
 	}
 	return error;
+}
+
+/*
+ * Extent the AG indicated by the @id by the length passed in
+ */
+int
+xfs_ag_extend_space(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct aghdr_init_data	*id,
+	xfs_extlen_t		len)
+{
+	struct xfs_owner_info	oinfo;
+	struct xfs_buf		*bp;
+	struct xfs_agi		*agi;
+	struct xfs_agf		*agf;
+	int			error;
+
+	/*
+	 * Change the agi length.
+	 */
+	error = xfs_ialloc_read_agi(mp, tp, id->agno, &bp);
+	if (error)
+		return error;
+
+	agi = XFS_BUF_TO_AGI(bp);
+	be32_add_cpu(&agi->agi_length, len);
+	ASSERT(id->agno == mp->m_sb.sb_agcount - 1 ||
+	       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
+	xfs_ialloc_log_agi(tp, bp, XFS_AGI_LENGTH);
+
+	/*
+	 * Change agf length.
+	 */
+	error = xfs_alloc_read_agf(mp, tp, id->agno, 0, &bp);
+	if (error)
+		return error;
+
+	agf = XFS_BUF_TO_AGF(bp);
+	be32_add_cpu(&agf->agf_length, len);
+	ASSERT(agf->agf_length == agi->agi_length);
+	xfs_alloc_log_agf(tp, bp, XFS_AGF_LENGTH);
+
+	/*
+	 * Free the new space.
+	 *
+	 * XFS_RMAP_OWN_NULL is used here to tell the rmap btree that
+	 * this doesn't actually exist in the rmap btree.
+	 */
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
+	error = xfs_rmap_free(tp, bp, id->agno,
+				be32_to_cpu(agf->agf_length) - len,
+				len, &oinfo);
+	if (error)
+		return error;
+
+	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, id->agno,
+					be32_to_cpu(agf->agf_length) - len),
+				len, &oinfo, XFS_AG_RESV_NONE);
 }

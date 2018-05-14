@@ -27,16 +27,12 @@
 #include "xfs_trans.h"
 #include "xfs_error.h"
 #include "xfs_btree.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
-#include "xfs_rmap_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_fsops.h"
 #include "xfs_trans_space.h"
 #include "xfs_rtalloc.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_rmap.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
@@ -48,8 +44,6 @@ xfs_growfs_data_private(
 	xfs_mount_t		*mp,		/* mount point for filesystem */
 	xfs_growfs_data_t	*in)		/* growfs data input struct */
 {
-	xfs_agf_t		*agf;
-	xfs_agi_t		*agi;
 	xfs_buf_t		*bp;
 	int			error;
 	xfs_agnumber_t		nagcount;
@@ -132,57 +126,9 @@ xfs_growfs_data_private(
 
 	xfs_trans_agblocks_delta(tp, id.nfree);
 
-	/*
-	 * There are new blocks in the old last a.g.
-	 */
+	/* If there are new blocks in the old last AG, extend it. */
 	if (new) {
-		struct xfs_owner_info	oinfo;
-
-		/*
-		 * Change the agi length.
-		 */
-		error = xfs_ialloc_read_agi(mp, tp, id.agno, &bp);
-		if (error)
-			goto out_trans_cancel;
-
-		ASSERT(bp);
-		agi = XFS_BUF_TO_AGI(bp);
-		be32_add_cpu(&agi->agi_length, new);
-		ASSERT(nagcount == oagcount ||
-		       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
-		xfs_ialloc_log_agi(tp, bp, XFS_AGI_LENGTH);
-
-		/*
-		 * Change agf length.
-		 */
-		error = xfs_alloc_read_agf(mp, tp, id.agno, 0, &bp);
-		if (error)
-			goto out_trans_cancel;
-
-		ASSERT(bp);
-		agf = XFS_BUF_TO_AGF(bp);
-		be32_add_cpu(&agf->agf_length, new);
-		ASSERT(be32_to_cpu(agf->agf_length) ==
-		       be32_to_cpu(agi->agi_length));
-
-		xfs_alloc_log_agf(tp, bp, XFS_AGF_LENGTH);
-
-		/*
-		 * Free the new space.
-		 *
-		 * XFS_RMAP_OWN_NULL is used here to tell the rmap btree that
-		 * this doesn't actually exist in the rmap btree.
-		 */
-		xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
-		error = xfs_rmap_free(tp, bp, id.agno,
-				be32_to_cpu(agf->agf_length) - new,
-				new, &oinfo);
-		if (error)
-			goto out_trans_cancel;
-		error = xfs_free_extent(tp,
-				XFS_AGB_TO_FSB(mp, id.agno,
-					be32_to_cpu(agf->agf_length) - new),
-				new, &oinfo, XFS_AG_RESV_NONE);
+		error = xfs_ag_extend_space(mp, tp, &id, new);
 		if (error)
 			goto out_trans_cancel;
 	}
