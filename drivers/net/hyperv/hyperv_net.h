@@ -734,7 +734,7 @@ struct net_device_context {
 
 	u32 tx_checksum_mask;
 
-	u32 tx_send_table[VRSS_SEND_TAB_SIZE];
+	u32 tx_table[VRSS_SEND_TAB_SIZE];
 
 	/* Ethtool settings */
 	bool udp4_l4_hash;
