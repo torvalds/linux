@@ -1194,7 +1194,6 @@ static int mtk_qdma_tx_poll(struct mtk_eth *eth, int budget, bool *tx_again)
 	int total = 0, done[MTK_MAX_DEVS];
 	unsigned int bytes[MTK_MAX_DEVS];
 	u32 cpu, dma;
-	static int condition;
 	int i;
 
 	memset(done, 0, sizeof(done));
@@ -1219,10 +1218,8 @@ static int mtk_qdma_tx_poll(struct mtk_eth *eth, int budget, bool *tx_again)
 
 		tx_buf = mtk_desc_to_tx_buf(ring, desc);
 		skb = tx_buf->skb;
-		if (!skb) {
-			condition = 1;
+		if (!skb)
 			break;
-		}
 
 		if (skb != (struct sk_buff *)DMA_DUMMY_DESC) {
 			bytes[mac] += skb->len;
