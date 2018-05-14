@@ -14,7 +14,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 { /* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -26,11 +26,9 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@28 {
-			debounce_interval = <50>;
+		button-setup {
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Reset to defaults";
@@ -41,14 +39,14 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@7 {
+		led-gsm {
 			/* FIXME: add the LED color */
 			label = "rut1xx::gsm";
 			/* Conflict with ICE */
 			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
-		led@31 {
+		led-power {
 			/* FIXME: add the LED color */
 			label = "rut1xx::power";
 			/* Conflict with NAND CE0 */
