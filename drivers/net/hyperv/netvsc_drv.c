@@ -283,8 +283,19 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	rcu_read_lock();
 	vf_netdev = rcu_dereference(ndc->vf_netdev);
 	if (vf_netdev) {
-		txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) : 0;
-		qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
+		const struct net_device_ops *vf_ops = vf_netdev->netdev_ops;
+
+		if (vf_ops->ndo_select_queue)
+			txq = vf_ops->ndo_select_queue(vf_netdev, skb,
+						       accel_priv, fallback);
+		else
+			txq = fallback(vf_netdev, skb);
+
+		/* Record the queue selected by VF so that it can be
+		 * used for common case where VF has more queues than
+		 * the synthetic device.
+		 */
+		qdisc_skb_cb(skb)->slave_dev_queue_mapping = txq;
 	} else {
 		txq = netvsc_pick_tx(ndev, skb);
 	}
