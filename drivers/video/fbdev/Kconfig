@@ -2312,18 +2312,6 @@ source "drivers/video/fbdev/omap/Kconfig"
 source "drivers/video/fbdev/omap2/Kconfig"
 source "drivers/video/fbdev/mmp/Kconfig"
 
-config FB_SH_MOBILE_MERAM
-	tristate "SuperH Mobile MERAM read ahead support"
-	depends on ARCH_SHMOBILE
-	select GENERIC_ALLOCATOR
-	---help---
-	  Enable MERAM support for the SuperH controller.
-
-	  This will allow for caching of the framebuffer to provide more
-	  reliable access under heavy main memory bus traffic situations.
-	  Up to 4 memory channels can be configured, allowing 4 RGB or
-	  2 YCbCr framebuffers to be configured.
-
 config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C
