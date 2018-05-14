@@ -347,6 +347,18 @@ extern void xfs_buf_terminate(void);
 
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
+/*
+ * If the buffer is already on the LRU, do nothing. Otherwise set the buffer
+ * up with a reference count of 0 so it will be tossed from the cache when
+ * released.
+ */
+static inline void xfs_buf_oneshot(struct xfs_buf *bp)
+{
+	if (!list_empty(&bp->b_lru) || atomic_read(&bp->b_lru_ref) > 1)
+		return;
+	atomic_set(&bp->b_lru_ref, 0);
+}
+
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {
 	return atomic_read(&bp->b_pin_count);
