@@ -245,6 +245,19 @@ mlxsw_sp_span_entry_vlan(const struct net_device *vlan_dev,
 	return vlan_dev_real_dev(vlan_dev);
 }
 
+static struct net_device *
+mlxsw_sp_span_entry_lag(struct net_device *lag_dev)
+{
+	struct net_device *dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(lag_dev, dev, iter)
+		if ((dev->flags & IFF_UP) && mlxsw_sp_port_dev_check(dev))
+			return dev;
+
+	return NULL;
+}
+
 static __maybe_unused int
 mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 					union mlxsw_sp_l3addr saddr,
@@ -276,6 +289,14 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 		if (vid || !(edev->flags & IFF_UP))
 			goto unoffloadable;
 		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
+	}
+
+	if (netif_is_lag_master(edev)) {
+		if (!(edev->flags & IFF_UP))
+			goto unoffloadable;
+		edev = mlxsw_sp_span_entry_lag(edev);
+		if (!edev)
+			goto unoffloadable;
 	}
 
 	if (!mlxsw_sp_port_dev_check(edev))
