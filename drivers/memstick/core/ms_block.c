@@ -2094,7 +2094,6 @@ static const struct block_device_operations msb_bdops = {
 static int msb_init_disk(struct memstick_dev *card)
 {
 	struct msb_data *msb = memstick_get_drvdata(card);
-	struct memstick_host *host = card->host;
 	int rc;
 	unsigned long capacity;
 
