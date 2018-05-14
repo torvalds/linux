@@ -183,6 +183,7 @@ struct nvme_ctrl {
 	u16 oacs;
 	u16 nssa;
 	u16 nr_streams;
+	u32 max_namespaces;
 	atomic_t abort_limit;
 	u8 vwc;
 	u32 vs;
@@ -204,6 +205,19 @@ struct nvme_ctrl {
 	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 	unsigned long events;
+
+#ifdef CONFIG_NVME_MULTIPATH
+	/* asymmetric namespace access: */
+	u8 anacap;
+	u8 anatt;
+	u32 anagrpmax;
+	u32 nanagrpid;
+	struct mutex ana_lock;
+	struct nvme_ana_rsp_hdr *ana_log_buf;
+	size_t ana_log_size;
+	struct timer_list anatt_timer;
+	struct work_struct ana_work;
+#endif
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
@@ -269,6 +283,7 @@ struct nvme_ns_head {
 	struct bio_list		requeue_list;
 	spinlock_t		requeue_lock;
 	struct work_struct	requeue_work;
+	struct mutex		lock;
 #endif
 	struct list_head	list;
 	struct srcu_struct      srcu;
@@ -295,6 +310,10 @@ struct nvme_ns {
 	struct nvme_ctrl *ctrl;
 	struct request_queue *queue;
 	struct gendisk *disk;
+#ifdef CONFIG_NVME_MULTIPATH
+	enum nvme_ana_state ana_state;
+	u32 ana_grpid;
+#endif
 	struct list_head siblings;
 	struct nvm_dev *ndev;
 	struct kref kref;
@@ -307,8 +326,9 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
-#define NVME_NS_REMOVING 0
-#define NVME_NS_DEAD     1
+#define NVME_NS_REMOVING	0
+#define NVME_NS_DEAD     	1
+#define NVME_NS_ANA_PENDING	2
 	u16 noiob;
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
@@ -450,13 +470,17 @@ extern const struct attribute_group nvme_ns_id_attr_group;
 extern const struct block_device_operations nvme_ns_head_ops;
 
 #ifdef CONFIG_NVME_MULTIPATH
+bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl);
 void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 			struct nvme_ctrl *ctrl, int *flags);
 void nvme_failover_req(struct request *req);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
-void nvme_mpath_add_disk(struct nvme_ns_head *head);
+void nvme_mpath_add_disk(struct nvme_ns *ns, struct nvme_id_ns *id);
 void nvme_mpath_remove_disk(struct nvme_ns_head *head);
+int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id);
+void nvme_mpath_uninit(struct nvme_ctrl *ctrl);
+void nvme_mpath_stop(struct nvme_ctrl *ctrl);
 
 static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
@@ -475,7 +499,14 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 		kblockd_schedule_work(&head->requeue_work);
 }
 
+extern struct device_attribute dev_attr_ana_grpid;
+extern struct device_attribute dev_attr_ana_state;
+
 #else
+static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
+{
+	return false;
+}
 /*
  * Without the multipath code enabled, multiple controller per subsystems are
  * visible as devices and thus we cannot use the subsystem instance.
@@ -497,7 +528,8 @@ static inline int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,
 {
 	return 0;
 }
-static inline void nvme_mpath_add_disk(struct nvme_ns_head *head)
+static inline void nvme_mpath_add_disk(struct nvme_ns *ns,
+		struct nvme_id_ns *id)
 {
 }
 static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
@@ -507,6 +539,17 @@ static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
 }
 static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
+{
+}
+static inline int nvme_mpath_init(struct nvme_ctrl *ctrl,
+		struct nvme_id_ctrl *id)
+{
+	return 0;
+}
+static inline void nvme_mpath_uninit(struct nvme_ctrl *ctrl)
+{
+}
+static inline void nvme_mpath_stop(struct nvme_ctrl *ctrl)
 {
 }
 #endif /* CONFIG_NVME_MULTIPATH */
