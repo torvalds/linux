@@ -213,6 +213,12 @@ config DRM_VGEM
 	  as used by Mesa's software renderer for enhanced performance.
 	  If M is selected the module will be called vgem.
 
+config DRM_VKMS
+	tristate "Virtual KMS"
+	depends on DRM
+	help
+	  Choose this option to get a virtual kernal mode-setting driver.
+	  If M is selected the module will be called vkms.
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
