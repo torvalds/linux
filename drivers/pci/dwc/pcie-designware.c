@@ -69,7 +69,7 @@ u32 __dw_pcie_read_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
 
 	ret = dw_pcie_read(base + reg, size, &val);
 	if (ret)
-		dev_err(pci->dev, "read DBI address failed\n");
+		dev_err(pci->dev, "Read DBI address failed\n");
 
 	return val;
 }
@@ -86,7 +86,7 @@ void __dw_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
 
 	ret = dw_pcie_write(base + reg, size, val);
 	if (ret)
-		dev_err(pci->dev, "write DBI address failed\n");
+		dev_err(pci->dev, "Write DBI address failed\n");
 }
 
 static u32 dw_pcie_readl_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg)
@@ -137,7 +137,7 @@ static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, int index,
 
 		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
 	}
-	dev_err(pci->dev, "outbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
 }
 
 void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
@@ -180,7 +180,7 @@ void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
 
 		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
 	}
-	dev_err(pci->dev, "outbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
 }
 
 static u32 dw_pcie_readl_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg)
@@ -238,7 +238,7 @@ static int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, int index,
 
 		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
 	}
-	dev_err(pci->dev, "inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
 
 	return -EBUSY;
 }
@@ -284,7 +284,7 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, int index, int bar,
 
 		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
 	}
-	dev_err(pci->dev, "inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
 
 	return -EBUSY;
 }
@@ -313,16 +313,16 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 {
 	int retries;
 
-	/* check if the link is up or not */
+	/* Check if the link is up or not */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (dw_pcie_link_up(pci)) {
-			dev_info(pci->dev, "link up\n");
+			dev_info(pci->dev, "Link up\n");
 			return 0;
 		}
 		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
 	}
 
-	dev_err(pci->dev, "phy link never came up\n");
+	dev_err(pci->dev, "Phy link never came up\n");
 
 	return -ETIMEDOUT;
 }
@@ -351,7 +351,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	if (ret)
 		lanes = 0;
 
-	/* set the number of lanes */
+	/* Set the number of lanes */
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 	val &= ~PORT_LINK_MODE_MASK;
 	switch (lanes) {
@@ -373,7 +373,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	}
 	dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
 
-	/* set link width speed control register */
+	/* Set link width speed control register */
 	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
 	val &= ~PORT_LOGIC_LINK_WIDTH_MASK;
 	switch (lanes) {
