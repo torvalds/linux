@@ -41,7 +41,7 @@ The driver may further adjust the requested size and/or position
 according to hardware limitations.
 
 Each capture device has a default source rectangle, given by the
-``V4L2_SEL_TGT_CROP_DEFAULT`` target. This rectangle shall over what the
+``V4L2_SEL_TGT_CROP_DEFAULT`` target. This rectangle shall cover what the
 driver writer considers the complete picture. Drivers shall set the
 active crop rectangle to the default when the driver is first loaded,
 but not later.
