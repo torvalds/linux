@@ -175,11 +175,9 @@ void copy_user_highpage(struct page *to, struct page *from,
 	pto = page_to_phys(to);
 	pfrom = page_to_phys(from);
 
+	local_irq_save(flags);
 	if (aliasing(vaddr, (unsigned long)kfrom))
 		cpu_dcache_wb_page((unsigned long)kfrom);
-	if (aliasing(vaddr, (unsigned long)kto))
-		cpu_dcache_inval_page((unsigned long)kto);
-	local_irq_save(flags);
 	vto = kremap0(vaddr, pto);
 	vfrom = kremap1(vaddr, pfrom);
 	copy_page((void *)vto, (void *)vfrom);
