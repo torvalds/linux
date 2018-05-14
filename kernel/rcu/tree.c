@@ -2069,7 +2069,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	rsp->gp_state = RCU_GP_IDLE;
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(rsp->rda);
-	if (ULONG_CMP_LT(rnp->gp_seq, rnp->gp_seq_needed)) {
+	if (!needgp && ULONG_CMP_LT(rnp->gp_seq, rnp->gp_seq_needed)) {
 		trace_rcu_this_gp(rnp, rdp, rnp->gp_seq_needed,
 				  TPS("CleanupMore"));
 		needgp = true;
