@@ -38,6 +38,9 @@ struct xfs_scrub_meta_ops {
 	/* Examine metadata for errors. */
 	int		(*scrub)(struct xfs_scrub_context *);
 
+	/* Repair or optimize the metadata. */
+	int		(*repair)(struct xfs_scrub_context *);
+
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_sb *);
 
