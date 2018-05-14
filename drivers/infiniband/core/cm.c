@@ -535,6 +535,7 @@ static struct cm_port *get_cm_port_from_path(struct sa_path_rec *path)
 static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 			      struct cm_id_private *cm_id_priv)
 {
+	struct rdma_ah_attr new_ah_attr;
 	struct cm_device *cm_dev;
 	struct cm_port *port;
 	int ret;
@@ -550,15 +551,26 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 		return ret;
 
 	av->port = port;
+
+	/*
+	 * av->ah_attr might be initialized based on wc or during
+	 * request processing time. So initialize a new ah_attr on stack.
+	 * If initialization fails, old ah_attr is used for sending any
+	 * responses. If initialization is successful, than new ah_attr
+	 * is used by overwriting the old one.
+	 */
 	ret = ib_init_ah_attr_from_path(cm_dev->ib_device, port->port_num, path,
-					&av->ah_attr);
+					&new_ah_attr);
 	if (ret)
 		return ret;
 
 	av->timeout = path->packet_life_time + 1;
 
 	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
-	return ret;
+	if (ret)
+		return ret;
+	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	return 0;
 }
 
 static int cm_alloc_id(struct cm_id_private *cm_id_priv)
