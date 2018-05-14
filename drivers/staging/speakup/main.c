@@ -1786,7 +1786,7 @@ static void speakup_con_update(struct vc_data *vc)
 	speakup_date(vc);
 	if (vc->vc_mode == KD_GRAPHICS && !spk_paused && spk_str_pause[0]) {
 		synth_printf("%s", spk_str_pause);
-		spk_paused = 1;
+		spk_paused = true;
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }

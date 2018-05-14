@@ -80,7 +80,7 @@ void synth_buffer_add(u16 ch)
 	/* We have written something to the speech synthesis, so we are not
 	 * paused any more.
 	 */
-	spk_paused = 0;
+	spk_paused = false;
 }
 
 u16 synth_buffer_getc(void)
