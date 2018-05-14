@@ -88,12 +88,11 @@ static int netvsc_open(struct net_device *net)
 		return ret;
 	}
 
-	netif_tx_wake_all_queues(net);
-
 	rdev = nvdev->extension;
-
-	if (!rdev->link_state)
+	if (!rdev->link_state) {
 		netif_carrier_on(net);
+		netif_tx_wake_all_queues(net);
+	}
 
 	if (vf_netdev) {
 		/* Setting synthetic device up transparently sets
