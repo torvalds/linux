@@ -298,9 +298,20 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	}
 
 	misc1 = REG_READ(DP_MSA_MISC);
+	/* For YCbCr420 and BT2020 Colorimetry Formats, VSC SDP shall be used.
+	 * When MISC1, bit 6, is Set to 1, a Source device uses a VSC SDP to indicate the
+	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
+	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become “don’t care”).
+	 */
+	if ((crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
+			(output_color_space == COLOR_SPACE_2020_YCBCR) ||
+			(output_color_space == COLOR_SPACE_2020_RGB_FULLRANGE) ||
+			(output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+		misc1 = misc1 | 0x40;
+	else
+		misc1 = misc1 & ~0x40;
 
 	/* set color depth */
-
 	switch (crtc_timing->display_color_depth) {
 	case COLOR_DEPTH_666:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
@@ -354,7 +365,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 
 	switch (output_color_space) {
 	case COLOR_SPACE_SRGB:
-		misc0 = misc0 | 0x0;
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
 		dynamic_range_rgb = 0; /*full range*/
 		break;
