@@ -570,10 +570,15 @@ void netvsc_device_remove(struct hv_device *device)
 	 */
 	netdev_dbg(ndev, "net device safe to remove\n");
 
+	/* older versions require that buffer be revoked before close */
+	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
+
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
-	netvsc_teardown_gpadl(device, net_device);
+	if (net_device->nvsp_version >= NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
