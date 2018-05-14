@@ -47,18 +47,15 @@ flag ~empty [M \ IW] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
 let lk-rmw = ([LKR] ; po-loc ; [LKW]) \ (po ; po)
 let rmw = rmw | lk-rmw
 
+(* The litmus test is invalid if an LKR/LKW event is not part of an RMW pair *)
+flag ~empty LKW \ range(lk-rmw) as unpaired-LKW
+flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
+
 (*
- * A paired LKR must always see an unlocked value; spin_lock() calls nested
+ * An LKR must always see an unlocked value; spin_lock() calls nested
  * inside a critical section (for the same lock) always deadlock.
  *)
-empty ([LKW] ; po-loc ; [domain(lk-rmw)]) \ (po-loc ; [UL] ; po-loc)
-	as lock-nest
-
-(* The litmus test is invalid if an LKW event is not part of an RMW pair *)
-flag ~empty LKW \ range(lk-rmw) as unpaired-LKW
-
-(* This will be allowed if we implement spin_is_locked() *)
-flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
+empty ([LKW] ; po-loc ; [LKR]) \ (po-loc ; [UL] ; po-loc) as lock-nest
 
 (* The final value of a spinlock should not be tested *)
 flag ~empty [FW] ; loc ; [ALL-LOCKS] as lock-final
