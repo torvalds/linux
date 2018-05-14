@@ -2,8 +2,8 @@
 
 .. _selection-api:
 
-API for cropping, composing and scaling
-=======================================
+Cropping, composing and scaling -- the SELECTION API
+====================================================
 
 
 .. toctree::
