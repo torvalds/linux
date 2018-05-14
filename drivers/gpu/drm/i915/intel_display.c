@@ -1360,21 +1360,6 @@ static bool lvds_pipe_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static bool adpa_pipe_enabled(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, u32 val)
-{
-	if ((val & ADPA_DAC_ENABLE) == 0)
-		return false;
-	if (HAS_PCH_CPT(dev_priv)) {
-		if ((val & PORT_TRANS_SEL_MASK) != PORT_TRANS_SEL_CPT(pipe))
-			return false;
-	} else {
-		if ((val & ADPA_PIPE_SELECT_MASK) != ADPA_PIPE_SELECT(pipe))
-			return false;
-	}
-	return true;
-}
-
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, i915_reg_t reg,
 				   u32 port_sel)
@@ -1405,16 +1390,17 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
+	enum pipe port_pipe;
 	u32 val;
 
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL_B);
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL_C);
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL_D);
 
-	val = I915_READ(PCH_ADPA);
-	I915_STATE_WARN(adpa_pipe_enabled(dev_priv, pipe, val),
-	     "PCH VGA enabled on transcoder %c, should be disabled\n",
-	     pipe_name(pipe));
+	I915_STATE_WARN(intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) &&
+			port_pipe == pipe,
+			"PCH VGA enabled on transcoder %c, should be disabled\n",
+			pipe_name(pipe));
 
 	val = I915_READ(PCH_LVDS);
 	I915_STATE_WARN(lvds_pipe_enabled(dev_priv, pipe, val),

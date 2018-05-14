@@ -4133,11 +4133,12 @@ enum {
 
 #define   ADPA_DAC_ENABLE	(1<<31)
 #define   ADPA_DAC_DISABLE	0
-#define   ADPA_PIPE_SELECT_MASK	(1<<30)
-#define   ADPA_PIPE_A_SELECT	0
-#define   ADPA_PIPE_B_SELECT	(1<<30)
-#define   ADPA_PIPE_SELECT(pipe) ((pipe) << 30)
-/* CPT uses bits 29:30 for pch transcoder select */
+#define   ADPA_PIPE_SEL_SHIFT		30
+#define   ADPA_PIPE_SEL_MASK		(1<<30)
+#define   ADPA_PIPE_SEL(pipe)		((pipe) << 30)
+#define   ADPA_PIPE_SEL_SHIFT_CPT	29
+#define   ADPA_PIPE_SEL_MASK_CPT	(3<<29)
+#define   ADPA_PIPE_SEL_CPT(pipe)	((pipe) << 29)
 #define   ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
 #define   ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
 #define   ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
