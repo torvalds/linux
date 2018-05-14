@@ -155,4 +155,6 @@ static inline bool xfs_scrub_skip_xref(struct xfs_scrub_metadata *sm)
 			       XFS_SCRUB_OFLAG_XCORRUPT);
 }
 
+int xfs_scrub_metadata_inode_forks(struct xfs_scrub_context *sc);
+
 #endif	/* __XFS_SCRUB_COMMON_H__ */

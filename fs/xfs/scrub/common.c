@@ -44,6 +44,8 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_log.h"
 #include "xfs_trans_priv.h"
+#include "xfs_attr.h"
+#include "xfs_reflink.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -786,4 +788,59 @@ xfs_scrub_buffer_recheck(
 		return;
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xfs_scrub_block_error(sc, bp->b_bn, fa);
+}
+
+/*
+ * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
+ * pointed to by sc->ip and the ILOCK must be held.
+ */
+int
+xfs_scrub_metadata_inode_forks(
+	struct xfs_scrub_context	*sc)
+{
+	__u32				smtype;
+	bool				shared;
+	int				error;
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return 0;
+
+	/* Metadata inodes don't live on the rt device. */
+	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* They should never participate in reflink. */
+	if (xfs_is_reflink_inode(sc->ip)) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* They also should never have extended attributes. */
+	if (xfs_inode_hasattr(sc->ip)) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* Invoke the data fork scrubber. */
+	smtype = sc->sm->sm_type;
+	sc->sm->sm_type = XFS_SCRUB_TYPE_BMBTD;
+	error = xfs_scrub_bmap_data(sc);
+	sc->sm->sm_type = smtype;
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
+
+	/* Look for incorrect shared blocks. */
+	if (xfs_sb_version_hasreflink(&sc->mp->m_sb)) {
+		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
+				&shared);
+		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0,
+				&error))
+			return error;
+		if (shared)
+			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+	}
+
+	return error;
 }

@@ -206,65 +206,62 @@ xfs_scrub_quota_item(
 	return 0;
 }
 
+/* Check the quota's data fork. */
+STATIC int
+xfs_scrub_quota_data_fork(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_bmbt_irec		irec = { 0 };
+	struct xfs_iext_cursor		icur;
+	struct xfs_quotainfo		*qi = sc->mp->m_quotainfo;
+	struct xfs_ifork		*ifp;
+	xfs_fileoff_t			max_dqid_off;
+	int				error = 0;
+
+	/* Invoke the fork scrubber. */
+	error = xfs_scrub_metadata_inode_forks(sc);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
+
+	/* Check for data fork problems that apply only to quota files. */
+	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
+	ifp = XFS_IFORK_PTR(sc->ip, XFS_DATA_FORK);
+	for_each_xfs_iext(ifp, &icur, &irec) {
+		if (xfs_scrub_should_terminate(sc, &error))
+			break;
+		/*
+		 * delalloc extents or blocks mapped above the highest
+		 * quota id shouldn't happen.
+		 */
+		if (isnullstartblock(irec.br_startblock) ||
+		    irec.br_startoff > max_dqid_off ||
+		    irec.br_startoff + irec.br_blockcount - 1 > max_dqid_off) {
+			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
+					irec.br_startoff);
+			break;
+		}
+	}
+
+	return error;
+}
+
 /* Scrub all of a quota type's items. */
 int
 xfs_scrub_quota(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_bmbt_irec		irec = { 0 };
 	struct xfs_scrub_quota_info	sqi;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_quotainfo		*qi = mp->m_quotainfo;
-	xfs_fileoff_t			max_dqid_off;
-	xfs_fileoff_t			off = 0;
 	uint				dqtype;
-	int				nimaps;
 	int				error = 0;
 
 	dqtype = xfs_scrub_quota_to_dqtype(sc);
 
 	/* Look for problem extents. */
-	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
-		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+	error = xfs_scrub_quota_data_fork(sc);
+	if (error)
 		goto out;
-	}
-	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
-	while (1) {
-		if (xfs_scrub_should_terminate(sc, &error))
-			break;
-
-		off = irec.br_startoff + irec.br_blockcount;
-		nimaps = 1;
-		error = xfs_bmapi_read(sc->ip, off, -1, &irec, &nimaps,
-				XFS_BMAPI_ENTIRE);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, off,
-				&error))
-			goto out;
-		if (!nimaps)
-			break;
-		if (irec.br_startblock == HOLESTARTBLOCK)
-			continue;
-
-		/* Check the extent record doesn't point to crap. */
-		if (irec.br_startblock + irec.br_blockcount <=
-		    irec.br_startblock)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
-					irec.br_startoff);
-		if (!xfs_verify_fsbno(mp, irec.br_startblock) ||
-		    !xfs_verify_fsbno(mp, irec.br_startblock +
-					irec.br_blockcount - 1))
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
-					irec.br_startoff);
-
-		/*
-		 * Unwritten extents or blocks mapped above the highest
-		 * quota id shouldn't happen.
-		 */
-		if (isnullstartblock(irec.br_startblock) ||
-		    irec.br_startoff > max_dqid_off ||
-		    irec.br_startoff + irec.br_blockcount > max_dqid_off + 1)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, off);
-	}
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
