@@ -82,6 +82,11 @@ xfs_scrub_rtbitmap(
 {
 	int				error;
 
+	/* Invoke the fork scrubber. */
+	error = xfs_scrub_metadata_inode_forks(sc);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
+
 	error = xfs_rtalloc_query_all(sc->tp, xfs_scrub_rtbitmap_rec, sc);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
@@ -95,8 +100,35 @@ int
 xfs_scrub_rtsummary(
 	struct xfs_scrub_context	*sc)
 {
+	struct xfs_inode		*rsumip = sc->mp->m_rsumip;
+	struct xfs_inode		*old_ip = sc->ip;
+	uint				old_ilock_flags = sc->ilock_flags;
+	int				error = 0;
+
+	/*
+	 * We ILOCK'd the rt bitmap ip in the setup routine, now lock the
+	 * rt summary ip in compliance with the rt inode locking rules.
+	 *
+	 * Since we switch sc->ip to rsumip we have to save the old ilock
+	 * flags so that we don't mix up the inode state that @sc tracks.
+	 */
+	sc->ip = rsumip;
+	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM;
+	xfs_ilock(sc->ip, sc->ilock_flags);
+
+	/* Invoke the fork scrubber. */
+	error = xfs_scrub_metadata_inode_forks(sc);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		goto out;
+
 	/* XXX: implement this some day */
-	return -ENOENT;
+	xfs_scrub_set_incomplete(sc);
+out:
+	/* Switch back to the rtbitmap inode and lock flags. */
+	xfs_iunlock(sc->ip, sc->ilock_flags);
+	sc->ilock_flags = old_ilock_flags;
+	sc->ip = old_ip;
+	return error;
 }
 
 
