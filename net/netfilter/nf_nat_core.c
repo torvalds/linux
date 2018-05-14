@@ -513,6 +513,76 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
 
+unsigned int
+nf_nat_inet_fn(void *priv, struct sk_buff *skb,
+	       const struct nf_hook_state *state,
+	       unsigned int (*do_chain)(void *priv,
+					struct sk_buff *skb,
+					const struct nf_hook_state *state))
+{
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn_nat *nat;
+	/* maniptype == SRC for postrouting. */
+	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
+
+	ct = nf_ct_get(skb, &ctinfo);
+	/* Can't track?  It's not due to stress, or conntrack would
+	 * have dropped it.  Hence it's the user's responsibilty to
+	 * packet filter it out, or implement conntrack/NAT for that
+	 * protocol. 8) --RR
+	 */
+	if (!ct)
+		return NF_ACCEPT;
+
+	nat = nfct_nat(ct);
+
+	switch (ctinfo) {
+	case IP_CT_RELATED:
+	case IP_CT_RELATED_REPLY:
+		/* Only ICMPs can be IP_CT_IS_REPLY.  Fallthrough */
+	case IP_CT_NEW:
+		/* Seen it before?  This can happen for loopback, retrans,
+		 * or local packets.
+		 */
+		if (!nf_nat_initialized(ct, maniptype)) {
+			unsigned int ret;
+
+			ret = do_chain(priv, skb, state);
+			if (ret != NF_ACCEPT)
+				return ret;
+
+			if (nf_nat_initialized(ct, HOOK2MANIP(state->hook)))
+				break;
+
+			ret = nf_nat_alloc_null_binding(ct, state->hook);
+			if (ret != NF_ACCEPT)
+				return ret;
+		} else {
+			pr_debug("Already setup manip %s for ct %p (status bits 0x%lx)\n",
+				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
+				 ct, ct->status);
+			if (nf_nat_oif_changed(state->hook, ctinfo, nat,
+					       state->out))
+				goto oif_changed;
+		}
+		break;
+	default:
+		/* ESTABLISHED */
+		WARN_ON(ctinfo != IP_CT_ESTABLISHED &&
+			ctinfo != IP_CT_ESTABLISHED_REPLY);
+		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
+			goto oif_changed;
+	}
+
+	return nf_nat_packet(ct, ctinfo, state->hook, skb);
+
+oif_changed:
+	nf_ct_kill_acct(ct, ctinfo, skb);
+	return NF_DROP;
+}
+EXPORT_SYMBOL_GPL(nf_nat_inet_fn);
+
 struct nf_nat_proto_clean {
 	u8	l3proto;
 	u8	l4proto;

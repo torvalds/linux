@@ -261,8 +261,6 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn_nat *nat;
-	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
 	__be16 frag_off;
 	int hdrlen;
 	u8 nexthdr;
@@ -276,11 +274,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	if (!ct)
 		return NF_ACCEPT;
 
-	nat = nfct_nat(ct);
-
-	switch (ctinfo) {
-	case IP_CT_RELATED:
-	case IP_CT_RELATED_REPLY:
+	if (ctinfo == IP_CT_RELATED || ctinfo == IP_CT_RELATED_REPLY) {
 		nexthdr = ipv6_hdr(skb)->nexthdr;
 		hdrlen = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
 					  &nexthdr, &frag_off);
@@ -293,47 +287,9 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 			else
 				return NF_ACCEPT;
 		}
-		/* Only ICMPs can be IP_CT_IS_REPLY: */
-		/* fall through */
-	case IP_CT_NEW:
-		/* Seen it before?  This can happen for loopback, retrans,
-		 * or local packets.
-		 */
-		if (!nf_nat_initialized(ct, maniptype)) {
-			unsigned int ret;
-
-			ret = do_chain(priv, skb, state);
-			if (ret != NF_ACCEPT)
-				return ret;
-
-			if (nf_nat_initialized(ct, HOOK2MANIP(state->hook)))
-				break;
-
-			ret = nf_nat_alloc_null_binding(ct, state->hook);
-			if (ret != NF_ACCEPT)
-				return ret;
-		} else {
-			pr_debug("Already setup manip %s for ct %p\n",
-				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
-				 ct);
-			if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
-				goto oif_changed;
-		}
-		break;
-
-	default:
-		/* ESTABLISHED */
-		WARN_ON(ctinfo != IP_CT_ESTABLISHED &&
-			ctinfo != IP_CT_ESTABLISHED_REPLY);
-		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
-			goto oif_changed;
 	}
 
-	return nf_nat_packet(ct, ctinfo, state->hook, skb);
-
-oif_changed:
-	nf_ct_kill_acct(ct, ctinfo, skb);
-	return NF_DROP;
+	return nf_nat_inet_fn(priv, skb, state, do_chain);
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_fn);
 
