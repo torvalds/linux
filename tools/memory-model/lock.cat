@@ -5,7 +5,11 @@
  *)
 
 (* Generate coherence orders and handle lock operations *)
-
+(*
+ * Warning, crashes with herd7 versions strictly before 7.48.
+ * spin_islocked is functional from version 7.49.
+ *
+ *)
 include "cross.cat"
 
 (* From lock reads to their partner lock writes *)
@@ -32,12 +36,16 @@ flag ~empty [M \ IW] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
 (* The final value of a spinlock should not be tested *)
 flag ~empty [FW] ; loc ; [ALL-LOCKS] as lock-final
 
-
+(*
+ * Backward compatibility
+ *)
+let RL = try RL with emptyset (* defined herd7 >= 7.49 *)
+let RU = try RU with emptyset (* defined herd7 >= 7.49 *)
 (*
  * Put lock operations in their appropriate classes, but leave UL out of W
  * until after the co relation has been generated.
  *)
-let R = R | LKR | LF
+let R = R | LKR | LF | RL | RU
 let W = W | LKW
 
 let Release = Release | UL
@@ -72,8 +80,45 @@ let all-possible-rfe-lf =
 
 (* Generate all rf relations for LF events *)
 with rfe-lf from cross(all-possible-rfe-lf)
-let rf = rf | rfi-lf | rfe-lf
 
+let rf-lf = rfe-lf | rfi-lf
+
+(* rf for RL events, ie islocked returning true, similar to LF above *)
+
+(* islocked returning true inside a critical section
+ * must read from the opening lock
+ *)
+let rfi-rl = ([LKW] ; po-loc ; [RL]) \ ([LKW] ; po-loc ; [UL] ; po-loc)
+
+(* islocked returning true outside critical sections can match any
+ * external lock.
+ *)
+let all-possible-rfe-rl =
+  let possible-rfe-lf r =
+    let pair-to-relation p = p ++ 0
+    in map pair-to-relation ((LKW * {r}) & loc & ext)
+  in map possible-rfe-lf (RL \ range(rfi-rl))
+
+with rfe-rl from cross(all-possible-rfe-rl)
+let rf-rl = rfe-rl | rfi-rl
+
+(* Read from unlock, ie islocked returning false, slightly different *)
+
+(* islocked returning false can read from the last po-previous unlock *)
+let rfi-ru = ([UL] ; po-loc ; [RU]) \ ([UL] ; po-loc ; [LKW] ; po-loc)
+
+(* any islocked returning false can read from any external unlock *)
+let all-possible-rfe-ru =
+   let possible-rfe-ru r =
+     let pair-to-relation p = p ++ 0
+     in map pair-to-relation (((UL|IW) * {r}) & loc & ext)
+  in map possible-rfe-ru RU
+
+with rfe-ru from cross(all-possible-rfe-ru)
+let rf-ru = rfe-ru | rfi-ru
+
+(* Final rf relation *)
+let rf = rf | rf-lf | rf-rl | rf-ru
 
 (* Generate all co relations, including LKW events but not UL *)
 let co0 = co0 | ([IW] ; loc ; [LKW]) |

@@ -38,6 +38,7 @@ cmpxchg_release(X,V,W) __cmpxchg{release}(X,V,W)
 spin_lock(X) { __lock(X); }
 spin_unlock(X) { __unlock(X); }
 spin_trylock(X) __trylock(X)
+spin_is_locked(X) __islocked(X)
 
 // RCU
 rcu_read_lock() { __fence{rcu-lock}; }

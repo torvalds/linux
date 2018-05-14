@@ -63,6 +63,16 @@ LB+poonceonces.litmus
 MP+onceassign+derefonce.litmus
 	As below, but with rcu_assign_pointer() and an rcu_dereference().
 
+MP+polockmbonce+poacquiresilsil.litmus
+	Protect the access with a lock and an smp_mb__after_spinlock()
+	in one process, and use an acquire load followed by a pair of
+	spin_is_locked() calls in the other process.
+
+MP+polockonce+poacquiresilsil.litmus
+	Protect the access with a lock in one process, and use an
+	acquire load followed by a pair of spin_is_locked() calls
+	in the other process.
+
 MP+polocks.litmus
 	As below, but with the second access of the writer process
 	and the first access of reader process protected by a lock.
