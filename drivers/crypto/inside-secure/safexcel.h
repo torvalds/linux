@@ -28,6 +28,15 @@
 #define EIP197_GFP_FLAGS(base)	((base).flags & CRYPTO_TFM_REQ_MAY_SLEEP ? \
 				 GFP_KERNEL : GFP_ATOMIC)
 
+/* Custom on-stack requests (for invalidation) */
+#define EIP197_SKCIPHER_REQ_SIZE	sizeof(struct skcipher_request) + \
+					sizeof(struct safexcel_cipher_req)
+#define EIP197_AHASH_REQ_SIZE		sizeof(struct ahash_request) + \
+					sizeof(struct safexcel_ahash_req)
+#define EIP197_REQUEST_ON_STACK(name, type, size) \
+	char __##name##_desc[size] CRYPTO_MINALIGN_ATTR; \
+	struct type##_request *name = (void *)__##name##_desc
+
 /* Register base offsets */
 #define EIP197_HIA_AIC(priv)		((priv)->base + (priv)->offsets.hia_aic)
 #define EIP197_HIA_AIC_G(priv)		((priv)->base + (priv)->offsets.hia_aic_g)
