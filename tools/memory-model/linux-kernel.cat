@@ -100,22 +100,22 @@ let rscs = po ; crit^-1 ; po?
  * one but two non-rf relations, but only in conjunction with an RCU
  * read-side critical section.
  *)
-let link = hb* ; pb* ; prop
+let rcu-link = hb* ; pb* ; prop
 
 (* Chains that affect the RCU grace-period guarantee *)
-let gp-link = gp ; link
-let rscs-link = rscs ; link
+let gp-link = gp ; rcu-link
+let rscs-link = rscs ; rcu-link
 
 (*
  * A cycle containing at least as many grace periods as RCU read-side
  * critical sections is forbidden.
  *)
-let rec rcu-path =
+let rec rb =
 	gp-link |
 	(gp-link ; rscs-link) |
 	(rscs-link ; gp-link) |
-	(rcu-path ; rcu-path) |
-	(gp-link ; rcu-path ; rscs-link) |
-	(rscs-link ; rcu-path ; gp-link)
+	(rb ; rb) |
+	(gp-link ; rb ; rscs-link) |
+	(rscs-link ; rb ; gp-link)
 
-irreflexive rcu-path as rcu
+irreflexive rb as rcu
