@@ -47,8 +47,10 @@ struct genpd_power_state {
 };
 
 struct genpd_lock_ops;
+struct dev_pm_opp;
 
 struct generic_pm_domain {
+	struct device dev;
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
 	struct list_head master_links;	/* Links with PM domain as a master */
@@ -67,6 +69,8 @@ struct generic_pm_domain {
 	unsigned int performance_state;	/* Aggregated max performance state */
 	int (*power_off)(struct generic_pm_domain *domain);
 	int (*power_on)(struct generic_pm_domain *domain);
+	unsigned int (*opp_to_performance_state)(struct generic_pm_domain *genpd,
+						 struct dev_pm_opp *opp);
 	int (*set_performance_state)(struct generic_pm_domain *genpd,
 				     unsigned int state);
 	struct gpd_dev_ops dev_ops;
@@ -243,6 +247,8 @@ extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
 extern struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 extern int of_genpd_parse_idle_states(struct device_node *dn,
 			struct genpd_power_state **states, int *n);
+extern unsigned int of_genpd_opp_to_performance_state(struct device *dev,
+				struct device_node *opp_node);
 
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
@@ -274,6 +280,13 @@ static inline int of_genpd_add_subdomain(struct of_phandle_args *parent,
 
 static inline int of_genpd_parse_idle_states(struct device_node *dn,
 			struct genpd_power_state **states, int *n)
+{
+	return -ENODEV;
+}
+
+static inline unsigned int
+of_genpd_opp_to_performance_state(struct device *dev,
+				  struct device_node *opp_node)
 {
 	return -ENODEV;
 }

@@ -33,8 +33,6 @@ LIST_HEAD(opp_tables);
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
 
-static void dev_pm_opp_get(struct dev_pm_opp *opp);
-
 static struct opp_device *_find_opp_dev(const struct device *dev,
 					struct opp_table *opp_table)
 {
@@ -281,6 +279,23 @@ unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp_freq);
 
+int _get_opp_count(struct opp_table *opp_table)
+{
+	struct dev_pm_opp *opp;
+	int count = 0;
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (opp->available)
+			count++;
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	return count;
+}
+
 /**
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp table
  * @dev:	device for which we do this operation
@@ -291,25 +306,17 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp_freq);
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *temp_opp;
-	int count = 0;
+	int count;
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		count = PTR_ERR(opp_table);
 		dev_dbg(dev, "%s: OPP table not found (%d)\n",
 			__func__, count);
-		return count;
+		return 0;
 	}
 
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
-		if (temp_opp->available)
-			count++;
-	}
-
-	mutex_unlock(&opp_table->lock);
+	count = _get_opp_count(opp_table);
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return count;
@@ -892,7 +899,7 @@ static void _opp_kref_release(struct kref *kref)
 	dev_pm_opp_put_opp_table(opp_table);
 }
 
-static void dev_pm_opp_get(struct dev_pm_opp *opp)
+void dev_pm_opp_get(struct dev_pm_opp *opp)
 {
 	kref_get(&opp->kref);
 }
@@ -985,6 +992,43 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 	return true;
 }
 
+static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
+			     struct opp_table *opp_table,
+			     struct list_head **head)
+{
+	struct dev_pm_opp *opp;
+
+	/*
+	 * Insert new OPP in order of increasing frequency and discard if
+	 * already present.
+	 *
+	 * Need to use &opp_table->opp_list in the condition part of the 'for'
+	 * loop, don't replace it with head otherwise it will become an infinite
+	 * loop.
+	 */
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (new_opp->rate > opp->rate) {
+			*head = &opp->node;
+			continue;
+		}
+
+		if (new_opp->rate < opp->rate)
+			return 0;
+
+		/* Duplicate OPPs */
+		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
+			 __func__, opp->rate, opp->supplies[0].u_volt,
+			 opp->available, new_opp->rate,
+			 new_opp->supplies[0].u_volt, new_opp->available);
+
+		/* Should we compare voltages for all regulators here ? */
+		return opp->available &&
+		       new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
+	}
+
+	return 0;
+}
+
 /*
  * Returns:
  * 0: On success. And appropriate error message for duplicate OPPs.
@@ -996,48 +1040,21 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
  *  should be considered an error by the callers of _opp_add().
  */
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
-	     struct opp_table *opp_table)
+	     struct opp_table *opp_table, bool rate_not_available)
 {
-	struct dev_pm_opp *opp;
 	struct list_head *head;
 	int ret;
 
-	/*
-	 * Insert new OPP in order of increasing frequency and discard if
-	 * already present.
-	 *
-	 * Need to use &opp_table->opp_list in the condition part of the 'for'
-	 * loop, don't replace it with head otherwise it will become an infinite
-	 * loop.
-	 */
 	mutex_lock(&opp_table->lock);
 	head = &opp_table->opp_list;
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		if (new_opp->rate > opp->rate) {
-			head = &opp->node;
-			continue;
+	if (likely(!rate_not_available)) {
+		ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
+		if (ret) {
+			mutex_unlock(&opp_table->lock);
+			return ret;
 		}
-
-		if (new_opp->rate < opp->rate)
-			break;
-
-		/* Duplicate OPPs */
-		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
-			 __func__, opp->rate, opp->supplies[0].u_volt,
-			 opp->available, new_opp->rate,
-			 new_opp->supplies[0].u_volt, new_opp->available);
-
-		/* Should we compare voltages for all regulators here ? */
-		ret = opp->available &&
-		      new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
-
-		mutex_unlock(&opp_table->lock);
-		return ret;
 	}
-
-	if (opp_table->get_pstate)
-		new_opp->pstate = opp_table->get_pstate(dev, new_opp->rate);
 
 	list_add(&new_opp->node, head);
 	mutex_unlock(&opp_table->lock);
@@ -1104,7 +1121,7 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	new_opp->available = true;
 	new_opp->dynamic = dynamic;
 
-	ret = _opp_add(dev, new_opp, opp_table);
+	ret = _opp_add(dev, new_opp, opp_table, false);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
@@ -1549,81 +1566,6 @@ void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
-
-/**
- * dev_pm_opp_register_get_pstate_helper() - Register get_pstate() helper.
- * @dev: Device for which the helper is getting registered.
- * @get_pstate: Helper.
- *
- * TODO: Remove this callback after the same information is available via Device
- * Tree.
- *
- * This allows a platform to initialize the performance states of individual
- * OPPs for its devices, until we get similar information directly from DT.
- *
- * This must be called before the OPPs are initialized for the device.
- */
-struct opp_table *dev_pm_opp_register_get_pstate_helper(struct device *dev,
-		int (*get_pstate)(struct device *dev, unsigned long rate))
-{
-	struct opp_table *opp_table;
-	int ret;
-
-	if (!get_pstate)
-		return ERR_PTR(-EINVAL);
-
-	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return ERR_PTR(-ENOMEM);
-
-	/* This should be called before OPPs are initialized */
-	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	/* Already have genpd_performance_state set */
-	if (WARN_ON(opp_table->genpd_performance_state)) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	opp_table->genpd_performance_state = true;
-	opp_table->get_pstate = get_pstate;
-
-	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_register_get_pstate_helper);
-
-/**
- * dev_pm_opp_unregister_get_pstate_helper() - Releases resources blocked for
- *					   get_pstate() helper
- * @opp_table: OPP table returned from dev_pm_opp_register_get_pstate_helper().
- *
- * Release resources blocked for platform specific get_pstate() helper.
- */
-void dev_pm_opp_unregister_get_pstate_helper(struct opp_table *opp_table)
-{
-	if (!opp_table->genpd_performance_state) {
-		pr_err("%s: Doesn't have performance states set\n",
-		       __func__);
-		return;
-	}
-
-	/* Make sure there are no concurrent readers while updating opp_table */
-	WARN_ON(!list_empty(&opp_table->opp_list));
-
-	opp_table->genpd_performance_state = false;
-	opp_table->get_pstate = NULL;
-
-	dev_pm_opp_put_opp_table(opp_table);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_get_pstate_helper);
 
 /**
  * dev_pm_opp_add()  - Add an OPP table from a table definitions
