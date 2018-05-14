@@ -422,9 +422,8 @@ xfs_growfs_data_private(
 {
 	xfs_agf_t		*agf;
 	xfs_agi_t		*agi;
-	xfs_agnumber_t		agno;
 	xfs_buf_t		*bp;
-	int			error, saved_error = 0;
+	int			error;
 	xfs_agnumber_t		nagcount;
 	xfs_agnumber_t		nagimax = 0;
 	xfs_rfsblock_t		nb, nb_mod;
@@ -496,12 +495,12 @@ xfs_growfs_data_private(
 		error = xfs_grow_ag_headers(mp, &id);
 		if (error) {
 			xfs_buf_delwri_cancel(&id.buffer_list);
-			goto error0;
+			goto out_trans_cancel;
 		}
 	}
 	error = xfs_buf_delwri_submit(&id.buffer_list);
 	if (error)
-		goto error0;
+		goto out_trans_cancel;
 
 	xfs_trans_agblocks_delta(tp, id.nfree);
 
@@ -515,22 +514,23 @@ xfs_growfs_data_private(
 		 * Change the agi length.
 		 */
 		error = xfs_ialloc_read_agi(mp, tp, id.agno, &bp);
-		if (error) {
-			goto error0;
-		}
+		if (error)
+			goto out_trans_cancel;
+
 		ASSERT(bp);
 		agi = XFS_BUF_TO_AGI(bp);
 		be32_add_cpu(&agi->agi_length, new);
 		ASSERT(nagcount == oagcount ||
 		       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
 		xfs_ialloc_log_agi(tp, bp, XFS_AGI_LENGTH);
+
 		/*
 		 * Change agf length.
 		 */
 		error = xfs_alloc_read_agf(mp, tp, id.agno, 0, &bp);
-		if (error) {
-			goto error0;
-		}
+		if (error)
+			goto out_trans_cancel;
+
 		ASSERT(bp);
 		agf = XFS_BUF_TO_AGF(bp);
 		be32_add_cpu(&agf->agf_length, new);
@@ -550,13 +550,13 @@ xfs_growfs_data_private(
 				be32_to_cpu(agf->agf_length) - new,
 				new, &oinfo);
 		if (error)
-			goto error0;
+			goto out_trans_cancel;
 		error = xfs_free_extent(tp,
 				XFS_AGB_TO_FSB(mp, id.agno,
 					be32_to_cpu(agf->agf_length) - new),
 				new, &oinfo, XFS_AG_RESV_NONE);
 		if (error)
-			goto error0;
+			goto out_trans_cancel;
 	}
 
 	/*
@@ -593,16 +593,86 @@ xfs_growfs_data_private(
 		error = xfs_ag_resv_free(pag);
 		xfs_perag_put(pag);
 		if (error)
-			goto out;
+			return error;
 	}
 
-	/* Reserve AG metadata blocks. */
+	/*
+	 * Reserve AG metadata blocks. ENOSPC here does not mean there was a
+	 * growfs failure, just that there still isn't space for new user data
+	 * after the grow has been run.
+	 */
 	error = xfs_fs_reserve_ag_blocks(mp);
-	if (error && error != -ENOSPC)
-		goto out;
+	if (error == -ENOSPC)
+		error = 0;
+	return error;
+
+out_trans_cancel:
+	xfs_trans_cancel(tp);
+	return error;
+}
+
+static int
+xfs_growfs_log_private(
+	xfs_mount_t		*mp,	/* mount point for filesystem */
+	xfs_growfs_log_t	*in)	/* growfs log input struct */
+{
+	xfs_extlen_t		nb;
+
+	nb = in->newblocks;
+	if (nb < XFS_MIN_LOG_BLOCKS || nb < XFS_B_TO_FSB(mp, XFS_MIN_LOG_BYTES))
+		return -EINVAL;
+	if (nb == mp->m_sb.sb_logblocks &&
+	    in->isint == (mp->m_sb.sb_logstart != 0))
+		return -EINVAL;
+	/*
+	 * Moving the log is hard, need new interfaces to sync
+	 * the log first, hold off all activity while moving it.
+	 * Can have shorter or longer log in the same space,
+	 * or transform internal to external log or vice versa.
+	 */
+	return -ENOSYS;
+}
+
+static int
+xfs_growfs_imaxpct(
+	struct xfs_mount	*mp,
+	__u32			imaxpct)
+{
+	struct xfs_trans	*tp;
+	int			dpct;
+	int			error;
+
+	if (imaxpct > 100)
+		return -EINVAL;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
+			XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
+	if (error)
+		return error;
+
+	dpct = imaxpct - mp->m_sb.sb_imax_pct;
+	xfs_trans_mod_sb(tp, XFS_TRANS_SB_IMAXPCT, dpct);
+	xfs_trans_set_sync(tp);
+	return xfs_trans_commit(tp);
+}
+
+/*
+ * After a grow operation, we need to update all the secondary superblocks
+ * to match the new state of the primary. Read/init the superblocks and update
+ * them appropriately.
+ */
+static int
+xfs_growfs_update_superblocks(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		oagcount)
+{
+	struct xfs_buf		*bp;
+	xfs_agnumber_t		agno;
+	int			saved_error = 0;
+	int			error = 0;
 
 	/* update secondary superblocks. */
-	for (agno = 1; agno < nagcount; agno++) {
+	for (agno = 1; agno < mp->m_sb.sb_agcount; agno++) {
 		error = 0;
 		/*
 		 * new secondary superblocks need to be zeroed, not read from
@@ -652,57 +722,7 @@ xfs_growfs_data_private(
 		}
 	}
 
- out:
 	return saved_error ? saved_error : error;
-
- error0:
-	xfs_trans_cancel(tp);
-	return error;
-}
-
-static int
-xfs_growfs_log_private(
-	xfs_mount_t		*mp,	/* mount point for filesystem */
-	xfs_growfs_log_t	*in)	/* growfs log input struct */
-{
-	xfs_extlen_t		nb;
-
-	nb = in->newblocks;
-	if (nb < XFS_MIN_LOG_BLOCKS || nb < XFS_B_TO_FSB(mp, XFS_MIN_LOG_BYTES))
-		return -EINVAL;
-	if (nb == mp->m_sb.sb_logblocks &&
-	    in->isint == (mp->m_sb.sb_logstart != 0))
-		return -EINVAL;
-	/*
-	 * Moving the log is hard, need new interfaces to sync
-	 * the log first, hold off all activity while moving it.
-	 * Can have shorter or longer log in the same space,
-	 * or transform internal to external log or vice versa.
-	 */
-	return -ENOSYS;
-}
-
-static int
-xfs_growfs_imaxpct(
-	struct xfs_mount	*mp,
-	__u32			imaxpct)
-{
-	struct xfs_trans	*tp;
-	int64_t			dpct;
-	int			error;
-
-	if (imaxpct > 100)
-		return -EINVAL;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
-			XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
-	if (error)
-		return error;
-
-	dpct = (int64_t)imaxpct - mp->m_sb.sb_imax_pct;
-	xfs_trans_mod_sb(tp, XFS_TRANS_SB_IMAXPCT, dpct);
-	xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp);
 }
 
 /*
@@ -715,6 +735,7 @@ xfs_growfs_data(
 	struct xfs_mount	*mp,
 	struct xfs_growfs_data	*in)
 {
+	xfs_agnumber_t		oagcount;
 	int			error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -729,6 +750,7 @@ xfs_growfs_data(
 			goto out_error;
 	}
 
+	oagcount = mp->m_sb.sb_agcount;
 	if (in->newblocks != mp->m_sb.sb_dblocks) {
 		error = xfs_growfs_data_private(mp, in);
 		if (error)
@@ -742,6 +764,9 @@ xfs_growfs_data(
 		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
 	} else
 		mp->m_maxicount = 0;
+
+	/* Update secondary superblocks now the physical grow has completed */
+	error = xfs_growfs_update_superblocks(mp, oagcount);
 
 out_error:
 	/*
