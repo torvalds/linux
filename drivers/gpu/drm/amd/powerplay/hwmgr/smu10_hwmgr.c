@@ -600,7 +600,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
+						hwmgr->display_config->num_display > 3 ?
+						SMU10_UMD_PSTATE_PEAK_FCLK :
 						SMU10_UMD_PSTATE_MIN_FCLK);
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinSocclkByFreq,
 						SMU10_UMD_PSTATE_MIN_SOCCLK);
