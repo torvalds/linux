@@ -160,12 +160,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 			break;
 		}
 
-		if (rdesc->result_data.error_code) {
-			dev_err(priv->dev,
-				"cipher: result: result descriptor error (%d)\n",
-				rdesc->result_data.error_code);
-			*ret = -EIO;
-		}
+		if (likely(!*ret))
+			*ret = safexcel_rdesc_check_errors(priv, rdesc);
 
 		ndesc++;
 	} while (!rdesc->last_seg);

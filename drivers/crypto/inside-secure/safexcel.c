@@ -537,6 +537,27 @@ finalize:
 	       EIP197_HIA_CDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
 }
 
+inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
+				       struct safexcel_result_desc *rdesc)
+{
+	if (likely(!rdesc->result_data.error_code))
+		return 0;
+
+	if (rdesc->result_data.error_code & 0x407f) {
+		/* Fatal error (bits 0-7, 14) */
+		dev_err(priv->dev,
+			"cipher: result: result descriptor error (%d)\n",
+			rdesc->result_data.error_code);
+		return -EIO;
+	} else if (rdesc->result_data.error_code == BIT(9)) {
+		/* Authentication failed */
+		return -EBADMSG;
+	}
+
+	/* All other non-fatal errors */
+	return -EINVAL;
+}
+
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring)
 {
 	struct safexcel_command_desc *cdesc;

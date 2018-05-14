@@ -610,6 +610,8 @@ struct safexcel_inv_result {
 };
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring);
+int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
+				struct safexcel_result_desc *rdesc);
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
