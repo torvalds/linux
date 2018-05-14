@@ -203,7 +203,7 @@ static bool pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 	if (!val)
 		return false;
 
-	if (test->last_irq - pdev->irq == msi_num - 1)
+	if (pci_irq_vector(pdev, msi_num - 1) == test->last_irq)
 		return true;
 
 	return false;
@@ -525,12 +525,12 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	}
 
 	for (i = 1; i < irq; i++) {
-		err = devm_request_irq(dev, pdev->irq + i,
+		err = devm_request_irq(dev, pci_irq_vector(pdev, i),
 				       pci_endpoint_test_irqhandler,
 				       IRQF_SHARED, DRV_MODULE_NAME, test);
 		if (err)
 			dev_err(dev, "failed to request IRQ %d for MSI %d\n",
-				pdev->irq + i, i + 1);
+				pci_irq_vector(pdev, i), i + 1);
 	}
 
 	for (bar = BAR_0; bar <= BAR_5; bar++) {
@@ -592,7 +592,7 @@ err_iounmap:
 	}
 
 	for (i = 0; i < irq; i++)
-		devm_free_irq(dev, pdev->irq + i, test);
+		devm_free_irq(&pdev->dev, pci_irq_vector(pdev, i), test);
 
 err_disable_msi:
 	pci_disable_msi(pdev);
@@ -625,7 +625,7 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 			pci_iounmap(pdev, test->bar[bar]);
 	}
 	for (i = 0; i < test->num_irqs; i++)
-		devm_free_irq(&pdev->dev, pdev->irq + i, test);
+		devm_free_irq(&pdev->dev, pci_irq_vector(pdev, i), test);
 	pci_disable_msi(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
