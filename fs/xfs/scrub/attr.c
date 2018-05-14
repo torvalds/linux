@@ -126,8 +126,9 @@ xfs_scrub_xattr_listent(
 	if (args.valuelen != valuelen)
 		xfs_scrub_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK,
 					     args.blkno);
-
 fail_xref:
+	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		context->seen_enough = 1;
 	return;
 }
 

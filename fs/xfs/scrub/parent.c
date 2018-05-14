@@ -147,6 +147,9 @@ xfs_scrub_parent_validate(
 
 	*try_again = false;
 
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		goto out;
+
 	/* '..' must not point to ourselves. */
 	if (sc->ip->i_ino == dnum) {
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);

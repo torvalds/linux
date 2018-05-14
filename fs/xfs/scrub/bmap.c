@@ -683,7 +683,8 @@ xfs_scrub_bmap(
 	info.lastoff = 0;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	for_each_xfs_iext(ifp, &icur, &irec) {
-		if (xfs_scrub_should_terminate(sc, &error))
+		if (xfs_scrub_should_terminate(sc, &error) ||
+		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 			break;
 		if (isnullstartblock(irec.br_startblock))
 			continue;
