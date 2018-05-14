@@ -2590,7 +2590,6 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	struct btrfs_key found;
 	struct extent_buffer *scratch_leaf = NULL;
 	struct ulist *roots = NULL;
-	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	u64 num_bytes;
 	int slot;
 	int ret;
@@ -2625,7 +2624,6 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 			      btrfs_header_nritems(path->nodes[0]) - 1);
 	fs_info->qgroup_rescan_progress.objectid = found.objectid + 1;
 
-	btrfs_get_tree_mod_seq(fs_info, &tree_mod_seq_elem);
 	scratch_leaf = btrfs_clone_extent_buffer(path->nodes[0]);
 	if (!scratch_leaf) {
 		ret = -ENOMEM;
@@ -2664,7 +2662,6 @@ out:
 		btrfs_tree_read_unlock_blocking(scratch_leaf);
 		free_extent_buffer(scratch_leaf);
 	}
-	btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
 
 	return ret;
 }
@@ -2681,6 +2678,12 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	path = btrfs_alloc_path();
 	if (!path)
 		goto out;
+	/*
+	 * Rescan should only search for commit root, and any later difference
+	 * should be recorded by qgroup
+	 */
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
 
 	err = 0;
 	while (!err && !btrfs_fs_closing(fs_info)) {
