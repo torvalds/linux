@@ -4313,7 +4313,8 @@
 			Format: [always|madvise|never]
 			Can be used to control the default behavior of the system
 			with respect to transparent hugepages.
-			See Documentation/vm/transhuge.rst for more details.
+			See Documentation/admin-guide/mm/transhuge.rst
+			for more details.
 
 	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>

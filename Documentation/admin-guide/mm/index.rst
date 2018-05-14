@@ -27,4 +27,5 @@ the Linux memory management.
    numa_memory_policy
    pagemap
    soft-dirty
+   transhuge
    userfaultfd
