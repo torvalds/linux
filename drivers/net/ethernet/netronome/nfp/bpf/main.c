@@ -335,7 +335,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 		return PTR_ERR(mem) == -ENOENT ? 0 : PTR_ERR(mem);
 
 	start = mem;
-	while (mem - start + 8 < nfp_cpp_area_size(area)) {
+	while (mem - start + 8 <= nfp_cpp_area_size(area)) {
 		u8 __iomem *value;
 		u32 type, length;
 
