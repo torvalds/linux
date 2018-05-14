@@ -369,6 +369,11 @@ vmxnet3_tq_tx_complete(struct vmxnet3_tx_queue *tq,
 
 	gdesc = tq->comp_ring.base + tq->comp_ring.next2proc;
 	while (VMXNET3_TCD_GET_GEN(&gdesc->tcd) == tq->comp_ring.gen) {
+		/* Prevent any &gdesc->tcd field from being (speculatively)
+		 * read before (&gdesc->tcd)->gen is read.
+		 */
+		dma_rmb();
+
 		completed += vmxnet3_unmap_pkt(VMXNET3_TCD_GET_TXIDX(
 					       &gdesc->tcd), tq, adapter->pdev,
 					       adapter);
@@ -1099,6 +1104,11 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		gdesc->txd.tci = skb_vlan_tag_get(skb);
 	}
 
+	/* Ensure that the write to (&gdesc->txd)->gen will be observed after
+	 * all other writes to &gdesc->txd.
+	 */
+	dma_wmb();
+
 	/* finally flips the GEN bit of the SOP desc. */
 	gdesc->dword[2] = cpu_to_le32(le32_to_cpu(gdesc->dword[2]) ^
 						  VMXNET3_TXD_GEN);
@@ -1286,6 +1296,12 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			 */
 			break;
 		}
+
+		/* Prevent any rcd field from being (speculatively) read before
+		 * rcd->gen is read.
+		 */
+		dma_rmb();
+
 		BUG_ON(rcd->rqID != rq->qid && rcd->rqID != rq->qid2 &&
 		       rcd->rqID != rq->dataRingQid);
 		idx = rcd->rxdIdx;
@@ -1515,6 +1531,12 @@ rcd_done:
 		ring->next2comp = idx;
 		num_to_alloc = vmxnet3_cmd_ring_desc_avail(ring);
 		ring = rq->rx_ring + ring_idx;
+
+		/* Ensure that the writes to rxd->gen bits will be observed
+		 * after all other writes to rxd objects.
+		 */
+		dma_wmb();
+
 		while (num_to_alloc) {
 			vmxnet3_getRxDesc(rxd, &ring->base[ring->next2fill].rxd,
 					  &rxCmdDesc);
