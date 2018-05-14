@@ -83,6 +83,8 @@ enum {
 #define TPS65090_MAX_REG	TPS65090_REG_AD_OUT2
 #define TPS65090_NUM_REGS	(TPS65090_MAX_REG + 1)
 
+struct gpio_desc;
+
 struct tps65090 {
 	struct device		*dev;
 	struct regmap		*rmap;
@@ -95,8 +97,8 @@ struct tps65090 {
  * @reg_init_data: The regulator init data.
  * @enable_ext_control: Enable extrenal control or not. Only available for
  *     DCDC1, DCDC2 and DCDC3.
- * @gpio: Gpio number if external control is enabled and controlled through
- *     gpio.
+ * @gpiod: Gpio descriptor if external control is enabled and controlled through
+ *     gpio
  * @overcurrent_wait_valid: True if the overcurrent_wait should be applied.
  * @overcurrent_wait: Value to set as the overcurrent wait time.  This is the
  *     actual bitfield value, not a time in ms (valid value are 0 - 3).
@@ -104,7 +106,7 @@ struct tps65090 {
 struct tps65090_regulator_plat_data {
 	struct regulator_init_data *reg_init_data;
 	bool enable_ext_control;
-	int gpio;
+	struct gpio_desc *gpiod;
 	bool overcurrent_wait_valid;
 	int overcurrent_wait;
 };
