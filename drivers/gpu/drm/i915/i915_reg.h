@@ -4357,7 +4357,9 @@ enum {
 #define _DVOC			0x61160
 #define DVOC			_MMIO(_DVOC)
 #define   DVO_ENABLE			(1 << 31)
-#define   DVO_PIPE_B_SELECT		(1 << 30)
+#define   DVO_PIPE_SEL_SHIFT		30
+#define   DVO_PIPE_SEL_MASK		(1 << 30)
+#define   DVO_PIPE_SEL(pipe)		((pipe) << 30)
 #define   DVO_PIPE_STALL_UNUSED		(0 << 28)
 #define   DVO_PIPE_STALL		(1 << 28)
 #define   DVO_PIPE_STALL_TV		(2 << 28)
