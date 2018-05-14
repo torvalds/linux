@@ -177,7 +177,7 @@ void opal_event_shutdown(void)
 		if (!opal_irqs[i])
 			continue;
 
-		if (in_interrupt())
+		if (in_interrupt() || irqs_disabled())
 			disable_irq_nosync(opal_irqs[i]);
 		else
 			free_irq(opal_irqs[i], NULL);
