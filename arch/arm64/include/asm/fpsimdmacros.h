@@ -207,12 +207,14 @@
 		str		w\nxtmp, [\xpfpsr, #4]
 .endm
 
-.macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp
+.macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
 		mrs_s		x\nxtmp, SYS_ZCR_EL1
-		bic		x\nxtmp, x\nxtmp, ZCR_ELx_LEN_MASK
-		orr		x\nxtmp, x\nxtmp, \xvqminus1
-		msr_s		SYS_ZCR_EL1, x\nxtmp	// self-synchronising
-
+		bic		\xtmp2, x\nxtmp, ZCR_ELx_LEN_MASK
+		orr		\xtmp2, \xtmp2, \xvqminus1
+		cmp		\xtmp2, x\nxtmp
+		b.eq		921f
+		msr_s		SYS_ZCR_EL1, \xtmp2	// self-synchronising
+921:
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0
