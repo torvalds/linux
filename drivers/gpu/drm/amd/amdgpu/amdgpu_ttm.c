@@ -834,6 +834,45 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	sg_free_table(ttm->sg);
 }
 
+int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
+				struct ttm_buffer_object *tbo,
+				uint64_t flags)
+{
+	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(tbo);
+	struct ttm_tt *ttm = tbo->ttm;
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	int r;
+
+	if (abo->flags & AMDGPU_GEM_CREATE_MQD_GFX9) {
+		uint64_t page_idx = 1;
+
+		r = amdgpu_gart_bind(adev, gtt->offset, page_idx,
+				ttm->pages, gtt->ttm.dma_address, flags);
+		if (r)
+			goto gart_bind_fail;
+
+		/* Patch mtype of the second part BO */
+		flags &=  ~AMDGPU_PTE_MTYPE_MASK;
+		flags |= AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_NC);
+
+		r = amdgpu_gart_bind(adev,
+				gtt->offset + (page_idx << PAGE_SHIFT),
+				ttm->num_pages - page_idx,
+				&ttm->pages[page_idx],
+				&(gtt->ttm.dma_address[page_idx]), flags);
+	} else {
+		r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
+				     ttm->pages, gtt->ttm.dma_address, flags);
+	}
+
+gart_bind_fail:
+	if (r)
+		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+			  ttm->num_pages, gtt->offset);
+
+	return r;
+}
+
 static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
@@ -907,8 +946,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, &tmp);
 	gtt->offset = (u64)tmp.start << PAGE_SHIFT;
-	r = amdgpu_gart_bind(adev, gtt->offset, bo->ttm->num_pages,
-			     bo->ttm->pages, gtt->ttm.dma_address, flags);
+	r = amdgpu_ttm_gart_bind(adev, bo, flags);
 	if (unlikely(r)) {
 		ttm_bo_mem_put(bo, &tmp);
 		return r;
@@ -925,19 +963,15 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	struct amdgpu_ttm_tt *gtt = (void *)tbo->ttm;
 	uint64_t flags;
 	int r;
 
-	if (!gtt)
+	if (!tbo->ttm)
 		return 0;
 
-	flags = amdgpu_ttm_tt_pte_flags(adev, &gtt->ttm.ttm, &tbo->mem);
-	r = amdgpu_gart_bind(adev, gtt->offset, gtt->ttm.ttm.num_pages,
-			     gtt->ttm.ttm.pages, gtt->ttm.dma_address, flags);
-	if (r)
-		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
-			  gtt->ttm.ttm.num_pages, gtt->offset);
+	flags = amdgpu_ttm_tt_pte_flags(adev, tbo->ttm, &tbo->mem);
+	r = amdgpu_ttm_gart_bind(adev, tbo, flags);
+
 	return r;
 }
 

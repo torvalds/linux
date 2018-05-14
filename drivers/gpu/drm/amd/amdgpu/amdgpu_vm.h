@@ -75,11 +75,12 @@ struct amdgpu_bo_list_entry;
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
-/* VEGA10 only */
+
+/* For GFX9 */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
 
-/* For Raven */
+#define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
 
 #define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \

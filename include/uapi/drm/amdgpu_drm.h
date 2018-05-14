@@ -101,6 +101,10 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VM_ALWAYS_VALID	(1 << 6)
 /* Flag that BO sharing will be explicitly synchronized */
 #define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
+/* Flag that indicates allocating MQD gart on GFX9, where the mtype
+ * for the second page onward should be set to NC.
+ */
+#define AMDGPU_GEM_CREATE_MQD_GFX9		(1 << 8)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
