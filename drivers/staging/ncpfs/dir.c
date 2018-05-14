@@ -823,12 +823,11 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 	struct ncp_server *server = NCP_SERVER(dir);
 	struct inode *inode = NULL;
 	struct ncp_entry_info finfo;
-	int error, res, len;
+	int res, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 
-	error = -EIO;
 	if (!ncp_conn_valid(server))
-		goto finished;
+		return ERR_PTR(-EIO);
 
 	ncp_vdbg("server lookup for %pd2\n", dentry);
 
@@ -847,31 +846,20 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 			res = ncp_obtain_info(server, dir, __name, &(finfo.i));
 	}
 	ncp_vdbg("looked for %pd2, res=%d\n", dentry, res);
-	/*
-	 * If we didn't find an entry, make a negative dentry.
-	 */
-	if (res)
-		goto add_entry;
-
-	/*
-	 * Create an inode for the entry.
-	 */
-	finfo.opened = 0;
-	finfo.ino = iunique(dir->i_sb, 2);
-	finfo.volume = finfo.i.volNumber;
-	error = -EACCES;
-	inode = ncp_iget(dir->i_sb, &finfo);
-
-	if (inode) {
-		ncp_new_dentry(dentry);
-add_entry:
-		d_add(dentry, inode);
-		error = 0;
+	if (!res) {
+		/*
+		 * Entry found; create an inode for it.
+		 */
+		finfo.opened = 0;
+		finfo.ino = iunique(dir->i_sb, 2);
+		finfo.volume = finfo.i.volNumber;
+		inode = ncp_iget(dir->i_sb, &finfo);
+		if (unlikely(!inode))
+			inode = ERR_PTR(-EACCES);
+		else
+			ncp_new_dentry(dentry);
 	}
-
-finished:
-	ncp_vdbg("result=%d\n", error);
-	return ERR_PTR(error);
+	return d_splice_alias(inode, dentry);
 }
 
 /*
