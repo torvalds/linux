@@ -533,10 +533,7 @@ EXPORT_SYMBOL_GPL(nf_nat_packet);
 
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
-	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(void *priv,
-					struct sk_buff *skb,
-					const struct nf_hook_state *state))
+	       const struct nf_hook_state *state)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -564,15 +561,23 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 		 * or local packets.
 		 */
 		if (!nf_nat_initialized(ct, maniptype)) {
+			struct nf_nat_lookup_hook_priv *lpriv = priv;
+			struct nf_hook_entries *e = rcu_dereference(lpriv->entries);
 			unsigned int ret;
+			int i;
 
-			ret = do_chain(priv, skb, state);
-			if (ret != NF_ACCEPT)
-				return ret;
+			if (!e)
+				goto null_bind;
 
-			if (nf_nat_initialized(ct, HOOK2MANIP(state->hook)))
-				break;
-
+			for (i = 0; i < e->num_hook_entries; i++) {
+				ret = e->hooks[i].hook(e->hooks[i].priv, skb,
+						       state);
+				if (ret != NF_ACCEPT)
+					return ret;
+				if (nf_nat_initialized(ct, maniptype))
+					goto do_nat;
+			}
+null_bind:
 			ret = nf_nat_alloc_null_binding(ct, state->hook);
 			if (ret != NF_ACCEPT)
 				return ret;
@@ -592,7 +597,7 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
 			goto oif_changed;
 	}
-
+do_nat:
 	return nf_nat_packet(ct, ctinfo, state->hook, skb);
 
 oif_changed:

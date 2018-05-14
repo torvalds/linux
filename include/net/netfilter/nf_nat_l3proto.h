@@ -44,58 +44,14 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
 				  unsigned int hooknum);
 
-unsigned int nf_nat_ipv4_in(void *priv, struct sk_buff *skb,
-			    const struct nf_hook_state *state,
-			    unsigned int (*do_chain)(void *priv,
-						     struct sk_buff *skb,
-						     const struct nf_hook_state *state));
-
-unsigned int nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
-			     const struct nf_hook_state *state,
-			     unsigned int (*do_chain)(void *priv,
-						      struct sk_buff *skb,
-						      const struct nf_hook_state *state));
-
-unsigned int nf_nat_ipv4_local_fn(void *priv,
-				  struct sk_buff *skb,
-				  const struct nf_hook_state *state,
-				  unsigned int (*do_chain)(void *priv,
-							   struct sk_buff *skb,
-							   const struct nf_hook_state *state));
-
-unsigned int nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
-			    const struct nf_hook_state *state,
-			    unsigned int (*do_chain)(void *priv,
-						     struct sk_buff *skb,
-						     const struct nf_hook_state *state));
-
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				    enum ip_conntrack_info ctinfo,
 				    unsigned int hooknum, unsigned int hdrlen);
 
-unsigned int nf_nat_ipv6_in(void *priv, struct sk_buff *skb,
-			    const struct nf_hook_state *state,
-			    unsigned int (*do_chain)(void *priv,
-						     struct sk_buff *skb,
-						     const struct nf_hook_state *state));
+int nf_nat_l3proto_ipv4_register_fn(struct net *net, const struct nf_hook_ops *ops);
+void nf_nat_l3proto_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
-unsigned int nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
-			     const struct nf_hook_state *state,
-			     unsigned int (*do_chain)(void *priv,
-						      struct sk_buff *skb,
-						      const struct nf_hook_state *state));
-
-unsigned int nf_nat_ipv6_local_fn(void *priv,
-				  struct sk_buff *skb,
-				  const struct nf_hook_state *state,
-				  unsigned int (*do_chain)(void *priv,
-							   struct sk_buff *skb,
-							   const struct nf_hook_state *state));
-
-unsigned int nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
-			    const struct nf_hook_state *state,
-			    unsigned int (*do_chain)(void *priv,
-						     struct sk_buff *skb,
-						     const struct nf_hook_state *state));
+int nf_nat_l3proto_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops);
+void nf_nat_l3proto_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
 #endif /* _NF_NAT_L3PROTO_H */

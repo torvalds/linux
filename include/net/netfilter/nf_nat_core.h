@@ -13,10 +13,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
-	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(void *priv,
-					struct sk_buff *skb,
-					const struct nf_hook_state *state));
+	       const struct nf_hook_state *state);
 
 int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family);
 
