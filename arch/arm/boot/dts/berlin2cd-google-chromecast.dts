@@ -66,18 +66,21 @@
 	};
 
 	leds {
-		compatible = "gpio-leds";
+		compatible = "pwm-leds";
+		pinctrl-0 = <&ledpwm_pmux>;
+		pinctrl-names = "default";
 
 		white {
 			label = "white";
-			gpios = <&portc 1 GPIO_ACTIVE_HIGH>;
-			default-state = "keep";
+			pwms = <&pwm 0 600000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
 		};
 
 		red {
 			label = "red";
-			gpios = <&portc 2 GPIO_ACTIVE_HIGH>;
-			default-state = "keep";
+			pwms = <&pwm 1 600000 0>;
+			max-brightness = <255>;
 		};
 	};
 };
@@ -96,3 +99,10 @@
 &usb_phy1 { status = "okay"; };
 
 &usb1 { status = "okay"; };
+
+&soc_pinctrl {
+	ledpwm_pmux: ledpwm-pmux {
+		groups = "G0";
+		function = "pwm";
+	};
+};
