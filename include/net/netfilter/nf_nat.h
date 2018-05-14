@@ -75,4 +75,8 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 #endif
 }
 
+int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
+		       const struct nf_hook_ops *nat_ops, unsigned int ops_count);
+void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
+			  unsigned int ops_count);
 #endif
