@@ -129,10 +129,6 @@ int xfs_scrub_ag_read_headers(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 void xfs_scrub_ag_btcur_free(struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_btcur_init(struct xfs_scrub_context *sc,
 			    struct xfs_scrub_ag *sa);
-int xfs_scrub_walk_agfl(struct xfs_scrub_context *sc,
-			int (*fn)(struct xfs_scrub_context *, xfs_agblock_t bno,
-				  void *),
-			void *priv);
 int xfs_scrub_count_rmap_ownedby_ag(struct xfs_scrub_context *sc,
 				    struct xfs_btree_cur *cur,
 				    struct xfs_owner_info *oinfo,
