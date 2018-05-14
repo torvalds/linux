@@ -2623,6 +2623,8 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 		conf->txglomsize = SDPCM_MAXGLOM_SIZE;
 	conf->deferred_tx_len = conf->txglomsize;
 #endif
+	if (conf->chip == BCM4354_CHIP_ID && conf->chiprev == 1)
+		dhd_slpauto = 0;
 
 	return 0;
 }

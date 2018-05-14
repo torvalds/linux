@@ -5029,6 +5029,7 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 #endif /* DHD_PCIE_RUNTIMEPM */
 
 	DHD_GENERAL_LOCK(&dhd->pub, flags);
+#ifdef BCMPCIE
 	if (DHD_BUS_CHECK_SUSPEND_OR_SUSPEND_IN_PROGRESS(&dhd->pub)) {
 		DHD_ERROR(("%s: bus is in suspend(%d) or suspending(0x%x) state!!\n",
 			__FUNCTION__, dhd->pub.busstate, dhd->pub.dhd_bus_busy_state));
@@ -5047,7 +5048,12 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		return NETDEV_TX_BUSY;
 #endif
 	}
-
+#else
+	if (DHD_BUS_CHECK_SUSPEND_OR_SUSPEND_IN_PROGRESS(&dhd->pub)) {
+		DHD_ERROR(("%s: bus is in suspend(%d) or suspending(0x%x) state!!\n",
+			__FUNCTION__, dhd->pub.busstate, dhd->pub.dhd_bus_busy_state));
+	}
+#endif
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 	DHD_PERIM_LOCK_TRY(DHD_FWDER_UNIT(dhd), lock_taken);
 
