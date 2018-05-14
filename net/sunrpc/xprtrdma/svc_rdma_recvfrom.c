@@ -270,7 +270,7 @@ bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
 	for (i = 0; i < rdma->sc_max_requests; i++) {
 		ctxt = svc_rdma_recv_ctxt_get(rdma);
 		if (!ctxt)
-			return -ENOMEM;
+			return false;
 		ctxt->rc_temp = true;
 		ret = __svc_rdma_post_recv(rdma, ctxt);
 		if (ret) {
