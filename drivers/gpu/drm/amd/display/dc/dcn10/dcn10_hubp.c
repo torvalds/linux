@@ -396,11 +396,15 @@ bool hubp1_program_surface_flip_and_addr(
 		if (address->grph_stereo.right_addr.quad_part == 0)
 			break;
 
-		REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
+		REG_UPDATE_8(DCSURF_SURFACE_CONTROL,
 				PRIMARY_SURFACE_TMZ, address->tmz_surface,
 				PRIMARY_SURFACE_TMZ_C, address->tmz_surface,
 				PRIMARY_META_SURFACE_TMZ, address->tmz_surface,
-				PRIMARY_META_SURFACE_TMZ_C, address->tmz_surface);
+				PRIMARY_META_SURFACE_TMZ_C, address->tmz_surface,
+				SECONDARY_SURFACE_TMZ, address->tmz_surface,
+				SECONDARY_SURFACE_TMZ_C, address->tmz_surface,
+				SECONDARY_META_SURFACE_TMZ, address->tmz_surface,
+				SECONDARY_META_SURFACE_TMZ_C, address->tmz_surface);
 
 		if (address->grph_stereo.right_meta_addr.quad_part != 0) {
 
@@ -459,9 +463,11 @@ void hubp1_dcc_control(struct hubp *hubp, bool enable,
 	uint32_t dcc_ind_64b_blk = independent_64b_blks ? 1 : 0;
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
+	REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
 			PRIMARY_SURFACE_DCC_EN, dcc_en,
-			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
+			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk,
+			SECONDARY_SURFACE_DCC_EN, dcc_en,
+			SECONDARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
 void hubp1_program_surface_config(
