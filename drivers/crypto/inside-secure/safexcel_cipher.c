@@ -104,10 +104,13 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ctrl_size;
 
-	if (sreq->direction == SAFEXCEL_ENCRYPT)
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_OUT;
-	else
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_IN;
+	cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_OUT;
+
+	/* The decryption control type is a combination of the encryption type
+	 * and CONTEXT_CONTROL_TYPE_NULL_IN, for all types.
+	 */
+	if (sreq->direction == SAFEXCEL_DECRYPT)
+		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_NULL_IN;
 
 	cdesc->control_data.control0 |= CONTEXT_CONTROL_KEY_EN;
 	cdesc->control_data.control1 |= ctx->mode;
