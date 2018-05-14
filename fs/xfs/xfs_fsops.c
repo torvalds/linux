@@ -191,6 +191,25 @@ xfs_rmaproot_init(
 	}
 }
 
+/*
+ * Initialise new secondary superblocks with the pre-grow geometry, but mark
+ * them as "in progress" so we know they haven't yet been activated. This will
+ * get cleared when the update with the new geometry information is done after
+ * changes to the primary are committed. This isn't strictly necessary, but we
+ * get it for free with the delayed buffer write lists and it means we can tell
+ * if a grow operation didn't complete properly after the fact.
+ */
+static void
+xfs_sbblock_init(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp,
+	struct aghdr_init_data	*id)
+{
+	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
+
+	xfs_sb_to_disk(dsb, &mp->m_sb);
+	dsb->sb_inprogress = 1;
+}
 
 static void
 xfs_agfblock_init(
@@ -326,6 +345,13 @@ xfs_grow_ag_headers(
 
 {
 	struct xfs_aghdr_grow_data aghdr_data[] = {
+	{ /* SB */
+		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_SB_DADDR),
+		.numblks = XFS_FSS_TO_BB(mp, 1),
+		.ops = &xfs_sb_buf_ops,
+		.work = &xfs_sbblock_init,
+		.need_init = true
+	},
 	{ /* AGF */
 		.daddr = XFS_AG_DADDR(mp, id->agno, XFS_AGF_DADDR(mp)),
 		.numblks = XFS_FSS_TO_BB(mp, 1),
@@ -658,43 +684,30 @@ xfs_growfs_imaxpct(
 
 /*
  * After a grow operation, we need to update all the secondary superblocks
- * to match the new state of the primary. Read/init the superblocks and update
- * them appropriately.
+ * to match the new state of the primary. Because we are completely overwriting
+ * all the existing fields in the secondary superblock buffers, there is no need
+ * to read them in from disk. Just get a new buffer, stamp it and write it.
+ *
+ * The sb buffers need to be cached here so that we serialise against scrub
+ * scanning secondary superblocks, but we don't want to keep it in memory once
+ * it is written so we mark it as a one-shot buffer.
  */
 static int
 xfs_growfs_update_superblocks(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		oagcount)
+	struct xfs_mount	*mp)
 {
-	struct xfs_buf		*bp;
 	xfs_agnumber_t		agno;
 	int			saved_error = 0;
 	int			error = 0;
+	LIST_HEAD		(buffer_list);
 
 	/* update secondary superblocks. */
 	for (agno = 1; agno < mp->m_sb.sb_agcount; agno++) {
-		error = 0;
-		/*
-		 * new secondary superblocks need to be zeroed, not read from
-		 * disk as the contents of the new area we are growing into is
-		 * completely unknown.
-		 */
-		if (agno < oagcount) {
-			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
-				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
-				  XFS_FSS_TO_BB(mp, 1), 0, &bp,
-				  &xfs_sb_buf_ops);
-		} else {
-			bp = xfs_trans_get_buf(NULL, mp->m_ddev_targp,
-				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
-				  XFS_FSS_TO_BB(mp, 1), 0);
-			if (bp) {
-				bp->b_ops = &xfs_sb_buf_ops;
-				xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-			} else
-				error = -ENOMEM;
-		}
+		struct xfs_buf		*bp;
 
+		bp = xfs_buf_get(mp->m_ddev_targp,
+				 XFS_AG_DADDR(mp, agno, XFS_SB_DADDR),
+				 XFS_FSS_TO_BB(mp, 1), 0);
 		/*
 		 * If we get an error reading or writing alternate superblocks,
 		 * continue.  xfs_repair chooses the "best" superblock based
@@ -702,24 +715,41 @@ xfs_growfs_update_superblocks(
 		 * superblocks un-updated than updated, and xfs_repair may
 		 * pick them over the properly-updated primary.
 		 */
-		if (error) {
+		if (!bp) {
 			xfs_warn(mp,
-		"error %d reading secondary superblock for ag %d",
-				error, agno);
-			saved_error = error;
+		"error allocating secondary superblock for ag %d",
+				agno);
+			if (!saved_error)
+				saved_error = -ENOMEM;
 			continue;
 		}
-		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 
-		error = xfs_bwrite(bp);
+		bp->b_ops = &xfs_sb_buf_ops;
+		xfs_buf_oneshot(bp);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
+		xfs_buf_delwri_queue(bp, &buffer_list);
 		xfs_buf_relse(bp);
+
+		/* don't hold too many buffers at once */
+		if (agno % 16)
+			continue;
+
+		error = xfs_buf_delwri_submit(&buffer_list);
 		if (error) {
 			xfs_warn(mp,
-		"write error %d updating secondary superblock for ag %d",
+		"write error %d updating a secondary superblock near ag %d",
 				error, agno);
-			saved_error = error;
+			if (!saved_error)
+				saved_error = error;
 			continue;
 		}
+	}
+	error = xfs_buf_delwri_submit(&buffer_list);
+	if (error) {
+		xfs_warn(mp,
+		"write error %d updating a secondary superblock near ag %d",
+			error, agno);
 	}
 
 	return saved_error ? saved_error : error;
@@ -735,7 +765,6 @@ xfs_growfs_data(
 	struct xfs_mount	*mp,
 	struct xfs_growfs_data	*in)
 {
-	xfs_agnumber_t		oagcount;
 	int			error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -750,7 +779,6 @@ xfs_growfs_data(
 			goto out_error;
 	}
 
-	oagcount = mp->m_sb.sb_agcount;
 	if (in->newblocks != mp->m_sb.sb_dblocks) {
 		error = xfs_growfs_data_private(mp, in);
 		if (error)
@@ -766,7 +794,7 @@ xfs_growfs_data(
 		mp->m_maxicount = 0;
 
 	/* Update secondary superblocks now the physical grow has completed */
-	error = xfs_growfs_update_superblocks(mp, oagcount);
+	error = xfs_growfs_update_superblocks(mp);
 
 out_error:
 	/*
