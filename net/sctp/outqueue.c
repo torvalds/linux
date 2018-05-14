@@ -812,8 +812,7 @@ static void sctp_outq_select_transport(struct sctp_flush_ctx *ctx,
 
 	if (!new_transport) {
 		if (!sctp_chunk_is_data(chunk)) {
-			/*
-			 * If we have a prior transport pointer, see if
+			/* If we have a prior transport pointer, see if
 			 * the destination address of the chunk
 			 * matches the destination address of the
 			 * current transport.  If not a match, then
@@ -912,8 +911,7 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 		sctp_outq_select_transport(ctx, chunk);
 
 		switch (chunk->chunk_hdr->type) {
-		/*
-		 * 6.10 Bundling
+		/* 6.10 Bundling
 		 *   ...
 		 *   An endpoint MUST NOT bundle INIT, INIT ACK or SHUTDOWN
 		 *   COMPLETE with any other chunks.  [Send them immediately.]
@@ -1061,8 +1059,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 		return;
 	}
 
-	/*
-	 * RFC 2960 6.1  Transmission of DATA Chunks
+	/* RFC 2960 6.1  Transmission of DATA Chunks
 	 *
 	 * C) When the time comes for the sender to transmit,
 	 * before sending new DATA chunks, the sender MUST
@@ -1101,8 +1098,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 
 		sctp_outq_select_transport(ctx, chunk);
 
-		pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p "
-			 "skb->users:%d\n",
+		pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p skb->users:%d\n",
 			 __func__, ctx->q, chunk, chunk && chunk->chunk_hdr ?
 			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 			 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
@@ -1175,8 +1171,7 @@ static void sctp_outq_flush_transports(struct sctp_flush_ctx *ctx)
 	}
 }
 
-/*
- * Try to flush an outqueue.
+/* Try to flush an outqueue.
  *
  * Description: Send everything in q which we legally can, subject to
  * congestion limitations.
@@ -1196,8 +1191,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		.gfp = gfp,
 	};
 
-	/*
-	 * 6.10 Bundling
+	/* 6.10 Bundling
 	 *   ...
 	 *   When bundling control chunks with DATA chunks, an
 	 *   endpoint MUST place control chunks first in the outbound
@@ -1768,7 +1762,7 @@ static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn)
 	if (TSN_lte(tsn, ctsn))
 		goto pass;
 
-	/* 3.3.4 Selective Acknowledgement (SACK) (3):
+	/* 3.3.4 Selective Acknowledgment (SACK) (3):
 	 *
 	 * Gap Ack Blocks:
 	 *  These fields contain the Gap Ack Blocks. They are repeated
