@@ -65,7 +65,9 @@ mtk_gpio_w32(struct mtk_gc *rg, u8 reg, u32 val)
 static inline u32
 mtk_gpio_r32(struct mtk_gc *rg, u8 reg)
 {
-	return ioread32(mediatek_gpio_membase + (reg * 0x10) + (rg->bank * 0x4));
+	u32 offset = (reg * 0x10) + (rg->bank * 0x4);
+
+	return ioread32(mediatek_gpio_membase + offset);
 }
 
 static void
@@ -140,7 +142,8 @@ mediatek_gpio_to_irq(struct gpio_chip *chip, unsigned int pin)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 
-	return irq_create_mapping(mediatek_gpio_irq_domain, pin + (rg->bank * MTK_BANK_WIDTH));
+	return irq_create_mapping(mediatek_gpio_irq_domain,
+				  pin + (rg->bank * MTK_BANK_WIDTH));
 }
 
 static int
@@ -197,7 +200,8 @@ mediatek_gpio_irq_handler(struct irq_desc *desc)
 		pending = mtk_gpio_r32(rg, GPIO_REG_STAT);
 
 		for_each_set_bit(bit, &pending, MTK_BANK_WIDTH) {
-			u32 map = irq_find_mapping(mediatek_gpio_irq_domain, (MTK_BANK_WIDTH * i) + bit);
+			u32 map = irq_find_mapping(mediatek_gpio_irq_domain,
+						   (MTK_BANK_WIDTH * i) + bit);
 
 			generic_handle_irq(map);
 			mtk_gpio_w32(rg, GPIO_REG_STAT, BIT(bit));
@@ -287,9 +291,11 @@ static struct irq_chip mediatek_gpio_irq_chip = {
 };
 
 static int
-mediatek_gpio_gpio_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+mediatek_gpio_gpio_map(struct irq_domain *d, unsigned int irq,
+		       irq_hw_number_t hw)
 {
-	irq_set_chip_and_handler(irq, &mediatek_gpio_irq_chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, &mediatek_gpio_irq_chip,
+				 handle_level_irq);
 	irq_set_handler_data(irq, d);
 
 	return 0;
@@ -324,7 +330,8 @@ mediatek_gpio_probe(struct platform_device *pdev)
 			mediatek_gpio_bank_probe(pdev, bank);
 
 	if (mediatek_gpio_irq_domain)
-		irq_set_chained_handler(mediatek_gpio_irq, mediatek_gpio_irq_handler);
+		irq_set_chained_handler(mediatek_gpio_irq,
+					mediatek_gpio_irq_handler);
 
 	return 0;
 }
