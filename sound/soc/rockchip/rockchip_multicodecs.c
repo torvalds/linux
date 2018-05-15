@@ -54,13 +54,15 @@ static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 
 	mclk = params_rate(params) * mc_data->mclk_fs;
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, mclk,
+				     SND_SOC_CLOCK_IN);
 	if (ret && ret != -ENOTSUPP) {
 		pr_err("Set codec_dai sysclk failed: %d\n", ret);
 		goto out;
 	}
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk, SND_SOC_CLOCK_OUT);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, substream->stream, mclk,
+				     SND_SOC_CLOCK_OUT);
 	if (ret && ret != -ENOTSUPP) {
 		pr_err("Set cpu_dai sysclk failed: %d\n", ret);
 		goto out;
