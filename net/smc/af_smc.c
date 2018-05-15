@@ -1353,14 +1353,14 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	case TCP_NODELAY:
 		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
-			if (val)
+			if (val && !smc->use_fallback)
 				mod_delayed_work(system_wq, &smc->conn.tx_work,
 						 0);
 		}
 		break;
 	case TCP_CORK:
 		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
-			if (!val)
+			if (!val && !smc->use_fallback)
 				mod_delayed_work(system_wq, &smc->conn.tx_work,
 						 0);
 		}
