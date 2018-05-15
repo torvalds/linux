@@ -133,21 +133,10 @@ bool afs_cm_incoming_call(struct afs_call *call)
 }
 
 /*
- * clean up a cache manager call
+ * Clean up a cache manager call.
  */
 static void afs_cm_destructor(struct afs_call *call)
 {
-	_enter("");
-
-	/* Break the callbacks here so that we do it after the final ACK is
-	 * received.  The step number here must match the final number in
-	 * afs_deliver_cb_callback().
-	 */
-	if (call->unmarshall == 5) {
-		ASSERT(call->cm_server && call->count && call->request);
-		afs_break_callbacks(call->cm_server, call->count, call->request);
-	}
-
 	kfree(call->buffer);
 	call->buffer = NULL;
 }
@@ -161,14 +150,14 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 
 	_enter("");
 
-	/* be sure to send the reply *before* attempting to spam the AFS server
-	 * with FSFetchStatus requests on the vnodes with broken callbacks lest
-	 * the AFS server get into a vicious cycle of trying to break further
-	 * callbacks because it hadn't received completion of the CBCallBack op
-	 * yet */
-	afs_send_empty_reply(call);
+	/* We need to break the callbacks before sending the reply as the
+	 * server holds up change visibility till it receives our reply so as
+	 * to maintain cache coherency.
+	 */
+	if (call->cm_server)
+		afs_break_callbacks(call->cm_server, call->count, call->request);
 
-	afs_break_callbacks(call->cm_server, call->count, call->request);
+	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");
 }
@@ -180,7 +169,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 {
 	struct afs_callback_break *cb;
 	struct sockaddr_rxrpc srx;
-	struct afs_server *server;
 	__be32 *bp;
 	int ret, loop;
 
@@ -267,15 +255,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 		call->offset = 0;
 		call->unmarshall++;
-
-		/* Record that the message was unmarshalled successfully so
-		 * that the call destructor can know do the callback breaking
-		 * work, even if the final ACK isn't received.
-		 *
-		 * If the step number changes, then afs_cm_destructor() must be
-		 * updated also.
-		 */
-		call->unmarshall++;
 	case 5:
 		break;
 	}
@@ -286,10 +265,9 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
 	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
-	server = afs_find_server(call->net, &srx);
-	if (!server)
-		return -ENOTCONN;
-	call->cm_server = server;
+	call->cm_server = afs_find_server(call->net, &srx);
+	if (!call->cm_server)
+		trace_afs_cm_no_server(call, &srx);
 
 	return afs_queue_call_work(call);
 }
@@ -303,7 +281,8 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 
 	_enter("{%p}", call->cm_server);
 
-	afs_init_callback_state(call->cm_server);
+	if (call->cm_server)
+		afs_init_callback_state(call->cm_server);
 	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");
@@ -315,7 +294,6 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 {
 	struct sockaddr_rxrpc srx;
-	struct afs_server *server;
 	int ret;
 
 	_enter("");
@@ -328,10 +306,9 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	server = afs_find_server(call->net, &srx);
-	if (!server)
-		return -ENOTCONN;
-	call->cm_server = server;
+	call->cm_server = afs_find_server(call->net, &srx);
+	if (!call->cm_server)
+		trace_afs_cm_no_server(call, &srx);
 
 	return afs_queue_call_work(call);
 }
@@ -341,8 +318,6 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
  */
 static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 {
-	struct sockaddr_rxrpc srx;
-	struct afs_server *server;
 	struct afs_uuid *r;
 	unsigned loop;
 	__be32 *b;
@@ -398,11 +373,11 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
-	server = afs_find_server(call->net, &srx);
-	if (!server)
-		return -ENOTCONN;
-	call->cm_server = server;
+	rcu_read_lock();
+	call->cm_server = afs_find_server_by_uuid(call->net, call->request);
+	rcu_read_unlock();
+	if (!call->cm_server)
+		trace_afs_cm_no_server_u(call, call->request);
 
 	return afs_queue_call_work(call);
 }
