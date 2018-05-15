@@ -121,7 +121,7 @@ EXPORT_SYMBOL(hnae3_unregister_client);
  * @ae_algo: AE algorithm
  * NOTE: the duplicated name will not be checked
  */
-int hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
+void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 {
 	const struct pci_device_id *id;
 	struct hnae3_ae_dev *ae_dev;
@@ -160,8 +160,6 @@ int hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 	}
 
 	mutex_unlock(&hnae3_common_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL(hnae3_register_ae_algo);
 

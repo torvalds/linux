@@ -1852,7 +1852,9 @@ static int hclgevf_init(void)
 {
 	pr_info("%s is initializing\n", HCLGEVF_NAME);
 
-	return hnae3_register_ae_algo(&ae_algovf);
+	hnae3_register_ae_algo(&ae_algovf);
+
+	return 0;
 }
 
 static void hclgevf_exit(void)
