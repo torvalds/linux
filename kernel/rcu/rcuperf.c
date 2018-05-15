@@ -19,6 +19,9 @@
  *
  * Authors: Paul E. McKenney <paulmck@us.ibm.com>
  */
+
+#define pr_fmt(fmt) fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

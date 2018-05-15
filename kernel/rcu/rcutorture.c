@@ -22,6 +22,9 @@
  *
  * See also:  Documentation/RCU/torture.txt
  */
+
+#define pr_fmt(fmt) fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
