@@ -376,14 +376,14 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t index;
 
-	if (ring != &adev->uvd.inst->ring) {
+	if (ring != &adev->uvd.inst[ring->me].ring) {
 		ring->fence_drv.cpu_addr = &adev->wb.wb[ring->fence_offs];
 		ring->fence_drv.gpu_addr = adev->wb.gpu_addr + (ring->fence_offs * 4);
 	} else {
 		/* put fence directly behind firmware */
 		index = ALIGN(adev->uvd.fw->size, 8);
-		ring->fence_drv.cpu_addr = adev->uvd.inst->cpu_addr + index;
-		ring->fence_drv.gpu_addr = adev->uvd.inst->gpu_addr + index;
+		ring->fence_drv.cpu_addr = adev->uvd.inst[ring->me].cpu_addr + index;
+		ring->fence_drv.gpu_addr = adev->uvd.inst[ring->me].gpu_addr + index;
 	}
 	amdgpu_fence_write(ring, atomic_read(&ring->fence_drv.last_seq));
 	amdgpu_irq_get(adev, irq_src, irq_type);

@@ -127,7 +127,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned version_major, version_minor, family_id;
-	int i, r;
+	int i, j, r;
 
 	INIT_DELAYED_WORK(&adev->uvd.inst->idle_work, amdgpu_uvd_idle_work_handler);
 
@@ -236,28 +236,30 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
-	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.inst->vcpu_bo,
-				    &adev->uvd.inst->gpu_addr, &adev->uvd.inst->cpu_addr);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
-		return r;
-	}
+	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 
-	ring = &adev->uvd.inst->ring;
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst->entity,
-				  rq, NULL);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up UVD run queue.\n");
-		return r;
-	}
+		r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
+					    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.inst[j].vcpu_bo,
+					    &adev->uvd.inst[j].gpu_addr, &adev->uvd.inst[j].cpu_addr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
+			return r;
+		}
 
-	for (i = 0; i < adev->uvd.max_handles; ++i) {
-		atomic_set(&adev->uvd.inst->handles[i], 0);
-		adev->uvd.inst->filp[i] = NULL;
-	}
+		ring = &adev->uvd.inst[j].ring;
+		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst[j].entity,
+					  rq, NULL);
+		if (r != 0) {
+			DRM_ERROR("Failed setting up UVD(%d) run queue.\n", j);
+			return r;
+		}
 
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
+			atomic_set(&adev->uvd.inst[j].handles[i], 0);
+			adev->uvd.inst[j].filp[i] = NULL;
+		}
+	}
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
 	if (!amdgpu_device_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
@@ -284,20 +286,22 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
-	int i;
-	kfree(adev->uvd.inst->saved_bo);
+	int i, j;
 
-	drm_sched_entity_fini(&adev->uvd.inst->ring.sched, &adev->uvd.inst->entity);
+	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		kfree(adev->uvd.inst[j].saved_bo);
 
-	amdgpu_bo_free_kernel(&adev->uvd.inst->vcpu_bo,
-			      &adev->uvd.inst->gpu_addr,
-			      (void **)&adev->uvd.inst->cpu_addr);
+		drm_sched_entity_fini(&adev->uvd.inst[j].ring.sched, &adev->uvd.inst[j].entity);
 
-	amdgpu_ring_fini(&adev->uvd.inst->ring);
+		amdgpu_bo_free_kernel(&adev->uvd.inst[j].vcpu_bo,
+				      &adev->uvd.inst[j].gpu_addr,
+				      (void **)&adev->uvd.inst[j].cpu_addr);
 
-	for (i = 0; i < AMDGPU_MAX_UVD_ENC_RINGS; ++i)
-		amdgpu_ring_fini(&adev->uvd.inst->ring_enc[i]);
+		amdgpu_ring_fini(&adev->uvd.inst[j].ring);
 
+		for (i = 0; i < AMDGPU_MAX_UVD_ENC_RINGS; ++i)
+			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);
+	}
 	release_firmware(adev->uvd.fw);
 
 	return 0;
@@ -307,32 +311,33 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 {
 	unsigned size;
 	void *ptr;
-	int i;
+	int i, j;
 
-	if (adev->uvd.inst->vcpu_bo == NULL)
-		return 0;
+	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		if (adev->uvd.inst[j].vcpu_bo == NULL)
+			continue;
 
-	cancel_delayed_work_sync(&adev->uvd.inst->idle_work);
+		cancel_delayed_work_sync(&adev->uvd.inst[j].idle_work);
 
-	/* only valid for physical mode */
-	if (adev->asic_type < CHIP_POLARIS10) {
-		for (i = 0; i < adev->uvd.max_handles; ++i)
-			if (atomic_read(&adev->uvd.inst->handles[i]))
-				break;
+		/* only valid for physical mode */
+		if (adev->asic_type < CHIP_POLARIS10) {
+			for (i = 0; i < adev->uvd.max_handles; ++i)
+				if (atomic_read(&adev->uvd.inst[j].handles[i]))
+					break;
 
-		if (i == adev->uvd.max_handles)
-			return 0;
+			if (i == adev->uvd.max_handles)
+				continue;
+		}
+
+		size = amdgpu_bo_size(adev->uvd.inst[j].vcpu_bo);
+		ptr = adev->uvd.inst[j].cpu_addr;
+
+		adev->uvd.inst[j].saved_bo = kmalloc(size, GFP_KERNEL);
+		if (!adev->uvd.inst[j].saved_bo)
+			return -ENOMEM;
+
+		memcpy_fromio(adev->uvd.inst[j].saved_bo, ptr, size);
 	}
-
-	size = amdgpu_bo_size(adev->uvd.inst->vcpu_bo);
-	ptr = adev->uvd.inst->cpu_addr;
-
-	adev->uvd.inst->saved_bo = kmalloc(size, GFP_KERNEL);
-	if (!adev->uvd.inst->saved_bo)
-		return -ENOMEM;
-
-	memcpy_fromio(adev->uvd.inst->saved_bo, ptr, size);
-
 	return 0;
 }
 
@@ -340,59 +345,65 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 {
 	unsigned size;
 	void *ptr;
+	int i;
 
-	if (adev->uvd.inst->vcpu_bo == NULL)
-		return -EINVAL;
+	for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+		if (adev->uvd.inst[i].vcpu_bo == NULL)
+			return -EINVAL;
 
-	size = amdgpu_bo_size(adev->uvd.inst->vcpu_bo);
-	ptr = adev->uvd.inst->cpu_addr;
+		size = amdgpu_bo_size(adev->uvd.inst[i].vcpu_bo);
+		ptr = adev->uvd.inst[i].cpu_addr;
 
-	if (adev->uvd.inst->saved_bo != NULL) {
-		memcpy_toio(ptr, adev->uvd.inst->saved_bo, size);
-		kfree(adev->uvd.inst->saved_bo);
-		adev->uvd.inst->saved_bo = NULL;
-	} else {
-		const struct common_firmware_header *hdr;
-		unsigned offset;
+		if (adev->uvd.inst[i].saved_bo != NULL) {
+			memcpy_toio(ptr, adev->uvd.inst[i].saved_bo, size);
+			kfree(adev->uvd.inst[i].saved_bo);
+			adev->uvd.inst[i].saved_bo = NULL;
+		} else {
+			const struct common_firmware_header *hdr;
+			unsigned offset;
 
-		hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
-		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-			offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-			memcpy_toio(adev->uvd.inst->cpu_addr, adev->uvd.fw->data + offset,
-				    le32_to_cpu(hdr->ucode_size_bytes));
-			size -= le32_to_cpu(hdr->ucode_size_bytes);
-			ptr += le32_to_cpu(hdr->ucode_size_bytes);
+			hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
+			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+				offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+				memcpy_toio(adev->uvd.inst[i].cpu_addr, adev->uvd.fw->data + offset,
+					    le32_to_cpu(hdr->ucode_size_bytes));
+				size -= le32_to_cpu(hdr->ucode_size_bytes);
+				ptr += le32_to_cpu(hdr->ucode_size_bytes);
+			}
+			memset_io(ptr, 0, size);
+			/* to restore uvd fence seq */
+			amdgpu_fence_driver_force_completion(&adev->uvd.inst[i].ring);
 		}
-		memset_io(ptr, 0, size);
-		/* to restore uvd fence seq */
-		amdgpu_fence_driver_force_completion(&adev->uvd.inst->ring);
 	}
-
 	return 0;
 }
 
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 {
-	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
-	int i, r;
+	struct amdgpu_ring *ring;
+	int i, j, r;
 
-	for (i = 0; i < adev->uvd.max_handles; ++i) {
-		uint32_t handle = atomic_read(&adev->uvd.inst->handles[i]);
-		if (handle != 0 && adev->uvd.inst->filp[i] == filp) {
-			struct dma_fence *fence;
+	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
+		ring = &adev->uvd.inst[j].ring;
 
-			r = amdgpu_uvd_get_destroy_msg(ring, handle,
-						       false, &fence);
-			if (r) {
-				DRM_ERROR("Error destroying UVD (%d)!\n", r);
-				continue;
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
+			uint32_t handle = atomic_read(&adev->uvd.inst[j].handles[i]);
+			if (handle != 0 && adev->uvd.inst[j].filp[i] == filp) {
+				struct dma_fence *fence;
+
+				r = amdgpu_uvd_get_destroy_msg(ring, handle,
+							       false, &fence);
+				if (r) {
+					DRM_ERROR("Error destroying UVD(%d) %d!\n", j, r);
+					continue;
+				}
+
+				dma_fence_wait(fence, false);
+				dma_fence_put(fence);
+
+				adev->uvd.inst[j].filp[i] = NULL;
+				atomic_set(&adev->uvd.inst[j].handles[i], 0);
 			}
-
-			dma_fence_wait(fence, false);
-			dma_fence_put(fence);
-
-			adev->uvd.inst->filp[i] = NULL;
-			atomic_set(&adev->uvd.inst->handles[i], 0);
 		}
 	}
 }
@@ -667,15 +678,16 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	void *ptr;
 	long r;
 	int i;
+	uint32_t ip_instance = ctx->parser->job->ring->me;
 
 	if (offset & 0x3F) {
-		DRM_ERROR("UVD messages must be 64 byte aligned!\n");
+		DRM_ERROR("UVD(%d) messages must be 64 byte aligned!\n", ip_instance);
 		return -EINVAL;
 	}
 
 	r = amdgpu_bo_kmap(bo, &ptr);
 	if (r) {
-		DRM_ERROR("Failed mapping the UVD message (%ld)!\n", r);
+		DRM_ERROR("Failed mapping the UVD(%d) message (%ld)!\n", ip_instance, r);
 		return r;
 	}
 
@@ -685,7 +697,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	handle = msg[2];
 
 	if (handle == 0) {
-		DRM_ERROR("Invalid UVD handle!\n");
+		DRM_ERROR("Invalid UVD(%d) handle!\n", ip_instance);
 		return -EINVAL;
 	}
 
@@ -696,18 +708,18 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* try to alloc a new handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.inst->handles[i]) == handle) {
-				DRM_ERROR("Handle 0x%x already in use!\n", handle);
+			if (atomic_read(&adev->uvd.inst[ip_instance].handles[i]) == handle) {
+				DRM_ERROR("(%d)Handle 0x%x already in use!\n", ip_instance, handle);
 				return -EINVAL;
 			}
 
-			if (!atomic_cmpxchg(&adev->uvd.inst->handles[i], 0, handle)) {
-				adev->uvd.inst->filp[i] = ctx->parser->filp;
+			if (!atomic_cmpxchg(&adev->uvd.inst[ip_instance].handles[i], 0, handle)) {
+				adev->uvd.inst[ip_instance].filp[i] = ctx->parser->filp;
 				return 0;
 			}
 		}
 
-		DRM_ERROR("No more free UVD handles!\n");
+		DRM_ERROR("No more free UVD(%d) handles!\n", ip_instance);
 		return -ENOSPC;
 
 	case 1:
@@ -719,27 +731,27 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* validate the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.inst->handles[i]) == handle) {
-				if (adev->uvd.inst->filp[i] != ctx->parser->filp) {
-					DRM_ERROR("UVD handle collision detected!\n");
+			if (atomic_read(&adev->uvd.inst[ip_instance].handles[i]) == handle) {
+				if (adev->uvd.inst[ip_instance].filp[i] != ctx->parser->filp) {
+					DRM_ERROR("UVD(%d) handle collision detected!\n", ip_instance);
 					return -EINVAL;
 				}
 				return 0;
 			}
 		}
 
-		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
+		DRM_ERROR("Invalid UVD(%d) handle 0x%x!\n", ip_instance, handle);
 		return -ENOENT;
 
 	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i)
-			atomic_cmpxchg(&adev->uvd.inst->handles[i], handle, 0);
+			atomic_cmpxchg(&adev->uvd.inst[ip_instance].handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
 
 	default:
-		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
+		DRM_ERROR("Illegal UVD(%d) message type (%d)!\n", ip_instance, msg_type);
 		return -EINVAL;
 	}
 	BUG();
@@ -1043,7 +1055,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		if (r)
 			goto err_free;
 
-		r = amdgpu_job_submit(job, ring, &adev->uvd.inst->entity,
+		r = amdgpu_job_submit(job, ring, &adev->uvd.inst[ring->me].entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;
@@ -1189,27 +1201,28 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence;
 	long r;
+	uint32_t ip_instance = ring->me;
 
 	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+		DRM_ERROR("amdgpu: (%d)failed to get create msg (%ld).\n", ip_instance, r);
 		goto error;
 	}
 
 	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+		DRM_ERROR("amdgpu: (%d)failed to get destroy ib (%ld).\n", ip_instance, r);
 		goto error;
 	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
 	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+		DRM_ERROR("amdgpu: (%d)IB test timed out.\n", ip_instance);
 		r = -ETIMEDOUT;
 	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+		DRM_ERROR("amdgpu: (%d)fence wait failed (%ld).\n", ip_instance, r);
 	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on (%d)ring %d succeeded\n", ip_instance, ring->idx);
 		r = 0;
 	}
 
