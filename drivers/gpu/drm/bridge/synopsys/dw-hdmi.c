@@ -1634,6 +1634,8 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	 * (and possibly on the platform). So far only i.MX6Q (v1.30a) and
 	 * i.MX6DL (v1.31a) have been identified as needing the workaround, with
 	 * 4 and 1 iterations respectively.
+	 * The Amlogic Meson GX SoCs (v2.01a) have been identified as needing
+	 * the workaround with a single iteration.
 	 */
 
 	switch (hdmi->version) {
@@ -1641,6 +1643,7 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 		count = 4;
 		break;
 	case 0x131a:
+	case 0x201a:
 		count = 1;
 		break;
 	default:

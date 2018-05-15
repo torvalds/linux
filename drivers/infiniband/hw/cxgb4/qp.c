@@ -1349,12 +1349,12 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	qhp->wq.flushed = 1;
 	t4_set_wq_in_error(&qhp->wq);
 
-	c4iw_flush_hw_cq(rchp);
+	c4iw_flush_hw_cq(rchp, qhp);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
 	rq_flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 
 	if (schp != rchp)
-		c4iw_flush_hw_cq(schp);
+		c4iw_flush_hw_cq(schp, qhp);
 	sq_flushed = c4iw_flush_sq(qhp);
 
 	spin_unlock(&qhp->lock);
