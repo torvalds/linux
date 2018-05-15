@@ -19,6 +19,7 @@
 #include <linux/preempt.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/rcupdate.h>
 #include <linux/ratelimit.h>
 #include <linux/err.h>
@@ -811,6 +812,10 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
+/*
+ * All architectures that want to use vzalloc currently also
+ * need their own kvm_arch_alloc_vm implementation.
+ */
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
 	return kzalloc(sizeof(struct kvm), GFP_KERNEL);

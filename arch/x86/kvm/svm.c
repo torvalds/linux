@@ -1852,13 +1852,13 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 
 static struct kvm *svm_vm_alloc(void)
 {
-	struct kvm_svm *kvm_svm = kzalloc(sizeof(struct kvm_svm), GFP_KERNEL);
+	struct kvm_svm *kvm_svm = vzalloc(sizeof(struct kvm_svm));
 	return &kvm_svm->kvm;
 }
 
 static void svm_vm_free(struct kvm *kvm)
 {
-	kfree(to_kvm_svm(kvm));
+	vfree(to_kvm_svm(kvm));
 }
 
 static void sev_vm_destroy(struct kvm *kvm)

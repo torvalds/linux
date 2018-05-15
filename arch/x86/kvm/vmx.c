@@ -10139,13 +10139,13 @@ STACK_FRAME_NON_STANDARD(vmx_vcpu_run);
 
 static struct kvm *vmx_vm_alloc(void)
 {
-	struct kvm_vmx *kvm_vmx = kzalloc(sizeof(struct kvm_vmx), GFP_KERNEL);
+	struct kvm_vmx *kvm_vmx = vzalloc(sizeof(struct kvm_vmx));
 	return &kvm_vmx->kvm;
 }
 
 static void vmx_vm_free(struct kvm *kvm)
 {
-	kfree(to_kvm_vmx(kvm));
+	vfree(to_kvm_vmx(kvm));
 }
 
 static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
