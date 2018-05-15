@@ -961,6 +961,36 @@ xfs_update_secondary_sbs(
 	return saved_error ? saved_error : error;
 }
 
+/*
+ * Same behavior as xfs_sync_sb, except that it is always synchronous and it
+ * also writes the superblock buffer to disk sector 0 immediately.
+ */
+int
+xfs_sync_sb_buf(
+	struct xfs_mount	*mp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_log_sb(tp);
+	xfs_trans_bhold(tp, mp->m_sb_bp);
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp);
+	if (error)
+		goto out;
+	/*
+	 * write out the sb buffer to get the changes to disk
+	 */
+	error = xfs_bwrite(mp->m_sb_bp);
+out:
+	xfs_buf_relse(mp->m_sb_bp);
+	return error;
+}
+
 int
 xfs_fs_geometry(
 	struct xfs_sb		*sbp,
