@@ -96,6 +96,7 @@ struct smc_link {
 	u8			link_id;	/* unique # within link group */
 
 	enum smc_link_state	state;		/* state of link */
+	struct workqueue_struct *llc_wq;	/* single thread work queue */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
