@@ -84,20 +84,21 @@ TRACE_EVENT(rcu_grace_period,
 );
 
 /*
- * Tracepoint for future grace-period events, including those for no-callbacks
- * CPUs.  The caller should pull the data from the rcu_node structure,
- * other than rcuname, which comes from the rcu_state structure, and event,
- * which is one of the following:
+ * Tracepoint for future grace-period events.  The caller should pull
+ * the data from the rcu_node structure, other than rcuname, which comes
+ * from the rcu_state structure, and event, which is one of the following:
  *
- * "Startleaf": Request a nocb grace period based on leaf-node data.
+ * "Startleaf": Request a grace period based on leaf-node data.
+ * "Prestarted": Someone beat us to the request
  * "Startedleaf": Leaf-node start proved sufficient.
  * "Startedleafroot": Leaf-node start proved sufficient after checking root.
  * "Startedroot": Requested a nocb grace period based on root-node data.
+ * "NoGPkthread": The RCU grace-period kthread has not yet started.
  * "StartWait": Start waiting for the requested grace period.
  * "ResumeWait": Resume waiting after signal.
  * "EndWait": Complete wait.
  * "Cleanup": Clean up rcu_node structure after previous GP.
- * "CleanupMore": Clean up, and another no-CB GP is needed.
+ * "CleanupMore": Clean up, and another GP is needed.
  */
 TRACE_EVENT(rcu_future_grace_period,
 

@@ -266,14 +266,12 @@ static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp,
 }
 
 /* Common code for synchronize_{rcu,sched}_expedited() work-done checking. */
-static bool sync_exp_work_done(struct rcu_state *rsp, atomic_long_t *stat,
-			       unsigned long s)
+static bool sync_exp_work_done(struct rcu_state *rsp, unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(rsp, s)) {
 		trace_rcu_exp_grace_period(rsp->name, s, TPS("done"));
 		/* Ensure test happens before caller kfree(). */
 		smp_mb__before_atomic(); /* ^^^ */
-		atomic_long_inc(stat);
 		return true;
 	}
 	return false;
@@ -307,7 +305,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	 * promoting locality and is not strictly needed for correctness.
 	 */
 	for (; rnp != NULL; rnp = rnp->parent) {
-		if (sync_exp_work_done(rsp, &rdp->exp_workdone1, s))
+		if (sync_exp_work_done(rsp, s))
 			return true;
 
 		/* Work not done, either wait here or go up. */
@@ -320,8 +318,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 						  rnp->grplo, rnp->grphi,
 						  TPS("wait"));
 			wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
-				   sync_exp_work_done(rsp,
-						      &rdp->exp_workdone2, s));
+				   sync_exp_work_done(rsp, s));
 			return true;
 		}
 		rnp->exp_seq_rq = s; /* Followers can wait on us. */
@@ -331,7 +328,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	}
 	mutex_lock(&rsp->exp_mutex);
 fastpath:
-	if (sync_exp_work_done(rsp, &rdp->exp_workdone3, s)) {
+	if (sync_exp_work_done(rsp, s)) {
 		mutex_unlock(&rsp->exp_mutex);
 		return true;
 	}
@@ -679,7 +676,7 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	rnp = rcu_get_root(rsp);
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
-		   sync_exp_work_done(rsp, &rdp->exp_workdone0, s));
+		   sync_exp_work_done(rsp, s));
 	smp_mb(); /* Workqueue actions happen before return. */
 
 	/* Let the next expedited grace period start. */

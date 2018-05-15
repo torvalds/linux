@@ -188,13 +188,13 @@ static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
- * cond_resched_rcu_qs - Report potential quiescent states to RCU
+ * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
  * This macro resembles cond_resched(), except that it is defined to
  * report potential quiescent states to RCU-tasks even if the cond_resched()
  * machinery were to be shut off, as some advocate for PREEMPT kernels.
  */
-#define cond_resched_rcu_qs() \
+#define cond_resched_tasks_rcu_qs() \
 do { \
 	if (!cond_resched()) \
 		rcu_note_voluntary_context_switch_lite(current); \

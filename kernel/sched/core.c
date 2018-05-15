@@ -5012,20 +5012,6 @@ int __cond_resched_lock(spinlock_t *lock)
 }
 EXPORT_SYMBOL(__cond_resched_lock);
 
-int __sched __cond_resched_softirq(void)
-{
-	BUG_ON(!in_softirq());
-
-	if (should_resched(SOFTIRQ_DISABLE_OFFSET)) {
-		local_bh_enable();
-		preempt_schedule_common();
-		local_bh_disable();
-		return 1;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(__cond_resched_softirq);
-
 /**
  * yield - yield the current processor to other threads.
  *
