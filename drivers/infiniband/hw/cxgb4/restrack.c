@@ -97,8 +97,6 @@ static int fill_swsqe(struct sk_buff *msg, struct t4_sq *sq, u16 idx,
 		goto err;
 	if (rdma_nl_put_driver_u32(msg, "opcode", sqe->opcode))
 		goto err;
-	if (rdma_nl_put_driver_u64_hex(msg, "wr_id", sqe->wr_id))
-		goto err;
 	if (rdma_nl_put_driver_u32(msg, "complete", sqe->complete))
 		goto err;
 	if (sqe->complete &&
@@ -134,50 +132,14 @@ err:
 	return -EMSGSIZE;
 }
 
-static int fill_swrqe(struct sk_buff *msg, struct t4_rq *rq, u16 idx,
-		      struct t4_swrqe *rqe)
-{
-	if (rdma_nl_put_driver_u32(msg, "idx", idx))
-		goto err;
-	if (rdma_nl_put_driver_u64_hex(msg, "wr_id", rqe->wr_id))
-		goto err;
-	return 0;
-err:
-	return -EMSGSIZE;
-}
-
-/*
- * Dump the first and last pending rqes.
- */
-static int fill_swrqes(struct sk_buff *msg, struct t4_rq *rq,
-		       u16 first_idx, struct t4_swrqe *first_rqe,
-		       u16 last_idx, struct t4_swrqe *last_rqe)
-{
-	if (!first_rqe)
-		goto out;
-	if (fill_swrqe(msg, rq, first_idx, first_rqe))
-		goto err;
-	if (!last_rqe)
-		goto out;
-	if (fill_swrqe(msg, rq, last_idx, last_rqe))
-		goto err;
-out:
-	return 0;
-err:
-	return -EMSGSIZE;
-}
-
 static int fill_res_qp_entry(struct sk_buff *msg,
 			     struct rdma_restrack_entry *res)
 {
 	struct ib_qp *ibqp = container_of(res, struct ib_qp, res);
 	struct t4_swsqe *fsp = NULL, *lsp = NULL;
-	struct t4_swrqe *frp = NULL, *lrp = NULL;
 	struct c4iw_qp *qhp = to_c4iw_qp(ibqp);
 	u16 first_sq_idx = 0, last_sq_idx = 0;
-	u16 first_rq_idx = 0, last_rq_idx = 0;
 	struct t4_swsqe first_sqe, last_sqe;
-	struct t4_swrqe first_rqe, last_rqe;
 	struct nlattr *table_attr;
 	struct t4_wq wq;
 
@@ -206,20 +168,6 @@ static int fill_res_qp_entry(struct sk_buff *msg,
 			lsp = &last_sqe;
 		}
 	}
-
-	/* If there are any pending rqes, copy the first and last */
-	if (wq.rq.cidx != wq.rq.pidx) {
-		first_rq_idx = wq.rq.cidx;
-		first_rqe = qhp->wq.rq.sw_rq[first_rq_idx];
-		frp = &first_rqe;
-		last_rq_idx = wq.rq.pidx;
-		if (last_rq_idx-- == 0)
-			last_rq_idx = wq.rq.size - 1;
-		if (last_rq_idx != first_rq_idx) {
-			last_rqe = qhp->wq.rq.sw_rq[last_rq_idx];
-			lrp = &last_rqe;
-		}
-	}
 	spin_unlock_irq(&qhp->lock);
 
 	if (fill_sq(msg, &wq))
@@ -229,9 +177,6 @@ static int fill_res_qp_entry(struct sk_buff *msg,
 		goto err_cancel_table;
 
 	if (fill_rq(msg, &wq))
-		goto err_cancel_table;
-
-	if (fill_swrqes(msg, &wq.rq, first_rq_idx, frp, last_rq_idx, lrp))
 		goto err_cancel_table;
 
 	nla_nest_end(msg, table_attr);
