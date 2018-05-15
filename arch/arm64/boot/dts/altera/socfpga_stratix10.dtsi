@@ -119,6 +119,12 @@
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
 			};
+
+			qspi_clk: qspi-clk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <200000000>;
+			};
 		};
 
 		gmac0: ethernet@ff800000 {
@@ -463,6 +469,21 @@
 				compatible = "altr,sdram-edac-s10";
 				interrupts = <16 4>, <48 4>;
 			};
+		};
+
+		qspi: spi@ff8d2000 {
+			compatible = "cdns,qspi-nor";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xff8d2000 0x100>,
+			      <0xff900000 0x100000>;
+			interrupts = <0 3 4>;
+			cdns,fifo-depth = <128>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x00000000>;
+			clocks = <&qspi_clk>;
+
+			status = "disabled";
 		};
 	};
 };
