@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2017-2018 Sean Wang <sean.wang@mediatek.com>
+ * Copyright (c) 2017-2018 MediaTek Inc.
+ * Author: Sean Wang <sean.wang@mediatek.com>
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
@@ -10,10 +11,12 @@
 #include "mt6323.dtsi"
 
 / {
-	model = "Bananapi BPI-R2";
-	compatible = "bananapi,bpi-r2", "mediatek,mt7623";
+	model = "MediaTek MT7623N with eMMC reference board";
+	compatible = "mediatek,mt7623n-rfb-emmc", "mediatek,mt7623";
 
 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
 		serial2 = &uart2;
 	};
 
@@ -37,6 +40,29 @@
 		cpu@3 {
 			proc-supply = <&mt6323_vproc_reg>;
 		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_pins_a>;
+
+		factory {
+			label = "factory";
+			linux,code = <BTN_0>;
+			gpios = <&pio 256 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&pio 257 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x40000000>;
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -66,51 +92,17 @@
 		regulator-always-on;
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
+	sound {
+		compatible = "mediatek,mt2701-wm8960-machine";
+		mediatek,platform = <&afe>;
+		audio-routing =
+			"Headphone", "HP_L",
+			"Headphone", "HP_R",
+			"LINPUT1", "AMIC",
+			"RINPUT1", "AMIC";
+		mediatek,audio-codec = <&wm8960>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&key_pins_a>;
-
-		factory {
-			label = "factory";
-			linux,code = <BTN_0>;
-			gpios = <&pio 256 GPIO_ACTIVE_LOW>;
-		};
-
-		wps {
-			label = "wps";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&pio 257 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_a>;
-
-		blue {
-			label = "bpi-r2:pio:blue";
-			gpios = <&pio 241 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-
-		green {
-			label = "bpi-r2:pio:green";
-			gpios = <&pio 240 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-
-		red {
-			label = "bpi-r2:pio:red";
-			gpios = <&pio 239 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-	};
-
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0 0x80000000 0 0x80000000>;
+		pinctrl-0 = <&i2s0_pins_a>;
 	};
 };
 
@@ -143,9 +135,20 @@
 		};
 	};
 
-	mdio: mdio-bus {
+	mac@1 {
+		compatible = "mediatek,eth-mac";
+		reg = <1>;
+		phy-handle = <&phy5>;
+	};
+
+	mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		phy5: ethernet-phy@5 {
+			reg = <5>;
+			phy-mode = "rgmii-rxid";
+		};
 
 		switch@0 {
 			compatible = "mediatek,mt7530";
@@ -160,27 +163,27 @@
 
 				port@0 {
 					reg = <0>;
-					label = "wan";
+					label = "lan0";
 				};
 
 				port@1 {
 					reg = <1>;
-					label = "lan0";
+					label = "lan1";
 				};
 
 				port@2 {
 					reg = <2>;
-					label = "lan1";
+					label = "lan2";
 				};
 
 				port@3 {
 					reg = <3>;
-					label = "lan2";
+					label = "lan3";
 				};
 
 				port@4 {
 					reg = <4>;
-					label = "lan3";
+					label = "wan";
 				};
 
 				port@6 {
@@ -207,7 +210,18 @@
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
+	pinctrl-0 = <&i2c1_pins_b>;
+	status = "okay";
+
+	wm8960: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
@@ -235,28 +249,6 @@
 	cd-gpios = <&pio 261 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
-};
-
-&mt6323_leds {
-	status = "okay";
-
-	led@0 {
-		reg = <0>;
-		label = "bpi-r2:isink:green";
-		default-state = "off";
-	};
-
-	led@1 {
-		reg = <1>;
-		label = "bpi-r2:isink:red";
-		default-state = "off";
-	};
-
-	led@2 {
-		reg = <2>;
-		label = "bpi-r2:isink:blue";
-		default-state = "off";
-	};
 };
 
 &pcie {
@@ -293,6 +285,18 @@
 	status = "okay";
 };
 
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins_a>;
+	status = "okay";
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pins_a>;
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
@@ -317,17 +321,6 @@
 	status = "okay";
 };
 
-&usb2 {
-	vusb33-supply = <&reg_3p3v>;
-	vbus-supply = <&reg_5v>;
-	status = "okay";
-};
-
 &u3phy1 {
 	status = "okay";
 };
-
-&u3phy2 {
-	status = "okay";
-};
-
