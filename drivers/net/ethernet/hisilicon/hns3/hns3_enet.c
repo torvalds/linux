@@ -1487,6 +1487,68 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
 };
 
+static bool hns3_is_phys_func(struct pci_dev *pdev)
+{
+	u32 dev_id = pdev->device;
+
+	switch (dev_id) {
+	case HNAE3_DEV_ID_GE:
+	case HNAE3_DEV_ID_25GE:
+	case HNAE3_DEV_ID_25GE_RDMA:
+	case HNAE3_DEV_ID_25GE_RDMA_MACSEC:
+	case HNAE3_DEV_ID_50GE_RDMA:
+	case HNAE3_DEV_ID_50GE_RDMA_MACSEC:
+	case HNAE3_DEV_ID_100G_RDMA_MACSEC:
+		return true;
+	case HNAE3_DEV_ID_100G_VF:
+	case HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF:
+		return false;
+	default:
+		dev_warn(&pdev->dev, "un-recognized pci device-id %d",
+			 dev_id);
+	}
+
+	return false;
+}
+
+static int get_num_req_vfs(struct pci_dev *pdev)
+{
+	/* a variable vf num will be supported later */
+	return pci_sriov_get_totalvfs(pdev);
+}
+
+static void hns3_enable_sriov(struct pci_dev *pdev)
+{
+	int num_req_vfs = get_num_req_vfs(pdev);
+	int ret;
+
+	/* Enable SRIOV */
+	if (!num_req_vfs)
+		return;
+
+	dev_info(&pdev->dev, "active VFs(%d) found, enabling SRIOV\n",
+		 num_req_vfs);
+
+	ret = pci_enable_sriov(pdev, num_req_vfs);
+	if (ret)
+		dev_err(&pdev->dev, "SRIOV enable failed %d\n", ret);
+}
+
+static void hns3_disable_sriov(struct pci_dev *pdev)
+{
+	/* If our VFs are assigned we cannot shut down SR-IOV
+	 * without causing issues, so just leave the hardware
+	 * available but disabled
+	 */
+	if (pci_vfs_assigned(pdev)) {
+		dev_warn(&pdev->dev,
+			 "disabling driver while VFs are assigned\n");
+		return;
+	}
+
+	pci_disable_sriov(pdev);
+}
+
 /* hns3_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in hns3_pci_tbl
@@ -1514,7 +1576,14 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
 	pci_set_drvdata(pdev, ae_dev);
 
-	return hnae3_register_ae_dev(ae_dev);
+	ret = hnae3_register_ae_dev(ae_dev);
+	if (ret)
+		return ret;
+
+	if (hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))
+		hns3_enable_sriov(pdev);
+
+	return 0;
 }
 
 /* hns3_remove - Device removal routine
@@ -1523,6 +1592,9 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static void hns3_remove(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	if (hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))
+		hns3_disable_sriov(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
 }
