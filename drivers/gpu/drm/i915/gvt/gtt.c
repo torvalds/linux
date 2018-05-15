@@ -400,6 +400,22 @@ static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
 	return true;
 }
 
+static bool gen8_gtt_test_ips(struct intel_gvt_gtt_entry *e)
+{
+	if (GEM_WARN_ON(e->type != GTT_TYPE_PPGTT_PDE_ENTRY))
+		return false;
+
+	return !!(e->val64 & GEN8_PDE_IPS_64K);
+}
+
+static void gen8_gtt_clear_ips(struct intel_gvt_gtt_entry *e)
+{
+	if (GEM_WARN_ON(e->type != GTT_TYPE_PPGTT_PDE_ENTRY))
+		return;
+
+	e->val64 &= ~GEN8_PDE_IPS_64K;
+}
+
 static bool gen8_gtt_test_present(struct intel_gvt_gtt_entry *e)
 {
 	/*
@@ -456,6 +472,8 @@ static struct intel_gvt_gtt_pte_ops gen8_gtt_pte_ops = {
 	.set_present = gtt_entry_set_present,
 	.test_present = gen8_gtt_test_present,
 	.test_pse = gen8_gtt_test_pse,
+	.clear_ips = gen8_gtt_clear_ips,
+	.test_ips = gen8_gtt_test_ips,
 	.get_pfn = gen8_gtt_get_pfn,
 	.set_pfn = gen8_gtt_set_pfn,
 };
