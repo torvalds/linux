@@ -461,7 +461,8 @@ static void intel_write_infoframe(struct drm_encoder *encoder,
 }
 
 static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
-					 const struct intel_crtc_state *crtc_state)
+					 const struct intel_crtc_state *crtc_state,
+					 const struct drm_connector_state *conn_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	const struct drm_display_mode *adjusted_mode =
@@ -490,6 +491,9 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					   HDMI_QUANTIZATION_RANGE_FULL,
 					   intel_hdmi->rgb_quant_range_selectable,
 					   is_hdmi2_sink);
+
+	drm_hdmi_avi_infoframe_content_type(&frame.avi,
+					    conn_state);
 
 	/* TODO: handle pixel repetition for YCBCR420 outputs */
 	intel_write_infoframe(encoder, crtc_state, &frame);
@@ -586,7 +590,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_avi_infoframe(encoder, crtc_state, conn_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
 	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
@@ -727,7 +731,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_avi_infoframe(encoder, crtc_state, conn_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
 	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
@@ -770,7 +774,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_avi_infoframe(encoder, crtc_state, conn_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
 	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
@@ -823,7 +827,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_avi_infoframe(encoder, crtc_state, conn_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
 	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
@@ -856,7 +860,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_avi_infoframe(encoder, crtc_state, conn_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
 	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
@@ -2065,6 +2069,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_attach_aspect_ratio_property(connector);
+	drm_connector_attach_content_type_property(connector);
 	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
