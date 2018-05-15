@@ -5,7 +5,7 @@
 //
 // Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 //		      Markus Rechberger <mrechberger@gmail.com>
-//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 //
@@ -44,7 +44,7 @@
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
-		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
+		      "Mauro Carvalho Chehab <mchehab@kernel.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
 static unsigned int isoc_debug;

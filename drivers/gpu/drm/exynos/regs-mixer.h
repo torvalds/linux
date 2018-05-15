@@ -47,6 +47,7 @@
 #define MXR_MO				0x0304
 #define MXR_RESOLUTION			0x0310
 
+#define MXR_CFG_S			0x2004
 #define MXR_GRAPHIC0_BASE_S		0x2024
 #define MXR_GRAPHIC1_BASE_S		0x2044
 
