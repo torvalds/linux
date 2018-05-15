@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 #if defined(CONFIG_OF_ADDRESS)
 /**
  * of_pci_get_host_bridge_resources - Parse PCI host bridge resources from DT
- * @dev_node: device node of the host bridge having the range property
+ * @dev: host bridge device
  * @busno: bus number associated with the bridge root bus
  * @bus_max: maximum number of buses for this bridge
  * @resources: list where the range of resources will be added after DT parsing
@@ -262,10 +262,11 @@ EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
  * It returns zero if the range parsing has been successful or a standard error
  * value if it failed.
  */
-int of_pci_get_host_bridge_resources(struct device_node *dev_node,
+int of_pci_get_host_bridge_resources(struct device *dev,
 			unsigned char busno, unsigned char bus_max,
 			struct list_head *resources, resource_size_t *io_base)
 {
+	struct device_node *dev_node = dev->of_node;
 	struct resource_entry *window;
 	struct resource *res;
 	struct resource *bus_range;
@@ -599,12 +600,12 @@ int pci_parse_request_of_pci_ranges(struct device *dev,
 				    struct resource **bus_range)
 {
 	int err, res_valid = 0;
-	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
 	struct resource_entry *win, *tmp;
 
 	INIT_LIST_HEAD(resources);
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, resources, &iobase);
+	err = of_pci_get_host_bridge_resources(dev, 0, 0xff, resources,
+						    &iobase);
 	if (err)
 		return err;
 

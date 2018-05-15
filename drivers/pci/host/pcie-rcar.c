@@ -1067,12 +1067,11 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 {
 	int err;
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
 	struct resource_entry *win, *tmp;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
-					       &iobase);
+	err = of_pci_get_host_bridge_resources(dev, 0, 0xff,
+						    &pci->resources, &iobase);
 	if (err)
 		return err;
 
