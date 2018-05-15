@@ -97,7 +97,7 @@ struct drm_bridge_funcs {
 	/**
 	 * @mode_fixup:
 	 *
-	 * This callback is used to validate and adjust a mode. The paramater
+	 * This callback is used to validate and adjust a mode. The parameter
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
@@ -301,15 +301,15 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
 enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 void drm_bridge_disable(struct drm_bridge *bridge);
 void drm_bridge_post_disable(struct drm_bridge *bridge);
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
 
