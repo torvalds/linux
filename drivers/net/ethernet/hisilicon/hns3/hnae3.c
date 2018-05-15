@@ -168,6 +168,9 @@ void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo)
 	mutex_lock(&hnae3_common_lock);
 	/* Check if there are matched ae_dev */
 	list_for_each_entry(ae_dev, &hnae3_ae_dev_list, node) {
+		if (!hnae_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
+			continue;
+
 		id = pci_match_id(ae_algo->pdev_id_table, ae_dev->pdev);
 		if (!id)
 			continue;
@@ -256,6 +259,9 @@ void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev)
 	mutex_lock(&hnae3_common_lock);
 	/* Check if there are matched ae_algo */
 	list_for_each_entry(ae_algo, &hnae3_ae_algo_list, node) {
+		if (!hnae_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
+			continue;
+
 		id = pci_match_id(ae_algo->pdev_id_table, ae_dev->pdev);
 		if (!id)
 			continue;
