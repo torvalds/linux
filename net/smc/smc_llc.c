@@ -562,10 +562,19 @@ out:
 	schedule_delayed_work(&link->llc_testlink_wrk, next_interval);
 }
 
-void smc_llc_link_active(struct smc_link *link, int testlink_time)
+void smc_llc_link_init(struct smc_link *link)
 {
+	init_completion(&link->llc_confirm);
+	init_completion(&link->llc_confirm_resp);
+	init_completion(&link->llc_add);
+	init_completion(&link->llc_add_resp);
+	init_completion(&link->llc_confirm_rkey);
 	init_completion(&link->llc_testlink_resp);
 	INIT_DELAYED_WORK(&link->llc_testlink_wrk, smc_llc_testlink_work);
+}
+
+void smc_llc_link_active(struct smc_link *link, int testlink_time)
+{
 	link->state = SMC_LNK_ACTIVE;
 	if (testlink_time) {
 		link->llc_testlink_time = testlink_time * HZ;

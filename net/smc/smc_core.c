@@ -194,6 +194,7 @@ static int smc_lgr_create(struct smc_sock *smc,
 		smc_ib_setup_per_ibdev(smcibdev);
 	get_random_bytes(rndvec, sizeof(rndvec));
 	lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) + (rndvec[2] << 16);
+	smc_llc_link_init(lnk);
 	rc = smc_wr_alloc_link_mem(lnk);
 	if (rc)
 		goto free_lgr;
@@ -206,11 +207,6 @@ static int smc_lgr_create(struct smc_sock *smc,
 	rc = smc_wr_create_link(lnk);
 	if (rc)
 		goto destroy_qp;
-	init_completion(&lnk->llc_confirm);
-	init_completion(&lnk->llc_confirm_resp);
-	init_completion(&lnk->llc_add);
-	init_completion(&lnk->llc_add_resp);
-	init_completion(&lnk->llc_confirm_rkey);
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);
