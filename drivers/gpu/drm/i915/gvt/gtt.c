@@ -351,6 +351,8 @@ static inline int gtt_set_entry64(void *pt,
 #define GTT_SPTE_FLAG_MASK GENMASK_ULL(62, 52)
 #define GTT_SPTE_FLAG_64K_SPLITED BIT(52) /* splited 64K gtt entry */
 
+#define GTT_64K_PTE_STRIDE 16
+
 static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
 {
 	unsigned long pfn;
@@ -889,12 +891,14 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt_gfn(
 	(I915_GTT_PAGE_SIZE >> pt_entry_size_shift(spt))
 
 #define for_each_present_guest_entry(spt, e, i) \
-	for (i = 0; i < pt_entries(spt); i++) \
+	for (i = 0; i < pt_entries(spt); \
+	     i += spt->guest_page.pde_ips ? GTT_64K_PTE_STRIDE : 1) \
 		if (!ppgtt_get_guest_entry(spt, e, i) && \
 		    spt->vgpu->gvt->gtt.pte_ops->test_present(e))
 
 #define for_each_present_shadow_entry(spt, e, i) \
-	for (i = 0; i < pt_entries(spt); i++) \
+	for (i = 0; i < pt_entries(spt); \
+	     i += spt->shadow_page.pde_ips ? GTT_64K_PTE_STRIDE : 1) \
 		if (!ppgtt_get_shadow_entry(spt, e, i) && \
 		    spt->vgpu->gvt->gtt.pte_ops->test_present(e))
 
