@@ -194,8 +194,8 @@ static int cdn_dp_get_sink_count(struct cdn_dp_device *dp, u8 *sink_count)
 	u8 value;
 
 	*sink_count = 0;
-	ret = cdn_dp_dpcd_read(dp, DP_SINK_COUNT, &value, 1);
-	if (ret)
+	ret = drm_dp_dpcd_read(&dp->aux, DP_SINK_COUNT, &value, 1);
+	if (ret < 0)
 		return ret;
 
 	*sink_count = DP_GET_SINK_COUNT(value);
@@ -556,9 +556,9 @@ static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 	if (!cdn_dp_check_sink_connection(dp))
 		return -ENODEV;
 
-	ret = cdn_dp_dpcd_read(dp, DP_DPCD_REV, dp->dpcd,
-			       DP_RECEIVER_CAP_SIZE);
-	if (ret) {
+	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd,
+			       sizeof(dp->dpcd));
+	if (ret < 0) {
 		DRM_DEV_ERROR(dp->dev, "Failed to get caps %d\n", ret);
 		return ret;
 	}
@@ -773,8 +773,8 @@ static bool cdn_dp_check_link_status(struct cdn_dp_device *dp)
 	if (!port || !dp->link.rate || !dp->link.num_lanes)
 		return false;
 
-	if (cdn_dp_dpcd_read(dp, DP_LANE0_1_STATUS, link_status,
-			     DP_LINK_STATUS_SIZE)) {
+	if (drm_dp_dpcd_read_link_status(&dp->aux, link_status) !=
+	    DP_LINK_STATUS_SIZE) {
 		DRM_ERROR("Failed to get link status\n");
 		return false;
 	}
@@ -1412,6 +1412,40 @@ static void cdn_dp_hdcp_prop_work(struct work_struct *work)
 
 }
 
+static ssize_t cdn_dp_aux_transfer(struct drm_dp_aux *aux,
+				   struct drm_dp_aux_msg *msg)
+{
+	struct cdn_dp_device *dp = container_of(aux, struct cdn_dp_device, aux);
+	int ret;
+	u8 status;
+
+	switch (msg->request & ~DP_AUX_I2C_MOT) {
+	case DP_AUX_NATIVE_WRITE:
+	case DP_AUX_I2C_WRITE:
+	case DP_AUX_I2C_WRITE_STATUS_UPDATE:
+		ret = cdn_dp_dpcd_write(dp, msg->address, msg->buffer,
+					msg->size);
+		break;
+	case DP_AUX_NATIVE_READ:
+	case DP_AUX_I2C_READ:
+		ret = cdn_dp_dpcd_read(dp, msg->address, msg->buffer,
+				       msg->size);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	status = cdn_dp_get_aux_status(dp);
+	if (status == AUX_STATUS_ACK)
+		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+	else if (status == AUX_STATUS_NACK)
+		msg->reply = DP_AUX_NATIVE_REPLY_NACK;
+	else if (status == AUX_STATUS_DEFER)
+		msg->reply = DP_AUX_NATIVE_REPLY_DEFER;
+
+	return ret;
+}
+
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
@@ -1430,6 +1464,13 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->active = false;
 	dp->active_port = -1;
 	dp->fw_loaded = false;
+	dp->aux.name = "DP-AUX";
+	dp->aux.transfer = cdn_dp_aux_transfer;
+	dp->aux.dev = dev;
+
+	ret = drm_dp_aux_register(&dp->aux);
+	if (ret)
+		return ret;
 
 	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
 	INIT_DELAYED_WORK(&dp->hdcp_event_work, cdn_dp_hdcp_event_work);

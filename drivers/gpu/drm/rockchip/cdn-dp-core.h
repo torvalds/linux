@@ -101,6 +101,7 @@ struct cdn_dp_device {
 	struct platform_device *audio_pdev;
 	struct work_struct event_work;
 	struct edid *edid;
+	struct drm_dp_aux aux;
 
 	struct mutex lock;
 	bool connected;
