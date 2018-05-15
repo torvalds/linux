@@ -98,7 +98,7 @@ int hnae3_register_client(struct hnae3_client *client)
 exit:
 	mutex_unlock(&hnae3_common_lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(hnae3_register_client);
 
