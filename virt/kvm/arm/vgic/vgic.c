@@ -725,14 +725,6 @@ static inline void vgic_set_underflow(struct kvm_vcpu *vcpu)
 		vgic_v3_set_underflow(vcpu);
 }
 
-static inline void vgic_set_npie(struct kvm_vcpu *vcpu)
-{
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_set_npie(vcpu);
-	else
-		vgic_v3_set_npie(vcpu);
-}
-
 /* Requires the ap_list_lock to be held. */
 static int compute_ap_list_depth(struct kvm_vcpu *vcpu,
 				 bool *multi_sgi)
@@ -746,17 +738,15 @@ static int compute_ap_list_depth(struct kvm_vcpu *vcpu,
 	DEBUG_SPINLOCK_BUG_ON(!spin_is_locked(&vgic_cpu->ap_list_lock));
 
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
+		int w;
+
 		spin_lock(&irq->irq_lock);
 		/* GICv2 SGIs can count for more than one... */
-		if (vgic_irq_is_sgi(irq->intid) && irq->source) {
-			int w = hweight8(irq->source);
-
-			count += w;
-			*multi_sgi |= (w > 1);
-		} else {
-			count++;
-		}
+		w = vgic_irq_get_lr_count(irq);
 		spin_unlock(&irq->irq_lock);
+
+		count += w;
+		*multi_sgi |= (w > 1);
 	}
 	return count;
 }
@@ -767,7 +757,6 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_irq *irq;
 	int count;
-	bool npie = false;
 	bool multi_sgi;
 	u8 prio = 0xff;
 
@@ -797,10 +786,8 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 		if (likely(vgic_target_oracle(irq) == vcpu)) {
 			vgic_populate_lr(vcpu, irq, count++);
 
-			if (irq->source) {
-				npie = true;
+			if (irq->source)
 				prio = irq->priority;
-			}
 		}
 
 		spin_unlock(&irq->irq_lock);
@@ -812,9 +799,6 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 			break;
 		}
 	}
-
-	if (npie)
-		vgic_set_npie(vcpu);
 
 	vcpu->arch.vgic_cpu.used_lrs = count;
 
