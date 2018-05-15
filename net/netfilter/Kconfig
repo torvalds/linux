@@ -445,7 +445,7 @@ config NETFILTER_SYNPROXY
 endif # NF_CONNTRACK
 
 config NF_OSF
-	tristate 'Passive OS fingerprint infrastructure'
+	tristate
 
 config NF_TABLES
 	select NETFILTER_NETLINK
