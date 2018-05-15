@@ -50,13 +50,22 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 	/* now, (un-)instantiate client by calling lower layer */
 	if (is_reg) {
 		ret = ae_dev->ops->init_client_instance(client, ae_dev);
-		if (ret)
+		if (ret) {
 			dev_err(&ae_dev->pdev->dev,
 				"fail to instantiate client\n");
-		return ret;
+			return ret;
+		}
+
+		hnae_set_bit(ae_dev->flag, HNAE3_CLIENT_INITED_B, 1);
+		return 0;
 	}
 
-	ae_dev->ops->uninit_client_instance(client, ae_dev);
+	if (hnae_get_bit(ae_dev->flag, HNAE3_CLIENT_INITED_B)) {
+		ae_dev->ops->uninit_client_instance(client, ae_dev);
+
+		hnae_set_bit(ae_dev->flag, HNAE3_CLIENT_INITED_B, 0);
+	}
+
 	return 0;
 }
 
