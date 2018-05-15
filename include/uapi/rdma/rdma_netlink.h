@@ -400,6 +400,18 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
 	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
 	/*
+	 * Provides logical name and index of netdevice which is
+	 * connected to physical port. This information is relevant
+	 * for RoCE and iWARP.
+	 *
+	 * The netdevices which are associated with containers are
+	 * supposed to be exported together with GID table once it
+	 * will be exposed through the netlink. Because the
+	 * associated netdevices are properties of GIDs.
+	 */
+	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
+	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
+	/*
 	 * driver-specific attributes.
 	 */
 	RDMA_NLDEV_ATTR_DRIVER,			/* nested table */
@@ -415,18 +427,8 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
 
 	/*
-	 * Provides logical name and index of netdevice which is
-	 * connected to physical port. This information is relevant
-	 * for RoCE and iWARP.
-	 *
-	 * The netdevices which are associated with containers are
-	 * supposed to be exported together with GID table once it
-	 * will be exposed through the netlink. Because the
-	 * associated netdevices are properties of GIDs.
+	 * Always the end
 	 */
-	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
-	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
-
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */
