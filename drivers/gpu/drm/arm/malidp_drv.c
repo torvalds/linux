@@ -715,6 +715,7 @@ static int malidp_bind(struct device *dev)
 	for (i = 0; i < MAX_OUTPUT_CHANNELS; i++)
 		out_depth = (out_depth << 8) | (output_width[i] & 0xf);
 	malidp_hw_write(hwdev, out_depth, hwdev->hw->map.out_depth_base);
+	hwdev->output_color_depth = out_depth;
 
 	atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_INIT);
 	init_waitqueue_head(&malidp->wq);

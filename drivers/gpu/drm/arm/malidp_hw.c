@@ -244,6 +244,8 @@ static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *
 {
 	u32 val = 0;
 
+	malidp_hw_write(hwdev, hwdev->output_color_depth,
+		hwdev->hw->map.out_depth_base);
 	malidp_hw_clearbits(hwdev, MALIDP500_DC_CLEAR_MASK, MALIDP500_DC_CONTROL);
 	if (mode->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		val |= MALIDP500_HSYNCPOL;
@@ -520,6 +522,8 @@ static void malidp550_modeset(struct malidp_hw_device *hwdev, struct videomode *
 {
 	u32 val = MALIDP_DE_DEFAULT_PREFETCH_START;
 
+	malidp_hw_write(hwdev, hwdev->output_color_depth,
+		hwdev->hw->map.out_depth_base);
 	malidp_hw_write(hwdev, val, MALIDP550_DE_CONTROL);
 	/*
 	 * Mali-DP550 and Mali-DP650 encode the background color like this:
