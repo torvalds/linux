@@ -216,16 +216,22 @@ static struct gtt_type_table_entry gtt_type_table[] = {
 			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_PPGTT_PTE_2M_ENTRY),
+	/* We take IPS bit as 'PSE' for PTE level. */
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_PPGTT_PTE_4K_ENTRY,
 			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_INVALID,
-			GTT_TYPE_INVALID),
+			GTT_TYPE_PPGTT_PTE_64K_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_4K_ENTRY,
 			GTT_TYPE_PPGTT_PTE_4K_ENTRY,
 			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_INVALID,
-			GTT_TYPE_INVALID),
+			GTT_TYPE_PPGTT_PTE_64K_ENTRY),
+	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_64K_ENTRY,
+			GTT_TYPE_PPGTT_PTE_4K_ENTRY,
+			GTT_TYPE_PPGTT_PTE_PT,
+			GTT_TYPE_INVALID,
+			GTT_TYPE_PPGTT_PTE_64K_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_2M_ENTRY,
 			GTT_TYPE_PPGTT_PDE_ENTRY,
 			GTT_TYPE_PPGTT_PDE_PT,
@@ -339,6 +345,7 @@ static inline int gtt_set_entry64(void *pt,
 
 #define ADDR_1G_MASK	GENMASK_ULL(GTT_HAW - 1, 30)
 #define ADDR_2M_MASK	GENMASK_ULL(GTT_HAW - 1, 21)
+#define ADDR_64K_MASK	GENMASK_ULL(GTT_HAW - 1, 16)
 #define ADDR_4K_MASK	GENMASK_ULL(GTT_HAW - 1, 12)
 
 static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
@@ -349,6 +356,8 @@ static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
 		pfn = (e->val64 & ADDR_1G_MASK) >> PAGE_SHIFT;
 	else if (e->type == GTT_TYPE_PPGTT_PTE_2M_ENTRY)
 		pfn = (e->val64 & ADDR_2M_MASK) >> PAGE_SHIFT;
+	else if (e->type == GTT_TYPE_PPGTT_PTE_64K_ENTRY)
+		pfn = (e->val64 & ADDR_64K_MASK) >> PAGE_SHIFT;
 	else
 		pfn = (e->val64 & ADDR_4K_MASK) >> PAGE_SHIFT;
 	return pfn;
@@ -362,6 +371,9 @@ static void gen8_gtt_set_pfn(struct intel_gvt_gtt_entry *e, unsigned long pfn)
 	} else if (e->type == GTT_TYPE_PPGTT_PTE_2M_ENTRY) {
 		e->val64 &= ~ADDR_2M_MASK;
 		pfn &= (ADDR_2M_MASK >> PAGE_SHIFT);
+	} else if (e->type == GTT_TYPE_PPGTT_PTE_64K_ENTRY) {
+		e->val64 &= ~ADDR_64K_MASK;
+		pfn &= (ADDR_64K_MASK >> PAGE_SHIFT);
 	} else {
 		e->val64 &= ~ADDR_4K_MASK;
 		pfn &= (ADDR_4K_MASK >> PAGE_SHIFT);
@@ -378,6 +390,10 @@ static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
 
 	e->type = get_entry_type(e->type);
 	if (!(e->val64 & _PAGE_PSE))
+		return false;
+
+	/* We don't support 64K entry yet, will remove this later. */
+	if (get_pse_type(e->type) == GTT_TYPE_PPGTT_PTE_64K_ENTRY)
 		return false;
 
 	e->type = get_pse_type(e->type);
@@ -871,9 +887,10 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 			gvt_vdbg_mm("invalidate 4K entry\n");
 			ppgtt_invalidate_pte(spt, &e);
 			break;
+		case GTT_TYPE_PPGTT_PTE_64K_ENTRY:
 		case GTT_TYPE_PPGTT_PTE_2M_ENTRY:
 		case GTT_TYPE_PPGTT_PTE_1G_ENTRY:
-			WARN(1, "GVT doesn't support 2M/1GB page\n");
+			WARN(1, "GVT doesn't support 64K/2M/1GB page\n");
 			continue;
 		case GTT_TYPE_PPGTT_PML4_ENTRY:
 		case GTT_TYPE_PPGTT_PDP_ENTRY:
@@ -970,9 +987,10 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 	case GTT_TYPE_PPGTT_PTE_4K_ENTRY:
 		gvt_vdbg_mm("shadow 4K gtt entry\n");
 		break;
+	case GTT_TYPE_PPGTT_PTE_64K_ENTRY:
 	case GTT_TYPE_PPGTT_PTE_2M_ENTRY:
 	case GTT_TYPE_PPGTT_PTE_1G_ENTRY:
-		gvt_vgpu_err("GVT doesn't support 2M/1GB entry\n");
+		gvt_vgpu_err("GVT doesn't support 64K/2M/1GB entry\n");
 		return -EINVAL;
 	default:
 		GEM_BUG_ON(1);
