@@ -106,17 +106,9 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 
 	memset(line, 0, LINE_SIZE);
 
-	length = len;
-	length--;
-
-	if (length > LINE_SIZE - 1)
-		length = LINE_SIZE - 1;
-
+	length = strncpy_from_user(line, buf, LINE_SIZE - 1);
 	if (length < 0)
-		return -EINVAL;
-
-	if (copy_from_user(line, buf, length))
-		return -EFAULT;
+		return length;
 
 	linelen = strlen(line);
 	ptr = line + linelen - 1;
