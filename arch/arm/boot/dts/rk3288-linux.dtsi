@@ -9,4 +9,33 @@
 		bootargs = "earlyprintk console=tty1 console=ttyS2,115200n8 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
 	};
 
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+};
+
+&cpu0 {
+	enable-method = "psci";
+};
+
+&cpu1 {
+	enable-method = "psci";
+};
+
+&cpu2 {
+	enable-method = "psci";
+};
+
+&cpu3 {
+	enable-method = "psci";
+};
+
+&dmac_bus_s {
+	/* change to non-secure dmac */
+	reg = <0x0 0xff600000 0x0 0x4000>;
+};
+
+&efuse {
+	compatible = "rockchip,rk3288-secure-efuse";
 };
