@@ -2099,7 +2099,7 @@ static void pxafb_check_options(struct device *dev, struct pxafb_mach_info *inf)
 
 #if defined(CONFIG_OF)
 static const char * const lcd_types[] = {
-	"unknown", "mono-stn", "mono-dstn", "color-stn", "color-dstn",
+	"mono-stn", "mono-dstn", "color-stn", "color-dstn",
 	"color-tft", "smart-panel", NULL
 };
 
@@ -2115,12 +2115,10 @@ static int of_get_pxafb_display(struct device *dev, struct device_node *disp,
 	if (ret)
 		s = "color-tft";
 
-	for (i = 0; lcd_types[i]; i++)
-		if (!strcmp(s, lcd_types[i]))
-			break;
-	if (!i || !lcd_types[i]) {
+	i = match_string(lcd_types, -1, s);
+	if (i < 0) {
 		dev_err(dev, "lcd-type %s is unknown\n", s);
-		return -EINVAL;
+		return i;
 	}
 	info->lcd_conn |= LCD_CONN_TYPE(i);
 	info->lcd_conn |= LCD_CONN_WIDTH(bus_width);
