@@ -23,10 +23,13 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+
+#include "../codecs/rk3308_codec_provider.h"
 
 #define DRV_NAME "rk-multicodecs"
 #define MAX_CODECS	2
@@ -34,7 +37,10 @@
 
 struct multicodecs_data {
 	unsigned int mclk_fs;
+	bool codec_hp_det;
 };
+
+static struct snd_soc_jack mc_hp_jack;
 
 static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
@@ -66,6 +72,23 @@ out:
 	return ret;
 }
 
+static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
+
+	if (mc_data->codec_hp_det) {
+		snd_soc_card_jack_new(rtd->card, "Headphones",
+				      SND_JACK_HEADPHONE,
+				      &mc_hp_jack, NULL, 0);
+
+#ifdef CONFIG_SND_SOC_RK3308
+		rk3308_codec_set_jack_detect(rtd->codec, &mc_hp_jack);
+#endif
+	}
+
+	return 0;
+}
+
 static struct snd_soc_ops rk_ops = {
 	.hw_params = rk_multicodecs_hw_params,
 };
@@ -73,6 +96,7 @@ static struct snd_soc_ops rk_ops = {
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "MULTICODECS",
 	.stream_name = "MULTICODECS",
+	.init = rk_dailink_init,
 	.ops = &rk_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
@@ -153,6 +177,9 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->mclk_fs = DEFAULT_MCLK_FS;
 	if (!of_property_read_u32(np, "rockchip,mclk-fs", &val))
 		mc_data->mclk_fs = val;
+
+	mc_data->codec_hp_det =
+		of_property_read_bool(np, "rockchip,codec-hp-det");
 
 	snd_soc_card_set_drvdata(card, mc_data);
 
