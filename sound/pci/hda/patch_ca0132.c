@@ -90,7 +90,7 @@ MODULE_FIRMWARE(SBZ_EFX_FILE);
 MODULE_FIRMWARE(R3DI_EFX_FILE);
 #endif
 
-static const char *dirstr[2] = { "Playback", "Capture" };
+static const char *const dirstr[2] = { "Playback", "Capture" };
 
 #define NUM_OF_OUTPUTS 3
 enum {
@@ -105,7 +105,7 @@ enum {
 };
 
 /* Strings for Input Source Enum Control */
-static const char *in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
+static const char *const in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
 #define IN_SRC_NUM_OF_INPUTS 3
 enum {
 	REAR_MIC,
@@ -4992,7 +4992,7 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
  * and night, disregard the slider value and have uneditable values.
  */
 #define NUM_OF_SVM_SETTINGS 3
-static const char *out_svm_set_enum_str[3] = {"Normal", "Loud", "Night" };
+static const char *const out_svm_set_enum_str[3] = {"Normal", "Loud", "Night" };
 
 static int ca0132_alt_svm_setting_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
