@@ -1106,7 +1106,7 @@ static int split_64KB_gtt_entry(struct intel_vgpu *vgpu,
 
 	for (i = 0; i < GTT_64K_PTE_STRIDE; i++) {
 		ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu,
-						start_gfn + i, &dma_addr);
+					start_gfn + i, PAGE_SIZE, &dma_addr);
 		if (ret)
 			return ret;
 
@@ -1152,7 +1152,7 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 	};
 
 	/* direct shadow */
-	ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn, &dma_addr);
+	ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn, PAGE_SIZE, &dma_addr);
 	if (ret)
 		return -ENXIO;
 
@@ -2080,7 +2080,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		}
 
 		ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn,
-							      &dma_addr);
+							PAGE_SIZE, &dma_addr);
 		if (ret) {
 			gvt_vgpu_err("fail to populate guest ggtt entry\n");
 			/* guest driver may read/write the entry when partial
