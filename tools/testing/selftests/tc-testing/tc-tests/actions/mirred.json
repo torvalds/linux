@@ -340,7 +340,7 @@
     },
     {
         "id": "8b69",
-        "name": "Add mirred mirror action with maximum index",
+        "name": "Add mirred mirror action with index at 32-bit maximum",
         "category": [
             "actions",
             "mirred"
@@ -361,6 +361,28 @@
         "teardown": [
             "$TC actions flush action mirred"
         ]
+    },
+    {
+        "id": "3f66",
+        "name": "Add mirred mirror action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo pipe index 429496729555",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action mirred index 429496729555",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) pipe.*index 429496729555",
+        "matchCount": "0",
+        "teardown": []
     },
     {
         "id": "a70e",
