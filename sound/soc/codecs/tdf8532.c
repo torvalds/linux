@@ -172,7 +172,7 @@ static int tdf8532_wait_state(struct tdf8532_priv *dev_data, u8 req_state,
 {
 	unsigned long timeout_point = jiffies + msecs_to_jiffies(timeout);
 	int ret;
-	struct get_dev_status_repl *status_repl;
+	struct get_dev_status_repl *status_repl = NULL;
 	struct device *dev = &(dev_data->i2c->dev);
 
 	do {
@@ -317,9 +317,6 @@ static int tdf8532_i2c_probe(struct i2c_client *i2c,
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	if (ret < 0)
-		dev_err(&i2c->dev, "Failed to set fast mute option: %d\n", ret);
 
 	dev_data->i2c = i2c;
 	dev_data->pkt_id = 0;
