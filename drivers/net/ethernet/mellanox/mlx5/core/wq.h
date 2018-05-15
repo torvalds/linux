@@ -38,7 +38,6 @@
 #include <linux/mlx5/qp.h>
 
 struct mlx5_wq_param {
-	int		linear;
 	int		buf_numa_node;
 	int		db_numa_node;
 };

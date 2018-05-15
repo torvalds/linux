@@ -1896,7 +1896,6 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	MLX5_SET(rqc, rqc, scatter_fcs,    params->scatter_fcs_en);
 
 	param->wq.buf_numa_node = dev_to_node(&mdev->pdev->dev);
-	param->wq.linear = 1;
 }
 
 static void mlx5e_build_drop_rq_param(struct mlx5e_priv *priv,
