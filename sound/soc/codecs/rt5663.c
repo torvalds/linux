@@ -1856,7 +1856,7 @@ static irqreturn_t rt5663_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int rt5663_set_jack_detect(struct snd_soc_component *component,
+static int rt5663_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
