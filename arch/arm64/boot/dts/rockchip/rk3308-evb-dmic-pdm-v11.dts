@@ -32,7 +32,7 @@
 };
 
 &acodec_sound {
-	status = "disabled";
+	status = "okay";
 };
 
 &dummy_codec {
