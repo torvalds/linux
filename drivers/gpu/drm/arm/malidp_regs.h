@@ -53,6 +53,8 @@
 #define MALIDP550_DE_IRQ_AXI_ERR		(1 << 16)
 #define MALIDP550_SE_IRQ_EOW			(1 << 0)
 #define MALIDP550_SE_IRQ_AXI_ERR		(1 << 16)
+#define MALIDP550_SE_IRQ_OVR			(1 << 17)
+#define MALIDP550_SE_IRQ_IBSY			(1 << 18)
 #define MALIDP550_DC_IRQ_CONF_VALID		(1 << 0)
 #define MALIDP550_DC_IRQ_CONF_MODE		(1 << 4)
 #define MALIDP550_DC_IRQ_CONF_ACTIVE		(1 << 16)
@@ -60,6 +62,10 @@
 #define MALIDP550_DC_IRQ_SE			(1 << 24)
 
 #define MALIDP650_DE_IRQ_DRIFT			(1 << 4)
+#define MALIDP650_DE_IRQ_ACEV1			(1 << 17)
+#define MALIDP650_DE_IRQ_ACEV2			(1 << 18)
+#define MALIDP650_DE_IRQ_ACEG			(1 << 19)
+#define MALIDP650_DE_IRQ_AXIEP			(1 << 28)
 
 /* bit masks that are common between products */
 #define   MALIDP_CFG_VALID		(1 << 0)

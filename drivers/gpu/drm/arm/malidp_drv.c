@@ -17,6 +17,7 @@
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
+#include <linux/debugfs.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -344,6 +345,106 @@ static int malidp_dumb_create(struct drm_file *file_priv,
 	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+static void malidp_error_stats_init(struct malidp_error_stats *error_stats)
+{
+	error_stats->num_errors = 0;
+	error_stats->last_error_status = 0;
+	error_stats->last_error_vblank = -1;
+}
+
+void malidp_error(struct malidp_drm *malidp,
+		  struct malidp_error_stats *error_stats, u32 status,
+		  u64 vblank)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	error_stats->last_error_status = status;
+	error_stats->last_error_vblank = vblank;
+	error_stats->num_errors++;
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+}
+
+void malidp_error_stats_dump(const char *prefix,
+			     struct malidp_error_stats error_stats,
+			     struct seq_file *m)
+{
+	seq_printf(m, "[%s] num_errors : %d\n", prefix,
+		   error_stats.num_errors);
+	seq_printf(m, "[%s] last_error_status  : 0x%08x\n", prefix,
+		   error_stats.last_error_status);
+	seq_printf(m, "[%s] last_error_vblank : %lld\n", prefix,
+		   error_stats.last_error_vblank);
+}
+
+static int malidp_show_stats(struct seq_file *m, void *arg)
+{
+	struct drm_device *drm = m->private;
+	struct malidp_drm *malidp = drm->dev_private;
+	unsigned long irqflags;
+	struct malidp_error_stats de_errors, se_errors;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	de_errors = malidp->de_errors;
+	se_errors = malidp->se_errors;
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+	malidp_error_stats_dump("DE", de_errors, m);
+	malidp_error_stats_dump("SE", se_errors, m);
+	return 0;
+}
+
+static int malidp_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, malidp_show_stats, inode->i_private);
+}
+
+static ssize_t malidp_debugfs_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *drm = m->private;
+	struct malidp_drm *malidp = drm->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	malidp_error_stats_init(&malidp->de_errors);
+	malidp_error_stats_init(&malidp->se_errors);
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+	return len;
+}
+
+static const struct file_operations malidp_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = malidp_debugfs_open,
+	.read = seq_read,
+	.write = malidp_debugfs_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int malidp_debugfs_init(struct drm_minor *minor)
+{
+	struct malidp_drm *malidp = minor->dev->dev_private;
+	struct dentry *dentry = NULL;
+
+	malidp_error_stats_init(&malidp->de_errors);
+	malidp_error_stats_init(&malidp->se_errors);
+	spin_lock_init(&malidp->errors_lock);
+	dentry = debugfs_create_file("debug",
+				     S_IRUGO | S_IWUSR,
+				     minor->debugfs_root, minor->dev,
+				     &malidp_debugfs_fops);
+	if (!dentry) {
+		DRM_ERROR("Cannot create debug file\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+#endif //CONFIG_DEBUG_FS
+
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
@@ -360,6 +461,9 @@ static struct drm_driver malidp_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init = malidp_debugfs_init,
+#endif
 	.fops = &fops,
 	.name = "mali-dp",
 	.desc = "ARM Mali Display Processor driver",

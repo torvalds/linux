@@ -53,6 +53,7 @@ struct malidp_format_id {
 struct malidp_irq_map {
 	u32 irq_mask;		/* mask of IRQs that can be enabled in the block */
 	u32 vsync_irq;		/* IRQ bit used for signaling during VSYNC */
+	u32 err_mask;		/* mask of bits that represent errors */
 };
 
 struct malidp_layer {
