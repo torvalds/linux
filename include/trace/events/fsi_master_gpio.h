@@ -64,6 +64,33 @@ TRACE_EVENT(fsi_master_gpio_break,
 	)
 );
 
+TRACE_EVENT(fsi_master_gpio_crc_cmd_error,
+	TP_PROTO(const struct fsi_master_gpio *master),
+	TP_ARGS(master),
+	TP_STRUCT__entry(
+		__field(int,	master_idx)
+	),
+	TP_fast_assign(
+		__entry->master_idx = master->master.idx;
+	),
+	TP_printk("fsi-gpio%d ----CRC command retry---",
+		__entry->master_idx
+	)
+);
+
+TRACE_EVENT(fsi_master_gpio_crc_rsp_error,
+	TP_PROTO(const struct fsi_master_gpio *master),
+	TP_ARGS(master),
+	TP_STRUCT__entry(
+		__field(int,	master_idx)
+	),
+	TP_fast_assign(
+		__entry->master_idx = master->master.idx;
+	),
+	TP_printk("fsi-gpio%d ----CRC response---",
+		__entry->master_idx
+	)
+);
 
 TRACE_EVENT(fsi_master_gpio_poll_response_busy,
 	TP_PROTO(const struct fsi_master_gpio *master, int busy),
