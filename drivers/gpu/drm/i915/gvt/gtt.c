@@ -348,6 +348,9 @@ static inline int gtt_set_entry64(void *pt,
 #define ADDR_64K_MASK	GENMASK_ULL(GTT_HAW - 1, 16)
 #define ADDR_4K_MASK	GENMASK_ULL(GTT_HAW - 1, 12)
 
+#define GTT_SPTE_FLAG_MASK GENMASK_ULL(62, 52)
+#define GTT_SPTE_FLAG_64K_SPLITED BIT(52) /* splited 64K gtt entry */
+
 static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
 {
 	unsigned long pfn;
@@ -427,6 +430,21 @@ static void gtt_entry_set_present(struct intel_gvt_gtt_entry *e)
 	e->val64 |= _PAGE_PRESENT;
 }
 
+static bool gen8_gtt_test_64k_splited(struct intel_gvt_gtt_entry *e)
+{
+	return !!(e->val64 & GTT_SPTE_FLAG_64K_SPLITED);
+}
+
+static void gen8_gtt_set_64k_splited(struct intel_gvt_gtt_entry *e)
+{
+	e->val64 |= GTT_SPTE_FLAG_64K_SPLITED;
+}
+
+static void gen8_gtt_clear_64k_splited(struct intel_gvt_gtt_entry *e)
+{
+	e->val64 &= ~GTT_SPTE_FLAG_64K_SPLITED;
+}
+
 /*
  * Per-platform GMA routines.
  */
@@ -461,6 +479,9 @@ static struct intel_gvt_gtt_pte_ops gen8_gtt_pte_ops = {
 	.test_pse = gen8_gtt_test_pse,
 	.clear_ips = gen8_gtt_clear_ips,
 	.test_ips = gen8_gtt_test_ips,
+	.clear_64k_splited = gen8_gtt_clear_64k_splited,
+	.set_64k_splited = gen8_gtt_set_64k_splited,
+	.test_64k_splited = gen8_gtt_test_64k_splited,
 	.get_pfn = gen8_gtt_get_pfn,
 	.set_pfn = gen8_gtt_set_pfn,
 };

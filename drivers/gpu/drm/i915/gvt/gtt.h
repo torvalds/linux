@@ -65,6 +65,9 @@ struct intel_gvt_gtt_pte_ops {
 	bool (*test_pse)(struct intel_gvt_gtt_entry *e);
 	bool (*test_ips)(struct intel_gvt_gtt_entry *e);
 	void (*clear_ips)(struct intel_gvt_gtt_entry *e);
+	bool (*test_64k_splited)(struct intel_gvt_gtt_entry *e);
+	void (*clear_64k_splited)(struct intel_gvt_gtt_entry *e);
+	void (*set_64k_splited)(struct intel_gvt_gtt_entry *e);
 	void (*set_pfn)(struct intel_gvt_gtt_entry *e, unsigned long pfn);
 	unsigned long (*get_pfn)(struct intel_gvt_gtt_entry *e);
 };
