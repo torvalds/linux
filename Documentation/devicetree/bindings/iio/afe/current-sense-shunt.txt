@@ -2,7 +2,7 @@ Current Sense Shunt
 ===================
 
 When an io-channel measures the voltage over a current sense shunt,
-the interesting mesaurement is almost always the current through the
+the interesting measurement is almost always the current through the
 shunt, not the voltage over it. This binding describes such a current
 sense circuit.
 

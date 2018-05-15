@@ -2,7 +2,7 @@ Current Sense Amplifier
 =======================
 
 When an io-channel measures the output voltage from a current sense
-amplifier, the interesting mesaurement is almost always the current
+amplifier, the interesting measurement is almost always the current
 through the sense resistor, not the voltage output. This binding
 describes such a current sense circuit.
 
