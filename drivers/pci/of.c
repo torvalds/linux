@@ -282,15 +282,15 @@ int of_pci_get_host_bridge_resources(struct device *dev,
 	if (!bus_range)
 		return -ENOMEM;
 
-	pr_info("host bridge %pOF ranges:\n", dev_node);
+	dev_info(dev, "host bridge %pOF ranges:\n", dev_node);
 
 	err = of_pci_parse_bus_range(dev_node, bus_range);
 	if (err) {
 		bus_range->start = busno;
 		bus_range->end = bus_max;
 		bus_range->flags = IORESOURCE_BUS;
-		pr_info("  No bus range found for %pOF, using %pR\n",
-			dev_node, bus_range);
+		dev_info(dev, "  No bus range found for %pOF, using %pR\n",
+			 dev_node, bus_range);
 	} else {
 		if (bus_range->end > bus_range->start + bus_max)
 			bus_range->end = bus_range->start + bus_max;
@@ -302,7 +302,7 @@ int of_pci_get_host_bridge_resources(struct device *dev,
 	if (err)
 		goto parse_failed;
 
-	pr_debug("Parsing ranges property...\n");
+	dev_dbg(dev, "Parsing ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
 		/* Read next ranges element */
 		if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_IO)
@@ -311,9 +311,9 @@ int of_pci_get_host_bridge_resources(struct device *dev,
 			snprintf(range_type, 4, "MEM");
 		else
 			snprintf(range_type, 4, "err");
-		pr_info("  %s %#010llx..%#010llx -> %#010llx\n", range_type,
-			range.cpu_addr, range.cpu_addr + range.size - 1,
-			range.pci_addr);
+		dev_info(dev, "  %s %#010llx..%#010llx -> %#010llx\n",
+			 range_type, range.cpu_addr,
+			 range.cpu_addr + range.size - 1, range.pci_addr);
 
 		/*
 		 * If we failed translation or got a zero-sized region
@@ -336,14 +336,14 @@ int of_pci_get_host_bridge_resources(struct device *dev,
 
 		if (resource_type(res) == IORESOURCE_IO) {
 			if (!io_base) {
-				pr_err("I/O range found for %pOF. Please provide an io_base pointer to save CPU base address\n",
+				dev_err(dev, "I/O range found for %pOF. Please provide an io_base pointer to save CPU base address\n",
 					dev_node);
 				err = -EINVAL;
 				goto conversion_failed;
 			}
 			if (*io_base != (resource_size_t)OF_BAD_ADDR)
-				pr_warn("More than one I/O resource converted for %pOF. CPU base address for old range lost!\n",
-					dev_node);
+				dev_warn(dev, "More than one I/O resource converted for %pOF. CPU base address for old range lost!\n",
+					 dev_node);
 			*io_base = range.cpu_addr;
 		}
 
