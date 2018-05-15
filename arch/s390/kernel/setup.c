@@ -90,8 +90,8 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
 
-int __initdata memory_end_set;
-unsigned long __initdata memory_end;
+int __bootdata(memory_end_set);
+unsigned long __bootdata(memory_end);
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
 
@@ -285,15 +285,6 @@ void machine_power_off(void)
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
-
-static int __init early_parse_mem(char *p)
-{
-	memory_end = memparse(p, &p);
-	memory_end &= PAGE_MASK;
-	memory_end_set = 1;
-	return 0;
-}
-early_param("mem", early_parse_mem);
 
 static int __init parse_vmalloc(char *arg)
 {
@@ -605,17 +596,8 @@ static struct notifier_block kdump_mem_nb = {
  */
 static void reserve_memory_end(void)
 {
-#ifdef CONFIG_CRASH_DUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
-	    !OLDMEM_BASE && sclp.hsa_size) {
-		memory_end = sclp.hsa_size;
-		memory_end &= PAGE_MASK;
-		memory_end_set = 1;
-	}
-#endif
-	if (!memory_end_set)
-		return;
-	memblock_reserve(memory_end, ULONG_MAX);
+	if (memory_end_set)
+		memblock_reserve(memory_end, ULONG_MAX);
 }
 
 /*

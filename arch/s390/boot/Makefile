@@ -27,7 +27,8 @@ endif
 
 CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
 
-obj-y	:= head.o als.o startup.o mem_detect.o ebcdic.o sclp_early_core.o mem.o
+obj-y	:= head.o als.o startup.o mem_detect.o ipl_parm.o string.o ebcdic.o
+obj-y	+= sclp_early_core.o mem.o ipl_vmparm.o cmdline.o ctype.o
 targets	:= bzImage startup.a section_cmp.boot.data $(obj-y)
 subdir-	:= compressed
 
