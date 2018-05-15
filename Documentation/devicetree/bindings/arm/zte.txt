@@ -1,19 +1,9 @@
 ZTE platforms device tree bindings
----------------------------------------
 
+---------------------------------------
 -  ZX296702 board:
     Required root node properties:
       - compatible = "zte,zx296702-ad1", "zte,zx296702"
-
-System management required properties:
-      - compatible = "zte,sysctrl"
-
-Low power management required properties:
-      - compatible = "zte,zx296702-pcu"
-
-Bus matrix required properties:
-      - compatible = "zte,zx-bus-matrix"
-
 
 ---------------------------------------
 -  ZX296718 SoC:
@@ -22,18 +12,3 @@ Bus matrix required properties:
 
 ZX296718 EVB board:
       - "zte,zx296718-evb"
-
-System management required properties:
-      - compatible = "zte,zx296718-aon-sysctrl"
-      - compatible = "zte,zx296718-sysctrl"
-
-Example:
-aon_sysctrl: aon-sysctrl@116000 {
-	compatible = "zte,zx296718-aon-sysctrl", "syscon";
-	reg = <0x116000 0x1000>;
-};
-
-sysctrl: sysctrl@1463000 {
-	compatible = "zte,zx296718-sysctrl", "syscon";
-	reg = <0x1463000 0x1000>;
-};
