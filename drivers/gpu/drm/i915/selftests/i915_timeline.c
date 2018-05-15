@@ -1,25 +1,7 @@
 /*
- * Copyright © 2017 Intel Corporation
+ * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2017-2018 Intel Corporation
  */
 
 #include "../i915_selftest.h"
@@ -35,21 +17,21 @@ struct __igt_sync {
 	bool set;
 };
 
-static int __igt_sync(struct intel_timeline *tl,
+static int __igt_sync(struct i915_timeline *tl,
 		      u64 ctx,
 		      const struct __igt_sync *p,
 		      const char *name)
 {
 	int ret;
 
-	if (__intel_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
+	if (__i915_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
 		pr_err("%s: %s(ctx=%llu, seqno=%u) expected passed %s but failed\n",
 		       name, p->name, ctx, p->seqno, yesno(p->expected));
 		return -EINVAL;
 	}
 
 	if (p->set) {
-		ret = __intel_timeline_sync_set(tl, ctx, p->seqno);
+		ret = __i915_timeline_sync_set(tl, ctx, p->seqno);
 		if (ret)
 			return ret;
 	}
@@ -77,37 +59,31 @@ static int igt_sync(void *arg)
 		{ "unwrap", UINT_MAX, true, false },
 		{},
 	}, *p;
-	struct intel_timeline *tl;
+	struct i915_timeline tl;
 	int order, offset;
 	int ret = -ENODEV;
 
-	tl = mock_timeline(0);
-	if (!tl)
-		return -ENOMEM;
-
+	mock_timeline_init(&tl, 0);
 	for (p = pass; p->name; p++) {
 		for (order = 1; order < 64; order++) {
 			for (offset = -1; offset <= (order > 1); offset++) {
 				u64 ctx = BIT_ULL(order) + offset;
 
-				ret = __igt_sync(tl, ctx, p, "1");
+				ret = __igt_sync(&tl, ctx, p, "1");
 				if (ret)
 					goto out;
 			}
 		}
 	}
-	mock_timeline_destroy(tl);
+	mock_timeline_fini(&tl);
 
-	tl = mock_timeline(0);
-	if (!tl)
-		return -ENOMEM;
-
+	mock_timeline_init(&tl, 0);
 	for (order = 1; order < 64; order++) {
 		for (offset = -1; offset <= (order > 1); offset++) {
 			u64 ctx = BIT_ULL(order) + offset;
 
 			for (p = pass; p->name; p++) {
-				ret = __igt_sync(tl, ctx, p, "2");
+				ret = __igt_sync(&tl, ctx, p, "2");
 				if (ret)
 					goto out;
 			}
@@ -115,7 +91,7 @@ static int igt_sync(void *arg)
 	}
 
 out:
-	mock_timeline_destroy(tl);
+	mock_timeline_fini(&tl);
 	return ret;
 }
 
@@ -127,15 +103,13 @@ static unsigned int random_engine(struct rnd_state *rnd)
 static int bench_sync(void *arg)
 {
 	struct rnd_state prng;
-	struct intel_timeline *tl;
+	struct i915_timeline tl;
 	unsigned long end_time, count;
 	u64 prng32_1M;
 	ktime_t kt;
 	int order, last_order;
 
-	tl = mock_timeline(0);
-	if (!tl)
-		return -ENOMEM;
+	mock_timeline_init(&tl, 0);
 
 	/* Lookups from cache are very fast and so the random number generation
 	 * and the loop itself becomes a significant factor in the per-iteration
@@ -167,7 +141,7 @@ static int bench_sync(void *arg)
 	do {
 		u64 id = i915_prandom_u64_state(&prng);
 
-		__intel_timeline_sync_set(tl, id, 0);
+		__i915_timeline_sync_set(&tl, id, 0);
 		count++;
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
@@ -182,8 +156,8 @@ static int bench_sync(void *arg)
 	while (end_time--) {
 		u64 id = i915_prandom_u64_state(&prng);
 
-		if (!__intel_timeline_sync_is_later(tl, id, 0)) {
-			mock_timeline_destroy(tl);
+		if (!__i915_timeline_sync_is_later(&tl, id, 0)) {
+			mock_timeline_fini(&tl);
 			pr_err("Lookup of %llu failed\n", id);
 			return -EINVAL;
 		}
@@ -193,19 +167,17 @@ static int bench_sync(void *arg)
 	pr_info("%s: %lu random lookups, %lluns/lookup\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
-	mock_timeline_destroy(tl);
+	mock_timeline_fini(&tl);
 	cond_resched();
 
-	tl = mock_timeline(0);
-	if (!tl)
-		return -ENOMEM;
+	mock_timeline_init(&tl, 0);
 
 	/* Benchmark setting the first N (in order) contexts */
 	count = 0;
 	kt = ktime_get();
 	end_time = jiffies + HZ/10;
 	do {
-		__intel_timeline_sync_set(tl, count++, 0);
+		__i915_timeline_sync_set(&tl, count++, 0);
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
 	pr_info("%s: %lu in-order insertions, %lluns/insert\n",
@@ -215,9 +187,9 @@ static int bench_sync(void *arg)
 	end_time = count;
 	kt = ktime_get();
 	while (end_time--) {
-		if (!__intel_timeline_sync_is_later(tl, end_time, 0)) {
+		if (!__i915_timeline_sync_is_later(&tl, end_time, 0)) {
 			pr_err("Lookup of %lu failed\n", end_time);
-			mock_timeline_destroy(tl);
+			mock_timeline_fini(&tl);
 			return -EINVAL;
 		}
 	}
@@ -225,12 +197,10 @@ static int bench_sync(void *arg)
 	pr_info("%s: %lu in-order lookups, %lluns/lookup\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
-	mock_timeline_destroy(tl);
+	mock_timeline_fini(&tl);
 	cond_resched();
 
-	tl = mock_timeline(0);
-	if (!tl)
-		return -ENOMEM;
+	mock_timeline_init(&tl, 0);
 
 	/* Benchmark searching for a random context id and maybe changing it */
 	prandom_seed_state(&prng, i915_selftest.random_seed);
@@ -241,8 +211,8 @@ static int bench_sync(void *arg)
 		u32 id = random_engine(&prng);
 		u32 seqno = prandom_u32_state(&prng);
 
-		if (!__intel_timeline_sync_is_later(tl, id, seqno))
-			__intel_timeline_sync_set(tl, id, seqno);
+		if (!__i915_timeline_sync_is_later(&tl, id, seqno))
+			__i915_timeline_sync_set(&tl, id, seqno);
 
 		count++;
 	} while (!time_after(jiffies, end_time));
@@ -250,7 +220,7 @@ static int bench_sync(void *arg)
 	kt = ktime_sub_ns(kt, (count * prng32_1M * 2) >> 20);
 	pr_info("%s: %lu repeated insert/lookups, %lluns/op\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
-	mock_timeline_destroy(tl);
+	mock_timeline_fini(&tl);
 	cond_resched();
 
 	/* Benchmark searching for a known context id and changing the seqno */
@@ -258,9 +228,7 @@ static int bench_sync(void *arg)
 	     ({ int tmp = last_order; last_order = order; order += tmp; })) {
 		unsigned int mask = BIT(order) - 1;
 
-		tl = mock_timeline(0);
-		if (!tl)
-			return -ENOMEM;
+		mock_timeline_init(&tl, 0);
 
 		count = 0;
 		kt = ktime_get();
@@ -272,8 +240,8 @@ static int bench_sync(void *arg)
 			 */
 			u64 id = (u64)(count & mask) << order;
 
-			__intel_timeline_sync_is_later(tl, id, 0);
-			__intel_timeline_sync_set(tl, id, 0);
+			__i915_timeline_sync_is_later(&tl, id, 0);
+			__i915_timeline_sync_set(&tl, id, 0);
 
 			count++;
 		} while (!time_after(jiffies, end_time));
@@ -281,7 +249,7 @@ static int bench_sync(void *arg)
 		pr_info("%s: %lu cyclic/%d insert/lookups, %lluns/op\n",
 			__func__, count, order,
 			(long long)div64_ul(ktime_to_ns(kt), count));
-		mock_timeline_destroy(tl);
+		mock_timeline_fini(&tl);
 		cond_resched();
 	}
 

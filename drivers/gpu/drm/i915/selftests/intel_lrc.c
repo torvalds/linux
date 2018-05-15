@@ -5,6 +5,7 @@
  */
 
 #include "../i915_selftest.h"
+#include "igt_flush_test.h"
 
 #include "mock_context.h"
 
@@ -168,61 +169,6 @@ static u32 hws_seqno(const struct spinner *spin, const struct i915_request *rq)
 	return READ_ONCE(*seqno);
 }
 
-struct wedge_me {
-	struct delayed_work work;
-	struct drm_i915_private *i915;
-	const void *symbol;
-};
-
-static void wedge_me(struct work_struct *work)
-{
-	struct wedge_me *w = container_of(work, typeof(*w), work.work);
-
-	pr_err("%pS timed out, cancelling all further testing.\n", w->symbol);
-
-	GEM_TRACE("%pS timed out.\n", w->symbol);
-	GEM_TRACE_DUMP();
-
-	i915_gem_set_wedged(w->i915);
-}
-
-static void __init_wedge(struct wedge_me *w,
-			 struct drm_i915_private *i915,
-			 long timeout,
-			 const void *symbol)
-{
-	w->i915 = i915;
-	w->symbol = symbol;
-
-	INIT_DELAYED_WORK_ONSTACK(&w->work, wedge_me);
-	schedule_delayed_work(&w->work, timeout);
-}
-
-static void __fini_wedge(struct wedge_me *w)
-{
-	cancel_delayed_work_sync(&w->work);
-	destroy_delayed_work_on_stack(&w->work);
-	w->i915 = NULL;
-}
-
-#define wedge_on_timeout(W, DEV, TIMEOUT)				\
-	for (__init_wedge((W), (DEV), (TIMEOUT), __builtin_return_address(0)); \
-	     (W)->i915;							\
-	     __fini_wedge((W)))
-
-static noinline int
-flush_test(struct drm_i915_private *i915, unsigned int flags)
-{
-	struct wedge_me w;
-
-	cond_resched();
-
-	wedge_on_timeout(&w, i915, HZ)
-		i915_gem_wait_for_idle(i915, flags);
-
-	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
-}
-
 static void spinner_end(struct spinner *spin)
 {
 	*spin->batch = MI_BATCH_BUFFER_END;
@@ -295,7 +241,7 @@ static int live_sanitycheck(void *arg)
 		}
 
 		spinner_end(&spin);
-		if (flush_test(i915, I915_WAIT_LOCKED)) {
+		if (igt_flush_test(i915, I915_WAIT_LOCKED)) {
 			err = -EIO;
 			goto err_ctx;
 		}
@@ -307,7 +253,7 @@ err_ctx:
 err_spin:
 	spinner_fini(&spin);
 err_unlock:
-	flush_test(i915, I915_WAIT_LOCKED);
+	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -335,12 +281,12 @@ static int live_preempt(void *arg)
 	ctx_hi = kernel_context(i915);
 	if (!ctx_hi)
 		goto err_spin_lo;
-	ctx_hi->priority = I915_CONTEXT_MAX_USER_PRIORITY;
+	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
 	ctx_lo = kernel_context(i915);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->priority = I915_CONTEXT_MIN_USER_PRIORITY;
+	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
@@ -380,7 +326,7 @@ static int live_preempt(void *arg)
 
 		spinner_end(&spin_hi);
 		spinner_end(&spin_lo);
-		if (flush_test(i915, I915_WAIT_LOCKED)) {
+		if (igt_flush_test(i915, I915_WAIT_LOCKED)) {
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -396,7 +342,7 @@ err_spin_lo:
 err_spin_hi:
 	spinner_fini(&spin_hi);
 err_unlock:
-	flush_test(i915, I915_WAIT_LOCKED);
+	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -407,6 +353,7 @@ static int live_late_preempt(void *arg)
 	struct i915_gem_context *ctx_hi, *ctx_lo;
 	struct spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
+	struct i915_sched_attr attr = {};
 	enum intel_engine_id id;
 	int err = -ENOMEM;
 
@@ -458,7 +405,8 @@ static int live_late_preempt(void *arg)
 			goto err_wedged;
 		}
 
-		engine->schedule(rq, I915_PRIORITY_MAX);
+		attr.priority = I915_PRIORITY_MAX;
+		engine->schedule(rq, &attr);
 
 		if (!wait_for_spinner(&spin_hi, rq)) {
 			pr_err("High priority context failed to preempt the low priority context\n");
@@ -468,7 +416,7 @@ static int live_late_preempt(void *arg)
 
 		spinner_end(&spin_hi);
 		spinner_end(&spin_lo);
-		if (flush_test(i915, I915_WAIT_LOCKED)) {
+		if (igt_flush_test(i915, I915_WAIT_LOCKED)) {
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -484,7 +432,7 @@ err_spin_lo:
 err_spin_hi:
 	spinner_fini(&spin_hi);
 err_unlock:
-	flush_test(i915, I915_WAIT_LOCKED);
+	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 
@@ -503,5 +451,9 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 	};
+
+	if (!HAS_EXECLISTS(i915))
+		return 0;
+
 	return i915_subtests(tests, i915);
 }

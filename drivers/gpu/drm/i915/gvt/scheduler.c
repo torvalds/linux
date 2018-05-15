@@ -58,7 +58,7 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 	int ring_id = workload->ring_id;
 	struct i915_gem_context *shadow_ctx = vgpu->submission.shadow_ctx;
 	struct drm_i915_gem_object *ctx_obj =
-		shadow_ctx->engine[ring_id].state->obj;
+		shadow_ctx->__engine[ring_id].state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 
@@ -97,7 +97,7 @@ static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		i915_mmio_reg_offset(EU_PERF_CNTL6),
 	};
 
-	if (!workload || !reg_state || workload->ring_id != RCS)
+	if (workload->ring_id != RCS)
 		return;
 
 	if (save) {
@@ -130,7 +130,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	int ring_id = workload->ring_id;
 	struct i915_gem_context *shadow_ctx = vgpu->submission.shadow_ctx;
 	struct drm_i915_gem_object *ctx_obj =
-		shadow_ctx->engine[ring_id].state->obj;
+		shadow_ctx->__engine[ring_id].state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *dst;
@@ -283,7 +283,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 static void shadow_context_descriptor_update(struct i915_gem_context *ctx,
 		struct intel_engine_cs *engine)
 {
-	struct intel_context *ce = &ctx->engine[engine->id];
+	struct intel_context *ce = to_intel_context(ctx, engine);
 	u64 desc = 0;
 
 	desc = ce->lrc_desc;
@@ -389,7 +389,7 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	 * shadow_ctx pages invalid. So gvt need to pin itself. After update
 	 * the guest context, gvt can unpin the shadow_ctx safely.
 	 */
-	ring = engine->context_pin(engine, shadow_ctx);
+	ring = intel_context_pin(shadow_ctx, engine);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		gvt_vgpu_err("fail to pin shadow context\n");
@@ -403,7 +403,7 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	return 0;
 
 err_unpin:
-	engine->context_unpin(engine, shadow_ctx);
+	intel_context_unpin(shadow_ctx, engine);
 err_shadow:
 	release_shadow_wa_ctx(&workload->wa_ctx);
 err_scan:
@@ -437,7 +437,7 @@ static int intel_gvt_generate_request(struct intel_vgpu_workload *workload)
 	return 0;
 
 err_unpin:
-	engine->context_unpin(engine, shadow_ctx);
+	intel_context_unpin(shadow_ctx, engine);
 	release_shadow_wa_ctx(&workload->wa_ctx);
 	return ret;
 }
@@ -452,12 +452,6 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	int ret;
 
 	list_for_each_entry(bb, &workload->shadow_bb, list) {
-		bb->vma = i915_gem_object_ggtt_pin(bb->obj, NULL, 0, 0, 0);
-		if (IS_ERR(bb->vma)) {
-			ret = PTR_ERR(bb->vma);
-			goto err;
-		}
-
 		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
 		 * is only updated into ring_scan_buffer, not real ring address
 		 * allocated in later copy_workload_to_ring_buffer. pls be noted
@@ -469,25 +463,53 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			bb->bb_start_cmd_va = workload->shadow_ring_buffer_va
 				+ bb->bb_offset;
 
-		/* relocate shadow batch buffer */
-		bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
-		if (gmadr_bytes == 8)
-			bb->bb_start_cmd_va[2] = 0;
+		if (bb->ppgtt) {
+			/* for non-priv bb, scan&shadow is only for
+			 * debugging purpose, so the content of shadow bb
+			 * is the same as original bb. Therefore,
+			 * here, rather than switch to shadow bb's gma
+			 * address, we directly use original batch buffer's
+			 * gma address, and send original bb to hardware
+			 * directly
+			 */
+			if (bb->clflush & CLFLUSH_AFTER) {
+				drm_clflush_virt_range(bb->va,
+						bb->obj->base.size);
+				bb->clflush &= ~CLFLUSH_AFTER;
+			}
+			i915_gem_obj_finish_shmem_access(bb->obj);
+			bb->accessing = false;
 
-		/* No one is going to touch shadow bb from now on. */
-		if (bb->clflush & CLFLUSH_AFTER) {
-			drm_clflush_virt_range(bb->va, bb->obj->base.size);
-			bb->clflush &= ~CLFLUSH_AFTER;
+		} else {
+			bb->vma = i915_gem_object_ggtt_pin(bb->obj,
+					NULL, 0, 0, 0);
+			if (IS_ERR(bb->vma)) {
+				ret = PTR_ERR(bb->vma);
+				goto err;
+			}
+
+			/* relocate shadow batch buffer */
+			bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
+			if (gmadr_bytes == 8)
+				bb->bb_start_cmd_va[2] = 0;
+
+			/* No one is going to touch shadow bb from now on. */
+			if (bb->clflush & CLFLUSH_AFTER) {
+				drm_clflush_virt_range(bb->va,
+						bb->obj->base.size);
+				bb->clflush &= ~CLFLUSH_AFTER;
+			}
+
+			ret = i915_gem_object_set_to_gtt_domain(bb->obj,
+					false);
+			if (ret)
+				goto err;
+
+			i915_gem_obj_finish_shmem_access(bb->obj);
+			bb->accessing = false;
+
+			i915_vma_move_to_active(bb->vma, workload->req, 0);
 		}
-
-		ret = i915_gem_object_set_to_gtt_domain(bb->obj, false);
-		if (ret)
-			goto err;
-
-		i915_gem_obj_finish_shmem_access(bb->obj);
-		bb->accessing = false;
-
-		i915_vma_move_to_active(bb->vma, workload->req, 0);
 	}
 	return 0;
 err:
@@ -504,7 +526,7 @@ static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	struct intel_vgpu_submission *s = &workload->vgpu->submission;
 	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
 	struct drm_i915_gem_object *ctx_obj =
-		shadow_ctx->engine[ring_id].state->obj;
+		shadow_ctx->__engine[ring_id].state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 
@@ -666,7 +688,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	ret = prepare_workload(workload);
 	if (ret) {
-		engine->context_unpin(engine, shadow_ctx);
+		intel_context_unpin(shadow_ctx, engine);
 		goto out;
 	}
 
@@ -749,7 +771,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
 	int ring_id = workload->ring_id;
 	struct drm_i915_gem_object *ctx_obj =
-		shadow_ctx->engine[ring_id].state->obj;
+		shadow_ctx->__engine[ring_id].state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *src;
@@ -876,7 +898,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		}
 		mutex_lock(&dev_priv->drm.struct_mutex);
 		/* unpin shadow ctx as the shadow_ctx update is done */
-		engine->context_unpin(engine, s->shadow_ctx);
+		intel_context_unpin(s->shadow_ctx, engine);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
@@ -1133,9 +1155,6 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 			&vgpu->gvt->dev_priv->drm);
 	if (IS_ERR(s->shadow_ctx))
 		return PTR_ERR(s->shadow_ctx);
-
-	if (HAS_LOGICAL_RING_PREEMPTION(vgpu->gvt->dev_priv))
-		s->shadow_ctx->priority = INT_MAX;
 
 	bitmap_zero(s->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 

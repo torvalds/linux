@@ -1716,11 +1716,15 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	if (config->funcs->atomic_check)
+	if (config->funcs->atomic_check) {
 		ret = config->funcs->atomic_check(state->dev, state);
 
-	if (ret)
-		return ret;
+		if (ret) {
+			DRM_DEBUG_ATOMIC("atomic driver check for %p failed: %d\n",
+					 state, ret);
+			return ret;
+		}
+	}
 
 	if (!state->allow_modeset) {
 		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {

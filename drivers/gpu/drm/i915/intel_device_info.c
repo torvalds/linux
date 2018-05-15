@@ -848,7 +848,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		gen9_sseu_info_init(dev_priv);
 	else if (INTEL_GEN(dev_priv) == 10)
 		gen10_sseu_info_init(dev_priv);
-	else if (INTEL_INFO(dev_priv)->gen >= 11)
+	else if (INTEL_GEN(dev_priv) >= 11)
 		gen11_sseu_info_init(dev_priv);
 
 	/* Initialize command stream timestamp frequency */

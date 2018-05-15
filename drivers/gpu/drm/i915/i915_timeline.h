@@ -22,26 +22,19 @@
  *
  */
 
-#ifndef I915_GEM_TIMELINE_H
-#define I915_GEM_TIMELINE_H
+#ifndef I915_TIMELINE_H
+#define I915_TIMELINE_H
 
 #include <linux/list.h>
+#include <linux/kref.h>
 
 #include "i915_request.h"
 #include "i915_syncmap.h"
 #include "i915_utils.h"
 
-struct i915_gem_timeline;
-
-struct intel_timeline {
+struct i915_timeline {
 	u64 fence_context;
 	u32 seqno;
-
-	/**
-	 * Count of outstanding requests, from the time they are constructed
-	 * to the moment they are retired. Loosely coupled to hardware.
-	 */
-	u32 inflight_seqnos;
 
 	spinlock_t lock;
 
@@ -77,47 +70,57 @@ struct intel_timeline {
 	 */
 	u32 global_sync[I915_NUM_ENGINES];
 
-	struct i915_gem_timeline *common;
-};
-
-struct i915_gem_timeline {
 	struct list_head link;
-
-	struct drm_i915_private *i915;
 	const char *name;
 
-	struct intel_timeline engine[I915_NUM_ENGINES];
+	struct kref kref;
 };
 
-int i915_gem_timeline_init(struct drm_i915_private *i915,
-			   struct i915_gem_timeline *tl,
-			   const char *name);
-int i915_gem_timeline_init__global(struct drm_i915_private *i915);
-void i915_gem_timelines_park(struct drm_i915_private *i915);
-void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
+void i915_timeline_init(struct drm_i915_private *i915,
+			struct i915_timeline *tl,
+			const char *name);
+void i915_timeline_fini(struct i915_timeline *tl);
 
-static inline int __intel_timeline_sync_set(struct intel_timeline *tl,
-					    u64 context, u32 seqno)
+struct i915_timeline *
+i915_timeline_create(struct drm_i915_private *i915, const char *name);
+
+static inline struct i915_timeline *
+i915_timeline_get(struct i915_timeline *timeline)
+{
+	kref_get(&timeline->kref);
+	return timeline;
+}
+
+void __i915_timeline_free(struct kref *kref);
+static inline void i915_timeline_put(struct i915_timeline *timeline)
+{
+	kref_put(&timeline->kref, __i915_timeline_free);
+}
+
+static inline int __i915_timeline_sync_set(struct i915_timeline *tl,
+					   u64 context, u32 seqno)
 {
 	return i915_syncmap_set(&tl->sync, context, seqno);
 }
 
-static inline int intel_timeline_sync_set(struct intel_timeline *tl,
-					  const struct dma_fence *fence)
+static inline int i915_timeline_sync_set(struct i915_timeline *tl,
+					 const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_set(tl, fence->context, fence->seqno);
+	return __i915_timeline_sync_set(tl, fence->context, fence->seqno);
 }
 
-static inline bool __intel_timeline_sync_is_later(struct intel_timeline *tl,
-						  u64 context, u32 seqno)
+static inline bool __i915_timeline_sync_is_later(struct i915_timeline *tl,
+						 u64 context, u32 seqno)
 {
 	return i915_syncmap_is_later(&tl->sync, context, seqno);
 }
 
-static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
-						const struct dma_fence *fence)
+static inline bool i915_timeline_sync_is_later(struct i915_timeline *tl,
+					       const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
+	return __i915_timeline_sync_is_later(tl, fence->context, fence->seqno);
 }
+
+void i915_timelines_park(struct drm_i915_private *i915);
 
 #endif

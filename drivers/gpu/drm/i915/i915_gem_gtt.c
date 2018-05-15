@@ -110,7 +110,8 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
 static void gen6_ggtt_invalidate(struct drm_i915_private *dev_priv)
 {
-	/* Note that as an uncached mmio write, this should flush the
+	/*
+	 * Note that as an uncached mmio write, this will flush the
 	 * WCB of the writes into the GGTT before it triggers the invalidate.
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
@@ -1161,6 +1162,27 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 			vaddr[idx.pde] |= GEN8_PDE_IPS_64K;
 			kunmap_atomic(vaddr);
 			page_size = I915_GTT_PAGE_SIZE_64K;
+
+			/*
+			 * We write all 4K page entries, even when using 64K
+			 * pages. In order to verify that the HW isn't cheating
+			 * by using the 4K PTE instead of the 64K PTE, we want
+			 * to remove all the surplus entries. If the HW skipped
+			 * the 64K PTE, it will read/write into the scratch page
+			 * instead - which we detect as missing results during
+			 * selftests.
+			 */
+			if (I915_SELFTEST_ONLY(vma->vm->scrub_64K)) {
+				u16 i;
+
+				encode = pte_encode | vma->vm->scratch_page.daddr;
+				vaddr = kmap_atomic_px(pd->page_table[idx.pde]);
+
+				for (i = 1; i < index; i += 16)
+					memset64(vaddr + i, encode, 15);
+
+				kunmap_atomic(vaddr);
+			}
 		}
 
 		vma->page_sizes.gtt |= page_size;
@@ -2111,8 +2133,6 @@ static void i915_address_space_init(struct i915_address_space *vm,
 				    struct drm_i915_private *dev_priv,
 				    const char *name)
 {
-	i915_gem_timeline_init(dev_priv, &vm->timeline, name);
-
 	drm_mm_init(&vm->mm, 0, vm->total);
 	vm->mm.head_node.color = I915_COLOR_UNEVICTABLE;
 
@@ -2129,7 +2149,6 @@ static void i915_address_space_fini(struct i915_address_space *vm)
 	if (pagevec_count(&vm->free_pages))
 		vm_free_pages_release(vm, true);
 
-	i915_gem_timeline_fini(&vm->timeline);
 	drm_mm_takedown(&vm->mm);
 	list_del(&vm->global_link);
 }
@@ -2140,15 +2159,15 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
-	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl,icl */
 	if (IS_BROADWELL(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
 	else if (IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
-	else if (IS_GEN9_BC(dev_priv) || IS_GEN10(dev_priv))
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 	else if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+	else if (INTEL_GEN(dev_priv) >= 9)
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 
 	/*
 	 * To support 64K PTEs we need to first enable the use of the
@@ -2222,6 +2241,12 @@ i915_ppgtt_create(struct drm_i915_private *dev_priv,
 
 void i915_ppgtt_close(struct i915_address_space *vm)
 {
+	GEM_BUG_ON(vm->closed);
+	vm->closed = true;
+}
+
+static void ppgtt_destroy_vma(struct i915_address_space *vm)
+{
 	struct list_head *phases[] = {
 		&vm->active_list,
 		&vm->inactive_list,
@@ -2229,15 +2254,12 @@ void i915_ppgtt_close(struct i915_address_space *vm)
 		NULL,
 	}, **phase;
 
-	GEM_BUG_ON(vm->closed);
 	vm->closed = true;
-
 	for (phase = phases; *phase; phase++) {
 		struct i915_vma *vma, *vn;
 
 		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			if (!i915_vma_is_closed(vma))
-				i915_vma_close(vma);
+			i915_vma_destroy(vma);
 	}
 }
 
@@ -2248,7 +2270,8 @@ void i915_ppgtt_release(struct kref *kref)
 
 	trace_i915_ppgtt_release(&ppgtt->base);
 
-	/* vmas should already be unbound and destroyed */
+	ppgtt_destroy_vma(&ppgtt->base);
+
 	GEM_BUG_ON(!list_empty(&ppgtt->base.active_list));
 	GEM_BUG_ON(!list_empty(&ppgtt->base.inactive_list));
 	GEM_BUG_ON(!list_empty(&ppgtt->base.unbound_list));
@@ -2417,11 +2440,9 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	for_each_sgt_dma(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
-	wmb();
-
-	/* This next bit makes the above posting read even more important. We
-	 * want to flush the TLBs only after we're certain all the PTE updates
-	 * have finished.
+	/*
+	 * We want to flush the TLBs only after we're certain all the PTE
+	 * updates have finished.
 	 */
 	ggtt->invalidate(vm->i915);
 }
@@ -2459,11 +2480,10 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	dma_addr_t addr;
 	for_each_sgt_dma(addr, iter, vma->pages)
 		iowrite32(vm->pte_encode(addr, level, flags), &entries[i++]);
-	wmb();
 
-	/* This next bit makes the above posting read even more important. We
-	 * want to flush the TLBs only after we're certain all the PTE updates
-	 * have finished.
+	/*
+	 * We want to flush the TLBs only after we're certain all the PTE
+	 * updates have finished.
 	 */
 	ggtt->invalidate(vm->i915);
 }
@@ -3325,14 +3345,10 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-
-	if (INTEL_GEN(dev_priv) >= 9) {
-		size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	} else if (IS_CHERRYVIEW(dev_priv)) {
+	if (IS_CHERRYVIEW(dev_priv))
 		size = chv_get_total_gtt_size(snb_gmch_ctl);
-	} else {
+	else
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	}
 
 	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 	ggtt->base.cleanup = gen6_gmch_remove;

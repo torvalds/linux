@@ -404,16 +404,17 @@ static const char *bannable(const struct drm_i915_error_context *ctx)
 
 static void error_print_request(struct drm_i915_error_state_buf *m,
 				const char *prefix,
-				const struct drm_i915_error_request *erq)
+				const struct drm_i915_error_request *erq,
+				const unsigned long epoch)
 {
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms ago, head %08x, tail %08x\n",
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
 		   prefix, erq->pid, erq->ban_score,
-		   erq->context, erq->seqno, erq->priority,
-		   jiffies_to_msecs(jiffies - erq->jiffies),
-		   erq->head, erq->tail);
+		   erq->context, erq->seqno, erq->sched_attr.priority,
+		   jiffies_to_msecs(erq->jiffies - epoch),
+		   erq->start, erq->head, erq->tail);
 }
 
 static void error_print_context(struct drm_i915_error_state_buf *m,
@@ -422,12 +423,13 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 {
 	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, prio %d, ban score %d%s guilty %d active %d\n",
 		   header, ctx->comm, ctx->pid, ctx->handle, ctx->hw_id,
-		   ctx->priority, ctx->ban_score, bannable(ctx),
+		   ctx->sched_attr.priority, ctx->ban_score, bannable(ctx),
 		   ctx->guilty, ctx->active);
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
-			       const struct drm_i915_error_engine *ee)
+			       const struct drm_i915_error_engine *ee,
+			       const unsigned long epoch)
 {
 	int n;
 
@@ -497,14 +499,15 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  hangcheck stall: %s\n", yesno(ee->hangcheck_stalled));
 	err_printf(m, "  hangcheck action: %s\n",
 		   hangcheck_action_to_str(ee->hangcheck_action));
-	err_printf(m, "  hangcheck action timestamp: %lu, %u ms ago\n",
+	err_printf(m, "  hangcheck action timestamp: %dms (%lu%s)\n",
+		   jiffies_to_msecs(ee->hangcheck_timestamp - epoch),
 		   ee->hangcheck_timestamp,
-		   jiffies_to_msecs(jiffies - ee->hangcheck_timestamp));
+		   ee->hangcheck_timestamp == epoch ? "; epoch" : "");
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	for (n = 0; n < ee->num_ports; n++) {
 		err_printf(m, "  ELSP[%d]:", n);
-		error_print_request(m, " ", &ee->execlist[n]);
+		error_print_request(m, " ", &ee->execlist[n], epoch);
 	}
 
 	error_print_context(m, "  Active context: ", &ee->context);
@@ -650,6 +653,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	ts = ktime_to_timespec64(error->uptime);
 	err_printf(m, "Uptime: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
+	err_printf(m, "Epoch: %lu jiffies (%u HZ)\n", error->epoch, HZ);
+	err_printf(m, "Capture: %lu jiffies; %d ms ago, %d ms after epoch\n",
+		   error->capture,
+		   jiffies_to_msecs(jiffies - error->capture),
+		   jiffies_to_msecs(error->capture - error->epoch));
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
@@ -710,7 +718,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].engine_id != -1)
-			error_print_engine(m, &error->engine[i]);
+			error_print_engine(m, &error->engine[i], error->epoch);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(error->active_vm); i++) {
@@ -769,7 +777,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->engine[i]->name,
 				   ee->num_requests);
 			for (j = 0; j < ee->num_requests; j++)
-				error_print_request(m, " ", &ee->requests[j]);
+				error_print_request(m, " ",
+						    &ee->requests[j],
+						    error->epoch);
 		}
 
 		if (IS_ERR(ee->waiters)) {
@@ -1278,10 +1288,11 @@ static void record_request(struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->priority = request->priotree.priority;
+	erq->sched_attr = request->sched.attr;
 	erq->ban_score = atomic_read(&request->ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
+	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
 	erq->tail = request->tail;
 
@@ -1299,7 +1310,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline->requests, link)
+	list_for_each_entry_from(request, &engine->timeline.requests, link)
 		count++;
 	if (!count)
 		return;
@@ -1312,7 +1323,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline->requests, link) {
+	list_for_each_entry_from(request, &engine->timeline.requests, link) {
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in
@@ -1372,7 +1383,7 @@ static void record_context(struct drm_i915_error_context *e,
 
 	e->handle = ctx->user_handle;
 	e->hw_id = ctx->hw_id;
-	e->priority = ctx->priority;
+	e->sched_attr = ctx->sched;
 	e->ban_score = atomic_read(&ctx->ban_score);
 	e->bannable = i915_gem_context_is_bannable(ctx);
 	e->guilty = atomic_read(&ctx->guilty_count);
@@ -1472,7 +1483,8 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 			ee->ctx =
 				i915_error_object_create(i915,
-							 request->ctx->engine[i].state);
+							 to_intel_context(request->ctx,
+									  engine)->state);
 
 			error->simulated |=
 				i915_gem_context_no_error_capture(request->ctx);
@@ -1735,6 +1747,22 @@ static void capture_params(struct i915_gpu_state *error)
 #undef DUP
 }
 
+static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
+{
+	unsigned long epoch = error->capture;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
+		const struct drm_i915_error_engine *ee = &error->engine[i];
+
+		if (ee->hangcheck_stalled &&
+		    time_before(ee->hangcheck_timestamp, epoch))
+			epoch = ee->hangcheck_timestamp;
+	}
+
+	return epoch;
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1743,6 +1771,7 @@ static int capture(void *data)
 	error->boottime = ktime_get_boottime();
 	error->uptime = ktime_sub(ktime_get(),
 				  error->i915->gt.last_init_time);
+	error->capture = jiffies;
 
 	capture_params(error);
 	capture_gen_state(error);
@@ -1755,6 +1784,8 @@ static int capture(void *data)
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);
+
+	error->epoch = capture_find_epoch(error);
 
 	return 0;
 }
