@@ -90,6 +90,7 @@ static uint8_t tdf8532_read_wait_ack(struct tdf8532_priv *dev_data,
 	unsigned long timeout_point = jiffies + timeout;
 	int ret;
 
+	usleep_range(10000,20000);
 	do {
 		ret = i2c_master_recv(dev_data->i2c, ack_repl, HEADER_SIZE);
 		if (ret < 0)
