@@ -1,0 +1,20 @@
+Rockchip SFC Controller for SOC
+
+Required properties:
+- compatible : "rockchip,sfc".
+- reg : shall contain registers location and length for data and reg.
+- interrupts : shall define the nand controller interrupt.
+- clocks : shall reference sfc controller clocks.
+- clock-names : nand controller internal clock names. Shall contain :
+    * "clk_sfc" : sfc controller clock
+    * "hclk_sfc" : sfc ahb clock gate
+
+Examples:
+sfc: sfc@301c0000 {
+	compatible = "rockchip,sfc";
+	reg = <0x301c0000 0x200>;
+	interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clk_sfc>, <&clk_gates15 10>;
+	clock-names = "clk_sfc", "hclk_sfc";
+	status = "okay";
+};
