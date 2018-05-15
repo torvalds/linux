@@ -143,6 +143,15 @@ static inline bool rcu_seq_new_gp(unsigned long old, unsigned long new)
 }
 
 /*
+ * Roughly how many full grace periods have elapsed between the collection
+ * of the two specified grace periods?
+ */
+static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
+{
+	return (new - old) >> RCU_SEQ_CTR_SHIFT;
+}
+
+/*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
  * by call_rcu() and rcu callback execution, and are therefore not part of the
  * RCU API. Leaving in rcupdate.h because they are used by all RCU flavors.

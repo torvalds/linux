@@ -139,6 +139,7 @@ struct rcu_perf_ops {
 	int (*readlock)(void);
 	void (*readunlock)(int idx);
 	unsigned long (*get_gp_seq)(void);
+	unsigned long (*gp_diff)(unsigned long new, unsigned long old);
 	unsigned long (*exp_completed)(void);
 	void (*async)(struct rcu_head *head, rcu_callback_t func);
 	void (*gp_barrier)(void);
@@ -179,6 +180,7 @@ static struct rcu_perf_ops rcu_ops = {
 	.readlock	= rcu_perf_read_lock,
 	.readunlock	= rcu_perf_read_unlock,
 	.get_gp_seq	= rcu_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.exp_completed	= rcu_exp_batches_completed,
 	.async		= call_rcu,
 	.gp_barrier	= rcu_barrier,
@@ -208,6 +210,7 @@ static struct rcu_perf_ops rcu_bh_ops = {
 	.readlock	= rcu_bh_perf_read_lock,
 	.readunlock	= rcu_bh_perf_read_unlock,
 	.get_gp_seq	= rcu_bh_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.exp_completed	= rcu_exp_batches_completed_sched,
 	.async		= call_rcu_bh,
 	.gp_barrier	= rcu_barrier_bh,
@@ -264,6 +267,7 @@ static struct rcu_perf_ops srcu_ops = {
 	.readlock	= srcu_perf_read_lock,
 	.readunlock	= srcu_perf_read_unlock,
 	.get_gp_seq	= srcu_perf_completed,
+	.gp_diff	= rcu_seq_diff,
 	.exp_completed	= srcu_perf_completed,
 	.async		= srcu_call_rcu,
 	.gp_barrier	= srcu_rcu_barrier,
@@ -292,6 +296,7 @@ static struct rcu_perf_ops srcud_ops = {
 	.readlock	= srcu_perf_read_lock,
 	.readunlock	= srcu_perf_read_unlock,
 	.get_gp_seq	= srcu_perf_completed,
+	.gp_diff	= rcu_seq_diff,
 	.exp_completed	= srcu_perf_completed,
 	.async		= srcu_call_rcu,
 	.gp_barrier	= srcu_rcu_barrier,
@@ -321,6 +326,7 @@ static struct rcu_perf_ops sched_ops = {
 	.readlock	= sched_perf_read_lock,
 	.readunlock	= sched_perf_read_unlock,
 	.get_gp_seq	= rcu_sched_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.exp_completed	= rcu_exp_batches_completed_sched,
 	.async		= call_rcu_sched,
 	.gp_barrier	= rcu_barrier_sched,
@@ -348,12 +354,20 @@ static struct rcu_perf_ops tasks_ops = {
 	.readlock	= tasks_perf_read_lock,
 	.readunlock	= tasks_perf_read_unlock,
 	.get_gp_seq	= rcu_no_completed,
+	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks,
 	.gp_barrier	= rcu_barrier_tasks,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
 	.name		= "tasks"
 };
+
+static unsigned long rcuperf_seq_diff(unsigned long new, unsigned long old)
+{
+	if (!cur_ops->gp_diff)
+		return new - old;
+	return cur_ops->gp_diff(new, old);
+}
 
 static bool __maybe_unused torturing_tasks(void)
 {
@@ -577,8 +591,8 @@ rcu_perf_cleanup(void)
 			 t_rcu_perf_writer_finished -
 			 t_rcu_perf_writer_started,
 			 ngps,
-			 b_rcu_perf_writer_finished -
-			 b_rcu_perf_writer_started);
+			 rcuperf_seq_diff(b_rcu_perf_writer_finished,
+					  b_rcu_perf_writer_started));
 		for (i = 0; i < nrealwriters; i++) {
 			if (!writer_durations)
 				break;

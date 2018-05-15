@@ -532,7 +532,7 @@ static int rcu_pending(void);
  */
 unsigned long rcu_get_gp_seq(void)
 {
-	return rcu_seq_ctr(READ_ONCE(rcu_state_p->gp_seq));
+	return READ_ONCE(rcu_state_p->gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
 
@@ -541,7 +541,7 @@ EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
  */
 unsigned long rcu_sched_get_gp_seq(void)
 {
-	return rcu_seq_ctr(READ_ONCE(rcu_sched_state.gp_seq));
+	return READ_ONCE(rcu_sched_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
 
@@ -550,7 +550,7 @@ EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
  */
 unsigned long rcu_bh_get_gp_seq(void)
 {
-	return rcu_seq_ctr(READ_ONCE(rcu_bh_state.gp_seq));
+	return READ_ONCE(rcu_bh_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
 

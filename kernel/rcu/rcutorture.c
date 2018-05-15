@@ -265,6 +265,7 @@ struct rcu_torture_ops {
 	void (*read_delay)(struct torture_random_state *rrsp);
 	void (*readunlock)(int idx);
 	unsigned long (*get_gp_seq)(void);
+	unsigned long (*gp_diff)(unsigned long new, unsigned long old);
 	void (*deferred_free)(struct rcu_torture *p);
 	void (*sync)(void);
 	void (*exp_sync)(void);
@@ -400,6 +401,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
 	.get_gp_seq	= rcu_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.deferred_free	= rcu_torture_deferred_free,
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
@@ -441,6 +443,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
 	.get_gp_seq	= rcu_bh_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.deferred_free	= rcu_bh_torture_deferred_free,
 	.sync		= synchronize_rcu_bh,
 	.exp_sync	= synchronize_rcu_bh_expedited,
@@ -646,6 +649,7 @@ static struct rcu_torture_ops sched_ops = {
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
 	.get_gp_seq	= rcu_sched_get_gp_seq,
+	.gp_diff	= rcu_seq_diff,
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= synchronize_sched,
 	.exp_sync	= synchronize_sched_expedited,
@@ -694,6 +698,13 @@ static struct rcu_torture_ops tasks_ops = {
 	.irq_capable	= 1,
 	.name		= "tasks"
 };
+
+static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
+{
+	if (!cur_ops->gp_diff)
+		return new - old;
+	return cur_ops->gp_diff(new, old);
+}
 
 static bool __maybe_unused torturing_tasks(void)
 {
@@ -1127,9 +1138,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 		rcu_ftrace_dump(DUMP_ALL);
 	}
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
-	completed = completed - started;
-	if (completed > ULONG_MAX >> 1)
-		completed = 0; /* Not all gp_seq have full range. */
+	completed = rcutorture_seq_diff(completed, started);
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
@@ -1205,9 +1214,7 @@ rcu_torture_reader(void *arg)
 			rcu_ftrace_dump(DUMP_ALL);
 		}
 		__this_cpu_inc(rcu_torture_count[pipe_count]);
-		completed = completed - started;
-		if (completed > ULONG_MAX >> 1)
-			completed = 0; /* Not all gp_seq have full range. */
+		completed = rcutorture_seq_diff(completed, started);
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;
