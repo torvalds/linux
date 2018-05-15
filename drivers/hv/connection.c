@@ -409,7 +409,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 			 * HV_STATUS_INVALID_CONNECTION_ID and we should
 			 * return an error immediately without retrying.
 			 */
-			hdr = (struct vmbus_channel_message_header *)buffer;
+			hdr = buffer;
 			if (hdr->msgtype == CHANNELMSG_INITIATE_CONTACT)
 				return -EINVAL;
 			/*
