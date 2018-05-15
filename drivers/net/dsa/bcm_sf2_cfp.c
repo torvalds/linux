@@ -790,10 +790,6 @@ static int bcm_sf2_cfp_rule_del_one(struct bcm_sf2_priv *priv, int port,
 	int ret;
 	u32 reg;
 
-	/* Refuse deletion of unused rules, and the default reserved rule */
-	if (!test_bit(loc, priv->cfp.used) || loc == 0)
-		return -EINVAL;
-
 	/* Indicate which rule we want to read */
 	bcm_sf2_cfp_rule_addr_set(priv, loc);
 
@@ -830,6 +826,13 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port,
 {
 	u32 next_loc = 0;
 	int ret;
+
+	/* Refuse deleting unused rules, and those that are not unique since
+	 * that could leave IPv6 rules with one of the chained rule in the
+	 * table.
+	 */
+	if (!test_bit(loc, priv->cfp.unique) || loc == 0)
+		return -EINVAL;
 
 	ret = bcm_sf2_cfp_rule_del_one(priv, port, loc, &next_loc);
 	if (ret)
