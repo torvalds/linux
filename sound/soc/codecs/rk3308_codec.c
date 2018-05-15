@@ -43,6 +43,7 @@
 #include <sound/tlv.h>
 
 #include "rk3308_codec.h"
+#include "rk3308_codec_provider.h"
 
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
@@ -83,6 +84,7 @@ struct rk3308_codec_priv {
 	struct clk *mclk_tx;
 	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
+	struct snd_soc_jack *hpdet_jack;
 	int irq;
 	/*
 	 * To select ADCs for groups:
@@ -2345,9 +2347,11 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 			dac_output = DAC_HPOUT;
 
 		rk3308_codec_dac_switch(rk3308, dac_output);
-		snd_soc_jack_report(asoc_simple_card_get_hp_jack(),
-				    report_type,
-				    SND_JACK_HEADPHONE);
+
+		if (rk3308->hpdet_jack)
+			snd_soc_jack_report(rk3308->hpdet_jack,
+					    report_type,
+					    SND_JACK_HEADPHONE);
 	}
 
 	if (need_irq)
@@ -2368,6 +2372,15 @@ static irqreturn_t rk3308_codec_hpdet_isr(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+
+void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
+				  struct snd_soc_jack *hpdet_jack)
+{
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+
+	rk3308->hpdet_jack = hpdet_jack;
+}
+EXPORT_SYMBOL_GPL(rk3308_codec_set_jack_detect);
 
 static const struct regmap_config rk3308_codec_regmap_config = {
 	.reg_bits = 32,
