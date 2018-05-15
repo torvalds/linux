@@ -302,6 +302,8 @@ static inline void malidp_hw_enable_irq(struct malidp_hw_device *hwdev,
 }
 
 int malidp_de_irq_init(struct drm_device *drm, int irq);
+void malidp_se_irq_hw_init(struct malidp_hw_device *hwdev);
+void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev);
 void malidp_de_irq_fini(struct malidp_hw_device *hwdev);
 int malidp_se_irq_init(struct drm_device *drm, int irq);
 void malidp_se_irq_fini(struct malidp_hw_device *hwdev);
