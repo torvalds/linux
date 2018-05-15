@@ -939,7 +939,26 @@ int malidp_de_planes_init(struct drm_device *drm)
 				  BIT(DRM_MODE_BLEND_PREMULTI)   |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 	u32 *formats;
-	int ret, i, j, n;
+	int ret, i = 0, j = 0, n;
+	u64 supported_modifiers[MODIFIERS_COUNT_MAX];
+	const u64 *modifiers;
+
+	modifiers = malidp_format_modifiers;
+
+	if (!(map->features & MALIDP_DEVICE_AFBC_SUPPORT_SPLIT)) {
+		/*
+		 * Since our hardware does not support SPLIT, so build the list
+		 * of supported modifiers excluding SPLIT ones.
+		 */
+		while (*modifiers != DRM_FORMAT_MOD_INVALID) {
+			if (!(*modifiers & AFBC_SPLIT))
+				supported_modifiers[j++] = *modifiers;
+
+			modifiers++;
+		}
+		supported_modifiers[j++] = DRM_FORMAT_MOD_INVALID;
+		modifiers = supported_modifiers;
+	}
 
 	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats) {
@@ -964,9 +983,15 @@ int malidp_de_planes_init(struct drm_device *drm)
 
 		plane_type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
 					DRM_PLANE_TYPE_OVERLAY;
+
+		/*
+		 * All the layers except smart layer supports AFBC modifiers.
+		 */
 		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
-					       &malidp_de_plane_funcs, formats,
-					       n, NULL, plane_type, NULL);
+				&malidp_de_plane_funcs, formats, n,
+				(id == DE_SMART) ? NULL : modifiers, plane_type,
+				NULL);
+
 		if (ret < 0)
 			goto cleanup;
 
