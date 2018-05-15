@@ -236,8 +236,14 @@ static int tdf8532_stop_play(struct tdf8532_priv *tdf8532)
 		goto out;
 
 	ret = tdf8532_wait_state(tdf8532, STATE_STBY, ACK_TIMEOUT);
-	if (ret < 0)
-		goto out;
+
+	 /* Refer to TDF8532 manual:
+	  * If the wait_state result is ok, we should send CLK_DISCONNECT
+	  * command to force codec from STANDBY(2) to IDLE(1).
+	  * If the wait_state result is timeout, the codec state should be
+	  * at Clockfail(7), we still should send CLK_DISCONNECT command
+	  * force the codec from Clockfail(7) to Idle(1).
+	  */
 
 	ret = tdf8532_amp_write(tdf8532, SET_CLK_STATE, CLK_DISCONNECT);
 	if (ret < 0)
