@@ -52,7 +52,6 @@ static const struct cpg_core_clk r8a7743_core_clks[] __initconst = {
 
 	/* Core Clock Outputs */
 	DEF_BASE("z",    R8A7743_CLK_Z,    CLK_TYPE_GEN2_Z,	CLK_PLL0),
-	DEF_BASE("lb",   R8A7743_CLK_LB,   CLK_TYPE_GEN2_LB,	CLK_PLL1),
 	DEF_BASE("sdh",  R8A7743_CLK_SDH,  CLK_TYPE_GEN2_SDH,	CLK_PLL1),
 	DEF_BASE("sd0",  R8A7743_CLK_SD0,  CLK_TYPE_GEN2_SD0,	CLK_PLL1),
 	DEF_BASE("qspi", R8A7743_CLK_QSPI, CLK_TYPE_GEN2_QSPI,	CLK_PLL1_DIV2),
@@ -63,6 +62,7 @@ static const struct cpg_core_clk r8a7743_core_clks[] __initconst = {
 	DEF_FIXED("zs",    R8A7743_CLK_ZS,	CLK_PLL1,	    6, 1),
 	DEF_FIXED("hp",    R8A7743_CLK_HP,	CLK_PLL1,	   12, 1),
 	DEF_FIXED("b",     R8A7743_CLK_B,	CLK_PLL1,	   12, 1),
+	DEF_FIXED("lb",    R8A7743_CLK_LB,	CLK_PLL1,	   24, 1),
 	DEF_FIXED("p",     R8A7743_CLK_P,	CLK_PLL1,	   24, 1),
 	DEF_FIXED("cl",    R8A7743_CLK_CL,	CLK_PLL1,	   48, 1),
 	DEF_FIXED("m2",    R8A7743_CLK_M2,	CLK_PLL1,	    8, 1),
