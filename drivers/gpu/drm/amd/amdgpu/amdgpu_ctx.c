@@ -173,9 +173,14 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
 
-	for (i = 0; i < ctx->adev->num_rings; i++)
+	for (i = 0; i < ctx->adev->num_rings; i++) {
+
+		if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
+			continue;
+
 		drm_sched_entity_fini(&ctx->adev->rings[i]->sched,
 			&ctx->rings[i].entity);
+	}
 
 	amdgpu_ctx_fini(ref);
 }
@@ -452,12 +457,17 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 		if (!ctx->adev)
 			return;
 
-		for (i = 0; i < ctx->adev->num_rings; i++)
+		for (i = 0; i < ctx->adev->num_rings; i++) {
+
+			if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
+				continue;
+
 			if (kref_read(&ctx->refcount) == 1)
 				drm_sched_entity_do_release(&ctx->adev->rings[i]->sched,
 						  &ctx->rings[i].entity);
 			else
 				DRM_ERROR("ctx %p is still alive\n", ctx);
+		}
 	}
 }
 
@@ -474,12 +484,17 @@ void amdgpu_ctx_mgr_entity_cleanup(struct amdgpu_ctx_mgr *mgr)
 		if (!ctx->adev)
 			return;
 
-		for (i = 0; i < ctx->adev->num_rings; i++)
+		for (i = 0; i < ctx->adev->num_rings; i++) {
+
+			if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
+				continue;
+
 			if (kref_read(&ctx->refcount) == 1)
 				drm_sched_entity_cleanup(&ctx->adev->rings[i]->sched,
 					&ctx->rings[i].entity);
 			else
 				DRM_ERROR("ctx %p is still alive\n", ctx);
+		}
 	}
 }
 
