@@ -638,6 +638,96 @@ cleanup:
 	return ret;
 }
 
+static int alloc_anon_50M_check_swap(const char *cgroup, void *arg)
+{
+	long mem_max = (long)arg;
+	size_t size = MB(50);
+	char *buf, *ptr;
+	long mem_current, swap_current;
+	int ret = -1;
+
+	buf = malloc(size);
+	for (ptr = buf; ptr < buf + size; ptr += PAGE_SIZE)
+		*ptr = 0;
+
+	mem_current = cg_read_long(cgroup, "memory.current");
+	if (!mem_current || !values_close(mem_current, mem_max, 3))
+		goto cleanup;
+
+	swap_current = cg_read_long(cgroup, "memory.swap.current");
+	if (!swap_current ||
+	    !values_close(mem_current + swap_current, size, 3))
+		goto cleanup;
+
+	ret = 0;
+cleanup:
+	free(buf);
+	return ret;
+}
+
+/*
+ * This test checks that memory.swap.max limits the amount of
+ * anonymous memory which can be swapped out.
+ */
+static int test_memcg_swap_max(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *memcg;
+	long max;
+
+	if (!is_swap_enabled())
+		return KSFT_SKIP;
+
+	memcg = cg_name(root, "memcg_test");
+	if (!memcg)
+		goto cleanup;
+
+	if (cg_create(memcg))
+		goto cleanup;
+
+	if (cg_read_long(memcg, "memory.swap.current")) {
+		ret = KSFT_SKIP;
+		goto cleanup;
+	}
+
+	if (cg_read_strcmp(memcg, "memory.max", "max\n"))
+		goto cleanup;
+
+	if (cg_read_strcmp(memcg, "memory.swap.max", "max\n"))
+		goto cleanup;
+
+	if (cg_write(memcg, "memory.swap.max", "30M"))
+		goto cleanup;
+
+	if (cg_write(memcg, "memory.max", "30M"))
+		goto cleanup;
+
+	/* Should be killed by OOM killer */
+	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+		goto cleanup;
+
+	if (cg_read_key_long(memcg, "memory.events", "oom ") != 1)
+		goto cleanup;
+
+	if (cg_read_key_long(memcg, "memory.events", "oom_kill ") != 1)
+		goto cleanup;
+
+	if (cg_run(memcg, alloc_anon_50M_check_swap, (void *)MB(30)))
+		goto cleanup;
+
+	max = cg_read_key_long(memcg, "memory.events", "max ");
+	if (max <= 0)
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	cg_destroy(memcg);
+	free(memcg);
+
+	return ret;
+}
+
 /*
  * This test disables swapping and tries to allocate anonymous memory
  * up to OOM. Then it checks for oom and oom_kill events in
@@ -694,6 +784,7 @@ struct memcg_test {
 	T(test_memcg_high),
 	T(test_memcg_max),
 	T(test_memcg_oom_events),
+	T(test_memcg_swap_max),
 };
 #undef T
 

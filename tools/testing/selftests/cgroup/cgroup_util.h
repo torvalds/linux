@@ -38,3 +38,4 @@ extern int cg_run_nowait(const char *cgroup,
 extern int get_temp_fd(void);
 extern int alloc_pagecache(int fd, size_t size);
 extern int alloc_anon(const char *cgroup, void *arg);
+extern int is_swap_enabled(void);
