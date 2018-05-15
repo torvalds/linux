@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308 evb digital-i2s mic v11 board";
+	compatible = "rockchip,rk3308-evb-dmic-i2s-v11", "rockchip,rk3308";
+
+	i2s-dmic-array {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,i2s-dmic-array";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch_0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
+	vad-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,cpu = <&i2s_8ch_0>;
+		rockchip,codec = <&dummy_codec>, <&vad>;
+	};
+};
+
+&dummy_codec {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&vad {
+	status = "disabled";
+	rockchip,audio-src = <0>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};

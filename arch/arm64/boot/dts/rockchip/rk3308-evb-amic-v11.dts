@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308 evb analog mic v11 board";
+	compatible = "rockchip,rk3308-evb-amic-v11", "rockchip,rk3308";
+
+	vad_acodec_sound: vad-acodec-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&is31fl3236 {
+	reg = <0x3f>;
+};
+
+&vad {
+	status = "disabled";
+	rockchip,audio-src = <2>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};
