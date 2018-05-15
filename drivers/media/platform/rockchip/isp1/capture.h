@@ -166,8 +166,6 @@ struct rkisp1_stream {
 	u32 id;
 	struct rkisp1_device *ispdev;
 	struct rkisp1_vdev_node vnode;
-	enum rkisp1_state state;
-	enum rkisp1_state saved_state;
 	struct capture_fmt out_isp_fmt;
 	struct v4l2_pix_format_mplane out_fmt;
 	struct v4l2_rect dcrop;
@@ -178,6 +176,7 @@ struct rkisp1_stream {
 	struct rkisp1_dummy_buffer dummy_buf;
 	struct rkisp1_buffer *curr_buf;
 	struct rkisp1_buffer *next_buf;
+	bool streaming;
 	bool stopping;
 	wait_queue_head_t done;
 	union {

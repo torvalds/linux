@@ -85,15 +85,6 @@ enum rkisp1_fmt_raw_pat_type {
 	RAW_BGGR,
 };
 
-enum rkisp1_state {
-	/* path not yet opened: */
-	RKISP1_STATE_DISABLED,
-	/* path opened and configured, ready for streaming: */
-	RKISP1_STATE_READY,
-	/* path is streaming: */
-	RKISP1_STATE_STREAMING
-};
-
 struct rkisp1_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
