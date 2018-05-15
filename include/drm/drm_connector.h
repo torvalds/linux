@@ -419,6 +419,14 @@ struct drm_connector_state {
 	enum hdmi_picture_aspect picture_aspect_ratio;
 
 	/**
+	 * @content_type: Connector property to control the
+	 * HDMI infoframe content type setting.
+	 * The %DRM_MODE_CONTENT_TYPE_\* values much
+	 * match the values.
+	 */
+	unsigned int content_type;
+
+	/**
 	 * @scaling_mode: Connector property to control the
 	 * upscaling, mostly used for built-in panels.
 	 */
@@ -1089,11 +1097,16 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
 				  const char * const modes[]);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev);
+int drm_connector_attach_content_type_property(struct drm_connector *dev);
 int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 					       u32 scaling_mode_mask);
 int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector);
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
+int drm_mode_create_content_type_property(struct drm_device *dev);
+void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
+					 const struct drm_connector_state *conn_state);
+
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
 int drm_mode_connector_set_path_property(struct drm_connector *connector,
