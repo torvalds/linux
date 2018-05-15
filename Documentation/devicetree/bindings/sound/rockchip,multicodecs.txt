@@ -8,6 +8,9 @@ Required properties:
 - rockchip,mclk-fs: Multiplication factor between stream rate and codec mclk,
   applied only for the dai-link.
 
+Optional properties:
+- rockchip,codec-hp-det : Detect the headphone via internal codec.
+
 Example:
 
 sound {
