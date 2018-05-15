@@ -380,16 +380,20 @@ struct rcu_state {
 #define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
-#define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
-#define RCU_GP_DOING_FQS 4	/* Wait done for force-quiescent-state time. */
-#define RCU_GP_CLEANUP   5	/* Grace-period cleanup started. */
-#define RCU_GP_CLEANED   6	/* Grace-period cleanup complete. */
+#define RCU_GP_ONOFF     3	/* Grace-period initialization hotplug. */
+#define RCU_GP_INIT      4	/* Grace-period initialization. */
+#define RCU_GP_WAIT_FQS  5	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DOING_FQS 6	/* Wait done for force-quiescent-state time. */
+#define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
+#define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
 
 #ifndef RCU_TREE_NONCORE
 static const char * const gp_state_names[] = {
 	"RCU_GP_IDLE",
 	"RCU_GP_WAIT_GPS",
 	"RCU_GP_DONE_GPS",
+	"RCU_GP_ONOFF",
+	"RCU_GP_INIT",
 	"RCU_GP_WAIT_FQS",
 	"RCU_GP_DOING_FQS",
 	"RCU_GP_CLEANUP",
