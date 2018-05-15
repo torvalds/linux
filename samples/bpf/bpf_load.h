@@ -2,7 +2,7 @@
 #ifndef __BPF_LOAD_H
 #define __BPF_LOAD_H
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 #define MAX_MAPS 32
 #define MAX_PROGS 32

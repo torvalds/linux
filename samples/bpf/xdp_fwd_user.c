@@ -26,7 +26,7 @@
 
 #include "bpf_load.h"
 #include "bpf_util.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 
 static int do_attach(int idx, int fd, const char *name)

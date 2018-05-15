@@ -16,7 +16,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include "bpf_load.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <poll.h>
