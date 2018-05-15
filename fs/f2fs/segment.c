@@ -3838,7 +3838,7 @@ static void init_min_max_mtime(struct f2fs_sb_info *sbi)
 
 	down_write(&sit_i->sentry_lock);
 
-	sit_i->min_mtime = LLONG_MAX;
+	sit_i->min_mtime = ULLONG_MAX;
 
 	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
 		unsigned int i;
