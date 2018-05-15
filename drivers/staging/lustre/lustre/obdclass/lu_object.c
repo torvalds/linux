@@ -593,15 +593,10 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 				       const struct lu_fid *f,
 				       __u64 *version)
 {
-	struct cfs_hash		*hs = s->ls_obj_hash;
 	struct lu_site_bkt_data *bkt;
 	struct lu_object_header *h;
 	struct hlist_node	*hnode;
-	__u64 ver;
-	wait_queue_entry_t waiter;
-
-retry:
-	ver = cfs_hash_bd_version_get(bd);
+	u64 ver = cfs_hash_bd_version_get(bd);
 
 	if (*version == ver)
 		return ERR_PTR(-ENOENT);
@@ -618,31 +613,13 @@ retry:
 	}
 
 	h = container_of(hnode, struct lu_object_header, loh_hash);
-	if (likely(!lu_object_is_dying(h))) {
-		cfs_hash_get(s->ls_obj_hash, hnode);
-		lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_HIT);
-		if (!list_empty(&h->loh_lru)) {
-			list_del_init(&h->loh_lru);
-			percpu_counter_dec(&s->ls_lru_len_counter);
-		}
-		return lu_object_top(h);
+	cfs_hash_get(s->ls_obj_hash, hnode);
+	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_HIT);
+	if (!list_empty(&h->loh_lru)) {
+		list_del_init(&h->loh_lru);
+		percpu_counter_dec(&s->ls_lru_len_counter);
 	}
-
-	/*
-	 * Lookup found an object being destroyed this object cannot be
-	 * returned (to assure that references to dying objects are eventually
-	 * drained), and moreover, lookup has to wait until object is freed.
-	 */
-
-	init_waitqueue_entry(&waiter, current);
-	add_wait_queue(&bkt->lsb_marche_funebre, &waiter);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_DEATH_RACE);
-	cfs_hash_bd_unlock(hs, bd, 1);
-	schedule();
-	remove_wait_queue(&bkt->lsb_marche_funebre, &waiter);
-	cfs_hash_bd_lock(hs, bd, 1);
-	goto retry;
+	return lu_object_top(h);
 }
 
 /**
@@ -683,6 +660,8 @@ static void lu_object_limit(const struct lu_env *env, struct lu_device *dev)
 }
 
 /**
+ * Core logic of lu_object_find*() functions.
+ *
  * Much like lu_object_find(), but top level device of object is specifically
  * \a dev rather than top level device of the site. This interface allows
  * objects of different "stacking" to be created within the same site.
