@@ -90,6 +90,7 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
+	unsigned long rcu_gp_init_mask;	/* Mask of offline CPUs at GP init. */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask. */
 				/*  Initialized from ->qsmaskinitnext at the */

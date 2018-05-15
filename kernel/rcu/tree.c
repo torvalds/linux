@@ -1188,6 +1188,27 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		smp_store_release(ruqp, true);
 	}
 
+	/* If waiting too long on an offline CPU, complain. */
+	if (!(rdp->grpmask & rcu_rnp_online_cpus(rnp)) &&
+	    time_after(jiffies, rdp->rsp->gp_start + HZ)) {
+		bool onl;
+		struct rcu_node *rnp1;
+
+		WARN_ON(1);  /* Offline CPUs are supposed to report QS! */
+		pr_info("%s: grp: %d-%d level: %d ->gp_seq %ld ->completedqs %ld\n",
+			__func__, rnp->grplo, rnp->grphi, rnp->level,
+			(long)rnp->gp_seq, (long)rnp->completedqs);
+		for (rnp1 = rnp; rnp1; rnp1 = rnp1->parent)
+			pr_info("%s: %d:%d ->qsmask %#lx ->qsmaskinit %#lx ->qsmaskinitnext %#lx ->rcu_gp_init_mask %#lx\n",
+				__func__, rnp1->grplo, rnp1->grphi, rnp1->qsmask, rnp1->qsmaskinit, rnp1->qsmaskinitnext, rnp1->rcu_gp_init_mask);
+		onl = !!(rdp->grpmask & rcu_rnp_online_cpus(rnp));
+		pr_info("%s %d: %c online: %ld(%d) offline: %ld(%d)\n",
+			__func__, rdp->cpu, ".o"[onl],
+			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_flags,
+			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_flags);
+		return 1; /* Break things loose after complaining. */
+	}
+
 	/*
 	 * A CPU running for an extended time within the kernel can
 	 * delay RCU grace periods.  When the CPU is in NO_HZ_FULL mode,
@@ -1967,6 +1988,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 					    rnp->grphi, rnp->qsmask);
 		/* Quiescent states for tasks on any now-offline CPUs. */
 		mask = rnp->qsmask & ~rnp->qsmaskinitnext;
+		rnp->rcu_gp_init_mask = mask;
 		if ((mask || rnp->wait_blkd_tasks) && rcu_is_leaf_node(rnp))
 			rcu_report_qs_rnp(mask, rsp, rnp, rnp->gp_seq, flags);
 		else
