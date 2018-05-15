@@ -2099,7 +2099,7 @@ static void pxafb_check_options(struct device *dev, struct pxafb_mach_info *inf)
 
 #if defined(CONFIG_OF)
 static const char * const lcd_types[] = {
-	"mono-stn", "mono-dstn", "color-stn", "color-dstn",
+	"unknown", "mono-stn", "mono-dstn", "color-stn", "color-dstn",
 	"color-tft", "smart-panel", NULL
 };
 
