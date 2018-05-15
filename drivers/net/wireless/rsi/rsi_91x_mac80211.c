@@ -245,6 +245,7 @@ void rsi_mac80211_detach(struct rsi_hw *adapter)
 		ieee80211_stop_queues(hw);
 		ieee80211_unregister_hw(hw);
 		ieee80211_free_hw(hw);
+		adapter->hw = NULL;
 	}
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
