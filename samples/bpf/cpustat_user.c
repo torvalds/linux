@@ -17,7 +17,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #define MAX_CPU			8

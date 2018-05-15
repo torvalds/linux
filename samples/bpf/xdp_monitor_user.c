@@ -26,7 +26,7 @@ static const char *__doc_err_only__=
 #include <net/if.h>
 #include <time.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include "bpf_util.h"
 
