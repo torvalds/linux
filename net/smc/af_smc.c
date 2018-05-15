@@ -463,6 +463,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
 		else if (rc == -ENOLINK)
 			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
+		else
+			reason_code = SMC_CLC_DECL_INTERR; /* other error */
 		goto decline_rdma_unlock;
 	}
 	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
