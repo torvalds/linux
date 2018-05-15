@@ -1355,6 +1355,10 @@ static int hva_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
 	hva->dev = dev;
 	hva->pdev = pdev;
 	platform_set_drvdata(pdev, hva);
