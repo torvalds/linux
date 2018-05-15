@@ -651,6 +651,9 @@ static struct hid_device *steam_create_client_hid(struct hid_device *hdev)
 	client_hdev->bus = hdev->bus;
 	client_hdev->vendor = hdev->vendor;
 	client_hdev->product = hdev->product;
+	client_hdev->version = hdev->version;
+	client_hdev->type = hdev->type;
+	client_hdev->country = hdev->country;
 	strlcpy(client_hdev->name, hdev->name,
 			sizeof(client_hdev->name));
 	strlcpy(client_hdev->phys, hdev->phys,
