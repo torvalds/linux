@@ -90,7 +90,7 @@ MODULE_FIRMWARE(SBZ_EFX_FILE);
 MODULE_FIRMWARE(R3DI_EFX_FILE);
 #endif
 
-static const char *dirstr[2] = { "Playback", "Capture" };
+static const char *const dirstr[2] = { "Playback", "Capture" };
 
 #define NUM_OF_OUTPUTS 3
 enum {
@@ -105,7 +105,7 @@ enum {
 };
 
 /* Strings for Input Source Enum Control */
-static const char *in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
+static const char *const in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
 #define IN_SRC_NUM_OF_INPUTS 3
 enum {
 	REAR_MIC,
@@ -189,7 +189,7 @@ struct ct_effect {
 #define EFX_DIR_OUT 0
 #define EFX_DIR_IN  1
 
-static struct ct_effect ca0132_effects[EFFECTS_COUNT] = {
+static const struct ct_effect ca0132_effects[EFFECTS_COUNT] = {
 	{ .name = "Surround",
 	  .nid = SURROUND,
 	  .mid = 0x96,
@@ -316,7 +316,7 @@ struct ct_tuning_ctl {
 	unsigned int def_val;/*effect default values*/
 };
 
-static struct ct_tuning_ctl ca0132_tuning_ctls[] = {
+static const struct ct_tuning_ctl ca0132_tuning_ctls[] = {
 	{ .name = "Wedge Angle",
 	  .parent_nid = VOICE_FOCUS,
 	  .nid = WEDGE_ANGLE,
@@ -431,14 +431,14 @@ struct ct_voicefx_preset {
 	unsigned int vals[VOICEFX_MAX_PARAM_COUNT];
 };
 
-static struct ct_voicefx ca0132_voicefx = {
+static const struct ct_voicefx ca0132_voicefx = {
 	.name = "VoiceFX Capture Switch",
 	.nid = VOICEFX,
 	.mid = 0x95,
 	.reqs = {10, 11, 12, 13, 14, 15, 16, 17, 18}
 };
 
-static struct ct_voicefx_preset ca0132_voicefx_presets[] = {
+static const struct ct_voicefx_preset ca0132_voicefx_presets[] = {
 	{ .name = "Neutral",
 	  .vals = { 0x00000000, 0x43C80000, 0x44AF0000,
 		    0x44FA0000, 0x3F800000, 0x3F800000,
@@ -527,7 +527,7 @@ struct ct_eq_preset {
 	unsigned int vals[EQ_PRESET_MAX_PARAM_COUNT];
 };
 
-static struct ct_eq ca0132_alt_eq_enum = {
+static const struct ct_eq ca0132_alt_eq_enum = {
 	.name = "FX: Equalizer Preset Switch",
 	.nid = EQ_PRESET_ENUM,
 	.mid = 0x96,
@@ -535,7 +535,7 @@ static struct ct_eq ca0132_alt_eq_enum = {
 };
 
 
-static struct ct_eq_preset ca0132_alt_eq_presets[] = {
+static const struct ct_eq_preset ca0132_alt_eq_presets[] = {
 	{ .name = "Flat",
 	 .vals = { 0x00000000, 0x00000000, 0x00000000,
 		   0x00000000, 0x00000000, 0x00000000,
@@ -655,7 +655,7 @@ struct ct_dsp_volume_ctl {
 	unsigned int reqs[3]; /* scp req ID */
 };
 
-static struct ct_dsp_volume_ctl ca0132_alt_vol_ctls[] = {
+static const struct ct_dsp_volume_ctl ca0132_alt_vol_ctls[] = {
 	{ .vnid = VNID_SPK,
 	  .mid = 0x32,
 	  .reqs = {3, 4, 2}
@@ -892,7 +892,7 @@ enum dsp_download_state {
  */
 
 struct ca0132_spec {
-	struct snd_kcontrol_new *mixers[5];
+	const struct snd_kcontrol_new *mixers[5];
 	unsigned int num_mixers;
 	const struct hda_verb *base_init_verbs;
 	const struct hda_verb *base_exit_verbs;
@@ -4992,7 +4992,7 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
  * and night, disregard the slider value and have uneditable values.
  */
 #define NUM_OF_SVM_SETTINGS 3
-static const char *out_svm_set_enum_str[3] = {"Normal", "Loud", "Night" };
+static const char *const out_svm_set_enum_str[3] = {"Normal", "Loud", "Night" };
 
 static int ca0132_alt_svm_setting_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -5506,13 +5506,12 @@ static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 static int ca0132_alt_add_effect_slider(struct hda_codec *codec, hda_nid_t nid,
 					const char *pfx, int dir)
 {
-	char *fx = "FX:";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, 1, 0, type);
 
-	sprintf(namestr, "%s %s %s Volume", fx, pfx, dirstr[dir]);
+	sprintf(namestr, "FX: %s %s Volume", pfx, dirstr[dir]);
 
 	knew.tlv.c = 0;
 	knew.tlv.p = 0;
@@ -5544,7 +5543,6 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 			 const char *pfx, int dir)
 {
 	struct ca0132_spec *spec = codec->spec;
-	char *fx = "FX:";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
@@ -5553,7 +5551,7 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 	 * prefix to OutFX or InFX enable controls.
 	 */
 	if ((spec->use_alt_controls) && (nid <= IN_EFFECT_END_NID))
-		sprintf(namestr, "%s %s %s Switch", fx, pfx, dirstr[dir]);
+		sprintf(namestr, "FX: %s %s Switch", pfx, dirstr[dir]);
 	else
 		sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
 
@@ -5705,7 +5703,7 @@ static void ca0132_alt_add_chmap_ctls(struct hda_codec *codec)
  * When changing Node IDs for Mixer Controls below, make sure to update
  * Node IDs in ca0132_config() as well.
  */
-static struct snd_kcontrol_new ca0132_mixer[] = {
+static const struct snd_kcontrol_new ca0132_mixer[] = {
 	CA0132_CODEC_VOL("Master Playback Volume", VNID_SPK, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Master Playback Switch", VNID_SPK, HDA_OUTPUT),
 	CA0132_CODEC_VOL("Capture Volume", VNID_MIC, HDA_INPUT),
@@ -5732,7 +5730,7 @@ static struct snd_kcontrol_new ca0132_mixer[] = {
  * controls. Also sets both the Front Playback and Capture Volume controls to
  * alt so they set the DSP's decibel level.
  */
-static struct snd_kcontrol_new sbz_mixer[] = {
+static const struct snd_kcontrol_new sbz_mixer[] = {
 	CA0132_ALT_CODEC_VOL("Front Playback Volume", 0x02, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Front Playback Switch", VNID_SPK, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x04, 0, HDA_OUTPUT),
@@ -5754,7 +5752,7 @@ static struct snd_kcontrol_new sbz_mixer[] = {
  * Same as the Sound Blaster Z, except doesn't use the alt volume for capture
  * because it doesn't set decibel levels for the DSP for capture.
  */
-static struct snd_kcontrol_new r3di_mixer[] = {
+static const struct snd_kcontrol_new r3di_mixer[] = {
 	CA0132_ALT_CODEC_VOL("Front Playback Volume", 0x02, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Front Playback Switch", VNID_SPK, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x04, 0, HDA_OUTPUT),
