@@ -223,6 +223,7 @@ struct intel_vgpu_ppgtt_spt {
 
 	struct {
 		intel_gvt_gtt_type_t type;
+		bool pde_ips; /* for 64KB PTEs */
 		void *vaddr;
 		struct page *page;
 		unsigned long mfn;
@@ -230,6 +231,7 @@ struct intel_vgpu_ppgtt_spt {
 
 	struct {
 		intel_gvt_gtt_type_t type;
+		bool pde_ips; /* for 64KB PTEs */
 		unsigned long gfn;
 		unsigned long write_cnt;
 		struct intel_vgpu_oos_page *oos_page;

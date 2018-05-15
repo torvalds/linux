@@ -384,20 +384,7 @@ static void gen8_gtt_set_pfn(struct intel_gvt_gtt_entry *e, unsigned long pfn)
 
 static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
 {
-	/* Entry doesn't have PSE bit. */
-	if (get_pse_type(e->type) == GTT_TYPE_INVALID)
-		return false;
-
-	e->type = get_entry_type(e->type);
-	if (!(e->val64 & _PAGE_PSE))
-		return false;
-
-	/* We don't support 64K entry yet, will remove this later. */
-	if (get_pse_type(e->type) == GTT_TYPE_PPGTT_PTE_64K_ENTRY)
-		return false;
-
-	e->type = get_pse_type(e->type);
-	return true;
+	return !!(e->val64 & _PAGE_PSE);
 }
 
 static bool gen8_gtt_test_ips(struct intel_gvt_gtt_entry *e)
@@ -487,6 +474,27 @@ static struct intel_gvt_gtt_gma_ops gen8_gtt_gma_ops = {
 	.gma_to_pml4_index = gen8_gma_to_pml4_index,
 };
 
+/* Update entry type per pse and ips bit. */
+static void update_entry_type_for_real(struct intel_gvt_gtt_pte_ops *pte_ops,
+	struct intel_gvt_gtt_entry *entry, bool ips)
+{
+	switch (entry->type) {
+	case GTT_TYPE_PPGTT_PDE_ENTRY:
+	case GTT_TYPE_PPGTT_PDP_ENTRY:
+		if (pte_ops->test_pse(entry))
+			entry->type = get_pse_type(entry->type);
+		break;
+	case GTT_TYPE_PPGTT_PTE_4K_ENTRY:
+		if (ips)
+			entry->type = get_pse_type(entry->type);
+		break;
+	default:
+		GEM_BUG_ON(!gtt_type_is_entry(entry->type));
+	}
+
+	GEM_BUG_ON(entry->type == GTT_TYPE_INVALID);
+}
+
 /*
  * MM helpers.
  */
@@ -502,8 +510,7 @@ static void _ppgtt_get_root_entry(struct intel_vgpu_mm *mm,
 	pte_ops->get_entry(guest ? mm->ppgtt_mm.guest_pdps :
 			   mm->ppgtt_mm.shadow_pdps,
 			   entry, index, false, 0, mm->vgpu);
-
-	pte_ops->test_pse(entry);
+	update_entry_type_for_real(pte_ops, entry, false);
 }
 
 static inline void ppgtt_get_guest_root_entry(struct intel_vgpu_mm *mm,
@@ -608,7 +615,8 @@ static inline int ppgtt_spt_get_entry(
 	if (ret)
 		return ret;
 
-	ops->test_pse(e);
+	update_entry_type_for_real(ops, e, guest ?
+				   spt->guest_page.pde_ips : false);
 
 	gvt_vdbg_mm("read ppgtt entry, spt type %d, entry type %d, index %lu, value %llx\n",
 		    type, e->type, index, e->val64);
@@ -752,7 +760,8 @@ static inline struct intel_vgpu_ppgtt_spt *intel_vgpu_find_spt_by_mfn(
 static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt);
 
 static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt(
-		struct intel_vgpu *vgpu, int type, unsigned long gfn)
+		struct intel_vgpu *vgpu, int type, unsigned long gfn,
+		bool guest_pde_ips)
 {
 	struct device *kdev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	struct intel_vgpu_ppgtt_spt *spt = NULL;
@@ -792,6 +801,7 @@ retry:
 	 */
 	spt->guest_page.type = type;
 	spt->guest_page.gfn = gfn;
+	spt->guest_page.pde_ips = guest_pde_ips;
 
 	ret = intel_vgpu_register_page_track(vgpu, spt->guest_page.gfn,
 					ppgtt_write_protection_handler, spt);
@@ -934,6 +944,22 @@ fail:
 	return ret;
 }
 
+static bool vgpu_ips_enabled(struct intel_vgpu *vgpu)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	if (INTEL_GEN(dev_priv) == 9 || INTEL_GEN(dev_priv) == 10) {
+		u32 ips = vgpu_vreg_t(vgpu, GEN8_GAMW_ECO_DEV_RW_IA) &
+			GAMW_ECO_ENABLE_64K_IPS_FIELD;
+
+		return ips == GAMW_ECO_ENABLE_64K_IPS_FIELD;
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		/* 64K paging only controlled by IPS bit in PTE now. */
+		return true;
+	} else
+		return false;
+}
+
 static int ppgtt_populate_spt(struct intel_vgpu_ppgtt_spt *spt);
 
 static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
@@ -941,6 +967,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 {
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *spt = NULL;
+	bool ips = false;
 	int ret;
 
 	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(we->type)));
@@ -951,7 +978,10 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 	else {
 		int type = get_next_pt_type(we->type);
 
-		spt = ppgtt_alloc_spt(vgpu, type, ops->get_pfn(we));
+		if (we->type == GTT_TYPE_PPGTT_PDE_ENTRY)
+			ips = vgpu_ips_enabled(vgpu) && ops->test_ips(we);
+
+		spt = ppgtt_alloc_spt(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
 			ret = PTR_ERR(spt);
 			goto fail;
@@ -1426,8 +1456,6 @@ static int ppgtt_handle_guest_write_page_table_bytes(
 	index = (pa & (PAGE_SIZE - 1)) >> info->gtt_entry_size_shift;
 
 	ppgtt_get_guest_entry(spt, &we, index);
-
-	ops->test_pse(&we);
 
 	if (bytes == info->gtt_entry_size) {
 		ret = ppgtt_handle_guest_write_page_table(spt, &we, index);
