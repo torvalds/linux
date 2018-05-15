@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/interrupt.h>
 #include <linux/bitfield.h>
 #include <linux/pinctrl/consumer.h>
@@ -1210,6 +1211,14 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (!host->data) {
 		ret = -EINVAL;
 		goto free_host;
+	}
+
+	ret = device_reset_optional(&pdev->dev);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "device reset failed: %d\n", ret);
+
+		return ret;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
