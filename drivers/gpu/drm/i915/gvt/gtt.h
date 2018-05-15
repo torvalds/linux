@@ -63,6 +63,7 @@ struct intel_gvt_gtt_pte_ops {
 	void (*clear_present)(struct intel_gvt_gtt_entry *e);
 	void (*set_present)(struct intel_gvt_gtt_entry *e);
 	bool (*test_pse)(struct intel_gvt_gtt_entry *e);
+	void (*clear_pse)(struct intel_gvt_gtt_entry *e);
 	bool (*test_ips)(struct intel_gvt_gtt_entry *e);
 	void (*clear_ips)(struct intel_gvt_gtt_entry *e);
 	bool (*test_64k_splited)(struct intel_gvt_gtt_entry *e);
