@@ -1857,7 +1857,7 @@ static irqreturn_t rt5663_irq(int irq, void *data)
 }
 
 int rt5663_set_jack_detect(struct snd_soc_component *component,
-	struct snd_soc_jack *hs_jack)
+	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
 
@@ -1867,7 +1867,6 @@ int rt5663_set_jack_detect(struct snd_soc_component *component,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt5663_set_jack_detect);
 
 static bool rt5663_check_jd_status(struct snd_soc_component *component)
 {
@@ -3244,10 +3243,10 @@ static const struct snd_soc_component_driver soc_component_dev_rt5663 = {
 	.num_dapm_widgets	= ARRAY_SIZE(rt5663_dapm_widgets),
 	.dapm_routes		= rt5663_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(rt5663_dapm_routes),
+	.set_jack		= rt5663_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
-
 };
 
 static const struct regmap_config rt5663_v2_regmap = {
