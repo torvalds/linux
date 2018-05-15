@@ -81,9 +81,12 @@ struct regulator_linear_range {
  * @set_voltage_sel: Set the voltage for the regulator using the specified
  *                   selector.
  * @map_voltage: Convert a voltage into a selector
- * @get_voltage: Return the currently configured voltage for the regulator.
+ * @get_voltage: Return the currently configured voltage for the regulator;
+ *                   return -ENOTRECOVERABLE if regulator can't be read at
+ *                   bootup and hasn't been set yet.
  * @get_voltage_sel: Return the currently configured voltage selector for the
- *                   regulator.
+ *                   regulator; return -ENOTRECOVERABLE if regulator can't
+ *                   be read at bootup and hasn't been set yet.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
  *	or negative errno.  Selectors range from zero to one less than
