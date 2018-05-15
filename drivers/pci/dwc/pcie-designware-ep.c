@@ -411,6 +411,9 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 		return -ENOMEM;
 	}
 
+	epc->features = EPC_FEATURE_NO_LINKUP_NOTIFIER;
+	EPC_FEATURE_SET_BAR(epc->features, BAR_0);
+
 	ep->epc = epc;
 	epc_set_drvdata(epc, ep);
 	dw_pcie_setup(pci);
