@@ -1058,6 +1058,38 @@ EXPORT_SYMBOL(ceph_osdc_new_request);
 DEFINE_RB_FUNCS(request, struct ceph_osd_request, r_tid, r_node)
 DEFINE_RB_FUNCS(request_mc, struct ceph_osd_request, r_tid, r_mc_node)
 
+/*
+ * Call @fn on each OSD request as long as @fn returns 0.
+ */
+static void for_each_request(struct ceph_osd_client *osdc,
+			int (*fn)(struct ceph_osd_request *req, void *arg),
+			void *arg)
+{
+	struct rb_node *n, *p;
+
+	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+
+		for (p = rb_first(&osd->o_requests); p; ) {
+			struct ceph_osd_request *req =
+			    rb_entry(p, struct ceph_osd_request, r_node);
+
+			p = rb_next(p);
+			if (fn(req, arg))
+				return;
+		}
+	}
+
+	for (p = rb_first(&osdc->homeless_osd.o_requests); p; ) {
+		struct ceph_osd_request *req =
+		    rb_entry(p, struct ceph_osd_request, r_node);
+
+		p = rb_next(p);
+		if (fn(req, arg))
+			return;
+	}
+}
+
 static bool osd_homeless(struct ceph_osd *osd)
 {
 	return osd->o_osd == CEPH_HOMELESS_OSD;
@@ -2165,9 +2197,9 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	struct ceph_osd_client *osdc = req->r_osdc;
 	struct ceph_osd *osd;
 	enum calc_target_result ct_res;
+	int err = 0;
 	bool need_send = false;
 	bool promoted = false;
-	bool need_abort = false;
 
 	WARN_ON(req->r_tid);
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
@@ -2183,7 +2215,10 @@ again:
 		goto promote;
 	}
 
-	if (osdc->osdmap->epoch < osdc->epoch_barrier) {
+	if (osdc->abort_err) {
+		dout("req %p abort_err %d\n", req, osdc->abort_err);
+		err = osdc->abort_err;
+	} else if (osdc->osdmap->epoch < osdc->epoch_barrier) {
 		dout("req %p epoch %u barrier %u\n", req, osdc->osdmap->epoch,
 		     osdc->epoch_barrier);
 		req->r_t.paused = true;
@@ -2208,7 +2243,7 @@ again:
 		req->r_t.paused = true;
 		maybe_request_map(osdc);
 		if (req->r_abort_on_full)
-			need_abort = true;
+			err = -ENOSPC;
 	} else if (!osd_homeless(osd)) {
 		need_send = true;
 	} else {
@@ -2225,8 +2260,8 @@ again:
 	link_request(osd, req);
 	if (need_send)
 		send_request(req);
-	else if (need_abort)
-		complete_request(req, -ENOSPC);
+	else if (err)
+		complete_request(req, err);
 	mutex_unlock(&osd->lock);
 
 	if (ct_res == CALC_TARGET_POOL_DNE)
@@ -2339,6 +2374,28 @@ static void abort_request(struct ceph_osd_request *req, int err)
 	cancel_map_check(req);
 	complete_request(req, err);
 }
+
+static int abort_fn(struct ceph_osd_request *req, void *arg)
+{
+	int err = *(int *)arg;
+
+	abort_request(req, err);
+	return 0; /* continue iteration */
+}
+
+/*
+ * Abort all in-flight requests with @err and arrange for all future
+ * requests to be failed immediately.
+ */
+void ceph_osdc_abort_requests(struct ceph_osd_client *osdc, int err)
+{
+	dout("%s osdc %p err %d\n", __func__, osdc, err);
+	down_write(&osdc->lock);
+	for_each_request(osdc, abort_fn, &err);
+	osdc->abort_err = err;
+	up_write(&osdc->lock);
+}
+EXPORT_SYMBOL(ceph_osdc_abort_requests);
 
 static void update_epoch_barrier(struct ceph_osd_client *osdc, u32 eb)
 {
