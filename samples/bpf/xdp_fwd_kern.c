@@ -30,12 +30,24 @@ struct bpf_map_def SEC("maps") tx_port = {
 	.max_entries = 64,
 };
 
+/* from include/net/ip.h */
+static __always_inline int ip_decrease_ttl(struct iphdr *iph)
+{
+	u32 check = (__force u32)iph->check;
+
+	check += (__force u32)htons(0x0100);
+	iph->check = (__force __sum16)(check + (check >= 0xFFFF));
+	return --iph->ttl;
+}
+
 static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data = (void *)(long)ctx->data;
 	struct bpf_fib_lookup fib_params;
 	struct ethhdr *eth = data;
+	struct ipv6hdr *ip6h;
+	struct iphdr *iph;
 	int out_index;
 	u16 h_proto;
 	u64 nh_off;
@@ -48,10 +60,13 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 
 	h_proto = eth->h_proto;
 	if (h_proto == htons(ETH_P_IP)) {
-		struct iphdr *iph = data + nh_off;
+		iph = data + nh_off;
 
 		if (iph + 1 > data_end)
 			return XDP_DROP;
+
+		if (iph->ttl <= 1)
+			return XDP_PASS;
 
 		fib_params.family	= AF_INET;
 		fib_params.tos		= iph->tos;
@@ -64,19 +79,22 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 	} else if (h_proto == htons(ETH_P_IPV6)) {
 		struct in6_addr *src = (struct in6_addr *) fib_params.ipv6_src;
 		struct in6_addr *dst = (struct in6_addr *) fib_params.ipv6_dst;
-		struct ipv6hdr *iph = data + nh_off;
 
-		if (iph + 1 > data_end)
+		ip6h = data + nh_off;
+		if (ip6h + 1 > data_end)
 			return XDP_DROP;
 
+		if (ip6h->hop_limit <= 1)
+			return XDP_PASS;
+
 		fib_params.family	= AF_INET6;
-		fib_params.flowlabel	= *(__be32 *)iph & IPV6_FLOWINFO_MASK;
-		fib_params.l4_protocol	= iph->nexthdr;
+		fib_params.flowlabel	= *(__be32 *)ip6h & IPV6_FLOWINFO_MASK;
+		fib_params.l4_protocol	= ip6h->nexthdr;
 		fib_params.sport	= 0;
 		fib_params.dport	= 0;
-		fib_params.tot_len	= ntohs(iph->payload_len);
-		*src			= iph->saddr;
-		*dst			= iph->daddr;
+		fib_params.tot_len	= ntohs(ip6h->payload_len);
+		*src			= ip6h->saddr;
+		*dst			= ip6h->daddr;
 	} else {
 		return XDP_PASS;
 	}
@@ -92,6 +110,11 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 	 *       forwarding packets are dropped.
 	 */
 	if (out_index > 0) {
+		if (h_proto == htons(ETH_P_IP))
+			ip_decrease_ttl(iph);
+		else if (h_proto == htons(ETH_P_IPV6))
+			ip6h->hop_limit--;
+
 		memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
 		memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
 		return bpf_redirect_map(&tx_port, out_index, 0);
