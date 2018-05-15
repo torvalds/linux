@@ -9,6 +9,7 @@ Required properties:
   applied only for the dai-link.
 
 Optional properties:
+- rockchip,card-name: User specified audio sound card name, one string property.
 - rockchip,codec-hp-det : Detect the headphone via internal codec.
 
 Example:
