@@ -548,6 +548,8 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 		return; /* short message */
 	if (llc->raw.hdr.length != sizeof(*llc))
 		return; /* invalid message */
+	if (link->state == SMC_LNK_INACTIVE)
+		return; /* link not active, drop msg */
 
 	switch (llc->raw.hdr.common.type) {
 	case SMC_LLC_TEST_LINK:
