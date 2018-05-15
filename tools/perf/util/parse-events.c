@@ -1715,7 +1715,7 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 		struct perf_evsel *last;
 
 		if (list_empty(&parse_state.list)) {
-			WARN_ONCE(true, "WARNING: event parser found nothing");
+			WARN_ONCE(true, "WARNING: event parser found nothing\n");
 			return -1;
 		}
 
