@@ -200,6 +200,8 @@ void device_queue_manager_init_vi(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_vi_tonga(
 		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_v9(
+		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 unsigned int get_queues_num(struct device_queue_manager *dqm);

@@ -536,7 +536,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (p->bo_list) {
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 		if (p->bo_list->first_userptr != p->bo_list->num_entries)
-			p->mn = amdgpu_mn_get(p->adev);
+			p->mn = amdgpu_mn_get(p->adev, AMDGPU_MN_TYPE_GFX);
 	}
 
 	INIT_LIST_HEAD(&duplicates);

@@ -130,7 +130,8 @@ amdgpu-y += \
 	 amdgpu_amdkfd.o \
 	 amdgpu_amdkfd_fence.o \
 	 amdgpu_amdkfd_gpuvm.o \
-	 amdgpu_amdkfd_gfx_v8.o
+	 amdgpu_amdkfd_gfx_v8.o \
+	 amdgpu_amdkfd_gfx_v9.o
 
 # add cgs
 amdgpu-y += amdgpu_cgs.o
