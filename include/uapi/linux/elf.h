@@ -423,6 +423,7 @@ typedef struct elf64_shdr {
 #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
 #define NT_VMCOREDD	0x700		/* Vmcore Device Dump Note */
 #define NT_MIPS_DSP	0x800		/* MIPS DSP ASE registers */
+#define NT_MIPS_FP_MODE	0x801		/* MIPS floating-point mode */
 
 /* Note header in a PT_NOTE section */
 typedef struct elf32_note {
