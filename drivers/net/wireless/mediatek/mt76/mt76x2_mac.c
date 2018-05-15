@@ -301,6 +301,9 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	u8 wcid;
 	int len;
 
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return -EINVAL;
+
 	if (rxinfo & MT_RXINFO_L2PAD)
 		pad_len += 2;
 
