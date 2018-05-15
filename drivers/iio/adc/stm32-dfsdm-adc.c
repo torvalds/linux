@@ -8,11 +8,11 @@
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/interrupt.h>
+#include <linux/iio/adc/stm32-dfsdm-adc.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/hw-consumer.h>
-#include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
