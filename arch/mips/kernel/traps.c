@@ -716,7 +716,7 @@ asmlinkage void do_ov(struct pt_regs *regs)
 void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 		     struct task_struct *tsk)
 {
-	int si_code;
+	int si_code = FPE_FLTUNK;
 
 	if (fcr31 & FPU_CSR_INV_X)
 		si_code = FPE_FLTINV;
