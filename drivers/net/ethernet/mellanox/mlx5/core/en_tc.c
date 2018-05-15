@@ -2907,34 +2907,15 @@ static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
 		return &priv->fs.tc.ht;
 }
 
-int mlx5e_configure_flower(struct mlx5e_priv *priv,
-			   struct tc_cls_flower_offload *f, int flags)
+static int
+mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
+		 struct tc_cls_flower_offload *f, u8 flow_flags,
+		 struct mlx5e_tc_flow_parse_attr **__parse_attr,
+		 struct mlx5e_tc_flow **__flow)
 {
-	struct netlink_ext_ack *extack = f->common.extack;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
-	int attr_size, err = 0;
-	u8 flow_flags = 0;
-
-	get_flags(flags, &flow_flags);
-
-	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
-	if (flow) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "flow cookie already exists, ignoring");
-		netdev_warn_once(priv->netdev, "flow cookie %lx already exists, ignoring\n", f->cookie);
-		return 0;
-	}
-
-	if (esw && esw->mode == SRIOV_OFFLOADS) {
-		flow_flags |= MLX5E_TC_FLOW_ESWITCH;
-		attr_size  = sizeof(struct mlx5_esw_flow_attr);
-	} else {
-		flow_flags |= MLX5E_TC_FLOW_NIC;
-		attr_size  = sizeof(struct mlx5_nic_flow_attr);
-	}
+	int err;
 
 	flow = kzalloc(sizeof(*flow) + attr_size, GFP_KERNEL);
 	parse_attr = kvzalloc(sizeof(*parse_attr), GFP_KERNEL);
@@ -2948,45 +2929,155 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 	flow->priv = priv;
 
 	err = parse_cls_flower(priv, flow, &parse_attr->spec, f);
-	if (err < 0)
+	if (err)
 		goto err_free;
 
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
-		err = parse_tc_fdb_actions(priv, f->exts, parse_attr, flow,
-					   extack);
-		if (err < 0)
-			goto err_free;
-		err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
-	} else {
-		err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow,
-					   extack);
-		if (err < 0)
-			goto err_free;
-		err = mlx5e_tc_add_nic_flow(priv, parse_attr, flow, extack);
-	}
+	*__flow = flow;
+	*__parse_attr = parse_attr;
 
+	return 0;
+
+err_free:
+	kfree(flow);
+	kvfree(parse_attr);
+	return err;
+}
+
+static int
+mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
+		   struct tc_cls_flower_offload *f,
+		   u8 flow_flags,
+		   struct mlx5e_tc_flow **__flow)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5e_tc_flow *flow;
+	int attr_size, err;
+
+	flow_flags |= MLX5E_TC_FLOW_ESWITCH;
+	attr_size  = sizeof(struct mlx5_esw_flow_attr);
+	err = mlx5e_alloc_flow(priv, attr_size, f, flow_flags,
+			       &parse_attr, &flow);
+	if (err)
+		goto out;
+
+	err = parse_tc_fdb_actions(priv, f->exts, parse_attr, flow, extack);
+	if (err)
+		goto err_free;
+
+	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
 	if (err && err != -EAGAIN)
 		goto err_free;
 
-	if (err != -EAGAIN)
+	if (!err)
 		flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
 
-	if (!(flow->flags & MLX5E_TC_FLOW_ESWITCH) ||
-	    !(flow->esw_attr->action &
+	if (!(flow->esw_attr->action &
 	      MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT))
 		kvfree(parse_attr);
 
-	err = rhashtable_insert_fast(tc_ht, &flow->node, tc_ht_params);
-	if (err) {
-		mlx5e_tc_del_flow(priv, flow);
-		kfree(flow);
-	}
+	*__flow = flow;
 
-	return err;
+	return 0;
 
 err_free:
-	kvfree(parse_attr);
 	kfree(flow);
+	kvfree(parse_attr);
+out:
+	return err;
+}
+
+static int
+mlx5e_add_nic_flow(struct mlx5e_priv *priv,
+		   struct tc_cls_flower_offload *f,
+		   u8 flow_flags,
+		   struct mlx5e_tc_flow **__flow)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5e_tc_flow *flow;
+	int attr_size, err;
+
+	flow_flags |= MLX5E_TC_FLOW_NIC;
+	attr_size  = sizeof(struct mlx5_nic_flow_attr);
+	err = mlx5e_alloc_flow(priv, attr_size, f, flow_flags,
+			       &parse_attr, &flow);
+	if (err)
+		goto out;
+
+	err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow, extack);
+	if (err)
+		goto err_free;
+
+	err = mlx5e_tc_add_nic_flow(priv, parse_attr, flow, extack);
+	if (err)
+		goto err_free;
+
+	flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
+	kvfree(parse_attr);
+	*__flow = flow;
+
+	return 0;
+
+err_free:
+	kfree(flow);
+	kvfree(parse_attr);
+out:
+	return err;
+}
+
+static int
+mlx5e_tc_add_flow(struct mlx5e_priv *priv,
+		  struct tc_cls_flower_offload *f,
+		  int flags,
+		  struct mlx5e_tc_flow **flow)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	u8 flow_flags;
+	int err;
+
+	get_flags(flags, &flow_flags);
+
+	if (esw && esw->mode == SRIOV_OFFLOADS)
+		err = mlx5e_add_fdb_flow(priv, f, flow_flags, flow);
+	else
+		err = mlx5e_add_nic_flow(priv, f, flow_flags, flow);
+
+	return err;
+}
+
+int mlx5e_configure_flower(struct mlx5e_priv *priv,
+			   struct tc_cls_flower_offload *f, int flags)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct mlx5e_tc_flow *flow;
+	int err = 0;
+
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
+	if (flow) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "flow cookie already exists, ignoring");
+		netdev_warn_once(priv->netdev,
+				 "flow cookie %lx already exists, ignoring\n",
+				 f->cookie);
+		goto out;
+	}
+
+	err = mlx5e_tc_add_flow(priv, f, flags, &flow);
+	if (err)
+		goto out;
+
+	err = rhashtable_insert_fast(tc_ht, &flow->node, tc_ht_params);
+	if (err)
+		goto err_free;
+
+	return 0;
+
+err_free:
+	mlx5e_tc_del_flow(priv, flow);
+	kfree(flow);
+out:
 	return err;
 }
 
