@@ -1030,41 +1030,41 @@ void rcu_request_urgent_qs_task(struct task_struct *t)
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
 
 /*
- * Is the current CPU online?  Disable preemption to avoid false positives
- * that could otherwise happen due to the current CPU number being sampled,
- * this task being preempted, its old CPU being taken offline, resuming
- * on some other CPU, then determining that its old CPU is now offline.
- * It is OK to use RCU on an offline processor during initial boot, hence
- * the check for rcu_scheduler_fully_active.  Note also that it is OK
- * for a CPU coming online to use RCU for one jiffy prior to marking itself
- * online in the cpu_online_mask.  Similarly, it is OK for a CPU going
- * offline to continue to use RCU for one jiffy after marking itself
- * offline in the cpu_online_mask.  This leniency is necessary given the
- * non-atomic nature of the online and offline processing, for example,
- * the fact that a CPU enters the scheduler after completing the teardown
- * of the CPU.
+ * Is the current CPU online as far as RCU is concerned?
  *
- * This is also why RCU internally marks CPUs online during in the
- * preparation phase and offline after the CPU has been taken down.
+ * Disable preemption to avoid false positives that could otherwise
+ * happen due to the current CPU number being sampled, this task being
+ * preempted, its old CPU being taken offline, resuming on some other CPU,
+ * then determining that its old CPU is now offline.  Because there are
+ * multiple flavors of RCU, and because this function can be called in the
+ * midst of updating the flavors while a given CPU coming online or going
+ * offline, it is necessary to check all flavors.  If any of the flavors
+ * believe that given CPU is online, it is considered to be online.
  *
- * Disable checking if in an NMI handler because we cannot safely report
- * errors from NMI handlers anyway.
+ * Disable checking if in an NMI handler because we cannot safely
+ * report errors from NMI handlers anyway.  In addition, it is OK to use
+ * RCU on an offline processor during initial boot, hence the check for
+ * rcu_scheduler_fully_active.
  */
 bool rcu_lockdep_current_cpu_online(void)
 {
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	bool ret;
+	struct rcu_state *rsp;
 
-	if (in_nmi())
+	if (in_nmi() || !rcu_scheduler_fully_active)
 		return true;
 	preempt_disable();
-	rdp = this_cpu_ptr(&rcu_sched_data);
-	rnp = rdp->mynode;
-	ret = (rdp->grpmask & rcu_rnp_online_cpus(rnp)) ||
-	      !rcu_scheduler_fully_active;
+	for_each_rcu_flavor(rsp) {
+		rdp = this_cpu_ptr(rsp->rda);
+		rnp = rdp->mynode;
+		if (rdp->grpmask & rcu_rnp_online_cpus(rnp)) {
+			preempt_enable();
+			return true;
+		}
+	}
 	preempt_enable();
-	return ret;
+	return false;
 }
 EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
 
