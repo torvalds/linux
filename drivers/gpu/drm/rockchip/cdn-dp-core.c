@@ -820,11 +820,13 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 			goto out;
 		}
 	}
-
-	ret = cdn_dp_set_video_status(dp, CONTROL_VIDEO_IDLE);
-	if (ret) {
-		DRM_DEV_ERROR(dp->dev, "Failed to idle video %d\n", ret);
-		goto out;
+	if (dp->use_fw_training) {
+		ret = cdn_dp_set_video_status(dp, CONTROL_VIDEO_IDLE);
+		if (ret) {
+			DRM_DEV_ERROR(dp->dev,
+				      "Failed to idle video %d\n", ret);
+			goto out;
+		}
 	}
 
 	ret = cdn_dp_config_video(dp);
@@ -833,11 +835,15 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 		goto out;
 	}
 
-	ret = cdn_dp_set_video_status(dp, CONTROL_VIDEO_VALID);
-	if (ret) {
-		DRM_DEV_ERROR(dp->dev, "Failed to valid video %d\n", ret);
-		goto out;
+	if (dp->use_fw_training) {
+		ret = cdn_dp_set_video_status(dp, CONTROL_VIDEO_VALID);
+		if (ret) {
+			DRM_DEV_ERROR(dp->dev,
+				"Failed to valid video %d\n", ret);
+			goto out;
+		}
 	}
+
 out:
 	mutex_unlock(&dp->lock);
 	if (!ret) {

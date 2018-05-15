@@ -137,7 +137,7 @@
 #define HPD_EVENT_MASK			0x211c
 #define HPD_EVENT_DET			0x2120
 
-/* dpyx framer addr */
+/* dptx framer addr */
 #define DP_FRAMER_GLOBAL_CONFIG		0x2200
 #define DP_SW_RESET			0x2204
 #define DP_FRAMER_TU			0x2208
@@ -460,6 +460,40 @@
 /* Reference cycles when using lane clock as reference */
 #define LANE_REF_CYC				0xf000
 
+/* register CM_VID_CTRL */
+#define LANE_VID_REF_CYC(x)                    (((x) & (BIT(24) - 1)) << 0)
+#define NMVID_MEAS_TOLERANCE(x)                        (((x) & 0xf) << 24)
+
+/* register DP_TX_PHY_CONFIG_REG */
+#define DP_TX_PHY_TRAINING_ENABLE(x)           ((x) & 1)
+#define DP_TX_PHY_TRAINING_TYPE_PRBS7          (0 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_TPS1           (1 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_TPS2           (2 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_TPS3           (3 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_TPS4           (4 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_PLTPAT         (5 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_D10_2          (6 << 1)
+#define DP_TX_PHY_TRAINING_TYPE_HBR2CPAT       (8 << 1)
+#define DP_TX_PHY_TRAINING_PATTERN(x)          ((x) << 1)
+#define DP_TX_PHY_SCRAMBLER_BYPASS(x)          (((x) & 1) << 5)
+#define DP_TX_PHY_ENCODER_BYPASS(x)            (((x) & 1) << 6)
+#define DP_TX_PHY_SKEW_BYPASS(x)               (((x) & 1) << 7)
+#define DP_TX_PHY_DISPARITY_RST(x)             (((x) & 1) << 8)
+#define DP_TX_PHY_LANE0_SKEW(x)                (((x) & 7) << 9)
+#define DP_TX_PHY_LANE1_SKEW(x)                (((x) & 7) << 12)
+#define DP_TX_PHY_LANE2_SKEW(x)                (((x) & 7) << 15)
+#define DP_TX_PHY_LANE3_SKEW(x)                (((x) & 7) << 18)
+#define DP_TX_PHY_10BIT_ENABLE(x)              (((x) & 1) << 21)
+
+/* register DP_FRAMER_GLOBAL_CONFIG */
+#define NUM_LANES(x)           ((x) & 3)
+#define SST_MODE               (0 << 2)
+#define RG_EN                  (0 << 4)
+#define GLOBAL_EN              BIT(3)
+#define NO_VIDEO               BIT(5)
+#define ENC_RST_DIS            BIT(6)
+#define WR_VHSYNC_FALL         BIT(7)
+
 enum voltage_swing_level {
 	VOLTAGE_LEVEL_0,
 	VOLTAGE_LEVEL_1,
@@ -508,6 +542,7 @@ int cdn_dp_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip);
 int cdn_dp_event_config(struct cdn_dp_device *dp);
 u32 cdn_dp_get_event(struct cdn_dp_device *dp);
 int cdn_dp_get_hpd_status(struct cdn_dp_device *dp);
+int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val);
 ssize_t cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr,
 			  u8 *data, u16 len);
 ssize_t cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr,
@@ -526,4 +561,5 @@ int cdn_dp_hdcp_tx_configuration(struct cdn_dp_device *dp, int tx_mode,
 int cdn_dp_hdcp_tx_status_req(struct cdn_dp_device *dp, uint16_t *tx_status);
 int cdn_dp_hdcp_tx_is_receiver_id_valid_req(struct cdn_dp_device *dp);
 int cdn_dp_hdcp_tx_respond_id_valid(struct cdn_dp_device *dp, bool valid);
+int cdn_dp_software_train_link(struct cdn_dp_device *dp);
 #endif /* _CDN_DP_REG_H */
