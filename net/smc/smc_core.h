@@ -105,6 +105,8 @@ struct smc_link {
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
+	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
+	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol

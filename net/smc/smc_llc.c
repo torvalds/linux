@@ -214,6 +214,31 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	return rc;
 }
 
+/* send LLC confirm rkey request */
+static int smc_llc_send_confirm_rkey(struct smc_link *link,
+				     struct smc_buf_desc *rmb_desc)
+{
+	struct smc_llc_msg_confirm_rkey *rkeyllc;
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	int rc;
+
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	rkeyllc = (struct smc_llc_msg_confirm_rkey *)wr_buf;
+	memset(rkeyllc, 0, sizeof(*rkeyllc));
+	rkeyllc->hd.common.type = SMC_LLC_CONFIRM_RKEY;
+	rkeyllc->hd.length = sizeof(struct smc_llc_msg_confirm_rkey);
+	rkeyllc->rtoken[0].rmb_key =
+		htonl(rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
+	rkeyllc->rtoken[0].rmb_vaddr = cpu_to_be64(
+		(u64)sg_dma_address(rmb_desc->sgt[SMC_SINGLE_LINK].sgl));
+	/* send llc message */
+	rc = smc_wr_tx_send(link, pend);
+	return rc;
+}
+
 /* send ADD LINK request or response */
 int smc_llc_send_add_link(struct smc_link *link, u8 mac[],
 			  union ib_gid *gid,
@@ -413,7 +438,9 @@ static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
-		/* unused as long as we don't send this type of msg */
+		link->llc_confirm_rkey_rc = llc->hd.flags &
+					    SMC_LLC_FLAG_RKEY_NEG;
+		complete(&link->llc_confirm_rkey);
 	} else {
 		rc = smc_rtoken_add(lgr,
 				    llc->rtoken[0].rmb_vaddr,
@@ -503,7 +530,7 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 	}
 }
 
-/***************************** worker ****************************************/
+/***************************** worker, utils *********************************/
 
 static void smc_llc_testlink_work(struct work_struct *work)
 {
@@ -560,6 +587,22 @@ void smc_llc_link_inactive(struct smc_link *link)
 void smc_llc_link_flush(struct smc_link *link)
 {
 	cancel_delayed_work_sync(&link->llc_testlink_wrk);
+}
+
+/* register a new rtoken at the remote peer */
+int smc_llc_do_confirm_rkey(struct smc_link *link,
+			    struct smc_buf_desc *rmb_desc)
+{
+	int rc;
+
+	reinit_completion(&link->llc_confirm_rkey);
+	smc_llc_send_confirm_rkey(link, rmb_desc);
+	/* receive CONFIRM RKEY response from server over RoCE fabric */
+	rc = wait_for_completion_interruptible_timeout(&link->llc_confirm_rkey,
+						       SMC_LLC_WAIT_TIME);
+	if (rc <= 0 || link->llc_confirm_rkey_rc)
+		return -EFAULT;
+	return 0;
 }
 
 /***************************** init, exit, misc ******************************/

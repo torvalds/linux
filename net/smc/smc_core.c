@@ -210,6 +210,7 @@ static int smc_lgr_create(struct smc_sock *smc,
 	init_completion(&lnk->llc_confirm_resp);
 	init_completion(&lnk->llc_add);
 	init_completion(&lnk->llc_add_resp);
+	init_completion(&lnk->llc_confirm_rkey);
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);
