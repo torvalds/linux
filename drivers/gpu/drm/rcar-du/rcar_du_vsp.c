@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include <linux/bitops.h>
@@ -237,6 +238,10 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
+	ret = drm_gem_fb_prepare_fb(plane, state);
+	if (ret)
+		goto fail;
+
 	return 0;
 
 fail:
@@ -299,18 +304,17 @@ static const struct drm_plane_helper_funcs rcar_du_vsp_plane_helper_funcs = {
 static struct drm_plane_state *
 rcar_du_vsp_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
-	struct rcar_du_vsp_plane_state *state;
 	struct rcar_du_vsp_plane_state *copy;
 
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	state = to_rcar_vsp_plane_state(plane->state);
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
 	if (copy == NULL)
 		return NULL;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
+	copy->alpha = to_rcar_vsp_plane_state(plane->state)->alpha;
 
 	return &copy->state;
 }
