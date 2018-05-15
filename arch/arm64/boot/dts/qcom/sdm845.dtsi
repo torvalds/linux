@@ -31,6 +31,12 @@
 			no-map;
 		};
 
+		memory@85fe0000 {
+			compatible = "qcom,cmd-db";
+			reg = <0x0 0x85fe0000 0x0 0x20000>;
+			no-map;
+		};
+
 		smem_mem: memory@86000000 {
 			reg = <0x0 0x86000000 0x0 0x200000>;
 			no-map;
@@ -38,12 +44,6 @@
 
 		memory@86200000 {
 			reg = <0 0x86200000 0 0x2d00000>;
-			no-map;
-		};
-
-		memory@85fe0000 {
-			compatible = "qcom,cmd-db";
-			reg = <0x0 0x85fe0000 0x0 0x20000>;
 			no-map;
 		};
 	};
