@@ -11,7 +11,7 @@
 
 struct of_device_id;
 
-#ifdef CONFIG_DRM_RCAR_LVDS
+#if IS_ENABLED(CONFIG_DRM_RCAR_LVDS)
 void __init rcar_du_of_init(const struct of_device_id *of_ids);
 #else
 static inline void rcar_du_of_init(const struct of_device_id *of_ids) { }
