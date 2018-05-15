@@ -13,6 +13,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "vexpress-v2m-rs1.dtsi"
 
 / {
 	model = "V2F-1XV7 Cortex-A53x2 SMM";
@@ -129,7 +130,7 @@
 		};
 	};
 
-	smb@8000000 {
+	smb: smb@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -186,7 +187,5 @@
 				<0 0 40 &gic GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 41 &gic GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 42 &gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-
-		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 };
