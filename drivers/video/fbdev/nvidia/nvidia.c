@@ -1548,7 +1548,7 @@ MODULE_PARM_DESC(noaccel,
 		 "(default=0)");
 module_param(noscale, int, 0);
 MODULE_PARM_DESC(noscale,
-		 "Disables screen scaleing. (0 or 1=disable) "
+		 "Disables screen scaling. (0 or 1=disable) "
 		 "(default=0, do scaling)");
 module_param(paneltweak, int, 0);
 MODULE_PARM_DESC(paneltweak,
