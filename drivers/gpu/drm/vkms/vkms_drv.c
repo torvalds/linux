@@ -40,7 +40,7 @@ static void vkms_release(struct drm_device *dev)
 	drm_dev_fini(&vkms->drm);
 }
 
-struct drm_driver vkms_driver = {
+static struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
