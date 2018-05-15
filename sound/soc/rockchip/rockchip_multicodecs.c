@@ -124,6 +124,11 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
+	/* Parse the card name from DT */
+	ret = snd_soc_of_parse_card_name(card, "rockchip,card-name");
+	if (ret < 0)
+		return ret;
+
 	mc_data = devm_kzalloc(&pdev->dev, sizeof(*mc_data), GFP_KERNEL);
 	if (!mc_data)
 		return -ENOMEM;
