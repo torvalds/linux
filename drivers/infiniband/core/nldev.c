@@ -535,9 +535,6 @@ static int fill_res_mr_entry(struct sk_buff *msg, struct netlink_callback *cb,
 			goto err;
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LKEY, mr->lkey))
 			goto err;
-		if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_IOVA,
-				      mr->iova, RDMA_NLDEV_ATTR_PAD))
-			goto err;
 	}
 
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_MRLEN, mr->length,
