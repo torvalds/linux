@@ -86,7 +86,10 @@ struct meson_clk_mpll_data {
 	struct parm ssen;
 	struct parm misc;
 	spinlock_t *lock;
+	u8 flags;
 };
+
+#define CLK_MESON_MPLL_ROUND_CLOSEST	BIT(0)
 
 struct meson_clk_audio_div_data {
 	struct parm div;

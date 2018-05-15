@@ -39,10 +39,23 @@ static long rate_from_params(unsigned long parent_rate,
 static void params_from_rate(unsigned long requested_rate,
 			     unsigned long parent_rate,
 			     unsigned int *sdm,
-			     unsigned int *n2)
+			     unsigned int *n2,
+			     u8 flags)
 {
 	uint64_t div = parent_rate;
-	unsigned long rem = do_div(div, requested_rate);
+	uint64_t frac = do_div(div, requested_rate);
+
+	frac *= SDM_DEN;
+
+	if (flags & CLK_MESON_MPLL_ROUND_CLOSEST)
+		*sdm = DIV_ROUND_CLOSEST_ULL(frac, requested_rate);
+	else
+		*sdm = DIV_ROUND_UP_ULL(frac, requested_rate);
+
+	if (*sdm == SDM_DEN) {
+		*sdm = 0;
+		div += 1;
+	}
 
 	if (div < N2_MIN) {
 		*n2 = N2_MIN;
@@ -52,7 +65,6 @@ static void params_from_rate(unsigned long requested_rate,
 		*sdm = SDM_DEN - 1;
 	} else {
 		*n2 = div;
-		*sdm = DIV_ROUND_UP_ULL((u64)rem * SDM_DEN, requested_rate);
 	}
 }
 
@@ -75,9 +87,11 @@ static long mpll_round_rate(struct clk_hw *hw,
 			    unsigned long rate,
 			    unsigned long *parent_rate)
 {
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
 	unsigned int sdm, n2;
 
-	params_from_rate(rate, *parent_rate, &sdm, &n2);
+	params_from_rate(rate, *parent_rate, &sdm, &n2, mpll->flags);
 	return rate_from_params(*parent_rate, sdm, n2);
 }
 
@@ -90,7 +104,7 @@ static int mpll_set_rate(struct clk_hw *hw,
 	unsigned int sdm, n2;
 	unsigned long flags = 0;
 
-	params_from_rate(rate, parent_rate, &sdm, &n2);
+	params_from_rate(rate, parent_rate, &sdm, &n2, mpll->flags);
 
 	if (mpll->lock)
 		spin_lock_irqsave(mpll->lock, flags);
