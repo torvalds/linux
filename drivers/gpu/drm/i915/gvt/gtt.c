@@ -907,13 +907,20 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt_gfn(
 	     i += (spt->shadow_page.pde_ips ? GTT_64K_PTE_STRIDE : 1)) \
 		if (!ppgtt_get_shadow_entry(spt, e, i))
 
-static void ppgtt_get_spt(struct intel_vgpu_ppgtt_spt *spt)
+static inline void ppgtt_get_spt(struct intel_vgpu_ppgtt_spt *spt)
 {
 	int v = atomic_read(&spt->refcount);
 
 	trace_spt_refcount(spt->vgpu->id, "inc", spt, v, (v + 1));
-
 	atomic_inc(&spt->refcount);
+}
+
+static inline int ppgtt_put_spt(struct intel_vgpu_ppgtt_spt *spt)
+{
+	int v = atomic_read(&spt->refcount);
+
+	trace_spt_refcount(spt->vgpu->id, "dec", spt, v, (v - 1));
+	return atomic_dec_return(&spt->refcount);
 }
 
 static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt);
@@ -967,14 +974,11 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 	struct intel_gvt_gtt_entry e;
 	unsigned long index;
 	int ret;
-	int v = atomic_read(&spt->refcount);
 
 	trace_spt_change(spt->vgpu->id, "die", spt,
 			spt->guest_page.gfn, spt->shadow_page.type);
 
-	trace_spt_refcount(spt->vgpu->id, "dec", spt, v, (v - 1));
-
-	if (atomic_dec_return(&spt->refcount) > 0)
+	if (ppgtt_put_spt(spt) > 0)
 		return 0;
 
 	for_each_present_shadow_entry(spt, &e, index) {
@@ -1058,8 +1062,10 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 			gvt_dbg_mm("reshadow PDE since ips changed\n");
 			clear_page(spt->shadow_page.vaddr);
 			ret = ppgtt_populate_spt(spt);
-			if (ret)
-				goto fail;
+			if (ret) {
+				ppgtt_put_spt(spt);
+				goto err;
+			}
 		}
 	} else {
 		int type = get_next_pt_type(we->type);
@@ -1067,22 +1073,25 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
 			ret = PTR_ERR(spt);
-			goto fail;
+			goto err;
 		}
 
 		ret = intel_vgpu_enable_page_track(vgpu, spt->guest_page.gfn);
 		if (ret)
-			goto fail;
+			goto err_free_spt;
 
 		ret = ppgtt_populate_spt(spt);
 		if (ret)
-			goto fail;
+			goto err_free_spt;
 
 		trace_spt_change(vgpu->id, "new", spt, spt->guest_page.gfn,
 				 spt->shadow_page.type);
 	}
 	return spt;
-fail:
+
+err_free_spt:
+	ppgtt_free_spt(spt);
+err:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
 		     spt, we->val64, we->type);
 	return ERR_PTR(ret);
