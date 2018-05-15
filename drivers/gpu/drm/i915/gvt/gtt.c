@@ -1045,14 +1045,24 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 
 	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(we->type)));
 
-	spt = intel_vgpu_find_spt_by_gfn(vgpu, ops->get_pfn(we));
-	if (spt)
-		ppgtt_get_spt(spt);
-	else {
-		int type = get_next_pt_type(we->type);
+	if (we->type == GTT_TYPE_PPGTT_PDE_ENTRY)
+		ips = vgpu_ips_enabled(vgpu) && ops->test_ips(we);
 
-		if (we->type == GTT_TYPE_PPGTT_PDE_ENTRY)
-			ips = vgpu_ips_enabled(vgpu) && ops->test_ips(we);
+	spt = intel_vgpu_find_spt_by_gfn(vgpu, ops->get_pfn(we));
+	if (spt) {
+		ppgtt_get_spt(spt);
+
+		if (ips != spt->guest_page.pde_ips) {
+			spt->guest_page.pde_ips = ips;
+
+			gvt_dbg_mm("reshadow PDE since ips changed\n");
+			clear_page(spt->shadow_page.vaddr);
+			ret = ppgtt_populate_spt(spt);
+			if (ret)
+				goto fail;
+		}
+	} else {
+		int type = get_next_pt_type(we->type);
 
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
