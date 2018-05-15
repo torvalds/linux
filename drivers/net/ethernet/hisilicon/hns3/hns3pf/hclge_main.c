@@ -5425,6 +5425,7 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
+	pcim_iounmap(pdev, hdev->hw.io_base);
 	pci_free_irq_vectors(pdev);
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
@@ -5589,6 +5590,7 @@ err_msi_uninit:
 err_cmd_uninit:
 	hclge_destroy_cmd_queue(&hdev->hw);
 err_pci_uninit:
+	pcim_iounmap(pdev, hdev->hw.io_base);
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
