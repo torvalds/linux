@@ -210,6 +210,31 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int gamw_echo_dev_rw_ia_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 ips = (*(u32 *)p_data) & GAMW_ECO_ENABLE_64K_IPS_FIELD;
+
+	if (INTEL_GEN(vgpu->gvt->dev_priv) <= 10) {
+		if (ips == GAMW_ECO_ENABLE_64K_IPS_FIELD)
+			gvt_dbg_core("vgpu%d: ips enabled\n", vgpu->id);
+		else if (!ips)
+			gvt_dbg_core("vgpu%d: ips disabled\n", vgpu->id);
+		else {
+			/* All engines must be enabled together for vGPU,
+			 * since we don't know which engine the ppgtt will
+			 * bind to when shadowing.
+			 */
+			gvt_vgpu_err("Unsupported IPS setting %x, cannot enable 64K gtt.\n",
+				     ips);
+			return -EINVAL;
+		}
+	}
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	return 0;
+}
+
 static int fence_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 		void *p_data, unsigned int bytes)
 {
@@ -1769,7 +1794,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_RING_DFH(RING_HWSTAM, D_ALL, F_CMD_ACCESS, NULL, NULL);
 
-	MMIO_GM_RDR(RENDER_HWS_PGA_GEN7, D_ALL, NULL, NULL);
+	MMIO_DH(GEN8_GAMW_ECO_DEV_RW_IA, D_BDW_PLUS, NULL,
+		gamw_echo_dev_rw_ia_write);
+
 	MMIO_GM_RDR(BSD_HWS_PGA_GEN7, D_ALL, NULL, NULL);
 	MMIO_GM_RDR(BLT_HWS_PGA_GEN7, D_ALL, NULL, NULL);
 	MMIO_GM_RDR(VEBOX_HWS_PGA_GEN7, D_ALL, NULL, NULL);
