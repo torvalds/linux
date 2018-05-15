@@ -1576,9 +1576,7 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
 	pci_set_drvdata(pdev, ae_dev);
 
-	ret = hnae3_register_ae_dev(ae_dev);
-	if (ret)
-		return ret;
+	hnae3_register_ae_dev(ae_dev);
 
 	if (hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))
 		hns3_enable_sriov(pdev);
