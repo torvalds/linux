@@ -296,9 +296,8 @@ int smc_llc_send_delete_link(struct smc_link *link,
 	return rc;
 }
 
-/* send LLC test link request or response */
-int smc_llc_send_test_link(struct smc_link *link, u8 user_data[16],
-			   enum smc_llc_reqresp reqresp)
+/* send LLC test link request */
+static int smc_llc_send_test_link(struct smc_link *link, u8 user_data[16])
 {
 	struct smc_llc_msg_test_link *testllc;
 	struct smc_wr_tx_pend_priv *pend;
@@ -312,8 +311,6 @@ int smc_llc_send_test_link(struct smc_link *link, u8 user_data[16],
 	memset(testllc, 0, sizeof(*testllc));
 	testllc->hd.common.type = SMC_LLC_TEST_LINK;
 	testllc->hd.length = sizeof(struct smc_llc_msg_test_link);
-	if (reqresp == SMC_LLC_RESP)
-		testllc->hd.flags |= SMC_LLC_FLAG_RESP;
 	memcpy(testllc->user_data, user_data, sizeof(testllc->user_data));
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
@@ -425,7 +422,8 @@ static void smc_llc_rx_test_link(struct smc_link *link,
 		if (link->state == SMC_LNK_ACTIVE)
 			complete(&link->llc_testlink_resp);
 	} else {
-		smc_llc_send_test_link(link, llc->user_data, SMC_LLC_RESP);
+		llc->hd.flags |= SMC_LLC_FLAG_RESP;
+		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
 }
 
@@ -551,7 +549,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 		goto out;
 	}
 	reinit_completion(&link->llc_testlink_resp);
-	smc_llc_send_test_link(link, user_data, SMC_LLC_REQ);
+	smc_llc_send_test_link(link, user_data);
 	/* receive TEST LINK response over RoCE fabric */
 	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
 						       SMC_LLC_WAIT_TIME);

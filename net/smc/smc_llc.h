@@ -42,8 +42,6 @@ int smc_llc_send_add_link(struct smc_link *link, u8 mac[], union ib_gid *gid,
 			  enum smc_llc_reqresp reqresp);
 int smc_llc_send_delete_link(struct smc_link *link,
 			     enum smc_llc_reqresp reqresp);
-int smc_llc_send_test_link(struct smc_link *lnk, u8 user_data[16],
-			   enum smc_llc_reqresp reqresp);
 void smc_llc_link_active(struct smc_link *link, int testlink_time);
 void smc_llc_link_inactive(struct smc_link *link);
 void smc_llc_link_flush(struct smc_link *link);
