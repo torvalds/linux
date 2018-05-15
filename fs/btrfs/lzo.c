@@ -295,6 +295,7 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	unsigned long working_bytes;
 	size_t in_len;
 	size_t out_len;
+	const size_t max_segment_len = lzo1x_worst_compress(PAGE_SIZE);
 	unsigned long in_offset;
 	unsigned long in_page_bytes_left;
 	unsigned long tot_in;
@@ -308,10 +309,22 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	data_in = kmap(pages_in[0]);
 	tot_len = read_compress_length(data_in);
+	/*
+	 * Compressed data header check.
+	 *
+	 * The real compressed size can't exceed the maximum extent length, and
+	 * all pages should be used (whole unused page with just the segment
+	 * header is not possible).  If this happens it means the compressed
+	 * extent is corrupted.
+	 */
+	if (tot_len > min_t(size_t, BTRFS_MAX_COMPRESSED, srclen) ||
+	    tot_len < srclen - PAGE_SIZE) {
+		ret = -EUCLEAN;
+		goto done;
+	}
 
 	tot_in = LZO_LEN;
 	in_offset = LZO_LEN;
-	tot_len = min_t(size_t, srclen, tot_len);
 	in_page_bytes_left = PAGE_SIZE - LZO_LEN;
 
 	tot_out = 0;
@@ -321,6 +334,17 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		in_page_bytes_left -= LZO_LEN;
 		in_offset += LZO_LEN;
 		tot_in += LZO_LEN;
+
+		/*
+		 * Segment header check.
+		 *
+		 * The segment length must not exceed the maximum LZO
+		 * compression size, nor the total compressed size.
+		 */
+		if (in_len > max_segment_len || tot_in + in_len > tot_len) {
+			ret = -EUCLEAN;
+			goto done;
+		}
 
 		tot_in += in_len;
 		working_bytes = in_len;
@@ -372,7 +396,7 @@ cont:
 			}
 		}
 
-		out_len = lzo1x_worst_compress(PAGE_SIZE);
+		out_len = max_segment_len;
 		ret = lzo1x_decompress_safe(buf, in_len, workspace->buf,
 					    &out_len);
 		if (need_unmap)
