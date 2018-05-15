@@ -601,14 +601,14 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 
 /*
  * Transmit DATA chunks on the retransmit queue.  Upon return from
- * sctp_outq_flush_rtx() the packet 'pkt' may contain chunks which
+ * __sctp_outq_flush_rtx() the packet 'pkt' may contain chunks which
  * need to be transmitted by the caller.
  * We assume that pkt->transport has already been set.
  *
  * The return value is a normal kernel error return value.
  */
-static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
-			       int rtx_timeout, int *start_timer)
+static int __sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
+				 int rtx_timeout, int *start_timer, gfp_t gfp)
 {
 	struct sctp_transport *transport = pkt->transport;
 	struct sctp_chunk *chunk, *chunk1;
@@ -684,12 +684,12 @@ redo:
 				 * control chunks are already freed so there
 				 * is nothing we can do.
 				 */
-				sctp_packet_transmit(pkt, GFP_ATOMIC);
+				sctp_packet_transmit(pkt, gfp);
 				goto redo;
 			}
 
 			/* Send this packet.  */
-			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
+			error = sctp_packet_transmit(pkt, gfp);
 
 			/* If we are retransmitting, we should only
 			 * send a single packet.
@@ -705,7 +705,7 @@ redo:
 
 		case SCTP_XMIT_RWND_FULL:
 			/* Send this packet. */
-			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
+			error = sctp_packet_transmit(pkt, gfp);
 
 			/* Stop sending DATA as there is no more room
 			 * at the receiver.
@@ -715,7 +715,7 @@ redo:
 
 		case SCTP_XMIT_DELAY:
 			/* Send this packet. */
-			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
+			error = sctp_packet_transmit(pkt, gfp);
 
 			/* Stop sending DATA because of nagle delay. */
 			done = 1;
@@ -776,66 +776,32 @@ void sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
 	sctp_outq_flush(q, 0, gfp);
 }
 
-
-/*
- * Try to flush an outqueue.
- *
- * Description: Send everything in q which we legally can, subject to
- * congestion limitations.
- * * Note: This function can be called from multiple contexts so appropriate
- * locking concerns must be made.  Today we use the sock lock to protect
- * this function.
- */
-static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
+static int sctp_packet_singleton(struct sctp_transport *transport,
+				 struct sctp_chunk *chunk, gfp_t gfp)
 {
-	struct sctp_packet *packet;
+	const struct sctp_association *asoc = transport->asoc;
+	const __u16 sport = asoc->base.bind_addr.port;
+	const __u16 dport = asoc->peer.port;
+	const __u32 vtag = asoc->peer.i.init_tag;
 	struct sctp_packet singleton;
-	struct sctp_association *asoc = q->asoc;
-	__u16 sport = asoc->base.bind_addr.port;
-	__u16 dport = asoc->peer.port;
-	__u32 vtag = asoc->peer.i.init_tag;
-	struct sctp_transport *transport = NULL;
-	struct sctp_transport *new_transport;
-	struct sctp_chunk *chunk, *tmp;
-	enum sctp_xmit status;
-	int error = 0;
-	int start_timer = 0;
-	int one_packet = 0;
 
-	/* These transports have chunks to send. */
-	struct list_head transport_list;
-	struct list_head *ltransport;
+	sctp_packet_init(&singleton, transport, sport, dport);
+	sctp_packet_config(&singleton, vtag, 0);
+	sctp_packet_append_chunk(&singleton, chunk);
+	return sctp_packet_transmit(&singleton, gfp);
+}
 
-	INIT_LIST_HEAD(&transport_list);
-	packet = NULL;
+static bool sctp_outq_select_transport(struct sctp_chunk *chunk,
+				       struct sctp_association *asoc,
+				       struct sctp_transport **transport,
+				       struct list_head *transport_list)
+{
+	struct sctp_transport *new_transport = chunk->transport;
+	struct sctp_transport *curr = *transport;
+	bool changed = false;
 
-	/*
-	 * 6.10 Bundling
-	 *   ...
-	 *   When bundling control chunks with DATA chunks, an
-	 *   endpoint MUST place control chunks first in the outbound
-	 *   SCTP packet.  The transmitter MUST transmit DATA chunks
-	 *   within a SCTP packet in increasing order of TSN.
-	 *   ...
-	 */
-
-	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
-		/* RFC 5061, 5.3
-		 * F1) This means that until such time as the ASCONF
-		 * containing the add is acknowledged, the sender MUST
-		 * NOT use the new IP address as a source for ANY SCTP
-		 * packet except on carrying an ASCONF Chunk.
-		 */
-		if (asoc->src_out_of_asoc_ok &&
-		    chunk->chunk_hdr->type != SCTP_CID_ASCONF)
-			continue;
-
-		list_del_init(&chunk->list);
-
-		/* Pick the right transport to use. */
-		new_transport = chunk->transport;
-
-		if (!new_transport) {
+	if (!new_transport) {
+		if (!sctp_chunk_is_data(chunk)) {
 			/*
 			 * If we have a prior transport pointer, see if
 			 * the destination address of the chunk
@@ -846,22 +812,26 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			 * after processing ASCONFs, we may have new
 			 * transports created.
 			 */
-			if (transport &&
-			    sctp_cmp_addr_exact(&chunk->dest,
-						&transport->ipaddr))
-					new_transport = transport;
+			if (curr && sctp_cmp_addr_exact(&chunk->dest,
+							&curr->ipaddr))
+				new_transport = curr;
 			else
 				new_transport = sctp_assoc_lookup_paddr(asoc,
-								&chunk->dest);
+								  &chunk->dest);
+		}
 
-			/* if we still don't have a new transport, then
-			 * use the current active path.
-			 */
-			if (!new_transport)
-				new_transport = asoc->peer.active_path;
-		} else if ((new_transport->state == SCTP_INACTIVE) ||
-			   (new_transport->state == SCTP_UNCONFIRMED) ||
-			   (new_transport->state == SCTP_PF)) {
+		/* if we still don't have a new transport, then
+		 * use the current active path.
+		 */
+		if (!new_transport)
+			new_transport = asoc->peer.active_path;
+	} else {
+		__u8 type;
+
+		switch (new_transport->state) {
+		case SCTP_INACTIVE:
+		case SCTP_UNCONFIRMED:
+		case SCTP_PF:
 			/* If the chunk is Heartbeat or Heartbeat Ack,
 			 * send it to chunk->transport, even if it's
 			 * inactive.
@@ -875,24 +845,70 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			 *
 			 * ASCONF_ACKs also must be sent to the source.
 			 */
-			if (chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT &&
-			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK &&
-			    chunk->chunk_hdr->type != SCTP_CID_ASCONF_ACK)
+			type = chunk->chunk_hdr->type;
+			if (type != SCTP_CID_HEARTBEAT &&
+			    type != SCTP_CID_HEARTBEAT_ACK &&
+			    type != SCTP_CID_ASCONF_ACK)
 				new_transport = asoc->peer.active_path;
+			break;
+		default:
+			break;
 		}
+	}
 
-		/* Are we switching transports?
-		 * Take care of transport locks.
+	/* Are we switching transports? Take care of transport locks. */
+	if (new_transport != curr) {
+		changed = true;
+		curr = new_transport;
+		*transport = curr;
+		if (list_empty(&curr->send_ready))
+			list_add_tail(&curr->send_ready, transport_list);
+
+		sctp_packet_config(&curr->packet, asoc->peer.i.init_tag,
+				   asoc->peer.ecn_capable);
+		/* We've switched transports, so apply the
+		 * Burst limit to the new transport.
 		 */
-		if (new_transport != transport) {
-			transport = new_transport;
-			if (list_empty(&transport->send_ready)) {
-				list_add_tail(&transport->send_ready,
-					      &transport_list);
-			}
+		sctp_transport_burst_limited(curr);
+	}
+
+	return changed;
+}
+
+static void sctp_outq_flush_ctrl(struct sctp_outq *q,
+				 struct sctp_transport **_transport,
+				 struct list_head *transport_list,
+				 gfp_t gfp)
+{
+	struct sctp_transport *transport = *_transport;
+	struct sctp_association *asoc = q->asoc;
+	struct sctp_packet *packet = NULL;
+	struct sctp_chunk *chunk, *tmp;
+	enum sctp_xmit status;
+	int one_packet, error;
+
+	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		one_packet = 0;
+
+		/* RFC 5061, 5.3
+		 * F1) This means that until such time as the ASCONF
+		 * containing the add is acknowledged, the sender MUST
+		 * NOT use the new IP address as a source for ANY SCTP
+		 * packet except on carrying an ASCONF Chunk.
+		 */
+		if (asoc->src_out_of_asoc_ok &&
+		    chunk->chunk_hdr->type != SCTP_CID_ASCONF)
+			continue;
+
+		list_del_init(&chunk->list);
+
+		/* Pick the right transport to use. Should always be true for
+		 * the first chunk as we don't have a transport by then.
+		 */
+		if (sctp_outq_select_transport(chunk, asoc, _transport,
+					       transport_list)) {
+			transport = *_transport;
 			packet = &transport->packet;
-			sctp_packet_config(packet, vtag,
-					   asoc->peer.ecn_capable);
 		}
 
 		switch (chunk->chunk_hdr->type) {
@@ -905,10 +921,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_INIT:
 		case SCTP_CID_INIT_ACK:
 		case SCTP_CID_SHUTDOWN_COMPLETE:
-			sctp_packet_init(&singleton, transport, sport, dport);
-			sctp_packet_config(&singleton, vtag, 0);
-			sctp_packet_append_chunk(&singleton, chunk);
-			error = sctp_packet_transmit(&singleton, gfp);
+			error = sctp_packet_singleton(transport, chunk, gfp);
 			if (error < 0) {
 				asoc->base.sk->sk_err = -error;
 				return;
@@ -919,6 +932,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			if (sctp_test_T_bit(chunk))
 				packet->vtag = asoc->c.my_vtag;
 			/* fallthru */
+
 		/* The following chunks are "response" chunks, i.e.
 		 * they are generated in response to something we
 		 * received.  If we are sending these, then we can
@@ -944,7 +958,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_RECONF:
 			status = sctp_packet_transmit_chunk(packet, chunk,
 							    one_packet, gfp);
-			if (status  != SCTP_XMIT_OK) {
+			if (status != SCTP_XMIT_OK) {
 				/* put the chunk back */
 				list_add(&chunk->list, &q->control_chunk_list);
 				break;
@@ -971,9 +985,71 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			BUG();
 		}
 	}
+}
 
-	if (q->asoc->src_out_of_asoc_ok)
-		goto sctp_flush_out;
+/* Returns false if new data shouldn't be sent */
+static bool sctp_outq_flush_rtx(struct sctp_outq *q,
+				struct sctp_transport **_transport,
+				struct list_head *transport_list,
+				int rtx_timeout, gfp_t gfp)
+{
+	struct sctp_transport *transport = *_transport;
+	struct sctp_packet *packet = transport ? &transport->packet : NULL;
+	struct sctp_association *asoc = q->asoc;
+	int error, start_timer = 0;
+
+	if (asoc->peer.retran_path->state == SCTP_UNCONFIRMED)
+		return false;
+
+	if (transport != asoc->peer.retran_path) {
+		/* Switch transports & prepare the packet.  */
+		transport = asoc->peer.retran_path;
+		*_transport = transport;
+
+		if (list_empty(&transport->send_ready))
+			list_add_tail(&transport->send_ready,
+				      transport_list);
+
+		packet = &transport->packet;
+		sctp_packet_config(packet, asoc->peer.i.init_tag,
+				   asoc->peer.ecn_capable);
+	}
+
+	error = __sctp_outq_flush_rtx(q, packet, rtx_timeout, &start_timer,
+				      gfp);
+	if (error < 0)
+		asoc->base.sk->sk_err = -error;
+
+	if (start_timer) {
+		sctp_transport_reset_t3_rtx(transport);
+		transport->last_time_sent = jiffies;
+	}
+
+	/* This can happen on COOKIE-ECHO resend.  Only
+	 * one chunk can get bundled with a COOKIE-ECHO.
+	 */
+	if (packet->has_cookie_echo)
+		return false;
+
+	/* Don't send new data if there is still data
+	 * waiting to retransmit.
+	 */
+	if (!list_empty(&q->retransmit))
+		return false;
+
+	return true;
+}
+
+static void sctp_outq_flush_data(struct sctp_outq *q,
+				 struct sctp_transport **_transport,
+				 struct list_head *transport_list,
+				 int rtx_timeout, gfp_t gfp)
+{
+	struct sctp_transport *transport = *_transport;
+	struct sctp_packet *packet = transport ? &transport->packet : NULL;
+	struct sctp_association *asoc = q->asoc;
+	struct sctp_chunk *chunk;
+	enum sctp_xmit status;
 
 	/* Is it OK to send data chunks?  */
 	switch (asoc->state) {
@@ -982,226 +1058,179 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		 * chunk.
 		 */
 		if (!packet || !packet->has_cookie_echo)
-			break;
+			return;
 
 		/* fallthru */
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
 	case SCTP_STATE_SHUTDOWN_RECEIVED:
-		/*
-		 * RFC 2960 6.1  Transmission of DATA Chunks
-		 *
-		 * C) When the time comes for the sender to transmit,
-		 * before sending new DATA chunks, the sender MUST
-		 * first transmit any outstanding DATA chunks which
-		 * are marked for retransmission (limited by the
-		 * current cwnd).
-		 */
-		if (!list_empty(&q->retransmit)) {
-			if (asoc->peer.retran_path->state == SCTP_UNCONFIRMED)
-				goto sctp_flush_out;
-			if (transport == asoc->peer.retran_path)
-				goto retran;
-
-			/* Switch transports & prepare the packet.  */
-
-			transport = asoc->peer.retran_path;
-
-			if (list_empty(&transport->send_ready)) {
-				list_add_tail(&transport->send_ready,
-					      &transport_list);
-			}
-
-			packet = &transport->packet;
-			sctp_packet_config(packet, vtag,
-					   asoc->peer.ecn_capable);
-		retran:
-			error = sctp_outq_flush_rtx(q, packet,
-						    rtx_timeout, &start_timer);
-			if (error < 0)
-				asoc->base.sk->sk_err = -error;
-
-			if (start_timer) {
-				sctp_transport_reset_t3_rtx(transport);
-				transport->last_time_sent = jiffies;
-			}
-
-			/* This can happen on COOKIE-ECHO resend.  Only
-			 * one chunk can get bundled with a COOKIE-ECHO.
-			 */
-			if (packet->has_cookie_echo)
-				goto sctp_flush_out;
-
-			/* Don't send new data if there is still data
-			 * waiting to retransmit.
-			 */
-			if (!list_empty(&q->retransmit))
-				goto sctp_flush_out;
-		}
-
-		/* Apply Max.Burst limitation to the current transport in
-		 * case it will be used for new data.  We are going to
-		 * rest it before we return, but we want to apply the limit
-		 * to the currently queued data.
-		 */
-		if (transport)
-			sctp_transport_burst_limited(transport);
-
-		/* Finally, transmit new packets.  */
-		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
-			__u32 sid = ntohs(chunk->subh.data_hdr->stream);
-
-			/* Has this chunk expired? */
-			if (sctp_chunk_abandoned(chunk)) {
-				sctp_sched_dequeue_done(q, chunk);
-				sctp_chunk_fail(chunk, 0);
-				sctp_chunk_free(chunk);
-				continue;
-			}
-
-			if (asoc->stream.out[sid].state == SCTP_STREAM_CLOSED) {
-				sctp_outq_head_data(q, chunk);
-				goto sctp_flush_out;
-			}
-
-			/* If there is a specified transport, use it.
-			 * Otherwise, we want to use the active path.
-			 */
-			new_transport = chunk->transport;
-			if (!new_transport ||
-			    ((new_transport->state == SCTP_INACTIVE) ||
-			     (new_transport->state == SCTP_UNCONFIRMED) ||
-			     (new_transport->state == SCTP_PF)))
-				new_transport = asoc->peer.active_path;
-			if (new_transport->state == SCTP_UNCONFIRMED) {
-				WARN_ONCE(1, "Attempt to send packet on unconfirmed path.");
-				sctp_sched_dequeue_done(q, chunk);
-				sctp_chunk_fail(chunk, 0);
-				sctp_chunk_free(chunk);
-				continue;
-			}
-
-			/* Change packets if necessary.  */
-			if (new_transport != transport) {
-				transport = new_transport;
-
-				/* Schedule to have this transport's
-				 * packet flushed.
-				 */
-				if (list_empty(&transport->send_ready)) {
-					list_add_tail(&transport->send_ready,
-						      &transport_list);
-				}
-
-				packet = &transport->packet;
-				sctp_packet_config(packet, vtag,
-						   asoc->peer.ecn_capable);
-				/* We've switched transports, so apply the
-				 * Burst limit to the new transport.
-				 */
-				sctp_transport_burst_limited(transport);
-			}
-
-			pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p "
-				 "skb->users:%d\n",
-				 __func__, q, chunk, chunk && chunk->chunk_hdr ?
-				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
-				 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
-				 chunk->skb ? chunk->skb->head : NULL, chunk->skb ?
-				 refcount_read(&chunk->skb->users) : -1);
-
-			/* Add the chunk to the packet.  */
-			status = sctp_packet_transmit_chunk(packet, chunk, 0, gfp);
-
-			switch (status) {
-			case SCTP_XMIT_PMTU_FULL:
-			case SCTP_XMIT_RWND_FULL:
-			case SCTP_XMIT_DELAY:
-				/* We could not append this chunk, so put
-				 * the chunk back on the output queue.
-				 */
-				pr_debug("%s: could not transmit tsn:0x%x, status:%d\n",
-					 __func__, ntohl(chunk->subh.data_hdr->tsn),
-					 status);
-
-				sctp_outq_head_data(q, chunk);
-				goto sctp_flush_out;
-
-			case SCTP_XMIT_OK:
-				/* The sender is in the SHUTDOWN-PENDING state,
-				 * The sender MAY set the I-bit in the DATA
-				 * chunk header.
-				 */
-				if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING)
-					chunk->chunk_hdr->flags |= SCTP_DATA_SACK_IMM;
-				if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
-					asoc->stats.ouodchunks++;
-				else
-					asoc->stats.oodchunks++;
-
-				/* Only now it's safe to consider this
-				 * chunk as sent, sched-wise.
-				 */
-				sctp_sched_dequeue_done(q, chunk);
-
-				break;
-
-			default:
-				BUG();
-			}
-
-			/* BUG: We assume that the sctp_packet_transmit()
-			 * call below will succeed all the time and add the
-			 * chunk to the transmitted list and restart the
-			 * timers.
-			 * It is possible that the call can fail under OOM
-			 * conditions.
-			 *
-			 * Is this really a problem?  Won't this behave
-			 * like a lost TSN?
-			 */
-			list_add_tail(&chunk->transmitted_list,
-				      &transport->transmitted);
-
-			sctp_transport_reset_t3_rtx(transport);
-			transport->last_time_sent = jiffies;
-
-			/* Only let one DATA chunk get bundled with a
-			 * COOKIE-ECHO chunk.
-			 */
-			if (packet->has_cookie_echo)
-				goto sctp_flush_out;
-		}
 		break;
 
 	default:
-		/* Do nothing.  */
-		break;
+		/* Do nothing. */
+		return;
 	}
 
-sctp_flush_out:
-
-	/* Before returning, examine all the transports touched in
-	 * this call.  Right now, we bluntly force clear all the
-	 * transports.  Things might change after we implement Nagle.
-	 * But such an examination is still required.
+	/*
+	 * RFC 2960 6.1  Transmission of DATA Chunks
 	 *
-	 * --xguo
+	 * C) When the time comes for the sender to transmit,
+	 * before sending new DATA chunks, the sender MUST
+	 * first transmit any outstanding DATA chunks which
+	 * are marked for retransmission (limited by the
+	 * current cwnd).
 	 */
-	while ((ltransport = sctp_list_dequeue(&transport_list)) != NULL) {
-		struct sctp_transport *t = list_entry(ltransport,
-						      struct sctp_transport,
-						      send_ready);
+	if (!list_empty(&q->retransmit)) {
+		if (!sctp_outq_flush_rtx(q, _transport, transport_list,
+					 rtx_timeout, gfp))
+			return;
+		/* We may have switched current transport */
+		transport = *_transport;
+		packet = &transport->packet;
+	}
+
+	/* Apply Max.Burst limitation to the current transport in
+	 * case it will be used for new data.  We are going to
+	 * rest it before we return, but we want to apply the limit
+	 * to the currently queued data.
+	 */
+	if (transport)
+		sctp_transport_burst_limited(transport);
+
+	/* Finally, transmit new packets.  */
+	while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
+		__u32 sid = ntohs(chunk->subh.data_hdr->stream);
+
+		/* Has this chunk expired? */
+		if (sctp_chunk_abandoned(chunk)) {
+			sctp_sched_dequeue_done(q, chunk);
+			sctp_chunk_fail(chunk, 0);
+			sctp_chunk_free(chunk);
+			continue;
+		}
+
+		if (asoc->stream.out[sid].state == SCTP_STREAM_CLOSED) {
+			sctp_outq_head_data(q, chunk);
+			break;
+		}
+
+		if (sctp_outq_select_transport(chunk, asoc, _transport,
+					       transport_list)) {
+			transport = *_transport;
+			packet = &transport->packet;
+		}
+
+		pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p "
+			 "skb->users:%d\n",
+			 __func__, q, chunk, chunk && chunk->chunk_hdr ?
+			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
+			 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
+			 chunk->skb ? chunk->skb->head : NULL, chunk->skb ?
+			 refcount_read(&chunk->skb->users) : -1);
+
+		/* Add the chunk to the packet.  */
+		status = sctp_packet_transmit_chunk(packet, chunk, 0, gfp);
+		if (status != SCTP_XMIT_OK) {
+			/* We could not append this chunk, so put
+			 * the chunk back on the output queue.
+			 */
+			pr_debug("%s: could not transmit tsn:0x%x, status:%d\n",
+				 __func__, ntohl(chunk->subh.data_hdr->tsn),
+				 status);
+
+			sctp_outq_head_data(q, chunk);
+			break;
+		}
+
+		/* The sender is in the SHUTDOWN-PENDING state,
+		 * The sender MAY set the I-bit in the DATA
+		 * chunk header.
+		 */
+		if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING)
+			chunk->chunk_hdr->flags |= SCTP_DATA_SACK_IMM;
+		if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+			asoc->stats.ouodchunks++;
+		else
+			asoc->stats.oodchunks++;
+
+		/* Only now it's safe to consider this
+		 * chunk as sent, sched-wise.
+		 */
+		sctp_sched_dequeue_done(q, chunk);
+
+		list_add_tail(&chunk->transmitted_list,
+			      &transport->transmitted);
+
+		sctp_transport_reset_t3_rtx(transport);
+		transport->last_time_sent = jiffies;
+
+		/* Only let one DATA chunk get bundled with a
+		 * COOKIE-ECHO chunk.
+		 */
+		if (packet->has_cookie_echo)
+			break;
+	}
+}
+
+static void sctp_outq_flush_transports(struct sctp_outq *q,
+				       struct list_head *transport_list,
+				       gfp_t gfp)
+{
+	struct list_head *ltransport;
+	struct sctp_packet *packet;
+	struct sctp_transport *t;
+	int error = 0;
+
+	while ((ltransport = sctp_list_dequeue(transport_list)) != NULL) {
+		t = list_entry(ltransport, struct sctp_transport, send_ready);
 		packet = &t->packet;
 		if (!sctp_packet_empty(packet)) {
 			error = sctp_packet_transmit(packet, gfp);
 			if (error < 0)
-				asoc->base.sk->sk_err = -error;
+				q->asoc->base.sk->sk_err = -error;
 		}
 
 		/* Clear the burst limited state, if any */
 		sctp_transport_burst_reset(t);
 	}
+}
+
+/*
+ * Try to flush an outqueue.
+ *
+ * Description: Send everything in q which we legally can, subject to
+ * congestion limitations.
+ * * Note: This function can be called from multiple contexts so appropriate
+ * locking concerns must be made.  Today we use the sock lock to protect
+ * this function.
+ */
+static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
+{
+	/* Current transport being used. It's NOT the same as curr active one */
+	struct sctp_transport *transport = NULL;
+	/* These transports have chunks to send. */
+	LIST_HEAD(transport_list);
+
+	/*
+	 * 6.10 Bundling
+	 *   ...
+	 *   When bundling control chunks with DATA chunks, an
+	 *   endpoint MUST place control chunks first in the outbound
+	 *   SCTP packet.  The transmitter MUST transmit DATA chunks
+	 *   within a SCTP packet in increasing order of TSN.
+	 *   ...
+	 */
+
+	sctp_outq_flush_ctrl(q, &transport, &transport_list, gfp);
+
+	if (q->asoc->src_out_of_asoc_ok)
+		goto sctp_flush_out;
+
+	sctp_outq_flush_data(q, &transport, &transport_list, rtx_timeout, gfp);
+
+sctp_flush_out:
+
+	sctp_outq_flush_transports(q, &transport_list, gfp);
 }
 
 /* Update unack_data based on the incoming SACK chunk */
