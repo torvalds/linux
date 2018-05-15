@@ -108,6 +108,15 @@ static inline unsigned long rcu_seq_current(unsigned long *sp)
 }
 
 /*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not the
+ * corresponding update-side operation has started.
+ */
+static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
+{
+	return ULONG_CMP_LT((s - 1) & ~RCU_SEQ_STATE_MASK, READ_ONCE(*sp));
+}
+
+/*
  * Given a snapshot from rcu_seq_snap(), determine whether or not a
  * full update-side operation has occurred.
  */

@@ -1583,7 +1583,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 		if (rnp_root != rnp)
 			raw_spin_lock_rcu_node(rnp_root);
 		if (ULONG_CMP_GE(rnp_root->gp_seq_needed, c) ||
-		    rcu_seq_done(&rnp_root->gp_seq, c) ||
+		    rcu_seq_started(&rnp_root->gp_seq, c) ||
 		    (rnp != rnp_root &&
 		     rcu_seq_state(rcu_seq_current(&rnp_root->gp_seq)))) {
 			trace_rcu_this_gp(rnp_root, rdp, c, TPS("Prestarted"));
