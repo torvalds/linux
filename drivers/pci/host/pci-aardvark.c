@@ -820,7 +820,7 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 
 	INIT_LIST_HEAD(&pcie->resources);
 
-	err = of_pci_get_host_bridge_resources(dev, 0, 0xff,
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
 						    &pcie->resources, &iobase);
 	if (err)
 		return err;

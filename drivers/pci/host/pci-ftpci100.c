@@ -476,7 +476,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
 
-	ret = of_pci_get_host_bridge_resources(dev, 0, 0xff,
+	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
 						    &res, &io_base);
 	if (ret)
 		return ret;

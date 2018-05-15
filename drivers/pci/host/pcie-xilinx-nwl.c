@@ -854,7 +854,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
 						    &iobase);
 	if (err) {
 		dev_err(dev, "Getting bridge resources failed\n");

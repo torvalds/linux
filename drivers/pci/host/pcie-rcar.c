@@ -1070,7 +1070,7 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	resource_size_t iobase;
 	struct resource_entry *win, *tmp;
 
-	err = of_pci_get_host_bridge_resources(dev, 0, 0xff,
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
 						    &pci->resources, &iobase);
 	if (err)
 		return err;

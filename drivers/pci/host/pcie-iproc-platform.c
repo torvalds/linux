@@ -99,7 +99,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->phy = NULL;
 	}
 
-	ret = of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
+	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
 						    &iobase);
 	if (ret) {
 		dev_err(dev, "unable to get PCI host bridge resources\n");

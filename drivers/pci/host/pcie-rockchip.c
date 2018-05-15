@@ -1560,7 +1560,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_deinit_port;
 
-	err = of_pci_get_host_bridge_resources(dev, 0, 0xff,
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
 						    &res, &io_base);
 	if (err)
 		goto err_remove_irq_domain;
