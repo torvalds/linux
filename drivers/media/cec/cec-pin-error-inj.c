@@ -81,10 +81,9 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 	u64 *error;
 	u8 *args;
 	bool has_op;
-	u32 op;
+	u8 op;
 	u8 mode;
 	u8 pos;
-	u8 v;
 
 	p = skip_spaces(p);
 	token = strsep(&p, delims);
@@ -146,12 +145,18 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 	comma = strchr(token, ',');
 	if (comma)
 		*comma++ = '\0';
-	if (!strcmp(token, "any"))
-		op = CEC_ERROR_INJ_OP_ANY;
-	else if (!kstrtou8(token, 0, &v))
-		op = v;
-	else
+	if (!strcmp(token, "any")) {
+		has_op = false;
+		error = pin->error_inj + CEC_ERROR_INJ_OP_ANY;
+		args = pin->error_inj_args[CEC_ERROR_INJ_OP_ANY];
+	} else if (!kstrtou8(token, 0, &op)) {
+		has_op = true;
+		error = pin->error_inj + op;
+		args = pin->error_inj_args[op];
+	} else {
 		return false;
+	}
+
 	mode = CEC_ERROR_INJ_MODE_ONCE;
 	if (comma) {
 		if (!strcmp(comma, "off"))
@@ -165,10 +170,6 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		else
 			return false;
 	}
-
-	error = pin->error_inj + op;
-	args = pin->error_inj_args[op];
-	has_op = op <= 0xff;
 
 	token = strsep(&p, delims);
 	if (p) {
