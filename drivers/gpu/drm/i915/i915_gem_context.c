@@ -596,41 +596,44 @@ last_request_on_engine(struct i915_timeline *timeline,
 
 static bool engine_has_idle_kernel_context(struct intel_engine_cs *engine)
 {
-	struct i915_timeline *timeline;
+	struct list_head * const active_rings = &engine->i915->gt.active_rings;
+	struct intel_ring *ring;
 
-	list_for_each_entry(timeline, &engine->i915->gt.timelines, link) {
-		if (last_request_on_engine(timeline, engine))
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
+
+	list_for_each_entry(ring, active_rings, active_link) {
+		if (last_request_on_engine(ring->timeline, engine))
 			return false;
 	}
 
 	return intel_engine_has_kernel_context(engine);
 }
 
-int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
+int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
-	struct i915_timeline *timeline;
 	enum intel_engine_id id;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	i915_retire_requests(dev_priv);
+	i915_retire_requests(i915);
 
-	for_each_engine(engine, dev_priv, id) {
+	for_each_engine(engine, i915, id) {
+		struct intel_ring *ring;
 		struct i915_request *rq;
 
 		if (engine_has_idle_kernel_context(engine))
 			continue;
 
-		rq = i915_request_alloc(engine, dev_priv->kernel_context);
+		rq = i915_request_alloc(engine, i915->kernel_context);
 		if (IS_ERR(rq))
 			return PTR_ERR(rq);
 
 		/* Queue this switch after all other activity */
-		list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
+		list_for_each_entry(ring, &i915->gt.active_rings, active_link) {
 			struct i915_request *prev;
 
-			prev = last_request_on_engine(timeline, engine);
+			prev = last_request_on_engine(ring->timeline, engine);
 			if (prev)
 				i915_sw_fence_await_sw_fence_gfp(&rq->submit,
 								 &prev->submit,
