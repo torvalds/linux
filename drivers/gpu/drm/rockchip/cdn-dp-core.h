@@ -68,6 +68,7 @@ struct cdn_dp_device {
 	struct platform_device *audio_pdev;
 	struct delayed_work event_work;
 	struct edid *edid;
+	struct drm_dp_aux aux;
 	struct rockchip_drm_sub_dev sub_dev;
 
 	struct mutex lock;

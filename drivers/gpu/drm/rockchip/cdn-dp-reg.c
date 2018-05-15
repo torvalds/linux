@@ -213,7 +213,12 @@ static int cdn_dp_reg_write_bit(struct cdn_dp_device *dp, u16 addr,
 				   sizeof(field), field);
 }
 
-int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
+/*
+ * Returns the number of bytes transferred on success, or a negative
+ * error code on failure. -ETIMEDOUT is returned if mailbox message was
+ * not send successfully;
+ */
+ssize_t cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
 {
 	u8 msg[5], reg[5];
 	int ret;
@@ -239,24 +244,41 @@ int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
 		goto err_dpcd_read;
 
 	ret = cdn_dp_mailbox_read_receive(dp, data, len);
+	if (!ret)
+		return len;
 
 err_dpcd_read:
+	DRM_DEV_ERROR(dp->dev, "dpcd read failed: %d\n", ret);
 	return ret;
 }
 
-int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value)
+#define CDN_AUX_HEADER_SIZE	5
+#define CDN_AUX_MSG_SIZE	20
+/*
+ * Returns the number of bytes transferred on success, or a negative error
+ * code on failure. -ETIMEDOUT is returned if mailbox message was not send
+ * success; -EINVAL is returned if get the wrong data size after message
+ * is sent
+ */
+ssize_t cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
 {
-	u8 msg[6], reg[5];
+	u8 msg[CDN_AUX_MSG_SIZE + CDN_AUX_HEADER_SIZE];
+	u8 reg[CDN_AUX_HEADER_SIZE];
 	int ret;
 
-	msg[0] = 0;
-	msg[1] = 1;
+	if (WARN_ON(len > CDN_AUX_MSG_SIZE) || WARN_ON(len <= 0))
+		return -EINVAL;
+
+	msg[0] = (len >> 8) & 0xff;
+	msg[1] = len & 0xff;
 	msg[2] = (addr >> 16) & 0xff;
 	msg[3] = (addr >> 8) & 0xff;
 	msg[4] = addr & 0xff;
-	msg[5] = value;
+
+	memcpy(msg + CDN_AUX_HEADER_SIZE, data, len);
+
 	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_DPCD,
-				  sizeof(msg), msg);
+				  CDN_AUX_HEADER_SIZE + len, msg);
 	if (ret)
 		goto err_dpcd_write;
 
@@ -269,12 +291,43 @@ int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value)
 	if (ret)
 		goto err_dpcd_write;
 
-	if (addr != (reg[2] << 16 | reg[3] << 8 | reg[4]))
+	if ((len != (reg[0] << 8 | reg[1])) ||
+	    (addr != (reg[2] << 16 | reg[3] << 8 | reg[4]))) {
 		ret = -EINVAL;
+	} else {
+		return len;
+	}
 
 err_dpcd_write:
 	if (ret)
 		DRM_DEV_ERROR(dp->dev, "dpcd write failed: %d\n", ret);
+	return ret;
+}
+
+int cdn_dp_get_aux_status(struct cdn_dp_device *dp)
+{
+	u8 status;
+	int ret;
+
+	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX,
+				  DPTX_GET_LAST_AUX_STAUS, 0, NULL);
+	if (ret)
+		goto err_get_hpd;
+
+	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+					      DPTX_GET_LAST_AUX_STAUS,
+					      sizeof(status));
+	if (ret)
+		goto err_get_hpd;
+
+	ret = cdn_dp_mailbox_read_receive(dp, &status, sizeof(status));
+	if (ret)
+		goto err_get_hpd;
+
+	return status;
+
+err_get_hpd:
+	DRM_DEV_ERROR(dp->dev, "get aux status failed: %d\n", ret);
 	return ret;
 }
 

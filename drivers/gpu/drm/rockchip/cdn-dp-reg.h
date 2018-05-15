@@ -320,6 +320,13 @@
 #define GENERAL_BUS_SETTINGS            0x03
 #define GENERAL_TEST_ACCESS             0x04
 
+/* AUX status*/
+#define AUX_STATUS_ACK			0
+#define AUX_STATUS_NACK			1
+#define AUX_STATUS_DEFER			2
+#define AUX_STATUS_SINK_ERROR		3
+#define AUX_STATUS_BUS_ERROR		4
+
 #define DPTX_SET_POWER_MNG			0x00
 #define DPTX_SET_HOST_CAPABILITIES		0x01
 #define DPTX_GET_EDID				0x02
@@ -461,8 +468,11 @@ int cdn_dp_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip);
 int cdn_dp_event_config(struct cdn_dp_device *dp);
 u32 cdn_dp_get_event(struct cdn_dp_device *dp);
 int cdn_dp_get_hpd_status(struct cdn_dp_device *dp);
-int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value);
-int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len);
+ssize_t cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr,
+			  u8 *data, u16 len);
+ssize_t cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr,
+			 u8 *data, u16 len);
+int cdn_dp_get_aux_status(struct cdn_dp_device *dp);
 int cdn_dp_get_edid_block(void *dp, u8 *edid,
 			  unsigned int block, size_t length);
 int cdn_dp_train_link(struct cdn_dp_device *dp);
