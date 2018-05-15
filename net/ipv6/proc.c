@@ -267,18 +267,6 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int snmp6_dev_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, snmp6_dev_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations snmp6_dev_seq_fops = {
-	.open	 = snmp6_dev_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release,
-};
-
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
@@ -291,9 +279,8 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
 
-	p = proc_create_data(idev->dev->name, 0444,
-			     net->mib.proc_net_devsnmp6,
-			     &snmp6_dev_seq_fops, idev);
+	p = proc_create_single_data(idev->dev->name, 0444,
+			net->mib.proc_net_devsnmp6, snmp6_dev_seq_show, idev);
 	if (!p)
 		return -ENOMEM;
 

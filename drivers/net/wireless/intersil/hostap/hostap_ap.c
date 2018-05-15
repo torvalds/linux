@@ -1106,18 +1106,6 @@ static int prism2_sta_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int prism2_sta_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, prism2_sta_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations prism2_sta_proc_fops = {
-	.open		= prism2_sta_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void handle_add_proc_queue(struct work_struct *work)
 {
 	struct ap_data *ap = container_of(work, struct ap_data,
@@ -1138,9 +1126,9 @@ static void handle_add_proc_queue(struct work_struct *work)
 
 		if (sta) {
 			sprintf(name, "%pM", sta->addr);
-			sta->proc = proc_create_data(
+			sta->proc = proc_create_single_data(
 				name, 0, ap->proc,
-				&prism2_sta_proc_fops, sta);
+				prism2_sta_proc_show, sta);
 
 			atomic_dec(&sta->users);
 		}

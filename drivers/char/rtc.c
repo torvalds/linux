@@ -171,7 +171,7 @@ static void mask_rtc_irq_bit(unsigned char bit)
 #endif
 
 #ifdef CONFIG_PROC_FS
-static int rtc_proc_open(struct inode *inode, struct file *file);
+static int rtc_proc_show(struct seq_file *seq, void *v);
 #endif
 
 /*
@@ -832,16 +832,6 @@ static struct miscdevice rtc_dev = {
 	.fops		= &rtc_fops,
 };
 
-#ifdef CONFIG_PROC_FS
-static const struct file_operations rtc_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rtc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif
-
 static resource_size_t rtc_size;
 
 static struct resource * __init rtc_request_region(resource_size_t size)
@@ -982,7 +972,7 @@ no_irq:
 	}
 
 #ifdef CONFIG_PROC_FS
-	ent = proc_create("driver/rtc", 0, NULL, &rtc_proc_fops);
+	ent = proc_create_single("driver/rtc", 0, NULL, rtc_proc_show);
 	if (!ent)
 		printk(KERN_WARNING "rtc: Failed to register with procfs.\n");
 #endif
@@ -1200,11 +1190,6 @@ static int rtc_proc_show(struct seq_file *seq, void *v)
 	return  0;
 #undef YN
 #undef NY
-}
-
-static int rtc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rtc_proc_show, NULL);
 }
 #endif
 

@@ -87,22 +87,6 @@ static const struct file_operations vlan_fops = {
 };
 
 /*
- *	/proc/net/vlan/<device> file and inode operations
- */
-
-static int vlandev_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vlandev_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations vlandev_fops = {
-	.open    = vlandev_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
-
-/*
  * Proc filesystem directory entries.
  */
 
@@ -171,9 +155,8 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 
 	if (!strcmp(vlandev->name, name_conf))
 		return -EINVAL;
-	vlan->dent =
-		proc_create_data(vlandev->name, S_IFREG | 0600,
-				 vn->proc_vlan_dir, &vlandev_fops, vlandev);
+	vlan->dent = proc_create_single_data(vlandev->name, S_IFREG | 0600,
+			vn->proc_vlan_dir, vlandev_seq_show, vlandev);
 	if (!vlan->dent)
 		return -ENOBUFS;
 	return 0;

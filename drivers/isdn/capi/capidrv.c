@@ -2460,22 +2460,9 @@ static int capidrv_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int capidrv_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, capidrv_proc_show, NULL);
-}
-
-static const struct file_operations capidrv_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= capidrv_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void __init proc_init(void)
 {
-	proc_create("capi/capidrv", 0, NULL, &capidrv_proc_fops);
+	proc_create_single("capi/capidrv", 0, NULL, capidrv_proc_show);
 }
 
 static void __exit proc_exit(void)

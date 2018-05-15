@@ -27,21 +27,9 @@ static int execdomains_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int execdomains_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, execdomains_proc_show, NULL);
-}
-
-static const struct file_operations execdomains_proc_fops = {
-	.open		= execdomains_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_execdomains_init(void)
 {
-	proc_create("execdomains", 0, NULL, &execdomains_proc_fops);
+	proc_create_single("execdomains", 0, NULL, execdomains_proc_show);
 	return 0;
 }
 module_init(proc_execdomains_init);

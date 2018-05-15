@@ -1715,19 +1715,6 @@ static int proc_apm_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_apm_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_apm_show, NULL);
-}
-
-static const struct file_operations apm_file_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_apm_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int apm(void *unused)
 {
 	unsigned short	bx;
@@ -2360,7 +2347,7 @@ static int __init apm_init(void)
 	set_desc_base(&gdt[APM_DS >> 3],
 		 (unsigned long)__va((unsigned long)apm_info.bios.dseg << 4));
 
-	proc_create("apm", 0, NULL, &apm_file_ops);
+	proc_create_single("apm", 0, NULL, proc_apm_show);
 
 	kapmd_task = kthread_create(apm, NULL, "kapmd");
 	if (IS_ERR(kapmd_task)) {

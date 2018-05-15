@@ -360,18 +360,6 @@ static int rt_acct_proc_show(struct seq_file *m, void *v)
 	kfree(dst);
 	return 0;
 }
-
-static int rt_acct_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rt_acct_proc_show, NULL);
-}
-
-static const struct file_operations rt_acct_proc_fops = {
-	.open		= rt_acct_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif
 
 static int __net_init ip_rt_do_proc_init(struct net *net)
@@ -389,7 +377,8 @@ static int __net_init ip_rt_do_proc_init(struct net *net)
 		goto err2;
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-	pde = proc_create("rt_acct", 0, net->proc_net, &rt_acct_proc_fops);
+	pde = proc_create_single("rt_acct", 0, net->proc_net,
+			rt_acct_proc_show);
 	if (!pde)
 		goto err3;
 #endif

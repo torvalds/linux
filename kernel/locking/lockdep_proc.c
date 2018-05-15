@@ -331,18 +331,6 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int lockdep_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, lockdep_stats_show, NULL);
-}
-
-static const struct file_operations proc_lockdep_stats_operations = {
-	.open		= lockdep_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 #ifdef CONFIG_LOCK_STAT
 
 struct lock_stat_data {
@@ -662,9 +650,7 @@ static int __init lockdep_proc_init(void)
 #ifdef CONFIG_PROVE_LOCKING
 	proc_create_seq("lockdep_chains", S_IRUSR, NULL, &lockdep_chains_ops);
 #endif
-	proc_create("lockdep_stats", S_IRUSR, NULL,
-		    &proc_lockdep_stats_operations);
-
+	proc_create_single("lockdep_stats", S_IRUSR, NULL, lockdep_stats_show);
 #ifdef CONFIG_LOCK_STAT
 	proc_create("lock_stat", S_IRUSR | S_IWUSR, NULL,
 		    &proc_lock_stat_operations);

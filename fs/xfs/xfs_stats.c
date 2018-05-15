@@ -124,18 +124,6 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int xqm_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xqm_proc_show, NULL);
-}
-
-static const struct file_operations xqm_proc_fops = {
-	.open		= xqm_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /* legacy quota stats interface no 2 */
 static int xqmstat_proc_show(struct seq_file *m, void *v)
 {
@@ -147,19 +135,6 @@ static int xqmstat_proc_show(struct seq_file *m, void *v)
 	seq_putc(m, '\n');
 	return 0;
 }
-
-static int xqmstat_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xqmstat_proc_show, NULL);
-}
-
-static const struct file_operations xqmstat_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= xqmstat_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_XFS_QUOTA */
 
 #ifdef CONFIG_PROC_FS
@@ -174,11 +149,9 @@ xfs_init_procfs(void)
 		goto out;
 
 #ifdef CONFIG_XFS_QUOTA
-	if (!proc_create("fs/xfs/xqmstat", 0, NULL,
-			 &xqmstat_proc_fops))
+	if (!proc_create_single("fs/xfs/xqmstat", 0, NULL, xqmstat_proc_show))
 		goto out;
-	if (!proc_create("fs/xfs/xqm", 0, NULL,
-			 &xqm_proc_fops))
+	if (!proc_create_single("fs/xfs/xqm", 0, NULL, xqm_proc_show))
 		goto out;
 #endif
 	return 0;

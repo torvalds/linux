@@ -1282,18 +1282,6 @@ static int pnp_seq_show(struct seq_file *seq, void *v)
 			   &ic_servaddr);
 	return 0;
 }
-
-static int pnp_seq_open(struct inode *indoe, struct file *file)
-{
-	return single_open(file, pnp_seq_show, NULL);
-}
-
-static const struct file_operations pnp_seq_fops = {
-	.open		= pnp_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 /*
@@ -1369,7 +1357,7 @@ static int __init ip_auto_config(void)
 	unsigned int i;
 
 #ifdef CONFIG_PROC_FS
-	proc_create("pnp", 0444, init_net.proc_net, &pnp_seq_fops);
+	proc_create_single("pnp", 0444, init_net.proc_net, pnp_seq_show);
 #endif /* CONFIG_PROC_FS */
 
 	if (!ic_enable)

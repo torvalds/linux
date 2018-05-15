@@ -1475,19 +1475,6 @@ static int viafb_sup_odev_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_sup_odev_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, viafb_sup_odev_proc_show, NULL);
-}
-
-static const struct file_operations viafb_sup_odev_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_sup_odev_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static ssize_t odev_update(const char __user *buffer, size_t count, u32 *odev)
 {
 	char buf[64], *ptr = buf;
@@ -1616,8 +1603,8 @@ static void viafb_init_proc(struct viafb_shared *shared)
 				&viafb_vt1636_proc_fops);
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
-		proc_create("supported_output_devices", 0, viafb_entry,
-			&viafb_sup_odev_proc_fops);
+		proc_create_single("supported_output_devices", 0, viafb_entry,
+			viafb_sup_odev_proc_show);
 		iga1_entry = proc_mkdir("iga1", viafb_entry);
 		shared->iga1_proc_entry = iga1_entry;
 		proc_create("output_devices", 0, iga1_entry,

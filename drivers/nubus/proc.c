@@ -45,18 +45,6 @@ nubus_devices_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int nubus_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nubus_devices_proc_show, NULL);
-}
-
-static const struct file_operations nubus_devices_proc_fops = {
-	.open		= nubus_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static struct proc_dir_entry *proc_bus_nubus_dir;
 
 /*
@@ -149,18 +137,6 @@ static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int nubus_proc_rsrc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nubus_proc_rsrc_show, inode);
-}
-
-static const struct file_operations nubus_proc_rsrc_fops = {
-	.open		= nubus_proc_rsrc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
 			     const struct nubus_dirent *ent,
 			     unsigned int size)
@@ -176,8 +152,8 @@ void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
 		pde_data = nubus_proc_alloc_pde_data(nubus_dirptr(ent), size);
 	else
 		pde_data = NULL;
-	proc_create_data(name, S_IFREG | 0444, procdir,
-			 &nubus_proc_rsrc_fops, pde_data);
+	proc_create_single_data(name, S_IFREG | 0444, procdir,
+			nubus_proc_rsrc_show, pde_data);
 }
 
 void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
@@ -190,32 +166,21 @@ void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
 		return;
 
 	snprintf(name, sizeof(name), "%x", ent->type);
-	proc_create_data(name, S_IFREG | 0444, procdir,
-			 &nubus_proc_rsrc_fops,
-			 nubus_proc_alloc_pde_data(data, 0));
+	proc_create_single_data(name, S_IFREG | 0444, procdir,
+			nubus_proc_rsrc_show,
+			nubus_proc_alloc_pde_data(data, 0));
 }
 
 /*
  * /proc/nubus stuff
  */
 
-static int nubus_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nubus_proc_show, NULL);
-}
-
-static const struct file_operations nubus_proc_fops = {
-	.open		= nubus_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 void __init nubus_proc_init(void)
 {
-	proc_create("nubus", 0, NULL, &nubus_proc_fops);
+	proc_create_single("nubus", 0, NULL, nubus_proc_show);
 	proc_bus_nubus_dir = proc_mkdir("bus/nubus", NULL);
 	if (!proc_bus_nubus_dir)
 		return;
-	proc_create("devices", 0, proc_bus_nubus_dir, &nubus_devices_proc_fops);
+	proc_create_single("devices", 0, proc_bus_nubus_dir,
+			nubus_devices_proc_show);
 }
