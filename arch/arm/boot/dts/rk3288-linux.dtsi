@@ -3,10 +3,74 @@
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT).
  */
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include "rk3288-dram-default-timing.dtsi"
 
 / {
 	chosen {
 		bootargs = "earlyprintk console=tty1 console=ttyS2,115200n8 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
+	};
+
+	/delete-node/ dmc@ff610000;
+
+	dfi: dfi {
+		compatible = "rockchip,rk3288-dfi";
+		rockchip,pmu = <&pmu>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3288-dmc";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>, <&cru PCLK_PUBL0>,
+			 <&cru PCLK_DDRUPCTL0>, <&cru PCLK_PUBL1>,
+			 <&cru PCLK_DDRUPCTL1>;
+		clock-names = "dmc_clk", "pclk_phy0", "pclk_upctl0",
+			      "pclk_phy1", "pclk_upctl1";
+		upthreshold = <55>;
+		downdifferential = <10>;
+		operating-points-v2 = <&dmc_opp_table>;
+		vop-dclk-mode = <0>;
+		min-cpu-freq = <600000>;
+		rockchip,ddr_timing = <&ddr_timing>;
+		system-status-freq = <
+			/*system status		freq(KHz)*/
+			SYS_STATUS_NORMAL	396000
+			SYS_STATUS_REBOOT	396000
+			SYS_STATUS_SUSPEND	192000
+			SYS_STATUS_VIDEO_1080P	300000
+			SYS_STATUS_VIDEO_4K	396000
+			SYS_STATUS_VIDEO_4K_10B	528000
+			SYS_STATUS_PERFORMANCE	528000
+			SYS_STATUS_BOOST	396000
+			SYS_STATUS_DUALVIEW	396000
+			SYS_STATUS_ISP		396000
+		>;
+		auto-min-freq = <396000>;
+		auto-freq-en = <0>;
+		status = "diasbled";
+	};
+
+	dmc_opp_table: opp_table2 {
+		compatible = "operating-points-v2";
+
+		opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <1150000>;
+		};
 	};
 
 	psci {
