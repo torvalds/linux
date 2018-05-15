@@ -422,6 +422,7 @@ typedef struct elf64_shdr {
 #define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension registers */
 #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
 #define NT_VMCOREDD	0x700		/* Vmcore Device Dump Note */
+#define NT_MIPS_DSP	0x800		/* MIPS DSP ASE registers */
 
 /* Note header in a PT_NOTE section */
 typedef struct elf32_note {
