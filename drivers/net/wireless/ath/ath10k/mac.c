@@ -3217,6 +3217,15 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 					       ar->hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
+static void ath10k_stop_radar_confirmation(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	ar->radar_conf_state = ATH10K_RADAR_CONFIRMATION_STOPPED;
+	spin_unlock_bh(&ar->data_lock);
+
+	cancel_work_sync(&ar->radar_confirmation_work);
+}
+
 /***************/
 /* TX handlers */
 /***************/
@@ -4333,6 +4342,7 @@ void ath10k_halt(struct ath10k *ar)
 
 	ath10k_scan_finish(ar);
 	ath10k_peer_cleanup_all(ar);
+	ath10k_stop_radar_confirmation(ar);
 	ath10k_core_stop(ar);
 	ath10k_hif_power_down(ar);
 
@@ -4757,6 +4767,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	ath10k_spectral_start(ar);
 	ath10k_thermal_set_throttling(ar);
+
+	ar->radar_conf_state = ATH10K_RADAR_CONFIRMATION_IDLE;
 
 	mutex_unlock(&ar->conf_mutex);
 	return 0;

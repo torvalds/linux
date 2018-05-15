@@ -969,6 +969,7 @@ struct wmi_cmd_map {
 	u32 vdev_sifs_trigger_time_cmdid;
 	u32 pdev_wds_entry_list_cmdid;
 	u32 tdls_set_offchan_mode_cmdid;
+	u32 radar_found_cmdid;
 };
 
 /*
@@ -1803,6 +1804,11 @@ enum wmi_10_4_cmd_id {
 	WMI_10_4_TDLS_SET_STATE_CMDID,
 	WMI_10_4_TDLS_PEER_UPDATE_CMDID,
 	WMI_10_4_TDLS_SET_OFFCHAN_MODE_CMDID,
+	WMI_10_4_PDEV_SEND_FD_CMDID,
+	WMI_10_4_ENABLE_FILS_CMDID,
+	WMI_10_4_PDEV_SET_BRIDGE_MACADDR_CMDID,
+	WMI_10_4_ATF_GROUP_WMM_AC_CONFIG_REQUEST_CMDID,
+	WMI_10_4_RADAR_FOUND_CMDID,
 	WMI_10_4_PDEV_UTF_CMDID = WMI_10_4_END_CMDID - 1,
 };
 
@@ -1878,6 +1884,9 @@ enum wmi_10_4_event_id {
 	WMI_10_4_PDEV_TPC_TABLE_EVENTID,
 	WMI_10_4_PDEV_WDS_ENTRY_LIST_EVENTID,
 	WMI_10_4_TDLS_PEER_EVENTID,
+	WMI_10_4_HOST_SWFDA_EVENTID,
+	WMI_10_4_ESP_ESTIMATE_EVENTID,
+	WMI_10_4_DFS_STATUS_CHECK_EVENTID,
 	WMI_10_4_PDEV_UTF_EVENTID = WMI_10_4_END_EVENTID - 1,
 };
 
@@ -3397,6 +3406,25 @@ struct wmi_10_4_phyerr_event {
 	__le32 buf_len;
 	u8 buf[0];
 } __packed;
+
+struct wmi_radar_found_info {
+	__le32 pri_min;
+	__le32 pri_max;
+	__le32 width_min;
+	__le32 width_max;
+	__le32 sidx_min;
+	__le32 sidx_max;
+} __packed;
+
+enum wmi_radar_confirmation_status {
+	/* Detected radar was due to SW pulses */
+	WMI_SW_RADAR_DETECTED    = 0,
+
+	WMI_RADAR_DETECTION_FAIL = 1,
+
+	/* Real radar detected */
+	WMI_HW_RADAR_DETECTED    = 2,
+};
 
 #define PHYERR_TLV_SIG				0xBB
 #define PHYERR_TLV_TAG_SEARCH_FFT_REPORT	0xFB
@@ -6629,6 +6657,10 @@ struct wmi_phyerr_hdr_arg {
 	u32 tsf_u32;
 	u32 buf_len;
 	const void *phyerrs;
+};
+
+struct wmi_dfs_status_ev_arg {
+	u32 status;
 };
 
 struct wmi_svc_rdy_ev_arg {
