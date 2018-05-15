@@ -148,8 +148,11 @@ static void smc_lgr_free_work(struct work_struct *work)
 	list_del_init(&lgr->list); /* remove from smc_lgr_list */
 free:
 	spin_unlock_bh(&smc_lgr_list.lock);
-	if (!delayed_work_pending(&lgr->free_work))
+	if (!delayed_work_pending(&lgr->free_work)) {
+		if (lgr->lnk[SMC_SINGLE_LINK].state != SMC_LNK_INACTIVE)
+			smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 		smc_lgr_free(lgr);
+	}
 }
 
 /* create a new SMC link group */
