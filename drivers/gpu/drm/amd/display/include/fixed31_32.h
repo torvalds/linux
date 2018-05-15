@@ -26,8 +26,6 @@
 #ifndef __DAL_FIXED31_32_H__
 #define __DAL_FIXED31_32_H__
 
-#include "os_types.h"
-
 #define FIXED31_32_BITS_PER_FRACTIONAL_PART 32
 
 /*
@@ -44,7 +42,7 @@
  */
 
 struct fixed31_32 {
-	int64_t value;
+	long long value;
 };
 
 /*
@@ -73,15 +71,15 @@ static const struct fixed31_32 dal_fixed31_32_ln2_div_2 = { 1488522236LL };
  * result = numerator / denominator
  */
 struct fixed31_32 dal_fixed31_32_from_fraction(
-	int64_t numerator,
-	int64_t denominator);
+	long long numerator,
+	long long denominator);
 
 /*
  * @brief
  * result = arg
  */
-struct fixed31_32 dal_fixed31_32_from_int_nonconst(int64_t arg);
-static inline struct fixed31_32 dal_fixed31_32_from_int(int64_t arg)
+struct fixed31_32 dal_fixed31_32_from_int_nonconst(long long arg);
+static inline struct fixed31_32 dal_fixed31_32_from_int(long long arg)
 {
 	if (__builtin_constant_p(arg)) {
 		struct fixed31_32 res;
@@ -213,7 +211,7 @@ static inline struct fixed31_32 dal_fixed31_32_clamp(
  */
 struct fixed31_32 dal_fixed31_32_shl(
 	struct fixed31_32 arg,
-	uint8_t shift);
+	unsigned char shift);
 
 /*
  * @brief
@@ -221,7 +219,7 @@ struct fixed31_32 dal_fixed31_32_shl(
  */
 static inline struct fixed31_32 dal_fixed31_32_shr(
 	struct fixed31_32 arg,
-	uint8_t shift)
+	unsigned char shift)
 {
 	struct fixed31_32 res;
 	res.value = arg.value >> shift;
@@ -246,7 +244,7 @@ struct fixed31_32 dal_fixed31_32_add(
  * result = arg1 + arg2
  */
 static inline struct fixed31_32 dal_fixed31_32_add_int(struct fixed31_32 arg1,
-						       int32_t arg2)
+						       int arg2)
 {
 	return dal_fixed31_32_add(arg1,
 				  dal_fixed31_32_from_int(arg2));
@@ -265,7 +263,7 @@ struct fixed31_32 dal_fixed31_32_sub(
  * result = arg1 - arg2
  */
 static inline struct fixed31_32 dal_fixed31_32_sub_int(struct fixed31_32 arg1,
-						       int32_t arg2)
+						       int arg2)
 {
 	return dal_fixed31_32_sub(arg1,
 				  dal_fixed31_32_from_int(arg2));
@@ -291,7 +289,7 @@ struct fixed31_32 dal_fixed31_32_mul(
  * result = arg1 * arg2
  */
 static inline struct fixed31_32 dal_fixed31_32_mul_int(struct fixed31_32 arg1,
-						       int32_t arg2)
+						       int arg2)
 {
 	return dal_fixed31_32_mul(arg1,
 				  dal_fixed31_32_from_int(arg2));
@@ -309,7 +307,7 @@ struct fixed31_32 dal_fixed31_32_sqr(
  * result = arg1 / arg2
  */
 static inline struct fixed31_32 dal_fixed31_32_div_int(struct fixed31_32 arg1,
-						       int64_t arg2)
+						       long long arg2)
 {
 	return dal_fixed31_32_from_fraction(arg1.value,
 					    dal_fixed31_32_from_int(arg2).value);
@@ -434,21 +432,21 @@ struct fixed31_32 dal_fixed31_32_pow(
  * @brief
  * result = floor(arg) := greatest integer lower than or equal to arg
  */
-int32_t dal_fixed31_32_floor(
+int dal_fixed31_32_floor(
 	struct fixed31_32 arg);
 
 /*
  * @brief
  * result = round(arg) := integer nearest to arg
  */
-int32_t dal_fixed31_32_round(
+int dal_fixed31_32_round(
 	struct fixed31_32 arg);
 
 /*
  * @brief
  * result = ceil(arg) := lowest integer greater than or equal to arg
  */
-int32_t dal_fixed31_32_ceil(
+int dal_fixed31_32_ceil(
 	struct fixed31_32 arg);
 
 /* the following two function are used in scaler hw programming to convert fixed
@@ -457,20 +455,20 @@ int32_t dal_fixed31_32_ceil(
  * fractional
  */
 
-uint32_t dal_fixed31_32_u2d19(
+unsigned int dal_fixed31_32_u2d19(
 	struct fixed31_32 arg);
 
-uint32_t dal_fixed31_32_u0d19(
+unsigned int dal_fixed31_32_u0d19(
 	struct fixed31_32 arg);
 
 
-uint32_t dal_fixed31_32_clamp_u0d14(
+unsigned int dal_fixed31_32_clamp_u0d14(
 	struct fixed31_32 arg);
 
-uint32_t dal_fixed31_32_clamp_u0d10(
+unsigned int dal_fixed31_32_clamp_u0d10(
 	struct fixed31_32 arg);
 
-int32_t dal_fixed31_32_s4d19(
+int dal_fixed31_32_s4d19(
 	struct fixed31_32 arg);
 
 #endif

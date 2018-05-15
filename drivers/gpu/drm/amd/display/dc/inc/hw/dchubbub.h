@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,46 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
-#ifndef PP_SOC15_H
-#define PP_SOC15_H
 
-#include "soc15_hw_ip.h"
-#include "vega10_ip_offset.h"
+#ifndef __DAL_DCHUBBUB_H__
+#define __DAL_DCHUBBUB_H__
 
-inline static uint32_t soc15_get_register_offset(
-		uint32_t hw_id,
-		uint32_t inst,
-		uint32_t segment,
-		uint32_t offset)
-{
-	uint32_t reg = 0;
 
-	if (hw_id == THM_HWID)
-		reg = THM_BASE.instance[inst].segment[segment] + offset;
-	else if (hw_id == NBIF_HWID)
-		reg = NBIF_BASE.instance[inst].segment[segment] + offset;
-	else if (hw_id == MP1_HWID)
-		reg = MP1_BASE.instance[inst].segment[segment] + offset;
-	else if (hw_id == DF_HWID)
-		reg = DF_BASE.instance[inst].segment[segment] + offset;
-	else if (hw_id == GC_HWID)
-		reg = GC_BASE.instance[inst].segment[segment] + offset;
-	else if (hw_id == SMUIO_HWID)
-		reg = SMUIO_BASE.instance[inst].segment[segment] + offset;
-	return reg;
-}
+enum dcc_control {
+	dcc_control__256_256_xxx,
+	dcc_control__128_128_xxx,
+	dcc_control__256_64_64,
+};
+
+enum segment_order {
+	segment_order__na,
+	segment_order__contiguous,
+	segment_order__non_contiguous,
+};
+
+
+struct hubbub_funcs {
+	void (*update_dchub)(
+			struct hubbub *hubbub,
+			struct dchub_init_data *dh_data);
+
+	bool (*get_dcc_compression_cap)(struct hubbub *hubbub,
+			const struct dc_dcc_surface_param *input,
+			struct dc_surface_dcc_cap *output);
+
+	bool (*dcc_support_swizzle)(
+			enum swizzle_mode_values swizzle,
+			unsigned int bytes_per_element,
+			enum segment_order *segment_order_horz,
+			enum segment_order *segment_order_vert);
+
+	bool (*dcc_support_pixel_format)(
+			enum surface_pixel_format format,
+			unsigned int *bytes_per_element);
+};
+
 
 #endif

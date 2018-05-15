@@ -62,7 +62,7 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
 static inline bool uvd_v6_0_enc_support(struct amdgpu_device *adev)
 {
 	return ((adev->asic_type >= CHIP_POLARIS10) &&
-			(adev->asic_type <= CHIP_POLARIS12) &&
+			(adev->asic_type <= CHIP_VEGAM) &&
 			(!adev->uvd.fw_version || adev->uvd.fw_version >= FW_1_130_16));
 }
 
@@ -429,7 +429,7 @@ static int uvd_v6_0_sw_init(void *handle)
 		ring = &adev->uvd.ring_enc[0];
 		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 		r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
-					  rq, amdgpu_sched_jobs, NULL);
+					  rq, NULL);
 		if (r) {
 			DRM_ERROR("Failed setting up UVD ENC run queue.\n");
 			return r;
@@ -961,6 +961,16 @@ static void uvd_v6_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, seq);
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_TRAP);
+}
+
+/**
+ * uvd_v6_0_ring_emit_hdp_flush - skip HDP flushing
+ *
+ * @ring: amdgpu_ring pointer
+ */
+static void uvd_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	/* The firmware doesn't seem to like touching registers at this point. */
 }
 
 /**
@@ -1528,12 +1538,13 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
-		6 + 6 + /* hdp flush / invalidate */
+		6 + /* hdp invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
+	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
@@ -1552,7 +1563,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.emit_frame_size =
-		6 + 6 + /* hdp flush / invalidate */
+		6 + /* hdp invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		VI_FLUSH_GPU_TLB_NUM_WREG * 6 + 8 + /* uvd_v6_0_ring_emit_vm_flush */
 		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
@@ -1561,6 +1572,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,
 	.emit_pipeline_sync = uvd_v6_0_ring_emit_pipeline_sync,
+	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

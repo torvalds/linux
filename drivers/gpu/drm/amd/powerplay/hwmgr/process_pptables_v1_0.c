@@ -141,7 +141,7 @@ static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 
 	if (!table_address) {
 		table_address = (ATOM_Tonga_POWERPLAYTABLE *)
-				cgs_atom_get_data_table(hwmgr->device,
+				smu_atom_get_data_table(hwmgr->adev,
 						index, &size, &frev, &crev);
 		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
 		hwmgr->soft_pp_table_size = size;
@@ -728,6 +728,32 @@ static int get_mm_clock_voltage_table(
 	return 0;
 }
 
+static int get_gpio_table(struct pp_hwmgr *hwmgr,
+		struct phm_ppt_v1_gpio_table **pp_tonga_gpio_table,
+		const ATOM_Tonga_GPIO_Table *atom_gpio_table)
+{
+	uint32_t table_size;
+	struct phm_ppt_v1_gpio_table *pp_gpio_table;
+	struct phm_ppt_v1_information *pp_table_information =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	table_size = sizeof(struct phm_ppt_v1_gpio_table);
+	pp_gpio_table = kzalloc(table_size, GFP_KERNEL);
+	if (!pp_gpio_table)
+		return -ENOMEM;
+
+	if (pp_table_information->vdd_dep_on_sclk->count <
+			atom_gpio_table->ucVRHotTriggeredSclkDpmIndex)
+		PP_ASSERT_WITH_CODE(false,
+				"SCLK DPM index for VRHot cannot exceed the total sclk level count!",);
+	else
+		pp_gpio_table->vrhot_triggered_sclk_dpm_index =
+				atom_gpio_table->ucVRHotTriggeredSclkDpmIndex;
+
+	*pp_tonga_gpio_table = pp_gpio_table;
+
+	return 0;
+}
 /**
  * Private Function used during initialization.
  * Initialize clock voltage dependency
@@ -761,11 +787,15 @@ static int init_clock_voltage_dependency(
 	const PPTable_Generic_SubTable_Header *pcie_table =
 		(const PPTable_Generic_SubTable_Header *)(((unsigned long) powerplay_table) +
 		le16_to_cpu(powerplay_table->usPCIETableOffset));
+	const ATOM_Tonga_GPIO_Table *gpio_table =
+		(const ATOM_Tonga_GPIO_Table *)(((unsigned long) powerplay_table) +
+		le16_to_cpu(powerplay_table->usGPIOTableOffset));
 
 	pp_table_information->vdd_dep_on_sclk = NULL;
 	pp_table_information->vdd_dep_on_mclk = NULL;
 	pp_table_information->mm_dep_table = NULL;
 	pp_table_information->pcie_table = NULL;
+	pp_table_information->gpio_table = NULL;
 
 	if (powerplay_table->usMMDependencyTableOffset != 0)
 		result = get_mm_clock_voltage_table(hwmgr,
@@ -809,6 +839,10 @@ static int init_clock_voltage_dependency(
 		&& (0 != pp_table_information->vdd_dep_on_sclk->count))
 		result = get_valid_clk(hwmgr, &pp_table_information->valid_sclk_values,
 		pp_table_information->vdd_dep_on_sclk);
+
+	if (!result && gpio_table)
+		result = get_gpio_table(hwmgr, &pp_table_information->gpio_table,
+				gpio_table);
 
 	return result;
 }
@@ -1115,6 +1149,9 @@ static int pp_tables_v1_0_uninitialize(struct pp_hwmgr *hwmgr)
 
 	kfree(pp_table_information->pcie_table);
 	pp_table_information->pcie_table = NULL;
+
+	kfree(pp_table_information->gpio_table);
+	pp_table_information->gpio_table = NULL;
 
 	kfree(hwmgr->pptable);
 	hwmgr->pptable = NULL;

@@ -418,7 +418,7 @@ static int uvd_v7_0_sw_init(void *handle)
 	ring = &adev->uvd.ring_enc[0];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 	r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
-				  rq, amdgpu_sched_jobs, NULL);
+				  rq, NULL);
 	if (r) {
 		DRM_ERROR("Failed setting up UVD ENC run queue.\n");
 		return r;
@@ -1136,6 +1136,16 @@ static void uvd_v7_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 }
 
 /**
+ * uvd_v7_0_ring_emit_hdp_flush - skip HDP flushing
+ *
+ * @ring: amdgpu_ring pointer
+ */
+static void uvd_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	/* The firmware doesn't seem to like touching registers at this point. */
+}
+
+/**
  * uvd_v7_0_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -1654,7 +1664,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.get_wptr = uvd_v7_0_ring_get_wptr,
 	.set_wptr = uvd_v7_0_ring_set_wptr,
 	.emit_frame_size =
-		6 + 6 + /* hdp flush / invalidate */
+		6 + /* hdp invalidate */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
 		8 + /* uvd_v7_0_ring_emit_vm_flush */
@@ -1663,6 +1673,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.emit_ib = uvd_v7_0_ring_emit_ib,
 	.emit_fence = uvd_v7_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v7_0_ring_emit_vm_flush,
+	.emit_hdp_flush = uvd_v7_0_ring_emit_hdp_flush,
 	.test_ring = uvd_v7_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = uvd_v7_0_ring_insert_nop,
@@ -1671,6 +1682,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.end_use = amdgpu_uvd_ring_end_use,
 	.emit_wreg = uvd_v7_0_ring_emit_wreg,
 	.emit_reg_wait = uvd_v7_0_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
@@ -1702,6 +1714,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.end_use = amdgpu_uvd_ring_end_use,
 	.emit_wreg = uvd_v7_0_enc_ring_emit_wreg,
 	.emit_reg_wait = uvd_v7_0_enc_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev)

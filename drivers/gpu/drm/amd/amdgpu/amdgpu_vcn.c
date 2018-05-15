@@ -105,7 +105,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	ring = &adev->vcn.ring_dec;
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 	r = drm_sched_entity_init(&ring->sched, &adev->vcn.entity_dec,
-				  rq, amdgpu_sched_jobs, NULL);
+				  rq, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCN dec run queue.\n");
 		return r;
@@ -114,7 +114,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	ring = &adev->vcn.ring_enc[0];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 	r = drm_sched_entity_init(&ring->sched, &adev->vcn.entity_enc,
-				  rq, amdgpu_sched_jobs, NULL);
+				  rq, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCN enc run queue.\n");
 		return r;

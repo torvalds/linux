@@ -9,14 +9,6 @@ config DRM_AMD_DC
 	  support for AMDGPU. This adds required support for Vega and
 	  Raven ASICs.
 
-config DRM_AMD_DC_PRE_VEGA
-	bool "DC support for Polaris and older ASICs"
-	default y
-	help
-	  Choose this option to enable the new DC support for older asics
-	  by default. This includes Polaris, Carrizo, Tonga, Bonaire,
-	  and Hawaii.
-
 config DRM_AMD_DC_FBC
 	bool "AMD FBC - Enable Frame Buffer Compression"
 	depends on DRM_AMD_DC
@@ -42,4 +34,10 @@ config DEBUG_KERNEL_DC
 	  if you want to hit
 	  kdgb_break in assert.
 
+config DRM_AMD_DC_VEGAM
+        bool "VEGAM support"
+        depends on DRM_AMD_DC
+        help
+         Choose this option if you want to have
+         VEGAM support for display engine
 endmenu

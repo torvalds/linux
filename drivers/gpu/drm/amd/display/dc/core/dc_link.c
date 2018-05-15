@@ -45,8 +45,9 @@
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
-#define DC_LOGGER \
-	dc_ctx->logger
+
+#define DC_LOGGER_INIT(logger)
+
 
 #define LINK_INFO(...) \
 	DC_LOG_HW_HOTPLUG(  \
@@ -561,7 +562,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	struct dc_context *dc_ctx = link->ctx;
 	struct dc_sink *sink = NULL;
 	enum dc_connection_type new_connection_type = dc_connection_none;
-
+	DC_LOGGER_INIT(link->ctx->logger);
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
@@ -927,6 +928,7 @@ static bool construct(
 	struct integrated_info info = {{{ 0 }}};
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
+	DC_LOGGER_INIT(dc_ctx->logger);
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
@@ -1135,7 +1137,8 @@ static void dpcd_configure_panel_mode(
 {
 	union dpcd_edp_config edp_config_set;
 	bool panel_mode_edp = false;
-	struct dc_context *dc_ctx = link->ctx;
+	DC_LOGGER_INIT(link->ctx->logger);
+
 	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
 
 	if (DP_PANEL_MODE_DEFAULT != panel_mode) {
@@ -1183,16 +1186,21 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
-	union down_spread_ctrl downspread;
+	union down_spread_ctrl old_downspread;
+	union down_spread_ctrl new_downspread;
 
 	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+			&old_downspread.raw, sizeof(old_downspread));
 
-	downspread.bits.IGNORE_MSA_TIMING_PARAM =
+	new_downspread.raw = old_downspread.raw;
+
+	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
 			(stream->ignore_msa_timing_param) ? 1 : 0;
 
-	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+	if (new_downspread.raw != old_downspread.raw) {
+		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+			&new_downspread.raw, sizeof(new_downspread));
+	}
 }
 
 static enum dc_status enable_link_dp(
@@ -1843,9 +1851,22 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 
 static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
-		const struct dc_dongle_caps *dongle_caps)
+		const struct dpcd_caps *dpcd_caps)
 {
 	unsigned int required_pix_clk = timing->pix_clk_khz;
+	const struct dc_dongle_caps *dongle_caps = &dpcd_caps->dongle_caps;
+
+	switch (dpcd_caps->dongle_type) {
+	case DISPLAY_DONGLE_DP_VGA_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_DONGLE:
+		if (timing->pixel_encoding == PIXEL_ENCODING_RGB)
+			return true;
+		else
+			return false;
+	default:
+		break;
+	}
 
 	if (dongle_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
 		dongle_caps->extendedCapValid == false)
@@ -1911,7 +1932,7 @@ enum dc_status dc_link_validate_mode_timing(
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
-	struct dc_dongle_caps *dongle_caps = &link->dpcd_caps.dongle_caps;
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
@@ -1924,7 +1945,7 @@ enum dc_status dc_link_validate_mode_timing(
 		return DC_EXCEED_DONGLE_CAP;
 
 	/* Active Dongle*/
-	if (!dp_active_dongle_validate_timing(timing, dongle_caps))
+	if (!dp_active_dongle_validate_timing(timing, dpcd_caps))
 		return DC_EXCEED_DONGLE_CAP;
 
 	switch (stream->signal) {
@@ -1950,10 +1971,10 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-	struct dc_context *dc_ctx = link->ctx;
 	unsigned int controller_id = 0;
 	bool use_smooth_brightness = true;
 	int i;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	if ((dmcu == NULL) ||
 		(abm == NULL) ||
@@ -1961,7 +1982,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		return false;
 
 	if (stream) {
-		if (stream->bl_pwm_level == 0)
+		if (stream->bl_pwm_level == EDP_BACKLIGHT_RAMP_DISABLE_LEVEL)
 			frame_ramp = 0;
 
 		((struct dc_stream_state *)stream)->bl_pwm_level = level;
@@ -2149,8 +2170,8 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
-	struct dc_context *dc_ctx = link->ctx;
 	uint8_t i;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
 	 * and stream is in link->stream[]. This is called during set mode,
@@ -2178,11 +2199,11 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
@@ -2229,7 +2250,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
 	uint8_t i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
-	struct dc_context *dc_ctx = link->ctx;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -2268,11 +2289,11 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
@@ -2302,8 +2323,8 @@ void core_link_enable_stream(
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
-	struct dc_context *dc_ctx = pipe_ctx->stream->ctx;
 	enum dc_status status;
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	/* eDP lit up by bios already, no need to enable again. */
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&

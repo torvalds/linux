@@ -52,6 +52,7 @@
 #include "gmc_v9_0.h"
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
+#include "df_v1_7.h"
 #include "vega10_ih.h"
 #include "sdma_v4_0.h"
 #include "uvd_v7_0.h"
@@ -59,33 +60,6 @@
 #include "vcn_v1_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
-
-#define mmFabricConfigAccessControl                                                                    0x0410
-#define mmFabricConfigAccessControl_BASE_IDX                                                           0
-#define mmFabricConfigAccessControl_DEFAULT                                      0x00000000
-//FabricConfigAccessControl
-#define FabricConfigAccessControl__CfgRegInstAccEn__SHIFT                                                     0x0
-#define FabricConfigAccessControl__CfgRegInstAccRegLock__SHIFT                                                0x1
-#define FabricConfigAccessControl__CfgRegInstID__SHIFT                                                        0x10
-#define FabricConfigAccessControl__CfgRegInstAccEn_MASK                                                       0x00000001L
-#define FabricConfigAccessControl__CfgRegInstAccRegLock_MASK                                                  0x00000002L
-#define FabricConfigAccessControl__CfgRegInstID_MASK                                                          0x00FF0000L
-
-
-#define mmDF_PIE_AON0_DfGlobalClkGater                                                                 0x00fc
-#define mmDF_PIE_AON0_DfGlobalClkGater_BASE_IDX                                                        0
-//DF_PIE_AON0_DfGlobalClkGater
-#define DF_PIE_AON0_DfGlobalClkGater__MGCGMode__SHIFT                                                         0x0
-#define DF_PIE_AON0_DfGlobalClkGater__MGCGMode_MASK                                                           0x0000000FL
-
-enum {
-	DF_MGCG_DISABLE = 0,
-	DF_MGCG_ENABLE_00_CYCLE_DELAY =1,
-	DF_MGCG_ENABLE_01_CYCLE_DELAY =2,
-	DF_MGCG_ENABLE_15_CYCLE_DELAY =13,
-	DF_MGCG_ENABLE_31_CYCLE_DELAY =14,
-	DF_MGCG_ENABLE_63_CYCLE_DELAY =15
-};
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
 #define mmMP0_MISC_CGTT_CTRL0_BASE_IDX                                                          0
@@ -313,6 +287,7 @@ static struct soc15_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPC_STALLED_STAT1)},
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPC_STATUS)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGB_ADDR_CONFIG)},
+	{ SOC15_REG_ENTRY(GC, 0, mmDB_DEBUG2)},
 };
 
 static uint32_t soc15_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
@@ -341,6 +316,8 @@ static uint32_t soc15_get_register_value(struct amdgpu_device *adev,
 	} else {
 		if (reg_offset == SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG))
 			return adev->gfx.config.gb_addr_config;
+		else if (reg_offset == SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG2))
+			return adev->gfx.config.db_debug2;
 		return RREG32(reg_offset);
 	}
 }
@@ -521,6 +498,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	else
 		adev->nbio_funcs = &nbio_v6_1_funcs;
 
+	adev->df_funcs = &df_v1_7_funcs;
 	adev->nbio_funcs->detect_hw_virt(adev);
 
 	if (amdgpu_sriov_vf(adev))
@@ -593,6 +571,12 @@ static void soc15_invalidate_hdp(struct amdgpu_device *adev,
 			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
 }
 
+static bool soc15_need_full_reset(struct amdgpu_device *adev)
+{
+	/* change this when we implement soft reset */
+	return true;
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -606,6 +590,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.get_config_memsize = &soc15_get_config_memsize,
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
+	.need_full_reset = &soc15_need_full_reset,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -696,6 +681,11 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS;
 		adev->pg_flags = AMD_PG_SUPPORT_SDMA;
+
+		if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_RLC_SMU_HS;
 
 		adev->external_rev_id = 0x1;
 		break;
@@ -871,32 +861,6 @@ static void soc15_update_rom_medium_grain_clock_gating(struct amdgpu_device *ade
 		WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0), data);
 }
 
-static void soc15_update_df_medium_grain_clock_gating(struct amdgpu_device *adev,
-						       bool enable)
-{
-	uint32_t data;
-
-	/* Put DF on broadcast mode */
-	data = RREG32(SOC15_REG_OFFSET(DF, 0, mmFabricConfigAccessControl));
-	data &= ~FabricConfigAccessControl__CfgRegInstAccEn_MASK;
-	WREG32(SOC15_REG_OFFSET(DF, 0, mmFabricConfigAccessControl), data);
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_DF_MGCG)) {
-		data = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater));
-		data &= ~DF_PIE_AON0_DfGlobalClkGater__MGCGMode_MASK;
-		data |= DF_MGCG_ENABLE_15_CYCLE_DELAY;
-		WREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater), data);
-	} else {
-		data = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater));
-		data &= ~DF_PIE_AON0_DfGlobalClkGater__MGCGMode_MASK;
-		data |= DF_MGCG_DISABLE;
-		WREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater), data);
-	}
-
-	WREG32(SOC15_REG_OFFSET(DF, 0, mmFabricConfigAccessControl),
-	       mmFabricConfigAccessControl_DEFAULT);
-}
-
 static int soc15_common_set_clockgating_state(void *handle,
 					    enum amd_clockgating_state state)
 {
@@ -920,7 +884,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_rom_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		soc15_update_df_medium_grain_clock_gating(adev,
+		adev->df_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_RAVEN:
@@ -973,10 +937,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
 		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
 
-	/* AMD_CG_SUPPORT_DF_MGCG */
-	data = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater));
-	if (data & DF_MGCG_ENABLE_15_CYCLE_DELAY)
-		*flags |= AMD_CG_SUPPORT_DF_MGCG;
+	adev->df_funcs->get_clockgating_state(adev, flags);
 }
 
 static int soc15_common_set_powergating_state(void *handle,

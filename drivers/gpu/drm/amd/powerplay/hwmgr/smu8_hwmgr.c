@@ -314,8 +314,7 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 	uint8_t frev, crev;
 	uint16_t size;
 
-	info = (ATOM_INTEGRATED_SYSTEM_INFO_V1_9 *) cgs_atom_get_data_table(
-			hwmgr->device,
+	info = (ATOM_INTEGRATED_SYSTEM_INFO_V1_9 *)smu_atom_get_data_table(hwmgr->adev,
 			GetIndexIntoMasterTable(DATA, IntegratedSystemInfo),
 			&size, &frev, &crev);
 
@@ -694,7 +693,7 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 	else
 		data->sclk_dpm.soft_max_clk  = table->entries[table->count - 1].clk;
 
-	clock = hwmgr->display_config.min_core_set_clock;
+	clock = hwmgr->display_config->min_core_set_clock;
 	if (clock == 0)
 		pr_debug("min_core_set_clock not set\n");
 
@@ -749,7 +748,7 @@ static int smu8_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_SclkDeepSleep)) {
-		uint32_t clks = hwmgr->display_config.min_core_set_clock_in_sr;
+		uint32_t clks = hwmgr->display_config->min_core_set_clock_in_sr;
 		if (clks == 0)
 			clks = SMU8_MIN_DEEP_SLEEP_SCLK;
 
@@ -1041,25 +1040,21 @@ static int smu8_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct PP_Clocks clocks = {0, 0, 0, 0};
 	bool force_high;
-	uint32_t  num_of_active_displays = 0;
-	struct cgs_display_info info = {0};
 
 	smu8_ps->need_dfs_bypass = true;
 
 	data->battery_state = (PP_StateUILabel_Battery == prequest_ps->classification.ui_label);
 
-	clocks.memoryClock = hwmgr->display_config.min_mem_set_clock != 0 ?
-				hwmgr->display_config.min_mem_set_clock :
+	clocks.memoryClock = hwmgr->display_config->min_mem_set_clock != 0 ?
+				hwmgr->display_config->min_mem_set_clock :
 				data->sys_info.nbp_memory_clock[1];
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	num_of_active_displays = info.display_count;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		clocks.memoryClock = hwmgr->dyn_state.max_clock_voltage_on_ac.mclk;
 
 	force_high = (clocks.memoryClock > data->sys_info.nbp_memory_clock[SMU8_NUM_NBPMEMORYCLOCK - 1])
-			|| (num_of_active_displays >= 3);
+			|| (hwmgr->display_config->num_display >= 3);
 
 	smu8_ps->action = smu8_current_ps->action;
 
@@ -1897,20 +1892,20 @@ static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	data->uvd_power_gated = bgate;
 
 	if (bgate) {
-		cgs_set_powergating_state(hwmgr->device,
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_PG_STATE_GATE);
-		cgs_set_clockgating_state(hwmgr->device,
+		amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_CG_STATE_GATE);
 		smu8_dpm_update_uvd_dpm(hwmgr, true);
 		smu8_dpm_powerdown_uvd(hwmgr);
 	} else {
 		smu8_dpm_powerup_uvd(hwmgr);
-		cgs_set_clockgating_state(hwmgr->device,
+		amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_CG_STATE_UNGATE);
-		cgs_set_powergating_state(hwmgr->device,
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_PG_STATE_UNGATE);
 		smu8_dpm_update_uvd_dpm(hwmgr, false);
@@ -1923,12 +1918,10 @@ static void smu8_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 	struct smu8_hwmgr *data = hwmgr->backend;
 
 	if (bgate) {
-		cgs_set_powergating_state(
-					hwmgr->device,
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 					AMD_IP_BLOCK_TYPE_VCE,
 					AMD_PG_STATE_GATE);
-		cgs_set_clockgating_state(
-					hwmgr->device,
+		amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 					AMD_IP_BLOCK_TYPE_VCE,
 					AMD_CG_STATE_GATE);
 		smu8_enable_disable_vce_dpm(hwmgr, false);
@@ -1937,12 +1930,10 @@ static void smu8_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 	} else {
 		smu8_dpm_powerup_vce(hwmgr);
 		data->vce_power_gated = false;
-		cgs_set_clockgating_state(
-					hwmgr->device,
+		amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 					AMD_IP_BLOCK_TYPE_VCE,
 					AMD_CG_STATE_UNGATE);
-		cgs_set_powergating_state(
-					hwmgr->device,
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 					AMD_IP_BLOCK_TYPE_VCE,
 					AMD_PG_STATE_UNGATE);
 		smu8_dpm_update_vce_dpm(hwmgr);

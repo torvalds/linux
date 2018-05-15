@@ -83,6 +83,9 @@ struct i2caux *dal_i2caux_create(
 	case DCE_VERSION_8_3:
 		return dal_i2caux_dce80_create(ctx);
 	case DCE_VERSION_11_2:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case DCE_VERSION_11_22:
+#endif
 		return dal_i2caux_dce112_create(ctx);
 	case DCE_VERSION_11_0:
 		return dal_i2caux_dce110_create(ctx);

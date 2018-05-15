@@ -78,5 +78,5 @@ TRACE_EVENT(drm_sched_process_job,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/scheduler
 #include <trace/define_trace.h>

@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.38"
+#define DC_VER "3.1.44"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -202,6 +202,7 @@ struct dc_debug {
 	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
+	bool bandwidth_calcs_trace;
 
 	/* stutter efficiency related */
 	bool disable_stutter;
@@ -332,20 +333,6 @@ enum {
 	TRANSFER_FUNC_POINTS = 1025
 };
 
-// Moved here from color module for linux
-enum color_transfer_func {
-	transfer_func_unknown,
-	transfer_func_srgb,
-	transfer_func_bt709,
-	transfer_func_pq2084,
-	transfer_func_pq2084_interim,
-	transfer_func_linear_0_1,
-	transfer_func_linear_0_125,
-	transfer_func_dolbyvision,
-	transfer_func_gamma_22,
-	transfer_func_gamma_26
-};
-
 struct dc_hdr_static_metadata {
 	/* display chromaticities and white point in units of 0.00001 */
 	unsigned int chromaticity_green_x;
@@ -361,9 +348,6 @@ struct dc_hdr_static_metadata {
 	uint32_t max_luminance;
 	uint32_t maximum_content_light_level;
 	uint32_t maximum_frame_average_light_level;
-
-	bool hdr_supported;
-	bool is_hdr;
 };
 
 enum dc_transfer_func_type {
@@ -419,7 +403,6 @@ union surface_update_flags {
 		/* Medium updates */
 		uint32_t dcc_change:1;
 		uint32_t color_space_change:1;
-		uint32_t input_tf_change:1;
 		uint32_t horizontal_mirror_change:1;
 		uint32_t per_pixel_alpha_change:1;
 		uint32_t rotation_change:1;
@@ -428,6 +411,7 @@ union surface_update_flags {
 		uint32_t position_change:1;
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
+		uint32_t coeff_reduction_change:1;
 		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
 
@@ -460,7 +444,7 @@ struct dc_plane_state {
 	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
 	struct dc_bias_and_scale *bias_and_scale;
-	struct csc_transform input_csc_color_matrix;
+	struct dc_csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
 	uint32_t sdr_white_level;
 
@@ -468,7 +452,6 @@ struct dc_plane_state {
 	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	enum dc_color_space color_space;
-	enum color_transfer_func input_tf;
 
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
@@ -498,7 +481,6 @@ struct dc_plane_info {
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
 	enum dc_color_space color_space;
-	enum color_transfer_func input_tf;
 	unsigned int sdr_white_level;
 	bool horizontal_mirror;
 	bool visible;
@@ -525,10 +507,9 @@ struct dc_surface_update {
 	 * null means no updates
 	 */
 	struct dc_gamma *gamma;
-	enum color_transfer_func color_input_tf;
 	struct dc_transfer_func *in_transfer_func;
 
-	struct csc_transform *input_csc_color_matrix;
+	struct dc_csc_transform *input_csc_color_matrix;
 	struct fixed31_32 *coeff_reduction_factor;
 };
 
@@ -698,6 +679,7 @@ struct dc_cursor {
 	struct dc_plane_address address;
 	struct dc_cursor_attributes attributes;
 };
+
 
 /*******************************************************************************
  * Interrupt interfaces

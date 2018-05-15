@@ -26,9 +26,26 @@
 struct pp_atomctrl_voltage_table;
 struct pp_hwmgr;
 struct phm_ppt_v1_voltage_lookup_table;
+struct Watermarks_t;
+struct pp_wm_sets_with_clock_ranges_soc15;
 
 uint8_t convert_to_vid(uint16_t vddc);
 uint16_t convert_to_vddc(uint8_t vid);
+
+struct watermark_row_generic_t {
+	uint16_t MinClock;
+	uint16_t MaxClock;
+	uint16_t MinUclk;
+	uint16_t MaxUclk;
+
+	uint8_t  WmSetting;
+	uint8_t  Padding[3];
+};
+
+struct watermarks {
+	struct watermark_row_generic_t WatermarkRow[2][4];
+	uint32_t     padding[7];
+};
 
 extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 					uint32_t index,
@@ -81,6 +98,16 @@ int phm_irq_process(struct amdgpu_device *adev,
 			   struct amdgpu_iv_entry *entry);
 
 int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr);
+
+void *smu_atom_get_data_table(void *dev, uint32_t table, uint16_t *size,
+						uint8_t *frev, uint8_t *crev);
+
+int smu_get_voltage_dependency_table_ppt_v1(
+	const struct phm_ppt_v1_clock_voltage_dependency_table *allowed_dep_table,
+		struct phm_ppt_v1_clock_voltage_dependency_table *dep_table);
+
+int smu_set_watermarks_for_clocks_ranges(void *wt_table,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define PHM_FIELD_MASK(reg, field) reg##__##field##_MASK

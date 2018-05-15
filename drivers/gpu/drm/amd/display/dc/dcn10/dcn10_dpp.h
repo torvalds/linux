@@ -44,6 +44,10 @@
 #define TF_REG_LIST_DCN(id) \
 	SRI(CM_GAMUT_REMAP_CONTROL, CM, id),\
 	SRI(CM_GAMUT_REMAP_C11_C12, CM, id),\
+	SRI(CM_GAMUT_REMAP_C13_C14, CM, id),\
+	SRI(CM_GAMUT_REMAP_C21_C22, CM, id),\
+	SRI(CM_GAMUT_REMAP_C23_C24, CM, id),\
+	SRI(CM_GAMUT_REMAP_C31_C32, CM, id),\
 	SRI(CM_GAMUT_REMAP_C33_C34, CM, id),\
 	SRI(DSCL_EXT_OVERSCAN_LEFT_RIGHT, DSCL, id), \
 	SRI(DSCL_EXT_OVERSCAN_TOP_BOTTOM, DSCL, id), \
@@ -108,6 +112,8 @@
 	SRI(CM_DGAM_LUT_DATA, CM, id), \
 	SRI(CM_CONTROL, CM, id), \
 	SRI(CM_DGAM_CONTROL, CM, id), \
+	SRI(CM_TEST_DEBUG_INDEX, CM, id), \
+	SRI(CM_TEST_DEBUG_DATA, CM, id), \
 	SRI(FORMAT_CONTROL, CNVC_CFG, id), \
 	SRI(CNVC_SURFACE_PIXEL_FORMAT, CNVC_CFG, id), \
 	SRI(CURSOR0_CONTROL, CNVC_CUR, id), \
@@ -175,6 +181,14 @@
 	TF_SF(CM0_CM_GAMUT_REMAP_CONTROL, CM_GAMUT_REMAP_MODE, mask_sh),\
 	TF_SF(CM0_CM_GAMUT_REMAP_C11_C12, CM_GAMUT_REMAP_C11, mask_sh),\
 	TF_SF(CM0_CM_GAMUT_REMAP_C11_C12, CM_GAMUT_REMAP_C12, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C13_C14, CM_GAMUT_REMAP_C13, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C13_C14, CM_GAMUT_REMAP_C14, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C21_C22, CM_GAMUT_REMAP_C21, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C21_C22, CM_GAMUT_REMAP_C22, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C23_C24, CM_GAMUT_REMAP_C23, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C23_C24, CM_GAMUT_REMAP_C24, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C31_C32, CM_GAMUT_REMAP_C31, mask_sh),\
+	TF_SF(CM0_CM_GAMUT_REMAP_C31_C32, CM_GAMUT_REMAP_C32, mask_sh),\
 	TF_SF(CM0_CM_GAMUT_REMAP_C33_C34, CM_GAMUT_REMAP_C33, mask_sh),\
 	TF_SF(CM0_CM_GAMUT_REMAP_C33_C34, CM_GAMUT_REMAP_C34, mask_sh),\
 	TF_SF(DSCL0_DSCL_EXT_OVERSCAN_LEFT_RIGHT, EXT_OVERSCAN_LEFT, mask_sh),\
@@ -300,6 +314,7 @@
 	TF_SF(CM0_CM_DGAM_LUT_INDEX, CM_DGAM_LUT_INDEX, mask_sh), \
 	TF_SF(CM0_CM_DGAM_LUT_DATA, CM_DGAM_LUT_DATA, mask_sh), \
 	TF_SF(CM0_CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, mask_sh), \
+	TF_SF(CM0_CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_INDEX, mask_sh), \
 	TF_SF(CNVC_CFG0_FORMAT_CONTROL, CNVC_BYPASS, mask_sh), \
 	TF2_SF(CNVC_CFG0, FORMAT_CONTROL__ALPHA_EN, mask_sh), \
 	TF_SF(CNVC_CFG0_FORMAT_CONTROL, FORMAT_EXPANSION_MODE, mask_sh), \
@@ -417,6 +432,41 @@
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_ENABLE, mask_sh), \
 	TF_SF(DPP_TOP0_DPP_CONTROL, DPPCLK_RATE_CONTROL, mask_sh)
 
+/*
+ *
+	DCN1 CM debug status register definition
+
+	register :ID9_CM_STATUS do
+	implement_ref :cm
+	map to:  :cmdebugind, at: j
+	width 32
+	disclosure   NEVER
+
+		field :ID9_VUPDATE_CFG, [0], R
+		field :ID9_IGAM_LUT_MODE, [2..1], R
+		field :ID9_BNS_BYPASS, [3], R
+		field :ID9_ICSC_MODE, [5..4], R
+		field :ID9_DGAM_LUT_MODE, [8..6], R
+		field :ID9_HDR_BYPASS, [9], R
+		field :ID9_GAMUT_REMAP_MODE, [11..10], R
+		field :ID9_RGAM_LUT_MODE, [14..12], R
+		#1 free bit
+		field :ID9_OCSC_MODE, [18..16], R
+		field :ID9_DENORM_MODE, [21..19], R
+		field :ID9_ROUND_TRUNC_MODE, [25..22], R
+		field :ID9_DITHER_EN, [26], R
+		field :ID9_DITHER_MODE, [28..27], R
+	end
+*/
+
+#define TF_DEBUG_REG_LIST_SH_DCN10 \
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 4, \
+	.CM_TEST_DEBUG_DATA_ID9_OCSC_MODE = 16
+
+#define TF_DEBUG_REG_LIST_MASK_DCN10 \
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 0x30, \
+	.CM_TEST_DEBUG_DATA_ID9_OCSC_MODE = 0x70000
+
 #define TF_REG_FIELD_LIST(type) \
 	type EXT_OVERSCAN_LEFT; \
 	type EXT_OVERSCAN_RIGHT; \
@@ -486,6 +536,14 @@
 	type CM_GAMUT_REMAP_MODE; \
 	type CM_GAMUT_REMAP_C11; \
 	type CM_GAMUT_REMAP_C12; \
+	type CM_GAMUT_REMAP_C13; \
+	type CM_GAMUT_REMAP_C14; \
+	type CM_GAMUT_REMAP_C21; \
+	type CM_GAMUT_REMAP_C22; \
+	type CM_GAMUT_REMAP_C23; \
+	type CM_GAMUT_REMAP_C24; \
+	type CM_GAMUT_REMAP_C31; \
+	type CM_GAMUT_REMAP_C32; \
 	type CM_GAMUT_REMAP_C33; \
 	type CM_GAMUT_REMAP_C34; \
 	type CM_COMA_C11; \
@@ -1010,6 +1068,9 @@
 	type CUR0_EXPANSION_MODE; \
 	type CUR0_ENABLE; \
 	type CM_BYPASS; \
+	type CM_TEST_DEBUG_INDEX; \
+	type CM_TEST_DEBUG_DATA_ID9_ICSC_MODE; \
+	type CM_TEST_DEBUG_DATA_ID9_OCSC_MODE;\
 	type FORMAT_CONTROL__ALPHA_EN; \
 	type CUR0_COLOR0; \
 	type CUR0_COLOR1; \
@@ -1054,6 +1115,10 @@ struct dcn_dpp_mask {
 	uint32_t RECOUT_SIZE; \
 	uint32_t CM_GAMUT_REMAP_CONTROL; \
 	uint32_t CM_GAMUT_REMAP_C11_C12; \
+	uint32_t CM_GAMUT_REMAP_C13_C14; \
+	uint32_t CM_GAMUT_REMAP_C21_C22; \
+	uint32_t CM_GAMUT_REMAP_C23_C24; \
+	uint32_t CM_GAMUT_REMAP_C31_C32; \
 	uint32_t CM_GAMUT_REMAP_C33_C34; \
 	uint32_t CM_COMA_C11_C12; \
 	uint32_t CM_COMA_C33_C34; \
@@ -1255,6 +1320,8 @@ struct dcn_dpp_mask {
 	uint32_t CM_IGAM_LUT_RW_CONTROL; \
 	uint32_t CM_IGAM_LUT_RW_INDEX; \
 	uint32_t CM_IGAM_LUT_SEQ_COLOR; \
+	uint32_t CM_TEST_DEBUG_INDEX; \
+	uint32_t CM_TEST_DEBUG_DATA; \
 	uint32_t FORMAT_CONTROL; \
 	uint32_t CNVC_SURFACE_PIXEL_FORMAT; \
 	uint32_t CURSOR_CONTROL; \
@@ -1289,8 +1356,8 @@ struct dcn10_dpp {
 
 enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_BYPASS = 0,
-	INPUT_CSC_SELECT_ICSC,
-	INPUT_CSC_SELECT_COMA
+	INPUT_CSC_SELECT_ICSC = 1,
+	INPUT_CSC_SELECT_COMA = 2
 };
 
 void dpp1_set_cursor_attributes(
@@ -1364,6 +1431,9 @@ bool dpp_get_optimal_number_of_taps(
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps);
 
+void dpp_read_state(struct dpp *dpp_base,
+		struct dcn_dpp_state *s);
+
 void dpp_reset(struct dpp *dpp_base);
 
 void dpp1_cm_program_regamma_lut(
@@ -1408,7 +1478,7 @@ void dpp1_cnv_setup (
 		struct dpp *dpp_base,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
-		struct csc_transform input_csc_color_matrix,
+		struct dc_csc_transform input_csc_color_matrix,
 		enum dc_color_space input_color_space);
 
 void dpp1_full_bypass(struct dpp *dpp_base);

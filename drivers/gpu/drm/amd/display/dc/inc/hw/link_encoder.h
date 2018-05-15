@@ -149,6 +149,7 @@ struct link_encoder_funcs {
 		bool connect);
 	void (*enable_hpd)(struct link_encoder *enc);
 	void (*disable_hpd)(struct link_encoder *enc);
+	bool (*is_dig_enabled)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
 };
 

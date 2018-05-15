@@ -243,13 +243,19 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = NULL;
+	struct amdgpu_bo_param bp;
 	int r;
 	uint64_t gpu_addr_tmp = 0;
 	void *cpu_ptr_tmp = NULL;
 
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
-			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, ttm_bo_type_kernel,
-			     NULL, &bo);
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = PAGE_SIZE;
+	bp.domain = AMDGPU_GEM_DOMAIN_GTT;
+	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = NULL;
+	r = amdgpu_bo_create(adev, &bp, &bo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate BO for amdkfd (%d)\n", r);
