@@ -998,11 +998,8 @@ int malidp_de_irq_init(struct drm_device *drm, int irq)
 	return 0;
 }
 
-void malidp_de_irq_fini(struct drm_device *drm)
+void malidp_de_irq_fini(struct malidp_hw_device *hwdev)
 {
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
 	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
 			      hwdev->hw->map.de_irq_map.irq_mask);
 	malidp_hw_disable_irq(hwdev, MALIDP_DC_BLOCK,
@@ -1102,11 +1099,8 @@ int malidp_se_irq_init(struct drm_device *drm, int irq)
 	return 0;
 }
 
-void malidp_se_irq_fini(struct drm_device *drm)
+void malidp_se_irq_fini(struct malidp_hw_device *hwdev)
 {
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
 	malidp_hw_disable_irq(hwdev, MALIDP_SE_BLOCK,
 			      hwdev->hw->map.se_irq_map.irq_mask);
 }

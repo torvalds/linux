@@ -304,6 +304,8 @@ static int malidp_irq_init(struct platform_device *pdev)
 {
 	int irq_de, irq_se, ret = 0;
 	struct drm_device *drm = dev_get_drvdata(&pdev->dev);
+	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_hw_device *hwdev = malidp->dev;
 
 	/* fetch the interrupts from DT */
 	irq_de = platform_get_irq_byname(pdev, "DE");
@@ -323,7 +325,7 @@ static int malidp_irq_init(struct platform_device *pdev)
 
 	ret = malidp_se_irq_init(drm, irq_se);
 	if (ret) {
-		malidp_de_irq_fini(drm);
+		malidp_de_irq_fini(hwdev);
 		return ret;
 	}
 
@@ -763,8 +765,8 @@ register_fail:
 fbdev_fail:
 	pm_runtime_get_sync(dev);
 vblank_fail:
-	malidp_se_irq_fini(drm);
-	malidp_de_irq_fini(drm);
+	malidp_se_irq_fini(hwdev);
+	malidp_de_irq_fini(hwdev);
 	drm->irq_enabled = false;
 irq_init_fail:
 	drm_atomic_helper_shutdown(drm);
@@ -794,14 +796,15 @@ static void malidp_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_hw_device *hwdev = malidp->dev;
 
 	drm_dev_unregister(drm);
 	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
 	drm_crtc_vblank_off(&malidp->crtc);
-	malidp_se_irq_fini(drm);
-	malidp_de_irq_fini(drm);
+	malidp_se_irq_fini(hwdev);
+	malidp_de_irq_fini(hwdev);
 	drm->irq_enabled = false;
 	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
