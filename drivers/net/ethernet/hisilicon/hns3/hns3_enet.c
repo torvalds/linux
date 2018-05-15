@@ -1511,29 +1511,6 @@ static bool hns3_is_phys_func(struct pci_dev *pdev)
 	return false;
 }
 
-static int get_num_req_vfs(struct pci_dev *pdev)
-{
-	/* a variable vf num will be supported later */
-	return pci_sriov_get_totalvfs(pdev);
-}
-
-static void hns3_enable_sriov(struct pci_dev *pdev)
-{
-	int num_req_vfs = get_num_req_vfs(pdev);
-	int ret;
-
-	/* Enable SRIOV */
-	if (!num_req_vfs)
-		return;
-
-	dev_info(&pdev->dev, "active VFs(%d) found, enabling SRIOV\n",
-		 num_req_vfs);
-
-	ret = pci_enable_sriov(pdev, num_req_vfs);
-	if (ret)
-		dev_err(&pdev->dev, "SRIOV enable failed %d\n", ret);
-}
-
 static void hns3_disable_sriov(struct pci_dev *pdev)
 {
 	/* If our VFs are assigned we cannot shut down SR-IOV
@@ -1578,9 +1555,6 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hnae3_register_ae_dev(ae_dev);
 
-	if (hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))
-		hns3_enable_sriov(pdev);
-
 	return 0;
 }
 
@@ -1597,11 +1571,43 @@ static void hns3_remove(struct pci_dev *pdev)
 	hnae3_unregister_ae_dev(ae_dev);
 }
 
+/**
+ * hns3_pci_sriov_configure
+ * @pdev: pointer to a pci_dev structure
+ * @num_vfs: number of VFs to allocate
+ *
+ * Enable or change the number of VFs. Called when the user updates the number
+ * of VFs in sysfs.
+ **/
+int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	int ret;
+
+	if (!(hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))) {
+		dev_warn(&pdev->dev, "Can not config SRIOV\n");
+		return -EINVAL;
+	}
+
+	if (num_vfs) {
+		ret = pci_enable_sriov(pdev, num_vfs);
+		if (ret)
+			dev_err(&pdev->dev, "SRIOV enable failed %d\n", ret);
+	} else if (!pci_vfs_assigned(pdev)) {
+		pci_disable_sriov(pdev);
+	} else {
+		dev_warn(&pdev->dev,
+			 "Unable to free VFs because some are assigned to VMs.\n");
+	}
+
+	return 0;
+}
+
 static struct pci_driver hns3_driver = {
 	.name     = hns3_driver_name,
 	.id_table = hns3_pci_tbl,
 	.probe    = hns3_probe,
 	.remove   = hns3_remove,
+	.sriov_configure = hns3_pci_sriov_configure,
 };
 
 /* set default feature to hns3 */
