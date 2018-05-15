@@ -9335,7 +9335,17 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
 	.rpc_release = nfs41_free_stateid_release,
 };
 
-static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
+/**
+ * nfs41_free_stateid - perform a FREE_STATEID operation
+ *
+ * @server: server / transport on which to perform the operation
+ * @stateid: state ID to release
+ * @cred: credential
+ * @is_recovery: set to true if this call needs to be privileged
+ *
+ * Note: this function is always asynchronous.
+ */
+static int nfs41_free_stateid(struct nfs_server *server,
 		const nfs4_stateid *stateid,
 		struct rpc_cred *cred,
 		bool privileged)
@@ -9351,6 +9361,7 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 		.flags = RPC_TASK_ASYNC,
 	};
 	struct nfs_free_stateid_data *data;
+	struct rpc_task *task;
 
 	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_STATEID,
 		&task_setup.rpc_client, &msg);
@@ -9358,7 +9369,7 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 	dprintk("NFS call  free_stateid %p\n", stateid);
 	data = kmalloc(sizeof(*data), GFP_NOFS);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	data->server = server;
 	nfs4_stateid_copy(&data->args.stateid, stateid);
 
@@ -9367,27 +9378,7 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1, privileged);
-	return rpc_run_task(&task_setup);
-}
-
-/**
- * nfs41_free_stateid - perform a FREE_STATEID operation
- *
- * @server: server / transport on which to perform the operation
- * @stateid: state ID to release
- * @cred: credential
- * @is_recovery: set to true if this call needs to be privileged
- *
- * Note: this function is always asynchronous.
- */
-static int nfs41_free_stateid(struct nfs_server *server,
-		const nfs4_stateid *stateid,
-		struct rpc_cred *cred,
-		bool is_recovery)
-{
-	struct rpc_task *task;
-
-	task = _nfs41_free_stateid(server, stateid, cred, is_recovery);
+	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	rpc_put_task(task);
