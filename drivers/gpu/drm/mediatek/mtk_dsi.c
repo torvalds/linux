@@ -551,13 +551,12 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 	}
 
 	/**
-	 * vm.pixelclock is in kHz, pixel_clock unit is Hz, so multiply by 1000
 	 * htotal_time = htotal * byte_per_pixel / num_lanes
 	 * overhead_time = lpx + hs_prepare + hs_zero + hs_trail + hs_exit
 	 * mipi_ratio = (htotal_time + overhead_time) / htotal_time
 	 * data_rate = pixel_clock * bit_per_pixel * mipi_ratio / num_lanes;
 	 */
-	pixel_clock = dsi->vm.pixelclock * 1000;
+	pixel_clock = dsi->vm.pixelclock;
 	htotal = dsi->vm.hactive + dsi->vm.hback_porch + dsi->vm.hfront_porch +
 			dsi->vm.hsync_len;
 	htotal_bits = htotal * bit_per_pixel;
@@ -725,16 +724,7 @@ static void mtk_dsi_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct mtk_dsi *dsi = encoder_to_dsi(encoder);
 
-	dsi->vm.pixelclock = adjusted->clock;
-	dsi->vm.hactive = adjusted->hdisplay;
-	dsi->vm.hback_porch = adjusted->htotal - adjusted->hsync_end;
-	dsi->vm.hfront_porch = adjusted->hsync_start - adjusted->hdisplay;
-	dsi->vm.hsync_len = adjusted->hsync_end - adjusted->hsync_start;
-
-	dsi->vm.vactive = adjusted->vdisplay;
-	dsi->vm.vback_porch = adjusted->vtotal - adjusted->vsync_end;
-	dsi->vm.vfront_porch = adjusted->vsync_start - adjusted->vdisplay;
-	dsi->vm.vsync_len = adjusted->vsync_end - adjusted->vsync_start;
+	drm_display_mode_to_videomode(adjusted, &dsi->vm);
 }
 
 static void mtk_dsi_encoder_disable(struct drm_encoder *encoder)
