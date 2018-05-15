@@ -5506,13 +5506,12 @@ static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 static int ca0132_alt_add_effect_slider(struct hda_codec *codec, hda_nid_t nid,
 					const char *pfx, int dir)
 {
-	char *fx = "FX:";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, 1, 0, type);
 
-	sprintf(namestr, "%s %s %s Volume", fx, pfx, dirstr[dir]);
+	sprintf(namestr, "FX: %s %s Volume", pfx, dirstr[dir]);
 
 	knew.tlv.c = 0;
 	knew.tlv.p = 0;
@@ -5544,7 +5543,6 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 			 const char *pfx, int dir)
 {
 	struct ca0132_spec *spec = codec->spec;
-	char *fx = "FX:";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
@@ -5553,7 +5551,7 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 	 * prefix to OutFX or InFX enable controls.
 	 */
 	if ((spec->use_alt_controls) && (nid <= IN_EFFECT_END_NID))
-		sprintf(namestr, "%s %s %s Switch", fx, pfx, dirstr[dir]);
+		sprintf(namestr, "FX: %s %s Switch", pfx, dirstr[dir]);
 	else
 		sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
 
