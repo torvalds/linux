@@ -314,7 +314,6 @@ rcar_du_vsp_plane_atomic_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
-	copy->alpha = to_rcar_vsp_plane_state(plane->state)->alpha;
 
 	return &copy->state;
 }
