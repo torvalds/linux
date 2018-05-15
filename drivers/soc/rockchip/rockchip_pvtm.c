@@ -360,8 +360,8 @@ static const struct rockchip_pvtm_info px30_pmupvtm = {
 };
 
 static const struct rockchip_pvtm_channel rk3288_pvtm_channels[] = {
-	PVTM(RK3288_PVTM_CORE, "core", 1, 0, 1, 0x4, 0, 0x4),
-	PVTM(RK3288_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 1, 0x8),
+	PVTM(RK3288_PVTM_CORE, "core", 1, 0, 1, 0x4, 1, 0x4),
+	PVTM(RK3288_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 0, 0x8),
 };
 
 static const struct rockchip_pvtm_info rk3288_pvtm = {
