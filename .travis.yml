@@ -1,0 +1,28 @@
+language: c
+compiler:
+- gcc
+sudo: required
+dist: trusty
+cache: ccache
+install:
+- sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu xenial main'
+- sudo apt-get update -qq
+- sudo apt-get install -qq ccache libssl-dev u-boot-tools python-mako debhelper fakeroot gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu make
+script:
+- export PATH=/usr/lib/ccache:$PATH
+- bash build.sh importconfig
+- bash build.sh build 
+- bash build.sh cryptodev 
+- bash build.sh deb
+deploy:
+  skip_cleanup: true
+  provider: packagecloud
+  repository: "kernel"
+  username: "bpir2"
+  dist: "debian/jessie"
+  local-dir: debian
+  package_glob: '*.deb'
+  on:
+    all_branches: true 
+  token:
+    secure: WGMsYD6nRKB2fIs72s0/WBcWaa+U2AeByWwkWdb62Joy24FcWGpgY2+FTzMleeWNyU/tQsuB+1CL3n0RYcoinbNu6VeIPEuf8oibg2avtHs/vHqByTHs9bGgHkxknu2iew0uZlJPkRI2/j1fLhEZy7K5m/l/jnPk5COf/i5HmM1/M35Ojqc54+zkS1unAzZHdBs1N34av3vQb0KzgfrMihwyYr1jbWu6P4BcA5X+hY/mwfHEWV2lck87+XJubgYn05EEJpCAJXzxl3JHlbvd066eIZFaT1C56/acdgXDjK2YUvnwEPD03gvG+OVzjb8HmxZX/4y/AZbg4xKcV2Wv2ZTeuaw1gZW75TD1R0mqtU3L2uQ2G2k9vF7x+WVWGPoOqB3ZodQYc4JWmlFGuB/zlJoWJ4KzxmP9ReTTxDKQ24duIYjwhacoHU+f8gpwwdZjYDxCIewhuJa+zIT7upmS3aVXixpWh8B1ZIzKlk/rHmLFpfrn0gbRDpEo1qF/gU6u9rqA+cY7Rkk4T5RDQskBgZ4u9XbFtJ3P5vEOEWf9QN01A8VPMPRkCWOrGDPkYAroYuVh7tTlnl+phrCRCvcLWlkJll7vlFwPS/bT9f9ItsNcTM3LYiW5+trNfKSO9j0eVrCMF9UPNXHK703Tf9VcPm/QzHKZyFgkYr6McXUu8gU=
