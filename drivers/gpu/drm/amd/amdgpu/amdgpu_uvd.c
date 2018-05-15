@@ -129,7 +129,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	unsigned version_major, version_minor, family_id;
 	int i, r;
 
-	INIT_DELAYED_WORK(&adev->uvd.idle_work, amdgpu_uvd_idle_work_handler);
+	INIT_DELAYED_WORK(&adev->uvd.inst->idle_work, amdgpu_uvd_idle_work_handler);
 
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -237,16 +237,16 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.vcpu_bo,
-				    &adev->uvd.gpu_addr, &adev->uvd.cpu_addr);
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.inst->vcpu_bo,
+				    &adev->uvd.inst->gpu_addr, &adev->uvd.inst->cpu_addr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
 	}
 
-	ring = &adev->uvd.ring;
+	ring = &adev->uvd.inst->ring;
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity,
+	r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst->entity,
 				  rq, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up UVD run queue.\n");
@@ -254,8 +254,8 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < adev->uvd.max_handles; ++i) {
-		atomic_set(&adev->uvd.handles[i], 0);
-		adev->uvd.filp[i] = NULL;
+		atomic_set(&adev->uvd.inst->handles[i], 0);
+		adev->uvd.inst->filp[i] = NULL;
 	}
 
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
@@ -285,18 +285,18 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
 	int i;
-	kfree(adev->uvd.saved_bo);
+	kfree(adev->uvd.inst->saved_bo);
 
-	drm_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
+	drm_sched_entity_fini(&adev->uvd.inst->ring.sched, &adev->uvd.inst->entity);
 
-	amdgpu_bo_free_kernel(&adev->uvd.vcpu_bo,
-			      &adev->uvd.gpu_addr,
-			      (void **)&adev->uvd.cpu_addr);
+	amdgpu_bo_free_kernel(&adev->uvd.inst->vcpu_bo,
+			      &adev->uvd.inst->gpu_addr,
+			      (void **)&adev->uvd.inst->cpu_addr);
 
-	amdgpu_ring_fini(&adev->uvd.ring);
+	amdgpu_ring_fini(&adev->uvd.inst->ring);
 
 	for (i = 0; i < AMDGPU_MAX_UVD_ENC_RINGS; ++i)
-		amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
+		amdgpu_ring_fini(&adev->uvd.inst->ring_enc[i]);
 
 	release_firmware(adev->uvd.fw);
 
@@ -309,29 +309,29 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	void *ptr;
 	int i;
 
-	if (adev->uvd.vcpu_bo == NULL)
+	if (adev->uvd.inst->vcpu_bo == NULL)
 		return 0;
 
-	cancel_delayed_work_sync(&adev->uvd.idle_work);
+	cancel_delayed_work_sync(&adev->uvd.inst->idle_work);
 
 	/* only valid for physical mode */
 	if (adev->asic_type < CHIP_POLARIS10) {
 		for (i = 0; i < adev->uvd.max_handles; ++i)
-			if (atomic_read(&adev->uvd.handles[i]))
+			if (atomic_read(&adev->uvd.inst->handles[i]))
 				break;
 
 		if (i == adev->uvd.max_handles)
 			return 0;
 	}
 
-	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
-	ptr = adev->uvd.cpu_addr;
+	size = amdgpu_bo_size(adev->uvd.inst->vcpu_bo);
+	ptr = adev->uvd.inst->cpu_addr;
 
-	adev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
-	if (!adev->uvd.saved_bo)
+	adev->uvd.inst->saved_bo = kmalloc(size, GFP_KERNEL);
+	if (!adev->uvd.inst->saved_bo)
 		return -ENOMEM;
 
-	memcpy_fromio(adev->uvd.saved_bo, ptr, size);
+	memcpy_fromio(adev->uvd.inst->saved_bo, ptr, size);
 
 	return 0;
 }
@@ -341,16 +341,16 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 	unsigned size;
 	void *ptr;
 
-	if (adev->uvd.vcpu_bo == NULL)
+	if (adev->uvd.inst->vcpu_bo == NULL)
 		return -EINVAL;
 
-	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
-	ptr = adev->uvd.cpu_addr;
+	size = amdgpu_bo_size(adev->uvd.inst->vcpu_bo);
+	ptr = adev->uvd.inst->cpu_addr;
 
-	if (adev->uvd.saved_bo != NULL) {
-		memcpy_toio(ptr, adev->uvd.saved_bo, size);
-		kfree(adev->uvd.saved_bo);
-		adev->uvd.saved_bo = NULL;
+	if (adev->uvd.inst->saved_bo != NULL) {
+		memcpy_toio(ptr, adev->uvd.inst->saved_bo, size);
+		kfree(adev->uvd.inst->saved_bo);
+		adev->uvd.inst->saved_bo = NULL;
 	} else {
 		const struct common_firmware_header *hdr;
 		unsigned offset;
@@ -358,14 +358,14 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 		hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 			offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-			memcpy_toio(adev->uvd.cpu_addr, adev->uvd.fw->data + offset,
+			memcpy_toio(adev->uvd.inst->cpu_addr, adev->uvd.fw->data + offset,
 				    le32_to_cpu(hdr->ucode_size_bytes));
 			size -= le32_to_cpu(hdr->ucode_size_bytes);
 			ptr += le32_to_cpu(hdr->ucode_size_bytes);
 		}
 		memset_io(ptr, 0, size);
 		/* to restore uvd fence seq */
-		amdgpu_fence_driver_force_completion(&adev->uvd.ring);
+		amdgpu_fence_driver_force_completion(&adev->uvd.inst->ring);
 	}
 
 	return 0;
@@ -373,12 +373,12 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 {
-	struct amdgpu_ring *ring = &adev->uvd.ring;
+	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 	int i, r;
 
 	for (i = 0; i < adev->uvd.max_handles; ++i) {
-		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
-		if (handle != 0 && adev->uvd.filp[i] == filp) {
+		uint32_t handle = atomic_read(&adev->uvd.inst->handles[i]);
+		if (handle != 0 && adev->uvd.inst->filp[i] == filp) {
 			struct dma_fence *fence;
 
 			r = amdgpu_uvd_get_destroy_msg(ring, handle,
@@ -391,8 +391,8 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 			dma_fence_wait(fence, false);
 			dma_fence_put(fence);
 
-			adev->uvd.filp[i] = NULL;
-			atomic_set(&adev->uvd.handles[i], 0);
+			adev->uvd.inst->filp[i] = NULL;
+			atomic_set(&adev->uvd.inst->handles[i], 0);
 		}
 	}
 }
@@ -696,13 +696,13 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* try to alloc a new handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.handles[i]) == handle) {
+			if (atomic_read(&adev->uvd.inst->handles[i]) == handle) {
 				DRM_ERROR("Handle 0x%x already in use!\n", handle);
 				return -EINVAL;
 			}
 
-			if (!atomic_cmpxchg(&adev->uvd.handles[i], 0, handle)) {
-				adev->uvd.filp[i] = ctx->parser->filp;
+			if (!atomic_cmpxchg(&adev->uvd.inst->handles[i], 0, handle)) {
+				adev->uvd.inst->filp[i] = ctx->parser->filp;
 				return 0;
 			}
 		}
@@ -719,8 +719,8 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* validate the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.handles[i]) == handle) {
-				if (adev->uvd.filp[i] != ctx->parser->filp) {
+			if (atomic_read(&adev->uvd.inst->handles[i]) == handle) {
+				if (adev->uvd.inst->filp[i] != ctx->parser->filp) {
 					DRM_ERROR("UVD handle collision detected!\n");
 					return -EINVAL;
 				}
@@ -734,7 +734,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i)
-			atomic_cmpxchg(&adev->uvd.handles[i], handle, 0);
+			atomic_cmpxchg(&adev->uvd.inst->handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
 
@@ -810,7 +810,7 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 		}
 
 		if ((cmd == 0 || cmd == 0x3) &&
-		    (start >> 28) != (ctx->parser->adev->uvd.gpu_addr >> 28)) {
+		    (start >> 28) != (ctx->parser->adev->uvd.inst->gpu_addr >> 28)) {
 			DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
 				  start, end);
 			return -EINVAL;
@@ -1043,7 +1043,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		if (r)
 			goto err_free;
 
-		r = amdgpu_job_submit(job, ring, &adev->uvd.entity,
+		r = amdgpu_job_submit(job, ring, &adev->uvd.inst->entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;
@@ -1131,8 +1131,8 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
-		container_of(work, struct amdgpu_device, uvd.idle_work.work);
-	unsigned fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
+		container_of(work, struct amdgpu_device, uvd.inst->idle_work.work);
+	unsigned fences = amdgpu_fence_count_emitted(&adev->uvd.inst->ring);
 
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled) {
@@ -1146,7 +1146,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 							       AMD_CG_STATE_GATE);
 		}
 	} else {
-		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
+		schedule_delayed_work(&adev->uvd.inst->idle_work, UVD_IDLE_TIMEOUT);
 	}
 }
 
@@ -1158,7 +1158,7 @@ void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
+	set_clocks = !cancel_delayed_work_sync(&adev->uvd.inst->idle_work);
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, true);
@@ -1175,7 +1175,7 @@ void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
 {
 	if (!amdgpu_sriov_vf(ring->adev))
-		schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
+		schedule_delayed_work(&ring->adev->uvd.inst->idle_work, UVD_IDLE_TIMEOUT);
 }
 
 /**
@@ -1209,7 +1209,7 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else if (r < 0) {
 		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n",  ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	}
 
@@ -1237,7 +1237,7 @@ uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
 		 * necessarily linear. So we need to count
 		 * all non-zero handles.
 		 */
-		if (atomic_read(&adev->uvd.handles[i]))
+		if (atomic_read(&adev->uvd.inst->handles[i]))
 			used_handles++;
 	}
 

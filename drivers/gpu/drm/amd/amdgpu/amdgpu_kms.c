@@ -348,7 +348,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			ring_mask = adev->uvd.ring.ready ? 1 : 0;
+			ring_mask = adev->uvd.inst->ring.ready ? 1 : 0;
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 16;
 			break;
@@ -362,7 +362,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			for (i = 0; i < adev->uvd.num_enc_rings; i++)
-				ring_mask |= ((adev->uvd.ring_enc[i].ready ? 1 : 0) << i);
+				ring_mask |= ((adev->uvd.inst->ring_enc[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
 			break;

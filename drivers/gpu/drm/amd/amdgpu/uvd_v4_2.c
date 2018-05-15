@@ -93,6 +93,7 @@ static void uvd_v4_2_ring_set_wptr(struct amdgpu_ring *ring)
 static int uvd_v4_2_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	adev->uvd.num_uvd_inst = 1;
 
 	uvd_v4_2_set_ring_funcs(adev);
 	uvd_v4_2_set_irq_funcs(adev);
@@ -107,7 +108,7 @@ static int uvd_v4_2_sw_init(void *handle)
 	int r;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
 	if (r)
 		return r;
 
@@ -119,9 +120,9 @@ static int uvd_v4_2_sw_init(void *handle)
 	if (r)
 		return r;
 
-	ring = &adev->uvd.ring;
+	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
 
 	return r;
 }
@@ -150,7 +151,7 @@ static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 static int uvd_v4_2_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.ring;
+	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 	uint32_t tmp;
 	int r;
 
@@ -208,7 +209,7 @@ done:
 static int uvd_v4_2_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.ring;
+	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v4_2_stop(adev);
@@ -251,7 +252,7 @@ static int uvd_v4_2_resume(void *handle)
  */
 static int uvd_v4_2_start(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = &adev->uvd.ring;
+	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 	uint32_t rb_bufsz;
 	int i, j, r;
 	u32 tmp;
@@ -536,7 +537,7 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	uint32_t size;
 
 	/* programm the VCPU memory controller bits 0-27 */
-	addr = (adev->uvd.gpu_addr + AMDGPU_UVD_FIRMWARE_OFFSET) >> 3;
+	addr = (adev->uvd.inst->gpu_addr + AMDGPU_UVD_FIRMWARE_OFFSET) >> 3;
 	size = AMDGPU_UVD_FIRMWARE_SIZE(adev) >> 3;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET0, addr);
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
@@ -553,11 +554,11 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
 
 	/* bits 28-31 */
-	addr = (adev->uvd.gpu_addr >> 28) & 0xF;
+	addr = (adev->uvd.inst->gpu_addr >> 28) & 0xF;
 	WREG32(mmUVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
 
 	/* bits 32-39 */
-	addr = (adev->uvd.gpu_addr >> 32) & 0xFF;
+	addr = (adev->uvd.inst->gpu_addr >> 32) & 0xFF;
 	WREG32(mmUVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
 
 	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
@@ -664,7 +665,7 @@ static int uvd_v4_2_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	DRM_DEBUG("IH: UVD TRAP\n");
-	amdgpu_fence_process(&adev->uvd.ring);
+	amdgpu_fence_process(&adev->uvd.inst->ring);
 	return 0;
 }
 
@@ -753,7 +754,7 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev)
 {
-	adev->uvd.ring.funcs = &uvd_v4_2_ring_funcs;
+	adev->uvd.inst->ring.funcs = &uvd_v4_2_ring_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs uvd_v4_2_irq_funcs = {
@@ -763,8 +764,8 @@ static const struct amdgpu_irq_src_funcs uvd_v4_2_irq_funcs = {
 
 static void uvd_v4_2_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->uvd.irq.num_types = 1;
-	adev->uvd.irq.funcs = &uvd_v4_2_irq_funcs;
+	adev->uvd.inst->irq.num_types = 1;
+	adev->uvd.inst->irq.funcs = &uvd_v4_2_irq_funcs;
 }
 
 const struct amdgpu_ip_block_version uvd_v4_2_ip_block =
