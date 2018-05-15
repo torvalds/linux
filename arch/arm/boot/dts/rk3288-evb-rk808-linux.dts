@@ -128,10 +128,31 @@
 	};
 
 	/delete-node/ sdmmc-regulator;
+
+	vdd_log: vdd-logic {
+		compatible = "pwm-regulator";
+		rockchip,pwm_id = <1>;
+		rockchip,pwm_voltage = <1100000>;
+		pwms = <&pwm1 0 25000 1>;
+		regulator-name = "vcc_log";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1360000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
+};
+
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_log>;
+	status = "okay";
 };
 
 &edp {
@@ -464,6 +485,10 @@
 };
 
 &uart2 {
+	status = "okay";
+};
+
+&pwm1 {
 	status = "okay";
 };
 

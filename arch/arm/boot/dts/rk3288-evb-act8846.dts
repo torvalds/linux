@@ -189,6 +189,15 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_log>;
+	status = "okay";
+};
+
 &edp {
 	vcc-supply = <&vdd10_lcd>;
 	vccio-supply = <&vcc18_lcd>;
