@@ -451,7 +451,7 @@ static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 		llc->hd.flags |= SMC_LLC_FLAG_RESP;
 		if (rc < 0)
 			llc->hd.flags |= SMC_LLC_FLAG_RKEY_NEG;
-		smc_llc_send_message(link, (void *)llc, sizeof(*llc));
+		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
 }
 
@@ -463,7 +463,7 @@ static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
 	} else {
 		/* ignore rtokens for other links, we have only one link */
 		llc->hd.flags |= SMC_LLC_FLAG_RESP;
-		smc_llc_send_message(link, (void *)llc, sizeof(*llc));
+		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
 }
 
@@ -491,7 +491,7 @@ static void smc_llc_rx_delete_rkey(struct smc_link *link,
 		}
 
 		llc->hd.flags |= SMC_LLC_FLAG_RESP;
-		smc_llc_send_message(link, (void *)llc, sizeof(*llc));
+		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
 }
 
