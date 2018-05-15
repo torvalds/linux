@@ -118,21 +118,6 @@ static inline void hfi1_dbg_init(void)
 static inline void hfi1_dbg_exit(void)
 {
 }
-
-static inline bool hfi1_dbg_should_fault_rx(struct hfi1_packet *packet)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_should_fault_tx(struct rvt_qp *qp, u32 opcode)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
-{
-	return false;
-}
 #endif
 
 #endif                          /* _HFI1_DEBUGFS_H */
