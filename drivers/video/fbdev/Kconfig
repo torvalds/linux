@@ -1437,7 +1437,7 @@ config FB_SIS_315
 
 config FB_VIA
        tristate "VIA UniChrome (Pro) and Chrome9 display support"
-       depends on FB && PCI && X86 && GPIOLIB && I2C
+       depends on FB && PCI && GPIOLIB && I2C && (X86 || COMPILE_TEST)
        select FB_CFB_FILLRECT
        select FB_CFB_COPYAREA
        select FB_CFB_IMAGEBLIT
