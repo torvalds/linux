@@ -373,33 +373,24 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
  */
 static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 {
-	bool more, validate, nolock = q->flags & TCQ_F_NOLOCK;
 	spinlock_t *root_lock = NULL;
 	struct netdev_queue *txq;
 	struct net_device *dev;
 	struct sk_buff *skb;
+	bool validate;
 
 	/* Dequeue packet */
-	if (nolock && test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
-		return false;
-
 	skb = dequeue_skb(q, &validate, packets);
-	if (unlikely(!skb)) {
-		if (nolock)
-			clear_bit(__QDISC_STATE_RUNNING, &q->state);
+	if (unlikely(!skb))
 		return false;
-	}
 
-	if (!nolock)
+	if (!(q->flags & TCQ_F_NOLOCK))
 		root_lock = qdisc_lock(q);
 
 	dev = qdisc_dev(q);
 	txq = skb_get_tx_queue(dev, skb);
 
-	more = sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
-	if (nolock)
-		clear_bit(__QDISC_STATE_RUNNING, &q->state);
-	return more;
+	return sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
 }
 
 void __qdisc_run(struct Qdisc *q)
@@ -1131,17 +1122,13 @@ static bool some_qdisc_is_busy(struct net_device *dev)
 		dev_queue = netdev_get_tx_queue(dev, i);
 		q = dev_queue->qdisc_sleeping;
 
-		if (q->flags & TCQ_F_NOLOCK) {
-			val = test_bit(__QDISC_STATE_SCHED, &q->state);
-		} else {
-			root_lock = qdisc_lock(q);
-			spin_lock_bh(root_lock);
+		root_lock = qdisc_lock(q);
+		spin_lock_bh(root_lock);
 
-			val = (qdisc_is_running(q) ||
-			       test_bit(__QDISC_STATE_SCHED, &q->state));
+		val = (qdisc_is_running(q) ||
+		       test_bit(__QDISC_STATE_SCHED, &q->state));
 
-			spin_unlock_bh(root_lock);
-		}
+		spin_unlock_bh(root_lock);
 
 		if (val)
 			return true;

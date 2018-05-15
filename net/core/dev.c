@@ -3244,7 +3244,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			rc = NET_XMIT_DROP;
 		} else {
 			rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
-			__qdisc_run(q);
+			qdisc_run(q);
 		}
 
 		if (unlikely(to_free))
