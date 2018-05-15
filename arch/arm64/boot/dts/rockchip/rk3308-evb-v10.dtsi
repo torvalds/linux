@@ -103,19 +103,12 @@
 	};
 
 	acodec_sound: acodec-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rk3308-acodec";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,codec-hp-det;
-		simple-audio-card,widgets =
-			"Headphone", "Headphones";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s_8ch_2>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&acodec>;
-		};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-acodec";
+		rockchip,codec-hp-det;
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>;
 	};
 
 	spdif_tx_sound: spdif-tx-sound {
