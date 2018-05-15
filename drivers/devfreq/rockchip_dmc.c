@@ -697,7 +697,7 @@ struct rk3328_ddr_dts_config_timing {
 	unsigned int available;
 };
 
-struct	rk3328_ddr_de_skew_setting {
+struct rk3328_ddr_de_skew_setting {
 	unsigned int ca_de_skew[30];
 	unsigned int cs0_de_skew[84];
 	unsigned int cs1_de_skew[84];
@@ -820,7 +820,7 @@ static struct pm_qos_request pm_qos;
  * output: tim
  */
 static void px30_de_skew_set_2_reg(struct rk3328_ddr_de_skew_setting *de_skew,
-				   struct  px30_ddr_dts_config_timing *tim)
+				   struct px30_ddr_dts_config_timing *tim)
 {
 	u32 n;
 	u32 offset;
@@ -874,8 +874,9 @@ static void px30_de_skew_set_2_reg(struct rk3328_ddr_de_skew_setting *de_skew,
  * input: de_skew
  * output: tim
  */
-static void rk3328_de_skew_setting_2_register(struct rk3328_ddr_de_skew_setting *de_skew,
-					      struct  rk3328_ddr_dts_config_timing *tim)
+static void
+rk3328_de_skew_setting_2_register(struct rk3328_ddr_de_skew_setting *de_skew,
+				  struct rk3328_ddr_dts_config_timing *tim)
 {
 	u32 n;
 	u32 offset;
@@ -1640,8 +1641,8 @@ int rockchip_dmcfreq_wait_complete(void)
 	return 0;
 }
 
-static int px30_dmc_init(struct platform_device *pdev,
-			 struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
+					struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
 	u32 size;
@@ -1711,8 +1712,8 @@ static int px30_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3128_dmc_init(struct platform_device *pdev,
-			   struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int rk3128_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
 	struct drm_device *drm = drm_device_get_by_name("rockchip");
@@ -1749,8 +1750,8 @@ static int rk3128_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3228_dmc_init(struct platform_device *pdev,
-			   struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int rk3228_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	/*
 	 * dmc_init have been done in uboot.
@@ -1760,8 +1761,8 @@ static int rk3228_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3288_dmc_init(struct platform_device *pdev,
-			   struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int rk3288_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = &pdev->dev;
 	struct clk *pclk_phy, *pclk_upctl, *dmc_clk;
@@ -1855,8 +1856,8 @@ static int rk3288_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3328_dmc_init(struct platform_device *pdev,
-			   struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int rk3328_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
 	u32 size;
@@ -1900,8 +1901,8 @@ static int rk3328_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3368_dmc_init(struct platform_device *pdev,
-			   struct rockchip_dmcfreq *dmcfreq)
+static __maybe_unused int rk3368_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
@@ -1980,7 +1981,8 @@ static int rk3368_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int rk3399_dmc_init(struct platform_device *pdev)
+static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
@@ -2018,14 +2020,30 @@ static int rk3399_dmc_init(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-dmc", .data = px30_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK312X
 	{ .compatible = "rockchip,rk3128-dmc", .data = rk3128_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{ .compatible = "rockchip,rk3228-dmc", .data = rk3228_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{ .compatible = "rockchip,rk3288-dmc", .data = rk3288_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{ .compatible = "rockchip,rk3308-dmc", .data = NULL },
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{ .compatible = "rockchip,rk3328-dmc", .data = rk3328_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{ .compatible = "rockchip,rk3368-dmc", .data = rk3368_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
