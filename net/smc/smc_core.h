@@ -166,7 +166,8 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
-	bool			sync_err;	/* lgr no longer fits to peer */
+	u8			sync_err : 1;	/* lgr no longer fits to peer */
+	u8			terminating : 1;/* lgr is terminating */
 };
 
 /* Find the connection associated with the given alert token in the link group.

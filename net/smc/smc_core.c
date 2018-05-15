@@ -172,7 +172,7 @@ static int smc_lgr_create(struct smc_sock *smc,
 		goto out;
 	}
 	lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-	lgr->sync_err = false;
+	lgr->sync_err = 0;
 	memcpy(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN);
 	lgr->vlan_id = vlan_id;
 	rwlock_init(&lgr->sndbufs_lock);
@@ -352,6 +352,9 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	struct smc_sock *smc;
 	struct rb_node *node;
 
+	if (lgr->terminating)
+		return;	/* lgr already terminating */
+	lgr->terminating = 1;
 	smc_lgr_forget(lgr);
 	smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 
