@@ -482,7 +482,10 @@ void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
 {
 	u8 ackto, sifs, slottime = dev->slottime;
 
+	/* As defined by IEEE 802.11-2007 17.3.8.6 */
 	slottime += 3 * dev->coverage_class;
+	mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
+		       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
 
 	sifs = mt76_get_field(dev, MT_XIFS_TIME_CFG,
 			      MT_XIFS_TIME_CFG_OFDM_SIFS);

@@ -247,8 +247,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		int slottime = info->use_short_slot ? 9 : 20;
 
 		dev->slottime = slottime;
-		mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
-			       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
+		mt76x2_set_tx_ackto(dev);
 	}
 
 	mutex_unlock(&dev->mutex);
