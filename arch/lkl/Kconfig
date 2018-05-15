@@ -13,7 +13,7 @@ config LKL
        select NO_PREEMPT
        select ARCH_WANT_FRAME_POINTERS
        select HAS_DMA
-       select DMA_NOOP_OPS
+       select DMA_DIRECT_OPS
        select PHYS_ADDR_T_64BIT if 64BIT
        select 64BIT if OUTPUT_FORMAT = "elf64-x86-64"
 	   select 64BIT if OUTPUT_FORMAT = "pe-x86-64"
