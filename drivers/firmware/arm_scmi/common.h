@@ -7,6 +7,7 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -14,10 +15,10 @@
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
 
-#define PROTOCOL_REV_MINOR_BITS	16
-#define PROTOCOL_REV_MINOR_MASK	((1U << PROTOCOL_REV_MINOR_BITS) - 1)
-#define PROTOCOL_REV_MAJOR(x)	((x) >> PROTOCOL_REV_MINOR_BITS)
-#define PROTOCOL_REV_MINOR(x)	((x) & PROTOCOL_REV_MINOR_MASK)
+#define PROTOCOL_REV_MINOR_MASK	GENMASK(15, 0)
+#define PROTOCOL_REV_MAJOR_MASK	GENMASK(31, 16)
+#define PROTOCOL_REV_MAJOR(x)	(u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x)))
+#define PROTOCOL_REV_MINOR(x)	(u16)(FIELD_GET(PROTOCOL_REV_MINOR_MASK, (x)))
 #define MAX_PROTOCOLS_IMP	16
 #define MAX_OPPS		16
 
@@ -50,8 +51,11 @@ struct scmi_msg_resp_prot_version {
  * @id: The identifier of the command being sent
  * @protocol_id: The identifier of the protocol used to send @id command
  * @seq: The token to identify the message. when a message/command returns,
- *       the platform returns the whole message header unmodified including
- *	 the token.
+ *	the platform returns the whole message header unmodified including
+ *	the token
+ * @status: Status of the transfer once it's complete
+ * @poll_completion: Indicate if the transfer needs to be polled for
+ *	completion or interrupt mode is used
  */
 struct scmi_msg_hdr {
 	u8 id;
@@ -82,18 +86,16 @@ struct scmi_msg {
  *	buffer for the rx path as we use for the tx path.
  * @done: completion event
  */
-
 struct scmi_xfer {
-	void *con_priv;
 	struct scmi_msg_hdr hdr;
 	struct scmi_msg tx;
 	struct scmi_msg rx;
 	struct completion done;
 };
 
-void scmi_one_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer);
+void scmi_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer);
 int scmi_do_xfer(const struct scmi_handle *h, struct scmi_xfer *xfer);
-int scmi_one_xfer_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
+int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
 		       size_t tx_size, size_t rx_size, struct scmi_xfer **p);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
