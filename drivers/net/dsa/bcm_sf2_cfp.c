@@ -354,9 +354,12 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Locate the first rule available */
 	if (fs->location == RX_CLS_LOC_ANY)
 		rule_index = find_first_zero_bit(priv->cfp.used,
-						 bcm_sf2_cfp_rule_size(priv));
+						 priv->num_cfp_rules);
 	else
 		rule_index = fs->location;
+
+	if (rule_index > bcm_sf2_cfp_rule_size(priv))
+		return -ENOSPC;
 
 	layout = &udf_tcpip4_layout;
 	/* We only use one UDF slice for now */
