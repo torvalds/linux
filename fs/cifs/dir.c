@@ -812,7 +812,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				parent_dir_inode->i_sb, xid, NULL);
 	}
 
-	if ((rc == 0) && (newInode != NULL)) {
+	if (rc == 0) {
 		d_add(direntry, newInode);
 		/* since paths are not looked up by component - the parent
 		   directories are presumed to be good here */
