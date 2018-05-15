@@ -892,7 +892,7 @@ enum dsp_download_state {
  */
 
 struct ca0132_spec {
-	struct snd_kcontrol_new *mixers[5];
+	const struct snd_kcontrol_new *mixers[5];
 	unsigned int num_mixers;
 	const struct hda_verb *base_init_verbs;
 	const struct hda_verb *base_exit_verbs;
@@ -5705,7 +5705,7 @@ static void ca0132_alt_add_chmap_ctls(struct hda_codec *codec)
  * When changing Node IDs for Mixer Controls below, make sure to update
  * Node IDs in ca0132_config() as well.
  */
-static struct snd_kcontrol_new ca0132_mixer[] = {
+static const struct snd_kcontrol_new ca0132_mixer[] = {
 	CA0132_CODEC_VOL("Master Playback Volume", VNID_SPK, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Master Playback Switch", VNID_SPK, HDA_OUTPUT),
 	CA0132_CODEC_VOL("Capture Volume", VNID_MIC, HDA_INPUT),
@@ -5732,7 +5732,7 @@ static struct snd_kcontrol_new ca0132_mixer[] = {
  * controls. Also sets both the Front Playback and Capture Volume controls to
  * alt so they set the DSP's decibel level.
  */
-static struct snd_kcontrol_new sbz_mixer[] = {
+static const struct snd_kcontrol_new sbz_mixer[] = {
 	CA0132_ALT_CODEC_VOL("Front Playback Volume", 0x02, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Front Playback Switch", VNID_SPK, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x04, 0, HDA_OUTPUT),
@@ -5754,7 +5754,7 @@ static struct snd_kcontrol_new sbz_mixer[] = {
  * Same as the Sound Blaster Z, except doesn't use the alt volume for capture
  * because it doesn't set decibel levels for the DSP for capture.
  */
-static struct snd_kcontrol_new r3di_mixer[] = {
+static const struct snd_kcontrol_new r3di_mixer[] = {
 	CA0132_ALT_CODEC_VOL("Front Playback Volume", 0x02, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Front Playback Switch", VNID_SPK, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x04, 0, HDA_OUTPUT),
