@@ -3757,7 +3757,7 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	ATH10K_DFS_STAT_INC(ar, pulses_detected);
 
-	if (!ar->dfs_detector->add_pulse(ar->dfs_detector, &pe)) {
+	if (!ar->dfs_detector->add_pulse(ar->dfs_detector, &pe, NULL)) {
 		ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
 			   "dfs no pulse pattern detected, yet\n");
 		return;
