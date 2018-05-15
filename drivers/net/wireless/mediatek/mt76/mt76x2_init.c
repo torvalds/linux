@@ -296,6 +296,9 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	for (i = 0; i < 256; i++)
 		mt76x2_mac_wcid_setup(dev, i, 0, NULL);
 
+	for (i = 0; i < MT_MAX_VIFS; i++)
+		mt76x2_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
+
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
 			mt76x2_mac_shared_key_setup(dev, i, k, NULL);

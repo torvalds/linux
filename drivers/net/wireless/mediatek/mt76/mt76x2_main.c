@@ -104,7 +104,7 @@ mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		idx += 8;
 
 	mvif->idx = idx;
-	mvif->group_wcid.idx = 254 - idx;
+	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
 	mt76x2_txq_init(dev, vif->txq);
 
