@@ -445,6 +445,43 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
 }
 
+#define CLK_TOLERANCE_HZ 50
+
+static enum drm_mode_status
+ltdc_crtc_mode_valid(struct drm_crtc *crtc,
+		     const struct drm_display_mode *mode)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	int target = mode->clock * 1000;
+	int target_min = target - CLK_TOLERANCE_HZ;
+	int target_max = target + CLK_TOLERANCE_HZ;
+	int result;
+
+	/*
+	 * Accept all "preferred" modes:
+	 * - this is important for panels because panel clock tolerances are
+	 *   bigger than hdmi ones and there is no reason to not accept them
+	 *   (the fps may vary a little but it is not a problem).
+	 * - the hdmi preferred mode will be accepted too, but userland will
+	 *   be able to use others hdmi "valid" modes if necessary.
+	 */
+	if (mode->type & DRM_MODE_TYPE_PREFERRED)
+		return MODE_OK;
+
+	result = clk_round_rate(ldev->pixel_clk, target);
+
+	DRM_DEBUG_DRIVER("clk rate target %d, available %d\n", target, result);
+
+	/*
+	 * Filter modes according to the clock value, particularly useful for
+	 * hdmi modes that require precise pixel clocks.
+	 */
+	if (result < target_min || result > target_max)
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
+}
+
 static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 				 const struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode)
@@ -559,6 +596,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_valid = ltdc_crtc_mode_valid,
 	.mode_fixup = ltdc_crtc_mode_fixup,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
@@ -822,13 +860,13 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return 0;
+		return NULL;
 
 	ret = drm_universal_plane_init(ddev, plane, possible_crtcs,
 				       &ltdc_plane_funcs, formats, nb_fmt,
 				       NULL, type, NULL);
 	if (ret < 0)
-		return 0;
+		return NULL;
 
 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
 
@@ -987,14 +1025,13 @@ int ltdc_load(struct drm_device *ddev)
 						  &bridge[i]);
 
 		/*
-		 * If at least one endpoint is ready, continue probing,
-		 * else if at least one endpoint is -EPROBE_DEFER and
-		 * there is no previous ready endpoints, defer probing.
+		 * If at least one endpoint is -EPROBE_DEFER, defer probing,
+		 * else if at least one endpoint is ready, continue probing.
 		 */
-		if (!ret)
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		else if (!ret)
 			endpoint_not_ready = 0;
-		else if (ret == -EPROBE_DEFER && endpoint_not_ready)
-			endpoint_not_ready = -EPROBE_DEFER;
 	}
 
 	if (endpoint_not_ready)

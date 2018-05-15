@@ -76,6 +76,9 @@
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
 
+#define VOP_WIN_TO_INDEX(vop_win) \
+	((vop_win) - (vop_win)->vop->win)
+
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
 
@@ -708,6 +711,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t dma_addr;
 	uint32_t val;
 	bool rb_swap;
+	int win_index = VOP_WIN_TO_INDEX(vop_win);
 	int format;
 
 	/*
@@ -777,7 +781,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	rb_swap = has_rb_swapped(fb->format->format);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
-	if (fb->format->has_alpha) {
+	/*
+	 * Blending win0 with the background color doesn't seem to work
+	 * correctly. We only get the background color, no matter the contents
+	 * of the win0 framebuffer.  However, blending pre-multiplied color
+	 * with the default opaque black default background color is a no-op,
+	 * so we can just disable blending to get the correct result.
+	 */
+	if (fb->format->has_alpha && win_index > 0) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |

@@ -188,8 +188,8 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
 	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
-	if (!shbuf)
-		return -ENOMEM;
+	if (IS_ERR(shbuf))
+		return PTR_ERR(shbuf);
 
 	ret = dbuf_add_to_list(front_info, shbuf, dbuf_cookie);
 	if (ret < 0) {
@@ -543,8 +543,8 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	front_info->drm_info = drm_info;
 
 	drm_dev = drm_dev_alloc(&xen_drm_driver, dev);
-	if (!drm_dev) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm_dev)) {
+		ret = PTR_ERR(drm_dev);
 		goto fail;
 	}
 
@@ -778,7 +778,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
 				     XenbusStateUnknown) != XenbusStateInitWait) &&
-				     to--)
+				     --to)
 		msleep(10);
 
 	if (!to) {
