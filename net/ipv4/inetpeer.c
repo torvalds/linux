@@ -210,6 +210,7 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 		p = kmem_cache_alloc(peer_cachep, GFP_ATOMIC);
 		if (p) {
 			p->daddr = *daddr;
+			p->dtime = (__u32)jiffies;
 			refcount_set(&p->refcnt, 2);
 			atomic_set(&p->rid, 0);
 			p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;

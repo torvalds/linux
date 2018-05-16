@@ -19,6 +19,9 @@
 #include <asm/pgalloc.h>
 #include <asm/pte-walk.h>
 
+static void mark_pages_dirty(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			     unsigned long gfn, unsigned int order);
+
 /*
  * Supported radix tree geometry.
  * Like p9, we support either 5 or 9 bits at the first (lowest) level,
@@ -195,6 +198,12 @@ static void kvmppc_pte_free(pte_t *ptep)
 	kmem_cache_free(kvm_pte_cache, ptep);
 }
 
+/* Like pmd_huge() and pmd_large(), but works regardless of config options */
+static inline int pmd_is_leaf(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_PTE);
+}
+
 static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			     unsigned int level, unsigned long mmu_seq)
 {
@@ -219,7 +228,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	else
 		new_pmd = pmd_alloc_one(kvm->mm, gpa);
 
-	if (level == 0 && !(pmd && pmd_present(*pmd)))
+	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
 		new_ptep = kvmppc_pte_alloc();
 
 	/* Check if we might have been invalidated; let the guest retry if so */
@@ -244,12 +253,30 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		new_pmd = NULL;
 	}
 	pmd = pmd_offset(pud, gpa);
-	if (pmd_large(*pmd)) {
-		/* Someone else has instantiated a large page here; retry */
-		ret = -EAGAIN;
-		goto out_unlock;
-	}
-	if (level == 1 && !pmd_none(*pmd)) {
+	if (pmd_is_leaf(*pmd)) {
+		unsigned long lgpa = gpa & PMD_MASK;
+
+		/*
+		 * If we raced with another CPU which has just put
+		 * a 2MB pte in after we saw a pte page, try again.
+		 */
+		if (level == 0 && !new_ptep) {
+			ret = -EAGAIN;
+			goto out_unlock;
+		}
+		/* Valid 2MB page here already, remove it */
+		old = kvmppc_radix_update_pte(kvm, pmdp_ptep(pmd),
+					      ~0UL, 0, lgpa, PMD_SHIFT);
+		kvmppc_radix_tlbie_page(kvm, lgpa, PMD_SHIFT);
+		if (old & _PAGE_DIRTY) {
+			unsigned long gfn = lgpa >> PAGE_SHIFT;
+			struct kvm_memory_slot *memslot;
+			memslot = gfn_to_memslot(kvm, gfn);
+			if (memslot)
+				mark_pages_dirty(kvm, memslot, gfn,
+						 PMD_SHIFT - PAGE_SHIFT);
+		}
+	} else if (level == 1 && !pmd_none(*pmd)) {
 		/*
 		 * There's a page table page here, but we wanted
 		 * to install a large page.  Tell the caller and let
@@ -412,28 +439,24 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	} else {
 		page = pages[0];
 		pfn = page_to_pfn(page);
-		if (PageHuge(page)) {
-			page = compound_head(page);
-			pte_size <<= compound_order(page);
+		if (PageCompound(page)) {
+			pte_size <<= compound_order(compound_head(page));
 			/* See if we can insert a 2MB large-page PTE here */
 			if (pte_size >= PMD_SIZE &&
-			    (gpa & PMD_MASK & PAGE_MASK) ==
-			    (hva & PMD_MASK & PAGE_MASK)) {
+			    (gpa & (PMD_SIZE - PAGE_SIZE)) ==
+			    (hva & (PMD_SIZE - PAGE_SIZE))) {
 				level = 1;
 				pfn &= ~((PMD_SIZE >> PAGE_SHIFT) - 1);
 			}
 		}
 		/* See if we can provide write access */
 		if (writing) {
-			/*
-			 * We assume gup_fast has set dirty on the host PTE.
-			 */
 			pgflags |= _PAGE_WRITE;
 		} else {
 			local_irq_save(flags);
 			ptep = find_current_mm_pte(current->mm->pgd,
 						   hva, NULL, NULL);
-			if (ptep && pte_write(*ptep) && pte_dirty(*ptep))
+			if (ptep && pte_write(*ptep))
 				pgflags |= _PAGE_WRITE;
 			local_irq_restore(flags);
 		}
@@ -459,18 +482,15 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte = pfn_pte(pfn, __pgprot(pgflags));
 		ret = kvmppc_create_pte(kvm, pte, gpa, level, mmu_seq);
 	}
-	if (ret == 0 || ret == -EAGAIN)
-		ret = RESUME_GUEST;
 
 	if (page) {
-		/*
-		 * We drop pages[0] here, not page because page might
-		 * have been set to the head page of a compound, but
-		 * we have to drop the reference on the correct tail
-		 * page to match the get inside gup()
-		 */
-		put_page(pages[0]);
+		if (!ret && (pgflags & _PAGE_WRITE))
+			set_page_dirty_lock(page);
+		put_page(page);
 	}
+
+	if (ret == 0 || ret == -EAGAIN)
+		ret = RESUME_GUEST;
 	return ret;
 }
 
@@ -676,7 +696,7 @@ void kvmppc_free_radix(struct kvm *kvm)
 				continue;
 			pmd = pmd_offset(pud, 0);
 			for (im = 0; im < PTRS_PER_PMD; ++im, ++pmd) {
-				if (pmd_huge(*pmd)) {
+				if (pmd_is_leaf(*pmd)) {
 					pmd_clear(pmd);
 					continue;
 				}

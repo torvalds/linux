@@ -535,7 +535,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 * the scl fields here.
 	 */
 	if (num_planes == 1) {
-		scl0 = vc4_get_scl_field(state, 1);
+		scl0 = vc4_get_scl_field(state, 0);
 		scl1 = scl0;
 	} else {
 		scl0 = vc4_get_scl_field(state, 1);
