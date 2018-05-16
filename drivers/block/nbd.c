@@ -1127,7 +1127,7 @@ static int nbd_start_device_ioctl(struct nbd_device *nbd, struct block_device *b
 	if (ret)
 		sock_shutdown(nbd);
 	mutex_lock(&nbd->config_lock);
-	bd_set_size(bdev, 0);
+	nbd_bdev_reset(bdev);
 	/* user requested, ignore socket errors */
 	if (test_bit(NBD_DISCONNECT_REQUESTED, &config->runtime_flags))
 		ret = 0;
