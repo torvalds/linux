@@ -192,6 +192,7 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 	if (adapter->fw_done_rc) {
 		dev_err(dev, "Couldn't map long term buffer,rc = %d\n",
 			adapter->fw_done_rc);
+		dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 		return -1;
 	}
 	return 0;
