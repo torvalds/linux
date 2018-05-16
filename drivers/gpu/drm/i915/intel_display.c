@@ -15251,6 +15251,9 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 		connector->base.dpms = DRM_MODE_DPMS_OFF;
 		connector->base.encoder = NULL;
 	}
+
+	/* notify opregion of the sanitized encoder state */
+	intel_opregion_notify_encoder(encoder, connector && has_active_crtc);
 }
 
 void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv)
