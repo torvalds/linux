@@ -514,10 +514,11 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 }
 
 #define NUM_FEATURE_BITS 64
-static char btrfs_unknown_feature_names[3][NUM_FEATURE_BITS][13];
-static struct btrfs_feature_attr btrfs_feature_attrs[3][NUM_FEATURE_BITS];
+#define BTRFS_FEATURE_NAME_MAX 13
+static char btrfs_unknown_feature_names[FEAT_MAX][NUM_FEATURE_BITS][BTRFS_FEATURE_NAME_MAX];
+static struct btrfs_feature_attr btrfs_feature_attrs[FEAT_MAX][NUM_FEATURE_BITS];
 
-static const u64 supported_feature_masks[3] = {
+static const u64 supported_feature_masks[FEAT_MAX] = {
 	[FEAT_COMPAT]    = BTRFS_FEATURE_COMPAT_SUPP,
 	[FEAT_COMPAT_RO] = BTRFS_FEATURE_COMPAT_RO_SUPP,
 	[FEAT_INCOMPAT]  = BTRFS_FEATURE_INCOMPAT_SUPP,
@@ -609,7 +610,7 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
 }
 
-const char * const btrfs_feature_set_names[3] = {
+const char * const btrfs_feature_set_names[FEAT_MAX] = {
 	[FEAT_COMPAT]	 = "compat",
 	[FEAT_COMPAT_RO] = "compat_ro",
 	[FEAT_INCOMPAT]	 = "incompat",
@@ -673,7 +674,7 @@ static void init_feature_attrs(void)
 			if (fa->kobj_attr.attr.name)
 				continue;
 
-			snprintf(name, 13, "%s:%u",
+			snprintf(name, BTRFS_FEATURE_NAME_MAX, "%s:%u",
 				 btrfs_feature_set_names[set], i);
 
 			fa->kobj_attr.attr.name = name;
