@@ -454,7 +454,7 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
 		err = -EOPNOTSUPP;
-		goto out;
+		goto out_namespace;
 	}
 
 	esw_debug(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d)*groups(%d))\n",
@@ -463,6 +463,9 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 
 	esw_size = min_t(int, max_flow_counter * ESW_OFFLOADS_NUM_GROUPS,
 			 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
+
+	if (mlx5_esw_has_fwd_fdb(dev))
+		esw_size >>= 1;
 
 	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)
 		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
@@ -474,16 +477,36 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create Fast path FDB Table err %d\n", err);
-		goto out;
+		goto out_namespace;
 	}
 	esw->fdb_table.offloads.fast_fdb = fdb;
 
-out:
+	if (!mlx5_esw_has_fwd_fdb(dev))
+		goto out_namespace;
+
+	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
+						  esw_size,
+						  ESW_OFFLOADS_NUM_GROUPS, 1,
+						  flags);
+	if (IS_ERR(fdb)) {
+		err = PTR_ERR(fdb);
+		esw_warn(dev, "Failed to create fwd table err %d\n", err);
+		goto out_ft;
+	}
+	esw->fdb_table.offloads.fwd_fdb = fdb;
+
+	return err;
+
+out_ft:
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.fast_fdb);
+out_namespace:
 	return err;
 }
 
 static void esw_destroy_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 {
+	if (mlx5_esw_has_fwd_fdb(esw->dev))
+		mlx5_destroy_flow_table(esw->fdb_table.offloads.fwd_fdb);
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.fast_fdb);
 }
 
@@ -588,7 +611,7 @@ miss_err:
 send_vport_err:
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 slow_fdb_err:
-	mlx5_destroy_flow_table(esw->fdb_table.offloads.fast_fdb);
+	esw_destroy_offloads_fast_fdb_table(esw);
 fast_fdb_err:
 ns_err:
 	kvfree(flow_group_in);

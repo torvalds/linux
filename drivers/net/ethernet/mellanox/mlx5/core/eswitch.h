@@ -55,6 +55,9 @@
 #define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
 	min_t(u32, max_t(u32, (rate) / (divider), MLX5_MIN_BW_SHARE), limit)
 
+#define mlx5_esw_has_fwd_fdb(dev) \
+	MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_to_table)
+
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *allow_untagged_spoofchk_grp;
@@ -127,6 +130,7 @@ struct mlx5_eswitch_fdb {
 
 		struct offloads_fdb {
 			struct mlx5_flow_table *fast_fdb;
+			struct mlx5_flow_table *fwd_fdb;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
