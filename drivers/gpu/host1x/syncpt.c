@@ -255,7 +255,7 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 	}
 
 	/* schedule a wakeup when the syncpoint value is reached */
-	err = host1x_intr_add_action(sp->host, sp->id, thresh,
+	err = host1x_intr_add_action(sp->host, sp, thresh,
 				     HOST1X_INTR_ACTION_WAKEUP_INTERRUPTIBLE,
 				     &wq, waiter, &ref);
 	if (err)

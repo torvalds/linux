@@ -164,7 +164,7 @@ static int channel_submit(struct host1x_job *job)
 	trace_host1x_channel_submitted(dev_name(ch->dev), prev_max, syncval);
 
 	/* schedule a submit complete interrupt */
-	err = host1x_intr_add_action(host, job->syncpt_id, syncval,
+	err = host1x_intr_add_action(host, sp, syncval,
 				     HOST1X_INTR_ACTION_SUBMIT_COMPLETE, ch,
 				     completed_waiter, NULL);
 	completed_waiter = NULL;
