@@ -69,6 +69,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 			rq->xdpsq.db.redirect_flush = true;
 			mlx5e_page_dma_unmap(rq, di);
 		}
+		rq->stats->xdp_redirect++;
 		return true;
 	default:
 		bpf_warn_invalid_xdp_action(act);
