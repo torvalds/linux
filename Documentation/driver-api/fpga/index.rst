@@ -8,3 +8,4 @@ FPGA Subsystem
    :maxdepth: 2
 
    intro
+   fpga-mgr
