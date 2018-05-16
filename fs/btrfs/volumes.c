@@ -3805,7 +3805,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		    !(bctl->flags & BTRFS_BALANCE_METADATA) ||
 		    memcmp(&bctl->data, &bctl->meta, sizeof(bctl->data))) {
 			btrfs_err(fs_info,
-				  "with mixed groups data and metadata balance options must be the same");
+	  "balance: mixed groups data and metadata options must be the same");
 			ret = -EINVAL;
 			goto out;
 		}
@@ -3827,23 +3827,29 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		allowed |= (BTRFS_BLOCK_GROUP_RAID10 |
 			    BTRFS_BLOCK_GROUP_RAID6);
 	if (validate_convert_profile(&bctl->data, allowed)) {
+		int index = btrfs_bg_flags_to_raid_index(bctl->data.target);
+
 		btrfs_err(fs_info,
-			  "unable to start balance with target data profile %llu",
-			  bctl->data.target);
+			  "balance: invalid convert data profile %s",
+			  get_raid_name(index));
 		ret = -EINVAL;
 		goto out;
 	}
 	if (validate_convert_profile(&bctl->meta, allowed)) {
+		int index = btrfs_bg_flags_to_raid_index(bctl->meta.target);
+
 		btrfs_err(fs_info,
-			  "unable to start balance with target metadata profile %llu",
-			  bctl->meta.target);
+			  "balance: invalid convert metadata profile %s",
+			  get_raid_name(index));
 		ret = -EINVAL;
 		goto out;
 	}
 	if (validate_convert_profile(&bctl->sys, allowed)) {
+		int index = btrfs_bg_flags_to_raid_index(bctl->sys.target);
+
 		btrfs_err(fs_info,
-			  "unable to start balance with target system profile %llu",
-			  bctl->sys.target);
+			  "balance: invalid convert system profile %s",
+			  get_raid_name(index));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3864,10 +3870,10 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		     !(bctl->meta.target & allowed))) {
 			if (bctl->flags & BTRFS_BALANCE_FORCE) {
 				btrfs_info(fs_info,
-					   "force reducing metadata integrity");
+				"balance: force reducing metadata integrity");
 			} else {
 				btrfs_err(fs_info,
-					  "balance will reduce metadata integrity, use force if you want this");
+	"balance: reduces metadata integrity, use --force if you want this");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -3881,9 +3887,12 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		bctl->data.target : fs_info->avail_data_alloc_bits;
 	if (btrfs_get_num_tolerated_disk_barrier_failures(meta_target) <
 		btrfs_get_num_tolerated_disk_barrier_failures(data_target)) {
+		int meta_index = btrfs_bg_flags_to_raid_index(meta_target);
+		int data_index = btrfs_bg_flags_to_raid_index(data_target);
+
 		btrfs_warn(fs_info,
-			   "metadata profile 0x%llx has lower redundancy than data profile 0x%llx",
-			   meta_target, data_target);
+	"balance: metadata profile %s has lower redundancy than data profile %s",
+			   get_raid_name(meta_index), get_raid_name(data_index));
 	}
 
 	ret = insert_balance_item(fs_info, bctl);
@@ -3943,7 +3952,7 @@ static int balance_kthread(void *data)
 
 	mutex_lock(&fs_info->balance_mutex);
 	if (fs_info->balance_ctl) {
-		btrfs_info(fs_info, "continuing balance");
+		btrfs_info(fs_info, "balance: resuming");
 		ret = btrfs_balance(fs_info, fs_info->balance_ctl, NULL);
 	}
 	mutex_unlock(&fs_info->balance_mutex);
@@ -3963,7 +3972,7 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 	mutex_unlock(&fs_info->balance_mutex);
 
 	if (btrfs_test_opt(fs_info, SKIP_BALANCE)) {
-		btrfs_info(fs_info, "force skipping balance");
+		btrfs_info(fs_info, "balance: resume skipped");
 		return 0;
 	}
 
@@ -4037,7 +4046,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	 */
 	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags))
 		btrfs_warn(fs_info,
-	"cannot set exclusive op status to balance, resume manually");
+	"balance: cannot set exclusive op status, resume manually");
 
 	mutex_lock(&fs_info->balance_mutex);
 	BUG_ON(fs_info->balance_ctl);
@@ -4118,6 +4127,7 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 		if (fs_info->balance_ctl) {
 			reset_balance_state(fs_info);
 			clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+			btrfs_info(fs_info, "balance: canceled");
 		}
 	}
 
