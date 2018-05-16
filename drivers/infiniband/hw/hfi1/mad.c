@@ -3424,6 +3424,7 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)pmp);
 	}
+	rsp->port_number = port;
 
 	/* PortRcvErrorInfo */
 	rsp->port_rcv_ei.status_and_code =
