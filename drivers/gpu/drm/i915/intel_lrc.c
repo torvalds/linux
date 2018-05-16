@@ -552,8 +552,18 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 	if (execlists->ctrl_reg)
 		writel(EL_CTRL_LOAD, execlists->ctrl_reg);
 
-	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
-	execlists_set_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT);
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
+	execlists_set_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
+}
+
+static void complete_preempt_context(struct intel_engine_execlists *execlists)
+{
+	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
+
+	execlists_cancel_port_requests(execlists);
+	execlists_unwind_incomplete_requests(execlists);
+
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
 static bool __execlists_dequeue(struct intel_engine_cs *engine)
@@ -1064,14 +1074,7 @@ static void execlists_submission_tasklet(unsigned long data)
 			if (status & GEN8_CTX_STATUS_COMPLETE &&
 			    buf[2*head + 1] == execlists->preempt_complete_status) {
 				GEM_TRACE("%s preempt-idle\n", engine->name);
-
-				execlists_cancel_port_requests(execlists);
-				execlists_unwind_incomplete_requests(execlists);
-
-				GEM_BUG_ON(!execlists_is_active(execlists,
-								EXECLISTS_ACTIVE_PREEMPT));
-				execlists_clear_active(execlists,
-						       EXECLISTS_ACTIVE_PREEMPT);
+				complete_preempt_context(execlists);
 				continue;
 			}
 

@@ -623,6 +623,21 @@ static void wait_for_guc_preempt_report(struct intel_engine_cs *engine)
 	report->report_return_status = INTEL_GUC_REPORT_STATUS_UNKNOWN;
 }
 
+static void complete_preempt_context(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists *execlists = &engine->execlists;
+
+	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
+
+	execlists_cancel_port_requests(execlists);
+	execlists_unwind_incomplete_requests(execlists);
+
+	wait_for_guc_preempt_report(engine);
+	intel_write_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX, 0);
+
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
+}
+
 /**
  * guc_submit() - Submit commands through GuC
  * @engine: engine associated with the commands
@@ -793,15 +808,8 @@ static void guc_submission_tasklet(unsigned long data)
 
 	if (execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT) &&
 	    intel_read_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX) ==
-	    GUC_PREEMPT_FINISHED) {
-		execlists_cancel_port_requests(&engine->execlists);
-		execlists_unwind_incomplete_requests(execlists);
-
-		wait_for_guc_preempt_report(engine);
-
-		execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
-		intel_write_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX, 0);
-	}
+	    GUC_PREEMPT_FINISHED)
+		complete_preempt_context(engine);
 
 	if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT))
 		guc_dequeue(engine);
