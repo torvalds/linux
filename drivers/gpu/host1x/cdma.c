@@ -51,7 +51,7 @@ static void host1x_pushbuffer_destroy(struct push_buffer *pb)
 	struct host1x_cdma *cdma = pb_to_cdma(pb);
 	struct host1x *host1x = cdma_to_host1x(cdma);
 
-	if (!pb->phys)
+	if (!pb->mapped)
 		return;
 
 	if (host1x->domain) {
