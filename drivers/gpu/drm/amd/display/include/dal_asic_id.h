@@ -86,6 +86,7 @@
 #define VI_POLARIS10_P_A0 80
 #define VI_POLARIS11_M_A0 90
 #define VI_POLARIS12_V_A0 100
+#define VI_VEGAM_A0 110
 
 #define VI_UNKNOWN 0xFF
 
@@ -98,14 +99,9 @@
 		(eChipRev < VI_POLARIS11_M_A0))
 #define ASIC_REV_IS_POLARIS11_M(eChipRev) ((eChipRev >= VI_POLARIS11_M_A0) &&  \
 		(eChipRev < VI_POLARIS12_V_A0))
-#if defined(CONFIG_DRM_AMD_DC_VEGAM)
-#define VI_VEGAM_A0 110
 #define ASIC_REV_IS_POLARIS12_V(eChipRev) ((eChipRev >= VI_POLARIS12_V_A0) && \
 		(eChipRev < VI_VEGAM_A0))
 #define ASIC_REV_IS_VEGAM(eChipRev) (eChipRev >= VI_VEGAM_A0)
-#else
-#define ASIC_REV_IS_POLARIS12_V(eChipRev) (eChipRev >= VI_POLARIS12_V_A0)
-#endif
 
 /* DCE11 */
 #define CZ_CARRIZO_A0 0x01
