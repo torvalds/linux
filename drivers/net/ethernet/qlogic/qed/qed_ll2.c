@@ -591,6 +591,27 @@ static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	}
 }
 
+static bool
+qed_ll2_lb_rxq_handler_slowpath(struct qed_hwfn *p_hwfn,
+				struct core_rx_slow_path_cqe *p_cqe)
+{
+	struct ooo_opaque *iscsi_ooo;
+	u32 cid;
+
+	if (p_cqe->ramrod_cmd_id != CORE_RAMROD_RX_QUEUE_FLUSH)
+		return false;
+
+	iscsi_ooo = (struct ooo_opaque *)&p_cqe->opaque_data;
+	if (iscsi_ooo->ooo_opcode != TCP_EVENT_DELETE_ISLES)
+		return false;
+
+	/* Need to make a flush */
+	cid = le32_to_cpu(iscsi_ooo->cid);
+	qed_ooo_release_connection_isles(p_hwfn, p_hwfn->p_ooo_info, cid);
+
+	return true;
+}
+
 static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 				  struct qed_ll2_info *p_ll2_conn)
 {
@@ -616,6 +637,11 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		cqe = qed_chain_consume(&p_rx->rcq_chain);
 		cq_old_idx = qed_chain_get_cons_idx(&p_rx->rcq_chain);
 		cqe_type = cqe->rx_cqe_sp.type;
+
+		if (cqe_type == CORE_RX_CQE_TYPE_SLOW_PATH)
+			if (qed_ll2_lb_rxq_handler_slowpath(p_hwfn,
+							    &cqe->rx_cqe_sp))
+				continue;
 
 		if (cqe_type != CORE_RX_CQE_TYPE_REGULAR) {
 			DP_NOTICE(p_hwfn,
