@@ -1917,6 +1917,11 @@ static inline void tcp_init_undo(struct tcp_sock *tp)
 	tp->undo_retrans = tp->retrans_out ? : -1;
 }
 
+static bool tcp_is_rack(const struct sock *sk)
+{
+	return sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_LOSS_DETECTION;
+}
+
 /* If we detect SACK reneging, forget all SACK information
  * and reset tags completely, otherwise preserve SACKs. If receiver
  * dropped its ofo queue, we will know this due to reneging detection.
@@ -2029,11 +2034,6 @@ static bool tcp_check_sack_reneging(struct sock *sk, int flag)
 static inline int tcp_dupack_heuristics(const struct tcp_sock *tp)
 {
 	return tp->sacked_out + 1;
-}
-
-static bool tcp_is_rack(const struct sock *sk)
-{
-	return sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_LOSS_DETECTION;
 }
 
 /* Linux NewReno/SACK/ECN state machine.

@@ -47,6 +47,12 @@ u32 tcp_rack_reo_wnd(const struct sock *sk)
 		   tp->srtt_us >> 3);
 }
 
+s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb, u32 reo_wnd)
+{
+	return tp->rack.rtt_us + reo_wnd -
+	       tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+}
+
 /* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
  *
  * Marks a packet lost, if some packet sent later has been (s)acked.
@@ -92,8 +98,7 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		/* A packet is lost if it has not been s/acked beyond
 		 * the recent RTT plus the reordering window.
 		 */
-		remaining = tp->rack.rtt_us + reo_wnd -
-			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+		remaining = tcp_rack_skb_timeout(tp, skb, reo_wnd);
 		if (remaining <= 0) {
 			tcp_mark_skb_lost(sk, skb);
 			list_del_init(&skb->tcp_tsorted_anchor);
