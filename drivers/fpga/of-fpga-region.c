@@ -422,20 +422,15 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 	if (IS_ERR(mgr))
 		return -EPROBE_DEFER;
 
-	region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
+	region = fpga_region_create(dev, mgr, of_fpga_region_get_bridges);
 	if (!region) {
 		ret = -ENOMEM;
 		goto eprobe_mgr_put;
 	}
 
-	region->mgr = mgr;
-
-	/* Specify how to get bridges for this type of region. */
-	region->get_bridges = of_fpga_region_get_bridges;
-
-	ret = fpga_region_register(dev, region);
+	ret = fpga_region_register(region);
 	if (ret)
-		goto eprobe_mgr_put;
+		goto eprobe_free;
 
 	of_platform_populate(np, fpga_region_of_match, NULL, &region->dev);
 	dev_set_drvdata(dev, region);
@@ -444,6 +439,8 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 
 	return 0;
 
+eprobe_free:
+	fpga_region_free(region);
 eprobe_mgr_put:
 	fpga_mgr_put(mgr);
 	return ret;

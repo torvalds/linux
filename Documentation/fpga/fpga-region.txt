@@ -42,8 +42,7 @@ The FPGA region API
 To register or unregister a region:
 -----------------------------------
 
-	int fpga_region_register(struct device *dev,
-				 struct fpga_region *region);
+	int fpga_region_register(struct fpga_region *region);
 	int fpga_region_unregister(struct fpga_region *region);
 
 An example of usage can be seen in the probe function of [3]
