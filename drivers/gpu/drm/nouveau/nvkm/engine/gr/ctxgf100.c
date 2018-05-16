@@ -1385,6 +1385,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		gf100_gr_mmio(gr, gr->fuc_sw_ctx);
 	}
 
+	gf100_gr_wait_idle(gr);
+
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
 	grctx->pagepool(info);
@@ -1395,6 +1397,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);
+
+	gf100_gr_wait_idle(gr);
 
 	if (grctx->r400088) grctx->r400088(gr, false);
 	if (gr->fuc_bundle)

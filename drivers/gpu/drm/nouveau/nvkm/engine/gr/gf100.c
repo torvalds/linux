@@ -2123,6 +2123,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	else
 		gf100_gr_mmio(gr, gr->func->mmio);
 
+	gf100_gr_wait_idle(gr);
+
 	if (gr->func->init_r405a14)
 		gr->func->init_r405a14(gr);
 
