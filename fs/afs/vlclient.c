@@ -23,7 +23,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
 	bool new_only = false;
-	u32 tmp, nr_servers;
+	u32 tmp, nr_servers, vlflags;
 	int i, ret;
 
 	_enter("");
@@ -55,6 +55,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 			new_only = true;
 	}
 
+	vlflags = ntohl(uvldb->flags);
 	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
@@ -64,12 +65,13 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		if (tmp & AFS_VLSF_DONTUSE ||
 		    (new_only && !(tmp & AFS_VLSF_NEWREPSITE)))
 			continue;
-		if (tmp & AFS_VLSF_RWVOL)
+		if (tmp & AFS_VLSF_RWVOL) {
 			entry->fs_mask[i] |= AFS_VOL_VTM_RW;
+			if (vlflags & AFS_VLF_BACKEXISTS)
+				entry->fs_mask[i] |= AFS_VOL_VTM_BAK;
+		}
 		if (tmp & AFS_VLSF_ROVOL)
 			entry->fs_mask[i] |= AFS_VOL_VTM_RO;
-		if (tmp & AFS_VLSF_BACKVOL)
-			entry->fs_mask[i] |= AFS_VOL_VTM_BAK;
 		if (!entry->fs_mask[i])
 			continue;
 
@@ -89,15 +91,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	for (i = 0; i < AFS_MAXTYPES; i++)
 		entry->vid[i] = ntohl(uvldb->volumeId[i]);
 
-	tmp = ntohl(uvldb->flags);
-	if (tmp & AFS_VLF_RWEXISTS)
+	if (vlflags & AFS_VLF_RWEXISTS)
 		__set_bit(AFS_VLDB_HAS_RW, &entry->flags);
-	if (tmp & AFS_VLF_ROEXISTS)
+	if (vlflags & AFS_VLF_ROEXISTS)
 		__set_bit(AFS_VLDB_HAS_RO, &entry->flags);
-	if (tmp & AFS_VLF_BACKEXISTS)
+	if (vlflags & AFS_VLF_BACKEXISTS)
 		__set_bit(AFS_VLDB_HAS_BAK, &entry->flags);
 
-	if (!(tmp & (AFS_VLF_RWEXISTS | AFS_VLF_ROEXISTS | AFS_VLF_BACKEXISTS))) {
+	if (!(vlflags & (AFS_VLF_RWEXISTS | AFS_VLF_ROEXISTS | AFS_VLF_BACKEXISTS))) {
 		entry->error = -ENOMEDIUM;
 		__set_bit(AFS_VLDB_QUERY_ERROR, &entry->flags);
 	}
