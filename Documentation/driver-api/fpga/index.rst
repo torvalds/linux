@@ -10,3 +10,4 @@ FPGA Subsystem
    intro
    fpga-mgr
    fpga-bridge
+   fpga-region
