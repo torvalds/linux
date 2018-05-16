@@ -35,7 +35,6 @@
 #include "mmhub/mmhub_9_1_offset.h"
 #include "mmhub/mmhub_9_1_sh_mask.h"
 
-static int vcn_v1_0_start(struct amdgpu_device *adev);
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
@@ -146,10 +145,6 @@ static int vcn_v1_0_hw_init(void *handle)
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
 	int i, r;
 
-	r = vcn_v1_0_start(adev);
-	if (r)
-		goto done;
-
 	ring->ready = true;
 	r = amdgpu_ring_test_ring(ring);
 	if (r) {
@@ -185,11 +180,9 @@ static int vcn_v1_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
-	int r;
 
-	r = vcn_v1_0_stop(adev);
-	if (r)
-		return r;
+	if (RREG32_SOC15(VCN, 0, mmUVD_STATUS))
+		vcn_v1_0_stop(adev);
 
 	ring->ready = false;
 
@@ -769,7 +762,7 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2), 0,
 			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
-	/* enable clock gating */
+	WREG32_SOC15(VCN, 0, mmUVD_STATUS, 0);
 
 	vcn_v1_0_enable_clock_gating(adev);
 	vcn_1_0_enable_static_power_gating(adev);
@@ -1179,6 +1172,23 @@ static void vcn_v1_0_dec_ring_insert_nop(struct amdgpu_ring *ring, uint32_t coun
 	}
 }
 
+static int vcn_v1_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
+{
+	/* This doesn't actually powergate the VCN block.
+	 * That's done in the dpm code via the SMC.  This
+	 * just re-inits the block as necessary.  The actual
+	 * gating still happens in the dpm code.  We should
+	 * revisit this when there is a cleaner line between
+	 * the smc and the hw blocks
+	 */
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (state == AMD_PG_STATE_GATE)
+		return vcn_v1_0_stop(adev);
+	else
+		return vcn_v1_0_start(adev);
+}
 
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
@@ -1197,7 +1207,7 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.soft_reset = NULL /* vcn_v1_0_soft_reset */,
 	.post_soft_reset = NULL /* vcn_v1_0_post_soft_reset */,
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
-	.set_powergating_state = NULL /* vcn_v1_0_set_powergating_state */,
+	.set_powergating_state = vcn_v1_0_set_powergating_state,
 };
 
 static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {

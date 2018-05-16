@@ -212,11 +212,11 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	}
 
 	if (fences == 0) {
-		if (adev->pm.dpm_enabled) {
-			/* might be used when with pg/cg
+		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
-			*/
-		}
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+							       AMD_PG_STATE_GATE);
 	} else {
 		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
 	}
@@ -228,9 +228,11 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	if (set_clocks && adev->pm.dpm_enabled) {
-		/* might be used when with pg/cg
-		amdgpu_dpm_enable_uvd(adev, true);
-		*/
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, true);
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+							       AMD_PG_STATE_UNGATE);
 	}
 }
 
