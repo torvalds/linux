@@ -72,6 +72,17 @@ static inline u32 am33xx_cm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
 	return v;
 }
 
+static inline u32 am33xx_cm_read_reg_bits(u16 inst, s16 idx, u32 mask)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, idx);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
 /**
  * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
  * @inst: CM instance register offset (*_INST macro)
@@ -338,6 +349,46 @@ static u32 am33xx_cm_xlate_clkctrl(u8 part, u16 inst, u16 offset)
 	return cm_base.pa + inst + offset;
 }
 
+/**
+ * am33xx_clkdm_save_context - Save the clockdomain transition context
+ * @clkdm: The clockdomain pointer whose context needs to be saved
+ *
+ * Save the clockdomain transition context.
+ */
+static int am33xx_clkdm_save_context(struct clockdomain *clkdm)
+{
+	clkdm->context = am33xx_cm_read_reg_bits(clkdm->cm_inst,
+						 clkdm->clkdm_offs,
+						 AM33XX_CLKTRCTRL_MASK);
+
+	return 0;
+}
+
+/**
+ * am33xx_restore_save_context - Restore the clockdomain transition context
+ * @clkdm: The clockdomain pointer whose context needs to be restored
+ *
+ * Restore the clockdomain transition context.
+ */
+static int am33xx_clkdm_restore_context(struct clockdomain *clkdm)
+{
+	switch (clkdm->context) {
+	case OMAP34XX_CLKSTCTRL_DISABLE_AUTO:
+		am33xx_clkdm_deny_idle(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_SLEEP:
+		am33xx_clkdm_sleep(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_WAKEUP:
+		am33xx_clkdm_wakeup(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_ENABLE_AUTO:
+		am33xx_clkdm_allow_idle(clkdm);
+		break;
+	}
+	return 0;
+}
+
 struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_sleep		= am33xx_clkdm_sleep,
 	.clkdm_wakeup		= am33xx_clkdm_wakeup,
@@ -345,6 +396,8 @@ struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_deny_idle	= am33xx_clkdm_deny_idle,
 	.clkdm_clk_enable	= am33xx_clkdm_clk_enable,
 	.clkdm_clk_disable	= am33xx_clkdm_clk_disable,
+	.clkdm_save_context	= am33xx_clkdm_save_context,
+	.clkdm_restore_context	= am33xx_clkdm_restore_context,
 };
 
 static const struct cm_ll_data am33xx_cm_ll_data = {
