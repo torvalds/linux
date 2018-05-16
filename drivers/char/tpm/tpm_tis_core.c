@@ -84,7 +84,8 @@ again:
 		}
 	} else {
 		do {
-			tpm_msleep(TPM_TIMEOUT_POLL);
+			usleep_range(TPM_TIMEOUT_USECS_MIN,
+				     TPM_TIMEOUT_USECS_MAX);
 			status = chip->ops->status(chip);
 			if ((status & mask) == mask)
 				return 0;
@@ -273,7 +274,7 @@ static int get_burstcount(struct tpm_chip *chip)
 		burstcnt = (value >> 8) & 0xFFFF;
 		if (burstcnt)
 			return burstcnt;
-		tpm_msleep(TPM_TIMEOUT_POLL);
+		usleep_range(TPM_TIMEOUT_USECS_MIN, TPM_TIMEOUT_USECS_MAX);
 	} while (time_before(jiffies, stop));
 	return -EBUSY;
 }
