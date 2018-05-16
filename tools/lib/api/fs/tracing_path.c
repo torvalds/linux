@@ -86,6 +86,21 @@ void put_tracing_file(char *file)
 	free(file);
 }
 
+char *get_events_file(const char *name)
+{
+	char *file;
+
+	if (asprintf(&file, "%s/events/%s", tracing_path_mount(), name) < 0)
+		return NULL;
+
+	return file;
+}
+
+void put_events_file(char *file)
+{
+	free(file);
+}
+
 int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 				   const char *sys, const char *name)
 {
