@@ -1206,15 +1206,15 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 
 	case HID_DG_LATENCYMODE:
 		field->value[index] = latency;
-		return 1;
+		return true;
 
 	case HID_DG_SURFACESWITCH:
 		field->value[index] = surface_switch;
-		return 1;
+		return true;
 
 	case HID_DG_BUTTONSWITCH:
 		field->value[index] = button_switch;
-		return 1;
+		return true;
 	}
 
 	return false; /* no need to update the report */
