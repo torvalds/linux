@@ -613,7 +613,7 @@ static int rcsi2_set_pad_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *framefmt;
 
 	if (!rcsi2_code_to_fmt(format->format.code))
-		return -EINVAL;
+		format->format.code = rcar_csi2_formats[0].code;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		priv->mf = format->format;
