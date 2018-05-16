@@ -2709,6 +2709,9 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 	struct dm_connector_state *state =
 		to_dm_connector_state(connector->state);
 
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+
 	kfree(state);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
@@ -2719,8 +2722,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
 
-		connector->state = &state->base;
-		connector->state->connector = connector;
+		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
 }
 
