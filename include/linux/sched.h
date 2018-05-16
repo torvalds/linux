@@ -1653,7 +1653,6 @@ static inline int test_tsk_need_resched(struct task_struct *tsk)
  * explicit rescheduling in places that are safe. The return
  * value indicates whether a reschedule was done in fact.
  * cond_resched_lock() will drop the spinlock before scheduling,
- * cond_resched_softirq() will enable bhs before scheduling.
  */
 #ifndef CONFIG_PREEMPT
 extern int _cond_resched(void);
@@ -1671,13 +1670,6 @@ extern int __cond_resched_lock(spinlock_t *lock);
 #define cond_resched_lock(lock) ({				\
 	___might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);\
 	__cond_resched_lock(lock);				\
-})
-
-extern int __cond_resched_softirq(void);
-
-#define cond_resched_softirq() ({					\
-	___might_sleep(__FILE__, __LINE__, SOFTIRQ_DISABLE_OFFSET);	\
-	__cond_resched_softirq();					\
 })
 
 static inline void cond_resched_rcu(void)
