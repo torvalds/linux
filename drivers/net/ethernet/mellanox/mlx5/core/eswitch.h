@@ -219,6 +219,10 @@ struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				struct mlx5_esw_flow_attr *attr);
+struct mlx5_flow_handle *
+mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
+			  struct mlx5_flow_spec *spec,
+			  struct mlx5_esw_flow_attr *attr);
 void
 mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_handle *rule,
