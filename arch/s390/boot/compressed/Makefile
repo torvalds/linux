@@ -74,3 +74,7 @@ $(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y)
 LDFLAGS_piggy.o := -r --format binary --oformat $(LD_BFD) -T
 $(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y)
 	$(call if_changed,ld)
+
+chkbss := $(filter-out $(obj)/misc.o $(obj)/piggy.o,$(OBJECTS))
+chkbss-target := $(obj)/vmlinux.bin
+include $(srctree)/arch/s390/scripts/Makefile.chkbss
