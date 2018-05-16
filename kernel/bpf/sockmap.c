@@ -1990,6 +1990,12 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
+	if (attr->key_size > MAX_BPF_STACK)
+		/* eBPF programs initialize keys on stack, so they cannot be
+		 * larger than max stack size
+		 */
+		return ERR_PTR(-E2BIG);
+
 	err = bpf_tcp_ulp_register();
 	if (err && err != -EEXIST)
 		return ERR_PTR(err);
