@@ -426,13 +426,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct host1x_reloc *reloc;
 		struct tegra_bo *obj;
 
-		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
+		err = host1x_reloc_copy_from_user(&job->relocs[num_relocs],
 						  &user_relocs[num_relocs], drm,
 						  file);
 		if (err < 0)
 			goto fail;
 
-		reloc = &job->relocarray[num_relocs];
+		reloc = &job->relocs[num_relocs];
 		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
 		refs[num_refs++] = &obj->gem;
 

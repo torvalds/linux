@@ -60,7 +60,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
-	job->relocarray = num_relocs ? mem : NULL;
+	job->relocs = num_relocs ? mem : NULL;
 	mem += num_relocs * sizeof(struct host1x_reloc);
 	job->unpins = num_unpins ? mem : NULL;
 	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
@@ -115,7 +115,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	job->num_unpins = 0;
 
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
 
@@ -203,7 +203,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 
 	/* pin & patch the relocs for one gather */
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
 				  reloc->target.offset) >> reloc->shift;
 		u32 *target;
@@ -455,7 +455,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 	fw.job = job;
 	fw.dev = dev;
-	fw.reloc = job->relocarray;
+	fw.reloc = job->relocs;
 	fw.num_relocs = job->num_relocs;
 	fw.class = job->class;
 

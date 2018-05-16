@@ -210,7 +210,7 @@ struct host1x_job {
 	unsigned int num_gathers;
 
 	/* Array of handles to be pinned & unpinned */
-	struct host1x_reloc *relocarray;
+	struct host1x_reloc *relocs;
 	unsigned int num_relocs;
 	struct host1x_job_unpin_data *unpins;
 	unsigned int num_unpins;
