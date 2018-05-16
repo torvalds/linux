@@ -633,7 +633,7 @@ error_device:
 EXPORT_SYMBOL_GPL(fpga_mgr_register);
 
 /**
- * fpga_mgr_unregister - unregister a FPGA manager
+ * fpga_mgr_unregister - unregister and free a FPGA manager
  * @mgr:	fpga manager struct
  */
 void fpga_mgr_unregister(struct fpga_manager *mgr)

@@ -232,7 +232,7 @@ int fpga_region_register(struct fpga_region *region)
 EXPORT_SYMBOL_GPL(fpga_region_register);
 
 /**
- * fpga_region_unregister - unregister a FPGA region
+ * fpga_region_unregister - unregister and free a FPGA region
  * @region: FPGA region
  */
 void fpga_region_unregister(struct fpga_region *region)

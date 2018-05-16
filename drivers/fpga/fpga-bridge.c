@@ -412,7 +412,7 @@ int fpga_bridge_register(struct fpga_bridge *bridge)
 EXPORT_SYMBOL_GPL(fpga_bridge_register);
 
 /**
- * fpga_bridge_unregister - unregister a fpga bridge driver
+ * fpga_bridge_unregister - unregister and free a fpga bridge
  * @bridge:	FPGA bridge struct created by fpga_bridge_create
  */
 void fpga_bridge_unregister(struct fpga_bridge *bridge)
