@@ -482,6 +482,7 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct a10_fpga_priv *priv;
 	void __iomem *reg_base;
+	struct fpga_manager *mgr;
 	struct resource *res;
 	int ret;
 
@@ -519,9 +520,16 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	ret = fpga_mgr_register(dev, "SoCFPGA Arria10 FPGA Manager",
-				 &socfpga_a10_fpga_mgr_ops, priv);
+	mgr = fpga_mgr_create(dev, "SoCFPGA Arria10 FPGA Manager",
+			      &socfpga_a10_fpga_mgr_ops, priv);
+	if (!mgr)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, mgr);
+
+	ret = fpga_mgr_register(mgr);
 	if (ret) {
+		fpga_mgr_free(mgr);
 		clk_disable_unprepare(priv->clk);
 		return ret;
 	}
@@ -534,7 +542,7 @@ static int socfpga_a10_fpga_remove(struct platform_device *pdev)
 	struct fpga_manager *mgr = platform_get_drvdata(pdev);
 	struct a10_fpga_priv *priv = mgr->priv;
 
-	fpga_mgr_unregister(&pdev->dev);
+	fpga_mgr_unregister(mgr);
 	clk_disable_unprepare(priv->clk);
 
 	return 0;

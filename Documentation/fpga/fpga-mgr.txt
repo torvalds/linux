@@ -63,17 +63,23 @@ The user should call fpga_mgr_lock and verify that it returns 0 before
 attempting to program the FPGA.  Likewise, the user should call
 fpga_mgr_unlock when done programming the FPGA.
 
+To alloc/free a FPGA manager struct:
+------------------------------------
+
+	struct fpga_manager *fpga_mgr_create(struct device *dev,
+					     const char *name,
+					     const struct fpga_manager_ops *mops,
+					     void *priv);
+	void fpga_mgr_free(struct fpga_manager *mgr);
 
 To register or unregister the low level FPGA-specific driver:
 -------------------------------------------------------------
 
-	int fpga_mgr_register(struct device *dev, const char *name,
-			      const struct fpga_manager_ops *mops,
-			      void *priv);
+	int fpga_mgr_register(struct fpga_manager *mgr);
 
-	void fpga_mgr_unregister(struct device *dev);
+	void fpga_mgr_unregister(struct fpga_manager *mgr);
 
-Use of these two functions is described below in "How To Support a new FPGA
+Use of these functions is described below in "How To Support a new FPGA
 device."
 
 
@@ -148,6 +154,7 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct socfpga_fpga_priv *priv;
+	struct fpga_manager *mgr;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -157,13 +164,25 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 	/* ... do ioremaps, get interrupts, etc. and save
 	   them in priv... */
 
-	return fpga_mgr_register(dev, "Altera SOCFPGA FPGA Manager",
-				 &socfpga_fpga_ops, priv);
+	mgr = fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
+			      &socfpga_fpga_ops, priv);
+	if (!mgr)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, mgr);
+
+	ret = fpga_mgr_register(mgr);
+	if (ret)
+		fpga_mgr_free(mgr);
+
+	return ret;
 }
 
 static int socfpga_fpga_remove(struct platform_device *pdev)
 {
-	fpga_mgr_unregister(&pdev->dev);
+	struct fpga_manager *mgr = platform_get_drvdata(pdev);
+
+	fpga_mgr_unregister(mgr);
 
 	return 0;
 }

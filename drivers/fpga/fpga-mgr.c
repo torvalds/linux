@@ -515,17 +515,17 @@ void fpga_mgr_unlock(struct fpga_manager *mgr)
 EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
 
 /**
- * fpga_mgr_register - register a low level fpga manager driver
+ * fpga_mgr_create - create and initialize a FPGA manager struct
  * @dev:	fpga manager device from pdev
  * @name:	fpga manager name
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
  *
- * Return: 0 on success, negative error code otherwise.
+ * Return: pointer to struct fpga_manager or NULL
  */
-int fpga_mgr_register(struct device *dev, const char *name,
-		      const struct fpga_manager_ops *mops,
-		      void *priv)
+struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
+				     const struct fpga_manager_ops *mops,
+				     void *priv)
 {
 	struct fpga_manager *mgr;
 	int id, ret;
@@ -534,17 +534,17 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	    !mops->write_init || (!mops->write && !mops->write_sg) ||
 	    (mops->write && mops->write_sg)) {
 		dev_err(dev, "Attempt to register without fpga_manager_ops\n");
-		return -EINVAL;
+		return NULL;
 	}
 
 	if (!name || !strlen(name)) {
 		dev_err(dev, "Attempt to register with no name!\n");
-		return -EINVAL;
+		return NULL;
 	}
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
-		return -ENOMEM;
+		return NULL;
 
 	id = ida_simple_get(&fpga_mgr_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
@@ -558,24 +558,55 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	mgr->mops = mops;
 	mgr->priv = priv;
 
-	/*
-	 * Initialize framework state by requesting low level driver read state
-	 * from device.  FPGA may be in reset mode or may have been programmed
-	 * by bootloader or EEPROM.
-	 */
-	mgr->state = mgr->mops->state(mgr);
-
 	device_initialize(&mgr->dev);
 	mgr->dev.class = fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = dev;
 	mgr->dev.of_node = dev->of_node;
 	mgr->dev.id = id;
-	dev_set_drvdata(dev, mgr);
 
 	ret = dev_set_name(&mgr->dev, "fpga%d", id);
 	if (ret)
 		goto error_device;
+
+	return mgr;
+
+error_device:
+	ida_simple_remove(&fpga_mgr_ida, id);
+error_kfree:
+	kfree(mgr);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_create);
+
+/**
+ * fpga_mgr_free - deallocate a FPGA manager
+ * @mgr:	fpga manager struct created by fpga_mgr_create
+ */
+void fpga_mgr_free(struct fpga_manager *mgr)
+{
+	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
+	kfree(mgr);
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_free);
+
+/**
+ * fpga_mgr_register - register a FPGA manager
+ * @mgr:	fpga manager struct created by fpga_mgr_create
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int fpga_mgr_register(struct fpga_manager *mgr)
+{
+	int ret;
+
+	/*
+	 * Initialize framework state by requesting low level driver read state
+	 * from device.  FPGA may be in reset mode or may have been programmed
+	 * by bootloader or EEPROM.
+	 */
+	mgr->state = mgr->mops->state(mgr);
 
 	ret = device_add(&mgr->dev);
 	if (ret)
@@ -586,22 +617,18 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	return 0;
 
 error_device:
-	ida_simple_remove(&fpga_mgr_ida, id);
-error_kfree:
-	kfree(mgr);
+	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_register);
 
 /**
- * fpga_mgr_unregister - unregister a low level fpga manager driver
- * @dev:	fpga manager device from pdev
+ * fpga_mgr_unregister - unregister a FPGA manager
+ * @mgr:	fpga manager struct
  */
-void fpga_mgr_unregister(struct device *dev)
+void fpga_mgr_unregister(struct fpga_manager *mgr)
 {
-	struct fpga_manager *mgr = dev_get_drvdata(dev);
-
 	dev_info(&mgr->dev, "%s %s\n", __func__, mgr->name);
 
 	/*
@@ -619,8 +646,7 @@ static void fpga_mgr_dev_release(struct device *dev)
 {
 	struct fpga_manager *mgr = to_fpga_manager(dev);
 
-	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
-	kfree(mgr);
+	fpga_mgr_free(mgr);
 }
 
 static int __init fpga_mgr_class_init(void)
