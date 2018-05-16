@@ -221,8 +221,10 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
+	struct fpga_bridge *br;
 	struct resource *res;
 	u32 status, revision;
+	int ret;
 
 	if (!np)
 		return -ENODEV;
@@ -254,13 +256,27 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 
 	priv->base_addr = base_addr;
 
-	return fpga_bridge_register(dev, FREEZE_BRIDGE_NAME,
-				    &altera_freeze_br_br_ops, priv);
+	br = fpga_bridge_create(dev, FREEZE_BRIDGE_NAME,
+				&altera_freeze_br_br_ops, priv);
+	if (!br)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, br);
+
+	ret = fpga_bridge_register(br);
+	if (ret) {
+		fpga_bridge_free(br);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int altera_freeze_br_remove(struct platform_device *pdev)
 {
-	fpga_bridge_unregister(&pdev->dev);
+	struct fpga_bridge *br = platform_get_drvdata(pdev);
+
+	fpga_bridge_unregister(br);
 
 	return 0;
 }
