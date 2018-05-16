@@ -54,11 +54,24 @@ struct rmnet_pcpu_stats {
 	struct u64_stats_sync syncp;
 };
 
+struct rmnet_priv_stats {
+	u64 csum_ok;
+	u64 csum_valid_unset;
+	u64 csum_validation_failed;
+	u64 csum_err_bad_buffer;
+	u64 csum_err_invalid_ip_version;
+	u64 csum_err_invalid_transport;
+	u64 csum_fragmented_pkt;
+	u64 csum_skipped;
+	u64 csum_sw;
+};
+
 struct rmnet_priv {
 	u8 mux_id;
 	struct net_device *real_dev;
 	struct rmnet_pcpu_stats __percpu *pcpu_stats;
 	struct gro_cells gro_cells;
+	struct rmnet_priv_stats stats;
 };
 
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
