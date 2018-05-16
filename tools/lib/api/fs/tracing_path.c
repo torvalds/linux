@@ -13,8 +13,7 @@
 
 #include "tracing_path.h"
 
-
-char tracing_mnt[PATH_MAX]         = "/sys/kernel/debug";
+static char tracing_mnt[PATH_MAX]  = "/sys/kernel/debug";
 char tracing_path[PATH_MAX]        = "/sys/kernel/debug/tracing";
 char tracing_events_path[PATH_MAX] = "/sys/kernel/debug/tracing/events";
 
@@ -129,7 +128,7 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 		snprintf(buf, size,
 			 "Error:\tNo permissions to read %s/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			 tracing_events_path, filename, tracing_mnt);
+			 tracing_events_path, filename, tracing_path_mount());
 	}
 		break;
 	default:
