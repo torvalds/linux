@@ -9,3 +9,4 @@ FPGA Subsystem
 
    intro
    fpga-mgr
+   fpga-bridge
