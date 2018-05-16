@@ -247,6 +247,14 @@ static int rk817_codec_ctl_gpio(struct rk817_codec_priv *rk817,
 	return 0;
 }
 
+static int rk817_reset(struct snd_soc_codec *codec)
+{
+	snd_soc_write(codec, RK817_CODEC_DTOP_LPT_SRST, 0x40);
+	snd_soc_write(codec, RK817_CODEC_DDAC_POPD_DACST, 0x02);
+
+	return 0;
+}
+
 static struct rk817_reg_val_typ playback_power_up_list[] = {
 	{RK817_CODEC_AREF_RTCFG1, 0x40},
 	{RK817_CODEC_DDAC_POPD_DACST, 0x02},
@@ -262,7 +270,7 @@ static struct rk817_reg_val_typ playback_power_up_list[] = {
 
 	{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},
 	{RK817_CODEC_DI2S_RSD, 0x00},
-	{RK817_CODEC_DI2S_CKM, 0x00},
+	/* {RK817_CODEC_DI2S_CKM, 0x00}, */
 	{RK817_CODEC_DI2S_RXCR1, 0x00},
 	{RK817_CODEC_DI2S_RXCMD_TSD, 0x20},
 	{RK817_CODEC_DTOP_VUCTIME, 0xf4},
@@ -302,7 +310,7 @@ static struct rk817_reg_val_typ capture_power_up_list[] = {
 
 	{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},
 	{RK817_CODEC_DI2S_RSD, 0x00},
-	{RK817_CODEC_DI2S_CKM, 0x00},
+	/* {RK817_CODEC_DI2S_CKM, 0x00}, */
 	{RK817_CODEC_DI2S_RXCR1, 0x00},
 	{RK817_CODEC_DI2S_RXCMD_TSD, 0x20},
 	{RK817_CODEC_DTOP_VUCTIME, 0xf4},
@@ -580,10 +588,6 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 	default:
 		return -EINVAL;
 	}
-
-	if (rk817->capture_path != 0 && rk817->pdmdata_out_enable)
-		snd_soc_update_bits(codec, RK817_CODEC_DI2S_CKM,
-					PDM_EN_MASK, PDM_EN_ENABLE);
 
 	return 0;
 }
@@ -893,6 +897,8 @@ static int rk817_probe(struct snd_soc_codec *codec)
 	rk817->playback_path = OFF;
 	rk817->capture_path = MIC_OFF;
 
+	rk817_reset(codec);
+
 	snd_soc_add_codec_controls(codec, rk817_snd_path_controls,
 				   ARRAY_SIZE(rk817_snd_path_controls));
 	return 0;
@@ -984,9 +990,9 @@ static int rk817_codec_parse_dt_property(struct device *dev,
 	DBG("spk mute delay %dms --- hp mute delay %dms\n",
 	    rk817->spk_mute_delay, rk817->hp_mute_delay);
 
-	ret = of_property_read_u32(node, "skp-volume", &rk817->spk_volume);
+	ret = of_property_read_u32(node, "spk-volume", &rk817->spk_volume);
 	if (ret < 0) {
-		DBG("%s() Can not read property skp-volume\n", __func__);
+		DBG("%s() Can not read property spk-volume\n", __func__);
 		rk817->spk_volume = OUT_VOLUME;
 	}
 	if (rk817->spk_volume < 3)
