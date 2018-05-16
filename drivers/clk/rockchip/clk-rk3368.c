@@ -883,6 +883,7 @@ static const char *const rk3368_critical_clocks[] __initconst = {
 	"pclk_ddrphy",
 	"pclk_ddrupctl",
 	"pmu_hclk_otg0",
+	"aclk_dmac_bus",
 };
 
 static void __iomem *rk3368_cru_base;
