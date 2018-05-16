@@ -386,20 +386,6 @@ static bool rcu_dynticks_in_eqs_since(struct rcu_dynticks *rdtp, int snap)
 }
 
 /*
- * Do a double-increment of the ->dynticks counter to emulate a
- * momentary idle-CPU quiescent state.
- */
-static void rcu_dynticks_momentary_idle(void)
-{
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
-	int special = atomic_add_return(2 * RCU_DYNTICK_CTRL_CTR,
-					&rdtp->dynticks);
-
-	/* It is illegal to call this from idle state. */
-	WARN_ON_ONCE(!(special & RCU_DYNTICK_CTRL_CTR));
-}
-
-/*
  * Set the special (bottom) bit of the specified CPU so that it
  * will take special action (such as flushing its TLB) on the
  * next exit from an extended quiescent state.  Returns true if
@@ -430,12 +416,17 @@ bool rcu_eqs_special_set(int cpu)
  *
  * We inform the RCU core by emulating a zero-duration dyntick-idle period.
  *
- * The caller must have disabled interrupts.
+ * The caller must have disabled interrupts and must not be idle.
  */
 static void rcu_momentary_dyntick_idle(void)
 {
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	int special;
+
 	raw_cpu_write(rcu_dynticks.rcu_need_heavy_qs, false);
-	rcu_dynticks_momentary_idle();
+	special = atomic_add_return(2 * RCU_DYNTICK_CTRL_CTR, &rdtp->dynticks);
+	/* It is illegal to call this from idle state. */
+	WARN_ON_ONCE(!(special & RCU_DYNTICK_CTRL_CTR));
 }
 
 /*
