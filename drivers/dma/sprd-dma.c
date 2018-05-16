@@ -808,8 +808,8 @@ static int sprd_dma_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sdev->glb_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!sdev->glb_base)
-		return -ENOMEM;
+	if (IS_ERR(sdev->glb_base))
+		return PTR_ERR(sdev->glb_base);
 
 	dma_cap_set(DMA_MEMCPY, sdev->dma_dev.cap_mask);
 	sdev->total_chns = chn_count;
