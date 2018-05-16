@@ -10,6 +10,7 @@
 int btrfs_run_sanity_tests(void);
 
 #define test_msg(fmt, ...) pr_info("BTRFS: selftest: " fmt, ##__VA_ARGS__)
+#define test_err(fmt, ...) pr_err("BTRFS: selftest: " fmt "\n", ##__VA_ARGS__)
 
 struct btrfs_root;
 struct btrfs_trans_handle;
