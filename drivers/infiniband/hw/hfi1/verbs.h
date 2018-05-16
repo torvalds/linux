@@ -110,6 +110,12 @@ enum {
 #define LRH_9B_BYTES (FIELD_SIZEOF(struct ib_header, lrh))
 #define LRH_9B_DWORDS (LRH_9B_BYTES / sizeof(u32))
 
+/* 24Bits for qpn, upper 8Bits reserved */
+struct opa_16b_mgmt {
+	__be32 dest_qpn;
+	__be32 src_qpn;
+};
+
 struct hfi1_16b_header {
 	u32 lrh[4];
 	union {
@@ -118,6 +124,7 @@ struct hfi1_16b_header {
 			struct ib_other_headers oth;
 		} l;
 		struct ib_other_headers oth;
+		struct opa_16b_mgmt mgmt;
 	} u;
 } __packed;
 

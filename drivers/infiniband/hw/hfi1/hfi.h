@@ -392,6 +392,7 @@ struct hfi1_packet {
  */
 #define OPA_16B_L4_9B		0x00
 #define OPA_16B_L2_TYPE		0x02
+#define OPA_16B_L4_FM		0x08
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
 #define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
