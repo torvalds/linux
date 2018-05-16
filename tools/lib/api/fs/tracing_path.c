@@ -14,7 +14,7 @@
 #include "tracing_path.h"
 
 static char tracing_mnt[PATH_MAX]  = "/sys/kernel/debug";
-char tracing_path[PATH_MAX]        = "/sys/kernel/debug/tracing";
+static char tracing_path[PATH_MAX]        = "/sys/kernel/debug/tracing";
 char tracing_events_path[PATH_MAX] = "/sys/kernel/debug/tracing/events";
 
 
@@ -75,7 +75,7 @@ char *get_tracing_file(const char *name)
 {
 	char *file;
 
-	if (asprintf(&file, "%s/%s", tracing_path, name) < 0)
+	if (asprintf(&file, "%s/%s", tracing_path_mount(), name) < 0)
 		return NULL;
 
 	return file;

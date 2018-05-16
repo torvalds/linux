@@ -4,7 +4,6 @@
 
 #include <linux/types.h>
 
-extern char tracing_path[];
 extern char tracing_events_path[];
 
 void tracing_path_set(const char *mountpoint);

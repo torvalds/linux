@@ -238,7 +238,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argc)--;
 		} else if (strstarts(cmd, CMD_DEBUGFS_DIR)) {
 			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
-			fprintf(stderr, "dir: %s\n", tracing_path);
+			fprintf(stderr, "dir: %s\n", tracing_path_mount());
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--list-cmds")) {
@@ -462,9 +462,6 @@ int main(int argc, const char **argv)
 	if (err)
 		return err;
 	set_buildid_dir(NULL);
-
-	/* get debugfs/tracefs mount point from /proc/mounts */
-	tracing_path_mount();
 
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
