@@ -451,6 +451,7 @@ tcp_recovery - INTEGER
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
 	      retransmissions and tail drops.
 	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
+	RACK: 0x4 disables RACK's DUPACK threshold heuristic
 
 	Default: 0x1
 
