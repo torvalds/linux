@@ -202,6 +202,8 @@ source "drivers/fpga/Kconfig"
 
 source "drivers/tee/Kconfig"
 
+source "drivers/rkflash/Kconfig"
+
 source "drivers/rk_nand/Kconfig"
 
 source "drivers/headset_observe/Kconfig"

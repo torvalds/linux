@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0
+
+if ARCH_ROCKCHIP
+
+menuconfig RK_FLASH
+	tristate "Rockchip Flash Devices Support"
+	default n
+	help
+	  Enable rockchip flash devices support.
+
+	  rkflash driver support 3-type flash devices: NANDC NAND, SFC_NOR
+	  and SFC_NAND.
+
+	  Say Y when you have a board with one of them.
+
+if RK_FLASH
+
+comment "Rockchip Flash Devices"
+
+config RK_NANDC_NAND
+	tristate "RK NANDC NAND Device Support"
+	default n
+	help
+	  Enable NANDC_NAND device support.
+	  It's block interface.
+	  Say Y when you have a board with nand flash supported by rockchip
+	  nandc controller.
+
+config RK_SFC_NOR
+	tristate "RK SFC NOR Device Support"
+	default n
+	help
+	  Enable SFC_NOR device support.
+	  It's block interface.
+	  Say Y when you have a board with nor flash supported by rockchip
+	  sfc controller.
+
+config RK_SFC_NAND
+	tristate "RK SFC NAND Device Support"
+	default n
+	help
+	  Enable SFC_NAND device support.
+	  It's block interface
+	  Say Y when you have a board with nand flash supported by rockchip
+	  sfc controller.
+
+config RK_SFC_NOR_MTD
+	bool "RK SFC NOR mtd Interface Support"
+	depends on RK_SFC_NOR
+	default n
+	help
+	  Enable mtd interface for SFC_NOR device.
+	  It's mtd block interface.
+	  Say Y when you have a board with mtd interface nor flash supported
+	  by rockchip sfc controller.
+
+endif # RK_FLASH
+
+endif # ARCH_ROCKCHIP
