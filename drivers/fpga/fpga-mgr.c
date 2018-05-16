@@ -21,6 +21,12 @@
 static DEFINE_IDA(fpga_mgr_ida);
 static struct class *fpga_mgr_class;
 
+/**
+ * fpga_image_info_alloc - Allocate a FPGA image info struct
+ * @dev: owning device
+ *
+ * Return: struct fpga_image_info or NULL
+ */
 struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
 {
 	struct fpga_image_info *info;
@@ -39,6 +45,10 @@ struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(fpga_image_info_alloc);
 
+/**
+ * fpga_image_info_free - Free a FPGA image info struct
+ * @info: FPGA image info struct to free
+ */
 void fpga_image_info_free(struct fpga_image_info *info)
 {
 	struct device *dev;
@@ -223,7 +233,7 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
 /**
  * fpga_mgr_buf_load - load fpga from image in buffer
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image info
  * @buf:	buffer contain fpga image
  * @count:	byte count of buf
  *
@@ -332,6 +342,16 @@ static int fpga_mgr_firmware_load(struct fpga_manager *mgr,
 	return ret;
 }
 
+/**
+ * fpga_mgr_load - load FPGA from scatter/gather table, buffer, or firmware
+ * @mgr:	fpga manager
+ * @info:	fpga image information.
+ *
+ * Load the FPGA from an image which is indicated in @info.  If successful, the
+ * FPGA ends up in operating mode.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
 int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
 {
 	if (info->sgt)
@@ -418,10 +438,8 @@ static int fpga_mgr_dev_match(struct device *dev, const void *data)
 }
 
 /**
- * fpga_mgr_get - get a reference to a fpga mgr
+ * fpga_mgr_get - Given a device, get a reference to a fpga mgr.
  * @dev:	parent device that fpga mgr was registered with
- *
- * Given a device, get a reference to a fpga mgr.
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -442,10 +460,9 @@ static int fpga_mgr_of_node_match(struct device *dev, const void *data)
 }
 
 /**
- * of_fpga_mgr_get - get a reference to a fpga mgr
- * @node:	device node
+ * of_fpga_mgr_get - Given a device node, get a reference to a fpga mgr.
  *
- * Given a device node, get a reference to a fpga mgr.
+ * @node:	device node
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -478,7 +495,10 @@ EXPORT_SYMBOL_GPL(fpga_mgr_put);
  * @mgr:	fpga manager
  *
  * Given a pointer to FPGA Manager (from fpga_mgr_get() or
- * of_fpga_mgr_put()) attempt to get the mutex.
+ * of_fpga_mgr_put()) attempt to get the mutex. The user should call
+ * fpga_mgr_lock() and verify that it returns 0 before attempting to
+ * program the FPGA.  Likewise, the user should call fpga_mgr_unlock
+ * when done programming the FPGA.
  *
  * Return: 0 for success or -EBUSY
  */
@@ -494,7 +514,7 @@ int fpga_mgr_lock(struct fpga_manager *mgr)
 EXPORT_SYMBOL_GPL(fpga_mgr_lock);
 
 /**
- * fpga_mgr_unlock - Unlock FPGA manager
+ * fpga_mgr_unlock - Unlock FPGA manager after done programming
  * @mgr:	fpga manager
  */
 void fpga_mgr_unlock(struct fpga_manager *mgr)
