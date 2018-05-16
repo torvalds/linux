@@ -353,7 +353,6 @@ vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 	if (error)
 		return error;
 	if (inode->i_op->listxattr && (inode->i_opflags & IOP_XATTR)) {
-		error = -EOPNOTSUPP;
 		error = inode->i_op->listxattr(dentry, list, size);
 	} else {
 		error = security_inode_listsecurity(inode, list, size);
