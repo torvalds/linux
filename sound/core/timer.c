@@ -438,19 +438,24 @@ static unsigned long snd_timer_hw_resolution(struct snd_timer *timer)
 unsigned long snd_timer_resolution(struct snd_timer_instance *timeri)
 {
 	struct snd_timer * timer;
+	unsigned long ret = 0;
+	unsigned long flags;
 
 	if (timeri == NULL)
 		return 0;
 	timer = timeri->timer;
-	if (timer)
-		return snd_timer_hw_resolution(timer);
-	return 0;
+	if (timer) {
+		spin_lock_irqsave(&timer->lock, flags);
+		ret = snd_timer_hw_resolution(timer);
+		spin_unlock_irqrestore(&timer->lock, flags);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(snd_timer_resolution);
 
 static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 {
-	struct snd_timer *timer;
+	struct snd_timer *timer = ti->timer;
 	unsigned long resolution = 0;
 	struct snd_timer_instance *ts;
 	struct timespec tstamp;
@@ -462,14 +467,14 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_START ||
 		       event > SNDRV_TIMER_EVENT_PAUSE))
 		return;
-	if (event == SNDRV_TIMER_EVENT_START ||
-	    event == SNDRV_TIMER_EVENT_CONTINUE)
-		resolution = snd_timer_resolution(ti);
+	if (timer &&
+	    (event == SNDRV_TIMER_EVENT_START ||
+	     event == SNDRV_TIMER_EVENT_CONTINUE))
+		resolution = snd_timer_hw_resolution(timer);
 	if (ti->ccallback)
 		ti->ccallback(ti, event, &tstamp, resolution);
 	if (ti->flags & SNDRV_TIMER_IFLG_SLAVE)
 		return;
-	timer = ti->timer;
 	if (timer == NULL)
 		return;
 	if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
@@ -1654,6 +1659,7 @@ static int snd_timer_user_gstatus(struct file *file,
 	mutex_lock(&register_mutex);
 	t = snd_timer_find(&tid);
 	if (t != NULL) {
+		spin_lock_irq(&t->lock);
 		gstatus.resolution = snd_timer_hw_resolution(t);
 		if (t->hw.precise_resolution) {
 			t->hw.precise_resolution(t, &gstatus.resolution_num,
@@ -1662,6 +1668,7 @@ static int snd_timer_user_gstatus(struct file *file,
 			gstatus.resolution_num = gstatus.resolution;
 			gstatus.resolution_den = 1000000000uL;
 		}
+		spin_unlock_irq(&t->lock);
 	} else {
 		err = -ENODEV;
 	}
