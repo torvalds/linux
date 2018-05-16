@@ -1955,6 +1955,8 @@ void tcp_enter_loss(struct sock *sk)
 	struct net *net = sock_net(sk);
 	bool new_recovery = icsk->icsk_ca_state < TCP_CA_Recovery;
 
+	tcp_timeout_mark_lost(sk);
+
 	/* Reduce ssthresh if it has not yet been made inside this window. */
 	if (icsk->icsk_ca_state <= TCP_CA_Disorder ||
 	    !after(tp->high_seq, tp->snd_una) ||
@@ -1968,8 +1970,6 @@ void tcp_enter_loss(struct sock *sk)
 	tp->snd_cwnd	   = 1;
 	tp->snd_cwnd_cnt   = 0;
 	tp->snd_cwnd_stamp = tcp_jiffies32;
-
-	tcp_timeout_mark_lost(sk);
 
 	/* Timeout in disordered state after receiving substantial DUPACKs
 	 * suggests that the degree of reordering is over-estimated.
