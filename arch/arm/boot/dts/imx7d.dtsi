@@ -9,12 +9,8 @@
 / {
 	cpus {
 		cpu0: cpu@0 {
-			operating-points = <
-				/* KHz	uV */
-				996000	1075000
-				792000	975000
-			>;
 			clock-frequency = <996000000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu1: cpu@1 {
@@ -22,6 +18,25 @@
 			device_type = "cpu";
 			reg = <1>;
 			clock-frequency = <996000000>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-792000000 {
+			opp-hz = /bits/ 64 <792000000>;
+			opp-microvolt = <975000>;
+			clock-latency-ns = <150000>;
+		};
+
+		opp-996000000 {
+			opp-hz = /bits/ 64 <996000000>;
+			opp-microvolt = <1075000>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
 		};
 	};
 
