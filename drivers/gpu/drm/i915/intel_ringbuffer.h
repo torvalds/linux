@@ -423,8 +423,13 @@ struct intel_engine_cs {
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
 	int		(*init_hw)(struct intel_engine_cs *engine);
-	void		(*reset_hw)(struct intel_engine_cs *engine,
-				    struct i915_request *rq);
+
+	struct {
+		struct i915_request *(*prepare)(struct intel_engine_cs *engine);
+		void (*reset)(struct intel_engine_cs *engine,
+			      struct i915_request *rq);
+		void (*finish)(struct intel_engine_cs *engine);
+	} reset;
 
 	void		(*park)(struct intel_engine_cs *engine);
 	void		(*unpark)(struct intel_engine_cs *engine);

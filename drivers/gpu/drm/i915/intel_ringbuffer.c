@@ -531,9 +531,20 @@ out:
 	return ret;
 }
 
-static void reset_ring_common(struct intel_engine_cs *engine,
-			      struct i915_request *request)
+static struct i915_request *reset_prepare(struct intel_engine_cs *engine)
 {
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+
+	return i915_gem_find_active_request(engine);
+}
+
+static void reset_ring(struct intel_engine_cs *engine,
+		       struct i915_request *request)
+{
+	GEM_TRACE("%s seqno=%x\n",
+		  engine->name, request ? request->global_seqno : 0);
+
 	/*
 	 * RC6 must be prevented until the reset is complete and the engine
 	 * reinitialised. If it occurs in the middle of this sequence, the
@@ -595,6 +606,10 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 		engine->legacy_active_context = NULL;
 		engine->legacy_active_ppgtt = NULL;
 	}
+}
+
+static void reset_finish(struct intel_engine_cs *engine)
+{
 }
 
 static int intel_rcs_ctx_init(struct i915_request *rq)
@@ -2006,7 +2021,9 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	intel_ring_init_semaphores(dev_priv, engine);
 
 	engine->init_hw = init_ring_common;
-	engine->reset_hw = reset_ring_common;
+	engine->reset.prepare = reset_prepare;
+	engine->reset.reset = reset_ring;
+	engine->reset.finish = reset_finish;
 
 	engine->context_pin = intel_ring_context_pin;
 	engine->context_unpin = intel_ring_context_unpin;

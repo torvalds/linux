@@ -1827,8 +1827,39 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static void reset_common_ring(struct intel_engine_cs *engine,
-			      struct i915_request *request)
+static struct i915_request *
+execlists_reset_prepare(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * Prevent request submission to the hardware until we have
+	 * completed the reset in i915_gem_reset_finish(). If a request
+	 * is completed by one engine, it may then queue a request
+	 * to a second via its execlists->tasklet *just* as we are
+	 * calling engine->init_hw() and also writing the ELSP.
+	 * Turning off the execlists->tasklet until the reset is over
+	 * prevents the race.
+	 */
+	__tasklet_disable_sync_once(&execlists->tasklet);
+
+	/*
+	 * We're using worker to queue preemption requests from the tasklet in
+	 * GuC submission mode.
+	 * Even though tasklet was disabled, we may still have a worker queued.
+	 * Let's make sure that all workers scheduled before disabling the
+	 * tasklet are completed before continuing with the reset.
+	 */
+	if (engine->i915->guc.preempt_wq)
+		flush_workqueue(engine->i915->guc.preempt_wq);
+
+	return i915_gem_find_active_request(engine);
+}
+
+static void execlists_reset(struct intel_engine_cs *engine,
+			    struct i915_request *request)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	unsigned long flags;
@@ -1906,6 +1937,13 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
 	unwind_wa_tail(request);
+}
+
+static void execlists_reset_finish(struct intel_engine_cs *engine)
+{
+	tasklet_enable(&engine->execlists.tasklet);
+
+	GEM_TRACE("%s\n", engine->name);
 }
 
 static int intel_logical_ring_emit_pdps(struct i915_request *rq)
@@ -2237,7 +2275,10 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
 	engine->init_hw = gen8_init_common_ring;
-	engine->reset_hw = reset_common_ring;
+
+	engine->reset.prepare = execlists_reset_prepare;
+	engine->reset.reset = execlists_reset;
+	engine->reset.finish = execlists_reset_finish;
 
 	engine->context_pin = execlists_context_pin;
 	engine->context_unpin = execlists_context_unpin;
