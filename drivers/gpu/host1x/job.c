@@ -96,13 +96,14 @@ void host1x_job_put(struct host1x_job *job)
 EXPORT_SYMBOL(host1x_job_put);
 
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
-			   u32 words, u32 offset)
+			   unsigned int words, unsigned int offset)
 {
-	struct host1x_job_gather *cur_gather = &job->gathers[job->num_gathers];
+	struct host1x_job_gather *gather = &job->gathers[job->num_gathers];
 
-	cur_gather->words = words;
-	cur_gather->bo = bo;
-	cur_gather->offset = offset;
+	gather->words = words;
+	gather->bo = bo;
+	gather->offset = offset;
+
 	job->num_gathers++;
 }
 EXPORT_SYMBOL(host1x_job_add_gather);
