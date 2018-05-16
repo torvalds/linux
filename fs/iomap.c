@@ -1220,10 +1220,6 @@ static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
 		return -EINVAL;
 	}
 
-	/* Skip holes. */
-	if (iomap->type == IOMAP_HOLE)
-		goto out;
-
 	/* Only real or unwritten extents. */
 	if (iomap->type != IOMAP_MAPPED && iomap->type != IOMAP_UNWRITTEN) {
 		pr_err("swapon: file has unallocated extents\n");
@@ -1259,7 +1255,6 @@ static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
 			return error;
 		memcpy(&isi->iomap, iomap, sizeof(isi->iomap));
 	}
-out:
 	return count;
 }
 
