@@ -306,7 +306,7 @@ static const struct rockchip_iodomain_soc_data soc_data_px30 = {
 		"vccio3",
 		"vccio4",
 		"vccio5",
-		"vccio_oscgpi",
+		"vccio-oscgpi",
 	},
 	.init = px30_iodomain_init,
 };
