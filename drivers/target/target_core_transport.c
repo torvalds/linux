@@ -779,7 +779,9 @@ EXPORT_SYMBOL(target_complete_cmd);
 
 void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int length)
 {
-	if (scsi_status == SAM_STAT_GOOD && length < cmd->data_length) {
+	if ((scsi_status == SAM_STAT_GOOD ||
+	     cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) &&
+	    length < cmd->data_length) {
 		if (cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
 			cmd->residual_count += cmd->data_length - length;
 		} else {
@@ -2084,12 +2086,24 @@ static void transport_complete_qf(struct se_cmd *cmd)
 		goto queue_status;
 	}
 
-	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
+	/*
+	 * Check if we need to send a sense buffer from
+	 * the struct se_cmd in question. We do NOT want
+	 * to take this path of the IO has been marked as
+	 * needing to be treated like a "normal read". This
+	 * is the case if it's a tape read, and either the
+	 * FM, EOM, or ILI bits are set, but there is no
+	 * sense data.
+	 */
+	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) &&
+	    cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
 		goto queue_status;
 
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
-		if (cmd->scsi_status)
+		/* queue status if not treating this as a normal read */
+		if (cmd->scsi_status &&
+		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL))
 			goto queue_status;
 
 		trace_target_cmd_complete(cmd);
@@ -2194,9 +2208,15 @@ static void target_complete_ok_work(struct work_struct *work)
 
 	/*
 	 * Check if we need to send a sense buffer from
-	 * the struct se_cmd in question.
+	 * the struct se_cmd in question. We do NOT want
+	 * to take this path of the IO has been marked as
+	 * needing to be treated like a "normal read". This
+	 * is the case if it's a tape read, and either the
+	 * FM, EOM, or ILI bits are set, but there is no
+	 * sense data.
 	 */
-	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
+	if (!(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL) &&
+	    cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
 		WARN_ON(!cmd->scsi_status);
 		ret = transport_send_check_condition_and_sense(
 					cmd, 0, 1);
@@ -2238,7 +2258,18 @@ static void target_complete_ok_work(struct work_struct *work)
 queue_rsp:
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
-		if (cmd->scsi_status)
+		/*
+		 * if this is a READ-type IO, but SCSI status
+		 * is set, then skip returning data and just
+		 * return the status -- unless this IO is marked
+		 * as needing to be treated as a normal read,
+		 * in which case we want to go ahead and return
+		 * the data. This happens, for example, for tape
+		 * reads with the FM, EOM, or ILI bits set, with
+		 * no sense data.
+		 */
+		if (cmd->scsi_status &&
+		    !(cmd->se_cmd_flags & SCF_TREAT_READ_AS_NORMAL))
 			goto queue_status;
 
 		atomic_long_add(cmd->data_length,
