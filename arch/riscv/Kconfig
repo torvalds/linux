@@ -11,6 +11,7 @@ config 32BIT
 
 config RISCV
 	def_bool y
+	select ARCH_32BIT_OFF_T if !64BIT
 	# even on 32-bit, physical (and DMA) addresses are > 32-bits
 	select PHYS_ADDR_T_64BIT
 	select OF
