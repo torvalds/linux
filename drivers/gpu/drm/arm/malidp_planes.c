@@ -592,6 +592,83 @@ static void malidp_de_set_mmu_control(struct malidp_plane *mp,
 			mp->layer->base + mp->layer->mmu_ctrl_offset);
 }
 
+static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
+				       struct malidp_plane *mp,
+				       int plane_index)
+{
+	dma_addr_t paddr;
+	u16 ptr;
+	struct drm_plane *plane = &mp->base;
+	bool afbc = fb->modifier ? true : false;
+
+	ptr = mp->layer->ptr + (plane_index << 4);
+
+	/*
+	 * drm_fb_cma_get_gem_addr() alters the physical base address of the
+	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
+	 * take care of source cropping).
+	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
+	 * and _AD_CROP_V registers.
+	 */
+	if (!afbc) {
+		paddr = drm_fb_cma_get_gem_addr(fb, plane->state,
+						plane_index);
+	} else {
+		struct drm_gem_cma_object *obj;
+
+		obj = drm_fb_cma_get_gem_obj(fb, plane_index);
+
+		if (WARN_ON(!obj))
+			return;
+		paddr = obj->paddr;
+	}
+
+	malidp_hw_write(mp->hwdev, lower_32_bits(paddr), ptr);
+	malidp_hw_write(mp->hwdev, upper_32_bits(paddr), ptr + 4);
+}
+
+static void malidp_de_set_plane_afbc(struct drm_plane *plane)
+{
+	struct malidp_plane *mp;
+	u32 src_w, src_h, val = 0, src_x, src_y;
+	struct drm_framebuffer *fb = plane->state->fb;
+
+	mp = to_malidp_plane(plane);
+
+	/* no afbc_decoder_offset means AFBC is not supported on this plane */
+	if (!mp->layer->afbc_decoder_offset)
+		return;
+
+	if (!fb->modifier) {
+		malidp_hw_write(mp->hwdev, 0, mp->layer->afbc_decoder_offset);
+		return;
+	}
+
+	/* convert src values from Q16 fixed point to integer */
+	src_w = plane->state->src_w >> 16;
+	src_h = plane->state->src_h >> 16;
+	src_x = plane->state->src_x >> 16;
+	src_y = plane->state->src_y >> 16;
+
+	val = ((fb->width - (src_x + src_w)) << MALIDP_AD_CROP_RIGHT_OFFSET) |
+		   src_x;
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->afbc_decoder_offset + MALIDP_AD_CROP_H);
+
+	val = ((fb->height - (src_y + src_h)) << MALIDP_AD_CROP_BOTTOM_OFFSET) |
+		   src_y;
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->afbc_decoder_offset + MALIDP_AD_CROP_V);
+
+	val = MALIDP_AD_EN;
+	if (fb->modifier & AFBC_FORMAT_MOD_SPLIT)
+		val |= MALIDP_AD_BS;
+	if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+		val |= MALIDP_AD_YTR;
+
+	malidp_hw_write(mp->hwdev, val, mp->layer->afbc_decoder_offset);
+}
+
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
@@ -602,12 +679,23 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	u8 plane_alpha = state->alpha >> 8;
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
+	struct drm_framebuffer *fb = plane->state->fb;
 
 	mp = to_malidp_plane(plane);
 
-	/* convert src values from Q16 fixed point to integer */
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	/*
+	 * For AFBC framebuffer, use the framebuffer width and height for
+	 * configuring layer input size register.
+	 */
+	if (fb->modifier) {
+		src_w = fb->width;
+		src_h = fb->height;
+	} else {
+		/* convert src values from Q16 fixed point to integer */
+		src_w = state->src_w >> 16;
+		src_h = state->src_h >> 16;
+	}
+
 	dest_w = state->crtc_w;
 	dest_h = state->crtc_h;
 
@@ -615,15 +703,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val = (val & ~LAYER_FORMAT_MASK) | ms->format;
 	malidp_hw_write(mp->hwdev, val, mp->layer->base);
 
-	for (i = 0; i < ms->n_planes; i++) {
-		/* calculate the offset for the layer's plane registers */
-		u16 ptr = mp->layer->ptr + (i << 4);
-		dma_addr_t fb_addr = drm_fb_cma_get_gem_addr(state->fb,
-							     state, i);
-
-		malidp_hw_write(mp->hwdev, lower_32_bits(fb_addr), ptr);
-		malidp_hw_write(mp->hwdev, upper_32_bits(fb_addr), ptr + 4);
-	}
+	for (i = 0; i < ms->n_planes; i++)
+		malidp_set_plane_base_addr(fb, mp, i);
 
 	malidp_de_set_mmu_control(mp, ms);
 
@@ -656,6 +737,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 				LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
 				mp->layer->base + MALIDP550_LS_R1_IN_SIZE);
 	}
+
+	malidp_de_set_plane_afbc(plane);
 
 	/* first clear the rotation bits */
 	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);

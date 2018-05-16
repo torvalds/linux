@@ -70,6 +70,8 @@ struct malidp_layer {
 	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
 	u16 mmu_ctrl_offset;    /* offset to the MMU control register */
 	enum rotation_features rot;	/* type of rotation supported */
+	/* address offset for the AFBC decoder registers */
+	u16 afbc_decoder_offset;
 };
 
 enum malidp_scaling_coeff_set {
