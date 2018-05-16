@@ -920,14 +920,13 @@ static void emac_mac_rx_descs_refill(struct emac_adapter *adpt,
 static void emac_adjust_link(struct net_device *netdev)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
-	struct emac_sgmii *sgmii = &adpt->phy;
 	struct phy_device *phydev = netdev->phydev;
 
 	if (phydev->link) {
 		emac_mac_start(adpt);
-		sgmii->link_up(adpt);
+		emac_sgmii_link_change(adpt, true);
 	} else {
-		sgmii->link_down(adpt);
+		emac_sgmii_link_change(adpt, false);
 		emac_mac_stop(adpt);
 	}
 
