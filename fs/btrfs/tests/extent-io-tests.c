@@ -68,7 +68,7 @@ static int test_find_delalloc(u32 sectorsize)
 	u64 found;
 	int ret = -EINVAL;
 
-	test_msg("running find delalloc tests\n");
+	test_msg("running find delalloc tests");
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
@@ -377,7 +377,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	struct extent_buffer *eb;
 	int ret;
 
-	test_msg("running extent buffer bitmap tests\n");
+	test_msg("running extent buffer bitmap tests");
 
 	/*
 	 * In ppc64, sectorsize can be 64K, thus 4 * 64K will be larger than
@@ -425,7 +425,7 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 {
 	int ret;
 
-	test_msg("running extent I/O tests\n");
+	test_msg("running extent I/O tests");
 
 	ret = test_find_delalloc(sectorsize);
 	if (ret)
@@ -433,6 +433,6 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 
 	ret = test_eb_bitmaps(sectorsize, nodesize);
 out:
-	test_msg("extent I/O tests finished\n");
+	test_msg("extent I/O tests finished");
 	return ret;
 }

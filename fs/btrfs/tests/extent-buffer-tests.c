@@ -26,7 +26,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 	u32 value_len = strlen(value);
 	int ret = 0;
 
-	test_msg("running btrfs_split_item tests\n");
+	test_msg("running btrfs_split_item tests");
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
@@ -220,6 +220,6 @@ out:
 
 int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize)
 {
-	test_msg("running extent buffer operation tests\n");
+	test_msg("running extent buffer operation tests");
 	return test_btrfs_split_item(sectorsize, nodesize);
 }

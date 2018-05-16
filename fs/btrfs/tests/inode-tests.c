@@ -1119,14 +1119,14 @@ int btrfs_test_inodes(u32 sectorsize, u32 nodesize)
 	set_bit(EXTENT_FLAG_COMPRESSED, &compressed_only);
 	set_bit(EXTENT_FLAG_PREALLOC, &prealloc_only);
 
-	test_msg("running btrfs_get_extent tests\n");
+	test_msg("running btrfs_get_extent tests");
 	ret = test_btrfs_get_extent(sectorsize, nodesize);
 	if (ret)
 		return ret;
-	test_msg("running hole first btrfs_get_extent test\n");
+	test_msg("running hole first btrfs_get_extent test");
 	ret = test_hole_first(sectorsize, nodesize);
 	if (ret)
 		return ret;
-	test_msg("running outstanding_extents tests\n");
+	test_msg("running outstanding_extents tests");
 	return test_extent_accounting(sectorsize, nodesize);
 }

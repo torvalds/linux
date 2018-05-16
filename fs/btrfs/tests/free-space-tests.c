@@ -20,7 +20,7 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 {
 	int ret = 0;
 
-	test_msg("running extent only tests\n");
+	test_msg("running extent only tests");
 
 	/* First just make sure we can remove an entire entry */
 	ret = btrfs_add_free_space(cache, 0, SZ_4M);
@@ -92,7 +92,7 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 	u64 next_bitmap_offset;
 	int ret;
 
-	test_msg("running bitmap only tests\n");
+	test_msg("running bitmap only tests");
 
 	ret = test_add_free_space_entry(cache, 0, SZ_4M, 1);
 	if (ret) {
@@ -161,7 +161,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
 	int ret;
 
-	test_msg("running bitmap and extent tests\n");
+	test_msg("running bitmap and extent tests");
 
 	/*
 	 * First let's do something simple, an extent at the same offset as the
@@ -404,7 +404,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	};
 	const struct btrfs_free_space_op *orig_free_space_ops;
 
-	test_msg("running space stealing from bitmap to extent\n");
+	test_msg("running space stealing from bitmap to extent");
 
 	/*
 	 * For this test, we want to ensure we end up with an extent entry
@@ -832,7 +832,7 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 	struct btrfs_root *root = NULL;
 	int ret = -ENOMEM;
 
-	test_msg("running btrfs free space cache tests\n");
+	test_msg("running btrfs free space cache tests");
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info)
 		return -ENOMEM;
@@ -874,6 +874,6 @@ out:
 	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);
-	test_msg("free space cache tests finished\n");
+	test_msg("free space cache tests finished");
 	return ret;
 }

@@ -341,7 +341,7 @@ int btrfs_test_extent_map(void)
 	struct btrfs_fs_info *fs_info = NULL;
 	struct extent_map_tree *em_tree;
 
-	test_msg("running extent_map tests\n");
+	test_msg("running extent_map tests");
 
 	/*
 	 * Note: the fs_info is not set up completely, we only need
@@ -349,7 +349,7 @@ int btrfs_test_extent_map(void)
 	 */
 	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);
 	if (!fs_info) {
-		test_msg("Couldn't allocate dummy fs info\n");
+		test_msg("Couldn't allocate dummy fs info");
 		return -ENOMEM;
 	}
 

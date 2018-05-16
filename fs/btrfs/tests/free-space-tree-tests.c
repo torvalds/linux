@@ -578,7 +578,7 @@ int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize)
 	 */
 	bitmap_alignment = BTRFS_FREE_SPACE_BITMAP_BITS * PAGE_SIZE;
 
-	test_msg("running free space tree tests\n");
+	test_msg("running free space tree tests");
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		int ret;
 
