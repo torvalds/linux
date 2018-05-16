@@ -105,6 +105,16 @@ enum {
 	PATH_BUSY,
 };
 
+enum {
+	PM_NORMAL = 0,
+	PM_LLP_DOWN,		/* light low power down */
+	PM_LLP_UP,
+	PM_DLP_DOWN,		/* deep low power down */
+	PM_DLP_UP,
+	PM_DLP_DOWN2,
+	PM_DLP_UP2,
+};
+
 struct rk3308_codec_priv {
 	const struct device *plat_dev;
 	struct device dev;
@@ -140,12 +150,15 @@ struct rk3308_codec_priv {
 	int adc_path_state;
 	int dac_path_state;
 
+	int pm_state;
+
 	/* Only hpout do fade-in and fade-out */
 	unsigned int hpout_l_dgain;
 	unsigned int hpout_r_dgain;
 
 	bool enable_all_adcs;
 	bool hp_plugged;
+	bool no_deep_low_power;
 	struct delayed_work hpdet_work;
 	struct delayed_work loopback_work;
 
@@ -1555,9 +1568,8 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 	return 0;
 }
 
-static int rk3308_codec_power_on(struct snd_soc_codec *codec)
+static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 {
-	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int v;
 
 	/* 1. Supply the power of digital part and reset the Audio Codec */
@@ -1623,9 +1635,8 @@ static int rk3308_codec_power_on(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rk3308_codec_power_off(struct snd_soc_codec *codec)
+static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 {
-	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int v;
 
 	/*
@@ -2434,6 +2445,36 @@ static int rk3308_codec_open_capture(struct rk3308_codec_priv *rk3308)
 	return 0;
 }
 
+static void rk3308_codec_adc_mclk_disable(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+			   RK3308_ADC_MCLK_MSK,
+			   RK3308_ADC_MCLK_DIS);
+}
+
+static void rk3308_codec_adc_mclk_enable(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+			   RK3308_ADC_MCLK_MSK,
+			   RK3308_ADC_MCLK_EN);
+	udelay(20);
+}
+
+static void rk3308_codec_dac_mclk_disable(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+			   RK3308_DAC_MCLK_MSK,
+			   RK3308_DAC_MCLK_DIS);
+}
+
+static void rk3308_codec_dac_mclk_enable(struct rk3308_codec_priv *rk3308)
+{
+	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
+			   RK3308_DAC_MCLK_MSK,
+			   RK3308_DAC_MCLK_EN);
+	udelay(20);
+}
+
 static int rk3308_codec_close_capture(struct rk3308_codec_priv *rk3308)
 {
 	rk3308_codec_alc_disable(rk3308, ADC_TYPE_NORMAL);
@@ -2458,6 +2499,95 @@ static int rk3308_codec_close_playback(struct rk3308_codec_priv *rk3308)
 	return 0;
 }
 
+static int rk3308_codec_llp_down(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_adc_mclk_disable(rk3308);
+	rk3308_codec_dac_mclk_disable(rk3308);
+
+	return 0;
+}
+
+static int rk3308_codec_llp_up(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_adc_mclk_enable(rk3308);
+	rk3308_codec_dac_mclk_enable(rk3308);
+
+	return 0;
+}
+
+static int rk3308_codec_dlp_down(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_micbias_disable(rk3308);
+	rk3308_codec_power_off(rk3308);
+
+	return 0;
+}
+
+static int rk3308_codec_dlp_up(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_power_on(rk3308);
+	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
+
+	return 0;
+}
+
+/* Just used for debug and trace power state */
+static void rk3308_codec_set_pm_state(struct rk3308_codec_priv *rk3308,
+				      int pm_state)
+{
+	int ret;
+
+	switch (pm_state) {
+	case PM_LLP_DOWN:
+		rk3308_codec_llp_down(rk3308);
+		break;
+	case PM_LLP_UP:
+		rk3308_codec_llp_up(rk3308);
+		break;
+	case PM_DLP_DOWN:
+		rk3308_codec_dlp_down(rk3308);
+		break;
+	case PM_DLP_UP:
+		rk3308_codec_dlp_up(rk3308);
+		break;
+	case PM_DLP_DOWN2:
+		clk_disable_unprepare(rk3308->mclk_rx);
+		clk_disable_unprepare(rk3308->mclk_tx);
+		clk_disable_unprepare(rk3308->pclk);
+		break;
+	case PM_DLP_UP2:
+		ret = clk_prepare_enable(rk3308->pclk);
+		if (ret < 0) {
+			dev_err(rk3308->plat_dev,
+				"Failed to enable acodec pclk: %d\n", ret);
+			goto err;
+		}
+
+		ret = clk_prepare_enable(rk3308->mclk_rx);
+		if (ret < 0) {
+			dev_err(rk3308->plat_dev,
+				"Failed to enable i2s mclk_rx: %d\n", ret);
+			goto err;
+		}
+
+		ret = clk_prepare_enable(rk3308->mclk_tx);
+		if (ret < 0) {
+			dev_err(rk3308->plat_dev,
+				"Failed to enable i2s mclk_tx: %d\n", ret);
+			goto err;
+		}
+		break;
+	default:
+		dev_err(rk3308->plat_dev, "Invalid pm_state: %d\n", pm_state);
+		goto err;
+	}
+
+	rk3308->pm_state = pm_state;
+
+err:
+	return;
+}
+
 static int rk3308_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -2468,9 +2598,11 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* DAC only supports 2 channels */
+		rk3308_codec_dac_mclk_enable(rk3308);
 		rk3308_codec_open_playback(rk3308);
 		rk3308_codec_dac_dig_config(rk3308, params);
 	} else {
+		rk3308_codec_adc_mclk_enable(rk3308);
 		ret = rk3308_codec_update_adc_grps(rk3308, params);
 		if (ret < 0)
 			return ret;
@@ -2510,10 +2642,13 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		rk3308_codec_close_playback(rk3308);
-	else
+		rk3308_codec_dac_mclk_disable(rk3308);
+	} else {
 		rk3308_codec_close_capture(rk3308);
+		rk3308_codec_adc_mclk_disable(rk3308);
+	}
 
 	regcache_cache_only(rk3308->regmap, false);
 	regcache_sync(rk3308->regmap);
@@ -2557,16 +2692,54 @@ static struct snd_soc_dai_driver rk3308_dai[] = {
 
 static int rk3308_suspend(struct snd_soc_codec *codec)
 {
-	rk3308_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
+	if (rk3308->no_deep_low_power)
+		goto out;
+
+	rk3308_codec_dlp_down(rk3308);
+	clk_disable_unprepare(rk3308->mclk_rx);
+	clk_disable_unprepare(rk3308->mclk_tx);
+	clk_disable_unprepare(rk3308->pclk);
+
+out:
+	rk3308_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
 static int rk3308_resume(struct snd_soc_codec *codec)
 {
-	rk3308_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
 
-	return 0;
+	if (rk3308->no_deep_low_power)
+		goto out;
+
+	ret = clk_prepare_enable(rk3308->pclk);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to enable acodec pclk: %d\n", ret);
+		goto out;
+	}
+
+	ret = clk_prepare_enable(rk3308->mclk_rx);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to enable i2s mclk_rx: %d\n", ret);
+		goto out;
+	}
+
+	ret = clk_prepare_enable(rk3308->mclk_tx);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to enable i2s mclk_tx: %d\n", ret);
+		goto out;
+	}
+
+	rk3308_codec_dlp_up(rk3308);
+out:
+	rk3308_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	return ret;
 }
 
 static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
@@ -2628,6 +2801,7 @@ static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 	rk3308_codec_close_playback(rk3308);
 	rk3308_codec_close_capture(rk3308);
 	rk3308_codec_default_gains(rk3308);
+	rk3308_codec_llp_down(rk3308);
 
 	return 0;
 }
@@ -2640,7 +2814,7 @@ static int rk3308_probe(struct snd_soc_codec *codec)
 	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 
 	rk3308_codec_reset(codec);
-	rk3308_codec_power_on(codec);
+	rk3308_codec_power_on(rk3308);
 
 	/* From vendor recommend */
 	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
@@ -2661,8 +2835,8 @@ static int rk3308_remove(struct snd_soc_codec *codec)
 	rk3308_headphone_ctl(rk3308, 0);
 	rk3308_speaker_ctl(rk3308, 0);
 	rk3308_codec_headset_detect_disable(rk3308);
-	rk3308_codec_power_off(codec);
 	rk3308_codec_micbias_disable(rk3308);
+	rk3308_codec_power_off(rk3308);
 
 	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 
@@ -2791,6 +2965,38 @@ static const struct regmap_config rk3308_codec_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(rk3308_codec_reg_defaults),
 	.cache_type = REGCACHE_FLAT,
 };
+
+static ssize_t pm_state_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+
+	return sprintf(buf, "pm_state: %d\n", rk3308->pm_state);
+}
+
+static ssize_t pm_state_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	unsigned long pm_state;
+	int ret = kstrtoul(buf, 10, &pm_state);
+
+	if (ret < 0) {
+		dev_err(dev, "Invalid pm_state: %ld, ret: %d\n",
+			pm_state, ret);
+		return -EINVAL;
+	}
+
+	rk3308_codec_set_pm_state(rk3308, pm_state);
+
+	dev_info(dev, "Store pm_state: %d\n", rk3308->pm_state);
+
+	return count;
+}
 
 static ssize_t adc_grps_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -3068,6 +3274,7 @@ static const struct device_attribute acodec_attrs[] = {
 	__ATTR_RW(adc_zerocross),
 	__ATTR_RW(dac_output),
 	__ATTR_RW(enable_all_adcs),
+	__ATTR_RW(pm_state),
 };
 
 static void rk3308_codec_device_release(struct device *dev)
@@ -3297,6 +3504,9 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->enable_all_adcs =
 		of_property_read_bool(np, "rockchip,enable-all-adcs");
 
+	rk3308->no_deep_low_power =
+		of_property_read_bool(np, "rockchip,no-deep-low-power");
+
 	rk3308->loopback_grp = LOOPBACK_NO_USE;
 	ret = of_property_read_u32(np, "rockchip,loopback-grp",
 				   &rk3308->loopback_grp);
@@ -3355,6 +3565,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->adc_grp0_using_linein = ADC_GRP0_MICIN;
 	rk3308->dac_output = DAC_LINEOUT;
 	rk3308->adc_zerocross = 1;
+	rk3308->pm_state = PM_NORMAL;
 
 	platform_set_drvdata(pdev, rk3308);
 
