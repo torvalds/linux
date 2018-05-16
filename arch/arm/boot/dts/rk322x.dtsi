@@ -1580,8 +1580,8 @@
 				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
-			pwm2_pin_pull_down: pwm2-pin-pull-down {
-				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_down>;
+			pwm2_pin_pull_up: pwm2-pin-pull-up {
+				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
