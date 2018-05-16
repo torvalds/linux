@@ -1845,16 +1845,6 @@ execlists_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	__tasklet_disable_sync_once(&execlists->tasklet);
 
-	/*
-	 * We're using worker to queue preemption requests from the tasklet in
-	 * GuC submission mode.
-	 * Even though tasklet was disabled, we may still have a worker queued.
-	 * Let's make sure that all workers scheduled before disabling the
-	 * tasklet are completed before continuing with the reset.
-	 */
-	if (engine->i915->guc.preempt_wq)
-		flush_workqueue(engine->i915->guc.preempt_wq);
-
 	return i915_gem_find_active_request(engine);
 }
 
@@ -2255,6 +2245,8 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->cancel_requests = execlists_cancel_requests;
 	engine->schedule = execlists_schedule;
 	engine->execlists.tasklet.func = execlists_submission_tasklet;
+
+	engine->reset.prepare = execlists_reset_prepare;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
