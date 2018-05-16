@@ -2223,9 +2223,7 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tcp_is_reno(tp)) {
-		tcp_mark_head_lost(sk, 1, 1);
-	} else {
+	if (tcp_is_sack(tp)) {
 		int sacked_upto = tp->sacked_out - tp->reordering;
 		if (sacked_upto >= 0)
 			tcp_mark_head_lost(sk, sacked_upto, 0);
@@ -2723,11 +2721,16 @@ static bool tcp_try_undo_partial(struct sock *sk, u32 prior_snd_una)
 	return false;
 }
 
-static void tcp_rack_identify_loss(struct sock *sk, int *ack_flag)
+static void tcp_identify_packet_loss(struct sock *sk, int *ack_flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tcp_is_rack(sk)) {
+	if (tcp_rtx_queue_empty(sk))
+		return;
+
+	if (unlikely(tcp_is_reno(tp))) {
+		tcp_newreno_mark_lost(sk, *ack_flag & FLAG_SND_UNA_ADVANCED);
+	} else if (tcp_is_rack(sk)) {
 		u32 prior_retrans = tp->retrans_out;
 
 		tcp_rack_mark_lost(sk);
@@ -2823,11 +2826,11 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 			tcp_try_keep_open(sk);
 			return;
 		}
-		tcp_rack_identify_loss(sk, ack_flag);
+		tcp_identify_packet_loss(sk, ack_flag);
 		break;
 	case TCP_CA_Loss:
 		tcp_process_loss(sk, flag, is_dupack, rexmit);
-		tcp_rack_identify_loss(sk, ack_flag);
+		tcp_identify_packet_loss(sk, ack_flag);
 		if (!(icsk->icsk_ca_state == TCP_CA_Open ||
 		      (*ack_flag & FLAG_LOST_RETRANS)))
 			return;
@@ -2844,7 +2847,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 		if (icsk->icsk_ca_state <= TCP_CA_Disorder)
 			tcp_try_undo_dsack(sk);
 
-		tcp_rack_identify_loss(sk, ack_flag);
+		tcp_identify_packet_loss(sk, ack_flag);
 		if (!tcp_time_to_recover(sk, flag)) {
 			tcp_try_to_open(sk, flag);
 			return;

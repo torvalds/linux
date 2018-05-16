@@ -216,3 +216,30 @@ void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
 		tp->rack.reo_wnd_steps = 1;
 	}
 }
+
+/* RFC6582 NewReno recovery for non-SACK connection. It simply retransmits
+ * the next unacked packet upon receiving
+ * a) three or more DUPACKs to start the fast recovery
+ * b) an ACK acknowledging new data during the fast recovery.
+ */
+void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced)
+{
+	const u8 state = inet_csk(sk)->icsk_ca_state;
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if ((state < TCP_CA_Recovery && tp->sacked_out >= tp->reordering) ||
+	    (state == TCP_CA_Recovery && snd_una_advanced)) {
+		struct sk_buff *skb = tcp_rtx_queue_head(sk);
+		u32 mss;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
+			return;
+
+		mss = tcp_skb_mss(skb);
+		if (tcp_skb_pcount(skb) > 1 && skb->len > mss)
+			tcp_fragment(sk, TCP_FRAG_IN_RTX_QUEUE, skb,
+				     mss, mss, GFP_ATOMIC);
+
+		tcp_skb_mark_lost_uncond_verify(tp, skb);
+	}
+}
