@@ -729,6 +729,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		}
 		if (tun)
 			xdp_rxq_info_unreg(&tfile->xdp_rxq);
+		ptr_ring_cleanup(&tfile->tx_ring, tun_ptr_free);
 		sock_put(&tfile->sk);
 	}
 }
@@ -3245,7 +3246,6 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	struct tun_file *tfile = file->private_data;
 
 	tun_detach(tfile, true);
-	ptr_ring_cleanup(&tfile->tx_ring, tun_ptr_free);
 
 	return 0;
 }
