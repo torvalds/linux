@@ -730,6 +730,7 @@ rcu_preempt_check_blocked_tasks(struct rcu_state *rsp, struct rcu_node *rnp)
  */
 static void rcu_preempt_check_callbacks(void)
 {
+	struct rcu_state *rsp = &rcu_preempt_state;
 	struct task_struct *t = current;
 
 	if (t->rcu_read_lock_nesting == 0) {
@@ -738,7 +739,9 @@ static void rcu_preempt_check_callbacks(void)
 	}
 	if (t->rcu_read_lock_nesting > 0 &&
 	    __this_cpu_read(rcu_data_p->core_needs_qs) &&
-	    __this_cpu_read(rcu_data_p->cpu_no_qs.b.norm))
+	    __this_cpu_read(rcu_data_p->cpu_no_qs.b.norm) &&
+	    !t->rcu_read_unlock_special.b.need_qs &&
+	    time_after(jiffies, rsp->gp_start + HZ))
 		t->rcu_read_unlock_special.b.need_qs = true;
 }
 
