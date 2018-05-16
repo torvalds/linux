@@ -3015,18 +3015,6 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 */
 	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
 
-	/*
-	 * Prevent the signaler thread from updating the request
-	 * state (by calling dma_fence_signal) as we are processing
-	 * the reset. The write from the GPU of the seqno is
-	 * asynchronous and the signaler thread may see a different
-	 * value to us and declare the request complete, even though
-	 * the reset routine have picked that request as the active
-	 * (incomplete) request. This conflict is not handled
-	 * gracefully!
-	 */
-	kthread_park(engine->breadcrumbs.signaler);
-
 	request = engine->reset.prepare(engine);
 	if (request && request->fence.error == -EIO)
 		request = ERR_PTR(-EIO); /* Previous reset failed! */
@@ -3228,8 +3216,6 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 void i915_gem_reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-
-	kthread_unpark(engine->breadcrumbs.signaler);
 
 	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
 }

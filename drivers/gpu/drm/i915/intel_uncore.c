@@ -1702,15 +1702,9 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	const u32 base = engine->mmio_base;
-	const i915_reg_t mode = RING_MI_MODE(base);
 
-	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
-	if (__intel_wait_for_register_fw(dev_priv,
-					 mode, MODE_IDLE, MODE_IDLE,
-					 500, 0,
-					 NULL))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
-				 engine->name);
+	if (intel_engine_stop_cs(engine))
+		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */

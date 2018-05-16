@@ -1879,6 +1879,12 @@ execlists_reset_prepare(struct intel_engine_cs *engine)
 	if (request) {
 		unsigned long flags;
 
+		/*
+		 * Prevent the breadcrumb from advancing before we decide
+		 * which request is currently active.
+		 */
+		intel_engine_stop_cs(engine);
+
 		spin_lock_irqsave(&engine->timeline.lock, flags);
 		list_for_each_entry_from_reverse(request,
 						 &engine->timeline.requests,

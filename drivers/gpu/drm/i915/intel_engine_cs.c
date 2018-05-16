@@ -769,6 +769,35 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 	return bbaddr;
 }
 
+int intel_engine_stop_cs(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	const u32 base = engine->mmio_base;
+	const i915_reg_t mode = RING_MI_MODE(base);
+	int err;
+
+	if (INTEL_GEN(dev_priv) < 3)
+		return -ENODEV;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
+
+	err = 0;
+	if (__intel_wait_for_register_fw(dev_priv,
+					 mode, MODE_IDLE, MODE_IDLE,
+					 1000, 0,
+					 NULL)) {
+		GEM_TRACE("%s: timed out on STOP_RING -> IDLE\n", engine->name);
+		err = -ETIMEDOUT;
+	}
+
+	/* A final mmio read to let GPU writes be hopefully flushed to memory */
+	POSTING_READ_FW(mode);
+
+	return err;
+}
+
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
