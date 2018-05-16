@@ -1016,7 +1016,7 @@ rcu_torture_writer(void *arg)
 				break;
 			}
 		}
-		rcutorture_record_progress(++rcu_torture_current_version);
+		rcu_torture_current_version++;
 		/* Cycle through nesting levels of rcu_expedite_gp() calls. */
 		if (can_expedite &&
 		    !(torture_random(&rand) & 0xff & (!!expediting - 1))) {
@@ -1613,7 +1613,6 @@ rcu_torture_cleanup(void)
 	unsigned long gp_seq = 0;
 	int i;
 
-	rcutorture_record_test_transition();
 	if (torture_cleanup_begin()) {
 		if (cur_ops->cb_barrier != NULL)
 			cur_ops->cb_barrier();
@@ -1918,7 +1917,6 @@ rcu_torture_init(void)
 				goto unwind;
 		}
 	}
-	rcutorture_record_test_transition();
 	torture_init_end();
 	return 0;
 

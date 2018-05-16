@@ -192,18 +192,6 @@ module_param(gp_cleanup_delay, int, 0444);
 #define PER_RCU_NODE_PERIOD 3	/* Number of grace periods between delays. */
 
 /*
- * Track the rcutorture test sequence number and the update version
- * number within a given test.  The rcutorture_testseq is incremented
- * on every rcutorture module load and unload, so has an odd value
- * when a test is running.  The rcutorture_vernum is set to zero
- * when rcutorture starts and is incremented on each rcutorture update.
- * These variables enable correlating rcutorture output with the
- * RCU tracing information.
- */
-unsigned long rcutorture_testseq;
-unsigned long rcutorture_vernum;
-
-/*
  * Compute the mask of online CPUs for the specified rcu_node structure.
  * This will not be stable unless the rcu_node structure's ->lock is
  * held, but the bit corresponding to the current CPU will be stable
@@ -623,20 +611,6 @@ void show_rcu_gp_kthreads(void)
 EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);
 
 /*
- * Record the number of times rcutorture tests have been initiated and
- * terminated.  This information allows the debugfs tracing stats to be
- * correlated to the rcutorture messages, even when the rcutorture module
- * is being repeatedly loaded and unloaded.  In other words, we cannot
- * store this state in rcutorture itself.
- */
-void rcutorture_record_test_transition(void)
-{
-	rcutorture_testseq++;
-	rcutorture_vernum = 0;
-}
-EXPORT_SYMBOL_GPL(rcutorture_record_test_transition);
-
-/*
  * Send along grace-period-related data for rcutorture diagnostics.
  */
 void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
@@ -663,17 +637,6 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	*gp_seq = rcu_seq_current(&rsp->gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
-
-/*
- * Record the number of writer passes through the current rcutorture test.
- * This is also used to correlate debugfs tracing stats with the rcutorture
- * messages.
- */
-void rcutorture_record_progress(unsigned long vernum)
-{
-	rcutorture_vernum++;
-}
-EXPORT_SYMBOL_GPL(rcutorture_record_progress);
 
 /*
  * Return the root node of the specified rcu_state structure.
