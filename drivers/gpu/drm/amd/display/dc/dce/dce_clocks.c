@@ -413,18 +413,12 @@ static int dce112_set_clock(
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
 	dce_clk_params.target_clock_frequency = 0;
 	dce_clk_params.clock_type = DCECLOCK_TYPE_DPREFCLK;
-#ifndef CONFIG_DRM_AMD_DC_VG20
-	dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
-			(dce_clk_params.pll_id ==
-					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
-#else
 	if (!ASICREV_IS_VEGA20_P(clk->ctx->asic_id.hw_internal_rev))
 		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
 			(dce_clk_params.pll_id ==
 					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
 	else
 		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK = false;
-#endif
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 

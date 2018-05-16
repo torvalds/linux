@@ -34,12 +34,4 @@ config DEBUG_KERNEL_DC
 	  if you want to hit
 	  kdgb_break in assert.
 
-config DRM_AMD_DC_VG20
-	bool "Vega20 support"
-	depends on DRM_AMD_DC
-	help
-		Choose this option if you want to have
-		Vega20 support for display engine
-
-
 endmenu
