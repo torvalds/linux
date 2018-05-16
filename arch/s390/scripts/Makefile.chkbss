@@ -8,7 +8,12 @@ define cmd_chkbss
 	touch $@;
 endef
 
-$(obj)/built-in.a: $(patsubst %, $(obj)/%.chkbss, $(chkbss))
+chkbss-target ?= $(obj)/built-in.a
+ifneq (,$(findstring /,$(chkbss)))
+$(chkbss-target): $(patsubst %, %.chkbss, $(chkbss))
+else
+$(chkbss-target): $(patsubst %, $(obj)/%.chkbss, $(chkbss))
+endif
 
 %.o.chkbss: %.o
 	$(call cmd,chkbss)
