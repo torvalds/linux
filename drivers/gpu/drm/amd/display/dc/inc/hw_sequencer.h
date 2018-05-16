@@ -102,9 +102,17 @@ struct hw_sequencer_funcs {
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
+	void (*plane_atomic_disconnect)(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx);
+
 	void (*update_dchub)(
 		struct dce_hwseq *hws,
 		struct dchub_init_data *dh_data);
+
+	void (*update_mpcc)(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx);
 
 	void (*update_pending_status)(
 			struct pipe_ctx *pipe_ctx);
