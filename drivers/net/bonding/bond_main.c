@@ -132,7 +132,7 @@ MODULE_PARM_DESC(downdelay, "Delay before considering link down, "
 			    "in milliseconds");
 module_param(use_carrier, int, 0);
 MODULE_PARM_DESC(use_carrier, "Use netif_carrier_ok (vs MII ioctls) in miimon; "
-			      "0 for off, 1 for on (default), 2 for carrier then legacy checks");
+			      "0 for off, 1 for on (default)");
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode, "Mode of operation; 0 for balance-rr, "
 		       "1 for active-backup, 2 for balance-xor, "
@@ -434,16 +434,12 @@ static int bond_check_dev_link(struct bonding *bond,
 	int (*ioctl)(struct net_device *, struct ifreq *, int);
 	struct ifreq ifr;
 	struct mii_ioctl_data *mii;
-	bool carrier = true;
 
 	if (!reporting && !netif_running(slave_dev))
 		return 0;
 
 	if (bond->params.use_carrier)
-		carrier = netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
-
-	if (!carrier)
-		return carrier;
+		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
 
 	/* Try to get link status using Ethtool first. */
 	if (slave_dev->ethtool_ops->get_link)
@@ -4407,8 +4403,8 @@ static int bond_check_params(struct bond_params *params)
 		downdelay = 0;
 	}
 
-	if (use_carrier < 0 || use_carrier > 2) {
-		pr_warn("Warning: use_carrier module parameter (%d), not of valid value (0-2), so it was set to 1\n",
+	if ((use_carrier != 0) && (use_carrier != 1)) {
+		pr_warn("Warning: use_carrier module parameter (%d), not of valid value (0/1), so it was set to 1\n",
 			use_carrier);
 		use_carrier = 1;
 	}

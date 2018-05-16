@@ -828,8 +828,8 @@ use_carrier
 	MII / ETHTOOL ioctl method to determine the link state.
 
 	A value of 1 enables the use of netif_carrier_ok(), a value of
-	0 will use the deprecated MII / ETHTOOL ioctls. A value of 2
-	will check both.  The default value is 1.
+	0 will use the deprecated MII / ETHTOOL ioctls.  The default
+	value is 1.
 
 xmit_hash_policy
 

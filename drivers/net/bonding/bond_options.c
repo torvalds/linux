@@ -164,10 +164,9 @@ static const struct bond_opt_value bond_primary_reselect_tbl[] = {
 };
 
 static const struct bond_opt_value bond_use_carrier_tbl[] = {
-	{ "off",  0,  0},
-	{ "on",   1,  BOND_VALFLAG_DEFAULT},
-	{ "both", 2,  0},
-	{ NULL,  -1,  0}
+	{ "off", 0,  0},
+	{ "on",  1,  BOND_VALFLAG_DEFAULT},
+	{ NULL,  -1, 0}
 };
 
 static const struct bond_opt_value bond_all_slaves_active_tbl[] = {
