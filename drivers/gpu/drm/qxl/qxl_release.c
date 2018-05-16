@@ -173,6 +173,7 @@ qxl_release_free_list(struct qxl_release *release)
 		list_del(&entry->tv.head);
 		kfree(entry);
 	}
+	release->release_bo = NULL;
 }
 
 void
@@ -296,7 +297,6 @@ int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 {
 	if (surface_cmd_type == QXL_SURFACE_CMD_DESTROY && create_rel) {
 		int idr_ret;
-		struct qxl_bo_list *entry = list_first_entry(&create_rel->bos, struct qxl_bo_list, tv.head);
 		struct qxl_bo *bo;
 		union qxl_release_info *info;
 
@@ -304,8 +304,9 @@ int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 		idr_ret = qxl_release_alloc(qdev, QXL_RELEASE_SURFACE_CMD, release);
 		if (idr_ret < 0)
 			return idr_ret;
-		bo = to_qxl_bo(entry->tv.bo);
+		bo = create_rel->release_bo;
 
+		(*release)->release_bo = bo;
 		(*release)->release_offset = create_rel->release_offset + 64;
 
 		qxl_release_list_add(*release, bo);
@@ -365,6 +366,7 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 
 	bo = qxl_bo_ref(qdev->current_release_bo[cur_idx]);
 
+	(*release)->release_bo = bo;
 	(*release)->release_offset = qdev->current_release_bo_offset[cur_idx] * release_size_per_bo[cur_idx];
 	qdev->current_release_bo_offset[cur_idx]++;
 
@@ -408,13 +410,12 @@ union qxl_release_info *qxl_release_map(struct qxl_device *qdev,
 {
 	void *ptr;
 	union qxl_release_info *info;
-	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
-	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
+	struct qxl_bo *bo = release->release_bo;
 
-	ptr = qxl_bo_kmap_atomic_page(qdev, bo, release->release_offset & PAGE_SIZE);
+	ptr = qxl_bo_kmap_atomic_page(qdev, bo, release->release_offset & PAGE_MASK);
 	if (!ptr)
 		return NULL;
-	info = ptr + (release->release_offset & ~PAGE_SIZE);
+	info = ptr + (release->release_offset & ~PAGE_MASK);
 	return info;
 }
 
@@ -422,11 +423,10 @@ void qxl_release_unmap(struct qxl_device *qdev,
 		       struct qxl_release *release,
 		       union qxl_release_info *info)
 {
-	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
-	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
+	struct qxl_bo *bo = release->release_bo;
 	void *ptr;
 
-	ptr = ((void *)info) - (release->release_offset & ~PAGE_SIZE);
+	ptr = ((void *)info) - (release->release_offset & ~PAGE_MASK);
 	qxl_bo_kunmap_atomic_page(qdev, bo, ptr);
 }
 

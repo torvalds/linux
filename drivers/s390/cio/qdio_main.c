@@ -1207,8 +1207,10 @@ no_cleanup:
 	qdio_shutdown_thinint(irq_ptr);
 
 	/* restore interrupt handler */
-	if ((void *)cdev->handler == (void *)qdio_int_handler)
+	if ((void *)cdev->handler == (void *)qdio_int_handler) {
 		cdev->handler = irq_ptr->orig_handler;
+		cdev->private->intparm = 0;
+	}
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);

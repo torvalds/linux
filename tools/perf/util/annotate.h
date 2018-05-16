@@ -70,7 +70,16 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_nr_samples,
 	     show_total_period;
+	u8   offset_level;
 };
+
+enum {
+	ANNOTATION__OFFSET_JUMP_TARGETS = 1,
+	ANNOTATION__OFFSET_CALL,
+	ANNOTATION__MAX_OFFSET_LEVEL,
+};
+
+#define ANNOTATION__MIN_OFFSET_LEVEL ANNOTATION__OFFSET_JUMP_TARGETS
 
 extern struct annotation_options annotation__default_options;
 
@@ -150,6 +159,18 @@ struct annotation_write_ops {
 double annotation_line__max_percent(struct annotation_line *al, struct annotation *notes);
 void annotation_line__write(struct annotation_line *al, struct annotation *notes,
 			    struct annotation_write_ops *ops);
+
+int __annotation__scnprintf_samples_period(struct annotation *notes,
+					   char *bf, size_t size,
+					   struct perf_evsel *evsel,
+					   bool show_freq);
+
+static inline int annotation__scnprintf_samples_period(struct annotation *notes,
+						       char *bf, size_t size,
+						       struct perf_evsel *evsel)
+{
+	return __annotation__scnprintf_samples_period(notes, bf, size, evsel, true);
+}
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);

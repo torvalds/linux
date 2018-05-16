@@ -34,11 +34,42 @@ MODULE_PARM_DESC(rootcell, "root AFS cell name and VL server IP addr list");
 struct workqueue_struct *afs_wq;
 struct afs_net __afs_net;
 
+#if defined(CONFIG_ALPHA)
+const char afs_init_sysname[] = "alpha_linux26";
+#elif defined(CONFIG_X86_64)
+const char afs_init_sysname[] = "amd64_linux26";
+#elif defined(CONFIG_ARM)
+const char afs_init_sysname[] = "arm_linux26";
+#elif defined(CONFIG_ARM64)
+const char afs_init_sysname[] = "aarch64_linux26";
+#elif defined(CONFIG_X86_32)
+const char afs_init_sysname[] = "i386_linux26";
+#elif defined(CONFIG_IA64)
+const char afs_init_sysname[] = "ia64_linux26";
+#elif defined(CONFIG_PPC64)
+const char afs_init_sysname[] = "ppc64_linux26";
+#elif defined(CONFIG_PPC32)
+const char afs_init_sysname[] = "ppc_linux26";
+#elif defined(CONFIG_S390)
+#ifdef CONFIG_64BIT
+const char afs_init_sysname[] = "s390x_linux26";
+#else
+const char afs_init_sysname[] = "s390_linux26";
+#endif
+#elif defined(CONFIG_SPARC64)
+const char afs_init_sysname[] = "sparc64_linux26";
+#elif defined(CONFIG_SPARC32)
+const char afs_init_sysname[] = "sparc_linux26";
+#else
+const char afs_init_sysname[] = "unknown_linux26";
+#endif
+
 /*
  * Initialise an AFS network namespace record.
  */
 static int __net_init afs_net_init(struct afs_net *net)
 {
+	struct afs_sysnames *sysnames;
 	int ret;
 
 	net->live = true;
@@ -67,6 +98,16 @@ static int __net_init afs_net_init(struct afs_net *net)
 	INIT_WORK(&net->fs_manager, afs_manage_servers);
 	timer_setup(&net->fs_timer, afs_servers_timer, 0);
 
+	ret = -ENOMEM;
+	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
+	if (!sysnames)
+		goto error_sysnames;
+	sysnames->subs[0] = (char *)&afs_init_sysname;
+	sysnames->nr = 1;
+	refcount_set(&sysnames->usage, 1);
+	net->sysnames = sysnames;
+	rwlock_init(&net->sysnames_lock);
+
 	/* Register the /proc stuff */
 	ret = afs_proc_init(net);
 	if (ret < 0)
@@ -92,6 +133,8 @@ error_cell_init:
 	net->live = false;
 	afs_proc_cleanup(net);
 error_proc:
+	afs_put_sysnames(net->sysnames);
+error_sysnames:
 	net->live = false;
 	return ret;
 }
@@ -106,6 +149,7 @@ static void __net_exit afs_net_exit(struct afs_net *net)
 	afs_purge_servers(net);
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
+	afs_put_sysnames(net->sysnames);
 }
 
 /*

@@ -6023,13 +6023,13 @@ int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
 	sp->type = SRB_MB_IOCB;
 	sp->name = mb_to_str(mcp->mb[0]);
 
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	memcpy(sp->u.iocb_cmd.u.mbx.out_mb, mcp->mb, SIZEOF_IOCB_MB_REG);
-
 	c = &sp->u.iocb_cmd;
 	c->timeout = qla2x00_async_iocb_timeout;
 	init_completion(&c->u.mbx.comp);
+
+	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+
+	memcpy(sp->u.iocb_cmd.u.mbx.out_mb, mcp->mb, SIZEOF_IOCB_MB_REG);
 
 	sp->done = qla2x00_async_mb_sp_done;
 

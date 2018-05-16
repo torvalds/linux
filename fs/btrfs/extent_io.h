@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __EXTENTIO__
-#define __EXTENTIO__
+
+#ifndef BTRFS_EXTENT_IO_H
+#define BTRFS_EXTENT_IO_H
 
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
@@ -572,4 +573,5 @@ noinline u64 find_lock_delalloc_range(struct inode *inode,
 #endif
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 					       u64 start);
+
 #endif

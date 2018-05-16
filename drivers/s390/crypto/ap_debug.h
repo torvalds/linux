@@ -23,7 +23,4 @@
 
 extern debug_info_t *ap_dbf_info;
 
-int ap_debug_init(void);
-void ap_debug_exit(void);
-
 #endif /* AP_DEBUG_H */

@@ -1317,7 +1317,7 @@ static int mlx4_mf_unbond(struct mlx4_dev *dev)
 
 	ret = mlx4_unbond_fs_rules(dev);
 	if (ret)
-		mlx4_warn(dev, "multifunction unbond for flow rules failedi (%d)\n", ret);
+		mlx4_warn(dev, "multifunction unbond for flow rules failed (%d)\n", ret);
 	ret1 = mlx4_unbond_mac_table(dev);
 	if (ret1) {
 		mlx4_warn(dev, "multifunction unbond for MAC table failed (%d)\n", ret1);

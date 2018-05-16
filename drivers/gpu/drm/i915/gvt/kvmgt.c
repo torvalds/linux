@@ -1301,7 +1301,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 
 	}
 
-	return 0;
+	return -ENOTTY;
 }
 
 static ssize_t

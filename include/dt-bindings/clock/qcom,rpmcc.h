@@ -40,6 +40,11 @@
 #define RPM_SMI_CLK				22
 #define RPM_SMI_A_CLK				23
 #define RPM_PLL4_CLK				24
+#define RPM_XO_D0				25
+#define RPM_XO_D1				26
+#define RPM_XO_A0				27
+#define RPM_XO_A1				28
+#define RPM_XO_A2				29
 
 /* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0

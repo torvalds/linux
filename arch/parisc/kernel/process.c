@@ -112,14 +112,6 @@ void machine_restart(char *cmd)
 
 }
 
-void machine_halt(void)
-{
-	/*
-	** The LED/ChassisCodes are updated by the led_halt()
-	** function, called by the reboot notifier chain.
-	*/
-}
-
 void (*chassis_power_off)(void);
 
 /*
@@ -157,6 +149,11 @@ void machine_power_off(void)
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
+
+void machine_halt(void)
+{
+	machine_power_off();
+}
 
 void flush_thread(void)
 {

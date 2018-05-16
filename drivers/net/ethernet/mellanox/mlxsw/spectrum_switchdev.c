@@ -1718,13 +1718,11 @@ __mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct net_device *dev = mlxsw_sp_port->dev;
 	int err;
 
-	if (bridge_port->bridge_device->multicast_enabled) {
-		if (bridge_port->bridge_device->multicast_enabled) {
-			err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid,
-						     false);
-			if (err)
-				netdev_err(dev, "Unable to remove port from SMID\n");
-		}
+	if (bridge_port->bridge_device->multicast_enabled &&
+	    !bridge_port->mrouter) {
+		err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
+		if (err)
+			netdev_err(dev, "Unable to remove port from SMID\n");
 	}
 
 	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);

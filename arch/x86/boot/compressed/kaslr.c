@@ -54,6 +54,9 @@ unsigned int ptrs_per_p4d __ro_after_init = 1;
 
 extern unsigned long get_cmd_line_ptr(void);
 
+/* Used by PAGE_KERN* macros: */
+pteval_t __default_kernel_pte_mask __read_mostly = ~0;
+
 /* Simplified build-specific string for starting entropy. */
 static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
 		LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;

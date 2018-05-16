@@ -18,7 +18,7 @@
 #include <linux/oid_registry.h>
 #include <crypto/public_key.h>
 #include "pkcs7_parser.h"
-#include "pkcs7-asn1.h"
+#include "pkcs7.asn1.h"
 
 MODULE_DESCRIPTION("PKCS#7 parser");
 MODULE_AUTHOR("Red Hat, Inc.");

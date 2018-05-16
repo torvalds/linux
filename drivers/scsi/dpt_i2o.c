@@ -2051,13 +2051,16 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd, ulong ar
 		}
 		break;
 		}
-	case I2ORESETCMD:
-		if(pHba->host)
-			spin_lock_irqsave(pHba->host->host_lock, flags);
+	case I2ORESETCMD: {
+		struct Scsi_Host *shost = pHba->host;
+
+		if (shost)
+			spin_lock_irqsave(shost->host_lock, flags);
 		adpt_hba_reset(pHba);
-		if(pHba->host)
-			spin_unlock_irqrestore(pHba->host->host_lock, flags);
+		if (shost)
+			spin_unlock_irqrestore(shost->host_lock, flags);
 		break;
+	}
 	case I2ORESCANCMD:
 		adpt_rescan(pHba);
 		break;

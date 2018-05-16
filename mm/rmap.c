@@ -1374,9 +1374,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
 			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
 
-			if (!PageAnon(page))
-				continue;
-
 			set_pmd_migration_entry(&pvmw, page);
 			continue;
 		}

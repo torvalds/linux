@@ -772,7 +772,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length;
 	char *buf = server->smallbuf;
-	unsigned int pdu_length = get_rfc1002_length(buf);
+	unsigned int pdu_length = server->pdu_size;
 
 	/* make sure this will fit in a large buffer */
 	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) -
@@ -881,6 +881,7 @@ cifs_demultiplex_thread(void *p)
 		 * so we can now interpret the length field.
 		 */
 		pdu_length = get_rfc1002_length(buf);
+		server->pdu_size = pdu_length;
 
 		cifs_dbg(FYI, "RFC1002 header 0x%x\n", pdu_length);
 		if (!is_smb_response(server, buf[0]))
@@ -927,6 +928,7 @@ cifs_demultiplex_thread(void *p)
 
 		server->lstrp = jiffies;
 		if (mid_entry != NULL) {
+			mid_entry->resp_buf_size = server->pdu_size;
 			if ((mid_entry->mid_flags & MID_WAIT_CANCELLED) &&
 			     mid_entry->mid_state == MID_RESPONSE_RECEIVED &&
 					server->ops->handle_cancelled_mid)
@@ -1975,14 +1977,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		goto cifs_parse_mount_err;
 	}
 
-#ifdef CONFIG_CIFS_SMB_DIRECT
-	if (vol->rdma && vol->sign) {
-		cifs_dbg(VFS, "Currently SMB direct doesn't support signing."
-			" This is being fixed\n");
-		goto cifs_parse_mount_err;
-	}
-#endif
-
 #ifndef CONFIG_KEYS
 	/* Muliuser mounts require CONFIG_KEYS support */
 	if (vol->multiuser) {
@@ -2957,6 +2951,22 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
+	if (volume_info->seal) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+				 "SMB3 or later required for encryption\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else if (tcon->ses->server->capabilities &
+					SMB2_GLOBAL_CAP_ENCRYPTION)
+			tcon->seal = true;
+		else {
+			cifs_dbg(VFS, "Encryption is not supported on share\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		}
+	}
+
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
@@ -3003,22 +3013,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			goto out_fail;
 		}
 		tcon->use_resilient = true;
-	}
-
-	if (volume_info->seal) {
-		if (ses->server->vals->protocol_id == 0) {
-			cifs_dbg(VFS,
-				 "SMB3 or later required for encryption\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		} else if (tcon->ses->server->capabilities &
-					SMB2_GLOBAL_CAP_ENCRYPTION)
-			tcon->seal = true;
-		else {
-			cifs_dbg(VFS, "Encryption is not supported on share\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		}
 	}
 
 	/*

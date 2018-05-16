@@ -279,7 +279,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 	if (put_compat_sigset((compat_sigset_t __user *)frame->sc.oldmask,
 			      set, sizeof(compat_sigset_t)))
 		return -EFAULT;
-	if (__put_user(ptr_to_compat(&frame->sc), &frame->sc.sregs))
+	if (__put_user(ptr_to_compat(&frame->sregs), &frame->sc.sregs))
 		return -EFAULT;
 
 	/* Store registers needed to create the signal frame */

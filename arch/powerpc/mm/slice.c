@@ -35,6 +35,7 @@
 #include <asm/mmu.h>
 #include <asm/copro.h>
 #include <asm/hugetlb.h>
+#include <asm/mmu_context.h>
 
 static DEFINE_SPINLOCK(slice_convert_lock);
 

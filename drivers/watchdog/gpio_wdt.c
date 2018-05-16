@@ -152,9 +152,9 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	priv->wdd.min_timeout	= SOFT_TIMEOUT_MIN;
 	priv->wdd.max_hw_heartbeat_ms = hw_margin;
 	priv->wdd.parent	= dev;
+	priv->wdd.timeout	= SOFT_TIMEOUT_DEF;
 
-	if (watchdog_init_timeout(&priv->wdd, 0, dev) < 0)
-		priv->wdd.timeout = SOFT_TIMEOUT_DEF;
+	watchdog_init_timeout(&priv->wdd, 0, &pdev->dev);
 
 	watchdog_stop_on_reboot(&priv->wdd);
 
