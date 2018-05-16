@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/devfreq.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>
@@ -20,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
@@ -84,12 +84,20 @@ struct rockchip_pmu {
 	const struct rockchip_pmu_info *info;
 	struct mutex mutex; /* mutex lock for pmu */
 	struct genpd_onecell_data genpd_data;
-	struct devfreq *devfreq;
-	struct notifier_block dmc_nb;
 	struct generic_pm_domain *domains[];
 };
 
-static struct rockchip_pmu *dmc_pmu;
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
+{
+	mutex_lock(&pd->pmu->mutex);
+	rockchip_dmcfreq_lock();
+}
+
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
+{
+	rockchip_dmcfreq_unlock();
+	mutex_unlock(&pd->pmu->mutex);
+}
 
 #define to_rockchip_pd(gpd) container_of(gpd, struct rockchip_pm_domain, genpd)
 
@@ -222,9 +230,9 @@ int rockchip_pmu_idle_request(struct device *dev, bool idle)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_set_idle_request(pd, idle);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -294,9 +302,9 @@ int rockchip_save_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_save_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -317,9 +325,9 @@ int rockchip_restore_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_restore_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -380,7 +388,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 	int i, ret = 0;
 	struct generic_pm_domain *genpd = &pd->genpd;
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
 		for (i = 0; i < pd->num_clks; i++)
@@ -423,7 +431,7 @@ out:
 			clk_disable(pd->clks[i]);
 	}
 
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 	return ret;
 }
 
@@ -643,9 +651,9 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 	}
 
 	/* protect the zeroing of pm->num_clks */
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	pd->num_clks = 0;
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	/* devm will free our memory */
 }
@@ -743,31 +751,6 @@ err_out:
 	of_node_put(np);
 	return error;
 }
-
-static int dmc_notify(struct notifier_block *nb, unsigned long event,
-		      void *data)
-{
-	if (event == DEVFREQ_PRECHANGE)
-		mutex_lock(&dmc_pmu->mutex);
-	else if (event == DEVFREQ_POSTCHANGE)
-		mutex_unlock(&dmc_pmu->mutex);
-
-	return NOTIFY_OK;
-}
-
-int rockchip_pm_register_notify_to_dmc(struct devfreq *devfreq)
-{
-	if (!dmc_pmu)
-		return -ENOMEM;
-
-	dmc_pmu->devfreq = devfreq;
-	dmc_pmu->dmc_nb.notifier_call = dmc_notify;
-	dmc_pmu->dmc_nb.priority = -100; /* notified after vop */
-	devfreq_register_notifier(dmc_pmu->devfreq, &dmc_pmu->dmc_nb,
-				  DEVFREQ_TRANSITION_NOTIFIER);
-	return 0;
-}
-EXPORT_SYMBOL(rockchip_pm_register_notify_to_dmc);
 
 static void __iomem *pd_base;
 
@@ -890,8 +873,6 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	}
 
 	of_genpd_add_provider_onecell(np, &pmu->genpd_data);
-
-	dmc_pmu = pmu;
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &pmu_panic_block);

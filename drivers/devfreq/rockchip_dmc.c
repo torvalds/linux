@@ -812,6 +812,20 @@ struct rockchip_dmcfreq {
 
 static struct pm_qos_request pm_qos;
 
+static DECLARE_RWSEM(rockchip_dmcfreq_sem);
+
+void rockchip_dmcfreq_lock(void)
+{
+	down_read(&rockchip_dmcfreq_sem);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_lock);
+
+void rockchip_dmcfreq_unlock(void)
+{
+	up_read(&rockchip_dmcfreq_sem);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_unlock);
+
 /*
  * function: packaging de-skew setting to px30_ddr_dts_config_timing,
  *           px30_ddr_dts_config_timing will pass to trust firmware, and
@@ -1016,8 +1030,18 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
+	/*
+	 * Writer in rwsem may block readers even during its waiting in queue,
+	 * and this may lead to a deadlock when the code path takes read sem
+	 * twice (e.g. one in vop_lock() and another in rockchip_pmu_lock()).
+	 * As a (suboptimal) workaround, let writer to spin until it gets the
+	 * lock.
+	 */
+	while (!down_write_trylock(&rockchip_dmcfreq_sem))
+		cond_resched();
 	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_rate);
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+	up_write(&rockchip_dmcfreq_sem);
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n",
 			target_rate, err);
@@ -3059,12 +3083,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->devfreq->max_freq = data->max;
 	data->devfreq->last_status.current_frequency = opp_rate;
 	reset_last_status(data->devfreq);
-
-	if (rockchip_drm_register_notifier_to_dmc(data->devfreq))
-		dev_err(dev, "drm fail to register notifier to dmc\n");
-
-	if (rockchip_pm_register_notify_to_dmc(data->devfreq))
-		dev_err(dev, "pd fail to register notify to dmc\n");
 
 	if (vop_register_dmc())
 		dev_err(dev, "fail to register notify to vop.\n");
