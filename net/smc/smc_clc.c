@@ -316,7 +316,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	if (clcm->type == SMC_CLC_DECLINE) {
 		reason_code = SMC_CLC_DECL_REPLY;
 		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
-			smc->conn.lgr->sync_err = true;
+			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate(smc->conn.lgr);
 		}
 	}

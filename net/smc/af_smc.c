@@ -293,11 +293,19 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 	smc_copy_sock_settings(&smc->sk, smc->clcsock->sk, SK_FLAGS_CLC_TO_SMC);
 }
 
-/* register a new rmb */
-static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
+/* register a new rmb, optionally send confirm_rkey msg to register with peer */
+static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc,
+		       bool conf_rkey)
 {
 	/* register memory region for new rmb */
 	if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
+		rmb_desc->regerr = 1;
+		return -EFAULT;
+	}
+	if (!conf_rkey)
+		return 0;
+	/* exchange confirm_rkey msg with peer */
+	if (smc_llc_do_confirm_rkey(link, rmb_desc)) {
 		rmb_desc->regerr = 1;
 		return -EFAULT;
 	}
@@ -334,7 +342,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 
 	smc_wr_remember_qp_attr(link);
 
-	if (smc_reg_rmb(link, smc->conn.rmb_desc))
+	if (smc_reg_rmb(link, smc->conn.rmb_desc, false))
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK response over RoCE fabric */
@@ -455,6 +463,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
 		else if (rc == -ENOLINK)
 			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
+		else
+			reason_code = SMC_CLC_DECL_INTERR; /* other error */
 		goto decline_rdma_unlock;
 	}
 	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
@@ -488,7 +498,7 @@ static int smc_connect_rdma(struct smc_sock *smc)
 		}
 	} else {
 		if (!smc->conn.rmb_desc->reused) {
-			if (smc_reg_rmb(link, smc->conn.rmb_desc)) {
+			if (smc_reg_rmb(link, smc->conn.rmb_desc, true)) {
 				reason_code = SMC_CLC_DECL_INTERR;
 				goto decline_rdma_unlock;
 			}
@@ -729,7 +739,7 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 
 	link = &lgr->lnk[SMC_SINGLE_LINK];
 
-	if (smc_reg_rmb(link, smc->conn.rmb_desc))
+	if (smc_reg_rmb(link, smc->conn.rmb_desc, false))
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK request to client over the RoCE fabric */
@@ -866,7 +876,7 @@ static void smc_listen_work(struct work_struct *work)
 
 	if (local_contact != SMC_FIRST_CONTACT) {
 		if (!new_smc->conn.rmb_desc->reused) {
-			if (smc_reg_rmb(link, new_smc->conn.rmb_desc)) {
+			if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true)) {
 				reason_code = SMC_CLC_DECL_INTERR;
 				goto decline_rdma_unlock;
 			}
@@ -1353,14 +1363,14 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	case TCP_NODELAY:
 		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
-			if (val)
+			if (val && !smc->use_fallback)
 				mod_delayed_work(system_wq, &smc->conn.tx_work,
 						 0);
 		}
 		break;
 	case TCP_CORK:
 		if (sk->sk_state != SMC_INIT && sk->sk_state != SMC_LISTEN) {
-			if (!val)
+			if (!val && !smc->use_fallback)
 				mod_delayed_work(system_wq, &smc->conn.tx_work,
 						 0);
 		}
@@ -1634,6 +1644,7 @@ static void __exit smc_exit(void)
 	spin_unlock_bh(&smc_lgr_list.lock);
 	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
 		list_del_init(&lgr->list);
+		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 		cancel_delayed_work_sync(&lgr->free_work);
 		smc_lgr_free(lgr); /* free link group */
 	}

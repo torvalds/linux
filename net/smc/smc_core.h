@@ -96,6 +96,7 @@ struct smc_link {
 	u8			link_id;	/* unique # within link group */
 
 	enum smc_link_state	state;		/* state of link */
+	struct workqueue_struct *llc_wq;	/* single thread work queue */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
@@ -105,6 +106,8 @@ struct smc_link {
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
+	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
+	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -163,7 +166,8 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
-	bool			sync_err;	/* lgr no longer fits to peer */
+	u8			sync_err : 1;	/* lgr no longer fits to peer */
+	u8			terminating : 1;/* lgr is terminating */
 };
 
 /* Find the connection associated with the given alert token in the link group.
