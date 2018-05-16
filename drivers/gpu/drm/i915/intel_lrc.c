@@ -1844,6 +1844,7 @@ static struct i915_request *
 execlists_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *request, *active;
 
 	GEM_TRACE("%s\n", engine->name);
 
@@ -1858,7 +1859,40 @@ execlists_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	__tasklet_disable_sync_once(&execlists->tasklet);
 
-	return i915_gem_find_active_request(engine);
+	/*
+	 * We want to flush the pending context switches, having disabled
+	 * the tasklet above, we can assume exclusive access to the execlists.
+	 * For this allows us to catch up with an inflight preemption event,
+	 * and avoid blaming an innocent request if the stall was due to the
+	 * preemption itself.
+	 */
+	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
+		process_csb(engine);
+
+	/*
+	 * The last active request can then be no later than the last request
+	 * now in ELSP[0]. So search backwards from there, so that if the GPU
+	 * has advanced beyond the last CSB update, it will be pardoned.
+	 */
+	active = NULL;
+	request = port_request(execlists->port);
+	if (request) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&engine->timeline.lock, flags);
+		list_for_each_entry_from_reverse(request,
+						 &engine->timeline.requests,
+						 link) {
+			if (__i915_request_completed(request,
+						     request->global_seqno))
+				break;
+
+			active = request;
+		}
+		spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	}
+
+	return active;
 }
 
 static void execlists_reset(struct intel_engine_cs *engine,
