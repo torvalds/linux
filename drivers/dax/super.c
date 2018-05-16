@@ -86,6 +86,7 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
 {
 	struct block_device *bdev = sb->s_bdev;
 	struct dax_device *dax_dev;
+	bool dax_enabled = false;
 	pgoff_t pgoff;
 	int err, id;
 	void *kaddr;
@@ -134,14 +135,21 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
 		 * on being able to do (page_address(pfn_to_page())).
 		 */
 		WARN_ON(IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API));
+		dax_enabled = true;
 	} else if (pfn_t_devmap(pfn)) {
-		/* pass */;
-	} else {
+		struct dev_pagemap *pgmap;
+
+		pgmap = get_dev_pagemap(pfn_t_to_pfn(pfn), NULL);
+		if (pgmap && pgmap->type == MEMORY_DEVICE_FS_DAX)
+			dax_enabled = true;
+		put_dev_pagemap(pgmap);
+	}
+
+	if (!dax_enabled) {
 		pr_debug("VFS (%s): error: dax support not enabled\n",
 				sb->s_id);
 		return -EOPNOTSUPP;
 	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__bdev_dax_supported);
