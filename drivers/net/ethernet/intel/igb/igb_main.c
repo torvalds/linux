@@ -2058,6 +2058,7 @@ int igb_up(struct igb_adapter *adapter)
 		igb_assign_vector(adapter->q_vector[0], 0);
 
 	/* Clear any pending interrupts. */
+	rd32(E1000_TSICR);
 	rd32(E1000_ICR);
 	igb_irq_enable(adapter);
 
@@ -3865,6 +3866,7 @@ static int __igb_open(struct net_device *netdev, bool resuming)
 		napi_enable(&(adapter->q_vector[i]->napi));
 
 	/* Clear any pending interrupts. */
+	rd32(E1000_TSICR);
 	rd32(E1000_ICR);
 
 	igb_irq_enable(adapter);
