@@ -9,6 +9,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include "vkms_drv.h"
 
 #define DRIVER_NAME	"vkms"
@@ -16,6 +17,12 @@
 #define DRIVER_DATE	"20180514"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+
+#define XRES_MIN    32
+#define YRES_MIN    32
+
+#define XRES_MAX  8192
+#define YRES_MAX  8192
 
 static struct vkms_device *vkms_device;
 
@@ -67,6 +74,11 @@ static const struct drm_connector_funcs vkms_connector_funcs = {
 	.destroy = vkms_connector_destroy,
 };
 
+static const struct drm_mode_config_funcs vkms_mode_funcs = {
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
 static int __init vkms_init(void)
 {
 	int ret;
@@ -87,6 +99,11 @@ static int __init vkms_init(void)
 	}
 
 	drm_mode_config_init(&vkms_device->drm);
+	vkms_device->drm.mode_config.funcs = &vkms_mode_funcs;
+	vkms_device->drm.mode_config.min_width = XRES_MIN;
+	vkms_device->drm.mode_config.min_height = YRES_MIN;
+	vkms_device->drm.mode_config.max_width = XRES_MAX;
+	vkms_device->drm.mode_config.max_height = YRES_MAX;
 
 	ret = drm_connector_init(&vkms_device->drm, &vkms_device->connector,
 				 &vkms_connector_funcs,
