@@ -231,13 +231,15 @@ struct hfi1_ctxtdata {
 	/* job key */
 	u16 jkey;
 	/* number of RcvArray groups for this context. */
-	u32 rcv_array_groups;
+	u16 rcv_array_groups;
 	/* index of first eager TID entry. */
-	u32 eager_base;
+	u16 eager_base;
 	/* number of expected TID entries */
-	u32 expected_count;
+	u16 expected_count;
 	/* index of first expected TID entry. */
-	u32 expected_base;
+	u16 expected_base;
+	/* array of tid_groups */
+	struct tid_group  *groups;
 
 	struct exp_tid_set tid_group_list;
 	struct exp_tid_set tid_used_list;
@@ -282,7 +284,7 @@ struct hfi1_ctxtdata {
 	/* interrupt handling */
 	u64 imask;	/* clear interrupt mask */
 	int ireg;	/* clear interrupt register */
-	unsigned numa_id; /* numa node of this context */
+	int numa_id; /* numa node of this context */
 	/* verbs rx_stats per rcd */
 	struct hfi1_opcode_stats_perctx *opstats;
 
@@ -909,9 +911,9 @@ typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 #define RHF_RCV_REPROCESS 2	/* stop. retain this packet */
 
 struct rcv_array_data {
-	u8 group_size;
 	u16 ngroups;
 	u16 nctxt_extra;
+	u8 group_size;
 };
 
 struct per_vl_data {
