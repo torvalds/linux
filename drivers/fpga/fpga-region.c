@@ -81,13 +81,16 @@ static void fpga_region_put(struct fpga_region *region)
 
 /**
  * fpga_region_program_fpga - program FPGA
+ *
  * @region: FPGA region
+ *
  * Program an FPGA using fpga image info (region->info).
  * If the region has a get_bridges function, the exclusive reference for the
  * bridges will be held if programming succeeds.  This is intended to prevent
  * reprogramming the region until the caller considers it safe to do so.
  * The caller will need to call fpga_bridges_put() before attempting to
  * reprogram the region.
+ *
  * Return 0 for success or negative error code.
  */
 int fpga_region_program_fpga(struct fpga_region *region)
@@ -216,7 +219,7 @@ void fpga_region_free(struct fpga_region *region)
 }
 EXPORT_SYMBOL_GPL(fpga_region_free);
 
-/*
+/**
  * fpga_region_register - register a FPGA region
  * @region: FPGA region created by fpga_region_create
  * Return: 0 or -errno
@@ -228,7 +231,7 @@ int fpga_region_register(struct fpga_region *region)
 }
 EXPORT_SYMBOL_GPL(fpga_region_register);
 
-/*
+/**
  * fpga_region_unregister - unregister a FPGA region
  * @region: FPGA region
  */
