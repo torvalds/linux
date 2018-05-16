@@ -164,9 +164,10 @@ static const struct bond_opt_value bond_primary_reselect_tbl[] = {
 };
 
 static const struct bond_opt_value bond_use_carrier_tbl[] = {
-	{ "off", 0,  0},
-	{ "on",  1,  BOND_VALFLAG_DEFAULT},
-	{ NULL,  -1, 0}
+	{ "off",  0,  0},
+	{ "on",   1,  BOND_VALFLAG_DEFAULT},
+	{ "both", 2,  0},
+	{ NULL,  -1,  0}
 };
 
 static const struct bond_opt_value bond_all_slaves_active_tbl[] = {
@@ -395,7 +396,7 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.id = BOND_OPT_TLB_DYNAMIC_LB,
 		.name = "tlb_dynamic_lb",
 		.desc = "Enable dynamic flow shuffling",
-		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_TLB)),
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_TLB) | BIT(BOND_MODE_ALB)),
 		.values = bond_tlb_dynamic_lb_tbl,
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.set = bond_option_tlb_dynamic_lb_set,
