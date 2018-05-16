@@ -1199,3 +1199,63 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 
 	return 0;
 }
+
+/**
+ * pwrdm_save_context - save powerdomain registers
+ *
+ * Register state is going to be lost due to a suspend or hibernate
+ * event. Save the powerdomain registers.
+ */
+static int pwrdm_save_context(struct powerdomain *pwrdm, void *unused)
+{
+	if (arch_pwrdm && arch_pwrdm->pwrdm_save_context)
+		arch_pwrdm->pwrdm_save_context(pwrdm);
+	return 0;
+}
+
+/**
+ * pwrdm_save_context - restore powerdomain registers
+ *
+ * Restore powerdomain control registers after a suspend or resume
+ * event.
+ */
+static int pwrdm_restore_context(struct powerdomain *pwrdm, void *unused)
+{
+	if (arch_pwrdm && arch_pwrdm->pwrdm_restore_context)
+		arch_pwrdm->pwrdm_restore_context(pwrdm);
+	return 0;
+}
+
+static int pwrdm_lost_power(struct powerdomain *pwrdm, void *unused)
+{
+	int state;
+
+	/*
+	 * Power has been lost across all powerdomains, increment the
+	 * counter.
+	 */
+
+	state = pwrdm_read_pwrst(pwrdm);
+	if (state != PWRDM_POWER_OFF) {
+		pwrdm->state_counter[state]++;
+		pwrdm->state_counter[PWRDM_POWER_OFF]++;
+	}
+	pwrdm->state = state;
+
+	return 0;
+}
+
+void pwrdms_save_context(void)
+{
+	pwrdm_for_each(pwrdm_save_context, NULL);
+}
+
+void pwrdms_restore_context(void)
+{
+	pwrdm_for_each(pwrdm_restore_context, NULL);
+}
+
+void pwrdms_lost_power(void)
+{
+	pwrdm_for_each(pwrdm_lost_power, NULL);
+}
