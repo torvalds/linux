@@ -114,6 +114,37 @@ kill_whiteout:
 	goto out;
 }
 
+static int ovl_mkdir_real(struct inode *dir, struct dentry **newdentry,
+			  umode_t mode)
+{
+	int err;
+	struct dentry *d, *dentry = *newdentry;
+
+	err = ovl_do_mkdir(dir, dentry, mode);
+	if (err)
+		return err;
+
+	if (likely(!d_unhashed(dentry)))
+		return 0;
+
+	/*
+	 * vfs_mkdir() may succeed and leave the dentry passed
+	 * to it unhashed and negative. If that happens, try to
+	 * lookup a new hashed and positive dentry.
+	 */
+	d = lookup_one_len(dentry->d_name.name, dentry->d_parent,
+			   dentry->d_name.len);
+	if (IS_ERR(d)) {
+		pr_warn("overlayfs: failed lookup after mkdir (%pd2, err=%i).\n",
+			dentry, err);
+		return PTR_ERR(d);
+	}
+	dput(dentry);
+	*newdentry = d;
+
+	return 0;
+}
+
 struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
 			       struct ovl_cattr *attr)
 {
@@ -135,7 +166,8 @@ struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
 			break;
 
 		case S_IFDIR:
-			err = ovl_do_mkdir(dir, newdentry, attr->mode);
+			/* mkdir is special... */
+			err =  ovl_mkdir_real(dir, &newdentry, attr->mode);
 			break;
 
 		case S_IFCHR:
