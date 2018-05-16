@@ -52,6 +52,7 @@
 #define HNAE3_DEV_INITED_B			0x0
 #define HNAE3_DEV_SUPPORT_ROCE_B		0x1
 #define HNAE3_DEV_SUPPORT_DCB_B			0x2
+#define HNAE3_CLIENT_INITED_B			0x3
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -514,11 +515,11 @@ struct hnae3_handle {
 #define hnae_get_bit(origin, shift) \
 	hnae_get_field((origin), (0x1 << (shift)), (shift))
 
-int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
+void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);
 
 void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo);
-int hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
+void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
 
 void hnae3_unregister_client(struct hnae3_client *client);
 int hnae3_register_client(struct hnae3_client *client);
