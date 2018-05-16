@@ -11,6 +11,7 @@
 #include <linux/host1x.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
@@ -20,6 +21,10 @@
 #include "gem.h"
 #include "gr3d.h"
 
+struct gr3d_soc {
+	unsigned int version;
+};
+
 struct gr3d {
 	struct iommu_group *group;
 	struct tegra_drm_client client;
@@ -28,6 +33,8 @@ struct gr3d {
 	struct clk *clk;
 	struct reset_control *rst_secondary;
 	struct reset_control *rst;
+
+	const struct gr3d_soc *soc;
 
 	DECLARE_BITMAP(addr_regs, GR3D_NUM_REGS);
 };
@@ -151,10 +158,22 @@ static const struct tegra_drm_client_ops gr3d_ops = {
 	.submit = tegra_drm_submit,
 };
 
+static const struct gr3d_soc tegra20_gr3d_soc = {
+	.version = 0x20,
+};
+
+static const struct gr3d_soc tegra30_gr3d_soc = {
+	.version = 0x30,
+};
+
+static const struct gr3d_soc tegra114_gr3d_soc = {
+	.version = 0x35,
+};
+
 static const struct of_device_id tegra_gr3d_match[] = {
-	{ .compatible = "nvidia,tegra114-gr3d" },
-	{ .compatible = "nvidia,tegra30-gr3d" },
-	{ .compatible = "nvidia,tegra20-gr3d" },
+	{ .compatible = "nvidia,tegra114-gr3d", .data = &tegra114_gr3d_soc },
+	{ .compatible = "nvidia,tegra30-gr3d", .data = &tegra30_gr3d_soc },
+	{ .compatible = "nvidia,tegra20-gr3d", .data = &tegra20_gr3d_soc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_gr3d_match);
@@ -276,6 +295,8 @@ static int gr3d_probe(struct platform_device *pdev)
 	if (!gr3d)
 		return -ENOMEM;
 
+	gr3d->soc = of_device_get_match_data(&pdev->dev);
+
 	syncpts = devm_kzalloc(&pdev->dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
 		return -ENOMEM;
@@ -333,6 +354,7 @@ static int gr3d_probe(struct platform_device *pdev)
 	gr3d->client.base.num_syncpts = 1;
 
 	INIT_LIST_HEAD(&gr3d->client.list);
+	gr3d->client.version = gr3d->soc->version;
 	gr3d->client.ops = &gr3d_ops;
 
 	err = host1x_client_register(&gr3d->client.base);
