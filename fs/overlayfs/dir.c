@@ -115,7 +115,7 @@ kill_whiteout:
 }
 
 int ovl_create_real(struct inode *dir, struct dentry *newdentry,
-		    struct cattr *attr, struct dentry *hardlink, bool debug)
+		    struct cattr *attr, struct dentry *hardlink)
 {
 	int err;
 
@@ -123,27 +123,27 @@ int ovl_create_real(struct inode *dir, struct dentry *newdentry,
 		return -ESTALE;
 
 	if (hardlink) {
-		err = ovl_do_link(hardlink, dir, newdentry, debug);
+		err = ovl_do_link(hardlink, dir, newdentry);
 	} else {
 		switch (attr->mode & S_IFMT) {
 		case S_IFREG:
-			err = ovl_do_create(dir, newdentry, attr->mode, debug);
+			err = ovl_do_create(dir, newdentry, attr->mode);
 			break;
 
 		case S_IFDIR:
-			err = ovl_do_mkdir(dir, newdentry, attr->mode, debug);
+			err = ovl_do_mkdir(dir, newdentry, attr->mode);
 			break;
 
 		case S_IFCHR:
 		case S_IFBLK:
 		case S_IFIFO:
 		case S_IFSOCK:
-			err = ovl_do_mknod(dir, newdentry,
-					   attr->mode, attr->rdev, debug);
+			err = ovl_do_mknod(dir, newdentry, attr->mode,
+					   attr->rdev);
 			break;
 
 		case S_IFLNK:
-			err = ovl_do_symlink(dir, newdentry, attr->link, debug);
+			err = ovl_do_symlink(dir, newdentry, attr->link);
 			break;
 
 		default:
@@ -229,7 +229,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	err = PTR_ERR(newdentry);
 	if (IS_ERR(newdentry))
 		goto out_unlock;
-	err = ovl_create_real(udir, newdentry, attr, hardlink, false);
+	err = ovl_create_real(udir, newdentry, attr, hardlink);
 	if (err)
 		goto out_dput;
 
@@ -286,7 +286,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 		goto out_unlock;
 
 	err = ovl_create_real(wdir, opaquedir,
-			      &(struct cattr){.mode = stat.mode}, NULL, true);
+			      &(struct cattr){.mode = stat.mode}, NULL);
 	if (err)
 		goto out_dput;
 
@@ -391,7 +391,7 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	if (IS_ERR(upper))
 		goto out_dput;
 
-	err = ovl_create_real(wdir, newdentry, cattr, hardlink, true);
+	err = ovl_create_real(wdir, newdentry, cattr, hardlink);
 	if (err)
 		goto out_dput2;
 
