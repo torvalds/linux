@@ -15513,6 +15513,14 @@ L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/char/xillybus/
 
+XLP9XX I2C DRIVER
+M:	George Cherian <george.cherian@cavium.com>
+M:	Jan Glauber <jglauber@cavium.com>
+L:	linux-i2c@vger.kernel.org
+W:	http://www.cavium.com
+S:	Supported
+F:	drivers/i2c/busses/i2c-xlp9xx.c
+
 XRA1403 GPIO EXPANDER
 M:	Nandor Han <nandor.han@ge.com>
 M:	Semi Malinen <semi.malinen@ge.com>
