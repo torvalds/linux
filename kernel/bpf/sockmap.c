@@ -1875,7 +1875,7 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		write_unlock_bh(&osock->sk_callback_lock);
 	}
 out:
-	return 0;
+	return err;
 }
 
 int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
