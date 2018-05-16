@@ -674,6 +674,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mwifiex_send_cmd);
 
 /*
  * This function queues a command to the command pending queue.
