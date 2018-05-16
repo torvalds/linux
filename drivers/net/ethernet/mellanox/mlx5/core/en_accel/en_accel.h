@@ -49,7 +49,7 @@ static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
 						    u16 *pi)
 {
 #ifdef CONFIG_MLX5_EN_TLS
-	if (sq->state & BIT(MLX5E_SQ_STATE_TLS)) {
+	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
 		skb = mlx5e_tls_handle_tx_skb(dev, sq, skb, wqe, pi);
 		if (unlikely(!skb))
 			return NULL;
@@ -57,7 +57,7 @@ static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
-	if (sq->state & BIT(MLX5E_SQ_STATE_IPSEC)) {
+	if (test_bit(MLX5E_SQ_STATE_IPSEC, &sq->state)) {
 		skb = mlx5e_ipsec_handle_tx_skb(dev, *wqe, skb);
 		if (unlikely(!skb))
 			return NULL;

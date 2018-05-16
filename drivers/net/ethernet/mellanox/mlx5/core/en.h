@@ -288,8 +288,6 @@ enum {
 	MLX5E_RQ_STATE_AM,
 };
 
-#define MLX5E_TEST_BIT(state, nr) (state & BIT(nr))
-
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
 	struct mlx5_cqwq           wq;

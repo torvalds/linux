@@ -48,7 +48,7 @@ static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
 {
 	struct net_dim_sample dim_sample;
 
-	if (unlikely(!MLX5E_TEST_BIT(sq->state, MLX5E_SQ_STATE_AM)))
+	if (unlikely(!test_bit(MLX5E_SQ_STATE_AM, &sq->state)))
 		return;
 
 	net_dim_sample(sq->cq.event_ctr, sq->stats.packets, sq->stats.bytes,
@@ -60,7 +60,7 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 {
 	struct net_dim_sample dim_sample;
 
-	if (unlikely(!MLX5E_TEST_BIT(rq->state, MLX5E_RQ_STATE_AM)))
+	if (unlikely(!test_bit(MLX5E_RQ_STATE_AM, &rq->state)))
 		return;
 
 	net_dim_sample(rq->cq.event_ctr, rq->stats.packets, rq->stats.bytes,
