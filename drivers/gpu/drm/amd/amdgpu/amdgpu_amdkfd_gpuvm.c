@@ -23,6 +23,7 @@
 #define pr_fmt(fmt) "kfd2kgd: " fmt
 
 #include <linux/list.h>
+#include <linux/pagemap.h>
 #include <linux/sched/mm.h>
 #include <drm/drmP.h>
 #include "amdgpu_object.h"
