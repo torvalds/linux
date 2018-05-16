@@ -158,9 +158,28 @@ static void xlp9xx_i2c_fill_tx_fifo(struct xlp9xx_i2c_dev *priv)
 	priv->msg_buf += len;
 }
 
+static void xlp9xx_i2c_update_rlen(struct xlp9xx_i2c_dev *priv)
+{
+	u32 val, len;
+
+	/*
+	 * Update receive length. Re-read len to get the latest value,
+	 * and then add 4 to have a minimum value that can be safely
+	 * written. This is to account for the byte read above, the
+	 * transfer in progress and any delays in the register I/O
+	 */
+	val = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_CTRL);
+	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
+				  XLP9XX_I2C_FIFO_WCNT_MASK;
+	len = max_t(u32, priv->msg_len, len + 4);
+	val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
+			(len << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
+	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
+}
+
 static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 {
-	u32 len, i, val;
+	u32 len, i;
 	u8 rlen, *buf = priv->msg_buf;
 
 	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
@@ -171,20 +190,13 @@ static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 		/* read length byte */
 		rlen = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
 		*buf++ = rlen;
-		len--;
-
 		if (priv->client_pec)
 			++rlen;
 		/* update remaining bytes and message length */
 		priv->msg_buf_remaining = rlen;
 		priv->msg_len = rlen + 1;
 		priv->len_recv = false;
-
-		/* Update transfer length to read only actual data */
-		val = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_CTRL);
-		val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
-			((rlen + 1) << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
-		xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
+		xlp9xx_i2c_update_rlen(priv);
 	} else {
 		len = min(priv->msg_buf_remaining, len);
 		for (i = 0; i < len; i++, buf++)
