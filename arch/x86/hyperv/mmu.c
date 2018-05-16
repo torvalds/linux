@@ -32,9 +32,6 @@ struct hv_flush_pcpu_ex {
 /* Each gva in gva_list encodes up to 4096 pages to flush */
 #define HV_TLB_FLUSH_UNIT (4096 * PAGE_SIZE)
 
-static struct hv_flush_pcpu __percpu **pcpu_flush;
-
-static struct hv_flush_pcpu_ex __percpu **pcpu_flush_ex;
 
 /*
  * Fills in gva_list starting from offset. Returns the number of items added.
@@ -77,7 +74,7 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 
 	trace_hyperv_mmu_flush_tlb_others(cpus, info);
 
-	if (!pcpu_flush || !hv_hypercall_pg)
+	if (!hv_hypercall_pg)
 		goto do_native;
 
 	if (cpumask_empty(cpus))
@@ -85,10 +82,8 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush_pcpu = this_cpu_ptr(pcpu_flush);
-
-	if (unlikely(!*flush_pcpu))
-		*flush_pcpu = page_address(alloc_page(GFP_ATOMIC));
+	flush_pcpu = (struct hv_flush_pcpu **)
+		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	flush = *flush_pcpu;
 
@@ -164,7 +159,7 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 
 	trace_hyperv_mmu_flush_tlb_others(cpus, info);
 
-	if (!pcpu_flush_ex || !hv_hypercall_pg)
+	if (!hv_hypercall_pg)
 		goto do_native;
 
 	if (cpumask_empty(cpus))
@@ -172,10 +167,8 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush_pcpu = this_cpu_ptr(pcpu_flush_ex);
-
-	if (unlikely(!*flush_pcpu))
-		*flush_pcpu = page_address(alloc_page(GFP_ATOMIC));
+	flush_pcpu = (struct hv_flush_pcpu_ex **)
+		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	flush = *flush_pcpu;
 
@@ -256,15 +249,4 @@ void hyperv_setup_mmu_ops(void)
 		pr_info("Using ext hypercall for remote TLB flush\n");
 		pv_mmu_ops.flush_tlb_others = hyperv_flush_tlb_others_ex;
 	}
-}
-
-void hyper_alloc_mmu(void)
-{
-	if (!(ms_hyperv.hints & HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED))
-		return;
-
-	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
-		pcpu_flush = alloc_percpu(struct hv_flush_pcpu *);
-	else
-		pcpu_flush_ex = alloc_percpu(struct hv_flush_pcpu_ex *);
 }
