@@ -6,7 +6,6 @@
  */
 
 #include <linux/module.h>
-#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -59,25 +58,24 @@ static struct drm_driver vkms_driver = {
 	.minor			= DRIVER_MINOR,
 };
 
-static const u32 vkms_formats[] = {
-	DRM_FORMAT_XRGB8888,
-};
-
-static void vkms_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
-static const struct drm_connector_funcs vkms_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = vkms_connector_destroy,
-};
-
 static const struct drm_mode_config_funcs vkms_mode_funcs = {
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
+
+static int vkms_modeset_init(struct vkms_device *vkmsdev)
+{
+	struct drm_device *dev = &vkmsdev->drm;
+
+	drm_mode_config_init(dev);
+	dev->mode_config.funcs = &vkms_mode_funcs;
+	dev->mode_config.min_width = XRES_MIN;
+	dev->mode_config.min_height = YRES_MIN;
+	dev->mode_config.max_width = XRES_MAX;
+	dev->mode_config.max_height = YRES_MAX;
+
+	return vkms_output_init(vkmsdev);
+}
 
 static int __init vkms_init(void)
 {
@@ -98,48 +96,24 @@ static int __init vkms_init(void)
 		goto out_fini;
 	}
 
-	drm_mode_config_init(&vkms_device->drm);
-	vkms_device->drm.mode_config.funcs = &vkms_mode_funcs;
-	vkms_device->drm.mode_config.min_width = XRES_MIN;
-	vkms_device->drm.mode_config.min_height = YRES_MIN;
-	vkms_device->drm.mode_config.max_width = XRES_MAX;
-	vkms_device->drm.mode_config.max_height = YRES_MAX;
-
-	ret = drm_connector_init(&vkms_device->drm, &vkms_device->connector,
-				 &vkms_connector_funcs,
-				 DRM_MODE_CONNECTOR_VIRTUAL);
-	if (ret < 0) {
-		DRM_ERROR("Failed to init connector\n");
+	ret = vkms_modeset_init(vkms_device);
+	if (ret)
 		goto out_unregister;
-	}
-
-	ret = drm_simple_display_pipe_init(&vkms_device->drm,
-					   &vkms_device->pipe,
-					   NULL,
-					   vkms_formats,
-					   ARRAY_SIZE(vkms_formats),
-					   NULL,
-					   &vkms_device->connector);
-	if (ret < 0) {
-		DRM_ERROR("Cannot setup simple display pipe\n");
-		goto out_unregister;
-	}
 
 	ret = drm_dev_register(&vkms_device->drm, 0);
 	if (ret)
 		goto out_unregister;
 
-	drm_connector_register(&vkms_device->connector);
-
 	return 0;
 
 out_unregister:
 	platform_device_unregister(vkms_device->platform);
+
 out_fini:
 	drm_dev_fini(&vkms_device->drm);
+
 out_free:
 	kfree(vkms_device);
-
 	return ret;
 }
 
