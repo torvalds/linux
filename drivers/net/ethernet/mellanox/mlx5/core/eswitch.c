@@ -200,7 +200,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 	spec->match_criteria_enable = match_header;
 	flow_act.action =  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule =
-		mlx5_add_flow_rules(esw->fdb_table.fdb, spec,
+		mlx5_add_flow_rules(esw->fdb_table.legacy.fdb, spec,
 				    &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev,
@@ -282,7 +282,7 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
 		goto out;
 	}
-	esw->fdb_table.fdb = fdb;
+	esw->fdb_table.legacy.fdb = fdb;
 
 	/* Addresses group : Full match unicast/multicast addresses */
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
@@ -343,9 +343,9 @@ out:
 			mlx5_destroy_flow_group(esw->fdb_table.legacy.addr_grp);
 			esw->fdb_table.legacy.addr_grp = NULL;
 		}
-		if (!IS_ERR_OR_NULL(esw->fdb_table.fdb)) {
-			mlx5_destroy_flow_table(esw->fdb_table.fdb);
-			esw->fdb_table.fdb = NULL;
+		if (!IS_ERR_OR_NULL(esw->fdb_table.legacy.fdb)) {
+			mlx5_destroy_flow_table(esw->fdb_table.legacy.fdb);
+			esw->fdb_table.legacy.fdb = NULL;
 		}
 	}
 
@@ -355,15 +355,15 @@ out:
 
 static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 {
-	if (!esw->fdb_table.fdb)
+	if (!esw->fdb_table.legacy.fdb)
 		return;
 
 	esw_debug(esw->dev, "Destroy FDB Table\n");
 	mlx5_destroy_flow_group(esw->fdb_table.legacy.promisc_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.legacy.allmulti_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.legacy.addr_grp);
-	mlx5_destroy_flow_table(esw->fdb_table.fdb);
-	esw->fdb_table.fdb = NULL;
+	mlx5_destroy_flow_table(esw->fdb_table.legacy.fdb);
+	esw->fdb_table.legacy.fdb = NULL;
 	esw->fdb_table.legacy.addr_grp = NULL;
 	esw->fdb_table.legacy.allmulti_grp = NULL;
 	esw->fdb_table.legacy.promisc_grp = NULL;
@@ -396,7 +396,7 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 
 fdb_add:
 	/* SRIOV is enabled: Forward UC MAC to vport */
-	if (esw->fdb_table.fdb && esw->mode == SRIOV_LEGACY)
+	if (esw->fdb_table.legacy.fdb && esw->mode == SRIOV_LEGACY)
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
 	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
@@ -486,7 +486,7 @@ static int esw_add_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	u8 *mac = vaddr->node.addr;
 	u32 vport = vaddr->vport;
 
-	if (!esw->fdb_table.fdb)
+	if (!esw->fdb_table.legacy.fdb)
 		return 0;
 
 	esw_mc = l2addr_hash_find(hash, mac, struct esw_mc_addr);
@@ -526,7 +526,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	u8 *mac = vaddr->node.addr;
 	u32 vport = vaddr->vport;
 
-	if (!esw->fdb_table.fdb)
+	if (!esw->fdb_table.legacy.fdb)
 		return 0;
 
 	esw_mc = l2addr_hash_find(hash, mac, struct esw_mc_addr);

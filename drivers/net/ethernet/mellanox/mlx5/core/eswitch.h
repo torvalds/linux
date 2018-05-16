@@ -117,16 +117,17 @@ struct mlx5_vport {
 };
 
 struct mlx5_eswitch_fdb {
-	void *fdb;
 	union {
 		struct legacy_fdb {
+			struct mlx5_flow_table *fdb;
 			struct mlx5_flow_group *addr_grp;
 			struct mlx5_flow_group *allmulti_grp;
 			struct mlx5_flow_group *promisc_grp;
 		} legacy;
 
 		struct offloads_fdb {
-			struct mlx5_flow_table *fdb;
+			struct mlx5_flow_table *fast_fdb;
+			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_handle *miss_rule_uni;

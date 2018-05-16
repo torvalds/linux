@@ -119,7 +119,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
 		flow_act.encap_id = attr->encap_id;
 
-	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
+	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.offloads.fast_fdb,
 				   spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
 		goto err_add_rule;
@@ -363,7 +363,7 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	dest.vport.num = vport;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
-	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb, spec,
 					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule))
 		esw_warn(esw->dev, "FDB: Failed to add send to vport rule err %ld\n", PTR_ERR(flow_rule));
@@ -407,7 +407,7 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	dest.vport.num = 0;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
-	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb, spec,
 					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);
@@ -422,7 +422,7 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	dmac_v = MLX5_ADDR_OF(fte_match_param, headers_v,
 			      outer_headers.dmac_47_16);
 	dmac_v[0] = 0x01;
-	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb, spec,
 					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);
@@ -476,7 +476,7 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 		esw_warn(dev, "Failed to create Fast path FDB Table err %d\n", err);
 		goto out;
 	}
-	esw->fdb_table.fdb = fdb;
+	esw->fdb_table.offloads.fast_fdb = fdb;
 
 out:
 	return err;
@@ -484,7 +484,7 @@ out:
 
 static void esw_destroy_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 {
-	mlx5_destroy_flow_table(esw->fdb_table.fdb);
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.fast_fdb);
 }
 
 #define MAX_PF_SQ 256
@@ -530,7 +530,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 		esw_warn(dev, "Failed to create slow path FDB Table err %d\n", err);
 		goto slow_fdb_err;
 	}
-	esw->fdb_table.offloads.fdb = fdb;
+	esw->fdb_table.offloads.slow_fdb = fdb;
 
 	/* create send-to-vport group */
 	memset(flow_group_in, 0, inlen);
@@ -586,9 +586,9 @@ miss_rule_err:
 miss_err:
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 send_vport_err:
-	mlx5_destroy_flow_table(esw->fdb_table.offloads.fdb);
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 slow_fdb_err:
-	mlx5_destroy_flow_table(esw->fdb_table.fdb);
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.fast_fdb);
 fast_fdb_err:
 ns_err:
 	kvfree(flow_group_in);
@@ -597,7 +597,7 @@ ns_err:
 
 static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 {
-	if (!esw->fdb_table.fdb)
+	if (!esw->fdb_table.offloads.fast_fdb)
 		return;
 
 	esw_debug(esw->dev, "Destroy offloads FDB Tables\n");
@@ -606,7 +606,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
 
-	mlx5_destroy_flow_table(esw->fdb_table.offloads.fdb);
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 	esw_destroy_offloads_fast_fdb_table(esw);
 }
 
