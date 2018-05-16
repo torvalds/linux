@@ -760,7 +760,7 @@ struct rockchip_dmcfreq {
 	struct devfreq_simple_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev *edev;
-	struct mutex lock; /* scaling frequency lock */
+	struct mutex lock; /* serializes access to video_info_list */
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
 	struct notifier_block system_status_nb;
@@ -966,8 +966,6 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		dmcfreq->volt = regulator_get_voltage(dmcfreq->vdd_center);
 	}
 
-	mutex_lock(&dmcfreq->lock);
-
 	/*
 	 * We need to prevent cpu hotplug from happening while a dmc freq rate
 	 * change is happening.
@@ -1064,7 +1062,6 @@ out:
 	cpufreq_cpu_put(policy);
 cpufreq:
 	put_online_cpus();
-	mutex_unlock(&dmcfreq->lock);
 	return err;
 }
 
