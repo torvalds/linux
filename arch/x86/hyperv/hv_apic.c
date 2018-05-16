@@ -33,6 +33,8 @@
 #ifdef CONFIG_X86_64
 #if IS_ENABLED(CONFIG_HYPERV)
 
+static struct apic orig_apic;
+
 static u64 hv_apic_icr_read(void)
 {
 	u64 reg_val;
@@ -88,8 +90,123 @@ static void hv_apic_eoi_write(u32 reg, u32 val)
 	wrmsr(HV_X64_MSR_EOI, val, 0);
 }
 
+/*
+ * IPI implementation on Hyper-V.
+ */
+static bool __send_ipi_mask(const struct cpumask *mask, int vector)
+{
+	int cur_cpu, vcpu;
+	struct ipi_arg_non_ex **arg;
+	struct ipi_arg_non_ex *ipi_arg;
+	int ret = 1;
+	unsigned long flags;
+
+	if (cpumask_empty(mask))
+		return true;
+
+	if (!hv_hypercall_pg)
+		return false;
+
+	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
+		return false;
+
+	local_irq_save(flags);
+	arg = (struct ipi_arg_non_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
+
+	ipi_arg = *arg;
+	if (unlikely(!ipi_arg))
+		goto ipi_mask_done;
+
+	ipi_arg->vector = vector;
+	ipi_arg->reserved = 0;
+	ipi_arg->cpu_mask = 0;
+
+	for_each_cpu(cur_cpu, mask) {
+		vcpu = hv_cpu_number_to_vp_number(cur_cpu);
+		/*
+		 * This particular version of the IPI hypercall can
+		 * only target upto 64 CPUs.
+		 */
+		if (vcpu >= 64)
+			goto ipi_mask_done;
+
+		__set_bit(vcpu, (unsigned long *)&ipi_arg->cpu_mask);
+	}
+
+	ret = hv_do_hypercall(HVCALL_SEND_IPI, ipi_arg, NULL);
+
+ipi_mask_done:
+	local_irq_restore(flags);
+	return ((ret == 0) ? true : false);
+}
+
+static bool __send_ipi_one(int cpu, int vector)
+{
+	struct cpumask mask = CPU_MASK_NONE;
+
+	cpumask_set_cpu(cpu, &mask);
+	return __send_ipi_mask(&mask, vector);
+}
+
+static void hv_send_ipi(int cpu, int vector)
+{
+	if (!__send_ipi_one(cpu, vector))
+		orig_apic.send_IPI(cpu, vector);
+}
+
+static void hv_send_ipi_mask(const struct cpumask *mask, int vector)
+{
+	if (!__send_ipi_mask(mask, vector))
+		orig_apic.send_IPI_mask(mask, vector);
+}
+
+static void hv_send_ipi_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned int this_cpu = smp_processor_id();
+	struct cpumask new_mask;
+	const struct cpumask *local_mask;
+
+	cpumask_copy(&new_mask, mask);
+	cpumask_clear_cpu(this_cpu, &new_mask);
+	local_mask = &new_mask;
+	if (!__send_ipi_mask(local_mask, vector))
+		orig_apic.send_IPI_mask_allbutself(mask, vector);
+}
+
+static void hv_send_ipi_allbutself(int vector)
+{
+	hv_send_ipi_mask_allbutself(cpu_online_mask, vector);
+}
+
+static void hv_send_ipi_all(int vector)
+{
+	if (!__send_ipi_mask(cpu_online_mask, vector))
+		orig_apic.send_IPI_all(vector);
+}
+
+static void hv_send_ipi_self(int vector)
+{
+	if (!__send_ipi_one(smp_processor_id(), vector))
+		orig_apic.send_IPI_self(vector);
+}
+
 void __init hv_apic_init(void)
 {
+	if (ms_hyperv.hints & HV_X64_CLUSTER_IPI_RECOMMENDED) {
+		pr_info("Hyper-V: Using IPI hypercalls\n");
+		/*
+		 * Set the IPI entry points.
+		 */
+		orig_apic = *apic;
+
+		apic->send_IPI = hv_send_ipi;
+		apic->send_IPI_mask = hv_send_ipi_mask;
+		apic->send_IPI_mask_allbutself = hv_send_ipi_mask_allbutself;
+		apic->send_IPI_allbutself = hv_send_ipi_allbutself;
+		apic->send_IPI_all = hv_send_ipi_all;
+		apic->send_IPI_self = hv_send_ipi_self;
+	}
+
 	if (ms_hyperv.hints & HV_X64_APIC_ACCESS_RECOMMENDED) {
 		pr_info("Hyper-V: Using MSR based APIC access\n");
 		apic_set_eoi_write(hv_apic_eoi_write);
