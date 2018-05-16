@@ -75,9 +75,14 @@ static int (*bpf_sock_ops_cb_flags_set)(void *ctx, int flags) =
 	(void *) BPF_FUNC_sock_ops_cb_flags_set;
 static int (*bpf_sk_redirect_map)(void *ctx, void *map, int key, int flags) =
 	(void *) BPF_FUNC_sk_redirect_map;
+static int (*bpf_sk_redirect_hash)(void *ctx, void *map, void *key, int flags) =
+	(void *) BPF_FUNC_sk_redirect_hash;
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
 				  unsigned long long flags) =
 	(void *) BPF_FUNC_sock_map_update;
+static int (*bpf_sock_hash_update)(void *map, void *key, void *value,
+				   unsigned long long flags) =
+	(void *) BPF_FUNC_sock_hash_update;
 static int (*bpf_perf_event_read_value)(void *map, unsigned long long flags,
 					void *buf, unsigned int buf_size) =
 	(void *) BPF_FUNC_perf_event_read_value;
@@ -88,6 +93,9 @@ static int (*bpf_override_return)(void *ctx, unsigned long rc) =
 	(void *) BPF_FUNC_override_return;
 static int (*bpf_msg_redirect_map)(void *ctx, void *map, int key, int flags) =
 	(void *) BPF_FUNC_msg_redirect_map;
+static int (*bpf_msg_redirect_hash)(void *ctx,
+				    void *map, void *key, int flags) =
+	(void *) BPF_FUNC_msg_redirect_hash;
 static int (*bpf_msg_apply_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_apply_bytes;
 static int (*bpf_msg_cork_bytes)(void *ctx, int len) =

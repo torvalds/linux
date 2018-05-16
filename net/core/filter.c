@@ -2074,6 +2074,33 @@ static const struct bpf_func_proto bpf_redirect_proto = {
 	.arg2_type      = ARG_ANYTHING,
 };
 
+BPF_CALL_4(bpf_sk_redirect_hash, struct sk_buff *, skb,
+	   struct bpf_map *, map, void *, key, u64, flags)
+{
+	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
+
+	/* If user passes invalid input drop the packet. */
+	if (unlikely(flags & ~(BPF_F_INGRESS)))
+		return SK_DROP;
+
+	tcb->bpf.flags = flags;
+	tcb->bpf.sk_redir = __sock_hash_lookup_elem(map, key);
+	if (!tcb->bpf.sk_redir)
+		return SK_DROP;
+
+	return SK_PASS;
+}
+
+static const struct bpf_func_proto bpf_sk_redirect_hash_proto = {
+	.func           = bpf_sk_redirect_hash,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
+	.arg3_type      = ARG_PTR_TO_MAP_KEY,
+	.arg4_type      = ARG_ANYTHING,
+};
+
 BPF_CALL_4(bpf_sk_redirect_map, struct sk_buff *, skb,
 	   struct bpf_map *, map, u32, key, u64, flags)
 {
@@ -2083,9 +2110,10 @@ BPF_CALL_4(bpf_sk_redirect_map, struct sk_buff *, skb,
 	if (unlikely(flags & ~(BPF_F_INGRESS)))
 		return SK_DROP;
 
-	tcb->bpf.key = key;
 	tcb->bpf.flags = flags;
-	tcb->bpf.map = map;
+	tcb->bpf.sk_redir = __sock_map_lookup_elem(map, key);
+	if (!tcb->bpf.sk_redir)
+		return SK_DROP;
 
 	return SK_PASS;
 }
@@ -2093,16 +2121,8 @@ BPF_CALL_4(bpf_sk_redirect_map, struct sk_buff *, skb,
 struct sock *do_sk_redirect_map(struct sk_buff *skb)
 {
 	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
-	struct sock *sk = NULL;
 
-	if (tcb->bpf.map) {
-		sk = __sock_map_lookup_elem(tcb->bpf.map, tcb->bpf.key);
-
-		tcb->bpf.key = 0;
-		tcb->bpf.map = NULL;
-	}
-
-	return sk;
+	return tcb->bpf.sk_redir;
 }
 
 static const struct bpf_func_proto bpf_sk_redirect_map_proto = {
@@ -2115,6 +2135,31 @@ static const struct bpf_func_proto bpf_sk_redirect_map_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+BPF_CALL_4(bpf_msg_redirect_hash, struct sk_msg_buff *, msg,
+	   struct bpf_map *, map, void *, key, u64, flags)
+{
+	/* If user passes invalid input drop the packet. */
+	if (unlikely(flags & ~(BPF_F_INGRESS)))
+		return SK_DROP;
+
+	msg->flags = flags;
+	msg->sk_redir = __sock_hash_lookup_elem(map, key);
+	if (!msg->sk_redir)
+		return SK_DROP;
+
+	return SK_PASS;
+}
+
+static const struct bpf_func_proto bpf_msg_redirect_hash_proto = {
+	.func           = bpf_msg_redirect_hash,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
+	.arg3_type      = ARG_PTR_TO_MAP_KEY,
+	.arg4_type      = ARG_ANYTHING,
+};
+
 BPF_CALL_4(bpf_msg_redirect_map, struct sk_msg_buff *, msg,
 	   struct bpf_map *, map, u32, key, u64, flags)
 {
@@ -2122,25 +2167,17 @@ BPF_CALL_4(bpf_msg_redirect_map, struct sk_msg_buff *, msg,
 	if (unlikely(flags & ~(BPF_F_INGRESS)))
 		return SK_DROP;
 
-	msg->key = key;
 	msg->flags = flags;
-	msg->map = map;
+	msg->sk_redir = __sock_map_lookup_elem(map, key);
+	if (!msg->sk_redir)
+		return SK_DROP;
 
 	return SK_PASS;
 }
 
 struct sock *do_msg_redirect_map(struct sk_msg_buff *msg)
 {
-	struct sock *sk = NULL;
-
-	if (msg->map) {
-		sk = __sock_map_lookup_elem(msg->map, msg->key);
-
-		msg->key = 0;
-		msg->map = NULL;
-	}
-
-	return sk;
+	return msg->sk_redir;
 }
 
 static const struct bpf_func_proto bpf_msg_redirect_map_proto = {
@@ -4517,6 +4554,8 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sock_ops_cb_flags_set_proto;
 	case BPF_FUNC_sock_map_update:
 		return &bpf_sock_map_update_proto;
+	case BPF_FUNC_sock_hash_update:
+		return &bpf_sock_hash_update_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -4528,6 +4567,8 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	switch (func_id) {
 	case BPF_FUNC_msg_redirect_map:
 		return &bpf_msg_redirect_map_proto;
+	case BPF_FUNC_msg_redirect_hash:
+		return &bpf_msg_redirect_hash_proto;
 	case BPF_FUNC_msg_apply_bytes:
 		return &bpf_msg_apply_bytes_proto;
 	case BPF_FUNC_msg_cork_bytes:
@@ -4559,6 +4600,8 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_socket_uid_proto;
 	case BPF_FUNC_sk_redirect_map:
 		return &bpf_sk_redirect_map_proto;
+	case BPF_FUNC_sk_redirect_hash:
+		return &bpf_sk_redirect_hash_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
