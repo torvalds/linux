@@ -502,19 +502,12 @@ static int ovl_get_tmpfile(struct ovl_copy_up_ctx *c, struct dentry **tempp)
 
 	if (c->tmpfile) {
 		temp = ovl_do_tmpfile(c->workdir, c->stat.mode);
-		if (IS_ERR(temp))
-			goto temp_err;
 	} else {
-		temp = ovl_lookup_temp(c->workdir);
-		if (IS_ERR(temp))
-			goto temp_err;
-
-		err = ovl_create_real(d_inode(c->workdir), temp, &cattr);
-		if (err) {
-			dput(temp);
-			goto out;
-		}
+		temp = ovl_create_real(d_inode(c->workdir),
+				       ovl_lookup_temp(c->workdir), &cattr);
 	}
+	if (IS_ERR(temp))
+		goto temp_err;
 	err = 0;
 	*tempp = temp;
 out:
