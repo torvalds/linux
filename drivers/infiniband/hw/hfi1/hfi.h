@@ -333,6 +333,7 @@ struct hfi1_packet {
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
 	struct ib_grh *grh;
+	struct opa_16b_mgmt *mgmt;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -396,6 +397,12 @@ struct hfi1_packet {
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
 #define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
+
+/*
+ * OPA 16B Management
+ */
+#define OPA_16B_L4_FM_PAD	3  /* fixed 3B pad */
+#define OPA_16B_L4_FM_HLEN	24 /* 16B(16) + L4_FM(8) */
 
 static inline u8 hfi1_16B_get_l4(struct hfi1_16b_header *hdr)
 {
@@ -471,6 +478,27 @@ static inline u8 hfi1_16B_bth_get_pad(struct ib_other_headers *ohdr)
 {
 	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
 		   OPA_16B_BTH_PAD_MASK);
+}
+
+/*
+ * 16B Management
+ */
+#define OPA_16B_MGMT_QPN_MASK	0xFFFFFF
+static inline u32 hfi1_16B_get_dest_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->dest_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline u32 hfi1_16B_get_src_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->src_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline void hfi1_16B_set_qpn(struct opa_16b_mgmt *mgmt,
+				    u32 dest_qp, u32 src_qp)
+{
+	mgmt->dest_qpn = cpu_to_be32(dest_qp & OPA_16B_MGMT_QPN_MASK);
+	mgmt->src_qpn = cpu_to_be32(src_qp & OPA_16B_MGMT_QPN_MASK);
 }
 
 struct rvt_sge_state;

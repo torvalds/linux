@@ -617,7 +617,12 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 			wake_up(&mcast->wait);
 	} else {
 		/* Get the destination QP number. */
-		qp_num = ib_bth_get_qpn(packet->ohdr);
+		if (packet->etype == RHF_RCV_TYPE_BYPASS &&
+		    hfi1_16B_get_l4(packet->hdr) == OPA_16B_L4_FM)
+			qp_num = hfi1_16B_get_dest_qpn(packet->mgmt);
+		else
+			qp_num = ib_bth_get_qpn(packet->ohdr);
+
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp)
@@ -1308,21 +1313,23 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct ib_other_headers *ohdr;
+	struct ib_other_headers *ohdr = NULL;
 	send_routine sr;
 	int ret;
 	u16 pkey;
 	u32 slid;
+	u8 l4 = 0;
 
 	/* locate the pkey within the headers */
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
 		struct hfi1_16b_header *hdr = &ps->s_txreq->phdr.hdr.opah;
-		u8 l4 = hfi1_16B_get_l4(hdr);
 
-		if (l4 == OPA_16B_L4_IB_GLOBAL)
-			ohdr = &hdr->u.l.oth;
-		else
+		l4 = hfi1_16B_get_l4(hdr);
+		if (l4 == OPA_16B_L4_IB_LOCAL)
 			ohdr = &hdr->u.oth;
+		else if (l4 == OPA_16B_L4_IB_GLOBAL)
+			ohdr = &hdr->u.l.oth;
+
 		slid = hfi1_16B_get_slid(hdr);
 		pkey = hfi1_16B_get_pkey(hdr);
 	} else {
@@ -1337,7 +1344,11 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		pkey = ib_bth_get_pkey(ohdr);
 	}
 
-	ps->opcode = ib_bth_get_opcode(ohdr);
+	if (likely(l4 != OPA_16B_L4_FM))
+		ps->opcode = ib_bth_get_opcode(ohdr);
+	else
+		ps->opcode = IB_OPCODE_UD_SEND_ONLY;
+
 	sr = get_send_routine(qp, ps);
 	ret = egress_pkey_check(dd->pport, slid, pkey,
 				priv->s_sc, qp->s_pkey_index);

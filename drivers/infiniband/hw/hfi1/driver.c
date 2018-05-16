@@ -1483,38 +1483,51 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
 	u8 l4;
-	u8 grh_len;
 
 	packet->hdr = (struct hfi1_16b_header *)
 			hfi1_get_16B_header(packet->rcd->dd,
 					    packet->rhf_addr);
-	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
-
 	l4 = hfi1_16B_get_l4(packet->hdr);
 	if (l4 == OPA_16B_L4_IB_LOCAL) {
-		grh_len = 0;
 		packet->ohdr = packet->ebuf;
 		packet->grh = NULL;
+		packet->opcode = ib_bth_get_opcode(packet->ohdr);
+		packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
+		/* hdr_len_by_opcode already has an IB LRH factored in */
+		packet->hlen = hdr_len_by_opcode[packet->opcode] +
+			(LRH_16B_BYTES - LRH_9B_BYTES);
+		packet->migrated = opa_bth_is_migration(packet->ohdr);
 	} else if (l4 == OPA_16B_L4_IB_GLOBAL) {
 		u32 vtf;
+		u8 grh_len = sizeof(struct ib_grh);
 
-		grh_len = sizeof(struct ib_grh);
 		packet->ohdr = packet->ebuf + grh_len;
 		packet->grh = packet->ebuf;
+		packet->opcode = ib_bth_get_opcode(packet->ohdr);
+		packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
+		/* hdr_len_by_opcode already has an IB LRH factored in */
+		packet->hlen = hdr_len_by_opcode[packet->opcode] +
+			(LRH_16B_BYTES - LRH_9B_BYTES) + grh_len;
+		packet->migrated = opa_bth_is_migration(packet->ohdr);
+
 		if (packet->grh->next_hdr != IB_GRH_NEXT_HDR)
 			goto drop;
 		vtf = be32_to_cpu(packet->grh->version_tclass_flow);
 		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 			goto drop;
+	} else if (l4 == OPA_16B_L4_FM) {
+		packet->mgmt = packet->ebuf;
+		packet->ohdr = NULL;
+		packet->grh = NULL;
+		packet->opcode = IB_OPCODE_UD_SEND_ONLY;
+		packet->pad = OPA_16B_L4_FM_PAD;
+		packet->hlen = OPA_16B_L4_FM_HLEN;
+		packet->migrated = false;
 	} else {
 		goto drop;
 	}
 
 	/* Query commonly used fields from packet header */
-	packet->opcode = ib_bth_get_opcode(packet->ohdr);
-	/* hdr_len_by_opcode already has an IB LRH factored in */
-	packet->hlen = hdr_len_by_opcode[packet->opcode] +
-		(LRH_16B_BYTES - LRH_9B_BYTES) + grh_len;
 	packet->payload = packet->ebuf + packet->hlen - LRH_16B_BYTES;
 	packet->slid = hfi1_16B_get_slid(packet->hdr);
 	packet->dlid = hfi1_16B_get_dlid(packet->hdr);
@@ -1524,10 +1537,8 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 					    16B);
 	packet->sc = hfi1_16B_get_sc(packet->hdr);
 	packet->sl = ibp->sc_to_sl[packet->sc];
-	packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
 	packet->extra_byte = SIZE_OF_LT;
 	packet->pkey = hfi1_16B_get_pkey(packet->hdr);
-	packet->migrated = opa_bth_is_migration(packet->ohdr);
 
 	if (hfi1_bypass_ingress_pkt_check(packet))
 		goto drop;
