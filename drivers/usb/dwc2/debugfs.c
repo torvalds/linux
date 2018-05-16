@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * debugfs.c - Designware USB2 DRD controller debugfs
  *
  * Copyright (C) 2015 Intel Corporation
@@ -16,12 +16,13 @@
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
 	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+
 /**
- * testmode_write - debugfs: change usb test mode
- * @seq: The seq file to write to.
- * @v: Unused parameter.
- *
- * This debugfs entry modify the current usb test mode.
+ * testmode_write() - change usb test mode state.
+ * @file: The  file to write to.
+ * @ubuf: The buffer where user wrote.
+ * @count: The ubuf size.
+ * @ppos: Unused parameter.
  */
 static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 		count, loff_t *ppos)
@@ -55,9 +56,9 @@ static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 }
 
 /**
- * testmode_show - debugfs: show usb test mode state
- * @seq: The seq file to write to.
- * @v: Unused parameter.
+ * testmode_show() - debugfs: show usb test mode state
+ * @s: The seq file to write to.
+ * @unused: Unused parameter.
  *
  * This debugfs entry shows which usb test mode is currently enabled.
  */

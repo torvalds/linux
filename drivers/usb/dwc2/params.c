@@ -269,6 +269,9 @@ static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
 /**
  * dwc2_set_default_params() - Set all core parameters to their
  * auto-detected default values.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 {
@@ -338,6 +341,8 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_get_device_properties() - Read in device properties.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
  *
  * Read in the device properties and adjust core parameters if needed.
  */
@@ -690,6 +695,9 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 /**
  * During device initialization, read various hardware configuration
  * registers and interpret the contents.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 {

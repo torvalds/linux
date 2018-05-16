@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -107,7 +107,6 @@ static inline bool using_desc_dma(struct dwc2_hsotg *hsotg)
 /**
  * dwc2_gadget_incr_frame_num - Increments the targeted frame number.
  * @hs_ep: The endpoint
- * @increment: The value to increment by
  *
  * This function will also check if the frame number overruns DSTS_SOFFN_LIMIT.
  * If an overrun occurs it will wrap the value and set the frame_overrun flag.
@@ -190,6 +189,8 @@ static void dwc2_hsotg_ctrl_epint(struct dwc2_hsotg *hsotg,
 
 /**
  * dwc2_hsotg_tx_fifo_count - return count of TX FIFOs in device mode
+ *
+ * @hsotg: Programming view of the DWC_otg controller
  */
 int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
 {
@@ -204,6 +205,8 @@ int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
 /**
  * dwc2_hsotg_tx_fifo_total_depth - return total FIFO depth available for
  * device mode TX FIFOs
+ *
+ * @hsotg: Programming view of the DWC_otg controller
  */
 int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 {
@@ -227,6 +230,8 @@ int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 /**
  * dwc2_hsotg_tx_fifo_average_depth - returns average depth of device mode
  * TX FIFOs
+ *
+ * @hsotg: Programming view of the DWC_otg controller
  */
 int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg)
 {
@@ -327,6 +332,7 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_hsotg_ep_alloc_request - allocate USB rerequest structure
  * @ep: USB endpoint to allocate request for.
  * @flags: Allocation flags
  *
@@ -2424,6 +2430,7 @@ static u32 dwc2_hsotg_ep0_mps(unsigned int mps)
  * @ep: The index number of the endpoint
  * @mps: The maximum packet size in bytes
  * @mc: The multicount value
+ * @dir_in: True if direction is in.
  *
  * Configure the maximum packet size for the given endpoint, updating
  * the hardware control registers to reflect this.
@@ -2723,7 +2730,7 @@ static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
 
 /**
  * dwc2_gadget_handle_out_token_ep_disabled - handle DXEPINT_OUTTKNEPDIS
- * @hs_ep: The endpoint on which interrupt is asserted.
+ * @ep: The endpoint on which interrupt is asserted.
  *
  * This is starting point for ISOC-OUT transfer, synchronization done with
  * first out token received from host while corresponding EP is disabled.
@@ -3183,6 +3190,7 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 /**
  * dwc2_hsotg_core_init - issue softreset to the core
  * @hsotg: The device state
+ * @is_usb_reset: Usb resetting flag
  *
  * Issue a soft reset to the core, and await the core finishing it.
  */
@@ -4289,7 +4297,6 @@ err:
 /**
  * dwc2_hsotg_udc_stop - stop the udc
  * @gadget: The usb gadget state
- * @driver: The usb gadget driver
  *
  * Stop udc hw block and stay tunned for future transmissions
  */
@@ -4441,6 +4448,7 @@ static const struct usb_gadget_ops dwc2_hsotg_gadget_ops = {
  * @hsotg: The device state.
  * @hs_ep: The endpoint to be initialised.
  * @epnum: The endpoint number
+ * @dir_in: True if direction is in.
  *
  * Initialise the given endpoint (as part of the probe and device state
  * creation) to give to the gadget driver. Setup the endpoint name, any
@@ -4514,7 +4522,7 @@ static void dwc2_hsotg_initep(struct dwc2_hsotg *hsotg,
 
 /**
  * dwc2_hsotg_hw_cfg - read HW configuration registers
- * @param: The device state
+ * @hsotg: Programming view of the DWC_otg controller
  *
  * Read the USB core HW configuration registers
  */
@@ -4570,7 +4578,8 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_hsotg_dump - dump state of the udc
- * @param: The device state
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg)
 {
@@ -4621,7 +4630,8 @@ static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_gadget_init - init function for gadget
- * @dwc2: The data structure for the DWC2 driver.
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 {
@@ -4718,7 +4728,8 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_hsotg_remove - remove function for hsotg driver
- * @pdev: The platform information for the driver
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg)
 {
@@ -4999,7 +5010,7 @@ int dwc2_gadget_enter_hibernation(struct dwc2_hsotg *hsotg)
  *
  * @hsotg: Programming view of the DWC_otg controller
  * @rem_wakeup: indicates whether resume is initiated by Device or Host.
- * @param reset: indicates whether resume is initiated by Reset.
+ * @reset: indicates whether resume is initiated by Reset.
  *
  * Return non-zero if failed to exit from hibernation.
  */

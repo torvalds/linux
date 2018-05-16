@@ -80,7 +80,7 @@ struct dwc2_qh;
  * @xfer_count:         Number of bytes transferred so far
  * @start_pkt_count:    Packet count at start of transfer
  * @xfer_started:       True if the transfer has been started
- * @ping:               True if a PING request should be issued on this channel
+ * @do_ping:            True if a PING request should be issued on this channel
  * @error_state:        True if the error count for this transaction is non-zero
  * @halt_on_queue:      True if this channel should be halted the next time a
  *                      request is queued for the channel. This is necessary in
@@ -102,7 +102,7 @@ struct dwc2_qh;
  * @schinfo:            Scheduling micro-frame bitmap
  * @ntd:                Number of transfer descriptors for the transfer
  * @halt_status:        Reason for halting the host channel
- * @hcint               Contents of the HCINT register when the interrupt came
+ * @hcint:               Contents of the HCINT register when the interrupt came
  * @qh:                 QH for the transfer being processed by this channel
  * @hc_list_entry:      For linking to list of host channels
  * @desc_list_addr:     Current QH's descriptor list DMA address
@@ -237,7 +237,7 @@ struct dwc2_tt {
 /**
  * struct dwc2_hs_transfer_time - Info about a transfer on the high speed bus.
  *
- * @start_schedule_usecs:  The start time on the main bus schedule.  Note that
+ * @start_schedule_us:  The start time on the main bus schedule.  Note that
  *                         the main bus schedule is tightly packed and this
  *			   time should be interpreted as tightly packed (so
  *			   uFrame 0 starts at 0 us, uFrame 1 starts at 100 us
@@ -301,7 +301,6 @@ struct dwc2_hs_transfer_time {
  *                           "struct dwc2_tt".  Not used if this device is high
  *                           speed.  Note that this is in "schedule slice" which
  *                           is tightly packed.
- * @ls_duration_us:     Duration on the low speed bus schedule.
  * @ntd:                Actual number of transfer descriptors in a list
  * @qtd_list:           List of QTDs for this QH
  * @channel:            Host channel currently processing transfers for this QH
@@ -315,7 +314,7 @@ struct dwc2_hs_transfer_time {
  *                      descriptor
  * @unreserve_timer:    Timer for releasing periodic reservation.
  * @wait_timer:         Timer used to wait before re-queuing.
- * @dwc2_tt:            Pointer to our tt info (or NULL if no tt).
+ * @dwc_tt:            Pointer to our tt info (or NULL if no tt).
  * @ttport:             Port number within our tt.
  * @tt_buffer_dirty     True if clear_tt_buffer_complete is pending
  * @unreserve_pending:  True if we planned to unreserve but haven't yet.
@@ -325,6 +324,7 @@ struct dwc2_hs_transfer_time {
  *                      periodic transfers and is ignored for periodic ones.
  * @wait_timer_cancel:  Set to true to cancel the wait_timer.
  *
+ * @tt_buffer_dirty:	True if EP's TT buffer is not clean.
  * A Queue Head (QH) holds the static characteristics of an endpoint and
  * maintains a list of transfers (QTDs) for that endpoint. A QH structure may
  * be entered in either the non-periodic or periodic schedule.
@@ -400,6 +400,10 @@ struct dwc2_qh {
  * @urb:                URB for this transfer
  * @qh:                 Queue head for this QTD
  * @qtd_list_entry:     For linking to the QH's list of QTDs
+ * @isoc_td_first:	Index of first activated isochronous transfer
+ *			descriptor in Descriptor DMA mode
+ * @isoc_td_last:	Index of last activated isochronous transfer
+ *			descriptor in Descriptor DMA mode
  *
  * A Queue Transfer Descriptor (QTD) holds the state of a bulk, control,
  * interrupt, or isochronous transfer. A single QTD is created for each URB
