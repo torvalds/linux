@@ -829,6 +829,9 @@ static int qed_ll2_lb_rxq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	struct qed_ll2_info *p_ll2_conn = (struct qed_ll2_info *)p_cookie;
 	int rc;
 
+	if (!QED_LL2_RX_REGISTERED(p_ll2_conn))
+		return 0;
+
 	rc = qed_ll2_lb_rxq_handler(p_hwfn, p_ll2_conn);
 	if (rc)
 		return rc;
@@ -848,6 +851,9 @@ static int qed_ll2_lb_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	bool b_dont_submit_rx = false;
 	u16 new_idx = 0, num_bds = 0;
 	int rc;
+
+	if (!QED_LL2_TX_REGISTERED(p_ll2_conn))
+		return 0;
 
 	new_idx = le16_to_cpu(*p_tx->p_fw_cons);
 	num_bds = ((s16)new_idx - (s16)p_tx->bds_idx);
@@ -1915,17 +1921,25 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 
 	/* Stop Tx & Rx of connection, if needed */
 	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
+		p_ll2_conn->tx_queue.b_cb_registred = false;
+		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_tx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
 			goto out;
+
 		qed_ll2_txq_flush(p_hwfn, connection_handle);
+		qed_int_unregister_cb(p_hwfn, p_ll2_conn->tx_queue.tx_sb_index);
 	}
 
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
+		p_ll2_conn->rx_queue.b_cb_registred = false;
+		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
 			goto out;
+
 		qed_ll2_rxq_flush(p_hwfn, connection_handle);
+		qed_int_unregister_cb(p_hwfn, p_ll2_conn->rx_queue.rx_sb_index);
 	}
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_OOO)
@@ -1973,16 +1987,6 @@ void qed_ll2_release_connection(void *cxt, u8 connection_handle)
 	p_ll2_conn = qed_ll2_handle_sanity(p_hwfn, connection_handle);
 	if (!p_ll2_conn)
 		return;
-
-	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->rx_queue.b_cb_registred = false;
-		qed_int_unregister_cb(p_hwfn, p_ll2_conn->rx_queue.rx_sb_index);
-	}
-
-	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->tx_queue.b_cb_registred = false;
-		qed_int_unregister_cb(p_hwfn, p_ll2_conn->tx_queue.tx_sb_index);
-	}
 
 	kfree(p_ll2_conn->tx_queue.descq_mem);
 	qed_chain_free(p_hwfn->cdev, &p_ll2_conn->tx_queue.txq_chain);
