@@ -3621,6 +3621,7 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 	xhci_debugfs_remove_slot(xhci, udev->slot_id);
+	virt_dev->udev = NULL;
 	ret = xhci_disable_slot(xhci, udev->slot_id);
 	if (ret)
 		xhci_free_virt_device(xhci, udev->slot_id);

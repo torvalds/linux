@@ -488,8 +488,12 @@ int cmd_buildid_cache(int argc, const char **argv)
 		}
 	}
 
-	if (purge_all)
-		ret = build_id_cache__purge_all();
+	if (purge_all) {
+		if (build_id_cache__purge_all()) {
+			pr_warning("Couldn't remove some caches. Error: %s.\n",
+				str_error_r(errno, sbuf, sizeof(sbuf)));
+		}
+	}
 
 	if (missing_filename)
 		ret = build_id_cache__fprintf_missing(session, stdout);

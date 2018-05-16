@@ -161,7 +161,7 @@ PE_NAME '{' events '}'
 	struct list_head *list = $3;
 
 	inc_group_count(list, _parse_state);
-	parse_events__set_leader($1, list);
+	parse_events__set_leader($1, list, _parse_state);
 	$$ = list;
 }
 |
@@ -170,7 +170,7 @@ PE_NAME '{' events '}'
 	struct list_head *list = $2;
 
 	inc_group_count(list, _parse_state);
-	parse_events__set_leader(NULL, list);
+	parse_events__set_leader(NULL, list, _parse_state);
 	$$ = list;
 }
 
@@ -224,15 +224,15 @@ event_def: event_pmu |
 	   event_bpf_file
 
 event_pmu:
-PE_NAME '/' event_config '/'
+PE_NAME opt_event_config
 {
 	struct list_head *list, *orig_terms, *terms;
 
-	if (parse_events_copy_term_list($3, &orig_terms))
+	if (parse_events_copy_term_list($2, &orig_terms))
 		YYABORT;
 
 	ALLOC_LIST(list);
-	if (parse_events_add_pmu(_parse_state, list, $1, $3, false)) {
+	if (parse_events_add_pmu(_parse_state, list, $1, $2, false, false)) {
 		struct perf_pmu *pmu = NULL;
 		int ok = 0;
 		char *pattern;
@@ -251,7 +251,7 @@ PE_NAME '/' event_config '/'
 					free(pattern);
 					YYABORT;
 				}
-				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms, true))
+				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms, true, false))
 					ok++;
 				parse_events_terms__delete(terms);
 			}
@@ -262,7 +262,7 @@ PE_NAME '/' event_config '/'
 		if (!ok)
 			YYABORT;
 	}
-	parse_events_terms__delete($3);
+	parse_events_terms__delete($2);
 	parse_events_terms__delete(orig_terms);
 	$$ = list;
 }

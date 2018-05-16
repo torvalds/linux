@@ -620,7 +620,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 					to_hr_ucontext(ib_pd->uobject->context),
 					ucmd.db_addr, &hr_qp->rdb);
 			if (ret) {
-				dev_err(dev, "rp record doorbell map failed!\n");
+				dev_err(dev, "rq record doorbell map failed!\n");
 				goto err_mtt;
 			}
 		}

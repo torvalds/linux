@@ -1149,7 +1149,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	bool is_64_bit;
 	int err, fd;
 	char kcore_filename[PATH_MAX];
-	struct symbol *sym;
+	u64 stext;
 
 	if (!kmaps)
 		return -EINVAL;
@@ -1198,13 +1198,13 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		old_map = next;
 	}
 
-	/* Find the kernel map using the first symbol */
-	sym = dso__first_symbol(dso);
-	list_for_each_entry(new_map, &md.maps, node) {
-		if (sym && sym->start >= new_map->start &&
-		    sym->start < new_map->end) {
-			replacement_map = new_map;
-			break;
+	/* Find the kernel map using the '_stext' symbol */
+	if (!kallsyms__get_function_start(kallsyms_filename, "_stext", &stext)) {
+		list_for_each_entry(new_map, &md.maps, node) {
+			if (stext >= new_map->start && stext < new_map->end) {
+				replacement_map = new_map;
+				break;
+			}
 		}
 	}
 
