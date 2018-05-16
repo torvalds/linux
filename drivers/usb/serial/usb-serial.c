@@ -192,7 +192,7 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (retval)
 		goto error_get_interface;
 
-	retval = tty_port_install(&port->port, driver, tty);
+	retval = tty_standard_install(driver, tty);
 	if (retval)
 		goto error_init_termios;
 
