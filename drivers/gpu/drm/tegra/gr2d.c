@@ -8,16 +8,23 @@
 
 #include <linux/clk.h>
 #include <linux/iommu.h>
+#include <linux/of_device.h>
 
 #include "drm.h"
 #include "gem.h"
 #include "gr2d.h"
+
+struct gr2d_soc {
+	unsigned int version;
+};
 
 struct gr2d {
 	struct iommu_group *group;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct clk *clk;
+
+	const struct gr2d_soc *soc;
 
 	DECLARE_BITMAP(addr_regs, GR2D_NUM_REGS);
 };
@@ -150,9 +157,17 @@ static const struct tegra_drm_client_ops gr2d_ops = {
 	.submit = tegra_drm_submit,
 };
 
+static const struct gr2d_soc tegra20_gr2d_soc = {
+	.version = 0x20,
+};
+
+static const struct gr2d_soc tegra30_gr2d_soc = {
+	.version = 0x30,
+};
+
 static const struct of_device_id gr2d_match[] = {
-	{ .compatible = "nvidia,tegra30-gr2d" },
-	{ .compatible = "nvidia,tegra20-gr2d" },
+	{ .compatible = "nvidia,tegra30-gr2d", .data = &tegra20_gr2d_soc },
+	{ .compatible = "nvidia,tegra20-gr2d", .data = &tegra30_gr2d_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, gr2d_match);
@@ -185,6 +200,8 @@ static int gr2d_probe(struct platform_device *pdev)
 	if (!gr2d)
 		return -ENOMEM;
 
+	gr2d->soc = of_device_get_match_data(dev);
+
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
 		return -ENOMEM;
@@ -209,6 +226,7 @@ static int gr2d_probe(struct platform_device *pdev)
 	gr2d->client.base.num_syncpts = 1;
 
 	INIT_LIST_HEAD(&gr2d->client.list);
+	gr2d->client.version = gr2d->soc->version;
 	gr2d->client.ops = &gr2d_ops;
 
 	err = host1x_client_register(&gr2d->client.base);
