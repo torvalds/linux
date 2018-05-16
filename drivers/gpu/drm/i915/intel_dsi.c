@@ -1846,7 +1846,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	connector->display_info.width_mm = fixed_mode->width_mm;
 	connector->display_info.height_mm = fixed_mode->height_mm;
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	intel_dsi_add_properties(intel_connector);
