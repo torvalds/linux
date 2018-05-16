@@ -97,6 +97,9 @@ struct tls_sw_context {
 	u8 control;
 	bool decrypted;
 
+	char rx_aad_ciphertext[TLS_AAD_SPACE_SIZE];
+	char rx_aad_plaintext[TLS_AAD_SPACE_SIZE];
+
 	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
 

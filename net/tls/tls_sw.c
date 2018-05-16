@@ -680,7 +680,6 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	struct scatterlist *sgin = &sgin_arr[0];
 	struct strp_msg *rxm = strp_msg(skb);
 	int ret, nsg = ARRAY_SIZE(sgin_arr);
-	char aad_recv[TLS_AAD_SPACE_SIZE];
 	struct sk_buff *unused;
 
 	ret = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
@@ -698,13 +697,13 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	}
 
 	sg_init_table(sgin, nsg);
-	sg_set_buf(&sgin[0], aad_recv, sizeof(aad_recv));
+	sg_set_buf(&sgin[0], ctx->rx_aad_ciphertext, TLS_AAD_SPACE_SIZE);
 
 	nsg = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + tls_ctx->rx.prepend_size,
 			   rxm->full_len - tls_ctx->rx.prepend_size);
 
-	tls_make_aad(aad_recv,
+	tls_make_aad(ctx->rx_aad_ciphertext,
 		     rxm->full_len - tls_ctx->rx.overhead_size,
 		     tls_ctx->rx.rec_seq,
 		     tls_ctx->rx.rec_seq_size,
@@ -803,12 +802,12 @@ int tls_sw_recvmsg(struct sock *sk,
 			if (to_copy <= len && page_count < MAX_SKB_FRAGS &&
 			    likely(!(flags & MSG_PEEK)))  {
 				struct scatterlist sgin[MAX_SKB_FRAGS + 1];
-				char unused[21];
 				int pages = 0;
 
 				zc = true;
 				sg_init_table(sgin, MAX_SKB_FRAGS + 1);
-				sg_set_buf(&sgin[0], unused, 13);
+				sg_set_buf(&sgin[0], ctx->rx_aad_plaintext,
+					   TLS_AAD_SPACE_SIZE);
 
 				err = zerocopy_from_iter(sk, &msg->msg_iter,
 							 to_copy, &pages,
