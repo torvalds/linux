@@ -365,13 +365,9 @@ static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
 	if (err)
 		return err;
 
-	temp = ovl_lookup_temp(indexdir);
+	temp = ovl_create_temp(indexdir, OVL_CATTR(S_IFDIR | 0));
 	if (IS_ERR(temp))
 		goto temp_err;
-
-	err = ovl_do_mkdir(dir, temp, S_IFDIR);
-	if (err)
-		goto out;
 
 	err = ovl_set_upper_fh(upper, temp);
 	if (err)
@@ -500,12 +496,10 @@ static int ovl_get_tmpfile(struct ovl_copy_up_ctx *c, struct dentry **tempp)
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	if (c->tmpfile) {
+	if (c->tmpfile)
 		temp = ovl_do_tmpfile(c->workdir, c->stat.mode);
-	} else {
-		temp = ovl_create_real(d_inode(c->workdir),
-				       ovl_lookup_temp(c->workdir), &cattr);
-	}
+	else
+		temp = ovl_create_temp(c->workdir, &cattr);
 	if (IS_ERR(temp))
 		goto temp_err;
 	err = 0;
