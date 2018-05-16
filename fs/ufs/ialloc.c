@@ -343,8 +343,7 @@ cg_found:
 fail_remove_inode:
 	mutex_unlock(&sbi->s_lock);
 	clear_nlink(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	discard_new_inode(inode);
 	UFSD("EXIT (FAILED): err %d\n", err);
 	return ERR_PTR(err);
 failed:
