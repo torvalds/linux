@@ -247,7 +247,7 @@ static void cdma_start_timer_locked(struct host1x_cdma *cdma,
 static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
 {
 	cancel_delayed_work(&cdma->timeout.wq);
-	cdma->timeout.client = 0;
+	cdma->timeout.client = NULL;
 }
 
 /*

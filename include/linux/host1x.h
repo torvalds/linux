@@ -202,7 +202,8 @@ struct host1x_job {
 	/* Channel where job is submitted to */
 	struct host1x_channel *channel;
 
-	u32 client;
+	/* client where the job originated */
+	struct host1x_client *client;
 
 	/* Gathers and their memory */
 	struct host1x_job_gather *gathers;

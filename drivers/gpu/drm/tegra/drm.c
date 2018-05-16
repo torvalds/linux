@@ -325,6 +325,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
 {
+	struct host1x_client *client = &context->client->base;
 	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_relocs = args->num_relocs;
 	struct drm_tegra_cmdbuf __user *user_cmdbufs;
@@ -356,8 +357,8 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		return -ENOMEM;
 
 	job->num_relocs = args->num_relocs;
-	job->client = (u32)args->context;
-	job->class = context->client->base.class;
+	job->client = client;
+	job->class = client->class;
 	job->serialize = true;
 
 	/*

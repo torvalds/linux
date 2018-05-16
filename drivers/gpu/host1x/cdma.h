@@ -58,7 +58,7 @@ struct buffer_timeout {
 	u32 syncpt_val;			/* syncpt value when completed */
 	ktime_t start_ktime;		/* starting time */
 	/* context timeout information */
-	int client;
+	struct host1x_client *client;
 };
 
 enum cdma_event {
