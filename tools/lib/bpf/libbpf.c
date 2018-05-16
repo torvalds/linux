@@ -178,6 +178,7 @@ struct bpf_program {
 	/* Index in elf obj file, for relocation use. */
 	int idx;
 	char *name;
+	int prog_ifindex;
 	char *section_name;
 	struct bpf_insn *insns;
 	size_t insns_cnt, main_prog_cnt;
@@ -213,6 +214,7 @@ struct bpf_map {
 	int fd;
 	char *name;
 	size_t offset;
+	int map_ifindex;
 	struct bpf_map_def def;
 	uint32_t btf_key_id;
 	uint32_t btf_value_id;
@@ -1091,6 +1093,7 @@ bpf_object__create_maps(struct bpf_object *obj)
 		int *pfd = &map->fd;
 
 		create_attr.name = map->name;
+		create_attr.map_ifindex = map->map_ifindex;
 		create_attr.map_type = def->type;
 		create_attr.map_flags = def->map_flags;
 		create_attr.key_size = def->key_size;
@@ -1273,7 +1276,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 static int
 load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
 	     const char *name, struct bpf_insn *insns, int insns_cnt,
-	     char *license, u32 kern_version, int *pfd)
+	     char *license, u32 kern_version, int *pfd, int prog_ifindex)
 {
 	struct bpf_load_program_attr load_attr;
 	char *log_buf;
@@ -1287,6 +1290,7 @@ load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
 	load_attr.insns_cnt = insns_cnt;
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
+	load_attr.prog_ifindex = prog_ifindex;
 
 	if (!load_attr.insns || !load_attr.insns_cnt)
 		return -EINVAL;
@@ -1368,7 +1372,8 @@ bpf_program__load(struct bpf_program *prog,
 		}
 		err = load_program(prog->type, prog->expected_attach_type,
 				   prog->name, prog->insns, prog->insns_cnt,
-				   license, kern_version, &fd);
+				   license, kern_version, &fd,
+				   prog->prog_ifindex);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -1399,7 +1404,8 @@ bpf_program__load(struct bpf_program *prog,
 		err = load_program(prog->type, prog->expected_attach_type,
 				   prog->name, result.new_insn_ptr,
 				   result.new_insn_cnt,
-				   license, kern_version, &fd);
+				   license, kern_version, &fd,
+				   prog->prog_ifindex);
 
 		if (err) {
 			pr_warning("Loading the %dth instance of program '%s' failed\n",
@@ -2188,6 +2194,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
 	struct bpf_object *obj;
+	struct bpf_map *map;
 	int section_idx;
 	int err;
 
@@ -2207,6 +2214,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		 * section name.
 		 */
 		prog_type = attr->prog_type;
+		prog->prog_ifindex = attr->ifindex;
 		expected_attach_type = attr->expected_attach_type;
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
 			section_idx = bpf_program__identify_section(prog);
@@ -2225,6 +2233,10 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 
 		if (prog->idx != obj->efile.text_shndx && !first_prog)
 			first_prog = prog;
+	}
+
+	bpf_map__for_each(map, obj) {
+		map->map_ifindex = attr->ifindex;
 	}
 
 	if (!first_prog) {

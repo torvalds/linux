@@ -259,6 +259,7 @@ struct bpf_prog_load_attr {
 	const char *file;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
+	int ifindex;
 };
 
 int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,

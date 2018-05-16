@@ -38,6 +38,7 @@ struct bpf_create_map_attr {
 	__u32 btf_fd;
 	__u32 btf_key_id;
 	__u32 btf_value_id;
+	__u32 map_ifindex;
 };
 
 int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
@@ -64,6 +65,7 @@ struct bpf_load_program_attr {
 	size_t insns_cnt;
 	const char *license;
 	__u32 kern_version;
+	__u32 prog_ifindex;
 };
 
 /* Recommend log buffer size */
