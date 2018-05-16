@@ -172,6 +172,8 @@ static void xlp9xx_i2c_update_rlen(struct xlp9xx_i2c_dev *priv)
 	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
 				  XLP9XX_I2C_FIFO_WCNT_MASK;
 	len = max_t(u32, priv->msg_len, len + 4);
+	if (len >= I2C_SMBUS_BLOCK_MAX + 2)
+		return;
 	val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
 			(len << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
@@ -189,14 +191,20 @@ static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 	if (priv->len_recv) {
 		/* read length byte */
 		rlen = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
-		*buf++ = rlen;
-		if (priv->client_pec)
-			++rlen;
-		/* update remaining bytes and message length */
-		priv->msg_buf_remaining = rlen;
-		priv->msg_len = rlen + 1;
-		priv->len_recv = false;
+		if (rlen > I2C_SMBUS_BLOCK_MAX || rlen == 0) {
+			rlen = 0;	/*abort transfer */
+			priv->msg_buf_remaining = 0;
+			priv->msg_len = 0;
+		} else {
+			*buf++ = rlen;
+			if (priv->client_pec)
+				++rlen; /* account for error check byte */
+			/* update remaining bytes and message length */
+			priv->msg_buf_remaining = rlen;
+			priv->msg_len = rlen + 1;
+		}
 		xlp9xx_i2c_update_rlen(priv);
+		priv->len_recv = false;
 	} else {
 		len = min(priv->msg_buf_remaining, len);
 		for (i = 0; i < len; i++, buf++)
@@ -315,10 +323,6 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_MFIFOCTRL,
 			     XLP9XX_I2C_MFIFOCTRL_RST);
 
-	/* set FIFO threshold if reading */
-	if (priv->msg_read)
-		xlp9xx_i2c_update_rx_fifo_thres(priv);
-
 	/* set slave addr */
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_SLAVEADDR,
 			     (msg->addr << XLP9XX_I2C_SLAVEADDR_ADDR_SHIFT) |
@@ -337,8 +341,12 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 		val &= ~XLP9XX_I2C_CTRL_ADDMODE;
 
 	priv->len_recv = msg->flags & I2C_M_RECV_LEN;
-	len = priv->len_recv ? XLP9XX_I2C_FIFO_SIZE : msg->len;
+	len = priv->len_recv ? I2C_SMBUS_BLOCK_MAX + 2 : msg->len;
 	priv->client_pec = msg->flags & I2C_CLIENT_PEC;
+
+	/* set FIFO threshold if reading */
+	if (priv->msg_read)
+		xlp9xx_i2c_update_rx_fifo_thres(priv);
 
 	/* set data length to be transferred */
 	val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
@@ -393,8 +401,11 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	}
 
 	/* update msg->len with actual received length */
-	if (msg->flags & I2C_M_RECV_LEN)
+	if (msg->flags & I2C_M_RECV_LEN) {
+		if (!priv->msg_len)
+			return -EPROTO;
 		msg->len = priv->msg_len;
+	}
 	return 0;
 }
 
