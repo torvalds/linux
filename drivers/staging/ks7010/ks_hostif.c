@@ -989,7 +989,7 @@ static void *hostif_generic_request(size_t size, int event)
 	if (!p)
 		return NULL;
 
-	p->size = cpu_to_le16((u16)(size - sizeof(p->size)));
+	p->size = cpu_to_le16(size - sizeof(p->size));
 	p->event = cpu_to_le16(event);
 
 	return p;
@@ -1109,7 +1109,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		    priv->wpa.key[1].key_len == 0 &&
 		    priv->wpa.key[2].key_len == 0 &&
 		    priv->wpa.key[3].key_len == 0) {
-			pp->auth_type = cpu_to_le16((u16)TYPE_AUTH);
+			pp->auth_type = cpu_to_le16(TYPE_AUTH);
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
 				michael_mic_function(&michael_mic,
@@ -1121,26 +1121,25 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 				skb_len += 8;
 				p += 8;
 				pp->auth_type =
-				    cpu_to_le16((u16)TYPE_DATA);
+				    cpu_to_le16(TYPE_DATA);
 
 			} else if (priv->wpa.pairwise_suite ==
 				   IW_AUTH_CIPHER_CCMP) {
 				pp->auth_type =
-				    cpu_to_le16((u16)TYPE_DATA);
+				    cpu_to_le16(TYPE_DATA);
 			}
 		}
 	} else {
 		if (eth_proto == ETH_P_PAE)
-			pp->auth_type = cpu_to_le16((u16)TYPE_AUTH);
+			pp->auth_type = cpu_to_le16(TYPE_AUTH);
 		else
-			pp->auth_type = cpu_to_le16((u16)TYPE_DATA);
+			pp->auth_type = cpu_to_le16(TYPE_DATA);
 	}
 
 	/* header value set */
 	pp->header.size =
-	    cpu_to_le16((u16)
-			(sizeof(*pp) - sizeof(pp->header.size) + skb_len));
-	pp->header.event = cpu_to_le16((u16)HIF_DATA_REQ);
+	    cpu_to_le16((sizeof(*pp) - sizeof(pp->header.size) + skb_len));
+	pp->header.event = cpu_to_le16(HIF_DATA_REQ);
 
 	/* tx request */
 	result = ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + skb_len),
@@ -1211,7 +1210,7 @@ static void hostif_mib_set_request(struct ks_wlan_private *priv,
 		return;
 
 	pp->mib_attribute = cpu_to_le32(attr);
-	pp->mib_value.size = cpu_to_le16((u16)size);
+	pp->mib_value.size = cpu_to_le16(size);
 	pp->mib_value.type = cpu_to_le16(type);
 	memcpy(&pp->mib_value.body, data, size);
 
@@ -1221,7 +1220,7 @@ static void hostif_mib_set_request(struct ks_wlan_private *priv,
 static inline void hostif_mib_set_request_int(struct ks_wlan_private *priv,
 					      enum mib_attribute attr, int val)
 {
-	__le32 v = cpu_to_le32((u32)val);
+	__le32 v = cpu_to_le32(val);
 	size_t size = sizeof(v);
 
 	hostif_mib_set_request(priv, attr, MIB_VALUE_TYPE_INT, &v, size);
@@ -1231,7 +1230,7 @@ static inline void hostif_mib_set_request_bool(struct ks_wlan_private *priv,
 					       enum mib_attribute attr,
 					       bool val)
 {
-	__le32 v = cpu_to_le32((u32)val);
+	__le32 v = cpu_to_le32(val);
 	size_t size = sizeof(v);
 
 	hostif_mib_set_request(priv, attr, MIB_VALUE_TYPE_BOOL, &v, size);
@@ -1253,7 +1252,7 @@ void hostif_start_request(struct ks_wlan_private *priv, unsigned char mode)
 	if (!pp)
 		return;
 
-	pp->mode = cpu_to_le16((u16)mode);
+	pp->mode = cpu_to_le16(mode);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 
@@ -1281,9 +1280,9 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 static void init_request(struct ks_wlan_private *priv,
 			 struct hostif_request *req)
 {
-	req->phy_type = cpu_to_le16((u16)(priv->reg.phy_type));
-	req->cts_mode = cpu_to_le16((u16)(priv->reg.cts_mode));
-	req->scan_type = cpu_to_le16((u16)(priv->reg.scan_type));
+	req->phy_type = cpu_to_le16(priv->reg.phy_type);
+	req->cts_mode = cpu_to_le16(priv->reg.cts_mode);
+	req->scan_type = cpu_to_le16(priv->reg.scan_type);
 	req->rate_set.size = priv->reg.rate_set.size;
 	req->capability = ks_wlan_cap(priv);
 	memcpy(&req->rate_set.body[0], &priv->reg.rate_set.body[0],
@@ -1300,7 +1299,7 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 		return;
 
 	init_request(priv, &pp->request);
-	pp->channel = cpu_to_le16((u16)(priv->reg.channel));
+	pp->channel = cpu_to_le16(priv->reg.channel);
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
 }
@@ -1318,8 +1317,8 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv, int event)
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
 	pp->beacon_lost_count =
-	    cpu_to_le16((u16)(priv->reg.beacon_lost_count));
-	pp->auth_type = cpu_to_le16((u16)(priv->reg.authenticate_type));
+	    cpu_to_le16(priv->reg.beacon_lost_count);
+	pp->auth_type = cpu_to_le16(priv->reg.authenticate_type);
 
 	pp->channel_list.body[0] = 1;
 	pp->channel_list.body[1] = 8;
@@ -1354,7 +1353,7 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 		return;
 
 	init_request(priv, &pp->request);
-	pp->channel = cpu_to_le16((u16)(priv->reg.channel));
+	pp->channel = cpu_to_le16(priv->reg.channel);
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
 
@@ -1403,11 +1402,11 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 		return;
 
 	if (priv->reg.phy_info_timer) {
-		pp->type = cpu_to_le16((u16)TIME_TYPE);
-		pp->time = cpu_to_le16((u16)(priv->reg.phy_info_timer));
+		pp->type = cpu_to_le16(TIME_TYPE);
+		pp->time = cpu_to_le16(priv->reg.phy_info_timer);
 	} else {
-		pp->type = cpu_to_le16((u16)NORMAL_TYPE);
-		pp->time = cpu_to_le16((u16)0);
+		pp->type = cpu_to_le16(NORMAL_TYPE);
+		pp->time = cpu_to_le16(0);
 	}
 
 	send_request_to_device(priv, pp, hif_align_size(sizeof(*pp)));
@@ -1464,8 +1463,8 @@ void hostif_bss_scan_request(struct ks_wlan_private *priv,
 
 	pp->scan_type = scan_type;
 
-	pp->ch_time_min = cpu_to_le32((u32)110);	/* default value */
-	pp->ch_time_max = cpu_to_le32((u32)130);	/* default value */
+	pp->ch_time_min = cpu_to_le32(110);	/* default value */
+	pp->ch_time_max = cpu_to_le32(130);	/* default value */
 	pp->channel_list.body[0] = 1;
 	pp->channel_list.body[1] = 8;
 	pp->channel_list.body[2] = 2;
@@ -1619,7 +1618,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 
 	switch (type) {
 	case SME_RSN_UCAST_REQUEST:
-		wpa_suite.size = cpu_to_le16((u16)1);
+		wpa_suite.size = cpu_to_le16(1);
 		switch (priv->wpa.pairwise_suite) {
 		case IW_AUTH_CIPHER_NONE:
 			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
@@ -1682,7 +1681,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 					       CIPHER_ID_LEN);
 		break;
 	case SME_RSN_AUTH_REQUEST:
-		wpa_suite.size = cpu_to_le16((u16)1);
+		wpa_suite.size = cpu_to_le16(1);
 		switch (priv->wpa.key_mgmt_suite) {
 		case IW_AUTH_KEY_MGMT_802_1X:
 			buf = (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2) ?
@@ -1721,7 +1720,7 @@ static void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 			(priv->wpa.version == IW_AUTH_WPA_VERSION_WPA) ?
 			 RSN_MODE_WPA : RSN_MODE_NONE;
 		rsn_mode.rsn_mode = cpu_to_le32(mode);
-		rsn_mode.rsn_capability = cpu_to_le16((u16)0);
+		rsn_mode.rsn_capability = cpu_to_le16(0);
 		hostif_mib_set_request_ostring(priv, LOCAL_RSN_MODE,
 					       &rsn_mode, sizeof(rsn_mode));
 		break;
@@ -1979,7 +1978,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		memcpy(pmkcache.list[i].pmkid, pmk->pmkid, IW_PMKID_LEN);
 		i++;
 	}
-	pmkcache.size = cpu_to_le16((u16)(priv->pmklist.size));
+	pmkcache.size = cpu_to_le16(priv->pmklist.size);
 	size = sizeof(priv->pmklist.size) +
 	       ((ETH_ALEN + IW_PMKID_LEN) * priv->pmklist.size);
 	hostif_mib_set_request_ostring(priv, LOCAL_PMK, &pmkcache, size);
