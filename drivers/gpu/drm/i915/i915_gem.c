@@ -3036,7 +3036,7 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 * Turning off the execlists->tasklet until the reset is over
 	 * prevents the race.
 	 */
-	tasklet_disable(&engine->execlists.tasklet);
+	__tasklet_disable_sync_once(&engine->execlists.tasklet);
 
 	/*
 	 * We're using worker to queue preemption requests from the tasklet in

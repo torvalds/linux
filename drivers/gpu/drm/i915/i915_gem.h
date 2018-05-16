@@ -26,6 +26,7 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
+#include <linux/interrupt.h>
 
 struct drm_i915_private;
 
@@ -71,5 +72,11 @@ struct drm_i915_private;
 
 void i915_gem_park(struct drm_i915_private *i915);
 void i915_gem_unpark(struct drm_i915_private *i915);
+
+static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
+{
+	if (atomic_inc_return(&t->count) == 1)
+		tasklet_unlock_wait(t);
+}
 
 #endif /* __I915_GEM_H__ */
