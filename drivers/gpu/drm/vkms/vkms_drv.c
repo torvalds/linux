@@ -133,5 +133,7 @@ static void __exit vkms_exit(void)
 module_init(vkms_init);
 module_exit(vkms_exit);
 
+MODULE_AUTHOR("Haneen Mohammed <hamohammed.sa@gmail.com>");
+MODULE_AUTHOR("Rodrigo Siqueira <rodrigosiqueiramelo@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

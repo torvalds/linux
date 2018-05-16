@@ -214,10 +214,14 @@ config DRM_VGEM
 	  If M is selected the module will be called vgem.
 
 config DRM_VKMS
-	tristate "Virtual KMS"
+	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
+	default n
 	help
-	  Choose this option to get a virtual kernal mode-setting driver.
+	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
+	  running GPU in a headless machines. Choose this option to get
+	  a VKMS.
+
 	  If M is selected the module will be called vkms.
 
 source "drivers/gpu/drm/exynos/Kconfig"
