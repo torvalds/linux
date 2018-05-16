@@ -851,6 +851,7 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"pmu_hclk_otg0",
 	/* pwm-regulators on some boards, so handoff-critical later */
 	"pclk_rkpwm",
+	"aclk_dmac1",
 };
 
 static void __iomem *rk3288_cru_base;
