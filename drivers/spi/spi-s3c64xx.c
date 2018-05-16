@@ -1292,8 +1292,6 @@ static int s3c64xx_spi_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	s3c64xx_spi_hwinit(sdd);
-
 	return spi_master_resume(master);
 }
 #endif /* CONFIG_PM_SLEEP */
@@ -1330,6 +1328,8 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 	ret = clk_prepare_enable(sdd->clk);
 	if (ret != 0)
 		goto err_disable_src_clk;
+
+	s3c64xx_spi_hwinit(sdd);
 
 	return 0;
 
