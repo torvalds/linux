@@ -173,9 +173,12 @@ static const struct device_attribute pid_attr = {
 static void nbd_dev_remove(struct nbd_device *nbd)
 {
 	struct gendisk *disk = nbd->disk;
+	struct request_queue *q;
+
 	if (disk) {
+		q = disk->queue;
 		del_gendisk(disk);
-		blk_cleanup_queue(disk->queue);
+		blk_cleanup_queue(q);
 		blk_mq_free_tag_set(&nbd->tag_set);
 		disk->private_data = NULL;
 		put_disk(disk);
