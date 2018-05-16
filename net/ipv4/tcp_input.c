@@ -1929,11 +1929,11 @@ static bool tcp_is_rack(const struct sock *sk)
 static void tcp_timeout_mark_lost(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sk_buff *skb;
+	struct sk_buff *skb, *head;
 	bool is_reneg;			/* is receiver reneging on SACKs? */
 
-	skb = tcp_rtx_queue_head(sk);
-	is_reneg = skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED);
+	head = tcp_rtx_queue_head(sk);
+	is_reneg = head && (TCP_SKB_CB(head)->sacked & TCPCB_SACKED_ACKED);
 	if (is_reneg) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSACKRENEGING);
 		tp->sacked_out = 0;
@@ -1943,9 +1943,13 @@ static void tcp_timeout_mark_lost(struct sock *sk)
 		tcp_reset_reno_sack(tp);
 	}
 
+	skb = head;
 	skb_rbtree_walk_from(skb) {
 		if (is_reneg)
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_ACKED;
+		else if (tcp_is_rack(sk) && skb != head &&
+			 tcp_rack_skb_timeout(tp, skb, 0) > 0)
+			continue; /* Don't mark recently sent ones lost yet */
 		tcp_mark_skb_lost(sk, skb);
 	}
 	tcp_verify_left_out(tp);
@@ -1972,7 +1976,7 @@ void tcp_enter_loss(struct sock *sk)
 		tcp_ca_event(sk, CA_EVENT_LOSS);
 		tcp_init_undo(tp);
 	}
-	tp->snd_cwnd	   = 1;
+	tp->snd_cwnd	   = tcp_packets_in_flight(tp) + 1;
 	tp->snd_cwnd_cnt   = 0;
 	tp->snd_cwnd_stamp = tcp_jiffies32;
 
