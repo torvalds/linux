@@ -2012,7 +2012,7 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u32 rlid, u32 lqpn,
 		unsigned long nsec = 1024 * ccti_timer;
 
 		hrtimer_start(&cca_timer->hrtimer, ns_to_ktime(nsec),
-			      HRTIMER_MODE_REL);
+			      HRTIMER_MODE_REL_PINNED);
 	}
 
 	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);

@@ -2225,7 +2225,7 @@ void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
 	to = rvt_aeth_to_usec(aeth);
 	trace_rvt_rnrnak_add(qp, to);
 	hrtimer_start(&qp->s_rnr_timer,
-		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
+		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL_PINNED);
 }
 EXPORT_SYMBOL(rvt_add_rnr_timer);
 
