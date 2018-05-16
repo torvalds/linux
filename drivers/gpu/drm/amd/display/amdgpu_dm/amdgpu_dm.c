@@ -2095,12 +2095,6 @@ convert_color_depth_from_display_info(const struct drm_connector *connector)
 {
 	uint32_t bpc = connector->display_info.bpc;
 
-	/* Limited color depth to 8bit
-	 * TODO: Still need to handle deep color
-	 */
-	if (bpc > 8)
-		bpc = 8;
-
 	switch (bpc) {
 	case 0:
 		/* Temporary Work around, DRM don't parse color depth for
