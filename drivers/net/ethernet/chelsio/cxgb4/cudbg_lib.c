@@ -2366,8 +2366,11 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 	value = t4_read_reg(padap, LE_DB_ROUTING_TABLE_INDEX_A);
 	tcam_region->routing_start = value;
 
-	/*Get clip table index */
-	value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
+	/* Get clip table index. For T6 there is separate CLIP TCAM */
+	if (is_t6(padap->params.chip))
+		value = t4_read_reg(padap, LE_DB_CLCAM_TID_BASE_A);
+	else
+		value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
 	tcam_region->clip_start = value;
 
 	/* Get filter table index */
@@ -2392,8 +2395,16 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 					       tcam_region->tid_hash_base;
 		}
 	} else { /* hash not enabled */
-		tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
+		if (is_t6(padap->params.chip))
+			tcam_region->max_tid = (value & ASLIPCOMPEN_F) ?
+					       CUDBG_MAX_TID_COMP_EN :
+					       CUDBG_MAX_TID_COMP_DIS;
+		else
+			tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
 	}
+
+	if (is_t6(padap->params.chip))
+		tcam_region->max_tid += CUDBG_T6_CLIP;
 }
 
 int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
@@ -2423,18 +2434,31 @@ int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
 	for (i = 0; i < tcam_region.max_tid; ) {
 		rc = cudbg_read_tid(pdbg_init, i, tid_data);
 		if (rc) {
-			cudbg_err->sys_err = rc;
-			cudbg_put_buff(pdbg_init, &temp_buff);
-			return rc;
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			/* Update tcam header and exit */
+			tcam_region.max_tid = i;
+			memcpy(temp_buff.data, &tcam_region,
+			       sizeof(struct cudbg_tcam));
+			goto out;
 		}
 
-		/* ipv6 takes two tids */
-		cudbg_is_ipv6_entry(tid_data, tcam_region) ? i += 2 : i++;
+		if (cudbg_is_ipv6_entry(tid_data, tcam_region)) {
+			/* T6 CLIP TCAM: ipv6 takes 4 entries */
+			if (is_t6(padap->params.chip) &&
+			    i >= tcam_region.clip_start &&
+			    i < tcam_region.clip_start + CUDBG_T6_CLIP)
+				i += 4;
+			else /* Main TCAM: ipv6 takes two tids */
+				i += 2;
+		} else {
+			i++;
+		}
 
 		tid_data++;
 		bytes += sizeof(struct cudbg_tid_data);
 	}
 
+out:
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

@@ -235,6 +235,9 @@ struct cudbg_vpd_data {
 };
 
 #define CUDBG_MAX_TCAM_TID 0x800
+#define CUDBG_T6_CLIP 1536
+#define CUDBG_MAX_TID_COMP_EN 6144
+#define CUDBG_MAX_TID_COMP_DIS 3072
 
 enum cudbg_le_entry_types {
 	LE_ET_UNKNOWN = 0,
