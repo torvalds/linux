@@ -8,6 +8,8 @@
 #define _LINUX_STM32_GPTIMER_H_
 
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/regmap.h>
 
 #define TIM_CR1		0x00	/* Control Register 1      */
@@ -27,6 +29,8 @@
 #define TIM_CCR3	0x3C	/* Capt/Comp Register 3    */
 #define TIM_CCR4	0x40	/* Capt/Comp Register 4    */
 #define TIM_BDTR	0x44	/* Break and Dead-Time Reg */
+#define TIM_DCR		0x48	/* DMA control register    */
+#define TIM_DMAR	0x4C	/* DMA register for transfer */
 
 #define TIM_CR1_CEN	BIT(0)	/* Counter Enable	   */
 #define TIM_CR1_DIR	BIT(4)  /* Counter Direction	   */
@@ -36,6 +40,13 @@
 #define TIM_SMCR_SMS	(BIT(0) | BIT(1) | BIT(2)) /* Slave mode selection */
 #define TIM_SMCR_TS	(BIT(4) | BIT(5) | BIT(6)) /* Trigger selection */
 #define TIM_DIER_UIE	BIT(0)	/* Update interrupt	   */
+#define TIM_DIER_UDE	BIT(8)  /* Update DMA request Enable */
+#define TIM_DIER_CC1DE	BIT(9)  /* CC1 DMA request Enable  */
+#define TIM_DIER_CC2DE	BIT(10) /* CC2 DMA request Enable  */
+#define TIM_DIER_CC3DE	BIT(11) /* CC3 DMA request Enable  */
+#define TIM_DIER_CC4DE	BIT(12) /* CC4 DMA request Enable  */
+#define TIM_DIER_COMDE	BIT(13) /* COM DMA request Enable  */
+#define TIM_DIER_TDE	BIT(14) /* Trigger DMA request Enable */
 #define TIM_SR_UIF	BIT(0)	/* Update interrupt flag   */
 #define TIM_EGR_UG	BIT(0)	/* Update Generation       */
 #define TIM_CCMR_PE	BIT(3)	/* Channel Preload Enable  */
@@ -56,6 +67,8 @@
 #define TIM_BDTR_BK2F	(BIT(20) | BIT(21) | BIT(22) | BIT(23))
 #define TIM_BDTR_BK2E	BIT(24) /* Break 2 input enable	   */
 #define TIM_BDTR_BK2P	BIT(25) /* Break 2 input polarity  */
+#define TIM_DCR_DBA	GENMASK(4, 0)	/* DMA base addr */
+#define TIM_DCR_DBL	GENMASK(12, 8)	/* DMA burst len */
 
 #define MAX_TIM_PSC		0xFFFF
 #define TIM_CR2_MMS_SHIFT	4
@@ -65,9 +78,42 @@
 #define TIM_BDTR_BKF_SHIFT	16
 #define TIM_BDTR_BK2F_SHIFT	20
 
+enum stm32_timers_dmas {
+	STM32_TIMERS_DMA_CH1,
+	STM32_TIMERS_DMA_CH2,
+	STM32_TIMERS_DMA_CH3,
+	STM32_TIMERS_DMA_CH4,
+	STM32_TIMERS_DMA_UP,
+	STM32_TIMERS_DMA_TRIG,
+	STM32_TIMERS_DMA_COM,
+	STM32_TIMERS_MAX_DMAS,
+};
+
+/**
+ * struct stm32_timers_dma - STM32 timer DMA handling.
+ * @completion:		end of DMA transfer completion
+ * @phys_base:		control registers physical base address
+ * @lock:		protect DMA access
+ * @chan:		DMA channel in use
+ * @chans:		DMA channels available for this timer instance
+ */
+struct stm32_timers_dma {
+	struct completion completion;
+	phys_addr_t phys_base;
+	struct mutex lock;
+	struct dma_chan *chan;
+	struct dma_chan *chans[STM32_TIMERS_MAX_DMAS];
+};
+
 struct stm32_timers {
 	struct clk *clk;
 	struct regmap *regmap;
 	u32 max_arr;
+	struct stm32_timers_dma dma; /* Only to be used by the parent */
 };
+
+int stm32_timers_dma_burst_read(struct device *dev, u32 *buf,
+				enum stm32_timers_dmas id, u32 reg,
+				unsigned int num_reg, unsigned int bursts,
+				unsigned long tmo_ms);
 #endif
