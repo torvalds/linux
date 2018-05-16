@@ -91,6 +91,7 @@ struct tegra_drm_client {
 	struct host1x_client base;
 	struct list_head list;
 
+	unsigned int version;
 	const struct tegra_drm_client_ops *ops;
 };
 
