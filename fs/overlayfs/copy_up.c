@@ -486,7 +486,7 @@ static int ovl_get_tmpfile(struct ovl_copy_up_ctx *c, struct dentry **tempp)
 	struct dentry *temp;
 	const struct cred *old_creds = NULL;
 	struct cred *new_creds = NULL;
-	struct cattr cattr = {
+	struct ovl_cattr cattr = {
 		/* Can't properly set mode on creation because of the umask */
 		.mode = c->stat.mode & S_IFMT,
 		.rdev = c->stat.rdev,
@@ -509,8 +509,7 @@ static int ovl_get_tmpfile(struct ovl_copy_up_ctx *c, struct dentry **tempp)
 		if (IS_ERR(temp))
 			goto temp_err;
 
-		err = ovl_create_real(d_inode(c->workdir), temp, &cattr,
-				      NULL);
+		err = ovl_create_real(d_inode(c->workdir), temp, &cattr);
 		if (err) {
 			dput(temp);
 			goto out;
