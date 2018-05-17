@@ -145,6 +145,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
 	select SND_SOC_SPDIF
+	select SND_SOC_SSM2305
 	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602_SPI if SPI_MASTER
 	select SND_SOC_SSM2602_I2C if I2C
@@ -895,6 +896,12 @@ config SND_SOC_SIRF_AUDIO_CODEC
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
+
+config SND_SOC_SSM2305
+	tristate "Analog Devices SSM2305 Class-D Amplifier"
+	help
+	  Enable support for Analog Devices SSM2305 filterless
+	  high-efficiency mono Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
 	tristate
