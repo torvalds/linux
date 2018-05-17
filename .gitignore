@@ -141,3 +141,6 @@ x509.genkey
 
 # Kdevelop4
 *.kdev4
+
+# dev.mk
+/out/

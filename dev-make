@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec make -f dev.mk "$@"
