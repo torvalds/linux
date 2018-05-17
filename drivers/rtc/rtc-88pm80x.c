@@ -132,12 +132,7 @@ static int pm80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct pm80x_rtc_info *info = dev_get_drvdata(dev);
 	unsigned char buf[4];
 	unsigned long ticks, base, data;
-	if (tm->tm_year > 206) {
-		dev_dbg(info->dev,
-			"Set time %d out of range. Please set time between 1970 to 2106.\n",
-			1900 + tm->tm_year);
-		return -EINVAL;
-	}
+
 	rtc_tm_to_time(tm, &ticks);
 
 	/* load 32-bit read-only counter */
@@ -303,6 +298,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	}
 
 	info->rtc_dev->ops = &pm80x_rtc_ops;
+	info->rtc_dev->range_max = U32_MAX;
 
 	ret = rtc_register_device(info->rtc_dev);
 	if (ret) {
