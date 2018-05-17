@@ -369,11 +369,6 @@ static unsigned long rcuperf_seq_diff(unsigned long new, unsigned long old)
 	return cur_ops->gp_diff(new, old);
 }
 
-static bool __maybe_unused torturing_tasks(void)
-{
-	return cur_ops == &tasks_ops;
-}
-
 /*
  * If performance tests complete, wait for shutdown to commence.
  */
