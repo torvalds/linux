@@ -426,6 +426,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, 1);
 
 	tps_rtc->rtc->ops = &tps65910_rtc_ops;
+	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	ret = rtc_register_device(tps_rtc->rtc);
 	if (ret) {
