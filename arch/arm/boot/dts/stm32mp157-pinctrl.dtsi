@@ -294,7 +294,6 @@
 			pins-are-numbered;
 			interrupt-parent = <&exti>;
 			st,syscfg = <&exti 0x60 0xff>;
-			status = "disabled";
 
 			gpioz: gpio@54004000 {
 				gpio-controller;
@@ -316,6 +315,21 @@
 					bias-disable;
 					drive-open-drain;
 					slew-rate = <0>;
+				};
+			};
+
+			spi1_pins_a: spi1-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('Z', 0, AF5)>, /* SPI1_SCK */
+						 <STM32_PINMUX('Z', 2, AF5)>; /* SPI1_MOSI */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <1>;
+				};
+
+				pins2 {
+					pinmux = <STM32_PINMUX('Z', 1, AF5)>; /* SPI1_MISO */
+					bias-disable;
 				};
 			};
 		};
