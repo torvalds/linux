@@ -2968,9 +2968,11 @@ static void mmc_blk_remove(struct mmc_card *card)
 	mmc_blk_remove_debugfs(card, md);
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
-	mmc_claim_host(card->host);
-	mmc_blk_part_switch(card, md->part_type);
-	mmc_release_host(card->host);
+	if (md->part_curr != md->part_type) {
+		mmc_claim_host(card->host);
+		mmc_blk_part_switch(card, md->part_type);
+		mmc_release_host(card->host);
+	}
 	if (card->type != MMC_TYPE_SD_COMBO)
 		pm_runtime_disable(&card->dev);
 	pm_runtime_put_noidle(&card->dev);
